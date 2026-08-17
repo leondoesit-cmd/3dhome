@@ -13,6 +13,27 @@ const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
 const presets = await readFile(new URL("../js/cabinet_presets.js", import.meta.url), "utf8");
 const engine = await readFile(new URL("../js/cabinet.js", import.meta.url), "utf8");
 
+test("cabinet modules export the symbols chrome imports, not comment-trapped ones", async () => {
+  const { formatCm, row, AXES } = await import("../js/ui_cabinet_ctx.js");
+  assert.equal(typeof formatCm, "function");
+  assert.equal(formatCm(12.34), "12.3");
+  assert.equal(typeof row, "function");
+  assert.ok(AXES.front);
+
+  const inspectLive = inspect.replace(/\/\*[\s\S]*?\*\//g, "");
+  const ctxLive = ctx.replace(/\/\*[\s\S]*?\*\//g, "");
+  const viewLive = view.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const name of ["fillHits", "applySearch", "fillFamilies", "fillPresets", "startBlank", "fillInspector", "splitSection", "delSection", "splitColumn", "dupColumn", "delColumn", "fillLook", "fillTechnical", "fillChecks", "saveUserPreset", "fillMine", "fillHardware", "fillBOM", "exportBOM", "refillColumn"]) {
+    assert.match(inspectLive, new RegExp("export function " + name + "\\("));
+  }
+  for (const name of ["formatCm", "row", "numInput", "select", "checkbox"]) {
+    assert.match(ctxLive, new RegExp("export function " + name + "\\("));
+  }
+  for (const name of ["sizeCanvas", "setMode", "setAxis", "syncHint", "syncViewPreferences", "draw", "wireCanvas", "setTool", "exportPNG", "initPreview", "updatePreview", "renderPreview"]) {
+    assert.match(viewLive, new RegExp("export function " + name + "\\("));
+  }
+});
+
 test("overall size edits go through the parametric cabinet dimension request", () => {
   assert.match(chrome, /import \{\s*CAB_LIMITS, syncCabinetDefinition, requestCabinetDimension, applyCabinetDimension,/);
   assert.match(chrome, /function applyOverallSize\(dimension, input\)/);
