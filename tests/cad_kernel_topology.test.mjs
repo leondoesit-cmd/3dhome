@@ -20,6 +20,8 @@ import {
   transformBrep,
 } from "../js/cad_kernel.js";
 import { addFeature, regenerateFeatures, releaseRegeneration } from "../js/cad_feature_tree.js";
+import { createFeatureDefinition, createPartDocument, createSketchDefinition } from "../js/core/parametric_document.js";
+import { compileKernelFeatureTree } from "../js/core/kernel_feature_adapter.js";
 import { createTopologyReference, topologyForFeature } from "../js/core/topology.js";
 import { createImportedDefinition, detectStepLengthUnit, normalizeImportedGeometry } from "../js/core/import_normalization.js";
 import { encodeBinaryPayload } from "../js/core/binary_payload.js";
@@ -359,5 +361,50 @@ test("an exact face-supported extrusion follows an upstream dimension change", a
   } finally {
     releaseRegeneration(first);
     releaseRegeneration(second);
+  }
+});
+
+test("exact kernel regenerates a hole wizard as a through subtract", async () => {
+  const document = createPartDocument({ id: "part:exact-hole" });
+  const baseSketch = createSketchDefinition(document, {
+    id: "sketch:base", name: "Base", referenceId: "plane:top",
+    points: [
+      { id: "p0", x: 0, y: 0, fixed: true }, { id: "p1", x: 40, y: 0, fixed: true },
+      { id: "p2", x: 40, y: 20, fixed: true }, { id: "p3", x: 0, y: 20, fixed: true },
+    ],
+    entities: [
+      { id: "e0", type: "line", a: "p0", b: "p1" }, { id: "e1", type: "line", a: "p1", b: "p2" },
+      { id: "e2", type: "line", a: "p2", b: "p3" }, { id: "e3", type: "line", a: "p3", b: "p0" },
+    ],
+  });
+  const base = createFeatureDefinition(document, "extrude", {
+    id: "feature:block",
+    references: { sketches: [baseSketch.id], features: [], topology: [], references: [] },
+    params: { depth: 20, profileEntityIds: ["e0", "e1", "e2", "e3"] },
+  });
+  const holeSketch = createSketchDefinition(document, {
+    id: "sketch:bore", name: "Bore", referenceId: "plane:top",
+    points: [{ id: "hc", x: 20, y: 10, fixed: true }],
+    entities: [{ id: "circle", type: "circle", c: "hc", r: 3, fixed: true }],
+  });
+  createFeatureDefinition(document, "hole", {
+    id: "feature:bore",
+    inputs: [base.id],
+    references: { sketches: [holeSketch.id], features: [base.id], topology: [], references: [] },
+    params: { diameter: 6, depth: 20, endCondition: "through-all", profileEntityIds: ["circle"] },
+  });
+  const compiled = compileKernelFeatureTree(document);
+  assert.equal(compiled.ok, true, JSON.stringify(compiled.issues));
+  const exact = { sketches: compiled.document.sketches, features: [] };
+  compiled.features.forEach((feature) => addFeature(exact, feature));
+  const run = await regenerateFeatures(exact);
+  try {
+    assert.equal(run.ok, true, JSON.stringify(run.issues));
+    assert.ok(run.results.get("feature:bore:tool")?.shape, "hole tool extrusion is missing");
+    assert.ok(run.finalShape && run.finalShape.shape);
+    const faces = (run.finalShape.topology || []).filter((entry) => entry.kind === "face");
+    assert.ok(faces.length > 6, "through hole should add inner faces, got " + faces.length);
+  } finally {
+    releaseRegeneration(run);
   }
 });
