@@ -233,6 +233,25 @@ export const FEATURE_CATALOG = Object.freeze({
       { key: "tolerance", label: "Tolerance", type: "number", unit: "length", min: 1e-6, step: 0.001 },
     ]}]},
   },
+  hole: {
+    label: "Hole wizard",
+    icon: "ph-circle-dashed",
+    selection: { sketches: { max: 1 }, topology: { kinds: ["face"], max: 1 }, features: { min: 1, max: 1 } },
+    defaults: { diameter: 1, depth: 10, endCondition: "blind", countersink: false, countersinkDiameter: 1.6, direction: "forward" },
+    parameters: { diameter: LENGTH, depth: LENGTH, endCondition: ENUM("blind", "through-all"), countersink: BOOLEAN, countersinkDiameter: LENGTH, direction: ENUM("forward", "reverse") },
+    editor: { groups: [
+      { id: "hole", label: "Simple hole", icon: "ph-circle-dashed", fields: [
+        { key: "diameter", label: "Diameter", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+        { key: "endCondition", label: "End condition", type: "select", choices: [{value:"blind",label:"Blind"},{value:"through-all",label:"Through all"}] },
+        { key: "depth", label: "Depth", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+        { key: "direction", label: "Direction", type: "select", choices: DIRECTIONS },
+      ]},
+      { id: "countersink", label: "Countersink", icon: "ph-funnel", fields: [
+        { key: "countersink", label: "Countersink", type: "boolean" },
+        { key: "countersinkDiameter", label: "Countersink diameter", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+      ]},
+    ]},
+  },
 });
 
 export const PARAMETRIC_FEATURE_TYPES = Object.freeze(Object.keys(FEATURE_CATALOG));

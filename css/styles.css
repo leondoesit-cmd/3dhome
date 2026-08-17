@@ -3101,7 +3101,6 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler.md-assembly #mdCanvas,
 #modeler.md-assembly .md-views,
 #modeler.md-assembly .md-hint,
-#modeler.md-assembly .md-status,
 #modeler.md-assembly #mdModes { display: none !important; }
 #modeler.md-assembly .md-mid { background: #141922; }
 #modeler.md-assembly .md-3dhost { display: block; }

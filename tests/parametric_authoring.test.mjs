@@ -99,6 +99,34 @@ test("kernel compilation lowers a cut into an explicit tool and boolean", () => 
   assert.ok(compiled.features.some((feature) => feature.id === "feature:hole" && feature.type === "subtract"));
 });
 
+test("kernel compilation lowers a hole wizard feature into a subtract tool", () => {
+  const document = createPartDocument({ id: "part:wizard" });
+  const baseSketch = constrainedRectangle(document);
+  const base = createFeatureDefinition(document, "extrude", {
+    id: "feature:block",
+    references: { sketches: [baseSketch.id], features: [], topology: [], references: [] },
+    params: { depth: 20, profileEntityIds: ["e0", "e1", "e2", "e3"] },
+  });
+  const holeSketch = createSketchDefinition(document, {
+    id: "sketch:bore", name: "Bore", referenceId: "plane:top",
+    points: [{ id: "hc", x: 20, y: 10, fixed: true }],
+    entities: [{ id: "circle", type: "circle", c: "hc", r: 2, fixed: true }],
+  });
+  createFeatureDefinition(document, "hole", {
+    id: "feature:bore",
+    inputs: [base.id],
+    references: { sketches: [holeSketch.id], features: [base.id], topology: [], references: [] },
+    params: { diameter: 4, depth: 20, endCondition: "through-all", profileEntityIds: ["circle"] },
+  });
+  const compiled = compileKernelFeatureTree(document);
+  assert.equal(compiled.ok, true);
+  const tool = compiled.features.find((feature) => feature.id === "feature:bore:tool");
+  assert.equal(tool && tool.type, "extrude");
+  assert.equal(tool.params.diameter, 4);
+  assert.equal(tool.params.endCondition, "through-all");
+  assert.ok(compiled.features.some((feature) => feature.id === "feature:bore" && feature.type === "subtract"));
+});
+
 test("rebuild is deterministic and publishes sketch/feature diagnostics", () => {
   const document = createPartDocument({ id: "part:deterministic" });
   const sketch = constrainedRectangle(document);
@@ -136,7 +164,7 @@ test("rebuild publishes an under-defined sketch state from the solver's DOF", ()
 });
 
 test("every canonical feature exposes grouped professional parameters", () => {
-  const minimumFields = { extrude:9, extrudeCut:8, revolve:6, sweep:6, loft:8, fillet:4, chamfer:5, shell:5, pattern:8, mirror:3, boolean:3 };
+    const minimumFields = { extrude:9, extrudeCut:8, revolve:6, sweep:6, loft:8, fillet:4, chamfer:5, shell:5, pattern:8, mirror:3, boolean:3, hole:6 };
   for (const [type, minimum] of Object.entries(minimumFields)) {
     const groups = featureEditorGroups(type);
     assert.ok(groups.length, type + " needs at least one parameter group");

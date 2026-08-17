@@ -66,7 +66,7 @@ import {
 } from "./core/parametric_document.js";
 import { compileKernelFeatureTree } from "./core/kernel_feature_adapter.js";
 import { publishRebuildStatus, rebuildParametricDocument } from "./core/parametric_rebuild.js";
-import { featureDefaults, featureEditorGroups, featureSpec } from "./core/feature_catalog.js";
+import { featureDefaults, featureSpec } from "./core/feature_catalog.js";
 import { inferAuthoringMode } from "./core/authoring_mode.js";
 import { createImportedDefinition, detectStepLengthUnit, stepUnitCorrection } from "./core/import_normalization.js";
 import { encodeBinaryPayload } from "./core/binary_payload.js";
@@ -76,12 +76,20 @@ import { loadModelLibrary, saveModelLibrary } from "./core/model_library_store.j
 import { rebuildDefinition } from "./core/rebuild.js";
 import { applyTopologyRebindings, createTopologyReference, topologyForFeature } from "./core/topology.js";
 import { frameDirection, frameFromPlane, framePoint, frameProjectPoint, realignFrame } from "./core/frame.js";
-import { circularPatternPivot, circularPatternStepDegrees, linearPatternAxisDefinitions, linearPatternDirection, linearPatternOffsets, parseSkippedPatternInstances, patternAxisEnabled, rotatedPatternBounds } from "./core/pattern_geometry.js";
+import { circularPatternPivot, circularPatternStepDegrees, linearPatternOffsets, parseSkippedPatternInstances, rotatedPatternBounds } from "./core/pattern_geometry.js";
 import { finalizeCabinetAdvancedDefinition, syncCabinetDefinition } from "./parametric_cabinet.js";
 import { assignCabinetManufacturing, CABINET_MANUFACTURING_ROLES } from "./core/cabinet_advanced.js";
 import { layoutCab } from "./cabinet.js";
 import { createSurfaceSketch, supportsSurfaceUV } from "./core/surface_uv.js";
 import { clearMeshProjectionCache, projectMeshEdges } from "./core/mesh_projection.js";
+import {
+  FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
+  buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
+} from "./modeler_commands.js";
+import { clearModelerDraft, readModelerDraft, writeModelerDraft } from "./modeler_draft.js";
+import {
+  featureField as featureFieldCore, readFeatureParameterForm, renderFeatureParameterForm as renderFeatureParameterFormCore,
+} from "./modeler_feature_form.js";
 
 var LS_MODELS = "home3d_models";
 var LS_ASSEMBLIES = "home3d_assemblies";
@@ -422,6 +430,90 @@ var TXT = {
   rebuildFail: ["שגיאות בנייה", "Rebuild errors"],
   rebuildWarn: ["אזהרות בנייה", "Rebuild warnings"],
   closeTip: ["סגור את העורך", "Close the editor"],
+  createSketch: ["סקיצה חדשה", "Create sketch"],
+  extrudeCut: ["חיתוך באקסטרוד", "Extrude cut"],
+  opSweep: ["Sweep", "Sweep"],
+  opBoolean: ["בוליאני", "Boolean"],
+  holeWizard: ["אשף קדחים", "Hole wizard"],
+  holeNeed: ["בחרו פאה או שרטטו עיגול לקדח", "Select a face or sketch a circle for the hole"],
+  refPlane: ["מישור ייחוס", "Reference plane"],
+  refAxis: ["ציר ייחוס", "Reference axis"],
+  refCoord: ["מערכת צירים", "Coordinate system"],
+  grpStart: ["התחלה", "Start"],
+  grpFinish: ["גימור", "Finish"],
+  grpReferences: ["ייחוסים", "References"],
+  grpStandards: ["תקנים", "Standards"],
+  grpDirect: ["מידול ישיר", "Direct"],
+  grpEvaluate: ["בדיקה", "Evaluate"],
+  massProps: ["תכונות מסה", "Mass properties"],
+  standardsAudit: ["ביקורת DIN / ISO", "DIN / ISO audit"],
+  projectBundle: ["חבילת פרויקט", "Project bundle"],
+  importBundle: ["ייבוא חבילה", "Import bundle"],
+  exportIges: ["ייצוא IGES", "Export IGES"],
+  explodeView: ["מבט מפוצץ", "Exploded view"],
+  motionStudy: ["חקר תנועה", "Motion study"],
+  interferenceCheck: ["התנגשות", "Interference"],
+  billOfMaterials: ["עץ מוצר", "Bill of materials"],
+  wfPart: ["חלק", "Part"],
+  wfReference: ["ייחוס", "Reference"],
+  wfSketch: ["סקיצה", "Sketch"],
+  wfFeature: ["תכונה", "Feature"],
+  wfHistory: ["היסטוריה", "History"],
+  wfChoosePlane: ["בחרו מישור או פאה", "Choose a plane or face"],
+  wfCreateProfile: ["צרו פרופיל מאופק", "Create a constrained profile"],
+  wfFullyDefined: ["מוגדר במלואו", "Fully defined"],
+  wfPartialDefined: ["מוגדר חלקית", "Partially defined"],
+  wfUnderDefined: ["חסר הגדרה", "Under-defined"],
+  wfTurnIntent: ["הפכו כוונה לגיאומטריה", "Turn intent into geometry"],
+  wfEditableSteps: ["שלבים לעריכה", "editable steps"],
+  wfNone: ["אין", "none"],
+  wfEmpty: ["ריק", "empty"],
+  selectedFace: ["פאה נבחרת", "Selected face"],
+  needPlanarFace: ["בחרו פאה מישורית למישור ייחוס", "Select a planar face for a reference plane"],
+  featureFormHint: ["השלמת הגדרת התכונה · תצוגה מקדימה חיה לפני אישור", "Complete feature definition · live preview before commit"],
+  livePreviewReady: ["תצוגה מקדימה חיה מוכנה", "Live preview ready"],
+  unsupportedFeature: ["תכונה לא נתמכת", "Unsupported feature"],
+  chooseReferenceFirst: ["בחרו ייחוס יציב לפני כניסה לסקיצה", "Choose a stable reference before entering sketch mode"],
+  resolveConflictsFirst: ["פתרו אילוצים סותרים לפני סיום הסקיצה", "Resolve conflicting constraints before finishing the sketch"],
+  sketchSavedDof: ["הסקיצה נשמרה", "Sketch saved"],
+  sketchFullySaved: ["סקיצה מוגדרת במלואה נשמרה", "Fully defined sketch saved"],
+  newSketchKicker: ["סקיצה חדשה", "NEW SKETCH"],
+  referencePickerTitle: ["בחרו ייחוס יציב", "Choose a stable reference"],
+  referencePickerBody: ["סקיצה חייבת להיות מחוברת למישור או לפאה מישורית. הייחוס נשאר בהיסטוריה ונפתר בכל בנייה מחדש.", "A sketch must be attached to a plane or planar face. This reference remains in design history and is resolved on every rebuild."],
+  unsavedDraft: ["נמצאה טיוטה שלא נשמרה. לשחזר אותה?", "An unsaved draft was found. Restore it?"],
+  draftSaved: ["טיוטה נשמרה", "Draft saved"],
+  cmdManager: ["מנהל פקודות", "Command manager"],
+  sourceUnits: ["יחידות מקור", "Source units"],
+  stepAuto: ["אוטומטי", "Auto"],
+  addRefGeom: ["הוספת גאומטריית ייחוס", "Add reference geometry"],
+  extrudeCutNeed: ["חיתוך באקסטרוד דורש גוף יעד", "Extrude Cut requires a target feature"],
+  booleanNeedTwo: ["בחרו שני צמתים בעץ ההיסטוריה לפעולה בוליאנית", "Select two feature history nodes for a Boolean"],
+  sweepNeed: ["Sweep דורש פרופיל סגור ונתיב משרטט", "Sweep needs a closed profile and a sketched path"],
+  loftNeed: ["כל סקיצת loft חייבת להכיל פרופיל סגור", "Every loft sketch must contain a closed profile"],
+  sketchesSelected: ["סקיצות נבחרו", "sketch(es) selected"],
+  featuresSelected: ["תכונות", "feature(s)"],
+  topologyRefs: ["ייחוסי טופולוגיה", "topology reference(s)"],
+  selectSolidFirst: ["בחרו גוף מוצק בחלון התצוגה תחילה", "Select a solid body in the viewport first"],
+  selectFaceRemove: ["בחרו פאה להסרה", "Select a face to remove"],
+  selectEdges: ["בחרו קצה אחד או יותר", "Select one or more edges"],
+  addWithCtrl: ["בחלון התצוגה · Ctrl/Cmd מוסיף עוד", "in the viewport · Ctrl/Cmd-click adds more"],
+  livePreviewDrag: ["גררו את הערך למטה לתצוגה מקדימה חיה", "drag the value below for a live preview"],
+  liveExactCalc: ["תצוגה מקדימה חיה · מחשב גיאומטריה מדויקת", "Live · calculating exact"],
+  liveExactReady: ["תצוגה מקדימה מדויקת מתעדכנת בזמן עריכה", "Live · exact preview updates as you edit"],
+  previewUnavailable: ["תצוגה מקדימה אינה זמינה · התאימו ערך או בחירה", "Preview unavailable · adjust the value or selection"],
+  liveViewsSynced: ["תצוגה מקדימה חיה · סקיצה, תלת־ממד, אורתוגרפי ושרטוט מסונכרנים", "Live · sketch, 3D, orthographic and drawing views synced"],
+  dragForLive: ["גררו לתצוגה מקדימה חיה", "Drag for live preview"],
+  featureNeedsSketches: ["דורש סקיצות נבחרות בהיסטוריה", "requires sketches selected in history"],
+  createFeature: ["יצירת", "Create"],
+  createBoolean: ["יצירת פעולה בוליאנית", "Create Boolean"],
+  liveLabel: ["חי", "Live"],
+  wfDof: ["דרגות חופש", "DOF"],
+  facePrefix: ["פאה", "Face"],
+  assemblyComponents: ["רכיבים", "components"],
+  assemblySelected: ["נבחרו", "selected"],
+  reconstruction: ["שחזור", "reconstruction"],
+  displayStyle: ["סגנון תצוגה", "Model display style"],
+  matesCount: ["אילוצי הרכבה", "mates"],
   evaluateModel: ["בדיקת ובניית המודל", "Evaluate and rebuild model"],
   profileReady: ["פרופיל סגור ומוכן", "Closed profile ready"],
   profileMultiple: ["נמצאו כמה פרופילים סגורים", "Multiple closed profiles found"],
@@ -1628,6 +1720,8 @@ var E = {
   cv: null, cx: null,
   pv: null,           // preview {renderer,scene,camera,group,az,el,dist}
   commandTab: "features",
+  commandHighlight: 0,
+  commandSearchRestore: null,
   kernelBusy: false,  // an exact-kernel regeneration is in flight
   treeQuery: "",
   tour: { active: false, track: null, mode: null, step: 0, completed: {}, baseline: null, target: null, autoOrigin: null, position: null, drag: null, moved: false, keepResult: false },
@@ -2254,11 +2348,60 @@ function docPick(id) {
   refreshAll();
   if (histPanel) histPanel.refreshNow();
 }
-function pushUndo(label, tag) { H.push(label, tag); }
-function doUndo() { H.undo(); }
-function doRedo() { H.redo(); }
+function pushUndo(label, tag) { H.push(label, tag); scheduleModelerDraft(); }
+function doUndo() { H.undo(); scheduleModelerDraft(); }
+function doRedo() { H.redo(); scheduleModelerDraft(); }
 var histPanel = null;
 var savedHistoryId = null;
+var draftSaveTimer = 0;
+
+function modelerDraftStorage() {
+  try { return typeof localStorage === "undefined" ? null : localStorage; }
+  catch (error) { return null; }
+}
+
+function scheduleModelerDraft() {
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(flushModelerDraft, 1500);
+}
+
+function flushModelerDraft() {
+  draftSaveTimer = 0;
+  if (!E.open || !E.def) return;
+  writeModelerDraft(modelerDraftStorage(), { docType: E.docType, def: E.def, assembly: E.assembly });
+}
+
+function discardModelerDraft() {
+  if (draftSaveTimer) { clearTimeout(draftSaveTimer); draftSaveTimer = 0; }
+  clearModelerDraft(modelerDraftStorage());
+}
+
+function tryRestoreModelerDraft() {
+  var draft = readModelerDraft(modelerDraftStorage());
+  if (!draft) return false;
+  if (typeof confirm === "function" && !confirm(t("unsavedDraft"))) return false;
+  if (draft.docType === "assembly" && draft.assembly) {
+    E.assembly = draft.assembly;
+    if (draft.def) E.def = ensureParametricDocument(draft.def);
+    setDocumentType("assembly");
+  } else if (draft.def) {
+    E.def = ensureParametricDocument(draft.def);
+    E.docType = "part";
+    if (root) root.classList.remove("md-assembly");
+  } else return false;
+  ensureSketchDoc(E.def);
+  (E.def.parts || []).forEach(function (part) {
+    part.id = part.id || uid();
+    part.featureId = part.featureId || "feature:part:" + part.id;
+  });
+  H.clear().seed();
+  savedHistoryId = null;
+  syncDirty();
+  syncHead();
+  refreshAll();
+  fitPreview();
+  return true;
+}
 function syncUndoButtons() {
   if (!root) return;
   var u = root.querySelector("#mdUndo"), r = root.querySelector("#mdRedo");
@@ -2566,14 +2709,14 @@ function buildDOM() {
     /* One line, not five cards. The five phases still read left to right and
        still carry their live readout, but as a breadcrumb they cost 26px
        instead of 60 and stop competing with the ribbon for attention. */
-    '<nav class="md-workflow" id="mdWorkflow" aria-label="Parametric modeling workflow">' +
-      '<button type="button" data-workflow-step="context"><b>Part</b><small id="mdWorkflowContext">cm · origin</small></button>' +
-      '<button type="button" data-workflow-step="reference"><b>Reference</b><small id="mdWorkflowReference">none</small></button>' +
-      '<button type="button" data-workflow-step="sketch"><b>Sketch</b><small id="mdWorkflowSketch">empty</small></button>' +
-      '<button type="button" data-workflow-step="feature"><b>Feature</b><small id="mdWorkflowFeature">none</small></button>' +
-      '<button type="button" data-workflow-step="history"><b>History</b><small id="mdWorkflowHistory">0 steps</small></button>' +
+    '<nav class="md-workflow" id="mdWorkflow" aria-label="' + t("wfFeature") + '">' +
+      '<button type="button" data-workflow-step="context"><b>' + t("wfPart") + '</b><small id="mdWorkflowContext">cm · origin</small></button>' +
+      '<button type="button" data-workflow-step="reference"><b>' + t("wfReference") + '</b><small id="mdWorkflowReference">' + t("wfNone") + '</small></button>' +
+      '<button type="button" data-workflow-step="sketch"><b>' + t("wfSketch") + '</b><small id="mdWorkflowSketch">' + t("wfEmpty") + '</small></button>' +
+      '<button type="button" data-workflow-step="feature"><b>' + t("wfFeature") + '</b><small id="mdWorkflowFeature">' + t("wfNone") + '</small></button>' +
+      '<button type="button" data-workflow-step="history"><b>' + t("wfHistory") + '</b><small id="mdWorkflowHistory">0 ' + t("wfEditableSteps") + '</small></button>' +
     '</nav>' +
-    '<div class="md-commandmanager" aria-label="Command manager">' +
+    '<div class="md-commandmanager" aria-label="' + t("cmdManager") + '">' +
     '<div class="md-command-tabs" role="tablist">' +
     '<button type="button" class="on" data-cmdtab="features" role="tab">' + t("cmdFeatures") + '</button>' +
     '<button type="button" data-cmdtab="sketch" role="tab">' + t("cmdSketch") + '</button>' +
@@ -2583,30 +2726,38 @@ function buildDOM() {
     '</div>' +
     '<div class="md-command-panes">' +
     '<div class="md-command-pane on" data-command-pane="features">' +
-      commandGroup("Start", [
-        commandButton("newsketch", "ph-pencil-line", "Create sketch", null, "primary"),
+      commandGroup(t("grpStart"), [
+        commandButton("newsketch", "ph-pencil-line", t("createSketch"), null, "primary"),
         commandButton("extrude", "ph-cube", t("opExtrude"), null, "primary"),
-        commandButton("extrudecut", "ph-scissors", "Extrude cut", null),
+        commandButton("extrudecut", "ph-scissors", t("extrudeCut"), null),
         commandButton("revolvefeature", "ph-arrow-counter-clockwise", t("opRevolve"), "R"),
-        commandButton("sweepfeature", "ph-path", "Sweep"),
-        commandButton("loftfeature", "ph-stack", "Loft"),
+        commandButton("sweepfeature", "ph-path", t("opSweep")),
+        commandButton("loftfeature", "ph-stack", t("loftOp")),
+        commandButton("holefeature", "ph-circle-dashed", t("holeWizard")),
       ]) +
-      commandGroup("Finish", [
-        commandButton("filletfeature", "ph-corners-out", "Fillet"),
-        commandButton("chamferfeature", "ph-corners-in", "Chamfer"),
-        commandButton("shellfeature", "ph-bowl-food", "Shell"),
-        commandButton("patternfeature", "ph-dots-nine", "Pattern"),
-        commandButton("mirrorfeature", "ph-flip-horizontal", "Mirror"),
-        commandButton("booleanfeature", "ph-intersect", "Boolean"),
+      commandGroup(t("grpFinish"), [
+        commandButton("filletfeature", "ph-corners-out", t("quickFillet")),
+        commandButton("chamferfeature", "ph-corners-in", t("quickChamfer")),
+        commandButton("shellfeature", "ph-bowl-food", t("shellOp")),
+        commandButton("patternfeature", "ph-dots-nine", t("quickPattern")),
+        commandButton("mirrorfeature", "ph-flip-horizontal", t("quickMirror")),
+        commandButton("booleanfeature", "ph-intersect", t("opBoolean")),
       ]) +
-      commandGroup("References", [
-        commandButton("refplane", "ph-square-half", "Plane", null, "", "Reference plane"),
-        commandButton("refaxis", "ph-axis-arrow", "Axis", null, "", "Reference axis"),
-        commandButton("coordsys", "ph-crosshair", "Coord sys", null, "", "Coordinate system"),
+      commandGroup(t("grpDirect"), [
+        commandButton("directbox", "ph-cube", t("cap_srect"), "B", "", t("tool_rect")),
+        commandButton("directcyl", "ph-cylinder", t("cap_scirc"), "C", "", t("tool_circle")),
+        commandButton("directsph", "ph-sphere", t("tool_sph"), "S"),
+        commandButton("directpoly", "ph-polygon", t("tool_poly"), "P"),
+        commandButton("directrev", "ph-spiral", t("tool_rev")),
       ]) +
-      commandGroup("Standards", [
-        commandButton("stdscrew", "ph-screwdriver", "Screw", null, "", "ISO 4017 hex screw"),
-        commandButton("stdgear", "ph-gear-six", "Gear", null, "", "ISO involute gear"),
+      commandGroup(t("grpReferences"), [
+        commandButton("refplane", "ph-square-half", t("refPlane"), null, "", t("refPlane")),
+        commandButton("refaxis", "ph-axis-arrow", t("refAxis"), null, "", t("refAxis")),
+        commandButton("coordsys", "ph-crosshair", t("refCoord"), null, "", t("refCoord")),
+      ]) +
+      commandGroup(t("grpStandards"), [
+        commandButton("stdscrew", "ph-screwdriver", t("stdScrewCommand"), null, "", t("stdScrewCommand")),
+        commandButton("stdgear", "ph-gear-six", t("stdGearCommand"), null, "", t("stdGearCommand")),
       ]) +
     '</div>' +
     '<div class="md-command-pane" data-command-pane="sketch">' +
@@ -2634,21 +2785,21 @@ function buildDOM() {
     '</div>' +
     '<div class="md-command-pane" data-command-pane="evaluate">' +
       commandGroup(t("cmdEvaluate"), [
-        commandButton("regen", "ph-arrows-clockwise", "Regenerate", "Ctrl+B", "primary", t("regenerate")),
+        commandButton("regen", "ph-arrows-clockwise", t("regenerate"), "Ctrl+B", "primary", t("regenerate")),
         commandButton("fit", "ph-crosshair-simple", t("zoomFit"), "F"),
         commandButton("drawing", "ph-file-svg", t("drawingExport")),
-        commandButton("mass", "ph-scales", "Mass", null, "", "Mass properties"),
-        commandButton("standards", "ph-seal-check", "Audit", null, "", "DIN / ISO standards audit"),
-        commandButton("bundle", "ph-package", "Save bundle", null, "", "Export project bundle"),
-        commandButton("bundlein", "ph-package", "Open bundle", null, "", "Import project bundle"),
+        commandButton("mass", "ph-scales", t("massProps"), null, "", t("massProps")),
+        commandButton("standards", "ph-seal-check", t("standardsAudit"), null, "", t("standardsAudit")),
+        commandButton("bundle", "ph-package", t("projectBundle"), null, "", t("projectBundle")),
+        commandButton("bundlein", "ph-package", t("importBundle"), null, "", t("importBundle")),
       ]) +
       commandGroup("STEP", [
-        commandButton("stepin", "ph-upload-simple", "Import", null, "", t("stepImport")),
-        commandButton("stepout", "ph-file-step", "Export", null, "", t("stepExport")),
-        commandButton("igesout", "ph-file-arrow-down", "IGES", null, "", "Export IGES"),
+        commandButton("stepin", "ph-upload-simple", t("stepImport"), null, "", t("stepImport")),
+        commandButton("stepout", "ph-file-step", t("stepExport"), null, "", t("stepExport")),
+        commandButton("igesout", "ph-file-arrow-down", t("exportIges"), null, "", t("exportIges")),
         // the unit override belongs next to the import it modifies, not in the header
-        '<label class="md-command-field"><span>Source units</span>' +
-        '<select id="mdStepUnit" aria-label="STEP source units"><option value="auto">Auto</option>' +
+        '<label class="md-command-field"><span>' + t("sourceUnits") + '</span>' +
+        '<select id="mdStepUnit" aria-label="' + t("sourceUnits") + '"><option value="auto">' + t("stepAuto") + '</option>' +
         '<option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option>' +
         '<option value="in">inch</option><option value="ft">feet</option></select></label>',
       ]) +
@@ -2659,10 +2810,10 @@ function buildDOM() {
         commandButton("components", "ph-cube", t("components")),
         commandButton("mates", "ph-link", t("mate")),
         commandButton("partdoc", "ph-cube-focus", t("docPart")),
-        commandButton("explode", "ph-arrows-out", "Explode", null, "", "Exploded view"),
-        commandButton("motion", "ph-play-circle", "Motion", null, "", "Motion study"),
-        commandButton("interference", "ph-intersect", "Interference"),
-        commandButton("bom", "ph-table", "BOM", null, "", "Bill of materials"),
+        commandButton("explode", "ph-arrows-out", t("explodeView"), null, "", t("explodeView")),
+        commandButton("motion", "ph-play-circle", t("motionStudy"), null, "", t("motionStudy")),
+        commandButton("interference", "ph-intersect", t("interferenceCheck")),
+        commandButton("bom", "ph-table", t("billOfMaterials"), null, "", t("billOfMaterials")),
       ]) +
     '</div></div></div>' +
     '<div class="md-body">' +
@@ -2720,7 +2871,7 @@ function buildDOM() {
     '<button data-zoom="out" data-tip="' + t("zoomOut") + '"><i class="ph ph-minus"></i></button>' +
     '<button data-zoom="fit" data-tip="' + kt(t("zoomFit"), "F") + '"><i class="ph ph-crosshair-simple"></i></button>' +
     '</div>' +
-    '<div class="md-vgroup md-display" role="group" aria-label="Model display style">' +
+    '<div class="md-vgroup md-display" role="group" aria-label="' + t("displayStyle") + '">' +
     '<button type="button" data-display="solid" class="on" aria-pressed="true"><i class="ph ph-cube"></i><span>' + t("solidView") + '</span></button>' +
     '<button type="button" data-display="transparent" aria-pressed="false"><i class="ph ph-cube-focus"></i><span>' + t("transparentView") + '</span></button>' +
     '</div><button type="button" id="mdFinishPlane" class="md-finish-plane"><i class="ph ph-check"></i><span>' + t("exitPlane") + '</span></button></div>' +
@@ -2756,12 +2907,12 @@ function buildDOM() {
     "</div></div></div>" +
     '<div class="md-command-search" id="mdCommandSearch" hidden role="dialog" aria-modal="true" aria-label="' + t("cmdSearch") + '">' +
     '<div class="md-command-search-card"><div class="md-command-search-input"><i class="ph ph-magnifying-glass"></i>' +
-    '<input id="mdCommandSearchInput" type="search" autocomplete="off" placeholder="' + t("cmdSearchHint") + '"><kbd>Esc</kbd></div>' +
+    '<input id="mdCommandSearchInput" type="search" autocomplete="off" placeholder="' + t("cmdSearchHint") + '" aria-autocomplete="list" aria-controls="mdCommandResults" role="combobox" aria-expanded="true"><kbd>Esc</kbd></div>' +
     '<div id="mdCommandResults" class="md-command-results" role="listbox"></div></div></div>' +
     '<div class="md-reference-picker" id="mdReferencePicker" hidden>' +
       '<section role="dialog" aria-modal="true" aria-labelledby="mdReferenceTitle">' +
-        '<header><div><small>NEW SKETCH</small><h3 id="mdReferenceTitle">Choose a stable reference</h3></div><button type="button" data-reference-cancel aria-label="Cancel"><i class="ph ph-x"></i></button></header>' +
-        '<p>A sketch must be attached to a plane or planar face. This reference remains in design history and is resolved on every rebuild.</p>' +
+        '<header><div><small>' + t("newSketchKicker") + '</small><h3 id="mdReferenceTitle">' + t("referencePickerTitle") + '</h3></div><button type="button" data-reference-cancel aria-label="' + t("cancelCommand") + '"><i class="ph ph-x"></i></button></header>' +
+        '<p>' + t("referencePickerBody") + '</p>' +
         '<div class="md-reference-options" id="mdReferenceOptions"></div>' +
       '</section></div>' +
     '<div class="md-reference-picker md-report" id="mdReport" hidden>' +
@@ -3782,7 +3933,7 @@ function beginSketchWorkflow(preferredTool) {
     button.addEventListener("click",function(){chooseSketchReference(reference,E.authoring.preferredTool);});host.appendChild(button);
   });
   var face=(E.topologySelection || []).find(function(reference){return reference.kind==="face";});
-  if(face){var faceButton=el("button","md-reference-option selected",'<i class="ph ph-selection"></i><span><b>Selected face</b><small>'+(face.semantic || face.persistentId)+'</small></span>');faceButton.addEventListener("click",function(){chooseSketchReference(face,E.authoring.preferredTool);});host.prepend(faceButton);}
+  if(face){var faceButton=el("button","md-reference-option selected",'<i class="ph ph-selection"></i><span><b>'+t("selectedFace")+'</b><small>'+(face.semantic || face.persistentId)+'</small></span>');faceButton.addEventListener("click",function(){chooseSketchReference(face,E.authoring.preferredTool);});host.prepend(faceButton);}
   picker.hidden=false;syncAuthoringWorkflow();
 }
 
@@ -3790,17 +3941,17 @@ function finishSketchWorkflow() {
   if(E.docType!=="part")return;
   if(!E.authoring || E.authoring.phase!=="sketch"){
     beginSketchWorkflow();
-    flash("Choose a stable reference before entering sketch mode");
+    flash(t("chooseReferenceFirst"));
     return;
   }
   var sketch=ensureSketch(E.def),run=solveSketch(sketch);
   if(run.status==="conflicting"||run.status==="over-constrained"){
-    setTab("sketch");flash("Resolve conflicting constraints before finishing the sketch");return;
+    setTab("sketch");flash(t("resolveConflictsFirst"));return;
   }
   recordSketchInHistory(E.def,sketch);
   E.authoring.phase="model";E.authoring.sketchId=sketch.id;E.authoring.referenceId=sketch.referenceId;E.authoring.sketchSelection=[sketch.id];
   E.modelPlaneActive=false;setMode("3d");setCommandTab("features");setTab("parts");
-  flash(run.degreesOfFreedom ? "Sketch saved · "+run.degreesOfFreedom+" DOF remain" : "✓ Fully defined sketch saved");
+  flash(run.degreesOfFreedom ? t("sketchSavedDof") + " · " + run.degreesOfFreedom + " " + t("wfDof") : "✓ " + t("sketchFullySaved"));
   refreshAll();
 }
 
@@ -3811,10 +3962,10 @@ function syncAuthoringWorkflow() {
   root.querySelectorAll("[data-workflow-step]").forEach(function(button,index){button.classList.toggle("active",index===active);button.classList.toggle("complete",index<active);});
   var units=E.def.context && E.def.context.units || {length:"cm"};
   var context=root.querySelector("#mdWorkflowContext");if(context)context.textContent=units.length+" · "+(E.def.context && E.def.context.activeCoordinateSystemId || "origin");
-  var sketch=ensureSketch(E.def),hasRecordedSketch=(E.def.history || []).some(function(entry){return entry.kind==="sketch"&&entry.targetId===sketch.id;}),reference=root.querySelector("#mdWorkflowReference");if(reference)reference.textContent=hasRecordedSketch && sketch.referenceId ? sketchPlaneCaption() : "Choose a plane or face";
-  var sketchText=root.querySelector("#mdWorkflowSketch");if(sketchText){var info=E.solveInfo || solveSketch(sketch);sketchText.textContent=(sketch.entities || []).length ? (info.status==="fully-constrained"?"Fully defined":((sketch.constraints || []).length?"Partially defined · ":"Under-defined · ")+info.degreesOfFreedom+" DOF") : "Create a constrained profile";}
-  var feature=root.querySelector("#mdWorkflowFeature");if(feature)feature.textContent=E.authoring && E.authoring.featureType ? (featureSpec(E.authoring.featureType)?.label || E.authoring.featureType) : "Turn intent into geometry";
-  var history=root.querySelector("#mdWorkflowHistory");if(history)history.textContent=(E.def.history || []).length+" editable steps";
+  var sketch=ensureSketch(E.def),hasRecordedSketch=(E.def.history || []).some(function(entry){return entry.kind==="sketch"&&entry.targetId===sketch.id;}),reference=root.querySelector("#mdWorkflowReference");if(reference)reference.textContent=hasRecordedSketch && sketch.referenceId ? sketchPlaneCaption() : t("wfChoosePlane");
+  var sketchText=root.querySelector("#mdWorkflowSketch");if(sketchText){var info=E.solveInfo || solveSketch(sketch);sketchText.textContent=(sketch.entities || []).length ? (info.status==="fully-constrained"?t("wfFullyDefined"):((sketch.constraints || []).length?t("wfPartialDefined")+" · ":t("wfUnderDefined")+" · ")+info.degreesOfFreedom+" "+t("wfDof")) : t("wfCreateProfile");}
+  var feature=root.querySelector("#mdWorkflowFeature");if(feature)feature.textContent=E.authoring && E.authoring.featureType ? (featureSpec(E.authoring.featureType)?.label || E.authoring.featureType) : t("wfTurnIntent");
+  var history=root.querySelector("#mdWorkflowHistory");if(history)history.textContent=(E.def.history || []).length+" "+t("wfEditableSteps");
   root.classList.toggle("md-authoring-sketch",phase==="sketch");
 }
 function faceSketchAttachment() {
@@ -4017,14 +4168,6 @@ function setCommandTab(id) {
   });
 }
 
-/* The feature forms are opened from the ribbon now, so a form has to be able to
-   name the button that opened it — both to keep it lit while the form is up and
-   to put it out again when the form closes. */
-var FEATURE_COMMAND = {
-  extrude: "extrude", extrudeCut: "extrudecut", revolve: "revolvefeature", sweep: "sweepfeature",
-  loft: "loftfeature", fillet: "filletfeature", chamfer: "chamferfeature", shell: "shellfeature",
-  pattern: "patternfeature", mirror: "mirrorfeature", boolean: "booleanfeature",
-};
 function closeFeaturePanel() {
   if (!root) return;
   var host = root.querySelector("#mdQuickSettings");
@@ -4036,6 +4179,7 @@ function runCommand(id) {
   if (!id) return;
   var blocked = commandUnavailableReason(id);
   if (blocked) { flash(blocked); closeCommandSearch(); return; }
+  if (DIRECT_COMMAND_TOOLS[id]) { setTool(DIRECT_COMMAND_TOOLS[id]); closeCommandSearch(); syncCommandManager(); return; }
   var tools = ["select", "rect", "circle", "sph", "poly", "rev", "cut", "cutc", "wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "dim", "trim", "extend", "offset", "constr"];
   if (tools.indexOf(id) >= 0) setTool(id);
   else if (id === "newsketch") beginSketchWorkflow();
@@ -4050,6 +4194,7 @@ function runCommand(id) {
   else if (id === "patternfeature") openParametricFeature("pattern");
   else if (id === "mirrorfeature") openParametricFeature("mirror");
   else if (id === "booleanfeature") openParametricFeature("boolean");
+  else if (id === "holefeature") openParametricFeature("hole");
   else if (id === "mirror") mirrorSelection();
   else if (id === "pattern") patternSelection();
   else if (id === "circpattern") patternCircularSelection();
@@ -4187,95 +4332,20 @@ function featureReferenceOptions(type) {
   return (E.def.references || []).filter(function(reference){return reference.type===expected;}).map(function(reference){return {value:reference.id,label:reference.name || reference.id};});
 }
 
-function featureField(host,field,value) {
-  var wrap=el("label","md-quick-field type-"+field.type);wrap.dataset.parameter=field.key;
-  var caption=el("span","md-feature-field-label",field.label);
-  if(field.unit){var units=E.def.context && E.def.context.units || {length:"cm",angle:"deg"};caption.appendChild(el("small","md-feature-unit",field.unit==="angle"?(units.angle || "deg"):(units.length || "cm")));}
-  wrap.appendChild(caption);var input;
-  if(field.type==="boolean"){
-    input=el("input");input.type="checkbox";input.checked=!!value;wrap.appendChild(input);wrap.appendChild(el("span","md-feature-switch",'<i></i>'));
-  } else if(field.type==="select"||field.type==="axis-reference"||field.type==="plane-reference"){
-    input=el("select");var choices=field.choices || featureReferenceOptions(field.type);
-    choices.forEach(function(choice){var option=el("option","",choice.label);option.value=choice.value;if(String(choice.value)===String(value))option.selected=true;input.appendChild(option);});wrap.appendChild(input);
-  } else {
-    input=el("input");input.type=field.type==="text"?"text":"number";input.value=value??"";
-    if(field.min!=null)input.min=field.min;if(field.max!=null)input.max=field.max;input.step=field.step || ".1";wrap.appendChild(input);
-  }
-  input.dataset.parameter=field.key;input.dataset.parameterType=field.type;host.appendChild(wrap);return input;
-}
-
-function featureControlValue(control) {
-  if(control.field.type==="boolean")return !!control.input.checked;
-  if(control.field.type==="number")return control.input.value===""?NaN:Number(control.input.value);
-  return control.input.value;
-}
-
-function featureReferenceValue(feature,type) {
-  if(type==="axis-reference"&&feature && feature.references && feature.references.axis)return feature.references.axis;
-  if(type==="plane-reference"&&feature && feature.references && feature.references.plane)return feature.references.plane;
-  var refs=feature && feature.references && feature.references.references || [];
-  var found=refs.find(function(reference){var id=typeof reference==="string"?reference:reference && reference.id;return type==="axis-reference"?String(id||"").indexOf("axis:")===0:String(id||"").indexOf("plane:")===0;});
-  if(found)return typeof found==="string"?found:found.id;
-  return type==="axis-reference"?"axis:y":"plane:right";
-}
-
-function readFeatureParameterForm(controls,baseParams) {
-  var params={...(baseParams || {})},references={};
-  controls.forEach(function(control){var value=featureControlValue(control);if(typeof value==="number"&&!Number.isFinite(value))return;if(control.field.key==="$axisReference")references.axis=value;else if(control.field.key==="$planeReference")references.plane=value;else params[control.field.key]=value;});
-  if(params.endCondition==="mid-plane")params.symmetric=true;
-  if(["axisX","axisY","axisZ"].some(function(key){return Object.prototype.hasOwnProperty.call(params,key);}) || params.directionAxis)params.direction=linearPatternDirection(params);
-  return {params:params,references:references};
-}
-
 function renderFeatureParameterForm(host,type,state,onLive) {
-  var controls=[],groups=featureEditorGroups(type),patternMode=state.params && state.params.mode || "linear",patternDrafts={linear:{},circular:{}};
-  var patternModeKeys={linear:["axisX","countX","spacingX","spacingIncrementX","axisY","countY","spacingY","spacingIncrementY","axisZ","countZ","spacingZ","spacingIncrementZ"],circular:["count","angle","radialDistance","axis","equalSpacing"]};
-  function rememberPatternSettings(mode){if(type!=="pattern")return;(patternModeKeys[mode] || []).forEach(function(key){var control=controls.find(function(item){return item.field.key===key;});if(control)patternDrafts[mode][key]=featureControlValue(control);});}
-  function restorePatternSettings(mode){if(type!=="pattern")return;Object.entries(patternDrafts[mode] || {}).forEach(function(entry){var control=controls.find(function(item){return item.field.key===entry[0];});if(!control)return;if(control.field.type==="boolean")control.input.checked=!!entry[1];else control.input.value=entry[1];});}
-  function syncConditionalFields(){
-    var mode=controls.find(function(item){return item.field.key==="mode";});
-    if(type==="pattern" && mode){
-      var linear=mode.input.value==="linear";
-      ["axisX","axisY","axisZ"].forEach(function(axisKey){
-        var axisControl=controls.find(function(item){return item.field.key===axisKey;}),enabled=linear && axisControl && axisControl.input.checked,suffix=axisKey.slice(-1);
-        [axisKey,"count"+suffix,"spacing"+suffix,"spacingIncrement"+suffix].forEach(function(key){var control=controls.find(function(item){return item.field.key===key;}),wrap=control && control.input.closest(".md-quick-field");if(wrap)wrap.classList.toggle("parameter-inactive",key===axisKey?!linear:!enabled);});
-      });
-      var circularCount=controls.find(function(item){return item.field.key==="count";}),circularWrap=circularCount && circularCount.input.closest(".md-quick-field");if(circularWrap)circularWrap.classList.toggle("parameter-inactive",linear);
-      host.querySelectorAll('[data-parameter="angle"],[data-parameter="radialDistance"],[data-parameter="axis"],[data-parameter="equalSpacing"]').forEach(function(node){node.closest(".md-quick-field").classList.toggle("parameter-inactive",mode.input.value!=="circular");});
-      if(linear){
-        var axisParams={};["X","Y","Z"].forEach(function(suffix){["axis","count","spacing"].forEach(function(prefix){var key=prefix+suffix,control=controls.find(function(item){return item.field.key===key;});axisParams[key]=prefix==="axis"?!!(control && control.input.checked):Number(control && control.input.value);});});
-        linearPatternAxisDefinitions(axisParams).forEach(function(definition){if(definition.axis==="vector")return;var control=controls.find(function(item){return item.field.key==="count"+definition.axis.toUpperCase();});if(control && Number(control.input.value)!==definition.count)control.input.value=String(definition.count);});
-      }
-    }
-    if(type==="chamfer" && mode){
-      var active={secondDistance:mode.input.value==="two-distance",angle:mode.input.value==="distance-angle",flip:mode.input.value!=="equal-distance"};
-      ["secondDistance","angle","flip"].forEach(function(key){
-        var control=controls.find(function(item){return item.field.key===key;}),wrap=control && control.input.closest(".md-quick-field");
-        if(wrap)wrap.classList.toggle("parameter-hidden",!active[key]);
-      });
-    }
-  }
-  groups.forEach(function(group){
-    var section=el("details","md-feature-group");section.open=true;
-    section.appendChild(el("summary","",'<i class="ph '+(group.icon || "ph-sliders-horizontal")+'"></i><span>'+group.label+'</span><small>'+group.fields.length+'</small>'));
-    var body=el("div","md-feature-group-body");
-    group.fields.forEach(function(field){
-      var value=field.key==="$axisReference"?featureReferenceValue(state,"axis-reference"):field.key==="$planeReference"?featureReferenceValue(state,"plane-reference"):["axisX","axisY","axisZ"].includes(field.key)?patternAxisEnabled(state.params,field.key.slice(-1).toLowerCase()):state.params && state.params[field.key];
-      var input=featureField(body,field,value);var control={field:field,input:input};controls.push(control);
-      var live=function(){
-        if(type==="pattern" && field.key==="mode" && input.value!==patternMode){rememberPatternSettings(patternMode);restorePatternSettings(input.value);patternMode=input.value;}
-        if(type==="pattern" && ["axisX","axisY","axisZ"].includes(field.key) && !controls.some(function(item){return ["axisX","axisY","axisZ"].includes(item.field.key) && item.input.checked;}))input.checked=true;
-        syncConditionalFields();
-        if(type==="pattern")rememberPatternSettings(patternMode);
-        if(onLive)onLive(readFeatureParameterForm(controls,state.params));
-      };
-      input.addEventListener("input",live);input.addEventListener("change",live);
-    });
-    section.appendChild(body);host.appendChild(section);
+  return renderFeatureParameterFormCore(host,type,state,onLive,{
+    el:el,
+    units:E.def && E.def.context && E.def.context.units || {length:"cm",angle:"deg"},
+    referenceOptions:featureReferenceOptions,
   });
-  if(type==="pattern"){rememberPatternSettings("linear");rememberPatternSettings("circular");}
-  syncConditionalFields();
-  return controls;
+}
+
+function featureField(host,field,value) {
+  return featureFieldCore(host,field,value,{
+    el:el,
+    units:E.def && E.def.context && E.def.context.units || {length:"cm",angle:"deg"},
+    referenceOptions:featureReferenceOptions,
+  });
 }
 
 function setFeatureReferencesFromForm(feature,referenceValues) {
@@ -4297,21 +4367,61 @@ function selectedSketchIds() {
 
 function createMultiSketchFeature(type, values) {
   var ids=selectedSketchIds(),required=type==="loft"?2:2;
-  if(ids.length<required){flash((featureSpec(type)?.label || type)+" requires "+required+" sketches selected in history");return false;}
+  if(ids.length<required){flash((featureSpec(type)?.label || type)+" "+t("featureNeedsSketches"));return false;}
   var refs=ids.slice(0,type==="sweep"?2:ids.length),params={...featureDefaults(type),...((values && values.params) || values || {})};
   if(type==="sweep"){
     var profile=(E.def.sketches || []).find(function(sketch){return sketch.id===refs[0];}),path=(E.def.sketches || []).find(function(sketch){return sketch.id===refs[1];});
     var profileRun=analyzeSketchProfiles(profile),profileLoop=profileRun.profiles[0];
-    if(!profileLoop||!(path.points || []).length){flash("Sweep needs a closed profile and a sketched path");return false;}
+    if(!profileLoop||!(path.points || []).length){flash(t("sweepNeed"));return false;}
     params.profile=profileLoop.points.map(function(point){return {x:point.u,y:point.v,z:0};});params.path=(path.points || []).map(function(point){return {x:point.x,y:point.y,z:path.offset || 0};});
   } else {
     params.sections=refs.map(function(id){var sketch=(E.def.sketches || []).find(function(item){return item.id===id;}),profile=analyzeSketchProfiles(sketch).profiles[0];return profile?profile.points.map(function(point){return {x:point.u,y:point.v,z:sketch.offset || 0};}):null;});
-    if(params.sections.some(function(section){return !section;})){flash("Every loft sketch must contain a closed profile");return false;}
+    if(params.sections.some(function(section){return !section;})){flash(t("loftNeed"));return false;}
   }
-  pushUndo("Create "+(featureSpec(type)?.label || type));
+  pushUndo(t("createFeature")+" "+(featureSpec(type)?.label || type));
   try{createFeatureDefinition(E.def,type,{references:{sketches:refs,features:[],topology:[],references:[]},params:params});}
   catch(error){H.discard();flash(String(error.message||error));return false;}
   refreshAll();return true;
+}
+
+function createHoleFeature(options) {
+  var params={...featureDefaults("hole"),...(options || {})};
+  var target=selectedSolid() || (E.def && activeParts(E.def)[activeParts(E.def).length-1]);
+  if(!target){flash(t("cmdNeedSolid"));return false;}
+  var face=(E.topologySelection || []).find(function(reference){return reference.kind==="face";});
+  if(face && face.descriptor && face.descriptor.surface && face.descriptor.surface!=="plane"){flash(t("needPlanarFace"));return false;}
+  var profile=closedSketchProfile();
+  if(!profile && !face){flash(t("holeNeed"));return false;}
+  if(face && !attachSketchToSelectedFace()){flash(t("needPlanarFace"));return false;}
+  var diameter=Math.max(.1,Number(params.diameter)||1);
+  profile=closedSketchProfile();
+  if(!profile){
+    pushUndo(t("holeWizard"));
+    if(!addSketchCircle({u:0,v:0},{u:diameter/2,v:0})){H.discard();flash(t("holeNeed"));return false;}
+    profile=closedSketchProfile();
+    if(!profile){H.discard();flash(t("holeNeed"));return false;}
+  } else {
+    pushUndo(t("holeWizard"));
+  }
+  var sketch=ensureSketch(E.def);
+  var selectedTarget=(E.authoring.featureSelection || []).slice(-1)[0];
+  if(selectedTarget&&!(E.def.features||[]).some(function(item){return item.id===selectedTarget;}))selectedTarget=null;
+  var targetFeatureId=selectedTarget || target.featureId || ((E.def.features || []).slice(-1)[0]||{}).id;
+  var topology=face ? [cloneData(face)] : [];
+  recordSketchInHistory(E.def,sketch);
+  var feature=null;
+  if(isCanonicalAuthoring()){
+    try{
+      feature=createFeatureDefinition(E.def,"hole",{
+        inputs:targetFeatureId ? [targetFeatureId] : [],
+        references:{sketches:[sketch.id],features:targetFeatureId ? [targetFeatureId] : [],topology:topology,references:[],profileEntityIds:profile.entityIds},
+        params:{...params,depth:Math.max(.1,Number(params.depth)||E.depth),diameter:diameter,profileEntityIds:profile.entityIds,sketchId:sketch.id,operation:"subtract"},
+      });
+    }catch(error){H.discard();flash(String(error.message||error));return false;}
+  }
+  var changed=applyCut(profile.points);
+  if(!changed){if(feature)removeHistoryNode(E.def,"history:feature:"+feature.id);H.discard();flash(t("cutNone"));return false;}
+  E.authoring.featureType=null;E.authoring.phase="model";refreshAll();flash("✓ "+t("holeWizard"));return true;
 }
 
 function createRevolveFeature(options) {
@@ -4364,7 +4474,7 @@ function exactFinishPreviewPart(type,state) {
 function queueExactFeaturePreview(preview,type,liveBadge) {
   var token=(E._featurePreviewToken || 0)+1;E._featurePreviewToken=token;
   if(E._featureExactPreviewTimer)clearTimeout(E._featureExactPreviewTimer);
-  if(liveBadge){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-spinner-gap"></i> Live · calculating exact '+type+'…';}
+  if(liveBadge){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-spinner-gap"></i> '+t("liveExactCalc")+" "+type+"…";}
   E._featureExactPreviewTimer=setTimeout(async function(){
     E._featureExactPreviewTimer=0;var brep=null;
     try{
@@ -4373,11 +4483,11 @@ function queueExactFeaturePreview(preview,type,liveBadge) {
       meshData.topology=cloneData(brep.topology || []);
       if(token!==E._featurePreviewToken || !E.authoring || !(E.authoring.previewParts || []).includes(preview))return;
       preview.meshData=meshData;preview.exactError=null;updatePreview();renderPreview();
-      if(liveBadge){liveBadge.innerHTML='<i class="ph ph-broadcast"></i> Live · exact preview updates as you edit';liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);}
+      if(liveBadge){liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveExactReady");liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);}
     }catch(error){
       if(token!==E._featurePreviewToken)return;
       preview.exactError=String(error && error.message || error);
-      if(liveBadge)liveBadge.innerHTML='<i class="ph ph-warning"></i> Preview unavailable · adjust the value or selection';
+      if(liveBadge)liveBadge.innerHTML='<i class="ph ph-warning"></i> '+t("previewUnavailable");
     }finally{if(brep)disposeBrep(brep);}
   },90);
 }
@@ -4385,8 +4495,8 @@ function queueExactFeaturePreview(preview,type,liveBadge) {
 function syncNewFeaturePreview(type,state,liveBadge) {
   var previews=[];
   E.authoring.previewReplacesPartId=null;
-  if(type==="extrude"||type==="extrudeCut"){
-    var extrusion=extrudePreviewPart(type,state.params);if(extrusion)previews.push(extrusion);
+  if(type==="extrude"||type==="extrudeCut"||type==="hole"){
+    var extrusion=extrudePreviewPart(type==="hole"?"extrudeCut":type,state.params);if(extrusion)previews.push(extrusion);
   } else if(type==="revolve"){
     var profile=closedSketchProfile();if(profile)previews.push({id:"preview:revolve",featureId:"preview:revolve",previewOnly:true,kind:"rev",x:0,z:0,seg:48,pts:profile.points,angle:state.params.angle,direction:state.params.direction,symmetric:state.params.symmetric,color:"#6f8de8",opacity:.62,metal:.04,rough:.68,name:"Live Revolve"});
   } else if(type==="pattern"){
@@ -4404,14 +4514,14 @@ function syncNewFeaturePreview(type,state,liveBadge) {
 
 function queueNewFeaturePreview(type,state,liveBadge) {
   if(E._featurePreviewFrame)cancelAnimationFrame(E._featurePreviewFrame);
-  E._featurePreviewFrame=requestAnimationFrame(function(){E._featurePreviewFrame=0;syncNewFeaturePreview(type,state,liveBadge);refreshAll();if(liveBadge && !["fillet","chamfer","shell"].includes(type)){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> Live · sketch, 3D, orthographic and drawing views synced';}});
+  E._featurePreviewFrame=requestAnimationFrame(function(){E._featurePreviewFrame=0;syncNewFeaturePreview(type,state,liveBadge);refreshAll();if(liveBadge && !["fillet","chamfer","shell"].includes(type)){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveViewsSynced");}});
 }
 
 function finishSelectionMessage(type) {
   var required=type==="shell"?"face":"edge",count=(E.topologySelection || []).filter(function(reference){return reference.kind===required;}).length;
-  if(!selectedSolid())return "Select a solid body in the viewport first";
-  if(!count)return (type==="shell"?"Select a face to remove":"Select one or more edges")+" in the viewport · Ctrl/Cmd-click adds more";
-  return "✓ "+count+" "+required+(count===1?"":"s")+" selected · drag the value below for a live preview";
+  if(!selectedSolid())return t("selectSolidFirst");
+  if(!count)return (type==="shell"?t("selectFaceRemove"):t("selectEdges"))+" "+t("addWithCtrl");
+  return "✓ "+count+" "+required+(count===1?"":"s")+" "+t("selectedLabel")+" · "+t("livePreviewDrag");
 }
 
 function syncActiveFeatureSelectionFeedback() {
@@ -4419,7 +4529,7 @@ function syncActiveFeatureSelectionFeedback() {
   var note=root.querySelector("#mdQuickSettings [data-live-selection]");
   if(!note)return;
   var type=note.getAttribute("data-live-selection");
-  note.textContent=["fillet","chamfer","shell"].includes(type)?finishSelectionMessage(type):["extrude","extrudeCut","revolve","sweep","loft"].includes(type)?selectedSketchIds().length+" sketch(es) selected":selectedFeatureIds().length+" feature(s) · "+(E.topologySelection || []).length+" topology reference(s)";
+  note.textContent=["fillet","chamfer","shell"].includes(type)?finishSelectionMessage(type):["extrude","extrudeCut","revolve","sweep","loft","hole"].includes(type)?selectedSketchIds().length+" "+t("sketchesSelected"):selectedFeatureIds().length+" "+t("featuresSelected")+" · "+(E.topologySelection || []).length+" "+t("topologyRefs");
   note.classList.toggle("ready",note.textContent.indexOf("✓")===0);
   if(type==="pattern"){
     var selected=selectedSolid(),selectionId=selected && selected.id || null;
@@ -4433,7 +4543,7 @@ function addFinishScrubber(host,type,controls) {
   var control=controls.find(function(item){return item.field.key===key;}),part=selectedSolid();
   if(!control || !part)return;
   var b=partBounds(part),positive=[b.x1-b.x0,b.y1-b.y0,b.z1-b.z0].filter(function(value){return value>1e-6;}),limit=Math.max(Number(control.input.value)||1,Math.min.apply(null,positive)/2);
-  var wrap=el("label","md-feature-scrubber");wrap.appendChild(el("span","",'<i class="ph ph-arrows-left-right"></i> Drag for live preview'));
+  var wrap=el("label","md-feature-scrubber");wrap.appendChild(el("span","",'<i class="ph ph-arrows-left-right"></i> '+t("dragForLive")));
   var range=el("input"),step=Number(control.field.step)||.1;range.type="range";range.min=String(Math.max(Number(control.field.min)||step,step));range.max=String(Math.max(limit,Number(control.input.value)||1));range.step=String(step);range.value=control.input.value;wrap.appendChild(range);
   range.addEventListener("input",function(){control.input.value=range.value;control.input.dispatchEvent(new Event("input",{bubbles:true}));});
   control.input.addEventListener("input",function(){var value=Number(control.input.value);if(Number.isFinite(value)){if(value>Number(range.max))range.max=String(value);range.value=String(value);}});
@@ -4442,33 +4552,34 @@ function addFinishScrubber(host,type,controls) {
 
 function openParametricFeature(type) {
   if(E.docType!=="part")return;if(E.mode==="drawing")setMode("3d");
-  var spec=featureSpec(type);if(!spec){flash("Unsupported feature: "+type);return;}
+  var spec=featureSpec(type);if(!spec){flash(t("unsupportedFeature")+": "+type);return;}
   var host=root && root.querySelector("#mdQuickSettings");if(!host)return;
   if(E.authoring.featureEdit)cancelFeatureParameterEdit(true);
   clearFeaturePreview(false);E.authoring.featureType=type;E.authoring.phase="model";E.quickAction=type;host.hidden=false;host.innerHTML="";
-  host.appendChild(el("div","md-feature-form-title",'<i class="ph '+spec.icon+'"></i><span><b>'+spec.label+'</b><small>Complete feature definition · live preview before commit</small></span>'));
+  host.appendChild(el("div","md-feature-form-title",'<i class="ph '+spec.icon+'"></i><span><b>'+spec.label+'</b><small>'+t("featureFormHint")+'</small></span>'));
   var state={type:type,params:featureDefaults(type),references:{}};
-  if(type==="extrude"||type==="extrudeCut"){state.params.depth=E.depth;state.params.offset=E.baseOff;}
+  if(type==="extrude"||type==="extrudeCut"||type==="hole"){state.params.depth=E.depth;state.params.offset=E.baseOff;}
   if(type==="revolve")state.references.axis="axis:y";if(type==="mirror")state.references.plane=E.authoring.referenceId||"plane:right";
-  var liveBadge=el("div","md-feature-live",'<i class="ph ph-broadcast"></i> Live preview ready');host.appendChild(liveBadge);
+  var liveBadge=el("div","md-feature-live",'<i class="ph ph-broadcast"></i> '+t("livePreviewReady"));host.appendChild(liveBadge);
   E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;
   var controls=renderFeatureParameterForm(host,type,state,function(next){state.params=next.params;state.references={...state.references,...next.references};E.depth=Number(state.params.depth)||E.depth;E.baseOff=Number(state.params.offset)||0;queueNewFeaturePreview(type,state,liveBadge);});
   var selectionNote=el("div","md-feature-selection-note");
   selectionNote.setAttribute("data-live-selection",type);host.appendChild(selectionNote);syncActiveFeatureSelectionFeedback();addFinishScrubber(host,type,controls);
   var actions=el("div","md-feature-actions");
-  actions.appendChild(btn('<i class="ph ph-x"></i> Cancel',function(){E.authoring.featureType=null;clearFeaturePreview(true);closeFeaturePanel();syncAuthoringWorkflow();},"md-quick-cancel"));
+  actions.appendChild(btn('<i class="ph ph-x"></i> '+t("cancelCommand"),function(){E.authoring.featureType=null;clearFeaturePreview(true);closeFeaturePanel();syncAuthoringWorkflow();},"md-quick-cancel"));
   actions.appendChild(btn('<i class="ph ph-check"></i> '+t("quickApply"),function(){
     var values=readFeatureParameterForm(controls,state.params),params=values.params,ok=false;state.references={...state.references,...values.references};clearFeaturePreview(false);
     if(type==="extrude"||type==="extrudeCut")ok=extrudeClosedSketch({type:type,...params});
     else if(type==="revolve")ok=createRevolveFeature({...params,axisReference:state.references.axis});
+    else if(type==="hole")ok=createHoleFeature(params);
     else if(type==="sweep"||type==="loft")ok=createMultiSketchFeature(type,params);
     else if(type==="fillet"||type==="chamfer")ok=quickRoundPart(type,params);
     else if(type==="shell")ok=quickShellPart(params);
     else if(type==="pattern")ok=quickPatternPart(params);
     else if(type==="mirror"){E.authoring.referenceId=state.references.plane;ok=quickMirrorPart({...params,planeReference:state.references.plane});}
     else if(type==="boolean"){
-      var ids=selectedFeatureIds();if(ids.length<2){flash("Select two feature history nodes for a Boolean");syncNewFeaturePreview(type,state);refreshAll();return;}
-      pushUndo("Create Boolean");try{createFeatureDefinition(E.def,"boolean",{inputs:ids.slice(0,2),references:{sketches:[],features:ids.slice(0,2),topology:[],references:[]},params:params});ok=true;refreshAll();}catch(error){H.discard();flash(String(error.message||error));}
+      var ids=selectedFeatureIds();if(ids.length<2){flash(t("booleanNeedTwo"));syncNewFeaturePreview(type,state);refreshAll();return;}
+      pushUndo(t("createBoolean"));try{createFeatureDefinition(E.def,"boolean",{inputs:ids.slice(0,2),references:{sketches:[],features:ids.slice(0,2),topology:[],references:[]},params:params});ok=true;refreshAll();}catch(error){H.discard();flash(String(error.message||error));}
     }
     if(ok){E.authoring.featureType=null;closeFeaturePanel();setMode("3d");setTab("parts");syncAuthoringWorkflow();}else{E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;syncNewFeaturePreview(type,state,liveBadge);refreshAll();}
   },"md-quick-apply"));host.appendChild(actions);
@@ -4476,66 +4587,11 @@ function openParametricFeature(type) {
 }
 
 function commandCatalog() {
-  return [
-    { id:"select", icon:"ph-cursor", label:t("tool_select"), group:t("cmdSketch"), shortcut:"V", terms:"cursor move" },
-    { id:"wall", icon:"ph-line-segment", label:t("tool_wall"), group:t("cmdSketch"), shortcut:"L", terms:"line chain profile" },
-    { id:"srect", icon:"ph-rectangle", label:t("tool_srect"), group:t("cmdSketch"), shortcut:"Q", terms:"rectangle profile" },
-    { id:"scirc", icon:"ph-circle-dashed", label:t("tool_scirc"), group:t("cmdSketch"), shortcut:"G", terms:"circle" },
-    { id:"sarc", icon:"ph-bezier-curve", label:t("tool_sarc"), group:t("cmdSketch"), shortcut:"A", terms:"arc" },
-    { id:"sslot", icon:"ph-pill", label:t("tool_sslot"), group:t("cmdSketch"), shortcut:"J", terms:"slot oblong straight" },
-    { id:"spoly", icon:"ph-hexagon", label:t("tool_spoly"), group:t("cmdSketch"), shortcut:"N", terms:"polygon hexagon n-gon regular" },
-    { id:"sell", icon:"ph-circle", label:t("tool_sell"), group:t("cmdSketch"), shortcut:"Y", terms:"ellipse oval" },
-    { id:"dim", icon:"ph-ruler", label:t("tool_dim"), group:t("cmdSketch"), shortcut:"D", terms:"measure smart dimension" },
-    { id:"trim", icon:"ph-scissors", label:t("tool_trim"), group:t("cmdSketch"), shortcut:"T", terms:"remove segment" },
-    { id:"extend", icon:"ph-arrows-out-line-horizontal", label:t("tool_extend"), group:t("cmdSketch"), shortcut:"E" },
-    { id:"offset", icon:"ph-copy-simple", label:t("tool_offset"), group:t("cmdSketch") },
-    { id:"constr", icon:"ph-line-segments", label:t("tool_constr"), group:t("cmdSketch"), terms:"construction geometry" },
-    { id:"mirror", icon:"ph-flip-horizontal", label:t("sketchMirror"), group:t("cmdSketch") },
-    { id:"pattern", icon:"ph-dots-nine", label:t("sketchPattern"), group:t("cmdSketch"), terms:"linear array" },
-    { id:"circpattern", icon:"ph-circles-three", label:t("sketchCircPattern"), group:t("cmdSketch"), terms:"circular polar array bolt circle" },
-    { id:"project", icon:"ph-projector-screen", label:t("projectEdges"), group:t("cmdSketch") },
-    { id:"newsketch", icon:"ph-pencil-line", label:"Create sketch", group:t("cmdFeatures"), terms:"reference plane face profile" },
-    { id:"extrude", icon:"ph-cube", label:t("opExtrude"), group:t("cmdFeatures"), available:function(){ return E.docType === "part" && !!closedSketchProfile(); }, reason:function(){ return E.docType !== "part" ? t("cmdNeedPartDoc") : t("cmdNeedClosedSketch"); } },
-    { id:"extrudecut", icon:"ph-scissors", label:"Extrude Cut", group:t("cmdFeatures"), available:function(){return E.docType==="part"&&!!closedSketchProfile()&&!!activeParts(E.def).length;}, reason:function(){ return E.docType !== "part" ? t("cmdNeedPartDoc") : !closedSketchProfile() ? t("cmdNeedClosedSketch") : t("cmdNeedSolid"); } },
-    { id:"revolvefeature", icon:"ph-arrow-counter-clockwise", label:t("opRevolve"), group:t("cmdFeatures"), shortcut:"R" },
-    { id:"sweepfeature", icon:"ph-path", label:"Sweep", group:t("cmdFeatures") },
-    { id:"loftfeature", icon:"ph-stack", label:"Loft", group:t("cmdFeatures") },
-    { id:"filletfeature", icon:"ph-corners-out", label:"Fillet", group:t("cmdFeatures") },
-    { id:"chamferfeature", icon:"ph-corners-in", label:"Chamfer", group:t("cmdFeatures") },
-    { id:"shellfeature", icon:"ph-bowl-food", label:"Shell", group:t("cmdFeatures") },
-    { id:"patternfeature", icon:"ph-dots-nine", label:"Pattern", group:t("cmdFeatures") },
-    { id:"mirrorfeature", icon:"ph-flip-horizontal", label:"Mirror feature", group:t("cmdFeatures") },
-    { id:"booleanfeature", icon:"ph-intersect", label:"Boolean", group:t("cmdFeatures") },
-    { id:"refplane", icon:"ph-square-half", label:"Reference plane", group:t("cmdFeatures"), available:function(){ return E.docType === "part"; }, reason:function(){ return t("cmdNeedPartDoc"); } },
-    { id:"refaxis", icon:"ph-axis-arrow", label:"Reference axis", group:t("cmdFeatures"), available:function(){ return E.docType === "part"; }, reason:function(){ return t("cmdNeedPartDoc"); } },
-    { id:"coordsys", icon:"ph-crosshair", label:"Coordinate system", group:t("cmdFeatures"), available:function(){ return E.docType === "part"; }, reason:function(){ return t("cmdNeedPartDoc"); } },
-    { id:"regen", icon:"ph-arrows-clockwise", label:t("regenerate"), group:t("cmdEvaluate"), shortcut:"Ctrl+B", available:function(){ return E.docType === "part" && !E.kernelBusy && !!activeParts(E.def).length; }, reason:function(){ return E.docType !== "part" ? t("cmdNeedPartDoc") : t("cmdNeedSolid"); } },
-    { id:"fit", icon:"ph-crosshair-simple", label:t("zoomFit"), group:t("cmdEvaluate"), shortcut:"F" },
-    { id:"drawing", icon:"ph-file-svg", label:t("drawingExport"), group:t("cmdEvaluate"), available:function(){ return E.docType === "part"; }, reason:function(){ return t("cmdNeedPartDoc"); } },
-    { id:"mass", icon:"ph-scales", label:"Mass properties", group:t("cmdEvaluate"), available:function(){ return E.docType === "part" && !!activeParts(E.def).length; }, reason:function(){ return E.docType !== "part" ? t("cmdNeedPartDoc") : t("cmdNeedSolid"); } },
-    { id:"standards", icon:"ph-seal-check", label:"DIN / ISO audit", group:t("cmdEvaluate"), available:function(){ return E.docType === "part" && !!activeParts(E.def).length; }, reason:function(){ return E.docType !== "part" ? t("cmdNeedPartDoc") : t("cmdNeedSolid"); } },
-    { id:"stdscrew", icon:"ph-screwdriver", label:t("stdScrewCommand"), group:t("cmdFeatures"), available:function(){return E.docType==="part";}, reason:function(){ return t("cmdNeedPartDoc"); } },
-    { id:"stdgear", icon:"ph-gear-six", label:t("stdGearCommand"), group:t("cmdFeatures"), available:function(){return E.docType==="part";}, reason:function(){ return t("cmdNeedPartDoc"); } },
-    { id:"bundle", icon:"ph-package", label:"Project bundle", group:t("cmdEvaluate") },
-    { id:"bundlein", icon:"ph-package", label:"Import bundle", group:t("cmdEvaluate") },
-    { id:"stepin", icon:"ph-upload-simple", label:t("stepImport"), group:"STEP", available:function(){ return E.docType === "part"; }, reason:function(){ return t("cmdNeedPartDoc"); } },
-    { id:"stepout", icon:"ph-file-step", label:t("stepExport"), group:"STEP", available:function(){ return E.docType === "part" && !!activeParts(E.def).length; }, reason:function(){ return E.docType !== "part" ? t("cmdNeedPartDoc") : t("cmdNeedSolid"); } },
-    { id:"igesout", icon:"ph-file-arrow-down", label:"Export IGES", group:"STEP", available:function(){ return E.docType === "part" && !!activeParts(E.def).length; }, reason:function(){ return E.docType !== "part" ? t("cmdNeedPartDoc") : t("cmdNeedSolid"); } },
-    { id:"assembly", icon:"ph-cubes-three", label:t("docAssembly"), group:t("cmdAssembly") },
-    { id:"components", icon:"ph-cube", label:t("components"), group:t("cmdAssembly") },
-    { id:"mates", icon:"ph-link", label:t("mate"), group:t("cmdAssembly") },
-    { id:"partdoc", icon:"ph-cube-focus", label:t("docPart"), group:t("cmdAssembly") },
-    { id:"explode", icon:"ph-arrows-out", label:"Exploded view", group:t("cmdAssembly"), available:function(){ return E.docType === "assembly" && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return E.docType !== "assembly" ? t("cmdNeedAssembly") : t("cmdNeedComponents"); } },
-    { id:"motion", icon:"ph-play-circle", label:"Motion study", group:t("cmdAssembly"), available:function(){ return E.docType === "assembly" && E.assembly && E.assembly.components.length; }, reason:function(){ return E.docType !== "assembly" ? t("cmdNeedAssembly") : t("cmdNeedOneComponent"); } },
-    { id:"interference", icon:"ph-intersect", label:"Interference", group:t("cmdAssembly"), available:function(){ return E.docType === "assembly" && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return E.docType !== "assembly" ? t("cmdNeedAssembly") : t("cmdNeedComponents"); } },
-    { id:"bom", icon:"ph-table", label:"Bill of materials", group:t("cmdAssembly"), available:function(){ return E.docType === "assembly" && E.assembly && E.assembly.components.length; }, reason:function(){ return E.docType !== "assembly" ? t("cmdNeedAssembly") : t("cmdNeedOneComponent"); } },
-  ];
+  return buildCommandCatalog({ t: t, editor: E, closedSketchProfile: closedSketchProfile, activeParts: activeParts });
 }
 
 function commandUnavailableReason(id) {
-  var def = commandCatalog().find(function (c) { return c.id === id; });
-  if (!def || !def.available || def.available()) return "";
-  return (def.reason && def.reason()) || t("cmdUnavailable");
+  return catalogUnavailableReason(id, commandCatalog(), t("cmdUnavailable"));
 }
 
 function syncCommandManager() {
@@ -4558,6 +4614,8 @@ function syncCommandManager() {
 function openCommandSearch(seed) {
   if (!root) return;
   var overlay = root.querySelector("#mdCommandSearch"), input = root.querySelector("#mdCommandSearchInput");
+  E.commandSearchRestore = document.activeElement;
+  E.commandHighlight = 0;
   overlay.hidden = false;
   input.value = seed || "";
   renderCommandResults();
@@ -4566,7 +4624,26 @@ function openCommandSearch(seed) {
 
 function closeCommandSearch() {
   var overlay = root && root.querySelector("#mdCommandSearch");
+  var input = root && root.querySelector("#mdCommandSearchInput");
   if (overlay) overlay.hidden = true;
+  if (input) input.setAttribute("aria-activedescendant", "");
+  var restore = E.commandSearchRestore;
+  E.commandSearchRestore = null;
+  if (restore && restore !== input && typeof restore.focus === "function") {
+    try { restore.focus(); } catch (error) {}
+  }
+}
+
+function commandSearchOptionId(id) {
+  return "mdCommandOption-" + String(id || "").replace(/[^a-z0-9_-]/gi, "");
+}
+
+function syncCommandSearchAria(commands) {
+  var input = root && root.querySelector("#mdCommandSearchInput");
+  if (!input) return;
+  var list = commands || [];
+  var active = list[E.commandHighlight] || list[0];
+  input.setAttribute("aria-activedescendant", active ? commandSearchOptionId(active.id) : "");
 }
 
 function renderCommandResults() {
@@ -4577,13 +4654,16 @@ function renderCommandResults() {
     return !query || (c.label + " " + c.group + " " + (c.terms || "") + " " + (c.shortcut || "")).toLowerCase().indexOf(query) >= 0;
   }).slice(0, 12);
   host.innerHTML = "";
-  if (!list.length) { host.appendChild(el("div", "md-command-empty", t("noCommands"))); return; }
+  if (!list.length) { E.commandHighlight = 0; input.setAttribute("aria-activedescendant", ""); host.appendChild(el("div", "md-command-empty", t("noCommands"))); return; }
+  if (E.commandHighlight >= list.length) E.commandHighlight = 0;
   list.forEach(function (c, index) {
     var why = c.available && !c.available() ? ((c.reason && c.reason()) || t("cmdUnavailable")) : "";
-    var row = el("button", "md-command-result" + (index === 0 ? " selected" : "") + (why ? " unavailable" : ""));
+    var row = el("button", "md-command-result" + (index === E.commandHighlight ? " selected" : "") + (why ? " unavailable" : ""));
     row.type = "button";
+    row.id = commandSearchOptionId(c.id);
     row.setAttribute("role", "option");
     row.setAttribute("aria-disabled", why ? "true" : "false");
+    row.dataset.command = c.id;
     row.appendChild(el("i", "ph " + c.icon));
     var copy = el("span", "copy");
     copy.appendChild(el("b", "", c.label));
@@ -4596,6 +4676,7 @@ function renderCommandResults() {
     });
     host.appendChild(row);
   });
+  syncCommandSearchAria(list);
 }
 
 function finishActiveCommand() {
@@ -4695,6 +4776,7 @@ function saveAssemblyDocument() {
   refreshLib();
   flash("✓ " + t("savedAssembly"));
   markDocumentClean();
+  discardModelerDraft();
   updateTourProgress();
 }
 
@@ -4744,7 +4826,7 @@ function syncExtrudeButton() {
    change as you work moved to the status bar. */
 function sketchPlaneCaption() {
   var sketch=ensureSketch(E.def);
-  if (activeSketchFrame() && sketch.support) return "Face · " + (sketch.support.semantic || sketch.support.persistentId);
+  if (activeSketchFrame() && sketch.support) return t("facePrefix") + " · " + (sketch.support.semantic || sketch.support.persistentId);
   return t(E.view === "top" ? "view_top" : E.view === "front" ? "view_front" : "view_right");
 }
 function syncHint() {
@@ -4799,12 +4881,23 @@ function topologyStatusCaption() {
 function syncStatus() {
   var st = root && root.querySelector("#mdStatus");
   if (!st) return;
+  if (E.docType === "assembly") {
+    var components = E.assembly && E.assembly.components || [];
+    var mates = E.assembly && E.assembly.mates || [];
+    var selected = E.componentSel && E.componentSel.length || 0;
+    st.innerHTML = '<b>' + t("docAssembly") + '</b>' +
+      '<span class="md-st-sep"></span>' + components.length + " " + t("assemblyComponents") +
+      '<span class="md-st-sep"></span>' + mates.length + " " + t("matesCount") +
+      (selected ? '<span class="md-st-sep"></span><b class="md-st-selection">' + selected + " " + t("assemblySelected") + "</b>" : "") +
+      (documentDirty() ? '<span class="md-st-sep"></span><b class="md-st-dirty">' + t("dirtySave") + "</b>" : "");
+    return;
+  }
   if (E.mode === "3d" && !E.modelPlaneActive) {
     var mode=(E.def && E.def.authoringMode) || "fully-parametric";
     var recognition=E.def && E.def.metadata && E.def.metadata.import && E.def.metadata.import.recognition;
     var solids = E.def ? activeParts(E.def).length : 0;
     st.innerHTML='<b>'+mode.replace(/-/g," ")+'</b>'+
-      (recognition && recognition!=="none" ? '<span class="md-st-sep"></span>'+recognition+' reconstruction' : "")+
+      (recognition && recognition!=="none" ? '<span class="md-st-sep"></span>'+recognition+' '+t("reconstruction") : "")+
       '<span class="md-st-sep"></span>'+rebuildStatusCaption()+
       (solids ? '<span class="md-st-sep"></span>'+solids+" "+t("parts").toLowerCase() : "")+
       (topologyStatusCaption() ? '<span class="md-st-sep"></span><b class="md-st-selection">'+topologyStatusCaption()+"</b>" : "")+
@@ -5199,7 +5292,7 @@ function drawSketch() {
       c.save(); c.fillStyle = "#d0342c"; c.translate(sp.x, sp.y); c.rotate(Math.PI / 4); c.fillRect(-5, -5, 10, 10); c.restore();
     });
     if (drawing) drawAutomaticDrawingDimensions(c, sketch, spts);
-    drawSketchDimensions(c, sketch, E.scl, toPx, conflicts, { selectedId:drawing ? E.dimSel : null });
+    drawSketchDimensions(c, sketch, E.scl, toPx, conflicts, { selectedId: E.dimSel });
     if (!drawing) drawConstraintGlyphs(c, sketch, toPx, conflicts);
   }
 
@@ -5528,8 +5621,8 @@ function extrudeClosedSketch(options) {
   var selectedTarget=(E.authoring.featureSelection || []).slice(-1)[0];
   if(selectedTarget&&!(E.def.features||[]).some(function(item){return item.id===selectedTarget;}))selectedTarget=null;
   var targetFeatureId=target ? (selectedTarget || ((E.def.features || []).slice(-1)[0]||{}).id || target.featureId) : null;
-  if(featureType==="extrudeCut"&&!target){flash("Extrude Cut requires a target feature");return false;}
-  pushUndo(featureType==="extrudeCut" ? "Extrude Cut" : "Extrude sketch");
+  if(featureType==="extrudeCut"&&!target){flash(t("extrudeCutNeed"));return false;}
+  pushUndo(featureType==="extrudeCut" ? t("extrudeCut") : t("opExtrude"));
   var inside = analysis.profiles.slice(1).filter(function (candidate) {
     return pointInProfile(profileCentroid(candidate.points), profile.points);
   });
@@ -5558,7 +5651,7 @@ function extrudeClosedSketch(options) {
   if(featureType==="extrudeCut"){
     var changed=applyCut(profile.points);
     if(!changed){if(feature)removeHistoryNode(E.def,"history:feature:"+feature.id);H.discard();flash(t("cutNone"));return false;}
-    E.authoring.featureType=null;E.authoring.phase="model";refreshAll();flash("✓ Extrude Cut · "+(params.endCondition || "through-all"));return true;
+    E.authoring.featureType=null;E.authoring.phase="model";refreshAll();flash("✓ "+t("extrudeCut")+" · "+(params.endCondition || "through-all"));return true;
   }
   var part = { id: uid(), kind: "ext", axis: localFrame ? "frame" : axis, frame:localFrame ? cloneData(sketch.frame) : undefined, from: start, to: end,
     pts: profile.points, holes:inside.map(function (hole) { return hole.points; }),
@@ -6792,6 +6885,20 @@ function wireSketch() {
       E.drag = { mode: "pan", px: e.clientX, py: e.clientY, ox: E.ox, oy: E.oy };
       return;
     }
+    if (E.tool === "select" || E.tool === "dim") {
+      var dimLocalX = e.clientX - r.left, dimLocalY = e.clientY - r.top;
+      var sketchDim = placedDimensionAt(ensureSketch(E.def), dimLocalX, dimLocalY);
+      if (sketchDim) {
+        pushUndo(t("opMoveDim"));
+        E.dimPick = [];
+        E.ssel = [];
+        E.sel = null;
+        E.dimSel = sketchDim.id;
+        E.drag = { mode:"dimension", sketch:ensureSketch(E.def), constraint:sketchDim, editOnRelease:false, moved:false, px:e.clientX, py:e.clientY };
+        drawSketch();
+        return;
+      }
+    }
     var sp = snapPt(uv), su = sp.u, sv = sp.v;
     if (E.tool === "wall") {
       if (!E.wallPts || !E.wallPts.length) {
@@ -7074,6 +7181,15 @@ function wireSketch() {
       return;
     }
     if (E.tool === "wall" && E.wallPts) { finishWallChain(false); return; }
+    if (E.tool === "select" || E.tool === "dim") {
+      var sketchRect = cv.getBoundingClientRect(), sketch = ensureSketch(E.def);
+      var dimension = placedDimensionAt(sketch, e.clientX - sketchRect.left, e.clientY - sketchRect.top);
+      if (dimension) {
+        E.dimSel = dimension.id;
+        editPlacedDimension(sketch, dimension, false);
+        return;
+      }
+    }
     if (E.tool === "poly" || E.tool === "cut" || E.tool === "rev") { finishPoly(); return; }
     if (E.sel && !E.sel.sketch && partEditableInSketch(E.sel)) {
       var r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
@@ -7246,14 +7362,8 @@ function makeDrawnPart(u0, v0, u1, v1) {
   return Object.assign({ id: uid(), kind: "cyl", name: "cylinder", z: u0, x: 0, y: v0, r: r, h: E.depth }, mat);
 }
 
-// letter keys pick a tool, the way every CAD app does; kept off the panel so
-// the icons can stay unlabelled and still be learnable (see the settings pane)
-var KEY_TOOL = {
-  v: "select", b: "rect", c: "circle", s: "sph", l: "wall", p: "poly", r: "rev", x: "cut", o: "cutc",
-  q: "srect", g: "scirc", a: "sarc", d: "dim", t: "trim", e: "extend",
-  j: "sslot", n: "spoly", y: "sell",
-};
-var KEY_VIEW = { 4: "top", 5: "front", 6: "side" };
+// Letter keys pick a sketch or direct tool. R is reserved for parametric
+// Revolve (FEATURE_COMMAND / KEY_TOOL in modeler_commands.js).
 
 function onKey(e) {
   if (!E.open) return;
@@ -7287,7 +7397,12 @@ function onKey(e) {
       var at = rows.findIndex(function (r) { return r.classList.contains("selected"); });
       rows.forEach(function (r) { r.classList.remove("selected"); });
       at = e.key === "ArrowDown" ? (at + 1) % rows.length : (at - 1 + rows.length) % rows.length;
+      E.commandHighlight = at;
       rows[at].classList.add("selected"); rows[at].scrollIntoView({block:"nearest"});
+      if (rows[at].id) {
+        var searchInput = root.querySelector("#mdCommandSearchInput");
+        if (searchInput) searchInput.setAttribute("aria-activedescendant", rows[at].id);
+      }
       return;
     }
   }
@@ -7329,7 +7444,7 @@ function onKey(e) {
     if (E.slotPts) { E.slotPts = null; drawSketch(); syncContextActions(); return; }
     if (E.ellPts) { E.ellPts = null; drawSketch(); syncContextActions(); return; }
     if (E.drag && E.drag.sticky) { E.drag = null; drawSketch(); syncContextActions(); return; }
-    if (E.mode === "drawing" && (E.dimPick.length || E.dimSel)) {
+    if (E.dimPick.length || E.dimSel) {
       E.dimPick = []; E.dimSel = null; E.ssel = []; E.sel = null; drawSketch(); syncStatus(); return;
     }
     if (E.mode === "3d" && E.modelPlaneActive) { finishModelPlane(); return; }
@@ -7363,6 +7478,7 @@ function onKey(e) {
   else if (e.key === "3") setMode("3d");
   else if (e.key === "7") setMode("drawing");
   else if (KEY_VIEW[e.key]) setView(KEY_VIEW[e.key]);
+  else if (k === "r") runCommand("revolvefeature");
   else if (KEY_TOOL[k]) setTool(KEY_TOOL[k]);
   else if (k === "f") E.mode === "3d" && !E.modelPlaneActive ? fitPreview() : fitSketch();
   else if ((e.key === "Delete" || e.key === "Backspace") && E.sel) {
@@ -9396,10 +9512,30 @@ function downloadBytes(bytes, name, type) {
 function addReferenceGeometry(kind) {
   if (E.docType !== "part") return;
   E.def.referenceGeometry ||= [];
-  pushUndo("Add reference geometry");
-  var item = kind === "plane" ? createReferencePlane({name:"Plane " + (E.def.referenceGeometry.length + 1), origin:{x:0,y:E.baseOff,z:0}})
-    : kind === "axis" ? createReferenceAxis({name:"Axis " + (E.def.referenceGeometry.length + 1)})
-    : createCoordinateSystem({name:"Coordinate System " + (E.def.referenceGeometry.length + 1)});
+  var face = kind === "plane" ? (E.topologySelection || []).find(function (reference) { return reference.kind === "face"; }) : null;
+  var descriptor = face && face.descriptor || {};
+  if (kind === "plane" && face && descriptor.surface && descriptor.surface !== "plane") {
+    flash(t("needPlanarFace"));
+    return;
+  }
+  pushUndo(t("addRefGeom"));
+  var n = E.def.referenceGeometry.length + 1;
+  var item;
+  if (kind === "plane" && face && (!descriptor.surface || descriptor.surface === "plane")) {
+    item = createReferencePlane({
+      name: t("refPlane") + " " + n,
+      origin: descriptor.origin || { x: 0, y: 0, z: 0 },
+      normal: descriptor.normal || { x: 0, y: 1, z: 0 },
+      refType: "on-face",
+    });
+    item.support = cloneData(face);
+  } else if (kind === "plane") {
+    item = createReferencePlane({ name: t("refPlane") + " " + n, origin: { x: 0, y: E.baseOff, z: 0 } });
+  } else if (kind === "axis") {
+    item = createReferenceAxis({ name: t("refAxis") + " " + n });
+  } else {
+    item = createCoordinateSystem({ name: t("refCoord") + " " + n });
+  }
   E.def.referenceGeometry.push(item);
   E.def.references ||= [];
   if(kind==="plane")E.def.references.push(Object.assign({},cloneDomain(item),{type:"plane"}));
@@ -9614,6 +9750,7 @@ async function saveModel() {
   S.dirty3D = true; // placed instances of an edited model rebuild with new geometry
   flash("✓ " + t("saved"));
   markDocumentClean();
+  discardModelerDraft();
 }
 
 /* ================= open / close ================= */
@@ -9699,6 +9836,7 @@ export function openModeler(editKey, def, srcItem) {
   refreshAll();
   // The editor opens on the solid model; sketch and drawing remain one click away.
   fitPreview();
+  if (!editKey && !def && !srcItem) tryRestoreModelerDraft();
 }
 // Open the editor for a placed item: custom models open their own definition
 // (saving updates every placed instance); built-ins open as an editable copy,

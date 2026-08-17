@@ -2,17 +2,24 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const commandSource = await readFile(new URL("../js/modeler_commands.js", import.meta.url), "utf8");
+const formSource = await readFile(new URL("../js/modeler_feature_form.js", import.meta.url), "utf8");
+const draftSource = await readFile(new URL("../js/modeler_draft.js", import.meta.url), "utf8");
+const source = [modelerSource, commandSource, formSource, draftSource].join("\n");
 const editorViewSource = await readFile(new URL("../js/editor_view.js", import.meta.url), "utf8");
 const featureCatalogSource = await readFile(new URL("../js/core/feature_catalog.js", import.meta.url), "utf8");
 const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 
 test("the default Features surface exposes the canonical feature vocabulary", () => {
-  for (const command of ["newsketch", "extrude", "extrudecut", "revolvefeature", "sweepfeature", "loftfeature", "filletfeature", "chamferfeature", "shellfeature", "patternfeature", "mirrorfeature", "booleanfeature"])
+  for (const command of ["newsketch", "extrude", "extrudecut", "revolvefeature", "sweepfeature", "loftfeature", "filletfeature", "chamferfeature", "shellfeature", "patternfeature", "mirrorfeature", "booleanfeature", "holefeature"])
     assert.match(source, new RegExp(`commandButton\\("${command}"`));
   assert.doesNotMatch(source, /commandButton\("rect"/);
   assert.doesNotMatch(source, /commandButton\("circle"/);
   assert.doesNotMatch(source, /commandButton\("sph"/);
+  assert.match(source, /commandButton\("directbox"/);
+  assert.match(source, /commandButton\("directcyl"/);
+  assert.match(source, /commandButton\("directsph"/);
 });
 
 test("the editor requires explicit reference selection and renders canonical history", () => {
@@ -38,7 +45,7 @@ test("feature parameters are grouped and drive every visual projection live", ()
   assert.match(source, /function cancelFeatureParameterEdit/);
   assert.match(source, /renderedParts\(E\.def\)/);
   assert.match(source, /rotatePatternPart\(copy,state\.params\.axis/);
-  assert.match(source, /\["axisX","axisY","axisZ"\]/);
+  assert.match(source, /\["axisX",\s*"axisY",\s*"axisZ"\]/);
 });
 
 test("linear pattern exposes independent X Y Z controls and skipped copies", () => {
@@ -46,7 +53,7 @@ test("linear pattern exposes independent X Y Z controls and skipped copies", () 
     assert.match(featureCatalogSource,new RegExp(`key: "${field}"`));
   assert.match(source,/linearPatternAxisDefinitions\(axisParams\)/);
   assert.match(source,/parseSkippedPatternInstances\(params\.skipInstances\)/);
-  assert.match(source,/rememberPatternSettings\(patternMode\);restorePatternSettings\(input\.value\)/);
+  assert.match(source,/rememberPatternSettings\(patternMode\);\s*restorePatternSettings\(input\.value\)/);
   assert.match(featureCatalogSource,/key: "radialDistance", label: "Distance from axis"/);
   assert.match(source,/state\.params\.radialDistance/);
 });
@@ -117,4 +124,33 @@ test("3D model view keeps a rebuild status line", () => {
   assert.match(source, /t\("rebuildOk"\)/);
   assert.match(source, /t\("dirtySave"\)/);
   assert.doesNotMatch(styles, /#modeler\.md-is3d:not\(\.md-model-sketching\) \.md-status \{ display: none; \}/);
+});
+
+test("R opens parametric Revolve and sketch-revolve has no letter chord", () => {
+  assert.doesNotMatch(commandSource, /r:\s*"rev"/);
+  assert.match(commandSource, /shortcut:"R"/);
+  assert.match(source, /k === "r"\) runCommand\("revolvefeature"\)/);
+  assert.match(source, /id === "holefeature"\) openParametricFeature\("hole"\)/);
+});
+
+test("command search restores focus and names the active option", () => {
+  assert.match(source, /E\.commandSearchRestore = document\.activeElement/);
+  assert.match(source, /aria-activedescendant/);
+  assert.match(source, /mdCommandOption-/);
+  assert.match(source, /role="combobox"/);
+});
+
+test("assembly keeps a status line and editor drafts persist locally", () => {
+  assert.match(source, /E\.docType === "assembly"/);
+  assert.match(source, /function tryRestoreModelerDraft/);
+  assert.match(source, /function scheduleModelerDraft/);
+  assert.match(draftSource, /home3d_modeler_draft/);
+  assert.doesNotMatch(styles, /#modeler\.md-assembly \.md-status,/);
+});
+
+test("sketch witness lines and on-face planes are wired in the editor", () => {
+  assert.match(source, /placedDimensionAt\(ensureSketch\(E\.def\)/);
+  assert.match(source, /selectedId: E\.dimSel/);
+  assert.match(source, /refType: "on-face"/);
+  assert.match(source, /function createHoleFeature/);
 });
