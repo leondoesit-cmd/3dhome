@@ -13,6 +13,14 @@ const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
 const presets = await readFile(new URL("../js/cabinet_presets.js", import.meta.url), "utf8");
 const engine = await readFile(new URL("../js/cabinet.js", import.meta.url), "utf8");
 
+test("cabinet ctx exports formatCm instead of trapping it in an unclosed comment", async () => {
+  const { formatCm, row, AXES } = await import("../js/ui_cabinet_ctx.js");
+  assert.equal(typeof formatCm, "function");
+  assert.equal(formatCm(12.34), "12.3");
+  assert.equal(typeof row, "function");
+  assert.ok(AXES.front);
+});
+
 test("overall size edits go through the parametric cabinet dimension request", () => {
   assert.match(chrome, /import \{\s*CAB_LIMITS, syncCabinetDefinition, requestCabinetDimension, applyCabinetDimension,/);
   assert.match(chrome, /function applyOverallSize\(dimension, input\)/);
