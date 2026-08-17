@@ -6404,7 +6404,54 @@ body.zombies-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
   position: absolute; left: 50%; bottom: 68px; transform: translateX(-50%);
   font-size: 11px; color: rgba(210, 198, 188, 0.5); letter-spacing: 0.06em;
   white-space: nowrap; max-width: 94vw; overflow: hidden; text-overflow: ellipsis;
+  transition: opacity 1.1s ease;
 }
+#zHint.fade { opacity: 0; }
+
+#zPauseBtn {
+  display: none; position: absolute; top: 12px; right: 12px; z-index: 36;
+  width: 44px; height: 44px; pointer-events: auto; touch-action: none; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.18); border-radius: 10px;
+  background: rgba(12,10,10,.62); color: #efe6dd; font: 800 13px/1 "Segoe UI", system-ui, sans-serif;
+  letter-spacing: .12em; backdrop-filter: blur(8px);
+}
+
+#zTouch {
+  display: none; position: absolute; inset: 0; pointer-events: none; z-index: 34;
+}
+.z-touch-stick {
+  position: absolute; left: 22px; bottom: 22px; width: 118px; height: 118px;
+  pointer-events: auto; touch-action: none;
+  border-radius: 50%; border: 1px solid rgba(255,255,255,.16);
+  background: rgba(10,8,8,.38); backdrop-filter: blur(6px);
+}
+.z-touch-stick i {
+  position: absolute; left: 50%; top: 50%; width: 46px; height: 46px;
+  margin: -23px 0 0 -23px; border-radius: 50%;
+  background: rgba(232, 196, 170, .78); box-shadow: 0 0 16px rgba(0,0,0,.45);
+  pointer-events: none;
+}
+.z-touch-stick.pressed { background: rgba(70, 18, 12, .45); }
+.z-touch-actions {
+  position: absolute; right: 16px; bottom: 18px; display: grid;
+  grid-template-columns: 52px 72px; grid-template-rows: 52px 52px 72px; gap: 8px;
+  pointer-events: auto; touch-action: none;
+}
+.z-touch-actions button {
+  width: 52px; height: 52px; border: 1px solid rgba(255,255,255,.2); border-radius: 16px;
+  background: rgba(18, 14, 12, .72); color: #f3e7dc; font-size: 16px; font-weight: 800;
+  box-shadow: 0 6px 18px rgba(0,0,0,.4); backdrop-filter: blur(8px);
+  -webkit-user-select: none; user-select: none;
+}
+.z-touch-actions button.pressed, .z-touch-actions button:active {
+  transform: scale(.94); background: rgba(140, 36, 24, .82);
+}
+.z-touch-actions .z-touch-fire {
+  width: 72px; height: 72px; border-radius: 50%; font-size: 22px;
+  background: rgba(185, 48, 32, .82); border-color: rgba(255, 180, 140, .45);
+  grid-column: 2; grid-row: 3;
+}
+.z-touch-actions [data-act="weapon"] { grid-column: 1; grid-row: 3; align-self: end; }
 
 /* --- ready / pause screen ------------------------------------------------ */
 #zPause {
@@ -6415,7 +6462,7 @@ body.zombies-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
   backdrop-filter: blur(5px);
 }
 #zPause.on { display: flex; animation: zpause-in .28s ease-out; }
-.z-pause-card { width: min(560px, calc(100vw - 44px)); text-align: center; }
+.z-pause-card { width: min(560px, calc(100vw - 44px)); max-height: calc(100vh - 36px); overflow: auto; text-align: center; }
 .z-pause-card .z-eyebrow {
   display: block; color: #d8452c; font-size: 10px; font-weight: 850; letter-spacing: .28em;
   text-transform: uppercase;
@@ -6427,7 +6474,7 @@ body.zombies-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
 }
 .z-pause-card > p { max-width: 430px; margin: 0 auto; color: #a79d94; font-size: 14px; line-height: 1.6; }
 .z-controls {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 28px 0 24px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 28px 0 24px;
 }
 .z-controls span {
   min-width: 0; padding: 11px 5px 9px; border: 1px solid rgba(255,255,255,.08);
@@ -6449,7 +6496,13 @@ body.zombies-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
   margin: 0 0 9px; color: #8e8580; font-size: 9px; font-weight: 850;
   letter-spacing: .2em; text-transform: uppercase;
 }
+.z-game-settings h3 + h3, .z-game-settings label + h3 { margin-top: 12px; }
 .z-game-settings label { display: grid; grid-template-columns: 165px 1fr; align-items: center; gap: 14px; min-height: 30px; }
+.z-game-settings label.z-check {
+  grid-template-columns: auto 1fr; justify-items: start; gap: 10px;
+  color: #c5bbb3; font-size: 10px; font-weight: 650; letter-spacing: .04em;
+}
+.z-game-settings label.z-check input { width: 16px; height: 16px; accent-color: #d8452c; }
 .z-game-settings label > span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
 .z-game-settings label b { color: #c5bbb3; font-size: 10px; font-weight: 650; letter-spacing: .04em; }
 .z-game-settings output { color: #e0553d; font-size: 10px; font-weight: 850; white-space: nowrap; }
@@ -6477,7 +6530,10 @@ body.zombies-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
 }
 #zPause #zExit:hover { color: #c5b9af; background: transparent; transform: none; }
 #zHud.paused #zCross, #zHud.paused #zWheel, #zHud.paused #zHint,
-#zHud.paused #zMission, #zHud.paused #zThreat, #zHud.paused #zBottom { opacity: 0; }
+#zHud.paused #zMission, #zHud.paused #zThreat, #zHud.paused #zBottom,
+#zHud.paused #zTouch, #zHud.paused #zPauseBtn { opacity: 0; pointer-events: none; }
+#zHud:has(#zDead.on) #zTouch,
+#zHud:has(#zDead.on) #zPauseBtn { display: none !important; }
 @keyframes zpause-in { from { opacity: 0; transform: scale(1.015); } to { opacity: 1; transform: scale(1); } }
 
 /* --- death panel --------------------------------------------------------- */
@@ -6499,6 +6555,11 @@ body.zombies-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
   background: #1a1513; color: #e8ddd3; border: 1px solid #5c2018; border-radius: 3px;
 }
 #zDead button:hover { background: #341311; border-color: #9c1109; }
+#zDead #zDeadExit {
+  margin-top: 0; padding: 6px 12px; border: 0; background: transparent;
+  color: #786f68; font-size: 11px; letter-spacing: .1em;
+}
+#zDead #zDeadExit:hover { color: #c5b9af; background: transparent; border: 0; }
 @keyframes zfade { from { opacity: 0; } to { opacity: 1; } }
 
 @media (max-width: 720px) {
@@ -6509,6 +6570,22 @@ body.zombies-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
   #zThreat { left: 12px; top: 68px; }
   .z-controls { grid-template-columns: repeat(2, 1fr); }
   .z-game-settings label { grid-template-columns: 125px 1fr; }
+}
+
+@media (pointer: coarse) {
+  #zTouch { display: block; }
+  #zPauseBtn { display: grid; place-items: center; }
+  #zHint { display: none; }
+  #zWheel { display: none; }
+  #zBottom { bottom: 148px; }
+}
+
+@media (pointer: coarse) and (max-width: 520px) {
+  .z-touch-stick { left: 12px; bottom: 14px; width: 102px; height: 102px; }
+  .z-touch-actions { right: 10px; bottom: 12px; gap: 6px; grid-template-columns: 46px 64px; grid-template-rows: 46px 46px 64px; }
+  .z-touch-actions button { width: 46px; height: 46px; border-radius: 14px; font-size: 14px; }
+  .z-touch-actions .z-touch-fire { width: 64px; height: 64px; }
+  #zBottom { bottom: 132px; padding: 0 14px; }
 }
 
 @media (max-height: 690px) {
