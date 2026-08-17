@@ -15,7 +15,7 @@ export const EYE = 162,          // eye height above the floor (cm)
   MAX_HP = 100,
   MAX_ARMOR = 100,
   MELEE_REACH = 96,
-  Z_MAX_ALIVE = 18,     // draw-call cap: procedural rigs have many moving parts
+  Z_MAX_ALIVE = 16,     // draw-call cap: procedural rigs have many moving parts
   REST_LEN = 12;        // seconds of resupply between waves (HUD counts it down)
 
 /* ---- module state ------------------------------------------------------- */

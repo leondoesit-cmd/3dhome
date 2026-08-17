@@ -6165,6 +6165,8 @@ body.zombies-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
   image-rendering: pixelated; opacity: 0.42; mix-blend-mode: overlay;
   transform: scale(1.02);
 }
+#zHud.z-lite #zGrain,
+#zHud.z-lite #zChrom { display: none; }
 /* --- vignette: darkens the edges, goes red as you bleed out --------------- */
 #zVig {
   position: absolute; inset: 0; opacity: 0.55;

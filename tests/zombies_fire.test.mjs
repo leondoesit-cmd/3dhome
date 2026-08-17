@@ -18,8 +18,11 @@ test("Night Shift graphics tiers control its own expensive render paths", () => 
   assert.match(world, /Z\.qualityFxScale = \[0\.45, 0\.72, 1\]\[quality\]/);
   assert.match(world, /Z\.flash\.volumetric = quality > 0/);
   assert.match(world, /applyZedShadowQuality\(rig\.root\)/);
-  assert.match(game, /var qualityCap = \[12, 18, 24\]\[gameSettings\(\)\.quality \|\| 0\]/);
+  assert.match(game, /var qualityCap = qualityHordeCap\(\)/);
+  assert.match(game, /return \[8, 12, 16\]\[gameSettings\(\)\.quality \|\| 0\]/);
   assert.match(game, /var texBudgetChanged = setTexBudget\(gameSettings\(\)\.quality\)/);
+  assert.match(game, /setGameRendererQuality/);
+  assert.match(game, /if \(Z\.settings\.quality >= 2\) enableDestruction\(\)/);
 });
 
 test("burning zombies use a special staged reaction and clean up their light", () => {

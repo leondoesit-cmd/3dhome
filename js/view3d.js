@@ -69,6 +69,7 @@ import {
   addPhysicsBody,
   clearPhysics,
   isPhysicsEnabled,
+  isPhysicsBusy,
   hitObjectAtCenter,
   toggleSlowMo
 } from "./physics_facade.js";
@@ -148,12 +149,17 @@ var needsRender = true; // paint the next frame
 var shadowsDirty = true; // rebuild the sun shadow map next paint (geometry/sun changed)
 var shadowThrottleT = 0;  // timestamp of last shadow pass (for extLive throttle)
 var qualityPreset = "auto";
+var gameRendererLock = false;
 export function requestRender() { needsRender = true; settle = SETTLE_FRAMES; }
 export function requestShadowUpdate() { shadowsDirty = true; needsRender = true; settle = SETTLE_FRAMES; }
 
 export function setQualityPreset(preset) {
   qualityPreset = ["auto", "performance", "balanced", "quality"].indexOf(preset) >= 0 ? preset : "auto";
-  if (!renderer) return qualityPreset;
+  if (!renderer || gameRendererLock) return qualityPreset;
+  return applyPlannerQuality();
+}
+
+function applyPlannerQuality() {
   var effective = qualityPreset;
   if (effective === "auto") {
     var memory = navigator.deviceMemory || 8;
@@ -172,6 +178,28 @@ export function setQualityPreset(preset) {
   setSize(canvas.clientWidth || 1, canvas.clientHeight || 1);
   requestShadowUpdate();
   return effective;
+}
+
+// Night Shift (and any other live first-person mode) cannot reuse the CAD
+// quality stack. A 14" M2 Pro panel is ~3024×1964 CSS pixels; 2× DPR + GTAO +
+// TRAA + a 4096² sun map is a still-view budget, and it freezes the moment
+// dozens of articulated rigs start moving. Cap pixel ratio, skip post, and
+// only pay for shadows the flashlight actually casts.
+export function setGameRendererQuality(quality) {
+  gameRendererLock = true;
+  if (!renderer) return;
+  quality = Math.round(Math.max(0, Math.min(2, Number(quality) || 0)));
+  var ratio = quality >= 2 ? 1.25 : 1;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, ratio));
+  renderer.shadowMap.enabled = quality > 0;
+  usePost = false;
+  var canvas = renderer.domElement;
+  setSize(canvas.clientWidth || 1, canvas.clientHeight || 1);
+  requestShadowUpdate();
+}
+
+export function clearGameRendererQuality() {
+  gameRendererLock = false;
 }
 var skyCanvas,
   skyTex,
@@ -3401,7 +3429,7 @@ export function init3D() {
     // being active means we must paint this frame (and the next).
     var doorsMoving = updateDoors();
     var humansLive = updateHumans(time);
-    var physicsLive = isPhysicsEnabled();
+    var physicsLive = isPhysicsBusy();
     // Nothing can be painted until the WebGPU/WebGL2 backend has finished its
     // async init; keep the loop alive and pick up on the frame after it lands.
     if (!renderer || !renderer.initialized) return;
