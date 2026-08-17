@@ -10,16 +10,27 @@ test("Night Shift renders fire through a dedicated additive particle pool", () =
   assert.match(world, /blending:\s*THREE\.AdditiveBlending/);
   assert.match(world, /export function spawnFirePart\(/);
   assert.match(game, /spawnFirePart\(/);
-  assert.match(world, /mg\.setAttribute\("uv", new THREE\.BufferAttribute\(mu, 2\)\)/);
 });
 
 test("Night Shift graphics tiers control its own expensive render paths", () => {
   assert.match(world, /export function setNightShiftQuality\(value\)/);
+  assert.match(world, /export function nightShiftGfxPolicy\(quality\)/);
   assert.match(world, /Z\.qualityFxScale = \[0\.45, 0\.72, 1\]\[quality\]/);
-  assert.match(world, /Z\.flash\.volumetric = quality > 0/);
+  assert.match(world, /F\.volumetric = quality > 0/);
   assert.match(world, /applyZedShadowQuality\(rig\.root\)/);
-  assert.match(game, /var qualityCap = \[12, 18, 24\]\[gameSettings\(\)\.quality \|\| 0\]/);
+  assert.match(world, /shadowIntervalMs: Infinity/);
+  assert.match(world, /far: 1180/);
+  assert.match(game, /configureNightShiftGfx\(nightShiftGfxPolicy\(cfg\.quality\)\)/);
+  assert.match(game, /configureNightShiftGfx\(null\)/);
+  assert.match(game, /qualityCap = \[12, 18, 24\]\[cfg\.quality \|\| 0\]/);
   assert.match(game, /var texBudgetChanged = setTexBudget\(gameSettings\(\)\.quality\)/);
+  assert.doesNotMatch(game, /setQualityPreset\(\["performance", "balanced", "quality"\]/);
+});
+
+test("Night Shift motes are instanced sprites so WebGPU can size them", () => {
+  assert.match(world, /Z\.motes = \{ m: motes, geo: mg/);
+  assert.match(world, /mg\.setAttribute\("iPos", new THREE\.InstancedBufferAttribute\(mp, 3\)\)/);
+  assert.doesNotMatch(world, /new THREE\.Points\(/);
 });
 
 test("burning zombies use a special staged reaction and clean up their light", () => {

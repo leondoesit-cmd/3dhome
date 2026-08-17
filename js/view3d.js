@@ -130,6 +130,13 @@ export function orbitRefresh() {
 }
 
 var post, aoPass, traaPass, usePost = false; // AO/AA post-processing node graph
+var postColor, postLit, postStage = "traa";
+// Night Shift owns pixel ratio / GTAO / flashlight-shadow cadence while it is
+// running. The planner's still-view presets (2x pixels + full-res GTAO + 4K
+// sun maps) are the wrong budget for a moving spotlight and dozens of rigs.
+var nightShiftOwnsGfx = false;
+var nightShiftShadowMs = 200;
+var nightShiftShadowLive = true;
 // TRAA is temporal: one painted frame is not enough for it to converge, and the
 // on-demand loop below would otherwise stop after a single paint and leave the
 // image visibly noisy. After the last real change we keep painting this many
@@ -153,6 +160,7 @@ export function requestShadowUpdate() { shadowsDirty = true; needsRender = true;
 
 export function setQualityPreset(preset) {
   qualityPreset = ["auto", "performance", "balanced", "quality"].indexOf(preset) >= 0 ? preset : "auto";
+  if (nightShiftOwnsGfx) return qualityPreset;
   if (!renderer) return qualityPreset;
   var effective = qualityPreset;
   if (effective === "auto") {
@@ -172,6 +180,59 @@ export function setQualityPreset(preset) {
   setSize(canvas.clientWidth || 1, canvas.clientHeight || 1);
   requestShadowUpdate();
   return effective;
+}
+
+/**
+ * Night Shift's in-game quality slider. Pass a policy object while the mode
+ * runs, or null to hand the renderer back to the planner preset.
+ *
+ *   pixelRatio        cap on devicePixelRatio (1 / 1.25 / 1.5 — never the
+ *                     planner's 2x, which doubles every zombie fragment)
+ *   shadows           renderer.shadowMap.enabled
+ *   shadowIntervalMs  0 = every frame, Infinity = never, else throttle
+ *   post              "off" | "ao" | "traa"
+ *   aoScale/samples/radius/strength  GTAO knobs retuned for flashlight interiors
+ */
+export function configureNightShiftGfx(cfg) {
+  nightShiftOwnsGfx = !!cfg;
+  if (!cfg) {
+    nightShiftShadowMs = 200;
+    nightShiftShadowLive = true;
+    if (aoPass) {
+      aoPass.samples.value = 16;
+      aoPass.radius.value = 18;
+      aoPass.scale.value = 1.1;
+    }
+    if (post && postColor) {
+      post.outputNode = postStage === "raw" ? postColor : postStage === "ao" ? postLit : traaPass;
+    }
+    return;
+  }
+  nightShiftShadowMs = cfg.shadowIntervalMs;
+  if (nightShiftShadowMs == null) nightShiftShadowMs = 200;
+  if (!renderer) return;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.pixelRatio || 1));
+  renderer.shadowMap.enabled = !!cfg.shadows;
+  if (aoPass) {
+    aoPass.resolutionScale = cfg.aoScale == null ? 0.5 : cfg.aoScale;
+    if (cfg.aoSamples != null) aoPass.samples.value = cfg.aoSamples;
+    if (cfg.aoRadius != null) aoPass.radius.value = cfg.aoRadius;
+    if (cfg.aoStrength != null) aoPass.scale.value = cfg.aoStrength;
+  }
+  if (cfg.post === "off" || !post) {
+    usePost = false;
+  } else if (post && postLit) {
+    usePost = true;
+    post.outputNode = cfg.post === "traa" && traaPass ? traaPass : postLit;
+  }
+  var canvas = renderer.domElement;
+  renderer.setSize(canvas.clientWidth || 1, canvas.clientHeight || 1);
+  requestShadowUpdate();
+}
+
+/** Flashlight shadows only need a rebuild while the beam is actually on. */
+export function setNightShiftShadowLive(on) {
+  nightShiftShadowLive = !!on;
 }
 var skyCanvas,
   skyTex,
@@ -2845,12 +2906,14 @@ export function init3D() {
     // zeroes green and blue and the whole view comes out red.
     var lit = colorNode.mul(vec4(vec3(aoPass.getTextureNode().r), 1));
     traaPass = traa(lit, depthNode, velocityNode, camera);
+    postColor = colorNode;
+    postLit = lit;
     // ?post=raw|ao|traa (or localStorage home3d_post) bisects the graph when the
     // image comes out wrong — "raw" is the bare scene pass, "ao" adds GTAO.
-    var stage = (/[?&]post=(\w+)/.exec(location.search) || [])[1] ||
+    postStage = (/[?&]post=(\w+)/.exec(location.search) || [])[1] ||
       (function () { try { return localStorage.getItem("home3d_post"); } catch (e) { return null; } })() ||
       "traa";
-    post.outputNode = stage === "raw" ? colorNode : stage === "ao" ? lit : traaPass;
+    post.outputNode = postStage === "raw" ? colorNode : postStage === "ao" ? lit : traaPass;
     usePost = true;
   } catch (e) {
     console.warn("post-processing unavailable, falling back to direct render:", e);
@@ -3414,13 +3477,18 @@ export function init3D() {
       needsRender = false;
       // Refresh the sun shadow map only when geometry/light actually changed.
       // Physics and human motion move shadow-casters too, so keep it live then.
-      // extLive (Night Shift tick) is true every frame but the indoor scene is
-      // mostly static — throttle shadow passes to ~5 Hz to avoid hammering the
-      // GPU with a 4096² depth re-render 60 times a second.
+      // Night Shift's flashlight is a moving caster: High rebuilds every frame,
+      // Balanced ~30 Hz, Fast skips. The planner's old 5 Hz cap made the beam's
+      // shadows crawl behind the camera.
       if (extLive) {
-        if (!shadowThrottleT || time - shadowThrottleT > 200) {
-          renderer.shadowMap.needsUpdate = true;
-          shadowThrottleT = time;
+        var interval = nightShiftOwnsGfx ? nightShiftShadowMs : 200;
+        if (!nightShiftOwnsGfx || nightShiftShadowLive) {
+          if (!isFinite(interval)) {
+            // Fast: no shadow map work at all
+          } else if (interval <= 0 || !shadowThrottleT || time - shadowThrottleT > interval) {
+            renderer.shadowMap.needsUpdate = true;
+            shadowThrottleT = time;
+          }
         }
       } else if (shadowsDirty || physicsLive || humansLive) {
         renderer.shadowMap.needsUpdate = true;

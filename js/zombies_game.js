@@ -13,6 +13,7 @@ import {
   toggleWalk,
   orbitRefresh,
   setQualityPreset,
+  configureNightShiftGfx,
 } from "./view3d.js";
 import { t } from "./i18n.js";
 import {
@@ -52,6 +53,7 @@ import {
   stepZedVisuals,
   setFXDensity,
   setNightShiftQuality,
+  nightShiftGfxPolicy,
   tracer,
   clearZedGeoCache,
   prewarmRigs,
@@ -62,7 +64,6 @@ import {
   spawnFirePart,
   boneBurst,
   harvestPracticals,
-  applyHorrorGrade,
   resetTexCache,
   Z_TYPES,
   stepAcidClouds,
@@ -195,9 +196,9 @@ function saveGameSettings() {
 }
 function applyGameSettings() {
   var cfg = gameSettings();
-  if (Z.active) setQualityPreset(["performance", "balanced", "quality"][cfg.quality]);
   setNightShiftQuality(cfg.quality);
   setFXDensity(cfg.fx / 100);
+  configureNightShiftGfx(nightShiftGfxPolicy(cfg.quality));
 }
 function syncSettingsUi() {
   if (!Z.hud || !Z.hud.qualitySlider) return;
@@ -3254,11 +3255,11 @@ export function toggleZombies(on) {
   if (want) {
     if (isWalk()) toggleWalk(false);
     ensureBuilt();
-    // The planner may use 2x pixels + SSAO + large shadows. Those are fine for
-    // a still design view, but disastrous with dozens of animated rigs.
+    // Night Shift owns pixel ratio, GTAO and flashlight-shadow cadence. Mapping
+    // the in-game slider onto the planner's still-view presets (2x pixels +
+    // full-res GTAO + 4K sun maps) is what made High hitch with a live horde.
     Z.prevQuality = (S.workspace && S.workspace.quality) || "auto";
     gameSettings();
-    setQualityPreset(["performance", "balanced", "quality"][Z.settings.quality]);
     // Texel budget follows the same slider. If it moved since the last
     // session the cached maps are the wrong size, so drop them first —
     // materials are rebuilt from scratch below either way.
@@ -3345,6 +3346,7 @@ export function toggleZombies(on) {
     document.body.classList.remove("zombies-on");
     maximize3D(false);
     orbitRefresh();
+    configureNightShiftGfx(null);
     setQualityPreset(Z.prevQuality || ((S.workspace && S.workspace.quality) || "auto"));
     Z.prevQuality = null;
   }
@@ -3360,9 +3362,8 @@ export function toggleZombies(on) {
 window.addEventListener("scene3d:rebuilt", function () {
   if (!Z.active) return;
   Z.colDirty = true;
-  applyHorrorGrade();   // fog/background/exposure come back as the planner's day
-  harvestPracticals();  // and every practical is a brand-new full-brightness light
-  buildMoonBeams();
+  harvestPracticals();  // every practical is a brand-new full-brightness light
+  setNightShiftQuality(Z.renderQuality == null ? 0 : Z.renderQuality);
 });
 
 

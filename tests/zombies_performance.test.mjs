@@ -56,3 +56,16 @@ test("Night Shift computes articulated poses once after physics substeps", async
   assert.match(world, /Col2D\.buildSpatialIndex\(col, 180\)/);
   assert.match(world, /var _zedMovePoint = \{ x: 0, z: 0 \}/);
 });
+
+test("Night Shift owns a dedicated renderer policy instead of planner presets", async () => {
+  const view = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+  const world = await readFile(new URL("../js/zombies_world.js", import.meta.url), "utf8");
+  const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
+  assert.match(view, /export function configureNightShiftGfx\(cfg\)/);
+  assert.match(view, /export function setNightShiftShadowLive\(on\)/);
+  assert.match(view, /nightShiftOwnsGfx \? nightShiftShadowMs : 200/);
+  assert.match(world, /pixelRatio: 1\.5/);
+  assert.match(world, /post: "ao"/);
+  assert.match(world, /Distance LOD: far rigs keep their pose/);
+  assert.match(game, /configureNightShiftGfx\(nightShiftGfxPolicy/);
+});

@@ -23,6 +23,7 @@ import {
   getDynGroup,
   getRigLights,
   applyEnv,
+  setNightShiftShadowLive,
 } from "./view3d.js";
 import { wallGeom, hiddenSets, detectRooms, roomHidden, usedNodes } from "./geometry.js";
 import { t } from "./i18n.js";
@@ -1163,15 +1164,14 @@ export function initFX() {
   }
   Z.impacts = { list: impacts, head: 0, activeN: IN };
 
-  // --- dust motes: the flashlight beam needs something to catch
+  // --- dust motes: the flashlight beam needs something to catch.
+  // Instanced billboards, not THREE.Points: WebGPU only rasterises 1px points,
+  // which made the volume of the beam read as empty glitter on that backend.
   var MN = 440,
-    mg = new THREE.BufferGeometry(),
+    mg = instancedQuad(MN),
     mp = new Float32Array(MN * 3),
     mc = new Float32Array(MN * 3),
-    // WebGPURenderer turns PointsMaterial's sprite map into a node lookup.
-    // Supplying a stable centre UV prevents its first render from warning
-    // about a missing vertex attribute whenever a weapon wakes the FX pass.
-    mu = new Float32Array(MN * 2);
+    ms = new Float32Array(MN);
   for (var k = 0; k < MN; k++) {
     mp[k * 3] = rr(-700, 700);
     mp[k * 3 + 1] = rr(0, 280);
@@ -1180,29 +1180,35 @@ export function initFX() {
     mc[k * 3] = warm ? 1 : 0.72;
     mc[k * 3 + 1] = warm ? 0.92 : 0.82;
     mc[k * 3 + 2] = warm ? 0.7 : 1;
-    mu[k * 2] = mu[k * 2 + 1] = 0.5;
+    ms[k] = rr(2.4, 4.2);
   }
-  mg.setAttribute("position", new THREE.BufferAttribute(mp, 3));
-  mg.setAttribute("color", new THREE.BufferAttribute(mc, 3));
-  mg.setAttribute("uv", new THREE.BufferAttribute(mu, 2));
-  var motes = new THREE.Points(
-    mg,
-    new THREE.PointsMaterial({
-      size: 3.1,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.55,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      sizeAttenuation: true,
-      map: TEX.spray,
-      alphaTest: 0.02,
-    })
-  );
+  mg.setAttribute("iPos", new THREE.InstancedBufferAttribute(mp, 3));
+  mg.setAttribute("iCol", new THREE.InstancedBufferAttribute(mc, 3));
+  mg.setAttribute("iSize", new THREE.InstancedBufferAttribute(ms, 1));
+  var mm = new THREE.PointsNodeMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  mm.positionNode = attribute("iPos");
+  mm.sizeAttenuation = false;
+  var moteDist = positionView.z.negate().max(1);
+  mm.sizeNode = attribute("iSize").mul(220).div(moteDist).div(screenDPR);
+  mm.colorNode = Fn(function () {
+    var puv = positionLocal.xy.add(vec2(0.5));
+    var d = puv.sub(vec2(0.5)).length();
+    var tx = texture(TEX.spray, puv);
+    Discard(tx.a.lessThan(0.02).or(d.greaterThan(0.5)));
+    var soft = smoothstep(0.12, 0.5, d).oneMinus();
+    var a = tx.a.mul(soft).mul(0.42);
+    return vec4(attribute("iCol").mul(a), a);
+  })();
+  var motes = new THREE.Mesh(mg, mm);
   motes.frustumCulled = false;
+  motes.renderOrder = 2;
   noRaycast(motes);
   g.add(motes);
-  Z.motes = { m: motes, geo: mg, n: MN, activeN: MN, phase: 0 };
+  Z.motes = { m: motes, geo: mg, n: MN, activeN: MN, phase: 0, skip: false };
   setFXDensity((Z.settings && Z.settings.fx ? Z.settings.fx : 50) / 100);
 }
 
@@ -1214,19 +1220,25 @@ export function setFXDensity(value) {
   // fire as High (and made the graphics slider look ineffective).
   var visual = clamp(k * (Z.qualityFxScale == null ? 1 : Z.qualityFxScale), 0.1, 1);
   Z.fxDensity = visual;
-  if (Z.parts) Z.parts.activeN = Math.max(100, Math.round(Z.parts.n * visual));
-  if (Z.fireParts) Z.fireParts.activeN = Math.max(100, Math.round(Z.fireParts.n * visual));
+  if (Z.parts) {
+    Z.parts.activeN = Math.max(100, Math.round(Z.parts.n * visual));
+    Z.parts.geo.instanceCount = Z.parts.activeN;
+  }
+  if (Z.fireParts) {
+    Z.fireParts.activeN = Math.max(100, Math.round(Z.fireParts.n * visual));
+    Z.fireParts.geo.instanceCount = Z.fireParts.activeN;
+  }
   if (Z.decals) Z.decals.activeN = Math.max(16, Math.round(Z.decals.list.length * visual));
   if (Z.impacts) Z.impacts.activeN = Math.max(12, Math.round(Z.impacts.list.length * visual));
   if (Z.motes) {
     Z.motes.activeN = Math.max(70, Math.round(Z.motes.n * visual));
-    Z.motes.geo.setDrawRange(0, Z.motes.activeN);
+    Z.motes.geo.instanceCount = Z.motes.activeN;
   }
 }
 
-function applyZedShadowQuality(root) {
+function applyZedShadowQuality(root, enabled) {
   if (!root) return;
-  var shadows = (Z.renderQuality || 0) > 0;
+  var shadows = enabled != null ? !!enabled : (Z.renderQuality || 0) > 0;
   root.traverse(function (o) {
     if (!o.isMesh) return;
     // Preserve the detail trim's deliberate shadow exclusions.  The setting
@@ -1234,6 +1246,83 @@ function applyZedShadowQuality(root) {
     if (o.userData.zShadow == null) o.userData.zShadow = !!o.castShadow;
     o.castShadow = shadows && o.userData.zShadow;
   });
+}
+
+// Planner still-view presets (2x pixels, full-res GTAO, 4K sun maps) are the
+// wrong budget for a moving flashlight and a pile of articulated rigs. Night
+// Shift keeps its own pixel-ratio / AO / shadow-cadence policy so Fast is
+// actually cheap and High spends the extra cost on the beam, not the CAD view.
+export function nightShiftGfxPolicy(quality) {
+  quality = Math.round(clamp(Number(quality) || 0, 0, 2));
+  if (quality <= 0) {
+    return {
+      pixelRatio: 1,
+      shadows: false,
+      shadowIntervalMs: Infinity,
+      post: "off",
+      aoScale: 0.5,
+      aoSamples: 6,
+      aoRadius: 22,
+      aoStrength: 1,
+    };
+  }
+  if (quality === 1) {
+    return {
+      pixelRatio: 1.25,
+      shadows: true,
+      shadowIntervalMs: 33,
+      post: "ao",
+      aoScale: 0.5,
+      aoSamples: 8,
+      aoRadius: 28,
+      aoStrength: 1.18,
+    };
+  }
+  return {
+    pixelRatio: 1.5,
+    shadows: true,
+    shadowIntervalMs: 0,
+    // TRAA ghosts under FPS mouse-look; High spends the budget on GTAO contact
+    // and a 1.5x backbuffer instead of a temporal resolve that smears the beam.
+    post: "ao",
+    aoScale: 0.5,
+    aoSamples: 12,
+    aoRadius: 34,
+    aoStrength: 1.28,
+  };
+}
+
+function flashlightShadowTuning(quality) {
+  if (quality >= 2) {
+    return { size: 2048, far: 1180, near: 10, radius: 1.65, bias: -0.00085, normalBias: 1.12, angle: 0.38, penumbra: 0.5 };
+  }
+  if (quality === 1) {
+    return { size: 1024, far: 860, near: 12, radius: 2.55, bias: -0.00105, normalBias: 1.4, angle: 0.42, penumbra: 0.62 };
+  }
+  return { size: 512, far: 620, near: 16, radius: 3, bias: -0.0013, normalBias: 1.7, angle: 0.44, penumbra: 0.7 };
+}
+
+function applyFlashlightQuality(F, quality) {
+  if (!F || !F.sp) return;
+  var tune = flashlightShadowTuning(quality);
+  F.sp.castShadow = quality > 0;
+  F.sp.angle = tune.angle;
+  F.sp.penumbra = tune.penumbra;
+  F.sp.shadow.mapSize.set(tune.size, tune.size);
+  F.sp.shadow.camera.near = tune.near;
+  F.sp.shadow.camera.far = tune.far;
+  F.sp.shadow.bias = tune.bias;
+  F.sp.shadow.normalBias = tune.normalBias;
+  F.sp.shadow.radius = tune.radius;
+  if (F.sp.shadow.camera.updateProjectionMatrix) F.sp.shadow.camera.updateProjectionMatrix();
+  F.volumetric = quality > 0;
+  if (F.mat && F.mat.userData.uAng) F.mat.userData.uAng.value = tune.angle;
+  if (F.cone) {
+    var authored = F.coneAngle || 0.42;
+    var k = Math.tan(tune.angle) / Math.tan(authored);
+    F.cone.scale.set(k, k, 1);
+    F.cone.visible = F.volumetric;
+  }
 }
 
 // Night Shift has a moving flashlight and a large pile of alpha/instanced FX
@@ -1245,15 +1334,15 @@ export function setNightShiftQuality(value) {
   Z.renderQuality = quality;
   Z.qualityFxScale = [0.45, 0.72, 1][quality];
 
-  if (Z.flash) {
-    var size = quality === 2 ? 1536 : quality === 1 ? 1024 : 512;
-    Z.flash.sp.castShadow = quality > 0;
-    Z.flash.sp.shadow.mapSize.set(size, size);
-    Z.flash.volumetric = quality > 0;
-    if (Z.flash.cone) Z.flash.cone.visible = Z.flash.volumetric;
-  }
-  Z.zeds.forEach(function (zed) { applyZedShadowQuality(zed.rig && zed.rig.root); });
+  if (Z.flash) applyFlashlightQuality(Z.flash, quality);
+  Z.zeds.forEach(function (zed) {
+    applyZedShadowQuality(zed.rig && zed.rig.root);
+    zed._shadowOn = undefined;
+  });
+  trimSceneShadowCasters();
   setFXDensity((Z.settings && Z.settings.fx ? Z.settings.fx : 50) / 100);
+  if (Z.saved) applyHorrorGrade();
+  if (Z.moonBeams) buildMoonBeams();
 }
 
 export function spawnFirePart(x, y, z, vx, vy, vz, size, life, heat) {
@@ -1899,15 +1988,17 @@ export function stepFX(dt) {
   if (P) {
     var pa = P.geo.attributes.iPos.array,
       ca = P.geo.attributes.iCol.array,
-      sa = P.geo.attributes.iSize.array;
+      sa = P.geo.attributes.iSize.array,
+      liveP = false;
     for (var i = 0; i < (P.activeN || P.n); i++) {
       if (P.life[i] <= 0) {
-        if (sa[i] !== 0) sa[i] = 0;
+        if (sa[i] !== 0) { sa[i] = 0; liveP = true; }
         continue;
       }
       P.life[i] -= dt;
       if (P.life[i] <= 0) {
         sa[i] = 0;
+        liveP = true;
         // blood that lands leaves a small stain
         if (P.c0[i * 3] > 0.3 && P.c0[i * 3 + 1] < 0.1 && pa[i * 3 + 1] < 12 && rnd() < 0.28)
           decal(pa[i * 3], 0.7, pa[i * 3 + 2], 0, 1, 0, rr(14, 34));
@@ -1928,25 +2019,30 @@ export function stepFX(dt) {
       ca[i * 3] = P.c0[i * 3] * (0.35 + 0.65 * k);
       ca[i * 3 + 1] = P.c0[i * 3 + 1] * (0.35 + 0.65 * k);
       ca[i * 3 + 2] = P.c0[i * 3 + 2] * (0.35 + 0.65 * k);
+      liveP = true;
     }
-    P.geo.attributes.iPos.needsUpdate = true;
-    P.geo.attributes.iCol.needsUpdate = true;
-    P.geo.attributes.iSize.needsUpdate = true;
+    if (liveP) {
+      P.geo.attributes.iPos.needsUpdate = true;
+      P.geo.attributes.iCol.needsUpdate = true;
+      P.geo.attributes.iSize.needsUpdate = true;
+    }
   }
   var F = Z.fireParts;
   if (F) {
     var fpa = F.geo.attributes.iPos.array,
       fsa = F.geo.attributes.iSize.array,
       fha = F.geo.attributes.iHeat.array,
-      faa = F.geo.attributes.iAlpha.array;
+      faa = F.geo.attributes.iAlpha.array,
+      liveF = false;
     for (var f = 0; f < (F.activeN || F.n); f++) {
       if (F.life[f] <= 0) {
-        if (fsa[f] !== 0) fsa[f] = 0;
+        if (fsa[f] !== 0) { fsa[f] = 0; liveF = true; }
         continue;
       }
       F.life[f] -= dt;
       if (F.life[f] <= 0) {
         fsa[f] = 0;
+        liveF = true;
         continue;
       }
       var fk = F.life[f] / F.max[f];
@@ -1960,11 +2056,14 @@ export function stepFX(dt) {
       fsa[f] = F.s0[f] * (0.72 + (1 - fk) * 0.72);
       fha[f] = Math.max(0.05, F.heat0[f] * fk);
       faa[f] = Math.min(1, (1 - fk) * 5) * Math.min(1, fk * 3.2);
+      liveF = true;
     }
-    F.geo.attributes.iPos.needsUpdate = true;
-    F.geo.attributes.iSize.needsUpdate = true;
-    F.geo.attributes.iHeat.needsUpdate = true;
-    F.geo.attributes.iAlpha.needsUpdate = true;
+    if (liveF) {
+      F.geo.attributes.iPos.needsUpdate = true;
+      F.geo.attributes.iSize.needsUpdate = true;
+      F.geo.attributes.iHeat.needsUpdate = true;
+      F.geo.attributes.iAlpha.needsUpdate = true;
+    }
   }
   stepGibs(dt);
   var T = Z.tracers;
@@ -1984,23 +2083,32 @@ export function stepFX(dt) {
   // dust drifts and follows the player so the beam always has motes in it
   var M = Z.motes;
   if (M) {
-    M.phase += dt * 0.35;
-    var ma = M.geo.attributes.position.array,
-      px = Z.p.x,
-      pz = Z.p.z;
-    for (var q = 0; q < (M.activeN || M.n); q++) {
-      ma[q * 3 + 1] += Math.sin(M.phase + q) * 0.22;
-      ma[q * 3] += Math.cos(M.phase * 0.7 + q * 0.3) * 0.16;
-      var dx = ma[q * 3] - px,
-        dz = ma[q * 3 + 2] - pz;
-      if (dx > 620) ma[q * 3] -= 1240;
-      else if (dx < -620) ma[q * 3] += 1240;
-      if (dz > 620) ma[q * 3 + 2] -= 1240;
-      else if (dz < -620) ma[q * 3 + 2] += 1240;
-      if (ma[q * 3 + 1] > 265) ma[q * 3 + 1] = 4;
-      else if (ma[q * 3 + 1] < 2) ma[q * 3 + 1] = 262;
+    var quality = Z.renderQuality || 0;
+    // Fast updates motes at ~30 Hz — they are a volume texture, not a sim.
+    if (quality === 0) {
+      M.skip = !M.skip;
+    } else {
+      M.skip = false;
     }
-    M.geo.attributes.position.needsUpdate = true;
+    if (!M.skip) {
+      M.phase += dt * 0.35;
+      var ma = M.geo.attributes.iPos.array,
+        px = Z.p.x,
+        pz = Z.p.z;
+      for (var q = 0; q < (M.activeN || M.n); q++) {
+        ma[q * 3 + 1] += Math.sin(M.phase + q) * 0.22;
+        ma[q * 3] += Math.cos(M.phase * 0.7 + q * 0.3) * 0.16;
+        var dx = ma[q * 3] - px,
+          dz = ma[q * 3 + 2] - pz;
+        if (dx > 620) ma[q * 3] -= 1240;
+        else if (dx < -620) ma[q * 3] += 1240;
+        if (dz > 620) ma[q * 3 + 2] -= 1240;
+        else if (dz < -620) ma[q * 3 + 2] += 1240;
+        if (ma[q * 3 + 1] > 265) ma[q * 3 + 1] = 4;
+        else if (ma[q * 3 + 1] < 2) ma[q * 3 + 1] = 262;
+      }
+      M.geo.attributes.iPos.needsUpdate = true;
+    }
   }
   Z.shake = Math.max(0, Z.shake - dt * 2.6);
   Z.shakeV.x = (rnd() - 0.5) * Z.shake * 0.045;
@@ -2022,11 +2130,14 @@ export function harvestPracticals() {
   if (dyn)
     dyn.traverse(function (o) {
       if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null) {
+        var wp = o.getWorldPosition(_colVec3);
         Z.lamps.push({
           l: o,
           i0: o.intensity,
           c0: o.color.getHex(),
           d0: o.distance,
+          x: wp.x,
+          z: wp.z,
           // most practicals are dying; a couple burn steady
           mode: rnd() < 0.28 ? "steady" : rnd() < 0.6 ? "flicker" : rnd() < 0.84 ? "strobe" : "dead",
           ph: rnd() * 10,
@@ -2045,6 +2156,7 @@ export function harvestPracticals() {
         o.distance = shrunk;
         o.intensity *= 0.38 * throwK;
         if (o.decay != null) o.decay = 2;
+        o.castShadow = false; // flashlight owns the only shadow map
       }
     });
   Z.emissives = [];
@@ -2062,12 +2174,15 @@ export function harvestPracticals() {
 export function applyHorrorGrade() {
   var scene = getMainScene(),
     ren = getRenderer(),
-    rig = getRigLights();
-  // pitch-black night with heavy exponential fog: in centimetres a density of
-  // ~0.00085 means the far wall of a big room is already half-eaten.
-  scene.fog = new THREE.FogExp2(0x03050a, 0.00095);
+    rig = getRigLights(),
+    quality = Z.renderQuality == null ? 0 : Z.renderQuality;
+  // Pitch-black night with heavy exponential fog. High densifies the fog a
+  // touch and lifts exposure so GTAO contact shadows have midtones to work on
+  // instead of crushed blacks. Fast stays a hair brighter because it has no
+  // AO or flashlight shadows to define form.
+  scene.fog = new THREE.FogExp2(0x03050a, quality >= 2 ? 0.00108 : quality >= 1 ? 0.00098 : 0.00088);
   scene.background = new THREE.Color(0x010205);
-  ren.toneMappingExposure = 0.48;
+  ren.toneMappingExposure = quality >= 2 ? 0.56 : quality >= 1 ? 0.52 : 0.50;
   if (rig.sun) {
     rig.sun.intensity = LUX * 0.045;                 // cold moon wash
     rig.sun.color.setHex(0x7a92d4);
@@ -2095,6 +2210,51 @@ export function applyHorrorGrade() {
 
 }
 
+/* Drop furniture/wall trim from the flashlight shadow pass. Handles, knobs
+   and 2cm moulding do not resolve in a 1024–2048 spotlight map, but they still
+   cost a depth draw each. Fast disables casters entirely (the renderer has
+   shadows off anyway); High keeps anything bigger than a fist. */
+function trimSceneShadowCasters() {
+  var dyn = getDynGroup();
+  if (!dyn) return;
+  var quality = Z.renderQuality || 0;
+  var minR = quality >= 2 ? 8 : 16;
+  dyn.traverse(function (o) {
+    if (!o.isMesh) return;
+    if (o.userData.nsCast == null) o.userData.nsCast = !!o.castShadow;
+    if (o.userData.nsRecv == null) o.userData.nsRecv = !!o.receiveShadow;
+    if (quality <= 0) {
+      o.castShadow = false;
+      o.receiveShadow = false;
+      return;
+    }
+    var r = 99;
+    if (o.geometry) {
+      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+      var bs = o.geometry.boundingSphere;
+      if (bs) r = bs.radius * Math.max(o.scale.x, o.scale.y, o.scale.z);
+    }
+    o.castShadow = o.userData.nsCast && r >= minR;
+    o.receiveShadow = o.userData.nsRecv;
+  });
+}
+
+function restoreSceneShadowCasters() {
+  var dyn = getDynGroup();
+  if (!dyn) return;
+  dyn.traverse(function (o) {
+    if (!o.isMesh) return;
+    if (o.userData.nsCast != null) {
+      o.castShadow = o.userData.nsCast;
+      delete o.userData.nsCast;
+    }
+    if (o.userData.nsRecv != null) {
+      o.receiveShadow = o.userData.nsRecv;
+      delete o.userData.nsRecv;
+    }
+  });
+}
+
 export function enterHorror() {
   var scene = getMainScene(),
     ren = getRenderer(),
@@ -2118,6 +2278,7 @@ export function enterHorror() {
   };
   applyHorrorGrade();
   harvestPracticals();
+  trimSceneShadowCasters();
 
   // moonlight shafts through exterior windows
   buildMoonBeams();
@@ -2156,12 +2317,14 @@ export function exitHorror() {
     L.l.intensity = L.i0;
     L.l.color.setHex(L.c0);
     L.l.distance = L.d0;
+    L.l.visible = true;
   });
   (Z.emissives || []).forEach(function (E) {
     E.m.emissiveIntensity = E.e0;
   });
   Z.lamps = [];
   Z.emissives = [];
+  restoreSceneShadowCasters();
   clearMoonBeams();
   Z.saved = null;
   try {
@@ -2172,12 +2335,15 @@ export function exitHorror() {
 export function buildMoonBeams() {
   clearMoonBeams();
   if (!Z.col || !Z.grp) return;
+  var quality = Z.renderQuality == null ? 0 : Z.renderQuality;
+  var maxBeams = quality <= 0 ? 1 : quality === 1 ? 2 : 4;
+  var segs = quality >= 2 ? 22 : 14;
   var beams = [];
   Z.col.windows.forEach(function (w, i) {
-    if (i > 3) return;
+    if (i >= maxBeams) return;
     var H = 520 + rr(0, 180),
       R = (w.w || 100) * 0.42;
-    var cg = new THREE.ConeGeometry(R, H, 18, 1, true);
+    var cg = new THREE.ConeGeometry(R, H, segs, 1, true);
     cg.rotateX(-Math.PI / 2);
     // aim inward along window normal
     // TSL port (see the particle pools above — raw ShaderMaterial cannot run on
@@ -2230,39 +2396,70 @@ export function stepMoonBeams(dt) {
 }
 
 export function stepLamps(dt) {
-  Z.lamps.forEach(function (L) {
-    L.ph += dt;
+  var quality = Z.renderQuality || 0;
+  var px = Z.p ? Z.p.x : 0,
+    pz = Z.p ? Z.p.z : 0;
+  var range = quality <= 0 ? 420 : quality === 1 ? 740 : 1100;
+  var range2 = range * range;
+  var maxOn = quality <= 0 ? 2 : quality === 1 ? 5 : 10;
+  var scored = [];
+  for (var i = 0; i < Z.lamps.length; i++) {
+    var L = Z.lamps[i];
+    var dx = (L.x || 0) - px,
+      dz = (L.z || 0) - pz,
+      d2 = dx * dx + dz * dz;
+    L._d2 = d2;
+    scored.push(L);
+  }
+  scored.sort(function (a, b) {
+    var ad = a.mode === "dead" ? 1 : 0,
+      bd = b.mode === "dead" ? 1 : 0;
+    if (ad !== bd) return ad - bd;
+    return a._d2 - b._d2;
+  });
+  for (var n = 0; n < scored.length; n++) {
+    var lamp = scored[n];
+    var on = n < maxOn && lamp._d2 < range2 && lamp.mode !== "dead";
+    // dead fittings still get the occasional spark, but only if they made the cut
+    if (lamp.mode === "dead") on = n < maxOn && lamp._d2 < range2;
+    lamp.l.visible = on;
+    if (!on) {
+      lamp.l.intensity = 0;
+      continue;
+    }
+    if (quality <= 0) {
+      lamp.flickT = (lamp.flickT || 0) + dt;
+      if (lamp.flickT < 0.12 && lamp.mode !== "dead") continue;
+      lamp.flickT = 0;
+    }
+    lamp.ph += dt;
     var k = 1;
-    if (L.mode === "flicker") {
-      // brown-out sag + occasional dropout
-      k = 0.55 + 0.45 * Math.sin(L.ph * 7.3 + Math.sin(L.ph * 2.1) * 3);
-      if (L.out > 0) {
-        L.out -= dt;
+    if (lamp.mode === "flicker") {
+      k = 0.55 + 0.45 * Math.sin(lamp.ph * 7.3 + Math.sin(lamp.ph * 2.1) * 3);
+      if (lamp.out > 0) {
+        lamp.out -= dt;
         k = 0.04;
-      } else if (rnd() < dt * 0.5) L.out = rr(0.05, 0.35);
-    } else if (L.mode === "strobe") {
-      k = ((L.ph * 11) | 0) % 3 === 0 ? 1.25 : 0.12;
-      if (rnd() < dt * 0.2) L.ph += rr(0.2, 0.7);
-    } else if (L.mode === "dead") {
-      // busted fitting: dark, with the odd arc-spark that lights the room for
-      // a single frame — the cheapest jump-scare in the building
+      } else if (rnd() < dt * 0.5) lamp.out = rr(0.05, 0.35);
+    } else if (lamp.mode === "strobe") {
+      k = ((lamp.ph * 11) | 0) % 3 === 0 ? 1.25 : 0.12;
+      if (rnd() < dt * 0.2) lamp.ph += rr(0.2, 0.7);
+    } else if (lamp.mode === "dead") {
       k = 0;
       if (rnd() < dt * 0.35) k = rr(1.6, 3);
     } else {
-      k = 0.86 + 0.14 * Math.sin(L.ph * 1.7);
+      k = 0.86 + 0.14 * Math.sin(lamp.ph * 1.7);
     }
-    // the model's own lamps stay recognisable but never light the whole flat
-    L.l.intensity = L.i0 * 0.3 * k;
-  });
+    lamp.l.intensity = lamp.i0 * 0.3 * k;
+  }
   // wave-danger red pulse on the practicals when a horde is closing
   if (Z.wave && Z.wave.state === "fight" && Z.zeds.length) {
     var near = 1e9;
-    for (var i = 0; i < Z.zeds.length; i++)
-      if (!Z.zeds[i].dead) near = Math.min(near, Z.zeds[i].dist);
+    for (var zi = 0; zi < Z.zeds.length; zi++)
+      if (!Z.zeds[zi].dead) near = Math.min(near, Z.zeds[zi].dist);
     if (near < 320) {
       var pulse = 0.5 + 0.5 * Math.sin(Z.t * 6);
-      Z.lamps.forEach(function (L) {
-        L.l.color.setRGB(1, 0.42 - 0.2 * pulse, 0.22 - 0.14 * pulse);
+      Z.lamps.forEach(function (pl) {
+        if (pl.l.visible) pl.l.color.setRGB(1, 0.42 - 0.2 * pulse, 0.22 - 0.14 * pulse);
       });
     }
   }
@@ -2271,16 +2468,17 @@ export function stepLamps(dt) {
 /* ---- flashlight: shadow-casting spot + volumetric cone + dying battery ---- */
 export function buildFlashlight() {
   var cam = getMainCamera();
-  var sp = new THREE.SpotLight(0xfff2dc, FLASH_I, 1950, 0.4, 0.62, FLASH_DECAY);
   var quality = Z.renderQuality == null ? 0 : Z.renderQuality;
+  var tune = flashlightShadowTuning(quality);
+  var sp = new THREE.SpotLight(0xfff2dc, FLASH_I, 1950, tune.angle, tune.penumbra, FLASH_DECAY);
   sp.castShadow = quality > 0;
-  var shadowSize = quality === 2 ? 1536 : quality === 1 ? 1024 : 512;
-  sp.shadow.mapSize.set(shadowSize, shadowSize);
-  sp.shadow.camera.near = 5;
-  sp.shadow.camera.far = 2000;
-  sp.shadow.bias = -0.0012;
-  sp.shadow.normalBias = 1.8;
-  sp.shadow.radius = 2.5;
+  sp.shadow.mapSize.set(tune.size, tune.size);
+  sp.shadow.camera.near = tune.near;
+  sp.shadow.camera.far = tune.far;
+  sp.shadow.bias = tune.bias;
+  sp.shadow.normalBias = tune.normalBias;
+  sp.shadow.radius = tune.radius;
+  if (sp.shadow.camera.updateProjectionMatrix) sp.shadow.camera.updateProjectionMatrix();
   sp.position.set(8, -6, 1);
   var tgt = new THREE.Object3D();
   tgt.position.set(0, 0, -1000);
@@ -2295,13 +2493,14 @@ export function buildFlashlight() {
 
   // volumetric cone: apex at the lens, additive, soft falloff + dust noise
   var H = 1600,
-    Rr = H * Math.tan(0.42);
-  var cg = new THREE.ConeGeometry(Rr, H, 36, 1, true);
+    Rr = H * Math.tan(tune.angle);
+  var segs = quality >= 2 ? 40 : quality === 1 ? 24 : 16;
+  var cg = new THREE.ConeGeometry(Rr, H, segs, 1, true);
   cg.rotateX(Math.PI / 2);
   cg.translate(0, 0, -H / 2);
   // TSL port of the volumetric flashlight cone. uI (dip/flicker) and uT (dust
   // drift) stay live uniforms — stepFlashlight writes them every frame.
-  var uH = uniform(H), uI = uniform(1), uT = uniform(0);
+  var uH = uniform(H), uI = uniform(1), uT = uniform(0), uAng = uniform(tune.angle);
   var cm = new THREE.NodeMaterial();
   cm.transparent = true;
   cm.depthWrite = false;
@@ -2310,17 +2509,20 @@ export function buildFlashlight() {
   cm.colorNode = Fn(function () {
     var vP = positionLocal;
     var u = vP.z.negate().div(uH).clamp(0, 1);
-    var rad = vP.xy.length().div(uH.mul(0.42).mul(u).add(1).max(0.001));
-    var edge = smoothstep(0.35, 1.0, rad).oneMinus();
-    // cheap value hash, same as the GLSL original
-    var h = sin(vP.xy.mul(0.1).add(uT.mul(0.15)).dot(vec2(127.1, 311.7))).mul(43758.5453).fract();
-    var dust = h.mul(0.15).add(0.85);
-    var a = u.oneMinus().pow(2.1).mul(smoothstep(0.0, 0.07, u)).mul(0.175).mul(uI).mul(edge).mul(dust);
-    var c = mix(vec3(1.0, 0.95, 0.82), vec3(0.65, 0.74, 1.0), u.mul(u));
+    var rad = vP.xy.length().div(uH.mul(uAng).mul(u).add(1).max(0.001));
+    var edge = smoothstep(0.28, 1.0, rad).oneMinus().pow(1.35);
+    // two cheap hashes: drifting dust sheets inside the shaft
+    var h1 = sin(vP.xy.mul(0.09).add(uT.mul(0.13)).dot(vec2(127.1, 311.7))).mul(43758.5453).fract();
+    var h2 = sin(vP.xy.mul(0.23).add(uT.mul(-0.08)).add(u.mul(4.0)).dot(vec2(269.5, 183.3))).mul(24634.634).fract();
+    var dust = h1.mul(0.55).add(h2.mul(0.45)).mul(0.34).add(0.72);
+    var shaft = u.oneMinus().pow(1.75).mul(smoothstep(0.0, 0.045, u));
+    var a = shaft.mul(0.22).mul(uI).mul(edge).mul(dust);
+    var c = mix(vec3(1.0, 0.96, 0.86), vec3(0.55, 0.68, 1.0), u.mul(u));
     return vec4(c.mul(a), a);
   })();
   cm.userData.uI = uI;
   cm.userData.uT = uT;
+  cm.userData.uAng = uAng;
   var cone = new THREE.Mesh(cg, cm);
   cone.position.set(8, -6, 0);
   cone.renderOrder = 2;
@@ -2329,7 +2531,7 @@ export function buildFlashlight() {
 
   Z.flash = {
     sp: sp, fill: fill, cone: cone, mat: cm, on: true, batt: 100, flick: 0, dip: 0,
-    volumetric: quality > 0,
+    volumetric: quality > 0, coneAngle: tune.angle,
   };
   cone.visible = Z.flash.volumetric;
 }
@@ -2366,6 +2568,7 @@ export function stepFlashlight(dt) {
   F.mat.userData.uI.value = k;
   if (F.mat.userData.uT) F.mat.userData.uT.value = Z.t;
   F.cone.visible = F.volumetric && k > 0.02;
+  setNightShiftShadowLive(live && F.sp.castShadow);
 }
 
 /* ===========================================================================
@@ -3793,7 +3996,7 @@ function applyJiggle(zd, moving, ph, dt) {
     r.buttL.scale.set(r.buttL.userData.baseSX * s, r.buttL.userData.baseSY * (1 + bounce * 0.03), r.buttL.userData.baseSZ * s);
     r.buttR.scale.set(r.buttR.userData.baseSX * s, r.buttR.userData.baseSY * (1 + bounce * 0.03), r.buttR.userData.baseSZ * s);
   }
-  if (r.hairLocks && r.hairLocks.length) {
+  if (r.hairLocks && r.hairLocks.length && zd._hairOn !== false) {
     for (var i = 0; i < r.hairLocks.length; i++) {
       var lock = r.hairLocks[i];
       if (!lock || !lock.upper || !lock.lower || !lock.anchor.parent) continue;
@@ -3807,7 +4010,7 @@ function applyJiggle(zd, moving, ph, dt) {
       lock.lower.rotation.z = springAngle(lock, "lowerZ", "lowerVZ", hz * 1.5 + Math.cos(hPhase * 1.25) * hAmp * 0.38, dt);
     }
   }
-  if (r.clothes && r.clothes.flaps) {
+  if (r.clothes && r.clothes.flaps && (zd.dist || 0) < ((Z.renderQuality || 0) >= 2 ? 900 : 560)) {
     var flowF = zd.clothFlowF || 0,
       flowS = zd.clothFlowS || 0,
       turn = zd.clothTurn || 0,
@@ -4103,6 +4306,34 @@ var _zedMovePoint = { x: 0, z: 0 };
 
 export function stepZedVisuals(zd, dt) {
   if (!zd || !zd.root) return;
+  var quality = Z.renderQuality || 0;
+  var dist = zd.dist || 0;
+  var r = zd.rig;
+
+  // Distance LOD: far rigs keep their pose but drop shadow casters, punctual
+  // aura lights and hair-lock draws — none of which read at 8+ metres.
+  if (r && r.root) {
+    var shadowRange = quality >= 2 ? 1080 : 720;
+    var wantShadow = quality > 0 && !zd.dead && dist < shadowRange;
+    if (zd._shadowOn !== wantShadow) {
+      zd._shadowOn = wantShadow;
+      applyZedShadowQuality(r.root, wantShadow);
+    }
+    if (r.aura) {
+      r.aura.visible = quality >= 1 && !zd.dead && dist < (quality >= 2 ? 520 : 280);
+    }
+    if (r.hairLocks && r.hairLocks.length) {
+      var showHair = quality >= 1 && dist < (quality >= 2 ? 780 : 420);
+      if (zd._hairOn !== showHair) {
+        zd._hairOn = showHair;
+        for (var hi = 0; hi < r.hairLocks.length; hi++) {
+          if (r.hairLocks[hi] && r.hairLocks[hi].anchor)
+            r.hairLocks[hi].anchor.visible = showHair;
+        }
+      }
+    }
+  }
+
   // A dead rig still settles, but only its final pose for this rendered frame
   // matters. Live distant rigs retain their existing 20 Hz animation cadence.
   if (zd.dead) {
@@ -4110,7 +4341,7 @@ export function stepZedVisuals(zd, dt) {
     return;
   }
   zd.animT += dt;
-  var animStep = zd.dist > 750 ? 0.05 : 0;
+  var animStep = dist > 750 ? 0.05 : quality === 0 && dist > 400 ? 0.033 : 0;
   if (!animStep || zd.animT >= animStep) {
     animZed(zd, zd.animT);
     zd.animT = 0;
@@ -4489,7 +4720,12 @@ export function stepBurn(zd, dt) {
         0.18, 0.13, 0.09, rr(0.55, 1.0), -GRAV * 0.05
       );
   }
-  if (zd.fireLight) zd.fireLight.intensity = legacyIntensity(2.8 + Math.sin(Z.t * 26 + zd.phase) * 1.2, 420);
+  if (zd.fireLight) {
+    zd.fireLight.visible = (Z.renderQuality || 0) > 0 && (zd.dist || 0) < ((Z.renderQuality || 0) >= 2 ? 720 : 420);
+    if (zd.fireLight.visible)
+      zd.fireLight.intensity = legacyIntensity(2.8 + Math.sin(Z.t * 26 + zd.phase) * 1.2, 420);
+    else zd.fireLight.intensity = 0;
+  }
   if (zd.dead) return;
   // ~9 dps, and it does not care about armour or range
   zd.hp -= dt * 9;
