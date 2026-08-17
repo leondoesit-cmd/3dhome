@@ -16,7 +16,7 @@ var particles = [];
 var debris = [];
 
 const FIXED_STEP = 1 / 120;
-const MAX_SUB_STEPS = 8;
+const MAX_SUB_STEPS = 3;
 const MAX_SETTLE_SPEED = 250;
 const MAX_ACTIVE_SPEED = 1200;
 const MAX_ANGULAR_SPEED = 30;
@@ -97,6 +97,17 @@ export function togglePhysics(enabled) {
 
 export function isPhysicsEnabled() {
   return physicsEnabled;
+}
+
+export function isPhysicsBusy() {
+  if (!physicsEnabled || !world) return false;
+  if (particles.length) return true;
+  for (let i = 0; i < physicsBodies.length; i++) {
+    const body = physicsBodies[i] && physicsBodies[i].body;
+    if (body && body.type === CANNON.Body.DYNAMIC && body.sleepState !== CANNON.Body.SLEEPING)
+      return true;
+  }
+  return false;
 }
 
 export function getPhysicsBodies() {
@@ -228,6 +239,7 @@ export function clearPhysics() {
 
 export function syncPhysicsToThree(delta) {
   if (!physicsEnabled || !world) return;
+  if (!isPhysicsBusy()) return;
   const timeScale = slowMoEnabled ? 0.1 : 1.0;
   const dt = safeDeltaSeconds(delta, 1 / 60) * timeScale;
   if (!dt) return;
@@ -439,6 +451,10 @@ export function addPhysicsBody(mesh, isDynamic) {
   body.interpolatedQuaternion.copy(body.quaternion);
   
   world.addBody(body);
+  // Untouched furniture must not spend the first seconds de-penetrating every
+  // overlapping bounding box. Forced sleep keeps the world cheap until a hit
+  // (which already calls wakeUp before applying impulse).
+  if (isDynamic) body.sleep();
   
   const physicsObject = {
     mesh: mesh,

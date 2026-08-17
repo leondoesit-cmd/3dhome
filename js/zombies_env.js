@@ -65,7 +65,17 @@ var MOON_TINT = new THREE.Color(0.85, 0.95, 1.3), // cools, keeps the hue
   MOON_RIM = new THREE.Color(0.018, 0.023, 0.036), // never a pure void
   MOON_MAX = 0.3, // luminance the rolloff approaches but never reaches
   MOON_VAR = 0.45, // how hard the texture modulates the moonlight
-  ALBEDO_VAR = 0.5; // and how hard it modulates the diffuse colour
+  ALBEDO_VAR = 0.5, // and how hard it modulates the diffuse colour
+  envLightCount = 0;
+
+function envLightCap() {
+  return (Z.renderQuality || 0) >= 2 ? 8 : (Z.renderQuality || 0) >= 1 ? 1 : 0;
+}
+function addEnvLight(g, light) {
+  if (envLightCount >= envLightCap()) return;
+  envLightCount++;
+  g.add(light);
+}
 
 function moonlight(mat, hex, opts, mapUrl, rep) {
   var c = new THREE.Color(hex).multiply(MOON_TINT);
@@ -238,7 +248,7 @@ function buildGarden(g, b, pad) {
   // one warm porch lamp — the only practical out here
   var lamp = new THREE.PointLight(0xffb964, legacyIntensity(2.6, 520), 520, 2);
   lamp.position.set(b.maxx + 60, 210, b.cz + rr(-100, 100));
-  g.add(lamp);
+  addEnvLight(g, lamp);
   box(g, 14, 18, 14, lamp.position.x, 212, lamp.position.z, em(0x2a2a2a, 0.6, 0.4));
   return "garden";
 }
@@ -288,7 +298,7 @@ function buildNeighbor(g, b, pad) {
         if (on && rnd() < 0.22) {
           var wl = new THREE.PointLight(0xffc07a, legacyIntensity(1.6, 520), 520, 2);
           wl.position.set(lx + nx * 45, wy, lz + nz * 45);
-          g.add(wl);
+          addEnvLight(g, wl);
         }
       }
     }
@@ -311,8 +321,8 @@ function buildNeighbor(g, b, pad) {
       box(g, horiz ? bw : 6, 6, horiz ? 6 : bw, wx2 + (horiz ? 0 : -nx * 60), 92, wz2 + (horiz ? -nz * 60 : 0), rail, 0);
       var tube = new THREE.PointLight(0x9fd8ff, legacyIntensity(1.2, 620), 620, 2);
       tube.position.set(wx2, 235, wz2);
-      g.add(tube);
-      Z.envFlicker = tube; // stepped in stepEnv for a sick stairwell strobe
+      addEnvLight(g, tube);
+      if (tube.parent) Z.envFlicker = tube; // stepped in stepEnv for a sick stairwell strobe
     }
   }
   return "neighbor";
@@ -451,7 +461,7 @@ function buildStreet(g, b, pad) {
        ellipse that actually reads as a working street light. */
     var lamp2 = new THREE.PointLight(0xffb15a, legacyIntensity(9, 2100), 2100, 2);
     lamp2.position.set(px, 500, pz);
-    g.add(lamp2);
+    addEnvLight(g, lamp2);
     lampPool(g, px, pz, 520);
     box(g, 40, 12, 22, px, 505, pz, em(0x3a2a16, 0.5, 0.2, { emissive: 0xffa244, ei: 2.4, k: "sod", mapUrl: "assets/textures/env_lamp.jpg", rep: 2 }));
     // A bin against the kerb — pushed outward past the stripe rather than
@@ -482,6 +492,7 @@ export function buildExterior(theme) {
   // fog hasn't eaten it by the time you look out
   var pad = Math.max(420, Math.min(900, Math.max(b.w, b.d) * 0.55));
   var g = new THREE.Group();
+  envLightCount = 0;
   var pickTheme = theme || pick(ENV_THEMES);
   var built =
     pickTheme === "garden" ? buildGarden(g, b, pad) :

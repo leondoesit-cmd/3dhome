@@ -212,8 +212,10 @@ export function initCritters() {
   clearCritters();
   if (!Z.grp) return;
 
-  // --- 1. Rats (8 outdoor critters)
-  for (var i = 0; i < 8; i++) {
+  var n = (Z.renderQuality || 0) >= 2 ? 8 : (Z.renderQuality || 0) >= 1 ? 4 : 2;
+
+  // --- 1. Rats
+  for (var i = 0; i < n; i++) {
     var mesh = createRatMesh();
     Z.grp.add(mesh);
     var p = getExteriorPoint();
@@ -233,8 +235,8 @@ export function initCritters() {
     });
   }
 
-  // --- 2. Crows (8 perched outside / flying)
-  for (var j = 0; j < 8; j++) {
+  // --- 2. Crows
+  for (var j = 0; j < n; j++) {
     var cMesh = createCrowMesh();
     Z.grp.add(cMesh);
     var cp = getExteriorPoint();

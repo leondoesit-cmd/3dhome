@@ -56,3 +56,26 @@ test("Night Shift computes articulated poses once after physics substeps", async
   assert.match(world, /Col2D\.buildSpatialIndex\(col, 180\)/);
   assert.match(world, /var _zedMovePoint = \{ x: 0, z: 0 \}/);
 });
+
+test("Night Shift Fast quality skips CAD post-processing and caps pixel ratio", async () => {
+  const view = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+  const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
+  const physics = await readFile(new URL("../js/physics.js", import.meta.url), "utf8");
+  const facade = await readFile(new URL("../js/physics_facade.js", import.meta.url), "utf8");
+  const world = await readFile(new URL("../js/zombies_world.js", import.meta.url), "utf8");
+  assert.match(view, /export function setGameRendererQuality\(quality\)/);
+  assert.match(view, /usePost = false/);
+  assert.match(view, /var ratio = quality >= 2 \? 1\.25 : 1/);
+  assert.match(view, /var physicsLive = isPhysicsBusy\(\)/);
+  assert.match(game, /setGameRendererQuality\(Z\.settings\.quality\)/);
+  assert.match(game, /clearGameRendererQuality\(\)/);
+  assert.match(physics, /export function isPhysicsBusy\(\)/);
+  assert.match(physics, /const MAX_SUB_STEPS = 3/);
+  assert.match(physics, /if \(isDynamic\) body\.sleep\(\)/);
+  assert.match(physics, /if \(!isPhysicsBusy\(\)\) return/);
+  assert.match(facade, /export function isPhysicsBusy\(\)/);
+  assert.match(world, /Z\.parts\.geo\.instanceCount = Z\.parts\.activeN/);
+  assert.match(world, /Z\.fireParts\.geo\.instanceCount = Z\.fireParts\.activeN/);
+  assert.match(world, /if \(type !== "crawler" && nsQuality\(\) > 0\)/);
+  assert.match(world, /var lampCap = nsQuality\(\) >= 2 \? 8 : nsQuality\(\) >= 1 \? 3 : 0/);
+});

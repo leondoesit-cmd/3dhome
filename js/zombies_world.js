@@ -39,6 +39,10 @@ import {
 } from "./zombies_tex.js";
 import { alertCritters } from "./zombies_critters.js";
 
+function nsQuality() {
+  return Z.renderQuality == null ? 0 : Z.renderQuality;
+}
+
 /* ===========================================================================
    1. COLLISION MODEL — shared Col2D resolver (walls + doors + furniture)
    =========================================================================== */
@@ -859,13 +863,13 @@ export function resetTexCache() {
   Zmat.pretty.forEach(function (m) {
     m && m.dispose();
   });
-  ["cloth", "eyeGlow", "hair"].forEach(function (g) {
+  ["cloth", "clothLayer", "eyeGlow", "hair"].forEach(function (g) {
     for (var k in Zmat[g]) Zmat[g][k].dispose();
   });
   ["stump", "eye", "bone", "lip"].forEach(function (k) {
     if (Zmat[k]) Zmat[k].dispose();
   });
-  Zmat = { flesh: [], pretty: [], cloth: {}, stump: null, eye: null, bone: null, eyeGlow: {}, lip: null, hair: {} };
+  Zmat = { flesh: [], pretty: [], cloth: {}, clothLayer: {}, stump: null, eye: null, bone: null, eyeGlow: {}, lip: null, hair: {} };
   for (var h in HIT_SURFACE_MAT) if (HIT_SURFACE_MAT[h]) HIT_SURFACE_MAT[h].dispose();
   HIT_SURFACE_MAT = { wound: null, tear: null };
 }
@@ -1214,12 +1218,22 @@ export function setFXDensity(value) {
   // fire as High (and made the graphics slider look ineffective).
   var visual = clamp(k * (Z.qualityFxScale == null ? 1 : Z.qualityFxScale), 0.1, 1);
   Z.fxDensity = visual;
-  if (Z.parts) Z.parts.activeN = Math.max(100, Math.round(Z.parts.n * visual));
-  if (Z.fireParts) Z.fireParts.activeN = Math.max(100, Math.round(Z.fireParts.n * visual));
-  if (Z.decals) Z.decals.activeN = Math.max(16, Math.round(Z.decals.list.length * visual));
-  if (Z.impacts) Z.impacts.activeN = Math.max(12, Math.round(Z.impacts.list.length * visual));
+  var q = nsQuality();
+  var partMin = q === 0 ? 32 : 100;
+  var fireMin = q === 0 ? 24 : 100;
+  var moteMin = q === 0 ? 24 : 70;
+  if (Z.parts) {
+    Z.parts.activeN = Math.max(partMin, Math.round(Z.parts.n * visual));
+    if (Z.parts.geo) Z.parts.geo.instanceCount = Z.parts.activeN;
+  }
+  if (Z.fireParts) {
+    Z.fireParts.activeN = Math.max(fireMin, Math.round(Z.fireParts.n * visual));
+    if (Z.fireParts.geo) Z.fireParts.geo.instanceCount = Z.fireParts.activeN;
+  }
+  if (Z.decals) Z.decals.activeN = Math.max(q === 0 ? 8 : 16, Math.round(Z.decals.list.length * visual));
+  if (Z.impacts) Z.impacts.activeN = Math.max(q === 0 ? 6 : 12, Math.round(Z.impacts.list.length * visual));
   if (Z.motes) {
-    Z.motes.activeN = Math.max(70, Math.round(Z.motes.n * visual));
+    Z.motes.activeN = Math.max(moteMin, Math.round(Z.motes.n * visual));
     Z.motes.geo.setDrawRange(0, Z.motes.activeN);
   }
 }
@@ -1246,7 +1260,7 @@ export function setNightShiftQuality(value) {
   Z.qualityFxScale = [0.45, 0.72, 1][quality];
 
   if (Z.flash) {
-    var size = quality === 2 ? 1536 : quality === 1 ? 1024 : 512;
+    var size = quality === 2 ? 1024 : 512;
     Z.flash.sp.castShadow = quality > 0;
     Z.flash.sp.shadow.mapSize.set(size, size);
     Z.flash.volumetric = quality > 0;
@@ -2019,9 +2033,16 @@ export function stepFX(dt) {
 export function harvestPracticals() {
   var dyn = getDynGroup();
   Z.lamps = [];
+  var lampCap = nsQuality() >= 2 ? 8 : nsQuality() >= 1 ? 3 : 0;
   if (dyn)
     dyn.traverse(function (o) {
       if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null) {
+        if (Z.lamps.length >= lampCap) {
+          o.intensity = 0;
+          o.visible = false;
+          return;
+        }
+        o.visible = true;
         Z.lamps.push({
           l: o,
           i0: o.intensity,
@@ -2272,9 +2293,9 @@ export function stepLamps(dt) {
 export function buildFlashlight() {
   var cam = getMainCamera();
   var sp = new THREE.SpotLight(0xfff2dc, FLASH_I, 1950, 0.4, 0.62, FLASH_DECAY);
-  var quality = Z.renderQuality == null ? 0 : Z.renderQuality;
+  var quality = nsQuality();
   sp.castShadow = quality > 0;
-  var shadowSize = quality === 2 ? 1536 : quality === 1 ? 1024 : 512;
+  var shadowSize = quality === 2 ? 1024 : 512;
   sp.shadow.mapSize.set(shadowSize, shadowSize);
   sp.shadow.camera.near = 5;
   sp.shadow.camera.far = 2000;
@@ -2371,7 +2392,7 @@ export function stepFlashlight(dt) {
 /* ===========================================================================
    5. ZOMBIES — procedural bodies, shambling animation, dismemberment, AI
    =========================================================================== */
-var Zmat = { flesh: [], pretty: [], cloth: {}, stump: null, eye: null, bone: null, eyeGlow: {}, lip: null, hair: {} };
+var Zmat = { flesh: [], pretty: [], cloth: {}, clothLayer: {}, stump: null, eye: null, bone: null, eyeGlow: {}, lip: null, hair: {} };
 export function fleshMat(i) {
   var s = FLESH_SKINS[i % FLESH_SKINS.length];
   if (!Zmat.flesh[i])
@@ -2531,7 +2552,7 @@ export function prewarmRigs() {
     // survive; only the per-rig clones (skin tints, accents) are ours to free
     var keep = new Set();
     Zmat.flesh.concat(Zmat.pretty).forEach(function (m) { if (m) keep.add(m); });
-    ["cloth", "eyeGlow", "hair"].forEach(function (g) {
+    ["cloth", "clothLayer", "eyeGlow", "hair"].forEach(function (g) {
       for (var k in Zmat[g]) keep.add(Zmat[g][k]);
     });
     ["stump", "eye", "bone", "lip"].forEach(function (k) {
@@ -2642,22 +2663,25 @@ function makeClothLayer(base, accent, style, layer, female) {
     }
   }
   var leather = kind === "leather";
-
-  var mat = new THREE.MeshStandardMaterial({
-    map: TEX.clothes[kind],
-    // The weave is the whole point of these photos and it was being thrown
-    // away: at repeat 2 over a torso, colour alone cannot tell denim from
-    // knitwear under a flashlight. Leather is smoother than it is bumpy, so
-    // it leans on roughness while knit and camo lean on the normal.
-    normalMap: (TEX.clothesNorm && TEX.clothesNorm[kind]) || null,
-    normalScale: new THREE.Vector2(leather ? 0.6 : 1, leather ? 0.6 : 1),
-    color: base,
-    roughness: leather ? 0.4 : 0.88,
-    metalness: leather ? 0.1 : 0.02,
-    side: THREE.DoubleSide,
-    envMapIntensity: 0.12,
-  });
-  return { mat: mat, layer: layer, damage: 0 };
+  var key = kind + "|" + (base >>> 0);
+  if (!Zmat.clothLayer) Zmat.clothLayer = {};
+  if (!Zmat.clothLayer[key]) {
+    Zmat.clothLayer[key] = new THREE.MeshStandardMaterial({
+      map: TEX.clothes[kind],
+      // The weave is the whole point of these photos and it was being thrown
+      // away: at repeat 2 over a torso, colour alone cannot tell denim from
+      // knitwear under a flashlight. Leather is smoother than it is bumpy, so
+      // it leans on roughness while knit and camo lean on the normal.
+      normalMap: nsQuality() === 0 ? null : ((TEX.clothesNorm && TEX.clothesNorm[kind]) || null),
+      normalScale: new THREE.Vector2(leather ? 0.6 : 1, leather ? 0.6 : 1),
+      color: base,
+      roughness: leather ? 0.4 : 0.88,
+      metalness: leather ? 0.1 : 0.02,
+      side: THREE.DoubleSide,
+      envMapIntensity: 0.12,
+    });
+  }
+  return { mat: Zmat.clothLayer[key], layer: layer, damage: 0 };
 }
 
 function addClothMesh(parent, geometry, layer, part, list, layerName, sway) {
@@ -2743,11 +2767,13 @@ function buildClothes(torso, legL, legR, armL, armR, p) {
   layers.sleeve = makeClothLayer(pal[0], pal[1], (idx + 3) % 3, "sleeve", female);
   layers.coat = makeClothLayer(pal[1], pal[0], (idx + 4) % 3, "coat", female);
 
+  var shirtSegs = nsQuality() >= 2 ? 18 : nsQuality() >= 1 ? 12 : 8;
+  var limbClothSegs = nsQuality() >= 2 ? 14 : nsQuality() >= 1 ? 10 : 8;
   var shirt = cylGeo(
     15.2 * bulk * chestW * 1.08,
     12.8 * bulk * waist * 1.10,
     type === "brute" ? 53 : 49,
-    18, true
+    shirtSegs, true
   );
   var shirtMesh = addClothMesh(torso, shirt, layers.shirt, "body", clothes, "shirt", 0.75);
   shirtMesh.position.set(0, 31, 0);
@@ -2758,7 +2784,7 @@ function buildClothes(torso, legL, legR, armL, armR, p) {
     17.0 * bulk * hipW,
     13.2 * bulk * waist,
     female ? 22 : 19,
-    18, true
+    shirtSegs, true
   );
   var shortMesh = addClothMesh(torso, shorts, layers.pants, "body", clothes, "pants", 0.65);
   shortMesh.position.set(0, 4, 0);
@@ -2766,12 +2792,12 @@ function buildClothes(torso, legL, legR, armL, armR, p) {
 
   function legCloth(leg) {
     if (!leg || !leg.hip) return;
-    var thigh = cylGeo(10.0 * bulk, 8.2 * bulk, 45 * lean * legLen, 14, true);
+    var thigh = cylGeo(10.0 * bulk, 8.2 * bulk, 45 * lean * legLen, limbClothSegs, true);
     var tm = addClothMesh(leg.hip, thigh, layers.pants, "limb", clothes, "pants", 0.9);
     tm.position.y = -23 * lean * legLen;
     tm.userData.clothLayerRef = layers.pants;
     if (leg.knee) {
-      var shin = cylGeo(7.0 * bulk, 5.8 * bulk, 43 * lean * legLen, 14, true);
+      var shin = cylGeo(7.0 * bulk, 5.8 * bulk, 43 * lean * legLen, limbClothSegs, true);
       var sm = addClothMesh(leg.knee, shin, layers.pants, "limb", clothes, "pants", 1.05);
       sm.position.y = -22 * lean * legLen;
       sm.userData.clothLayerRef = layers.pants;
@@ -2782,12 +2808,12 @@ function buildClothes(torso, legL, legR, armL, armR, p) {
 
   function armCloth(arm) {
     if (!arm || !arm.sh) return;
-    var upper = cylGeo(6.7 * bulk, 5.6 * bulk, 36, 14, true);
+    var upper = cylGeo(6.7 * bulk, 5.6 * bulk, 36, limbClothSegs, true);
     var um = addClothMesh(arm.sh, upper, layers.sleeve, "limb", clothes, "sleeve", 1.1);
     um.position.y = -18;
     um.userData.clothLayerRef = layers.sleeve;
     if (arm.el) {
-      var fore = cylGeo(5.9 * bulk, 4.8 * bulk, 34, 14, true);
+      var fore = cylGeo(5.9 * bulk, 4.8 * bulk, 34, limbClothSegs, true);
       var fm = addClothMesh(arm.el, fore, layers.sleeve, "limb", clothes, "sleeve", 1.25);
       fm.position.y = -17;
       fm.userData.clothLayerRef = layers.sleeve;
@@ -2800,7 +2826,7 @@ function buildClothes(torso, legL, legR, armL, armR, p) {
   // They inherit torso motion first, then sway on their own two lightweight
   // joints. Splitting at the centre keeps a tear from looking like a decal on
   // a rigid postcard.
-  if (type !== "crawler") {
+  if (type !== "crawler" && nsQuality() > 0) {
     var coatChance = type === "brute" ? 0.9 : 0.72;
     if (rnd() < coatChance) {
       addClothFlap(torso, 12.5 * bulk * chestW, 31, -7.0 * bulk, 39, -14.8 * bulk, layers.coat, "body", clothes, flaps, 1.55);
@@ -2822,10 +2848,10 @@ function softenSkin(m) {
 
 // Higher-segment body parts for smoother curves
 function spH(parent, r, x, y, z, mat, part) {
-  return sp(parent, r, x, y, z, mat, part, 18);
+  return sp(parent, r, x, y, z, mat, part, nsQuality() >= 2 ? 18 : nsQuality() >= 1 ? 12 : 8);
 }
 function cyH(parent, r1, r2, h, x, y, z, mat, part) {
-  return cy(parent, r1, r2, h, x, y, z, mat, part, 16);
+  return cy(parent, r1, r2, h, x, y, z, mat, part, nsQuality() >= 2 ? 16 : nsQuality() >= 1 ? 10 : 7);
 }
 
 // Hair is kept separate from the head mesh. Each lock has an anchor plus two
@@ -3096,25 +3122,27 @@ export function buildZombie(type) {
   hairTop.scale.set(1.12, female ? 1.0 : 0.75, 1.18);
   spH(head, 5, 0, 7, 8, hm, "head").scale.set(1.6, 0.55, 0.7);
   if (female) {
-    for (var hk = 0; hk < 3; hk++) {
-      var a = (hk / 2) * Math.PI * 1.1 - Math.PI * 0.55;
-      var lock = addHairLock(
-        head,
-        Math.sin(a) * 8.2,
-        rr(-1, 3),
-        -4.5 + Math.cos(a) * 4.2,
-        rr(26, 38),
-        2.2,
-        hm,
-        hk * 1.1
-      );
-      lock.anchor.rotation.x = rr(0.45, 0.75);
-      lock.anchor.rotation.z = Math.sin(a) * 0.35;
-      hairLocks.push(lock);
+    if (nsQuality() > 0) {
+      for (var hk = 0; hk < 3; hk++) {
+        var a = (hk / 2) * Math.PI * 1.1 - Math.PI * 0.55;
+        var lock = addHairLock(
+          head,
+          Math.sin(a) * 8.2,
+          rr(-1, 3),
+          -4.5 + Math.cos(a) * 4.2,
+          rr(26, 38),
+          2.2,
+          hm,
+          hk * 1.1
+        );
+        lock.anchor.rotation.x = rr(0.45, 0.75);
+        lock.anchor.rotation.z = Math.sin(a) * 0.35;
+        hairLocks.push(lock);
+      }
     }
     spH(head, 6, -8, 4, -2, hm, "head").scale.set(0.9, 1.4, 1.1);
     spH(head, 6, 8, 4, -2, hm, "head").scale.set(0.9, 1.4, 1.1);
-  } else if (rnd() < 0.62) {
+  } else if (nsQuality() > 0 && rnd() < 0.62) {
     for (var mk = 0; mk < 2; mk++) {
       var shortLock = addHairLock(
         head, (mk - 0.5) * 6.5, rr(2, 5), rr(-4, -6), rr(10, 16), 1.35, hm, 4 + mk * 1.2
@@ -3191,14 +3219,14 @@ export function buildZombie(type) {
 
   // faint cold aura only — no hot-pink glam glow
   var aura = null;
-  if (usePretty && rnd() < 0.35) {
+  if (usePretty && nsQuality() >= 2 && rnd() < 0.35) {
     aura = new THREE.PointLight(0x8866aa, legacyIntensity(0.22, 160), 160, 2);
     aura.position.set(0, 100, 16);
     root.add(aura);
   }
 
   // Shadow trim. The flashlight is the only shadow caster left in the mode, and
-  // it renders the whole rig a second time into a 1536² map every frame. Around
+  // it renders the whole rig a second time into its shadow map every frame. Around
   // 50 of a rig's ~120 primitives are detail under 5cm — fingers, toes, teeth,
   // abs, dimples, hair locks — none of which resolve as a shadow from across a
   // room. Dropping them from the shadow pass costs nothing visible and takes
@@ -3763,6 +3791,7 @@ function sampleClothMotion(zd, dt) {
 function applyJiggle(zd, moving, ph, dt) {
   var r = zd.rig;
   if (!r) return;
+  if (nsQuality() === 0 && zd.dist > 320 && !zd.dead) return;
   sampleClothMotion(zd, dt);
   var bounce = moving ? Math.abs(Math.sin(ph)) : Math.abs(Math.sin(ph * 0.5)) * 0.25;
   var hip = Math.sin(ph * 0.5);
@@ -4104,13 +4133,17 @@ var _zedMovePoint = { x: 0, z: 0 };
 export function stepZedVisuals(zd, dt) {
   if (!zd || !zd.root) return;
   // A dead rig still settles, but only its final pose for this rendered frame
-  // matters. Live distant rigs retain their existing 20 Hz animation cadence.
+  // matters. Live distant rigs retain a reduced animation cadence, and Fast
+  // drops that further so a full horde is not posed 60 times a second.
   if (zd.dead) {
     animZed(zd, dt);
     return;
   }
   zd.animT += dt;
-  var animStep = zd.dist > 750 ? 0.05 : 0;
+  var q = nsQuality();
+  var animStep = 0;
+  if (q === 0) animStep = zd.dist > 280 ? 0.08 : zd.dist > 140 ? 0.04 : 0;
+  else if (zd.dist > 750) animStep = 0.05;
   if (!animStep || zd.animT >= animStep) {
     animZed(zd, zd.animT);
     zd.animT = 0;
@@ -4441,15 +4474,20 @@ export function igniteZed(zd, seconds) {
     zd.panicT = rr(1.4, 2.6);
     hooks.sndScream && rnd() < 0.5 && hooks.sndScream(zd);
     if (zd.rig && zd.rig.root) {
-      // one small light per burning body — capped by the alive cap already
+      var cap = nsQuality() === 0 ? 0 : nsQuality() === 1 ? 2 : 4;
+      var lit = 0;
+      for (var li = 0; li < Z.zeds.length; li++) {
+        var other = Z.zeds[li];
+        if (other && other !== zd && other.fireLight && other.fireLight.intensity > 0) lit++;
+      }
       var fl = zd.fireLight;
-      if (!fl) {
+      if (!fl && lit < cap) {
         fl = new THREE.PointLight(0xff6818, legacyIntensity(3.6, 420), 420, 2);
         fl.position.set(0, 100, 0);
         zd.rig.root.add(fl);
         zd.fireLight = fl;
       }
-      fl.intensity = legacyIntensity(3.6, 420);
+      if (fl) fl.intensity = cap > 0 ? legacyIntensity(3.6, 420) : 0;
     }
   }
 }
@@ -4468,9 +4506,9 @@ export function stepBurn(zd, dt) {
   // generic dots around the whole bounding box.
   zd.fireT = (zd.fireT || 0) - dt;
   if (zd.fireT <= 0) {
-    zd.fireT = 0.035;
+    zd.fireT = nsQuality() === 0 ? 0.07 : 0.035;
     var sc = zd.rig && zd.rig.scale ? zd.rig.scale : 1;
-    var levels = zd.crawler ? [20, 42, 62] : [24, 68, 112, 152];
+    var levels = zd.crawler ? [20, 42, 62] : nsQuality() === 0 ? [68, 112] : [24, 68, 112, 152];
     for (var i = 0; i < levels.length; i++) {
       var wide = i === 1 || i === 2 ? 18 : 12;
       spawnFirePart(

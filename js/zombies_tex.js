@@ -284,6 +284,7 @@ export function normalTex(url, opts) {
   if (DERIVED[key]) return DERIVED[key];
   var t = born("normal", rep, opts.clamp, false);
   DERIVED[key] = t;
+  if (BUDGET <= 512) return t; // Fast: keep the 1×1 placeholder, skip the Sobel hitch
   imageOf(url, function (img) {
     if (!img) return;
     queue(function () {
@@ -327,6 +328,7 @@ export function detailTex(url, opts) {
   // it was before, rather than black
   var t = born("color", rep, opts.clamp, false);
   DERIVED[key] = t;
+  if (BUDGET <= 512) return t;
   imageOf(url, function (img) {
     if (!img) return;
     queue(function () {
@@ -374,6 +376,7 @@ export function roughTex(url, opts) {
   if (DERIVED[key]) return DERIVED[key];
   var t = born("rough", rep, opts.clamp, false);
   DERIVED[key] = t;
+  if (BUDGET <= 512) return t;
   imageOf(url, function (img) {
     if (!img) return;
     queue(function () {

@@ -13,6 +13,8 @@ import {
   toggleWalk,
   orbitRefresh,
   setQualityPreset,
+  setGameRendererQuality,
+  clearGameRendererQuality,
 } from "./view3d.js";
 import { t } from "./i18n.js";
 import {
@@ -196,7 +198,7 @@ function gameSettings() {
     savedVol = Number(saved.volume);
   Z.settings = {
     quality: fin(savedQuality) ? Math.round(clamp(savedQuality, 0, 2)) : 0,
-    maxAlive: fin(savedAlive) ? Math.round(clamp(savedAlive, 8, 24)) : 18,
+    maxAlive: fin(savedAlive) ? Math.round(clamp(savedAlive, 8, 16)) : 12,
     fx: fin(savedFx) ? Math.round(clamp(savedFx, 25, 100)) : 50,
     // 1.0 matches the original look speed. 70% volume keeps the previous master gain.
     sens: fin(savedSens) ? clamp(savedSens, 0.35, 2.4) : 1,
@@ -213,9 +215,11 @@ function saveGameSettings() {
 function applyGameSettings() {
   var cfg = gameSettings();
   Z.sens = cfg.sens;
-  if (Z.active) setQualityPreset(["performance", "balanced", "quality"][cfg.quality]);
+  if (Z.active) setGameRendererQuality(cfg.quality);
   setNightShiftQuality(cfg.quality);
   setFXDensity(cfg.fx / 100);
+  syncDestruction(cfg.quality);
+  if (Z.hud && Z.hud.root) Z.hud.root.classList.toggle("z-lite", cfg.quality === 0);
   applyAudioVolume();
 }
 function applyAudioVolume() {
@@ -228,11 +232,19 @@ function applyAudioVolume() {
     A.master.gain.value = 0.88 * v;
   }
 }
+function qualityHordeCap() {
+  return [8, 12, 16][gameSettings().quality || 0];
+}
+function syncDestruction(quality) {
+  if (!Z.active) return;
+  if (quality >= 2) enableDestruction();
+  else disableDestruction();
+}
 function syncSettingsUi() {
   if (!Z.hud || !Z.hud.qualitySlider) return;
   var cfg = gameSettings(),
     qualityKeys = ["z_quality_fast", "z_quality_balanced", "z_quality_high"],
-    qualityCap = [12, 18, 24][cfg.quality || 0],
+    qualityCap = qualityHordeCap(),
     effectiveHorde = Math.min(cfg.maxAlive, qualityCap);
   Z.hud.qualitySlider.value = cfg.quality;
   Z.hud.hordeSlider.max = qualityCap;
@@ -1890,7 +1902,7 @@ function buildHud() {
     "</div>" +
     '<div class="z-game-settings"><h3></h3>' +
     '<label><span><b id="zQualityLabel"></b><output id="zQualityValue"></output></span><input id="zQualitySlider" type="range" min="0" max="2" step="1"></label>' +
-    '<label><span><b id="zHordeLabel"></b><output id="zHordeValue"></output></span><input id="zHordeSlider" type="range" min="8" max="24" step="2"></label>' +
+    '<label><span><b id="zHordeLabel"></b><output id="zHordeValue"></output></span><input id="zHordeSlider" type="range" min="8" max="16" step="2"></label>' +
     '<label><span><b id="zFxLabel"></b><output id="zFxValue"></output></span><input id="zFxSlider" type="range" min="25" max="100" step="25"></label>' +
     '<h3 id="zControlsH"></h3>' +
     '<label><span><b id="zSensLabel"></b><output id="zSensValue"></output></span><input id="zSensSlider" type="range" min="35" max="240" step="5"></label>' +
@@ -2074,6 +2086,7 @@ function initGrain() {
   Z.grainT = 0;
 }
 function stepGrain(dt) {
+  if (Z.settings && Z.settings.quality === 0) return;
   Z.grainT -= dt;
   if (Z.grainT > 0 || !Z.grainCtx) return;
   Z.grainT = 0.12;
@@ -2873,7 +2886,7 @@ function stepWave(dt) {
     // A horde is hundreds of separately animated meshes. Keep the user's
     // horde choice as an upper bound, while the graphics tier supplies a safe
     // visual cap so Fast actually reduces both CPU simulation and draw calls.
-    var qualityCap = [12, 18, 24][gameSettings().quality || 0];
+    var qualityCap = qualityHordeCap();
     var aliveCap = Math.min(gameSettings().maxAlive || Z_MAX_ALIVE, qualityCap);
     if (Wv.pending > 0 && Wv.spawnT <= 0 && live < aliveCap) {
       var baseCd = Wv.event === "horde" ? 1.4 : Wv.event === "runners" ? 1.1 : 2.4;
@@ -3523,7 +3536,7 @@ export function toggleZombies(on) {
     // a still design view, but disastrous with dozens of animated rigs.
     Z.prevQuality = (S.workspace && S.workspace.quality) || "auto";
     gameSettings();
-    setQualityPreset(["performance", "balanced", "quality"][Z.settings.quality]);
+    setGameRendererQuality(Z.settings.quality);
     // Texel budget follows the same slider. If it moved since the last
     // session the cached maps are the wrong size, so drop them first —
     // materials are rebuilt from scratch below either way.
@@ -3551,10 +3564,11 @@ export function toggleZombies(on) {
     Z.keys = {};
     Z.doorsOpened = [];
     audio();
-    // Destruction loads cannon-es and rebuilds the scene for rigid bodies. It
-    // resolves on its own time; the game is playable (just not yet breakable)
-    // until it does, so nothing here waits on it.
-    enableDestruction();
+    // Destruction (cannon-es on every piece of furniture) is a High-only
+    // extra. Fast/Balanced stay playable: the 2D collision snapshot is enough
+    // for zombies and bullets, and enabling the full rigid-body world is what
+    // froze M-series laptops at session start.
+    if (Z.settings.quality >= 2) enableDestruction();
     restart();
     Z.hud.root.classList.add("on");
     Z.hud.hint.textContent = t("z_hint");
@@ -3610,6 +3624,7 @@ export function toggleZombies(on) {
     document.body.classList.remove("zombies-on");
     maximize3D(false);
     orbitRefresh();
+    clearGameRendererQuality();
     setQualityPreset(Z.prevQuality || ((S.workspace && S.workspace.quality) || "auto"));
     Z.prevQuality = null;
   }

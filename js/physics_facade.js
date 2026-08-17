@@ -21,6 +21,7 @@ export function setStrength(value) {
   return strength;
 }
 export function isPhysicsEnabled() { return !!engine && engine.isPhysicsEnabled(); }
+export function isPhysicsBusy() { return !!engine && typeof engine.isPhysicsBusy === "function" && engine.isPhysicsBusy(); }
 export function togglePhysics(value) { return engine ? engine.togglePhysics(value) : false; }
 export function clearPhysics() { if (engine) engine.clearPhysics(); }
 export function clearDebris() { if (engine) engine.clearDebris(); }
