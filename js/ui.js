@@ -276,8 +276,11 @@ export function applyData(d) {
   if (!d || typeof d !== "object" || Array.isArray(d)) {
     throw new Error("Invalid scene data");
   }
-  if(d.spatial)d={...d,nodes:d.spatial.nodes,walls:d.spatial.walls,wallTypes:d.spatial.wallTypes,openings:d.spatial.openings,items:d.spatial.instances,markers:d.spatial.markers,roomMeta:d.spatial.rooms};
+  if(d.spatial)d={...d,nodes:d.spatial.nodes,walls:d.spatial.walls,wallTypes:d.spatial.wallTypes,openings:d.spatial.openings,items:d.spatial.instances,markers:d.spatial.markers,roomMeta:d.spatial.rooms,cabinetPresets:d.spatial.cabinetPresets};
   importParametricProject(S, d.parametric || {});
+  if (Array.isArray(d.cabinetPresets)) {
+    S.spatial.cabinetPresets = JSON.parse(JSON.stringify(d.cabinetPresets));
+  }
   var customAdded = 0;
   (Array.isArray(d.customModels) ? d.customModels : []).forEach(function (def) {
     if (registerCustomModel(def)) customAdded++;
@@ -1609,9 +1612,9 @@ export function initUI() {
     finishSmartDimension(it, dimension);
   }
   function showSmartProposal(it, dimension, result, input) {
-    var dlg = openModal("Configuration required");
+    var dlg = openModal(t("cfg_required"));
     var message = document.createElement("p");
-    message.textContent = result.message || "Choose a valid configuration.";
+    message.textContent = result.message || t("cfg_choose");
     dlg.body.appendChild(message);
     (result.issues || []).slice(0, 4).forEach(function (issue) {
       var note = document.createElement("small");
@@ -1636,7 +1639,7 @@ export function initUI() {
       dlg.body.appendChild(button);
     });
     var cancel = document.createElement("button");
-    cancel.textContent = "Keep current size";
+    cancel.textContent = t("cfg_keep_size");
     cancel.addEventListener("click", function () {
       cancelPending();
       input.value = Math.round(it[{ width: "w", depth: "d", height: "h" }[dimension]] * 10) / 10;

@@ -1246,6 +1246,9 @@ var STR = {
     f_squaredResized: "יושר ל-90° — אורכם של {n} קירות השתנה",
     f_squaredResized1: "יושר ל-90° — אורכו של קיר אחד השתנה",
     f_squareBlocked: "אי אפשר ליישר כאן — כל הפינות מקובעות או ננעלו",
+    cfg_required: "נדרשת חלוקה חדשה",
+    cfg_keep_size: "השאירו את המידה הנוכחית",
+    cfg_choose: "בחרו חלוקה תקפה.",
 
     lang_btn: "EN",
   },
@@ -2488,6 +2491,9 @@ var STR = {
     f_squaredResized: "Squared to 90° — {n} walls changed length",
     f_squaredResized1: "Squared to 90° — one wall changed length",
     f_squareBlocked: "Nothing here may swing — the corners are pinned",
+    cfg_required: "Configuration required",
+    cfg_keep_size: "Keep current size",
+    cfg_choose: "Choose a valid configuration.",
 
     lang_btn: "עברית",
   },

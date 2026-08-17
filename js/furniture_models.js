@@ -4,7 +4,7 @@ import {
   GREEN, RUGC, PVC_WHITE, BLACK_PLASTIC, ALUMINUM, WATER, TUFF, MOUNTH, WALL_H, WALL_T,
 } from "./state.js";
 import { box, cyl, sph } from "./primitives.js";
-import { buildCab } from "./cabinet.js";
+import { buildCab } from "./cabinet_mesh.js";
 import { getLang } from "./i18n.js";
 import {
   handleBar, upholstered, legsUnder, slabWithHoles, basin, gooseneck,

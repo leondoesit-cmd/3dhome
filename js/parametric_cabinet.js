@@ -10,6 +10,20 @@ import { createDefinition, createParameter, mainReferences, cloneDomain } from "
 import { ensureParametricProject, rebuildItem } from "./core/project.js";
 import { cabinetPartFeatureHistory, captureCabinetAdvancedDelta, mergeCabinetAdvanced } from "./core/cabinet_advanced.js";
 import { cabinetAdvancedManufacturing } from "./core/cabinet_advanced.js";
+import { getLang } from "./i18n.js";
+
+function he(a, b) {
+  return getLang() === "en" ? b : a;
+}
+
+/* Overall envelope the designer and the planner both honour. Width cannot go
+   below one useful bay; depth and height are the carcass ranges the catalogue
+   actually builds. */
+export const CAB_LIMITS = {
+  width: { field: "w", min: STD.minCol, max: 600 },
+  depth: { field: "d", min: 20, max: 120 },
+  height: { field: "h", min: 30, max: 350 },
+};
 
 function safeId(value) {
   return String(value == null ? "part" : value).replace(/[^A-Za-z0-9:_-]/g, "_");
@@ -192,14 +206,31 @@ function configSummary(spec, width) {
   return { modules: (spec.cols || []).length, doors, uprights: Math.max(0, (spec.cols || []).length - 1) };
 }
 
+function configLabel(summary) {
+  return he(
+    summary.modules + " מודולים · " + summary.doors + " חזיתות · " + summary.uprights + " מחיצות",
+    summary.modules + " modules · " + summary.doors + " fronts · " + summary.uprights + " uprights",
+  );
+}
+
 export function requestCabinetDimension(item, dimension, requested, ceilingHeight) {
-  const field = { width: "w", depth: "d", height: "h" }[dimension];
-  if (!field || !Number.isFinite(Number(requested))) return { status: "rejected", message: "Invalid cabinet dimension" };
+  const limit = CAB_LIMITS[dimension];
+  const field = limit && limit.field;
+  if (!field || !Number.isFinite(Number(requested))) {
+    return { status: "rejected", message: he("מידה לא תקפה", "Invalid cabinet dimension") };
+  }
   const value = Number(requested);
-  const limits = dimension === "width" ? [STD.minCol, 600] : dimension === "depth" ? [20, 120] : [30, 350];
-  if (value < limits[0] || value > limits[1]) {
-    const bounded = Math.max(limits[0], Math.min(limits[1], value));
-    return { status: "proposal", message: "Requested size is outside the cabinet system range", alternatives: [{ id: "clamp", label: "Use " + bounded + " cm", value: bounded, dimension, spec: null }] };
+  if (value < limit.min || value > limit.max) {
+    const bounded = Math.max(limit.min, Math.min(limit.max, value));
+    return {
+      status: "proposal",
+      message: he("המידה מחוץ לטווח מערכת הארונות", "Requested size is outside the cabinet system range"),
+      alternatives: [{
+        id: "clamp", dimension, value: bounded, spec: null,
+        label: he("השתמשו ב-" + bounded + " ס״מ", "Use " + bounded + " cm"),
+        reason: he("גבולות המערכת: " + limit.min + "–" + limit.max + " ס״מ", "System range: " + limit.min + "–" + limit.max + " cm"),
+      }],
+    };
   }
   const current = configSummary(item.cab, item.w);
   const dims = { w: item.w, d: item.d, h: item.h, [field]: value };
@@ -209,20 +240,27 @@ export function requestCabinetDimension(item, dimension, requested, ceilingHeigh
   normalizeSpec(probe.cab, probe.w, probe.h, probe.d);
   const issues = checkCab(probe, ceilingHeight).filter((issue) => issue.level === "err" || issue.level === "warn");
   const configurationChanged = current.modules !== next.modules || current.doors !== next.doors || current.uprights !== next.uprights;
-  if (!configurationChanged && !issues.length) return { status: "applied", dimension, value, spec: probe.cab, message: "Cabinet rebuilt within the current configuration" };
+  if (!configurationChanged && !issues.length) {
+    return {
+      status: "applied", dimension, value, spec: probe.cab,
+      message: he("הארון עודכן בתוך החלוקה הקיימת", "Cabinet rebuilt within the current configuration"),
+    };
+  }
   const alternatives = [{
     id: "recommended", dimension, value, spec: recommended,
-    label: next.modules + " modules · " + next.doors + " fronts · " + next.uprights + " uprights",
-    reason: "Keeps panel spans and door widths within the cabinet library limits",
+    label: configLabel(next),
+    reason: he("שומר על מפתחי מדפים ורוחבי דלת בגבולות הספרייה", "Keeps panel spans and door widths within the cabinet library limits"),
   }];
   if (!issues.length) alternatives.push({
     id: "keep-layout", dimension, value, spec: probe.cab,
-    label: "Keep current " + current.modules + "-module layout",
-    reason: "Current layout remains valid, but is not the recommended module distribution",
+    label: he("שמרו על " + current.modules + " מודולים", "Keep current " + current.modules + "-module layout"),
+    reason: he("החלוקה הנוכחית עדיין תקפה, אבל אינה החלוקה המומלצת", "Current layout remains valid, but is not the recommended module distribution"),
   });
   return {
     status: "proposal", dimension, value,
-    message: configurationChanged ? "This size needs a different cabinet configuration" : "The current construction needs review at this size",
+    message: configurationChanged
+      ? he("המידה הזו דורשת חלוקה אחרת של הארון", "This size needs a different cabinet configuration")
+      : he("הבנייה הנוכחית דורשת בדיקה במידה הזו", "The current construction needs review at this size"),
     issues, alternatives,
   };
 }
@@ -230,7 +268,8 @@ export function requestCabinetDimension(item, dimension, requested, ceilingHeigh
 export function applyCabinetDimension(state, item, result, alternativeId) {
   const choice = result.status === "applied" ? result : (result.alternatives || []).find((candidate) => candidate.id === alternativeId);
   if (!choice) return null;
-  const field = { width: "w", depth: "d", height: "h" }[choice.dimension];
+  const field = (CAB_LIMITS[choice.dimension] || {}).field;
+  if (!field) return null;
   item[field] = choice.value;
   if (choice.spec) item.cab = cloneDomain(choice.spec);
   const definition = syncCabinetDefinition(state, item);
