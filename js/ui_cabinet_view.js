@@ -1,9 +1,20 @@
 // Cabinet designer elevation: 2D drawing, partition tools, PNG and the 3D preview.
 
-import { clamp } from "./state.js";
+import { clamp, fin } from "./state.js";
 import { buildItem } from "./furniture.js";
 import { createEditorView, createViewportSwap } from "./editor_view.js";
-import { layoutCab, secLabel, famLabel, frontLabel, cabSummary, cabPrice } from "./cabinet.js";
+import {
+  layoutCab,
+  secLabel,
+  famLabel,
+  frontLabel,
+  cabSummary,
+  cabPrice,
+  kindLabel,
+  normalizeSpec,
+  SEC,
+  STD,
+} from "./cabinet.js";
 import { api, E, T, isEn, AXES, sp, formatCm } from "./ui_cabinet_ctx.js";
 
 export function sizeCanvas() {

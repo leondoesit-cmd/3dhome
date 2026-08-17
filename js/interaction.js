@@ -19,6 +19,7 @@ import {
   wallPointAt,
   wallTangentAt,
   wallProject,
+  wallClearLength,
 } from "./geometry.js";
 import { ensureWallTypes, wallTypeById } from "./wall_types.js";
 import { makeArcFromThreePoints } from "./wall_curves.js";
