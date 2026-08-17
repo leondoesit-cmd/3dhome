@@ -289,10 +289,10 @@ export function setAnchors(next, opts) {
   if (!opts.live) scheduleBuild(opts.delay);
 }
 
-export function addAnchor(x, z, append) {
+export function addAnchor(x, z, append, y) {
   var pts = ST.D.anchors.slice();
   var at = append || pts.length < 2 ? pts.length : insertSpot(pts, x, z).i;
-  pts.splice(at, 0, snapFree(x, z));
+  pts.splice(at, 0, snapFree(x, z, y));
   ST.D.sel = at;
   setAnchors(pts, { delay: 0 });
   ST.E.beep(660, 0.06, 0.2);

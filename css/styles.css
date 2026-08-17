@@ -4246,12 +4246,14 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
   animation: rcSpeedRush .28s linear infinite;
 }
 #rcHud.boosting::before { opacity: .9; animation-duration: .15s; }
+#rcHud.drafting::before { opacity: .95; filter: hue-rotate(-18deg) saturate(1.15); animation-duration: .18s; }
 @keyframes rcSpeedRush {
   from { rotate: 0deg; }
   to { rotate: .7deg; }
 }
 @media (prefers-reduced-motion: reduce) {
   #rcHud::before { animation: none; opacity: calc(var(--rc-speed) * .28); }
+  #rcWarn { animation: none; }
 }
 #rcTop {
   position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
@@ -4295,7 +4297,10 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 #rcTouch .rc-touch-gas { height: 76px; background: rgba(42, 142, 82, 0.78); }
 #rcTouch .rc-touch-drift { background: rgba(117, 75, 210, 0.78); }
 #rcTouch .rc-touch-item { background: rgba(205, 142, 35, 0.8); }
+#rcTouch .rc-touch-look { background: rgba(50, 90, 140, 0.78); font-size: 18px; }
 #rcHud:has(#rcPanel.on) #rcTouch, #rcHud:has(#rcResults.on) #rcTouch { display: none !important; }
+#rcHud:has(#rcPanel.on) #rcLights, #rcHud:has(#rcResults.on) #rcLights,
+#rcHud:has(#rcPause.on) #rcLights { display: none !important; }
 #rcPanel, #rcResults {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   display: none; flex-direction: column; gap: 8px; width: 250px;
@@ -4342,6 +4347,54 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 }
 #rcDelta.rc-up { color: #6ce08b; }    /* under the record */
 #rcDelta.rc-down { color: #ff8f7a; }  /* over it */
+#rcSplits {
+  position: absolute; top: 42px; left: 50%; transform: translateX(-50%);
+  display: none; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 800;
+  color: #e8ecf2; background: rgba(15, 17, 22, 0.62); padding: 3px 10px;
+  border-radius: 8px; pointer-events: none; text-shadow: 0 1px 6px rgba(0,0,0,.5);
+}
+#rcSplits.on { display: block; }
+#rcSplits.rc-up { color: #6ce08b; }
+#rcSplits.rc-down { color: #ff8f7a; }
+#rcLights {
+  position: absolute; top: 16%; left: 50%; transform: translateX(-50%);
+  display: none; gap: 10px; align-items: center; pointer-events: none;
+  background: rgba(12, 14, 20, 0.72); padding: 8px 14px; border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+#rcLights.on { display: flex; }
+#rcLights i {
+  width: 18px; height: 18px; border-radius: 50%; background: #2a1214;
+  box-shadow: inset 0 0 6px rgba(0,0,0,.6); display: block;
+}
+#rcLights[data-lit="1"] i:nth-child(1),
+#rcLights[data-lit="2"] i:nth-child(-n+2),
+#rcLights[data-lit="3"] i {
+  background: #e23b3b; box-shadow: 0 0 14px rgba(255, 70, 70, 0.85);
+}
+#rcLights.go i {
+  background: #3dce6a; box-shadow: 0 0 16px rgba(80, 230, 130, 0.9);
+}
+#rcWarn {
+  position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%);
+  display: none; font-size: 28px; font-weight: 900; letter-spacing: 0.12em;
+  color: #ff5a5a; text-shadow: 0 2px 16px rgba(0,0,0,.7);
+  animation: rcWarnPulse .5s ease-in-out infinite alternate;
+}
+#rcWarn.on { display: block; }
+@keyframes rcWarnPulse {
+  from { opacity: .7; transform: translate(-50%, -50%) scale(.98); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+}
+#rcGap {
+  position: absolute; left: 16px; bottom: 108px; display: none;
+  flex-direction: column; gap: 2px; color: #e8ecf2; font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums; text-shadow: 0 1px 8px rgba(0,0,0,.65);
+  pointer-events: none;
+}
+#rcGap.on { display: flex; }
+#rcGapA { color: #ffb4a8; }
+#rcGapB { color: #8ee0a8; }
 #rcMini {
   position: absolute; right: 12px; top: 52px; width: 148px; height: 148px;
   display: none; border-radius: 12px; overflow: hidden;
@@ -4351,6 +4404,8 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 #rcMini.on { display: block; }
 #rcMiniCv { display: block; width: 100%; height: 100%; }
 #rcHud:has(#rcPanel.on) #rcMini, #rcHud:has(#rcResults.on) #rcMini { display: none; }
+#rcHud:has(#rcPanel.on) #rcGap, #rcHud:has(#rcResults.on) #rcGap,
+#rcHud:has(#rcPanel.on) #rcWarn, #rcHud:has(#rcResults.on) #rcWarn { display: none !important; }
 #rcWait {
   position: absolute; top: 52px; left: 50%; transform: translateX(-50%);
   display: none; gap: 10px; align-items: center; pointer-events: auto;
@@ -4453,6 +4508,18 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .rc-ed-mapstage[data-mode="shape"] canvas { cursor: grab; }
 .rc-ed-mapstage[data-mode="shape"] canvas:active { cursor: grabbing; }
 .rc-ed-mapstage[data-mode="draw"] canvas { cursor: copy; }
+.rc-ed-3dbar {
+  position: absolute; left: 90px; top: 12px; z-index: 35;
+  display: flex; gap: 8px; align-items: center; max-width: min(72vw, 520px);
+  padding: 6px 10px; border-radius: 10px; pointer-events: auto;
+  background: rgba(12, 16, 24, 0.78); color: #dbe7f3; border: 1px solid rgba(255,255,255,0.12);
+  font-size: 11px; font-weight: 650; backdrop-filter: blur(8px);
+}
+.rc-ed-3dbar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-ed-3dbar button {
+  flex: 0 0 auto; width: 32px; height: 28px; border-radius: 8px; cursor: pointer;
+  background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.14);
+}
 .rc-ed-mapbar { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; align-items: center; }
 .rc-ed-mapbar button {
   width: 27px; height: 27px; padding: 0; line-height: 1; border-radius: 8px;
@@ -4603,6 +4670,7 @@ button.rc-ed-issue:hover { background: rgba(239, 68, 68, .2); }
   #rcSpeed { bottom: 104px; }
   #rcHp { bottom: 108px; }
   #rcPos { bottom: 126px; }
+  #rcGap { bottom: 176px; }
   /* the map competes with the item slot and the speed readout on a phone */
   #rcMini { width: 104px; height: 104px; top: 46px; right: 8px; }
   #rcPanel { width: min(88vw, 260px); }
@@ -4650,6 +4718,12 @@ button.rc-ed-issue:hover { background: rgba(239, 68, 68, .2); }
 #rcPos.on { display: flex; }
 #rcPosN { font-size: 40px; font-weight: 900; letter-spacing: -1px; }
 #rcPosOf { font-size: 15px; font-weight: 700; color: #b9c2d0; }
+#rcPos.gained #rcPosN { color: #6ce08b; animation: rcPlacePop .45s ease-out; }
+#rcPos.lost #rcPosN { color: #ff8f7a; animation: rcPlacePop .45s ease-out; }
+@keyframes rcPlacePop {
+  0% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
 #rcFlash {
   position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none;
 }

@@ -289,6 +289,35 @@ test("RC home mode drives the flat itself and only decks what it must", async ()
   assert.ok(ramp.length > 3, "there is no ramp up to it");
 });
 
+test("home-mode auto tour climbs elevated tabletops and visits more than four models", async () => {
+  const track = await read("js/track.js");
+  const rc = await readRC();
+  // The apartment is the course: every rideable model is a candidate, not a
+  // handful of detours off a room-centre loop, and a tabletop mesh that does
+  // not include the legs is still something you drive on.
+  assert.match(track, /ATTRACT_MAX = 16/);
+  assert.match(track, /export function seedHomeTour\(/);
+  assert.match(rc, /out = seedHomeTour\(/);
+  assert.doesNotMatch(track, /t\.y0 > 6 \|\| t\.y1 < RIDE_MIN/);
+  assert.doesNotMatch(track, /r\.y0 <= 6 &&\s*\n\s*Math\.min/);
+
+  const { road } = await buildHomeRoad([
+    { x0: 380, z0: 380, x1: 540, z1: 520, y0: 38, y1: 42 },
+  ]);
+  assert.ok(road && road.feats.home);
+  assert.ok(
+    road.feats.rides >= 2,
+    `auto tour only climbed ${road.feats.rides} model(s)`,
+  );
+  const onTable = road.center.filter((p) => p.hold && !p.deck && p.y > 36 && p.y < 44);
+  assert.ok(onTable.length > 1, "the tabletop is not actually driven along");
+  const decked = road.center.filter((p) => p.deck).length;
+  assert.ok(
+    decked / road.center.length < 0.55,
+    `${Math.round((decked / road.center.length) * 100)}% of the lap is road`,
+  );
+});
+
 test("RC home mode hands collision back to the apartment", async () => {
   const rc = await readRC();
   // the mode reaches the road builder, and the ride heights come from the
@@ -555,13 +584,21 @@ test("the live RC track editor defers rebuilds and edits from both views", async
   // owns an overview camera while it is open.
   assert.match(rc, /function editorCam\(dt\)/);
   assert.match(rc, /R\.edCam\.on && editorActive\(\)/);
-  // The map replaces the existing 2D design pane; 3D remains a separate live
-  // preview and the editor controls belong to the standard right inspector.
+  // 3D is the designer: clicks hit models, handles drag on their own plane,
+  // and a cone lifts a point off the floor.
+  assert.match(ed, /out\.mesh = true/);
+  assert.match(ed, /userData\.lift/);
+  assert.match(ed, /faceApply\(pick\.tg, "top"/);
+  assert.match(ed, /intersectPlane\(new THREE\.Plane\(new THREE\.Vector3\(0, 1, 0\), -hy\)/);
+  assert.match(ed, /id="rcEdShowMap"/);
+  // The map replaces the existing 2D design pane; 3D is the place you actually
+  // design (click models, drag handles, lift height) and the inspector stays
+  // on the right. Split is optional from the 🗺️ chip.
   assert.match(ed, /document\.getElementById\("view-2d"\)/);
   assert.match(ed, /document\.getElementById\("right-inspector"\)/);
   assert.doesNotMatch(ed, /document\.getElementById\("view-3d"\) \|\| document\.body/);
   assert.match(rc, /function editorSplit\(on\)/);
-  assert.match(rc, /window\.__setViewMode\("split"\)/);
+  assert.match(rc, /window\.__setViewMode\("3d"\)/);
 
   // A route belongs to the flat it was drawn on: stored anchors carry that
   // plan's signature and are dropped (auto tour instead) when the walls change.
@@ -759,4 +796,57 @@ test("RC audio has continuous scrub and rumble voices plus a per-truck garage", 
   // a setup belongs to the truck it was dialled for
   assert.match(rc, /export function tuneStore\(\)[\s\S]*?R\.tunes\[tuneKey\(\)\]/);
   assert.match(rc, /export function bankAdd\(n\)/);
+});
+
+test("RC race craft drafts, passes, looks back and shows live rival gaps", async () => {
+  const [rc, css, i18n] = await Promise.all([
+    readRC(),
+    read("css/styles.css"),
+    read("js/i18n.js"),
+  ]);
+  // Sitting in a rival's wake is extra top speed, not just a visual.
+  assert.match(rc, /DRAFT_MULT = 0\.14/);
+  assert.match(rc, /function draftFactor\(car\)/);
+  assert.match(rc, /maxv \*= 1 \+ DRAFT_MULT \* draft/);
+  // Bots steer analog and hold a private line so they can actually pass.
+  assert.match(rc, /aiLane: \(\(i % 3\) - 1\) \* 5\.4/);
+  assert.match(rc, /input\.steerAxis = -clamp\(steer, -1, 1\)/);
+  assert.match(rc, /car\.passSide = odx \* ofz - odz \* ofx >= 0 \? 1 : -1/);
+  // A rear tap that isn't a slam is a bump-draft.
+  assert.match(rc, /b\.v \+= rel \* 0\.12/);
+  // Look-back is a hold (V / B / on-screen), not another camera mode.
+  assert.match(rc, /R\.keys\.look = true/);
+  assert.match(rc, /out\.look = out\.look \|\| padButton\(pad, 1\)/);
+  assert.match(rc, /carCam\(pc, dt, now, !!\(pInput\.look \|\| R\.touch\.look\)\)/);
+  assert.match(rc, /data-hold="look"/);
+  // Race presentation: start gantry, sector chip, rival interval, wrong-way.
+  assert.match(rc, /function updateStartLights\(left\)/);
+  assert.match(rc, /function pathPos\(car\)/);
+  assert.match(rc, /function updateGaps\(pc\)/);
+  assert.match(rc, /function updateWrongWay\(pc\)/);
+  assert.match(rc, /updateSplitsHud\(idx\)/);
+  assert.match(css, /#rcLights/);
+  assert.match(css, /#rcGap/);
+  assert.match(css, /#rcWarn/);
+  assert.match(css, /#rcSplits\.on/);
+  assert.match(i18n, /rc_wrong_way: "WRONG WAY"/);
+  assert.match(i18n, /rc_look: "Look back"/);
+  assert.match(i18n, /V=look back/);
+  // Position stays on even with items off — placing is not a kart pickup.
+  assert.match(rc, /R\.hud\.pos\.classList\.toggle\("on", racing\)/);
+
+  // The slipstream cone: dead ahead and close is a full draft; beside or
+  // behind the other truck is none. Same numbers the game uses.
+  const DRAFT_DIST = 22;
+  const draftAt = (dx, dz) => {
+    const d = Math.hypot(dx, dz);
+    if (d < 3.6 || d > DRAFT_DIST) return 0;
+    const along = dz / d; // heading 0 looks down +Z
+    if (along < 0.72) return 0;
+    return (1 - (d - 3.6) / (DRAFT_DIST - 3.6)) * along;
+  };
+  assert.ok(draftAt(0, 10) > 0.5, "a truck 10cm ahead is in the wake");
+  assert.equal(draftAt(0, -10), 0, "a truck behind is not a draft");
+  assert.equal(draftAt(18, 2), 0, "a truck beside is not a draft");
+  assert.ok(draftAt(0, 6) > draftAt(0, 18), "closer ahead drafts harder");
 });

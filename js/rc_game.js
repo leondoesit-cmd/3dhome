@@ -75,6 +75,8 @@ import {
   STAR_MULT,
   STEP_H,
   TURN_MAX,
+  DRAFT_MULT,
+  DRAFT_DIST,
   WATER_MAXV,
   WATER_SINK,
   WHEEL_R,
@@ -187,12 +189,15 @@ function buildHud() {
     '<div id="rcTop"><span id="rcLap"></span><span id="rcTime"></span>' +
     '<span id="rcLapT"></span><span id="rcDelta"></span><span id="rcBest"></span></div>' +
     '<div id="rcSplits"></div>' +
+    '<div id="rcLights" aria-hidden="true"><i></i><i></i><i></i></div>' +
     '<div id="rcMsg"></div>' +
+    '<div id="rcWarn"></div>' +
     '<div id="rcSpeed"></div>' +
     '<div id="rcHp"><div id="rcHpFill"></div></div>' +
     '<div id="rcItem"><span id="rcItemIcon"></span><span id="rcItemN"></span></div>' +
     '<div id="rcCoins"><span class="rc-coin">◉</span><span id="rcCoinN">0</span></div>' +
     '<div id="rcPos"><span id="rcPosN"></span><span id="rcPosOf"></span></div>' +
+    '<div id="rcGap"><span id="rcGapA"></span><span id="rcGapB"></span></div>' +
     '<div id="rcFlash"></div>' +
     '<div id="rcHint"></div>' +
     '<div id="rcTouch" aria-label="' + t("rc_touch_controls") + '">' +
@@ -200,6 +205,7 @@ function buildHud() {
     '<button data-hold="drift" class="rc-touch-drift" aria-label="' + t("rc_drift") + '">⚡</button>' +
     '<button data-hold="right" aria-label="' + t("right") + '">▶</button></div>' +
     '<div class="rc-touch-actions"><button data-action="rescue" aria-label="' + t("rc_rescue") + '">↻</button>' +
+    '<button data-hold="look" class="rc-touch-look" aria-label="' + t("rc_look") + '">↺</button>' +
     '<button data-action="item" class="rc-touch-item" aria-label="' + t("rc_use_item") + '">🎁</button>' +
     '<button data-hold="back" aria-label="' + t("rc_brake") + '">▼</button>' +
     '<button data-hold="fwd" class="rc-touch-gas" aria-label="' + t("rc_accelerate") + '">▲</button></div></div>' +
@@ -215,6 +221,11 @@ function buildHud() {
     lapT: el.querySelector("#rcLapT"),
     delta: el.querySelector("#rcDelta"),
     splits: el.querySelector("#rcSplits"),
+    lights: el.querySelector("#rcLights"),
+    warn: el.querySelector("#rcWarn"),
+    gap: el.querySelector("#rcGap"),
+    gapA: el.querySelector("#rcGapA"),
+    gapB: el.querySelector("#rcGapB"),
     wait: el.querySelector("#rcWait"),
     waitTxt: el.querySelector("#rcWait span"),
     skip: el.querySelector("#rcSkip"),
@@ -338,6 +349,146 @@ function fmtDelta(ms) {
   return (ms <= 0 ? "−" : "+") + (Math.abs(ms) / 1000).toFixed(2);
 }
 
+// Distance along the circuit from the start/finish, plus completed laps.
+// Rival gaps and the wrong-way test both need a number that means "how far
+// around" rather than Euclidean distance across the living room.
+function ensurePref() {
+  var wps = R.track && R.track.wps;
+  if (!wps || !wps.length) return null;
+  if (R.track.pref && R.track.pref.length === wps.length + 1) return R.track.pref;
+  var pref = [0];
+  for (var i = 0; i < wps.length; i++) {
+    var a = wps[i],
+      b = wps[(i + 1) % wps.length];
+    pref.push(pref[i] + Math.hypot(b.x - a.x, b.z - a.z));
+  }
+  R.track.pref = pref;
+  R.track.lapLen = pref[wps.length];
+  return pref;
+}
+function pathPos(car) {
+  var wps = R.track && R.track.wps;
+  var pref = ensurePref();
+  if (!wps || !pref || !car) return 0;
+  var n = wps.length,
+    k = ((car.next % n) + n) % n;
+  var toGo = Math.hypot(car.x - wps[k].x, car.z - wps[k].z);
+  var along = pref[k] - toGo;
+  if (along < -pref[n] * 0.5) along += pref[n];
+  return Math.max(0, (car.lap || 1) - 1) * pref[n] + along;
+}
+
+// 0..1: how fully this truck sits in another truck's wake (dead ahead, close).
+function draftFactor(car) {
+  var best = 0;
+  if (!car || car.dead) return 0;
+  var fx = Math.sin(car.heading),
+    fz = Math.cos(car.heading);
+  for (var i = 0; i < R.cars.length; i++) {
+    var o = R.cars[i];
+    if (o === car || o.dead || o.done) continue;
+    if (Math.abs((o.y || 0) - (car.y || 0)) > 4) continue;
+    var dx = o.x - car.x,
+      dz = o.z - car.z,
+      d = Math.hypot(dx, dz);
+    if (d < 3.6 || d > DRAFT_DIST) continue;
+    var along = (dx * fx + dz * fz) / d;
+    if (along < 0.72) continue;
+    var close = 1 - (d - 3.6) / (DRAFT_DIST - 3.6);
+    best = Math.max(best, close * along);
+  }
+  return best;
+}
+
+function updateStartLights(left) {
+  var el = R.hud && R.hud.lights;
+  if (!el) return;
+  if (left == null) {
+    el.className = "";
+    el.removeAttribute("data-lit");
+    return;
+  }
+  if (left <= 0) {
+    el.className = "on go";
+    el.dataset.lit = "3";
+    return;
+  }
+  el.className = "on";
+  var n = Math.ceil(left / 1000);
+  el.dataset.lit = String(clamp(4 - n, 0, 3));
+}
+
+function updateGaps(pc) {
+  var hud = R.hud;
+  if (!hud || !hud.gap) return;
+  var racing = !!(R.race && R.race.state === "run" && pc && !pc.done && R.cars.length > 1);
+  hud.gap.classList.toggle("on", racing);
+  if (!racing) return;
+  var me = pathPos(pc),
+    ahead = null,
+    behind = null,
+    aPos = 1e12,
+    bPos = -1e12;
+  for (var i = 0; i < R.cars.length; i++) {
+    var c = R.cars[i];
+    if (c === pc || c.dead) continue;
+    var p = pathPos(c);
+    if (p > me && p < aPos) {
+      aPos = p;
+      ahead = c;
+    }
+    if (p < me && p > bPos) {
+      bPos = p;
+      behind = c;
+    }
+  }
+  var spd = Math.max(22, Math.abs(pc.v));
+  hud.gapA.textContent = ahead
+    ? "▲ " + (ahead.ai ? ahead.name : t("rc_you")) + " " + (Math.abs(aPos - me) / spd).toFixed(2)
+    : "";
+  hud.gapB.textContent = behind
+    ? "▼ " + (behind.ai ? behind.name : t("rc_you")) + " " + (Math.abs(me - bPos) / spd).toFixed(2)
+    : "";
+}
+
+function updateWrongWay(pc) {
+  var hud = R.hud;
+  if (!hud || !hud.warn) return;
+  var wps = R.track && R.track.wps;
+  var racing = !!(R.race && R.race.state === "run" && pc && !pc.done && wps && wps.length);
+  var wrong = false;
+  if (racing && Math.abs(pc.v) > 10) {
+    var tgt = wps[pc.next];
+    if (tgt) {
+      var want = Math.atan2(tgt.x - pc.x, tgt.z - pc.z);
+      var diff = want - pc.heading;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      wrong = Math.abs(diff) > 2.05;
+    }
+  }
+  hud.warn.classList.toggle("on", wrong);
+  if (wrong) hud.warn.textContent = t("rc_wrong_way");
+}
+
+function updateSplitsHud(idx) {
+  var hud = R.hud,
+    race = R.race;
+  if (!hud || !hud.splits || !race) return;
+  var ms = race.splits[idx];
+  if (!(ms > 0)) return;
+  hud.splits.classList.add("on");
+  var ref = race.bestSplits && race.bestSplits[idx];
+  var delta = ref > 0 ? ms - ref : null;
+  hud.splits.textContent =
+    "S" +
+    (idx + 1) +
+    " " +
+    fmtT(ms) +
+    (delta == null ? "" : "  " + fmtDelta(delta));
+  hud.splits.className = "on" + (delta == null ? "" : delta <= 0 ? " rc-up" : " rc-down");
+}
+
 // how long the bots get to finish after the player crosses the line
 var FINISH_GRACE_MS = 15000;
 
@@ -356,6 +507,7 @@ function updateLapHud(now, pc) {
   if (!race || race.state !== "run" || !pc || pc.done || !race.lapT0) {
     hud.lapT.textContent = "";
     hud.delta.textContent = "";
+    if (hud.splits) hud.splits.classList.remove("on");
     return;
   }
   hud.lapT.textContent = "⏱ " + fmtT(Math.max(0, now - race.lapT0));
@@ -958,6 +1110,7 @@ function startRace(o) {
           aiSkill: d.skill + i * d.step,
           aiItems: d.items,
           aiLook: d.look,
+          aiLane: ((i % 3) - 1) * 5.4,
         }),
       );
     }
@@ -991,6 +1144,9 @@ function startRace(o) {
   R.hud.results.classList.remove("on");
   R.hud.wait.classList.remove("on");
   R.hud.splits.classList.remove("on");
+  if (R.hud.gap) R.hud.gap.classList.remove("on");
+  if (R.hud.warn) R.hud.warn.classList.remove("on");
+  updateStartLights(null);
   R.cam.results = null;
   updateHpBar();
 }
@@ -1033,6 +1189,9 @@ function endRace() {
   R.hud.best.textContent = "";
   R.hud.wait.classList.remove("on");
   R.hud.splits.classList.remove("on");
+  if (R.hud.gap) R.hud.gap.classList.remove("on");
+  if (R.hud.warn) R.hud.warn.classList.remove("on");
+  updateStartLights(null);
   ghostTick(0, false);
 }
 
@@ -1123,6 +1282,7 @@ function recordSplit(idx, now) {
     race.delta = tt - ref;
     race.deltaT = now + 2600;
   }
+  updateSplitsHud(idx);
 }
 
 // The player just crossed the line: bank the lap, promote it if it is the
@@ -1215,11 +1375,15 @@ function carPhysics(car, dt, input, now) {
       maxv *= prog < pprog ? band.catchUp : band.slowLead;
     }
   }
+  var draft = draftFactor(car);
+  car.draft = draft;
+  if (draft > 0.08) maxv *= 1 + DRAFT_MULT * draft;
   if (boosting) maxv *= BOOST_MULT;
   if (starred) maxv *= STAR_MULT;
   if (small) maxv *= SMALL_MULT;
   if (thr) car.v += ACC * thr * (1 - (0.55 * Math.abs(car.v)) / maxv) * dt;
   if (boosting) car.v += ACC * 1.1 * dt; // the shove that sells a boost
+  if (draft > 0.2 && thr > 0) car.v += ACC * 0.22 * draft * dt;
   if (brk) {
     if (car.v > 2) car.v -= BRAKE * brk * dt;
     else car.v -= ACC * 0.6 * brk * dt;
@@ -1515,6 +1679,20 @@ function carVsCar(now) {
       var av = { x: Math.sin(a.heading) * a.v, z: Math.cos(a.heading) * a.v };
       var bv = { x: Math.sin(b.heading) * b.v, z: Math.cos(b.heading) * b.v };
       var rel = (av.x - bv.x) * nx + (av.z - bv.z) * nz;
+      var bFx = Math.sin(b.heading),
+        bFz = Math.cos(b.heading);
+      var aBehind = dx * bFx + dz * bFz > 0;
+      // a rear tap that isn't a slam is a bump-draft: the lead truck gets a
+      // shove, the trailer keeps most of its speed, and nobody explodes
+      if (rel > 6 && rel <= 25) {
+        if (aBehind) {
+          b.v += rel * 0.12;
+          a.v *= 0.94;
+        } else {
+          a.v += rel * 0.12;
+          b.v *= 0.94;
+        }
+      }
       if (rel > 25 && now > a.hitCd && now > b.hitCd) {
         var dmg = (rel - 20) * 0.3;
         // the truck doing the ramming (faster along the contact normal) takes less
@@ -1639,6 +1817,42 @@ function aiInput(car) {
   while (diff > Math.PI) diff -= Math.PI * 2;
   while (diff < -Math.PI) diff += Math.PI * 2;
   var steer = clamp(diff * 3, -1, 1);
+  // Hold a private racing line so the field doesn't sit in a single-file
+  // queue, then swing out when a slower truck is blocking the gate.
+  var lane = car.aiLane || 0;
+  car.passSide = 0;
+  for (var oi = 0; oi < R.cars.length; oi++) {
+    var o = R.cars[oi];
+    if (o === car || o.dead || o.done) continue;
+    if (Math.abs((o.y || 0) - car.y) > 4) continue;
+    var odx = o.x - car.x,
+      odz = o.z - car.z,
+      od = Math.hypot(odx, odz);
+    if (od > 16 || od < 3.4) continue;
+    var ofx = Math.sin(car.heading),
+      ofz = Math.cos(car.heading);
+    if (odx * ofx + odz * ofz < 3) continue;
+    if (o.v > car.v + 6) continue;
+    car.passSide = odx * ofz - odz * ofx >= 0 ? 1 : -1;
+    break;
+  }
+  if (car.passSide) lane = car.passSide * 7.2;
+  if (lane) {
+    var ux = tgt.ux,
+      uz = tgt.uz;
+    if (ux == null || uz == null) {
+      var sl = Math.hypot(la.x - tgt.x, la.z - tgt.z) || 1;
+      ux = (la.x - tgt.x) / sl;
+      uz = (la.z - tgt.z) / sl;
+    }
+    ax += uz * lane;
+    az += -ux * lane;
+    want = Math.atan2(ax - car.x, az - car.z);
+    diff = want - car.heading;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    steer = clamp(diff * 3, -1, 1);
+  }
   // How hard the road bends over the next few gates — a bot that carries full
   // road speed into the spiral just understeers into the wall the whole way up.
   // Measured from the ROAD's own tangents: gates can sit 10cm apart on a tight
@@ -1683,6 +1897,7 @@ function aiInput(car) {
   else if (rBlock) steer += 0.6;
   if (steer > 0.12) input.left = true;
   else if (steer < -0.12) input.right = true;
+  input.steerAxis = -clamp(steer, -1, 1);
   // bots drift the tight corners too, and cash the mini-turbo on the exit
   if (kartIsOn() && !cBlock) {
     if (Math.abs(diff) > 0.42 && Math.abs(car.v) > DRIFT_MIN_V + 8)
@@ -1692,9 +1907,16 @@ function aiInput(car) {
   var slow =
     Math.abs(diff) > 1.15 ||
     (cBlock && Math.abs(car.v) > 40) ||
-    (bend > 0.45 && Math.abs(car.v) > MAXV * clamp(1 - bend * 0.42, 0.42, 1));
-  if (slow && car.v > 25) input.back = true;
-  else input.fwd = true;
+    (!car.passSide &&
+      bend > 0.45 &&
+      Math.abs(car.v) > MAXV * clamp(1 - bend * 0.42, 0.42, 1));
+  if (slow && car.v > 25) {
+    input.back = true;
+    input.throttle = -0.55;
+  } else {
+    input.fwd = true;
+    input.throttle = 1;
+  }
   // Stuck detection on PROGRESS, not speed: a bot leaning on a wardrobe at
   // 24cm/s never trips a speed test, and used to push at it for the whole race.
   var dTgt = Math.hypot(car.x - tgt.x, car.z - tgt.z);
@@ -1791,19 +2013,30 @@ function footStep(dt, input) {
 // item slot (with its roulette spin), coin purse and race position
 function updateKartHud(now) {
   var pc = playerCar();
-  var on = kartIsOn() && pc && R.phase === "drive";
-  R.hud.item.classList.toggle("on", !!on);
-  R.hud.coins.classList.toggle("on", !!on);
-  R.hud.pos.classList.toggle("on", !!(on && R.cars.length > 1));
-  if (!on) return;
-  var slot = kartSlot(pc, now);
-  R.hud.itemIcon.textContent = slot.icon;
-  R.hud.itemN.textContent = slot.n > 1 ? "×" + slot.n : "";
-  R.hud.item.classList.toggle("rolling", slot.rolling);
-  R.hud.item.classList.toggle("full", !!slot.icon && !slot.rolling);
-  R.hud.coinN.textContent = String(pc.coins || 0);
-  R.hud.posN.textContent = ordinal(pc.place || 1);
+  var driving = !!(pc && R.phase === "drive");
+  var items = kartIsOn() && driving;
+  var racing = !!(driving && R.cars.length > 1 && R.race && R.race.state !== "done");
+  R.hud.item.classList.toggle("on", !!items);
+  R.hud.coins.classList.toggle("on", !!items);
+  R.hud.pos.classList.toggle("on", racing);
+  if (items) {
+    var slot = kartSlot(pc, now);
+    R.hud.itemIcon.textContent = slot.icon;
+    R.hud.itemN.textContent = slot.n > 1 ? "×" + slot.n : "";
+    R.hud.item.classList.toggle("rolling", slot.rolling);
+    R.hud.item.classList.toggle("full", !!slot.icon && !slot.rolling);
+    R.hud.coinN.textContent = String(pc.coins || 0);
+  }
+  if (!pc) return;
+  var place = pc.place || 1;
+  R.hud.posN.textContent = ordinal(place);
   R.hud.posOf.textContent = "/" + R.cars.length;
+  if (pc.prevPlace && pc.prevPlace !== place && R.race && R.race.state === "run") {
+    R.hud.pos.classList.remove("gained", "lost");
+    void R.hud.pos.offsetWidth;
+    R.hud.pos.classList.add(place < pc.prevPlace ? "gained" : "lost");
+  }
+  pc.prevPlace = place;
 }
 
 // Rise of the surface under the body per cm travelled along `yaw`, from the
@@ -1815,10 +2048,12 @@ function slopeAlong(up, yaw) {
   return clamp(-(up.x * fx + up.z * fz) / up.y, -1.2, 1.2);
 }
 
-function chaseCam(tx, ty, tz, yaw, dist, height, lookH, dt, up, speed, boosting, now) {
+function chaseCam(tx, ty, tz, yaw, dist, height, lookH, dt, up, speed, boosting, now, lookBack) {
   var camera = getMainCamera();
   var pace = clamp(Math.abs(speed || 0) / Math.max(1, MAXV), 0, 1.35);
-  var cy = yaw + R.cam.yawOff;
+  if (lookBack) yaw += Math.PI;
+  var steerLook = lookBack ? 0 : R.cam.steerLook || 0;
+  var cy = yaw + R.cam.yawOff + steerLook;
   var wx = tx - Math.sin(cy) * dist,
     wz = tz - Math.cos(cy) * dist;
   // Follow the road plane instead of hanging at a fixed height above the truck:
@@ -1870,12 +2105,12 @@ function chaseCam(tx, ty, tz, yaw, dist, height, lookH, dt, up, speed, boosting,
 // them apart is the lens and how much of the body is in frame. Both ride the
 // road plane through the car's own surface normal, so a banked deck rolls the
 // horizon instead of sliding the view through the tarmac.
-function insideCam(car, dt, now, cockpit) {
+function insideCam(car, dt, now, cockpit, lookBack) {
   var camera = getMainCamera();
   var up = car.surfaceUp || { x: 0, y: 1, z: 0 };
-  var yaw = car.heading + (car.driftDir || 0) * 0.38;
+  var yaw = car.heading + (car.driftDir || 0) * 0.38 + (lookBack ? Math.PI : 0);
   var fwd = { x: Math.sin(yaw), z: Math.cos(yaw) };
-  var fx = cockpit ? -0.15 : 1.35, // along the truck: cab vs. nose
+  var fx = lookBack ? -1.2 : cockpit ? -0.15 : 1.35, // along the truck: cab vs. nose
     hy = cockpit ? 1.85 : 1.15;
   var wx = car.x + fwd.x * fx,
     wz = car.z + fwd.z * fx,
@@ -1907,10 +2142,19 @@ function insideCam(car, dt, now, cockpit) {
 
 // Pick the camera the player asked for. Falls back to chase whenever the truck
 // is wrecked — watching a shard cloud from inside the cab shows nothing.
-function carCam(car, dt, now) {
+function carCam(car, dt, now, lookBack) {
+  var reversing = !lookBack && car.v < -10;
+  var look = !!(lookBack || reversing);
   var mode = car.dead ? "chase" : R.camMode;
+  if (look !== R.cam.wasLook) {
+    R.cam.pos = null;
+    R.cam.wasLook = look;
+  }
+  R.cam.steerLook = R.cam.steerLook || 0;
+  R.cam.steerLook +=
+    ((look ? 0 : (car.steer || 0) * 0.32) - R.cam.steerLook) * Math.min(1, dt * 5);
   if (mode === "hood" || mode === "cockpit") {
-    insideCam(car, dt, now, mode === "cockpit");
+    insideCam(car, dt, now, mode === "cockpit", look);
     return;
   }
   chaseCam(
@@ -1926,6 +2170,7 @@ function carCam(car, dt, now) {
     car.v,
     (car.boostT || 0) > now,
     now,
+    look,
   );
 }
 
@@ -1966,20 +2211,21 @@ function editorCam(dt) {
   var camera = getMainCamera();
   var b = R.edCam;
   var yaw = R.cam.yawOff;
-  var wx = b.cx - Math.sin(yaw) * b.dist * 0.55,
-    wz = b.cz - Math.cos(yaw) * b.dist * 0.55;
-  var hy = b.dist * 0.82;
+  var pitch = b.pitch == null ? 0.62 : b.pitch;
+  var wx = b.cx - Math.sin(yaw) * b.dist * Math.sin(pitch) * 0.85,
+    wz = b.cz - Math.cos(yaw) * b.dist * Math.sin(pitch) * 0.85;
+  var hy = b.dist * Math.cos(pitch) * 0.82 + 18;
   if (!R.cam.pos) R.cam.pos = new THREE.Vector3(wx, hy, wz);
   var k = 1 - Math.exp(-6 * dt);
   R.cam.pos.x += (wx - R.cam.pos.x) * k;
   R.cam.pos.y += (hy - R.cam.pos.y) * k;
   R.cam.pos.z += (wz - R.cam.pos.z) * k;
   camera.position.copy(R.cam.pos);
-  camera.lookAt(b.cx, 0, b.cz);
+  camera.lookAt(b.cx, 22, b.cz);
 }
 
-// The editor owns the existing 2D pane and uses 3D only as a live preview.
-// Force the normal split while it is open, then restore the user's view mode.
+// Design in the 3D view: the apartment and the models ARE the course. Split
+// remains available from the 🗺️ button if you want the 2D map beside it.
 function editorSplit(on) {
   var cc = document.getElementById("center-canvas");
   if (!cc || !window.__setViewMode) return;
@@ -1989,9 +2235,9 @@ function editorSplit(on) {
       : cc.classList.contains("max-view-3d")
         ? "3d"
         : "split";
-    if (R.edPrevView !== "split") window.__setViewMode("split");
+    if (R.edPrevView !== "3d") window.__setViewMode("3d");
   } else if (R.edPrevView) {
-    if (R.edPrevView !== "split") window.__setViewMode(R.edPrevView);
+    if (R.edPrevView !== "3d") window.__setViewMode(R.edPrevView);
     R.edPrevView = null;
   }
 }
@@ -2019,7 +2265,8 @@ function setOverview(on) {
   }
   R.edCam.cx = (minx + maxx) / 2;
   R.edCam.cz = (minz + maxz) / 2;
-  R.edCam.dist = clamp(Math.max(maxx - minx, maxz - minz) * 1.15, 120, 3000);
+  R.edCam.dist = clamp(Math.max(maxx - minx, maxz - minz) * 1.05, 120, 3000);
+  if (R.edCam.pitch == null) R.edCam.pitch = 0.62;
   R.cam.pos = null;
 }
 
@@ -2065,6 +2312,7 @@ function tick(delta) {
         R.race.state = "run";
         R.race.lapT0 = R.race.t0; // lap 1 is timed from the flag, not from now
         ghostStartLap(R.race.t0);
+        updateStartLights(0);
         showMsg(t("rc_go"), 900);
         sting("go");
         if (pc && R.race.rocket && pInput.fwd) {
@@ -2084,6 +2332,7 @@ function tick(delta) {
           R.race.lastN = n;
           sting("light"); // one light per second, like a start gantry
         }
+        updateStartLights(left);
         showMsg(String(n), 300);
       }
     }
@@ -2094,6 +2343,7 @@ function tick(delta) {
         t("rc_lap") + " " + Math.min(pc.lap, R.laps) + "/" + R.laps;
     updateLapHud(now, pc);
     if (pc) updateRings(pc.done ? -1 : pc.next);
+    if (R.race.state === "run" && now - R.race.t0 > 800) updateStartLights(null);
     // The player is home but the bots are not: hold the result open for a
     // little while so their finishing order is raced for, not guessed, with a
     // skip for anyone who doesn't care.
@@ -2124,6 +2374,10 @@ function tick(delta) {
   updatePlaces();
   kartTick(dt, now, !R.race || R.race.state !== "count");
   updateKartHud(now);
+  updateGaps(pc);
+  updateWrongWay(pc);
+  if (R.hud && R.hud.root)
+    R.hud.root.classList.toggle("drafting", !!(pc && (pc.draft || 0) > 0.35));
   stepShards(dt, now);
   stepSpray(dt, now);
   R.waters.forEach(function (w) {
@@ -2141,7 +2395,7 @@ function tick(delta) {
   } else if (R.phase === "drive" && pc) {
     var speedPace = clamp(Math.abs(pc.v) / Math.max(1, MAXV), 0, 1.35);
     var cameraBoost = (pc.boostT || 0) > now;
-    carCam(pc, dt, now);
+    carCam(pc, dt, now, !!(pInput.look || R.touch.look));
     R.hud.root.style.setProperty("--rc-speed", String(clamp((speedPace - 0.28) / 0.92, 0, 1)));
     R.hud.root.classList.toggle("boosting", cameraBoost);
     engineTick(pInput.fwd && !pc.dead, pc.dead ? 0 : pc.v);
@@ -2280,6 +2534,7 @@ function readPlayerInput(now) {
     right: !!(R.keys.right || R.touch.right),
     drift: !!(R.keys.drift || R.touch.drift),
     run: !!R.keys.run,
+    look: !!(R.keys.look || R.touch.look),
   };
   var pad = null;
   try {
@@ -2313,6 +2568,7 @@ function readPlayerInput(now) {
   out.back = out.back || throttle < -0.08;
   out.drift = out.drift || padButton(pad, 0) || padButton(pad, 4);
   out.run = out.run || padButton(pad, 10);
+  out.look = out.look || padButton(pad, 1);
   var item = padButton(pad, 2) || padButton(pad, 5);
   var rescue = padButton(pad, 3);
   var menu = padButton(pad, 9);
@@ -2392,6 +2648,10 @@ function onKeyDown(e) {
     rescueCar(playerCar());
     e.preventDefault();
     e.stopPropagation();
+  } else if (e.code === "KeyV") {
+    R.keys.look = true;
+    e.preventDefault();
+    e.stopPropagation();
   } else if (e.code === "KeyC") {
     cycleCam();
     e.preventDefault();
@@ -2428,6 +2688,7 @@ function onKeyUp(e) {
   if (!R.active) return;
   var d = keyDir(e);
   if (d) R.keys[d] = false;
+  if (e.code === "KeyV") R.keys.look = false;
 }
 // Lakitu: lift a truck back onto the circuit at the gate it was heading for,
 // facing the one after it. Dropping it FORWARD rather than back at the gate it
@@ -2515,6 +2776,7 @@ function bindEvents() {
     if (editorActive() && editorPointerDown(e)) return;
     R.cam.drag = true;
     R.cam.lx = e.clientX;
+    R.cam.ly = e.clientY;
     R.cam.moved = 0;
   });
   v3d.addEventListener("contextmenu", function (e) {
@@ -2533,9 +2795,16 @@ function bindEvents() {
     if (!R.active) return;
     if (editorActive() && editorPointerMove(e)) return;
     if (!R.cam.drag) return;
-    R.cam.moved = (R.cam.moved || 0) + Math.abs(e.clientX - R.cam.lx);
+    R.cam.moved = (R.cam.moved || 0) + Math.abs(e.clientX - R.cam.lx) + Math.abs(e.clientY - (R.cam.ly || e.clientY));
     R.cam.yawOff -= (e.clientX - R.cam.lx) * 0.008;
+    if (R.edCam.on && editorActive())
+      R.edCam.pitch = clamp(
+        (R.edCam.pitch == null ? 0.62 : R.edCam.pitch) + (e.clientY - (R.cam.ly || e.clientY)) * 0.004,
+        0.22,
+        1.15,
+      );
     R.cam.lx = e.clientX;
+    R.cam.ly = e.clientY;
   });
   window.addEventListener("scene3d:rebuilt", function () {
     if (R.active) R.colDirty = true;

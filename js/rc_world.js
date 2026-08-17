@@ -9,7 +9,7 @@ import {
   pointInPoly,
 } from "./geometry.js";
 import { FURN } from "./furniture.js";
-import { buildRoad } from "./track.js";
+import { buildRoad, canRide, seedHomeTour } from "./track.js";
 import { surfaceHeightAt, surfaceHeightNear, surfaceSampleAt } from "./road_surface.js";
 import { t } from "./i18n.js";
 import {
@@ -814,7 +814,7 @@ export function roomAt(rooms, x, z) {
 // track.js shifts the line to the right of travel so the two directions sit in
 // their own lanes, and the return leg flies home elevated anyway.
 export function routeAllRooms(rooms) {
-  if (rooms.length < 2) return [];
+  if (!rooms.length) return [];
   var conns = [];
   S.walls.forEach(function (w) {
     var gm = wallGeom(w);
@@ -845,24 +845,37 @@ export function routeAllRooms(rooms) {
     out = [];
   seen[start] = 1;
   out.push({ x: rooms[start].cx, z: rooms[start].cz });
-  (function walk(node) {
-    adj[node].forEach(function (e) {
-      if (seen[e.to]) return;
-      seen[e.to] = 1;
-      var c = conns[e.c];
-      out.push({ x: c.x, z: c.z }); // through the doorway
-      out.push({ x: rooms[e.to].cx, z: rooms[e.to].cz }); // into the room
-      walk(e.to);
-      out.push({ x: c.x, z: c.z }); // back out the same doorway
-      out.push({ x: rooms[node].cx, z: rooms[node].cz });
-    });
-  })(start);
+  if (rooms.length >= 2) {
+    (function walk(node) {
+      adj[node].forEach(function (e) {
+        if (seen[e.to]) return;
+        seen[e.to] = 1;
+        var c = conns[e.c];
+        out.push({ x: c.x, z: c.z }); // through the doorway
+        out.push({ x: rooms[e.to].cx, z: rooms[e.to].cz }); // into the room
+        walk(e.to);
+        out.push({ x: c.x, z: c.z }); // back out the same doorway
+        out.push({ x: rooms[node].cx, z: rooms[node].cz });
+      });
+    })(start);
+  }
   // the walk finishes back on the start centre — don't close onto a duplicate
   while (
     out.length > 3 &&
     Math.hypot(out[out.length - 1].x - out[0].x, out[out.length - 1].z - out[0].z) < 20
   )
     out.pop();
+  // Home mode is a tour of the MODELS, not of empty room centres. Climb onto
+  // every sofa / bed / table the builder can ramp, and keep the doorway walk
+  // only as the floor that joins them. Road is laid later, and only where the
+  // world cannot carry the truck (a ramp up, a bridge between two tops).
+  if (R.homeMode && R.col) {
+    var tops = R.col.tops || [];
+    var plats = (R.col.rects || []).filter(function (r) {
+      return canRide(r, tops);
+    });
+    if (plats.length) out = seedHomeTour(out, plats, tops);
+  }
   return out;
 }
 
