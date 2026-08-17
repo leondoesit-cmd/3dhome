@@ -330,10 +330,20 @@ export function setSelectedCoords(x, z) {
   setAnchors(pts, { delay: 0 });
 }
 
-export function snapFree(x, z, y) {
-  var s = ST.D && ST.D.noSnap ? null : roomySpot(x, z, fin(y) ? y : 0.7);
-  var out = s ? { x: s.x, z: s.z } : { x: x, z: z };
+// `src` is the anchor this point came from, when there is one. Two things ride
+// on it: a point that belongs ON a piece of furniture ("drive over the bed")
+// must not be spiralled off onto free floor, and a point laid by a pass-by rule
+// keeps its rule when the user drags it.
+export function snapFree(x, z, y, src) {
+  var out;
+  if (src && src.ride) out = { x: x, z: z };
+  else {
+    var s = ST.D && ST.D.noSnap ? null : roomySpot(x, z, fin(y) ? y : 0.7);
+    out = s ? { x: s.x, z: s.z } : { x: x, z: z };
+  }
   if (fin(y)) out.y = y;
+  if (src && src.f) out.f = src.f;
+  if (src && src.ride) out.ride = true;
   return out;
 }
 

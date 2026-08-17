@@ -32,7 +32,7 @@ import { render2D, fitView, wx, wz, dropPoint, updatePlanGizmo } from "./plan2d.
 import {
   snapshotNodes, enforceLocks, captureLock, setLocked, isLocked, syncLocks,
   captureClear, syncClears, fitWallClearLength, setWallThicknessPreservingClear,
-  relaxLocks, settleWallDim,
+  relaxLocks, settleWallDim, setWallReference,
 } from "./constraint_engine.js";
 import { initWarnPanel, renderWarnPanel } from "./ui_warn.js";
 import { alignItems, distributeItems, matchRotation } from "./item_align.js";
@@ -837,40 +837,6 @@ export function editEnd(w) {
 export function pinDimSide(w) {
   if (w.dimSide !== 1 && w.dimSide !== -1 && w.dimSide !== 0)
     w.dimSide = wallDimSide(w);
-}
-/* Restate WHICH LINE of the wall the model stores: the measured face
-   (`dimSide`) and whether the node line follows it (`loc`).
-
-   THE JOINT IS WHAT STAYS PUT. Re-hanging the wall on its face moves the wall's
-   body sideways by half a thickness; the alternative — hold the body still and
-   move the nodes instead — is what a single-wall CAD does, but here a node is a
-   shared corner: it would drag every neighbour standing on it, and on a
-   straight run it would drag the very wall the user is trying to line up with.
-   So the corner stays, the wall re-hangs, and the plan says so.
-
-   That is also exactly why this is the operation that produces a flush run:
-   apply it to both walls of the run and BOTH faces land on the one node line,
-   whatever their thicknesses. Callers re-capture the interior dimensions
-   afterwards — like a thickness edit, this changes what the walls around it
-   measure, and those numbers are re-read rather than defended. */
-export function setWallReference(w, next) {
-  if (!w || !next) return;
-  if (next.dimSide === null) delete w.dimSide;
-  else if (next.dimSide !== undefined) w.dimSide = next.dimSide;
-  if (next.loc === "face") {
-    pinDimSide(w); // "face" needs a face: resolve Auto before hanging on it
-    if (w.dimSide === 0) w.dimSide = wallDimSide(w) || 1;
-    w.loc = "face";
-  } else if (next.loc !== undefined) delete w.loc;
-  // whatever now stands at either end is measuring something new
-  var touched = {};
-  S.walls.forEach(function (ow) {
-    if (ow === w || ow.a === w.a || ow.a === w.b || ow.b === w.a || ow.b === w.b)
-      touched[ow.id] = ow;
-  });
-  Object.keys(touched).forEach(function (k) { captureClear(touched[k]); });
-  captureClear(w);
-  captureLock(w);
 }
 /* Typing a dimension is the clearest statement a user can make about a wall,
    so it always wins: the wall becomes exactly that long / that angled, and

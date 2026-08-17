@@ -1,7 +1,7 @@
 /* Night Shift destructible environment.
    ---------------------------------------------------------------------------
    The planner already ships a full destruction stack for walk mode (fp/tp):
-   cannon-es rigid bodies + the geometry fracturer in fracture.js, driven from
+   Rapier rigid bodies + the geometry fracturer in fracture.js, driven from
    physics.js. This module is the thin adapter that lets the game drive that
    same stack from bullets, flame and grenades instead of a crosshair punch.
 

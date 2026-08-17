@@ -89,6 +89,7 @@ import {
   disposeTexLib,
 } from "./zombies_tex.js";
 import { dampingFactor, forEachPhysicsStep, safeDeltaSeconds } from "./physics_runtime.js";
+import { isPhysicsEnabled, moveKinematicCapsule } from "./physics_facade.js";
 import { initCritters, stepCritters, clearCritters } from "./zombies_critters.js";
 
 
@@ -2423,12 +2424,17 @@ function stepPlayer(dt) {
   var k = dampingFactor(ACCEL, dt);
   P.vx += (mx * spd - P.vx) * k;
   P.vz += (mz * spd - P.vz) * k;
-  // continuous collision so sprinting can't skip thin walls / door jambs
   _movePoint2D.x = P.x;
   _movePoint2D.z = P.z;
-  moveCircle(_movePoint2D, P.vx * dt, P.vz * dt, P_RAD, P.y, P.crouch ? 100 : P_CLEAR, STEP);
-  P.x = _movePoint2D.x;
-  P.z = _movePoint2D.z;
+  if (isPhysicsEnabled()) {
+    var next = moveKinematicCapsule(P.x, P.y, P.z, P.vx * dt, 0, P.vz * dt, P_RAD, P.crouch ? 100 : P_CLEAR);
+    P.x = next.x;
+    P.z = next.z;
+  } else {
+    moveCircle(_movePoint2D, P.vx * dt, P.vz * dt, P_RAD, P.y, P.crouch ? 100 : P_CLEAR, STEP);
+    P.x = _movePoint2D.x;
+    P.z = _movePoint2D.z;
+  }
   // vertical: step up onto furniture, fall off it
   var g = groundAt(P.x, P.z, P.y, STEP);
   if (g > P.y) P.y = Math.min(g, P.y + 280 * dt);
@@ -3286,7 +3292,7 @@ export function toggleZombies(on) {
     Z.keys = {};
     Z.doorsOpened = [];
     audio();
-    // Destruction loads cannon-es and rebuilds the scene for rigid bodies. It
+    // Destruction loads Rapier and rebuilds the scene for rigid bodies. It
     // resolves on its own time; the game is playable (just not yet breakable)
     // until it does, so nothing here waits on it.
     enableDestruction();

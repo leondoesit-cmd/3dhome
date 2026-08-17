@@ -5,6 +5,7 @@
 // and circular walls without chord-length approximations.
 
 import { pointAtWall, tangentAtWall, verticalSegments, wallCurveGeom, wallProfileHeight } from "./wall_curves.js";
+import { wallAxisNodes } from "./geometry.js";
 import { ensureWallTypes, wallLayers, wallPhase } from "./wall_types.js";
 
 const EPS = 1e-7;
@@ -235,7 +236,9 @@ function buildBand(state, wall, geometry, openings, band, nextId) {
   const { layer, config } = band;
   const context = {
     wall,
-    nodes: state.nodes,
+    // real timber stands on the wall's own line: a wall stored on its measured
+    // face has its centreline half a thickness off the node the graph keeps
+    nodes: wallAxisNodes(wall, state.nodes),
     length: geometry.length,
     phase: wallPhase(wall),
     layer,

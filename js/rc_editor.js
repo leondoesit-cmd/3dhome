@@ -450,8 +450,10 @@ export function editorPointerMove(e) {
     if (h && ST.D.anchors[ST.D.drag]) {
       var old = ST.D.anchors[ST.D.drag],
         sp = applySnap(h.x, h.z, ST.D.drag, e);
-      ST.D.anchors[ST.D.drag] = { x: sp.x, z: sp.z };
-      if (fin(old.y)) ST.D.anchors[ST.D.drag].y = old.y;
+      var moved = copyAnchor(old); // keep height, pass-by rule and ride flag
+      moved.x = sp.x;
+      moved.z = sp.z;
+      ST.D.anchors[ST.D.drag] = moved;
       ST.D.ghostPts = ghostLine(ST.D.anchors);
       sync3d();
       stats();
@@ -476,7 +478,9 @@ export function editorPointerUp(e, moved) {
     var i = ST.D.drag;
     ST.D.drag = -1;
     ST.D.dragging = false;
-    ST.D.anchors[i] = snapFree(ST.D.anchors[i].x, ST.D.anchors[i].z, ST.D.anchors[i].y);
+    ST.D.anchors[i] = snapFree(
+      ST.D.anchors[i].x, ST.D.anchors[i].z, ST.D.anchors[i].y, ST.D.anchors[i],
+    );
     ST.D.ghostPts = null;
     writeThrough();
     sync3d();

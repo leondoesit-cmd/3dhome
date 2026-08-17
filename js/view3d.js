@@ -70,9 +70,12 @@ import {
   clearPhysics,
   isPhysicsEnabled,
   hitObjectAtCenter,
-  toggleSlowMo
+  toggleSlowMo,
+  moveKinematicCapsule,
+  spawnHangingCloth,
 } from "./physics_facade.js";
 import { safeDeltaMilliseconds } from "./physics_runtime.js";
+import { resolvePhysicsRole } from "./physics/math.js";
 import { buildMEP3D } from "./mep.js";
 import { wallFraming } from "./wall_framing.js";
 
@@ -295,9 +298,17 @@ function moveWalk() {
   }
   if (mx || mz) {
     var l = Math.hypot(mx, mz) || 1;
-    walkPos.x += (mx / l) * spd;
-    walkPos.z += (mz / l) * spd;
-    clampWalk();
+    var dx = (mx / l) * spd;
+    var dz = (mz / l) * spd;
+    if (isPhysicsEnabled()) {
+      var next = moveKinematicCapsule(walkPos.x, walkPos.y, walkPos.z, dx, 0, dz, 18, EYE_H);
+      walkPos.x = next.x;
+      walkPos.z = next.z;
+    } else {
+      walkPos.x += dx;
+      walkPos.z += dz;
+      clampWalk();
+    }
     walkLook();
   }
 }
@@ -413,6 +424,7 @@ function buildStraightWall(w, col, tex) {
   var g = new THREE.Group();
   g.position.set(gm.a.x, 0, gm.a.z);
   g.rotation.y = Math.atan2(-gm.dz, gm.dx);
+  g.userData.physicsRole = "static";
   dyn.add(g);
   var T = wallThickness(w, S),
     H = w.height,
@@ -1095,6 +1107,7 @@ function buildSampledWall(w, col) {
   if (!gm || gm.L < 1 || kind === "roomDivider") return;
   var group = new THREE.Group();
   group.userData.wall = w;
+  group.userData.physicsRole = "static";
   dyn.add(group);
   var renderWall = Object.assign({}, w);
   if (kind === "half" && renderWall.halfHeight == null && renderWall.capHeight == null) renderWall.halfHeight = Math.min(renderWall.height, 100);
@@ -1138,6 +1151,7 @@ function buildItem(it) {
   placeItem(g, it);
   itemsRoot.add(g);
   buildFurn(g, it);
+  tagItemPhysicsRole(g, it);
   if (f.lamp) {
     var L = f.lamp,
       on = it.lightOn !== false,
@@ -1688,6 +1702,15 @@ export function rebuild3D() {
   window.dispatchEvent(new Event("scene3d:rebuilt"));
 }
 
+function tagItemPhysicsRole(g, it) {
+  if (it) g.userData.item = it;
+  var minY;
+  g.updateMatrixWorld(true);
+  var bb = new THREE.Box3().setFromObject(g);
+  if (!bb.isEmpty()) minY = bb.min.y;
+  g.userData.physicsRole = resolvePhysicsRole(g.userData, minY);
+}
+
 export function initPhysicsForScene() {
   if (!dyn) return;
   clearPhysics();
@@ -1696,23 +1719,42 @@ export function initPhysicsForScene() {
     .filter(function (c) { return c !== itemsRoot; })
     .concat(items)
     .forEach(function(c) {
-      // Furniture groups have userData.item. Wall/ceiling-mounted items
-      // (art, ceiling lights, AC...) have geometry starting well above the
-      // floor — keep those static so they don't fall off by themselves.
-      var isDynamic = !!c.userData.item;
-      if (isDynamic) {
+      var minY;
+      if (c.userData.item && c.userData.physicsRole !== "dynamic" && c.userData.physicsRole !== "static") {
         var ibb = new THREE.Box3().setFromObject(c);
-        if (ibb.min.y > 20) isDynamic = false;
+        if (!ibb.isEmpty()) minY = ibb.min.y;
       }
-      // Skip lights etc., only add physics if there is geometry/meshes inside
+      var role = resolvePhysicsRole(c.userData, minY);
+      if (role === "ignore") return;
       var hasGeometry = false;
       c.traverse(function(node) {
         if (node.isMesh) hasGeometry = true;
       });
-      if (hasGeometry) {
-        addPhysicsBody(c, isDynamic);
-      }
+      if (hasGeometry) addPhysicsBody(c, role === "dynamic");
     });
+  hangWindowCloth(dyn);
+}
+
+function hangWindowCloth(container) {
+  if (!container || !S.openings || !S.openings.length) return;
+  var o = S.openings.find(function (op) { return op.type === "window"; });
+  if (!o) return;
+  var w = wallById(o.wall);
+  if (!w) return;
+  var gm = wallGeom(w);
+  if (!gm || !(gm.L > 1)) return;
+  var s = clamp(o.s, (o.width || 80) / 2, gm.L - (o.width || 80) / 2);
+  var nx = -gm.uz, nz = gm.ux;
+  var thick = (w.thickness || 12) / 2 + 4;
+  spawnHangingCloth(container, {
+    x: gm.a.x + gm.ux * s + nx * thick,
+    y: (o.sill || 90) + (o.height || 120) - 4,
+    z: gm.a.z + gm.uz * s + nz * thick,
+    width: Math.min(o.width || 80, 90) - 8,
+    height: Math.max(70, (o.height || 120) - 10),
+    nx: nx,
+    nz: nz,
+  });
 }
 
 function cP() {

@@ -315,6 +315,42 @@ function reachFrom(startNode, viaWall) {
   return seen;
 }
 
+/* Restate WHICH LINE of the wall the model stores: the measured face
+   (`dimSide`) and whether the node line follows it (`loc`).
+
+   THE JOINT IS WHAT STAYS PUT. Re-hanging a wall on its face moves the wall's
+   body sideways by half a thickness; the alternative — hold the body still and
+   move the nodes instead — is what a single-wall CAD does, but here a node is a
+   shared corner: it would drag every neighbour standing on it, and on a straight
+   run it would drag the very wall the user is trying to line up with. So the
+   corner stays, the wall re-hangs, and the plan says so.
+
+   That is also exactly why this is the operation that produces a flush run:
+   apply it to both walls of a run and BOTH faces land on the one node line,
+   whatever their thicknesses. The interior dimensions around it are re-READ
+   rather than defended — like a thickness edit, this changes what the
+   neighbours measure, and defending the old numbers would shove the plan. */
+export function setWallReference(w, next) {
+  if (!w || !next) return;
+  if (next.dimSide === null) delete w.dimSide;
+  else if (next.dimSide !== undefined) w.dimSide = next.dimSide;
+  if (next.loc === "face") {
+    // "face" needs a face: resolve Auto, and never hang a wall on its centreline
+    var side = wallDimSide(w);
+    w.dimSide = side === 1 || side === -1 ? side : 1;
+    w.loc = "face";
+  } else if (next.loc !== undefined) delete w.loc;
+  var touched = [w];
+  S.walls.forEach(function (ow) {
+    if (ow !== w && (ow.a === w.a || ow.a === w.b || ow.b === w.a || ow.b === w.b))
+      touched.push(ow);
+  });
+  touched.forEach(function (ow) {
+    captureClear(ow);
+    if (isLocked(ow)) captureLock(ow);
+  });
+}
+
 /* Slide a wall sideways so the face named by "Measured along" stays where it
    is, taking the whole STRAIGHT RUN with it.
 
