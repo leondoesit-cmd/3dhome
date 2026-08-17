@@ -1,0 +1,88 @@
+// Stable dependency ordering for feature histories.  The history order is the
+// tie-breaker, so an identical document always rebuilds identically.
+
+export function featureDependencies(feature) {
+  const deps = new Set(feature?.inputs || []);
+  const visit = (value, key) => {
+    if (!value) return;
+    if (Array.isArray(value)) return value.forEach((item) => visit(item, key));
+    if (typeof value !== "object") {
+      if (["featureRef", "sourceFeature", "featureId", "ownerFeatureId"].includes(key) && typeof value === "string") deps.add(value);
+      return;
+    }
+    if (typeof value.ownerFeatureId === "string" && typeof value.persistentId === "string") deps.add(value.ownerFeatureId);
+    if ((key === "featureRef" || key === "sourceFeature" || key === "featureId") && typeof value.id === "string") deps.add(value.id);
+    Object.keys(value).forEach((child) => visit(value[child], child));
+  };
+  visit(feature?.references, "references");
+  return Array.from(deps);
+}
+
+export function buildDependencyGraph(definition) {
+  const features = Array.isArray(definition?.features) ? definition.features : [];
+  const byId = new Map();
+  const index = new Map();
+  const issues = [];
+  features.forEach((feature, at) => {
+    if (!feature?.id) {
+      issues.push({ severity: "error", code: "feature-without-id", featureId: null, message: "A feature has no id" });
+      return;
+    }
+    if (byId.has(feature.id)) issues.push({ severity: "error", code: "duplicate-feature-id", featureId: feature.id, message: "Duplicate feature id: " + feature.id });
+    byId.set(feature.id, feature);
+    index.set(feature.id, at);
+  });
+  const incoming = new Map();
+  const outgoing = new Map();
+  features.forEach((feature) => {
+    if (!feature?.id) return;
+    incoming.set(feature.id, new Set());
+    outgoing.set(feature.id, new Set());
+  });
+  features.forEach((feature) => {
+    if (!feature?.id) return;
+    featureDependencies(feature).forEach((dependency) => {
+      if (!byId.has(dependency)) {
+        issues.push({ severity: "error", code: "missing-feature-reference", featureId: feature.id, reference: dependency, message: feature.name + " references missing feature " + dependency });
+        return;
+      }
+      incoming.get(feature.id).add(dependency);
+      outgoing.get(dependency).add(feature.id);
+    });
+  });
+  const ready = features.filter((feature) => feature?.id && incoming.get(feature.id)?.size === 0)
+    .sort((a, b) => index.get(a.id) - index.get(b.id));
+  const order = [];
+  while (ready.length) {
+    const feature = ready.shift();
+    order.push(feature);
+    outgoing.get(feature.id).forEach((next) => {
+      incoming.get(next).delete(feature.id);
+      if (!incoming.get(next).size) {
+        ready.push(byId.get(next));
+        ready.sort((a, b) => index.get(a.id) - index.get(b.id));
+      }
+    });
+  }
+  if (order.length !== byId.size) {
+    const blocked = features.filter((feature) => feature?.id && !order.includes(feature)).map((feature) => feature.id);
+    issues.push({ severity: "error", code: "feature-cycle", featureIds: blocked, message: "Feature history contains a dependency cycle" });
+  }
+  return { order, byId, issues };
+}
+
+export function stableStringify(value) {
+  const seen = new WeakSet();
+  const normalize = (input) => {
+    if (!input || typeof input !== "object") return input;
+    if (seen.has(input)) return "[circular]";
+    seen.add(input);
+    if (Array.isArray(input)) return input.map(normalize);
+    const output = {};
+    Object.keys(input).sort().forEach((key) => {
+      if (key !== "lastRebuild" && key !== "regeneratedAt") output[key] = normalize(input[key]);
+    });
+    return output;
+  };
+  return JSON.stringify(normalize(value));
+}

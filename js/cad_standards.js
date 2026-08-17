@@ -1,0 +1,152 @@
+// Standards compliance engine. Standard dimensions are stored in millimetres,
+// independently of the editor's display units. A part is never certified from
+// its name or appearance: it must carry a standard declaration and pass every
+// mandatory rule for that declared edition.
+
+export const STANDARD_CATALOG = Object.freeze({
+  "ISO 262:2023": { family:"metric-thread", status:"published", source:"https://www.iso.org/standard/85105.html" },
+  "ISO 68-1:2023": { family:"metric-thread-profile", status:"published", source:"https://www.iso.org/standard/73032.html" },
+  "ISO 724:2023": { family:"metric-thread-basic-dimensions", status:"published", source:"https://www.iso.org/standard/85103.html" },
+  "ISO 965-1:2026": { family:"metric-thread-tolerance", status:"published", source:"https://www.iso.org/standard/87889.html" },
+  "ISO 4017:2022": { family:"hex-screw", status:"published", source:"https://www.iso.org/standard/72585.html" },
+  "ISO 53:1998": { family:"gear-rack-profile", status:"published-confirmed", source:"https://www.iso.org/standard/22643.html" },
+  "ISO 54:1996": { family:"gear-module", status:"published-confirmed", source:"https://www.iso.org/standard/22644.html" },
+  "ISO 21771-1:2024": { family:"involute-gear-geometry", status:"published-revision-pending", source:"https://www.iso.org/standard/84949.html" },
+});
+
+// Commercial coarse-pitch series used by ISO metric fasteners. Fine pitches
+// must be declared explicitly and are rejected unless a licensed table pack is
+// installed; guessing a pitch is never treated as compliance.
+const COARSE_PITCH = new Map([[1,0.25],[1.2,0.25],[1.4,0.3],[1.6,0.35],[2,0.4],[2.5,0.45],[3,0.5],[4,0.7],[5,0.8],[6,1],[8,1.25],[10,1.5],[12,1.75],[14,2],[16,2],[18,2.5],[20,2.5],[22,2.5],[24,3],[27,3],[30,3.5],[33,3.5],[36,4],[39,4],[42,4.5],[45,4.5],[48,5],[52,5],[56,5.5],[60,5.5],[64,6]]);
+const ISO54_MODULES = new Set([0.05,0.06,0.08,0.1,0.12,0.15,0.2,0.25,0.3,0.4,0.5,0.6,0.8,1,1.25,1.5,2,2.5,3,4,5,6,8,10,12,16,20,25,32,40,50]);
+// Installed, versioned dimensional pack used by the tutorial generator.  A
+// size absent from this pack is rejected rather than interpolated.
+const ISO4017_PACK = Object.freeze({
+  "M8": Object.freeze({diameterMm:8,pitchMm:1.25,headAcrossFlatsMm:13,headHeightMm:5.3,lengthsMm:[12,16,20,25,30,35,40,45,50,55,60,65,70,80]}),
+});
+const near = (a,b,t=1e-6) => Math.abs(Number(a)-Number(b)) <= t;
+const issue = (code,message,field,severity="error") => ({code,message,field,severity});
+
+export function metricThreadBasicDimensions(diameterMm, pitchMm) {
+  const d=Number(diameterMm), p=Number(pitchMm), H=Math.sqrt(3)*p/2;
+  return { majorDiameter:d, pitchDiameter:d-0.75*H, externalMinorDiameter:d-1.4166666667*H, fundamentalTriangleHeight:H, flankAngleDeg:60 };
+}
+
+export function validateMetricThread(spec) {
+  const issues=[], d=Number(spec.diameterMm), p=Number(spec.pitchMm), expected=COARSE_PITCH.get(d);
+  if(!Number.isFinite(d)||d<=0) issues.push(issue("diameter","Nominal diameter must be positive","diameterMm"));
+  if(!Number.isFinite(p)||p<=0) issues.push(issue("pitch","Pitch must be positive","pitchMm"));
+  if(spec.series!=="fine" && expected==null) issues.push(issue("size-not-in-pack","Diameter is not in the installed ISO 262 coarse-size pack","diameterMm"));
+  else if(spec.series!=="fine" && !near(p,expected)) issues.push(issue("wrong-coarse-pitch",`M${d} coarse pitch must be ${expected} mm`,"pitchMm"));
+  if(spec.series==="fine") issues.push(issue("licensed-table-required","Fine-pitch verification requires an installed licensed standards table","pitchMm"));
+  if(spec.flankAngleDeg!=null && !near(spec.flankAngleDeg,60)) issues.push(issue("wrong-profile-angle","ISO metric thread flank angle must be 60°","flankAngleDeg"));
+  if(spec.toleranceClass && !/^(?:[3-9][A-H]|[3-9][a-h])(?:[3-9][A-Ha-h])?$/.test(spec.toleranceClass)) issues.push(issue("tolerance-class","Invalid ISO 965 tolerance-class designation","toleranceClass"));
+  return report(spec.standard || "ISO 262:2023",issues,{basic:metricThreadBasicDimensions(d,p),designation:`M${d}${expected===p?"":"×"+p}`});
+}
+
+export function validateHexBolt(spec) {
+  const issues=[];
+  if(spec.standard!=="ISO 4017:2022") issues.push(issue("standard-edition","Hexagon head screw must declare ISO 4017:2022","standard"));
+  if(Number(spec.diameterMm)<1.6||Number(spec.diameterMm)>64) issues.push(issue("diameter-range","ISO 4017:2022 covers M1.6 through M64","diameterMm"));
+  if(!["A","B"].includes(spec.productGrade)) issues.push(issue("product-grade","Product grade must be A or B","productGrade"));
+  const thread=validateMetricThread(spec); issues.push(...thread.issues);
+  if(!Number.isFinite(Number(spec.lengthMm))||Number(spec.lengthMm)<=0) issues.push(issue("length","Bolt length must be positive","lengthMm"));
+  const pack=ISO4017_PACK[`M${Number(spec.diameterMm)}`];
+  if(!pack) issues.push(issue("table-pack","Exact dimensional verification is unavailable for this size in the installed ISO 4017 pack","diameterMm"));
+  else {
+    if(!pack.lengthsMm.includes(Number(spec.lengthMm))) issues.push(issue("preferred-length","Length is not in the installed ISO 4017 size table","lengthMm"));
+    if(!near(spec.headAcrossFlatsMm,pack.headAcrossFlatsMm,1e-4)) issues.push(issue("head-width",`Head across flats must be ${pack.headAcrossFlatsMm} mm`,"headAcrossFlatsMm"));
+    if(!near(spec.headHeightMm,pack.headHeightMm,1e-4)) issues.push(issue("head-height",`Head height must be ${pack.headHeightMm} mm`,"headHeightMm"));
+  }
+  return report("ISO 4017:2022",issues,{thread:thread.computed,dimensions:pack||null});
+}
+
+function polygonAcrossFlatsMm(part) {
+  if(!part||part.kind!=="ext"||!Array.isArray(part.pts)||part.pts.length!==6)return NaN;
+  let minimum=Infinity;
+  for(let i=0;i<3;i++){
+    const a=part.pts[i],b=part.pts[(i+1)%6],dx=b.u-a.u,dv=b.v-a.v,den=Math.hypot(dx,dv);if(!den)return NaN;
+    const nx=-dv/den,nv=dx/den,projections=part.pts.map(p=>p.u*nx+p.v*nv);
+    minimum=Math.min(minimum,(Math.max(...projections)-Math.min(...projections))*10);
+  }
+  return minimum;
+}
+
+function validateHexScrewGeometry(part,def,spec) {
+  const issues=[],group=(def.parts||[]).filter(p=>p.standardGroupId===part.standardGroupId),shaft=group.find(p=>p.standardRole==="thread"),head=group.find(p=>p.standardRole==="head");
+  if(!part.standardGroupId||!shaft||!head){issues.push(issue("geometry-group","Standard screw must contain linked thread and head geometry","standardGroupId"));return issues;}
+  if(shaft.kind!=="cyl")issues.push(issue("thread-envelope","Thread envelope must be cylindrical","kind"));
+  else {
+    if(!near(shaft.r*20,spec.diameterMm,1e-4))issues.push(issue("major-diameter","Measured thread major diameter differs from the declaration","diameterMm"));
+    if(!near(shaft.h*10,spec.lengthMm,1e-4))issues.push(issue("measured-length","Measured screw length differs from the declaration","lengthMm"));
+  }
+  if(head.kind!=="ext"||head.axis!=="y")issues.push(issue("head-form","ISO 4017 head must be a hexagonal prism","head"));
+  else {
+    if(!near(polygonAcrossFlatsMm(head),spec.headAcrossFlatsMm,1e-3))issues.push(issue("measured-head-width","Measured head width differs from the declaration","headAcrossFlatsMm"));
+    if(!near(Math.abs(head.to-head.from)*10,spec.headHeightMm,1e-4))issues.push(issue("measured-head-height","Measured head height differs from the declaration","headHeightMm"));
+  }
+  const tg=shaft.threadGeometry;
+  if(!tg||tg.profile!=="ISO-metric-60"||tg.mode!=="modeled")issues.push(issue("thread-geometry","A cosmetic or missing thread cannot pass exact compliance","threadGeometry"));
+  else {
+    if(!near(tg.pitchMm,spec.pitchMm,1e-6))issues.push(issue("measured-pitch","Modeled thread pitch differs from the declaration","pitchMm"));
+    if(!near(tg.flankAngleDeg,60,1e-6))issues.push(issue("measured-flank","Modeled thread flank angle must be 60°","flankAngleDeg"));
+  }
+  return issues;
+}
+
+export function involuteGearOutline(spec) {
+  const m=Number(spec.moduleMm),z=Number(spec.teeth),alpha=Number(spec.pressureAngleDeg??20)*Math.PI/180;
+  if(!(m>0)||!Number.isInteger(z)||z<5)return [];
+  const rp=m*z/2,rb=rp*Math.cos(alpha),ra=rp+m,rf=Math.max(0.05,rp-1.25*m),invA=Math.tan(alpha)-alpha,half=Math.PI/(2*z),pts=[];
+  const inv=r=>{const rr=Math.max(r,rb);return Math.sqrt((rr/ rb)**2-1)-Math.acos(rb/rr);};
+  const polar=(r,a)=>({u:r*Math.cos(a)/10,v:r*Math.sin(a)/10});
+  for(let tooth=0;tooth<z;tooth++){
+    const c=tooth*Math.PI*2/z,rootOffset=half+invA;
+    pts.push(polar(rf,c-rootOffset));
+    for(let s=0;s<=6;s++){const r=rb+(ra-rb)*s/6;pts.push(polar(r,c-(half+invA-inv(r))));}
+    const tip=half+invA-inv(ra);
+    for(let s=1;s<=3;s++)pts.push(polar(ra,c-tip+2*tip*s/3));
+    for(let s=6;s>=0;s--){const r=rb+(ra-rb)*s/6;pts.push(polar(r,c+(half+invA-inv(r))));}
+    pts.push(polar(rf,c+rootOffset));
+  }
+  return pts;
+}
+
+function validateGearGeometry(part,spec) {
+  const expected=involuteGearOutline(spec),actual=part&&part.pts||[],issues=[];
+  if(part.kind!=="ext"||part.axis!=="y")issues.push(issue("gear-solid","Gear must be an extruded involute profile","kind"));
+  if(actual.length!==expected.length)issues.push(issue("profile-samples","Involute profile sample count differs from the verified generator","pts"));
+  else for(let i=0;i<expected.length;i++)if(!near(actual[i].u,expected[i].u,1e-6)||!near(actual[i].v,expected[i].v,1e-6)){issues.push(issue("profile-deviation",`Gear profile deviates at sample ${i+1}`,"pts"));break;}
+  return issues;
+}
+
+export function validateInvoluteGear(spec) {
+  const issues=[], m=Number(spec.moduleMm), z=Number(spec.teeth), alpha=Number(spec.pressureAngleDeg ?? 20);
+  if(!ISO54_MODULES.has(m)) issues.push(issue("module-series","Module is not in the installed ISO 54 preferred-module series","moduleMm"));
+  if(!Number.isInteger(z)||z<5) issues.push(issue("tooth-count","Tooth count must be an integer of at least 5","teeth"));
+  if(!Number.isFinite(alpha)||alpha<=0||alpha>=45) issues.push(issue("pressure-angle","Pressure angle must be explicitly valid","pressureAngleDeg"));
+  const pitchDiameter=m*z, baseDiameter=pitchDiameter*Math.cos(alpha*Math.PI/180);
+  if(spec.pitchDiameterMm!=null&&!near(spec.pitchDiameterMm,pitchDiameter,1e-4)) issues.push(issue("pitch-diameter",`Pitch diameter must equal module × teeth (${pitchDiameter} mm)`,"pitchDiameterMm"));
+  if(spec.profile!=="involute") issues.push(issue("profile","ISO cylindrical gear declaration requires an involute profile","profile"));
+  return report("ISO 21771-1:2024",issues,{pitchDiameterMm:pitchDiameter,baseDiameterMm:baseDiameter,standardModule:m});
+}
+
+export function validateStandardPart(part,def={parts:[part]}) {
+  const declaration=part.standardCompliance;
+  if(!declaration) return report(null,[issue("missing-declaration","Recognized standardized part has no standard declaration","standardCompliance")]);
+  if(declaration.family==="metric-thread") return validateMetricThread(declaration);
+  if(declaration.family==="hex-bolt"||declaration.family==="hex-screw") { const r=validateHexBolt(declaration);r.issues.push(...validateHexScrewGeometry(part,def,declaration));r.ok=r.issues.every(i=>i.severity!=="error");return r; }
+  if(declaration.family==="involute-gear") { const r=validateInvoluteGear(declaration);r.issues.push(...validateGearGeometry(part,declaration));r.ok=r.issues.every(i=>i.severity!=="error");return r; }
+  return report(declaration.standard,[issue("unsupported-standard","No verified validator is installed for this standard","standard")]);
+}
+
+export function auditStandardParts(def) {
+  const results=[];
+  for(const part of def.parts||[]){
+    const looksStandard=/(bolt|screw|nut|thread|gear|בורג|אום|גלגל שיניים)/i.test(`${part.name||""} ${part.kind||""}`);
+    if(looksStandard||part.standardCompliance) results.push({partId:part.id,name:part.name||part.kind,...validateStandardPart(part,def)});
+  }
+  return {ok:results.every(r=>r.ok),checked:results.length,results,blocking:results.flatMap(r=>r.issues.filter(i=>i.severity==="error").map(i=>({...i,partId:r.partId,partName:r.name})))};
+}
+
+function report(standard,issues,computed={}) { return {ok:issues.every(i=>i.severity!=="error"),standard,edition:standard?.split(":")[1]||null,issues,computed}; }

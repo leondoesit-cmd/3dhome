@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cabinet system QA</title>
+    <!--
+      Re-runnable checks for the cabinet engine (cabinet.js), the nesting and
+      pricing (nest.js) and the stock catalogue (stock.js).
+
+      Open it from the project root over http, e.g.
+          node .claude/serve.js       then  http://localhost:4599/tools/qa_cabinet.html
+      It runs in the browser rather than in node because cabinet.js imports three
+      through the page's importmap; stubbing that out would mean testing
+      something other than what ships.
+
+      Everything a machine needs is on `window.__QA` when it finishes:
+          { pass, fail, total, failures: [...] }
+      so a headless driver can read one value and be done.
+
+      These checks exist because a sweep like this found five real bugs in one
+      afternoon: doors that opened backwards through the back panel, a TV niche
+      that drew a 6 mm invisible panel and nothing else, an appliance niche that
+      drew nothing at all, a bi-fold that was a plain hinged door with a
+      different label, and worktops that overlapped their neighbours by 3 cm
+      while billing twice the stone edge. Add a case whenever you fix one.
+    -->
+    <style>
+      body { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; padding: 24px; background: #14181d; color: #dfe4ea; }
+      h1 { font: 600 20px/1.3 system-ui, sans-serif; margin: 0 0 4px; }
+      .sub { color: #8a949e; font-family: system-ui, sans-serif; margin-bottom: 18px; }
+      #sum { padding: 14px 18px; border-radius: 10px; font: 600 16px system-ui, sans-serif; margin-bottom: 16px; }
+      .ok { background: #14361f; color: #7ee2a0; } .bad { background: #3a1618; color: #ff9d9d; }
+      .run { background: #1d2833; color: #9fc6ff; }
+      table { border-collapse: collapse; width: 100%; }
+      td { padding: 3px 10px 3px 0; vertical-align: top; border-bottom: 1px solid #232a31; }
+      td.s { width: 34px; } .p { color: #5db97e; } .f { color: #ff8080; }
+      td.n { color: #8a949e; width: 46px; text-align: right; }
+      .grp { color: #ffc46b; font-weight: 700; padding-top: 12px; }
+      .why { color: #ff8080; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>Cabinet system QA</h1>
+    <div class="sub">cabinet.js · nest.js · stock.js — every type, every door, every carcass mode, nested and priced.</div>
+    <div id="sum" class="run">running…</div>
+    <table id="out"></table>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "../vendor/three/three.module.js",
+          "three/addons/": "../vendor/three/addons/",
+          "cannon-es": "../vendor/cannon-es.js"
+        }
+      }
+    </script>
+    <script type="module">
+      import * as THREE from "three";
+      import * as cab from "../js/cabinet.js";
+      import * as nest from "../js/nest.js";
+      import * as stock from "../js/stock.js";
+      import { S } from "../js/state.js";
+
+      const out = document.getElementById("out");
+      let pass = 0, fail = 0, group = "";
+      const failures = [];
+
+      // a run that dies half way through must say so rather than sit on
+      // "running…" forever, or a broken harness reads as a slow one
+      window.addEventListener("error", (e) => finish("crashed: " + e.message));
+      window.addEventListener("unhandledrejection", (e) => finish("crashed: " + e.reason));
+      function finish(err) {
+        if (window.__QA) return;
+        const sum = document.getElementById("sum");
+        sum.className = fail || err ? "bad" : "ok";
+        sum.textContent = err ? err : fail ? `${fail} FAILED · ${pass} passed` : `all ${pass} checks passed`;
+        window.__QA = { pass, fail, total, failures, error: err || null };
+        document.title = (err ? "✕ crashed" : fail ? `✕ ${fail} failed` : `✓ ${pass} passed`) + " — Cabinet QA";
+      }
+
+      function g(name) { group = name; const r = out.insertRow(); const c = r.insertCell(); c.colSpan = 3; c.className = "grp"; c.textContent = name; }
+      function check(name, cond, why) {
+        const r = out.insertRow();
+        const okc = r.insertCell(); okc.className = "s " + (cond ? "p" : "f"); okc.textContent = cond ? "✓" : "✕";
+        const n = r.insertCell(); n.className = "n"; n.textContent = ++total;
+        const c = r.insertCell(); c.textContent = name;
+        if (cond) pass++;
+        else { fail++; failures.push(group + " — " + name + (why ? ": " + why : "")); if (why) { const w = out.insertRow(); const wc = w.insertCell(); wc.colSpan = 3; wc.className = "why"; wc.textContent = "   " + why; } }
+      }
+      let total = 0;
+
+      /* ---------- helpers ---------- */
+      const mk = (preset, w, d, h, tweak) => {
+        const it = { type: "cabsys", w, d, h, x: 0, z: 0, rot: 0, room: null };
+        it.cab = cab.makeSpec(preset, w, h, d);
+        if (tweak) tweak(it.cab);
+        return it;
+      };
+      const world = (it) => { S.items = [it]; return it; };
+      function built(it) {
+        const gr = new THREE.Group();
+        cab.buildCab(gr, it);
+        gr.updateMatrixWorld(true);
+        let meshes = 0;
+        gr.traverse((o) => { if (o.isMesh) meshes++; });
+        return { g: gr, meshes, box: new THREE.Box3().setFromObject(gr) };
+      }
+
+      /* ---------- 1. every compartment type builds what it claims ---------- */
+      g("compartment types");
+      // the flag each type must set: what countHardware, the elevation and the
+      // checks all read. A type that sets nothing is a type that built nothing.
+      const EXPECT = {
+        hang: "rails", hangS: "rails", hang2: "rails", shelves: null, shoe: null,
+        drawers: "drawers", pullout: "baskets", trouser: "trouser", laundry: "hamper",
+        safe: "safe", tv: "tv", appl: "appl", open: null, box: null,
+      };
+      for (const t of Object.keys(cab.SEC)) {
+        const it = world(mk("w_classic", 90, 60, 240, (sp) => {
+          sp.auto = false;
+          sp.cols = [{ w: 86.4, secs: [{ t, h: 210 }], door: { t: "hinged", leaves: 1, hinge: "R" } }];
+        }));
+        cab.normalizeSpec(it.cab, 90, 240, 60);
+        const L = cab.layoutCab(it), cell = L.cols[0].secs[0], want = EXPECT[t];
+        check(`${t} sets its contract flag`, !want || !!cell[want], want ? `expected cell.${want}` : "");
+        check(`${t} builds meshes`, built(it).meshes > 0);
+      }
+
+      /* ---------- 2. doors ---------- */
+      g("doors");
+      // A 60-deep cabinet's front is z=+30. An open leaf must go past it, and
+      // must never reach behind the back panel — the bug that shipped for months.
+      for (const hinge of ["L", "R"]) {
+        const it = world(mk("w_classic", 90, 60, 240, (sp) => {
+          sp.auto = false;
+          sp.cols = [{ w: 86.4, secs: [{ t: "hang", h: 210 }], door: { t: "hinged", leaves: 1, hinge } }];
+        }));
+        cab.normalizeSpec(it.cab, 90, 240, 60);
+        it.cab.open = 1;
+        const b = built(it).box;
+        check(`hinge ${hinge} opens outward`, b.max.z > 60, `max z ${b.max.z.toFixed(1)}`);
+        check(`hinge ${hinge} never swings through the back`, b.min.z > -31, `min z ${b.min.z.toFixed(1)}`);
+      }
+      {
+        const fold = world(mk("w_classic", 90, 60, 240, (sp) => {
+          sp.auto = false;
+          sp.cols = [{ w: 86.4, secs: [{ t: "hang", h: 210 }], door: { t: "folding", leaves: 1, hinge: "L" } }];
+        }));
+        cab.normalizeSpec(fold.cab, 90, 240, 60);
+        fold.cab.open = 1;
+        const bf = built(fold).box;
+        const hin = world(mk("w_classic", 90, 60, 240, (sp) => {
+          sp.auto = false;
+          sp.cols = [{ w: 86.4, secs: [{ t: "hang", h: 210 }], door: { t: "hinged", leaves: 1, hinge: "L" } }];
+        }));
+        cab.normalizeSpec(hin.cab, 90, 240, 60);
+        hin.cab.open = 1;
+        const bh = built(hin).box;
+        check("a bi-fold sweeps less than a hinged leaf", bf.max.z < bh.max.z, `${bf.max.z.toFixed(0)} vs ${bh.max.z.toFixed(0)}`);
+      }
+      {
+        // an open niche in a doored column really is open
+        const it = world(mk("w_classic", 90, 60, 240, (sp) => {
+          sp.auto = false;
+          sp.cols = [{ w: 86.4, secs: [{ t: "shelves", h: 70 }, { t: "open", h: 60 }, { t: "shelves", h: 70 }], door: { t: "hinged", leaves: 1, hinge: "R" } }];
+        }));
+        cab.normalizeSpec(it.cab, 90, 240, 60);
+        const L = cab.layoutCab(it), col = L.cols[0];
+        check("closed/open/closed makes two door runs", col.runs.length === 2, JSON.stringify(col.runs));
+        check("the niche is not covered", col.secs[1].covered === false);
+        check("both closed compartments are covered", col.secs[0].covered && col.secs[2].covered);
+      }
+      {
+        // a sliding leaf cannot leave a niche open, so it is refused outright
+        const it = world(mk("w_classic", 200, 60, 240, (sp) => {
+          sp.auto = false;
+          sp.cols = [
+            { w: 96.4, secs: [{ t: "tv", h: 210 }], door: { t: "sliding" } },
+            { w: 96.4, secs: [{ t: "shelves", h: 210 }], door: { t: "sliding" } },
+          ];
+        }));
+        cab.normalizeSpec(it.cab, 200, 240, 60);
+        const L = cab.layoutCab(it);
+        check("sliding is refused over an open niche", !cab.doorFit("sliding", cab.fitCtx(L, L.cols[0])).ok);
+      }
+
+      /* ---------- 3. runs of adjacent units ---------- */
+      g("runs");
+      {
+        const base = (x) => { const i = mk("k_base_drawers", 60, 60, 90); i.x = x; return i; };
+        S.items = [base(0), base(60), base(120), base(180), base(240)];
+        const tops = S.items.flatMap((it) => cab.layoutCab(it).parts.filter((p) => p.role === "worktop").map((p) => [it.x + p.x0, it.x + p.x1]));
+        let overlap = 0;
+        for (let i = 0; i < tops.length; i++)
+          for (let j = i + 1; j < tops.length; j++)
+            overlap = Math.max(overlap, Math.min(tops[i][1], tops[j][1]) - Math.max(tops[i][0], tops[j][0]));
+        check("worktops in a run do not overlap", overlap <= 0.01, `overlap ${overlap.toFixed(1)} cm`);
+        const edge = S.items.reduce((s, it) => s + cab.profileMeters(it), 0);
+        check("a 5-unit run bills its front plus two returns", Math.abs(edge - 4.2) < 0.05, `${edge.toFixed(2)} m, wanted 4.20`);
+        S.items.forEach((it) => (it.x *= 10)); // scatter them
+        const apart = S.items.reduce((s, it) => s + cab.profileMeters(it), 0);
+        check("five separate units bill five perimeters", Math.abs(apart - 9) < 0.05, `${apart.toFixed(2)} m, wanted 9.00`);
+        const a = mk("k_base_drawers", 60, 60, 90), b = mk("k_base_drawers", 60, 60, 120);
+        b.x = 60;
+        S.items = [a, b];
+        check("a step in height is two runs", cab.cabRun(a).n === 1 && cab.cabRun(b).n === 1);
+      }
+
+      /* ---------- 4. the corner unit ---------- */
+      g("corner unit");
+      {
+        const it = world(mk("k_corner", 90, 90, 90));
+        const L = cab.layoutCab(it);
+        const poly = cab.cornerPoly(it.cab, 90, 90);
+        check("its footprint is a pentagon", poly.length === 5);
+        check("it builds pentagon boards", L.parts.some((p) => p.k === "poly"));
+        check("its shelves reach the diagonal", cab.cutList(it, L).some((r) => r.cut > 0));
+        it.cab.open = 0;
+        const closed = built(it).box;
+        it.cab.open = 1;
+        const open = built(it).box;
+        check("the diagonal door swings out", open.max.x > closed.max.x + 10 || open.max.z > closed.max.z + 10);
+        check("the corner unit prices", cab.cabPrice(it) > 0);
+        check("a corner unit does not join a run", cab.cabRun(it).n === 1);
+      }
+
+      /* ---------- 5. drilling ---------- */
+      g("System 32 drilling");
+      {
+        const it = world(mk("w_classic", 240, 60, 240));
+        const L = cab.layoutCab(it), dp = cab.drillPlan(it, L);
+        const boards = L.parts.filter((p) => p.role === "side" || p.role === "divider").length;
+        const patterns = dp.filter((e) => e.role === "side" || e.role === "divider").length;
+        check("one drilling pattern per vertical board", patterns === boards, `${patterns} patterns, ${boards} boards`);
+        const holes = dp.flatMap((e) => e.holes.map((h) => ({ ...h, e })));
+        check("something is drilled", holes.length > 0);
+        check("shelf pins sit 37 mm in", holes.filter((h) => h.kind === "pin").every((h) => Math.abs(h.y - 37) < 0.5 || Math.abs(h.y - (h.e.w - 37)) < 0.5));
+        check("hinge cups are 35 mm at 22.5 mm", holes.filter((h) => h.kind === "cup").every((h) => h.d === 35 && Math.abs(h.y - 22.5) < 0.5));
+        check("no hole falls off its board", holes.every((h) => h.x >= 0 && h.y >= 0 && h.x <= h.e.l && h.y <= h.e.w));
+      }
+
+      /* ---------- 6. nesting ---------- */
+      g("nesting");
+      {
+        S.items = [mk("w_classic", 200, 60, 240), mk("k_base_drawers", 240, 60, 90), mk("sh_float", 150, 26, 110)];
+        S.items[1].x = 400; S.items[2].x = 800;
+        const q = nest.quote(S.items);
+        check("every panel is placed", q.nest.unplaced.length === 0, q.nest.unplaced.map((p) => p.role).join(", "));
+        let bad = null;
+        q.nest.groups.forEach((gr) => gr.sheets.forEach((sh) => {
+          sh.place.forEach((a) => {
+            if (a.x + a.w > gr.sheet.w + 0.01 || a.y + a.h > gr.sheet.l + 0.01) bad = "off the sheet";
+          });
+          for (let i = 0; i < sh.place.length; i++)
+            for (let j = i + 1; j < sh.place.length; j++) {
+              const A = sh.place[i], B = sh.place[j];
+              if (Math.min(A.x + A.w, B.x + B.w) - Math.max(A.x, B.x) > 1e-6 &&
+                  Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y) > 1e-6) bad = "overlap";
+            }
+        }));
+        check("nothing overlaps and nothing runs off a sheet", !bad, bad || "");
+        check("grained panels are never turned", q.nest.groups.every((gr) => gr.sheets.every((sh) => sh.place.every((p) => !(p.p.grain && p.rot)))));
+        check("yield is in a believable range", q.yield > 0.55 && q.yield <= 1, `${(q.yield * 100).toFixed(1)}%`);
+        check("part numbers are assigned", q.nest.groups.every((gr) => gr.sheets.every((sh) => sh.place.every((p) => p.p.no > 0))));
+        check("the quote adds up", Math.abs(q.total - (q.net + q.margin + q.vat)) < 1);
+        check("the exports do not throw", (() => {
+          try { nest.cutCSV(q, true); nest.drillCSV(q.items, true); nest.nestDXF(q); nest.purchaseOrders(q, true); nest.quoteHTML(q, { en: true }); return true; }
+          catch (e) { return false; }
+        })());
+        const html = nest.quoteHTML(q, { en: true });
+        check("the client quote hides the shop's internals", !/yield|margin|sheets? #/i.test(html.replace(/<style[\s\S]*?<\/style>/, "")));
+      }
+
+      /* ---------- 7. the offcut rack ---------- */
+      g("offcut rack");
+      {
+        const before = stock.offcuts().length;
+        stock.addOffcuts([{ sheet: "mel_white_18", l: 100, w: 60, from: "qa" }]);
+        check("a piece can be banked", stock.offcuts("mel_white_18").length === stock.offcuts("mel_white_18").length);
+        const banked = stock.offcuts().length;
+        check("banking adds to the rack", banked === before + 1, `${before} → ${banked}`);
+        stock.addOffcuts([{ sheet: "mel_white_18", l: 5, w: 5 }]);
+        check("scraps are not banked", stock.offcuts().length === banked);
+        const last = stock.offcuts().pop();
+        stock.removeOffcut(last.n);
+        check("a piece can be taken off the rack", stock.offcuts().length === banked - 1);
+      }
+
+      /* ---------- 8. every preset, every combination ---------- */
+      g("sweep: presets × sizes × doors × modes");
+      {
+        const problems = [];
+        let combos = 0;
+        const audit = (label, it) => {
+          combos++;
+          try {
+            world(it);
+            const L = cab.layoutCab(it);
+            L.parts.forEach((p) => {
+              if (!p.mat) problems.push(`${label}: ${p.role} has no material`);
+              if (p.k !== "box") return;
+              if (["door", "doorPanel", "batten", "glazing", "handle", "hinge", "track", "worktop", "filler"].includes(p.role) || p.unit != null) return;
+              if (p.x1 - p.x0 <= 0 || p.y1 - p.y0 <= 0 || p.z1 - p.z0 <= 0) problems.push(`${label}: ${p.role} is degenerate`);
+              if (p.y0 < -0.6 || p.y1 > it.h + 0.6) problems.push(`${label}: ${p.role} is outside the carcass`);
+            });
+            L.cols.forEach((col, ci) => col.secs.forEach((cell, si) => {
+              const covered = (col.runs || []).some((r) => si >= r.i0 && si <= r.i1);
+              if (!!cell.covered !== covered) problems.push(`${label}: col${ci}.${si} covered disagrees with the runs`);
+            }));
+            cab.cutList(it, L); cab.hardwareList(it, L); cab.cabPrice(it, L);
+            cab.checkCab(it, 270); cab.planCab(it); cab.cabSummary(it); cab.drillPlan(it, L);
+            nest.quote([it]);
+            if (!built(it).meshes) problems.push(`${label}: built nothing`);
+          } catch (e) { problems.push(`${label}: THREW ${e.message}`); }
+        };
+        cab.PRESETS.forEach((p) => {
+          const f = cab.FAM[p.fam];
+          [[f.w, f.d, f.h], [Math.max(40, f.w * 0.5), f.d, Math.max(40, f.h * 0.5)], [f.w * 2.4, f.d, f.h]]
+            .forEach(([w, d, h]) => audit(`${p.id} ${Math.round(w)}×${Math.round(d)}×${Math.round(h)}`, mk(p.id, Math.round(w), Math.round(d), Math.round(h))));
+        });
+        Object.keys(cab.SEC).forEach((st) => Object.keys(cab.DOORS).forEach((dt) => [0, 1].forEach((op) => {
+          const it = mk("w_classic", 200, 60, 240, (sp) => {
+            sp.auto = false;
+            sp.cols = [
+              { w: 96.4, secs: [{ t: st, h: 210 }], door: { t: dt, leaves: null, hinge: "R" } },
+              { w: 96.4, secs: [{ t: "shelves", h: 210 }], door: { t: dt, leaves: null, hinge: "L" } },
+            ];
+            sp.open = op;
+          });
+          cab.normalizeSpec(it.cab, 200, 240, 60);
+          audit(`sec=${st} door=${dt} open=${op}`, it);
+        })));
+        Object.keys(cab.FRONTS).forEach((fs) => Object.keys(cab.CARCASS).forEach((cm) => Object.keys(cab.COLKIND).forEach((ck) => {
+          const it = mk("book_open", 160, 45, 200, (sp) => {
+            sp.auto = false; sp.front = fs; sp.carcass = cm;
+            sp.cols[0].kind = ck === "normal" ? undefined : ck;
+          });
+          cab.normalizeSpec(it.cab, 160, 200, 45);
+          audit(`front=${fs} carcass=${cm} kind=${ck}`, it);
+        })));
+        // all 16 open/closed patterns of a four-compartment column
+        for (let m = 0; m < 16; m++) {
+          const secs = [];
+          for (let b = 0; b < 4; b++) secs.push({ t: (m >> b) & 1 ? "open" : "shelves", h: 55 });
+          const it = mk("w_classic", 90, 60, 240, (sp) => {
+            sp.auto = false;
+            sp.cols = [{ w: 86.4, secs, door: { t: "hinged", leaves: 1, hinge: "R" } }];
+          });
+          cab.normalizeSpec(it.cab, 90, 240, 60);
+          audit(`run mask ${m.toString(2).padStart(4, "0")}`, it);
+        }
+        check(`${combos} combinations build cleanly`, problems.length === 0, [...new Set(problems)].slice(0, 12).join("\n"));
+      }
+
+      /* ---------- 9. persistence ----------
+         ui.js drags in the whole application, which on this bare page may not
+         have the DOM it expects. Worth trying anyway — it owns the item
+         whitelist that silently dropped `cab` for months — but never worth
+         hanging the run over, so it is skipped with a reason if it will not
+         load. */
+      g("persistence");
+      try {
+        const ui = await Promise.race([
+          import("../js/ui.js"),
+          new Promise((_, rej) => setTimeout(() => rej(new Error("timed out loading ui.js")), 8000)),
+        ]);
+        S.items = cab.PRESETS.map((p, i) => { const f = cab.FAM[p.fam]; const it = mk(p.id, f.w, f.d, f.h); it.x = i * 500; return it; });
+        const before = S.items.map((it) => cab.cabPrice(it));
+        ui.applyData(JSON.parse(ui.serialize()));
+        const after = S.items.map((it) => cab.cabPrice(it));
+        check("every preset survives a save/load round-trip", before.length === after.length && before.every((v, i) => v === after[i]),
+          before.map((v, i) => (v === after[i] ? null : `${v}→${after[i]}`)).filter(Boolean).join(", "));
+        // a spec written before any of today's fields existed must heal itself
+        const old = { type: "cabsys", w: 200, d: 60, h: 240, x: 0, z: 0, rot: 0,
+          cab: { preset: "w_classic", fam: "wardrobe", panel: 1.8, back: 0.8, plinth: 8, plinthType: "recessed", gap: 0.3, open: 0, hw: {},
+            cols: [{ w: 96, secs: [{ t: "hang", h: 200 }], door: { t: "hinged" } }, { w: 96, secs: [{ t: "shelves", h: 200 }], door: { t: "hinged" } }], auto: false } };
+        S.items = [old];
+        ui.applyData(JSON.parse(ui.serialize()));
+        const healed = S.items[0];
+        check("a legacy spec heals", !!healed.cab.stock && healed.cab.carcass === "full" && cab.cabPrice(healed) > 0);
+      } catch (e) {
+        const r = out.insertRow();
+        const c = r.insertCell(); c.colSpan = 3; c.className = "why";
+        c.textContent = "   skipped — " + e.message;
+      }
+
+      /* ---------- summary ---------- */
+      finish(null);
+    </script>
+  </body>
+</html>

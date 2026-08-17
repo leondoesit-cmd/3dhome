@@ -1,0 +1,131 @@
+<!doctype html>
+<!-- Throwaway calibration harness for the r128 -> r185 lighting migration.
+     Pass 1 (#r128) records reference luminances. Pass 2 (#r185) binary-searches
+     the r185 intensity that reproduces each reference, so the conversion factors
+     account for ACES + ColorManagement instead of being derived on paper. -->
+<html>
+  <head><meta charset="utf-8" /></head>
+  <body style="margin:0;background:#111;color:#0f0;font:12px/1.5 monospace">
+    <canvas id="c" width="256" height="256" style="border:1px solid #333"></canvas>
+    <pre id="out">running…</pre>
+    <script>
+      const build = (location.hash.replace('#','')||'r185').replace('w','');
+      const src = build === 'r128' ? '../vendor/three-r128/three.module.js' : '../vendor/three/three.webgpu.js';
+      const map = document.createElement('script');
+      map.type = 'importmap';
+      map.textContent = JSON.stringify({ imports: { three: src } });
+      document.currentScript.after(map);
+    </script>
+    <script type="module">
+      import * as THREE from 'three';
+
+      const raw = location.hash.replace('#','') || 'r185';
+      const build = raw.replace('w','');
+      const out = document.getElementById('out');
+      const canvas = document.getElementById('c');
+      const log = (m) => (out.textContent += m + '\n');
+
+      // Scene units are CENTIMETRES, exactly like the app.
+      const FLOOR = 400, LIGHT_H = 250;
+      // white albedo is a ColorManagement no-op, so it isolates the pure unit change
+      const ALBEDO = raw.endsWith('w') ? 0xffffff : 0x808080;
+
+      // measured in pass 1 (r128, physicallyCorrectLights=false)
+      const REF_GREY = {
+        ambient: 202.00, hemi: 202.00, directional: 203.00,
+        point_d0: 202.16, point_d520: 110.73, spot_flash: 178.09,
+      };
+      // white albedo: ColorManagement is a no-op here, so the solved factor is
+      // the PURE lighting-unit change with the albedo shift factored out.
+      const REF_WHITE = {
+        ambient: 229.00, hemi: 229.00, directional: 229.00,
+        point_d0: 228.88, point_d520: 160.37, spot_flash: 214.11,
+      };
+      const REF = raw.endsWith('w') ? REF_WHITE : REF_GREY;
+
+      function scn(makeLight, i) {
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        const floor = new THREE.Mesh(
+          new THREE.PlaneGeometry(FLOOR, FLOOR),
+          new THREE.MeshStandardMaterial({ color: ALBEDO, roughness: 1, metalness: 0 })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+        const l = makeLight(i);
+        scene.add(l);
+        if (l.target) scene.add(l.target);
+        return scene;
+      }
+
+      function measure() {
+        const t = document.createElement('canvas');
+        t.width = t.height = 64;
+        const x = t.getContext('2d');
+        x.drawImage(canvas, 0, 0, 64, 64);
+        const d = x.getImageData(16, 16, 32, 32).data;
+        let sum = 0, n = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+          n++;
+        }
+        return sum / n;
+      }
+
+      const CASES = {
+        ambient:     (i) => new THREE.AmbientLight(0xffffff, i),
+        hemi:        (i) => new THREE.HemisphereLight(0xffffff, 0x404040, i),
+        directional: (i) => { const l = new THREE.DirectionalLight(0xffffff, i); l.position.set(0, LIGHT_H, 0); return l; },
+        // decay 2 = physically correct inverse-square, which is what we want to KEEP
+        point_d0:    (i) => { const l = new THREE.PointLight(0xffffff, i, 0, 2); l.position.set(0, LIGHT_H, 0); return l; },
+        point_d520:  (i) => { const l = new THREE.PointLight(0xffffff, i, 520, 2); l.position.set(0, LIGHT_H, 0); return l; },
+        spot_flash:  (i) => { const l = new THREE.SpotLight(0xffffff, i, 1950, 0.4, 0.62, 2); l.position.set(0, LIGHT_H, 0); l.target.position.set(0, 0, 0); return l; },
+      };
+
+      const cam = new THREE.PerspectiveCamera(45, 1, 1, 5000);
+      cam.position.set(0, 300, 0.01);
+      cam.lookAt(0, 0, 0);
+
+      let renderer;
+      if (build === 'r128') {
+        renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.physicallyCorrectLights = false;
+      } else {
+        renderer = new THREE.WebGPURenderer({ canvas, antialias: false, forceWebGL: true });
+        await renderer.init();
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+      }
+      renderer.setSize(256, 256, false);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+
+      const lum = (name, i) => { renderer.render(scn(CASES[name], i), cam); return measure(); };
+
+      out.textContent = `build=${build} REVISION=${THREE.REVISION}\n` +
+        `floor 400x400cm, cam 300cm, light 250cm, ACES, exposure 1.1\n` +
+        `NOTE: punctual cases here use decay=2 (physically correct) in BOTH builds\n\n`;
+
+      if (build === 'r128') {
+        for (const k of Object.keys(CASES)) log(k.padEnd(14) + ' i=1 -> ' + lum(k, 1).toFixed(2));
+      } else {
+        log('solving for the intensity that reproduces the r128 look:\n');
+        for (const k of Object.keys(CASES)) {
+          const target = REF[k];
+          // bracket upward first — punctual lights need enormous factors in cm
+          let lo = 0, hi = 1;
+          while (lum(k, hi) < target && hi < 1e12) hi *= 4;
+          for (let s = 0; s < 40; s++) {
+            const mid = (lo + hi) / 2;
+            if (lum(k, mid) < target) lo = mid; else hi = mid;
+          }
+          const sol = (lo + hi) / 2;
+          log(k.padEnd(14) + ' target ' + target.toFixed(1).padStart(6) +
+              '  ->  i=' + sol.toPrecision(4).padStart(11) +
+              '   (x' + sol.toPrecision(4) + ' vs old i=1)');
+        }
+        log('\n100^2 = 10000  <- expected factor if the only issue is cm-vs-m units');
+      }
+    </script>
+  </body>
+</html>

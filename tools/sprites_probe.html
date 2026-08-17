@@ -1,0 +1,103 @@
+<!doctype html>
+<!-- Throwaway probe: does the instanced-sprite particle technique used by
+     zombies_world.js initFX() actually render on WebGPU? Points cannot (three
+     only supports 1px point primitives there), so the pools were rebuilt as
+     SpriteNodeMaterial instances. This isolates that from the game. -->
+<html>
+  <body style="margin:0;background:#101018">
+    <canvas id="c" width="480" height="300" style="border:1px solid #333"></canvas>
+    <pre id="out" style="color:#0f0;font:12px monospace"></pre>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "../vendor/three/three.webgpu.js",
+          "three/webgpu": "../vendor/three/three.webgpu.js",
+          "three/tsl": "../vendor/three/three.tsl.js",
+          "three/addons/": "../vendor/three/addons/"
+        }
+      }
+    </script>
+    <script type="module">
+      import * as THREE from "three";
+      import { Fn, attribute, uv, vec2, vec4, smoothstep } from "three/tsl";
+      const log = (m) => (document.getElementById("out").textContent += m + "\n");
+      const canvas = document.getElementById("c");
+
+      try {
+        const r = new THREE.WebGPURenderer({ canvas, antialias: false });
+        await r.init();
+        r.setSize(480, 300, false);
+        log("backend: " + (r.backend && r.backend.isWebGPUBackend ? "WebGPU" : "WebGL2"));
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x101018);
+        const cam = new THREE.PerspectiveCamera(60, 480 / 300, 1, 5000);
+        cam.position.set(0, 0, 300);
+        cam.lookAt(0, 0, 0);
+
+        // --- exactly the construction initFX() now uses -------------------
+        const N = 200;
+        const base = new THREE.PlaneGeometry(1, 1);
+        const g = new THREE.InstancedBufferGeometry();
+        g.index = base.index;
+        g.setAttribute("position", base.attributes.position);
+        g.setAttribute("uv", base.attributes.uv);
+        g.instanceCount = N;
+
+        const pos = new Float32Array(N * 3),
+          col = new Float32Array(N * 3),
+          siz = new Float32Array(N);
+        for (let i = 0; i < N; i++) {
+          pos[i * 3] = (Math.random() - 0.5) * 260;
+          pos[i * 3 + 1] = (Math.random() - 0.5) * 160;
+          pos[i * 3 + 2] = (Math.random() - 0.5) * 60;
+          col[i * 3] = 0.75; col[i * 3 + 1] = 0.04; col[i * 3 + 2] = 0.05;
+          siz[i] = 4 + Math.random() * 6;
+        }
+        g.setAttribute("iPos", new THREE.InstancedBufferAttribute(pos, 3));
+        g.setAttribute("iCol", new THREE.InstancedBufferAttribute(col, 3));
+        g.setAttribute("iSize", new THREE.InstancedBufferAttribute(siz, 1));
+
+        // PointsNodeMaterial on a MESH: its setupVertex dispatches to setupVertexSprite
+        // for any object that is not isPoints, which is the billboard-quad path.
+        // SpriteNodeMaterial has no setupVertex at all, so the quad stayed at its
+        // raw 1cm local size and vanished at distance.
+        const mat = new THREE.PointsNodeMaterial({ transparent: true, depthWrite: false });
+        mat.positionNode = attribute("iPos");
+        mat.sizeAttenuation = true;
+        mat.sizeNode = attribute("iSize").mul(0.75);
+        mat.colorNode = Fn(() => {
+          const puv = uv();
+          const d = puv.sub(vec2(0.5)).length();
+          const a = smoothstep(0.15, 0.5, d).oneMinus();
+          return vec4(attribute("iCol"), a);
+        })();
+
+        const mesh = new THREE.Mesh(g, mat);
+        mesh.frustumCulled = false;
+        scene.add(mesh);
+
+        // NOTE: no requestAnimationFrame here — the preview pane pauses rAF when
+        // it is not visible, which would hang this probe forever.
+        r.render(scene, cam);
+        r.render(scene, cam);
+
+        // sample: how much of the frame is non-background?
+        const t = document.createElement("canvas");
+        t.width = 96; t.height = 60;
+        const x = t.getContext("2d");
+        x.drawImage(canvas, 0, 0, 96, 60);
+        const d = x.getImageData(0, 0, 96, 60).data;
+        let lit = 0, maxR = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i] > 40 && d[i] > d[i + 2] + 15) lit++;
+          maxR = Math.max(maxR, d[i]);
+        }
+        log("reddish pixels: " + lit + " / " + 96 * 60 + "   maxRed=" + maxR);
+        log(lit > 50 ? "PASS — instanced sprites render" : "FAIL — nothing drawn");
+      } catch (e) {
+        log("ERROR: " + e.message + "\n" + e.stack);
+      }
+    </script>
+  </body>
+</html>

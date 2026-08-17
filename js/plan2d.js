@@ -1,0 +1,2997 @@
+// 2D top-down floor plan: view transform + canvas rendering of rooms, walls, openings, items, overlays.
+import { S, clamp, fin, hexStr, FILL2D } from "./state.js";
+import {
+  detectRooms,
+  roomFloor,
+  roomName,
+  roomHidden,
+  hiddenSets,
+  wallBounds,
+  wallGeom,
+  wallById,
+  contentBounds,
+  wallClearLength,
+  wallCuts,
+  wallOutline,
+  wallPointAt,
+  wallTangentAt,
+  jointInfo,
+  wallDimSide,
+  pendingCuts,
+} from "./geometry.js";
+import { ensureWallTypes, normalizeWall, wallLayerBands } from "./wall_types.js";
+import { normalizeWallKind, curvedWallOutline, pointAtWall, tangentAtWall, makeArcFromThreePoints } from "./wall_curves.js";
+import { referenceFloorScene } from "./floors.js";
+import { FURN, flabel, isLamp, lampColor, fcolor, itemVSpan } from "./furniture.js";
+import { planCab } from "./cabinet.js";
+import { t } from "./i18n.js";
+import { SITE, llToLocalCm } from "./site.js";
+import { drawMEP, mepAliveCount } from "./mep.js";
+import { isElevation, drawElevation, ceilingHeight } from "./elevation.js";
+import { measure4, itemCorners } from "./measure.js";
+import { markers, markerItem, markerLabel, hitMarker, markerInfo } from "./markers.js";
+import { activeWarnings } from "./constraint_engine.js";
+import {
+  wallCons, anchorPos, anchorNode, conSatisfied, conCurrent,
+  openingById, openingPos,
+} from "./wall_constraints.js";
+
+export const plan = document.getElementById("plan");
+const pc = plan.getContext("2d");
+
+/* ---- MEP flow animation ----
+   A self-perpetuating rAF loop advances a dash offset used by drawMEP to make
+   travelling "flow" dashes crawl along live runs. It only runs while the plan
+   is visible, the MEP layer + animation are on, and at least one live run
+   exists — so an idle or all-dead scene costs nothing. */
+let mepFlowPhase = 0;
+let mepAnimOn = false;
+let mepLastFrame = 0;
+const FLOW_SPEED = 0.027; // dash units per millisecond
+function mepShouldAnimate() {
+  return (
+    S.mep &&
+    S.mep.show &&
+    S.mep.animate !== false &&
+    !isElevation() && // MEP flow only animates in the top-down plan
+    mepAliveCount() > 0 &&
+    plan.offsetParent !== null // plan pane actually visible (not maximized away)
+  );
+}
+function mepAnimStep(time) {
+  if (!mepShouldAnimate()) {
+    mepAnimOn = false;
+    mepLastFrame = 0;
+    return;
+  }
+  // The flow overlay does not need 60 full plan redraws per second. Cap it at
+  // ~30fps and advance by elapsed time so animation speed stays stable.
+  if (!mepLastFrame || time - mepLastFrame >= 30) {
+    var dt = mepLastFrame ? Math.min(80, time - mepLastFrame) : 33;
+    mepLastFrame = time;
+    mepFlowPhase = (mepFlowPhase + FLOW_SPEED * dt) % 100000;
+    requestRender2D();
+  }
+  requestAnimationFrame(mepAnimStep);
+}
+export function ensureMEPAnim() {
+  if (!mepAnimOn && mepShouldAnimate()) {
+    mepAnimOn = true;
+    requestAnimationFrame(mepAnimStep);
+  }
+}
+
+/* ---- constraint-warning glow ----
+   The same self-perpetuating, self-cancelling loop as the MEP flow above: it
+   breathes the halo drawn on loose endpoints and out-of-square joints, and it
+   stops the moment the plan is hidden or the last warning is resolved or
+   ignored, so a clean plan costs nothing. */
+let warnPhase = 0;
+let warnAnimOn = false;
+let warnLastFrame = 0;
+function warnShouldAnimate() {
+  return (
+    !isElevation() &&
+    plan.offsetParent !== null &&
+    activeWarnings().length > 0
+  );
+}
+function warnAnimStep(time) {
+  if (!warnShouldAnimate()) {
+    warnAnimOn = false;
+    warnLastFrame = 0;
+    return;
+  }
+  if (!warnLastFrame || time - warnLastFrame >= 45) {
+    warnLastFrame = time;
+    warnPhase = time / 1000;
+    requestRender2D();
+  }
+  requestAnimationFrame(warnAnimStep);
+}
+function ensureWarnAnim() {
+  if (!warnAnimOn && warnShouldAnimate()) {
+    warnAnimOn = true;
+    requestAnimationFrame(warnAnimStep);
+  }
+}
+
+/* Put a world point in the middle of the plan view — used when a warning is
+   picked from the message list and the offending corner is off screen. */
+export function centerOn(x, z) {
+  if (!(S.SC > 0) || !(S.CW > 0) || !(S.CH > 0)) return;
+  S.OX = S.CW / 2 - x * S.SC;
+  S.OY = S.CH / 2 - z * S.SC;
+}
+/* Is this world point comfortably inside the visible plan? */
+export function isOnScreen(x, z, margin) {
+  var m = margin == null ? 60 : margin;
+  var px = sx(x),
+    py = sz(z);
+  return px > m && py > m && px < S.CW - m && py < S.CH - m;
+}
+
+export function sizeCanvas() {
+  var W = plan.clientWidth,
+    H = plan.clientHeight,
+    dpr = Math.min(window.devicePixelRatio, 2);
+    
+  if (S.CW && S.CH && W > 0 && H > 0) {
+    S.OX += (W - S.CW) / 2;
+    S.OY += (H - S.CH) / 2;
+  }
+
+  S.CW = W;
+  S.CH = H;
+  plan.width = W * dpr;
+  plan.height = H * dpr;
+  pc.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+export function fitView() {
+  sizeCanvas();
+  var bb = contentBounds(),
+    pad = 40;
+  var spanX = Math.max(bb.w, 50) + pad * 2,
+    spanZ = Math.max(bb.d, 50) + pad * 2;
+  S.SC = Math.min(S.CW / spanX, S.CH / spanZ);
+  S.OX = (S.CW - bb.w * S.SC) / 2 - bb.minx * S.SC;
+  S.OY = (S.CH - bb.d * S.SC) / 2 - bb.minz * S.SC;
+}
+// Re-center the plan content in the current canvas WITHOUT changing zoom.
+// Used on every size change (split-drag / window resize) so the model stays
+// centered instead of drifting toward a corner.
+export function centerContent() {
+  if (!(S.SC > 0) || !isFinite(S.SC)) return;
+  var bb = contentBounds();
+  S.OX = (S.CW - bb.w * S.SC) / 2 - bb.minx * S.SC;
+  S.OY = (S.CH - bb.d * S.SC) / 2 - bb.minz * S.SC;
+}
+// sx/sz map world→screen in the UNROTATED base frame. The plan view rotation is
+// applied as a canvas transform around the centre in render2D (see push/popPlan),
+// so drawing code keeps using sx/sz unchanged; only the world↔pixel inversion
+// (wx/wz) and the pan/zoom math need to account for the rotation.
+export function sx(x) {
+  return S.OX + x * S.SC;
+}
+export function sz(z) {
+  return S.OY + z * S.SC;
+}
+export function planRotRad() {
+  return ((S.planRot || 0) * Math.PI) / 180;
+}
+// invert the view rotation on a raw canvas pixel → base-frame pixel
+function unrotatePx(px, py) {
+  var a = -planRotRad();
+  if (!a) return { x: px, y: py };
+  var cx = S.CW / 2, cy = S.CH / 2, dx = px - cx, dy = py - cy;
+  return {
+    x: cx + dx * Math.cos(a) - dy * Math.sin(a),
+    y: cy + dx * Math.sin(a) + dy * Math.cos(a),
+  };
+}
+// wx/wz now take BOTH pixel coords because a rotated view couples the axes
+export function wx(px, py) {
+  var b = unrotatePx(px, py);
+  return (b.x - S.OX) / S.SC;
+}
+export function wz(px, py) {
+  var b = unrotatePx(px, py);
+  return (b.y - S.OY) / S.SC;
+}
+/* Where a newly created room/item should land, in world cm.
+
+   The natural answer is "the middle of what the user is looking at", i.e. the
+   plan's screen centre. But the plan canvas is `display:none` whenever the 2D
+   pane is hidden — 3D maximized on desktop, and the 3D tab on phones — and then
+   `S.CW/S.CH/S.SC` are all 0, so `wx()/wz()` divide by zero and hand back NaN.
+   That silently produced furniture at {x:NaN,z:NaN} (invisible, but still
+   counted in the cost estimate, and dropped on the next load) and rooms whose
+   four walls collapsed onto the origin after a save.
+
+   So: use the view centre only when the transform is actually usable, and
+   otherwise fall back to the model — the centre of the existing walls, or the
+   origin in an empty scene. Always returns finite numbers. */
+export function dropPoint() {
+  if (S.SC > 0 && S.CW > 0 && S.CH > 0) {
+    var x = wx(S.CW / 2, S.CH / 2),
+      z = wz(S.CW / 2, S.CH / 2);
+    if (isFinite(x) && isFinite(z)) return { x: x, z: z };
+  }
+  var n = S.nodes && S.nodes.length ? S.nodes.filter(function (p) {
+    return p && isFinite(p.x) && isFinite(p.z);
+  }) : [];
+  if (!n.length) return { x: 0, z: 0 };
+  var minx = Infinity, maxx = -Infinity, minz = Infinity, maxz = -Infinity;
+  n.forEach(function (p) {
+    if (p.x < minx) minx = p.x;
+    if (p.x > maxx) maxx = p.x;
+    if (p.z < minz) minz = p.z;
+    if (p.z > maxz) maxz = p.z;
+  });
+  return { x: (minx + maxx) / 2, z: (minz + maxz) / 2 };
+}
+
+// base-frame pixel of a raw canvas pixel (for rotation-aware pan/zoom)
+export function toBasePx(px, py) {
+  return unrotatePx(px, py);
+}
+/* ---- 2D plan view-orientation gizmo (axis indicator + click-to-rotate) ----
+   Top-down analog of the 3D ViewCube: an X/Z/Y axis marker that rotates with the
+   plan; clicking an axis rotates the plan so that axis points up (N/E/S/W-up),
+   centre (Y) resets to north-up. */
+var planGizmoNubs = [];
+export function initPlanGizmo() {
+  var host = document.getElementById("view-2d");
+  if (!host || host.querySelector(".plan-gizmo")) return;
+  var NS = "http://www.w3.org/2000/svg", C = 42, R = 27;
+  var el = document.createElement("div");
+  el.className = "view-gizmo plan-gizmo";
+  el.setAttribute("data-i18n-title", "gizmoHint2d");
+  el.title = "Click an axis to view that elevation · center = top (plan)";
+  var svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 0 84 84");
+  var g = document.createElementNS(NS, "g");
+  function line(x2, y2, col) {
+    var l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", C); l.setAttribute("y1", C); l.setAttribute("x2", x2); l.setAttribute("y2", y2);
+    l.setAttribute("stroke", col); l.setAttribute("stroke-width", 2); g.appendChild(l);
+  }
+  line(C + R, C, "#e0564f"); // X
+  line(C, C + R, "#4f8cf6"); // Z
+  planGizmoNubs = [];
+  // clicking an axis views the model as a flat elevation from that side; centre
+  // Y returns to the top-down plan
+  function nub(x, y, col, label, view) {
+    var grp = document.createElementNS(NS, "g");
+    grp.setAttribute("class", "gz-nub");
+    var c = document.createElementNS(NS, "circle");
+    c.setAttribute("cx", x); c.setAttribute("cy", y); c.setAttribute("r", label ? 8.5 : 7);
+    c.setAttribute("stroke", col);
+    grp.appendChild(c);
+    var tx = null;
+    if (label) {
+      tx = document.createElementNS(NS, "text");
+      tx.setAttribute("x", x); tx.setAttribute("y", y); tx.setAttribute("text-anchor", "middle");
+      tx.setAttribute("dy", "3.2"); tx.setAttribute("class", "gz-lbl"); tx.textContent = label;
+      grp.appendChild(tx);
+    }
+    grp.addEventListener("click", function (e) {
+      e.stopPropagation();
+      S.viewAxis = view;
+      render2D();
+      updatePlanGizmo();
+    });
+    g.appendChild(grp);
+    planGizmoNubs.push({ circle: c, text: tx, view: view, col: col, label: label });
+  }
+  nub(C + R, C, "#e0564f", "X", "right");
+  nub(C - R, C, "#e0564f", "", "left");
+  nub(C, C + R, "#4f8cf6", "Z", "front");
+  nub(C, C - R, "#4f8cf6", "", "back");
+  nub(C, C, "#3fa34d", "Y", "top");
+  svg.appendChild(g);
+  el.appendChild(svg);
+  host.appendChild(el);
+  updatePlanGizmo();
+}
+// highlight the active view's nub (filled) vs. inactive (hollow)
+export function updatePlanGizmo() {
+  var cur = S.viewAxis || "top";
+  planGizmoNubs.forEach(function (n) {
+    var active = n.view === cur;
+    n.circle.setAttribute("fill", active ? n.col : "#fff");
+    n.circle.setAttribute("stroke-width", active ? 2.4 : 1.6);
+    if (n.text) n.text.style.fill = active ? "#fff" : n.col;
+  });
+}
+
+// apply / remove the view-rotation canvas transform around the canvas centre
+function pushPlan() {
+  var a = planRotRad();
+  if (!a) return false;
+  pc.save();
+  pc.translate(S.CW / 2, S.CH / 2);
+  pc.rotate(a);
+  pc.translate(-S.CW / 2, -S.CH / 2);
+  return true;
+}
+
+function rr(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  pc.beginPath();
+  pc.moveTo(x + r, y);
+  pc.arcTo(x + w, y, x + w, y + h, r);
+  pc.arcTo(x + w, y + h, x, y + h, r);
+  pc.arcTo(x, y + h, x, y, r);
+  pc.arcTo(x, y, x + w, y, r);
+  pc.closePath();
+}
+
+// Real-world aerial + footprint underlay beneath the plan (js/site.js).
+// The aerial is centered on the pin (= content center + offset) and shares the
+// site's ground rotation; the footprint polygon is anchored at the same pin.
+function drawSiteUnderlay(bb) {
+  var st = S.site;
+  if (!st || !st.enabled || !st.show2D) return;
+  if (!(S.SC > 0) || !isFinite(S.SC)) return;
+  var cx = bb.cx + (st.offX || 0),
+    cz = bb.cz + (st.offZ || 0);
+  pc.save();
+  // Clip to the visible canvas FIRST. Without this, drawing the aerial at a
+  // large on-screen size makes the browser's image-smoothing path allocate a
+  // buffer sized to the full (unclipped) destination rect — tens of thousands
+  // of px per side when zoomed in — which hangs / OOMs the tab.
+  pc.beginPath();
+  pc.rect(0, 0, S.CW, S.CH);
+  pc.clip();
+  pc.translate(sx(cx), sz(cz));
+  // three Y-rotation is CCW from above; canvas +y points down -> negate.
+  pc.rotate((-(st.groundRot || 0) * Math.PI) / 180);
+  pc.scale(S.SC, S.SC); // work in world-cm inside this transform
+  var a = SITE.aerial;
+  if (a && a.canvas) {
+    pc.globalAlpha = st.opacity != null ? st.opacity : 0.85;
+    // nearest-neighbour on heavy upscale keeps drawImage cheap + allocation-free
+    pc.imageSmoothingEnabled = (a.wcm * S.SC) / a.canvas.width < 3;
+    pc.drawImage(a.canvas, -a.wcm / 2, -a.hcm / 2, a.wcm, a.hcm);
+    pc.globalAlpha = 1;
+  }
+  if (st.footprint && st.footprint.polygonLL && st.lat != null) {
+    pc.beginPath();
+    st.footprint.polygonLL.forEach(function (p, i) {
+      var l = llToLocalCm(p[0], p[1], st.lat, st.lon);
+      if (i) pc.lineTo(l.x, l.z);
+      else pc.moveTo(l.x, l.z);
+    });
+    pc.closePath();
+    pc.lineWidth = 6 / S.SC; // ~6 device px regardless of zoom
+    pc.strokeStyle = "#ff3b6b";
+    pc.setLineDash([18 / S.SC, 12 / S.SC]);
+    pc.stroke();
+    pc.setLineDash([]);
+  }
+  pc.restore();
+}
+
+export function render2D() {
+  pc.clearRect(0, 0, S.CW, S.CH);
+  if (isElevation()) {
+    drawElevation(pc); // orthographic side view
+    for (var ei = 0; ei < afterRender.length; ei++) afterRender[ei]();
+    return;
+  }
+  var rotated = pushPlan(); // rotate the whole plan view (CAD N/E/S/W-up)
+  var bb = contentBounds();
+  drawSiteUnderlay(bb);
+  // grid — extent = base-frame AABB of the (possibly rotated) canvas corners,
+  // so lines still cover the visible area after the view is rotated
+  pc.strokeStyle = "#e4dcc9";
+  pc.lineWidth = 1;
+  var step = S.SC < 0.45 ? 100 : 50;
+  var c0 = toBasePx(0, 0), c1 = toBasePx(S.CW, 0), c2 = toBasePx(0, S.CH), c3 = toBasePx(S.CW, S.CH);
+  var bxmin = Math.min(c0.x, c1.x, c2.x, c3.x), bxmax = Math.max(c0.x, c1.x, c2.x, c3.x);
+  var bymin = Math.min(c0.y, c1.y, c2.y, c3.y), bymax = Math.max(c0.y, c1.y, c2.y, c3.y);
+  var gx0 = Math.floor((bxmin - S.OX) / S.SC / step) * step,
+    gx1 = (bxmax - S.OX) / S.SC,
+    gz0 = Math.floor((bymin - S.OY) / S.SC / step) * step,
+    gz1 = (bymax - S.OY) / S.SC;
+  pc.beginPath();
+  for (var gx = gx0; gx <= gx1; gx += step) {
+    pc.moveTo(sx(gx), bymin);
+    pc.lineTo(sx(gx), bymax);
+  }
+  for (var gz = gz0; gz <= gz1; gz += step) {
+    pc.moveTo(bxmin, sz(gz));
+    pc.lineTo(bxmax, sz(gz));
+  }
+  pc.stroke();
+  drawReferenceFloor();
+  // room floors
+  var rooms = detectRooms();
+  var hid = hiddenSets(rooms);
+  rooms.forEach(function (r) {
+    pc.beginPath();
+    r.pts.forEach(function (p, i) {
+      var X = sx(p.x),
+        Y = sz(p.z);
+      if (i) pc.lineTo(X, Y);
+      else pc.moveTo(X, Y);
+    });
+    pc.closePath();
+    // A hidden room keeps a faint dashed outline: it is still selectable here,
+    // which is how you get to it to bring it back.
+    if (roomHidden(r.key)) {
+      pc.fillStyle = "rgba(150,146,138,.10)";
+      pc.fill();
+      pc.strokeStyle = "#9a9289";
+      pc.lineWidth = 1;
+      pc.setLineDash([4, 4]);
+      pc.stroke();
+      pc.setLineDash([]);
+    } else {
+      pc.fillStyle = FILL2D[roomFloor(r.key)] || "#efe7d6";
+      pc.fill();
+    }
+    if (S.sel && S.sel.kind === "room" && S.sel.ref === r.key) {
+      pc.strokeStyle = "#3f6b78";
+      pc.lineWidth = 2.5;
+      pc.setLineDash([8, 5]);
+      pc.stroke();
+      pc.setLineDash([]);
+    }
+  });
+  // items: rugs/island first, lamps on top
+  var order = S.items
+    .filter(function (it) {
+      return !hid.items[it.id];
+    })
+    .sort(function (a, b) {
+      return drawRank(a) - drawRank(b);
+    });
+  order.forEach(drawItem);
+  // walls
+  S.walls.forEach(function (w) {
+    if (!hid.walls[w.id]) drawWall(w);
+  });
+  // openings
+  S.openings.forEach(function (o) {
+    if (!hid.walls[o.wall]) drawOpening(o);
+  });
+  // live preview of a manual "open segment" on the selected wall
+  if (S.sel && S.sel.kind === "wall" && S.segPreview)
+    drawSegPreview(S.sel.ref, S.segPreview);
+  // "how far along this wall is the cursor" — above the walls, under everything
+  // that is being placed
+  drawWallProbe();
+  // the piece that just clicked into a snap, blinking so the jump is explained
+  drawSnapFlash();
+  // nodes
+  drawNodes(hid);
+  // MEP infrastructure overlay (pipes/cables + device markers + route HUD)
+  drawMEP(pc, sx, sz, label, mepFlowPhase, planRotRad());
+  ensureMEPAnim();
+  // placeholder points sit above everything they are measured against
+  drawMarkers();
+  // constraint-engine warnings: loose endpoints and joints that aren't square
+  drawWarnGlow();
+  ensureWarnAnim();
+  /* The piece the drag is about to land ON (js/stack.js). The plan is a view
+     from above, so a stacked piece would otherwise just cover its host with no
+     hint that anything happened — this outlines the host and says how high the
+     dropped piece will sit, which is the only cue the plan can give about the
+     axis it cannot draw. */
+  if (S.stackHost && S.items.indexOf(S.stackHost) !== -1) {
+    var hc = itemCorners(S.stackHost);
+    pc.save();
+    pc.beginPath();
+    hc.forEach(function (p, i) {
+      var X = sx(p.x), Z = sz(p.z);
+      if (i) pc.lineTo(X, Z); else pc.moveTo(X, Z);
+    });
+    pc.closePath();
+    pc.fillStyle = "rgba(60,150,235,.16)";
+    pc.fill();
+    pc.strokeStyle = "rgba(45,130,220,.95)";
+    pc.lineWidth = 2;
+    pc.setLineDash([6, 4]);
+    pc.stroke();
+    pc.setLineDash([]);
+    pc.restore();
+    label(
+      S.stackHost.x,
+      S.stackHost.z - 14 / S.SC,
+      t("stack_onTop", { h: Math.round(itemVSpan(S.stackHost).hi) }),
+      "rgba(45,130,220,.95)",
+    );
+  }
+  // smart-alignment guide lines (while dragging an item)
+  if (S.alignX != null || S.alignZ != null) {
+    pc.save();
+    pc.strokeStyle = "rgba(225,90,70,.85)";
+    pc.lineWidth = 1;
+    pc.setLineDash([5, 4]);
+    if (S.alignX != null) {
+      pc.beginPath();
+      pc.moveTo(sx(S.alignX), 0);
+      pc.lineTo(sx(S.alignX), S.CH);
+      pc.stroke();
+    }
+    if (S.alignZ != null) {
+      pc.beginPath();
+      pc.moveTo(0, sz(S.alignZ));
+      pc.lineTo(S.CW, sz(S.alignZ));
+      pc.stroke();
+    }
+    pc.setLineDash([]);
+    pc.restore();
+  }
+  drawWallCons();
+  drawWallAngleGuide();
+
+  // drafting guides while drawing/dragging a wall corner: a dashed run from the
+  // corner being aligned WITH to the point being placed, and a ring marking
+  // that corner, so it is obvious WHICH corner the endpoint is square to.
+  if (S.snapGuides && S.snapGuides.length) {
+    pc.save();
+    S.snapGuides.forEach(function (gd) {
+      var x1 = sx(gd.x1),
+        z1 = sz(gd.z1),
+        x2 = sx(gd.x2),
+        z2 = sz(gd.z2);
+      pc.strokeStyle = "rgba(225,90,70,.9)";
+      pc.lineWidth = 1.2;
+      pc.setLineDash([6, 4]);
+      pc.beginPath();
+      pc.moveTo(x1, z1);
+      pc.lineTo(x2, z2);
+      pc.stroke();
+      pc.setLineDash([]);
+      // the reference corner
+      pc.beginPath();
+      pc.arc(x1, z1, 5.5, 0, Math.PI * 2);
+      pc.stroke();
+      pc.fillStyle = "rgba(225,90,70,.28)";
+      pc.fill();
+      // the point being placed
+      pc.beginPath();
+      pc.arc(x2, z2, 3.5, 0, Math.PI * 2);
+      pc.fillStyle = "rgba(225,90,70,.95)";
+      pc.fill();
+    });
+    pc.restore();
+  }
+  // room name + area labels
+  rooms.forEach(function (r) {
+    var nm = roomName(r.key),
+      m2 = (r.area / 10000).toFixed(2),
+      isHid = roomHidden(r.key);
+    if (nm) label(r.cx, r.cz - 9, nm, isHid ? "#9a9289" : "#33312c", true);
+    if (S.showDims)
+      label(
+        r.cx,
+        r.cz + (nm ? 9 : 0),
+        m2 + " " + t("sqm"),
+        isHid ? "#a49c93" : "#46504f",
+        !nm,
+      );
+  });
+  if (S.showDims) {
+    var wb = wallBounds();
+    if (wb) drawOverallDims(wb);
+  }
+  drawWalker();
+  // wall-drawing rubber band
+  if (
+    S.tool === "wall" &&
+    S.drawing &&
+    S.drawFrom != null &&
+    S.nodes[S.drawFrom] &&
+    S.previewPt
+  ) {
+    var a = S.nodes[S.drawFrom];
+    pc.strokeStyle = "#3f6b78";
+    pc.lineWidth = 2;
+    pc.setLineDash([6, 5]);
+    pc.beginPath();
+    pc.moveTo(sx(a.x), sz(a.z));
+    pc.lineTo(sx(S.previewPt.x), sz(S.previewPt.z));
+    pc.stroke();
+    pc.setLineDash([]);
+    /* INTERIOR length, not centreline: the corners this wall starts from (and
+       lands on) already eat into it, so showing the raw node-to-node distance
+       promised a room that the finished wall would not deliver. */
+    var d = Math.round(
+      Math.max(
+        0,
+        Math.hypot(S.previewPt.x - a.x, S.previewPt.z - a.z) -
+          (S.interiorDims !== false ? pendingCuts(S.drawFrom, S.previewPt) : 0),
+      ),
+    );
+    /* Length AND bearing, the two numbers you are actually deciding. The
+       angle alone made "is this really square?" a guess; the status bar shows
+       the same pair, but at the cursor is where the eye already is. */
+    var brg = segBearing(a, S.previewPt);
+    label(
+      (a.x + S.previewPt.x) / 2,
+      (a.z + S.previewPt.z) / 2,
+      d + " " + t("cm") + "  ∠" + brg + "°",
+      "#3f6b78",
+    );
+    drawAngleArc(a, S.previewPt);
+  }
+  // Three-point arc-wall rubber band. First choose a through-point; the next
+  // move shows the exact circular wall, including its true centre-line length.
+  if (S.tool === "arcwall" && S.arcDraft && S.nodes[S.arcDraft.startNode] && S.previewPt) {
+    var arcStart = S.nodes[S.arcDraft.startNode], draftArc = S.arcDraft.through
+      ? makeArcFromThreePoints(arcStart, S.arcDraft.through, S.previewPt)
+      : null;
+    pc.save(); pc.strokeStyle = "#3f6b78"; pc.lineWidth = 2; pc.setLineDash([6, 5]); pc.beginPath();
+    if (draftArc) {
+      var arcSteps = Math.max(12, Math.ceil(draftArc.L / 20));
+      for (var ai = 0; ai <= arcSteps; ai++) {
+        var arcPoint = pointAtWall(draftArc, draftArc.L * ai / arcSteps);
+        if (ai) pc.lineTo(sx(arcPoint.x), sz(arcPoint.z)); else pc.moveTo(sx(arcPoint.x), sz(arcPoint.z));
+      }
+    } else {
+      pc.moveTo(sx(arcStart.x), sz(arcStart.z)); pc.lineTo(sx(S.previewPt.x), sz(S.previewPt.z));
+    }
+    pc.stroke(); pc.setLineDash([]); pc.restore();
+    if (S.arcDraft.through) {
+      pc.save(); pc.fillStyle = "#e0813a"; pc.beginPath();
+      pc.arc(sx(S.arcDraft.through.x), sz(S.arcDraft.through.z), 4, 0, Math.PI * 2); pc.fill(); pc.restore();
+    }
+    if (draftArc) label(S.previewPt.x, S.previewPt.z - 12 / S.SC,
+      Math.round(draftArc.L) + " " + t("cm") + "  R" + Math.round(draftArc.radius), "#3f6b78");
+  }
+  drawSnapMark();
+  // distance overlay drawn LAST so its labels sit above every other layer
+  drawMeasureOverlay();
+  /* Resting the cursor on a point reads it out on the spot — the same numbers
+     the inspector prints, without spending the selection (so a wall or room you
+     were editing stays selected while you check a point). Dead last, after even
+     the measurement labels: a card that a room's area label prints through is
+     unreadable. Only while idle on the select tool — mid-drag it would trail
+     the cursor across the geometry being edited. */
+  if (!S.action && S.tool === "select") {
+    if (S.hoverMarker && markers().indexOf(S.hoverMarker) !== -1)
+      markerCard(S.hoverMarker);
+    else if (S.hoverNode != null && S.nodes[S.hoverNode]) nodeCard(S.hoverNode);
+  }
+  if (rotated) pc.restore(); // end plan rotation — overlays below stay screen-fixed
+  drawNorth();
+  if (S.showDims) drawScale();
+  for (var ai = 0; ai < afterRender.length; ai++) afterRender[ai]();
+}
+
+/* Overlays that live in the DOM rather than on the canvas (the CAD status bar)
+   need to refresh in step with the drawing. Subscribing here rather than
+   having them poll is what keeps the numbers on the bar and the numbers on the
+   rubber band identical: interaction's pointermove is throttled, so anything
+   reading S from its own listener is a frame behind. */
+var afterRender = [];
+export function onAfterRender(fn) {
+  if (typeof fn === "function") afterRender.push(fn);
+}
+
+/* Bearing of a segment in whole degrees. Same convention as the inspector's
+   ANGLE field (js/ui_props.js): atan2(dz,dx), so 0 = east and a wall running
+   UP the plan reads -90. Two angle conventions in one editor is how a user
+   ends up not trusting either number, so this must not be "improved" to a
+   compass bearing without changing the inspector with it. */
+export function segBearing(a, b) {
+  return Math.round((Math.atan2(b.z - a.z, b.x - a.x) * 180) / Math.PI);
+}
+
+/* A small arc at the origin corner whenever the segment is locked to a
+   cardinal-ish bearing — the visual confirmation that the snap took, without
+   which a 90.0 and an 89.6 look identical on screen. */
+function drawAngleArc(a, p) {
+  var brg = segBearing(a, p);
+  if (brg % 15 !== 0) return;
+  var r = 22,
+    X = sx(a.x),
+    Y = sz(a.z);
+  var to = (brg * Math.PI) / 180;
+  pc.save();
+  pc.strokeStyle = brg % 90 === 0 ? "#e15a46" : "#3f6b78";
+  pc.lineWidth = 1.5;
+  pc.beginPath();
+  pc.arc(X, Y, r, Math.min(0, to), Math.max(0, to));
+  pc.stroke();
+  pc.restore();
+}
+
+/* Glyph naming WHICH snap caught the point, in the AutoCAD idiom: a square on
+   an endpoint, a triangle on a point along a wall, a cross on the grid. Until
+   this existed the cursor jumped and you had to infer why — the single most
+   common complaint about a snapping editor that gives no feedback. */
+function drawSnapMark() {
+  var si = S.snapInfo;
+  if (!si || !fin(si.x) || !fin(si.z)) return;
+  var live =
+    (S.tool === "wall" && S.drawing) ||
+    (S.tool === "arcwall" && S.arcDraft) ||
+    S.tool === "point" ||
+    S.action === "node" ||
+    S.action === "marker";
+  if (!live) return;
+  var X = sx(si.x),
+    Y = sz(si.z),
+    c = "#e15a46",
+    r = 6;
+  pc.save();
+  pc.strokeStyle = c;
+  pc.lineWidth = 2;
+  pc.beginPath();
+  if (si.type === "corner") pc.rect(X - r, Y - r, r * 2, r * 2);
+  else if (si.type === "marker") {
+    // a datum: the endpoint square, turned 45° so the two read apart at a glance
+    pc.moveTo(X, Y - r); pc.lineTo(X + r, Y);
+    pc.lineTo(X, Y + r); pc.lineTo(X - r, Y);
+    pc.closePath();
+  } else if (si.type === "itemCorner") {
+    // an L, the corner of the footprint it came from
+    pc.moveTo(X - r, Y + r); pc.lineTo(X - r, Y - r); pc.lineTo(X + r, Y - r);
+  } else if (si.type === "midpoint") pc.arc(X, Y, r, 0, Math.PI * 2);
+  else if (si.type === "wall") {
+    pc.moveTo(X - r, Y + r);
+    pc.lineTo(X, Y - r);
+    pc.lineTo(X + r, Y + r);
+    pc.closePath();
+  } else if (si.type === "perpendicular") {
+    pc.rect(X - r, Y - r, r, r);
+  } else if (si.type === "intersection" || si.type === "align" || si.type === "angle" ||
+             si.type === "ortho" || si.type === "bisector") {
+    pc.moveTo(X - r, Y - r);
+    pc.lineTo(X + r, Y + r);
+    pc.moveTo(X + r, Y - r);
+    pc.lineTo(X - r, Y + r);
+  } else if (si.type === "extension") {
+    pc.setLineDash([3, 2]); pc.arc(X, Y, r, 0, Math.PI * 2);
+  } else {
+    // grid / free: a light cross, deliberately quieter than a real object snap
+    pc.strokeStyle = "rgba(63,107,120,.75)";
+    pc.moveTo(X - 4, Y);
+    pc.lineTo(X + 4, Y);
+    pc.moveTo(X, Y - 4);
+    pc.lineTo(X, Y + 4);
+  }
+  pc.stroke();
+  pc.restore();
+}
+
+// Coalesce callers that only need the next visual frame. Direct render2D()
+// remains available for exports and operations that require an immediate canvas.
+var render2DQueued = false;
+export function requestRender2D() {
+  if (render2DQueued) return;
+  render2DQueued = true;
+  requestAnimationFrame(function () {
+    render2DQueued = false;
+    render2D();
+  });
+}
+function drawOverallDims(bb) {
+  pc.strokeStyle = "#9a8f78";
+  pc.fillStyle = "#6b6356";
+  pc.lineWidth = 1;
+  pc.lineCap = "butt";
+  var off = 18,
+    ext = 6;
+  var yT = sz(bb.minz) - off,
+    xA = sx(bb.minx),
+    xB = sx(bb.maxx);
+  dimLine(xA, yT, xB, yT, 0, ext, Math.round(bb.w) + "");
+  pc.beginPath();
+  pc.moveTo(xA, sz(bb.minz));
+  pc.lineTo(xA, yT - ext);
+  pc.moveTo(xB, sz(bb.minz));
+  pc.lineTo(xB, yT - ext);
+  pc.stroke();
+  var xL = sx(bb.minx) - off,
+    zA = sz(bb.minz),
+    zB = sz(bb.maxz);
+  dimLine(xL, zA, xL, zB, ext, 0, Math.round(bb.d) + "");
+  pc.beginPath();
+  pc.moveTo(sx(bb.minx), zA);
+  pc.lineTo(xL - ext, zA);
+  pc.moveTo(sx(bb.minx), zB);
+  pc.lineTo(xL - ext, zB);
+  pc.stroke();
+}
+// Decide what the distance overlay measures from, and render it. Runs on every
+// repaint (drawn last), so it's always visible: it follows the cursor over empty
+// floor (point origin) and snaps to an item's clearances when over/selecting one.
+function drawMeasureOverlay() {
+  if (S.action === "pan" || S.action === "pinch") return;
+  if (!(S.SC > 0) || !isFinite(S.SC)) return;
+  var origins = [],
+    seen = [];
+  function add(it, pt, skip) {
+    origins.push({ it: it, pt: pt, skip: skip || it || null });
+    if (it) seen.push(it);
+  }
+  // While drawing, the live endpoint is the point the user is positioning.
+  // It must keep its four clearance leaders even though the select tool is no
+  // longer active. Manual reference walls are also made unmistakable here.
+  if ((S.tool === "wall" && S.drawing && S.previewPt) ||
+      (S.tool === "arcwall" && S.arcDraft && S.previewPt)) {
+    add(null, S.previewPt);
+    if (S.measureTarget === "manual") {
+      pc.save();
+      pc.strokeStyle = "#d6336c";
+      pc.lineWidth = 4;
+      (S.measureWalls || []).forEach(function (id) {
+        var w = wallById(id), g = w && wallGeom(w);
+        if (!g) return;
+        pc.beginPath(); pc.moveTo(sx(g.a.x), sz(g.a.z)); pc.lineTo(sx(g.b.x), sz(g.b.z)); pc.stroke();
+      });
+      pc.restore();
+    }
+  }
+  // a selected item always shows its clearances (even mid-drag)
+  if (S.sel && S.sel.kind === "item") add(S.sel.ref, null);
+  /* Placeholder points are placed precisely so their clearances can be read,
+     so they carry the overlay permanently rather than only while hovered —
+     that IS the point of a point. `showDims` is the switch for anyone who
+     wants a quiet plan. An OCCUPIED point measures from its object's outer
+     edges rather than from the point: once something stands there, the useful
+     number is the clear space left around the thing, not the distance to a
+     dot buried inside it. */
+  markers().forEach(function (m) {
+    var selM =
+      (S.sel && S.sel.kind === "marker" && S.sel.ref === m) || S.hoverMarker === m;
+    if (!selM && !S.showDims) return;
+    var held = markerItem(m);
+    if (!held) add(null, m);
+    else if (seen.indexOf(held) === -1) add(held, null);
+  });
+  // plus the always-on cursor overlay when idle: over an item -> its clearances,
+  // over empty floor -> distances from the cursor point itself
+  if (!S.action && S.tool === "select") {
+    if (S.hoverItem) {
+      if (seen.indexOf(S.hoverItem) === -1) add(S.hoverItem, null);
+    } else if (S.hoverPt && !hitMarker(S.hoverPt.x, S.hoverPt.z)) {
+      // resting the cursor ON a point would draw a second, nearly identical set
+      // of leaders over the point's own — and the point's is the better one
+      // (it measures past the object standing there)
+      add(null, S.hoverPt);
+    }
+  }
+  origins.forEach(function (o) {
+    if (o.it) drawMeasureFrom(o.it.x, o.it.z, itemCorners(o.it), o.skip);
+    else drawMeasureFrom(o.pt.x, o.pt.z, null, o.skip);
+  });
+}
+// Dashed leaders from an origin (an item's edges, or a bare point when ownCs is
+// null) to the nearest object — wall inner face or another item's edge — along
+// +x/-x/+z/-z, each labelled with the gap in cm. The distances themselves come
+// from measure4 so the inspector can print the very same numbers. Leader lines
+// are drawn first, labels afterward so the numbers sit above every leader.
+function drawMeasureFrom(ox, oz, ownCs, skip) {
+  var labels = [];
+  pc.save();
+  pc.strokeStyle = "rgba(63, 107, 120, 0.7)";
+  pc.lineWidth = 1.5;
+  pc.setLineDash([4, 4]);
+  measure4(ox, oz, ownCs, skip, {
+    target: S.measureTarget || "nearest",
+    wallIds: S.measureWalls || []
+  }).forEach(function (r) {
+    var d = r.dir;
+    pc.beginPath();
+    pc.moveTo(sx(ox + d.dx * r.ownT), sz(oz + d.dz * r.ownT));
+    pc.lineTo(sx(ox + d.dx * r.hitT), sz(oz + d.dz * r.hitT));
+    pc.stroke();
+    labels.push({
+      x: ox + d.dx * (r.ownT + r.gap / 2),
+      z: oz + d.dz * (r.ownT + r.gap / 2),
+      txt: Math.round(r.gap) + "",
+    });
+  });
+  pc.restore();
+
+  // labels last -> above the leaders and every other layer
+  labels.forEach(function (l) {
+    label(l.x, l.z, l.txt, "#3f6b78", false);
+  });
+}
+
+/* ---- placeholder points ----
+   A crosshair target rather than a plain dot: the four arms are the same four
+   axes its clearances are measured along, so the glyph reads as "measured from
+   here". Hollow = free, filled = something is standing on it. */
+const MK_COL = "#d6336c";
+function markerGlyph(X, Y, filled, isSel) {
+  var R = isSel ? 9.5 : 8,
+    arm = R + (isSel ? 6 : 5);
+  pc.save();
+  pc.strokeStyle = MK_COL;
+  pc.lineWidth = isSel ? 2.2 : 1.6;
+  pc.setLineDash([]);
+  pc.beginPath();
+  pc.moveTo(X - arm, Y);
+  pc.lineTo(X - R + 1, Y);
+  pc.moveTo(X + R - 1, Y);
+  pc.lineTo(X + arm, Y);
+  pc.moveTo(X, Y - arm);
+  pc.lineTo(X, Y - R + 1);
+  pc.moveTo(X, Y + R - 1);
+  pc.lineTo(X, Y + arm);
+  pc.stroke();
+  pc.beginPath();
+  pc.arc(X, Y, R, 0, 7);
+  pc.fillStyle = filled ? MK_COL : "rgba(255,255,255,.85)";
+  pc.fill();
+  pc.stroke();
+  if (!filled) {
+    pc.beginPath();
+    pc.arc(X, Y, 2.4, 0, 7);
+    pc.fillStyle = MK_COL;
+    pc.fill();
+  }
+  pc.restore();
+}
+function drawMarkers() {
+  // the name sits DIAGONALLY off the glyph: the four axes are already occupied
+  // by this point's own clearance labels, and a name on top of a measurement
+  // hides the number the point exists to show
+  var off = 17 / (S.SC || 1);
+  markers().forEach(function (m) {
+    var isSel = S.sel && S.sel.kind === "marker" && S.sel.ref === m;
+    markerGlyph(sx(m.x), sz(m.z), !!markerItem(m), isSel);
+    // a point up a wall or on the ceiling looks identical from above, so its
+    // height rides on the label — otherwise the plan silently lies about it
+    var nm = markerLabel(m) + (m.y > 0.5 ? " ↑" + Math.round(m.y) : "");
+    label(m.x + off, m.z - off, nm, MK_COL, isSel);
+  });
+  // ghost of where the next point would land while the tool is armed
+  if (S.tool === "point" && S.markerPreview) {
+    pc.save();
+    pc.globalAlpha = 0.5;
+    markerGlyph(sx(S.markerPreview.x), sz(S.markerPreview.z), false, false);
+    pc.restore();
+  }
+}
+/* The hover read-out card for a point: everything the inspector prints, drawn
+   next to the glyph so a point can be checked without selecting it. */
+function markerCard(m) {
+  var info = markerInfo(m, ceilingHeight()),
+    held = info.held,
+    cm = t("cm");
+  var lines = [];
+  lines.push({ txt: markerLabel(m) + (held ? " · " + flabel(held.type) : ""), head: true });
+  lines.push({
+    txt:
+      Math.round(m.x) + ", " + Math.round(m.z) +
+      (info.y > 0.5 ? "  ↑" + Math.round(info.y) : "") +
+      "  " + t("mk_sf_" + (m.surface || "floor")),
+  });
+  var room = info.room ? info.roomName || t("room") : t("mk_outside");
+  if (info.near)
+    room += "  ·  " + flabel(info.near.item.type) + " " + Math.round(info.near.dist) + cm;
+  lines.push({ txt: room });
+  function g(k) {
+    return info.dm[k] == null ? "—" : Math.round(info.dm[k]);
+  }
+  lines.push({
+    txt: "↑" + g("n") + "  ↓" + g("s") + "  ←" + g("w") + "  →" + g("e") + "  " + cm,
+  });
+  if (info.tight.length)
+    lines.push({
+      txt: t("mk_tight", {
+        req: Math.round(m.req),
+        sides: info.tight.map(function (k) { return t("mk_dir_" + k); }).join(", "),
+      }),
+      warn: true,
+    });
+  else if (m.req != null) lines.push({ txt: t("mk_req") + ": " + Math.round(m.req) + cm });
+  if (m.note) lines.push({ txt: m.note });
+
+  infoCard(m.x, m.z, lines);
+}
+
+/* Everything a corner has to say, next to the corner: which walls meet here,
+   how long they are and which way they run, plus the angle between them —
+   flagged when it is neither square nor a straight run, the same complaint the
+   warning list makes, at the place the eye already is. */
+function nodeCard(ni) {
+  var info = jointInfo(ni);
+  if (!info) return;
+  var cm = t("cm"),
+    lines = [];
+  lines.push({
+    txt: t("nd_title") + " · " + Math.round(info.x) + ", " + Math.round(info.z),
+    head: true,
+  });
+  lines.push({
+    txt: info.open ? t("nd_open") : t("nd_walls", { n: info.arms.length }),
+    warn: info.open,
+  });
+  info.arms.forEach(function (arm) {
+    lines.push({
+      txt:
+        t("wall") + " " + arm.wall.id + "  " + Math.round(arm.len) + cm +
+        "  " + Math.round(arm.ang) + "°",
+    });
+  });
+  info.gaps.forEach(function (g) {
+    var deg = Math.round(g.deg * 10) / 10,
+      square = Math.abs(deg - 90) < 0.5 || Math.abs(deg - 270) < 0.5,
+      straight = Math.abs(deg - 180) < 0.5;
+    lines.push({
+      txt: g.a.id + " ↔ " + g.b.id + "  " + deg + "°",
+      warn: !square && !straight,
+    });
+  });
+  infoCard(info.x, info.z, lines, "#2c5560");
+}
+
+/* The card itself: drawn in screen space next to a world point, kept upright
+   against plan rotation (same trick as label), and nudged back inside the
+   canvas near an edge — a card that runs off the pane is worse than no card. */
+function infoCard(wxc, wzc, lines, col) {
+  col = col || MK_COL;
+  var X = sx(wxc), Y = sz(wzc), a = planRotRad();
+  pc.save();
+  if (a) { pc.translate(X, Y); pc.rotate(-a); pc.translate(-X, -Y); }
+  pc.textBaseline = "middle";
+  pc.textAlign = "left";
+  var padX = 8, padY = 6, lh = 14, w = 0;
+  lines.forEach(function (l) {
+    pc.font = (l.head ? "bold 11px" : "10px") + " Arial";
+    w = Math.max(w, pc.measureText(l.txt).width);
+  });
+  var bw = w + padX * 2,
+    bh = lines.length * lh + padY * 2,
+    bx = X + 16,
+    by = Y + 16;
+  // flip to the other side of the glyph rather than hang off the pane
+  if (bx + bw > (S.CW || plan.width) - 4) bx = X - 16 - bw;
+  if (by + bh > (S.CH || plan.height) - 4) by = Y - 16 - bh;
+  if (bx < 4) bx = 4;
+  if (by < 4) by = 4;
+  pc.fillStyle = "rgba(255,255,255,.95)";
+  pc.strokeStyle = col;
+  pc.lineWidth = 1.2;
+  pc.setLineDash([]);
+  pc.beginPath();
+  pc.rect(bx, by, bw, bh);
+  pc.fill();
+  pc.stroke();
+  lines.forEach(function (l, i) {
+    pc.font = (l.head ? "bold 11px" : "10px") + " Arial";
+    pc.fillStyle = l.head ? col : l.warn ? "#c92a2a" : "#33312c";
+    pc.fillText(l.txt, bx + padX, by + padY + i * lh + lh / 2);
+  });
+  pc.restore();
+}
+
+function dimLine(x0, y0, x1, y1, ax, ay, txt) {
+  pc.beginPath();
+  pc.moveTo(x0, y0);
+  pc.lineTo(x1, y1);
+  pc.moveTo(x0 - ax, y0 - ay);
+  pc.lineTo(x0 + ax, y0 + ay);
+  pc.moveTo(x1 - ax, y1 - ay);
+  pc.lineTo(x1 + ax, y1 + ay);
+  pc.stroke();
+  pc.save();
+  pc.font = "10px Arial";
+  pc.textAlign = "center";
+  pc.textBaseline = "middle";
+  var mx = (x0 + x1) / 2,
+    my = (y0 + y1) / 2,
+    tw = pc.measureText(txt).width;
+  pc.fillStyle = "rgba(255,255,255,.85)";
+  pc.fillRect(mx - tw / 2 - 3, my - 7, tw + 6, 14);
+  pc.fillStyle = "#6b6356";
+  pc.fillText(txt, mx, my);
+  pc.restore();
+}
+// You-are-here indicator for walk (fpv/tpv) mode: dot + view cone at the
+// walker's plan position, pointing where the 3D camera looks. World dir is
+// (sin yaw, cos yaw) in (x,z); canvas x→right, z→down maps it 1:1.
+function drawWalker() {
+  var w = S.walk2D;
+  if (!w) return;
+  var X = sx(w.x),
+    Y = sz(w.z),
+    dx = Math.sin(w.yaw),
+    dy = Math.cos(w.yaw),
+    half = Math.PI / 6, // 30° half-angle view cone
+    R = 46;
+  pc.save();
+  // view cone
+  var a0 = Math.atan2(dy, dx) - half,
+    a1 = Math.atan2(dy, dx) + half;
+  var grad = pc.createRadialGradient(X, Y, 4, X, Y, R);
+  grad.addColorStop(0, "rgba(63,107,120,.45)");
+  grad.addColorStop(1, "rgba(63,107,120,0)");
+  pc.beginPath();
+  pc.moveTo(X, Y);
+  pc.arc(X, Y, R, a0, a1);
+  pc.closePath();
+  pc.fillStyle = grad;
+  pc.fill();
+  // body dot
+  pc.beginPath();
+  pc.arc(X, Y, 6, 0, 7);
+  pc.fillStyle = "#3f6b78";
+  pc.fill();
+  pc.lineWidth = 2;
+  pc.strokeStyle = "#fff";
+  pc.stroke();
+  pc.restore();
+}
+
+// repaint the plan while the user walks/turns in 3D so the indicator tracks
+// live (rAF-throttled; walk:look fires on every camera move in walk mode)
+var walkRepaintQueued = false;
+window.addEventListener("walk:look", function () {
+  if (walkRepaintQueued) return;
+  walkRepaintQueued = true;
+  requestAnimationFrame(function () {
+    walkRepaintQueued = false;
+    render2D();
+  });
+});
+
+function drawNorth() {
+  var x = 28,
+    y = 34,
+    // needle tracks the plan rotation so it keeps pointing at the drawing's north
+    a = ((S.northAngle + (S.planRot || 0)) * Math.PI) / 180;
+  pc.save();
+  pc.beginPath();
+  pc.arc(x, y, 15, 0, 7);
+  pc.fillStyle = "rgba(255,255,255,.8)";
+  pc.fill();
+  pc.lineWidth = 1;
+  pc.strokeStyle = "#6b6356";
+  pc.stroke();
+  pc.save();
+  pc.translate(x, y);
+  pc.rotate(a);
+  pc.beginPath();
+  pc.moveTo(0, -12);
+  pc.lineTo(-5, 2);
+  pc.lineTo(0, -1);
+  pc.lineTo(5, 2);
+  pc.closePath();
+  pc.fillStyle = "#c0563b";
+  pc.fill();
+  pc.restore();
+  var tx = x + Math.sin(a) * 22,
+    ty = y - Math.cos(a) * 22;
+  pc.fillStyle = "#33312c";
+  pc.font = "bold 10px Arial";
+  pc.textAlign = "center";
+  pc.textBaseline = "middle";
+  pc.fillText(t("n_letter"), tx, ty);
+  pc.restore();
+}
+function drawScale() {
+  if (!(S.SC > 0) || !isFinite(S.SC)) return;
+  var nice = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000],
+    cm = nice[0];
+  for (var i = 0; i < nice.length; i++) {
+    var px = nice[i] * S.SC;
+    if (px >= 55 && px <= 170) {
+      cm = nice[i];
+    }
+    if (px > 170) break;
+  }
+  var w = cm * S.SC,
+    x0 = S.CW - w - 16,
+    // clear of the CAD status bar pinned along the bottom edge (js/cad_hud.js)
+    y0 = S.CH - 18 - 30,
+    seg = 4,
+    sw = w / seg;
+  pc.save();
+  pc.fillStyle = "rgba(255,255,255,.7)";
+  pc.fillRect(x0 - 6, y0 - 13, w + 12, 26);
+  for (var s = 0; s < seg; s++) {
+    pc.fillStyle = s % 2 ? "#fff" : "#33312c";
+    pc.fillRect(x0 + s * sw, y0 - 4, sw, 5);
+  }
+  pc.strokeStyle = "#33312c";
+  pc.lineWidth = 1;
+  pc.strokeRect(x0, y0 - 4, w, 5);
+  pc.fillStyle = "#33312c";
+  pc.font = "10px Arial";
+  pc.textAlign = "left";
+  pc.textBaseline = "middle";
+  pc.fillText(
+    cm >= 100 ? cm / 100 + " " + t("m_unit") : cm + " " + t("cm"),
+    x0,
+    y0 + 8,
+  );
+  pc.restore();
+}
+function drawRank(it) {
+  return isLamp(it) ? 3 : it.type === "rug" ? 0 : it.type === "island" ? 1 : 2;
+}
+
+function drawWall(w) {
+  ensureWallTypes(S);
+  normalizeWall(w, S);
+  var gm = wallGeom(w),
+    isSel = S.sel && ((S.sel.kind === "wall" && S.sel.ref === w) ||
+      (S.sel.kind === "walls" && S.sel.refs.indexOf(w) !== -1));
+  /* Filled as a MITERED quad, not a thick stroke: a stroke can only end square
+     across its own direction, which at anything but a right-angle corner
+     leaves a wedge of daylight on the outside and a lump on the inside. */
+  var col = isSel ? "#3f6b78" : "#7a7060",
+    kind = normalizeWallKind(w),
+    phase = w.phase || "new";
+  if (kind === "roomDivider") {
+    pc.save();
+    pc.strokeStyle = isSel ? "#3f6b78" : "rgba(91,122,134,.72)";
+    pc.lineWidth = isSel ? 2.5 : 1.5;
+    pc.setLineDash([7, 5]);
+    traceWallCentre(w);
+    pc.stroke();
+    pc.restore();
+    return;
+  }
+  if (w.thickness * S.SC < 3) {
+    pc.lineCap = "butt";
+    pc.lineWidth = 3;
+    pc.strokeStyle = col;
+    traceWallCentre(w);
+    pc.stroke();
+  } else {
+    var bands = wallLayerBands(w, S);
+    bands.forEach(function (band) {
+      var out = wallBandPolygon(w, band.start, band.end);
+      pc.fillStyle = phase === "demolition" || phase === "demolish"
+        ? "rgba(194,76,67,.25)"
+        : (band.color || col);
+      pc.beginPath();
+      out.forEach(function (p, i) {
+        if (i) pc.lineTo(sx(p.x), sz(p.z));
+        else pc.moveTo(sx(p.x), sz(p.z));
+      });
+      pc.closePath(); pc.fill();
+      pc.strokeStyle = "rgba(80,73,64,.35)"; pc.lineWidth = .65; pc.stroke();
+    });
+    if (isSel || phase === "demolition" || phase === "demolish") {
+      var outline = wallOutline(w);
+      pc.save();
+      pc.strokeStyle = isSel ? "#3f6b78" : "#b43d35";
+      pc.lineWidth = isSel ? 2.3 : 1.7;
+      if (phase === "demolition" || phase === "demolish") pc.setLineDash([8, 5]);
+      pc.beginPath();
+      outline.forEach(function (p, i) { if (i) pc.lineTo(sx(p.x), sz(p.z)); else pc.moveTo(sx(p.x), sz(p.z)); });
+      pc.closePath(); pc.stroke(); pc.restore();
+    }
+  }
+  // the half a typed length/angle edit will move: locked pick (solid) or the
+  // half merely under the cursor (dashed preview)
+  if (isSel) {
+    var half = S.wallEditEnd === "a" || S.wallEditEnd === "b" ? S.wallEditEnd : null;
+    var locked = !!half || S.wallEditEnd === "mid";
+    if (!half && !locked) half = S.wallHoverHalf;
+    var mid = { x: (gm.a.x + gm.b.x) / 2, z: (gm.a.z + gm.b.z) / 2 };
+    var ends = S.wallEditEnd === "mid" ? ["a", "b"] : half ? [half] : [];
+    ends.forEach(function (h) {
+      var p = h === "a" ? gm.a : gm.b;
+      pc.save();
+      pc.lineCap = "butt";
+      pc.lineWidth = Math.max(w.thickness * S.SC, 3);
+      pc.strokeStyle = locked ? "#e0813a" : "rgba(224,129,58,.55)";
+      if (!locked) pc.setLineDash([6, 4]);
+      pc.beginPath();
+      pc.moveTo(sx(mid.x), sz(mid.z));
+      pc.lineTo(sx(p.x), sz(p.z));
+      pc.stroke();
+      pc.restore();
+    });
+  }
+  /* The dimension is drawn ON THE FACE it is measured along (js/geometry.js
+     wallDimSide), with a witness tick at each measured end. Which face a
+     number belongs to is a real 10 cm question at every corner, so it is shown
+     rather than left to be assumed. */
+  if (S.showDims && S.SC > 0.32) {
+    var side = wallDimSide(w),
+      c = wallCuts(w),
+      face = side ? w.thickness / 2 : 0, // centreline dims sit on the wall
+      p0 = wallPointAt(w, c.a), p1 = wallPointAt(w, gm.L - c.b),
+      t0 = wallTangentAt(w, c.a), t1 = wallTangentAt(w, gm.L - c.b),
+      n0 = { x: -t0.z * (side || 1), z: t0.x * (side || 1) },
+      n1 = { x: -t1.z * (side || 1), z: t1.x * (side || 1) };
+    pc.save();
+    pc.strokeStyle = isSel ? "#2c5560" : "rgba(107,99,86,.55)";
+    pc.lineWidth = 1;
+    pc.beginPath();
+    [[p0,n0], [p1,n1]].forEach(function (entry) {
+      var p = entry[0], n = entry[1];
+      pc.moveTo(sx(p.x + n.x * (face - 1)), sz(p.z + n.z * (face - 1)));
+      pc.lineTo(sx(p.x + n.x * (face + 9)), sz(p.z + n.z * (face + 9)));
+    });
+    var dimSteps = gm.kind === "arc" ? Math.max(12, Math.ceil(gm.L / 25)) : 1;
+    for (var di = 0; di <= dimSteps; di++) {
+      var ds = c.a + (gm.L - c.a - c.b) * di / dimSteps,
+        dp = wallPointAt(w, ds), dt = wallTangentAt(w, ds), dn = { x: -dt.z * (side || 1), z: dt.x * (side || 1) };
+      if (di) pc.lineTo(sx(dp.x + dn.x * (face + 4)), sz(dp.z + dn.z * (face + 4)));
+      else pc.moveTo(sx(dp.x + dn.x * (face + 4)), sz(dp.z + dn.z * (face + 4)));
+    }
+    pc.stroke();
+    pc.restore();
+    /* The selected wall also gets the measured face itself drawn on, end to
+       end. "Which line is this number the length of" is the question the whole
+       reference-face setting exists to answer, and a witness tick at each end
+       only answers it once you already know where to look. A centreline
+       dimension (side 0) shows the centreline for the same reason: without it
+       the number simply floated over the wall with nothing to point at. */
+    if (isSel) {
+      pc.save();
+      pc.strokeStyle = "#2c5560";
+      pc.lineWidth = 2;
+      pc.setLineDash(side ? [] : [6, 4]);
+      pc.beginPath();
+      for (var si = 0; si <= dimSteps; si++) {
+        var ss = c.a + (gm.L - c.a - c.b) * si / dimSteps,
+          sp = wallPointAt(w, ss), st = wallTangentAt(w, ss), sn = { x: -st.z * (side || 1), z: st.x * (side || 1) };
+        if (si) pc.lineTo(sx(sp.x + sn.x * face), sz(sp.z + sn.z * face));
+        else pc.moveTo(sx(sp.x + sn.x * face), sz(sp.z + sn.z * face));
+      }
+      pc.stroke();
+      pc.restore();
+    }
+    var off = face + 12, midS = (c.a + gm.L - c.b) / 2,
+      midP = wallPointAt(w, midS), midT = wallTangentAt(w, midS), midN = { x: -midT.z * (side || 1), z: midT.x * (side || 1) };
+    label(
+      midP.x + midN.x * off,
+      midP.z + midN.z * off,
+      Math.round(wallClearLength(w)) + "",
+      isSel ? "#2c5560" : "#6b6356",
+    );
+  }
+}
+
+function traceWallCentre(w) {
+  var g = wallGeom(w), steps = g.kind === "arc" ? Math.max(12, Math.ceil(g.L / 25)) : 1;
+  pc.beginPath();
+  for (var i = 0; i <= steps; i++) {
+    var p = wallPointAt(w, g.L * i / steps);
+    if (!p) continue;
+    if (i) pc.lineTo(sx(p.x), sz(p.z)); else pc.moveTo(sx(p.x), sz(p.z));
+  }
+}
+
+function wallBandPolygon(w, from, to) {
+  var g = wallGeom(w), steps = g.kind === "arc" ? Math.max(12, Math.ceil(g.L / 20)) : 1,
+    a = [], b = [];
+  for (var i = 0; i <= steps; i++) {
+    var s = g.L * i / steps, p = wallPointAt(w, s), tng = wallTangentAt(w, s);
+    if (!p || !tng) continue;
+    var nx = -tng.z, nz = tng.x;
+    a.push({ x: p.x + nx * from, z: p.z + nz * from });
+    b.push({ x: p.x + nx * to, z: p.z + nz * to });
+  }
+  return a.concat(b.reverse());
+}
+
+function drawReferenceFloor() {
+  var scene = referenceFloorScene(S.workspace);
+  if (!scene) return;
+  var spatial = scene.spatial || scene,
+    nodes = spatial.nodes || [], walls = spatial.walls || [];
+  pc.save();
+  pc.globalAlpha = .42;
+  pc.strokeStyle = "#6b67a8";
+  pc.fillStyle = "rgba(107,103,168,.10)";
+  pc.setLineDash([7, 5]);
+  walls.forEach(function (w) {
+    var poly = curvedWallOutline(w, w.thickness || 10, nodes, 20);
+    if (!poly.length) return;
+    pc.beginPath();
+    poly.forEach(function (p, i) { if (i) pc.lineTo(sx(p.x), sz(p.z)); else pc.moveTo(sx(p.x), sz(p.z)); });
+    pc.closePath(); pc.fill(); pc.stroke();
+  });
+  pc.restore();
+}
+/* A piece that just snapped blinks for a moment (js/interaction.js sets
+   S.snapFlash). Without it the piece simply JUMPS and the editor looks like it
+   moved something on its own; with it, the jump has a visible cause. The pulse
+   fades out and the last frame clears the flag, so nothing keeps repainting. */
+var snapFlashT = 0;
+function drawSnapFlash() {
+  var f = S.snapFlash;
+  if (!f) return;
+  var left = f.until - Date.now();
+  if (left <= 0) {
+    S.snapFlash = null;
+    return;
+  }
+  var it = null;
+  for (var i = 0; i < S.items.length; i++)
+    if (S.items[i].id === f.id) { it = S.items[i]; break; }
+  if (!it) return;
+  var pts = itemCorners(it);
+  pc.save();
+  pc.globalAlpha = Math.max(0, Math.min(1, left / 300));
+  pc.strokeStyle = "#e0813a";
+  pc.fillStyle = "rgba(224,129,58,.22)";
+  pc.lineWidth = 2.4;
+  pc.beginPath();
+  pts.forEach(function (p, k) {
+    if (k) pc.lineTo(sx(p.x), sz(p.z));
+    else pc.moveTo(sx(p.x), sz(p.z));
+  });
+  pc.closePath();
+  pc.fill();
+  pc.stroke();
+  pc.restore();
+  // keep the fade going without owning an animation loop
+  if (!snapFlashT)
+    snapFlashT = setTimeout(function () {
+      snapFlashT = 0;
+      render2D();
+    }, 60);
+}
+
+/* A translated chamfer has one angle at each end.  Near the equal-angle locus
+   draw both arcs together; before the catch, an arrow says which way to move,
+   and after the deliberately weak snap, matching double ticks pulse briefly.
+   Keeping this on the canvas (rather than a tooltip at the pointer) lets the
+   user watch the actual joints while dragging the wall body. */
+var wallAngleGuideT = 0;
+function drawWallAngleGuide() {
+  var gd = S.wallAngleGuide;
+  if (!gd || !gd.wall || !gd.pair) return;
+  var lingering = S.action !== "wall" && gd.snapped && gd.until > Date.now();
+  if (S.action !== "wall" && !lingering) {
+    S.wallAngleGuide = null;
+    return;
+  }
+  var w = gd.wall,
+    a = S.nodes[w.a],
+    b = S.nodes[w.b],
+    pa = S.nodes[gd.pair.a.other],
+    pb = S.nodes[gd.pair.b.other];
+  if (!a || !b || !pa || !pb) return;
+  var pulse = gd.snapped ? 0.72 + 0.28 * Math.sin(Date.now() / 85) : 0.72,
+    color = gd.snapped ? "224,129,58" : "63,107,120",
+    radius = 25;
+
+  function shortArc(p, q1, q2, angleValue) {
+    var s = Math.atan2(q1.z - p.z, q1.x - p.x),
+      e = Math.atan2(q2.z - p.z, q2.x - p.x),
+      d = e - s;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    var X = sx(p.x),
+      Y = sz(p.z);
+    pc.beginPath();
+    pc.arc(X, Y, radius, s, s + d, d < 0);
+    pc.stroke();
+    var mid = s + d / 2,
+      lx = p.x + (Math.cos(mid) * (radius + 13)) / S.SC,
+      lz = p.z + (Math.sin(mid) * (radius + 13)) / S.SC;
+    label(lx, lz, Math.round(angleValue) + "°", "rgb(" + color + ")");
+    if (gd.snapped) {
+      // identical double witness ticks on both arcs are the CAD convention for
+      // equality; their pulse is the small animation confirming the catch.
+      [-2.5, 2.5].forEach(function (off) {
+        var rr = radius + off,
+          tx = X + Math.cos(mid) * rr,
+          ty = Y + Math.sin(mid) * rr,
+          nx = Math.cos(mid),
+          ny = Math.sin(mid);
+        pc.beginPath();
+        pc.moveTo(tx - nx * 3.5, ty - ny * 3.5);
+        pc.lineTo(tx + nx * 3.5, ty + ny * 3.5);
+        pc.stroke();
+      });
+    }
+  }
+
+  pc.save();
+  pc.strokeStyle = "rgba(" + color + "," + pulse + ")";
+  pc.fillStyle = "rgba(" + color + "," + pulse + ")";
+  pc.lineWidth = gd.snapped ? 2.4 : 1.5;
+  pc.setLineDash(gd.snapped ? [] : [5, 4]);
+  shortArc(a, b, pa, gd.angleA);
+  shortArc(b, a, pb, gd.angleB);
+  pc.setLineDash([]);
+
+  var mx = (a.x + b.x) / 2,
+    mz = (a.z + b.z) / 2;
+  if (!gd.snapped) {
+    var dl = Math.hypot(gd.correctionX, gd.correctionZ);
+    if (dl > 0.001) {
+      var ux = gd.correctionX / dl,
+        uz = gd.correctionZ / dl,
+        X = sx(mx),
+        Y = sz(mz),
+        ex = X + ux * 22,
+        ey = Y + uz * 22;
+      pc.beginPath();
+      pc.moveTo(X, Y);
+      pc.lineTo(ex, ey);
+      pc.lineTo(ex - ux * 7 - uz * 4, ey - uz * 7 + ux * 4);
+      pc.moveTo(ex, ey);
+      pc.lineTo(ex - ux * 7 + uz * 4, ey - uz * 7 - ux * 4);
+      pc.stroke();
+    }
+  }
+  pc.restore();
+  var wg = wallGeom(w),
+    gnx = -wg.uz,
+    gnz = wg.ux,
+    neighbourMidX = (pa.x + pb.x) / 2,
+    neighbourMidZ = (pa.z + pb.z) / 2,
+    openSide =
+      (neighbourMidX - mx) * gnx + (neighbourMidZ - mz) * gnz > 0 ? -1 : 1,
+    badgeOff = (42 * openSide) / S.SC;
+  // In split view a wall can sit less than 42 px from the canvas edge. Keep
+  // the confirmation visible by using the other face when the open side would
+  // be clipped (the larger offset still clears the wall's own dimension).
+  var badgeX = mx + gnx * badgeOff,
+    badgeZ = mz + gnz * badgeOff,
+    badgePx = sx(badgeX),
+    badgePy = sz(badgeZ);
+  if (badgePx < 24 || badgePx > S.CW - 24 || badgePy < 18 || badgePy > S.CH - 18) {
+    badgeOff *= -1;
+    badgeX = mx + gnx * badgeOff;
+    badgeZ = mz + gnz * badgeOff;
+  }
+  label(
+    badgeX,
+    badgeZ,
+    gd.snapped
+      ? t("snap_symmetry", { a: Math.round(gd.angleA) })
+      : t("snap_symmetry_move", { d: Math.max(1, Math.round(Math.abs(gd.angleA - gd.angleB))) }),
+    "rgb(" + color + ")",
+    gd.snapped,
+  );
+
+  if (gd.snapped && !wallAngleGuideT)
+    wallAngleGuideT = setTimeout(function () {
+      wallAngleGuideT = 0;
+      requestRender2D();
+    }, 45);
+}
+
+/* Where the cursor sits along the wall it is over, as the pair of distances a
+   tape measure would give: start→here and here→end (interior, so the two add up
+   to the wall's own label). Drawn for hovering, for dragging a piece and for
+   drawing the next wall, because that is exactly when the question comes up. */
+function drawWallProbe() {
+  var wp = S.wallProbe;
+  if (!wp || !wp.wall || S.walls.indexOf(wp.wall) === -1) return;
+  var w = wp.wall,
+    gm = wallGeom(w);
+  var X = sx(wp.x),
+    Y = sz(wp.z),
+    // the tick across the wall, a little proud of it on both faces
+    ext = (w.thickness / 2 + 5) * S.SC,
+    nx = -gm.uz * ext,
+    nz = gm.ux * ext;
+  pc.save();
+  pc.strokeStyle = "#e0813a";
+  pc.lineWidth = 1.4;
+  pc.setLineDash([4, 3]);
+  pc.beginPath();
+  pc.moveTo(X + nx, Y + nz);
+  pc.lineTo(X - nx, Y - nz);
+  pc.stroke();
+  pc.setLineDash([]);
+  pc.restore();
+  // each number sits on its own half, offset off the wall so it never covers it
+  var off = 16 / (S.SC || 1);
+  label(
+    (gm.a.x + wp.x) / 2 - gm.uz * off,
+    (gm.a.z + wp.z) / 2 + gm.ux * off,
+    Math.round(wp.fromA) + "",
+    "#b35f19",
+  );
+  label(
+    (wp.x + gm.b.x) / 2 - gm.uz * off,
+    (wp.z + gm.b.z) / 2 + gm.ux * off,
+    Math.round(wp.toB) + "",
+    "#b35f19",
+  );
+}
+function drawOpening(o) {
+  var w = wallById(o.wall);
+  if (!w) return;
+  var gm = wallGeom(w);
+  var s = clamp(o.s, o.width / 2, gm.L - o.width / 2);
+  var centre = wallPointAt(w, s), tangent = wallTangentAt(w, s),
+    cx = centre.x, cz = centre.z;
+  var isSel = S.sel && S.sel.kind === "opening" && S.sel.ref === o;
+  pc.save();
+  pc.translate(sx(cx), sz(cz));
+  pc.rotate(Math.atan2(tangent.z, tangent.x));
+  var hw = (o.width / 2) * S.SC,
+    ht = (w.thickness / 2 + 1) * S.SC;
+  pc.fillStyle = "#efe7d6";
+  pc.fillRect(-hw, -ht, hw * 2, ht * 2);
+  if (o.type === "door") {
+    if (o.isSliding || o.isPocket) {
+      var isPocket = !!o.isPocket;
+      var py = isPocket ? 0 : 2; // pocket inside wall (0), sliding outside (2)
+      
+      var spaceLeft = s - o.width / 2;
+      var spaceRight = gm.L - (s + o.width / 2);
+      var canLeft = spaceLeft >= o.width - 10;
+      var canRight = spaceRight >= o.width - 10;
+      var slideDir = 1;
+      if (o.slideDir === "-1") slideDir = -1;
+      else if (o.slideDir === "1") slideDir = 1;
+      else slideDir = canRight ? 1 : (canLeft ? -1 : 1);
+      
+      var spaceError = (slideDir === 1 && !canRight) || (slideDir === -1 && !canLeft);
+
+      pc.fillStyle = "#fff";
+      pc.fillRect(-hw, isPocket ? -2 : 0, hw * 2, 4);
+      pc.strokeStyle = isSel ? "#3f6b78" : "#5b7a86";
+      pc.lineWidth = 1.5;
+      pc.strokeRect(-hw, isPocket ? -2 : 0, hw * 2, 4);
+
+      pc.beginPath();
+      if (slideDir === 1) {
+        pc.moveTo(-hw, py);
+        pc.lineTo(hw + Math.min(hw * 2, spaceRight * S.SC), py);
+      } else {
+        pc.moveTo(hw, py);
+        pc.lineTo(-hw - Math.min(hw * 2, spaceLeft * S.SC), py);
+      }
+      pc.strokeStyle = spaceError ? "red" : (isSel ? "#3f6b78" : "#999");
+      pc.lineWidth = 2;
+      if (isPocket) pc.setLineDash([4, 4]);
+      pc.stroke();
+      if (isPocket) pc.setLineDash([]);
+
+      var ax = Math.min(hw * 1.5, hw + Math.max(0, (slideDir === 1 ? spaceRight : spaceLeft) * S.SC - 5));
+      pc.beginPath();
+      if (slideDir === 1) {
+        pc.moveTo(ax, py - 4);
+        pc.lineTo(ax + 5, py);
+        pc.lineTo(ax, py + 4);
+      } else {
+        pc.moveTo(-ax, py - 4);
+        pc.lineTo(-ax - 5, py);
+        pc.lineTo(-ax, py + 4);
+      }
+      pc.strokeStyle = spaceError ? "red" : (isSel ? "#3f6b78" : "#5b7a86");
+      pc.lineWidth = 1.5;
+      pc.stroke();
+
+      if (spaceError) {
+        pc.fillStyle = "red";
+        pc.font = "bold 14px Arial";
+        pc.textAlign = "center";
+        pc.fillText("!", 0, -10);
+      }
+    } else {
+      // Reflect chosen swing: hinge side (L/R) + opening face (IN/OUT).
+      var swingDir = o.swingDir || "R_IN";
+      var isLeftHinge = swingDir.charAt(0) === "L";
+      var isInward = swingDir.slice(-2) === "IN";
+      var hx = isLeftHinge ? -hw : hw; // hinge jamb
+      var leafDir = isLeftHinge ? 1 : -1; // toward the far jamb along the wall
+      var sy = isInward ? -1 : 1; // wall face the leaf sweeps toward
+      var dw = hw * 2; // door leaf length
+      pc.strokeStyle = isSel ? "#3f6b78" : "#5b7a86";
+      pc.lineWidth = isSel ? 3 : 2;
+      // Open leaf: perpendicular into the room, on the swing face.
+      pc.beginPath();
+      pc.moveTo(hx, 0);
+      pc.lineTo(hx, sy * dw);
+      pc.stroke();
+      // Swing arc from closed (along wall) to open (perpendicular).
+      var aClosed = leafDir > 0 ? 0 : Math.PI;
+      var aOpen = sy > 0 ? Math.PI / 2 : -Math.PI / 2;
+      pc.beginPath();
+      pc.arc(hx, 0, dw, aClosed, aOpen, isLeftHinge === isInward);
+      pc.stroke();
+    }
+  } else if (o.type === "passage") {
+    pc.strokeStyle = isSel ? "#3f6b78" : "#8a7f68";
+    pc.lineWidth = isSel ? 3 : 2.2;
+    pc.beginPath();
+    pc.moveTo(-hw, -ht);
+    pc.lineTo(-hw, ht);
+    pc.moveTo(hw, -ht);
+    pc.lineTo(hw, ht);
+    pc.stroke();
+  } else {
+    pc.fillStyle = isSel ? "#bcdcea" : "#cfe3ec";
+    pc.fillRect(-hw, -ht * 0.5, hw * 2, ht);
+    pc.strokeStyle = isSel ? "#3f6b78" : "#7aa3b3";
+    pc.lineWidth = isSel ? 3 : 1.6;
+    pc.strokeRect(-hw, -ht * 0.5, hw * 2, ht);
+    pc.beginPath();
+    pc.moveTo(-hw, 0);
+    pc.lineTo(hw, 0);
+    pc.stroke();
+  }
+  pc.restore();
+}
+function drawSegPreview(w, seg) {
+  var gm = wallGeom(w),
+    hw = Math.max(5, seg.width) / 2,
+    s = Math.max(hw, Math.min(gm.L - hw, seg.s));
+  pc.save();
+  pc.lineCap = "butt";
+  pc.strokeStyle = "rgba(70,150,90,.85)";
+  pc.lineWidth = Math.max(w.thickness * S.SC, 4);
+  pc.setLineDash([7, 5]);
+  pc.beginPath();
+  var steps = gm.kind === "arc" ? Math.max(6, Math.ceil(seg.width / 15)) : 1;
+  for (var i = 0; i <= steps; i++) {
+    var p = wallPointAt(w, s - hw + seg.width * i / steps);
+    if (i) pc.lineTo(sx(p.x), sz(p.z)); else pc.moveTo(sx(p.x), sz(p.z));
+  }
+  pc.stroke();
+  pc.setLineDash([]);
+  pc.restore();
+}
+function drawNodes(hid) {
+  // corners of hidden-away walls go with them (usedNodes() spans every wall)
+  var u = {};
+  S.walls.forEach(function (w) {
+    if (hid.walls[w.id]) return;
+    u[w.a] = 1;
+    u[w.b] = 1;
+  });
+  for (var k in u) {
+    var n = S.nodes[k],
+      isSel = S.sel && (
+        (S.sel.kind === "node" && S.sel.ref === +k) ||
+        (S.sel.kind === "nodes" && S.sel.refs.indexOf(+k) !== -1)
+      );
+    pc.beginPath();
+    pc.arc(sx(n.x), sz(n.z), isSel ? 6 : 4.2, 0, 7);
+    pc.fillStyle = isSel ? "#3f6b78" : "#fff";
+    pc.fill();
+    pc.lineWidth = 1.6;
+    pc.strokeStyle = isSel ? "#2c5560" : "#7a7060";
+    pc.stroke();
+  }
+  /* Grips on the ends of the SELECTED wall. Dragging one resizes that wall
+     only — the walls sharing the corner hold their locked dimensions and let go
+     of the joint (js/constraint_engine.js) — while dragging a bare corner still
+     moves the whole junction. The two gestures land on the same pixel, so the
+     grip is the only thing that tells them apart. */
+  if (S.sel && S.sel.kind === "wall" && !hid.walls[S.sel.ref.id]) {
+    var sw = S.sel.ref;
+    [S.nodes[sw.a], S.nodes[sw.b]].forEach(function (n) {
+      if (!n) return;
+      var X = sx(n.x),
+        Z = sz(n.z),
+        h = 5;
+      pc.beginPath();
+      pc.rect(X - h, Z - h, h * 2, h * 2);
+      pc.fillStyle = "#fff";
+      pc.fill();
+      pc.lineWidth = 2;
+      pc.strokeStyle = "#3f6b78";
+      pc.stroke();
+    });
+  }
+}
+/* The glow the constraint engine asks for: a breathing halo on every corner it
+   has a complaint about. Red = a wall end connected to nothing, amber = a joint
+   that isn't a right angle. The one under the cursor — whether the cursor is
+   over the canvas or over its row in the message list — burns brighter, gets
+   its walls traced, and says what it is; that shared highlight is what ties the
+   list and the plan together. */
+const WARN_COL = { openEnd: [225, 62, 62], angle: [222, 150, 24] };
+function drawWarnGlow() {
+  var list = activeWarnings();
+  if (!list.length) return;
+  var pulse = 0.5 + 0.5 * Math.sin(warnPhase * 2.2); // 0..1
+  pc.save();
+  list.forEach(function (wr) {
+    var hot = S.warnHover === wr.key || S.warnSel === wr.key;
+    var c = WARN_COL[wr.kind] || WARN_COL.angle,
+      rgb = c[0] + "," + c[1] + "," + c[2];
+    var X = sx(wr.x),
+      Z = sz(wr.z);
+    var base = hot ? 15 : 11,
+      r = base + pulse * (hot ? 5 : 3);
+    // the halo itself
+    var grd = pc.createRadialGradient(X, Z, 1, X, Z, r * 1.9);
+    grd.addColorStop(0, "rgba(" + rgb + "," + (hot ? 0.55 : 0.34) + ")");
+    grd.addColorStop(1, "rgba(" + rgb + ",0)");
+    pc.beginPath();
+    pc.arc(X, Z, r * 1.9, 0, 7);
+    pc.fillStyle = grd;
+    pc.fill();
+    // a crisp ring so it reads as a marker, not a smudge
+    pc.beginPath();
+    pc.arc(X, Z, r, 0, 7);
+    pc.strokeStyle = "rgba(" + rgb + "," + (hot ? 1 : 0.85) + ")";
+    pc.lineWidth = hot ? 2.4 : 1.6;
+    pc.stroke();
+    if (wr.kind === "openEnd") {
+      // an open end gets a cross: nothing lands here
+      var q = r * 0.42;
+      pc.beginPath();
+      pc.moveTo(X - q, Z - q);
+      pc.lineTo(X + q, Z + q);
+      pc.moveTo(X + q, Z - q);
+      pc.lineTo(X - q, Z + q);
+      pc.stroke();
+    }
+    if (!hot) return;
+    // trace the walls this warning is about
+    pc.lineWidth = 3;
+    pc.strokeStyle = "rgba(" + rgb + ",.9)";
+    pc.setLineDash([9, 6]);
+    wr.walls.forEach(function (id) {
+      var w = wallById(id);
+      if (!w) return;
+      var g = wallGeom(w);
+      pc.beginPath();
+      pc.moveTo(sx(g.a.x), sz(g.a.z));
+      pc.lineTo(sx(g.b.x), sz(g.b.z));
+      pc.stroke();
+    });
+    pc.setLineDash([]);
+  });
+  pc.restore();
+  // the hovered/picked warning names itself, above every halo
+  var hotW = null;
+  list.forEach(function (wr) {
+    if (S.warnHover === wr.key || S.warnSel === wr.key) hotW = wr;
+  });
+  if (hotW)
+    label(
+      hotW.x,
+      hotW.z - 26 / S.SC,
+      warnLabel(hotW),
+      hotW.kind === "openEnd" ? "#c92b2b" : "#a86c05",
+      true,
+    );
+}
+/* One short line naming a warning — shared by the canvas label and the list. */
+export function warnLabel(wr) {
+  if (wr.kind === "openEnd")
+    return wr.near ? t("cw_openEndNear") : t("cw_openEnd");
+  return t("cw_angle", { a: wr.angle.toFixed(1) });
+}
+
+/* top-view glyphs, drawn in the item's local (rotated) pixel space: x=width, y=depth, front=+y */
+var LN = "rgba(60,58,50,.5)",
+  LNS = "rgba(60,58,50,.7)";
+function gStroke(lw) {
+  pc.strokeStyle = LN;
+  pc.lineWidth = lw || 1.2;
+  pc.lineCap = "butt";
+}
+function gCirc(x, y, r, fill) {
+  pc.beginPath();
+  pc.arc(x, y, r, 0, 7);
+  if (fill) {
+    pc.fillStyle = fill;
+    pc.fill();
+  }
+  pc.stroke();
+}
+function doorsGlyph(w, d, n) {
+  gStroke();
+  for (var i = 1; i < n; i++) {
+    var x = -w / 2 + (i * w) / n;
+    pc.beginPath();
+    pc.moveTo(x, -d / 2 + 2);
+    pc.lineTo(x, d / 2 - 2);
+    pc.stroke();
+  }
+}
+var GLYPH = {
+  sofa: function (w, d, it) {
+    gStroke();
+    var bk = -d / 2 + d * 0.3;
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 3, bk);
+    pc.lineTo(w / 2 - 3, bk);
+    pc.stroke();
+    var n = Math.max(2, Math.round(it.w / 70));
+    for (var i = 1; i < n; i++) {
+      var x = -w / 2 + 3 + (i * (w - 6)) / n;
+      pc.beginPath();
+      pc.moveTo(x, bk);
+      pc.lineTo(x, d / 2 - 3);
+      pc.stroke();
+    }
+  },
+  armchair: function (w, d) {
+    gStroke();
+    var bk = -d / 2 + d * 0.3;
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 3, bk);
+    pc.lineTo(w / 2 - 3, bk);
+    pc.stroke();
+  },
+  bed: function (w, d) {
+    gStroke();
+    pc.fillStyle = "rgba(255,255,255,.75)";
+    var pw = w * 0.36,
+      ph = Math.min(d * 0.16, 14);
+    pc.fillRect(-w / 2 + w * 0.07, -d / 2 + 3, pw, ph);
+    pc.strokeRect(-w / 2 + w * 0.07, -d / 2 + 3, pw, ph);
+    pc.fillRect(w / 2 - w * 0.07 - pw, -d / 2 + 3, pw, ph);
+    pc.strokeRect(w / 2 - w * 0.07 - pw, -d / 2 + 3, pw, ph);
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 2, -d / 2 + d * 0.34);
+    pc.lineTo(w / 2 - 2, -d / 2 + d * 0.34);
+    pc.stroke();
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 2, -d / 2 + d * 0.34);
+    pc.lineTo(-w / 2 + w * 0.12, -d / 2 + d * 0.46);
+    pc.moveTo(w / 2 - 2, -d / 2 + d * 0.34);
+    pc.lineTo(w / 2 - w * 0.12, -d / 2 + d * 0.46);
+    pc.stroke();
+  },
+  table: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 4, -d / 2 + 4, w - 8, d - 8);
+  },
+  desk: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 4, -d / 2 + 4, w - 8, d - 8);
+    pc.beginPath();
+    pc.moveTo(w / 2 - w * 0.28, -d / 2 + 4);
+    pc.lineTo(w / 2 - w * 0.28, d / 2 - 4);
+    pc.stroke();
+  },
+  chair: function (w, d) {
+    gStroke(1.6);
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 2, -d / 2 + 3);
+    pc.lineTo(w / 2 - 2, -d / 2 + 3);
+    pc.stroke();
+  },
+  fridge: function (w, d) {
+    gStroke();
+    pc.beginPath();
+    pc.moveTo(0, -d / 2 + 2);
+    pc.lineTo(0, d / 2 - 2);
+    pc.stroke();
+    gCirc(-w * 0.2, d * 0.28, Math.min(w, d) * 0.06);
+    gCirc(w * 0.2, d * 0.28, Math.min(w, d) * 0.06);
+  },
+  sink: function (w, d) {
+    gStroke();
+    var r = Math.min(w, d) * 0.3;
+    gCirc(0, d * 0.06, r, "rgba(255,255,255,.7)");
+    gCirc(0, -d / 2 + d * 0.18, Math.max(1.5, r * 0.14), "#8a8f92");
+  },
+  vanity: function (w, d) {
+    gStroke();
+    var r = Math.min(w, d) * 0.3;
+    gCirc(0, d * 0.06, r, "rgba(255,255,255,.7)");
+    gCirc(0, -d / 2 + d * 0.18, Math.max(1.5, r * 0.14), "#8a8f92");
+  },
+  cooktop: function (w, d) {
+    gStroke();
+    var r = Math.min(w, d) * 0.16;
+    [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+    ].forEach(function (p) {
+      gCirc(p[0] * w * 0.2, p[1] * d * 0.2, r);
+    });
+  },
+  oven: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 5, -d / 2 + 5, w - 10, d - 10);
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 5, d / 2 - d * 0.24);
+    pc.lineTo(w / 2 - 5, d / 2 - d * 0.24);
+    pc.stroke();
+  },
+  dishwasher: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 5, -d / 2 + 5, w - 10, d - 10);
+    gCirc(0, 0, Math.min(w, d) * 0.14);
+  },
+  washer: function (w, d) {
+    gStroke(1.4);
+    gCirc(0, 0, Math.min(w, d) * 0.32, "rgba(255,255,255,.55)");
+    gCirc(0, 0, Math.min(w, d) * 0.18);
+  },
+  toilet: function (w, d) {
+    gStroke();
+    pc.fillStyle = "rgba(255,255,255,.8)";
+    pc.fillRect(-w / 2 + 2, -d / 2 + 2, w - 4, d * 0.22);
+    pc.strokeRect(-w / 2 + 2, -d / 2 + 2, w - 4, d * 0.22);
+    pc.save();
+    pc.translate(0, d * 0.14);
+    pc.scale(1, 1.25);
+    pc.beginPath();
+    pc.arc(0, 0, w * 0.34, 0, 7);
+    pc.restore();
+    pc.fillStyle = "rgba(255,255,255,.85)";
+    pc.fill();
+    pc.stroke();
+  },
+  bathtub: function (w, d) {
+    gStroke(1.4);
+    rr(-w / 2 + 5, -d / 2 + 5, w - 10, d - 10, Math.min(w, d) * 0.18);
+    pc.fillStyle = "rgba(255,255,255,.6)";
+    pc.fill();
+    pc.stroke();
+    gCirc(-w / 2 + w * 0.14, 0, Math.min(w, d) * 0.08);
+  },
+  shower: function (w, d) {
+    gStroke();
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 3, -d / 2 + 3);
+    pc.lineTo(w / 2 - 3, d / 2 - 3);
+    pc.moveTo(w / 2 - 3, -d / 2 + 3);
+    pc.lineTo(-w / 2 + 3, d / 2 - 3);
+    pc.stroke();
+    gCirc(0, -d / 2 + d * 0.2, Math.min(w, d) * 0.09, "rgba(255,255,255,.8)");
+  },
+  tv: function (w, d) {
+    pc.strokeStyle = LNS;
+    pc.lineWidth = 2.4;
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 5, -d / 2 + d * 0.3);
+    pc.lineTo(w / 2 - 5, -d / 2 + d * 0.3);
+    pc.stroke();
+  },
+  plant: function (w, d) {
+    gStroke();
+    gCirc(0, 0, Math.min(w, d) * 0.32);
+    gCirc(-w * 0.14, -d * 0.12, Math.min(w, d) * 0.18);
+    gCirc(w * 0.15, d * 0.1, Math.min(w, d) * 0.15);
+  },
+  bookshelf: function (w, d) {
+    gStroke();
+    for (var i = 1; i < 5; i++) {
+      var x = -w / 2 + (i * w) / 5;
+      pc.beginPath();
+      pc.moveTo(x, -d / 2 + 2);
+      pc.lineTo(x, d / 2 - 2);
+      pc.stroke();
+    }
+  },
+  wardrobe: function (w, d) {
+    doorsGlyph(w, d, 2);
+  },
+  tall: function (w, d) {
+    doorsGlyph(w, d, 2);
+  },
+  base: function (w, d) {
+    doorsGlyph(w, d, 2);
+  },
+  upper: function (w, d) {
+    doorsGlyph(w, d, 2);
+  },
+  dresser: function (w, d) {
+    doorsGlyph(w, d, 3);
+  },
+  nightstand: function (w, d) {
+    gStroke();
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 3, 0);
+    pc.lineTo(w / 2 - 3, 0);
+    pc.stroke();
+  },
+  island: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 4, -d / 2 + 4, w - 8, d - 8);
+  },
+  rug: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 6, -d / 2 + 6, w - 12, d - 12);
+  },
+  coffee: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 4, -d / 2 + 4, w - 8, d - 8);
+  },
+  sideTable: function (w, d) {
+    gStroke();
+    gCirc(0, 0, Math.min(w, d) * 0.42);
+    gCirc(0, 0, Math.min(w, d) * 0.08);
+  },
+  tvunit: function (w, d) {
+    doorsGlyph(w, d, 3);
+  },
+  roundTable: function (w, d) {
+    gStroke();
+    gCirc(0, 0, Math.min(w, d) * 0.46, "rgba(255,255,255,.25)");
+    gCirc(0, 0, Math.min(w, d) * 0.1);
+  },
+  barstool: function (w, d) {
+    gStroke();
+    gCirc(0, 0, Math.min(w, d) * 0.34);
+  },
+  officeChair: function (w, d) {
+    gStroke();
+    gCirc(0, d * 0.05, Math.min(w, d) * 0.32);
+    pc.beginPath();
+    pc.moveTo(-w * 0.3, -d / 2 + 3);
+    pc.lineTo(w * 0.3, -d / 2 + 3);
+    pc.stroke();
+  },
+  piano: function (w, d) {
+    gStroke();
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 3, d * 0.1);
+    pc.lineTo(w / 2 - 3, d * 0.1);
+    pc.stroke();
+    for (var i = 1; i < 7; i++) {
+      var x = -w / 2 + (i * w) / 7;
+      pc.beginPath();
+      pc.moveTo(x, d * 0.1);
+      pc.lineTo(x, d / 2 - 3);
+      pc.stroke();
+    }
+  },
+  crib: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 3, -d / 2 + 3, w - 6, d - 6);
+    for (var i = 1; i < 6; i++) {
+      var x = -w / 2 + (i * w) / 6;
+      pc.beginPath();
+      pc.moveTo(x, -d / 2 + 3);
+      pc.lineTo(x, -d / 2 + 7);
+      pc.moveTo(x, d / 2 - 7);
+      pc.lineTo(x, d / 2 - 3);
+      pc.stroke();
+    }
+  },
+  bunk: function (w, d) {
+    gStroke();
+    pc.fillStyle = "rgba(255,255,255,.75)";
+    var pw = w * 0.36,
+      ph = Math.min(d * 0.12, 12);
+    pc.fillRect(-w / 2 + w * 0.07, -d / 2 + 3, pw, ph);
+    pc.strokeRect(-w / 2 + w * 0.07, -d / 2 + 3, pw, ph);
+    pc.fillRect(w / 2 - w * 0.07 - pw, -d / 2 + 3, pw, ph);
+    pc.strokeRect(w / 2 - w * 0.07 - pw, -d / 2 + 3, pw, ph);
+    for (var i = 0; i < 3; i++) {
+      pc.beginPath();
+      pc.moveTo(-w * 0.15 + i * w * 0.15, d / 2 - 3);
+      pc.lineTo(-w * 0.08 + i * w * 0.15, d / 2 - 9);
+      pc.stroke();
+    }
+  },
+  mirror: function (w, d) {
+    pc.strokeStyle = LNS;
+    pc.lineWidth = 2.2;
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 3, 0);
+    pc.lineTo(w / 2 - 3, 0);
+    pc.stroke();
+    pc.lineWidth = 1;
+    pc.beginPath();
+    pc.moveTo(w * 0.1, -d * 0.2);
+    pc.lineTo(w * 0.25, -d * 0.45);
+    pc.stroke();
+  },
+  art: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 3, -d / 2 + 2, w - 6, d - 4);
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 3, d / 2 - 2);
+    pc.lineTo(w / 2 - 3, -d / 2 + 2);
+    pc.stroke();
+  },
+  ac: function (w, d) {
+    gStroke();
+    for (var i = 0; i < 3; i++) {
+      var y = -d / 2 + 4 + (i * (d - 8)) / 2;
+      pc.beginPath();
+      pc.moveTo(-w / 2 + 5, y);
+      pc.lineTo(w / 2 - 5, y);
+      pc.stroke();
+    }
+  },
+  // ducted AC: the fan coil shows its two duct spigots, the grilles show their
+  // face pattern, and the condenser shows its fan — readable at plan scale.
+  acDucted: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 4, -d / 2 + 4, w - 8, d - 8);
+    pc.beginPath();
+    pc.moveTo(-w * 0.25, -d / 2 + 4);
+    pc.lineTo(-w * 0.25, -d / 2);
+    pc.moveTo(w * 0.25, d / 2 - 4);
+    pc.lineTo(w * 0.25, d / 2);
+    pc.stroke();
+    gCirc(0, 0, Math.min(w, d) * 0.16);
+  },
+  acDiffuser: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 2, -d / 2 + 2, w - 4, d - 4);
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 2, -d / 2 + 2);
+    pc.lineTo(w / 2 - 2, d / 2 - 2);
+    pc.moveTo(w / 2 - 2, -d / 2 + 2);
+    pc.lineTo(-w / 2 + 2, d / 2 - 2);
+    pc.stroke();
+  },
+  acReturn: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 2, -d / 2 + 2, w - 4, d - 4);
+    for (var i = 1; i < 4; i++) {
+      var x = -w / 2 + 2 + (i * (w - 4)) / 4;
+      pc.beginPath();
+      pc.moveTo(x, -d / 2 + 2);
+      pc.lineTo(x, d / 2 - 2);
+      pc.stroke();
+    }
+  },
+  acCassette: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 2, -d / 2 + 2, w - 4, d - 4);
+    pc.strokeRect(-w * 0.18, -d * 0.18, w * 0.36, d * 0.36);
+  },
+  acOutdoor: function (w, d) {
+    gStroke();
+    gCirc(0, 0, Math.min(w, d) * 0.38);
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 4, -d / 2 + 3);
+    pc.lineTo(w / 2 - 4, -d / 2 + 3);
+    pc.stroke();
+  },
+  tvWall: function (w, d) {
+    gStroke();
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 2, -d / 2 + 1);
+    pc.lineTo(w / 2 - 2, -d / 2 + 1);
+    pc.stroke();
+    pc.beginPath();
+    pc.moveTo(-w * 0.1, -d / 2 + 1);
+    pc.lineTo(0, d / 2 - 1);
+    pc.lineTo(w * 0.1, -d / 2 + 1);
+    pc.stroke();
+  },
+  shoeCab: function (w, d) {
+    doorsGlyph(w, d, 3);
+  },
+  coatRack: function (w, d) {
+    gStroke();
+    gCirc(0, 0, Math.min(w, d) * 0.1);
+    var r = Math.min(w, d) * 0.4;
+    for (var i = 0; i < 4; i++) {
+      var a = (i * Math.PI) / 2 + Math.PI / 4;
+      pc.beginPath();
+      pc.moveTo(0, 0);
+      pc.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      pc.stroke();
+    }
+  },
+  dryer: function (w, d) {
+    gStroke(1.4);
+    gCirc(0, 0, Math.min(w, d) * 0.32);
+    gCirc(0, 0, Math.min(w, d) * 0.2);
+  },
+  microwave: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 3, -d / 2 + 3, w - 6, d - 6);
+    pc.strokeRect(-w / 2 + 6, -d / 2 + 5, w * 0.55, d - 10);
+  },
+  hood: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 4, -d / 2 + 4, w - 8, d - 8);
+    gCirc(0, 0, Math.min(w, d) * 0.14);
+  },
+  aquarium: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 3, -d / 2 + 3, w - 6, d - 6);
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 5, -d * 0.1);
+    pc.bezierCurveTo(
+      -w * 0.2,
+      -d * 0.25,
+      w * 0.2,
+      d * 0.05,
+      w / 2 - 5,
+      -d * 0.1,
+    );
+    pc.stroke();
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 5, d * 0.15);
+    pc.bezierCurveTo(-w * 0.2, 0, w * 0.2, d * 0.3, w / 2 - 5, d * 0.15);
+    pc.stroke();
+    gCirc(-w * 0.15, d * 0.02, 1.8, "#e8873c");
+  },
+  bench: function (w, d) {
+    gStroke();
+    for (var i = 0; i < 3; i++) {
+      var y = -d / 2 + 4 + (i * (d - 8)) / 2;
+      pc.beginPath();
+      pc.moveTo(-w / 2 + 4, y);
+      pc.lineTo(w / 2 - 4, y);
+      pc.stroke();
+    }
+  },
+  stairs: function (w, d) {
+    gStroke();
+    for (var i = 1; i < 10; i++) {
+      var y = -d / 2 + (i * d) / 10;
+      pc.beginPath();
+      pc.moveTo(-w / 2 + 2, y);
+      pc.lineTo(w / 2 - 2, y);
+      pc.stroke();
+    }
+    pc.beginPath();
+    pc.moveTo(0, d / 2 - 4);
+    pc.lineTo(0, -d / 2 + 6);
+    pc.lineTo(-4, -d / 2 + 12);
+    pc.moveTo(0, -d / 2 + 6);
+    pc.lineTo(4, -d / 2 + 12);
+    pc.stroke();
+  },
+  fireplace: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 4, -d / 2 + 3, w - 8, d - 6);
+    pc.beginPath();
+    pc.moveTo(-5, d * 0.15);
+    pc.lineTo(0, -d * 0.2);
+    pc.lineTo(5, d * 0.15);
+    pc.closePath();
+    pc.stroke();
+  },
+  pouf: function (w, d) {
+    gStroke();
+    rr(-w / 2 + 4, -d / 2 + 4, w - 8, d - 8, Math.min(w, d) * 0.2);
+    pc.stroke();
+  },
+  dressTable: function (w, d) {
+    gStroke();
+    pc.strokeRect(-w / 2 + 4, -d / 2 + 4, w - 8, d - 8);
+    pc.strokeStyle = LNS;
+    pc.lineWidth = 2;
+    pc.beginPath();
+    pc.moveTo(-w * 0.28, -d / 2 + 3);
+    pc.lineTo(w * 0.28, -d / 2 + 3);
+    pc.stroke();
+  },
+  /* The modular cabinet draws what it actually is: column divisions, drawer
+     fronts, and the swing of every door — the symbol a plan is read for.
+     Coordinates come from cabinet.js in cm and are scaled to the drawing. */
+  cabsys: function (w, d, it) {
+    var P;
+    try {
+      P = planCab(it);
+    } catch (e) {
+      return;
+    }
+    var sc = w / P.w,
+      front = d / 2,
+      back = -d / 2;
+    pc.save();
+    /* A corner unit is not a rectangle: draw its actual footprint and the door
+       across the diagonal, which is the whole reason it exists. */
+    if (P.poly) {
+      var zc2 = d / P.d;
+      pc.lineWidth = 1.4;
+      pc.strokeStyle = "#8d8674";
+      pc.beginPath();
+      P.poly.forEach(function (q, i) {
+        var px = q.x * sc,
+          pz = q.z * zc2;
+        if (i === 0) pc.moveTo(px, pz);
+        else pc.lineTo(px, pz);
+      });
+      pc.closePath();
+      pc.stroke();
+      // the swing of the diagonal door
+      var a = P.poly[2],
+        b = P.poly[3],
+        r = Math.hypot((b.x - a.x) * sc, (b.z - a.z) * zc2);
+      pc.save();
+      pc.strokeStyle = "rgba(70,80,95,0.6)";
+      pc.setLineDash([4, 3]);
+      pc.beginPath();
+      pc.arc(a.x * sc, a.z * zc2, r, Math.atan2((b.z - a.z) * zc2, (b.x - a.x) * sc), Math.atan2(-1, 0), true);
+      pc.stroke();
+      pc.restore();
+      pc.restore();
+      return;
+    }
+    pc.lineWidth = 1;
+    pc.strokeStyle = "#8d8674";
+    // A floating shelf run is not a carcass: its joints are drawn dashed,
+    // the way anything above the cut plane is drawn on a plan.
+    if (P.float) pc.setLineDash([4, 3]);
+    P.cols.forEach(function (col) {
+      var x0 = col.x0 * sc,
+        x1 = col.x1 * sc,
+        cw = x1 - x0;
+      // the carcass division
+      pc.beginPath();
+      pc.moveTo(x0, back);
+      pc.lineTo(x0, front);
+      pc.stroke();
+      if (col.kind !== "normal") {
+        pc.save(); // hatch a filler / blind corner
+        pc.strokeStyle = "rgba(90,90,90,.5)";
+        for (var hx = 0; hx < cw + d; hx += 6) {
+          pc.beginPath();
+          pc.moveTo(x0 + hx, front);
+          pc.lineTo(x0 + hx - d, back);
+          pc.stroke();
+        }
+        pc.restore();
+        return;
+      }
+      if (col.drawers) {
+        pc.strokeStyle = "#6f7a86"; // drawer fronts read as a doubled line
+        pc.beginPath();
+        pc.moveTo(x0 + 2, front - 3);
+        pc.lineTo(x1 - 2, front - 3);
+        pc.stroke();
+        pc.strokeStyle = "#8d8674";
+      }
+      if (col.door === "none" || col.door === "drawer") return;
+      if (col.door === "sliding") {
+        pc.save();
+        pc.strokeStyle = "#5b7a86";
+        pc.lineWidth = 2;
+        pc.beginPath();
+        pc.moveTo(x0 + cw * 0.15, front + 1);
+        pc.lineTo(x1 - cw * 0.15, front + 1);
+        pc.stroke();
+        pc.restore();
+        return;
+      }
+      // hinged leaves: the classic quarter-circle swing
+      var n = Math.max(1, col.leaves),
+        lw = cw / n;
+      for (var i = 0; i < n; i++) {
+        var lx0 = x0 + i * lw,
+          hingeLeft = n > 1 ? i === 0 : col.hinge === "L",
+          hx2 = hingeLeft ? lx0 : lx0 + lw;
+        pc.save();
+        pc.strokeStyle = "rgba(91,122,134,.85)";
+        // the leaf stood open at 90°, drawn out in front of the cabinet
+        pc.beginPath();
+        pc.moveTo(hx2, front);
+        pc.lineTo(hx2, front + lw);
+        pc.stroke();
+        // and the arc it sweeps, from closed (along the face) to there
+        pc.setLineDash([3, 3]);
+        pc.beginPath();
+        if (hingeLeft) pc.arc(hx2, front, lw, 0, Math.PI / 2, false);
+        else pc.arc(hx2, front, lw, Math.PI, Math.PI / 2, true);
+        pc.stroke();
+        pc.restore();
+      }
+    });
+    pc.restore();
+  },
+};
+function drawItem(it) {
+  var f = FURN[it.type],
+    isSelL = (S.sel && S.sel.kind === "item" && S.sel.ref === it) || (S.sel && S.sel.kind === "items" && S.sel.refs.indexOf(it) !== -1);
+  if (isLamp(it)) {
+    drawLamp(it, f, isSelL);
+    return;
+  }
+  var A = (it.rot * Math.PI) / 180;
+  pc.save();
+  pc.translate(sx(it.x), sz(it.z));
+  pc.rotate(A);
+  var w = it.w * S.SC,
+    d = it.d * S.SC,
+    isSel = isSelL;
+  rr(-w / 2, -d / 2, w, d, 5);
+  pc.fillStyle = fcolor(it);
+  pc.globalAlpha = it.type === "rug" ? 0.85 : 1;
+  pc.fill();
+  pc.globalAlpha = 1;
+  pc.lineWidth = isSel ? 3 : 1.4;
+  pc.strokeStyle = isSel ? "#3f6b78" : "#b3a586";
+  pc.stroke();
+  if (GLYPH[it.type] && w > 16 && d > 12) GLYPH[it.type](w, d, it);
+  pc.strokeStyle = "#5b7a86";
+  pc.lineWidth = 2.6;
+  pc.lineCap = "round";
+  pc.beginPath();
+  pc.moveTo(-w / 2 + 6, d / 2 - 3);
+  pc.lineTo(w / 2 - 6, d / 2 - 3);
+  pc.stroke();
+  if (w > 44 && d > 26) {
+    pc.rotate(-A - planRotRad()); // upright: cancel item + plan rotation
+    pc.fillStyle = "#2f2d28";
+    pc.textAlign = "center";
+    pc.textBaseline = "middle";
+    pc.font = it.type === "island" ? "bold 12px Arial" : "10px Arial";
+    var nm2 = flabel(it.type);
+    var tw = pc.measureText(nm2).width;
+    pc.fillStyle = "rgba(255,255,255,.55)";
+    pc.fillRect(-tw / 2 - 3, -7, tw + 6, 14);
+    pc.fillStyle = "#2f2d28";
+    pc.fillText(nm2, 0, 1);
+  }
+  pc.restore();
+  if (it.locked) drawLock(it);
+}
+function drawLock(it) {
+  pc.save();
+  pc.font = "12px Arial";
+  pc.textAlign = "center";
+  pc.textBaseline = "middle";
+  pc.fillText(
+    "🔒",
+    sx(it.x),
+    sz(it.z) - (Math.min(it.w, it.d) * S.SC * 0.5 + 9),
+  );
+  pc.restore();
+}
+function drawLamp(it, f, isSel) {
+  var on = it.lightOn !== false,
+    col = hexStr(lampColor(it)),
+    r = Math.max((Math.min(it.w, it.d) * S.SC) / 2, 11);
+  pc.save();
+  pc.translate(sx(it.x), sz(it.z));
+  if (on) {
+    var g = pc.createRadialGradient(0, 0, 2, 0, 0, r * 2.4);
+    g.addColorStop(0, "rgba(255,236,150,.55)");
+    g.addColorStop(1, "rgba(255,236,150,0)");
+    pc.fillStyle = g;
+    pc.beginPath();
+    pc.arc(0, 0, r * 2.4, 0, 7);
+    pc.fill();
+  }
+  if (on) {
+    pc.strokeStyle = "#cfa441";
+    pc.lineWidth = 1.6;
+    for (var k = 0; k < 8; k++) {
+      var aa = (k * Math.PI) / 4;
+      pc.beginPath();
+      pc.moveTo(Math.cos(aa) * (r + 2), Math.sin(aa) * (r + 2));
+      pc.lineTo(Math.cos(aa) * (r + 6), Math.sin(aa) * (r + 6));
+      pc.stroke();
+    }
+  }
+  pc.beginPath();
+  pc.arc(0, 0, r, 0, 7);
+  pc.fillStyle = on ? "#fff1c0" : "#dad5c8";
+  pc.fill();
+  pc.lineWidth = isSel ? 3 : 1.6;
+  pc.strokeStyle = isSel ? "#3f6b78" : on ? "#caa14e" : "#9a9384";
+  pc.stroke();
+  pc.beginPath();
+  pc.arc(0, 0, r * 0.42, 0, 7);
+  pc.fillStyle = on ? col : "#b7b1a3";
+  pc.fill();
+  pc.fillStyle = "#2f2d28";
+  pc.font = "10px Arial";
+  pc.textAlign = "center";
+  pc.textBaseline = "top";
+  pc.rotate(-planRotRad()); // keep lamp label upright when the plan is rotated
+  pc.fillText(flabel(it.type), 0, r + 7);
+  pc.restore();
+  if (it.locked) drawLock(it);
+}
+/* The explicit dimensions, drawn on the plan (js/wall_constraints.js).
+   A dimension that only exists in the inspector is a dimension nobody trusts —
+   you cannot see whether it points where you meant. Blue when satisfied, red
+   when the solver could not honour it, which is the same colour language the
+   constraint-engine warnings already use. */
+function drawWallCons() {
+  var list = wallCons();
+  /* Rebuilt every frame, including the empty one. Keeping this reset behind
+     the early return left a deleted dimension's old label clickable until
+     some other constraint happened to be drawn. */
+  conHits = [];
+  if (!list.length) return;
+  pc.save();
+  pc.lineWidth = 1.2;
+  pc.font = "600 11px system-ui, sans-serif";
+  pc.textAlign = "center";
+  pc.textBaseline = "middle";
+
+  list.forEach(function (c) {
+    var sel = S.sel && S.sel.kind === "con" && S.sel.ref && S.sel.ref.id === c.id,
+      hover = S.conHover === c.id,
+      hot = sel || hover;
+    /* Suppression switches a relation off, but it must still be locatable.
+       Keep it hidden during ordinary drafting and reveal it in grey when its
+       row is selected or hovered. */
+    if (c.off && !hot) return;
+    conForLabel = c;
+    /* Three states, three colours. A reference dimension is drawn in the
+       muted grey every CAD uses for one, because a value that does NOT drive
+       the drawing must never look like a value that does — that is the whole
+       distinction the type exists to make. */
+    var ok = conSatisfied(c),
+      report = !!c.report,
+      col = c.off ? "rgba(105,112,124,.95)"
+        : report ? "rgba(120,128,140,.85)"
+        : ok ? "rgba(60,120,220,.85)" : "rgba(225,70,70,.95)";
+    pc.strokeStyle = col;
+    pc.lineWidth = sel ? 3 : hover ? 2.4 : 1.2;
+    pc.setLineDash(c.off || report ? [2, 3] : [5, 4]);
+    pc.shadowColor = hot ? col : "transparent";
+    pc.shadowBlur = hot ? 8 : 0;
+    drawConTargetHighlight(c, col, hot);
+
+    /* Opening constraints are first-class constraints too. They previously
+       appeared in the inspector and solver but had no canvas glyph, so they
+       could neither be seen nor picked from the drawing. */
+    if (c.type === "openCentre" || c.type === "openDist") {
+      var oo = openingById(c.opening), op = openingPos(oo);
+      if (!op) return;
+      var from = c.type === "openCentre"
+        ? { x: (op.g.a.x + op.g.b.x) / 2, z: (op.g.a.z + op.g.b.z) / 2 }
+        : c.end === "b" ? op.g.b : op.g.a;
+      pc.beginPath();
+      pc.moveTo(sx(from.x), sz(from.z));
+      pc.lineTo(sx(op.x), sz(op.z));
+      pc.stroke();
+      conLabel((from.x + op.x) / 2, (from.z + op.z) / 2,
+        c.type === "openCentre" ? "C" : Math.round(c.value) + "", col, -14);
+      return;
+    }
+    if (c.type === "openAlign") {
+      var oaa = openingPos(openingById(c.a)), obb = openingPos(openingById(c.b));
+      if (!oaa || !obb) return;
+      pc.beginPath(); pc.moveTo(sx(oaa.x), sz(oaa.z)); pc.lineTo(sx(obb.x), sz(obb.z)); pc.stroke();
+      conLabel((oaa.x + obb.x) / 2, (oaa.z + obb.z) / 2,
+        c.axis === "z" ? "Z=" : "X=", col, -14);
+      return;
+    }
+    if (c.type === "openSpacing") {
+      var ops = (c.openings || []).map(openingById).map(openingPos).filter(Boolean);
+      if (ops.length < 3) return;
+      pc.beginPath();
+      ops.forEach(function (p, i) {
+        if (i) pc.lineTo(sx(p.x), sz(p.z)); else pc.moveTo(sx(p.x), sz(p.z));
+      });
+      pc.stroke();
+      var om = ops[Math.floor(ops.length / 2)];
+      conLabel(om.x, om.z, "= =", col, -16);
+      return;
+    }
+
+    /* A pin is not a dimension between two things, so it gets its own mark
+       rather than a line and a number: the corner in a ring, which is how a
+       grounded point reads in every sketcher. */
+    if (c.type === "fixed") {
+      var fp = anchorPos(c.a);
+      if (!fp) return;
+      var fx = sx(fp.x), fy = sz(fp.z);
+      pc.setLineDash([]);
+      pc.beginPath();
+      pc.arc(fx, fy, 7, 0, Math.PI * 2);
+      pc.stroke();
+      pc.beginPath();
+      pc.arc(fx, fy, 2.5, 0, Math.PI * 2);
+      pc.fillStyle = col;
+      pc.fill();
+      /* The ring sits ON the corner, so it cannot also be the pick target —
+         clicking there has to keep selecting the corner, which is the far more
+         common intent. The pin therefore carries a small tag offset clear of
+         the corner's own grab radius, and THAT is what selects the pin. What
+         you click is what you can see. */
+      pc.beginPath();
+      pc.rect(fx + 7, fy - 15, 8, 8);
+      pc.fill();
+      conHits.push({ con: c, x: fx + 11, y: fy - 11, w: 10 });
+      return;
+    }
+
+    if (c.type === "coincident" || c.type === "symmetric") {
+      var ca = anchorPos(c.a), cb = anchorPos(c.b);
+      if (!ca || !cb) return;
+      pc.beginPath();
+      pc.moveTo(sx(ca.x), sz(ca.z));
+      pc.lineTo(sx(cb.x), sz(cb.z));
+      pc.stroke();
+      if (c.type === "symmetric") {
+        // show the mirror line the pair is measured about
+        var axw = wallById(c.axis.id);
+        if (axw) {
+          var ag = wallGeom(axw), amx = (ag.a.x + ag.b.x) / 2, amz = (ag.a.z + ag.b.z) / 2,
+            adx = c.axis.k === "perp" ? -ag.uz : ag.ux,
+            adz = c.axis.k === "perp" ? ag.ux : ag.uz,
+            half = Math.max(ag.L, 120) / 2;
+          pc.save();
+          pc.setLineDash([9, 4, 2, 4]);
+          pc.beginPath();
+          pc.moveTo(sx(amx - adx * half), sz(amz - adz * half));
+          pc.lineTo(sx(amx + adx * half), sz(amz + adz * half));
+          pc.stroke();
+          pc.restore();
+        }
+      }
+      conLabel((ca.x + cb.x) / 2, (ca.z + cb.z) / 2,
+        c.type === "coincident" ? "\u2299" : "\u21C4", col);
+      return;
+    }
+
+    if (c.type === "midpoint" || c.type === "pointOnLine") {
+      var mw = wallById(c.ref), mp = anchorPos(c.point);
+      if (!mw || !mp) return;
+      var mg = wallGeom(mw);
+      pc.beginPath();
+      pc.moveTo(sx(mg.a.x), sz(mg.a.z));
+      pc.lineTo(sx(mg.b.x), sz(mg.b.z));
+      pc.stroke();
+      conLabel(mp.x, mp.z, c.type === "midpoint" ? "\u25B3" : "\u2500\u25CB", col, -16);
+      return;
+    }
+
+    if (c.type === "equalLengthSet") {
+      (c.walls || []).map(wallById).filter(Boolean).forEach(function (ew) {
+        var eg = wallGeom(ew);
+        conLabel((eg.a.x + eg.b.x) / 2, (eg.a.z + eg.b.z) / 2, "=L", col, -18);
+      });
+      return;
+    }
+
+    if (c.type === "wallAngle") {
+      var aw = wallById(c.wall), ar = wallById(c.ref);
+      if (!aw || !ar) return;
+      var awg = wallGeom(aw), arg = wallGeom(ar),
+        am = { x: (awg.a.x + awg.b.x) / 2, z: (awg.a.z + awg.b.z) / 2 },
+        rm = { x: (arg.a.x + arg.b.x) / 2, z: (arg.a.z + arg.b.z) / 2 };
+      pc.beginPath();
+      pc.moveTo(sx(rm.x), sz(rm.z));
+      pc.lineTo(sx(am.x), sz(am.z));
+      pc.stroke();
+      conLabel((am.x + rm.x) / 2, (am.z + rm.z) / 2,
+        Math.round(c.value) + "\u00b0", col);
+      return;
+    }
+
+    if (["dist", "alignX", "alignZ", "axisDistX", "axisDistZ"].indexOf(c.type) !== -1) {
+      var pa = anchorPos(c.a),
+        pb = anchorPos(c.b);
+      if (!pa || !pb) return;
+      var x1 = sx(pa.x),
+        z1 = sz(pa.z),
+        x2 = sx(pb.x),
+        z2 = sz(pb.z);
+      pc.beginPath();
+      pc.moveTo(x1, z1);
+      pc.lineTo(x2, z2);
+      pc.stroke();
+      // a tick at the held end, so which side the solver pins is visible
+      // without opening the inspector
+      var hp = c.hold === "b" ? pb : pa;
+      pc.setLineDash([]);
+      pc.beginPath();
+      pc.arc(sx(hp.x), sz(hp.z), 4, 0, Math.PI * 2);
+      pc.fillStyle = col;
+      pc.fill();
+      conLabel((pa.x + pb.x) / 2, (pa.z + pb.z) / 2,
+        c.type === "dist" ? (report ? "(" + Math.round(c.value) + ")" : Math.round(c.value) + "") :
+          c.type === "axisDistX" ? "ΔX " + Math.round(c.value) :
+            c.type === "axisDistZ" ? "ΔZ " + Math.round(c.value) :
+              c.type === "alignX" ? "X=" : "Z=", col);
+    } else if (c.type === "angle") {
+      drawAngleConstraint({ joint: c.joint, w1: c.w1, w2: c.w2 }, Math.round(c.value) + "\u00b0", col, 26);
+    } else if (c.type === "equalAngle") {
+      if (report) {
+        /* Comparing, not equalising: show what each corner actually measures
+           and the difference between them. "=" would be a lie here — they are
+           precisely what is NOT being forced equal. */
+        var refA = conAngleOf(c.referenceAngle), drvA = conAngleOf(c.drivenAngle);
+        drawAngleConstraint(c.referenceAngle, fmtDeg(refA), col, 24);
+        drawAngleConstraint(c.drivenAngle, fmtDeg(drvA), col, 31);
+        if (refA != null && drvA != null) {
+          var jn = anchorNode(c.drivenAngle.joint), jp = jn != null && S.nodes[jn];
+          if (jp) conLabel(jp.x, jp.z, "\u0394 " + fmtDeg(Math.abs(drvA - refA)), col, -46);
+        }
+      } else {
+        drawAngleConstraint(c.referenceAngle, "=", col, 24);
+        drawAngleConstraint(c.drivenAngle, "=", col, 31);
+      }
+    } else if (c.type === "pointWallDist") {
+      var pp = anchorPos(c.point), pr = wallById(c.ref);
+      if (!pp || !pr) return;
+      var pgr = wallGeom(pr), ps = (pp.x - pgr.a.x) * pgr.ux + (pp.z - pgr.a.z) * pgr.uz,
+        pfx = pgr.a.x + pgr.ux * ps, pfz = pgr.a.z + pgr.uz * ps;
+      if (c.refFace === 1 || c.refFace === -1) {
+        pfx += -pgr.uz * c.refFace * (pr.thickness || 0) / 2;
+        pfz += pgr.ux * c.refFace * (pr.thickness || 0) / 2;
+      }
+      pc.beginPath(); pc.moveTo(sx(pp.x), sz(pp.z)); pc.lineTo(sx(pfx), sz(pfz)); pc.stroke();
+      conLabel((pp.x + pfx) / 2, (pp.z + pfz) / 2, Math.abs(Math.round(c.value)) + "", col);
+    } else if (c.type === "equalSpacing") {
+      var centres = c.walls.map(wallById).filter(Boolean).map(function (sw) {
+        var sg = wallGeom(sw); return { x: (sg.a.x + sg.b.x) / 2, z: (sg.a.z + sg.b.z) / 2 };
+      });
+      if (centres.length < 3) return;
+      pc.beginPath();
+      centres.forEach(function (p, i) { if (i) pc.lineTo(sx(p.x), sz(p.z)); else pc.moveTo(sx(p.x), sz(p.z)); });
+      pc.stroke();
+      var sc = centres[Math.floor(centres.length / 2)]; conLabel(sc.x, sc.z, "= =", col, -18);
+    } else {
+      var w = wallById(c.wall),
+        r = wallById(c.ref);
+      if (!w) return;
+      var gw = wallGeom(w),
+        gr = r ? wallGeom(r) : null;
+      var mx = (gw.a.x + gw.b.x) / 2,
+        mz = (gw.a.z + gw.b.z) / 2;
+      if (c.type !== "offset") {
+        var relationLabels = {
+          parallel: "∥", perpendicular: "⊥", collinear: "—", equalLength: "=L",
+          horizontal: "H", vertical: "V",
+        };
+        conLabel(mx, mz,
+        report ? "(" + (relationLabels[c.type] || c.type) + ")"
+          : relationLabels[c.type] || c.type, col, -18);
+        pc.beginPath(); pc.moveTo(sx(gw.a.x), sz(gw.a.z)); pc.lineTo(sx(gw.b.x), sz(gw.b.z)); pc.stroke();
+        pc.setLineDash([]);
+        return;
+      }
+      if (!r || !gr) return;
+      // foot of the perpendicular on the reference wall's centreline
+      var tpar = (mx - gr.a.x) * gr.ux + (mz - gr.a.z) * gr.uz;
+      var fx = gr.a.x + gr.ux * tpar,
+        fz = gr.a.z + gr.uz * tpar;
+      var onx = -gr.uz, onz = gr.ux;
+      if (c.refFace === 1 || c.refFace === -1) {
+        fx += onx * c.refFace * (r.thickness || 0) / 2;
+        fz += onz * c.refFace * (r.thickness || 0) / 2;
+      }
+      if (c.wallFace === 1 || c.wallFace === -1) {
+        mx += onx * c.wallFace * (w.thickness || 0) / 2;
+        mz += onz * c.wallFace * (w.thickness || 0) / 2;
+      }
+      pc.beginPath();
+      pc.moveTo(sx(fx), sz(fz));
+      pc.lineTo(sx(mx), sz(mz));
+      pc.stroke();
+      conLabel((fx + mx) / 2, (fz + mz) / 2, Math.abs(Math.round(c.value)) + "", col);
+    }
+    pc.setLineDash([]);
+  });
+  conForLabel = null;
+  pc.restore();
+}
+
+/* Reveal the actual pieces a relation touches, not only its small label. This
+   is deliberately limited to hover/selection: drawing every referenced wall
+   twice all the time would turn a dense constrained plan into blue fog. */
+function drawConTargetHighlight(c, col, hot) {
+  if (!hot) return;
+  var wallIds = {}, points = [], openings = [];
+  function wall(id) { if (id != null && wallById(id)) wallIds[id] = 1; }
+  function anchor(an) {
+    if (!an || typeof an !== "object") return;
+    wall(an.wall);
+    var p = anchorPos(an);
+    if (p) points.push(p);
+  }
+  function sector(sec) {
+    if (!sec) return;
+    anchor(sec.joint); wall(sec.w1); wall(sec.w2);
+  }
+  function opening(id) {
+    var o = openingById(id), p = openingPos(o);
+    if (!o || !p) return;
+    wall(o.wall); openings.push(p);
+  }
+  wall(c.wall); wall(c.ref); wall(c.w1); wall(c.w2);
+  (c.walls || []).forEach(wall);
+  if (c.axis) wall(c.axis.id);
+  anchor(c.a); anchor(c.b); anchor(c.point); anchor(c.joint);
+  sector(c.referenceAngle); sector(c.drivenAngle);
+  opening(c.opening);
+  if (c.type === "openAlign") { opening(c.a); opening(c.b); }
+  (c.openings || []).forEach(opening);
+
+  pc.save();
+  pc.shadowBlur = 0;
+  pc.setLineDash([]);
+  pc.globalAlpha = 0.32;
+  pc.strokeStyle = col;
+  pc.lineWidth = 8;
+  Object.keys(wallIds).forEach(function (id) {
+    var w = wallById(isNaN(Number(id)) ? id : Number(id));
+    if (!w) return;
+    var g = wallGeom(w);
+    pc.beginPath(); pc.moveTo(sx(g.a.x), sz(g.a.z)); pc.lineTo(sx(g.b.x), sz(g.b.z)); pc.stroke();
+  });
+  pc.globalAlpha = 0.92;
+  pc.lineWidth = 2;
+  points.concat(openings).forEach(function (p) {
+    pc.beginPath(); pc.arc(sx(p.x), sz(p.z), 8, 0, Math.PI * 2); pc.stroke();
+  });
+  pc.restore();
+}
+
+/* The live opening of a sector, in degrees, for the reference readouts. */
+function conAngleOf(sec) {
+  if (!sec) return null;
+  var ni = anchorNode(sec.joint), w1 = wallById(sec.w1), w2 = wallById(sec.w2);
+  if (ni == null || !w1 || !w2) return null;
+  var J = S.nodes[ni],
+    f1 = w1.a === ni ? S.nodes[w1.b] : S.nodes[w1.a],
+    f2 = w2.a === ni ? S.nodes[w2.b] : S.nodes[w2.a];
+  if (!J || !f1 || !f2) return null;
+  var d = (Math.atan2(f2.z - J.z, f2.x - J.x) - Math.atan2(f1.z - J.z, f1.x - J.x)) * 180 / Math.PI;
+  return ((d % 360) + 360) % 360;
+}
+function fmtDeg(v) {
+  return v == null ? "?" : (Math.round(v * 10) / 10) + "\u00b0";
+}
+
+function drawAngleConstraint(sec, txt, col, radius) {
+  if (!sec) return;
+  var ni = anchorNode(sec.joint), w1 = wallById(sec.w1), w2 = wallById(sec.w2);
+  if (ni == null || !w1 || !w2) return;
+  var J = S.nodes[ni], f1 = w1.a === ni ? S.nodes[w1.b] : S.nodes[w1.a],
+    f2 = w2.a === ni ? S.nodes[w2.b] : S.nodes[w2.a];
+  if (!J || !f1 || !f2) return;
+  var X = sx(J.x), Y = sz(J.z), a1 = Math.atan2(sz(f1.z) - Y, sx(f1.x) - X),
+    a2 = Math.atan2(sz(f2.z) - Y, sx(f2.x) - X);
+  pc.setLineDash([]); pc.beginPath(); pc.moveTo(X, Y);
+  pc.arc(X, Y, radius, a1, a2, false); pc.strokeStyle = col; pc.stroke();
+  var mid = a1 + ((a2 - a1 + Math.PI * 2) % (Math.PI * 2)) / 2;
+  conLabel(J.x, J.z, txt, col, Math.sin(mid) * (radius + 13));
+}
+
+/* Where each constraint's label ended up this frame, in SCREEN pixels, so a
+   click can pick the constraint it belongs to.
+
+   Recorded by the drawing code rather than recomputed by a hit-tester: the
+   label positions come out of a dozen little per-type layouts (an arc's
+   bisector, a wall midpoint offset by -18, the foot of a perpendicular), and a
+   second implementation of all that would drift out of agreement with what is
+   actually on screen — which is the one thing a pick target may never do. */
+var conHits = [];
+export function conHitTargets() {
+  return conHits;
+}
+/* The constraint whose label box is under this screen point, or null. Boxes
+   are small and may overlap on a dense plan, so the LAST one drawn wins —
+   that is the one painted on top, i.e. the one the user can see. */
+export function pickCon(sxp, syp) {
+  for (var i = conHits.length - 1; i >= 0; i--) {
+    var h = conHits[i];
+    if (sxp >= h.x - h.w / 2 - 2 && sxp <= h.x + h.w / 2 + 2 &&
+      syp >= h.y - 10 && syp <= h.y + 10) return h.con;
+  }
+  return null;
+}
+// the constraint currently being drawn, so conLabel can tag its hit box
+var conForLabel = null;
+
+// a boxed number on the plan — plain text over a wall hatch is unreadable
+function conLabel(wxc, wzc, txt, col, dy) {
+  var x = sx(wxc),
+    y = sz(wzc) + (dy || 0),
+    wpx = pc.measureText(txt).width + 10;
+  if (conForLabel) conHits.push({ con: conForLabel, x: x, y: y, w: wpx });
+  pc.setLineDash([]);
+  pc.fillStyle = "rgba(255,255,255,.9)";
+  pc.strokeStyle = col;
+  pc.lineWidth = 1;
+  pc.beginPath();
+  if (pc.roundRect) pc.roundRect(x - wpx / 2, y - 8, wpx, 16, 5);
+  else pc.rect(x - wpx / 2, y - 8, wpx, 16);
+  pc.fill();
+  pc.stroke();
+  pc.fillStyle = col;
+  pc.fillText(txt, x, y);
+}
+
+function label(wx_, wz_, txt, color, big) {
+  var x = sx(wx_),
+    y = sz(wz_);
+  var a = planRotRad();
+  pc.save();
+  if (a) { pc.translate(x, y); pc.rotate(-a); pc.translate(-x, -y); } // keep text upright
+  pc.font = big ? "bold 12px Arial" : "10px Arial";
+  pc.textAlign = "center";
+  pc.textBaseline = "middle";
+  var tw = pc.measureText(txt).width,
+    h = big ? 17 : 14;
+  pc.fillStyle = "rgba(255,255,255," + (big ? ".8" : ".75") + ")";
+  pc.fillRect(x - tw / 2 - 4, y - h / 2, tw + 8, h);
+  pc.fillStyle = color || "#33312c";
+  pc.fillText(txt, x, y);
+  pc.restore();
+}

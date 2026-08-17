@@ -1,0 +1,317 @@
+// The editor 3D viewport — one orbiting preview shared by the CAD modeler and
+// the cabinet designer, both of which had grown their own near-identical copy
+// of it (renderer setup, transparent clear, the async-backend first paint,
+// drag-to-orbit, wheel-to-zoom, resize-on-render).
+//
+// It also owns the trick the cabinet designer worked out and the modeler never
+// had: ONE RENDERER, TWO HOMES. The preview lives as a thumbnail in the side
+// panel and is physically moved into the middle pane when you switch to 3D,
+// rather than a second WebGL context being stood up for the big view. Contexts
+// are scarce and a second one costs a full duplicate of every texture and
+// geometry, so moving the canvas is not a shortcut — it is the correct design.
+//
+//   var view = createEditorView({ canvas: cv, grid: true, center: () => cy });
+//   view.rebuild(function (grp) { buildWhatever(grp); });
+//   view.setBig(true);   // fill the middle pane
+//   view.render();
+//
+// The renderer prefers WebGL2 (see gpu.js): an editor preview gains nothing
+// from WebGPU and the WebGL2 backend comes up faster.
+
+import * as THREE from "three";
+import { createRenderer, render as gpuRender, ready as gpuReady, LUX } from "./gpu.js";
+import { clearGroup } from "./primitives.js";
+
+function clamp(v, a, b) {
+  return v < a ? a : v > b ? b : v;
+}
+
+export function createEditorView(opts) {
+  opts = opts || {};
+  var cv = opts.canvas;
+  if (!cv) return null;
+
+  var view = null;
+  try {
+    var rr = createRenderer({ canvas: cv, antialias: true, alpha: true, preferWebGL: true });
+    /* alpha:true alone no longer clears transparent — WebGPURenderer defaults
+       to an opaque clear, so the preview came out on a black slab instead of
+       the panel behind it. Ask for a fully transparent clear explicitly. */
+    rr.setClearColor(0x000000, 0);
+    rr.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    rr.outputColorSpace = THREE.SRGBColorSpace;
+    rr.toneMapping = THREE.ACESFilmicToneMapping;
+    rr.toneMappingExposure = 1.1;
+    if (opts.shadows) rr.shadowMap.enabled = true;
+
+    var sc = new THREE.Scene();
+    var cam = new THREE.PerspectiveCamera(opts.fov || 45, 1, opts.near || 1, opts.far || 6000);
+    sc.add(new THREE.AmbientLight(0xffffff, LUX * (opts.ambient || 0.6)));
+    var key = new THREE.DirectionalLight(0xfff2dd, LUX * (opts.keyLight || 0.95));
+    key.position.set(180, 340, 260);
+    if (opts.shadows) {
+      /* A directional light ships with a ten-unit shadow frustum. The editor
+         works in centimetres, so that is a 10 cm window onto the model — which
+         is exactly the grey rectangle that used to sit on the side of a part:
+         inside the window the surface shadowed itself at the default zero bias,
+         and outside it there was no shadow at all. Cover what the camera can
+         see instead, and bias along the surface normal so a curved wall stops
+         casting onto itself. `place` keeps the box sized to the current zoom. */
+      key.castShadow = true;
+      key.shadow.mapSize.set(2048, 2048);
+      key.shadow.camera.near = 1;
+      key.shadow.camera.far = 4000;
+      key.shadow.bias = -0.0004;
+      key.shadow.normalBias = 1.2;   // cm
+      sc.add(key.target);
+    }
+    sc.add(key);
+    if (opts.fill !== 0) {
+      var fill = new THREE.DirectionalLight(0xdfe8ff, LUX * (opts.fill || 0.35));
+      fill.position.set(-200, 120, -160);
+      sc.add(fill);
+    }
+    var grid = null;
+    if (opts.grid) {
+      grid = new THREE.GridHelper(400, 20, 0x88aacc, 0xd0d8e0);
+      sc.add(grid);
+    }
+    var grp = new THREE.Group();
+    sc.add(grp);
+
+    view = {
+      rr: rr, sc: sc, cam: cam, grp: grp, grid: grid,
+      az: opts.az != null ? opts.az : 0.55,
+      el: opts.el != null ? opts.el : 0.28,
+      dist: opts.dist || 420,
+      target: new THREE.Vector3(),
+      big: false,
+      fixedFrame: null,
+    };
+
+    var minEl = opts.minEl != null ? opts.minEl : -0.2,
+      maxEl = opts.maxEl != null ? opts.maxEl : 1.4,
+      minDist = opts.minDist != null ? opts.minDist : 50,
+      maxDist = opts.maxDist != null ? opts.maxDist : 2500;
+
+    /* The backend is async, so the very first paint is a no-op and the panel
+       would sit blank until the user's next edit. Repaint on ready. */
+    gpuReady(rr).then(function () { view.render(); });
+
+    var drag = null;
+    cv.addEventListener("pointerdown", function (e) {
+      // CAD navigation: middle-drag (or Shift + primary-drag on mice without
+      // a middle button) pans. Primary-drag keeps the existing orbit gesture.
+      // Selection is still a stationary primary click.
+      var mode = e.button === 1 || (e.button === 0 && e.shiftKey) ? "pan" : "orbit";
+      if (mode === "pan") e.preventDefault();
+      cv.setPointerCapture(e.pointerId);
+      drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false, mode: mode };
+    });
+    cv.addEventListener("pointermove", function (e) {
+      if (!drag) return;
+      if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 4) {
+        drag.moved = true;
+        if (view.fixedFrame && drag.mode === "orbit") view.clearFixedFrame(false);
+      }
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (drag.mode === "pan") view.panBy(dx, dy, false);
+      else {
+        view.az += dx * 0.009;
+        view.el = clamp(view.el + dy * 0.006, minEl, maxEl);
+      }
+      drag.x = e.clientX; drag.y = e.clientY;
+      view.render();
+    });
+    cv.addEventListener("pointerup", function (e) {
+      var wasClick = drag && drag.mode === "orbit" && e.button === 0 && !drag.moved;
+      drag = null;
+      if (wasClick && opts.pick) opts.pick(e, view);
+    });
+    cv.addEventListener("pointercancel", function () { drag = null; });
+    cv.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+    cv.addEventListener("wheel", function (e) {
+      e.preventDefault();
+      view.zoomBy(e.deltaY > 0 ? 1.12 : 1 / 1.12);
+    }, { passive: false });
+
+    /* Sizing follows the box the canvas has been put in. As a panel thumbnail
+       that is a fixed aspect ratio; promoted into the middle pane it is the
+       view, so it takes the whole room it is given. */
+    var lastW = 0, lastH = 0, settling = 0;
+    view.resize = function () {
+      var box = cv.parentElement;
+      if (!box) return false;
+      var r = box.getBoundingClientRect();
+      /* The overlay is laid out the same frame it is shown, so the first
+         render can land while the panel still measures a few pixels wide.
+         Sizing to that bakes in a postage stamp until something else forces a
+         redraw — skip instead and come back next frame. Bounded, so a genuinely
+         collapsed panel does not spin a repaint loop. */
+      if (r.width < 40 || r.height < 20) {
+        if (settling++ < 10) requestAnimationFrame(function () { view.render(); });
+        return false;
+      }
+      settling = 0;
+      var pad = view.big ? 4 : opts.pad || 16,
+        w = Math.max(50, Math.round(r.width - pad)),
+        h = Math.max(50, Math.round(view.big ? r.height - pad : w * (opts.ratio || 0.78)));
+      // compare against what we asked for, not canvas.width — that is the
+      // backing-store size and never equals w on a 2x display, so the old
+      // check re-sized the renderer on literally every frame
+      if (w === lastW && h === lastH) return false;
+      lastW = w;
+      lastH = h;
+      cam.aspect = w / h;
+      cam.updateProjectionMatrix();
+      // update the CSS size too, so the canvas has no dead letterbox
+      rr.setSize(w, h, true);
+      return true;
+    };
+
+    // put the camera on its orbit around `center`, then draw
+    view.place = function () {
+      var d = view.dist * (view.big ? (opts.bigZoom || 1.3) : 1),
+        az = view.az,
+        el = view.el,
+        cy = opts.center ? opts.center() : 0,
+        tx = view.target.x,
+        ty = cy + view.target.y,
+        tz = view.target.z;
+      if (key.castShadow) {
+        var reach = Math.max(60, d), shadowCam = key.shadow.camera;
+        if (shadowCam.right !== reach) {
+          shadowCam.left = -reach; shadowCam.right = reach;
+          shadowCam.top = reach; shadowCam.bottom = -reach;
+          shadowCam.updateProjectionMatrix();
+        }
+        key.target.position.set(tx, ty, tz);
+        key.target.updateMatrixWorld();
+      }
+      if (view.fixedFrame) {
+        var frame = view.fixedFrame,
+          origin = {
+            x: frame.origin.x + view.target.x,
+            y: frame.origin.y + view.target.y,
+            z: frame.origin.z + view.target.z,
+          },
+          normal = new THREE.Vector3(frame.normal.x, frame.normal.y, frame.normal.z).normalize(),
+          up = new THREE.Vector3(frame.yAxis.x, frame.yAxis.y, frame.yAxis.z).normalize();
+        cam.up.copy(up);
+        cam.position.set(origin.x + normal.x * d, origin.y + normal.y * d, origin.z + normal.z * d);
+        cam.lookAt(origin.x, origin.y, origin.z);
+        return;
+      }
+      cam.up.set(0, 1, 0);
+      cam.position.set(
+        tx + Math.sin(az) * Math.cos(el) * d,
+        ty + Math.sin(el) * d,
+        tz + Math.cos(az) * Math.cos(el) * d
+      );
+      cam.lookAt(tx, ty, tz);
+    };
+
+    view.render = function () {
+      if (opts.active && !opts.active()) return;
+      view.resize();
+      // an editor with a second destination for the same parts (the modeler's
+      // context room) takes over here and draws it its own way
+      if (opts.draw && opts.draw(view)) return;
+      view.place();
+      gpuRender(rr, sc, cam);
+    };
+
+    // swap the contents of the view's group; the callback does the building
+    view.rebuild = function (fn) {
+      clearGroup(grp);
+      if (fn) fn(grp);
+      view.render();
+    };
+
+    view.setBig = function (b) {
+      view.big = !!b;
+      view.render();
+    };
+    // point the camera at a standard direction (used by the axis buttons)
+    view.orbitTo = function (az, el) {
+      view.clearFixedFrame(false);
+      view.az = az;
+      view.el = clamp(el, minEl, maxEl);
+      view.render();
+    };
+    // Lock the camera square to an arbitrary planar sketch. GridHelper starts
+    // in XZ (normal +Y), so the same frame also orients the construction grid.
+    view.lookAtFrame = function (frame) {
+      if (!frame || !frame.origin || !frame.normal || !frame.yAxis) return;
+      view.fixedFrame = JSON.parse(JSON.stringify(frame));
+      if (grid) {
+        var n = new THREE.Vector3(frame.normal.x, frame.normal.y, frame.normal.z).normalize();
+        var x = new THREE.Vector3(frame.xAxis.x, frame.xAxis.y, frame.xAxis.z).normalize();
+        var z = new THREE.Vector3(frame.yAxis.x, frame.yAxis.y, frame.yAxis.z).normalize().multiplyScalar(-1);
+        grid.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, n, z));
+        grid.position.set(frame.origin.x, frame.origin.y, frame.origin.z);
+      }
+      view.render();
+    };
+    view.clearFixedFrame = function (render) {
+      view.fixedFrame = null;
+      cam.up.set(0, 1, 0);
+      if (grid) {
+        grid.quaternion.identity();
+        grid.position.set(0, 0, 0);
+      }
+      if (render !== false) view.render();
+    };
+    // Keep every zoom entry point on the same distance limits. Editors use
+    // this for their toolbar and for the sketch canvas layered over the model;
+    // the preview canvas wheel uses it too.
+    view.zoomBy = function (factor) {
+      if (!(factor > 0)) return;
+      view.dist = clamp(view.dist * factor, minDist, maxDist);
+      view.render();
+    };
+    // Translate the orbit target in the camera plane. Scaling by distance and
+    // viewport height keeps a drag feeling the same at every zoom level.
+    view.panBy = function (dx, dy, render) {
+      view.place();
+      cam.updateMatrixWorld();
+      var height = Math.max(1, cv.clientHeight || 1);
+      var scale = 2 * view.dist * Math.tan(THREE.MathUtils.degToRad(cam.fov * 0.5)) / height;
+      var right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
+      var up = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
+      view.target.addScaledVector(right, -dx * scale);
+      view.target.addScaledVector(up, dy * scale);
+      if (render !== false) view.render();
+    };
+    view.resetPan = function (render) {
+      view.target.set(0, 0, 0);
+      if (render !== false) view.render();
+    };
+    view.frame = function (radius) {
+      view.dist = clamp(radius, minDist, maxDist);
+      view.target.set(0, 0, 0);
+    };
+  } catch (e) {
+    // no WebGL at all — the editors treat a null view as "no preview" and
+    // carry on in 2D rather than failing to open
+    return null;
+  }
+  return view;
+}
+
+/* One renderer, two homes. `wrap` is the element the canvas sits in; it is
+   moved between the side panel and the big pane instead of a second context
+   being created. Returns a setter that both editors call from their mode
+   switch. */
+export function createViewportSwap(o) {
+  /* Where the thumbnail sits when it comes home. Remembered from where it
+     started rather than assumed to be the first child — the modeler's panel
+     opens with a drag-resizer that has to stay above it. */
+  var anchor = o.wrap.nextSibling,
+    home = o.panelHost || o.wrap.parentElement;
+  return function setBig(big, view) {
+    if (big) o.bigHost.appendChild(o.wrap);
+    else home.insertBefore(o.wrap, anchor && anchor.parentElement === home ? anchor : null);
+    if (view) view.setBig(big);
+  };
+}
