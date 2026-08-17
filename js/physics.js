@@ -1,30 +1,36 @@
 const MAX_SUB_STEPS = 3;
 
 import {
+  addPhysicsBody as shapesAddPhysicsBody,
   clearDebris,
   clearPhysics,
   disposeWorld,
-  drainShatterQueue,
-  explodeAt,
   getHitMode,
   getPhysicsBodies,
   getStrength,
-  hitAlongRay,
-  hitObjectAtCenter,
   initPhysics,
-  isCharacterReady,
   isPhysicsBusy as worldIsPhysicsBusy,
   isPhysicsEnabled,
-  moveKinematicCapsule,
   setStrength,
-  spawnHangingCloth,
-  stepWorld,
+  syncPhysicsToThree as stepWorld,
   takeShatterQueue,
   toggleHitMode,
   togglePhysics,
   toggleSlowMo,
 } from "./physics/world.js";
-import { addPhysicsBody as shapesAddPhysicsBody } from "./physics/shapes.js";
+import { initNative } from "./physics/native.js";
+import {
+  drainShatterQueue,
+  explodeAt,
+  hitAlongRay,
+  hitObjectAtCenter,
+} from "./physics/damage.js";
+import { spawnHangingCloth } from "./physics/cloth.js";
+import { isCharacterReady, moveKinematicCapsule } from "./physics/character.js";
+
+export function ready() {
+  return initNative();
+}
 
 export function isPhysicsBusy() {
   return worldIsPhysicsBusy();
@@ -32,6 +38,7 @@ export function isPhysicsBusy() {
 
 export function addPhysicsBody(mesh, isDynamic) {
   const body = shapesAddPhysicsBody(mesh, isDynamic);
+  if (!body) return null;
   if (isDynamic) body.sleep();
   return body;
 }

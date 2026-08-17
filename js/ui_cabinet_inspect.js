@@ -441,6 +441,8 @@ export function fillInspector() {
    drawn on the elevation and the zone appears. A vertical one splits the
    column it lands in (the two halves keep the contents), a horizontal one
    splits the compartment under the pointer — with Shift, the same height in
+   every column. */
+
 export function refillColumn(col, mode) {
   api.act(T("fillCol"));
   api.touch();

@@ -158,6 +158,9 @@ export class PhysicsBody {
   wakeUp() {
     if (this.raw) this.raw.wakeUp();
   }
+  sleep() {
+    if (this.raw) this.raw.sleep();
+  }
   flushToRapier() {
     if (!this.raw) return;
     this.raw.setTranslation(this.position, true);

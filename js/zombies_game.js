@@ -2767,6 +2767,14 @@ function spawnPoints() {
   return pts;
 }
 
+function spawnCrowded(p) {
+  for (var q = 0; q < Z.zeds.length; q++) {
+    var o2 = Z.zeds[q];
+    if (!o2.dead && Math.hypot(o2.x - p.x, o2.z - p.z) < 85) return true;
+  }
+  return false;
+}
+
 function pickSpawn() {
   var pts = Z.spawnPts && Z.spawnPts.length ? Z.spawnPts : (Z.spawnPts = spawnPoints());
   var best = null,
@@ -2778,12 +2786,7 @@ function pickSpawn() {
     if (d < 260) continue;
     // never stack two of them on the same spot — a pile of overlapping bodies
     // reads as one broken mesh instead of two zombies
-    var crowded = false;
-    for (var q = 0; q < Z.zeds.length; q++) {
-      var o2 = Z.zeds[q];
-      if (!o2.dead && Math.hypot(o2.x - p.x, o2.z - p.z) < 85) crowded = true;
-    }
-    if (crowded) continue;
+    if (spawnCrowded(p)) continue;
     var hidden = !losClear(p.x, p.z, Z.p.x, Z.p.z);
     var score = (hidden ? 900 : 0) + Math.min(d, 1400) - Math.max(0, d - 1600);
     if (score > bestScore) {
@@ -2792,10 +2795,29 @@ function pickSpawn() {
     }
   }
   if (!best) {
+    // A 12 m² studio fails the 260 cm rule for every interior point. The old
+    // fallback picked a random coordinate inside the bounds, which is how wave 1
+    // could spawn on the player and end the shift before it started.
+    for (var j = 0; j < pts.length; j++) {
+      var p2 = pts[j];
+      if (!p2 || spawnCrowded(p2)) continue;
+      var d2 = Math.hypot(p2.x - Z.p.x, p2.z - Z.p.z);
+      if (d2 < 90) continue;
+      var score2 = d2 + (!losClear(p2.x, p2.z, Z.p.x, Z.p.z) ? 80 : 0);
+      if (score2 > bestScore) {
+        bestScore = score2;
+        best = p2;
+      }
+    }
+  }
+  if (!best) {
     var b = interiorBounds();
-    best = b
-      ? { x: rr(b.minx + 60, b.maxx - 60), z: rr(b.minz + 60, b.maxz - 60) }
-      : { x: Z.p.x + 400, z: Z.p.z + 400 };
+    if (b) {
+      best = {
+        x: Z.p.x < (b.minx + b.maxx) / 2 ? b.maxx - 40 : b.minx + 40,
+        z: Z.p.z < (b.minz + b.maxz) / 2 ? b.maxz - 40 : b.minz + 40,
+      };
+    } else best = { x: Z.p.x + 400, z: Z.p.z + 400 };
   }
   return best;
 }
@@ -2843,7 +2865,7 @@ function startWave(n) {
     pending: total,
     state: "fight",
     timer: 0,
-    spawnT: 0,
+    spawnT: n <= 1 ? 1.6 : 0,
     pool: pool,
     event: event,
     bossSpawned: false,
