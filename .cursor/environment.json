@@ -1,0 +1,4 @@
+{
+  "name": "ModelForge CAD",
+  "install": "npm ci"
+}

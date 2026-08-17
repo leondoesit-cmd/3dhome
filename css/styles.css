@@ -2687,6 +2687,11 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-head-actions button:disabled:hover { background: var(--btn-bg); border-color: var(--btn-border); }
 #modeler .md-head-actions #mdSave { background: var(--accent); border-color: var(--accent); color: #fff; }
 #modeler .md-head-actions #mdSave:hover { background: var(--accent-hover, var(--accent)); border-color: var(--accent); }
+#modeler .md-head-actions #mdSave.is-dirty::after {
+  content: ""; position: absolute; top: 5px; inset-inline-end: 5px;
+  width: 7px; height: 7px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent);
+}
 #modeler .md-separator { width: 1px; height: 22px; background: var(--separator); margin: 0 2px; }
 #modeler .md-head-actions .md-guide-launch {
   color: var(--accent); border-color: color-mix(in srgb, var(--accent) 42%, var(--btn-border));
@@ -2926,7 +2931,9 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-command.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 38%, transparent); }
 #modeler .md-command.primary { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 #modeler .md-command.primary i { color: var(--accent); }
-#modeler .md-command:disabled { opacity: 0.33; cursor: default; }
+#modeler .md-command:disabled,
+#modeler .md-command.unavailable { opacity: 0.33; cursor: default; }
+#modeler .md-command.unavailable:hover { background: var(--btn-bg); border-color: transparent; }
 #modeler .md-command i { font-size: 15px; flex: none; opacity: .85; }
 #modeler .md-command span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 #modeler .md-command > kbd { margin-inline-start: 1px; padding: 1px 3px; font-size: 8px; opacity: .7; }
@@ -2967,7 +2974,9 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 }
 #modeler .md-command-result:hover,
 #modeler .md-command-result.selected { background: var(--btn-bg-hover); border-color: var(--btn-border); }
-#modeler .md-command-result:disabled { opacity: 0.38; cursor: default; }
+#modeler .md-command-result:disabled,
+#modeler .md-command-result.unavailable { opacity: 0.55; cursor: pointer; }
+#modeler .md-command-result.unavailable small { color: #d0342c; }
 #modeler .md-command-result > i { width: 25px; color: var(--accent); font-size: 21px; text-align: center; }
 #modeler .md-command-result .copy { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 #modeler .md-command-result b { font-size: 12px; font-weight: 650; }
@@ -3104,7 +3113,6 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler.md-assembly #mdCanvas,
 #modeler.md-assembly .md-views,
 #modeler.md-assembly .md-hint,
-#modeler.md-assembly .md-status,
 #modeler.md-assembly #mdModes { display: none !important; }
 #modeler.md-assembly .md-mid { background: #141922; }
 #modeler.md-assembly .md-3dhost { display: block; }
@@ -3297,7 +3305,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 
 /* the CAD status line: plane, cursor in cm, grid, object snap, zoom */
 #modeler .md-status {
-  position: absolute; bottom: 0; inset-inline-start: 0; inset-inline-end: 0; z-index: 4;
+  position: absolute; bottom: 0; inset-inline-start: 0; inset-inline-end: 0; z-index: 8;
   display: flex; align-items: center; gap: 8px; padding: 6px 12px;
   font-size: 11px; color: var(--text-muted); pointer-events: none;
   background: linear-gradient(to top, var(--bg-panel), transparent);
@@ -3306,7 +3314,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-status b { color: var(--text-main); font-weight: 600; }
 #modeler .md-status i { font-size: 12px; vertical-align: -1px; }
 #modeler .md-st-sep { width: 1px; height: 11px; background: var(--separator); }
-#modeler.md-is3d:not(.md-model-sketching) .md-status { display: none; }
+#modeler .md-status .md-st-dirty { color: var(--accent); }
 
 /* ---- pane contents ---- */
 #modeler h4, #modeler .md-h5 {
@@ -6630,6 +6638,7 @@ body.zombies-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
    preview wrap is moved into it; see editor_view.js. */
 #modeler .md-3dhost { position: absolute; inset: 0; display: none; }
 #modeler.md-is3d .md-3dhost { display: flex; }
+#modeler.md-is3d:not(.md-model-sketching) .md-3dhost { bottom: 28px; }
 #modeler.md-is3d:not(.md-model-sketching) #mdCanvas { display: none; }
 #modeler.md-is3d.md-model-sketching #mdCanvas { display: block; }
 #modeler.md-is3d .md-3dhost .md-prev-wrap {

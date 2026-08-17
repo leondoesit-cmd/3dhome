@@ -44,11 +44,14 @@ function lowerExtrudeParams(feature, document) {
 function loweredFeature(feature, document) {
   const base = { id: feature.id, name: feature.name, suppressed: !!feature.suppressed, inputs: cloneDomain(feature.inputs || []), references: topologyReferences(feature) };
   if (feature.type === "extrude") return [{ ...base, type: "extrude", params: lowerExtrudeParams(feature, document) }];
-  if (feature.type === "extrudeCut") {
+  if (feature.type === "extrudeCut" || feature.type === "hole") {
     const target = feature.inputs?.[0] || idOf(feature.references?.features?.[0]);
     const toolId = feature.id + ":tool";
+    const holeParams = feature.type === "hole"
+      ? { ...lowerExtrudeParams(feature, document), diameter: Number(feature.params?.diameter) || 1, endCondition: feature.params?.endCondition || "blind" }
+      : lowerExtrudeParams(feature, document);
     return [
-      { id: toolId, name: feature.name + " tool", type: "extrude", params: lowerExtrudeParams(feature, document), inputs: [], references: topologyReferences(feature), suppressed: !!feature.suppressed },
+      { id: toolId, name: feature.name + " tool", type: "extrude", params: holeParams, inputs: [], references: topologyReferences(feature), suppressed: !!feature.suppressed },
       { ...base, type: "subtract", params: {}, inputs: [target, toolId].filter(Boolean) },
     ];
   }
