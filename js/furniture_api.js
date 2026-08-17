@@ -146,6 +146,19 @@ export function mkItem(type, x, z, rot) {
   };
 }
 
+export function emptyScene() {
+  S.nodes = [];
+  S.walls = [];
+  S.openings = [];
+  S.items = [];
+  S.markers = [];
+  S.roomMeta = {};
+  S.sel = null;
+  S.rectDraft = null;
+  S.placeType = null;
+  S.wallCons = [];
+}
+
 export function defaultScene() {
   S.nodes = [
     { x: 0, z: 0 },

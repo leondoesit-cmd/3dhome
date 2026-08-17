@@ -378,6 +378,10 @@ export const S = {
   drawing: false,
   // three-click curved-wall placement (start, end, point on arc)
   arcDraft: null,
+  // two-click rectangle-room placement: first corner, then opposite corner
+  rectDraft: null,
+  // library item armed for click-to-place on the plan (modern chrome)
+  placeType: null,
   drawFrom: null,
   drawFromSplit: false,
   drawWalls: [], // ids committed in the current wall-placement run

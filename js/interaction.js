@@ -30,7 +30,7 @@ import { isLamp } from "./furniture.js";
 import { holdToWall, reseatHeldItems } from "./item_align.js";
 import { t } from "./i18n.js";
 import { plan, render2D, fitView, wx, wz, dropPoint, toBasePx, planRotRad, pickCon } from "./plan2d.js";
-import { select, fillProps, refreshTree, flash, setLockStruct } from "./ui.js";
+import { select, fillProps, refreshTree, flash, setLockStruct, placeFurnAt } from "./ui.js";
 import { syncWallEnd } from "./ui_props.js";
 import {
   pushHistory,
@@ -416,17 +416,21 @@ export function setTool(t) {
   S.freshWall = null; // picking any tool ends the just-drawn run
   if (t !== "wall") finishDraw();
   if (t !== "arcwall") S.arcDraft = null;
+  if (t !== "rect") S.rectDraft = null;
   if (t !== "point") {
     S.markerPreview = null;
     S.snapGuides = [];
   }
+  if (t !== "select") S.placeType = null;
   // leaving the MEP tools clears any armed palette entry + in-progress route
   if (t.indexOf("mep") !== 0) cancelMEP();
   document.querySelectorAll(".tool").forEach(function (b) {
     b.classList.toggle("active", b.getAttribute("data-tool") === t);
   });
-  plan.style.cursor = t === "select" ? "default" : "crosshair";
+  plan.style.cursor = t === "select" && !S.placeType ? "default" : "crosshair";
   if (t !== "point") S.snapInfo = null;
+  document.documentElement.setAttribute("data-tool", t || "select");
+  window.dispatchEvent(new CustomEvent("planner-tool"));
   updateCadHud();
   syncElevationTools();
 }
@@ -624,6 +628,37 @@ function applyWallDrawDefaults(wall) {
   wall.phase = defaults.phase === "demolish" ? "demolition" : (defaults.phase || "new");
   wall.layersReversed = !!defaults.layersReversed;
   return wall;
+}
+
+function commitRectFromTo(a, b) {
+  var x0 = Math.min(a.x, b.x),
+    x1 = Math.max(a.x, b.x),
+    z0 = Math.min(a.z, b.z),
+    z1 = Math.max(a.z, b.z);
+  if (x1 - x0 < 20 || z1 - z0 < 20) {
+    flash(t("hint_tool_rect"));
+    return null;
+  }
+  pushHistory();
+  var n0 = getOrMakeNode(resolveLanding({ x: x0, z: z0 }, true));
+  var n1 = getOrMakeNode(resolveLanding({ x: x1, z: z0 }, true));
+  var n2 = getOrMakeNode(resolveLanding({ x: x1, z: z1 }, true));
+  var n3 = getOrMakeNode(resolveLanding({ x: x0, z: z1 }, true));
+  var walls = [
+    { id: uid(), a: n0, b: n1, thickness: WALL_T, height: WALL_H },
+    { id: uid(), a: n1, b: n2, thickness: WALL_T, height: WALL_H },
+    { id: uid(), a: n2, b: n3, thickness: WALL_T, height: WALL_H },
+    { id: uid(), a: n3, b: n0, thickness: WALL_T, height: WALL_H },
+  ];
+  walls.forEach(applyWallDrawDefaults);
+  S.walls.push(walls[0], walls[1], walls[2], walls[3]);
+  walls.forEach(function (w) {
+    if (wallClearLength(w) > 0) w.clearL = wallClearLength(w);
+  });
+  S.dirty3D = true;
+  render2D();
+  refreshTree();
+  return walls;
 }
 
 /* Replace a sharp shared corner with a true tangent arc.  Validation happens
@@ -2688,12 +2723,43 @@ export function initInteraction() {
       arcWallPoint(snapPoint(px, pz, null));
       return;
     }
+    if (S.tool === "rect") {
+      if (e.button === 2) {
+        S.rectDraft = null; S.previewPt = null; setTool("select"); render2D();
+        return;
+      }
+      var rp = snapPoint(px, pz, null);
+      if (!S.rectDraft) {
+        S.rectDraft = { x: rp.x, z: rp.z };
+        S.previewPt = { x: rp.x, z: rp.z };
+        render2D();
+        return;
+      }
+      if (commitRectFromTo(S.rectDraft, rp)) setTool("select");
+      S.rectDraft = null;
+      S.previewPt = null;
+      render2D();
+      return;
+    }
+    if (S.placeType && (!S.tool || S.tool === "select")) {
+      if (e.button === 2) {
+        S.placeType = null;
+        window.dispatchEvent(new CustomEvent("planner-place"));
+        render2D();
+        return;
+      }
+      placeFurnAt(S.placeType, px, pz);
+      return;
+    }
     if (S.tool === "door" || S.tool === "window" || S.tool === "passage") {
       var ws = S.walls.filter(function (w) {
         var projected = wallProject(w, px, pz);
         return projected && projected.distance < w.thickness / 2 + tolCm(12);
       });
-      if (!ws.length) return;
+      if (!ws.length) {
+        flash(t("opening_need_wall"));
+        return;
+      }
       pushHistory();
       var made = null,
         defs = {
@@ -3205,6 +3271,18 @@ export function initInteraction() {
     if (S.tool === "arcwall" && S.arcDraft) {
       var ap = snapPoint(px, pz, null);
       S.previewPt = { x: ap.x, z: ap.z };
+      render2D();
+      return;
+    }
+    if (S.tool === "rect" && S.rectDraft) {
+      var rrp = snapPoint(px, pz, null);
+      S.previewPt = { x: rrp.x, z: rrp.z };
+      render2D();
+      return;
+    }
+    if (S.placeType && (!S.tool || S.tool === "select")) {
+      var plp = snapPoint(px, pz, null);
+      S.previewPt = { x: plp.x, z: plp.z };
       render2D();
       return;
     }
@@ -3856,6 +3934,12 @@ export function initInteraction() {
       if (S.conPick) endConPick(null);
       else if (S.drawing) finishDraw();
       else if (S.arcDraft) { S.arcDraft = null; S.previewPt = null; setTool("select"); }
+      else if (S.rectDraft) { S.rectDraft = null; S.previewPt = null; setTool("select"); }
+      else if (S.placeType) {
+        S.placeType = null;
+        S.previewPt = null;
+        window.dispatchEvent(new CustomEvent("planner-place"));
+      }
       else if (S.tool === "mepRoute" && ensureMEP().route) cancelRoute();
       else if (S.tool && S.tool.indexOf("mep") === 0) setTool("select");
       else if (S.tool === "point") setTool("select");
@@ -3880,13 +3964,14 @@ export function initInteraction() {
         render2D();
       } else if (S.sel && S.sel.kind === "items") rotateItems(15);
       else if (S.sel && S.sel.kind === "room") rotateRoom(15);
-    } else if (e.key === "1") setTool("select");
+    }     else if (e.key === "1") setTool("select");
     else if (e.key === "2") setTool("wall");
     else if (e.key === "3") setTool("door");
     else if (e.key === "4") setTool("window");
     else if (e.key === "5") setTool("passage");
     else if (e.key === "6") setTool("point");
     else if (e.key === "7") setTool("arcwall");
+    else if (e.key === "8") setTool("rect");
     // L toggles the structure lock — the same button the plan toolbar shows
     else if (e.key === "l" || e.key === "L") setLockStruct(!S.lockStruct);
     else if (e.key.indexOf("Arrow") === 0 && S.sel && S.sel.kind === "marker") {

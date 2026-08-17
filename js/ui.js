@@ -23,6 +23,7 @@ import {
   lampColor,
   mkItem,
   defaultScene,
+  emptyScene,
   PRICE,
   itemPrice,
   clearVSpanCache,
@@ -742,14 +743,34 @@ export function lockUI() {
 export function unlockUI() {
   document.getElementById("workspace").style.pointerEvents = "";
 }
-export function addFurnItem(type) {
+export function isLegacyUI() {
+  return document.documentElement.getAttribute("data-ui") === "legacy";
+}
+
+export function placeFurnAt(type, x, z) {
   pushHistory();
+  var it = mkItem(type, Math.round(x / 2) * 2, Math.round(z / 2) * 2, 0);
+  if (!fin(it.x) || !fin(it.z)) {
+    flash(t("f_placeFail"), "error");
+    return;
+  }
+  S.items.push(it);
+  S.placeType = null;
+  window.dispatchEvent(new CustomEvent("planner-place"));
+  select({ kind: "item", ref: it });
+  S.dirty3D = true;
+  render2D();
+  updateCost();
+}
+
+export function addFurnItem(type) {
   /* With a placeholder point selected, the library becomes that point's picker:
      the piece lands ON the point instead of in the middle of the view. This is
      the "add the object later" half of the feature — the point was placed and
      measured first, the object is chosen whenever you have decided. */
   var mk = S.sel && S.sel.kind === "marker" ? S.sel.ref : null;
   if (mk) {
+    pushHistory();
     var held = markerItem(mk);
     if (held) {
       S.items = S.items.filter(function (i) {
@@ -769,6 +790,15 @@ export function addFurnItem(type) {
     fillProps();
     return;
   }
+  if (!isLegacyUI()) {
+    S.placeType = type;
+    var planEl = document.getElementById("plan");
+    if (planEl) planEl.style.cursor = "crosshair";
+    window.dispatchEvent(new CustomEvent("planner-place"));
+    flash(t("furn_place_armed", { name: flabel(type) }));
+    return;
+  }
+  pushHistory();
   var p = dropPoint(); // never NaN, even with the plan pane hidden
   var cx = Math.round(p.x / 2) * 2,
     cz = Math.round(p.z / 2) * 2;
@@ -2600,7 +2630,7 @@ export function initUI() {
   // from what the matching menu item does.
   async function runAction(act) {
     if (S.workspace && S.workspace.role === "viewer") {
-      var readOnlyActions = ["workspace", "frame", "walk", "walkview", "freemove", "photo", "png2d", "png3d", "exportjson", "exportgltf", "exportCost", "tree", "shortcuts", "plannerTutorial"];
+      var readOnlyActions = ["workspace", "frame", "walk", "walkview", "freemove", "photo", "png2d", "png3d", "exportjson", "exportgltf", "exportCost", "tree", "shortcuts", "plannerTutorial", "viewPlan", "view3d", "viewSplit", "openModeler", "friends", "toggleLegacy", "newPlan"];
       if (readOnlyActions.indexOf(act) < 0) {
         flash("Viewer access is read-only", "error");
         return;
@@ -2613,7 +2643,30 @@ export function initUI() {
     else if (act === "lockStruct") setLockStruct(!S.lockStruct);
     else if (act === "edit3d") setEdit3D(!S.edit3D);
     else if (act === "workspace") (await import("./workspace.js")).openWorkspace();
-    else if (act === "deleteSel") {
+    else if (act === "openModeler") (await import("./modeler.js")).openModeler();
+    else if (act === "friends") {
+      var fb = document.getElementById("friendsBtn");
+      if (fb) fb.click();
+    } else if (act === "toggleLegacy") {
+      if (window.__plannerChrome) window.__plannerChrome.toggleLegacyUI();
+    } else if (act === "newPlan") {
+      if (window.__plannerChrome) window.__plannerChrome.openStartScreen();
+    } else if (act === "viewPlan") {
+      if (typeof window.__setViewMode === "function") window.__setViewMode("plan");
+      try { localStorage.setItem("home3d_viewmode", "plan"); } catch (_) {}
+    } else if (act === "view3d") {
+      if (typeof window.__setViewMode === "function") window.__setViewMode("3d");
+      try { localStorage.setItem("home3d_viewmode", "3d"); } catch (_) {}
+    } else if (act === "viewSplit") {
+      if (typeof window.__setViewMode === "function") window.__setViewMode("split");
+      try { localStorage.setItem("home3d_viewmode", "split"); } catch (_) {}
+    } else if (act === "hintRect") {
+      setTool("rect");
+    } else if (act === "hintDoor") {
+      setTool("door");
+    } else if (act === "hintLibrary") {
+      if (window.__plannerChrome) window.__plannerChrome.setLeftTab("library");
+    } else if (act === "deleteSel") {
       deleteSel();
       updateCost();
     } else if (act === "dupSel") {
