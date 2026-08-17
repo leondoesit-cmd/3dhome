@@ -1054,6 +1054,10 @@ onLangChange(function () {
   if (root && !E.open) destroyDOM();
 });
 
+window.addEventListener("themechange", function () {
+  if (E.open) fillSheets();
+});
+
 // Opened from the cost panel (whole plan) and from the cabinet designer (one
 // cabinet). Called with no argument it nests everything.
 export function openNestForPlan() {

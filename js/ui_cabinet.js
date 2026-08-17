@@ -3562,6 +3562,10 @@ export function initCabinetUI() {
       nb.querySelector("span").textContent = T("newCab");
     });
   }
+
+  window.addEventListener("themechange", function () {
+    if (E.open) draw();
+  });
 }
 
 /* A cabinet from absolute zero: a new item in the plan, free-form, one empty

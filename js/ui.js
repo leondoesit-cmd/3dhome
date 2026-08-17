@@ -27,7 +27,7 @@ import {
   itemPrice,
   clearVSpanCache,
 } from "./furniture.js";
-import { t, toggleLang } from "./i18n.js";
+import { t, toggleLang, onLangChange } from "./i18n.js";
 import { render2D, fitView, wx, wz, dropPoint, updatePlanGizmo } from "./plan2d.js";
 import {
   snapshotNodes, enforceLocks, captureLock, setLocked, isLocked, syncLocks,
@@ -581,7 +581,7 @@ export function flash(msg, kind) {
   }
   while (toastRoot.children.length >= 3) toastRoot.firstChild.remove();
   var el = document.createElement("div");
-  el.className = "toast" + (kind === "error" ? " toast-error" : "");
+  el.className = "toast" + (kind === "error" ? " toast-error" : kind === "success" ? " toast-success" : "");
   var ic =
     kind === "error"
       ? "ph-warning-circle"
@@ -2242,7 +2242,6 @@ export function initUI() {
   const themes = ["light", "soft", "mid", "dark"];
   var curTheme = localStorage.getItem("home3d_theme") || "light";
   if (!themes.includes(curTheme)) curTheme = "light";
-  document.documentElement.setAttribute("data-theme", curTheme);
 
   const updateThemeIcon = (theme) => {
     const btn = document.getElementById("themeToggle");
@@ -2251,19 +2250,30 @@ export function initUI() {
     if (icon) {
       icon.className = theme === "dark" ? "ph ph-moon" : (theme === "mid" ? "ph ph-cloud-sun" : (theme === "soft" ? "ph ph-cloud" : "ph ph-sun"));
     }
-    const labels = { light: "Light theme", soft: "Soft theme", mid: "Middle theme", dark: "Dark theme" };
-    btn.title = labels[theme] + " · click to switch";
-    btn.setAttribute("aria-label", labels[theme] + "; click to switch theme");
+    var label = t("theme_" + theme) + " · " + t("theme_click");
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
   };
-  updateThemeIcon(curTheme);
+
+  function applyTheme(theme, persist) {
+    if (!themes.includes(theme)) theme = "light";
+    curTheme = theme;
+    document.documentElement.setAttribute("data-theme", theme);
+    if (persist !== false) localStorage.setItem("home3d_theme", theme);
+    updateThemeIcon(theme);
+    if (persist === false) return;
+    window.dispatchEvent(new CustomEvent("themechange", { detail: { theme: theme } }));
+    render2D();
+    S.dirty3D = true;
+  }
+
+  applyTheme(curTheme, false);
+  onLangChange(function () { updateThemeIcon(curTheme); });
 
   document.getElementById("themeToggle").addEventListener("click", function () {
     let idx = themes.indexOf(curTheme);
     if (idx === -1) idx = 0;
-    curTheme = themes[(idx + 1) % themes.length];
-    document.documentElement.setAttribute("data-theme", curTheme);
-    localStorage.setItem("home3d_theme", curTheme);
-    updateThemeIcon(curTheme);
+    applyTheme(themes[(idx + 1) % themes.length]);
   });
 
   // Mobile drawer toggles
