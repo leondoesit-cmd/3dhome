@@ -35,9 +35,27 @@ import {
   wallCons, anchorPos, anchorNode, conSatisfied, conCurrent,
   openingById, openingPos,
 } from "./wall_constraints.js";
+import {
+  sx, sz, planRotRad, toBasePx, rotatePx, niceScaleCm,
+} from "./plan_view.js";
 
-export const plan = document.getElementById("plan");
-const pc = plan.getContext("2d");
+export {
+  sx, sz, wx, wz, planRotRad, toBasePx, dropPoint, centerOn, isOnScreen, niceScaleCm,
+} from "./plan_view.js";
+
+export const plan = typeof document !== "undefined" ? document.getElementById("plan") : null;
+const pc = plan && typeof plan.getContext === "function" ? plan.getContext("2d") : null;
+
+function planViewReady() {
+  return !!(
+    pc &&
+    plan &&
+    S.SC > 0 &&
+    S.CW > 0 &&
+    S.CH > 0 &&
+    isFinite(S.SC)
+  );
+}
 
 /* ---- MEP flow animation ----
    A self-perpetuating rAF loop advances a dash offset used by drawMEP to make
@@ -116,27 +134,17 @@ function ensureWarnAnim() {
   }
 }
 
-/* Put a world point in the middle of the plan view — used when a warning is
-   picked from the message list and the offending corner is off screen. */
-export function centerOn(x, z) {
-  if (!(S.SC > 0) || !(S.CW > 0) || !(S.CH > 0)) return;
-  S.OX = S.CW / 2 - x * S.SC;
-  S.OY = S.CH / 2 - z * S.SC;
-}
-/* Is this world point comfortably inside the visible plan? */
-export function isOnScreen(x, z, margin) {
-  var m = margin == null ? 60 : margin;
-  var px = sx(x),
-    py = sz(z);
-  return px > m && py > m && px < S.CW - m && py < S.CH - m;
-}
-
 export function sizeCanvas() {
+  if (!plan || !pc) return;
   var W = plan.clientWidth,
     H = plan.clientHeight,
-    dpr = Math.min(window.devicePixelRatio, 2);
-    
-  if (S.CW && S.CH && W > 0 && H > 0) {
+    dpr = Math.min((typeof window !== "undefined" && window.devicePixelRatio) || 1, 2);
+  /* A hidden pane (3D maximized, or the 2D tab not showing on a phone) reports
+     0×0. Writing that into S.CW/S.CH used to destroy the view transform and
+     make render2D's grid loop run to Infinity. Keep the last live size. */
+  if (!(W > 0) || !(H > 0)) return;
+
+  if (S.CW && S.CH) {
     S.OX += (W - S.CW) / 2;
     S.OY += (H - S.CH) / 2;
   }
@@ -158,83 +166,18 @@ export function fitView() {
   S.OY = (S.CH - bb.d * S.SC) / 2 - bb.minz * S.SC;
 }
 // Re-center the plan content in the current canvas WITHOUT changing zoom.
-// Used on every size change (split-drag / window resize) so the model stays
-// centered instead of drifting toward a corner.
+// For an explicit "frame the model" action. Resize / split-drag must NOT call
+// this: sizeCanvas() already keeps the same world point at the canvas centre,
+// so calling this on every size change threw away the user's pan.
 export function centerContent() {
   if (!(S.SC > 0) || !isFinite(S.SC)) return;
   var bb = contentBounds();
   S.OX = (S.CW - bb.w * S.SC) / 2 - bb.minx * S.SC;
   S.OY = (S.CH - bb.d * S.SC) / 2 - bb.minz * S.SC;
 }
-// sx/sz map world→screen in the UNROTATED base frame. The plan view rotation is
-// applied as a canvas transform around the centre in render2D (see push/popPlan),
-// so drawing code keeps using sx/sz unchanged; only the world↔pixel inversion
-// (wx/wz) and the pan/zoom math need to account for the rotation.
-export function sx(x) {
-  return S.OX + x * S.SC;
-}
-export function sz(z) {
-  return S.OY + z * S.SC;
-}
-export function planRotRad() {
-  return ((S.planRot || 0) * Math.PI) / 180;
-}
-// invert the view rotation on a raw canvas pixel → base-frame pixel
-function unrotatePx(px, py) {
-  var a = -planRotRad();
-  if (!a) return { x: px, y: py };
-  var cx = S.CW / 2, cy = S.CH / 2, dx = px - cx, dy = py - cy;
-  return {
-    x: cx + dx * Math.cos(a) - dy * Math.sin(a),
-    y: cy + dx * Math.sin(a) + dy * Math.cos(a),
-  };
-}
-// wx/wz now take BOTH pixel coords because a rotated view couples the axes
-export function wx(px, py) {
-  var b = unrotatePx(px, py);
-  return (b.x - S.OX) / S.SC;
-}
-export function wz(px, py) {
-  var b = unrotatePx(px, py);
-  return (b.y - S.OY) / S.SC;
-}
-/* Where a newly created room/item should land, in world cm.
+// sx/sz / wx/wz / dropPoint live in js/plan_view.js so the mapping can be
+// tested without a canvas.
 
-   The natural answer is "the middle of what the user is looking at", i.e. the
-   plan's screen centre. But the plan canvas is `display:none` whenever the 2D
-   pane is hidden — 3D maximized on desktop, and the 3D tab on phones — and then
-   `S.CW/S.CH/S.SC` are all 0, so `wx()/wz()` divide by zero and hand back NaN.
-   That silently produced furniture at {x:NaN,z:NaN} (invisible, but still
-   counted in the cost estimate, and dropped on the next load) and rooms whose
-   four walls collapsed onto the origin after a save.
-
-   So: use the view centre only when the transform is actually usable, and
-   otherwise fall back to the model — the centre of the existing walls, or the
-   origin in an empty scene. Always returns finite numbers. */
-export function dropPoint() {
-  if (S.SC > 0 && S.CW > 0 && S.CH > 0) {
-    var x = wx(S.CW / 2, S.CH / 2),
-      z = wz(S.CW / 2, S.CH / 2);
-    if (isFinite(x) && isFinite(z)) return { x: x, z: z };
-  }
-  var n = S.nodes && S.nodes.length ? S.nodes.filter(function (p) {
-    return p && isFinite(p.x) && isFinite(p.z);
-  }) : [];
-  if (!n.length) return { x: 0, z: 0 };
-  var minx = Infinity, maxx = -Infinity, minz = Infinity, maxz = -Infinity;
-  n.forEach(function (p) {
-    if (p.x < minx) minx = p.x;
-    if (p.x > maxx) maxx = p.x;
-    if (p.z < minz) minz = p.z;
-    if (p.z > maxz) maxz = p.z;
-  });
-  return { x: (minx + maxx) / 2, z: (minz + maxz) / 2 };
-}
-
-// base-frame pixel of a raw canvas pixel (for rotation-aware pan/zoom)
-export function toBasePx(px, py) {
-  return unrotatePx(px, py);
-}
 /* ---- 2D plan view-orientation gizmo (axis indicator + click-to-rotate) ----
    Top-down analog of the 3D ViewCube: an X/Z/Y axis marker that rotates with the
    plan; clicking an axis rotates the plan so that axis points up (N/E/S/W-up),
@@ -317,8 +260,9 @@ function pushPlan() {
 }
 
 function rr(x, y, w, h, r) {
-  r = Math.min(r, w / 2, h / 2);
   pc.beginPath();
+  if (!(w > 0) || !(h > 0)) return;
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
   pc.moveTo(x + r, y);
   pc.arcTo(x + w, y, x + w, y + h, r);
   pc.arcTo(x + w, y + h, x, y + h, r);
@@ -337,13 +281,6 @@ function drawSiteUnderlay(bb) {
   var cx = bb.cx + (st.offX || 0),
     cz = bb.cz + (st.offZ || 0);
   pc.save();
-  // Clip to the visible canvas FIRST. Without this, drawing the aerial at a
-  // large on-screen size makes the browser's image-smoothing path allocate a
-  // buffer sized to the full (unclipped) destination rect — tens of thousands
-  // of px per side when zoomed in — which hangs / OOMs the tab.
-  pc.beginPath();
-  pc.rect(0, 0, S.CW, S.CH);
-  pc.clip();
   pc.translate(sx(cx), sz(cz));
   // three Y-rotation is CCW from above; canvas +y points down -> negate.
   pc.rotate((-(st.groundRot || 0) * Math.PI) / 180);
@@ -374,9 +311,26 @@ function drawSiteUnderlay(bb) {
 }
 
 export function render2D() {
+  if (!pc || !plan) {
+    for (var ei = 0; ei < afterRender.length; ei++) afterRender[ei]();
+    return;
+  }
   pc.clearRect(0, 0, S.CW, S.CH);
+  if (!planViewReady()) {
+    for (var ei = 0; ei < afterRender.length; ei++) afterRender[ei]();
+    return;
+  }
+  /* Clip in identity (screen) space BEFORE the plan rotation. Nested clips
+     taken after pushPlan() are rotated rectangles, which both miss canvas
+     corners and fail to bound a zoomed aerial — the hang that used to OOM
+     the tab when the site underlay was drawn unclipped. */
+  pc.save();
+  pc.beginPath();
+  pc.rect(0, 0, S.CW, S.CH);
+  pc.clip();
   if (isElevation()) {
     drawElevation(pc); // orthographic side view
+    pc.restore();
     for (var ei = 0; ei < afterRender.length; ei++) afterRender[ei]();
     return;
   }
@@ -387,24 +341,28 @@ export function render2D() {
   // so lines still cover the visible area after the view is rotated
   pc.strokeStyle = "#e4dcc9";
   pc.lineWidth = 1;
-  var step = S.SC < 0.45 ? 100 : 50;
   var c0 = toBasePx(0, 0), c1 = toBasePx(S.CW, 0), c2 = toBasePx(0, S.CH), c3 = toBasePx(S.CW, S.CH);
   var bxmin = Math.min(c0.x, c1.x, c2.x, c3.x), bxmax = Math.max(c0.x, c1.x, c2.x, c3.x);
   var bymin = Math.min(c0.y, c1.y, c2.y, c3.y), bymax = Math.max(c0.y, c1.y, c2.y, c3.y);
+  var step = S.SC < 0.45 ? 100 : 50;
   var gx0 = Math.floor((bxmin - S.OX) / S.SC / step) * step,
     gx1 = (bxmax - S.OX) / S.SC,
     gz0 = Math.floor((bymin - S.OY) / S.SC / step) * step,
     gz1 = (bymax - S.OY) / S.SC;
-  pc.beginPath();
-  for (var gx = gx0; gx <= gx1; gx += step) {
-    pc.moveTo(sx(gx), bymin);
-    pc.lineTo(sx(gx), bymax);
+  var gridSpan = Math.max(gx1 - gx0, gz1 - gz0);
+  if (gridSpan / step > 240) step = gridSpan / 240;
+  if (step > 0 && isFinite(step) && isFinite(gx0) && isFinite(gz0)) {
+    pc.beginPath();
+    for (var gx = gx0; gx <= gx1; gx += step) {
+      pc.moveTo(sx(gx), bymin);
+      pc.lineTo(sx(gx), bymax);
+    }
+    for (var gz = gz0; gz <= gz1; gz += step) {
+      pc.moveTo(bxmin, sz(gz));
+      pc.lineTo(bxmax, sz(gz));
+    }
+    pc.stroke();
   }
-  for (var gz = gz0; gz <= gz1; gz += step) {
-    pc.moveTo(bxmin, sz(gz));
-    pc.lineTo(bxmax, sz(gz));
-  }
-  pc.stroke();
   drawReferenceFloor();
   // room floors
   var rooms = detectRooms();
@@ -512,14 +470,14 @@ export function render2D() {
     pc.setLineDash([5, 4]);
     if (S.alignX != null) {
       pc.beginPath();
-      pc.moveTo(sx(S.alignX), 0);
-      pc.lineTo(sx(S.alignX), S.CH);
+      pc.moveTo(sx(S.alignX), bymin);
+      pc.lineTo(sx(S.alignX), bymax);
       pc.stroke();
     }
     if (S.alignZ != null) {
       pc.beginPath();
-      pc.moveTo(0, sz(S.alignZ));
-      pc.lineTo(S.CW, sz(S.alignZ));
+      pc.moveTo(bxmin, sz(S.alignZ));
+      pc.lineTo(bxmax, sz(S.alignZ));
       pc.stroke();
     }
     pc.setLineDash([]);
@@ -660,6 +618,7 @@ export function render2D() {
   if (rotated) pc.restore(); // end plan rotation — overlays below stay screen-fixed
   drawNorth();
   if (S.showDims) drawScale();
+  pc.restore(); // end screen-space clip
   for (var ai = 0; ai < afterRender.length; ai++) afterRender[ai]();
 }
 
@@ -1128,14 +1087,16 @@ function drawWalker() {
 // repaint the plan while the user walks/turns in 3D so the indicator tracks
 // live (rAF-throttled; walk:look fires on every camera move in walk mode)
 var walkRepaintQueued = false;
-window.addEventListener("walk:look", function () {
-  if (walkRepaintQueued) return;
-  walkRepaintQueued = true;
-  requestAnimationFrame(function () {
-    walkRepaintQueued = false;
-    render2D();
+if (typeof window !== "undefined") {
+  window.addEventListener("walk:look", function () {
+    if (walkRepaintQueued) return;
+    walkRepaintQueued = true;
+    requestAnimationFrame(function () {
+      walkRepaintQueued = false;
+      render2D();
+    });
   });
-});
+}
 
 function drawNorth() {
   var x = 28,
@@ -1172,16 +1133,8 @@ function drawNorth() {
   pc.restore();
 }
 function drawScale() {
-  if (!(S.SC > 0) || !isFinite(S.SC)) return;
-  var nice = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000],
-    cm = nice[0];
-  for (var i = 0; i < nice.length; i++) {
-    var px = nice[i] * S.SC;
-    if (px >= 55 && px <= 170) {
-      cm = nice[i];
-    }
-    if (px > 170) break;
-  }
+  if (!planViewReady()) return;
+  var cm = niceScaleCm(S.SC);
   var w = cm * S.SC,
     x0 = S.CW - w - 16,
     // clear of the CAD status bar pinned along the bottom edge (js/cad_hud.js)
@@ -1214,6 +1167,7 @@ function drawRank(it) {
 }
 
 function drawWall(w) {
+  if (!w || !S.nodes[w.a] || !S.nodes[w.b]) return;
   ensureWallTypes(S);
   normalizeWall(w, S);
   var gm = wallGeom(w),
@@ -1224,7 +1178,8 @@ function drawWall(w) {
      leaves a wedge of daylight on the outside and a lump on the inside. */
   var col = isSel ? "#3f6b78" : "#7a7060",
     kind = normalizeWallKind(w),
-    phase = w.phase || "new";
+    phase = w.phase || "new",
+    th = w.thickness || 0;
   if (kind === "roomDivider") {
     pc.save();
     pc.strokeStyle = isSel ? "#3f6b78" : "rgba(91,122,134,.72)";
@@ -1235,7 +1190,7 @@ function drawWall(w) {
     pc.restore();
     return;
   }
-  if (w.thickness * S.SC < 3) {
+  if (th * S.SC < 3) {
     pc.lineCap = "butt";
     pc.lineWidth = 3;
     pc.strokeStyle = col;
@@ -1279,7 +1234,7 @@ function drawWall(w) {
       var p = h === "a" ? gm.a : gm.b;
       pc.save();
       pc.lineCap = "butt";
-      pc.lineWidth = Math.max(w.thickness * S.SC, 3);
+      pc.lineWidth = Math.max(th * S.SC, 3);
       pc.strokeStyle = locked ? "#e0813a" : "rgba(224,129,58,.55)";
       if (!locked) pc.setLineDash([6, 4]);
       pc.beginPath();
@@ -1601,8 +1556,9 @@ function drawOpening(o) {
   if (!w) return;
   var gm = wallGeom(w);
   var s = clamp(o.s, o.width / 2, gm.L - o.width / 2);
-  var centre = wallPointAt(w, s), tangent = wallTangentAt(w, s),
-    cx = centre.x, cz = centre.z;
+  var centre = wallPointAt(w, s), tangent = wallTangentAt(w, s);
+  if (!centre || !tangent) return;
+  var cx = centre.x, cz = centre.z;
   var isSel = S.sel && S.sel.kind === "opening" && S.sel.ref === o;
   pc.save();
   pc.translate(sx(cx), sz(cz));
@@ -1726,6 +1682,7 @@ function drawSegPreview(w, seg) {
   var steps = gm.kind === "arc" ? Math.max(6, Math.ceil(seg.width / 15)) : 1;
   for (var i = 0; i <= steps; i++) {
     var p = wallPointAt(w, s - hw + seg.width * i / steps);
+    if (!p) continue;
     if (i) pc.lineTo(sx(p.x), sz(p.z)); else pc.moveTo(sx(p.x), sz(p.z));
   }
   pc.stroke();
@@ -1741,8 +1698,9 @@ function drawNodes(hid) {
     u[w.b] = 1;
   });
   for (var k in u) {
-    var n = S.nodes[k],
-      isSel = S.sel && (
+    var n = S.nodes[k];
+    if (!n || !isFinite(n.x) || !isFinite(n.z)) continue;
+    var isSel = S.sel && (
         (S.sel.kind === "node" && S.sel.ref === +k) ||
         (S.sel.kind === "nodes" && S.sel.refs.indexOf(+k) !== -1)
       );
@@ -1828,10 +1786,7 @@ function drawWarnGlow() {
     wr.walls.forEach(function (id) {
       var w = wallById(id);
       if (!w) return;
-      var g = wallGeom(w);
-      pc.beginPath();
-      pc.moveTo(sx(g.a.x), sz(g.a.z));
-      pc.lineTo(sx(g.b.x), sz(g.b.z));
+      traceWallCentre(w);
       pc.stroke();
     });
     pc.setLineDash([]);
@@ -1855,7 +1810,8 @@ function drawWarnGlow() {
 export function warnLabel(wr) {
   if (wr.kind === "openEnd")
     return wr.near ? t("cw_openEndNear") : t("cw_openEnd");
-  return t("cw_angle", { a: wr.angle.toFixed(1) });
+  var a = wr && wr.angle;
+  return t("cw_angle", { a: Number.isFinite(a) ? Number(a).toFixed(1) : "?" });
 }
 
 /* top-view glyphs, drawn in the item's local (rotated) pixel space: x=width, y=depth, front=+y */
@@ -2473,7 +2429,8 @@ function drawItem(it) {
     drawLamp(it, f, isSelL);
     return;
   }
-  var A = (it.rot * Math.PI) / 180;
+  if (!(it.w > 0) || !(it.d > 0)) return;
+  var A = ((it.rot || 0) * Math.PI) / 180;
   pc.save();
   pc.translate(sx(it.x), sz(it.z));
   pc.rotate(A);
@@ -2488,14 +2445,17 @@ function drawItem(it) {
   pc.lineWidth = isSel ? 3 : 1.4;
   pc.strokeStyle = isSel ? "#3f6b78" : "#b3a586";
   pc.stroke();
-  if (GLYPH[it.type] && w > 16 && d > 12) GLYPH[it.type](w, d, it);
-  pc.strokeStyle = "#5b7a86";
-  pc.lineWidth = 2.6;
-  pc.lineCap = "round";
-  pc.beginPath();
-  pc.moveTo(-w / 2 + 6, d / 2 - 3);
-  pc.lineTo(w / 2 - 6, d / 2 - 3);
-  pc.stroke();
+  var glyphFn = it.cab ? GLYPH.cabsys : GLYPH[it.type];
+  if (glyphFn && w > 16 && d > 12) glyphFn(w, d, it);
+  if (it.type !== "rug" && it.type !== "cabsys" && !it.cab) {
+    pc.strokeStyle = "#5b7a86";
+    pc.lineWidth = 2.6;
+    pc.lineCap = "round";
+    pc.beginPath();
+    pc.moveTo(-w / 2 + 6, d / 2 - 3);
+    pc.lineTo(w / 2 - 6, d / 2 - 3);
+    pc.stroke();
+  }
   if (w > 44 && d > 26) {
     pc.rotate(-A - planRotRad()); // upright: cancel item + plan rotation
     pc.fillStyle = "#2f2d28";
@@ -2589,6 +2549,7 @@ function drawWallCons() {
   pc.textBaseline = "middle";
 
   list.forEach(function (c) {
+    try {
     var sel = S.sel && S.sel.kind === "con" && S.sel.ref && S.sel.ref.id === c.id,
       hover = S.conHover === c.id,
       hot = sel || hover;
@@ -2674,7 +2635,8 @@ function drawWallCons() {
       pc.beginPath();
       pc.rect(fx + 7, fy - 15, 8, 8);
       pc.fill();
-      conHits.push({ con: c, x: fx + 11, y: fy - 11, w: 10 });
+      var tag = rotatePx(fx + 11, fy - 11);
+      conHits.push({ con: c, x: tag.x, y: tag.y, w: 10 });
       return;
     }
 
@@ -2797,7 +2759,7 @@ function drawWallCons() {
       pc.beginPath(); pc.moveTo(sx(pp.x), sz(pp.z)); pc.lineTo(sx(pfx), sz(pfz)); pc.stroke();
       conLabel((pp.x + pfx) / 2, (pp.z + pfz) / 2, Math.abs(Math.round(c.value)) + "", col);
     } else if (c.type === "equalSpacing") {
-      var centres = c.walls.map(wallById).filter(Boolean).map(function (sw) {
+      var centres = (c.walls || []).map(wallById).filter(Boolean).map(function (sw) {
         var sg = wallGeom(sw); return { x: (sg.a.x + sg.b.x) / 2, z: (sg.a.z + sg.b.z) / 2 };
       });
       if (centres.length < 3) return;
@@ -2821,7 +2783,8 @@ function drawWallCons() {
         conLabel(mx, mz,
         report ? "(" + (relationLabels[c.type] || c.type) + ")"
           : relationLabels[c.type] || c.type, col, -18);
-        pc.beginPath(); pc.moveTo(sx(gw.a.x), sz(gw.a.z)); pc.lineTo(sx(gw.b.x), sz(gw.b.z)); pc.stroke();
+        traceWallCentre(w);
+        pc.stroke();
         pc.setLineDash([]);
         return;
       }
@@ -2846,6 +2809,10 @@ function drawWallCons() {
       conLabel((fx + mx) / 2, (fz + mz) / 2, Math.abs(Math.round(c.value)) + "", col);
     }
     pc.setLineDash([]);
+    } catch (err) {
+      pc.shadowBlur = 0;
+      pc.setLineDash([]);
+    }
   });
   conForLabel = null;
   pc.restore();
@@ -2891,8 +2858,8 @@ function drawConTargetHighlight(c, col, hot) {
   Object.keys(wallIds).forEach(function (id) {
     var w = wallById(isNaN(Number(id)) ? id : Number(id));
     if (!w) return;
-    var g = wallGeom(w);
-    pc.beginPath(); pc.moveTo(sx(g.a.x), sz(g.a.z)); pc.lineTo(sx(g.b.x), sz(g.b.z)); pc.stroke();
+    traceWallCentre(w);
+    pc.stroke();
   });
   pc.globalAlpha = 0.92;
   pc.lineWidth = 2;
@@ -2925,11 +2892,15 @@ function drawAngleConstraint(sec, txt, col, radius) {
   var J = S.nodes[ni], f1 = w1.a === ni ? S.nodes[w1.b] : S.nodes[w1.a],
     f2 = w2.a === ni ? S.nodes[w2.b] : S.nodes[w2.a];
   if (!J || !f1 || !f2) return;
-  var X = sx(J.x), Y = sz(J.z), a1 = Math.atan2(sz(f1.z) - Y, sx(f1.x) - X),
-    a2 = Math.atan2(sz(f2.z) - Y, sx(f2.x) - X);
+  var X = sx(J.x), Y = sz(J.z);
+  var a1 = Math.atan2(sz(f1.z) - Y, sx(f1.x) - X),
+    a2 = Math.atan2(sz(f2.z) - Y, sx(f2.x) - X),
+    d = a2 - a1;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
   pc.setLineDash([]); pc.beginPath(); pc.moveTo(X, Y);
-  pc.arc(X, Y, radius, a1, a2, false); pc.strokeStyle = col; pc.stroke();
-  var mid = a1 + ((a2 - a1 + Math.PI * 2) % (Math.PI * 2)) / 2;
+  pc.arc(X, Y, radius, a1, a1 + d, d < 0); pc.strokeStyle = col; pc.stroke();
+  var mid = a1 + d / 2;
   conLabel(J.x, J.z, txt, col, Math.sin(mid) * (radius + 13));
 }
 
@@ -2963,8 +2934,17 @@ var conForLabel = null;
 function conLabel(wxc, wzc, txt, col, dy) {
   var x = sx(wxc),
     y = sz(wzc) + (dy || 0),
-    wpx = pc.measureText(txt).width + 10;
-  if (conForLabel) conHits.push({ con: conForLabel, x: x, y: y, w: wpx });
+    a = planRotRad();
+  pc.save();
+  if (a) { pc.translate(x, y); pc.rotate(-a); pc.translate(-x, -y); }
+  pc.font = "600 11px system-ui, sans-serif";
+  pc.textAlign = "center";
+  pc.textBaseline = "middle";
+  var wpx = pc.measureText(String(txt)).width + 10;
+  if (conForLabel) {
+    var hit = rotatePx(x, y);
+    conHits.push({ con: conForLabel, x: hit.x, y: hit.y, w: wpx });
+  }
   pc.setLineDash([]);
   pc.fillStyle = "rgba(255,255,255,.9)";
   pc.strokeStyle = col;
@@ -2976,6 +2956,7 @@ function conLabel(wxc, wzc, txt, col, dy) {
   pc.stroke();
   pc.fillStyle = col;
   pc.fillText(txt, x, y);
+  pc.restore();
 }
 
 function label(wx_, wz_, txt, color, big) {

@@ -8,7 +8,7 @@ import { roomHidden } from "./geometry.js";
 import { pushHistory } from "./history.js";
 import { FURN, flabel, clabel, defaultScene } from "./furniture.js";
 import { init3D, has3D, frameView, setSize } from "./view3d.js";
-import { fitView, render2D, sizeCanvas, centerContent, initPlanGizmo } from "./plan2d.js";
+import { fitView, render2D, sizeCanvas, initPlanGizmo } from "./plan2d.js";
 import {
   fillProps,
   initUI,
@@ -329,7 +329,6 @@ const resizeAll = throttle(() => {
     if (L) setSize(L.clientWidth, L.clientHeight);
   }
   sizeCanvas();
-  centerContent(); // keep the model centered on every size change (no drift)
   render2D();
 });
 window.addEventListener("resize", resizeAll);
@@ -363,16 +362,14 @@ var centerCanvas = document.getElementById("center-canvas");
 var SPLIT_KEY = "home3d_viewsplit"; // persisted top-pane (3D) height %
 
 // Apply the panes' flex ratio, then pin the 2D plan to the same on-screen
-// pane heights. Applying the flex synchronously then re-centering the plan (at
-// the current zoom) keeps the model centered on every resize — no drift. We
+// pane heights. sizeCanvas() shifts OX/OY by half the size delta so the world
+// point that was at the canvas centre stays there — a pan the user made is
+// kept, instead of snapping back to the model's bounding-box centre. We
 // resize both surfaces directly here rather than via the throttled `resizeAll`,
 // so the split tracks the drag frame-for-frame without a rAF lag.
-// Resize both surfaces to their current box and re-center the plan, all
-// synchronously (no rAF lag) so drags and maximize toggles track frame-for-frame.
 function syncSurfaces() {
   if (has3D && view3d) setSize(view3d.clientWidth, view3d.clientHeight);
   sizeCanvas();
-  centerContent();
   render2D();
 }
 var curSplit = 50; // last-applied top-pane %, persisted on drag end
