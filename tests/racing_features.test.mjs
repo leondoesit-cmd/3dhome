@@ -289,6 +289,35 @@ test("RC home mode drives the flat itself and only decks what it must", async ()
   assert.ok(ramp.length > 3, "there is no ramp up to it");
 });
 
+test("home-mode auto tour climbs elevated tabletops and visits more than four models", async () => {
+  const track = await read("js/track.js");
+  const rc = await readRC();
+  // The apartment is the course: every rideable model is a candidate, not a
+  // handful of detours off a room-centre loop, and a tabletop mesh that does
+  // not include the legs is still something you drive on.
+  assert.match(track, /ATTRACT_MAX = 16/);
+  assert.match(track, /export function seedHomeTour\(/);
+  assert.match(rc, /out = seedHomeTour\(/);
+  assert.doesNotMatch(track, /t\.y0 > 6 \|\| t\.y1 < RIDE_MIN/);
+  assert.doesNotMatch(track, /r\.y0 <= 6 &&\s*\n\s*Math\.min/);
+
+  const { road } = await buildHomeRoad([
+    { x0: 380, z0: 380, x1: 540, z1: 520, y0: 38, y1: 42 },
+  ]);
+  assert.ok(road && road.feats.home);
+  assert.ok(
+    road.feats.rides >= 2,
+    `auto tour only climbed ${road.feats.rides} model(s)`,
+  );
+  const onTable = road.center.filter((p) => p.hold && !p.deck && p.y > 36 && p.y < 44);
+  assert.ok(onTable.length > 1, "the tabletop is not actually driven along");
+  const decked = road.center.filter((p) => p.deck).length;
+  assert.ok(
+    decked / road.center.length < 0.55,
+    `${Math.round((decked / road.center.length) * 100)}% of the lap is road`,
+  );
+});
+
 test("RC home mode hands collision back to the apartment", async () => {
   const rc = await readRC();
   // the mode reaches the road builder, and the ride heights come from the
@@ -555,13 +584,21 @@ test("the live RC track editor defers rebuilds and edits from both views", async
   // owns an overview camera while it is open.
   assert.match(rc, /function editorCam\(dt\)/);
   assert.match(rc, /R\.edCam\.on && editorActive\(\)/);
-  // The map replaces the existing 2D design pane; 3D remains a separate live
-  // preview and the editor controls belong to the standard right inspector.
+  // 3D is the designer: clicks hit models, handles drag on their own plane,
+  // and a cone lifts a point off the floor.
+  assert.match(ed, /out\.mesh = true/);
+  assert.match(ed, /userData\.lift/);
+  assert.match(ed, /faceApply\(pick\.tg, "top"/);
+  assert.match(ed, /intersectPlane\(new THREE\.Plane\(new THREE\.Vector3\(0, 1, 0\), -hy\)/);
+  assert.match(ed, /id="rcEdShowMap"/);
+  // The map replaces the existing 2D design pane; 3D is the place you actually
+  // design (click models, drag handles, lift height) and the inspector stays
+  // on the right. Split is optional from the 🗺️ chip.
   assert.match(ed, /document\.getElementById\("view-2d"\)/);
   assert.match(ed, /document\.getElementById\("right-inspector"\)/);
   assert.doesNotMatch(ed, /document\.getElementById\("view-3d"\) \|\| document\.body/);
   assert.match(rc, /function editorSplit\(on\)/);
-  assert.match(rc, /window\.__setViewMode\("split"\)/);
+  assert.match(rc, /window\.__setViewMode\("3d"\)/);
 
   // A route belongs to the flat it was drawn on: stored anchors carry that
   // plan's signature and are dropped (auto tour instead) when the walls change.

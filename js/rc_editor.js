@@ -17,7 +17,7 @@ import * as THREE from "three";
 import { t } from "./i18n.js";
 export { editorActive } from "./rc_editor_state.js";
 import {
-  ST, editorActive, SAVE_KEY, THEMES, THEME_COL, PHYS_PRESETS, L, fin,
+  ST, editorActive, SAVE_KEY, THEMES, THEME_COL, PHYS_PRESETS, L, fin, clamp,
   copyAnchor, cloneAnchors, rooms,
 } from "./rc_editor_state.js";
 import { anchorY, ghostLine, insertSpot, pathLen, segmentY, validate } from "./rc_editor_geom.js";
@@ -30,7 +30,7 @@ import {
 import { bindCanvas, draw, fitView, resizeCanvas, s2w, w2s, zoomAt } from "./rc_editor_map.js";
 import {
   FACE_GLYPH, faceApply, faceAutoAll, faceGoto, faceName, faceRemove, faceFlip,
-  faceRules, facesAdopt, facesInvalidate, facesRelay, findTarget, ruleFor,
+  faceRules, facesAdopt, facesInvalidate, facesRelay, findTarget, pickTarget, ruleFor,
   smartFace, targetRide,
 } from "./rc_editor_faces.js";
 
@@ -144,6 +144,7 @@ export function editorClose() {
   if (ST.D.mapRoot && ST.D.mapRoot.parentNode) ST.D.mapRoot.parentNode.removeChild(ST.D.mapRoot);
   if (ST.D.mapHost) ST.D.mapHost.classList.remove("rc-editor-map-on");
   if (ST.D.controlsHost) ST.D.controlsHost.classList.remove("rc-editor-mode");
+  if (ST.D.bar3d && ST.D.bar3d.parentNode) ST.D.bar3d.parentNode.removeChild(ST.D.bar3d);
   if (!ST.D.showRightPrev) document.body.classList.remove("show-right");
   if (ST.D.ro) ST.D.ro.disconnect();
   unbindKeys();
@@ -298,7 +299,27 @@ function makeHandle(i) {
   sp.position.y = 16;
   sp.renderOrder = 903;
   g.add(sp);
-  g.userData.parts = { pil: pil, ring: ring, mat: mat, rmat: rmat, sp: sp };
+  // vertical lift knob — Alt-drag also works, but a handle you can grab in 3D
+  // is what stops height living only on the 2D slider
+  var lmat = new THREE.MeshBasicMaterial({
+    color: 0x38bdf8,
+    transparent: true,
+    opacity: 0.9,
+    depthTest: false,
+  });
+  var lift = new THREE.Mesh(new THREE.ConeGeometry(2.2, 7, 10), lmat);
+  lift.position.y = 22;
+  lift.renderOrder = 904;
+  g.add(lift);
+  var liftHit = new THREE.Mesh(
+    new THREE.CylinderGeometry(5, 5, 14, 8),
+    new THREE.MeshBasicMaterial({ visible: false }),
+  );
+  liftHit.position.y = 22;
+  liftHit.userData.anchor = i;
+  liftHit.userData.lift = true;
+  g.add(liftHit);
+  g.userData.parts = { pil: pil, ring: ring, mat: mat, rmat: rmat, sp: sp, lift: lift, lmat: lmat };
   // the pillar is the click target — raycasting a fat invisible cylinder makes
   // grabbing a handle forgiving at any zoom
   var hit = new THREE.Mesh(
@@ -309,6 +330,7 @@ function makeHandle(i) {
   hit.userData.anchor = i;
   g.add(hit);
   g.userData.hit = hit;
+  g.userData.liftHit = liftHit;
   return g;
 }
 
@@ -344,18 +366,21 @@ function sync3d() {
       : 0xec4899;
     p.mat.color.setHex(col);
     p.rmat.color.setHex(col);
+    if (p.lmat) p.lmat.color.setHex(i === ST.D.sel ? 0x7dd3fc : 0x38bdf8);
+    if (p.lift) p.lift.visible = i === ST.D.sel || i === ST.D.hover;
     p.sp.material.map = numSprite(i + 1);
     p.sp.material.needsUpdate = true;
     hg.userData.hit.userData.anchor = i;
     hg.userData.anchor = i;
+    if (hg.userData.liftHit) hg.userData.liftHit.userData.anchor = i;
   }
   ghost3d();
 }
 
 function ghost3d() {
   if (!ST.D.ghost) return;
-  var pts = ST.D.ghostPts;
-  if (!ST.D.dragging || !pts || pts.length < 2) {
+  var pts = ST.D.ghostPts || (ST.D.anchors && ST.D.anchors.length >= 2 ? ghostLine(ST.D.anchors) : null);
+  if (!pts || pts.length < 2) {
     ST.D.ghost.visible = false;
     return;
   }
@@ -390,26 +415,65 @@ function rayHit(e) {
   );
   var rc = new THREE.Raycaster();
   rc.setFromCamera(ndc, cam);
-  var out = { idx: -1, x: 0, z: 0 };
+  var out = { idx: -1, x: 0, y: 0, z: 0 };
   if (ST.D.handles.length) {
     // handles move between frames — raycasting stale matrices misses them
     if (ST.D.grp) ST.D.grp.updateMatrixWorld(true);
-    var hits = rc.intersectObjects(
-      ST.D.handles.map(function (h) {
-        return h.userData.hit;
-      }),
-      false,
-    );
+    var handleMeshes = [];
+    ST.D.handles.forEach(function (h) {
+      if (h.userData.liftHit) handleMeshes.push(h.userData.liftHit);
+      handleMeshes.push(h.userData.hit);
+    });
+    var hits = rc.intersectObjects(handleMeshes, false);
     if (hits.length) {
       out.idx = hits[0].object.userData.anchor;
+      out.lift = !!hits[0].object.userData.lift;
       out.x = ST.D.anchors[out.idx] ? ST.D.anchors[out.idx].x : hits[0].point.x;
       out.z = ST.D.anchors[out.idx] ? ST.D.anchors[out.idx].z : hits[0].point.z;
+      out.y = hits[0].point.y;
       return out;
+    }
+  }
+  // Dragging a handle: project onto the plane at THAT handle's height so a
+  // point sitting on a table stays on the table instead of falling to y=0.
+  if (ST.D.drag >= 0 && ST.D.anchors[ST.D.drag] && !ST.D.liftDrag) {
+    var a = ST.D.anchors[ST.D.drag];
+    var hy = fin(a.y) ? a.y : ST.E.groundAt(a.x, a.z, 4, 2.2);
+    var pDrag = new THREE.Vector3();
+    if (rc.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -hy), pDrag)) {
+      out.x = pDrag.x;
+      out.y = hy;
+      out.z = pDrag.z;
+      return out;
+    }
+  }
+  // Click the models themselves — the 3D designer is for driving ON furniture,
+  // so the hit has to be the mesh, not the floor under it.
+  var scene = ST.E.scene && ST.E.scene();
+  if (scene) {
+    var meshes = [];
+    scene.traverse(function (o) {
+      if (!o.isMesh || !o.visible) return;
+      if (o.userData && o.userData.rc) return;
+      if (ST.D.grp && (o === ST.D.grp || o.parent === ST.D.grp)) return;
+      meshes.push(o);
+    });
+    if (meshes.length) {
+      var worldHits = rc.intersectObjects(meshes, true);
+      if (worldHits.length) {
+        var wp = worldHits[0].point;
+        out.x = wp.x;
+        out.y = wp.y;
+        out.z = wp.z;
+        out.mesh = true;
+        return out;
+      }
     }
   }
   var p = new THREE.Vector3();
   if (!rc.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p)) return null;
   out.x = p.x;
+  out.y = 0;
   out.z = p.z;
   return out;
 }
@@ -424,6 +488,21 @@ export function editorPointerDown(e) {
     return true;
   }
   if (e.button !== 0) return false;
+  if (h.idx >= 0 && (h.lift || e.altKey)) {
+    ST.D.liftDrag = {
+      i: h.idx,
+      sy: e.clientY,
+      y0: fin(ST.D.anchors[h.idx].y)
+        ? ST.D.anchors[h.idx].y
+        : ST.E.groundAt(ST.D.anchors[h.idx].x, ST.D.anchors[h.idx].z, 4, 2.2),
+    };
+    ST.D.sel = h.idx;
+    ST.D.seg = -1;
+    pushHist();
+    editorStatus("preview");
+    refreshSelection();
+    return true;
+  }
   if (h.idx >= 0) {
     ST.D.drag = h.idx;
     ST.D.sel = h.idx;
@@ -437,14 +516,28 @@ export function editorPointerDown(e) {
     draw();
     return true;
   }
-  // empty ground: remember it — a still click on mouseup adds a point, a drag
-  // orbits the camera as usual
-  ST.D.pressed = { x: e.clientX, y: e.clientY, wx: h.x, wz: h.z, shift: e.shiftKey };
+  // empty ground / a model: remember it — a still click on mouseup adds a
+  // point (or rides the model), a drag orbits the camera as usual
+  ST.D.pressed = {
+    x: e.clientX,
+    y: e.clientY,
+    wx: h.x,
+    wz: h.z,
+    wy: h.y,
+    mesh: !!h.mesh,
+    shift: e.shiftKey,
+  };
   return false;
 }
 
 export function editorPointerMove(e) {
   if (!editorActive()) return false;
+  if (ST.D.liftDrag) {
+    var ld = ST.D.liftDrag;
+    var y = clamp(ld.y0 - (e.clientY - ld.sy) * 0.35, 0.7, 160);
+    setAnchorHeight(ld.i, y, true);
+    return true;
+  }
   if (ST.D.drag >= 0) {
     var h = rayHit(e);
     if (h && ST.D.anchors[ST.D.drag]) {
@@ -452,6 +545,7 @@ export function editorPointerMove(e) {
         sp = applySnap(h.x, h.z, ST.D.drag, e);
       ST.D.anchors[ST.D.drag] = { x: sp.x, z: sp.z };
       if (fin(old.y)) ST.D.anchors[ST.D.drag].y = old.y;
+      else if (fin(h.y) && h.y > 2) ST.D.anchors[ST.D.drag].y = h.y;
       ST.D.ghostPts = ghostLine(ST.D.anchors);
       sync3d();
       stats();
@@ -472,11 +566,23 @@ export function editorPointerMove(e) {
 
 export function editorPointerUp(e, moved) {
   if (!editorActive()) return false;
+  if (ST.D.liftDrag) {
+    var i = ST.D.liftDrag.i;
+    ST.D.liftDrag = null;
+    ST.D.dragging = false;
+    writeThrough();
+    sync3d();
+    stats();
+    refreshSelection();
+    draw();
+    scheduleBuild(0);
+    return true;
+  }
   if (ST.D.drag >= 0) {
-    var i = ST.D.drag;
+    var di = ST.D.drag;
     ST.D.drag = -1;
     ST.D.dragging = false;
-    ST.D.anchors[i] = snapFree(ST.D.anchors[i].x, ST.D.anchors[i].z, ST.D.anchors[i].y);
+    ST.D.anchors[di] = snapFree(ST.D.anchors[di].x, ST.D.anchors[di].z, ST.D.anchors[di].y);
     ST.D.ghostPts = null;
     writeThrough();
     sync3d();
@@ -489,7 +595,17 @@ export function editorPointerUp(e, moved) {
   var pr = ST.D.pressed;
   ST.D.pressed = null;
   if (pr && (moved || 0) < 6 && Math.abs(e.clientX - pr.x) + Math.abs(e.clientY - pr.y) < 8) {
-    addAnchor(pr.wx, pr.wz, pr.shift);
+    // Click a model in 3D: ride over it (or pass by a side). That is the
+    // designer — you point at the sofa, you do not drop a floor pin under it.
+    if (pr.mesh && !pr.shift) {
+      var pick = pickTarget(pr.wx, pr.wz);
+      if (pick && pick.tg && pick.tg.kind === "item") {
+        if (pick.top && pick.ride) faceApply(pick.tg, "top", { ride: true });
+        else faceApply(pick.tg, pick.face);
+        return true;
+      }
+    }
+    addAnchor(pr.wx, pr.wz, pr.shift, fin(pr.wy) && pr.wy > 2.5 ? pr.wy : undefined);
     return true;
   }
   return false;
@@ -592,6 +708,18 @@ function buildDom() {
   ST.D.tip = mapRoot.querySelector("#rcEdTip");
   ST.D.statsEl = root.querySelector("#rcEdStats");
   ST.D.statusEl = root.querySelector("#rcEdStatus");
+  var host3d = document.getElementById("view-3d");
+  if (host3d) {
+    var bar = el("div", "rc-ed-3dbar");
+    bar.innerHTML =
+      '<span>' + L("3D · לחץ על רהיט לנסיעה עליו · גרור ידית · Alt/חרוט=גובה", "3D · click a model to drive on it · drag a handle · Alt/cone=height") + "</span>" +
+      '<button type="button" id="rcEdShowMap" title="' + L("מפת 2D", "2D map") + '">🗺️</button>';
+    host3d.appendChild(bar);
+    ST.D.bar3d = bar;
+    bar.querySelector("#rcEdShowMap").onclick = function () {
+      if (window.__setViewMode) window.__setViewMode("split");
+    };
+  }
 
   paneRoute(root.querySelector('[data-pane="route"]'));
   paneStyle(root.querySelector('[data-pane="style"]'));

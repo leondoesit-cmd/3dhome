@@ -4488,6 +4488,18 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .rc-ed-mapstage[data-mode="shape"] canvas { cursor: grab; }
 .rc-ed-mapstage[data-mode="shape"] canvas:active { cursor: grabbing; }
 .rc-ed-mapstage[data-mode="draw"] canvas { cursor: copy; }
+.rc-ed-3dbar {
+  position: absolute; left: 90px; top: 12px; z-index: 35;
+  display: flex; gap: 8px; align-items: center; max-width: min(72vw, 520px);
+  padding: 6px 10px; border-radius: 10px; pointer-events: auto;
+  background: rgba(12, 16, 24, 0.78); color: #dbe7f3; border: 1px solid rgba(255,255,255,0.12);
+  font-size: 11px; font-weight: 650; backdrop-filter: blur(8px);
+}
+.rc-ed-3dbar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-ed-3dbar button {
+  flex: 0 0 auto; width: 32px; height: 28px; border-radius: 8px; cursor: pointer;
+  background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.14);
+}
 .rc-ed-mapbar { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; align-items: center; }
 .rc-ed-mapbar button {
   width: 27px; height: 27px; padding: 0; line-height: 1; border-radius: 8px;

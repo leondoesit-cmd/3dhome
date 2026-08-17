@@ -64,15 +64,15 @@ var LEDGE = 3.4, // tops under this are simply climbed (STEP_H is 2.2)
   TRUCK_PAD = 3, // clearance a truck needs beside an item, not a road width
   RUB = 2.3, // ...and the width at which it actually rubs (rc.js COLL_R + slack)
   RIDE_MIN = 9, // shortest climb worth building a ramp for
-  RIDE_MAX = 78, // tallest top an access ramp will reach (a dining table)
+  RIDE_MAX = 96, // tallest top an access ramp will reach (counter / dining table)
   STEP_UP = 2.2, // rc.js STEP_H: the ledge a truck climbs without a ramp
   CAR_BAND = 3.2, // ...and the body height that has to clear what it drives past
   RIDE_FOOT = 50, // smallest footprint side that can carry the driving line
   RIDE_RUN = 40, // shortest crossing worth a pair of ramps
   RIDE_DROP = 52, // ...and the tallest top you may drive off with no exit ramp
   RIDE_INSET = 8, // keep the line this far inside the item's own edge
-  ATTRACT_R = 190, // how far off the line an item may be and still be visited
-  ATTRACT_MAX = 4, // ...and how many detours one lap is worth
+  ATTRACT_R = 800, // visit models across the whole flat, not only those next to the line
+  ATTRACT_MAX = 16, // as many rideable models as a lap can reasonably climb
   ATTRACT_FLAT = 8, // samples the detour holds level ON the item (~1m of ride)
   THROUGH_LEAD = 5, // deck samples laid before/after an unavoidable item
   ROUTE_PAD = 150, // grid margin so a route may detour outside the anchors' hull
@@ -1022,15 +1022,42 @@ function distToSeg(p, a, b) {
 // end. (Bending a finished line at the bed instead gives a curve that arrives
 // across a corner, and no ramp fits on a corner.)
 function seedRideAnchors(loop, plats, tops) {
-  var out = loop.slice(),
+  var out = loop.map(function (a) {
+      var o = { x: a.x, z: a.z };
+      if (a.ride) o.ride = a.ride;
+      if (typeof a.y === "number") o.y = a.y;
+      return o;
+    }),
     added = [];
   // an item the user has already told the route to climb is not a candidate for
   // a second, automatic detour onto the same thing
   var claimed = [];
-  loop.forEach(function (a) {
+  out.forEach(function (a) {
     if (a.ride && typeof a.ride === "object") claimed.push(a.ride);
   });
-  var targets = plats
+  // A waypoint that already stands on a model IS that visit. Snap it to the
+  // driveable top and do not invent a second detour that loops around the lip
+  // (which is what turned tabletops into flyovers).
+  out.forEach(function (a) {
+    if (a.ride) return;
+    var hit = null;
+    for (var i = 0; i < plats.length; i++) {
+      var r = plats[i];
+      if (claimed.indexOf(r) >= 0) continue;
+      if (a.x < r.x0 || a.x > r.x1 || a.z < r.z0 || a.z > r.z1) continue;
+      if (!hit || (r.x1 - r.x0) * (r.z1 - r.z0) < (hit.x1 - hit.x0) * (hit.z1 - hit.z0))
+        hit = r;
+    }
+    if (!hit) return;
+    var snap = rideTarget(hit, tops);
+    if (!snap) return;
+    a.x = snap.x;
+    a.z = snap.z;
+    a.ride = hit;
+    claimed.push(hit);
+    added.push(a);
+  });
+  var left = plats
     .filter(function (r) {
       return claimed.indexOf(r) < 0;
     })
@@ -1041,25 +1068,38 @@ function seedRideAnchors(loop, plats, tops) {
     })
     .filter(Boolean)
     .sort(function (a, b) {
-      return b.y - a.y; // the bed before the footstool
-    })
-    .slice(0, ATTRACT_MAX);
-  targets.forEach(function (t) {
+      return b.y - a.y; // the bed / table before the footstool
+    });
+  // Greedy insertion: each remaining model lands on the loop leg it is
+  // closest to, so the tour walks the apartment and climbs what it passes
+  // rather than teleporting between the four tallest things. No radius cap —
+  // a sofa in the far bedroom is exactly the kind of model the lap is for.
+  while (left.length && added.length < ATTRACT_MAX) {
     var bi = -1,
+      bj = -1,
       bd = ATTRACT_R;
-    for (var i = 0; i < out.length; i++) {
-      var d = distToSeg(t, out[i], out[(i + 1) % out.length]);
-      if (d < bd) {
-        bd = d;
-        bi = i;
+    for (var t = 0; t < left.length; t++) {
+      for (var i = 0; i < out.length; i++) {
+        var d = distToSeg(left[t], out[i], out[(i + 1) % out.length]);
+        if (d < bd) {
+          bd = d;
+          bi = i;
+          bj = t;
+        }
       }
     }
-    if (bi < 0) return;
-    var anchor = { x: t.x, z: t.z, ride: t.rect };
+    if (bj < 0) break;
+    var hit = left[bj];
+    var anchor = { x: hit.x, z: hit.z, ride: hit.rect };
     out.splice(bi + 1, 0, anchor);
     added.push(anchor);
-  });
+    left.splice(bj, 1);
+  }
   return { pts: out, added: added.length };
+}
+
+export function seedHomeTour(loop, plats, tops) {
+  return seedRideAnchors(loop, plats, tops).pts;
 }
 
 // The tour's anchors, joined by routes a truck can actually drive.
@@ -1314,7 +1354,10 @@ function rideTarget(r, tops) {
     bestA = RIDE_FOOT * RIDE_FOOT * 0.5;
   for (var i = 0; i < tops.length; i++) {
     var t = tops[i];
-    if (t.y0 > 6 || t.y1 < RIDE_MIN || t.y1 > RIDE_MAX) continue;
+    // A tabletop is its own mesh sitting 70cm up — requiring y0 on the floor
+    // is what skipped every counter, desk and coffee table and left the tour
+    // driving around the thing you came to drive on.
+    if (t.y1 < RIDE_MIN || t.y1 > RIDE_MAX) continue;
     // it has to belong to this item's footprint, and be worth aiming at
     if (t.x0 < r.x0 - 2 || t.x1 > r.x1 + 2 || t.z0 < r.z0 - 2 || t.z1 > r.z1 + 2) continue;
     var w = t.x1 - t.x0,
@@ -1326,14 +1369,12 @@ function rideTarget(r, tops) {
   return best;
 }
 
-// Furniture the route is ALLOWED to climb onto: it has a part big enough and low
-// enough to drive along, and it stands on the floor so a ramp can reach it.
+// Furniture the route is ALLOWED to climb onto: a part big enough to drive
+// along, reachable by a ramp from the floor (or a bridge from another top).
+// Standing on the floor is NOT required — a floating shelf or a tabletop mesh
+// that does not include the legs is still a model you came to drive on.
 function rideable(r, tops) {
-  return (
-    r.y0 <= 6 &&
-    Math.min(r.x1 - r.x0, r.z1 - r.z0) >= RIDE_FOOT &&
-    !!rideTarget(r, tops)
-  );
+  return Math.min(r.x1 - r.x0, r.z1 - r.z0) >= RIDE_FOOT && !!rideTarget(r, tops);
 }
 
 // The track editor offers "drive over this one" as a click on an item's top
@@ -1558,28 +1599,34 @@ function homeRuns(pts, rects, tops) {
 // The ramps are the expensive part: they need floor that is clear and a line
 // that barely bends — a 40% grade laid round a corner folds over itself, which
 // is the one thing that reliably drops a truck through the deck.
-function planFeature(run, pts, rects, used, env) {
+function planFeature(run, pts, rects, used, tops) {
   var n = pts.length,
     at = function (i) {
       return ((i % n) + n) % n;
     };
-  var runLen = (run.e - run.s + 1) * SAMP;
-  // Only the MIDDLE of the run has to be a surface: the samples at either end
-  // are the lip, which is precisely where the ramp bridges from the floor onto
-  // the item. The height it finds there has to be the SAME surface all the way
-  // along, or the "top" is really two parts at different heights.
-  var inner = run.e - run.s > EDGE_N * 2 + 1,
-    lo = 1e9,
-    hi = -1e9;
-  for (var k = EDGE_N + 1; inner && k <= run.e - run.s - EDGE_N - 1; k++) {
-    if (!run.ride[k]) inner = false;
-    else {
+  var nRun = run.e - run.s + 1,
+    runLen = nRun * SAMP;
+  // The lip samples are where the ramp meets the item, so they often sit just
+  // off the inset top. Requiring every inner sample to be on the surface is
+  // what turned a tabletop tour into a flyover the moment the line clipped a
+  // corner — drive ON a rideable model whenever the line spends a real stretch
+  // through it.
+  var lo = 1e9,
+    hi = -1e9,
+    rideHits = 0,
+    k;
+  for (k = 0; k < nRun; k++) {
+    if (run.ride[k]) {
+      rideHits++;
       lo = Math.min(lo, run.ride[k]);
       hi = Math.max(hi, run.ride[k]);
     }
   }
-  var ride = inner && runLen >= RIDE_RUN && hi - lo <= 2.5;
-  var top = ride ? hi : run.top + BRIDGE_CLEAR;
+  var tgt = tops && run.rect ? rideTarget(run.rect, tops) : null;
+  var innerRide =
+    rideHits * SAMP >= RIDE_RUN && hi - lo <= 2.5 && rideHits >= nRun * 0.3;
+  var ride = runLen >= RIDE_RUN && (!!tgt || innerRide);
+  var top = ride ? (tgt ? tgt.y : hi) : run.top + BRIDGE_CLEAR;
   if (!ride && run.top > BRIDGE_MAX) return null; // go around it instead
   var edge = ride ? EDGE_N : 0;
   // Does a ramp of `rampN` samples fit, climbing to `top` from sample `foot`
@@ -1868,7 +1915,7 @@ function buildHome(base, env, occ, plats, tops, L, halfVal, extra) {
       rejected = [],
       leftover = [];
     for (var r = 0; r < runs.length; r++) {
-      var f = planFeature(runs[r], base, rects, used);
+      var f = planFeature(runs[r], base, rects, used, tops);
       if (!f) {
         if (rejected.indexOf(runs[r].rect) < 0) rejected.push(runs[r].rect);
         leftover.push(runs[r]);

@@ -2211,20 +2211,21 @@ function editorCam(dt) {
   var camera = getMainCamera();
   var b = R.edCam;
   var yaw = R.cam.yawOff;
-  var wx = b.cx - Math.sin(yaw) * b.dist * 0.55,
-    wz = b.cz - Math.cos(yaw) * b.dist * 0.55;
-  var hy = b.dist * 0.82;
+  var pitch = b.pitch == null ? 0.62 : b.pitch;
+  var wx = b.cx - Math.sin(yaw) * b.dist * Math.sin(pitch) * 0.85,
+    wz = b.cz - Math.cos(yaw) * b.dist * Math.sin(pitch) * 0.85;
+  var hy = b.dist * Math.cos(pitch) * 0.82 + 18;
   if (!R.cam.pos) R.cam.pos = new THREE.Vector3(wx, hy, wz);
   var k = 1 - Math.exp(-6 * dt);
   R.cam.pos.x += (wx - R.cam.pos.x) * k;
   R.cam.pos.y += (hy - R.cam.pos.y) * k;
   R.cam.pos.z += (wz - R.cam.pos.z) * k;
   camera.position.copy(R.cam.pos);
-  camera.lookAt(b.cx, 0, b.cz);
+  camera.lookAt(b.cx, 22, b.cz);
 }
 
-// The editor owns the existing 2D pane and uses 3D only as a live preview.
-// Force the normal split while it is open, then restore the user's view mode.
+// Design in the 3D view: the apartment and the models ARE the course. Split
+// remains available from the 🗺️ button if you want the 2D map beside it.
 function editorSplit(on) {
   var cc = document.getElementById("center-canvas");
   if (!cc || !window.__setViewMode) return;
@@ -2234,9 +2235,9 @@ function editorSplit(on) {
       : cc.classList.contains("max-view-3d")
         ? "3d"
         : "split";
-    if (R.edPrevView !== "split") window.__setViewMode("split");
+    if (R.edPrevView !== "3d") window.__setViewMode("3d");
   } else if (R.edPrevView) {
-    if (R.edPrevView !== "split") window.__setViewMode(R.edPrevView);
+    if (R.edPrevView !== "3d") window.__setViewMode(R.edPrevView);
     R.edPrevView = null;
   }
 }
@@ -2264,7 +2265,8 @@ function setOverview(on) {
   }
   R.edCam.cx = (minx + maxx) / 2;
   R.edCam.cz = (minz + maxz) / 2;
-  R.edCam.dist = clamp(Math.max(maxx - minx, maxz - minz) * 1.15, 120, 3000);
+  R.edCam.dist = clamp(Math.max(maxx - minx, maxz - minz) * 1.05, 120, 3000);
+  if (R.edCam.pitch == null) R.edCam.pitch = 0.62;
   R.cam.pos = null;
 }
 
@@ -2774,6 +2776,7 @@ function bindEvents() {
     if (editorActive() && editorPointerDown(e)) return;
     R.cam.drag = true;
     R.cam.lx = e.clientX;
+    R.cam.ly = e.clientY;
     R.cam.moved = 0;
   });
   v3d.addEventListener("contextmenu", function (e) {
@@ -2792,9 +2795,16 @@ function bindEvents() {
     if (!R.active) return;
     if (editorActive() && editorPointerMove(e)) return;
     if (!R.cam.drag) return;
-    R.cam.moved = (R.cam.moved || 0) + Math.abs(e.clientX - R.cam.lx);
+    R.cam.moved = (R.cam.moved || 0) + Math.abs(e.clientX - R.cam.lx) + Math.abs(e.clientY - (R.cam.ly || e.clientY));
     R.cam.yawOff -= (e.clientX - R.cam.lx) * 0.008;
+    if (R.edCam.on && editorActive())
+      R.edCam.pitch = clamp(
+        (R.edCam.pitch == null ? 0.62 : R.edCam.pitch) + (e.clientY - (R.cam.ly || e.clientY)) * 0.004,
+        0.22,
+        1.15,
+      );
     R.cam.lx = e.clientX;
+    R.cam.ly = e.clientY;
   });
   window.addEventListener("scene3d:rebuilt", function () {
     if (R.active) R.colDirty = true;
