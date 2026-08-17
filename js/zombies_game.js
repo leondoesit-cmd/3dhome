@@ -158,8 +158,8 @@ var W = {
   },
 };
 var W_ORDER = ["knife", "hammer", "pan", "bat", "axe", "pistol", "smg", "shotgun", "nailgun", "flamer"];
-// Pickup unlock order, separate from the hotbar. Pistol + knife are the
-// opening kit; everything else is found in the house so early waves stay tense.
+// Still used if a weapon is locked. Dev builds start with the full kit so every
+// gun and melee can be tested without scavenging a pickup first.
 var W_UNLOCK = ["shotgun", "hammer", "smg", "bat", "axe", "nailgun", "flamer", "pan"];
 var PAUSE_CONTROLS = [
   { kbd: "WASD", key: "z_control_move" },
@@ -2401,13 +2401,21 @@ function newPlayer() {
     adrenalT: 0,
     dodgeT: 0,
     weapon: "knife",
-    owned: { knife: true, pistol: true },
-    ammo: {
-      pistol: W.pistol.mag,
-    },
-    reserve: {
-      pistol: W.pistol.reserve,
-    },
+    owned: (function () {
+      var o = {};
+      W_ORDER.forEach(function (k) { o[k] = true; });
+      return o;
+    })(),
+    ammo: (function () {
+      var a = {};
+      W_ORDER.forEach(function (k) { if (!W[k].melee) a[k] = W[k].mag; });
+      return a;
+    })(),
+    reserve: (function () {
+      var r = {};
+      W_ORDER.forEach(function (k) { if (!W[k].melee) r[k] = W[k].reserve; });
+      return r;
+    })(),
     nextShot: 0,
     reloading: 0,
     swing: 0,

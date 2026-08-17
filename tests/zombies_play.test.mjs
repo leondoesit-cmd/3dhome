@@ -14,11 +14,11 @@ test("pause sheet labels jump on Space and shove on X", () => {
   assert.doesNotMatch(game, /z_control_shove", "z_control_reload"\]/);
 });
 
-test("opening kit is pistol and knife; later guns unlock from pickups", () => {
-  assert.match(game, /owned: \{ knife: true, pistol: true \}/);
-  assert.match(game, /var W_UNLOCK = \["shotgun", "hammer", "smg"/);
-  assert.match(game, /W_UNLOCK\.filter\(function \(k\) \{\s*return !Z\.p\.owned\[k\];/);
-  assert.doesNotMatch(game, /owned: \{ knife: true, pistol: true, smg: true, shotgun: true, flamer: true \}/);
+test("dev kit unlocks every weapon from the opening wave", () => {
+  assert.match(game, /W_ORDER\.forEach\(function \(k\) \{ o\[k\] = true; \}\)/);
+  assert.match(game, /W_ORDER\.forEach\(function \(k\) \{ if \(!W\[k\]\.melee\) a\[k\] = W\[k\]\.mag; \}\)/);
+  assert.match(game, /Dev builds start with the full kit/);
+  assert.doesNotMatch(game, /owned: \{ knife: true, pistol: true \}/);
 });
 
 test("death screen can return to the planner", () => {
