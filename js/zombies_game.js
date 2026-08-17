@@ -158,6 +158,17 @@ var W = {
   },
 };
 var W_ORDER = ["knife", "hammer", "pan", "bat", "axe", "pistol", "smg", "shotgun", "nailgun", "flamer"];
+// Still used if a weapon is locked. Dev builds start with the full kit so every
+// gun and melee can be tested without scavenging a pickup first.
+var W_UNLOCK = ["shotgun", "hammer", "smg", "bat", "axe", "nailgun", "flamer", "pan"];
+var PAUSE_CONTROLS = [
+  { kbd: "WASD", key: "z_control_move" },
+  { kbd: "SHIFT", key: "z_control_sprint" },
+  { kbd: "SPACE", key: "z_control_jump" },
+  { kbd: "X", key: "z_control_shove" },
+  { kbd: "R", key: "z_control_reload" },
+  { kbd: "F", key: "z_control_flash" },
+];
 
 /* --- frag grenades -------------------------------------------------------
    Thrown on G, not a slot weapon: cooked by a fuse, not by contact, so they
@@ -180,11 +191,17 @@ function gameSettings() {
   } catch (e) {}
   var savedQuality = Number(saved.quality),
     savedAlive = Number(saved.maxAlive),
-    savedFx = Number(saved.fx);
+    savedFx = Number(saved.fx),
+    savedSens = Number(saved.sens),
+    savedVol = Number(saved.volume);
   Z.settings = {
     quality: fin(savedQuality) ? Math.round(clamp(savedQuality, 0, 2)) : 0,
     maxAlive: fin(savedAlive) ? Math.round(clamp(savedAlive, 8, 24)) : 18,
     fx: fin(savedFx) ? Math.round(clamp(savedFx, 25, 100)) : 50,
+    // 1.0 matches the original look speed. 70% volume keeps the previous master gain.
+    sens: fin(savedSens) ? clamp(savedSens, 0.35, 2.4) : 1,
+    invertY: !!saved.invertY,
+    volume: fin(savedVol) ? Math.round(clamp(savedVol, 0, 100)) : 70,
   };
   return Z.settings;
 }
@@ -195,9 +212,21 @@ function saveGameSettings() {
 }
 function applyGameSettings() {
   var cfg = gameSettings();
+  Z.sens = cfg.sens;
   if (Z.active) setQualityPreset(["performance", "balanced", "quality"][cfg.quality]);
   setNightShiftQuality(cfg.quality);
   setFXDensity(cfg.fx / 100);
+  applyAudioVolume();
+}
+function applyAudioVolume() {
+  var A = Z.audio;
+  if (!A || !A.master || !A.ctx) return;
+  var v = (gameSettings().volume || 0) / 100;
+  try {
+    A.master.gain.setTargetAtTime(0.88 * v, A.ctx.currentTime, 0.02);
+  } catch (e) {
+    A.master.gain.value = 0.88 * v;
+  }
 }
 function syncSettingsUi() {
   if (!Z.hud || !Z.hud.qualitySlider) return;
@@ -212,6 +241,15 @@ function syncSettingsUi() {
   Z.hud.qualityValue.textContent = t(qualityKeys[cfg.quality]);
   Z.hud.hordeValue.textContent = effectiveHorde;
   Z.hud.fxValue.textContent = cfg.fx + "%";
+  if (Z.hud.sensSlider) {
+    Z.hud.sensSlider.value = Math.round(cfg.sens * 100);
+    Z.hud.sensValue.textContent = Math.round(cfg.sens * 100) + "%";
+  }
+  if (Z.hud.volSlider) {
+    Z.hud.volSlider.value = cfg.volume;
+    Z.hud.volValue.textContent = cfg.volume + "%";
+  }
+  if (Z.hud.invertY) Z.hud.invertY.checked = !!cfg.invertY;
 }
 
 /* --- procedural viewmodels (centimetres, camera space: -Z = forward) ------- */
@@ -1222,13 +1260,13 @@ function scatterPickups(wave) {
     if (i < 2) kind = i === 0 ? "health" : "ammo";
     makePickup(kind, s.x, s.y + 4, s.z);
   });
-  // a new weapon shows up every couple of waves
-  var locked = W_ORDER.filter(function (k) {
+  // a new weapon shows up every couple of waves, in combat-friendly order
+  var nextGun = W_UNLOCK.filter(function (k) {
     return !Z.p.owned[k];
-  });
-  if (locked.length && (wave === 1 || wave % 2 === 0)) {
+  })[0];
+  if (nextGun && (wave === 1 || wave % 2 === 0)) {
     var s2 = spots.length ? pick(spots) : { x: Z.p.x + 120, z: Z.p.z, y: 30 };
-    makePickup("weapon", s2.x, s2.y + 6, s2.z, locked[0]);
+    makePickup("weapon", s2.x, s2.y + 6, s2.z, nextGun);
   }
 }
 
@@ -1318,7 +1356,7 @@ function audio() {
   try {
     var ctx = new (window.AudioContext || window.webkitAudioContext)();
     var master = ctx.createGain();
-    master.gain.value = 0.62;
+    master.gain.value = 0.88 * ((gameSettings().volume || 70) / 100);
     master.connect(ctx.destination);
     // permanent ambient bed: two detuned drones through a slow filter sweep
     var bed = ctx.createGain();
@@ -1833,15 +1871,33 @@ function buildHud() {
     "</div>" +
     '<div id="zWheel"></div>' +
     '<div id="zHint"></div>' +
+    '<button type="button" id="zPauseBtn" aria-label=""></button>' +
+    '<div id="zTouch" aria-label="">' +
+    '<div id="zStick" class="z-touch-stick"><i></i></div>' +
+    '<div class="z-touch-actions">' +
+    '<button type="button" data-act="reload"></button>' +
+    '<button type="button" data-act="flash"></button>' +
+    '<button type="button" data-act="shove"></button>' +
+    '<button type="button" data-act="jump"></button>' +
+    '<button type="button" data-act="weapon"></button>' +
+    '<button type="button" data-hold="fire" class="z-touch-fire"></button>' +
+    "</div></div>" +
     '<div id="zPause"><div class="z-pause-card"><span class="z-eyebrow"></span><h2></h2><p></p>' +
-    '<div class="z-controls"><span><kbd>WASD</kbd><small></small></span><span><kbd>SHIFT</kbd><small></small></span>' +
-    '<span><kbd>SPACE</kbd><small></small></span><span><kbd>R</kbd><small></small></span></div>' +
+    '<div class="z-controls">' +
+    PAUSE_CONTROLS.map(function (c) {
+      return "<span><kbd>" + c.kbd + "</kbd><small></small></span>";
+    }).join("") +
+    "</div>" +
     '<div class="z-game-settings"><h3></h3>' +
     '<label><span><b id="zQualityLabel"></b><output id="zQualityValue"></output></span><input id="zQualitySlider" type="range" min="0" max="2" step="1"></label>' +
     '<label><span><b id="zHordeLabel"></b><output id="zHordeValue"></output></span><input id="zHordeSlider" type="range" min="8" max="24" step="2"></label>' +
-    '<label><span><b id="zFxLabel"></b><output id="zFxValue"></output></span><input id="zFxSlider" type="range" min="25" max="100" step="25"></label></div>' +
+    '<label><span><b id="zFxLabel"></b><output id="zFxValue"></output></span><input id="zFxSlider" type="range" min="25" max="100" step="25"></label>' +
+    '<h3 id="zControlsH"></h3>' +
+    '<label><span><b id="zSensLabel"></b><output id="zSensValue"></output></span><input id="zSensSlider" type="range" min="35" max="240" step="5"></label>' +
+    '<label class="z-check"><input id="zInvertY" type="checkbox"><span id="zInvertLabel"></span></label>' +
+    '<label><span><b id="zVolLabel"></b><output id="zVolValue"></output></span><input id="zVolSlider" type="range" min="0" max="100" step="5"></label></div>' +
     '<button id="zResume"></button><button id="zExit"></button></div></div>' +
-    '<div id="zDead"><h2></h2><p></p><button id="zAgain"></button></div>';
+    '<div id="zDead"><h2></h2><p></p><button id="zAgain"></button><button id="zDeadExit"></button></div>';
   host.appendChild(el);
   Z.hud = {
     root: el,
@@ -1891,23 +1947,65 @@ function buildHud() {
     fxLabel: el.querySelector("#zFxLabel"),
     fxValue: el.querySelector("#zFxValue"),
     fxSlider: el.querySelector("#zFxSlider"),
+    controlsH: el.querySelector("#zControlsH"),
+    sensLabel: el.querySelector("#zSensLabel"),
+    sensValue: el.querySelector("#zSensValue"),
+    sensSlider: el.querySelector("#zSensSlider"),
+    invertY: el.querySelector("#zInvertY"),
+    invertLabel: el.querySelector("#zInvertLabel"),
+    volLabel: el.querySelector("#zVolLabel"),
+    volValue: el.querySelector("#zVolValue"),
+    volSlider: el.querySelector("#zVolSlider"),
+    pauseBtn: el.querySelector("#zPauseBtn"),
+    touch: el.querySelector("#zTouch"),
+    stick: el.querySelector("#zStick"),
     dead: el.querySelector("#zDead"),
     deadH: el.querySelector("#zDead h2"),
     deadP: el.querySelector("#zDead p"),
     again: el.querySelector("#zAgain"),
+    deadExit: el.querySelector("#zDeadExit"),
   };
   Z.hud.again.addEventListener("click", function (e) {
     e.stopPropagation();
     restart();
   });
+  Z.hud.deadExit.addEventListener("click", function (e) {
+    e.stopPropagation();
+    toggleZombies(false);
+  });
   var controlLabels = el.querySelectorAll("#zPause .z-controls small");
-  ["z_control_move", "z_control_sprint", "z_control_shove", "z_control_reload"].forEach(function (key, i) {
-    if (controlLabels[i]) controlLabels[i].textContent = t(key);
+  PAUSE_CONTROLS.forEach(function (c, i) {
+    if (controlLabels[i]) controlLabels[i].textContent = t(c.key);
   });
   Z.hud.settingsH.textContent = t("z_settings");
+  Z.hud.controlsH.textContent = t("z_controls");
   Z.hud.qualityLabel.textContent = t("z_setting_quality");
   Z.hud.hordeLabel.textContent = t("z_setting_horde");
   Z.hud.fxLabel.textContent = t("z_setting_fx");
+  Z.hud.sensLabel.textContent = t("z_setting_look");
+  Z.hud.invertLabel.textContent = t("z_setting_invert");
+  Z.hud.volLabel.textContent = t("z_setting_volume");
+  Z.hud.touch.setAttribute("aria-label", t("z_touch_controls"));
+  Z.hud.pauseBtn.setAttribute("aria-label", t("z_touch_pause"));
+  Z.hud.pauseBtn.textContent = "II";
+  var touchBtns = {
+    reload: "R",
+    flash: "🔦",
+    shove: "X",
+    jump: "▲",
+    weapon: "⇄",
+    fire: "●",
+  };
+  el.querySelectorAll("#zTouch [data-act], #zTouch [data-hold]").forEach(function (btn) {
+    var act = btn.getAttribute("data-act") || btn.getAttribute("data-hold");
+    btn.textContent = touchBtns[act] || "";
+    if (act === "fire") btn.setAttribute("aria-label", t("z_touch_fire"));
+    else if (act === "jump") btn.setAttribute("aria-label", t("z_touch_jump"));
+    else if (act === "weapon") btn.setAttribute("aria-label", t("z_touch_weapon"));
+    else if (act === "reload") btn.setAttribute("aria-label", t("z_control_reload"));
+    else if (act === "flash") btn.setAttribute("aria-label", t("z_control_flash"));
+    else if (act === "shove") btn.setAttribute("aria-label", t("z_control_shove"));
+  });
   Z.hud.qualitySlider.addEventListener("input", function () {
     gameSettings().quality = Number(this.value);
     saveGameSettings();
@@ -1933,6 +2031,27 @@ function buildHud() {
     saveGameSettings();
     applyGameSettings();
     syncSettingsUi();
+  });
+  Z.hud.sensSlider.addEventListener("input", function () {
+    gameSettings().sens = Number(this.value) / 100;
+    saveGameSettings();
+    applyGameSettings();
+    syncSettingsUi();
+  });
+  Z.hud.volSlider.addEventListener("input", function () {
+    gameSettings().volume = Number(this.value);
+    saveGameSettings();
+    applyGameSettings();
+    syncSettingsUi();
+  });
+  Z.hud.invertY.addEventListener("change", function () {
+    gameSettings().invertY = !!this.checked;
+    saveGameSettings();
+  });
+  Z.hud.pauseBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (Z.p && Z.p.dead) return;
+    pauseGame(!Z.paused);
   });
   syncSettingsUi();
   Z.hud.resume.addEventListener("click", function (e) {
@@ -1997,7 +2116,7 @@ function hudSync() {
   if (Z.flash) Z.hud.batt.style.width = clamp(Z.flash.batt, 0, 100) + "%";
   if (Z.hud.combo) {
     if (Z.combo >= 2 && Z.comboT > 0) {
-      Z.hud.combo.textContent = "COMBO ×" + Z.combo;
+      Z.hud.combo.textContent = t("z_combo", { n: Z.combo });
       Z.hud.combo.classList.add("on");
     } else Z.hud.combo.classList.remove("on");
   }
@@ -2276,26 +2395,27 @@ function newPlayer() {
     speedK: 0,
     dead: false,
     deadT: 0,
+    airborne: false,
     hurtT: 0,
     regenT: 0,
     adrenalT: 0,
     dodgeT: 0,
     weapon: "knife",
-    // Keep the signature ranged weapons available from the opening wave. The
-    // remaining household weapons still arrive as pickups during progression.
-    owned: { knife: true, pistol: true, smg: true, shotgun: true, flamer: true },
-    ammo: {
-      pistol: W.pistol.mag,
-      smg: W.smg.mag,
-      shotgun: W.shotgun.mag,
-      flamer: W.flamer.mag,
-    },
-    reserve: {
-      pistol: W.pistol.reserve,
-      smg: W.smg.reserve,
-      shotgun: W.shotgun.reserve,
-      flamer: W.flamer.reserve,
-    },
+    owned: (function () {
+      var o = {};
+      W_ORDER.forEach(function (k) { o[k] = true; });
+      return o;
+    })(),
+    ammo: (function () {
+      var a = {};
+      W_ORDER.forEach(function (k) { if (!W[k].melee) a[k] = W[k].mag; });
+      return a;
+    })(),
+    reserve: (function () {
+      var r = {};
+      W_ORDER.forEach(function (k) { if (!W[k].melee) r[k] = W[k].reserve; });
+      return r;
+    })(),
     nextShot: 0,
     reloading: 0,
     swing: 0,
@@ -2372,6 +2492,7 @@ function hurtPlayer(dmg, src) {
         s: Z.score || 0,
       });
       Z.hud.again.textContent = t("z_again");
+      Z.hud.deadExit.textContent = t("z_exit");
       Z.hud.dead.classList.add("on");
     }
     unlockPointer();
@@ -2394,7 +2515,11 @@ function stepPlayer(dt) {
   if (P.adrenalT > 0) P.adrenalT -= dt;
 
   // stamina
-  P.sprint = !!K.sprint && P.stam > 2 && !P.crouch && (K.fwd || K.back || K.left || K.right);
+  var stickX = Z.stick ? Z.stick.x : 0,
+    stickY = Z.stick ? Z.stick.y : 0,
+    stickMag = Math.hypot(stickX, stickY);
+  var moving = K.fwd || K.back || K.left || K.right || stickMag > 0.12;
+  P.sprint = (!!K.sprint || stickMag > 0.82) && P.stam > 2 && !P.crouch && moving;
   if (P.sprint) P.stam = Math.max(0, P.stam - dt * (P.adrenalT > 0 ? 14 : 24));
   else P.stam = Math.min(100, P.stam + dt * (P.crouch ? 26 : 16) * (P.adrenalT > 0 ? 1.4 : 1));
 
@@ -2415,6 +2540,10 @@ function stepPlayer(dt) {
   if (K.back) { mx -= fx; mz -= fz; }
   if (K.right) { mx += rx; mz += rz; }
   if (K.left) { mx -= rx; mz -= rz; }
+  if (stickMag > 0.04) {
+    mx += fx * stickY + rx * stickX;
+    mz += fz * stickY + rz * stickX;
+  }
   var l = Math.hypot(mx, mz);
   if (l > 0.001) {
     mx /= l;
@@ -2429,16 +2558,24 @@ function stepPlayer(dt) {
   moveCircle(_movePoint2D, P.vx * dt, P.vz * dt, P_RAD, P.y, P.crouch ? 100 : P_CLEAR, STEP);
   P.x = _movePoint2D.x;
   P.z = _movePoint2D.z;
-  // vertical: step up onto furniture, fall off it
+  // vertical: step up onto furniture, fall off it, thud only after a real drop
   var g = groundAt(P.x, P.z, P.y, STEP);
+  var wasAir = P.airborne;
+  var impactVy = P.vy;
   if (g > P.y) P.y = Math.min(g, P.y + 280 * dt);
   else {
     P.vy -= GRAV * dt;
     P.y += P.vy * dt;
     if (P.y <= g) {
+      impactVy = P.vy;
       P.y = g;
       P.vy = 0;
     }
+  }
+  P.airborne = P.y > g + 2 || P.vy > 0;
+  if (wasAir && !P.airborne && impactVy < -140) {
+    sndFootstep(true);
+    makeNoise(P.x, P.z, 260);
   }
   // head bob + footsteps
   var sp2 = Math.hypot(P.vx, P.vz);
@@ -2868,8 +3005,7 @@ function jump() {
   if (P.y > g + 2 || P.vy > 0) return;
   P.vy = JUMP_V * (P.crouch ? 0.72 : 1);
   P.stam -= 8;
-  sndFootstep(true);
-  makeNoise(P.x, P.z, 260); // landing thud draws attention
+  P.airborne = true;
 }
 
 function shove() {
@@ -2911,17 +3047,23 @@ function shove() {
   say(t("z_shove"), 0.5);
 }
 
-function onMouseMove(e) {
-  if (!Z.active || Z.paused) return;
+function applyLookDelta(dx, dy, touch) {
   var P = Z.p;
-  if (P.dead) return;
-  var dx = clamp(e.movementX || 0, -60, 60),
-    dy = clamp(e.movementY || 0, -60, 60);
-  var sens = (P.aim ? 0.0014 : 0.0024) * (Z.sens || 1);
+  if (!P || P.dead || Z.paused) return;
+  dx = clamp(dx, -80, 80);
+  dy = clamp(dy, -80, 80);
+  var cfg = gameSettings();
+  var sens = (P.aim ? 0.0014 : 0.0024) * (cfg.sens || 1) * (touch ? 1.15 : 1);
+  var invert = cfg.invertY ? -1 : 1;
   P.yaw -= dx * sens;
-  P.pitch = clamp(P.pitch - dy * sens, -1.35, 1.35);
+  P.pitch = clamp(P.pitch - dy * sens * invert, -1.35, 1.35);
   P.lookDX += dx;
   P.lookDY += dy;
+}
+
+function onMouseMove(e) {
+  if (!Z.active || Z.paused) return;
+  applyLookDelta(e.movementX || 0, e.movementY || 0, false);
 }
 function onMouseDown(e) {
   if (!Z.active || Z.paused) return;
@@ -2949,6 +3091,10 @@ function onWheel(e) {
 function onContext(e) {
   if (Z.active) e.preventDefault();
 }
+function wantsTouchControls() {
+  return typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+}
+
 function onLockChange() {
   var cv = document.getElementById("v3d");
   var wasLocked = Z.locked;
@@ -2956,6 +3102,7 @@ function onLockChange() {
   if (wasLocked && !Z.locked && Z.active && Z.p && !Z.p.dead && !Z.paused) pauseGame(true);
 }
 function lockPointer() {
+  if (wantsTouchControls()) return;
   var cv = document.getElementById("v3d");
   if (cv && !document.pointerLockElement && cv.requestPointerLock) {
     try {
@@ -2972,10 +3119,115 @@ function unlockPointer() {
   }
 }
 
+function onLookPointerDown(e) {
+  if (!Z.active || Z.paused || !Z.p || Z.p.dead) return;
+  if (e.pointerType === "mouse") return;
+  var t = e.target;
+  if (t && t.closest && t.closest("button, input, label, #zPause, #zDead, #zStick, .z-touch-actions, #zPauseBtn")) return;
+  Z.lookPtr = { id: e.pointerId, x: e.clientX, y: e.clientY };
+}
+function onLookPointerMove(e) {
+  if (!Z.lookPtr || e.pointerId !== Z.lookPtr.id) return;
+  applyLookDelta(e.clientX - Z.lookPtr.x, e.clientY - Z.lookPtr.y, true);
+  Z.lookPtr.x = e.clientX;
+  Z.lookPtr.y = e.clientY;
+}
+function onLookPointerUp(e) {
+  if (Z.lookPtr && e.pointerId === Z.lookPtr.id) Z.lookPtr = null;
+}
+
+function bindTouchControls() {
+  if (!Z.hud || !Z.hud.touch || Z.hud.touch.dataset.bound) return;
+  Z.hud.touch.dataset.bound = "1";
+  Z.stick = Z.stick || { x: 0, y: 0 };
+  var stick = Z.hud.stick;
+  var knob = stick && stick.querySelector("i");
+  var stickPtr = null;
+  function setStick(nx, ny) {
+    var mag = Math.hypot(nx, ny);
+    if (mag > 1) {
+      nx /= mag;
+      ny /= mag;
+    }
+    Z.stick.x = nx;
+    Z.stick.y = ny;
+    if (knob) knob.style.transform = "translate(" + nx * 22 + "px," + -ny * 22 + "px)";
+  }
+  function stickFromEvent(e) {
+    var r = stick.getBoundingClientRect();
+    setStick(
+      (e.clientX - (r.left + r.width / 2)) / (r.width * 0.42),
+      ((r.top + r.height / 2) - e.clientY) / (r.height * 0.42)
+    );
+  }
+  function releaseStick(e) {
+    if (stickPtr == null) return;
+    if (e && e.pointerId !== stickPtr) return;
+    stickPtr = null;
+    stick.classList.remove("pressed");
+    setStick(0, 0);
+  }
+  stick.addEventListener("pointerdown", function (e) {
+    if (!Z.active || Z.paused) return;
+    stickPtr = e.pointerId;
+    stick.classList.add("pressed");
+    if (stick.setPointerCapture) stick.setPointerCapture(e.pointerId);
+    stickFromEvent(e);
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  stick.addEventListener("pointermove", function (e) {
+    if (stickPtr !== e.pointerId) return;
+    stickFromEvent(e);
+  });
+  stick.addEventListener("pointerup", releaseStick);
+  stick.addEventListener("pointercancel", releaseStick);
+  stick.addEventListener("lostpointercapture", releaseStick);
+
+  Z.hud.touch.querySelectorAll("[data-hold], [data-act]").forEach(function (btn) {
+    var hold = btn.getAttribute("data-hold");
+    var act = btn.getAttribute("data-act");
+    if (hold === "fire") {
+      var release = function () {
+        if (Z.p) Z.p.firing = false;
+        btn.classList.remove("pressed");
+      };
+      btn.addEventListener("pointerdown", function (e) {
+        if (!Z.active || Z.paused || !Z.p || Z.p.dead) return;
+        Z.p.firing = true;
+        fire();
+        btn.classList.add("pressed");
+        if (btn.setPointerCapture) btn.setPointerCapture(e.pointerId);
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      btn.addEventListener("pointerup", release);
+      btn.addEventListener("pointercancel", release);
+      btn.addEventListener("lostpointercapture", release);
+      return;
+    }
+    btn.addEventListener("pointerdown", function (e) {
+      if (!Z.active || Z.paused || !Z.p || Z.p.dead) return;
+      if (act === "reload") reload();
+      else if (act === "flash" && Z.flash) {
+        Z.flash.on = !Z.flash.on && Z.flash.batt > 0;
+        sndClick();
+        say(Z.flash.on ? t("z_flash_on") : t("z_flash_off"), 0.8);
+      } else if (act === "shove") shove();
+      else if (act === "jump") jump();
+      else if (act === "weapon") cycleWeapon(1);
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  });
+}
+
 function pauseGame(on, ready) {
   if (!Z.active || !Z.hud || (Z.p && Z.p.dead)) return;
   Z.paused = !!on;
   Z.keys = {};
+  Z.stick = { x: 0, y: 0 };
+  Z.lookPtr = null;
   if (Z.p) {
     Z.p.firing = false;
     Z.p.aim = false;
@@ -3001,6 +3253,10 @@ function bindEvents() {
   window.addEventListener("keydown", onKeyDown, true);
   window.addEventListener("keyup", onKeyUp, true);
   window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("pointerdown", onLookPointerDown);
+  window.addEventListener("pointermove", onLookPointerMove);
+  window.addEventListener("pointerup", onLookPointerUp);
+  window.addEventListener("pointercancel", onLookPointerUp);
   // remember the exact target: resolving #v3d again at unbind time can pick a
   // different element (or window) and leave the old listeners live
   var cv = (Z.evTarget = document.getElementById("v3d") || window);
@@ -3009,6 +3265,7 @@ function bindEvents() {
   cv.addEventListener("wheel", onWheel, { passive: false });
   cv.addEventListener("contextmenu", onContext);
   document.addEventListener("pointerlockchange", onLockChange);
+  bindTouchControls();
 }
 function unbindEvents() {
   if (!Z.bound) return;
@@ -3016,6 +3273,10 @@ function unbindEvents() {
   window.removeEventListener("keydown", onKeyDown, true);
   window.removeEventListener("keyup", onKeyUp, true);
   window.removeEventListener("mousemove", onMouseMove);
+  window.removeEventListener("pointerdown", onLookPointerDown);
+  window.removeEventListener("pointermove", onLookPointerMove);
+  window.removeEventListener("pointerup", onLookPointerUp);
+  window.removeEventListener("pointercancel", onLookPointerUp);
   var cv = Z.evTarget || window;
   cv.removeEventListener("mousedown", onMouseDown);
   window.removeEventListener("mouseup", onMouseUp);
@@ -3023,6 +3284,8 @@ function unbindEvents() {
   cv.removeEventListener("contextmenu", onContext);
   Z.evTarget = null;
   document.removeEventListener("pointerlockchange", onLockChange);
+  Z.stick = { x: 0, y: 0 };
+  Z.lookPtr = null;
 }
 
 /* ===========================================================================
@@ -3143,6 +3406,7 @@ function tick(deltaMs) {
     Z.hud.root.classList.toggle("aiming", !!P.aim);
     Z.hud.root.classList.toggle("distracted", distK > 0.35);
     Z.hud.root.classList.toggle("adrenaline", P.adrenalT > 0);
+    if (Z.hud.hint) Z.hud.hint.classList.toggle("fade", Z.t > 11);
   }
   return true;
 }
@@ -3210,6 +3474,7 @@ function restart() {
   if (Z.flash) Z.flash.batt = 100;
   if (Z.hud) {
     Z.hud.dead.classList.remove("on");
+    if (Z.hud.hint) Z.hud.hint.classList.remove("fade");
     var bctx = Z.hud.blood && Z.hud.blood.getContext && Z.hud.blood.getContext("2d");
     if (bctx) bctx.clearRect(0, 0, Z.hud.blood.width, Z.hud.blood.height);
     Z.hud.blood.classList.remove("on");
