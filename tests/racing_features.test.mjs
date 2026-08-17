@@ -760,3 +760,56 @@ test("RC audio has continuous scrub and rumble voices plus a per-truck garage", 
   assert.match(rc, /export function tuneStore\(\)[\s\S]*?R\.tunes\[tuneKey\(\)\]/);
   assert.match(rc, /export function bankAdd\(n\)/);
 });
+
+test("RC race craft drafts, passes, looks back and shows live rival gaps", async () => {
+  const [rc, css, i18n] = await Promise.all([
+    readRC(),
+    read("css/styles.css"),
+    read("js/i18n.js"),
+  ]);
+  // Sitting in a rival's wake is extra top speed, not just a visual.
+  assert.match(rc, /DRAFT_MULT = 0\.14/);
+  assert.match(rc, /function draftFactor\(car\)/);
+  assert.match(rc, /maxv \*= 1 \+ DRAFT_MULT \* draft/);
+  // Bots steer analog and hold a private line so they can actually pass.
+  assert.match(rc, /aiLane: \(\(i % 3\) - 1\) \* 5\.4/);
+  assert.match(rc, /input\.steerAxis = -clamp\(steer, -1, 1\)/);
+  assert.match(rc, /car\.passSide = odx \* ofz - odz \* ofx >= 0 \? 1 : -1/);
+  // A rear tap that isn't a slam is a bump-draft.
+  assert.match(rc, /b\.v \+= rel \* 0\.12/);
+  // Look-back is a hold (V / B / on-screen), not another camera mode.
+  assert.match(rc, /R\.keys\.look = true/);
+  assert.match(rc, /out\.look = out\.look \|\| padButton\(pad, 1\)/);
+  assert.match(rc, /carCam\(pc, dt, now, !!\(pInput\.look \|\| R\.touch\.look\)\)/);
+  assert.match(rc, /data-hold="look"/);
+  // Race presentation: start gantry, sector chip, rival interval, wrong-way.
+  assert.match(rc, /function updateStartLights\(left\)/);
+  assert.match(rc, /function pathPos\(car\)/);
+  assert.match(rc, /function updateGaps\(pc\)/);
+  assert.match(rc, /function updateWrongWay\(pc\)/);
+  assert.match(rc, /updateSplitsHud\(idx\)/);
+  assert.match(css, /#rcLights/);
+  assert.match(css, /#rcGap/);
+  assert.match(css, /#rcWarn/);
+  assert.match(css, /#rcSplits\.on/);
+  assert.match(i18n, /rc_wrong_way: "WRONG WAY"/);
+  assert.match(i18n, /rc_look: "Look back"/);
+  assert.match(i18n, /V=look back/);
+  // Position stays on even with items off — placing is not a kart pickup.
+  assert.match(rc, /R\.hud\.pos\.classList\.toggle\("on", racing\)/);
+
+  // The slipstream cone: dead ahead and close is a full draft; beside or
+  // behind the other truck is none. Same numbers the game uses.
+  const DRAFT_DIST = 22;
+  const draftAt = (dx, dz) => {
+    const d = Math.hypot(dx, dz);
+    if (d < 3.6 || d > DRAFT_DIST) return 0;
+    const along = dz / d; // heading 0 looks down +Z
+    if (along < 0.72) return 0;
+    return (1 - (d - 3.6) / (DRAFT_DIST - 3.6)) * along;
+  };
+  assert.ok(draftAt(0, 10) > 0.5, "a truck 10cm ahead is in the wake");
+  assert.equal(draftAt(0, -10), 0, "a truck behind is not a draft");
+  assert.equal(draftAt(18, 2), 0, "a truck beside is not a draft");
+  assert.ok(draftAt(0, 6) > draftAt(0, 18), "closer ahead drafts harder");
+});

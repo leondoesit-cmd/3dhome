@@ -116,7 +116,9 @@ export let BODY_L = 3.8, // target truck body length (custom models are scaled t
   COIN_MULT = 0.022, // +2.2% top speed per coin (10 coins ≈ +22%)
   ROCKET_WIN = 620, // rocket-start window before GO
   ROCKET_MS = 1500, // boost it grants
-  STALL_MS = 900; // penalty for jumping the start
+  STALL_MS = 900, // penalty for jumping the start
+  DRAFT_MULT = 0.14, // extra top-speed fraction sitting in a rival's wake
+  DRAFT_DIST = 22; // how far the slipstream reaches (cm)
 export let AI_NAMES = ["Turbo", "Nitro", "Dusty", "Bolt", "Rusty", "Comet"];
 export let AI_COLORS = [
   0xd94f3d, 0x3d8fd9, 0x53b06a, 0xb268d9, 0xd9a13d, 0x3dc9c0,
