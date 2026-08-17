@@ -1,3 +1,5 @@
+const MAX_SUB_STEPS = 3;
+
 import {
   clearDebris,
   clearPhysics,
@@ -11,7 +13,7 @@ import {
   hitObjectAtCenter,
   initPhysics,
   isCharacterReady,
-  isPhysicsBusy,
+  isPhysicsBusy as worldIsPhysicsBusy,
   isPhysicsEnabled,
   moveKinematicCapsule,
   setStrength,
@@ -22,10 +24,19 @@ import {
   togglePhysics,
   toggleSlowMo,
 } from "./physics/world.js";
-import { addPhysicsBody } from "./physics/shapes.js";
+import { addPhysicsBody as shapesAddPhysicsBody } from "./physics/shapes.js";
+
+export function isPhysicsBusy() {
+  return worldIsPhysicsBusy();
+}
+
+export function addPhysicsBody(mesh, isDynamic) {
+  const body = shapesAddPhysicsBody(mesh, isDynamic);
+  if (isDynamic) body.sleep();
+  return body;
+}
 
 export {
-  addPhysicsBody,
   clearDebris,
   clearPhysics,
   disposeWorld,
@@ -36,7 +47,6 @@ export {
   hitAlongRay,
   hitObjectAtCenter,
   initPhysics,
-  isPhysicsBusy,
   isPhysicsEnabled,
   setStrength,
   toggleHitMode,
@@ -48,6 +58,7 @@ export {
 };
 
 export function syncPhysicsToThree(delta) {
+  if (!isPhysicsBusy()) return;
   stepWorld(delta);
   drainShatterQueue(takeShatterQueue());
 }
