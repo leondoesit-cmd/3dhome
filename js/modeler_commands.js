@@ -68,6 +68,7 @@ export function buildCommandCatalog(ctx) {
     { id:"directpoly", icon:"ph-polygon", label:t("tool_poly"), group:t("grpDirect"), shortcut:"P", terms:"polygon extrude direct" },
     { id:"directrev", icon:"ph-spiral", label:t("tool_rev"), group:t("grpDirect"), terms:"revolve profile sketch direct" },
     { id:"newsketch", icon:"ph-pencil-line", label:t("createSketch"), group:t("cmdFeatures"), terms:"reference plane face profile" },
+    { id:"finishsketch", icon:"ph-check", label:t("finishSketch"), group:t("cmdSketch"), terms:"exit plane done finish", available:function(){ return partDoc() && E.authoring && E.authoring.phase==="sketch"; }, reason:function(){ return t("cmdNeedOpenSketch"); } },
     { id:"extrude", icon:"ph-cube", label:t("opExtrude"), group:t("cmdFeatures"), available:function(){ return partDoc() && closed(); }, reason:function(){ return closed() ? needPart() : needSketch(); } },
     { id:"extrudecut", icon:"ph-scissors", label:t("extrudeCut"), group:t("cmdFeatures"), available:function(){return partDoc()&&closed()&&solids();}, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : !closed() ? t("cmdNeedClosedSketch") : t("cmdNeedSolid"); } },
     { id:"revolvefeature", icon:"ph-arrow-counter-clockwise", label:t("opRevolve"), group:t("cmdFeatures"), shortcut:"R" },

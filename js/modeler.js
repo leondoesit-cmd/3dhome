@@ -90,6 +90,10 @@ import { clearModelerDraft, readModelerDraft, writeModelerDraft } from "./modele
 import {
   featureField as featureFieldCore, readFeatureParameterForm, renderFeatureParameterForm as renderFeatureParameterFormCore,
 } from "./modeler_feature_form.js";
+import {
+  nextFeatureAfterFinishedSketch, resolveWorkflowStep,
+  shouldResumeSketchSession, shouldSkipReferencePicker,
+} from "./modeler_workflow.js";
 
 var LS_MODELS = "home3d_models";
 var LS_ASSEMBLIES = "home3d_assemblies";
@@ -423,6 +427,7 @@ var TXT = {
   cmdNeedPartDoc: ["פקודה זו זמינה במסמך חלק", "This command is available on a part document"],
   cmdNeedAssembly: ["פקודה זו זמינה במסמך הרכבה", "This command is available on an assembly"],
   cmdNeedClosedSketch: ["שרטטו פרופיל סגור תחילה", "Draw a closed sketch profile first"],
+  cmdNeedOpenSketch: ["אין סקיצה פתוחה לסיום", "No open sketch to finish"],
   cmdNeedSolid: ["הוסיפו גוף מוצק תחילה", "Add a solid body first"],
   cmdNeedComponents: ["הוסיפו לפחות שני רכיבים", "Add at least two components first"],
   cmdNeedOneComponent: ["הוסיפו רכיב אחד לפחות", "Add at least one component first"],
@@ -431,6 +436,8 @@ var TXT = {
   rebuildWarn: ["אזהרות בנייה", "Rebuild warnings"],
   closeTip: ["סגור את העורך", "Close the editor"],
   createSketch: ["סקיצה חדשה", "Create sketch"],
+  finishSketch: ["סיום סקיצה", "Finish sketch"],
+  createSketchOnRef: ["צרו סקיצה על ייחוס", "Create sketch on reference"],
   extrudeCut: ["חיתוך באקסטרוד", "Extrude cut"],
   opSweep: ["Sweep", "Sweep"],
   opBoolean: ["בוליאני", "Boolean"],
@@ -465,11 +472,18 @@ var TXT = {
   wfPartialDefined: ["מוגדר חלקית", "Partially defined"],
   wfUnderDefined: ["חסר הגדרה", "Under-defined"],
   wfTurnIntent: ["הפכו כוונה לגיאומטריה", "Turn intent into geometry"],
+  wfReadyExtrude: ["מוכן לאקסטרוד", "Ready to extrude"],
   wfEditableSteps: ["שלבים לעריכה", "editable steps"],
   wfNone: ["אין", "none"],
   wfEmpty: ["ריק", "empty"],
+  wfLastUsed: ["שימוש אחרון", "Last used"],
+  wfSuggested: ["מוצע", "Suggested"],
+  wfAria: ["שלבי מידול", "Authoring workflow"],
   selectedFace: ["פאה נבחרת", "Selected face"],
   needPlanarFace: ["בחרו פאה מישורית למישור ייחוס", "Select a planar face for a reference plane"],
+  needPlanarOrAnalytic: ["בחרו פאה מישורית או משטח נתמך", "Select a planar or supported analytic face"],
+  needSketchThenFeature: ["צרו או בחרו סקיצה, ואז החילו תכונה", "Create or select a sketch, then apply a declarative feature"],
+  surfaceUnwrapped: ["המשטח נפרש למרחב סקיצת UV", "Surface unwrapped into UV sketch space"],
   featureFormHint: ["השלמת הגדרת התכונה · תצוגה מקדימה חיה לפני אישור", "Complete feature definition · live preview before commit"],
   livePreviewReady: ["תצוגה מקדימה חיה מוכנה", "Live preview ready"],
   unsupportedFeature: ["תכונה לא נתמכת", "Unsupported feature"],
@@ -1725,7 +1739,8 @@ var E = {
   kernelBusy: false,  // an exact-kernel regeneration is in flight
   treeQuery: "",
   tour: { active: false, track: null, mode: null, step: 0, completed: {}, baseline: null, target: null, autoOrigin: null, position: null, drag: null, moved: false, keepResult: false },
-  authoring: { phase:"model", referenceId:null, sketchId:null, featureType:null, sketchSelection:[] },
+  authoring: { phase:"model", referenceId:null, sketchId:null, featureType:null, sketchSelection:[], workflowFocus:"context" },
+  lastSketchReferenceId: null,
 };
 
 /* Sketching habits are per-user, not per-document — they outlive the model the
@@ -2709,7 +2724,7 @@ function buildDOM() {
     /* One line, not five cards. The five phases still read left to right and
        still carry their live readout, but as a breadcrumb they cost 26px
        instead of 60 and stop competing with the ribbon for attention. */
-    '<nav class="md-workflow" id="mdWorkflow" aria-label="' + t("wfFeature") + '">' +
+    '<nav class="md-workflow" id="mdWorkflow" aria-label="' + t("wfAria") + '">' +
       '<button type="button" data-workflow-step="context"><b>' + t("wfPart") + '</b><small id="mdWorkflowContext">cm · origin</small></button>' +
       '<button type="button" data-workflow-step="reference"><b>' + t("wfReference") + '</b><small id="mdWorkflowReference">' + t("wfNone") + '</small></button>' +
       '<button type="button" data-workflow-step="sketch"><b>' + t("wfSketch") + '</b><small id="mdWorkflowSketch">' + t("wfEmpty") + '</small></button>' +
@@ -2775,6 +2790,7 @@ function buildDOM() {
         commandButton("extend", "ph-arrows-out-line-horizontal", t("tool_extend"), "E"),
       ]) +
       commandGroup(t("grpSketchEdit"), [
+        commandButton("finishsketch", "ph-check", t("finishSketch"), null, "primary", t("finishSketch")),
         commandButton("offset", "ph-copy-simple", t("tool_offset")),
         commandButton("constr", "ph-line-segments", t("cap_constr"), null, "", t("tool_constr")),
         commandButton("mirror", "ph-flip-horizontal", t("sketchMirror")),
@@ -2966,10 +2982,7 @@ function buildDOM() {
   root.querySelector('[data-act="new"]').addEventListener("click", newModel);
   root.querySelectorAll("[data-workflow-step]").forEach(function(button){
     button.addEventListener("click",function(){
-      var step=button.getAttribute("data-workflow-step");
-      if(step==="reference"||step==="sketch")beginSketchWorkflow();
-      else if(step==="feature")setCommandTab("features");
-      else if(step==="history")setTab("parts");
+      activateWorkflowStep(button.getAttribute("data-workflow-step"));
     });
   });
   root.querySelector("[data-reference-cancel]").addEventListener("click",cancelReferenceSelection);
@@ -3880,7 +3893,12 @@ function referenceLabel(reference) {
 function cancelReferenceSelection() {
   var picker=root && root.querySelector("#mdReferencePicker");
   if(picker)picker.hidden=true;
-  E.authoring.phase="model";E.authoring.featureType=null;
+  if(E.authoring && E.authoring.resumePhase==="sketch"){
+    E.authoring.phase="sketch";E.authoring.resumePhase=null;E.authoring.workflowFocus="sketch";
+    syncAuthoringWorkflow();
+    return;
+  }
+  E.authoring.phase="model";E.authoring.featureType=null;E.authoring.workflowFocus="context";
   syncAuthoringWorkflow();
 }
 
@@ -3893,7 +3911,7 @@ function chooseSketchReference(reference, preferredTool) {
   var topology=reference.type==="topology-reference" || !!reference.persistentId;
   if(topology) {
     E.topologySelection=[cloneData(reference)];
-    if(!attachSketchToSelectedFace()){H.discard();flash("Select a planar or supported analytic face");cancelReferenceSelection();return;}
+    if(!attachSketchToSelectedFace()){H.discard();flash(t("needPlanarOrAnalytic"));cancelReferenceSelection();return;}
     sketch=ensureSketch(E.def);
   } else {
     var view=referencePlaneView(reference);
@@ -3908,7 +3926,8 @@ function chooseSketchReference(reference, preferredTool) {
   }
   recordSketchInHistory(E.def,sketch);
   E.def.metadata ||= {};E.def.metadata.authoringSystem="parametric-v1";
-  E.authoring={phase:"sketch",referenceId:sketch.referenceId,sketchId:sketch.id,featureType:null,sketchSelection:[sketch.id],preferredTool:preferredTool || null};
+  E.lastSketchReferenceId=topology ? (reference.persistentId || sketch.referenceId) : reference.id;
+  E.authoring={phase:"sketch",referenceId:sketch.referenceId,sketchId:sketch.id,featureType:null,sketchSelection:[sketch.id],preferredTool:preferredTool || null,workflowFocus:"sketch",resumePhase:null};
   /* Opening a sketch from the 3D model keeps you IN the 3D model. The sheet is
      laid over the solid on the chosen plane and the camera is left exactly
      where it was — dropping to a flat 2D view (or spinning normal to the face)
@@ -3922,14 +3941,38 @@ function chooseSketchReference(reference, preferredTool) {
   if(!stayIn3D)requestAnimationFrame(fitSketch);else drawSketch();
 }
 
-function beginSketchWorkflow(preferredTool) {
-  if(E.docType!=="part")return;
+function selectedSketchableFace() {
+  var face=(E.topologySelection || []).find(function(reference){return reference.kind==="face";});
+  return face && faceSketchAttachment() ? face : null;
+}
+
+function resumeSketchSession(preferredTool) {
+  var picker=root && root.querySelector("#mdReferencePicker");
+  if(picker)picker.hidden=true;
+  E.authoring.phase="sketch";
+  E.authoring.workflowFocus="sketch";
+  E.authoring.resumePhase=null;
+  setCommandTab("sketch");
+  setTab("sketch");
+  if(E.mode==="3d"){E.modelPlaneActive=true;syncModelPlane();}
+  else if(E.mode!=="2d")setMode("2d");
+  if(preferredTool)setTool(preferredTool,true);
+  syncAuthoringWorkflow();
+}
+
+function showReferencePicker(preferredTool) {
   var picker=root && root.querySelector("#mdReferencePicker"),host=root && root.querySelector("#mdReferenceOptions");
   if(!picker||!host)return;
-  E.authoring.phase="reference";E.authoring.preferredTool=typeof preferredTool==="string" ? preferredTool : null;
+  if(E.authoring.phase==="sketch")E.authoring.resumePhase="sketch";
+  E.authoring.phase="reference";E.authoring.workflowFocus="reference";
+  E.authoring.preferredTool=typeof preferredTool==="string" ? preferredTool : null;
   host.innerHTML="";
+  var lastId=E.lastSketchReferenceId;
+  var suggestedId=lastId || "plane:top";
   (E.def.references || []).filter(function(reference){return reference.type==="plane";}).forEach(function(reference){
-    var button=el("button","md-reference-option",'<i class="ph ph-square-half"></i><span><b>'+referenceLabel(reference)+'</b><small>'+reference.id+'</small></span>');
+    var suggested=reference.id===suggestedId;
+    var hint=suggested ? (lastId===reference.id ? t("wfLastUsed") : t("wfSuggested"))+" · "+reference.id : reference.id;
+    var button=el("button","md-reference-option"+(suggested?" selected":""),'<i class="ph ph-square-half"></i><span><b>'+referenceLabel(reference)+'</b><small>'+hint+'</small></span>');
     button.addEventListener("click",function(){chooseSketchReference(reference,E.authoring.preferredTool);});host.appendChild(button);
   });
   var face=(E.topologySelection || []).find(function(reference){return reference.kind==="face";});
@@ -3937,10 +3980,26 @@ function beginSketchWorkflow(preferredTool) {
   picker.hidden=false;syncAuthoringWorkflow();
 }
 
+function beginSketchWorkflow(preferredTool, options) {
+  if(E.docType!=="part")return;
+  options=options || {};
+  var forceNew=!!options.forceNew;
+  if(shouldResumeSketchSession(E.authoring && E.authoring.phase, forceNew)){
+    resumeSketchSession(typeof preferredTool==="string" ? preferredTool : null);
+    return;
+  }
+  var face=selectedSketchableFace();
+  if(shouldSkipReferencePicker(face)){
+    chooseSketchReference(face, typeof preferredTool==="string" ? preferredTool : null);
+    return;
+  }
+  showReferencePicker(preferredTool);
+}
+
 function finishSketchWorkflow() {
   if(E.docType!=="part")return;
   if(!E.authoring || E.authoring.phase!=="sketch"){
-    beginSketchWorkflow();
+    beginSketchWorkflow(null,{forceNew:true});
     flash(t("chooseReferenceFirst"));
     return;
   }
@@ -3950,21 +4009,82 @@ function finishSketchWorkflow() {
   }
   recordSketchInHistory(E.def,sketch);
   E.authoring.phase="model";E.authoring.sketchId=sketch.id;E.authoring.referenceId=sketch.referenceId;E.authoring.sketchSelection=[sketch.id];
+  E.authoring.featureType=null;E.authoring.workflowFocus="feature";E.authoring.resumePhase=null;
   E.modelPlaneActive=false;setMode("3d");setCommandTab("features");setTab("parts");
   flash(run.degreesOfFreedom ? t("sketchSavedDof") + " · " + run.degreesOfFreedom + " " + t("wfDof") : "✓ " + t("sketchFullySaved"));
   refreshAll();
+  var next=nextFeatureAfterFinishedSketch(!!closedSketchProfile());
+  if(next)openParametricFeature(next);
+  else syncAuthoringWorkflow();
+}
+
+function currentWorkflowStep() {
+  var history=(E.def && E.def.history) || [];
+  var last=history.length ? history[history.length-1] : null;
+  return resolveWorkflowStep({
+    phase:E.authoring && E.authoring.phase,
+    featureType:E.authoring && E.authoring.featureType,
+    workflowFocus:E.authoring && E.authoring.workflowFocus,
+    lastHistoryKind:last && last.kind,
+    hasClosedProfile:!!closedSketchProfile(),
+    hasFeatureHistory:history.some(function(entry){return entry.kind==="feature";}),
+    hasSketchHistory:history.some(function(entry){return entry.kind==="sketch";}),
+  });
+}
+
+function activateWorkflowStep(step) {
+  if(E.docType!=="part")return;
+  if(step==="context"){
+    E.authoring.workflowFocus="context";
+    if(E.authoring.phase==="reference")cancelReferenceSelection();
+    setTab("parts");
+    syncAuthoringWorkflow();
+    return;
+  }
+  if(step==="reference"){beginSketchWorkflow(null,{forceNew:true});return;}
+  if(step==="sketch"){
+    if(E.authoring && E.authoring.phase==="sketch")resumeSketchSession();
+    else beginSketchWorkflow();
+    return;
+  }
+  if(step==="feature"){
+    E.authoring.workflowFocus="feature";
+    if(E.authoring.featureType){setCommandTab("features");syncAuthoringWorkflow();return;}
+    if(closedSketchProfile()){
+      if(E.authoring.phase==="sketch")finishSketchWorkflow();
+      else{setCommandTab("features");openParametricFeature("extrude");}
+      return;
+    }
+    setCommandTab("features");
+    if(E.authoring.phase==="sketch")flash(t("profileEmpty"));
+    syncAuthoringWorkflow();
+    return;
+  }
+  if(step==="history"){
+    E.authoring.workflowFocus="history";
+    setTab("parts");
+    setTab("hist");
+    syncAuthoringWorkflow();
+  }
 }
 
 function syncAuthoringWorkflow() {
   if(!root||!E.def)return;
   var phase=E.authoring && E.authoring.phase || "model",steps=["context","reference","sketch","feature","history"];
-  var active=phase==="reference"?1:phase==="sketch"?2:E.authoring && E.authoring.featureType?3:4;
-  root.querySelectorAll("[data-workflow-step]").forEach(function(button,index){button.classList.toggle("active",index===active);button.classList.toggle("complete",index<active);});
+  var active=steps.indexOf(currentWorkflowStep());
+  if(active<0)active=0;
+  root.querySelectorAll("[data-workflow-step]").forEach(function(button,index){
+    button.classList.toggle("active",index===active);
+    button.classList.toggle("complete",index<active);
+    if(index===active)button.setAttribute("aria-current","step");
+    else button.removeAttribute("aria-current");
+  });
   var units=E.def.context && E.def.context.units || {length:"cm"};
   var context=root.querySelector("#mdWorkflowContext");if(context)context.textContent=units.length+" · "+(E.def.context && E.def.context.activeCoordinateSystemId || "origin");
-  var sketch=ensureSketch(E.def),hasRecordedSketch=(E.def.history || []).some(function(entry){return entry.kind==="sketch"&&entry.targetId===sketch.id;}),reference=root.querySelector("#mdWorkflowReference");if(reference)reference.textContent=hasRecordedSketch && sketch.referenceId ? sketchPlaneCaption() : t("wfChoosePlane");
+  var sketch=ensureSketch(E.def),hasRecordedSketch=(E.def.history || []).some(function(entry){return entry.kind==="sketch"&&entry.targetId===sketch.id;}),reference=root.querySelector("#mdWorkflowReference");
+  if(reference)reference.textContent=(hasRecordedSketch || sketch.referenceId || sketch.support) && phase!=="reference" ? sketchPlaneCaption() : t("wfChoosePlane");
   var sketchText=root.querySelector("#mdWorkflowSketch");if(sketchText){var info=E.solveInfo || solveSketch(sketch);sketchText.textContent=(sketch.entities || []).length ? (info.status==="fully-constrained"?t("wfFullyDefined"):((sketch.constraints || []).length?t("wfPartialDefined")+" · ":t("wfUnderDefined")+" · ")+info.degreesOfFreedom+" "+t("wfDof")) : t("wfCreateProfile");}
-  var feature=root.querySelector("#mdWorkflowFeature");if(feature)feature.textContent=E.authoring && E.authoring.featureType ? (featureSpec(E.authoring.featureType)?.label || E.authoring.featureType) : t("wfTurnIntent");
+  var feature=root.querySelector("#mdWorkflowFeature");if(feature)feature.textContent=E.authoring && E.authoring.featureType ? (featureSpec(E.authoring.featureType)?.label || E.authoring.featureType) : (closedSketchProfile() ? t("wfReadyExtrude") : t("wfTurnIntent"));
   var history=root.querySelector("#mdWorkflowHistory");if(history)history.textContent=(E.def.history || []).length+" "+t("wfEditableSteps");
   root.classList.toggle("md-authoring-sketch",phase==="sketch");
 }
@@ -3983,7 +4103,7 @@ function attachSketchToSelectedFace() {
   var attachment=faceSketchAttachment();
   if (!attachment) return false;
   var sketch=ensureSketch(E.def);
-  if(attachment.surface){pushUndo(t("newSketch"));var surfaceSketch=createSurfaceSketch(attachment.support,{id:"sketch:surface:"+uid(),name:(attachment.support.semantic || "Surface")+" UV sketch"});E.def.sketches=(E.def.sketches || []).concat([surfaceSketch]);E.def.activeSketch=surfaceSketch.id;E.view="front";E.ssel=[];flash("✓ Surface unwrapped into UV sketch space");return true;}
+  if(attachment.surface){pushUndo(t("newSketch"));var surfaceSketch=createSurfaceSketch(attachment.support,{id:"sketch:surface:"+uid(),name:(attachment.support.semantic || "Surface")+" UV sketch"});E.def.sketches=(E.def.sketches || []).concat([surfaceSketch]);E.def.activeSketch=surfaceSketch.id;E.view="front";E.ssel=[];flash("✓ "+t("surfaceUnwrapped"));return true;}
   var same=sketch.support && sketch.support.persistentId===attachment.support.persistentId;
   if (same) return true;
   pushUndo(t("newSketch"));
@@ -4008,7 +4128,7 @@ function setTool(id, keepPlaneState) {
     if(SKETCH_TOOLS.includes(id) && E.authoring.phase!=="sketch") { beginSketchWorkflow(id); return; }
     if(["rect","circle","sph","poly","rev","cut","cutc"].includes(id)) {
       var replacement=id==="rect"?"srect":id==="circle"?"scirc":null;
-      if(replacement)beginSketchWorkflow(replacement);else flash("Create or select a sketch, then apply a declarative feature");
+      if(replacement)beginSketchWorkflow(replacement);else flash(t("needSketchThenFeature"));
       return;
     }
   }
@@ -4182,7 +4302,8 @@ function runCommand(id) {
   if (DIRECT_COMMAND_TOOLS[id]) { setTool(DIRECT_COMMAND_TOOLS[id]); closeCommandSearch(); syncCommandManager(); return; }
   var tools = ["select", "rect", "circle", "sph", "poly", "rev", "cut", "cutc", "wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "dim", "trim", "extend", "offset", "constr"];
   if (tools.indexOf(id) >= 0) setTool(id);
-  else if (id === "newsketch") beginSketchWorkflow();
+  else if (id === "newsketch") beginSketchWorkflow(null, { forceNew: true });
+  else if (id === "finishsketch") finishSketchWorkflow();
   else if (id === "extrude") openParametricFeature("extrude");
   else if (id === "extrudecut") openParametricFeature("extrudeCut");
   else if (id === "revolvefeature") openParametricFeature("revolve");
@@ -4566,7 +4687,7 @@ function openParametricFeature(type) {
   var selectionNote=el("div","md-feature-selection-note");
   selectionNote.setAttribute("data-live-selection",type);host.appendChild(selectionNote);syncActiveFeatureSelectionFeedback();addFinishScrubber(host,type,controls);
   var actions=el("div","md-feature-actions");
-  actions.appendChild(btn('<i class="ph ph-x"></i> '+t("cancelCommand"),function(){E.authoring.featureType=null;clearFeaturePreview(true);closeFeaturePanel();syncAuthoringWorkflow();},"md-quick-cancel"));
+    actions.appendChild(btn('<i class="ph ph-x"></i> '+t("cancelCommand"),function(){E.authoring.featureType=null;E.authoring.workflowFocus="history";clearFeaturePreview(true);closeFeaturePanel();syncAuthoringWorkflow();},"md-quick-cancel"));
   actions.appendChild(btn('<i class="ph ph-check"></i> '+t("quickApply"),function(){
     var values=readFeatureParameterForm(controls,state.params),params=values.params,ok=false;state.references={...state.references,...values.references};clearFeaturePreview(false);
     if(type==="extrude"||type==="extrudeCut")ok=extrudeClosedSketch({type:type,...params});
@@ -4581,7 +4702,7 @@ function openParametricFeature(type) {
       var ids=selectedFeatureIds();if(ids.length<2){flash(t("booleanNeedTwo"));syncNewFeaturePreview(type,state);refreshAll();return;}
       pushUndo(t("createBoolean"));try{createFeatureDefinition(E.def,"boolean",{inputs:ids.slice(0,2),references:{sketches:[],features:ids.slice(0,2),topology:[],references:[]},params:params});ok=true;refreshAll();}catch(error){H.discard();flash(String(error.message||error));}
     }
-    if(ok){E.authoring.featureType=null;closeFeaturePanel();setMode("3d");setTab("parts");syncAuthoringWorkflow();}else{E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;syncNewFeaturePreview(type,state,liveBadge);refreshAll();}
+    if(ok){E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();setMode("3d");setTab("parts");syncAuthoringWorkflow();}else{E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;syncNewFeaturePreview(type,state,liveBadge);refreshAll();}
   },"md-quick-apply"));host.appendChild(actions);
   syncNewFeaturePreview(type,state,liveBadge);refreshAll();syncAuthoringWorkflow();
 }
@@ -4732,7 +4853,7 @@ function newModel() {
   E.def = newDef();
   E.srcItem = null;
   E.sel = null;
-  E.authoring={phase:"model",referenceId:null,sketchId:null,featureType:null,sketchSelection:[],featureSelection:[]};
+  E.authoring={phase:"model",referenceId:null,sketchId:null,featureType:null,sketchSelection:[],featureSelection:[],workflowFocus:"context"};
   H.clear().seed();
   markDocumentClean();
   syncHead();
@@ -7665,7 +7786,7 @@ function buildSketchList(host, sketches, active) {
   });
   host.appendChild(list);
   var add = btn('<i class="ph ph-plus"></i> ' + t("newSketch"), function () {
-    beginSketchWorkflow();
+    beginSketchWorkflow(null, { forceNew: true });
   }, "md-wide md-dashed");
   host.appendChild(add);
 }
@@ -7727,7 +7848,7 @@ function openFeatureEditor(feature) {
   var actions=el("div","md-feature-actions");actions.appendChild(btn('<i class="ph ph-arrow-counter-clockwise"></i> Cancel',function(){cancelFeatureParameterEdit(false);},"md-quick-cancel"));
   actions.appendChild(btn('<i class="ph ph-check"></i> Update feature',function(){
     var values=readFeatureParameterForm(controls,feature.params);
-    try{updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});setFeatureReferencesFromForm(feature,values.references);syncProjectionFromFeature(feature);E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;closeFeaturePanel();refreshAll();flash("✓ Feature rebuilt from history · all views updated");}
+    try{updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});setFeatureReferencesFromForm(feature,values.references);syncProjectionFromFeature(feature);E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();refreshAll();flash("✓ Feature rebuilt from history · all views updated");}
     catch(error){flash(String(error.message||error));}
   },"md-quick-apply"));host.appendChild(actions);syncAuthoringWorkflow();syncCommandManager();
 }
@@ -7758,7 +7879,7 @@ function buildParametricHistoryTree(host) {
     });
     row.addEventListener("dblclick",function(event){event.stopPropagation();if(entry.kind==="sketch")editSketchFromHistory(target);else openFeatureEditor(target);});tree.appendChild(row);
   });
-  tree.appendChild(btn('<i class="ph ph-plus"></i> Create sketch on reference',beginSketchWorkflow,"md-wide md-dashed"));host.appendChild(tree);
+  tree.appendChild(btn('<i class="ph ph-plus"></i> ' + t("createSketchOnRef"), function(){ beginSketchWorkflow(null,{forceNew:true}); },"md-wide md-dashed"));host.appendChild(tree);
   renderCoreDiagnostics(host);
 }
 
@@ -9816,7 +9937,7 @@ export function openModeler(editKey, def, srcItem) {
   E.arcPts = null;
   E.wallPts = null;
   E.componentSel = [];
-  E.authoring={phase:"model",referenceId:null,sketchId:E.def.activeSketch || null,featureType:null,sketchSelection:E.def.activeSketch?[E.def.activeSketch]:[],featureSelection:[]};
+  E.authoring={phase:"model",referenceId:null,sketchId:E.def.activeSketch || null,featureType:null,sketchSelection:E.def.activeSketch?[E.def.activeSketch]:[],featureSelection:[],workflowFocus:"context"};
   E._mouse = null;
   E.solveInfo = solveSketch(ensureSketch(E.def));
   E.coreRun = isCanonicalAuthoring() ? rebuildParametricDocument(E.def,E.srcItem && E.srcItem.parameterOverrides || {}) : rebuildDefinition(E.def, E.srcItem && E.srcItem.parameterOverrides || {});

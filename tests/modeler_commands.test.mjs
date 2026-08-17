@@ -42,3 +42,22 @@ test("the catalog exposes hole and direct tools with availability reasons", () =
   });
   assert.equal(commandUnavailableReason("holefeature", withSolid, "fallback"), "");
 });
+
+test("finish sketch is a catalog command only while a sketch is open", () => {
+  const editor = { docType: "part", def: { parts: [] }, kernelBusy: false, assembly: null, authoring: { phase: "model" } };
+  const catalog = buildCommandCatalog({
+    t: (key) => key,
+    editor,
+    closedSketchProfile: () => ({ points: [] }),
+    activeParts: () => [],
+  });
+  assert.equal(commandUnavailableReason("finishsketch", catalog, "fallback"), "cmdNeedOpenSketch");
+  editor.authoring.phase = "sketch";
+  const open = buildCommandCatalog({
+    t: (key) => key,
+    editor,
+    closedSketchProfile: () => ({ points: [] }),
+    activeParts: () => [],
+  });
+  assert.equal(commandUnavailableReason("finishsketch", open, "fallback"), "");
+});

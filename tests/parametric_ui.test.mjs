@@ -6,7 +6,8 @@ const modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url
 const commandSource = await readFile(new URL("../js/modeler_commands.js", import.meta.url), "utf8");
 const formSource = await readFile(new URL("../js/modeler_feature_form.js", import.meta.url), "utf8");
 const draftSource = await readFile(new URL("../js/modeler_draft.js", import.meta.url), "utf8");
-const source = [modelerSource, commandSource, formSource, draftSource].join("\n");
+const workflowSource = await readFile(new URL("../js/modeler_workflow.js", import.meta.url), "utf8");
+const source = [modelerSource, commandSource, formSource, draftSource, workflowSource].join("\n");
 const editorViewSource = await readFile(new URL("../js/editor_view.js", import.meta.url), "utf8");
 const featureCatalogSource = await readFile(new URL("../js/core/feature_catalog.js", import.meta.url), "utf8");
 const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
@@ -29,6 +30,19 @@ test("the editor requires explicit reference selection and renders canonical his
   assert.match(source, /function buildParametricHistoryTree/);
   assert.match(source, /reorderHistoryNode\(E\.def/);
   assert.match(source, /updateFeatureDefinition\(E\.def/);
+});
+
+test("the authoring breadcrumb is a navigator and Finish continues into Extrude", () => {
+  assert.match(source, /function currentWorkflowStep/);
+  assert.match(source, /function resumeSketchSession/);
+  assert.match(source, /function activateWorkflowStep/);
+  assert.match(source, /commandButton\("finishsketch"/);
+  assert.match(source, /shouldSkipReferencePicker\(face\)/);
+  assert.match(source, /shouldResumeSketchSession\(E\.authoring && E\.authoring.phase, forceNew\)/);
+  assert.match(source, /nextFeatureAfterFinishedSketch/);
+  assert.match(source, /t\("needPlanarOrAnalytic"\)/);
+  assert.match(source, /return "context"/);
+  assert.doesNotMatch(source, /flash\("Select a planar or supported analytic face"\)/);
 });
 
 test("canonical save and exact regeneration compile history instead of reconstructing parts", () => {
