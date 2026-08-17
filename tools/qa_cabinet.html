@@ -9,9 +9,10 @@
 
       Open it from the project root over http, e.g.
           node .claude/serve.js       then  http://localhost:4599/tools/qa_cabinet.html
-      It runs in the browser rather than in node because cabinet.js imports three
-      through the page's importmap; stubbing that out would mean testing
-      something other than what ships.
+      The layout / BOM / nest engine also runs under Node in
+      tests/cabinet_layout.test.mjs (cabinet.js no longer imports Three.js).
+      This page still builds meshes, so it is the place that checks door swings
+      and AABB envelopes.
 
       Everything a machine needs is on `window.__QA` when it finishes:
           { pass, fail, total, failures: [...] }
@@ -57,6 +58,7 @@
     <script type="module">
       import * as THREE from "three";
       import * as cab from "../js/cabinet.js";
+      import { buildCab } from "../js/cabinet_mesh.js";
       import * as nest from "../js/nest.js";
       import * as stock from "../js/stock.js";
       import { S } from "../js/state.js";
@@ -99,7 +101,7 @@
       const world = (it) => { S.items = [it]; return it; };
       function built(it) {
         const gr = new THREE.Group();
-        cab.buildCab(gr, it);
+        buildCab(gr, it);
         gr.updateMatrixWorld(true);
         let meshes = 0;
         gr.traverse((o) => { if (o.isMesh) meshes++; });

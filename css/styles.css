@@ -5271,9 +5271,13 @@ body.fold-stack #view-resizer {
 
 #cabdes .cb-chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 /* the type chips are icons: fourteen names took five rows of the panel */
-#cabdes #cbFams { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
-#cabdes .cb-chip-ico { justify-content: center; padding: 7px 0; }
-#cabdes .cb-chip-ico i { font-size: 15px; }
+#cabdes #cbFams { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+#cabdes .cb-chip-ico { flex-direction: column; justify-content: center; gap: 3px; min-height: 52px; padding: 6px 4px; }
+#cabdes .cb-chip-ico i { font-size: 16px; }
+#cabdes .cb-chip-name {
+  min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 10px; font-weight: 600; line-height: 1.15; color: inherit;
+}
 #cabdes .cb-chip {
   display: flex; align-items: center; gap: 5px; padding: 7px 8px; font-size: 10.5px;
   border-radius: 9px; background: var(--btn-bg); border: 1px solid var(--btn-border);
