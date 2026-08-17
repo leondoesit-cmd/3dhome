@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const source = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
 const editorViewSource = await readFile(new URL("../js/editor_view.js", import.meta.url), "utf8");
 const featureCatalogSource = await readFile(new URL("../js/core/feature_catalog.js", import.meta.url), "utf8");
+const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 
 test("the default Features surface exposes the canonical feature vocabulary", () => {
   for (const command of ["newsketch", "extrude", "extrudecut", "revolvefeature", "sweepfeature", "loftfeature", "filletfeature", "chamferfeature", "shellfeature", "patternfeature", "mirrorfeature", "booleanfeature"])
@@ -85,4 +86,35 @@ test("Drawing mode exposes a two-point Smart Ruler that edits and saves the mode
   assert.match(source, /editPlacedDimension/);
   assert.match(source, /id="mdDrawingSave"/);
   assert.match(source, /#mdDrawingSave"\)\.addEventListener\("click", saveCurrentDocument\)/);
+});
+
+test("Escape cancels tools and selection without closing the document", () => {
+  assert.match(source, /function markDocumentClean/);
+  assert.match(source, /tree\[i\]\.i !== savedHistoryId/);
+  assert.match(source, /#mdClose"\)\.addEventListener\("click", requestCloseModeler\)/);
+  assert.match(source, /cancelReferenceSelection\(\); return/);
+  assert.match(source, /It does not close the document/);
+  assert.doesNotMatch(source, /if \(E\.sel\) \{ E\.sel = null; refreshAll\(\); return; \}\s*closeModeler\(\); return;/);
+});
+
+test("Ctrl+S saves in every mode and Ctrl+8 orients the camera", () => {
+  assert.match(source, /chord === "s"[\s\S]*saveCurrentDocument\(\)/);
+  assert.match(source, /chord === "z" && e\.shiftKey[\s\S]*doRedo\(\)/);
+  assert.match(source, /e\.key === "8" && !editingField[\s\S]*orientModelToView\(true\)/);
+  assert.doesNotMatch(source, /else if \(e\.key === "8" && \(e\.ctrlKey \|\| e\.metaKey\)\)/);
+});
+
+test("unavailable commands explain why instead of failing silently", () => {
+  assert.match(source, /function commandUnavailableReason/);
+  assert.match(source, /t\("cmdNeedClosedSketch"\)/);
+  assert.match(source, /if \(blocked\) \{ flash\(blocked\); closeCommandSearch\(\); return; \}/);
+  assert.match(source, /b\.classList\.toggle\("unavailable", !!why\)/);
+});
+
+test("3D model view keeps a rebuild status line", () => {
+  assert.match(source, /function rebuildStatusCaption/);
+  assert.match(source, /id="mdStatus" role="status"/);
+  assert.match(source, /t\("rebuildOk"\)/);
+  assert.match(source, /t\("dirtySave"\)/);
+  assert.doesNotMatch(styles, /#modeler\.md-is3d:not\(\.md-model-sketching\) \.md-status \{ display: none; \}/);
 });
