@@ -26,7 +26,7 @@ const readDrive = async () =>
 const readEditor = async () =>
   (
     await Promise.all(
-      ["", "_state", "_geom", "_actions", "_map"].map((n) =>
+      ["", "_state", "_geom", "_actions", "_map", "_faces"].map((n) =>
         read("js/rc_editor" + n + ".js"),
       ),
     )
@@ -189,7 +189,7 @@ async function buildTestRoad(customAnchors) {
 // Home mode: the apartment itself is the circuit. Same synthetic flat, but the
 // route has to be one a truck could drive on the real floor — through the gaps
 // in the walls, round what it cannot climb, up a ramp onto what it can.
-async function buildHomeRoad(extra) {
+async function buildHomeRoad(extra, customAnchors) {
   const root = new URL("../", import.meta.url);
   const src = (await read("js/track.js"))
     .replace('from "three"', `from "${new URL("vendor/three/three.module.js", root).href}"`)
@@ -230,7 +230,7 @@ async function buildHomeRoad(extra) {
       ),
     blockedAt: () => false,
   };
-  const anchors = [
+  const anchors = customAnchors || [
     { x: 300, z: 150 }, { x: 500, z: 150 }, { x: 300, z: 450 }, { x: 500, z: 450 },
   ];
   return { road: buildRoad(anchors, rooms, env), env, segs, rects };
@@ -645,6 +645,70 @@ test("the live RC track editor defers rebuilds and edits from both views", async
       ghost.some((g) => Math.hypot(g.x - a.x, g.z - a.z) < 1e-6),
       "spline passes through every anchor",
     );
+});
+
+test("a hand-picked pass-by drives the item the editor marked, and only once", async () => {
+  // The face tool's "drive over this one" is an anchor flagged `ride: true` on
+  // the item. The builder has to bind it to the plat it stands on (the editor and
+  // the builder hold different snapshots, so it cannot carry the rect itself),
+  // ramp onto it — and NOT then seed a second automatic detour onto the same bed.
+  const { road } = await buildHomeRoad(undefined, [
+    { x: 300, z: 145, ride: true }, // the bed at x 150-450 / z 60-230, top 45
+    { x: 520, z: 400 },
+    { x: 120, z: 250 },
+  ]);
+  assert.ok(road && road.feats.home);
+  assert.ok(road.feats.rides >= 1, "the marked item is not ridden");
+  assert.equal(road.feats.detours, 0, "the same item was also auto-detoured onto");
+  const onBed = road.center.filter(
+    (p) => p.x > 150 && p.x < 450 && p.z > 60 && p.z < 230 && p.y > 40,
+  );
+  assert.ok(onBed.length > 3, `only ${onBed.length} samples ride the bed`);
+  // riding it means holding a surface at its height, whether or not a deck is
+  // drawn there (the ride itself is bare — that is the point of home mode)
+  assert.ok(onBed.every((p) => p.hold), "a ride sample with nothing to drive on");
+});
+
+test("the RC pass-by tool edits intent and keeps rule and points together", async () => {
+  const [ed, rc] = await Promise.all([readEditor(), readRC()]);
+
+  // A rule is picked on the plan: click a model or a room, get its four sides
+  // plus (only when the builder can actually ramp onto it) its top.
+  assert.match(ed, /data-mode="faces"/);
+  assert.match(ed, /function pickTarget\(x, z\)/);
+  assert.match(ed, /import \{ canRide, rideSpot \} from "\.\/track\.js"/);
+  // ...and track.js exports exactly that, rather than the editor keeping its own
+  // copy of the rule (which would drift the first time RIDE_MAX moved).
+  const track = await read("js/track.js");
+  assert.match(track, /export function canRide\(r, tops\)/);
+  assert.match(track, /export function rideSpot\(r, tops\)/);
+
+  // Smart, and measured against the same clearance the validator uses — plus an
+  // indoors test, or a bed against an outside wall gets a pass laid in the garden.
+  assert.match(ed, /function faceScore\(tg, face\)|export function faceScore/);
+  assert.match(ed, /function indoors\(x, z\)[\s\S]*?pointInPoly/);
+  assert.match(ed, /indoors\(x, z\) \? clearAt\(x, z, 0\.7\) : -60/);
+  // The direction is the cheaper way round the loop — except for a ride, whose
+  // entry face is the one the ramp is built on and so is not negotiable.
+  assert.match(ed, /if \(!rule\.ride && pts\.length >= 2\)/);
+  assert.match(ed, /if \(rule\.flip\) made\.reverse\(\)/);
+
+  // The rule owns its points (a\.f) and only its points, so flipping re-lays
+  // them and deleting takes exactly them away.
+  assert.match(ed, /function stripRule\(pts, id\)[\s\S]*?a\.f !== id/);
+  assert.match(ed, /p\.f = rule\.id/);
+  // ...and a rule with no points left is not a rule any more.
+  assert.match(ed, /export function faceRules\(\)[\s\S]*?live\[r\.id\]/);
+  // Undo has to take the rule with the points: one history entry, both halves.
+  assert.match(ed, /snap\.faces = \((?:ST\.)?D\.faces \|\| \[\]\)\.slice\(\)/);
+  assert.match(ed, /export function restoreEntry\(entry\)/);
+  // Every clone keeps the tags — history, presets and the write-through.
+  assert.match(ed, /if \(a\.f\) out\.f = a\.f;[\s\S]*?if \(a\.ride\) out\.ride = true;/);
+
+  // The builder must not spiral a ride point off the bed it was put on.
+  assert.match(rc, /if \(a\.ride\) return \{ x: a\.x, z: a\.z, ride: true \};/);
+  assert.match(track, /function attachRides\(anchors, plats, tops\)/);
+  assert.match(track, /roundTurnarounds\(attachRides\(anchors, plats, tops\)\)/);
 });
 
 test("the RC track editor judges a route against the walls before it is built", async () => {

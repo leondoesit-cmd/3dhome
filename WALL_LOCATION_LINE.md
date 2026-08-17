@@ -1,4 +1,12 @@
-# Wall location line — plan
+# Wall location line
+
+**Status: implemented, 2026-08-17.** `js/geometry.js` (`wallLocFace`, `wallOffset`,
+`wallOffsetVec`, `wallNodeGeom`, `wallNodeFromAxis`, `setWallEnd`, `axisNodes`,
+the `lineGap` term in `faceShiftAt`), `js/constraint_engine.js`
+(`setWallReference`), the `w_loc` control in `index.html` / `js/ui_props.js` /
+`js/ui.js`, and `tests/wall_location_line.test.mjs` (13 tests).
+
+Two decisions below changed during the build; both are marked **CORRECTED**.
 
 Follow-up to the 2026-08-17 fix in `js/constraint_engine.js` (`moveWallSideways`)
 and `js/geometry.js` (`straightRunNodes`, the `wallCuts` clamp, `autoDimSide`
@@ -122,15 +130,33 @@ Tests to add:
 
 Automatic through `wallGeom`, but each needs a test rather than an assumption:
 
-- `detectRoomCycles` (`js/geometry.js:855`) builds polygons with
-  `pointAtWall(edge.w, ss, S.nodes)` — switch to the offset-aware `wallPointAt`
-  so room areas, floors and the cost estimate follow the real walls.
+- `detectRoomCycles` builds polygons with `pointAtWall(edge.w, ss, S.nodes)` —
+  switched to the offset-aware `wallPointAt`. **CORRECTED, and it cost three
+  bugs the plan did not foresee:**
+  1. only the START of each edge was sampled. With centred walls that is the
+     shared corner; with offsets the walls' own lines no longer meet at a point,
+     so every corner was cut off the room. Both ends are sampled now, and the
+     corner shows as the small step it really is.
+  2. sampling both ends duplicates every corner on a centred plan, and
+     `addRoomRect` (`js/room_cons.js:71`) tests `r.pts.length !== 4`. Coincident
+     consecutive samples — and the wrap-around one — are dropped, so a plain
+     rectangle still reports four corners.
+  3. `topologySignature()` keyed the room cache on nodes, ids, heights and
+     kinds. Re-hanging a wall moves its line without touching a node, so the
+     cache served a stale room. `wallOffset(w)` is in the key now.
 - `hitWall` / `wallProject` (`js/interaction.js:171`) — the `thickness/2 + tol`
   tests must centre on the drawn wall, not on the node line.
 - `view3d.js` `getCursor` / `mitre` (`:421`, `:508`) — end cuts against offset
   neighbours.
 - openings (`o.s`, `openFaceDist`/`openNodeDist`), item→wall snapping
   (`WALL_SNAP_GAP`, `js/interaction.js:279`), MEP routing.
+- **`nearestWallLanding`** called `projectToWall(..., S.nodes)` directly rather
+  than the wrapper, so a new wall would have landed on the node line instead of
+  on the wall the user can see. Now `wallProject`.
+- **`wall_framing.js`** places real timber and is written as a pure function over
+  a passed-in state, so `wallAxisNodes(wall, nodes)` takes the node array
+  explicitly instead of reaching for the global. Without it the studs stayed on
+  the node line while the wall moved off it.
 - `weldCoincidentNodes` (`js/interaction.js:2018`) merges corners within **2 cm**.
   A face-located wall meeting a centre-located one legitimately has its node half
   a thickness away; for thin walls that is inside the weld gate. `canWeld` must
@@ -141,11 +167,15 @@ Automatic through `wallGeom`, but each needs a test rather than an assumption:
 - The "Measured along" segmented control (`#w_side`, `js/ui.js:1342`) gains a
   location-line row: **קו ייחוס: מרכז / פאה נמדדת**, plus **החל על כל הרצף**,
   which `straightRunNodes(w)` already resolves.
-- **Switching `loc` must not move the wall.** Flipping center→face has to shift
-  the wall's NODES by `−offset` so the drawing is untouched and only the stored
-  line changes. This is three lines of code and the single most important rule in
-  the whole feature — get it wrong and every existing plan jerks by half a
-  thickness the first time somebody opens the control.
+- **CORRECTED — the JOINT is what stays put, not the wall.** The plan said to
+  shift the nodes by `−offset` so the drawing never moves. That is wrong here: a
+  node is a *shared corner*, so moving it drags every neighbour standing on it —
+  and on a straight run it drags the very wall the user is lining up with, which
+  is the bug this whole exercise started from. So `setWallReference` leaves the
+  corner alone and re-hangs the wall on it; the body moves half a thickness, once,
+  and the neighbours' stated dimensions are re-READ (`captureClear`) rather than
+  defended. Re-hanging both walls of a run is then exactly the flush-run
+  operation, because both faces land on the one node line.
 - Whitelists — the recurring drift trap: `applyData`'s wall list
   (`js/ui.js:~357`, beside `dimSide`) and the split-wall carry list
   (`js/interaction.js:1529`) both learn `loc`. `core/spatial_project.js` clones
@@ -184,10 +214,24 @@ remove; re-introducing it deliberately would be a mistake.
 ~3 days including tests. Every package leaves the tree green; nothing ships to
 existing scenes until a user actually flips a wall to `loc: "face"`.
 
-## Open choices
+## Decisions taken
 
-1. **Default for new walls** — recommend `center`, with the per-wall/per-run
-   toggle, and a project-wide default only after the feature has settled.
-2. **One control or two** — recommend one: "Measured along" picks the face, a
-   second row says whether the node line follows it. Two separate controls invite
-   the contradictory `dimSide: 0` + `loc: "face"` state.
+1. **Default for new walls is `center`** — nothing changes until a wall is
+   explicitly re-hung, and a project-wide default is left for later.
+2. **One control, two rows** — "Measured along" picks the face, "קו ייחוס" says
+   whether the node line follows it, and its buttons are disabled on a centreline
+   dimension and on a curved wall. `setWallReference` also refuses the
+   contradictory `dimSide: 0` + `loc: "face"` state, resolving Auto first.
+
+## What is left
+
+- **Curved walls.** An offset changes an arc's radius rather than translating it,
+  so `wallLocFace` returns false for them and the control is disabled. Doing it
+  properly means offsetting the radius in `wall_curves.js`.
+- **A project default** ("new walls are drawn on their exterior face"), which is
+  how architects actually work, and a converter for a whole plan.
+- **3D corners between a face-located and a centred wall.** `wallOutline` and the
+  mitre are exact; `view3d`'s non-mitred fallback (`getCursor`, ±mt/2) still
+  assumes both centrelines meet at the node, so a mixed corner can show a
+  hairline. Both walls of a run being re-hung together — the intended
+  operation — is exact.

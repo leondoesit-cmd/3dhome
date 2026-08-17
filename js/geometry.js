@@ -35,6 +35,8 @@ function topologySignature() {
       wall.height,
       ",",
       wall.kind || "normal",
+      ",",
+      wallOffset(wall),
     );
     if (wall.geometry || wall.curve)
       parts.push(",", JSON.stringify(wall.geometry || wall.curve));
@@ -97,7 +99,10 @@ export function wallLocFace(w) {
 }
 function isCurvedWall(w) {
   var c = wallCurveGeom(w, S.nodes);
-  return !!c && c.kind === "arc";
+  // A wall whose ends are not in the live node array (a wall handed in from
+  // another state, as the framing tests do) cannot be resolved here, so any arc
+  // INTENT counts: erring toward "curved" only ever means "no offset".
+  return c ? c.kind === "arc" : !!(w.geometry || w.curve || w.bulge);
 }
 /* Signed lateral distance from the node line to the wall's centreline, along
    the +1 normal (-uz, ux) of the a->b direction. */
@@ -168,19 +173,30 @@ export function setWallEnd(w, end, pt) {
    own two ends, so the offset is handed to it as a two-key stand-in rather than
    by teaching it about location lines. Curved walls never offset (an offset
    changes an arc's radius, it does not translate it), so the arc centre lookup
-   inside wall_curves keeps working off the real node array. */
-function axisNodes(w) {
+   inside wall_curves keeps working off the real node array.
+
+   Takes the node array explicitly, so the modules written as pure functions over
+   a passed-in state (wall_framing.js and friends) can place real timber on the
+   wall's own line without reaching for the global. */
+export function wallAxisNodes(w, nodes) {
+  nodes = nodes || S.nodes;
   var off = wallOffset(w);
-  if (!off) return S.nodes;
-  var g = wallNodeGeom(w),
-    nx = -g.uz * off,
-    nz = g.ux * off,
-    a = S.nodes[w.a],
-    b = S.nodes[w.b],
+  if (!off) return nodes;
+  var a = nodes[w.a],
+    b = nodes[w.b];
+  if (!a || !b) return nodes;
+  var dx = b.x - a.x,
+    dz = b.z - a.z,
+    L = Math.hypot(dx, dz) || 1,
+    nx = (-dz / L) * off, // the +1 normal (-uz, ux) of the a->b direction
+    nz = (dx / L) * off,
     out = {};
-  if (a) out[w.a] = { x: a.x + nx, z: a.z + nz };
-  if (b) out[w.b] = { x: b.x + nx, z: b.z + nz };
+  out[w.a] = { x: a.x + nx, z: a.z + nz };
+  out[w.b] = { x: b.x + nx, z: b.z + nz };
   return out;
+}
+function axisNodes(w) {
+  return wallAxisNodes(w, S.nodes);
 }
 
 export function wallPointAt(w, s) {
@@ -205,7 +221,9 @@ export function nearestWallLanding(x, z, maxDist, excludeNodes) {
   var best = null;
   S.walls.forEach(function (w) {
     if (!w || skip[w.a] || skip[w.b]) return;
-    var g = wallGeom(w), hit = projectToWall(w, x, z, S.nodes);
+    // wallProject, not projectToWall(..., S.nodes): a new wall must land on the
+    // wall the user can see, which on a face location line is not the node line
+    var g = wallGeom(w), hit = wallProject(w, x, z);
     if (!fin(g.L) || g.L <= 0.001 || !hit) return;
     var s = hit.s, px = hit.x, pz = hit.z, d = hit.distance;
     if (d <= maxDist && (!best || d < best.d))
@@ -990,15 +1008,34 @@ export function detectRoomCycles() {
       var edge = he[k], g = wallGeom(edge.w), steps = g.kind === "arc"
         ? Math.max(4, Math.ceil(Math.abs(g.curve.sweep) / (Math.PI / 18)))
         : 1;
-      for (var si = 0; si < steps; si++) {
+      /* Both ends of every edge, not just the one it starts at: consecutive
+         walls share a NODE, but a wall hung on its face has its own line half a
+         thickness off that node, so the two lines meet in a small step rather
+         than a point. Sampling only the start point cut every such corner off
+         the room. On the centreline the two samples are the same corner twice,
+         which the shoelace and the point-in-polygon test both ignore. */
+      for (var si = 0; si <= steps; si++) {
         var t = si / steps,
           ss = edge.f === edge.w.a ? g.L * t : g.L * (1 - t),
           // the wall's OWN line, so a room bounded by face-located walls is the
           // room those walls actually enclose (area, floor, cost all follow)
           p = wallPointAt(edge.w, ss);
-        if (p) pts.push({ x: p.x, z: p.z });
+        if (!p) continue;
+        // ...so the duplicate has to be dropped, or a plain rectangle would
+        // report eight corners and everything counting them (roomRect, the
+        // fillet tools) would stop recognising it
+        var last = pts[pts.length - 1];
+        if (last && Math.abs(last.x - p.x) < 0.01 && Math.abs(last.z - p.z) < 0.01)
+          continue;
+        pts.push({ x: p.x, z: p.z });
       }
     });
+    // the cycle closes on itself, so the last sample repeats the first
+    while (pts.length > 2) {
+      var f = pts[0], l = pts[pts.length - 1];
+      if (Math.abs(f.x - l.x) > 0.01 || Math.abs(f.z - l.z) > 0.01) break;
+      pts.pop();
+    }
     var A2 = 0,
       j;
     for (j = 0; j < pts.length; j++) {

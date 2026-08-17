@@ -292,8 +292,12 @@ export function bindCanvas() {
     if (ST.D.drag >= 0) {
       var old = ST.D.anchors[ST.D.drag],
         sp = applySnap(w.x, w.z, ST.D.drag, e);
-      ST.D.anchors[ST.D.drag] = { x: sp.x, z: sp.z };
-      if (fin(old.y)) ST.D.anchors[ST.D.drag].y = old.y;
+      // copyAnchor, not a fresh {x,z}: a dragged point keeps its height, its
+      // pass-by rule and its "this one is ON the furniture" flag
+      var moved = copyAnchor(old);
+      moved.x = sp.x;
+      moved.z = sp.z;
+      ST.D.anchors[ST.D.drag] = moved;
       ST.D.ghostPts = ghostLine(ST.D.anchors);
       views.sync3d();
       views.stats();
@@ -351,8 +355,12 @@ export function bindCanvas() {
       var sd = ST.D.segDrag,
         sj = (sd.i + 1) % ST.D.anchors.length;
       ST.D.segDrag = null;
-      ST.D.anchors[sd.i] = snapFree(ST.D.anchors[sd.i].x, ST.D.anchors[sd.i].z, ST.D.anchors[sd.i].y);
-      ST.D.anchors[sj] = snapFree(ST.D.anchors[sj].x, ST.D.anchors[sj].z, ST.D.anchors[sj].y);
+      ST.D.anchors[sd.i] = snapFree(
+        ST.D.anchors[sd.i].x, ST.D.anchors[sd.i].z, ST.D.anchors[sd.i].y, ST.D.anchors[sd.i],
+      );
+      ST.D.anchors[sj] = snapFree(
+        ST.D.anchors[sj].x, ST.D.anchors[sj].z, ST.D.anchors[sj].y, ST.D.anchors[sj],
+      );
       finishVisualDrag();
       return;
     }
@@ -360,7 +368,9 @@ export function bindCanvas() {
       var i = ST.D.drag;
       ST.D.drag = -1;
       ST.D.dragging = false;
-      ST.D.anchors[i] = snapFree(ST.D.anchors[i].x, ST.D.anchors[i].z, ST.D.anchors[i].y);
+      ST.D.anchors[i] = snapFree(
+        ST.D.anchors[i].x, ST.D.anchors[i].z, ST.D.anchors[i].y, ST.D.anchors[i],
+      );
       ST.D.ghostPts = null;
       writeThrough();
       views.sync3d();

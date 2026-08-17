@@ -29,6 +29,7 @@ import { clearAt, halfRoad, insertSpot, nearOnSeg } from "./rc_editor_geom.js";
 import { setAnchors, views } from "./rc_editor_actions.js";
 import { canRide, rideSpot } from "./track.js";
 import { flabel } from "./furniture_meta.js";
+import { pointInPoly, roomName } from "./geometry.js";
 
 // map-space faces, clockwise from the top of the map. `n` points OUT of the
 // item, `t` runs along the face so that using the same t on all four walks
@@ -99,7 +100,10 @@ export function faceTargets() {
       key: "r:" + (rm.key != null ? rm.key : rm.name),
       rect: b,
       room: rm,
-      name: rm.name || L("חדר", "Room"),
+      // an unnamed room still needs to be tellable from the other three
+      name:
+        roomName(rm.key) ||
+        L("חדר ", "Room ") + (Math.round((rm.area / 10000) * 10) / 10 + "m²"),
       area: (b.x1 - b.x0) * (b.z1 - b.z0),
     });
   });
@@ -162,19 +166,31 @@ export function faceGeom(tg, face) {
   };
 }
 
+// Inside the flat at all? Clearance alone says yes to the garden: nothing out
+// there is close enough to any wall or item to fail a distance test, so a bed
+// against an exterior wall used to get a "pass" laid outside the building.
+function indoors(x, z) {
+  var rs = rooms();
+  for (var i = 0; i < rs.length; i++)
+    if (rs[i].pts && rs[i].pts.length > 2 && pointInPoly(x, z, rs[i].pts)) return true;
+  return false;
+}
+
 // Fit one end of the pass line: push it out along the face normal and/or pull
 // it back along the face until the whole road width has room. A nominal offset
 // is a guess; this is the same clearance test the validator will judge the
 // finished route with, so what the tool lays is what the route accepts.
 function fitEnd(g, ex, ez, toward) {
   var need = halfRoad() + 1;
-  var best = { x: ex, z: ez, c: clearAt(ex, ez, 0.7) };
+  var start = indoors(ex, ez) ? clearAt(ex, ez, 0.7) : -1e3;
+  var best = { x: ex, z: ez, c: start };
   if (best.c >= need) return best;
   for (var a = 0; a <= FIT_N; a++) {
     for (var b = 0; b <= FIT_N; b++) {
       if (!a && !b) continue;
       var px = ex + g.nx * a * FIT_STEP + toward.x * b * FIT_STEP,
         pz = ez + g.nz * a * FIT_STEP + toward.z * b * FIT_STEP;
+      if (!indoors(px, pz)) continue;
       var c = clearAt(px, pz, 0.7);
       if (c >= need) return { x: px, z: pz, c: c };
       if (c > best.c) best = { x: px, z: pz, c: c };
@@ -222,7 +238,8 @@ export function faceScore(tg, face) {
     var u = i / (N - 1);
     var x = g.ax + (g.bx - g.ax) * u,
       z = g.az + (g.bz - g.az) * u;
-    var c = clearAt(x, z, 0.7);
+    // a sample outside every room is not "clear floor", it is the garden
+    var c = indoors(x, z) ? clearAt(x, z, 0.7) : -60;
     if (c < worst) worst = c;
     sum += clamp(c / need, 0, 1.4);
   }
@@ -259,12 +276,21 @@ export function pickTarget(x, z) {
   for (var i = 0; i < all.length; i++) {
     var tg = all[i],
       r = tg.rect;
-    var inside =
-      x >= r.x0 - PICK_PAD && x <= r.x1 + PICK_PAD && z >= r.z0 - PICK_PAD && z <= r.z1 + PICK_PAD;
-    if (!inside) continue;
-    // rooms lose to anything standing in them: you point at the sofa, not the
-    // living room the sofa is in
-    var rank = tg.kind === "room" ? 1e12 + tg.area : tg.area;
+    var on = x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
+    var dx = Math.max(r.x0 - x, 0, x - r.x1),
+      dz = Math.max(r.z0 - z, 0, z - r.z1);
+    var dist = Math.hypot(dx, dz);
+    if (!on && dist > PICK_PAD) continue;
+    // Tiers, and this ORDER matters: the item you are actually pointing at beats
+    // one you are merely near, which beats the room they are both standing in.
+    // Ranking on area alone let the fridge 20cm away steal a click aimed at the
+    // middle of the bed.
+    // Within the first tier the BIGGEST footprint wins, because boxes nest: the
+    // pendant light's (floor-level) box sits inside the table's, the chair's
+    // inside the desk's, and the thing being pointed at is the one you could
+    // plan a lap around.
+    var tier = (on ? 0 : 1) + (tg.kind === "room" ? 2 : 0);
+    var rank = tier * 1e9 + (on ? -tg.area : dist * 1000);
     if (!best || rank < best.rank) best = { tg: tg, rank: rank };
   }
   if (!best) return null;
@@ -314,20 +340,50 @@ function stripRule(pts, id) {
   });
 }
 
-// The run-up in front of an access ramp: out along the face normal until the
-// truck has clear floor to line up on.
-function approachFit(t, n, sgn, lead) {
-  var need = halfRoad() + 1,
+// The run-up in front of an access ramp, on one side of the item: out along the
+// face normal, longest usable stand-off first. A bed shoved against the outside
+// wall has no run-up on that side at all — that is what `ok: false` says, and
+// the ride is then driven in and back out the one side that does.
+function approachOn(tg, t, f) {
+  var n = FACE_N[f],
+    base = reachOf(tg, f) + halfRoad() + 6,
+    need = halfRoad() + 1,
     best = null;
-  for (var k = 0; k <= 8; k++) {
-    var d = lead + k * 8,
-      x = t.x + n.x * sgn * d,
-      z = t.z + n.z * sgn * d;
+  for (var k = 10; k >= 0; k--) {
+    var d = base + (RIDE_LEAD * k) / 10,
+      x = t.x + n.x * d,
+      z = t.z + n.z * d;
+    if (!indoors(x, z)) continue;
     var c = clearAt(x, z, 0.7);
-    if (c >= need) return { x: x, z: z };
-    if (!best || c > best.c) best = { x: x, z: z, c: c };
+    if (c >= need) return { x: x, z: z, ok: true, c: c, d: d };
+    if (!best || c > best.c) best = { x: x, z: z, ok: false, c: c, d: d };
   }
-  return { x: best.x, z: best.z };
+  return best;
+}
+
+// Which way to drive ACROSS an item: the axis with a real run-up on both sides
+// beats one with a run-up on only the entry side, and a longer stand-off beats a
+// shorter one. This is the ride's version of smartFace().
+export function smartRideFace(tg) {
+  var t = targetRide(tg);
+  if (!t) return -1;
+  var best = -1,
+    bestS = -1e9;
+  for (var f = 0; f < 4; f++) {
+    var inn = approachOn(tg, t, f),
+      out = approachOn(tg, t, (f + 2) % 4);
+    if (!inn) continue;
+    var s =
+      (inn.ok ? 3 : 0) +
+      (out && out.ok ? 2 : 0) +
+      clamp(inn.c / (halfRoad() + 1), 0, 1) +
+      inn.d / 400;
+    if (s > bestS) {
+      bestS = s;
+      best = f;
+    }
+  }
+  return best;
 }
 
 // The points one rule contributes, in the order they are driven.
@@ -338,14 +394,19 @@ function rulePoints(tg, rule) {
     // in on the chosen face, straight across the top, off the far side: one
     // long run is exactly what an access ramp needs at each end, and it is why
     // this seeds the route instead of bending a finished one onto the bed
-    var f = rule.face < 0 ? 0 : rule.face,
-      n = FACE_N[f],
-      lead = reachOf(tg, f) + halfRoad() + RIDE_LEAD;
-    return [
-      approachFit(t, n, 1, lead),
-      { x: t.x, z: t.z, ride: true },
-      approachFit(t, n, -1, lead),
-    ];
+    var f = rule.face < 0 ? 0 : rule.face;
+    var inn = approachOn(tg, t, f),
+      out = approachOn(tg, t, (f + 2) % 4);
+    if (!inn) {
+      inn = out;
+      out = null;
+    }
+    if (!inn) return null;
+    var pts = [{ x: inn.x, z: inn.z }, { x: t.x, z: t.z, ride: true }];
+    // no floor on the far side: drive up onto it and back off the way you came,
+    // rather than laying an exit point inside the wall
+    if (out && out.ok) pts.push({ x: out.x, z: out.z });
+    return pts;
   }
   var ends = faceEnds(tg, rule.face);
   if (!ends) return null;
@@ -375,7 +436,11 @@ function layRule(rule, pts) {
     mid.z += p.z / made.length;
   });
   var at = pts.length >= 2 ? insertSpot(pts, mid.x, mid.z).i : pts.length;
-  if (pts.length >= 2) {
+  // A ride's order is not up for negotiation: the face the user picked is the
+  // face it drives IN on, because that is where the access ramp goes. Only an
+  // explicit flip turns it round. A side pass has no such asymmetry, so there
+  // the cheaper way round the loop wins.
+  if (!rule.ride && pts.length >= 2) {
     var prev = pts[(at - 1 + pts.length) % pts.length],
       next = pts[at % pts.length];
     var head = made[0],
@@ -477,10 +542,12 @@ export function faceAutoAll(limit) {
     });
   for (var i = 0; i < cands.length && made < want; i++) {
     var tg = cands[i].tg,
-      ride = targetRide(tg);
-    var face = smartFace(tg);
+      // driving over it is the better lap when the mode allows it at all
+      ride = !!targetRide(tg) && !!ST.E.cfg.homeMode;
+    var face = ride ? smartRideFace(tg) : smartFace(tg);
     if (face < 0) continue;
-    if (faceApply(tg, face, { ride: !!ride && !!ST.E.cfg.homeMode })) made++;
+    if (faceApply(tg, face, { ride: ride })) made++;
+    else if (ride && faceApply(tg, Math.max(0, smartFace(tg)), { ride: false })) made++;
   }
   ST.E.msg(
     made
@@ -650,7 +717,8 @@ export function facesClick(x, z, e) {
   // clicking the face a rule already uses flips it — that is the direction
   // control, right where the direction is drawn
   if (rule && rule.face === hv.face && !!rule.ride === !!hv.top) faceFlip(hv.tg.key);
-  else faceApply(hv.tg, hv.top ? (rule ? rule.face : smartFace(hv.tg)) : hv.face, { ride: !!hv.top });
+  else if (hv.top) faceApply(hv.tg, Math.max(0, smartRideFace(hv.tg)), { ride: true });
+  else faceApply(hv.tg, hv.face, { ride: false });
   views.refreshFaces();
   return true;
 }

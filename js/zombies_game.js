@@ -91,6 +91,7 @@ import {
   disposeTexLib,
 } from "./zombies_tex.js";
 import { dampingFactor, forEachPhysicsStep, safeDeltaSeconds } from "./physics_runtime.js";
+import { isPhysicsEnabled, moveKinematicCapsule } from "./physics_facade.js";
 import { initCritters, stepCritters, clearCritters } from "./zombies_critters.js";
 
 
@@ -2565,12 +2566,17 @@ function stepPlayer(dt) {
   var k = dampingFactor(ACCEL, dt);
   P.vx += (mx * spd - P.vx) * k;
   P.vz += (mz * spd - P.vz) * k;
-  // continuous collision so sprinting can't skip thin walls / door jambs
   _movePoint2D.x = P.x;
   _movePoint2D.z = P.z;
-  moveCircle(_movePoint2D, P.vx * dt, P.vz * dt, P_RAD, P.y, P.crouch ? 100 : P_CLEAR, STEP);
-  P.x = _movePoint2D.x;
-  P.z = _movePoint2D.z;
+  if (isPhysicsEnabled()) {
+    var next = moveKinematicCapsule(P.x, P.y, P.z, P.vx * dt, 0, P.vz * dt, P_RAD, P.crouch ? 100 : P_CLEAR);
+    P.x = next.x;
+    P.z = next.z;
+  } else {
+    moveCircle(_movePoint2D, P.vx * dt, P.vz * dt, P_RAD, P.y, P.crouch ? 100 : P_CLEAR, STEP);
+    P.x = _movePoint2D.x;
+    P.z = _movePoint2D.z;
+  }
   // vertical: step up onto furniture, fall off it, thud only after a real drop
   var g = groundAt(P.x, P.z, P.y, STEP);
   var wasAir = P.airborne;
@@ -3564,7 +3570,7 @@ export function toggleZombies(on) {
     Z.keys = {};
     Z.doorsOpened = [];
     audio();
-    // Destruction (cannon-es on every piece of furniture) is a High-only
+    // Destruction (Rapier on every piece of furniture) is a High-only
     // extra. Fast/Balanced stay playable: the 2D collision snapshot is enough
     // for zombies and bullets, and enabling the full rigid-body world is what
     // froze M-series laptops at session start.

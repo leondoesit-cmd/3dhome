@@ -202,8 +202,13 @@ export function validate() {
     var a = ST.D.anchors[i],
       b = ST.D.anchors[(i + 1) % n],
       prev = ST.D.anchors[(i - 1 + n) % n];
+    // A point marked `ride` is ON a piece of furniture on purpose — that is what
+    // the pass-by tool's "drive over it" means — so it is not "too close to
+    // furniture", and neither is the run onto it. Telling the user their own
+    // instruction is a mistake would make the ⚠ count meaningless.
+    var onPurpose = !!a.ride || !!b.ride;
     // the anchor itself
-    if (clearAt(a.x, a.z, anchorY(a)) < need)
+    if (!a.ride && clearAt(a.x, a.z, anchorY(a)) < need)
       flag(out.pts, i, 2, "blocked", L("נקודה " + (i + 1) + " צמודה מדי לקיר/רהיט", "Point " + (i + 1) + " is too close to a wall or furniture"));
     // the leg: worst clearance along the smoothed span
     var worst = 1e6;
@@ -213,7 +218,7 @@ export function validate() {
       var c = clearAt(p.x, p.z, fin(p.y) ? p.y : anchorY(a));
       if (c < worst) worst = c;
     }
-    if (worst < need * 0.72)
+    if (worst < need * 0.72 && !onPurpose)
       flag(out.segs, i, 2, "clip", L("מקטע " + (i + 1) + " חותך קיר או רהיט", "Section " + (i + 1) + " cuts through a wall or furniture"));
     var leg = Math.hypot(b.x - a.x, b.z - a.z);
     if (leg < w * 0.9)
