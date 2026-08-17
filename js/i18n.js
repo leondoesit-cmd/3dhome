@@ -6,6 +6,11 @@ var STR = {
   he: {
     title: "מתכנן בית · 3D",
     brand: "מתכנן בית",
+    theme_light: "ערכת נושא בהירה",
+    theme_soft: "ערכת נושא רכה",
+    theme_mid: "ערכת נושא דמדומים",
+    theme_dark: "ערכת נושא כהה",
+    theme_click: "לחץ להחלפה",
     lib_search_ph: "חיפוש בספרייה…",
     lib_noresults: "לא נמצאו פריטים תואמים",
     lib_other: "נוספים",
@@ -1257,6 +1262,11 @@ var STR = {
   en: {
     title: "Home Planner · 3D",
     brand: "Home Planner",
+    theme_light: "Light theme",
+    theme_soft: "Soft theme",
+    theme_mid: "Dusk theme",
+    theme_dark: "Dark theme",
+    theme_click: "click to switch",
     lib_search_ph: "Search library…",
     lib_noresults: "No matching items",
     lib_other: "More",
