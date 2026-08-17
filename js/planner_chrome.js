@@ -1,0 +1,364 @@
+// Planner main-page chrome: modern layout by default, classic layout from the
+// same More menu as games / modeler / textures. Also owns the start screen,
+// floor tabs, left-sidebar panes, tool hints, and library drag-to-place.
+import { S } from "./state.js";
+import { t, onLangChange } from "./i18n.js";
+import {
+  applyData,
+  fillProps,
+  flash,
+  refreshTree,
+  placeFurnAt,
+  sceneObject,
+} from "./ui.js";
+import { defaultScene, emptyScene, FURN } from "./furniture.js";
+import { setTool } from "./interaction.js";
+import { render2D, fitView, wx, wz, dropPoint } from "./plan2d.js";
+import { loadMEP } from "./mep.js";
+import { renderPanel as refreshMEPPanel } from "./ui_mep.js";
+import { withoutRoomPrompts } from "./ui_tree.js";
+import {
+  configureFloorIO,
+  ensureFloors,
+  addFloor,
+  switchFloor,
+} from "./floors.js";
+
+configureFloorIO({ sceneObject: sceneObject, applyData: applyData });
+
+var UI_KEY = "home3d_ui";
+var START_KEY = "home3d_start_done";
+var LEFT_KEY = "home3d_left_tab";
+var VIEW_KEY = "home3d_viewmode";
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+function currentUi() {
+  return document.documentElement.getAttribute("data-ui") === "legacy" ? "legacy" : "modern";
+}
+
+export function applyPlannerChrome() {
+  var legacy = currentUi() === "legacy";
+  document.body.classList.toggle("legacy-ui", legacy);
+  var btn = $("legacyUiBtn");
+  if (btn) {
+    btn.classList.toggle("active-legacy", legacy);
+    var label = btn.querySelector("span");
+    if (label) label.textContent = t(legacy ? "ui_modern" : "ui_classic");
+  }
+  document.querySelectorAll(".insp-more").forEach(function (d) {
+    if (legacy) d.setAttribute("open", "");
+    else d.removeAttribute("open");
+  });
+  var left = $("left-sidebar");
+  if (left && !legacy) {
+    var tab = left.getAttribute("data-left") || localStorage.getItem(LEFT_KEY) || "library";
+    setLeftTab(tab, false);
+  } else if (left) {
+    left.removeAttribute("data-left");
+  }
+  renderFloorTabs();
+  syncViewPills();
+  updateToolHint();
+}
+
+function persistUi(mode) {
+  try {
+    localStorage.setItem(UI_KEY, mode);
+  } catch (_) {}
+  document.documentElement.setAttribute("data-ui", mode);
+  applyPlannerChrome();
+  if (typeof window.__setViewMode === "function") {
+    if (mode === "legacy") window.__setViewMode("split");
+    else window.__setViewMode(localStorage.getItem(VIEW_KEY) || "plan");
+  }
+}
+
+export function toggleLegacyUI() {
+  persistUi(currentUi() === "legacy" ? "modern" : "legacy");
+  flash(t(currentUi() === "legacy" ? "ui_classic" : "ui_modern"));
+}
+
+function setLeftTab(id, persist) {
+  var left = $("left-sidebar");
+  if (!left) return;
+  if (id !== "library" && id !== "structure" && id !== "tree") id = "library";
+  left.setAttribute("data-left", id);
+  document.querySelectorAll("#leftTabs [data-left-tab]").forEach(function (b) {
+    b.classList.toggle("active", b.getAttribute("data-left-tab") === id);
+  });
+  if (persist !== false) {
+    try {
+      localStorage.setItem(LEFT_KEY, id);
+    } catch (_) {}
+  }
+}
+
+function syncViewPills() {
+  var cc = $("center-canvas");
+  if (!cc) return;
+  var mode = cc.classList.contains("max-view-2d")
+    ? "plan"
+    : cc.classList.contains("max-view-3d")
+      ? "3d"
+      : "split";
+  var map = { plan: "viewPlanBtn", "3d": "view3dBtn", split: "viewSplitBtn" };
+  Object.keys(map).forEach(function (k) {
+    var b = $(map[k]);
+    if (b) b.classList.toggle("active", k === mode);
+  });
+}
+
+export function renderFloorTabs() {
+  var host = $("floor-tabs");
+  if (!host) return;
+  if (currentUi() === "legacy") {
+    host.hidden = true;
+    return;
+  }
+  ensureFloors();
+  var floors = S.workspace && S.workspace.floors ? S.workspace.floors : [];
+  host.hidden = false;
+  host.innerHTML = "";
+  floors.forEach(function (floor, i) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.textContent = floor.name || t("floor_ground") + " " + (i + 1);
+    b.classList.toggle("active", floor.id === S.workspace.activeFloor);
+    b.addEventListener("click", function () {
+      switchFloor(floor.id);
+      S.dirty3D = true;
+      render2D();
+      refreshTree();
+      fillProps();
+      fitView();
+      renderFloorTabs();
+    });
+    host.appendChild(b);
+  });
+  var add = document.createElement("button");
+  add.type = "button";
+  add.className = "floor-add";
+  add.innerHTML = '<i class="ph ph-plus"></i>';
+  add.title = t("floor_add");
+  add.addEventListener("click", function () {
+    addFloor(t("floor_add"), (floors.length) * 300, false);
+    S.dirty3D = true;
+    render2D();
+    refreshTree();
+    fillProps();
+    fitView();
+    renderFloorTabs();
+  });
+  host.appendChild(add);
+}
+
+function updateToolHint() {
+  var el = $("plan-hint");
+  if (!el) return;
+  var msg = "";
+  if (S.placeType) msg = t("hint_tool_place");
+  else if (S.tool === "wall") msg = t("hint_tool_wall");
+  else if (S.tool === "rect") msg = t("hint_tool_rect");
+  else if (S.tool === "door" || S.tool === "window" || S.tool === "passage")
+    msg = t("hint_tool_opening");
+  el.textContent = msg;
+  el.hidden = !msg || currentUi() === "legacy";
+}
+
+function refreshAfterScene() {
+  loadMEP(S.mep || null);
+  refreshMEPPanel();
+  S.dirty3D = true;
+  fitView();
+  render2D();
+  fillProps();
+  withoutRoomPrompts(refreshTree);
+  renderFloorTabs();
+}
+
+export function openStartScreen() {
+  var el = $("start-screen");
+  if (!el) return;
+  el.hidden = false;
+}
+
+function closeStartScreen(remember) {
+  var el = $("start-screen");
+  if (el) el.hidden = true;
+  if (remember) {
+    try {
+      localStorage.setItem(START_KEY, "1");
+    } catch (_) {}
+  }
+}
+
+function applyStart(kind) {
+  if (kind === "blank") {
+    emptyScene();
+    S.roomMeta = {};
+    S.hour = 13;
+    S.northAngle = 0;
+    loadMEP(null);
+    setTool("rect");
+  } else if (kind === "demo") {
+    defaultScene();
+    loadMEP(null);
+    setTool("select");
+  } else if (kind === "generate") {
+    closeStartScreen(true);
+    var btn = $("autoGenerateBtn") || document.querySelector("[data-act='autoGenerate']");
+    if (btn) btn.click();
+    return;
+  } else if (kind === "import") {
+    closeStartScreen(true);
+    var inp = $("importfile");
+    if (inp) inp.click();
+    return;
+  } else if (kind === "saved") {
+    closeStartScreen(true);
+    var loadBtn = document.querySelector("[data-act='load']");
+    if (loadBtn) loadBtn.click();
+    return;
+  }
+  closeStartScreen(true);
+  refreshAfterScene();
+}
+
+function maybeShowStart() {
+  if (currentUi() === "legacy") return;
+  try {
+    if (localStorage.getItem(START_KEY)) return;
+  } catch (_) {}
+  openStartScreen();
+}
+
+function bindLibraryDrag() {
+  var ui = $("furnUI");
+  var plan = $("plan");
+  var view2 = $("view-2d");
+  var view3 = $("view-3d");
+  if (!ui) return;
+  ui.addEventListener("dragstart", function (e) {
+    var item = e.target.closest(".furn-item[data-type]");
+    if (!item || !e.dataTransfer) return;
+    e.dataTransfer.setData("text/furn-type", item.dataset.type);
+    e.dataTransfer.effectAllowed = "copy";
+  });
+  function onDragOver(e) {
+    if (!e.dataTransfer) return;
+    if (Array.prototype.indexOf.call(e.dataTransfer.types, "text/furn-type") < 0 &&
+        Array.prototype.indexOf.call(e.dataTransfer.types, "text/plain") < 0) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+  function dropOnPlan(e) {
+    var type = e.dataTransfer && (e.dataTransfer.getData("text/furn-type") || e.dataTransfer.getData("text/plain"));
+    if (!type || !FURN[type]) return;
+    e.preventDefault();
+    var rect = plan.getBoundingClientRect();
+    var x = wx(e.clientX - rect.left, e.clientY - rect.top);
+    var z = wz(e.clientX - rect.left, e.clientY - rect.top);
+    placeFurnAt(type, x, z);
+  }
+  function dropOn3d(e) {
+    var type = e.dataTransfer && (e.dataTransfer.getData("text/furn-type") || e.dataTransfer.getData("text/plain"));
+    if (!type || !FURN[type]) return;
+    e.preventDefault();
+    var p = dropPoint();
+    placeFurnAt(type, p.x, p.z);
+  }
+  [plan, view2].forEach(function (el) {
+    if (!el) return;
+    el.addEventListener("dragover", onDragOver);
+    el.addEventListener("drop", dropOnPlan);
+  });
+  if (view3) {
+    view3.addEventListener("dragover", onDragOver);
+    view3.addEventListener("drop", dropOn3d);
+  }
+}
+
+function updateCostChip() {
+  var chip = $("costChip");
+  var tot = $("costTotal");
+  if (!chip || !tot) return;
+  var text = tot.textContent || "";
+  chip.textContent = text;
+  chip.hidden = !text || text === "₪0" || currentUi() === "legacy";
+}
+
+function initPlannerChrome() {
+  applyPlannerChrome();
+  document.body.classList.toggle("legacy-ui", currentUi() === "legacy");
+
+  document.querySelectorAll("#leftTabs [data-left-tab]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      setLeftTab(b.getAttribute("data-left-tab"));
+    });
+  });
+
+  var start = $("start-screen");
+  if (start) {
+    start.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-start]");
+      if (!btn) return;
+      applyStart(btn.getAttribute("data-start"));
+    });
+  }
+
+  var costChip = $("costChip");
+  if (costChip) {
+    costChip.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var sec = document.querySelector(".cost-section");
+      if (sec) sec.classList.remove("collapsed");
+      sec && sec.scrollIntoView({ block: "nearest" });
+    });
+  }
+
+  bindLibraryDrag();
+  onLangChange(function () {
+    applyPlannerChrome();
+    updateToolHint();
+  });
+  window.addEventListener("planner-tool", updateToolHint);
+  window.addEventListener("planner-place", updateToolHint);
+  var cc = $("center-canvas");
+  if (cc && window.MutationObserver) {
+    new MutationObserver(syncViewPills).observe(cc, { attributes: true, attributeFilter: ["class"] });
+  }
+  var tot = $("costTotal");
+  if (tot && window.MutationObserver) {
+    new MutationObserver(updateCostChip).observe(tot, { childList: true, characterData: true, subtree: true });
+  }
+  updateCostChip();
+
+  if (currentUi() !== "legacy" && typeof window.__setViewMode === "function") {
+    var saved = null;
+    try {
+      saved = localStorage.getItem(VIEW_KEY);
+    } catch (_) {}
+    if (window.innerWidth > 768) window.__setViewMode(saved || "plan");
+  }
+
+  maybeShowStart();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initPlannerChrome);
+} else {
+  initPlannerChrome();
+}
+
+// used by ui.js runAction without a circular init race: these are live bindings
+window.__plannerChrome = {
+  toggleLegacyUI: toggleLegacyUI,
+  openStartScreen: openStartScreen,
+  applyPlannerChrome: applyPlannerChrome,
+  renderFloorTabs: renderFloorTabs,
+  setLeftTab: setLeftTab,
+  updateToolHint: updateToolHint,
+};

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <title>ModelForge · Parametric CAD</title>
     <script>
@@ -18,6 +18,8 @@
           var theme = localStorage.getItem("home3d_theme");
           if (["light", "soft", "mid", "dark"].indexOf(theme) < 0) theme = "light";
           document.documentElement.setAttribute("data-theme", theme);
+          var ui = localStorage.getItem("home3d_ui");
+          document.documentElement.setAttribute("data-ui", ui === "legacy" ? "legacy" : "modern");
         } catch (e) {}
       })();
     </script>
@@ -51,9 +53,9 @@
             <span class="brand-name">ModelForge</span>
           </div>
           <div class="separator brand-sep"></div>
-          <button id="openModelerTop" class="modeler-launch" title="Open Model Editor (M)">
+          <button id="openModelerTop" class="modeler-launch legacy-chrome" title="Open Model Editor (M)" data-i18n-title="modeler_launch" data-act="openModeler">
             <i class="ph ph-cube"></i>
-            <span>Model editor</span>
+            <span data-i18n="modeler_launch">Model editor</span>
             <kbd>M</kbd>
           </button>
           <div class="dropdown">
@@ -63,6 +65,10 @@
               <i class="ph ph-caret-down caret"></i>
             </button>
             <div class="dropdown-menu" role="menu">
+              <button data-act="newPlan" role="menuitem">
+                <i class="ph ph-file-plus"></i>
+                <span data-i18n="new_plan">תוכנית חדשה…</span>
+              </button>
               <button data-act="save" role="menuitem">
                 <i class="ph ph-floppy-disk"></i>
                 <span data-i18n="save">שמור</span>
@@ -187,19 +193,19 @@
             </div>
           </div>
           <div class="separator"></div>
-          <button data-act="workspace" id="workspaceBtn" title="Project workspace">
+          <button data-act="workspace" id="workspaceBtn" data-i18n-title="workspace_t" title="Project workspace">
             <i class="ph ph-stack"></i>
           </button>
-          <button data-act="undo" title="Ctrl+Z">
+          <button data-act="undo" title="Ctrl+Z" data-i18n-title="undo">
             <i class="ph ph-arrow-u-up-left"></i>
           </button>
-          <button data-act="redo" title="Ctrl+Y">
+          <button data-act="redo" title="Ctrl+Y" data-i18n-title="redo">
             <i class="ph ph-arrow-u-up-right"></i>
           </button>
           <div class="dropdown history-dropdown-wrap">
-            <button class="dropdown-trigger" title="היסטוריית עריכה">
+            <button class="dropdown-trigger" data-i18n-title="hist_title" title="היסטוריית עריכה">
               <i class="ph ph-clock-counter-clockwise"></i>
-              <span data-i18n="hist_title">היסטוריית עריכה</span>
+              <span class="legacy-chrome" data-i18n="hist_title">היסטוריית עריכה</span>
               <i class="ph ph-caret-down caret"></i>
             </button>
             <div class="dropdown-menu history-dropdown" role="menu">
@@ -209,16 +215,31 @@
         </div>
 
         <div class="tb-center">
-          <div class="tb-pill">
-            <button data-act="walk" id="walkBtn" data-i18n-title="walk" title="סיור">
+          <div class="tb-pill modern-chrome" id="viewModePill">
+            <button data-act="viewPlan" id="viewPlanBtn" data-i18n-title="view_plan" title="תוכנית">
+              <i class="ph ph-floor-plan"></i>
+              <span data-i18n="view_plan">תוכנית</span>
+            </button>
+            <button data-act="view3d" id="view3dBtn" data-i18n-title="view_3d" title="תלת-ממד">
+              <i class="ph ph-cube"></i>
+              <span data-i18n="view_3d">תלת-ממד</span>
+            </button>
+            <button data-act="viewSplit" id="viewSplitBtn" data-i18n-title="view_split" title="מפוצל">
+              <i class="ph ph-rows"></i>
+              <span data-i18n="view_split">מפוצל</span>
+            </button>
+          </div>
+          <div class="tb-pill" id="playPill">
+            <button data-act="walk" id="walkBtn" class="legacy-chrome" data-i18n-title="walk" title="סיור">
               <i class="ph ph-person-simple-walk"></i>
             </button>
-            <button data-act="rc" id="rcBtn" data-i18n-title="rc" title="מרוץ RC">
+            <button data-act="rc" id="rcBtn" class="legacy-chrome" data-i18n-title="rc" title="מרוץ RC">
               <i class="ph ph-car-profile"></i>
             </button>
             <button
               data-act="zombies"
               id="zombieBtn"
+              class="legacy-chrome"
               data-i18n-title="zombies"
               title="משמרת לילה"
             >
@@ -283,9 +304,10 @@
                 style="width: 70px"
               />
             </label>
-            <div class="separator"></div>
+            <div class="separator legacy-chrome"></div>
             <button
               data-act="photo"
+              class="legacy-chrome"
               data-i18n-title="photo_t"
               title="רינדור פוטו-ריאליסטי (Path Tracing)"
             >
@@ -298,16 +320,66 @@
         </div>
 
         <div class="tb-end">
-          <button data-act="openTextureGallery" id="texGalleryBtn" class="primary-action" title="גלריית טקסטורות וחיפוש">
+          <button data-act="openTextureGallery" id="texGalleryBtn" class="primary-action legacy-chrome" title="גלריית טקסטורות וחיפוש" data-i18n-title="tex_gallery">
             <i class="ph ph-paint-brush-broad"></i>
             <span data-i18n="tex_gallery">גלריית טקסטורות</span>
           </button>
-          <button data-act="autoGenerate" id="autoGenerateBtn" title="Auto Generate Apartment">
+          <button data-act="autoGenerate" id="autoGenerateBtn" class="legacy-chrome" title="Auto Generate Apartment" data-i18n-title="auto_gen">
             <i class="ph ph-magic-wand"></i>
             <span data-i18n="auto_gen">יצירת דירה אוטומטית</span>
           </button>
-          <div class="separator"></div>
-          <button id="friendsBtn" data-i18n-title="fr_title" title="חברים" style="position: relative">
+          <div class="separator legacy-chrome"></div>
+          <div class="dropdown" id="moreMenu">
+            <button class="dropdown-trigger" data-i18n-aria="menu_more" aria-label="עוד" data-i18n-title="menu_more" title="עוד">
+              <i class="ph ph-squares-four"></i>
+              <span data-i18n="menu_more">עוד</span>
+              <i class="ph ph-caret-down caret"></i>
+            </button>
+            <div class="dropdown-menu" role="menu">
+              <button data-act="openModeler" role="menuitem">
+                <i class="ph ph-cube"></i>
+                <span data-i18n="modeler_launch">עורך מודלים</span>
+                <kbd class="menu-kbd">M</kbd>
+              </button>
+              <button data-act="walk" role="menuitem">
+                <i class="ph ph-person-simple-walk"></i>
+                <span data-i18n="walk">סיור</span>
+                <kbd class="menu-kbd">W</kbd>
+              </button>
+              <button data-act="photo" role="menuitem">
+                <i class="ph ph-camera"></i>
+                <span data-i18n="photo">פוטו</span>
+                <kbd class="menu-kbd">P</kbd>
+              </button>
+              <button data-act="rc" role="menuitem">
+                <i class="ph ph-car-profile"></i>
+                <span data-i18n="rc">מרוץ RC</span>
+              </button>
+              <button data-act="zombies" role="menuitem">
+                <i class="ph ph-skull"></i>
+                <span data-i18n="zombies">משמרת לילה</span>
+              </button>
+              <div class="menu-divider"></div>
+              <button data-act="openTextureGallery" role="menuitem">
+                <i class="ph ph-paint-brush-broad"></i>
+                <span data-i18n="tex_gallery">גלריית טקסטורות</span>
+              </button>
+              <button data-act="autoGenerate" role="menuitem">
+                <i class="ph ph-magic-wand"></i>
+                <span data-i18n="auto_gen">יצירת דירה אוטומטית</span>
+              </button>
+              <button data-act="friends" role="menuitem">
+                <i class="ph ph-users-three"></i>
+                <span data-i18n="fr_title">חברים</span>
+              </button>
+              <div class="menu-divider"></div>
+              <button data-act="toggleLegacy" id="legacyUiBtn" role="menuitem">
+                <i class="ph ph-layout"></i>
+                <span data-i18n="ui_classic">פריסה קלאסית</span>
+              </button>
+            </div>
+          </div>
+          <button id="friendsBtn" class="legacy-chrome" data-i18n-title="fr_title" title="חברים" style="position: relative">
             <i class="ph ph-users-three"></i>
             <span id="friendsBadge" class="tb-badge" style="display: none"></span>
           </button>
@@ -318,8 +390,8 @@
             <i class="ph ph-graduation-cap"></i>
           </button>
           <button id="btn_settings" data-i18n-title="settings_title" title="הגדרות"><i class="ph ph-gear"></i></button>
-          <button id="themeToggle" title="Toggle Theme" aria-label="Toggle theme"><i class="ph ph-sun"></i></button>
-          <button data-act="lang" id="langBtn" title="Toggle Language">
+          <button id="themeToggle" data-i18n-title="theme_toggle" title="Toggle Theme" aria-label="Toggle theme" data-i18n-aria="theme_toggle"><i class="ph ph-sun"></i></button>
+          <button data-act="lang" id="langBtn" data-i18n-title="lang_toggle" title="Toggle Language">
             <i class="ph ph-globe"></i> <span data-i18n="lang_btn">EN</span>
           </button>
           <button id="toggle-right" class="mobile-toggle" style="display: none">
@@ -342,8 +414,13 @@
       </header>
 
       <div id="workspace">
-        <aside id="left-sidebar">
-          <div class="panel-section furn-panel">
+        <aside id="left-sidebar" data-left="library">
+          <div class="left-tabs modern-chrome" id="leftTabs" role="tablist">
+            <button type="button" data-left-tab="library" class="active" data-i18n="left_tab_library">ספרייה</button>
+            <button type="button" data-left-tab="structure" data-i18n="left_tab_structure">מבנה</button>
+            <button type="button" data-left-tab="tree" data-i18n="left_tab_tree">עץ</button>
+          </div>
+          <div class="panel-section furn-panel" data-left-pane="library">
             <h3 data-i18n="library">ספרייה</h3>
             <div class="lib-search">
               <i class="ph ph-magnifying-glass"></i>
@@ -360,7 +437,7 @@
             </div>
           </div>
 
-          <div class="panel-section mep-section collapsed">
+          <div class="panel-section mep-section collapsed" data-left-pane="structure">
             <h3><span data-i18n="mep_title">תשתיות</span></h3>
             <div id="mepPanel"><!-- Rendered by ui_mep.js --></div>
           </div>
@@ -370,7 +447,7 @@
                glow on the canvas and back again; "ignore" clears one for good. -->
           <!-- Named parameters the plan's dimensions can be written in terms
                of. Expressions go through the sketcher's parser, never eval. -->
-          <div class="panel-section" id="paramSection">
+          <div class="panel-section" id="paramSection" data-left-pane="structure">
             <h3>
               <span data-i18n="pv_title">Plan parameters</span>
               <span id="pvCount" class="warn-badge"></span>
@@ -381,7 +458,7 @@
             </div>
             <span class="t con-hint" data-i18n="pv_hint">Use a name in any dimension field, e.g. corridor * 2</span>
           </div>
-          <div class="panel-section warn-section">
+          <div class="panel-section warn-section" data-left-pane="structure">
             <h3>
               <span data-i18n="cw_title">בדיקת אילוצים</span>
               <span id="warnCount" class="warn-badge"></span>
@@ -416,7 +493,7 @@
             </div>
           </div>
 
-          <div class="panel-section flex-fill">
+          <div class="panel-section flex-fill" data-left-pane="tree">
             <h3><span data-i18n="treeHead">עץ חדרים ופריטים</span></h3>
             <div id="tree">
               <div id="treeBody"></div>
@@ -426,6 +503,7 @@
         </aside>
 
         <main id="center-canvas">
+          <div id="floor-tabs" class="modern-chrome" hidden></div>
           <div id="view-3d">
             <canvas id="v3d"></canvas>
             <div class="lbl" data-i18n="lbl_3d">תצוגת 3D</div>
@@ -468,6 +546,9 @@
               <button class="tool" data-tool="wall" data-i18n-title="tool_wall" title="צייר קיר">
                 <i class="ph ph-wall"></i><kbd>2</kbd>
               </button>
+              <button class="tool" data-tool="rect" data-i18n-title="tool_rect" title="צייר חדר מלבני">
+                <i class="ph ph-rectangle"></i><kbd>8</kbd>
+              </button>
               <button class="tool" data-tool="arcwall" data-i18n-title="tool_arcwall" title="צייר קיר מעוגל">
                 <i class="ph ph-arc-upper"></i><kbd>7</kbd>
               </button>
@@ -507,6 +588,7 @@
                 <i class="ph ph-trash"></i><kbd>Del</kbd>
               </button>
             </div>
+            <div id="plan-hint" class="plan-hint" hidden></div>
             <button
               class="view-max-btn"
               data-max-view="view-2d"
@@ -524,13 +606,22 @@
 
         <aside id="right-inspector">
           <div class="panel-section">
-            <h3 data-i18n="inspector">מאפיינים</h3>
+            <h3>
+              <span data-i18n="inspector">מאפיינים</span>
+              <span id="costChip" class="cost-chip modern-chrome" hidden></span>
+            </h3>
             <div class="grp props" id="emptyProps">
               <div class="empty-state">
                 <i class="ph ph-cursor-click"></i>
                 <span class="t" data-i18n="emptyProps"
                   >בחר פריט, קיר או חדר כדי לערוך · כלי הציור צפים על התוכנית.</span
                 >
+                <div class="empty-next modern-chrome">
+                  <span class="t" data-i18n="empty_next">הצעד הבא</span>
+                  <button type="button" data-act="hintRect"><i class="ph ph-rectangle"></i><span data-i18n="empty_next_draw">ציירו חדר</span></button>
+                  <button type="button" data-act="hintDoor"><i class="ph ph-door"></i><span data-i18n="empty_next_door">הוסיפו דלת</span></button>
+                  <button type="button" data-act="hintLibrary"><i class="ph ph-armchair"></i><span data-i18n="empty_next_furn">רהטו</span></button>
+                </div>
               </div>
             </div>
 
@@ -610,6 +701,8 @@
                   <span id="w_lockLabel" data-i18n="cw_lockOn">מידות נעולות</span>
                 </button>
               </div>
+              <details class="con-block insp-more">
+                <summary data-i18n="insp_more">מבנה מתקדם</summary>
               <!-- which half of the wall a length/angle edit moves; also set by
                    hovering + clicking a half of the selected wall in the plan -->
               <div class="seg-row" id="w_endRow">
@@ -676,6 +769,7 @@
                 </div>
                 <span class="t con-hint" id="w_conHint"></span>
               </div>
+              </details>
               <div class="dim-row">
                 <label
                   ><span data-i18n="th">עובי</span
@@ -1334,7 +1428,7 @@
             </button>
           </div>
 
-          <div class="panel-section env-section">
+          <div class="panel-section env-section collapsed">
             <h3 data-i18n="view">תצוגה וסביבה:</h3>
             <label
               ><input type="checkbox" id="cb_dims" checked />
@@ -1537,6 +1631,40 @@
       </nav>
     </div>
 
+    <div id="start-screen" class="start-screen" hidden>
+      <div class="start-card" role="dialog" aria-labelledby="startTitle">
+        <h2 id="startTitle" data-i18n="start_title">איך להתחיל?</h2>
+        <p data-i18n="start_intro">ציירו תוכנית, רהטו, ובדקו בתלת-ממד.</p>
+        <div class="start-actions">
+          <button type="button" data-start="blank">
+            <i class="ph ph-square"></i>
+            <strong data-i18n="start_blank">תוכנית ריקה</strong>
+            <span data-i18n="start_blank_d">התחילו מקירות</span>
+          </button>
+          <button type="button" data-start="demo">
+            <i class="ph ph-armchair"></i>
+            <strong data-i18n="start_demo">הדגמה מרוהטת</strong>
+            <span data-i18n="start_demo_d">חדר מוכן לעריכה</span>
+          </button>
+          <button type="button" data-start="generate">
+            <i class="ph ph-magic-wand"></i>
+            <strong data-i18n="start_generate">יצירת דירה</strong>
+            <span data-i18n="start_generate_d">דירה שלמה לפי גודל</span>
+          </button>
+          <button type="button" data-start="import">
+            <i class="ph ph-upload-simple"></i>
+            <strong data-i18n="start_import">ייבוא JSON</strong>
+            <span data-i18n="start_import_d">טענו תוכנית שמורה</span>
+          </button>
+          <button type="button" data-start="saved">
+            <i class="ph ph-folder-open"></i>
+            <strong data-i18n="start_saved">פתחו שמירה מקומית</strong>
+          </button>
+        </div>
+        <button type="button" class="start-skip" data-start="skip" data-i18n="start_skip">המשיכו עם מה שעל המסך</button>
+      </div>
+    </div>
+
     <!-- Dimmed backdrop behind the mobile drawers; tap to close (js/ui.js) -->
     <div id="drawer-backdrop"></div>
 
@@ -1564,7 +1692,8 @@
         }
       }
     </script>
-    <script type="module" src="js/main.js?v=wall-placement-5"></script>
+    <script type="module" src="js/main.js?v=planner-chrome-1"></script>
     <script type="module" src="js/planner_tutorial.js?v=wall-placement-3"></script>
+    <script type="module" src="js/planner_chrome.js?v=planner-chrome-1"></script>
   </body>
 </html>

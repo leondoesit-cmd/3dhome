@@ -21,6 +21,7 @@ export {
   lampColor,
   mkItem,
   defaultScene,
+  emptyScene,
 } from "./furniture_api.js";
 export { flabel, clabel, PRICE, itemPrice, CATALOG } from "./furniture_meta.js";
 

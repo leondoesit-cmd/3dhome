@@ -643,6 +643,46 @@ export function render2D() {
     if (draftArc) label(S.previewPt.x, S.previewPt.z - 12 / S.SC,
       Math.round(draftArc.L) + " " + t("cm") + "  R" + Math.round(draftArc.radius), "#3f6b78");
   }
+  if (S.tool === "rect" && S.rectDraft && S.previewPt) {
+    var rx0 = Math.min(S.rectDraft.x, S.previewPt.x),
+      rz0 = Math.min(S.rectDraft.z, S.previewPt.z),
+      rx1 = Math.max(S.rectDraft.x, S.previewPt.x),
+      rz1 = Math.max(S.rectDraft.z, S.previewPt.z);
+    pc.save();
+    pc.strokeStyle = "#3f6b78";
+    pc.lineWidth = 2;
+    pc.setLineDash([6, 5]);
+    pc.strokeRect(sx(rx0), sz(rz0), sx(rx1) - sx(rx0), sz(rz1) - sz(rz0));
+    pc.setLineDash([]);
+    pc.restore();
+    label(
+      (rx0 + rx1) / 2,
+      (rz0 + rz1) / 2,
+      Math.round(rx1 - rx0) + " × " + Math.round(rz1 - rz0) + " " + t("cm"),
+      "#3f6b78",
+    );
+  }
+  if (S.placeType && S.previewPt && FURN[S.placeType]) {
+    var spec = FURN[S.placeType],
+      hw = (spec.w || 60) / 2,
+      hd = (spec.d || 60) / 2;
+    pc.save();
+    pc.strokeStyle = "rgba(79,70,229,.9)";
+    pc.fillStyle = "rgba(79,70,229,.12)";
+    pc.lineWidth = 2;
+    pc.setLineDash([4, 3]);
+    pc.beginPath();
+    pc.rect(
+      sx(S.previewPt.x - hw),
+      sz(S.previewPt.z - hd),
+      sx(S.previewPt.x + hw) - sx(S.previewPt.x - hw),
+      sz(S.previewPt.z + hd) - sz(S.previewPt.z - hd),
+    );
+    pc.fill();
+    pc.stroke();
+    pc.setLineDash([]);
+    pc.restore();
+  }
   drawSnapMark();
   // distance overlay drawn LAST so its labels sit above every other layer
   drawMeasureOverlay();
@@ -652,7 +692,7 @@ export function render2D() {
      the measurement labels: a card that a room's area label prints through is
      unreadable. Only while idle on the select tool — mid-drag it would trail
      the cursor across the geometry being edited. */
-  if (!S.action && S.tool === "select") {
+  if (!S.action && S.tool === "select" && !S.placeType) {
     if (S.hoverMarker && markers().indexOf(S.hoverMarker) !== -1)
       markerCard(S.hoverMarker);
     else if (S.hoverNode != null && S.nodes[S.hoverNode]) nodeCard(S.hoverNode);

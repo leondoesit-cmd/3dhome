@@ -179,7 +179,7 @@ function renderFurnUI() {
     );
     html += `<div class="furn-grid">`;
     matches.slice(0, 60).forEach(type => {
-      html += `<div class="furn-item" data-type="${escapeHTML(type)}">
+      html += `<div class="furn-item" data-type="${escapeHTML(type)}" draggable="true">
         ${thumbTag(type)}
         <span>${escapeHTML(flabel(type))}</span>
       </div>`;
@@ -196,12 +196,17 @@ function renderFurnUI() {
   }
 
   if (navPath.length > 0) {
-    // Render Back Button
-    html += `<div class="furn-cats">
-      <button class="furn-cat" id="btnBack">
-        <i class="ph ph-arrow-left"></i> ${t("back")}
-      </button>
-    </div>`;
+    const cat0 = CATALOG.find(c => c.id === navPath[0]);
+    const sub0 = cat0 && navPath[1] ? (cat0.sub || []).find(s => s.id === navPath[1]) : null;
+    html += `<div class="furn-crumbs">
+      <button class="furn-cat" data-crumb="0">${t("library")}</button>`;
+    if (cat0) html += `<span>›</span><button class="furn-cat" data-crumb="1">${escapeHTML(clabel(cat0))}</button>`;
+    if (sub0) html += `<span>›</span><span>${escapeHTML(clabel(sub0))}</span>`;
+    html += `</div>`;
+  }
+
+  if (S.placeType && FURN[S.placeType]) {
+    html += `<div class="furn-place-banner">${escapeHTML(t("furn_place_armed", { name: flabel(S.placeType) }))}</div>`;
   }
 
   html += `<div class="furn-grid">`;
@@ -233,7 +238,7 @@ function renderFurnUI() {
       if (activeSub && activeSub.items) {
         activeSub.items.forEach(type => {
           if (!FURN[type]) return;
-          html += `<div class="furn-item" data-type="${escapeHTML(type)}">
+          html += `<div class="furn-item" data-type="${escapeHTML(type)}" draggable="true">
             ${thumbTag(type)}
             <span>${escapeHTML(flabel(type))}</span>
           </div>`;
@@ -246,14 +251,13 @@ function renderFurnUI() {
   ui.innerHTML = html;
   hydrateThumbs(ui);
 
-  // Bind events
-  const btnBack = document.getElementById("btnBack");
-  if (btnBack) {
-    btnBack.addEventListener('click', () => {
-      navPath.pop();
+  ui.querySelectorAll("[data-crumb]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const n = parseInt(btn.getAttribute("data-crumb"), 10);
+      navPath = navPath.slice(0, n);
       renderFurnUI();
     });
-  }
+  });
 
   ui.querySelectorAll('.furn-item').forEach(item => {
     item.addEventListener('click', (e) => {
@@ -271,6 +275,9 @@ function fillFurnSel() {
   renderFurnUI();
 }
 fillFurnSel();
+window.addEventListener("planner-place", function () {
+  renderFurnUI();
+});
 window.addEventListener('catalogUpdated', function () {
   clearThumbCache(); // a new/edited catalog item may have changed its look
   renderFurnUI();
