@@ -322,6 +322,7 @@ initPersistence({
   flash: flash,
   openModal: openModal,
 });
+window.__home3dBooted = true;
 
 const resizeAll = throttle(() => {
   if (has3D) {

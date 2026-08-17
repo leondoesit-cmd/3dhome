@@ -9,9 +9,11 @@
     <title>ModelForge · Parametric CAD</title>
     <script>
       (function () {
+        var he = false;
         try {
           var l = localStorage.getItem("home3d_lang");
-          if (l === "he") {
+          he = l === "he";
+          if (he) {
             document.documentElement.lang = "he";
             document.documentElement.dir = "rtl";
           }
@@ -19,6 +21,41 @@
           if (["light", "soft", "mid", "dark"].indexOf(theme) < 0) theme = "light";
           document.documentElement.setAttribute("data-theme", theme);
         } catch (e) {}
+        /* persist.js only installs after main.js evaluates. A missing export or
+           a file:// open dies before that, and the HTML shell looks like a
+           loaded editor with an empty plan. Catch those here. */
+        function fatal(msg) {
+          function paint() {
+            if (document.getElementById("fatal-banner")) return;
+            var b = document.createElement("div");
+            b.id = "fatal-banner";
+            b.setAttribute("role", "alert");
+            b.textContent = msg;
+            (document.body || document.documentElement).appendChild(b);
+          }
+          if (document.body) paint();
+          else document.addEventListener("DOMContentLoaded", paint);
+        }
+        var fileHint = he
+          ? "אי אפשר לפתוח את index.html כקובץ. בתיקייה 3dhome הריצו npm start ופתחו http://localhost:8765"
+          : "Do not open index.html as a file. In the 3dhome folder run npm start, then open http://localhost:8765";
+        if (location.protocol === "file:") fatal(fileHint);
+        window.addEventListener("error", function (e) {
+          if (window.__home3dBooted) return;
+          var el = e && e.target && e.target !== window ? e.target : null;
+          if (el && el.tagName) {
+            var tag = el.tagName.toUpperCase();
+            if (tag === "SCRIPT" || tag === "LINK") fatal(fileHint);
+            return;
+          }
+          if (e && e.message) fatal(e.message);
+        }, true);
+        window.addEventListener("unhandledrejection", function (e) {
+          if (window.__home3dBooted) return;
+          var r = e && e.reason;
+          var msg = r && (r.message || String(r));
+          if (msg) fatal(msg);
+        });
       })();
     </script>
     <!-- EVERY dependency is vendored under /vendor and served from this origin.
