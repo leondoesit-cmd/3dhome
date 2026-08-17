@@ -32,7 +32,9 @@ import {
   BANDING, PROFILES, sheetsFor, sheetById, sheetPrice, bandById, bandPPM,
   profilePPM, sheetLabel, bandLabel, profileLabel,
 } from "./stock.js";
-import { syncCabinetDefinition } from "./parametric_cabinet.js";
+import {
+  CAB_LIMITS, syncCabinetDefinition, requestCabinetDimension, applyCabinetDimension,
+} from "./parametric_cabinet.js";
 
 /* ================= local i18n ================= */
 var TXT = {
@@ -143,8 +145,8 @@ var TXT = {
   carcassMode: ["סוג גוף", "Carcass type"],
   bandTotal: ["קנטים", "Edge banding"],
   hint: [
-    "לחצו על תא לעריכה · גררו מחיצה כדי לשנות מידה · לחיצה כפולה = הזנת מידה מדויקת",
-    "Click a compartment to edit · drag a divider to resize · double-click to type an exact size",
+    "לחצו על תא לעריכה · גררו מחיצה · V/H/X לכלי מחיצה · לחיצה כפולה = מידה מדויקת",
+    "Click a compartment to edit · drag a divider · V/H/X for partition tools · double-click for an exact size",
   ],
   nothing: ["בחרו תא או עמודה בחזית", "Select a compartment or a column"],
   blank: ["ארון ריק — התחלה מאפס", "Blank — start from scratch"],
@@ -157,8 +159,8 @@ var TXT = {
   toolH: ["מחיצה אופקית", "Horizontal partition"],
   toolErase: ["מחיקת מחיצה", "Remove partition"],
   hintV: [
-    "לחצו במקום שבו תעבור המחיצה האנכית · Esc ליציאה",
-    "Click where the vertical partition goes · Esc to exit",
+    "לחצו במקום שבו תעבור המחיצה האנכית · Esc או V ליציאה",
+    "Click where the vertical partition goes · Esc or V to exit",
   ],
   hintH: [
     "לחצו בגובה המחיצה · Shift = מחיצה לרוחב כל הארון · Esc ליציאה",
@@ -222,7 +224,21 @@ var TXT = {
   levelCompose: ["1 · הרכב", "1 · Compose"],
   levelTechnical: ["2 · טכני", "2 · Technical"],
   levelAdvanced: ["3 · עורך מודל", "3 · Model editor"],
+  levelsAria: ["רמת עריכת ארון", "Cabinet editing level"],
+  historyAria: ["היסטוריה", "History"],
   technicalTitle: ["פרמטרים טכניים וייצור", "Technical & manufacturing parameters"],
+  shelfBoard: ["עובי מדף", "Shelf board"],
+  plinthRecessed: ["שקוע (סטנדרט)", "Recessed"],
+  plinthFlush: ["בקו החזית", "Flush"],
+  plinthLegs: ["רגליות", "Legs"],
+  plinthNone: ["ללא", "None"],
+  sizeProposal: ["נדרשת חלוקה חדשה", "Configuration required"],
+  keepSize: ["השאירו את המידה הנוכחית", "Keep current size"],
+  techHint: [
+    "עובי לוחות, סוקל ומרווח חזיתות נמצאים ברמה הטכנית.",
+    "Board thicknesses, plinth and front reveal live on the Technical level.",
+  ],
+  sizeRejected: ["לא ניתן לשנות למידה הזו", "That dimension cannot be changed"],
 };
 function T(k) {
   var e = TXT[k] || ["", ""];
@@ -314,13 +330,13 @@ function buildDOM() {
     '<div class="cb-head-main">' +
     '<div class="cb-logo"><i class="ph ph-lockers"></i> <b>' + T("title") + "</b>" +
     '<span class="cb-sub" id="cbSub"></span><span class="cb-session" id="cbSession" role="status" aria-live="polite"></span></div>' +
-    '<div class="cb-levels" role="tablist" aria-label="Cabinet editing level">' +
+    '<div class="cb-levels" role="tablist" aria-label="' + T("levelsAria") + '">' +
     '<button type="button" data-level="composition" class="on"><i class="ph ph-layout"></i> ' + T("levelCompose") + '</button>' +
     '<button type="button" data-level="technical"><i class="ph ph-sliders-horizontal"></i> ' + T("levelTechnical") + '</button>' +
     '<button type="button" data-level="advanced"><i class="ph ph-cube-focus"></i> ' + T("levelAdvanced") + '</button>' +
     '</div>' +
     '<div class="cb-actions">' +
-    '<div class="cb-history-actions" aria-label="History">' +
+    '<div class="cb-history-actions" aria-label="' + T("historyAria") + '">' +
     '<button id="cbUndo" title="Ctrl+Z" aria-label="' + T("undo") + '"><i class="ph ph-arrow-u-up-left"></i></button>' +
     '<button id="cbRedo" title="Ctrl+Y" aria-label="' + T("redo") + '"><i class="ph ph-arrow-u-up-right"></i></button></div>' +
     '<button id="cbRevert" title="' + T("cancelTip") + '"><i class="ph ph-arrow-counter-clockwise"></i> ' + T("revert") + "</button>" +
@@ -374,10 +390,10 @@ function buildDOM() {
     "</div></div>" +
     '<div class="cb-mid">' +
     '<div class="cb-tools" id="cbTools">' +
-    '<button data-tool="" class="on"><i class="ph ph-cursor"></i> ' + T("toolSel") + "</button>" +
-    '<button data-tool="vwall"><i class="ph ph-columns-plus-right"></i> ' + T("toolV") + "</button>" +
-    '<button data-tool="hwall"><i class="ph ph-rows-plus-bottom"></i> ' + T("toolH") + "</button>" +
-    '<button data-tool="erase"><i class="ph ph-eraser"></i> ' + T("toolErase") + "</button>" +
+    '<button data-tool="" class="on" aria-keyshortcuts="Escape"><i class="ph ph-cursor"></i> ' + T("toolSel") + "</button>" +
+    '<button data-tool="vwall" aria-keyshortcuts="V"><i class="ph ph-columns-plus-right"></i> ' + T("toolV") + "</button>" +
+    '<button data-tool="hwall" aria-keyshortcuts="H"><i class="ph ph-rows-plus-bottom"></i> ' + T("toolH") + "</button>" +
+    '<button data-tool="erase" aria-keyshortcuts="X"><i class="ph ph-eraser"></i> ' + T("toolErase") + "</button>" +
     "</div>" +
     '<div class="cb-views" id="cbViews">' +
     '<div class="cb-vgroup">' +
@@ -426,6 +442,14 @@ function buildDOM() {
     '<div class="cb-pane" data-pane="checks"><div id="cbChecks"></div></div>' +
     '<div class="cb-pane" data-pane="bom"><div id="cbBom"></div>' +
     '<button id="cbCsv" class="cb-wide"><i class="ph ph-file-csv"></i> ' + T("csv") + "</button></div>" +
+    "</div></div>" +
+    '<div id="cbSizeDlg" class="cb-size-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="cbSizeDlgTitle">' +
+    '<div class="cb-size-dlg-card">' +
+    '<h3 id="cbSizeDlgTitle"></h3>' +
+    '<p id="cbSizeDlgMsg"></p>' +
+    '<div id="cbSizeDlgIssues"></div>' +
+    '<div id="cbSizeDlgChoices"></div>' +
+    '<button type="button" id="cbSizeDlgKeep"></button>' +
     "</div></div>";
   document.body.appendChild(root);
 
@@ -438,21 +462,7 @@ function buildDOM() {
   root.querySelector("#cbRedo").addEventListener("click", redo);
   root.querySelectorAll(".cb-levels [data-level]").forEach(function (button) {
     button.addEventListener("click", function () {
-      var level = button.getAttribute("data-level");
-      if (level === "advanced") {
-        var item = E.it;
-        syncCabinetDefinition(S, item, { propagate:true });
-        closeCabinet();
-        import("./modeler.js").then(function (modeler) { modeler.openModelerForItem(item); });
-        return;
-      }
-      E.level = level;
-      root.classList.toggle("cb-level-technical", level === "technical");
-      root.querySelectorAll(".cb-levels [data-level]").forEach(function (candidate) {
-        candidate.classList.toggle("on", candidate.getAttribute("data-level") === level);
-      });
-      if (level === "technical") { fillTechnical(); setTab("technical", false); }
-      else setTab("insp", false);
+      setLevel(button.getAttribute("data-level"));
     });
   });
   histPanel = createHistoryPanel(H, {
@@ -464,15 +474,13 @@ function buildDOM() {
   root.querySelector("#cbHist").appendChild(histPanel.el);
   ["W", "D", "H"].forEach(function (k) {
     var dim = root.querySelector("#cb" + k);
-    dim.min = 20;
+    var limit = CAB_LIMITS[k === "W" ? "width" : k === "D" ? "depth" : "height"];
+    dim.min = limit.min;
+    dim.max = limit.max;
     dim.step = 0.1;
     dim.title = T(k === "W" ? "width" : k === "D" ? "depth" : "height") + " (cm)";
     dim.addEventListener("change", function () {
-      var v = Math.max(20, +this.value || 0);
-      act(T("opSize") + " · " + k + " → " + Math.round(v));
-      E.it[k.toLowerCase()] = v;
-      this.value = Math.round(v);
-      changed(true);
+      applyOverallSize(k === "W" ? "width" : k === "D" ? "depth" : "height", this);
     });
     dim.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {
@@ -481,6 +489,7 @@ function buildDOM() {
       }
     });
   });
+  root.querySelector("#cbSizeDlgKeep").addEventListener("click", dismissSizeDlg);
   root.querySelector("#cbOpen").addEventListener("input", function () {
     var val = +this.value / 100;
     E.it.runtimeState = E.it.runtimeState || {};
@@ -581,6 +590,13 @@ function buildDOM() {
   document.addEventListener("keydown", function (e) {
     // the cut plan sits on top of us and has its own Escape
     if (!E.open || isNestOpen()) return;
+    if (isSizeDlgOpen()) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        dismissSizeDlg();
+      }
+      return;
+    }
     var typing = /input|textarea|select/i.test((document.activeElement || {}).tagName || "");
     // a drawing tool owns Escape first — it exits the tool, not the designer
     if (e.key === "Escape" && E.tool) return setTool(null);
@@ -602,9 +618,28 @@ function buildDOM() {
     if (e.key === "3") return setMode("3d");
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") return copyColumn();
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") return pasteColumn();
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      var toolKey = e.key.toLowerCase();
+      if (toolKey === "v") {
+        e.preventDefault();
+        if (E.mode === "3d" || E.axis !== "front") setAxis("front");
+        return setTool(E.tool === "vwall" ? null : "vwall");
+      }
+      if (toolKey === "h") {
+        e.preventDefault();
+        if (E.mode === "3d" || E.axis !== "front") setAxis("front");
+        return setTool(E.tool === "hwall" ? null : "hwall");
+      }
+      if (toolKey === "x") {
+        e.preventDefault();
+        if (E.mode === "3d" || E.axis !== "front") setAxis("front");
+        return setTool(E.tool === "erase" ? null : "erase");
+      }
+    }
+    if (!sp()) return;
+    if (!E.sel) E.sel = { col: 0, sec: 0 };
     if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
-      if (!E.sel) return;
       if (E.sel.sec != null) delSection();
       else delColumn();
     } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
@@ -623,6 +658,115 @@ function buildDOM() {
       fillInspector();
     }
   });
+}
+
+function formatCm(v) {
+  return String(Math.round(Number(v) * 10) / 10);
+}
+
+function syncDimInputs() {
+  if (!root || !E.it) return;
+  root.querySelector("#cbW").value = formatCm(E.it.w);
+  root.querySelector("#cbD").value = formatCm(E.it.d);
+  root.querySelector("#cbH").value = formatCm(E.it.h);
+}
+
+function setLevel(level) {
+  if (!root) return;
+  if (level === "advanced") {
+    var item = E.it;
+    syncCabinetDefinition(S, item, { propagate: true });
+    closeCabinet();
+    import("./modeler.js").then(function (modeler) { modeler.openModelerForItem(item); });
+    return;
+  }
+  E.level = level;
+  root.classList.toggle("cb-level-technical", level === "technical");
+  root.querySelectorAll(".cb-levels [data-level]").forEach(function (candidate) {
+    var on = candidate.getAttribute("data-level") === level;
+    candidate.classList.toggle("on", on);
+    candidate.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  if (level === "technical") {
+    fillTechnical();
+    setTab("technical", false);
+  } else setTab("insp", false);
+}
+
+function isSizeDlgOpen() {
+  var dlg = root && root.querySelector("#cbSizeDlg");
+  return !!(dlg && !dlg.hidden);
+}
+
+function dismissSizeDlg() {
+  var dlg = root && root.querySelector("#cbSizeDlg");
+  if (dlg) dlg.hidden = true;
+  E.sizeDlg = null;
+  syncDimInputs();
+}
+
+function showSizeProposal(dimension, result, input) {
+  var dlg = root.querySelector("#cbSizeDlg");
+  if (!dlg) return;
+  E.sizeDlg = { dimension: dimension, result: result, input: input };
+  dlg.querySelector("#cbSizeDlgTitle").textContent = T("sizeProposal");
+  dlg.querySelector("#cbSizeDlgMsg").textContent = result.message || T("sizeProposal");
+  var issues = dlg.querySelector("#cbSizeDlgIssues");
+  issues.innerHTML = "";
+  (result.issues || []).slice(0, 4).forEach(function (issue) {
+    var note = el("div", "cb-check cb-" + (issue.level || "warn"));
+    note.textContent = issue.msg || issue.message || "";
+    issues.appendChild(note);
+  });
+  var choices = dlg.querySelector("#cbSizeDlgChoices");
+  choices.innerHTML = "";
+  (result.alternatives || []).forEach(function (choice, index) {
+    var button = el("button", index === 0 ? "btn-accent cb-size-choice" : "cb-size-choice");
+    var title = document.createElement("strong");
+    title.textContent = choice.label;
+    button.appendChild(title);
+    if (choice.reason) {
+      var reason = document.createElement("small");
+      reason.textContent = choice.reason;
+      button.appendChild(reason);
+    }
+    button.addEventListener("click", function () {
+      commitSizeChoice(result, choice.id);
+    });
+    choices.appendChild(button);
+  });
+  dlg.querySelector("#cbSizeDlgKeep").textContent = T("keepSize");
+  dlg.hidden = false;
+}
+
+function commitSizeChoice(result, alternativeId) {
+  if (!E.it) return;
+  var applied = applyCabinetDimension(S, E.it, result, alternativeId);
+  dismissSizeDlg();
+  if (!applied) {
+    flashHint(T("sizeRejected"));
+    return;
+  }
+  act(T("opSize") + " · " + formatCm(E.it.w) + "×" + formatCm(E.it.d) + "×" + formatCm(E.it.h));
+  syncDimInputs();
+  changed(true);
+}
+
+function applyOverallSize(dimension, input) {
+  if (!E.it) return;
+  var limit = CAB_LIMITS[dimension];
+  var value = Number(input.value);
+  if (!limit || !Number.isFinite(value) || Math.abs(value - E.it[limit.field]) < 0.0001) {
+    syncDimInputs();
+    return;
+  }
+  var result = requestCabinetDimension(E.it, dimension, value, ceilingHeight());
+  if (result.status === "applied") commitSizeChoice(result, null);
+  else if (result.status === "proposal") showSizeProposal(dimension, result, input);
+  else {
+    syncDimInputs();
+    flashHint(result.message || T("sizeRejected"));
+  }
 }
 
 function syncOpenUI(rawVal) {
@@ -693,9 +837,7 @@ export function openCabinet(it) {
   // modification even when every value is identical.
   E.base = stateOf();
   root.style.display = "flex";
-  root.querySelector("#cbW").value = Math.round(it.w);
-  root.querySelector("#cbD").value = Math.round(it.d);
-  root.querySelector("#cbH").value = Math.round(it.h);
+  syncDimInputs();
   syncOpenUI(it.runtimeState && fin(it.runtimeState.cabinetOpen) ? it.runtimeState.cabinetOpen : it.cab.open || 0);
   if (resumeHistory) syncUndoButtons();
   else {
@@ -732,6 +874,7 @@ export function openCabinet(it) {
 
 export function closeCabinet() {
   if (!E.open) return;
+  dismissSizeDlg();
   E.open = false;
   root.style.display = "none";
   E.it = null;
@@ -762,9 +905,7 @@ function revert() {
   E.it.w = s.w;
   E.it.d = s.d;
   E.it.h = s.h;
-  root.querySelector("#cbW").value = Math.round(s.w);
-  root.querySelector("#cbD").value = Math.round(s.d);
-  root.querySelector("#cbH").value = Math.round(s.h);
+  syncDimInputs();
   syncOpenUI(s.cab.open || 0);
   E.sel = { col: 0, sec: 0 };
   changed(true);
@@ -900,9 +1041,7 @@ const H = createHistory({
     E.it.w = s.w;
     E.it.h = s.h;
     E.it.d = s.d;
-    root.querySelector("#cbW").value = Math.round(s.w);
-    root.querySelector("#cbD").value = Math.round(s.d);
-    root.querySelector("#cbH").value = Math.round(s.h);
+    syncDimInputs();
     syncOpenUI(s.cab.open || 0);
     if (E.sel && E.sel.col >= s.cab.cols.length) E.sel = { col: 0, sec: 0 };
     changed(true);
@@ -1201,8 +1340,7 @@ function fillFamilies() {
         it.cab = k === "free" || (sp() && sp().preset === "blank")
           ? makeBlankSpec(k, it.w, it.h, it.d, it.cab)
           : makeSpec(f.preset, it.w, it.h, it.d, it.cab);
-        root.querySelector("#cbD").value = Math.round(it.d);
-        root.querySelector("#cbH").value = Math.round(it.h);
+        syncDimInputs();
         E.sel = { col: 0, sec: 0 };
         fillPresets();
         fillFamilies();
@@ -1256,8 +1394,7 @@ function fillPresetCards(wrap, fam) {
       if (sp().fam !== p.fam) {
         it.d = f.d;
         it.h = f.h;
-        root.querySelector("#cbD").value = Math.round(it.d);
-        root.querySelector("#cbH").value = Math.round(it.h);
+        syncDimInputs();
       }
       act(T("opPreset") + " · " + presetLabel(p));
       it.cab = makeSpec(p.id, it.w, it.h, it.d, it.cab);
@@ -2465,7 +2602,11 @@ function row(label, node) {
 function numInput(val, cb, min, max) {
   var i = el("input");
   i.type = "number";
-  i.value = Math.round(val * 10) / 10;
+  i.inputMode = "decimal";
+  i.step = "0.1";
+  if (min != null) i.min = min;
+  if (max != null) i.max = max;
+  i.value = formatCm(val);
   i.addEventListener("change", function () {
     var v = +this.value;
     if (!fin(v)) return;
@@ -2756,39 +2897,12 @@ function fillInspector() {
     touch();
     changed(true);
   })));
-  wrap.appendChild(row(T("panel"), numInput(sp().panel, function (v) {
-    sp().panel = v;
-    changed();
-  }, 0.8, 4)));
-  wrap.appendChild(row(T("back"), numInput(sp().back, function (v) {
-    sp().back = v;
-    changed();
-  }, 0.3, 3)));
-  wrap.appendChild(row(T("plinthType"), select([
-    ["recessed", isEn() ? "Recessed" : "שקוע (סטנדרט)"],
-    ["flush", isEn() ? "Flush" : "בקו החזית"],
-    ["legs", isEn() ? "Legs" : "רגליות"],
-    ["none", isEn() ? "None" : "ללא"],
-  ], sp().plinthType, function (v) {
-    sp().plinthType = v;
-    if (v === "none") sp().plinth = 0;
-    else if (!sp().plinth) sp().plinth = (FAM[sp().fam] || FAM.wardrobe).plinth || 8;
-    changed();
-  })));
-  if (sp().plinthType !== "none")
-    wrap.appendChild(row(T("plinth"), numInput(sp().plinth, function (v) {
-      sp().plinth = v;
-      changed();
-    }, 2, 30)));
-  wrap.appendChild(row(T("gap"), numInput(sp().gap, function (v) {
-    sp().gap = v;
-    changed();
-  }, 0, 2)));
-  // wall units and floating vanities hang off the floor
   wrap.appendChild(row(T("elev"), numInput(sp().elev || 0, function (v) {
     sp().elev = v;
     changed(true);
   }, 0, 250)));
+  wrap.appendChild(el("div", "cb-note", T("techHint")));
+  wrap.appendChild(btn(T("levelTechnical"), function () { setLevel("technical"); }, "cb-more"));
 }
 
 /* --- drawing partitions ---
@@ -3079,6 +3193,7 @@ function fillLook() {
     var fit = frontFit(k, ffc),
       cur = s.front === k,
       b = btn("<span>" + frontLabel(k) + "</span>", function () {
+        act(T("opLook"));
         s.front = k;
         changed();
       }, "cb-type" + (cur ? " on" : "") + (fit.ok ? "" : " cb-off"));
@@ -3095,6 +3210,7 @@ function fillLook() {
       strip = el("div", "cb-swatches");
     Object.keys(FINISH).forEach(function (k) {
       strip.appendChild(swatch(k, s[row2[0]], function (v) {
+        act(T("opLook"));
         s[row2[0]] = v;
         changed();
       }));
@@ -3161,18 +3277,28 @@ function fillTechnical() {
   if (!wrap || !sp()) return;
   wrap.innerHTML = "";
   var s = sp();
-  wrap.appendChild(el("div", "cb-note", isEn()
-    ? "Manufacturing values drive the same cabinet model, cut list and quote."
-    : "ערכי הייצור מניעים את אותו מודל, כתב כמויות ותמחור."));
+  wrap.appendChild(el("div", "cb-note", T("techHint")));
   wrap.appendChild(row(T("panel"), numInput(s.panel, function (v) {
     act(T("panel")); s.panel = v; changed(true);
   }, 0.8, 4)));
-  wrap.appendChild(row(isEn() ? "Shelf board" : "עובי מדף", numInput(s.shelf || s.panel, function (v) {
-    act(isEn() ? "Shelf board" : "עובי מדף"); s.shelf = v; changed(true);
+  wrap.appendChild(row(T("shelfBoard"), numInput(s.shelf || s.panel, function (v) {
+    act(T("shelfBoard")); s.shelf = v; changed(true);
   }, 0.8, 4)));
   wrap.appendChild(row(T("back"), numInput(s.back, function (v) {
     act(T("back")); s.back = v; changed(true);
   }, 0.3, 3)));
+  wrap.appendChild(row(T("plinthType"), select([
+    ["recessed", T("plinthRecessed")],
+    ["flush", T("plinthFlush")],
+    ["legs", T("plinthLegs")],
+    ["none", T("plinthNone")],
+  ], s.plinthType || "none", function (v) {
+    s.plinthType = v;
+    if (v === "none") s.plinth = 0;
+    else if (!s.plinth) s.plinth = (FAM[s.fam] || FAM.wardrobe).plinth || 8;
+    act(T("plinthType"));
+    changed(true);
+  })));
   wrap.appendChild(row(T("plinth"), numInput(s.plinth || 0, function (v) {
     act(T("plinth")); s.plinth = v; s.plinthType = v > 0 ? (s.plinthType === "none" ? "recessed" : s.plinthType) : "none"; changed(true);
   }, 0, 30)));
@@ -3331,6 +3457,7 @@ function fillHardware() {
     wrap.appendChild(row(label, select(Object.keys(HW[group]).map(function (k) {
       return [k, hwLabel(group, k)];
     }), hw[key], function (v) {
+      act(T("opHw") + " · " + label);
       hw[key] = v;
       changed();
     })));
@@ -3342,16 +3469,13 @@ function fillHardware() {
   pick("rail", "rail", T("rail"));
   var cbs = el("div", "cb-btnrow cb-wrap");
   cbs.appendChild(checkbox(T("led"), hw.led, function (v) {
-    hw.led = v;
-    changed();
+    act(T("opHw")); hw.led = v; changed();
   }));
   cbs.appendChild(checkbox(T("mirrorIn"), hw.mirrorInside, function (v) {
-    hw.mirrorInside = v;
-    changed();
+    act(T("opHw")); hw.mirrorInside = v; changed();
   }));
   cbs.appendChild(checkbox(T("lock"), hw.lock, function (v) {
-    hw.lock = v;
-    changed();
+    act(T("opHw")); hw.lock = v; changed();
   }));
   wrap.appendChild(cbs);
 }
@@ -3407,6 +3531,10 @@ function fillBOM() {
 /* The elevation as a shop drawing: white background, a title block with the
    sizes and the finish, and the same drawing the designer shows. */
 function exportPNG() {
+  var restoreMode = E.mode, restoreAxis = E.axis;
+  if (restoreMode === "3d" || restoreAxis !== "front") setAxis("front");
+  sizeCanvas();
+  draw();
   var src = E.cv,
     pad = 26,
     head = 54,
@@ -3438,6 +3566,9 @@ function exportPNG() {
   a.href = out.toDataURL("image/png");
   a.download = "cabinet-elevation.png";
   a.click();
+  E.axis = restoreAxis;
+  if (restoreMode === "3d") setMode("3d");
+  else if (restoreAxis !== "front") setAxis(restoreAxis);
 }
 
 /* The cut list as a workshop would want it: millimetres, the sheet each part
