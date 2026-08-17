@@ -18,6 +18,7 @@ import {
   jointInfo,
   wallDimSide,
   pendingCuts,
+  roomsTopologyKey,
 } from "./geometry.js";
 import { ensureWallTypes, normalizeWall, wallLayerBands } from "./wall_types.js";
 import { normalizeWallKind, curvedWallOutline, pointAtWall, tangentAtWall, makeArcFromThreePoints } from "./wall_curves.js";
@@ -36,7 +37,7 @@ import {
   openingById, openingPos,
 } from "./wall_constraints.js";
 import {
-  sx, sz, planRotRad, toBasePx, rotatePx, niceScaleCm,
+  sx, sz, planRotRad, toBasePx, rotatePx, unrotatePx, niceScaleCm,
 } from "./plan_view.js";
 
 export {
@@ -246,6 +247,11 @@ export function updatePlanGizmo() {
     n.circle.setAttribute("stroke-width", active ? 2.4 : 1.6);
     if (n.text) n.text.style.fill = active ? "#fff" : n.col;
   });
+  /* Load, reset, and axis clicks all land here, so the plan-only wall tools
+     disable as soon as the view is an elevation — not only after a later
+     toolbar click. */
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new CustomEvent("plan:view-axis"));
 }
 
 // apply / remove the view-rotation canvas transform around the canvas centre
@@ -364,40 +370,9 @@ export function render2D() {
     pc.stroke();
   }
   drawReferenceFloor();
-  // room floors
-  var rooms = detectRooms();
-  var hid = hiddenSets(rooms);
-  rooms.forEach(function (r) {
-    pc.beginPath();
-    r.pts.forEach(function (p, i) {
-      var X = sx(p.x),
-        Y = sz(p.z);
-      if (i) pc.lineTo(X, Y);
-      else pc.moveTo(X, Y);
-    });
-    pc.closePath();
-    // A hidden room keeps a faint dashed outline: it is still selectable here,
-    // which is how you get to it to bring it back.
-    if (roomHidden(r.key)) {
-      pc.fillStyle = "rgba(150,146,138,.10)";
-      pc.fill();
-      pc.strokeStyle = "#9a9289";
-      pc.lineWidth = 1;
-      pc.setLineDash([4, 4]);
-      pc.stroke();
-      pc.setLineDash([]);
-    } else {
-      pc.fillStyle = FILL2D[roomFloor(r.key)] || "#efe7d6";
-      pc.fill();
-    }
-    if (S.sel && S.sel.kind === "room" && S.sel.ref === r.key) {
-      pc.strokeStyle = "#3f6b78";
-      pc.lineWidth = 2.5;
-      pc.setLineDash([8, 5]);
-      pc.stroke();
-      pc.setLineDash([]);
-    }
-  });
+  var roomPass = drawCachedRooms();
+  var rooms = roomPass.rooms,
+    hid = roomPass.hid;
   // items: rugs/island first, lamps on top
   var order = S.items
     .filter(function (it) {
@@ -1327,6 +1302,91 @@ function wallBandPolygon(w, from, to) {
     b.push({ x: p.x + nx * to, z: p.z + nz * to });
   }
   return a.concat(b.reverse());
+}
+
+/* Room fills are identical across MEP-flow and warning-pulse frames: the
+   topology and the view transform have not moved. Paint them onto an offscreen
+   layer keyed by that state and blit it, so an idle animated overlay does not
+   re-tessellate every enclosure sixty times a second. */
+var roomLayer = { key: "", canvas: null, rooms: null, hid: null };
+function paintRooms(ctx, rooms) {
+  rooms.forEach(function (r) {
+    ctx.beginPath();
+    r.pts.forEach(function (p, i) {
+      var X = sx(p.x),
+        Y = sz(p.z);
+      if (i) ctx.lineTo(X, Y);
+      else ctx.moveTo(X, Y);
+    });
+    ctx.closePath();
+    if (roomHidden(r.key)) {
+      ctx.fillStyle = "rgba(150,146,138,.10)";
+      ctx.fill();
+      ctx.strokeStyle = "#9a9289";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      ctx.fillStyle = FILL2D[roomFloor(r.key)] || "#efe7d6";
+      ctx.fill();
+    }
+    if (S.sel && S.sel.kind === "room" && S.sel.ref === r.key) {
+      ctx.strokeStyle = "#3f6b78";
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([8, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  });
+}
+function drawCachedRooms() {
+  var rooms = detectRooms();
+  var hid = hiddenSets(rooms);
+  var key =
+    roomsTopologyKey() +
+    "|" +
+    S.OX +
+    "," +
+    S.OY +
+    "," +
+    S.SC +
+    "," +
+    S.CW +
+    "," +
+    S.CH +
+    "|" +
+    (S.sel && S.sel.kind === "room" ? S.sel.ref : "") +
+    "|" +
+    rooms
+      .map(function (r) {
+        return r.key + (roomHidden(r.key) ? "h" : "") + (roomFloor(r.key) || "");
+      })
+      .join(";");
+  if (
+    roomLayer.key === key &&
+    roomLayer.canvas &&
+    roomLayer.canvas.width === S.CW &&
+    roomLayer.canvas.height === S.CH
+  ) {
+    pc.drawImage(roomLayer.canvas, 0, 0);
+    return { rooms: roomLayer.rooms, hid: roomLayer.hid };
+  }
+  if (typeof document === "undefined") {
+    paintRooms(pc, rooms);
+    return { rooms: rooms, hid: hid };
+  }
+  var c = roomLayer.canvas || document.createElement("canvas");
+  if (c.width !== S.CW || c.height !== S.CH) {
+    c.width = Math.max(1, S.CW || 1);
+    c.height = Math.max(1, S.CH || 1);
+  }
+  var ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, c.width, c.height);
+  paintRooms(ctx, rooms);
+  roomLayer = { key: key, canvas: c, rooms: rooms, hid: hid };
+  pc.drawImage(c, 0, 0);
+  return { rooms: rooms, hid: hid };
 }
 
 function drawReferenceFloor() {
@@ -2541,6 +2601,7 @@ function drawWallCons() {
      the early return left a deleted dimension's old label clickable until
      some other constraint happened to be drawn. */
   conHits = [];
+  conLabelOcc = [];
   if (!list.length) return;
   pc.save();
   pc.lineWidth = 1.2;
@@ -2558,6 +2619,7 @@ function drawWallCons() {
        row is selected or hovered. */
     if (c.off && !hot) return;
     conForLabel = c;
+    conHot = hot;
     /* Three states, three colours. A reference dimension is drawn in the
        muted grey every CAD uses for one, because a value that does NOT drive
        the drawing must never look like a value that does — that is the whole
@@ -2631,12 +2693,17 @@ function drawWallCons() {
          clicking there has to keep selecting the corner, which is the far more
          common intent. The pin therefore carries a small tag offset clear of
          the corner's own grab radius, and THAT is what selects the pin. What
-         you click is what you can see. */
+         you click is what you can see. Drawn upright against plan rotation so
+         the tag stays a square, not a diamond. */
+      var aFix = planRotRad();
+      pc.save();
+      if (aFix) { pc.translate(fx, fy); pc.rotate(-aFix); pc.translate(-fx, -fy); }
       pc.beginPath();
       pc.rect(fx + 7, fy - 15, 8, 8);
       pc.fill();
-      var tag = rotatePx(fx + 11, fy - 11);
-      conHits.push({ con: c, x: tag.x, y: tag.y, w: 10 });
+      pc.restore();
+      var corner = rotatePx(fx, fy);
+      conHits.push({ con: c, x: corner.x + 11, y: corner.y - 11, w: 10 });
       return;
     }
 
@@ -2929,21 +2996,62 @@ export function pickCon(sxp, syp) {
 }
 // the constraint currently being drawn, so conLabel can tag its hit box
 var conForLabel = null;
+var conHot = false;
+var conLabelOcc = [];
+const RELATION_CONS = {
+  parallel: 1, perpendicular: 1, collinear: 1, equalLength: 1, equalLengthSet: 1,
+  horizontal: 1, vertical: 1, coincident: 1, symmetric: 1, midpoint: 1,
+  pointOnLine: 1, equalSpacing: 1, openAlign: 1, openSpacing: 1, openCentre: 1,
+};
+
+function conLabelOverlaps(x, y, w) {
+  var pad = 3, h = 16;
+  for (var i = 0; i < conLabelOcc.length; i++) {
+    var p = conLabelOcc[i];
+    if (Math.abs(x - p.x) < (w + p.w) / 2 + pad && Math.abs(y - p.y) < h + pad)
+      return true;
+  }
+  return false;
+}
 
 // a boxed number on the plan — plain text over a wall hatch is unreadable
 function conLabel(wxc, wzc, txt, col, dy) {
-  var x = sx(wxc),
-    y = sz(wzc) + (dy || 0),
-    a = planRotRad();
+  var scr = rotatePx(sx(wxc), sz(wzc));
+  scr.y += dy || 0;
   pc.save();
-  if (a) { pc.translate(x, y); pc.rotate(-a); pc.translate(-x, -y); }
   pc.font = "600 11px system-ui, sans-serif";
   pc.textAlign = "center";
   pc.textBaseline = "middle";
   var wpx = pc.measureText(String(txt)).width + 10;
+  var relation = !!(conForLabel && RELATION_CONS[conForLabel.type]);
+  var offsets = [0, -18, 18, -34, 34, -50, 50],
+    placed = false,
+    oy = 0,
+    i;
+  for (i = 0; i < offsets.length; i++) {
+    oy = offsets[i];
+    if (!conLabelOverlaps(scr.x, scr.y + oy, wpx)) {
+      placed = true;
+      break;
+    }
+  }
+  /* Relation glyphs (∥ ⊥ =L …) that would still sit on a number are hidden
+     unless the constraint is hovered or selected — otherwise a dense plan
+     becomes an unpickable stack of identical boxes. Driving dimensions always
+     stay, even if they have to share a slot. */
+  if (!placed && relation && !conHot) {
+    pc.restore();
+    return;
+  }
+  scr.y += oy;
+  var base = unrotatePx(scr.x, scr.y),
+    x = base.x,
+    y = base.y,
+    a = planRotRad();
+  if (a) { pc.translate(x, y); pc.rotate(-a); pc.translate(-x, -y); }
   if (conForLabel) {
-    var hit = rotatePx(x, y);
-    conHits.push({ con: conForLabel, x: hit.x, y: hit.y, w: wpx });
+    conHits.push({ con: conForLabel, x: scr.x, y: scr.y, w: wpx });
+    conLabelOcc.push({ x: scr.x, y: scr.y, w: wpx });
   }
   pc.setLineDash([]);
   pc.fillStyle = "rgba(255,255,255,.9)";

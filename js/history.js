@@ -455,6 +455,8 @@ const DRAG_LABEL = {
   opening: "h_moveOpening",
   marker: "h_movePoint",
   markerElev: "h_pointElev",
+  itemElev: "h_move",
+  openingElev: "h_moveOpening",
   mep: "h_moveMEP",
 };
 export function commitPending(label) {

@@ -2,11 +2,12 @@
 // existing top-down floor plan; the four side views (front/back/left/right)
 // project the model onto a vertical plane and draw it as a flat 2D elevation —
 // walls (with door/window openings), furniture silhouettes, and a ground line.
-// Elevations are select-only (click a wall/item to inspect it); editing stays in
-// the plan and 3D views.
+// Elevations are select-only for wall drawing; items, openings and placeholder
+// points can be placed and dragged in the view's two visible axes (u + height).
 import { S, WALL_H } from "./state.js";
 import {
   wallGeom,
+  wallById,
   wallPointAt,
   wallTangentAt,
   hiddenSets,
@@ -539,6 +540,11 @@ function drawOpeningElev(pc, view, w, o, r) {
     pc.moveTo(x0, (yTop + yBot) / 2); pc.lineTo(x1, (yTop + yBot) / 2);
     pc.stroke();
   }
+  if (S.sel && S.sel.kind === "opening" && S.sel.ref === o) {
+    pc.strokeStyle = "#3f6b78";
+    pc.lineWidth = 2.4;
+    pc.strokeRect(X(minU), Y(maxV), X(maxU) - X(minU), Y(minV) - Y(maxV));
+  }
 }
 
 function drawWallElev(pc, view, w) {
@@ -607,7 +613,7 @@ function openingContains(w, s, y) {
 // Return the nearest physical branch of a projected wall at (u,v).  A major
 // arc can cross the same elevation u more than once, so a global bounding box
 // is not a hit test; each sampled branch competes by actual projected depth.
-function wallElevationIntersection(view, w, u, v) {
+function wallElevationIntersection(view, w, u, v, opts) {
   if (normalizeWallKind(w) === "roomDivider") return null;
   var r = wallURange(view, w), best = null;
   for (var i = 1; i < r.samples.length; i++) {
@@ -619,7 +625,8 @@ function wallElevationIntersection(view, w, u, v) {
     at = Math.max(0, Math.min(1, at));
     var s = a.s + (b.s - a.s) * at;
     var span = wallVerticalAt(w, s, r.g.L);
-    if (v < span.bottom - 1e-6 || v > span.top + 1e-6 || openingContains(w, s, v)) continue;
+    if (v < span.bottom - 1e-6 || v > span.top + 1e-6) continue;
+    if (!(opts && opts.throughOpenings) && openingContains(w, s, v)) continue;
     var p = wallPointAt(w, s) || {
       x: a.x + (b.x - a.x) * at,
       z: a.z + (b.z - a.z) * at,
@@ -794,6 +801,135 @@ export function elevNudge(m, du, dv) {
   return { x: p.x, y: Math.max(0, (m.y || 0) + dv), z: p.z };
 }
 
+function elevPointerUV(px, py) {
+  return {
+    u: (px - TF.ox) / TF.sc,
+    v: (TF.y0 - py) / TF.sc,
+  };
+}
+
+export function elevWallAt(px, py, throughOpenings) {
+  var view = S.viewAxis,
+    vis = shown(),
+    uv = elevPointerUV(px, py);
+  if (!isFinite(uv.u) || !isFinite(uv.v)) return null;
+  var best = null, bwd = -Infinity;
+  vis.walls.forEach(function (w) {
+    var hit = wallElevationIntersection(view, w, uv.u, uv.v, {
+      throughOpenings: throughOpenings,
+    });
+    if (hit && hit.depth > bwd) {
+      bwd = hit.depth;
+      best = hit;
+    }
+  });
+  if (best) best.v = uv.v;
+  return best;
+}
+
+export function elevationHitOpening(px, py) {
+  var view = S.viewAxis,
+    vis = shown(),
+    uv = elevPointerUV(px, py);
+  if (!isFinite(uv.u) || !isFinite(uv.v)) return null;
+  var best = null, bwd = -Infinity;
+  vis.walls.forEach(function (w) {
+    var g = wallGeom(w);
+    S.openings.forEach(function (o) {
+      if (o.wall !== w.id) return;
+      var sill = Math.max(0, finiteNumber(o.sill, 0)),
+        head = sill + Math.max(0, finiteNumber(o.height, 0));
+      if (uv.v < sill - 1 || uv.v > head + 1) return;
+      var samples = openingSamples(view, w, o, g);
+      if (samples.length < 2) return;
+      var lo = Infinity, hi = -Infinity, depth = -Infinity;
+      samples.forEach(function (sample) {
+        lo = Math.min(lo, sample.lo, sample.hi);
+        hi = Math.max(hi, sample.lo, sample.hi);
+        depth = Math.max(depth, sample.depth);
+      });
+      if (uv.u >= lo && uv.u <= hi && depth > bwd) {
+        bwd = depth;
+        best = o;
+      }
+    });
+  });
+  return best;
+}
+
+export function elevItemGrab(it, px, py) {
+  var view = S.viewAxis,
+    uv = elevPointerUV(px, py),
+    span = itemVSpan(it);
+  return {
+    du: uv.u - projU(view, it.x, it.z),
+    vRel: uv.v - span.lo,
+  };
+}
+
+export function elevDragItemTo(it, px, py, grab) {
+  var view = S.viewAxis,
+    uv = elevPointerUV(px, py);
+  if (!isFinite(uv.u) || !isFinite(uv.v) || !it) return null;
+  var u = uv.u - (grab && grab.du ? grab.du : 0);
+  var v = uv.v - (grab && grab.vRel != null ? grab.vRel : 0);
+  var p = unproj(view, u, projDepth(view, it.x, it.z));
+  it.x = p.x;
+  it.z = p.z;
+  it.elev = Math.max(0, Math.round(v));
+  return { x: it.x, z: it.z, elev: it.elev };
+}
+
+export function elevNudgeItem(it, du, dv) {
+  var view = S.viewAxis,
+    span = itemVSpan(it),
+    p = unproj(view, projU(view, it.x, it.z) + du, projDepth(view, it.x, it.z));
+  it.x = p.x;
+  it.z = p.z;
+  it.elev = Math.max(0, Math.round(span.lo + dv));
+}
+
+export function elevOpeningGrab(o, px, py) {
+  var view = S.viewAxis,
+    w = wallById(o.wall),
+    uv = elevPointerUV(px, py);
+  var p = w && wallPointAt(w, o.s);
+  var u0 = p ? projU(view, p.x, p.z) : uv.u;
+  return { du: uv.u - u0, vRel: uv.v - (o.sill || 0) };
+}
+
+export function elevDragOpeningTo(o, px, py, grab) {
+  var w = wallById(o.wall);
+  if (!w || !o) return null;
+  var uv = elevPointerUV(px, py);
+  var u = uv.u - (grab && grab.du ? grab.du : 0);
+  var v = uv.v - (grab && grab.vRel != null ? grab.vRel : 0);
+  var hit = wallElevationIntersection(S.viewAxis, w, u, v, { throughOpenings: true });
+  var g = wallGeom(w);
+  var s = hit ? hit.s : o.s;
+  var half = Math.max(0, o.width || 0) / 2;
+  o.s = Math.max(half, Math.min(Math.max(half, g.L - half), s));
+  var maxSill = Math.max(0, (w.height || WALL_H) - (o.height || 0));
+  o.sill = Math.max(0, Math.min(maxSill, Math.round(v)));
+  return o;
+}
+
+export function elevNudgeOpening(o, du, dv) {
+  var w = wallById(o.wall);
+  if (!w) return;
+  var view = S.viewAxis,
+    p = wallPointAt(w, o.s),
+    u = (p ? projU(view, p.x, p.z) : 0) + du;
+  var hit = wallElevationIntersection(view, w, u, (o.sill || 0) + (o.height || 0) / 2, {
+    throughOpenings: true,
+  });
+  var g = wallGeom(w),
+    half = Math.max(0, o.width || 0) / 2;
+  if (hit) o.s = Math.max(half, Math.min(Math.max(half, g.L - half), hit.s));
+  var maxSill = Math.max(0, (w.height || WALL_H) - (o.height || 0));
+  o.sill = Math.max(0, Math.min(maxSill, Math.round((o.sill || 0) + dv)));
+}
+
 // hit-test a screen pixel in the current elevation → {kind, ref} or null.
 // Nearest-to-viewer wins; items take priority over walls.
 export function elevationHit(px, py) {
@@ -801,6 +937,8 @@ export function elevationHit(px, py) {
     vis = shown();
   var mk = elevationHitMarker(px, py);
   if (mk) return { kind: "marker", ref: mk };
+  var opening = elevationHitOpening(px, py);
+  if (opening) return { kind: "opening", ref: opening };
   var u = (px - TF.ox) / TF.sc, v = (TF.y0 - py) / TF.sc;
   var best = null, bestDepth = -Infinity;
   vis.items.forEach(function (it) {

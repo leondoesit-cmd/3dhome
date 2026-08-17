@@ -64,6 +64,7 @@ var STR = {
     tool_passage: "מעבר",
     tool_point: "נקודת סימון (מדידה)",
     tool_lock: "נעילת קירות/חדרים (L) — מונע גרירה בטעות",
+    tool_plan_only: "ציור קירות זמין רק בתצוגת התוכנית",
 
     /* CAD status bar + typed length/angle entry (js/cad_hud.js) */
     cad_osnap: "הצמדה",
@@ -1309,6 +1310,7 @@ var STR = {
     tool_passage: "Passage",
     tool_point: "Reference point (measured spot)",
     tool_lock: "Lock walls/rooms (L) — blocks accidental dragging",
+    tool_plan_only: "Wall drawing is only available in the plan view",
 
     /* CAD status bar + typed length/angle entry (js/cad_hud.js) */
     cad_osnap: "OSNAP",

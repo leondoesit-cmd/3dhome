@@ -45,7 +45,11 @@ import {
   ensureMEP, snapMEPPoint, routeResolve, wallPath, addNode, hitMEP, nodePos,
   finishRoute, cancelMEP, cancelRoute, deleteMEP, detachNodesFromWalls, runCrossesOpening,
 } from "./mep.js";
-import { isElevation, elevationHit, elevPick, elevDragTo, elevNudge } from "./elevation.js";
+import {
+  isElevation, elevationHit, elevPick, elevDragTo, elevNudge,
+  elevWallAt, elevItemGrab, elevDragItemTo, elevNudgeItem,
+  elevOpeningGrab, elevDragOpeningTo, elevNudgeOpening,
+} from "./elevation.js";
 import {
   findSupport,
   attach as stackAttach,
@@ -403,6 +407,10 @@ function planPickSurface(p, cx, cz) {
 
 /* ---- tools ---- */
 export function setTool(t) {
+  if (isElevation() && (t === "wall" || t === "arcwall")) {
+    flash(t("tool_plan_only"));
+    t = "select";
+  }
   S.tool = t;
   if (S.conHover != null) setConstraintHover(null);
   S.freshWall = null; // picking any tool ends the just-drawn run
@@ -420,6 +428,25 @@ export function setTool(t) {
   plan.style.cursor = t === "select" ? "default" : "crosshair";
   if (t !== "point") S.snapInfo = null;
   updateCadHud();
+  syncElevationTools();
+}
+
+export function syncElevationTools() {
+  var elev = isElevation();
+  if (elev && (S.tool === "wall" || S.tool === "arcwall")) {
+    S.tool = "select";
+    if (plan) plan.style.cursor = "default";
+  }
+  if (typeof document === "undefined") return;
+  document.querySelectorAll(".tool[data-tool]").forEach(function (b) {
+    var tool = b.getAttribute("data-tool");
+    var blocked = elev && (tool === "wall" || tool === "arcwall");
+    b.disabled = !!blocked;
+    b.classList.toggle("elev-blocked", blocked);
+    b.classList.toggle("active", b.getAttribute("data-tool") === S.tool);
+    if (blocked) b.title = t("tool_plan_only");
+    else if (b.getAttribute("data-i18n-title")) b.title = t(b.getAttribute("data-i18n-title"));
+  });
 }
 
 /* ---- MEP tool helpers ---- */
@@ -2530,12 +2557,13 @@ export function initInteraction() {
     var ox = e.clientX - r.left;
     var oy = e.clientY - r.top;
 
-    /* Elevation views are select-only for structure — EXCEPT placeholder
-       points, which are the one thing you specifically want to place from the
-       side: "that spot, on that wall, at that height" is not expressible from
-       above. So the point tool works here, and an existing point can be
-       selected and dragged in the view's two editable axes. */
+    /* Elevation views: wall drawing stays in the plan, but items, openings and
+       placeholder points are edited in the two axes the elevation can see
+       (along the facade, and height). */
     if (isElevation()) {
+      if (S.tool === "wall" || S.tool === "arcwall") {
+        setTool("select");
+      }
       if (S.tool === "point") {
         if (e.button === 2) { setTool("select"); render2D(); return; }
         var ep = elevPick(ox, oy);
@@ -2549,11 +2577,53 @@ export function initInteraction() {
         refreshTree();
         return;
       }
+      if (S.tool === "door" || S.tool === "window" || S.tool === "passage") {
+        var ewh = elevWallAt(ox, oy, true);
+        if (!ewh) return;
+        pushHistory();
+        var edefs = {
+          door: { width: 90, height: 205, sill: 0 },
+          window: { width: 120, height: 120, sill: 90 },
+          passage: { width: 120, height: 210, sill: 0 },
+        };
+        var edd = edefs[S.tool],
+          egm = wallGeom(ewh.w),
+          o = {
+            id: uid(),
+            type: S.tool,
+            wall: ewh.w.id,
+            s: ewh.s,
+            width: edd.width,
+            height: edd.height,
+            sill: edd.sill,
+          };
+        if (S.tool === "window" && isFinite(ewh.v))
+          o.sill = Math.max(0, Math.round(ewh.v - edd.height / 2));
+        o.s = clamp(o.s, o.width / 2, Math.max(o.width / 2, egm.L - o.width / 2));
+        var maxSill = Math.max(0, (ewh.w.height || WALL_H) - o.height);
+        o.sill = clamp(o.sill, 0, maxSill);
+        S.openings.push(o);
+        select({ kind: "opening", ref: o });
+        setTool("select");
+        S.dirty3D = true;
+        render2D();
+        return;
+      }
       var eh = elevationHit(ox, oy);
       select(eh || null);
-      if (eh && eh.kind === "marker" && e.button !== 2) {
-        S.action = "markerElev";
-        beginHistory();
+      if (eh && e.button !== 2) {
+        if (eh.kind === "marker") {
+          S.action = "markerElev";
+          beginHistory();
+        } else if (eh.kind === "item" && !eh.ref.locked) {
+          S.action = "itemElev";
+          S.elevGrab = elevItemGrab(eh.ref, ox, oy);
+          beginHistory();
+        } else if (eh.kind === "opening") {
+          S.action = "openingElev";
+          S.elevGrab = elevOpeningGrab(eh.ref, ox, oy);
+          beginHistory();
+        }
       }
       render2D();
       return;
@@ -3068,8 +3138,7 @@ export function initInteraction() {
 
   var planMove = function (e) {
     if (isElevation()) {
-      // the only two live things in an elevation: the point tool's ghost, and
-      // dragging an existing point in this view's editable axes
+      // items, openings and points are live in the two elevation axes
       if (S.action === "markerElev" && S.sel && S.sel.kind === "marker") {
         commitPending();
         var dp = elevDragTo(S.sel.ref, e.offsetX, e.offsetY);
@@ -3078,6 +3147,22 @@ export function initInteraction() {
           touchItem3D(markerItem(S.sel.ref), "move");
           render2D();
         }
+        return;
+      }
+      if (S.action === "itemElev" && S.sel && S.sel.kind === "item") {
+        commitPending();
+        if (S.sel.ref.on != null) stackDetach(S.sel.ref);
+        elevDragItemTo(S.sel.ref, e.offsetX, e.offsetY, S.elevGrab);
+        touchItem3D(S.sel.ref, "move");
+        S.dirty3D = true;
+        render2D();
+        return;
+      }
+      if (S.action === "openingElev" && S.sel && S.sel.kind === "opening") {
+        commitPending();
+        elevDragOpeningTo(S.sel.ref, e.offsetX, e.offsetY, S.elevGrab);
+        S.dirty3D = true;
+        render2D();
         return;
       }
       if (S.tool === "point") {
@@ -3658,15 +3743,14 @@ export function initInteraction() {
       flash(t("f_jointReleased", { n: S.jointsReleased }));
       S.jointsReleased = 0;
     }
-    if (S.action === "marker" || S.action === "markerElev") fillProps(); // clearance readout
+    if (S.action === "marker" || S.action === "markerElev" ||
+        S.action === "itemElev" || S.action === "openingElev") fillProps();
     if (S.action === "item" || S.action === "room" || S.action === "node" ||
-        S.action === "wall" || S.action === "marker" || S.action === "markerElev")
+        S.action === "wall" || S.action === "marker" || S.action === "markerElev" ||
+        S.action === "itemElev" || S.action === "openingElev")
       refreshTree();
-    // The drag itself only re-transformed the pieces it moved (see the item and
-    // marker branches of pointermove). Everything derived from the content
-    // bounds — ground plane, sun shadow frustum, site overlay — is resynced
-    // once here, instead of on every frame of the drag.
-    if (S.action === "item" || S.action === "marker" || S.action === "markerElev")
+    if (S.action === "item" || S.action === "marker" || S.action === "markerElev" ||
+        S.action === "itemElev" || S.action === "openingElev")
       S.dirty3D = true;
     // drafting guides belong to the drag that produced them — corner and point
     // drags both go through snapPoint — so they end with it. Only those two:
@@ -3681,6 +3765,7 @@ export function initInteraction() {
       S.wallAngleGuide.until = Date.now() + 900;
     else S.wallAngleGuide = null;
     S.mepDrag = null;
+    S.elevGrab = null;
     var hadGuides = dragUsedSnap && S.snapGuides && S.snapGuides.length;
     if (hadGuides) S.snapGuides = [];
     // the "you are dropping onto THIS" highlight belongs to the drag as well
@@ -3693,6 +3778,8 @@ export function initInteraction() {
   }
   plan.addEventListener("pointerup", endAction);
   plan.addEventListener("pointercancel", endAction);
+  if (typeof window !== "undefined")
+    window.addEventListener("plan:view-axis", syncElevationTools);
   plan.addEventListener("pointerleave", function () {
     // a captured drag keeps scrolling past the border; the wall/route tools are
     // between clicks with no capture, so losing the cursor must stop the scroll
@@ -3835,6 +3922,15 @@ export function initInteraction() {
       var st = e.shiftKey ? 10 : 2,
         it = S.sel.kind === "item" ? S.sel.ref : null;
       if (it && it.locked) return;
+      if (isElevation() && it) {
+        var dUe = e.key === "ArrowLeft" ? -st : e.key === "ArrowRight" ? st : 0,
+          dVe = e.key === "ArrowUp" ? st : e.key === "ArrowDown" ? -st : 0;
+        elevNudgeItem(it, dUe, dVe);
+        S.dirty3D = true;
+        fillProps();
+        render2D();
+        return;
+      }
       var ndx = e.key === "ArrowLeft" ? -st : e.key === "ArrowRight" ? st : 0,
         ndz = e.key === "ArrowUp" ? -st : e.key === "ArrowDown" ? st : 0;
       var nudged = it ? [it] : S.sel.refs;
@@ -3847,6 +3943,23 @@ export function initInteraction() {
       nudged.forEach(refreshSupport);
       // nudged off its placeholder point -> that point is free again
       nudged.forEach(releaseIfMoved);
+      S.dirty3D = true;
+      fillProps();
+      render2D();
+    } else if (
+      e.key.indexOf("Arrow") === 0 &&
+      isElevation() &&
+      S.sel &&
+      S.sel.kind === "opening"
+    ) {
+      e.preventDefault();
+      var nowO = Date.now();
+      if (!nudgeT || nowO - nudgeT > 800) pushHistory();
+      nudgeT = nowO;
+      var stO = e.shiftKey ? 10 : 2,
+        dUo = e.key === "ArrowLeft" ? -stO : e.key === "ArrowRight" ? stO : 0,
+        dVo = e.key === "ArrowUp" ? stO : e.key === "ArrowDown" ? -stO : 0;
+      elevNudgeOpening(S.sel.ref, dUo, dVo);
       S.dirty3D = true;
       fillProps();
       render2D();

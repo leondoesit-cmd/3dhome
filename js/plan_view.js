@@ -55,9 +55,13 @@ export function centerOn(x, z) {
 }
 export function isOnScreen(x, z, margin) {
   var m = margin == null ? 60 : margin;
-  var px = sx(x),
-    py = sz(z);
-  return px > m && py > m && px < S.CW - m && py < S.CH - m;
+  if (!(S.SC > 0) || !(S.CW > 0) || !(S.CH > 0)) return false;
+  /* sx/sz are in the unrotated base frame. The plan rotation is applied around
+     the canvas centre, so a point that is "inside" that AABB can sit off the
+     visible pane after a 90° view — and the warning list would then refuse to
+     centre on it. Test the pixel the user actually sees. */
+  var scr = rotatePx(sx(x), sz(z));
+  return scr.x > m && scr.y > m && scr.x < S.CW - m && scr.y < S.CH - m;
 }
 
 /* Where a newly created room/item should land, in world cm.

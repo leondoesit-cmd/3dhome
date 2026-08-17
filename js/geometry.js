@@ -12,13 +12,34 @@ var roomCycleCache = { sig: "", rooms: [] };
 var contentBoundsCache = { sig: "", value: null };
 
 function topologySignature() {
-  var out = S.nodes.length + "|" + S.walls.length;
-  S.nodes.forEach(function (n) { out += ";" + n.x + "," + n.z; });
-  S.walls.forEach(function (w) {
-    out += ";" + w.id + "," + w.a + "," + w.b + "," + w.height + "," +
-      JSON.stringify(w.geometry || w.curve || null) + "," + (w.kind || "normal");
-  });
-  return out;
+  var n = S.nodes,
+    w = S.walls,
+    parts = [n.length, "|", w.length],
+    i,
+    node,
+    wall;
+  for (i = 0; i < n.length; i++) {
+    node = n[i];
+    parts.push(";", (node.x * 100 + 0.5) | 0, ",", (node.z * 100 + 0.5) | 0);
+  }
+  for (i = 0; i < w.length; i++) {
+    wall = w[i];
+    parts.push(
+      ";",
+      wall.id,
+      ",",
+      wall.a,
+      ",",
+      wall.b,
+      ",",
+      wall.height,
+      ",",
+      wall.kind || "normal",
+    );
+    if (wall.geometry || wall.curve)
+      parts.push(",", JSON.stringify(wall.geometry || wall.curve));
+  }
+  return parts.join("");
 }
 
 function boundsSignature() {
@@ -913,7 +934,10 @@ export function contentBounds() {
    reconciliation, new-enclosure detection). Everything user-facing wants
    detectRooms() below. */
 export function detectRoomCycles() {
-  if (!S.walls.length) return [];
+  if (!S.walls.length) {
+    roomCycleCache = { sig: "empty", rooms: [] };
+    return roomCycleCache.rooms;
+  }
   var signature = topologySignature();
   if (roomCycleCache.sig === signature) return roomCycleCache.rooms;
   var he = [];
@@ -1032,12 +1056,32 @@ export function detectRoomCycles() {
    auto-arrange all read through detectRooms(), so declining one place removes
    it everywhere without touching any of them. */
 export function roomDeclined(key) {
-  return !!(S.roomMeta[key] && S.roomMeta[key].noRoom);
+  var meta = S.roomMeta;
+  return !!(meta && meta[key] && meta[key].noRoom);
 }
+var roomListCache = { sig: "", declined: "", rooms: [] };
+
+export function roomsTopologyKey() {
+  if (!S.walls.length) return "empty";
+  detectRoomCycles();
+  return roomCycleCache.sig;
+}
+
 export function detectRooms() {
-  return detectRoomCycles().filter(function (r) {
-    return !roomDeclined(r.key);
-  });
+  var cycles = detectRoomCycles();
+  var meta = S.roomMeta || {};
+  var declined = "";
+  for (var k in meta)
+    if (meta[k] && meta[k].noRoom) declined += k + ",";
+  if (roomListCache.sig === roomCycleCache.sig && roomListCache.declined === declined)
+    return roomListCache.rooms;
+  var rooms = declined
+    ? cycles.filter(function (r) {
+        return !roomDeclined(r.key);
+      })
+    : cycles;
+  roomListCache = { sig: roomCycleCache.sig, declined: declined, rooms: rooms };
+  return rooms;
 }
 
 /* Room metadata (name / floor / lock / hidden) is stored in `S.roomMeta` under a

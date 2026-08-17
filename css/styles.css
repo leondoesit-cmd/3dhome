@@ -605,6 +605,18 @@ button.active i,
   background: var(--btn-bg-hover);
   pointer-events: none;
 }
+#plan-toolbar .tool:disabled,
+#plan-toolbar .tool.elev-blocked {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+#plan-toolbar .tool:disabled:hover,
+#plan-toolbar .tool.elev-blocked:hover {
+  background: transparent;
+  color: var(--text-muted);
+  transform: none;
+}
 #plan-toolbar .tool.active {
   background: linear-gradient(135deg, var(--accent), var(--accent-hover));
   color: #fff;
