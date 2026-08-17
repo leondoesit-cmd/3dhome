@@ -279,7 +279,7 @@ export function grp(title, icons, cls, extra) {
 
 /* ================= DOM ================= */
 /* The overlay's chrome is built once, with the labels of the language that was
-   current then; a language switch throws it away so the next open rebuilds it
+   current then; a language switch throws it away so the next open rebuilds it. */
 
 export function formatCm(v) {
   return String(Math.round(Number(v) * 10) / 10);
