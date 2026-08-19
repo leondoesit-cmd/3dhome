@@ -2602,6 +2602,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
   -webkit-backdrop-filter: blur(16px);
   color: var(--text-main);
   font-family: "Inter", "Rubik", sans-serif;
+  overscroll-behavior: none;
 }
 [data-theme="light"] #modeler {
   background: rgba(248, 250, 252, 0.65);
@@ -2987,7 +2988,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
   flex: 1; min-width: 0; position: relative; border-radius: 16px; overflow: hidden;
   background: var(--bg-canvas-2d); border: 1px solid var(--border-color);
 }
-#modeler #mdCanvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+#modeler #mdCanvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; overscroll-behavior: none; }
 
 #modeler .md-resizer {
   position: absolute; top: 0; bottom: 0; width: 12px; cursor: ew-resize; z-index: 50;
@@ -3454,7 +3455,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 /* The renderer clears transparent (editor_view.js), so this is the backdrop the
    model is seen against. A flat #000 panel in a light UI read as a dead area. */
 #modeler #mdPrev {
-  width: 100%; border-radius: 11px; display: block; touch-action: none; cursor: grab;
+  width: 100%; border-radius: 11px; display: block; touch-action: none; overscroll-behavior: none; cursor: grab;
   background: radial-gradient(120% 90% at 50% 12%, #f2f5f9 0%, #d9dfe8 100%);
 }
 [data-theme="dark"] #modeler #mdPrev {

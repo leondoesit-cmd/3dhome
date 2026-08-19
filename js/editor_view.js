@@ -1,7 +1,7 @@
 // The editor 3D viewport — one orbiting preview shared by the CAD modeler and
 // the cabinet designer, both of which had grown their own near-identical copy
 // of it (renderer setup, transparent clear, the async-backend first paint,
-// drag-to-orbit, wheel-to-zoom, resize-on-render).
+// drag-to-orbit, pinch/wheel-to-zoom, two-finger orbit, resize-on-render).
 //
 // It also owns the trick the cabinet designer worked out and the modeler never
 // had: ONE RENDERER, TWO HOMES. The preview lives as a thumbnail in the side
@@ -21,6 +21,9 @@
 import * as THREE from "three";
 import { createRenderer, render as gpuRender, ready as gpuReady, LUX } from "./gpu.js";
 import { clearGroup } from "./primitives.js";
+import {
+  classifyViewportWheel, orbitFromWheel, panFromWheel, zoomFactorFromWheel,
+} from "./pointer_nav.js";
 
 function clamp(v, a, b) {
   return v < a ? a : v > b ? b : v;
@@ -132,7 +135,15 @@ export function createEditorView(opts) {
     cv.addEventListener("contextmenu", function (e) { e.preventDefault(); });
     cv.addEventListener("wheel", function (e) {
       e.preventDefault();
-      view.zoomBy(e.deltaY > 0 ? 1.12 : 1 / 1.12);
+      var kind = classifyViewportWheel(e, "3d");
+      if (kind === "zoom") view.zoomBy(zoomFactorFromWheel(e));
+      else if (kind === "pan") {
+        var pan = panFromWheel(e);
+        view.panBy(pan.dx, pan.dy);
+      } else {
+        var orbit = orbitFromWheel(e);
+        view.orbitBy(orbit.daz, orbit.del);
+      }
     }, { passive: false });
 
     /* Sizing follows the box the canvas has been put in. As a panel thumbnail
@@ -260,6 +271,12 @@ export function createEditorView(opts) {
         grid.quaternion.identity();
         grid.position.set(0, 0, 0);
       }
+      if (render !== false) view.render();
+    };
+    view.orbitBy = function (daz, del, render) {
+      if (daz || del) view.clearFixedFrame(false);
+      view.az += daz || 0;
+      view.el = clamp(view.el + (del || 0), minEl, maxEl);
       if (render !== false) view.render();
     };
     // Keep every zoom entry point on the same distance limits. Editors use
