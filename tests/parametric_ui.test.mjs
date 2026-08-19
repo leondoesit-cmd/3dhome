@@ -89,6 +89,14 @@ test("model edit supports close zoom through one shared camera limit", () => {
   assert.match(editorViewSource, /view\.zoomBy = function \(factor\)/);
 });
 
+test("trackpad gestures orbit and pinch-zoom instead of stepping the camera", () => {
+  assert.match(editorViewSource, /classifyViewportWheel\(e, "3d"\)/);
+  assert.match(source, /classifyViewportWheel\(e, sketchProjection\(\) \? "3d" : "2d"\)/);
+  assert.match(editorViewSource, /view\.orbitBy = function/);
+  assert.doesNotMatch(editorViewSource, /e\.deltaY > 0 \? 1\.12/);
+  assert.doesNotMatch(source, /e\.deltaY > 0 \? 1\.12/);
+});
+
 test("model display starts solid and toggles transparency without editing materials", () => {
   assert.match(source, /displayStyle: "solid"/);
   assert.match(source, /data-display="solid" class="on"/);

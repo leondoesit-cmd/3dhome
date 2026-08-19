@@ -20,6 +20,9 @@ import { render2D } from "./plan2d.js";
 import { createHistory } from "./edit_history.js";
 import { createHistoryPanel } from "./ui_history.js";
 import { createEditorView, createViewportSwap } from "./editor_view.js";
+import {
+  classifyViewportWheel, orbitFromWheel, panFromWheel, zoomFactorFromWheel,
+} from "./pointer_nav.js";
 import { getMainScene, has3D } from "./view3d.js";
 import { validCustomModelKey, sanitizeDisplayName } from "./safe.js";
 import {
@@ -176,7 +179,7 @@ var TXT = {
   loftOff: ["היסט הפרופיל העליון du,dv בס\"מ:", "Top profile offset du,dv (cm):"],
   loftFail: ["Loft נתמך רק על חלקי אקסטרוד (ללא חורים)", "Loft works on extrude parts without holes"],
   /* step names for the history list — what the panel calls each operation */
-  hint3d: ["גררו לסיבוב · גלגלת לזום · גלגלת לחוצה או Shift+גרירה להזזה", "Drag to orbit · wheel to zoom · middle-drag or Shift-drag to pan"],
+  hint3d: ["גררו לסיבוב · צביטה לזום · שתי אצבעות לסיבוב · Shift+גלילה להזזה", "Drag to orbit · pinch to zoom · two-finger to orbit · Shift+scroll to pan"],
   mode2d: ["שרטוט", "Sketch"],
   mode3d: ["מודל", "Model"],
   modeDrawing: ["גיליון", "Drawing"],
@@ -7186,12 +7189,7 @@ function wireSketch() {
     syncStatus();
     if (E.drag) {
       if (E.drag.mode === "orbit") {
-        if (E.pv) {
-          E.pv.az += (e.clientX - E.drag.px) * 0.009;
-          E.pv.el = clamp(E.pv.el + (e.clientY - E.drag.py) * 0.006, 0.05, 1.5);
-          if (E.pv.clearFixedFrame) E.pv.clearFixedFrame(false);
-          E.pv.render();
-        }
+        if (E.pv && E.pv.orbitBy) E.pv.orbitBy((e.clientX - E.drag.px) * 0.009, (e.clientY - E.drag.py) * 0.006);
         E.drag.px = e.clientX; E.drag.py = e.clientY;
         drawSketch();   // the sheet is the camera's projection, so it moves too
         return;
@@ -7355,19 +7353,31 @@ function wireSketch() {
   });
   cv.addEventListener("wheel", function (e) {
     e.preventDefault();
-    // over the model the wheel dollies the camera; there is no separate sheet
-    // zoom to change
+    var kind = classifyViewportWheel(e, sketchProjection() ? "3d" : "2d");
     if (sketchProjection() && E.pv) {
-      E.pv.zoomBy(e.deltaY > 0 ? 1.12 : 1 / 1.12);
+      if (kind === "zoom") E.pv.zoomBy(zoomFactorFromWheel(e));
+      else if (kind === "pan") {
+        var modelPan = panFromWheel(e);
+        E.pv.panBy(modelPan.dx, modelPan.dy);
+      } else if (E.pv.orbitBy) {
+        var modelOrbit = orbitFromWheel(e);
+        E.pv.orbitBy(modelOrbit.daz, modelOrbit.del);
+      }
       drawSketch();
       syncStatus();
       return;
     }
     var r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
-    var k = e.deltaY < 0 ? 1.12 : 1 / 1.12, ns = clamp(E.scl * k, 0.3, 20);
-    E.ox = mx - ((mx - E.ox) / E.scl) * ns;
-    E.oy = my - ((my - E.oy) / E.scl) * ns;
-    E.scl = ns;
+    if (kind === "pan") {
+      var sheetPan = panFromWheel(e);
+      E.ox += sheetPan.dx;
+      E.oy += sheetPan.dy;
+    } else {
+      var k = zoomFactorFromWheel(e), ns = clamp(E.scl * k, 0.3, 20);
+      E.ox = mx - ((mx - E.ox) / E.scl) * ns;
+      E.oy = my - ((my - E.oy) / E.scl) * ns;
+      E.scl = ns;
+    }
     drawSketch();
     syncStatus();
   }, { passive: false });
