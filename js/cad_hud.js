@@ -15,6 +15,7 @@ import { plan, wx, wz, render2D, segBearing, onAfterRender } from "./plan2d.js";
 import { wallPointPolar } from "./interaction.js";
 import { wallClearLength, pendingCuts } from "./geometry.js";
 import { t } from "./i18n.js";
+import { previousRunAngle, resolveWallDrawDefaults, previewMetrics } from "./wall_draw.js";
 
 var bar = null,
   elCoord = null,
@@ -23,6 +24,8 @@ var bar = null,
   entry = null,
   inLen = null,
   inAng = null,
+  inOff = null,
+  labOff = null,
   targetSelect = null,
   tune = null,
   tuneRange = null;
@@ -102,6 +105,8 @@ var SNAP_LABEL = {
   align: "snap_align",
   grid: "snap_grid",
   free: "snap_free",
+  close: "snap_close",
+  hit: "snap_hit",
 };
 
 export function initCadHud() {
@@ -154,11 +159,15 @@ export function initCadHud() {
     '<input id="cadLen" type="text" inputmode="decimal" autocomplete="off"></label>' +
     '<label><span class="cad-e-lab"></span>' +
     '<input id="cadAng" type="text" inputmode="decimal" autocomplete="off"></label>' +
+    '<label id="cadOffLab"><span class="cad-e-lab"></span>' +
+    '<input id="cadOff" type="text" inputmode="decimal" autocomplete="off"></label>' +
     '<span class="cad-e-hint"></span>';
   host.appendChild(entry);
   inLen = entry.querySelector("#cadLen");
   inAng = entry.querySelector("#cadAng");
-  [inLen, inAng].forEach(function (inp) {
+  inOff = entry.querySelector("#cadOff");
+  labOff = entry.querySelector("#cadOffLab");
+  [inLen, inAng, inOff].forEach(function (inp) {
     inp.addEventListener("input", previewFromEntry);
     inp.addEventListener("keydown", entryKey);
   });
@@ -403,16 +412,20 @@ export function updateCadHud() {
             (S.interiorDims !== false ? pendingCuts(S.drawFrom, S.previewPt) : 0),
         ),
       );
-      main =
-        t("cad_len") +
-        " " +
-        len +
-        " " +
-        unit +
-        "   ∠ " +
-        segBearing(a, S.previewPt) +
-        "°";
+      var metrics = previewMetrics(S.drawFrom, S.previewPt);
+      var turn = metrics && metrics.hasPrev
+        ? ((metrics.turn * 180) / Math.PI)
+        : segBearing(a, S.previewPt);
+      var turnTxt = metrics && metrics.hasPrev
+        ? t("cad_turn") + " " + (turn > 0 ? "+" : "") + Math.round(turn) + "°"
+        : "∠ " + Math.round(turn) + "°";
+      main = t("cad_len") + " " + len + " " + unit + "   " + turnTxt;
+      if (metrics && metrics.parallel)
+        main += "   " + t("cad_off") + " " + Math.round(metrics.parallel.abs) + " " + unit;
     }
+  } else if (S.tool === "walloffset") {
+    var od = S.offsetDraft;
+    main = t("hint_tool_offset") + (od ? " · " + Math.round(od.dist) + " " + unit : "");
   } else if (S.tool === "wall") {
     main = t("cad_wall_ready");
   } else if (S.sel && S.sel.kind === "wall") {
@@ -424,9 +437,15 @@ export function updateCadHud() {
     main = t("cad_nsel", { n: S.sel.refs.length });
   }
   lastMain = setText(elMain, main, lastMain);
+  /* On a phone this bar is reduced to the instruction alone (css: the chips it
+     used to carry moved into the mobile shell's contextual row). An empty
+     instruction there would leave a blank band across the top of the plan, so
+     say nothing by being nothing. */
+  bar.classList.toggle("cad-quiet", !main);
 
   var si = S.snapInfo,
-    live = (S.tool === "wall" ? S.drawing : S.tool === "point") || S.action === "node" || S.action === "marker";
+    live = S.tool === "wall" || S.tool === "arcwall" || S.tool === "rect" ||
+      S.tool === "walloffset" || S.tool === "point" || S.action === "node" || S.action === "marker";
   var snapTxt = si && live
     ? (S.action === "node" && si.type === "corner" ? t("snap_join") : t(SNAP_LABEL[si.type] || "snap_grid"))
     : "";
@@ -440,7 +459,7 @@ export function updateCadHud() {
   elSnap.classList.toggle(
     "on",
     !!(si && live && ["corner", "marker", "midpoint", "wall", "itemCorner", "perpendicular",
-      "intersection", "extension", "bisector"].indexOf(si.type) !== -1),
+      "intersection", "extension", "bisector", "close", "hit", "jamb"].indexOf(si.type) !== -1),
   );
 
   var aids = TOGGLES.map(function (tg) {
@@ -499,6 +518,7 @@ export function applyLangLabels() {
   var labs = entry.querySelectorAll(".cad-e-lab");
   labs[0].textContent = t("cad_len") + " (" + t("cm") + ")";
   labs[1].textContent = t("cad_ang") + " (°)";
+  if (labs[2]) labs[2].textContent = t("cad_off") + " (" + t("cm") + ")";
   entry.querySelector(".cad-e-hint").textContent = t("cad_entry_hint");
   lastCoord = lastMain = lastSnap = lastAids = null;
   updateCadHud();
@@ -511,14 +531,34 @@ export function applyLangLabels() {
    until wanted, and because the field takes focus the plan's own 1-6 tool
    shortcuts stop firing on their own (interaction.js bails on INPUT). */
 export function openEntry(seed) {
-  if (!entry || !S.drawing || S.drawFrom == null) return false;
+  if (!entry) return false;
+  if (S.tool === "walloffset") {
+    entry.hidden = false;
+    inLen.parentElement.hidden = true;
+    inAng.parentElement.hidden = true;
+    if (labOff) labOff.hidden = false;
+    inOff.value = seed || String(Math.round((S.offsetDraft && S.offsetDraft.dist) || resolveWallDrawDefaults().offsetDist));
+    positionEntry();
+    inOff.focus();
+    inOff.setSelectionRange(0, inOff.value.length);
+    return true;
+  }
+  if (!S.drawing || S.drawFrom == null) return false;
   var a = S.nodes[S.drawFrom];
   if (!a) return false;
   entry.hidden = false;
-  // seed the angle with the bearing the rubber band is already showing, so
-  // "type a length, press Enter" keeps the direction you had aimed
-  inAng.value = S.previewPt ? String(segBearing(a, S.previewPt)) : "0";
+  inLen.parentElement.hidden = false;
+  inAng.parentElement.hidden = false;
+  var metrics = S.previewPt ? previewMetrics(S.drawFrom, S.previewPt) : null;
+  if (labOff) labOff.hidden = !(metrics && metrics.parallel);
+  var angLab = inAng.previousElementSibling;
+  if (angLab) angLab.textContent = (metrics && metrics.hasPrev ? t("cad_turn") : t("cad_ang")) + " (°)";
+  if (metrics && metrics.hasPrev)
+    inAng.value = String(Math.round((metrics.turn * 180) / Math.PI));
+  else
+    inAng.value = S.previewPt ? String(segBearing(a, S.previewPt)) : "0";
   inLen.value = seed || "";
+  inOff.value = metrics && metrics.parallel ? String(Math.round(metrics.parallel.abs)) : "";
   positionEntry();
   inLen.focus();
   inLen.setSelectionRange(inLen.value.length, inLen.value.length);
@@ -529,10 +569,10 @@ export function closeEntry() {
   if (!entry || entry.hidden) return;
   entry.hidden = true;
   inLen.value = inAng.value = "";
-  // hand the keyboard back to the plan: while a field held focus the editor's
-  // own shortcuts (Esc, 1-6, Delete) were all being swallowed
-  if (document.activeElement === inLen || document.activeElement === inAng)
-    document.activeElement.blur();
+  if (inOff) inOff.value = "";
+  var focus = document.activeElement;
+  if (focus === inLen || focus === inAng || focus === inOff)
+    focus.blur();
 }
 
 export function entryOpen() {
@@ -548,16 +588,31 @@ function positionEntry() {
   entry.style.bottom = "40px";
 }
 
+function absAngleFromEntry() {
+  var A = parseFloat(inAng.value);
+  if (!fin(A)) A = 0;
+  var prev = previousRunAngle();
+  if (fin(prev) && S.drawWalls && S.drawWalls.length)
+    return (prev * 180) / Math.PI + A;
+  return A;
+}
+
 function previewFromEntry() {
+  if (S.tool === "walloffset") {
+    var off = parseFloat(inOff.value);
+    if (fin(off) && off > 0) {
+      S.wallDrawDefaults = Object.assign({}, S.wallDrawDefaults || {}, { offsetDist: off });
+      if (S.offsetDraft) S.offsetDraft.dist = off;
+      render2D();
+    }
+    return;
+  }
   if (!S.drawing || S.drawFrom == null) return;
   var a = S.nodes[S.drawFrom];
   var L = parseFloat(inLen.value),
-    A = parseFloat(inAng.value);
+    A = absAngleFromEntry();
   if (!a || !fin(L) || L <= 0) return;
-  if (!fin(A)) A = 0;
-  var r = (A * Math.PI) / 180; // inspector convention: 0 = east, -90 = up
-  // typed lengths are interior; add the corner cut back so the ghost lands
-  // where wallPointPolar() will actually put the wall
+  var r = (A * Math.PI) / 180;
   var run = L + (S.interiorDims !== false ? pendingCuts(S.drawFrom, null) : 0);
   S.previewPt = { x: a.x + Math.cos(r) * run, z: a.z + Math.sin(r) * run };
   S.snapInfo = { type: "free", x: S.previewPt.x, z: S.previewPt.z };
@@ -567,29 +622,43 @@ function previewFromEntry() {
 function entryKey(e) {
   if (e.key === "Enter") {
     e.preventDefault();
+    if (S.tool === "walloffset") {
+      var off = parseFloat(inOff.value);
+      if (fin(off) && off > 0) {
+        S.wallDrawDefaults = Object.assign({}, S.wallDrawDefaults || {}, { offsetDist: off });
+        if (S.offsetDraft) S.offsetDraft.dist = off;
+      }
+      closeEntry();
+      render2D();
+      return;
+    }
     var L = parseFloat(inLen.value),
-      A = parseFloat(inAng.value);
-    if (!fin(L) || L <= 0) return; // an empty length is not a wall
-    if (!fin(A)) A = 0;
+      A = absAngleFromEntry();
+    if (!fin(L) || L <= 0) return;
     closeEntry();
     wallPointPolar(L, A);
     return;
   }
   if (e.key === "Escape") {
     e.preventDefault();
-    // first Escape drops the typed values, a second one (now on the canvas)
-    // ends the chain — the same two-step every CAD uses
     closeEntry();
     render2D();
     return;
   }
   if (e.key === "Tab") {
     e.preventDefault();
-    var to = e.target === inLen ? inAng : inLen;
-    to.focus();
-    to.setSelectionRange(0, to.value.length);
+    var fields = [inLen, inAng];
+    if (labOff && !labOff.hidden) fields.push(inOff);
+    fields = fields.filter(function (f) { return f && !f.parentElement.hidden; });
+    var idx = fields.indexOf(e.target);
+    var next = e.shiftKey
+      ? fields[(idx - 1 + fields.length) % fields.length]
+      : fields[(idx + 1) % fields.length];
+    if (next) {
+      next.focus();
+      next.setSelectionRange(0, next.value.length);
+    }
   }
-  // stop plan/app shortcuts from seeing digits typed into the field
   e.stopPropagation();
 }
 
@@ -598,7 +667,7 @@ function entryKey(e) {
 export function hudKeydown(e) {
   if (e.ctrlKey || e.metaKey || e.altKey) return false;
   if (entryOpen()) return false; // the inputs handle their own keys
-  if (!(S.tool === "wall" && S.drawing)) return false;
+  if (!(S.tool === "wall" && S.drawing) && S.tool !== "walloffset") return false;
   if (/^[0-9]$/.test(e.key) || e.key === ".") {
     e.preventDefault();
     return openEntry(e.key);

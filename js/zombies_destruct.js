@@ -21,6 +21,8 @@ import {
   clearDebris,
   hitAlongRay,
   explodeAt,
+  setDestructionMode,
+  getDestructionMode,
 } from "./physics_facade.js";
 import { Z } from "./zombies_state.js";
 
@@ -55,6 +57,17 @@ var wanted = false,      // the game wants destruction on
 
 export function destructReady() {
   return ready;
+}
+
+export function setGameDestructionMode(mode) {
+  // mode can be 0/'none', 1/'parts', 2/'full'
+  var strMode = mode === 0 || mode === "none" ? "none" : mode === 1 || mode === "parts" ? "parts" : "full";
+  setDestructionMode(strMode);
+  if (strMode === "none") {
+    disableDestruction();
+  } else {
+    enableDestruction();
+  }
 }
 
 /* Enable without blocking the game's own start-up. Attach rigid bodies to

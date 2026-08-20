@@ -4,9 +4,10 @@
 export const KEY_VIEW = { 4: "top", 5: "front", 6: "side" };
 
 // Letter keys pick a sketch or direct tool. R is reserved for parametric
-// Revolve (see FEATURE_COMMAND); the old sketch-revolve tool has no chord.
+// Revolve (see FEATURE_COMMAND); S opens the shortcut bar. Sphere stays on
+// the ribbon as `directsph`.
 export const KEY_TOOL = {
-  v: "select", b: "rect", c: "circle", s: "sph", l: "wall", p: "poly", x: "cut", o: "cutc",
+  v: "select", b: "rect", c: "circle", l: "wall", p: "poly", x: "cut", o: "cutc",
   q: "srect", g: "scirc", a: "sarc", d: "dim", t: "trim", e: "extend",
   j: "sslot", n: "spoly", y: "sell",
 };
@@ -96,7 +97,7 @@ export function buildCommandCatalog(ctx) {
     { id:"stepin", icon:"ph-upload-simple", label:t("stepImport"), group:"STEP", available:function(){ return partDoc(); }, reason:needPart },
     { id:"stepout", icon:"ph-file-step", label:t("stepExport"), group:"STEP", available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"igesout", icon:"ph-file-arrow-down", label:t("exportIges"), group:"STEP", available:function(){ return partDoc() && solids(); }, reason:needSolid },
-    { id:"assembly", icon:"ph-cubes-three", label:t("docAssembly"), group:t("cmdAssembly") },
+    { id:"assembly", icon:"ph-stack", label:t("docAssembly"), group:t("cmdAssembly") },
     { id:"components", icon:"ph-cube", label:t("components"), group:t("cmdAssembly") },
     { id:"mates", icon:"ph-link", label:t("mate"), group:t("cmdAssembly") },
     { id:"partdoc", icon:"ph-cube-focus", label:t("docPart"), group:t("cmdAssembly") },
@@ -104,5 +105,6 @@ export function buildCommandCatalog(ctx) {
     { id:"motion", icon:"ph-play-circle", label:t("motionStudy"), group:t("cmdAssembly"), available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length; }, reason:function(){ return assemblyDoc() ? t("cmdNeedOneComponent") : needAsm(); } },
     { id:"interference", icon:"ph-intersect", label:t("interferenceCheck"), group:t("cmdAssembly"), available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
     { id:"bom", icon:"ph-table", label:t("billOfMaterials"), group:t("cmdAssembly"), available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length; }, reason:function(){ return assemblyDoc() ? t("cmdNeedOneComponent") : needAsm(); } },
+    { id:"isolate", icon:"ph-eye", label:t("isolate"), group:t("cmdAssembly"), terms:"hide others isolate", available:function(){ return assemblyDoc() && E.assembly && (E.componentSel && E.componentSel.length || E.assembly.isolated); }, reason:function(){ return assemblyDoc() ? t("cmdNeedOneComponent") : needAsm(); } },
   ];
 }

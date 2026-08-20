@@ -103,12 +103,12 @@ export function initChat() {
   dock.innerHTML =
     '<div class="chat-head">' +
     '<div class="chat-titles"><span id="chatTitle"></span><span id="chatPeers" class="t"></span></div>' +
-    '<button id="chatMic" title="Voice"><i class="ph ph-microphone-slash"></i></button>' +
-    '<button id="chatClose"><i class="ph ph-x"></i></button>' +
+    '<button id="chatMic" title="Voice" aria-label="Toggle Voice"><i class="ph ph-microphone-slash"></i></button>' +
+    '<button id="chatClose" title="Close" aria-label="Close Chat"><i class="ph ph-x"></i></button>' +
     "</div>" +
     '<div id="chatMsgs"></div>' +
-    '<div class="chat-inrow"><input id="chatInput" type="text" maxlength="500"/>' +
-    '<button id="chatSend"><i class="ph ph-paper-plane-right"></i></button></div>';
+    '<div class="chat-inrow"><input id="chatInput" type="text" maxlength="500" aria-label="Chat message"/>' +
+    '<button id="chatSend" title="Send" aria-label="Send message"><i class="ph ph-paper-plane-right"></i></button></div>';
   document.body.appendChild(dock);
   msgsEl = dock.querySelector("#chatMsgs");
   inputEl = dock.querySelector("#chatInput");

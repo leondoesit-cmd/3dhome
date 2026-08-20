@@ -665,13 +665,13 @@ export function wallProfileHeight(wall, s, baseHeight) {
   return points[points.length - 1].height;
 }
 
-/** Canonical special-wall classifier used by persistence and builders. */
-export function normalizeWallKind(value) {
-  const candidate = typeof value === "string"
-    ? value
-    : value && typeof value === "object"
-      ? value.wallKind ?? value.kind ?? value.specialKind ?? value.type
-      : "";
+const DEFAULT_WALL_HEIGHT = 270;
+/** The one default half-wall cap height — geometry (wallSolidTop) and the 3D
+    builder read this too, so the plan, the joint logic, and the mesh agree. */
+export const HALF_WALL_HEIGHT = 110;
+const HALF_HEIGHT_THRESHOLD = 140;
+
+function classifyWallKind(candidate) {
   const token = String(candidate ?? "").trim().toLowerCase().replace(/[\s_-]+/g, "");
   if (token === "roomdivider" || token === "divider" || token === "invisiblewall" || token === "invisible")
     return "roomDivider";
@@ -679,6 +679,73 @@ export function normalizeWallKind(value) {
   if (token === "pony" || token === "ponywall" || token === "splitwall") return "pony";
   if (token === "railing" || token === "rail" || token === "balustrade") return "railing";
   return "normal";
+}
+
+/** Canonical special-wall classifier used by persistence and builders. */
+export function normalizeWallKind(value) {
+  if (typeof value === "string") return classifyWallKind(value);
+  if (!value || typeof value !== "object") return "normal";
+  /* An explicit `kind` is what the inspector writes. Aliases exist so older
+     files still load, but they must not override a later "back to normal". */
+  if (value.kind != null && String(value.kind).trim() !== "")
+    return classifyWallKind(value.kind);
+  return classifyWallKind(value.wallKind ?? value.specialKind ?? value.type);
+}
+
+function rememberFullHeight(wall) {
+  const height = firstNumber(wall.height);
+  if (height != null && height > HALF_HEIGHT_THRESHOLD && firstNumber(wall.fullHeight) == null)
+    wall.fullHeight = height;
+}
+
+function restoreFullHeight(wall) {
+  const saved = firstNumber(wall.fullHeight);
+  const height = firstNumber(wall.height);
+  if (saved != null) wall.height = saved;
+  else if (height != null && height <= HALF_HEIGHT_THRESHOLD) wall.height = DEFAULT_WALL_HEIGHT;
+  delete wall.fullHeight;
+}
+
+/**
+ * Switch a wall between normal / half / pony / railing / room-divider and
+ * drop the leftover special-kind fields so the change actually takes. Half
+ * walls shrink the stored height; returning to a full kind restores it.
+ */
+export function setWallKind(wall, nextKind) {
+  if (!wall || typeof wall !== "object") return wall;
+  const prev = normalizeWallKind(wall);
+  const kind = classifyWallKind(nextKind);
+  if (prev === "half" && kind !== "half") restoreFullHeight(wall);
+  if (kind === "half" && prev !== "half") {
+    rememberFullHeight(wall);
+    const height = firstNumber(wall.height);
+    if (height != null && height > HALF_HEIGHT_THRESHOLD) wall.height = HALF_WALL_HEIGHT;
+  }
+  wall.kind = kind;
+  delete wall.wallKind;
+  delete wall.specialKind;
+  if (kind !== "half") {
+    delete wall.halfHeight;
+    delete wall.capHeight;
+  }
+  if (kind !== "railing") {
+    delete wall.railingHeight;
+    delete wall.railHeight;
+    delete wall.curbHeight;
+    delete wall.railing;
+  }
+  if (kind === "pony") {
+    if (firstNumber(wall.splitHeight) == null)
+      wall.splitHeight = Math.min(firstNumber(wall.height) ?? DEFAULT_WALL_HEIGHT, HALF_WALL_HEIGHT);
+  } else {
+    delete wall.splitHeight;
+    delete wall.ponyHeight;
+    delete wall.lowerHeight;
+    delete wall.upperWallTypeId;
+    delete wall.lowerWallTypeId;
+    delete wall.pony;
+  }
+  return wall;
 }
 
 function resolveType(resolver, reference, wall, role) {

@@ -6,13 +6,13 @@
 // editor core, so the map can be reasoned about (and repainted) on its own.
 import * as THREE from "three";
 
-import { ST, GHOST_SEG, HIT_PX, copyAnchor, fin, clamp, editorActive, rooms } from "./rc_editor_state.js";
+import { ST, GHOST_SEG, HIT_PX, copyAnchor, fin, clamp, editorActive, rooms, L } from "./rc_editor_state.js";
 import { anchorAt, ghostLine, insertSpot, segmentAt, segmentY } from "./rc_editor_geom.js";
 import {
-  addAnchor, applySnap, delAnchor, pushHist, restoreEntry, scheduleBuild,
+  addAnchor, applySnap, delAnchor, noteUserEdit, pushHist, restoreEntry, scheduleBuild,
   setSegmentHeight, snapFree, snapTip, undo, views, writeThrough,
 } from "./rc_editor_actions.js";
-import { facesClick, facesHover, paintFaces } from "./rc_editor_faces.js";
+import { facesClick, facesHover, paintFaces, pickTarget } from "./rc_editor_faces.js";
 
 export function resizeCanvas() {
   if (!ST.D || !ST.D.canvas) return;
@@ -108,6 +108,7 @@ export function heightFromScreen(sy) {
 export function finishVisualDrag() {
   ST.D.dragging = false;
   ST.D.ghostPts = null;
+  noteUserEdit();
   writeThrough();
   views.sync3d();
   views.stats();
@@ -131,6 +132,20 @@ export function bindCanvas() {
     },
     { passive: false },
   );
+  // The common edit no longer needs a tool switch: double-clicking empty map
+  // space inserts a control point into the nearest leg while Edit stays active.
+  cv.addEventListener("dblclick", function (e) {
+    if (e.button !== 0 || ST.D.mode !== "shape") return;
+    var p = evPos(e),
+      w = s2w(p.x, p.y);
+    var hit = anchorAt(ST.D.anchors, w.x, w.z, HIT_PX / ST.D.view.s);
+    var seg = hit < 0 ? segmentAt(ST.D.anchors, w.x, w.z, 18 / ST.D.view.s) : -1;
+    if (hit >= 0 || seg >= 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    addAnchor(w.x, w.z, e.shiftKey);
+    views.tip(ST.D.mode === "shape" ? "✓ " + L("נוספה נקודה", "Point added") : "＋");
+  });
   // Touch: one finger edits exactly like a mouse, two fingers pinch-zoom and
   // pan. The second finger also cancels whatever the first one had started —
   // on a phone a pinch always begins as an accidental drag of something.
@@ -333,7 +348,15 @@ export function bindCanvas() {
     ST.D.insert = ins ? { i: ins.i, x: w.x, z: w.z } : null;
     if (changed) views.sync3d();
     draw();
-    views.tip(hv >= 0 ? "●" : sv >= 0 ? "═" : ST.D.mode === "draw" ? "＋" : "✥");
+    views.tip(
+      hv >= 0
+        ? L("● גרור כדי לעצב את הפנייה · קליק ימני למחיקה", "● Drag to shape the turn · right-click to delete")
+        : sv >= 0
+          ? L("═ גרור כדי להזיז את כל המקטע · ידית ↕ משנה גובה", "═ Drag to move this section · the ↕ handle changes height")
+          : ST.D.mode === "draw"
+            ? L("＋ לחץ כדי להוסיף נקודה", "＋ Click to add a point")
+            : L("גרור להזזת המפה · לחיצה כפולה מוסיפה נקודה", "Drag to pan · double-click to add a point"),
+    );
   });
   function endPointer(e) {
     if (e.pointerType === "touch") ST.D.touches.delete(e.pointerId);
@@ -372,6 +395,7 @@ export function bindCanvas() {
         ST.D.anchors[i].x, ST.D.anchors[i].z, ST.D.anchors[i].y, ST.D.anchors[i],
       );
       ST.D.ghostPts = null;
+      noteUserEdit();
       writeThrough();
       views.sync3d();
       views.stats();
@@ -383,9 +407,24 @@ export function bindCanvas() {
     if (ST.D.mapPress && ST.D.mapPress.moved <= 6 && ST.D.mode === "draw") {
       addAnchor(ST.D.mapPress.w.x, ST.D.mapPress.w.z, ST.D.mapPress.shift);
     } else if (ST.D.mapPress && ST.D.mapPress.moved <= 6) {
-      ST.D.sel = ST.D.seg = -1;
-      views.refreshSelection();
-      draw();
+      var click = ST.D.mapPress.w;
+      var pick = ST.D.mode === "shape" ? pickTarget(click.x, click.z) : null;
+      if (pick && pick.tg && pick.tg.kind === "item") {
+        ST.D.faceSel = pick.tg.key;
+        ST.D.sel = ST.D.seg = -1;
+        views.refreshFaces();
+        views.refreshSelection();
+        views.tip(
+          pick.tg.name +
+            " · " +
+            L("בחר נסיעה מעל או צד למטה", "pick Drive over or a side below"),
+        );
+        draw();
+      } else {
+        ST.D.sel = ST.D.seg = -1;
+        views.refreshSelection();
+        draw();
+      }
     }
     ST.D.mapPress = null;
   }
@@ -407,8 +446,10 @@ export function bindCanvas() {
 export function draw() {
   if (!editorActive() || !ST.D.ctx) return;
   if (ST.D.drawReq) return;
-  ST.D.drawReq = requestAnimationFrame(function () {
-    ST.D.drawReq = 0;
+  var D = ST.D;
+  D.drawReq = requestAnimationFrame(function () {
+    if (ST.D !== D) return; // the editor closed before this frame fired
+    D.drawReq = 0;
     paint();
   });
 }
@@ -520,33 +561,61 @@ export function paint() {
     ctx.fill();
   });
 
-  // the REAL built road, coloured by elevation, in true width
+  // The real built surface. In “drive the house” mode most of this centreline
+  // is NOT a road: it is a direction painted over the actual floor/furniture.
+  // Showing that at road width was the editor's biggest visual lie, so the map
+  // now draws real deck as a wide ribbon and real surfaces as a thin dashed
+  // route. Full-road mode remains a continuous ribbon.
   var tr = ST.E.track();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   if (tr && tr.center && tr.center.length > 1) {
     var C = tr.center,
-      wpx = Math.max(1.5, (ST.E.cfg.roadWidth || 26) * s);
+      wpx = Math.max(1.5, (ST.E.cfg.roadWidth || 26) * s),
+      homeSurface = !!ST.E.cfg.homeMode;
+    if (homeSurface) {
+      ctx.save();
+      ctx.setLineDash([7, 5]);
+      ctx.lineWidth = Math.max(2, Math.min(4, wpx * 0.18));
+      strokeCategorized(
+        ctx,
+        C,
+        function (c) {
+          return c.gap || c.deck ? null : Math.min(5, Math.floor(clamp(c.y / Math.max(30, tr.high || 105), 0, 0.999) * 6));
+        },
+        function (bk) {
+          ctx.strokeStyle = heightCol((bk + 0.5) / 6 * (tr.high || 105));
+        },
+      );
+      ctx.restore();
+    }
     ctx.strokeStyle = "rgba(8,10,14,0.75)";
     ctx.lineWidth = wpx + 2;
-    strokeRun(ctx, C, null);
+    if (homeSurface)
+      strokeCategorized(ctx, C, function (c) { return !c.gap && c.deck ? 1 : null; }, function () {});
+    else strokeRun(ctx, C, null);
     var bucket = -1,
       run = [];
     for (var i = 0; i < C.length; i++) {
       var c = C[i];
-      var bk = c.gap ? -2 : Math.min(5, Math.floor(clamp(c.y / Math.max(30, tr.high || 105), 0, 0.999) * 6));
+      var bk = homeSurface && !c.deck
+        ? -3
+        : c.gap
+          ? -2
+          : Math.min(5, Math.floor(clamp(c.y / Math.max(30, tr.high || 105), 0, 0.999) * 6));
       if (bk !== bucket) {
-        if (run.length > 1) {
+        if (run.length > 1 && bucket !== -3) {
           ctx.strokeStyle = bucket === -2 ? "rgba(255,255,255,0.12)" : heightCol((bucket + 0.5) / 6 * (tr.high || 105));
           ctx.lineWidth = wpx;
           strokeRun(ctx, run, null);
         }
-        run = run.length ? [run[run.length - 1]] : [];
+        var tail = run.length ? run[run.length - 1] : null;
+        run = tail && bucket !== -3 && bk !== -3 ? [tail] : [];
         bucket = bk;
       }
-      run.push(c);
+      if (bk !== -3) run.push(c);
     }
-    if (run.length > 1) {
+    if (run.length > 1 && bucket !== -3) {
       ctx.strokeStyle = bucket === -2 ? "rgba(255,255,255,0.12)" : heightCol((bucket + 0.5) / 6 * (tr.high || 105));
       ctx.lineWidth = wpx;
       strokeRun(ctx, run, null);
@@ -782,6 +851,29 @@ export function strokeRun(ctx, pts, _) {
     } else ctx.lineTo(q.x, q.y);
   }
   ctx.stroke();
+}
+
+// Draw contiguous runs that share a visual category. A null category is a
+// deliberate break (for example, floor between two short access ramps).
+export function strokeCategorized(ctx, pts, category, style) {
+  var key = null,
+    run = [];
+  function flush() {
+    if (key != null && run.length > 1) {
+      style(key);
+      strokeRun(ctx, run, null);
+    }
+  }
+  for (var i = 0; i < pts.length; i++) {
+    var next = category(pts[i]);
+    if (next !== key) {
+      flush();
+      run = [];
+      key = next;
+    }
+    if (next != null) run.push(pts[i]);
+  }
+  flush();
 }
 
 export function arrow(ctx, x, y, a, r) {

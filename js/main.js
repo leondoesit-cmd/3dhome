@@ -25,7 +25,7 @@ import {
   selectAtScreen,
   deleteSel,
   dupSel,
-  openWall,
+  placeOpeningOnSelected,
 } from "./interaction.js";
 import { t } from "./i18n.js";
 import { applyStatic, onLangChange } from "./i18n.js";
@@ -33,9 +33,11 @@ import { initModeler, refreshCatalogSelect } from "./modeler.js";
 import { initCabinetUI } from "./ui_cabinet.js";
 import { initSite } from "./ui_site.js";
 import { initMEP } from "./ui_mep.js";
+import { initSmartHome } from "./ui_smarthome.js";
 import { initFriends } from "./ui_friends.js";
 import { markerItem, detachMarker } from "./markers.js";
 import { initCadHud, applyLangLabels as cadHudLang } from "./cad_hud.js";
+import { initMobileShell, refreshMobileShell } from "./mobile_shell.js";
 import { rebuildProject } from "./core/project.js";
 
 // apply static translations for the current language before anything renders
@@ -318,9 +320,11 @@ initModeler();
 initCabinetUI();
 initSite();
 initMEP();
+initSmartHome();
 initFriends(); // friends list + realtime chat/voice + visits (after init3D: avatars need the scene)
 initPlanGizmo();
 initCadHud(); // plan status bar + typed length/angle entry
+initMobileShell(); // phone/foldable chrome: contextual row + five-slot bottom nav
 // last: autosave/recovery needs a fully built UI to render its recovery prompt,
 // and the error net should not swallow a genuine boot failure above it
 initPersistence({
@@ -459,20 +463,16 @@ function setMaximized(viewId) {
   });
   syncSurfaces();
   syncMobileNav();
+  // A contextual menu belongs to the pane it was opened over; switching panes
+  // used to leave it floating above whatever came next.
+  if (window.__hideCtxMenu) window.__hideCtxMenu();
 }
 // Highlight the bottom-nav view button matching the current pane state.
+/* The nav's View slot shows which pane is up (icon + label), so a change of
+   pane has to reach it. mobile_shell.js owns the button contents; this is only
+   the "something moved" tap on the shoulder. */
 function syncMobileNav() {
-  var nav = document.getElementById("mobile-nav");
-  if (!nav || !centerCanvas) return;
-  var cur = centerCanvas.classList.contains("max-view-2d")
-    ? "plan"
-    : centerCanvas.classList.contains("max-view-3d")
-      ? "3d"
-      : "split";
-  nav.querySelectorAll("[data-mnav]").forEach(function (b) {
-    var k = b.dataset.mnav;
-    b.classList.toggle("active", k === cur);
-  });
+  refreshMobileShell();
 }
 // Bottom-nav view switching (mobile). Idempotent: setMaximized toggles, so we
 // only call it when the target state differs from the current one.
@@ -487,7 +487,7 @@ function setViewMode(mode) {
   try {
     // Only remember choices made on the phone layout, so unfolding (which
     // forces "split") doesn't clobber the preferred cover-screen view.
-    if (isPhoneWidth()) sessionStorage.setItem(VIEWMODE_KEY, mode);
+    if (isCompactPhoneViewport()) sessionStorage.setItem(VIEWMODE_KEY, mode);
   } catch (_) {}
 }
 window.__setViewMode = setViewMode;
@@ -500,13 +500,16 @@ document.querySelectorAll(".view-max-btn").forEach(function (btn) {
 // Phones (Fold cover screen included): the stacked split is too cramped, so
 // start in single-pane 2D unless the user already chose a view this session.
 var VIEWMODE_KEY = "home3d_mobile_view";
-// Read the width directly each time: cached MediaQueryList objects can go
+// Read the viewport directly each time: cached MediaQueryList objects can go
 // stale in some WebViews/emulated viewports (fold state changes included).
-function isPhoneWidth() {
-  return window.innerWidth <= 768;
+// A phone rotated to landscape is wider than the portrait breakpoint but its
+// short edge leaves even less room for a stacked split, so treat it as a phone
+// until the viewport is tablet-sized in both dimensions.
+function isCompactPhoneViewport() {
+  return window.innerWidth <= 768 || (window.innerWidth <= 1024 && window.innerHeight <= 500);
 }
 function applyPhoneView() {
-  if (isPhoneWidth()) {
+  if (isCompactPhoneViewport()) {
     // Phone / Fold cover screen: stacked split is too cramped — go single-pane.
     var saved = sessionStorage.getItem(VIEWMODE_KEY);
     setViewMode(saved && saved !== "split" ? saved : "plan");
@@ -518,30 +521,44 @@ function applyPhoneView() {
 // React to folding/unfolding (the viewport width jumps across 768px). Watch
 // plain resize rather than the MediaQueryList change event — some WebViews
 // (and emulated viewports) don't dispatch the latter reliably.
-var wasPhone = isPhoneWidth();
+var wasPhone = isCompactPhoneViewport();
 function checkPhoneCrossing() {
-  if (isPhoneWidth() === wasPhone) return;
-  wasPhone = isPhoneWidth();
+  if (isCompactPhoneViewport() === wasPhone) return;
+  wasPhone = isCompactPhoneViewport();
   applyPhoneView();
 }
 window.addEventListener("resize", checkPhoneCrossing);
 new ResizeObserver(checkPhoneCrossing).observe(document.body);
-if (isPhoneWidth()) applyPhoneView();
+if (isCompactPhoneViewport()) applyPhoneView();
 syncMobileNav();
+
+// Drawing needs the whole plan on phones and foldables. If a drawing command
+// is picked while Split/3D is showing, promote the 2D pane before the first
+// canvas gesture; otherwise the wall palette can consume almost the entire
+// half-height plan and leave nowhere useful to draw.
+var mobileToolRail = document.getElementById("plan-toolbar");
+if (mobileToolRail) {
+  mobileToolRail.addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-tool]");
+    if (!btn || btn.dataset.tool === "select" || window.innerWidth > 1024) return;
+    if (!centerCanvas.classList.contains("max-view-2d")) setViewMode("plan");
+  });
+}
 
 // ---- contextual (right-click) menu on the 2D plan ----
 var ctxMenu = document.getElementById("ctx-menu");
 var planCanvas = document.getElementById("plan");
 function hideCtxMenu() {
-  if (ctxMenu) ctxMenu.classList.remove("on");
+  if (ctxMenu) ctxMenu.classList.remove("on", "as-sheet");
 }
+window.__hideCtxMenu = hideCtxMenu;
 function ctxItems() {
   // Build the action list from what is currently selected.
   var sel = S.sel;
   var kind = sel ? sel.kind : null;
   var items = [];
   if (kind === "wall") {
-    items.push({ key: "ctx_addOpening", icon: "ph ph-door-open", run: openWall });
+    items.push({ key: "ctx_addOpening", icon: "ph ph-door", run: function () { placeOpeningOnSelected("door"); } });
     items.push({ key: "ctx_wallType", icon: "ph ph-ruler", run: focusInspector });
     items.push({ key: "ctx_delete", icon: "ph ph-trash", danger: true, run: deleteSel });
   } else if (kind === "item" || kind === "items") {
@@ -621,6 +638,16 @@ function showCtxMenu(clientX, clientY) {
     ctxMenu.appendChild(b);
   });
   ctxMenu.classList.add("on");
+  /* On a phone a menu anchored at the touch point opens UNDER the hand that
+     summoned it. Dock it to the bottom edge instead (CSS turns it into a full
+     width sheet) and let the finger stay where it is. */
+  if (document.body.classList.contains("compact-nav")) {
+    ctxMenu.classList.add("as-sheet");
+    ctxMenu.style.left = "";
+    ctxMenu.style.top = "";
+    return;
+  }
+  ctxMenu.classList.remove("as-sheet");
   // Position within the viewport (flip if it would overflow).
   var mw = ctxMenu.offsetWidth,
     mh = ctxMenu.offsetHeight;

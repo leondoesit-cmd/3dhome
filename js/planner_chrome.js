@@ -84,7 +84,7 @@ export function toggleLegacyUI() {
 function setLeftTab(id, persist) {
   var left = $("left-sidebar");
   if (!left) return;
-  if (id !== "library" && id !== "structure" && id !== "tree") id = "library";
+  if (id !== "library" && id !== "structure" && id !== "tree" && id !== "home") id = "library";
   left.setAttribute("data-left", id);
   document.querySelectorAll("#leftTabs [data-left-tab]").forEach(function (b) {
     b.classList.toggle("active", b.getAttribute("data-left-tab") === id);
@@ -120,6 +120,13 @@ export function renderFloorTabs() {
   }
   ensureFloors();
   var floors = S.workspace && S.workspace.floors ? S.workspace.floors : [];
+  /* A whole row of a phone screen for one pill and a plus is a bad trade: on
+     the compact layout the strip earns its 32px only once there is a second
+     floor to switch to. Adding one lives in the More sheet's File section. */
+  if (floors.length < 2 && document.body.classList.contains("compact-nav")) {
+    host.hidden = true;
+    return;
+  }
   host.hidden = false;
   host.innerHTML = "";
   floors.forEach(function (floor, i) {
@@ -143,16 +150,23 @@ export function renderFloorTabs() {
   add.className = "floor-add";
   add.innerHTML = '<i class="ph ph-plus"></i>';
   add.title = t("floor_add");
-  add.addEventListener("click", function () {
-    addFloor(t("floor_add"), (floors.length) * 300, false);
-    S.dirty3D = true;
-    render2D();
-    refreshTree();
-    fillProps();
-    fitView();
-    renderFloorTabs();
-  });
+  add.addEventListener("click", addFloorFromUI);
   host.appendChild(add);
+}
+
+// Also reachable as the "addFloor" action (File menu / the phone's More sheet),
+// because the strip that used to be the only way in is hidden on a compact
+// layout until a second floor exists.
+export function addFloorFromUI() {
+  ensureFloors();
+  var floors = (S.workspace && S.workspace.floors) || [];
+  addFloor(t("floor_add"), floors.length * 300, false);
+  S.dirty3D = true;
+  render2D();
+  refreshTree();
+  fillProps();
+  fitView();
+  renderFloorTabs();
 }
 
 function updateToolHint() {
@@ -162,6 +176,12 @@ function updateToolHint() {
   if (S.placeType) msg = t("hint_tool_place");
   else if (S.tool === "wall") msg = t("hint_tool_wall");
   else if (S.tool === "rect") msg = t("hint_tool_rect");
+  else if (S.tool === "walloffset") msg = t("hint_tool_offset");
+  else if (S.tool === "wallbreak") msg = t("hint_tool_break");
+  else if (S.tool === "walljoin") msg = t("hint_tool_join");
+  else if (S.tool === "wallreverse") msg = t("hint_tool_reverse");
+  else if (S.tool === "wallpaint") msg = t("hint_tool_paint");
+  else if (S.tool === "erase") msg = t("hint_tool_erase");
   else if (S.tool === "door" || S.tool === "window" || S.tool === "passage")
     msg = t("hint_tool_opening");
   el.textContent = msg;
@@ -359,6 +379,7 @@ window.__plannerChrome = {
   openStartScreen: openStartScreen,
   applyPlannerChrome: applyPlannerChrome,
   renderFloorTabs: renderFloorTabs,
+  addFloorFromUI: addFloorFromUI,
   setLeftTab: setLeftTab,
   updateToolHint: updateToolHint,
 };

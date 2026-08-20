@@ -2,9 +2,16 @@
   "name": "modelforge-cad",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node server/relay.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "check:modules": "node tools/module_check.mjs",
+    "check:links": "node tools/link_check.mjs",
+    "check": "node tools/module_check.mjs && node tools/link_check.mjs",
+    "ci": "npm run check && npm test"
   },
   "dependencies": {
     "opencascade.js": "2.0.0-beta.b5ff984"

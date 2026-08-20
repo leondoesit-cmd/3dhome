@@ -7,8 +7,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   isPublicAddress,
+  isLanAddress,
   resolvePublicUrl,
+  resolveLanUrl,
   safeHttpGet,
+  sanitizeLanHeaders,
   safeStaticFile,
 } from "../server/security.mjs";
 import { escapeHTML, sanitizeDisplayName, validCustomModelKey } from "../js/safe.js";
@@ -41,6 +44,30 @@ test("private, loopback, link-local, mapped, and multicast addresses are rejecte
   ]) assert.equal(isPublicAddress(address), false, address);
   assert.equal(isPublicAddress("8.8.8.8"), true);
   assert.equal(isPublicAddress("2606:4700:4700::1111"), true);
+});
+
+test("smart-home LAN resolver allows home hubs and refuses metadata / public SSRF", async () => {
+  assert.equal(isLanAddress("192.168.1.42"), true);
+  assert.equal(isLanAddress("10.0.0.5"), true);
+  assert.equal(isLanAddress("127.0.0.1"), true);
+  assert.equal(isLanAddress("100.64.1.8"), true);
+  assert.equal(isLanAddress("169.254.169.254"), false);
+  assert.equal(isLanAddress("8.8.8.8"), false);
+  assert.equal(isLanAddress("224.0.0.1"), false);
+
+  const lanLookup = async () => [{ address: "192.168.1.10", family: 4 }];
+  const publicLookup = async () => [{ address: "8.8.8.8", family: 4 }];
+  const ha = await resolveLanUrl("http://homeassistant.local:8123/api/", lanLookup);
+  assert.equal(ha.url.port, "8123");
+  assert.equal(await resolveLanUrl("http://homeassistant.local:8123/api/", publicLookup), null);
+  assert.equal(await resolveLanUrl("http://192.168.1.10:22/", lanLookup), null, "ssh port blocked");
+  assert.equal(await resolveLanUrl("https://8.8.8.8/", async () => [{ address: "8.8.8.8", family: 4 }]), null);
+  assert.deepEqual(sanitizeLanHeaders({
+    Authorization: "Bearer abc",
+    Cookie: "session=1",
+    Host: "evil",
+    "Content-Type": "application/json",
+  }), { Authorization: "Bearer abc", "Content-Type": "application/json" });
 });
 
 test("DNS names resolving to any private address are rejected before a request", async () => {
@@ -160,6 +187,29 @@ test("relay rejects cross-origin WebSockets and does not expose wildcard CORS", 
   });
   const ping = await waitForPing(port);
   assert.equal(ping.headers.get("access-control-allow-origin"), null);
+  const pingBody = await ping.json();
+  assert.deepEqual(pingBody.api, ["prodsize", "smarthome"]);
+  const smarthomeBlocked = await fetch(`http://127.0.0.1:${port}/api/smarthome`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: `http://127.0.0.1:${port}`,
+    },
+    body: JSON.stringify({ url: "https://example.com/api/", method: "GET" }),
+  });
+  assert.equal(smarthomeBlocked.status, 200);
+  const smarthomeJson = await smarthomeBlocked.json();
+  assert.equal(smarthomeJson.ok, false);
+  assert.equal(smarthomeJson.status, 400);
+  const smarthomeCsrf = await fetch(`http://127.0.0.1:${port}/api/smarthome`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://evil.example",
+    },
+    body: JSON.stringify({ url: "http://127.0.0.1:8123/api/", method: "GET" }),
+  });
+  assert.equal(smarthomeCsrf.status, 403);
   const asset = await fetch(`http://127.0.0.1:${port}/js/ui.js`, {
     headers: { "accept-encoding": "gzip" },
   });
@@ -173,6 +223,14 @@ test("relay rejects cross-origin WebSockets and does not expose wildcard CORS", 
   assert.equal(unchanged.status, 304);
   const vendor = await fetch(`http://127.0.0.1:${port}/vendor/three/three.module.js`);
   assert.match(vendor.headers.get("cache-control") || "", /immutable/);
+  const font = await fetch(`http://127.0.0.1:${port}/vendor/phosphor/Phosphor.woff2`);
+  assert.equal(font.status, 200);
+  assert.equal(font.headers.get("content-type"), "font/woff2");
+  assert.equal(font.headers.get("content-encoding"), null);
+  const wasm = await fetch(`http://127.0.0.1:${port}/assets/opencascade.full.wasm.gz`);
+  assert.equal(wasm.status, 200);
+  assert.equal(wasm.headers.get("content-type"), "application/gzip");
+  assert.equal((await fetch(`http://127.0.0.1:${port}/server/relay.mjs`)).status, 404);
   assert.equal(await upgradeStatus(port, "https://evil.example"), 403);
   assert.equal(
     await upgradeStatus(port, `http://127.0.0.1:${port}`),

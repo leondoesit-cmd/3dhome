@@ -67,7 +67,8 @@ function disposeGhostMesh() {
   if (!G.grp) return;
   if (G.scene) G.scene().remove(G.grp);
   G.grp.traverse(function (o) {
-    if (o.geometry && o.geometry.dispose) o.geometry.dispose();
+    // never dispose a Sprite's shared singleton geometry
+    if (o.geometry && o.geometry.dispose && !o.isSprite) o.geometry.dispose();
     if (o.material)
       (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) {
         m.dispose();

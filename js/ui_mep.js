@@ -237,10 +237,12 @@ export function renderPanel() {
     name.textContent = runLabel(sys, d.k);
     row.appendChild(name);
     var modeSel = document.createElement("select");
+    modeSel.setAttribute("aria-label", runLabel(sys, d.k) + " - " + t("mep_policyTitle"));
     [["auto", "mep_policyAuto"], ["prefer", "mep_policyPrefer"], ["require", "mep_policyRequire"]].forEach(function (o) {
       var op = document.createElement("option"); op.value = o[0]; op.textContent = t(o[1]); op.selected = p.mode === o[0]; modeSel.appendChild(op);
     });
     var layerSel = document.createElement("select");
+    layerSel.setAttribute("aria-label", runLabel(sys, d.k) + " - " + t("mep_layer"));
     allowedLayersFor(sys, d.k, "run").forEach(function (lay) {
       var op = document.createElement("option"); op.value = lay; op.textContent = t("mep_" + lay); op.selected = p.layer === lay; layerSel.appendChild(op);
     });

@@ -79,6 +79,22 @@ test("topology selection is visible and finish operations preview exact geometry
   assert.match(source, /function addFinishScrubber/);
   assert.match(source, /previewReplacesPartId/);
   assert.match(source, /Ctrl\/Cmd-click adds or removes/);
+  assert.match(source, /mergeSmoothTopology\(kernel\.concat\(analytic, extras\)\)/);
+  assert.match(source, /syncPreviewFromHistory\(\)/);
+});
+
+test("fillet Apply commits a selected face as edges you can toggle individually", () => {
+  assert.match(source, /function adoptFinishEdgeSelection/);
+  assert.match(source, /function toggleFinishEdges/);
+  assert.match(source, /function renderFinishEdgeList/);
+  assert.match(source, /data-finish-edges/);
+  assert.match(source, /function overlayEdgesOnFace/);
+  assert.match(source, /function allCandidateFinishEdges/);
+  assert.match(source, /finish \? 0xf2d27a/);
+  assert.match(source, /if \(finishCommandActive\(\) && topologyReferencePicked\)/);
+  assert.match(source, /return cloneData\(edges.length \? edges : faces\)/);
+  assert.match(featureCatalogSource, /kinds: \["edge", "face"\]/);
+  assert.match(source, /appliedFeature/);
 });
 
 test("model edit supports close zoom through one shared camera limit", () => {
@@ -89,12 +105,21 @@ test("model edit supports close zoom through one shared camera limit", () => {
   assert.match(editorViewSource, /view\.zoomBy = function \(factor\)/);
 });
 
-test("model display starts solid and toggles transparency without editing materials", () => {
+test("model display starts solid with black edges, and can hide them", () => {
   assert.match(source, /displayStyle: "solid"/);
+  assert.match(source, /showModelEdges: true/);
   assert.match(source, /data-display="solid" class="on"/);
   assert.match(source, /data-display="transparent"/);
+  assert.match(source, /id="mdShowEdges" class="on"/);
   assert.match(source, /setModelDisplay\("solid", false\)/);
+  assert.match(source, /setShowModelEdges\(true, false\)/);
+  assert.match(source, /function setShowModelEdges/);
   assert.match(source, /material\.opacity = style === "transparent" \? 0\.3 : 1/);
+  assert.match(source, /function overlayEntriesForPart/);
+  assert.match(source, /meshFeatureEdges\(/);
+  assert.match(source, /function holeAndCutEdges/);
+  assert.match(source, /function promotePickedEdge/);
+  assert.match(source, /if \(!kernel\.length\)/);
   assert.match(source, /buildPart\(grp, p, E\.displayStyle\)/);
   assert.doesNotMatch(source, /p\.opacity = style === "transparent"/);
 });
@@ -147,6 +172,35 @@ test("R opens parametric Revolve and sketch-revolve has no letter chord", () => 
   assert.match(source, /id === "holefeature"\) openParametricFeature\("hole"\)/);
 });
 
+test("SolidWorks-style CAD nav, S-key bar and Instant3D handles are wired", () => {
+  assert.match(source, /cadNav: true/);
+  assert.match(source, /beginDrag: beginInstant3dDrag/);
+  assert.match(source, /gesturePreview: previewMouseGesture/);
+  assert.match(source, /function chromeCommandLabel/);
+  assert.match(source, /k === "s"\) showShortcutBar\(\)/);
+  assert.match(source, /e\.key === " " && !editingField[\s\S]*showViewSelector\(\)/);
+  assert.match(editorViewSource, /opts\.cadNav && e\.button === 2/);
+  assert.match(editorViewSource, /opts\.beginDrag && e\.button === 0/);
+  assert.match(editorViewSource, /opts\.gesturePreview/);
+  assert.match(editorViewSource, /bindThreeFingerPan/);
+  assert.match(editorViewSource, /touchList\.length < 3/);
+  assert.match(source, /bindThreeFingerPan\(cv/);
+});
+
+test("Instant3D writes the feature definition input, not the wrapping label", () => {
+  // featureField stamps data-parameter on both <label> and <input>. A bare
+  // [data-parameter] selector hits the label first, so Apply would keep the
+  // old Depth/Distance while the 3D preview moved.
+  assert.match(formSource, /wrap\.dataset\.parameter = field\.key/);
+  assert.match(formSource, /input\.dataset\.parameter = field\.key/);
+  assert.match(modelerSource, /function instant3dFormControl/);
+  assert.match(modelerSource, /#mdQuickSettings input\[data-parameter="' \+ key \+ '"\]/);
+  assert.match(modelerSource, /function instant3dAuthoringState/);
+  assert.match(modelerSource, /E\.authoring\.featureEdit/);
+  assert.match(modelerSource, /distancePointToSegment2d/);
+  assert.match(modelerSource, /resolveFinishTargetIds/);
+});
+
 test("command search restores focus and names the active option", () => {
   assert.match(source, /E\.commandSearchRestore = document\.activeElement/);
   assert.match(source, /aria-activedescendant/);
@@ -163,7 +217,7 @@ test("assembly keeps a status line and editor drafts persist locally", () => {
 });
 
 test("sketch witness lines and on-face planes are wired in the editor", () => {
-  assert.match(source, /placedDimensionAt\(ensureSketch\(E\.def\)/);
+  assert.match(source, /placedDimensionHit\(ensureSketch\(E\.def\)/);
   assert.match(source, /selectedId: E\.dimSel/);
   assert.match(source, /refType: "on-face"/);
   assert.match(source, /function createHoleFeature/);

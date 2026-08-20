@@ -21,7 +21,11 @@ import {
   wallProject,
   wallClearLength,
 } from "./geometry.js";
-import { ensureWallTypes, wallTypeById } from "./wall_types.js";
+import {
+  applyWallDrawDefaults, drawFaceBack, isWallDrawTool, extendToHit, throughCrossings,
+  offsetGhost, offsetSideFromCursor, joinProposal, paintWallWithDefaults,
+  reverseWallStyle, resolveWallDrawDefaults,
+} from "./wall_draw.js";
 import { makeArcFromThreePoints } from "./wall_curves.js";
 import {
   applyCornerRestore, applyCornerTreatmentUpdate, applyWallChamfer, applyWallFillet,
@@ -29,6 +33,7 @@ import {
 } from "./wall_fillet.js";
 import { isLamp } from "./furniture.js";
 import { holdToWall, reseatHeldItems } from "./item_align.js";
+import { applyAutoFace, markManualRot, rotStep } from "./item_orient.js";
 import { t } from "./i18n.js";
 import { plan, render2D, fitView, wx, wz, dropPoint, toBasePx, planRotRad, pickCon } from "./plan2d.js";
 import { select, fillProps, refreshTree, flash, setLockStruct, placeFurnAt } from "./ui.js";
@@ -292,6 +297,10 @@ function flashSnap(it, key) {
   if (S.snapFlashKey === key) return;
   S.snapFlashKey = key;
   S.snapFlash = key ? { id: it.id, until: Date.now() + SNAP_FLASH_MS } : null;
+  /* The same "it engaged" cue for a finger, which is covering the blink. Gated
+     on the key change above, so sliding along one wall buzzes once rather than
+     once per frame. */
+  if (key && S.touchDrag && navigator.vibrate) navigator.vibrate(8);
 }
 function alignItem(nx, nz, it) {
   S.alignX = null;
@@ -407,33 +416,39 @@ function planPickSurface(p, cx, cz) {
 }
 
 /* ---- tools ---- */
-export function setTool(t) {
-  if (isElevation() && (t === "wall" || t === "arcwall")) {
+export function setTool(toolName) {
+  if (!toolName) toolName = "select";
+  if (isElevation() && isWallDrawTool(toolName)) {
     flash(t("tool_plan_only"));
-    t = "select";
+    toolName = "select";
   }
-  S.tool = t;
+  S.tool = toolName;
   if (S.conHover != null) setConstraintHover(null);
+  S.eraseHover = null;
   S.freshWall = null; // picking any tool ends the just-drawn run
-  if (t !== "wall") finishDraw();
-  if (t !== "arcwall") S.arcDraft = null;
-  if (t !== "rect") S.rectDraft = null;
-  if (t !== "point") {
+  if (toolName !== "wall") finishDraw();
+  if (toolName !== "arcwall") S.arcDraft = null;
+  if (toolName !== "rect") S.rectDraft = null;
+  if (toolName !== "walloffset") S.offsetDraft = null;
+  if (toolName !== "walljoin") S.joinPick = null;
+  if (toolName !== "point") {
     S.markerPreview = null;
     S.snapGuides = [];
   }
-  if (t !== "select") S.placeType = null;
+  if (toolName !== "select") S.placeType = null;
   // leaving the MEP tools clears any armed palette entry + in-progress route
-  if (t.indexOf("mep") !== 0) cancelMEP();
+  if (toolName.indexOf("mep") !== 0) cancelMEP();
   document.querySelectorAll(".tool").forEach(function (b) {
-    b.classList.toggle("active", b.getAttribute("data-tool") === t);
+    b.classList.toggle("active", b.getAttribute("data-tool") === toolName);
   });
-  plan.style.cursor = t === "select" && !S.placeType ? "default" : "crosshair";
-  if (t !== "point") S.snapInfo = null;
-  document.documentElement.setAttribute("data-tool", t || "select");
+  plan.style.cursor = toolName === "select" && !S.placeType ? "default" : "crosshair";
+  if (toolName !== "point") S.snapInfo = null;
+  document.documentElement.setAttribute("data-tool", toolName || "select");
   window.dispatchEvent(new CustomEvent("planner-tool"));
   updateCadHud();
   syncElevationTools();
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new CustomEvent("planner-draw-defaults"));
 }
 
 export function syncElevationTools() {
@@ -445,7 +460,7 @@ export function syncElevationTools() {
   if (typeof document === "undefined") return;
   document.querySelectorAll(".tool[data-tool]").forEach(function (b) {
     var tool = b.getAttribute("data-tool");
-    var blocked = elev && (tool === "wall" || tool === "arcwall");
+    var blocked = elev && isWallDrawTool(tool);
     b.disabled = !!blocked;
     b.classList.toggle("elev-blocked", blocked);
     b.classList.toggle("active", b.getAttribute("data-tool") === S.tool);
@@ -526,6 +541,7 @@ export function finishDraw() {
   healDrawnWallEnds();
   S.drawing = false;
   S.drawFrom = null;
+  S.drawStart = null;
   S.drawFromSplit = false;
   S.drawWalls = [];
   S.wallPress = null;
@@ -559,6 +575,7 @@ export function wallPoint(p) {
     S.drawFromSplit = !!p.wall || !!(p.walls && p.walls.length);
     S.drawWalls = [];
     S.drawFrom = getOrMakeNode(p);
+    S.drawStart = S.drawFrom;
     S.drawing = true;
     S.previewPt = { x: p.x, z: p.z };
     render2D();
@@ -605,6 +622,7 @@ export function wallPoint(p) {
   if (made) {
     if (drawn > 0) made.clearL = drawn;
     if (cleanEnds) preserveClear([made.a, made.b]);
+    splitCrossedByNewWall(made);
   }
   S.drawFrom = nb;
   S.drawFromSplit = !!p.wall || !!(p.walls && p.walls.length);
@@ -612,23 +630,166 @@ export function wallPoint(p) {
   S.previewPt = { x: S.nodes[nb].x, z: S.nodes[nb].z };
   S.freshWall = null;
   render2D();
+  /* A closed loop is a room the moment the last wall lands, not when the user
+     right-clicks to stop. Auto-close also ends the run so the next click is
+     not a stray continuation out of the new room. */
+  if (made && S.drawStart != null && nb === S.drawStart && (S.drawWalls || []).length >= 3) {
+    finishDraw();
+    return made;
+  }
+  if (made) refreshTree();
   return made;
 }
 
-/* Reusable wall style defaults are shared by straight, arc and room tools.
-   The catalogue owns physical thickness; the drawing default owns semantic
-   intent, so a new wall is complete at creation time rather than repaired on
-   the next inspector/render pass. */
-function applyWallDrawDefaults(wall) {
-  ensureWallTypes(S);
-  var defaults = S.wallDrawDefaults || {}, type = wallTypeById(S, defaults.typeId || "generic");
-  wall.wallTypeId = type ? type.id : "generic";
-  if (type && fin(type.thickness)) wall.thickness = type.thickness;
-  wall.kind = defaults.kind || "normal";
-  wall.datum = defaults.datum || "center";
-  wall.phase = defaults.phase === "demolish" ? "demolition" : (defaults.phase || "new");
-  wall.layersReversed = !!defaults.layersReversed;
-  return wall;
+/* Reusable wall style defaults live in js/wall_draw.js so the inspector,
+   rectangle tool, offset tool and typed polar input all stamp the same
+   type / draw-from / location line. */
+
+function splitCrossedByNewWall(made) {
+  var hits = throughCrossings(made);
+  if (!hits.length) return;
+  hits.forEach(function (hit) {
+    var host = wallById(hit.hostId);
+    if (!host || !made) return;
+    var hostHit = wallProject(host, hit.x, hit.z);
+    var madeHit = wallProject(made, hit.x, hit.z);
+    if (!hostHit || !madeHit) return;
+    var hostNode = splitWallAt(host, hostHit.s);
+    var madeNode = splitWallAt(made, madeHit.s);
+    var extra = S.walls[S.walls.length - 1];
+    if (extra && extra.id !== made.id && S.drawWalls.indexOf(extra.id) < 0)
+      S.drawWalls.push(extra.id);
+    if (hostNode != null && madeNode != null && hostNode !== madeNode)
+      weldNodes(hostNode, madeNode);
+  });
+}
+
+function commitPaintWall(wall) {
+  if (!wall) return;
+  pushHistory();
+  paintWallWithDefaults(wall);
+  S.dirty3D = true;
+  select({ kind: "wall", ref: wall });
+  fillProps();
+  render2D();
+  refreshTree();
+  flash(t("wd_painted"), "success");
+}
+
+function handleOffsetClick(px, pz) {
+  if (!S.offsetDraft) {
+    var host = hitWall(px, pz);
+    if (!host) { flash(t("wd_offset_need")); return; }
+    S.offsetDraft = {
+      hostId: host.id,
+      dist: resolveWallDrawDefaults().offsetDist,
+      side: offsetSideFromCursor(host, px, pz),
+    };
+    render2D();
+    return;
+  }
+  var host2 = wallById(S.offsetDraft.hostId);
+  if (!host2) { S.offsetDraft = null; return; }
+  S.offsetDraft.side = offsetSideFromCursor(host2, px, pz);
+  commitOffsetWall();
+}
+
+function commitOffsetWall() {
+  var d = S.offsetDraft, host = d && wallById(d.hostId);
+  if (!host) return;
+  var ghost = offsetGhost(host, d.dist, d.side);
+  if (!ghost) return;
+  pushHistory();
+  var a = getOrMakeNode(resolveLanding({ x: ghost.a.x, z: ghost.a.z }, true));
+  var b = getOrMakeNode(resolveLanding({ x: ghost.b.x, z: ghost.b.z }, true));
+  if (a === b) { flash(t("hint_tool_rect")); return; }
+  var made = applyWallDrawDefaults({
+    id: uid(), a: a, b: b, thickness: WALL_T, height: WALL_H,
+  });
+  S.walls.push(made);
+  if (wallClearLength(made) > 0) made.clearL = wallClearLength(made);
+  captureLock(made); captureClear(made);
+  S.drawWalls = [made.id];
+  healDrawnWallEnds();
+  S.drawWalls = [];
+  S.offsetDraft = null;
+  S.wallDrawDefaults = Object.assign({}, S.wallDrawDefaults || {}, { offsetDist: d.dist });
+  S.dirty3D = true;
+  select({ kind: "wall", ref: made });
+  render2D();
+  refreshTree();
+}
+
+function handleBreakClick(px, pz) {
+  var w = hitWall(px, pz);
+  if (!w) { flash(t("wd_break_need")); return; }
+  var pr = wallProject(w, px, pz), g = wallGeom(w);
+  if (!pr || pr.s < 8 || pr.s > g.L - 8) { flash(t("wd_break_end")); return; }
+  pushHistory();
+  splitWallAt(w, pr.s);
+  S.dirty3D = true;
+  render2D();
+  refreshTree();
+}
+
+function handleJoinClick(px, pz) {
+  var w = hitWall(px, pz);
+  if (!w) { flash(t("wd_join_need")); return; }
+  if (!S.joinPick) {
+    S.joinPick = w;
+    select({ kind: "wall", ref: w });
+    flash(t("wd_join_second"));
+    render2D();
+    return;
+  }
+  var prop = joinProposal(S.joinPick, w);
+  if (!prop) {
+    S.joinPick = w;
+    select({ kind: "wall", ref: w });
+    flash(t("wd_join_colin"), "error");
+    return;
+  }
+  pushHistory();
+  var keep = prop.keep, drop = prop.drop;
+  var pts = S.openings.filter(function (o) {
+    return o.wall === keep.id || o.wall === drop.id;
+  }).map(function (o) {
+    var host = o.wall === keep.id ? keep : drop;
+    return { o: o, p: wallPointAt(host, o.s) };
+  });
+  keep.a = prop.farKeep;
+  keep.b = prop.farDrop;
+  delete keep.geometry;
+  delete keep.curve;
+  pts.forEach(function (entry) {
+    if (!entry.p) return;
+    var pr = wallProject(keep, entry.p.x, entry.p.z);
+    if (!pr) return;
+    entry.o.wall = keep.id;
+    entry.o.s = pr.s;
+  });
+  S.walls = S.walls.filter(function (x) { return x.id !== drop.id; });
+  S.openings = S.openings.filter(function (o) { return o.wall !== drop.id; });
+  captureLock(keep); captureClear(keep);
+  pruneCons();
+  S.joinPick = null;
+  S.dirty3D = true;
+  select({ kind: "wall", ref: keep });
+  render2D();
+  refreshTree();
+  flash(t("wd_joined"), "success");
+}
+
+function handleReverseClick(px, pz) {
+  var w = hitWall(px, pz);
+  if (!w) { flash(t("wd_reverse_need")); return; }
+  pushHistory();
+  reverseWallStyle(w);
+  S.dirty3D = true;
+  select({ kind: "wall", ref: w });
+  fillProps();
+  render2D();
+  flash(t("wd_reversed"), "success");
 }
 
 function commitRectFromTo(a, b) {
@@ -786,8 +947,10 @@ export function arcWallPoint(p) {
     S.walls.push(made);
     captureLock(made); captureClear(made);
   }
-  S.arcDraft = null; S.previewPt = null; S.dirty3D = true;
-  if (made) select({ kind: "wall", ref: made });
+  S.arcDraft = { startNode: endNode, through: null };
+  S.previewPt = { x: S.nodes[endNode].x, z: S.nodes[endNode].z };
+  S.dirty3D = true;
+  if (made) captureLock(made);
   render2D(); refreshTree();
   return made;
 }
@@ -911,6 +1074,8 @@ const SNAP_GATE = {
   extension: "extension",
   jamb: "onwall",
   openingBlocked: "onwall",
+  close: "corner",
+  hit: "onwall",
 };
 function kindGate(kind) {
   return SNAP_GATE[kind] || kind;
@@ -950,6 +1115,8 @@ const SNAP_BONUS = {
      snapping range the warning still wins, which is the case it is for. */
   jamb: 7,
   openingBlocked: 6,
+  close: 8,
+  hit: 6,
 };
 
 /* When the user has demanded ONE kind for this click (see snapOverride), every
@@ -1001,6 +1168,11 @@ function snapPoint(px, pz, fromIdx) {
     var n = S.nodes[k];
     offer("corner", n.x, n.z, { node: +k });
   }
+  if (S.tool === "wall" && S.drawing && S.drawStart != null &&
+      (S.drawWalls || []).length >= 2 && origins.indexOf(S.drawStart) === -1) {
+    var st = S.nodes[S.drawStart];
+    if (st) offer("close", st.x, st.z, { node: S.drawStart });
+  }
 
   /* 2. placeholder points. These were measurable but not aimable: a point
      could anchor a dimension while being impossible to actually draw a wall
@@ -1034,7 +1206,7 @@ function snapPoint(px, pz, fromIdx) {
      86. The cursor is still measured against the jamb itself: that is the line
      being aimed at, and at any real zoom the offset centreline is further away
      than the snap tolerance. */
-  var faceBack = S.tool === "wall" ? WALL_T / 2 : 0;
+  var faceBack = drawFaceBack();
   S.openings.forEach(function (o) {
     var w = wallById(o.wall);
     if (!w || origins.indexOf(w.a) !== -1 || origins.indexOf(w.b) !== -1) return;
@@ -1311,7 +1483,7 @@ function snapPoint(px, pz, fromIdx) {
         if (!q || origins.indexOf(+nk) !== -1) continue;
         alignTargets.push({ x: q.x, z: q.z });
       }
-      var faceBack = S.tool === "wall" ? WALL_T / 2 : 0;
+      var faceBack = drawFaceBack();
       (S.openings || []).forEach(function (o) {
         var w = wallById(o.wall);
         if (!w || origins.indexOf(w.a) !== -1 || origins.indexOf(w.b) !== -1) return;
@@ -1379,6 +1551,18 @@ function snapPoint(px, pz, fromIdx) {
     gz = S.gsnap === false ? pz : Math.round(pz / SNAP_GRID) * SNAP_GRID;
   S.snapInfo = { type: S.gsnap === false ? "free" : "grid", x: gx, z: gz };
   return { x: gx, z: gz, node: null, wall: null };
+}
+
+function snapWallPoint(px, pz, fromIdx) {
+  var p = snapPoint(px, pz, fromIdx);
+  if (!(S.tool === "wall" && S.drawing && fromIdx != null)) return p;
+  var origin = S.nodes[fromIdx];
+  if (!origin) return p;
+  if (p.node != null || p.wall || (p.walls && p.walls.length)) return p;
+  var hit = extendToHit(origin, p, wallJoinTolerance());
+  if (!hit) return p;
+  S.snapInfo = { type: "hit", x: hit.x, z: hit.z, alts: (S.snapInfo && S.snapInfo.alts) || 1 };
+  return { x: hit.x, z: hit.z, node: null, wall: hit.wall, s: hit.s };
 }
 
 /* ---- picking the far side of a new dimension ----------------------------
@@ -1787,92 +1971,106 @@ export function selectAtScreen(ox, oy) {
   return S.sel;
 }
 
-export function deleteSel() {
-  if (!S.sel) return;
-  // Lock has to be honoured BEFORE pushHistory, or refusing to delete still
-  // leaves a no-op entry on the undo stack that swallows the next Ctrl+Z.
-  // Locking already blocks dragging, nudging and auto-arrange; deletion is the
-  // one destructive path it used to let through.
-  var lockedSkipped = 0;
-  if (S.sel.kind === "item" && S.sel.ref.locked) {
-    flash(t("f_itemLockedDel"), "error");
-    return;
-  }
-  if (S.sel.kind === "items") {
-    lockedSkipped = S.sel.refs.filter(function (i) {
-      return i.locked;
-    }).length;
-    if (lockedSkipped === S.sel.refs.length) {
-      flash(t("f_itemLockedDel"), "error");
-      return;
-    }
-  }
-  if (S.sel.kind !== "room") pushHistory();
-  if (S.sel.kind === "item") {
-    S.items = S.items.filter(function (i) {
-      return i !== S.sel.ref;
-    });
+function targetLocked(sel) {
+  if (!sel) return false;
+  if (sel.kind === "item") return !!sel.ref.locked;
+  if (sel.kind === "items")
+    return sel.refs.length > 0 && sel.refs.every(function (i) { return i.locked; });
+  return false;
+}
+
+function applyRemove(sel) {
+  if (!sel) return false;
+  if (sel.kind === "item") {
+    S.items = S.items.filter(function (i) { return i !== sel.ref; });
     orphanChildren(null);
-  } else if (S.sel.kind === "items") {
-    // delete what isn't locked, keep what is, and say so
+  } else if (sel.kind === "items") {
+    var lockedSkipped = sel.refs.filter(function (i) { return i.locked; }).length;
     S.items = S.items.filter(function (i) {
-      return S.sel.refs.indexOf(i) === -1 || i.locked;
+      return sel.refs.indexOf(i) === -1 || i.locked;
     });
     if (lockedSkipped) flash(t("f_someLockedSkipped", { n: lockedSkipped }));
     orphanChildren(null);
-  } else if (S.sel.kind === "opening") {
-    S.openings = S.openings.filter(function (o) {
-      return o !== S.sel.ref;
-    });
-  } else if (S.sel.kind === "wall") {
-    var id = S.sel.ref.id;
-    detachNodesFromWalls(function (wid) {
-      return wid === id;
-    });
-    S.walls = S.walls.filter(function (w) {
-      return w !== S.sel.ref;
-    });
-    S.openings = S.openings.filter(function (o) {
-      return o.wall !== id;
-    });
-  } else if (S.sel.kind === "walls") {
-    var wallIds = new Set(S.sel.refs.map(function (w) { return w.id; }));
+  } else if (sel.kind === "opening") {
+    S.openings = S.openings.filter(function (o) { return o !== sel.ref; });
+  } else if (sel.kind === "wall") {
+    var id = sel.ref.id;
+    detachNodesFromWalls(function (wid) { return wid === id; });
+    S.walls = S.walls.filter(function (w) { return w !== sel.ref; });
+    S.openings = S.openings.filter(function (o) { return o.wall !== id; });
+  } else if (sel.kind === "walls") {
+    var wallIds = new Set(sel.refs.map(function (w) { return w.id; }));
     detachNodesFromWalls(function (wid) { return wallIds.has(wid); });
     S.walls = S.walls.filter(function (w) { return !wallIds.has(w.id); });
     S.openings = S.openings.filter(function (o) { return !wallIds.has(o.wall); });
-  } else if (S.sel.kind === "node") {
-    var ni = S.sel.ref;
-    var goneW = {};
+  } else if (sel.kind === "node") {
+    var ni = sel.ref, goneW = {};
     S.walls.forEach(function (w) {
       if (w.a === ni || w.b === ni) goneW[w.id] = 1;
     });
     detachNodesFromWalls(goneW);
-    S.walls = S.walls.filter(function (w) {
-      return w.a !== ni && w.b !== ni;
-    });
-    // a corner's walls take their openings with them
-    S.openings = S.openings.filter(function (o) {
-      return !goneW[o.wall];
-    });
-  } else if (S.sel.kind === "marker") {
-    // deleting the point leaves whatever was standing on it exactly where it is
-    deleteMarker(S.sel.ref);
-  } else if (S.sel.kind === "mepNode" || S.sel.kind === "mepRun") {
-    deleteMEP(S.sel);
-    select(null);
-    S.dirty3D = true;
-    render2D();
-    refreshTree();
-    return;
-  } else if (S.sel.kind === "room") {
-    deleteRoom(S.sel.ref); // pushes its own history entry
-    return;
+    S.walls = S.walls.filter(function (w) { return w.a !== ni && w.b !== ni; });
+    S.openings = S.openings.filter(function (o) { return !goneW[o.wall]; });
+  } else if (sel.kind === "marker") {
+    deleteMarker(sel.ref);
+  } else if (sel.kind === "mepNode" || sel.kind === "mepRun") {
+    deleteMEP(sel);
+  } else if (sel.kind === "con" && sel.ref) {
+    removeCon(sel.ref.id);
+  } else {
+    return false;
   }
+  return true;
+}
+
+function finishRemove() {
   pruneCons();
   select(null);
   S.dirty3D = true;
   render2D();
-  refreshTree(); // deleted rows must leave the rooms/items tree too
+  refreshTree();
+}
+
+function pickErase(px, pz, ox, oy) {
+  if (ox != null) {
+    var hc = pickCon(ox, oy);
+    if (hc) return { kind: "con", ref: hc };
+  }
+  var hm = hitMEP(px, pz);
+  if (hm) return hm;
+  var hmk = hitMarker(px, pz);
+  if (hmk) return { kind: "marker", ref: hmk };
+  var ho = hitOpening(px, pz);
+  if (ho) return { kind: "opening", ref: ho };
+  var hi = hitItem(px, pz);
+  if (hi) return { kind: "item", ref: hi };
+  var hw = hitWall(px, pz);
+  if (hw) return { kind: "wall", ref: hw };
+  return null;
+}
+
+function eraseKey(hit) {
+  if (!hit) return "";
+  if (hit.kind === "node") return "node:" + hit.ref;
+  var id = hit.ref && hit.ref.id != null ? hit.ref.id : hit.ref;
+  return hit.kind + ":" + id;
+}
+
+export function deleteSel() {
+  if (!S.sel) return;
+  // Lock has to be honoured BEFORE pushHistory, or refusing to delete still
+  // leaves a no-op entry on the undo stack that swallows the next Ctrl+Z.
+  if (targetLocked(S.sel)) {
+    flash(t("f_itemLockedDel"), "error");
+    return;
+  }
+  if (S.sel.kind === "room") {
+    deleteRoom(S.sel.ref); // pushes its own history entry
+    return;
+  }
+  pushHistory();
+  applyRemove(S.sel);
+  finishRemove();
 }
 /* Copy an item wholesale, then override only what a copy must not share.
    Listing fields by hand here is exactly how duplicates came to silently lose
@@ -2204,6 +2402,61 @@ export function applyNodePairRelation(type) {
   flash(type === "equalAngle" ? "Angles made equal" : "Relation added", "success");
   return true;
 }
+var OPENING_DEFAULTS = {
+  door: { width: 90, height: 205, sill: 0 },
+  window: { width: 120, height: 120, sill: 90 },
+  passage: { width: 120, height: 210, sill: 0 },
+};
+
+/* Place a door, window, or passage on the selected wall (and any wall that
+   sits on the same run at that station). The plan tools do the same from a
+   click; the inspector calls this so the wall does not have to be re-picked. */
+export function placeOpeningOnSelected(type, opts) {
+  if (!S.sel || S.sel.kind !== "wall") return null;
+  type = type === "door" || type === "window" || type === "passage" ? type : "passage";
+  var defs = OPENING_DEFAULTS[type];
+  var w = S.sel.ref,
+    gm = wallGeom(w),
+    options = opts || {};
+  var width = clamp(options.width != null ? options.width : defs.width, 10, gm.L);
+  var height = clamp(options.height != null ? options.height : defs.height, 20, w.height);
+  var sill = clamp(options.sill != null ? options.sill : defs.sill, 0, Math.max(0, w.height - height));
+  var s = options.s != null ? options.s : gm.L / 2;
+  s = clamp(s, width / 2, gm.L - width / 2);
+  pushHistory();
+  var chosenPoint = wallPointAt(w, s),
+    Px = chosenPoint.x,
+    Pz = chosenPoint.z,
+    made = null;
+  S.walls.forEach(function (x) {
+    var g = wallGeom(x);
+    var projected = wallProject(x, Px, Pz);
+    if (projected && projected.distance < x.thickness / 2 + 6) {
+      var o = {
+        id: uid(),
+        type: type,
+        wall: x.id,
+        s: projected.s,
+        // a coincident wall can be shorter than the selected one
+        width: Math.min(width, g.L),
+        height: x === w ? height : Math.min(height, x.height),
+        sill: x === w ? sill : Math.min(sill, Math.max(0, x.height - height)),
+      };
+      o.s = clamp(o.s, o.width / 2, Math.max(o.width / 2, g.L - o.width / 2));
+      S.openings.push(o);
+      if (x === w) made = o;
+      else if (!made) made = o;
+    }
+  });
+  if (!made) return null;
+  S.segPreview = null;
+  select({ kind: "opening", ref: made });
+  S.dirty3D = true;
+  render2D();
+  refreshTree();
+  return made;
+}
+
 export function openWall() {
   if (!S.sel || S.sel.kind !== "wall") return;
   var w = S.sel.ref;
@@ -2274,43 +2527,8 @@ export function addSpace(w, d, label, isCorridor) {
 // open a manual segment in the selected wall: a passage of given width/height centered at `s` (cm along wall).
 // also cuts any wall coincident at that point (the adjacent room's matching wall) so both open.
 export function openSegment(s, width, height) {
-  if (!S.sel || S.sel.kind !== "wall") return;
-  var w = S.sel.ref,
-    gm = wallGeom(w);
-  pushHistory();
-  width = clamp(width, 10, gm.L);
-  s = clamp(s, width / 2, gm.L - width / 2);
-  height = clamp(height, 20, w.height);
-  var chosenPoint = wallPointAt(w, s), Px = chosenPoint.x,
-    Pz = chosenPoint.z,
-    made = null;
-  S.walls.forEach(function (x) {
-    var g = wallGeom(x);
-    var projected = wallProject(x, Px, Pz);
-    if (projected && projected.distance < x.thickness / 2 + 6) {
-      var ss = projected.s;
-      var o = {
-        id: uid(),
-        type: "passage",
-        wall: x.id,
-        s: ss,
-        width: width,
-        height: x === w ? height : Math.min(height, x.height),
-        sill: 0,
-      };
-      o.s = clamp(o.s, o.width / 2, Math.max(o.width / 2, g.L - o.width / 2));
-      S.openings.push(o);
-      if (x === w) made = o;
-      else if (!made) made = o;
-    }
-  });
-  if (made) {
-    S.segPreview = null;
-    select({ kind: "opening", ref: made });
-    S.dirty3D = true;
-    render2D();
-    flash(t("f_segOpened", { w: Math.round(width), h: Math.round(height) }));
-  }
+  var made = placeOpeningOnSelected("passage", { s: s, width: width, height: height, sill: 0 });
+  if (made) flash(t("f_segOpened", { w: Math.round(made.width), h: Math.round(made.height) }));
 }
 /* Delete a whole room: its items, the walls that bound it alone, and their
    openings. A wall shared with a neighbouring room is kept — it still bounds
@@ -2408,7 +2626,16 @@ export function rotateRoom(deg) {
 export function moveItemTo(it, nx, nz) {
   var px0 = it.x,
     pz0 = it.z;
-  var a = alignItem(Math.round(nx / 2) * 2, Math.round(nz / 2) * 2, it);
+  var tx = Math.round(nx / 2) * 2,
+    tz = Math.round(nz / 2) * 2;
+  /* Which way it faces is settled BEFORE the position snap, not after: turning
+     a piece changes its footprint, and the flush-to-wall snap below measures
+     that footprint. Deciding afterwards left a bed snapped flush by its side
+     and then turned, i.e. standing half inside the wall. (js/item_orient.js) */
+  var faced = applyAutoFace(it, tx, tz, { host: findSupport(it, tx, tz) });
+  // a piece standing on this one turns with it, exactly as a manual rotation
+  if (faced) rotateWith(it, faced, new Set([it]));
+  var a = alignItem(tx, tz, it);
   it.x = a.x;
   it.z = a.z;
   /* The vertical axis of the same snap: whatever the piece now sits over
@@ -2458,6 +2685,41 @@ export function drag3DItemElev(it, elev) {
   });
   render2D();
 }
+/* Openings drag in 3D too — the same slide along their host wall the plan drag
+   does, so a door can be nudged while you are looking at the room it opens
+   into. Walls themselves stay fixed: their geometry is the frame everything
+   else is measured against, and the plan is the place to redraw it. */
+export function begin3DOpeningDrag(o) {
+  if (!o || !wallById(o.wall)) return false;
+  select({ kind: "opening", ref: o });
+  beginHistory();
+  render2D();
+  return true;
+}
+// where a world point falls along the opening's wall (cm from the wall start),
+// or null when the wall is gone — the 3D view uses it to take a grab offset
+export function opening3DPos(o, x, z) {
+  var w = o && wallById(o.wall);
+  if (!w) return null;
+  var gm = wallGeom(w);
+  if (!gm || gm.L < 1) return null;
+  return (x - gm.a.x) * gm.ux + (z - gm.a.z) * gm.uz;
+}
+export function drag3DOpeningTo(o, x, z, offS) {
+  var s = opening3DPos(o, x, z);
+  if (s == null) return;
+  commitPending();
+  var gm = wallGeom(wallById(o.wall));
+  o.s = clamp(s + (offS || 0), o.width / 2, gm.L - o.width / 2);
+  S.dirty3D = true;
+  render2D();
+}
+export function end3DOpeningDrag() {
+  cancelPending();
+  fillProps();
+  render2D();
+}
+
 export function end3DItemDrag() {
   cancelPending();
   if (S.stackHost || S.alignX != null || S.alignZ != null) {
@@ -2486,6 +2748,8 @@ export function rotateItems(deg) {
       it.x = cx + dx * ca - dz * sa;
       it.z = cz + dx * sa + dz * ca;
       it.rot = ((((it.rot || 0) + deg) % 360) + 360) % 360;
+      // turned by hand -> the automatic facing leaves it alone from here
+      markManualRot(it);
   });
   S.dirty3D = true;
   fillProps();
@@ -2496,7 +2760,63 @@ export function rotateItems(deg) {
 export function initInteraction() {
   var pointers = {},
     pinch = null,
-    nudgeT = 0; // active touch pointers + pinch state + last arrow-nudge time
+    nudgeT = 0, // active touch pointers + pinch state + last arrow-nudge time
+    eraseSeen = null,
+    erasePushed = false;
+  function beginEraseStroke() {
+    eraseSeen = Object.create(null);
+    erasePushed = false;
+  }
+  function strokeErase(hit) {
+    if (!hit || !eraseSeen) return;
+    var key = eraseKey(hit);
+    if (eraseSeen[key]) return;
+    if (targetLocked(hit)) {
+      flash(t("f_itemLockedDel"), "error");
+      eraseSeen[key] = 1;
+      return;
+    }
+    if (!erasePushed) {
+      pushHistory();
+      erasePushed = true;
+    }
+    eraseSeen[key] = 1;
+    if (applyRemove(hit)) finishRemove();
+  }
+  /* ---- two-finger tap = undo ----
+     The one editing action a phone user reaches for constantly, given a
+     gesture so it costs no screen at all. Armed by the second finger landing
+     and disarmed by any real pinch: a tap is two fingers down and up inside
+     TWOTAP_MS with the pair barely moving, which is nothing like the zoom
+     gesture it shares a starting position with. */
+  var TWOTAP_MS = 260,
+    TWOTAP_SLOP = 16,
+    twoTap = null,
+    preTouchSel = null; // what was selected before this gesture's first finger
+  function armTwoTap() {
+    var ids = Object.keys(pointers);
+    var a = pointers[ids[0]],
+      b = pointers[ids[1]];
+    twoTap = { t: Date.now(), d0: Math.hypot(a.x - b.x, a.y - b.y), ax: a.x, ay: a.y };
+  }
+  function breakTwoTap() {
+    twoTap = null;
+  }
+  function tryTwoTap() {
+    if (!twoTap) return false;
+    var hit = Date.now() - twoTap.t <= TWOTAP_MS;
+    twoTap = null;
+    if (!hit) return false;
+    /* The first finger of the gesture already picked whatever it landed on.
+       The gesture means "undo", not "select this", so put the selection back
+       before undoing — which then replaces it with its own if it has one. */
+    S.sel = preTouchSel;
+    undo();
+    render2D();
+    if (navigator.vibrate) navigator.vibrate(12);
+    return true;
+  }
+
   function beginPinch() {
     var ids = Object.keys(pointers),
       a = pointers[ids[0]],
@@ -2524,6 +2844,10 @@ export function initInteraction() {
     var dist = Math.hypot(a.x - b.x, a.y - b.y) || 1,
       mx = (a.x + b.x) / 2,
       my = (a.y + b.y) / 2;
+    // Any actual zoom or pan means this was a pinch, not a tap.
+    if (twoTap && (Math.abs(dist - twoTap.d0) > TWOTAP_SLOP ||
+        Math.hypot(a.x - twoTap.ax, a.y - twoTap.ay) > TWOTAP_SLOP))
+      breakTwoTap();
     S.SC = clamp(pinch.sc * (dist / pinch.dist), 0.08, 6);
     S.OX = mx - pinch.wmx * S.SC;
     S.OY = my - pinch.wmy * S.SC;
@@ -2597,6 +2921,14 @@ export function initInteraction() {
        placeholder points are edited in the two axes the elevation can see
        (along the facade, and height). */
     if (isElevation()) {
+      if (S.tool === "erase") {
+        if (e.button === 2) { setTool("select"); return; }
+        beginEraseStroke();
+        S.action = "erase";
+        var eh = elevationHit(ox, oy);
+        if (eh && eh.kind !== "room") strokeErase(eh);
+        return;
+      }
       if (S.tool === "wall" || S.tool === "arcwall") {
         setTool("select");
       }
@@ -2666,9 +2998,12 @@ export function initInteraction() {
     }
 
     if (e.pointerType === "touch") {
+      S.touchDrag = true; // gates the snap haptic to actual finger drags
+      if (!Object.keys(pointers).length) preTouchSel = S.sel;
       pointers[e.pointerId] = { x: ox, y: oy };
       if (Object.keys(pointers).length >= 2) {
         cancelLongPress(); // a second finger is a pinch, never a menu
+        armTwoTap();
         beginPinch();
         return;
       }
@@ -2707,18 +3042,56 @@ export function initInteraction() {
         }
         return;
       }
+      if (!S.drawing && (e.altKey || e.metaKey)) {
+        var paintHost = hitWall(px, pz);
+        if (paintHost) { commitPaintWall(paintHost); return; }
+      }
       /* First segment supports Chief Architect's press-drag-release gesture.
          A stationary press remains the familiar first click of click-click
          placement; endAction commits only when the pointer actually travelled. */
       var wasDrawing = S.drawing;
-      wallPoint(snapPoint(px, pz, S.drawFrom));
+      wallPoint(snapWallPoint(px, pz, S.drawFrom));
       if (!wasDrawing && S.drawing)
         S.wallPress = { pointerId: e.pointerId, x: ox, y: oy };
       return;
     }
+    if (S.tool === "walloffset") {
+      if (e.button === 2) { S.offsetDraft = null; S.previewPt = null; render2D(); return; }
+      handleOffsetClick(px, pz);
+      return;
+    }
+    if (S.tool === "wallbreak") {
+      if (e.button === 2) { setTool("select"); return; }
+      handleBreakClick(px, pz);
+      return;
+    }
+    if (S.tool === "walljoin") {
+      if (e.button === 2) { S.joinPick = null; setTool("select"); return; }
+      handleJoinClick(px, pz);
+      return;
+    }
+    if (S.tool === "wallreverse") {
+      if (e.button === 2) { setTool("select"); return; }
+      handleReverseClick(px, pz);
+      return;
+    }
+    if (S.tool === "wallpaint") {
+      if (e.button === 2) { setTool("select"); return; }
+      var pw = hitWall(px, pz);
+      if (pw) commitPaintWall(pw);
+      else flash(t("wd_paint_need"));
+      return;
+    }
+    if (S.tool === "erase") {
+      if (e.button === 2) { setTool("select"); return; }
+      beginEraseStroke();
+      S.action = "erase";
+      strokeErase(pickErase(px, pz, ox, oy));
+      return;
+    }
     if (S.tool === "arcwall") {
       if (e.button === 2) {
-        S.arcDraft = null; S.previewPt = null; setTool("select"); render2D();
+        S.arcDraft = null; S.previewPt = null; render2D();
         return;
       }
       arcWallPoint(snapPoint(px, pz, null));
@@ -3236,6 +3609,12 @@ export function initInteraction() {
         S.markerPreview = elevPick(e.offsetX, e.offsetY);
         render2D();
       }
+      if (S.tool === "erase") {
+        var ee = elevationHit(e.offsetX, e.offsetY);
+        S.eraseHover = ee && ee.kind !== "room" ? ee : null;
+        if (S.action === "erase" && S.eraseHover) strokeErase(S.eraseHover);
+        render2D();
+      }
       return;
     }
     if (e.pointerType === "touch" && pointers[e.pointerId])
@@ -3259,25 +3638,58 @@ export function initInteraction() {
        the next wall. It is the question you are asking whenever the cursor is
        over a wall, and it used to need a measure-tool detour. */
     updateWallProbe(px, pz);
-    if (S.tool === "wall" && S.drawing && S.drawFrom != null) {
-      /* Once a dimension is being typed the keyboard owns the endpoint: a
-         nudge of the mouse must not silently overwrite the number just
-         entered. Same rule as every CAD's dynamic input. */
-      if (entryOpen()) return;
-      var p = snapPoint(px, pz, S.drawFrom);
-      S.previewPt = { x: p.x, z: p.z };
+    if (S.tool === "wall") {
+      /* The four-way overlay and snap mark follow the cursor from the moment
+         the tool is armed — not only after the first click — so you can read
+         distances to walls and objects before placing the start corner. */
+      if (S.drawing && S.drawFrom != null) {
+        /* Once a dimension is being typed the keyboard owns the endpoint: a
+           nudge of the mouse must not silently overwrite the number just
+           entered. Same rule as every CAD's dynamic input. */
+        if (entryOpen()) return;
+        var p = snapWallPoint(px, pz, S.drawFrom);
+        S.previewPt = { x: p.x, z: p.z };
+        render2D();
+        return;
+      }
+      var p0 = snapPoint(px, pz, null);
+      S.previewPt = fin(p0.x) && fin(p0.z) ? { x: p0.x, z: p0.z } : null;
       render2D();
       return;
     }
-    if (S.tool === "arcwall" && S.arcDraft) {
+    if (S.tool === "walloffset") {
+      if (S.offsetDraft && S.offsetDraft.hostId != null) {
+        var oh = wallById(S.offsetDraft.hostId);
+        if (oh) {
+          S.offsetDraft.side = offsetSideFromCursor(oh, px, pz);
+          S.previewPt = { x: px, z: pz };
+        }
+      } else {
+        S.previewPt = { x: px, z: pz };
+      }
+      render2D();
+      return;
+    }
+    if (S.tool === "wallbreak" || S.tool === "walljoin" || S.tool === "wallreverse" || S.tool === "wallpaint") {
+      S.previewPt = { x: px, z: pz };
+      render2D();
+      return;
+    }
+    if (S.tool === "erase") {
+      S.eraseHover = pickErase(px, pz, e.offsetX, e.offsetY);
+      if (S.action === "erase" && S.eraseHover) strokeErase(S.eraseHover);
+      render2D();
+      return;
+    }
+    if (S.tool === "arcwall") {
       var ap = snapPoint(px, pz, null);
-      S.previewPt = { x: ap.x, z: ap.z };
+      S.previewPt = fin(ap.x) && fin(ap.z) ? { x: ap.x, z: ap.z } : null;
       render2D();
       return;
     }
-    if (S.tool === "rect" && S.rectDraft) {
+    if (S.tool === "rect") {
       var rrp = snapPoint(px, pz, null);
-      S.previewPt = { x: rrp.x, z: rrp.z };
+      S.previewPt = fin(rrp.x) && fin(rrp.z) ? { x: rrp.x, z: rrp.z } : null;
       render2D();
       return;
     }
@@ -3391,6 +3803,10 @@ export function initInteraction() {
     }
     if (S.action === "item" && S.sel && (S.sel.kind === "item" || S.sel.kind === "items")) {
       commitPending();
+      /* Alt suspends the automatic facing for THIS drag only (endAction clears
+         it). The angle a piece was given by hand is otherwise remembered for
+         good, which is too big a commitment for "just this once". */
+      S.orientHold = !!e.altKey;
       if (S.sel.kind === "items") {
         var tarX = Math.round((px - S.dragOff.x) / 2) * 2;
         var tarZ = Math.round((pz - S.dragOff.z) / 2) * 2;
@@ -3676,7 +4092,7 @@ export function initInteraction() {
           woy = e.clientY - wr.top;
         if (Math.hypot(wox - wp.x, woy - wp.y) > 5)
           {
-            wallPoint(snapPoint(wx(wox, woy), wz(wox, woy), S.drawFrom));
+            wallPoint(snapWallPoint(wx(wox, woy), wz(wox, woy), S.drawFrom));
             /* A drag is Chief Architect's normal one-wall gesture: release
                commits that wall and ends its rubber band. The Wall tool stays
                armed, so the next wall starts with another independent drag.
@@ -3695,7 +4111,12 @@ export function initInteraction() {
        silently becomes a persistent setting. */
     S.snapOnly = null;
     S.snapCycle = 0;
-    if (e && e.pointerType === "touch") delete pointers[e.pointerId];
+    if (e && e.pointerType === "touch") {
+      S.touchDrag = false;
+      delete pointers[e.pointerId];
+      // Both fingers gone, nothing zoomed: that was the undo gesture.
+      if (!Object.keys(pointers).length && tryTwoTap()) return;
+    }
     if (S.action === "room" && S.sel && S.sel.kind === "room") {
       var rKey = S.sel.ref;
       var rMeta = S.roomMeta[rKey];
@@ -3770,6 +4191,11 @@ export function initInteraction() {
       if (heldWall && S.sel.kind === "item" && !S.sel.ref.locked)
         holdToWall(S.sel.ref, heldWall, 0);
       S.itemSnapWall = null;
+      S.orientHold = false; // Alt was for that gesture, not for the session
+      /* The drag may have turned the piece for you (js/item_orient.js), so the
+         inspector's rotation has to be re-read — a number that disagrees with
+         the plan is worse than no number. */
+      fillProps();
     }
     if (S.action === "room" && S.dragRoom)
       S.dragRoom.items.forEach(function (o) { releaseIfMoved(o.it); });
@@ -3837,6 +4263,8 @@ export function initInteraction() {
     var dragUsedSnap = S.action === "marker" || S.action === "node";
     cancelPending();
     S.action = null;
+    eraseSeen = null;
+    erasePushed = false;
     S.dragRoom = null;
     S.nodeDrag = null;
     S.wallDrag = null;
@@ -3863,8 +4291,15 @@ export function initInteraction() {
     // a captured drag keeps scrolling past the border; the wall/route tools are
     // between clicks with no capture, so losing the cursor must stop the scroll
     if (!S.action) stopAutoPan();
+    var draftHover =
+      S.previewPt &&
+      !S.drawing &&
+      !S.arcDraft &&
+      !S.rectDraft &&
+      (S.tool === "wall" || S.tool === "arcwall" || S.tool === "rect");
     if (S.hoverItem || S.hoverPt || S.markerPreview || S.wallHoverHalf ||
-        S.warnHover || S.conHover || S.wallProbe || S.hoverMarker || S.hoverNode != null) {
+        S.warnHover || S.conHover || S.wallProbe || S.hoverMarker || S.hoverNode != null ||
+        S.eraseHover || draftHover) {
       S.hoverItem = null;
       S.hoverPt = null;
       S.hoverMarker = null;
@@ -3872,6 +4307,12 @@ export function initInteraction() {
       S.wallHoverHalf = null;
       S.wallProbe = null;
       S.markerPreview = null;
+      S.eraseHover = null;
+      if (draftHover) {
+        S.previewPt = null;
+        S.snapGuides = [];
+        S.snapInfo = null;
+      }
       if (S.conHover) setConstraintHover(null);
       if (S.tool === "select") plan.style.cursor = "default";
       if (S.warnHover) {
@@ -3934,7 +4375,9 @@ export function initInteraction() {
       S.freshWall = null; // "I'm done" ends the just-drawn run too
       if (S.conPick) endConPick(null);
       else if (S.drawing) finishDraw();
-      else if (S.arcDraft) { S.arcDraft = null; S.previewPt = null; setTool("select"); }
+      else if (S.offsetDraft) { S.offsetDraft = null; S.previewPt = null; render2D(); }
+      else if (S.joinPick) { S.joinPick = null; render2D(); }
+      else if (S.arcDraft) { S.arcDraft = null; S.previewPt = null; render2D(); }
       else if (S.rectDraft) { S.rectDraft = null; S.previewPt = null; setTool("select"); }
       else if (S.placeType) {
         S.placeType = null;
@@ -3957,14 +4400,18 @@ export function initInteraction() {
       e.preventDefault();
       deleteSel();
     } else if (e.key === "r" || e.key === "R") {
+      /* The step is whatever the inspector is set to (15/45/90), and Shift
+         turns the other way — one key for both directions beats two. */
+      var rStep = rotStep() * (e.shiftKey ? -1 : 1);
       if (S.sel && S.sel.kind === "item") {
         pushHistory();
-        S.sel.ref.rot = (S.sel.ref.rot + 15) % 360;
+        S.sel.ref.rot = (((S.sel.ref.rot + rStep) % 360) + 360) % 360;
+        markManualRot(S.sel.ref);
         S.dirty3D = true;
         fillProps();
         render2D();
-      } else if (S.sel && S.sel.kind === "items") rotateItems(15);
-      else if (S.sel && S.sel.kind === "room") rotateRoom(15);
+      } else if (S.sel && S.sel.kind === "items") rotateItems(rStep);
+      else if (S.sel && S.sel.kind === "room") rotateRoom(rStep);
     }     else if (e.key === "1") setTool("select");
     else if (e.key === "2") setTool("wall");
     else if (e.key === "3") setTool("door");
@@ -3973,6 +4420,7 @@ export function initInteraction() {
     else if (e.key === "6") setTool("point");
     else if (e.key === "7") setTool("arcwall");
     else if (e.key === "8") setTool("rect");
+    else if (e.key === "e" || e.key === "E") setTool("erase");
     // L toggles the structure lock — the same button the plan toolbar shows
     else if (e.key === "l" || e.key === "L") setLockStruct(!S.lockStruct);
     else if (e.key.indexOf("Arrow") === 0 && S.sel && S.sel.kind === "marker") {

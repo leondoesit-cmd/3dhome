@@ -8,5 +8,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 server/.relay-identities.json
+server/.prodsize-cache.json
 .vscode/
 .idea/

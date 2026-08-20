@@ -85,6 +85,12 @@ function requestPinned(target, address, options) {
   const hostHeader = target.url.port
     ? target.url.hostname + ":" + target.url.port
     : target.url.hostname;
+  const method = String(options.method || "GET").toUpperCase();
+  const body = options.body == null ? null : Buffer.from(String(options.body), "utf8");
+  const headers = { ...options.headers, Host: hostHeader };
+  if (body && headers["Content-Length"] == null && headers["content-length"] == null) {
+    headers["Content-Length"] = String(body.length);
+  }
   return new Promise((resolveRequest) => {
     const req = request(
       {
@@ -93,9 +99,9 @@ function requestPinned(target, address, options) {
         family: address.family,
         port,
         path: target.url.pathname + target.url.search,
-        method: "GET",
+        method,
         servername: target.url.hostname.replace(/^\[|\]$/g, ""),
-        headers: { ...options.headers, Host: hostHeader },
+        headers,
       },
       (res) => {
         const chunks = [];
@@ -131,6 +137,7 @@ function requestPinned(target, address, options) {
     );
     req.setTimeout(options.timeoutMs, () => req.destroy(new Error("timeout")));
     req.on("error", (error) => resolveRequest({ ok: false, error }));
+    if (body && method !== "GET" && method !== "HEAD") req.write(body);
     req.end();
   });
 }
@@ -215,4 +222,108 @@ export async function safeStaticFile(root, requestPath) {
     return null;
   }
   return outside(rootReal, fileReal) ? null : fileReal;
+}
+
+// Home hubs live on the LAN. The public-URL helper above exists to STOP the
+// product-size proxy reaching private IPs; this helper is the inverse, and it
+// still refuses link-local / metadata / multicast so it cannot be used as a
+// general SSRF trampoline. Only the smart-home endpoint should call it.
+const LAN_PORTS = new Set([80, 443, 1880, 1883, 3000, 6052, 8080, 8123, 8443, 8883, 9001, 9123]);
+
+export function isLanAddress(address) {
+  if (isPublicAddress(address)) return false;
+  const v4 = ipv4Parts(address);
+  if (v4) {
+    const [a, b] = v4;
+    if (a === 0 || a >= 224) return false;
+    if (a === 169 && b === 254) return false;
+    if (a === 192 && b === 0) return false;
+    return true;
+  }
+  if (isIP(address) !== 6) return false;
+  const a = address.toLowerCase().split("%")[0];
+  if (a === "::") return false;
+  if (a === "::1") return true;
+  if (a.startsWith("fc") || a.startsWith("fd")) return true;
+  if (/^fe[89ab]/.test(a)) return false;
+  if (a.startsWith("ff")) return false;
+  const mapped = a.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  return mapped ? isLanAddress(mapped[1]) : false;
+}
+
+function lanPortOk(url) {
+  const port = Number(url.port) || (url.protocol === "https:" ? 443 : 80);
+  return LAN_PORTS.has(port);
+}
+
+export async function resolveLanUrl(raw, lookupFn = dnsLookup) {
+  const url = parseHttpUrl(raw);
+  if (!url || !lanPortOk(url)) return null;
+  const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  let addresses;
+  if (isIP(hostname)) addresses = [{ address: hostname, family: isIP(hostname) }];
+  else {
+    try {
+      addresses = await lookupFn(hostname, { all: true, verbatim: true });
+    } catch (_) {
+      return null;
+    }
+  }
+  if (!addresses.length || addresses.some((entry) => !isLanAddress(entry.address))) return null;
+  return { url, addresses };
+}
+
+const LAN_HEADER_ALLOW = new Set([
+  "authorization",
+  "content-type",
+  "accept",
+  "hue-application-key",
+]);
+
+export function sanitizeLanHeaders(headers) {
+  const out = {};
+  if (!headers || typeof headers !== "object") return out;
+  for (const [key, value] of Object.entries(headers)) {
+    const name = String(key).toLowerCase();
+    if (!LAN_HEADER_ALLOW.has(name)) continue;
+    if (typeof value !== "string") continue;
+    out[key] = value.slice(0, 800);
+  }
+  return out;
+}
+
+export async function safeLanRequest(raw, options = {}) {
+  const cfg = {
+    lookup: options.lookup || dnsLookup,
+    maxBytes: options.maxBytes || 512 * 1024,
+    timeoutMs: options.timeoutMs || 8000,
+    headers: sanitizeLanHeaders(options.headers),
+    method: String(options.method || "GET").toUpperCase(),
+    body: options.body == null ? undefined : String(options.body).slice(0, 256 * 1024),
+  };
+  if (!["GET", "POST", "PUT", "PATCH", "DELETE"].includes(cfg.method)) {
+    return { ok: false, status: 405, text: "method", url: String(raw) };
+  }
+  const target = await resolveLanUrl(raw, cfg.lookup);
+  if (!target) return { ok: false, status: 400, text: "not a LAN hub URL", url: String(raw) };
+  let response = null;
+  for (const address of target.addresses) {
+    response = await requestPinned(target, address, cfg);
+    if (response.ok) break;
+  }
+  if (!response || !response.ok) {
+    return {
+      ok: false,
+      status: 0,
+      text: "",
+      url: target.url.href,
+      error: String(response && response.error ? response.error : "request failed"),
+    };
+  }
+  return {
+    ok: response.status >= 200 && response.status < 300,
+    status: response.status,
+    text: response.body,
+    url: target.url.href,
+  };
 }

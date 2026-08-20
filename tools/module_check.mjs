@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Free-identifier check for the ES modules in js/.
+// Free-identifier check for the ES modules in js/, server/, and tools/.
 //
-//   node tools/module_check.mjs js/*.js       # whole app
-//   node tools/module_check.mjs js/drive*.js  # one module family
+//   node tools/module_check.mjs                 # whole app (js + server + tools)
+//   node tools/module_check.mjs js/drive*.js    # one module family
 //
 // Reports names a file USES but never declares, imports, or gets from a global.
 // That is exactly the failure mode a file split produces: the code moves, the
@@ -21,11 +21,14 @@
 // genuine unresolved reference, not a lead.
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "node:url";
 import * as acorn from "../vendor/acorn/acorn.mjs";
+
+export const REPO_ROOT = path.normalize(path.join(path.dirname(fileURLToPath(import.meta.url)), ".."));
 
 // Runtime globals the app legitimately reaches for. Anything not declared,
 // not imported and not here is unresolved — it will throw when the line runs.
-const GLOBALS = new Set(`
+export const GLOBALS = new Set(`
 globalThis window self document navigator location history screen performance console
 setTimeout clearTimeout setInterval clearInterval requestAnimationFrame cancelAnimationFrame
 queueMicrotask structuredClone fetch alert confirm prompt getComputedStyle matchMedia
@@ -39,27 +42,45 @@ ArrayBuffer SharedArrayBuffer DataView Atomics
 Int8Array Uint8Array Uint8ClampedArray Int16Array Uint16Array Int32Array Uint32Array
 Float32Array Float64Array BigInt64Array BigUint64Array
 Blob File FileReader FormData Headers Request Response URL URLSearchParams AbortController
-AbortSignal ReadableStream WritableStream TransformStream CompressionStream TextEncoder
-TextDecoder DOMParser XMLSerializer XMLHttpRequest WebSocket Worker MessageChannel
-BroadcastChannel EventSource Notification ClipboardItem DataTransfer
+AbortSignal ReadableStream WritableStream TransformStream CompressionStream DecompressionStream
+TextEncoder TextDecoder TextEncoderStream TextDecoderStream
+ByteLengthQueuingStrategy CountQueuingStrategy
+DOMParser XMLSerializer XMLHttpRequest WebSocket Worker SharedWorker MessageChannel
+BroadcastChannel EventSource Notification ClipboardItem DataTransfer DataTransferItem
 Event CustomEvent EventTarget KeyboardEvent MouseEvent PointerEvent WheelEvent TouchEvent
 DragEvent InputEvent FocusEvent ProgressEvent MessageEvent CloseEvent ErrorEvent
-Element HTMLElement HTMLCanvasElement HTMLImageElement HTMLInputElement Node NodeList
+DOMException DOMMatrix DOMMatrixReadOnly DOMPoint DOMPointReadOnly DOMQuad DOMRectReadOnly
+Element HTMLElement HTMLCanvasElement HTMLImageElement HTMLInputElement HTMLDialogElement
+HTMLTemplateElement HTMLVideoElement HTMLAudioElement HTMLScriptElement HTMLLinkElement
+HTMLStyleElement HTMLFormElement HTMLButtonElement Option Node NodeList
 DocumentFragment DOMRect Range Selection MutationObserver IntersectionObserver
-ResizeObserver Image Audio Path2D ImageData ImageBitmap createImageBitmap OffscreenCanvas
-CanvasTexture MediaRecorder MediaStream AudioContext webkitAudioContext AudioBuffer
+ResizeObserver PerformanceObserver Image Audio Path2D ImageData ImageBitmap createImageBitmap
+OffscreenCanvas OffscreenCanvasRenderingContext2D ImageBitmapRenderingContext
+CanvasRenderingContext2D CanvasGradient CanvasPattern
+WebGLRenderingContext WebGL2RenderingContext WebGLTexture WebGLBuffer WebGLFramebuffer
+GPU GPUAdapter GPUDevice GPUBuffer GPUTexture GPUShaderModule GPUCommandEncoder GPUCanvasContext
+MediaRecorder MediaStream AudioContext webkitAudioContext AudioBuffer AudioWorkletNode
+SpeechSynthesisUtterance SpeechSynthesisEvent SpeechSynthesisErrorEvent
 RTCPeerConnection RTCSessionDescription RTCIceCandidate RTCDataChannel
+FileSystemHandle FileSystemFileHandle FileSystemDirectoryHandle FileSystemWritableFileStream
+showOpenFilePicker showSaveFilePicker showDirectoryPicker
+FinalizationRegistry WeakRef
+CSS CSSStyleSheet FontFace FontFaceSet
+SVGElement SVGSVGElement
+Iterator AsyncIterator
 
 L
 `.trim().split(/\s+/));
 // `L` is Leaflet, which the site/friends map panels use as a <script> global.
 
-// server/ and tools/ run under Node, not the browser.
-const NODE_GLOBALS = new Set(`
+// server/, tools/, and tests/ run under Node, not the browser.
+export const NODE_GLOBALS = new Set(`
 process Buffer __dirname __filename module require exports global
-setImmediate clearImmediate TextEncoderStream TextDecoderStream
+setImmediate clearImmediate
 `.trim().split(/\s+/));
-const isNode = (f) => /(^|\/)(server|tools)\//.test(f.replace(/\\/g, "/"));
+export function isNodeFile(f) {
+  return /(^|\/)(server|tools|tests)\//.test(String(f).replace(/\\/g, "/"));
+}
 
 // ---- scope model -----------------------------------------------------------
 class Scope {
@@ -172,7 +193,7 @@ function hoistVarOnly(node, scope) {
 }
 
 // ---- walk ------------------------------------------------------------------
-function analyze(ast, onFree, globals) {
+export function analyze(ast, onFree, globals) {
   const moduleScope = new Scope(null, "module");
   hoist(ast.body, moduleScope);
 
@@ -313,34 +334,94 @@ function analyze(ast, onFree, globals) {
   ast.body.forEach((n) => walk(n, moduleScope));
 }
 
-// ---- run -------------------------------------------------------------------
-const files = process.argv.slice(2);
-if (!files.length) {
-  console.error("usage: node tools/module_check.mjs <files...>");
-  process.exit(2);
-}
-let total = 0;
-for (const f of files) {
-  const src = fs.readFileSync(f, "utf8");
-  let ast;
-  try {
-    ast = acorn.parse(src, { ecmaVersion: "latest", sourceType: "module", locations: true });
-  } catch (e) {
-    console.log(`${f}: PARSE ERROR — ${e.message}`);
-    total++;
-    continue;
+// ---- scan ------------------------------------------------------------------
+const SKIP_DIRS = new Set(["node_modules", "vendor", ".git", ".cursor"]);
+
+export function defaultFiles(root = REPO_ROOT) {
+  const out = [];
+  function walk(dir) {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (_) {
+      return;
+    }
+    for (const ent of entries) {
+      if (ent.name.startsWith(".")) continue;
+      if (ent.isDirectory()) {
+        if (SKIP_DIRS.has(ent.name)) continue;
+        walk(path.join(dir, ent.name));
+        continue;
+      }
+      if (/\.(js|mjs)$/.test(ent.name)) out.push(path.join(dir, ent.name));
+    }
   }
-  const globals = isNode(f) ? new Set([...GLOBALS, ...NODE_GLOBALS]) : GLOBALS;
-  const seen = new Map();
-  analyze(ast, (node) => {
-    if (!seen.has(node.name)) seen.set(node.name, node.loc.start);
-  }, globals);
-  if (seen.size) {
-    console.log(path.relative(process.cwd(), f) + ":");
+  for (const folder of ["js", "server", "tools"]) walk(path.join(root, folder));
+  return out.sort();
+}
+
+export function checkFiles(files, root = REPO_ROOT) {
+  const hits = [];
+  let parseErrors = 0;
+  for (const f of files) {
+    const abs = path.resolve(f);
+    const rel = path.relative(root, abs) || abs;
+    const src = fs.readFileSync(abs, "utf8");
+    let ast;
+    try {
+      ast = acorn.parse(src, { ecmaVersion: "latest", sourceType: "module", locations: true });
+    } catch (e) {
+      hits.push({ file: rel, name: "PARSE ERROR", line: 0, column: 0, message: e.message });
+      parseErrors++;
+      continue;
+    }
+    const globals = isNodeFile(rel) ? new Set([...GLOBALS, ...NODE_GLOBALS]) : GLOBALS;
+    const seen = new Map();
+    analyze(ast, (node) => {
+      if (!seen.has(node.name)) seen.set(node.name, node.loc.start);
+    }, globals);
     for (const [name, loc] of seen)
-      console.log(`  ${name}  (first use ${loc.line}:${loc.column + 1})`);
-    total += seen.size;
+      hits.push({ file: rel, name, line: loc.line, column: loc.column + 1 });
+  }
+  return { total: hits.length, parseErrors, hits };
+}
+
+export function formatReport(result) {
+  const lines = [];
+  let current = null;
+  for (const hit of result.hits) {
+    if (hit.name === "PARSE ERROR") {
+      lines.push(`${hit.file}: PARSE ERROR — ${hit.message}`);
+      continue;
+    }
+    if (hit.file !== current) {
+      current = hit.file;
+      lines.push(current + ":");
+    }
+    lines.push(`  ${hit.name}  (first use ${hit.line}:${hit.column})`);
+  }
+  lines.push(result.total ? `\n${result.total} free identifier(s)` : "no free identifiers");
+  return lines.join("\n");
+}
+
+function isMainModule() {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return path.resolve(entry) === fileURLToPath(import.meta.url);
+  } catch (_) {
+    return false;
   }
 }
-console.log(total ? `\n${total} free identifier(s)` : "no free identifiers");
-process.exit(total ? 1 : 0);
+
+if (isMainModule()) {
+  if (process.argv.includes("--help") || process.argv.includes("-h")) {
+    console.error("usage: node tools/module_check.mjs [files...]");
+    process.exit(0);
+  }
+  const args = process.argv.slice(2).filter((a) => !a.startsWith("-"));
+  const files = args.length ? args : defaultFiles();
+  const result = checkFiles(files);
+  console.log(formatReport(result));
+  process.exit(result.total ? 1 : 0);
+}

@@ -2,14 +2,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   analyzeParametricHistory,
+  applyHistoryToPreviewParts,
   createFeatureDefinition,
   createPartDocument,
   createSketchDefinition,
   reorderHistoryNode,
+  setHistoryRollback,
   suppressHistoryNode,
   updateFeatureDefinition,
 } from "../js/core/parametric_document.js";
 import { compileKernelFeatureTree } from "../js/core/kernel_feature_adapter.js";
+import { createTopologyReference } from "../js/core/topology.js";
 import { publishRebuildStatus, rebuildParametricDocument } from "../js/core/parametric_rebuild.js";
 import { featureDefaults, featureEditorGroups } from "../js/core/feature_catalog.js";
 
@@ -245,4 +248,77 @@ test("partial circular extents include both ends and preserve the selected axis"
   assert.equal(pattern.type,"circularPattern");
   assert.equal(pattern.params.axis,"x");
   assert.equal(pattern.params.angle,90);
+});
+
+test("rollback and suppression drop later compiled features and hide baked preview operations", () => {
+  const document = createPartDocument({ id: "part:history-preview" });
+  const sketch = constrainedRectangle(document);
+  const pad = createFeatureDefinition(document, "extrude", {
+    id: "feature:pad",
+    references: { sketches: [sketch.id], features: [], topology: [], references: [] },
+    params: { depth: 20, profileEntityIds: ["e0", "e1", "e2", "e3"] },
+  });
+  const hole = createFeatureDefinition(document, "extrudeCut", {
+    id: "feature:hole",
+    inputs: [pad.id],
+    references: { sketches: [sketch.id], features: [pad.id], topology: [], references: [] },
+    params: { depth: 30, profileEntityIds: ["e0"] },
+  });
+  const fillet = createFeatureDefinition(document, "fillet", {
+    id: "feature:fillet",
+    inputs: [pad.id],
+    references: { sketches: [], features: [pad.id], topology: [createTopologyReference(pad.id, "edge", pad.id + ":edge:x:top:front", { curve: "line" })], references: [] },
+    params: { radius: 2 },
+  });
+  document.parts = [{
+    id: "body",
+    featureId: pad.id,
+    kind: "ext",
+    cuts3d: [{ featureId: hole.id, loop: [{ u: 0, v: 0 }, { u: 4, v: 0 }, { u: 4, v: 4 }, { u: 0, v: 4 }] }],
+    exactOperations: [{ id: fillet.id, type: "fillet", amount: 2, suppressed: false }],
+  }];
+  setHistoryRollback(document, document.history.findIndex((entry) => entry.targetId === hole.id));
+  let compiled = compileKernelFeatureTree(document);
+  assert.ok(compiled.features.some((feature) => feature.id === pad.id));
+  assert.equal(compiled.features.some((feature) => feature.id === hole.id || feature.id === hole.id + ":tool"), false);
+  assert.equal(compiled.features.some((feature) => feature.id === fillet.id), false);
+  let preview = applyHistoryToPreviewParts(document);
+  assert.equal(!!document.parts[0].suppressed, false);
+  assert.equal(document.parts[0].cuts3d[0].suppressed, true);
+  assert.equal(document.parts[0].exactOperations[0].suppressed, true);
+  assert.ok(preview.dirtyPartIds.includes("body"));
+
+  setHistoryRollback(document, null);
+  applyHistoryToPreviewParts(document);
+  assert.equal(document.parts[0].cuts3d[0].suppressed, false);
+  assert.equal(document.parts[0].exactOperations[0].suppressed, false);
+  suppressHistoryNode(document, "history:feature:" + fillet.id, true);
+  preview = applyHistoryToPreviewParts(document);
+  assert.equal(document.parts[0].exactOperations[0].suppressed, true);
+  assert.equal(document.parts[0].cuts3d[0].suppressed, false);
+  compiled = compileKernelFeatureTree(document);
+  assert.equal(compiled.features.some((feature) => feature.id === fillet.id), false);
+  assert.ok(compiled.features.some((feature) => feature.id === hole.id || feature.type === "subtract"));
+});
+
+test("a fillet can be authored from a selected face, not only from edges", () => {
+  const document = createPartDocument({ id: "part:fillet-face" });
+  const sketch = constrainedRectangle(document);
+  const pad = createFeatureDefinition(document, "extrude", {
+    id: "feature:pad",
+    references: { sketches: [sketch.id], features: [], topology: [], references: [] },
+    params: { depth: 12, profileEntityIds: ["e0", "e1", "e2", "e3"] },
+  });
+  const fillet = createFeatureDefinition(document, "fillet", {
+    inputs: [pad.id],
+    references: {
+      sketches: [],
+      features: [pad.id],
+      topology: [createTopologyReference(pad.id, "face", pad.id + ":face:top", { surface: "plane", semantic: "top" })],
+      references: [],
+    },
+    params: { radius: 4 },
+  });
+  assert.equal(fillet.references.topology[0].kind, "face");
+  assert.equal(fillet.params.radius, 4);
 });

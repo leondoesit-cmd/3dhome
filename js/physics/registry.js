@@ -19,6 +19,7 @@ export const ctx = {
   cloth: [],
   strengthK: 1,
   hitMode: "punch",
+  destructionMode: "full", // "full" (fracture into shards), "parts" (dismantle parts only), "none" (disabled)
 };
 
 export function resetLookups() {

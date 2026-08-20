@@ -14,6 +14,7 @@
 import * as THREE from "three";
 import { clamp } from "./state.js";
 import { pointInPoly } from "./geometry.js";
+import { STEP_UP } from "./road_surface.js";
 
 // ---- tuning (cm) ------------------------------------------------------------
 var SAMP = 6, // centreline sample spacing
@@ -65,7 +66,6 @@ var LEDGE = 3.4, // tops under this are simply climbed (STEP_H is 2.2)
   RUB = 2.3, // ...and the width at which it actually rubs (rc.js COLL_R + slack)
   RIDE_MIN = 9, // shortest climb worth building a ramp for
   RIDE_MAX = 96, // tallest top an access ramp will reach (counter / dining table)
-  STEP_UP = 2.2, // rc.js STEP_H: the ledge a truck climbs without a ramp
   CAR_BAND = 3.2, // ...and the body height that has to clear what it drives past
   RIDE_FOOT = 50, // smallest footprint side that can carry the driving line
   RIDE_RUN = 40, // shortest crossing worth a pair of ramps
@@ -1021,11 +1021,12 @@ function distToSeg(p, a, b) {
 // straight run over the top, which is exactly what an access ramp needs at each
 // end. (Bending a finished line at the bed instead gives a curve that arrives
 // across a corner, and no ramp fits on a corner.)
-function seedRideAnchors(loop, plats, tops) {
+function seedRideAnchors(loop, plats, tops, attract) {
   var out = loop.map(function (a) {
       var o = { x: a.x, z: a.z };
       if (a.ride) o.ride = a.ride;
       if (typeof a.y === "number") o.y = a.y;
+      if (a.surf === "road" || a.surf === "home") o.surf = a.surf;
       return o;
     }),
     added = [];
@@ -1057,6 +1058,7 @@ function seedRideAnchors(loop, plats, tops) {
     claimed.push(hit);
     added.push(a);
   });
+  if (attract === false) return { pts: out, added: added.length };
   var left = plats
     .filter(function (r) {
       return claimed.indexOf(r) < 0;
@@ -1403,9 +1405,15 @@ function attachRides(anchors, plats, tops) {
       if (a.x < r.x0 || a.x > r.x1 || a.z < r.z0 || a.z > r.z1) continue;
       if (!hit || (r.x1 - r.x0) * (r.z1 - r.z0) < (hit.x1 - hit.x0) * (hit.z1 - hit.z0)) hit = r;
     }
-    if (!hit) return { x: a.x, z: a.z }; // not climbable any more: an ordinary point
+    if (!hit) {
+      var miss = { x: a.x, z: a.z };
+      if (a.surf === "road" || a.surf === "home") miss.surf = a.surf;
+      return miss;
+    }
     var t = rideTarget(hit, tops);
-    return { x: t ? t.x : a.x, z: t ? t.z : a.z, ride: hit };
+    var out = { x: t ? t.x : a.x, z: t ? t.z : a.z, ride: hit };
+    if (a.surf === "road" || a.surf === "home") out.surf = a.surf;
+    return out;
   });
 }
 
@@ -1877,6 +1885,46 @@ function smoothAfterRepair(base, occ) {
   return respace(repairPath(out, occ).pts, SAMP);
 }
 
+// The editor can pin a section to a surface: "pour a road here" or "stay on
+// the floor/model". Applied after the automatic ramp/bridge planner so a
+// hand-marked stretch wins without fighting the rest of the lap.
+function applyUserSurf(C, anchors, halfVal) {
+  if (!C || !anchors || anchors.length < 2) return;
+  var n = anchors.length,
+    has = false;
+  for (var i = 0; i < n; i++) {
+    if (anchors[i].surf === "road" || anchors[i].surf === "home") {
+      has = true;
+      break;
+    }
+  }
+  if (!has) return;
+  var band = Math.max(60, (halfVal || HALF) * 3);
+  for (var k = 0; k < C.length; k++) {
+    var p = C[k],
+      best = null;
+    for (i = 0; i < n; i++) {
+      var a = anchors[i],
+        b = anchors[(i + 1) % n];
+      var dx = b.x - a.x,
+        dz = b.z - a.z,
+        l2 = dx * dx + dz * dz;
+      var t = l2 > 0 ? ((p.x - a.x) * dx + (p.z - a.z) * dz) / l2 : 0;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      var d = Math.hypot(p.x - (a.x + dx * t), p.z - (a.z + dz * t));
+      if (!best || d < best.d) best = { d: d, kind: a.surf, t: t };
+    }
+    if (!best || best.d > band) continue;
+    if (best.kind !== "road" && best.kind !== "home") continue;
+    if (best.kind === "road") {
+      p.deck = true;
+      p.hold = true;
+    } else {
+      p.deck = false;
+    }
+  }
+}
+
 // ---- build: home mode -------------------------------------------------------
 // The apartment carries the truck. All this has to work out is where it CAN'T:
 // every run of the line that meets something a truck cannot climb becomes either
@@ -1887,14 +1935,16 @@ function smoothAfterRepair(base, occ) {
 function buildHome(base, env, occ, plats, tops, L, halfVal, extra) {
   var rects = (env && env.rects && env.rects()) || [];
   var feats = { home: true, rides: 0, bridges: 0, jump: false };
+  var follow = !!(extra && extra.follow);
   if (extra) {
     feats.routed = extra.routed;
     feats.detours = extra.detours;
+    feats.follow = follow;
   }
   // A spliced-in detour arrives as straight legs meeting at square corners, and
   // an unrelaxed 90° corner is a turn no ramp can be built on: smooth after
   // every repair, not just after the first routing pass.
-  base = smoothAfterRepair(base, occ);
+  if (!follow) base = smoothAfterRepair(base, occ);
   var n = base.length,
     best = null;
   // Up to three attempts: each one drops the items that turned out to be
@@ -1902,7 +1952,7 @@ function buildHome(base, env, occ, plats, tops, L, halfVal, extra) {
   // re-routes around them, which is exactly what a driver would do. KEEP THE
   // BEST ONE, don't just take the last: re-routing for a sofa in the living
   // room happily throws away a perfectly good ramp onto the bed next door.
-  for (var attempt = 0; attempt < 3; attempt++) {
+  for (var attempt = 0; attempt < (follow ? 1 : 3); attempt++) {
     var prof = new Float64Array(n),
       deck = new Uint8Array(n),
       hold = new Uint8Array(n),
@@ -2028,6 +2078,7 @@ function buildHome(base, env, occ, plats, tops, L, halfVal, extra) {
       w: wide[i] || halfVal,
     };
   });
+  applyUserSurf(C, extra && extra.userAnchors, halfVal);
   var M = C.length;
   for (var f2 = 0; f2 < M; f2++) {
     var a1 = C[(f2 - 1 + M) % M],
@@ -2140,6 +2191,7 @@ export function buildRoad(anchors, rooms, env) {
     plats,
     homeMode && !manualHeight ? rooms : null,
   );
+  var follow = !!(env && env.followAnchors);
   var homeFeats = null;
   if (homeMode && !manualHeight) {
     // A driveable line, not a draped one: A* through the doorways and round the
@@ -2150,29 +2202,41 @@ export function buildRoad(anchors, rooms, env) {
     // offset ends themselves scrape the jambs — decked pass-throughs went 3 to
     // 6 and corners under a 20cm radius doubled. Dead-end tips are opened on the
     // finished line instead, by spreadHairpins in smoothAfterRepair.
+    // followAnchors: the live editor has taken the wheel. Keep ride snaps for
+    // points the user put ON a model, but do not invent extra visits and do
+    // not A* the line away from the handles they are dragging.
     var seeded = seedRideAnchors(
       roundTurnarounds(attachRides(anchors, plats, tops)),
       plats,
       tops,
+      !follow,
     );
-    var routed = gridRoute(seeded.pts, occ);
-    if (routed.pts.length >= 3) {
-      var re = resampleClosed(routed.pts, SAMP);
-      if (re.length >= 14) base = re;
+    if (!follow) {
+      var routed = gridRoute(seeded.pts, occ);
+      if (routed.pts.length >= 3) {
+        var re = resampleClosed(routed.pts, SAMP);
+        if (re.length >= 14) base = re;
+      }
+      homeFeats = { routed: routed.routed, detours: seeded.added, anchors: seeded.pts, userAnchors: anchors };
+    } else {
+      var held = resampleClosed(seeded.pts, SAMP);
+      if (held.length >= 14) base = held;
+      homeFeats = { routed: 0, detours: 0, anchors: seeded.pts, follow: true, userAnchors: anchors };
     }
-    homeFeats = { routed: routed.routed, detours: seeded.added, anchors: seeded.pts };
     n = base.length;
+    L = n * SAMP;
   }
-  // clear furniture and relax kinks alternately: pushing a sample sideways off a
-  // wardrobe creates a kink, and relaxing a kink can push a sample back into
-  // one. Respace at the end so no segment is left bunched against its neighbour.
-  for (var cp = 0; cp < 3; cp++) {
-    clearLine(base, occ);
-    if (!relaxKinks(base, occ, 40, !homeMode)) break;
+  // A user-locked line must stay under the handles; shoving it off furniture
+  // is exactly the loss of control the editor is trying to stop.
+  if (!(homeMode && follow)) {
+    for (var cp = 0; cp < 3; cp++) {
+      clearLine(base, occ);
+      if (!relaxKinks(base, occ, 40, !homeMode)) break;
+    }
+    base = respace(base, SAMP);
+    n = base.length;
+    L = n * SAMP;
   }
-  base = respace(base, SAMP);
-  n = base.length;
-  L = n * SAMP;
 
   if (homeMode && !manualHeight)
     return buildHome(base, env, occ, plats, tops, L, HALF_VAL, homeFeats);

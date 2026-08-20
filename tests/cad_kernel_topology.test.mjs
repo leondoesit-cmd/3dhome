@@ -279,6 +279,29 @@ test("a history chamfer consumes only its selected persistent edge", async () =>
   }
 });
 
+test("a history chamfer of a face consumes every edge of that face", async () => {
+  const body = boxFeature();
+  const selected = topologyForFeature(body, body.params).find((item) => item.persistentId === "body:face:top");
+  const topEdges = ["body:edge:x:top:back", "body:edge:x:top:front", "body:edge:z:left:top", "body:edge:z:right:top"];
+  const definition = { features: [] };
+  addFeature(definition, body);
+  addFeature(definition, {
+    id: "bevel", type: "chamfer", inputs: ["body"],
+    params: { distance: 2, targets: [createTopologyReference(selected.ownerFeatureId, selected.kind, selected.persistentId, selected.descriptor)] },
+  });
+
+  const run = await regenerateFeatures(definition);
+  try {
+    assert.equal(run.ok, true, JSON.stringify(run.issues));
+    assert.equal(run.finalShape.topology.filter((item) => item.kind === "face").length, 10);
+    assert.equal(topEdges.every((id) => !run.finalShape.topology.some((item) => item.persistentId === id)), true);
+    assert.ok(run.finalShape.topology.filter((item) => item.persistentId.startsWith("bevel:face:generated:plane:")).length >= 4);
+    assert.equal(run.topologyBindings[0].status, "exact");
+  } finally {
+    releaseRegeneration(run);
+  }
+});
+
 test("chamfer type, second distance, angle and flip drive exact OCCT geometry", async () => {
   const feature = boxFeature();
   const edgeId = "body:edge:x:top:back";

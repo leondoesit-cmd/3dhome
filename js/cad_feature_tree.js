@@ -35,6 +35,17 @@ export function reorderFeature(def, featureId, targetIndex) {
   return true;
 }
 
+function resolvedSubshapeIds(resolutions, kind) {
+  const ids = [];
+  (resolutions || []).forEach((entry) => {
+    if (entry.reference?.kind !== kind && entry.topology?.kind !== kind) return;
+    if (entry.topology?.persistentId) ids.push(entry.topology.persistentId);
+    const members = entry.reference?.memberPersistentIds || entry.topology?.memberPersistentIds;
+    if (Array.isArray(members) && members.length) ids.push(...members);
+  });
+  return [...new Set(ids)];
+}
+
 function validateOrder(features) {
   const seen = new Set(), issues = [];
   for (const feature of features) {
@@ -108,9 +119,11 @@ export async function regenerateFeatures(def, options = {}) {
       else if (feature.type === "fillet") {
         const source = results.get(feature.inputs[0]);
         if (!source?.shape) throw new Error("Fillet input is unavailable");
-        const edgePersistentIds = topologyRun.resolutions.filter((entry) => entry.reference?.kind === "edge" && entry.topology).map((entry) => entry.topology.persistentId);
+        const edgePersistentIds = resolvedSubshapeIds(topologyRun.resolutions, "edge");
+        const facePersistentIds = resolvedSubshapeIds(topologyRun.resolutions, "face");
         result = await filletBrep(source, effectiveParams.radius, {
           edgePersistentIds,
+          facePersistentIds,
           propagation: effectiveParams.propagation,
           section: effectiveParams.section,
           continuity: effectiveParams.continuity,
@@ -119,9 +132,11 @@ export async function regenerateFeatures(def, options = {}) {
       else if (feature.type === "chamfer") {
         const source = results.get(feature.inputs[0]);
         if (!source?.shape) throw new Error("Chamfer input is unavailable");
-        const edgePersistentIds = topologyRun.resolutions.filter((entry) => entry.reference?.kind === "edge" && entry.topology).map((entry) => entry.topology.persistentId);
+        const edgePersistentIds = resolvedSubshapeIds(topologyRun.resolutions, "edge");
+        const facePersistentIds = resolvedSubshapeIds(topologyRun.resolutions, "face");
         result = await chamferBrep(source, effectiveParams.distance, {
           edgePersistentIds,
+          facePersistentIds,
           mode: effectiveParams.mode,
           secondDistance: effectiveParams.secondDistance,
           angle: effectiveParams.angle,
@@ -131,7 +146,7 @@ export async function regenerateFeatures(def, options = {}) {
       else if (feature.type === "shell") {
         const source = results.get(feature.inputs[0]);
         if (!source?.shape) throw new Error("Shell input is unavailable");
-        const facePersistentIds = topologyRun.resolutions.filter((entry) => entry.reference?.kind === "face" && entry.topology).map((entry) => entry.topology.persistentId);
+        const facePersistentIds = resolvedSubshapeIds(topologyRun.resolutions, "face");
         result = await shellBrep(source, effectiveParams.thickness, {
           facePersistentIds,
           direction: effectiveParams.direction,

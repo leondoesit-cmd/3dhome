@@ -38,8 +38,12 @@ import { SITE, llToLocalCm } from "./site.js";
 import {
   wallGeom,
   straightThroughAt,
+  wallJoinRole,
   wallSolidAtNode,
+  wallSolidTop,
   faceShiftAt,
+  wallBandOutline,
+  tJoinStep,
   detectRooms,
   contentBounds,
   roomFloor,
@@ -63,6 +67,7 @@ import {
   normalizeWallProfile,
   wallProfileHeight,
   verticalSegments,
+  HALF_WALL_HEIGHT,
 } from "./wall_curves.js";
 import {
   syncPhysicsToThree,
@@ -228,6 +233,8 @@ var walk = false,
   tpDist = 230, // third-person camera distance from the avatar
   freeMove = false, // when true: no-clip, walk through walls too
   keys = {},
+  touchMove = { x: 0, z: 0 },
+  walkControls = null,
   avatar = null;
 
 // simple stylized human, built once and parented to the scene (not `dyn`,
@@ -324,6 +331,10 @@ function moveWalk() {
     mx -= rx;
     mz -= rz;
   }
+  if (touchMove.z || touchMove.x) {
+    mx += fx * -touchMove.z + rx * touchMove.x;
+    mz += fz * -touchMove.z + rz * touchMove.x;
+  }
   if (mx || mz) {
     var l = Math.hypot(mx, mz) || 1;
     var dx = (mx / l) * spd;
@@ -394,6 +405,8 @@ export function toggleWalk(on) {
   if (!has3D) return false;
   walk = on == null ? !walk : !!on;
   keys = {}; // drop any keys held from before (prevents "stuck" movement)
+  touchMove.x = touchMove.z = 0;
+  if (walkControls) walkControls.hidden = !walk;
   if (walk) {
     buildAvatar();
     var ib = interiorBounds(),
@@ -452,6 +465,7 @@ function buildStraightWall(w, col, tex) {
   var g = new THREE.Group();
   g.position.set(gm.a.x, 0, gm.a.z);
   g.rotation.y = Math.atan2(-gm.dz, gm.dx);
+  g.userData.wall = w;
   g.userData.physicsRole = "static";
   dyn.add(g);
   var T = wallThickness(w, S),
@@ -492,6 +506,19 @@ function buildStraightWall(w, col, tex) {
        opened the same mismatch out into a triangular spike. */
     if (straightThroughAt(nodeId, isStart ? gm.ux : -gm.ux, isStart ? gm.uz : -gm.uz, w))
       return isStart ? 0 : L;
+    /* A T-branch must stop at the through-run's NEAR face, not at half the
+       neighbour's thickness. After the run is hung on its interior that face
+       sits on the shared node, so mt/2 left a one-thickness gap of daylight
+       between the branch and the wall it is welded to. */
+    if (wallJoinRole(w, nodeId) === "branch") {
+      var bx = isStart ? gm.ux : -gm.ux,
+        bz = isStart ? gm.uz : -gm.uz,
+        bh = T / 2,
+        btp = faceShiftAt(nodeId, bx, bz, isStart ? 1 : -1, w, bh),
+        btm = faceShiftAt(nodeId, bx, bz, isStart ? -1 : 1, w, bh),
+        bNear = Math.min(btp, btm);
+      return isStart ? bNear - 0.1 : L - bNear + 0.1;
+    }
     // At a corner, pick one deterministic "through" wall to span it (lowest id).
     endWalls.sort(function (a, b) { return a.id - b.id; });
     var throughWall = endWalls[0];
@@ -504,6 +531,10 @@ function buildStraightWall(w, col, tex) {
 
   var startCursor = getCursor(true);
   var endCursor = getCursor(false);
+  var stepA = tJoinStep(w, "a"),
+    stepB = tJoinStep(w, "b");
+  if (stepA) startCursor = Math.min(stepA.tp, stepA.tm) - 0.05;
+  if (stepB) endCursor = L - Math.min(stepB.tp, stepB.tm) + 0.05;
 
   /* ---- mitred ends ----
      getCursor above stops (or spans) the wall at ONE position along its axis,
@@ -513,6 +544,7 @@ function buildStraightWall(w, col, tex) {
      of the extrusion is sheared to the same mitre line the plan draws
      (js/geometry.js wallOutline). Local +z is side +1, local x runs a->b. */
   function endMitre(isStart) {
+    if (tJoinStep(w, isStart ? "a" : "b")) return null;
     var node = isStart ? w.a : w.b;
     var joined = S.walls.some(function (ow) {
       return ow !== w && (ow.a === node || ow.b === node) && wallSolidAtNode(ow, node);
@@ -655,26 +687,29 @@ function buildStraightWall(w, col, tex) {
     return sh;
   }
 
+  function makeWallShapes(x0, x1) {
+    if (!(x1 - x0 > 0.2)) return [];
+    return splitSegs(x0, x1, wallCuts).map(function (sg) {
+      var sh = rectShape(sg[0], sg[1], -2.5, H);
+      wallHoles.forEach(function (h) {
+        var hl = Math.max(h.l, sg[0]),
+          hr = Math.min(h.r, sg[1]);
+        if (hl >= hr) return;
+        var hole = new THREE.Path();
+        hole.moveTo(hl, h.y0);
+        hole.lineTo(hr, h.y0);
+        hole.lineTo(hr, h.y1);
+        hole.lineTo(hl, h.y1);
+        hole.lineTo(hl, h.y0);
+        sh.holes.push(hole);
+      });
+      return sh;
+    });
+  }
+
   // wall shapes: start at -2.5 so the wall meets the ground plane (y=-2.5)
   // with no visible gap/seam along the exterior base
-  var wallShapes = hasWall
-    ? splitSegs(startCursor, endCursor, wallCuts).map(function (sg) {
-        var sh = rectShape(sg[0], sg[1], -2.5, H);
-        wallHoles.forEach(function (h) {
-          var hl = Math.max(h.l, sg[0]),
-            hr = Math.min(h.r, sg[1]);
-          if (hl >= hr) return;
-          var hole = new THREE.Path();
-          hole.moveTo(hl, h.y0);
-          hole.lineTo(hr, h.y0);
-          hole.lineTo(hr, h.y1);
-          hole.lineTo(hl, h.y1);
-          hole.lineTo(hl, h.y0);
-          sh.holes.push(hole);
-        });
-        return sh;
-      })
-    : [];
+  var wallShapes = hasWall ? makeWallShapes(startCursor, endCursor) : [];
   var skirtShapes = hasWall
     ? splitSegs(startCursor, endCursor, skirtCuts).map(function (sg) {
         var sh = rectShape(sg[0], sg[1], 0, 7);
@@ -698,13 +733,13 @@ function buildStraightWall(w, col, tex) {
     // X-ray mode: dim, see-through walls so embedded MEP conduits show through
     var xray = !!(S.mep && S.mep.xray && (typeof S.mep.xray === "object" ? S.mep.xray.walls : S.mep.xray));
     var layerBands = wallLayerBands(w, S);
-    layerBands.forEach(function (band) {
-      var depth = band.end - band.start;
-      if (!(depth > 0.01)) return;
-      if (band.airGap && band.framing) return; // members below occupy this cavity
-      var geom = new THREE.ExtrudeGeometry(wallShapes, { depth: depth, bevelEnabled: false });
-      geom.translate(0, 0, band.start);
-      mitre(geom);
+    function addLayerGeom(band, shapes, z0, z1, applyMitre) {
+      var depth = z1 - z0;
+      if (!(depth > 0.01) || !shapes || !shapes.length) return;
+      if (band.airGap && band.framing) return;
+      var geom = new THREE.ExtrudeGeometry(shapes, { depth: depth, bevelEnabled: false });
+      geom.translate(0, 0, z0);
+      if (applyMitre) mitre(geom);
       var isGeneric = w.wallTypeId === "generic" || layerBands.length === 1 && band.material === "generic-masonry";
       var layerColor = isGeneric ? col : (band.color || col);
       var isGlass = band.role === "glazing" || /glass/i.test(String(band.material || ""));
@@ -755,6 +790,28 @@ function buildStraightWall(w, col, tex) {
       mesh.userData.wallLayer = { wallId: w.id, layerId: band.id, material: band.material };
       if (!isGlass) mesh.userData.physicsProps = MAT_PROPS.masonry;
       g.add(mesh);
+    }
+    layerBands.forEach(function (band) {
+      var slices;
+      if ((stepA || stepB) && band.start < -0.01 && band.end > 0.01) {
+        slices = [
+          { z0: band.start, z1: 0, side: -1 },
+          { z0: 0, z1: band.end, side: 1 },
+        ];
+      } else if (stepA || stepB) {
+        slices = [{ z0: band.start, z1: band.end, side: (band.start + band.end) / 2 >= 0 ? 1 : -1 }];
+      } else {
+        slices = [{ z0: band.start, z1: band.end, side: 0 }];
+      }
+      slices.forEach(function (slice) {
+        var x0 = startCursor, x1 = endCursor, shapes = wallShapes;
+        if (slice.side) {
+          if (stepA) x0 = (slice.side > 0 ? stepA.tp : stepA.tm) - 0.05;
+          if (stepB) x1 = L - (slice.side > 0 ? stepB.tp : stepB.tm) + 0.05;
+          shapes = makeWallShapes(x0, x1);
+        }
+        addLayerGeom(band, shapes, slice.z0, slice.z1, !slice.side);
+      });
     });
 
     addWallFraming(dyn, w, xray);
@@ -929,20 +986,49 @@ function sampledWallBreaks(w, gm) {
   return values.filter(function (v, i) { return !i || v - values[i - 1] > 0.01; });
 }
 
+function sampledEndCorners(w, s, offset0, offset1, atHeight) {
+  var gm = wallGeom(w);
+  var nearA = s <= 0.01, nearB = gm && s >= gm.L - 0.01;
+  if (gm && gm.kind === "line" && (nearA || nearB)) {
+    var step = tJoinStep(w, nearA ? "a" : "b", atHeight);
+    if (step) {
+      var shift = (offset0 + offset1) / 2 >= -0.01 ? step.tp : step.tm;
+      var node = nearA ? (S.nodes[w.a] || gm.a) : (S.nodes[w.b] || gm.b);
+      var along = nearA ? 1 : -1,
+        ux = gm.ux * along,
+        uz = gm.uz * along,
+        nx = -gm.uz,
+        nz = gm.ux;
+      function pt(off) {
+        return [node.x + ux * shift + nx * off, node.z + uz * shift + nz * off];
+      }
+      return [pt(offset0), pt(offset1)];
+    }
+    var band = wallBandOutline(w, offset0, offset1, atHeight);
+    if (band) {
+      return nearA
+        ? [[band.a0.x, band.a0.z], [band.a1.x, band.a1.z]]
+        : [[band.b0.x, band.b0.z], [band.b1.x, band.b1.z]];
+    }
+  }
+  var p = wallPointAt(w, s), t = wallTangentAt(w, s);
+  if (!p || !t) return null;
+  var nx = -t.uz, nz = t.ux;
+  return [
+    [p.x + nx * offset0, p.z + nz * offset0],
+    [p.x + nx * offset1, p.z + nz * offset1],
+  ];
+}
+
 function sampledPrismGeometry(w, s0, s1, offset0, offset1, bottom0, bottom1, top0, top1) {
   top0 = Math.max(bottom0, top0);
   top1 = Math.max(bottom1, top1);
   if (s1 - s0 <= 0.001 || (top0 - bottom0 <= 0.001 && top1 - bottom1 <= 0.001)) return null;
-  var p0 = wallPointAt(w, s0), p1 = wallPointAt(w, s1);
-  var t0 = wallTangentAt(w, s0), t1 = wallTangentAt(w, s1);
-  if (!p0 || !p1 || !t0 || !t1) return null;
-  var n0x = -t0.uz, n0z = t0.ux, n1x = -t1.uz, n1z = t1.ux;
-  var footprint = [
-    [p0.x + n0x * offset0, p0.z + n0z * offset0],
-    [p0.x + n0x * offset1, p0.z + n0z * offset1],
-    [p1.x + n1x * offset0, p1.z + n1z * offset0],
-    [p1.x + n1x * offset1, p1.z + n1z * offset1],
-  ];
+  var atHeight = Math.min(bottom0, bottom1);
+  var c0 = sampledEndCorners(w, s0, offset0, offset1, atHeight);
+  var c1 = sampledEndCorners(w, s1, offset0, offset1, atHeight);
+  if (!c0 || !c1) return null;
+  var footprint = [c0[0], c0[1], c1[0], c1[1]];
   var pos = [];
   footprint.forEach(function (p, i) { pos.push(p[0], i < 2 ? bottom0 : bottom1, p[1]); });
   footprint.forEach(function (p, i) { pos.push(p[0], i < 2 ? top0 : top1, p[1]); });
@@ -1010,14 +1096,21 @@ function addSampledSolid(group, w, gm, vertical, col, xray) {
         ];
       }
       ranges.forEach(function (range) {
-        var geo = sampledPrismGeometry(w, s0, s1, band.start, band.end, range.b0, range.b1, range.t0, range.t1);
-        if (!geo) return;
-        var mesh = new THREE.Mesh(geo, mat);
-        mesh.castShadow = !xray;
-        mesh.receiveShadow = !xray;
-        mesh.userData.wallLayer = { wallId: w.id, layerId: band.id, material: band.material, role: vertical.role };
-        if (!(band.role === "glazing" || /glass/i.test(String(band.material || "")))) mesh.userData.physicsProps = MAT_PROPS.masonry;
-        group.add(mesh);
+        var slices = [{ o0: band.start, o1: band.end }];
+        if (band.start < -0.01 && band.end > 0.01 &&
+            (tJoinStep(w, "a", range.b0) || tJoinStep(w, "b", range.b0))) {
+          slices = [{ o0: band.start, o1: 0 }, { o0: 0, o1: band.end }];
+        }
+        slices.forEach(function (slice) {
+          var geo = sampledPrismGeometry(w, s0, s1, slice.o0, slice.o1, range.b0, range.b1, range.t0, range.t1);
+          if (!geo) return;
+          var mesh = new THREE.Mesh(geo, mat);
+          mesh.castShadow = !xray;
+          mesh.receiveShadow = !xray;
+          mesh.userData.wallLayer = { wallId: w.id, layerId: band.id, material: band.material, role: vertical.role };
+          if (!(band.role === "glazing" || /glass/i.test(String(band.material || "")))) mesh.userData.physicsProps = MAT_PROPS.masonry;
+          group.add(mesh);
+        });
       });
     }
   });
@@ -1103,6 +1196,7 @@ function addSampledOpening(group, w, o) {
   var holder = new THREE.Group();
   holder.position.set(point.x, 0, point.z);
   holder.rotation.y = -Math.atan2(tangent.uz, tangent.ux);
+  holder.userData.opening = o;
   group.add(holder);
   var half = o.width / 2, T = wallThickness(w, S), FR = frameSpec(o);
   var y0 = o.type === "window" ? o.sill || 0 : 0;
@@ -1129,6 +1223,44 @@ function addSampledOpening(group, w, o) {
   }
 }
 
+function neighborJoinHeights(w) {
+  var cuts = [];
+  [w.a, w.b].forEach(function (nodeId) {
+    S.walls.forEach(function (ow) {
+      if (ow === w || (ow.a !== nodeId && ow.b !== nodeId)) return;
+      if (!wallSolidAtNode(ow, nodeId)) return;
+      var top = wallSolidTop(ow);
+      if (top > 0.5) cuts.push(top);
+    });
+  });
+  return cuts;
+}
+
+function hasHeightMismatchedJoin(w) {
+  var my = wallSolidTop(w);
+  return neighborJoinHeights(w).some(function (h) { return Math.abs(h - my) > 1; });
+}
+
+function splitVerticalForJoins(w, segments) {
+  var cuts = neighborJoinHeights(w);
+  if (!cuts.length) return segments;
+  var out = [];
+  segments.forEach(function (seg) {
+    var ys = [seg.bottom, seg.top];
+    cuts.forEach(function (c) {
+      if (c > seg.bottom + 0.5 && c < seg.top - 0.5) ys.push(c);
+    });
+    ys.sort(function (a, b) { return a - b; });
+    var last = ys[0];
+    for (var i = 1; i < ys.length; i++) {
+      if (ys[i] - last < 0.5) continue;
+      out.push(Object.assign({}, seg, { bottom: last, top: ys[i] }));
+      last = ys[i];
+    }
+  });
+  return out.length ? out : segments;
+}
+
 function buildSampledWall(w, col) {
   normalizeWall(w, S);
   var gm = wallGeom(w), kind = normalizeWallKind(w);
@@ -1138,9 +1270,9 @@ function buildSampledWall(w, col) {
   group.userData.physicsRole = "static";
   dyn.add(group);
   var renderWall = Object.assign({}, w);
-  if (kind === "half" && renderWall.halfHeight == null && renderWall.capHeight == null) renderWall.halfHeight = Math.min(renderWall.height, 100);
+  if (kind === "half" && renderWall.halfHeight == null && renderWall.capHeight == null) renderWall.halfHeight = Math.min(renderWall.height, HALF_WALL_HEIGHT);
   if (kind === "railing" && renderWall.railingHeight == null && renderWall.railHeight == null) renderWall.railingHeight = Math.min(renderWall.height, 100);
-  var segments = verticalSegments(renderWall, function (id) { return wallTypeById(S, id); });
+  var segments = splitVerticalForJoins(renderWall, verticalSegments(renderWall, function (id) { return wallTypeById(S, id); }));
   var xray = !!(S.mep && S.mep.xray && (typeof S.mep.xray === "object" ? S.mep.xray.walls : S.mep.xray));
   segments.forEach(function (vertical) {
     if (vertical.solid) addSampledSolid(group, renderWall, gm, vertical, col, xray);
@@ -1154,7 +1286,7 @@ function buildWall(w, col, tex) {
   normalizeWall(w, S);
   var kind = normalizeWallKind(w), gm = wallGeom(w);
   if (kind === "roomDivider") return;
-  if (gm.kind === "line" && kind === "normal" && normalizeWallProfile(w).length === 0)
+  if (gm.kind === "line" && kind === "normal" && normalizeWallProfile(w).length === 0 && !hasHeightMismatchedJoin(w))
     return buildStraightWall(w, col, tex);
   return buildSampledWall(w, col == null ? WALLC : col);
 }
@@ -1727,6 +1859,7 @@ export function rebuild3D() {
   }
   applySite(); // reposition the aerial overlay for the new content bounds
   // external modes (RC race) rebuild their collision snapshot off this event
+  updateSeeThrough(); // the wall groups are brand new: re-apply the dollhouse cut
   window.dispatchEvent(new Event("scene3d:rebuilt"));
 }
 
@@ -1807,7 +1940,49 @@ function upd() {
     tgt.z + radius * sp * Math.sin(theta),
   );
   camera.lookAt(tgt);
+  updateSeeThrough();
   needsRender = true;
+}
+
+/* Walls that stand between the camera and what it is looking at are the whole
+   reason a piece "can only be dragged from certain angles": you cannot aim at
+   what you cannot see. In 3D edit mode those near-side walls step out of the
+   way (the dollhouse cut every CAD view does), and step back the moment edit
+   mode is off. Only visibility is touched — no material is mutated and no
+   rebuild is triggered — so this is safe to run on every camera move. */
+function updateSeeThrough() {
+  if (!dyn || !camera || !tgt) return;
+  var on = !!S.edit3D && !walk && !extTick;
+  dyn.children.forEach(function (g) {
+    var w = g.userData && g.userData.wall;
+    if (!w) return;
+    if (!on) {
+      if (g.userData.seeThrough) {
+        g.userData.seeThrough = false;
+        g.visible = true;
+      }
+      return;
+    }
+    var gm = wallGeom(w);
+    if (!gm || gm.L < 1) return;
+    // signed side of the wall's infinite line for the camera and for the point
+    // the view is centred on; opposite signs mean the wall is in between
+    var nx = -gm.uz, nz = gm.ux;
+    var dc = (camera.position.x - gm.a.x) * nx + (camera.position.z - gm.a.z) * nz,
+      dt = (tgt.x - gm.a.x) * nx + (tgt.z - gm.a.z) * nz;
+    var between = dc * dt < 0 && Math.abs(dc) > wallThickness(w, S) / 2;
+    // ...and only if the wall actually spans the line of sight, not if it is
+    // an unrelated wall whose infinite line happens to cut the view
+    if (between) {
+      var t = Math.abs(dc) / Math.max(1e-3, Math.abs(dc) + Math.abs(dt));
+      var cx = camera.position.x + (tgt.x - camera.position.x) * t,
+        cz = camera.position.z + (tgt.z - camera.position.z) * t;
+      var sAt = (cx - gm.a.x) * gm.ux + (cz - gm.a.z) * gm.uz;
+      between = sAt > -60 && sAt < gm.L + 60;
+    }
+    g.userData.seeThrough = between;
+    g.visible = !between;
+  });
 }
 
 export function frameView() {
@@ -1962,23 +2137,37 @@ export function toggleEdit3D(on) {
         editMod = m;
       });
   } else editDrag = null;
+  updateSeeThrough(); // hide/restore the near-side walls for the new mode
   if (renderer) renderer.domElement.style.cursor = S.edit3D ? "move" : "";
   return S.edit3D;
 }
-// the catalogue piece a picked mesh belongs to (furniture groups carry
-// userData.item; the pick can land on any descendant of one)
-function itemOf(obj) {
-  for (var o = obj; o; o = o.parent) if (o.userData && o.userData.item) return o.userData.item;
+/* What a picked mesh belongs to. Furniture groups carry userData.item, opening
+   holders carry userData.opening and wall groups carry userData.wall; a pick can
+   land on any descendant of one, so walk up to the first tagged ancestor.
+   The wall itself is NOT draggable — its geometry only ever gets in the way of
+   the piece behind it — so a hit that resolves to bare wall is reported as such
+   and skipped, letting the ray carry on to whatever stands behind the wall. */
+function targetOf(obj) {
+  for (var o = obj; o; o = o.parent) {
+    if (!o.userData) continue;
+    if (o.userData.item) return { kind: "item", ref: o.userData.item };
+    if (o.userData.opening) return { kind: "opening", ref: o.userData.opening };
+    if (o.userData.wall) return { kind: "wall", ref: o.userData.wall };
+  }
   return null;
 }
-function pickItem(cx, cy) {
+// Everything the 3D edit mode can grab: pieces and openings, never walls, and
+// never gated on whether the thing is the FIRST surface under the cursor — the
+// ray keeps going past walls, so a sofa behind a wall drags from any angle.
+function pickEditTarget(cx, cy) {
   if (!dyn) return null;
   var hits = pointerRay(cx, cy).intersectObjects([dyn], true);
   for (var i = 0; i < hits.length; i++) {
     var h = hits[i];
     if (!h.object.visible || h.object.type === "Sprite") continue;
-    var it = itemOf(h.object);
-    if (it) return { it: it, point: h.point };
+    var t = targetOf(h.object);
+    if (!t || t.kind === "wall") continue;
+    return { kind: t.kind, ref: t.ref, point: h.point };
   }
   return null;
 }
@@ -2001,15 +2190,25 @@ function rayAtHeight(cx, cy, y) {
 // orbit must therefore stay out of this drag)
 function editDown(e) {
   if (!S.edit3D || walk || extTick || e.button !== 0 || e.shiftKey) return false;
-  var hit = pickItem(e.clientX, e.clientY);
-  if (!hit || !editMod || !editMod.begin3DItemDrag(hit.it)) return false;
-  var it = hit.it,
-    // grab on the horizontal plane through the point actually clicked, so the
-    // piece does not jump when you grab it by its top
-    gy = hit.point.y,
+  var hit = pickEditTarget(e.clientX, e.clientY);
+  if (!hit || !editMod) return false;
+  // grab on the horizontal plane through the point actually clicked, so the
+  // thing does not jump when you grab it by its top
+  var gy = hit.point.y,
     g = rayAtHeight(e.clientX, e.clientY, gy);
   if (!g) return false;
+  if (hit.kind === "opening") {
+    if (!editMod.begin3DOpeningDrag || !editMod.begin3DOpeningDrag(hit.ref)) return false;
+    var s0 = editMod.opening3DPos(hit.ref, g.x, g.z);
+    if (s0 == null) return false;
+    editDrag = { kind: "opening", ref: hit.ref, gy: gy, offS: hit.ref.s - s0 };
+    needsRender = true;
+    return true;
+  }
+  var it = hit.ref;
+  if (!editMod.begin3DItemDrag(it)) return false;
   editDrag = {
+    kind: "item",
     it: it,
     gy: gy,
     off: { x: it.x - g.x, z: it.z - g.z },
@@ -2025,6 +2224,13 @@ function editDown(e) {
 function editMove(e) {
   if (!editDrag) return;
   var d = editDrag;
+  if (d.kind === "opening") {
+    var p = rayAtHeight(e.clientX, e.clientY, d.gy);
+    if (!p) return;
+    editMod.drag3DOpeningTo(d.ref, p.x, p.z, d.offS);
+    needsRender = true;
+    return;
+  }
   if (d.vert) {
     editMod.drag3DItemElev(d.it, d.elev0 + (d.y0 - e.clientY) * d.scale);
   } else {
@@ -2036,8 +2242,12 @@ function editMove(e) {
 }
 function editUp() {
   if (!editDrag) return;
+  var wasOpening = editDrag.kind === "opening";
   editDrag = null;
-  if (editMod) editMod.end3DItemDrag();
+  if (editMod) {
+    if (wasOpening) editMod.end3DOpeningDrag();
+    else editMod.end3DItemDrag();
+  }
   needsRender = true;
 }
 
@@ -2529,6 +2739,30 @@ function renderScene() {
   else renderer.render(scene, camera);
 }
 
+export function setOrbitCamera(opts) {
+  if (!opts) return;
+  if (typeof opts.theta === "number" && isFinite(opts.theta)) theta = opts.theta;
+  if (typeof opts.phi === "number" && isFinite(opts.phi)) phi = clamp(opts.phi, 0.12, Math.PI / 2);
+  if (typeof opts.radius === "number" && isFinite(opts.radius)) radius = clamp(opts.radius, 180, 4000);
+  if (opts.target) {
+    if (typeof opts.target.x === "number") tgt.x = opts.target.x;
+    if (typeof opts.target.y === "number") tgt.y = opts.target.y;
+    if (typeof opts.target.z === "number") tgt.z = opts.target.z;
+  }
+  userMoved = true;
+  upd();
+  needsRender = true;
+}
+
+export function getOrbitCamera() {
+  return {
+    theta: theta,
+    phi: phi,
+    radius: radius,
+    target: { x: tgt.x, y: tgt.y, z: tgt.z },
+  };
+}
+
 // PNG snapshot of the current 3D view (render first so the buffer is fresh).
 // Returns a Promise: the GPU queue has to drain before the canvas is readable,
 // so unlike the old synchronous WebGL path this cannot return a data URL inline.
@@ -3010,6 +3244,45 @@ export function init3D() {
     dragPan = false, // this drag pans instead of orbiting
     lx = 0,
     ly = 0;
+  /* Touch-only walkthrough movement. Looking remains on the canvas; the
+     left-hand pad supplies forward/back/strafe without stealing that gesture. */
+  walkControls = document.createElement("div");
+  walkControls.className = "walk-touch-controls";
+  walkControls.hidden = true;
+  walkControls.innerHTML = '<div class="walk-stick"><span></span></div>';
+  el.parentNode.appendChild(walkControls);
+  var walkStick = walkControls.firstElementChild,
+    walkKnob = walkStick.firstElementChild,
+    stickPointer = null;
+  function updateStick(e) {
+    var r = walkStick.getBoundingClientRect(),
+      radius = r.width * 0.32,
+      dx = e.clientX - (r.left + r.width / 2),
+      dy = e.clientY - (r.top + r.height / 2),
+      len = Math.hypot(dx, dy) || 1,
+      scale = Math.min(1, radius / len);
+    dx *= scale; dy *= scale;
+    walkKnob.style.transform = "translate(" + dx + "px," + dy + "px)";
+    touchMove.x = dx / radius;
+    touchMove.z = dy / radius;
+  }
+  function releaseStick(e) {
+    if (stickPointer !== e.pointerId) return;
+    stickPointer = null;
+    touchMove.x = touchMove.z = 0;
+    walkKnob.style.transform = "";
+  }
+  walkStick.addEventListener("pointerdown", function (e) {
+    stickPointer = e.pointerId;
+    walkStick.setPointerCapture(e.pointerId);
+    updateStick(e);
+    e.preventDefault();
+  });
+  walkStick.addEventListener("pointermove", function (e) {
+    if (stickPointer === e.pointerId) updateStick(e);
+  });
+  walkStick.addEventListener("pointerup", releaseStick);
+  walkStick.addEventListener("pointercancel", releaseStick);
   el.addEventListener("mouseenter", function () {
     navHover = true;
   });

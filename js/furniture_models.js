@@ -10,6 +10,14 @@ import {
   handleBar, upholstered, legsUnder, slabWithHoles, basin, gooseneck,
 } from "./furniture_helpers.js";
 
+function smartOn(it, fallback) {
+  if (!it || !it.smart) return fallback !== undefined ? fallback : true;
+  if (it.smart.on === false) return false;
+  if (it.smart.hvacMode === "off") return false;
+  return it.smart.on !== undefined ? !!it.smart.on : fallback !== undefined ? fallback : true;
+}
+export { smartOn };
+
 export const FURN = {
   base: {
     label: "ארון בסיס",
@@ -647,8 +655,10 @@ export const FURN = {
         it.h + 26,
         -it.d / 2 + 6,
         -it.d / 2 + 7,
-        0x1d2630,
-        { metal: 0.2, rough: 0.2 },
+        smartOn(it, false) ? 0x4a90c8 : 0x1d2630,
+        smartOn(it, false)
+          ? { metal: 0.08, rough: 0.18, emis: 0x3a7ab8 }
+          : { metal: 0.2, rough: 0.2 },
       );
     },
   },
@@ -1088,6 +1098,17 @@ export const FURN = {
         rx: Math.PI / 2,
         seg: 28,
       });
+      box(
+        g,
+        it.w / 2 - 10,
+        it.w / 2 - 6,
+        it.h - 10,
+        it.h - 6,
+        it.d / 2,
+        it.d / 2 + 0.4,
+        smartOn(it, false) ? 0x44c8ff : 0x394349,
+        smartOn(it, false) ? { emis: 0x44c8ff, cast: false } : { rough: 0.4, cast: false },
+      );
     },
   },
   upper: {
@@ -1742,6 +1763,12 @@ export const FURN = {
         0x39434a,
         { rough: 0.5 },
       );
+      var led = 0x44ff88;
+      if (it.smart) {
+        if (!smartOn(it, true)) led = 0x4a5156;
+        else if (it.smart.hvacMode === "heat") led = 0xff8844;
+        else if (it.smart.hvacMode === "dry") led = 0x88c4ff;
+      }
       box(
         g,
         it.w / 2 - 8,
@@ -1750,8 +1777,8 @@ export const FURN = {
         y0 + 12,
         it.d / 2,
         it.d / 2 + 0.4,
-        0x44ff88,
-        { emis: 0x44ff88, cast: false },
+        led,
+        { emis: led, cast: false },
       );
     },
   },

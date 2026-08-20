@@ -23,6 +23,7 @@ import {
   sizeCanvas, setMode, setAxis, syncHint, syncViewPreferences, draw, wireCanvas,
   setTool, exportPNG, initPreview, updatePreview, renderPreview,
 } from "./ui_cabinet_view.js";
+import { initCabinetMobile, refreshCabinetMobile } from "./ui_cabinet_mobile.js";
 import {
   fillHits, applySearch, fillFamilies, fillPresets, startBlank, fillInspector,
   splitSection, delSection, splitColumn, dupColumn, delColumn, fillLook, fillTechnical,
@@ -573,6 +574,9 @@ export function openCabinet(it) {
   fillPresets();
   fillMine();
   sizeCanvas();
+  // The compact chrome reads the rails it proxies, so it goes up after the
+  // tool/axis/mode above have settled into their opening state.
+  initCabinetMobile();
   syncSessionStatus();
   changed();
   E.base = stateOf();
@@ -779,6 +783,7 @@ function redo() {
 }
 function syncUndoButtons() {
   if (!E.host) return;
+  refreshCabinetMobile(); // the compact row mirrors these two disabled flags
   var u = E.host.querySelector("#cbUndo"), r = E.host.querySelector("#cbRedo");
   u.disabled = !H.canUndo();
   u.title = "Ctrl+Z · " + (H.undoLabel() || T("noUndo"));
@@ -997,9 +1002,27 @@ export function initCabinetUI() {
    bay, straight into the drawing tools. */
 function newCabinet() {
   import("./ui.js").then(function (m) {
+    var before = S.items.length;
     m.addFurnItem("cabsys");
+    /* Two different flows behind one call. The legacy UI adds the piece there
+       and then; the modern one ARMS a placement and the piece does not exist
+       until the plan is clicked — reading the selection straight after used to
+       find nothing and return, so this button silently did nothing at all.
+       Wait for the placement instead, and take no action if it was cancelled
+       (the same event fires for a cancel, with no new item behind it). */
     var it = S.sel && S.sel.kind === "item" ? S.sel.ref : null;
-    if (!it) return;
+    if (it) return begin(it);
+    if (!S.placeType) return;
+    window.addEventListener("planner-place", function once() {
+      window.removeEventListener("planner-place", once);
+      if (S.items.length <= before) return; // cancelled with Esc or right-click
+      /* The new piece, not S.sel: placeFurnAt pushes it and announces the
+         placement BEFORE it selects it, so reading the selection here still
+         sees whatever was selected a moment ago. The pushed item is the last. */
+      begin(S.items[S.items.length - 1]);
+    });
+  });
+  function begin(it) {
     var f = FAM.free;
     it.w = f.w;
     it.h = f.h;
@@ -1007,7 +1030,7 @@ function newCabinet() {
     it.cab = makeBlankSpec("free", it.w, it.h, it.d);
     openCabinet(it);
     setTool("vwall");
-  });
+  }
 }
 
 // Used by the action dispatcher (data-act="cabDesign") and the library panel.

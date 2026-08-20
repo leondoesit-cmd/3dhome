@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { createDefinition, createParameter, PARAMETRIC_SCHEMA_VERSION } from "../js/core/schema.js";
 import { rebuildDefinition } from "../js/core/rebuild.js";
-import { applyTopologyRebindings, createTopologyReference } from "../js/core/topology.js";
+import { applyTopologyRebindings, createTopologyReference, createTopologyRegistry, edgesBoundingFace, fitProfileCircle, mergeSmoothTopology, resolveFinishTargetIds, resolveMergedTopology, topologyForFeature, topologyMemberIds } from "../js/core/topology.js";
 import { ensureItemDefinition, ensureParametricProject, requestItemDimension } from "../js/core/project.js";
 import { authoredProductRules } from "../js/core/product_rules.js";
 
@@ -172,4 +172,129 @@ test("a sketch attached to a deleted owner feature fails with a support diagnost
   const run = rebuildDefinition(definition, {}, { now: 6 });
   assert.equal(run.ok, false);
   assert.ok(run.issues.some((issue) => issue.code === "missing-sketch-support-feature"));
+});
+
+test("a sampled circle is recognised as one profile circle, not a polygon", () => {
+  const points = Array.from({ length: 32 }, (_, i) => {
+    const a = (i / 32) * Math.PI * 2;
+    return { u: 12 + Math.cos(a) * 6, v: -3 + Math.sin(a) * 6 };
+  });
+  const fit = fitProfileCircle(points);
+  assert.ok(fit);
+  assert.ok(Math.abs(fit.radius - 6) < 0.05);
+  assert.equal(fitProfileCircle([{ u: 0, v: 0 }, { u: 10, v: 0 }, { u: 10, v: 4 }, { u: 0, v: 4 }]), null);
+  const square = [{ u: 0, v: 0 }, { u: 10, v: 0 }, { u: 10, v: 10 }, { u: 0, v: 10 }];
+  assert.equal(fitProfileCircle(square), null);
+});
+
+test("tessellated circular hole edges and cylindrical staves merge into one pick target", () => {
+  const radius = 8, count = 24;
+  const edges = Array.from({ length: count }, (_, i) => {
+    const a0 = (i / count) * Math.PI * 2, a1 = ((i + 1) / count) * Math.PI * 2;
+    const a = { x: Math.cos(a0) * radius, y: 10, z: Math.sin(a0) * radius };
+    const b = { x: Math.cos(a1) * radius, y: 10, z: Math.sin(a1) * radius };
+    return {
+      ownerFeatureId: "cut", kind: "edge", persistentId: "cut:edge:" + i,
+      descriptor: { curve: "line", origin: { x: (a.x + b.x) / 2, y: 10, z: (a.z + b.z) / 2 }, endpoints: [a, b], measure: Math.hypot(b.x - a.x, b.z - a.z) },
+    };
+  });
+  const faces = Array.from({ length: count }, (_, i) => {
+    const a = ((i + 0.5) / count) * Math.PI * 2;
+    const nx = Math.cos(a), nz = Math.sin(a);
+    return {
+      ownerFeatureId: "cut", kind: "face", persistentId: "cut:face:" + i,
+      descriptor: { surface: "plane", origin: { x: nx * radius, y: 5, z: nz * radius }, normal: { x: nx, y: 0, z: nz }, measure: 4 },
+    };
+  });
+  const boxEdge = {
+    ownerFeatureId: "body", kind: "edge", persistentId: "body:edge:x:top:front",
+    descriptor: { curve: "line", origin: { x: 0, y: 20, z: 15 }, endpoints: [{ x: -20, y: 20, z: 15 }, { x: 20, y: 20, z: 15 }], measure: 40 },
+  };
+  const merged = mergeSmoothTopology(edges.concat(faces, [boxEdge]));
+  const circular = merged.filter((entry) => entry.kind === "edge" && entry.descriptor.curve === "circle");
+  const cylinders = merged.filter((entry) => entry.kind === "face" && entry.descriptor.surface === "cylinder");
+  assert.equal(circular.length, 1);
+  assert.equal(circular[0].memberPersistentIds.length, count);
+  assert.ok(Math.abs(circular[0].descriptor.radius - radius) < 0.2);
+  assert.equal(cylinders.length, 1);
+  assert.equal(cylinders[0].memberPersistentIds.length, count);
+  assert.equal(resolveMergedTopology(merged, "cut:edge:7").persistentId, circular[0].persistentId);
+  assert.deepEqual(topologyMemberIds(circular[0]).sort(), edges.map((edge) => edge.persistentId).sort());
+  assert.equal(merged.some((entry) => entry.persistentId === "body:edge:x:top:front"), true);
+});
+
+test("coarse circular tessellation and split circle arcs merge into one edge", () => {
+  const radius = 10, count = 12;
+  const chords = Array.from({ length: count }, (_, i) => {
+    const a0 = (i / count) * Math.PI * 2, a1 = ((i + 1) / count) * Math.PI * 2;
+    const a = { x: Math.cos(a0) * radius, y: 4, z: Math.sin(a0) * radius };
+    const b = { x: Math.cos(a1) * radius, y: 4, z: Math.sin(a1) * radius };
+    return {
+      ownerFeatureId: "cut", kind: "edge", persistentId: "cut:edge:" + i,
+      descriptor: { curve: "line", origin: { x: (a.x + b.x) / 2, y: 4, z: (a.z + b.z) / 2 }, endpoints: [a, b], measure: Math.hypot(b.x - a.x, b.z - a.z) },
+    };
+  });
+  const coarse = mergeSmoothTopology(chords).filter((entry) => entry.kind === "edge" && entry.descriptor.curve === "circle");
+  assert.equal(coarse.length, 1);
+  assert.equal(coarse[0].memberPersistentIds.length, count);
+
+  const half = (id, start, end) => ({
+    ownerFeatureId: "body", kind: "edge", persistentId: "body:edge:" + id,
+    descriptor: {
+      curve: "circle", origin: { x: 0, y: 8, z: 0 }, axis: { x: 0, y: 1, z: 0 },
+      radius: 6, measure: Math.PI * 6, endpoints: [start, end],
+    },
+  });
+  const arcs = mergeSmoothTopology([
+    half("a", { x: 6, y: 8, z: 0 }, { x: -6, y: 8, z: 0 }),
+    half("b", { x: -6, y: 8, z: 0 }, { x: 6, y: 8, z: 0 }),
+  ]).filter((entry) => entry.kind === "edge");
+  assert.equal(arcs.length, 1);
+  assert.equal(arcs[0].descriptor.curve, "circle");
+  assert.equal(arcs[0].memberPersistentIds.length, 2);
+});
+
+test("fillet targets resolve by geometry when the stored persistent id is stale", () => {
+  const body = { id: "body", type: "box", params: { x: 0, y: 0, z: 0, w: 40, h: 20, d: 10 } };
+  const topology = topologyForFeature(body, body.params);
+  const edge = topology.find((item) => item.persistentId === "body:edge:y:right:front");
+  const stale = createTopologyReference("body", "edge", "body:edge:generated:line:9", edge.descriptor);
+  const ids = resolveFinishTargetIds([stale], createTopologyRegistry(topology), "edge");
+  assert.deepEqual(ids, ["body:edge:y:right:front"]);
+  assert.deepEqual(resolveFinishTargetIds([
+    createTopologyReference("body", "edge", edge.persistentId, edge.descriptor),
+  ], createTopologyRegistry(topology), "edge"), ["body:edge:y:right:front"]);
+});
+
+test("a selected face expands to every bounding edge for fillet and chamfer", () => {
+  const box = { id: "body", type: "box", params: { x: 0, y: 0, z: 0, w: 40, h: 20, d: 10 } };
+  const boxTopology = topologyForFeature(box, box.params);
+  const top = boxTopology.find((item) => item.persistentId === "body:face:top");
+  const topEdges = edgesBoundingFace(top, createTopologyRegistry(boxTopology)).map((item) => item.persistentId).sort();
+  assert.deepEqual(topEdges, [
+    "body:edge:x:top:back", "body:edge:x:top:front", "body:edge:z:left:top", "body:edge:z:right:top",
+  ].sort());
+  assert.deepEqual(
+    resolveFinishTargetIds([createTopologyReference("body", "face", top.persistentId, top.descriptor)], createTopologyRegistry(boxTopology), "edge").sort(),
+    topEdges,
+  );
+
+  const cylinder = { id: "body", type: "cylinder", params: { x: 0, y: 0, z: 0, r: 8, h: 20 } };
+  const cylTopology = topologyForFeature(cylinder, cylinder.params);
+  const cap = cylTopology.find((item) => item.persistentId === "body:face:top");
+  const wall = cylTopology.find((item) => item.persistentId === "body:face:side");
+  assert.deepEqual(edgesBoundingFace(cap, createTopologyRegistry(cylTopology)).map((item) => item.persistentId), ["body:edge:top-rim"]);
+  assert.deepEqual(edgesBoundingFace(wall, createTopologyRegistry(cylTopology)).map((item) => item.persistentId).sort(), [
+    "body:edge:bottom-rim", "body:edge:top-rim",
+  ]);
+
+  const noisyTop = { ...top, descriptor: { ...top.descriptor, normal: { x: 0.04, y: 1, z: -0.03 } } };
+  assert.equal(edgesBoundingFace(noisyTop, createTopologyRegistry(boxTopology)).length, 4);
+
+  const extrusion = { id: "body", type: "extrude", params: { axis: "y", from: 0, to: 20, points: [
+    { u: 0, v: 0 }, { u: 40, v: 0 }, { u: 40, v: 10 }, { u: 0, v: 10 },
+  ] } };
+  const extTopology = topologyForFeature(extrusion, extrusion.params);
+  const start = extTopology.find((item) => item.persistentId === "body:face:start");
+  assert.equal(edgesBoundingFace(start, createTopologyRegistry(extTopology)).length, 4);
 });

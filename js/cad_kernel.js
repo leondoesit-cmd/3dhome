@@ -5,6 +5,7 @@ import {
   createTopologyRegistry,
   resolveTopologyReference,
   topologyDescriptorSignature,
+  fitProfileCircle,
 } from "./core/topology.js";
 import { framePoint } from "./core/frame.js";
 
@@ -213,7 +214,9 @@ export async function makeBrepPrimitive(spec) {
       return { oc, shape: maker.Shape(), kind: "solid" };
     }
     if (spec.type === "cylinder") {
-      const p = new oc.gp_Pnt_3(spec.x || 0, spec.y || 0, spec.z || 0), dir = new oc.gp_Dir_4(0, 1, 0); owned.push(p, dir);
+      const p = new oc.gp_Pnt_3(spec.x || 0, spec.y || 0, spec.z || 0);
+      const axis = spec.axis || { x: 0, y: 1, z: 0 };
+      const dir = new oc.gp_Dir_4(axis.x || 0, axis.y || 0, axis.z || 0); owned.push(p, dir);
       const axes = new oc.gp_Ax2_3(p, dir); owned.push(axes);
       const maker = new oc.BRepPrimAPI_MakeCylinder_3(axes, Math.max(1e-6, spec.r), Math.max(1e-6, spec.h)); owned.push(maker);
       return { oc, shape: maker.Shape(), kind: "solid" };
@@ -229,6 +232,27 @@ export async function makeBrepExtrusion(spec) {
   const oc = await loadCadKernel(), owned = [];
   try {
     if (!Array.isArray(spec.points) || spec.points.length < 3) throw new Error("Extrusion needs a closed profile");
+    const depth = Number(spec.to || 0) - Number(spec.from || 0);
+    const circle = fitProfileCircle(spec.points);
+    if (circle) {
+      const mapPoint = (u, v, w) => spec.frame
+        ? framePoint(spec.frame, u, v, w)
+        : spec.axis === "z" ? { x: u, y: v, z: w }
+        : spec.axis === "x" ? { x: w, y: v, z: u }
+        : { x: u, y: w, z: v };
+      const axis = spec.frame
+        ? spec.frame.normal
+        : spec.axis === "z" ? { x: 0, y: 0, z: 1 }
+        : spec.axis === "x" ? { x: 1, y: 0, z: 0 }
+        : { x: 0, y: 1, z: 0 };
+      const sign = depth >= 0 ? 1 : -1;
+      const start = mapPoint(circle.u, circle.v, spec.from || 0);
+      const p = new oc.gp_Pnt_3(start.x, start.y, start.z); owned.push(p);
+      const dir = new oc.gp_Dir_4((axis.x || 0) * sign, (axis.y || 0) * sign, (axis.z || 0) * sign); owned.push(dir);
+      const axes = new oc.gp_Ax2_3(p, dir); owned.push(axes);
+      const maker = new oc.BRepPrimAPI_MakeCylinder_3(axes, Math.max(1e-6, circle.radius), Math.max(1e-6, Math.abs(depth))); owned.push(maker);
+      return { oc, shape: maker.Shape(), kind: "solid" };
+    }
     const polygon = new oc.BRepBuilderAPI_MakePolygon_1(); owned.push(polygon);
     for (const q of spec.points) {
       let p;
@@ -243,7 +267,6 @@ export async function makeBrepExtrusion(spec) {
     }
     polygon.Close();
     const faceMaker = new oc.BRepBuilderAPI_MakeFace_15(polygon.Wire(), true); owned.push(faceMaker);
-    const depth = Number(spec.to || 0) - Number(spec.from || 0);
     const vec = spec.frame
       ? new oc.gp_Vec_4(spec.frame.normal.x * depth, spec.frame.normal.y * depth, spec.frame.normal.z * depth)
       : spec.axis === "z" ? new oc.gp_Vec_4(0, 0, depth) : spec.axis === "x" ? new oc.gp_Vec_4(depth, 0, 0) : new oc.gp_Vec_4(0, depth, 0); owned.push(vec);
@@ -341,17 +364,15 @@ export async function filletBrep(brep, radius, options = {}) {
   // OpenCascade always grows a selected edge into its geometrically tangent
   // contour. "feature" deliberately widens that source selection to every
   // edge; "tangent" leaves the kernel contour as the source of truth.
-  const selected = options.propagation === "feature"
-    ? new Set()
-    : new Set(options.edgePersistentIds || options.edges || []);
+  const finish = finishEdgeSelection(brep, options);
   const seenEdges = [];
   let added = 0;
   try {
-    const continuity = {
-      tangent: oc.GeomAbs_Shape.GeomAbs_C1,
-      curvature: oc.GeomAbs_Shape.GeomAbs_C2,
-    }[options.continuity];
-    if (continuity) maker.SetContinuity(continuity, Math.PI / 180);
+    /* OCCT fillets are already tangent to the support faces. Asking for C1
+       again with a 1° tolerance is what made ordinary box edges report
+       "Preview unavailable" while the selection note still said the edge
+       was valid. Only curvature is an extra request. */
+    if (options.continuity === "curvature") maker.SetContinuity(oc.GeomAbs_Shape.GeomAbs_C2, Math.PI / 180);
     while (explorer.More()) {
       const edge = oc.TopoDS.Edge_1(explorer.Current());
       if (seenEdges.some((candidate) => candidate.IsSame(edge))) {
@@ -360,13 +381,7 @@ export async function filletBrep(brep, radius, options = {}) {
         continue;
       }
       seenEdges.push(edge);
-      let selectedById = !selected.size;
-      if (selected.size && brep.subshapes) {
-        for (const persistentId of selected) {
-          const candidate = resolveBrepSubshape(brep, persistentId, "edge");
-          if (candidate?.IsSame(edge)) { selectedById = true; break; }
-        }
-      }
+      const selectedById = edgeIsFinishTarget(brep, edge, finish);
       if (selectedById && (!options.filter || options.filter(count, explorer.Current()))) {
         maker.Add_2(Math.max(1e-6, Number(radius) || 0), edge);
         added++;
@@ -394,6 +409,50 @@ function selectedBrepSubshapes(brep, kind, persistentIds = []) {
   return matches;
 }
 
+function edgeOnAnyFace(oc, edge, faces) {
+  for (const face of faces || []) {
+    const explorer = new oc.TopExp_Explorer_2(
+      face,
+      oc.TopAbs_ShapeEnum.TopAbs_EDGE,
+      oc.TopAbs_ShapeEnum.TopAbs_SHAPE,
+    );
+    try {
+      while (explorer.More()) {
+        const faceEdge = oc.TopoDS.Edge_1(explorer.Current());
+        const matches = faceEdge.IsSame(edge);
+        faceEdge.delete?.();
+        if (matches) return true;
+        explorer.Next();
+      }
+    } finally { explorer.delete(); }
+  }
+  return false;
+}
+
+/* Fillet/chamfer accept an explicit edge list, or a face (every bounding
+   edge). Empty edge ids used to mean "the whole body"; a face pick must not
+   fall through to that, or selecting a lid would chamfer every rib. */
+function finishEdgeSelection(brep, options = {}) {
+  const edgeIds = options.edgePersistentIds || options.edges || [];
+  const faceIds = options.facePersistentIds || options.faces || [];
+  return {
+    edgeIds,
+    faces: selectedBrepSubshapes(brep, "face", faceIds),
+    restrict: options.propagation === "feature" ? false : !!(edgeIds.length || faceIds.length),
+  };
+}
+
+function edgeIsFinishTarget(brep, edge, selection) {
+  if (!selection?.restrict) return true;
+  if (selection.edgeIds && selection.edgeIds.length && brep.subshapes) {
+    for (const persistentId of selection.edgeIds) {
+      const candidate = resolveBrepSubshape(brep, persistentId, "edge");
+      if (candidate?.IsSame(edge)) return true;
+    }
+  }
+  return !!(selection.faces && selection.faces.length && edgeOnAnyFace(brep.oc, edge, selection.faces));
+}
+
 // Chamfers, like fillets, consume persistent edge references rather than
 // explorer positions.  This keeps the operation stable when an upstream edit
 // changes OpenCascade's internal traversal order.
@@ -402,8 +461,7 @@ export async function chamferBrep(brep, distance, options = {}) {
   const oc = brep.oc || await loadCadKernel();
   const maker = new oc.BRepFilletAPI_MakeChamfer(brep.shape);
   const progress = new oc.Message_ProgressRange_1();
-  const selectedIds = options.edgePersistentIds || options.edges || [];
-  const selectedShapes = selectedBrepSubshapes(brep, "edge", selectedIds);
+  const finish = finishEdgeSelection(brep, options);
   const explorer = new oc.TopExp_Explorer_2(
     brep.shape,
     oc.TopAbs_ShapeEnum.TopAbs_EDGE,
@@ -450,7 +508,7 @@ export async function chamferBrep(brep, distance, options = {}) {
         edge.delete?.(); explorer.Next(); continue;
       }
       seenEdges.push(edge);
-      const chosen = selectedIds.length ? selectedShapes.some((candidate) => candidate.IsSame(edge)) : true;
+      const chosen = edgeIsFinishTarget(brep, edge, finish);
       if (chosen && (!options.filter || options.filter(added, explorer.Current()))) {
         if (mode === "two-distance") {
           maker.Add_3(firstDistance, secondDistance, edge, referenceFaceFor(edge));

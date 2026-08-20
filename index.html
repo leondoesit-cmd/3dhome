@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <title>ModelForge · Parametric CAD</title>
     <script>
@@ -15,8 +15,8 @@
           he = l === "he";
           if (he) {
             document.documentElement.lang = "he";
-            document.documentElement.dir = "rtl";
           }
+          document.documentElement.dir = "ltr";
           var theme = localStorage.getItem("home3d_theme");
           if (["light", "soft", "mid", "dark"].indexOf(theme) < 0) theme = "light";
           document.documentElement.setAttribute("data-theme", theme);
@@ -76,13 +76,13 @@
          ui_site.js), so it must not block first paint. -->
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
     <script defer src="vendor/leaflet/leaflet.js"></script>
-    <link rel="stylesheet" href="css/styles.css?v=themes-4" />
+    <link rel="stylesheet" href="css/styles.css?v=wall-guide-3" />
   </head>
   <body>
     <div id="app">
       <header id="topbar">
         <div class="tb-start">
-          <button id="toggle-left" class="mobile-toggle" style="display: none">
+          <button id="toggle-left" class="mobile-toggle" style="display: none" aria-label="Toggle Sidebar" data-i18n-aria="toggle_sidebar" title="Toggle Sidebar">
             <i class="ph ph-list"></i>
           </button>
           <div class="brand">
@@ -114,6 +114,10 @@
               <button data-act="load" role="menuitem">
                 <i class="ph ph-folder-open"></i>
                 <span data-i18n="load">טען</span>
+              </button>
+              <button data-act="addFloor" role="menuitem">
+                <i class="ph ph-stack-plus"></i>
+                <span data-i18n="floor_add">הוסף קומה</span>
               </button>
               <button
                 data-act="importjson"
@@ -254,7 +258,7 @@
         <div class="tb-center">
           <div class="tb-pill modern-chrome" id="viewModePill">
             <button data-act="viewPlan" id="viewPlanBtn" data-i18n-title="view_plan" title="תוכנית">
-              <i class="ph ph-floor-plan"></i>
+              <i class="ph ph-blueprint"></i>
               <span data-i18n="view_plan">תוכנית</span>
             </button>
             <button data-act="view3d" id="view3dBtn" data-i18n-title="view_3d" title="תלת-ממד">
@@ -391,6 +395,7 @@
               <button data-act="rc" role="menuitem">
                 <i class="ph ph-car-profile"></i>
                 <span data-i18n="rc">מרוץ RC</span>
+                <kbd class="menu-kbd">C</kbd>
               </button>
               <button data-act="zombies" role="menuitem">
                 <i class="ph ph-skull"></i>
@@ -426,12 +431,15 @@
           <button id="plannerTutorialBtn" data-i18n-title="planner_guide_title" title="Planner wall guide">
             <i class="ph ph-graduation-cap"></i>
           </button>
+          <button id="videoStudioBtn" data-i18n-title="video_studio_title" title="Fast video & timelapse studio">
+            <i class="ph ph-film-strip"></i>
+          </button>
           <button id="btn_settings" data-i18n-title="settings_title" title="הגדרות"><i class="ph ph-gear"></i></button>
           <button id="themeToggle" data-i18n-title="theme_toggle" title="Toggle Theme" aria-label="Toggle theme" data-i18n-aria="theme_toggle"><i class="ph ph-sun"></i></button>
           <button data-act="lang" id="langBtn" data-i18n-title="lang_toggle" title="Toggle Language">
             <i class="ph ph-globe"></i> <span data-i18n="lang_btn">EN</span>
           </button>
-          <button id="toggle-right" class="mobile-toggle" style="display: none">
+          <button id="toggle-right" class="mobile-toggle" style="display: none" aria-label="Toggle Inspector" data-i18n-aria="toggle_inspector" title="Toggle Inspector">
             <i class="ph ph-sliders-horizontal"></i>
           </button>
           
@@ -439,12 +447,14 @@
             type="file"
             id="importfile"
             accept=".json,application/json"
+            aria-label="Import JSON"
             style="display: none"
           />
           <input
             type="file"
             id="texInput"
             accept="image/*"
+            aria-label="Import Texture Image"
             style="display: none"
           />
         </div>
@@ -454,6 +464,7 @@
         <aside id="left-sidebar" data-left="library">
           <div class="left-tabs modern-chrome" id="leftTabs" role="tablist">
             <button type="button" data-left-tab="library" class="active" data-i18n="left_tab_library">ספרייה</button>
+            <button type="button" data-left-tab="home" data-i18n="left_tab_home">בית</button>
             <button type="button" data-left-tab="structure" data-i18n="left_tab_structure">מבנה</button>
             <button type="button" data-left-tab="tree" data-i18n="left_tab_tree">עץ</button>
           </div>
@@ -472,6 +483,11 @@
             <div class="furn-ui" id="furnUI">
               <!-- Rendered by JS -->
             </div>
+          </div>
+
+          <div class="panel-section sh-section" data-left-pane="home">
+            <h3><span data-i18n="sh_title">בית חכם</span></h3>
+            <div id="smartHomePanel"><!-- Rendered by ui_smarthome.js --></div>
           </div>
 
           <div class="panel-section mep-section collapsed" data-left-pane="structure">
@@ -576,6 +592,7 @@
           <div id="ctx-menu" role="menu"></div>
           <div id="view-2d">
             <canvas id="plan"></canvas>
+            <div id="plan-tools">
             <div id="plan-toolbar" role="toolbar" aria-label="Drawing tools">
               <button class="tool active" data-tool="select" data-i18n-title="tool_select" title="בחירה">
                 <i class="ph ph-cursor"></i><kbd>1</kbd>
@@ -587,7 +604,7 @@
                 <i class="ph ph-rectangle"></i><kbd>8</kbd>
               </button>
               <button class="tool" data-tool="arcwall" data-i18n-title="tool_arcwall" title="צייר קיר מעוגל">
-                <i class="ph ph-arc-upper"></i><kbd>7</kbd>
+                <i class="ph ph-bezier-curve"></i><kbd>7</kbd>
               </button>
               <button class="tool" data-tool="door" data-i18n-title="tool_door" title="דלת">
                 <i class="ph ph-door"></i><kbd>3</kbd>
@@ -600,6 +617,9 @@
               </button>
               <button class="tool" data-tool="point" data-i18n-title="tool_point" title="נקודת סימון">
                 <i class="ph ph-crosshair"></i><kbd>6</kbd>
+              </button>
+              <button class="tool tool-erase" data-tool="erase" data-i18n-title="tool_erase" title="מחק">
+                <i class="ph ph-eraser"></i><kbd>E</kbd>
               </button>
               <div class="tb-sep"></div>
               <!-- global structure lock: walls/corners/rooms/openings stay
@@ -624,6 +644,51 @@
               >
                 <i class="ph ph-trash"></i><kbd>Del</kbd>
               </button>
+            </div>
+            <div id="plan-wall-palette" class="plan-wall-palette" hidden>
+              <div class="wd-sec">
+                <span class="wd-lab" data-i18n="wd_types">Wall types</span>
+                <div class="wd-row wd-types" role="group" data-i18n-aria="wd_types" aria-label="Wall types">
+                  <button type="button" class="wd-btn" data-wall-preset="generic" data-i18n-title="wd_generic" title="Generic"><i class="ph ph-wall"></i></button>
+                  <button type="button" class="wd-btn" data-wall-preset="exterior" data-i18n-title="wd_exterior" title="Exterior"><i class="ph ph-house-line"></i></button>
+                  <button type="button" class="wd-btn" data-wall-preset="interior" data-i18n-title="wd_interior" title="Interior"><i class="ph ph-columns"></i></button>
+                  <button type="button" class="wd-btn" data-wall-preset="foundation" data-i18n-title="wd_foundation" title="Foundation"><i class="ph ph-steps"></i></button>
+                  <button type="button" class="wd-btn" data-wall-preset="railing" data-i18n-title="wd_railing" title="Railing"><i class="ph ph-minus"></i></button>
+                  <button type="button" class="wd-btn" data-wall-preset="half" data-i18n-title="wd_half" title="Half wall"><i class="ph ph-align-bottom"></i></button>
+                  <button type="button" class="wd-btn" data-wall-preset="divider" data-i18n-title="wd_divider" title="Room divider"><i class="ph ph-line-vertical"></i></button>
+                </div>
+              </div>
+              <div class="wd-sec">
+                <span class="wd-lab" data-i18n="wd_from">צייר מ־</span>
+                <div class="wd-loc" role="radiogroup" data-i18n-aria="wd_from" aria-label="צייר מ־">
+                  <button type="button" class="wd-loc-btn" data-wall-from="exterior" data-i18n-aria="wd_from_outer" aria-label="צד חוץ">
+                    <span class="wd-loc-icon" aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="wd-loc-btn" data-wall-from="main-exterior" data-i18n-aria="wd_from_core_out" aria-label="ליבת חוץ">
+                    <span class="wd-loc-icon" aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="wd-loc-btn" data-wall-from="center" data-i18n-aria="wd_from_center" aria-label="אמצע הקיר">
+                    <span class="wd-loc-icon" aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="wd-loc-btn" data-wall-from="main-interior" data-i18n-aria="wd_from_core_in" aria-label="ליבת פנים">
+                    <span class="wd-loc-icon" aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="wd-loc-btn" data-wall-from="interior" data-i18n-aria="wd_from_inner" aria-label="צד פנים">
+                    <span class="wd-loc-icon" aria-hidden="true"></span>
+                  </button>
+                </div>
+              </div>
+              <div class="wd-sec">
+                <span class="wd-lab" data-i18n="wd_edit">Edit</span>
+                <div class="wd-row wd-edit" role="toolbar" data-i18n-aria="wd_edit" aria-label="Wall edit">
+                  <button type="button" class="wd-btn tool" data-tool="walloffset" data-i18n-title="tool_walloffset" title="Offset wall"><i class="ph ph-arrows-out-line-horizontal"></i></button>
+                  <button type="button" class="wd-btn tool" data-tool="wallbreak" data-i18n-title="tool_wallbreak" title="Break wall"><i class="ph ph-hammer"></i></button>
+                  <button type="button" class="wd-btn tool" data-tool="walljoin" data-i18n-title="tool_walljoin" title="Join walls"><i class="ph ph-link"></i></button>
+                  <button type="button" class="wd-btn tool" data-tool="wallreverse" data-i18n-title="tool_wallreverse" title="Reverse wall"><i class="ph ph-arrows-clockwise"></i></button>
+                  <button type="button" class="wd-btn tool" data-tool="wallpaint" data-i18n-title="tool_wallpaint" title="Change wall type"><i class="ph ph-paint-brush-broad"></i></button>
+                </div>
+              </div>
+            </div>
             </div>
             <div id="plan-hint" class="plan-hint" hidden></div>
             <button
@@ -663,232 +728,351 @@
             </div>
 
             <div class="grp props" id="wallProps">
-              <span id="selname">קיר</span>
-              <div class="con-block wall-definition-block">
-                <div class="con-head"><span class="t" data-i18n="wallAssembly">מבנה וסוג הקיר</span></div>
-                <label><span data-i18n="wallType">טיפוס קיר</span><select id="w_type"></select></label>
-                <div class="dim-row">
-                  <label><span data-i18n="wallKind">סגנון</span>
-                    <select id="w_kind">
-                      <option value="normal" data-i18n="wallKindNormal">קיר רגיל</option>
-                      <option value="roomDivider" data-i18n="wallKindDivider">מפריד חדר בלתי נראה</option>
-                      <option value="half" data-i18n="wallKindHalf">חצי קיר</option>
-                      <option value="pony" data-i18n="wallKindPony">קיר משולב עליון/תחתון</option>
-                      <option value="railing" data-i18n="wallKindRailing">מעקה</option>
+              <!-- Wall inspector header: identity, phase, and the three verbs
+                   that are worth reaching for from any tab. -->
+              <div class="wi-head">
+                <span class="wi-id" id="selname">קיר</span>
+                <span class="wi-phase" id="w_phasePill"></span>
+                <div class="wi-acts">
+                  <button class="wi-act" id="w_lockQuick" data-act="lockWallDim" data-i18n-title="cw_lockOn" title="מידות נעולות">
+                    <i class="ph ph-lock-key-open"></i>
+                  </button>
+                  <button class="wi-act" id="w_flipQuick" data-act="reverseWallLayers" data-i18n-title="wallReverse" title="הפוך פנים/חוץ">
+                    <i class="ph ph-swap"></i>
+                  </button>
+                  <button class="wi-act wi-act-danger" data-act="deleteSel" data-i18n-title="del" title="מחק">
+                    <i class="ph ph-trash"></i>
+                  </button>
+                </div>
+              </div>
+              <span id="w_meta" class="insp-meta"></span>
+              <!-- the four numbers a wall is usually asked for, as chips -->
+              <div class="wi-stats" id="w_stats"></div>
+
+              <div class="wi-tabs" id="w_tabs" role="tablist">
+                <button type="button" role="tab" data-wtab="dims" data-i18n-title="wtab_dims" title="מידות וצורה">
+                  <i class="ph ph-ruler"></i><span data-i18n="wtab_dims">מידות</span>
+                </button>
+                <button type="button" role="tab" data-wtab="assembly" data-i18n-title="wtab_assembly" title="מבנה">
+                  <i class="ph ph-stack"></i><span data-i18n="wtab_assembly">מבנה</span>
+                </button>
+                <button type="button" role="tab" data-wtab="openings" data-i18n-title="wtab_openings" title="פתחים">
+                  <i class="ph ph-door-open"></i><span data-i18n="wtab_openings">פתחים</span>
+                  <span class="wi-tab-badge" id="w_tabBadgeOpen" hidden></span>
+                </button>
+                <button type="button" role="tab" data-wtab="joints" data-i18n-title="wtab_joints" title="חיבורים ואילוצים">
+                  <i class="ph ph-blueprint"></i><span data-i18n="wtab_joints">אילוצים</span>
+                  <span class="wi-tab-badge bad" id="w_tabBadgeCon" hidden></span>
+                </button>
+                <button type="button" role="tab" data-wtab="finish" data-i18n-title="wtab_finish" title="גימור וכמויות">
+                  <i class="ph ph-paint-roller"></i><span data-i18n="wtab_finish">גימור</span>
+                </button>
+              </div>
+
+              <!-- ── 1 · dimensions & shape ─────────────────────────────── -->
+              <section class="wi-pane" data-wpane="dims" role="tabpanel">
+                <div class="con-block wall-size-block">
+                  <div class="con-head"><i class="ph ph-ruler"></i><span class="t" data-i18n="insp_size">מידות</span></div>
+                  <div class="dim-row wall-size-row">
+                    <label
+                      ><span data-i18n="len">אורך</span
+                      ><input id="w_len" type="number" inputmode="numeric"
+                    /></label>
+                    <label
+                      ><span data-i18n="ang">זווית</span
+                      ><input id="w_ang" type="number" inputmode="numeric"
+                    /></label>
+                    <button data-act="squareWall" id="w_square_btn" class="btn-icon" data-i18n-title="cw_squareWall" hidden>
+                      <i class="ph ph-corners"></i>
+                    </button>
+                  </div>
+                  <div class="dim-row">
+                    <label
+                      ><span data-i18n="th">עובי</span
+                      ><input id="w_th" type="number" inputmode="numeric"
+                    /></label>
+                    <label
+                      ><span data-i18n="height">גובה</span
+                      ><input id="w_h" type="number" inputmode="numeric"
+                    /></label>
+                  </div>
+                  <!-- Constraint engine: the measurements this wall is holding.
+                       While it is locked, no edit anywhere else may stretch or
+                       swing it — a corner that can't keep up simply comes apart. -->
+                  <div class="dim-lock-row wi-lock" id="w_lockRow">
+                    <button class="wi-switch" data-act="lockWallDim" id="w_lockBtn" aria-pressed="false">
+                      <span class="wi-switch-track"><span class="wi-switch-knob"><i class="ph ph-lock-key"></i></span></span>
+                      <span id="w_lockLabel" data-i18n="cw_lockOn">מידות נעולות</span>
+                    </button>
+                    <span id="w_lockState" class="t"></span>
+                  </div>
+                </div>
+                <div class="con-block" id="w_shape_options">
+                  <div class="con-head"><i class="ph ph-bezier-curve"></i><span class="t" data-i18n="wallShape">צורה ופרופיל גובה</span></div>
+                  <div class="dim-row">
+                    <label><span data-i18n="wallCurveBulge">בליטת קשת</span><input id="w_bulge" type="number" inputmode="decimal" /></label>
+                    <button data-act="straightenWall" class="btn-icon" data-i18n-title="wallStraighten"><i class="ph ph-line-segment"></i></button>
+                  </div>
+                  <span class="t con-hint" data-i18n="wallCurveHint">0 = קיר ישר; ערך חיובי/שלילי קובע את צד הקשת.</span>
+                  <div class="dim-row">
+                    <label><span data-i18n="wallTopA">גובה עליון A</span><input id="w_top_a" type="number" inputmode="numeric" /></label>
+                    <label><span data-i18n="wallTopB">גובה עליון B</span><input id="w_top_b" type="number" inputmode="numeric" /></label>
+                  </div>
+                  <div class="dim-row">
+                    <label><span data-i18n="wallBaseA">גובה תחתון A</span><input id="w_base_a" type="number" inputmode="numeric" /></label>
+                    <label><span data-i18n="wallBaseB">גובה תחתון B</span><input id="w_base_b" type="number" inputmode="numeric" /></label>
+                  </div>
+                  <div class="con-block" id="w_corner_editor" hidden>
+                    <div class="con-head"><span class="t" data-i18n="wallCornerEditor">עריכת פינה</span></div>
+                    <div class="dim-row">
+                      <label><span data-i18n="wallCornerType">סוג</span><select id="w_corner_type">
+                        <option value="fillet" data-i18n="wallCornerFillet">מעוגלת</option>
+                        <option value="chamfer" data-i18n="wallCornerChamfer">קטומה</option>
+                      </select></label>
+                      <label><span data-i18n="wallCornerValue">רדיוס / נסיגה</span><input id="w_corner_value" type="number" min="1" step="1" inputmode="decimal" /></label>
+                    </div>
+                    <div class="btn-row">
+                      <button data-act="updateCornerTreatment" class="w-full"><i class="ph ph-arrows-clockwise"></i><span data-i18n="wallCornerUpdate">עדכן / המר</span></button>
+                      <button data-act="restoreSharpCorner" id="w_restore_corner" class="w-full"><i class="ph ph-arrow-u-up-left"></i><span data-i18n="wallRestoreCorner">החזר פינה חדה</span></button>
+                    </div>
+                    <span class="t con-hint" data-i18n="wallCornerHint">אפשר לשנות את המידה או להמיר בין קשת לקטימה.</span>
+                  </div>
+                </div>
+              </section>
+
+              <!-- ── 2 · assembly & structure ───────────────────────────── -->
+              <section class="wi-pane" data-wpane="assembly" role="tabpanel">
+                <div class="con-block wall-definition-block">
+                  <div class="con-head"><i class="ph ph-stack"></i><span class="t" data-i18n="wallAssembly">מבנה וסוג הקיר</span>
+                    <button class="wi-mini" data-act="wallTypeEditor" data-i18n-title="wallEditTypes" title="ערוך טיפוסי קיר"><i class="ph ph-sliders-horizontal"></i></button>
+                  </div>
+                  <label><span data-i18n="wallType">טיפוס קיר</span><select id="w_type"></select></label>
+                  <div class="dim-row">
+                    <label><span data-i18n="wallKind">סגנון</span>
+                      <select id="w_kind">
+                        <option value="normal" data-i18n="wallKindNormal">קיר רגיל</option>
+                        <option value="roomDivider" data-i18n="wallKindDivider">מפריד חדר בלתי נראה</option>
+                        <option value="half" data-i18n="wallKindHalf">חצי קיר</option>
+                        <option value="pony" data-i18n="wallKindPony">קיר משולב עליון/תחתון</option>
+                        <option value="railing" data-i18n="wallKindRailing">מעקה</option>
+                      </select>
+                    </label>
+                    <label><span data-i18n="wallPhase">שלב</span>
+                      <select id="w_phase">
+                        <option value="existing" data-i18n="wallPhaseExisting">קיים</option>
+                        <option value="demolition" data-i18n="wallPhaseDemolish">להריסה</option>
+                        <option value="new" data-i18n="wallPhaseNew">חדש</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div id="w_pony_options" class="wall-special-options" hidden>
+                    <label><span data-i18n="wallUpperType">טיפוס עליון</span><select id="w_upper_type"></select></label>
+                    <label><span data-i18n="wallSplitHeight">גובה החלפה</span><input id="w_split_h" type="number" inputmode="numeric" /></label>
+                  </div>
+                  <!-- the assembly, drawn: hover a layer to read it, click a
+                       face to hang the wall's thickness datum on it -->
+                  <div class="w-diagram" id="w_section" role="img" aria-label="wall cross-section"></div>
+                  <div class="w-sec-readout" id="w_secRead"></div>
+                </div>
+                <div class="con-block" id="w_build_block">
+                  <div class="con-head"><i class="ph ph-wall"></i><span class="t" data-i18n="insp_construction">בנייה וחיבורים</span></div>
+                  <label><span data-i18n="wallDatum">קו ייחוס והצמדה</span>
+                    <select id="w_datum" data-i18n-title="wallDatumHint">
+                      <option value="outer" data-i18n="wallDatumOuter">פני חוץ</option>
+                      <option value="mainOutside" data-i18n="wallDatumMainOutside">חוץ השכבה הראשית</option>
+                      <option value="center" data-i18n="wallDatumCenter">מרכז הקיר</option>
+                      <option value="mainInside" data-i18n="wallDatumMainInside">פנים השכבה הראשית</option>
+                      <option value="inner" data-i18n="wallDatumInner">פני פנים</option>
                     </select>
                   </label>
-                  <label><span data-i18n="wallPhase">שלב</span>
-                    <select id="w_phase">
-                      <option value="existing" data-i18n="wallPhaseExisting">קיים</option>
-                      <option value="demolition" data-i18n="wallPhaseDemolish">להריסה</option>
-                      <option value="new" data-i18n="wallPhaseNew">חדש</option>
-                    </select>
-                  </label>
-                </div>
-                <label><span data-i18n="wallDatum">קו ייחוס והצמדה</span>
-                  <select id="w_datum">
-                    <option value="outer" data-i18n="wallDatumOuter">פני חוץ</option>
-                    <option value="mainOutside" data-i18n="wallDatumMainOutside">חוץ השכבה הראשית</option>
-                    <option value="center" data-i18n="wallDatumCenter">מרכז הקיר</option>
-                    <option value="mainInside" data-i18n="wallDatumMainInside">פנים השכבה הראשית</option>
-                    <option value="inner" data-i18n="wallDatumInner">פני פנים</option>
-                  </select>
-                </label>
-                <div class="btn-row">
-                  <button data-act="reverseWallLayers" id="w_reverse" class="w-full"><i class="ph ph-swap"></i><span data-i18n="wallReverse">הפוך פנים/חוץ</span></button>
-                  <button data-act="copyWallStyle" id="w_copy_style" class="w-full"><i class="ph ph-copy"></i><span data-i18n="wallCopyStyle">העתק סגנון לברירת המחדל</span></button>
+                  <p class="insp-hint" data-i18n="wallDatumHint">מאיזו פאה של השכבות נמדד העובי. לא מזיז את הקיר.</p>
+                  <div class="btn-row">
+                    <button data-act="reverseWallLayers" id="w_reverse" class="w-full"><i class="ph ph-swap"></i><span data-i18n="wallReverse">הפוך פנים/חוץ</span></button>
+                    <button data-act="copyWallStyle" id="w_copy_style" class="w-full"><i class="ph ph-copy"></i><span data-i18n="wallCopyStyle">העתק סגנון לברירת המחדל</span></button>
+                  </div>
+                  <!-- a one-layer (or palindromic) assembly reads the same from
+                       both sides, so say that rather than offer a no-op verb -->
+                  <span class="t con-hint" id="w_reverseHint" hidden></span>
+                  <div class="btn-row">
+                    <button data-act="wallTypeEditor" class="w-full"><i class="ph ph-stack-plus"></i><span data-i18n="wallEditTypes">ערוך טיפוסי קיר</span></button>
+                    <button data-act="exportWallSchedule" class="w-full"><i class="ph ph-file-csv"></i><span data-i18n="wallExportSchedule">ייצא כתב כמויות</span></button>
+                  </div>
                 </div>
                 <div class="btn-row">
-                  <button data-act="wallTypeEditor" class="w-full"><i class="ph ph-stack-plus"></i><span data-i18n="wallEditTypes">ערוך טיפוסי קיר</span></button>
-                  <button data-act="exportWallSchedule" class="w-full"><i class="ph ph-file-csv"></i><span data-i18n="wallExportSchedule">ייצא כתב כמויות</span></button>
-                </div>
-                <div class="dim-row">
-                  <label><span data-i18n="wallJoinA">חיבור קצה A</span><select id="w_join_a">
-                    <option value="auto" data-i18n="wallJoinAuto">אוטומטי</option><option value="miter" data-i18n="wallJoinMiter">מפגש אלכסוני</option><option value="butt" data-i18n="wallJoinButt">חיבור קצה</option><option value="through" data-i18n="wallJoinThrough">קיר עובר</option>
-                  </select></label>
-                  <label><span data-i18n="wallJoinB">חיבור קצה B</span><select id="w_join_b">
-                    <option value="auto" data-i18n="wallJoinAuto">אוטומטי</option><option value="miter" data-i18n="wallJoinMiter">מפגש אלכסוני</option><option value="butt" data-i18n="wallJoinButt">חיבור קצה</option><option value="through" data-i18n="wallJoinThrough">קיר עובר</option>
-                  </select></label>
-                </div>
-                <div id="w_pony_options" class="wall-special-options">
-                  <label><span data-i18n="wallUpperType">טיפוס עליון</span><select id="w_upper_type"></select></label>
-                  <label><span data-i18n="wallSplitHeight">גובה החלפה</span><input id="w_split_h" type="number" inputmode="numeric" /></label>
-                </div>
-              </div>
-              <div class="dim-row">
-                <label
-                  ><span data-i18n="len">אורך</span
-                  ><input id="w_len" type="number" inputmode="numeric"
-                /></label>
-                <label
-                  ><span data-i18n="ang">זווית</span
-                  ><input id="w_ang" type="number" inputmode="numeric"
-                /></label>
-                <button data-act="squareWall" id="w_square_btn" class="btn-icon" title="Square wall to 90°" style="display:none; align-self: flex-end; margin-bottom: 2px; height: 34px; min-width: 34px; padding: 0 6px;">
-                  <i class="ph ph-corners"></i>
-                </button>
-              </div>
-              <!-- Constraint engine: the measurements this wall is holding.
-                   While it is locked, no edit anywhere else may stretch or
-                   swing it — a corner that can't keep up simply comes apart. -->
-              <div class="dim-lock-row">
-                <span id="w_lockState" class="t"></span>
-                <button data-act="lockWallDim" id="w_lockBtn">
-                  <i class="ph ph-lock-key"></i>
-                  <span id="w_lockLabel" data-i18n="cw_lockOn">מידות נעולות</span>
-                </button>
-              </div>
-              <details class="con-block insp-more">
-                <summary data-i18n="insp_more">מבנה מתקדם</summary>
-              <!-- which half of the wall a length/angle edit moves; also set by
-                   hovering + clicking a half of the selected wall in the plan -->
-              <div class="seg-row" id="w_endRow">
-                <span class="t" data-i18n="wallEnd">שינוי אורך מהצד</span>
-                <div class="seg" id="w_end">
-                  <button data-end="a" title="A"><i class="ph ph-arrow-line-left"></i></button>
-                  <button data-end="mid" title="=" ><i class="ph ph-arrows-out-line-horizontal"></i></button>
-                  <button data-end="b" title="B"><i class="ph ph-arrow-line-right"></i></button>
-                  <button data-end="" data-i18n="wallEndAuto">אוטומטי</button>
-                </div>
-              </div>
-              <!-- which FACE of the wall its length is measured along -->
-              <div class="seg-row" id="w_sideRow">
-                <span class="t" data-i18n="wallSide">מודדים לאורך</span>
-                <div class="seg" id="w_side">
-                  <button data-side="-1" id="w_sideNeg"></button>
-                  <button data-side="0" data-i18n="wallSideMid">ציר</button>
-                  <button data-side="1" id="w_sidePos"></button>
-                  <button data-side="" data-i18n="wallEndAuto">אוטומטי</button>
-                </div>
-              </div>
-              <!-- ...and whether the model STORES that face (js/geometry.js
-                   wallLocFace). On the face, two collinear walls of different
-                   thickness join flush there and the step falls on the far
-                   side; on the centreline they step half and half. -->
-              <div class="seg-row" id="w_locRow">
-                <span class="t" data-i18n="wallLoc">קו ייחוס</span>
-                <div class="seg" id="w_loc">
-                  <button data-loc="center" data-i18n="wallLocCenter">ציר הקיר</button>
-                  <button data-loc="face" data-i18n="wallLocFace">הפאה הנמדדת</button>
-                  <button data-loc="face-run" data-i18n="wallLocRun">כל הרצף</button>
-                </div>
-              </div>
-              <!-- Explicit dimensions to OTHER geometry (js/wall_constraints.js):
-                   a distance to another corner or reference point, the angle a
-                   joint opens at, or a parallel offset from another wall. The
-                   wall's own length/angle lock above cannot say any of these. -->
-              <div class="con-block" id="w_conBlock">
-                <div class="con-head">
-                  <span class="t" data-i18n="wc_title">מידות לגאומטריה אחרת</span>
-                  <span class="con-badge" id="w_conBadge" hidden></span>
-                </div>
-                <div id="w_conList" class="con-list"></div>
-                <div class="con-add con-add-wrap">
-                  <button data-act="conDist" id="w_conDist">
-                    <i class="ph ph-ruler"></i
-                    ><span data-i18n="wc_addDist">מרחק</span>
+                  <button data-act="openwall" class="w-full">
+                    <i class="ph ph-door-open"></i>
+                    <span data-i18n="openwall">פתח קיר</span>
                   </button>
-                  <button data-act="conAngle" id="w_conAngle">
-                    <i class="ph ph-angle"></i
-                    ><span data-i18n="wc_addAngle">זווית פינה</span>
-                  </button>
-                  <button data-act="conOffset" id="w_conOffset">
-                    <i class="ph ph-arrows-out-line-vertical"></i
-                    ><span data-i18n="wc_addOffset">היסט מקביל</span>
-                  </button>
-                  <button data-act="conParallel"><i class="ph ph-equals"></i><span data-i18n="wc_addParallel">Parallel</span></button>
-                  <button data-act="conPerpendicular"><i class="ph ph-angle"></i><span data-i18n="wc_addPerpendicular">Perpendicular</span></button>
-                  <button data-act="conCollinear"><i class="ph ph-line-segment"></i><span data-i18n="wc_addCollinear">Collinear</span></button>
-                  <button data-act="conEqualLength"><i class="ph ph-arrows-out-line-horizontal"></i><span data-i18n="wc_addEqualLength">Equal length</span></button>
-                  <button data-act="conPointWall"><i class="ph ph-ruler"></i><span data-i18n="wc_addPointWall">Corner to wall</span></button>
-                  <button data-act="conHorizontal"><i class="ph ph-minus"></i><span data-i18n="wc_addHorizontal">Horizontal</span></button>
-                  <button data-act="conVertical"><i class="ph ph-line-vertical"></i><span data-i18n="wc_addVertical">Vertical</span></button>
                 </div>
-                <span class="t con-hint" id="w_conHint"></span>
-              </div>
-              </details>
-              <div class="dim-row">
-                <label
-                  ><span data-i18n="th">עובי</span
-                  ><input id="w_th" type="number" inputmode="numeric"
-                /></label>
-                <label
-                  ><span data-i18n="height">גובה</span
-                  ><input id="w_h" type="number" inputmode="numeric"
-                /></label>
-              </div>
-              <details class="con-block" id="w_shape_options">
-                <summary data-i18n="wallShape">צורה ופרופיל גובה</summary>
-                <div class="dim-row">
-                  <label><span data-i18n="wallCurveBulge">בליטת קשת</span><input id="w_bulge" type="number" inputmode="decimal" /></label>
-                  <button data-act="straightenWall" class="btn-icon" title="Straighten wall"><i class="ph ph-line-segment"></i></button>
+                <span class="t con-hint" data-i18n="openwall_hint">מסיר את הקיר וממזג את החדרים משני צדיו.</span>
+              </section>
+
+              <!-- ── 3 · openings ───────────────────────────────────────── -->
+              <section class="wi-pane" data-wpane="openings" role="tabpanel">
+                <div class="con-block" id="w_open_block">
+                  <div class="con-head"><i class="ph ph-door-open"></i><span class="t" data-i18n="wallOpenings">פתחים בקיר</span></div>
+                  <div class="w-diagram w-diagram-elev" id="w_elev" role="img" aria-label="wall elevation"></div>
+                  <div class="con-add con-add-wrap w-open-add">
+                    <button data-act="addWallDoor"><i class="ph ph-door"></i><span data-i18n="door">דלת</span><span class="wi-count" id="w_cntDoor" hidden></span></button>
+                    <button data-act="addWallWindow"><i class="ph ph-square"></i><span data-i18n="window">חלון</span><span class="wi-count" id="w_cntWin" hidden></span></button>
+                    <button data-act="addWallPassage"><i class="ph ph-door-open"></i><span data-i18n="passage">מעבר</span><span class="wi-count" id="w_cntPass" hidden></span></button>
+                  </div>
+                  <div id="w_openList" class="w-open-list"></div>
+                  <span class="t con-hint" id="w_openEmpty" data-i18n="wallNoOpenings">אין פתחים על הקיר</span>
+                  <details class="insp-more wall-seg-cut">
+                    <summary data-i18n="openseg">פתח מקטע</summary>
+                    <span class="t" data-i18n="cm_seg">ס"מ  |  פתח מקטע:</span>
+                    <label class="slider-row"
+                      ><span data-i18n="pos">מיקום</span
+                      ><input
+                        id="ow_pos"
+                        type="range"
+                        min="0"
+                        max="100"
+                        value="50"
+                      /><span id="ow_posval" class="t slider-val">—</span></label
+                    >
+                    <div class="dim-row">
+                      <label
+                        ><span data-i18n="width">רוחב</span
+                        ><input id="ow_w" type="number" inputmode="numeric"
+                      /></label>
+                      <label
+                        ><span data-i18n="height">גובה</span
+                        ><input id="ow_h" type="number" inputmode="numeric"
+                      /></label>
+                    </div>
+                    <button data-act="openseg" class="w-full">
+                      <i class="ph ph-scissors"></i>
+                      <span data-i18n="openseg">פתח מקטע</span>
+                    </button>
+                  </details>
                 </div>
-                <span class="t con-hint" data-i18n="wallCurveHint">0 = קיר ישר; ערך חיובי/שלילי קובע את צד הקשת.</span>
-                <div class="dim-row">
-                  <label><span data-i18n="wallTopA">גובה עליון A</span><input id="w_top_a" type="number" inputmode="numeric" /></label>
-                  <label><span data-i18n="wallTopB">גובה עליון B</span><input id="w_top_b" type="number" inputmode="numeric" /></label>
+              </section>
+
+              <!-- ── 4 · joints & CAD constraints ───────────────────────── -->
+              <section class="wi-pane" data-wpane="joints" role="tabpanel">
+                <div class="con-block" id="w_join_block">
+                  <div class="con-head"><i class="ph ph-intersect"></i><span class="t" data-i18n="wallJoins">חיבורי קצה</span></div>
+                  <!-- how each end meets whatever it runs into -->
+                  <div class="seg-row seg-row-stack" id="w_joinARow">
+                    <span class="t" data-i18n="wallJoinA">חיבור קצה A</span>
+                    <div class="seg" id="w_join_a">
+                      <button data-join="auto" data-i18n="wallJoinAuto" data-i18n-title="wallJoinAuto">אוטומטי</button>
+                      <button data-join="miter" data-i18n-title="wallJoinMiter" title="מפגש אלכסוני"><i class="ph ph-triangle"></i></button>
+                      <button data-join="butt" data-i18n-title="wallJoinButt" title="חיבור קצה"><i class="ph ph-arrow-line-right"></i></button>
+                      <button data-join="through" data-i18n-title="wallJoinThrough" title="קיר עובר"><i class="ph ph-plus"></i></button>
+                    </div>
+                  </div>
+                  <div class="seg-row seg-row-stack" id="w_joinBRow">
+                    <span class="t" data-i18n="wallJoinB">חיבור קצה B</span>
+                    <div class="seg" id="w_join_b">
+                      <button data-join="auto" data-i18n="wallJoinAuto" data-i18n-title="wallJoinAuto">אוטומטי</button>
+                      <button data-join="miter" data-i18n-title="wallJoinMiter" title="מפגש אלכסוני"><i class="ph ph-triangle"></i></button>
+                      <button data-join="butt" data-i18n-title="wallJoinButt" title="חיבור קצה"><i class="ph ph-arrow-line-left"></i></button>
+                      <button data-join="through" data-i18n-title="wallJoinThrough" title="קיר עובר"><i class="ph ph-plus"></i></button>
+                    </div>
+                  </div>
                 </div>
-                <div class="dim-row">
-                  <label><span data-i18n="wallBaseA">גובה תחתון A</span><input id="w_base_a" type="number" inputmode="numeric" /></label>
-                  <label><span data-i18n="wallBaseB">גובה תחתון B</span><input id="w_base_b" type="number" inputmode="numeric" /></label>
+                <div class="con-block" id="w_measure_block">
+                  <div class="con-head"><i class="ph ph-blueprint"></i><span class="t" data-i18n="insp_measure">מדידה ואילוצים</span></div>
+                  <!-- which half of the wall a length/angle edit moves; also set by
+                       hovering + clicking a half of the selected wall in the plan -->
+                  <div class="seg-row seg-row-stack" id="w_endRow">
+                    <span class="t" data-i18n="wallEnd">שינוי אורך מהצד</span>
+                    <div class="seg" id="w_end">
+                      <button data-end="a" title="A"><i class="ph ph-arrow-line-left"></i></button>
+                      <button data-end="mid" title="=" ><i class="ph ph-arrows-out-line-horizontal"></i></button>
+                      <button data-end="b" title="B"><i class="ph ph-arrow-line-right"></i></button>
+                      <button data-end="" data-i18n="wallEndAuto">אוטומטי</button>
+                    </div>
+                  </div>
+                  <!-- which FACE of the wall its length is measured along -->
+                  <div class="seg-row seg-row-stack" id="w_sideRow">
+                    <span class="t" data-i18n="wallSide">מודדים לאורך</span>
+                    <div class="seg" id="w_side">
+                      <button data-side="-1" id="w_sideNeg" aria-label="Side 1"></button>
+                      <button data-side="0" data-i18n="wallSideMid">ציר</button>
+                      <button data-side="1" id="w_sidePos" aria-label="Side 2"></button>
+                      <button data-side="" data-i18n="wallEndAuto">אוטומטי</button>
+                    </div>
+                  </div>
+                  <!-- ...and whether the model STORES that face (js/geometry.js
+                       wallLocFace). On the face, two collinear walls of different
+                       thickness join flush there and the step falls on the far
+                       side; on the centreline they step half and half. -->
+                  <div class="seg-row seg-row-stack" id="w_locRow">
+                    <span class="t" data-i18n="wallLoc" data-i18n-title="wallLocHint">קו המיקום</span>
+                    <div class="seg" id="w_loc">
+                      <button data-loc="center" data-i18n="wallLocCenter" data-i18n-title="wallLocHintCenter">ציר הקיר</button>
+                      <button data-loc="face" data-i18n="wallLocFace" data-i18n-title="wallLocHintFace">הפאה הנמדדת</button>
+                      <button data-loc="face-run" data-i18n="wallLocRun" data-i18n-title="wallLocHintRun">כל הרצף</button>
+                    </div>
+                  </div>
+                  <p class="insp-hint" data-i18n="wallLocHint">רצף ישר מתיישר לבד על פני הפנים כשמשנים עובי, בלי לנתק קיר ב־90°. «ציר הקיר» מחזיר מדרגה בשני הצדדים. «כל הרצף» מיישר עכשיו בלי שינוי עובי.</p>
                 </div>
-              </details>
-              <div class="con-block" id="w_corner_editor" hidden>
-                <div class="con-head"><span class="t" data-i18n="wallCornerEditor">עריכת פינה</span></div>
-                <div class="dim-row">
-                  <label><span data-i18n="wallCornerType">סוג</span><select id="w_corner_type">
-                    <option value="fillet" data-i18n="wallCornerFillet">מעוגלת</option>
-                    <option value="chamfer" data-i18n="wallCornerChamfer">קטומה</option>
-                  </select></label>
-                  <label><span data-i18n="wallCornerValue">רדיוס / נסיגה</span><input id="w_corner_value" type="number" min="1" step="1" inputmode="decimal" /></label>
+                <!-- Explicit dimensions to OTHER geometry (js/wall_constraints.js):
+                     a distance to another corner or reference point, the angle a
+                     joint opens at, or a parallel offset from another wall. The
+                     wall's own length/angle lock above cannot say any of these. -->
+                <div class="con-block" id="w_conBlock">
+                  <div class="con-head">
+                    <i class="ph ph-ruler"></i>
+                    <span class="t" data-i18n="wc_title">מידות לגאומטריה אחרת</span>
+                    <span class="con-badge" id="w_conBadge" hidden></span>
+                  </div>
+                  <div id="w_conList" class="con-list"></div>
+                  <div class="con-add con-add-wrap">
+                    <button data-act="conDist" id="w_conDist">
+                      <i class="ph ph-ruler"></i
+                      ><span data-i18n="wc_addDist">מרחק</span>
+                    </button>
+                    <button data-act="conAngle" id="w_conAngle">
+                      <i class="ph ph-angle"></i
+                      ><span data-i18n="wc_addAngle">זווית פינה</span>
+                    </button>
+                    <button data-act="conOffset" id="w_conOffset">
+                      <i class="ph ph-arrows-out-line-vertical"></i
+                      ><span data-i18n="wc_addOffset">היסט מקביל</span>
+                    </button>
+                    <button data-act="conParallel"><i class="ph ph-equals"></i><span data-i18n="wc_addParallel">Parallel</span></button>
+                    <button data-act="conPerpendicular"><i class="ph ph-angle"></i><span data-i18n="wc_addPerpendicular">Perpendicular</span></button>
+                    <button data-act="conCollinear"><i class="ph ph-line-segment"></i><span data-i18n="wc_addCollinear">Collinear</span></button>
+                    <button data-act="conEqualLength"><i class="ph ph-arrows-out-line-horizontal"></i><span data-i18n="wc_addEqualLength">Equal length</span></button>
+                    <button data-act="conPointWall"><i class="ph ph-ruler"></i><span data-i18n="wc_addPointWall">Corner to wall</span></button>
+                    <button data-act="conHorizontal"><i class="ph ph-minus"></i><span data-i18n="wc_addHorizontal">Horizontal</span></button>
+                    <button data-act="conVertical"><i class="ph ph-line-vertical"></i><span data-i18n="wc_addVertical">Vertical</span></button>
+                  </div>
+                  <span class="t con-hint" id="w_conHint"></span>
                 </div>
-                <div class="btn-row">
-                  <button data-act="updateCornerTreatment" class="w-full"><i class="ph ph-arrows-clockwise"></i><span data-i18n="wallCornerUpdate">עדכן / המר</span></button>
-                  <button data-act="restoreSharpCorner" id="w_restore_corner" class="w-full"><i class="ph ph-arrow-u-up-left"></i><span data-i18n="wallRestoreCorner">החזר פינה חדה</span></button>
+              </section>
+
+              <!-- ── 5 · finishes & take-off ────────────────────────────── -->
+              <section class="wi-pane" data-wpane="finish" role="tabpanel">
+                <div class="con-block">
+                  <div class="con-head"><i class="ph ph-paint-roller"></i><span class="t" data-i18n="wallFinish">גימור</span></div>
+                  <!-- what the two faces of this wall are actually made of -->
+                  <div class="wi-swatches" id="w_swatches"></div>
+                  <div class="btn-row">
+                    <button data-act="openTextureGallery" class="w-full">
+                      <i class="ph ph-paint-brush-broad"></i>
+                      <span data-i18n="tex_gallery">גלריית טקסטורות</span>
+                    </button>
+                    <button data-act="uploadWallTex" class="w-full">
+                      <i class="ph ph-image"></i>
+                      <span data-i18n="uploadtex">טקסטורה אישית</span>
+                    </button>
+                  </div>
+                  <button data-act="clearWallTex" id="w_clearTex" class="w-full" hidden><i class="ph ph-eraser"></i><span data-i18n="wallClearTex">הסר טקסטורה</span></button>
                 </div>
-                <span class="t con-hint" data-i18n="wallCornerHint">אפשר לשנות את המידה או להמיר בין קשת לקטימה.</span>
-              </div>
-              <button data-act="openwall">
-                <i class="ph ph-door-open"></i>
-                <span data-i18n="openwall">פתח קיר</span>
-              </button>
-              <div class="btn-row">
-                <button data-act="openTextureGallery" class="w-full">
-                  <i class="ph ph-paint-brush-broad"></i>
-                  <span data-i18n="tex_gallery">גלריית טקסטורות</span>
-                </button>
-                <button data-act="uploadWallTex" class="w-full">
-                  <i class="ph ph-image"></i>
-                  <span data-i18n="uploadtex">טקסטורה אישית</span>
-                </button>
-              </div>
-              <span class="t" data-i18n="cm_seg"
-                >ס"מ&nbsp;&nbsp;|&nbsp;&nbsp;פתח מקטע:</span
-              >
-              <label class="slider-row"
-                ><span data-i18n="pos">מיקום</span
-                ><input
-                  id="ow_pos"
-                  type="range"
-                  min="0"
-                  max="100"
-                  value="50"
-                /><span id="ow_posval" class="t slider-val">—</span></label
-              >
-              <div class="dim-row">
-                <label
-                  ><span data-i18n="width">רוחב</span
-                  ><input id="ow_w" type="number" inputmode="numeric"
-                /></label>
-                <label
-                  ><span data-i18n="height">גובה</span
-                  ><input id="ow_h" type="number" inputmode="numeric"
-                /></label>
-              </div>
-              <button data-act="openseg">
-                <i class="ph ph-scissors"></i>
-                <span data-i18n="openseg">פתח מקטע</span>
-              </button>
+                <div class="con-block">
+                  <div class="con-head"><i class="ph ph-list-checks"></i><span class="t" data-i18n="wallTakeoff">כתב כמויות לקיר</span></div>
+                  <div id="w_takeoff" class="wi-takeoff"></div>
+                  <div class="btn-row">
+                    <button data-act="exportWallTakeoff" class="w-full"><i class="ph ph-file-csv"></i><span data-i18n="wallTakeoffExport">ייצא כמויות הקיר</span></button>
+                  </div>
+                </div>
+              </section>
             </div>
 
             <div class="grp props" id="wallMultiProps">
@@ -929,6 +1113,13 @@
                 <input type="checkbox" class="snap-toggle" checked />
                 <span data-i18n="snap_obj">הצמד</span>
               </label>
+              <!-- automatic facing on drop/drag (js/item_orient.js): back to
+                   the nearest wall, a seat toward its table, a cabinet along
+                   the run it joins. Alt while dragging suspends it once. -->
+              <label class="check-row" data-i18n-title="auto_face_t">
+                <input type="checkbox" class="face-toggle" checked />
+                <span data-i18n="auto_face">כיוון חכם</span>
+              </label>
               <div class="dim-row dim-row-3">
                 <label
                   ><span data-i18n="width">רוחב</span
@@ -964,6 +1155,7 @@
               <!-- Held against a wall: the drag snap places a piece flush, but
                    nothing kept it flush when the wall later moved. This does. -->
               <div id="i_hold_row" class="ps-spec-row" style="display: none"></div>
+              <div id="smartItemControls" class="sh-item" style="display: none"></div>
               <label class="slider-row"
                 ><span data-i18n="rot">סיבוב</span>
                 <input id="i_rot_range" type="range" min="0" max="359" />
@@ -971,10 +1163,26 @@
               </label>
               <div class="btn-row">
                 <button data-act="rotL">
-                  <i class="ph ph-arrow-counter-clockwise"></i> 15°
+                  <i class="ph ph-arrow-counter-clockwise"></i>
+                  <span class="rot-step-lbl">15°</span>
                 </button>
                 <button data-act="rotR" title="R">
-                  <i class="ph ph-arrow-clockwise"></i> 15°
+                  <i class="ph ph-arrow-clockwise"></i>
+                  <span class="rot-step-lbl">15°</span>
+                </button>
+              </div>
+              <!-- how far one press turns. 90° is the common one (put this on
+                   the next wall); 15° stays for fine work. -->
+              <div class="btn-row rot-step-row">
+                <span class="t" data-i18n="rot_step">צעד</span>
+                <button data-act="rotStep15">15°</button>
+                <button data-act="rotStep45">45°</button>
+                <button data-act="rotStep90">90°</button>
+              </div>
+              <div class="btn-row">
+                <button data-act="faceAuto" class="w-full" data-i18n-title="face_auto_t">
+                  <i class="ph ph-compass"></i>
+                  <span data-i18n="face_auto">כוון לפי הסביבה</span>
                 </button>
               </div>
               <div class="btn-row">
@@ -1191,7 +1399,7 @@
                    room two square metres bigger, so these report and the user
                    decides. "Square it up" is the exception and does drive. -->
               <div class="con-block" id="room_con_tools">
-                <div class="con-head"><span class="t" data-i18n="rc_title">Room requirements</span></div>
+                <div class="con-head"><span class="t" data-i18n="rcon_title">Room requirements</span></div>
                 <span class="t" id="r_measure"></span>
                 <div class="con-add con-add-wrap">
                   <button data-act="rcArea"><i class="ph ph-selection-all"></i><span data-i18n="rc_area">Min area</span></button>
@@ -1466,7 +1674,7 @@
           </div>
 
           <div class="panel-section env-section collapsed">
-            <h3 data-i18n="view">תצוגה וסביבה:</h3>
+            <h3 data-i18n="view">תצוגה וסביבה</h3>
             <label
               ><input type="checkbox" id="cb_dims" checked />
               <span data-i18n="cb_dims">מידות</span></label
@@ -1544,7 +1752,7 @@
           <div class="panel-section friends-section collapsed"></div>
 
           <div class="panel-section site-section collapsed">
-            <h3 data-i18n="site_title">🗺️ מיקום ואתר</h3>
+            <h3 data-i18n="site_title">מיקום ואתר</h3>
             <div class="site-loc-row" style="flex-direction: column; gap: 4px; align-items: stretch;">
               <input
                 type="text"
@@ -1644,26 +1852,31 @@
       <!-- Mobile bottom navigation (phones / Fold cover screen). Shown via CSS
            media queries only; wired in js/ui.js. The view buttons drive the same
            setMaximized() the desktop corner buttons use. -->
+      <!-- Bottom navigation (phones + foldables). Five fixed slots, labels
+           always on: one view switcher, one tool switcher, the primary Add,
+           the selection-scoped Properties, and everything else under More.
+           The contextual row that changes with tool/selection is #m-ctx,
+           built by js/mobile_shell.js and parked directly above this bar. -->
       <nav id="mobile-nav" aria-label="Mobile navigation">
-        <button data-mnav="left">
-          <i class="ph ph-squares-four"></i>
-          <span data-i18n="nav_build">בניה</span>
+        <button data-mnav="view" aria-haspopup="dialog">
+          <i class="ph ph-blueprint"></i>
+          <span data-i18n="mnav_view">תצוגה</span>
         </button>
-        <button data-mnav="plan">
-          <i class="ph ph-floor-plan"></i>
-          <span data-i18n="nav_plan">תוכנית</span>
+        <button data-mnav="tools" aria-haspopup="dialog">
+          <i class="ph ph-cursor"></i>
+          <span data-i18n="mnav_tools">כלים</span>
         </button>
-        <button data-mnav="3d">
-          <i class="ph ph-cube"></i>
-          <span data-i18n="nav_3d">תלת-ממד</span>
+        <button data-mnav="add" class="mnav-primary">
+          <i class="ph ph-plus"></i>
+          <span data-i18n="mnav_add">הוסף</span>
         </button>
-        <button data-mnav="split">
-          <i class="ph ph-rows"></i>
-          <span data-i18n="nav_split">מפוצל</span>
-        </button>
-        <button data-mnav="right">
+        <button data-mnav="props">
           <i class="ph ph-sliders-horizontal"></i>
-          <span data-i18n="nav_inspect">מאפיינים</span>
+          <span data-i18n="mnav_props">מאפיינים</span>
+        </button>
+        <button data-mnav="more" aria-haspopup="dialog">
+          <i class="ph ph-dots-three-outline"></i>
+          <span data-i18n="mnav_more">עוד</span>
         </button>
       </nav>
     </div>
@@ -1730,7 +1943,7 @@
       }
     </script>
     <script type="module" src="js/main.js?v=planner-chrome-1"></script>
-    <script type="module" src="js/planner_tutorial.js?v=wall-placement-3"></script>
+    <script type="module" src="js/planner_tutorial.js?v=wall-guide-6"></script>
     <script type="module" src="js/planner_chrome.js?v=planner-chrome-1"></script>
   </body>
 </html>

@@ -7,6 +7,7 @@
 // Same rule as drive_state.js — if it is shared and it changes, it hangs off a
 // container, never off a bare `let`.
 import { getLang } from "./i18n.js";
+import { STEP_UP as SHARED_STEP_UP } from "./road_surface.js";
 
 export const ST = {
   E: null, // env handed over by rc.js (scene, camera, rebuild hooks, …)
@@ -16,7 +17,7 @@ export const ST = {
 export const GHOST_SEG = 10; // ghost samples per anchor span
 export const HIT_PX = 14; // 2D grab radius
 export const CLEAR_BAND = 6; // body band used to decide whether a box blocks the deck
-export const STEP_UP = 2.2; // ledge the truck drives over instead of into
+export const STEP_UP = SHARED_STEP_UP; // ledge the truck drives over instead of into (single-sourced in road_surface.js)
 export const ANG_SNAP = Math.PI / 12; // 15° — Ctrl-drag angle snap
 export const SAVE_KEY = "home3d_rc_custom_tracks";
 export const THEMES = ["asphalt", "wood", "neon", "gold"];
@@ -52,6 +53,9 @@ export function copyAnchor(a) {
   if (fin(a.y)) out.y = a.y;
   if (a.f) out.f = a.f;
   if (a.ride) out.ride = true;
+  // per-section surface: "road" pours a deck on this leg, "home" keeps the
+  // floor/furniture even if the builder would have bridged it
+  if (a.surf === "road" || a.surf === "home") out.surf = a.surf;
   return out;
 }
 export function cloneAnchors(pts) {

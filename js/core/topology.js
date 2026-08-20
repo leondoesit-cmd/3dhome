@@ -18,6 +18,14 @@ function distance(a, b) { return Math.hypot((a?.x || 0) - (b?.x || 0), (a?.y || 
 function length(v) { return Math.hypot(v?.x || 0, v?.y || 0, v?.z || 0); }
 function normalized(v) { const size = length(v) || 1; return vector((v?.x || 0) / size, (v?.y || 0) / size, (v?.z || 0) / size); }
 function dot(a, b) { const av = normalized(a), bv = normalized(b); return av.x * bv.x + av.y * bv.y + av.z * bv.z; }
+function dotRaw(a, b) { return (a?.x || 0) * (b?.x || 0) + (a?.y || 0) * (b?.y || 0) + (a?.z || 0) * (b?.z || 0); }
+function cross(a, b) {
+  return vector(
+    (a?.y || 0) * (b?.z || 0) - (a?.z || 0) * (b?.y || 0),
+    (a?.z || 0) * (b?.x || 0) - (a?.x || 0) * (b?.z || 0),
+    (a?.x || 0) * (b?.y || 0) - (a?.y || 0) * (b?.x || 0),
+  );
+}
 
 export function topologyDescriptorSignature(descriptor = {}) {
   const origin = descriptor.origin || descriptor.center || {};
@@ -30,8 +38,9 @@ export function topologyDescriptorSignature(descriptor = {}) {
   ].join(":");
 }
 
-export function createTopologyReference(ownerFeatureId, kind, persistentId, descriptor = {}) {
-  return {
+export function createTopologyReference(ownerFeatureId, kind, persistentId, descriptor = {}, extras = {}) {
+  const members = extras.memberPersistentIds || descriptor.memberPersistentIds;
+  const reference = {
     type: "topology-reference",
     ownerFeatureId,
     kind,
@@ -40,6 +49,8 @@ export function createTopologyReference(ownerFeatureId, kind, persistentId, desc
     descriptor: clone(descriptor),
     signature: topologyDescriptorSignature(descriptor),
   };
+  if (Array.isArray(members) && members.length) reference.memberPersistentIds = members.slice();
+  return reference;
 }
 
 function topologyItem(feature, kind, token, descriptor) {
@@ -247,6 +258,433 @@ function fitCircle(loop) {
   return worst <= Math.max(1e-4, radius * 0.02) ? { u, v, radius } : null;
 }
 
+/* A sampled sketch circle is a closed polyline whose length is ~2πr. Arcs and
+   rounded-rectangle corners fail that check and stay polygons. */
+export function fitProfileCircle(points) {
+  if (!Array.isArray(points) || points.length < 12) return null;
+  const fit = fitCircle(points);
+  if (!fit) return null;
+  let len = 0;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i], b = points[(i + 1) % points.length];
+    len += Math.hypot((Number(a.u) || 0) - (Number(b.u) || 0), (Number(a.v) || 0) - (Number(b.v) || 0));
+  }
+  const expected = 2 * Math.PI * fit.radius;
+  if (!expected || Math.abs(len - expected) > expected * 0.06) return null;
+  return fit;
+}
+
+export function topologyMemberIds(reference) {
+  const members = reference?.memberPersistentIds;
+  if (Array.isArray(members) && members.length) return members.slice();
+  return reference?.persistentId ? [reference.persistentId] : [];
+}
+
+function lineEndpointsFromDescriptor(descriptor = {}) {
+  if (Array.isArray(descriptor.endpoints) && descriptor.endpoints.length >= 2) return descriptor.endpoints;
+  const origin = descriptor.origin, axis = descriptor.axis, measure = Number(descriptor.measure);
+  if (!origin || !axis || !finite(measure)) return origin ? [origin] : [];
+  const size = length(axis) || 1, half = measure / (2 * size);
+  return [
+    point(origin.x - axis.x * half, origin.y - axis.y * half, origin.z - axis.z * half),
+    point(origin.x + axis.x * half, origin.y + axis.y * half, origin.z + axis.z * half),
+  ];
+}
+
+function pointOnPlane(p, origin, normal, tol) {
+  return Math.abs(dotRaw(vector((p?.x || 0) - origin.x, (p?.y || 0) - origin.y, (p?.z || 0) - origin.z), normal)) <= tol;
+}
+
+/* A picked face in Fillet/Chamfer means every edge that bounds that face, the
+   way SolidWorks and Fusion apply a finish when the user clicked the face
+   instead of walking its perimeter. */
+export function edgeLiesOnFace(edge, face) {
+  const fd = face?.descriptor || {}, ed = edge?.descriptor || {};
+  const origin = fd.origin || fd.center;
+  const faceSpan = Math.sqrt(Math.abs(Number(fd.measure) || Number(ed.measure) || 1));
+  const tol = Math.max(0.6, faceSpan * 0.08, Math.abs(Number(ed.measure) || 0) * 0.03);
+  if (fd.surface === "plane" && origin && fd.normal) {
+    const n = normalized(fd.normal);
+    if (ed.curve === "circle") {
+      if (!pointOnPlane(ed.origin || {}, origin, n, tol)) return false;
+      return Math.abs(Math.abs(dot(ed.axis, n)) - 1) <= 0.12;
+    }
+    const points = lineEndpointsFromDescriptor(ed);
+    if (points.length >= 2) return points.every((p) => pointOnPlane(p, origin, n, tol));
+    if (ed.origin && ed.axis) {
+      return pointOnPlane(ed.origin, origin, n, tol) && Math.abs(dot(ed.axis, n)) <= 0.18;
+    }
+    return false;
+  }
+  if (fd.surface === "cylinder" && origin && fd.axis && finite(Number(fd.radius))) {
+    const axis = normalized(fd.axis), radius = Number(fd.radius);
+    const radial = (p) => {
+      const rel = vector((p?.x || 0) - origin.x, (p?.y || 0) - origin.y, (p?.z || 0) - origin.z);
+      const along = dotRaw(rel, axis);
+      return vector(rel.x - axis.x * along, rel.y - axis.y * along, rel.z - axis.z * along);
+    };
+    const radialTol = Math.max(tol, radius * 0.08);
+    if (ed.curve === "circle") {
+      if (Math.abs((Number(ed.radius) || 0) - radius) > radialTol) return false;
+      if (Math.abs(Math.abs(dot(ed.axis, axis)) - 1) > 0.08) return false;
+      return length(radial(ed.origin || {})) <= radialTol;
+    }
+    if (ed.curve === "line" || ed.curve === "polyline") {
+      if (ed.axis && Math.abs(Math.abs(dot(ed.axis, axis)) - 1) > 0.12) return false;
+      const points = lineEndpointsFromDescriptor(ed);
+      return points.length > 0 && points.every((p) => Math.abs(length(radial(p)) - radius) <= radialTol);
+    }
+  }
+  return false;
+}
+
+export function edgesBoundingFace(face, registry) {
+  const source = registry?.byPersistentId ? registry : createTopologyRegistry(registry || []);
+  const resolved = (face?.persistentId && source.byPersistentId.get(face.persistentId)) || face;
+  if (!resolved || resolved.kind !== "face") return [];
+  return source.list.filter((item) => item.kind === "edge" && edgeLiesOnFace(item, resolved));
+}
+
+function expandFinishFacesToEdges(references, source, add) {
+  (references || []).forEach((reference) => {
+    if (reference?.kind && reference.kind !== "face") return;
+    const resolved = resolveTopologyReference(reference, source, { threshold: 1.25, ambiguityTolerance: 0.08 });
+    const face = (resolved.status === "exact" || resolved.status === "rebound") ? resolved.topology : source.byPersistentId.get(reference?.persistentId);
+    if (!face || face.kind !== "face") return;
+    edgesBoundingFace(face, source).forEach((edge) => add(edge.persistentId));
+  });
+}
+
+/* Finish operations (fillet/chamfer/shell) must consume the kernel edge that
+   the picker meant, not only the string it stored. Tessellated picks, merged
+   circles and a rebuilt BREP all produce different persistent ids for the
+   same geometric edge — resolve those by descriptor before giving up. A face
+   with no edges picked expands to every edge that bounds it. */
+export function resolveFinishTargetIds(references, registry, kind) {
+  const source = registry?.byPersistentId ? registry : createTopologyRegistry(registry || []);
+  const ids = [];
+  const geometryKeys = new Set();
+  /* Two ids can name one physical edge (a kernel edge and the tessellated
+     overlay line the user actually clicked). Dedupe on geometry as well as on
+     the id string, or a multi-pick reports — and finishes — the same edge
+     twice. */
+  const geometryKey = (item) => {
+    const descriptor = item?.descriptor || {};
+    const signature = topologyDescriptorSignature(descriptor);
+    return signature.slice(0, signature.lastIndexOf(":"));
+  };
+  const add = (id) => {
+    if (!id || ids.includes(id)) return false;
+    const item = source.byPersistentId.get(id);
+    if (!item || (kind && item.kind !== kind)) return false;
+    const key = geometryKey(item);
+    if (geometryKeys.has(key)) return false;
+    geometryKeys.add(key);
+    ids.push(id);
+    return true;
+  };
+  /* Resolve every reference on its own. An earlier version fell back to
+     descriptor matching only when NOTHING resolved by id, so a mixed pick —
+     one kernel edge plus one tessellated edge — silently dropped the
+     tessellated one while the panel still counted it. */
+  (references || []).forEach((reference) => {
+    if (!reference) return;
+    let matched = false;
+    topologyMemberIds(reference).forEach((id) => { if (add(id)) matched = true; });
+    if (add(reference.persistentId)) matched = true;
+    if (matched) return;
+    if (kind === "edge" && reference.kind === "face") return;   // expanded below
+    const resolved = resolveTopologyReference(reference, source, { threshold: 1.25, ambiguityTolerance: 0.08 });
+    if (resolved.topology) add(resolved.topology.persistentId);
+  });
+  if (kind === "edge") expandFinishFacesToEdges(references, source, add);
+  return ids;
+}
+
+export function resolveMergedTopology(entries, persistentId) {
+  if (!persistentId) return null;
+  return (entries || []).find((entry) => entry.persistentId === persistentId || (entry.memberPersistentIds || []).includes(persistentId)) || null;
+}
+
+function endpointKey(point) {
+  return [Math.round((point?.x || 0) * 500), Math.round((point?.y || 0) * 500), Math.round((point?.z || 0) * 500)].join(":");
+}
+
+export function fitCircle3(points) {
+  if (!Array.isArray(points) || points.length < 4) return null;
+  let nx = 0, ny = 0, nz = 0;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i], b = points[(i + 1) % points.length];
+    nx += ((a.y || 0) - (b.y || 0)) * ((a.z || 0) + (b.z || 0));
+    ny += ((a.z || 0) - (b.z || 0)) * ((a.x || 0) + (b.x || 0));
+    nz += ((a.x || 0) - (b.x || 0)) * ((a.y || 0) + (b.y || 0));
+  }
+  const axis = normalized(vector(nx, ny, nz));
+  if (length(axis) < 1e-9) return null;
+  const origin = points[0];
+  const seed = Math.abs(axis.y) < 0.9 ? vector(0, 1, 0) : vector(1, 0, 0);
+  const u = normalized(cross(axis, seed)), v = normalized(cross(axis, u));
+  const fit = fitCircle(points.map((p) => ({
+    u: ((p.x || 0) - origin.x) * u.x + ((p.y || 0) - origin.y) * u.y + ((p.z || 0) - origin.z) * u.z,
+    v: ((p.x || 0) - origin.x) * v.x + ((p.y || 0) - origin.y) * v.y + ((p.z || 0) - origin.z) * v.z,
+  })));
+  if (!fit) return null;
+  return {
+    origin: point(origin.x + u.x * fit.u + v.x * fit.v, origin.y + u.y * fit.u + v.y * fit.v, origin.z + u.z * fit.u + v.z * fit.v),
+    axis,
+    radius: fit.radius,
+  };
+}
+
+function mergedTopologyItem(seed, members, kind, descriptor) {
+  const ids = members.map((item) => item.persistentId).filter(Boolean);
+  return {
+    ...clone(seed),
+    kind,
+    persistentId: seed.persistentId,
+    semantic: descriptor.semantic || seed.semantic,
+    descriptor: clone(descriptor),
+    signature: topologyDescriptorSignature(descriptor),
+    memberPersistentIds: ids,
+  };
+}
+
+function mergeCircleEdges(edges) {
+  const groups = new Map(), leftover = [];
+  edges.forEach((edge) => {
+    const d = edge.descriptor || {};
+    if (d.curve !== "circle" || !finite(Number(d.radius))) { leftover.push(edge); return; }
+    const axis = normalized(d.axis || vector(0, 1, 0));
+    const sign = axis.x + axis.y + axis.z < 0 ? -1 : 1;
+    const origin = d.origin || {};
+    const key = [
+      Math.round((origin.x || 0) * 10), Math.round((origin.y || 0) * 10), Math.round((origin.z || 0) * 10),
+      Math.round(axis.x * sign * 10), Math.round(axis.y * sign * 10), Math.round(axis.z * sign * 10),
+      Math.round(Number(d.radius) * 20),
+    ].join(":");
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(edge);
+  });
+  const merged = [];
+  groups.forEach((group) => {
+    if (group.length === 1) merged.push(group[0]);
+    else merged.push(mergedTopologyItem(group[0], group, "edge", {
+      curve: "circle", semantic: group[0].semantic, origin: group[0].descriptor.origin,
+      axis: group[0].descriptor.axis, radius: group[0].descriptor.radius,
+      measure: group.reduce((sum, item) => sum + (Number(item.descriptor.measure) || 0), 0),
+    }));
+  });
+  return merged.concat(leftover);
+}
+
+function mergeLineEdgesIntoCircles(edges) {
+  const lines = [], leftover = [];
+  edges.forEach((edge) => {
+    const d = edge.descriptor || {};
+    if (d.curve === "line" && Array.isArray(d.endpoints) && d.endpoints.length >= 2) lines.push(edge);
+    else leftover.push(edge);
+  });
+  const at = new Map();
+  const add = (key, index, end) => {
+    if (!at.has(key)) at.set(key, []);
+    at.get(key).push({ index, end });
+  };
+  lines.forEach((edge, index) => {
+    add(endpointKey(edge.descriptor.endpoints[0]), index, 0);
+    add(endpointKey(edge.descriptor.endpoints[1]), index, 1);
+  });
+  const used = new Set(), merged = [];
+  lines.forEach((edge, startIndex) => {
+    if (used.has(startIndex)) return;
+    const run = [startIndex];
+    used.add(startIndex);
+    let head = endpointKey(edge.descriptor.endpoints[0]), tail = endpointKey(edge.descriptor.endpoints[1]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const key of [head, tail]) {
+        const next = (at.get(key) || []).find((item) => !used.has(item.index));
+        if (!next) continue;
+        used.add(next.index);
+        const other = lines[next.index].descriptor.endpoints[1 - next.end];
+        if (key === head) { run.unshift(next.index); head = endpointKey(other); }
+        else { run.push(next.index); tail = endpointKey(other); }
+        grew = true;
+        break;
+      }
+    }
+    const points = [];
+    run.forEach((index, i) => {
+      const ends = lines[index].descriptor.endpoints;
+      if (!i) { points.push(ends[0], ends[1]); return; }
+      const last = points[points.length - 1];
+      points.push(distance(last, ends[0]) <= distance(last, ends[1]) ? ends[1] : ends[0]);
+    });
+    const closed = head === tail && run.length >= 3;
+    if (closed && points.length > 1 && endpointKey(points[0]) === endpointKey(points[points.length - 1])) points.pop();
+    const first = points[0], last = points[points.length - 1];
+    const span = Math.max(0.35, distance(first, last) || Number(lines[run[0]]?.descriptor?.measure) || 1);
+    const nearlyClosed = !closed && run.length >= 6 && first && last && distance(first, last) <= span;
+    /* Coarse tessellation puts a 30° "corner" on every chord of a real circle.
+       Fit the loop first; angle is only a hint, not a veto. */
+    const fit = ((closed || nearlyClosed) && run.length >= 6) ? fitCircle3(points) : null;
+    if (fit) {
+      const members = run.map((index) => lines[index]);
+      merged.push(mergedTopologyItem(members[0], members, "edge", {
+        curve: "circle", semantic: members[0].semantic, origin: fit.origin, axis: fit.axis,
+        radius: fit.radius, measure: 2 * Math.PI * fit.radius,
+      }));
+    } else {
+      run.forEach((index) => leftover.push(lines[index]));
+    }
+  });
+  return merged.concat(leftover);
+}
+
+function cylinderFromTwoPlanes(a, b) {
+  const n1 = normalized(a.descriptor.normal), n2 = normalized(b.descriptor.normal);
+  const alignment = Math.abs(dot(n1, n2));
+  if (alignment > 0.999 || alignment < 0.85) return null;
+  const axis = normalized(cross(n1, n2));
+  if (length(axis) < 1e-6) return null;
+  const c1 = a.descriptor.origin, c2 = b.descriptor.origin;
+  const drop = (v) => {
+    const along = dotRaw(v, axis);
+    return vector(v.x - axis.x * along, v.y - axis.y * along, v.z - axis.z * along);
+  };
+  const dn = drop(vector(n1.x - n2.x, n1.y - n2.y, n1.z - n2.z));
+  const dc = drop(vector(c1.x - c2.x, c1.y - c2.y, c1.z - c2.z));
+  const dnLen = length(dn);
+  if (dnLen < 1e-6) return null;
+  const radius = length(dc) / dnLen;
+  if (!finite(radius) || radius < 1e-4) return null;
+  const origin = point(c1.x - n1.x * radius, c1.y - n1.y * radius, c1.z - n1.z * radius);
+  return { axis, origin, radius };
+}
+
+function fitCylinderFromPlanes(faces) {
+  if (!Array.isArray(faces) || faces.length < 2) return null;
+  if (faces.length === 2) return cylinderFromTwoPlanes(faces[0], faces[1]);
+  const normals = faces.map((face) => normalized(face.descriptor.normal));
+  let axis = vector(0, 0, 0), pairs = 0;
+  for (let i = 0; i < normals.length; i++) {
+    for (let j = i + 1; j < normals.length; j++) {
+      const alignment = Math.abs(dot(normals[i], normals[j]));
+      if (alignment > 0.999 || alignment < 0.85) continue;
+      const candidate = normalized(cross(normals[i], normals[j]));
+      if (length(candidate) < 1e-6) continue;
+      if (pairs && dot(candidate, axis) < 0) { candidate.x *= -1; candidate.y *= -1; candidate.z *= -1; }
+      axis.x += candidate.x; axis.y += candidate.y; axis.z += candidate.z;
+      pairs++;
+    }
+  }
+  if (pairs < 3) return null;
+  axis = normalized(axis);
+  const origin0 = faces[0].descriptor.origin;
+  const seed = Math.abs(axis.y) < 0.9 ? vector(0, 1, 0) : vector(1, 0, 0);
+  const u = normalized(cross(axis, seed)), v = normalized(cross(axis, u));
+  const fit = fitCircle(faces.map((face) => {
+    const p = face.descriptor.origin;
+    return {
+      u: (p.x - origin0.x) * u.x + (p.y - origin0.y) * u.y + (p.z - origin0.z) * u.z,
+      v: (p.x - origin0.x) * v.x + (p.y - origin0.y) * v.y + (p.z - origin0.z) * v.z,
+    };
+  }));
+  if (!fit) return null;
+  return {
+    origin: point(origin0.x + u.x * fit.u + v.x * fit.v, origin0.y + u.y * fit.u + v.y * fit.v, origin0.z + u.z * fit.u + v.z * fit.v),
+    axis,
+    radius: fit.radius,
+  };
+}
+
+function planeMatchesCylinder(face, cylinder) {
+  const d = face.descriptor || {}, origin = d.origin, normal = d.normal;
+  if (!origin || !normal || Math.abs(dot(normal, cylinder.axis)) > 0.25) return false;
+  const radial = vector(
+    origin.x - cylinder.origin.x,
+    origin.y - cylinder.origin.y,
+    origin.z - cylinder.origin.z,
+  );
+  const along = dotRaw(radial, cylinder.axis);
+  radial.x -= cylinder.axis.x * along; radial.y -= cylinder.axis.y * along; radial.z -= cylinder.axis.z * along;
+  return Math.abs(length(radial) - cylinder.radius) <= Math.max(0.35, cylinder.radius * 0.06);
+}
+
+function mergeCylindricalFaces(faces) {
+  const planes = [], cylinders = [], leftover = [];
+  faces.forEach((face) => {
+    const surface = face.descriptor?.surface;
+    if (surface === "cylinder" && finite(Number(face.descriptor.radius))) cylinders.push(face);
+    else if (surface === "plane" && face.descriptor?.normal && face.descriptor?.origin) planes.push(face);
+    else leftover.push(face);
+  });
+  const groupedCylinders = new Map();
+  cylinders.forEach((face) => {
+    const d = face.descriptor, axis = normalized(d.axis || vector(0, 1, 0));
+    const sign = axis.x + axis.y + axis.z < 0 ? -1 : 1;
+    const origin = d.origin || {};
+    const axial = (origin.x || 0) * axis.x + (origin.y || 0) * axis.y + (origin.z || 0) * axis.z;
+    const key = [
+      Math.round(axis.x * sign * 20), Math.round(axis.y * sign * 20), Math.round(axis.z * sign * 20),
+      Math.round(Number(d.radius) * 50), Math.round(axial * 10),
+    ].join(":");
+    if (!groupedCylinders.has(key)) groupedCylinders.set(key, []);
+    groupedCylinders.get(key).push(face);
+  });
+  const merged = [];
+  groupedCylinders.forEach((group) => {
+    if (group.length === 1) merged.push(group[0]);
+    else merged.push(mergedTopologyItem(group[0], group, "face", {
+      surface: "cylinder", semantic: group[0].semantic, origin: group[0].descriptor.origin,
+      axis: group[0].descriptor.axis, radius: group[0].descriptor.radius,
+      measure: group.reduce((sum, item) => sum + (Number(item.descriptor.measure) || 0), 0),
+    }));
+  });
+  const remaining = planes.slice();
+  while (remaining.length) {
+    const seed = remaining.pop(), cluster = [seed];
+    let fit = null;
+    for (let i = remaining.length - 1; i >= 0; i--) {
+      fit = cylinderFromTwoPlanes(seed, remaining[i]);
+      if (!fit) continue;
+      cluster.push(remaining.splice(i, 1)[0]);
+      break;
+    }
+    let grew = !!fit;
+    while (grew) {
+      grew = false;
+      fit = fitCylinderFromPlanes(cluster);
+      if (!fit) break;
+      for (let i = remaining.length - 1; i >= 0; i--) {
+        if (!planeMatchesCylinder(remaining[i], fit)) continue;
+        cluster.push(remaining.splice(i, 1)[0]);
+        grew = true;
+      }
+    }
+    fit = fitCylinderFromPlanes(cluster);
+    if (fit && cluster.length >= 6) {
+      merged.push(mergedTopologyItem(cluster[0], cluster, "face", {
+        surface: "cylinder", semantic: cluster[0].semantic, origin: fit.origin,
+        axis: fit.axis, radius: fit.radius,
+        measure: cluster.reduce((sum, item) => sum + (Number(item.descriptor.measure) || 0), 0),
+      }));
+    } else leftover.push(...cluster);
+  }
+  return merged.concat(leftover);
+}
+
+/* Tessellated circles and cylindrical walls reach the picker as many short
+   chords / staves. Merging them is what lets a fillet consume a whole rim
+   instead of one facet, and what lights the entire bore when a wall is picked. */
+export function mergeSmoothTopology(entries) {
+  const list = Array.isArray(entries) ? entries.filter(Boolean) : [];
+  const edges = mergeLineEdgesIntoCircles(mergeCircleEdges(list.filter((entry) => entry.kind === "edge")));
+  const faces = mergeCylindricalFaces(list.filter((entry) => entry.kind === "face"));
+  const other = list.filter((entry) => entry.kind !== "edge" && entry.kind !== "face");
+  return other.concat(faces, edges);
+}
+
 function inheritedTopology(feature, inputs) {
   const output = [];
   inputs.forEach((input) => (input?.topology || []).forEach((item) => output.push({
@@ -255,7 +693,7 @@ function inheritedTopology(feature, inputs) {
   return output;
 }
 
-function consumedTopologyIds(feature, params) {
+function consumedTopologyIds(feature, params, inherited = []) {
   const kinds = feature.type === "shell" ? new Set(["face"]) : new Set(["edge"]);
   if (!["fillet", "chamfer", "shell"].includes(feature.type)) return new Set();
   const ids = new Set();
@@ -266,6 +704,19 @@ function consumedTopologyIds(feature, params) {
   };
   visit(params?.targets);
   visit(params?.topologyReferences);
+  if (feature.type !== "shell") {
+    const registry = createTopologyRegistry(inherited);
+    const visitFaces = (value) => {
+      if (!value || typeof value !== "object") return;
+      if (value.kind === "face") {
+        edgesBoundingFace(value, registry).forEach((edge) => ids.add(edge.persistentId));
+        return;
+      }
+      Object.values(value).forEach(visitFaces);
+    };
+    visitFaces(params?.targets);
+    visitFaces(params?.topologyReferences);
+  }
   return ids;
 }
 
@@ -281,7 +732,7 @@ export function topologyForFeature(feature, params = {}, inputs = []) {
     return boxTopology(feature, { x0: -Number(params.width) / 2, x1: Number(params.width) / 2, y0: 0, y1: Number(params.height), z0: -Number(params.depth) / 2, z1: Number(params.depth) / 2 });
   }
   if (["cut", "fillet", "chamfer", "shell", "union", "subtract", "intersect", "mirror", "linearPattern", "linearGridPattern", "circularPattern", "pattern"].includes(feature.type)) {
-    const inherited = inheritedTopology(feature, inputs), consumed = consumedTopologyIds(feature, params);
+    const inherited = inheritedTopology(feature, inputs), consumed = consumedTopologyIds(feature, params, inherited);
     return consumed.size ? inherited.filter((item) => !consumed.has(item.persistentId)) : inherited;
   }
   return [];

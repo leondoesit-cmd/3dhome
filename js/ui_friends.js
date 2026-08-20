@@ -44,7 +44,7 @@ function buildPanel() {
   const sec = document.querySelector(".friends-section");
   if (!sec) return;
   sec.innerHTML =
-    "<h3>👥 " + t("fr_title") + "</h3>" +
+    "<h3>" + t("fr_title") + "</h3>" +
     // my identity
     '<div class="fr-row"><input id="fr_myname" type="text" maxlength="24" placeholder="' +
     t("fr_myname_ph") + '"/></div>' +

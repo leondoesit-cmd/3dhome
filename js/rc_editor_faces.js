@@ -633,6 +633,13 @@ export function paintFaces(ctx, w2s) {
       rule.ride ? "⬆" : "",
     );
   });
+  if (ST.D.faceSel) {
+    var sel = findTarget(ST.D.faceSel);
+    var ruled = rules.some(function (r) {
+      return r.key === ST.D.faceSel;
+    });
+    if (sel && !ruled) outline(ctx, w2s, sel.rect, "rgba(250,204,21,0.9)", [5, 4]);
+  }
   if (ST.D.mode !== "faces") return;
   var hv = ST.D.faceHover;
   if (!hv) return;

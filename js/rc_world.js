@@ -624,7 +624,9 @@ export function swapPlayerBody(car) {
 export function disposeGrp(g) {
   if (!g) return;
   g.traverse(function (o) {
-    if (o.geometry && o.geometry.dispose) o.geometry.dispose();
+    // A Sprite's geometry is a module-level singleton inside three — disposing
+    // it takes out every sprite in the app (see kart.js disposeObj).
+    if (o.geometry && o.geometry.dispose && !o.isSprite) o.geometry.dispose();
     if (o.material) {
       (Array.isArray(o.material) ? o.material : [o.material]).forEach(
         function (m) {
@@ -1139,6 +1141,7 @@ export function buildTrack() {
     groundAt: groundAt,
     blockedAt: blockedAt,
     homeMode: !!R.homeMode,
+    followAnchors: !!R.followAnchors,
     roadWidth: R.roadWidth,
     highElevation: R.highElevation,
     theme: R.roadTheme,
@@ -1396,26 +1399,34 @@ export function waterClickPlace(e) {
   beep(520, 0.1, 0.3);
 }
 
-// short-lived droplet burst (wading spray & entry splashes)
+// short-lived droplet burst (wading spray & entry splashes). Geometry and
+// material are shared by every droplet — size variance lives on the mesh
+// scale and the fade shrinks it — so a splash allocates no GPU resources.
+var sprayGeo = null,
+  sprayMat = null;
 export function spraySpawn(x, y, z, n, sp) {
   var scene = getMainScene();
   var now = performance.now();
   if (R.spray.length > 90) return; // droplet budget
+  if (!sprayGeo) {
+    sprayGeo = new THREE.SphereGeometry(1, 6, 4);
+    sprayMat = new THREE.MeshBasicMaterial({
+      color: 0x9fd4ee,
+      transparent: true,
+      opacity: 0.9,
+    });
+  }
   for (var i = 0; i < n; i++) {
-    var m = new THREE.Mesh(
-      new THREE.SphereGeometry(0.16 + Math.random() * 0.18, 6, 4),
-      new THREE.MeshBasicMaterial({
-        color: 0x9fd4ee,
-        transparent: true,
-        opacity: 0.9,
-      }),
-    );
+    var m = new THREE.Mesh(sprayGeo, sprayMat);
+    var r = 0.16 + Math.random() * 0.18;
+    m.scale.setScalar(r);
     m.userData.rc = true;
     m.position.set(x, y, z);
     scene.add(m);
     var ang = Math.random() * Math.PI * 2;
     R.spray.push({
       m: m,
+      r: r,
       vx: Math.sin(ang) * sp * (0.3 + Math.random() * 0.7),
       vz: Math.cos(ang) * sp * (0.3 + Math.random() * 0.7),
       vy: 40 + Math.random() * sp,
@@ -1432,11 +1443,10 @@ export function stepSpray(dt, now) {
     s.m.position.x += s.vx * dt;
     s.m.position.y += s.vy * dt;
     s.m.position.z += s.vz * dt;
-    s.m.material.opacity = Math.max(0, 0.9 - age * 1.4);
+    // fade by shrinking — the material is shared, so opacity is not per-droplet
+    s.m.scale.setScalar(s.r * Math.max(0.05, 1 - age * 1.4));
     if (age > 0.7 || s.m.position.y < 0) {
-      scene.remove(s.m);
-      s.m.geometry.dispose();
-      s.m.material.dispose();
+      scene.remove(s.m); // geometry/material are shared — nothing to dispose
       return false;
     }
     return true;

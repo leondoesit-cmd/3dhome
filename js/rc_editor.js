@@ -23,9 +23,9 @@ import {
 import { anchorY, ghostLine, insertSpot, pathLen, segmentY, validate } from "./rc_editor_geom.js";
 import {
   addAnchor, applyPreset, applySnap, autoFix, delAnchor, gotoIssue,
-  nudgeSelected, pushHist, redo, revalidate, scheduleBuild,
-  setAnchorHeight, setAnchors, setSegmentHeight, setSelectedCoords,
-  setViews, snapFree, undo, writeThrough,
+  noteUserEdit, nudgeSelected, pushHist, redo, revalidate, scheduleBuild,
+  setAnchorHeight, setAnchors, setFollow, setSegmentHeight, setSegmentSurf,
+  setSelectedCoords, setViews, snapFree, undo, writeThrough,
 } from "./rc_editor_actions.js";
 import { bindCanvas, draw, fitView, resizeCanvas, s2w, w2s, zoomAt } from "./rc_editor_map.js";
 import {
@@ -63,9 +63,9 @@ export function editorOpen() {
   // register the view callbacks the command layer calls back into (see the
   // note in rc_editor_actions.js — this hook is the one edge pointing at the
   // renderers, and it is wired here rather than imported over there)
-  setViews({
+    setViews({
     sync3d, draw, refreshSelection, refreshFoot, stats, editorStatus, tip,
-    editorSynced, refreshFaces,
+    editorSynced, refreshFaces, refreshFollow, refreshHud,
   });
   // E.anchors() returns the stored route only when it was drawn on THIS flat
   var seed = ST.E.anchors() || ST.E.presets.auto(ST.E.rooms());
@@ -91,6 +91,7 @@ export function editorOpen() {
     heightUi: null,
     tab: "route",
     grp: null,
+    follow: !!ST.E.cfg.followAnchors,
     handles: [],
     ghost: null,
     ghostPts: null,
@@ -137,6 +138,7 @@ export function editorOpen() {
 export function editorClose() {
   if (!editorActive()) return;
   if (ST.D.build) clearTimeout(ST.D.build);
+  if (ST.D.drawReq) cancelAnimationFrame(ST.D.drawReq);
   if (ST.D.overview) ST.E.overview(false);
   ST.E.maxView(false);
   clear3d();
@@ -165,6 +167,8 @@ export function editorSynced() {
   refreshSelection();
   refreshFaces();
   editorStatus(ST.D.anchors.length >= 3 ? "ready" : "warning");
+  refreshFollow();
+  refreshHud();
   draw();
 }
 
@@ -221,23 +225,45 @@ function build3d() {
   ST.D.ghost.renderOrder = 901;
   ST.D.ghost.visible = false;
   ST.D.grp.add(ST.D.ghost);
+  var rgm = new THREE.BufferGeometry();
+  ST.D.ribbon = new THREE.Mesh(
+    rgm,
+    new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.55,
+      depthTest: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  ST.D.ribbon.frustumCulled = false;
+  ST.D.ribbon.renderOrder = 900;
+  ST.D.ribbon.visible = false;
+  ST.D.grp.add(ST.D.ribbon);
   sync3d();
+}
+
+// A Sprite's geometry is a module-level singleton inside three — disposing it
+// takes out every sprite in the app (car labels, kart FX), and the WebGPU
+// renderer then errors per frame on a buffer it still submits. Sprites give
+// up only their own material/texture.
+function disposeNode(o) {
+  if (o.geometry && !o.isSprite) o.geometry.dispose();
+  if (o.material) {
+    if (o.material.map) o.material.map.dispose();
+    o.material.dispose();
+  }
 }
 
 function clear3d() {
   var scene = ST.E.scene();
   if (ST.D.grp) {
     if (scene) scene.remove(ST.D.grp);
-    ST.D.grp.traverse(function (o) {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) {
-        if (o.material.map) o.material.map.dispose();
-        o.material.dispose();
-      }
-    });
+    ST.D.grp.traverse(disposeNode);
   }
   ST.D.grp = null;
   ST.D.ghost = null;
+  ST.D.ribbon = null;
   ST.D.handles = [];
   ST.D.sprites = {};
 }
@@ -341,10 +367,7 @@ function sync3d() {
   while (ST.D.handles.length > n) {
     var h = ST.D.handles.pop();
     ST.D.grp.remove(h);
-    h.traverse(function (o) {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) o.material.dispose();
-    });
+    h.traverse(disposeNode);
   }
   while (ST.D.handles.length < n) {
     var g = makeHandle(ST.D.handles.length);
@@ -367,7 +390,10 @@ function sync3d() {
     p.mat.color.setHex(col);
     p.rmat.color.setHex(col);
     if (p.lmat) p.lmat.color.setHex(i === ST.D.sel ? 0x7dd3fc : 0x38bdf8);
-    if (p.lift) p.lift.visible = i === ST.D.sel || i === ST.D.hover;
+    if (p.lift) {
+      p.lift.visible = true;
+      p.lmat.opacity = i === ST.D.sel || i === ST.D.hover ? 0.95 : 0.38;
+    }
     p.sp.material.map = numSprite(i + 1);
     p.sp.material.needsUpdate = true;
     hg.userData.hit.userData.anchor = i;
@@ -379,22 +405,112 @@ function sync3d() {
 
 function ghost3d() {
   if (!ST.D.ghost) return;
+  var dragging = !!ST.D.dragging;
   var pts = ST.D.ghostPts || (ST.D.anchors && ST.D.anchors.length >= 2 ? ghostLine(ST.D.anchors) : null);
+  var built = !dragging && ST.E.track() && ST.E.track().center;
+  var ribbonPts = built && ST.E.track().center.length > 1 ? ST.E.track().center : pts;
   if (!pts || pts.length < 2) {
     ST.D.ghost.visible = false;
+    if (ST.D.ribbon) ST.D.ribbon.visible = false;
     return;
   }
-  var arr = new Float32Array(pts.length * 3);
+  // Update the vertex buffer in place. Disposing the geometry and building a
+  // new one on every edit (this runs per drag frame) destroyed GPU buffers
+  // the WebGPU renderer was still submitting — a per-frame validation error.
+  var gm = ST.D.ghost.geometry,
+    attr = gm.getAttribute("position");
+  if (!attr || attr.count < pts.length) {
+    attr = new THREE.BufferAttribute(new Float32Array(pts.length * 3), 3);
+    gm.setAttribute("position", attr);
+  }
+  var arr = attr.array;
   for (var i = 0; i < pts.length; i++) {
     arr[i * 3] = pts[i].x;
     arr[i * 3 + 1] = (fin(pts[i].y) ? pts[i].y : ST.E.groundAt(pts[i].x, pts[i].z, 4, 2.2)) + 1.6;
     arr[i * 3 + 2] = pts[i].z;
   }
-  ST.D.ghost.geometry.dispose();
-  var gm = new THREE.BufferGeometry();
-  gm.setAttribute("position", new THREE.BufferAttribute(arr, 3));
-  ST.D.ghost.geometry = gm;
+  attr.needsUpdate = true;
+  gm.setDrawRange(0, pts.length);
+  gm.computeBoundingSphere();
   ST.D.ghost.visible = true;
+  ST.D.ghost.material.color.setHex(dragging ? 0x38f5d0 : ST.E.cfg.homeMode ? 0xfbbf24 : 0x38bdf8);
+  ghostRibbon(ribbonPts, dragging);
+}
+
+function ghostRibbon(pts, dragging) {
+  if (!ST.D.ribbon || !pts || pts.length < 2) {
+    if (ST.D.ribbon) ST.D.ribbon.visible = false;
+    return;
+  }
+  var n = pts.length,
+    half = dragging
+      ? Math.max(4, (ST.E.cfg.roadWidth || 26) * 0.38)
+      : ST.E.cfg.homeMode
+        ? 5.5
+        : Math.max(6, (ST.E.cfg.roadWidth || 26) * 0.42);
+  var geo = ST.D.ribbon.geometry,
+    posAttr = geo.getAttribute("position"),
+    colAttr = geo.getAttribute("color"),
+    idxAttr = geo.getIndex();
+  if (!posAttr || posAttr.count < n * 2) {
+    posAttr = new THREE.BufferAttribute(new Float32Array(n * 2 * 3), 3);
+    colAttr = new THREE.BufferAttribute(new Float32Array(n * 2 * 3), 3);
+    idxAttr = new THREE.BufferAttribute(new Uint32Array((n - 1) * 6), 1);
+    geo.setAttribute("position", posAttr);
+    geo.setAttribute("color", colAttr);
+    geo.setIndex(idxAttr);
+  }
+  var pos = posAttr.array,
+    col = colAttr.array,
+    idx = idxAttr.array;
+  var home = !!ST.E.cfg.homeMode;
+  for (var i = 0; i < n; i++) {
+    var p = pts[i],
+      q = pts[i < n - 1 ? i + 1 : i - 1];
+    var dx = q.x - p.x,
+      dz = q.z - p.z,
+      len = Math.hypot(dx, dz) || 1;
+    var lx = (-dz / len) * half,
+      lz = (dx / len) * half;
+    if (i === n - 1) {
+      lx = -lx;
+      lz = -lz;
+    }
+    var y = (fin(p.y) ? p.y : ST.E.groundAt(p.x, p.z, 4, 2.2)) + 1.15;
+    var deck = dragging ? true : home ? !!p.deck : true;
+    var r = dragging ? 0.22 : deck ? 0.22 : 1.0,
+      g = dragging ? 0.96 : deck ? 0.72 : 0.76,
+      b = dragging ? 0.82 : deck ? 0.91 : 0.2;
+    var a = i * 6;
+    pos[a] = p.x + lx;
+    pos[a + 1] = y;
+    pos[a + 2] = p.z + lz;
+    pos[a + 3] = p.x - lx;
+    pos[a + 4] = y;
+    pos[a + 5] = p.z - lz;
+    col[a] = col[a + 3] = r;
+    col[a + 1] = col[a + 4] = g;
+    col[a + 2] = col[a + 5] = b;
+    if (i < n - 1) {
+      var t = i * 6;
+      if (p.gap || (pts[i + 1] && pts[i + 1].gap)) {
+        idx[t] = idx[t + 1] = idx[t + 2] = idx[t + 3] = idx[t + 4] = idx[t + 5] = i * 2;
+      } else {
+        idx[t] = i * 2;
+        idx[t + 1] = i * 2 + 1;
+        idx[t + 2] = i * 2 + 2;
+        idx[t + 3] = i * 2 + 1;
+        idx[t + 4] = i * 2 + 3;
+        idx[t + 5] = i * 2 + 2;
+      }
+    }
+  }
+  posAttr.needsUpdate = true;
+  colAttr.needsUpdate = true;
+  idxAttr.needsUpdate = true;
+  geo.setDrawRange(0, Math.max(0, (n - 1) * 6));
+  geo.computeBoundingSphere();
+  ST.D.ribbon.visible = true;
 }
 
 // ---- 3D pointer hooks (called from rc.js's own view handlers) ---------------
@@ -510,6 +626,7 @@ export function editorPointerDown(e) {
     ST.D.dragging = true;
     ST.D.ghostPts = ghostLine(ST.D.anchors);
     pushHist();
+    noteUserEdit();
     editorStatus("preview");
     sync3d();
     refreshSelection();
@@ -563,6 +680,17 @@ export function editorPointerMove(e) {
     sync3d();
     draw();
   }
+  if (hv && hv.mesh && idx < 0) {
+    var hp = pickTarget(hv.x, hv.z);
+    var key = hp && hp.tg ? hp.tg.key + (hp.top ? ":t" : ":" + hp.face) : "";
+    if (key !== ST.D.hoverPick) {
+      ST.D.hoverPick = key;
+      refreshHud(hp, hv);
+    }
+  } else if (ST.D.hoverPick) {
+    ST.D.hoverPick = null;
+    refreshHud(null, hv);
+  } else refreshHud(null, hv);
   return false;
 }
 
@@ -572,6 +700,7 @@ export function editorPointerUp(e, moved) {
     var i = ST.D.liftDrag.i;
     ST.D.liftDrag = null;
     ST.D.dragging = false;
+    noteUserEdit();
     writeThrough();
     sync3d();
     stats();
@@ -588,6 +717,7 @@ export function editorPointerUp(e, moved) {
       ST.D.anchors[di].x, ST.D.anchors[di].z, ST.D.anchors[di].y, ST.D.anchors[di],
     );
     ST.D.ghostPts = null;
+    noteUserEdit();
     writeThrough();
     sync3d();
     stats();
@@ -599,17 +729,49 @@ export function editorPointerUp(e, moved) {
   var pr = ST.D.pressed;
   ST.D.pressed = null;
   if (pr && (moved || 0) < 6 && Math.abs(e.clientX - pr.x) + Math.abs(e.clientY - pr.y) < 8) {
-    // Click a model in 3D: ride over it (or pass by a side). That is the
-    // designer — you point at the sofa, you do not drop a floor pin under it.
-    if (pr.mesh && !pr.shift) {
-      var pick = pickTarget(pr.wx, pr.wz);
-      if (pick && pick.tg && pick.tg.kind === "item") {
+    var pick = pr.mesh && !pr.shift ? pickTarget(pr.wx, pr.wz) : null;
+    if (pick && pick.tg && pick.tg.kind === "item") {
+      if (ST.D.mode === "faces") {
         if (pick.top && pick.ride) faceApply(pick.tg, "top", { ride: true });
         else faceApply(pick.tg, pick.face);
+        refreshHud();
         return true;
       }
+      if (ST.D.mode === "draw") {
+        addAnchor(pr.wx, pr.wz, pr.shift, fin(pr.wy) && pr.wy > 2.5 ? pr.wy : undefined, true);
+        refreshHud();
+        return true;
+      }
+      // Edit: select the model so Drive over / Pass by appear — don't rewrite
+      // the lap on a stray click.
+      ST.D.faceSel = pick.tg.key;
+      ST.D.sel = ST.D.seg = -1;
+      refreshFaces();
+      refreshSelection();
+      refreshHud(pick);
+      ST.E.msg(
+        pick.tg.name + " — " + L("בחר נסיעה מעל או צד מעבר למטה", "pick Drive over or a side below"),
+        2200,
+      );
+      draw();
+      return true;
     }
-    addAnchor(pr.wx, pr.wz, pr.shift, fin(pr.wy) && pr.wy > 2.5 ? pr.wy : undefined);
+    if (ST.D.mode === "draw") {
+      addAnchor(pr.wx, pr.wz, pr.shift, fin(pr.wy) && pr.wy > 2.5 ? pr.wy : undefined);
+      return true;
+    }
+    // Edit on empty floor: a double-click adds a point (same as the 2D map).
+    var now = performance.now();
+    var prev = ST.D.lastClick;
+    ST.D.lastClick = { t: now, x: e.clientX, y: e.clientY };
+    if (prev && now - prev.t < 420 && Math.abs(e.clientX - prev.x) + Math.abs(e.clientY - prev.y) < 14) {
+      addAnchor(pr.wx, pr.wz, pr.shift, fin(pr.wy) && pr.wy > 2.5 ? pr.wy : undefined);
+      return true;
+    }
+    ST.D.sel = ST.D.seg = -1;
+    refreshSelection();
+    draw();
+    refreshHud();
     return true;
   }
   return false;
@@ -653,14 +815,21 @@ function buildDom() {
   mapRoot.id = "rcEdMap";
   mapRoot.innerHTML =
     '<div class="rc-ed-mapstage-head"><span><i></i>' + L("מסלול 2D", "2D TRACK") + '</span>' +
-    '<small class="rc-ed-visual-key"><b>●</b><b>═</b><b>↕</b></small></div>' +
+    '<div class="rc-ed-visual-key" id="rcEdKey" title="' +
+    L("מקווקו = נסיעה על הרצפה או הרהיט · רצועה = כביש בנוי", "Dashed = driving on floor or furniture · ribbon = built road") +
+    '"><b class="home">┄</b><em>' + L("רצפה/רהיט", "Floor / model") + '</em><b class="road">━</b><em>' +
+    L("כביש", "Road") + "</em></div>" +
+    '<small class="rc-ed-map-help" id="rcEdMapHelp">' +
+    L("גרור נקודה או מקטע · לחיצה כפולה מוסיפה נקודה", "Drag a point or section · double-click to add a point") +
+    '</small></div>' +
     '<div class="rc-ed-map">' +
     '<canvas id="rcEdCv" aria-label="' + L("מפת עריכת המסלול", "Track editing map") + '"></canvas>' +
     '<div class="rc-ed-mapbar">' +
-    '<button data-mode="shape" class="active" aria-label="' + L("עיצוב וגרירה", "Shape and drag") + '" title="' + L("גרור נקודה או מקטע", "Drag a point or section") + '">✥</button>' +
-    '<button data-mode="draw" aria-label="' + L("הוסף נקודה", "Add point") + '" title="' + L("לחץ על המפה להוספה", "Click the map to add") + '">＋</button>' +
-    '<button data-mode="faces" aria-label="' + L("בחר צד מעבר", "Pick a pass-by side") + '" title="' +
-    L("לחץ על רהיט/חדר ובחר באיזה צד לעבור ובאיזה כיוון", "Click a model or room: which side to pass on, and which way") + '">⇄</button>' +
+    '<button data-mode="shape" class="active" aria-label="' + L("ערוך מסלול", "Edit route") + '" title="' + L("גרור נקודה או מקטע · 1", "Drag a point or section · 1") + '"><b>✥</b><span>' + L("עריכה", "Edit") + '</span></button>' +
+    '<button data-mode="draw" aria-label="' + L("הוסף נקודה", "Add point") + '" title="' + L("לחץ על המפה להוספה · 2", "Click the map to add · 2") + '"><b>＋</b><span>' + L("הוסף", "Add") + '</span></button>' +
+    '<button data-mode="faces" aria-label="' + L("נסיעה על רהיט", "Drive on furniture") + '" title="' +
+    L("לחץ על רהיט כדי לנסוע מעליו או לצדו · 3", "Click furniture to drive over it or pass a side · 3") + '"><b>⬆</b><span>' + L("על רהיט", "On model") + '</span></button>' +
+    '<i class="rc-ed-mapbar-sep"></i>' +
     '<button id="rcEdMapReverse" aria-label="' + L("הפוך כיוון", "Reverse direction") + '" title="' + L("הפוך כיוון", "Reverse direction") + '">↻</button>' +
     '<button id="rcEdEye" class="active" aria-label="' + L("מבט על", "Overview camera") + '" title="' + L("מבט על", "Overview camera") + '">👁</button>' +
     '<button id="rcEdFit" aria-label="' + L("התאם למסך", "Fit map") + '" title="' + L("התאם", "Fit") + '">⤢</button>' +
@@ -678,12 +847,28 @@ function buildDom() {
     L("מוכן", "Ready") + '</span><button class="rc-ed-x" id="rcEdClose" aria-label="' +
     L("סגור", "Close") + '" title="' + L("סגור", "Close") + '">✕</button></div>' +
     "</div>" +
+    '<div class="rc-ed-surface" aria-label="' + L("משטח המסלול", "Track surface") + '">' +
+    '<div class="rc-ed-surface-head"><strong>' + L("איפה נוסעים?", "Where should the truck drive?") + '</strong>' +
+    '<small id="rcEdSurfaceHint"></small></div>' +
+    '<div class="rc-ed-surface-options" role="group">' +
+    '<button type="button" id="rcEdHome"><b>🏠 ' + L("רצפה ורהיטים", "Floor + furniture") + '</b><small>' +
+    L("המסלול מצויר על הבית · כביש רק ברמפה או גשר", "The lap is painted on the house · road only for ramps/bridges") + '</small></button>' +
+    '<button type="button" id="rcEdRoad"><b>🛣️ ' + L("כביש מלא", "Full road") + '</b><small>' +
+    L("רצועת כביש רציפה מעל הכל", "A continuous road ribbon on top of everything") + '</small></button>' +
+    "</div>" +
+    '<div class="rc-ed-path-options" id="rcEdPathOpts" role="group">' +
+    '<button type="button" id="rcEdFollow"><b>✋ ' + L("עקוב אחרי הנקודות", "Follow my points") + '</b><small>' +
+    L("המשאית נוסעת איפה ששמת את הידיות", "The truck drives where you put the handles") + "</small></button>" +
+    '<button type="button" id="rcEdAutoPath"><b>🪄 ' + L("סביב הרהיטים", "Around furniture") + '</b><small>' +
+    L("מוצא מסלול פנוי לבד", "Finds a clear path on its own") + "</small></button>" +
+    "</div></div>" +
+    '<div class="rc-ed-how" id="rcEdHow"></div>' +
     '<div class="rc-ed-stats" id="rcEdStats"></div>' +
     '<div class="rc-ed-nav" role="tablist">' +
-    '<button class="active" role="tab" aria-selected="true" aria-label="' + t("rc_tab_route") + '" title="' + t("rc_tab_route") + '" data-tab="route">⌁</button>' +
-    '<button role="tab" aria-selected="false" aria-label="' + t("rc_tab_style") + '" title="' + t("rc_tab_style") + '" data-tab="style">◐</button>' +
-    '<button role="tab" aria-selected="false" aria-label="' + t("rc_tab_physics") + '" title="' + t("rc_tab_physics") + '" data-tab="physics">⚡</button>' +
-    '<button role="tab" aria-selected="false" aria-label="' + t("rc_tab_presets") + '" title="' + t("rc_tab_presets") + '" data-tab="tracks">▣</button>' +
+    '<button class="active" role="tab" aria-selected="true" aria-label="' + t("rc_tab_route") + '" title="' + t("rc_tab_route") + '" data-tab="route"><b>⌁</b><span>' + L("נתיב", "Route") + "</span></button>" +
+    '<button role="tab" aria-selected="false" aria-label="' + t("rc_tab_style") + '" title="' + t("rc_tab_style") + '" data-tab="style"><b>◐</b><span>' + L("מראה", "Look") + "</span></button>" +
+    '<button role="tab" aria-selected="false" aria-label="' + t("rc_tab_physics") + '" title="' + t("rc_tab_physics") + '" data-tab="physics"><b>⚡</b><span>' + L("נהיגה", "Drive") + "</span></button>" +
+    '<button role="tab" aria-selected="false" aria-label="' + t("rc_tab_presets") + '" title="' + t("rc_tab_presets") + '" data-tab="tracks"><b>▣</b><span>' + L("שמירה", "Saved") + "</span></button>" +
     "</div>" +
     '<div class="rc-ed-body">' +
     '<div class="rc-ed-pane active" data-pane="route"></div>' +
@@ -712,11 +897,27 @@ function buildDom() {
   ST.D.tip = mapRoot.querySelector("#rcEdTip");
   ST.D.statsEl = root.querySelector("#rcEdStats");
   ST.D.statusEl = root.querySelector("#rcEdStatus");
+  root.querySelector("#rcEdHome").onclick = function () {
+    setSurfaceMode(true);
+  };
+  root.querySelector("#rcEdRoad").onclick = function () {
+    setSurfaceMode(false);
+  };
+  root.querySelector("#rcEdFollow").onclick = function () {
+    setFollow(true);
+  };
+  root.querySelector("#rcEdAutoPath").onclick = function () {
+    setFollow(false);
+  };
+  refreshSurfaceMode();
   var host3d = document.getElementById("view-3d");
   if (host3d) {
     var bar = el("div", "rc-ed-3dbar");
     bar.innerHTML =
-      '<span>' + L("3D · לחץ על רהיט לנסיעה עליו · גרור ידית · Alt/חרוט=גובה", "3D · click a model to drive on it · drag a handle · Alt/cone=height") + "</span>" +
+      '<div class="rc-ed-3dhud"><b id="rcEd3dTool">' + L("עריכה", "Edit") + "</b>" +
+      '<span id="rcEd3dHint">' +
+      L("גרור ידית · לחיצה כפולה מוסיפה נקודה · לחץ על רהיט לבחירה", "Drag a handle · double-click to add a point · click a model to select it") +
+      "</span></div>" +
       '<button type="button" id="rcEdShowMap" title="' + L("מפת 2D", "2D map") + '">🗺️</button>';
     host3d.appendChild(bar);
     ST.D.bar3d = bar;
@@ -755,19 +956,7 @@ function buildDom() {
   root.querySelector("#rcEdRedo").onclick = redo;
   mapRoot.querySelectorAll("[data-mode]").forEach(function (b) {
     b.onclick = function () {
-      ST.D.mode = b.dataset.mode;
-      ST.D.mapRoot.dataset.mode = ST.D.mode;
-      mapRoot.querySelectorAll("[data-mode]").forEach(function (o) {
-        o.classList.toggle("active", o === b);
-      });
-      if (ST.D.mode !== "faces") ST.D.faceHover = null;
-      tip(
-        ST.D.mode === "draw" ? "＋"
-        : ST.D.mode === "faces" ? L("⇄ לחץ על רהיט או חדר", "⇄ click furniture or a room")
-        : "✥",
-      );
-      refreshFaces();
-      draw();
+      setMode(b.dataset.mode);
     };
   });
   mapRoot.querySelector("#rcEdMapReverse").onclick = function () {
@@ -791,7 +980,7 @@ function buildDom() {
   mapRoot.querySelector("#rcEdZout").onclick = function () {
     zoomAt(ST.D.canvas.clientWidth / 2, ST.D.canvas.clientHeight / 2, 1 / 1.3);
   };
-  tip("✥");
+  tip(modeTip("shape"));
   bindCanvas();
   if (window.ResizeObserver) {
     ST.D.ro = new ResizeObserver(function () {
@@ -804,7 +993,157 @@ function buildDom() {
   stats();
   refreshSelection();
   refreshFaces();
+  refreshFollow();
+  refreshHud();
   refreshFoot();
+}
+
+function setMode(mode) {
+  if (!ST.D || !ST.D.mapRoot) return;
+  ST.D.mode = mode;
+  ST.D.mapRoot.dataset.mode = mode;
+  ST.D.mapRoot.querySelectorAll("[data-mode]").forEach(function (o) {
+    o.classList.toggle("active", o.dataset.mode === mode);
+  });
+  if (mode !== "faces") ST.D.faceHover = null;
+  var help = ST.D.mapRoot.querySelector("#rcEdMapHelp");
+  if (help) help.textContent = modeTip(mode);
+  tip(modeTip(mode));
+  refreshFaces();
+  refreshHud();
+  draw();
+}
+
+function modeTip(mode) {
+  if (mode === "draw")
+    return L("לחץ במפה או ב-3D כדי להוסיף נקודות · לחץ עריכה כשתסיים", "Click the map or 3D to add points · choose Edit when done");
+  if (mode === "faces")
+    return L("לחץ על רהיט · בחר נסיעה מעליו או צד מעבר", "Click furniture · choose Drive over or a side to pass");
+  return L(
+    "גרור נקודה או מקטע · לחיצה כפולה מוסיפה · גרור שטח ריק להזזת המפה",
+    "Drag a point or section · double-click to add · drag empty space to pan",
+  );
+}
+
+function setSurfaceMode(home) {
+  if (!!ST.E.cfg.homeMode === !!home) return;
+  ST.E.cfg.homeMode = !!home;
+  ST.E.save();
+  refreshSurfaceMode();
+  editorStatus("building");
+  scheduleBuild(0);
+  draw();
+  ST.E.msg(
+    home
+      ? L("הרצפה והרהיטים הם המסלול 🏠", "Floor and furniture are the track 🏠")
+      : L("בונה כביש מלא 🛣️", "Building a full road 🛣️"),
+    1800,
+  );
+}
+
+function refreshSurfaceMode() {
+  if (!ST.D || !ST.D.root) return;
+  var home = !!ST.E.cfg.homeMode;
+  var hb = ST.D.root.querySelector("#rcEdHome"),
+    rb = ST.D.root.querySelector("#rcEdRoad"),
+    hint = ST.D.root.querySelector("#rcEdSurfaceHint");
+  if (hb) {
+    hb.classList.toggle("active", home);
+    hb.setAttribute("aria-pressed", home ? "true" : "false");
+  }
+  if (rb) {
+    rb.classList.toggle("active", !home);
+    rb.setAttribute("aria-pressed", home ? "false" : "true");
+  }
+  if (hint)
+    hint.textContent = home
+      ? L("המסלול עוקב אחרי הבית", "The route follows real surfaces")
+      : L("המסלול הוא כביש בנוי", "The route becomes a built road");
+  var path = ST.D.root.querySelector("#rcEdPathOpts");
+  if (path) path.hidden = !home;
+  refreshFollow();
+  refreshHow();
+  refreshHud();
+}
+
+function refreshFollow() {
+  if (!ST.D || !ST.D.root) return;
+  var on = !!ST.D.follow;
+  var fb = ST.D.root.querySelector("#rcEdFollow"),
+    ab = ST.D.root.querySelector("#rcEdAutoPath");
+  if (fb) {
+    fb.classList.toggle("active", on);
+    fb.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+  if (ab) {
+    ab.classList.toggle("active", !on);
+    ab.setAttribute("aria-pressed", on ? "false" : "true");
+  }
+  refreshHow();
+}
+
+function refreshHow() {
+  if (!ST.D || !ST.D.root) return;
+  var elHow = ST.D.root.querySelector("#rcEdHow");
+  if (!elHow) return;
+  var home = !!ST.E.cfg.homeMode,
+    follow = !!ST.D.follow;
+  var steps = home
+    ? follow
+      ? [
+          L("גרור נקודות — המשאית נוסעת בדיוק שם", "Drag points — the truck drives exactly there"),
+          L("לחץ על רהיט ובחר נסיעה מעל או צד", "Click a model, then Drive over or a side"),
+          L("בחר מקטע כדי להפוך אותו לכביש או להשאיר על הרצפה", "Select a section to make it a road or keep it on the floor"),
+        ]
+      : [
+          L("הנקודות הן הצעה — המסלול יעקוף רהיטים לבד", "Points are a hint — the path goes around furniture"),
+          L("לחץ «עקוב אחרי הנקודות» אם המסלול מתעלם ממך", "Click Follow my points if the path ignores you"),
+          L("לחץ על רהיט כדי לנסוע עליו", "Click a model to drive on it"),
+        ]
+    : [
+        L("גרור נקודות כדי לעצב את רצועת הכביש", "Drag points to shape the road ribbon"),
+        L("גרור מקטע כדי להזיז קטע שלם", "Drag a section to move a whole stretch"),
+        L("לחיצה כפולה מוסיפה נקודה", "Double-click to add a point"),
+      ];
+  elHow.innerHTML =
+    "<b>" + L("איך משתמשים", "How to use") + "</b>" +
+    steps
+      .map(function (s, i) {
+        return "<span><i>" + (i + 1) + "</i>" + s + "</span>";
+      })
+      .join("");
+}
+
+function refreshHud(pick, hit) {
+  if (!ST.D) return;
+  var tool = ST.D.bar3d && ST.D.bar3d.querySelector("#rcEd3dTool"),
+    hint = ST.D.bar3d && ST.D.bar3d.querySelector("#rcEd3dHint");
+  var mode = ST.D.mode,
+    home = !!(ST.E && ST.E.cfg.homeMode);
+  var toolName =
+    mode === "draw" ? L("הוספה", "Add") : mode === "faces" ? L("על רהיט", "On model") : L("עריכה", "Edit");
+  if (tool) tool.textContent = toolName;
+  var text;
+  if (ST.D.hover >= 0)
+    text = L("גרור כדי להזיז · חרוט/Alt = גובה · ימין = מחק", "Drag to move · cone/Alt = height · right-click deletes");
+  else if (pick && pick.tg) {
+    var name = pick.tg.name;
+    if (mode === "faces")
+      text = name + " · " + (pick.top ? L("לחץ לנסיעה מעל", "click to drive over") : L("לחץ למעבר בצד", "click to pass this side"));
+    else if (mode === "draw")
+      text = name + " · " + L("לחץ להוסיף נקודה על המשטח", "click to drop a point on it");
+    else
+      text = name + " · " + L("לחץ לבחירה — אחר כך נסיעה מעל או צד למטה", "click to select — then Drive over or a side below");
+  } else if (mode === "draw")
+    text = L("לחץ על הרצפה או על רהיט כדי להוסיף נקודה", "Click the floor or a model to add a point");
+  else if (mode === "faces")
+    text = L("לחץ על רהיט כדי לנסוע מעליו או לצדו", "Click a model to drive over it or pass a side");
+  else
+    text = home
+      ? L("קו מקווקו = רצפה/רהיט · רצועה = כביש · לחיצה כפולה מוסיפה נקודה", "Dashed = floor/model · ribbon = road · double-click adds a point")
+      : L("גרור ידית · לחיצה כפולה מוסיפה נקודה · חרוט = גובה", "Drag a handle · double-click to add a point · cone = height");
+  if (hint) hint.textContent = text;
+  if (hit) { /* keep signature used by pointer-move */ }
 }
 
 function tip(s) {
@@ -836,7 +1175,9 @@ function slider(id, label, min, max, step, val, unit) {
 
 function paneRoute(p) {
   p.innerHTML =
-    '<div class="rc-ed-selection-empty" id="rcEdSelectionEmpty"><span>●</span><span>═</span><span>↕</span></div>' +
+    '<div class="rc-ed-selection-empty" id="rcEdSelectionEmpty"><strong>● ' +
+    L("בחר נקודה או מקטע", "Select a point or route section") + '</strong><small>' +
+    L("כאן יופיעו מיקום מדויק ובקרת גובה", "Precise position, height, and floor-or-road controls will appear here") + '</small></div>' +
     '<div class="rc-ed-point" id="rcEdPoint" hidden>' +
     '<div class="rc-ed-point-head"><span><i></i><b id="rcEdPointTitle"></b></span><em id="rcEdPointCoord"></em></div>' +
     '<div class="rc-ed-nudge" aria-label="' + L("הזז נקודה", "Nudge point") + '">' +
@@ -851,6 +1192,13 @@ function paneRoute(p) {
     "</div>" +
     '<div class="rc-ed-segment" id="rcEdSegment" hidden>' +
     '<div class="rc-ed-point-head"><span><i></i><b id="rcEdSegTitle">═</b></span><em id="rcEdSegHeight"></em></div>' +
+    '<div class="rc-ed-surfbtns" id="rcEdSegSurf">' +
+    '<button data-surf="home" title="' + L("נסיעה על הרצפה או הרהיט — בלי כביש", "Drive on the floor or model — no road") + '">🏠 ' +
+    L("רצפה/רהיט", "Floor / model") + "</button>" +
+    '<button data-surf="road" title="' + L("שפוך כביש על המקטע הזה", "Pour a road on this stretch") + '">🛣️ ' +
+    L("כביש", "Road") + "</button>" +
+    '<button data-surf="" title="' + L("תן לבונה לבחור", "Let the builder choose") + '">' +
+    L("אוטו", "Auto") + "</button></div>" +
     '<input id="rcEdSegH" type="range" min="0.7" max="160" step="1" value="0.7" aria-label="' + L("גובה מקטע", "Section height") + '">' +
     '<div class="rc-ed-height-presets"><button data-height="0.7" title="' + L("רצפה", "Floor") + '">▁</button>' +
     '<button data-height="40" title="40 cm">▃</button><button data-height="90" title="90 cm">▆</button>' +
@@ -954,6 +1302,11 @@ function paneRoute(p) {
       setSegmentHeight(ST.D.seg, parseFloat(b.dataset.height), false);
     };
   });
+  p.querySelectorAll("#rcEdSegSurf [data-surf]").forEach(function (b) {
+    b.onclick = function () {
+      setSegmentSurf(ST.D.seg, b.dataset.surf);
+    };
+  });
   p.querySelector("#rcEdStart").onclick = function () {
     var start = ST.D.sel >= 0 ? ST.D.sel : ST.D.seg;
     if (start < 0) return;
@@ -1046,6 +1399,9 @@ function selectedTarget() {
 
 function refreshFaces() {
   if (!ST.D || !ST.D.root) return;
+  // Clicking “drive over” may switch the builder to home-surface mode. Keep
+  // the always-visible surface choice honest when that happens indirectly.
+  refreshSurfaceMode();
   var host = ST.D.root.querySelector("#rcEdFaces");
   if (!host) return;
   var rules = faceRules(),
@@ -1061,7 +1417,7 @@ function refreshFaces() {
       : L("בחר צד", "pick a side")
     : rules.length
       ? rules.length + L(" מעברים", " passes")
-      : L("לחץ ⇄ במפה", "press ⇄ on the map");
+      : L("בחר משטחים במפה", "choose Surfaces on the map");
   var ride = tg ? targetRide(tg) : null;
   var smart = tg ? smartFace(tg) : -1;
   host.querySelectorAll("#rcEdFaceGrid [data-face]").forEach(function (b) {
@@ -1278,11 +1634,14 @@ function snapshot() {
       // the points that carry its id
       if (a.f) out.f = a.f;
       if (a.ride) out.ride = true;
+      if (a.surf === "road" || a.surf === "home") out.surf = a.surf;
       return out;
     }),
     roadWidth: cfg.roadWidth,
     highElevation: cfg.highElevation,
     roadTheme: cfg.roadTheme,
+    homeMode: !!cfg.homeMode,
+    followAnchors: !!cfg.followAnchors,
     hasJump: cfg.hasJump,
     physConfig: cfg.physConfig,
     faces: faceRules().map(function (r) {
@@ -1298,6 +1657,11 @@ function loadSnapshot(s) {
   if (fin(s.roadWidth)) cfg.roadWidth = s.roadWidth;
   if (fin(s.highElevation)) cfg.highElevation = s.highElevation;
   if (s.roadTheme) cfg.roadTheme = s.roadTheme;
+  if (s.homeMode != null) cfg.homeMode = !!s.homeMode;
+  if (s.followAnchors != null) {
+    ST.D.follow = !!s.followAnchors;
+    cfg.followAnchors = ST.D.follow;
+  }
   if (s.hasJump != null) cfg.hasJump = !!s.hasJump;
   if (s.physConfig) {
     cfg.physConfig = Object.assign({}, cfg.physConfig, s.physConfig);
@@ -1312,11 +1676,13 @@ function loadSnapshot(s) {
       .map(function (a) {
         return copyAnchor(a);
       }),
-    { delay: 0 },
+    { delay: 0, keepFollow: true },
   );
   facesAdopt(s.faces); // the rules whose points came back with the track
   writeThrough();
   refreshFaces();
+  refreshSurfaceMode();
+  refreshFollow();
   // the style/physics panes hold their own inputs — rebuild them from the cfg
   paneStyle(ST.D.root.querySelector('[data-pane="style"]'));
   panePhysics(ST.D.root.querySelector('[data-pane="physics"]'));
@@ -1418,6 +1784,14 @@ function refreshSelection() {
     segHost.querySelector("#rcEdSegHeight").textContent = sbad ? sbad.msg : "↕ " + Math.round(sy) + " cm";
     var range = segHost.querySelector("#rcEdSegH");
     if (document.activeElement !== range) range.value = sy;
+    var surfBox = segHost.querySelector("#rcEdSegSurf");
+    if (surfBox) {
+      surfBox.hidden = !ST.E.cfg.homeMode;
+      var cur = ST.D.anchors[ST.D.seg].surf || "";
+      surfBox.querySelectorAll("[data-surf]").forEach(function (b) {
+        b.classList.toggle("active", b.dataset.surf === cur);
+      });
+    }
   }
 }
 
@@ -1479,6 +1853,21 @@ function onKey(e) {
     redo();
     return;
   }
+  if (k === "1") {
+    e.preventDefault();
+    setMode("shape");
+    return;
+  }
+  if (k === "2") {
+    e.preventDefault();
+    setMode("draw");
+    return;
+  }
+  if (k === "3") {
+    e.preventDefault();
+    setMode("faces");
+    return;
+  }
   if (k === "Delete" || k === "Backspace") {
     if (ST.D.sel >= 0) {
       e.preventDefault();
@@ -1506,4 +1895,3 @@ function unbindKeys() {
 }
 
 // ---- 2D map -----------------------------------------------------------------
-

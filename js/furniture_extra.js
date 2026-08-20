@@ -8,7 +8,7 @@ import { HumanFactory } from "./human.js";
 import {
   handleBar, upholstered, legsUnder, slabWithHoles, basin, gooseneck,
 } from "./furniture_helpers.js";
-import { FURN, vspec } from "./furniture_models.js";
+import { FURN, vspec, smartOn } from "./furniture_models.js";
 
 // ================= COMPUTER MODELS =================
 Object.assign(FURN, {
@@ -277,10 +277,12 @@ Object.assign(FURN, {
       });
       // each panel is a row of half-round folds — reads as hanging fabric
       var folds = Math.max(6, Math.round(it.w / 14));
+      var pos = it.smart && typeof it.smart.position === "number" ? it.smart.position : 100;
+      var openFrac = 1 - Math.max(0, Math.min(100, pos)) / 100;
+      var gapW = it.w * (0.16 + 0.7 * openFrac);
       for (var i = 0; i < folds; i++) {
-        var fx = -hw + ((i + 0.5) * it.w) / folds,
-          gap = Math.abs(fx) < it.w * 0.16; // the two panels part in the middle
-        if (gap) continue;
+        var fx = -hw + ((i + 0.5) * it.w) / folds;
+        if (Math.abs(fx) < gapW / 2) continue;
         cyl(g, fx, (top - 8) / 2 + 2, -hd + 4 + ((i % 2) ? 1.6 : 0), it.w / folds / 2, top - 10, FABRIC, {
           rough: 0.95, seg: 10, metal: 0,
         });
@@ -722,11 +724,14 @@ Object.assign(FURN, {
       box(g, -18, 18, y0 + it.h * 0.42, y0 + it.h * 0.62, -hd + 2.5, -hd + 4, 0x33383c, { metal: 0.5, rough: 0.45 });
       // panel: dark chassis, then the screen face inset by the bezel
       box(g, -hw, hw, y0, y0 + it.h, -hd + 3.5, hd - 1, TVB, { metal: 0.3, rough: 0.35 });
-      box(g, -hw + bezel, hw - bezel, y0 + bezel, y0 + it.h - bezel, hd - 1, hd, 0x1d2630, {
-        metal: 0.2, rough: 0.15,
-      });
+      box(g, -hw + bezel, hw - bezel, y0 + bezel, y0 + it.h - bezel, hd - 1, hd,
+        smartOn(it, false) ? 0x4a90c8 : 0x1d2630,
+        smartOn(it, false) ? { metal: 0.08, rough: 0.15, emis: 0x3a7ab8 } : { metal: 0.2, rough: 0.15 },
+      );
       // standby LED, bottom centre — reads as "this one is powered"
-      box(g, -1.5, 1.5, y0 + 0.4, y0 + 1.2, hd - 0.2, hd + 0.2, 0x44ff88, { emis: 0x44ff88, cast: false });
+      box(g, -1.5, 1.5, y0 + 0.4, y0 + 1.2, hd - 0.2, hd + 0.2,
+        smartOn(it, false) ? 0x44ff88 : 0xff4444,
+        { emis: smartOn(it, false) ? 0x44ff88 : 0xff4444, cast: false });
     },
   },
 
@@ -883,6 +888,147 @@ Object.assign(FURN, {
           metal: 0.8, rough: 0.3, seg: 10, rx: Math.PI / 2,
         });
       });
+    },
+  },
+  // ================= SMART HOME & SENSORS =================
+  motionSensor: {
+    label: "גלאי תנועה",
+    w: 12,
+    d: 10,
+    h: 14,
+    col: "#f0f2f5",
+    build: function (g, it) {
+      var hw = it.w / 2, hd = it.d / 2;
+      var on = it.smart && it.smart.motion;
+      // Sensor main body
+      box(g, -hw, hw, 0, it.h, -hd, hd, 0xf0f4f8, { rough: 0.35 });
+      // Beveled mounting base plate
+      box(g, -hw - 0.5, hw + 0.5, 0, 1.5, -hd - 0.5, hd + 0.5, 0xdbe0e6, { rough: 0.5 });
+      // Faceted PIR Fresnel dome lens
+      cyl(g, 0, it.h * 0.45, hd + 0.2, hw * 0.65, 2.5, 0xe2e8f0, { rough: 0.2, seg: 16, rx: Math.PI / 2 });
+      // Status indicator LED (lights up on detected motion)
+      sph(g, 0, it.h - 2.8, hd + 0.6, 0.9, on ? 0x10b981 : 0x64748b);
+    },
+  },
+  contactSensor: {
+    label: "חיישן דלת/חלון",
+    w: 16,
+    d: 8,
+    h: 22,
+    col: "#f8fafc",
+    build: function (g, it) {
+      var open = it.smart && it.smart.contact;
+      var hw = it.w / 2, hd = it.d / 2;
+      // Main transmitter unit
+      box(g, -hw, -hw + 8, 0, it.h, -hd, hd, 0xf8fafc, { rough: 0.3 });
+      // Status LED on main unit
+      sph(g, -hw + 4, it.h - 3, hd + 0.3, 0.7, open ? 0xef4444 : 0x10b981);
+      // Magnet companion unit (separated if open)
+      var magOffset = open ? 4 : 1.5;
+      box(g, -hw + 8 + magOffset, hw, 0, it.h * 0.75, -hd * 0.8, hd * 0.8, 0xf1f5f9, { rough: 0.35 });
+    },
+  },
+  tempSensor: {
+    label: "חיישן טמפרטורה ולחות",
+    w: 16,
+    d: 6,
+    h: 16,
+    col: "#ffffff",
+    build: function (g, it) {
+      var hw = it.w / 2, hd = it.d / 2;
+      // Thermostat wall body
+      box(g, -hw, hw, 0, it.h, -hd, hd, 0xf8fafc, { rough: 0.3 });
+      // Digital LCD display screen bezel
+      box(g, -hw + 1.8, hw - 1.8, 2.5, it.h - 2.5, hd, hd + 0.5, 0x1e293b, { rough: 0.2, metal: 0.2 });
+      // LCD screen panel
+      box(g, -hw + 2.5, hw - 2.5, 3.2, it.h - 3.2, hd + 0.5, hd + 0.8, 0x38bdf8, { rough: 0.1 });
+    },
+  },
+  smokeDetector: {
+    label: "גלאי עשן",
+    w: 22,
+    d: 22,
+    h: 7,
+    col: "#ffffff",
+    build: function (g, it) {
+      var r = it.w / 2;
+      var alert = it.smart && it.smart.smoke;
+      // Circular ceiling housing
+      cyl(g, 0, it.h * 0.5, 0, r, it.h, 0xf8fafc, { rough: 0.3, seg: 24 });
+      // Center test / silence button
+      cyl(g, 0, it.h + 0.4, 0, r * 0.35, 0.8, 0xe2e8f0, { rough: 0.4, seg: 16 });
+      // Perimeter smoke chamber vents
+      for (var i = 0; i < 8; i++) {
+        var an = (i / 8) * Math.PI * 2;
+        var vx = Math.cos(an) * (r * 0.65);
+        var vz = Math.sin(an) * (r * 0.65);
+        box(g, vx - 1.2, vx + 1.2, it.h * 0.2, it.h * 0.8, vz - 1.2, vz + 1.2, 0x334155, { rough: 0.6 });
+      }
+      // Status indicator LED
+      sph(g, 0, it.h + 0.9, 0, 1.0, alert ? 0xef4444 : 0x22c55e);
+    },
+  },
+  smartLock: {
+    label: "מנעול חכם",
+    w: 14,
+    d: 14,
+    h: 30,
+    col: "#1e293b",
+    build: function (g, it) {
+      var hw = it.w / 2, hd = it.d / 2;
+      var locked = it.smart ? it.smart.locked !== false : true;
+      // Escutcheon backplate
+      box(g, -hw, hw, 0, it.h, -hd, hd, 0x1e293b, { metal: 0.6, rough: 0.3 });
+      // Keypad touchscreen / reader window
+      box(g, -hw + 1.5, hw - 1.5, it.h * 0.5, it.h - 2, hd, hd + 0.6, 0x0f172a, { rough: 0.1, metal: 0.4 });
+      // Status indicator ring (Red = Locked, Green = Unlocked)
+      cyl(g, 0, it.h * 0.75, hd + 0.8, 2.2, 0.5, locked ? 0xef4444 : 0x10b981, { seg: 16, rx: Math.PI / 2 });
+      // Door handle / lever
+      cyl(g, 0, it.h * 0.28, hd + 1.5, 1.8, 4, 0x475569, { metal: 0.8, rough: 0.2, seg: 12, rx: Math.PI / 2 });
+      box(g, 0, hw + 10, it.h * 0.28 - 1.5, it.h * 0.28 + 1.5, hd + 4, hd + 6, 0x334155, { metal: 0.8, rough: 0.2 });
+    },
+  },
+  vacuum: {
+    label: "שואב אבק רובוטי",
+    w: 36,
+    d: 38,
+    h: 12,
+    col: "#1e293b",
+    build: function (g, it) {
+      var r = 16;
+      var active = it.smart && (it.smart.on || it.smart.status === "cleaning");
+      // Charging dock behind the vacuum
+      box(g, -12, 12, 0, 10, -18, -14, 0x334155, { rough: 0.4 });
+      box(g, -10, 10, 0, 1.2, -14, -8, 0x1e293b, { rough: 0.5 });
+      // Main round vacuum disc body
+      cyl(g, 0, 4.5, 0, r, 7, 0x1e293b, { metal: 0.3, rough: 0.35, seg: 32 });
+      // Front bumper arc
+      cyl(g, 0, 4.5, 3, r + 0.4, 6.5, 0x0f172a, { metal: 0.2, rough: 0.5, seg: 24, thetaLength: Math.PI });
+      // Top LiDAR laser turret
+      cyl(g, 0, 9.5, -2, 4.5, 3.5, 0x334155, { metal: 0.4, rough: 0.3, seg: 20 });
+      // Power / Home control buttons & glowing status ring
+      cyl(g, 0, 8.2, 7, 2.2, 0.6, active ? 0x06b6d4 : 0x64748b, { seg: 16 });
+    },
+  },
+  smartPlug: {
+    label: "שקע חכם",
+    w: 12,
+    d: 12,
+    h: 14,
+    col: "#ffffff",
+    build: function (g, it) {
+      var hw = it.w / 2, hd = it.d / 2;
+      var on = it.smart && it.smart.on;
+      // Plug housing
+      box(g, -hw, hw, 0, it.h, -hd, hd, 0xf8fafc, { rough: 0.35 });
+      // Socket face recess
+      cyl(g, 0, it.h * 0.55, hd + 0.1, hw * 0.7, 1.2, 0xe2e8f0, { rough: 0.4, seg: 20, rx: Math.PI / 2 });
+      // Pin holes
+      [-2.2, 2.2].forEach(function (px) {
+        cyl(g, px, it.h * 0.55, hd + 0.8, 0.7, 1.0, 0x1e293b, { seg: 10, rx: Math.PI / 2 });
+      });
+      // Power button & LED indicator ring
+      box(g, -1.8, 1.8, it.h - 2.5, it.h - 0.5, hd + 0.2, hd + 0.8, on ? 0x10b981 : 0x94a3b8);
     },
   },
 });

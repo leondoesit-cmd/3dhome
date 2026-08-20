@@ -23,6 +23,7 @@
    render and the hardest to spot in plan. */
 import { S } from "./state.js";
 import { wallById, wallGeom } from "./geometry.js";
+import { markManualRot } from "./item_orient.js";
 
 /* The axis-aligned half-size of a piece's footprint, taking its rotation into
    account — the same measure the drag snap uses, so an aligned edge and a
@@ -121,6 +122,8 @@ export function matchRotation(items) {
   items.slice(1).forEach(function (it) {
     if (it.locked || (Number(it.rot) || 0) === rot) return;
     it.rot = rot;
+    // stated by hand, so the automatic facing leaves these alone from now on
+    markManualRot(it);
     moved++;
   });
   return moved;

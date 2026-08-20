@@ -4,6 +4,7 @@
 let engine = null;
 let pending = null;
 let strength = 1;
+let destructionMode = "full";
 
 function syncCrosshair(on) {
   const ch = document.getElementById("crosshair");
@@ -16,6 +17,7 @@ export function loadPhysics() {
     await module.ready();
     engine = module;
     engine.setStrength(strength);
+    engine.setDestructionMode(destructionMode);
     return engine;
   });
   return pending;
@@ -27,6 +29,17 @@ export function setStrength(value) {
   return strength;
 }
 export function getStrength() { return engine ? engine.getStrength() : strength; }
+
+export function setDestructionMode(mode) {
+  if (mode === "none" || mode === "parts" || mode === "full") {
+    destructionMode = mode;
+    if (engine) engine.setDestructionMode(destructionMode);
+  }
+  return destructionMode;
+}
+export function getDestructionMode() {
+  return engine ? engine.getDestructionMode() : destructionMode;
+}
 export function getHitMode() { return engine ? engine.getHitMode() : "punch"; }
 export function isPhysicsEnabled() { return !!engine && engine.isPhysicsEnabled(); }
 export function isPhysicsBusy() { return !!engine && typeof engine.isPhysicsBusy === "function" && engine.isPhysicsBusy(); }

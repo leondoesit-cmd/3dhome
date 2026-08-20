@@ -26,6 +26,82 @@ function clamp(v, a, b) {
   return v < a ? a : v > b ? b : v;
 }
 
+/* Three-finger pan for trackpads and touch screens. Mouse / two-finger
+   (right-click) gestures stay with the caller; this only engages at 3+
+   contacts, using the centroid so the view slides instead of orbiting. */
+export function threeFingerCentroid(touchList) {
+  if (!touchList || touchList.length < 3) return null;
+  var x = 0, y = 0, n = touchList.length;
+  for (var i = 0; i < n; i++) {
+    x += touchList[i].clientX;
+    y += touchList[i].clientY;
+  }
+  return { x: x / n, y: y / n };
+}
+
+export function bindThreeFingerPan(el, onPan) {
+  var last = null, pts = {}, viaTouch = 0;
+
+  function pointCount() {
+    var n = 0;
+    for (var id in pts) n++;
+    return n;
+  }
+  function pointerCentroid() {
+    if (pointCount() < 3) return null;
+    var x = 0, y = 0, n = 0;
+    for (var id in pts) { x += pts[id].x; y += pts[id].y; n++; }
+    return { x: x / n, y: y / n };
+  }
+  function isPanning() { return !!last || pointCount() >= 3; }
+
+  function apply(c, e) {
+    if (!c) { last = null; return; }
+    if (e && e.preventDefault) e.preventDefault();
+    if (last) onPan(c.x - last.x, c.y - last.y, e);
+    last = c;
+  }
+
+  el.addEventListener("touchstart", function (e) {
+    var c = threeFingerCentroid(e.touches);
+    last = c;
+    if (c) { viaTouch = performance.now(); e.preventDefault(); }
+  }, { passive: false });
+  el.addEventListener("touchmove", function (e) {
+    var c = threeFingerCentroid(e.touches);
+    if (!c) { last = null; return; }
+    viaTouch = performance.now();
+    apply(c, e);
+  }, { passive: false });
+  function touchEnd(e) {
+    last = threeFingerCentroid(e.touches);
+  }
+  el.addEventListener("touchend", touchEnd);
+  el.addEventListener("touchcancel", touchEnd);
+
+  el.addEventListener("pointerdown", function (e) {
+    if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var c = pointerCentroid();
+    if (c) last = c;
+  }, true);
+  el.addEventListener("pointermove", function (e) {
+    if (!pts[e.pointerId]) return;
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    if (performance.now() - viaTouch < 50) return;
+    var c = pointerCentroid();
+    if (c) apply(c, e);
+  }, true);
+  function pointerEnd(e) {
+    delete pts[e.pointerId];
+    if (pointCount() < 3) last = null;
+  }
+  el.addEventListener("pointerup", pointerEnd, true);
+  el.addEventListener("pointercancel", pointerEnd, true);
+
+  return isPanning;
+}
+
 export function createEditorView(opts) {
   opts = opts || {};
   var cv = opts.canvas;
@@ -99,24 +175,45 @@ export function createEditorView(opts) {
     gpuReady(rr).then(function () { view.render(); });
 
     var drag = null;
+    var threeFinger = bindThreeFingerPan(cv, function (dx, dy) {
+      drag = { mode: "pan", threeFinger: true, moved: true, x: 0, y: 0, sx: 0, sy: 0 };
+      view._skipContext = true;
+      view.panBy(dx, dy, true);
+    });
     cv.addEventListener("pointerdown", function (e) {
       // CAD navigation: middle-drag (or Shift + primary-drag on mice without
       // a middle button) pans. Primary-drag keeps the existing orbit gesture.
-      // Selection is still a stationary primary click.
-      var mode = e.button === 1 || (e.button === 0 && e.shiftKey) ? "pan" : "orbit";
-      if (mode === "pan") e.preventDefault();
+      // Selection is still a stationary primary click. SolidWorks-style RMB
+      // is a context click until it travels, then a mouse gesture. On a
+      // trackpad or touch screen, three-finger drag pans instead of orbiting.
+      if (threeFinger()) return;
+      if (opts.beginDrag && e.button === 0 && !e.shiftKey && opts.beginDrag(e, view)) {
+        drag = { mode: "custom", x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false };
+        return;
+      }
+      var mode = e.button === 1 ? "pan"
+        : (opts.cadNav && e.button === 2) ? "gesture"
+        : (e.button === 0 && e.shiftKey) ? "maybePan"
+        : "orbit";
+      if (mode === "pan" || mode === "gesture") e.preventDefault();
       cv.setPointerCapture(e.pointerId);
       drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false, mode: mode };
     });
     cv.addEventListener("pointermove", function (e) {
-      if (!drag) return;
+      if (threeFinger()) return;
+      if (!drag || drag.mode === "custom") return;
       if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 4) {
         drag.moved = true;
         if (view.fixedFrame && drag.mode === "orbit") view.clearFixedFrame(false);
       }
       var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-      if (drag.mode === "pan") view.panBy(dx, dy, false);
-      else {
+      if (drag.mode === "gesture") {
+        drag.x = e.clientX; drag.y = e.clientY;
+        if (opts.gesturePreview) opts.gesturePreview(e, view, e.clientX - drag.sx, e.clientY - drag.sy);
+        return;
+      }
+      if (drag.mode === "pan" || (drag.mode === "maybePan" && drag.moved)) view.panBy(dx, dy, false);
+      else if (drag.mode === "orbit") {
         view.az += dx * 0.009;
         view.el = clamp(view.el + dy * 0.006, minEl, maxEl);
       }
@@ -124,12 +221,28 @@ export function createEditorView(opts) {
       view.render();
     });
     cv.addEventListener("pointerup", function (e) {
-      var wasClick = drag && drag.mode === "orbit" && e.button === 0 && !drag.moved;
+      if (threeFinger()) return;
+      var current = drag;
       drag = null;
+      if (!current) return;
+      if (current.mode === "custom" || current.threeFinger) return;
+      if (current.mode === "gesture") {
+        var gdx = e.clientX - current.sx, gdy = e.clientY - current.sy;
+        if (current.moved) {
+          view._skipContext = true;
+          if (opts.gesture) opts.gesture(e, view, gdx, gdy);
+        }
+        return;
+      }
+      var wasClick = e.button === 0 && !current.moved && (current.mode === "orbit" || current.mode === "maybePan");
       if (wasClick && opts.pick) opts.pick(e, view);
     });
     cv.addEventListener("pointercancel", function () { drag = null; });
-    cv.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+    cv.addEventListener("contextmenu", function (e) {
+      e.preventDefault();
+      if (threeFinger() || view._skipContext) { view._skipContext = false; return; }
+      if (opts.cadNav && opts.contextMenu && (!drag || !drag.moved)) opts.contextMenu(e, view);
+    });
     cv.addEventListener("wheel", function (e) {
       e.preventDefault();
       view.zoomBy(e.deltaY > 0 ? 1.12 : 1 / 1.12);
@@ -216,9 +329,12 @@ export function createEditorView(opts) {
       view.resize();
       // an editor with a second destination for the same parts (the modeler's
       // context room) takes over here and draws it its own way
-      if (opts.draw && opts.draw(view)) return;
+      if (opts.draw && opts.draw(view)) { if (opts.afterRender) opts.afterRender(view); return; }
       view.place();
       gpuRender(rr, sc, cam);
+      // DOM overlays that track a point in the scene (handle readouts) are
+      // placed here, so they follow an orbit rather than the last rebuild
+      if (opts.afterRender) opts.afterRender(view);
     };
 
     // swap the contents of the view's group; the callback does the building
@@ -272,6 +388,15 @@ export function createEditorView(opts) {
     };
     // Translate the orbit target in the camera plane. Scaling by distance and
     // viewport height keeps a drag feeling the same at every zoom level.
+    /* World units per screen pixel at the orbit target — what a handle needs to
+       stay a constant size on screen, and what a drag needs to track the
+       cursor one-to-one instead of racing ahead of it. */
+    view.worldPerPixel = function () {
+      var d = view.dist * (view.big ? (opts.bigZoom || 1.3) : 1);
+      var height = Math.max(1, cv.clientHeight || 1);
+      return 2 * d * Math.tan(THREE.MathUtils.degToRad(cam.fov * 0.5)) / height;
+    };
+
     view.panBy = function (dx, dy, render) {
       view.place();
       cam.updateMatrixWorld();

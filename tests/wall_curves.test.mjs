@@ -14,6 +14,7 @@ import {
   wallProfileHeight,
   normalizeWallKind,
   verticalSegments,
+  setWallKind,
 } from "../js/wall_curves.js";
 
 const near = (actual, expected, tolerance = 1e-7, message = "") =>
@@ -218,6 +219,37 @@ test("special wall kinds accept persisted and human-readable aliases", () => {
   assert.equal(normalizeWallKind({ kind: "pony_wall" }), "pony");
   assert.equal(normalizeWallKind({ type: "balustrade" }), "railing");
   assert.equal(normalizeWallKind("unknown future kind"), "normal");
+  assert.equal(normalizeWallKind({ kind: "normal", wallKind: "half" }), "normal");
+});
+
+test("setWallKind restores a full wall after a special style", () => {
+  const wall = { height: 270, kind: "normal", wallTypeId: "brick" };
+  setWallKind(wall, "half");
+  assert.equal(normalizeWallKind(wall), "half");
+  assert.equal(wall.height, 110);
+  assert.equal(wall.fullHeight, 270);
+
+  setWallKind(wall, "normal");
+  assert.equal(normalizeWallKind(wall), "normal");
+  assert.equal(wall.height, 270);
+  assert.equal(wall.fullHeight, undefined);
+  assert.equal(wall.halfHeight, undefined);
+
+  setWallKind(wall, "pony");
+  assert.equal(normalizeWallKind(wall), "pony");
+  assert.equal(wall.height, 270);
+  assert.ok(wall.splitHeight > 0);
+  setWallKind(wall, "normal");
+  assert.equal(normalizeWallKind(wall), "normal");
+  assert.equal(wall.splitHeight, undefined);
+  assert.equal(wall.upperWallTypeId, undefined);
+
+  setWallKind(wall, "railing");
+  wall.railingHeight = 90;
+  setWallKind(wall, "normal");
+  assert.equal(normalizeWallKind(wall), "normal");
+  assert.equal(wall.railingHeight, undefined);
+  assert.equal(wall.height, 270);
 });
 
 test("vertical segments describe normal, invisible, half and pony walls", () => {

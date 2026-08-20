@@ -51,22 +51,27 @@ export function rayToCorners(ox, oz, dx, dz, cs) {
 }
 
 /* One entry per direction that actually hits something, in DIRS4 order:
-     { dir, ownT, hitT, gap }
+     { dir, ownT, hitT, gap, kind }
    `ownT` is how far the origin's own footprint reaches along that ray (0 for a
    bare point), so `gap` is the clear space beyond it.
+   `kind` is "wall" or "item" for the obstacle that produced the hit.
    `ownCs` = the origin's own corners, or null to measure from a point.
    `skip`  = an item that must not be measured against — the origin item itself,
-             or the object standing on the point being measured from. */
+             or the object standing on the point being measured from.
+   `target: "both"` reports the nearest wall AND the nearest item on each ray,
+   so a drafting overlay can label them separately instead of collapsing to one. */
 export function measure4(ox, oz, ownCs, skip, options) {
   options = options || {};
   var target = options.target || "nearest";
   var wallIds = options.wallIds || null;
+  var both = target === "both";
   var out = [];
   DIRS4.forEach(function (d) {
     var ownT = ownCs ? rayToCorners(ox, oz, d.dx, d.dz, ownCs) : 0;
     if (ownT === null) return;
 
-    var hitT = null;
+    var wallT = null;
+    var itemT = null;
     S.walls.forEach(function (w) {
       if (target === "object") return;
       if (target === "manual" && (!wallIds || wallIds.indexOf(w.id) === -1)) return;
@@ -74,20 +79,30 @@ export function measure4(ox, oz, ownCs, skip, options) {
       var tt = rayIntersect(ox, oz, d.dx, d.dz, gm.a.x, gm.a.z, gm.b.x, gm.b.z);
       if (tt === null) return;
       var face = tt - (w.thickness || 0) / 2;
-      if (face > ownT + 0.5 && (hitT === null || face < hitT)) hitT = face;
+      if (face > ownT + 0.5 && (wallT === null || face < wallT)) wallT = face;
     });
     // other items (skip the origin + lamps: they're point/ceiling fixtures)
     S.items.forEach(function (o) {
       if (target === "wall" || target === "manual") return;
       if (o === skip || isLamp(o)) return;
       var tt = rayToCorners(ox, oz, d.dx, d.dz, itemCorners(o));
-      if (tt !== null && tt > ownT + 0.5 && (hitT === null || tt < hitT)) hitT = tt;
+      if (tt !== null && tt > ownT + 0.5 && (itemT === null || tt < itemT)) itemT = tt;
     });
-    if (hitT === null) return;
 
-    var gap = hitT - ownT;
-    if (gap < 1) return; // touching / negligible
-    out.push({ dir: d, ownT: ownT, hitT: hitT, gap: gap });
+    function pushHit(hitT, kind) {
+      if (hitT === null) return;
+      var gap = hitT - ownT;
+      if (gap < 1) return; // touching / negligible
+      out.push({ dir: d, ownT: ownT, hitT: hitT, gap: gap, kind: kind });
+    }
+    if (both) {
+      pushHit(wallT, "wall");
+      pushHit(itemT, "item");
+      return;
+    }
+    if (wallT === null && itemT === null) return;
+    if (itemT === null || (wallT !== null && wallT <= itemT)) pushHit(wallT, "wall");
+    else pushHit(itemT, "item");
   });
   return out;
 }

@@ -42,10 +42,12 @@ const importEditorGeom = async () => {
   const stateUrl =
     "data:text/javascript," +
     encodeURIComponent(
-      state.replace(
-        'import { getLang } from "./i18n.js";',
-        "var getLang = () => 'en';",
-      ),
+      state
+        .replace('import { getLang } from "./i18n.js";', "var getLang = () => 'en';")
+        .replace(
+          'import { STEP_UP as SHARED_STEP_UP } from "./road_surface.js";',
+          "var SHARED_STEP_UP = 2.2;",
+        ),
     );
   return import(
     "data:text/javascript," +
@@ -148,7 +150,8 @@ async function buildTestRoad(customAnchors) {
   const src = (await read("js/track.js"))
     .replace('from "three"', `from "${new URL("vendor/three/three.module.js", root).href}"`)
     .replace('from "./state.js"', `from "${new URL("js/state.js", root).href}"`)
-    .replace('from "./geometry.js"', `from "${new URL("js/geometry.js", root).href}"`);
+    .replace('from "./geometry.js"', `from "${new URL("js/geometry.js", root).href}"`)
+    .replace('from "./road_surface.js"', `from "${new URL("js/road_surface.js", root).href}"`);
   const { buildRoad } = await import(`data:text/javascript,${encodeURIComponent(src)}`);
   const segs = [];
   const wall = (ax, az, bx, bz) => segs.push({ ax, az, bx, bz, half: 5 });
@@ -189,12 +192,13 @@ async function buildTestRoad(customAnchors) {
 // Home mode: the apartment itself is the circuit. Same synthetic flat, but the
 // route has to be one a truck could drive on the real floor — through the gaps
 // in the walls, round what it cannot climb, up a ramp onto what it can.
-async function buildHomeRoad(extra, customAnchors) {
+async function buildHomeRoad(extra, customAnchors, extraEnv) {
   const root = new URL("../", import.meta.url);
   const src = (await read("js/track.js"))
     .replace('from "three"', `from "${new URL("vendor/three/three.module.js", root).href}"`)
     .replace('from "./state.js"', `from "${new URL("js/state.js", root).href}"`)
-    .replace('from "./geometry.js"', `from "${new URL("js/geometry.js", root).href}"`);
+    .replace('from "./geometry.js"', `from "${new URL("js/geometry.js", root).href}"`)
+    .replace('from "./road_surface.js"', `from "${new URL("js/road_surface.js", root).href}"`);
   const { buildRoad } = await import(`data:text/javascript,${encodeURIComponent(src)}`);
   const segs = [];
   const wall = (ax, az, bx, bz) => segs.push({ ax, az, bx, bz, half: 5 });
@@ -229,6 +233,7 @@ async function buildHomeRoad(extra, customAnchors) {
         0,
       ),
     blockedAt: () => false,
+    ...(extraEnv || {}),
   };
   const anchors = customAnchors || [
     { x: 300, z: 150 }, { x: 500, z: 150 }, { x: 300, z: 450 }, { x: 500, z: 450 },
@@ -502,7 +507,8 @@ test("RC track safety keeps obstacle checks stable and respects the jump switch"
   const src = track
     .replace('from "three"', `from "${new URL("vendor/three/three.module.js", root).href}"`)
     .replace('from "./state.js"', `from "${new URL("js/state.js", root).href}"`)
-    .replace('from "./geometry.js"', `from "${new URL("js/geometry.js", root).href}"`);
+    .replace('from "./geometry.js"', `from "${new URL("js/geometry.js", root).href}"`)
+    .replace('from "./road_surface.js"', `from "${new URL("js/road_surface.js", root).href}"`);
   const { buildRoad } = await import(`data:text/javascript,${encodeURIComponent(src)}`);
   const safeRoad = buildRoad(
     [{ x: 0, z: 0 }, { x: 0, z: 240 }, { x: 300, z: 240 }, { x: 300, z: 0 }],
@@ -591,14 +597,15 @@ test("the live RC track editor defers rebuilds and edits from both views", async
   assert.match(ed, /faceApply\(pick\.tg, "top"/);
   assert.match(ed, /intersectPlane\(new THREE\.Plane\(new THREE\.Vector3\(0, 1, 0\), -hy\)/);
   assert.match(ed, /id="rcEdShowMap"/);
-  // The map replaces the existing 2D design pane; 3D is the place you actually
-  // design (click models, drag handles, lift height) and the inspector stays
-  // on the right. Split is optional from the 🗺️ chip.
+  // The map replaces the existing 2D design pane and opens beside 3D on a
+  // desktop: the map shapes the route while 3D picks real surfaces. Compact
+  // layouts keep one large view and can open the map from the 🗺️ chip.
   assert.match(ed, /document\.getElementById\("view-2d"\)/);
   assert.match(ed, /document\.getElementById\("right-inspector"\)/);
   assert.doesNotMatch(ed, /document\.getElementById\("view-3d"\) \|\| document\.body/);
   assert.match(rc, /function editorSplit\(on\)/);
-  assert.match(rc, /window\.__setViewMode\("3d"\)/);
+  assert.match(rc, /window\.__setViewMode\(compact \? "3d" : "split"\)/);
+  assert.match(rc, /else if \(R\.edPrevView\) \{[\s\S]*?window\.__setViewMode\(R\.edPrevView\)/);
 
   // A route belongs to the flat it was drawn on: stored anchors carry that
   // plan's signature and are dropped (auto tour instead) when the walls change.
@@ -623,6 +630,31 @@ test("the live RC track editor defers rebuilds and edits from both views", async
   assert.match(ed, /D\.segDrag = \{/);
   assert.match(ed, /function heightFromScreen\(sy\)/);
   assert.match(ed, /id="rcEdSegH" type="range"/);
+  // The surface model is explicit in the editor: a home route is not presented
+  // as a continuous road, and the most common add-point edit needs no mode
+  // switch or hidden modifier.
+  assert.match(ed, /id="rcEdHome"/);
+  assert.match(ed, /id="rcEdRoad"/);
+  assert.match(ed, /function setSurfaceMode\(home\)[\s\S]*?ST\.E\.cfg\.homeMode = !!home/);
+  assert.match(ed, /double-click to add a point/);
+  const map = await read("js/rc_editor_map.js");
+  assert.match(map, /addEventListener\("dblclick"/);
+  assert.match(map, /homeSurface && !c\.deck/);
+  assert.match(map, /strokeCategorized/);
+  assert.match(ed, /id="rcEdFollow"/);
+  assert.match(ed, /id="rcEdAutoPath"/);
+  assert.match(ed, /function setFollow\(/);
+  assert.match(ed, /function setSegmentSurf\(/);
+  assert.match(ed, /data-surf="road"/);
+  assert.match(ed, /id="rcEd3dHint"/);
+  assert.match(ed, /id="rcEdKey"/);
+  assert.match(ed, /function noteUserEdit\(/);
+  assert.match(ed, /if \(a\.surf === "road" \|\| a\.surf === "home"\) out\.surf = a\.surf/);
+  const trackSrc = await read("js/track.js");
+  assert.match(trackSrc, /env\.followAnchors/);
+  assert.match(trackSrc, /function applyUserSurf\(/);
+  assert.match(trackSrc, /if \(attract === false\) return/);
+  assert.match(rc, /followAnchors: !!R\.followAnchors/);
 
   // Pure routing helpers, exercised against the real source.
   const helper = await importEditorGeom();
@@ -667,6 +699,28 @@ test("a hand-picked pass-by drives the item the editor marked, and only once", a
   // riding it means holding a surface at its height, whether or not a deck is
   // drawn there (the ride itself is bare — that is the point of home mode)
   assert.ok(onBed.every((p) => p.hold), "a ride sample with nothing to drive on");
+});
+
+test("a user-drawn home route follows its points and can pin a road stretch", async () => {
+  const anchors = [
+    { x: 80, z: 80, surf: "road" },
+    { x: 520, z: 80 },
+    { x: 520, z: 520 },
+    { x: 80, z: 520 },
+  ];
+  const { road } = await buildHomeRoad(undefined, anchors, { followAnchors: true });
+  assert.ok(road && road.feats.home);
+  assert.equal(road.feats.follow, true);
+  // The driven line stays near the handles instead of A* wandering off.
+  const nearFirst = road.center.filter(
+    (p) => Math.hypot(p.x - 80, p.z - 80) < 40 || Math.hypot(p.x - 520, p.z - 80) < 40,
+  );
+  assert.ok(nearFirst.length > 2, "follow mode left the user's corners");
+  const onFirstLeg = road.center.filter((p) => p.x > 90 && p.x < 500 && p.z < 160);
+  assert.ok(
+    onFirstLeg.some((p) => p.deck),
+    "a section marked as road is still painted as floor",
+  );
 });
 
 test("the RC pass-by tool edits intent and keeps rule and points together", async () => {
@@ -818,7 +872,8 @@ test("RC difficulty drives skill, the rubber band and item aggression", async ()
   // kart.js reads the aggression off the car, and still behaves as before when
   // the field is absent
   assert.match(kart, /var ag = car\.aiItems == null \? 1 : car\.aiItems;/);
-  assert.match(kart, /car\.aiItemT = now \+ 260 \/ ag;/);
+  // ag <= 0 must never produce an Infinity/negative item cooldown
+  assert.match(kart, /car\.aiItemT = now \+ \(ag > 0\.05 \? 260 \/ ag : 5200\);/);
 });
 
 test("the RC minimap colours elevation against the circuit's own floor", async () => {
@@ -913,4 +968,172 @@ test("RC race craft drafts, passes, looks back and shows live rival gaps", async
   assert.equal(draftAt(0, -10), 0, "a truck behind is not a draft");
   assert.equal(draftAt(18, 2), 0, "a truck beside is not a draft");
   assert.ok(draftAt(0, 6) > draftAt(0, 18), "closer ahead drafts harder");
+});
+
+// ---------------------------------------------------------------------------
+// QA round: bugs found by playing the game in a real browser, pinned here.
+// ---------------------------------------------------------------------------
+
+test("the results camera never outlives the results screen", async () => {
+  const rc = await readRC();
+  // finishRace parks the view on an orbit of the winner (R.cam.results). Two
+  // paths used to leave it set forever: dismissing the sheet with Escape, and
+  // quitting the mode from the results screen. Both froze the chase camera
+  // and — because footStep was nested under the camera branch — the on-foot
+  // figure too.
+  assert.match(
+    rc,
+    /R\.hud\.results\.classList\.remove\("on"\);\s*\n\s*\/\/[^]*?R\.cam\.results = null;/,
+    "Escape on the results sheet must drop the orbit camera",
+  );
+  assert.match(rc, /R\.race = null;\s*\n\s*R\.cam\.results = null;/, "toggleRC(false) clears it");
+  // On-foot movement is simulation: it runs beside the camera selection, not
+  // inside the branch that picks which camera owns the frame.
+  assert.match(rc, /if \(R\.phase === "foot" && R\.fig\) footStep\(dt, pInput\);\s*\n\s*\/\/ player view/);
+  assert.match(rc, /\/\/ player view[\s\S]*?else if \(R\.phase === "foot" && R\.fig\) \{\s*\n\s*R\.fig\.camYaw/);
+  assert.doesNotMatch(rc, /else if \(R\.phase === "foot" && R\.fig\) \{\s*\n\s*footStep/);
+});
+
+test("room requirements and the RC race no longer share one i18n key", async () => {
+  const [i18n, html] = await Promise.all([read("js/i18n.js"), read("index.html")]);
+  // rc_title was defined twice per locale; the second definition ("RC Truck
+  // Race") won, so the planner's constraints panel announced itself as a race.
+  assert.match(i18n, /rcon_title: "דרישות חדר"/);
+  assert.match(i18n, /rcon_title: "Room requirements"/);
+  assert.match(html, /data-i18n="rcon_title"/);
+  assert.equal((i18n.match(/\brc_title:/g) || []).length, 2, "rc_title = the race, once per locale");
+});
+
+test("the editor ghost line updates its buffer in place", async () => {
+  const ed = await readEditor();
+  // The old code disposed the ghost line's geometry and built a fresh one on
+  // every edit — under WebGPU that destroyed buffers mid-submit and flooded
+  // the console with GPUValidationError once per frame.
+  assert.match(ed, /attr\.needsUpdate = true;\s*\n\s*gm\.setDrawRange\(0, pts\.length\);/);
+  assert.doesNotMatch(ed, /ST\.D\.ghost\.geometry = gm;/);
+  // a bigger route still grows the buffer — but only then
+  assert.match(ed, /if \(!attr \|\| attr\.count < pts\.length\)/);
+});
+
+test("rival gaps stay readable when the player is stationary", async () => {
+  const rc = await readRC();
+  // gap = distance / max(22, |v|): a parked truck used to read "166.69" for a
+  // rival one corner ahead. Capped, and one decimal like any timing tower.
+  assert.match(rc, /s > 99\.9 \? "99\.9\+" : s\.toFixed\(1\)/);
+  assert.doesNotMatch(rc, /Math\.abs\(aPos - me\) \/ spd\)\.toFixed\(2\)/);
+});
+
+test("a race the player cannot finish still offers an ending", async () => {
+  const [rc, i18n] = await Promise.all([readRC(), read("js/i18n.js")]);
+  // Only the player crossing the line armed the finish grace: if every rival
+  // was home and the player was stuck, the race could never end.
+  assert.match(rc, /rc_field_done/);
+  assert.match(rc, /if \(aiGone && lastAi && now - lastAi > FINISH_GRACE_MS\)/);
+  assert.match(i18n, /rc_field_done: "כל היריבים סיימו — דלג לתוצאות"/);
+  assert.match(i18n, /rc_field_done: "Field's home — skip to results"/);
+});
+
+test("a wedged truck is told about the rescue key", async () => {
+  const [rc, i18n] = await Promise.all([readRC(), read("js/i18n.js")]);
+  assert.match(rc, /function updateStuckHint\(pc, input, now\)/);
+  assert.match(rc, /updateStuckHint\(pc, pInput, now\);/);
+  assert.match(i18n, /rc_stuck: "🔧 תקוע\? הקש R לחילוץ"/);
+  assert.match(i18n, /rc_stuck: "🔧 Stuck\? Press R to rescue"/);
+});
+
+test("RC mode has a top-level keyboard shortcut like walk and photo", async () => {
+  const [ui, html, i18n] = await Promise.all([
+    read("js/ui.js"), read("index.html"), read("js/i18n.js"),
+  ]);
+  assert.match(ui, /e\.key === "c" \|\| e\.key === "C"[\s\S]*?runAction\("rc"\)/);
+  assert.match(ui, /\["C", "k_rc"\]/);
+  assert.match(html, /<button data-act="rc" role="menuitem">[\s\S]*?<kbd class="menu-kbd">C<\/kbd>/);
+  assert.match(i18n, /k_rc: "מרוץ משאיות RC"/);
+  assert.match(i18n, /k_rc: "RC truck race"/);
+});
+
+test("waypoint checks survive an empty or rebuilt track", async () => {
+  const rc = await readRC();
+  // checkWaypoints dereferenced R.track.wps[car.next] unguarded — a track
+  // rebuilt mid-race (or one with no gates) threw inside the physics loop.
+  assert.match(rc, /var wps = R\.track && R\.track\.wps;\s*\n\s*if \(!wps \|\| !wps\.length \|\| !wps\[car\.next\]\) return;/);
+});
+
+test("one step-height constant drives physics, road builder and editor", async () => {
+  const [surface, track, rc, edState] = await Promise.all([
+    read("js/road_surface.js"), read("js/track.js"), readRC(), read("js/rc_editor_state.js"),
+  ]);
+  assert.match(surface, /export const STEP_UP = 2\.2;/);
+  assert.match(track, /import \{ STEP_UP \} from "\.\/road_surface\.js";/);
+  assert.doesNotMatch(track, /STEP_UP = 2\.2,/, "track.js keeps no private copy");
+  assert.match(rc, /export const STEP_H = STEP_UP;/);
+  assert.match(edState, /export const STEP_UP = SHARED_STEP_UP;/);
+  // …and the value itself still feeds the physics the tests above measure
+  const helper = await import(new URL("../js/road_surface.js", import.meta.url));
+  assert.equal(helper.STEP_UP, 2.2);
+});
+
+test("hot-loop sampling reuses caller scratch instead of allocating", async () => {
+  const [rc, surface] = await Promise.all([readRC(), read("js/road_surface.js")]);
+  assert.match(surface, /export function surfaceSampleAt\(tris, x, z, y, step, out\)/);
+  assert.match(rc, /car\.sampScratch \|\| \(car\.sampScratch = \{ height: 0, normal: null \}\)/);
+  // the per-frame sort-copy and per-substep point allocations are gone too
+  // (showResults sorting once per race is fine and stays)
+  assert.match(rc, /var placeScratch = \[\]/);
+  assert.match(
+    rc,
+    /placeScratch\.length = 0;\s*\n\s*for \(var i = 0; i < R\.cars\.length; i\+\+\) placeScratch\.push\(R\.cars\[i\]\);/,
+  );
+  assert.match(rc, /var moveScratch = \{ x: 0, z: 0 \};/);
+
+  // …and the out-param returns identical geometry to the allocating call
+  const helper = await import(new URL("../js/road_surface.js", import.meta.url));
+  const tris = [
+    { ax: 0, ay: 2, az: 0, bx: 10, by: 4, bz: 0, cx: 10, cy: 8, cz: 10, minx: 0, maxx: 10, minz: 0, maxz: 10 },
+  ];
+  const fresh = helper.surfaceSampleAt(tris, 4, 2, 3, 2.2);
+  const scratch = { height: 0, normal: null };
+  const reused = helper.surfaceSampleAt(tris, 4, 2, 3, 2.2, scratch);
+  assert.equal(reused, scratch, "out object is returned, not copied");
+  assert.equal(reused.height, fresh.height);
+  assert.deepEqual(reused.normal, fresh.normal);
+  assert.equal(helper.surfaceSampleAt(tris, 99, 99, 0, 2.2, scratch), null, "a miss stays null even with scratch");
+});
+
+test("spray droplets share geometry and material", async () => {
+  const rc = await readRC();
+  // A droplet used to be its own SphereGeometry + MeshBasicMaterial, disposed
+  // per particle: a puddle spent more time allocating than driving.
+  assert.match(rc, /new THREE\.Mesh\(sprayGeo, sprayMat\)/);
+  assert.match(rc, /s\.m\.scale\.setScalar\(s\.r \* Math\.max\(0\.05, 1 - age \* 1\.4\)\)/);
+  const sprayDeath = /if \(age > 0\.7 \|\| s\.m\.position\.y < 0\) \{\s*\n\s*scene\.remove\(s\.m\);/;
+  assert.match(rc, sprayDeath);
+  // quitting the mode must not dispose the shared resources per droplet
+  assert.match(rc, /R\.spray\.forEach\(function \(s\) \{\s*\n\s*scene\.remove\(s\.m\);/);
+});
+
+test("teardown never disposes a Sprite's shared singleton geometry", async () => {
+  const [ed, rc, ghost, mp] = await Promise.all([
+    readEditor(), readRC(), read("js/rc_ghost.js"), read("js/rc_mp.js"),
+  ]);
+  // A Sprite's geometry is a module-level singleton inside three — disposing it
+  // in a bulk traverse takes out every sprite in the app (car halos, item FX),
+  // and the WebGPU renderer then errors once per frame on the destroyed buffer.
+  // kart.js and rc_mp.js already guard; the editor's clear3d/sync3d, the
+  // track's disposeGrp and the ghost teardown were missing the guard.
+  assert.match(ed, /function disposeNode\(o\) \{\s*\n\s*if \(o\.geometry && !o\.isSprite\) o\.geometry\.dispose\(\);/);
+  assert.match(ed, /ST\.D\.grp\.traverse\(disposeNode\)/);
+  assert.match(ed, /h\.traverse\(disposeNode\)/);
+  assert.match(rc, /if \(o\.geometry && o\.geometry\.dispose && !o\.isSprite\) o\.geometry\.dispose\(\);/);
+  assert.match(ghost, /if \(o\.geometry && o\.geometry\.dispose && !o\.isSprite\) o\.geometry\.dispose\(\);/);
+  assert.match(mp, /if \(o\.isSprite\)/); // the original guard, still present
+});
+
+test("the editor map's deferred paint dies with the editor", async () => {
+  const [ed, map] = await Promise.all([readEditor(), read("js/rc_editor_map.js")]);
+  // draw() schedules a rAF; closing the editor before it fired threw
+  // "Cannot set properties of null (setting 'drawReq')" once per close.
+  assert.match(map, /var D = ST\.D;\s*\n\s*D\.drawReq = requestAnimationFrame/);
+  assert.match(map, /if \(ST\.D !== D\) return;/);
+  assert.match(ed, /if \(ST\.D\.drawReq\) cancelAnimationFrame\(ST\.D\.drawReq\);/);
 });

@@ -11,6 +11,7 @@ import {
   wallOutline,
   wallCuts,
   wallClearLength,
+  wallDimSide,
   wallPointAt,
   wallProject,
   setWallEnd,
@@ -22,9 +23,9 @@ import {
   fitWallClearLength,
   setWallThicknessPreservingClear,
   setWallReference,
+  hangStraightRunOnFace,
   canWeld,
 } from "../js/constraint_engine.js";
-
 /* `S.nodes` stores a wall's LOCATION LINE. `w.loc: "face"` says that line is the
    face named by "Measured along" instead of the centreline — the only way two
    collinear walls of different thickness can join flush, because they meet at
@@ -228,7 +229,7 @@ test("a centreline dimension and a curved wall cannot be hung on a face", () => 
 
 test("the location line survives a save and a wall split", async () => {
   const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
-  assert.match(ui, /loc: w\.loc === "face" \? "face" : undefined/,
+  assert.match(ui, /loc: w\.loc === "face" \|\| w\.loc === "center" \? w\.loc : undefined/,
     "applyData's wall whitelist carries it");
   const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
   assert.match(interaction, /"dimSide", "loc"\]/,
@@ -258,7 +259,7 @@ test("re-hanging a wall keeps the corner and re-reads what the neighbours measur
 
   // ...and back again
   setWallReference(thick, { loc: "center" });
-  assert.equal(thick.loc, undefined);
+  assert.equal(thick.loc, "center");
   assert.equal(faceX(thick, 1), 83);
   assert.equal(JSON.stringify(S.nodes[1]), corner);
 });
@@ -365,4 +366,81 @@ test("framing members stand on the wall's own line", () => {
   assert.equal(hung.studs.map((m) => m.s).join(), centred.studs.map((m) => m.s).join(),
     "and their spacing along the wall is untouched");
   delete S.wallTypes;
+});
+
+function tJunction(tTop, tBot, tBranch = 20) {
+  S.interiorDims = true;
+  S.roomMeta = {};
+  S.openings = [];
+  S.items = [];
+  S.nodes = [
+    { x: 100, z: 0 },
+    { x: 100, z: 200 },
+    { x: 100, z: 400 },
+    { x: 300, z: 200 },
+  ];
+  S.walls = [
+    { id: 1, a: 0, b: 1, thickness: tTop, height: 270 },
+    { id: 2, a: 1, b: 2, thickness: tBot, height: 270 },
+    { id: 3, a: 1, b: 3, thickness: tBranch, height: 270 },
+  ];
+  syncClears();
+  syncLocks();
+}
+function branchButtsInterior(branch, through) {
+  const interior = faceX(through, through.dimSide);
+  const node = S.nodes[branch.a === 1 ? 1 : branch.b];
+  const o = wallOutline(branch);
+  const reach = (through.thickness || 0) + (branch.thickness || 0);
+  return o.some((p) => {
+    if (Math.hypot(p.x - node.x, p.z - node.z) > reach) return false;
+    return Math.abs(p.x - interior) < 0.6 || Math.abs(p.z - interior) < 0.6;
+  });
+}
+
+test("Whole run flushes the interior of a mixed-thickness T without tearing off the branch", () => {
+  tJunction(34, 20);
+  const [top, bot, branch] = S.walls;
+  const junction = JSON.stringify(S.nodes[1]);
+
+  hangStraightRunOnFace(top, wallDimSide(top));
+
+  assert.equal(JSON.stringify(S.nodes[1]), junction, "the T-node stays put, so the branch stays welded");
+  assert.equal(top.loc, "face");
+  assert.equal(bot.loc, "face");
+  assert.equal(branch.a, 1, "the 90° wall still shares the junction");
+  assert.ok(Math.abs(faceX(top, top.dimSide) - faceX(bot, bot.dimSide)) < 0.05, "the interior is one straight line");
+  assert.ok(
+    Math.abs(Math.abs(faceX(top, -top.dimSide) - faceX(bot, -bot.dimSide)) - (top.thickness - bot.thickness)) < 0.05,
+    "the whole thickness step lands on the far side",
+  );
+  assert.ok(branchButtsInterior(branch, top) && branchButtsInterior(branch, bot),
+    "the branch still meets both through-walls");
+  assert.ok(Math.abs(wallCuts(branch).a) < 0.5, "the branch butts at the flush interior, not short of it");
+});
+
+test("thickening one wall of a T-run flushes the interior automatically", () => {
+  tJunction(20, 20);
+  const [top, bot, branch] = S.walls;
+
+  setWallThicknessPreservingClear(top, 34, "a");
+
+  assert.equal(top.loc, "face", "the run was hung on the interior without a Whole run click");
+  assert.equal(bot.loc, "face");
+  assert.equal(branch.a, 1);
+  assert.ok(Math.abs(faceX(top, top.dimSide) - faceX(bot, bot.dimSide)) < 0.05, "interiors stay flush");
+  assert.ok(branchButtsInterior(branch, top) && branchButtsInterior(branch, bot),
+    "the 90° wall is still joined");
+});
+
+test("an explicit centreline run keeps the step on both faces", () => {
+  tJunction(20, 20);
+  const [top, bot] = S.walls;
+  top.loc = "center";
+  bot.loc = "center";
+
+  setWallThicknessPreservingClear(top, 34, "a");
+
+  assert.equal(top.loc, "center", "the opt-out is honoured");
+  assert.ok(Math.abs(faceX(top, 1) - faceX(bot, 1)) > 1, "both faces still step");
 });

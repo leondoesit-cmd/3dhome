@@ -21,9 +21,9 @@
 // The relay never inspects `data` — chat, poses, scene JSON and WebRTC
 // signaling all ride through it opaquely.
 //
-// It also exposes ONE small HTTP API, /api/prodsize (see below): the browser
-// cannot read retailer pages itself (no CORS headers anywhere), so real-world
-// product-dimension lookups are proxied here.
+// It exposes two small HTTP APIs: /api/prodsize (public product-dimension
+// lookups; the browser cannot read retailer pages itself) and /api/smarthome
+// (LAN-only Home Assistant / Hue / Shelly proxy; private IPs, short port list).
 
 import { createServer } from "node:http";
 import { createHash, timingSafeEqual } from "node:crypto";
@@ -32,9 +32,9 @@ import { brotliCompressSync, gzipSync } from "node:zlib";
 import { join, extname, normalize, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { lookupProduct } from "../js/prodsize.js";
-import { resolvePublicUrl, safeHttpGet, safeStaticFile } from "./security.mjs";
+import { resolvePublicUrl, safeHttpGet, safeLanRequest, safeStaticFile } from "./security.mjs";
 
-const PORT = parseInt(process.argv[2], 10) || 8765;
+const PORT = parseInt(process.argv[2], 10) || parseInt(process.env.PORT, 10) || 8765;
 const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), ".."));
 const IDENTITIES_FILE =
   process.env.HOME3D_IDENTITIES_FILE || join(ROOT, "server", ".relay-identities.json");
@@ -49,6 +49,16 @@ const MIME = {
   ".jpg": "image/jpeg",
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".jpeg": "image/jpeg",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+  ".wasm": "application/wasm",
+  ".gz": "application/gzip",
+  ".txt": "text/plain; charset=utf-8",
+  ".map": "application/json",
   ".md": "text/markdown; charset=utf-8",
 };
 const staticCache = new Map();
@@ -221,11 +231,71 @@ function json(res, code, obj) {
   res.end(body);
 }
 
+function readJsonBody(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        req.destroy();
+        reject(new Error("too large"));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      const raw = Buffer.concat(chunks, size).toString("utf8");
+      if (!raw) return resolve({});
+      try { resolve(JSON.parse(raw)); }
+      catch (err) { reject(err); }
+    });
+    req.on("error", reject);
+  });
+}
+
+// POST /api/smarthome  { url, method, headers, body }
+// Browser CORS blocks Home Assistant / Hue / Shelly on the LAN. This proxy
+// forwards only to private/loopback/.local hubs on a short port allow-list.
+async function smarthomeProxy(req, res) {
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, {
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "content-type",
+    });
+    return res.end();
+  }
+  if (req.method !== "POST") return json(res, 405, { error: "POST only" });
+  if (req.headers.origin && !allowedOrigin(req)) return json(res, 403, { error: "origin" });
+  let payload;
+  try {
+    payload = await readJsonBody(req, 300 * 1024);
+  } catch (err) {
+    return json(res, 400, { error: String(err && err.message ? err.message : err) });
+  }
+  const url = typeof payload.url === "string" ? payload.url.trim() : "";
+  if (!url || url.length > 2048) return json(res, 400, { error: "bad url" });
+  const method = typeof payload.method === "string" ? payload.method : "GET";
+  const out = await safeLanRequest(url, {
+    method,
+    headers: payload.headers,
+    body: payload.body,
+  });
+  json(res, 200, {
+    ok: !!out.ok,
+    status: out.status,
+    text: typeof out.text === "string" ? out.text.slice(0, 512 * 1024) : "",
+    url: out.url,
+    error: out.error || undefined,
+  });
+}
+
 // ---- static app ------------------------------------------------------------
 const http = createServer(async (req, res) => {
   const u = new URL(req.url || "/", "http://localhost");
   if (u.pathname === "/api/prodsize") return prodsize(u, res);
-  if (u.pathname === "/api/ping") return json(res, 200, { ok: true, api: ["prodsize"] });
+  if (u.pathname === "/api/smarthome") return smarthomeProxy(req, res);
+  if (u.pathname === "/api/ping") return json(res, 200, { ok: true, api: ["prodsize", "smarthome"] });
   try {
     const file = await safeStaticFile(ROOT, u.pathname);
     if (!file) throw 0;

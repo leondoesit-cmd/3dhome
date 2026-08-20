@@ -9,7 +9,7 @@
 // it is a hook rather than an import so the graph stays acyclic.
 
 import { t } from "./i18n.js";
-import { ST, ANG_SNAP, GHOST_SEG, L, editorActive, fin, clamp, cloneAnchors } from "./rc_editor_state.js";
+import { ST, ANG_SNAP, GHOST_SEG, L, editorActive, fin, clamp, cloneAnchors, copyAnchor } from "./rc_editor_state.js";
 import {
   anchorY, clearAt, ghostLine, halfRoad, insertSpot, roomySpot, segmentMid,
   validate,
@@ -28,6 +28,8 @@ export const views = {
   tip: () => {},
   editorSynced: () => {},
   refreshFaces: () => {},
+  refreshFollow: () => {},
+  refreshHud: () => {},
 };
 export function setViews(v) {
   Object.assign(views, v);
@@ -114,9 +116,11 @@ export function autoFix() {
     else i++;
   }
   pts = pts.map(function (a) {
+    if (a.ride) return copyAnchor(a);
     var s = roomySpot(a.x, a.z, anchorY(a));
-    var out = { x: s.x, z: s.z };
-    if (fin(a.y)) out.y = a.y;
+    var out = copyAnchor(a);
+    out.x = s.x;
+    out.z = s.z;
     return out;
   });
   // Clear points aren't enough: the smoothed curve between two of them can
@@ -181,6 +185,55 @@ export function snapTip(e) {
   views.tip(e && e.shiftKey ? "▦ " + (ST.D.gridStep || 25) + "cm" : e && (e.ctrlKey || e.metaKey) ? "∠ 15°" : "●");
 }
 
+export function noteUserEdit() {
+  if (!ST.D || ST.D.follow) return;
+  ST.D.follow = true;
+  ST.E.cfg.followAnchors = true;
+  views.refreshFollow();
+  if (ST.E.cfg.homeMode)
+    ST.E.msg(L("עכשיו המסלול עוקב אחרי הנקודות ✋", "The track now follows your points ✋"), 1800);
+}
+
+export function setFollow(on, silent) {
+  on = !!on;
+  if (!ST.D) return;
+  var prev = !!ST.D.follow;
+  ST.D.follow = on;
+  ST.E.cfg.followAnchors = on;
+  views.refreshFollow();
+  views.refreshHud();
+  if (silent || prev === on) return;
+  ST.E.save();
+  scheduleBuild(0);
+  ST.E.msg(
+    on
+      ? L("המסלול עוקב אחרי הנקודות שלך ✋", "Track follows your points ✋")
+      : L("מחפש דרך סביב הרהיטים 🪄", "Finding a path around furniture 🪄"),
+    1800,
+  );
+}
+
+export function setSegmentSurf(i, surf) {
+  if (i < 0 || !ST.D.anchors[i]) return;
+  if (surf !== "road" && surf !== "home") surf = "";
+  pushHist();
+  if (surf) ST.D.anchors[i].surf = surf;
+  else delete ST.D.anchors[i].surf;
+  noteUserEdit();
+  writeThrough();
+  views.refreshSelection();
+  views.draw();
+  scheduleBuild(0);
+  ST.E.msg(
+    surf === "road"
+      ? L("המקטע יהיה כביש בנוי 🛣️", "This section will be a built road 🛣️")
+      : surf === "home"
+        ? L("המקטע יישאר על הרצפה/רהיט 🏠", "This section stays on the floor or model 🏠")
+        : L("המקטע ייבחר אוטומטית", "This section uses automatic surface"),
+    1600,
+  );
+}
+
 export function writeThrough(save) {
   ST.E.cfg.customAnchors = ST.D.anchors.map(function (a) {
     var out = { x: Math.round(a.x * 10) / 10, z: Math.round(a.z * 10) / 10 };
@@ -189,8 +242,10 @@ export function writeThrough(save) {
     // the editor needs `f` to know which pass-by rule owns it
     if (a.ride) out.ride = true;
     if (a.f) out.f = a.f;
+    if (a.surf === "road" || a.surf === "home") out.surf = a.surf;
     return out;
   });
+  ST.E.cfg.followAnchors = !!ST.D.follow;
   ST.E.cfg.faceRules = (ST.D.faces || []).map(function (r) {
     return { id: r.id, key: r.key, kind: r.kind, name: r.name, face: r.face, ride: !!r.ride, flip: !!r.flip };
   });
@@ -280,19 +335,26 @@ export function setAnchors(next, opts) {
   if (!opts.live) pushHist();
   ST.D.anchors = next;
   ST.D.ghostPts = ghostLine(ST.D.anchors);
+  if (opts.preset || opts.follow === false) {
+    ST.D.follow = false;
+    ST.E.cfg.followAnchors = false;
+  } else if (!opts.live && !opts.keepFollow) noteUserEdit();
   writeThrough(!opts.live);
   views.sync3d();
   views.stats();
   views.refreshSelection();
   views.refreshFaces();
+  views.refreshFollow();
   views.draw();
   if (!opts.live) scheduleBuild(opts.delay);
 }
 
-export function addAnchor(x, z, append, y) {
+export function addAnchor(x, z, append, y, ride) {
   var pts = ST.D.anchors.slice();
   var at = append || pts.length < 2 ? pts.length : insertSpot(pts, x, z).i;
-  pts.splice(at, 0, snapFree(x, z, y));
+  var a = snapFree(x, z, y, ride ? { ride: true } : null);
+  if (ride) a.ride = true;
+  pts.splice(at, 0, a);
   ST.D.sel = at;
   setAnchors(pts, { delay: 0 });
   ST.E.beep(660, 0.06, 0.2);
@@ -315,7 +377,7 @@ export function nudgeSelected(dx, dz) {
   var a = pts[ST.D.sel];
   // Precision controls are deliberately literal. Collision-aware snapping is
   // for map/3D dragging; a 5cm nudge must never turn into a surprising jump.
-  pts[ST.D.sel] = { x: a.x + dx, z: a.z + dz };
+  pts[ST.D.sel] = Object.assign(copyAnchor(a), { x: a.x + dx, z: a.z + dz });
   setAnchors(pts, { delay: 0 });
   views.tip(L("נקודה הוזזה בדיוק", "Point nudged precisely"));
 }
@@ -326,7 +388,7 @@ export function setSelectedCoords(x, z) {
     return;
   }
   var pts = ST.D.anchors.slice();
-  pts[ST.D.sel] = { x: x, z: z };
+  pts[ST.D.sel] = Object.assign(copyAnchor(ST.D.anchors[ST.D.sel]), { x: x, z: z });
   setAnchors(pts, { delay: 0 });
 }
 
@@ -344,6 +406,7 @@ export function snapFree(x, z, y, src) {
   if (fin(y)) out.y = y;
   if (src && src.f) out.f = src.f;
   if (src && src.ride) out.ride = true;
+  if (src && (src.surf === "road" || src.surf === "home")) out.surf = src.surf;
   return out;
 }
 
@@ -356,5 +419,5 @@ export function applyPreset(kind) {
     ST.E.presets.auto(rs);
   if (!pts || pts.length < 3) pts = ST.E.presets.oval(rs);
   ST.D.sel = ST.D.seg = -1;
-  setAnchors(cloneAnchors(pts), { delay: 0 });
+  setAnchors(cloneAnchors(pts), { delay: 0, preset: true });
 }

@@ -26,6 +26,26 @@ export var TXT = {
   original: ["עיצוב מקורי", "Original design"],
   modified: ["שינויים בפעולה", "Session changed"],
   close: ["סיום", "Done"],
+  /* ---- compact (phone / foldable) chrome — js/ui_cabinet_mobile.js ---- */
+  mView: ["תצוגה", "View"],
+  mTools: ["כלים", "Tools"],
+  mDesign: ["עיצוב", "Design"],
+  mProps: ["מאפיינים", "Properties"],
+  mMore: ["עוד", "More"],
+  mSheetView: ["בחירת תצוגה", "Choose view"],
+  mSheetTools: ["כלי שרטוט", "Drawing tools"],
+  mSheetMore: ["מידות ותפריט", "Size & menu"],
+  mEndTool: ["ביטול", "Cancel"],
+  mEdit: ["ערוך", "Edit"],
+  mSplit: ["חלק", "Split"],
+  mDel: ["מחק", "Delete"],
+  mAxis: ["כיוון מבט", "Viewpoint"],
+  mAxfl: ["קדמי־שמאל", "Front-left"],
+  mAxfr: ["קדמי־ימין", "Front-right"],
+  mAxbl: ["אחורי־שמאל", "Back-left"],
+  mAxbr: ["אחורי־ימין", "Back-right"],
+  mLevels: ["רמת עריכה", "Editing level"],
+  mExtras: ["פעולות", "Actions"],
   cancelTip: ["יציאה ללא שמירה (Esc)", "Discard and close (Esc)"],
   revert: ["בטל שינויים", "Revert"],
   history: ["היסטוריה", "History"],
@@ -180,6 +200,20 @@ export var TXT = {
   hint3d: [
     "גררו לסיבוב · גלגלת לזום · 2 לדו מימד",
     "Drag to orbit · wheel to zoom · press 2 for 2D",
+  ],
+  /* Touch wording for the compact layout: the desktop hints name a wheel, a
+     Shift key and a keyboard shortcut, none of which a phone has. */
+  hint3dT: [
+    "גררו לסיבוב · צביטה לזום",
+    "Drag to orbit · pinch to zoom",
+  ],
+  hintT: [
+    "הקישו על תא לעריכה · גררו מחיצה · הקשה כפולה = מידה מדויקת",
+    "Tap a compartment · drag a divider · double-tap for an exact size",
+  ],
+  hintHT: [
+    "הקישו בגובה המדף",
+    "Tap at the shelf height",
   ],
   hintRO: [
     "מבט לצפייה בלבד — העריכה מתבצעת במבט החזית",

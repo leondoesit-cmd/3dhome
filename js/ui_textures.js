@@ -146,7 +146,7 @@ function createTextureGalleryModal() {
   }
 
   modalEl.innerHTML = `
-    <div class="tex-modal-container" role="dialog" aria-modal="true" aria-labelledby="texGalleryTitle" dir="${isHe ? "rtl" : "ltr"}">
+    <div class="tex-modal-container" role="dialog" aria-modal="true" aria-labelledby="texGalleryTitle">
       <header class="tex-modal-header">
         <div class="tex-modal-title">
           <span class="tex-title-icon"><i class="ph ph-paint-brush-broad"></i></span>

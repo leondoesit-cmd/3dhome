@@ -102,8 +102,8 @@ function pointSegmentDistance(x, y, a, b) {
 /* Returns the nearest placed distance annotation. The generous label box is
    deliberate: dimensions are grabbed with a mouse or a finger, not selected
    as one-pixel drafting strokes. */
-export function hitSketchDimension(sketch, x, y, toPx, tolerance = 9) {
-  let best = null, bestDistance = Infinity;
+export function hitSketchDimensionHit(sketch, x, y, toPx, tolerance = 9) {
+  let best = null, bestDistance = Infinity, bestKind = "line";
   for (const constraint of sketch && sketch.constraints || []) {
     if (constraint.suppressed || constraint.type !== "distance") continue;
     const layout = distanceDimensionLayout(sketch, constraint, toPx);
@@ -116,9 +116,15 @@ export function hitSketchDimension(sketch, x, y, toPx, tolerance = 9) {
     if (distance <= tolerance && distance < bestDistance) {
       best = constraint;
       bestDistance = distance;
+      bestKind = inLabel ? "label" : "line";
     }
   }
-  return best;
+  return best ? { constraint: best, kind: bestKind } : null;
+}
+
+export function hitSketchDimension(sketch, x, y, toPx, tolerance = 9) {
+  const hit = hitSketchDimensionHit(sketch, x, y, toPx, tolerance);
+  return hit ? hit.constraint : null;
 }
 
 export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], options = {}) {

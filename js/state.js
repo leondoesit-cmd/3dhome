@@ -147,9 +147,12 @@ export const S = {
     typeId: "generic",
     kind: "normal",
     datum: "center",
+    loc: "center",
+    dimSide: 0,
+    from: "center",
     phase: "new",
+    offsetDist: 120,
   },
-  arcDraft: null,
   openings: [],
   items: [],
   // placeholder points on the plan (see js/markers.js): a marked spot that
@@ -180,6 +183,16 @@ export const S = {
   sel: null,
   dirty3D: true,
   snapObj: true,
+  /* Automatic facing for a dropped/dragged piece (js/item_orient.js): a sink
+     looks out of the counter, a bed puts its head on the wall, a chair faces
+     the table. Off = every piece arrives at 0° the way it always did. */
+  autoFace: true,
+  /* transient, one gesture only: Alt held during an item drag, which suspends
+     the automatic facing so the piece keeps the angle it has. endAction()
+     clears it — "just this once" must not become a setting. */
+  orientHold: false,
+  // how far one press of the rotate buttons / the R key turns: 15, 45 or 90
+  rotStep: 15,
   /* Drafting aids, CAD-style and individually toggleable from the plan status
      bar (F3 / F8 / F9). They gate snapPoint(), which is the single resolver
      every drawing and corner-drag gesture goes through:
@@ -286,6 +299,9 @@ export const S = {
   // snapFlashKey is what it snapped TO, so holding a snap does not strobe.
   snapFlash: null,
   snapFlashKey: null,
+  // true only while a finger is dragging: gates the snap haptic (a mouse drag
+  // has the blink and needs no buzz)
+  touchDrag: false,
   // transient: drafting guides while drawing/dragging a wall corner.
   // [{ x1,z1, x2,z2 }] — a dashed line from the corner being aligned WITH to
   // the point being placed, so "square with that corner over there" is visible.
@@ -349,6 +365,7 @@ export const S = {
   wallAngleGuide: null,
   hoverItem: null, // item under the cursor (select tool, not dragging) -> distance overlay
   hoverPt: null, // {x,z} world cursor position -> always-on distance overlay
+  eraseHover: null, // {kind, ref} object the eraser is about to delete
   // placeholder point under the cursor -> its clearances plus a small info card
   // in the plan, so a point can be read without selecting it
   hoverMarker: null,
@@ -376,6 +393,12 @@ export const S = {
   // the gesture ends instead of on every frame of it
   jointsReleased: 0,
   drawing: false,
+  // first node of the current wall polyline — auto-close magnets back to it
+  drawStart: null,
+  // parallel-offset tool: { hostId, dist, side }
+  offsetDraft: null,
+  // join-walls tool: first wall waiting for its collinear partner
+  joinPick: null,
   // three-click curved-wall placement (start, end, point on arc)
   arcDraft: null,
   // two-click rectangle-room placement: first corner, then opposite corner

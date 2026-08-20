@@ -1,4 +1,5 @@
 import { S } from "./state.js";
+import { t } from "./i18n.js";
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const makeId = () => "floor-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -298,7 +299,9 @@ export function ensureFloors() {
   if (typeof S.workspace.referenceFloor !== "string") S.workspace.referenceFloor = "";
   if (typeof S.workspace.showReferenceFloor !== "boolean") S.workspace.showReferenceFloor = false;
   if (!S.workspace.floors.length) {
-    S.workspace.floors.push({ id: "floor-1", name: "Ground floor", elevation: 0, scene: clone(sceneObject(false)) });
+    // the auto-created first floor is the one name the user did not choose, so
+    // it should at least appear in their language rather than a hardcoded "Ground floor"
+    S.workspace.floors.push({ id: "floor-1", name: t("floor_ground_name"), elevation: 0, scene: clone(sceneObject(false)) });
     S.workspace.activeFloor = "floor-1";
   }
   return S.workspace.floors;

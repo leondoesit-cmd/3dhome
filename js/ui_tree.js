@@ -262,6 +262,12 @@ function offerNewRooms(list) {
   input.placeholder = t("room_new_ph");
   input.value = suggested; // untouched = the automatic name, as asked
   m.body.appendChild(input);
+  /* Naming the room is the whole point of the dialog, so put the caret in the
+     field and select the suggestion — typing replaces it, Enter accepts it.
+     Focus has to wait a frame: the overlay is appended in the same tick. */
+  requestAnimationFrame(function () {
+    try { input.focus(); input.select(); } catch (e) {}
+  });
 
   function accept() {
     if (decided) return;

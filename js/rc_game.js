@@ -300,6 +300,7 @@ function hudFlash(strength) {
 }
 
 // 1st / 2nd / 3rd… by lap, gate and distance to the next gate
+var placeScratch = []; // runs every frame — never allocate the sort copy
 function updatePlaces() {
   var wps = R.track && R.track.wps;
   R.cars.forEach(function (c) {
@@ -312,8 +313,9 @@ function updatePlaces() {
       d = Math.hypot(c.x - wps[c.next].x, c.z - wps[c.next].z);
     c.prog = c.lap * 100000 + c.next * 1000 - Math.min(999, d);
   });
-  R.cars
-    .slice()
+  placeScratch.length = 0;
+  for (var i = 0; i < R.cars.length; i++) placeScratch.push(R.cars[i]);
+  placeScratch
     .sort(function (a, b) {
       return b.prog - a.prog;
     })
@@ -443,11 +445,17 @@ function updateGaps(pc) {
     }
   }
   var spd = Math.max(22, Math.abs(pc.v));
+  // A stationary truck reads every lead as dist/22 seconds — cap the readout
+  // instead of showing "166.69" for a rival one corner away.
+  var fmtGap = function (d) {
+    var s = d / spd;
+    return s > 99.9 ? "99.9+" : s.toFixed(1);
+  };
   hud.gapA.textContent = ahead
-    ? "▲ " + (ahead.ai ? ahead.name : t("rc_you")) + " " + (Math.abs(aPos - me) / spd).toFixed(2)
+    ? "▲ " + (ahead.ai ? ahead.name : t("rc_you")) + " " + fmtGap(Math.abs(aPos - me))
     : "";
   hud.gapB.textContent = behind
-    ? "▼ " + (behind.ai ? behind.name : t("rc_you")) + " " + (Math.abs(me - bPos) / spd).toFixed(2)
+    ? "▼ " + (behind.ai ? behind.name : t("rc_you")) + " " + fmtGap(Math.abs(me - bPos))
     : "";
 }
 
@@ -469,6 +477,36 @@ function updateWrongWay(pc) {
   }
   hud.warn.classList.toggle("on", wrong);
   if (wrong) hud.warn.textContent = t("rc_wrong_way");
+}
+
+// Shared scratch objects for the per-substep hot paths. Read-only after fill;
+// the collision calls below mutate them in place and never retain them.
+var moveScratch = { x: 0, z: 0 };
+// Cars "on the flat" all share this instead of allocating a fresh up vector
+// several times per frame. Nothing ever mutates surfaceUp in place.
+var UP_FLAT = { x: 0, y: 1, z: 0 };
+
+// Throttle pinned but the truck isn't moving — it's wedged against something.
+// Say the rescue key out loud instead of letting the player grind HP into a
+// table leg (the hint re-arms slowly so it never spams).
+var lastStuckMsg = 0;
+function updateStuckHint(pc, input, now) {
+  var wedged =
+    !!(pc && !pc.dead) &&
+    R.phase === "drive" &&
+    !(R.race && R.race.state === "count") &&
+    !!(input.fwd || input.back) &&
+    Math.abs(pc.v) < 3 &&
+    pc.grounded !== false;
+  if (!wedged) {
+    R.stuckSince = 0;
+    return;
+  }
+  if (!R.stuckSince) R.stuckSince = now;
+  if (now - R.stuckSince > 2500 && now - lastStuckMsg > 9000) {
+    lastStuckMsg = now;
+    showMsg(t("rc_stuck"), 2600);
+  }
 }
 
 function updateSplitsHud(idx) {
@@ -1032,7 +1070,7 @@ function gridPlace(car, idx, total) {
   car.z = spot.z;
   car.y = groundAt(spot.x, spot.z, gy != null ? gy + STEP_H : 0, STEP_H);
   car.vy = 0;
-  car.surfaceUp = { x: 0, y: 1, z: 0 };
+  car.surfaceUp = UP_FLAT;
   car.grounded = true;
   car.heading = heading;
   car.v = 0;
@@ -1212,7 +1250,8 @@ function updateRings(nextIdx) {
 
 function checkWaypoints(car, now) {
   if (!R.race || car.done || car.dead) return;
-  var wps = R.track.wps;
+  var wps = R.track && R.track.wps;
+  if (!wps || !wps.length || !wps[car.next]) return;
   // minor (smoothing) points are generous and skippable: hitting the point
   // after a minor also counts, so a wide fluid line never strands the racer
   var cand = [car.next];
@@ -1455,7 +1494,9 @@ function carPhysics(car, dt, input, now) {
     moveFromZ = car.z,
     wasGrounded = car.grounded !== false,
     wasOnRoad = onRoad(car.x, car.z, car.y);
-  var p = { x: car.x, z: car.z };
+  var p = moveScratch; // per-substep collision point — reused, never retained
+  p.x = car.x;
+  p.z = car.z;
   var dx = Math.sin(car.heading) * car.v * dt,
     dz = Math.cos(car.heading) * car.v * dt;
   // continuous collision — fast karts no longer tunnel thin walls / rails
@@ -1527,12 +1568,14 @@ function carPhysics(car, dt, input, now) {
       ((car.wet ? WATER_SINK : 0) - (car.sink || 0)) * dampingFactor(6, dt);
   // vertical: climb ramps, launch off kickers, fall off edges under gravity
   var g = groundAt(car.x, car.z, car.y, STEP_H);
+  // one scratch per car: this sample runs per car per physics substep
   var roadSample = surfaceSampleAt(
     R.col && R.col.surface,
     car.x,
     car.z,
     car.y,
     STEP_H,
+    car.sampScratch || (car.sampScratch = { height: 0, normal: null }),
   );
   var roadSupport = roadSample && Math.abs(roadSample.height - g) < 0.08;
   // Stay attached while traversing a continuous descending road surface. A
@@ -1592,7 +1635,7 @@ function carPhysics(car, dt, input, now) {
   if (car.y <= g + 0.05) {
     if (roadSupport)
       car.surfaceUp = roadSample.normal;
-    else car.surfaceUp = { x: 0, y: 1, z: 0 };
+    else car.surfaceUp = UP_FLAT;
   }
   // Lakitu: dropped off the road → fished back onto the circuit. The trigger sits
   // just INSIDE the 12cm tolerance checkWaypoints allows, so a truck stranded on
@@ -1676,9 +1719,11 @@ function carVsCar(now) {
       b.x += nx * push;
       b.z += nz * push;
       // closing speed along the contact normal decides the damage
-      var av = { x: Math.sin(a.heading) * a.v, z: Math.cos(a.heading) * a.v };
-      var bv = { x: Math.sin(b.heading) * b.v, z: Math.cos(b.heading) * b.v };
-      var rel = (av.x - bv.x) * nx + (av.z - bv.z) * nz;
+      var avx = Math.sin(a.heading) * a.v,
+        avz = Math.cos(a.heading) * a.v,
+        bvx = Math.sin(b.heading) * b.v,
+        bvz = Math.cos(b.heading) * b.v;
+      var rel = (avx - bvx) * nx + (avz - bvz) * nz;
       var bFx = Math.sin(b.heading),
         bFz = Math.cos(b.heading);
       var aBehind = dx * bFx + dz * bFz > 0;
@@ -1696,8 +1741,8 @@ function carVsCar(now) {
       if (rel > 25 && now > a.hitCd && now > b.hitCd) {
         var dmg = (rel - 20) * 0.3;
         // the truck doing the ramming (faster along the contact normal) takes less
-        var aInto = av.x * nx + av.z * nz,
-          bInto = -(bv.x * nx + bv.z * nz);
+        var aInto = avx * nx + avz * nz,
+          bInto = -(bvx * nx + bvz * nz);
         var aRams = aInto > bInto;
         applyDamage(a, dmg * (aRams ? 0.7 : 1), now);
         applyDamage(b, dmg * (aRams ? 1 : 0.7), now);
@@ -1726,7 +1771,7 @@ function syncCarMesh(car) {
   // up axis follows the supporting triangle so banked/sloped roads cannot cut
   // through one side of the truck.
   var visualHeading = car.heading + (car.driftDir || 0) * 0.38;
-  var up = car.surfaceUp || { x: 0, y: 1, z: 0 };
+  var up = car.surfaceUp || UP_FLAT;
   carUp.set(up.x, up.y, up.z).normalize();
   carForward.set(Math.sin(visualHeading), 0, Math.cos(visualHeading));
   carForward.addScaledVector(carUp, -carForward.dot(carUp)).normalize();
@@ -1980,7 +2025,9 @@ function footStep(dt, input) {
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
     f.heading += diff * Math.min(1, dt * 12);
-    var p = { x: f.x, z: f.z };
+    var p = moveScratch;
+    p.x = f.x;
+    p.z = f.z;
     var fdx = (mx / l) * spd * dt,
       fdz = (mz / l) * spd * dt;
     if (moveCircle) moveCircle(p, fdx, fdz, FOOT_R, f.y, FOOT_CLEAR, FIG_STEP);
@@ -2107,7 +2154,7 @@ function chaseCam(tx, ty, tz, yaw, dist, height, lookH, dt, up, speed, boosting,
 // horizon instead of sliding the view through the tarmac.
 function insideCam(car, dt, now, cockpit, lookBack) {
   var camera = getMainCamera();
-  var up = car.surfaceUp || { x: 0, y: 1, z: 0 };
+  var up = car.surfaceUp || UP_FLAT;
   var yaw = car.heading + (car.driftDir || 0) * 0.38 + (lookBack ? Math.PI : 0);
   var fwd = { x: Math.sin(yaw), z: Math.cos(yaw) };
   var fx = lookBack ? -1.2 : cockpit ? -0.15 : 1.35, // along the truck: cab vs. nose
@@ -2235,9 +2282,16 @@ function editorSplit(on) {
       : cc.classList.contains("max-view-3d")
         ? "3d"
         : "split";
-    if (R.edPrevView !== "3d") window.__setViewMode("3d");
+    // The map is the precise route editor and the 3D scene is the surface
+    // picker. Hiding either one made the workflow look like two unrelated
+    // tools. Desktop opens both; compact layouts keep the larger 3D view and
+    // expose the map through the editor's labelled map button.
+    var compact = window.matchMedia && window.matchMedia("(max-width: 760px)").matches;
+    window.__setViewMode(compact ? "3d" : "split");
   } else if (R.edPrevView) {
-    if (R.edPrevView !== "3d") window.__setViewMode(R.edPrevView);
+    // Opening the editor now changes desktop 3D into Split as well, so every
+    // previous view — including 3D — must be restored on Drive/Close.
+    window.__setViewMode(R.edPrevView);
     R.edPrevView = null;
   }
 }
@@ -2358,6 +2412,22 @@ function tick(delta) {
             t("rc_waiting") + " " + Math.ceil((FINISH_GRACE_MS - waited) / 1000) + "s";
         }
       }
+    } else if (R.race.state === "run" && pc && !pc.done && R.cars.length > 1) {
+      // The whole field is home and the player is still out there: without an
+      // exit offered here the race literally cannot end. Give them the same
+      // skip the finishers get, a short beat after the last rival crosses.
+      var lastAi = 0,
+        aiGone = true;
+      for (var ci = 0; ci < R.cars.length; ci++) {
+        var ac = R.cars[ci];
+        if (!ac.ai) continue;
+        if (!ac.done) aiGone = false;
+        else if (ac.finT > lastAi) lastAi = ac.finT;
+      }
+      if (aiGone && lastAi && now - lastAi > FINISH_GRACE_MS) {
+        R.hud.wait.classList.add("on");
+        R.hud.waitTxt.textContent = t("rc_field_done");
+      }
     }
   }
   // cars
@@ -2376,6 +2446,7 @@ function tick(delta) {
   updateKartHud(now);
   updateGaps(pc);
   updateWrongWay(pc);
+  updateStuckHint(pc, pInput, now);
   if (R.hud && R.hud.root)
     R.hud.root.classList.toggle("drafting", !!(pc && (pc.draft || 0) > 0.35));
   stepShards(dt, now);
@@ -2383,6 +2454,11 @@ function tick(delta) {
   R.waters.forEach(function (w) {
     if (w.mat) w.mat.uniforms.uTime.value = now / 1000;
   });
+  // On-foot movement is simulation, not presentation: it must run regardless of
+  // which camera owns the frame (results orbit, editor overview), exactly like
+  // the trucks' physics above. Nesting it in the camera branch is what froze
+  // the figure whenever a results camera was left over.
+  if (R.phase === "foot" && R.fig) footStep(dt, pInput);
   // player view
   if (R.cam.results) {
     resultsCam(dt, now);
@@ -2404,7 +2480,6 @@ function tick(delta) {
       ? ""
       : Math.round(Math.abs(pc.v) * 0.036 * 10) / 10 + " " + t("rc_kmh");
   } else if (R.phase === "foot" && R.fig) {
-    footStep(dt, pInput);
     R.fig.camYaw = R.fig.camYaw != null ? R.fig.camYaw : R.fig.heading;
     // camera yaw follows the figure's travel, plus the manual drag offset
     var fd = R.fig.heading - R.fig.camYaw;
@@ -2672,8 +2747,13 @@ function onKeyDown(e) {
     e.stopPropagation();
   } else if (e.code === "Escape") {
     if (R.paused) setPaused(false);
-    else if (R.hud.results.classList.contains("on"))
+    else if (R.hud.results.classList.contains("on")) {
       R.hud.results.classList.remove("on");
+      // Hiding the sheet without clearing the orbit camera leaves the view
+      // circling the winner forever (and footStep unreachable — see tick()).
+      R.cam.results = null;
+      R.cam.pos = null; // cut back to the player instead of swooping over
+    }
     else if (editorActive()) {
       editorClose();
       showPanel();
@@ -2730,8 +2810,9 @@ function rescueCar(car) {
     var sy = surfaceHeightNear(R.col && R.col.surface, spot.x, spot.z, at.y, 40);
     pc.y = sy != null ? sy : at.y;
   } else pc.y = groundAt(spot.x, spot.z, 0, STEP_H);
+
   pc.vy = 0;
-  pc.surfaceUp = { x: 0, y: 1, z: 0 };
+  pc.surfaceUp = UP_FLAT;
   pc.grounded = true;
   pc.sink = 0;
   pc.lastG = pc.y;
@@ -2950,9 +3031,7 @@ export function toggleRC(on) {
     });
     R.shards = [];
     R.spray.forEach(function (s) {
-      scene.remove(s.m);
-      s.m.geometry.dispose();
-      s.m.material.dispose();
+      scene.remove(s.m); // shared geometry/material — dispose once, not per drop
     });
     R.spray = [];
     watersClear();
@@ -2965,6 +3044,7 @@ export function toggleRC(on) {
     clearTrack();
     restoreDoors();
     R.race = null;
+    R.cam.results = null; // the results orbit must not leak into the next session
     if (camera && R.prevNear != null) {
       camera.near = R.prevNear;
       if (R.prevFov != null) camera.fov = R.prevFov;

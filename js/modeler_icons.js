@@ -1,0 +1,1031 @@
+// High-precision vector CAD icons for the Model Editor.
+// Purpose-built to match the recognizable visual semantics of SolidWorks
+// and professional parametric CAD environments.
+
+function svg(paths, vb) {
+  return '<svg class="md-cad-icon" viewBox="' + (vb || "0 0 20 20") + '" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' + paths + '</svg>';
+}
+
+function p(d, op, sw, extra) {
+  return '<path d="' + d + '" fill="currentColor" fill-opacity="' + (op == null ? 0 : op) + '" stroke="currentColor" stroke-width="' + (sw || 1.35) + '" stroke-linecap="round" stroke-linejoin="round"' + (extra || "") + '/>';
+}
+
+function l(d, sw, extra) {
+  return '<path d="' + d + '" fill="none" stroke="currentColor" stroke-width="' + (sw || 1.35) + '" stroke-linecap="round" stroke-linejoin="round"' + (extra || "") + '/>';
+}
+
+function colorPath(d, fill, stroke, sw, extra) {
+  return '<path d="' + d + '" fill="' + (fill || "none") + '" stroke="' + (stroke || "currentColor") + '" stroke-width="' + (sw || 1.35) + '" stroke-linecap="round" stroke-linejoin="round"' + (extra || "") + '/>';
+}
+
+export const CAD_ICONS = {
+  // ==========================================
+  // 1. 3D FEATURES (SolidWorks Features)
+  // ==========================================
+
+  // Extruded Boss/Base: isometric solid block with upward material extrusion arrow
+  extrude: function () {
+    return (
+      // Base/body isometric cube
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.18, 1.3) +
+      l("M10 4 L10 17 M3 7.5 L10 11 L17 7.5", 1.2) +
+      // Top face highlighted
+      p("M3 7.5 L10 4 L17 7.5 L10 11 Z", 0.45, 1.3) +
+      // Upward yellow/accent extrusion arrow on right/top
+      colorPath("M10 9 L10 1.5 M7.5 4 L10 1.5 L12.5 4", "none", "#e89a24", 1.65)
+    );
+  },
+
+  // Extruded Cut: isometric block with pocket cut from top face and downward cut arrow
+  extrudecut: function () {
+    return (
+      // Outer block with top pocket cut
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L13.5 5.75 L13.5 8.5 L10 10.25 L6.5 8.5 L6.5 5.75 L3 7.5 Z", 0.18, 1.3) +
+      l("M10 10.25 L10 17 M3 7.5 L6.5 5.75 M17 7.5 L13.5 5.75", 1.2) +
+      // Cut pocket cavity
+      p("M6.5 5.75 L10 4 L13.5 5.75 L10 7.5 Z", 0.45, 1.1) +
+      l("M6.5 5.75 L6.5 8.5 M13.5 5.75 L13.5 8.5 M10 7.5 L10 10.25", 1.1) +
+      // Downward red cut arrow into the pocket
+      colorPath("M10 1 L10 7.5 M7.5 5 L10 7.5 L12.5 5", "none", "#d0342c", 1.65)
+    );
+  },
+
+  // Revolved Boss/Base: revolved cylindrical solid with dashed centerline and circular revolve arrow
+  revolvefeature: function () {
+    return (
+      // Dashed centerline axis
+      colorPath("M6 1.5 L6 18.5", "none", "#2684c7", 1.2, ' stroke-dasharray="2.5 1.5"') +
+      // Revolved half-cylinder profile
+      p("M6 4 L14 4 A4 1.8 0 0 1 14 16 L6 16 Z", 0.28, 1.3) +
+      p("M14 4 A4 1.8 0 0 1 14 16 A4 1.8 0 0 1 14 4 Z", 0.45, 1.2) +
+      // Circular revolve arrow
+      colorPath("M3 10 A4.5 4.5 0 1 1 15 13.5", "none", "#e89a24", 1.5) +
+      colorPath("M16 11 L15 14 L12 13", "none", "#e89a24", 1.4)
+    );
+  },
+
+  // Swept Boss/Base: curved 3D trajectory spline with swept circular cross-section
+  sweepfeature: function () {
+    return (
+      // Guide trajectory curve (spline)
+      colorPath("M3.5 16.5 C 3.5 8, 10 12, 16.5 3.5", "none", "#2684c7", 1.2, ' stroke-dasharray="2.2 1.5"') +
+      // Swept tube / profile along curve
+      p("M2 15 C 2 7, 8.5 10.5, 15 2 L17.5 4.5 C 11 13, 4.5 9.5, 4.5 17.5 Z", 0.28, 1.35) +
+      // Profile disc at start
+      p("M2 15 C 2 13.6 3.1 12.5 4.5 12.5 C 5.9 12.5 7 13.6 7 15 C 7 16.4 5.9 17.5 4.5 17.5 C 3.1 17.5 2 16.4 2 15 Z", 0.55, 1.3) +
+      // End disc
+      p("M15 2 C 14.2 2.8 14.2 4.1 15 4.9 C 15.8 5.7 17.1 5.7 17.9 4.9 C 18.7 4.1 18.7 2.8 17.9 2 C 17.1 1.2 15.8 1.2 15 2 Z", 0.6, 1.2)
+    );
+  },
+
+  // Lofted Boss/Base: smooth blend between bottom rectangular profile and top circular profile
+  loftfeature: function () {
+    return (
+      // Bottom square/rectangular cross-section
+      p("M3 15 L10 18 L17 15 L10 12 Z", 0.35, 1.3) +
+      // Top circular/elliptical profile
+      p("M10 3 C 13 3 15 4 15 5 C 15 6 13 7 10 7 C 7 7 5 6 5 5 C 5 4 7 3 10 3 Z", 0.55, 1.3) +
+      // Loft blend transition ruled lines
+      l("M3 15 C 4 10, 5 7, 5 5", 1.3) +
+      l("M17 15 C 16 10, 15 7, 15 5", 1.3) +
+      l("M10 18 C 10 12, 10 9, 10 7", 1.15, ' stroke-dasharray="2 1.5"')
+    );
+  },
+
+  // Hole Wizard: counterbored hole cross-section with drill cone tip and center axis
+  holefeature: function () {
+    return (
+      // Centerline
+      colorPath("M10 1 L10 19", "none", "#2684c7", 1.1, ' stroke-dasharray="2.5 1.5"') +
+      // Counterbore stepped hole cross-section
+      p("M3 4 L6 4 L6 8 L8 8 L8 14 L10 16.5 L12 14 L12 8 L14 8 L14 4 L17 4", 0.15, 1.35) +
+      // Surface plate lines
+      l("M2 4 L6 4 M14 4 L18 4", 1.5) +
+      // Counterbore step lines
+      l("M6 8 L8 8 M12 8 L14 8", 1.3) +
+      // Drill cone tip (118 deg)
+      l("M8 14 L10 16.5 L12 14", 1.35)
+    );
+  },
+
+  // Fillet: isometric 90° solid corner with smooth rounded arc fillet and radius arrow
+  filletfeature: function () {
+    return (
+      // Base corner with rounded fillet edge
+      p("M3 17 L10 17 L17 10 L17 3 L10 3 C 5 3, 3 5, 3 10 Z", 0.25, 1.35) +
+      // Original sharp corner ghost
+      colorPath("M3 10 L3 3 L10 3", "none", "#8899aa", 1.1, ' stroke-dasharray="1.8 1.5"') +
+      // Fillet tangent lines
+      l("M10 3 L10 10 L3 10 M10 10 L17 10", 1.15) +
+      // Rounded arc highlight (blue)
+      colorPath("M3 10 C 3 5, 5 3, 10 3", "none", "#2684c7", 1.85) +
+      // Radius 'R' dimension indicator
+      colorPath("M5 5 L8 8", "none", "#2684c7", 1.2) +
+      '<circle cx="8" cy="8" r="0.9" fill="#2684c7"/>'
+    );
+  },
+
+  // Chamfer: isometric 90° corner with 45° beveled flat cut
+  chamferfeature: function () {
+    return (
+      // Base corner with beveled chamfer face
+      p("M3 17 L10 17 L17 10 L17 3 L12 3 L3 12 Z", 0.25, 1.35) +
+      // Original sharp corner ghost
+      colorPath("M3 12 L3 3 L12 3", "none", "#8899aa", 1.1, ' stroke-dasharray="1.8 1.5"') +
+      // Chamfer bevel edge highlight
+      colorPath("M3 12 L12 3", "none", "#e89a24", 1.85) +
+      l("M12 3 L17 8 L8 17 L3 12", 1.15)
+    );
+  },
+
+  // Shell: isometric open hollow box with uniform thin wall thickness
+  shellfeature: function () {
+    return (
+      // Outer box
+      p("M2 13.5 L10 17.5 L18 13.5 L18 6.5 L10 2.5 L2 6.5 Z", 0.15, 1.3) +
+      l("M10 2.5 L10 17.5 M2 6.5 L10 10.5 L18 6.5", 1.15) +
+      // Inner hollow cavity wall cutout
+      p("M4 6.5 L10 3.5 L16 6.5 L10 9.5 Z", 0.45, 1.2) +
+      l("M4 6.5 L4 12 L10 15 L16 12 L16 6.5", 1.25) +
+      l("M10 9.5 L10 15", 1.15)
+    );
+  },
+
+  // Linear Pattern: 2x2 grid array of feature blocks with X and Y direction vectors
+  patternfeature: function () {
+    return (
+      // 4 feature blocks (2x2)
+      p("M3 7 L6 8.5 L9 7 L9 4 L6 2.5 L3 4 Z", 0.55, 1.15) +
+      p("M11 7 L14 8.5 L17 7 L17 4 L14 2.5 L11 4 Z", 0.25, 1.15) +
+      p("M3 15 L6 16.5 L9 15 L9 12 L6 10.5 L3 12 Z", 0.25, 1.15) +
+      p("M11 15 L14 16.5 L17 15 L17 12 L14 10.5 L11 12 Z", 0.25, 1.15) +
+      // Direction 1 vector arrow (X)
+      colorPath("M6 5.5 L13 5.5 M11 4 L13 5.5 L11 7", "none", "#2684c7", 1.4) +
+      // Direction 2 vector arrow (Y)
+      colorPath("M6 5.5 L6 12.5 M4.5 10.5 L6 12.5 L7.5 10.5", "none", "#2684c7", 1.4)
+    );
+  },
+
+  // Circular Pattern: radial array of entities around center axis with circular rotation arrow
+  circpattern: function () {
+    return (
+      // Center reference axis point
+      '<circle cx="10" cy="10" r="1.5" fill="#2684c7"/>' +
+      // Radial circle track
+      colorPath("M10 3 A7 7 0 1 1 3 10", "none", "#2684c7", 1.1, ' stroke-dasharray="2 1.5"') +
+      // Circular rotation arrow
+      colorPath("M10 3 A7 7 0 0 1 17 10", "none", "#e89a24", 1.4) +
+      colorPath("M18 8 L17 10.5 L14.5 9.5", "none", "#e89a24", 1.3) +
+      // 4 arrayed instances
+      '<circle cx="10" cy="3" r="1.8" fill="currentColor"/>' +
+      '<circle cx="17" cy="10" r="1.8" fill="currentColor"/>' +
+      '<circle cx="10" cy="17" r="1.8" fill="currentColor"/>' +
+      '<circle cx="3" cy="10" r="1.8" fill="currentColor"/>'
+    );
+  },
+
+  // Mirror: feature solid on left reflected across dashed mirror plane to right
+  mirrorfeature: function () {
+    return (
+      // Vertical mirror plane (dashed)
+      colorPath("M10 1.5 L10 18.5", "none", "#2684c7", 1.3, ' stroke-dasharray="2.5 1.5"') +
+      // Left solid shape
+      p("M2 13 L6 15 L8 13 L8 7 L4 5 L2 7 Z", 0.45, 1.25) +
+      l("M2 7 L6 9 L8 7 M6 9 L6 15", 1.1) +
+      // Right mirrored solid shape (translucent)
+      p("M18 13 L14 15 L12 13 L12 7 L16 5 L18 7 Z", 0.2, 1.25) +
+      l("M18 7 L14 9 L12 7 M14 9 L14 15", 1.1) +
+      // Reflection arrow
+      colorPath("M5 10 L15 10 M7 8.5 L5 10 L7 11.5 M13 8.5 L15 10 L13 11.5", "none", "#e89a24", 1.2)
+    );
+  },
+
+  // Boolean / Combine: two intersecting solids with union/intersection highlight
+  booleanfeature: function () {
+    return (
+      // Left body
+      p("M3 13 L7 15 L11 13 L11 7 L7 5 L3 7 Z", 0.25, 1.25) +
+      // Right body overlapping
+      p("M9 15 L13 17 L17 15 L17 9 L13 7 L9 9 Z", 0.25, 1.25) +
+      // Intersecting overlap zone
+      p("M9 13 L11 13 L11 9 L9 9 Z", 0.65, 1.3, ' stroke="#2684c7"')
+    );
+  },
+
+  // Reference Plane: tilted rectangular datum plane with 4 corner handles and normal
+  refplane: function () {
+    return (
+      // Angled datum plane
+      p("M3 14 L11 17 L17 6 L9 3 Z", 0.22, 1.3, ' stroke="#2684c7"') +
+      // Grid lines on datum plane
+      colorPath("M7 8.5 L14 11.5 M6 15.5 L13 4.5", "none", "#2684c7", 1.05, ' opacity="0.6"') +
+      // 4 corner vertex handles
+      '<circle cx="3" cy="14" r="1.1" fill="#2684c7"/>' +
+      '<circle cx="11" cy="17" r="1.1" fill="#2684c7"/>' +
+      '<circle cx="17" cy="6" r="1.1" fill="#2684c7"/>' +
+      '<circle cx="9" cy="3" r="1.1" fill="#2684c7"/>'
+    );
+  },
+
+  // Reference Axis: dashed centerline datum axis with dual arrows
+  refaxis: function () {
+    return (
+      // Centerline with end arrows
+      colorPath("M4 16 L16 4", "none", "#2684c7", 1.4, ' stroke-dasharray="3 1.5"') +
+      colorPath("M4 12 L4 16 L8 16", "none", "#2684c7", 1.4) +
+      colorPath("M12 4 L16 4 L16 8", "none", "#2684c7", 1.4) +
+      '<circle cx="10" cy="10" r="1.2" fill="#2684c7"/>'
+    );
+  },
+
+  // Coordinate System: 3D origin triad with X, Y, Z orthogonal axes
+  coordsys: function () {
+    return (
+      // Origin point
+      '<circle cx="6" cy="14" r="1.3" fill="currentColor"/>' +
+      // X axis (Red / horizontal)
+      colorPath("M6 14 L17 14 M14.5 12 L17 14 L14.5 16", "none", "#d0342c", 1.5) +
+      // Y axis (Green / vertical)
+      colorPath("M6 14 L6 3 M4 5.5 L6 3 L8 5.5", "none", "#17834f", 1.5) +
+      // Z axis (Blue / angled isometric)
+      colorPath("M6 14 L13 8 M10.5 8 L13 8 L13 10.5", "none", "#2684c7", 1.5)
+    );
+  },
+
+  // Toolbox Screw / Fastener: hex-socket cap screw with threads
+  stdscrew: function () {
+    return (
+      // Cylindrical screw head
+      p("M5 3 L15 3 L15 7 L5 7 Z", 0.45, 1.3) +
+      // Hex socket in head
+      p("M8 4 L12 4 L13 5 L12 6 L8 6 L7 5 Z", 0.9, 1.1) +
+      // Unthreaded shank
+      p("M7 7 L13 7 L13 10 L7 10 Z", 0.25, 1.25) +
+      // Threaded shank & point
+      p("M7 10 L13 10 L13 16 L10 18 L7 16 Z", 0.35, 1.25) +
+      // Helical thread lines
+      l("M7 11.5 L13 12.5 M7 13.5 L13 14.5 M7 15.5 L13 16.5", 1.15)
+    );
+  },
+
+  // Toolbox Gear: precision spur gear with involute teeth and center bore
+  stdgear: function () {
+    var teeth = 8, d = "", step = 360 / teeth, rRoot = 5.2, rTip = 8.4, rHole = 2.4;
+    for (var i = 0; i < teeth; i++) {
+      var a = (i * step - 90) * Math.PI / 180;
+      var a1 = (i * step - 90 - step * 0.22) * Math.PI / 180;
+      var a2 = (i * step - 90 - step * 0.1) * Math.PI / 180;
+      var a3 = (i * step - 90 + step * 0.1) * Math.PI / 180;
+      var a4 = (i * step - 90 + step * 0.22) * Math.PI / 180;
+      var p1 = [10 + rRoot * Math.cos(a1), 10 + rRoot * Math.sin(a1)];
+      var p2 = [10 + rTip * Math.cos(a2), 10 + rTip * Math.sin(a2)];
+      var p3 = [10 + rTip * Math.cos(a3), 10 + rTip * Math.sin(a3)];
+      var p4 = [10 + rRoot * Math.cos(a4), 10 + rRoot * Math.sin(a4)];
+      d += (i ? " L" : "M") + p1[0].toFixed(1) + " " + p1[1].toFixed(1) +
+           " L" + p2[0].toFixed(1) + " " + p2[1].toFixed(1) +
+           " L" + p3[0].toFixed(1) + " " + p3[1].toFixed(1) +
+           " L" + p4[0].toFixed(1) + " " + p4[1].toFixed(1);
+    }
+    d += " Z";
+    return (
+      p(d, 0.35, 1.3) +
+      '<circle cx="10" cy="10" r="' + rHole + '" fill="var(--bg-panel, #fff)" stroke="currentColor" stroke-width="1.3"/>' +
+      '<rect x="9.3" y="7" width="1.4" height="2" fill="currentColor"/>'
+    );
+  },
+
+  // Direct Primitives
+  directbox: function () {
+    return (
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.22, 1.3) +
+      l("M10 4 L10 17 M3 7.5 L10 11 L17 7.5", 1.2) +
+      p("M3 7.5 L10 4 L17 7.5 L10 11 Z", 0.45, 1.3)
+    );
+  },
+  directcyl: function () {
+    return (
+      p("M4 6 L4 14 A6 2.5 0 0 0 16 14 L16 6 A6 2.5 0 0 0 4 6 Z", 0.25, 1.3) +
+      p("M4 6 A6 2.5 0 1 0 16 6 A6 2.5 0 1 0 4 6 Z", 0.55, 1.3)
+    );
+  },
+  directsph: function () {
+    return (
+      '<circle cx="10" cy="10" r="7" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.35"/>' +
+      '<ellipse cx="10" cy="10" rx="7" ry="2.6" fill="none" stroke="currentColor" stroke-width="1.15"/>' +
+      '<ellipse cx="10" cy="10" rx="2.6" ry="7" fill="none" stroke="currentColor" stroke-width="1.15"/>'
+    );
+  },
+  directpoly: function () {
+    return (
+      p("M4 7 L10 3.5 L16 7 L16 13 L10 16.5 L4 13 Z", 0.25, 1.3) +
+      p("M4 7 L10 3.5 L16 7 L10 10.5 Z", 0.5, 1.25) +
+      l("M10 10.5 L10 16.5", 1.25)
+    );
+  },
+  directrev: function () {
+    return (
+      '<ellipse cx="10" cy="10" rx="7.5" ry="3.8" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.35"/>' +
+      '<ellipse cx="10" cy="10" rx="3.2" ry="1.6" fill="var(--bg-panel, #fff)" stroke="currentColor" stroke-width="1.3"/>' +
+      colorPath("M6 5 A7 3.5 0 0 1 15 7.5", "none", "#e89a24", 1.4) +
+      colorPath("M15.5 5.5 L15 8 L12.5 7.5", "none", "#e89a24", 1.3)
+    );
+  },
+
+  // ==========================================
+  // 2. 2D SKETCH TOOLS (SolidWorks Sketch)
+  // ==========================================
+
+  // New Sketch: tilted sketch plane with drafting pencil sketching a line
+  newsketch: function () {
+    return (
+      // Tilted sketch plane
+      p("M2 14 L8 17 L17 9 L11 6 Z", 0.18, 1.25, ' stroke="#2684c7"') +
+      colorPath("M5 10 L14 6", "none", "#2684c7", 1.1, ' stroke-dasharray="1.8 1.5"') +
+      // Drafting pencil
+      colorPath("M14 2 L17 5 L9 13 L6 14 L7 11 Z", "#e89a24", "#e89a24", 1.25) +
+      colorPath("M6 14 L8 12", "none", "#333", 1.2)
+    );
+  },
+
+  // Finish / Exit Sketch: SolidWorks Confirmation Corner exit sketch icon
+  finishsketch: function () {
+    return (
+      // Sketch sheet grid
+      p("M3 16 L12 16 L12 4 L3 4 Z", 0.15, 1.3) +
+      l("M6 4 L6 16 M9 4 L9 16 M3 8 L12 8 M3 12 L12 12", 0.9, ' opacity="0.6"') +
+      // Green checkmark in upper corner
+      colorPath("M10 10 L13 13 L18 6", "none", "#17834f", 2.2)
+    );
+  },
+
+  // Select / Pointer: precision CAD selection cursor arrow
+  select: function () {
+    return (
+      colorPath("M4 2.5 L4 16 L8 12.5 L11.5 17.5 L13.5 16 L10 11 L14.5 11 Z", "currentColor", "currentColor", 1.3, ' fill-opacity="0.85"')
+    );
+  },
+
+  // Line tool: slanted line segment with 2 endpoint vertex dots
+  wall: function () {
+    return (
+      l("M4 16 L16 4", 1.6) +
+      '<circle cx="4" cy="16" r="2" fill="#2684c7" stroke="currentColor" stroke-width="1.2"/>' +
+      '<circle cx="16" cy="4" r="2" fill="#2684c7" stroke="currentColor" stroke-width="1.2"/>'
+    );
+  },
+
+  // Corner Rectangle: rectangle with diagonal corner vertices 1 and 2
+  srect: function () {
+    return (
+      p("M3 5 L17 5 L17 15 L3 15 Z", 0.18, 1.35) +
+      // Corner vertex 1 (top-left)
+      '<circle cx="3" cy="5" r="2" fill="#2684c7" stroke="currentColor" stroke-width="1.2"/>' +
+      // Corner vertex 2 (bottom-right)
+      '<circle cx="17" cy="15" r="2" fill="#2684c7" stroke="currentColor" stroke-width="1.2"/>'
+    );
+  },
+
+  // Center Circle: circle with center point cross '+' and perimeter radius point
+  scirc: function () {
+    return (
+      '<circle cx="10" cy="10" r="7" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.35"/>' +
+      // Center crosshair
+      l("M8.5 10 L11.5 10 M10 8.5 L10 11.5", 1.3, ' stroke="#2684c7"') +
+      // Radius perimeter point
+      '<circle cx="16.5" cy="10" r="1.8" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>'
+    );
+  },
+
+  // 3-Point Arc: curved arc with 3 control points (start, center, end)
+  sarc: function () {
+    return (
+      colorPath("M3 15 C 3 6, 17 6, 17 15", "none", "currentColor", 1.6) +
+      '<circle cx="3" cy="15" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>' +
+      '<circle cx="10" cy="8.2" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>' +
+      '<circle cx="17" cy="15" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>'
+    );
+  },
+
+  // Straight Slot: oblong slot with centerline, semicircle ends, and 4 points
+  sslot: function () {
+    return (
+      p("M6 6 L14 6 A4 4 0 0 1 14 14 L6 14 A4 4 0 0 1 6 6 Z", 0.2, 1.35) +
+      // Centerline
+      colorPath("M6 10 L14 10", "none", "#2684c7", 1.2, ' stroke-dasharray="2 1.5"') +
+      '<circle cx="6" cy="10" r="1.6" fill="#2684c7"/>' +
+      '<circle cx="14" cy="10" r="1.6" fill="#2684c7"/>'
+    );
+  },
+
+  // Regular Polygon: hexagon with inscribed circle & center point
+  spoly: function () {
+    return (
+      p("M10 2.5 L16.5 6.2 L16.5 13.8 L10 17.5 L3.5 13.8 L3.5 6.2 Z", 0.18, 1.35) +
+      colorPath("M10 5.5 A4.5 4.5 0 1 1 9.9 5.5", "none", "#2684c7", 1.05, ' stroke-dasharray="1.8 1.5"') +
+      '<circle cx="10" cy="10" r="1.4" fill="#2684c7"/>'
+    );
+  },
+
+  // Ellipse: major axis, minor axis, and center point
+  sell: function () {
+    return (
+      '<ellipse cx="10" cy="10" rx="8" ry="5" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="1.35"/>' +
+      // Major axis line
+      colorPath("M2 10 L18 10", "none", "#2684c7", 1.05, ' stroke-dasharray="2 1.5"') +
+      // Minor axis line
+      colorPath("M10 5 L10 15", "none", "#2684c7", 1.05, ' stroke-dasharray="2 1.5"') +
+      '<circle cx="10" cy="10" r="1.3" fill="#2684c7"/>'
+    );
+  },
+
+  // Smart Dimension: extension lines, double-headed dimension line, and callout
+  dim: function () {
+    return (
+      // Witness extension lines
+      l("M3 2 L3 13 M17 2 L17 13", 1.25) +
+      // Dimension line with arrowheads
+      colorPath("M3 7.5 L17 7.5 M6 5.5 L3 7.5 L6 9.5 M14 5.5 L17 7.5 L14 9.5", "none", "#2684c7", 1.4) +
+      // Dimension numerical value box
+      p("M7.5 12 L12.5 12 L12.5 17.5 L7.5 17.5 Z", 0.85, 1.15, ' fill="var(--bg-panel, #fff)" stroke="#2684c7"') +
+      l("M9 14.7 L11 14.7", 1.2, ' stroke="#2684c7"')
+    );
+  },
+
+  // Trim Entities: scissors cutting across a sketch curve with trim dash
+  trim: function () {
+    return (
+      // Red sketch line to be trimmed
+      colorPath("M2 14 L8 14", "none", "#d0342c", 1.5) +
+      colorPath("M8 14 L18 14", "none", "#d0342c", 1.3, ' stroke-dasharray="2 1.8"') +
+      // Scissors cutting line
+      l("M7 5 L13 11 M13 5 L7 11", 1.45) +
+      '<circle cx="5.5" cy="4" r="2" fill="none" stroke="currentColor" stroke-width="1.25"/>' +
+      '<circle cx="14.5" cy="4" r="2" fill="none" stroke="currentColor" stroke-width="1.25"/>'
+    );
+  },
+
+  // Extend Entities: line segment extending with arrow to meet target boundary
+  extend: function () {
+    return (
+      // Target boundary edge line
+      l("M16 2 L16 18", 1.6) +
+      // Source segment
+      l("M3 10 L10 10", 1.45) +
+      // Extension arrow & dashed path
+      colorPath("M10 10 L15 10 M12.5 7.5 L15 10 L12.5 12.5", "none", "#2684c7", 1.5)
+    );
+  },
+
+  // Offset Entities: base curve and equidistant offset curve with bidirectional arrows
+  offset: function () {
+    return (
+      // Base curve
+      l("M3 15 C 3 9, 9 5, 17 5", 1.55) +
+      // Offset curve
+      colorPath("M6 17 C 6 12, 12 8, 18 8", "none", "#2684c7", 1.35, ' stroke-dasharray="2.5 1.5"') +
+      // Bidirectional offset distance arrows
+      colorPath("M8 10 L11 13 M8.5 10 L8 10 L8 11.5 M10.5 13 L11 13 L11 11.5", "none", "#e89a24", 1.25)
+    );
+  },
+
+  // Construction Geometry: long-dash short-dash centerline
+  constr: function () {
+    return (
+      colorPath("M2 10 L7 10", "none", "#2684c7", 1.5) +
+      '<circle cx="10" cy="10" r="1.3" fill="#2684c7"/>' +
+      colorPath("M13 10 L18 10", "none", "#2684c7", 1.5) +
+      // Perpendicular centerline tick mark
+      colorPath("M10 6 L10 8 M10 12 L10 14", "none", "#2684c7", 1.2)
+    );
+  },
+
+  // Convert / Project Entities: 3D model edge projecting down onto sketch plane
+  project: function () {
+    return (
+      // 3D model edge in space
+      l("M4 4 L14 4", 1.6) +
+      // Projection downward rays
+      colorPath("M4 4 L4 14 M14 4 L14 14", "none", "#2684c7", 1.1, ' stroke-dasharray="2 1.5"') +
+      // Projected sketch plane entity
+      colorPath("M4 14 L14 14", "none", "#17834f", 1.8) +
+      // Downward projection arrow
+      colorPath("M9 6 L9 12 M7 10 L9 12 L11 10", "none", "#2684c7", 1.35)
+    );
+  },
+
+  // ==========================================
+  // 3. EVALUATE TOOLS (SolidWorks Evaluate)
+  // ==========================================
+
+  // Rebuild / Regenerate: SolidWorks Rebuild Traffic Light (Red & Green)
+  regen: function () {
+    return (
+      // Traffic light housing
+      p("M6 2 L14 2 L14 18 L6 18 Z", 0.45, 1.3) +
+      // Red stop light
+      '<circle cx="10" cy="6" r="2.3" fill="#d0342c" stroke="#fff" stroke-width="0.8"/>' +
+      // Green go light (rebuilt)
+      '<circle cx="10" cy="14" r="2.3" fill="#17834f" stroke="#fff" stroke-width="0.8"/>'
+    );
+  },
+
+  // Zoom to Fit: magnifying glass with four corner arrows pointing outward
+  fit: function () {
+    return (
+      '<circle cx="9" cy="9" r="5" fill="currentColor" fill-opacity="0.1" stroke="currentColor" stroke-width="1.3"/>' +
+      l("M13 13 L17.5 17.5", 1.6) +
+      // 4 outward fit arrows
+      colorPath("M6 3 L3 3 L3 6", "none", "#2684c7", 1.25) +
+      colorPath("M12 3 L15 3 L15 6", "none", "#2684c7", 1.25) +
+      colorPath("M3 12 L3 15 L6 15", "none", "#2684c7", 1.25)
+    );
+  },
+
+  // Make Drawing from Part: 2D engineering drawing sheet with 3 orthographic views + Iso
+  drawing: function () {
+    return (
+      // Drawing sheet border
+      p("M2 2 L18 2 L18 18 L2 18 Z", 0.15, 1.3) +
+      // Title block in bottom right
+      p("M11 14 L18 14 L18 18 L11 18 Z", 0.4, 1.1) +
+      // Top view box
+      p("M4 4 L8 4 L8 7 L4 7 Z", 0.25, 1.1) +
+      // Front view box
+      p("M4 9 L8 9 L8 14 L4 14 Z", 0.25, 1.1) +
+      // Right view box
+      p("M10 9 L15 9 L15 12 L10 12 Z", 0.25, 1.1) +
+      // Isometric view
+      p("M12 4 L14.5 5.5 L17 4 L14.5 2.5 Z", 0.45, 1.05)
+    );
+  },
+
+  // Mass Properties: dual-pan balance scale with center-of-mass centroid marker
+  mass: function () {
+    return (
+      // Central balance pillar & base
+      l("M10 2 L10 17 M6 17 L14 17", 1.35) +
+      // Top balance beam
+      l("M4 6 L16 6", 1.35) +
+      // Left pan & chains
+      l("M4 6 L2 12 L6 12 Z", 1.15) +
+      // Right pan & chains
+      l("M16 6 L14 12 L18 12 Z", 1.15) +
+      // Centroid marker at center
+      '<circle cx="10" cy="10" r="2" fill="#e89a24" stroke="currentColor" stroke-width="1"/>'
+    );
+  },
+
+  // Standards Audit / Design Checker: validation badge with checkmark
+  standards: function () {
+    return (
+      // Shield / certificate badge
+      p("M10 2 L17 5 L17 11 C 17 15.5, 10 18.5, 10 18.5 C 10 18.5, 3 15.5, 3 11 L3 5 Z", 0.22, 1.35) +
+      // Validation checkmark
+      colorPath("M6.5 10.5 L9 13 L13.5 7.5", "none", "#17834f", 1.85)
+    );
+  },
+
+  // Pack and Go (Bundle): archive package box with CAD components
+  bundle: function () {
+    return (
+      p("M3 6.5 L10 3 L17 6.5 L17 13.5 L10 17 L3 13.5 Z", 0.2, 1.3) +
+      l("M10 3 L10 17 M3 6.5 L10 10 L17 6.5", 1.2) +
+      // Strapping / box tape
+      colorPath("M6.5 4.8 L6.5 15.2 M13.5 4.8 L13.5 15.2", "none", "#e89a24", 1.2)
+    );
+  },
+
+  // STEP / IGES Exchange (In / Out): CAD neutral solid with transfer arrows
+  stepin: function () {
+    return (
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.18, 1.25) +
+      l("M10 4 L10 17 M3 7.5 L10 11 L17 7.5", 1.15) +
+      colorPath("M10 1 L10 8 M7.5 5.5 L10 8 L12.5 5.5", "none", "#2684c7", 1.65)
+    );
+  },
+  stepout: function () {
+    return (
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.18, 1.25) +
+      l("M10 4 L10 17 M3 7.5 L10 11 L17 7.5", 1.15) +
+      colorPath("M10 8 L10 1 M7.5 3.5 L10 1 L12.5 3.5", "none", "#e89a24", 1.65)
+    );
+  },
+  igesout: function () {
+    return (
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.18, 1.25) +
+      l("M10 4 L10 17 M3 7.5 L10 11 L17 7.5", 1.15) +
+      colorPath("M10 8 L10 1 M7.5 3.5 L10 1 L12.5 3.5", "none", "#17834f", 1.65)
+    );
+  },
+
+  // ==========================================
+  // 4. ASSEMBLY TOOLS (SolidWorks Assembly)
+  // ==========================================
+
+  // Assembly: yellow component + green component mated together
+  assembly: function () {
+    return (
+      // Yellow component block
+      colorPath("M2 10.5 L7 13 L12 10.5 L12 5.5 L7 3 L2 5.5 Z", "#e89a24", "#e89a24", 1.25, ' fill-opacity="0.5"') +
+      colorPath("M7 3 L7 13 M2 5.5 L7 8 L12 5.5", "none", "#e89a24", 1.1) +
+      // Green component block interlocking
+      colorPath("M8 14.5 L13 17 L18 14.5 L18 9.5 L13 7 L8 9.5 Z", "#17834f", "#17834f", 1.25, ' fill-opacity="0.55"') +
+      colorPath("M13 7 L13 17 M8 9.5 L13 12 L18 9.5", "none", "#17834f", 1.1)
+    );
+  },
+
+  // Insert Component: part block being inserted with plus icon
+  components: function () {
+    return (
+      p("M3 13.5 L9 16.5 L15 13.5 L15 7.5 L9 4.5 L3 7.5 Z", 0.25, 1.25) +
+      l("M9 4.5 L9 16.5 M3 7.5 L9 10.5 L15 7.5", 1.1) +
+      // Green plus icon
+      colorPath("M14 2 L18 2 M16 0 L16 4", "none", "#17834f", 1.75)
+    );
+  },
+
+  // Mate: the famous SolidWorks Paperclip / Mate icon
+  mates: function () {
+    return (
+      colorPath("M7 8 L7 14.5 A3.5 3.5 0 0 0 14 14.5 L14 5.5 A2.5 2.5 0 0 0 9 5.5 L9 13.5 A1.5 1.5 0 0 0 12 13.5 L12 7", "none", "#2684c7", 1.55)
+    );
+  },
+
+  // Edit Component: in-context part editing
+  partdoc: function () {
+    return (
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.45, 1.3, ' stroke="#2684c7"') +
+      l("M10 4 L10 17 M3 7.5 L10 11 L17 7.5", 1.2) +
+      colorPath("M14 2 L17 5 L16 6 L13 3 Z", "#e89a24", "#e89a24", 1.1)
+    );
+  },
+
+  // Exploded View: parts blowing apart along exploded dashed trajectories
+  explode: function () {
+    return (
+      // Center part
+      p("M8 11 L10 12 L12 11 L12 9 L10 8 L8 9 Z", 0.6, 1.1) +
+      // Top exploded part & path
+      p("M7 4 L10 5.5 L13 4 L13 2.5 L10 1 L7 2.5 Z", 0.25, 1.1) +
+      colorPath("M10 8 L10 5.5", "none", "#e89a24", 1.2, ' stroke-dasharray="1.8 1.5"') +
+      // Bottom left exploded part & path
+      p("M2 16.5 L4.5 17.5 L7 16.5 L7 15 L4.5 14 L2 15 Z", 0.25, 1.1) +
+      colorPath("M8 11 L5 14", "none", "#e89a24", 1.2, ' stroke-dasharray="1.8 1.5"') +
+      // Bottom right exploded part & path
+      p("M13 16.5 L15.5 17.5 L18 16.5 L18 15 L15.5 14 L13 15 Z", 0.25, 1.1) +
+      colorPath("M12 11 L15 14", "none", "#e89a24", 1.2, ' stroke-dasharray="1.8 1.5"')
+    );
+  },
+
+  // Motion Study: rotary motor with animation timeline
+  motion: function () {
+    return (
+      // Central motor hub
+      '<circle cx="10" cy="9" r="4.5" fill="currentColor" fill-opacity="0.25" stroke="currentColor" stroke-width="1.3"/>' +
+      '<circle cx="10" cy="9" r="1.8" fill="#e89a24"/>' +
+      // Rotation curved motion arrow
+      colorPath("M10 2 A7 7 0 0 1 16 9", "none", "#e89a24", 1.45) +
+      colorPath("M17.5 7 L16 9.5 L14 7.5", "none", "#e89a24", 1.35) +
+      // Timeline bar at bottom
+      l("M2 17 L18 17", 1.3) +
+      '<rect x="8" y="15.5" width="4" height="3" rx="1" fill="#2684c7"/>'
+    );
+  },
+
+  // Interference Detection: two overlapping bodies with red collision volume
+  interference: function () {
+    return (
+      p("M2 11 L6 13 L10 11 L10 7 L6 5 L2 7 Z", 0.25, 1.2) +
+      p("M10 13 L14 15 L18 13 L18 9 L14 7 L10 9 Z", 0.25, 1.2) +
+      // Overlap volume in red
+      p("M8 11 L12 11 L12 9 L8 9 Z", 0.85, 1.3, ' fill="#d0342c" stroke="#d0342c"') +
+      // Warning spark
+      colorPath("M10 2 L10 5 M8.5 3.5 L11.5 3.5", "none", "#d0342c", 1.4)
+    );
+  },
+
+  // Bill of Materials: engineering parts list table
+  bom: function () {
+    return (
+      p("M2 3 L18 3 L18 17 L2 17 Z", 0.15, 1.3) +
+      // Header row
+      p("M2 3 L18 3 L18 7 L2 7 Z", 0.45, 1.1) +
+      // Column dividers
+      l("M6 3 L6 17 M13 3 L13 17", 1.15) +
+      // Row lines
+      l("M2 10.5 L18 10.5 M2 14 L18 14", 1.1)
+    );
+  },
+
+  // Isolate: single isolated part with ghosted surroundings
+  isolate: function () {
+    return (
+      // Isolated solid in center
+      p("M6 12 L10 14 L14 12 L14 8 L10 6 L6 8 Z", 0.65, 1.35, ' stroke="#2684c7"') +
+      l("M10 6 L10 14 M6 8 L10 10 L14 8", 1.15) +
+      // Ghosted bounding box
+      colorPath("M2 4 L18 4 L18 16 L2 16 Z", "none", "#8899aa", 1.05, ' stroke-dasharray="2 1.5"')
+    );
+  },
+
+  // ==========================================
+  // 5. VIEWPORT HEADS-UP ORIENTATION & DISPLAY
+  // ==========================================
+
+  // Top View: orientation cube with TOP face highlighted
+  view_top: function () {
+    return (
+      // Bottom cube faces (subtle)
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.1, 1.2) +
+      l("M10 11 L10 17 M3 7.5 L10 11 L17 7.5", 1.1) +
+      // Top face highlighted in accent blue
+      p("M3 7.5 L10 4 L17 7.5 L10 11 Z", 0.85, 1.4, ' fill="#2684c7" stroke="#2684c7"')
+    );
+  },
+
+  // Front View: orientation cube with FRONT face highlighted
+  view_front: function () {
+    return (
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.1, 1.2) +
+      l("M10 4 L10 17 M10 4 L17 7.5 L10 11", 1.1) +
+      // Front (left/bottom) face highlighted in accent blue
+      p("M3 7.5 L10 11 L10 17 L3 13.5 Z", 0.85, 1.4, ' fill="#2684c7" stroke="#2684c7"')
+    );
+  },
+
+  // Right View: orientation cube with RIGHT face highlighted
+  view_right: function () {
+    return (
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.1, 1.2) +
+      l("M10 4 L10 17 M3 7.5 L10 4 L10 11", 1.1) +
+      // Right face highlighted in accent blue
+      p("M10 11 L17 7.5 L17 13.5 L10 17 Z", 0.85, 1.4, ' fill="#2684c7" stroke="#2684c7"')
+    );
+  },
+
+  // Isometric View: 3D cube with balanced shading on all 3 faces
+  isoView: function () {
+    return (
+      p("M3 7.5 L10 4 L17 7.5 L10 11 Z", 0.55, 1.25) +
+      p("M3 7.5 L10 11 L10 17 L3 13.5 Z", 0.22, 1.25) +
+      p("M10 11 L17 7.5 L17 13.5 L10 17 Z", 0.38, 1.25)
+    );
+  },
+
+  // Normal To: perpendicular eye / arrow looking straight into a planar face
+  normalTo: function () {
+    return (
+      // Planar surface
+      p("M2 5 L18 5 L18 15 L2 15 Z", 0.2, 1.3) +
+      // Perpendicular normal vector arrow
+      colorPath("M10 19 L10 9 M7.5 11.5 L10 9 L12.5 11.5", "none", "#2684c7", 1.65) +
+      '<circle cx="10" cy="9" r="1.3" fill="#2684c7"/>'
+    );
+  },
+
+  // Shaded with Edges: solid shaded cube with dark crisp edges
+  solidView: function () {
+    return (
+      p("M3 7.5 L10 4 L17 7.5 L10 11 Z", 0.55, 1.4) +
+      p("M3 7.5 L10 11 L10 17 L3 13.5 Z", 0.25, 1.4) +
+      p("M10 11 L17 7.5 L17 13.5 L10 17 Z", 0.4, 1.4)
+    );
+  },
+
+  // Transparent / Hidden Lines: translucent cube showing interior dashed hidden lines
+  transparentView: function () {
+    return (
+      // Outer wireframe
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0.08, 1.3) +
+      l("M10 4 L10 17 M3 7.5 L10 11 L17 7.5", 1.2) +
+      // Internal hidden lines (dashed)
+      colorPath("M3 13.5 L10 10.5 L17 13.5 M10 10.5 L10 4", "none", "#8899aa", 1.1, ' stroke-dasharray="2 1.5"')
+    );
+  },
+
+  // Model Edges toggle: wireframe cube outline
+  modelEdges: function () {
+    return (
+      p("M3 13.5 L10 17 L17 13.5 L17 7.5 L10 4 L3 7.5 Z", 0, 1.35) +
+      l("M10 4 L10 17 M3 7.5 L10 11 L17 7.5", 1.3)
+    );
+  },
+
+  // Zoom In
+  zoomIn: function () {
+    return (
+      '<circle cx="9" cy="9" r="5" fill="none" stroke="currentColor" stroke-width="1.3"/>' +
+      l("M13 13 L17.5 17.5", 1.5) +
+      l("M6.5 9 L11.5 9 M9 6.5 L9 11.5", 1.3, ' stroke="#2684c7"')
+    );
+  },
+
+  // Zoom Out
+  zoomOut: function () {
+    return (
+      '<circle cx="9" cy="9" r="5" fill="none" stroke="currentColor" stroke-width="1.3"/>' +
+      l("M13 13 L17.5 17.5", 1.5) +
+      l("M6.5 9 L11.5 9", 1.3, ' stroke="#2684c7"')
+    );
+  },
+
+  // Mode 3D
+  mode3d: function () {
+    return (
+      p("M3 7.5 L10 4 L17 7.5 L10 11 Z", 0.5, 1.3) +
+      p("M3 7.5 L10 11 L10 17 L3 13.5 Z", 0.22, 1.3) +
+      p("M10 11 L17 7.5 L17 13.5 L10 17 Z", 0.38, 1.3)
+    );
+  },
+
+  // Mode 2D Sketch
+  mode2d: function () {
+    return (
+      p("M3 16 L17 16 L17 4 L3 4 Z", 0.15, 1.3) +
+      colorPath("M6 13 L14 7", "none", "#2684c7", 1.6) +
+      '<circle cx="6" cy="13" r="1.8" fill="#2684c7"/>' +
+      '<circle cx="14" cy="7" r="1.8" fill="#2684c7"/>'
+    );
+  },
+
+  // Mode Drawing
+  modeDrawing: function () {
+    return CAD_ICONS.drawing();
+  },
+
+  // ==========================================
+  // 6. FEATUREMANAGER TREE TABS & ITEMS
+  // ==========================================
+
+  // FeatureManager Tree Tab
+  treeTab: function () {
+    return (
+      l("M4 4 L4 16 M4 7 L10 7 M4 13 L10 13", 1.35) +
+      p("M10 5.5 L16 5.5 L16 8.5 L10 8.5 Z", 0.45, 1.15) +
+      p("M10 11.5 L16 11.5 L16 14.5 L10 14.5 Z", 0.45, 1.15)
+    );
+  },
+
+  // Design Library Tab
+  libTab: function () {
+    return (
+      p("M2 4.5 L7 4.5 L9 6.5 L18 6.5 L18 16 L2 16 Z", 0.2, 1.3) +
+      p("M2 8.5 L18 8.5 L16 16 L4 16 Z", 0.55, 1.25)
+    );
+  },
+
+  // Equations & Parameters Tab (f(x))
+  paramsTab: function () {
+    return (
+      colorPath("M5 14 C 4 14, 3 13, 3 11 C 3 8, 6 6, 6 4 C 6 2.5, 5 2, 4 2 M2 7.5 L7 7.5", "none", "#2684c7", 1.45) +
+      colorPath("M11 9 L15 15 M15 9 L11 15", "none", "#e89a24", 1.45)
+    );
+  },
+
+  // Common CAD Confirmation / Status
+  check: function () {
+    return colorPath("M4 10 L8.5 14.5 L16 5.5", "none", "#17834f", 2.2);
+  },
+  cross: function () {
+    return colorPath("M5 5 L15 15 M15 5 L5 15", "none", "#d0342c", 2.2);
+  },
+  pan: function () {
+    return (
+      p("M7 11 L7 4.5 C 7 3.7 7.7 3 8.5 3 C 9.3 3 10 3.7 10 4.5 L10 10 L10 4.5 C 10 3.7 10.7 3 11.5 3 C 12.3 3 13 3.7 13 4.5 L13 10 L13 5.5 C 13 4.7 13.7 4 14.5 4 C 15.3 4 16 4.7 16 5.5 L16 12 C 16 15.5 13 18 9.5 18 C 6 18 4 15.5 4 13 L4 8.5 C 4 7.7 4.7 7 5.5 7 C 6.3 7 7 7.7 7 8.5 Z", 0.25, 1.3)
+    );
+  },
+
+  // Rollback bar indicator
+  rollbackhere: function () {
+    return (
+      colorPath("M10 2 L10 12 M6.5 8.5 L10 12 L13.5 8.5", "none", "#2684c7", 1.75) +
+      colorPath("M3 16 L17 16", "none", "#e89a24", 2.5)
+    );
+  },
+
+  // Edit Feature
+  editfeature: function () {
+    return (
+      colorPath("M14 2 L17 5 L9 13 L6 14 L7 11 Z", "#e89a24", "#e89a24", 1.25) +
+      l("M12 4 L15 7", 1.1)
+    );
+  },
+};
+
+// Aliases mapping command IDs, feature names, and phosphor classes to CAD icons
+export const ICON_ALIASES = {
+  // Feature Catalog names & command IDs
+  extrudeCut: "extrudecut",
+  revolve: "revolvefeature",
+  sweep: "sweepfeature",
+  loft: "loftfeature",
+  fillet: "filletfeature",
+  chamfer: "chamferfeature",
+  shell: "shellfeature",
+  pattern: "patternfeature",
+  mirror: "mirrorfeature",
+  boolean: "booleanfeature",
+  hole: "holefeature",
+  rect: "directbox",
+  circle: "directcyl",
+  sph: "directsph",
+  poly: "directpoly",
+  rev: "directrev",
+  bundlein: "bundle",
+
+  // Phosphor font classes
+  "ph-cube": "extrude",
+  "ph-scissors": "extrudecut",
+  "ph-arrow-counter-clockwise": "revolvefeature",
+  "ph-path": "sweepfeature",
+  "ph-stack": "loftfeature",
+  "ph-circle-dashed": "holefeature",
+  "ph-corners-out": "filletfeature",
+  "ph-corners-in": "chamferfeature",
+  "ph-bowl-food": "shellfeature",
+  "ph-dots-nine": "patternfeature",
+  "ph-circles-three": "circpattern",
+  "ph-flip-horizontal": "mirrorfeature",
+  "ph-intersect": "booleanfeature",
+  "ph-square-half": "refplane",
+  "ph-axis-arrow": "refaxis",
+  "ph-crosshair": "coordsys",
+  "ph-screwdriver": "stdscrew",
+  "ph-gear-six": "stdgear",
+  "ph-cylinder": "directcyl",
+  "ph-sphere": "directsph",
+  "ph-polygon": "directpoly",
+  "ph-spiral": "directrev",
+
+  // Sketch Tools
+  "ph-pencil-line": "newsketch",
+  "ph-cursor": "select",
+  "ph-line-segment": "wall",
+  "ph-rectangle": "srect",
+  "ph-bezier-curve": "sarc",
+  "ph-pill": "sslot",
+  "ph-hexagon": "spoly",
+  "ph-circle": "sell",
+  "ph-ruler": "dim",
+  "ph-arrows-out-line-horizontal": "extend",
+  "ph-check": "finishsketch",
+  "ph-copy-simple": "offset",
+  "ph-line-segments": "constr",
+  "ph-projector-screen": "project",
+  "ph-compass-tool": "mode2d",
+
+  // Evaluate & Utilities
+  "ph-arrows-clockwise": "regen",
+  "ph-crosshair-simple": "fit",
+  "ph-file-svg": "drawing",
+  "ph-scales": "mass",
+  "ph-seal-check": "standards",
+  "ph-package": "bundle",
+  "ph-upload-simple": "stepin",
+  "ph-file-step": "stepout",
+  "ph-file-arrow-down": "igesout",
+
+  // Assembly
+  "ph-link": "mates",
+  "ph-cube-focus": "partdoc",
+  "ph-arrows-out": "explode",
+  "ph-play-circle": "motion",
+  "ph-table": "bom",
+  "ph-eye": "isolate",
+
+  // Views & Display
+  "ph-arrow-line-down": "view_top",
+  "ph-arrow-line-right": "view_front",
+  "ph-arrow-line-up": "view_right",
+  "ph-arrows-in-cardinal": "normalTo",
+  "ph-square": "modelEdges",
+  "ph-hand": "pan",
+
+  // Tabs
+  "ph-tree-structure": "treeTab",
+  "ph-folder-open": "libTab",
+  "ph-sliders-horizontal": "paramsTab",
+};
+
+/**
+ * Renders a precision CAD SVG icon.
+ * @param {string} name - Icon name (e.g. "extrude", "dim", or "ph-pencil-line")
+ * @param {string} [extraClass] - Optional CSS classes
+ * @returns {string} SVG HTML string
+ */
+export function cadIcon(name, extraClass) {
+  var key = name;
+  if (!CAD_ICONS[key] && ICON_ALIASES[key]) key = ICON_ALIASES[key];
+  var make = CAD_ICONS[key];
+  if (!make) {
+    // If not found in CAD_ICONS, return phosphor fallback icon
+    return '<i class="ph ' + (name && name.startsWith("ph-") ? name : "ph-" + name) + (extraClass ? " " + extraClass : "") + '"></i>';
+  }
+  var svgMarkup = svg(make());
+  if (extraClass) {
+    svgMarkup = svgMarkup.replace('class="md-cad-icon"', 'class="md-cad-icon ' + extraClass + '"');
+  }
+  return svgMarkup;
+}
+
+export var CAD_ICON_KEYS = Object.keys(CAD_ICONS);

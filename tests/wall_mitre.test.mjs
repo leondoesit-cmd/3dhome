@@ -1,8 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { S } from "../js/state.js";
 import {
   wallOutline,
+  wallBandOutline,
+  tJoinStep,
   wallClearLength,
   equalWallAngleTranslation,
   wallAnglePair,
@@ -12,6 +15,7 @@ import {
   wallGeom,
   faceShiftAt,
   wallSolidAtNode,
+  wallSolidTop,
   openingAtWallPosition,
 } from "../js/geometry.js";
 
@@ -391,4 +395,143 @@ test("an end cut can never eat more than the wall it is measured on", () => {
       `stated ${wallClearLength(stub).toFixed(2)} matches the drawn face ${drawn.toFixed(2)}`,
     );
   }
+});
+
+test("a thickness band's outer edges are the mitred outline", () => {
+  plan(
+    [
+      { x: 0, z: 0 },
+      { x: 400, z: 0 },
+      { x: 400, z: 300 },
+    ],
+    [
+      [0, 1],
+      [1, 2],
+    ],
+  );
+  var w = S.walls[0],
+    o = wallOutline(w),
+    b = wallBandOutline(w, -10, 10);
+  assert.ok(b, "straight walls have a mitred band");
+  assert.ok(near(b.a1, o[0]) && near(b.b1, o[1]) && near(b.b0, o[2]) && near(b.a0, o[3]));
+});
+
+test("a full wall above a half-wall cap is not mitred by the half wall", () => {
+  S.interiorDims = true;
+  S.openings = [];
+  S.nodes = [{ x: 0, z: 0 }, { x: 200, z: 0 }, { x: 200, z: 200 }];
+  S.walls = [
+    { id: 1, a: 0, b: 1, thickness: 20, height: 270, kind: "normal" },
+    { id: 2, a: 1, b: 2, thickness: 20, height: 110, kind: "half", halfHeight: 110 },
+  ];
+  var full = S.walls[0], half = S.walls[1];
+  assert.equal(wallSolidTop(half), 110);
+  assert.equal(wallSolidAtNode(half, 1, 0), true, "the half wall is an arm at floor level");
+  assert.equal(wallSolidAtNode(half, 1, 110), false, "and is gone above its cap");
+  var low = wallOutline(full, 0),
+    high = wallOutline(full, 200);
+  assert.ok(
+    low.filter((p) => Math.abs(p.x - 200) < 0.01).length < 2,
+    "below the cap the full wall still mitres against the half wall",
+  );
+  assert.ok(
+    high.filter((p) => Math.abs(p.x - 200) < 0.01).length === 2,
+    "above the cap the full wall ends square at the shared node",
+  );
+  assert.equal(jointClosed(low, wallOutline(half)), 2, "the overlapping height still shares both corners");
+});
+
+test("a 90° branch still meets a face-located through-run of mixed thickness", () => {
+  S.interiorDims = true;
+  S.openings = [];
+  S.nodes = [
+    { x: 0, z: 0 },
+    { x: 0, z: 200 },
+    { x: 0, z: 500 },
+    { x: 200, z: 200 },
+  ];
+  S.walls = [
+    { id: 1, a: 0, b: 1, thickness: 10, height: 270, dimSide: 1, loc: "face" },
+    { id: 2, a: 1, b: 2, thickness: 20, height: 270, dimSide: 1, loc: "face" },
+    { id: 3, a: 1, b: 3, thickness: 16, height: 270 },
+  ];
+  var thin = wallOutline(S.walls[0]),
+    thick = wallOutline(S.walls[1]),
+    branch = wallOutline(S.walls[2]),
+    step = tJoinStep(S.walls[2], "a");
+  assert.ok(step, "the branch sees the thickness step");
+  assert.ok(Math.abs(step.tp - 20) < 0.05 && Math.abs(step.tm - 10) < 0.05);
+  assert.ok(near(step.plusJoint, { x: 20, z: 200 }), "step lands on the thick outer face at the node");
+  assert.ok(near(step.minusJoint, { x: 10, z: 200 }), "and on the thin outer face at the node");
+  assert.ok(
+    branch.some((p) => near(p, step.plusJoint)) && branch.some((p) => near(p, step.minusJoint)),
+    "the branch outline includes the step instead of shearing across it",
+  );
+  assert.ok(thin.some((p) => near(p, step.minusJoint)), "thin wall shares the step corner");
+  assert.ok(thick.some((p) => near(p, step.plusJoint)), "thick wall shares the other step corner");
+});
+
+test("a 90° branch hung against an interior-face through-run has no gap", () => {
+  S.interiorDims = true;
+  S.openings = [];
+  S.nodes = [
+    { x: 0, z: 0 },
+    { x: 0, z: 200 },
+    { x: 0, z: 500 },
+    { x: 200, z: 200 },
+  ];
+  S.walls = [
+    { id: 1, a: 0, b: 1, thickness: 10, height: 270, dimSide: -1, loc: "face" },
+    { id: 2, a: 1, b: 2, thickness: 20, height: 270, dimSide: -1, loc: "face" },
+    { id: 3, a: 1, b: 3, thickness: 16, height: 270 },
+  ];
+  var thin = wallOutline(S.walls[0]),
+    thick = wallOutline(S.walls[1]),
+    branch = wallOutline(S.walls[2]);
+  assert.ok(Math.abs(wallCuts(S.walls[2]).a) < 0.5, "the branch reaches the shared node");
+  assert.ok(
+    branch.some((p) => Math.abs(p.x) < 0.05) &&
+      thin.some((p) => Math.abs(p.x) < 0.05) &&
+      thick.some((p) => Math.abs(p.x) < 0.05),
+    "branch and through-run share the interior plane",
+  );
+});
+
+test("3D T-branch ends use the through-run's near face, not half its thickness", async () => {
+  const src = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+  assert.match(src, /wallJoinRole\(w, nodeId\) === "branch"/,
+    "a T-branch is cut with the join role, not the L-corner fallback");
+  assert.match(src, /faceShiftAt\(nodeId, bx, bz/,
+    "the cut is the adjoining face, so hanging the run on its interior cannot open a gap");
+});
+
+test("a centreline T of mixed thickness also follows the step", () => {
+  S.interiorDims = true;
+  S.openings = [];
+  S.nodes = [
+    { x: 0, z: 0 },
+    { x: 0, z: 200 },
+    { x: 0, z: 500 },
+    { x: 200, z: 200 },
+  ];
+  S.walls = [
+    { id: 1, a: 0, b: 1, thickness: 10, height: 270 },
+    { id: 2, a: 1, b: 2, thickness: 20, height: 270 },
+    { id: 3, a: 1, b: 3, thickness: 16, height: 270 },
+  ];
+  var step = tJoinStep(S.walls[2], "a"),
+    branch = wallOutline(S.walls[2]);
+  assert.ok(step, "unequal through-walls are a step even on the centreline");
+  assert.ok(
+    branch.some((p) => near(p, step.plusJoint)) && branch.some((p) => near(p, step.minusJoint)),
+    "the branch fill follows the step",
+  );
+});
+
+test("sampled 3D walls mitre with the same outline the plan uses", async () => {
+  const src = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+  assert.match(src, /wallBandOutline/, "half / pony / railing walls take their end cuts from the mitred band");
+  assert.match(src, /hasHeightMismatchedJoin/, "a full wall meeting a half wall is split at the cap");
+  const plan = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
+  assert.match(plan, /wallBandOutline/, "plan layer fills use the same mitred band");
 });

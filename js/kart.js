@@ -1667,7 +1667,9 @@ function aiPlay(car, now) {
   // DIFFICULTY in rc_state.js): a keener bot reacts sooner and fires from
   // further out. Absent the field it behaves exactly as it always did.
   var ag = car.aiItems == null ? 1 : car.aiItems;
-  car.aiItemT = now + 260 / ag;
+  // ag <= 0 would make the cooldown Infinity/negative — a bot that never fires
+  // (or fires every frame). Clamp to the laziest sane rhythm instead.
+  car.aiItemT = now + (ag > 0.05 ? 260 / ag : 5200);
   var k = car.item;
   if (k === "banana") {
     if (nearBehind(car) || Math.random() < 0.01 * ag) kartUse(car, now, true);

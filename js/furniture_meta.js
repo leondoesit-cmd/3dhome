@@ -108,7 +108,14 @@ var FURN_EN = {
   towelRail: "Heated towel rail",
   laundryBasket: "Laundry basket",
   chandelier: "Chandelier",
-  ceilingFan: "Ceiling fan"
+  ceilingFan: "Ceiling fan",
+  motionSensor: "Motion sensor",
+  contactSensor: "Door / Window sensor",
+  tempSensor: "Temperature & Humidity sensor",
+  smokeDetector: "Smoke detector",
+  smartLock: "Smart lock",
+  vacuum: "Robot vacuum",
+  smartPlug: "Smart plug"
 };
 
 export function flabel(type) {
@@ -129,6 +136,7 @@ var CATALOG_EN = {
   "laundry": "Laundry & Cleaning",
   "climate": "Climate Control",
   "media": "Media",
+  "smarthome": "Smart Home & Security",
   "computers": "Computers",
   "systems": "Systems",
   "peripherals": "Displays",
@@ -172,6 +180,8 @@ export const PRICE = {
   speaker: 2400, soundbar: 1500, wineFridge: 3000, coffeeMachine: 2800, toaster: 250,
   kettle: 200, waterHeater: 1800, printer: 800, bidet: 800, pedestalSink: 1100,
   towelRail: 900, laundryBasket: 180, chandelier: 2200, ceilingFan: 1200,
+  motionSensor: 150, contactSensor: 100, tempSensor: 120, smokeDetector: 180,
+  smartLock: 950, vacuum: 1800, smartPlug: 80,
   // ducted AC: the fan coil and condenser are the system, the grilles are per room
   tvWall: 3200, acDucted: 6500, acOutdoor: 4800, acCassette: 5200,
   acDiffuser: 260, acReturn: 320
@@ -200,7 +210,8 @@ export const CATALOG = [
     { id: "kitchen_apps", label: "מטבח", icon: "ph-oven", items: ["fridge", "oven", "cooktop", "microwave", "dishwasher", "hood", "wineFridge", "coffeeMachine", "toaster", "kettle"] },
     { id: "laundry", label: "כביסה וניקיון", icon: "ph-washing-machine", items: ["washer", "dryer"] },
     { id: "climate", label: "מיזוג", icon: "ph-snowflake", items: ["ac", "acCassette", "acDucted", "acDiffuser", "acReturn", "acOutdoor", "radiator", "waterHeater"] },
-    { id: "media", label: "מדיה", icon: "ph-television", items: ["tv", "tvWall", "soundbar", "speaker"] }
+    { id: "media", label: "מדיה", icon: "ph-television", items: ["tv", "tvWall", "soundbar", "speaker"] },
+    { id: "smarthome", label: "בית חכם ואבטחה", icon: "ph-broadcast", items: ["motionSensor", "contactSensor", "tempSensor", "smokeDetector", "smartLock", "vacuum", "smartPlug"] }
   ]},
   { id: "computers", label: "מחשבים", icon: "ph-desktop-tower", sub: [
     { id: "systems", label: "מערכות", icon: "ph-laptop", items: ["desktop_pc", "laptop", "printer"] },

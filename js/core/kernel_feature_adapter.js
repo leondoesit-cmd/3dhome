@@ -4,7 +4,7 @@
 // them into the small operation vocabulary the kernel already understands.
 
 import { cloneDomain } from "./schema.js";
-import { analyzeParametricHistory, ensureParametricDocument } from "./parametric_document.js";
+import { analyzeParametricHistory, ensureParametricDocument, historyEntryRolled } from "./parametric_document.js";
 import { circularPatternStepDegrees, linearPatternOffsets, parseSkippedPatternInstances } from "./pattern_geometry.js";
 
 function idOf(reference) {
@@ -78,8 +78,8 @@ export function compileKernelFeatureTree(source) {
   const featuresById = new Map((document.features || []).map((feature) => [feature.id, feature]));
   const sketchesById = new Map((document.sketches || []).map((sketch) => [sketch.id, sketch]));
   const compiled = [];
-  (document.history || []).forEach((entry) => {
-    if (entry.suppressed) return;
+  (document.history || []).forEach((entry, index) => {
+    if (entry.suppressed || historyEntryRolled(document, index)) return;
     if (entry.kind === "sketch") {
       const sketch = sketchesById.get(entry.targetId);
       if (sketch) compiled.push({ id: "feature:sketch:" + sketch.id, name: sketch.name, type: "sketch", params: { sketchId: sketch.id }, inputs: [], suppressed: !!sketch.suppressed });

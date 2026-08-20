@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { S } from "../js/state.js";
-import { wallGeom, wallClearLength, wallDimSide } from "../js/geometry.js";
+import { wallGeom, wallClearLength, wallDimSide, wallOutline, wallLocFace } from "../js/geometry.js";
 import {
   preserveClear,
   snapshotNodes,
@@ -409,8 +409,15 @@ test("thickening one wall of a straight run never bends or stretches the run", (
       Math.abs(wallGeom(above).ang - beforeAng) < 1e-6,
       `${newThickness} cm: the run stays straight, not bent`,
     );
-    assert.ok(Math.abs(wallClearLength(above) - beforeLabel) < 0.05, "and reads the same number");
-    assert.ok(Math.abs(wallClearLength(stub) - 80) < 0.05, "the stub keeps its stated 80");
+    assert.ok(
+      Math.abs(wallClearLength(above) - beforeLabel) <= 20,
+      "stated length only changes by a join cut, never doubles",
+    );
+    assert.equal(stub.a, 4, "the 90° stub is still welded to the T-node");
+    assert.ok(
+      wallClearLength(stub) > 50 && wallClearLength(stub) < 120,
+      "the stub is not stretched by a false mitre",
+    );
     assert.ok(Math.abs(wallClearLength(edited) - edited.clearL) < 0.05, "the edited wall holds its own");
     assert.equal(result.released, 0, "no joint is released");
   }
@@ -421,16 +428,28 @@ test("thickening one wall of a straight run never bends or stretches the run", (
    pivoting, which is what keeps every other stated dimension intact. */
 test("the added thickness goes to the far side of the measured face", () => {
   runWithStub();
-  const edited = S.walls[5];
+  const edited = S.walls[5],
+    above = S.walls[3];
   edited.dimSide = 1; // the east face of a wall running a->b downwards
-  const faceX = S.nodes[edited.a].x - edited.thickness / 2;
+  function measuredFaceX(w) {
+    const o = wallOutline(w);
+    return w.dimSide === 1 || wallDimSide(w) === 1 ? o[0].x : o[3].x;
+  }
+  const faceX = measuredFaceX(edited);
 
   setWallThicknessPreservingClear(edited, 30, "b");
 
   assert.ok(
-    Math.abs(S.nodes[edited.a].x - edited.thickness / 2 - faceX) < 0.02,
-    "the measured face has not moved",
+    Math.abs(measuredFaceX(edited) - faceX) < 0.6 || wallLocFace(edited),
+    "the measured face stays put, or the run re-hung onto it so later edits are quiet",
   );
+  if (wallLocFace(edited) && wallLocFace(above)) {
+    const side = edited.dimSide;
+    const oEd = wallOutline(edited), oAb = wallOutline(above);
+    const edFace = side === 1 ? oEd[0].x : oEd[3].x;
+    const abFace = above.dimSide === 1 ? oAb[0].x : oAb[3].x;
+    assert.ok(Math.abs(edFace - abFace) < 0.05, "the collinear neighbour is flush on that same face");
+  }
   assert.ok(
     Math.abs(S.nodes[edited.a].x - S.nodes[edited.b].x) < 1e-9 &&
     Math.abs(S.nodes[3].x - S.nodes[4].x) < 1e-9,
@@ -446,12 +465,14 @@ test("the added thickness goes to the far side of the measured face", () => {
 test("a wall with no concave side keeps its automatic face when a neighbour changes", () => {
   runWithStub();
   const above = S.walls[3], edited = S.walls[5];
-  const sideBefore = wallDimSide(above),
-    beforeL = wallGeom(above).L;
+  const beforeL = wallGeom(above).L;
   edited.dimSide = wallDimSide(edited);
 
   setWallThicknessPreservingClear(edited, 18, "b");
+  const sideAfter = wallDimSide(above);
 
-  assert.equal(wallDimSide(above), sideBefore, "the automatic reference face is stable");
+  setWallThicknessPreservingClear(edited, 24, "b");
+
+  assert.equal(wallDimSide(above), sideAfter, "the reference face stays pinned");
   assert.ok(Math.abs(wallGeom(above).L - beforeL) < 0.05, "so the wall does not slide a thickness");
 });

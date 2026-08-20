@@ -24,7 +24,7 @@ test("the first wall supports a drag-release commit without removing click-click
   assert.match(interaction, /var wasDrawing = S\.drawing;[\s\S]*S\.wallPress = \{ pointerId:/);
   assert.match(
     interaction,
-    /e\.type === "pointerup"[\s\S]*Math\.hypot\(wox - wp\.x, woy - wp\.y\) > 5[\s\S]*wallPoint\(snapPoint[\s\S]*finishDraw\(\)/,
+    /e\.type === "pointerup"[\s\S]*Math\.hypot\(wox - wp\.x, woy - wp\.y\) > 5[\s\S]*wallPoint\(snapWallPoint[\s\S]*finishDraw\(\)/,
   );
 });
 
@@ -34,7 +34,7 @@ test("finishing a run clears every placement transient", () => {
     interaction.indexOf("export function wallPoint(p)"),
   );
 
-  for (const field of ["drawing", "drawFrom", "drawFromSplit", "drawWalls", "wallPress", "previewPt"])
+  for (const field of ["drawing", "drawFrom", "drawStart", "drawFromSplit", "drawWalls", "wallPress", "previewPt"])
     assert.match(body, new RegExp(`S\\.${field}\\s*=`));
 });
 
@@ -78,7 +78,7 @@ test("a wall drawn off a jamb lands its face on the jamb, not its centreline", (
     interaction.indexOf("8. wall extension line"),
   );
 
-  assert.match(body, /faceBack = S\.tool === "wall" \? WALL_T \/ 2 : 0/);
+  assert.match(body, /faceBack = drawFaceBack\(\)/);
   assert.match(body, /\[\[o\.s - half, -1\], \[o\.s \+ half, 1\]\]/);
   assert.match(body, /clamp\(s \+ jamb\[1\] \* faceBack, 0, g\.L\)/);
   // committed at the setback, but measured from the jamb (offer's `aim`)

@@ -14,7 +14,6 @@ import {
   setWallEnd,
   wallLocFace,
   wallOffsetVec,
-  straightRunNodes,
 } from "./geometry.js";
 import {
   FURN,
@@ -29,14 +28,19 @@ import {
   clearVSpanCache,
 } from "./furniture.js";
 import { t, toggleLang, onLangChange } from "./i18n.js";
+import { snapshotSmart, loadSmart, ensureSmartHome, syncSmartFromLamp } from "./smarthome.js";
+import { pushDevice } from "./smarthome_connect.js";
 import { render2D, fitView, wx, wz, dropPoint, updatePlanGizmo } from "./plan2d.js";
 import {
   snapshotNodes, enforceLocks, captureLock, setLocked, isLocked, syncLocks,
   captureClear, syncClears, fitWallClearLength, setWallThicknessPreservingClear,
-  relaxLocks, settleWallDim, setWallReference,
+  relaxLocks, settleWallDim, setWallReference, hangStraightRunOnFace,
 } from "./constraint_engine.js";
 import { initWarnPanel, renderWarnPanel } from "./ui_warn.js";
 import { alignItems, distributeItems, matchRotation } from "./item_align.js";
+import {
+  applyAutoFace, markManualRot, refaceItem, rotStep, setRotStep,
+} from "./item_orient.js";
 import { renderParams, addParam, renderRoomCons, runRoomConAction } from "./ui_params.js";
 import {
   applyEnv,
@@ -61,6 +65,7 @@ import {
   dupSel,
   openWall,
   openSegment,
+  placeOpeningOnSelected,
   addSpace,
   rotateRoom,
   autoArrangeAll,
@@ -73,6 +78,9 @@ import {
   restoreSelectedSharpCorner,
   updateSelectedCornerTreatment,
 } from "./interaction.js";
+import {
+  setWallDrawPreset, setWallDrawFrom, activeWallPresetId, isWallDrawTool,
+} from "./wall_draw.js";
 import {
   solveWallCons, addWallRelation, addOffset, addEqualSpacing,
   removeCon, flipConDirection, repin, setConReport, setConSuppressed,
@@ -96,7 +104,7 @@ import {
   refreshCatalogSelect,
 } from "./modeler.js";
 
-import { select, fillProps, roomMetaFor, selLamp, refreshMarkerReadout, syncWallEnd, syncWallSide, squarableArm } from "./ui_props.js";
+import { select, fillProps, roomMetaFor, selLamp, refreshMarkerReadout, syncWallEnd, syncWallSide, squarableArm, wallTakeoffRows, wallFlipSymmetric, wallFaceMaterials } from "./ui_props.js";
 import {
   updateCost,
   exportCostCSV,
@@ -110,6 +118,7 @@ import {
   descendantsOf,
   orphanChildren,
   normalizeStacks,
+  findSupport,
 } from "./stack.js";
 import { loadMEP } from "./mep.js";
 import { renderPanel as refreshMEPPanel } from "./ui_mep.js";
@@ -141,7 +150,7 @@ import {
   wallLayers,
   wallMaterialQuantities,
 } from "./wall_types.js";
-import { normalizeWallKind, normalizeWallProfile } from "./wall_curves.js";
+import { normalizeWallKind, normalizeWallProfile, setWallKind } from "./wall_curves.js";
 import { wallSchedule, wallScheduleCSV } from "./wall_schedule.js";
 import { wallFramingTakeoff } from "./wall_framing.js";
 import { convertCadToWalls } from "./cad_to_walls.js";
@@ -182,6 +191,10 @@ function restack(it) {
 function turnItem(it, deg) {
   var d = deg - (it.rot || 0);
   it.rot = deg;
+  /* Typed or clicked, this angle is the user's. The automatic facing
+     (js/item_orient.js) never touches the piece again until "face by
+     surroundings" hands it back. */
+  markManualRot(it);
   rotateWith(it, d, new Set([it])).forEach(function (c) {
     touchItem3D(c, "move");
   });
@@ -245,6 +258,7 @@ export function sceneObject(includeWorkspace) {
           vis: S.mep.vis,
         }
       : undefined,
+    smarthome: snapshotSmart(ensureSmartHome()),
     // embed custom-model definitions the scene uses, so exported files are
     // self-contained and load on machines without this browser's model library
     customModels: usedCustomModels(S.items),
@@ -294,7 +308,7 @@ export function applyData(d) {
     ? JSON.parse(JSON.stringify(d.wallTypes))
     : [];
   S.wallDrawDefaults = Object.assign(
-    { typeId: "generic", kind: "normal", datum: "center", phase: "new" },
+    { typeId: "generic", kind: "normal", datum: "center", loc: "center", dimSide: 0, from: "center", phase: "new", offsetDist: 120 },
     d.wallDrawDefaults && typeof d.wallDrawDefaults === "object"
       ? d.wallDrawDefaults
       : {},
@@ -327,6 +341,7 @@ export function applyData(d) {
         kind: ["normal", "roomDivider", "half", "pony", "railing"].indexOf(w.kind) !== -1
           ? w.kind
           : "normal",
+        fullHeight: fin(w.fullHeight) ? w.fullHeight : undefined,
         phase: ["existing", "demolition", "demolish", "new"].indexOf(w.phase) !== -1
           ? (w.phase === "demolish" ? "demolition" : w.phase)
           : "new",
@@ -356,6 +371,8 @@ export function applyData(d) {
         // from the geometry that was just loaded.
         lock: w.lock === false ? false : undefined,
         lockL: fin(w.lockL) ? w.lockL : undefined,
+        // face-length companion to lockL; older files get it from syncLocks()
+        lockClearL: fin(w.lockClearL) ? w.lockClearL : undefined,
         lockAng: fin(w.lockAng) ? w.lockAng : undefined,
         // stated INTERIOR length (js/constraint_engine.js); syncClears() fills
         // it in for older files from the geometry as saved
@@ -367,7 +384,7 @@ export function applyData(d) {
           : undefined,
         // which line of the wall S.nodes stores (js/geometry.js wallLocFace).
         // Absent = the centreline, which is what every older file means.
-        loc: w.loc === "face" ? "face" : undefined,
+        loc: w.loc === "face" || w.loc === "center" ? w.loc : undefined,
         // "the user typed this length" — outranks derived lengths when an
         // over-constrained loop has to pick a wall to yield
         dimUser: w.dimUser ? 1 : undefined,
@@ -424,6 +441,11 @@ export function applyData(d) {
               side: it.hold.side === -1 ? -1 : 1,
             }
           : undefined,
+        /* The angle was set by hand, so the automatic facing must keep its
+           hands off it — a fact about the design, not about this session.
+           (This mapper is a whitelist: without the line the flag is lost and
+           a reopened plan starts re-turning pieces the user had aimed.) */
+        rotUser: it.rotUser ? 1 : undefined,
         locked: !!it.locked,
         groupId: it.groupId,
         // the piece's style variant (see furniture.js) — a plain id
@@ -440,6 +462,9 @@ export function applyData(d) {
         materialOverrides: it.materialOverrides && typeof it.materialOverrides === "object" ? it.materialOverrides : undefined,
         configuration: it.configuration && typeof it.configuration === "object" ? it.configuration : undefined,
         runtimeState: it.runtimeState && typeof it.runtimeState === "object" ? it.runtimeState : undefined,
+        // live smart-home state (lights / climate / appliances). Bindings live
+        // on S.smarthome; this is the per-piece on/brightness/setpoint snapshot.
+        smart: it.smart && typeof it.smart === "object" ? it.smart : undefined,
       };
     });
   // after S.items is final: a point whose object did not survive the filter
@@ -510,6 +535,8 @@ export function applyData(d) {
   }
   loadMEP(d.mep);
   refreshMEPPanel();
+  loadSmart(d.smarthome);
+  if (typeof window.__renderSmartHome === "function") window.__renderSmartHome();
   syncEnvUI();
   // rebuild the rooms/items tree — this also drives updateCost(), so without it
   // the panel keeps showing the PREVIOUS scene's rooms and price after a
@@ -607,12 +634,15 @@ export function flash(msg, kind) {
 }
 
 // Minimal shared modal on the .bp-overlay/.bp-modal theme classes.
-// Returns {overlay, body, actions, close}; Escape / backdrop click close it.
+// Returns {overlay, modal, body, actions, close, onClose}; Escape / backdrop click close it.
 export function openModal(titleText) {
   var overlay = document.createElement("div");
   overlay.className = "bp-overlay";
   var modal = document.createElement("div");
   modal.className = "bp-modal";
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  if (titleText) modal.setAttribute("aria-label", titleText);
   var h = document.createElement("h3");
   h.textContent = titleText;
   var body = document.createElement("div");
@@ -625,9 +655,13 @@ export function openModal(titleText) {
   modal.appendChild(body);
   modal.appendChild(actions);
   overlay.appendChild(modal);
+  var closeHandlers = [];
   function close() {
     document.removeEventListener("keydown", onKey);
     if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    for (var i = 0; i < closeHandlers.length; i++) {
+      try { closeHandlers[i](); } catch (e) {}
+    }
   }
   function onKey(e) {
     if (e.key === "Escape") close();
@@ -637,7 +671,16 @@ export function openModal(titleText) {
   });
   document.addEventListener("keydown", onKey);
   document.body.appendChild(overlay);
-  return { overlay: overlay, body: body, actions: actions, close: close };
+  return {
+    overlay: overlay,
+    modal: modal,
+    body: body,
+    actions: actions,
+    close: close,
+    onClose: function (fn) {
+      if (typeof fn === "function") closeHandlers.push(fn);
+    }
+  };
 }
 
 function saveTextDownload(name, textValue, mime) {
@@ -743,6 +786,20 @@ export function lockUI() {
 export function unlockUI() {
   document.getElementById("workspace").style.pointerEvents = "";
 }
+/* The two rotate buttons show the step they will actually apply, and the step
+   chooser shows which one is live. One readout, so a 90° press can never look
+   like a 15° one. */
+export function syncRotStepUI() {
+  var step = rotStep();
+  document.querySelectorAll("[data-act^='rotStep']").forEach(function (b) {
+    var v = parseInt(b.getAttribute("data-act").slice(7), 10);
+    b.classList.toggle("active", v === step);
+  });
+  document.querySelectorAll(".rot-step-lbl").forEach(function (el) {
+    el.textContent = step + "\u00b0";
+  });
+}
+
 export function isLegacyUI() {
   return document.documentElement.getAttribute("data-ui") === "legacy";
 }
@@ -754,6 +811,10 @@ export function placeFurnAt(type, x, z) {
     flash(t("f_placeFail"), "error");
     return;
   }
+  /* Face it before it exists on the plan: a piece that arrives already looking
+     the right way is the whole point, and doing it here means the library, the
+     right-click "add item here" and the drag all agree. (js/item_orient.js) */
+  applyAutoFace(it, it.x, it.z, { host: findSupport(it, it.x, it.z) });
   S.items.push(it);
   S.placeType = null;
   window.dispatchEvent(new CustomEvent("planner-place"));
@@ -808,6 +869,7 @@ export function addFurnItem(type) {
     flash(t("f_placeFail"), "error");
     return;
   }
+  applyAutoFace(it, it.x, it.z, { host: findSupport(it, it.x, it.z) });
   S.items.push(it);
   select({ kind: "item", ref: it });
   S.dirty3D = true;
@@ -937,7 +999,7 @@ function planState() {
     walls: S.walls.map(function (w) {
       return {
         w: w, a: w.a, b: w.b, clearL: w.clearL,
-        lockL: w.lockL, lockAng: w.lockAng, dimSide: w.dimSide,
+        lockL: w.lockL, lockClearL: w.lockClearL, lockAng: w.lockAng, dimSide: w.dimSide,
       };
     }),
   };
@@ -952,6 +1014,7 @@ function restorePlan(st) {
     r.w.b = r.b;
     r.w.clearL = r.clearL;
     r.w.lockL = r.lockL;
+    r.w.lockClearL = r.lockClearL;
     r.w.lockAng = r.lockAng;
     r.w.dimSide = r.dimSide;
   });
@@ -1397,9 +1460,9 @@ export function initUI() {
       render2D();
     });
   /* Which line of the wall the model stores. The corner stays where it is and
-     the wall re-hangs on it — see setWallReference. "Whole run" is the useful
-     one: every wall of a straight run on the same face means the run is FLUSH
-     there, whatever the thicknesses, with the whole step on the far side. */
+     the wall re-hangs on it — see setWallReference. "Whole run" (and a
+     thickness edit of a collinear run) hangs every member on the same face so
+     the interior is flush; a 90° branch sharing the T-node stays welded. */
   var wLocBox = document.getElementById("w_loc");
   if (wLocBox)
     wLocBox.addEventListener("click", function (e) {
@@ -1408,19 +1471,8 @@ export function initUI() {
       var w = S.sel.ref,
         v = b.dataset.loc;
       pushHistory();
-      if (v === "face-run") {
-        var run = straightRunNodes(w),
-          side = wallDimSide(w);
-        S.walls.forEach(function (ow) {
-          if (!run[ow.a] || !run[ow.b]) return;
-          /* every member takes the face on the SAME physical side, which for a
-             wall drawn in the opposite direction is the opposite dimSide */
-          var og = wallGeom(ow),
-            g = wallGeom(w),
-            same = og.ux * g.ux + og.uz * g.uz >= 0;
-          setWallReference(ow, { dimSide: same ? side : -side, loc: "face" });
-        });
-      } else setWallReference(w, { loc: v });
+      if (v === "face-run") hangStraightRunOnFace(w, wallDimSide(w));
+      else setWallReference(w, { loc: v });
       S.dirty3D = true;
       refreshTree();
       syncWallSide(w);
@@ -1460,9 +1512,7 @@ export function initUI() {
     wallKindSelect.addEventListener("change", function () {
       var kind = normalizeWallKind(this.value);
       editWallDefinition(function (w) {
-        w.kind = kind;
-        if (kind === "half" && w.height > 140) w.height = 110;
-        if (kind === "pony" && !fin(w.splitHeight)) w.splitHeight = Math.min(w.height, 110);
+        setWallKind(w, kind);
       });
     });
 
@@ -1492,11 +1542,16 @@ export function initUI() {
       editWallDefinition(function (w) { w.upperWallTypeId = typeId; });
     });
 
+  /* End joins are a segmented picker now rather than a select: three ways two
+     walls can meet, drawn instead of named. Same edit either way — "auto"
+     removes the override so the joint solver keeps deciding. */
   ["a", "b"].forEach(function (end) {
-    var joinSelect = document.getElementById("w_join_" + end);
-    if (!joinSelect) return;
-    joinSelect.addEventListener("change", function () {
-      var mode = this.value;
+    var joinBox = document.getElementById("w_join_" + end);
+    if (!joinBox) return;
+    joinBox.addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-join]");
+      if (!b) return;
+      var mode = b.dataset.join;
       editWallDefinition(function (w) {
         if (!w.join || typeof w.join !== "object") w.join = {};
         if (mode === "auto") delete w.join[end];
@@ -1861,23 +1916,29 @@ export function initUI() {
     if (!it) return;
     pushHistory();
     it.lightOn = this.checked;
+    syncSmartFromLamp(it);
     touchItem3D(it, "build");
+    pushDevice(it, { on: this.checked });
   });
   document.getElementById("l_int").addEventListener("input", function () {
     var it = selLamp();
     if (!it) return;
     commitPending();
     it.lightI = parseFloat(this.value);
+    syncSmartFromLamp(it);
     document.getElementById("l_intval").textContent =
       Math.round(it.lightI * 100) + "%";
     touchItem3D(it, "build");
+    pushDevice(it, { brightness: it.smart ? it.smart.brightness : Math.round(it.lightI * 100) });
   });
   document.getElementById("l_col").addEventListener("input", function () {
     var it = selLamp();
     if (!it) return;
     commitPending();
     it.lightColor = parseInt(this.value.slice(1), 16);
+    syncSmartFromLamp(it);
     touchItem3D(it, "build");
+    pushDevice(it, { color: this.value });
   });
   
   document.getElementById("l_type").addEventListener("change", function () {
@@ -2059,6 +2120,51 @@ export function initUI() {
     });
   });
 
+  function syncWallDrawPalette() {
+    var pal = document.getElementById("plan-wall-palette");
+    if (!pal) return;
+    pal.hidden = !isWallDrawTool(S.tool);
+    // These are icon-only toggles whose meaning lives in a `title` tooltip —
+    // which touch devices and screen readers never surface. State the choice
+    // through aria-pressed and carry the tooltip over as the accessible name.
+    var preset = activeWallPresetId();
+    pal.querySelectorAll("[data-wall-preset]").forEach(function (b) {
+      var on = b.getAttribute("data-wall-preset") === preset;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      if (!b.getAttribute("aria-label") && b.title) b.setAttribute("aria-label", b.title);
+    });
+    var from = (S.wallDrawDefaults && S.wallDrawDefaults.from) || "center";
+    pal.querySelectorAll("[data-wall-from]").forEach(function (b) {
+      var on = b.getAttribute("data-wall-from") === from;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  var pal = document.getElementById("plan-wall-palette");
+  if (pal) {
+    pal.addEventListener("click", function (e) {
+      var presetBtn = e.target.closest("[data-wall-preset]");
+      if (presetBtn) {
+        setWallDrawPreset(presetBtn.getAttribute("data-wall-preset"));
+        if (!isWallDrawTool(S.tool)) setTool("wall");
+        syncWallDrawPalette();
+        render2D();
+        return;
+      }
+      var fromBtn = e.target.closest("[data-wall-from]");
+      if (fromBtn) {
+        setWallDrawFrom(fromBtn.getAttribute("data-wall-from"));
+        syncWallDrawPalette();
+        render2D();
+      }
+    });
+  }
+  window.addEventListener("planner-tool", syncWallDrawPalette);
+  window.addEventListener("planner-draw-defaults", syncWallDrawPalette);
+  onLangChange(syncWallDrawPalette);
+  syncWallDrawPalette();
+
   // display controls
   document.getElementById("cb_dims").addEventListener("change", function () {
     S.showDims = this.checked;
@@ -2083,6 +2189,19 @@ export function initUI() {
       });
     });
   });
+  /* Automatic facing (js/item_orient.js). Same shape as the snap toggle it
+     sits next to, because it is the same kind of promise: the editor may help
+     while you drag, and this is the switch that stops it. */
+  document.querySelectorAll(".face-toggle").forEach(function (cb) {
+    cb.checked = S.autoFace !== false;
+    cb.addEventListener("change", function () {
+      S.autoFace = this.checked;
+      document.querySelectorAll(".face-toggle").forEach(function (other) {
+        other.checked = S.autoFace;
+      });
+    });
+  });
+  syncRotStepUI();
   document.getElementById("cb_ceil").addEventListener("change", function () {
     S.showCeiling = this.checked;
     S.dirty3D = true;
@@ -2369,24 +2488,9 @@ export function initUI() {
     });
   });
 
-  var mnav = document.getElementById("mobile-nav");
-  mnav &&
-    mnav.addEventListener("click", function (e) {
-      var btn = e.target.closest("[data-mnav]");
-      if (!btn) return;
-      var k = btn.dataset.mnav;
-      if (k === "left") {
-        document.body.classList.toggle("show-left");
-        document.body.classList.remove("show-right");
-      } else if (k === "right") {
-        document.body.classList.toggle("show-right");
-        document.body.classList.remove("show-left");
-      } else {
-        closeDrawers();
-        window.__setViewMode && window.__setViewMode(k);
-      }
-      syncNavPanels();
-    });
+  /* The bottom nav itself is owned by js/mobile_shell.js (View / Tools / Add /
+     Properties / More, each opening a sheet). Only the drawer plumbing above —
+     backdrop tap, outward swipe, closeDrawers — is still shared with it. */
   syncNavPanels();
 
   /* The bottom nav is for fingers, not for narrow windows: a tablet is as wide
@@ -2397,12 +2501,39 @@ export function initUI() {
     coarse = window.matchMedia("(pointer: coarse)");
   } catch (_) {}
   function applyCompactNav() {
-    var w = window.innerWidth;
-    var touch = coarse ? coarse.matches : "ontouchstart" in window;
+    var w = window.innerWidth,
+      h = window.innerHeight;
+    var shortPhone = w <= 1024 && h <= 500;
+    /* maxTouchPoints as well as the media query: some Android WebViews (and a
+       foldable's inner display in particular) report a FINE pointer while
+       having nothing but fingers, and that is exactly the device the docked
+       layout below exists for. */
+    var touch =
+      (coarse ? coarse.matches : "ontouchstart" in window) ||
+      (navigator.maxTouchPoints || 0) > 0;
     // 1024 is where the drawers stop being docked and start sliding in — the
     // nav's panel buttons toggle exactly those drawers, so the two thresholds
     // have to be the same number.
-    document.body.classList.toggle("compact-nav", w <= 768 || (touch && w <= 1024));
+    var compact = w <= 768 || shortPhone || (touch && w <= 1024);
+    var flipped = document.body.classList.contains("compact-nav") !== compact;
+    document.body.classList.toggle("compact-nav", compact);
+    // The floor strip hides itself on a compact layout while there is only one
+    // floor; crossing the threshold has to re-ask it, or it stays hidden on a
+    // desktop window that was merely narrow a moment ago.
+    if (flipped && window.__plannerChrome) window.__plannerChrome.renderFloorTabs();
+    /* An unfolded foldable is a WIDE, SHORT touch screen, and the phone layout
+       stretched across it wastes the one thing unfolding bought: width. Past
+       700px in landscape the panels stop floating over the canvas and become
+       columns beside it — which is the whole point of opening the device.
+       Driven by the aspect ratio rather than by the hinge media queries: the
+       inner display of a Fold reports one continuous segment, so
+       (horizontal-viewport-segments: 2) never matches there and the row layout
+       it guards would never run. */
+    var landscape = w > h;
+    var roomy = w >= 700 && landscape;
+    document.body.classList.toggle("dock-rail", compact && roomy);
+    document.body.classList.toggle("sheet-drawers", compact && !roomy);
+    document.body.classList.toggle("split-row", compact && roomy);
   }
   coarse &&
     (coarse.addEventListener
@@ -2628,6 +2759,10 @@ export function initUI() {
   // Single dispatch point for every named action. Menus, toolbar buttons and
   // keyboard shortcuts all funnel through here, so a shortcut can never drift
   // from what the matching menu item does.
+  /* One dispatch point, one global handle. js/mobile_shell.js builds its rows
+     at runtime and cannot use the delegated [data-act] listeners bound to the
+     static chrome, so it calls in here instead of duplicating any behaviour. */
+  window.__runAction = runAction;
   async function runAction(act) {
     if (S.workspace && S.workspace.role === "viewer") {
       var readOnlyActions = ["workspace", "frame", "walk", "walkview", "freemove", "photo", "png2d", "png3d", "exportjson", "exportgltf", "exportCost", "tree", "shortcuts", "plannerTutorial", "viewPlan", "view3d", "viewSplit", "openModeler", "friends", "toggleLegacy", "newPlan"];
@@ -2636,7 +2771,9 @@ export function initUI() {
         return;
       }
     }
-    if (act === "undo") undo();
+    if (act === "addFloor") {
+      window.__plannerChrome && window.__plannerChrome.addFloorFromUI();
+    } else if (act === "undo") undo();
     else if (act === "redo") redo();
     else if (act === "wallTypeEditor") openWallTypeEditorDialog();
     else if (act === "exportWallSchedule") exportWallScheduleFile();
@@ -2644,6 +2781,7 @@ export function initUI() {
     else if (act === "edit3d") setEdit3D(!S.edit3D);
     else if (act === "workspace") (await import("./workspace.js")).openWorkspace();
     else if (act === "openModeler") (await import("./modeler.js")).openModeler();
+    else if (act === "plannerTutorial") (await import("./planner_tutorial.js")).showPlannerHub();
     else if (act === "friends") {
       var fb = document.getElementById("friendsBtn");
       if (fb) fb.click();
@@ -3066,20 +3204,44 @@ export function initUI() {
     } else if (act === "lang") toggleLang();
     else if (act === "rotL" && S.sel && S.sel.kind === "item") {
       pushHistory();
-      turnItem(S.sel.ref, (((S.sel.ref.rot - 15) % 360) + 360) % 360);
+      turnItem(S.sel.ref, (((S.sel.ref.rot - rotStep()) % 360) + 360) % 360);
       S.dirty3D = true;
       fillProps();
       render2D();
     } else if (act === "rotR" && S.sel && S.sel.kind === "item") {
       pushHistory();
-      turnItem(S.sel.ref, ((S.sel.ref.rot + 15) % 360) % 360);
+      turnItem(S.sel.ref, (((S.sel.ref.rot + rotStep()) % 360) + 360) % 360);
       S.dirty3D = true;
       fillProps();
       render2D();
-    } else if (act === "roomRotL") rotateRoom(-15);
-    else if (act === "roomRotR") rotateRoom(15);
+    } else if (act && act.indexOf("rotStep") === 0) {
+      // rotStep15 / rotStep45 / rotStep90
+      setRotStep(parseInt(act.slice(7), 10));
+      syncRotStepUI();
+    } else if (act === "faceAuto" && S.sel && S.sel.kind === "item") {
+      /* Back to the automatic angle: forget that this piece was turned by hand
+         and re-read its surroundings where it stands. */
+      var fit = S.sel.ref;
+      pushHistory();
+      var turned = refaceItem(fit, { host: findSupport(fit, fit.x, fit.z) });
+      if (turned)
+        rotateWith(fit, turned, new Set([fit])).forEach(function (c) {
+          touchItem3D(c, "move");
+        });
+      touchItem3D(fit, "move");
+      fillProps();
+      render2D();
+      flash(turned ? t("f_faced") : t("f_faceSame"));
+    } else if (act === "roomRotL") rotateRoom(-rotStep());
+    else if (act === "roomRotR") rotateRoom(rotStep());
     else if (act === "openwall") openWall();
-    else if (act === "openseg") {
+    else if (act === "addWallDoor" || act === "addWallWindow" || act === "addWallPassage") {
+      var openingType = act === "addWallDoor" ? "door" : act === "addWallWindow" ? "window" : "passage";
+      var posEl = document.getElementById("ow_pos");
+      var along = posEl ? parseFloat(posEl.value) : NaN;
+      var placed = placeOpeningOnSelected(openingType, isFinite(along) ? { s: along } : {});
+      if (placed) flash(t("f_openingPlaced", { name: t(openingType) }));
+    } else if (act === "openseg") {
       if (S.segPreview)
         openSegment(S.segPreview.s, S.segPreview.width, S.segPreview.height);
     } else if (act && act.indexOf("op") === 0 &&
@@ -3167,11 +3329,21 @@ export function initUI() {
       fillProps();
       flash(t("wc_pick_" + kind));
     } else if (act === "reverseWallLayers" && S.sel && S.sel.kind === "wall") {
-      pushHistory();
+      /* A symmetric stack has nothing to mirror. The button is disabled in that
+         case, but the keyboard and the tree can still reach the action — so
+         refuse here too rather than push an undo entry that changes nothing. */
       normalizeWall(S.sel.ref, S);
+      if (wallFlipSymmetric(S.sel.ref)) {
+        flash(t("wallReverseNA"), "error");
+        return;
+      }
+      pushHistory();
       flipWall(S.sel.ref);
       S.dirty3D = true;
       fillProps(); render2D(); updateCost();
+      // near-white finishes make the swap almost invisible in 3D; name it
+      var flipped = wallFaceMaterials(S.sel.ref);
+      flash(t("wallReverseWhat", { out: flipped.out, in: flipped.in }), "success");
     } else if (act === "copyWallStyle" && S.sel && S.sel.kind === "wall") {
       pushHistory();
       var styleWall = normalizeWall(S.sel.ref, S);
@@ -3179,6 +3351,11 @@ export function initUI() {
         typeId: styleWall.wallTypeId,
         kind: normalizeWallKind(styleWall),
         datum: styleWall.datum,
+        loc: styleWall.loc === "face" ? "face" : "center",
+        dimSide: styleWall.dimSide === 1 || styleWall.dimSide === -1 ? styleWall.dimSide : 0,
+        from: styleWall.loc === "face"
+          ? (styleWall.datum === "interior" || styleWall.datum === "main-interior" ? (styleWall.datum || "interior") : "exterior")
+          : "center",
         phase: styleWall.phase,
         layersReversed: !!styleWall.layersReversed,
         upperWallTypeId: styleWall.upperWallTypeId,
@@ -3186,6 +3363,7 @@ export function initUI() {
         height: styleWall.height,
       };
       flash(document.documentElement.lang === "en" ? "Wall style copied to drawing defaults" : "סגנון הקיר הועתק לברירת המחדל", "success");
+      window.dispatchEvent(new CustomEvent("planner-draw-defaults"));
     } else if (act === "straightenWall" && S.sel && S.sel.kind === "wall") {
       pushHistory();
       var straightWall = S.sel.ref;
@@ -3455,6 +3633,25 @@ export function initUI() {
       currentTexTarget = "wall";
       var texInput = document.getElementById("texInput");
       if (texInput) texInput.click();
+    } else if (act === "clearWallTex" && S.sel && S.sel.kind === "wall") {
+      // back to whatever the assembly's own finish layer says
+      pushHistory();
+      delete S.sel.ref.tex;
+      S.dirty3D = true;
+      fillProps();
+      render2D();
+    } else if (act === "exportWallTakeoff" && S.sel && S.sel.kind === "wall") {
+      /* The quantities shown for the selected wall, as the same CSV shape the
+         project schedule exports — one wall's worth, so a single elevation can
+         be priced without exporting the whole building. */
+      var toWall = S.sel.ref;
+      var toCsv = [['"Wall"', '"Item"', '"Detail"', '"Quantity"'].join(",")];
+      wallTakeoffRows(toWall).forEach(function (r) {
+        toCsv.push([toWall.id, r.k, r.s || "", r.v]
+          .map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","));
+      });
+      saveTextDownload("wall-" + toWall.id + "-takeoff.csv", toCsv.join("\r\n"));
+      flash(t("f_downloaded"), "success");
     } else if (act === "shortcuts") {
       showShortcuts();
     }
@@ -3500,6 +3697,7 @@ export function initUI() {
         ["F", "k_frame"],
         ["W", "k_walk"],
         ["P", "k_photo"],
+        ["C", "k_rc"],
       ]],
       ["keys_sec_nav3d", [
         ["Drag", "k_orbit"],
@@ -3530,6 +3728,9 @@ export function initUI() {
     ];
     var m = openModal(t("keys_title"));
     shortcutsModal = m;
+    m.onClose(function () {
+      shortcutsModal = null;
+    });
     var wrap = document.createElement("div");
     wrap.className = "keys-grid";
     SECTIONS.forEach(function (sec) {
@@ -3609,8 +3810,10 @@ export function initUI() {
       return;
     }
     if (e.altKey) return;
-    // "?" is Shift+/ on most layouts; accept the bare key too.
-    if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
+    if (e.key === "F1") {
+      e.preventDefault();
+      runAction("plannerTutorial");
+    } else if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
       e.preventDefault();
       showShortcuts();
     } else if (e.key === "f" || e.key === "F") {
@@ -3622,6 +3825,12 @@ export function initUI() {
     } else if (e.key === "p" || e.key === "P") {
       e.preventDefault();
       runAction("photo");
+    } else if (e.key === "c" || e.key === "C") {
+      // C for "car" — the RC race was menu-only, which made the whole mode
+      // easy to never find. RC's own keymap runs capture-first and stops
+      // propagation, so inside the mode C still cycles the camera.
+      e.preventDefault();
+      runAction("rc");
     }
   });
 

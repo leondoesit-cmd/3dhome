@@ -2,6 +2,13 @@
 // A triangle uses the same x/y/z vertices as the rendered road mesh, flattened
 // as {ax,ay,az,bx,by,bz,cx,cy,cz,minx,maxx,minz,maxz}.
 
+// The one step-height constant for the whole RC stack: the biggest ledge a
+// truck climbs without a ramp (rug, book, step-ramp). Single-sourced here —
+// this leaf imports nothing — because the physics (rc_state STEP_H), the road
+// builder (track.js) and the editor (rc_editor_state) used to each keep their
+// own copy, and any drift between them strands trucks on phantom lips.
+export const STEP_UP = 2.2;
+
 // Height of a triangle at an x/z point. Barycentric interpolation makes the
 // physics plane exactly the same plane as the two triangles drawn by WebGL.
 export function triangleHeightAt(tri, x, z) {
@@ -25,7 +32,7 @@ export function triangleHeightAt(tri, x, z) {
   return a * tri.ay + b * tri.by + c * tri.cy;
 }
 
-function triangleUp(tri) {
+function triangleUp(tri, out) {
   var ux = tri.bx - tri.ax,
     uy = tri.by - tri.ay,
     uz = tri.bz - tri.az;
@@ -41,7 +48,11 @@ function triangleUp(tri) {
     nz = -nz;
   }
   var len = Math.hypot(nx, ny, nz) || 1;
-  return { x: nx / len, y: ny / len, z: nz / len };
+  out = out || {};
+  out.x = nx / len;
+  out.y = ny / len;
+  out.z = nz / len;
+  return out;
 }
 
 // Same selection as surfaceHeightAt(), plus the triangle's upward normal for
@@ -55,7 +66,7 @@ function triangleUp(tri) {
 // deck and dropped back off it: a lip in the lane at the same spot every lap. For
 // a body resting on a surface, "nearest" is its own surface; for one in the air,
 // every candidate is below it, so nearest is still the topmost thing under it.
-export function surfaceSampleAt(tris, x, z, y, step) {
+export function surfaceSampleAt(tris, x, z, y, step, out) {
   var best = null,
     delta = Infinity;
   var top = y + step + 0.01;
@@ -69,7 +80,11 @@ export function surfaceSampleAt(tris, x, z, y, step) {
     // ties (two coplanar passes) go to the higher one, so the truck rides on top
     if (d > delta || (d === delta && best && h <= best.height)) continue;
     delta = d;
-    best = { height: h, normal: triangleUp(tri) };
+    // Callers in the physics hot path pass `out` (one scratch per vehicle):
+    // sampling runs per car per substep and must not churn objects.
+    best = out || {};
+    best.height = h;
+    best.normal = triangleUp(tri, best.normal);
   }
   return best;
 }

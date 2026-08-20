@@ -6,6 +6,8 @@ import {
   tangentAtWall,
   projectToWall,
   curvedWallOutline,
+  normalizeWallKind,
+  HALF_WALL_HEIGHT,
 } from "./wall_curves.js";
 
 var roomCycleCache = { sig: "", rooms: [] };
@@ -358,9 +360,37 @@ const AUTO_SIDE_TIE = 0.02; // ~1° of arm disagreement counts as balanced
    opening reaching a joint is the same situation without the extra split.
 
    Only an opening that takes the wall's whole HEIGHT disconnects the joint — a
-   window leaves wall above and below it to carry the corner. */
-export function wallSolidAtNode(w, nodeId) {
+   window leaves wall above and below it to carry the corner.
+
+   `atHeight` is the bottom of a 3D vertical band. A half wall (or a railing
+   curb) that stops below that height is not an arm of the joint there — the
+   tall neighbour must run through square above the cap, not mitre as if the
+   short wall continued to the ceiling. Omit it for the plan, which is a
+   top-down of every wall's footprint. */
+export function wallSolidTop(w) {
+  if (!w) return 0;
+  var kind = normalizeWallKind(w);
+  if (kind === "roomDivider") return 0;
+  if (kind === "half") {
+    var hh = firstFinite(w.halfHeight, w.capHeight, w.height);
+    return hh != null ? hh : HALF_WALL_HEIGHT;
+  }
+  if (kind === "railing") {
+    var curb = firstFinite(w.curbHeight, w.baseHeight);
+    return curb != null && curb > 0.5 ? curb : 0;
+  }
+  return firstFinite(w.height) || 0;
+}
+function firstFinite() {
+  for (var i = 0; i < arguments.length; i++) {
+    var v = arguments[i];
+    if (typeof v === "number" && isFinite(v)) return v;
+  }
+  return null;
+}
+export function wallSolidAtNode(w, nodeId, atHeight) {
   if (!w) return false;
+  if (atHeight != null && wallSolidTop(w) <= atHeight + 0.5) return false;
   var atA = w.a === nodeId,
     atB = w.b === nodeId;
   if (!atA && !atB) return true;
@@ -384,10 +414,10 @@ export function wallSolidAtNode(w, nodeId) {
    returned because a thickness edit has to translate the whole run rather than
    pull on this one shared node (see moveWallSideways in constraint_engine.js);
    `straightThroughAt` is the boolean the mitre code and the 3D builder ask. */
-export function straightThroughWallAt(nodeId, ux, uz, except) {
+export function straightThroughWallAt(nodeId, ux, uz, except, atHeight) {
   var hit = null;
   S.walls.forEach(function (ow) {
-    if (hit || ow === except || !wallSolidAtNode(ow, nodeId)) return;
+    if (hit || ow === except || !wallSolidAtNode(ow, nodeId, atHeight)) return;
     var o = ow.a === nodeId ? ow.b : ow.b === nodeId ? ow.a : null;
     if (o == null) return;
     var p = S.nodes[nodeId],
@@ -407,8 +437,8 @@ export function straightThroughWallAt(nodeId, ux, uz, except) {
 /* Exported because the 3D builder has to make exactly the same call: whatever
    this says is not a corner gets no mitre, so the plain end cut it falls back
    on must already be right on its own. */
-export function straightThroughAt(nodeId, ux, uz, except) {
-  return !!straightThroughWallAt(nodeId, ux, uz, except);
+export function straightThroughAt(nodeId, ux, uz, except, atHeight) {
+  return !!straightThroughWallAt(nodeId, ux, uz, except, atHeight);
 }
 /* Every node of the maximal STRAIGHT RUN through `w`: this wall plus every
    wall reachable from either end through a straight-through joint. Two
@@ -448,7 +478,7 @@ export function straightRunNodes(w) {
    whether the neighbour leans toward that face or away from it. Walls running
    straight on (a split wall) are not corners and are skipped.
    Multiple neighbours: the one that eats most wins, as with the old rule. */
-export function faceShiftAt(nodeId, ux, uz, side, except, myHalf) {
+export function faceShiftAt(nodeId, ux, uz, side, except, myHalf, atHeight) {
   if (!side) return 0;
   var nx = -uz * side,
     nz = ux * side,
@@ -465,7 +495,7 @@ export function faceShiftAt(nodeId, ux, uz, side, except, myHalf) {
   if (manualJoin === "through") {
     var throughExtension = 0;
     S.walls.forEach(function (ow) {
-      if (ow === except || !wallSolidAtNode(ow, nodeId)) return;
+      if (ow === except || !wallSolidAtNode(ow, nodeId, atHeight)) return;
       var other = ow.a === nodeId ? ow.b : ow.b === nodeId ? ow.a : null;
       if (other == null || !S.nodes[nodeId] || !S.nodes[other]) return;
       var tp = S.nodes[nodeId], tq = S.nodes[other], tdx = tq.x - tp.x, tdz = tq.z - tp.z,
@@ -487,7 +517,7 @@ export function faceShiftAt(nodeId, ux, uz, side, except, myHalf) {
   if (manualJoin === "butt") {
     var butt = null;
     S.walls.forEach(function (ow) {
-      if (ow === except || !wallSolidAtNode(ow, nodeId)) return;
+      if (ow === except || !wallSolidAtNode(ow, nodeId, atHeight)) return;
       var other = ow.a === nodeId ? ow.b : ow.b === nodeId ? ow.a : null;
       if (other == null || !S.nodes[nodeId] || !S.nodes[other]) return;
       var bp = S.nodes[nodeId], bq = S.nodes[other], bdx = bq.x - bp.x, bdz = bq.z - bp.z,
@@ -510,9 +540,9 @@ export function faceShiftAt(nodeId, ux, uz, side, except, myHalf) {
      the branch butt into its outside face.  Without this ownership rule each
      half of the through wall chased a different face of the branch, producing
      the long triangular spike visible at the left side of a T-junction. */
-  if (manualJoin !== "miter" && manualJoin !== "mitre" && straightThroughAt(nodeId, ux, uz, except)) return 0;
+  if (manualJoin !== "miter" && manualJoin !== "mitre" && straightThroughAt(nodeId, ux, uz, except, atHeight)) return 0;
   S.walls.forEach(function (ow) {
-    if (ow === except || !wallSolidAtNode(ow, nodeId)) return;
+    if (ow === except || !wallSolidAtNode(ow, nodeId, atHeight)) return;
     var o = ow.a === nodeId ? ow.b : ow.b === nodeId ? ow.a : null;
     if (o == null) return;
     var p = S.nodes[nodeId],
@@ -650,20 +680,73 @@ export function equalWallAngleTranslation(w, base, dx, dz) {
     pair: pair,
   };
 }
+/* A T-branch meeting a mixed-thickness through-run cannot close with one
+   sheared end: the two through walls end square at the node, so their near
+   faces sit at different distances. The branch has to follow that STEP —
+   each of its faces butts the through-wall on that side, and the outline
+   picks up the two extra corners on the joint. Equal-thickness T's return
+   null and keep the ordinary two-corner end. */
+export function tJoinStep(w, end, atHeight) {
+  if (!w || (end !== "a" && end !== "b")) return null;
+  var nodeId = w[end];
+  if (wallJoinRole(w, nodeId) !== "branch") return null;
+  var g = wallGeom(w),
+    h = (w.thickness || 0) / 2,
+    lim = cutLimit(g),
+    node = S.nodes[nodeId];
+  if (!g || !node || g.kind === "arc") return null;
+  var leavingUx = end === "a" ? g.ux : -g.ux,
+    leavingUz = end === "a" ? g.uz : -g.uz,
+    sidePlus = end === "a" ? 1 : -1,
+    tp = clampShift(faceShiftAt(nodeId, leavingUx, leavingUz, sidePlus, w, h, atHeight), lim),
+    tm = clampShift(faceShiftAt(nodeId, leavingUx, leavingUz, -sidePlus, w, h, atHeight), lim);
+  if (Math.abs(tp - tm) < 0.5) return null;
+  var nx = -g.uz,
+    nz = g.ux;
+  function along(shift) {
+    return {
+      x: node.x + leavingUx * shift,
+      z: node.z + leavingUz * shift,
+    };
+  }
+  function corner(shift, wallSide) {
+    var p = along(shift);
+    return { x: p.x + nx * wallSide * h, z: p.z + nz * wallSide * h };
+  }
+  return {
+    tp: tp,
+    tm: tm,
+    plusCorner: corner(tp, 1),
+    minusCorner: corner(tm, -1),
+    plusJoint: along(tp),
+    minusJoint: along(tm),
+  };
+}
 /* The wall's four drawn corners, mitered against whatever stands at each end:
    [a-side+, b-side+, b-side-, a-side-] in world cm. This is the outline the
    plan fills and the 3D wall shears its end faces to, so a 60-degree corner
-   closes the same way a square one does. */
-export function wallOutline(w) {
+   closes the same way a square one does.
+
+   A mixed-thickness T-branch inserts the two step corners after the a-end
+   (and between the b-end pair) so the fill follows the through-run's step
+   instead of shearing a gap across it.
+
+   `atHeight` is forwarded to the joint so a 3D band above a half-wall cap
+   does not inherit that short neighbour's mitre. */
+/* The four mitred end corners WITHOUT any T-step joints: [a+, b+, b-, a-].
+   Kept separate from wallOutline because the step insertion changes the array
+   length, and anything that wants to interpolate "the a end" or "the b end"
+   (wallBandOutline) must key off corners, not positions in a spliced list. */
+function wallBaseCorners(w, atHeight) {
   var g = wallGeom(w),
     h = (w.thickness || 0) / 2,
     lim = cutLimit(g);
-  if (g.kind === "arc") return curvedWallOutline(w, w.thickness || 0, S.nodes);
+  if (!g || g.kind === "arc") return null;
   function corner(s) {
     var nx = -g.uz * s,
       nz = g.ux * s,
-      ta = clampShift(faceShiftAt(w.a, g.ux, g.uz, s, w, h), lim),
-      tb = clampShift(faceShiftAt(w.b, -g.ux, -g.uz, -s, w, h), lim);
+      ta = clampShift(faceShiftAt(w.a, g.ux, g.uz, s, w, h, atHeight), lim),
+      tb = clampShift(faceShiftAt(w.b, -g.ux, -g.uz, -s, w, h, atHeight), lim);
     return [
       { x: g.a.x + g.ux * ta + nx * h, z: g.a.z + g.uz * ta + nz * h },
       { x: g.b.x - g.ux * tb + nx * h, z: g.b.z - g.uz * tb + nz * h },
@@ -672,6 +755,44 @@ export function wallOutline(w) {
   var p = corner(1),
     m = corner(-1);
   return [p[0], p[1], m[1], m[0]];
+}
+export function wallOutline(w, atHeight) {
+  var g = wallGeom(w);
+  if (g && g.kind === "arc") return curvedWallOutline(w, w.thickness || 0, S.nodes);
+  var out = wallBaseCorners(w, atHeight);
+  if (!out) return null;
+  var stepB = tJoinStep(w, "b", atHeight),
+    stepA = tJoinStep(w, "a", atHeight);
+  if (stepB) out.splice(2, 0, stepB.plusJoint, stepB.minusJoint);
+  if (stepA) out.push(stepA.minusJoint, stepA.plusJoint);
+  return out;
+}
+/* A thickness band [offset0, offset1] from the centreline, mitred at both
+   ends the same way wallOutline mitres the outer faces. Layer fills and the
+   sampled 3D path share this so a half wall, pony wall or typed assembly
+   meets its neighbours on the same lines the plan already draws.
+
+   Built from the step-free base corners: a T-step inserts extra joints into
+   wallOutline's polygon, so indexing THAT array assumes a length it no
+   longer has (a b-end step shifted every later slot by two). */
+export function wallBandOutline(w, offset0, offset1, atHeight) {
+  if (!w) return null;
+  var base = wallBaseCorners(w, atHeight),
+    h = (w.thickness || 0) / 2;
+  if (!base) return null;
+  function at(minus, plus, offset) {
+    var t = h > 1e-6 ? (offset + h) / (2 * h) : 0.5;
+    return {
+      x: minus.x + (plus.x - minus.x) * t,
+      z: minus.z + (plus.z - minus.z) * t,
+    };
+  }
+  return {
+    a0: at(base[3], base[0], offset0),
+    a1: at(base[3], base[0], offset1),
+    b0: at(base[2], base[1], offset0),
+    b1: at(base[2], base[1], offset1),
+  };
 }
 /* A very shallow joint mitres to a spike; past the wall's own length the point
    is meaningless anyway, so the face is cut square there instead. */

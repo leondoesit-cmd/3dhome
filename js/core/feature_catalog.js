@@ -130,7 +130,7 @@ export const FEATURE_CATALOG = Object.freeze({
   fillet: {
     label: "Fillet",
     icon: "ph-corners-out",
-    selection: { features: { min: 1, max: 1 }, topology: { kinds: ["edge"], min: 1 } },
+    selection: { features: { min: 1, max: 1 }, topology: { kinds: ["edge", "face"], min: 1 } },
     defaults: { radius: 1, propagation: "tangent", section: "rational", continuity: "tangent" },
     parameters: { radius: LENGTH, propagation: ENUM("tangent", "feature"), section: ENUM("rational", "quasi-angular", "polynomial"), continuity: ENUM("tangent", "curvature") },
     editor: { groups: [{ id: "shape", label: "Fillet definition", icon: "ph-corners-out", fields: [
@@ -143,7 +143,7 @@ export const FEATURE_CATALOG = Object.freeze({
   chamfer: {
     label: "Chamfer",
     icon: "ph-corners-in",
-    selection: { features: { min: 1, max: 1 }, topology: { kinds: ["edge"], min: 1 } },
+    selection: { features: { min: 1, max: 1 }, topology: { kinds: ["edge", "face"], min: 1 } },
     defaults: { mode: "equal-distance", distance: 1, secondDistance: 1, angle: 45, flip: false },
     parameters: { mode: ENUM("equal-distance", "two-distance", "distance-angle"), distance: LENGTH, secondDistance: LENGTH, angle: { ...ANGLE, min: 1e-6, max: 89.999 }, flip: BOOLEAN },
     editor: { groups: [{ id: "shape", label: "Chamfer definition", icon: "ph-corners-in", fields: [

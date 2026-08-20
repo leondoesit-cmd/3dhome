@@ -43,6 +43,17 @@ export function getStrength() {
   return ctx.strengthK;
 }
 
+export function setDestructionMode(mode) {
+  if (mode === "none" || mode === "parts" || mode === "full") {
+    ctx.destructionMode = mode;
+  }
+  return ctx.destructionMode;
+}
+
+export function getDestructionMode() {
+  return ctx.destructionMode;
+}
+
 export function toggleHitMode() {
   ctx.hitMode = ctx.hitMode === "punch" ? "hammer" : "punch";
   return ctx.hitMode;

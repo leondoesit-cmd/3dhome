@@ -9,8 +9,9 @@ import {
   commandUnavailableReason,
 } from "../js/modeler_commands.js";
 
-test("letter keys leave R for parametric revolve", () => {
+test("letter keys leave R for revolve and S for the shortcut bar", () => {
   assert.equal(KEY_TOOL.r, undefined);
+  assert.equal(KEY_TOOL.s, undefined);
   assert.equal(KEY_TOOL.b, "rect");
   assert.equal(KEY_VIEW["4"], "top");
   assert.equal(FEATURE_COMMAND.revolve, "revolvefeature");

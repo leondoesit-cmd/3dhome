@@ -63,6 +63,13 @@ export function captureLock(w) {
   var g = wallGeom(w);
   if (!fin(g.L)) return;
   w.lockL = g.L;
+  /* The centreline length above is what the OLD read-out printed, but every
+     number the user sees — the plan label, the inspector's length field, the
+     wall tool — is the length along the reference face. Showing the centreline
+     under a field reading 300 produced "Held at 310 cm". Record the face length
+     too so the read-out can quote the same basis it is holding to. */
+  var clear = wallClearLength(w);
+  if (fin(clear)) w.lockClearL = clear;
   w.lockAng = (g.ang * 180) / Math.PI;
 }
 export function setLocked(w, on) {
@@ -77,7 +84,8 @@ export function setLocked(w, on) {
    the lock back on holds what is on screen, not what was there before. */
 export function syncLocks() {
   S.walls.forEach(function (w) {
-    if (!fin(w.lockL) || !fin(w.lockAng) || !isLocked(w)) captureLock(w);
+    if (!fin(w.lockL) || !fin(w.lockClearL) || !fin(w.lockAng) || !isLocked(w))
+      captureLock(w);
   });
 }
 
@@ -339,7 +347,8 @@ export function setWallReference(w, next) {
     var side = wallDimSide(w);
     w.dimSide = side === 1 || side === -1 ? side : 1;
     w.loc = "face";
-  } else if (next.loc !== undefined) delete w.loc;
+  } else if (next.loc === "center") w.loc = "center";
+  else if (next.loc !== undefined) delete w.loc;
   var touched = [w];
   S.walls.forEach(function (ow) {
     if (ow !== w && (ow.a === w.a || ow.a === w.b || ow.b === w.a || ow.b === w.b))
@@ -349,6 +358,35 @@ export function setWallReference(w, next) {
     captureClear(ow);
     if (isLocked(ow)) captureLock(ow);
   });
+}
+
+/* Every collinear member of `anchor`'s straight run hangs on the same physical
+   face. The shared corners stay put — a 90° branch standing on the T-node
+   therefore stays welded — and each wall re-hangs so that face lands on the
+   node line. Thickness differences then show on the far side, which is the
+   flush interior a house plan actually wants.
+
+   `loc: "center"` is the explicit opt-out: the run keeps stepping both faces. */
+export function hangStraightRunOnFace(anchor, side) {
+  if (!anchor) return;
+  side = side === 1 || side === -1 ? side : wallDimSide(anchor);
+  if (side !== 1 && side !== -1) side = 1;
+  var run = straightRunNodes(anchor),
+    g = wallGeom(anchor);
+  S.walls.forEach(function (ow) {
+    if (!run[ow.a] || !run[ow.b]) return;
+    var og = wallGeom(ow),
+      same = og.ux * g.ux + og.uz * g.uz >= 0;
+    setWallReference(ow, { dimSide: same ? side : -side, loc: "face" });
+  });
+}
+function straightRunMemberCount(w) {
+  var run = straightRunNodes(w),
+    n = 0;
+  S.walls.forEach(function (ow) {
+    if (run[ow.a] && run[ow.b]) n++;
+  });
+  return n;
 }
 
 /* Slide a wall sideways so the face named by "Measured along" stays where it
@@ -404,6 +442,13 @@ export function setWallThicknessPreservingClear(w, thickness, end) {
   // Resolve Auto before topology/corner geometry changes, exactly like length
   // and angle edits do. From now on this is the wall's stable reference face.
   w.dimSide = side;
+  /* A collinear run of different thicknesses can only stay flush on the
+     interior if the node line IS that face. Do that automatically unless the
+     user pinned the centreline — otherwise the default is a step on both
+     sides, and "Whole run" is the only way to undo it (which used to look
+     like it had torn the 90° branch off). */
+  if (w.loc !== "center" && !wallLocFace(w) && straightRunMemberCount(w) > 1)
+    hangStraightRunOnFace(w, side);
   w.thickness = thickness;
   /* A wall stored on its measured face needs no shift at all: the face IS the
      node line, so wallGeom() already grows the wall away from it and the node

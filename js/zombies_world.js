@@ -264,7 +264,7 @@ export function ctex(c, rep) {
 }
 
 function fleshCanvas(base, spot) {
-  var S = 512,
+  var S = 256,
     c = cnv(S, S),
     x = c.getContext("2d"),
     i;
@@ -272,7 +272,7 @@ function fleshCanvas(base, spot) {
   x.fillRect(0, 0, S, S);
   // subsurface mottling layers
   for (i = 0; i < 420; i++) {
-    var r = rr(3, 48),
+    var r = rr(3, 48) * 0.5,
       px = rnd() * S,
       py = rnd() * S;
     var g = x.createRadialGradient(px, py, 0, px, py, r);
@@ -284,38 +284,38 @@ function fleshCanvas(base, spot) {
     x.fill();
   }
   // micro pores / grain
-  for (i = 0; i < 2800; i++) {
+  for (i = 0; i < 1400; i++) {
     x.fillStyle = "rgba(20,12,14," + rr(0.02, 0.1) + ")";
-    x.fillRect(rnd() * S, rnd() * S, rr(0.6, 2.2), rr(0.6, 2.2));
+    x.fillRect(rnd() * S, rnd() * S, rr(0.5, 1.6), rr(0.5, 1.6));
   }
   // dark veins with branching
-  x.lineWidth = 1.1;
-  for (i = 0; i < 70; i++) {
+  x.lineWidth = 0.9;
+  for (i = 0; i < 45; i++) {
     x.strokeStyle = "rgba(38,18,26," + rr(0.12, 0.42) + ")";
     x.beginPath();
     var vx = rnd() * S,
       vy = rnd() * S,
       a = rnd() * 6.3;
     x.moveTo(vx, vy);
-    for (var k = 0; k < 10; k++) {
+    for (var k = 0; k < 8; k++) {
       a += rr(-0.85, 0.85);
-      vx += Math.cos(a) * rr(6, 14);
-      vy += Math.sin(a) * rr(6, 14);
+      vx += Math.cos(a) * rr(4, 9);
+      vy += Math.sin(a) * rr(4, 9);
       x.lineTo(vx, vy);
-      if (k === 4 || k === 7) {
+      if (k === 3 || k === 5) {
         x.moveTo(vx, vy);
         var ba = a + rr(-1.2, 1.2);
-        x.lineTo(vx + Math.cos(ba) * 12, vy + Math.sin(ba) * 12);
+        x.lineTo(vx + Math.cos(ba) * 8, vy + Math.sin(ba) * 8);
         x.moveTo(vx, vy);
       }
     }
     x.stroke();
   }
   // open wounds + scabs
-  for (i = 0; i < 22; i++) {
+  for (i = 0; i < 16; i++) {
     var wx = rnd() * S,
       wy = rnd() * S,
-      wr = rr(6, 28);
+      wr = rr(4, 18);
     var wg = x.createRadialGradient(wx, wy, 0, wx, wy, wr);
     wg.addColorStop(0, "rgba(110,8,12,0.92)");
     wg.addColorStop(0.35, "rgba(70,6,10,0.7)");
@@ -327,16 +327,16 @@ function fleshCanvas(base, spot) {
     x.fill();
     // crust rim
     x.strokeStyle = "rgba(30,8,10," + rr(0.25, 0.55) + ")";
-    x.lineWidth = rr(1, 2.4);
+    x.lineWidth = rr(0.8, 1.8);
     x.beginPath();
     x.ellipse(wx, wy, wr * 0.7, wr * 0.45, rnd() * 3, 0, 6.3);
     x.stroke();
   }
   // pale bone peek-through patches
-  for (i = 0; i < 8; i++) {
+  for (i = 0; i < 6; i++) {
     x.fillStyle = "rgba(180,170,150," + rr(0.08, 0.22) + ")";
     x.beginPath();
-    x.ellipse(rnd() * S, rnd() * S, rr(4, 12), rr(2, 6), rnd() * 3, 0, 6.3);
+    x.ellipse(rnd() * S, rnd() * S, rr(3, 8), rr(1.5, 4), rnd() * 3, 0, 6.3);
     x.fill();
   }
   return c;
@@ -344,23 +344,39 @@ function fleshCanvas(base, spot) {
 
 // Roughness variation baked from the same flesh layout — wet wounds, dry scabs.
 export function fleshRoughTex() {
-  var S = 256,
+  var S = 128,
     c = cnv(S, S),
     x = c.getContext("2d"),
     i;
-  x.fillStyle = "#c8c8c8";
+  // base flesh: mid-high roughness
+  x.fillStyle = "#a89c90";
   x.fillRect(0, 0, S, S);
-  for (i = 0; i < 180; i++) {
-    x.fillStyle = "rgba(255,255,255," + rr(0.05, 0.25) + ")";
+  // dry scab crusts (lighter = rougher, catches the flashlight)
+  for (i = 0; i < 20; i++) {
+    var rx = rnd() * S,
+      ry = rnd() * S,
+      rr0 = rr(4, 18);
+    var rg = x.createRadialGradient(rx, ry, 0, rx, ry, rr0);
+    rg.addColorStop(0, "rgba(220,205,190,0.7)");
+    rg.addColorStop(0.6, "rgba(180,165,150,0.3)");
+    rg.addColorStop(1, "rgba(160,150,140,0)");
+    x.fillStyle = rg;
     x.beginPath();
-    x.arc(rnd() * S, rnd() * S, rr(4, 28), 0, 6.3);
+    x.arc(rx, ry, rr0, 0, 6.3);
     x.fill();
   }
-  for (i = 0; i < 40; i++) {
-    // wet wound centers = low roughness (darker in map)
-    x.fillStyle = "rgba(20,20,20," + rr(0.35, 0.7) + ")";
+  // wet open wounds (darker = smoother = sharp specular glint)
+  for (i = 0; i < 18; i++) {
+    var wx = rnd() * S,
+      wy = rnd() * S,
+      wr = rr(3, 14);
+    var wg = x.createRadialGradient(wx, wy, 0, wx, wy, wr);
+    wg.addColorStop(0, "rgba(20,10,12,0.92)");
+    wg.addColorStop(0.5, "rgba(50,25,30,0.6)");
+    wg.addColorStop(1, "rgba(100,60,70,0)");
+    x.fillStyle = wg;
     x.beginPath();
-    x.arc(rnd() * S, rnd() * S, rr(3, 14), 0, 6.3);
+    x.arc(wx, wy, wr, 0, 6.3);
     x.fill();
   }
   var t2 = ctex(c, 1);
@@ -368,49 +384,25 @@ export function fleshRoughTex() {
   return t2;
 }
 
-function bloodCanvas() {
-  var c = cnv(256, 256),
-    x = c.getContext("2d"),
-    i;
-  x.clearRect(0, 0, 256, 256);
-  function blob(px, py, r, a) {
-    var g = x.createRadialGradient(px, py, 0, px, py, r);
-    g.addColorStop(0, "rgba(110,4,8," + a + ")");
-    g.addColorStop(0.45, "rgba(72,2,6," + a * 0.85 + ")");
-    g.addColorStop(0.78, "rgba(48,1,4," + a * 0.35 + ")");
-    g.addColorStop(1, "rgba(40,0,3,0)");
-    x.fillStyle = g;
-    x.beginPath();
-    x.arc(px, py, r, 0, 6.3);
-    x.fill();
-  }
-  blob(128, 128, 78, 0.95);
-  for (i = 0; i < 48; i++) {
-    var a = rnd() * 6.3,
-      d = rr(28, 110);
-    blob(128 + Math.cos(a) * d, 128 + Math.sin(a) * d, rr(4, 22), rr(0.3, 0.92));
-  }
-  // drip streaks
-  for (i = 0; i < 14; i++) {
-    var sx = rr(40, 216),
-      sy = rr(80, 200);
-    var lg = x.createLinearGradient(sx, sy, sx + rr(-8, 8), sy + rr(30, 80));
-    lg.addColorStop(0, "rgba(90,3,6,0.7)");
-    lg.addColorStop(1, "rgba(50,0,4,0)");
-    x.fillStyle = lg;
-    x.fillRect(sx - 2, sy, rr(2, 5), rr(28, 70));
-  }
-  return c;
-}
+/* ---- wound / impact decals ------------------------------------------------
+   Old hit marks were hardcoded 0.2-second quad flashes that vanished the
+   instant you turned away. Real gunshot wounds stay on the flesh and real
+   bullet holes stay in the drywall.
 
-/* A round hits plaster and leaves three things, in this order of readability:
-   a pale ring of powdered surface, hairline cracks radiating out of it, and a
-   small black crater in the middle. Reusing a blood splatter tinted grey gave
-   none of that — it read as a picture pasted on the wall, because that is
-   exactly what it was. Everything here fades to zero alpha well inside the
-   quad, so the mark has no visible border to give the trick away. */
+   Two decoupled pools:
+     * Zombie articulated wounds — parented directly to the struck limb's bone,
+       so a chest wound rides the breathing bob and an arm wound swings with the
+       strike.
+     * Wall / floor / door impacts — placed in world space against the hit normal,
+       offset by a fraction of a millimetre to prevent Z-fighting.
+
+   Both pools share procedural alpha textures baked here so there are zero
+   network requests or disk assets needed. */
+
+// A bullet hole in plaster / brick: powdery crushed rim, dark shattered centre,
+// fine radial fractures stretching outward.
 function impactCanvas() {
-  var S = 256,
+  var S = 128,
     c = cnv(S, S),
     x = c.getContext("2d"),
     i,
@@ -429,91 +421,158 @@ function impactCanvas() {
     sg.addColorStop(1, "rgba(176,168,157,0)");
     x.fillStyle = sg;
     x.beginPath();
-    x.arc(px, py, r, 0, 6.283);
+    x.arc(px, py, r, 0, 6.3);
     x.fill();
   }
-  smudge(cx, cy, 58, 0.1);
-  for (i = 0; i < 13; i++) {
-    var sa = rnd() * 6.283,
-      sd = rr(14, 62);
-    smudge(cx + Math.cos(sa) * sd, cy + Math.sin(sa) * sd, rr(10, 30), rr(0.03, 0.1));
-  }
-  // a scatter of hard specks — grit blown clear of the crater
-  for (i = 0; i < 26; i++) {
-    var ga = rnd() * 6.283,
-      gd = rr(24, 78);
-    x.fillStyle = "rgba(" + (rnd() < 0.5 ? "38,33,28," : "196,188,175,") + rr(0.15, 0.5) + ")";
-    x.beginPath();
-    x.arc(cx + Math.cos(ga) * gd, cy + Math.sin(ga) * gd, rr(0.7, 2.3), 0, 6.283);
-    x.fill();
+  for (i = 0; i < 14; i++) {
+    smudge(cx + rr(-8, 8), cy + rr(-8, 8), rr(24, 46), rr(0.18, 0.42));
   }
 
-  // 2. hairline cracks — struck out of the crater lip, tapering as they go
-  var cracks = 5 + ((rnd() * 5) | 0);
-  for (i = 0; i < cracks; i++) {
-    var a = rnd() * 6.283,
-      len = rr(38, 96),
-      px = cx + Math.cos(a) * 22,
-      py = cy + Math.sin(a) * 22;
+  // 2. crushed masonry crater — jagged perimeter with sharp angular bite marks
+  x.fillStyle = "rgba(42,34,28,0.92)";
+  x.beginPath();
+  var numCrater = 18;
+  for (i = 0; i < numCrater; i++) {
+    var ang = (i / numCrater) * 6.283,
+      rad = rr(11, 20);
+    var px0 = cx + Math.cos(ang) * rad,
+      py0 = cy + Math.sin(ang) * rad;
+    if (i === 0) x.moveTo(px0, py0);
+    else x.lineTo(px0, py0);
+  }
+  x.closePath();
+  x.fill();
+
+  // 3. spall rim: bright shattered aggregate around the crater lip
+  x.strokeStyle = "rgba(224,218,206,0.85)";
+  x.lineWidth = 1.2;
+  x.stroke();
+
+  // 4. deep core void — near-black cavity
+  x.fillStyle = "rgba(10,8,6,0.98)";
+  x.beginPath();
+  for (i = 0; i < 12; i++) {
+    var a4 = (i / 12) * 6.283,
+      r4 = rr(4, 9);
+    var cx0 = cx + Math.cos(a4) * r4,
+      cy0 = cy + Math.sin(a4) * r4;
+    if (i === 0) x.moveTo(cx0, cy0);
+    else x.lineTo(cx0, cy0);
+  }
+  x.closePath();
+  x.fill();
+
+  // 5. micro fractures branching off the edge
+  x.strokeStyle = "rgba(24,18,14,0.75)";
+  x.lineWidth = 0.9;
+  for (i = 0; i < 8; i++) {
+    var a5 = rnd() * 6.283;
+    var sx = cx + Math.cos(a5) * rr(10, 16),
+      sy = cy + Math.sin(a5) * rr(10, 16);
     x.beginPath();
-    x.moveTo(px, py);
-    // a couple of kinks so it does not read as a drawn ray
-    var steps = 3,
-      ca = a;
-    for (var s = 1; s <= steps; s++) {
-      ca += rr(-0.42, 0.42);
-      px += Math.cos(ca) * (len / steps);
-      py += Math.sin(ca) * (len / steps);
-      x.lineTo(px, py);
+    x.moveTo(sx, sy);
+    for (var step = 0; step < 4; step++) {
+      a5 += rr(-0.45, 0.45);
+      sx += Math.cos(a5) * rr(6, 12);
+      sy += Math.sin(a5) * rr(6, 12);
+      x.lineTo(sx, sy);
     }
-    var cg = x.createLinearGradient(cx, cy, px, py);
-    cg.addColorStop(0, "rgba(28,24,20,0.75)");
-    cg.addColorStop(1, "rgba(40,36,30,0)");
-    x.strokeStyle = cg;
-    x.lineWidth = rr(1.1, 2.6);
     x.stroke();
   }
 
-  // 3. spall ring — the chipped lip, brighter than the wall because it is
-  //    freshly broken material. Drawn as an irregular annulus, not a circle.
+  // 6. burnt gunpowder ring
+  var bg = x.createRadialGradient(cx, cy, 5, cx, cy, 26);
+  bg.addColorStop(0, "rgba(20,16,12,0.65)");
+  bg.addColorStop(0.4, "rgba(35,26,18,0.35)");
+  bg.addColorStop(1, "rgba(0,0,0,0)");
+  x.fillStyle = bg;
   x.beginPath();
-  for (i = 0; i <= 40; i++) {
-    var ra = (i / 40) * 6.283,
-      rr1 = 30 + Math.sin(ra * 3.1 + 0.7) * 5 + rr(-3, 3);
-    var qx = cx + Math.cos(ra) * rr1,
-      qy = cy + Math.sin(ra) * rr1;
-    i === 0 ? x.moveTo(qx, qy) : x.lineTo(qx, qy);
-  }
-  x.closePath();
-  var ring = x.createRadialGradient(cx, cy, 12, cx, cy, 34);
-  ring.addColorStop(0, "rgba(150,143,132,0.08)");
-  ring.addColorStop(0.6, "rgba(202,194,181,0.40)");
-  ring.addColorStop(1, "rgba(184,176,164,0.06)");
-  x.fillStyle = ring;
-  x.fill();
-
-  // 4. the crater itself — near-black, hard-edged, small
-  var hole = x.createRadialGradient(cx - 2, cy - 2, 0, cx, cy, 20);
-  hole.addColorStop(0, "rgba(6,5,4,0.97)");
-  hole.addColorStop(0.62, "rgba(14,12,10,0.93)");
-  hole.addColorStop(0.88, "rgba(30,26,22,0.55)");
-  hole.addColorStop(1, "rgba(40,35,30,0)");
-  x.fillStyle = hole;
-  x.beginPath();
-  for (i = 0; i <= 24; i++) {
-    var ha = (i / 24) * 6.283,
-      hr = 17 + Math.sin(ha * 2.3 + 1.9) * 2.5 + rr(-1.6, 1.6);
-    var hx = cx + Math.cos(ha) * hr,
-      hy = cy + Math.sin(ha) * hr;
-    i === 0 ? x.moveTo(hx, hy) : x.lineTo(hx, hy);
-  }
-  x.closePath();
+  x.arc(cx, cy, 26, 0, 6.3);
   x.fill();
 
   return c;
 }
 
-export function sprayTex() {
+function bloodSplatCanvas() {
+  var c = cnv(256, 256),
+    x = c.getContext("2d"),
+    cx = 128,
+    cy = 128,
+    i;
+  x.clearRect(0, 0, 256, 256);
+  // center clot
+  var g = x.createRadialGradient(cx, cy, 0, cx, cy, 38);
+  g.addColorStop(0, "rgba(70,2,6,0.95)");
+  g.addColorStop(0.4, "rgba(90,4,8,0.85)");
+  g.addColorStop(0.75, "rgba(110,6,12,0.45)");
+  g.addColorStop(1, "rgba(80,2,4,0)");
+  x.fillStyle = g;
+  x.beginPath();
+  x.arc(cx, cy, 38, 0, 6.3);
+  x.fill();
+  // irregular lobes
+  for (i = 0; i < 14; i++) {
+    var a = rnd() * 6.3,
+      d = rr(6, 32),
+      r = rr(8, 22);
+    var lg = x.createRadialGradient(
+      cx + Math.cos(a) * d,
+      cy + Math.sin(a) * d,
+      0,
+      cx + Math.cos(a) * d,
+      cy + Math.sin(a) * d,
+      r
+    );
+    lg.addColorStop(0, "rgba(75,3,7,0.92)");
+    lg.addColorStop(0.6, "rgba(95,5,10,0.5)");
+    lg.addColorStop(1, "rgba(60,2,4,0)");
+    x.fillStyle = lg;
+    x.beginPath();
+    x.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, r, 0, 6.3);
+    x.fill();
+  }
+  // satellite droplets
+  for (i = 0; i < 30; i++) {
+    var sa = rnd() * 6.3,
+      sd = rr(28, 85),
+      sr = rr(1.2, 4.2);
+    x.fillStyle = "rgba(" + ((70 + rnd() * 40) | 0) + ",4,8," + rr(0.45, 0.95) + ")";
+    x.beginPath();
+    x.arc(cx + Math.cos(sa) * sd, cy + Math.sin(sa) * sd, sr, 0, 6.3);
+    x.fill();
+  }
+  return c;
+}
+
+function bloodWoundCanvas() {
+  var c = cnv(64, 64),
+    x = c.getContext("2d"),
+    cx = 32,
+    cy = 32,
+    i;
+  x.clearRect(0, 0, 64, 64);
+  x.fillStyle = "rgba(40,2,4,0.98)";
+  x.beginPath();
+  x.ellipse(cx, cy, 14, 8, rr(-0.4, 0.4), 0, 6.3);
+  x.fill();
+  x.fillStyle = "rgba(10,0,2,0.95)";
+  x.beginPath();
+  x.ellipse(cx, cy, 7, 3, 0, 0, 6.3);
+  x.fill();
+  for (i = 0; i < 6; i++) {
+    x.fillStyle = "rgba(80,4,8," + rr(0.4, 0.8) + ")";
+    x.beginPath();
+    x.arc(cx + rr(-10, 10), cy + rr(-6, 6), rr(1.5, 3.5), 0, 6.3);
+    x.fill();
+  }
+  // registered as a fallback painter: the loader drawImage()s whatever this
+  // returns, so it must be the canvas itself, not a texture
+  return c;
+}
+
+/* Soft white radial sprite — the alpha falloff every particle system samples
+   (blood mist, dust motes). Drawn once, shared by TEX.spray. */
+function sprayTex() {
   var c = cnv(64, 64),
     x = c.getContext("2d");
   var g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -522,12 +581,11 @@ export function sprayTex() {
   g.addColorStop(1, "rgba(255,255,255,0)");
   x.fillStyle = g;
   x.fillRect(0, 0, 64, 64);
-  var t2 = new THREE.CanvasTexture(c);
-  return t2;
+  return new THREE.CanvasTexture(c);
 }
 
 function clothCanvas() {
-  var S = 256,
+  var S = 128,
     c = cnv(S, S),
     x = c.getContext("2d"),
     i;
@@ -540,34 +598,23 @@ function clothCanvas() {
     x.fillStyle = "rgba(0,0,0," + (0.02 + (i % 6 === 0 ? 0.03 : 0)) + ")";
     x.fillRect(i, 0, 1, S);
   }
-  for (i = 0; i < 1600; i++) {
+  for (i = 0; i < 800; i++) {
     x.fillStyle = "rgba(0,0,0," + rr(0.02, 0.14) + ")";
-    x.fillRect(rnd() * S, rnd() * S, rr(1, 6), rr(1, 4));
+    x.fillRect(rnd() * S, rnd() * S, rr(1, 4), rr(1, 3));
   }
   // grime + dried blood at the hem
-  for (i = 0; i < 55; i++) {
+  for (i = 0; i < 35; i++) {
     x.fillStyle = "rgba(48,10,10," + rr(0.08, 0.4) + ")";
     x.beginPath();
-    x.arc(rnd() * S, rr(S * 0.45, S), rr(4, 22), 0, 6.3);
+    x.arc(rnd() * S, rr(S * 0.45, S), rr(3, 14), 0, 6.3);
     x.fill();
   }
   // mud / dirt
-  for (i = 0; i < 40; i++) {
+  for (i = 0; i < 25; i++) {
     x.fillStyle = "rgba(40,32,22," + rr(0.06, 0.28) + ")";
     x.beginPath();
-    x.ellipse(rnd() * S, rnd() * S, rr(6, 24), rr(3, 12), rnd() * 3, 0, 6.3);
+    x.ellipse(rnd() * S, rnd() * S, rr(4, 15), rr(2, 8), rnd() * 3, 0, 6.3);
     x.fill();
-  }
-  // tears
-  x.strokeStyle = "rgba(0,0,0,0.6)";
-  x.lineWidth = 2.4;
-  for (i = 0; i < 10; i++) {
-    x.beginPath();
-    var sx = rnd() * S,
-      sy = rnd() * S;
-    x.moveTo(sx, sy);
-    x.lineTo(sx + rr(-28, 28), sy + rr(8, 40));
-    x.stroke();
   }
   return c;
 }
@@ -576,7 +623,7 @@ function clothCanvas() {
 // painted without the photos is still six distinguishable fabrics rather than
 // one flat weave repeated across the horde.
 function uniqueClothCanvas(base, accent, style) {
-  var S = 256,
+  var S = 128,
     c = cnv(S, S),
     x = c.getContext("2d");
   x.fillStyle = "#" + (base >>> 0).toString(16).padStart(6, "0");
@@ -584,36 +631,36 @@ function uniqueClothCanvas(base, accent, style) {
   var ac = "#" + (accent >>> 0).toString(16).padStart(6, "0");
   x.globalAlpha = 0.34;
   if (style % 3 === 0) {
-    for (var i = -S; i < S * 2; i += 28) {
+    for (var i = -S; i < S * 2; i += 18) {
       x.fillStyle = ac;
-      x.fillRect(i, 0, 10, S);
-      x.fillRect(0, i, S, 8);
+      x.fillRect(i, 0, 6, S);
+      x.fillRect(0, i, S, 5);
     }
   } else if (style % 3 === 1) {
-    for (var j = 0; j < S; j += 34) {
+    for (var j = 0; j < S; j += 20) {
       x.fillStyle = ac;
-      x.fillRect(0, j, S, 7);
-      x.fillRect(j, 0, 7, S);
+      x.fillRect(0, j, S, 4);
+      x.fillRect(j, 0, 4, S);
     }
   } else {
     x.fillStyle = ac;
-    for (var k = 0; k < 34; k++) {
+    for (var k = 0; k < 20; k++) {
       x.beginPath();
-      x.arc(rnd() * S, rnd() * S, rr(4, 18), 0, 6.3);
+      x.arc(rnd() * S, rnd() * S, rr(3, 12), 0, 6.3);
       x.fill();
     }
   }
   x.globalAlpha = 1;
   // woven grain and grime, repeated on every layer but with a unique phase
-  for (var q0 = 0; q0 < S; q0 += 3) {
+  for (var q0 = 0; q0 < S; q0 += 2) {
     x.fillStyle = "rgba(255,255,255," + rr(0.018, 0.07) + ")";
     x.fillRect(0, q0, S, 1);
     x.fillStyle = "rgba(0,0,0," + rr(0.018, 0.08) + ")";
     x.fillRect(q0, 0, 1, S);
   }
-  for (var d = 0; d < 180; d++) {
+  for (var d = 0; d < 90; d++) {
     x.fillStyle = "rgba(26,12,10," + rr(0.025, 0.16) + ")";
-    x.fillRect(rnd() * S, rnd() * S, rr(1, 7), rr(1, 5));
+    x.fillRect(rnd() * S, rnd() * S, rr(1, 4), rr(1, 3));
   }
   return c;
 }
@@ -621,42 +668,42 @@ function uniqueClothCanvas(base, accent, style) {
 // A small transparent jagged slash used as the visible opening in a damaged
 // garment.  It is layered over a persistent blood/skin decal at the same hit.
 function clothTearCanvas() {
-  var S = 128,
+  var S = 64,
     c = cnv(S, S),
     x = c.getContext("2d");
   x.clearRect(0, 0, S, S);
   x.strokeStyle = "rgba(8,4,5,0.96)";
-  x.lineWidth = 12;
+  x.lineWidth = 6;
   x.lineCap = "round";
   x.beginPath();
-  x.moveTo(18, 96);
-  x.lineTo(45, 72);
-  x.lineTo(35, 54);
-  x.lineTo(78, 24);
-  x.lineTo(104, 14);
+  x.moveTo(9, 48);
+  x.lineTo(22, 36);
+  x.lineTo(17, 27);
+  x.lineTo(39, 12);
+  x.lineTo(52, 7);
   x.stroke();
   x.strokeStyle = "rgba(150,18,22,0.86)";
-  x.lineWidth = 3;
+  x.lineWidth = 1.8;
   x.beginPath();
-  x.moveTo(20, 94);
-  x.lineTo(46, 70);
-  x.lineTo(37, 52);
-  x.lineTo(80, 23);
+  x.moveTo(10, 47);
+  x.lineTo(23, 35);
+  x.lineTo(18, 26);
+  x.lineTo(40, 11);
   x.stroke();
   return c;
 }
 
 // Smooth “pretty undead” skin — pale porcelain, less necrosis blotching.
 function prettySkinCanvas(base, blush, vein) {
-  var S = 512,
+  var S = 256,
     c = cnv(S, S),
     x = c.getContext("2d"),
     i;
   x.fillStyle = base;
   x.fillRect(0, 0, S, S);
   // soft subsurface warmth
-  for (i = 0; i < 80; i++) {
-    var r = rr(20, 90),
+  for (i = 0; i < 40; i++) {
+    var r = rr(10, 45),
       px = rnd() * S,
       py = rnd() * S;
     var g = x.createRadialGradient(px, py, 0, px, py, r);
@@ -668,39 +715,39 @@ function prettySkinCanvas(base, blush, vein) {
     x.fill();
   }
   // fine pores
-  for (i = 0; i < 1200; i++) {
+  for (i = 0; i < 600; i++) {
     x.fillStyle = "rgba(40,20,24," + rr(0.015, 0.05) + ")";
-    x.fillRect(rnd() * S, rnd() * S, 1.2, 1.2);
+    x.fillRect(rnd() * S, rnd() * S, 1.0, 1.0);
   }
   // faint veins (pretty, not grotesque)
-  x.lineWidth = 0.8;
-  for (i = 0; i < 18; i++) {
+  x.lineWidth = 0.6;
+  for (i = 0; i < 12; i++) {
     x.strokeStyle = vein + rr(0.06, 0.16) + ")";
     x.beginPath();
     var vx = rnd() * S,
       vy = rnd() * S,
       a = rnd() * 6.3;
     x.moveTo(vx, vy);
-    for (var k = 0; k < 5; k++) {
+    for (var k = 0; k < 4; k++) {
       a += rr(-0.5, 0.5);
-      vx += Math.cos(a) * 10;
-      vy += Math.sin(a) * 10;
+      vx += Math.cos(a) * 6;
+      vy += Math.sin(a) * 6;
       x.lineTo(vx, vy);
     }
     x.stroke();
   }
   // tiny beauty marks / freckles
-  for (i = 0; i < 40; i++) {
+  for (i = 0; i < 20; i++) {
     x.fillStyle = "rgba(90,40,30," + rr(0.08, 0.22) + ")";
     x.beginPath();
-    x.arc(rnd() * S, rnd() * S, rr(0.6, 2.2), 0, 6.3);
+    x.arc(rnd() * S, rnd() * S, rr(0.5, 1.5), 0, 6.3);
     x.fill();
   }
   // very few small bruises (undead cue without ruining the look)
-  for (i = 0; i < 4; i++) {
+  for (i = 0; i < 3; i++) {
     var wx = rnd() * S,
       wy = rnd() * S,
-      wr = rr(4, 12);
+      wr = rr(3, 8);
     var wg = x.createRadialGradient(wx, wy, 0, wx, wy, wr);
     wg.addColorStop(0, "rgba(90,30,50,0.25)");
     wg.addColorStop(1, "rgba(40,10,20,0)");
@@ -713,23 +760,23 @@ function prettySkinCanvas(base, blush, vein) {
 }
 
 export function prettyRoughTex() {
-  var S = 256,
+  var S = 128,
     c = cnv(S, S),
     x = c.getContext("2d");
   // mostly smooth (light grey = higher roughness mid); keep soft
   x.fillStyle = "#b8b0aa";
   x.fillRect(0, 0, S, S);
-  for (var i = 0; i < 60; i++) {
+  for (var i = 0; i < 30; i++) {
     x.fillStyle = "rgba(255,255,255," + rr(0.05, 0.2) + ")";
     x.beginPath();
-    x.arc(rnd() * S, rnd() * S, rr(8, 40), 0, 6.3);
+    x.arc(rnd() * S, rnd() * S, rr(4, 20), 0, 6.3);
     x.fill();
   }
   // oily/wet highlights zones (darker = smoother)
-  for (i = 0; i < 25; i++) {
+  for (i = 0; i < 15; i++) {
     x.fillStyle = "rgba(30,30,30," + rr(0.15, 0.4) + ")";
     x.beginPath();
-    x.arc(rnd() * S, rnd() * S, rr(6, 22), 0, 6.3);
+    x.arc(rnd() * S, rnd() * S, rr(3, 11), 0, 6.3);
     x.fill();
   }
   var t2 = ctex(c, 1);
@@ -778,11 +825,11 @@ function registerFallbacks() {
   registerFallback("assets/textures/zombie_cloth.jpg", clothCanvas);
   registerFallback("assets/textures/fx_tear_1.png", clothTearCanvas);
   registerFallback("assets/textures/fx_tear_v2.png", clothTearCanvas);
-  registerFallback("assets/textures/fx_wound_entry_v2.png", bloodCanvas);
-  registerFallback("assets/textures/fx_wound_graze_v2.png", bloodCanvas);
-  registerFallback("assets/textures/fx_blood_spatter_v2.png", bloodCanvas);
+  registerFallback("assets/textures/fx_wound_entry_v2.png", bloodWoundCanvas);
+  registerFallback("assets/textures/fx_wound_graze_v2.png", bloodWoundCanvas);
+  registerFallback("assets/textures/fx_blood_spatter_v2.png", bloodSplatCanvas);
   [1, 2, 3].forEach(function (n) {
-    registerFallback("assets/textures/fx_blood_" + n + ".png", bloodCanvas);
+    registerFallback("assets/textures/fx_blood_" + n + ".png", bloodSplatCanvas);
   });
   CLOTH_FILES.forEach(function (f, i) {
     registerFallback("assets/textures/cloth_" + f.k + ".jpg", function () {
@@ -1265,6 +1312,10 @@ export function setNightShiftQuality(value) {
     Z.flash.sp.shadow.mapSize.set(size, size);
     Z.flash.volumetric = quality > 0;
     if (Z.flash.cone) Z.flash.cone.visible = Z.flash.volumetric;
+    if (Z.flash.fill) {
+      Z.flash.fill.intensity = quality === 0 ? legacyIntensity(1.15, 220) : legacyIntensity(0.55, 140);
+      Z.flash.fill.distance = quality === 0 ? 220 : 140;
+    }
   }
   Z.zeds.forEach(function (zed) { applyZedShadowQuality(zed.rig && zed.rig.root); });
   setFXDensity((Z.settings && Z.settings.fx ? Z.settings.fx : 50) / 100);
@@ -2033,7 +2084,7 @@ export function stepFX(dt) {
 export function harvestPracticals() {
   var dyn = getDynGroup();
   Z.lamps = [];
-  var lampCap = nsQuality() >= 2 ? 8 : nsQuality() >= 1 ? 3 : 0;
+  var lampCap = nsQuality() >= 2 ? 8 : nsQuality() >= 1 ? 3 : 2;
   if (dyn)
     dyn.traverse(function (o) {
       if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null) {
@@ -2084,23 +2135,22 @@ export function applyHorrorGrade() {
   var scene = getMainScene(),
     ren = getRenderer(),
     rig = getRigLights();
-  // pitch-black night with heavy exponential fog: in centimetres a density of
-  // ~0.00085 means the far wall of a big room is already half-eaten.
-  scene.fog = new THREE.FogExp2(0x03050a, 0.00095);
+  var q = nsQuality();
+  scene.fog = new THREE.FogExp2(0x03050a, q === 0 ? 0.00072 : 0.00095);
   scene.background = new THREE.Color(0x010205);
-  ren.toneMappingExposure = 0.48;
+  ren.toneMappingExposure = q === 0 ? 0.62 : 0.48;
   if (rig.sun) {
-    rig.sun.intensity = LUX * 0.045;                 // cold moon wash
+    rig.sun.intensity = LUX * (q === 0 ? 0.08 : 0.045);
     rig.sun.color.setHex(0x7a92d4);
-    rig.sun.castShadow = false;                // the flashlight owns shadows now
+    rig.sun.castShadow = false;
   }
   if (rig.hemi) {
-    rig.hemi.intensity = LUX * 0.07;
+    rig.hemi.intensity = LUX * (q === 0 ? 0.14 : 0.07);
     rig.hemi.color.setHex(0x1a2848);
     rig.hemi.groundColor.setHex(0x04050a);
   }
   if (rig.fill) {
-    rig.fill.intensity = LUX * 0.04;
+    rig.fill.intensity = LUX * (q === 0 ? 0.08 : 0.04);
     rig.fill.color.setHex(0x3a5c88);
   }
   if (rig.stars) rig.stars.visible = true;
@@ -2251,6 +2301,12 @@ export function stepMoonBeams(dt) {
 }
 
 export function stepLamps(dt) {
+  if (Z.blackout) {
+    Z.lamps.forEach(function (L) {
+      L.l.intensity = 0;
+    });
+    return;
+  }
   Z.lamps.forEach(function (L) {
     L.ph += dt;
     var k = 1;
@@ -2309,8 +2365,11 @@ export function buildFlashlight() {
   cam.add(tgt);
   sp.target = tgt;
 
-  // warm fill just in front of the lens so nearby geometry reads
-  var fill = new THREE.PointLight(0xffe8c8, legacyIntensity(0.55, 140), 140, 2);
+  // warm fill just in front of the lens so nearby geometry reads.
+  // Fast has no shadows and fewer practicals, so the fill has to carry more.
+  var fillI = quality === 0 ? 1.15 : 0.55,
+    fillD = quality === 0 ? 220 : 140;
+  var fill = new THREE.PointLight(0xffe8c8, legacyIntensity(fillI, fillD), fillD, 2);
   fill.position.set(6, -5, -18);
   cam.add(fill);
 
@@ -2642,6 +2701,7 @@ export var Z_TYPES = {
   crawler: { hp: 58, spd: 105, dmg: 9, scale: 0.9, rate: 0.85, w: 9, eye: 0xcc2208 },
   screamer: { hp: 85, spd: 118, dmg: 7, scale: 0.96, rate: 1.15, w: 7, eye: 0xaa44ff },
   bloater: { hp: 180, spd: 64, dmg: 16, scale: 1.25, rate: 1.4, w: 10, eye: 0x55ff22, toxic: true },
+  titan: { hp: 750, spd: 84, dmg: 42, scale: 1.6, rate: 1.75, w: 0, eye: 0xff0055, boss: true },
 };
 var CLOTHES = [0x2c3540, 0x3d3126, 0x4a2530, 0x27343a, 0x554b3a, 0x1f2b23, 0x413040, 0x2a2a32];
 var HAIR_COLS = [
@@ -4410,17 +4470,47 @@ export function stepZed(zd, dt, deferVisuals) {
       if (!ds.pivot || ds.pivot.userData.open) return;
       var mx = (ds.ax + ds.bx) / 2,
         mz = (ds.az + ds.bz) / 2;
-      var need = zd.type === "brute" ? 95 : 68;
+      // check if blocked by an active barricade
+      if (Z.barricades && Z.barricades.some(function (b) { return Math.hypot(b.mx - mx, b.mz - mz) < 40; })) return;
+      var need = zd.type === "brute" || zd.type === "titan" ? 100 : 68;
       if (Math.hypot(zd.x - mx, zd.z - mz) < need) {
         ds.pivot.userData.open = true;
         Z.doorsOpened.push(ds.pivot);
         hooks.sndDoor && hooks.sndDoor(mx, mz);
-        if (zd.type === "brute") {
+        if (zd.type === "brute" || zd.type === "titan") {
           shake(0.35);
           sparkBurst(mx, 100, mz, 0, 1, 0, 10, true);
         }
       }
     });
+  }
+
+  // attack barricades if nearby
+  if (Z.barricades && Z.barricades.length && zd.alerted) {
+    for (var bi = Z.barricades.length - 1; bi >= 0; bi--) {
+      var bar = Z.barricades[bi];
+      var bDist = Math.hypot(zd.x - bar.mx, zd.z - bar.mz);
+      if (bDist < (zd.type === "titan" || zd.type === "brute" ? 95 : 75)) {
+        bar.hp -= (zd.dmg || 15) * dt * 2.2;
+        if (Math.random() < dt * 6) {
+          sparkBurst(bar.mx, 80, bar.mz, 0, 1, 0, 4, true);
+        }
+        if (bar.hp <= 0) {
+          if (bar.mesh && Z.grp) Z.grp.remove(bar.mesh);
+          Z.barricades.splice(bi, 1);
+          shake(0.35);
+          hooks.sndDoor && hooks.sndDoor(bar.mx, bar.mz);
+        }
+      }
+    }
+  }
+
+  if (zd.type === "titan" && dist < 1200) {
+    zd.titanStepT = (zd.titanStepT || 0) + dt;
+    if (zd.titanStepT > 0.65) {
+      zd.titanStepT = 0;
+      shake(0.18);
+    }
   }
 
   // ground follow (they climb onto furniture the same way the player does)

@@ -10,57 +10,11 @@
 // figure (and re-enters / steals the nearest truck), mirroring js/drive.js.
 // Cars carry hit points: wall slams, rams and hard landings damage them until
 // the truck bursts into tumbling parts and respawns at its last gate.
-import * as THREE from "three";
 import { S, clamp, fin } from "./state.js";
-import {
-  wallGeom,
-  detectRooms,
-  roomHidden,
-  hiddenSets,
-  pointInPoly,
-} from "./geometry.js";
-import { FURN } from "./furniture.js";
-import { openModeler } from "./modeler.js";
+import { wallGeom } from "./geometry.js";
 
-import { buildRoad } from "./track.js";
-import { surfaceHeightAt, surfaceHeightNear, surfaceSampleAt } from "./road_surface.js";
-import { t } from "./i18n.js";
-import {
-  kartInit,
-  kartBuild,
-  kartClear,
-  kartReset,
-  kartTick,
-  kartUse,
-  kartSlot,
-  kartSpark,
-  kartHit,
-  kartOnWreck,
-  kartSetOn,
-  kartIsOn,
-} from "./kart.js";
-import {
-  editorInit,
-  editorOpen,
-  editorClose,
-  editorActive,
-  editorSynced,
-  editorTick,
-  editorPointerDown,
-  editorPointerMove,
-  editorPointerUp,
-  editorContext,
-} from "./rc_editor.js";
-import {
-  has3D,
-  ensureBuilt,
-  getMainScene,
-  getMainCamera,
-  setExternalTick,
-  orbitRefresh,
-  toggleWalk,
-  isWalk,
-} from "./view3d.js";
+import { STEP_UP } from "./road_surface.js";
+import { kartSetOn, kartIsOn } from "./kart.js";
 
 
 
@@ -77,10 +31,6 @@ export let BODY_L = 3.8, // target truck body length (custom models are scaled t
   TRACK_X = 1.1, // wheel lateral offset
   COLL_R = 1.8, // car collision circle radius
   CAR_CLEAR = 2.6, // body height band used for "does this AABB block me"
-  // NOT halved with the truck: the floor-level road deck and the jump's kicker
-  // both have to stay climbable, and a forgiving step is what keeps a truck
-  // from being stopped dead by a rug edge
-  STEP_H = 2.2, // max ledge the truck can climb (rug, book, step ramp)
   GRAV = 600, // cm/s² — a touch under real so falls read nicely at micro scale
   MAXV = 78, // calmer scale speed: enough for jumps without feeling like top gear
   REV_MAX = 28,
@@ -119,6 +69,10 @@ export let BODY_L = 3.8, // target truck body length (custom models are scaled t
   STALL_MS = 900, // penalty for jumping the start
   DRAFT_MULT = 0.14, // extra top-speed fraction sitting in a rival's wake
   DRAFT_DIST = 22; // how far the slipstream reaches (cm)
+// NOT halved with the truck: the floor-level road deck and the jump's kicker
+// both have to stay climbable, and a forgiving step is what keeps a truck
+// from being stopped dead by a rug edge. Single-sourced in road_surface.js.
+export const STEP_H = STEP_UP;
 export let AI_NAMES = ["Turbo", "Nitro", "Dusty", "Bolt", "Rusty", "Comet"];
 export let AI_COLORS = [
   0xd94f3d, 0x3d8fd9, 0x53b06a, 0xb268d9, 0xd9a13d, 0x3dc9c0,
@@ -188,6 +142,9 @@ export const R = {
   // truck — access ramps, short bridges and the jump. ON by default; the full
   // Rainbow-Road ribbon (spiral, flyover) is one click away.
   homeMode: true,
+  // Home-mode A* otherwise rewrites a hand-drawn lap around every sofa. Once
+  // the user has moved a point, the builder follows those points instead.
+  followAnchors: false,
   msgT: 0,
   prevNear: null,
   prevFov: null,
@@ -291,6 +248,7 @@ export function prefsLoad() {
     if (p.items != null) kartSetOn(!!p.items);
     if (p.walls != null) R.walls = !!p.walls;
     if (p.homeMode != null) R.homeMode = !!p.homeMode;
+    if (p.followAnchors != null) R.followAnchors = !!p.followAnchors;
     if (Array.isArray(p.customAnchors)) R.customAnchors = p.customAnchors;
     if (Array.isArray(p.faceRules)) R.faceRules = p.faceRules;
     if (p.anchorsSig) R.anchorsSig = p.anchorsSig;
@@ -336,6 +294,7 @@ export function prefsSave() {
         items: kartIsOn(),
         walls: R.walls,
         homeMode: R.homeMode,
+        followAnchors: !!R.followAnchors,
         customAnchors: R.customAnchors,
         faceRules: R.faceRules,
         anchorsSig: R.anchorsSig,

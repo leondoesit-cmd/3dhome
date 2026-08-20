@@ -298,3 +298,62 @@ export function parametricHistoryIds(document) {
     entries: (document.history || []).map((entry) => entry.id),
   };
 }
+
+export function historyRollbackIndex(document) {
+  const n = (document?.history || []).length;
+  if (document?.rollbackIndex == null || document.rollbackIndex > n) return n;
+  return Math.max(0, document.rollbackIndex);
+}
+
+export function setHistoryRollback(document, index) {
+  if (!document) return 0;
+  const n = (document.history || []).length;
+  if (index == null || index >= n) document.rollbackIndex = null;
+  else document.rollbackIndex = Math.max(0, index);
+  document.revision = (Number(document.revision) || 0) + 1;
+  return historyRollbackIndex(document);
+}
+
+export function historyEntryRolled(document, index) {
+  if (document?.rollbackIndex == null) return false;
+  return index >= historyRollbackIndex(document);
+}
+
+export function activeHistoryTargetIds(document) {
+  const ids = new Set();
+  (document?.history || []).forEach((entry, index) => {
+    if (!entry || entry.suppressed || historyEntryRolled(document, index)) return;
+    if (entry.targetId) ids.add(entry.targetId);
+  });
+  return ids;
+}
+
+export function applyHistoryToPreviewParts(document) {
+  if (!document?.history?.length || !Array.isArray(document.parts)) return { dirtyPartIds: [] };
+  const active = activeHistoryTargetIds(document);
+  const known = new Set((document.history || []).map((entry) => entry.targetId).filter(Boolean));
+  const dirty = new Set();
+  const setFlag = (object, key, next, partId) => {
+    if (!object || !!object[key] === !!next) return;
+    object[key] = !!next;
+    if (partId) dirty.add(partId);
+  };
+  (document.parts || []).forEach((part) => {
+    if (!part) return;
+    if (part.featureId && known.has(part.featureId)) setFlag(part, "suppressed", !active.has(part.featureId), part.id);
+    if (part.derivedFeatureId && known.has(part.derivedFeatureId)) setFlag(part, "suppressed", !active.has(part.derivedFeatureId), part.id);
+    (part.exactOperations || []).forEach((operation) => {
+      if (!operation?.id || !known.has(operation.id)) return;
+      setFlag(operation, "suppressed", !active.has(operation.id), part.id);
+    });
+    (part.cuts3d || []).forEach((cut) => {
+      if (!cut?.featureId || !known.has(cut.featureId)) return;
+      setFlag(cut, "suppressed", !active.has(cut.featureId), part.id);
+    });
+    (part.holes || []).forEach((hole) => {
+      if (!hole || Array.isArray(hole) || !hole.featureId || !known.has(hole.featureId)) return;
+      setFlag(hole, "suppressed", !active.has(hole.featureId), part.id);
+    });
+  });
+  return { dirtyPartIds: Array.from(dirty) };
+}

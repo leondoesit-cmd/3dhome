@@ -94,11 +94,14 @@ export function setAxis(a) {
 export function syncHint() {
   var h = E.host && E.host.querySelector(".cb-hint");
   if (!h) return;
+  /* The compact layout is a touch layout: its hints must not name a wheel, a
+     Shift key or a number key, and they have one line to say it in. */
+  var cmp = E.host.classList.contains("cb-compact");
   h.textContent =
-    E.mode === "3d" ? T("hint3d")
+    E.mode === "3d" ? T(cmp ? "hint3dT" : "hint3d")
       : E.axis !== "front" ? T("hintRO")
-      : E.tool ? T(E.tool === "vwall" ? "hintV" : E.tool === "hwall" ? "hintH" : "hintErase")
-      : T("hint");
+      : E.tool ? T(E.tool === "vwall" ? "hintV" : E.tool === "hwall" ? (cmp ? "hintHT" : "hintH") : "hintErase")
+      : T(cmp ? "hintT" : "hint");
 }
 
 export function syncViewPreferences() {
@@ -264,8 +267,11 @@ export function drawProjected(ax) {
     H = E.vh,
     v = AXES[ax],
     B = camBasis(v.az, v.el),
-    pad = 92, // the dimension chains and the hint pill live in this margin
-    gut = 118; // and the view picker owns this strip down the leading edge
+    // Same story as the elevation: on the compact layout the view picker is a
+    // sheet, so the strip it owned down the leading edge is the drawing's.
+    cmp = E.host && E.host.classList.contains("cb-compact"),
+    pad = cmp ? 40 : 92, // the dimension chains and the hint pill live in this margin
+    gut = cmp ? 0 : 118; // and the view picker owns this strip down the leading edge
   E.view = null; // nothing here is hit-testable — the front view owns editing
 
   /* Looking straight down at a closed box shows you a lid, which tells nobody
@@ -556,17 +562,28 @@ export function draw() {
     return;
   }
   if (E.axis !== "front") return drawProjected(E.axis);
+  /* The margins exist to clear the chrome that floats over the canvas, and the
+     compact layout has different chrome: no tool group in the corner (it is a
+     sheet), and the hint pill moved to the top. Reserving the desktop's 112px
+     for a rail that is not there wastes a fifth of a phone screen. */
+  var cmp = E.host && E.host.classList.contains("cb-compact");
   var it = E.it,
     L = layoutCab(it),
     c = E.cx,
     W = E.vw,
     H = E.vh,
-    padX = 58,
-    padT = 112, // the labelled 2×2 tool group floats over the canvas — draw below it
-    padB = 84, // room for the width dimension and the hint pill
+    padX = cmp ? 30 : 58,
+    padT = cmp ? 54 : 112, // desktop: the labelled 2×2 tool group floats here
+    padB = cmp ? 46 : 84, // room for the width dimension and the hint pill
     k = Math.min((W - padX * 2) / it.w, (H - padT - padB) / it.h),
     ox = W / 2,
-    oy = padT + it.h * k;
+    /* oy is the BASELINE of the drawing (Y = oy - my*k). Desktop hangs it from
+       the top margin, under the tool group; compact centres it in the free band,
+       because a tall phone canvas would otherwise leave the cabinet stranded
+       against the ceiling with half the screen empty below it. */
+    oy = cmp
+      ? padT + (H - padT - padB - it.h * k) / 2 + it.h * k
+      : padT + it.h * k;
   E.view = { k: k, ox: ox, oy: oy, L: L };
   var X = function (mx) {
       return ox + mx * k;

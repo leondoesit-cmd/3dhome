@@ -64,6 +64,14 @@ export const Z = {
   shake: 0,
   shakeV: { x: 0, y: 0 },
   distract: 0, // 0..1 player distraction from staring at pretty undead
+  barricades: [], // active barricades on doorways/openings
+  perks: { speed: false, jugg: false, damage: false }, // active perks
+  perkStations: [], // in-world perk vending/pickup stations
+  fuseBox: null, // interactive power grid circuit breaker
+  blackout: false, // active electrical failure
+  storm: null, // thunder/lightning storm controller
+  boss: null, // active boss tracker
+  interactPrompt: "", // current contextual HUD interaction prompt
   stats: { kills: 0, heads: 0, melee: 0, best: 0, shots: 0, hits: 0, dmgDealt: 0, dmgTaken: 0 },
 };
 
@@ -77,6 +85,10 @@ export const hooks = {
   sndDeath: null,
   sndDoor: null,
   sndSwipe: null,
+  sndHammer: null,
+  sndPower: null,
+  sndThunder: null,
+  sndPerk: null,
   hudDirty: null,
   say: null,
   hitMarker: null,

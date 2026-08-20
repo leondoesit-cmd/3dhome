@@ -28,7 +28,7 @@ export function hitObjectAtCenter(camera, scene) {
 }
 
 export function hitAlongRay(origin, dir, scene, hit, range) {
-  if (!ctx.enabled || !ctx.world) return false;
+  if (!ctx.enabled || !ctx.world || ctx.destructionMode === "none") return false;
   const raycaster = new THREE.Raycaster(
     new THREE.Vector3(origin.x, origin.y, origin.z),
     new THREE.Vector3(dir.x, dir.y, dir.z).normalize(),
@@ -39,7 +39,7 @@ export function hitAlongRay(origin, dir, scene, hit, range) {
 }
 
 export function explodeAt(center, radius, power, scene) {
-  if (!ctx.enabled || !ctx.world) return 0;
+  if (!ctx.enabled || !ctx.world || ctx.destructionMode === "none") return 0;
   const c = new THREE.Vector3(center.x, center.y, center.z);
   let touched = 0;
   ctx.physicsBodies.slice().forEach(pb => {
@@ -155,7 +155,8 @@ function damageStaticPart(physicsObj, struckMesh, rayDir, point, hit) {
     ctx.debris.push({ mesh: struckMesh, body: body });
   };
 
-  if (hit.stressBase > props.shatter * ctx.strengthK && canFracture(struckMesh)) {
+  const allowFracture = ctx.destructionMode !== "parts";
+  if (allowFracture && hit.stressBase > props.shatter * ctx.strengthK && canFracture(struckMesh)) {
     const shards = fractureMesh(struckMesh, impact3, hit.shards + 3);
     if (shards) {
       if (struckMesh.parent) struckMesh.parent.remove(struckMesh);
@@ -240,11 +241,13 @@ function shatterObject(physicsObj, impactImpulse, impactPoint, hit) {
     if (node.isMesh) meshes.push(node);
   });
 
+  const allowFracture = ctx.destructionMode !== "parts";
+
   if (meshes.length === 1 && meshes[0] === parentGroup) {
     const props = parentGroup.userData.physicsProps || DEFAULT_SINGLE_PROPS;
     const stress = hitStress(impactImpulse.length(), physicsObj.body.mass, hit.stressBase);
 
-    if (stress > props.shatter * ctx.strengthK && canFracture(parentGroup)) {
+    if (allowFracture && stress > props.shatter * ctx.strengthK && canFracture(parentGroup)) {
       removePhysicsObject(physicsObj);
       spawnFragments(parentGroup, dynContainer, impactImpulse, impactPoint, hit.shards);
     } else {
@@ -288,7 +291,7 @@ function shatterObject(physicsObj, impactImpulse, impactPoint, hit) {
       }
     }
 
-    if (stress > props.shatter * ctx.strengthK && canFracture(mesh)) {
+    if (allowFracture && stress > props.shatter * ctx.strengthK && canFracture(mesh)) {
       partsRemoved = true;
       if (Math.random() > 0.5) spawnParticles(worldPos, color, 3, dynContainer);
       spawnFragments(mesh, dynContainer, impactImpulse, impactPoint, hit.shards);

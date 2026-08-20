@@ -33,7 +33,7 @@ var BASE = {};      // cache key -> colour texture
 var DERIVED = {};   // cache key -> normal / roughness texture
 var QUEUE = [];     // pending derived-map builds
 var pumping = false;
-var BUDGET = 1024;  // max albedo edge in texels
+var BUDGET = 512;  // max albedo edge in texels (halved for performance)
 var ANISO = -1;
 
 /* ---- device / quality policy -------------------------------------------- */
@@ -57,10 +57,8 @@ function aniso() {
 // quality: 0 fast / 1 balanced / 2 high — matches the HUD slider.
 // Returns true when the budget moved, i.e. the caller should dispose first.
 export function setTexBudget(quality) {
-  // Keep all three HUD choices distinct.  Balanced used to silently allocate
-  // the same 1024px maps as High, so moving that part of the graphics slider
-  // could not free any texture memory or image-processing work.
-  var want = quality >= 2 ? 1024 : quality >= 1 ? 768 : 512;
+  // Texture dimensions scaled to 50% for optimal memory and FPS.
+  var want = quality >= 2 ? 512 : quality >= 1 ? 384 : 256;
   if (want === BUDGET) return false;
   BUDGET = want;
   return true;
@@ -279,12 +277,12 @@ export function normalTex(url, opts) {
   opts = opts || {};
   var rep = opts.rep || 1,
     str = opts.strength == null ? 2.2 : opts.strength,
-    size = Math.min(256, BUDGET),
+    size = Math.min(128, BUDGET),
     key = url + "|n" + str + "|" + rep + "|" + (opts.clamp ? "e" : "r") + "|" + size;
   if (DERIVED[key]) return DERIVED[key];
   var t = born("normal", rep, opts.clamp, false);
   DERIVED[key] = t;
-  if (BUDGET <= 512) return t; // Fast: keep the 1×1 placeholder, skip the Sobel hitch
+  if (BUDGET <= 256) return t; // Fast: keep the 1×1 placeholder, skip the Sobel hitch
   imageOf(url, function (img) {
     if (!img) return;
     queue(function () {
@@ -321,14 +319,14 @@ export function detailTex(url, opts) {
   opts = opts || {};
   var rep = opts.rep || 1,
     amt = opts.amount == null ? 0.45 : opts.amount,
-    size = Math.min(256, BUDGET),
+    size = Math.min(128, BUDGET),
     key = url + "|d" + amt + "|" + rep + "|" + size;
   if (DERIVED[key]) return DERIVED[key];
   // starts white: until the map lands the surface is lit flatly, exactly as
   // it was before, rather than black
   var t = born("color", rep, opts.clamp, false);
   DERIVED[key] = t;
-  if (BUDGET <= 512) return t;
+  if (BUDGET <= 256) return t;
   imageOf(url, function (img) {
     if (!img) return;
     queue(function () {
@@ -344,6 +342,11 @@ export function detailTex(url, opts) {
         od = out.data,
         scale = 1 / detailBoost(amt);
       for (i = 0; i < n; i++) {
+        // texel brightness relative to the map's own mean, contrast-capped,
+        // encoded so the mean lands on 255/(1+amt) — detailBoost(amt) at the
+        // material then restores the authored brightness (see the contract
+        // above detailBoost). Do NOT renormalise to the full 0..255 range:
+        // the callers' boost would then over-darken every surface.
         var rel = mean > 1e-5 ? h[i] / mean : 1;
         if (rel > 2) rel = 2;
         var v = (1 + amt * (rel - 1)) * scale * 255;
@@ -371,12 +374,12 @@ export function roughTex(url, opts) {
   var rep = opts.rep || 1,
     lo = opts.lo == null ? 0.45 : opts.lo,
     hi = 1,
-    size = Math.min(256, BUDGET),
+    size = Math.min(128, BUDGET),
     key = url + "|r" + lo + "," + hi + (opts.invert ? "i" : "") + "|" + rep + "|" + size;
   if (DERIVED[key]) return DERIVED[key];
   var t = born("rough", rep, opts.clamp, false);
   DERIVED[key] = t;
-  if (BUDGET <= 512) return t;
+  if (BUDGET <= 256) return t;
   imageOf(url, function (img) {
     if (!img) return;
     queue(function () {

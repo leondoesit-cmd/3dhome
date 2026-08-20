@@ -77,5 +77,5 @@ test("Night Shift Fast quality skips CAD post-processing and caps pixel ratio", 
   assert.match(world, /Z\.parts\.geo\.instanceCount = Z\.parts\.activeN/);
   assert.match(world, /Z\.fireParts\.geo\.instanceCount = Z\.fireParts\.activeN/);
   assert.match(world, /if \(type !== "crawler" && nsQuality\(\) > 0\)/);
-  assert.match(world, /var lampCap = nsQuality\(\) >= 2 \? 8 : nsQuality\(\) >= 1 \? 3 : 0/);
+  assert.match(world, /var lampCap = nsQuality\(\) >= 2 \? 8 : nsQuality\(\) >= 1 \? 3 : 2/);
 });

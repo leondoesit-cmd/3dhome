@@ -13,6 +13,7 @@ import { fillProps, refreshTree } from "./ui.js";
 import { withoutRoomPrompts } from "./ui_tree.js";
 import { ensureMEP, nodeLabel, runLabel } from "./mep.js";
 import { renderPanel as refreshMEPPanel } from "./ui_mep.js";
+import { snapshotSmart, loadSmart } from "./smarthome.js";
 import { markDirty } from "./persist.js";
 import { FURN, flabel } from "./furniture.js";
 import { t } from "./i18n.js";
@@ -72,6 +73,7 @@ function snap() {
     // edit. Only nodes/runs are tracked — the view flags (show/xray/layer/vis)
     // are display state, like the environment settings above.
     mep: m ? { nodes: m.nodes, runs: m.runs, routePolicy: m.routePolicy || {} } : null,
+    smarthome: snapshotSmart(),
   }, texPack);
 }
 function apply(str) {
@@ -98,6 +100,7 @@ function apply(str) {
   m.routePolicy = (s.mep && s.mep.routePolicy) || {};
   m.route = null; // an in-progress polyline can't survive a state swap
   m.place = null;
+  loadSmart(s.smarthome);
   S.sel = null;
   /* Transient references into the OLD model (the wall under the cursor, the
      piece mid-snap-flash, the drop target) point at objects this swap has just
@@ -135,6 +138,7 @@ function apply(str) {
   // discoveries and must not each pop a "name this room?" prompt
   withoutRoomPrompts(refreshTree);
   refreshMEPPanel();
+  if (typeof window.__renderSmartHome === "function") window.__renderSmartHome();
   return true;
 }
 
