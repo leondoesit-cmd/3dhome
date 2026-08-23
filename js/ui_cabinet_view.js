@@ -17,6 +17,17 @@ import {
 } from "./cabinet.js";
 import { api, E, T, isEn, AXES, sp, formatCm } from "./ui_cabinet_ctx.js";
 
+/* Persistent pan & zoom state for the 2D elevation. The base scale `k` auto-
+   fits the cabinet to the viewport; these overlay it so a pinch gesture can
+   zoom in without losing the auto-fit reset. `resetView()` brings it home. */
+var viewZoom = 1, viewPanX = 0, viewPanY = 0;
+
+export function resetElevationView() {
+  viewZoom = 1;
+  viewPanX = 0;
+  viewPanY = 0;
+}
+
 export function sizeCanvas() {
   if (!E.cv) return;
   var r = E.cv.parentElement.getBoundingClientRect(),
@@ -45,6 +56,7 @@ export function setMode(m) {
   if (!E.host) return;
   m = m === "3d" ? "3d" : "2d";
   if (m === E.mode && E.modeApplied) return;
+  viewZoom = 1; viewPanX = 0; viewPanY = 0;
   E.mode = m;
   E.modeApplied = true;
   if (m === "3d") setTool(null);
@@ -75,6 +87,7 @@ export function setMode(m) {
 
 export function setAxis(a) {
   if (!AXES[a]) return;
+  viewZoom = 1; viewPanX = 0; viewPanY = 0;
   E.axis = a;
   if (a !== "front") setTool(null);
   E.host.querySelectorAll("#cbViews button[data-ax]").forEach(function (b) {
@@ -575,15 +588,15 @@ export function draw() {
     padX = cmp ? 30 : 58,
     padT = cmp ? 54 : 112, // desktop: the labelled 2×2 tool group floats here
     padB = cmp ? 46 : 84, // room for the width dimension and the hint pill
-    k = Math.min((W - padX * 2) / it.w, (H - padT - padB) / it.h),
-    ox = W / 2,
+    k = Math.min((W - padX * 2) / it.w, (H - padT - padB) / it.h) * viewZoom,
+    ox = W / 2 + viewPanX,
     /* oy is the BASELINE of the drawing (Y = oy - my*k). Desktop hangs it from
        the top margin, under the tool group; compact centres it in the free band,
        because a tall phone canvas would otherwise leave the cabinet stranded
        against the ceiling with half the screen empty below it. */
     oy = cmp
-      ? padT + (H - padT - padB - it.h * k) / 2 + it.h * k
-      : padT + it.h * k;
+      ? padT + (H - padT - padB - it.h * k) / 2 + it.h * k + viewPanY
+      : padT + it.h * k + viewPanY;
   E.view = { k: k, ox: ox, oy: oy, L: L };
   var X = function (mx) {
       return ox + mx * k;
@@ -1087,6 +1100,7 @@ function hit(p) {
 }
 
 export function wireCanvas() {
+  resetElevationView();
   var cv = E.cv;
   // only the front elevation is editable — every other view is a projection
   function live() {
@@ -1201,6 +1215,47 @@ export function wireCanvas() {
       }
     }
   });
+
+  /* Two-finger pinch zoom & pan on the 2D elevation canvas. */
+  (function () {
+    var pinch = null;
+    function d2(e) {
+      var a = e.touches[0], b = e.touches[1];
+      return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    }
+    function cen(e) {
+      var a = e.touches[0], b = e.touches[1];
+      return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+    }
+    cv.addEventListener("touchstart", function (e) {
+      if (e.touches.length === 2) {
+        pinch = { dist: d2(e), cx: cen(e).x, cy: cen(e).y };
+      }
+    }, { passive: true });
+    cv.addEventListener("touchmove", function (e) {
+      if (!pinch || e.touches.length !== 2) { pinch = null; return; }
+      e.preventDefault();
+      var dist = d2(e), c = cen(e);
+      var f = dist / Math.max(pinch.dist, 1);
+      var mx = c.x - pinch.cx, my = c.y - pinch.cy;
+      pinch.dist = dist;
+      pinch.cx = c.x;
+      pinch.cy = c.y;
+      if (Math.abs(1 - f) > 0.002) {
+        viewZoom = clamp(viewZoom * f, 0.5, 5);
+      }
+      if (Math.hypot(mx, my) > 0.5) {
+        viewPanX += mx;
+        viewPanY += my;
+      }
+      queueDraw();
+    }, { passive: false });
+    function end(e) {
+      if (e.touches.length < 2) pinch = null;
+    }
+    cv.addEventListener("touchend", end);
+    cv.addEventListener("touchcancel", end);
+  })();
 }
 
 /* ================= inspector ================= */
@@ -1485,3 +1540,4 @@ api.exportPNG = exportPNG;
 api.initPreview = initPreview;
 api.updatePreview = updatePreview;
 api.renderPreview = renderPreview;
+api.resetElevationView = resetElevationView;

@@ -12,6 +12,7 @@ not a degraded one).
 | `cannon-es.js` | cannon-es | 0.20.0 | `cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/` |
 | `rapier/` | @dimforge/rapier3d-compat | 0.20.0 | npm `@dimforge/rapier3d-compat` (inlined WASM) |
 | `leaflet/` | leaflet | 1.9.4 | `unpkg.com/leaflet@1.9.4/dist/` |
+| `pdfjs/` | pdfjs-dist | 6.2.108 | npm `pdfjs-dist` build + worker |
 | `phosphor/` | @phosphor-icons/web | 2.1.2 | `cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/` |
 | `fonts/` | Inter, Rubik (400/500/600) | — | Google Fonts css2 |
 
@@ -50,6 +51,11 @@ UI ships Hebrew and English and users type arbitrary room names.
 **leaflet** — `leaflet.css` references `images/` for the layers and marker
 icons; those are vendored alongside it. Leaflet also derives marker icon paths
 at runtime from the stylesheet location, so keep `images/` next to the css.
+
+**PDF.js** — the minified display build and worker are loaded lazily by the
+manual blueprint tracer. Both files and the upstream license are kept together
+under `pdfjs/`; no viewer UI or network-loaded fonts are required to rasterize
+the selected page into the local plan underlay.
 
 ## Refreshing
 

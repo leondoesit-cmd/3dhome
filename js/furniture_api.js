@@ -152,6 +152,7 @@ export function emptyScene() {
   S.openings = [];
   S.items = [];
   S.markers = [];
+  S.slabOpenings = [];
   S.roomMeta = {};
   S.sel = null;
   S.rectDraft = null;
@@ -160,6 +161,7 @@ export function emptyScene() {
 }
 
 export function defaultScene() {
+  S.slabOpenings = [];
   S.nodes = [
     { x: 0, z: 0 },
     { x: 400, z: 0 },

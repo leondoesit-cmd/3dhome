@@ -41,6 +41,68 @@
   --color-scheme: light;
 }
 
+/* ---- desktop Model Editor QA refinements ------------------------------ */
+body:not(.compact-nav) #modeler.md-left-collapsed .md-left,
+body:not(.compact-nav) #modeler.md-right-collapsed .md-right { display: none; }
+body:not(.compact-nav) #modeler .md-panel-toggle {
+  position: absolute; z-index: 72; top: 12px; display: inline-flex; align-items: center; gap: 5px;
+  min-height: 30px; padding: 5px 8px; border: 1px solid var(--btn-border); border-radius: 8px;
+  background: color-mix(in srgb,var(--bg-panel) 92%,transparent); color: var(--text-muted);
+  box-shadow: var(--shadow-sm); backdrop-filter: blur(8px); cursor: pointer;
+}
+body:not(.compact-nav) #modeler .md-panel-toggle-left { inset-inline-start: 12px; }
+body:not(.compact-nav) #modeler .md-panel-toggle-right { inset-inline-end: 12px; }
+body:not(.compact-nav) #modeler .md-panel-toggle:hover,
+body:not(.compact-nav) #modeler .md-panel-toggle[aria-pressed="false"] { color: var(--accent); border-color: var(--accent); }
+body.compact-nav #modeler .md-panel-toggle { display: none; }
+
+#modeler .md-section-controls {
+  position: absolute; z-index: 76; inset-inline-end: 12px; top: 52px; width: min(260px,calc(100% - 24px));
+  display: grid; gap: 9px; padding: 10px; border: 1px solid color-mix(in srgb,var(--accent) 38%,var(--border-color));
+  border-radius: 11px; background: color-mix(in srgb,var(--bg-panel) 95%,transparent);
+  color: var(--text-main); box-shadow: var(--shadow-md); backdrop-filter: blur(10px);
+}
+#modeler .md-section-controls[hidden] { display: none; }
+#modeler .md-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#modeler .md-section-head button { width: 28px; height: 28px; padding: 0; }
+#modeler .md-section-axis { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; }
+#modeler .md-section-axis button.on,#modeler #mdSectionFlip.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb,var(--accent) 12%,var(--btn-bg)); }
+#modeler .md-section-controls label { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 7px; font-size: 11px; }
+#modeler .md-section-controls output { min-width: 48px; text-align: end; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+#modeler #mdSectionFlip { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; }
+
+#modeler .md-parametric-node { position: relative; }
+#modeler .md-parametric-node > .nm { min-width: 0; padding-inline-end: 6px; }
+#modeler .md-history-actions {
+  position: absolute; z-index: 3; inset-inline-end: 4px; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; gap: 1px; padding-inline-start: 22px;
+  background: linear-gradient(to right,transparent,var(--bg-panel) 20px);
+  opacity: 0; pointer-events: none; transition: opacity .12s ease;
+}
+#modeler .md-parametric-node:hover .md-history-actions,
+#modeler .md-parametric-node:focus-within .md-history-actions { opacity: 1; pointer-events: auto; }
+#modeler .md-history-actions .md-part-x { flex: none; }
+html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to left,transparent,var(--bg-panel) 20px); }
+#modeler .md-parametric-node.md-dependency-focus { box-shadow: inset 3px 0 #f59e0b; background: color-mix(in srgb,#f59e0b 13%,var(--btn-bg)); }
+#modeler .md-parametric-node.md-dependency-upstream { box-shadow: inset 3px 0 #38bdf8; background: color-mix(in srgb,#38bdf8 11%,var(--btn-bg)); }
+#modeler .md-parametric-node.md-dependency-downstream { box-shadow: inset 3px 0 #c084fc; background: color-mix(in srgb,#c084fc 11%,var(--btn-bg)); }
+#modeler .md-parametric-node.md-dependency-dim { opacity: .42; }
+
+#modeler .md-workflow small { font-size: 11px; }
+#modeler .md-part small { font-size: 10.5px; line-height: 1.25; }
+#modeler .md-feature-keyfacts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; margin: 8px 0; }
+#modeler .md-feature-keyfacts > span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 7px 8px; border: 1px solid var(--separator); border-radius: 7px; background: var(--input-bg); }
+#modeler .md-feature-keyfacts small { color: var(--text-muted); text-transform: capitalize; }
+#modeler .md-feature-advanced { margin: 8px 0; }
+#modeler .md-feature-advanced > summary { min-height: 32px; padding: 7px 8px; border: 1px solid var(--separator); border-radius: 7px; color: var(--text-muted); cursor: pointer; }
+
+@media (min-width: 901px) and (max-width: 1199px) {
+  #modeler .md-body { padding: 10px; gap: 10px; }
+  #modeler .md-left { width: 224px; }
+  #modeler .md-right { width: 272px; }
+  #modeler .md-command { max-width: 142px; }
+}
+
 [data-theme="dark"] {
   /* DARK — night lab. Lifted charcoal, clinical blue, readable chrome. */
   --bg-app: #0c0e14;
@@ -414,6 +476,26 @@ body {
   background: var(--accent);
 }
 
+/* Desktop users can spend horizontal room instead of halving the already
+   shallow plan. Compact/tablet posture has its own split-row rules below. */
+body.split-side:not(.compact-nav) #center-canvas {
+  flex-direction: row;
+}
+body.split-side:not(.compact-nav) #view-3d,
+body.split-side:not(.compact-nav) #view-2d {
+  min-width: 0;
+  min-height: 0;
+}
+body.split-side:not(.compact-nav) #view-resizer {
+  width: 6px;
+  height: auto;
+  cursor: col-resize;
+}
+body.split-side:not(.compact-nav) #view-2d {
+  border-top: 0;
+  border-inline-start: 1px solid var(--border-color);
+}
+
 #view-2d {
   flex: 1;
   position: relative;
@@ -564,6 +646,7 @@ button.active i,
 .tb-pill button.active i {
   color: var(--accent) !important;
 }
+.split-orientation-btn[hidden] { display: none !important; }
 
 #topbar .separator {
   width: 1px;
@@ -707,6 +790,36 @@ html[data-tool="erase"] #plan { cursor: crosshair; }
   -webkit-backdrop-filter: var(--glass-blur);
 }
 #plan-wall-palette[hidden] { display: none !important; }
+.wd-collapse {
+  align-self: flex-end;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+}
+#plan-wall-palette.auto-collapsed {
+  width: 42px;
+  padding: 5px;
+  overflow: hidden;
+}
+#plan-wall-palette.auto-collapsed .wd-sec {
+  display: none;
+}
+#plan.space-pan { cursor: grab !important; }
+#plan.is-panning { cursor: grabbing !important; }
+.furn-drop-ghost {
+  position: absolute;
+  z-index: 18;
+  pointer-events: none;
+  box-sizing: border-box;
+  min-width: 16px;
+  min-height: 16px;
+  border: 2px solid var(--accent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--on-accent) 45%, transparent), 0 8px 24px var(--accent-glow);
+  transform: translate(-50%, -50%);
+}
 #plan-wall-palette button {
   box-shadow: none;
   transform: none;
@@ -1275,6 +1388,8 @@ label span:first-child {
 }
 .trRoom.sel:hover,
 .trItem.sel:hover {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: var(--on-accent);
   transform: translateX(0);
 }
 .trLk {
@@ -2461,6 +2576,18 @@ body.used-2d #view-2d > .hint {
   max-height: 190px;
   overflow-y: auto;
 }
+.cost-actions {
+  position: sticky;
+  bottom: -12px;
+  z-index: 2;
+  display: grid;
+  gap: 6px;
+  padding: 8px 0 12px;
+  background: linear-gradient(to bottom, transparent, var(--bg-panel) 10px);
+}
+.cost-actions button {
+  width: 100%;
+}
 .cost-row {
   display: flex;
   align-items: center;
@@ -3041,6 +3168,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-reference-picker p { margin: 13px 0; color: var(--text-muted); font-size: 11.5px; line-height: 1.6; }
 #modeler .md-report > section { width: min(520px,100%); }
 #modeler .md-report pre { margin: 14px 0 0; max-height: 46vh; overflow: auto; color: var(--text-main); font: 11.5px/1.75 ui-monospace,monospace; white-space: pre-wrap; word-break: break-word; }
+#modeler .md-report #mdPickList { margin: 14px 0 0; max-height: 46vh; overflow: auto; }
 #modeler .md-reference-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 #modeler .md-reference-option { display: flex; align-items: center; gap: 11px; min-height: 58px; padding: 10px; border: 1px solid var(--btn-border); border-radius: 10px; background: var(--btn-bg); color: var(--text-main); text-align: start; cursor: pointer; }
 #modeler .md-reference-option:hover,#modeler .md-reference-option.selected { border-color: var(--accent); background: color-mix(in srgb,var(--accent) 9%,var(--btn-bg)); }
@@ -3117,6 +3245,12 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-tour-card > p { margin: 0 0 11px; color: var(--text-main); font-size: 12.5px; line-height: 1.65; }
 #modeler .md-tour-demo { position: relative; margin: 0 0 11px; padding: 10px; overflow: hidden; border: 1px solid color-mix(in srgb,var(--accent) 22%,var(--separator)); border-radius: 11px; background: color-mix(in srgb,var(--accent) 5%,var(--input-bg)); }
 #modeler .md-tour-demo[hidden] { display: none; }
+.md-tour-gestures { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; }
+.md-tour-gestures > span { display: grid; justify-items: center; gap: 2px; min-width: 0; color: var(--text-main); text-align: center; }
+.md-tour-gestures i { color: var(--accent); font-size: 24px; animation: md-tour-gesture 1.8s ease-in-out infinite; }
+.md-tour-gestures b { font-size: 9.5px; }
+.md-tour-gestures small { color: color-mix(in srgb,var(--text-main) 72%,var(--bg-panel)); font-size: 8.5px; line-height: 1.15; }
+@keyframes md-tour-gesture { 50% { transform: translateX(5px) scale(1.06); } }
 #modeler .md-tour-demo-scene { position: relative; display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; gap: 5px; min-height: 42px; }
 #modeler .md-tour-demo-stage { display: grid; justify-items: center; gap: 4px; min-width: 0; color: var(--text-muted); font-size: 9px; text-align: center; }
 #modeler .md-tour-demo-stage i { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 8px; background: var(--btn-bg); font-size: 14px; }
@@ -3154,8 +3288,13 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-tour-actions button:disabled { opacity: .38; cursor: not-allowed; }
 #modeler .md-tour-actions .md-tour-skip { margin-inline-start: auto; border-color: transparent; background: transparent; color: var(--text-muted); }
 #modeler .md-tour-actions .md-tour-skip[hidden] { display: none; }
+#modeler .md-tour-actions .md-tour-restart[hidden] { display: none; }
 #modeler .md-tour-actions .btn-accent { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-#modeler .md-tour-target {
+/* The mobile chrome (#md-nav, #md-ctx, #md-selection-bar) is mounted on
+   <body>, not inside #modeler, so a #modeler-scoped rule highlighted nothing
+   on four of the seven mobile guide steps. The class is only ever applied by
+   the guide, so an unscoped rule is safe. */
+.md-tour-target {
   outline: 3px solid color-mix(in srgb, var(--accent) 82%, #fff);
   outline-offset: 4px; border-radius: 8px;
   animation: md-tour-pulse 1.6s ease-in-out infinite;
@@ -3168,7 +3307,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
   50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 7%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
-  #modeler .md-tour-target { animation: none; }
+  .md-tour-target { animation: none; }
   #modeler .md-tour-demo-cursor,#modeler .md-tour-demo-stage.active i { animation: none; }
 }
 
@@ -3326,6 +3465,102 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
   #modeler .md-welcome-head, #modeler .md-welcome-scroll { padding-inline: 18px; }
   #modeler .md-welcome-foot { padding-inline: 18px; }
 }
+/* Bottom-sheet, not a full-height dialog: stretched to the viewport the card
+   left ~350px of empty panel under four tiles, and pushed the tiles that are
+   the entire point of the screen up out of the thumb arc. It now takes the
+   height its content needs and grows downward-anchored until it fills the
+   screen, at which point the list scrolls. */
+body.compact-nav #modeler .md-welcome {
+  padding: 8px;
+  align-items: flex-end;
+}
+body.compact-nav #modeler .md-welcome-card {
+  width: 100%;
+  max-height: 100%;
+  border-radius: 16px;
+}
+body.compact-nav #modeler .md-welcome-scroll {
+  flex: 0 1 auto;
+  padding: 8px 18px 14px;
+}
+body.compact-nav #modeler .md-welcome-head { padding: 18px 18px 4px; }
+body.compact-nav #modeler .md-welcome-head h2 { font-size: 18px; }
+body.compact-nav #modeler .md-welcome-head p { display: none; }
+body.compact-nav #modeler #mdWelcomeStart {
+  grid-template-columns: 1fr;
+}
+body.compact-nav #modeler #mdWelcomeStart .md-welcome-tile {
+  flex-direction: row;
+  align-items: center;
+  min-height: 64px;
+}
+body.compact-nav #modeler #mdWelcomeStart .md-welcome-art {
+  width: 72px;
+  height: 64px;
+  flex: none;
+}
+body.compact-nav #modeler #mdWelcomeStart .md-welcome-art .md-cad-glyph {
+  width: 56px;
+  height: 40px;
+}
+body.compact-nav #modeler .md-welcome-continue .md-welcome-art {
+  background: color-mix(in srgb, var(--accent) 18%, var(--btn-bg));
+  color: var(--accent);
+}
+body.compact-nav #modeler .md-welcome-continue .md-welcome-art i { font-size: 22px; }
+body.compact-nav #modeler .md-welcome-extra {
+  margin-top: 12px;
+}
+/* Inside the drawer the tiles kept the desktop's tall art-over-label shape:
+   two columns of 200px artwork, and 2600px of scroll to reach the last guide.
+   Same row shape as the quick starts — one column, art as a leading thumbnail. */
+body.compact-nav #modeler .md-welcome-extra .md-welcome-grid {
+  grid-template-columns: 1fr;
+}
+body.compact-nav #modeler .md-welcome-extra .md-welcome-tile {
+  flex-direction: row;
+  align-items: center;
+  min-height: 64px;
+}
+body.compact-nav #modeler .md-welcome-extra .md-welcome-art {
+  width: 72px;
+  height: 64px;
+  flex: none;
+}
+body.compact-nav #modeler .md-welcome-extra .md-welcome-art .md-cad-glyph {
+  width: 38px;
+  height: 38px;
+}
+/* the "guided" ribbon is sized for a wide tile; on a 72px thumbnail it covers it */
+body.compact-nav #modeler .md-welcome-extra .md-welcome-art em { display: none; }
+body.compact-nav #modeler .md-welcome-extra summary {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-main);
+  list-style: none;
+}
+body.compact-nav #modeler .md-welcome-extra summary::-webkit-details-marker { display: none; }
+/* The native marker is hidden, so draw the affordance back: without it the
+   summary reads as an inert heading and nobody discovers the other starts. */
+body.compact-nav #modeler .md-welcome-extra summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-inline-start: 8px;
+  border-inline-end: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 0.15s ease;
+  opacity: 0.7;
+}
+body.compact-nav #modeler .md-welcome-extra[open] summary::after {
+  transform: rotate(225deg) translateY(-2px);
+}
+body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; }
 
 /* ---- next-step coach ------------------------------------------------------
    A single slim strip under the workflow nav: what to do next, a button that
@@ -3879,6 +4114,30 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 }
 #modeler .md-hint.flash { background: var(--accent); color: var(--on-accent); }
 
+/* Waiting for a face click. Non-modal — the model underneath is the picker,
+   so only the bar itself takes pointer events. */
+#modeler .md-face-prompt[hidden] { display: none; }
+#modeler .md-face-prompt {
+  position: absolute; bottom: 84px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 11px; z-index: 60; pointer-events: auto;
+  max-width: calc(100% - 28px); padding: 8px 10px 8px 13px;
+  border: 1px solid color-mix(in srgb,var(--accent) 52%,var(--border-color)); border-radius: 12px;
+  background: color-mix(in srgb,var(--bg-panel) 96%,transparent);
+  box-shadow: 0 12px 34px rgba(8,15,28,.28); backdrop-filter: blur(10px);
+}
+#modeler .md-face-prompt > i { color: var(--accent); font-size: 19px; }
+#modeler .md-face-prompt span { display: block; min-width: 0; }
+#modeler .md-face-prompt b { display: block; font-size: 12px; color: var(--text-main); white-space: nowrap; }
+#modeler .md-face-prompt small { display: block; margin-top: 2px; font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#modeler .md-face-prompt button {
+  padding: 6px 10px; border: 1px solid var(--btn-border); border-radius: 8px;
+  background: var(--btn-bg); color: var(--text-main); font-size: 11px; cursor: pointer; white-space: nowrap;
+}
+#modeler .md-face-prompt button:hover { border-color: var(--accent); }
+#modeler .md-face-prompt button.cancel { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; color: var(--text-muted); }
+body.compact-nav #modeler .md-face-prompt { bottom: 72px; gap: 8px; padding: 7px 8px 7px 10px; }
+body.compact-nav #modeler .md-face-prompt small { display: none; }
+
 /* The confirmation corner mirrors the green-check/red-X workflow used while a
    desktop CAD command owns the cursor. It appears only after a multi-step tool
    has actually started, so ordinary selection stays uncluttered. */
@@ -4134,6 +4393,71 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-parametric-node.state-suppressed { opacity: .55; }
 #modeler .md-parametric-node .md-part-x:disabled { opacity: .12; cursor: default; }
 
+/* ---- the unified FeatureManager tree ----
+   One row implementation for canonical history and legacy parts alike. Depth is
+   an indent variable rather than nested containers, so a row keeps its full
+   width for the name however deep it sits. */
+#modeler .md-tree-unified { display: grid; gap: 3px; }
+#modeler .md-tree-unified .md-tree-row {
+  min-height: 34px; gap: 5px;
+  padding-inline-start: calc(4px + var(--md-tree-depth, 0) * 13px);
+}
+#modeler .md-tree-unified .md-tree-row .nm { display: flex; flex-direction: column; justify-content: center; gap: 1px; white-space: normal; }
+#modeler .md-tree-unified .md-tree-row .nm b { overflow: hidden; color: inherit; font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
+#modeler .md-tree-unified .md-tree-row .nm small { overflow: hidden; color: var(--text-muted); font-size: 8.5px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+#modeler .md-tree-unified .md-history-index { flex: none; width: 17px; color: var(--text-muted); font: 700 8.5px/1 ui-monospace,monospace; text-align: center; }
+#modeler .md-tree-unified .md-tree-row.state-rebuilt { border-inline-start: 2px solid #168457; }
+#modeler .md-tree-unified .md-tree-row.state-warning { border-inline-start: 2px solid #c98116; }
+#modeler .md-tree-unified .md-tree-row.state-failed { border-inline-start: 2px solid #d0342c; }
+#modeler .md-tree-unified .md-tree-row.md-suppressed { opacity: .55; }
+#modeler .md-tree-unified .md-tree-row.md-rolled { opacity: .42; }
+#modeler .md-tree-unified .md-tree-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+#modeler .md-tree-caret {
+  flex: none; width: 15px; height: 15px; padding: 0; border: none; background: none;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); cursor: pointer; font-size: 11px;
+}
+#modeler .md-tree-caret-empty { visibility: hidden; cursor: default; }
+
+#modeler .md-tree-section {
+  min-height: 26px; background: transparent; border-color: transparent;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted);
+}
+#modeler .md-tree-section:hover { background: var(--btn-bg-hover); }
+#modeler .md-tree-section .nm b { font-size: 9px; font-weight: 700; letter-spacing: .06em; }
+
+#modeler .md-tree-badge { flex: none; padding: 1px 5px; border-radius: 999px; background: var(--input-bg); color: var(--text-muted); font-size: 8px; font-weight: 700; }
+#modeler .md-tree-warn { color: #c98116; }
+
+#modeler .md-tree-rename {
+  flex: 1; min-width: 0; padding: 3px 5px; border-radius: 5px; font: inherit; font-size: 10.5px;
+  border: 1px solid var(--accent); background: var(--input-bg); color: var(--text-main);
+}
+
+#modeler .md-tree-row.md-tree-dragging { opacity: .45; }
+#modeler .md-tree-row.md-tree-drop-before { box-shadow: inset 0 2px 0 var(--accent); }
+#modeler .md-tree-row.md-tree-drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
+
+#modeler .md-tree-menu {
+  position: absolute; z-index: 78; min-width: 174px; padding: 4px; display: grid; gap: 1px;
+  border: 1px solid var(--btn-border); border-radius: 10px; background: var(--panel-bg, var(--btn-bg));
+  box-shadow: 0 12px 28px rgba(0,0,0,.28);
+}
+#modeler .md-tree-menu button {
+  display: flex; align-items: center; gap: 7px; width: 100%; padding: 6px 8px;
+  border: none; border-radius: 7px; background: none; color: var(--text-main);
+  font-size: 10.5px; text-align: start; cursor: pointer;
+}
+#modeler .md-tree-menu button:hover, #modeler .md-tree-menu button:focus-visible { background: var(--btn-bg-hover); outline: none; }
+#modeler .md-tree-menu button i { flex: none; font-size: 13px; color: var(--text-muted); }
+
+#modeler .md-tree-migrate { margin-top: 7px; align-items: flex-start; gap: 7px; }
+#modeler .md-tree-migrate .nm { display: flex; flex-direction: column; gap: 2px; white-space: normal; }
+#modeler .md-tree-migrate .nm small { color: var(--text-muted); font-size: 8.5px; }
+#modeler .md-tree-migrate button { flex: none; padding: 4px 8px; border-radius: 7px; font-size: 9.5px; }
+#modeler .md-tree-migrate-blocked { opacity: .72; }
+
 #modeler .md-card {
   position: relative; padding: 9px 11px; border-radius: 11px; cursor: pointer;
   background: var(--btn-bg); border: 1px solid var(--btn-border);
@@ -4227,7 +4551,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
   #modeler .md-command-panes { height: 64px; }
   #modeler .md-command-pane { padding-inline: 8px; }
   #modeler .md-command { min-width: 52px; }
-  #modeler .md-prev-wrap { max-width: 340px; }
+  #modeler .md-panel .md-prev-wrap { max-width: 340px; }
 
   #modeler .md-ops { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   #modeler .md-tour-card,
@@ -5112,6 +5436,61 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 }
 .bp-warn.bp-error { background: rgba(220, 80, 60, 0.12); }
 .bp-btnrow { display: flex; gap: 10px; justify-content: flex-end; }
+.bp-trace-modal { width: min(820px, 94vw); gap: 14px; }
+.bp-trace-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.bp-trace-head h3 { margin-bottom: 5px; }
+.bp-trace-head p { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.45; }
+.bp-icon-btn {
+  flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
+  border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg);
+  color: var(--text-muted); cursor: pointer;
+}
+.bp-trace-drop { padding: 12px; flex-direction: row; justify-content: center; }
+.bp-trace-drop i { font-size: 22px; }
+.bp-trace-page { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-main); }
+.bp-trace-page input { width: 66px; }
+.bp-cal-stage {
+  position: relative; display: grid; place-items: center; min-height: 260px; max-height: 52vh;
+  overflow: auto; border: 1px solid var(--border-color); border-radius: 10px;
+  background: #d9dde2; cursor: crosshair;
+}
+.bp-cal-canvas { width: auto; height: auto; max-width: 100%; max-height: 50vh; object-fit: contain; }
+.bp-cal-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; color: #65707c; }
+.bp-cal-empty i { font-size: 34px; }
+.bp-cal-panel {
+  display: grid; gap: 10px; padding: 12px; border: 1px solid var(--border-color);
+  border-radius: 10px; background: var(--bg-panel);
+}
+.bp-cal-instruction { display: flex; align-items: center; gap: 9px; color: var(--text-main); font-size: 13px; font-weight: 650; }
+.bp-step { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-size: 12px; }
+.bp-cal-fields { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bp-cal-fields > label { display: flex; align-items: center; gap: 6px; color: var(--text-main); font-size: 12px; }
+.bp-cal-fields input[type="number"] { width: 82px; }
+.bp-cal-check { margin-inline-start: auto; }
+.bp-link-btn { border: 0; background: transparent; color: var(--accent); cursor: pointer; padding: 4px; }
+.bp-scale-readout { min-height: 17px; color: var(--text-muted); font-size: 11.5px; }
+
+.bp-trace-controls {
+  position: absolute; z-index: 28; inset-inline-start: 12px; top: 12px;
+  display: flex; align-items: center; gap: 6px; max-width: calc(100% - 86px); padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border-color)); border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-panel) 94%, transparent); color: var(--text-main);
+  box-shadow: var(--shadow-sm); backdrop-filter: blur(8px);
+}
+.bp-trace-controls[hidden] { display: none; }
+.bp-trace-controls .bp-trace-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-inline: 5px; font-size: 11.5px; font-weight: 650; }
+.bp-trace-controls button { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--btn-border); background: var(--btn-bg); color: var(--text-main); cursor: pointer; }
+.bp-trace-controls button:hover { border-color: var(--accent); color: var(--accent); }
+.bp-trace-controls label { display: flex; align-items: center; gap: 4px; color: var(--text-muted); }
+.bp-trace-controls input[type="range"] { width: 82px; }
+@media (max-width: 700px) {
+  .bp-trace-modal { width: 96vw; padding: 14px; }
+  .bp-cal-stage { min-height: 220px; }
+  .bp-cal-check { margin-inline-start: 0; }
+  .bp-trace-controls .bp-trace-name,
+  .bp-trace-controls label,
+  .bp-trace-controls [data-bptrace="walls"] span { display: none; }
+}
 /* The confirming action in a modal. js/ui_tree.js (create room) and
    js/persist.js (restore a recovered plan) have always asked for this class;
    nothing ever defined it, so "Create room" and "Don't create" rendered
@@ -5131,7 +5510,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 .btn-primary i { color: inherit; }
 
 /* ---- real-product sizing (js/ui_prodsize.js) ---- */
-.ps-modal { width: 560px; }
+.ps-modal { width: 560px; max-width: 92vw; }
 .ps-modal button:disabled { opacity: 0.45; cursor: default; }
 .ps-hint { font-size: 12px; color: var(--text-muted); }
 .ps-qrow { display: flex; gap: 8px; }
@@ -5175,7 +5554,7 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .ps-spec-clear:hover { color: var(--danger, #d05040); }
 
 /* ---- real-world site panel + map picker (js/ui_site.js) ---- */
-.site-map-modal { width: 640px; }
+.site-map-modal { width: 640px; max-width: 92vw; }
 .site-map {
   width: 100%; height: 380px; max-height: 60vh;
   border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;
@@ -6539,6 +6918,13 @@ body.compact-nav .mobile-toggle {
    between them instead of through the middle of one view. */
 body.fold-span #center-canvas {
   flex-direction: row;
+  column-gap: max(
+    0px,
+    calc(
+      env(viewport-segment-left 1 0, 0px) - env(viewport-segment-width 0 0, 0px) -
+        env(viewport-segment-left 0 0, 0px)
+    )
+  );
 }
 body.fold-span #view-3d,
 body.fold-span #view-2d {
@@ -6559,6 +6945,13 @@ body.fold-span #view-2d {
    seam off it. */
 body.fold-stack #center-canvas {
   flex-direction: column;
+  row-gap: max(
+    0px,
+    calc(
+      env(viewport-segment-top 0 1, 0px) - env(viewport-segment-height 0 0, 0px) -
+        env(viewport-segment-top 0 0, 0px)
+    )
+  );
 }
 body.fold-stack #view-3d,
 body.fold-stack #view-2d {
@@ -8458,10 +8851,10 @@ body.zombies-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
 #modeler.md-is3d:not(.md-model-sketching) #mdCanvas { display: none; }
 #modeler.md-is3d.md-model-sketching #mdCanvas { display: block; }
 #modeler.md-is3d .md-3dhost .md-prev-wrap {
-  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center;
-  padding: 6px; border-bottom: none;
+  flex: 1; min-width: 0; max-width: none; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  padding: 0; border-bottom: none;
 }
-#modeler.md-is3d .md-3dhost #mdPrev { width: auto; max-width: 100%; border-radius: 0; background: transparent; }
+#modeler.md-is3d .md-3dhost #mdPrev { width: 100%; height: 100%; max-width: 100%; border-radius: 0; background: transparent; }
 /* the context-room toggle rides along with the preview into the big view, where
    the top corner belongs to the mode switch */
 #modeler.md-is3d .md-3dhost .md-context-toggle { top: auto; bottom: 12px; inset-inline-end: 12px; }
@@ -8707,7 +9100,7 @@ body.zombies-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
   background: var(--input-bg);
 }
 .cb-levels button {
-  min-height: 34px;
+  min-height: 44px;
   padding-inline: 14px;
   border-radius: 8px;
   border: 0;
@@ -10004,17 +10397,21 @@ body.compact-nav #topbar {
   overflow: hidden;
 }
 
-/* The bottom nav already owns view switching. Keep File/Edit/Export at the
-   leading edge and the four global actions at the trailing edge; duplicate
-   undo/history and tutorial/video buttons remain available through menus. */
+/* The bottom nav already owns view switching. File/Edit/Export live in the
+   More sheet (cloned from these buttons, which stay in the DOM but hidden).
+   CAD stays one tap away — it is the other editor, not a menu item. */
 body.compact-nav #topbar .tb-center,
 body.compact-nav #topbar .tb-start > .separator,
 body.compact-nav #topbar .tb-start > #workspaceBtn,
 body.compact-nav #topbar .tb-start > button:not(#toggle-left):not(#openModelerTop),
+body.compact-nav #topbar .tb-start > .dropdown,
 body.compact-nav #topbar .tb-start > .history-dropdown-wrap,
 body.compact-nav #plannerTutorialBtn,
 body.compact-nav #videoStudioBtn {
   display: none !important;
+}
+body.compact-nav #openModelerTop.legacy-chrome {
+  display: inline-flex !important;
 }
 body.compact-nav #topbar .tb-start,
 body.compact-nav #topbar .tb-end {
@@ -10119,13 +10516,31 @@ body.compact-nav #right-inspector {
     left: max(0px, env(safe-area-inset-left)) !important;
     right: max(0px, env(safe-area-inset-right));
     top: auto !important;
-    bottom: var(--mobile-nav-block);
+    bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve, 0px) + var(--kb, 0px));
     box-sizing: border-box;
     width: auto;
     min-width: 0;
-    max-height: calc(100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block));
+    max-height: calc(100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block) - var(--m-ctx-reserve, 0px));
     overflow-y: auto;
     border-radius: 16px 16px 0 0;
+  }
+  /* Short landscape: overlay the contextual row instead of stacking it. The
+     CAD strip is already duplicated in that row. */
+  body.compact-nav.sheet-drawers {
+    --m-ctx-reserve: 0px;
+  }
+  body.compact-nav.sheet-drawers #m-ctx,
+  body.compact-nav.sheet-drawers #md-ctx {
+    background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
+  }
+  body.compact-nav #cad-status {
+    display: none !important;
+  }
+  body.sheet-drawers #cabdes.cb-compact {
+    --cbm-ctx-reserve: 0px;
+  }
+  body.sheet-drawers #cabdes.cb-compact .cb-m-ctx {
+    background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
   }
 }
 
@@ -10289,7 +10704,7 @@ body.compact-nav #right-inspector {
     min-height: 38px;
   }
   #plan-wall-palette .wd-lab {
-    font-size: 9px;
+    font-size: 10px;
   }
   #cad-status {
     height: 30px;
@@ -10316,10 +10731,37 @@ body.compact-nav #mobile-nav button {
   gap: 1px;
   padding: 2px;
   border-radius: 10px;
-  font-size: 9px;
+  font-size: 10px;
 }
 body.compact-nav #mobile-nav button i {
   font-size: 18px;
+}
+body.compact-nav #mobile-nav button span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 360px) {
+  body.compact-nav #mobile-nav button span,
+  #cabdes.cb-compact .cb-m-nav button span {
+    display: none;
+  }
+  /* The model editor's five destinations are domain-specific; an icon alone
+     is not enough to distinguish Tree, Commands, and Properties. Keep their
+     short labels on Fold cover screens and trim only overflowing text. */
+  body.compact-nav #md-nav button {
+    padding-inline: 1px;
+    font-size: 9px;
+  }
+  body.compact-nav #md-nav button > span:not(.md-nav-glyph) {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 /* Portrait / unfolded Fold: put each wall-option label beside its controls.
@@ -10371,6 +10813,7 @@ body.compact-nav #mobile-nav button i {
 
 body.compact-nav {
   --m-ctx-block: 48px;
+  --m-ctx-reserve: var(--m-ctx-block);
 }
 
 /* ---- the contextual row -------------------------------------------------- */
@@ -10393,10 +10836,13 @@ body.compact-nav #m-ctx {
   border-top: 1px solid var(--border-color);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  /* Deliberately NOT scrollable: a row that scrolls is a row that hides
-     commands, which is the failure this replaced. */
-  overflow: hidden;
+  /* Scrolls horizontally when space is tight; hidden scrollbar keeps the row clean. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+body.compact-nav #m-ctx::-webkit-scrollbar { display: none; }
 /* Undo/Redo are pinned to the leading edge and never move, whatever the row
    is showing — they are the only two controls that must be in the same place
    every single time the user looks down. */
@@ -10494,13 +10940,13 @@ body.compact-nav #mobile-nav .mnav-primary.active i {
 /* Room for both rows: the workspace, the drawers and any docked panel all stop
    above the nav AND the contextual row. */
 body.compact-nav #workspace {
-  margin-bottom: calc(var(--mobile-nav-block) + var(--m-ctx-block));
+  margin-bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
 }
 body.compact-nav #left-sidebar,
 body.compact-nav #right-inspector {
-  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-block));
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
   max-height: calc(
-    100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block) - var(--m-ctx-block)
+    100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block) - var(--m-ctx-reserve) - var(--kb, 0px)
   );
 }
 
@@ -10598,6 +11044,9 @@ body.compact-nav #edit3dBtn {
   background: rgba(255,255,255,.82);
   box-shadow: 0 2px 10px rgba(0,0,0,.28);
 }
+body.compact-nav .walk-stick {
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + 12px);
+}
 
 @media (pointer: coarse) {
   .walk-touch-controls:not([hidden]) { display: block; }
@@ -10605,10 +11054,20 @@ body.compact-nav #edit3dBtn {
   .mctx-btn { min-height: 44px; }
 }
 
+@media (pointer: coarse) {
+  textarea,
+  input[type="password"],
+  input[type="email"],
+  input[type="tel"] {
+    font-size: 16px; /* prevent iOS auto-zoom on focus */
+  }
+}
+
 @media (max-width: 390px) {
-  /* Five actions share this row. Icon-only verbs remain fully named through
-     aria-label and avoid misleading clipped labels in either language. */
-  .mctx-btn:not(.mctx-chip) span { display: none; }
+  /* Narrow phones: tighten the row, but keep the words. The verbs that can
+     afford to lose their label ask for it themselves with .mctx-icon-only —
+     blanking every label here left Accept/Cancel and the coach's next step as
+     unlabelled glyphs on exactly the widths this rule was meant to serve. */
   .mctx-btn { padding-inline: 5px; }
 }
 body.compact-nav .plan-gizmo {
@@ -10635,7 +11094,7 @@ body.compact-nav #m-sheet {
   flex-direction: column;
   position: fixed;
   inset-inline: 0;
-  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-block));
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
   z-index: 62;
   box-sizing: border-box;
   max-height: 46dvh;
@@ -10646,7 +11105,7 @@ body.compact-nav #m-sheet {
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
   /* Parked below the screen: it has to clear its own height AND the two rows
      it sits on top of, or its lid stays visible over them. */
-  transform: translateY(calc(100% + var(--mobile-nav-block) + var(--m-ctx-block)));
+  transform: translateY(calc(100% + var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px)));
   transition: transform 0.22s ease, max-height 0.22s ease;
 }
 body.compact-nav #m-sheet.on {
@@ -10654,7 +11113,7 @@ body.compact-nav #m-sheet.on {
 }
 /* Dragged up past the halfway point — for a long library or a long menu. */
 body.compact-nav #m-sheet.tall {
-  max-height: calc(100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block) - var(--m-ctx-block));
+  max-height: calc(100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block) - var(--m-ctx-reserve) - var(--kb, 0px));
 }
 .m-sheet-grip {
   flex: 0 0 auto;
@@ -10702,7 +11161,11 @@ html[lang="he"] #m-ctx,
 html[lang="he"] #mobile-nav,
 html[lang="he"] #md-sheet,
 html[lang="he"] #md-ctx,
-html[lang="he"] #md-nav {
+html[lang="he"] #md-nav,
+html[lang="he"] #cabdes.cb-compact .cb-m-ctx,
+html[lang="he"] #cabdes.cb-compact .cb-m-nav,
+html[lang="he"] #cabdes.cb-compact .cb-m-sheet,
+html[lang="he"] #cabdes.cb-compact .cb-m-sizebar {
   direction: rtl;
 }
 .m-sheet-sec {
@@ -10718,11 +11181,17 @@ html[lang="he"] #md-nav {
   grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
   gap: 8px;
 }
+.m-grid-1 {
+  grid-template-columns: 1fr;
+}
 .m-grid-3 {
   grid-template-columns: repeat(3, 1fr);
 }
 .m-grid-4 {
   grid-template-columns: repeat(4, 1fr);
+}
+.m-grid-5 {
+  grid-template-columns: repeat(5, 1fr);
 }
 .m-grid-btn {
   display: flex;
@@ -10811,13 +11280,13 @@ body.sheet-drawers #right-inspector {
   position: fixed;
   inset-inline: 0;
   top: auto;
-  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-block));
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
   z-index: 62;
   width: auto;
   max-width: none;
   height: 52dvh;
   max-height: 52dvh;
-  transform: translateY(calc(100% + var(--mobile-nav-block) + var(--m-ctx-block)));
+  transform: translateY(calc(100% + var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px)));
   border: none;
   border-top: 1px solid var(--border-color);
   border-radius: 18px 18px 0 0;
@@ -10890,7 +11359,7 @@ body.dock-rail #m-sheet {
   width: min(420px, 50vw);
   max-height: 60dvh;
   border-radius: 18px;
-  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-block) + 8px);
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px) + 8px);
 }
 
 /* ---- split direction ----------------------------------------------------- */
@@ -10923,12 +11392,12 @@ body.split-row #view-2d {
   left: 0 !important;
   right: 0 !important;
   top: auto !important;
-  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-block));
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
   z-index: 62;
   width: auto;
   min-width: 0;
   max-width: none;
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  padding: 8px 12px;
   border-radius: 18px 18px 0 0;
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
 }
@@ -10939,9 +11408,7 @@ body.split-row #view-2d {
 
 /* ---- touch targets ------------------------------------------------------- */
 
-/* 38px was below the 44px floor the rest of the app already keeps. The topbar
-   now carries three items at most on a phone (the rest moved into More), so
-   there is room to honour it. */
+/* 44px targets; CAD + More + Settings are the three topbar items on a phone. */
 body.compact-nav #topbar .tb-start button,
 body.compact-nav #topbar .tb-end button {
   width: 44px;
@@ -10973,7 +11440,7 @@ body.compact-nav #cad-status.cad-quiet {
 
 body.compact-nav #modeler {
   /* The bottom rows sit above the editor, not inside it. */
-  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-block));
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
   /* The sheet parks itself at translateY(100%), i.e. just below this box —
      without clipping it reads through the glass of the row beneath. */
   overflow: hidden;
@@ -10989,10 +11456,14 @@ body.md-open #m-sheet {
 
 /* ---- the head shrinks to a title and an exit ------------------------------ */
 
+body.compact-nav #modeler {
+  /* the one place the phone header's height is written down */
+  --md-head-block: 44px;
+}
 body.compact-nav #modeler .md-head {
   box-sizing: border-box;
-  height: 44px;
-  min-height: 44px;
+  height: var(--md-head-block);
+  min-height: var(--md-head-block);
   padding: 0 8px 0 12px;
   gap: 8px;
   flex-wrap: nowrap;
@@ -11074,8 +11545,25 @@ body.compact-nav #modeler .md-mid {
   border: none;
   border-radius: 0;
 }
+body.compact-nav #modeler.md-is3d:not(.md-model-sketching) .md-3dhost {
+  bottom: 0;
+}
 body.compact-nav #modeler .md-panel:not(.md-borrowed) {
   display: none;
+}
+/* Unfolded foldable / tablet: Tree is a persistent column, Commands stays a
+   sheet. Same idea as the planner's Add column. */
+body.dock-rail.compact-nav #modeler.md-tree-on .md-left:not(.md-borrowed) {
+  display: flex;
+  width: clamp(220px, 32vw, 280px);
+  max-width: 42vw;
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+  border-radius: 0;
+  border: none;
+  border-inline-end: 1px solid var(--border-color);
+  box-shadow: none;
 }
 /* The live tool/selection guidance, as a slim strip at the TOP — out of the
    thumb arc, and the only text left over the model. */
@@ -11091,10 +11579,18 @@ body.compact-nav #modeler .md-hint {
   padding: 5px 10px;
   border-radius: 0;
   font-size: 11px;
-  white-space: nowrap;
+  /* two lines rather than "…long-press for ..." — the sentence is the point */
+  white-space: normal;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
   pointer-events: none;
+}
+body.compact-nav #modeler .md-hint.md-hint-dismissable {
+  pointer-events: auto;
+  cursor: pointer;
 }
 body.compact-nav #modeler .md-hint:empty {
   display: none;
@@ -11114,13 +11610,213 @@ body.compact-nav #md-ctx {
   z-index: 302; /* over #modeler (300) */
   box-sizing: border-box;
   height: var(--m-ctx-block);
-  align-items: stretch;
+  align-items: center;
   gap: 6px;
   padding: 4px max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left));
   background: var(--bg-panel);
   border-top: 1px solid var(--border-color);
   overflow: hidden;
 }
+#md-ctx .mctx-undo {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+#md-ctx .mctx-btn.mctx-icon-only,
+#m-ctx .mctx-btn.mctx-icon-only {
+  /* Dropping the label buys the row width; it must not also cost the target.
+     44px square is the floor these two share with every other control here. */
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 8px;
+  flex: 0 0 auto;
+  justify-content: center;
+}
+/* Nothing selected, nothing to suggest: the row has no actions to hold, so it
+   collapses to the Undo/Redo pair instead of leaving a divider pointing at an
+   empty stretch of bar. */
+#md-ctx.mctx-empty .mctx-undo,
+#m-ctx.mctx-empty .mctx-undo {
+  border-inline-end: none;
+  padding-inline-end: 0;
+}
+#md-ctx.mctx-empty,
+#m-ctx.mctx-empty {
+  justify-content: flex-start;
+}
+#md-ctx .mctx-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 160px;
+  min-height: 44px; /* match Undo/Redo — a 38px verb is the one a thumb misses */
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+#md-ctx .mctx-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+#md-ctx .mctx-btn.danger {
+  color: var(--danger, #d64545);
+  border-color: var(--danger, #d64545);
+}
+#md-ctx .mctx-btn.primary {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+#md-selection-bar { display: none; }
+body.compact-nav #md-selection-bar:not([hidden]) {
+  display: flex;
+  position: fixed;
+  z-index: 303;
+  inset-inline: 8px;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px) + 8px);
+  box-sizing: border-box;
+  min-height: 44px;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+  box-shadow: 0 6px 24px rgba(0,0,0,.22);
+}
+#md-selection-bar > strong {
+  flex: 1 1 auto;
+  min-width: 46px;
+  padding-inline: 5px;
+  font-size: 10px;
+  line-height: 1.15;
+}
+#md-selection-bar .mctx-btn {
+  display: flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  font-size: 10px;
+  font-weight: 600;
+}
+#md-selection-bar .mctx-btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+#md-selection-bar .mctx-btn.danger { color: var(--danger, #d64545); }
+#md-selection-bar .mctx-btn.mctx-icon-only { width: 44px; min-width: 44px; padding: 0; }
+#md-selection-bar .mctx-btn span { max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.compact-nav #modeler .md-tour-layer,
+body.compact-nav .planner-tour-layer {
+  z-index: 350;
+  pointer-events: none;
+}
+/* Collapsed: the step's identity and its actions, nothing else — enough to
+   keep your place while the canvas or a sheet does the talking. */
+#modeler .md-tour-card.md-tour-min > p,
+#modeler .md-tour-card.md-tour-min .md-tour-demo,
+#modeler .md-tour-card.md-tour-min .md-tour-tip,
+#modeler .md-tour-card.md-tour-min .md-tour-slider,
+#modeler .md-tour-card.md-tour-min .md-tour-tracks,
+#modeler .md-tour-card.md-tour-min .md-tour-status { display: none; }
+#modeler .md-tour-card.md-tour-min { max-height: none; }
+
+/* The track hub on a phone: a full-height sheet, not a card floating over the
+   canvas with a nested scroller and clipped descriptions. */
+body.compact-nav #modeler .md-tour-card.md-tour-hub {
+  top: 8px;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + 8px);
+  max-height: none;
+  overflow-y: auto;
+}
+body.compact-nav #modeler .md-tour-tracks button { align-items: flex-start; }
+body.compact-nav #modeler .md-tour-more {
+  margin-top: 8px;
+}
+body.compact-nav #modeler .md-tour-more summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-main);
+  list-style: none;
+}
+body.compact-nav #modeler .md-tour-more summary::-webkit-details-marker { display: none; }
+body.compact-nav #modeler .md-tour-more-note {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+body.compact-nav #modeler .md-command-search {
+  align-items: stretch;
+  padding: 12px 12px calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + 12px);
+}
+body.compact-nav #modeler .md-command-search-card {
+  max-height: 100%;
+}
+@media (max-height: 500px) {
+  body.compact-nav #md-sheet.on {
+    max-height: calc(100% - 12px);
+  }
+}
+/* min-width:0 alone is not enough: the flex text column needs to be allowed to
+   wrap, or long descriptions push the row wider than the card. */
+#modeler .md-tour-tracks small { overflow-wrap: anywhere; white-space: normal; }
+#modeler .md-tour-tracks span { min-width: 0; flex: 1 1 auto; }
+
+/* A sheet is opened BY the guide ("tap Commands, then pick Rectangle"), so the
+   card must not be the thing covering it. Above the sheet, top-anchored. */
+body.compact-nav.m-sheet-open #modeler .md-tour-card {
+  top: calc(var(--md-head-block, 44px) + 8px);
+  bottom: auto;
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+body.compact-nav #modeler .md-tour-card,
+body.compact-nav .planner-tour-card {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px) + 8px);
+  top: auto;
+  transform: none;
+  width: auto;
+  max-width: none;
+  max-height: calc(52vh - var(--mobile-nav-block));
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(0,0,0,.35);
+  pointer-events: auto;
+}
+body.compact-nav #modeler .md-tour-card { border-color: color-mix(in srgb,var(--accent) 62%,var(--border-color)); }
+body.compact-nav #modeler .md-tour-card > p,
+body.compact-nav #modeler .md-tour-tip { color: color-mix(in srgb,var(--text-main) 78%,var(--bg-panel)); }
+body.compact-nav #modeler .md-tour-actions .md-tour-restart { width: 36px; min-width: 36px; padding-inline: 0; }
+body.compact-nav #modeler .md-tour-actions .md-tour-restart span { display: none; }
+body.compact-nav #modeler .md-command kbd,
+body.compact-nav #modeler .md-command-search-btn kbd,
+body.compact-nav #modeler .md-command-result kbd { display: none !important; }
 body.compact-nav #md-nav {
   display: flex;
   position: fixed;
@@ -11151,7 +11847,7 @@ body.compact-nav #md-nav button {
   border-radius: 10px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -11186,14 +11882,44 @@ body.compact-nav #md-nav .md-nav-glyph svg {
   height: 20px;
   flex: 0 0 auto;
 }
-#md-sheet .m-grid-btn svg {
-  width: 24px;
-  height: 24px;
+#md-sheet .m-grid-btn {
+  /* 44px is the floor, not a starting point: five labelled sections have to
+     clear the fold without one of them becoming a target a thumb misses. */
+  min-height: 44px;
+  padding: 5px 4px;
+  border-radius: 10px;
+  font-size: 11px;
+  gap: 3px;
 }
-#md-ctx .mctx-btn.primary {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent);
+#md-sheet .m-grid-btn svg {
+  width: 22px;
+  height: 22px;
+}
+#md-sheet .m-grid-5 .m-grid-btn {
+  font-size: 10px;
+  padding: 6px 2px;
+}
+#md-sheet .m-grid-1 .m-grid-btn {
+  min-height: 44px;
+  flex-direction: row;
+  gap: 8px;
+}
+#md-sheet .m-grid {
+  gap: 6px;
+}
+#md-sheet .m-sheet-sec {
+  margin: 5px 0 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+#md-sheet .m-sheet-sec:first-child {
+  margin-top: 0;
+}
+/* The sheet already pads itself below the fold; the body repeating it is what
+   put the last section one pixel under the cap in both languages. */
+#md-sheet #md-sheet-body {
+  padding-bottom: 4px;
 }
 
 /* ---- the editor's sheet -------------------------------------------------- */
@@ -11230,10 +11956,18 @@ body.compact-nav #md-sheet {
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
   transform: translateY(100%);
   transition: transform 0.22s ease, max-height 0.22s ease;
+  /* A closed sheet is off-screen but was still hit-testable and still read as a
+     live dialog. Nothing below the fold should be either. */
+  visibility: hidden;
+  pointer-events: none;
 }
 body.compact-nav #md-sheet.on {
   transform: none;
+  visibility: visible;
+  pointer-events: auto;
 }
+/* the last tool row must not read as clipped by the contextual bar */
+body.compact-nav #md-sheet .md-sheet-host { padding-bottom: 10px; }
 body.compact-nav #md-sheet.tall {
   max-height: calc(100% - 48px);
 }
@@ -11252,8 +11986,15 @@ body.dock-rail #md-sheet {
   border-inline-start: 1px solid var(--border-color);
   transform: translateX(100%);
 }
-html[dir="rtl"] body.dock-rail #md-sheet {
+html[dir="rtl"] body.dock-rail #md-sheet,
+html[lang="he"] body.dock-rail #md-sheet {
   transform: translateX(-100%);
+}
+html[dir="rtl"] body.dock-rail #md-sheet.on,
+html[lang="he"] body.dock-rail #md-sheet.on {
+  transform: none;
+  visibility: visible;
+  pointer-events: auto;
 }
 body.dock-rail #md-sheet.on {
   transform: none;
@@ -11294,6 +12035,23 @@ body.compact-nav #md-sheet:has(.md-sheet-host > *) {
 }
 #modeler .md-commandmanager.md-borrowed {
   flex-direction: column;
+  /* The sheet is the width budget. Without min-width:0 down the whole chain
+     the grid below sizes against max-content, resolves five 97px tracks in a
+     375px sheet, and overflow-x:hidden then CLIPS the commands that fall off
+     the end — Hole wizard among them — with no way to scroll to them. */
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+/* When a feature form is active in the borrowed tree panel, focus on the form */
+#modeler .md-left.md-borrowed:has(#mdQuickSettings:not([hidden])) .md-tabstrip,
+#modeler .md-left.md-borrowed:has(#mdQuickSettings:not([hidden])) .md-tabs,
+#modeler .md-left.md-borrowed:has(#mdQuickSettings:not([hidden])) .md-strip-meta {
+  display: none !important;
+}
+#modeler .md-left.md-borrowed #mdQuickTools {
+  width: 100%;
+  flex: 1 1 auto;
 }
 /* In the sheet the ribbon is a labelled grid, not a two-row rail that scrolls
    sideways past the commands nobody found. */
@@ -11301,6 +12059,9 @@ body.compact-nav #md-sheet:has(.md-sheet-host > *) {
   flex: 1 1 auto;
   height: auto;
   min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -11311,12 +12072,16 @@ body.compact-nav #md-sheet:has(.md-sheet-host > *) {
   align-items: stretch;
   padding-inline: 0;
   overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 #modeler .md-commandmanager.md-borrowed .md-command-group {
   width: 100%;
+  max-width: 100%;
   min-width: 0; /* desktop uses max-content, which is what made it pan */
   flex: 0 0 auto;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   border: none;
   background: transparent;
   padding: 0;
@@ -11330,6 +12095,55 @@ body.compact-nav #md-sheet:has(.md-sheet-host > *) {
   text-transform: uppercase;
   opacity: 1;
 }
+/* The secondary groups are drawers: their heading is the handle, so it gets a
+   real 44px target and a chevron that says which way it goes. */
+#modeler .md-commandmanager.md-borrowed .md-command-group[data-cmdgroup="secondary"] > .md-command-group-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  margin-bottom: 0;
+  cursor: pointer;
+  user-select: none;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group[data-cmdgroup="secondary"] > .md-command-group-label::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin-inline-end: 4px;
+  border-inline-end: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor;
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 0.15s ease;
+  opacity: 0.65;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group[data-cmdgroup="secondary"].md-group-open > .md-command-group-label {
+  margin-bottom: 4px;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group[data-cmdgroup="secondary"].md-group-open > .md-command-group-label::after {
+  transform: rotate(225deg) translate(-2px, -2px);
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group[data-cmdgroup="secondary"]:not(.md-group-open) > .md-command-items {
+  display: none;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group[data-cmdgroup="secondary"] + .md-command-group[data-cmdgroup="secondary"] {
+  margin-top: -6px;
+  border-top: 1px solid var(--border-color);
+}
+/* Primary commands highlighted and ordered upfront */
+#modeler .md-commandmanager.md-borrowed .md-command.primary {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+  order: -1;
+}
+#modeler .md-commandmanager.md-borrowed .md-command.primary svg,
+#modeler .md-commandmanager.md-borrowed .md-command.primary i {
+  color: var(--accent);
+}
 /* The desktop grid is two fixed 23px rows flowing sideways in a 48px box —
    the shape that made the ribbon a rail. Flow down instead, and let a button
    be as tall as its own words. */
@@ -11337,9 +12151,23 @@ body.compact-nav #md-sheet:has(.md-sheet-host > *) {
   display: grid;
   grid-auto-flow: row;
   grid-template-rows: none;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  /* minmax(0, …), not minmax(96px, …): `1fr` alone is minmax(auto, 1fr), so a
+     long label ("Polygon → extrude") pushes its track past the container and
+     the whole grid overflows the sheet. Three fixed columns fit 375px. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   height: auto;
-  gap: 5px;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+@media (min-width: 480px) {
+  #modeler .md-commandmanager.md-borrowed .md-command-items {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+#modeler .md-commandmanager.md-borrowed .md-command > svg,
+#modeler .md-commandmanager.md-borrowed .md-command > i {
+  flex: 0 0 auto; /* wrapping labels were squeezing the glyph into the text */
 }
 #modeler .md-commandmanager.md-borrowed .md-command {
   width: auto;
@@ -11356,9 +12184,34 @@ body.compact-nav #md-sheet:has(.md-sheet-host > *) {
 #modeler .md-commandmanager.md-borrowed .md-command-tabs {
   overflow-x: auto;
   scrollbar-width: none;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
-#modeler .md-commandmanager.md-borrowed .md-command-search-btn kbd {
+#modeler .md-commandmanager.md-borrowed .md-command-tabs::-webkit-scrollbar {
   display: none;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-tabs > [data-cmdtab] {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+#modeler .md-left.md-borrowed .md-strip > button,
+#modeler .md-right.md-borrowed .md-strip > button {
+  min-height: 44px;
+  padding-inline: 10px;
+}
+#modeler .md-right.md-borrowed button.md-wide,
+#modeler .md-left.md-borrowed #mdQuickSettings button {
+  min-height: 44px;
+}
+/* The ribbon's own search button is a wide pill living INSIDE the tab row: on
+   a phone it shoulders the four tabs off the edge, and setSheetSearch() has
+   already put a search control in the sheet header. One search per sheet. */
+#modeler .md-commandmanager.md-borrowed .md-command-search-btn {
+  display: none;
+}
+#modeler #md-sheet .md-sheet-search {
+  margin-inline-start: auto;
 }
 /* The right panel's preview canvas is a duplicate of the viewport behind the
    sheet; the sheet is there for the property tabs. */
@@ -11382,6 +12235,71 @@ body.compact-nav #modeler .md-context-menu {
 body.compact-nav #modeler .md-context-menu button {
   flex: 1 1 auto;
   min-height: 46px;
+}
+body.compact-nav #modeler .md-context-menu .md-context-title {
+  flex: 1 0 100%;
+  padding: 4px 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+#md-nav [data-mdnav="view"] small {
+  display: block;
+  max-width: 58px;
+  margin-top: -2px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 8px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#md-nav .md-nav-badge {
+  position: absolute;
+  top: 3px;
+  inset-inline-end: 8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #c98116;
+  color: white;
+  font-size: 10px;
+  line-height: 16px;
+}
+#md-nav .md-nav-badge.error { background: #d0342c; }
+#md-nav button { position: relative; }
+#modeler #md-sheet .md-sheet-expand { margin-inline-start: auto; }
+#modeler #md-sheet.tall .md-sheet-expand i { transform: rotate(180deg); }
+#modeler .md-commandmanager.md-borrowed .md-group-summary {
+  margin-inline-start: auto;
+  margin-inline-end: 20px;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+body.compact-nav #modeler .md-mobile-status {
+  position: absolute;
+  z-index: 18;
+  inset-inline: 8px;
+  /* below the hint strip, whatever height the hint happens to be — it wraps to
+     two lines now, and a hardcoded 74px put the banner through it */
+  top: calc(var(--md-head-block, 44px) + var(--md-hint-h, 26px) + 4px);
+  padding: 6px 10px;
+  border: 1px solid rgba(201,129,22,.55);
+  border-radius: 8px;
+  background: rgba(58,42,18,.94);
+  color: #ffd894;
+  font-size: 11px;
+  pointer-events: none;
+}
+body.compact-nav #modeler .md-mobile-status.error {
+  border-color: rgba(208,52,44,.65);
+  background: rgba(64,25,25,.95);
+  color: #ffb7b2;
 }
 .md-sheet-fields {
   display: flex;
@@ -11410,6 +12328,7 @@ body.compact-nav #modeler .md-context-menu button {
 #cabdes.cb-compact {
   --cbm-nav: calc(56px + env(safe-area-inset-bottom));
   --cbm-ctx: 48px;
+  --cbm-ctx-reserve: var(--cbm-ctx);
 }
 
 /* ---- header: title, session, Done — nothing else ------------------------- */
@@ -11470,6 +12389,36 @@ body.compact-nav #modeler .md-context-menu button {
   height: 0;
   overflow: hidden;
   pointer-events: none;
+}
+/* Roomy compact: W/D/H (and the rest of the context bar) sit above the
+   elevation instead of living only inside More. */
+#cabdes.cb-compact .cb-m-sizebar {
+  flex: none;
+  z-index: 12;
+  background: color-mix(in srgb, var(--bg-panel) 84%, var(--bg-canvas-2d));
+  border-bottom: 1px solid var(--separator);
+}
+#cabdes.cb-compact .cb-m-sizebar[hidden] {
+  display: none;
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sizebar .cb-context-bar {
+  min-height: 0;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px 14px;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sizebar .cb-group-title {
+  display: none;
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sizebar .cb-dims {
+  display: flex;
+  gap: 8px;
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sizebar .cb-number {
+  min-width: 72px;
 }
 #cabdes.cb-compact .cbm-body .cb-m-more {
   display: flex;
@@ -11548,7 +12497,7 @@ body.compact-nav #modeler .md-context-menu button {
   flex-direction: column;
   overflow: hidden;
   padding: 8px;
-  margin-bottom: calc(var(--cbm-nav) + var(--cbm-ctx));
+  margin-bottom: calc(var(--cbm-nav) + var(--cbm-ctx-reserve) + var(--kb, 0px));
 }
 #cabdes.cb-compact .cb-mid {
   flex: 1;
@@ -11576,7 +12525,7 @@ body.compact-nav #modeler .md-context-menu button {
 #cabdes.cb-compact .cb-panel {
   position: absolute;
   inset-inline: 0;
-  bottom: calc(var(--cbm-nav) + var(--cbm-ctx));
+  bottom: calc(var(--cbm-nav) + var(--cbm-ctx-reserve) + var(--kb, 0px));
   z-index: 24;
   width: auto;
   max-width: none;
@@ -11585,7 +12534,7 @@ body.compact-nav #modeler .md-context-menu button {
   border: none;
   border-top: 1px solid var(--border-color);
   border-radius: 18px 18px 0 0;
-  transform: translateY(calc(100% + var(--cbm-nav) + var(--cbm-ctx)));
+  transform: translateY(calc(100% + var(--cbm-nav) + var(--cbm-ctx-reserve) + var(--kb, 0px)));
 }
 /* The slide is only added on the frame AFTER the compact class lands. Without
    that the panels animate from their desktop position on the way in — the
@@ -11610,10 +12559,125 @@ body.compact-nav #modeler .md-context-menu button {
 }
 #cabdes.cb-compact .cb-right .cb-fill {
   overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* Inspector tabs stay at the top of Properties instead of scrolling away
+   inside the 54dvh sheet. Nest/PNG already live on More. */
+#cabdes.cb-compact .cb-right > .cb-grp {
+  flex: 0 0 auto;
+  padding: 4px 10px 6px;
+  margin: 0;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--separator);
+}
+#cabdes.cb-compact .cb-right > .cb-grp h5 {
+  display: none;
+}
+#cabdes.cb-compact .cb-right > .cb-grp .cb-icons {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  grid-template-columns: none;
+  gap: 6px;
+  scrollbar-width: none;
+}
+#cabdes.cb-compact .cb-right > .cb-grp .cb-icons button {
+  flex: 0 0 auto;
+  min-width: 72px;
+  min-height: 52px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 8px;
+}
+#cabdes.cb-compact .cb-right > .cb-grp .cb-icons button[data-act] {
+  display: none;
+}
+#cabdes.cb-compact .cb-icon-label {
+  font-size: 10px;
 }
 /* The small 3D preview above the inspector tabs is a luxury at this width. */
 #cabdes.cb-compact:not(.cb-is3d) .cb-right .cb-prev-wrap {
   display: none;
+}
+
+/* Unfolded foldable / tablet: Design and Properties become columns beside
+   the elevation instead of covering it. Same cb-show-* state as the sheets. */
+body.dock-rail #cabdes.cb-compact .cb-body {
+  flex-direction: row;
+  align-items: stretch;
+}
+body.dock-rail #cabdes.cb-compact .cb-panel {
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  width: clamp(260px, 32vw, 320px);
+  height: auto;
+  max-height: none;
+  transform: none;
+  border-radius: 0;
+  border-top: none;
+  display: none;
+  box-shadow: none;
+}
+body.dock-rail #cabdes.cb-compact.cb-show-left .cb-left,
+body.dock-rail #cabdes.cb-compact.cb-show-right .cb-right {
+  display: flex;
+}
+body.dock-rail #cabdes.cb-compact .cb-left {
+  border-inline-end: 1px solid var(--border-color);
+}
+body.dock-rail #cabdes.cb-compact .cb-right {
+  border-inline-start: 1px solid var(--border-color);
+}
+body.dock-rail #cabdes.cb-compact .cb-panel::before,
+body.dock-rail #cabdes.cb-compact .cb-m-backdrop {
+  display: none !important;
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sheet {
+  inset-inline: auto 12px;
+  width: min(420px, 48vw);
+  max-height: 70%;
+  border-radius: 18px;
+  bottom: calc(var(--cbm-nav) + var(--cbm-ctx-reserve) + 8px);
+  transform: translateY(calc(100% + var(--cbm-nav) + var(--cbm-ctx-reserve)));
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sheet.on {
+  transform: none;
+}
+body.dock-rail #cabdes.cb-compact:not(.cb-is3d) .cb-right .cb-prev-wrap {
+  display: block;
+}
+
+#cabdes.cb-compact .cbm-view-pad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  max-width: 280px;
+  margin: 4px auto 0;
+}
+#cabdes.cb-compact .cbm-view-pad .cbm-grid-btn {
+  min-height: 52px;
+}
+#cabdes.cb-compact .cbm-iso {
+  margin: 12px 2px 0;
+}
+#cabdes.cb-compact .cbm-iso summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-main);
+  list-style: none;
+}
+#cabdes.cb-compact .cbm-iso summary::-webkit-details-marker { display: none; }
+#cabdes.cb-compact .cbm-iso[open] summary { margin-bottom: 8px; }
+#cabdes.cb-compact .cbm-iso > .cbm-grid-btn {
+  width: 100%;
+  margin-bottom: 8px;
 }
 
 /* ---- contextual row ------------------------------------------------------ */
@@ -11721,7 +12785,7 @@ body.compact-nav #modeler .md-context-menu button {
   border-radius: 10px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -11776,7 +12840,7 @@ body.compact-nav #modeler .md-context-menu button {
   flex-direction: column;
   position: absolute;
   inset-inline: 0;
-  bottom: calc(var(--cbm-nav) + var(--cbm-ctx));
+  bottom: calc(var(--cbm-nav) + var(--cbm-ctx-reserve) + var(--kb, 0px));
   z-index: 24;
   box-sizing: border-box;
   max-height: 50dvh;
@@ -11785,7 +12849,7 @@ body.compact-nav #modeler .md-context-menu button {
   border-top: 1px solid var(--border-color);
   border-radius: 18px 18px 0 0;
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.22);
-  transform: translateY(calc(100% + var(--cbm-nav) + var(--cbm-ctx)));
+  transform: translateY(calc(100% + var(--cbm-nav) + var(--cbm-ctx-reserve) + var(--kb, 0px)));
 }
 #cabdes.cb-compact .cb-m-sheet.on {
   transform: none;
@@ -11917,4 +12981,153 @@ body.compact-nav #modeler .md-context-menu button {
 #cabdes .cbm-list-btn.danger,
 #cabdes .cbm-list-btn.danger i {
   color: var(--danger);
+}
+
+/* Landscape safe-area insets for notch/Dynamic Island devices */
+@media (orientation: landscape) {
+  #modeler {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .start-screen {
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
+  }
+}
+
+/* Prevent accidental text selection on touch UI chrome */
+@media (pointer: coarse) {
+  button,
+  [role="tab"],
+  #topbar *,
+  #mobile-nav *,
+  #m-ctx *,
+  #md-nav *,
+  #md-ctx *,
+  .cb-m-nav *,
+  .cb-m-ctx * {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* ---- mobile LiDAR / AR room scan -------------------------------------- */
+.roomscan-modal { width: 620px; gap: 14px; }
+.roomscan-head { display: flex; align-items: flex-start; gap: 13px; }
+.roomscan-head h3 { margin-bottom: 5px; }
+.roomscan-head p { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.roomscan-head-icon {
+  flex: 0 0 46px; height: 46px; display: grid; place-items: center;
+  border-radius: 13px; background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent); font-size: 25px;
+}
+.roomscan-capability {
+  display: flex; align-items: center; gap: 8px; padding: 9px 11px;
+  border-radius: 9px; border: 1px solid var(--border-color);
+  color: var(--text-muted); background: var(--input-bg); font-size: 12px;
+}
+.roomscan-capability.pending i { animation: spin .9s linear infinite; }
+.roomscan-capability.ready { color: var(--success); border-color: color-mix(in srgb, var(--success) 34%, var(--border-color)); }
+.roomscan-capability.limited { color: var(--text-muted); }
+.roomscan-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.roomscan-choice {
+  min-width: 0; min-height: 112px; padding: 15px; display: grid;
+  grid-template-columns: 42px minmax(0, 1fr); align-items: start; gap: 11px;
+  border: 1.5px solid var(--border-color); border-radius: 12px;
+  background: var(--btn-bg); color: var(--text-main); text-align: start; cursor: pointer;
+  white-space: normal; overflow: hidden;
+}
+.roomscan-choice:hover:not(:disabled) {
+  border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--btn-bg));
+}
+.roomscan-choice:disabled { opacity: .48; cursor: not-allowed; }
+.roomscan-choice > i {
+  width: 42px; height: 42px; display: grid; place-items: center; border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-size: 22px;
+}
+.roomscan-choice span { display: flex; min-width: 0; flex-direction: column; gap: 6px; }
+.roomscan-choice strong { font-size: 13.5px; }
+.roomscan-choice small { color: var(--text-muted); font-size: 11.5px; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; }
+.roomscan-note {
+  display: flex; gap: 8px; align-items: flex-start; padding: 10px 11px; border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--input-bg)); color: var(--text-muted);
+  font-size: 11.5px; line-height: 1.45;
+}
+.roomscan-note i { color: var(--accent); font-size: 16px; margin-top: 1px; }
+.roomscan-status { min-height: 18px; color: var(--text-muted); font-size: 12px; }
+.roomscan-preview-wrap {
+  overflow: hidden; border: 1px solid var(--border-color); border-radius: 11px;
+  background: var(--input-bg); padding: 10px;
+}
+.roomscan-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 1px 4px 8px; font-size: 12px; }
+.roomscan-summary strong { color: var(--text-main); }
+.roomscan-summary span { color: var(--text-muted); }
+.roomscan-cal {
+  display: flex; flex-direction: column; gap: 8px; margin: 8px 4px 0;
+}
+.roomscan-cal label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.roomscan-cal input[type="number"] {
+  width: 100%; border: 1px solid var(--border-color); border-radius: 8px;
+  padding: 8px 10px; font: inherit;
+}
+.roomscan-cal small { color: var(--text-muted); font-size: 11.5px; line-height: 1.45; }
+.roomscan-cal fieldset { border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 10px; }
+.roomscan-cal legend { font-size: 11.5px; color: var(--text-muted); padding: 0 4px; }
+.roomscan-mode { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 4px 0; }
+.roomscan-actions { margin-top: 0; }
+
+.roomscan-ar-stage { position: fixed; inset: 0; z-index: 10002; color: #fff; font-family: Inter, sans-serif; }
+.roomscan-xr-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.roomscan-ar-top {
+  position: absolute; top: max(18px, env(safe-area-inset-top)); left: 16px; right: 16px;
+  display: flex; justify-content: space-between; align-items: center; padding: 10px 13px;
+  border-radius: 12px; background: rgba(10,12,18,.62); backdrop-filter: blur(12px);
+}
+.roomscan-ar-top b { font-size: 14px; }
+.roomscan-ar-top span { font-size: 12px; color: rgba(255,255,255,.75); }
+.roomscan-reticle {
+  position: absolute; left: 50%; top: 50%; width: 46px; height: 46px;
+  display: grid; place-items: center; transform: translate(-50%, -50%);
+  border: 2px solid rgba(255,255,255,.65); border-radius: 50%; color: #fff; font-size: 22px;
+  transition: border-color .12s, background .12s, transform .12s;
+}
+.roomscan-reticle.locked { border-color: #4ade80; background: rgba(34,197,94,.2); transform: translate(-50%, -50%) scale(.88); }
+.roomscan-ar-hint {
+  position: absolute; left: 50%; bottom: calc(112px + env(safe-area-inset-bottom));
+  transform: translateX(-50%); width: min(330px, calc(100% - 40px)); text-align: center;
+  padding: 8px 12px; border-radius: 999px; background: rgba(10,12,18,.62); font-size: 11.5px;
+}
+.roomscan-ar-actions {
+  position: absolute; left: 16px; right: 16px; bottom: max(18px, env(safe-area-inset-bottom));
+  display: grid; grid-template-columns: 48px 1fr 48px; gap: 12px; align-items: center;
+}
+.roomscan-ar-actions button {
+  height: 48px; border: 1px solid rgba(255,255,255,.32); border-radius: 50%;
+  background: rgba(10,12,18,.7); color: #fff; font-size: 20px; backdrop-filter: blur(12px);
+}
+.roomscan-ar-actions button:disabled { opacity: .38; }
+.roomscan-ar-actions .roomscan-capture {
+  border-radius: 999px; display: flex; justify-content: center; align-items: center; gap: 8px;
+  background: #4f46e5; border-color: rgba(255,255,255,.6); font-size: 13px; font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .roomscan-overlay { align-items: flex-end; }
+  .roomscan-modal {
+    width: 100%; max-width: 100%; max-height: 94dvh; border-radius: 18px 18px 0 0;
+    padding: 17px max(16px, env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  .roomscan-choices { grid-template-columns: 1fr; }
+  .roomscan-choice { min-height: 92px; }
+  .roomscan-summary { align-items: flex-start; flex-direction: column; gap: 3px; }
+}
+
+/* Keep these desktop overrides after the compact/foldable posture rules. */
+#modeler .md-workflow small { font-size: 11px; }
+#modeler .md-part small { font-size: 10.5px; line-height: 1.25; }
+@media (min-width: 901px) and (max-width: 1199px) {
+  body:not(.compact-nav) #modeler .md-body { padding: 10px; gap: 10px; }
+  body:not(.compact-nav) #modeler .md-left { width: 224px; }
+  body:not(.compact-nav) #modeler .md-right { width: 272px; }
+  body:not(.compact-nav) #modeler .md-command { max-width: 142px; }
 }

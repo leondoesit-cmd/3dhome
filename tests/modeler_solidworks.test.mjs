@@ -197,5 +197,5 @@ test("an Instant3D handle only appears where it has something to hold on to", ()
   assert.match(modelerSource, /function instant3dScale\(view\)/);
   assert.match(modelerSource, /worldPerPixel/);
   // hovering the arrow says so, rather than silently starting an orbit
-  assert.match(modelerSource, /canvas\.style\.cursor = overHandle \? "grab" : "";/);
+  assert.match(modelerSource, /canvas\.style\.cursor = E\.facePick \? "crosshair" : overHandle \? "grab" : "";/);
 });

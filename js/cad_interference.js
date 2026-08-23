@@ -8,6 +8,8 @@ export async function detectInterference(assemblyComponents) {
   for (let i = 0; i < assemblyComponents.length; i++) {
     for (let j = i + 1; j < assemblyComponents.length; j++) {
       const c1 = assemblyComponents[i], c2 = assemblyComponents[j];
+      const a = componentBounds(c1), b = componentBounds(c2);
+      const overlap = a && b ? intersectionBounds(a, b) : null;
       if (c1.brep?.shape && c2.brep?.shape) {
         try {
           const res = await booleanBrep("intersect", c1.brep, c2.brep);
@@ -17,21 +19,21 @@ export async function detectInterference(assemblyComponents) {
               b: c2.id,
               volume: null,
               exact: true,
+              bounds: overlap,
             });
           }
         } catch (_) {}
       } else {
-        const a = componentBounds(c1), b = componentBounds(c2);
         if (!a || !b) continue;
         const dx = Math.min(a.x1,b.x1)-Math.max(a.x0,b.x0), dy = Math.min(a.y1,b.y1)-Math.max(a.y0,b.y0), dz = Math.min(a.z1,b.z1)-Math.max(a.z0,b.z0);
-        if (dx > 1e-6 && dy > 1e-6 && dz > 1e-6) interferences.push({a:c1.id,b:c2.id,volume:Math.round(dx*dy*dz*100)/100,exact:false});
+        if (dx > 1e-6 && dy > 1e-6 && dz > 1e-6) interferences.push({a:c1.id,b:c2.id,volume:Math.round(dx*dy*dz*100)/100,exact:false,bounds:overlap});
       }
     }
   }
   return interferences;
 }
 
-function componentBounds(component) {
+export function componentBounds(component) {
   const parts = component.def?.parts || component.parts || [];
   if (!parts.length) return null;
   const out={x0:Infinity,y0:Infinity,z0:Infinity,x1:-Infinity,y1:-Infinity,z1:-Infinity};
@@ -43,6 +45,15 @@ function componentBounds(component) {
   }
   if(!Number.isFinite(out.x0)) return null;
   const t=component.transform||{}; out.x0+=t.x||0;out.x1+=t.x||0;out.y0+=t.y||0;out.y1+=t.y||0;out.z0+=t.z||0;out.z1+=t.z||0; return out;
+}
+
+export function intersectionBounds(a, b) {
+  if (!a || !b) return null;
+  const bounds = {
+    x0: Math.max(a.x0, b.x0), y0: Math.max(a.y0, b.y0), z0: Math.max(a.z0, b.z0),
+    x1: Math.min(a.x1, b.x1), y1: Math.min(a.y1, b.y1), z1: Math.min(a.z1, b.z1),
+  };
+  return bounds.x1 > bounds.x0 && bounds.y1 > bounds.y0 && bounds.z1 > bounds.z0 ? bounds : null;
 }
 
 export function generateBOM(assembly) {

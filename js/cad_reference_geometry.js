@@ -23,6 +23,8 @@ export function createReferenceAxis(options = {}) {
   };
 }
 
+export { createHelix } from "./cad_helix.js";
+
 export function createCoordinateSystem(options = {}) {
   return {
     id: "coordsys_" + Date.now().toString(36),

@@ -1,5 +1,5 @@
 import { stableStringify } from "./dependency_graph.js";
-import { rebuildDefinition } from "./rebuild.js";
+import { bodiesFromResults, rebuildDefinition } from "./rebuild.js";
 import { cloneDomain } from "./schema.js";
 import { analyzeParametricHistory, ensureParametricDocument } from "./parametric_document.js";
 import { compileKernelFeatureTree } from "./kernel_feature_adapter.js";
@@ -22,6 +22,11 @@ export function rebuildParametricDocument(source, overrides = {}, options = {}) 
     core = rebuildDefinition(executable, overrides, options);
     issues.push(...core.issues);
   }
+  // Bodies are reported against the *authoring* features, not the lowered ones:
+  // a hole compiles into a tool plus a subtract, and only the subtract keeps the
+  // authoring id. Reading the compiled tree here would list the tool as a body
+  // and name it after an id the tree cannot select.
+  const bodies = core ? bodiesFromResults(snapshot, core.results) : [];
   const failed = new Set(issues.filter((issue) => issue.severity === "error").flatMap(issueTargets));
   const warnings = new Set(issues.filter((issue) => issue.severity === "warning").flatMap(issueTargets));
   const status = (snapshot.history || []).map((entry) => ({
@@ -38,6 +43,7 @@ export function rebuildParametricDocument(source, overrides = {}, options = {}) 
     signature: stableStringify({ definitionId: snapshot.id, revision: snapshot.revision, history: snapshot.history.map((entry) => ({ id:entry.id, kind:entry.kind, targetId:entry.targetId, suppressed:entry.suppressed })), sketches: snapshot.sketches.map((sketch) => { const copy=cloneDomain(sketch); delete copy.status; delete copy.diagnostics; return copy; }), features: snapshot.features.map((feature) => { const copy=cloneDomain(feature); delete copy.state; delete copy.diagnostics; return copy; }), overrides }),
     document: snapshot,
     compiledFeatures: compiled.features,
+    bodies,
     status,
     issues,
     core,

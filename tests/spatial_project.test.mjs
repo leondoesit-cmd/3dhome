@@ -25,3 +25,15 @@ test("cabinet user presets round-trip with the spatial document",()=>{
   assert.equal(restored.spatial.cabinetPresets[0].name,"Kitchen run");
   assert.equal(restored.spatial.cabinetPresets[0].cab.fam,"base");
 });
+
+test("slab openings round-trip with the spatial document",()=>{
+  const state={nodes:[],walls:[],openings:[],items:[],roomMeta:{},markers:[],slabOpenings:[{id:"v1",x:10,z:20,w:100,d:250,rot:15}],workspace:{id:"house",floors:[]}};
+  const spatial=installSpatialProject(state);
+  assert.equal(state.slabOpenings,spatial.slabOpenings);
+  const saved=exportSpatialProject(state);
+  assert.equal(saved.slabOpenings[0].id,"v1");
+  const restored={workspace:{id:"copy",floors:[]}};
+  importSpatialProject(restored,saved);
+  assert.equal(restored.slabOpenings[0].w,100);
+  assert.equal(restored.slabOpenings[0].rot,15);
+});

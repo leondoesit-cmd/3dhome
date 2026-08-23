@@ -1,5 +1,5 @@
 import { evaluateExpression, resolveEquations } from "../sketch_equations.js";
-import { solveSketch } from "../sketch_solver.js";
+import { resolveProfilePoints, solveSketch } from "../sketch_solver.js";
 import { buildDependencyGraph, stableStringify } from "./dependency_graph.js";
 import { validateDefinition } from "./schema.js";
 import { realignFrame } from "./frame.js";
@@ -15,6 +15,7 @@ const SUPPORTED_FEATURES = new Set([
   "sketch", "box", "cylinder", "sphere", "extrude", "cut", "revolve", "sweep", "loft",
   "fillet", "chamfer", "shell", "mirror", "linearPattern", "linearGridPattern", "circularPattern", "pattern", "extrudeCut", "boolean",
   "union", "subtract", "intersect", "procedural", "direct", "import", "component", "assembly",
+  "hole", "helix", "thread", "knurl", "insert", "cone",
 ]);
 
 function parameterValue(parameter) {
@@ -137,10 +138,26 @@ function alignExtrusionToResolvedSupport(params, resolutions = []) {
   return { ...params, from: symmetric ? center-direction*depth/2 : center, to: symmetric ? center+direction*depth/2 : center+direction*depth };
 }
 
-function featureResult(feature, parameters, previous, topologyResolutions) {
+/* A sketch-driven feature stores which entities it was built from, not their
+   coordinates — the whole point of a parametric profile. Topology naming needs
+   the coordinates, though, so a feature whose points were never resolved named
+   no faces at all: every reference to one of them ("sketch on this face",
+   "extrude cut on this body") then failed to resolve, and one failure stops the
+   rebuild for everything after it. That is what "Extrude / Boss 2 has a missing
+   topology reference" was, on a model where nothing was actually wrong. */
+function resolveProfileParams(params, sketches) {
+  if (!params?.profileEntityIds?.length || (params.points || []).length >= 3) return params;
+  const list = Array.isArray(sketches) ? sketches : [];
+  const sketch = (params.sketchId && list.find((item) => item.id === params.sketchId)) || list[0] || null;
+  const points = sketch ? resolveProfilePoints(sketch, params.profileEntityIds) : null;
+  return points && points.length >= 3 ? { ...params, points } : params;
+}
+
+function featureResult(feature, parameters, previous, topologyResolutions, sketches) {
   if (!SUPPORTED_FEATURES.has(feature.type)) throw new Error("Unsupported feature type: " + feature.type);
   if (feature.type === "sketch") return { kind: "sketch", sketchId: feature.params?.sketchId || feature.sketchId };
   let params = replaceParameters(feature.params || {}, parameters);
+  if (["extrude", "revolve"].includes(feature.type)) params = resolveProfileParams(params, sketches);
   if (feature.type === "extrude") params = alignExtrusionToResolvedSupport(params, topologyResolutions);
   const inputs = (feature.inputs || []).map((id) => previous.get(id)).filter(Boolean);
   const result = {
@@ -175,6 +192,39 @@ function boundsFromResults(results, parameters) {
   return { min: { x: -w / 2, y: 0, z: -d / 2 }, max: { x: w / 2, y: h, z: d / 2 } };
 }
 
+/* Results that never stand as a body of their own: a sketch is a profile, a
+   helix is a path, a knurl is a decoration on a face that already exists. */
+const NON_BODY_RESULTS = new Set(["sketch", "helix", "knurl"]);
+
+/* The bodies a rebuild leaves standing.
+   A feature history answers "how was this built"; a body list answers "what
+   exists now, and what can I select or hide". Those are different questions, so
+   the body set is published by the rebuild rather than guessed at in the panel
+   that draws it — otherwise the list has no stable identity and re-labels
+   itself every regeneration. A body is a solid-producing result that no later
+   feature consumed, and it carries the id of the feature that last shaped it,
+   which is what keeps its name steady across rebuilds. */
+export function bodiesFromResults(definition, results) {
+  if (!results || typeof results.get !== "function") return [];
+  const features = (definition?.features || []).filter((feature) => !feature.suppressed);
+  const consumed = new Set();
+  features.forEach((feature) => (feature.inputs || []).forEach((id) => consumed.add(id)));
+  const bodies = [];
+  features.forEach((feature) => {
+    if (consumed.has(feature.id)) return;
+    const result = results.get(feature.id);
+    if (!result || result.kind === "sketch" || NON_BODY_RESULTS.has(result.type)) return;
+    bodies.push({
+      id: "body:" + feature.id,
+      featureId: feature.id,
+      name: result.name || feature.name || feature.type,
+      type: result.type,
+      index: bodies.length,
+    });
+  });
+  return bodies;
+}
+
 export function rebuildDefinition(definition, overrides = {}, options = {}) {
   const startedAt = options.now || Date.now();
   const issues = validateDefinition(definition);
@@ -201,7 +251,7 @@ export function rebuildDefinition(definition, overrides = {}, options = {}) {
       topologyBindings.push(...topologyRun.resolutions);
       if (topologyRun.issues.some((issue) => issue.severity === "error")) break;
       try {
-        const result = featureResult(feature, parameterRun.values, results, topologyRun.resolutions);
+        const result = featureResult(feature, parameterRun.values, results, topologyRun.resolutions, sketchRun.sketches);
         results.set(feature.id, result);
         (result.topology || []).forEach((item) => {
           if (!topology.byPersistentId.has(item.persistentId)) topology.list.push(item);
@@ -257,6 +307,7 @@ export function rebuildDefinition(definition, overrides = {}, options = {}) {
     topology: topology.list,
     topologyBindings,
     bounds: boundsFromResults(results, parameterRun.values),
+    bodies: bodiesFromResults(definition, results),
     issues,
     rebuiltAt: startedAt,
   };

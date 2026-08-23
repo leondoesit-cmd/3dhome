@@ -1,10 +1,14 @@
-import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, deserializeBrep, disposeBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepExtrusion, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, shellBrep } from "./cad_kernel.js";
+import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, deserializeBrep, disposeBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepExtrusion, makeBrepHelicalPipe, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, shellBrep } from "./cad_kernel.js";
 import { resolveProfilePoints } from "./sketch_solver.js";
 import { createTopologyRegistry, resolveFeatureTopologyReferences, topologyForFeature } from "./core/topology.js";
 import { realignFrame } from "./core/frame.js";
 import { resolveParameters } from "./core/rebuild.js";
 import { decodeBinaryPayload } from "./core/binary_payload.js";
 import { resolveAttachmentPayload } from "./core/attachment_store.js";
+import { sampleHelix } from "./cad_helix.js";
+import { helixSpecForThread, modeledThreadSolid, normalizeThreadSpec } from "./cad_thread.js";
+import { knurlBandMesh, normalizeKnurlSpec } from "./cad_knurl.js";
+import { insertBody, normalizeInsertFeature } from "./cad_appearances.js";
 
 export function ensureFeatureTree(def) {
   def.features ||= [];
@@ -98,8 +102,49 @@ export async function regenerateFeatures(def, options = {}) {
         effectiveParams = resolveSketchProfile(def,effectiveParams);
         result = await makeBrepRevolve(effectiveParams);
       }
-      else if (feature.type === "sweep") result = await makeBrepSweep(effectiveParams);
+      else if (feature.type === "sweep") {
+        const helixPath = effectiveParams.helix && (!effectiveParams.path || effectiveParams.path.length < 2)
+          ? sampleHelix(effectiveParams.helix).points
+          : null;
+        result = await makeBrepSweep(helixPath ? { ...effectiveParams, path: helixPath } : effectiveParams);
+      }
       else if (feature.type === "loft") result = await makeBrepLoft(effectiveParams);
+      else if (feature.type === "cone") result = await makeBrepCone(effectiveParams);
+      else if (feature.type === "helix") {
+        const helix = sampleHelix({
+          origin: effectiveParams.origin, axis: effectiveParams.axis || { x: 0, y: 1, z: 0 },
+          radius: Number(effectiveParams.radius) || 1, radiusEnd: (Number(effectiveParams.radius) || 1) + (Number(effectiveParams.taper) || 0),
+          pitch: Number(effectiveParams.pitch) || 0.1, turns: Number(effectiveParams.turns) || 1,
+          height: Number(effectiveParams.height), handedness: effectiveParams.handedness, startAngle: effectiveParams.startAngle,
+        });
+        result = { kind: "curve", points: helix.points, spec: helix.spec };
+      }
+      else if (feature.type === "thread") {
+        const thread = normalizeThreadSpec(effectiveParams);
+        if (thread.mode === "modeled") {
+          const solid = modeledThreadSolid(thread);
+          const pipe = await makeBrepHelicalPipe({
+            path: solid.path.map((p) => ({ x: p.x, y: p.y, z: p.z })),
+            profile: solid.profile.map((p) => ({ x: p.x, y: p.y, z: 0 })),
+          });
+          const source = results.get(feature.inputs[0]);
+          result = source?.shape ? await booleanBrep(solid.operation === "add" ? "union" : "subtract", source, pipe) : pipe;
+        } else {
+          result = { kind: "annotation", annotation: "cosmetic-thread", spec: thread, helix: helixSpecForThread(thread) };
+        }
+      }
+      else if (feature.type === "knurl") {
+        const knurl = normalizeKnurlSpec(effectiveParams);
+        result = { kind: "annotation", annotation: "knurl", spec: knurl, mesh: knurlBandMesh(knurl) };
+      }
+      else if (feature.type === "insert") {
+        const insert = normalizeInsertFeature(effectiveParams);
+        const body = insertBody(insert);
+        const outer = await makeBrepPrimitive({ type: "cylinder", r: insert.outer / 2, h: insert.length, x: insert.origin.x, y: insert.origin.y, z: insert.origin.z });
+        const inner = await makeBrepPrimitive({ type: "cylinder", r: insert.inner / 2, h: insert.length + 0.02, x: insert.origin.x, y: insert.origin.y - 0.01, z: insert.origin.z });
+        result = await booleanBrep("subtract", outer, inner);
+        result.insert = body;
+      }
       else if (feature.type === "linearPattern") {
         const source=results.get(feature.inputs[0]);result=await linearPatternBrep(source,effectiveParams);
       }
@@ -164,9 +209,9 @@ export async function regenerateFeatures(def, options = {}) {
         throw new Error("Unsupported feature type: " + feature.type);
       }
       const inputResults = (feature.inputs || []).map((id) => results.get(id)).filter(Boolean);
-      result.topology = topologyForFeature(feature, effectiveParams, inputResults);
-      if (result.shape) result.topology = extractBrepTopology(result, { ownerFeatureId: feature.id, expectedTopology: result.topology }).topology;
-      result.topology.forEach((item) => {
+      result.topology = topologyForFeature(feature, effectiveParams, inputResults) || [];
+      if (result.shape) result.topology = extractBrepTopology(result, { ownerFeatureId: feature.id, expectedTopology: result.topology }).topology || [];
+      (result.topology || []).forEach((item) => {
         if (!topology.byPersistentId.has(item.persistentId)) topology.list.push(item);
         topology.byPersistentId.set(item.persistentId, item);
       });

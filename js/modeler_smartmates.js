@@ -10,6 +10,9 @@ export function inferSmartMate(a, b) {
   var ak = a.kind, bk = b.kind;
   if (ak === "face" && bk === "face") {
     if (surfaceOf(a) === "cylinder" && surfaceOf(b) === "cylinder") {
+      if (a.threadGeometry || b.threadGeometry || a.descriptor?.thread || b.descriptor?.thread) {
+        return { type: "screw", a: a, b: b, pitch: a.threadGeometry?.pitch || b.threadGeometry?.pitch || 0.125 };
+      }
       return { type: "concentric", a: a, b: b };
     }
     return { type: "coincident", a: a, b: b, aligned: false };

@@ -5,6 +5,7 @@ import {
   resolveWorkflowStep,
   shouldResumeSketchSession,
   shouldSkipReferencePicker,
+  sketchStartMode,
 } from "../js/modeler_workflow.js";
 
 test("a blank part sits on Part, not History", () => {
@@ -65,4 +66,15 @@ test("a selected face skips the plane picker; an open sketch resumes", () => {
 test("finish sketch continues into Extrude when the profile is closed", () => {
   assert.equal(nextFeatureAfterFinishedSketch(true), "extrude");
   assert.equal(nextFeatureAfterFinishedSketch(false), null);
+});
+
+test("a new sketch asks you to click a face; the plane dialog is the fallback", () => {
+  // a solid on screen: pick the face you mean, no dialog
+  assert.equal(sketchStartMode({ hasSolids: true }), "pick-face");
+  // nothing modelled yet — there is no face to click
+  assert.equal(sketchStartMode({ hasSolids: false }), "picker");
+  // an already selected face short-circuits both
+  assert.equal(sketchStartMode({ hasSketchableFace: true, hasSolids: true }), "selected-face");
+  // asking for a datum plane still gets the dialog
+  assert.equal(sketchStartMode({ hasSolids: true, wantsPlanePicker: true }), "picker");
 });

@@ -159,6 +159,10 @@ export const S = {
   // always shows its four clearances and can hold one catalogue piece,
   // -> [{id,x,z,name,itemId}]
   markers: [],
+  /* Stairwell / slab cuts on THIS storey (js/slab_openings.js). A void punches
+     the floor (and ceiling) of the storey it lives on — typically the floor
+     above a flight of stairs stored as ordinary furniture on the storey below. */
+  slabOpenings: [],
   /* Explicit user-authored dimensions BETWEEN pieces of geometry — distances
      from another corner or reference point, joint angles, parallel offsets.
      See js/wall_constraints.js; anchors are wall-id + end, never node indices. */
@@ -340,6 +344,9 @@ export const S = {
     mapProvider: "esri", // picker-map base imagery: esri | google (google needs a key)
     footprint: null, // { polygonLL:[[lat,lon]...], levels, heightM } once fetched
   },
+  // Calibrated floor-plan raster drawn under the 2D model while tracing.
+  // Plain JSON + a data URL makes the reference local-first and portable.
+  blueprintTrace: null,
   // 2D view transform
   SC: 1,
   OX: 0,

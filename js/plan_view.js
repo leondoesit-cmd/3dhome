@@ -53,6 +53,30 @@ export function centerOn(x, z) {
   S.OX = S.CW / 2 - x * S.SC;
   S.OY = S.CH / 2 - z * S.SC;
 }
+
+/* Pure framing math, kept out of the canvas module so the zero-size boot race
+   has a real regression test. Invalid/hidden viewports return null and never
+   manufacture the absorbing zoom value 0. */
+export function fitTransform(bb, width, height, pad) {
+  var W = Number(width), H = Number(height), opts = typeof pad === "object" && pad ? pad : {},
+    pixelPad = Math.max(0, Number(typeof pad === "number" ? pad : opts.pixelPad) || 0),
+    worldPad = Math.max(0, Number(opts.worldPad) || 0),
+    minSpan = Math.max(0, Number(opts.minSpan) || 30);
+  if (!bb || !(W > 0) || !(H > 0)) return null;
+  var minx = Number(bb.minx), minz = Number(bb.minz),
+    maxx = Number(bb.maxx), maxz = Number(bb.maxz);
+  if (![minx, minz, maxx, maxz].every(isFinite)) return null;
+  var rawW = maxx - minx, rawD = maxz - minz,
+    w = Math.max(minSpan, rawW) + worldPad * 2,
+    d = Math.max(minSpan, rawD) + worldPad * 2,
+    sc = Math.min(Math.max(1, W - pixelPad * 2) / w, Math.max(1, H - pixelPad * 2) / d);
+  if (!(sc > 0) || !isFinite(sc)) return null;
+  return {
+    sc: sc,
+    ox: (W - rawW * sc) / 2 - minx * sc,
+    oy: (H - rawD * sc) / 2 - minz * sc,
+  };
+}
 export function isOnScreen(x, z, margin) {
   var m = margin == null ? 60 : margin;
   if (!(S.SC > 0) || !(S.CW > 0) || !(S.CH > 0)) return false;

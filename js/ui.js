@@ -14,6 +14,7 @@ import {
   setWallEnd,
   wallLocFace,
   wallOffsetVec,
+  contentBounds,
 } from "./geometry.js";
 import {
   FURN,
@@ -127,6 +128,9 @@ import {
   placeOnMarker, moveMarker, setMarkerSurface, normalizeMarkers, releaseIfMoved,
   duplicateMarker,
 } from "./markers.js";
+import { normalizeSlabOpenings, stairVoidFields, applyStairMoveTo } from "./slab_openings.js";
+import { floorAbove, addSlabOpeningToFloor, updateStairVoidsOnFloors } from "./floors.js";
+import { broadcastPlanOp } from "./plan_sync.js";
 import { openLibraryPicker } from "./ui_libpick.js";
 import {
   exportParametricProject,
@@ -154,6 +158,8 @@ import { normalizeWallKind, normalizeWallProfile, setWallKind } from "./wall_cur
 import { wallSchedule, wallScheduleCSV } from "./wall_schedule.js";
 import { wallFramingTakeoff } from "./wall_framing.js";
 import { convertCadToWalls } from "./cad_to_walls.js";
+import { normalizeBlueprintReference, syncBlueprintTraceControls } from "./blueprint_trace.js";
+import { windowChromePosture } from "./chrome_posture.js";
 
 export { select, fillProps, updateCost, exportCostCSV, refreshTree };
 
@@ -182,8 +188,20 @@ function loadZombieModule() {
    (whatever stands on it has to rise or drop with its top) and its ROTATION
    (a stack turns with its host instead of sliding off the corner). Both are
    funnelled through these two so no field can forget one of them. */
+/* A stairwell void is bound to its flight by `stairsId`, and usually lives on
+   the storey above — so moving the stairs has to reach the active scene AND
+   the stored floor scenes. Before this the link was written and never read,
+   and the void simply stayed where it was. */
+export function syncStairVoids(it) {
+  if (!it || it.type !== "stairs" || it.id == null) return false;
+  var changed = applyStairMoveTo(S.slabOpenings, it);
+  if (updateStairVoidsOnFloors(it, applyStairMoveTo)) changed = true;
+  if (changed) S.dirty3D = true;
+  return changed;
+}
 function restack(it) {
   reseat(it);
+  syncStairVoids(it);
   descendantsOf(it, new Set([it]), []).forEach(function (c) {
     touchItem3D(c, "move");
   });
@@ -195,6 +213,7 @@ function turnItem(it, deg) {
      (js/item_orient.js) never touches the piece again until "face by
      surroundings" hands it back. */
   markManualRot(it);
+  syncStairVoids(it);
   rotateWith(it, d, new Set([it])).forEach(function (c) {
     touchItem3D(c, "move");
   });
@@ -242,6 +261,7 @@ export function sceneObject(includeWorkspace) {
     // real-world site params (lat/lon/zoom/overlay settings + fetched
     // footprint). Imagery itself is re-fetched on load, not stored.
     site: S.site,
+    blueprintTrace: S.blueprintTrace,
     // MEP infrastructure networks (electrical/water/drain/comms) + view flags
     mep: S.mep
       ? {
@@ -291,7 +311,7 @@ export function applyData(d) {
   if (!d || typeof d !== "object" || Array.isArray(d)) {
     throw new Error("Invalid scene data");
   }
-  if(d.spatial)d={...d,nodes:d.spatial.nodes,walls:d.spatial.walls,wallTypes:d.spatial.wallTypes,openings:d.spatial.openings,items:d.spatial.instances,markers:d.spatial.markers,roomMeta:d.spatial.rooms,cabinetPresets:d.spatial.cabinetPresets};
+  if(d.spatial)d={...d,nodes:d.spatial.nodes,walls:d.spatial.walls,wallTypes:d.spatial.wallTypes,openings:d.spatial.openings,items:d.spatial.instances,markers:d.spatial.markers,slabOpenings:d.spatial.slabOpenings,roomMeta:d.spatial.rooms,cabinetPresets:d.spatial.cabinetPresets};
   importParametricProject(S, d.parametric || {});
   if (Array.isArray(d.cabinetPresets)) {
     S.spatial.cabinetPresets = JSON.parse(JSON.stringify(d.cabinetPresets));
@@ -470,6 +490,7 @@ export function applyData(d) {
   // after S.items is final: a point whose object did not survive the filter
   // above simply loads as a free point
   S.markers = normalizeMarkers(d.markers, S.items);
+  S.slabOpenings = normalizeSlabOpenings(d.slabOpenings);
   // …and a piece whose host did not survive simply loads on the floor. Mount
   // heights of stacked pieces are re-derived here rather than trusted, so a
   // file written before a model's shape changed still stacks correctly.
@@ -525,6 +546,8 @@ export function applyData(d) {
   if (fin(d.northAngle)) S.northAngle = d.northAngle;
   S.planRot = fin(d.planRot) ? d.planRot : 0;
   S.viewAxis = d.viewAxis || "top";
+  S.blueprintTrace = normalizeBlueprintReference(d.blueprintTrace);
+  syncBlueprintTraceControls();
   updatePlanGizmo();
   if (d.site && typeof d.site === "object") {
     // merge onto defaults so older files without newer fields stay valid
@@ -2078,6 +2101,12 @@ export function initUI() {
     "mk_name",
     "mk_req",
     "mk_note",
+    "sv_x",
+    "sv_z",
+    "sv_w",
+    "sv_d",
+    "sv_rot",
+    "sv_name",
     "nd_x",
     "nd_z",
     "l_int",
@@ -2123,7 +2152,20 @@ export function initUI() {
   function syncWallDrawPalette() {
     var pal = document.getElementById("plan-wall-palette");
     if (!pal) return;
+    var wasHidden = pal.hidden;
     pal.hidden = !isWallDrawTool(S.tool);
+    // A newly chosen wall tool opens its choices. Once placement begins the
+    // palette compacts to one reveal button so it no longer covers the draw.
+    if (wasHidden && !pal.hidden) pal.classList.remove("auto-collapsed");
+    var collapse = document.getElementById("wallPaletteToggle");
+    if (collapse) {
+      var expanded = !pal.classList.contains("auto-collapsed");
+      collapse.setAttribute("aria-expanded", expanded ? "true" : "false");
+      collapse.title = t(expanded ? "wd_collapse" : "wd_expand");
+      collapse.setAttribute("aria-label", collapse.title);
+      var ci = collapse.querySelector("i");
+      if (ci) ci.className = expanded ? "ph ph-caret-left" : "ph ph-sliders-horizontal";
+    }
     // These are icon-only toggles whose meaning lives in a `title` tooltip —
     // which touch devices and screen readers never surface. State the choice
     // through aria-pressed and carry the tooltip over as the accessible name.
@@ -2144,6 +2186,12 @@ export function initUI() {
   var pal = document.getElementById("plan-wall-palette");
   if (pal) {
     pal.addEventListener("click", function (e) {
+      var collapseBtn = e.target.closest("#wallPaletteToggle");
+      if (collapseBtn) {
+        pal.classList.toggle("auto-collapsed");
+        syncWallDrawPalette();
+        return;
+      }
       var presetBtn = e.target.closest("[data-wall-preset]");
       if (presetBtn) {
         setWallDrawPreset(presetBtn.getAttribute("data-wall-preset"));
@@ -2162,6 +2210,12 @@ export function initUI() {
   }
   window.addEventListener("planner-tool", syncWallDrawPalette);
   window.addEventListener("planner-draw-defaults", syncWallDrawPalette);
+  window.addEventListener("planner-draw-start", function () {
+    if (pal && !pal.hidden) {
+      pal.classList.add("auto-collapsed");
+      syncWallDrawPalette();
+    }
+  });
   onLangChange(syncWallDrawPalette);
   syncWallDrawPalette();
 
@@ -2349,6 +2403,43 @@ export function initUI() {
       render2D();
     });
 
+  bindNum("sv_x", function (v) {
+    if (!S.sel || S.sel.kind !== "slabvoid") return;
+    S.sel.ref.x = v;
+    broadcastPlanOp({ type: "slabMove", id: S.sel.ref.id, x: S.sel.ref.x, z: S.sel.ref.z, rot: S.sel.ref.rot });
+  });
+  bindNum("sv_z", function (v) {
+    if (!S.sel || S.sel.kind !== "slabvoid") return;
+    S.sel.ref.z = v;
+    broadcastPlanOp({ type: "slabMove", id: S.sel.ref.id, x: S.sel.ref.x, z: S.sel.ref.z, rot: S.sel.ref.rot });
+  });
+  bindNum("sv_w", function (v) {
+    if (!S.sel || S.sel.kind !== "slabvoid") return;
+    S.sel.ref.w = Math.max(40, v);
+    return S.sel.ref.w;
+  });
+  bindNum("sv_d", function (v) {
+    if (!S.sel || S.sel.kind !== "slabvoid") return;
+    S.sel.ref.d = Math.max(40, v);
+    return S.sel.ref.d;
+  });
+  bindNum("sv_rot", function (v) {
+    if (!S.sel || S.sel.kind !== "slabvoid") return;
+    S.sel.ref.rot = ((v % 360) + 360) % 360;
+    broadcastPlanOp({ type: "slabMove", id: S.sel.ref.id, x: S.sel.ref.x, z: S.sel.ref.z, rot: S.sel.ref.rot });
+    return S.sel.ref.rot;
+  });
+  var svName = document.getElementById("sv_name");
+  if (svName)
+    svName.addEventListener("input", function () {
+      if (!S.sel || S.sel.kind !== "slabvoid") return;
+      commitPending();
+      S.sel.ref.name = this.value.slice(0, 32);
+      document.getElementById("selname_sv").textContent = S.sel.ref.name || t("sv_title");
+      refreshTree();
+      render2D();
+    });
+
   var addfurnBtn = document.getElementById("addfurn");
   if (addfurnBtn) {
     addfurnBtn.addEventListener("click", function () {
@@ -2501,39 +2592,20 @@ export function initUI() {
     coarse = window.matchMedia("(pointer: coarse)");
   } catch (_) {}
   function applyCompactNav() {
-    var w = window.innerWidth,
-      h = window.innerHeight;
-    var shortPhone = w <= 1024 && h <= 500;
-    /* maxTouchPoints as well as the media query: some Android WebViews (and a
-       foldable's inner display in particular) report a FINE pointer while
-       having nothing but fingers, and that is exactly the device the docked
-       layout below exists for. */
-    var touch =
-      (coarse ? coarse.matches : "ontouchstart" in window) ||
-      (navigator.maxTouchPoints || 0) > 0;
-    // 1024 is where the drawers stop being docked and start sliding in — the
-    // nav's panel buttons toggle exactly those drawers, so the two thresholds
-    // have to be the same number.
-    var compact = w <= 768 || shortPhone || (touch && w <= 1024);
-    var flipped = document.body.classList.contains("compact-nav") !== compact;
-    document.body.classList.toggle("compact-nav", compact);
+    /* Posture is a pure function of CSS pixels + touch (js/chrome_posture.js).
+       An unfolded Fold's inner display reports one segment, so hinge media
+       queries never match there — roomy is both-axes tablet-sized instead. */
+    var p = windowChromePosture();
+    var flipped = document.body.classList.contains("compact-nav") !== p.compact;
+    document.body.classList.toggle("compact-nav", p.compact);
     // The floor strip hides itself on a compact layout while there is only one
     // floor; crossing the threshold has to re-ask it, or it stays hidden on a
     // desktop window that was merely narrow a moment ago.
     if (flipped && window.__plannerChrome) window.__plannerChrome.renderFloorTabs();
-    /* An unfolded foldable is a WIDE, SHORT touch screen, and the phone layout
-       stretched across it wastes the one thing unfolding bought: width. Past
-       700px in landscape the panels stop floating over the canvas and become
-       columns beside it — which is the whole point of opening the device.
-       Driven by the aspect ratio rather than by the hinge media queries: the
-       inner display of a Fold reports one continuous segment, so
-       (horizontal-viewport-segments: 2) never matches there and the row layout
-       it guards would never run. */
-    var landscape = w > h;
-    var roomy = w >= 700 && landscape;
-    document.body.classList.toggle("dock-rail", compact && roomy);
-    document.body.classList.toggle("sheet-drawers", compact && !roomy);
-    document.body.classList.toggle("split-row", compact && roomy);
+    document.body.classList.toggle("dock-rail", p.dockRail);
+    document.body.classList.toggle("sheet-drawers", p.sheetDrawers);
+    document.body.classList.toggle("split-row", p.splitRow);
+    window.dispatchEvent(new CustomEvent("mf-posture"));
   }
   coarse &&
     (coarse.addEventListener
@@ -2807,6 +2879,25 @@ export function initUI() {
     } else if (act === "deleteSel") {
       deleteSel();
       updateCost();
+    } else if (act === "slabFromStairs") {
+      if (!S.sel || S.sel.kind !== "item" || S.sel.ref.type !== "stairs") return;
+      pushHistory();
+      /* The void cuts the slab the stairs LAND on, so it belongs to the storey
+         above — putting it on the stairs' own storey punched a hole at the
+         bottom of the flight. With no storey above there is nothing to cut, so
+         say so rather than silently making a hole in this floor. */
+      var above = floorAbove();
+      var vo = stairVoidFields(S.sel.ref);
+      if (!vo) return;
+      if (above) {
+        addSlabOpeningToFloor(above.id, vo);
+        S.dirty3D = true;
+        render2D();
+        refreshTree();
+        flash(t("sv_on_floor", { floor: above.name }), "success");
+      } else {
+        flash(t("sv_need_floor_above"), "error");
+      }
     } else if (act === "dupSel") {
       dupSel();
       updateCost();
@@ -3519,7 +3610,10 @@ export function initUI() {
       pushHistory();
       defaultScene();
       S.roomMeta = {};
+      S.blueprintTrace = null;
+      syncBlueprintTraceControls();
       S.markers = []; // points belong to the plan that was reset away
+      S.slabOpenings = [];
       S.hour = 13;
       S.northAngle = 0;
       S.wallColor = 0xefe9dd;
@@ -3585,12 +3679,55 @@ export function initUI() {
       document.getElementById("importfile").click();
     } else if (act === "importBlueprint") {
       (await import("./ui_blueprint.js")).openBlueprintModal();
+    } else if (act === "importBlueprintTrace") {
+      (await import("./ui_blueprint_trace.js")).openBlueprintTraceModal();
+    } else if (act === "roomScan") {
+      (await import("./ui_room_scan.js")).openRoomScanModal();
     } else if (act === "png2d") {
       try {
-        download(
-          "home-plan-2d.png",
-          document.getElementById("plan").toDataURL("image/png")
-        );
+        var src = document.getElementById("plan");
+        var extra = 56;
+        var out = document.createElement("canvas");
+        out.width = src.width;
+        out.height = src.height + extra * (window.devicePixelRatio || 1);
+        var ctx = out.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, out.width, out.height);
+        ctx.drawImage(src, 0, 0);
+        var dpr = out.width / Math.max(1, src.clientWidth || src.width);
+        var by = src.height;
+        var bw = out.width;
+        var bh = extra * dpr;
+        ctx.strokeStyle = "#20242a";
+        ctx.lineWidth = Math.max(1, dpr);
+        ctx.strokeRect(0.5 * dpr, by + 0.5 * dpr, bw - dpr, bh - dpr);
+        ctx.beginPath();
+        ctx.moveTo(bw * 0.46, by);
+        ctx.lineTo(bw * 0.46, by + bh);
+        ctx.moveTo(bw * 0.68, by);
+        ctx.lineTo(bw * 0.68, by + bh);
+        ctx.moveTo(bw * 0.84, by);
+        ctx.lineTo(bw * 0.84, by + bh);
+        ctx.stroke();
+        ctx.fillStyle = "#20242a";
+        ctx.font = (11 * dpr) + "px Inter, Helvetica, Arial, sans-serif";
+        ctx.textBaseline = "middle";
+        var title = (S.workspace && S.workspace.name) || "Untitled";
+        ctx.fillText(title, 10 * dpr, by + bh * 0.38);
+        ctx.font = (9 * dpr) + "px Inter, Helvetica, Arial, sans-serif";
+        ctx.fillStyle = "#5b6b80";
+        ctx.fillText("Do not scale drawing. Verify all dimensions on site.", 10 * dpr, by + bh * 0.72);
+        ctx.fillText("SCALE", bw * 0.47, by + bh * 0.32);
+        ctx.fillText("DATE", bw * 0.69, by + bh * 0.32);
+        ctx.fillText("SHEET", bw * 0.85, by + bh * 0.32);
+        ctx.fillStyle = "#20242a";
+        ctx.font = (12 * dpr) + "px Inter, Helvetica, Arial, sans-serif";
+        ctx.fillText("A-01", bw * 0.85, by + bh * 0.72);
+        ctx.fillText(new Date().toISOString().slice(0, 10), bw * 0.69, by + bh * 0.72);
+        // A screen-resolution raster has no physical size, so it has no scale.
+        // Stamping "1:20" on it invites someone to measure off the print.
+        ctx.fillText("NTS", bw * 0.47, by + bh * 0.72);
+        download("home-plan-2d.png", out.toDataURL("image/png"));
         flash(t("f_planPng"));
       } catch (err) {
         flash(t("f_pngFail"), "error");

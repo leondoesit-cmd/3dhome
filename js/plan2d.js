@@ -43,8 +43,12 @@ import {
   openingById, openingPos,
 } from "./wall_constraints.js";
 import {
-  sx, sz, planRotRad, toBasePx, rotatePx, unrotatePx, niceScaleCm,
+  sx, sz, planRotRad, toBasePx, rotatePx, unrotatePx, niceScaleCm, fitTransform,
 } from "./plan_view.js";
+import { blueprintBounds, drawBlueprintUnderlay } from "./blueprint_trace.js";
+import { openingCorners, slabOpenings } from "./slab_openings.js";
+import { openingHasSwingConflict } from "./swing_clearance.js";
+import { cursors, pruneCursors } from "./plan_sync.js";
 
 export {
   sx, sz, wx, wz, planRotRad, toBasePx, dropPoint, centerOn, isOnScreen, niceScaleCm,
@@ -141,6 +145,8 @@ function ensureWarnAnim() {
   }
 }
 
+var fittingView = false;
+
 export function sizeCanvas() {
   if (!plan || !pc) return;
   var W = plan.clientWidth,
@@ -161,16 +167,57 @@ export function sizeCanvas() {
   plan.width = W * dpr;
   plan.height = H * dpr;
   pc.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  /* fitView can run while the split/chrome shell is still laying itself out.
+     If that happened at 0x0, SC used to become the absorbing value 0: later
+     resizes kept the canvas size but zoom could never recover. The first real
+     canvas size is therefore also the recovery point. `fittingView` prevents
+     the intentional sizeCanvas() call inside fitView() from recursing. */
+  if (!fittingView && (!(S.SC > 0) || !isFinite(S.SC))) fitView();
 }
 export function fitView() {
+  fittingView = true;
   sizeCanvas();
+  fittingView = false;
+  // A hidden/not-yet-laid-out pane must not overwrite a usable transform.
+  if (!(S.CW > 0) || !(S.CH > 0)) return false;
   var bb = contentBounds(),
+    bp = blueprintBounds(),
     pad = 40;
-  var spanX = Math.max(bb.w, 50) + pad * 2,
-    spanZ = Math.max(bb.d, 50) + pad * 2;
-  S.SC = Math.min(S.CW / spanX, S.CH / spanZ);
-  S.OX = (S.CW - bb.w * S.SC) / 2 - bb.minx * S.SC;
-  S.OY = (S.CH - bb.d * S.SC) / 2 - bb.minz * S.SC;
+  if (bp && S.blueprintTrace && S.blueprintTrace.visible !== false) {
+    var minx = Math.min(bb.minx, bp.minx), minz = Math.min(bb.minz, bp.minz);
+    var maxx = Math.max(bb.maxx, bp.maxx), maxz = Math.max(bb.maxz, bp.maxz);
+    // An otherwise-empty starter bounds is synthetic; framing a newly loaded
+    // sheet should not reserve a mysterious 4×3 m blank block beside it.
+    if (!S.walls.length && !S.items.length) {
+      minx = bp.minx; minz = bp.minz; maxx = bp.maxx; maxz = bp.maxz;
+    }
+    bb = { minx: minx, minz: minz, maxx: maxx, maxz: maxz, w: maxx - minx, d: maxz - minz };
+  }
+  var tx = fitTransform({ minx: bb.minx, minz: bb.minz, maxx: bb.maxx, maxz: bb.maxz }, S.CW, S.CH,
+    { worldPad: pad, minSpan: 50 });
+  if (!tx) return false;
+  S.SC = tx.sc; S.OX = tx.ox; S.OY = tx.oy;
+  return S.SC > 0 && isFinite(S.SC);
+}
+
+/* Frame one object/room without throwing away the general Fit command. Tree
+   double-click uses this to make hierarchy navigation spatial: click selects,
+   double-click also brings the target into view. */
+export function frameBounds(bb, pad) {
+  if (!bb) return false;
+  fittingView = true;
+  sizeCanvas();
+  fittingView = false;
+  if (!(S.CW > 0) || !(S.CH > 0)) return false;
+  var minx = Number(bb.minx), minz = Number(bb.minz),
+    maxx = Number(bb.maxx), maxz = Number(bb.maxz);
+  if (![minx, minz, maxx, maxz].every(isFinite)) return false;
+  var tx = fitTransform({ minx: minx, minz: minz, maxx: maxx, maxz: maxz }, S.CW, S.CH,
+    pad == null ? 72 : Math.max(0, Number(pad) || 0));
+  if (!tx) return false;
+  S.SC = tx.sc; S.OX = tx.ox; S.OY = tx.oy;
+  return S.SC > 0 && isFinite(S.SC);
 }
 // Re-center the plan content in the current canvas WITHOUT changing zoom.
 // For an explicit "frame the model" action. Resize / split-drag must NOT call
@@ -349,6 +396,7 @@ export function render2D() {
   var rotated = pushPlan(); // rotate the whole plan view (CAD N/E/S/W-up)
   var bb = contentBounds();
   drawSiteUnderlay(bb);
+  drawBlueprintUnderlay(pc, sx, sz);
   // grid — extent = base-frame AABB of the (possibly rotated) canvas corners,
   // so lines still cover the visible area after the view is rotated
   pc.strokeStyle = "#e4dcc9";
@@ -379,6 +427,7 @@ export function render2D() {
   var roomPass = drawCachedRooms();
   var rooms = roomPass.rooms,
     hid = roomPass.hid;
+  drawSlabOpenings();
   // items: rugs/island first, lamps on top
   var order = S.items
     .filter(function (it) {
@@ -411,6 +460,7 @@ export function render2D() {
   ensureMEPAnim();
   // placeholder points sit above everything they are measured against
   drawMarkers();
+  drawPlanCursors();
   // constraint-engine warnings: loose endpoints and joints that aren't square
   drawWarnGlow();
   ensureWarnAnim();
@@ -556,7 +606,8 @@ export function render2D() {
     if (draftArc) label(S.previewPt.x, S.previewPt.z - 12 / S.SC,
       Math.round(draftArc.L) + " " + t("cm") + "  R" + Math.round(draftArc.radius), "#3f6b78");
   }
-  if (S.tool === "rect" && S.rectDraft && S.previewPt) {
+  if (S.tool === "rect" || S.tool === "slabvoid") {
+    if (S.rectDraft && S.previewPt) {
     var rx0 = Math.min(S.rectDraft.x, S.previewPt.x),
       rz0 = Math.min(S.rectDraft.z, S.previewPt.z),
       rx1 = Math.max(S.rectDraft.x, S.previewPt.x),
@@ -569,8 +620,9 @@ export function render2D() {
       (rx0 + rx1) / 2,
       (rz0 + rz1) / 2,
       Math.round(rx1 - rx0) + " × " + Math.round(rz1 - rz0) + " " + t("cm"),
-      "#3f6b78",
+      S.tool === "slabvoid" ? "#c45c4a" : "#3f6b78",
     );
+    }
   }
   if (S.tool === "walloffset" && S.offsetDraft && S.offsetDraft.hostId != null) {
     var oh = wallById(S.offsetDraft.hostId);
@@ -624,6 +676,12 @@ export function render2D() {
   pc.restore(); // end screen-space clip
   for (var ai = 0; ai < afterRender.length; ai++) afterRender[ai]();
 }
+
+if (typeof window !== "undefined")
+  window.addEventListener("blueprint:render", function (e) {
+    if (e.detail && e.detail.fit) fitView();
+    render2D();
+  });
 
 /* Overlays that live in the DOM rather than on the canvas (the CAD status bar)
    need to refresh in step with the drawing. Subscribing here rather than
@@ -793,7 +851,7 @@ function drawSnapMark() {
   pc.lineWidth = 2;
   pc.beginPath();
   if (si.type === "corner") pc.rect(X - r, Y - r, r * 2, r * 2);
-  else if (si.type === "marker") {
+  else if (si.type === "marker" || si.type === "blueprint") {
     // a datum: the endpoint square, turned 45° so the two read apart at a glance
     pc.moveTo(X, Y - r); pc.lineTo(X + r, Y);
     pc.lineTo(X, Y + r); pc.lineTo(X - r, Y);
@@ -894,7 +952,7 @@ function drawMeasureOverlay() {
   // far the nearest walls and objects are. Manual reference walls are also
   // made unmistakable here.
   var draftPt =
-    (S.tool === "wall" || S.tool === "arcwall" || S.tool === "rect") && S.previewPt;
+    (S.tool === "wall" || S.tool === "arcwall" || S.tool === "rect" || S.tool === "slabvoid") && S.previewPt;
   if (draftPt) {
     add(null, S.previewPt);
     drawLiveMeasureCross(S.previewPt.x, S.previewPt.z);
@@ -982,7 +1040,7 @@ function drawLiveMeasureCross(ox, oz) {
 function drawMeasureFrom(ox, oz, ownCs, skip) {
   var target = S.measureTarget || "nearest";
   var drafting =
-    S.tool === "wall" || S.tool === "arcwall" || S.tool === "rect";
+    S.tool === "wall" || S.tool === "arcwall" || S.tool === "rect" || S.tool === "slabvoid";
   var hits = measure4(ox, oz, ownCs, skip, {
     target: drafting && target === "nearest" ? "both" : target,
     wallIds: S.measureWalls || [],
@@ -1070,6 +1128,68 @@ function drawMarkers() {
     markerGlyph(sx(S.markerPreview.x), sz(S.markerPreview.z), false, false);
     pc.restore();
   }
+}
+function drawSlabOpenings() {
+  slabOpenings().forEach(function (o) {
+    if (!(o.w > 0) || !(o.d > 0)) return;
+    var cs = openingCorners(o);
+    var isSel = (S.sel && S.sel.kind === "slabvoid" && S.sel.ref === o) ||
+      eraseHover("slabvoid", o);
+    pc.save();
+    pc.beginPath();
+    cs.forEach(function (p, i) {
+      var X = sx(p.x), Z = sz(p.z);
+      if (i) pc.lineTo(X, Z); else pc.moveTo(X, Z);
+    });
+    pc.closePath();
+    pc.fillStyle = isSel ? "rgba(196,92,74,.22)" : "rgba(50,48,44,.14)";
+    pc.fill();
+    pc.save();
+    pc.clip();
+    var minx = Math.min(cs[0].x, cs[1].x, cs[2].x, cs[3].x);
+    var maxx = Math.max(cs[0].x, cs[1].x, cs[2].x, cs[3].x);
+    var minz = Math.min(cs[0].z, cs[1].z, cs[2].z, cs[3].z);
+    var maxz = Math.max(cs[0].z, cs[1].z, cs[2].z, cs[3].z);
+    pc.strokeStyle = isSel ? "rgba(196,92,74,.55)" : "rgba(80,76,70,.4)";
+    pc.lineWidth = 1;
+    var step = 18 * S.SC, gx, gz;
+    var x0 = sx(minx) - 40, x1 = sx(maxx) + 40, z0 = sz(minz) - 40, z1 = sz(maxz) + 40;
+    pc.beginPath();
+    for (gx = x0 - (z1 - z0); gx < x1; gx += step) {
+      pc.moveTo(gx, z0);
+      pc.lineTo(gx + (z1 - z0), z1);
+    }
+    pc.stroke();
+    pc.restore();
+    pc.strokeStyle = isSel ? "#c45c4a" : "#6a6560";
+    pc.lineWidth = isSel ? 2.4 : 1.6;
+    pc.setLineDash([6, 4]);
+    pc.stroke();
+    pc.setLineDash([]);
+    pc.restore();
+    label(o.x, o.z, o.name || t("sv_void"), isSel ? "#c45c4a" : "#6a6560");
+  });
+}
+function drawPlanCursors() {
+  pruneCursors();
+  Object.keys(cursors).forEach(function (code) {
+    var c = cursors[code];
+    if (!c || !fin(c.x) || !fin(c.z)) return;
+    var X = sx(c.x), Z = sz(c.z);
+    pc.save();
+    pc.fillStyle = "#4f46e5";
+    pc.beginPath();
+    pc.moveTo(X, Z);
+    pc.lineTo(X + 11, Z + 4);
+    pc.lineTo(X + 4, Z + 11);
+    pc.closePath();
+    pc.fill();
+    pc.strokeStyle = "#fff";
+    pc.lineWidth = 1;
+    pc.stroke();
+    label(c.x + 8 / S.SC, c.z - 8 / S.SC, c.name || code, "#4f46e5");
+    pc.restore();
+  });
 }
 /* The hover read-out card for a point: everything the inspector prints, drawn
    next to the glyph so a point can be checked without selecting it. */
@@ -1897,7 +2017,8 @@ function drawOpening(o) {
       var leafDir = isLeftHinge ? 1 : -1; // toward the far jamb along the wall
       var sy = isInward ? -1 : 1; // wall face the leaf sweeps toward
       var dw = hw * 2; // door leaf length
-      pc.strokeStyle = isSel ? "#3f6b78" : "#5b7a86";
+      var swingConflict = openingHasSwingConflict(o);
+      pc.strokeStyle = swingConflict ? "#c0392b" : (isSel ? "#3f6b78" : "#5b7a86");
       pc.lineWidth = isSel ? 3 : 2;
       // Open leaf: perpendicular into the room, on the swing face.
       pc.beginPath();
@@ -1910,6 +2031,12 @@ function drawOpening(o) {
       pc.beginPath();
       pc.arc(hx, 0, dw, aClosed, aOpen, isLeftHinge === isInward);
       pc.stroke();
+      if (swingConflict) {
+        pc.fillStyle = "#c0392b";
+        pc.font = "bold 13px Arial";
+        pc.textAlign = "center";
+        pc.fillText("!", 0, -10);
+      }
     }
   } else if (o.type === "passage") {
     pc.strokeStyle = isSel ? "#3f6b78" : "#8a7f68";

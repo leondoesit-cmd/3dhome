@@ -11,7 +11,8 @@
     "check:modules": "node tools/module_check.mjs",
     "check:links": "node tools/link_check.mjs",
     "check": "node tools/module_check.mjs && node tools/link_check.mjs",
-    "ci": "npm run check && npm test"
+    "ci": "npm run check && npm test && npm run test:browser",
+    "test:browser": "node --test tests/*.browser.mjs"
   },
   "dependencies": {
     "opencascade.js": "2.0.0-beta.b5ff984"

@@ -428,6 +428,12 @@ export function updateCadHud() {
     main = t("hint_tool_offset") + (od ? " · " + Math.round(od.dist) + " " + unit : "");
   } else if (S.tool === "wall") {
     main = t("cad_wall_ready");
+  } else if (S.tool === "rect") {
+    main = t("hint_tool_rect");
+  } else if (S.tool === "slabvoid") {
+    main = t("hint_tool_slabvoid");
+  } else if (S.sel && S.sel.kind === "slabvoid" && S.sel.ref) {
+    main = Math.round(S.sel.ref.w) + " × " + Math.round(S.sel.ref.d) + " " + unit;
   } else if (S.sel && S.sel.kind === "wall") {
     main = t("tool_wall_sel", { n: Math.round(wallLen(S.sel.ref)) });
   } else if (S.sel && S.sel.kind === "item" && S.sel.ref) {
@@ -445,6 +451,7 @@ export function updateCadHud() {
 
   var si = S.snapInfo,
     live = S.tool === "wall" || S.tool === "arcwall" || S.tool === "rect" ||
+      S.tool === "slabvoid" ||
       S.tool === "walloffset" || S.tool === "point" || S.action === "node" || S.action === "marker";
   var snapTxt = si && live
     ? (S.action === "node" && si.type === "corner" ? t("snap_join") : t(SNAP_LABEL[si.type] || "snap_grid"))

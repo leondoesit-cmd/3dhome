@@ -73,6 +73,11 @@ import {
   moveMarker, releaseIfMoved,
 } from "./markers.js";
 import {
+  hitSlabOpening, openingFromRect, removeSlabOpening,
+} from "./slab_openings.js";
+import { broadcastPlanOp, sendPlanCursor } from "./plan_sync.js";
+import { syncStairVoids } from "./ui.js";
+import {
   snapshotNodes, enforceLocks, captureLock, canWeld, hitWarning,
   captureClear, preserveClear,
 } from "./constraint_engine.js";
@@ -428,7 +433,7 @@ export function setTool(toolName) {
   S.freshWall = null; // picking any tool ends the just-drawn run
   if (toolName !== "wall") finishDraw();
   if (toolName !== "arcwall") S.arcDraft = null;
-  if (toolName !== "rect") S.rectDraft = null;
+  if (toolName !== "rect" && toolName !== "slabvoid") S.rectDraft = null;
   if (toolName !== "walloffset") S.offsetDraft = null;
   if (toolName !== "walljoin") S.joinPick = null;
   if (toolName !== "point") {
@@ -450,6 +455,9 @@ export function setTool(toolName) {
   if (typeof window !== "undefined")
     window.dispatchEvent(new CustomEvent("planner-draw-defaults"));
 }
+
+if (typeof window !== "undefined")
+  window.addEventListener("blueprint:trace-walls", function () { setTool("wall"); });
 
 export function syncElevationTools() {
   var elev = isElevation();
@@ -577,6 +585,7 @@ export function wallPoint(p) {
     S.drawFrom = getOrMakeNode(p);
     S.drawStart = S.drawFrom;
     S.drawing = true;
+    window.dispatchEvent(new CustomEvent("planner-draw-start"));
     S.previewPt = { x: p.x, z: p.z };
     render2D();
     return null;
@@ -823,6 +832,24 @@ function commitRectFromTo(a, b) {
   return walls;
 }
 
+function commitSlabFromTo(a, b) {
+  var x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x);
+  var z0 = Math.min(a.z, b.z), z1 = Math.max(a.z, b.z);
+  if (x1 - x0 < 40 || z1 - z0 < 40) {
+    flash(t("hint_tool_slabvoid"));
+    return null;
+  }
+  pushHistory();
+  var o = openingFromRect(a, b);
+  if (!o) return null;
+  S.dirty3D = true;
+  render2D();
+  refreshTree();
+  select({ kind: "slabvoid", ref: o });
+  broadcastPlanOp({ type: "slabAdd", opening: JSON.parse(JSON.stringify(o)) });
+  return o;
+}
+
 /* Replace a sharp shared corner with a true tangent arc.  Validation happens
    before history is pushed, so an infeasible radius never creates a ghost
    undo step.  The two original wall ids survive (important for dimensions and
@@ -1066,6 +1093,7 @@ function wallLineIntersection(a, b) {
 const SNAP_GATE = {
   corner: "corner",
   marker: "marker",
+  blueprint: "marker",
   midpoint: "midpoint",
   itemCorner: "item",
   intersection: "intersection",
@@ -1101,6 +1129,7 @@ function nearCursor(w, px, pz, pad) {
 const SNAP_BONUS = {
   corner: 6,
   marker: 6,
+  blueprint: 6,
   intersection: 5,
   midpoint: 4,
   itemCorner: 3,
@@ -1182,6 +1211,15 @@ function snapPoint(px, pz, fromIdx) {
     if (!m || !fin(m.x) || !fin(m.z)) return;
     offer("marker", m.x, m.z, {});
   });
+
+  // The two calibration picks are real datums on the sheet. Offering them to
+  // the normal OSNAP resolver makes the first traced wall land exactly on the
+  // measured endpoints while every existing angle/alignment guide remains in
+  // force for the rest of the run.
+  if (S.blueprintTrace && S.blueprintTrace.visible !== false)
+    (S.blueprintTrace.guidePoints || []).forEach(function (p) {
+      if (p && fin(p.x) && fin(p.z)) offer("blueprint", p.x, p.z, {});
+    });
 
   // 3. wall midpoints — a frequent architectural datum that should not need
   // eyeballing or a temporary half-length dimension.
@@ -1954,9 +1992,13 @@ export function selectAtScreen(ox, oy) {
       select(
         toSelect.length > 1
           ? { kind: "items", refs: toSelect }
-          : { kind: "item", ref: hi },
+            : { kind: "item", ref: hi },
       );
     } else {
+      var hv = hitSlabOpening(px, pz);
+      if (hv) {
+        select({ kind: "slabvoid", ref: hv });
+      } else {
       var hw = hitWall(px, pz);
       if (hw) {
         select({ kind: "wall", ref: hw });
@@ -1964,6 +2006,7 @@ export function selectAtScreen(ox, oy) {
         var hk = hitRoom(px, pz);
         if (hk) select({ kind: "room", ref: hk });
         else select(null);
+      }
       }
     }
   }
@@ -2013,6 +2056,9 @@ function applyRemove(sel) {
     S.openings = S.openings.filter(function (o) { return !goneW[o.wall]; });
   } else if (sel.kind === "marker") {
     deleteMarker(sel.ref);
+  } else if (sel.kind === "slabvoid") {
+    broadcastPlanOp({ type: "slabRemove", id: sel.ref.id });
+    removeSlabOpening(sel.ref);
   } else if (sel.kind === "mepNode" || sel.kind === "mepRun") {
     deleteMEP(sel);
   } else if (sel.kind === "con" && sel.ref) {
@@ -2044,6 +2090,8 @@ function pickErase(px, pz, ox, oy) {
   if (ho) return { kind: "opening", ref: ho };
   var hi = hitItem(px, pz);
   if (hi) return { kind: "item", ref: hi };
+  var hv = hitSlabOpening(px, pz, 4);
+  if (hv) return { kind: "slabvoid", ref: hv };
   var hw = hitWall(px, pz);
   if (hw) return { kind: "wall", ref: hw };
   return null;
@@ -2762,7 +2810,23 @@ export function initInteraction() {
     pinch = null,
     nudgeT = 0, // active touch pointers + pinch state + last arrow-nudge time
     eraseSeen = null,
-    erasePushed = false;
+    erasePushed = false,
+    spacePan = false;
+  function setSpacePan(on) {
+    spacePan = !!on;
+    if (plan) plan.classList.toggle("space-pan", spacePan);
+  }
+  window.addEventListener("keydown", function (e) {
+    var ae = document.activeElement;
+    if (e.code !== "Space" || e.ctrlKey || e.metaKey || e.altKey ||
+        (ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName)) || isWalk()) return;
+    e.preventDefault();
+    setSpacePan(true);
+  });
+  window.addEventListener("keyup", function (e) {
+    if (e.code === "Space") setSpacePan(false);
+  });
+  window.addEventListener("blur", function () { setSpacePan(false); });
   function beginEraseStroke() {
     eraseSeen = Object.create(null);
     erasePushed = false;
@@ -2916,6 +2980,16 @@ export function initInteraction() {
     var r = plan.getBoundingClientRect();
     var ox = e.clientX - r.left;
     var oy = e.clientY - r.top;
+
+    // CAD-standard navigation temporarily wins over every editing tool. A
+    // middle drag or Space+left drag pans without changing the active tool.
+    if (e.button === 1 || (spacePan && e.button === 0)) {
+      e.preventDefault();
+      S.action = "pan";
+      S.panStart = { ox: S.OX, oy: S.OY, px: ox, py: oy };
+      plan.classList.add("is-panning");
+      return;
+    }
 
     /* Elevation views: wall drawing stays in the plan, but items, openings and
        placeholder points are edited in the two axes the elevation can see
@@ -3110,6 +3184,24 @@ export function initInteraction() {
         return;
       }
       if (commitRectFromTo(S.rectDraft, rp)) setTool("select");
+      S.rectDraft = null;
+      S.previewPt = null;
+      render2D();
+      return;
+    }
+    if (S.tool === "slabvoid") {
+      if (e.button === 2) {
+        S.rectDraft = null; S.previewPt = null; setTool("select"); render2D();
+        return;
+      }
+      var sp = snapPoint(px, pz, null);
+      if (!S.rectDraft) {
+        S.rectDraft = { x: sp.x, z: sp.z };
+        S.previewPt = { x: sp.x, z: sp.z };
+        render2D();
+        return;
+      }
+      if (commitSlabFromTo(S.rectDraft, sp)) setTool("select");
       S.rectDraft = null;
       S.previewPt = null;
       render2D();
@@ -3404,6 +3496,15 @@ export function initInteraction() {
       render2D();
       return;
     }
+    var hv = hitSlabOpening(px, pz);
+    if (hv) {
+      select({ kind: "slabvoid", ref: hv });
+      S.action = "slabvoid";
+      beginHistory();
+      S.dragOff = { x: px - hv.x, z: pz - hv.z };
+      render2D();
+      return;
+    }
     var hw = hitWall(px, pz);
     if (hw) {
       if (e.ctrlKey || e.metaKey || e.shiftKey) {
@@ -3633,6 +3734,7 @@ export function initInteraction() {
     }
     var px = wx(e.offsetX, e.offsetY),
       pz = wz(e.offsetX, e.offsetY);
+    sendPlanCursor(px, pz);
     /* "How far along this wall am I?" — answered for EVERY gesture, before any
        of the per-action branches return: hovering, dragging a piece, or drawing
        the next wall. It is the question you are asking whenever the cursor is
@@ -3687,7 +3789,7 @@ export function initInteraction() {
       render2D();
       return;
     }
-    if (S.tool === "rect") {
+    if (S.tool === "rect" || S.tool === "slabvoid") {
       var rrp = snapPoint(px, pz, null);
       S.previewPt = fin(rrp.x) && fin(rrp.z) ? { x: rrp.x, z: rrp.z } : null;
       render2D();
@@ -3798,6 +3900,15 @@ export function initInteraction() {
       // the plan edits x/z only — a point's height belongs to the elevations
       moveMarker(S.sel.ref, mps.x, S.sel.ref.y, mps.z);
       touchItem3D(markerItem(S.sel.ref), "move");
+      render2D();
+      return;
+    }
+    if (S.action === "slabvoid" && S.sel && S.sel.kind === "slabvoid") {
+      commitPending();
+      var snapped = snapPoint(px - S.dragOff.x, pz - S.dragOff.z, null);
+      S.sel.ref.x = snapped.x;
+      S.sel.ref.z = snapped.z;
+      S.dirty3D = true;
       render2D();
       return;
     }
@@ -4229,6 +4340,21 @@ export function initInteraction() {
       });
       fillProps();
     }
+    if (S.action === "item" && S.sel && S.sel.kind === "item") {
+      // a dragged flight of stairs takes its stairwell void with it
+      if (syncStairVoids(S.sel.ref)) render2D();
+      broadcastPlanOp({ type: "itemMove", id: S.sel.ref.id, x: S.sel.ref.x, z: S.sel.ref.z, rot: S.sel.ref.rot });
+    } else if (S.action === "opening" && S.sel && S.sel.kind === "opening") {
+      broadcastPlanOp({ type: "openingSet", id: S.sel.ref.id, fields: { s: S.sel.ref.s } });
+    } else if (S.action === "slabvoid" && S.sel && S.sel.kind === "slabvoid") {
+      broadcastPlanOp({ type: "slabMove", id: S.sel.ref.id, x: S.sel.ref.x, z: S.sel.ref.z, rot: S.sel.ref.rot });
+      fillProps();
+    } else if (S.action === "node" && S.nodeDrag && S.nodes[S.nodeDrag.node]) {
+      var bn = S.nodes[S.nodeDrag.node];
+      // `n` guards the index: no op syncs wall creation, so a peer whose node
+      // array has grown must resync rather than move a different corner
+      broadcastPlanOp({ type: "nodeMove", index: S.nodeDrag.node, n: S.nodes.length, x: bn.x, z: bn.z });
+    }
     /* The gesture is over, so the sub-graph shortcut and the Alt override both
        expire here and the WHOLE dimension set gets the last word. A drag that
        suppressed the solver therefore ends with the plan obeying its
@@ -4249,13 +4375,13 @@ export function initInteraction() {
       S.jointsReleased = 0;
     }
     if (S.action === "marker" || S.action === "markerElev" ||
-        S.action === "itemElev" || S.action === "openingElev") fillProps();
+        S.action === "itemElev" || S.action === "openingElev" || S.action === "slabvoid") fillProps();
     if (S.action === "item" || S.action === "room" || S.action === "node" ||
         S.action === "wall" || S.action === "marker" || S.action === "markerElev" ||
-        S.action === "itemElev" || S.action === "openingElev")
+        S.action === "itemElev" || S.action === "openingElev" || S.action === "slabvoid")
       refreshTree();
     if (S.action === "item" || S.action === "marker" || S.action === "markerElev" ||
-        S.action === "itemElev" || S.action === "openingElev")
+        S.action === "itemElev" || S.action === "openingElev" || S.action === "slabvoid")
       S.dirty3D = true;
     // drafting guides belong to the drag that produced them — corner and point
     // drags both go through snapPoint — so they end with it. Only those two:
@@ -4263,6 +4389,7 @@ export function initInteraction() {
     var dragUsedSnap = S.action === "marker" || S.action === "node";
     cancelPending();
     S.action = null;
+    plan.classList.remove("is-panning");
     eraseSeen = null;
     erasePushed = false;
     S.dragRoom = null;
@@ -4296,7 +4423,7 @@ export function initInteraction() {
       !S.drawing &&
       !S.arcDraft &&
       !S.rectDraft &&
-      (S.tool === "wall" || S.tool === "arcwall" || S.tool === "rect");
+      (S.tool === "wall" || S.tool === "arcwall" || S.tool === "rect" || S.tool === "slabvoid");
     if (S.hoverItem || S.hoverPt || S.markerPreview || S.wallHoverHalf ||
         S.warnHover || S.conHover || S.wallProbe || S.hoverMarker || S.hoverNode != null ||
         S.eraseHover || draftHover) {
@@ -4386,7 +4513,7 @@ export function initInteraction() {
       }
       else if (S.tool === "mepRoute" && ensureMEP().route) cancelRoute();
       else if (S.tool && S.tool.indexOf("mep") === 0) setTool("select");
-      else if (S.tool === "point") setTool("select");
+      else if (S.tool === "point" || S.tool === "slabvoid") setTool("select");
       else {
         // Esc always lands you back on the select tool, not just deselected —
         // "I'm done with this" means done with the tool too.
@@ -4412,6 +4539,14 @@ export function initInteraction() {
         render2D();
       } else if (S.sel && S.sel.kind === "items") rotateItems(rStep);
       else if (S.sel && S.sel.kind === "room") rotateRoom(rStep);
+      else if (S.sel && S.sel.kind === "slabvoid") {
+        pushHistory();
+        S.sel.ref.rot = (((S.sel.ref.rot + rStep) % 360) + 360) % 360;
+        S.dirty3D = true;
+        fillProps();
+        render2D();
+        broadcastPlanOp({ type: "slabMove", id: S.sel.ref.id, x: S.sel.ref.x, z: S.sel.ref.z, rot: S.sel.ref.rot });
+      }
     }     else if (e.key === "1") setTool("select");
     else if (e.key === "2") setTool("wall");
     else if (e.key === "3") setTool("door");
@@ -4420,6 +4555,7 @@ export function initInteraction() {
     else if (e.key === "6") setTool("point");
     else if (e.key === "7") setTool("arcwall");
     else if (e.key === "8") setTool("rect");
+    else if (e.key === "9") setTool("slabvoid");
     else if (e.key === "e" || e.key === "E") setTool("erase");
     // L toggles the structure lock — the same button the plan toolbar shows
     else if (e.key === "l" || e.key === "L") setLockStruct(!S.lockStruct);

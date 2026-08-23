@@ -70,7 +70,14 @@ export function convertCadToWalls(source = {}, options = {}) {
       if (consumed.has(i)) return;
       const g = lineGeom(line);
       if (!g) return;
-      segments.push({ a: g.a, b: g.b, thickness: +(line.thickness || options.defaultThickness || 10), layer: line.layer || "walls" });
+      // a measured source (a room scan) knows each wall's own height; keep it
+      // rather than flattening the storey to one average
+      segments.push({
+        a: g.a, b: g.b,
+        thickness: +(line.thickness || options.defaultThickness || 10),
+        height: Number(line.height) > 0 ? +line.height : null,
+        layer: line.layer || "walls",
+      });
     });
   }
 
@@ -85,7 +92,8 @@ export function convertCadToWalls(source = {}, options = {}) {
     const map = options.wallTypeByLayer || {};
     walls.push({
       id: id++, a: node(s.a), b: node(s.b), thickness: s.thickness,
-      height: +(options.height || 270), wallTypeId: map[s.layer] || options.wallTypeId || "generic",
+      height: Number(s.height) > 0 ? +s.height : +(options.height || 270),
+      wallTypeId: map[s.layer] || options.wallTypeId || "generic",
       kind: s.kind || "normal", datum: options.datum || "center", flip: !!s.flip,
       phase: options.phase || "existing", sourceLayer: s.layer,
     });

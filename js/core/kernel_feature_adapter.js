@@ -6,6 +6,7 @@
 import { cloneDomain } from "./schema.js";
 import { analyzeParametricHistory, ensureParametricDocument, historyEntryRolled } from "./parametric_document.js";
 import { circularPatternStepDegrees, linearPatternOffsets, parseSkippedPatternInstances } from "./pattern_geometry.js";
+import { holeWizardSolids } from "../cad_hole_wizard.js";
 
 function idOf(reference) {
   return typeof reference === "string" ? reference : reference?.id || reference?.persistentId || null;
@@ -46,10 +47,9 @@ function loweredFeature(feature, document) {
   if (feature.type === "extrude") return [{ ...base, type: "extrude", params: lowerExtrudeParams(feature, document) }];
   if (feature.type === "extrudeCut" || feature.type === "hole") {
     const target = feature.inputs?.[0] || idOf(feature.references?.features?.[0]);
+    if (feature.type === "hole") return lowerHoleFeature(feature, document, base, target);
+    const holeParams = lowerExtrudeParams(feature, document);
     const toolId = feature.id + ":tool";
-    const holeParams = feature.type === "hole"
-      ? { ...lowerExtrudeParams(feature, document), diameter: Number(feature.params?.diameter) || 1, endCondition: feature.params?.endCondition || "blind" }
-      : lowerExtrudeParams(feature, document);
     return [
       { id: toolId, name: feature.name + " tool", type: "extrude", params: holeParams, inputs: [], references: topologyReferences(feature), suppressed: !!feature.suppressed },
       { ...base, type: "subtract", params: {}, inputs: [target, toolId].filter(Boolean) },
@@ -67,9 +67,65 @@ function loweredFeature(feature, document) {
   }
   if (feature.type === "mirror") return [{ ...base, type: "mirror", params: { ...cloneDomain(feature.params), plane: cloneDomain(feature.references?.references?.[0]) } }];
   if (feature.type === "boolean") return [{ ...base, type: feature.params?.operation || "union", params: { keepTools: !!feature.params?.keepTools, tolerance: feature.params?.tolerance } }];
+  if (["helix", "thread", "knurl", "insert"].includes(feature.type)) {
+    return [{ ...base, type: feature.type, params: cloneDomain(feature.params) }];
+  }
   // Import and legacy analytic features are accepted only through migration;
   // they remain explicit in the compiled tree and never become UI primitives.
   return [{ ...base, type: feature.type, params: cloneDomain(feature.params) }];
+}
+
+function lowerHoleFeature(feature, document, base, target) {
+  const sketchParams = lowerExtrudeParams(feature, document);
+  const wizard = holeWizardSolids(feature.params || {});
+  const holeParams = {
+    ...sketchParams,
+    diameter: wizard.hole.diameter,
+    endCondition: wizard.hole.endCondition || feature.params?.endCondition || "blind",
+    holeType: wizard.hole.holeType,
+    callout: feature.params?.callout,
+  };
+  if (wizard.solids.length <= 1) {
+    const toolId = feature.id + ":tool";
+    return [
+      { id: toolId, name: feature.name + " tool", type: "extrude", params: holeParams, inputs: [], references: topologyReferences(feature), suppressed: !!feature.suppressed },
+      { ...base, type: "subtract", params: {}, inputs: [target, toolId].filter(Boolean) },
+    ];
+  }
+  const compiled = [];
+  let lastId = target;
+  wizard.solids.forEach((solid, index) => {
+    const toolId = feature.id + ":tool:" + solid.role;
+    const isLast = index === wizard.solids.length - 1;
+    compiled.push({
+      id: toolId,
+      name: feature.name + " " + solid.role,
+      type: solid.kind === "cone" ? "cone" : "extrude",
+      params: {
+        ...holeParams,
+        diameter: solid.diameter || solid.diameter1,
+        diameter2: solid.diameter2,
+        depth: solid.depth,
+        endCondition: solid.endCondition,
+        from: sketchParams.from,
+        to: (sketchParams.from || 0) + (solid.depth || holeParams.depth || 0) * (feature.params?.direction === "reverse" ? -1 : 1),
+      },
+      inputs: [],
+      references: topologyReferences(feature),
+      suppressed: !!feature.suppressed,
+    });
+    compiled.push({
+      id: isLast ? feature.id : feature.id + ":cut:" + solid.role,
+      name: isLast ? feature.name : feature.name + " " + solid.role + " cut",
+      type: "subtract",
+      params: {},
+      inputs: [lastId, toolId].filter(Boolean),
+      references: topologyReferences(feature),
+      suppressed: !!feature.suppressed,
+    });
+    lastId = isLast ? feature.id : feature.id + ":cut:" + solid.role;
+  });
+  return compiled;
 }
 
 export function compileKernelFeatureTree(source) {

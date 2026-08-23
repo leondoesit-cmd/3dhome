@@ -94,17 +94,45 @@ function faceDescriptor(oc, face) {
     const surface = surfaceName(oc, adaptor.GetType());
     const descriptor = { surface, origin: center, normal, measure: props.Mass(), bounds: shapeBounds(oc, face) };
     if (surface === "cylinder") {
-      const cylinder = adaptor.Cylinder(), axis = cylinder.Axis(), direction = axis.Direction();
-      try { descriptor.axis = vectorOf(direction); descriptor.radius = cylinder.Radius(); }
-      finally { direction.delete(); axis.delete(); cylinder.delete(); }
+      const cylinder = adaptor.Cylinder(), axis = cylinder.Axis(), direction = axis.Direction(), location = axis.Location();
+      try {
+        const dir = normalizedVector(vectorOf(direction)), base = pointOf(location);
+        /* OpenCascade reports a face's centre of mass, which for a wall sits on
+           the wall. Everything downstream measures a cylinder from its axis —
+           picking, highlighting, merging staves — so a radius taken from a point
+           already on the surface lights one strip and misses the rest. Slide the
+           centroid onto the axis and keep the surface point separately. */
+        const along = (center.x - base.x) * dir.x + (center.y - base.y) * dir.y + (center.z - base.z) * dir.z;
+        descriptor.axis = dir;
+        descriptor.radius = cylinder.Radius();
+        descriptor.centroid = center;
+        descriptor.origin = { x: base.x + dir.x * along, y: base.y + dir.y * along, z: base.z + dir.z * along };
+      } finally { location.delete(); direction.delete(); axis.delete(); cylinder.delete(); }
     } else if (surface === "sphere") {
       const sphere = adaptor.Sphere(), location = sphere.Location();
       try { descriptor.center = pointOf(location); descriptor.radius = sphere.Radius(); }
       finally { location.delete(); sphere.delete(); }
     } else if (surface === "cone") {
-      const cone = adaptor.Cone(), axis = cone.Axis(), direction = axis.Direction();
-      try { descriptor.axis = vectorOf(direction); descriptor.radius = cone.RefRadius(); descriptor.angle = cone.SemiAngle(); }
-      finally { direction.delete(); axis.delete(); cone.delete(); }
+      const cone = adaptor.Cone(), axis = cone.Axis(), direction = axis.Direction(), location = axis.Location();
+      try {
+        const dir = normalizedVector(vectorOf(direction)), base = pointOf(location);
+        const along = (center.x - base.x) * dir.x + (center.y - base.y) * dir.y + (center.z - base.z) * dir.z;
+        descriptor.axis = dir;
+        descriptor.radius = cone.RefRadius();
+        descriptor.angle = cone.SemiAngle();
+        descriptor.centroid = center;
+        descriptor.origin = { x: base.x + dir.x * along, y: base.y + dir.y * along, z: base.z + dir.z * along };
+      } finally { location.delete(); direction.delete(); axis.delete(); cone.delete(); }
+    } else if (surface === "torus") {
+      const torus = adaptor.Torus(), axis = torus.Axis(), direction = axis.Direction(), location = axis.Location();
+      try {
+        descriptor.axis = normalizedVector(vectorOf(direction));
+        descriptor.origin = pointOf(location);
+        descriptor.center = descriptor.origin;
+        descriptor.majorRadius = torus.MajorRadius();
+        descriptor.minorRadius = torus.MinorRadius();
+        descriptor.radius = descriptor.majorRadius;
+      } finally { location.delete(); direction.delete(); axis.delete(); torus.delete(); }
     }
     return descriptor;
   } finally { p.delete(); du.delete(); dv.delete(); adaptor.delete(); props.delete(); }
@@ -317,6 +345,26 @@ export async function makeBrepLoft(spec) {
     maker.CheckCompatibility(spec.matchProfiles !== false); maker.Build(new oc.Message_ProgressRange_1());
     return { oc, shape: maker.Shape(), kind: "solid" };
   } finally { disposeAll(owned); }
+}
+
+export async function makeBrepCone(spec) {
+  const oc = await loadCadKernel(), owned = [];
+  try {
+    const r1 = Math.max(1e-6, Number(spec.r1 ?? (Number(spec.diameter1) || Number(spec.diameter) || 0) / 2) || 1e-6);
+    const r2 = Math.max(0, Number(spec.r2 ?? (Number(spec.diameter2) || 0) / 2) || 0);
+    const height = Math.max(1e-6, Number(spec.h ?? spec.depth ?? Math.abs((Number(spec.to) || 0) - (Number(spec.from) || 0))) || 1e-6);
+    const origin = spec.origin || { x: spec.x || 0, y: (spec.y || 0) + (Number(spec.from) || 0), z: spec.z || 0 };
+    const axis = spec.axis || { x: 0, y: 1, z: 0 };
+    const p = new oc.gp_Pnt_3(origin.x, origin.y, origin.z);
+    const dir = new oc.gp_Dir_4(axis.x || 0, axis.y || 0, axis.z || 0); owned.push(p, dir);
+    const axes = new oc.gp_Ax2_3(p, dir); owned.push(axes);
+    const maker = new oc.BRepPrimAPI_MakeCone_2(axes, r1, Math.max(1e-7, r2), height); owned.push(maker);
+    return { oc, shape: maker.Shape(), kind: "solid" };
+  } finally { disposeAll(owned); }
+}
+
+export async function makeBrepHelicalPipe(spec) {
+  return makeBrepSweep({ profile: spec.profile, path: spec.path });
 }
 
 export async function booleanBrep(operation, left, right) {
@@ -650,6 +698,14 @@ export async function transformBrep(brep, transform = {}) {
   } finally {
     maker?.delete?.(); trsf.delete();
   }
+}
+
+/* A plain move. transformBrep states one as a frame whose origin is the negated
+   delta, which is easy to get backwards at the call site. */
+export async function translateBrep(brep, delta = {}) {
+  return transformBrep(brep, { origin: {
+    x: -(Number(delta.x) || 0), y: -(Number(delta.y) || 0), z: -(Number(delta.z) || 0),
+  } });
 }
 
 export async function compoundBrep(inputs=[]) {

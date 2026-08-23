@@ -47,9 +47,12 @@ function topologySignature() {
 }
 
 function boundsSignature() {
-  var out = topologySignature() + "|" + S.items.length;
+  var out = topologySignature() + "|" + S.items.length + "|" + (S.slabOpenings || []).length;
   S.items.forEach(function (it) {
     out += ";" + it.id + "," + it.x + "," + it.z + "," + it.w + "," + it.d;
+  });
+  (S.slabOpenings || []).forEach(function (o) {
+    out += ";v" + o.id + "," + o.x + "," + o.z + "," + o.w + "," + o.d + "," + o.rot;
   });
   return out;
 }
@@ -1042,6 +1045,15 @@ export function contentBounds() {
     maxx = Math.max(maxx, it.x + r);
     minz = Math.min(minz, it.z - r);
     maxz = Math.max(maxz, it.z + r);
+    any = true;
+  });
+  (S.slabOpenings || []).forEach(function (o) {
+    if (!fin(o.x) || !fin(o.z) || !(o.w > 0) || !(o.d > 0)) return;
+    var rr = Math.max(o.w, o.d) / 2;
+    minx = Math.min(minx, o.x - rr);
+    maxx = Math.max(maxx, o.x + rr);
+    minz = Math.min(minz, o.z - rr);
+    maxz = Math.max(maxz, o.z + rr);
     any = true;
   });
   if (!any) {

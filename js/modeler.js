@@ -41,20 +41,29 @@ import { mirrorEntities, linearPatternEntities, circularPatternEntities } from "
 import { addFeature, ensureFeatureTree, regenerateFeatures, releaseRegeneration } from "./cad_feature_tree.js";
 import {
   exportStep, exportIges, importStep,
-  makeBrepExtrusion, makeBrepPrimitive, booleanBrep, chamferBrep, extractBrepTopology, filletBrep, shapeToMeshData, shellBrep, disposeBrep,
-  serializeBrep, transformBrep,
+  makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, booleanBrep, chamferBrep, extractBrepTopology, filletBrep, shapeToMeshData, shellBrep, disposeBrep,
+  serializeBrep, transformBrep, translateBrep,
 } from "./cad_kernel.js";
 import { downloadDrawing } from "./cad_drawings.js";
 import { addEdgeFlange, createSheetMetalPart, flatPattern } from "./cad_sheet_metal.js";
 import { solveTopologyMates, topologyReference } from "./cad_mates.js";
 import { analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
-import { createReferencePlane, createReferenceAxis, createCoordinateSystem } from "./cad_reference_geometry.js";
+import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
+import { createReferencePlane, createReferenceAxis, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
+import { sampleHelix, documentHelixOverlays, sweepUsesHelixPath } from "./cad_helix.js";
 import { createExplodedView, addExplodeStep, applyExplodedView } from "./cad_exploded_view.js";
 import { createMotionStudy, addRotaryMotor, evaluateMotionStudy } from "./cad_motion_study.js";
 import { detectInterference, generateBOM, computeMassProperties } from "./cad_interference.js";
 import { createProjectBundle, exportProjectBundle, importProjectBundle } from "./cad_project_bundle.js";
 import { measureDistance, evaluateDraftAngle } from "./cad_evaluate.js";
 import { auditStandardParts, involuteGearOutline } from "./cad_standards.js";
+import { holeCallout, holeLayoutPoints, holeTableRow, holeWizardSolids, holeWizardThread, listHoleSizes, normalizeHoleWizard } from "./cad_hole_wizard.js";
+import { cosmeticThread, modeledThreadSolid, normalizeThreadSpec, threadCallout, validateThreadFeature, documentThreadOverlays } from "./cad_thread.js";
+import { knurlBandMesh, knurlCallout, knurlGroovePolylines, normalizeKnurlSpec, validateKnurl } from "./cad_knurl.js";
+import { toolboxFastener, listToolboxPicker, FASTENER_LENGTHS_MM } from "./cad_toolbox.js";
+import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides } from "./cad_appearances.js";
+import { captureConfiguration, ensureConfigurations, setActiveConfiguration } from "./cad_configurations.js";
+import { evaluateFit, fitCallout } from "./cad_fits.js";
 import {
   ensureItemDefinition,
   commitDefinition,
@@ -75,14 +84,18 @@ import { externalizeAttachments } from "./core/attachment_store.js";
 import { garbageCollectAttachments } from "./core/attachment_gc.js";
 import { loadModelLibrary, saveModelLibrary } from "./core/model_library_store.js";
 import { rebuildDefinition } from "./core/rebuild.js";
-import { applyTopologyRebindings, createTopologyReference, createTopologyRegistry, topologyForFeature, mergeSmoothTopology, resolveFinishTargetIds, resolveMergedTopology, topologyDescriptorSignature, topologyMemberIds, edgeLiesOnFace, edgesBoundingFace, fitProfileCircle } from "./core/topology.js";
+import { buildTreeModel, findTreeNode } from "./core/tree_model.js";
+import { renderTreeModel } from "./modeler_tree.js";
+import { analyzeLegacyMigration, convertLegacyDocument, evaluateMigration, retainLegacySource, restoreLegacyDocument } from "./core/migration_check.js";
+import { applyTopologyRebindings, createTopologyReference, cutWallTopology, createTopologyRegistry, topologyForFeature, mergeSmoothTopology, isCylinderTessellationSeam, resolveFinishTargetIds, resolveMergedTopology, topologyDescriptorSignature, topologyMemberIds, edgeLiesOnFace, edgesBoundingFace, fitProfileCircle } from "./core/topology.js";
 import { frameDirection, frameFromPlane, framePoint, frameProjectPoint, realignFrame } from "./core/frame.js";
+import { bodyDepthRange, cutFootprint as cutScopeFootprint } from "./core/cut_scope.js";
 import { circularPatternPivot, circularPatternStepDegrees, linearPatternOffsets, parseSkippedPatternInstances, rotatedPatternBounds } from "./core/pattern_geometry.js";
 import { finalizeCabinetAdvancedDefinition, syncCabinetDefinition } from "./parametric_cabinet.js";
 import { assignCabinetManufacturing, CABINET_MANUFACTURING_ROLES } from "./core/cabinet_advanced.js";
 import { layoutCab } from "./cabinet.js";
 import { createSurfaceSketch, supportsSurfaceUV } from "./core/surface_uv.js";
-import { clearMeshProjectionCache, meshFeatureEdges, projectMeshEdges } from "./core/mesh_projection.js";
+import { clearMeshProjectionCache, meshFeatureEdges, meshSmoothFaces, projectMeshEdges } from "./core/mesh_projection.js";
 import {
   FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
   buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
@@ -93,7 +106,7 @@ import {
 } from "./modeler_feature_form.js";
 import {
   nextFeatureAfterFinishedSketch, resolveWorkflowStep,
-  shouldResumeSketchSession, shouldSkipReferencePicker,
+  shouldResumeSketchSession, shouldSkipReferencePicker, sketchStartMode,
 } from "./modeler_workflow.js";
 import {
   constraintAlreadyPresent, entityStatuses, inferLineRelations, inferOrthoSnap,
@@ -111,7 +124,7 @@ import {
 import { inferSmartMate, isolateVisibility } from "./modeler_smartmates.js";
 import { welcomeGlyph } from "./modeler_welcome_glyphs.js";
 import { cadIcon } from "./modeler_icons.js";
-import { initModelerMobile, syncModelerMobile, teardownModelerMobile } from "./modeler_mobile.js";
+import { initModelerMobile, syncModelerMobile, teardownModelerMobile, showModelerSheet, closeModelerSheet, revealModelerFeatureForm } from "./modeler_mobile.js";
 
 var LS_MODELS = "home3d_models";
 var LS_ASSEMBLIES = "home3d_assemblies";
@@ -133,6 +146,11 @@ var TXT = {
   mnav_commands: ["פקודות", "Commands"],
   mnav_props: ["מאפיינים", "Properties"],
   mnav_more: ["עוד", "More"],
+  guideMoreProjects: ["עוד פרויקטים", "More projects"],
+  guideMoreProjectsNote: ["מסלולים אלה נכתבו למסך רחב — חלק מהכלים נמצאים בגיליון פקודות או בעץ.", "These paths were written for a wide screen — some tools live in Commands or Tree on a phone."],
+  guideMoveCard: ["גררו להזזה", "Drag to move"],
+  coachStepSketchMobile: ["פתחו סקיצה על מישור ברירת המחדל והתחילו במלבן", "Start a sketch on the default plane with the rectangle tool"],
+  coachActSketchMobile: ["התחלת סקיצה", "Start sketch"],
   name: ["שם המודל", "Model name"],
   price: ["מחיר ₪", "Price ₪"],
   save: ["שמור לספרייה", "Save to library"],
@@ -143,6 +161,13 @@ var TXT = {
   tool_poly: ["מצולע ← אקסטרוד", "Polygon → extrude"],
   tool_wall: ["קו סקיצה מחובר", "Connected sketch line"],
   tool_sph: ["כדור", "Sphere"],
+  /* Short forms for the phone's view sheet: the axis hint is a desktop
+     nicety that wraps every Hebrew label onto a second line and pushes the
+     sheet past the fold. The plane is obvious once you are looking at it. */
+  view_top_short: ["מבט על", "Top"],
+  view_front_short: ["חזית", "Front"],
+  view_right_short: ["ימין", "Right"],
+  view_iso_short: ["איזומטרי", "Iso"],
   view_top: ["מבט על (X·Z)", "Top (X·Z)"],
   view_front: ["מבט חזית (X·Y)", "Front (X·Y)"],
   view_side: ["מבט צד (Z·Y)", "Side (Z·Y)"],
@@ -190,7 +215,8 @@ var TXT = {
   cutHint: ["שרטטו את קו החיתוך על חלק קיים · קליק כפול/Enter: ביצוע חיתוך", "Sketch the cut on an existing part · Dbl-click/Enter: apply cut"],
   cutcHint: ["גררו ממרכז הקדח החוצה על חלק קיים", "Drag from bore center outward on an existing part"],
   cutDone: ["החיתוך בוצע", "Cut applied"],
-  cutNone: ["אין חלק מתאים מתחת לחיתוך (עובד על אקסטרודים ותיבות)", "No suitable part under the cut (works on extrudes & boxes)"],
+  cutNone: ["אין חלק מתאים מתחת לחיתוך (עובד על אקסטרוזיה, תיבה, גליל, סיבוב ולופט)", "No suitable body under the cut (works on extrude, box, cylinder, revolve and loft)"],
+  cutSkipped: ["לא נחתך", "not cut"],
   fillet: ["רדיוס פינה, או c+מרחק לקיטום ישר (למשל 5 או c5):", "Corner radius, or c+distance for a chamfer (e.g. 5 or c5):"],
   vertexHint: ["לחיצה כפולה על פינה: Fillet/Chamfer", "Dbl-click a corner: fillet/chamfer"],
   patLin: ["מערך ליניארי", "Linear pattern"],
@@ -210,7 +236,11 @@ var TXT = {
   loftFail: ["Loft נתמך רק על חלקי אקסטרוד (ללא חורים)", "Loft works on extrude parts without holes"],
   /* step names for the history list — what the panel calls each operation */
   hint3d: ["גררו לסיבוב · שלוש אצבעות או Shift+גרירה להזזה · גלגלת לזום", "Drag to orbit · 3-finger or Shift-drag to pan · wheel to zoom"],
-  hint3dTouch: ["גרירה = סיבוב · שתי אצבעות = הזזה · צביטה = זום", "Drag = orbit · two fingers = pan · pinch = zoom"],
+  hint3dTouch: ["גרירה = סיבוב · שתי אצבעות = הזזה · צביטה = זום · לחיצה ארוכה = בחירה מדויקת", "Drag to orbit · two fingers to pan · pinch to zoom · long-press for precise selection"],
+  touchAddSelection: ["הוספה לבחירה", "Add to selection"],
+  touchReplaceSelection: ["החלפת בחירה", "Replace selection"],
+  touchClearSelection: ["ניקוי", "Clear"],
+  touchSelectThrough: ["בחירה דרך", "Select through"],
   mode2d: ["שרטוט", "Sketch"],
   mode3d: ["מודל", "Model"],
   modeDrawing: ["גיליון", "Drawing"],
@@ -235,6 +265,7 @@ var TXT = {
   selKindFace: ["פאות", "face(s)"],
   selKindMixed: ["ישויות", "references"],
   selCountTip: ["נבחרו · Ctrl/Cmd מוסיף או מסיר", "selected · Ctrl/Cmd-click adds or removes"],
+  selCountTipTouch: ["נבחרו", "selected"],
   finishEdges: ["קצוות", "Edges"],
   selectAllEdges: ["כל הקצוות", "All edges"],
   clearEdges: ["ניקוי", "None"],
@@ -292,6 +323,14 @@ var TXT = {
   zoomIn: ["התקרב", "Zoom in"],
   zoomOut: ["התרחק", "Zoom out"],
   zoomFit: ["התאם לתצוגה", "Zoom to fit"],
+  sectionView: ["מבט חתך", "Section view"],
+  sectionAxis: ["ציר חיתוך", "Section axis"],
+  sectionOffset: ["מיקום החתך", "Section position"],
+  sectionFlip: ["הפוך צד", "Flip side"],
+  sectionClose: ["סגור חתך", "Close section"],
+  advancedDiagnostics: ["אבחון מתקדם", "Advanced diagnostics"],
+  toggleTree: ["הצג או הסתר עץ", "Show or hide tree"],
+  toggleInspector: ["הצג או הסתר מאפיינים", "Show or hide inspector"],
   delModel: ["מחק מהספרייה", "Delete from library"],
   askDel: ["למחוק את המודל מהספרייה?", "Delete this model from the library?"],
   opAlign: ["יישור", "Align"],
@@ -451,7 +490,34 @@ var TXT = {
   rollbackTo: ["גלגל לכאן", "Roll back to here"],
   rollbackBar: ["סרגל הגלגול", "Rollback bar"],
   rollbackRelease: ["לחיצה כפולה: שחרור לסוף", "Double-click: release to the end"],
+  historyMoveUp: ["העבר שלב למעלה", "Move history step up"],
+  historyMoveDown: ["העבר שלב למטה", "Move history step down"],
   rolledNote: ["חלק מהפעולות מגולגלות ואינן נבנות", "Some features are rolled back and are not being built"],
+  /* ---- unified FeatureManager tree ---- */
+  treeDocument: ["מסמך", "Document"],
+  treeBodies: ["גופים", "Solid Bodies"],
+  treeNoMaterial: ["חומר <לא הוגדר>", "Material <not specified>"],
+  treeEquations: ["משוואות", "Equations"],
+  treeSharedSketch: ["משותפת ל-", "shared by"],
+  treeDerivedBody: ["נגזר", "derived"],
+  treeSketchDriven: ["מונע ע\"י סקיצה", "sketch driven"],
+  treeFolder: ["תיקייה", "Folder"],
+  treeNewFolder: ["קבץ לתיקייה", "Group into folder"],
+  treeUngroup: ["פרק תיקייה", "Ungroup folder"],
+  treeRename: ["שנה שם", "Rename"],
+  treeHide: ["הסתר גוף", "Hide body"],
+  treeShow: ["הצג גוף", "Show body"],
+  treeExpandAll: ["פתח הכל", "Expand all"],
+  treeCollapseAll: ["כווץ הכל", "Collapse all"],
+  treeMigrate: ["המר להיסטוריה פרמטרית", "Convert to parametric history"],
+  treeMigrateHint: ["נבדק מול המנוע הישן לפני ההחלפה", "Verified against the current engine before it is adopted"],
+  treeMigrateRun: ["בדוק והמר", "Verify and convert"],
+  treeMigrateBlocked: ["לא ניתן להמיר מסמך זה", "This document cannot be converted"],
+  treeMigrateDone: ["הומר בהצלחה · הגרסה הישנה נשמרה", "Converted · the original is kept alongside"],
+  treeRestoreLegacy: ["שחזר גרסת מקור", "Restore legacy original"],
+  treeRestoreLegacyHint: ["העותק המלא מלפני ההמרה נשמר במסמך", "The complete pre-conversion document is retained"],
+  treeRestoreLegacyRun: ["שחזר", "Restore"],
+  treeRestoreLegacyDone: ["גרסת המקור שוחזרה · ניתן לבטל", "Legacy original restored · Undo is available"],
   projected: ["הקצוות הוטלו כקווי עזר", "Edges projected as construction lines"],
   cmdFeatures: ["תכונות", "Features"],
   cmdSketch: ["סקיצה", "Sketch"],
@@ -486,6 +552,25 @@ var TXT = {
   opBoolean: ["בוליאני", "Boolean"],
   holeWizard: ["אשף קדחים", "Hole wizard"],
   holeNeed: ["בחרו פאה או שרטטו עיגול לקדח", "Select a face or sketch a circle for the hole"],
+  opHelix: ["הליקס", "Helix / Spiral"],
+  opThread: ["הברגה", "Thread"],
+  opKnurl: ["חריטת אחיזה", "Knurl"],
+  opInsert: ["תושבת / בושינג", "Insert / bushing"],
+  toolboxFastener: ["מחברים", "Toolbox fastener"],
+  configurations: ["תצורות", "Configurations"],
+  screwMate: ["קשר הברגה", "Screw mate"],
+  tangentMate: ["משיק", "Tangent mate"],
+  limitMate: ["קשר גבול", "Limit mate"],
+  appearanceFace: ["מראה לפאה", "Face appearance"],
+  configSaved: ["תצורה נשמרה", "Configuration saved"],
+  configNew: ["תצורה חדשה", "New configuration"],
+  toolboxKind: ["סוג מחבר", "Fastener type"],
+  toolboxSize: ["קוטר", "Size"],
+  toolboxLength: ["אורך", "Length"],
+  threadNeed: ["בחרו פאה גלילית להברגה", "Select a cylindrical face for the thread"],
+  knurlNeed: ["בחרו פאה גלילית לחריטת אחיזה", "Select a cylindrical face to knurl"],
+  insertNeed: ["בחרו קדח או פאה גלילית לתושבת", "Select a hole or cylindrical face for the insert"],
+  helixAdded: ["הליקס נוסף", "Helix added"],
   refPlane: ["מישור ייחוס", "Reference plane"],
   refAxis: ["ציר ייחוס", "Reference axis"],
   refCoord: ["מערכת צירים", "Coordinate system"],
@@ -503,6 +588,7 @@ var TXT = {
   explodeView: ["מבט מפוצץ", "Exploded view"],
   motionStudy: ["חקר תנועה", "Motion study"],
   interferenceCheck: ["התנגשות", "Interference"],
+  interferenceVisualized: ["אזורי החפיפה מסומנים באדום", "Overlap regions are highlighted in red"],
   billOfMaterials: ["עץ מוצר", "Bill of materials"],
   wfPart: ["חלק", "Part"],
   wfReference: ["ייחוס", "Reference"],
@@ -537,6 +623,10 @@ var TXT = {
   newSketchKicker: ["סקיצה חדשה", "NEW SKETCH"],
   referencePickerTitle: ["בחרו ייחוס יציב", "Choose a stable reference"],
   referencePickerBody: ["סקיצה חייבת להיות מחוברת למישור או לפאה מישורית. הייחוס נשאר בהיסטוריה ונפתר בכל בנייה מחדש.", "A sketch must be attached to a plane or planar face. This reference remains in design history and is resolved on every rebuild."],
+  pickFaceTitle: ["לחצו על פאה לסקיצה", "Click a face to sketch on"],
+  pickFaceBody: ["בחרו פאה במודל — המצלמה תסתובב אליה", "Pick a face on the model — the camera turns to face it"],
+  pickFacePlanes: ["מישורי בסיס", "Datum planes"],
+  pickFaceCancel: ["ביטול בחירת פאה", "Cancel face pick"],
   unsavedDraft: ["נמצאה טיוטה שלא נשמרה. לשחזר אותה?", "An unsaved draft was found. Restore it?"],
   draftSaved: ["טיוטה נשמרה", "Draft saved"],
   cmdManager: ["מנהל פקודות", "Command manager"],
@@ -585,6 +675,7 @@ var TXT = {
   profileEnds: ["קצוות פתוחים", "open endpoints"],
   profileLoops: ["לולאות סגורות", "closed loops"],
   profileHoles: ["חורים פנימיים", "inner holes"],
+  profileRegions: ["אזורים סגורים", "enclosed regions"],
   selectionInfo: ["מידע בחירה", "Selection info"],
   selectAllSketch: ["בחר הכול בסקיצה", "Select all sketch geometry"],
   constraintExists: ["האילוץ כבר קיים", "That constraint already exists"],
@@ -604,6 +695,9 @@ var TXT = {
   guideBack: ["הקודם", "Back"],
   guideNext: ["המשך", "Continue"],
   guideSkip: ["דלג על השלב", "Skip step"],
+  guideRestart: ["התחילו את השלב מחדש", "Restart step"],
+  guideCollapse: ["כווצו את המדריך", "Collapse the guide"],
+  guideExpand: ["הרחיבו את המדריך", "Expand the guide"],
   guideClose: ["סגור מדריך", "Close guide"],
   guideDone: ["הושלם", "Completed"],
   guideWaiting: ["מחכה לפעולה שלך", "Waiting for your action"],
@@ -622,11 +716,14 @@ var TXT = {
   guideSelectTitle: ["4. בחרו קו", "4. Select a line"],
   guideSelectBody: ["לחצו על אחד מקווי המלבן. קו שנבחר מודגש, והמידע עליו מופיע בלוח הימני.", "Click one rectangle edge. The selected line is highlighted and its details appear in the right panel."],
   guideSelectTip: ["לחיצה רגילה מחליפה בחירה; Ctrl/Cmd מוסיף או מסיר ישות מהבחירה.", "A regular click replaces the selection; Ctrl/Cmd adds or removes an entity."],
+  guideSelectTipMobile: ["לחיצה בוחרת ישות; השתמשו ב׳הוסף לבחירה׳ בסרגל הבחירה כדי לסמן מספר ישויות במגע.", "Tap to select; use 'Add to selection' in the selection bar to build a multi-selection on touch."],
   guideDimTitle: ["5. הגדירו אילוץ אורך", "5. Add a length constraint"],
   guideDimBody: ["בלוח ״צורה ומידות״ שנו את ערך ״אילוץ אורך״ של הקו. הערך יהפוך למידה מניעה שתישאר ניתנת לעריכה.", "In Shape & size, change the selected line's Length constraint value. It becomes a driving dimension that remains editable."],
   guideDimTip: ["למדידה ישירה על הקנבס אפשר להשתמש גם בכלי ״מידה חכמה״ (D).", "For direct canvas measurement you can also use Smart dimension (D)."],
+  guideDimTipMobile: ["פתחו את לוח המאפיינים (Properties) בסרגל התחתון כדי לערוך מידות או בחרו מידה חכמה בגיליון הפקודות.", "Open Properties from the bottom bar to edit dimensions or tap Smart dimension in Commands."],
   guidePairTitle: ["6. בחרו שני קווים", "6. Select two lines"],
   guidePairBody: ["בחרו קו אחד, ואז החזיקו Ctrl/Cmd ולחצו על קו נוסף. לוח האילוצים יפעיל רק יחסים שמתאימים לבחירה.", "Select one line, then hold Ctrl/Cmd and click another. The constraint palette enables only relations that fit the selection."],
+  guidePairBodyMobile: ["בחרו קו אחד, הפעילו ׳הוסף לבחירה׳ בסרגל הבחירה ולחצו על הקו השני.", "Tap one line, turn on 'Add to selection' in the selection bar, and tap the second line."],
   guidePairTip: ["אפשר לבצע בחירה מרובה גם מרשימת הישויות בצד שמאל.", "You can also multi-select from the entity list on the left."],
   guideRelationTitle: ["7. הגדירו יחס בין הקווים", "7. Define a relation between lines"],
   guideRelationBody: ["לחצו על ״שווה״ בלוח האילוצים. אורך הקו השני ייקשר לאורך הראשון, והיחס יופיע ברשימת האילוצים.", "Choose Equal in the constraint palette. The second line will follow the first line's length, and the relation will appear in the constraint list."],
@@ -635,8 +732,33 @@ var TXT = {
   guideFinishBody: ["יצרתם צורה, ערכתם אותה, הוספתם מידה והגדרתם יחס בין קווים. מכאן אפשר לסגור פרופיל ולבצע Extrude כדי להפוך אותו לגוף תלת־ממדי.", "You created and edited geometry, added a dimension, and defined a relation between lines. Next, close a profile and Extrude it into a 3D solid."],
   guideFinishTip: ["מד ה־DOF בלוח הסקיצה מראה כמה חופש עוד נשאר. היעד במודל פרמטרי הוא בדרך כלל ״מוגדר במלואו״.", "The DOF indicator shows how much freedom remains. A parametric sketch is usually headed toward Fully defined."],
   guideFinish: ["סיום", "Finish"],
+  guideFinishTutorial: ["סיום המדריך", "Finish tutorial"],
+  guideContinueEditing: ["המשך עריכת החלק", "Continue editing this part"],
   guideHubTitle: ["מה תרצו ללמוד?", "What would you like to learn?"],
   guideHubBody: ["בחרו מסלול. כל מסלול מדגיש את הכלים הרלוונטיים ומתקדם רק לאחר שביצעתם את הפעולה בעורך.", "Choose a learning path. Each path highlights the relevant tools and advances after you perform the action in the editor."],
+  guideMobileTrack: ["מחוות וממשק מובייל", "Touch CAD & gestures"],
+  guideMobileTrackDesc: ["סרגל תחתון, מחוות ניווט, בחירה מרובה ואישור פעולות", "Bottom sheets, touch navigation, multi-selection, and thumb actions"],
+  guideMobileIntroTitle: ["מבנה העורך בסמארטפון", "Mobile editor layout"],
+  guideMobileIntroBody: ["בטלפון העורך משתמש בגיליונות תחתונים: תצוגה, עץ, פקודות ומאפיינים. גררו אצבע אחת לסיבוב, שתי אצבעות להזזה וצבטו לזום.", "On a phone the editor uses bottom sheets for View, Tree, Commands, and Properties. Drag one finger to orbit, two fingers to pan, and pinch to zoom."],
+  guideMobileIntroTip: ["הסרגל התחתון ושורת הפעולות נשארים בהישג האגודל.", "The bottom navigation and action row stay within thumb reach."],
+  guideMobileNavTitle: ["1. פתיחת סרגל הפקודות", "1. Open the Commands sheet"],
+  guideMobileNavBody: ["לחצו על פקודות בסרגל התחתון, ואז בחרו מלבן בלשונית הסקיצה.", "Tap Commands in the bottom bar, then choose Rectangle on the Sketch tab."],
+  guideMobileNavTip: ["גיליון הפקודות נסגר אוטומטית בעת בחירת כלי כדי לפנות מקום למודל.", "The Commands sheet auto-collapses when you pick a tool so the canvas stays clear."],
+  guideMobileSketchTitle: ["2. שרטוט סקיצה במגע", "2. Touch sketching"],
+  guideMobileSketchBody: ["גררו על המסך כדי ליצור מלבן סקיצה. השהיית מגע קצרה והצמדה מגנטית מונעות החלקה מקרית של המצלמה.", "Drag on the canvas to draw a rectangle. A short touch delay and magnetic snapping keep the camera from drifting."],
+  guideMobileSketchTip: ["הקווים והמידות מתעדכנים בזמן אמת.", "Lines and dimensions update in real time with magnetic snap."],
+  guideMobileExtrudeTitle: ["3. ביצוע אקסטרוד ואישור באגודל", "3. Extrude & thumb-friendly Accept"],
+  guideMobileExtrudeBody: ["לחצו על אקסטרוד בשורת הפעולות מעל הניווט. גיליון העץ נפתח עם עומק האקסטרוד — ערכו אותו ואז לחצו על סיום.", "Tap Extrude in the action row above the navigation. Tree opens with the depth field — adjust it, then tap Finish."],
+  guideMobileExtrudeTip: ["אישור וביטול נשארים בהישג האגודל, בלי לחפש אותם בפינות המסך.", "Accept and Cancel stay within thumb reach — no hunting in the top corners."],
+  guideMobileSelectTitle: ["4. בחירה מרובה עם סרגל הבחירה", "4. Multi-selection & selection bar"],
+  guideMobileSelectBody: ["בלי מקלדת, לחצו קודם על פאה או קצה במודל. אחר כך הפעילו ׳הוספה לבחירה׳ בסרגל שמופיע כדי לסמן עוד ישויות.", "With no keyboard, tap a face or edge first. Then turn on Add to selection in the bar that appears to pick more entities."],
+  guideMobileSelectTip: ["ניקוי מאפס את הבחירה, והסינון ממקד פאות או קצוות.", "Clear resets the selection set, while Filter isolates faces or edges."],
+  guideMobileTreeTitle: ["5. עץ המודל ובריאות הבנייה", "5. Tree sheet & rebuild health"],
+  guideMobileTreeBody: ["לחצו על עץ בסרגל התחתון כדי לראות את היסטוריית התכונות, מצב הרכיבים וסמלי שגיאות או אזהרות בנייה.", "Tap Tree in the bottom nav to view feature history, component states, and rebuild health badges."],
+  guideMobileTreeTip: ["במכשירים מתקפלים במצב רחב, עץ המודל מוצמד כעמודה קבועה לצד המודל.", "On unfolded foldables or tablets, Tree docks as a side rail."],
+  guideMobileFinishTitle: ["מוכנים לעבודה במובייל!", "Ready for touch CAD!"],
+  guideMobileFinishBody: ["למדתם את כל יסודות העבודה במגע: ניווט, מחוות, גיליונות פקודות, בחירה מרובה ואישור מהיר.", "You now know all mobile CAD essentials: touch navigation, bottom sheets, multi-selection, and quick thumb actions."],
+  guideMobileFinishTip: ["החלק שיצרתם נשאר פתוח לעריכה. לחיצה ארוכה על גאומטריה מציגה את תפריט ׳בחר דרך׳ לקצוות חופפים.", "Your new part remains open for editing. Long-pressing geometry opens Select through for overlapping topology."],
   guideSketchTrack: ["יסודות סקיצה", "Sketch basics"],
   guideSketchTrackDesc: ["צורות, בחירה, מידות ויחסים", "Shapes, selection, dimensions, and relations"],
   guideSolidworksTrack: ["פרויקט: קוביית CAD", "Project: CAD cube"],
@@ -644,6 +766,7 @@ var TXT = {
   swIntroTitle: ["נבנה את הקובייה מהסרטון", "Build the cube from the video"],
   swIntroBody: ["המסלול משחזר את הרצף מדקה 1:05: בוחרים מישור, מגדירים ריבוע, מבצעים Extrude, חותכים שלושה קדחים ניצבים ומעגלים את כל הקצוות.", "This path recreates the sequence from 1:05: choose a plane, dimension a square, Extrude it, cut three perpendicular bores, and round the edges."],
   swIntroTip: ["לחיצה על פאה במודל בוחרת אוטומטית את מישור הסקיצה המתאים.", "Clicking a model face automatically chooses its sketch plane."],
+  swIntroTipMobile: ["לחיצה על פאה במודל בוחרת אוטומטית את מישור הסקיצה ופותחת פעולות רלוונטיות בסרגל התחתון.", "Tapping a model face selects its sketch plane and exposes relevant actions in the bottom row."],
   swPlaneTitle: ["1. בחרו מישור ופתחו סקיצה", "1. Choose a plane and start a sketch"],
   swPlaneBody: ["מה עושים: בוחרים Top Plane ופותחים Sketch. אחר כך בוחרים מלבן. למה: המישור קובע שה־Extrude יעלה בציר Y. תוצאה צפויה: רשת X·Z וכלי המלבן פעיל.", "Do: choose Top Plane, start a Sketch, then choose Rectangle. Why: this plane makes the Extrude run along Y. Expected: the X·Z grid is visible and Rectangle is active."],
   swPlaneTip: ["במודל קיים אפשר ללחוץ על פאה ואז לבחור כלי סקיצה; המבט והמישור יתעדכנו יחד.", "On an existing model, click a face and then a sketch tool; the view and plane update together."],
@@ -735,6 +858,7 @@ var TXT = {
   flowerViewTitle: ["5. עברו לתצוגת מודל", "5. Switch to Model view"],
   flowerViewBody: ["לחצו על ״מודל״ כדי לראות את הפרח בתלת־ממד. גררו את התצוגה לסיבוב וגללו לזום.", "Choose Model to inspect the flower in 3D. Drag to orbit and scroll to zoom."],
   flowerViewTip: ["אפשר לחזור לשרטוט בכל רגע עם מקש 2 ולמודל עם מקש 3.", "Press 2 to return to Sketch and 3 for Model at any time."],
+  flowerViewTipMobile: ["לחצו על View בסרגל התחתון כדי לעבור בין מודל תלת־ממדי לסקיצה דו־ממדית.", "Tap View in the bottom bar to switch between 3D Model and 2D Sketch views."],
   flowerFinishTitle: ["הפרח הבסיסי מוכן", "Your basic flower is ready"],
   flowerFinishBody: ["הרכבתם מודל מורכב מכמה גופים בסיסיים. נסו כעת לצבוע את המרכז, עלי הכותרת, הגבעול והעציץ בחומרים שונים.", "You assembled a model from basic solids. Next, try assigning different colors and materials to the center, petals, stem, and pot."],
   flowerFinishTip: ["בחרו חלק ופתחו את לשונית ״חומר וגימור״ כדי להעניק לכל חלק צבע משלו.", "Select a part and open Material & finish to give each piece its own color."],
@@ -749,6 +873,7 @@ var TXT = {
   assemblyMoveTip: ["רכיב מקובע אינו זז עד שמבטלים את האפשרות ״מקובע״ בלשונית החומר/נראות.", "A grounded component will not move until Grounded is cleared in the visibility panel."],
   assemblyPairTitle: ["3. בחרו שני רכיבים", "3. Select two components"],
   assemblyPairBody: ["בחרו רכיב אחד, החזיקו Ctrl/Cmd ולחצו על הרכיב השני.", "Select one component, then hold Ctrl/Cmd and select the other."],
+  assemblyPairBodyMobile: ["בחרו רכיב אחד, הפעילו ׳הוסף לבחירה׳ בסרגל התחתון ולחצו על הרכיב השני.", "Tap one component, enable 'Add to selection' in the bottom selection bar, then tap the second component."],
   assemblyPairTip: ["סדר הבחירה חשוב: הרכיב הראשון הוא המקור והשני מותאם אליו.", "Selection order matters: the first component is the reference and the second follows it."],
   assemblyMateTitle: ["4. הוסיפו Mate של יישור X", "4. Add an Align X mate"],
   assemblyMateBody: ["לחצו על ״יישור X״. הרכיב השני יתיישר לאותו מיקום X של הרכיב הראשון והקשר יישמר בהרכבה.", "Choose Align X. The second component moves to the first component's X position and the relation remains in the assembly."],
@@ -825,6 +950,9 @@ var TXT = {
   welcomeGuided: ["מודרך", "Guided"],
   welcomeDontShow: ["אל תציגו מסך זה שוב בפתיחה", "Don't show this screen on open"],
   welcomeSettingsHint: ["אפשר להחזיר אותו בכל רגע מהגדרות העורך", "You can bring it back anytime from the editor settings"],
+  welcomeContinue: ["המשך לעורך", "Open editor"],
+  welcomeContinueDesc: ["דלגו אל המודל הריק", "Skip to the empty model"],
+  welcomeMoreStarts: ["עוד נקודות התחלה", "More starting points"],
   coachKicker: ["ליווי צעד־אחר־צעד", "Step-by-step coach"],
   coachNext: ["הצעד הבא", "Next step"],
   coachStepPlane: ["בחרו מישור עבודה ופתחו את הסקיצה הראשונה", "Choose a work plane and open your first sketch"],
@@ -1012,6 +1140,21 @@ function holeLoop(hl, includeSuppressed) {
   if (!includeSuppressed && hl.suppressed) return [];
   return hl.points || hl.loop || [];
 }
+/* Which bodies the exact kernel can rebuild from their own definition — and so
+   which ones a 3D cut can be applied to at all. A sphere or an imported mesh
+   has no profile to rebuild from: a cut through one has to be refused out loud
+   rather than dropped on the floor, which is what "it cut the box but not the
+   shape on top of it" was. */
+function partSupportsExactMesh(p) {
+  if (!p) return false;
+  if (p.kind === "box" || p.kind === "ext") return true;
+  if (p.kind === "cyl") return fin(p.r) && fin(p.h);
+  if (p.kind === "loft") return (p.pts0 || []).length >= 3 && (p.pts1 || []).length === (p.pts0 || []).length;
+  // a partial revolve would have to agree with the preview's start angle, which
+  // the kernel revolve does not take; a full turn has no start to disagree about
+  if (p.kind === "rev") return (p.pts || []).length >= 3 && Math.abs(Number(p.angle) || 360) >= 359.5;
+  return false;
+}
 function partNeedsExactMesh(p) {
   if (!p) return false;
   if (fin(p.exactFillet) && p.exactFillet > 0) return true;
@@ -1037,8 +1180,24 @@ export function activeParts(def) {
 // Command previews live outside the document so saving, rebuilding and undo
 // never mistake transient geometry for design intent.  Every visual surface
 // consumes this projection helper, which keeps 2D, 3D and drawing views in sync.
+/* Hiding a body is not suppressing the feature that made it. A hidden body is
+   still built, still exported, still weighed — it is only left out of the drawn
+   scene. Suppression, which the feature row offers, is the other thing: it stops
+   the step building at all. Conflating them would make the eye on a body row
+   quietly change the model. */
+function hiddenBodyPart(part) {
+  var hidden = E.hiddenBodies;
+  if (!hidden || !hidden.length || !part) return false;
+  return hidden.indexOf("body:" + part.id) >= 0
+    || (!!part.featureId && hidden.indexOf("body:" + part.featureId) >= 0)
+    || (!!part.derivedFeatureId && hidden.indexOf("body:" + part.derivedFeatureId) >= 0);
+}
+
 function renderedParts(def) {
   var parts=activeParts(def);
+  // Only the document being edited has a hidden set; a library thumbnail is
+  // rendered from the same function and must not inherit the editor's state.
+  if(def===E.def) parts=parts.filter(function(part){return !hiddenBodyPart(part);});
   if(def===E.def && E.authoring && Array.isArray(E.authoring.previewParts)){
     /* A finish preview is a temporary replacement for its source body, not a
        second coincident body.  Drawing both made the exact fillet flicker and
@@ -1046,6 +1205,7 @@ function renderedParts(def) {
     if(E.authoring.previewReplacesPartId)parts=parts.filter(function(part){return part.id!==E.authoring.previewReplacesPartId;});
     parts=parts.concat(E.authoring.previewParts);
   }
+  if(def && def.appearances && def.appearances.length) parts=applyAppearanceOverrides(parts, def.appearances);
   return parts;
 }
 
@@ -1088,6 +1248,7 @@ function resetClonedPartIdentity(part) {
       entry.persistentId = remap(entry.persistentId);
     });
     (part.meshData.faceRanges || []).forEach(function (entry) { entry.persistentId = remap(entry.persistentId); });
+    clearTopologyCache(part);
   }
   delete part.exactBuildToken;
   part.exactPending = false;
@@ -1169,6 +1330,7 @@ function movePart(p, dx, dy, dz) {
       p.meshData.positions[mi+2]+=dz;
     }
     clearMeshProjectionCache(p.meshData);
+    clearTopologyCache(p);
     (p.meshData.topology || []).forEach(function (entry) {
       var descriptor = entry && entry.descriptor;
       if (!descriptor) return;
@@ -1315,12 +1477,34 @@ function buildExactMesh(parent, p) {
   return mesh;
 }
 
+/* Merging a cut body's staves back into round faces is real arithmetic, and the
+   hover path asks for it on every frame. The answer only changes when the mesh
+   does, and a rebuilt mesh is a new object — so cache on that object, and let
+   the one place that edits a mesh in place (movePart) clear the entry. */
+var topologyMergeCache = new WeakMap();
+var meshSmoothFaceCache = new WeakMap();
+function clearTopologyCache(part) {
+  if (part && part.meshData) topologyMergeCache.delete(part.meshData);
+}
+
+function smoothFacesForMesh(mesh) {
+  if (!mesh || !mesh.geometry) return { faces: [], faceOfTriangle: new Int32Array(0) };
+  var cached = meshSmoothFaceCache.get(mesh.geometry);
+  if (cached) return cached;
+  var data = geometryToMeshData(mesh.geometry);
+  var grouped = data ? meshSmoothFaces(data) : { faces: [], faceOfTriangle: new Int32Array(0) };
+  meshSmoothFaceCache.set(mesh.geometry, grouped);
+  return grouped;
+}
+
 function topologyEntriesForPart(part) {
   if (!part) return [];
   var featureId = part.featureId || "feature:part:" + part.id;
   var kernel = [];
   if (part.meshData && Array.isArray(part.meshData.topology) && part.meshData.topology.length) {
     kernel = part.meshData.topology;
+    var cached = topologyMergeCache.get(part.meshData);
+    if (cached) return cached;
   } else {
     var sources = [];
     if (E.brepRun && Array.isArray(E.brepRun.topology)) sources = sources.concat(E.brepRun.topology);
@@ -1334,14 +1518,22 @@ function topologyEntriesForPart(part) {
     });
   }
   var meshCircles = meshCircleEntries(part, featureId);
-  var extras = meshCircles.length ? meshCircles : holeAndCutEdges(part, featureId);
+  /* Rims come from the mesh when there is one, from the loops otherwise; the
+     hole walls are only ours to name when no kernel topology describes them. */
+  var kernelHasFaces = kernel.some(function (entry) { return entry && entry.kind === "face"; });
+  var extras = (meshCircles.length ? meshCircles : holeAndCutEdges(part, featureId))
+    .concat(kernel.length ? [] : holeAndCutFaces(part, featureId))
+    .concat(kernelHasFaces ? [] : meshFaceEntries(part, featureId));
   var analytic = [];
   if (!kernel.length) {
     if (part.kind === "box") analytic = topologyForFeature({id:featureId,type:"box"}, {x0:part.x0,x1:part.x1,y0:part.y0,y1:part.y1,z0:part.z0,z1:part.z1});
-    else if (part.kind === "cyl") analytic = topologyForFeature({id:featureId,type:"cylinder"}, {x:part.x,y:part.y,z:part.z,r:part.r,h:part.h});
+    else if (part.kind === "cyl" && (part.r2 == null || Math.abs(part.r2 - part.r) < 1e-6)) analytic = topologyForFeature({id:featureId,type:"cylinder"}, {x:part.x,y:part.y,z:part.z,r:part.r,h:part.h});
+    else if (part.kind === "sph") analytic = topologyForFeature({id:featureId,type:"sphere"}, {x:part.x,y:part.y,z:part.z,r:part.r});
     else if (part.kind === "ext") analytic = topologyForFeature({id:featureId,type:"extrude"}, {axis:part.axis,frame:part.frame,from:part.from,to:part.to,points:part.pts,profileEntityIds:part.profileEntityIds});
   }
-  return mergeSmoothTopology(kernel.concat(analytic, extras));
+  var entries = mergeSmoothTopology(kernel.concat(analytic, extras));
+  if (kernel.length && part.meshData && kernel === part.meshData.topology) topologyMergeCache.set(part.meshData, entries);
+  return entries;
 }
 
 function profilePointToWorld(part, u, v, w, frame) {
@@ -1364,15 +1556,18 @@ function profileAxisToWorld(part, frame) {
 
 function holeAndCutEdges(part, featureId) {
   var edges = [];
-  var addLoop = function (loop, tag, from, to, frame) {
+  var addLoop = function (loop, tag, from, to, frame, axisName) {
     if (!loop || loop.length < 3) return;
     var fit = fitProfileCircle(loop);
-    var axis = profileAxisToWorld(part, frame);
+    /* A 3D cut carries its own extrusion direction: reading the part's would
+       lay a hole rim across the wrong plane on a cut made from another view. */
+    var profile = { axis: axisName || part.axis, frame: frame || part.frame };
+    var axis = profileAxisToWorld(profile, frame);
     ["start", "end"].forEach(function (end, index) {
       var w = index ? to : from;
       var persistentId = featureId + ":edge:hole:" + tag + ":" + end;
       if (fit) {
-        var origin = profilePointToWorld(part, fit.u, fit.v, w, frame);
+        var origin = profilePointToWorld(profile, fit.u, fit.v, w, frame);
         edges.push({
           ownerFeatureId: featureId, kind: "edge", persistentId: persistentId, semantic: "hole:" + tag + ":" + end,
           descriptor: { curve: "circle", semantic: "hole:" + tag + ":" + end, origin: origin, axis: axis, radius: fit.radius, measure: 2 * Math.PI * fit.radius },
@@ -1381,8 +1576,8 @@ function holeAndCutEdges(part, featureId) {
       }
       loop.forEach(function (pt, i) {
         var nxt = loop[(i + 1) % loop.length];
-        var a = profilePointToWorld(part, pt.u, pt.v, w, frame);
-        var b = profilePointToWorld(part, nxt.u, nxt.v, w, frame);
+        var a = profilePointToWorld(profile, pt.u, pt.v, w, frame);
+        var b = profilePointToWorld(profile, nxt.u, nxt.v, w, frame);
         edges.push({
           ownerFeatureId: featureId, kind: "edge", persistentId: persistentId + ":" + i, semantic: "hole:" + tag + ":" + end,
           descriptor: { curve: "line", origin: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 }, endpoints: [a, b], measure: Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) },
@@ -1390,16 +1585,39 @@ function holeAndCutEdges(part, featureId) {
       });
     });
   };
+  forEachCutLoop(part, addLoop);
+  return edges;
+}
+
+/* Every hole and cut loop of an extruded part, in the one place both the edge
+   and the face pass read them from. */
+function forEachCutLoop(part, visit) {
   (part.holes || []).forEach(function (hl, index) {
-    addLoop(holeLoop(hl), "profile:" + index, part.from, part.to, part.frame);
+    visit(holeLoop(hl), "profile:" + index, part.from, part.to, part.frame, part.axis);
   });
   (part.cuts3d || []).forEach(function (cut, index) {
     if (!cut || cut.suppressed) return;
     var from = fin(cut.from) ? cut.from : part.from;
     var to = fin(cut.to) ? cut.to : part.to;
-    addLoop(cut.loop || holeLoop(cut), "cut:" + index, from, to, cut.frame || part.frame);
+    var frame = cut.frame || part.frame;
+    var axisName = !frame && cut.axis && cut.axis !== "frame" ? cut.axis : part.axis;
+    visit(cut.loop || holeLoop(cut), "cut:" + index, from, to, frame, axisName);
   });
-  return edges;
+}
+
+/* A bore is a wall too: give every hole and cut loop of an extruded part the
+   face topology the outer profile already has, so picking inside a hole selects
+   the whole round wall instead of the one facet under the cursor. */
+function holeAndCutFaces(part, featureId) {
+  if (part.kind !== "ext") return [];
+  var faces = [];
+  forEachCutLoop(part, function (loop, tag, from, to, frame, axisName) {
+    if (!loop || loop.length < 3 || !fin(from) || !fin(to) || from === to) return;
+    faces.push.apply(faces, cutWallTopology({ id: featureId }, {
+      points: loop, axis: axisName || part.axis, frame: frame || part.frame, from: from, to: to, tag: tag,
+    }));
+  });
+  return faces;
 }
 
 function geometryToMeshData(geometry) {
@@ -1436,6 +1654,21 @@ function meshCircleEntries(part, featureId) {
       ownerFeatureId: featureId,
       kind: "edge",
       persistentId: featureId + ":edge:mesh-circle:" + index,
+      semantic: descriptor.semantic,
+      descriptor: descriptor,
+    };
+  });
+}
+
+function meshFaceEntries(part, featureId) {
+  var data = part && part.meshData && Array.isArray(part.meshData.positions) && part.meshData.positions.length >= 9 ? part.meshData : null;
+  if (!data) return [];
+  return meshSmoothFaces(data).faces.map(function (face, index) {
+    var descriptor = Object.assign({ semantic: "mesh-face:" + index }, face.descriptor || {});
+    return {
+      ownerFeatureId: featureId,
+      kind: "face",
+      persistentId: featureId + ":face:mesh:" + index,
       semantic: descriptor.semantic,
       descriptor: descriptor,
     };
@@ -1549,14 +1782,54 @@ function circleDescriptorsMatch(a, b) {
   return distanceToCircularEdge(a.origin, b) <= Math.max(0.45, ra * 0.06);
 }
 
+function exactOverlayEntries(part, features) {
+  var topology = part && part.meshData && Array.isArray(part.meshData.topology) ? part.meshData.topology : null;
+  if (!topology || !topology.length) return [];
+  var chains = (features && features.polylines || []).filter(function (line) { return (line.points || []).length >= 2; });
+  var entries = [];
+  topology.forEach(function (entry) {
+    if (!entry || entry.kind !== "edge" || !entry.descriptor) return;
+    var descriptor = entry.descriptor;
+    if (descriptor.curve !== "line" && descriptor.curve !== "circle") {
+      /* The kernel reports a free curve as two endpoints only; drawing that as
+         a chord cuts straight through the body.  Borrow the tessellated chain
+         that runs between the same ends, and skip the edge when none does. */
+      var chain = matchingMeshChain(descriptor, chains);
+      if (!chain) return;
+      descriptor = Object.assign({}, descriptor, { curve: "polyline", endpoints: chain.points });
+    }
+    if (edgePoints(descriptor).length < 2) return;
+    entries.push(descriptor === entry.descriptor ? entry : Object.assign({}, entry, { descriptor: descriptor }));
+  });
+  if (!entries.length) return [];
+  return mergeSmoothTopology(entries).filter(function (entry) { return entry.kind === "edge"; });
+}
+
+function matchingMeshChain(descriptor, chains) {
+  var ends = Array.isArray(descriptor.endpoints) ? descriptor.endpoints : [];
+  if (ends.length < 2) return null;
+  var a = ends[0], b = ends[ends.length - 1];
+  var tol = Math.max(0.45, Math.abs(Number(descriptor.measure) || 0) * 0.08);
+  var dist = function (p, q) { return Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z); };
+  return chains.find(function (line) {
+    var p0 = line.points[0], p1 = line.points[line.points.length - 1];
+    return (dist(a, p0) < tol && dist(b, p1) < tol) || (dist(a, p1) < tol && dist(b, p0) < tol);
+  }) || null;
+}
+
 /* Overlay and pick targets are the crease edges of the solid that is on
    screen. Analytic box ribs that a cut already removed never get a line, and a
    tessellated hole rim is one circle — not one selectable chord per facet. */
 function overlayEntriesForPart(part, mesh) {
+  /* An exact body carries the kernel's own edge list.  Re-deriving edges from
+     its tessellation drew every facet crease of a small fillet or chamfer as a
+     separate black line, which is what made a filleted body look shredded. */
   var data = part.meshData && Array.isArray(part.meshData.positions) && part.meshData.positions.length >= 9
     ? part.meshData
     : geometryToMeshData(mesh && mesh.geometry);
   var features = data ? meshFeatureEdges(data) : { circles: [], polylines: [] };
+  var exact = exactOverlayEntries(part, features);
+  if (exact.length) return exact;
   var kernelEdges = topologyEntriesForPart(part).filter(function (entry) { return entry.kind === "edge"; });
   var featureId = part.featureId || "feature:part:" + part.id;
   var used = new Set(), entries = [];
@@ -1666,36 +1939,100 @@ function addTopologyPickEdges(parent, part) {
   });
 }
 
+function analyticCurvedFace(descriptor) {
+  if (!descriptor) return false;
+  var surface = descriptor.surface;
+  if (surface === "cylinder") return !!(descriptor.axis && fin(Number(descriptor.radius)));
+  if (surface === "sphere") return fin(Number(descriptor.radius));
+  if (surface === "cone") return !!(descriptor.axis && fin(Number(descriptor.radius)));
+  if (surface === "torus") return !!(descriptor.axis && fin(Number(descriptor.majorRadius)) && fin(Number(descriptor.minorRadius)));
+  return false;
+}
+
+function highlightIdsFor(reference) {
+  var ids = [];
+  if (!reference) return ids;
+  if (reference.persistentId) ids.push(reference.persistentId);
+  (reference.memberPersistentIds || []).forEach(function (id) { if (id && ids.indexOf(id) === -1) ids.push(id); });
+  return ids;
+}
+
+function triangleSetForFace(mesh, descriptor, reference) {
+  var wanted = null, add = function (t) {
+    if (!(t >= 0)) return;
+    if (!wanted) wanted = {};
+    wanted[t] = true;
+  };
+  var ranges = mesh && mesh.userData && mesh.userData.cadFaceRanges;
+  var ids = highlightIdsFor(reference);
+  if (Array.isArray(ranges) && ids.length) {
+    ranges.forEach(function (range) {
+      if (!range || ids.indexOf(range.persistentId) === -1) return;
+      var start = range.triangleStart || 0, count = range.triangleCount || 0;
+      for (var t = start; t < start + count; t++) add(t);
+    });
+  }
+  if (wanted) {
+    /* Kernel ranges are the face. A merged tessellated wall expands through
+       member ids already in `ids`; throwing the ranges away would paint an
+       infinite cylinder and light every coaxial land of the same radius. */
+    return wanted;
+  }
+  var meshIndex = reference && reference.persistentId && /:face:mesh:(\d+)$/.exec(reference.persistentId);
+  if (meshIndex) {
+    var grouped = smoothFacesForMesh(mesh);
+    var face = grouped.faces[Number(meshIndex[1])];
+    if (face && Array.isArray(face.triangles)) face.triangles.forEach(add);
+  }
+  if (wanted) return wanted;
+  if (descriptor && Array.isArray(descriptor.triangleIndices)) descriptor.triangleIndices.forEach(add);
+  return wanted;
+}
+
 /* A selected face has to LOOK selected. The picker resolved a face reference
    long before this existed, but nothing on screen changed, so the honest
-   reading was "face selection does not work". Rather than depend on the exact
-   kernel's triangle ranges — analytic boxes and cylinders have none — collect
-   whichever triangles of the built mesh lie in the face's own plane and face
-   the same way. That works for every part kind the editor can build. */
-function faceHighlightMesh(mesh, descriptor, color, opacity) {
+   reading was "face selection does not work". Kernel meshes already know which
+   triangles belong to a BREP face; tessellated curves without that map are
+   grouped across non-crease edges, and analytic cylinders/spheres still match
+   by geometry so a wall never lights as a single stave. */
+function faceHighlightMesh(mesh, descriptor, color, opacity, reference) {
   if (!mesh || !mesh.geometry || !descriptor) return null;
-  /* A cylindrical wall has no single plane to test against — it is one face
-     whose normal turns all the way round. Match it on the axis instead: a
-     facet belongs to the wall when it stands parallel to the axis at the
-     right distance from it. Highlighting the plane through one facet would
-     light a single stave of a face the user picked whole. */
-  var round = descriptor.surface === "cylinder" && descriptor.axis && fin(Number(descriptor.radius));
+  var surface = descriptor.surface;
+  var round = surface === "cylinder" && descriptor.axis && fin(Number(descriptor.radius));
+  var ball = surface === "sphere" && fin(Number(descriptor.radius));
+  var cone = surface === "cone" && descriptor.axis && fin(Number(descriptor.radius));
+  var torus = surface === "torus" && descriptor.axis && fin(Number(descriptor.majorRadius)) && fin(Number(descriptor.minorRadius));
+  var curved = round || ball || cone || torus || surface === "other" || surface === "revolution" || surface === "bspline";
   var normal = descriptor.normal, origin = descriptor.origin || descriptor.center;
-  if ((!normal && !round) || !origin) return null;
+  var listed = triangleSetForFace(mesh, descriptor, reference);
+  if (!listed && (!origin || (!normal && !curved))) return null;
   var position = mesh.geometry.getAttribute("position");
   if (!position) return null;
   var index = mesh.geometry.getIndex();
-  var count = index ? index.count : position.count;
+  var triangleCount = Math.floor((index ? index.count : position.count) / 3);
   var n = normal ? new THREE.Vector3(normal.x, normal.y, normal.z).normalize() : new THREE.Vector3(0, 1, 0);
-  var axis = round ? new THREE.Vector3(descriptor.axis.x, descriptor.axis.y, descriptor.axis.z).normalize() : null;
-  var centre = new THREE.Vector3(origin.x, origin.y, origin.z);
-  var radius = round ? Math.abs(Number(descriptor.radius)) : 0;
-  var band = Math.max(.35, radius * .05);
+  var axis = (round || cone || torus) && descriptor.axis
+    ? new THREE.Vector3(descriptor.axis.x, descriptor.axis.y, descriptor.axis.z).normalize() : null;
+  var centre = origin ? new THREE.Vector3(origin.x, origin.y, origin.z) : new THREE.Vector3();
+  var radius = Math.abs(Number(descriptor.radius)) || 0;
+  var major = Math.abs(Number(descriptor.majorRadius)) || 0;
+  var minor = Math.abs(Number(descriptor.minorRadius)) || 0;
+  var slope = cone ? Math.tan(Number(descriptor.angle) || 0) : 0;
+  var band = Math.max(.35, (torus ? minor : radius) * .05);
+  var alongSpan = null;
+  if (round && descriptor.along && fin(Number(descriptor.along.min)) && fin(Number(descriptor.along.max))) {
+    alongSpan = { min: Number(descriptor.along.min), max: Number(descriptor.along.max) };
+  } else if (round && radius > 1e-9 && fin(Number(descriptor.measure)) && Number(descriptor.measure) > 0) {
+    var half = Number(descriptor.measure) / (2 * Math.PI * radius) / 2;
+    alongSpan = { min: -half, max: half };
+  }
   mesh.updateMatrixWorld(true);   // built this frame; its matrix is not current yet
   var a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
   var ab = new THREE.Vector3(), ac = new THREE.Vector3(), tn = new THREE.Vector3(), radial = new THREE.Vector3();
   var kept = [];
-  for (var i = 0; i + 2 < count; i += 3) {
+  for (var t = 0; t < triangleCount; t++) {
+    if (listed && !listed[t]) continue;
+    var i = t * 3;
     var ia = index ? index.getX(i) : i, ib = index ? index.getX(i+1) : i+1, ic = index ? index.getX(i+2) : i+2;
     a.fromBufferAttribute(position, ia).applyMatrix4(mesh.matrixWorld);
     b.fromBufferAttribute(position, ib).applyMatrix4(mesh.matrixWorld);
@@ -1703,21 +2040,51 @@ function faceHighlightMesh(mesh, descriptor, color, opacity) {
     tn.crossVectors(ab.subVectors(b, a), ac.subVectors(c, a));
     if (tn.lengthSq() < 1e-12) continue;
     tn.normalize();   // already world space — the corners were transformed above
-    if (round) {
-      if (Math.abs(tn.dot(axis)) > .25) continue;               // caps face along the axis, walls across it
-      radial.subVectors(a, centre);
-      radial.addScaledVector(axis, -radial.dot(axis));           // drop the along-axis part
-      if (Math.abs(radial.length() - radius) > band) continue;   // a bore inside the same body is not this wall
-      n.copy(tn);                                                // lift each facet along its own outward normal
+    if (!listed) {
+      if (ball) {
+        radial.subVectors(a, centre);
+        if (Math.abs(radial.length() - radius) > band) continue;
+        n.copy(radial.lengthSq() > 1e-12 ? radial.normalize() : tn);
+      } else if (torus) {
+        radial.subVectors(a, centre);
+        radial.addScaledVector(axis, -radial.dot(axis));
+        if (radial.lengthSq() < 1e-12) continue;
+        radial.normalize().multiplyScalar(major).add(centre);
+        if (a.distanceTo(radial) > minor + band) continue;
+        n.copy(tn);
+      } else if (cone) {
+        radial.subVectors(a, centre);
+        var along = radial.dot(axis);
+        radial.addScaledVector(axis, -along);
+        var expected = Math.abs(radius + along * slope);
+        if (Math.abs(radial.length() - expected) > Math.max(band, expected * .05)) continue;
+        n.copy(tn);
+      } else if (round) {
+        if (Math.abs(tn.dot(axis)) > .25) continue;               // caps face along the axis, walls across it
+        radial.subVectors(a, centre);
+        var along = radial.dot(axis);
+        if (alongSpan && (along < alongSpan.min - band || along > alongSpan.max + band)) continue;
+        radial.addScaledVector(axis, -along);           // drop the along-axis part
+        if (Math.abs(radial.length() - radius) > band) continue;   // a bore inside the same body is not this wall
+        n.copy(tn);                                                // lift each facet along its own outward normal
+      } else if (curved) {
+        continue;
+      } else {
+        /* Geometry winding is not guaranteed to agree with the analytic face
+           normal (especially on extrusions).  Plane distance already rejects
+           the opposite side, so orientation must be compared unsigned. */
+        if (Math.abs(tn.dot(n)) < .96) continue;
+        // and in the same plane, not just parallel to it — the far side of a box
+        // is parallel to the near one
+        var offset = (a.x-origin.x)*n.x + (a.y-origin.y)*n.y + (a.z-origin.z)*n.z;
+        if (Math.abs(offset) > .35) continue;
+        /* Lift along the side the facet actually shows. A pocket wall's analytic
+           normal points into the material it was cut from, and lifting that way
+           buries the overlay inside the body. */
+        if (tn.dot(n) < 0) n.multiplyScalar(-1);
+      }
     } else {
-      /* Geometry winding is not guaranteed to agree with the analytic face
-         normal (especially on extrusions).  Plane distance already rejects
-         the opposite side, so orientation must be compared unsigned. */
-      if (Math.abs(tn.dot(n)) < .96) continue;
-      // and in the same plane, not just parallel to it — the far side of a box
-      // is parallel to the near one
-      var offset = (a.x-origin.x)*n.x + (a.y-origin.y)*n.y + (a.z-origin.z)*n.z;
-      if (Math.abs(offset) > .35) continue;
+      n.copy(tn);
     }
     /* Lift the overlay a hair off the surface it copies. Coincident triangles
        z-fight no matter what the render order says, and polygon offset alone is
@@ -1748,17 +2115,54 @@ function addFaceHighlights(parent, part, mesh) {
   if (!part || !mesh || E.docType !== "part") return;
   var entries = topologyEntriesForPart(part).filter(function (entry) { return entry.kind === "face"; });
   var drawn = new Set();
+  var featureId = part.featureId || "feature:part:" + part.id;
   var paint = function (reference, color, opacity) {
     if (!reference || drawn.has(reference.persistentId)) return;
     var entry = entries.find(function (candidate) { return candidate.persistentId === reference.persistentId; });
+    /* Only the body that owns the face lights up. One cut runs through several
+       bodies, and matching a cylinder by axis and radius alone lit the same
+       bore in every one of them. */
+    if (!entry && reference.ownerFeatureId && reference.ownerFeatureId !== featureId) return;
     var descriptor = (entry && entry.descriptor) || reference.descriptor;
-    var highlight = faceHighlightMesh(mesh, descriptor, color, opacity);
+    var highlight = faceHighlightMesh(mesh, descriptor, color, opacity, entry || reference);
     if (!highlight) return;
     drawn.add(reference.persistentId);
     parent.add(highlight);
   };
   (E.topologySelection || []).forEach(function (reference) { if (reference.kind === "face") paint(reference, 0xff7200, .62); });
   if (E.hoverTopology && E.hoverTopology.kind === "face") paint(E.hoverTopology, 0x24b7ff, .38);
+}
+
+function addFaceAppearances(parent, part, mesh) {
+  if (!part || !mesh || E.docType !== "part") return;
+  var overlays = faceAppearanceOverrides(E.def && E.def.appearances);
+  if (!overlays.length) return;
+  var entries = topologyEntriesForPart(part).filter(function (entry) { return entry.kind === "face"; });
+  var featureId = part.featureId || "feature:part:" + part.id;
+  overlays.forEach(function (appearance) {
+    var entry = entries.find(function (candidate) { return candidate.persistentId === appearance.persistentId; });
+    if (!entry) return;
+    if (entry.ownerFeatureId && entry.ownerFeatureId !== featureId) return;
+    var highlight = faceHighlightMesh(mesh, entry.descriptor, hexNum(appearance.color), 0.88, entry);
+    if (!highlight) return;
+    var painted = highlight.material;
+    highlight.material = new THREE.MeshStandardMaterial({
+      color: hexNum(appearance.color),
+      metalness: Number.isFinite(Number(appearance.metal)) ? appearance.metal : 0.2,
+      roughness: Number.isFinite(Number(appearance.rough)) ? appearance.rough : 0.5,
+      transparent: true,
+      opacity: 0.92,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+    });
+    if (painted && painted.dispose) painted.dispose();
+    highlight.raycast = function () {};
+    highlight.userData.cadAppearance = appearance.id;
+    parent.add(highlight);
+  });
 }
 
 function buildExt(parent, p, opt) {
@@ -1884,11 +2288,67 @@ function buildPart(g, p, displayStyle) {
       me.material = me.material.clone();
       if (me.material.emissive) me.material.emissive.setHex(0x3f2508);
     }
+    var dependencyId=p.derivedFeatureId || p.featureId,dependency=dependencyRole(dependencyId);
+    if(dependency&&me.material){
+      me.material=me.material.clone();
+      if(me.material.emissive)me.material.emissive.setHex(dependency==="focus"?0x5a3a00:dependency==="upstream"?0x063a5a:0x42135f);
+      if(me.material.emissiveIntensity!=null)me.material.emissiveIntensity=.85;
+    } else if(E.dependencyHighlight&&me.material){
+      me.material=me.material.clone();me.material.transparent=true;me.material.opacity=Math.min(Number(me.material.opacity)||1,.2);me.material.depthWrite=false;
+    }
     addMeshSharpEdges(me);
     addTopologyPickEdges(g, p);
+    addFaceAppearances(g, p, me);
     addFaceHighlights(g, p, me);
+    addPartFeatureOverlays(g, p);
   }
   return me;
+}
+
+function addOverlayPolyline(parent, points, color, renderOrder, userData) {
+  if (!points || points.length < 2) return;
+  var geometry = new THREE.BufferGeometry().setFromPoints(points.map(function (p) { return new THREE.Vector3(p.x, p.y, p.z); }));
+  var material = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.95, depthTest: true, depthWrite: false });
+  var line = new THREE.Line(geometry, material);
+  line.renderOrder = renderOrder || 24;
+  line.userData.cadOverlay = true;
+  if (userData) Object.assign(line.userData, userData);
+  parent.add(line);
+}
+
+function addPartFeatureOverlays(parent, part) {
+  var thread = part.cosmeticThread;
+  if (thread && thread.overlay && thread.overlay.length > 1) addOverlayPolyline(parent, thread.overlay, 0x3d6ea8, 25);
+  if (part.modeledThread && part.modeledThread.path) addOverlayPolyline(parent, part.modeledThread.path, 0x2f6b4f, 25);
+  var knurl = part.knurl || (part.knurlMesh && part.knurlMesh.spec);
+  if (knurl) {
+    var meshData = part.knurlMesh && part.knurlMesh.positions ? part.knurlMesh : knurlBandMesh(knurl);
+    if (meshData && meshData.positions && meshData.positions.length >= 9) {
+      var geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(meshData.positions, 3));
+      if (meshData.indices) geometry.setIndex(new THREE.BufferAttribute(meshData.indices, 1));
+      geometry.computeVertexNormals();
+      var mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+        color: 0x6a737d, metalness: 0.45, roughness: 0.55, transparent: true, opacity: 0.88, side: THREE.DoubleSide,
+      }));
+      mesh.renderOrder = 18;
+      mesh.userData.cadOverlay = true;
+      parent.add(mesh);
+    }
+    knurlGroovePolylines(knurl).forEach(function (points) { addOverlayPolyline(parent, points, 0x1f2933, 26); });
+  }
+}
+
+function addDocumentOverlays(parent, def) {
+  if (!def) return;
+  documentHelixOverlays(def).forEach(function (curve) {
+    var selected = curve.id && curve.id === E.selectedReferenceId;
+    addOverlayPolyline(parent, curve.points, selected ? 0xffd060 : 0xf0b429, selected ? 28 : 23, { cadReferenceId: curve.id });
+  });
+  documentThreadOverlays(def).forEach(function (curve) {
+    if (def.parts && def.parts.some(function (part) { return part.id === curve.id && part.cosmeticThread && part.cosmeticThread.overlay; })) return;
+    addOverlayPolyline(parent, curve.points, 0x3d6ea8, 25);
+  });
 }
 
 export function registerCustomModel(def) {
@@ -2077,6 +2537,7 @@ var E = {
   assembly: null,
   brepRun: null,
   coreRun: null,
+  lastCutSkipped: [],   // bodies the last cut passed through but could not take
   componentSel: [],   // assembly multi-selection; last entry is primary
   sel: null,          // selected part
   tool: "select",
@@ -2100,19 +2561,24 @@ var E = {
   polySides: 6,       // side count the polygon tool draws with
   solveInfo: null,    // last solver report: DOF, status, conflicting constraint ids
   topologySelection: [], // persistent face/edge/axis references from the 3D viewport
+  selectedReferenceId: null, // FeatureManager / overlay pick of a datum or helix
+  facePick: null,     // {tool} while a new sketch is waiting for a face click in 3D
   hoverTopology: null, // topology reference under the cursor in the 3D viewport
   selectionFilter: "all",
+  mobileAddSelection: false,
   inferenceIndex: 0,
   inferenceCandidates: [],
   overlays: { shortcut: false, views: false, menu: false, gesture: false },
-  /* Two habits every CAD user turns off first, so they start off here. Normal
-     to: snapping the camera square to a plane the moment a sketch opens, which
-     throws away the 3D view you were working in. Auto dimension: turning a
-     number typed while drawing into a driving dimension, so the sketch arrives
-     already defined instead of staying free until it is dimensioned on
-     purpose. Both are toggles in Settings, not decisions made for you. */
+  /* Normal-to stays opt-in because it throws away the working 3D view. Typed
+     dimensions are opt-out: entering an exact number is explicit design intent,
+     so the placed geometry keeps it as an editable driving constraint. */
   sketchNormalTo: false,
-  autoDimTyped: false,
+  autoDimTyped: true,
+  section: { enabled:false, axis:"x", offset:0, flip:false },
+  interferenceHits: [],
+  dependencyHighlight: null,
+  leftCollapsed: false,
+  rightCollapsed: false,
   drag: null,
   dimPick: [],        // first/second Smart Ruler endpoints in Drawing mode
   dimSel: null,       // selected placed dimension constraint id
@@ -2243,8 +2709,16 @@ function cutRangeForAxis(bounds, axis) {
 var exactBuildTimers = new WeakMap();
 
 async function exactBrepForPart(p) {
-  if (!p || !["ext","box","cyl"].includes(p.kind)) throw new Error("Exact operations require an extrude, box, or straight cylinder");
+  if (!partSupportsExactMesh(p)) throw new Error("This body has no profile the exact kernel can rebuild");
   var ownerFeatureId = p.featureId || "feature:part:" + p.id, solid, expectedTopology;
+  /* Everything the kernel builds is made about the origin and moved into place,
+     because a revolve turns around the world axis wherever the body sits. */
+  var moveTo = async function (shape, delta) {
+    if (!delta || (!delta.x && !delta.y && !delta.z)) return shape;
+    var moved = await translateBrep(shape, delta);
+    disposeBrep(shape);
+    return moved;
+  };
   if (p.kind==="box") {
     var boxParams={x:Math.min(p.x0,p.x1),y:Math.min(p.y0,p.y1),z:Math.min(p.z0,p.z1),w:Math.abs(p.x1-p.x0),h:Math.abs(p.y1-p.y0),d:Math.abs(p.z1-p.z0)};
     solid=await makeBrepPrimitive({type:"box",...boxParams});
@@ -2253,10 +2727,21 @@ async function exactBrepForPart(p) {
     var cylParams={x:p.x,y:p.y,z:p.z,r:p.r,h:p.h};
     solid=await makeBrepPrimitive({type:"cylinder",...cylParams});
     expectedTopology=topologyForFeature({id:ownerFeatureId,type:"cylinder"},cylParams);
-  } else if (p.kind==="ext") {
+  } else if (p.kind==="cyl") {
+    // a cone or a taper: revolve the meridian the preview lathes
+    var base=Math.max(1e-4,Math.abs(Number(p.r)||0)), top=Math.max(1e-4,Math.abs(Number(p.r2!=null?p.r2:p.r)||0)), tall=Math.abs(Number(p.h)||0);
+    solid=await makeBrepRevolve({axis:"y",angle:360,points:[{u:0,v:0},{u:base,v:0},{u:top,v:tall},{u:0,v:tall}]});
+    solid=await moveTo(solid,{x:p.x,y:p.y,z:p.z});
+  } else if (p.kind==="rev") {
+    solid=await makeBrepRevolve({axis:"y",angle:360,points:(p.pts||[]).map(function(q){return {u:Math.abs(Number(q.u)||0),v:Number(q.v)||0};})});
+    solid=await moveTo(solid,{x:p.x||0,y:0,z:p.z||0});
+  } else if (p.kind==="loft") {
+    var section=function(points,w){return points.map(function(q){var xyz=loftXYZ(p.axis,q.u,q.v,w);return {x:xyz[0],y:xyz[1],z:xyz[2]};});};
+    solid=await makeBrepLoft({sections:[section(p.pts0,p.from),section(p.pts1,p.to)],solid:true,ruled:true});
+  } else {
     solid=await makeBrepExtrusion({axis:p.axis,frame:p.frame,from:p.from,to:p.to,points:p.pts});
     expectedTopology=topologyForFeature({id:ownerFeatureId,type:"extrude"},{axis:p.axis,frame:p.frame,from:p.from,to:p.to,points:p.pts,profileEntityIds:p.profileEntityIds});
-  } else throw new Error("Exact operations require a straight cylinder");
+  }
   var b = partBounds(p), cuts = [];
   (p.holes || []).forEach(function (entry) {
     var loop = holeLoop(entry);
@@ -2264,7 +2749,7 @@ async function exactBrepForPart(p) {
   });
   (p.cuts3d || []).forEach(function (cut) { if (!cut.suppressed) cuts.push(cut); });
   for (var i = 0; i < cuts.length; i++) {
-    var cut = cuts[i], range = cut.frame ? {from:cut.from,to:cut.to} : cutRangeForAxis(b, cut.axis);
+    var cut = cuts[i], range = fin(cut.from) && fin(cut.to) ? {from:cut.from,to:cut.to} : cutRangeForAxis(b, cut.axis);
     var cutter = await makeBrepExtrusion({axis:cut.axis,frame:cut.frame,from:range.from,to:range.to,points:cut.loop});
     var next = await booleanBrep("subtract", solid, cutter);
     disposeBrep(solid); disposeBrep(cutter); solid = next;
@@ -2306,7 +2791,7 @@ async function exactBrepForPart(p) {
 }
 
 function queueExactMesh(p) {
-  if (!p || !["ext","box","cyl"].includes(p.kind)) return;
+  if (!partSupportsExactMesh(p)) return;
   var scheduled = exactBuildTimers.get(p);
   if (scheduled) { clearTimeout(scheduled); exactBuildTimers.delete(p); }
   var token = (p.exactBuildToken || 0) + 1;
@@ -2357,48 +2842,114 @@ function scheduleExactMesh(p) {
   }, 140));
 }
 
+/* A committed cut changes the source solid underneath any cached exact mesh.
+   This matters most for Cut-after-Fillet: a same-axis cut can stay a cheap
+   profile hole, but the fillet's old mesh would otherwise keep rendering and
+   hide the new hole forever.  Drop the stale mesh immediately so the analytic
+   fallback shows profile holes, then rebuild when this body still needs the
+   exact kernel (cross-cuts, fillets, chamfers, or shells). */
+function invalidatePartMeshAfterCut(p) {
+  if (!p) return;
+  delete p.meshData;
+  p.exactPending = false;
+  p.exactError = null;
+  if (partNeedsExactMesh(p)) scheduleExactMesh(p);
+}
+
 // Through-cut: punch `loop` as a hole into every part under it in the current view.
 // Cuts on the extrusion axis remain lightweight profile holes. Orthogonal cuts
 // become OpenCascade booleans, so the same body can be bored from several faces
 // just like the workflow in a full CAD modeller.
-function applyCut(loop, featureId) {
+function footprintHasPoint(footprint, q) {
+  if (!footprint || !q) return false;
+  if (footprint.type === "poly") return pointInPoly(q, footprint.pts);
+  if (footprint.type === "circle") return Math.hypot(q.u - footprint.u, q.v - footprint.v) <= footprint.r;
+  if (!fin(footprint.u0) || !fin(footprint.v0)) return false;
+  return q.u >= Math.min(footprint.u0,footprint.u1) && q.u <= Math.max(footprint.u0,footprint.u1)
+    && q.v >= Math.min(footprint.v0,footprint.v1) && q.v <= Math.max(footprint.v0,footprint.v1);
+}
+function footprintPoint(footprint) {
+  if (!footprint) return null;
+  if (footprint.type === "poly") return footprint.pts && footprint.pts.length ? loopCentroid(footprint.pts) : null;
+  if (footprint.type === "circle") return { u:footprint.u, v:footprint.v };
+  if (!fin(footprint.u0) || !fin(footprint.v0)) return null;
+  return { u:(footprint.u0 + footprint.u1) / 2, v:(footprint.v0 + footprint.v1) / 2 };
+}
+
+/* Which bodies a cut passes through, measured in the cut's own space — see
+   core/cut_scope.js for why that space is the cut's and not the viewport's. */
+function cutFootprint(part, frame, axisName) {
+  return cutScopeFootprint(part, partBounds(part), frame, axisName, function (hole) { return holeLoop(hole); });
+}
+
+function applyCut(loop, featureId, hint, cutSpec) {
   if (!loop || loop.length < 3) return 0;
-  var frame=activeSketchFrame(), ax = frame ? "frame" : axisOfView(), c = loopCentroid(loop), changed = 0;
+  // The cut belongs to whatever it overlaps, not to whatever happens to sit
+  // under its average point: the centroid of a C-shaped or ring-shaped loop is
+  // in the notch, and testing only that point silently cut nothing.
+  /* Feature application happens after plane-edit mode may have closed.  The
+     sketch still owns its plane, so never fall back to the camera/view here:
+     doing so mirrored or displaced cuts authored on a selected face. */
+  var sketch=ensureSketch(E.def),frame=sketch && sketch.frameSpace==="local" ? sketch.frame : null;
+  var ax=frame ? "frame" : planeAxis(sketch && sketch.plane || E.view),changed=0;
+  cutSpec=cutSpec || {};
+  var bounded=!["through-all","up-to-next","up-to-face"].includes(cutSpec.endCondition || "through-all")
+    && fin(cutSpec.from) && fin(cutSpec.to);
+  var c = hint && fin(hint.u) && fin(hint.v) ? hint : loopInteriorPoint(loop);
+  var skipped = [];
   E.def.parts = E.def.parts.map(function (p) {
-    var footprint=partUV(p), inside=footprint.type === "poly"
-      ? pointInPoly(c,footprint.pts)
-      : footprint.type === "circle"
-        ? Math.hypot(c.u-footprint.u,c.v-footprint.v)<=footprint.r
-        : c.u >= Math.min(footprint.u0,footprint.u1) && c.u <= Math.max(footprint.u0,footprint.u1)
-          && c.v >= Math.min(footprint.v0,footprint.v1) && c.v <= Math.max(footprint.v0,footprint.v1);
-    if (frame && inside && (p.kind==="box" || p.kind==="ext" || (p.kind==="cyl" && (p.r2==null || Math.abs(p.r2-p.r)<1e-6)))) {
-      var range=frameRangeForBounds(partBounds(p),frame);
+    var footprint=cutFootprint(p, frame, ax), reference=footprintPoint(footprint);
+    var inside=footprintHasPoint(footprint,c)
+      || loop.some(function (q) { return footprintHasPoint(footprint,q); })
+      || (reference ? pointInPoly(reference,loop) : false);
+    /* A cut with a stated depth only reaches as far as it says. Recording it on
+       a body outside that depth costs a kernel rebuild that subtracts nothing,
+       and makes the history claim a cut that never happened. */
+    if (inside && bounded) {
+      var reach = bodyDepthRange(partBounds(p), frame, ax);
+      var lo = Math.min(cutSpec.from, cutSpec.to), hi = Math.max(cutSpec.from, cutSpec.to);
+      if (reach.to <= lo + 1e-6 || reach.from >= hi - 1e-6) inside = false;
+    }
+    /* A body the exact kernel cannot rebuild cannot be cut. It used to be
+       skipped in silence, which reads as "the cut went through the box but not
+       through the shape standing on it". Collect it and say so. */
+    if (inside && !partSupportsExactMesh(p)) { skipped.push(p.name || p.kind || "body"); return p; }
+    if (frame && inside && partSupportsExactMesh(p)) {
+      var range=bounded ? {from:cutSpec.from,to:cutSpec.to} : frameRangeForBounds(partBounds(p),frame);
       p.cuts3d=p.cuts3d || [];
       p.cuts3d.push({axis:"frame",frame:cloneData(frame),from:range.from,to:range.to,loop:loop.map(function(q){return {u:q.u,v:q.v};}),featureId:featureId || undefined});
       changed++;
-      scheduleExactMesh(p);
+      invalidatePartMeshAfterCut(p);
       return p;
     }
     if (p.kind === "box") {
       if (inside) p = boxToExt(p, ax);
     }
-    if (p.kind === "ext") {
-      if (inside) {
-        var copy = loop.map(function (q) { return { u:q.u, v:q.v }; });
-        if (p.axis === ax && !(p.cuts3d && p.cuts3d.length)) {
-          p.holes = p.holes || [];
-          p.holes.push(featureId ? { points: copy, featureId: featureId } : copy);
-        } else {
-          p.cuts3d = p.cuts3d || [];
-          p.cuts3d.push({axis:ax,loop:copy,featureId:featureId || undefined});
-        }
-        changed++;
-        if (p.cuts3d && p.cuts3d.length) scheduleExactMesh(p);
+    if (inside) {
+      var copy = loop.map(function (q) { return { u:q.u, v:q.v }; });
+      if (p.kind === "ext" && p.axis === ax && !bounded && !(p.cuts3d && p.cuts3d.length)) {
+        p.holes = p.holes || [];
+        p.holes.push(featureId ? { points: copy, featureId: featureId } : copy);
+      } else {
+        p.cuts3d = p.cuts3d || [];
+        var cutRange=bounded ? {from:cutSpec.from,to:cutSpec.to} : cutRangeForAxis(partBounds(p),ax);
+        p.cuts3d.push({axis:ax,from:cutRange.from,to:cutRange.to,loop:copy,featureId:featureId || undefined});
       }
+      changed++;
+      invalidatePartMeshAfterCut(p);
     }
     return p;
   });
+  E.lastCutSkipped = skipped;
   return changed;
+}
+
+/* What to add to the "cut applied" message when some body under the loop could
+   not take it. Empty when every body was cut. */
+function cutSkipNote() {
+  var skipped = E.lastCutSkipped || [];
+  if (!skipped.length) return "";
+  return " · " + t("cutSkipped") + ": " + skipped.join(", ");
 }
 
 // Fillet: replace polygon corner i with an arc of radius r (SolidWorks-style corner round).
@@ -2589,6 +3140,7 @@ const H = createHistory({
     E.sel = null;
     E.ssel = [];
     E.topologySelection = [];
+    E.facePick = null;
     E.componentSel = [];
     refreshAll();
   },
@@ -2789,6 +3341,15 @@ function tryRestoreModelerDraft() {
     part.id = part.id || uid();
     part.featureId = part.featureId || "feature:part:" + part.id;
   });
+  var restoredSketch = ensureSketch(E.def), restoredHistory = E.def.history || [];
+  E.solveInfo = solveSketch(restoredSketch);
+  E._solveSketchId = restoredSketch.id;
+  E.authoring = {
+    phase:"model", referenceId:restoredSketch.referenceId || null, sketchId:restoredSketch.id,
+    featureType:null, sketchSelection:[restoredSketch.id], featureSelection:[],
+    workflowFocus:restoredHistory.some(function (entry) { return entry.kind === "feature"; }) ? "history"
+      : restoredHistory.some(function (entry) { return entry.kind === "sketch"; }) ? "feature" : "context",
+  };
   H.clear().seed();
   savedHistoryId = null;
   syncDirty();
@@ -3007,6 +3568,36 @@ function toUV(px, py) {
 
 /* ================= DOM ================= */
 var root = null;
+var modelerBackgroundState = [];
+var modelerReturnFocus = null;
+
+function setModelerBackgroundIsolation(on) {
+  if (on) {
+    if (modelerBackgroundState.length) return;
+    /* Isolate only product-owned planner roots. A blanket walk over every
+       <body> child also caught browser/assistive-tech integration nodes and
+       could make the page's control surface disappear as the launch click
+       finished. The main planner lives in #app; the remaining selectors are
+       its body-level sheets and static overlays. Editor chrome deliberately
+       stays outside this list. */
+    document.querySelectorAll(
+      "#app, #start-screen, #drawer-backdrop, #crosshair, #m-ctx, #m-sheet, #m-sheet-backdrop"
+    ).forEach(function (node) {
+      if (node === root) return;
+      modelerBackgroundState.push({ node:node, inert:!!node.inert, ariaHidden:node.getAttribute("aria-hidden") });
+      node.inert = true;
+      node.setAttribute("aria-hidden", "true");
+    });
+    return;
+  }
+  modelerBackgroundState.forEach(function (state) {
+    if (!state.node || !state.node.isConnected) return;
+    state.node.inert = state.inert;
+    if (state.ariaHidden == null) state.node.removeAttribute("aria-hidden");
+    else state.node.setAttribute("aria-hidden", state.ariaHidden);
+  });
+  modelerBackgroundState = [];
+}
 var swapView = null;
 function el(tag, cls, html) {
   var e = document.createElement(tag);
@@ -3018,6 +3609,12 @@ function btn(label, cb, cls) {
   var b = el("button", cls || "", label);
   b.addEventListener("click", cb);
   return b;
+}
+function namedButton(button, label) {
+  if (!button) return button;
+  button.setAttribute("aria-label", label);
+  button.title = label;
+  return button;
 }
 
 // tools carry their key in the caption so the shortcut is learnable in passing
@@ -3050,8 +3647,13 @@ function commandButton(id, icon, label, key, cls, full) {
   );
 }
 
-function commandGroup(label, commands) {
-  return '<div class="md-command-group"><div class="md-command-items">' + commands.join("") +
+/* `rank` is "secondary" for the groups a phone collapses behind their heading.
+   It is inert on the desktop ribbon, which lays every group out side by side —
+   it only tells the borrowed-into-a-sheet stylesheet which headings are
+   drawers, so 23 commands stop arriving as one endless column. */
+function commandGroup(label, commands, rank) {
+  return '<div class="md-command-group" data-cmdgroup="' + (rank || "primary") + '">' +
+    '<div class="md-command-items">' + commands.join("") +
     '</div><span class="md-command-group-label">' + label + "</span></div>";
 }
 
@@ -3070,6 +3672,7 @@ function destroyDOM() {
   E.modelPlaneActive = false;
   window.removeEventListener("keydown", onKey);
   teardownModelerMobile(); // returns any borrowed panel before root is dropped
+  setModelerBackgroundIsolation(false);
   if (root) root.remove();
   root = null;
 }
@@ -3078,6 +3681,9 @@ function buildDOM() {
   E.lang = getLang();
   root = el("div", "", "");
   root.id = "modeler";
+  root.setAttribute("role", "dialog");
+  root.setAttribute("aria-modal", "true");
+  root.setAttribute("aria-label", t("title"));
   root.innerHTML =
     '<div class="md-head">' +
     '<div class="md-head-logo">' + cadIcon("mode3d") + ' <b>' + t("title") + "</b>" +
@@ -3137,19 +3743,23 @@ function buildDOM() {
       commandGroup(t("grpStart"), [
         commandButton("newsketch", "ph-pencil-line", t("createSketch"), null, "primary"),
         commandButton("extrude", "ph-cube", t("opExtrude"), null, "primary"),
-        commandButton("extrudecut", "ph-scissors", t("extrudeCut"), null),
+        commandButton("extrudecut", "ph-scissors", t("extrudeCut"), null, "primary"),
         commandButton("revolvefeature", "ph-arrow-counter-clockwise", t("opRevolve"), "R"),
         commandButton("sweepfeature", "ph-path", t("opSweep")),
         commandButton("loftfeature", "ph-stack", t("loftOp")),
-        commandButton("holefeature", "ph-circle-dashed", t("holeWizard")),
+        commandButton("holefeature", "ph-circle-dashed", t("holeWizard"), null, "primary"),
+        commandButton("helixfeature", "helixfeature", t("opHelix")),
+        commandButton("threadfeature", "threadfeature", t("opThread")),
+        commandButton("knurlfeature", "knurlfeature", t("opKnurl")),
       ]) +
       commandGroup(t("grpFinish"), [
-        commandButton("filletfeature", "ph-corners-out", t("quickFillet")),
-        commandButton("chamferfeature", "ph-corners-in", t("quickChamfer")),
+        commandButton("filletfeature", "ph-corners-out", t("quickFillet"), null, "primary"),
+        commandButton("chamferfeature", "ph-corners-in", t("quickChamfer"), null, "primary"),
         commandButton("shellfeature", "ph-bowl-food", t("shellOp")),
         commandButton("patternfeature", "ph-dots-nine", t("quickPattern")),
         commandButton("mirrorfeature", "ph-flip-horizontal", t("quickMirror")),
         commandButton("booleanfeature", "ph-intersect", t("opBoolean")),
+        commandButton("insertfeature", "insertfeature", t("opInsert")),
       ]) +
       commandGroup(t("grpDirect"), [
         commandButton("directbox", "ph-cube", t("cap_srect"), "B", "", t("tool_rect")),
@@ -3157,29 +3767,30 @@ function buildDOM() {
         commandButton("directsph", "ph-sphere", t("tool_sph"), "S"),
         commandButton("directpoly", "ph-polygon", t("tool_poly"), "P"),
         commandButton("directrev", "ph-spiral", t("tool_rev")),
-      ]) +
+      ], "secondary") +
       commandGroup(t("grpReferences"), [
         commandButton("refplane", "ph-square-half", t("refPlane"), null, "", t("refPlane")),
         commandButton("refaxis", "ph-axis-arrow", t("refAxis"), null, "", t("refAxis")),
         commandButton("coordsys", "ph-crosshair", t("refCoord"), null, "", t("refCoord")),
-      ]) +
+      ], "secondary") +
       commandGroup(t("grpStandards"), [
         commandButton("stdscrew", "ph-screwdriver", t("stdScrewCommand"), null, "", t("stdScrewCommand")),
+        commandButton("toolboxfastener", "stdscrew", t("toolboxFastener"), null, "", t("toolboxFastener")),
         commandButton("stdgear", "ph-gear-six", t("stdGearCommand"), null, "", t("stdGearCommand")),
-      ]) +
+      ], "secondary") +
     '</div>' +
     '<div class="md-command-pane" data-command-pane="sketch">' +
       commandGroup(t("grpSketch"), [
         commandButton("select", "ph-cursor", t("cap_select"), "V", "", t("tool_select")),
-        commandButton("wall", "ph-line-segment", t("cap_wall"), "L", "", t("tool_wall")),
-        commandButton("srect", "ph-rectangle", t("cap_srect"), "Q", "", t("tool_srect")),
-        commandButton("scirc", "ph-circle-dashed", t("cap_scirc"), "G", "", t("tool_scirc")),
+        commandButton("wall", "ph-line-segment", t("cap_wall"), "L", "primary", t("tool_wall")),
+        commandButton("srect", "ph-rectangle", t("cap_srect"), "Q", "primary", t("tool_srect")),
+        commandButton("scirc", "ph-circle-dashed", t("cap_scirc"), "G", "primary", t("tool_scirc")),
         commandButton("sarc", "ph-bezier-curve", t("cap_sarc"), "A", "", t("tool_sarc")),
         commandButton("sslot", "ph-pill", t("tool_sslot"), "J"),
         commandButton("spoly", "ph-hexagon", t("cap_spoly"), "N", "", t("tool_spoly")),
         commandButton("sell", "ph-circle", t("tool_sell"), "Y"),
         commandButton("dim", "ph-ruler", t("cap_dim"), "D", "primary", t("tool_dim")),
-        commandButton("trim", "ph-scissors", t("tool_trim"), "T"),
+        commandButton("trim", "ph-scissors", t("tool_trim"), "T", "primary"),
         commandButton("extend", "ph-arrows-out-line-horizontal", t("tool_extend"), "E"),
       ]) +
       commandGroup(t("grpSketchEdit"), [
@@ -3190,14 +3801,16 @@ function buildDOM() {
         commandButton("pattern", "ph-dots-nine", t("cap_pattern"), null, "", t("sketchPattern")),
         commandButton("circpattern", "ph-circles-three", t("cap_circpattern"), null, "", t("sketchCircPattern")),
         commandButton("project", "ph-projector-screen", t("cap_project"), null, "", t("projectEdges")),
-      ]) +
+      ], "secondary") +
     '</div>' +
     '<div class="md-command-pane" data-command-pane="evaluate">' +
       commandGroup(t("cmdEvaluate"), [
         commandButton("regen", "ph-arrows-clockwise", t("regenerate"), "Ctrl+B", "primary", t("regenerate")),
         commandButton("fit", "ph-crosshair-simple", t("zoomFit"), "F"),
         commandButton("drawing", "ph-file-svg", t("drawingExport")),
+        commandButton("config", "config", t("configurations")),
         commandButton("mass", "ph-scales", t("massProps"), null, "", t("massProps")),
+        commandButton("section", "ph-selection-background", t("sectionView"), null, "", t("sectionView")),
         commandButton("standards", "ph-seal-check", t("standardsAudit"), null, "", t("standardsAudit")),
         commandButton("bundle", "ph-package", t("projectBundle"), null, "", t("projectBundle")),
         commandButton("bundlein", "ph-package", t("importBundle"), null, "", t("importBundle")),
@@ -3218,6 +3831,7 @@ function buildDOM() {
         commandButton("assembly", "ph-stack", t("docAssembly"), null, "primary"),
         commandButton("components", "ph-cube", t("components")),
         commandButton("mates", "ph-link", t("mate")),
+        commandButton("screwmate", "threadfeature", t("screwMate")),
         commandButton("partdoc", "ph-cube-focus", t("docPart")),
         commandButton("explode", "ph-arrows-out", t("explodeView"), null, "", t("explodeView")),
         commandButton("motion", "ph-play-circle", t("motionStudy"), null, "", t("motionStudy")),
@@ -3259,6 +3873,8 @@ function buildDOM() {
     '<div class="md-mid">' +
     '<canvas id="mdCanvas"></canvas>' +
     '<div id="md3dHost" class="md-3dhost"></div>' +
+    '<button type="button" id="mdToggleLeft" class="md-panel-toggle md-panel-toggle-left" aria-label="' + t("toggleTree") + '" title="' + t("toggleTree") + '" aria-pressed="true"><i class="ph ph-tree-structure"></i><span>' + t("tabTreeShort") + '</span></button>' +
+    '<button type="button" id="mdToggleRight" class="md-panel-toggle md-panel-toggle-right" aria-label="' + t("toggleInspector") + '" title="' + t("toggleInspector") + '" aria-pressed="true"><i class="ph ph-sidebar-simple"></i><span>' + t("tabShapeShort") + '</span></button>' +
     '<div class="md-modes" id="mdModes">' +
     '<button data-mode="3d" class="on" data-tip="3">' + cadIcon("mode3d") + ' ' + t("mode3d") + "</button>" +
     '<button data-mode="2d" data-tip="2">' + cadIcon("mode2d") + ' ' + t("mode2d") + "</button>" +
@@ -3277,9 +3893,9 @@ function buildDOM() {
     '<button data-view="side" data-tip="' + kt(t("view_right"), "6") + '">' + cadIcon("view_right") + '<span>' + (getLang()==="en"?"Right":"ימין") + ' · Z·Y</span></button>' +
     "</div>" +
     '<div class="md-vgroup md-zoom">' +
-    '<button data-zoom="in" data-tip="' + t("zoomIn") + '">' + cadIcon("zoomIn") + '</button>' +
-    '<button data-zoom="out" data-tip="' + t("zoomOut") + '">' + cadIcon("zoomOut") + '</button>' +
-    '<button data-zoom="fit" data-tip="' + kt(t("zoomFit"), "F") + '">' + cadIcon("fit") + '</button>' +
+    '<button data-zoom="in" data-tip="' + t("zoomIn") + '" aria-label="' + t("zoomIn") + '" title="' + t("zoomIn") + '">' + cadIcon("zoomIn") + '</button>' +
+    '<button data-zoom="out" data-tip="' + t("zoomOut") + '" aria-label="' + t("zoomOut") + '" title="' + t("zoomOut") + '">' + cadIcon("zoomOut") + '</button>' +
+    '<button data-zoom="fit" data-tip="' + kt(t("zoomFit"), "F") + '" aria-label="' + t("zoomFit") + '" title="' + kt(t("zoomFit"), "F") + '">' + cadIcon("fit") + '</button>' +
     '</div>' +
     '<div class="md-vgroup md-display" role="group" aria-label="' + t("displayStyle") + '">' +
     '<button type="button" data-display="solid" class="on" aria-pressed="true">' + cadIcon("solidView") + '<span>' + t("solidView") + '</span></button>' +
@@ -3287,12 +3903,26 @@ function buildDOM() {
     '<button type="button" id="mdShowEdges" class="on" aria-pressed="true" title="' + t("modelEdgesTip") + '">' + cadIcon("modelEdges") + '<span>' + t("modelEdges") + '</span></button>' +
     '</div><button type="button" id="mdFinishPlane" class="md-finish-plane">' + cadIcon("check") + '<span>' + t("exitPlane") + '</span></button></div>' +
     '<div class="md-hint" id="mdHint"></div>' +
+    /* Non-modal on purpose: the viewport underneath it is the control. A modal
+       plane dialog is what this bar replaces. */
+    '<div class="md-face-prompt" id="mdFacePrompt" hidden>' +
+    '<i class="ph ph-cursor-click"></i>' +
+    '<span><b>' + t("pickFaceTitle") + '</b><small>' + t("pickFaceBody") + '</small></span>' +
+    '<button type="button" id="mdFacePromptPlanes">' + t("pickFacePlanes") + '</button>' +
+    '<button type="button" id="mdFacePromptCancel" class="cancel" aria-label="' + t("pickFaceCancel") + '" title="' + t("pickFaceCancel") + '"><i class="ph ph-x"></i></button>' +
+    '</div>' +
     '<button type="button" id="mdEmptyStart" class="md-empty-start" title="' + t("emptyStartTip") + '" hidden><i class="ph ph-sparkle"></i><span>' + t("emptyStart") + '</span></button>' +
     '<div class="md-context-actions" id="mdContextActions" hidden>' +
     '<button type="button" id="mdAcceptCommand" class="accept" aria-label="' + t("finishCommand") + '" title="' + t("finishCommand") + '">' + cadIcon("check") + '</button>' +
     '<button type="button" id="mdCancelCommand" class="cancel" aria-label="' + t("cancelCommand") + '" title="' + t("cancelCommand") + '">' + cadIcon("cross") + '</button>' +
     '<span id="mdActiveCommand"></span></div>' +
     '<div class="md-context-toolbar" id="mdContextToolbar" hidden></div>' +
+    '<section class="md-section-controls" id="mdSectionControls" aria-label="' + t("sectionView") + '" hidden>' +
+      '<div class="md-section-head"><b>' + t("sectionView") + '</b><button type="button" id="mdSectionClose" aria-label="' + t("sectionClose") + '" title="' + t("sectionClose") + '"><i class="ph ph-x"></i></button></div>' +
+      '<div class="md-section-axis" role="group" aria-label="' + t("sectionAxis") + '"><button type="button" data-section-axis="x" class="on">X</button><button type="button" data-section-axis="y">Y</button><button type="button" data-section-axis="z">Z</button></div>' +
+      '<label><span>' + t("sectionOffset") + '</span><input id="mdSectionOffset" type="range" min="-200" max="200" step="1" value="0"><output id="mdSectionValue">0 cm</output></label>' +
+      '<button type="button" id="mdSectionFlip"><i class="ph ph-arrows-left-right"></i><span>' + t("sectionFlip") + '</span></button>' +
+    '</section>' +
     '<div class="md-sel-filters" id="mdSelFilters" role="toolbar" aria-label="' + t("selFilter") + '">' +
       '<button type="button" data-selfilter="all" class="on">' + t("selFilterAll") + '</button>' +
       '<button type="button" data-selfilter="face">' + t("selFilterFace") + '</button>' +
@@ -3349,6 +3979,7 @@ function buildDOM() {
       '<section role="dialog" aria-modal="true" aria-labelledby="mdReportTitle">' +
         '<header><div><small id="mdReportKicker"></small><h3 id="mdReportTitle"></h3></div><button type="button" data-report-close aria-label="' + t("close") + '"><i class="ph ph-x"></i></button></header>' +
         '<pre id="mdReportBody"></pre>' +
+        '<div class="md-reference-options" id="mdPickList" hidden></div>' +
       '</section></div>' +
     /* ---- visual start screen: a gallery of starting points, not a blank
        canvas and a ribbon of strangers. Rendered by renderWelcomeCards(). */
@@ -3370,9 +4001,13 @@ function buildDOM() {
     '</div>' +
     '<div class="md-tour-layer" id="mdTour" hidden>' +
       '<section class="md-tour-card" role="dialog" aria-modal="false" aria-labelledby="mdTourTitle">' +
-        '<div class="md-tour-head" title="Drag to move"><div><span id="mdTourCount"></span><h3 id="mdTourTitle"></h3></div>' +
+        '<div class="md-tour-head" id="mdTourHead" title="' + t("guideMoveCard") + '"><div><span id="mdTourCount"></span><h3 id="mdTourTitle"></h3></div>' +
         '<div class="md-tour-head-actions">' +
           '<button type="button" id="mdTourSpeak" aria-label="' + t("speakReadAloud") + '" title="' + t("speakReadAloud") + '"><i class="ph ph-speaker-high"></i></button>' +
+          /* A phone card is 8px from both edges: there is nowhere to drag it to
+             when a step asks you to draw on the canvas underneath it. Collapse
+             leaves the step title and the actions, and nothing else. */
+          '<button type="button" id="mdTourMin" aria-label="' + t("guideCollapse") + '" title="' + t("guideCollapse") + '"><i class="ph ph-caret-down"></i></button>' +
           '<button type="button" id="mdTourClose" aria-label="' + t("guideClose") + '" title="' + t("guideClose") + '"><i class="ph ph-x"></i></button>' +
         '</div></div>' +
         '<div class="md-tour-progress" aria-hidden="true"><span id="mdTourProgress"></span></div>' +
@@ -3381,6 +4016,7 @@ function buildDOM() {
         '<div class="md-tour-tip"><i class="ph ph-lightbulb"></i><span id="mdTourTip"></span></div>' +
         '<div class="md-tour-status" id="mdTourStatus" role="status"></div>' +
         '<div class="md-tour-actions"><button type="button" id="mdTourBack"><i class="ph ph-arrow-right"></i>' + t("guideBack") + '</button>' +
+        '<button type="button" id="mdTourRestart" class="md-tour-restart" aria-label="' + t("guideRestart") + '" title="' + t("guideRestart") + '"><i class="ph ph-arrow-counter-clockwise"></i><span>' + t("guideRestart") + '</span></button>' +
         '<button type="button" id="mdTourSkip" class="md-tour-skip">' + t("guideSkip") + '</button>' +
         '<button type="button" id="mdTourKeep" class="md-tour-skip" title="' + t("guideKeepResultTip") + '" hidden>' + t("guideKeepResult") + '</button>' +
         '<button type="button" id="mdTourNext" class="btn-accent">' + t("guideNext") + '<i class="ph ph-arrow-left"></i></button></div>' +
@@ -3410,6 +4046,14 @@ function buildDOM() {
     b.addEventListener("click", function () { setModelDisplay(b.getAttribute("data-display")); });
   });
   root.querySelector("#mdShowEdges").addEventListener("click", function () { setShowModelEdges(!(E.showModelEdges !== false)); });
+  root.querySelector("#mdToggleLeft").addEventListener("click", function () { setPanelCollapsed("left", !E.leftCollapsed); });
+  root.querySelector("#mdToggleRight").addEventListener("click", function () { setPanelCollapsed("right", !E.rightCollapsed); });
+  root.querySelectorAll("[data-section-axis]").forEach(function (button) {
+    button.addEventListener("click", function () { setSectionState({ enabled:true, axis:button.getAttribute("data-section-axis") }); });
+  });
+  root.querySelector("#mdSectionOffset").addEventListener("input", function () { setSectionState({ enabled:true, offset:Number(this.value) || 0 }); });
+  root.querySelector("#mdSectionFlip").addEventListener("click", function () { setSectionState({ enabled:true, flip:!E.section.flip }); });
+  root.querySelector("#mdSectionClose").addEventListener("click", function () { setSectionState({ enabled:false }); });
   root.querySelector("#mdFinishPlane").addEventListener("click", finishSketchWorkflow);
   // tabs swap the pane inside their own panel; the two panels are independent
   root.querySelectorAll("[data-tab]").forEach(function (b) {
@@ -3422,6 +4066,8 @@ function buildDOM() {
     });
   });
   root.querySelector("[data-reference-cancel]").addEventListener("click",cancelReferenceSelection);
+  root.querySelector("#mdFacePromptPlanes").addEventListener("click",function(){cancelFacePick(true);});
+  root.querySelector("#mdFacePromptCancel").addEventListener("click",function(){cancelFacePick(false);});
   root.querySelector("[data-report-close]").addEventListener("click",closeReport);
   root.querySelector("#mdReport").addEventListener("click",function(event){ if(event.target===this) closeReport(); });
   root.querySelectorAll("#mdDocModes [data-doc]").forEach(function (b) {
@@ -3504,8 +4150,21 @@ function buildDOM() {
     button.addEventListener("click", function () { setSelectionFilter(button.getAttribute("data-selfilter")); });
   });
   root.querySelector("#mdTourClose").addEventListener("click", closeTour);
+  root.querySelector("#mdTourMin").addEventListener("click", function () {
+    var card = root.querySelector(".md-tour-card");
+    var min = card.classList.toggle("md-tour-min");
+    E.tour.userCollapsed = min;
+    this.querySelector("i").className = min ? "ph ph-caret-up" : "ph ph-caret-down";
+    this.setAttribute("aria-label", t(min ? "guideExpand" : "guideCollapse"));
+    this.title = this.getAttribute("aria-label");
+  });
   installTourDragging();
   root.querySelector("#mdTourBack").addEventListener("click", function () { goTourStep(-1); });
+  root.querySelector("#mdTourRestart").addEventListener("click", function () {
+    if (!E.tour.active || !E.tour.track) return;
+    E.tour.completed[E.tour.step] = false;
+    prepareTourStep();
+  });
   root.querySelector("#mdTourSkip").addEventListener("click", function () { goTourStep(1, true); });
   // `change`, not `input`: every seek replays the demo, and re-running it for
   // each pixel of a slider drag locked the editor up for seconds at a time.
@@ -3613,6 +4272,146 @@ function tourPointSignature() {
   return (ensureSketch(E.def).points || []).map(function (p) {
     return p.id + ":" + Math.round(p.x * 1000) + "," + Math.round(p.y * 1000);
   }).sort().join("|");
+}
+
+function mobileTourSteps() {
+  return [
+    {
+      title: "guideMobileIntroTitle",
+      body: "guideMobileIntroBody",
+      tip: "guideMobileIntroTip",
+      target: "#md-nav",
+      manual: true,
+      noAutoReveal: true,
+      prepare: function () {
+        if (E.docType !== "part") setDocumentType("part");
+        setMode("3d");
+        if (document.body.classList.contains("compact-nav")) closeModelerSheet();
+      },
+    },
+    {
+      title: "guideMobileNavTitle",
+      body: "guideMobileNavBody",
+      tip: "guideMobileNavTip",
+      target: '[data-mdnav="cmd"]',
+      noAutoReveal: true,
+      prepare: function () {
+        setMode("2d");
+        setView("top");
+        setCommandTab("sketch");
+        if (document.body.classList.contains("compact-nav")) closeModelerSheet();
+      },
+      done: function () { return E.tool === "srect"; },
+    },
+    {
+      title: "guideMobileSketchTitle",
+      body: "guideMobileSketchBody",
+      tip: "guideMobileSketchTip",
+      target: ".md-mid",
+      autoCollapseMobile: true,
+      baseline: function () { return tourEntityCount(); },
+      prepare: function () {
+        if (document.body.classList.contains("compact-nav")) closeModelerSheet();
+        setMode("2d");
+        setView("top");
+        if (E.tool !== "srect") setTool("srect");
+      },
+      done: function () { return tourEntityCount() >= Number(E.tour.baseline || 0) + 4; },
+    },
+    {
+      title: "guideMobileExtrudeTitle",
+      body: "guideMobileExtrudeBody",
+      tip: "guideMobileExtrudeTip",
+      target: '[data-md-action="extrude"]',
+      noAutoReveal: true,
+      autoCollapseMobile: true,
+      baseline: function () { return tourPartCount("ext"); },
+      prepare: function () {
+        setMode("2d");
+        setCommandTab("features");
+        /* Leave sketch phase so the thumb row is Extrude, not Finish-sketch.
+           Do not call finishSketchWorkflow(): that auto-opens the feature form
+           and the step would never get to ring the Extrude control.
+           Auto mode already opened the form — leave the Tree sheet holding it. */
+        if (!(E.authoring && E.authoring.featureType)) {
+          setTool("select");
+          if (E.authoring && E.authoring.phase === "sketch") {
+            E.authoring.phase = "model";
+            E.authoring.workflowFocus = "feature";
+          }
+          if (document.body.classList.contains("compact-nav")) closeModelerSheet();
+        }
+        var sketch = ensureSketch(E.def);
+        var lines = (sketch.entities || []).filter(function (entity) { return entity.type === "line"; }).slice(-4);
+        if (lines.length) {
+          E.ssel = lines;
+          E.sel = lines[0];
+        }
+        if (lines.length === 4 && !(sketch.constraints || []).some(function (constraint) { return constraint._mobileTour; })) {
+          var anchor = sketchPoint(sketch, lines[0].a);
+          var a0 = sketchPoint(sketch, lines[0].a), b0 = sketchPoint(sketch, lines[0].b);
+          var a1 = sketchPoint(sketch, lines[1].a), b1 = sketchPoint(sketch, lines[1].b);
+          if (anchor && a0 && b0 && a1 && b1) {
+            sketch.constraints.push({ id:uid(), type:"fixed", point:anchor.id, x:anchor.x, y:anchor.y, _mobileTour:true });
+            sketch.constraints.push({ id:uid(), type:"distance", entity:lines[0].id, value:Math.hypot(b0.x-a0.x,b0.y-a0.y), _mobileTour:true });
+            sketch.constraints.push({ id:uid(), type:"distance", entity:lines[1].id, value:Math.hypot(b1.x-a1.x,b1.y-a1.y), _mobileTour:true });
+            resolveSketch(false);
+            refreshAll();
+          }
+        }
+      },
+      done: function () { return tourPartCount("ext") > Number(E.tour.baseline || 0); },
+    },
+    {
+      title: "guideMobileSelectTitle",
+      body: "guideMobileSelectBody",
+      tip: "guideMobileSelectTip",
+      /* NOT the selection bar: that bar is hidden until something is selected,
+         so the step used to ring a 0x0 box. Point at the canvas you tap; the
+         bar appears there by itself. */
+      target: ".md-mid",
+      autoCollapseMobile: true,
+      prepare: function () {
+        if (document.body.classList.contains("compact-nav")) closeModelerSheet();
+        setMode("3d");
+        setTool("select");
+        setMobileAddSelection(true);
+        refreshAll();
+      },
+      /* prepare() turns add-selection on, so accepting it as proof of work made
+         the step complete itself before the user touched anything. */
+      done: function () {
+        return (E.topologySelection || []).length >= 1;
+      },
+    },
+    {
+      title: "guideMobileTreeTitle",
+      body: "guideMobileTreeBody",
+      tip: "guideMobileTreeTip",
+      target: '[data-mdnav="tree"]',
+      noAutoReveal: true,
+      prepare: function () {
+        if (document.body.classList.contains("compact-nav")) closeModelerSheet();
+      },
+      done: function () {
+        if (!root) return false;
+        // the TREE sheet specifically — the borrowed panel is the proof
+        return !!(root.querySelector("#md-sheet.on .md-left") || root.classList.contains("md-tree-on"));
+      },
+    },
+    {
+      title: "guideMobileFinishTitle",
+      body: "guideMobileFinishBody",
+      tip: "guideMobileFinishTip",
+      target: '[data-mdnav="view"]',
+      manual: true,
+      noAutoReveal: true,
+      prepare: function () {
+        if (document.body.classList.contains("compact-nav")) closeModelerSheet();
+        setMode("3d");
+      },
+    },
+  ];
 }
 
 function sketchTourSteps() {
@@ -3865,6 +4664,7 @@ function assemblyTourSteps() {
 }
 
 function tourSteps() {
+  if (E.tour.track === "mobile") return mobileTourSteps();
   if (E.tour.track === "solidworks") return solidworksCubeTourSteps();
   if (E.tour.track === "flower") return flowerTourSteps();
   if (E.tour.track === "assembly") return assemblyTourSteps();
@@ -3876,10 +4676,12 @@ function tourSteps() {
   return sketchTourSteps();
 }
 
+/* document-wide, not root-wide: the mobile nav, the contextual row and the
+   selection bar are targets too and they live outside #modeler. Clearing only
+   inside root left them marked for the rest of the session. */
 function clearTourTarget() {
-  if (!root) return;
-  root.querySelectorAll(".md-tour-target").forEach(function (node) { node.classList.remove("md-tour-target"); });
-  root.querySelectorAll(".md-tour-click-marker").forEach(function(node){node.remove();});
+  document.querySelectorAll(".md-tour-target").forEach(function (node) { node.classList.remove("md-tour-target"); });
+  if (root) root.querySelectorAll(".md-tour-click-marker").forEach(function(node){node.remove();});
   E.tour.target = null;
 }
 
@@ -3902,6 +4704,11 @@ function clampTourPosition(position) {
 function applyTourPosition() {
   if(!root)return;
   var card=root.querySelector(".md-tour-card");if(!card)return;
+  if (document.body.classList.contains("compact-nav") && !E.tour.moved) {
+    card.style.left = "";
+    card.style.top = "";
+    return;
+  }
   if(!E.tour.position){
     // Parked against the trailing edge, not centred: centred put the card on
     // top of the canvas, which is the one thing most steps ask you to look at.
@@ -3916,7 +4723,7 @@ function applyTourPosition() {
    enough to dodge — for the canvas there is nowhere to go, and shuffling the
    card around on every step is worse than leaving it parked. */
 function avoidTourTargetOverlap(target) {
-  if(!root||!target||E.tour.moved)return;
+  if(!root||!target||E.tour.moved||document.body.classList.contains("compact-nav"))return;
   var card=root.querySelector(".md-tour-card");if(!card)return;
   var rr=root.getBoundingClientRect(),tr=target.getBoundingClientRect(),cr=card.getBoundingClientRect();
   if(tr.width>rr.width*0.5&&tr.height>rr.height*0.5)return;
@@ -3968,6 +4775,16 @@ function tourStepDone(step, index) {
 
 function renderTourDemo(step,index) {
   var host=root&&root.querySelector("#mdTourDemo");if(!host||!step)return;
+  if (step.title === "guideMobileIntroTitle") {
+    host.hidden=false;
+    host.innerHTML='<div class="md-tour-gestures">'+
+      '<span><i class="ph ph-hand-swipe-left"></i><b>'+ (getLang()==="en"?"1 finger":"אצבע אחת") +'</b><small>'+ (getLang()==="en"?"Orbit":"סיבוב") +'</small></span>'+
+      '<span><i class="ph ph-hand-swipe-right md-two-finger"></i><b>'+ (getLang()==="en"?"2 fingers":"שתי אצבעות") +'</b><small>'+ (getLang()==="en"?"Pan":"הזזה") +'</small></span>'+
+      '<span><i class="ph ph-arrows-in-line-horizontal"></i><b>'+ (getLang()==="en"?"Pinch":"צביטה") +'</b><small>'+ (getLang()==="en"?"Zoom":"זום") +'</small></span>'+
+      '<span><i class="ph ph-hand-tap"></i><b>'+ (getLang()==="en"?"Long press":"לחיצה ארוכה") +'</b><small>'+ (getLang()==="en"?"Select through":"בחירה דרך") +'</small></span>'+
+      '</div>';
+    return;
+  }
   var form=String(step.target||"").indexOf("QuickSettings")>=0||String(step.title||"").toLowerCase().indexOf("extrude")>=0||String(step.title||"").toLowerCase().indexOf("fillet")>=0;
   var canvas=String(step.target||"").indexOf("md-mid")>=0;
   var phase=form?2:canvas?1:0,icons=form?["ph-cursor-click","ph-keyboard","ph-check-circle"]:canvas?["ph-crosshair","ph-pencil-line","ph-ruler"]:["ph-selection","ph-eye","ph-check-circle"],en=getLang()==="en";
@@ -3994,17 +4811,9 @@ function renderTourHub() {
     bindSpeakButton(
       speakBtn,
       function () {
-        var trackList = [
-          ["sketch","guideSketchTrack","guideSketchTrackDesc"],
-          ["solidworks","guideSolidworksTrack","guideSolidworksTrackDesc"],
-          ["flower","guideFlowerTrack","guideFlowerTrackDesc"],
-          ["assembly","guideAssemblyTrack","guideAssemblyTrackDesc"],
-          ["screw","guideScrewTrack","guideScrewTrackDesc"],
-          ["gear","guideGearTrack","guideGearTrackDesc"],
-          ["studball","guideStudBallTrack","guideStudBallTrackDesc"],
-          ["dreidel","guideDreidelTrack","guideDreidelTrackDesc"],
-          ["pattern","guidePatternTrack","guidePatternTrackDesc"],
-        ].map(function (item) { return t(item[1]) + ": " + t(item[2]); }).join(". ");
+        var trackList = welcomeGuideCards().map(function (card) {
+          return t(card.title) + ": " + t(card.desc);
+        }).join(". ");
         return [
           t("guideTitle"),
           t("guideHubTitle"),
@@ -4017,12 +4826,27 @@ function renderTourHub() {
     );
   }
   tracks.hidden=false;
-  tracks.innerHTML=welcomeGuideCards().map(function(card){
+  /* Ten tracks in a 366px floating card is a scroller inside a scroller. On a
+     phone the hub is the whole screen; the step cards go back to being small. */
+  root.querySelector(".md-tour-card").classList.remove("md-tour-min");
+  root.querySelector(".md-tour-card").classList.add("md-tour-hub");
+  var compactHub = document.body.classList.contains("compact-nav");
+  var cards = welcomeGuideCards();
+  var primary = compactHub ? cards.filter(function (card) { return card.phonePrimary; }) : cards;
+  var extra = compactHub ? cards.filter(function (card) { return !card.phonePrimary; }) : [];
+  function trackButton(card) {
     return '<button type="button" data-tour-track="'+card.track+'">'+
       '<span class="md-tour-glyph art-'+card.art+'">'+welcomeGlyph(card.art)+'</span>'+
       '<span><b>'+t(card.title)+'</b><small>'+t(card.desc)+'</small></span>'+
       '<i class="ph ph-arrow-right"></i></button>';
-  }).join("");
+  }
+  tracks.innerHTML = primary.map(trackButton).join("");
+  if (extra.length) {
+    tracks.innerHTML +=
+      '<details class="md-tour-more"><summary>' + t("guideMoreProjects") + "</summary>" +
+      '<p class="md-tour-more-note">' + t("guideMoreProjectsNote") + "</p>" +
+      extra.map(trackButton).join("") + "</details>";
+  }
   tracks.querySelectorAll("[data-tour-track]").forEach(function(button){button.addEventListener("click",function(){renderTourMode(button.getAttribute("data-tour-track"));});});
   requestAnimationFrame(applyTourPosition);
 }
@@ -4058,6 +4882,7 @@ function renderTourMode(track) {
     );
   }
   var tracks=root.querySelector("#mdTourTracks"); tracks.hidden=false;
+  root.querySelector(".md-tour-card").classList.remove("md-tour-hub");
   tracks.innerHTML='<button type="button" data-tour-mode="interactive"><i class="ph ph-hand-tap"></i><span><b>'+t("guideInteractiveMode")+'</b><small>'+t("guideInteractiveModeDesc")+'</small></span><i class="ph ph-arrow-right"></i></button>'+
     '<button type="button" data-tour-mode="auto"><i class="ph ph-play-circle"></i><span><b>'+t("guideAutoMode")+'</b><small>'+t("guideAutoModeDesc")+'</small></span><i class="ph ph-arrow-right"></i></button>';
   tracks.querySelectorAll("[data-tour-mode]").forEach(function(button){button.addEventListener("click",function(){selectTourTrack(track,button.getAttribute("data-tour-mode"));});});
@@ -4065,11 +4890,12 @@ function renderTourMode(track) {
   back.innerHTML='<i class="ph ph-arrow-left"></i>'+t("guideTracksBack");
   back.onclick=function(){E.tour.track=null;E.tour.mode=null;renderTourHub();};
   root.querySelector("#mdTourSkip").hidden=true; root.querySelector("#mdTourNext").hidden=true;
+  root.querySelector("#mdTourRestart").hidden=true;
 }
 
 function selectTourTrack(track, mode) {
   stopSpeaking();
-  E.tour.track=track;E.tour.mode=mode||"interactive";E.tour.step=0;E.tour.completed={};
+  E.tour.track=track;E.tour.mode=mode||"interactive";E.tour.step=0;E.tour.completed={};E.tour.userCollapsed=false;
   var back=root&&root.querySelector("#mdTourBack"); if(back)back.onclick=null;
   if(E.tour.mode==="auto") {
     E.tour.autoOrigin={docType:E.docType,def:cloneData(E.def),assembly:cloneData(E.assembly),mode:E.mode,view:E.view,tool:E.tool,commandTab:E.commandTab};
@@ -4085,21 +4911,27 @@ function renderTour() {
   layer.hidden = false;
   root.classList.add("md-tour-open");
   root.querySelector("#mdTourTracks").hidden = true;
+  root.querySelector(".md-tour-card").classList.remove("md-tour-hub");
   root.querySelector(".md-tour-progress").hidden = false;
   root.querySelector(".md-tour-tip").hidden = false;
   root.querySelector(".md-tour-actions").hidden = false;
   var slider=root.querySelector("#mdTourSlider"),range=root.querySelector("#mdTourRange");
   slider.hidden=E.tour.mode!=="auto";
   if(E.tour.mode==="auto"){range.max=steps.length-1;range.value=index;root.querySelector("#mdTourSliderValue").textContent=(index+1)+" / "+steps.length;}
-  root.querySelector("#mdTourTitle").textContent = E.tour.mode === "auto" ? t("guideAutoWatching") + " · " + t(step.title) : t(step.title);
-  root.querySelector("#mdTourBody").textContent = E.tour.mode === "auto" ? t("guideAutoBody") : t(step.body);
-  root.querySelector("#mdTourTip").textContent = t(step.tip);
+  var isMobile = document.body.classList.contains("compact-nav");
+  var head = root.querySelector("#mdTourHead") || root.querySelector(".md-tour-head");
+  if (head) head.title = isMobile ? "" : t("guideMoveCard");
+  var titleKey = (isMobile && (step.titleMobile || (TXT[step.title + "Mobile"] ? step.title + "Mobile" : null))) || step.title;
+  var bodyKey = (isMobile && (step.bodyMobile || (TXT[step.body + "Mobile"] ? step.body + "Mobile" : null))) || step.body;
+  var tipKey = (isMobile && (step.tipMobile || (TXT[step.tip + "Mobile"] ? step.tip + "Mobile" : null))) || step.tip;
+  root.querySelector("#mdTourTitle").textContent = E.tour.mode === "auto" ? t("guideAutoWatching") + " · " + t(titleKey) : t(titleKey);
+  root.querySelector("#mdTourBody").textContent = E.tour.mode === "auto" ? t("guideAutoBody") : t(bodyKey);
+  root.querySelector("#mdTourTip").textContent = t(tipKey);
   renderTourDemo(step,index);
   // The slider counts every card; the header used to count only the practice
   // steps between intro and summary, so the two disagreed on every screen.
-  root.querySelector("#mdTourCount").textContent = index === 0 ? t("guideTitle")
-    : index === steps.length - 1 ? t("guideDone")
-    : t("guideStep") + " " + (index + 1) + " " + t("guideOf") + " " + steps.length;
+  root.querySelector("#mdTourCount").textContent = (index === steps.length - 1 ? t("guideDone") + " · " : "")
+    + t("guideStep") + " " + (index + 1) + " " + t("guideOf") + " " + steps.length;
   root.querySelector("#mdTourProgress").style.width = Math.round((index / (steps.length - 1)) * 100) + "%";
   var status = root.querySelector("#mdTourStatus");
   status.hidden = E.tour.mode === "auto" || !!step.manual;
@@ -4112,13 +4944,13 @@ function renderTour() {
     bindSpeakButton(
       speakBtn,
       function () {
-        var titleText = E.tour.mode === "auto" ? t("guideAutoWatching") + " · " + t(step.title) : t(step.title);
-        var bodyText = E.tour.mode === "auto" ? t("guideAutoBody") : t(step.body);
+        var titleText = E.tour.mode === "auto" ? t("guideAutoWatching") + " · " + t(titleKey) : t(titleKey);
+        var bodyText = E.tour.mode === "auto" ? t("guideAutoBody") : t(bodyKey);
         var countText = root.querySelector("#mdTourCount").textContent;
         return [
           countText + ". " + titleText,
           bodyText,
-          t(step.tip),
+          t(tipKey),
           E.tour.mode !== "auto" && !step.manual ? (done ? t("guideDone") : t("guideWaiting")) : "",
         ];
       },
@@ -4127,21 +4959,33 @@ function renderTour() {
     );
   }
   var back = root.querySelector("#mdTourBack"), next = root.querySelector("#mdTourNext"), skip = root.querySelector("#mdTourSkip");
+  var restart = root.querySelector("#mdTourRestart");
   back.disabled = false;
   skip.hidden = E.tour.mode === "auto" || !!step.manual;
+  restart.hidden = E.tour.mode === "auto" || !!step.manual;
   root.querySelector("#mdTourKeep").hidden = E.tour.mode !== "auto";
   next.hidden = false;
   next.disabled = E.tour.mode === "auto" ? false : !done;
   next.innerHTML = index === steps.length - 1
-    ? '<i class="ph ph-check"></i>' + t("guideFinish")
+    ? '<i class="ph ph-check"></i>' + t(E.tour.track === "mobile" ? "guideContinueEditing" : "guideFinishTutorial")
     : t("guideNext") + '<i class="ph ph-arrow-right"></i>';
   back.innerHTML = '<i class="ph ph-arrow-left"></i>' + (index === 0 ? t("guideTracksBack") : t("guideBack"));
   clearTourTarget();
-  var target = root.querySelector(step.target);
+  var target = step.target ? (root.querySelector(step.target) || document.querySelector(step.target)) : null;
   if (target) {
     target.classList.add("md-tour-target");
     E.tour.target = target;
     showTourClickMarker(target);
+    // a tool ringed 400px down a borrowed ribbon is still a tool you cannot see
+    var scroller = target.closest && target.closest("#md-sheet, .md-command-pane, .md-panel");
+    if (scroller) {
+      try { target.scrollIntoView({ block: "center", inline: "nearest" }); } catch (error) { target.scrollIntoView(); }
+      /* scrollIntoView walks EVERY scrollable ancestor, and #modeler is one of
+         them: bringing a tool into view inside the sheet dragged the whole
+         editor — card, canvas and all — 81px up the screen. */
+      root.scrollTop = 0;
+      root.scrollLeft = 0;
+    }
   }
   requestAnimationFrame(function () { applyTourPosition(); avoidTourTargetOverlap(target); });
 }
@@ -4151,7 +4995,21 @@ function prepareTourStep() {
   if (!step) return;
   E.tour.preparing = true;
   E.tour.baseline = step.baseline ? step.baseline() : null;
+  if (document.body.classList.contains("compact-nav") && !step.noAutoReveal) {
+    var targetStr = String(step.target || "");
+    if (targetStr.indexOf("data-command") >= 0) showModelerSheet("cmd", step.target);
+    else if (targetStr.indexOf("md-mid") >= 0 || targetStr.indexOf("selection-bar") >= 0) closeModelerSheet();
+    else if (targetStr.indexOf("data-tour-prop") >= 0) showModelerSheet("props");
+    else if (targetStr.indexOf("Hist") >= 0 || targetStr.indexOf("Parts") >= 0 || targetStr.indexOf('data-mdnav="tree"') >= 0) showModelerSheet("tree");
+    else if (targetStr.indexOf("mode") >= 0 || targetStr.indexOf('data-mdnav="view"') >= 0) showModelerSheet("view");
+  }
   if (step.prepare) step.prepare();
+  if (document.body.classList.contains("compact-nav")) {
+    var card = root.querySelector(".md-tour-card");
+    var shortPhone = window.innerHeight <= 500;
+    var canvasStep = String(step.target || "").indexOf("md-mid") >= 0;
+    if (card) card.classList.toggle("md-tour-min", !!step.autoCollapseMobile || !!E.tour.userCollapsed || (shortPhone && canvasStep));
+  }
   E.tour.preparing = false;
   renderTour();
 }
@@ -4288,6 +5146,14 @@ function performAutomaticTourStep(track,index,showFields) {
     }
     if(index===5){E.sel=E.tour.autoSeed||selectedSolid();showTourFeatureForm("pattern",{mode:"circular",count:6,angle:360,axis:"y",equalSpacing:true});if(!showFields)applyOpenTourFeature();}
     if(index===6)setMode("3d");
+  } else if(track==="mobile") {
+    if(index===0){setDocumentType("part");setMode("3d");}
+    if(index===1){setMode("2d");setView("top");setCommandTab("sketch");setTool("srect");}
+    if(index===2){var mobileLines=addSketchRectangle({u:-20,v:-20},{u:20,v:20});E.tour.autoLines=mobileLines||[];}
+    if(index===3){E.depth=40;showTourFeatureForm("extrude",{endCondition:"blind",depth:40,offset:0,direction:"forward",symmetric:false,draftAngle:0,draftOutward:false,mergeResult:true});if(!showFields)applyOpenTourFeature();}
+    if(index===4){setMode("3d");setMobileAddSelection(true);refreshAll();}
+    if(index===5){setMode("3d");}
+    if(index===6){setMode("3d");}
   } else if(track==="assembly") {
     ensurePracticeAssembly();
     if(index===1){E.componentSel=[E.assembly.components[1]];E.sel=E.assembly.components[1];}
@@ -4374,8 +5240,9 @@ function closeTour() {
    (which are the interactive tour tracks under a friendlier roof). The
    "don't show again" checkbox and the Settings toggle write the same pref. */
 function welcomeGuideCards() {
-  return [
-    { track:"sketch", art:"sketch", title:"guideSketchTrack", desc:"guideSketchTrackDesc", steps:sketchTourSteps },
+  var mobile = { track:"mobile", art:"sketch", title:"guideMobileTrack", desc:"guideMobileTrackDesc", steps:mobileTourSteps, phonePrimary:true };
+  var sketch = { track:"sketch", art:"sketch", title:"guideSketchTrack", desc:"guideSketchTrackDesc", steps:sketchTourSteps, phonePrimary:true };
+  var rest = [
     { track:"solidworks", art:"cube", title:"guideSolidworksTrack", desc:"guideSolidworksTrackDesc", steps:solidworksCubeTourSteps },
     { track:"flower", art:"flower", title:"guideFlowerTrack", desc:"guideFlowerTrackDesc", steps:flowerTourSteps },
     { track:"assembly", art:"mates", title:"guideAssemblyTrack", desc:"guideAssemblyTrackDesc", steps:assemblyTourSteps },
@@ -4385,6 +5252,8 @@ function welcomeGuideCards() {
     { track:"dreidel", art:"dreidel", title:"guideDreidelTrack", desc:"guideDreidelTrackDesc", steps:dreidelTourSteps },
     { track:"pattern", art:"pattern", title:"guidePatternTrack", desc:"guidePatternTrackDesc", steps:patternTourSteps },
   ];
+  if (document.body.classList.contains("compact-nav")) return [mobile, sketch].concat(rest);
+  return [sketch].concat(rest).concat([mobile]);
 }
 var WELCOME_STARTS = [
   { id:"blank", art:"blank", title:"welcomeBlank", desc:"welcomeBlankDesc" },
@@ -4427,6 +5296,58 @@ function renderWelcomeCards() {
       selectTourTrack(track, "interactive");
     });
   });
+  layoutWelcomeCompact();
+}
+function layoutWelcomeCompact() {
+  var start = root.querySelector("#mdWelcomeStart"),
+    guides = root.querySelector("#mdWelcomeGuides"),
+    scroll = root.querySelector(".md-welcome-scroll");
+  if (!start || !guides || !scroll) return;
+  var extra = scroll.querySelector(".md-welcome-extra");
+  if (extra) extra.remove();
+  if (!document.body.classList.contains("compact-nav")) return;
+  var continueTile = document.createElement("button");
+  continueTile.type = "button";
+  continueTile.className = "md-welcome-tile md-welcome-continue";
+  continueTile.setAttribute("data-welcome-start", "continue");
+  continueTile.innerHTML =
+    '<span class="md-welcome-art art-blank" aria-hidden="true"><i class="ph ph-arrow-right"></i></span>' +
+    '<span class="md-welcome-meta"><b>' + t("welcomeContinue") + "</b><small>" + t("welcomeContinueDesc") + "</small></span>";
+  continueTile.addEventListener("click", closeWelcome);
+  /* The touch guide is the one track written for this screen, and it used to be
+     buried inside "More starting points" — two taps and a scroll away from the
+     people most likely to need it. It goes in the primary list, above
+     Continue. */
+  var guideTile = document.createElement("button");
+  guideTile.type = "button";
+  guideTile.className = "md-welcome-tile md-welcome-guidetile";
+  guideTile.innerHTML =
+    '<span class="md-welcome-art art-sketch" aria-hidden="true"><i class="ph ph-graduation-cap"></i></span>' +
+    '<span class="md-welcome-meta"><b>' + t("guideMobileTrack") + "</b><small>" + t("guideMobileTrackDesc") + "</small></span>";
+  guideTile.addEventListener("click", function () {
+    closeWelcome();
+    startTour();
+    selectTourTrack("mobile", "interactive");
+  });
+  start.appendChild(guideTile);
+  start.appendChild(continueTile);
+  var details = document.createElement("details");
+  details.className = "md-welcome-extra";
+  var sum = document.createElement("summary");
+  sum.textContent = t("welcomeMoreStarts");
+  details.appendChild(sum);
+  var wrap = document.createElement("div");
+  wrap.className = "md-welcome-grid";
+  Array.prototype.slice.call(start.querySelectorAll("[data-welcome-start]")).forEach(function (el) {
+    if (el.getAttribute("data-welcome-start") === "continue") return;
+    wrap.appendChild(el);
+  });
+  var groups = scroll.querySelectorAll(".md-welcome-group");
+  var guideHead = groups.length > 1 ? groups[1] : null;
+  if (guideHead) wrap.appendChild(guideHead);
+  wrap.appendChild(guides);
+  details.appendChild(wrap);
+  scroll.appendChild(details);
 }
 function openWelcome() {
   var layer = root && root.querySelector("#mdWelcome");
@@ -4463,12 +5384,24 @@ function coachSuggestion() {
   }
   if (!isCanonicalAuthoring()) return null;
   var step = currentWorkflowStep(), sketch = ensureSketch(E.def);
-  if (step === "context" || step === "reference")
+  if (step === "context" || step === "reference") {
+    if (document.body.classList.contains("compact-nav"))
+      return { icon:"ph-rectangle", text:"coachStepSketchMobile", act:"coachActSketchMobile", command:"srect",
+        target:'[data-mdnav="cmd"]',
+        run:function(){
+          var top=(E.def && E.def.references || []).find(function(reference){return reference.id==="plane:top"||reference.type==="plane";});
+          if (top) chooseSketchReference(top, "srect");
+          else beginSketchWorkflow("srect");
+          setCommandTab("sketch");
+          setTool("srect");
+          closeModelerSheet();
+        } };
     return { icon:"ph-square-half", text:"coachStepPlane", act:"coachActPlane", target:'[data-command="newsketch"]',
       run:function(){ beginSketchWorkflow(null, { forceNew:true }); } };
+  }
   if (step === "sketch") {
     if (!(sketch.entities || []).length)
-      return { icon:"ph-rectangle", text:"coachStepDraw", act:"coachActDraw", target:'[data-command="srect"]',
+      return { icon:"ph-rectangle", text:"coachStepDraw", act:"coachActDraw", command:"srect", target:'[data-command="srect"]',
         run:function(){ setCommandTab("sketch"); setTool("srect"); } };
     if (!closedSketchProfile())
       return { icon:"ph-line-segment", text:"coachStepClose", act:"coachActClose", target:null,
@@ -4477,11 +5410,11 @@ function coachSuggestion() {
       run:function(){ finishSketchWorkflow(); } };
   }
   if (step === "feature")
-    return { icon:"ph-cube", text:"coachStepExtrude", act:"coachActExtrude", target:'[data-command="extrude"]',
+    return { icon:"ph-cube", text:"coachStepExtrude", act:"coachActExtrude", command:"extrude", target:'[data-command="extrude"]',
       run:function(){ setCommandTab("features"); openParametricFeature("extrude"); } };
   /* history: nothing to teach once the model has a story — except saving it */
   if (!documentDirty()) return null;
-  return { icon:"ph-floppy-disk", text:"coachStepSave", act:"coachActSave", target:"#mdSave",
+  return { icon:"ph-floppy-disk", text:"coachStepSave", act:"coachActSave", command:"save", target:"#mdSave",
     run:function(){ saveCurrentDocument(); } };
 }
 function clearCoachTarget() {
@@ -4603,6 +5536,7 @@ function referenceLabel(reference) {
 function cancelReferenceSelection() {
   var picker=root && root.querySelector("#mdReferencePicker");
   if(picker)picker.hidden=true;
+  E.facePick=null;syncFacePrompt();
   if(E.authoring && E.authoring.resumePhase==="sketch"){
     E.authoring.phase="sketch";E.authoring.resumePhase=null;E.authoring.workflowFocus="sketch";
     syncAuthoringWorkflow();
@@ -4616,6 +5550,7 @@ function chooseSketchReference(reference, preferredTool) {
   if(!reference)return;
   var stayIn3D = E.mode === "3d";
   var picker=root.querySelector("#mdReferencePicker");if(picker)picker.hidden=true;
+  E.facePick=null;syncFacePrompt();
   pushUndo(t("newSketch"));
   var sketch=ensureSketch(E.def), isEmpty=!(sketch.entities || []).length && !(E.def.history || []).some(function(entry){return entry.kind==="sketch"&&entry.targetId===sketch.id;});
   var topology=reference.type==="topology-reference" || !!reference.persistentId;
@@ -4638,15 +5573,16 @@ function chooseSketchReference(reference, preferredTool) {
   E.def.metadata ||= {};E.def.metadata.authoringSystem="parametric-v1";
   E.lastSketchReferenceId=topology ? (reference.persistentId || sketch.referenceId) : reference.id;
   E.authoring={phase:"sketch",referenceId:sketch.referenceId,sketchId:sketch.id,featureType:null,sketchSelection:[sketch.id],preferredTool:preferredTool || null,workflowFocus:"sketch",resumePhase:null};
-  /* Opening a sketch from the 3D model keeps you IN the 3D model. The sheet is
-     laid over the solid on the chosen plane and the camera is left exactly
-     where it was — dropping to a flat 2D view (or spinning normal to the face)
-     is a choice, not a precondition, and it is the thing that made drawing on
-     a part feel like leaving the part. Coming from 2D, stay in 2D. */
+  /* Opening a sketch from the 3D model keeps you IN the 3D model: the sheet is
+     laid over the solid rather than dropping you into a flat 2D view. Coming
+     from 2D, stay in 2D. Picking a face is the one case that also turns the
+     camera — you asked to draw on that face, so the part swings round to show
+     it to you. Sketching on a datum plane leaves the camera where it was. */
   E.ssel=[];E.sel=null;
   if(stayIn3D){E.modelPlaneActive=true;syncModelPlane();}else setMode("2d");
   setCommandTab("sketch");setTab("sketch");
   if(preferredTool)setTool(preferredTool,true);else setTool("select",true);
+  if(stayIn3D && topology)orientModelToView(true);
   refreshAll();
   if(!stayIn3D)requestAnimationFrame(fitSketch);else drawSketch();
 }
@@ -4673,6 +5609,7 @@ function resumeSketchSession(preferredTool) {
 function showReferencePicker(preferredTool) {
   var picker=root && root.querySelector("#mdReferencePicker"),host=root && root.querySelector("#mdReferenceOptions");
   if(!picker||!host)return;
+  E.facePick=null;syncFacePrompt();
   if(E.authoring.phase==="sketch")E.authoring.resumePhase="sketch";
   E.authoring.phase="reference";E.authoring.workflowFocus="reference";
   E.authoring.preferredTool=typeof preferredTool==="string" ? preferredTool : null;
@@ -4690,6 +5627,56 @@ function showReferencePicker(preferredTool) {
   picker.hidden=false;syncAuthoringWorkflow();
 }
 
+/* ---- "click the face you mean" ------------------------------------------
+   A new sketch on a part that already has a solid does not open a dialog: the
+   viewport becomes the picker. The model stays live under the prompt bar, the
+   hover highlight already shows which face is under the cursor, and the click
+   that selects the face is the same click that opens the sketch on it. The
+   datum-plane dialog is still one button away, and is what an empty document
+   gets — there is nothing to click there yet. */
+function beginFacePick(preferredTool) {
+  if(E.authoring.phase==="sketch")E.authoring.resumePhase="sketch";
+  E.authoring.phase="reference";E.authoring.workflowFocus="reference";
+  E.authoring.preferredTool=typeof preferredTool==="string" ? preferredTool : null;
+  E.facePick={tool:E.authoring.preferredTool};
+  E.topologySelection=[];
+  E.selectionFilter=selectionFilterAllows("face",E.selectionFilter) ? E.selectionFilter : "all";
+  if(E.mode!=="3d")setMode("3d");
+  /* The sketch sheet is a canvas laid over the model — leave it up and it eats
+     the very click we are asking for. */
+  if(E.modelPlaneActive){E.modelPlaneActive=false;syncModelPlane();}
+  syncFacePrompt();
+  flash(t("pickFaceTitle"));
+  syncAuthoringWorkflow();
+  refreshAll();
+}
+function syncFacePrompt() {
+  var prompt=root && root.querySelector("#mdFacePrompt");
+  if(prompt)prompt.hidden=!E.facePick;
+  var canvas=root && root.querySelector("#mdPrev");
+  if(canvas)canvas.style.cursor=E.facePick ? "crosshair" : "";
+}
+function cancelFacePick(openPicker) {
+  var tool=E.facePick && E.facePick.tool || null;
+  E.facePick=null;
+  syncFacePrompt();
+  if(openPicker){showReferencePicker(tool);return;}
+  cancelReferenceSelection();
+  refreshAll();
+}
+/* The click that lands on a face while the prompt is up. Returns true when it
+   consumed the pick, so the normal selection path stops there. */
+function facePickFromViewport(reference) {
+  if(!E.facePick)return false;
+  if(!reference || reference.kind!=="face"){refreshAll();return true;}
+  E.topologySelection=[cloneData(reference)];
+  if(!faceSketchAttachment()){flash(t("needPlanarOrAnalytic"));refreshAll();return true;}
+  var tool=E.facePick.tool;
+  E.facePick=null;
+  syncFacePrompt();
+  chooseSketchReference(E.topologySelection[0], tool);
+  return true;
+}
 function beginSketchWorkflow(preferredTool, options) {
   if(E.docType!=="part")return;
   options=options || {};
@@ -4699,10 +5686,16 @@ function beginSketchWorkflow(preferredTool, options) {
     return;
   }
   var face=selectedSketchableFace();
-  if(shouldSkipReferencePicker(face)){
+  var start=sketchStartMode({
+    hasSketchableFace:!!face,
+    hasSolids:activeParts(E.def).length>0,
+    wantsPlanePicker:!!options.planePicker,
+  });
+  if(start==="selected-face"&&shouldSkipReferencePicker(face)){
     chooseSketchReference(face, typeof preferredTool==="string" ? preferredTool : null);
     return;
   }
+  if(start==="pick-face"){beginFacePick(preferredTool);return;}
   showReferencePicker(preferredTool);
 }
 
@@ -4793,7 +5786,7 @@ function syncAuthoringWorkflow() {
   var context=root.querySelector("#mdWorkflowContext");if(context)context.textContent=units.length+" · "+(E.def.context && E.def.context.activeCoordinateSystemId || "origin");
   var sketch=ensureSketch(E.def),hasRecordedSketch=(E.def.history || []).some(function(entry){return entry.kind==="sketch"&&entry.targetId===sketch.id;}),reference=root.querySelector("#mdWorkflowReference");
   if(reference)reference.textContent=(hasRecordedSketch || sketch.referenceId || sketch.support) && phase!=="reference" ? sketchPlaneCaption() : t("wfChoosePlane");
-  var sketchText=root.querySelector("#mdWorkflowSketch");if(sketchText){var info=E.solveInfo || solveSketch(sketch);sketchText.textContent=(sketch.entities || []).length ? (info.status==="fully-constrained"?t("wfFullyDefined"):((sketch.constraints || []).length?t("wfPartialDefined")+" · ":t("wfUnderDefined")+" · ")+info.degreesOfFreedom+" "+t("wfDof")) : t("wfCreateProfile");}
+  var sketchText=root.querySelector("#mdWorkflowSketch");if(sketchText){var info=E._solveSketchId===sketch.id&&E.solveInfo ? E.solveInfo : solveSketch(sketch);if(E._solveSketchId!==sketch.id){E.solveInfo=info;E._solveSketchId=sketch.id;}sketchText.textContent=(sketch.entities || []).length ? (info.status==="fully-constrained"?t("wfFullyDefined"):((sketch.constraints || []).length?t("wfPartialDefined")+" · ":t("wfUnderDefined")+" · ")+info.degreesOfFreedom+" "+t("wfDof")) : t("wfCreateProfile");}
   var feature=root.querySelector("#mdWorkflowFeature");if(feature)feature.textContent=E.authoring && E.authoring.featureType ? (featureSpec(E.authoring.featureType)?.label || E.authoring.featureType) : (closedSketchProfile() ? t("wfReadyExtrude") : t("wfTurnIntent"));
   var history=root.querySelector("#mdWorkflowHistory");if(history)history.textContent=(E.def.history || []).length+" "+t("wfEditableSteps");
   root.classList.toggle("md-authoring-sketch",phase==="sketch");
@@ -4870,6 +5863,10 @@ function setTool(id, keepPlaneState) {
   if (id !== "select" && id !== "dim" && E.mode === "drawing") setMode("2d");
   syncModelPlane();
   syncTools();
+  // Picking a face is an explicit statement about where you want to draw, so
+  // the camera swings square onto that face even when "normal to" is off. The
+  // preference still governs every other way a sketch gets opened.
+  if (attachedToFace) orientModelToView(true);
   if (attachedToFace) refreshAll(); else drawSketch();
   if (openingModelPlane) requestAnimationFrame(fitSketch);
   updateTourProgress();
@@ -5027,6 +6024,13 @@ function runCommand(id) {
   else if (id === "mirrorfeature") openParametricFeature("mirror");
   else if (id === "booleanfeature") openParametricFeature("boolean");
   else if (id === "holefeature") openParametricFeature("hole");
+  else if (id === "helixfeature") openParametricFeature("helix");
+  else if (id === "threadfeature") openParametricFeature("thread");
+  else if (id === "knurlfeature") openParametricFeature("knurl");
+  else if (id === "insertfeature") openParametricFeature("insert");
+  else if (id === "toolboxfastener") insertToolboxFastener();
+  else if (id === "config") showConfigurations();
+  else if (id === "screwmate") { setDocumentType("assembly"); setTab("ops"); addTopologyMate("screw"); }
   else if (id === "mirror") mirrorSelection();
   else if (id === "pattern") patternSelection();
   else if (id === "circpattern") patternCircularSelection();
@@ -5035,8 +6039,9 @@ function runCommand(id) {
   else if (id === "stepin") importStepDocument();
   else if (id === "stepout") exportStepDocument();
   else if (id === "igesout") exportIgesDocument();
-  else if (id === "drawing" && E.docType === "part") downloadDrawing(E.def);
+  else if (id === "drawing" && E.docType === "part") downloadDrawing(E.def, { section: true, holeCallouts: true, balloons: true });
   else if (id === "mass") showMassProperties();
+  else if (id === "section") toggleSectionView();
   else if (id === "standards") runStandardsAudit();
   else if (id === "stdscrew") insertISO4017Screw();
   else if (id === "stdgear") insertISOInvoluteGear();
@@ -5200,7 +6205,21 @@ function selectedSketchIds() {
 }
 
 function createMultiSketchFeature(type, values) {
-  var ids=selectedSketchIds(),required=type==="loft"?2:2;
+  var ids=selectedSketchIds(),helix=selectedHelixRecord();
+  if(type==="sweep" && sweepUsesHelixPath(ids.length, helix)){
+    var profileSketch=(E.def.sketches || []).find(function(sketch){return sketch.id===ids[0];});
+    var profileRun=analyzeSketchProfiles(profileSketch),profileLoop=profileRun.profiles[0];
+    if(!profileLoop){flash(t("sweepNeed"));return false;}
+    var params={...featureDefaults(type),...((values && values.params) || values || {})};
+    params.profile=profileLoop.points.map(function(point){return {x:point.u,y:point.v,z:0};});
+    params.path=sampleHelix(helix).points;
+    params.helix={origin:helix.origin,axis:helix.axis,radius:helix.radius,radiusEnd:helix.radiusEnd,pitch:helix.pitch,turns:helix.turns,height:helix.height,handedness:helix.handedness,startAngle:helix.startAngle};
+    pushUndo(t("createFeature")+" "+(featureSpec(type)?.label || type));
+    try{createFeatureDefinition(E.def,type,{references:{sketches:[profileSketch.id],features:[],topology:[],references:[helix.id]},params:params});}
+    catch(error){H.discard();flash(String(error.message||error));return false;}
+    refreshAll();return true;
+  }
+  var required=type==="loft"?2:2;
   if(ids.length<required){flash((featureSpec(type)?.label || type)+" "+t("featureNeedsSketches"));return false;}
   var refs=ids.slice(0,type==="sweep"?2:ids.length),params={...featureDefaults(type),...((values && values.params) || values || {})};
   if(type==="sweep"){
@@ -5218,6 +6237,12 @@ function createMultiSketchFeature(type, values) {
   refreshAll();return true;
 }
 
+function selectedHelixRecord() {
+  var id=E.selectedReferenceId;
+  if(!id)return null;
+  return (E.def && E.def.referenceGeometry || []).find(function(item){return item && item.id===id && (item.type==="reference_helix" || item.type==="helix");}) || null;
+}
+
 function createHoleFeature(options) {
   var params={...featureDefaults("hole"),...(options || {})};
   var target=selectedSolid() || (E.def && activeParts(E.def)[activeParts(E.def).length-1]);
@@ -5227,7 +6252,8 @@ function createHoleFeature(options) {
   var profile=closedSketchProfile();
   if(!profile && !face){flash(t("holeNeed"));return false;}
   if(face && !attachSketchToSelectedFace()){flash(t("needPlanarFace"));return false;}
-  var diameter=Math.max(.1,Number(params.diameter)||1);
+  var wizard=holeWizardSolids(params);
+  var diameter=Math.max(.1, Number(wizard.hole.diameter)||Number(params.diameter)||1);
   profile=closedSketchProfile();
   if(!profile){
     pushUndo(t("holeWizard"));
@@ -5244,18 +6270,178 @@ function createHoleFeature(options) {
   var topology=face ? [cloneData(face)] : [];
   recordSketchInHistory(E.def,sketch);
   var feature=null;
+  var callout=holeCallout(params);
   if(isCanonicalAuthoring()){
     try{
       feature=createFeatureDefinition(E.def,"hole",{
         inputs:targetFeatureId ? [targetFeatureId] : [],
         references:{sketches:[sketch.id],features:targetFeatureId ? [targetFeatureId] : [],topology:topology,references:[],profileEntityIds:profile.entityIds},
-        params:{...params,depth:Math.max(.1,Number(params.depth)||E.depth),diameter:diameter,profileEntityIds:profile.entityIds,sketchId:sketch.id,operation:"subtract"},
+        params:{...params,depth:Math.max(.1,Number(params.depth)||wizard.hole.depth||E.depth),diameter:diameter,profileEntityIds:profile.entityIds,sketchId:sketch.id,operation:"subtract",callout:callout},
       });
     }catch(error){H.discard();flash(String(error.message||error));return false;}
   }
-  var changed=applyCut(profile.points);
+  var points=holeLayoutPoints(params);
+  if(!points.length)points=[{u:0,v:0}];
+  var changed=0;
+  points.forEach(function(origin){
+    wizard.solids.forEach(function(solid){
+      var r=(Number(solid.diameter)||Number(solid.diameter1)||diameter)/2;
+      var loop=circleLoopAt(origin.u, origin.v, r);
+      var cutDepth=solid.endCondition==="through-all"?null:Number(solid.depth);
+      changed+=applyCut(loop, feature && feature.id, origin, cutDepth==null?undefined:{
+        from:0, to:params.direction==="reverse"?-cutDepth:cutDepth, endCondition:solid.endCondition,
+      })?1:0;
+    });
+  });
   if(!changed){if(feature)removeHistoryNode(E.def,"history:feature:"+feature.id);H.discard();flash(t("cutNone"));return false;}
-  E.authoring.featureType=null;E.authoring.phase="model";refreshAll();flash("✓ "+t("holeWizard"));return true;
+  var thread=holeWizardThread(params, face && face.descriptor ? {origin:face.descriptor.origin,axis:face.descriptor.axis||face.descriptor.normal} : {});
+  if(thread){
+    target.cosmeticThread=thread;
+    target.threadGeometry=thread.threadGeometry;
+  }
+  E.authoring.featureType=null;E.authoring.phase="model";refreshAll();flash("✓ "+callout);return true;
+}
+
+function circleLoopAt(u, v, r, segments) {
+  var n=segments||24, loop=[], i;
+  for(i=0;i<n;i++){var a=i*Math.PI*2/n;loop.push({u:u+Math.cos(a)*r,v:v+Math.sin(a)*r});}
+  return loop;
+}
+
+function selectedCylindricalFace() {
+  return (E.topologySelection || []).find(function(reference){
+    return reference.kind==="face" && reference.descriptor && (reference.descriptor.surface==="cylinder" || Number(reference.descriptor.radius)>0);
+  }) || null;
+}
+
+function createHelixFeature(options) {
+  var params={...featureDefaults("helix"),...(options || {})};
+  var face=selectedCylindricalFace();
+  if(face && face.descriptor){
+    params.radius=Number(face.descriptor.radius)||params.radius;
+    params.origin=cloneData(face.descriptor.origin);
+    params.axis=cloneData(face.descriptor.axis||face.descriptor.normal);
+  }
+  pushUndo(t("opHelix"));
+  try{
+    if(isCanonicalAuthoring())createFeatureDefinition(E.def,"helix",{references:{sketches:[],features:[],topology:face?[cloneData(face)]:[],references:[]},params:params});
+  }catch(error){H.discard();flash(String(error.message||error));return false;}
+  E.def.referenceGeometry=E.def.referenceGeometry||[];
+  E.def.referenceGeometry.push(createHelix({name:t("opHelix"),...params,height:Number(params.height)||Number(params.pitch)*Number(params.turns)}));
+  refreshAll();flash("✓ "+t("helixAdded"));return true;
+}
+
+function createThreadFeature(options) {
+  var params={...featureDefaults("thread"),...(options || {})};
+  var face=selectedCylindricalFace();
+  var target=selectedSolid();
+  if(!face && !target){flash(t("threadNeed"));return false;}
+  var origin=face&&face.descriptor&&face.descriptor.origin||{x:0,y:0,z:0};
+  var axis=face&&face.descriptor&&(face.descriptor.axis||face.descriptor.normal)||{x:0,y:1,z:0};
+  var diameterMm=Number(params.diameterMm)||((face&&face.descriptor&&face.descriptor.radius||0)*20)||8;
+  var spec=normalizeThreadSpec({...params,diameterMm:diameterMm,origin:origin,axis:axis,length:Number(params.length)||1.5});
+  var check=validateThreadFeature(spec);
+  if(!check.ok){flash(check.issues[0]&&check.issues[0].message||t("opThread"));return false;}
+  pushUndo(t("opThread"));
+  try{
+    if(isCanonicalAuthoring())createFeatureDefinition(E.def,"thread",{
+      inputs:target&&target.featureId?[target.featureId]:[],
+      references:{sketches:[],features:target&&target.featureId?[target.featureId]:[],topology:face?[cloneData(face)]:[],references:[]},
+      params:{...params,...spec},
+    });
+  }catch(error){H.discard();flash(String(error.message||error));return false;}
+  if(target){
+    target.cosmeticThread=cosmeticThread(spec);
+    target.threadGeometry=target.cosmeticThread.threadGeometry;
+    if(spec.mode==="modeled")target.modeledThread=modeledThreadSolid(spec);
+  }
+  refreshAll();flash("✓ "+threadCallout(spec));return true;
+}
+
+function createKnurlFeature(options) {
+  var params={...featureDefaults("knurl"),...(options || {})};
+  var face=selectedCylindricalFace();
+  var target=selectedSolid();
+  if(!face && !target){flash(t("knurlNeed"));return false;}
+  if(face&&face.descriptor){
+    params.diameterMm=Number(params.diameterMm)||((Number(face.descriptor.radius)||0)*20)||30;
+    params.origin=cloneData(face.descriptor.origin);
+    params.axis=cloneData(face.descriptor.axis||face.descriptor.normal);
+  }
+  var check=validateKnurl(params);
+  if(!check.ok){flash(check.issues[0]&&check.issues[0].message||t("opKnurl"));return false;}
+  pushUndo(t("opKnurl"));
+  try{
+    if(isCanonicalAuthoring())createFeatureDefinition(E.def,"knurl",{
+      inputs:target&&target.featureId?[target.featureId]:[],
+      references:{sketches:[],features:target&&target.featureId?[target.featureId]:[],topology:face?[cloneData(face)]:[],references:[]},
+      params:params,
+    });
+  }catch(error){H.discard();flash(String(error.message||error));return false;}
+  if(target){target.knurl=normalizeKnurlSpec(params);target.knurlMesh=knurlBandMesh(target.knurl);}
+  refreshAll();flash("✓ "+knurlCallout(params));return true;
+}
+
+function createInsertFeature(options) {
+  var params={...featureDefaults("insert"),...(options || {})};
+  var face=selectedCylindricalFace();
+  if(face&&face.descriptor){
+    params.innerMm=Number(params.innerMm)||((Number(face.descriptor.radius)||0)*20)||8;
+    params.origin=cloneData(face.descriptor.origin);
+    params.axis=cloneData(face.descriptor.axis||face.descriptor.normal);
+  }
+  pushUndo(t("opInsert"));
+  try{
+    if(isCanonicalAuthoring())createFeatureDefinition(E.def,"insert",{
+      references:{sketches:[],features:[],topology:face?[cloneData(face)]:[],references:[]},
+      params:params,
+    });
+  }catch(error){H.discard();flash(String(error.message||error));return false;}
+  addPart(Object.assign({id:uid()}, insertBody(params)));
+  refreshAll();flash("✓ "+t("opInsert"));return true;
+}
+
+function insertToolboxFastener(kind, size, lengthMm) {
+  if(!kind){ showToolboxPicker(); return false; }
+  if(E.docType!=="part")setDocumentType("part");
+  var fastener=toolboxFastener({kind:kind,size:size||"M8",lengthMm:lengthMm,threadMode:"cosmetic"});
+  pushUndo(t("toolboxFastener"));
+  fastener.parts.forEach(function(part){addPart(Object.assign({id:uid()},part));});
+  E.sel=E.def.parts[E.def.parts.length-1];refreshAll();fitSketch();
+  flash("✓ "+fastener.callout);return true;
+}
+
+function showToolboxPicker() {
+  var catalog=listToolboxPicker();
+  showPickList(t("toolboxFastener"), t("toolboxKind"), catalog.map(function(group){return {kind:group.kind,label:group.label};}), function(kindItem){
+    var group=catalog.find(function(item){return item.kind===kindItem.kind;});
+    showPickList(t("toolboxFastener"), t("toolboxSize"), group.sizes.map(function(row){return {kind:group.kind,size:row.size,lengthMm:row.lengthMm,label:row.size};}), function(sizeItem){
+      if(sizeItem.kind==="hex-nut" || sizeItem.kind==="bushing"){ insertToolboxFastener(sizeItem.kind, sizeItem.size); return; }
+      showPickList(t("toolboxFastener"), t("toolboxLength"), FASTENER_LENGTHS_MM.map(function(mm){
+        return {kind:sizeItem.kind,size:sizeItem.size,lengthMm:mm,label:sizeItem.size+"×"+mm,hint:mm===sizeItem.lengthMm?t("wfSuggested"):""};
+      }), function(lengthItem){ insertToolboxFastener(lengthItem.kind, lengthItem.size, lengthItem.lengthMm); });
+    });
+  });
+}
+
+function showConfigurations() {
+  ensureConfigurations(E.def);
+  var items=E.def.configurations.map(function(cfg){
+    var active=cfg.id===E.def.activeConfiguration;
+    return {id:cfg.id,label:cfg.name+(active?" ●":""),hint:active?t("configSaved"):Object.keys(cfg.parameterOverrides||{}).length+" overrides"};
+  });
+  items.push({id:"__new__",label:"+ "+t("configNew")});
+  showPickList(t("configurations"), t("configurations"), items, function(item){
+    if(item.id==="__new__"){
+      var name="Config "+(E.def.configurations.length+1);
+      pushUndo(t("configurations"));
+      captureConfiguration(E.def,{name:name});
+      flash("✓ "+t("configSaved")+" · "+name);refreshAll();return;
+    }
+    pushUndo(t("configurations"));
+    setActiveConfiguration(E.def,item.id);
+    refreshAll();flash("✓ "+item.label.replace(" ●",""));
+  });
 }
 
 function createRevolveFeature(options) {
@@ -5276,13 +6462,17 @@ function clearFeaturePreview(refresh) {
   if(refresh)refreshAll();
 }
 
-function extrudePreviewPart(type,params) {
-  var analysis=sketchProfileAnalysis(),profile=analysis.profiles[0];if(!profile)return null;
-  var sketch=ensureSketch(E.def),inside=analysis.profiles.slice(1).filter(function(candidate){return pointInProfile(profileCentroid(candidate.points),profile.points);});
+/* The live preview shows what the feature will do — so it shows every area the
+   feature will act on, one ghost body each. */
+function extrudePreviewParts(type,params) {
+  var areas=sketchFeatureAreas();if(!areas.length)return [];
+  var sketch=ensureSketch(E.def);
   var axis=planeAxis(sketch.plane),normal=sketch.frame && sketch.frame.normal,principalDirection=normal?(axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)):1;
   var direction=(params.direction==="reverse"?-1:1)*(principalDirection || 1),depth=Math.max(.1,Number(params.depth)||.1),offset=Number(params.offset)||0,symmetric=!!params.symmetric||params.endCondition==="mid-plane";
   var center=(sketch.frameSpace==="local"?0:Number(sketch.offset)||0)+direction*offset,from=symmetric?center-direction*depth/2:center,to=symmetric?center+direction*depth/2:center+direction*depth;
-  return {id:"preview:"+type,featureId:"preview:"+type,previewOnly:true,kind:"ext",axis:sketch.frameSpace==="local"?"frame":axis,frame:sketch.frameSpace==="local"?cloneData(sketch.frame):undefined,from:from,to:to,pts:profile.points,holes:inside.map(function(hole){return hole.points;}),color:type==="extrudeCut"?"#d75a4a":"#6f8de8",opacity:type==="extrudeCut"?.42:.62,metal:.04,rough:.68,name:"Live "+(featureSpec(type)?.label || type)};
+  return areas.map(function(area,index){
+    return {id:"preview:"+type+":"+index,featureId:"preview:"+type,previewOnly:true,kind:"ext",axis:sketch.frameSpace==="local"?"frame":axis,frame:sketch.frameSpace==="local"?cloneData(sketch.frame):undefined,from:from,to:to,pts:area.points,holes:area.holes.slice(),color:type==="extrudeCut"?"#d75a4a":"#6f8de8",opacity:type==="extrudeCut"?.42:.62,metal:.04,rough:.68,name:"Live "+(featureSpec(type)?.label || type)};
+  });
 }
 
 function finishCommandActive() {
@@ -5404,11 +6594,27 @@ function adoptFinishEdgeSelection() {
   E.authoring.finishEdgePool = edges.map(function (reference) { return reference.persistentId; });
 }
 
+function selectedTopologyFaces() {
+  return (E.topologySelection || []).filter(function (reference) { return reference.kind === "face"; });
+}
+
+/* "All edges" means every edge of the picked faces when a face is selected —
+   scoping to the face is the whole point of picking one. Only a body-level
+   selection sweeps the entire solid. */
 function allCandidateFinishEdges(part) {
   if (!part) return [];
   var overlay = overlayEntriesForPart(part, null);
-  if (overlay.length) return dedupeFinishRefs(overlay.map(topologyReferenceFromEntry));
-  return dedupeFinishRefs(topologyEntriesForPart(part).filter(function (entry) { return entry.kind === "edge"; }).map(topologyReferenceFromEntry));
+  var entries = overlay.length
+    ? overlay
+    : topologyEntriesForPart(part).filter(function (entry) { return entry.kind === "edge"; });
+  var faces = selectedTopologyFaces();
+  if (faces.length) {
+    var onFaces = entries.filter(function (entry) {
+      return faces.some(function (face) { return edgeLiesOnFace(entry, face); });
+    });
+    if (onFaces.length) entries = onFaces;
+  }
+  return dedupeFinishRefs(entries.map(topologyReferenceFromEntry));
 }
 
 function renderFinishEdgeList() {
@@ -5420,7 +6626,9 @@ function renderFinishEdgeList() {
   var head = el("div", "md-finish-edges-head");
   head.appendChild(el("b", "", t("finishEdges") + " · " + edges.length));
   var tools = el("div", "md-finish-edges-tools");
-  tools.appendChild(btn(t("selectAllEdges"), function () { setFinishEdges(allCandidateFinishEdges(part)); }, "md-finish-edges-all"));
+  tools.appendChild(btn(t("selectAllEdges"), function () {
+    setFinishEdges(selectedTopologyFaces().concat(allCandidateFinishEdges(part)));
+  }, "md-finish-edges-all"));
   tools.appendChild(btn(t("clearEdges"), function () { setFinishEdges([]); }, "md-finish-edges-none"));
   head.appendChild(tools);
   host.appendChild(head);
@@ -5515,7 +6723,7 @@ function syncNewFeaturePreview(type,state,liveBadge) {
   var previews=[];
   E.authoring.previewReplacesPartId=null;
   if(type==="extrude"||type==="extrudeCut"||type==="hole"){
-    var extrusion=extrudePreviewPart(type==="hole"?"extrudeCut":type,state.params);if(extrusion)previews.push(extrusion);
+    previews.push.apply(previews,extrudePreviewParts(type==="hole"?"extrudeCut":type,state.params));
   } else if(type==="revolve"){
     var profile=closedSketchProfile();if(profile)previews.push({id:"preview:revolve",featureId:"preview:revolve",previewOnly:true,kind:"rev",x:0,z:0,seg:48,pts:profile.points,angle:state.params.angle,direction:state.params.direction,symmetric:state.params.symmetric,color:"#6f8de8",opacity:.62,metal:.04,rough:.68,name:"Live Revolve"});
   } else if(type==="pattern"){
@@ -5579,7 +6787,13 @@ function openParametricFeature(type) {
   clearFeaturePreview(false);E.authoring.featureType=type;E.authoring.phase="model";E.quickAction=type;host.hidden=false;host.innerHTML="";
   host.appendChild(el("div","md-feature-form-title",'<i class="ph '+spec.icon+'"></i><span><b>'+spec.label+'</b><small>'+t("featureFormHint")+'</small></span>'));
   var state={type:type,params:featureDefaults(type),references:{}};
-  if(type==="extrude"||type==="extrudeCut"||type==="hole"){state.params.depth=E.depth;state.params.offset=E.baseOff;}
+  if(type==="extrude"||type==="extrudeCut"||type==="hole"){
+    state.params.depth=E.depth;state.params.offset=E.baseOff;
+    var activeFeatureSketch=ensureSketch(E.def);
+    /* Support-face normals point out of the existing body. A cut should begin
+       by travelling into material; the user can still flip it explicitly. */
+    if((type==="extrudeCut"||type==="hole")&&activeFeatureSketch.frameSpace==="local"&&activeFeatureSketch.support)state.params.direction="reverse";
+  }
   if(type==="revolve")state.references.axis="axis:y";if(type==="mirror")state.references.plane=E.authoring.referenceId||"plane:right";
   var liveBadge=el("div","md-feature-live",'<i class="ph ph-broadcast"></i> '+t("livePreviewReady"));host.appendChild(liveBadge);
   E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;
@@ -5600,6 +6814,10 @@ function openParametricFeature(type) {
     if(type==="extrude"||type==="extrudeCut")ok=extrudeClosedSketch({type:type,...params});
     else if(type==="revolve")ok=createRevolveFeature({...params,axisReference:state.references.axis});
     else if(type==="hole")ok=createHoleFeature(params);
+    else if(type==="helix")ok=createHelixFeature(params);
+    else if(type==="thread")ok=createThreadFeature(params);
+    else if(type==="knurl")ok=createKnurlFeature(params);
+    else if(type==="insert")ok=createInsertFeature(params);
     else if(type==="sweep"||type==="loft")ok=createMultiSketchFeature(type,params);
     else if(type==="fillet"||type==="chamfer")ok=quickRoundPart(type,params);
     else if(type==="shell")ok=quickShellPart(params);
@@ -5612,6 +6830,7 @@ function openParametricFeature(type) {
     if(ok){E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();setMode("3d");setTab("parts");syncAuthoringWorkflow();}else{E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;syncNewFeaturePreview(type,state,liveBadge);refreshAll();}
   },"md-quick-apply"));host.appendChild(actions);
   syncNewFeaturePreview(type,state,liveBadge);refreshAll();syncAuthoringWorkflow();
+  if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
 }
 
 function commandCatalog() {
@@ -5733,6 +6952,20 @@ function setSelectionFilter(id) {
   });
 }
 
+function setMobileAddSelection(on) {
+  E.mobileAddSelection = !!on;
+  syncModelerMobile(true);
+}
+
+function clearMobileSelection() {
+  E.sel = null;
+  E.ssel = [];
+  E.componentSel = [];
+  E.topologySelection = [];
+  E.mobileAddSelection = false;
+  refreshAll();
+}
+
 function hideOverlay(id) {
   var node = root && root.querySelector(id);
   if (node) node.hidden = true;
@@ -5741,7 +6974,8 @@ function hideOverlay(id) {
 function chromeCommandLabel(id) {
   var keys = {
     newsketch: "createSketch", extrude: "opExtrude", extrudecut: "extrudeCut",
-    holefeature: "holeWizard", shellfeature: "shellOp", filletfeature: "quickFillet",
+    holefeature: "holeWizard", helixfeature: "opHelix", threadfeature: "opThread",
+    knurlfeature: "opKnurl", insertfeature: "opInsert", shellfeature: "shellOp", filletfeature: "quickFillet",
     chamferfeature: "quickChamfer", patternfeature: "quickPattern", finishsketch: "finishSketch",
     dim: "tool_dim", trim: "tool_trim", select: "tool_select", wall: "cap_wall",
     srect: "cap_srect", scirc: "cap_scirc", editfeature: "ctxEditFeature",
@@ -6041,8 +7275,11 @@ function setDocumentType(type) {
   E.sel = null;
   E.ssel = [];
   E.topologySelection = [];
+  E.facePick = null;
   E.arcPts = null;
   E.componentSel = [];
+  E.interferenceHits = [];
+  E.dependencyHighlight = null;
   if (type === "assembly" && !E.assembly) E.assembly = newAssembly();
   root.classList.toggle("md-assembly", type === "assembly");
   root.querySelectorAll("#mdDocModes [data-doc]").forEach(function (b) {
@@ -6101,8 +7338,11 @@ function syncTools() {
 function syncExtrudeButton() {
   if (!root) return;
   var profileInfo = E.docType === "part" ? sketchProfileAnalysis() : {profiles:[],openEnds:[],branchPoints:[]};
-  var available = E.docType === "part" && !!profileInfo.profiles.length;
-  var why = available ? t("profileReady")
+  // A sketch whose shapes only close by crossing each other has no chain
+  // profile and still encloses area, so the button follows the areas.
+  var regionCount = E.docType === "part" ? (sketchRegionAnalysis().regions || []).length : 0;
+  var available = E.docType === "part" && (!!profileInfo.profiles.length || regionCount > 0);
+  var why = available ? t("profileReady") + (regionCount > 1 ? " · " + regionCount + " " + t("profileRegions") : "")
     : profileInfo.branchPoints.length ? t("profileBranched")
     : profileInfo.openEnds.length ? t("profileOpen") + " · " + profileInfo.openEnds.length + " " + t("profileEnds")
     : t("profileEmpty");
@@ -6127,11 +7367,12 @@ function syncHint() {
   var topology=(E.topologySelection || []),finishType=E.authoring && ["fillet","chamfer","shell"].includes(E.authoring.featureType) ? E.authoring.featureType : null;
   var sameKind=topology.length && topology.every(function(reference){return reference.kind===topology[0].kind;});
   var kindLabel=!sameKind?t("selKindMixed"):topology[0].kind==="edge"?t("selKindEdge"):topology[0].kind==="face"?t("selKindFace"):t("selKindMixed");
-  var topologyCaption=topology.length ? topology.length+" "+kindLabel+" "+t("selCountTip") : finishType ? finishSelectionMessage(finishType) : null;
+  var compact = document.body.classList.contains("compact-nav");
+  var topologyCaption=topology.length ? topology.length+" "+kindLabel+" "+t(compact ? "selCountTipTouch" : "selCountTip") : finishType ? finishSelectionMessage(finishType) : null;
   /* The 3D hint is written for a mouse and a keyboard ("Shift-drag", "wheel").
      On the phone shell it is the one line of text left over the model, so it
      had better describe the device it is on. */
-  var touchHint = document.body.classList.contains("compact-nav") ? "hint3dTouch" : "hint3d";
+  var touchHint = compact ? "hint3dTouch" : "hint3d";
   hint.textContent =
     E.mode === "3d" && !E.modelPlaneActive ? (topologyCaption || t(touchHint)) :
     E.mode === "drawing" && E.tool === "dim" ? t("smartRulerHint") :
@@ -6152,8 +7393,21 @@ function syncHint() {
     E.tool === "dim" ? t("dimHint2") :
     t("dimHint") + " · " + t("vertexHint");
   if (E.mode === "3d" && E.modelPlaneActive) hint.textContent = t("modelPlaneHint") + ": " + sketchPlaneCaption() + " · " + hint.textContent;
+  /* The idle gesture line is a permanent 25px band across the top of a 664px
+     viewport, and on 375px it ellipsises mid-word. It is a first-run message:
+     tap it once and it stays gone for the session, coming back the moment the
+     hint has something live to say. */
+  var idle = compact && E.mode === "3d" && !E.modelPlaneActive && !topologyCaption;
+  if (compact && !hint.dataset.dismissBound) {
+    hint.dataset.dismissBound = "1";
+    hint.addEventListener("click", function () { E.hintDismissed = true; syncHint(); });
+  }
+  hint.classList.toggle("md-hint-dismissable", !!idle);
+  if (idle && E.hintDismissed) hint.textContent = "";
   hint.classList.toggle("live", live);
   hint.classList.toggle("selection",E.mode==="3d" && !E.modelPlaneActive && !!topologyCaption);
+  // the rebuild banner parks itself under the hint; tell it how tall that is
+  if (compact && root) root.style.setProperty("--md-hint-h", (hint.textContent ? Math.round(hint.getBoundingClientRect().height) : 0) + "px");
 }
 
 /* A CAD status line: which plane you are drawing on, where the cursor is in
@@ -6817,7 +8071,30 @@ function report(kicker, title, body) {
   if (!host) { flash(title); return; }
   root.querySelector("#mdReportKicker").textContent = kicker;
   root.querySelector("#mdReportTitle").textContent = title;
-  root.querySelector("#mdReportBody").textContent = Array.isArray(body) ? body.join("\n") : String(body || "");
+  var pre = root.querySelector("#mdReportBody");
+  var pick = root.querySelector("#mdPickList");
+  if (pick) { pick.hidden = true; pick.innerHTML = ""; }
+  if (pre) { pre.hidden = false; pre.textContent = Array.isArray(body) ? body.join("\n") : String(body || ""); }
+  host.hidden = false;
+}
+
+function showPickList(kicker, title, items, onPick) {
+  var host = root && root.querySelector("#mdReport");
+  if (!host) { flash(title); return; }
+  root.querySelector("#mdReportKicker").textContent = kicker;
+  root.querySelector("#mdReportTitle").textContent = title;
+  var pre = root.querySelector("#mdReportBody");
+  var pick = root.querySelector("#mdPickList");
+  if (pre) { pre.hidden = true; pre.textContent = ""; }
+  if (!pick) { flash(title); return; }
+  pick.hidden = false;
+  pick.innerHTML = "";
+  (items || []).forEach(function (item) {
+    var button = el("button", "md-reference-option", "<span><b>" + item.label + "</b>" + (item.hint ? "<small>" + item.hint + "</small>" : "") + "</span>");
+    button.type = "button";
+    button.addEventListener("click", function () { closeReport(); onPick(item); });
+    pick.appendChild(button);
+  });
   host.hidden = false;
 }
 
@@ -6855,7 +8132,7 @@ function finishPoly() {
   }
   if (E.poly && E.poly.length >= 3 && E.tool === "cut") {
     pushUndo(t("opCut"));
-    flash(applyCut(E.poly) ? t("cutDone") : t("cutNone"));
+    flash((applyCut(E.poly) ? t("cutDone") : t("cutNone")) + cutSkipNote());
     E.poly = null;
     refreshAll();
     return;
@@ -6922,10 +8199,80 @@ function closedSketchProfile() {
   return analysis.profiles.length ? analysis.profiles[0] : null;
 }
 
+var regionMemo = { sketch:null, key:0, scope:"", value:null };
+/* The same answer as sketchProfileAnalysis(), asked of the drawing instead of
+   the endpoint graph: which areas does this sketch actually enclose, counting
+   the ones that only exist because two curves cross. Memoised on the same
+   fingerprint, because the arrangement is the expensive half. */
+function sketchRegionAnalysis(entityIds) {
+  if (!E.def) return { regions:[], faces:[] };
+  var sketch = ensureSketch(E.def);
+  var scope = (entityIds || []).slice().sort().join("|");
+  var key = sketchFingerprint(sketch, []);
+  if (regionMemo.sketch === sketch && regionMemo.key === key && regionMemo.scope === scope) return regionMemo.value;
+  regionMemo.sketch = sketch;
+  regionMemo.key = key;
+  regionMemo.scope = scope;
+  regionMemo.value = sketchRegions(sketch, entityIds && entityIds.length
+    ? { tolerance:0.05, entityIds:entityIds } : { tolerance:0.05 });
+  return regionMemo.value;
+}
+
+/* Which entities a *new* feature may claim.
+   Overlapping loops fuse into one area on purpose — that is what "how much
+   material does this cut remove" means. But a profile an earlier feature
+   already owns is not free to be swept into the next one: a circle that was
+   extruded into a boss, with a slot later drawn across it in the same sketch,
+   came back as one fused blob and got extruded a second time, boss and slot
+   together. An id that belongs to another sketch simply never matches here. */
+function unclaimedSketchEntityIds(sketch) {
+  var claimed = new Set();
+  var claim = function (ids) { if (Array.isArray(ids)) ids.forEach(function (id) { claimed.add(id); }); };
+  (E.def.features || []).forEach(function (feature) {
+    claim(feature.params && feature.params.profileEntityIds);
+    claim(feature.references && feature.references.profileEntityIds);
+    (feature.params && feature.params.holeProfileEntityIds || []).forEach(claim);
+  });
+  (E.def.parts || []).forEach(function (part) {
+    claim(part.profileEntityIds);
+    (part.holeProfileEntityIds || []).forEach(claim);
+  });
+  var drawable = (sketch.entities || []).filter(function (entity) { return !entity.construction; });
+  var free = drawable.filter(function (entity) { return !claimed.has(entity.id); }).map(function (entity) { return entity.id; });
+  // nothing claimed, or everything claimed: there is no subset to narrow to
+  return free.length && free.length < drawable.length ? free : [];
+}
+
+/* Every area a feature should act on, computed off the two analyses the editor
+   already keeps warm. Lives in sketch_regions.js so it can be tested on its
+   own; here it is only wired to the memos and to the current selection. */
+function sketchFeatureAreas() {
+  // A selection the user made picks the areas; the one the draw tool left
+  // behind does not — see markDrawnSelection.
+  var selected = E.sselAuto ? [] : selEntities().map(function (entity) { return entity.id; });
+  var sketch = ensureSketch(E.def);
+  var analysis = sketchProfileAnalysis();
+  /* Arrange only what this feature may act on. Arranging everything and
+     filtering afterwards cannot separate two loops that cross: their fused
+     outline is bounded by both, so it answers to either one's selection. */
+  var scope = selected.length ? selected : unclaimedSketchEntityIds(sketch);
+  if (scope.length) {
+    var scoped = featureAreas(analysis, sketchRegionAnalysis(scope), selected);
+    if (scoped.length) return scoped;
+  }
+  return featureAreas(analysis, sketchRegionAnalysis(), selected);
+}
+
+/* Extrude or cut with the sketch — the whole sketch.
+   A feature acts on every area the drawing encloses, the way it does in a
+   full CAD modeller: two loops make two bosses, and a cut takes away all of
+   them, crossings included. Each area becomes its own feature so the exact
+   kernel can rebuild it from one closed profile, and the cuts are chained so
+   the second one bites into the result of the first. */
 function extrudeClosedSketch(options) {
   options=options || {};var featureType=options.type || "extrude",params={...featureDefaults(featureType),...options};delete params.type;
-  var analysis = sketchProfileAnalysis(), profile = analysis.profiles[0];
-  if (!profile) {
+  var analysis = sketchProfileAnalysis(), areas = sketchFeatureAreas();
+  if (!areas.length) {
     flash(analysis.branchPoints.length ? t("profileBranched") : analysis.openEnds.length ? t("profileOpen") + " · " + analysis.openEnds.length + " " + t("profileEnds") : t("profileEmpty"));
     setTab("sketch");
     return false;
@@ -6937,11 +8284,12 @@ function extrudeClosedSketch(options) {
   var targetFeatureId=target ? (selectedTarget || ((E.def.features || []).slice(-1)[0]||{}).id || target.featureId) : null;
   if(featureType==="extrudeCut"&&!target){flash(t("extrudeCutNeed"));return false;}
   pushUndo(featureType==="extrudeCut" ? t("extrudeCut") : t("opExtrude"));
-  var inside = analysis.profiles.slice(1).filter(function (candidate) {
-    return pointInProfile(profileCentroid(candidate.points), profile.points);
+  var usedIds = [];
+  areas.forEach(function (area) {
+    if (area.entityIds) usedIds = usedIds.concat(area.entityIds);
+    (area.holeEntityIds || []).forEach(function (ids) { usedIds = usedIds.concat(ids); });
   });
-  var usedIds = profile.entityIds.concat.apply(profile.entityIds.slice(), inside.map(function (hole) { return hole.entityIds; }));
-  var healed = healSketchEndpoints(sketch, usedIds, analysis.tolerance);
+  var healed = usedIds.length ? healSketchEndpoints(sketch, usedIds, analysis.tolerance) : 0;
   var axis = planeAxis(sketch.plane);
   var normal=sketch.frame && sketch.frame.normal;
   var direction=normal ? (axis==="x" ? Math.sign(normal.x || 1) : axis==="y" ? Math.sign(normal.y || 1) : Math.sign(normal.z || 1)) : 1;
@@ -6952,31 +8300,57 @@ function extrudeClosedSketch(options) {
   var center=(localFrame?0:sketch.offset)+featureDirection*offset;
   var start=symmetric?center-featureDirection*depth/2:center,end=symmetric?center+featureDirection*depth/2:center+featureDirection*depth;
   recordSketchInHistory(E.def,sketch);
-  var feature=null;
-  if(isCanonicalAuthoring()){
-    try{
-      feature=createFeatureDefinition(E.def,featureType,{
-        inputs:targetFeatureId ? [targetFeatureId] : [],
-        references:{sketches:[sketch.id],features:targetFeatureId ? [targetFeatureId] : [],topology:[],references:[],profileEntityIds:profile.entityIds},
-        params:{...params,depth:depth,offset:offset,axis:localFrame?"frame":axis,profileEntityIds:profile.entityIds,sketchId:sketch.id,operation:featureType==="extrudeCut"?"subtract":params.operation || "add"},
-      });
-    }catch(error){H.discard();flash(String(error.message||error));return false;}
-  }
+  /* An area with a chain behind it stays parametric; one that exists only
+     because curves cross has no chain to name, so the feature carries the
+     resolved loop instead of a reference that could never resolve. */
+  var defineFeature=function (area, inputId) {
+    if (!isCanonicalAuthoring()) return null;
+    var profileParams=area.entityIds
+      ? { profileEntityIds:area.entityIds }
+      : { points:area.points.map(function (q) { return { u:q.u, v:q.v }; }) };
+    return createFeatureDefinition(E.def,featureType,{
+      inputs:inputId ? [inputId] : [],
+      references:{sketches:[sketch.id],features:inputId ? [inputId] : [],topology:[],references:[],...(area.entityIds ? {profileEntityIds:area.entityIds} : {})},
+      params:{...params,depth:depth,offset:offset,axis:localFrame?"frame":axis,...profileParams,sketchId:sketch.id,operation:featureType==="extrudeCut"?"subtract":params.operation || "add"},
+    });
+  };
   if(featureType==="extrudeCut"){
-    var changed=applyCut(profile.points, feature && feature.id);
-    if(!changed){if(feature)removeHistoryNode(E.def,"history:feature:"+feature.id);H.discard();flash(t("cutNone"));return false;}
-    E.authoring.featureType=null;E.authoring.phase="model";refreshAll();flash("✓ "+t("extrudeCut")+" · "+(params.endCondition || "through-all"));return true;
+    var cutCount=0,previousId=targetFeatureId,cutSkipped=[];
+    for(var i=0;i<areas.length;i++){
+      var cutArea=areas[i],cutFeature=null;
+      try{cutFeature=defineFeature(cutArea,previousId);}catch(error){H.discard();flash(String(error.message||error));return false;}
+      var removed=applyCut(cutArea.points, cutFeature && cutFeature.id, cutArea.interior,{
+        axis:localFrame?"frame":axis,frame:localFrame?cloneData(sketch.frame):undefined,
+        from:start,to:end,endCondition:params.endCondition,
+      });
+      cutSkipped=cutSkipped.concat(E.lastCutSkipped || []);
+      if(!removed){if(cutFeature)removeHistoryNode(E.def,"history:feature:"+cutFeature.id);continue;}
+      if(cutFeature)previousId=cutFeature.id;
+      cutCount++;
+    }
+    E.lastCutSkipped=[...new Set(cutSkipped)];
+    if(!cutCount){H.discard();flash(t("cutNone")+cutSkipNote());return false;}
+    E.authoring.featureType=null;E.authoring.phase="model";refreshAll();
+    flash("✓ "+t("extrudeCut")+" · "+(params.endCondition || "through-all")+(cutCount>1?" · "+cutCount+" "+t("profileRegions"):"")+cutSkipNote());
+    return true;
   }
-  var part = { id: uid(), kind: "ext", axis: localFrame ? "frame" : axis, frame:localFrame ? cloneData(sketch.frame) : undefined, from: start, to: end,
-    pts: profile.points, holes:inside.map(function (hole) { return hole.points; }),
-    profileEntityIds: profile.entityIds, holeProfileEntityIds:inside.map(function (hole) { return hole.entityIds; }),
-    sketchId: sketch.id, sketchDriven: true, support:cloneData(sketch.support), supportBaseOffset:(Number(sketch.supportOffset)||0)+offset, supportDepth:depth,
-    direction:params.direction,symmetric:symmetric,draftAngle:Number(params.draftAngle)||0,draftOutward:!!params.draftOutward,
-    featureId:feature ? feature.id : undefined,
-    color: "#b89a6e", metal: 0.08, rough: 0.7, name: feature ? feature.name : "Sketch Extrude" };
-  part.to=end;part.supportDepth=depth;
-  addPart(part); E.sel = part; refreshAll();
-  flash("✓ " + t("opExtrude") + (inside.length ? " · " + inside.length + " " + t("profileHoles") : "") + (healed ? " · " + t("profileHealed") : ""));
+  var made=[],holeCount=0;
+  for(var a=0;a<areas.length;a++){
+    var area=areas[a],feature=null;
+    try{feature=defineFeature(area,null);}catch(error){H.discard();flash(String(error.message||error));return false;}
+    var part = { id: uid(), kind: "ext", axis: localFrame ? "frame" : axis, frame:localFrame ? cloneData(sketch.frame) : undefined, from: start, to: end,
+      pts: area.points, holes:area.holes.slice(),
+      profileEntityIds: area.entityIds || undefined, holeProfileEntityIds:area.entityIds && area.holeEntityIds ? area.holeEntityIds : undefined,
+      sketchId: sketch.id, sketchDriven: !!area.entityIds, support:cloneData(sketch.support), supportBaseOffset:(Number(sketch.supportOffset)||0)+offset, supportDepth:depth,
+      direction:params.direction,symmetric:symmetric,draftAngle:Number(params.draftAngle)||0,draftOutward:!!params.draftOutward,
+      featureId:feature ? feature.id : undefined,
+      color: "#b89a6e", metal: 0.08, rough: 0.7, name: feature ? feature.name : "Sketch Extrude" };
+    holeCount+=area.holes.length;
+    addPart(part); made.push(part);
+  }
+  E.sel = made[made.length-1]; refreshAll();
+  flash("✓ " + t("opExtrude") + (made.length > 1 ? " · " + made.length + " " + t("profileRegions") : "")
+    + (holeCount ? " · " + holeCount + " " + t("profileHoles") : "") + (healed ? " · " + t("profileHealed") : ""));
   E.authoring.featureType=null;E.authoring.phase="model";
   return true;
 }
@@ -7093,6 +8467,7 @@ function resolveSketch(rollbackOnConflict, fast) {
   E.solveInfo = report.diagnostics === false
     ? Object.assign({}, E.solveInfo || {}, { converged: report.converged, error: report.error, stale: true })
     : report;
+  E._solveSketchId = sketch.id;
   sketch.constraints.forEach(function (constraint) {
     if (constraint.driven && constraint.value != null) constraint.value = constraintMeasure(sketch,constraint);
   });
@@ -7195,7 +8570,14 @@ var SKETCH_ENTITY_TYPES = ["line", "circle", "arc", "ellipse"];
 function isSketchObject(o) {
   return !!o && (SKETCH_ENTITY_TYPES.indexOf(o.type) >= 0 || (o.id && "x" in o && "y" in o));
 }
+/* Drawing a shape leaves it selected, so the next constraint or dimension
+   lands on it without a second click. That convenience must not decide what a
+   feature acts on: a cut asked for right after drawing would quietly take only
+   the last rectangle. So a selection remembers whether a person made it. */
+function markDrawnSelection(list) { E.ssel = [].concat(list); E.sselAuto = true; }
+
 function selectSketch(obj, additive) {
+  E.sselAuto = false;
   if (!obj) { if (!additive) { E.ssel = []; E.sel = null; } return; }
   var i = E.ssel.indexOf(obj);
   if (additive) {
@@ -7590,7 +8972,7 @@ function mirrorSelection() {
     return mirrorEntities(sketch, sources.map(function (e) { return e.id; }), axis.id);
   });
   if (!made) { refreshAll(); return; }
-  E.ssel = made.entities.slice();
+  markDrawnSelection(made.entities);
   E.sel = E.ssel[E.ssel.length - 1];
   flash(t("mirrorMade"));
   refreshAll();
@@ -7798,6 +9180,7 @@ function finishBoxSelect(box) {
   var mode = boxSelectMode(box.x0, box.x1);
   var area = { x0: box.x0, y0: box.y0, x1: box.x1, y1: box.y1 };
   if (Math.hypot(box.x1 - box.x0, box.y1 - box.y0) < 4) return;
+  E.sselAuto = false;
   E.ssel = (sketch.entities || []).filter(function (entity) {
     return boundsHitBox(sketchEntityScreenBounds(entity, sketch), area, mode);
   });
@@ -8048,10 +9431,8 @@ function dynKey(e) {
 }
 
 /* Whether a number typed while drawing should also be recorded as a driving
-   dimension. Off by default: a typed 40 still lands at exactly 40, but the
-   sketch stays under-defined until it is dimensioned deliberately with the
-   Smart Dimension tool — the same bargain SolidWorks offers, and the reason
-   nothing arrives pre-dimensioned and fighting the next edit. */
+   dimension. This is on by default: an exact number is design intent, so it
+   remains editable after placement instead of becoming throwaway geometry. */
 function autoDimTyped() { return !!E.autoDimTyped; }
 
 /* Place the shape from the numbers on screen. Each branch ends by handing the
@@ -8071,9 +9452,10 @@ function dynCommit() {
     pushUndo(t("opDraw"));
     var line = makeWallSegment(anchor, end);
     if (!line) { H.discard(); return false; }
-    // A chain is the one case where dimensioning every typed segment is wrong:
-    // lock both ends of every span and no dimension can be edited afterwards
-    // without fighting its neighbours. Typed length still lands exactly.
+    if (autoDimTyped() && typedKeys.indexOf("length") >= 0) {
+      addSmartDimension(ensureSketch(E.def), { type:"line", id:line.id }, length);
+      resolveSketch(false);
+    }
     anchor.pointId = line.a;
     E.wallPts.push({ u:end.u, v:end.v, pointId:line.b });
     E._mouse = { u:end.u, v:end.v };
@@ -8098,7 +9480,9 @@ function dynCommit() {
   } else if (E.tool === "scirc") {
     var r = Math.abs(dynValue("diameter", live)) / 2;
     var circle = addSketchCircle(anchor, { u: anchor.u + r, v: anchor.v });
-    if (autoDimTyped() && circle && typedKeys.length) addSmartDimension(ensureSketch(E.def), { type:"circle", id:circle.id }, r);
+    if (autoDimTyped() && circle && typedKeys.indexOf("diameter") >= 0) {
+      setEntityDimension(circle, "diameter", r * 2);
+    }
     made = circle;
   } else if (E.tool === "spoly") {
     var pr = Math.abs(dynValue("diameter", live)) / 2;
@@ -8107,7 +9491,7 @@ function dynCommit() {
     var poly = addSketchPolygon(anchor, { u: anchor.u + pr, v: anchor.v }, E.polySides);
     if (poly && dynTyped("diameter") != null) {
       var guide = ensureSketch(E.def).entities.filter(function (x) { return x.construction && x.type === "circle"; }).pop();
-      if (autoDimTyped() && guide) addSmartDimension(ensureSketch(E.def), { type:"circle", id:guide.id }, pr);
+      if (autoDimTyped() && guide) setEntityDimension(guide, "diameter", pr * 2);
     }
     made = poly;
   } else if (E.tool === "sslot") {
@@ -8123,7 +9507,7 @@ function dynCommit() {
   // the builders solve before the typed dimensions are attached, so one more
   // pass here is what makes the DOF count describe the shape that was placed
   resolveSketch(false);
-  E.ssel = [].concat(made);
+  markDrawnSelection(made);
   E.sel = E.ssel[E.ssel.length - 1];
   refreshAll();
   return true;
@@ -8330,7 +9714,7 @@ function wireSketch() {
         pushUndo(t("opSketch"));
         var slot = addSketchSlot(E.slotPts[0], E.slotPts[1], slotWidth);
         E.slotPts = null; E.dynInput = null;
-        if (slot) { E.ssel = slot.slice(); E.sel = slot[0]; } else H.discard();
+        if (slot) { markDrawnSelection(slot); E.sel = slot[0]; } else H.discard();
         refreshAll();
       }
       drawSketch();
@@ -8394,7 +9778,7 @@ function wireSketch() {
     var p = hitPart(uv);
     // sketch geometry: Ctrl/Cmd extends the selection, points drag and re-solve
     if (isSketchObject(p)) {
-      selectSketch(p, e.ctrlKey || e.metaKey);
+      selectSketch(p, e.ctrlKey || e.metaKey || E.mobileAddSelection);
       if (!p.type && !(e.ctrlKey || e.metaKey)) {
         pushUndo(t("opDragPt"));
         // The point under the cursor is authoritative while you hold it: pin it
@@ -8558,7 +9942,7 @@ function wireSketch() {
           // circular bore: punch a 24-gon hole centered at the drag start
           var cr = Math.hypot(u1 - u0, v1 - v0), loop = [];
           for (var k = 0; k < 24; k++) loop.push({ u: u0 + Math.cos((k * Math.PI) / 12) * cr, v: v0 + Math.sin((k * Math.PI) / 12) * cr });
-          flash(applyCut(loop) ? t("cutDone") : t("cutNone"));
+          flash((applyCut(loop) ? t("cutDone") : t("cutNone")) + cutSkipNote());
         } else {
           var part = makeDrawnPart(u0, v0, u1, v1);
           if (part) { addPart(part); E.sel = part; }
@@ -8651,6 +10035,51 @@ function wireSketch() {
     drawSketch();
     syncStatus();
   }, { passive: false });
+  /* Two-finger pinch zoom on the sketch canvas — the touch equivalent of the
+     wheel handler above. When sketching over the 3D model, the pinch dollies
+     the camera instead of scaling the 2D sheet. */
+  (function () {
+    var pinch = null;
+    function d2(e) {
+      var a = e.touches[0], b = e.touches[1];
+      return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    }
+    cv.addEventListener("touchstart", function (e) {
+      if (e.touches.length === 2) {
+        pinch = { dist: d2(e) };
+      }
+    }, { passive: true });
+    cv.addEventListener("touchmove", function (e) {
+      if (!pinch || e.touches.length !== 2) { pinch = null; return; }
+      e.preventDefault();
+      var dist = d2(e);
+      var f = pinch.dist / Math.max(dist, 1);
+      pinch.dist = dist;
+      if (Math.abs(1 - f) < 0.002) return;
+      if (sketchProjection() && E.pv) {
+        E.pv.zoomBy(f);
+        drawSketch();
+        syncStatus();
+        return;
+      }
+      var r = cv.getBoundingClientRect();
+      var a = e.touches[0], b = e.touches[1];
+      var mx = (a.clientX + b.clientX) / 2 - r.left;
+      var my = (a.clientY + b.clientY) / 2 - r.top;
+      var k = f > 1 ? 1 / 1.12 : 1.12;
+      var ns = clamp(E.scl * k, 0.3, 20);
+      E.ox = mx - ((mx - E.ox) / E.scl) * ns;
+      E.oy = my - ((my - E.oy) / E.scl) * ns;
+      E.scl = ns;
+      drawSketch();
+      syncStatus();
+    }, { passive: false });
+    function end(e) {
+      if (e.touches.length < 2) pinch = null;
+    }
+    cv.addEventListener("touchend", end);
+    cv.addEventListener("touchcancel", end);
+  })();
   cv.addEventListener("pointerleave", function () { E._mouse = null; syncStatus(); });
   cv.addEventListener("contextmenu", function (e) {
     e.preventDefault();
@@ -8731,7 +10160,7 @@ function finishTwoPointTool(to) {
     : drag.mode === "scirc" ? addSketchCircle(from, to)
     : addSketchPolygon(from, to, E.polySides);
   if (!made) { H.discard(); refreshAll(); return; }
-  E.ssel = [].concat(made);
+  markDrawnSelection(made);
   E.sel = E.ssel[E.ssel.length - 1];
   refreshAll();
 }
@@ -8848,6 +10277,7 @@ function onKey(e) {
       e.preventDefault(); closeChromeOverlays(); return;
     }
     if (reportOpen()) { e.preventDefault(); closeReport(); return; }
+    if (E.facePick) { e.preventDefault(); cancelFacePick(false); return; }
     var referencePicker = root && root.querySelector("#mdReferencePicker");
     if (referencePicker && !referencePicker.hidden) { e.preventDefault(); cancelReferenceSelection(); return; }
     if (E.tour.active) { e.preventDefault(); closeTour(); return; }
@@ -9035,7 +10465,7 @@ function refreshComponents() {
     }, "md-part-x");
     del.title = t("del"); row.appendChild(del);
     row.addEventListener("click", function (e) {
-      if (e.ctrlKey || e.metaKey) {
+      if (e.ctrlKey || e.metaKey || E.mobileAddSelection) {
         var at = E.componentSel.indexOf(component);
         if (at === -1) E.componentSel.push(component); else E.componentSel.splice(at, 1);
       } else E.componentSel = [component];
@@ -9047,55 +10477,10 @@ function refreshComponents() {
   applyFeatureFilter(host);
 }
 
-/* The sketches in the document, each named by the plane it lives on. Clicking
-   one makes it the sketch you are editing and swings the view round to its
-   plane — you cannot edit a sketch you are not looking at square on. */
-function buildSketchList(host, sketches, active) {
-  if (sketches.length < 2 && !sketches[0].entities.length && !sketches[0].support) return;
-  host.appendChild(el("h5", "md-h5", t("sketches")));
-  var list = el("div", "md-tree");
-  sketches.forEach(function (s2) {
-    var row = el("div", "md-part md-sketch-row" + (s2 === active ? " on" : ""));
-    row.appendChild(el("span", "md-tree-icon", cadIcon("mode2d")));
-    row.appendChild(el("span", "nm", s2.name));
-    var displayedOffset=s2.frameSpace==="local" ? Number(s2.supportOffset)||0 : Number(s2.offset)||0;
-    row.appendChild(el("span", "md-plane-tag", (s2.support ? "@ " + (s2.support.semantic || s2.support.persistentId) : planeLabel(s2.plane)) + (displayedOffset ? " " + displayedOffset : "")));
-    if (sketches.length > 1) {
-      var x = btn('<i class="ph ph-trash"></i>', function (e) {
-        e.stopPropagation();
-        pushUndo(t("del"));
-        removeSketch(E.def, s2.id);
-        E.ssel = []; E.sel = null;
-        setView(ensureSketch(E.def).plane);
-        refreshAll();
-      }, "md-part-x");
-      x.title = t("del");
-      row.appendChild(x);
-    }
-    row.addEventListener("click", function (event) {
-      if(event && (event.ctrlKey || event.metaKey)){
-        E.authoring.sketchSelection ||= [];var selected=E.authoring.sketchSelection.indexOf(s2.id);
-        if(selected<0)E.authoring.sketchSelection.push(s2.id);else E.authoring.sketchSelection.splice(selected,1);refreshAll();return;
-      }
-      E.def.activeSketch = s2.id;
-      E.ssel = []; E.sel = null;
-      // setView adopts a sketch for the plane, so point it at this one after
-      if (E.view !== s2.plane) { setView(s2.plane); E.def.activeSketch = s2.id; }
-      if (E.mode === "3d") setMode("2d");
-      refreshAll();
-    });
-    list.appendChild(row);
-  });
-  host.appendChild(list);
-  var add = btn('<i class="ph ph-plus"></i> ' + t("newSketch"), function () {
-    beginSketchWorkflow(null, { forceNew: true });
-  }, "md-wide md-dashed");
-  host.appendChild(add);
-}
-
 function editSketchFromHistory(sketch) {
   E.def.activeSketch=sketch.id;E.authoring.phase="sketch";E.authoring.sketchId=sketch.id;E.authoring.referenceId=sketch.referenceId;
   E.authoring.sketchSelection=[sketch.id];E.ssel=[];E.sel=null;E.view=sketch.plane || referencePlaneView((E.def.references || []).find(function(reference){return reference.id===sketch.referenceId;}));
+  E.solveInfo=solveSketch(sketch);E._solveSketchId=sketch.id;
   setMode("2d");setCommandTab("sketch");setTab("sketch");refreshAll();requestAnimationFrame(fitSketch);
 }
 
@@ -9153,41 +10538,579 @@ function openFeatureEditor(feature) {
     try{updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});setFeatureReferencesFromForm(feature,values.references);syncProjectionFromFeature(feature);E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();refreshAll();flash("✓ Feature rebuilt from history · all views updated");}
     catch(error){flash(String(error.message||error));}
   },"md-quick-apply"));host.appendChild(actions);syncAuthoringWorkflow();syncCommandManager();
+  if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
 }
 
-function buildParametricHistoryTree(host) {
-  var analysis=analyzeParametricHistory(E.def,{normalize:false}),sketches=new Map((E.def.sketches || []).map(function(item){return [item.id,item];})),features=new Map((E.def.features || []).map(function(item){return [item.id,item];}));
-  host.appendChild(el("div","md-history-summary",'<span><b>'+(E.def.history || []).length+'</b> steps</span><span class="'+(analysis.ok?"ok":"bad")+'">'+(analysis.ok?"Rebuild order valid":analysis.issues.length+" dependency issues")+'</span>'));
-  host.appendChild(el("h5","md-h5 md-feature-title","Reference geometry"));
-  (E.def.references || []).filter(function(reference){return reference.type==="plane"||reference.type==="axis";}).forEach(function(reference){
-    var row=el("div","md-part md-reference-row");row.appendChild(el("span","md-tree-icon",cadIcon(reference.type==="plane"?"refplane":"refaxis")));row.appendChild(el("span","nm",reference.name));row.appendChild(el("code","md-plane-tag",reference.id));
-    if(reference.type==="plane")row.addEventListener("dblclick",function(){chooseSketchReference(reference);});host.appendChild(row);
+function dependencyReferenceId(reference) {
+  return reference && typeof reference === "object" ? reference.id || reference.targetId : reference;
+}
+
+function directFeatureDependencies(feature) {
+  var ids=new Set((feature && feature.inputs || []).map(dependencyReferenceId).filter(Boolean));
+  (feature && feature.references && feature.references.features || []).map(dependencyReferenceId).filter(Boolean).forEach(function(id){ids.add(id);});
+  (feature && feature.references && feature.references.sketches || []).map(dependencyReferenceId).filter(Boolean).forEach(function(id){ids.add(id);});
+  (feature && feature.references && feature.references.topology || []).forEach(function(reference){if(reference && reference.ownerFeatureId)ids.add(reference.ownerFeatureId);});
+  return ids;
+}
+
+function dependencySets(targetId) {
+  var features=E.def && E.def.features || [],byId=new Map(features.map(function(feature){return [feature.id,feature];}));
+  var upstream=new Set(),downstream=new Set(),walkUp=function(id){var feature=byId.get(id);if(!feature)return;directFeatureDependencies(feature).forEach(function(dep){if(dep===targetId||upstream.has(dep))return;upstream.add(dep);walkUp(dep);});};
+  walkUp(targetId);
+  var changed=true;while(changed){changed=false;features.forEach(function(feature){if(feature.id===targetId||downstream.has(feature.id))return;var deps=directFeatureDependencies(feature);if(deps.has(targetId)||Array.from(downstream).some(function(id){return deps.has(id);})){downstream.add(feature.id);changed=true;}});}
+  return {focus:targetId,upstream:upstream,downstream:downstream};
+}
+
+function dependencyRole(targetId) {
+  var highlight=E.dependencyHighlight;if(!highlight||!targetId)return "";
+  if(targetId===highlight.focus)return "focus";
+  if(highlight.upstream.has(targetId))return "upstream";
+  if(highlight.downstream.has(targetId))return "downstream";
+  return "";
+}
+
+function applyDependencyTreeClasses() {
+  if(!root)return;
+  root.querySelectorAll("[data-history-target]").forEach(function(row){
+    var role=dependencyRole(row.dataset.historyTarget);
+    row.classList.toggle("md-dependency-focus",role==="focus");
+    row.classList.toggle("md-dependency-upstream",role==="upstream");
+    row.classList.toggle("md-dependency-downstream",role==="downstream");
+    row.classList.toggle("md-dependency-dim",!!E.dependencyHighlight&&!role);
   });
-  host.appendChild(el("h5","md-h5 md-feature-title","Design history"));
-  var tree=el("div","md-tree md-parametric-tree");
-  var rollbackAt = E.def.rollbackIndex == null ? (E.def.history || []).length : E.def.rollbackIndex;
-  (E.def.history || []).forEach(function(entry,index){
-    if (index === rollbackAt) tree.appendChild(parametricRollbackBar());
-    var target=entry.kind==="sketch"?sketches.get(entry.targetId):features.get(entry.targetId);if(!target)return;
-    var selected=entry.kind==="sketch"?(E.authoring.sketchSelection || []).includes(entry.targetId):(E.authoring.featureSelection || []).includes(entry.targetId);
-    var rolled=historyEntryRolled(E.def,index);
-    var row=el("div","md-part md-tree-row md-parametric-node "+entry.kind+" state-"+(entry.status||"pending")+(selected?" on":"")+(entry.suppressed?" md-suppressed":"")+(rolled?" md-rolled":""));
-    row.appendChild(el("span","md-history-index",String(index+1)));row.appendChild(el("span","md-tree-icon",cadIcon(entry.kind==="sketch"?"newsketch":target.type)));
-    var copy=el("span","nm");copy.appendChild(el("b","",target.name || entry.name));copy.appendChild(el("small","",entry.kind==="sketch"?(target.referenceId+" · "+(target.status || "under-defined")):(featureSpec(target.type)?.label || target.type)));row.appendChild(copy);
-    var up=btn('<i class="ph ph-caret-up"></i>',function(event){event.stopPropagation();pushUndo("Reorder history");var result=reorderHistoryNode(E.def,entry.id,index-1);if(!result.ok){H.discard();flash(result.issues[0].message);}refreshAll();},"md-part-x");up.disabled=index===0;row.appendChild(up);
-    var down=btn('<i class="ph ph-caret-down"></i>',function(event){event.stopPropagation();pushUndo("Reorder history");var result=reorderHistoryNode(E.def,entry.id,index+1);if(!result.ok){H.discard();flash(result.issues[0].message);}refreshAll();},"md-part-x");down.disabled=index===E.def.history.length-1;row.appendChild(down);
-    row.appendChild(btn('<i class="ph '+(entry.suppressed?'ph-eye-slash':'ph-eye')+'"></i>',function(event){event.stopPropagation();var next=!entry.suppressed;pushUndo(next?"Suppress":"Unsuppress");suppressHistoryNode(E.def,entry.id,next);var part=(E.def.parts || []).find(function(item){return item.featureId===entry.targetId;});if(part)part.suppressed=next;refreshAll();},"md-part-x"));
-    row.appendChild(btn(cadIcon("rollbackhere"),function(event){event.stopPropagation();pushUndo(t("ctxRollbackHere"));setHistoryRollback(E.def,index);refreshAll();},"md-part-x"));
-    row.appendChild(btn('<i class="ph ph-trash"></i>',function(event){event.stopPropagation();pushUndo("Delete history step");var result=removeHistoryNode(E.def,entry.id);if(!result.ok){H.discard();flash(result.issues[0].message);return;}E.def.parts=(E.def.parts || []).filter(function(item){return item.featureId!==entry.targetId&&item.derivedFeatureId!==entry.targetId;});refreshAll();},"md-part-x"));
-    row.addEventListener("click",function(event){
-      if(entry.kind==="sketch"){if(event.ctrlKey||event.metaKey){E.authoring.sketchSelection ||= [];var at=E.authoring.sketchSelection.indexOf(entry.targetId);if(at<0)E.authoring.sketchSelection.push(entry.targetId);else E.authoring.sketchSelection.splice(at,1);refreshAll();}else editSketchFromHistory(target);}
-      else{E.authoring.featureSelection ||= [];if(event.ctrlKey||event.metaKey){var at=E.authoring.featureSelection.indexOf(entry.targetId);if(at<0)E.authoring.featureSelection.push(entry.targetId);else E.authoring.featureSelection.splice(at,1);}else{E.authoring.featureSelection=[entry.targetId];E.sel=(E.def.parts || []).find(function(item){return item.featureId===entry.targetId||item.derivedFeatureId===entry.targetId;}) || null;}refreshAll();}
+}
+
+function setDependencyHighlight(targetId) {
+  var next=targetId ? dependencySets(targetId) : null;
+  if((E.dependencyHighlight&&E.dependencyHighlight.focus||null)===(next&&next.focus||null))return;
+  E.dependencyHighlight=next;
+  applyDependencyTreeClasses();
+  updatePreview();
+}
+
+/* ================= the FeatureManager =================
+
+   One tree, two document shapes. core/tree_model.js reads a canonical history
+   or a legacy parts list into the same normalised nodes and modeler_tree.js
+   draws them, so rename, keyboard navigation, drag-reorder, folders and the
+   context menu are written once and behave identically in both.
+
+   The mode a document is in is *reported* by isCanonicalAuthoring() and never
+   changed here. That flag also picks the rebuild engine, so converting a legacy
+   document to unify the panel would swap the kernel under a model the user
+   already trusts, and the way that goes wrong is quiet — a fillet resolving
+   against a different edge still leaves something that looks like a part.
+   Conversion is a separate, twice-gated, offered action: renderMigrationOffer. */
+
+function treeCollapseState() {
+  E.treeCollapsed ||= {};
+  return E.treeCollapsed;
+}
+
+function currentRollbackBar() {
+  return isCanonicalAuthoring() ? parametricRollbackBar() : rollbackBar();
+}
+
+function treeDeps() {
+  return { el: el, btn: btn, cadIcon: cadIcon, namedButton: namedButton, t: t, rollbackBar: currentRollbackBar };
+}
+
+function treeLabels() {
+  return {
+    metadata: t("treeDocument"), references: "Reference geometry", bodies: t("treeBodies"),
+    sketches: t("sketches"), history: t("featureTree"), noMaterial: t("treeNoMaterial"),
+    equations: t("treeEquations"), sharedSketch: t("treeSharedSketch"),
+    derivedBody: t("treeDerivedBody"), folder: t("treeFolder"),
+    sketchDriven: t("treeSketchDriven"), profileBroken: t("profileBroken"),
+  };
+}
+
+/* Bodies come from the rebuild when it published them, and are predicted from
+   the feature graph when it has not run yet — the section answers "what exists
+   right now", so it must not be empty merely because nothing has regenerated. */
+function treeBodySet() {
+  var run = E.coreRun;
+  var bodies = run && (run.bodies || (run.core && run.core.bodies));
+  return Array.isArray(bodies) && bodies.length ? bodies : null;
+}
+
+function treeStatusMap() {
+  var map = new Map(), status = E.coreRun && E.coreRun.status;
+  if (Array.isArray(status)) status.forEach(function (entry) { map.set(entry.targetId, entry.state); });
+  return map;
+}
+
+function currentTreeModel() {
+  var canonical = isCanonicalAuthoring();
+  return buildTreeModel(E.def, {
+    authoringSystem: canonical ? "parametric-v1" : "legacy-adapter",
+    rollbackIndex: canonical
+      ? (E.def.rollbackIndex == null ? (E.def.history || []).length : E.def.rollbackIndex)
+      : undefined,
+    status: treeStatusMap(),
+    bodies: treeBodySet(),
+    hiddenBodies: E.hiddenBodies || [],
+    selection: {
+      features: (E.authoring && E.authoring.featureSelection) || [],
+      sketches: (E.authoring && E.authoring.sketchSelection) || [],
+    },
+    selectedPartId: (E.sel && E.sel.id) || null,
+    selectedReferenceId: E.selectedReferenceId || null,
+    collapsed: treeCollapseState(),
+    folders: E.def.treeFolders || [],
+    labels: treeLabels(),
+  });
+}
+
+function treeTargetFeature(node) {
+  return (E.def.features || []).find(function (item) { return item.id === node.targetId; }) || null;
+}
+function treeTargetSketch(node) {
+  return (E.def.sketches || []).find(function (item) { return item.id === node.targetId; }) || null;
+}
+function treeTargetPart(node) {
+  return (E.def.parts || []).find(function (item) { return item.id === node.targetId; }) || null;
+}
+function toggleTreeSelection(list, id) {
+  var at = list.indexOf(id);
+  if (at < 0) list.push(id); else list.splice(at, 1);
+}
+
+function selectTreeNode(node, model, event) {
+  var additive = !!(event && (event.ctrlKey || event.metaKey)) || E.mobileAddSelection;
+  if (node.kind === "sketch") {
+    E.authoring.sketchSelection ||= [];
+    if (additive) toggleTreeSelection(E.authoring.sketchSelection, node.targetId);
+    else {
+      var sketch = treeTargetSketch(node);
+      if (sketch) { editSketchFromHistory(sketch); return; }
+    }
+    refreshAll(); return;
+  }
+  if (node.kind === "feature") {
+    if (model.mode === "legacy") { E.sel = treeTargetPart(node); refreshAll(); return; }
+    E.authoring.featureSelection ||= [];
+    if (additive) toggleTreeSelection(E.authoring.featureSelection, node.targetId);
+    else {
+      E.authoring.featureSelection = [node.targetId];
+      E.sel = (E.def.parts || []).find(function (item) {
+        return item.featureId === node.targetId || item.derivedFeatureId === node.targetId;
+      }) || null;
+    }
+    refreshAll(); return;
+  }
+  if (node.kind === "body") {
+    E.sel = (E.def.parts || []).find(function (item) {
+      return item.featureId === node.targetId || item.id === node.targetId;
+    }) || null;
+    refreshAll(); return;
+  }
+  if (node.kind === "reference") {
+    E.selectedReferenceId = E.selectedReferenceId === node.targetId ? null : node.targetId;
+    refreshAll(); return;
+  }
+  if (node.kind === "operation") { refreshAll(); return; }
+  refreshAll();
+}
+
+function editTreeNode(node, model) {
+  if (node.kind === "sketch") {
+    var sketch = treeTargetSketch(node);
+    if (sketch) editSketchFromHistory(sketch);
+    return;
+  }
+  if (node.kind === "feature") {
+    if (model.mode === "legacy") {
+      var part = treeTargetPart(node);
+      if (part) { E.sel = part; refreshAll(); }
+      return;
+    }
+    var feature = treeTargetFeature(node);
+    if (feature) openFeatureEditor(feature);
+    return;
+  }
+  if (node.kind === "reference") {
+    var reference = (E.def.references || []).find(function (item) { return item.id === node.targetId; });
+    if (reference && reference.type === "plane") chooseSketchReference(reference);
+    return;
+  }
+  if (node.kind === "body") selectTreeNode(node, model, null);
+}
+
+/* Rename where the name is read. The canonical path goes through
+   updateFeatureDefinition so the history entry and the feature cannot drift
+   apart; every other kind owns its own name field. */
+function renameTreeNode(node, model, name) {
+  pushUndo(t("treeRename"));
+  if (node.kind === "feature" && model.mode === "canonical") {
+    try { updateFeatureDefinition(E.def, node.targetId, { name: name }); }
+    catch (error) { H.discard(); flash(String(error.message || error)); return; }
+    var entry = (E.def.history || []).find(function (item) { return item.targetId === node.targetId; });
+    if (entry) entry.name = name;
+  } else if (node.kind === "feature") {
+    var part = treeTargetPart(node);
+    if (!part) { H.discard(); return; }
+    part.name = name;
+  } else if (node.kind === "sketch") {
+    var sketch = treeTargetSketch(node);
+    if (!sketch) { H.discard(); return; }
+    sketch.name = name;
+    var sketchEntry = (E.def.history || []).find(function (item) { return item.targetId === node.targetId; });
+    if (sketchEntry) sketchEntry.name = name;
+  } else if (node.kind === "reference") {
+    var reference = (E.def.references || []).concat(E.def.referenceGeometry || [])
+      .find(function (item) { return item.id === node.targetId; });
+    if (!reference) { H.discard(); return; }
+    reference.name = name;
+  } else if (node.kind === "folder") {
+    var folder = (E.def.treeFolders || []).find(function (item) { return item.id === node.targetId; });
+    if (!folder) { H.discard(); return; }
+    folder.name = name;
+  } else { H.discard(); return; }
+  refreshAll();
+}
+
+function suppressTreeNode(node, model) {
+  if (node.kind === "body") {
+    E.hiddenBodies ||= [];
+    toggleTreeSelection(E.hiddenBodies, node.id);
+    refreshAll(); return;
+  }
+  if (node.kind === "operation") {
+    var owner = (E.def.parts || []).find(function (part) {
+      return (part.exactOperations || []).some(function (op) { return op.id === node.targetId; });
     });
-    row.addEventListener("dblclick",function(event){event.stopPropagation();if(entry.kind==="sketch")editSketchFromHistory(target);else openFeatureEditor(target);});tree.appendChild(row);
+    var operation = owner && (owner.exactOperations || []).find(function (op) { return op.id === node.targetId; });
+    if (!operation) return;
+    pushUndo(operation.suppressed ? t("unsuppress") : t("suppress"));
+    operation.suppressed = !operation.suppressed;
+    if (typeof scheduleExactMesh === "function") scheduleExactMesh(owner);
+    refreshAll(); return;
+  }
+  var next = !node.suppressed;
+  pushUndo(next ? t("suppress") : t("unsuppress"));
+  if (model.mode === "canonical") {
+    suppressHistoryNode(E.def, node.historyId, next);
+    var projected = (E.def.parts || []).find(function (item) { return item.featureId === node.targetId; });
+    if (projected) projected.suppressed = next;
+  } else {
+    var part = treeTargetPart(node);
+    if (!part) { H.discard(); return; }
+    part.suppressed = next;
+  }
+  refreshAll();
+}
+
+function rollbackToTreeNode(node, model) {
+  if (node.index == null) return;
+  pushUndo(t("ctxRollbackHere"));
+  if (model.mode === "canonical") setHistoryRollback(E.def, node.index);
+  else E.def.rollback = node.index;
+  refreshAll();
+}
+
+function removeTreeNode(node, model) {
+  if (node.kind === "folder") { ungroupFolder(node); return; }
+  if (node.kind === "reference") {
+    pushUndo(t("del"));
+    E.def.referenceGeometry = (E.def.referenceGeometry || []).filter(function (item) { return item.id !== node.targetId; });
+    if (E.selectedReferenceId === node.targetId) E.selectedReferenceId = null;
+    refreshAll(); return;
+  }
+  if (model.mode === "canonical" && node.historyId) {
+    pushUndo(t("del"));
+    var result = removeHistoryNode(E.def, node.historyId);
+    if (!result.ok) { H.discard(); flash(result.issues[0].message); return; }
+    E.def.parts = (E.def.parts || []).filter(function (item) {
+      return item.featureId !== node.targetId && item.derivedFeatureId !== node.targetId;
+    });
+    refreshAll(); return;
+  }
+  if (node.kind === "sketch") {
+    var sketches = ensureSketchDoc(E.def);
+    if (sketches.length < 2) { flash(t("del")); return; }
+    pushUndo(t("del"));
+    removeSketch(E.def, node.targetId);
+    E.ssel = []; E.sel = null;
+    setView(ensureSketch(E.def).plane);
+    refreshAll(); return;
+  }
+  if (node.kind === "feature" && node.index != null) {
+    pushUndo(t("del"));
+    var removed = E.def.parts.splice(node.index, 1)[0];
+    if (E.sel === removed) E.sel = null;
+    refreshAll();
+  }
+}
+
+/* Drag-reorder is validated by the same rule the arrow buttons use, so an
+   illegal drop is refused with the reason rather than silently reverted. */
+function reorderTreeNode(dragId, target, after, model) {
+  var drag = findTreeNode(model.nodes, dragId);
+  if (!drag || drag.index == null || target.index == null) return;
+  if (!drag.can.reorder || !target.can.reorder) return;
+  var to = target.index + (after ? 1 : 0);
+  if (drag.index < to) to -= 1;
+  if (to === drag.index) return;
+  pushUndo(t("reorder"));
+  if (model.mode === "canonical") {
+    var result = reorderHistoryNode(E.def, drag.historyId, to);
+    if (!result.ok) { H.discard(); flash(result.issues[0].message); return; }
+  } else {
+    var parts = E.def.parts, moved = parts.splice(drag.index, 1)[0];
+    parts.splice(Math.max(0, Math.min(to, parts.length)), 0, moved);
+    if (E.def.rollback != null) E.def.rollback = Math.max(0, Math.min(E.def.rollback, parts.length));
+  }
+  refreshAll();
+}
+
+/* Folders group history rows for reading; they never reorder the build, so a
+   folder gathers only the members that are already contiguous with its anchor
+   and reports how many it actually took. */
+function groupIntoFolder(node, model) {
+  var members = [];
+  if (model.mode === "canonical") {
+    members = ((E.authoring && E.authoring.featureSelection) || [])
+      .concat((E.authoring && E.authoring.sketchSelection) || []);
+  } else if (E.sel && E.sel.id) members = [E.sel.id];
+  if (node.targetId && members.indexOf(node.targetId) < 0) members.push(node.targetId);
+  members = members.filter(Boolean);
+  if (!members.length) return;
+  pushUndo(t("treeNewFolder"));
+  E.def.treeFolders ||= [];
+  var id = "folder_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  E.def.treeFolders.push({
+    id: id,
+    name: t("treeFolder") + " " + (E.def.treeFolders.length + 1),
+    memberIds: members,
   });
-  if (rollbackAt >= (E.def.history || []).length) tree.appendChild(parametricRollbackBar());
-  tree.appendChild(btn('<i class="ph ph-plus"></i> ' + t("createSketchOnRef"), function(){ beginSketchWorkflow(null,{forceNew:true}); },"md-wide md-dashed"));host.appendChild(tree);
+  // Folders open collapsed on a document you are re-reading, but one you just
+  // made should show what went into it — otherwise grouping looks like deleting.
+  treeCollapseState()["folder:" + id] = false;
+  refreshAll();
+}
+
+function ungroupFolder(node) {
+  pushUndo(t("treeUngroup"));
+  E.def.treeFolders = (E.def.treeFolders || []).filter(function (item) { return item.id !== node.targetId; });
+  refreshAll();
+}
+
+function walkTreeNodes(nodes, visit) {
+  (nodes || []).forEach(function (item) { visit(item); walkTreeNodes(item.children, visit); });
+}
+
+function setAllTreeCollapsed(model, collapsed) {
+  var state = treeCollapseState();
+  walkTreeNodes(model.nodes, function (item) { if (item.children.length) state[item.id] = collapsed; });
+  refreshParts();
+}
+
+function closeTreeMenu() {
+  if (E.treeMenu && E.treeMenu.parentNode) E.treeMenu.parentNode.removeChild(E.treeMenu);
+  E.treeMenu = null;
+  document.removeEventListener("pointerdown", closeTreeMenuOnPointer, true);
+  document.removeEventListener("keydown", closeTreeMenuOnEscape, true);
+}
+function closeTreeMenuOnPointer(event) {
+  if (E.treeMenu && E.treeMenu.contains(event.target)) return;
+  closeTreeMenu();
+}
+function closeTreeMenuOnEscape(event) {
+  if (event.key === "Escape") { event.stopPropagation(); closeTreeMenu(); }
+}
+
+function showTreeMenu(node, model, event, api) {
+  closeTreeMenu();
+  var items = [];
+  if (node.can.edit) items.push({ label: t("ctxEditFeature"), icon: "ph-pencil-simple", run: function () { editTreeNode(node, model); } });
+  if (node.can.rename) items.push({ label: t("treeRename") + " · F2", icon: "ph-textbox", run: function () { api.rename(); } });
+  if (node.can.suppress) items.push({
+    label: node.suppressed ? t("unsuppress") : t("suppress"),
+    icon: node.suppressed ? "ph-eye" : "ph-eye-slash",
+    run: function () { suppressTreeNode(node, model); },
+  });
+  if (node.can.rollback) items.push({ label: t("ctxRollbackHere"), icon: "ph-arrow-line-down", run: function () { rollbackToTreeNode(node, model); } });
+  if (node.kind === "feature" || node.kind === "sketch") items.push({ label: t("treeNewFolder"), icon: "ph-folder-plus", run: function () { groupIntoFolder(node, model); } });
+  if (node.kind === "folder") items.push({ label: t("treeUngroup"), icon: "ph-folder-minus", run: function () { ungroupFolder(node); } });
+  items.push({ label: t("treeExpandAll"), icon: "ph-arrows-out-simple", run: function () { setAllTreeCollapsed(model, false); } });
+  items.push({ label: t("treeCollapseAll"), icon: "ph-arrows-in-simple", run: function () { setAllTreeCollapsed(model, true); } });
+  if (node.can.remove) items.push({ label: t("del"), icon: "ph-trash", run: function () { removeTreeNode(node, model); } });
+  if (!items.length) return;
+
+  var menu = el("div", "md-tree-menu");
+  menu.setAttribute("role", "menu");
+  items.forEach(function (item) {
+    var button = btn('<i class="ph ' + item.icon + '"></i><span>' + item.label + "</span>", function (clickEvent) {
+      clickEvent.stopPropagation();
+      closeTreeMenu();
+      item.run();
+    });
+    button.type = "button";
+    button.setAttribute("role", "menuitem");
+    menu.appendChild(button);
+  });
+  root.appendChild(menu);
+  var box = root.getBoundingClientRect();
+  menu.style.left = Math.max(4, Math.min(event.clientX - box.left, box.width - menu.offsetWidth - 8)) + "px";
+  menu.style.top = Math.max(4, Math.min(event.clientY - box.top, box.height - menu.offsetHeight - 8)) + "px";
+  E.treeMenu = menu;
+  setTimeout(function () {
+    document.addEventListener("pointerdown", closeTreeMenuOnPointer, true);
+    document.addEventListener("keydown", closeTreeMenuOnEscape, true);
+  }, 0);
+  var first = menu.querySelector("button");
+  if (first) first.focus();
+}
+
+function treeHandlers(model) {
+  return {
+    onSelect: function (node, event) { selectTreeNode(node, model, event); },
+    onEdit: function (node) { editTreeNode(node, model); },
+    onRename: function (node, name) { renameTreeNode(node, model, name); },
+    onSuppress: function (node) { suppressTreeNode(node, model); },
+    onRollback: function (node) { rollbackToTreeNode(node, model); },
+    onRemove: function (node) { removeTreeNode(node, model); },
+    onReorder: function (dragId, target, after) { reorderTreeNode(dragId, target, after, model); },
+    onToggleCollapse: function (node) {
+      treeCollapseState()[node.id] = !node.collapsed;
+      refreshParts();
+    },
+    onContextMenu: function (node, event, api) { showTreeMenu(node, model, event, api); },
+    onHover: function (targetId) { setDependencyHighlight(targetId); },
+    onRollbackRelease: function () {
+      pushUndo(t("rollbackRelease"));
+      if (isCanonicalAuthoring()) setHistoryRollback(E.def, null); else E.def.rollback = null;
+      refreshAll();
+    },
+  };
+}
+
+function renderFeatureManagerTree(host) {
+  var model = currentTreeModel();
+  E.treeModel = model;
+  var mount = el("div", "md-tree-mount");
+  host.appendChild(mount);
+  E.treeState = renderTreeModel(mount, model, treeDeps(), treeHandlers(model), E.treeState || {});
+  applyDependencyTreeClasses();
+}
+
+/* Offer, never impose. The conversion is analysed for coverage, rebuilt on a
+   clone by the engine it would move to, and measured against the original
+   before it is adopted — and the original is kept beside the result, because a
+   verified conversion is still a conversion. */
+function renderMigrationOffer(host) {
+  var analysis = analyzeLegacyMigration(E.def);
+  var row = el("div", "md-part md-tree-migrate" + (analysis.ok ? "" : " md-tree-migrate-blocked"));
+  row.appendChild(el("i", "ph " + (analysis.ok ? "ph-arrow-circle-up" : "ph-info")));
+  var copy = el("span", "nm");
+  copy.appendChild(el("b", "", analysis.ok ? t("treeMigrate") : t("treeMigrateBlocked")));
+  copy.appendChild(el("small", "", analysis.ok
+    ? t("treeMigrateHint")
+    : ((analysis.blockers[0] && analysis.blockers[0].message) || "")));
+  row.appendChild(copy);
+  if (analysis.ok) {
+    var migrateButton = btn(t("treeMigrateRun"), function (event) {
+      event.stopPropagation();
+      runVerifiedMigration();
+    }, "btn-accent");
+    migrateButton.dataset.treeMigrate = "run";
+    row.appendChild(migrateButton);
+  }
+  row.dataset.treeMigrationOffer = analysis.ok ? "ready" : "blocked";
+  host.appendChild(row);
+}
+
+function runVerifiedMigration() {
+  var conversion = convertLegacyDocument(E.def);
+  if (!conversion.ok) { flash(conversion.analysis.blockers[0].message); return; }
+  var legacyRun, canonicalRun;
+  try {
+    var overrides = (E.srcItem && E.srcItem.parameterOverrides) || {};
+    legacyRun = rebuildDefinition(cloneData(E.def), overrides);
+    canonicalRun = rebuildParametricDocument(conversion.document, overrides);
+  } catch (error) { flash(String(error.message || error)); return; }
+  var verdict = evaluateMigration({
+    analysis: conversion.analysis,
+    legacyDocument: E.def,
+    legacyRun: legacyRun,
+    canonicalRun: canonicalRun,
+  });
+  if (!verdict.ok) { flash(verdict.reasons[0].message); return; }
+  pushUndo(t("treeMigrate"));
+  E.def = retainLegacySource(conversion.document, E.def, {
+    version: verdict.geometry && verdict.geometry.canonical.version,
+    verification: verdict.geometry,
+  });
+  E.treeState = {};
+  E.treeCollapsed = {};
+  E.hiddenBodies = [];
+  E.sel = null;
+  E.ssel = [];
+  flash(t("treeMigrateDone"));
+  refreshAll();
+}
+
+function restoreLegacySource() {
+  if (!E.def || !E.def.legacySource) return;
+  pushUndo(t("treeRestoreLegacy"));
+  var restored = restoreLegacyDocument(E.def);
+  if (!restored) { H.discard(); return; }
+  restored = ensureParametricDocument(restored);
+  E.def = restored;
+  E.treeState = {};
+  E.treeCollapsed = {};
+  E.hiddenBodies = [];
+  E.sel = null;
+  E.ssel = [];
+  E.topologySelection = [];
+  E.coreRun = rebuildDefinition(E.def, E.srcItem && E.srcItem.parameterOverrides || {});
+  flash(t("treeRestoreLegacyDone"));
+  refreshAll();
+}
+
+function renderLegacyRestore(host) {
+  if (!E.def || !E.def.legacySource) return;
+  var row = el("div", "md-part md-tree-migrate md-tree-restore");
+  row.dataset.treeLegacyRestore = "available";
+  row.appendChild(el("i", "ph ph-arrow-u-up-left"));
+  var copy = el("span", "nm");
+  copy.appendChild(el("b", "", t("treeRestoreLegacy")));
+  copy.appendChild(el("small", "", t("treeRestoreLegacyHint")));
+  row.appendChild(copy);
+  var restoreButton = btn(t("treeRestoreLegacyRun"), function (event) {
+    event.stopPropagation();
+    restoreLegacySource();
+  }, "btn-accent");
+  restoreButton.dataset.treeRestoreLegacy = "run";
+  row.appendChild(restoreButton);
+  host.appendChild(row);
+}
+
+/* Canonical documents: def.history is the tree. */
+function buildParametricHistoryTree(host) {
+  var analysis = analyzeParametricHistory(E.def, { normalize: false });
+  host.appendChild(el("div", "md-history-summary",
+    '<span><b>' + (E.def.history || []).length + '</b> steps</span>' +
+    '<span class="' + (analysis.ok ? "ok" : "bad") + '">' +
+    (analysis.ok ? "Rebuild order valid" : analysis.issues.length + " dependency issues") + "</span>"));
+  renderFeatureManagerTree(host);
+  renderLegacyRestore(host);
+  host.appendChild(btn('<i class="ph ph-plus"></i> ' + t("createSketchOnRef"), function () {
+    beginSketchWorkflow(null, { forceNew: true });
+  }, "md-wide md-dashed"));
   renderCoreDiagnostics(host);
+}
+
+/* Legacy documents: def.parts is the tree, read through the same adapter and
+   drawn by the same renderer. */
+function buildLegacyTree(host) {
+  renderCoreDiagnostics(host);
+  renderFeatureManagerTree(host);
+  host.appendChild(btn('<i class="ph ph-plus"></i> ' + t("newSketch"), function () {
+    beginSketchWorkflow(null, { forceNew: true });
+  }, "md-wide md-dashed"));
+  renderMigrationOffer(host);
 }
 
 function refreshParts() {
@@ -9195,65 +11118,27 @@ function refreshParts() {
   var host = root.querySelector("#mdParts");
   host.innerHTML = "";
   addFeatureFilter(host);
-  var sketches = ensureSketchDoc(E.def), sketch = ensureSketch(E.def);
+  var canonical = isCanonicalAuthoring();
+  var sketches = ensureSketchDoc(E.def);
   var sketchCount = sketches.reduce(function (a, s2) { return a + s2.entities.length; }, 0);
-  var badge = root.querySelector("#mdPartBadge"), n = isCanonicalAuthoring() ? (E.def.history || []).length : E.def.parts.length + sketchCount + (E.def.referenceGeometry || []).length;
+  var n = canonical
+    ? (E.def.history || []).length
+    : E.def.parts.length + sketchCount + (E.def.referenceGeometry || []).length;
+  var badge = root.querySelector("#mdPartBadge");
   if (badge) { badge.textContent = n || ""; badge.classList.toggle("on", !!n); }
   var sizeEl = root.querySelector("#mdSize");
   if (sizeEl) {
     var b = defBounds(E.def);
-    sizeEl.textContent = renderedParts(E.def).length ? Math.round(b.x1 - b.x0) + "×" + Math.round(b.z1 - b.z0) + "×" + Math.round(b.y1 - b.y0) + " cm" : sketchCount ? sketchCount + " sketch" : "";
+    sizeEl.textContent = renderedParts(E.def).length
+      ? Math.round(b.x1 - b.x0) + "×" + Math.round(b.z1 - b.z0) + "×" + Math.round(b.y1 - b.y0) + " cm"
+      : sketchCount ? sketchCount + " sketch" : "";
   }
-  if(isCanonicalAuthoring()) {buildParametricHistoryTree(host);applyFeatureFilter(host);return;}
   if (!n) { emptyState(host, "ph-stack-simple", t("noParts"), t("noPartsHint")); return; }
-  renderCoreDiagnostics(host);
-  buildSketchList(host, sketches, sketch);
-  var ENT_ICON = { line: "wall", circle: "scirc", arc: "sarc" };
-  sketch.entities.forEach(function (entity, i) {
-    var row = el("div", "md-part" + (E.ssel.indexOf(entity) >= 0 ? " on" : ""));
-    var swatch = el("span", "sw"); swatch.style.background = entity.construction ? "#8394a6" : "#2684c7"; row.appendChild(swatch);
-    row.appendChild(el("span", "md-tree-icon", cadIcon(ENT_ICON[entity.type] || entity.type || "wall")));
-    row.appendChild(el("span", "nm", (entity.name || entity.type || "Line") + " " + (i + 1)));
-    var x = btn('<i class="ph ph-trash"></i>', async function (e) {
-      e.stopPropagation(); pushUndo(t("del"));
-      removeSketchEntity(sketch, entity.id);
-      E.ssel = E.ssel.filter(function (q) { return q !== entity; });
-      if (E.sel === entity) E.sel = null;
-      resolveSketch(false);
-      refreshAll();
-    }, "md-part-x");
-    row.appendChild(x);
-    // Ctrl/Cmd builds up the pair or triple a constraint needs, exactly as on
-    // the canvas — the list is a second way to make the same selection
-    row.addEventListener("click", function (e) { selectSketch(entity, e.ctrlKey || e.metaKey); refreshAll(); });
-    host.appendChild(row);
-  });
-  if (E.def.parts.length) buildFeatureTree(host);
-  var features = ensureFeatureTree(E.def);
-  if (features.length) {
-    host.appendChild(el("h5", "md-h5 md-feature-title", t("brepTree")));
-    features.forEach(function (feature, index) {
-      var row = el("div", "md-part md-feature" + (feature.error ? " error" : ""));
-      row.appendChild(el("span", "md-tree-icon", cadIcon(feature.type || "booleanfeature")));
-      row.appendChild(el("span", "nm", (index + 1) + ". " + (feature.name || feature.type)));
-      if (feature.error) row.title = feature.error;
-      host.appendChild(row);
-    });
-  }
-  if ((E.def.referenceGeometry || []).length) {
-    host.appendChild(el("h5", "md-h5 md-feature-title", "Reference geometry"));
-    E.def.referenceGeometry.forEach(function (reference) {
-      var icon = reference.type === "reference_plane" ? "refplane" : reference.type === "reference_axis" ? "refaxis" : "coordsys";
-      var row = el("div", "md-part md-reference-row");
-      row.appendChild(el("span", "md-tree-icon", cadIcon(icon))); row.appendChild(el("span", "nm", reference.name || reference.type));
-      row.appendChild(btn('<i class="ph ph-trash"></i>', function () {
-        pushUndo(t("del")); E.def.referenceGeometry = E.def.referenceGeometry.filter(function (item) { return item !== reference; }); refreshAll();
-      }, "md-part-x"));
-      host.appendChild(row);
-    });
-  }
+  if (canonical) buildParametricHistoryTree(host); else buildLegacyTree(host);
   applyFeatureFilter(host);
 }
+
+
 
 function renderCoreDiagnostics(host) {
   const issues = E.coreRun && E.coreRun.issues ? E.coreRun.issues : [];
@@ -9271,94 +11156,6 @@ function renderCoreDiagnostics(host) {
   if (issues.length > 8) host.appendChild(el("div", "md-note", "+" + (issues.length - 8) + " more"));
 }
 
-/* ================= feature history =================
-   The parts array IS the history, in build order. This panel is the only place
-   that shows all of it: rows can be dragged to reorder, suppressed so they stop
-   building, and cut off by a rollback bar that hides everything after it. All
-   three are honoured by activeParts(), so the 3D preview, the saved model, the
-   catalogue thumbnail and the STEP regeneration agree with what the tree says. */
-function buildFeatureTree(host) {
-  var tree = el("div", "md-tree");
-  var rollback = fin(E.def.rollback) ? clamp(E.def.rollback, 0, E.def.parts.length) : E.def.parts.length;
-
-  host.appendChild(el("h5", "md-h5 md-feature-title", t("featureTree")));
-
-  E.def.parts.forEach(function (p, i) {
-    if (i === rollback) tree.appendChild(rollbackBar());
-    var rolled = i >= rollback;
-    var row = el("div", "md-part md-tree-row" +
-      (p === E.sel ? " on" : "") + (p.suppressed ? " md-suppressed" : "") +
-      (rolled ? " md-rolled" : "") + (p.profileError ? " error" : ""));
-    if (p.profileError) row.title = t("profileBroken");
-    row.setAttribute("data-index", i);
-
-    var grip = el("i", "ph ph-dots-six-vertical md-grip");
-    grip.title = t("reorder");
-    row.appendChild(grip);
-    var swatch = el("span", "sw");
-    swatch.style.background = /^#[0-9a-f]{6}$/i.test(p.color || "") ? p.color : "#999999";
-    row.appendChild(swatch);
-    row.appendChild(el("span", "md-tree-icon", cadIcon(p.profileError ? "ph-warning" : p.sketchDriven ? "mates" : p.kind || "extrude")));
-    row.appendChild(el("span", "nm", (p.name || p.kind) + " " + (i + 1)));
-
-    var roll = btn('<i class="ph ph-arrow-line-down"></i>', function (e) {
-      e.stopPropagation();
-      pushUndo(t("rollbackTo"));
-      // rolling to a feature means "build everything before it", which is what
-      // you want when you are about to insert a step ahead of it
-      E.def.rollback = i;
-      refreshAll();
-    }, "md-part-x");
-    roll.title = t("rollbackTo");
-    row.appendChild(roll);
-
-    var sup = btn('<i class="ph ' + (p.suppressed ? "ph-eye-slash" : "ph-eye") + '"></i>', function (e) {
-      e.stopPropagation();
-      pushUndo(p.suppressed ? t("unsuppress") : t("suppress"));
-      p.suppressed = !p.suppressed;
-      refreshAll();
-    }, "md-part-x");
-    sup.title = p.suppressed ? t("unsuppress") : t("suppress");
-    row.appendChild(sup);
-
-    var x = btn('<i class="ph ph-trash"></i>', async function (e) {
-      e.stopPropagation();
-      pushUndo(t("del"));
-      var at = E.def.parts.indexOf(p);
-      E.def.parts.splice(at, 1);
-      if (fin(E.def.rollback) && E.def.rollback > at) E.def.rollback--;
-      if (E.sel === p) E.sel = null;
-      refreshAll();
-    }, "md-part-x");
-    x.title = t("del");
-    row.appendChild(x);
-
-    row.addEventListener("click", function () { E.sel = p; E.ssel = []; refreshAll(); });
-    wireTreeDrag(row, grip, tree, i);
-    tree.appendChild(row);
-    (p.exactOperations || []).forEach(function(operation,operationIndex){
-      var opRow=el("div","md-part md-tree-operation"+(operation.suppressed ? " md-suppressed" : ""));
-      opRow.appendChild(el("span", "md-tree-icon", cadIcon(operation.type)));
-      opRow.appendChild(el("span","nm",(operationIndex+1)+". "+operation.type[0].toUpperCase()+operation.type.slice(1)+" · "+operation.amount+" cm"));
-      var opSup=btn('<i class="ph '+(operation.suppressed ? "ph-eye-slash" : "ph-eye")+'"></i>',function(e){
-        e.stopPropagation(); pushUndo(operation.suppressed ? t("unsuppress") : t("suppress"));
-        operation.suppressed=!operation.suppressed; delete p.meshData;
-        if ((p.exactOperations || []).some(function(candidate){return !candidate.suppressed;})) queueExactMesh(p);
-        refreshAll();
-      },"md-part-x");
-      opRow.appendChild(opSup);
-      opRow.appendChild(btn('<i class="ph ph-trash"></i>',function(e){
-        e.stopPropagation(); pushUndo(t("del")); p.exactOperations.splice(operationIndex,1); delete p.meshData;
-        if (p.exactOperations.length || (p.cuts3d && p.cuts3d.length)) queueExactMesh(p);
-        refreshAll();
-      },"md-part-x"));
-      opRow.addEventListener("click",function(){E.sel=p;E.ssel=[];E.topologySelection=cloneData(operation.targets || []);refreshAll();});
-      tree.appendChild(opRow);
-    });
-  });
-  if (rollback >= E.def.parts.length) tree.appendChild(rollbackBar());
-  host.appendChild(tree);
-}
 
 function parametricRollbackBar() {
   var bar = rollbackBar();
@@ -9381,45 +11178,6 @@ function rollbackBar() {
   return bar;
 }
 
-/* Drag a row by its grip to reorder the history. The drop index is read off the
-   row the pointer is over, so the list reorders where you see the gap — no
-   ghost element, which on a panel this narrow reads better than a floating
-   copy of the row. */
-function wireTreeDrag(row, grip, tree, index) {
-  grip.addEventListener("pointerdown", function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    // capture keeps the drag alive when the pointer leaves the narrow panel;
-    // losing it is not a reason to refuse the drag
-    try { grip.setPointerCapture(e.pointerId); } catch (_) { /* keep dragging uncaptured */ }
-    var from = index, over = index;
-    row.classList.add("md-dragging");
-    function move(ev) {
-      var rows = [].slice.call(tree.querySelectorAll(".md-tree-row"));
-      for (var i = 0; i < rows.length; i++) {
-        var r = rows[i].getBoundingClientRect();
-        if (ev.clientY >= r.top && ev.clientY <= r.bottom) {
-          over = +rows[i].getAttribute("data-index");
-          rows.forEach(function (q, j) { q.classList.toggle("md-drop", j === i && over !== from); });
-          break;
-        }
-      }
-    }
-    function up() {
-      grip.removeEventListener("pointermove", move);
-      grip.removeEventListener("pointerup", up);
-      row.classList.remove("md-dragging");
-      if (over !== from) {
-        pushUndo(t("reorder"));
-        var moved = E.def.parts.splice(from, 1)[0];
-        E.def.parts.splice(over, 0, moved);
-        refreshAll();
-      } else refreshParts();
-    }
-    grip.addEventListener("pointermove", move);
-    grip.addEventListener("pointerup", up);
-  });
-}
 
 // bumped on blur so a second visit to the same field is its own history step
 var propGen = 0;
@@ -9525,9 +11283,13 @@ function addTopologyMate(type) {
   E.assembly.topologyMates ||= [];
   E.assembly.topologyMates.push({
     id:uid(), type:type,
-    a:componentTopologyRef(a,type === "concentric" ? "axis" : "face","max"),
-    b:componentTopologyRef(b,type === "concentric" ? "axis" : "face","min"),
-    value:0,
+    a:componentTopologyRef(a,type === "concentric" || type === "screw" || type === "tangent" ? "axis" : "face","max"),
+    b:componentTopologyRef(b,type === "concentric" || type === "screw" || type === "tangent" ? "axis" : "face","min"),
+    value: type === "screw" ? 0 : 0,
+    pitch: type === "screw" ? 0.125 : undefined,
+    turns: type === "screw" ? 0 : undefined,
+    min: type === "limit" ? 0 : undefined,
+    max: type === "limit" ? 2 : undefined,
   });
   applyAssemblyMates(E.assembly); refreshAll();
 }
@@ -9543,6 +11305,9 @@ function assemblyMateInspector() {
   });
   ops.appendChild(btn('<i class="ph ph-selection"></i> Coincident faces', function () { addTopologyMate("coincident"); }));
   ops.appendChild(btn('<i class="ph ph-circles-three-plus"></i> Concentric axes', function () { addTopologyMate("concentric"); }));
+  ops.appendChild(btn('<i class="ph ph-spiral"></i> ' + t("screwMate"), function () { addTopologyMate("screw"); }));
+  ops.appendChild(btn('<i class="ph ph-circle"></i> ' + t("tangentMate"), function () { addTopologyMate("tangent"); }));
+  ops.appendChild(btn('<i class="ph ph-arrows-in-line-vertical"></i> ' + t("limitMate"), function () { addTopologyMate("limit"); }));
   host.appendChild(ops);
   if (E.assembly && E.assembly.mates.length) {
     host.appendChild(el("h5", "md-h5", t("mate")));
@@ -9598,6 +11363,9 @@ function fillShape() {
       var spec=featureSpec(feature.type);
       host.appendChild(el("div","md-feature-form-title",'<i class="ph '+(spec && spec.icon || "ph-cube")+'"></i><span><b>'+(feature.name || feature.type)+'</b><small>Generated by design history</small></span>'));
       host.appendChild(el("div","md-note","This solid is a derived preview. Edit the feature, its sketch, constraints, or dimensions to change it."));
+      var primaryKeys=["endCondition","depth","radius","thickness","distance","angle","count","direction","operation"].filter(function(key){return Object.prototype.hasOwnProperty.call(feature.params || {},key);});
+      if(primaryKeys.length){var facts=el("div","md-feature-keyfacts");primaryKeys.slice(0,5).forEach(function(key){var fact=el("span","");fact.appendChild(el("small","",key.replace(/([a-z0-9])([A-Z])/g,"$1 $2")));fact.appendChild(el("b","",String(feature.params[key])));facts.appendChild(fact);});host.appendChild(facts);}
+      var advanced=el("details","md-feature-advanced");advanced.appendChild(el("summary","",t("advancedDiagnostics")));
       var summary=el("div","md-topology-selection");
       Object.keys(feature.params || {}).forEach(function(key){
         var row=el("div","md-topology-ref");
@@ -9619,7 +11387,7 @@ function fillShape() {
         row.appendChild(valEl);
         summary.appendChild(row);
       });
-      host.appendChild(summary);
+      advanced.appendChild(summary);host.appendChild(advanced);
       host.appendChild(btn('<i class="ph ph-pencil-simple"></i> Edit feature in history',function(){openFeatureEditor(feature);},"md-wide btn-accent"));
       if ((E.topologySelection || []).length) {
         host.appendChild(el("div","md-note",E.topologySelection.length+" topology reference"+(E.topologySelection.length===1?"":"s")+" selected"));
@@ -9782,16 +11550,21 @@ function fillSketchPane() {
     }, "md-wide btn-danger"));
   }
 
-  var profileText = profileInfo.status === "ready" ? t("profileReady")
-    : profileInfo.status === "multiple" ? t("profileMultiple")
-    : profileInfo.status === "partial" ? t("profilePartial")
-    : profileInfo.status === "branched" ? t("profileBranched")
-    : profileInfo.status === "open" ? t("profileOpen") : t("profileEmpty");
-  var profileCard = el("div", "md-profile-state md-profile-" + profileInfo.status);
+  // Crossing geometry encloses area without ever closing a chain; the pane
+  // reports that as usable rather than as a branch the user has to repair.
+  var regionRun = sketchRegionAnalysis(), regionCount = (regionRun.regions || []).length;
+  var profileStatus = profileInfo.profiles.length || !regionCount ? profileInfo.status : "ready";
+  var profileText = profileStatus === "ready" ? t("profileReady")
+    : profileStatus === "multiple" ? t("profileMultiple")
+    : profileStatus === "partial" ? t("profilePartial")
+    : profileStatus === "branched" ? t("profileBranched")
+    : profileStatus === "open" ? t("profileOpen") : t("profileEmpty");
+  var profileCard = el("div", "md-profile-state md-profile-" + profileStatus);
   profileCard.appendChild(el("div", "md-profile-head", '<i class="ph ' +
-    (profileInfo.profiles.length ? "ph-check-circle" : profileInfo.branchPoints.length ? "ph-warning" : "ph-path") + '"></i><b>' + profileText + "</b>"));
+    (profileInfo.profiles.length || regionCount ? "ph-check-circle" : profileInfo.branchPoints.length ? "ph-warning" : "ph-path") + '"></i><b>' + profileText + "</b>"));
   var profileStats = el("div", "md-profile-stats");
   profileStats.appendChild(el("span", "", profileInfo.profiles.length + " " + t("profileLoops")));
+  if (regionCount) profileStats.appendChild(el("span", "", regionCount + " " + t("profileRegions")));
   if (profileInfo.openEnds.length) profileStats.appendChild(el("span", "", profileInfo.openEnds.length + " " + t("profileEnds")));
   if (profileInfo.branchPoints.length) profileStats.appendChild(el("span", "", profileInfo.branchPoints.length + " × " + t("profileBranched")));
   profileCard.appendChild(profileStats);
@@ -10110,6 +11883,23 @@ function fillLook() {
   mrow.appendChild(colLbl);
   mrow.appendChild(colInp);
   host.appendChild(mrow);
+  var stock=el("div","md-ops");
+  Object.keys(STOCK_MATERIALS).forEach(function(key){
+    var mat=STOCK_MATERIALS[key];
+    stock.appendChild(btn(mat.name, function(){
+      pushUndo(t("appearanceFace"));
+      var face=(E.topologySelection||[]).find(function(item){return item.kind==="face";});
+      E.def.appearances=E.def.appearances||[];
+      if(face){
+        E.def.appearances=upsertAppearanceOverride(E.def.appearances, createAppearanceOverride({persistentId:face.persistentId,kind:"face",material:key,color:mat.color,metal:mat.metal,rough:mat.rough,name:mat.name}));
+      } else {
+        p.color=mat.color; p.metal=mat.metal; p.rough=mat.rough; p.materialName=mat.name;
+        E.def.appearances=upsertAppearanceOverride(E.def.appearances, createAppearanceOverride({persistentId:p.id,kind:"body",material:key,color:mat.color,metal:mat.metal,rough:mat.rough,name:mat.name}));
+      }
+      updatePreview(); refreshParts();
+    }));
+  });
+  host.appendChild(stock);
   [["metal", t("metal")], ["rough", t("rough")], ["opacity", t("opacity")]].forEach(function (mm) {
     var row = el("label", "md-row");
     var lab = el("span", "t");
@@ -10446,13 +12236,16 @@ function resolveTopologyPick(event, view, options) {
   );
   var ray = new THREE.Raycaster();
   /* Keep roughly an eight-pixel acquisition band at every zoom level. */
-  ray.params.Line.threshold = clamp((view.dist || 120)*.018, 2.2, 16);
+  var touchPick = event.pointerType === "touch" || document.body.classList.contains("compact-nav");
+  ray.params.Line.threshold = clamp((view.dist || 120) * (touchPick ? .03 : .018), touchPick ? 4 : 2.2, touchPick ? 24 : 16);
   ray.setFromCamera(pointer, view.cam);
   var hits = ray.intersectObjects(view.grp.children, true);
   {
     var part = null;
     var pickedView = null;
     var topologyReferencePicked = null;
+    var helixHit = hits.find(function (hit) { return hit.object && hit.object.userData && hit.object.userData.cadReferenceId; });
+    var helixId = helixHit && helixHit.object.userData.cadReferenceId || null;
     if (hits.length) {
       var edgeHit = hits.find(function (hit) { return hit.object && hit.object.userData && hit.object.userData.cadTopology; });
       var edgeSlack = prefer === "edge" ? 48 : prefer === "face" ? 0.8 : finishCommandActive() ? 0.45 : 10;
@@ -10494,34 +12287,112 @@ function resolveTopologyPick(event, view, options) {
           edgeTopology = promotePickedEdge(partObject.userData.cadTopology, entries.length ? entries : [partObject.userData.cadTopology]);
           topologyReferencePicked = topologyReferenceFromEntry(edgeTopology);
         }
-        var faceTopology = null;
-        if (topologyId) faceTopology = resolveMergedTopology(entries, topologyId);
-        if (!faceTopology && entries.length) {
-          var bestScore = -Infinity;
+        var faceTopology = null, exactFace = false;
+        if (topologyId) {
+          faceTopology = resolveMergedTopology(entries, topologyId);
+          /* Only a cylinder/sphere/cone/torus we can paint geometrically is
+             exact. "Ruled" and "bspline" still tessellate as patches. */
+          if (analyticCurvedFace(faceTopology && faceTopology.descriptor)) exactFace = true;
+        }
+        if (!exactFace && entries.length) {
+          /* Two scores per candidate. The first only counts faces the hit point
+             actually lies ON, because the old alignment score let a distant
+             parallel plane outrank the round wall the ray had really landed on:
+             1000 for facing the same way beats 800 for being the right bore.
+             The legacy score stays as the fallback so a face whose analytic
+             origin drifted still resolves to something rather than nothing. */
+          var bestScore = -Infinity, bestContained = -Infinity, containedFace = null;
           entries.filter(function (entry) { return entry.kind === "face"; }).forEach(function (entry) {
             var descriptor=entry.descriptor || {}, origin=descriptor.origin || descriptor.center;
-            var score = -Infinity;
+            var score = -Infinity, contained = -Infinity;
             if (descriptor.surface === "cylinder" && descriptor.axis && fin(Number(descriptor.radius))) {
-              var axis = descriptor.axis, radius = Number(descriptor.radius);
+              var axis = descriptor.axis, radius = Math.abs(Number(descriptor.radius));
+              var axisLength = Math.hypot(axis.x, axis.y, axis.z) || 1;
+              var ax = axis.x/axisLength, ay = axis.y/axisLength, az = axis.z/axisLength;
               var dx = meshHit.point.x - (origin && origin.x || 0), dy = meshHit.point.y - (origin && origin.y || 0), dz = meshHit.point.z - (origin && origin.z || 0);
-              var along = dx*axis.x + dy*axis.y + dz*axis.z;
-              var rx = dx - axis.x*along, ry = dy - axis.y*along, rz = dz - axis.z*along;
+              var along = dx*ax + dy*ay + dz*az;
+              var rx = dx - ax*along, ry = dy - ay*along, rz = dz - az*along;
               var radial = Math.abs(Math.hypot(rx, ry, rz) - radius);
-              var wall = Math.abs(worldNormal.x*axis.x + worldNormal.y*axis.y + worldNormal.z*axis.z);
-              if (wall < 0.35) score = 800 - radial * 20;
+              var wall = Math.abs(worldNormal.x*ax + worldNormal.y*ay + worldNormal.z*az);
+              if (wall < 0.35) {
+                score = 800 - radial * 20;
+                // on this wall, not merely parallel to it — a bore and the boss
+                // around it share an axis and differ only by radius
+                if (radial <= Math.max(0.4, radius * 0.06)) contained = 1000 - radial*40 - wall*100;
+              }
+            } else if (descriptor.surface === "sphere" && fin(Number(descriptor.radius))) {
+              var sphereCenter = descriptor.center || origin || {x:0,y:0,z:0};
+              var sphereRadius = Math.abs(Number(descriptor.radius));
+              var sdx = meshHit.point.x - (sphereCenter.x || 0), sdy = meshHit.point.y - (sphereCenter.y || 0), sdz = meshHit.point.z - (sphereCenter.z || 0);
+              var sphereDist = Math.abs(Math.hypot(sdx, sdy, sdz) - sphereRadius);
+              var sphereLen = Math.hypot(sdx, sdy, sdz) || 1;
+              var sphereFacing = Math.abs((sdx*worldNormal.x + sdy*worldNormal.y + sdz*worldNormal.z) / sphereLen);
+              score = 800 - sphereDist * 20;
+              if (sphereDist <= Math.max(0.4, sphereRadius * 0.06) && sphereFacing >= 0.75) contained = 1100 - sphereDist*40;
+            } else if (descriptor.surface === "cone" && descriptor.axis && fin(Number(descriptor.radius))) {
+              var caxis = descriptor.axis, cLen = Math.hypot(caxis.x, caxis.y, caxis.z) || 1;
+              var cax = caxis.x/cLen, cay = caxis.y/cLen, caz = caxis.z/cLen;
+              var cdx = meshHit.point.x - (origin && origin.x || 0), cdy = meshHit.point.y - (origin && origin.y || 0), cdz = meshHit.point.z - (origin && origin.z || 0);
+              var calong = cdx*cax + cdy*cay + cdz*caz;
+              var crx = cdx - cax*calong, cry = cdy - cay*calong, crz = cdz - caz*calong;
+              var expected = Math.abs(Number(descriptor.radius) + calong * Math.tan(Number(descriptor.angle) || 0));
+              var coneRadial = Math.abs(Math.hypot(crx, cry, crz) - expected);
+              score = 800 - coneRadial * 20;
+              if (coneRadial <= Math.max(0.4, expected * 0.06)) contained = 1000 - coneRadial*40;
+            } else if (descriptor.surface === "torus" && descriptor.axis && fin(Number(descriptor.majorRadius)) && fin(Number(descriptor.minorRadius))) {
+              var taxis = descriptor.axis, tLen = Math.hypot(taxis.x, taxis.y, taxis.z) || 1;
+              var tax = taxis.x/tLen, tay = taxis.y/tLen, taz = taxis.z/tLen;
+              var tdx = meshHit.point.x - (origin && origin.x || 0), tdy = meshHit.point.y - (origin && origin.y || 0), tdz = meshHit.point.z - (origin && origin.z || 0);
+              var talong = tdx*tax + tdy*tay + tdz*taz;
+              var trx = tdx - tax*talong, try_ = tdy - tay*talong, trz = tdz - taz*talong;
+              var major = Math.abs(Number(descriptor.majorRadius)), minor = Math.abs(Number(descriptor.minorRadius));
+              var torusDist = Math.abs(Math.hypot(Math.hypot(trx, try_, trz) - major, talong) - minor);
+              score = 800 - torusDist * 20;
+              if (torusDist <= Math.max(0.4, minor * 0.08)) contained = 1000 - torusDist*40;
             } else if (descriptor.normal) {
               var normal = descriptor.normal;
-              var alignment = normal.x*worldNormal.x + normal.y*worldNormal.y + normal.z*worldNormal.z;
+              var normalLength = Math.hypot(normal.x, normal.y, normal.z) || 1;
+              var nx = normal.x/normalLength, ny = normal.y/normalLength, nz = normal.z/normalLength;
+              var alignment = nx*worldNormal.x + ny*worldNormal.y + nz*worldNormal.z;
               var planeDistance=0;
-              if (origin) planeDistance=Math.abs((meshHit.point.x-origin.x)*normal.x+(meshHit.point.y-origin.y)*normal.y+(meshHit.point.z-origin.z)*normal.z);
+              if (origin) planeDistance=Math.abs((meshHit.point.x-origin.x)*nx+(meshHit.point.y-origin.y)*ny+(meshHit.point.z-origin.z)*nz);
               score = alignment*1000-planeDistance;
+              /* Winding is not guaranteed to agree with the analytic normal, so
+                 the facing test is unsigned — the plane distance already keeps
+                 the far side of the body out. */
+              if (Math.abs(alignment) >= 0.9 && planeDistance <= 0.4) contained = 900 + Math.abs(alignment)*90 - planeDistance*100;
             }
+            if (contained > bestContained) { bestContained = contained; containedFace = entry; }
             if (score > bestScore) { bestScore = score; faceTopology = entry; }
           });
+          if (containedFace) {
+            faceTopology = containedFace;
+            /* A 16-gon extrusion names each stave as its own plane. That hit is
+               contained, but it is not the face the user meant — grouping still
+               has to swallow the rest of the wall. */
+            if (analyticCurvedFace(containedFace.descriptor)) exactFace = true;
+          }
+        }
+        if (!exactFace && fin(meshHit.faceIndex)) {
+          /* Tessellated curves without a kernel face still have to pick as one
+             wall: group triangles across edges that are not real creases. */
+          var grouped = smoothFacesForMesh(meshHit.object);
+          var groupedIndex = grouped.faceOfTriangle && grouped.faceOfTriangle.length > meshHit.faceIndex
+            ? grouped.faceOfTriangle[meshHit.faceIndex] : -1;
+          var groupedFace = groupedIndex >= 0 ? grouped.faces[groupedIndex] : null;
+          if (groupedFace && groupedFace.descriptor && (groupedFace.descriptor.surface !== "plane" || !faceTopology)) {
+            var groupedId = (featureId || "feature") + ":face:mesh:" + groupedIndex;
+            faceTopology = resolveMergedTopology(entries, groupedId) || {
+              ownerFeatureId: featureId, kind: "face", persistentId: groupedId,
+              semantic: "mesh-face:" + groupedIndex, descriptor: groupedFace.descriptor,
+            };
+          }
         }
         if (prefer === "edge" || (prefer !== "face" && !finishCommandActive())) {
+          var curvedFace = analyticCurvedFace(faceTopology && faceTopology.descriptor)
+            || (faceTopology && faceTopology.descriptor && faceTopology.descriptor.surface && faceTopology.descriptor.surface !== "plane");
           var rim = nearestCircularEdge(entries, meshHit.point, {
-            maxDist: prefer === "edge" ? 8 : 2.6,
+            maxDist: prefer === "edge" ? 8 : curvedFace ? 0.9 : 2.6,
             cylinder: faceTopology && faceTopology.descriptor && faceTopology.descriptor.surface === "cylinder" ? faceTopology.descriptor : null,
           });
           if (rim) {
@@ -10529,6 +12400,18 @@ function resolveTopologyPick(event, view, options) {
             var sameCircle = alreadyEdge && (topologyReferencePicked.persistentId === rim.persistentId || (rim.memberPersistentIds || []).includes(topologyReferencePicked.persistentId));
             if (!alreadyEdge || sameCircle || prefer === "edge") topologyReferencePicked = topologyReferenceFromEntry(rim);
           }
+        }
+        /* Only a proven tessellation seam yields to the face in All. A straight
+           generatrix on a partial cylinder, cone, or fillet is a real edge. */
+        if (topologyReferencePicked && topologyReferencePicked.kind === "edge" && prefer !== "edge" && faceTopology) {
+          var edgeEntry = edgeTopology || resolveMergedTopology(entries, topologyReferencePicked.persistentId);
+          var roundWalls = entries.filter(function (entry) {
+            return entry.kind === "face" && entry.descriptor && entry.descriptor.surface === "cylinder";
+          });
+          if (faceTopology.descriptor && faceTopology.descriptor.surface === "cylinder" && roundWalls.indexOf(faceTopology) === -1) {
+            roundWalls = [faceTopology].concat(roundWalls);
+          }
+          if (edgeEntry && roundWalls.length && isCylinderTessellationSeam(edgeEntry, roundWalls)) topologyReferencePicked = null;
         }
         if (!topologyReferencePicked || prefer === "face") {
           if (faceTopology) topologyReferencePicked = topologyReferenceFromEntry(faceTopology);
@@ -10546,7 +12429,7 @@ function resolveTopologyPick(event, view, options) {
         partObject = partObject.parent;
       }
     }
-    return { hits: hits, part: part, reference: topologyReferencePicked, pickedView: pickedView };
+    return { hits: hits, part: part, reference: topologyReferencePicked, pickedView: pickedView, helixId: helixId };
   }
 }
 
@@ -10561,10 +12444,11 @@ function hoverAssemblyTopology(event, view) {
     if (E.hoverTopology) { E.hoverTopology = null; updatePreview(); }
     return;
   }
-  var found = resolveTopologyPick(event, view, { prefer: E.selectionFilter });
+  var found = resolveTopologyPick(event, view, { prefer: E.facePick ? "face" : E.selectionFilter });
   var next = found && found.reference || null;
+  if (E.facePick && next && next.kind !== "face") next = null;
   var same = (!next && !E.hoverTopology) || (next && E.hoverTopology && next.persistentId === E.hoverTopology.persistentId);
-  if (view.rr && view.rr.domElement && !handle) view.rr.domElement.style.cursor = next ? "pointer" : "";
+  if (view.rr && view.rr.domElement && !handle) view.rr.domElement.style.cursor = E.facePick ? "crosshair" : next ? "pointer" : "";
   if (same) return;
   E.hoverTopology = next;
   updatePreview();
@@ -10573,8 +12457,22 @@ function hoverAssemblyTopology(event, view) {
 function pickAssemblyComponent(event, view) {
   if (!view || !view.grp) return;
   if (E.docType === "part") {
-    var found = resolveTopologyPick(event, view, { prefer: E.selectionFilter }) || {};
+    var found = resolveTopologyPick(event, view, { prefer: E.facePick ? "face" : E.selectionFilter }) || {};
+    if (found.helixId && !E.facePick) {
+      E.selectedReferenceId = found.helixId;
+      if (!event.ctrlKey && !event.metaKey) E.topologySelection = [];
+      refreshAll();
+      return;
+    }
     var part = found.part || null, topologyReferencePicked = found.reference || null;
+    /* A sketch waiting for its face takes the click whole: no edge promotion,
+       no multi-select, no filter — the pick IS the answer to "where?". */
+    if (E.facePick) {
+      E.sel = part; E.ssel = [];
+      if (part && found.pickedView) E.selectedFaceView = found.pickedView;
+      facePickFromViewport(topologyReferencePicked);
+      return;
+    }
     if (E.selectionFilter === "body") topologyReferencePicked = null;
     else if (E.selectionFilter === "sketch") { refreshAll(); return; }
     else if (topologyReferencePicked && !selectionFilterAllows(topologyReferencePicked.kind, E.selectionFilter)) {
@@ -10603,10 +12501,11 @@ function pickAssemblyComponent(event, view) {
     }
     if (finishCommandActive() && !topologyReferencePicked) { refreshAll(); return; }
     if (!part || !topologyReferencePicked) E.topologySelection = topologyReferencePicked ? [topologyReferencePicked] : [];
-    else if (event.ctrlKey || event.metaKey) {
+    else if (event.ctrlKey || event.metaKey || E.mobileAddSelection) {
       var selectedAt = E.topologySelection.findIndex(function (reference) { return reference.persistentId === topologyReferencePicked.persistentId; });
       if (selectedAt === -1) E.topologySelection.push(topologyReferencePicked); else E.topologySelection.splice(selectedAt,1);
     } else E.topologySelection = [topologyReferencePicked];
+    if (topologyReferencePicked && !event.ctrlKey && !event.metaKey) E.selectedReferenceId = null;
     if(part && activeTab("R")==="sketch")setTab("shape");
     if(E.authoring && E.authoring.featureType && E.authoring.featurePreviewState && !E.authoring.featureEdit){
       syncNewFeaturePreview(E.authoring.featureType,E.authoring.featurePreviewState,E.authoring.featurePreviewBadge);
@@ -10640,7 +12539,7 @@ function pickAssemblyComponent(event, view) {
     }
   }
   if (!component) E.componentSel = [];
-  else if (event.ctrlKey || event.metaKey) {
+  else if (event.ctrlKey || event.metaKey || E.mobileAddSelection) {
     var at = E.componentSel.indexOf(component);
     if (at === -1) E.componentSel.push(component); else E.componentSel.splice(at, 1);
   } else E.componentSel = [component];
@@ -10658,6 +12557,101 @@ function pickAssemblyComponent(event, view) {
   }
   E.topologySelection = [];
   refreshAll();
+}
+
+function showSelectThrough(event, view) {
+  if (!root || !view) return;
+  if (E.docType === "assembly") {
+    var rect = view.rr.domElement.getBoundingClientRect();
+    var pointer = new THREE.Vector2(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    var ray = new THREE.Raycaster();
+    ray.setFromCamera(pointer, view.cam);
+    var components = [], seen = new Set();
+    ray.intersectObjects(view.grp.children, true).forEach(function (hit) {
+      var object = hit.object;
+      while (object && object !== view.grp) {
+        var id = object.userData && object.userData.cadComponent;
+        if (id) {
+          var component = E.assembly.components.find(function (candidate) { return candidate.id === id; });
+          if (component && !seen.has(id)) { seen.add(id); components.push(component); }
+          break;
+        }
+        object = object.parent;
+      }
+    });
+    if (!components.length) { showContextMenu(event.clientX, event.clientY, view); return; }
+    var assemblyHost = root.querySelector("#mdContextMenu");
+    if (!assemblyHost) return;
+    closeChromeOverlays();
+    assemblyHost.innerHTML = "";
+    assemblyHost.appendChild(el("strong", "md-context-title", t("touchSelectThrough")));
+    components.forEach(function (component, index) {
+      var button = el("button", "", "<span>" + (index + 1) + ". " + (component.name || t("component")) + "</span>");
+      button.type = "button";
+      button.addEventListener("click", function () {
+        var at = E.componentSel.indexOf(component);
+        if (E.mobileAddSelection) {
+          if (at < 0) E.componentSel.push(component); else E.componentSel.splice(at, 1);
+        } else E.componentSel = [component];
+        E.sel = E.componentSel[E.componentSel.length - 1] || null;
+        closeChromeOverlays();
+        refreshAll();
+      });
+      assemblyHost.appendChild(button);
+    });
+    positionContextMenu(assemblyHost, event.clientX, event.clientY);
+    return;
+  }
+  var found = resolveTopologyPick(event, view, { prefer: E.selectionFilter }) || {};
+  var part = found.part || null;
+  var references = (found.hits || []).map(function (hit) {
+    return hit.object && hit.object.userData && hit.object.userData.cadTopology;
+  }).filter(Boolean).map(function (entry) {
+    return topologyReferenceFromEntry(promotePickedEdge(entry, part ? topologyEntriesForPart(part) : [entry]));
+  });
+  if (found.reference) references.unshift(found.reference);
+  references = dedupeFinishRefs(references).filter(function (reference) {
+    return selectionFilterAllows(reference.kind, E.selectionFilter);
+  });
+  if (!references.length) { showContextMenu(event.clientX, event.clientY, view); return; }
+  var host = root.querySelector("#mdContextMenu");
+  if (!host) return;
+  closeChromeOverlays();
+  host.innerHTML = "";
+  host.appendChild(el("strong", "md-context-title", t("touchSelectThrough")));
+  references.forEach(function (reference, index) {
+    var label = (reference.semantic || reference.kind || "reference").replace(/[:_-]+/g, " ");
+    var button = el("button", "", "<span>" + (index + 1) + ". " + label + "</span>");
+    button.type = "button";
+    button.addEventListener("click", function () {
+      E.sel = part;
+      var at = E.topologySelection.findIndex(function (item) { return item.persistentId === reference.persistentId; });
+      if (E.mobileAddSelection) {
+        if (at < 0) E.topologySelection.push(reference); else E.topologySelection.splice(at, 1);
+      } else E.topologySelection = [reference];
+      closeChromeOverlays();
+      refreshAll();
+    });
+    host.appendChild(button);
+  });
+  contextToolbarItems(chromeSelectionInput()).slice(0, 4).forEach(function (item) {
+    var button = el("button", "md-context-op", "<span>" + chromeCommandLabel(item.id) + "</span>");
+    button.type = "button";
+    button.addEventListener("click", function () { closeChromeOverlays(); runChromeCommand(item.id); });
+    host.appendChild(button);
+  });
+  positionContextMenu(host, event.clientX, event.clientY);
+}
+
+function positionContextMenu(host, clientX, clientY) {
+  host.hidden = false;
+  var width = host.offsetWidth || 260, height = host.offsetHeight || 120;
+  host.style.left = Math.max(8, Math.min(clientX, window.innerWidth - width - 8)) + "px";
+  host.style.top = Math.max(8, Math.min(clientY, window.innerHeight - height - 8)) + "px";
+  E.overlays.menu = true;
 }
 
 function componentTopologyFromHit(component, hit) {
@@ -10978,6 +12972,7 @@ function initPreview() {
     cadNav: true,
     beginDrag: beginInstant3dDrag,
     contextMenu: function (event) { showContextMenu(event.clientX, event.clientY, E.pv); },
+    longPress: showSelectThrough,
     afterRender: syncInstant3dValue,
     gesturePreview: previewMouseGesture,
     gesture: function (event, view, dx, dy) { applyMouseGesture(dx, dy); },
@@ -11000,8 +12995,8 @@ function initPreview() {
         /* Show where the arrow's grab zone is. Missing it starts an orbit
            instead, and an orbit is exactly what "the handle does nothing"
            looks like from the outside. */
-        var overHandle = !!(instant3dAuthoringState() && hitInstant3d(event, E.pv));
-        canvas.style.cursor = overHandle ? "grab" : "";
+        var overHandle = !E.facePick && !!(instant3dAuthoringState() && hitInstant3d(event, E.pv));
+        canvas.style.cursor = E.facePick ? "crosshair" : overHandle ? "grab" : "";
         if (overHandle) return;
         hoverAssemblyTopology(event, E.pv);
       });
@@ -11071,6 +13066,85 @@ function setShowModelEdges(on, refresh) {
   if (refresh !== false) updatePreview();
 }
 
+function setPanelCollapsed(side, collapsed) {
+  if (!root) return;
+  var left = side === "left";
+  if (left) E.leftCollapsed = !!collapsed;
+  else E.rightCollapsed = !!collapsed;
+  root.classList.toggle(left ? "md-left-collapsed" : "md-right-collapsed", !!collapsed);
+  var button = root.querySelector(left ? "#mdToggleLeft" : "#mdToggleRight");
+  if (button) button.setAttribute("aria-pressed", collapsed ? "false" : "true");
+  sizeSketch();
+  drawSketch();
+  requestAnimationFrame(layout3DHost);
+}
+
+function sectionPlane() {
+  var axis = E.section && E.section.axis || "x";
+  var sign = E.section && E.section.flip ? -1 : 1;
+  var normal = axis === "y" ? new THREE.Vector3(0, sign, 0)
+    : axis === "z" ? new THREE.Vector3(0, 0, sign)
+    : new THREE.Vector3(sign, 0, 0);
+  return new THREE.Plane(normal, -(Number(E.section && E.section.offset) || 0) * sign);
+}
+
+function applySectionClipping(group) {
+  if (!group || !E.pv) return;
+  var enabled = !!(E.section && E.section.enabled), plane = enabled ? sectionPlane() : null;
+  E.pv.rr.localClippingEnabled = enabled;
+  group.traverse(function (object) {
+    if (!object.isMesh || !object.material) return;
+    var materials = Array.isArray(object.material) ? object.material : [object.material];
+    materials.forEach(function (material) {
+      material.clippingPlanes = plane ? [plane] : null;
+      material.clipShadows = enabled;
+      material.needsUpdate = true;
+    });
+  });
+}
+
+function syncSectionHelper() {
+  if (!E.pv) return;
+  if (E.pv.sectionHelper) {
+    E.pv.sc.remove(E.pv.sectionHelper);
+    if (E.pv.sectionHelper.geometry) E.pv.sectionHelper.geometry.dispose();
+    if (E.pv.sectionHelper.material) E.pv.sectionHelper.material.dispose();
+    E.pv.sectionHelper = null;
+  }
+  if (!(E.section && E.section.enabled)) return;
+  var bounds = E.def ? defBounds(E.def) : null;
+  var span = bounds ? Math.max(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0, bounds.z1 - bounds.z0, 80) : 160;
+  E.pv.sectionHelper = new THREE.PlaneHelper(sectionPlane(), span * 1.3, 0x2dd4bf);
+  E.pv.sectionHelper.name = "Section plane";
+  E.pv.sc.add(E.pv.sectionHelper);
+}
+
+function setSectionState(next) {
+  E.section = Object.assign({ enabled:false, axis:"x", offset:0, flip:false }, E.section || {}, next || {});
+  if (!root) return;
+  var controls = root.querySelector("#mdSectionControls");
+  if (controls) controls.hidden = !E.section.enabled;
+  root.querySelectorAll("[data-section-axis]").forEach(function (button) {
+    button.classList.toggle("on", button.getAttribute("data-section-axis") === E.section.axis);
+  });
+  var slider = root.querySelector("#mdSectionOffset"), output = root.querySelector("#mdSectionValue");
+  if (slider) slider.value = String(E.section.offset);
+  if (output) output.textContent = Math.round(E.section.offset * 10) / 10 + " cm";
+  var flip = root.querySelector("#mdSectionFlip");
+  if (flip) flip.classList.toggle("on", !!E.section.flip);
+  if (E.pv) {
+    applySectionClipping(E.pv.grp);
+    applySectionClipping(E.pv.roomGrp);
+    syncSectionHelper();
+    E.pv.render();
+  }
+}
+
+function toggleSectionView() {
+  if (E.mode !== "3d") setMode("3d");
+  setSectionState({ enabled:!(E.section && E.section.enabled) });
+}
+
 /* The panels are columns in the body's flex row now, not cards floating over a
    full-bleed middle pane, so the middle pane IS the free space — the big model
    view fills it with plain `inset: 0` and the old measure-the-gaps pass (which
@@ -11118,18 +13192,42 @@ function buildAssembly(parent) {
     }
     parent.add(group);
   });
+  addInterferenceVisuals(parent);
+}
+
+function addInterferenceVisuals(parent) {
+  (E.interferenceHits || []).forEach(function (hit,index) {
+    var bounds=hit && hit.bounds;if(!bounds)return;
+    var sx=bounds.x1-bounds.x0,sy=bounds.y1-bounds.y0,sz=bounds.z1-bounds.z0;
+    if(!(sx>0&&sy>0&&sz>0))return;
+    var geometry=new THREE.BoxGeometry(sx,sy,sz);
+    var material=new THREE.MeshBasicMaterial({color:0xff244f,transparent:true,opacity:.48,depthWrite:false,side:THREE.DoubleSide});
+    var mesh=new THREE.Mesh(geometry,material);mesh.position.set((bounds.x0+bounds.x1)/2,(bounds.y0+bounds.y1)/2,(bounds.z0+bounds.z1)/2);
+    mesh.renderOrder=80;mesh.userData.cadInterference=index;mesh.userData.interferencePair=[hit.a,hit.b];parent.add(mesh);
+    var wire=new THREE.LineSegments(new THREE.EdgesGeometry(geometry),new THREE.LineBasicMaterial({color:0xff0038,transparent:true,opacity:.95}));
+    wire.position.copy(mesh.position);wire.renderOrder=81;parent.add(wire);
+  });
 }
 
 function updatePreview() {
   if (typeof window !== "undefined") window.cadUpdatePreview = updatePreview;
   if (!E.pv) return;
   clearGroup(E.pv.roomGrp);
-  if (E.docType === "part") renderedParts(E.def).forEach(function (p) { buildPart(E.pv.roomGrp, p, E.displayStyle); });
+  if (E.docType === "part") {
+    renderedParts(E.def).forEach(function (p) { buildPart(E.pv.roomGrp, p, E.displayStyle); });
+    addDocumentOverlays(E.pv.roomGrp, E.def);
+  }
+  applySectionClipping(E.pv.roomGrp);
   E.pv.rebuild(function (grp) {
     if (E.docType === "assembly") buildAssembly(grp);
-    else renderedParts(E.def).forEach(function (p) { buildPart(grp, p, E.displayStyle); });
+    else {
+      renderedParts(E.def).forEach(function (p) { buildPart(grp, p, E.displayStyle); });
+      addDocumentOverlays(grp, E.def);
+    }
     addInstant3dHandles(grp);
+    applySectionClipping(grp);
   });
+  syncSectionHelper();
 }
 
 function renderPreview() {
@@ -11316,7 +13414,7 @@ function rebuildFeatureTreeFromDocument(target) {
       });
       (part.cuts3d || []).forEach(function (cut, cutIndex) {
         if (cut.suppressed) return;
-        var range = cut.frame ? {from:cut.from,to:cut.to} : cutRangeForAxis(partBounds(part), cut.axis);
+        var range = fin(cut.from) && fin(cut.to) ? {from:cut.from,to:cut.to} : cutRangeForAxis(partBounds(part), cut.axis);
         var cutter = addFeature(target, { id:part.featureId + ":cross-hole:" + cutIndex, type:"extrude", name:"Cross cut " + (cutIndex+1), params:{axis:cut.axis,...(cut.frame ? {frame:cloneData(cut.frame)} : {}),from:range.from,to:range.to,points:cloneData(cut.loop)} });
         feature = addFeature(target, { id:part.featureId + ":cross-cut:" + cutIndex, type:"subtract", name:"Cross cut " + (cutIndex+1), inputs:[feature.id,cutter.id] });
       });
@@ -11436,6 +13534,8 @@ function addReferenceGeometry(kind) {
     item.support = cloneData(face);
   } else if (kind === "plane") {
     item = createReferencePlane({ name: t("refPlane") + " " + n, origin: { x: 0, y: E.baseOff, z: 0 } });
+  } else if (kind === "helix") {
+    item = createHelix({ name: t("opHelix") + " " + n, radius: 1, pitch: 0.125, turns: 4, height: 0.5 });
   } else if (kind === "axis") {
     item = createReferenceAxis({ name: t("refAxis") + " " + n });
   } else {
@@ -11445,6 +13545,7 @@ function addReferenceGeometry(kind) {
   E.def.references ||= [];
   if(kind==="plane")E.def.references.push(Object.assign({},cloneDomain(item),{type:"plane"}));
   else if(kind==="axis")E.def.references.push({id:item.id,type:"axis",name:item.name,origin:cloneData(item.p1),direction:{x:item.p2.x-item.p1.x,y:item.p2.y-item.p1.y,z:item.p2.z-item.p1.z},refType:item.refType});
+  else if(kind==="helix")E.def.references.push(Object.assign({},cloneDomain(item),{type:"helix"}));
   else E.def.references.push(Object.assign({},cloneDomain(item),{type:"coordinate-system"}));
   refreshAll(); flash("✓ " + item.name);
 }
@@ -11524,8 +13625,10 @@ function createDefaultMotionStudy() {
 async function runInterferenceCheck() {
   if (E.docType !== "assembly" || !E.assembly) return;
   var hits = await detectInterference(E.assembly.components || []);
+  E.interferenceHits = hits;
+  updatePreview();
   report("EVALUATE", hits.length ? hits.length + " interference(s)" : "No interference detected",
-    hits.length ? hits.map(function (h) { return "• " + h.a + " ↔ " + h.b + (h.volume != null ? "   " + h.volume + " cm³" : ""); }) : "No two components overlap.");
+    hits.length ? [t("interferenceVisualized")].concat(hits.map(function (h) { return "• " + h.a + " ↔ " + h.b + (h.volume != null ? "   " + h.volume + " cm³" : ""); })) : "No two components overlap.");
 }
 
 function showAssemblyBOM() {
@@ -11689,6 +13792,7 @@ function refreshAll() {
   // change without the pointer ever moving
   syncStatus();
   syncHint();
+  syncFacePrompt();
   syncExtrudeButton();
   syncActiveFeatureSelectionFeedback();
   syncAuthoringWorkflow();
@@ -11726,11 +13830,14 @@ function mobileBridge() {
     setDisplay: function (style) { setModelDisplay(style, true); },
     toggleEdges: function () { setShowModelEdges(!(E.showModelEdges !== false)); },
     setSelFilter: setSelectionFilter,
+    setAddSelection: setMobileAddSelection,
+    clearSelection: clearMobileSelection,
     toggleContextRoom: function () {
       var box = root && root.querySelector("#mdContextBtn");
       if (box) box.click();
     },
     setDoc: setDocumentType,
+    setCommandTab: setCommandTab,
     newModel: newModel,
     save: saveCurrentDocument,
     guide: startTour,
@@ -11744,12 +13851,23 @@ function mobileBridge() {
         view: E.view,
         tool: E.tool,
         docType: E.docType,
+        commandTab: E.commandTab || "features",
         display: E.displayStyle === "transparent" ? "transparent" : "solid",
         edges: E.showModelEdges !== false,
         selFilter: E.selectionFilter || "all",
+        addSelection: !!E.mobileAddSelection,
+        topologyCount: (E.topologySelection || []).length,
+        componentCount: (E.componentSel || []).length,
+        selectionKind: (E.topologySelection[0] && E.topologySelection[0].kind) || (E.componentSel.length ? "body" : ""),
+        rebuildErrors: E.coreRun && E.coreRun.issues ? E.coreRun.issues.filter(function (issue) { return issue.severity === "error"; }).length : 0,
+        rebuildWarnings: E.coreRun && E.coreRun.issues ? E.coreRun.issues.filter(function (issue) { return issue.severity === "warning"; }).length : 0,
         contextRoom: !!(root && root.querySelector("#mdContextBtn") && root.querySelector("#mdContextBtn").checked),
         cornerVisible: corner.visible,
         canAccept: corner.canAccept,
+        /* Nothing modelled yet: the Features tab is six disabled buttons and
+           one live one, so the sheet opens on Sketch instead. */
+        emptyPart: E.docType === "part" && !((E.def && E.def.parts) || []).length,
+        closedSketch: !!closedSketchProfile(),
         // identity only — the shell rebuilds when this string changes
         selKey: (E.sel && E.sel.id ? "p:" + E.sel.id : "") +
           "/" + (E.topologySelection || []).map(function (r) { return r.kind + (r.persistentId || ""); }).join(","),
@@ -11758,15 +13876,43 @@ function mobileBridge() {
   };
 }
 
+function syncModelerChrome() {
+  if (!E.open) return;
+  if (document.body.classList.contains("compact-nav")) initModelerMobile(mobileBridge());
+  else teardownModelerMobile();
+}
+/* resize fires dozens of times through one orientation change or soft-keyboard
+   open, and each call rebuilds the whole contextual row. Coalesce to one run
+   per frame: the posture can only be read once the browser has settled anyway. */
+var chromeFrame = 0;
+function queueModelerChrome() {
+  if (chromeFrame) return;
+  chromeFrame = requestAnimationFrame(function () {
+    chromeFrame = 0;
+    syncModelerChrome();
+    syncHint();
+  });
+}
+
 export function openModeler(editKey, def, srcItem) {
+  modelerReturnFocus = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
   if (root && E.lang !== getLang()) destroyDOM();
   if (!root) buildDOM();
   E.open = true;
   root.style.display = "flex";
-  // The phone shell is built per-open: it appends its rows to <body>, and the
-  // editor's own root is torn down and rebuilt on a language change.
-  if (document.body.classList.contains("compact-nav")) initModelerMobile(mobileBridge());
+  // Phone / foldable chrome is built per-open and also follows posture changes
+  // (a desktop session that folds, or a phone that unfolds to a wide inner).
+  syncModelerChrome();
+  // Let the launcher click finish before its app shell becomes inert. Making
+  // the clicked ancestor inert inside the same dispatch can strand assistive
+  // technology and automation in a control that disappears mid-activation.
+  setTimeout(function () { if (E.open) setModelerBackgroundIsolation(true); }, 50);
   E.docType = "part";
+  // Tree state is per document: a hidden body or a collapsed branch from the
+  // last model must not carry over onto ids that mean something else here.
+  E.treeState = {};
+  E.treeCollapsed = {};
+  E.hiddenBodies = [];
   root.classList.remove("md-assembly");
   root.querySelectorAll("#mdDocModes [data-doc]").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-doc") === "part"); });
   var f = editKey && FURN[editKey] && FURN[editKey].custom;
@@ -11797,6 +13943,14 @@ export function openModeler(editKey, def, srcItem) {
   E.sel = null;
   E.ssel = [];
   E.topologySelection = [];
+  E.facePick = null;
+  E.interferenceHits = [];
+  E.dependencyHighlight = null;
+  E.section = { enabled:false, axis:"x", offset:0, flip:false };
+  setSectionState(E.section);
+  setPanelCollapsed("left", false);
+  setPanelCollapsed("right", false);
+  E.mobileAddSelection = false;
   E.poly = null;
   E.arcPts = null;
   E.wallPts = null;
@@ -11804,6 +13958,7 @@ export function openModeler(editKey, def, srcItem) {
   E.authoring={phase:"model",referenceId:null,sketchId:E.def.activeSketch || null,featureType:null,sketchSelection:E.def.activeSketch?[E.def.activeSketch]:[],featureSelection:[],workflowFocus:"context"};
   E._mouse = null;
   E.solveInfo = solveSketch(ensureSketch(E.def));
+  E._solveSketchId = ensureSketch(E.def).id;
   E.coreRun = isCanonicalAuthoring() ? rebuildParametricDocument(E.def,E.srcItem && E.srcItem.parameterOverrides || {}) : rebuildDefinition(E.def, E.srcItem && E.srcItem.parameterOverrides || {});
   H.clear().seed();
   markDocumentClean();
@@ -11828,7 +13983,12 @@ export function openModeler(editKey, def, srcItem) {
   // The start screen belongs to fresh beginnings only — editing an existing
   // model or resuming a draft already has a direction.
   if (!editKey && !def && !srcItem && !restoredDraft && E.welcomeOnOpen) openWelcome();
-  else { closeWelcome(); syncCoach(); }
+  else {
+    closeWelcome();
+    syncCoach();
+    var closeButton = root.querySelector("#mdClose");
+    if (closeButton) closeButton.focus({ preventScroll:true });
+  }
 }
 // Open the editor for a placed item: custom models open their own definition
 // (saving updates every placed instance); built-ins open as an editable copy,
@@ -11863,6 +14023,9 @@ export function closeModeler() {
   // ribbon while they are open, and those have to be put back inside it.
   teardownModelerMobile();
   if (root) root.style.display = "none";
+  setModelerBackgroundIsolation(false);
+  if (modelerReturnFocus && modelerReturnFocus.isConnected) modelerReturnFocus.focus({ preventScroll:true });
+  modelerReturnFocus = null;
 }
 
 export function initModeler() {
@@ -11871,6 +14034,8 @@ export function initModeler() {
   // modelling surface is always routed through the same initialization path.
   var topLaunch = document.getElementById("openModelerTop");
   if (topLaunch) topLaunch.addEventListener("click", function () { openModeler(); });
+  window.addEventListener("mf-posture", queueModelerChrome);
+  window.addEventListener("resize", queueModelerChrome);
   window.addEventListener("keydown", function (e) {
     var active = document.activeElement;
     if (E.open || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.key.toLowerCase() !== "m") return;

@@ -25,6 +25,7 @@ import {
   rebuildProject,
 } from "./core/project.js";
 import { exportSpatialProject, importSpatialProject } from "./core/spatial_project.js";
+import { normalizeBlueprintReference, syncBlueprintTraceControls } from "./blueprint_trace.js";
 
 const CAP = 80;
 
@@ -64,6 +65,7 @@ function snap() {
     // acknowledged constraint warnings: "ignore this one" is an edit like any
     // other, so Ctrl+Z brings the glow back
     ignoredWarnings: S.ignoredWarnings || {},
+    blueprintTrace: S.blueprintTrace,
     idc: S.idc,
     parametric: exportParametricProject(S),
     // MEP geometry is part of the model, so it belongs in the snapshot. ui_mep
@@ -87,8 +89,10 @@ function apply(str) {
   }
   if (!s || typeof s !== "object") return false;
   if (s.spatial) importSpatialProject(S,s.spatial);
-  else { S.nodes=s.nodes || [];S.walls=s.walls || [];S.openings=s.openings || [];S.items=s.items || [];S.markers=s.markers || [];S.roomMeta=s.roomMeta || {}; }
+  else { S.nodes=s.nodes || [];S.walls=s.walls || [];S.openings=s.openings || [];S.items=s.items || [];S.markers=s.markers || [];S.slabOpenings=s.slabOpenings || [];S.roomMeta=s.roomMeta || {}; }
   S.ignoredWarnings = s.ignoredWarnings || {};
+  S.blueprintTrace = normalizeBlueprintReference(s.blueprintTrace);
+  syncBlueprintTraceControls();
   S.warnHover = S.warnSel = null;
   S.conHover = null;
   S.idc = s.idc || 1;
@@ -156,6 +160,20 @@ function apply(str) {
      piece   -> the piece it is stacked on, or the point that reserves it
    Rooms deliberately do NOT parent their walls (a wall belongs to two rooms).
    The room's contents are resolved live instead, by subtree() below. */
+function flattenSnap(s) {
+  if (!s || typeof s !== "object") return s;
+  if (!s.spatial) return s;
+  return {
+    nodes: s.spatial.nodes,
+    walls: s.spatial.walls,
+    openings: s.spatial.openings,
+    items: s.spatial.instances || s.spatial.items,
+    markers: s.spatial.markers,
+    slabOpenings: s.spatial.slabOpenings,
+    roomMeta: s.spatial.rooms || s.spatial.roomMeta,
+    mep: s.mep,
+  };
+}
 function scan(str) {
   var s;
   // no texUnpack: a texture stays the short token it was interned as, so a
@@ -166,6 +184,7 @@ function scan(str) {
     return [];
   }
   if (!s || typeof s !== "object") return [];
+  s = flattenSnap(s);
   var out = [],
     nodes = s.nodes || [],
     heldBy = {};
@@ -210,6 +229,14 @@ function scan(str) {
       kind: "marker",
       label: m.name || "P" + (i + 1),
       sig: JSON.stringify(m),
+    });
+  });
+  (s.slabOpenings || []).forEach(function (o) {
+    out.push({
+      id: "slabvoid:" + o.id,
+      kind: "slabvoid",
+      label: o.name || "Void",
+      sig: JSON.stringify(o),
     });
   });
   var rm = s.roomMeta || {};
@@ -311,6 +338,9 @@ function subtree(id) {
       (S.markers || []).forEach(function (m) {
         if (pointInPoly(m.x, m.z, r.pts)) out.push("marker:" + m.id);
       });
+      (S.slabOpenings || []).forEach(function (o) {
+        if (pointInPoly(o.x, o.z, r.pts)) out.push("slabvoid:" + o.id);
+      });
     }
   }
   return out;
@@ -339,6 +369,7 @@ function scopeId() {
   if (sel.kind === "wall") return "wall:" + sel.ref.id;
   if (sel.kind === "opening") return "opening:" + sel.ref.id;
   if (sel.kind === "marker") return "marker:" + sel.ref.id;
+  if (sel.kind === "slabvoid") return "slabvoid:" + sel.ref.id;
   if (sel.kind === "mepNode") return "mepnode:" + sel.ref.id;
   if (sel.kind === "mepRun") return "meprun:" + sel.ref.id;
   if (sel.kind === "room") {
@@ -388,6 +419,7 @@ function pick(id) {
   else if (kind === "wall") sel = as("wall", S.walls);
   else if (kind === "opening") sel = as("opening", S.openings);
   else if (kind === "marker") sel = as("marker", S.markers);
+  else if (kind === "slabvoid") sel = as("slabvoid", S.slabOpenings);
   else if (kind === "mepnode") sel = m && as("mepNode", m.nodes);
   else if (kind === "meprun") sel = m && as("mepRun", m.runs);
   else if (kind === "room") {

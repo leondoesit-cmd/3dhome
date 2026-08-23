@@ -126,6 +126,7 @@ var panels = {
   opening: document.getElementById("openProps"),
   room: document.getElementById("roomProps"),
   marker: document.getElementById("markerProps"),
+  slabvoid: document.getElementById("slabvoidProps"),
   node: document.getElementById("nodeProps"),
   con: document.getElementById("conProps"),
   mep: document.getElementById("mepProps"),
@@ -198,6 +199,9 @@ export function select(s) {
   // picking a message row is not undone by this.
   S.warnSel = null;
   S.sel = s;
+  // Selection is shared between the plan and 3D panes. Repaint is enough: the
+  // 3D scene keeps a lightweight outline helper and does not need a rebuild.
+  S.repaint3D = true;
   fillProps();
   // the history panel is scoped to the selection: picking an object is also
   // the gesture that asks "what happened to this one?"
@@ -1443,6 +1447,17 @@ function fillMarker(m) {
   refreshMarkerReadout();
 }
 
+function fillSlabVoid(o) {
+  showPanel("slabvoid");
+  document.getElementById("selname_sv").textContent = o.name || t("sv_title");
+  document.getElementById("sv_name").value = o.name || "";
+  document.getElementById("sv_x").value = Math.round(o.x);
+  document.getElementById("sv_z").value = Math.round(o.z);
+  document.getElementById("sv_w").value = Math.round(o.w);
+  document.getElementById("sv_d").value = Math.round(o.d);
+  document.getElementById("sv_rot").value = Math.round(o.rot || 0);
+}
+
 /* The corner inspector. A joint had no panel at all — selecting one showed
    whatever the last selection left on screen — yet it is the one thing in the
    plan whose numbers you cannot read off the drawing: which walls actually meet
@@ -1697,6 +1712,11 @@ export function fillProps() {
     refreshTree();
     return;
   }
+  if (S.sel.kind === "slabvoid") {
+    fillSlabVoid(S.sel.ref);
+    refreshTree();
+    return;
+  }
   if (S.sel.kind === "node") {
     fillJoint(S.sel.ref);
     return;
@@ -1822,6 +1842,8 @@ export function fillProps() {
     fillStackRow(it); // the piece it stands on, when it stands on one
     fillHoldRow(it); // and the wall it is held against, when it is held
     fillItemSmart(it);
+    var slabRow = document.getElementById("i_slabvoid_row");
+    if (slabRow) slabRow.hidden = it.type !== "stairs";
     document.getElementById("lockItemSpan").textContent = it.locked ? t("lockItemOn") : t("lockItem");
     document.getElementById("lockItemBtn").querySelector("i").className = it.locked ? "ph ph-lock-key" : "ph ph-lock-key-open";
     if (isLamp(it)) {
@@ -1970,6 +1992,8 @@ export function fillProps() {
       return;
     }
     showPanel("room");
+    var roomTitle = document.getElementById("selname4");
+    if (roomTitle) roomTitle.textContent = roomName(r.key) || t("room");
     renderRoomCons(r.key);
     document.getElementById("r_name").value = roomName(r.key);
     document.getElementById("r_floor").value = roomFloor(r.key);

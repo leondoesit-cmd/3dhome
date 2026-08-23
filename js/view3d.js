@@ -46,6 +46,7 @@ import {
   tJoinStep,
   detectRooms,
   contentBounds,
+  roomByKey,
   roomFloor,
   roomHidden,
   hiddenSets,
@@ -56,6 +57,7 @@ import {
   wallTangentAt,
   distSeg,
 } from "./geometry.js";
+import { holesForRoom, hitSlabOpening, openingCorners, slabOpenings } from "./slab_openings.js";
 import {
   normalizeWall,
   wallLayerBands,
@@ -87,7 +89,7 @@ import { wallFraming } from "./wall_framing.js";
 
 export const has3D = typeof THREE !== "undefined";
 
-var scene, renderer, camera, dyn, sun, hemi, flt, stars;
+var scene, renderer, camera, dyn, sun, hemi, flt, stars, selectionOutline;
 // real-world site overlay (js/site.js): aerial ground group + street-view skybox.
 // Both live on `scene` (not `dyn`) so they survive rebuild3D's dyn.clear().
 var siteGroup = null, // holds the aerial ground plane, rotated by groundRot
@@ -339,17 +341,34 @@ function moveWalk() {
     var l = Math.hypot(mx, mz) || 1;
     var dx = (mx / l) * spd;
     var dz = (mz / l) * spd;
+    var curX = walkPos.x, curZ = walkPos.z, nx, nz;
     if (isPhysicsEnabled()) {
-      var next = moveKinematicCapsule(walkPos.x, walkPos.y, walkPos.z, dx, 0, dz, 18, EYE_H);
-      walkPos.x = next.x;
-      walkPos.z = next.z;
+      var next = moveKinematicCapsule(curX, walkPos.y, curZ, dx, 0, dz, 18, EYE_H);
+      nx = next.x;
+      nz = next.z;
     } else {
-      walkPos.x += dx;
-      walkPos.z += dz;
-      clampWalk();
+      nx = curX + dx;
+      nz = curZ + dz;
     }
+    /* A stairwell is a hole in the floor, so it has to stop the walker as well
+       as the renderer — walkPos.y is fixed, so without this you stroll straight
+       across the well. Axis-separated so the edge can be walked ALONG rather
+       than stuck to. No-clip ignores it, like it ignores walls. */
+    if (voidBlocked(nx, nz)) {
+      if (!voidBlocked(nx, curZ)) nz = curZ;
+      else if (!voidBlocked(curX, nz)) nx = curX;
+      else { nx = curX; nz = curZ; }
+    }
+    walkPos.x = nx;
+    walkPos.z = nz;
+    if (!isPhysicsEnabled()) clampWalk();
     walkLook();
   }
+}
+// the walker's body stops at the curb, not with its centre over the drop
+function voidBlocked(x, z) {
+  if (freeMove) return false;
+  return !!hitSlabOpening(x, z, 16);
 }
 // bounds of the wall footprint from centerlines only (no furniture padding,
 // unlike contentBounds) — this is the interior the person/camera must stay in
@@ -1381,6 +1400,64 @@ function buildItem(it) {
 var itemsRoot = null;
 var itemCache = new Map(); // item id -> { g, sig }
 
+/* Split view should describe one shared model, not two unrelated pictures.
+   A lightweight Box3Helper mirrors the plan/tree selection without touching
+   furniture materials (many catalogue meshes deliberately share them). */
+function selected3DBox() {
+  if (!S.sel || !dyn) return null;
+  var box = new THREE.Box3(), found = false;
+  function addObject(o) {
+    if (!o) return;
+    o.updateWorldMatrix(true, true);
+    box.expandByObject(o, true);
+    found = true;
+  }
+  if (S.sel.kind === "item") {
+    var one = itemCache.get(S.sel.ref && S.sel.ref.id);
+    addObject(one && one.g);
+  } else if (S.sel.kind === "items") {
+    (S.sel.refs || []).forEach(function (it) {
+      var c = itemCache.get(it && it.id);
+      addObject(c && c.g);
+    });
+  } else if (S.sel.kind === "wall" || S.sel.kind === "opening") {
+    var field = S.sel.kind, ref = S.sel.ref;
+    dyn.traverse(function (o) {
+      if (o.userData && o.userData[field] === ref) addObject(o);
+    });
+  } else if (S.sel.kind === "room") {
+    var room = roomByKey(S.sel.ref), pts = room && room.nidx && room.nidx.map(function (i) { return S.nodes[i]; }).filter(Boolean);
+    if (pts && pts.length) {
+      var minx = Math.min.apply(null, pts.map(function (p) { return p.x; })),
+        maxx = Math.max.apply(null, pts.map(function (p) { return p.x; })),
+        minz = Math.min.apply(null, pts.map(function (p) { return p.z; })),
+        maxz = Math.max.apply(null, pts.map(function (p) { return p.z; }));
+      box.set(new THREE.Vector3(minx, 2, minz), new THREE.Vector3(maxx, 8, maxz));
+      found = true;
+    }
+  }
+  if (!found || box.isEmpty()) return null;
+  return box.expandByScalar(2);
+}
+function syncSelectionOutline() {
+  if (!scene) return;
+  if (!selectionOutline) {
+    selectionOutline = new THREE.Box3Helper(new THREE.Box3(), 0x28c7ad);
+    selectionOutline.name = "Planner selection outline";
+    selectionOutline.renderOrder = 999;
+    selectionOutline.material.depthTest = false;
+    selectionOutline.material.transparent = true;
+    selectionOutline.material.opacity = 0.95;
+    scene.add(selectionOutline);
+  }
+  var box = selected3DBox();
+  selectionOutline.visible = !!box;
+  if (box) {
+    selectionOutline.box.copy(box);
+    selectionOutline.updateMatrixWorld(true);
+  }
+}
+
 /* Editing a model in the modeler changes how a piece is BUILT without changing
    the piece's own data, so the signature alone would keep serving the old
    geometry. Folding a catalogue revision into it invalidates every entry the
@@ -1628,7 +1705,8 @@ export function rebuild3D() {
         fmat.opacity = 0.18;
         fmat.depthWrite = false;
       }
-      var m = polyMesh(r.pts, 0, scaleVal, fmat);
+      var holes = holesForRoom(r.pts);
+      var m = polyMesh(r.pts, 0, scaleVal, fmat, holes);
       if (m) {
         m.receiveShadow = !xrayFloor;
         m.castShadow = !xrayFloor;
@@ -1789,6 +1867,10 @@ export function rebuild3D() {
           depthWrite: false,
         });
       }
+      /* A void cuts the FLOOR SLAB it sits on, not the ceiling above it. Only
+         the active storey renders, so punching the ceiling too opened the room
+         to empty sky instead of to the floor above. Floor-only is the honest
+         cut until stacked storeys render together. */
       var m = polyMesh(r.pts, r.ceilH, 160, rmat);
       if (m) {
         m.castShadow = S.showCeiling && !xrayCeiling;
@@ -1802,18 +1884,60 @@ export function rebuild3D() {
       fBoxOpt.trans = true;
       fBoxOpt.opacity = 0.18;
     }
-    box(
-      dyn,
-      bb.minx - 40,
-      bb.maxx + 40,
-      -3,
-      0,
-      bb.minz - 40,
-      bb.maxz + 40,
-      FLOOR,
-      fBoxOpt,
-    );
+    var slab = [
+      { x: bb.minx - 40, z: bb.minz - 40 },
+      { x: bb.maxx + 40, z: bb.minz - 40 },
+      { x: bb.maxx + 40, z: bb.maxz + 40 },
+      { x: bb.minx - 40, z: bb.maxz + 40 },
+    ];
+    /* Without a closed room there is no room polygon to punch, and the void
+       used to be a silent no-op on the flat fallback slab. Cut the fallback
+       too, so a stairwell drawn before the walls close still reads as a hole. */
+    var fallbackHoles = holesForRoom(slab);
+    if (fallbackHoles.length) {
+      var fmatFlat = new THREE.MeshStandardMaterial({ color: FLOOR, roughness: 0.9 });
+      if (xrayFloor) {
+        fmatFlat.transparent = true;
+        fmatFlat.opacity = 0.18;
+        fmatFlat.depthWrite = false;
+      }
+      var fm = polyMesh(slab, 0, 240, fmatFlat, fallbackHoles);
+      if (fm) {
+        fm.castShadow = !xrayFloor;
+        fm.receiveShadow = !xrayFloor;
+        dyn.add(fm);
+      }
+    } else {
+      box(
+        dyn,
+        bb.minx - 40,
+        bb.maxx + 40,
+        -3,
+        0,
+        bb.minz - 40,
+        bb.maxz + 40,
+        FLOOR,
+        fBoxOpt,
+      );
+    }
   }
+  /* The curb around each well. Outside the rooms branch so a void on an
+     unclosed plan still gets its edge. */
+  var rimMat = new THREE.MeshStandardMaterial({ color: 0x8a8178, roughness: 0.92 });
+  slabOpenings().forEach(function (o) {
+    var cs = openingCorners(o), ri, a, b, len, rim;
+    for (ri = 0; ri < 4; ri++) {
+      a = cs[ri]; b = cs[(ri + 1) % 4];
+      len = Math.hypot(b.x - a.x, b.z - a.z);
+      if (!(len > 2)) continue;
+      rim = new THREE.Mesh(new THREE.BoxGeometry(len, 6, 3.2), rimMat);
+      rim.position.set((a.x + b.x) / 2, 3, (a.z + b.z) / 2);
+      rim.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x);
+      rim.castShadow = false;
+      rim.receiveShadow = true;
+      dyn.add(rim);
+    }
+  });
   // per-room wall color overrides (a wall shared by two painted rooms takes the last one's color)
   var wallColorMap = {};
   rooms.forEach(function (r) {
@@ -3770,6 +3894,7 @@ export function init3D() {
         shadowsDirty = false;
         shadowThrottleT = time;
       }
+      syncSelectionOutline();
       try {
         renderScene();
       } catch (e) {

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { meshFeatureEdges, projectMeshEdges } from "../js/core/mesh_projection.js";
+import { meshFeatureEdges, meshSmoothFaces, projectMeshEdges } from "../js/core/mesh_projection.js";
 import { createDrawingSvg } from "../js/cad_drawings.js";
 
 test("direct mesh projection keeps the outline and removes triangulation diagonals",()=>{
@@ -95,4 +95,59 @@ test("drawing SVG uses direct mesh contours instead of generic view rectangles",
   assert.match(svg,/<path class="shape" d="M/);
   assert.match(svg,/>TOP<\/text>/);
   assert.doesNotMatch(svg,/<text class="title"[^>]*>Untitled part<\/text>/);
+});
+
+test("a tessellated cylinder wall is one smooth face, not a stave per facet", () => {
+  const grouped = meshSmoothFaces({ positions: cylinderPositions(8, 12, 24) });
+  const cylinders = grouped.faces.filter((face) => face.descriptor.surface === "cylinder");
+  const planes = grouped.faces.filter((face) => face.descriptor.surface === "plane");
+  assert.equal(cylinders.length, 1);
+  assert.ok(cylinders[0].triangles.length >= 24);
+  assert.equal(planes.length, 2);
+  assert.ok(Math.abs(cylinders[0].descriptor.radius - 8) < 0.35);
+  const sideTriangle = 0;
+  const sameWall = grouped.faceOfTriangle[sideTriangle];
+  assert.equal(grouped.faces[sameWall].descriptor.surface, "cylinder");
+  // each stave is two wall triangles, then a bottom cap and a top cap
+  assert.equal(grouped.faceOfTriangle[1], sameWall);
+  assert.equal(grouped.faceOfTriangle[4], sameWall);
+});
+
+test("a 16-point extruded circle is still one wall at a small radius", () => {
+  const grouped = meshSmoothFaces({ positions: cylinderPositions(3, 10, 16) });
+  const cylinders = grouped.faces.filter((face) => face.descriptor.surface === "cylinder");
+  assert.equal(cylinders.length, 1);
+  assert.equal(grouped.faceOfTriangle[0], grouped.faceOfTriangle[4]);
+  assert.ok(cylinders[0].triangles.length >= 32);
+});
+
+test("a tessellated sphere is one pickable face", () => {
+  const radius = 6, slices = 16, stacks = 10, positions = [];
+  const vert = (s, t) => {
+    const lat = (t / stacks - 0.5) * Math.PI;
+    const lon = (s / slices) * Math.PI * 2;
+    return [
+      Math.cos(lat) * Math.cos(lon) * radius,
+      Math.sin(lat) * radius,
+      Math.cos(lat) * Math.sin(lon) * radius,
+    ];
+  };
+  for (let t = 0; t < stacks; t++) for (let s = 0; s < slices; s++) {
+    const a = vert(s, t), b = vert(s + 1, t), c = vert(s + 1, t + 1), d = vert(s, t + 1);
+    if (t !== 0) positions.push(...a, ...b, ...c);
+    if (t !== stacks - 1) positions.push(...a, ...c, ...d);
+  }
+  const grouped = meshSmoothFaces({ positions });
+  const spheres = grouped.faces.filter((face) => face.descriptor.surface === "sphere");
+  assert.equal(spheres.length, 1);
+  assert.equal(grouped.faces.length, 1);
+  assert.ok(Math.abs(spheres[0].descriptor.radius - radius) < 0.25);
+  assert.equal(grouped.faceOfTriangle[0], grouped.faceOfTriangle[grouped.faceOfTriangle.length - 1]);
+});
+
+test("a box still splits into six planar faces", () => {
+  const grouped = meshSmoothFaces({ positions: boxPositions(-10, 10, 0, 20, -5, 5) });
+  const planes = grouped.faces.filter((face) => face.descriptor.surface === "plane");
+  assert.equal(planes.length, 6);
+  assert.equal(grouped.faces.some((face) => face.descriptor.surface === "cylinder" || face.descriptor.surface === "sphere"), false);
 });

@@ -31,6 +31,9 @@ import { t } from "./i18n.js";
 import { applyStatic, onLangChange } from "./i18n.js";
 import { initModeler, refreshCatalogSelect } from "./modeler.js";
 import { initCabinetUI } from "./ui_cabinet.js";
+import { layoutCab, doorSweeps } from "./cabinet.js";
+import { bindCabinetHelpers } from "./swing_clearance.js";
+import { initPlanSync } from "./plan_sync.js";
 import { initSite } from "./ui_site.js";
 import { initMEP } from "./ui_mep.js";
 import { initSmartHome } from "./ui_smarthome.js";
@@ -38,6 +41,7 @@ import { initFriends } from "./ui_friends.js";
 import { markerItem, detachMarker } from "./markers.js";
 import { initCadHud, applyLangLabels as cadHudLang } from "./cad_hud.js";
 import { initMobileShell, refreshMobileShell } from "./mobile_shell.js";
+import { windowChromePosture } from "./chrome_posture.js";
 import { rebuildProject } from "./core/project.js";
 
 // apply static translations for the current language before anything renders
@@ -157,6 +161,8 @@ function renderFurnUI() {
   const ui = document.getElementById("furnUI");
   if (!ui) return;
 
+  var isTouch = (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || (navigator.maxTouchPoints || 0) > 0;
+
   let html = "";
 
   if (searchQ) {
@@ -181,7 +187,7 @@ function renderFurnUI() {
     );
     html += `<div class="furn-grid">`;
     matches.slice(0, 60).forEach(type => {
-      html += `<div class="furn-item" data-type="${escapeHTML(type)}" draggable="true">
+      html += `<div class="furn-item" data-type="${escapeHTML(type)}" draggable="${isTouch ? 'false' : 'true'}">
         ${thumbTag(type)}
         <span>${escapeHTML(flabel(type))}</span>
       </div>`;
@@ -240,7 +246,7 @@ function renderFurnUI() {
       if (activeSub && activeSub.items) {
         activeSub.items.forEach(type => {
           if (!FURN[type]) return;
-          html += `<div class="furn-item" data-type="${escapeHTML(type)}" draggable="true">
+          html += `<div class="furn-item" data-type="${escapeHTML(type)}" draggable="${isTouch ? 'false' : 'true'}">
             ${thumbTag(type)}
             <span>${escapeHTML(flabel(type))}</span>
           </div>`;
@@ -318,6 +324,8 @@ initInteraction();
 initUI();
 initModeler();
 initCabinetUI();
+bindCabinetHelpers({ layoutCab, doorSweeps });
+initPlanSync();
 initSite();
 initMEP();
 initSmartHome();
@@ -371,7 +379,9 @@ var view2d = document.getElementById("view-2d");
   el.addEventListener("wheel", mark, { passive: true });
 });
 var centerCanvas = document.getElementById("center-canvas");
-var SPLIT_KEY = "home3d_viewsplit"; // persisted top-pane (3D) height %
+var splitOrientationBtn = document.getElementById("splitOrientationBtn");
+var SPLIT_KEY = "home3d_viewsplit", // persisted 3D pane share %
+  SPLIT_DIR_KEY = "home3d_splitdir";
 
 // Apply the panes' flex ratio, then pin the 2D plan to the same on-screen
 // pane heights. sizeCanvas() shifts OX/OY by half the size delta so the world
@@ -399,15 +409,50 @@ function persistSplit() {
   } catch (_) {}
 }
 
+function splitIsSide() {
+  return document.body.classList.contains("split-side");
+}
+function syncSplitOrientationButton() {
+  if (!splitOrientationBtn || !centerCanvas) return;
+  var split = !centerCanvas.classList.contains("max-view-2d") &&
+    !centerCanvas.classList.contains("max-view-3d");
+  splitOrientationBtn.hidden = !split || document.body.classList.contains("compact-nav");
+  var side = splitIsSide();
+  splitOrientationBtn.setAttribute("aria-pressed", side ? "true" : "false");
+  var key = side ? "split_stack" : "split_side";
+  splitOrientationBtn.title = t(key);
+  splitOrientationBtn.setAttribute("aria-label", t(key));
+  var icon = splitOrientationBtn.querySelector("i");
+  if (icon) icon.className = side ? "ph ph-rows" : "ph ph-columns";
+}
+function setSplitDirection(side, persist) {
+  document.body.classList.toggle("split-side", !!side);
+  if (persist) {
+    try { localStorage.setItem(SPLIT_DIR_KEY, side ? "side" : "stack"); } catch (_) {}
+  }
+  syncSplitOrientationButton();
+  setSplit(curSplit, false);
+}
+
 // Restore the user's saved split ratio (persists across interactions/reloads).
 var savedSplit = parseFloat(localStorage.getItem(SPLIT_KEY));
 if (!isNaN(savedSplit)) setSplit(savedSplit, false);
+var savedSplitDir = null;
+try { savedSplitDir = localStorage.getItem(SPLIT_DIR_KEY); } catch (_) {}
+setSplitDirection(savedSplitDir === "side", false);
+
+if (splitOrientationBtn) {
+  splitOrientationBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    setSplitDirection(!splitIsSide(), true);
+  });
+}
 
 if (resizer) {
   var isR = false;
   function startR() {
     isR = true;
-    document.body.style.cursor = "row-resize";
+    document.body.style.cursor = splitIsSide() ? "col-resize" : "row-resize";
   }
   function endR() {
     if (!isR) return;
@@ -415,13 +460,14 @@ if (resizer) {
     document.body.style.cursor = "";
     persistSplit(); // write once on release, not every drag frame
   }
-  var moveR = throttle((clientY) => {
+  var moveR = throttle((clientX, clientY) => {
     if (!isR || !centerCanvas) return;
     var r = centerCanvas.getBoundingClientRect();
-    var topH = clientY - r.top;
-    if (topH < 100) topH = 100;
-    if (r.height - topH < 100) topH = r.height - 100;
-    setSplit((topH / r.height) * 100, false);
+    var side = splitIsSide(), pos = side ? clientX - r.left : clientY - r.top,
+      span = side ? r.width : r.height;
+    if (pos < 100) pos = 100;
+    if (span - pos < 100) pos = span - 100;
+    setSplit((pos / span) * 100, false);
   });
   resizer.addEventListener("mousedown", function (e) {
     startR();
@@ -431,17 +477,18 @@ if (resizer) {
     passive: true,
   });
   window.addEventListener("mousemove", function (e) {
-    moveR(e.clientY);
+    moveR(e.clientX, e.clientY);
   });
   window.addEventListener(
     "touchmove",
     function (e) {
-      moveR(e.touches[0].clientY);
+      moveR(e.touches[0].clientX, e.touches[0].clientY);
     },
     { passive: true },
   );
   window.addEventListener("mouseup", endR);
   window.addEventListener("touchend", endR);
+  resizer.addEventListener("dblclick", function () { setSplit(50, true); });
 }
 
 // ---- per-view maximize (full-screen a single pane; restores saved split) ----
@@ -463,6 +510,7 @@ function setMaximized(viewId) {
   });
   syncSurfaces();
   syncMobileNav();
+  syncSplitOrientationButton();
   // A contextual menu belongs to the pane it was opened over; switching panes
   // used to leave it floating above whatever came next.
   if (window.__hideCtxMenu) window.__hideCtxMenu();
@@ -484,6 +532,7 @@ function setViewMode(mode) {
   else if (mode === "3d" && !is3) setMaximized("view-3d");
   else if (mode === "split" && (is2 || is3)) setMaximized(is2 ? "view-2d" : "view-3d");
   else syncMobileNav();
+  syncSplitOrientationButton();
   try {
     // Only remember choices made on the phone layout, so unfolding (which
     // forces "split") doesn't clobber the preferred cover-screen view.
@@ -491,6 +540,11 @@ function setViewMode(mode) {
   } catch (_) {}
 }
 window.__setViewMode = setViewMode;
+window.addEventListener("blueprint:trace-walls", function () {
+  // A trace command can be launched while 3D is maximized. Bring the calibrated
+  // sheet into view instead of arming an invisible wall tool behind that pane.
+  setViewMode("plan");
+});
 document.querySelectorAll(".view-max-btn").forEach(function (btn) {
   btn.addEventListener("click", function (e) {
     e.stopPropagation();
@@ -506,7 +560,7 @@ var VIEWMODE_KEY = "home3d_mobile_view";
 // short edge leaves even less room for a stacked split, so treat it as a phone
 // until the viewport is tablet-sized in both dimensions.
 function isCompactPhoneViewport() {
-  return window.innerWidth <= 768 || (window.innerWidth <= 1024 && window.innerHeight <= 500);
+  return windowChromePosture().phone;
 }
 function applyPhoneView() {
   if (isCompactPhoneViewport()) {
@@ -528,6 +582,9 @@ function checkPhoneCrossing() {
   applyPhoneView();
 }
 window.addEventListener("resize", checkPhoneCrossing);
+window.addEventListener("mf-posture", checkPhoneCrossing);
+window.addEventListener("mf-posture", syncSplitOrientationButton);
+onLangChange(syncSplitOrientationButton);
 new ResizeObserver(checkPhoneCrossing).observe(document.body);
 if (isCompactPhoneViewport()) applyPhoneView();
 syncMobileNav();

@@ -13,7 +13,7 @@ const featureCatalogSource = await readFile(new URL("../js/core/feature_catalog.
 const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 
 test("the default Features surface exposes the canonical feature vocabulary", () => {
-  for (const command of ["newsketch", "extrude", "extrudecut", "revolvefeature", "sweepfeature", "loftfeature", "filletfeature", "chamferfeature", "shellfeature", "patternfeature", "mirrorfeature", "booleanfeature", "holefeature"])
+  for (const command of ["newsketch", "extrude", "extrudecut", "revolvefeature", "sweepfeature", "loftfeature", "filletfeature", "chamferfeature", "shellfeature", "patternfeature", "mirrorfeature", "booleanfeature", "holefeature", "helixfeature", "threadfeature", "knurlfeature", "insertfeature"])
     assert.match(source, new RegExp(`commandButton\\("${command}"`));
   assert.doesNotMatch(source, /commandButton\("rect"/);
   assert.doesNotMatch(source, /commandButton\("circle"/);
@@ -41,6 +41,12 @@ test("the authoring breadcrumb is a navigator and Finish continues into Extrude"
   assert.match(source, /shouldResumeSketchSession\(E\.authoring && E\.authoring.phase, forceNew\)/);
   assert.match(source, /nextFeatureAfterFinishedSketch/);
   assert.match(source, /t\("needPlanarOrAnalytic"\)/);
+  // a new sketch on an existing solid is a click on the model, not a dialog
+  assert.match(source, /function beginFacePick/);
+  assert.match(source, /function facePickFromViewport/);
+  assert.match(source, /sketchStartMode\(\{/);
+  assert.match(source, /if\(start==="pick-face"\)\{beginFacePick\(preferredTool\);return;\}/);
+  assert.match(source, /if \(E\.facePick\) \{/);
   assert.match(source, /return "context"/);
   assert.doesNotMatch(source, /flash\("Select a planar or supported analytic face"\)/);
 });
@@ -81,6 +87,19 @@ test("topology selection is visible and finish operations preview exact geometry
   assert.match(source, /Ctrl\/Cmd-click adds or removes/);
   assert.match(source, /mergeSmoothTopology\(kernel\.concat\(analytic, extras\)\)/);
   assert.match(source, /syncPreviewFromHistory\(\)/);
+});
+
+test("a cut invalidates a cached exact mesh, including Cut after Fillet", () => {
+  assert.match(modelerSource, /function invalidatePartMeshAfterCut\(p\)/);
+  assert.match(modelerSource, /delete p\.meshData;[\s\S]*if \(partNeedsExactMesh\(p\)\) scheduleExactMesh\(p\);/);
+  assert.match(modelerSource, /p\.holes\.push\([\s\S]*invalidatePartMeshAfterCut\(p\);/);
+});
+
+test("face-supported cuts keep the sketch frame and default into material", () => {
+  assert.match(modelerSource, /sketch\.frameSpace==="local" \? sketch\.frame : null/);
+  assert.match(modelerSource, /planeAxis\(sketch && sketch\.plane \|\| E\.view\)/);
+  assert.match(modelerSource, /activeFeatureSketch\.frameSpace==="local"&&activeFeatureSketch\.support\)state\.params\.direction="reverse"/);
+  assert.match(modelerSource, /from:start,to:end,endCondition:params\.endCondition/);
 });
 
 test("fillet Apply commits a selected face as edges you can toggle individually", () => {

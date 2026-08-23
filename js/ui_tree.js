@@ -13,7 +13,7 @@ import { weldCoincidentNodes } from "./interaction.js";
 import { deleteRoom } from "./interaction.js";
 import { PRICE, itemPrice, flabel } from "./furniture.js";
 import { t } from "./i18n.js";
-import { render2D } from "./plan2d.js";
+import { render2D, frameBounds } from "./plan2d.js";
 import { select, fillProps } from "./ui_props.js";
 import { pushHistory } from "./history.js";
 import { orphanChildren } from "./stack.js";
@@ -22,10 +22,12 @@ import {
   nodeKindDef, computeMEPStatus, mepBOM, runLength, deleteMEP,
 } from "./mep.js";
 import { markers, markerDesc, deleteMarker } from "./markers.js";
+import { slabOpenings, removeSlabOpening } from "./slab_openings.js";
+import { broadcastPlanOp } from "./plan_sync.js";
 import { syncLocks, syncClears, pruneIgnored } from "./constraint_engine.js";
 import { renderWarnPanel } from "./ui_warn.js";
 
-function treeRow(label, locked, isSel, onSel, onLock, onDelete) {
+function treeRow(label, locked, isSel, onSel, onLock, onDelete, onFrame) {
   var row = document.createElement("div");
   row.className = "trItem" + (isSel ? " sel" : "");
   var lk = document.createElement("span");
@@ -53,7 +55,34 @@ function treeRow(label, locked, isSel, onSel, onLock, onDelete) {
     row.appendChild(del);
   }
   row.onclick = onSel;
+  if (onFrame) row.ondblclick = function (ev) {
+    ev.preventDefault();
+    onFrame();
+  };
   return row;
+}
+
+function itemBounds(it) {
+  var a = ((Number(it.rot) || 0) * Math.PI) / 180,
+    hw = Math.max(1, Number(it.w) || 1) / 2,
+    hd = Math.max(1, Number(it.d) || 1) / 2,
+    ex = Math.abs(Math.cos(a)) * hw + Math.abs(Math.sin(a)) * hd,
+    ez = Math.abs(Math.sin(a)) * hw + Math.abs(Math.cos(a)) * hd;
+  return { minx: it.x - ex, maxx: it.x + ex, minz: it.z - ez, maxz: it.z + ez };
+}
+function roomBounds(room) {
+  var pts = (room && room.nidx || []).map(function (i) { return S.nodes[i]; }).filter(Boolean);
+  if (!pts.length) return null;
+  return {
+    minx: Math.min.apply(null, pts.map(function (p) { return p.x; })),
+    maxx: Math.max.apply(null, pts.map(function (p) { return p.x; })),
+    minz: Math.min.apply(null, pts.map(function (p) { return p.z; })),
+    maxz: Math.max.apply(null, pts.map(function (p) { return p.z; })),
+  };
+}
+function frameTreeTarget(sel, bounds) {
+  select(sel);
+  if (frameBounds(bounds, 84)) render2D();
 }
 
 // remove a single item (shared by every item row's ✕ button)
@@ -467,6 +496,11 @@ export function refreshTree() {
       select({ kind: "room", ref: r.key });
       render2D();
     };
+    head.ondblclick = function (ev) {
+      // The name itself owns double-click-to-rename and stops propagation.
+      if (ev.target === nm) return;
+      frameTreeTarget({ kind: "room", ref: r.key }, roomBounds(r));
+    };
     body.appendChild(head);
     inR.forEach(function (it) {
       assigned[it.id] = 1;
@@ -485,6 +519,9 @@ export function refreshTree() {
         },
         function () {
           deleteItem(it);
+        },
+        function () {
+          frameTreeTarget({ kind: "item", ref: it }, itemBounds(it));
         },
       );
       if (hiddenR) row.classList.add("hid"); // hidden with its room
@@ -523,13 +560,17 @@ export function refreshTree() {
           function () {
             deleteItem(it);
           },
+          function () {
+            frameTreeTarget({ kind: "item", ref: it }, itemBounds(it));
+          },
         ),
       );
     });
   }
   var mkCount = appendPointsGroup(body);
+  var voidCount = appendVoidsGroup(body);
   var mepCount = appendSystemsGroup(body);
-  if (!rs.length && !outside.length && !mepCount && !mkCount)
+  if (!rs.length && !outside.length && !mepCount && !mkCount && !voidCount)
     body.innerHTML = '<div class="trEmpty">' + t("tr_none") + "</div>";
 }
 
@@ -577,6 +618,52 @@ function appendPointsGroup(body) {
     body.appendChild(row);
   });
   return ms.length;
+}
+
+function appendVoidsGroup(body) {
+  var vs = slabOpenings();
+  if (!vs.length) return 0;
+  var head = document.createElement("div");
+  head.className = "trRoom";
+  var nm = document.createElement("span");
+  nm.className = "trRoomName";
+  nm.textContent = t("tr_voids");
+  head.appendChild(nm);
+  var meta = document.createElement("span");
+  meta.className = "trMeta";
+  meta.textContent = String(vs.length);
+  head.appendChild(meta);
+  body.appendChild(head);
+  vs.forEach(function (o) {
+    var row = document.createElement("div");
+    row.className =
+      "trItem" + (S.sel && S.sel.kind === "slabvoid" && S.sel.ref === o ? " sel" : "");
+    var lbl = document.createElement("span");
+    lbl.className = "trName";
+    lbl.textContent = (o.name || t("sv_void")) + " · " + Math.round(o.w) + "×" + Math.round(o.d);
+    row.appendChild(lbl);
+    var del = document.createElement("span");
+    del.className = "trDel";
+    del.textContent = "✕";
+    del.title = t("tr_del");
+    del.onclick = function (ev) {
+      ev.stopPropagation();
+      pushHistory();
+      broadcastPlanOp({ type: "slabRemove", id: o.id });
+      removeSlabOpening(o);
+      if (S.sel && S.sel.kind === "slabvoid" && S.sel.ref === o) select(null);
+      S.dirty3D = true;
+      refreshTree();
+      render2D();
+    };
+    row.appendChild(del);
+    row.onclick = function () {
+      select({ kind: "slabvoid", ref: o });
+      render2D();
+    };
+    body.appendChild(row);
+  });
+  return vs.length;
 }
 
 // Fifth tree group: the MEP "Systems" section — devices + runs grouped by

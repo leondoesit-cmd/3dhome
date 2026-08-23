@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 
 import { createDefinition, createParameter, PARAMETRIC_SCHEMA_VERSION } from "../js/core/schema.js";
 import { rebuildDefinition } from "../js/core/rebuild.js";
-import { applyTopologyRebindings, createTopologyReference, createTopologyRegistry, edgesBoundingFace, fitProfileCircle, mergeSmoothTopology, resolveFinishTargetIds, resolveMergedTopology, topologyForFeature, topologyMemberIds } from "../js/core/topology.js";
+import { applyTopologyRebindings, createTopologyReference, createTopologyRegistry, cutWallTopology, edgesBoundingFace, fitProfileCircle, isCylinderTessellationSeam, mergeSmoothTopology, resolveFinishTargetIds, resolveMergedTopology, topologyForFeature, topologyMemberIds } from "../js/core/topology.js";
+import { createFeatureDefinition, createPartDocument, createSketchDefinition } from "../js/core/parametric_document.js";
+import { rebuildParametricDocument } from "../js/core/parametric_rebuild.js";
+import { frameFromPlane } from "../js/core/frame.js";
 import { ensureItemDefinition, ensureParametricProject, requestItemDimension } from "../js/core/project.js";
 import { authoredProductRules } from "../js/core/product_rules.js";
 
@@ -223,6 +226,26 @@ test("tessellated circular hole edges and cylindrical staves merge into one pick
   assert.equal(merged.some((entry) => entry.persistentId === "body:edge:x:top:front"), true);
 });
 
+test("full-cylinder facet seams are neither displayed nor selectable as CAD edges", () => {
+  const radius = 10, height = 30, count = 24;
+  const faces = [], seams = [];
+  for (let i = 0; i < count; i++) {
+    const angle = (i + 0.5) / count * Math.PI * 2;
+    faces.push({
+      ownerFeatureId:"cylinder",kind:"face",persistentId:"cylinder:face:facet:"+i,
+      descriptor:{surface:"plane",origin:{x:Math.cos(angle)*radius,y:height/2,z:Math.sin(angle)*radius},normal:{x:Math.cos(angle),y:0,z:Math.sin(angle)},measure:2*Math.PI*radius*height/count},
+    });
+    const seamAngle = i / count * Math.PI * 2, x = Math.cos(seamAngle) * radius, z = Math.sin(seamAngle) * radius;
+    seams.push({
+      ownerFeatureId:"cylinder",kind:"edge",persistentId:"cylinder:edge:seam:"+i,
+      descriptor:{curve:"line",origin:{x,y:height/2,z},endpoints:[{x,y:0,z},{x,y:height,z}],measure:height},
+    });
+  }
+  const merged = mergeSmoothTopology(faces.concat(seams));
+  assert.equal(merged.filter((entry) => entry.kind === "face" && entry.descriptor.surface === "cylinder").length, 1);
+  assert.equal(merged.some((entry) => entry.kind === "edge" && entry.persistentId.includes(":seam:")), false);
+});
+
 test("coarse circular tessellation and split circle arcs merge into one edge", () => {
   const radius = 10, count = 12;
   const chords = Array.from({ length: count }, (_, i) => {
@@ -297,4 +320,294 @@ test("a selected face expands to every bounding edge for fillet and chamfer", ()
   const extTopology = topologyForFeature(extrusion, extrusion.params);
   const start = extTopology.find((item) => item.persistentId === "body:face:start");
   assert.equal(edgesBoundingFace(start, createTopologyRegistry(extTopology)).length, 4);
+});
+
+test("a 16-point extruded circle is one cylindrical wall, not a stave per chord", () => {
+  const points = Array.from({ length: 16 }, (_, i) => {
+    const a = (i / 16) * Math.PI * 2;
+    return { u: 10 * Math.cos(a), v: 10 * Math.sin(a) };
+  });
+  const topology = topologyForFeature({ id: "body", type: "extrude" }, { axis: "y", from: 0, to: 25, points });
+  const walls = topology.filter((item) => item.kind === "face" && item.descriptor.surface === "cylinder");
+  const planes = topology.filter((item) => item.kind === "face" && item.descriptor.surface === "plane");
+  assert.equal(walls.length, 1, "the side is one cylinder");
+  assert.equal(planes.length, 2, "caps stay planar");
+  assert.ok(Math.abs(walls[0].descriptor.radius - 10) < 0.15);
+});
+
+test("small-radius 16-gon staves still merge into one cylinder", () => {
+  const radius = 3, height = 12, count = 16;
+  const faces = Array.from({ length: count }, (_, i) => {
+    const angle = (i + 0.5) / count * Math.PI * 2;
+    const inset = radius * Math.cos(Math.PI / count);
+    return {
+      ownerFeatureId: "body", kind: "face", persistentId: "body:face:stave:" + i,
+      descriptor: {
+        surface: "plane",
+        origin: { x: Math.cos(angle) * inset, y: height / 2, z: Math.sin(angle) * inset },
+        normal: { x: Math.cos(angle), y: 0, z: Math.sin(angle) },
+        measure: 2 * Math.PI * radius * height / count,
+      },
+    };
+  });
+  const merged = mergeSmoothTopology(faces);
+  const walls = merged.filter((entry) => entry.kind === "face" && entry.descriptor.surface === "cylinder");
+  assert.equal(walls.length, 1);
+  assert.equal(walls[0].memberPersistentIds.length, count);
+});
+
+test("coaxial cylindrical lands stay separate when they do not overlap along the axis", () => {
+  const cylinder = (id, y, height = 4) => ({
+    ownerFeatureId: "shaft", kind: "face", persistentId: "shaft:face:" + id,
+    descriptor: {
+      surface: "cylinder", origin: { x: 0, y, z: 0 }, axis: { x: 0, y: 1, z: 0 },
+      radius: 3, measure: 2 * Math.PI * 3 * height,
+      along: { min: -height / 2, max: height / 2 },
+    },
+  });
+  const merged = mergeSmoothTopology([cylinder("lower", 5), cylinder("upper", 25)]);
+  const walls = merged.filter((entry) => entry.kind === "face" && entry.descriptor.surface === "cylinder");
+  assert.equal(walls.length, 2, "two lands on a stepped shaft are two faces");
+  assert.deepEqual(walls.map((wall) => wall.persistentId).sort(), ["shaft:face:lower", "shaft:face:upper"]);
+});
+
+test("tessellated coaxial lands at different heights do not become one wall", () => {
+  const staves = (tag, y, radius = 3, count = 16, height = 4) => Array.from({ length: count }, (_, i) => {
+    const angle = (i + 0.5) / count * Math.PI * 2;
+    const inset = radius * Math.cos(Math.PI / count);
+    return {
+      ownerFeatureId: "shaft", kind: "face", persistentId: "shaft:face:" + tag + ":" + i,
+      descriptor: {
+        surface: "plane",
+        origin: { x: Math.cos(angle) * inset, y, z: Math.sin(angle) * inset },
+        normal: { x: Math.cos(angle), y: 0, z: Math.sin(angle) },
+        measure: 2 * Math.PI * radius * height / count,
+      },
+    };
+  });
+  const merged = mergeSmoothTopology(staves("lower", 5).concat(staves("upper", 25)));
+  const walls = merged.filter((entry) => entry.kind === "face" && entry.descriptor.surface === "cylinder");
+  assert.equal(walls.length, 2);
+  walls.forEach((wall) => {
+    assert.equal(wall.memberPersistentIds.length, 16);
+    const recoveredHeight = wall.descriptor.along.max - wall.descriptor.along.min;
+    assert.ok(recoveredHeight > 3.8 && recoveredHeight < 4.2, "facet area recovers the full axial height");
+  });
+});
+
+test("All mode only suppresses edges that are tessellation seams of a cylinder", () => {
+  const wall = {
+    ownerFeatureId: "body", kind: "face", persistentId: "body:face:side",
+    descriptor: {
+      surface: "cylinder", origin: { x: 0, y: 5, z: 0 }, axis: { x: 0, y: 1, z: 0 },
+      radius: 4, measure: 2 * Math.PI * 4 * 10,
+      along: { min: -5, max: 5 },
+      arc: { start: 0, sweep: Math.PI, step: Math.PI / 8, closed: false },
+    },
+  };
+  const seam = {
+    ownerFeatureId: "body", kind: "edge", persistentId: "body:edge:seam",
+    descriptor: {
+      curve: "line", origin: { x: 4, y: 5, z: 0 },
+      endpoints: [{ x: 4, y: 0, z: 0 }, { x: 4, y: 10, z: 0 }],
+      measure: 10,
+    },
+  };
+  const boundary = {
+    ownerFeatureId: "body", kind: "edge", persistentId: "body:edge:generatrix",
+    descriptor: {
+      curve: "line", origin: { x: 4, y: 5, z: 0 },
+      endpoints: [{ x: 4, y: 0, z: 0 }, { x: 4, y: 10, z: 0 }],
+      measure: 10,
+    },
+  };
+  /* A closed full cylinder treats every vertical wall line as a seam. */
+  const closed = { ...wall, descriptor: { ...wall.descriptor, arc: { start: 0, sweep: Math.PI * 2, step: Math.PI / 8, closed: true } } };
+  assert.equal(isCylinderTessellationSeam(seam, [closed]), true);
+  /* A half-cylinder's straight side is a real boundary, not a facet join. */
+  assert.equal(isCylinderTessellationSeam(boundary, [wall]), false);
+
+  /* A disconnected full cylinder on the same infinite axis must not classify a
+     real boundary of the partial cylinder above it as one of its own seams. */
+  const upperWall = {
+    ...wall,
+    persistentId: "body:face:upper-half",
+    descriptor: { ...wall.descriptor, origin: { x: 0, y: 25, z: 0 } },
+  };
+  const upperBoundary = {
+    ...boundary,
+    persistentId: "body:edge:upper-generatrix",
+    descriptor: {
+      ...boundary.descriptor,
+      origin: { x: 4, y: 25, z: 0 },
+      endpoints: [{ x: 4, y: 20, z: 0 }, { x: 4, y: 30, z: 0 }],
+    },
+  };
+  assert.equal(isCylinderTessellationSeam(upperBoundary, [closed, upperWall]), false);
+});
+
+test("a sphere is one face, so a click selects the whole surface", () => {
+  const sphere = { id: "body", type: "sphere", params: { x: 2, y: 4, z: -1, r: 7 } };
+  const topology = topologyForFeature(sphere, sphere.params);
+  const faces = topology.filter((item) => item.kind === "face");
+  assert.equal(faces.length, 1);
+  assert.equal(faces[0].persistentId, "body:face:surface");
+  assert.equal(faces[0].descriptor.surface, "sphere");
+  assert.equal(faces[0].descriptor.radius, 7);
+  assert.deepEqual(faces[0].descriptor.center, { x: 2, y: 4, z: -1 });
+});
+
+test("a hole loop gets its own wall face, so a bore picks as one round face", () => {
+  const circle = (count, radius) => Array.from({ length: count }, (_, i) => ({
+    u: radius * Math.cos(2 * Math.PI * i / count), v: radius * Math.sin(2 * Math.PI * i / count),
+  }));
+
+  const bore = cutWallTopology({ id: "body" }, { points: circle(41, 6), axis: "y", from: 0, to: 65, tag: "profile:0" });
+  assert.equal(bore.length, 1, "a round hole is one wall, not one face per chord");
+  const coarseBore = cutWallTopology({ id: "body" }, { points: circle(16, 6), axis: "y", from: 0, to: 65, tag: "profile:1" });
+  assert.equal(coarseBore.length, 1, "a 16-point hole is still one wall");
+  assert.equal(coarseBore[0].descriptor.surface, "cylinder");
+  assert.equal(bore[0].kind, "face");
+  assert.equal(bore[0].persistentId, "body:face:hole:profile:0:wall:0");
+  assert.equal(bore[0].descriptor.surface, "cylinder");
+  assert.ok(Math.abs(bore[0].descriptor.radius - 6) < 0.05);
+  assert.deepEqual(bore[0].descriptor.axis, { x: 0, y: 1, z: 0 });
+  // mid-height on the axis: what a picker measures its radial distance from
+  assert.ok(Math.hypot(bore[0].descriptor.origin.x, bore[0].descriptor.origin.z) < 1e-6);
+  assert.ok(Math.abs(bore[0].descriptor.origin.y - 32.5) < 1e-6);
+
+  // A square pocket keeps four flat walls — merging is for smooth runs only.
+  const pocket = cutWallTopology({ id: "body" }, {
+    points: [{ u: -5, v: -4 }, { u: 5, v: -4 }, { u: 5, v: 4 }, { u: -5, v: 4 }],
+    axis: "y", from: 20, to: 65, tag: "cut:0",
+  });
+  assert.equal(pocket.length, 4);
+  assert.ok(pocket.every((face) => face.descriptor.surface === "plane"));
+  assert.equal(new Set(pocket.map((face) => face.persistentId)).size, 4);
+
+  // Caps belong to the body the hole was cut into, never to the hole itself.
+  assert.ok(!bore.concat(pocket).some((face) => /:face:(start|end)$/.test(face.persistentId)));
+
+  // And the bore survives the smooth merge next to the block it was cut from.
+  const block = topologyForFeature({ id: "body", type: "extrude" }, {
+    axis: "y", from: 0, to: 65,
+    points: [{ u: -26, v: -15 }, { u: 26, v: -15 }, { u: 26, v: 15 }, { u: -26, v: 15 }],
+  });
+  const merged = mergeSmoothTopology(block.concat(bore));
+  const cylinders = merged.filter((entry) => entry.kind === "face" && entry.descriptor.surface === "cylinder");
+  assert.equal(cylinders.length, 1);
+  assert.equal(cylinders[0].persistentId, "body:face:hole:profile:0:wall:0");
+});
+
+test("a bore's staves merge into the bore, and near-parallel faces do not invent a wall", () => {
+  const radius = 6, height = 24, count = 20, centre = { x: 3, z: -2 };
+  const bore = [];
+  for (let i = 0; i < count; i++) {
+    const angle = (i + 0.5) / count * Math.PI * 2;
+    const x = centre.x + Math.cos(angle) * radius * Math.cos(Math.PI / count);
+    const z = centre.z + Math.sin(angle) * radius * Math.cos(Math.PI / count);
+    bore.push({
+      ownerFeatureId: "body", kind: "face", persistentId: "body:face:bore:" + i,
+      descriptor: {
+        surface: "plane", origin: { x, y: height / 2, z },
+        // a bore faces its own axis; a boss faces away from it
+        normal: { x: -Math.cos(angle), y: 0, z: -Math.sin(angle) },
+        measure: 2 * Math.PI * radius * height / count,
+      },
+    });
+  }
+  const merged = mergeSmoothTopology(bore).filter((entry) => entry.kind === "face");
+  assert.equal(merged.length, 1, "twenty staves, one wall");
+  assert.equal(merged[0].descriptor.surface, "cylinder");
+  assert.ok(Math.abs(merged[0].descriptor.radius - radius) < 0.2);
+  assert.ok(Math.abs(merged[0].descriptor.origin.x - centre.x) < 0.05, "the axis is the bore's, not its mirror image");
+  assert.ok(Math.abs(merged[0].descriptor.origin.z - centre.z) < 0.05);
+  assert.equal((merged[0].memberPersistentIds || []).length, count);
+
+  /* A flat wall beside a few facets of something else fits some enormous circle
+     — it always did, and the biggest fit always collected the most faces. */
+  const flat = [
+    { origin: { x: 0, y: 10, z: 3.4 }, normal: { x: 0, y: 0, z: -1 }, measure: 387 },
+    { origin: { x: 8.8, y: 10, z: 3.37 }, normal: { x: -0.07, y: 0, z: -1 }, measure: 22 },
+    { origin: { x: 10.2, y: 10, z: 3.05 }, normal: { x: -0.37, y: 0, z: -0.93 }, measure: 22 },
+    { origin: { x: -6.3, y: 10, z: 3.05 }, normal: { x: 0.37, y: 0, z: -0.93 }, measure: 22 },
+    { origin: { x: -4.9, y: 10, z: 3.37 }, normal: { x: 0.07, y: 0, z: -1 }, measure: 22 },
+  ].map((descriptor, index) => ({
+    ownerFeatureId: "body", kind: "face", persistentId: "body:face:flat:" + index,
+    descriptor: { surface: "plane", ...descriptor },
+  }));
+  const flatMerged = mergeSmoothTopology(flat).filter((entry) => entry.kind === "face");
+  assert.equal(flatMerged.length, flat.length, "each stays its own flat face");
+  assert.ok(!flatMerged.some((entry) => entry.descriptor.surface === "cylinder"));
+});
+
+/* The tree a modeller actually builds: rectangle → boss, circle on the boss's
+   own top face → second boss, slot on that face → cut. Every step after the
+   first refers to a face of the step before it. */
+test("a sketch-driven boss names its faces, so what is built on them still resolves", () => {
+  const document = createPartDocument({ id: "part:stack" });
+  const plate = createSketchDefinition(document, {
+    id: "sk:plate", name: "Top Plane sketch", referenceId: "plane:top",
+    points: [
+      { id: "p0", x: -30, y: -12, fixed: true }, { id: "p1", x: 30, y: -12, fixed: true },
+      { id: "p2", x: 30, y: 12, fixed: true }, { id: "p3", x: -30, y: 12, fixed: true },
+    ],
+    entities: [
+      { id: "e0", type: "line", a: "p0", b: "p1" }, { id: "e1", type: "line", a: "p1", b: "p2" },
+      { id: "e2", type: "line", a: "p2", b: "p3" }, { id: "e3", type: "line", a: "p3", b: "p0" },
+    ],
+  });
+  const boss1 = createFeatureDefinition(document, "extrude", {
+    id: "feature:boss1", name: "Extrude / Boss 1",
+    references: { sketches: [plate.id], features: [], topology: [], references: [] },
+    params: { depth: 20, profileEntityIds: ["e0", "e1", "e2", "e3"] },
+  });
+
+  // the profile lives in the sketch, so the feature has to be resolved through
+  // it before anything can be said about the faces it makes
+  const first = rebuildParametricDocument(document, {}, { now: 1 });
+  assert.equal(first.ok, true, JSON.stringify(first.issues));
+  const faces = (first.core?.topology || []).filter((entry) => entry.kind === "face");
+  assert.ok(faces.length >= 6, "a sketch-driven extrude names its faces: " + faces.length);
+  const top = faces.find((entry) => entry.persistentId === "feature:boss1:face:end");
+  assert.ok(top, "including the one a sketch would be put on");
+
+  const support = createTopologyReference(top.ownerFeatureId, top.kind, top.persistentId, top.descriptor);
+  const onFace = (id, name, points, entities) => createSketchDefinition(document, {
+    id, name, referenceId: support.persistentId, support, frameSpace: "local", plane: "top", offset: 0,
+    frame: frameFromPlane(top.descriptor.origin, top.descriptor.normal, { x: 1, y: 0, z: 0 }),
+    points, entities,
+  });
+
+  const disc = onFace("sk:disc", "end sketch",
+    [{ id: "c", x: -6, y: 0, fixed: true }], [{ id: "circle", type: "circle", c: "c", r: 9, fixed: true }]);
+  const boss2 = createFeatureDefinition(document, "extrude", {
+    id: "feature:boss2", name: "Extrude / Boss 2", inputs: [boss1.id],
+    references: { sketches: [disc.id], features: [boss1.id], topology: [], references: [] },
+    params: { depth: 4, profileEntityIds: ["circle"], sketchId: disc.id },
+  });
+
+  const slot = onFace("sk:slot", "slot sketch", [
+    { id: "a1", x: -20, y: -2, fixed: true }, { id: "b1", x: 10, y: -2, fixed: true },
+    { id: "b0", x: 10, y: 2, fixed: true }, { id: "a0", x: -20, y: 2, fixed: true },
+    { id: "ca", x: -20, y: 0, fixed: true }, { id: "cb", x: 10, y: 0, fixed: true },
+  ], [
+    { id: "side1", type: "line", a: "a1", b: "b1" }, { id: "capB", type: "arc", c: "cb", a: "b1", b: "b0" },
+    { id: "side0", type: "line", a: "b0", b: "a0" }, { id: "capA", type: "arc", c: "ca", a: "a0", b: "a1" },
+  ]);
+  createFeatureDefinition(document, "extrudeCut", {
+    id: "feature:cut", name: "Extrude Cut 1", inputs: [boss2.id],
+    references: { sketches: [slot.id], features: [boss2.id], topology: [], references: [] },
+    params: { depth: 5, endCondition: "blind", direction: "reverse", sketchId: slot.id,
+      profileEntityIds: ["side1", "capB", "side0", "capA"], operation: "subtract" },
+  });
+
+  const run = rebuildParametricDocument(document, {}, { now: 2 });
+  assert.equal(run.ok, true, JSON.stringify(run.issues));
+  assert.ok(
+    !run.issues.some((issue) => issue.code === "missing-topology-reference" || issue.code === "missing-sketch-support"),
+    "nothing in the tree lost the face it was built on: " + JSON.stringify(run.issues.map((issue) => issue.code)),
+  );
+  // and the cut still ran: one failed reference used to stop the whole rebuild
+  assert.equal(run.status.every((entry) => entry.state === "rebuilt"), true, JSON.stringify(run.status));
 });

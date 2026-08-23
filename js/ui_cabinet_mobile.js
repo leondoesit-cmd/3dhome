@@ -21,6 +21,10 @@
    the View and Tools sheets press the real rail buttons; the More sheet holds
    the REAL context bar and level switcher, relocated once. */
 
+import { S, uid } from "./state.js";
+import { pushHistory } from "./history.js";
+import { render2D } from "./plan2d.js";
+import { refreshTree } from "./ui_tree.js";
 import { E, T } from "./ui_cabinet_ctx.js";
 import { setTool, syncHint, draw, sizeCanvas } from "./ui_cabinet_view.js";
 import {
@@ -46,6 +50,9 @@ function q(sel) {
 }
 function compact() {
   return document.body.classList.contains("compact-nav");
+}
+function roomy() {
+  return document.body.classList.contains("dock-rail");
 }
 
 /* ---- state read off the real chrome -------------------------------------- */
@@ -101,6 +108,22 @@ function stageSpec(v) {
   };
 }
 
+function dimChip(id, letter) {
+  var inp = q(id);
+  if (!inp) return null;
+  return {
+    kind: "chip",
+    label: letter + " " + (inp.value || ""),
+    run: function () {
+      showSheet("more");
+      requestAnimationFrame(function () {
+        inp.focus();
+        if (typeof inp.select === "function") inp.select();
+      });
+    },
+  };
+}
+
 /* Three contextual actions at most. Undo/Redo are added by renderCtx and are
    deliberately not in here: they must never move, whatever the state. */
 function ctxActions() {
@@ -133,11 +156,11 @@ function ctxActions() {
       },
     ];
   }
-  /* Nothing in hand: the preview stages, which on the desktop are four chips
-     inside the context bar and on a phone were squeezed to an unreadable
-     corner of it. The 80% "drawers" stage stays on the slider in More — three
-     is what fits beside a pinned Undo/Redo without ellipsing a label. */
-  return [stageSpec(0), stageSpec(40), stageSpec(100)];
+  /* Roomy: W/D/H sit on the size bar above the elevation, so the idle row
+     keeps the preview stages. Phone: pin the three dimensions here — they
+     used to live only inside More. */
+  if (roomy()) return [stageSpec(0), stageSpec(40), stageSpec(100)];
+  return [dimChip("#cbW", "W"), dimChip("#cbD", "D"), dimChip("#cbH", "H")];
 }
 
 function mkBtn(spec) {
@@ -228,10 +251,58 @@ function section(titleKey) {
   return h;
 }
 
+function axisBtn(ax, slot) {
+  var src = q('#cbAxes button[data-ax="' + ax + '"]');
+  if (!src) return null;
+  var b = document.createElement("button");
+  b.type = "button";
+  b.className = "cbm-grid-btn" + (src.classList.contains("on") ? " on" : "");
+  if (slot) b.dataset.slot = slot;
+  var ico = src.querySelector("i");
+  var key = "v" + ax.charAt(0).toUpperCase() + ax.slice(1);
+  var label = T(key) || T("mAx" + ax) || (src.textContent || "").trim() || ax;
+  b.innerHTML =
+    (ico ? '<i class="' + ico.className + '"></i>' : "") + "<span>" + label + "</span>";
+  b.addEventListener("click", function () {
+    src.click();
+    closeSheet();
+    sync(true);
+  });
+  return b;
+}
+
 function buildViewSheet() {
   sheetBody.appendChild(proxyGrid("#cbViews .cb-vgroup:first-child button[data-mode]", 2));
   sheetBody.appendChild(section("mAxis"));
-  sheetBody.appendChild(proxyGrid("#cbAxes button[data-ax]", 0));
+  var pad = document.createElement("div");
+  pad.className = "cbm-view-pad";
+  [
+    [null, "top", null],
+    ["left", "front", "right"],
+    [null, "back", null],
+  ].forEach(function (row) {
+    row.forEach(function (ax) {
+      if (!ax) {
+        var spacer = document.createElement("div");
+        spacer.setAttribute("aria-hidden", "true");
+        pad.appendChild(spacer);
+        return;
+      }
+      var b = axisBtn(ax, ax);
+      if (b) pad.appendChild(b);
+    });
+  });
+  sheetBody.appendChild(pad);
+
+  var extra = document.createElement("details");
+  extra.className = "cbm-iso";
+  var sum = document.createElement("summary");
+  sum.textContent = T("mIsoMore");
+  extra.appendChild(sum);
+  var bottom = axisBtn("bottom");
+  if (bottom) extra.appendChild(bottom);
+  extra.appendChild(proxyGrid("#cbAxes .cb-v45 button[data-ax]", 2));
+  sheetBody.appendChild(extra);
 }
 
 function buildToolsSheet() {
@@ -242,10 +313,43 @@ function buildToolsSheet() {
    so the size fields and the open-doors slider keep every listener they were
    built with. The trailing actions are proxies of buttons that live elsewhere
    in the overlay. */
+function duplicateCabinet() {
+  var src = E.it;
+  if (!src) return;
+  pushHistory();
+  var it;
+  try {
+    it = JSON.parse(JSON.stringify(src));
+  } catch (err) {
+    return;
+  }
+  it.id = uid();
+  delete it.locked;
+  delete it.groupId;
+  delete it.runtimeState;
+  it.x = (src.x || 0) + 30;
+  it.z = (src.z || 0) + 30;
+  S.items.push(it);
+  S.dirty3D = true;
+  render2D();
+  refreshTree();
+}
+
 function buildMoreSheet() {
   if (moreBody) sheetBody.appendChild(moreBody);
   var acts = document.createElement("div");
   acts.className = "cbm-list";
+  if (E.it) {
+    var dup = document.createElement("button");
+    dup.type = "button";
+    dup.className = "cbm-list-btn";
+    dup.innerHTML = '<i class="ph ph-copy"></i><span>' + T("dupCab") + "</span>";
+    dup.addEventListener("click", function () {
+      closeSheet();
+      duplicateCabinet();
+    });
+    acts.appendChild(dup);
+  }
   [
     ["#cbRevert", "ph-arrow-counter-clockwise", "revert", true],
     ['.cb-icons button[data-act="nest"]', "ph-scissors", "cutPlan", false],
@@ -272,7 +376,10 @@ function buildMoreSheet() {
 
 function closeSheet() {
   openSheet = null;
-  if (sheet) sheet.classList.remove("on", "tall");
+  if (sheet) {
+    sheet.classList.remove("on", "tall");
+    sheet.setAttribute("aria-modal", "false");
+  }
   if (backdrop) backdrop.classList.remove("on");
   if (host) host.classList.remove("cb-show-left", "cb-show-right");
   // The More sheet borrows real nodes; park them where they cannot be seen
@@ -309,6 +416,7 @@ function showSheet(key) {
   );
   openSheet = key;
   sheet.classList.add("on");
+  sheet.setAttribute("aria-modal", "true");
   backdrop.classList.add("on");
   syncNav();
 }
@@ -364,6 +472,19 @@ function giveBack() {
   homes = [];
 }
 
+function placeSizeChrome() {
+  var bar = q(".cb-context-bar");
+  if (!bar || !moreBody) return;
+  var sizebar = q(".cb-m-sizebar");
+  if (roomy() && sizebar) {
+    sizebar.appendChild(bar);
+    sizebar.hidden = false;
+  } else {
+    moreBody.appendChild(bar);
+    if (sizebar) sizebar.hidden = true;
+  }
+}
+
 /* ---- pulse --------------------------------------------------------------- */
 
 function sig() {
@@ -379,6 +500,9 @@ function sig() {
     E.snap ? 1 : 0,
     E.hid ? 1 : 0,
     (q("#cbOpenVal") || {}).textContent || "",
+    (q("#cbW") || {}).value || "",
+    (q("#cbD") || {}).value || "",
+    (q("#cbH") || {}).value || "",
   ].join("|");
 }
 
@@ -402,6 +526,7 @@ function build() {
   sheet = document.createElement("div");
   sheet.className = "cb-m-sheet";
   sheet.setAttribute("role", "dialog");
+  sheet.setAttribute("aria-modal", "true");
   sheet.innerHTML =
     '<div class="cbm-grip" aria-hidden="true"></div>' +
     '<div class="cbm-head"><h4></h4>' +
@@ -459,6 +584,14 @@ function build() {
   park.appendChild(moreBody);
   borrow(q(".cb-levels"), moreBody);
   borrow(q(".cb-context-bar"), moreBody);
+
+  var sizebar = document.createElement("div");
+  sizebar.className = "cb-m-sizebar";
+  sizebar.hidden = true;
+  var bodyEl = q(".cb-body");
+  if (bodyEl) host.insertBefore(sizebar, bodyEl);
+  else host.appendChild(sizebar);
+  placeSizeChrome();
 }
 
 function applyCompact() {
@@ -479,13 +612,14 @@ function applyCompact() {
     // Back to the desktop layout: hand the borrowed chrome back and drop ours.
     closeSheet();
     giveBack();
-    [backdrop, sheet, ctxBar, nav, q(".cb-m-park")].forEach(function (n) {
+    [backdrop, sheet, ctxBar, nav, q(".cb-m-park"), q(".cb-m-sizebar")].forEach(function (n) {
       if (n && n.parentNode) n.parentNode.removeChild(n);
     });
     host.classList.remove("cb-m-ready");
     backdrop = sheet = sheetBody = sheetTitle = ctxBar = nav = moreBody = null;
     return;
   }
+  if (on) placeSizeChrome();
   /* All three read the layout the compact class just changed: openCabinet
      measured the canvas against the three-column body, so without re-measuring
      here the elevation is drawn into a canvas the size of the OLD .cb-mid and
@@ -503,6 +637,7 @@ export function initCabinetMobile() {
   if (!host) return;
   applyCompact();
   window.addEventListener("resize", applyCompact);
+  window.addEventListener("mf-posture", applyCompact);
   /* The designer has no selection event and repaints through draw(); a quarter
      second poll on a signature is cheaper than threading one through four
      modules, and does nothing at all while nothing changes. */

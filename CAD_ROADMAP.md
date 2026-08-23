@@ -92,6 +92,12 @@ subscription, or cloud service.
 - STEP and IGES solid export
 - Assembly exploded views, rotary motion studies, BOM and interference checks
 - Part mass/volume/center-of-mass evaluation and portable `.mforge` project bundles
+- Hole wizard with counterbore, spotface, countersink, ISO tap drill, layouts and callouts
+- Helix/spiral curves, ISO metric cosmetic and modeled threads, DIN 82 knurls
+- Inserts/bushings with per-face appearances and named configurations
+- Screw, tangent and limit mates plus ISO 286 hole/shaft fits
+- Toolbox SHCS, hex screws, nuts and brass bushings
+- Drawing sheets with section views, hole callouts, balloons and a title block
 
 ## Next: parametric sketch kernel, remaining
 
@@ -107,19 +113,17 @@ subscription, or cloud service.
 - Reference planes attached directly to selected BREP faces
 - Extrude depth driven by the sketch plane's offset when that offset changes
 - Boundary loft, draft, rib, variable fillet and multi-body boolean editing UI
-- Hole wizard, threads and sheet-metal bends/flat patterns
+- Sheet-metal bends and flat patterns beyond the current allowance calculator
 - STEP/IGES/BREP import/export backed by an open geometry kernel
 
 ## Next: production assemblies
 
-- Face/edge/axis picking for coincident, concentric, tangent and limit mates
-- Subassemblies, configurations and component patterns
+- Subassemblies and component patterns
 - Exact rotated-solid clearance volume (the current fallback is transformed AABB)
-- Drawing balloons linked to BOM rows
 
 ## Next: drawings and interoperability
 
-- Associative drawing sheets, projected/section/detail views and title blocks
+- Detail views and fully associative drawing dimensions
 - DXF/SVG/PDF drawing export
 - STEP, STL, OBJ, GLB and 3MF workflows
 - Autosave snapshots, portable project bundles and offline installable PWA

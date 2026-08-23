@@ -3,6 +3,7 @@
 
 import { featureEditorGroups } from "./core/feature_catalog.js";
 import { linearPatternAxisDefinitions, linearPatternDirection, patternAxisEnabled } from "./core/pattern_geometry.js";
+import { holeTableRow } from "./cad_hole_wizard.js";
 
 export function featureControlValue(control) {
   if (control.field.type === "boolean") return !!control.input.checked;
@@ -100,7 +101,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       else control.input.value = entry[1];
     });
   }
-  function syncConditionalFields() {
+  function syncConditionalFields(changedKey) {
     var mode = controls.find(function (item) { return item.field.key === "mode"; });
     if (type === "pattern" && mode) {
       var linear = mode.input.value === "linear";
@@ -138,6 +139,38 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         if (wrap) wrap.classList.toggle("parameter-hidden", !active[key]);
       });
     }
+    if (type === "hole") {
+      var size = controls.find(function (item) { return item.field.key === "standardSize"; });
+      var holeType = controls.find(function (item) { return item.field.key === "holeType"; });
+      var row = size && holeTableRow(size.input.value);
+      if (row && ["standardSize", "holeType", "fit"].indexOf(changedKey) >= 0) {
+        var fit = (controls.find(function (item) { return item.field.key === "fit"; }) || {}).input;
+        var fitKey = fit && fit.value === "close" ? "closeMm" : fit && fit.value === "loose" ? "looseMm" : "normalMm";
+        var setNum = function (key, mm) {
+          var control = controls.find(function (item) { return item.field.key === key; });
+          if (control && Number.isFinite(mm)) control.input.value = String(Math.round(mm) / 10);
+        };
+        setNum("diameter", row[fitKey] || row.diameterMm);
+        setNum("cboreDiameter", row.cboreDiaMm);
+        setNum("cboreDepth", row.cboreDepthMm);
+        setNum("countersinkDiameter", row.csinkDiaMm);
+      }
+      var tapped = holeType && String(holeType.input.value).indexOf("tap") === 0;
+      var cbore = holeType && (holeType.input.value === "counterbore" || holeType.input.value === "tap-counterbore" || holeType.input.value === "spotface");
+      var csink = holeType && (holeType.input.value === "countersink" || holeType.input.value === "tap-countersink");
+      ["cboreDiameter","cboreDepth","counterbore"].forEach(function (key) {
+        var control = controls.find(function (item) { return item.field.key === key; }), wrap = control && control.input.closest(".md-quick-field");
+        if (wrap) wrap.classList.toggle("parameter-hidden", !cbore);
+      });
+      ["countersinkDiameter","csinkAngle","countersink"].forEach(function (key) {
+        var control = controls.find(function (item) { return item.field.key === key; }), wrap = control && control.input.closest(".md-quick-field");
+        if (wrap) wrap.classList.toggle("parameter-hidden", !csink);
+      });
+      ["threadMode","handedness"].forEach(function (key) {
+        var control = controls.find(function (item) { return item.field.key === key; }), wrap = control && control.input.closest(".md-quick-field");
+        if (wrap) wrap.classList.toggle("parameter-hidden", !tapped);
+      });
+    }
   }
   groups.forEach(function (group) {
     var section = el("details", "md-feature-group");
@@ -157,7 +190,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
           rememberPatternSettings(patternMode); restorePatternSettings(input.value); patternMode = input.value;
         }
         if (type === "pattern" && ["axisX", "axisY", "axisZ"].includes(field.key) && !controls.some(function (item) { return ["axisX", "axisY", "axisZ"].includes(item.field.key) && item.input.checked; })) input.checked = true;
-        syncConditionalFields();
+        syncConditionalFields(field.key);
         if (type === "pattern") rememberPatternSettings(patternMode);
         if (onLive) onLive(readFeatureParameterForm(controls, state.params));
       };

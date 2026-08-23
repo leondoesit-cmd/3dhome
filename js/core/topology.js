@@ -107,12 +107,28 @@ function cylinderTopology(feature, params = {}) {
   const base = point(x, y, z), top = point(x + axis.x * height, y + axis.y * height, z + axis.z * height);
   const middle = point((base.x + top.x) / 2, (base.y + top.y) / 2, (base.z + top.z) / 2);
   return [
-    topologyItem(feature, "face", "side", { surface: "cylinder", semantic: "side", origin: middle, axis, measure: 2 * Math.PI * radius * height, radius }),
+    topologyItem(feature, "face", "side", {
+      surface: "cylinder", semantic: "side", origin: middle, axis, radius,
+      measure: 2 * Math.PI * radius * height,
+      along: { min: -height / 2, max: height / 2 },
+    }),
     topologyItem(feature, "face", "bottom", { surface: "plane", semantic: "bottom", origin: base, normal: vector(-axis.x, -axis.y, -axis.z), measure: Math.PI * radius * radius }),
     topologyItem(feature, "face", "top", { surface: "plane", semantic: "top", origin: top, normal: axis, measure: Math.PI * radius * radius }),
     topologyItem(feature, "edge", "bottom-rim", { curve: "circle", semantic: "bottom-rim", origin: base, axis, measure: 2 * Math.PI * radius, radius }),
     topologyItem(feature, "edge", "top-rim", { curve: "circle", semantic: "top-rim", origin: top, axis, measure: 2 * Math.PI * radius, radius }),
     topologyItem(feature, "axis", "center", { curve: "line", semantic: "center", origin: middle, axis, measure: height }),
+  ];
+}
+
+function sphereTopology(feature, params = {}) {
+  const x = Number(params.x) || 0, y = Number(params.y) || 0, z = Number(params.z) || 0;
+  const radius = Math.max(0, Number(params.r ?? params.radius) || 0);
+  const center = point(x, y, z);
+  return [
+    topologyItem(feature, "face", "surface", {
+      surface: "sphere", semantic: "surface", origin: center, center, radius,
+      measure: 4 * Math.PI * radius * radius,
+    }),
   ];
 }
 
@@ -164,8 +180,10 @@ function extrusionTopology(feature, params = {}) {
      one is what turned a cylinder into a barrel of staves on screen: fifty side
      faces, and a vertical edge drawn down every seam between them. Chords that
      meet within this angle are one wall of one curved face, and the joint
-     between them is not an edge at all — only a real corner is. */
-  const TANGENT = 0.30;   // rad ≈ 17°, well below the sharpest fillet-worthy corner
+     between them is not an edge at all — only a real corner is.
+     Sketch circles are sampled at 16 points (22.5°). That has to count as
+     smooth — 17° was tight enough that a drawn circle extruded as a barrel. */
+  const TANGENT = 0.42;   // rad ≈ 24°, above a 16-gon chord and below a 30° corner
   const sameEntity = Array.isArray(params.profileEntityIds) && params.profileEntityIds.length === count;
   const corner = (index) => {
     const previous = segments[(index - 1 + count) % count], current = segments[index];
@@ -204,7 +222,7 @@ function extrusionTopology(feature, params = {}) {
         surface: fit ? "cylinder" : "ruled", semantic:sideSemantic,
         origin: fit ? mapPoint(fit.u, fit.v, middle) : mapPoint((mid.a.u+mid.b.u)/2,(mid.a.v+mid.b.v)/2,middle),
         normal: outward(mid), measure:arcLength * absoluteDepth,
-      }, fit ? { axis:mapVector(0, 0, direction), radius:fit.radius } : {})));
+      }, fit ? { axis:mapVector(0, 0, direction), radius:fit.radius, along:{ min: -absoluteDepth / 2, max: absoluteDepth / 2 } } : {})));
     }
     for (const end of [["start", from], ["end", to]]) {
       const semantic = "profile:" + token + ":" + end[0], closed = run.length === count;
@@ -230,6 +248,31 @@ function extrusionTopology(feature, params = {}) {
     }
   });
   return topology;
+}
+
+/* The wall a hole or a pocket leaves behind.
+   Extrusion topology names the outer profile only, so an inner loop had no face
+   at all: picking inside a bore resolved nothing and the viewport fell back to
+   a plane through whichever facet the ray hit — one stave lit up where the user
+   had picked a round face. Running the same profile-run merge over the cut loop
+   gives the bore its own cylindrical (or, for a rectangular pocket, planar)
+   faces. The caps are dropped: a through hole has none, and a blind one gets
+   its floor from the body it was cut into. */
+export function cutWallTopology(feature, params = {}) {
+  if (!feature?.id) return [];
+  const tag = params.tag != null ? String(params.tag) : "0";
+  return extrusionTopology(feature, params)
+    .filter((entry) => entry.kind === "face" && String(entry.semantic || "").startsWith("side:"))
+    .map((entry, index) => {
+      const semantic = "hole:" + tag + ":wall:" + index;
+      return {
+        ...entry,
+        persistentId: feature.id + ":face:" + semantic,
+        semantic,
+        descriptor: { ...entry.descriptor, semantic },
+        signature: topologyDescriptorSignature({ ...entry.descriptor, semantic }),
+      };
+    });
 }
 
 /* Least-squares circle through a polyline (Kåsa fit), rejected when the points
@@ -340,7 +383,12 @@ export function edgeLiesOnFace(edge, face) {
 
 export function edgesBoundingFace(face, registry) {
   const source = registry?.byPersistentId ? registry : createTopologyRegistry(registry || []);
-  const resolved = (face?.persistentId && source.byPersistentId.get(face.persistentId)) || face;
+  let resolved = (face?.persistentId && source.byPersistentId.get(face.persistentId));
+  if (!resolved && face) {
+    const rebound = resolveTopologyReference(face, source, { threshold: 1.25, ambiguityTolerance: 0.08 });
+    if (rebound.status === "exact" || rebound.status === "rebound") resolved = rebound.topology;
+    else resolved = face;
+  }
   if (!resolved || resolved.kind !== "face") return [];
   return source.list.filter((item) => item.kind === "edge" && edgeLiesOnFace(item, resolved));
 }
@@ -494,21 +542,54 @@ function mergeLineEdgesIntoCircles(edges) {
     add(endpointKey(edge.descriptor.endpoints[1]), index, 1);
   });
   const used = new Set(), merged = [];
+  const endpointAt = (index, end) => lines[index].descriptor.endpoints[end];
+  const direction = (from, to) => {
+    const size = distance(from, to) || 1;
+    return vector((to.x - from.x) / size, (to.y - from.y) / size, (to.z - from.z) / size);
+  };
+  /* Follow the curve, do not just follow the points. Where an arc ends, its last
+     chord meets a straight side and a wall seam on the same vertex; taking
+     whichever edge was stored first walked the chain off the rim and left the
+     whole arc unfitted, one rib per chord. A chord only continues a chord when
+     the direction barely changes. */
+  const MAX_TURN = 40 * Math.PI / 180;
+  const bestContinuation = (key, incoming, chord) => {
+    let best = null;
+    (at.get(key) || []).forEach((item) => {
+      if (used.has(item.index)) return;
+      const from = endpointAt(item.index, item.end), to = endpointAt(item.index, 1 - item.end);
+      /* A slot's straight side leaves its cap exactly tangent, so direction
+         alone would swallow a 15 cm edge into a fan of 7 mm chords and then fit
+         no circle at all. Tessellation chords are all about the same length;
+         a real edge next door is not. */
+      const size = distance(from, to);
+      if (!(size > 0) || size > chord * 3 || size * 3 < chord) return;
+      const turn = Math.acos(Math.max(-1, Math.min(1, dotRaw(incoming, direction(from, to)))));
+      if (turn > MAX_TURN) return;
+      if (!best || turn < best.turn) best = { item, turn, to, size };
+    });
+    return best;
+  };
   lines.forEach((edge, startIndex) => {
     if (used.has(startIndex)) return;
     const run = [startIndex];
     used.add(startIndex);
     let head = endpointKey(edge.descriptor.endpoints[0]), tail = endpointKey(edge.descriptor.endpoints[1]);
+    let headOut = direction(edge.descriptor.endpoints[1], edge.descriptor.endpoints[0]);
+    let tailOut = direction(edge.descriptor.endpoints[0], edge.descriptor.endpoints[1]);
+    let headChord = distance(edge.descriptor.endpoints[0], edge.descriptor.endpoints[1]);
+    let tailChord = headChord;
     let grew = true;
     while (grew) {
       grew = false;
-      for (const key of [head, tail]) {
-        const next = (at.get(key) || []).find((item) => !used.has(item.index));
+      for (const side of [{ key: head, at: "head" }, { key: tail, at: "tail" }]) {
+        const atHead = side.at === "head";
+        const next = bestContinuation(side.key, atHead ? headOut : tailOut, atHead ? headChord : tailChord);
         if (!next) continue;
-        used.add(next.index);
-        const other = lines[next.index].descriptor.endpoints[1 - next.end];
-        if (key === head) { run.unshift(next.index); head = endpointKey(other); }
-        else { run.push(next.index); tail = endpointKey(other); }
+        used.add(next.item.index);
+        const from = endpointAt(next.item.index, next.item.end);
+        if (atHead) { run.unshift(next.item.index); head = endpointKey(next.to); headOut = direction(from, next.to); headChord = next.size; }
+        else { run.push(next.item.index); tail = endpointKey(next.to); tailOut = direction(from, next.to); tailChord = next.size; }
         grew = true;
         break;
       }
@@ -523,22 +604,65 @@ function mergeLineEdgesIntoCircles(edges) {
     const closed = head === tail && run.length >= 3;
     if (closed && points.length > 1 && endpointKey(points[0]) === endpointKey(points[points.length - 1])) points.pop();
     const first = points[0], last = points[points.length - 1];
-    const span = Math.max(0.35, distance(first, last) || Number(lines[run[0]]?.descriptor?.measure) || 1);
-    const nearlyClosed = !closed && run.length >= 6 && first && last && distance(first, last) <= span;
+    /* "Nearly closed" has to mean one chord short of closing. Comparing the gap
+       with itself, as this once did, called every open arc a full circle and
+       drew a whole ring where half of one existed. */
+    let chordSum = 0;
+    for (let i = 1; i < points.length; i++) chordSum += distance(points[i - 1], points[i]);
+    const chord = chordSum / Math.max(1, points.length - 1);
+    const nearlyClosed = !closed && run.length >= 6 && first && last
+      && distance(first, last) <= Math.max(0.35, chord * 1.5);
     /* Coarse tessellation puts a 30° "corner" on every chord of a real circle.
        Fit the loop first; angle is only a hint, not a veto. */
     const fit = ((closed || nearlyClosed) && run.length >= 6) ? fitCircle3(points) : null;
-    if (fit) {
+    /* An arc that never closes is still one edge. The rim of a slot cap or a
+       fillet arrives as a fan of chords, and leaving them apart is what makes a
+       round cut pick one short rib at a time instead of the whole curve. */
+    const arc = !fit && !closed && run.length >= 4 ? soundArcFit(points) : null;
+    if (fit || arc) {
       const members = run.map((index) => lines[index]);
+      const shape = fit || arc;
       merged.push(mergedTopologyItem(members[0], members, "edge", {
-        curve: "circle", semantic: members[0].semantic, origin: fit.origin, axis: fit.axis,
-        radius: fit.radius, measure: 2 * Math.PI * fit.radius,
+        curve: "circle", semantic: members[0].semantic, origin: shape.origin, axis: shape.axis,
+        radius: shape.radius,
+        measure: fit ? 2 * Math.PI * fit.radius : arc.measure,
+        ...(fit ? {} : { endpoints: [points[0], points[points.length - 1]] }),
       }));
     } else {
       run.forEach((index) => leftover.push(lines[index]));
     }
   });
   return merged.concat(leftover);
+}
+
+/* A chord fan is an arc only when every point really sits on the circle it
+   claims and the chain actually turns. Both tests are scale-free: an "is the
+   radius bigger than the chain" rule reads as true for any fan under about 60
+   degrees, which is most of the arcs worth merging. */
+function soundArcFit(points) {
+  const fit = fitCircle3(points);
+  if (!fit) return null;
+  let chain = 0;
+  for (let i = 1; i < points.length; i++) chain += distance(points[i - 1], points[i]);
+  const chord = chain / Math.max(1, points.length - 1);
+  if (!(fit.radius > 1e-6)) return null;
+  const basis = basisFromAxis(fit.axis);
+  let worst = 0;
+  for (const p of points) worst = Math.max(worst, Math.abs(length(radialFromAxis(p, fit.origin, basis.n)) - fit.radius));
+  if (worst > Math.max(0.02, chord * 0.06)) return null;
+  const TAU = Math.PI * 2;
+  const startAngle = angleAround(points[0], fit.origin, basis);
+  let sweep = angleAround(points[points.length - 1], fit.origin, basis) - startAngle;
+  while (sweep <= -Math.PI) sweep += TAU;
+  while (sweep > Math.PI) sweep -= TAU;
+  // the chords run one way round; a sweep that disagrees with their length is
+  // the long way round the same circle
+  if (Math.abs(Math.abs(sweep) * fit.radius - chain) > Math.abs((TAU - Math.abs(sweep)) * fit.radius - chain)) {
+    sweep = sweep >= 0 ? sweep - TAU : sweep + TAU;
+  }
+  const measure = Math.abs(sweep) * fit.radius;
+  if (Math.abs(sweep) < 0.3 || Math.abs(measure - chain) > Math.max(0.05, chain * 0.08)) return null;
+  return { origin: fit.origin, axis: fit.axis, radius: fit.radius, measure };
 }
 
 function cylinderFromTwoPlanes(a, b) {
@@ -558,8 +682,13 @@ function cylinderFromTwoPlanes(a, b) {
   if (dnLen < 1e-6) return null;
   const radius = length(dc) / dnLen;
   if (!finite(radius) || radius < 1e-4) return null;
-  const origin = point(c1.x - n1.x * radius, c1.y - n1.y * radius, c1.z - n1.z * radius);
-  return { axis, origin, radius };
+  /* Which side of each facet the axis sits on. A boss turns its facets away
+     from the axis; a bore turns them toward it, and assuming the boss case put
+     the axis of every hole wall on the far side of the material — so no other
+     stave matched, nothing merged, and a cut came back one facet at a time. */
+  const side = dotRaw(dc, dn) >= 0 ? 1 : -1;
+  const origin = point(c1.x - side * n1.x * radius, c1.y - side * n1.y * radius, c1.z - side * n1.z * radius);
+  return { axis, origin, radius, side };
 }
 
 function fitCylinderFromPlanes(faces) {
@@ -591,24 +720,164 @@ function fitCylinderFromPlanes(faces) {
     };
   }));
   if (!fit) return null;
-  return {
-    origin: point(origin0.x + u.x * fit.u + v.x * fit.v, origin0.y + u.y * fit.u + v.y * fit.v, origin0.z + u.z * fit.u + v.z * fit.v),
-    axis,
-    radius: fit.radius,
-  };
+  const origin = point(origin0.x + u.x * fit.u + v.x * fit.v, origin0.y + u.y * fit.u + v.y * fit.v, origin0.z + u.z * fit.u + v.z * fit.v);
+  // Do the facets look outward from this axis (a boss) or inward (a bore)?
+  let outward = 0;
+  faces.forEach((face) => {
+    const radial = radialFromAxis(face.descriptor.origin, origin, axis);
+    outward += dotRaw(radial, normalized(face.descriptor.normal)) >= 0 ? 1 : -1;
+  });
+  return { origin, axis, radius: fit.radius, side: outward >= 0 ? 1 : -1 };
+}
+
+/* The part of `point` - `origin` that is perpendicular to `axis`. */
+function radialFromAxis(pointOn, origin, axis) {
+  const radial = vector((pointOn?.x || 0) - origin.x, (pointOn?.y || 0) - origin.y, (pointOn?.z || 0) - origin.z);
+  const along = dotRaw(radial, axis);
+  return vector(radial.x - axis.x * along, radial.y - axis.y * along, radial.z - axis.z * along);
+}
+
+/* A repeatable (u, v) pair across an axis, so an angle measured here means the
+   same thing wherever it is measured again. */
+function basisFromAxis(axis) {
+  const n = normalized(axis || vector(0, 1, 0));
+  const seed = Math.abs(n.y) < 0.9 ? vector(0, 1, 0) : vector(1, 0, 0);
+  const u = normalized(cross(n, seed));
+  return { n, u, v: normalized(cross(n, u)) };
+}
+
+function angleAround(pointOn, origin, basis) {
+  const radial = radialFromAxis(pointOn, origin, basis.n);
+  return Math.atan2(dotRaw(radial, basis.v), dotRaw(radial, basis.u));
+}
+
+/* Where a merged wall starts and stops turning, and how much of it is really
+   one tessellated surface. The facet midpoints of a wall sit at an even pitch
+   around its axis, so: the biggest gap between them is the turn the wall does
+   not cover, and the longest row of facets at that even pitch is the evidence
+   that they belong together at all. Without that evidence any few
+   almost-parallel faces fit some enormous circle — which is how a slot's flat
+   side and four staves off two different caps once became one wall of radius
+   59. A row can still be interrupted, as it is where a boss clips a slot cap
+   short, so the test is the longest row, not every gap. */
+function arcSpanOfAngles(angles) {
+  const sorted = angles.slice().sort((a, b) => a - b);
+  if (sorted.length < 2) return null;
+  const TAU = Math.PI * 2;
+  const gaps = [sorted[0] + TAU - sorted[sorted.length - 1]];
+  let gapAt = 0, gap = gaps[0];
+  for (let i = 1; i < sorted.length; i++) {
+    const delta = sorted[i] - sorted[i - 1];
+    gaps.push(delta);
+    if (delta > gap) { gap = delta; gapAt = i; }
+  }
+  const spread = gaps.slice().sort((a, b) => a - b);
+  const closed = gap <= spread[spread.length >> 1] * 1.6;
+  const steps = (closed ? gaps : gaps.filter((value, index) => index !== gapAt)).slice().sort((a, b) => a - b);
+  if (!steps.length) return null;
+  const step = steps[steps.length >> 1];
+  if (!(step > 1e-9)) return null;
+  let run = 1, longest = 1;
+  gaps.forEach((value, index) => {
+    if (!closed && index === gapAt) { run = 1; return; }
+    if (value <= step * 2.2) { run++; longest = Math.max(longest, run); } else run = 1;
+  });
+  return { start: sorted[gapAt % sorted.length], sweep: closed ? TAU : TAU - gap, step, closed, run: longest };
+}
+
+function projectAlong(point, origin, axis) {
+  return ((point?.x || 0) - origin.x) * axis.x
+    + ((point?.y || 0) - origin.y) * axis.y
+    + ((point?.z || 0) - origin.z) * axis.z;
+}
+
+function cylinderHeight(face, radius) {
+  const d = face?.descriptor || {};
+  const measure = Number(d.measure), r = Math.abs(Number(d.radius) || radius) || 0;
+  if (d.surface === "cylinder" && r > 1e-9 && finite(measure) && measure > 0) return measure / (2 * Math.PI * r);
+  return 0;
+}
+
+function axialSpanOfFaces(faces, origin, axis, radius) {
+  let min = Infinity, max = -Infinity;
+  (faces || []).forEach((face) => {
+    const d = face?.descriptor || {};
+    const p = d.origin || d.center || d.centroid;
+    const bounds = d.bounds;
+    if (bounds?.min && bounds?.max
+      && [bounds.min.x, bounds.min.y, bounds.min.z, bounds.max.x, bounds.max.y, bounds.max.z].every(finite)) {
+      /* Kernel planar staves carry an exact world-space AABB even when their
+         descriptor has no endpoints. Project its extreme corner in each axis
+         direction to recover the real cylinder height. */
+      const low = {
+        x: axis.x >= 0 ? bounds.min.x : bounds.max.x,
+        y: axis.y >= 0 ? bounds.min.y : bounds.max.y,
+        z: axis.z >= 0 ? bounds.min.z : bounds.max.z,
+      };
+      const high = {
+        x: axis.x >= 0 ? bounds.max.x : bounds.min.x,
+        y: axis.y >= 0 ? bounds.max.y : bounds.min.y,
+        z: axis.z >= 0 ? bounds.max.z : bounds.min.z,
+      };
+      min = Math.min(min, projectAlong(low, origin, axis));
+      max = Math.max(max, projectAlong(high, origin, axis));
+    }
+    if (d.along && finite(Number(d.along.min)) && finite(Number(d.along.max))) {
+      const t0 = p ? projectAlong(p, origin, axis) : 0;
+      min = Math.min(min, t0 + Number(d.along.min));
+      max = Math.max(max, t0 + Number(d.along.max));
+      return;
+    }
+    if (!p) return;
+    const mid = projectAlong(p, origin, axis);
+    const half = cylinderHeight(face, radius) / 2;
+    min = Math.min(min, mid - half);
+    max = Math.max(max, mid + half);
+    (d.endpoints || []).forEach((point) => {
+      const along = projectAlong(point, origin, axis);
+      min = Math.min(min, along);
+      max = Math.max(max, along);
+    });
+  });
+  return Number.isFinite(min) ? { min, max } : { min: 0, max: 0 };
+}
+
+function axialSpansOverlap(a, b, gap) {
+  return a.max + gap >= b.min && b.max + gap >= a.min;
+}
+
+function cylinderSweep(descriptor = {}) {
+  const sweep = Math.abs(Number(descriptor.arc?.sweep));
+  return finite(sweep) && sweep > 1e-9 ? Math.min(Math.PI * 2, sweep) : Math.PI * 2;
+}
+
+function cylinderSpanFromDescriptor(descriptor = {}, radius = Number(descriptor.radius)) {
+  if (descriptor.along && finite(Number(descriptor.along.min)) && finite(Number(descriptor.along.max))) {
+    return { min: Number(descriptor.along.min), max: Number(descriptor.along.max) };
+  }
+  const measure = Number(descriptor.measure), r = Math.abs(Number(radius));
+  if (!finite(measure) || measure <= 0 || !finite(r) || r <= 1e-9) return null;
+  const height = measure / (r * cylinderSweep(descriptor));
+  return finite(height) && height > 0 ? { min: -height / 2, max: height / 2 } : null;
 }
 
 function planeMatchesCylinder(face, cylinder) {
   const d = face.descriptor || {}, origin = d.origin, normal = d.normal;
   if (!origin || !normal || Math.abs(dot(normal, cylinder.axis)) > 0.25) return false;
-  const radial = vector(
-    origin.x - cylinder.origin.x,
-    origin.y - cylinder.origin.y,
-    origin.z - cylinder.origin.z,
-  );
-  const along = dotRaw(radial, cylinder.axis);
-  radial.x -= cylinder.axis.x * along; radial.y -= cylinder.axis.y * along; radial.z -= cylinder.axis.z * along;
-  return Math.abs(length(radial) - cylinder.radius) <= Math.max(0.35, cylinder.radius * 0.06);
+  const radial = radialFromAxis(origin, cylinder.origin, cylinder.axis);
+  /* A 16-gon stave's midpoint sits at r·cos(π/16) ≈ 0.981 r. The old 2 mm
+     floor rejected every small drawn circle; a 4 % band still keeps a slot
+     wall from joining a neighbouring bore. */
+  if (Math.abs(length(radial) - cylinder.radius) > Math.max(0.05, cylinder.radius * 0.04)) return false;
+  /* A facet of a cylinder faces straight out of it. Without this the tolerance
+     alone lets a huge invented radius sweep up half a body: at r = 90 even a
+     two-percent band is nearly two centimetres wide. */
+  const facing = dotRaw(normalized(radial), normalized(normal));
+  if (Math.abs(facing) < 0.985) return false;
+  /* Same radius is not the same wall: a bore drilled down the middle of a boss
+     shares its axis, and a facet that faces the axis never belongs to the one
+     that faces away from it. */
+  return finite(cylinder.side) ? facing * cylinder.side > 0 : true;
 }
 
 function mergeCylindricalFaces(faces) {
@@ -619,59 +888,184 @@ function mergeCylindricalFaces(faces) {
     else if (surface === "plane" && face.descriptor?.normal && face.descriptor?.origin) planes.push(face);
     else leftover.push(face);
   });
-  const groupedCylinders = new Map();
+  /* One wall per surface, however many faces the kernel cut it into. A slot cap
+     that a boss clips in the middle arrives as two groups of staves either side
+     of the boss wall; they are one cylinder and have to pick as one. */
+  const walls = [];
+  const sameWall = (wall, fit, span) => {
+    if (Math.abs(dot(wall.fit.axis, fit.axis)) <= 0.999) return false;
+    if (Math.abs(wall.fit.radius - fit.radius) > Math.max(0.15, fit.radius * 0.03)) return false;
+    if (length(radialFromAxis(fit.origin, wall.fit.origin, wall.fit.axis)) > Math.max(0.15, fit.radius * 0.03)) return false;
+    if (finite(wall.fit.side) && finite(fit.side) && wall.fit.side !== fit.side) return false;
+    /* Same axis and radius is not the same land: a stepped shaft has two
+       cylindrical faces that would otherwise collapse into one pick. Overlap
+       (or a hairline touch) along the axis is what says they are one wall. */
+    const gap = Math.max(0.5, fit.radius * 0.08);
+    return axialSpansOverlap(wall.along, span, gap);
+  };
+  const addWall = (fit, members, angles) => {
+    const span = axialSpanOfFaces(members, fit.origin, fit.axis, fit.radius);
+    const wall = walls.find((entry) => sameWall(entry, fit, axialSpanOfFaces(members, entry.fit.origin, entry.fit.axis, fit.radius)));
+    if (!wall) { walls.push({ fit, members: members.slice(), angles: angles ? angles.slice() : [], along: span }); return; }
+    wall.members.push(...members);
+    if (angles) wall.angles.push(...angles);
+    const union = axialSpanOfFaces(wall.members, wall.fit.origin, wall.fit.axis, wall.fit.radius);
+    wall.along = union;
+  };
+
   cylinders.forEach((face) => {
-    const d = face.descriptor, axis = normalized(d.axis || vector(0, 1, 0));
-    const sign = axis.x + axis.y + axis.z < 0 ? -1 : 1;
-    const origin = d.origin || {};
-    const axial = (origin.x || 0) * axis.x + (origin.y || 0) * axis.y + (origin.z || 0) * axis.z;
-    const key = [
-      Math.round(axis.x * sign * 20), Math.round(axis.y * sign * 20), Math.round(axis.z * sign * 20),
-      Math.round(Number(d.radius) * 50), Math.round(axial * 10),
-    ].join(":");
-    if (!groupedCylinders.has(key)) groupedCylinders.set(key, []);
-    groupedCylinders.get(key).push(face);
+    const d = face.descriptor;
+    const axis = normalized(d.axis || vector(0, 1, 0));
+    const origin = d.origin || d.center || point();
+    const radius = Math.abs(Number(d.radius));
+    /* A bore and the boss around it can share an axis and a radius; the face
+       normal against the radius says which of the two this is. */
+    const side = d.centroid && d.normal
+      ? (dotRaw(radialFromAxis(d.centroid, origin, axis), normalized(d.normal)) >= 0 ? 1 : -1)
+      : undefined;
+    addWall({ origin, axis, radius, side }, [face], null);
   });
+
+  /* Which staves belong to one wall is decided by the best cylinder any pair of
+     them proposes, not by whichever partner happens to come first. A slot has
+     two caps of the same radius on the same axis, and pairing a facet of one
+     with a facet of the other produces a fit that describes neither: taking the
+     first fit that parsed left both caps in pieces. */
+  const remaining = planes.slice();
+  const CHEAP = 120;   // beyond this a part is a mesh import, not a modelled body
+  while (remaining.length >= 4) {
+    const seed = remaining.pop();
+    let best = null;
+    /* The partner that describes a stave best is the stave beside it, so try the
+       closest normals first and stop there. Scanning every pair instead turned a
+       hover over a cut body into tens of milliseconds of arithmetic. */
+    const seedNormal = normalized(seed.descriptor.normal);
+    const partners = remaining
+      .map((face, index) => ({ index, alignment: Math.abs(dot(seedNormal, face.descriptor.normal)) }))
+      .filter((entry) => entry.alignment >= 0.85 && entry.alignment <= 0.999)
+      .sort((left, right) => right.alignment - left.alignment)
+      .slice(0, 6);
+    for (const partner of partners) {
+      const fit = cylinderFromTwoPlanes(seed, remaining[partner.index]);
+      if (!fit) continue;
+      const gap = Math.max(0.5, fit.radius * 0.08);
+      const pool = remaining.filter((face) => planeMatchesCylinder(face, fit));
+      const members = [];
+      let span = axialSpanOfFaces([seed], fit.origin, fit.axis, fit.radius);
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const face of pool) {
+          if (members.includes(face)) continue;
+          const faceSpan = axialSpanOfFaces([face], fit.origin, fit.axis, fit.radius);
+          if (!axialSpansOverlap(span, faceSpan, gap)) continue;
+          members.push(face);
+          span = { min: Math.min(span.min, faceSpan.min), max: Math.max(span.max, faceSpan.max) };
+          grew = true;
+        }
+      }
+      /* Most facets wins, and a tie goes to the tighter wall: the smaller radius
+         is the one that explains the same staves without inventing room. */
+      if (!best || members.length > best.members.length
+        || (members.length === best.members.length && fit.radius < best.fit.radius)) best = { fit, members };
+      if (best.members.length === remaining.length || (remaining.length > CHEAP && best.members.length >= 3)) break;
+    }
+    const cluster = best ? [seed].concat(best.members) : [seed];
+    const fit = best && cluster.length >= 4 ? fitCylinderFromPlanes(cluster) || best.fit : null;
+    const basis = fit ? basisFromAxis(fit.axis) : null;
+    const angles = fit ? cluster.map((item) => angleAround(item.descriptor.origin, fit.origin, basis)) : null;
+    const arc = angles ? arcSpanOfAngles(angles) : null;
+    // four facets in a row at one pitch, and a wall that actually turns
+    if (fit && arc && arc.run >= 4 && (arc.closed || arc.sweep >= 0.2)) {
+      const kept = new Set(best.members);
+      for (let i = remaining.length - 1; i >= 0; i--) if (kept.has(remaining[i])) remaining.splice(i, 1);
+      addWall(fit, cluster, angles);
+    } else leftover.push(seed);
+  }
+
   const merged = [];
-  groupedCylinders.forEach((group) => {
-    if (group.length === 1) merged.push(group[0]);
-    else merged.push(mergedTopologyItem(group[0], group, "face", {
-      surface: "cylinder", semantic: group[0].semantic, origin: group[0].descriptor.origin,
-      axis: group[0].descriptor.axis, radius: group[0].descriptor.radius,
-      measure: group.reduce((sum, item) => sum + (Number(item.descriptor.measure) || 0), 0),
+  walls.forEach((wall) => {
+    if (wall.members.length === 1 && !wall.angles.length) { merged.push(wall.members[0]); return; }
+    /* Only a wall made entirely of facets can say where its facet seams are; one
+       that also holds a real cylindrical face has no seams to hide. */
+    const arc = wall.angles.length === wall.members.length && wall.angles.length >= 2
+      ? arcSpanOfAngles(wall.angles) : null;
+    const measure = wall.members.reduce((sum, item) => sum + (Number(item.descriptor.measure) || 0), 0);
+    /* Facet topology usually stores only each stave's centre and area. Its raw
+       axial span is therefore a zero-width point at mid-height. Recover the
+       actual height from lateral area / arc length before publishing `along`,
+       otherwise the viewport clips a whole-cylinder highlight to a thin ring. */
+    const rawAlong = wall.along;
+    const along = rawAlong && rawAlong.max - rawAlong.min > 1e-6
+      ? rawAlong
+      : cylinderSpanFromDescriptor({ measure, ...(arc ? { arc } : {}) }, wall.fit.radius);
+    merged.push(mergedTopologyItem(wall.members[0], wall.members, "face", {
+      surface: "cylinder", semantic: wall.members[0].semantic,
+      origin: wall.fit.origin, axis: wall.fit.axis, radius: wall.fit.radius,
+      measure,
+      ...(along ? { along } : {}),
+      ...(arc ? { arc } : {}),
     }));
   });
-  const remaining = planes.slice();
-  while (remaining.length) {
-    const seed = remaining.pop(), cluster = [seed];
-    let fit = null;
-    for (let i = remaining.length - 1; i >= 0; i--) {
-      fit = cylinderFromTwoPlanes(seed, remaining[i]);
-      if (!fit) continue;
-      cluster.push(remaining.splice(i, 1)[0]);
-      break;
-    }
-    let grew = !!fit;
-    while (grew) {
-      grew = false;
-      fit = fitCylinderFromPlanes(cluster);
-      if (!fit) break;
-      for (let i = remaining.length - 1; i >= 0; i--) {
-        if (!planeMatchesCylinder(remaining[i], fit)) continue;
-        cluster.push(remaining.splice(i, 1)[0]);
-        grew = true;
-      }
-    }
-    fit = fitCylinderFromPlanes(cluster);
-    if (fit && cluster.length >= 6) {
-      merged.push(mergedTopologyItem(cluster[0], cluster, "face", {
-        surface: "cylinder", semantic: cluster[0].semantic, origin: fit.origin,
-        axis: fit.axis, radius: fit.radius,
-        measure: cluster.reduce((sum, item) => sum + (Number(item.descriptor.measure) || 0), 0),
-      }));
-    } else leftover.push(...cluster);
-  }
+  leftover.push(...remaining);
   return merged.concat(leftover);
+}
+
+/* A tessellated cylinder can arrive as many planar side faces plus one straight
+   edge between every pair of facets. Once those faces have been recognised as
+   one cylindrical face, the vertical facet joins are no longer CAD edges:
+   drawing or picking them makes a round cut behave like a polygon.
+   A partial wall — a slot cap, a fillet — still has two real generatrices at its
+   ends, so a seam only counts as one when the merged face turns past it on both
+   sides. Analytic cylinders carry no arc span; for those the old whole-turn
+   coverage test still decides. */
+export function isCylinderTessellationSeam(edge, cylinders) {
+  if (edge?.kind !== "edge") return false;
+  const descriptor = edge.descriptor || {};
+  if (descriptor.curve !== "line" && descriptor.curve !== "polyline") return false;
+  const endpoints = lineEndpointsFromDescriptor(descriptor);
+  if (endpoints.length < 2) return false;
+  const first = endpoints[0], last = endpoints[endpoints.length - 1];
+  return cylinders.some((face) => {
+    const cylinder = face.descriptor || {}, axis = normalized(cylinder.axis || vector(0, 1, 0));
+    const origin = cylinder.origin || cylinder.center, radius = Number(cylinder.radius);
+    if (!origin || !finite(radius) || radius <= 0) return false;
+    const dx = last.x - first.x, dy = last.y - first.y, dz = last.z - first.z;
+    const height = Math.abs(dx * axis.x + dy * axis.y + dz * axis.z);
+    const chord = Math.hypot(dx, dy, dz);
+    if (height < 1e-6 || height / chord < 0.985) return false;
+    const onWall = endpoints.every((point) => {
+      const radial = vector(point.x - origin.x, point.y - origin.y, point.z - origin.z);
+      const along = dotRaw(radial, axis);
+      radial.x -= axis.x * along; radial.y -= axis.y * along; radial.z -= axis.z * along;
+      return Math.abs(length(radial) - radius) <= Math.max(0.25, radius * 0.025);
+    });
+    if (!onWall) return false;
+    /* Coaxial lands can share radius and orientation while being physically
+       disconnected. A boundary on one land is never a tessellation seam of a
+       different land, so both edge endpoints must lie inside this face's axial
+       interval before its angular coverage is considered. */
+    const alongSpan = cylinderSpanFromDescriptor(cylinder, radius);
+    if (alongSpan) {
+      const axialTolerance = Math.max(0.25, radius * 0.025);
+      if (!endpoints.every((point) => {
+        const along = projectAlong(point, origin, axis);
+        return along >= alongSpan.min - axialTolerance && along <= alongSpan.max + axialTolerance;
+      })) return false;
+    }
+    const arc = cylinder.arc;
+    if (arc && finite(arc.step) && arc.step > 0) {
+      if (arc.closed) return true;
+      const basis = basisFromAxis(axis);
+      const mid = { x: (first.x + last.x) / 2, y: (first.y + last.y) / 2, z: (first.z + last.z) / 2 };
+      const TAU = Math.PI * 2;
+      let delta = (angleAround(mid, origin, basis) - arc.start) % TAU;
+      if (delta < 0) delta += TAU;
+      return delta > arc.step * 0.25 && delta < arc.sweep - arc.step * 0.25;
+    }
+    const coverage = Number(cylinder.measure) / (2 * Math.PI * radius * height);
+    return finite(coverage) && coverage > 0.9 && coverage < 1.12;
+  });
 }
 
 /* Tessellated circles and cylindrical walls reach the picker as many short
@@ -679,8 +1073,13 @@ function mergeCylindricalFaces(faces) {
    instead of one facet, and what lights the entire bore when a wall is picked. */
 export function mergeSmoothTopology(entries) {
   const list = Array.isArray(entries) ? entries.filter(Boolean) : [];
-  const edges = mergeLineEdgesIntoCircles(mergeCircleEdges(list.filter((entry) => entry.kind === "edge")));
   const faces = mergeCylindricalFaces(list.filter((entry) => entry.kind === "face"));
+  const cylinders = faces.filter((entry) => entry.descriptor?.surface === "cylinder");
+  /* Drop the facet seams before chaining, not after. A seam ends on the same
+     point as the two rim chords beside it, so leaving it in the pile made the
+     chain walk up the wall mid-arc and no rim ever fitted a circle. */
+  const edges = mergeLineEdgesIntoCircles(mergeCircleEdges(
+    list.filter((entry) => entry.kind === "edge" && !isCylinderTessellationSeam(entry, cylinders))));
   const other = list.filter((entry) => entry.kind !== "edge" && entry.kind !== "face");
   return other.concat(faces, edges);
 }
@@ -704,6 +1103,7 @@ function consumedTopologyIds(feature, params, inherited = []) {
   };
   visit(params?.targets);
   visit(params?.topologyReferences);
+  visit(feature?.references);
   if (feature.type !== "shell") {
     const registry = createTopologyRegistry(inherited);
     const visitFaces = (value) => {
@@ -716,6 +1116,7 @@ function consumedTopologyIds(feature, params, inherited = []) {
     };
     visitFaces(params?.targets);
     visitFaces(params?.topologyReferences);
+    visitFaces(feature?.references);
   }
   return ids;
 }
@@ -727,6 +1128,7 @@ export function topologyForFeature(feature, params = {}, inputs = []) {
   }
   if (feature.type === "box") return boxTopology(feature, params);
   if (feature.type === "cylinder") return cylinderTopology(feature, params);
+  if (feature.type === "sphere") return sphereTopology(feature, params);
   if (feature.type === "extrude") return extrusionTopology(feature, params);
   if (feature.type === "procedural" && finite(Number(params.width)) && finite(Number(params.depth)) && finite(Number(params.height))) {
     return boxTopology(feature, { x0: -Number(params.width) / 2, x1: Number(params.width) / 2, y0: 0, y1: Number(params.height), z0: -Number(params.depth) / 2, z1: Number(params.depth) / 2 });
@@ -767,15 +1169,37 @@ function fallbackDescriptor(reference) {
   return null;
 }
 
+function directionalSemantic(d) {
+  if (!d) return null;
+  const ax = Math.abs(d.x || 0), ay = Math.abs(d.y || 0), az = Math.abs(d.z || 0);
+  if (ay >= ax && ay >= az) return (d.y || 0) >= 0 ? "top" : "bottom";
+  if (ax >= az) return (d.x || 0) >= 0 ? "right" : "left";
+  return (d.z || 0) >= 0 ? "front" : "back";
+}
+
 function descriptorScore(wanted, candidate) {
   const descriptor = candidate.descriptor || {};
   let score = 0;
   if ((wanted.surface || wanted.curve) && (wanted.surface || wanted.curve) !== (descriptor.surface || descriptor.curve)) score += 2;
-  if (wanted.semantic && descriptor.semantic !== wanted.semantic) score += 0.35;
+  const wantedDir = wanted.normal || wanted.axis, candDir = descriptor.normal || descriptor.axis;
+  const semanticMatch = wanted.semantic && (
+    descriptor.semantic === wanted.semantic ||
+    (descriptor.surface === "plane" && candDir && directionalSemantic(candDir) === wanted.semantic)
+  );
+  if (wanted.semantic && !semanticMatch) score += 0.35;
   const scale = Math.max(1, Math.sqrt(Math.abs(Number(wanted.measure) || Number(descriptor.measure) || 1)));
-  score += distance(wanted.origin || wanted.center, descriptor.origin || descriptor.center) / scale;
-  const wantedDirection = wanted.normal || wanted.axis, candidateDirection = descriptor.normal || descriptor.axis;
-  if (wantedDirection && candidateDirection) score += 1 - Math.abs(dot(wantedDirection, candidateDirection));
+  const wo = wanted.origin || wanted.center, co = descriptor.origin || descriptor.center;
+  if (wo && co) {
+    if (descriptor.surface === "plane" && candDir) {
+      const planeDist = Math.abs(dot(vector(wo.x - co.x, wo.y - co.y, wo.z - co.z), candDir));
+      const totalDist = distance(wo, co);
+      const inPlaneDist = Math.sqrt(Math.max(0, totalDist * totalDist - planeDist * planeDist));
+      score += (planeDist * 1.5 + inPlaneDist * 0.15) / scale;
+    } else {
+      score += distance(wo, co) / scale;
+    }
+  }
+  if (wantedDir && candDir) score += 1 - Math.abs(dot(wantedDir, candDir));
   if (finite(Number(wanted.measure)) && finite(Number(descriptor.measure))) score += Math.abs(Number(wanted.measure) - Number(descriptor.measure)) / Math.max(1, Math.abs(Number(wanted.measure)));
   return score;
 }

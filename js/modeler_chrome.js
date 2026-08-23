@@ -38,6 +38,9 @@ export function contextToolbarItems(input) {
     push("filletfeature", "ph-corners-out");
     push("chamferfeature", "ph-corners-in");
     push("holefeature", "ph-circle-dashed");
+    push("threadfeature", "threadfeature");
+    push("knurlfeature", "knurlfeature");
+    push("insertfeature", "insertfeature");
     push("shellfeature", "ph-bowl-food");
   }
   if (input.edge) {
@@ -94,7 +97,10 @@ export function shortcutBarItems(input) {
     { id: "extrude", icon: "ph-cube" },
     { id: "filletfeature", icon: "ph-corners-out" },
     { id: "chamferfeature", icon: "ph-corners-in" },
-    { id: "holefeature", icon: "ph-circle-dashed" },
+      { id: "holefeature", icon: "ph-circle-dashed" },
+      { id: "helixfeature", icon: "helixfeature" },
+      { id: "threadfeature", icon: "threadfeature" },
+      { id: "knurlfeature", icon: "knurlfeature" },
     { id: "patternfeature", icon: "ph-dots-nine" },
     { id: "fit", icon: "ph-crosshair-simple", shortcut: "F" },
     { id: "regen", icon: "ph-arrows-clockwise", shortcut: "Ctrl+B" },

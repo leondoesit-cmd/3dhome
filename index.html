@@ -6,6 +6,11 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/assets/icon-192.png" />
     <title>ModelForge · Parametric CAD</title>
     <script>
       (function () {
@@ -130,6 +135,15 @@
                 <kbd class="menu-kbd">Ctrl+O</kbd>
               </button>
               <button
+                data-act="importBlueprintTrace"
+                role="menuitem"
+                data-i18n-title="bp_trace_menu_t"
+                title="Upload and trace a calibrated floor plan"
+              >
+                <i class="ph ph-ruler"></i>
+                <span data-i18n="bp_trace_menu">Trace floor plan</span>
+              </button>
+              <button
                 data-act="importBlueprint"
                 role="menuitem"
                 data-i18n-title="bp_menu_t"
@@ -137,6 +151,15 @@
               >
                 <i class="ph ph-blueprint"></i>
                 <span data-i18n="bp_menu">ייבוא שרטוט</span>
+              </button>
+              <button
+                data-act="roomScan"
+                role="menuitem"
+                data-i18n-title="rs_menu_t"
+                title="Scan a room with mobile AR or import an Apple RoomPlan capture"
+              >
+                <i class="ph ph-scan"></i>
+                <span data-i18n="rs_menu">Mobile room scan</span>
               </button>
               <div class="menu-divider"></div>
               <button data-act="reset" class="menu-danger" role="menuitem">
@@ -268,6 +291,19 @@
             <button data-act="viewSplit" id="viewSplitBtn" data-i18n-title="view_split" title="מפוצל">
               <i class="ph ph-rows"></i>
               <span data-i18n="view_split">מפוצל</span>
+            </button>
+            <button
+              type="button"
+              id="splitOrientationBtn"
+              class="split-orientation-btn"
+              data-i18n-title="split_side"
+              data-i18n-aria="split_side"
+              title="פיצול זה לצד זה"
+              aria-label="פיצול זה לצד זה"
+              aria-pressed="false"
+              hidden
+            >
+              <i class="ph ph-columns"></i>
             </button>
           </div>
           <div class="tb-pill" id="playPill">
@@ -615,6 +651,9 @@
               <button class="tool" data-tool="passage" data-i18n-title="tool_passage" title="מעבר">
                 <i class="ph ph-columns"></i><kbd>5</kbd>
               </button>
+              <button class="tool" data-tool="slabvoid" data-i18n-title="tool_slabvoid" title="פתח רצפה">
+                <i class="ph ph-stairs"></i><kbd>9</kbd>
+              </button>
               <button class="tool" data-tool="point" data-i18n-title="tool_point" title="נקודת סימון">
                 <i class="ph ph-crosshair"></i><kbd>6</kbd>
               </button>
@@ -646,6 +685,16 @@
               </button>
             </div>
             <div id="plan-wall-palette" class="plan-wall-palette" hidden>
+              <button
+                type="button"
+                id="wallPaletteToggle"
+                class="wd-collapse"
+                data-i18n-title="wd_collapse"
+                data-i18n-aria="wd_collapse"
+                title="צמצם אפשרויות קיר"
+                aria-label="צמצם אפשרויות קיר"
+                aria-expanded="true"
+              ><i class="ph ph-caret-left"></i></button>
               <div class="wd-sec">
                 <span class="wd-lab" data-i18n="wd_types">Wall types</span>
                 <div class="wd-row wd-types" role="group" data-i18n-aria="wd_types" aria-label="Wall types">
@@ -1185,6 +1234,12 @@
                   <span data-i18n="face_auto">כוון לפי הסביבה</span>
                 </button>
               </div>
+              <div class="btn-row" id="i_slabvoid_row" hidden>
+                <button data-act="slabFromStairs" class="w-full">
+                  <i class="ph ph-stairs"></i>
+                  <span data-i18n="sv_from_stairs">צור חלל ממדרגות</span>
+                </button>
+              </div>
               <div class="btn-row">
                 <button data-act="dupSel">
                   <i class="ph ph-copy"></i>
@@ -1511,6 +1566,33 @@
 
             </div>
 
+            <div class="grp props" id="slabvoidProps">
+              <span id="selname_sv" data-i18n="sv_title">חלל רצפה</span>
+              <label
+                ><span data-i18n="sv_name">שם</span
+                ><input id="sv_name" type="text" maxlength="32"
+              /></label>
+              <div class="dim-row">
+                <label><span>X</span><input id="sv_x" type="number" inputmode="numeric" /></label>
+                <label><span>Z</span><input id="sv_z" type="number" inputmode="numeric" /></label>
+              </div>
+              <div class="dim-row">
+                <label><span data-i18n="width">רוחב</span><input id="sv_w" type="number" inputmode="numeric" min="40" /></label>
+                <label><span data-i18n="depth">עומק</span><input id="sv_d" type="number" inputmode="numeric" min="40" /></label>
+              </div>
+              <label
+                ><span data-i18n="rot">סיבוב</span
+                ><input id="sv_rot" type="number" inputmode="numeric"
+              /></label>
+              <span class="t" data-i18n="sv_hint">החלל נחתך בלוח של הקומה הנוכחית. במדרגות, חתכו את הקומה שמעל.</span>
+              <div class="btn-row">
+                <button data-act="deleteSel" class="btn-danger">
+                  <i class="ph ph-trash"></i>
+                  <span data-i18n="del">מחק</span>
+                </button>
+              </div>
+            </div>
+
             <div class="grp props" id="markerProps">
               <span id="selname_mk">נקודה</span>
               <label
@@ -1663,14 +1745,16 @@
               <span id="costTotal" class="cost-total">₪0</span>
             </div>
             <div id="costList" class="cost-list"></div>
-            <button data-act="cutPlan" class="btn-accent" style="width: 100%; margin-top: 6px">
-              <i class="ph ph-scissors"></i>
-              <span data-i18n="cost_cutplan">תוכנית ניסור ותמחור</span>
-            </button>
-            <button data-act="exportCost" style="width: 100%; margin-top: 6px">
-              <i class="ph ph-file-arrow-down"></i>
-              <span data-i18n="cost_export">ייצוא רשימת קנייה</span>
-            </button>
+            <div class="cost-actions">
+              <button data-act="cutPlan" class="btn-accent">
+                <i class="ph ph-scissors"></i>
+                <span data-i18n="cost_cutplan">תוכנית ניסור ותמחור</span>
+              </button>
+              <button data-act="exportCost">
+                <i class="ph ph-file-arrow-down"></i>
+                <span data-i18n="cost_export">ייצוא רשימת קנייה</span>
+              </button>
+            </div>
           </div>
 
           <div class="panel-section env-section collapsed">

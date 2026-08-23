@@ -1252,6 +1252,11 @@ function clampTourPosition(position) {
 function applyTourPosition() {
   var card = document.querySelector(".planner-tour-card");
   if (!card) return;
+  if (document.body.classList.contains("compact-nav") && !tour.moved) {
+    card.style.left = "";
+    card.style.top = "";
+    return;
+  }
   if (!tour.position) {
     tour.position = {
       x: Math.max(12, window.innerWidth - card.offsetWidth - 24),
@@ -1264,7 +1269,7 @@ function applyTourPosition() {
 }
 
 function avoidTourTargetOverlap(target) {
-  if (!target || tour.moved) return;
+  if (!target || tour.moved || document.body.classList.contains("compact-nav")) return;
   var card = document.querySelector(".planner-tour-card");
   if (!card) return;
   var tr = target.getBoundingClientRect(), cr = card.getBoundingClientRect();

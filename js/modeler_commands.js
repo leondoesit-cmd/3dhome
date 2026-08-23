@@ -16,6 +16,7 @@ export const FEATURE_COMMAND = {
   extrude: "extrude", extrudeCut: "extrudecut", revolve: "revolvefeature", sweep: "sweepfeature",
   loft: "loftfeature", fillet: "filletfeature", chamfer: "chamferfeature", shell: "shellfeature",
   pattern: "patternfeature", mirror: "mirrorfeature", boolean: "booleanfeature", hole: "holefeature",
+  helix: "helixfeature", thread: "threadfeature", knurl: "knurlfeature", insert: "insertfeature",
 };
 
 export const DIRECT_COMMAND_TOOLS = {
@@ -81,7 +82,13 @@ export function buildCommandCatalog(ctx) {
     { id:"patternfeature", icon:"ph-dots-nine", label:t("quickPattern"), group:t("cmdFeatures") },
     { id:"mirrorfeature", icon:"ph-flip-horizontal", label:t("quickMirror"), group:t("cmdFeatures") },
     { id:"booleanfeature", icon:"ph-intersect", label:t("opBoolean"), group:t("cmdFeatures") },
-    { id:"holefeature", icon:"ph-circle-dashed", label:t("holeWizard"), group:t("cmdFeatures"), terms:"hole wizard bore drill", available:function(){ return partDoc() && solids(); }, reason:function(){ return needSolid(); } },
+    { id:"holefeature", icon:"ph-circle-dashed", label:t("holeWizard"), group:t("cmdFeatures"), terms:"hole wizard bore drill counterbore countersink tap", available:function(){ return partDoc() && solids(); }, reason:function(){ return needSolid(); } },
+    { id:"helixfeature", icon:"helixfeature", label:t("opHelix"), group:t("cmdFeatures"), terms:"helix spiral spring thread path", available:function(){ return partDoc(); }, reason:needPart },
+    { id:"threadfeature", icon:"threadfeature", label:t("opThread"), group:t("cmdFeatures"), terms:"thread screw iso cosmetic modeled tap", available:function(){ return partDoc() && solids(); }, reason:function(){ return needSolid(); } },
+    { id:"knurlfeature", icon:"knurlfeature", label:t("opKnurl"), group:t("cmdFeatures"), terms:"knurl diamond grip din 82", available:function(){ return partDoc() && solids(); }, reason:function(){ return needSolid(); } },
+    { id:"insertfeature", icon:"insertfeature", label:t("opInsert"), group:t("cmdFeatures"), terms:"insert bushing brass liner", available:function(){ return partDoc() && solids(); }, reason:function(){ return needSolid(); } },
+    { id:"toolboxfastener", icon:"stdscrew", label:t("toolboxFastener"), group:t("cmdFeatures"), terms:"toolbox fastener shcs bolt nut screw", available:function(){return partDoc();}, reason:needPart },
+    { id:"config", icon:"config", label:t("configurations"), group:t("cmdEvaluate"), terms:"configuration suppress exploded", available:function(){ return partDoc() || assemblyDoc(); }, reason:needPart },
     { id:"refplane", icon:"ph-square-half", label:t("refPlane"), group:t("cmdFeatures"), available:function(){ return partDoc(); }, reason:needPart },
     { id:"refaxis", icon:"ph-axis-arrow", label:t("refAxis"), group:t("cmdFeatures"), available:function(){ return partDoc(); }, reason:needPart },
     { id:"coordsys", icon:"ph-crosshair", label:t("refCoord"), group:t("cmdFeatures"), available:function(){ return partDoc(); }, reason:needPart },
@@ -89,6 +96,7 @@ export function buildCommandCatalog(ctx) {
     { id:"fit", icon:"ph-crosshair-simple", label:t("zoomFit"), group:t("cmdEvaluate"), shortcut:"F" },
     { id:"drawing", icon:"ph-file-svg", label:t("drawingExport"), group:t("cmdEvaluate"), available:function(){ return partDoc(); }, reason:needPart },
     { id:"mass", icon:"ph-scales", label:t("massProps"), group:t("cmdEvaluate"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
+    { id:"section", icon:"ph-selection-background", label:t("sectionView"), group:t("cmdEvaluate"), terms:"clip clipping slice cross section interior" },
     { id:"standards", icon:"ph-seal-check", label:t("standardsAudit"), group:t("cmdEvaluate"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"stdscrew", icon:"ph-screwdriver", label:t("stdScrewCommand"), group:t("cmdFeatures"), available:function(){return partDoc();}, reason:needPart },
     { id:"stdgear", icon:"ph-gear-six", label:t("stdGearCommand"), group:t("cmdFeatures"), available:function(){return partDoc();}, reason:needPart },
@@ -100,6 +108,7 @@ export function buildCommandCatalog(ctx) {
     { id:"assembly", icon:"ph-stack", label:t("docAssembly"), group:t("cmdAssembly") },
     { id:"components", icon:"ph-cube", label:t("components"), group:t("cmdAssembly") },
     { id:"mates", icon:"ph-link", label:t("mate"), group:t("cmdAssembly") },
+    { id:"screwmate", icon:"threadfeature", label:t("screwMate"), group:t("cmdAssembly"), terms:"screw thread pitch mate", available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
     { id:"partdoc", icon:"ph-cube-focus", label:t("docPart"), group:t("cmdAssembly") },
     { id:"explode", icon:"ph-arrows-out", label:t("explodeView"), group:t("cmdAssembly"), available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length > 1; }, reason:function(){ return assemblyDoc() ? t("cmdNeedComponents") : needAsm(); } },
     { id:"motion", icon:"ph-play-circle", label:t("motionStudy"), group:t("cmdAssembly"), available:function(){ return assemblyDoc() && E.assembly && E.assembly.components.length; }, reason:function(){ return assemblyDoc() ? t("cmdNeedOneComponent") : needAsm(); } },

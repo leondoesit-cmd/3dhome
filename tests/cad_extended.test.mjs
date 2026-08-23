@@ -29,6 +29,7 @@ test("BOM, mass properties and AABB interference produce useful values", async (
   assert.equal(generateBOM(assembly)[0].quantity,2);
   assert.equal(computeMassProperties({parts:[box]}).centerOfMass.x,5);
   const hits=await detectInterference(assembly.components); assert.equal(hits.length,1); assert.equal(hits[0].volume,500);
+  assert.deepEqual(hits[0].bounds,{x0:5,y0:0,z0:0,x1:10,y1:10,z1:10});
 });
 
 test("evaluation tools report distance and draft", () => {

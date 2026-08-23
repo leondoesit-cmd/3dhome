@@ -77,7 +77,7 @@ function selId() {
 }
 /* ---- the contextual row ------------------------------------------------- */
 
-var DRAW_TOOLS = ["wall", "arcwall", "rect", "door", "window", "passage", "point", "erase"];
+var DRAW_TOOLS = ["wall", "arcwall", "rect", "door", "window", "passage", "slabvoid", "point", "erase"];
 function drawing() {
   return DRAW_TOOLS.indexOf(S.tool) >= 0;
 }
@@ -128,13 +128,19 @@ function ctxActions() {
 function btn(spec) {
   var b = document.createElement("button");
   b.type = "button";
-  b.className = "mctx-btn" + (spec.danger ? " danger" : "") + (spec.on ? " on" : "");
+  b.className =
+    "mctx-btn" +
+    (spec.danger ? " danger" : "") +
+    (spec.on ? " on" : "") +
+    (spec.iconOnly ? " mctx-icon-only" : "");
   if (spec.kind === "chip") {
     b.classList.add("mctx-chip");
     b.textContent = spec.label;
     b.setAttribute("aria-pressed", spec.on ? "true" : "false");
   } else {
-    b.innerHTML = '<i class="ph ' + spec.icon + '"></i><span>' + spec.label + "</span>";
+    b.innerHTML =
+      '<i class="ph ' + spec.icon + '"></i>' +
+      (spec.iconOnly ? "" : "<span>" + spec.label + "</span>");
   }
   if (spec.disabled) b.disabled = true;
   b.setAttribute("aria-label", spec.label);
@@ -151,11 +157,14 @@ function renderCtx() {
   ctxBar.innerHTML = "";
   var u = document.createElement("div");
   u.className = "mctx-undo";
+  /* Icon-only on purpose: these two are the least contextual thing in a
+     contextual row and the two glyphs nobody has to read. Dropping their words
+     is what buys the three real actions room to keep theirs on a 360px phone. */
   u.appendChild(
-    btn({ icon: "ph-arrow-u-up-left", label: t("undo"), disabled: !canUndo(), run: undo }),
+    btn({ icon: "ph-arrow-u-up-left", label: t("undo"), iconOnly: true, disabled: !canUndo(), run: undo }),
   );
   u.appendChild(
-    btn({ icon: "ph-arrow-u-up-right", label: t("redo"), disabled: !canRedo(), run: redo }),
+    btn({ icon: "ph-arrow-u-up-right", label: t("redo"), iconOnly: true, disabled: !canRedo(), run: redo }),
   );
   ctxBar.appendChild(u);
   ctxActions().forEach(function (a) {
@@ -175,7 +184,7 @@ function ensureSheet() {
   sheet = document.createElement("div");
   sheet.id = "m-sheet";
   sheet.setAttribute("role", "dialog");
-  sheet.setAttribute("aria-modal", "false");
+  sheet.setAttribute("aria-modal", "true");
   sheet.innerHTML =
     '<div class="m-sheet-grip" aria-hidden="true"></div>' +
     '<div class="m-sheet-head"><h4 id="m-sheet-title"></h4>' +
@@ -227,7 +236,10 @@ function ensureSheet() {
 
 function closeSheet() {
   openSheet = null;
-  if (sheet) sheet.classList.remove("on", "tall");
+  if (sheet) {
+    sheet.classList.remove("on", "tall");
+    sheet.setAttribute("aria-modal", "false");
+  }
   if (backdrop) backdrop.classList.remove("on");
   document.body.classList.remove("m-sheet-open");
   // The library and inspector are real panels, not sheet content: they are
@@ -250,6 +262,13 @@ function showSheet(key) {
     if (key === "add") {
       var libTab = document.querySelector('#leftTabs [data-left-tab="library"]');
       if (libTab) libTab.click();
+      var libraryPanel = document.querySelector("#left-sidebar");
+      if (libraryPanel) {
+        libraryPanel.scrollTop = 0;
+        libraryPanel.querySelectorAll(".left-content, .panel-content, [data-left-panel]").forEach(function (node) {
+          node.scrollTop = 0;
+        });
+      }
     }
     openSheet = key;
     syncNav();
@@ -265,6 +284,7 @@ function showSheet(key) {
   );
   openSheet = key;
   sheet.classList.add("on");
+  sheet.setAttribute("aria-modal", "true");
   backdrop.classList.add("on");
   document.body.classList.add("m-sheet-open");
   syncNav();
@@ -506,16 +526,35 @@ export function initMobileShell() {
     if (openSheet === "add" && S.placeType) closeSheet();
   });
   /* visualViewport reacts to the software keyboard where window.resize is
-     inconsistent. Keep the focused inspector field in the visible half. */
+     inconsistent. --kb lifts sheets and inspectors so a focused field stays
+     in the visible half (iOS ignores interactive-widget=resizes-content). */
+  function syncKeyboard() {
+    var kb = 0;
+    var vv = window.visualViewport;
+    if (compact() && vv) {
+      kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    }
+    document.documentElement.style.setProperty("--kb", kb + "px");
+  }
   document.addEventListener("focusin", function (e) {
     if (!compact() || !e.target.matches("input, select, textarea")) return;
     setTimeout(function () {
+      syncKeyboard();
       e.target.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 120);
   });
+  document.addEventListener("focusout", function () {
+    setTimeout(syncKeyboard, 80);
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", syncKeyboard);
+    window.visualViewport.addEventListener("scroll", syncKeyboard);
+  }
   window.addEventListener("resize", function () {
+    syncKeyboard();
     sync(true);
   });
+  syncKeyboard();
   onLangChange(function () {
     sync(true);
     if (openSheet && openSheet !== "add" && openSheet !== "props") showSheet(openSheet);
@@ -527,6 +566,29 @@ export function initMobileShell() {
   setInterval(function () {
     sync(false);
   }, 250);
+  /* One-time touch gesture coach mark for first-time mobile users. */
+  if (!localStorage.getItem("mf_touch_onboarded")) {
+    setTimeout(function () {
+      if (!compact()) return;
+      var tip = document.createElement("div");
+      tip.className = "touch-coach";
+      tip.setAttribute("role", "status");
+      tip.textContent = t("touch_coach");
+      tip.style.cssText = "position:fixed;bottom:calc(var(--mobile-nav-block) + var(--m-ctx-block) + 8px);"
+        + "left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:12px;"
+        + "background:rgba(0,0,0,.82);color:#fff;font-size:12px;font-weight:600;"
+        + "z-index:200;white-space:normal;text-align:center;max-width:min(92vw, 360px);"
+        + "pointer-events:auto;backdrop-filter:blur(8px);"
+        + "-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 20px rgba(0,0,0,.3);animation:sheetUp .28s ease;";
+      document.body.appendChild(tip);
+      var dismiss = function () {
+        if (tip.parentElement) tip.parentElement.removeChild(tip);
+        localStorage.setItem("mf_touch_onboarded", "1");
+      };
+      tip.addEventListener("click", dismiss);
+      setTimeout(dismiss, 6000);
+    }, 2000);
+  }
   sync(true);
 }
 

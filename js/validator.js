@@ -2,6 +2,8 @@ import { S, fin } from "./state.js";
 import { wallGeom, detectRooms } from "./geometry.js";
 import { constraintIssues } from "./constraints.js";
 import { layerAllowed, runCrossesOpening, routingPolicy } from "./mep.js";
+import { checkSwingConflicts } from "./swing_clearance.js";
+import { t } from "./i18n.js";
 
 function rotatedBounds(it) {
   const a = (it.rot || 0) * Math.PI / 180;
@@ -71,7 +73,9 @@ export function validateDesign() {
       issues.push({ severity: "warning", kind: "mepRun", ref: run.id, message: "Gravity drainage run has no fall." });
   });
 
-  return issues.concat(constraintIssues());
+  return issues.concat(constraintIssues(), checkSwingConflicts().map(function (issue) {
+    return Object.assign({}, issue, { message: issue.code ? t(issue.code) : issue.message });
+  }));
 }
 
 export function validationSummary(issues) {

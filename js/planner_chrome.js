@@ -260,12 +260,37 @@ function bindLibraryDrag() {
   var plan = $("plan");
   var view2 = $("view-2d");
   var view3 = $("view-3d");
+  var dragType = null, dropGhostEl = null;
   if (!ui) return;
+  function hideDropGhost() {
+    if (dropGhostEl) dropGhostEl.hidden = true;
+  }
+  function showDropGhost(e) {
+    var f = dragType && FURN[dragType];
+    if (!f || !view2 || !(S.SC > 0)) return;
+    if (!dropGhostEl) {
+      dropGhostEl = document.createElement("div");
+      dropGhostEl.className = "furn-drop-ghost";
+      dropGhostEl.setAttribute("aria-hidden", "true");
+      view2.appendChild(dropGhostEl);
+    }
+    var rect = view2.getBoundingClientRect();
+    dropGhostEl.style.left = e.clientX - rect.left + "px";
+    dropGhostEl.style.top = e.clientY - rect.top + "px";
+    dropGhostEl.style.width = Math.min(Math.max(16, rect.width - 8), Math.max(16, Number(f.w || 40) * S.SC)) + "px";
+    dropGhostEl.style.height = Math.min(Math.max(16, rect.height - 8), Math.max(16, Number(f.d || 40) * S.SC)) + "px";
+    dropGhostEl.hidden = false;
+  }
   ui.addEventListener("dragstart", function (e) {
     var item = e.target.closest(".furn-item[data-type]");
     if (!item || !e.dataTransfer) return;
+    dragType = item.dataset.type;
     e.dataTransfer.setData("text/furn-type", item.dataset.type);
     e.dataTransfer.effectAllowed = "copy";
+  });
+  ui.addEventListener("dragend", function () {
+    dragType = null;
+    hideDropGhost();
   });
   function onDragOver(e) {
     if (!e.dataTransfer) return;
@@ -273,22 +298,29 @@ function bindLibraryDrag() {
         Array.prototype.indexOf.call(e.dataTransfer.types, "text/plain") < 0) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
+    if (view2 && (e.currentTarget === plan || e.currentTarget === view2)) showDropGhost(e);
   }
   function dropOnPlan(e) {
     var type = e.dataTransfer && (e.dataTransfer.getData("text/furn-type") || e.dataTransfer.getData("text/plain"));
     if (!type || !FURN[type]) return;
     e.preventDefault();
+    e.stopPropagation();
     var rect = plan.getBoundingClientRect();
     var x = wx(e.clientX - rect.left, e.clientY - rect.top);
     var z = wz(e.clientX - rect.left, e.clientY - rect.top);
     placeFurnAt(type, x, z);
+    dragType = null;
+    hideDropGhost();
   }
   function dropOn3d(e) {
     var type = e.dataTransfer && (e.dataTransfer.getData("text/furn-type") || e.dataTransfer.getData("text/plain"));
     if (!type || !FURN[type]) return;
     e.preventDefault();
+    e.stopPropagation();
     var p = dropPoint();
     placeFurnAt(type, p.x, p.z);
+    dragType = null;
+    hideDropGhost();
   }
   [plan, view2].forEach(function (el) {
     if (!el) return;
@@ -299,6 +331,9 @@ function bindLibraryDrag() {
     view3.addEventListener("dragover", onDragOver);
     view3.addEventListener("drop", dropOn3d);
   }
+  if (view2) view2.addEventListener("dragleave", function (e) {
+    if (!e.relatedTarget || !view2.contains(e.relatedTarget)) hideDropGhost();
+  });
 }
 
 function updateCostChip() {

@@ -108,6 +108,46 @@ export const CAD_ICONS = {
     );
   },
 
+  helixfeature: function () {
+    return (
+      colorPath("M10 2 C 14 4, 6 7, 10 9 C 14 11, 6 14, 10 16 C 12 17, 13 17.5, 14 18", "none", "#2684c7", 1.7) +
+      l("M10 2 L10 18", 1.05) +
+      p("M7 16 L10 18 L13 16", 0.2, 1.2)
+    );
+  },
+
+  threadfeature: function () {
+    return (
+      p("M6 3 L14 3 L14 17 L6 17 Z", 0.15, 1.25) +
+      l("M6 5.5 L14 6.5 M6 8 L14 9 M6 10.5 L14 11.5 M6 13 L14 14 M6 15.5 L14 16.5", 1.2) +
+      colorPath("M4 3 L4 17 M16 3 L16 17", "none", "#2684c7", 1.15, ' stroke-dasharray="2 1.5"')
+    );
+  },
+
+  knurlfeature: function () {
+    return (
+      p("M5 4 L15 4 L15 16 L5 16 Z", 0.12, 1.2) +
+      l("M6 5 L14 9 M6 8 L14 12 M6 11 L14 15 M14 5 L6 9 M14 8 L6 12 M14 11 L6 15", 1.15) +
+      colorPath("M5 4 L15 4 L15 16 L5 16 Z", "none", "#2684c7", 1.35)
+    );
+  },
+
+  insertfeature: function () {
+    return (
+      p("M4 5 L16 5 L16 15 L4 15 Z", 0.2, 1.25) +
+      p("M7 5 L13 5 L13 15 L7 15 Z", 0.7, 1.15) +
+      colorPath("M4 5 L16 5 L16 15 L4 15 Z", "none", "#c4a35a", 1.4)
+    );
+  },
+
+  config: function () {
+    return (
+      p("M3 5 L9 5 L9 15 L3 15 Z", 0.2, 1.2) +
+      p("M11 5 L17 5 L17 15 L11 15 Z", 0.45, 1.2) +
+      l("M6 8 L6 12 M14 8 L14 12", 1.3)
+    );
+  },
+
   // Fillet: isometric 90° solid corner with smooth rounded arc fillet and radius arrow
   filletfeature: function () {
     return (
@@ -910,6 +950,16 @@ export const CAD_ICONS = {
       l("M12 4 L15 7", 1.1)
     );
   },
+
+  // Section View: solid split by a highlighted clipping plane
+  section: function () {
+    return (
+      p("M3 13.5 L9 16.5 L16.5 12.75 L16.5 6.75 L10.5 3.75 L3 7.5 Z", 0.18, 1.25) +
+      l("M9 7.5 L9 16.5 M3 7.5 L9 10.5 L16.5 6.75", 1.05) +
+      colorPath("M11.5 2 L6.5 18 M14.5 2 L9.5 18", "none", "#2dd4bf", 1.45) +
+      colorPath("M6.5 18 L9.5 18 M11.5 2 L14.5 2", "none", "#2dd4bf", 1.15)
+    );
+  },
 };
 
 // Aliases mapping command IDs, feature names, and phosphor classes to CAD icons
@@ -926,12 +976,25 @@ export const ICON_ALIASES = {
   mirror: "mirrorfeature",
   boolean: "booleanfeature",
   hole: "holefeature",
+  helix: "helixfeature",
+  thread: "threadfeature",
+  knurl: "knurlfeature",
+  insert: "insertfeature",
+  helixfeature: "helixfeature",
+  threadfeature: "threadfeature",
+  knurlfeature: "knurlfeature",
+  insertfeature: "insertfeature",
+  toolboxfastener: "stdscrew",
+  appearance: "insertfeature",
+  config: "config",
+  screwmate: "threadfeature",
   rect: "directbox",
   circle: "directcyl",
   sph: "directsph",
   poly: "directpoly",
   rev: "directrev",
   bundlein: "bundle",
+  "ph-selection-background": "section",
 
   // Phosphor font classes
   "ph-cube": "extrude",
@@ -956,6 +1019,8 @@ export const ICON_ALIASES = {
   "ph-sphere": "directsph",
   "ph-polygon": "directpoly",
   "ph-spiral": "directrev",
+  "ph-diamond": "knurlfeature",
+  "ph-gear": "threadfeature",
 
   // Sketch Tools
   "ph-pencil-line": "newsketch",

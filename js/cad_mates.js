@@ -86,6 +86,20 @@ function rotateComponentTo(component, from, to) {
   component.transform.rx=next.rx; component.transform.ry=next.ry; component.transform.rz=next.rz;
 }
 
+function applyScrewAdvance(component, frame, mate) {
+  const axis=norm(frame.axis||frame.normal||{x:0,y:1,z:0});
+  const pitch=Math.max(1e-6, Number(mate.pitch)||0);
+  const handed=mate.handedness==="lh"||mate.handedness==="left"?-1:1;
+  const turns=Number.isFinite(Number(mate.turns))?Number(mate.turns):Number(mate.value)||0;
+  const along=pitch*turns;
+  component.transform.x += axis.x*along;
+  component.transform.y += axis.y*along;
+  component.transform.z += axis.z*along;
+  const spin=axisAngleMatrix(axis, rad(360*turns*handed));
+  const next=matrixEuler(mul(spin, eulerMatrix(component.transform)));
+  component.transform.rx=next.rx; component.transform.ry=next.ry; component.transform.rz=next.rz;
+}
+
 export function topologyReference(componentId, kind, persistentId, frame) {
   return { componentId, kind, persistentId, frameSpace:"component", frame: structuredClone(frame), descriptor: structuredClone(frame), signature: frameSignature(frame) };
 }
@@ -138,7 +152,7 @@ export function solveTopologyMates(assembly) {
     a.transform ||= {x:0,y:0,z:0,rx:0,ry:0,rz:0}; b.transform ||= {x:0,y:0,z:0,rx:0,ry:0,rz:0};
     const fa=resolvedFrame(mate.a,a,mate.id), fb=resolvedFrame(mate.b,b,mate.id);
     if (!fa || !fb) { issues.push({mate:mate.id,code:"unresolved-topology"}); continue; }
-    if (mate.type === "coincident" || mate.type === "distance") {
+    if (mate.type === "coincident" || mate.type === "distance" || mate.type === "limit") {
       if (!fa.origin || !fb.origin || !fa.normal || !fb.normal) { issues.push({mate:mate.id,code:"invalid-face-frame"}); continue; }
       const desired = mate.aligned ? fa.normal : {x:-fa.normal.x,y:-fa.normal.y,z:-fa.normal.z};
       rotateComponentTo(b,fb.normal,desired);
@@ -146,15 +160,32 @@ export function solveTopologyMates(assembly) {
       // again before translating. The correction is a delta between current
       // world frames, making repeated rebuilds idempotent.
       const moved=resolvedFrame(mate.b,b,mate.id);
-      const offset=mate.type === "distance" ? Number(mate.value||0) : 0;
+      let offset=mate.type === "coincident" ? 0 : Number(mate.value||0);
+      if (mate.type === "limit") {
+        const lo=Number(mate.min), hi=Number(mate.max);
+        if (Number.isFinite(lo)) offset=Math.max(lo,offset);
+        if (Number.isFinite(hi)) offset=Math.min(hi,offset);
+      }
       b.transform.x += fa.origin.x + fa.normal.x*offset - moved.origin.x;
       b.transform.y += fa.origin.y + fa.normal.y*offset - moved.origin.y;
       b.transform.z += fa.origin.z + fa.normal.z*offset - moved.origin.z;
-    } else if (mate.type === "concentric") {
+    } else if (mate.type === "concentric" || mate.type === "screw") {
       if (!fa.origin || !fb.origin || !(fa.axis||fa.normal) || !(fb.axis||fb.normal)) { issues.push({mate:mate.id,code:"invalid-axis-frame"}); continue; }
       rotateComponentTo(b,fb.axis||fb.normal,fa.axis||fa.normal);
       const moved=resolvedFrame(mate.b,b,mate.id);
       b.transform.x += fa.origin.x-moved.origin.x; b.transform.y += fa.origin.y-moved.origin.y; b.transform.z += fa.origin.z-moved.origin.z;
+      if (mate.type === "screw") applyScrewAdvance(b, fa, mate);
+    } else if (mate.type === "tangent") {
+      const axisA=fa.axis||fa.normal, axisB=fb.axis||fb.normal;
+      if (!fa.origin || !fb.origin || !axisA || !axisB) { issues.push({mate:mate.id,code:"invalid-tangent-frame"}); continue; }
+      rotateComponentTo(b,axisB,axisA);
+      const moved=resolvedFrame(mate.b,b,mate.id);
+      const radiusA=Number(fa.radius)||0, radiusB=Number(fb.radius)||0;
+      const gap=mate.aligned ? Math.abs(radiusA-radiusB) : radiusA+radiusB;
+      const helper=Math.abs(axisA.y)<0.9?{x:0,y:1,z:0}:{x:1,y:0,z:0};
+      const radial=norm(cross(axisA, helper));
+      const target={x:fa.origin.x+radial.x*gap,y:fa.origin.y+radial.y*gap,z:fa.origin.z+radial.z*gap};
+      b.transform.x += target.x-moved.origin.x; b.transform.y += target.y-moved.origin.y; b.transform.z += target.z-moved.origin.z;
     } else if (mate.type === "angle") {
       const current=Math.acos(Math.max(-1,Math.min(1,dot(norm(fa.normal),norm(fb.normal)))));
       b.transform.ry += Number(mate.value||0)-deg(current);

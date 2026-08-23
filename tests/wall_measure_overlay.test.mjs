@@ -13,7 +13,7 @@ test("the wall tool tracks a live preview point before the first click", () => {
     /if \(S\.tool === "wall"\) \{[\s\S]*The four-way overlay[\s\S]*snapPoint\(px, pz, null\)/,
   );
   assert.match(interactionSource, /S\.tool === "arcwall"\) \{\s*var ap = snapPoint\(px, pz, null\)/);
-  assert.match(interactionSource, /S\.tool === "rect"\) \{\s*var rrp = snapPoint\(px, pz, null\)/);
+  assert.match(interactionSource, /S\.tool === "rect" \|\| S\.tool === "slabvoid"\) \{\s*var rrp = snapPoint\(px, pz, null\)/);
 });
 
 test("the plan overlay measures from the wall-tool cursor even before drawing", () => {
@@ -23,7 +23,7 @@ test("the plan overlay measures from the wall-tool cursor even before drawing", 
   );
   assert.match(
     overlay,
-    /\(S\.tool === "wall" \|\| S\.tool === "arcwall" \|\| S\.tool === "rect"\) && S\.previewPt/,
+    /\(S\.tool === "wall" \|\| S\.tool === "arcwall" \|\| S\.tool === "rect" \|\| S\.tool === "slabvoid"\) && S\.previewPt/,
   );
   assert.doesNotMatch(overlay, /S\.drawing && S\.previewPt/);
   assert.match(planSource, /function drawLiveMeasureCross\(/);

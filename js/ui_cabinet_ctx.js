@@ -46,6 +46,8 @@ export var TXT = {
   mAxbr: ["אחורי־ימין", "Back-right"],
   mLevels: ["רמת עריכה", "Editing level"],
   mExtras: ["פעולות", "Actions"],
+  mIsoMore: ["עוד מבטים", "More views"],
+  dupCab: ["שכפל ארון", "Duplicate cabinet"],
   cancelTip: ["יציאה ללא שמירה (Esc)", "Discard and close (Esc)"],
   revert: ["בטל שינויים", "Revert"],
   history: ["היסטוריה", "History"],

@@ -180,6 +180,11 @@ export function createEditorView(opts) {
       view._skipContext = true;
       view.panBy(dx, dy, true);
     });
+    var longPressTimer = 0;
+    function cancelLongPress() {
+      if (longPressTimer) clearTimeout(longPressTimer);
+      longPressTimer = 0;
+    }
     cv.addEventListener("pointerdown", function (e) {
       // CAD navigation: middle-drag (or Shift + primary-drag on mice without
       // a middle button) pans. Primary-drag keeps the existing orbit gesture.
@@ -198,12 +203,26 @@ export function createEditorView(opts) {
       if (mode === "pan" || mode === "gesture") e.preventDefault();
       cv.setPointerCapture(e.pointerId);
       drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false, mode: mode };
+      if (e.pointerType === "touch" && e.button === 0 && opts.longPress) {
+        var press = { clientX: e.clientX, clientY: e.clientY, pointerType: "touch", button: 0 };
+        longPressTimer = setTimeout(function () {
+          longPressTimer = 0;
+          if (!drag || drag.moved) return;
+          drag.moved = true;
+          drag.longPressed = true;
+          opts.longPress(press, view);
+        }, 520);
+      }
     });
     cv.addEventListener("pointermove", function (e) {
       if (threeFinger()) return;
       if (!drag || drag.mode === "custom") return;
-      if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 4) {
+      var travel = Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy);
+      var moveThreshold = e.pointerType === "touch" ? 10 : 4;
+      if (e.pointerType === "touch" && !drag.moved && travel <= moveThreshold) return;
+      if (travel > moveThreshold) {
         drag.moved = true;
+        cancelLongPress();
         if (view.fixedFrame && drag.mode === "orbit") view.clearFixedFrame(false);
       }
       var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
@@ -221,6 +240,7 @@ export function createEditorView(opts) {
       view.render();
     });
     cv.addEventListener("pointerup", function (e) {
+      cancelLongPress();
       if (threeFinger()) return;
       var current = drag;
       drag = null;
@@ -237,7 +257,7 @@ export function createEditorView(opts) {
       var wasClick = e.button === 0 && !current.moved && (current.mode === "orbit" || current.mode === "maybePan");
       if (wasClick && opts.pick) opts.pick(e, view);
     });
-    cv.addEventListener("pointercancel", function () { drag = null; });
+    cv.addEventListener("pointercancel", function () { cancelLongPress(); drag = null; });
     cv.addEventListener("contextmenu", function (e) {
       e.preventDefault();
       if (threeFinger() || view._skipContext) { view._skipContext = false; return; }
@@ -247,6 +267,44 @@ export function createEditorView(opts) {
       e.preventDefault();
       view.zoomBy(e.deltaY > 0 ? 1.12 : 1 / 1.12);
     }, { passive: false });
+
+    /* Two-finger pinch-to-zoom (and simultaneous pan) — the touch equivalent
+       of the mouse wheel above. Three-finger pan is handled by
+       bindThreeFingerPan; this covers the gap for two-finger gestures. */
+    (function () {
+      var pinch = null;
+      function d2(e) {
+        var a = e.touches[0], b = e.touches[1];
+        return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      }
+      function cen(e) {
+        var a = e.touches[0], b = e.touches[1];
+        return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+      }
+      cv.addEventListener("touchstart", function (e) {
+        if (e.touches.length === 2) {
+          pinch = { dist: d2(e), cx: cen(e).x, cy: cen(e).y };
+        }
+      }, { passive: true });
+      cv.addEventListener("touchmove", function (e) {
+        if (!pinch || e.touches.length !== 2) { pinch = null; return; }
+        e.preventDefault();
+        var dist = d2(e), c = cen(e);
+        var f = pinch.dist / Math.max(dist, 1);
+        var mx = c.x - pinch.cx, my = c.y - pinch.cy;
+        pinch.dist = dist;
+        pinch.cx = c.x;
+        pinch.cy = c.y;
+        if (Math.abs(1 - f) > 0.002) view.zoomBy(f);
+        if (Math.hypot(mx, my) > 0.5) view.panBy(mx, my, false);
+        view.render();
+      }, { passive: false });
+      function end(e) {
+        if (e.touches.length < 2) pinch = null;
+      }
+      cv.addEventListener("touchend", end);
+      cv.addEventListener("touchcancel", end);
+    })();
 
     /* Sizing follows the box the canvas has been put in. As a panel thumbnail
        that is a fixed aspect ratio; promoted into the middle pane it is the
@@ -266,7 +324,7 @@ export function createEditorView(opts) {
         return false;
       }
       settling = 0;
-      var pad = view.big ? 4 : opts.pad || 16,
+      var pad = view.big ? 0 : opts.pad || 16,
         w = Math.max(50, Math.round(r.width - pad)),
         h = Math.max(50, Math.round(view.big ? r.height - pad : w * (opts.ratio || 0.78)));
       // compare against what we asked for, not canvas.width — that is the

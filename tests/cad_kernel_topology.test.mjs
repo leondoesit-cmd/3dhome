@@ -18,11 +18,12 @@ import {
   serializeBrep,
   shapeToMeshData,
   transformBrep,
+  translateBrep,
 } from "../js/cad_kernel.js";
 import { addFeature, regenerateFeatures, releaseRegeneration } from "../js/cad_feature_tree.js";
 import { createFeatureDefinition, createPartDocument, createSketchDefinition } from "../js/core/parametric_document.js";
 import { compileKernelFeatureTree } from "../js/core/kernel_feature_adapter.js";
-import { createTopologyReference, topologyForFeature } from "../js/core/topology.js";
+import { createTopologyReference, mergeSmoothTopology, topologyForFeature } from "../js/core/topology.js";
 import { createImportedDefinition, detectStepLengthUnit, normalizeImportedGeometry } from "../js/core/import_normalization.js";
 import { encodeBinaryPayload } from "../js/core/binary_payload.js";
 import { rebuildDefinition } from "../js/core/rebuild.js";
@@ -429,5 +430,217 @@ test("exact kernel regenerates a hole wizard as a through subtract", async () =>
     assert.ok(faces.length > 6, "through hole should add inner faces, got " + faces.length);
   } finally {
     releaseRegeneration(run);
+  }
+});
+
+test("exact kernel regenerates a fillet with face topology reference", async () => {
+  const document = createPartDocument({ id: "part:exact-fillet-face" });
+  const baseSketch = createSketchDefinition(document, {
+    id: "sketch:base-fillet", name: "Base", referenceId: "plane:top",
+    points: [
+      { id: "p0", x: -20, y: -20, fixed: true }, { id: "p1", x: 20, y: -20, fixed: true },
+      { id: "p2", x: 20, y: 20, fixed: true }, { id: "p3", x: -20, y: 20, fixed: true },
+    ],
+    entities: [
+      { id: "e0", type: "line", a: "p0", b: "p1" }, { id: "e1", type: "line", a: "p1", b: "p2" },
+      { id: "e2", type: "line", a: "p2", b: "p3" }, { id: "e3", type: "line", a: "p3", b: "p0" },
+    ],
+  });
+  const base = createFeatureDefinition(document, "extrude", {
+    id: "feature:pad",
+    references: { sketches: [baseSketch.id], features: [], topology: [], references: [] },
+    params: { depth: 30, profileEntityIds: ["e0", "e1", "e2", "e3"] },
+  });
+  const faceRef = createTopologyReference("feature:pad", "face", "feature:pad:face:top", {
+    surface: "plane",
+    semantic: "top",
+    origin: { x: 5, y: 30, z: 2 },
+    normal: { x: 0, y: 1, z: 0 },
+  });
+  createFeatureDefinition(document, "fillet", {
+    id: "feature:fillet-top",
+    inputs: [base.id],
+    references: { sketches: [], features: [base.id], topology: [faceRef], references: [] },
+    params: { radius: 2 },
+  });
+  const compiled = compileKernelFeatureTree(document);
+  assert.equal(compiled.ok, true, JSON.stringify(compiled.issues));
+  const exact = { sketches: compiled.document.sketches, features: [] };
+  compiled.features.forEach((feature) => addFeature(exact, feature));
+  const run = await regenerateFeatures(exact);
+  try {
+    assert.equal(run.ok, true, JSON.stringify(run.issues));
+    assert.ok(run.finalShape && run.finalShape.shape);
+    const mesh = await shapeToMeshData(run.finalShape);
+    assert.ok(mesh.positions.length > 0);
+  } finally {
+    releaseRegeneration(run);
+  }
+});
+
+test("exact kernel regenerates a chamfer with face topology reference", async () => {
+  const document = createPartDocument({ id: "part:exact-chamfer-face" });
+  const baseSketch = createSketchDefinition(document, {
+    id: "sketch:base-chamfer", name: "Base", referenceId: "plane:top",
+    points: [
+      { id: "p0", x: -20, y: -20, fixed: true }, { id: "p1", x: 20, y: -20, fixed: true },
+      { id: "p2", x: 20, y: 20, fixed: true }, { id: "p3", x: -20, y: 20, fixed: true },
+    ],
+    entities: [
+      { id: "e0", type: "line", a: "p0", b: "p1" }, { id: "e1", type: "line", a: "p1", b: "p2" },
+      { id: "e2", type: "line", a: "p2", b: "p3" }, { id: "e3", type: "line", a: "p3", b: "p0" },
+    ],
+  });
+  const base = createFeatureDefinition(document, "extrude", {
+    id: "feature:pad",
+    references: { sketches: [baseSketch.id], features: [], topology: [], references: [] },
+    params: { depth: 30, profileEntityIds: ["e0", "e1", "e2", "e3"] },
+  });
+  const faceRef = createTopologyReference("feature:pad", "face", "feature:pad:face:top", {
+    surface: "plane",
+    semantic: "top",
+    origin: { x: 5, y: 30, z: 2 },
+    normal: { x: 0, y: 1, z: 0 },
+  });
+  createFeatureDefinition(document, "chamfer", {
+    id: "feature:chamfer-top",
+    inputs: [base.id],
+    references: { sketches: [], features: [base.id], topology: [faceRef], references: [] },
+    params: { distance: 2 },
+  });
+  const compiled = compileKernelFeatureTree(document);
+  assert.equal(compiled.ok, true, JSON.stringify(compiled.issues));
+  const exact = { sketches: compiled.document.sketches, features: [] };
+  compiled.features.forEach((feature) => addFeature(exact, feature));
+  const run = await regenerateFeatures(exact);
+  try {
+    assert.equal(run.ok, true, JSON.stringify(run.issues));
+    assert.ok(run.finalShape && run.finalShape.shape);
+    const mesh = await shapeToMeshData(run.finalShape);
+    assert.ok(mesh.positions.length > 0);
+  } finally {
+    releaseRegeneration(run);
+  }
+});
+
+/* A slot cut is the shape that showed how much of the round-face handling was
+   missing: OpenCascade cuts the caps as a fan of narrow planar facets, and each
+   one used to be its own pickable face and its own rim rib. */
+test("a slot cut through a boss reads back as one round wall and one rim arc", async () => {
+  const circle = (count, radius) => Array.from({ length: count }, (_, i) => ({
+    u: radius * Math.cos(2 * Math.PI * i / count), v: radius * Math.sin(2 * Math.PI * i / count),
+  }));
+  // slot: two sides capped by two half circles, sampled the way a sketch is
+  const slot = (halfLength, radius, steps = 12) => {
+    const points = [];
+    for (let i = 0; i <= steps; i++) {
+      const a = -Math.PI / 2 + Math.PI * i / steps;
+      points.push({ u: halfLength + Math.cos(a) * radius, v: Math.sin(a) * radius });
+    }
+    for (let i = 0; i <= steps; i++) {
+      const a = Math.PI / 2 + Math.PI * i / steps;
+      points.push({ u: -halfLength + Math.cos(a) * radius, v: Math.sin(a) * radius });
+    }
+    return points;
+  };
+
+  let boss = null, tool = null, cut = null;
+  try {
+    boss = await makeBrepExtrusion({ axis: "y", from: 0, to: 20, points: circle(48, 11) });
+    tool = await makeBrepExtrusion({ axis: "y", from: -5, to: 25, points: slot(7, 4.5) });
+    cut = await booleanBrep("subtract", boss, tool);
+    extractBrepTopology(cut, { ownerFeatureId: "body" });
+
+    const rawFaces = cut.topology.filter((item) => item.kind === "face");
+    const rawStaves = rawFaces.filter((item) => item.descriptor.surface === "plane" && Number(item.descriptor.measure) < 60);
+    assert.ok(rawStaves.length >= 8, "the kernel really does cut the caps into facets: " + rawStaves.length);
+
+    // the wall of a boss is measured from its axis, not from a point on itself
+    const wall = rawFaces.find((item) => item.descriptor.surface === "cylinder");
+    assert.ok(wall, "the boss keeps an analytic cylindrical wall");
+    const axial = wall.descriptor.origin.y;
+    assert.ok(Math.hypot(wall.descriptor.origin.x, wall.descriptor.origin.z) < 1e-6, "cylinder origin sits on the axis");
+    assert.ok(axial > 0 && axial < 20, "and inside the wall it describes");
+
+    const merged = mergeSmoothTopology(cut.topology);
+    const faces = merged.filter((item) => item.kind === "face");
+    const caps = faces.filter((item) => item.descriptor.surface === "cylinder"
+      && Math.abs(Number(item.descriptor.radius) - 4.5) < 0.15);
+    assert.equal(caps.length, 2, "one round face per slot cap, whole");
+    caps.forEach((cap) => {
+      assert.ok((cap.memberPersistentIds || []).length >= 4, "and every facet of it answers to that one face");
+      assert.ok(Math.abs(cap.descriptor.axis.y) > 0.99);
+    });
+    assert.ok(
+      !faces.some((item) => item.descriptor.surface === "plane" && Number(item.descriptor.measure) < 60),
+      "no stave is left behind as a face of its own",
+    );
+
+    const rims = merged.filter((item) => item.kind === "edge" && item.descriptor.curve === "circle"
+      && Math.abs(Number(item.descriptor.radius) - 4.5) < 0.3);
+    assert.ok(rims.length >= 4, "the cap rims come back as arcs: " + rims.length);
+    rims.forEach((rim) => {
+      assert.ok((rim.memberPersistentIds || []).length >= 4, "chords merged into the arc");
+      assert.ok(Array.isArray(rim.descriptor.endpoints), "an arc keeps its ends: it is not a full circle");
+    });
+    assert.ok(
+      !merged.some((item) => item.kind === "edge" && item.descriptor.curve === "line"
+        && Number(item.descriptor.measure) < 2),
+      "and no rim chord is left pickable on its own",
+    );
+
+    // the seams between staves are not CAD edges once the wall is one face
+    const seams = merged.filter((item) => item.kind === "edge" && item.descriptor.curve === "line"
+      && Math.abs(Number(item.descriptor.measure) - 20) < 0.01);
+    assert.ok(seams.length <= 6, "generatrices only at the ends of each wall, not between facets: " + seams.length);
+  } finally {
+    disposeBrep(cut); disposeBrep(tool); disposeBrep(boss);
+  }
+});
+
+/* A turned body is a body: it used to be dropped from every cut in silence,
+   which reads in the viewport as "the cut went through the box but not through
+   the shape standing on it". */
+test("a revolved body can be built away from the origin and cut", async () => {
+  const meshVolume = (positions) => {
+    let volume = 0;
+    for (let i = 0; i + 8 < positions.length; i += 9) {
+      const a = positions.slice(i, i + 3), b = positions.slice(i + 3, i + 6), c = positions.slice(i + 6, i + 9);
+      volume += (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6;
+    }
+    return Math.abs(volume);
+  };
+  const slot = (halfLength, radius, steps = 12) => {
+    const points = [];
+    for (let i = 0; i <= steps; i++) {
+      const a = -Math.PI / 2 + Math.PI * i / steps;
+      points.push({ u: halfLength + Math.cos(a) * radius, v: Math.sin(a) * radius });
+    }
+    for (let i = 0; i <= steps; i++) {
+      const a = Math.PI / 2 + Math.PI * i / steps;
+      points.push({ u: -halfLength + Math.cos(a) * radius, v: Math.sin(a) * radius });
+    }
+    return points;
+  };
+
+  let cone = null, moved = null, tool = null, cut = null;
+  try {
+    // the meridian of a taper: r 10 at the base, r 4 twenty high
+    cone = await makeBrepRevolve({ axis: "y", angle: 360, points: [{ u: 0, v: 0 }, { u: 10, v: 0 }, { u: 4, v: 20 }, { u: 0, v: 20 }] });
+    moved = await translateBrep(cone, { x: 0, y: 30, z: 0 });
+    const solid = await shapeToMeshData(moved, { deflection: 0.28, angle: 0.18 });
+    const exact = Math.PI * 20 / 3 * (100 + 40 + 16);
+    assert.ok(Math.abs(meshVolume(solid.positions) - exact) < exact * 0.02, "a frustum, where it was put");
+    const low = solid.positions.filter((_, index) => index % 3 === 1).reduce((min, y) => Math.min(min, y), Infinity);
+    assert.ok(Math.abs(low - 30) < 0.01, "translated to its own base height");
+
+    tool = await makeBrepExtrusion({ axis: "y", from: 25, to: 55, points: slot(7, 4) });
+    cut = await booleanBrep("subtract", moved, tool);
+    extractBrepTopology(cut, { ownerFeatureId: "cone" });
+    const after = await shapeToMeshData(cut, { deflection: 0.28, angle: 0.18 });
+    assert.ok(meshVolume(after.positions) < meshVolume(solid.positions) * 0.9, "the slot really came out of it");
+    assert.ok(cut.topology.some((item) => item.kind === "face"), "and the result is nameable topology");
+  } finally {
+    disposeBrep(cut); disposeBrep(tool); disposeBrep(moved); disposeBrep(cone);
   }
 });

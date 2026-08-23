@@ -1,5 +1,8 @@
 import { S } from "./state.js";
 import { wallGeom, contentBounds } from "./geometry.js";
+import { wrapPlanSVG } from "./sheet_print.js";
+import { doorSwingPoly } from "./swing_clearance.js";
+import { openingCorners, slabOpenings } from "./slab_openings.js";
 
 function esc(value) { return String(value == null ? "" : value).replace(/[&<>\"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
 function csv(value) { const s = String(value == null ? "" : value); return /[\",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
@@ -18,12 +21,26 @@ export function downloadText(name, text, type) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function toSVG() {
-  const b = contentBounds(), pad = 30, width = Math.max(100, b.w + pad * 2), height = Math.max(100, b.d + pad * 2);
-  const x = (v) => v - b.minx + pad, y = (v) => b.maxz - v + pad;
+/* Content is emitted with its own origin at (0,0) in model centimetres;
+   js/sheet_print.js owns the paper, the margins and the print scale. */
+export function toSVG(opts) {
+  const b = contentBounds();
+  const x = (v) => v - b.minx, y = (v) => b.maxz - v;
   const walls = S.walls.map((w) => { const g = wallGeom(w); return `<line x1="${x(g.a.x)}" y1="${y(g.a.z)}" x2="${x(g.b.x)}" y2="${y(g.b.z)}" stroke="#20242a" stroke-width="${w.thickness || 10}"/>`; }).join("");
   const items = S.items.map((it) => `<g transform="translate(${x(it.x)} ${y(it.z)}) rotate(${-it.rot || 0})"><rect x="${-it.w / 2}" y="${-it.d / 2}" width="${it.w}" height="${it.d}" fill="#d8c8a8" stroke="#564c3f"/><title>${esc(it.type)}</title></g>`).join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width / 10}mm" height="${height / 10}mm"><rect width="100%" height="100%" fill="white"/>${walls}${items}</svg>`;
+  const voids = slabOpenings().map((o) => {
+    const pts = openingCorners(o).map((p) => `${x(p.x)},${y(p.z)}`).join(" ");
+    return `<polygon points="${pts}" fill="none" stroke="#6a6560" stroke-dasharray="8 5" stroke-width="1.5"><title>${esc(o.name || "void")}</title></polygon>`;
+  }).join("");
+  const swings = (S.openings || []).map((o) => {
+    const poly = doorSwingPoly(o);
+    if (!poly) return "";
+    return `<polygon points="${poly.map((p) => `${x(p.x)},${y(p.z)}`).join(" ")}" fill="none" stroke="#5b7a86" stroke-width="1"/>`;
+  }).join("");
+  const inner = `${walls}${voids}${swings}${items}`;
+  return wrapPlanSVG(inner, b, Object.assign({
+    name: (S.workspace && S.workspace.name) || "Untitled",
+  }, opts || {}));
 }
 
 export function toDXF() {

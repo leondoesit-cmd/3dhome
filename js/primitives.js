@@ -789,7 +789,7 @@ export function groundTexture() {
 }
 
 /* ---- flat polygon geometry for floors / ceilings (in the XZ plane) ---- */
-export function polyMesh(pts, y, tile, mat) {
+export function polyMesh(pts, y, tile, mat, holes) {
   if (pts.length < 3 || !fin(y) || !fin(tile) || tile === 0) return null;
   var i;
   for (i = 0; i < pts.length; i++)
@@ -797,16 +797,37 @@ export function polyMesh(pts, y, tile, mat) {
   var contour = pts.map(function (p) {
     return new THREE.Vector2(p.x, p.z);
   });
+  var holeContours = [];
+  var allPts = pts.slice();
+  (holes || []).forEach(function (hl) {
+    if (!hl || hl.length < 3) return;
+    for (i = 0; i < hl.length; i++)
+      if (!fin(hl[i].x) || !fin(hl[i].z)) return;
+    holeContours.push(hl.map(function (p) {
+      return new THREE.Vector2(p.x, p.z);
+    }));
+    hl.forEach(function (p) { allPts.push(p); });
+  });
   var tris;
   try {
-    tris = THREE.ShapeUtils.triangulateShape(contour, []);
+    tris = THREE.ShapeUtils.triangulateShape(contour, holeContours);
   } catch (e) {
-    return null;
+    tris = null;
   }
-  if (!tris || !tris.length) return null;
+  if (!tris || !tris.length) {
+    if (!holeContours.length) return null;
+    // a bad hole must not erase the floor — fall back to a solid slab
+    allPts = pts.slice();
+    try {
+      tris = THREE.ShapeUtils.triangulateShape(contour, []);
+    } catch (e2) {
+      return null;
+    }
+    if (!tris || !tris.length) return null;
+  }
   var pos = [],
     uv = [];
-  pts.forEach(function (p) {
+  allPts.forEach(function (p) {
     pos.push(p.x, y, p.z);
     uv.push(p.x / tile, p.z / tile);
   });

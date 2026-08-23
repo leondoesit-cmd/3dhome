@@ -21,6 +21,9 @@ import { downloadText, toSVG, toDXF, toIFC, toScheduleCSV } from "./exports_pro.
 import { setQualityPreset } from "./view3d.js";
 import { wallCons, conSatisfied, removeCon, setConSuppressed, solveWallCons } from "./wall_constraints.js";
 import { initCollaboration, addComment, toggleResolved, presentScene, setRole } from "./collaboration.js";
+import { NET } from "./net.js";
+import { currentPlanRev } from "./plan_sync.js";
+import { t } from "./i18n.js";
 
 configureFloorIO({ sceneObject, applyData });
 
@@ -285,12 +288,22 @@ export async function openWorkspace() {
   }
 
   function drawCollaboration() {
+    const live = section(t("collab_live"));
+    const status = document.createElement("p");
+    status.className = "ws-note";
+    status.textContent = NET.connected ? t("collab_on", { n: currentPlanRev() }) : t("collab_off");
+    const blurb = document.createElement("p");
+    blurb.className = "ws-note";
+    blurb.textContent = t("collab_live_t");
+    live.append(status, blurb);
+    content.append(live);
+
     const box = section("Review and presentation");
     const role = document.createElement("select"); ["owner", "editor", "viewer"].forEach((r) => { const o = document.createElement("option"); o.value = r; o.textContent = r; o.selected = r === S.workspace.role; role.append(o); });
     role.onchange = () => { setRole(role.value); draw(); };
     const comment = input("", "Comment on current selection");
     const send = button("Add comment", async () => { await addComment(comment.value, draw); comment.value = ""; draw(); }, "btn-accent"); send.disabled = !editable();
-    const present = button("Present current floor", async () => { const ok = await presentScene(); flash(ok ? "Presentation shared" : "Connect to the relay to present", ok ? "success" : "error"); });
+    const present = button(t("collab_present"), async () => { const ok = await presentScene(); flash(ok ? "Presentation shared" : "Connect to the relay to present", ok ? "success" : "error"); });
     box.append(row(role, comment, send, present));
     S.workspace.comments.slice().reverse().forEach((c) => {
       const text = document.createElement("span"); text.textContent = (c.resolved ? "✓ " : "") + c.text;

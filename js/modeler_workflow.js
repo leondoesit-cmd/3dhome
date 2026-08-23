@@ -26,6 +26,18 @@ export function shouldSkipReferencePicker(hasSketchableFace) {
   return !!hasSketchableFace;
 }
 
+/* Where a new sketch starts. Asking "which plane?" in a dialog is the wrong
+   first question once there is a solid on screen — the answer is almost always
+   a face of it, and the fastest way to say which face is to click it. So the
+   dialog is reserved for a document with nothing to click yet, or for someone
+   who asks for a datum plane explicitly. */
+export function sketchStartMode(input) {
+  input = input || {};
+  if (input.hasSketchableFace) return "selected-face";
+  if (input.wantsPlanePicker) return "picker";
+  return input.hasSolids ? "pick-face" : "picker";
+}
+
 export function nextFeatureAfterFinishedSketch(hasClosedProfile) {
   return hasClosedProfile ? "extrude" : null;
 }

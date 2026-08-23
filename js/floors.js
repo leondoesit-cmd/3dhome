@@ -316,7 +316,7 @@ export function captureFloor() {
 
 export function addFloor(name, elevation, duplicate) {
   captureFloor();
-  const source = duplicate ? sceneObject(false) : { nodes: [], walls: [], openings: [], items: [], markers: [], roomMeta: {}, idc: 1 };
+  const source = duplicate ? sceneObject(false) : { nodes: [], walls: [], openings: [], items: [], markers: [], slabOpenings: [], roomMeta: {}, idc: 1 };
   const floor = { id: makeId(), name: String(name || "New floor").slice(0, 60), elevation: Number(elevation) || 0, scene: clone(source) };
   S.workspace.floors.push(floor);
   return switchFloor(floor.id);
@@ -347,6 +347,63 @@ export function switchFloor(id) {
   if (typeof document !== "undefined" && document.body)
     document.body.dataset.projectRole = S.workspace.role || "owner";
   return floor;
+}
+
+/* The storey immediately above the active one, by elevation. A stairwell void
+   cuts the slab it lands ON — the floor of the storey above — while the stairs
+   themselves stay furniture on the storey below. Ties break on array order so
+   two floors sharing an elevation still resolve. */
+export function floorAbove(workspace = S.workspace) {
+  const floors = Array.isArray(workspace && workspace.floors) ? workspace.floors : [];
+  const activeIndex = floors.findIndex((f) => f.id === (workspace && workspace.activeFloor));
+  if (activeIndex < 0) return null;
+  const active = floors[activeIndex];
+  const activeElev = Number(active.elevation) || 0;
+  let best = null, bestElev = Infinity, bestIndex = Infinity;
+  floors.forEach((f, i) => {
+    if (f === active) return;
+    const elev = Number(f.elevation) || 0;
+    const higher = elev > activeElev || (elev === activeElev && i > activeIndex);
+    if (!higher) return;
+    if (elev < bestElev || (elev === bestElev && i < bestIndex)) {
+      best = f; bestElev = elev; bestIndex = i;
+    }
+  });
+  return best;
+}
+
+/* Write a slab void into another storey's stored scene. The active storey is
+   captured first, or the next captureFloor() would overwrite this edit. */
+export function addSlabOpeningToFloor(floorId, opening) {
+  if (!opening) return null;
+  ensureFloors();
+  captureFloor();
+  const floor = floorById(floorId);
+  if (!floor) return null;
+  if (!floor.scene || typeof floor.scene !== "object") floor.scene = {};
+  const scene = floor.scene;
+  if (scene.spatial && typeof scene.spatial === "object") {
+    if (!Array.isArray(scene.spatial.slabOpenings)) scene.spatial.slabOpenings = [];
+    scene.spatial.slabOpenings.push(clone(opening));
+  }
+  if (!Array.isArray(scene.slabOpenings)) scene.slabOpenings = [];
+  scene.slabOpenings.push(clone(opening));
+  return floor;
+}
+
+/* A stairwell void usually lives on a different storey from its flight, so
+   moving the stairs has to reach into the stored scenes as well as the active
+   one. Floors are few, so a straight walk is fine. */
+export function updateStairVoidsOnFloors(stairs, apply) {
+  const floors = Array.isArray(S.workspace && S.workspace.floors) ? S.workspace.floors : [];
+  let changed = false;
+  floors.forEach((floor) => {
+    if (!floor || floor.id === S.workspace.activeFloor || !floor.scene) return;
+    const scene = floor.scene;
+    if (apply(scene.slabOpenings, stairs)) changed = true;
+    if (scene.spatial && apply(scene.spatial.slabOpenings, stairs)) changed = true;
+  });
+  return changed;
 }
 
 export function removeFloor(id) {
