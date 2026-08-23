@@ -673,6 +673,7 @@ export function render2D() {
   if (rotated) pc.restore(); // end plan rotation — overlays below stay screen-fixed
   drawNorth();
   if (S.showDims) drawScale();
+  drawTouchGuide();
   pc.restore(); // end screen-space clip
   for (var ai = 0; ai < afterRender.length; ai++) afterRender[ai]();
 }
@@ -892,6 +893,39 @@ function drawSnapMark() {
     pc.lineTo(X, Y + 4);
   }
   pc.stroke();
+  pc.restore();
+}
+
+function drawTouchGuide() {
+  if (!S.touchContact || S.touchContact.pointerId == null) return;
+  var tc = S.touchContact;
+  var ox = tc.ox, oy = tc.oy, effOy = tc.effOy;
+  if (Math.abs(effOy - oy) < 4) return;
+  pc.save();
+  // 1. Touch contact disc under finger
+  pc.beginPath();
+  pc.arc(ox, oy, 16, 0, Math.PI * 2);
+  pc.fillStyle = "rgba(79, 70, 229, 0.12)";
+  pc.fill();
+  pc.strokeStyle = "rgba(79, 70, 229, 0.4)";
+  pc.lineWidth = 1.5;
+  pc.stroke();
+
+  // 2. Connector stem from finger to active draw point
+  pc.beginPath();
+  pc.setLineDash([4, 3]);
+  pc.moveTo(ox, oy - 16);
+  pc.lineTo(ox, effOy + 6);
+  pc.strokeStyle = "rgba(79, 70, 229, 0.6)";
+  pc.lineWidth = 1.5;
+  pc.stroke();
+  pc.setLineDash([]);
+
+  // 3. Small target dot
+  pc.beginPath();
+  pc.arc(ox, effOy, 3.5, 0, Math.PI * 2);
+  pc.fillStyle = "#4f46e5";
+  pc.fill();
   pc.restore();
 }
 

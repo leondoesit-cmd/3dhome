@@ -10743,9 +10743,24 @@ body.compact-nav #mobile-nav button span {
   white-space: nowrap;
 }
 @media (max-width: 360px) {
-  body.compact-nav #mobile-nav button span,
   #cabdes.cb-compact .cb-m-nav button span {
     display: none;
+  }
+  /* Five 56px slots still fit a Fold cover display.  Removing every caption
+     made View / Tools / Properties indistinguishable; keep the planner labels
+     and trim only the genuinely long translation. */
+  body.compact-nav #mobile-nav button {
+    padding-inline: 1px;
+    font-size: 8.5px;
+    letter-spacing: -0.015em;
+  }
+  body.compact-nav #mobile-nav button span {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   /* The model editor's five destinations are domain-specific; an icon alone
      is not enough to distinguish Tree, Commands, and Properties. Keep their
@@ -11072,6 +11087,33 @@ body.compact-nav .walk-stick {
 }
 body.compact-nav .plan-gizmo {
   top: 34px;
+}
+
+/* On a cover display the blueprint/visibility controls and the plan gizmo
+   occupy the same top edge as the CAD instruction.  Park the instruction
+   below them and leave the gizmo corner clear, so neither text nor a button is
+   hidden. */
+@media (max-width: 480px) {
+  body.compact-nav #cad-status {
+    top: 108px;
+    inset-inline: 8px 76px;
+    height: auto;
+    min-height: 38px;
+    padding: 5px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+  }
+  body.compact-nav #cad-status .cad-main {
+    display: -webkit-box;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    line-height: 1.2;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
 }
 
 /* ---- bottom sheets ------------------------------------------------------- */
@@ -11615,7 +11657,13 @@ body.compact-nav #md-ctx {
   padding: 4px max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left));
   background: var(--bg-panel);
   border-top: 1px solid var(--border-color);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+body.compact-nav #md-ctx::-webkit-scrollbar {
+  display: none;
 }
 #md-ctx .mctx-undo {
   display: flex;
@@ -11648,8 +11696,8 @@ body.compact-nav #md-ctx {
   justify-content: flex-start;
 }
 #md-ctx .mctx-btn {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 0 1 auto;
+  min-width: 44px;
   max-width: 160px;
   min-height: 44px; /* match Undo/Redo — a 38px verb is the one a thumb misses */
   padding: 4px 8px;
@@ -11664,6 +11712,7 @@ body.compact-nav #md-ctx {
   justify-content: center;
   gap: 6px;
   cursor: pointer;
+  white-space: nowrap;
 }
 #md-ctx .mctx-btn span {
   overflow: hidden;
@@ -11696,6 +11745,12 @@ body.compact-nav #md-selection-bar:not([hidden]) {
   border-radius: 12px;
   background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
   box-shadow: 0 6px 24px rgba(0,0,0,.22);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+body.compact-nav #md-selection-bar::-webkit-scrollbar {
+  display: none;
 }
 #md-selection-bar > strong {
   flex: 1 1 auto;
@@ -11899,6 +11954,16 @@ body.compact-nav #md-nav .md-nav-glyph svg {
   font-size: 10px;
   padding: 6px 2px;
 }
+@media (max-width: 360px) {
+  #md-sheet .m-grid-5,
+  .m-grid-5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  #md-sheet .m-grid-4,
+  .m-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 #md-sheet .m-grid-1 .m-grid-btn {
   min-height: 44px;
   flex-direction: row;
@@ -11969,6 +12034,7 @@ body.compact-nav #md-sheet.on {
 /* the last tool row must not read as clipped by the contextual bar */
 body.compact-nav #md-sheet .md-sheet-host { padding-bottom: 10px; }
 body.compact-nav #md-sheet.tall {
+  height: calc(100% - 48px) !important;
   max-height: calc(100% - 48px);
 }
 /* Unfolded foldable / landscape tablet: the extra room is WIDTH, so the sheet
@@ -12015,8 +12081,11 @@ body.dock-rail #md-sheet .m-sheet-grip {
 /* A hosted panel scrolls, so the sheet needs a HEIGHT, not just a ceiling —
    sized by content it collapses to the two rows of the ribbon that happen to
    fit. The built sheets (View, More) keep sizing themselves. */
-body.compact-nav #md-sheet:has(.md-sheet-host > *) {
+body.compact-nav #md-sheet:not(.tall):has(.md-sheet-host > *) {
   height: 56%;
+}
+body.compact-nav #md-sheet.tall:has(.md-sheet-host > *) {
+  height: calc(100% - 48px) !important;
 }
 .md-sheet-host:empty {
   display: none;
@@ -12151,14 +12220,16 @@ body.compact-nav #md-sheet:has(.md-sheet-host > *) {
   display: grid;
   grid-auto-flow: row;
   grid-template-rows: none;
-  /* minmax(0, …), not minmax(96px, …): `1fr` alone is minmax(auto, 1fr), so a
-     long label ("Polygon → extrude") pushes its track past the container and
-     the whole grid overflows the sheet. Three fixed columns fit 375px. */
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   height: auto;
   gap: 6px;
   width: 100%;
   min-width: 0;
+}
+@media (min-width: 360px) {
+  #modeler .md-commandmanager.md-borrowed .md-command-items {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 @media (min-width: 480px) {
   #modeler .md-commandmanager.md-borrowed .md-command-items {
@@ -12194,6 +12265,27 @@ body.compact-nav #md-sheet:has(.md-sheet-host > *) {
 #modeler .md-commandmanager.md-borrowed .md-command-tabs > [data-cmdtab] {
   flex: 0 0 auto;
   min-height: 44px;
+}
+/* Four destinations fit without a hidden horizontal continuation even on a
+   280px Fold cover display.  The command list below remains the only scroller. */
+@media (max-width: 360px) {
+  #modeler .md-commandmanager.md-borrowed .md-command-tabs {
+    gap: 1px;
+    padding-inline: 4px;
+    overflow-x: hidden;
+  }
+  #modeler .md-commandmanager.md-borrowed .md-command-tabs > [data-cmdtab] {
+    flex: 1 1 25%;
+    min-width: 0;
+    padding-inline: 2px;
+    font-size: 10px;
+  }
+}
+@media (max-width: 320px) {
+  body.compact-nav #md-nav button {
+    font-size: 8px;
+    letter-spacing: -0.025em;
+  }
 }
 #modeler .md-left.md-borrowed .md-strip > button,
 #modeler .md-right.md-borrowed .md-strip > button {

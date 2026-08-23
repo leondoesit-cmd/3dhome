@@ -277,8 +277,7 @@ function ensureSheet() {
   hostSlot = sheet.querySelector("#md-sheet-host");
   sheet.querySelector(".m-sheet-head > .m-sheet-x:last-child").addEventListener("click", closeSheet);
   sheet.querySelector(".md-sheet-expand").addEventListener("click", function () {
-    sheet.classList.toggle("tall");
-    this.setAttribute("aria-label", sheet.classList.contains("tall") ? "Collapse" : "Expand");
+    setSheetTall(!sheet.classList.contains("tall"));
   });
 
   var y0 = 0,
@@ -301,7 +300,7 @@ function ensureSheet() {
         closeSheet();
       } else if (dy < -50) {
         live = false;
-        sheet.classList.add("tall");
+        setSheetTall(true);
       }
     },
     { passive: true },
@@ -354,6 +353,13 @@ function ensureSheet() {
   });
 }
 
+function setSheetTall(on) {
+  if (!sheet) return;
+  sheet.classList.toggle("tall", !!on);
+  var btn = sheet.querySelector(".md-sheet-expand");
+  if (btn) btn.setAttribute("aria-label", on ? "Collapse" : "Expand");
+}
+
 function closeSheet() {
   openKey = null;
   release();
@@ -387,6 +393,10 @@ function showSheet(key, toggle) {
     return;
   }
   release();
+  /* Expanded height belongs to the sheet you expanded, not to the next one.
+     Carried over, a short panel (Properties with nothing selected) kept the
+     full-screen box and left a dead band above its own content. */
+  setSheetTall(false);
   sheetBody.innerHTML = "";
   setSheetSearch(false);
   var title = "";

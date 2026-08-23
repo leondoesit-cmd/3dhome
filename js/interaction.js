@@ -24,7 +24,7 @@ import {
 import {
   applyWallDrawDefaults, drawFaceBack, isWallDrawTool, extendToHit, throughCrossings,
   offsetGhost, offsetSideFromCursor, joinProposal, paintWallWithDefaults,
-  reverseWallStyle, resolveWallDrawDefaults,
+  reverseWallStyle, resolveWallDrawDefaults, touchEffectiveOffsetY, TOUCH_DRAW_OFFSET_PX,
 } from "./wall_draw.js";
 import { makeArcFromThreePoints } from "./wall_curves.js";
 import {
@@ -101,7 +101,9 @@ import { hudKeydown, onDrawEnded, updateCadHud, entryOpen } from "./cad_hud.js";
    while the gesture in progress is a touch, so the same tap that looks like it
    landed on a corner actually grabs it. Only PICKING grows — snap thresholds
    stay put, since those decide what the design becomes, not what you hit. */
-var PICK_SLOP = 1;
+export var PICK_SLOP = 1;
+export { touchEffectiveOffsetY, TOUCH_DRAW_OFFSET_PX };
+
 export function setPickSlop(pointerType) {
   PICK_SLOP = pointerType === "touch" ? 1.9 : 1;
 }
@@ -3085,8 +3087,14 @@ export function initInteraction() {
       // a long press is just a slow first click.
       if (!S.tool || S.tool === "select") armLongPress(e);
     }
-    var px = wx(ox, oy),
-      pz = wz(ox, oy);
+    var effOy = touchEffectiveOffsetY(oy, e.pointerType, S.tool, S.action);
+    if (e.pointerType === "touch" && effOy !== oy) {
+      S.touchContact = { ox: ox, oy: oy, effOy: effOy, pointerId: e.pointerId };
+    } else if (e.pointerType === "touch") {
+      S.touchContact = null;
+    }
+    var px = wx(ox, effOy),
+      pz = wz(ox, effOy);
 
     /* Picking the OTHER side of a new dimension. Armed from the wall
        inspector, it swallows exactly one click and then disarms — a modal
@@ -3732,8 +3740,14 @@ export function initInteraction() {
       updatePinch();
       return;
     }
-    var px = wx(e.offsetX, e.offsetY),
-      pz = wz(e.offsetX, e.offsetY);
+    var effOy = touchEffectiveOffsetY(e.offsetY, e.pointerType, S.tool, S.action);
+    if (e.pointerType === "touch" && effOy !== e.offsetY) {
+      S.touchContact = { ox: e.offsetX, oy: e.offsetY, effOy: effOy, pointerId: e.pointerId };
+    } else if (e.pointerType === "touch") {
+      S.touchContact = null;
+    }
+    var px = wx(e.offsetX, effOy),
+      pz = wz(e.offsetX, effOy);
     sendPlanCursor(px, pz);
     /* "How far along this wall am I?" — answered for EVERY gesture, before any
        of the per-action branches return: hovering, dragging a piece, or drawing
@@ -4201,9 +4215,10 @@ export function initInteraction() {
         var wr = plan.getBoundingClientRect(),
           wox = e.clientX - wr.left,
           woy = e.clientY - wr.top;
+        var effWoy = touchEffectiveOffsetY(woy, e.pointerType, S.tool, S.action);
         if (Math.hypot(wox - wp.x, woy - wp.y) > 5)
           {
-            wallPoint(snapWallPoint(wx(wox, woy), wz(wox, woy), S.drawFrom));
+            wallPoint(snapWallPoint(wx(wox, effWoy), wz(wox, effWoy), S.drawFrom));
             /* A drag is Chief Architect's normal one-wall gesture: release
                commits that wall and ends its rubber band. The Wall tool stays
                armed, so the next wall starts with another independent drag.
@@ -4224,6 +4239,7 @@ export function initInteraction() {
     S.snapCycle = 0;
     if (e && e.pointerType === "touch") {
       S.touchDrag = false;
+      S.touchContact = null;
       delete pointers[e.pointerId];
       // Both fingers gone, nothing zoomed: that was the undo gesture.
       if (!Object.keys(pointers).length && tryTwoTap()) return;
@@ -4415,6 +4431,7 @@ export function initInteraction() {
   if (typeof window !== "undefined")
     window.addEventListener("plan:view-axis", syncElevationTools);
   plan.addEventListener("pointerleave", function () {
+    S.touchContact = null;
     // a captured drag keeps scrolling past the border; the wall/route tools are
     // between clicks with no capture, so losing the cursor must stop the scroll
     if (!S.action) stopAutoPan();
