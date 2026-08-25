@@ -24,7 +24,7 @@ import {
 import { ensureWallTypes, normalizeWall, wallLayerBands } from "./wall_types.js";
 import {
   resolveWallDrawDefaults, previewCentreline, previewBandPoly, previewLayerBands,
-  previewMetrics, hatchSide, offsetGhost,
+  previewMetrics, hatchSide, offsetGhost, touchDrawing,
 } from "./wall_draw.js";
 import { normalizeWallKind, curvedWallOutline, pointAtWall, tangentAtWall, makeArcFromThreePoints } from "./wall_curves.js";
 import { referenceFloorScene } from "./floors.js";
@@ -35,6 +35,7 @@ import { t } from "./i18n.js";
 import { SITE, llToLocalCm } from "./site.js";
 import { drawMEP, mepAliveCount } from "./mep.js";
 import { isElevation, drawElevation, ceilingHeight } from "./elevation.js";
+import { drawTouchPrecisionLens } from "./touch_precision.js";
 import { measure4, itemCorners } from "./measure.js";
 import { markers, markerItem, markerLabel, hitMarker, markerInfo } from "./markers.js";
 import { activeWarnings } from "./constraint_engine.js";
@@ -43,7 +44,7 @@ import {
   openingById, openingPos,
 } from "./wall_constraints.js";
 import {
-  sx, sz, planRotRad, toBasePx, rotatePx, unrotatePx, niceScaleCm, fitTransform,
+  sx, sz, wx, wz, planRotRad, toBasePx, rotatePx, unrotatePx, niceScaleCm, fitTransform,
 } from "./plan_view.js";
 import { blueprintBounds, drawBlueprintUnderlay } from "./blueprint_trace.js";
 import { openingCorners, slabOpenings } from "./slab_openings.js";
@@ -51,7 +52,7 @@ import { openingHasSwingConflict } from "./swing_clearance.js";
 import { cursors, pruneCursors } from "./plan_sync.js";
 
 export {
-  sx, sz, wx, wz, planRotRad, toBasePx, dropPoint, centerOn, isOnScreen, niceScaleCm,
+  sx, sz, wx, wz, planRotRad, toBasePx, rotatePx, dropPoint, centerOn, isOnScreen, niceScaleCm,
 } from "./plan_view.js";
 
 export const plan = typeof document !== "undefined" ? document.getElementById("plan") : null;
@@ -603,7 +604,7 @@ export function render2D() {
       pc.save(); pc.fillStyle = "#e0813a"; pc.beginPath();
       pc.arc(sx(S.arcDraft.through.x), sz(S.arcDraft.through.z), 4, 0, Math.PI * 2); pc.fill(); pc.restore();
     }
-    if (draftArc) label(S.previewPt.x, S.previewPt.z - 12 / S.SC,
+    if (draftArc && !touchDrawing()) label(S.previewPt.x, S.previewPt.z - 12 / S.SC,
       Math.round(draftArc.L) + " " + t("cm") + "  R" + Math.round(draftArc.radius), "#3f6b78");
   }
   if (S.tool === "rect" || S.tool === "slabvoid") {
@@ -616,12 +617,13 @@ export function render2D() {
     drawGhostWall(rx1, rz0, rx1, rz1);
     drawGhostWall(rx1, rz1, rx0, rz1);
     drawGhostWall(rx0, rz1, rx0, rz0);
-    label(
-      (rx0 + rx1) / 2,
-      (rz0 + rz1) / 2,
-      Math.round(rx1 - rx0) + " × " + Math.round(rz1 - rz0) + " " + t("cm"),
-      S.tool === "slabvoid" ? "#c45c4a" : "#3f6b78",
-    );
+    if (!touchDrawing())
+      label(
+        (rx0 + rx1) / 2,
+        (rz0 + rz1) / 2,
+        Math.round(rx1 - rx0) + " × " + Math.round(rz1 - rz0) + " " + t("cm"),
+        S.tool === "slabvoid" ? "#c45c4a" : "#3f6b78",
+      );
     }
   }
   if (S.tool === "walloffset" && S.offsetDraft && S.offsetDraft.hostId != null) {
@@ -773,7 +775,11 @@ function drawPreviewDims(from, preview) {
   var angTxt = metrics.hasPrev
     ? (turnDeg > 0 ? "+" : "") + turnDeg + "°"
     : "∠" + Math.round((metrics.absAng * 180) / Math.PI) + "°";
-  label((from.x + preview.x) / 2, (from.z + preview.z) / 2, d + " " + t("cm") + "  " + angTxt, "#3f6b78");
+  /* On a finger, the same numbers ride the draw point (drawTouchReadout); the
+     midpoint copy would sit under the hand AND collide with the parallel and
+     close-loop labels below. */
+  if (!touchDrawing())
+    label((from.x + preview.x) / 2, (from.z + preview.z) / 2, d + " " + t("cm") + "  " + angTxt, "#3f6b78");
   if (metrics.parallel) {
     var par = metrics.parallel, mx = (from.x + preview.x) / 2, mz = (from.z + preview.z) / 2;
     var ox = mx - par.nx * par.dist, oz = mz - par.nz * par.dist;
@@ -787,7 +793,8 @@ function drawPreviewDims(from, preview) {
     pc.stroke();
     pc.setLineDash([]);
     pc.restore();
-    label((mx + ox) / 2, (mz + oz) / 2, Math.round(par.abs) + " " + t("cm"), "#e0813a");
+    if (!touchDrawing())
+      label((mx + ox) / 2, (mz + oz) / 2, Math.round(par.abs) + " " + t("cm"), "#e0813a");
   }
   if (metrics.close && metrics.close.dist > 8) {
     pc.save();
@@ -800,8 +807,9 @@ function drawPreviewDims(from, preview) {
     pc.stroke();
     pc.setLineDash([]);
     pc.restore();
-    label((preview.x + metrics.close.x) / 2, (preview.z + metrics.close.z) / 2,
-      Math.round(metrics.close.dist) + " " + t("cm"), "#6b8a92");
+    if (!touchDrawing())
+      label((preview.x + metrics.close.x) / 2, (preview.z + metrics.close.z) / 2,
+        Math.round(metrics.close.dist) + " " + t("cm"), "#6b8a92");
   }
 }
 
@@ -896,37 +904,133 @@ function drawSnapMark() {
   pc.restore();
 }
 
+/* What the fingertip is currently authoring: one headline (the number being
+   set) and one qualifier at most.  Deliberately short — this rides with the
+   draw point, so anything longer would cover the geometry it describes. */
+function touchDrawReadout() {
+  if (S.tool === "wall" && S.drawing && S.drawFrom != null && S.nodes[S.drawFrom] && S.previewPt) {
+    var m = previewMetrics(S.drawFrom, S.previewPt);
+    if (!m) return null;
+    var len = Math.round(Math.max(0, m.length -
+      (S.interiorDims !== false ? pendingCuts(S.drawFrom, S.previewPt) : 0)));
+    var turnDeg = Math.round((m.turn * 180) / Math.PI);
+    return {
+      main: len + " " + t("cm"),
+      sub: m.hasPrev
+        ? (turnDeg > 0 ? "+" : "") + turnDeg + "\u00b0"
+        : "\u2220" + Math.round((m.absAng * 180) / Math.PI) + "\u00b0",
+    };
+  }
+  if (S.tool === "arcwall" && S.arcDraft && S.nodes[S.arcDraft.startNode] && S.previewPt) {
+    var a0 = S.nodes[S.arcDraft.startNode];
+    var arc = S.arcDraft.through ? makeArcFromThreePoints(a0, S.arcDraft.through, S.previewPt) : null;
+    if (arc) return { main: Math.round(arc.L) + " " + t("cm"), sub: "R" + Math.round(arc.radius) };
+    return { main: Math.round(Math.hypot(S.previewPt.x - a0.x, S.previewPt.z - a0.z)) + " " + t("cm"), sub: "" };
+  }
+  if ((S.tool === "rect" || S.tool === "slabvoid") && S.rectDraft && S.previewPt) {
+    return {
+      main: Math.round(Math.abs(S.previewPt.x - S.rectDraft.x)) + " \u00d7 " +
+        Math.round(Math.abs(S.previewPt.z - S.rectDraft.z)),
+      sub: t("cm"),
+    };
+  }
+  return null;
+}
+
+/* How much of the canvas top edge is covered by DOM chrome (the CAD
+   instruction bar). Canvas pixels are CSS pixels here — the context is
+   pre-scaled by the device ratio — so the two rects compare directly. */
+function topReservedPx() {
+  if (typeof document === "undefined") return 0;
+  var el = document.getElementById("cad-status");
+  if (!el || el.hidden || !el.offsetParent) return 0;
+  // a quiet bar keeps its box but paints nothing — it reserves no space
+  if (el.classList.contains("cad-quiet")) return 0;
+  var pr = plan.getBoundingClientRect(), er = el.getBoundingClientRect();
+  if (!er.height || er.bottom <= pr.top) return 0;
+  return Math.max(0, Math.min(pr.height, er.bottom - pr.top));
+}
+
+/* One card, always in the same place relative to the draw point: directly
+   above it, so it travels with the cursor exactly the way the cursor travels
+   with the finger.  It is the ONLY copy on the canvas — drawPreviewDims and the
+   rect/arc labels stand down while a finger is drawing, since three copies of
+   "550 cm" printed over each other is what made the old readout unreadable. */
+function drawTouchReadout(ox, oy) {
+  var r = touchDrawReadout();
+  if (!r) return;
+  var W = S.CW || plan.width;
+  pc.save();
+  pc.textBaseline = "middle";
+  pc.font = "700 15px system-ui, Arial";
+  var mainW = pc.measureText(r.main).width;
+  pc.font = "600 12px system-ui, Arial";
+  var subW = r.sub ? pc.measureText(r.sub).width + 10 : 0;
+  var padX = 10, h = 28, w = padX * 2 + mainW + subW;
+  var x = Math.min(Math.max(6, ox - w / 2), W - w - 6);
+  /* Above the draw point — unless that puts it behind the CAD instruction bar,
+     which is a DOM element painted OVER the canvas: the card would simply
+     vanish under it. Then it goes below the point instead. */
+  var top = oy - 16 - h;
+  if (top < topReservedPx() + 6) top = oy + 16;
+  pc.beginPath();
+  if (pc.roundRect) pc.roundRect(x, top, w, h, 14);
+  else pc.rect(x, top, w, h);
+  pc.fillStyle = "rgba(28, 30, 45, 0.92)";
+  pc.fill();
+  var cy = top + h / 2;
+  pc.textAlign = "left";
+  pc.fillStyle = "#fff";
+  pc.font = "700 15px system-ui, Arial";
+  pc.fillText(r.main, x + padX, cy);
+  if (r.sub) {
+    pc.font = "600 12px system-ui, Arial";
+    pc.fillStyle = "rgba(255,255,255,.72)";
+    pc.fillText(r.sub, x + padX + mainW + 10, cy);
+  }
+  pc.restore();
+}
+
+export function touchLensDistanceMap(screenX, screenY, preferPreview) {
+  var origin = preferPreview && S.previewPt && (S.tool !== "select" || S.placeType)
+    ? S.previewPt
+    : { x: wx(screenX, screenY), z: wz(screenX, screenY) };
+  var out = { up: null, down: null, left: null, right: null };
+  var angle = planRotRad(), ca = Math.cos(angle), sa = Math.sin(angle);
+  measure4(origin.x, origin.z, null, null, { target: "nearest" }).forEach(function (hit) {
+    var screenX = hit.dir.dx * ca - hit.dir.dz * sa;
+    var screenY = hit.dir.dx * sa + hit.dir.dz * ca;
+    var key = Math.abs(screenX) > Math.abs(screenY)
+      ? (screenX < 0 ? "left" : "right")
+      : (screenY < 0 ? "up" : "down");
+    if (out[key] === null || hit.gap < out[key]) out[key] = hit.gap;
+  });
+  return out;
+}
+
+function touchLensDistances(tc) {
+  return touchLensDistanceMap(tc.ox, tc.oy, true);
+}
+
 function drawTouchGuide() {
   if (!S.touchContact || S.touchContact.pointerId == null) return;
   var tc = S.touchContact;
-  var ox = tc.ox, oy = tc.oy, effOy = tc.effOy;
-  if (Math.abs(effOy - oy) < 4) return;
+  var ox = tc.ox, oy = tc.oy;
+  drawTouchPrecisionLens(pc, plan, tc, {
+    color: "#4f46e5",
+    crosshair: "#e05a46",
+    distances: touchLensDistances(tc),
+    unitLabel: t("cm"),
+  });
   pc.save();
-  // 1. Touch contact disc under finger
   pc.beginPath();
-  pc.arc(ox, oy, 16, 0, Math.PI * 2);
-  pc.fillStyle = "rgba(79, 70, 229, 0.12)";
-  pc.fill();
-  pc.strokeStyle = "rgba(79, 70, 229, 0.4)";
+  pc.arc(ox, oy, 5, 0, Math.PI * 2);
+  pc.strokeStyle = "#4f46e5";
   pc.lineWidth = 1.5;
   pc.stroke();
-
-  // 2. Connector stem from finger to active draw point
-  pc.beginPath();
-  pc.setLineDash([4, 3]);
-  pc.moveTo(ox, oy - 16);
-  pc.lineTo(ox, effOy + 6);
-  pc.strokeStyle = "rgba(79, 70, 229, 0.6)";
-  pc.lineWidth = 1.5;
-  pc.stroke();
-  pc.setLineDash([]);
-
-  // 3. Small target dot
-  pc.beginPath();
-  pc.arc(ox, effOy, 3.5, 0, Math.PI * 2);
-  pc.fillStyle = "#4f46e5";
-  pc.fill();
   pc.restore();
+
+  drawTouchReadout(ox, oy);
 }
 
 // Coalesce callers that only need the next visual frame. Direct render2D()

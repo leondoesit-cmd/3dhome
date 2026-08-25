@@ -21,6 +21,15 @@ import { render2D } from "./plan2d.js";
 import { createHistory } from "./edit_history.js";
 import { createHistoryPanel } from "./ui_history.js";
 import { bindThreeFingerPan, createEditorView, createViewportSwap } from "./editor_view.js";
+import {
+  beginTouchPrecision, directionalSegmentDistances, drawTouchPrecisionLens, modelerTouchPrecisionKind,
+  touchPrecisionPoint, updateTouchPrecision,
+} from "./touch_precision.js";
+import {
+  dispatchPrecisionCommit, dispatchPrecisionDown, dispatchPrecisionMove, dispatchPrecisionUp, getTouchPrecisionMode,
+  releaseTouchPrecisionTrial, startTouchPrecisionTrial, touchPrecisionTrialOwns,
+  updateTouchPrecisionTrial,
+} from "./touch_precision_ui.js";
 import { getMainScene, has3D } from "./view3d.js";
 import { validCustomModelKey, sanitizeDisplayName } from "./safe.js";
 import {
@@ -2580,6 +2589,7 @@ var E = {
   leftCollapsed: false,
   rightCollapsed: false,
   drag: null,
+  touchPrecision: null, // active finger + visual-only precision loupe while authoring
   dimPick: [],        // first/second Smart Ruler endpoints in Drawing mode
   dimSel: null,       // selected placed dimension constraint id
   cv: null, cx: null,
@@ -3624,7 +3634,7 @@ function kt(label, key) { return label + " · " + key; }
    whose only clue was a hover caption, so five of them read as five mystery
    buttons; a strip of labelled tabs is both smaller and self-explaining. */
 function tab(id, icon, label, title, extra) {
-  return '<button type="button" data-tab="' + id + '" title="' + (title || label) + '">' +
+  return '<button type="button" data-tab="' + id + '" aria-label="' + (title || label) + '" title="' + (title || label) + '">' +
     cadIcon(icon || id) + '<span>' + label + "</span>" + (extra || "") + "</button>";
 }
 function tabstrip(side, tabs, extra) {
@@ -5828,6 +5838,7 @@ function attachSketchToSelectedFace() {
   return true;
 }
 function setTool(id, keepPlaneState) {
+  E.touchPrecision = null;
   if(E.mode !== "drawing" && isCanonicalAuthoring() && !E.tour.active) {
     if(SKETCH_TOOLS.includes(id) && E.authoring.phase!=="sketch") { beginSketchWorkflow(id); return; }
     if(["rect","circle","sph","poly","rev","cut","cutc"].includes(id)) {
@@ -8000,11 +8011,97 @@ function drawSketch() {
     c.restore();
   }
 
+  drawModelerTouchPrecision(c);
   // typed length/angle/size, last so nothing is drawn over the numbers
   if (E._mouse) {
     var hud = toPx(E._mouse.u, E._mouse.v);
     dynDrawHud(c, hud.x, hud.y);
   }
+}
+
+function drawModelerTouchPrecision(c) {
+  var tc = E.touchPrecision;
+  if (!tc || !E.cv) return;
+  drawTouchPrecisionLens(c, E.cv, tc, {
+    color: "#2684c7", crosshair: "#e05a46", background: "rgba(246,249,252,.98)",
+    distances: modelerTouchDistances(tc), unitLabel: "cm",
+  });
+  c.save();
+  c.strokeStyle = "rgba(38,132,199,.68)";
+  c.lineWidth = 1.5;
+  c.beginPath(); c.arc(tc.ox, tc.oy, 5, 0, Math.PI * 2); c.stroke();
+  c.restore();
+}
+
+function modelerTouchDistances(tc) {
+  var segments = [];
+  function addScreenLoop(points, closed) {
+    if (!points || points.length < 2) return;
+    for (var i = 1; i < points.length; i++) segments.push({ a: points[i - 1], b: points[i] });
+    if (closed) segments.push({ a: points[points.length - 1], b: points[0] });
+  }
+  function addUvLoop(points, closed) {
+    addScreenLoop((points || []).map(function (point) {
+      return toPx(point.u == null ? point.x : point.u, point.v == null ? point.y : point.v);
+    }), closed);
+  }
+  function addEllipse(center, rx, ry, rotation, start, sweep) {
+    var points = [], steps = 48;
+    for (var i = 0; i <= steps; i++) {
+      var angle = start + sweep * i / steps;
+      var x = Math.cos(angle) * rx, y = Math.sin(angle) * ry;
+      points.push(toPx(
+        center.x + x * Math.cos(rotation) - y * Math.sin(rotation),
+        center.y + x * Math.sin(rotation) + y * Math.cos(rotation),
+      ));
+    }
+    addScreenLoop(points, false);
+  }
+
+  /* Flat model outlines are visible objects too, not just sketch entities. */
+  if (!sketchProjection()) {
+    (E.def.parts || []).forEach(function (part) {
+      var shape = partUV(part);
+      if (!shape) return;
+      if (shape.type === "rect") addUvLoop([
+        { u: shape.u0, v: shape.v0 }, { u: shape.u1, v: shape.v0 },
+        { u: shape.u1, v: shape.v1 }, { u: shape.u0, v: shape.v1 },
+      ], true);
+      else if (shape.type === "circle") addEllipse({ x: shape.u, y: shape.v }, shape.r, shape.r, 0, 0, Math.PI * 2);
+      else if (shape.type === "segments") (shape.segments || []).forEach(function (segment) {
+        addUvLoop([segment.a, segment.b], false);
+      });
+      else {
+        addUvLoop(shape.pts, true);
+        (shape.holes || part.holes || []).forEach(function (hole) { addUvLoop(holeLoop(hole), true); });
+      }
+    });
+  }
+
+  var sketch = E.mode === "drawing" ? drawingSketch() : ensureSketch(E.def);
+  if (sketch) {
+    var points = new Map((sketch.points || []).map(function (point) { return [point.id, point]; }));
+    (sketch.entities || []).forEach(function (entity) {
+      if (entity.type === "line") {
+        var line = lineData(entity, points);
+        if (line) addUvLoop([line.a, line.b], false);
+        return;
+      }
+      if (entity.type === "ellipse") {
+        var ellipse = ellipseData(entity, points);
+        if (ellipse) addEllipse(ellipse.center, ellipse.rx, ellipse.ry, ellipse.rot, 0, Math.PI * 2);
+        return;
+      }
+      var circle = circleData(entity, points);
+      if (!circle) return;
+      var start = entity.type === "arc" ? circle.start : 0;
+      var sweep = entity.type === "arc"
+        ? ((circle.end - circle.start) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2)
+        : Math.PI * 2;
+      addEllipse(circle.center, circle.radius, circle.radius, 0, start, sweep || Math.PI * 2);
+    });
+  }
+  return directionalSegmentDistances(tc.ox, tc.oy, segments, E.scl, 6);
 }
 
 /* The slot outline as a path: two parallel sides and two half-circle caps —
@@ -9594,10 +9691,60 @@ function wireSketch() {
     E.oy += dy;
     drawSketch();
   });
+  function beginModelerPrecisionTrial(e, x, y, mode) {
+    var previousDisplay = E.displayStyle;
+    var directDragTool = E.tool === "rect" || E.tool === "circle" || E.tool === "sph" || E.tool === "cutc";
+    var finishingDirectDrag = directDragTool && E.drag && E.drag.mode === "draw";
+    startTouchPrecisionTrial({
+      mode:mode, pointerId:e.pointerId, canvas:cv, x:x, y:y, axes:["U","V"], unitLabel:"cm",
+      sourceCanvases:function(){
+        var sources=[];
+        if(E.pv&&E.pv.rr&&E.pv.rr.domElement)sources.push(E.pv.rr.domElement);
+        sources.push(cv);return sources;
+      },
+      screenToModel:function(point){var uv=toUV(point.x,point.y);return{x:uv.u,y:uv.v};},
+      modelToScreen:function(point){return toPx(point.x,point.y);},
+      describe:function(point){
+        var uv=toUV(point.x,point.y),origin=null;
+        if(E.wallPts&&E.wallPts.length)origin=E.wallPts[E.wallPts.length-1];
+        else if(E.poly&&E.poly.length)origin=E.poly[E.poly.length-1];
+        else if(E.drag&&fin(E.drag.u)&&fin(E.drag.v))origin={u:E.drag.u,v:E.drag.v};
+        var secondary="";
+        if(origin){var length=Math.hypot(uv.u-origin.u,uv.v-origin.v),angle=Math.atan2(uv.v-origin.v,uv.u-origin.u)*180/Math.PI;secondary="L "+Math.round(length*10)/10+" cm · ∠ "+Math.round(angle*10)/10+"°";}
+        return{primary:"U "+Math.round(uv.u*10)/10+" · V "+Math.round(uv.v*10)/10,secondary:secondary};
+      },
+      getDistances:function(point){return modelerTouchDistances({ox:point.x,oy:point.y});},
+      onMove:function(point){dispatchPrecisionMove(cv,point);},
+      onSnap:function(direction,point){
+        var count=Math.max(1,(E.inferenceCandidates||[]).length);
+        E.inferenceIndex=((Number(E.inferenceIndex)||0)+direction+count)%count;
+        var origin=E.wallPts&&E.wallPts.length?E.wallPts[E.wallPts.length-1]:null;
+        var snapped=snapPt(toUV(point.x,point.y),null,origin);return toPx(snapped.u,snapped.v);
+      },
+      onXray:function(on){setModelDisplay(on?"transparent":previousDisplay);},
+      onConfirm:function(point){
+        // Direct primitives were originally press-drag-release tools.  Keep
+        // their first refined point armed, then finish them with the second
+        // refined point; a zero-length synthetic click would otherwise erase
+        // the primitive before the user ever got a chance to size it.
+        if(directDragTool){
+          if(finishingDirectDrag){dispatchPrecisionMove(cv,point);dispatchPrecisionUp(cv,point);}
+          else dispatchPrecisionDown(cv,point);
+        }else dispatchPrecisionCommit(cv,point);
+      },
+      onCancel:function(){
+        E.touchPrecision=null;
+        if(finishingDirectDrag)E.drag=null;
+        setModelDisplay(previousDisplay);drawSketch();
+      },
+    });
+    return true;
+  }
   cv.addEventListener("pointerdown", function (e) {
     if (threeFinger()) return;
-    cv.setPointerCapture(e.pointerId);
-    var r = cv.getBoundingClientRect(), uv = toUV(e.clientX - r.left, e.clientY - r.top);
+    if(e.isTrusted)cv.setPointerCapture(e.pointerId);
+    var r = cv.getBoundingClientRect();
+    var localX = e.clientX - r.left, localY = e.clientY - r.top;
     /* Sketching on the model: middle-drag, right-drag or Alt-drag orbits the
        camera without leaving the tool. Being able to look around a solid while
        drawing on one of its faces is the point of sketching in 3D — the sheet
@@ -9605,9 +9752,17 @@ function wireSketch() {
        while the model turns underneath it. */
     if (sketchProjection() && (e.button === 1 || e.button === 2 || e.altKey)) {
       e.preventDefault();
+      E.touchPrecision = null;
       E.drag = { mode: "orbit", px: e.clientX, py: e.clientY };
       return;
     }
+    var precisionKind = modelerTouchPrecisionKind(E.tool, E.mode);
+    var trialMode = getTouchPrecisionMode();
+    if (e.pointerType === "touch" && precisionKind && trialMode !== "lens" && beginModelerPrecisionTrial(e, localX, localY, trialMode))
+      return;
+    E.touchPrecision = beginTouchPrecision(e, localX, localY, r, precisionKind);
+    var downPoint = touchPrecisionPoint(E.touchPrecision, localX, localY);
+    var uv = toUV(downPoint.x, downPoint.y);
     if (E.mode === "drawing") {
       if (E.tool === "dim") {
         var sheetSketch = drawingSketch();
@@ -9821,7 +9976,15 @@ function wireSketch() {
   });
   cv.addEventListener("pointermove", function (e) {
     if (threeFinger()) return;
-    var r = cv.getBoundingClientRect(), uv = toUV(e.clientX - r.left, e.clientY - r.top);
+    var r = cv.getBoundingClientRect();
+    var localX = e.clientX - r.left, localY = e.clientY - r.top;
+    if(e.pointerType==="touch"&&touchPrecisionTrialOwns(e.pointerId)){
+      updateTouchPrecisionTrial(e.pointerId,localX,localY);return;
+    }
+    if (E.touchPrecision && E.touchPrecision.pointerId === e.pointerId)
+      updateTouchPrecision(E.touchPrecision, localX, localY);
+    var movePoint = touchPrecisionPoint(E.touchPrecision && E.touchPrecision.pointerId === e.pointerId ? E.touchPrecision : null, localX, localY);
+    var uv = toUV(movePoint.x, movePoint.y);
     E._mouse = uv;
     syncStatus();
     if (E.drag) {
@@ -9898,6 +10061,14 @@ function wireSketch() {
   });
   cv.addEventListener("pointerup", function (e) {
     if (threeFinger()) return;
+    if(touchPrecisionTrialOwns(e.pointerId)){
+      releaseTouchPrecisionTrial(e.pointerId,false);E.touchPrecision=null;drawSketch();return;
+    }
+    var releaseRect = cv.getBoundingClientRect();
+    var releaseX = e.clientX - releaseRect.left, releaseY = e.clientY - releaseRect.top;
+    var activePrecision = E.touchPrecision && E.touchPrecision.pointerId === e.pointerId ? E.touchPrecision : null;
+    var releasePoint = touchPrecisionPoint(activePrecision, releaseX, releaseY);
+    if (activePrecision) E.touchPrecision = null;
     if (E.drag && E.drag.mode === "gesture") {
       var gdx = e.clientX - E.drag.px, gdy = e.clientY - E.drag.py;
       var moved = E.drag.moved;
@@ -9921,8 +10092,7 @@ function wireSketch() {
       // a click that did not drag arms the tool instead of drawing a zero-sized
       // shape, so the second point can be clicked — or typed
       if (!travelled && !E.drag.sticky) { E.drag.sticky = true; drawSketch(); syncHint(); return; }
-      var sr = cv.getBoundingClientRect();
-      finishTwoPointTool(snapPt(toUV(e.clientX - sr.left, e.clientY - sr.top)));
+      finishTwoPointTool(snapPt(toUV(releasePoint.x, releasePoint.y)));
       return;
     }
     if (E.drag && E.drag.mode === "spoint") {
@@ -9934,7 +10104,7 @@ function wireSketch() {
       return;
     }
     if (E.drag && E.drag.mode === "draw") {
-      var r = cv.getBoundingClientRect(), uv = toUV(e.clientX - r.left, e.clientY - r.top);
+      var r = cv.getBoundingClientRect(), uv = toUV(releasePoint.x, releasePoint.y);
       var sp = snapPt(uv), u1 = sp.u, v1 = sp.v, u0 = E.drag.u, v0 = E.drag.v;
       if (Math.abs(u1 - u0) > 1 || Math.abs(v1 - v0) > 1) {
         pushUndo(t("opDraw"));
@@ -9952,6 +10122,16 @@ function wireSketch() {
     }
     E.drag = null;
     drawSketch();
+  });
+  cv.addEventListener("pointercancel", function (e) {
+    if(touchPrecisionTrialOwns(e.pointerId)){
+      releaseTouchPrecisionTrial(e.pointerId,true);E.touchPrecision=null;drawSketch();return;
+    }
+    if (E.touchPrecision && E.touchPrecision.pointerId === e.pointerId) {
+      E.touchPrecision = null;
+      E.drag = null;
+      drawSketch();
+    }
   });
   cv.addEventListener("dblclick", function (e) {
     if (E.mode === "drawing") {
@@ -10046,6 +10226,7 @@ function wireSketch() {
     }
     cv.addEventListener("touchstart", function (e) {
       if (e.touches.length === 2) {
+        E.touchPrecision = null;
         pinch = { dist: d2(e) };
       }
     }, { passive: true });
@@ -10080,7 +10261,10 @@ function wireSketch() {
     cv.addEventListener("touchend", end);
     cv.addEventListener("touchcancel", end);
   })();
-  cv.addEventListener("pointerleave", function () { E._mouse = null; syncStatus(); });
+  cv.addEventListener("pointerleave", function () {
+    if (!E.drag) E.touchPrecision = null;
+    E._mouse = null; syncStatus();
+  });
   cv.addEventListener("contextmenu", function (e) {
     e.preventDefault();
     if (threeFinger()) return;
@@ -13017,6 +13201,7 @@ function setMode(m) {
   m = m === "3d" ? "3d" : m === "drawing" ? "drawing" : "2d";
   E.mode = m;
   E.modelPlaneActive = false;
+  E.touchPrecision = null;
   if (E.pv) E.pv.clearFixedFrame(false);
   if (m === "3d") E.tool = "select";
   if (m === "drawing") E.tool = "select";

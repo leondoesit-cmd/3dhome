@@ -41,22 +41,15 @@ function presetById(id) {
   return WALL_DRAW_PRESETS[0];
 }
 
-export var TOUCH_DRAW_OFFSET_PX = 52;
-
 export function isWallDrawTool(tool) {
   return !!WALL_DRAW_TOOLS[tool];
 }
 
-export function touchEffectiveOffsetY(oy, pointerType, tool, action) {
-  if (pointerType !== "touch") return oy;
-  /* Lift only authored geometry.  `action === "wall"` is also used while
-     translating an existing wall with Select; offsetting that pointer makes
-     the wall jump by 52px on the first move. */
-  var lifted = tool === "wall" || tool === "arcwall" || tool === "rect" ||
-    tool === "slabvoid" || tool === "roomDivider";
-  if (!lifted) return oy;
-  var offset = Math.min(TOUCH_DRAW_OFFSET_PX, Math.max(0, oy - 12));
-  return oy - offset;
+/* True while a finger is authoring geometry. The numbers then live in one
+   touch readout, so geometry/status copies stand down. */
+export function touchDrawing() {
+  var tc = S.touchContact;
+  return !!(tc && tc.pointerId != null && tc.kind);
 }
 
 export function resolveWallDrawDefaults() {

@@ -24,7 +24,7 @@ import {
 import {
   applyWallDrawDefaults, drawFaceBack, isWallDrawTool, extendToHit, throughCrossings,
   offsetGhost, offsetSideFromCursor, joinProposal, paintWallWithDefaults,
-  reverseWallStyle, resolveWallDrawDefaults, touchEffectiveOffsetY, TOUCH_DRAW_OFFSET_PX,
+  reverseWallStyle, resolveWallDrawDefaults,
 } from "./wall_draw.js";
 import { makeArcFromThreePoints } from "./wall_curves.js";
 import {
@@ -35,7 +35,7 @@ import { isLamp } from "./furniture.js";
 import { holdToWall, reseatHeldItems } from "./item_align.js";
 import { applyAutoFace, markManualRot, rotStep } from "./item_orient.js";
 import { t } from "./i18n.js";
-import { plan, render2D, fitView, wx, wz, dropPoint, toBasePx, planRotRad, pickCon } from "./plan2d.js";
+import { plan, render2D, fitView, sx, sz, wx, wz, rotatePx, dropPoint, toBasePx, planRotRad, pickCon, touchLensDistanceMap } from "./plan2d.js";
 import { select, fillProps, refreshTree, flash, setLockStruct, placeFurnAt } from "./ui.js";
 import { syncWallEnd } from "./ui_props.js";
 import {
@@ -94,6 +94,14 @@ import {
   syncWarnHighlight, setConstraintHover, renderWarnPanel,
 } from "./ui_warn.js";
 import { hudKeydown, onDrawEnded, updateCadHud, entryOpen } from "./cad_hud.js";
+import {
+  beginTouchPrecision, planTouchPrecisionKind, touchPrecisionPoint, updateTouchPrecision,
+} from "./touch_precision.js";
+import {
+  cancelTouchPrecisionTrial, dispatchPrecisionCommit, dispatchPrecisionMove,
+  getTouchPrecisionMode, getTouchPrecisionPrefs, releaseTouchPrecisionTrial, startTouchPrecisionTrial,
+  touchPrecisionTrialOwns, updateTouchPrecisionTrial,
+} from "./touch_precision_ui.js";
 
 /* ---- hit testing (world cm -> selection) ----
    A fingertip covers roughly a 9mm disc; a mouse cursor covers one pixel. The
@@ -102,8 +110,6 @@ import { hudKeydown, onDrawEnded, updateCadHud, entryOpen } from "./cad_hud.js";
    landed on a corner actually grabs it. Only PICKING grows — snap thresholds
    stay put, since those decide what the design becomes, not what you hit. */
 export var PICK_SLOP = 1;
-export { touchEffectiveOffsetY, TOUCH_DRAW_OFFSET_PX };
-
 export function setPickSlop(pointerType) {
   PICK_SLOP = pointerType === "touch" ? 1.9 : 1;
 }
@@ -424,6 +430,7 @@ function planPickSurface(p, cx, cz) {
 
 /* ---- tools ---- */
 export function setTool(toolName) {
+  cancelTouchPrecisionTrial();
   if (!toolName) toolName = "select";
   if (isElevation() && isWallDrawTool(toolName)) {
     flash(t("tool_plan_only"));
@@ -2813,7 +2820,62 @@ export function initInteraction() {
     nudgeT = 0, // active touch pointers + pinch state + last arrow-nudge time
     eraseSeen = null,
     erasePushed = false,
-    spacePan = false;
+    spacePan = false,
+    touchHostPlacement = null;
+  function planPrecisionPoint(e, ox, oy, bounds, begin) {
+    if (!e || e.pointerType !== "touch") return { x: ox, y: oy };
+    var kind = planTouchPrecisionKind(S.tool, S.placeType);
+    if (!kind) {
+      S.touchContact = null;
+      return { x: ox, y: oy };
+    }
+    if (begin || !S.touchContact || S.touchContact.pointerId !== e.pointerId || S.touchContact.kind !== kind)
+      S.touchContact = beginTouchPrecision(e, ox, oy, bounds, kind);
+    else updateTouchPrecision(S.touchContact, ox, oy);
+    return touchPrecisionPoint(S.touchContact, ox, oy);
+  }
+  function beginPlanPrecisionTrial(e, ox, oy) {
+    var mode = getTouchPrecisionMode();
+    if (mode === "lens") return false;
+    S.touchContact = null;
+    startTouchPrecisionTrial({
+      mode: mode,
+      pointerId: e.pointerId,
+      canvas: plan,
+      x: ox,
+      y: oy,
+      axes: ["X", "Z"],
+      unitLabel: t("cm"),
+      sourceCanvases: function () { return [plan]; },
+      screenToModel: function (point) { return { x: wx(point.x, point.y), y: wz(point.x, point.y) }; },
+      modelToScreen: function (point) {
+        var screen = rotatePx(sx(point.x), sz(point.y));
+        return { x: screen.x, y: screen.y };
+      },
+      describe: function (point) {
+        var world = { x: wx(point.x, point.y), z: wz(point.x, point.y) };
+        var secondary = mode === "rough" ? "1:" + getTouchPrecisionPrefs().refineRatio : "";
+        if (S.drawing && S.drawFrom != null && S.nodes[S.drawFrom]) {
+          var from = S.nodes[S.drawFrom], length = Math.hypot(world.x - from.x, world.z - from.z);
+          var angle = Math.atan2(world.z - from.z, world.x - from.x) * 180 / Math.PI;
+          secondary = "L " + Math.round(length * 10) / 10 + " " + t("cm") + " · ∠ " + Math.round(angle * 10) / 10 + "°";
+        }
+        return { primary:"X " + Math.round(world.x * 10) / 10 + " · Z " + Math.round(world.z * 10) / 10, secondary:secondary };
+      },
+      getDistances: function (point) { return touchLensDistanceMap(point.x, point.y, true); },
+      onMove: function (point) { dispatchPrecisionMove(plan, point); },
+      onSnap: function (direction, point) {
+        var count = Math.max(1, (S.snapAlts || []).length);
+        S.snapCycle = ((Number(S.snapCycle) || 0) + direction + count) % count;
+        var snapped = snapPoint(wx(point.x, point.y), wz(point.x, point.y), S.drawFrom);
+        var screen = rotatePx(sx(snapped.x), sz(snapped.z));
+        return { x:screen.x, y:screen.y };
+      },
+      onConfirm: function (point) { dispatchPrecisionCommit(plan, point); },
+      onCancel: function () { S.touchContact=null; S.previewPt=null; S.snapGuides=[]; render2D(); },
+    });
+    return true;
+  }
   function setSpacePan(on) {
     spacePan = !!on;
     if (plan) plan.classList.toggle("space-pan", spacePan);
@@ -2848,6 +2910,41 @@ export function initInteraction() {
     }
     eraseSeen[key] = 1;
     if (applyRemove(hit)) finishRemove();
+  }
+  function placeOpeningAt(tool, px, pz) {
+    var ws = S.walls.filter(function (w) {
+      var projected = wallProject(w, px, pz);
+      return projected && projected.distance < w.thickness / 2 + tolCm(12);
+    });
+    if (!ws.length) {
+      flash(t("opening_need_wall"));
+      return false;
+    }
+    pushHistory();
+    var made = null,
+      defs = {
+        door: { width: 90, height: 205, sill: 0 },
+        window: { width: 120, height: 120, sill: 90 },
+        passage: { width: 120, height: 210, sill: 0 },
+      },
+      dd = defs[tool];
+    ws.forEach(function (w) {
+      var gm = wallGeom(w), landing = wallProject(w, px, pz);
+      var s = landing ? landing.s : 0;
+      var o = {
+        id: uid(), type: tool, wall: w.id, s: s,
+        width: dd.width, height: dd.height, sill: dd.sill,
+      };
+      o.s = clamp(o.s, o.width / 2, Math.max(o.width / 2, gm.L - o.width / 2));
+      S.openings.push(o);
+      if (!made) made = o;
+    });
+    if (!made) return false;
+    select({ kind: "opening", ref: made });
+    setTool("select");
+    S.dirty3D = true;
+    render2D();
+    return true;
   }
   /* ---- two-finger tap = undo ----
      The one editing action a phone user reaches for constantly, given a
@@ -2900,6 +2997,8 @@ export function initInteraction() {
     S.dragRoom = null;
     S.wallAngleGuide = null;
     S.alignX = S.alignZ = null;
+    S.touchContact = null;
+    touchHostPlacement = null;
     S.action = "pinch";
   }
   function updatePinch() {
@@ -2978,7 +3077,7 @@ export function initInteraction() {
   });
   plan.addEventListener("pointerdown", function (e) {
     setPickSlop(e.pointerType);
-    plan.setPointerCapture(e.pointerId);
+    if(e.isTrusted)plan.setPointerCapture(e.pointerId);
     var r = plan.getBoundingClientRect();
     var ox = e.clientX - r.left;
     var oy = e.clientY - r.top;
@@ -3087,14 +3186,11 @@ export function initInteraction() {
       // a long press is just a slow first click.
       if (!S.tool || S.tool === "select") armLongPress(e);
     }
-    var effOy = touchEffectiveOffsetY(oy, e.pointerType, S.tool, S.action);
-    if (e.pointerType === "touch" && effOy !== oy) {
-      S.touchContact = { ox: ox, oy: oy, effOy: effOy, pointerId: e.pointerId };
-    } else if (e.pointerType === "touch") {
-      S.touchContact = null;
-    }
-    var px = wx(ox, effOy),
-      pz = wz(ox, effOy);
+    if (e.pointerType === "touch" && planTouchPrecisionKind(S.tool, S.placeType) && beginPlanPrecisionTrial(e, ox, oy))
+      return;
+    var precisionPoint = planPrecisionPoint(e, ox, oy, r, true);
+    var px = wx(precisionPoint.x, precisionPoint.y),
+      pz = wz(precisionPoint.x, precisionPoint.y);
 
     /* Picking the OTHER side of a new dimension. Armed from the wall
        inspector, it swallows exactly one click and then disarms — a modal
@@ -3106,6 +3202,20 @@ export function initInteraction() {
         return;
       }
       finishConPick(px, pz);
+      return;
+    }
+
+    /* Host-based creation must hit the wall/item under the finger exactly, so
+       it uses no offset. Touch waits for release, however: the held frame can
+       show the magnified host and the user can slide to refine before commit. */
+    if (e.pointerType === "touch" && S.touchContact && S.touchContact.kind === "lens" &&
+        (S.placeType || S.tool === "door" || S.tool === "window" || S.tool === "passage")) {
+      touchHostPlacement = {
+        pointerId: e.pointerId,
+        tool: S.tool,
+        placeType: S.placeType,
+      };
+      render2D();
       return;
     }
 
@@ -3226,48 +3336,7 @@ export function initInteraction() {
       return;
     }
     if (S.tool === "door" || S.tool === "window" || S.tool === "passage") {
-      var ws = S.walls.filter(function (w) {
-        var projected = wallProject(w, px, pz);
-        return projected && projected.distance < w.thickness / 2 + tolCm(12);
-      });
-      if (!ws.length) {
-        flash(t("opening_need_wall"));
-        return;
-      }
-      pushHistory();
-      var made = null,
-        defs = {
-          door: { width: 90, height: 205, sill: 0 },
-          window: { width: 120, height: 120, sill: 90 },
-          passage: { width: 120, height: 210, sill: 0 },
-        },
-        dd = defs[S.tool];
-      ws.forEach(function (w) {
-        var gm = wallGeom(w), landing = wallProject(w, px, pz);
-        var s = landing ? landing.s : 0;
-        var o = {
-          id: uid(),
-          type: S.tool,
-          wall: w.id,
-          s: s,
-          width: dd.width,
-          height: dd.height,
-          sill: dd.sill,
-        };
-        o.s = clamp(
-          o.s,
-          o.width / 2,
-          Math.max(o.width / 2, gm.L - o.width / 2),
-        );
-        S.openings.push(o);
-        if (!made) made = o;
-      });
-      if (made) {
-        select({ kind: "opening", ref: made });
-        setTool("select");
-        S.dirty3D = true;
-        render2D();
-      }
+      placeOpeningAt(S.tool, px, pz);
       return;
     }
 
@@ -3726,6 +3795,10 @@ export function initInteraction() {
       }
       return;
     }
+    if (e.pointerType === "touch" && touchPrecisionTrialOwns(e.pointerId)) {
+      updateTouchPrecisionTrial(e.pointerId, e.offsetX, e.offsetY);
+      return;
+    }
     if (e.pointerType === "touch" && pointers[e.pointerId])
       pointers[e.pointerId] = { x: e.offsetX, y: e.offsetY };
     /* Hold Alt to drag WITHOUT the dimension solver pulling back. Every
@@ -3740,14 +3813,10 @@ export function initInteraction() {
       updatePinch();
       return;
     }
-    var effOy = touchEffectiveOffsetY(e.offsetY, e.pointerType, S.tool, S.action);
-    if (e.pointerType === "touch" && effOy !== e.offsetY) {
-      S.touchContact = { ox: e.offsetX, oy: e.offsetY, effOy: effOy, pointerId: e.pointerId };
-    } else if (e.pointerType === "touch") {
-      S.touchContact = null;
-    }
-    var px = wx(e.offsetX, effOy),
-      pz = wz(e.offsetX, effOy);
+    var moveRect = plan.getBoundingClientRect();
+    var movePoint = planPrecisionPoint(e, e.offsetX, e.offsetY, moveRect, false);
+    var px = wx(movePoint.x, movePoint.y),
+      pz = wz(movePoint.x, movePoint.y);
     sendPlanCursor(px, pz);
     /* "How far along this wall am I?" — answered for EVERY gesture, before any
        of the per-action branches return: hovering, dragging a piece, or drawing
@@ -3813,6 +3882,10 @@ export function initInteraction() {
       var plp = snapPoint(px, pz, null);
       S.previewPt = { x: plp.x, z: plp.z };
       render2D();
+      return;
+    }
+    if (S.tool === "door" || S.tool === "window" || S.tool === "passage") {
+      render2D(); // refresh the direct-touch lens while sliding along its host
       return;
     }
     // placeholder-point tool: ghost the snapped landing spot (snapPoint also
@@ -4204,6 +4277,28 @@ export function initInteraction() {
   function endAction(e) {
     cancelLongPress();
     stopAutoPan();
+    if (e && touchPrecisionTrialOwns(e.pointerId)) {
+      releaseTouchPrecisionTrial(e.pointerId, e.type === "pointercancel");
+      S.touchDrag = false;
+      S.touchContact = null;
+      delete pointers[e.pointerId];
+      render2D();
+      return;
+    }
+    if (touchHostPlacement && (!e || e.pointerId === touchHostPlacement.pointerId)) {
+      var pendingHost = touchHostPlacement;
+      touchHostPlacement = null;
+      if (e && e.type === "pointerup") {
+        var hostRect = plan.getBoundingClientRect();
+        var hostX = e.clientX - hostRect.left, hostY = e.clientY - hostRect.top;
+        var hostPoint = planPrecisionPoint(e, hostX, hostY, hostRect, false);
+        var hostPx = wx(hostPoint.x, hostPoint.y), hostPz = wz(hostPoint.x, hostPoint.y);
+        if (pendingHost.placeType && S.placeType === pendingHost.placeType)
+          placeFurnAt(pendingHost.placeType, hostPx, hostPz);
+        else if (S.tool === pendingHost.tool)
+          placeOpeningAt(pendingHost.tool, hostPx, hostPz);
+      }
+    }
     /* A first wall may be drawn in one press-drag-release gesture. Keep a
        click (or tiny hand jitter) as the first half of click-click placement;
        only a deliberate drag commits here. Do this before clearing the one-shot
@@ -4215,10 +4310,10 @@ export function initInteraction() {
         var wr = plan.getBoundingClientRect(),
           wox = e.clientX - wr.left,
           woy = e.clientY - wr.top;
-        var effWoy = touchEffectiveOffsetY(woy, e.pointerType, S.tool, S.action);
+        var releasePoint = planPrecisionPoint(e, wox, woy, wr, false);
         if (Math.hypot(wox - wp.x, woy - wp.y) > 5)
           {
-            wallPoint(snapWallPoint(wx(wox, effWoy), wz(wox, effWoy), S.drawFrom));
+            wallPoint(snapWallPoint(wx(releasePoint.x, releasePoint.y), wz(releasePoint.x, releasePoint.y), S.drawFrom));
             /* A drag is Chief Architect's normal one-wall gesture: release
                commits that wall and ends its rubber band. The Wall tool stays
                armed, so the next wall starts with another independent drag.

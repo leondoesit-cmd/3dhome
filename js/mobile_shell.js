@@ -28,6 +28,7 @@ import { setTool } from "./interaction.js";
 import { undo, redo, canUndo, canRedo } from "./history.js";
 import { toggleAid } from "./cad_hud.js";
 import { onAfterRender } from "./plan2d.js";
+import { mountPagedMenu, releasePagedMenu } from "./mobile_pages.js";
 
 var ctxBar = null,
   sheet = null,
@@ -36,6 +37,60 @@ var ctxBar = null,
   backdrop = null;
 var openSheet = null; // key of the sheet currently up, or null
 var lastSig = ""; // context-bar signature; a rebuild only happens when it changes
+var libraryPageHost = null;
+var transientPageHosts = [];
+
+function pageInspector() {
+  var active = document.querySelector("#right-inspector .grp.props.on");
+  if (!active) return;
+  document.querySelectorAll("#right-inspector .grp.props.mobile-paged-menu").forEach(function (panel) {
+    if (panel !== active) releasePagedMenu(panel);
+  });
+  /* Wall already owns five semantic tabs; nesting another pager would make
+     both controls compete for the same swipe. Every other inspector is still
+     a linear form and benefits from automatic cards. */
+  if (active.id === "wallProps") return;
+  mountPagedMenu(active, {
+    pinSelector: "#selname2, #selname_items, #selname3, #selname4, #selname_sv, #selname_mk, #selname_con, #selname_nd, #selname_walls",
+  });
+}
+
+function pageGeneratedSheet() {
+  if (!sheetBody || !sheetBody.children.length) return;
+  mountPagedMenu(sheetBody);
+}
+
+function pageLibrary() {
+  if (libraryPageHost) releasePagedMenu(libraryPageHost);
+  libraryPageHost = null;
+  if (openSheet !== "add") return;
+  var panes = Array.from(document.querySelectorAll("#left-sidebar [data-left-pane]"));
+  var active = panes.find(function (node) { return getComputedStyle(node).display !== "none"; });
+  if (!active) return;
+  var grid = active.querySelector(".furn-grid, .tree-list, .mep-list, .sh-list");
+  if (!grid || grid.children.length < 2) return;
+  libraryPageHost = grid;
+  mountPagedMenu(grid);
+}
+
+function pageTransientMenus() {
+  if (!compact()) return;
+  var open = Array.from(document.querySelectorAll(".dropdown-menu.open, #ctx-menu.as-sheet"));
+  transientPageHosts.forEach(function (host) {
+    if (open.indexOf(host) < 0) releasePagedMenu(host);
+  });
+  transientPageHosts = open;
+  open.forEach(function (host) {
+    if (!host.classList.contains("mobile-paged-menu")) mountPagedMenu(host);
+  });
+}
+
+function releasePages() {
+  if (sheetBody) releasePagedMenu(sheetBody);
+  if (libraryPageHost) releasePagedMenu(libraryPageHost);
+  libraryPageHost = null;
+  document.querySelectorAll("#right-inspector .grp.props.mobile-paged-menu").forEach(releasePagedMenu);
+}
 
 function $(id) {
   return document.getElementById(id);
@@ -74,6 +129,43 @@ function selId() {
   if (s.kind === "items") return "items:" + (s.refs || []).length;
   var r = s.ref;
   return s.kind + ":" + (r && (r.id != null ? r.id : r) );
+}
+
+/* The compact top bar is the stable identity line for every inspector. Mirror
+   the live inspector heading instead of rebuilding its naming rules here: it
+   keeps custom item/room names and translations identical to Properties. */
+function syncTopSelection() {
+  var identity = $("m-top-selection");
+  var nameOut = $("m-top-selection-name");
+  var phaseOut = $("m-top-selection-phase");
+  if (!identity || !nameOut || !phaseOut) return;
+
+  var active = document.querySelector("#right-inspector .grp.props.on");
+  var source = active && active.querySelector('[id^="selname"]');
+  var name = source ? source.textContent.trim() : "";
+  if (!name && S.sel) {
+    var cadName = $("cadName");
+    name = cadName ? cadName.textContent.trim() : "";
+  }
+  var phase = "";
+  var phaseTone = "";
+  if (S.sel && S.sel.kind === "wall") {
+    var wallPhase = $("w_phasePill");
+    phase = wallPhase && !wallPhase.hidden ? wallPhase.textContent.trim() : "";
+    if (wallPhase) {
+      if (wallPhase.classList.contains("ph-demolition")) phaseTone = "is-demolition";
+      else if (wallPhase.classList.contains("ph-existing")) phaseTone = "is-existing";
+      else if (wallPhase.classList.contains("ph-new")) phaseTone = "is-new";
+    }
+  }
+
+  var visible = !!(S.sel && name);
+  identity.hidden = !visible;
+  nameOut.textContent = visible ? name : "";
+  phaseOut.textContent = visible ? phase : "";
+  phaseOut.hidden = !phase;
+  phaseOut.className = "m-top-selection-phase" + (phaseTone ? " " + phaseTone : "");
+  identity.setAttribute("aria-label", visible ? (phase ? phase + " · " + name : name) : "");
 }
 /* ---- the contextual row ------------------------------------------------- */
 
@@ -235,6 +327,7 @@ function ensureSheet() {
 }
 
 function closeSheet() {
+  releasePages();
   openSheet = null;
   if (sheet) {
     sheet.classList.remove("on", "tall");
@@ -272,6 +365,8 @@ function showSheet(key) {
     }
     openSheet = key;
     syncNav();
+    if (key === "props") requestAnimationFrame(pageInspector);
+    if (key === "add") requestAnimationFrame(pageLibrary);
     return;
   }
   document.body.classList.remove("show-left", "show-right");
@@ -288,6 +383,7 @@ function showSheet(key) {
   backdrop.classList.add("on");
   document.body.classList.add("m-sheet-open");
   syncNav();
+  requestAnimationFrame(pageGeneratedSheet);
 }
 
 /* Tools: the same commands as the desktop rail, but as a labelled grid. The
@@ -296,7 +392,7 @@ function showSheet(key) {
    only way to find them was to swipe a toolbar nobody knew was swipeable. */
 function buildToolsSheet() {
   var grid = document.createElement("div");
-  grid.className = "m-grid";
+  grid.className = "m-grid m-icon-grid";
   var rail = $("plan-toolbar");
   if (!rail) return;
   rail.querySelectorAll("button").forEach(function (src) {
@@ -319,6 +415,8 @@ function buildToolsSheet() {
       var key = src.getAttribute("data-i18n-title");
       label = key ? t(key) : src.title || tool || act;
     }
+    b.setAttribute("aria-label", label);
+    b.title = label;
     b.innerHTML =
       '<i class="' + (ico ? ico.className : "ph ph-square") + '"></i><span>' + label + "</span>";
     b.addEventListener("click", function () {
@@ -337,12 +435,15 @@ function buildToolsSheet() {
 
 function buildViewSheet() {
   var grid = document.createElement("div");
-  grid.className = "m-grid m-grid-3";
+  grid.className = "m-grid m-grid-3 m-icon-grid";
   ["plan", "3d", "split"].forEach(function (k) {
     var b = document.createElement("button");
     b.type = "button";
     b.className = "m-grid-btn" + (viewMode() === k ? " on" : "");
-    b.innerHTML = '<i class="ph ' + VIEW_ICONS[k] + '"></i><span>' + t(VIEW_LABELS[k]) + "</span>";
+    var label = t(VIEW_LABELS[k]);
+    b.setAttribute("aria-label", label);
+    b.title = label;
+    b.innerHTML = '<i class="ph ' + VIEW_ICONS[k] + '"></i><span>' + label + "</span>";
     b.addEventListener("click", function () {
       if (window.__setViewMode) window.__setViewMode(k);
       closeSheet();
@@ -363,7 +464,7 @@ function buildMoreSheet() {
      a sweep would either lose the ones that belong here or resurrect the ones
      that don't. */
   var quick = document.createElement("div");
-  quick.className = "m-grid m-grid-4";
+  quick.className = "m-grid m-grid-4 m-icon-grid";
   ["btn_settings", "themeToggle", "langBtn", "shortcutsBtn", "friendsBtn"].forEach(function (id) {
     var src = document.getElementById(id);
     if (!src) return;
@@ -372,9 +473,12 @@ function buildMoreSheet() {
     b.className = "m-grid-btn";
     var ico = src.querySelector("i");
     var key = src.getAttribute("data-i18n-title") || src.getAttribute("data-i18n-aria");
+    var label = key ? t(key) : src.getAttribute("aria-label") || src.title || "";
+    b.setAttribute("aria-label", label);
+    b.title = label;
     b.innerHTML =
       '<i class="' + (ico ? ico.className : "ph ph-gear") + '"></i><span>' +
-      (key ? t(key) : src.getAttribute("aria-label") || src.title || "") +
+      label +
       "</span>";
     b.addEventListener("click", function () {
       closeSheet();
@@ -454,6 +558,8 @@ function syncNav() {
     } else if (k === "props") {
       b.disabled = !selKind() && openSheet !== "props";
     }
+    var labelNode = b.querySelector("span");
+    if (labelNode) b.setAttribute("aria-label", labelNode.textContent.trim());
   });
 }
 
@@ -490,6 +596,9 @@ function sig() {
 var lastSel = "";
 function sync(force) {
   if (!compact()) return;
+  /* Names can be edited without changing the selection signature. Keeping
+     this outside the early return makes the title follow those edits. */
+  syncTopSelection();
   var s = sig();
   if (!force && s === lastSig) return;
   lastSig = s;
@@ -519,6 +628,17 @@ export function initMobileShell() {
   });
   window.addEventListener("planner-tool", function () {
     sync(true);
+  });
+  window.addEventListener("planner-selection", function () {
+    requestAnimationFrame(function () {
+      syncTopSelection();
+      if (openSheet === "props") pageInspector();
+    });
+  });
+  document.addEventListener("click", function () { setTimeout(pageTransientMenus, 0); });
+  var left = $("left-sidebar");
+  if (left) left.addEventListener("click", function () {
+    if (openSheet === "add") setTimeout(pageLibrary, 0);
   });
   /* Picking a library item arms placement; keeping the borrowed library panel
      over the plan makes the next required tap impossible on a phone. */

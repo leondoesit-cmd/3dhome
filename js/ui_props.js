@@ -24,6 +24,7 @@ import {
 } from "./wall_constraints.js";
 import { frameSpec } from "./view3d.js";
 import { renderWarnPanel, setConstraintHover } from "./ui_warn.js";
+import { syncInspectorPreview } from "./inspector_preview.js";
 import {
   ensureWallTypes,
   normalizeWall,
@@ -199,6 +200,7 @@ export function select(s) {
   // picking a message row is not undone by this.
   S.warnSel = null;
   S.sel = s;
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("planner-selection"));
   // Selection is shared between the plan and 3D panes. Repaint is enough: the
   // 3D scene keeps a lightweight outline helper and does not need a rebuild.
   S.repaint3D = true;
@@ -327,12 +329,15 @@ var WALL_TABS = ["dims", "assembly", "openings", "joints", "finish"];
 export function wallTab(name) {
   if (WALL_TABS.indexOf(name) === -1) name = "dims";
   S.wallTab = name;
+  var props = document.getElementById("wallProps");
+  if (props) props.dataset.wallTab = name;
   var strip = document.getElementById("w_tabs");
   if (strip)
     strip.querySelectorAll("button[data-wtab]").forEach(function (b) {
       var on = b.dataset.wtab === name;
       b.classList.toggle("active", on);
       b.setAttribute("aria-selected", on ? "true" : "false");
+      b.tabIndex = on ? 0 : -1;
     });
   document.querySelectorAll("#wallProps .wi-pane").forEach(function (p) {
     p.classList.toggle("active", p.dataset.wpane === name);
@@ -345,9 +350,37 @@ function bindWallTabs() {
   var strip = document.getElementById("w_tabs");
   if (!strip) return;
   wallTabsBound = true;
+  strip.setAttribute("aria-orientation", "horizontal");
+  var tabs = Array.from(strip.querySelectorAll("button[data-wtab]"));
+  tabs.forEach(function (tab) {
+    var name = tab.dataset.wtab;
+    var pane = document.querySelector('#wallProps .wi-pane[data-wpane="' + name + '"]');
+    tab.id = tab.id || "w_tab_" + name;
+    if (pane) {
+      pane.id = pane.id || "w_pane_" + name;
+      tab.setAttribute("aria-controls", pane.id);
+      pane.setAttribute("aria-labelledby", tab.id);
+    }
+  });
   strip.addEventListener("click", function (e) {
     var b = e.target.closest("button[data-wtab]");
     if (b) wallTab(b.dataset.wtab);
+  });
+  strip.addEventListener("keydown", function (e) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    var current = e.target.closest("button[data-wtab]");
+    var index = tabs.indexOf(current);
+    if (index < 0) return;
+    e.preventDefault();
+    if (e.key === "Home") index = 0;
+    else if (e.key === "End") index = tabs.length - 1;
+    else {
+      var rtl = getComputedStyle(strip).direction === "rtl";
+      var forward = e.key === "ArrowRight" ? !rtl : rtl;
+      index = (index + (forward ? 1 : -1) + tabs.length) % tabs.length;
+    }
+    tabs[index].focus();
+    wallTab(tabs[index].dataset.wtab);
   });
 }
 
@@ -1703,6 +1736,7 @@ export function fillProps() {
   var shCtl = document.getElementById("smartItemControls");
   if (shCtl) { shCtl.style.display = "none"; shCtl.innerHTML = ""; }
   S.segPreview = null;
+  syncInspectorPreview();
   if (!S.sel) {
     showPanel("empty");
     return;

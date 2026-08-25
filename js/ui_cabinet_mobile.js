@@ -30,6 +30,7 @@ import { setTool, syncHint, draw, sizeCanvas } from "./ui_cabinet_view.js";
 import {
   splitSection, delSection, splitColumn, delColumn,
 } from "./ui_cabinet_inspect.js";
+import { mountPagedMenu, releasePagedMenu } from "./mobile_pages.js";
 
 var host = null, // #cabdes for this session (the overlay is rebuilt per open)
   ctxBar = null,
@@ -42,6 +43,7 @@ var host = null, // #cabdes for this session (the overlay is rebuilt per open)
   timer = null;
 var openSheet = null;
 var lastSig = "";
+var pageHost = null;
 // where the relocated nodes came from, so leaving compact can put them back
 var homes = [];
 
@@ -50,6 +52,21 @@ function q(sel) {
 }
 function compact() {
   return document.body.classList.contains("compact-nav");
+}
+
+function releasePages() {
+  if (pageHost) releasePagedMenu(pageHost);
+  pageHost = null;
+}
+
+function pageOpenMenu(key) {
+  releasePages();
+  if (key === "design") pageHost = q(".cb-left");
+  else if (key === "props") {
+    var groups = Array.from(host.querySelectorAll(".cb-right > .cb-grp"));
+    pageHost = groups.find(function (node) { return getComputedStyle(node).display !== "none"; }) || q(".cb-right");
+  } else pageHost = sheetBody;
+  if (pageHost) mountPagedMenu(pageHost, { pinSelector: ".cb-tabs, .cb-strip, .cb-icons" });
 }
 function roomy() {
   return document.body.classList.contains("dock-rail");
@@ -219,7 +236,7 @@ function renderCtx() {
    so the rail keeps owning its state and this stays a view of it. */
 function proxyGrid(sel, cols) {
   var grid = document.createElement("div");
-  grid.className = "cbm-grid" + (cols ? " cbm-grid-" + cols : "");
+  grid.className = "cbm-grid cbm-icon-grid" + (cols ? " cbm-grid-" + cols : "");
   (host.querySelectorAll(sel) || []).forEach(function (src) {
     var b = document.createElement("button");
     b.type = "button";
@@ -232,8 +249,12 @@ function proxyGrid(sel, cols) {
     var ax = src.getAttribute("data-ax");
     // T() answers "" for a key it does not have, so a plain || chain is enough.
     var label = (ax && T("mAx" + ax)) || (src.textContent || "").trim() || src.title || "";
+    var fallbackGlyph = (src.textContent || "").trim();
+    b.setAttribute("aria-label", label);
+    b.title = label;
     b.innerHTML =
-      (ico ? '<i class="' + ico.className + '"></i>' : "") + "<span>" + label + "</span>";
+      (ico ? '<i class="' + ico.className + '"></i>' : '<b class="cbm-glyph" aria-hidden="true">' + fallbackGlyph + "</b>") +
+      "<span>" + label + "</span>";
     b.addEventListener("click", function () {
       src.click();
       closeSheet();
@@ -261,6 +282,8 @@ function axisBtn(ax, slot) {
   var ico = src.querySelector("i");
   var key = "v" + ax.charAt(0).toUpperCase() + ax.slice(1);
   var label = T(key) || T("mAx" + ax) || (src.textContent || "").trim() || ax;
+  b.setAttribute("aria-label", label);
+  b.title = label;
   b.innerHTML =
     (ico ? '<i class="' + ico.className + '"></i>' : "") + "<span>" + label + "</span>";
   b.addEventListener("click", function () {
@@ -275,22 +298,10 @@ function buildViewSheet() {
   sheetBody.appendChild(proxyGrid("#cbViews .cb-vgroup:first-child button[data-mode]", 2));
   sheetBody.appendChild(section("mAxis"));
   var pad = document.createElement("div");
-  pad.className = "cbm-view-pad";
-  [
-    [null, "top", null],
-    ["left", "front", "right"],
-    [null, "back", null],
-  ].forEach(function (row) {
-    row.forEach(function (ax) {
-      if (!ax) {
-        var spacer = document.createElement("div");
-        spacer.setAttribute("aria-hidden", "true");
-        pad.appendChild(spacer);
-        return;
-      }
-      var b = axisBtn(ax, ax);
-      if (b) pad.appendChild(b);
-    });
+  pad.className = "cbm-view-pad cbm-icon-grid";
+  ["front", "back", "left", "right", "top"].forEach(function (ax) {
+    var b = axisBtn(ax, ax);
+    if (b) pad.appendChild(b);
   });
   sheetBody.appendChild(pad);
 
@@ -338,11 +349,13 @@ function duplicateCabinet() {
 function buildMoreSheet() {
   if (moreBody) sheetBody.appendChild(moreBody);
   var acts = document.createElement("div");
-  acts.className = "cbm-list";
+  acts.className = "cbm-grid cbm-icon-grid";
   if (E.it) {
     var dup = document.createElement("button");
     dup.type = "button";
-    dup.className = "cbm-list-btn";
+    dup.className = "cbm-grid-btn";
+    dup.setAttribute("aria-label", T("dupCab"));
+    dup.title = T("dupCab");
     dup.innerHTML = '<i class="ph ph-copy"></i><span>' + T("dupCab") + "</span>";
     dup.addEventListener("click", function () {
       closeSheet();
@@ -360,7 +373,9 @@ function buildMoreSheet() {
     if (!src) return;
     var b = document.createElement("button");
     b.type = "button";
-    b.className = "cbm-list-btn" + (row[3] ? " danger" : "");
+    b.className = "cbm-grid-btn" + (row[3] ? " danger" : "");
+    b.setAttribute("aria-label", T(row[2]));
+    b.title = T(row[2]);
     b.innerHTML = '<i class="ph ' + row[1] + '"></i><span>' + T(row[2]) + "</span>";
     b.addEventListener("click", function () {
       closeSheet();
@@ -375,6 +390,7 @@ function buildMoreSheet() {
 }
 
 function closeSheet() {
+  releasePages();
   openSheet = null;
   if (sheet) {
     sheet.classList.remove("on", "tall");
@@ -405,6 +421,7 @@ function showSheet(key) {
     host.classList.toggle("cb-show-right", key === "props");
     openSheet = key;
     syncNav();
+    requestAnimationFrame(function () { pageOpenMenu(key); });
     return;
   }
   sheetBody.innerHTML = "";
@@ -419,6 +436,7 @@ function showSheet(key) {
   sheet.setAttribute("aria-modal", "true");
   backdrop.classList.add("on");
   syncNav();
+  requestAnimationFrame(function () { pageOpenMenu(key); });
 }
 
 /* ---- nav ----------------------------------------------------------------- */
@@ -453,6 +471,8 @@ function syncNav() {
       // but it also carries finishes, hardware and the bill — always useful.
       b.disabled = false;
     }
+    var label = s ? s.textContent.trim() : T((NAV.filter(function (n) { return n.key === k; })[0] || {}).label || "");
+    if (label) b.setAttribute("aria-label", label);
   });
 }
 
@@ -563,7 +583,7 @@ function build() {
   nav.innerHTML = NAV.map(function (n) {
     return (
       '<button type="button" data-cbnav="' + n.key + '"' +
-      (n.primary ? ' class="cbm-primary"' : "") + '>' +
+      (n.primary ? ' class="cbm-primary"' : "") + ' aria-label="' + T(n.label) + '">' +
       '<i class="ph ' + n.icon + '"></i><span>' + T(n.label) + "</span></button>"
     );
   }).join("");

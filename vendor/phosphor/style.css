@@ -4623,3 +4623,22 @@
 .ph.ph-youtube-logo:before {
   content: "\e4fc";
 }
+
+/* ModelForge semantic aliases. These names predate Phosphor 2.1.2 or describe
+   domain objects more specifically than the upstream catalog. Each alias uses
+   the nearest canonical glyph codepoint, so it works across all five weights. */
+.ph.ph-axis-arrow:before { content: "\e1d6"; }       /* crosshair */
+.ph.ph-chandelier:before { content: "\ee2e"; }       /* lamp-pendant */
+.ph.ph-corners:before { content: "\e626"; }          /* frame-corners */
+.ph.ph-cubes-three:before { content: "\e1da"; }      /* cube */
+.ph.ph-dishwasher:before { content: "\ede8"; }       /* washing-machine */
+.ph.ph-distribute:before { content: "\e0a0"; }       /* arrows-left-right */
+.ph.ph-file-step:before { content: "\e232"; }        /* file-arrow-down */
+.ph.ph-fold:before { content: "\e704"; }             /* file-dashed */
+.ph.ph-fridge:before { content: "\e00e"; }           /* archive-box */
+.ph.ph-microwave:before { content: "\ed8c"; }        /* oven */
+.ph.ph-spotlight:before { content: "\e246"; }        /* flashlight */
+.ph.ph-star-fill:before { content: "\e46a"; }        /* star */
+.ph.ph-toast:before { content: "\e81c"; }            /* bread */
+.ph.ph-trapezoid:before { content: "\e6d0"; }        /* polygon */
+.ph.ph-window:before { content: "\e5da"; }           /* app-window */

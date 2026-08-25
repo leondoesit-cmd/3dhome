@@ -25,6 +25,15 @@
           var theme = localStorage.getItem("home3d_theme");
           if (["light", "soft", "mid", "dark"].indexOf(theme) < 0) theme = "light";
           document.documentElement.setAttribute("data-theme", theme);
+          var iconTheme = localStorage.getItem("home3d_icon_theme") || "lucide";
+          var oldIconThemes = {
+            soft: "lucide", air: "lucide", classic: "lucide",
+            technical: "tabler", blueprint: "tabler",
+            contrast: "mdi", forge: "mdi", solid: "material"
+          };
+          iconTheme = oldIconThemes[iconTheme] || iconTheme;
+          if (["lucide", "material", "mdi", "tabler", "huge", "cyber", "duotone", "retro", "brutalist", "sketch"].indexOf(iconTheme) < 0) iconTheme = "lucide";
+          document.documentElement.setAttribute("data-icon-theme", iconTheme);
           var ui = localStorage.getItem("home3d_ui");
           document.documentElement.setAttribute("data-ui", ui === "legacy" ? "legacy" : "modern");
         } catch (e) {}
@@ -67,21 +76,19 @@
     </script>
     <!-- EVERY dependency is vendored under /vendor and served from this origin.
          Nothing here may point at a CDN: the app has to boot with the network
-         unplugged. Inter/Rubik (subset woff2), Phosphor regular, Leaflet, three,
+         unplugged. Inter/Rubik (subset woff2), Phosphor fallback icons, Leaflet, three,
          Rapier, and cannon-es all live locally — see vendor/README.md for versions and
          how to refresh them. -->
     <link rel="stylesheet" href="vendor/fonts/fonts.css" />
-    <!-- Phosphor: only the `regular` weight is used (264 refs, no fill/bold/
-         thin/light/duotone), so only that stylesheet + its woff2/woff are
-         vendored. The upstream entry script is deliberately NOT used — it
-         injects all six weights from a CDN at runtime. -->
-    <link rel="stylesheet" href="vendor/phosphor/style.css" />
+    <!-- Phosphor regular is the first-paint fallback. Five independent SVG
+         libraries are bundled in js/icon_theme_assets.js and rendered locally. -->
+    <link rel="stylesheet" href="vendor/phosphor/style.css?v=icon-svg-1" />
     <!-- Leaflet: map picker for the real-world site integration (js/ui_site.js).
          defer — only touched when the site map picker opens (guarded in
          ui_site.js), so it must not block first paint. -->
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
     <script defer src="vendor/leaflet/leaflet.js"></script>
-    <link rel="stylesheet" href="css/styles.css?v=mobile-touch-3" />
+    <link rel="stylesheet" href="css/styles.css?v=mobile-bottom-sheet-1" />
   </head>
   <body>
     <div id="app">
@@ -279,6 +286,13 @@
         </div>
 
         <div class="tb-center">
+          <!-- On phones and foldables this mirrors the active selection into
+               the one genuinely global title position. Desktop keeps its
+               normal view controls here. -->
+          <div id="m-top-selection" class="m-top-selection" aria-live="polite" hidden>
+            <span id="m-top-selection-phase" class="m-top-selection-phase"></span>
+            <strong id="m-top-selection-name" class="m-top-selection-name"></strong>
+          </div>
           <div class="tb-pill modern-chrome" id="viewModePill">
             <button data-act="viewPlan" id="viewPlanBtn" data-i18n-title="view_plan" title="תוכנית">
               <i class="ph ph-blueprint"></i>
@@ -499,10 +513,10 @@
       <div id="workspace">
         <aside id="left-sidebar" data-left="library">
           <div class="left-tabs modern-chrome" id="leftTabs" role="tablist">
-            <button type="button" data-left-tab="library" class="active" data-i18n="left_tab_library">ספרייה</button>
-            <button type="button" data-left-tab="home" data-i18n="left_tab_home">בית</button>
-            <button type="button" data-left-tab="structure" data-i18n="left_tab_structure">מבנה</button>
-            <button type="button" data-left-tab="tree" data-i18n="left_tab_tree">עץ</button>
+            <button type="button" data-left-tab="library" class="active" data-i18n-aria="left_tab_library"><i class="ph ph-books" aria-hidden="true"></i><span data-i18n="left_tab_library">ספרייה</span></button>
+            <button type="button" data-left-tab="home" data-i18n-aria="left_tab_home"><i class="ph ph-house" aria-hidden="true"></i><span data-i18n="left_tab_home">בית</span></button>
+            <button type="button" data-left-tab="structure" data-i18n-aria="left_tab_structure"><i class="ph ph-building-office" aria-hidden="true"></i><span data-i18n="left_tab_structure">מבנה</span></button>
+            <button type="button" data-left-tab="tree" data-i18n-aria="left_tab_tree"><i class="ph ph-tree-structure" aria-hidden="true"></i><span data-i18n="left_tab_tree">עץ</span></button>
           </div>
           <div class="panel-section furn-panel" data-left-pane="library">
             <h3 data-i18n="library">ספרייה</h3>
@@ -761,6 +775,37 @@
               <span data-i18n="inspector">מאפיינים</span>
               <span id="costChip" class="cost-chip modern-chrome" hidden></span>
             </h3>
+            <!-- A selection-sized 3D window stays at the top of the inspector.
+                 It renders the live planner scene from its own orbit camera:
+                 dragging orbits, while wheel/pinch deliberately do not zoom. -->
+            <div
+              id="inspectorPreview"
+              class="inspector-preview"
+              data-i18n-aria="insp_preview_aria"
+              aria-label="תצוגה תלת־ממדית של הבחירה"
+              hidden
+            >
+              <canvas id="inspectorPreviewCanvas"></canvas>
+              <div id="inspectorPreviewState" class="inspector-preview-state">
+                <i class="ph ph-cube"></i>
+                <span data-i18n="insp_preview_loading">מכין תצוגה תלת־ממדית…</span>
+              </div>
+              <div class="inspector-preview-hint">
+                <i class="ph ph-hand-grabbing"></i>
+                <span data-i18n="insp_preview_hint">גרירה לסיבוב · הזום נעול</span>
+              </div>
+              <button
+                type="button"
+                id="inspectorPreviewReset"
+                class="inspector-preview-reset"
+                data-i18n-title="insp_preview_reset"
+                data-i18n-aria="insp_preview_reset"
+                title="התאם מחדש לבחירה"
+                aria-label="התאם מחדש לבחירה"
+              >
+                <i class="ph ph-frame-corners"></i>
+              </button>
+            </div>
             <div class="grp props" id="emptyProps">
               <div class="empty-state">
                 <i class="ph ph-cursor-click"></i>
@@ -780,16 +825,18 @@
               <!-- Wall inspector header: identity, phase, and the three verbs
                    that are worth reaching for from any tab. -->
               <div class="wi-head">
-                <span class="wi-id" id="selname">קיר</span>
-                <span class="wi-phase" id="w_phasePill"></span>
+                <div class="wi-identity">
+                  <span class="wi-phase" id="w_phasePill"></span>
+                  <span class="wi-id" id="selname">קיר</span>
+                </div>
                 <div class="wi-acts">
-                  <button class="wi-act" id="w_lockQuick" data-act="lockWallDim" data-i18n-title="cw_lockOn" title="מידות נעולות">
+                  <button class="wi-act" id="w_lockQuick" data-act="lockWallDim" data-i18n-title="cw_lockOn" data-i18n-aria="cw_lockOn" title="מידות נעולות">
                     <i class="ph ph-lock-key-open"></i>
                   </button>
-                  <button class="wi-act" id="w_flipQuick" data-act="reverseWallLayers" data-i18n-title="wallReverse" title="הפוך פנים/חוץ">
+                  <button class="wi-act" id="w_flipQuick" data-act="reverseWallLayers" data-i18n-title="wallReverse" data-i18n-aria="wallReverse" title="הפוך פנים/חוץ">
                     <i class="ph ph-swap"></i>
                   </button>
-                  <button class="wi-act wi-act-danger" data-act="deleteSel" data-i18n-title="del" title="מחק">
+                  <button class="wi-act wi-act-danger" data-act="deleteSel" data-i18n-title="del" data-i18n-aria="del" title="מחק">
                     <i class="ph ph-trash"></i>
                   </button>
                 </div>
@@ -799,21 +846,21 @@
               <div class="wi-stats" id="w_stats"></div>
 
               <div class="wi-tabs" id="w_tabs" role="tablist">
-                <button type="button" role="tab" data-wtab="dims" data-i18n-title="wtab_dims" title="מידות וצורה">
+                <button type="button" role="tab" data-wtab="dims" data-i18n-title="wtab_dims" data-i18n-aria="wtab_dims" title="מידות וצורה">
                   <i class="ph ph-ruler"></i><span data-i18n="wtab_dims">מידות</span>
                 </button>
-                <button type="button" role="tab" data-wtab="assembly" data-i18n-title="wtab_assembly" title="מבנה">
+                <button type="button" role="tab" data-wtab="assembly" data-i18n-title="wtab_assembly" data-i18n-aria="wtab_assembly" title="מבנה">
                   <i class="ph ph-stack"></i><span data-i18n="wtab_assembly">מבנה</span>
                 </button>
-                <button type="button" role="tab" data-wtab="openings" data-i18n-title="wtab_openings" title="פתחים">
+                <button type="button" role="tab" data-wtab="openings" data-i18n-title="wtab_openings" data-i18n-aria="wtab_openings" title="פתחים">
                   <i class="ph ph-door-open"></i><span data-i18n="wtab_openings">פתחים</span>
                   <span class="wi-tab-badge" id="w_tabBadgeOpen" hidden></span>
                 </button>
-                <button type="button" role="tab" data-wtab="joints" data-i18n-title="wtab_joints" title="חיבורים ואילוצים">
+                <button type="button" role="tab" data-wtab="joints" data-i18n-title="wtab_joints" data-i18n-aria="wtab_joints" title="חיבורים ואילוצים">
                   <i class="ph ph-blueprint"></i><span data-i18n="wtab_joints">אילוצים</span>
                   <span class="wi-tab-badge bad" id="w_tabBadgeCon" hidden></span>
                 </button>
-                <button type="button" role="tab" data-wtab="finish" data-i18n-title="wtab_finish" title="גימור וכמויות">
+                <button type="button" role="tab" data-wtab="finish" data-i18n-title="wtab_finish" data-i18n-aria="wtab_finish" title="גימור וכמויות">
                   <i class="ph ph-paint-roller"></i><span data-i18n="wtab_finish">גימור</span>
                 </button>
               </div>
@@ -2026,7 +2073,7 @@
         }
       }
     </script>
-    <script type="module" src="js/main.js?v=planner-chrome-1"></script>
+    <script type="module" src="js/main.js?v=inspector-preview-3"></script>
     <script type="module" src="js/planner_tutorial.js?v=wall-guide-6"></script>
     <script type="module" src="js/planner_chrome.js?v=planner-chrome-1"></script>
   </body>

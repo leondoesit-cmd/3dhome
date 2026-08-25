@@ -128,6 +128,42 @@ export function getDynGroup() {
 export function getRigLights() {
   return { sun: sun, hemi: hemi, fill: flt, stars: stars, sky: skyDome };
 }
+// A detached copy of the live selection bounds for secondary cameras such as
+// the inspector preview. Returning a clone prevents its fit calculations from
+// mutating the Box3 used by the main view's selection helper.
+export function getSelectionBox3D() {
+  var box = selected3DBox();
+  return box ? box.clone() : null;
+}
+// Root objects for the current spatial selection. Secondary views can clone
+// these into a non-destructive overlay so the selection remains legible even
+// when it is tucked directly behind a wall. The live objects never leave dyn.
+export function getSelectionObjects3D() {
+  if (!S.sel || !dyn) return [];
+  var out = [];
+  function add(object) {
+    if (object && out.indexOf(object) < 0) out.push(object);
+  }
+  if (S.sel.kind === "item") {
+    var item = itemCache.get(S.sel.ref && S.sel.ref.id);
+    add(item && item.g);
+  } else if (S.sel.kind === "items") {
+    (S.sel.refs || []).forEach(function (ref) {
+      var cached = itemCache.get(ref && ref.id);
+      add(cached && cached.g);
+    });
+  } else if (S.sel.kind === "wall" || S.sel.kind === "walls") {
+    var walls = S.sel.kind === "wall" ? [S.sel.ref] : S.sel.refs || [];
+    dyn.traverse(function (object) {
+      if (object.userData && walls.indexOf(object.userData.wall) >= 0) add(object);
+    });
+  } else if (S.sel.kind === "opening") {
+    dyn.traverse(function (object) {
+      if (object.userData && object.userData.opening === S.sel.ref) add(object);
+    });
+  }
+  return out;
+}
 // external per-frame controller (RC race mode, js/rc.js): fn(deltaMs, time)
 // returns truthy while it needs continuous painting. While set, it owns the
 // camera — upd() goes inert so orbit input can't fight it.
@@ -1419,6 +1455,12 @@ function selected3DBox() {
     (S.sel.refs || []).forEach(function (it) {
       var c = itemCache.get(it && it.id);
       addObject(c && c.g);
+    });
+  } else if (S.sel.kind === "walls") {
+    (S.sel.refs || []).forEach(function (wall) {
+      dyn.traverse(function (o) {
+        if (o.userData && o.userData.wall === wall) addObject(o);
+      });
     });
   } else if (S.sel.kind === "wall" || S.sel.kind === "opening") {
     var field = S.sel.kind, ref = S.sel.ref;

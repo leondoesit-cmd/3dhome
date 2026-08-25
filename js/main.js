@@ -187,9 +187,10 @@ function renderFurnUI() {
     );
     html += `<div class="furn-grid">`;
     matches.slice(0, 60).forEach(type => {
-      html += `<div class="furn-item" data-type="${escapeHTML(type)}" draggable="${isTouch ? 'false' : 'true'}">
+      const label = escapeHTML(flabel(type));
+      html += `<div class="furn-item" data-type="${escapeHTML(type)}" draggable="${isTouch ? 'false' : 'true'}" role="button" tabindex="0" aria-label="${label}" title="${label}">
         ${thumbTag(type)}
-        <span>${escapeHTML(flabel(type))}</span>
+        <span>${label}</span>
       </div>`;
     });
     html += `</div>`;
@@ -199,6 +200,11 @@ function renderFurnUI() {
     hydrateThumbs(ui);
     ui.querySelectorAll(".furn-item").forEach(item => {
       item.addEventListener("click", () => addFurnItem(item.dataset.type));
+      item.addEventListener("keydown", e => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        addFurnItem(item.dataset.type);
+      });
     });
     return;
   }
@@ -217,14 +223,15 @@ function renderFurnUI() {
     html += `<div class="furn-place-banner">${escapeHTML(t("furn_place_armed", { name: flabel(S.placeType) }))}</div>`;
   }
 
-  html += `<div class="furn-grid">`;
+  html += `<div class="furn-grid${navPath.length < 2 ? " furn-grid-nav" : ""}">`;
 
   if (navPath.length === 0) {
     // ROOT: Show Categories
     CATALOG.forEach(cat => {
-      html += `<div class="furn-item furn-nav" data-nav="${escapeHTML(cat.id)}">
+      const label = escapeHTML(clabel(cat));
+      html += `<div class="furn-item furn-nav" data-nav="${escapeHTML(cat.id)}" role="button" tabindex="0" aria-label="${label}" title="${label}">
         ${navIcon(cat)}
-        <span>${escapeHTML(clabel(cat))}</span>
+        <span>${label}</span>
       </div>`;
     });
   } else if (navPath.length === 1) {
@@ -232,9 +239,10 @@ function renderFurnUI() {
     const activeCat = CATALOG.find(c => c.id === navPath[0]);
     if (activeCat && activeCat.sub) {
       activeCat.sub.forEach(sub => {
-        html += `<div class="furn-item furn-nav" data-nav="${escapeHTML(sub.id)}">
+        const label = escapeHTML(clabel(sub));
+        html += `<div class="furn-item furn-nav" data-nav="${escapeHTML(sub.id)}" role="button" tabindex="0" aria-label="${label}" title="${label}">
           ${navIcon(sub)}
-          <span>${escapeHTML(clabel(sub))}</span>
+          <span>${label}</span>
         </div>`;
       });
     }
@@ -246,9 +254,10 @@ function renderFurnUI() {
       if (activeSub && activeSub.items) {
         activeSub.items.forEach(type => {
           if (!FURN[type]) return;
-          html += `<div class="furn-item" data-type="${escapeHTML(type)}" draggable="${isTouch ? 'false' : 'true'}">
+          const label = escapeHTML(flabel(type));
+          html += `<div class="furn-item" data-type="${escapeHTML(type)}" draggable="${isTouch ? 'false' : 'true'}" role="button" tabindex="0" aria-label="${label}" title="${label}">
             ${thumbTag(type)}
-            <span>${escapeHTML(flabel(type))}</span>
+            <span>${label}</span>
           </div>`;
         });
       }
@@ -268,13 +277,19 @@ function renderFurnUI() {
   });
 
   ui.querySelectorAll('.furn-item').forEach(item => {
-    item.addEventListener('click', (e) => {
+    function activate() {
       if (item.dataset.type) {
         addFurnItem(item.dataset.type);
       } else if (item.dataset.nav) {
         navPath.push(item.dataset.nav);
         renderFurnUI();
       }
+    }
+    item.addEventListener('click', activate);
+    item.addEventListener('keydown', e => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      activate();
     });
   });
 }

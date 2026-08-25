@@ -7,6 +7,8 @@ import { t, getLang } from "./i18n.js";
 import { pushHistory } from "./history.js";
 import { render2D, fitView } from "./plan2d.js";
 import { flash, openModal } from "./ui.js";
+import { buildIconSettingsPane, initIconSettings } from "./icon_settings.js";
+import { buildTouchPrecisionSettings } from "./touch_precision_ui.js";
 import { updateCost } from "./ui_tree.js";
 import { applySite, setStreetViewCube } from "./view3d.js";
 import {
@@ -226,6 +228,64 @@ function importFootprintWalls() {
 // map-source select controls the interactive picker's base imagery.
 function openSettings() {
   var m = openModal(t("settings_title"));
+  m.modal.classList.add("settings-modal");
+  m.body.classList.add("settings-modal-body");
+
+  var tabs = el("div", "settings-tabs");
+  tabs.setAttribute("role", "tablist");
+  var generalTab = el("button", "active");
+  generalTab.type = "button";
+  generalTab.setAttribute("role", "tab");
+  generalTab.setAttribute("aria-selected", "true");
+  generalTab.innerHTML = '<i class="ph ph-sliders-horizontal"></i><span>' + t("settings_general_tab") + "</span>";
+  var iconsTab = el("button");
+  iconsTab.type = "button";
+  iconsTab.setAttribute("role", "tab");
+  iconsTab.setAttribute("aria-selected", "false");
+  iconsTab.innerHTML = '<i class="ph ph-shapes"></i><span>' + t("settings_icons_tab") + "</span>";
+  var touchTab = el("button");
+  touchTab.type = "button";
+  touchTab.setAttribute("role", "tab");
+  touchTab.setAttribute("aria-selected", "false");
+  touchTab.innerHTML = '<i class="ph ph-hand-tap"></i><span>' + t("settings_touch_tab") + "</span>";
+  tabs.appendChild(generalTab);
+  tabs.appendChild(touchTab);
+  tabs.appendChild(iconsTab);
+
+  var panes = el("div", "settings-panes");
+  var generalPane = el("section", "settings-pane settings-general-pane");
+  generalPane.setAttribute("role", "tabpanel");
+  var iconsPane = el("section", "settings-pane settings-icons-pane");
+  iconsPane.setAttribute("role", "tabpanel");
+  iconsPane.hidden = true;
+  iconsPane.appendChild(buildIconSettingsPane(m.close));
+  var touchPane = el("section", "settings-pane settings-touch-pane");
+  touchPane.setAttribute("role", "tabpanel");
+  touchPane.hidden = true;
+  touchPane.appendChild(buildTouchPrecisionSettings());
+  panes.appendChild(generalPane);
+  panes.appendChild(touchPane);
+  panes.appendChild(iconsPane);
+  m.body.appendChild(tabs);
+  m.body.appendChild(panes);
+
+  function showPane(which) {
+    var showIcons = which === "icons";
+    var showTouch = which === "touch";
+    generalPane.hidden = showIcons || showTouch;
+    touchPane.hidden = !showTouch;
+    iconsPane.hidden = !showIcons;
+    generalTab.classList.toggle("active", !showIcons && !showTouch);
+    touchTab.classList.toggle("active", showTouch);
+    iconsTab.classList.toggle("active", showIcons);
+    generalTab.setAttribute("aria-selected", showIcons || showTouch ? "false" : "true");
+    touchTab.setAttribute("aria-selected", showTouch ? "true" : "false");
+    iconsTab.setAttribute("aria-selected", showIcons ? "true" : "false");
+    m.modal.classList.toggle("showing-icon-settings", showIcons);
+  }
+  generalTab.onclick = function () { showPane("general"); };
+  touchTab.onclick = function () { showPane("touch"); };
+  iconsTab.onclick = function () { showPane("icons"); };
 
   // -- Google API key -------------------------------------------------------
   var keyLbl = el("span", "t", t("site_gkey_l"));
@@ -298,7 +358,7 @@ function openSettings() {
   mapHint.style.cssText = "font-size:10px; opacity:0.75;";
 
   [keyLbl, keyRow, keyHint, mapLbl, mapSel, mapHint].forEach(function (n) {
-    m.body.appendChild(n);
+    generalPane.appendChild(n);
   });
 
   var done = el("button", "btn-accent", t("close"));
@@ -589,6 +649,7 @@ function syncPanel() {
 export { syncPanel as syncSiteUI };
 
 export function initSite() {
+  initIconSettings();
   var pick = $("site_pick");
   if (pick) pick.onclick = openMapModal;
 

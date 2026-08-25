@@ -25,6 +25,8 @@
    element it had — the sheets HOST the real panels rather than copying them,
    so the tree, the inspector and the ribbon have exactly one implementation. */
 
+import { mountPagedMenu, releasePagedMenu } from "./mobile_pages.js";
+
 var api = null,
   ctxBar = null,
   nav = null,
@@ -39,6 +41,35 @@ var lastSig = "";
 var openCommandGroups = {};
 var statusBanner = null;
 var selectionBar = null;
+var pageHost = null;
+var pageState = null;
+
+function releasePages() {
+  if (pageHost) releasePagedMenu(pageHost);
+  pageHost = null;
+  pageState = null;
+}
+
+function focusPagedTarget(selector) {
+  if (!pageState || !pageHost) return;
+  var target = pageHost.querySelector(selector);
+  var page = target && target.closest(".mobile-menu-page");
+  if (!page) return;
+  var pages = Array.from(page.parentNode.children);
+  pageState.show(pages.indexOf(page));
+}
+
+function pageOpenSheet() {
+  releasePages();
+  pageHost = (openKey === "tree" || openKey === "cmd" || openKey === "props") && borrowed && borrowed.node
+    ? borrowed.node
+    : sheetBody;
+  if (!pageHost) return;
+  pageState = mountPagedMenu(pageHost, {
+    pinSelector: ".md-strip, .md-right-tabs, .md-inspector-tabs, .md-command-tabs",
+  });
+  if (openKey === "tree") focusPagedTarget("#mdQuickSettings:not([hidden])");
+}
 
 function t(k) {
   return api && api.t ? api.t(k) : k;
@@ -230,6 +261,7 @@ function borrow(node, into) {
   node.classList.add("md-borrowed");
 }
 function release() {
+  releasePages();
   if (!borrowed) return;
   borrowed.node.classList.remove("md-borrowed");
   // the drawer state is a phone affordance; the desktop ribbon shows every group
@@ -432,6 +464,7 @@ function showSheet(key, toggle) {
   backdrop.classList.add("on");
   document.body.classList.add("m-sheet-open");
   syncNav();
+  requestAnimationFrame(pageOpenSheet);
 }
 
 function setSheetSearch(on) {
@@ -486,6 +519,8 @@ function gridBtn(glyph, label, on, run) {
   var b = document.createElement("button");
   b.type = "button";
   b.className = "m-grid-btn" + (on ? " on" : "");
+  b.setAttribute("aria-label", label);
+  b.title = label;
   b.innerHTML = glyph + "<span>" + label + "</span>";
   b.addEventListener("click", function () {
     run();
@@ -518,7 +553,7 @@ function buildViewSheet() {
   var st = api.state();
   var short = shortPhone();
   if (!short) section(t("msheet_mode"));
-  var g1 = grid("m-grid-3");
+  var g1 = grid("m-grid-3 m-icon-grid");
   [
     ["3d", "mode3d"],
     ["2d", "mode2d"],
@@ -538,7 +573,7 @@ function buildViewSheet() {
   });
 
   if (!short) section(t("msheet_views"));
-  var g2 = grid(short ? "m-grid-5" : "m-grid-4");
+  var g2 = grid((short ? "m-grid-5" : "m-grid-4") + " m-icon-grid");
   [
     ["top", "view_top", "view_top_short"],
     ["front", "view_front", "view_front_short"],
@@ -555,12 +590,12 @@ function buildViewSheet() {
   if (short) {
     g2.appendChild(gridBtn(icon("fit"), t("zoomFit"), false, function () { api.zoom("fit"); closeSheet(); }));
   } else {
-    var g2b = grid("m-grid-1");
+    var g2b = grid("m-grid-1 m-icon-grid");
     g2b.appendChild(gridBtn(icon("fit"), t("zoomFit"), false, function () { api.zoom("fit"); closeSheet(); }));
   }
 
   if (!short) section(t("displayStyle"));
-  var g3 = grid("m-grid-4");
+  var g3 = grid("m-grid-4 m-icon-grid");
   g3.appendChild(
     gridBtn(icon("solidView"), t("solidView"), st.display === "solid", function () {
       api.setDisplay("solid");
@@ -577,16 +612,16 @@ function buildViewSheet() {
   );
 
   if (!short) section(t("selFilter"));
-  var g4 = grid("m-grid-5");
+  var g4 = grid("m-grid-5 m-icon-grid");
   [
-    ["all", "selFilterAll"],
-    ["face", "selFilterFace"],
-    ["edge", "selFilterEdge"],
-    ["sketch", "selFilterSketch"],
-    ["body", "selFilterBody"],
+    ["all", "selFilterAll", "ph-selection-all"],
+    ["face", "selFilterFace", "ph-square"],
+    ["edge", "selFilterEdge", "ph-line-segment"],
+    ["sketch", "selFilterSketch", "ph-pencil-line"],
+    ["body", "selFilterBody", "ph-cube"],
   ].forEach(function (row) {
     g4.appendChild(
-      gridBtn("", t(row[1]), st.selFilter === row[0], function () {
+      gridBtn('<i class="ph ' + row[2] + '"></i>', t(row[1]), st.selFilter === row[0], function () {
         api.setSelFilter(row[0]);
       }),
     );
@@ -598,7 +633,7 @@ function buildViewSheet() {
 function buildMoreSheet() {
   var st = api.state();
   section(t("msheet_doc"));
-  var g0 = grid("m-grid-3");
+  var g0 = grid("m-grid-3 m-icon-grid");
   g0.appendChild(
     gridBtn(icon("mode3d"), t("docPart"), st.docType === "part", function () {
       api.setDoc("part");
@@ -628,7 +663,7 @@ function buildMoreSheet() {
   borrow(api.root.querySelector(".md-head-inputs"), fields);
 
   section(t("msheet_actions"));
-  var g1 = grid("m-grid-3");
+  var g1 = grid("m-grid-3 m-icon-grid");
   g1.appendChild(
     gridBtn('<i class="ph ph-floppy-disk"></i>', t("save"), false, function () {
       api.save();
@@ -717,6 +752,8 @@ function syncNav() {
       if (!sub) { sub = document.createElement("small"); b.appendChild(sub); }
       sub.textContent = t(st.mode === "2d" ? "mode2d" : st.mode === "drawing" ? "modeDrawing" : "mode3d");
     } else if (lab) lab.textContent = t(s.label);
+    var navLabel = lab ? lab.textContent.trim() : t(s.label);
+    b.setAttribute("aria-label", navLabel);
     if (k === "tree") {
       var count = (st.rebuildErrors || 0) + (st.rebuildWarnings || 0);
       var badge = b.querySelector(".md-nav-badge");
@@ -857,4 +894,11 @@ export function revealModelerFeatureForm() {
     return;
   }
   showSheet("tree", false);
+  /* Feature editors are populated immediately after the sheet switch. Re-page
+     once that live form has its real height and land on the card containing
+     it instead of leaving it behind an earlier Tree card. */
+  requestAnimationFrame(function () {
+    pageOpenSheet();
+    focusPagedTarget("#mdQuickSettings:not([hidden])");
+  });
 }

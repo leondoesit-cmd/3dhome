@@ -118,11 +118,11 @@ for (const lang of ["en", "he"]) {
       }
     });
 
-    test(`model editor @ ${w}px (${lang}): contextual verbs keep their words`, opts, async () => {
+    test(`model editor @ ${w}px (${lang}): contextual verbs are compact accessible icons`, opts, async () => {
       const page = await ctx({ width: w, height: h, lang });
       {
-        // the bug: a blanket max-width:390px rule blanked every label, so
-        // Accept/Cancel and the coach's next step were unnamed glyphs
+        // Captions no longer spend scarce canvas width, but every icon keeps a
+        // translated accessible name and a full-size touch target.
         const bar = await page.eval(() => {
           const ctx = document.getElementById("md-ctx");
           return {
@@ -131,7 +131,7 @@ for (const lang of ["en", "he"]) {
               const r = b.getBoundingClientRect();
               const sp = b.querySelector("span");
               return {
-                iconOnly: b.classList.contains("mctx-icon-only"),
+                chip: b.classList.contains("mctx-chip"),
                 w: Math.round(r.width),
                 h: Math.round(r.height),
                 labelShown: !!sp && getComputedStyle(sp).display !== "none" &&
@@ -146,8 +146,7 @@ for (const lang of ["en", "he"]) {
           assert.ok(b.aria && b.aria.length, "every control is named for AT");
           assert.ok(b.h >= TAP, `control ${b.aria} is ${b.h}px tall`);
           assert.ok(b.w >= TAP, `control ${b.aria} is ${b.w}px wide`);
-          // only the two that opted out of a label may go without one
-          if (!b.iconOnly) assert.ok(b.labelShown, `verb "${b.aria}" lost its label`);
+          if (!b.chip) assert.equal(b.labelShown, false, `verb "${b.aria}" wastes width on a caption`);
         }
       }
     });
@@ -473,26 +472,37 @@ test("mobile Add sheet launches an interactive editor without inerting unknown i
   }
 });
 
-test("model editor @ 344px: all nav destinations keep a visible label", opts, async () => {
+test("model editor @ 344px: all nav destinations are reachable named icons", opts, async () => {
   const page = await ctx({ width: 344, height: 882 });
   {
     const nav = await page.eval(() => {
       const g = document.querySelector('[data-mdnav="view"] .md-nav-glyph');
-      const labels = [...document.querySelectorAll('#md-nav button > span:not(.md-nav-glyph)')].map((label) => {
-        const r = label.getBoundingClientRect();
-        return { text: label.textContent.trim(), shown: getComputedStyle(label).display !== "none" && r.width > 0 && r.height > 0 };
+      const buttons = [...document.querySelectorAll('#md-nav button')].map((button) => {
+        const r = button.getBoundingClientRect();
+        const label = button.querySelector('span:not(.md-nav-glyph)');
+        const icon = button.querySelector('i, .md-nav-glyph');
+        const ir = icon && icon.getBoundingClientRect();
+        return {
+          aria: button.getAttribute("aria-label"),
+          w: Math.round(r.width),
+          h: Math.round(r.height),
+          labelShown: !!label && getComputedStyle(label).display !== "none",
+          iconShown: !!(ir && getComputedStyle(icon).display !== "none" && ir.width > 0 && ir.height > 0),
+        };
       });
       const gr = g && g.getBoundingClientRect();
       return {
         glyphShown: !!(gr && getComputedStyle(g).display !== "none" && gr.width > 0 && gr.height > 0),
-        labels,
+        buttons,
         overflows: document.getElementById("md-nav").scrollWidth > document.getElementById("md-nav").clientWidth + 1,
       };
     });
     assert.equal(nav.glyphShown, true, "Fold cover hid the View mode glyph");
-    assert.equal(nav.labels.length, 5, "expected a label for every destination");
-    assert.ok(nav.labels.every((label) => label.text && label.shown), "Fold cover hid a navigation label");
-    assert.equal(nav.overflows, false, "labelled navigation overflows the viewport");
+    assert.equal(nav.buttons.length, 5, "expected every navigation destination");
+    assert.ok(nav.buttons.every((button) => button.aria && button.iconShown), "a destination lost its icon or accessible name");
+    assert.ok(nav.buttons.every((button) => button.w >= TAP && button.h >= TAP), "a destination fell below the touch floor");
+    assert.ok(nav.buttons.every((button) => !button.labelShown), "Fold cover still spends space on navigation captions");
+    assert.equal(nav.overflows, false, "icon navigation overflows the viewport");
   }
 });
 

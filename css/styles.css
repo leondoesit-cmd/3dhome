@@ -1211,6 +1211,87 @@ label span:first-child {
   display: flex;
   animation: slideInProps 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Live selection preview in the property inspector. Its height is tied to the
+   viewport, not to the amount of form content, so opening Properties always
+   reserves exactly the requested quarter-screen view. */
+.inspector-preview {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  flex: 0 0 25vh;
+  width: 100%;
+  height: 25vh;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border-color));
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 58%),
+    color-mix(in srgb, var(--bg-app) 84%, var(--bg-panel));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  touch-action: none;
+  cursor: grab;
+  isolation: isolate;
+}
+.inspector-preview[hidden] { display: none !important; }
+.inspector-preview.dragging { cursor: grabbing; }
+.inspector-preview canvas { width: 100%; height: 100%; }
+.inspector-preview-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 18px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--bg-app) 70%, transparent);
+  transition: opacity .18s ease;
+}
+.inspector-preview-state.ready { opacity: 0; }
+.inspector-preview-state i { color: var(--accent); font-size: 25px; }
+.inspector-preview-hint {
+  position: absolute;
+  inset-inline-start: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 75%, transparent);
+  border-radius: 999px;
+  color: rgba(255,255,255,.94);
+  background: rgba(15,18,24,.68);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  font-size: 10px;
+  line-height: 1;
+  pointer-events: none;
+}
+.inspector-preview-reset {
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  border-color: rgba(255,255,255,.24);
+  color: rgba(255,255,255,.94);
+  background: rgba(15,18,24,.68);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  cursor: pointer;
+}
+.inspector-preview-reset:hover { background: rgba(15,138,106,.88); }
 @keyframes slideInProps {
   from {
     opacity: 0;
@@ -1477,6 +1558,18 @@ body.used-2d #view-2d > .hint {
 #cad-status .cad-main {
   font-weight: 600;
   white-space: nowrap;
+}
+#cad-status .cad-main > * { display: inline; }
+#cad-status .cad-main #cadDetail:not(:empty)::before { content: " · "; }
+#cad-status .cad-selection-props {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-main);
+  background: var(--input-bg);
 }
 #cad-status .cad-snap {
   padding: 1px 7px;
@@ -2416,6 +2509,17 @@ body.used-2d #view-2d > .hint {
 }
 
 @media (max-width: 1024px) {
+  /* Short landscape used to overlay the context row to save 44px. A full-page
+     menu must never sit under actionable controls, so the row is reserved
+     whenever a sheet/panel is actually open. */
+  body.compact-nav.sheet-drawers.m-sheet-open {
+    --m-ctx-reserve: var(--m-ctx-block);
+  }
+  #cabdes.cb-compact.cb-show-left,
+  #cabdes.cb-compact.cb-show-right,
+  #cabdes.cb-compact:has(.cb-m-sheet.on) {
+    --cbm-ctx-reserve: var(--cbm-ctx);
+  }
   .mobile-toggle {
     display: inline-flex !important;
   }
@@ -9706,6 +9810,9 @@ html:not([data-ui="legacy"])[data-tool="walloffset"] #cadTuneBtn {
   gap: 8px;
   min-height: 30px;
 }
+.wi-identity {
+  display: contents;
+}
 .wi-id {
   font-weight: 700;
   font-size: 1.05rem;
@@ -9835,74 +9942,196 @@ html:not([data-ui="legacy"])[data-tool="walloffset"] #cadTuneBtn {
 
 /* tab strip */
 .wi-tabs {
+  --wi-tab-radius: 11px;
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--btn-border);
-  border-radius: 11px;
-  background: var(--btn-bg);
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--btn-border) 78%, var(--text-muted) 22%);
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 100% at 50% -35%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 62%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--btn-bg) 92%, white 8%) 0%,
+      color-mix(in srgb, var(--btn-bg) 96%, black 4%) 100%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 9%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, black 13%, transparent),
+    0 8px 24px color-mix(in srgb, black 10%, transparent);
 }
 .wi-tabs > button {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 5px 2px;
+  z-index: 0;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 30px auto;
+  place-items: center;
+  gap: 4px;
+  min-height: 61px;
+  padding: 7px 3px 6px;
   min-width: 0;
-  border: 1px solid transparent;
-  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--btn-border) 42%, transparent);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--panel-bg, var(--bg-panel)) 44%, transparent),
+      color-mix(in srgb, var(--panel-bg, var(--bg-panel)) 14%, transparent));
   box-shadow: none;
-  border-radius: 8px;
-  font-size: 9.5px;
+  border-radius: var(--wi-tab-radius);
+  font-size: 10px;
+  font-weight: 580;
+  letter-spacing: .01em;
   color: var(--text-muted);
-  transition: background .12s ease, color .12s ease;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform .18s cubic-bezier(.2, .8, .2, 1),
+    border-color .18s ease,
+    background .18s ease,
+    color .18s ease,
+    box-shadow .18s ease;
+}
+.wi-tabs > button::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(80% 48% at 50% 0%, color-mix(in srgb, white 9%, transparent), transparent 78%),
+    linear-gradient(110deg, transparent 18%, color-mix(in srgb, white 5%, transparent) 48%, transparent 78%);
+  opacity: .45;
+  transition: opacity .18s ease;
+}
+.wi-tabs > button::after {
+  content: "";
+  position: absolute;
+  inset-inline: 24%;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--accent) 70%, transparent);
+  opacity: 0;
+  transform: scaleX(.25);
+  transition: opacity .18s ease, transform .22s cubic-bezier(.2, .9, .2, 1);
 }
 .wi-tabs > button i {
-  font-size: 15px;
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  border: 1px solid color-mix(in srgb, var(--btn-border) 68%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--panel-bg, var(--bg-panel)) 65%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 8%, transparent),
+    0 2px 5px color-mix(in srgb, black 8%, transparent);
+  font-size: 16px;
   color: inherit;
+  transition: transform .2s cubic-bezier(.2, .8, .2, 1), background .18s ease, border-color .18s ease, box-shadow .18s ease;
 }
 /* Five fixed columns in a narrow inspector left only "Constraints" a few
    pixels short, so one tab of five read "Constrai…". Let the label wrap
    instead of clipping — the tabs are already a two-line icon+text column. */
 .wi-tabs > button span {
+  position: relative;
+  z-index: 1;
   max-width: 100%;
   white-space: normal;
   overflow-wrap: anywhere;
-  line-height: 1.2;
+  line-height: 1.12;
   text-align: center;
 }
 .wi-tabs > button:hover {
   color: var(--text-main);
-  background: var(--btn-bg-hover);
+  border-color: color-mix(in srgb, var(--text-muted) 38%, var(--btn-border));
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--btn-bg-hover) 82%, white 3%),
+      color-mix(in srgb, var(--btn-bg-hover) 96%, black 4%));
+  box-shadow: 0 5px 13px color-mix(in srgb, black 9%, transparent);
+  transform: translateY(-1px);
+}
+.wi-tabs > button:hover::before {
+  opacity: .9;
+}
+.wi-tabs > button:hover i {
+  transform: translateY(-1px) scale(1.04);
+}
+.wi-tabs > button:active {
+  transform: translateY(0) scale(.98);
+  transition-duration: .06s;
+}
+.wi-tabs > button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 82%, white 18%);
+  outline-offset: 2px;
+  z-index: 2;
 }
 .wi-tabs > button.active {
-  background: var(--panel-bg, var(--bg-panel));
-  border-color: var(--btn-border);
-  color: var(--accent);
-  box-shadow: var(--shadow-sm);
-  font-weight: 600;
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--btn-border));
+  background:
+    radial-gradient(110% 80% at 50% -20%, color-mix(in srgb, var(--accent) 23%, transparent), transparent 67%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--panel-bg, var(--bg-panel)) 86%, var(--accent) 14%),
+      color-mix(in srgb, var(--panel-bg, var(--bg-panel)) 96%, var(--accent) 4%));
+  color: var(--text-main);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 13%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent),
+    0 6px 16px color-mix(in srgb, var(--accent) 13%, transparent),
+    0 2px 5px color-mix(in srgb, black 12%, transparent);
+  font-weight: 700;
+}
+.wi-tabs > button.active::before {
+  opacity: 1;
+}
+.wi-tabs > button.active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+.wi-tabs > button.active i {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--accent) 25%, var(--panel-bg, var(--bg-panel))),
+      color-mix(in srgb, var(--accent) 11%, var(--panel-bg, var(--bg-panel))));
+  color: color-mix(in srgb, var(--accent) 88%, white 12%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 15%, transparent),
+    0 4px 10px color-mix(in srgb, var(--accent) 19%, transparent);
 }
 .wi-tab-badge {
   position: absolute;
-  top: 1px;
-  inset-inline-end: 2px;
-  min-width: 14px;
+  z-index: 3;
+  top: 4px;
+  inset-inline-end: 4px;
+  min-width: 16px;
   padding: 0 4px;
-  border-radius: 8px;
+  border: 2px solid color-mix(in srgb, var(--panel-bg, var(--bg-panel)) 88%, transparent);
+  border-radius: 999px;
   background: var(--accent);
   color: var(--on-accent);
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 14px;
   text-align: center;
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--accent) 32%, transparent);
 }
 .wi-tab-badge.bad {
   background: var(--danger);
 }
 .wi-tab-badge[hidden] {
   display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wi-tabs > button,
+  .wi-tabs > button::after,
+  .wi-tabs > button i {
+    transition: none;
+  }
 }
 .wi-pane {
   display: none;
@@ -10400,7 +10629,7 @@ body.compact-nav #topbar {
 /* The bottom nav already owns view switching. File/Edit/Export live in the
    More sheet (cloned from these buttons, which stay in the DOM but hidden).
    CAD stays one tap away — it is the other editor, not a menu item. */
-body.compact-nav #topbar .tb-center,
+body.compact-nav #topbar .tb-center > :not(#m-top-selection),
 body.compact-nav #topbar .tb-start > .separator,
 body.compact-nav #topbar .tb-start > #workspaceBtn,
 body.compact-nav #topbar .tb-start > button:not(#toggle-left):not(#openModelerTop),
@@ -10412,6 +10641,54 @@ body.compact-nav #videoStudioBtn {
 }
 body.compact-nav #openModelerTop.legacy-chrome {
   display: inline-flex !important;
+}
+body.compact-nav #topbar {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+body.compact-nav #topbar .tb-center {
+  display: flex;
+  min-width: 0;
+  align-self: stretch;
+  overflow: hidden;
+}
+.m-top-selection {
+  display: none;
+}
+body.compact-nav #m-top-selection:not([hidden]) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding-inline: 4px;
+  line-height: 1;
+  text-align: center;
+}
+body.compact-nav .m-top-selection-phase {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--success);
+  font-size: 8px;
+  font-weight: 750;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.compact-nav .m-top-selection-phase.is-existing { color: var(--text-muted); }
+body.compact-nav .m-top-selection-phase.is-demolition { color: var(--danger); }
+body.compact-nav .m-top-selection-name {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--accent);
+  font-size: clamp(15px, 4.5vw, 19px);
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 body.compact-nav #topbar .tb-start,
 body.compact-nav #topbar .tb-end {
@@ -10978,12 +11255,14 @@ body.compact-nav #plan-tools {
 body.compact-nav #cad-status {
   top: 0;
   bottom: auto;
-  height: 26px;
-  min-height: 26px;
+  height: 44px;
+  min-height: 44px;
   border-top: none;
   border-bottom: 1px solid var(--border-color);
   background: color-mix(in srgb, var(--bg-panel) 82%, transparent);
   pointer-events: none;
+  gap: 8px;
+  padding-inline: 10px 6px;
 }
 body.compact-nav #cad-status .cad-coord,
 body.compact-nav #cad-status .cad-snap,
@@ -10993,10 +11272,42 @@ body.compact-nav #cad-status .cad-tune-btn {
   display: none !important;
 }
 body.compact-nav #cad-status .cad-main {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+body.compact-nav #cad-status .cad-main.is-selection {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.15;
+}
+body.compact-nav #cad-status .cad-main.is-selection #cadName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+body.compact-nav #cad-status .cad-main.is-selection #cadDetail {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 550;
+}
+body.compact-nav #cad-status .cad-main.is-selection #cadDetail::before { content: none; }
+body.compact-nav #cad-status .cad-selection-props:not([hidden]) {
+  display: inline-flex;
+  pointer-events: auto;
+  width: 44px;
+  min-width: 44px;
+  height: 40px;
+  padding: 0;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border-color));
+  background: var(--accent-soft);
+}
+body.compact-nav #cad-status .cad-selection-props span { display: none; }
+body.compact-nav #cad-status .cad-selection-props i { font-size: 20px; }
 
 /* One orientation gizmo per pane is right; two of them plus two maximize
    buttons plus a pane label, all inside 375px, is not. The View sheet owns
@@ -13222,4 +13533,1302 @@ body.dock-rail #cabdes.cb-compact:not(.cb-is3d) .cb-right .cb-prev-wrap {
   body:not(.compact-nav) #modeler .md-left { width: 224px; }
   body:not(.compact-nav) #modeler .md-right { width: 272px; }
   body:not(.compact-nav) #modeler .md-command { max-width: 142px; }
+}
+
+/* ==========================================================================
+   Dense mobile / foldable menus
+
+   Phones do not need miniature desktop cards. Familiar destinations and
+   commands are icon pads; prose remains only in forms, command names and the
+   More lists where an icon alone would be ambiguous. Every target stays at
+   least 44px while the surrounding padding, captions and empty sheet height
+   are removed.
+   ========================================================================== */
+body.compact-nav {
+  --mobile-nav-block: calc(48px + env(safe-area-inset-bottom));
+  --m-ctx-block: 44px;
+  --m-ctx-reserve: var(--m-ctx-block);
+}
+
+/* Fixed navigation: one clear glyph per destination, accessible names remain
+   on the buttons for screen readers. */
+body.compact-nav #mobile-nav,
+body.compact-nav #md-nav {
+  gap: 2px;
+  height: var(--mobile-nav-block);
+  min-height: var(--mobile-nav-block);
+  padding: 2px max(4px, env(safe-area-inset-right)) calc(2px + env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
+}
+body.compact-nav #mobile-nav button,
+body.compact-nav #md-nav button {
+  width: auto;
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  gap: 0;
+}
+body.compact-nav #mobile-nav button > span,
+body.compact-nav #md-nav button > span:not(.md-nav-glyph),
+body.compact-nav #md-nav [data-mdnav="view"] small {
+  display: none !important;
+}
+body.compact-nav #mobile-nav button i,
+body.compact-nav #md-nav button i {
+  font-size: 21px;
+}
+body.compact-nav #mobile-nav .mnav-primary i,
+body.compact-nav #md-nav .mnav-primary i {
+  width: 36px;
+  height: 28px;
+}
+
+/* Context rows are already self-explanatory icon actions. CAD state chips keep
+   their short OSNAP/GRID/W-D-H text. */
+body.compact-nav #m-ctx,
+body.compact-nav #md-ctx {
+  height: var(--m-ctx-block);
+  gap: 4px;
+  padding: 0 max(4px, env(safe-area-inset-right)) 0 max(4px, env(safe-area-inset-left));
+}
+#m-ctx .mctx-undo,
+#md-ctx .mctx-undo {
+  gap: 0;
+  padding-inline-end: 4px;
+}
+#m-ctx .mctx-btn:not(.mctx-chip),
+#md-ctx .mctx-btn:not(.mctx-chip),
+#md-selection-bar .mctx-btn {
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+#m-ctx .mctx-btn:not(.mctx-chip) span,
+#md-ctx .mctx-btn:not(.mctx-chip) span,
+#md-selection-bar .mctx-btn span {
+  display: none;
+}
+#m-ctx .mctx-chip,
+#md-ctx .mctx-chip {
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: 5px;
+  font-size: 10px;
+}
+body.compact-nav #md-selection-bar:not([hidden]) {
+  min-height: 44px;
+  padding: 0 4px;
+  gap: 2px;
+}
+
+/* Sheet chrome: a single 44px title row. The whole row is still the swipe
+   handle, so a separate grip only consumed height. */
+body.compact-nav #m-sheet,
+body.compact-nav #md-sheet {
+  max-height: 46dvh;
+  padding-bottom: 4px;
+  border-radius: 14px 14px 0 0;
+}
+.m-sheet-grip {
+  display: none;
+}
+.m-sheet-head {
+  box-sizing: border-box;
+  min-height: 44px;
+  height: 44px;
+  gap: 2px;
+  padding: 0 6px 0 12px;
+}
+.m-sheet-head h4 {
+  font-size: 12px;
+}
+.m-sheet-x {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  border-radius: 9px;
+}
+.m-sheet-body {
+  padding: 2px 8px 6px;
+}
+.m-sheet-sec,
+#md-sheet .m-sheet-sec {
+  margin: 6px 2px 3px;
+  font-size: 9px;
+}
+
+/* Icon pads wrap at the natural 48px rhythm: 7 columns on a 390px phone and
+   5 on a 280px Fold cover. Labels stay in aria-label/title, not in the layout. */
+.m-icon-grid {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px !important;
+}
+.m-icon-grid .m-grid-btn,
+#md-sheet .m-icon-grid .m-grid-btn {
+  flex: 0 0 48px;
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+  gap: 0;
+  border-radius: 10px;
+}
+.m-icon-grid .m-grid-btn span {
+  display: none;
+}
+.m-icon-grid .m-grid-btn i,
+#md-sheet .m-icon-grid .m-grid-btn svg {
+  width: 22px;
+  height: 22px;
+  font-size: 22px;
+}
+.m-list {
+  gap: 0;
+}
+.m-list-btn {
+  min-height: 44px;
+  padding-inline: 8px;
+  gap: 9px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+/* The real library/inspector panels need scroll room, not half the screen by
+   default. They can still scroll and remain docked on an unfolded display. */
+body.sheet-drawers #left-sidebar,
+body.sheet-drawers #right-inspector {
+  height: 46dvh;
+  max-height: 46dvh;
+  border-radius: 14px 14px 0 0;
+}
+body.sheet-drawers #left-sidebar::before,
+body.sheet-drawers #right-inspector::before {
+  display: none;
+}
+
+/* The borrowed Add/library panel is a menu too. Its four destinations and
+   category levels use glyphs; actual catalogue pieces keep their names. */
+body.compact-nav .left-tabs {
+  min-height: 44px;
+  gap: 2px;
+  padding: 0 4px;
+}
+body.compact-nav .left-tabs button {
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+body.compact-nav .left-tabs button > span {
+  display: none;
+}
+body.compact-nav .left-tabs button > i {
+  font-size: 21px;
+}
+body.compact-nav .panel-section.furn-panel {
+  padding: 4px 8px 8px;
+}
+body.compact-nav .panel-section.furn-panel > h3 {
+  margin: 0 0 4px;
+  min-height: 24px;
+}
+body.compact-nav .lib-search {
+  margin-bottom: 4px;
+}
+body.compact-nav .furn-grid-nav {
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 4px;
+  padding: 0;
+}
+body.compact-nav .furn-grid-nav .furn-nav {
+  box-sizing: border-box;
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+}
+body.compact-nav .furn-grid-nav .furn-nav-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 26px;
+  align-items: center;
+  justify-content: center;
+}
+body.compact-nav .furn-grid-nav .furn-nav > span {
+  display: none;
+}
+
+/* Model Editor: hosted Tree/Commands/Properties use a compact default and the
+   existing expand button still offers the full-height variant. CAD command
+   names remain visible because those glyphs are not universally recognisable. */
+body.compact-nav #md-sheet:not(.tall):has(.md-sheet-host > *) {
+  height: 48%;
+}
+body.compact-nav #md-sheet .md-sheet-host {
+  padding: 0 8px 4px;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-panes {
+  padding-top: 2px;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group {
+  margin-bottom: 6px;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-items {
+  gap: 4px;
+}
+#modeler .md-commandmanager.md-borrowed .md-command {
+  min-height: 44px;
+  padding: 4px 6px;
+}
+#modeler .md-commandmanager.md-borrowed .md-command-group-label {
+  margin-bottom: 2px;
+  font-size: 9px;
+}
+/* An unfolded Fold keeps the feature tree docked. Its old labelled tab strip
+   truncated every caption in the 220px rail, so it follows the icon/tooltip
+   vocabulary of the bottom navigation and restores full touch targets. */
+body.dock-rail #modeler .md-left:not(.md-borrowed) .md-strip {
+  min-height: 44px;
+  padding: 0 2px;
+  gap: 2px;
+}
+body.dock-rail #modeler .md-left:not(.md-borrowed) .md-strip > button {
+  flex: 1 1 44px;
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  gap: 0;
+}
+body.dock-rail #modeler .md-left:not(.md-borrowed) .md-strip > button > span {
+  display: none;
+}
+body.dock-rail #modeler .md-left:not(.md-borrowed) .md-strip > button .md-cad-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+body.dock-rail #modeler .md-left:not(.md-borrowed) .md-strip > .md-strip-act {
+  width: 44px;
+  flex: 0 0 44px;
+}
+
+/* Cabinet Designer follows the same density and icon vocabulary. */
+#cabdes.cb-compact {
+  --cbm-nav: calc(48px + env(safe-area-inset-bottom));
+  --cbm-ctx: 44px;
+  --cbm-ctx-reserve: var(--cbm-ctx);
+}
+#cabdes.cb-compact .cb-m-nav {
+  height: var(--cbm-nav);
+  gap: 2px;
+  padding: 2px 4px calc(2px + env(safe-area-inset-bottom));
+}
+#cabdes .cb-m-nav button {
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  gap: 0;
+}
+#cabdes .cb-m-nav button span {
+  display: none;
+}
+#cabdes .cb-m-nav button i {
+  font-size: 21px;
+}
+#cabdes .cb-m-nav .cbm-primary i {
+  width: 36px;
+  height: 28px;
+}
+#cabdes.cb-compact .cb-m-ctx {
+  height: var(--cbm-ctx);
+  gap: 4px;
+  padding: 0 4px;
+}
+#cabdes .cbm-undo {
+  gap: 0;
+  padding-inline-end: 4px;
+}
+#cabdes .cbm-btn:not(.cbm-chip) {
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+#cabdes .cbm-btn:not(.cbm-chip) span {
+  display: none;
+}
+#cabdes .cbm-chip {
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: 5px;
+  font-size: 10px;
+}
+#cabdes.cb-compact .cb-m-sheet {
+  max-height: 46dvh;
+  padding-bottom: 4px;
+  border-radius: 14px 14px 0 0;
+}
+#cabdes .cbm-grip {
+  display: none;
+}
+#cabdes .cbm-head {
+  box-sizing: border-box;
+  min-height: 44px;
+  height: 44px;
+  gap: 2px;
+  padding: 0 6px 0 12px;
+}
+#cabdes .cbm-head h4 {
+  font-size: 12px;
+}
+#cabdes .cbm-x {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  border-radius: 9px;
+}
+#cabdes .cbm-body {
+  padding: 2px 8px 6px;
+}
+#cabdes .cbm-sec {
+  margin: 6px 2px 3px;
+  font-size: 9px;
+}
+#cabdes .cbm-icon-grid {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px !important;
+  max-width: none;
+  margin: 0;
+}
+#cabdes .cbm-icon-grid .cbm-grid-btn {
+  flex: 0 0 48px;
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+  gap: 0;
+  border-radius: 10px;
+}
+#cabdes .cbm-icon-grid .cbm-grid-btn span {
+  display: none;
+}
+#cabdes .cbm-icon-grid .cbm-grid-btn i {
+  font-size: 22px;
+}
+#cabdes .cbm-glyph {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+#cabdes .cbm-grid-btn.danger,
+#cabdes .cbm-grid-btn.danger i {
+  color: var(--danger);
+}
+#cabdes.cb-compact .cb-panel {
+  height: 46dvh;
+  max-height: 46dvh;
+  border-radius: 14px 14px 0 0;
+}
+#cabdes.cb-compact .cb-panel::before {
+  display: none;
+}
+#cabdes.cb-compact .cb-right > .cb-grp {
+  padding: 2px 6px;
+}
+#cabdes.cb-compact .cb-right > .cb-grp .cb-icons {
+  gap: 2px;
+}
+#cabdes.cb-compact .cb-right > .cb-grp .cb-icons button {
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+#cabdes.cb-compact .cb-right > .cb-grp .cb-icons button .cb-icon-label {
+  display: none;
+}
+#cabdes.cb-compact .cbm-body .cb-m-more {
+  gap: 6px;
+}
+#cabdes.cb-compact .cbm-body .cb-context-bar,
+#cabdes.cb-compact .cbm-body .cb-control-group,
+#cabdes.cb-compact .cbm-body .cb-preview-controls {
+  gap: 6px;
+}
+#cabdes.cb-compact .cbm-body .cb-dims {
+  gap: 4px;
+}
+#cabdes.cb-compact .cbm-body .cb-stage-chips {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+#cabdes.cb-compact .cbm-body .cb-chip-stage,
+#cabdes.cb-compact .cbm-body .cb-levels button {
+  min-height: 44px;
+}
+
+/* Fold/tablet rails use the same compact sheet instead of a near-half-screen
+   floating card. */
+body.dock-rail #m-sheet {
+  width: min(360px, 42vw);
+}
+body.dock-rail #md-sheet {
+  width: min(336px, 42vw);
+}
+body.dock-rail #cabdes.cb-compact .cb-m-sheet {
+  width: min(336px, 42vw);
+}
+
+/* ---- dense wall Inspector -------------------------------------------------
+   Properties is already the selected mobile destination, so a second generic
+   Inspector heading is noise. Size also owns the four editable dimensions;
+   repeating them as four cards immediately above the fields cost almost half
+   the sheet. Other panes retain a value-only summary strip. */
+body.compact-nav #right-inspector > .panel-section {
+  gap: 4px;
+  padding: 4px 8px 8px;
+}
+body.compact-nav #right-inspector > .panel-section > h3 {
+  display: none;
+}
+body.compact-nav #wallProps {
+  width: 100%;
+  align-items: stretch;
+  gap: 4px;
+}
+body.compact-nav #wallProps .wi-head {
+  min-height: 44px;
+  height: 44px;
+  gap: 5px;
+}
+
+/* ==========================================================================
+   Content-sized bottom menus
+
+   Every compact menu grows from the thumb edge only as far as its active card
+   requires. Long forms still use mobile_pages.js, but the height cap creates
+   another card instead of stretching a short menu to the top of the screen.
+   ========================================================================== */
+@media (max-width: 1024px) {
+  body.compact-nav {
+    --mobile-sheet-cap: min(
+      68dvh,
+      calc(100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block) - var(--m-ctx-reserve) - var(--kb, 0px) - 8px)
+    );
+  }
+  body.compact-nav.sheet-drawers #left-sidebar,
+  body.compact-nav.sheet-drawers #right-inspector,
+  body.compact-nav.dock-rail #left-sidebar,
+  body.compact-nav.dock-rail #right-inspector {
+    position: fixed;
+    inset-inline: 0;
+    top: auto;
+    bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
+    z-index: 62;
+    display: flex;
+    width: auto;
+    max-width: none;
+    height: fit-content;
+    max-height: var(--mobile-sheet-cap);
+    border: none;
+    border-top: 1px solid var(--mobile-glass-border, var(--border-color));
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, .22);
+    transform: translateY(calc(100% + var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px)));
+    overflow: hidden;
+  }
+  body.compact-nav.sheet-drawers.show-left #left-sidebar,
+  body.compact-nav.sheet-drawers.show-right #right-inspector,
+  body.compact-nav.dock-rail.show-left #left-sidebar,
+  body.compact-nav.dock-rail.show-right #right-inspector {
+    transform: none;
+  }
+  body.compact-nav #m-sheet,
+  body.compact-nav #md-sheet {
+    top: auto;
+    bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px));
+    inset-inline: 0;
+    width: auto;
+    height: fit-content !important;
+    max-height: var(--mobile-sheet-cap);
+    margin-inline: auto;
+    border-radius: 16px 16px 0 0;
+  }
+  body.compact-nav .dropdown-menu.open.mobile-paged-menu,
+  body.compact-nav #ctx-menu.as-sheet.mobile-paged-menu {
+    position: fixed;
+    inset-inline: 0 !important;
+    top: auto !important;
+    bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px)) !important;
+    display: flex;
+    flex-direction: column;
+    width: auto;
+    max-width: none;
+    height: fit-content;
+    max-height: var(--mobile-sheet-cap);
+    margin: 0;
+    border-radius: 16px 16px 0 0;
+    overflow: hidden;
+  }
+  #cabdes.cb-compact .cb-m-sheet,
+  #cabdes.cb-compact .cb-panel {
+    top: auto;
+    bottom: calc(var(--cbm-nav) + var(--cbm-ctx-reserve));
+    height: fit-content !important;
+    max-height: min(68dvh, calc(100% - var(--cbm-nav) - var(--cbm-ctx-reserve) - 8px));
+    border-radius: 16px 16px 0 0;
+  }
+
+  .mobile-paged-menu {
+    min-height: 0;
+    overflow: hidden !important;
+  }
+  .mobile-page-shell {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .mobile-page-deck {
+    position: relative;
+    display: grid;
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .mobile-menu-page {
+    display: none;
+    align-content: start;
+    grid-area: 1 / 1;
+    min-width: 0;
+    min-height: 0;
+    padding: 4px;
+    gap: 6px;
+    overflow: hidden;
+  }
+  .mobile-menu-page.on {
+    display: flex;
+    flex-direction: column;
+  }
+  .mobile-page-nav {
+    display: flex;
+    flex: 0 0 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 4px;
+    border-top: 1px solid var(--border-color);
+    background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+  }
+  .mobile-page-nav[hidden] { display: none !important; }
+  .mobile-page-arrow {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    color: var(--text-main);
+    background: transparent;
+  }
+  .mobile-page-arrow:disabled { opacity: .25; }
+  .mobile-page-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+  .mobile-page-dot {
+    width: 7px;
+    min-width: 7px;
+    height: 7px;
+    min-height: 7px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--border-color);
+  }
+  .mobile-page-dot.on {
+    width: 18px;
+    border-radius: 5px;
+    background: var(--accent);
+  }
+  .mobile-page-count {
+    min-width: 34px;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  /* Inspector density: the values remain finger-sized; only the dead padding,
+     duplicate unit captions and desktop-sized headings disappear. */
+  body.compact-nav #right-inspector > .panel-section {
+    min-height: 0;
+    padding: 4px 6px;
+    overflow: hidden;
+  }
+  body.compact-nav #right-inspector .props.on {
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 6px;
+    overflow: hidden;
+  }
+  body.compact-nav #right-inspector .inspector-preview {
+    flex-basis: 25dvh;
+    height: 25dvh;
+    border-radius: 11px;
+  }
+  body.compact-nav #right-inspector .props > [id^="selname"] {
+    flex: 0 0 auto;
+    min-height: 30px;
+    padding: 2px 0;
+    color: var(--accent);
+    font-size: clamp(16px, 4vw, 20px);
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  body.compact-nav #right-inspector .dim-row,
+  body.compact-nav #right-inspector .btn-row {
+    gap: 6px;
+    margin: 0;
+  }
+  body.compact-nav #right-inspector label {
+    gap: 3px;
+    min-width: 0;
+    font-size: 10px;
+  }
+  body.compact-nav #right-inspector input:not([type="checkbox"]):not([type="range"]):not([type="color"]),
+  body.compact-nav #right-inspector select {
+    box-sizing: border-box;
+    min-height: 44px;
+    height: 44px;
+    padding: 6px 10px;
+    border-radius: 9px;
+    font-size: clamp(16px, 4vw, 20px);
+  }
+  body.compact-nav #right-inspector .con-block,
+  body.compact-nav #right-inspector .sub-panel {
+    gap: 6px;
+    margin: 0;
+    padding: 7px;
+    border-radius: 10px;
+  }
+  body.compact-nav #right-inspector .con-head,
+  body.compact-nav #right-inspector .sub-panel-title {
+    min-height: 22px;
+    margin: 0;
+    font-size: 11px;
+  }
+  body.compact-nav #right-inspector .con-add {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+  body.compact-nav #right-inspector .con-add > button,
+  body.compact-nav #right-inspector .btn-row > button {
+    min-height: 44px;
+    padding: 4px 7px;
+    gap: 5px;
+    border-radius: 9px;
+    font-size: 11px;
+    line-height: 1.15;
+  }
+  body.compact-nav #right-inspector .con-hint,
+  body.compact-nav #right-inspector .insp-hint {
+    display: -webkit-box;
+    margin: 0;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 10px;
+    line-height: 1.3;
+  }
+  body.compact-nav #openProps > [data-i18n="cm"],
+  body.compact-nav #itemProps > [data-i18n="cm_deg"] {
+    display: none;
+  }
+
+  /* Generated icon sheets and borrowed editor panels fill their page rather
+     than keeping the old half-sheet's max height and internal scroll. */
+  body.compact-nav .m-sheet-body.mobile-paged-menu,
+  body.compact-nav #md-sheet-body.mobile-paged-menu,
+  #cabdes.cb-compact .cbm-body.mobile-paged-menu,
+  #modeler .md-borrowed.mobile-paged-menu,
+  #cabdes .cb-left.mobile-paged-menu,
+  #cabdes .cb-right.mobile-paged-menu,
+  #cabdes .cb-grp.mobile-paged-menu {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden !important;
+  }
+  body.compact-nav #md-sheet-body:has(> .mobile-page-shell),
+  #cabdes.cb-compact .cbm-body:has(> .mobile-page-shell) {
+    overflow: hidden !important;
+  }
+  body.compact-nav #left-sidebar .panel-section {
+    min-height: 0;
+  }
+  body.compact-nav #left-sidebar .furn-grid.mobile-paged-menu,
+  body.compact-nav #left-sidebar .tree-list.mobile-paged-menu,
+  body.compact-nav #left-sidebar .mep-list.mobile-paged-menu,
+  body.compact-nav #left-sidebar .sh-list.mobile-paged-menu {
+    display: flex !important;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden !important;
+  }
+  body.compact-nav #left-sidebar .furn-grid .mobile-menu-page.on {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    align-content: start;
+  }
+}
+
+@media (max-width: 360px), (max-height: 680px) {
+  .mobile-menu-page { padding: 2px; gap: 4px; }
+  body.compact-nav #right-inspector > .panel-section { padding: 2px 4px; }
+  body.compact-nav #right-inspector .con-block,
+  body.compact-nav #right-inspector .sub-panel { padding: 5px; gap: 4px; }
+  body.compact-nav #right-inspector .con-add { gap: 3px; }
+  body.compact-nav #right-inspector .con-add > button { font-size: 10px; }
+}
+body.compact-nav #wallProps .wi-id {
+  font-size: 15px;
+}
+body.compact-nav #wallProps .wi-phase {
+  padding: 2px 7px;
+  font-size: 9px;
+}
+body.compact-nav #wallProps .wi-acts {
+  gap: 2px;
+}
+body.compact-nav #wallProps .wi-act {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+body.compact-nav #wallProps > #w_meta {
+  display: none;
+}
+body.compact-nav #wallProps[data-wall-tab="dims"] .wi-stats {
+  display: none;
+}
+body.compact-nav #wallProps:not([data-wall-tab="dims"]) .wi-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+}
+body.compact-nav #wallProps:not([data-wall-tab="dims"]) .wi-chip {
+  min-height: 32px;
+  justify-content: center;
+  padding: 2px 4px;
+  border-radius: 7px;
+}
+body.compact-nav #wallProps:not([data-wall-tab="dims"]) .wi-chip-v {
+  font-size: 10.5px;
+  text-align: center;
+}
+body.compact-nav #wallProps:not([data-wall-tab="dims"]) .wi-chip-k,
+body.compact-nav #wallProps:not([data-wall-tab="dims"]) .wi-chip-sub {
+  display: none;
+}
+body.compact-nav #wallProps .wi-tabs {
+  grid-template-columns: repeat(5, minmax(44px, 1fr));
+  min-height: 52px;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 13px;
+}
+body.compact-nav #wallProps .wi-tabs > button {
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  gap: 0;
+  grid-template-rows: 1fr;
+  border-radius: 9px;
+}
+body.compact-nav #wallProps .wi-tabs > button i {
+  width: 30px;
+  height: 30px;
+  font-size: 18px;
+}
+body.compact-nav #wallProps .wi-tabs > button > span:not(.wi-tab-badge) {
+  display: none;
+}
+body.compact-nav #wallProps .wi-tab-badge {
+  top: 1px;
+  inset-inline-end: 1px;
+}
+body.compact-nav #wallProps .wi-pane {
+  gap: 4px;
+}
+body.compact-nav #wallProps .wi-pane[data-wpane="dims"] > .wall-size-block {
+  margin: 0;
+  padding: 2px 0 0;
+  border: 0;
+  background: transparent;
+  gap: 4px;
+}
+body.compact-nav #wallProps .wi-pane[data-wpane="dims"] > .wall-size-block > .con-head,
+body.compact-nav #wallProps .wi-pane[data-wpane="dims"] .wi-lock {
+  display: none;
+}
+body.compact-nav #wallProps .dim-row,
+body.compact-nav #wallProps .wall-size-row {
+  gap: 4px;
+}
+body.compact-nav #wallProps .dim-row label {
+  gap: 2px;
+}
+body.compact-nav #wallProps .dim-row label > span:first-child {
+  font-size: 9px;
+  line-height: 1.1;
+}
+body.compact-nav #wallProps .dim-row input,
+body.compact-nav #wallProps .dim-row select {
+  box-sizing: border-box;
+  min-height: 44px;
+  height: 44px;
+  padding-block: 0;
+}
+body.compact-nav #wallProps .wi-pane > .con-block:not(.wall-size-block) {
+  margin: 2px 0 0;
+  padding: 6px;
+}
+
+/* Selection identity now lives in the global top row. The inspector keeps
+   only the wall verbs, so the same name is not repeated inside Properties. */
+body.compact-nav #wallProps .wi-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 44px;
+  height: 44px;
+  gap: 2px;
+  padding: 0;
+}
+body.compact-nav #wallProps .wi-identity {
+  display: none;
+}
+body.compact-nav #wallProps .wi-head .wi-acts {
+  margin-inline-start: 0;
+}
+
+/* Mobile glass surfaces ---------------------------------------------------
+   The canvas remains legible behind open menus, while controls receive a
+   denser backing layer so labels, values and focus outlines never wash out. */
+body.compact-nav {
+  --mobile-glass: color-mix(in srgb, var(--bg-panel) 52%, transparent);
+  --mobile-glass-strong: color-mix(in srgb, var(--bg-panel) 72%, transparent);
+  --mobile-glass-control: color-mix(in srgb, var(--input-bg) 50%, var(--bg-panel) 50%);
+  --mobile-glass-border: color-mix(in srgb, var(--border-color) 78%, transparent);
+}
+body.compact-nav #topbar,
+body.compact-nav #m-sheet,
+body.compact-nav #md-sheet,
+body.compact-nav #modeler .md-left,
+body.compact-nav #modeler .md-right,
+body.compact-nav.sheet-drawers #left-sidebar,
+body.compact-nav.sheet-drawers #right-inspector,
+body.compact-nav.dock-rail #left-sidebar,
+body.compact-nav.dock-rail #right-inspector,
+body.compact-nav .dropdown-menu.open.mobile-paged-menu,
+body.compact-nav #ctx-menu.as-sheet,
+#cabdes.cb-compact .cb-m-sheet,
+#cabdes.cb-compact .cb-panel {
+  background: var(--mobile-glass);
+  border-color: var(--mobile-glass-border);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .24), inset 0 1px rgba(255, 255, 255, .045);
+  backdrop-filter: blur(6px) saturate(1.08);
+  -webkit-backdrop-filter: blur(6px) saturate(1.08);
+}
+body.compact-nav #topbar,
+body.compact-nav #mobile-nav,
+body.compact-nav #m-ctx,
+body.compact-nav #md-nav,
+body.compact-nav #md-ctx,
+#cabdes.cb-compact .cb-m-nav,
+#cabdes.cb-compact .cb-m-ctx {
+  background: color-mix(in srgb, var(--bg-topbar) 70%, transparent);
+  backdrop-filter: blur(8px) saturate(1.08);
+  -webkit-backdrop-filter: blur(8px) saturate(1.08);
+}
+body.compact-nav #right-inspector input:not([type="checkbox"]):not([type="range"]):not([type="color"]),
+body.compact-nav #right-inspector textarea,
+body.compact-nav #right-inspector select,
+body.compact-nav #right-inspector .con-block,
+body.compact-nav #right-inspector .sub-panel,
+body.compact-nav .m-grid-btn,
+body.compact-nav .m-list-btn,
+body.compact-nav .mobile-page-nav,
+#modeler #md-sheet input,
+#modeler #md-sheet textarea,
+#modeler #md-sheet select,
+#cabdes.cb-compact .cb-m-sheet input,
+#cabdes.cb-compact .cb-m-sheet textarea,
+#cabdes.cb-compact .cb-m-sheet select,
+#cabdes.cb-compact .cbm-grid-btn {
+  background: var(--mobile-glass-control);
+  border-color: color-mix(in srgb, var(--input-border) 88%, transparent);
+}
+body.compact-nav #right-inspector .wi-tabs,
+body.compact-nav .m-sheet-head,
+#modeler #md-sheet .m-sheet-head,
+#cabdes.cb-compact .cbm-head,
+#cabdes.cb-compact .cb-right > .cb-grp {
+  background: var(--mobile-glass-strong);
+}
+body.compact-nav #right-inspector .props > [id^="selname"] {
+  display: none;
+}
+/* These desktop accordions lose their headings in compact mode and were left
+   behind as empty bordered strips. Their controls already live in the mobile
+   destinations, so they should consume no pixels in an open inspector. */
+body.compact-nav #right-inspector > .cost-section,
+body.compact-nav #right-inspector > .env-section,
+body.compact-nav #right-inspector > .friends-section,
+body.compact-nav #right-inspector > .site-section {
+  display: none !important;
+}
+
+/* ---- Settings: icon language, themes, per-icon overrides and usage map ---- */
+.settings-modal {
+  width: min(980px, 96vw);
+  height: min(760px, 92vh);
+  overflow: hidden;
+}
+.settings-modal-body { flex: 1; min-height: 0; }
+.settings-tabs {
+  display: flex; gap: 5px; padding: 4px;
+  border: 1px solid var(--border-color); border-radius: 10px;
+  background: var(--bg-panel);
+}
+.settings-tabs button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 36px; padding: 7px 14px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-muted); font: inherit; font-weight: 700; cursor: pointer;
+}
+.settings-tabs button:hover { color: var(--text-main); background: var(--btn-bg-hover); }
+.settings-tabs button.active { color: var(--on-accent); background: var(--accent); }
+.settings-tabs button i { font-size: 17px; }
+.settings-panes { min-height: 0; flex: 1; }
+.settings-pane { height: 100%; min-height: 0; }
+.settings-pane[hidden] { display: none !important; }
+.settings-general-pane {
+  box-sizing: border-box; display: flex; flex-direction: column; gap: 12px;
+  max-width: 600px; padding: 16px 2px;
+}
+.settings-icons-pane { overflow: hidden; }
+.settings-modal.showing-icon-settings .bp-btnrow { padding-top: 0; }
+
+/* Touch precision experiments ------------------------------------------------ */
+.settings-touch-pane { box-sizing: border-box; height: 100%; overflow-y: auto; padding: 14px 2px; }
+.touch-precision-settings { display: grid; gap: 12px; max-width: 760px; color: var(--text-main); }
+.touch-settings-intro, .touch-settings-note {
+  display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border-color)); border-radius: 11px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-panel));
+}
+.touch-settings-intro > i { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border-radius: 9px; background: var(--accent); color: var(--on-accent); font-size: 19px; }
+.touch-settings-intro strong { font-size: 14px; }
+.touch-settings-intro p { margin: 3px 0 0; color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+.touch-mode-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.touch-mode-card {
+  position: relative; display: grid; grid-template-columns: 58px 1fr; align-items: center; gap: 10px;
+  min-height: 92px; padding: 10px; border: 1px solid var(--border-color); border-radius: 12px;
+  background: var(--bg-panel); cursor: pointer; transition: border-color .16s, background .16s, transform .16s;
+}
+.touch-mode-card:hover { transform: translateY(-1px); border-color: var(--accent); }
+.touch-mode-card.active { border-color: var(--accent); background: color-mix(in srgb,var(--accent) 10%,var(--bg-panel)); box-shadow: 0 0 0 2px color-mix(in srgb,var(--accent) 22%,transparent); }
+.touch-mode-card > input { position: absolute; inset-inline-end: 8px; top: 8px; accent-color: var(--accent); }
+.touch-mode-art { position: relative; display: grid; place-items: center; width: 54px; height: 54px; overflow: hidden; border-radius: 50%; background: color-mix(in srgb,var(--accent) 12%,var(--input-bg)); color: var(--accent); font-size: 23px; }
+.touch-mode-art-rough { border-radius: 12px; }
+.touch-mode-art-portal { border-radius: 10px; box-shadow: inset 0 0 0 2px color-mix(in srgb,var(--accent) 50%,transparent); }
+.touch-mode-reticle { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; transform: translate(-50%,-50%); border: 1px solid #e05a46; border-radius: 50%; }
+.touch-mode-reticle::before,.touch-mode-reticle::after { content:""; position:absolute; background:#e05a46; }
+.touch-mode-reticle::before { left:6px;top:-5px;width:1px;height:24px; }.touch-mode-reticle::after { top:6px;left:-5px;width:24px;height:1px; }
+.touch-mode-copy { min-width: 0; }.touch-mode-copy strong { display:block; padding-inline-end: 16px; font-size:12px; }.touch-mode-copy small { display:block; margin-top:4px; color:var(--text-muted); font-size:10px; line-height:1.35; white-space:normal; overflow-wrap:anywhere; }
+.touch-tuning { display:grid; gap:8px; padding:10px 12px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-panel); }
+.touch-tuning[hidden] { display:none; }.touch-tuning-head { display:flex; justify-content:space-between; gap:12px; }.touch-tuning output { color:var(--accent); font-weight:800; }
+.touch-tuning small { color:var(--text-muted); font-size:10px; }.touch-tuning input[type="range"] { width:100%; accent-color:var(--accent); }
+.touch-segments { display:flex; gap:5px; }.touch-segments button { min-width:58px; min-height:32px; border:1px solid var(--border-color); border-radius:8px; background:var(--btn-bg); color:var(--text-main); font-weight:800; cursor:pointer; }
+.touch-segments button.active { border-color:var(--accent); background:var(--accent); color:var(--on-accent); }
+.touch-settings-note { align-items:center; color:var(--text-muted); font-size:10px; }.touch-settings-note i { color:var(--accent); font-size:16px; }
+
+.touch-precision-session { position:fixed; inset:0; z-index:12000; pointer-events:none; color:#f8fafc; direction:ltr; }
+.touch-refine-surface { position:fixed; z-index:1; pointer-events:auto; touch-action:none; cursor:crosshair; background:transparent; }
+.touch-precision-session.rough .touch-refine-surface { inset:0 !important; width:auto !important; height:auto !important; }
+.touch-refine-reticle { position:fixed; z-index:4; width:30px; height:30px; transform:translate(-50%,-50%); border:2px solid #e05a46; border-radius:50%; filter:drop-shadow(0 1px 2px rgba(0,0,0,.55)); }
+.touch-refine-reticle::before,.touch-refine-reticle::after { content:""; position:absolute; background:#e05a46; }.touch-refine-reticle::before { left:13px;top:-12px;width:2px;height:50px; }.touch-refine-reticle::after { top:13px;left:-12px;width:50px;height:2px; }
+.touch-refine-reticle i { position:absolute; inset:-9px; border:1px dashed rgba(255,255,255,.9); border-radius:50%; }.touch-refine-reticle b { position:absolute; inset:11px; border-radius:50%; background:#fff; box-shadow:0 0 0 2px #e05a46; }
+.touch-refine-panel {
+  position:fixed; z-index:8; left:50%; bottom:max(78px,calc(env(safe-area-inset-bottom) + 64px)); transform:translateX(-50%);
+  display:grid; grid-template-columns:auto auto auto auto; align-items:center; gap:7px; width:min(720px,calc(100vw - 20px)); padding:8px;
+  border:1px solid rgba(255,255,255,.18); border-radius:14px; background:rgba(15,23,42,.94); box-shadow:0 14px 38px rgba(0,0,0,.38); backdrop-filter:blur(10px); pointer-events:auto;
+}
+.touch-refine-readout { min-width:120px; }.touch-refine-readout strong,.touch-refine-readout small { display:block; white-space:nowrap; }.touch-refine-readout strong { font-size:13px; }.touch-refine-readout small { margin-top:2px; color:#94a3b8; font-size:10px; }
+.touch-refine-coordinates { display:flex; gap:5px; }.touch-refine-coordinates label { display:flex; align-items:center; gap:3px; color:#94a3b8; font:700 10px system-ui; }.touch-refine-coordinates input { width:74px; height:32px; box-sizing:border-box; border:1px solid #475569; border-radius:7px; background:#0f172a; color:#fff; padding:0 7px; font:700 12px system-ui; }
+.touch-refine-tools,.touch-refine-actions { display:flex; gap:4px; }.touch-refine-tools button,.touch-refine-actions button { display:inline-flex; align-items:center; justify-content:center; gap:4px; min-width:36px; min-height:34px; padding:4px 8px; border:1px solid #475569; border-radius:8px; background:#1e293b; color:#e2e8f0; font:700 10px system-ui; cursor:pointer; }
+.touch-refine-tools button span { display:none; }.touch-refine-tools button.active { border-color:#60a5fa; background:#1d4ed8; color:#fff; }.touch-refine-actions .confirm { border-color:#16a34a; background:#16a34a; color:#fff; }.touch-refine-actions .cancel { border-color:#b91c1c; color:#fecaca; }
+.touch-portal { position:fixed; z-index:6; top:72px; width:min(280px,44vw); height:min(390px,52dvh); overflow:hidden; border:2px solid #2684c7; border-radius:16px; background:#f8fafc; box-shadow:0 18px 48px rgba(0,0,0,.38); pointer-events:auto; }
+.portal-left .touch-portal { left:10px; }.portal-right .touch-portal { right:10px; }.touch-portal-head { box-sizing:border-box; display:flex; align-items:center; justify-content:space-between; height:34px; padding:0 10px; background:#0f172a; color:#fff; font:700 11px system-ui; }.touch-portal-head span { display:flex; align-items:center; gap:6px; }.touch-portal-head b { color:#7dd3fc; }.touch-portal-canvas { display:block; width:100%; height:calc(100% - 34px); touch-action:none; cursor:crosshair; }
+body.touch-precision-active { overscroll-behavior:none; }
+
+@media (max-width: 620px) {
+  .touch-mode-grid { grid-template-columns:1fr; }.touch-mode-card { min-height:76px; grid-template-columns:50px 1fr; }.touch-mode-art { width:46px;height:46px; }
+  .touch-refine-panel { grid-template-columns:1fr auto; bottom:max(64px,calc(env(safe-area-inset-bottom) + 58px)); }.touch-refine-readout { min-width:0; }.touch-refine-coordinates { grid-column:1 / -1; order:3; }.touch-refine-coordinates label { flex:1; }.touch-refine-coordinates input { width:100%; }.touch-refine-tools { justify-self:end; }.touch-refine-actions { justify-self:end; }
+  .touch-portal { top:58px; width:min(210px,58vw); height:min(300px,45dvh); }
+}
+@media (min-width:700px) and (pointer:coarse) {
+  .touch-precision-session.portal .touch-portal { top:10px; bottom:10px; width:calc(50vw - 16px); height:auto; max-height:none; border-radius:18px; }
+  .touch-precision-session.portal .touch-refine-panel { width:min(560px,46vw); left:auto; right:12px; transform:none; }
+  .touch-precision-session.portal.portal-right .touch-refine-panel { right:auto; left:12px; }
+}
+
+.icon-settings-ui {
+  box-sizing: border-box; display: flex; flex-direction: column; gap: 10px;
+  height: 100%; min-height: 0; overflow-y: auto; scrollbar-width: thin; padding-inline-end: 2px;
+  color: var(--text-main);
+}
+.icon-settings-intro {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border-color));
+  border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--bg-panel));
+}
+.icon-settings-intro-mark {
+  display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto;
+  border-radius: 8px; background: var(--accent); color: var(--on-accent); font-size: 19px;
+}
+.icon-settings-intro strong { display: block; font-size: 13px; }
+.icon-settings-intro p { margin: 2px 0 0; color: var(--text-muted); font-size: 11px; line-height: 1.3; }
+.icon-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 800; }
+.icon-section-head small { display: block; margin-top: 2px; color: var(--text-muted); font-size: 10px; font-weight: 500; }
+.icon-text-btn, .icon-back-btn {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 4px 8px;
+  border: 1px solid var(--border-color); border-radius: 6px; background: var(--btn-bg); color: var(--text-main);
+  font: inherit; font-size: 10.5px; cursor: pointer;
+}
+.icon-text-btn:hover, .icon-back-btn:hover { border-color: var(--accent); background: var(--btn-bg-hover); }
+.icon-text-btn:disabled { opacity: .45; cursor: default; }
+.icon-theme-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.icon-theme-card {
+  --set-accent: var(--accent);
+  position: relative; isolation: isolate; overflow: hidden;
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+  min-width: 0; min-height: 82px; padding: 7px 9px; border: 1px solid var(--border-color); border-radius: 10px;
+  background: var(--bg-panel); color: var(--text-main); text-align: start; cursor: pointer;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.icon-theme-card::after {
+  content: ""; position: absolute; z-index: -1; width: 64px; height: 64px;
+  inset-block-start: -32px; inset-inline-end: -24px; border-radius: 50%;
+  background: color-mix(in srgb, var(--set-accent) 20%, transparent);
+  filter: blur(1px); pointer-events: none;
+}
+.icon-theme-card:hover { transform: translateY(-1px); border-color: var(--set-accent); box-shadow: 0 6px 16px rgba(0,0,0,.15); }
+.icon-theme-card.active { border-color: var(--set-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--set-accent) 42%, transparent), 0 6px 16px rgba(0,0,0,.18); }
+.icon-theme-sample { display: flex; align-items: center; gap: 7px; min-height: 24px; color: var(--set-accent); font-size: 19px; }
+.icon-theme-style {
+  margin-inline-start: auto; padding: 2px 5px; border: 1px solid currentColor; border-radius: 999px;
+  color: inherit; opacity: .85; font-family: Inter, sans-serif; font-size: 7px; font-weight: 800; letter-spacing: .06em; white-space: nowrap;
+}
+.icon-theme-name { display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 11px; }
+.icon-theme-name strong { letter-spacing: -.01em; }
+.icon-theme-name i { color: var(--set-accent); font-size: 14px; }
+.icon-theme-card small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 0; color: currentColor; opacity: .78; font-size: 8.5px; line-height: 1.25; }
+
+/* Each card previews a separate SVG geometry system. */
+.icon-theme-card[data-theme="lucide"] {
+  --set-accent: #0284c7; border-color: #bae6fd;
+  background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 100%); color: #075985;
+}
+.icon-theme-card[data-theme="material"] {
+  --set-accent: #7c3aed; border-color: #ddd6fe;
+  background: linear-gradient(145deg, #faf5ff 0%, #f3e8ff 100%); color: #581c87;
+  border-radius: 14px;
+}
+.icon-theme-card[data-theme="mdi"] {
+  --set-accent: #84cc16; border-color: #3f6212;
+  background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); color: #f7fee7;
+}
+.icon-theme-card[data-theme="tabler"] {
+  --set-accent: #06b6d4; border-color: #155e75;
+  background: linear-gradient(145deg, #082f49 0%, #0c4a6e 100%); color: #cffafe;
+}
+.icon-theme-card[data-theme="huge"] {
+  --set-accent: #ea580c; border-color: #fdba74;
+  background: linear-gradient(145deg, #fff7ed 0%, #ffedd5 100%); color: #9a3412;
+}
+.icon-theme-card[data-theme="cyber"] {
+  --set-accent: #10b981; border-color: #059669;
+  background: linear-gradient(145deg, #022c22 0%, #064e3b 100%); color: #ecfdf5;
+  border-radius: 6px;
+}
+.icon-theme-card[data-theme="duotone"] {
+  --set-accent: #6366f1; border-color: #c7d2fe;
+  background: linear-gradient(145deg, #eef2ff 0%, #e0e7ff 100%); color: #3730a3;
+}
+.icon-theme-card[data-theme="retro"] {
+  --set-accent: #d97706; border-color: #78350f;
+  background: linear-gradient(145deg, #27272a 0%, #18181b 100%); color: #fef3c7;
+  border-radius: 4px;
+}
+.icon-theme-card[data-theme="brutalist"] {
+  --set-accent: #e11d48; border: 1.5px solid #0f172a; border-radius: 2px;
+  background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%); color: #0f172a;
+}
+.icon-theme-card[data-theme="sketch"] {
+  --set-accent: #2563eb; border: 1px dashed #3b82f6;
+  background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%); color: #1e40af;
+}
+.icon-custom-head { padding-top: 1px; border-top: 1px solid var(--border-color); }
+.icon-custom-layout {
+  display: grid; grid-template-columns: minmax(320px, .9fr) minmax(360px, 1.1fr); gap: 10px;
+  min-height: 380px; flex: 1;
+}
+.icon-usage-browser, .icon-detail {
+  box-sizing: border-box; min-height: 0; overflow: hidden; padding: 10px;
+  border: 1px solid var(--border-color); border-radius: 11px; background: var(--bg-panel);
+}
+.icon-usage-browser { display: flex; flex-direction: column; gap: 8px; }
+.icon-detail { overflow-y: auto; scrollbar-width: thin; }
+.icon-search {
+  display: flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 9px;
+  border: 1px solid var(--border-color); border-radius: 8px; background: var(--input-bg, var(--bg-app)); color: var(--text-muted);
+}
+.icon-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent); }
+.icon-search input { width: 100%; min-width: 0; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text-main); font: inherit; font-size: 11.5px; }
+.icon-category-row { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.icon-category-chip {
+  flex: 0 0 auto; padding: 4px 7px; border: 1px solid var(--border-color); border-radius: 999px;
+  background: transparent; color: var(--text-muted); font: inherit; font-size: 9.5px; cursor: pointer;
+}
+.icon-category-chip:hover { color: var(--text-main); border-color: var(--accent); }
+.icon-category-chip.active { color: var(--on-accent); border-color: var(--accent); background: var(--accent); }
+.icon-used-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 6px;
+  min-height: 0; overflow-y: auto; padding-inline-end: 2px; scrollbar-width: thin;
+}
+.icon-used-card {
+  position: relative; display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 8px;
+  min-width: 0; min-height: 48px; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 8px;
+  background: var(--bg-panel); color: var(--text-main); text-align: start; cursor: pointer;
+}
+.icon-used-card:hover { background: var(--btn-bg-hover); border-color: var(--accent); }
+.icon-used-card.active { background: color-mix(in srgb, var(--accent) 12%, var(--bg-app)); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.icon-used-card > i {
+  color: var(--accent); font-size: 21px; width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-app)); border-radius: 6px;
+}
+.icon-used-card span { min-width: 0; }
+.icon-used-card strong, .icon-used-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icon-used-card strong { font-size: 11px; }
+.icon-used-card small { margin-top: 2px; color: var(--text-muted); font-size: 9px; font-family: monospace; }
+.icon-custom-dot { position: absolute; top: 6px; inset-inline-end: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.icon-empty { grid-column: 1 / -1; margin: 20px 8px; color: var(--text-muted); font-size: 11px; text-align: center; }
+.icon-detail-hero { display: flex; align-items: center; gap: 12px; }
+.icon-detail-preview {
+  display: grid; place-items: center; width: 64px; height: 64px; flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border-color)); border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-app)); color: var(--accent); font-size: 34px;
+}
+.icon-detail-copy { min-width: 0; }
+.icon-detail-copy small { display: block; color: var(--text-muted); font-size: 9.5px; }
+.icon-detail-copy h4 { margin: 3px 0 2px; font-size: 15px; }
+.icon-detail-copy code { color: var(--text-muted); font-size: 9.5px; }
+.icon-detail-actions { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+.icon-detail-actions .btn-accent { min-height: 31px; padding: 5px 10px; font-size: 10.5px; }
+.icon-override-note { margin: 7px 0 0; color: var(--accent); font-size: 9.5px; }
+.icon-locations-head { display: flex; align-items: center; justify-content: space-between; margin: 13px 0 6px; font-size: 11px; }
+.icon-locations-head span { min-width: 20px; padding: 2px 6px; border-radius: 999px; background: var(--btn-bg); color: var(--text-muted); text-align: center; font-size: 9px; }
+.icon-location-list { display: flex; flex-direction: column; gap: 5px; }
+.icon-location-row {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) 16px; align-items: center; gap: 7px;
+  min-height: 42px; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 8px;
+  background: var(--bg-app); color: var(--text-main); text-align: start; cursor: pointer;
+}
+.icon-location-row:hover { border-color: var(--accent); background: var(--btn-bg-hover); }
+.icon-location-row > i:first-child { color: var(--accent); font-size: 18px; }
+.icon-location-row > i:last-child { color: var(--text-muted); }
+.icon-location-row strong, .icon-location-row small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icon-location-row strong { font-size: 10.5px; }
+.icon-location-row small { margin-top: 2px; color: var(--text-muted); font-size: 8.5px; }
+.icon-location-row.hidden-location { grid-template-columns: 28px minmax(0, 1fr); opacity: .62; cursor: default; }
+.icon-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 12px; }
+.icon-picker-search { margin-bottom: 5px; }
+.icon-picker-meta { margin-bottom: 6px; color: var(--text-muted); font-size: 9px; }
+.icon-picker-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.icon-glyph {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-width: 0; min-height: 58px; padding: 6px 3px; border: 1px solid var(--border-color); border-radius: 8px;
+  background: var(--bg-panel); color: var(--text-main); cursor: pointer;
+}
+.icon-glyph:hover { border-color: var(--accent); background: var(--btn-bg-hover); }
+.icon-glyph.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--bg-app)); box-shadow: 0 0 0 1px var(--accent); }
+.icon-glyph i { color: var(--accent); font-size: 22px; }
+.icon-glyph span { width: 100%; overflow: hidden; color: var(--text-muted); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The semantic ph-* class remains the stable app API; the settings runtime
+   replaces its font pseudo-element with the selected library's real SVG. */
+i.ph.icon-svg-rendered {
+  display: inline-flex; align-items: center; justify-content: center;
+  line-height: 1; vertical-align: -.125em;
+}
+i.ph.icon-svg-rendered::before { content: none !important; }
+i.ph.icon-svg-rendered > svg { display: block; width: 1em; height: 1em; overflow: visible; pointer-events: none; }
+
+@keyframes icon-location-pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+  25%, 70% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 38%, transparent); }
+}
+.icon-location-pulse { position: relative; z-index: 10000; animation: icon-location-pulse-ring .8s ease 3; }
+
+@media (max-width: 760px) {
+  .settings-modal { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 12px; }
+  .settings-tabs button { flex: 1; }
+  .icon-settings-intro { display: none; }
+  .icon-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .icon-theme-card small { min-height: 0; }
+  .icon-custom-layout { grid-template-columns: 1fr; overflow-y: auto; }
+  .icon-usage-browser { min-height: 300px; overflow: visible; }
+  .icon-used-grid { max-height: 280px; }
+  .icon-detail { min-height: 330px; overflow: visible; }
+  .icon-picker-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }

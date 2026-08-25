@@ -1,0 +1,304 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { openPage, findChrome } from "../tools/browser_harness.mjs";
+
+const chrome = await findChrome();
+const opts = chrome ? {} : { skip: "no Chrome found (set CHROME_PATH)" };
+
+test("short Planner menus hug the bottom and use only their content height", opts, async () => {
+  const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
+  try {
+    for (const [width, height, name] of [
+      [390, 844, "phone"],
+      [344, 882, "Fold cover"],
+      [844, 390, "landscape"],
+      [717, 829, "Fold inner"],
+    ]) {
+      await page.resize(width, height, { mobile: true, touch: true });
+      await page.goto("/?bottom-sheet=" + width + "x" + height);
+      await page.eval(() => {
+        const start = document.getElementById("start-screen");
+        if (start) start.hidden = true;
+        document.querySelector('[data-mnav="tools"]').click();
+      });
+      await page.eval(() => new Promise((resolve) => setTimeout(resolve, 420)));
+      const layout = await page.eval(() => {
+        const sheet = document.getElementById("m-sheet");
+        const body = document.getElementById("m-sheet-body");
+        const head = sheet.querySelector(".m-sheet-head");
+        const ctx = document.getElementById("m-ctx");
+        const sr = sheet.getBoundingClientRect(), cr = ctx.getBoundingClientRect();
+        const expected = head.getBoundingClientRect().height + body.scrollHeight
+          + parseFloat(getComputedStyle(sheet).paddingBottom || 0)
+          + parseFloat(getComputedStyle(sheet).borderTopWidth || 0);
+        return {
+          top: sr.top,
+          bottom: sr.bottom,
+          height: sr.height,
+          expected,
+          ctxTop: cr.top,
+          viewport: innerHeight,
+          posture: document.body.className,
+        };
+      });
+      assert.ok(Math.abs(layout.bottom - layout.ctxTop) <= 1, name + ": sheet is attached to the thumb rows");
+      assert.ok(Math.abs(layout.height - layout.expected) <= 4, name + ": no unused vertical menu space " + JSON.stringify(layout));
+      assert.ok(layout.top > 0, name + ": a short menu never reaches the top edge");
+      assert.ok(layout.height < layout.viewport * 0.55, name + ": canvas stays visible above the menu");
+    }
+  } finally {
+    await page.close();
+  }
+});
+
+test("Planner Properties is a clipped-free page deck across common phone and Fold sizes", opts, async () => {
+  const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
+  const sizes = [
+    [390, 844, "phone portrait"],
+    [344, 882, "Fold cover"],
+    [844, 390, "phone landscape"],
+    [717, 829, "Fold inner"],
+  ];
+  let sawMultiPage = false;
+  try {
+    for (const [width, height, name] of sizes) {
+      await page.resize(width, height, { mobile: true, touch: true });
+      await page.goto("/?menu-pages-test=" + width + "x" + height);
+      await page.eval(() => {
+        const start = document.getElementById("start-screen");
+        if (start) start.hidden = true;
+        document.querySelectorAll("#right-inspector .props").forEach((node) => node.classList.remove("on"));
+        document.getElementById("openProps").classList.add("on");
+        document.getElementById("doorSpecific").style.display = "none";
+        document.getElementById("o_frame_box").style.display = "flex";
+        const props = document.querySelector('[data-mnav="props"]');
+        props.disabled = false;
+        props.click();
+      });
+      await page.eval(() => new Promise((resolve) => setTimeout(resolve, 420)));
+
+      const layout = await page.eval(() => {
+        const panel = document.getElementById("right-inspector");
+        const nav = document.getElementById("mobile-nav");
+        const ctx = document.getElementById("m-ctx");
+        const pages = [...document.querySelectorAll("#openProps .mobile-menu-page")];
+        const active = pages.filter((node) => node.classList.contains("on"));
+        const input = document.getElementById("o_w");
+        const pr = panel.getBoundingClientRect();
+        const nr = nav.getBoundingClientRect();
+        const cr = ctx.getBoundingClientRect();
+        return {
+          body: document.body.className,
+          pageCount: pages.length,
+          activeCount: active.length,
+          panelTop: pr.top,
+          panelBottom: pr.bottom,
+          controlsTop: Math.min(nr.top, cr.top),
+          inputHeight: input.getBoundingClientRect().height,
+          panelOverflow: getComputedStyle(panel).overflowY,
+          panelBottomCss: getComputedStyle(panel).bottom,
+          navBlock: getComputedStyle(document.body).getPropertyValue("--mobile-nav-block"),
+          ctxReserve: getComputedStyle(document.body).getPropertyValue("--m-ctx-reserve"),
+          activeFits: active.length === 1 && active[0].scrollHeight <= active[0].clientHeight + 2,
+          firstCount: document.querySelector("#openProps .mobile-page-count")?.textContent,
+        };
+      });
+
+      assert.match(layout.body, /compact-nav/, name + ": compact posture");
+      assert.ok(layout.pageCount >= 1, name + ": inspector has a page deck " + JSON.stringify(layout));
+      sawMultiPage ||= layout.pageCount > 1;
+      assert.equal(layout.activeCount, 1, name + ": exactly one page participates in layout");
+      assert.ok(layout.panelTop >= 0, name + ": panel starts on-screen");
+      assert.ok(layout.panelBottom <= layout.controlsTop + 1, name + ": panel ends above thumb controls " + JSON.stringify(layout));
+      assert.equal(Math.round(layout.inputHeight), 44, name + ": compact fields retain touch height");
+      assert.equal(layout.panelOverflow, "hidden", name + ": panel is not a continuous scroll");
+      assert.ok(layout.activeFits, name + ": active card is not clipped");
+      assert.match(layout.firstCount || "", /^1 \/ /, name + ": page counter starts at one");
+
+      const after = await page.eval(() => {
+        const next = document.querySelector("#openProps .mobile-page-arrow:last-child");
+        if (!next.disabled) next.click();
+        return {
+          count: document.querySelector("#openProps .mobile-page-count").textContent,
+          active: [...document.querySelectorAll("#openProps .mobile-menu-page")]
+            .findIndex((node) => node.classList.contains("on")),
+        };
+      });
+      if (layout.pageCount > 1) {
+        assert.equal(after.active, 1, name + ": next arrow switches whole pages");
+        assert.match(after.count, /^2 \/ /, name + ": counter follows the page");
+      } else {
+        assert.equal(after.active, 0, name + ": a fitting card stays on its only page");
+        assert.equal(after.count, "1 / 1", name + ": fitting content adds no empty page");
+      }
+    }
+    assert.ok(sawMultiPage, "the short/common postures exercise real multi-page navigation");
+  } finally {
+    await page.close();
+  }
+});
+
+test("Model Editor and Cabinet sheets use the same one-card-at-a-time contract", opts, async () => {
+  const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
+  try {
+    await page.eval(() => {
+      const start = document.getElementById("start-screen");
+      if (start) start.hidden = true;
+      document.getElementById("openModelerTop").click();
+    });
+    await page.eval(() => new Promise((resolve) => setTimeout(resolve, 420)));
+    await page.eval(() => {
+      const start = document.querySelector('#mdWelcome [data-welcome-start="continue"]');
+      if (start) start.click();
+    });
+    await page.eval(() => new Promise((resolve) => setTimeout(resolve, 300)));
+    await page.eval(() => document.querySelector('[data-mdnav="more"]').click());
+    await page.eval(() => new Promise((resolve) => setTimeout(resolve, 250)));
+    const modeler = await page.eval(() => {
+      const sheet = document.getElementById("md-sheet");
+      const nav = document.getElementById("md-nav");
+      const sr = sheet.getBoundingClientRect(), nr = nav.getBoundingClientRect();
+      return {
+        paged: !!sheet.querySelector(".mobile-page-shell"),
+        active: sheet.querySelectorAll(".mobile-menu-page.on").length,
+        bottom: sr.bottom,
+        controlsTop: nr.top,
+        overflow: getComputedStyle(sheet.querySelector("#md-sheet-body")).overflowY,
+        bodyClass: document.body.className,
+        hostClass: sheet.querySelector("#md-sheet-body").className,
+        shellParent: sheet.querySelector(".mobile-page-shell")?.parentElement?.className,
+      };
+    });
+    assert.ok(modeler.paged, "Model Editor sheet is paged");
+    assert.equal(modeler.active, 1, "Model Editor lays out one card");
+    assert.ok(modeler.bottom <= modeler.controlsTop + 1, "Model Editor ends above navigation");
+    assert.equal(modeler.overflow, "hidden", "Model Editor sheet does not continuously scroll " + JSON.stringify(modeler));
+
+    await page.goto("/?cabinet-pages-test=1");
+    await page.eval(async () => {
+      const start = document.getElementById("start-screen");
+      if (start) start.hidden = true;
+      const [{ openCabinet }, { S }] = await Promise.all([
+        import("./js/ui_cabinet.js"),
+        import("./js/state.js"),
+      ]);
+      const item = { id: "menu-page-cab", type: "cabsys", x: 0, y: 0, z: 0, w: 100, h: 210, d: 60, rot: 0 };
+      S.items.push(item);
+      openCabinet(item);
+    });
+    await page.eval(() => new Promise((resolve) => {
+      const until = performance.now() + 2500;
+      const poll = () => document.querySelector('[data-cbnav="more"]') || performance.now() > until
+        ? resolve()
+        : setTimeout(poll, 40);
+      poll();
+    }));
+    await page.eval(() => {
+      const more = document.querySelector('[data-cbnav="more"]');
+      if (!more) throw new Error("Cabinet mobile navigation did not mount");
+      more.click();
+    });
+    await page.eval(() => new Promise((resolve) => setTimeout(resolve, 250)));
+    const cabinet = await page.eval(() => {
+      const sheet = document.querySelector("#cabdes .cb-m-sheet");
+      const nav = document.querySelector("#cabdes .cb-m-nav");
+      const sr = sheet.getBoundingClientRect(), nr = nav.getBoundingClientRect();
+      return {
+        paged: !!sheet.querySelector(".mobile-page-shell"),
+        active: sheet.querySelectorAll(".mobile-menu-page.on").length,
+        bottom: sr.bottom,
+        controlsTop: nr.top,
+        overflow: getComputedStyle(sheet.querySelector(".cbm-body")).overflowY,
+      };
+    });
+    assert.ok(cabinet.paged, "Cabinet sheet is paged");
+    assert.equal(cabinet.active, 1, "Cabinet lays out one card");
+    assert.ok(cabinet.bottom <= cabinet.controlsTop + 1, "Cabinet ends above navigation");
+    assert.equal(cabinet.overflow, "hidden", "Cabinet sheet does not continuously scroll");
+  } finally {
+    await page.close();
+  }
+});
+
+test("mobile selection identity lives in the top row above translucent Properties", opts, async () => {
+  const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
+  try {
+    for (const [width, height, name] of [[390, 844, "phone"], [344, 882, "Fold cover"], [717, 829, "Fold inner"]]) {
+      await page.resize(width, height, { mobile: true, touch: true });
+      await page.goto("/?wall-identity=" + width);
+      await page.eval(async () => {
+        const start = document.getElementById("start-screen");
+        if (start) start.hidden = true;
+        const { S } = await import("./js/state.js");
+        S.sel = { kind: "wall", ref: { id: 1 } };
+        document.querySelectorAll("#right-inspector .props").forEach((node) => node.classList.remove("on"));
+        document.getElementById("wallProps").classList.add("on");
+        document.getElementById("selname").textContent = "Wall 1";
+        const phase = document.getElementById("w_phasePill");
+        phase.hidden = false;
+        phase.className = "wi-phase ph-new";
+        phase.textContent = "New";
+        const props = document.querySelector('[data-mnav="props"]');
+        props.disabled = false;
+        props.click();
+        window.dispatchEvent(new CustomEvent("planner-selection"));
+      });
+      await page.eval(() => new Promise((resolve) => setTimeout(resolve, 420)));
+      const layout = await page.eval(() => {
+        const alphaOf = (color) => {
+          const slash = color.match(/\/\s*([\d.]+)\s*\)/);
+          if (slash) return Number(slash[1]);
+          const rgba = color.match(/^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)$/);
+          return rgba ? Number(rgba[1]) : 1;
+        };
+        const topbar = document.getElementById("topbar");
+        const identity = document.getElementById("m-top-selection");
+        const phase = document.getElementById("m-top-selection-phase");
+        const wall = document.getElementById("m-top-selection-name");
+        const start = topbar.querySelector(".tb-start");
+        const end = topbar.querySelector(".tb-end");
+        const localIdentity = document.querySelector("#wallProps .wi-identity");
+        const panel = document.getElementById("right-inspector");
+        const input = document.getElementById("w_len");
+        const tr = topbar.getBoundingClientRect(), ir = identity.getBoundingClientRect();
+        const pr = phase.getBoundingClientRect(), wr = wall.getBoundingClientRect();
+        const sr = start.getBoundingClientRect(), er = end.getBoundingClientRect();
+        return {
+          hidden: identity.hidden,
+          name: wall.textContent,
+          phase: phase.textContent,
+          topbarHeight: tr.height,
+          centreDelta: Math.abs((wr.left + wr.width / 2) - (ir.left + ir.width / 2)),
+          phaseAbove: pr.bottom <= wr.top + 1,
+          noOverlap: ir.left >= sr.right - 1 && ir.right <= er.left + 1,
+          phaseSize: parseFloat(getComputedStyle(phase).fontSize),
+          nameSize: parseFloat(getComputedStyle(wall).fontSize),
+          textAlign: getComputedStyle(wall).textAlign,
+          localDisplay: getComputedStyle(localIdentity).display,
+          panelBackground: getComputedStyle(panel).backgroundColor,
+          panelAlpha: alphaOf(getComputedStyle(panel).backgroundColor),
+          panelBlur: getComputedStyle(panel).backdropFilter,
+          inputBackground: getComputedStyle(input).backgroundColor,
+          auxiliaryDisplays: [".cost-section", ".env-section", ".friends-section", ".site-section"]
+            .map((selector) => getComputedStyle(document.querySelector("#right-inspector > " + selector)).display),
+        };
+      });
+      assert.equal(layout.hidden, false, name + ": selection title is visible");
+      assert.equal(layout.name, "Wall 1", name + ": live selection name is mirrored");
+      assert.equal(layout.phase, "New", name + ": wall phase is mirrored");
+      assert.equal(Math.round(layout.topbarHeight), 48, name + ": title does not enlarge the top row");
+      assert.ok(layout.centreDelta <= 1, name + ": name is centred in its column");
+      assert.ok(layout.phaseAbove, name + ": phase sits above the name");
+      assert.ok(layout.noOverlap, name + ": title does not collide with global actions " + JSON.stringify(layout));
+      assert.ok(layout.nameSize >= 15 && layout.phaseSize <= 8, name + ": name/phase hierarchy");
+      assert.equal(layout.textAlign, "center", name + ": name alignment");
+      assert.equal(layout.localDisplay, "none", name + ": Properties does not repeat the title");
+      assert.notEqual(layout.panelBlur, "none", name + ": Properties has a real glass blur");
+      assert.ok(layout.panelAlpha < 0.6, name + ": the plan remains clearly visible through Properties " + JSON.stringify(layout));
+      assert.notEqual(layout.panelBackground, layout.inputBackground, name + ": fields retain a distinct readable backing");
+      assert.deepEqual(layout.auxiliaryDisplays, ["none", "none", "none", "none"], name + ": no empty accordion stripes remain");
+    }
+  } finally {
+    await page.close();
+  }
+});

@@ -103,9 +103,11 @@ test("modeler: the sheet is the ribbon's width budget", () => {
   assert.match(css, /\.md-commandmanager\.md-borrowed \{[\s\S]{0,400}min-width: 0;/);
 });
 
-test("modeler: contextual labels survive a 390px phone", () => {
-  // the old blanket rule blanked Accept/Cancel and the coach's next step
-  assert.doesNotMatch(css, /\.mctx-btn:not\(\.mctx-chip\) span \{ display: none; \}/);
+test("modeler: icon-only contextual actions retain accessible names", () => {
+  // Visible captions are intentionally retired, but every generated action is
+  // still named for assistive technology and the DOM-accessible tool surface.
+  assert.match(mdMobile, /b\.setAttribute\("aria-label", spec\.label\)/);
+  assert.match(cbMobile, /b\.setAttribute\("aria-label", spec\.label\)/);
   assert.match(mdMobile, /iconOnly: true, disabled: !api\.canUndo\(\)/);
   assert.match(cbMobile.length ? css : css, /#m-ctx \.mctx-btn\.mctx-icon-only/);
   assert.match(css, /#md-ctx\.mctx-empty/);

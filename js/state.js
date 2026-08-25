@@ -306,7 +306,8 @@ export const S = {
   // true only while a finger is dragging: gates the snap haptic (a mouse drag
   // has the blink and needs no buzz)
   touchDrag: false,
-  // transient: finger contact location and effective touch-offset draw point
+  // transient: direct finger contact and visual precision-aid state. Creation
+  // modes may refine separately, but selection never receives an offset point.
   touchContact: null,
   // transient: drafting guides while drawing/dragging a wall corner.
   // [{ x1,z1, x2,z2 }] — a dashed line from the corner being aligned WITH to

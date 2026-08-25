@@ -1,49 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { touchEffectiveOffsetY, TOUCH_DRAW_OFFSET_PX } from "../js/wall_draw.js";
 
 const interactionSource = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
 const plan2dSource = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 
-test("touchEffectiveOffsetY: mouse and non-touch pointers have zero offset", () => {
-  assert.equal(touchEffectiveOffsetY(100, "mouse", "wall", null), 100);
-  assert.equal(touchEffectiveOffsetY(250, "pen", "wall", null), 250);
-  assert.equal(touchEffectiveOffsetY(300, "", "wall", null), 300);
-});
-
-test("touchEffectiveOffsetY: non-drawing tools have zero offset even with touch", () => {
-  assert.equal(touchEffectiveOffsetY(100, "touch", "select", null), 100);
-  assert.equal(touchEffectiveOffsetY(200, "touch", "erase", null), 200);
-  assert.equal(touchEffectiveOffsetY(300, "touch", "door", null), 300);
-});
-
-test("touchEffectiveOffsetY: wall drawing tools apply ~52px offset above finger contact point", () => {
-  const drawTools = ["wall", "arcwall", "rect", "slabvoid", "roomDivider"];
-  drawTools.forEach((tool) => {
-    assert.equal(touchEffectiveOffsetY(200, "touch", tool, null), 200 - TOUCH_DRAW_OFFSET_PX);
-  });
-});
-
-test("touchEffectiveOffsetY: moving existing walls and nodes does not jump", () => {
-  assert.equal(touchEffectiveOffsetY(150, "touch", "select", "node"), 150);
-  assert.equal(touchEffectiveOffsetY(180, "touch", "select", "wall"), 180);
-  assert.equal(touchEffectiveOffsetY(200, "touch", "walloffset", null), 200);
-});
-
-test("touchEffectiveOffsetY: clamps smoothly near canvas top edge", () => {
-  // At oy=30, max offset is 30 - 12 = 18px -> effOy = 12
-  assert.equal(touchEffectiveOffsetY(30, "touch", "wall", null), 12);
-  // At oy=5, offset is 0 -> effOy = 5
-  assert.equal(touchEffectiveOffsetY(5, "touch", "wall", null), 5);
-});
-
 test("planner: touchContact and drawTouchGuide are wired in interaction.js and plan2d.js", () => {
-  assert.match(interactionSource, /S\.touchContact = \{ ox: ox, oy: oy, effOy: effOy, pointerId: e\.pointerId \};/);
-  assert.match(interactionSource, /S\.touchContact = \{ ox: e\.offsetX, oy: e\.offsetY, effOy: effOy, pointerId: e\.pointerId \};/);
+  assert.match(interactionSource, /S\.touchContact = beginTouchPrecision\(e, ox, oy, bounds, kind\);/);
+  assert.match(interactionSource, /updateTouchPrecision\(S\.touchContact, ox, oy\);/);
+  assert.match(interactionSource, /touchPrecisionPoint\(S\.touchContact, ox, oy\);/);
   assert.match(interactionSource, /S\.touchContact = null;/);
   assert.match(plan2dSource, /function drawTouchGuide\(\)/);
+  assert.match(plan2dSource, /drawTouchPrecisionLens\(pc, plan, tc,/);
   assert.match(plan2dSource, /drawTouchGuide\(\);/);
 });
 
@@ -77,4 +46,26 @@ test("modeler: expanded height does not carry over to the next sheet", async () 
   // showSheet() clears the tall state before building the new panel
   assert.match(src, /release\(\);\n(?:\s*\/\*[\s\S]*?\*\/\n)?\s*setSheetTall\(false\);/);
   assert.match(src, /function setSheetTall\(on\) \{[\s\S]*?sheet\.classList\.toggle\("tall", !!on\);/);
+});
+
+test("planner: one readout card accompanies the direct touch point", () => {
+  assert.match(plan2dSource, /function touchDrawReadout\(\)/);
+  assert.match(plan2dSource, /function drawTouchReadout\(ox, oy\)/);
+  // anchored above the draw point, flipped below it only when the top is tight
+  assert.match(plan2dSource, /var top = oy - 16 - h;\n\s*if \(top < topReservedPx\(\) \+ 6\) top = oy \+ 16;/);
+  // the DOM instruction bar paints over the canvas — the card dodges it
+  assert.match(plan2dSource, /function topReservedPx\(\)/);
+  assert.match(plan2dSource, /drawTouchReadout\(ox, oy\);/);
+  assert.doesNotMatch(plan2dSource, /if \(lifted\) drawTouchReadout/);
+});
+
+test("planner: the on-geometry copies stand down while a finger draws", async () => {
+  const wallDrawSource = await readFile(new URL("../js/wall_draw.js", import.meta.url), "utf8");
+  const hudSource = await readFile(new URL("../js/cad_hud.js", import.meta.url), "utf8");
+  assert.match(wallDrawSource, /export function touchDrawing\(\)/);
+  // the status bar drops its duplicate of the same three numbers
+  assert.match(hudSource, /if \(touchDrawing\(\)\) main = "";/);
+  // wall length/angle, parallel offset, close-loop, arc and rect labels
+  const guarded = plan2dSource.match(/!touchDrawing\(\)/g) || [];
+  assert.ok(guarded.length >= 5, `expected 5+ guarded labels, got ${guarded.length}`);
 });

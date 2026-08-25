@@ -13,13 +13,17 @@
 import { S, fin } from "./state.js";
 import { plan, wx, wz, render2D, segBearing, onAfterRender } from "./plan2d.js";
 import { wallPointPolar } from "./interaction.js";
-import { wallClearLength, pendingCuts } from "./geometry.js";
+import { wallClearLength, pendingCuts, roomName } from "./geometry.js";
+import { flabel } from "./furniture_meta.js";
 import { t } from "./i18n.js";
-import { previousRunAngle, resolveWallDrawDefaults, previewMetrics } from "./wall_draw.js";
+import { previousRunAngle, resolveWallDrawDefaults, previewMetrics, touchDrawing } from "./wall_draw.js";
 
 var bar = null,
   elCoord = null,
   elMain = null,
+  elName = null,
+  elDetail = null,
+  elProps = null,
   elSnap = null,
   entry = null,
   inLen = null,
@@ -118,7 +122,9 @@ export function initCadHud() {
   bar.id = "cad-status";
   bar.innerHTML =
     '<span class="cad-coord" id="cadCoord"></span>' +
-    '<span class="cad-main" id="cadMain"></span>' +
+    '<span class="cad-main" id="cadMain"><strong id="cadName"></strong><span id="cadDetail"></span></span>' +
+    '<button type="button" class="cad-selection-props" id="cadSelectionProps" hidden>' +
+    '<i class="ph ph-sliders-horizontal"></i><span></span></button>' +
     '<span class="cad-snap" id="cadSnap"></span>' +
     '<label class="cad-target"><span id="cadTargetLabel"></span><select id="cadTarget">' +
     '<option value="nearest"></option><option value="object"></option>' +
@@ -129,7 +135,16 @@ export function initCadHud() {
   host.appendChild(bar);
   elCoord = bar.querySelector("#cadCoord");
   elMain = bar.querySelector("#cadMain");
+  elName = bar.querySelector("#cadName");
+  elDetail = bar.querySelector("#cadDetail");
+  elProps = bar.querySelector("#cadSelectionProps");
   elSnap = bar.querySelector("#cadSnap");
+  elProps.addEventListener("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var props = document.querySelector('#mobile-nav [data-mnav="props"]');
+    if (props) props.click();
+  });
   targetSelect = bar.querySelector("#cadTarget");
   targetSelect.value = S.measureTarget || "nearest";
   targetSelect.addEventListener("change", function () {
@@ -197,6 +212,7 @@ export function initCadHud() {
   // and once per painted frame, so the bar and the rubber-band label can never
   // disagree (interaction's own pointermove is throttled)
   onAfterRender(updateCadHud);
+  window.addEventListener("planner-selection", updateCadHud);
 
   window.addEventListener("keydown", function (e) {
     var k = e.key;
@@ -400,8 +416,11 @@ export function updateCadHud() {
   );
 
   // middle: what the current gesture is about to produce
-  var main = "";
-  if (S.tool === "wall" && S.drawing && S.drawFrom != null && S.previewPt) {
+  var main = "", selectionName = "", selectionDetail = "";
+  /* A finger reads the length off the card that rides the draw point; printing
+     it up here too put the same three numbers on screen twice. */
+  if (touchDrawing()) main = "";
+  else if (S.tool === "wall" && S.drawing && S.drawFrom != null && S.previewPt) {
     var a = S.nodes[S.drawFrom];
     if (a) {
       // interior span, matching the rubber-band label in the plan
@@ -433,16 +452,37 @@ export function updateCadHud() {
   } else if (S.tool === "slabvoid") {
     main = t("hint_tool_slabvoid");
   } else if (S.sel && S.sel.kind === "slabvoid" && S.sel.ref) {
-    main = Math.round(S.sel.ref.w) + " × " + Math.round(S.sel.ref.d) + " " + unit;
+    selectionName = S.sel.ref.name || t("sv_title");
+    selectionDetail = Math.round(S.sel.ref.w) + " × " + Math.round(S.sel.ref.d) + " " + unit;
   } else if (S.sel && S.sel.kind === "wall") {
-    main = t("tool_wall_sel", { n: Math.round(wallLen(S.sel.ref)) });
+    selectionName = t("wallId", { id: S.sel.ref.id });
+    selectionDetail = Math.round(wallLen(S.sel.ref)) + " " + unit;
   } else if (S.sel && S.sel.kind === "item" && S.sel.ref) {
-    main =
-      Math.round(S.sel.ref.w) + " × " + Math.round(S.sel.ref.d) + " " + unit;
+    selectionName = S.sel.ref.name || flabel(S.sel.ref.type);
+    selectionDetail = Math.round(S.sel.ref.w) + " × " + Math.round(S.sel.ref.d) + " " + unit;
+  } else if (S.sel && S.sel.kind === "opening" && S.sel.ref) {
+    selectionName = S.sel.ref.name || t(S.sel.ref.type === "door" ? "door" : S.sel.ref.type === "passage" ? "passage" : "window");
+    selectionDetail = Math.round(S.sel.ref.w || S.sel.ref.width || 0) + " × " +
+      Math.round(S.sel.ref.h || S.sel.ref.height || 0) + " " + unit;
+  } else if (S.sel && S.sel.kind === "room") {
+    selectionName = roomName(S.sel.ref) || t("room");
+  } else if (S.sel && S.sel.kind === "marker" && S.sel.ref) {
+    selectionName = S.sel.ref.name || t("mk_points");
+  } else if (S.sel && S.sel.kind === "node") {
+    selectionName = t("nd_title");
   } else if (S.sel && S.sel.kind === "items") {
-    main = t("cad_nsel", { n: S.sel.refs.length });
+    selectionName = t("cad_nsel", { n: S.sel.refs.length });
   }
-  lastMain = setText(elMain, main, lastMain);
+  main = selectionName ? selectionName + (selectionDetail ? " · " + selectionDetail : "") : main;
+  lastMain = setText(elName, selectionName || main, lastMain);
+  setText(elDetail, selectionName ? selectionDetail : "", null);
+  elMain.classList.toggle("is-selection", !!selectionName);
+  elProps.hidden = !selectionName;
+  if (selectionName) {
+    var propsLabel = t("m_a_props");
+    elProps.querySelector("span").textContent = propsLabel;
+    elProps.setAttribute("aria-label", propsLabel + ": " + selectionName);
+  }
   /* On a phone this bar is reduced to the instruction alone (css: the chips it
      used to carry moved into the mobile shell's contextual row). An empty
      instruction there would leave a blank band across the top of the plan, so
