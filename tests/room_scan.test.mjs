@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseRoomScan, roomScanFromPoints, scanBounds, RoomScanError } from "../js/room_scan.js";
+import {
+  parseRoomScan, roomScanFromPoints, scanBounds, RoomScanError,
+  roomScanArIssue, roomScanArStartIssue, appendRoomScanPoint,
+} from "../js/room_scan.js";
 
 function transform(x, z, axisX = 1, axisZ = 0) {
   return [
@@ -85,4 +88,22 @@ test("invalid and incomplete scans report actionable error kinds", () => {
   assert.throws(() => parseRoomScan("not json"), (error) => error instanceof RoomScanError && error.kind === "bad-json");
   assert.throws(() => parseRoomScan({ walls: [] }), (error) => error instanceof RoomScanError && error.kind === "no-walls");
   assert.throws(() => roomScanFromPoints([{ x: 0, z: 0 }, { x: 1, z: 1 }]), (error) => error.kind === "no-walls");
+});
+
+test("mobile AR preflight reports the concrete blocker", () => {
+  assert.equal(roomScanArIssue({ secureContext: false, appleMobile: false, xrApi: true }), "insecure");
+  assert.equal(roomScanArIssue({ secureContext: true, appleMobile: true, xrApi: false }), "apple-mobile");
+  assert.equal(roomScanArIssue({ secureContext: true, appleMobile: false, xrApi: false }), "no-webxr");
+  assert.equal(roomScanArIssue({ secureContext: true, appleMobile: false, xrApi: true, sessionSupported: false }), "unsupported");
+  assert.equal(roomScanArIssue({ secureContext: true, appleMobile: false, xrApi: true, sessionSupported: true }), null);
+  assert.equal(roomScanArStartIssue({ name: "NotAllowedError" }), "permission");
+  assert.equal(roomScanArStartIssue({ name: "SecurityError" }), "insecure");
+});
+
+test("AR corner capture rejects an accidental double tap", () => {
+  const points = [];
+  assert.equal(appendRoomScanPoint(points, { x: 20, z: 30 }), true);
+  assert.equal(appendRoomScanPoint(points, { x: 25, z: 35 }), false);
+  assert.equal(appendRoomScanPoint(points, { x: 120, z: 30 }), true);
+  assert.deepEqual(points, [{ x: 20, z: 30 }, { x: 120, z: 30 }]);
 });

@@ -7,6 +7,7 @@ import {
   formatTouchDistance,
   modelerTouchPrecisionKind,
   planTouchPrecisionKind,
+  touchLensCenter,
   touchPrecisionPoint,
 } from "../js/touch_precision.js";
 
@@ -42,6 +43,16 @@ test("touch precision never changes the authored coordinate", () => {
   assert.deepEqual({ x: contact.vectorX, y: contact.vectorY }, { x: 0, y: 0 });
   assert.deepEqual(touchPrecisionPoint(contact, 235, 340), { x: 235, y: 340 });
   assert.equal(beginTouchPrecision({ ...event, pointerType: "pen" }, 10, 10, bounds, "lens"), null);
+});
+
+test("loupe stays opposite the dominant hand and mirrors for left-handed use", () => {
+  const contact = { ox:200, oy:220, width:390, height:700 };
+  const right = touchLensCenter(contact, { handedness:"right", distances:{} });
+  const left = touchLensCenter(contact, { handedness:"left", distances:{} });
+  assert.ok(right.x < contact.ox, "right-hand loupe should be left of the thumb");
+  assert.ok(left.x > contact.ox, "left-hand loupe should be right of the thumb");
+  assert.equal(right.x + left.x, contact.ox * 2);
+  assert.equal(right.y, left.y);
 });
 
 test("lens distance formatting stays compact and explicit", () => {

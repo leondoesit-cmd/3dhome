@@ -131,6 +131,8 @@ test("modeler: touch selection has modifier-free parity", () => {
   assert.match(md, /function showSelectThrough\(/);
   assert.match(md, /longPress: showSelectThrough/);
   assert.match(md, /touchPick \? \.03 : \.018/);
+  assert.match(md, /pointerType === "touch" \? 14 : 7/);
+  assert.match(editorView, /e\.button === 0 \|\| e\.pointerType === "touch"/);
   assert.match(mdMobile, /touchAddSelection/);
   assert.match(mdMobile, /api\.clearSelection/);
   assert.match(mdMobile, /api\.setSelFilter\(filters\[\(at \+ 1\)/);

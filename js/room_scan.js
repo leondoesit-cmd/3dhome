@@ -20,6 +20,39 @@ export class RoomScanError extends Error {
   }
 }
 
+/* Keep capability diagnosis independent from browser globals so the UI can
+   explain why AR is unavailable instead of collapsing every phone/browser
+   failure into the same vague message. */
+export function roomScanArIssue(environment = {}) {
+  if (environment.secureContext === false) return "insecure";
+  if (environment.appleMobile) return "apple-mobile";
+  if (!environment.xrApi) return "no-webxr";
+  if (environment.sessionSupported === false) return "unsupported";
+  return null;
+}
+
+export function roomScanArStartIssue(error) {
+  const name = String(error && error.name || "");
+  if (name === "NotAllowedError" || name === "PermissionDeniedError") return "permission";
+  if (name === "SecurityError") return "insecure";
+  if (name === "NotSupportedError") return "unsupported";
+  return "start-failed";
+}
+
+/* Ignore an accidental double-tap at the same physical corner. Besides
+   producing a zero-length wall, it makes the closing edge and calibration
+   look plausible enough that the mistake is hard to notice later. */
+export function appendRoomScanPoint(points, point, minimumDistanceCm = 15) {
+  const next = vec3(point);
+  if (!next) return false;
+  const clean = { x: next.x, z: next.z };
+  const last = points && points[points.length - 1];
+  if (last && Math.hypot(clean.x - last.x, clean.z - last.z) < Math.max(0, minimumDistanceCm))
+    return false;
+  points.push(clean);
+  return true;
+}
+
 function number(v, fallback = 0) {
   v = Number(v);
   return Number.isFinite(v) ? v : fallback;

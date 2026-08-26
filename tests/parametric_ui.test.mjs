@@ -199,7 +199,7 @@ test("SolidWorks-style CAD nav, S-key bar and Instant3D handles are wired", () =
   assert.match(source, /k === "s"\) showShortcutBar\(\)/);
   assert.match(source, /e\.key === " " && !editingField[\s\S]*showViewSelector\(\)/);
   assert.match(editorViewSource, /opts\.cadNav && e\.button === 2/);
-  assert.match(editorViewSource, /opts\.beginDrag && e\.button === 0/);
+  assert.match(editorViewSource, /opts\.beginDrag && primary/);
   assert.match(editorViewSource, /opts\.gesturePreview/);
   assert.match(editorViewSource, /bindThreeFingerPan/);
   assert.match(editorViewSource, /touchList\.length < 3/);

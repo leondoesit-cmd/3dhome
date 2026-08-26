@@ -25,10 +25,16 @@ test("touch precision preferences default to the direct loupe and sanitize tunin
   };
   assert.equal(getTouchPrecisionMode(), "lens");
   setTouchPrecisionPrefs({ mode:"rough", refineRatio:8, portalZoom:99 });
-  assert.deepEqual(getTouchPrecisionPrefs(), { mode:"rough", refineRatio:8, portalZoom:6 });
+  assert.deepEqual(getTouchPrecisionPrefs(), { mode:"rough", handedness:"right", refineRatio:8, portalZoom:6 });
   setTouchPrecisionPrefs({ mode:"unknown", refineRatio:3, portalZoom:1 });
-  assert.deepEqual(getTouchPrecisionPrefs(), { mode:"lens", refineRatio:4, portalZoom:3 });
+  assert.deepEqual(getTouchPrecisionPrefs(), { mode:"lens", handedness:"right", refineRatio:4, portalZoom:3 });
   delete globalThis.localStorage;
+});
+
+test("direct loupe settings mirror around the dominant hand", () => {
+  assert.match(ui, /touch_lens_hand/);
+  assert.match(ui, /handedness:hand\.id/);
+  assert.match(i18n, /touch_lens_hand_hint/);
 });
 
 test("settings expose three mutually exclusive touch precision systems", () => {

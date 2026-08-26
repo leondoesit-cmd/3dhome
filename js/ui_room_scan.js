@@ -10,7 +10,11 @@ import { pushHistory } from "./history.js";
 import { render2D, fitView } from "./plan2d.js";
 import { detectRooms, contentBounds } from "./geometry.js";
 import { convertCadToWalls } from "./cad_to_walls.js";
-import { parseRoomScan, roomScanFromPoints, scanBounds, scaleScan, longestScanEdge, offsetScan, insetScan } from "./room_scan.js";
+import {
+  parseRoomScan, roomScanFromPoints, scanBounds, scaleScan, longestScanEdge,
+  offsetScan, insetScan, roomScanArIssue, roomScanArStartIssue,
+  appendRoomScanPoint,
+} from "./room_scan.js";
 import { flash } from "./ui.js";
 
 function el(tag, cls, text) {
@@ -76,10 +80,41 @@ function drawPreview(canvas, result, pickedIndex) {
   });
 }
 
-async function arAvailable() {
-  if (!navigator.xr || !navigator.xr.isSessionSupported) return false;
-  try { return await navigator.xr.isSessionSupported("immersive-ar"); }
-  catch (e) { return false; }
+function isAppleMobile() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+async function arCapability() {
+  const environment = {
+    secureContext: window.isSecureContext !== false,
+    appleMobile: isAppleMobile(),
+    xrApi: !!(navigator.xr && navigator.xr.isSessionSupported),
+  };
+  let issue = roomScanArIssue(environment);
+  if (issue) return { supported: false, issue };
+  try {
+    environment.sessionSupported = await navigator.xr.isSessionSupported("immersive-ar");
+    issue = roomScanArIssue(environment);
+    return { supported: !issue, issue };
+  } catch (error) {
+    return { supported: false, issue: "unsupported" };
+  }
+}
+
+function capabilityMessage(issue) {
+  if (issue === "insecure") return "rs_ar_insecure";
+  if (issue === "apple-mobile") return "rs_ar_apple";
+  if (issue === "no-webxr") return "rs_ar_no_webxr";
+  return "rs_ar_unsupported";
+}
+
+function startErrorMessage(error) {
+  const issue = roomScanArStartIssue(error);
+  if (issue === "permission") return "rs_ar_permission";
+  if (issue === "insecure") return "rs_ar_insecure";
+  if (issue === "unsupported") return "rs_ar_unsupported";
+  return "rs_ar_failed";
 }
 
 export function openRoomScanModal() {
@@ -118,6 +153,24 @@ export function openRoomScanModal() {
   importCard.innerHTML = '<i class="ph ph-upload-simple"></i><span><strong>' + t("rs_import_title") + "</strong><small>" + t("rs_import_desc") + "</small></span>";
   choices.append(arCard, importCard);
 
+  const help = el("button", "roomscan-help");
+  help.type = "button";
+  help.innerHTML = '<i class="ph ph-question"></i><span>' + t("rs_tutorial_open") + "</span>";
+
+  const tutorial = el("section", "roomscan-tutorial");
+  tutorial.hidden = true;
+  tutorial.setAttribute("aria-label", t("rs_tutorial_title"));
+  tutorial.innerHTML =
+    '<div class="roomscan-tutorial-head"><i class="ph ph-device-mobile-camera"></i><div><strong>' + t("rs_tutorial_title") + "</strong><small>" + t("rs_tutorial_intro") + "</small></div></div>" +
+    '<ol class="roomscan-steps">' +
+    '<li><span>1</span><div><strong>' + t("rs_tutorial_1_t") + "</strong><small>" + t("rs_tutorial_1_b") + "</small></div></li>" +
+    '<li><span>2</span><div><strong>' + t("rs_tutorial_2_t") + "</strong><small>" + t("rs_tutorial_2_b") + "</small></div></li>" +
+    '<li><span>3</span><div><strong>' + t("rs_tutorial_3_t") + "</strong><small>" + t("rs_tutorial_3_b") + "</small></div></li>" +
+    '<li><span>4</span><div><strong>' + t("rs_tutorial_4_t") + "</strong><small>" + t("rs_tutorial_4_b") + "</small></div></li>" +
+    "</ol>" +
+    '<div class="roomscan-tutorial-actions"><button type="button" data-tutorial="back">' + t("back") + '</button><button type="button" class="btn-accent" data-tutorial="start" disabled><i class="ph ph-camera"></i><span>' + t("rs_start_camera") + "</span></button></div>";
+  const tutorialStart = tutorial.querySelector('[data-tutorial="start"]');
+
   const iosNote = el("div", "roomscan-note");
   iosNote.innerHTML = '<i class="ph ph-info"></i><span>' + t("rs_ios_note") + "</span>";
   const fileInput = el("input"); fileInput.type = "file"; fileInput.accept = ".json,.roomplan,application/json"; fileInput.hidden = true;
@@ -144,8 +197,26 @@ export function openRoomScanModal() {
   const cancel = el("button", null, t("cancel")); cancel.type = "button";
   const apply = el("button", "btn-accent", t("rs_apply")); apply.type = "button"; apply.style.display = "none";
   foot.append(cancel, apply);
-  modal.append(head, capability, choices, iosNote, fileInput, status, previewWrap, foot);
+  modal.append(head, capability, help, choices, tutorial, iosNote, fileInput, status, previewWrap, foot);
   document.body.appendChild(overlay);
+
+  function showTutorial() {
+    choices.hidden = true;
+    iosNote.hidden = true;
+    tutorial.hidden = false;
+    help.hidden = true;
+    status.textContent = "";
+  }
+
+  function hideTutorial() {
+    tutorial.hidden = true;
+    choices.hidden = false;
+    iosNote.hidden = false;
+    help.hidden = false;
+  }
+
+  help.onclick = showTutorial;
+  tutorial.querySelector('[data-tutorial="back"]').onclick = hideTutorial;
 
   function close() {
     if (xrSession) xrSession.end().catch(() => {});
@@ -194,7 +265,8 @@ export function openRoomScanModal() {
 
   function showResult(next) {
     result = next;
-    choices.hidden = true; iosNote.hidden = true; capability.hidden = true;
+    choices.hidden = true; tutorial.hidden = true; help.hidden = true;
+    iosNote.hidden = true; capability.hidden = true;
     previewWrap.hidden = false; apply.style.display = "";
     summary.innerHTML = '<strong>' + next.source + "</strong><span>" +
       t("rs_found", { walls: next.wallCount, openings: next.openingCount }) + "</span>";
@@ -258,24 +330,30 @@ export function openRoomScanModal() {
 
   async function startAR() {
     const stage = el("div", "roomscan-ar-stage");
+    stage.setAttribute("role", "application");
+    stage.setAttribute("aria-label", t("rs_ar_live"));
     stage.innerHTML =
       '<canvas class="roomscan-xr-canvas"></canvas>' +
-      '<div class="roomscan-ar-top"><b>' + t("rs_ar_live") + '</b><span class="roomscan-count">' + t("rs_corners", { n: 0 }) + "</span></div>" +
+      '<div class="roomscan-ar-top"><div><b>' + t("rs_ar_live") + '</b><span class="roomscan-count">' + t("rs_corners", { n: 0 }) + '</span></div><button type="button" data-xr="help" aria-label="' + t("rs_tutorial_open") + '"><i class="ph ph-question"></i></button></div>' +
       '<div class="roomscan-reticle"><i class="ph ph-crosshair"></i></div>' +
-      '<div class="roomscan-ar-hint">' + t("rs_aim") + "</div>" +
-      '<div class="roomscan-ar-actions"><button type="button" data-xr="cancel"><i class="ph ph-x"></i></button>' +
+      '<div class="roomscan-ar-hint" role="status">' + t("rs_find_floor") + "</div>" +
+      '<div class="roomscan-ar-coach" hidden><strong>' + t("rs_coach_title") + '</strong><ol><li>' + t("rs_coach_1") + '</li><li>' + t("rs_coach_2") + '</li><li>' + t("rs_coach_3") + '</li></ol><button type="button" data-xr="coach-close">' + t("rs_got_it") + "</button></div>" +
+      '<div class="roomscan-ar-actions"><button type="button" data-xr="cancel" aria-label="' + t("cancel") + '"><i class="ph ph-x"></i></button>' +
+      '<button type="button" data-xr="undo" aria-label="' + t("undo") + '" disabled><i class="ph ph-arrow-counter-clockwise"></i></button>' +
       '<button type="button" class="roomscan-capture" data-xr="capture" disabled><i class="ph ph-plus"></i><span>' + t("rs_add_corner") + "</span></button>" +
-      '<button type="button" data-xr="finish" disabled><i class="ph ph-check"></i></button></div>';
+      '<button type="button" data-xr="finish" aria-label="' + t("rs_finish") + '" disabled><i class="ph ph-check"></i></button></div>';
     overlay.appendChild(stage);
     const canvas = stage.querySelector("canvas");
     const gl = canvas.getContext("webgl", { xrCompatible: true, alpha: true, antialias: true });
     if (!gl) { stage.remove(); status.textContent = t("rs_ar_failed"); return; }
     try {
       xrSession = await navigator.xr.requestSession("immersive-ar", {
-        requiredFeatures: ["hit-test"],
-        optionalFeatures: ["local-floor", "dom-overlay", "depth-sensing"],
+        /* The controls are HTML. Requiring DOM overlay prevents a misleading
+           "supported" session that opens the camera but hides every capture
+           button on browsers that cannot present DOM inside immersive AR. */
+        requiredFeatures: ["hit-test", "dom-overlay"],
+        optionalFeatures: ["local-floor"],
         domOverlay: { root: stage },
-        depthSensing: { usagePreference: ["cpu-optimized", "gpu-optimized"], dataFormatPreference: ["luminance-alpha", "float32"] },
       });
       if (gl.makeXRCompatible) await gl.makeXRCompatible();
       xrSession.updateRenderState({ baseLayer: new window.XRWebGLLayer(xrSession, gl) });
@@ -283,9 +361,22 @@ export function openRoomScanModal() {
       const viewer = await xrSession.requestReferenceSpace("viewer");
       hitSource = await xrSession.requestHitTestSource({ space: viewer });
       const capture = stage.querySelector('[data-xr="capture"]');
+      const undo = stage.querySelector('[data-xr="undo"]');
       const finish = stage.querySelector('[data-xr="finish"]');
       const count = stage.querySelector(".roomscan-count");
       const reticle = stage.querySelector(".roomscan-reticle");
+      const hint = stage.querySelector(".roomscan-ar-hint");
+      const coach = stage.querySelector(".roomscan-ar-coach");
+      let hintKey = "";
+      let hintHoldUntil = 0;
+      const setHint = (key, holdMs = 0) => {
+        if (hintKey === key) return;
+        hintKey = key;
+        hint.textContent = t(key);
+        if (holdMs) hintHoldUntil = performance.now() + holdMs;
+      };
+      stage.querySelector('[data-xr="help"]').onclick = () => { coach.hidden = false; };
+      stage.querySelector('[data-xr="coach-close"]').onclick = () => { coach.hidden = true; };
       const frame = (time, xrFrame) => {
         if (!xrSession) return;
         const layer = xrSession.renderState.baseLayer;
@@ -296,33 +387,56 @@ export function openRoomScanModal() {
         latestPoint = pose ? { x: pose.transform.position.x * 100, z: pose.transform.position.z * 100 } : null;
         capture.disabled = !latestPoint;
         reticle.classList.toggle("locked", !!latestPoint);
+        if (performance.now() >= hintHoldUntil)
+          setHint(latestPoint ? (points.length ? "rs_aim_next" : "rs_surface_ready") : "rs_find_floor");
         xrSession.requestAnimationFrame(frame);
       };
       xrSession.requestAnimationFrame(frame);
       capture.onclick = () => {
         if (!latestPoint) return;
-        points.push({ ...latestPoint });
+        if (!appendRoomScanPoint(points, latestPoint)) {
+          setHint("rs_corner_too_close", 1800);
+          if (navigator.vibrate) navigator.vibrate([30, 35, 30]);
+          return;
+        }
         count.textContent = t("rs_corners", { n: points.length });
+        undo.disabled = false;
         finish.disabled = points.length < 3;
+        setHint("rs_move_next", 1000);
         if (navigator.vibrate) navigator.vibrate(18);
       };
+      undo.onclick = () => {
+        if (!points.length) return;
+        points.pop();
+        count.textContent = t("rs_corners", { n: points.length });
+        undo.disabled = points.length === 0;
+        finish.disabled = points.length < 3;
+        setHint(points.length ? "rs_aim_next" : "rs_surface_ready");
+        if (navigator.vibrate) navigator.vibrate(12);
+      };
       finish.onclick = async () => {
-        const next = roomScanFromPoints(points);
-        await xrSession.end();
-        showResult(next);
+        try {
+          const next = roomScanFromPoints(points);
+          await xrSession.end();
+          showResult(next);
+        } catch (error) {
+          setHint("rs_need_three", 1800);
+        }
       };
       stage.querySelector('[data-xr="cancel"]').onclick = () => xrSession.end();
       xrSession.addEventListener("end", () => {
+        if (hitSource && hitSource.cancel) hitSource.cancel();
         xrSession = null; hitSource = null; latestPoint = null;
         if (stage.parentElement) stage.remove();
       });
     } catch (error) {
       xrSession = null;
       if (stage.parentElement) stage.remove();
-      status.textContent = t("rs_ar_failed");
+      status.textContent = t(startErrorMessage(error));
     }
   }
-  arCard.onclick = startAR;
+  arCard.onclick = showTutorial;
+  tutorialStart.onclick = startAR;
 
   apply.onclick = () => {
     if (!result) return;
@@ -374,11 +488,12 @@ export function openRoomScanModal() {
     render2D(); fitView(); close(); flash(t(addBeside ? "rs_applied_merge" : "rs_applied"), "success");
   };
 
-  arAvailable().then((supported) => {
+  arCapability().then(({ supported, issue }) => {
     if (!overlay.parentElement) return;
     arCard.disabled = !supported;
+    tutorialStart.disabled = !supported;
     capability.className = "roomscan-capability " + (supported ? "ready" : "limited");
     capability.innerHTML = '<i class="ph ' + (supported ? "ph-check-circle" : "ph-device-mobile") + '"></i><span>' +
-      t(supported ? "rs_ar_ready" : "rs_import_ready") + "</span>";
+      t(supported ? "rs_ar_ready" : capabilityMessage(issue)) + "</span>";
   });
 }

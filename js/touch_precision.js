@@ -104,6 +104,30 @@ export function directionalSegmentDistances(ox, oy, segments, pixelsPerCm, minPi
 
 var lensBuffer = null;
 
+/* Keep the loupe on the side opposite the hand, not merely opposite the half
+   of the canvas that happened to be touched.  A right thumb approaches from
+   the right and masks that whole side of the contact; left-handed use is the
+   exact mirror image.  When the preferred horizontal side is too tight, move
+   above/below the finger while retaining a small bias away from the hand. */
+export function touchLensCenter(contact, options) {
+  options = options || {};
+  var W = Number(contact && contact.width) || 0, H = Number(contact && contact.height) || 0;
+  var radius = clamp(options.radius || 48, 38, 58);
+  var edgePad = options.distances ? 30 : 8;
+  var side = options.handedness === "left" ? 1 : -1;
+  var minX = radius + edgePad, maxX = W - radius - edgePad;
+  var minY = radius + edgePad, maxY = H - radius - edgePad;
+  var cx = clamp(contact.ox + side * (radius + 64), minX, maxX);
+  var cy = clamp(contact.oy - Math.min(28, radius * .55), minY, maxY);
+  if (Math.abs(cx - contact.ox) < radius + 30) {
+    var belowRoom = H - contact.oy, aboveRoom = contact.oy;
+    var vertical = aboveRoom >= belowRoom ? -1 : 1;
+    cx = clamp(contact.ox + side * Math.min(24, radius * .45), minX, maxX);
+    cy = clamp(contact.oy + vertical * (radius + 70), minY, maxY);
+  }
+  return { x:cx, y:cy, radius:radius, side:side };
+}
+
 function drawDistanceBadge(ctx, x, y, text, color) {
   ctx.save();
   ctx.direction = "ltr";
@@ -151,18 +175,11 @@ export function drawTouchPrecisionLens(ctx, canvas, contact, options) {
   options = options || {};
   var W = contact.width, H = contact.height;
   if (W < 80 || H < 80) return;
-  var radius = clamp(options.radius || 48, 38, 58);
+  var placement = touchLensCenter(contact, options);
+  var radius = placement.radius;
   var zoom = clamp(options.zoom || 2.25, 1.5, 4);
   var sourceRadius = radius / zoom;
-  var edgePad = options.distances ? 30 : 8;
-  var side = contact.ox < W / 2 ? 1 : -1;
-  var cx = clamp(contact.ox + side * (radius + 58), radius + edgePad, W - radius - edgePad);
-  var cy = clamp(contact.oy, radius + edgePad, H - radius - edgePad);
-  /* If horizontal room is tight, use the opposite vertical side. */
-  if (Math.abs(cx - contact.ox) < radius + 24) {
-    cx = clamp(contact.ox, radius + edgePad, W - radius - edgePad);
-    cy = clamp(contact.oy + (contact.oy < H / 2 ? 1 : -1) * (radius + 58), radius + edgePad, H - radius - edgePad);
-  }
+  var cx = placement.x, cy = placement.y;
   var dprX = canvas.width / Math.max(1, W);
   var dprY = canvas.height / Math.max(1, H);
   var bw = Math.max(1, Math.round(sourceRadius * 2 * dprX));
@@ -185,6 +202,18 @@ export function drawTouchPrecisionLens(ctx, canvas, contact, options) {
   } catch (_) {
     return;
   }
+  ctx.save();
+  var leaderAngle = Math.atan2(cy - contact.oy, cx - contact.ox);
+  ctx.strokeStyle = options.color || "#4f46e5";
+  ctx.globalAlpha = .58;
+  ctx.lineWidth = 1.25;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(contact.ox, contact.oy);
+  ctx.lineTo(cx - Math.cos(leaderAngle) * radius, cy - Math.sin(leaderAngle) * radius);
+  ctx.stroke();
+  ctx.restore();
+
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);

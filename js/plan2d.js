@@ -36,6 +36,7 @@ import { SITE, llToLocalCm } from "./site.js";
 import { drawMEP, mepAliveCount } from "./mep.js";
 import { isElevation, drawElevation, ceilingHeight } from "./elevation.js";
 import { drawTouchPrecisionLens } from "./touch_precision.js";
+import { getTouchPrecisionPrefs } from "./touch_precision_ui.js";
 import { measure4, itemCorners } from "./measure.js";
 import { markers, markerItem, markerLabel, hitMarker, markerInfo } from "./markers.js";
 import { activeWarnings } from "./constraint_engine.js";
@@ -1021,6 +1022,7 @@ function drawTouchGuide() {
     crosshair: "#e05a46",
     distances: touchLensDistances(tc),
     unitLabel: t("cm"),
+    handedness: getTouchPrecisionPrefs().handedness,
   });
   pc.save();
   pc.beginPath();

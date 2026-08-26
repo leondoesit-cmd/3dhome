@@ -43,6 +43,7 @@ import { initCadHud, applyLangLabels as cadHudLang } from "./cad_hud.js";
 import { initMobileShell, refreshMobileShell } from "./mobile_shell.js";
 import { windowChromePosture } from "./chrome_posture.js";
 import { rebuildProject } from "./core/project.js";
+import { initToolSearch } from "./tool_search.js";
 
 // apply static translations for the current language before anything renders
 applyStatic();
@@ -337,6 +338,7 @@ rebuildProject(S, FURN);
 init3D();
 initInteraction();
 initUI();
+initToolSearch();
 initModeler();
 initCabinetUI();
 bindCabinetHelpers({ layoutCab, doorSweeps });

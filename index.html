@@ -293,6 +293,31 @@
             <span id="m-top-selection-phase" class="m-top-selection-phase"></span>
             <strong id="m-top-selection-name" class="m-top-selection-name"></strong>
           </div>
+          <div id="toolSearch" class="tool-search">
+            <div class="tool-search-field">
+              <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+              <input
+                type="search"
+                id="toolSearchInput"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-controls="toolSearchResults"
+                aria-expanded="false"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <kbd class="tool-search-shortcut"></kbd>
+              <button type="button" class="tool-search-clear" hidden>
+                <i class="ph ph-x" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div id="toolSearchPanel" class="tool-search-panel" hidden>
+              <div class="tool-search-heading"></div>
+              <div id="toolSearchResults" class="tool-search-results" role="listbox"></div>
+              <div id="toolSearchGuide" class="tool-search-guide" aria-live="polite"></div>
+              <div class="tool-search-foot"></div>
+            </div>
+          </div>
           <div class="tb-pill modern-chrome" id="viewModePill">
             <button data-act="viewPlan" id="viewPlanBtn" data-i18n-title="view_plan" title="תוכנית">
               <i class="ph ph-blueprint"></i>

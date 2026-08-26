@@ -26,7 +26,7 @@ import {
   touchPrecisionPoint, updateTouchPrecision,
 } from "./touch_precision.js";
 import {
-  dispatchPrecisionCommit, dispatchPrecisionDown, dispatchPrecisionMove, dispatchPrecisionUp, getTouchPrecisionMode,
+  dispatchPrecisionCommit, dispatchPrecisionDown, dispatchPrecisionMove, dispatchPrecisionUp, getTouchPrecisionMode, getTouchPrecisionPrefs,
   releaseTouchPrecisionTrial, startTouchPrecisionTrial, touchPrecisionTrialOwns,
   updateTouchPrecisionTrial,
 } from "./touch_precision_ui.js";
@@ -8024,7 +8024,7 @@ function drawModelerTouchPrecision(c) {
   if (!tc || !E.cv) return;
   drawTouchPrecisionLens(c, E.cv, tc, {
     color: "#2684c7", crosshair: "#e05a46", background: "rgba(246,249,252,.98)",
-    distances: modelerTouchDistances(tc), unitLabel: "cm",
+    distances: modelerTouchDistances(tc), unitLabel: "cm", handedness:getTouchPrecisionPrefs().handedness,
   });
   c.save();
   c.strokeStyle = "rgba(38,132,199,.68)";
@@ -8130,10 +8130,10 @@ function strokeSlotOutline(c, a, b, halfWidth) {
   c.stroke();
 }
 
-function hitPart(uv) {
+function hitPart(uv, pointerType) {
   // Sketch geometry sits on top of the solids it will become, and is thinner,
   // so it gets first refusal on every pick.
-  var sk = hitSketch(uv);
+  var sk = hitSketch(uv, pointerType);
   if (sk) return sk;
   // topmost part whose footprint contains uv
   for (var i = E.def.parts.length - 1; i >= 0; i--) {
@@ -8143,7 +8143,7 @@ function hitPart(uv) {
     } else if (f.type === "circle") {
       if (Math.hypot(uv.u - f.u, uv.v - f.v) <= f.r) return p;
     } else if (f.type === "segments") {
-      var edgeTolerance=6/E.scl;
+      var edgeTolerance=(pointerType === "touch" ? 12 : 6)/E.scl;
       if(f.segments.some(function(segment){return pointToLineDistance(uv,segment.a,segment.b)<=edgeTolerance;}))return p;
       if(f.bounds && uv.u>=f.bounds.u0&&uv.u<=f.bounds.u1&&uv.v>=f.bounds.v0&&uv.v<=f.bounds.v1)return p;
     } else {
@@ -8735,8 +8735,11 @@ function sketchSelectionSummary() {
 
 /* Sketch hit test in model units. Points beat entities: a shared endpoint is
    the thing you almost always mean when you click where two lines meet. */
-function hitSketch(uv) {
-  var sketch = ensureSketch(E.def), tol = 7 / E.scl;
+function hitSketch(uv, pointerType) {
+  // A fingertip hides more of the line than a cursor does. Match the generous
+  // acquisition band used by the 3D topology picker so a tap near thin sketch
+  // geometry selects it reliably without changing mouse precision.
+  var sketch = ensureSketch(E.def), tol = (pointerType === "touch" ? 14 : 7) / E.scl;
   if (sketch.frameSpace!=="local" && sketch.plane !== E.view) return null;
   var best = null, bd = tol;
   (sketch.points || []).forEach(function (p) {
@@ -9790,7 +9793,7 @@ function wireSketch() {
       E.drag = { mode: "gesture", px: e.clientX, py: e.clientY, moved: false };
       return;
     }
-    if (e.button === 1 || e.shiftKey && E.tool === "select" && !hitPart(uv)) {
+    if (e.button === 1 || e.shiftKey && E.tool === "select" && !hitPart(uv, e.pointerType)) {
       E.drag = { mode: "pan", px: e.clientX, py: e.clientY, ox: E.ox, oy: E.oy };
       return;
     }
@@ -9904,7 +9907,7 @@ function wireSketch() {
       return;
     }
     if (E.tool === "trim" || E.tool === "extend" || E.tool === "offset" || E.tool === "constr") {
-      var target = hitSketch(uv);
+      var target = hitSketch(uv, e.pointerType);
       if (!target || !target.type) { drawSketch(); return; }
       var sketch = ensureSketch(E.def), ok = false;
       if (E.tool === "trim") { pushUndo(t("opTrim")); ok = trimEntity(sketch, target.id, { x: uv.u, y: uv.v }); }
@@ -9921,7 +9924,7 @@ function wireSketch() {
       return;
     }
     if (E.tool === "dim") {
-      var dhit = hitSketch(uv);
+      var dhit = hitSketch(uv, e.pointerType);
       var dtarget = dimensionTarget(dhit, uv);
       if (!dtarget) { selectSketch(dhit, false); refreshAll(); return; }
       smartDimension(dtarget);
@@ -9930,7 +9933,7 @@ function wireSketch() {
       return;
     }
     // select tool
-    var p = hitPart(uv);
+    var p = hitPart(uv, e.pointerType);
     // sketch geometry: Ctrl/Cmd extends the selection, points drag and re-solve
     if (isSketchObject(p)) {
       selectSketch(p, e.ctrlKey || e.metaKey || E.mobileAddSelection);
@@ -9957,7 +9960,7 @@ function wireSketch() {
     if (p && !p.sketch && partEditableInSketch(p)) {
       for (var i = 0; i < (p.pts || []).length; i++) {
         var s = toPx(p.pts[i].u, p.pts[i].v);
-        if (Math.hypot(s.x - (e.clientX - r.left), s.y - (e.clientY - r.top)) < 7) {
+        if (Math.hypot(s.x - (e.clientX - r.left), s.y - (e.clientY - r.top)) < (e.pointerType === "touch" ? 14 : 7)) {
           E.sel = p;
           pushUndo(t("opVertex"));
           E.drag = { mode: "vertex", idx: i };

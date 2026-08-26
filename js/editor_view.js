@@ -192,7 +192,8 @@ export function createEditorView(opts) {
       // is a context click until it travels, then a mouse gesture. On a
       // trackpad or touch screen, three-finger drag pans instead of orbiting.
       if (threeFinger()) return;
-      if (opts.beginDrag && e.button === 0 && !e.shiftKey && opts.beginDrag(e, view)) {
+      var primary = e.button === 0 || e.pointerType === "touch";
+      if (opts.beginDrag && primary && !e.shiftKey && opts.beginDrag(e, view)) {
         drag = { mode: "custom", x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false };
         return;
       }
@@ -254,7 +255,11 @@ export function createEditorView(opts) {
         }
         return;
       }
-      var wasClick = e.button === 0 && !current.moved && (current.mode === "orbit" || current.mode === "maybePan");
+      // Some touch stacks report button=-1 when the contact is released. The
+      // pointer type is authoritative there; a stationary finger is a primary
+      // pick just like a stationary left click.
+      var primary = e.button === 0 || e.pointerType === "touch";
+      var wasClick = primary && !current.moved && (current.mode === "orbit" || current.mode === "maybePan");
       if (wasClick && opts.pick) opts.pick(e, view);
     });
     cv.addEventListener("pointercancel", function () { cancelLongPress(); drag = null; });

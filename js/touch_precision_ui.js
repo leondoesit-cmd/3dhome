@@ -10,6 +10,7 @@ function safePrefs() {
   try { prefs = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}"); } catch (_) {}
   return {
     mode: MODES.indexOf(prefs.mode) >= 0 ? prefs.mode : "lens",
+    handedness: prefs.handedness === "left" ? "left" : "right",
     refineRatio: [2, 4, 8].indexOf(Number(prefs.refineRatio)) >= 0 ? Number(prefs.refineRatio) : 4,
     portalZoom: Math.max(3, Math.min(6, Number(prefs.portalZoom) || 4)),
   };
@@ -21,6 +22,7 @@ export function getTouchPrecisionMode() { return safePrefs().mode; }
 export function setTouchPrecisionPrefs(next) {
   var prefs = Object.assign({}, safePrefs(), next || {});
   if (MODES.indexOf(prefs.mode) < 0) prefs.mode = "lens";
+  prefs.handedness = prefs.handedness === "left" ? "left" : "right";
   prefs.refineRatio = [2, 4, 8].indexOf(Number(prefs.refineRatio)) >= 0 ? Number(prefs.refineRatio) : 4;
   prefs.portalZoom = Math.max(3, Math.min(6, Number(prefs.portalZoom) || 4));
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (_) {}
@@ -66,10 +68,28 @@ export function buildTouchPrecisionSettings() {
       });
       refine.hidden = spec.id !== "rough";
       portal.hidden = spec.id !== "portal";
+      lens.hidden = spec.id !== "lens";
     };
     cards.appendChild(card);
   });
   root.appendChild(cards);
+
+  var lens = node("div", "touch-tuning touch-hand-tuning");
+  lens.hidden = prefs.mode !== "lens";
+  lens.appendChild(node("strong", null, t("touch_lens_hand")));
+  var hands = node("div", "touch-segments touch-hand-segments");
+  [{id:"right",key:"touch_hand_right"},{id:"left",key:"touch_hand_left"}].forEach(function (hand) {
+    var button = node("button", prefs.handedness === hand.id ? "active" : "", t(hand.key));
+    button.type = "button";
+    button.onclick = function () {
+      prefs = setTouchPrecisionPrefs({ handedness:hand.id });
+      hands.querySelectorAll("button").forEach(function (item) { item.classList.toggle("active", item === button); });
+    };
+    hands.appendChild(button);
+  });
+  lens.appendChild(hands);
+  lens.appendChild(node("small", null, t("touch_lens_hand_hint")));
+  root.appendChild(lens);
 
   var refine = node("div", "touch-tuning");
   refine.hidden = prefs.mode !== "rough";
