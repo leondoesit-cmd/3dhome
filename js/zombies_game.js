@@ -20,7 +20,7 @@ import { t } from "./i18n.js";
 import { pointInPoly } from "./geometry.js";
 import {
   Z, hooks, zActive, EYE, EYE_CROUCH, P_RAD, P_CLEAR, STEP, SPD_WALK, SPD_SPRINT, SPD_CROUCH,
-  ACCEL, GRAV, MAX_HP, MAX_ARMOR, Z_MAX_ALIVE, REST_LEN, rr, pick, rnd,
+  ACCEL, GRAV, MAX_HP, MAX_ARMOR, Z_MAX_ALIVE, REST_LEN, RUN_WAVES, EXTRACT_LEN, rr, pick, rnd,
 } from "./zombies_state.js";
 import {
   buildCol,
@@ -580,6 +580,10 @@ function isViewOrPlayerObject(obj) {
 
 function hitscan(origin, dir, range) {
   _rc.set(origin, dir);
+  // Three.js sprites (planner labels, pickup-like helpers) need the active
+  // camera during raycasting. Without it, a shot crossing one throws inside
+  // Sprite.raycast before our normal no-hit filtering can run.
+  _rc.camera = getMainCamera();
   _rc.far = range || 6000;
   var dyn = getDynGroup();
   var list = [];
@@ -794,6 +798,10 @@ function fire() {
     return;
   }
   P.ammo[P.weapon]--;
+  if (P.ammo[P.weapon] === Math.max(1, Math.floor(def.mag * 0.2)) && Z.t > (P.lowAmmoT || 0)) {
+    P.lowAmmoT = Z.t + 8;
+    say(t("z_low_ammo"), 1.1);
+  }
   P.nextShot = Z.t + 60 / def.rpm;
   Z.stats.shots++;
   var cam = getMainCamera();
@@ -1337,7 +1345,7 @@ function stepPickups(dt) {
       pu.ring.rotation.z += dt * 2.4;
       pu.ring.scale.setScalar(1 + Math.sin(pu.ph * 3) * 0.08);
     }
-    if (Math.hypot(pu.x - Z.p.x, pu.z - Z.p.z) < 58 && Math.abs(pu.y - Z.p.y) < 140) {
+    if (Math.hypot(pu.x - Z.p.x, pu.z - Z.p.z) < (Z.touchMode ? 82 : 58) && Math.abs(pu.y - Z.p.y) < 140) {
       takePickup(pu);
       disposePickup(pu);
       Z.pickups.splice(i, 1);
@@ -2001,6 +2009,11 @@ function buildHud() {
     '<div id="zThreat"><i></i><span></span></div>' +
     '<div id="zCombo"></div>' +
     '<div id="zMsg"></div>' +
+    '<div id="zIntermission"><span></span><div>' +
+    '<button type="button" data-buy="ammo"></button>' +
+    '<button type="button" data-buy="fortify"></button>' +
+    '<button type="button" data-buy="recover"></button>' +
+    '</div></div>' +
     '<div id="zInteractPrompt"></div>' +
     '<div id="zPerkBadges"><span id="zPerkSpeed" class="z-perk-badge">⚡</span><span id="zPerkJugg" class="z-perk-badge">🛡️</span><span id="zPerkDamage" class="z-perk-badge">💥</span></div>' +
     '<div id="zRadarWrap"><canvas id="zRadar" width="110" height="110"></canvas></div>' +
@@ -2041,7 +2054,8 @@ function buildHud() {
     '<label class="z-check"><input id="zInvertY" type="checkbox"><span id="zInvertLabel"></span></label>' +
     '<label><span><b id="zVolLabel"></b><output id="zVolValue"></output></span><input id="zVolSlider" type="range" min="0" max="100" step="5"></label></div>' +
     '<button id="zResume"></button><button id="zExit"></button></div></div>' +
-    '<div id="zDead"><h2></h2><p></p><button id="zAgain"></button><button id="zDeadExit"></button></div>';
+    '<div id="zDead"><h2></h2><p></p><button id="zAgain"></button><button id="zDeadExit"></button></div>' +
+    '<div id="zVictory"><h2></h2><p></p><button id="zVictoryAgain"></button><button id="zVictoryExit"></button></div>';
   host.appendChild(el);
   Z.hud = {
     root: el,
@@ -2064,6 +2078,8 @@ function buildHud() {
     threat: el.querySelector("#zThreat"),
     threatText: el.querySelector("#zThreat span"),
     msg: el.querySelector("#zMsg"),
+    intermission: el.querySelector("#zIntermission"),
+    intermissionTitle: el.querySelector("#zIntermission > span"),
     bossBar: el.querySelector("#zBossBar"),
     bossName: el.querySelector("#zBossName"),
     bossHpText: el.querySelector("#zBossHpText"),
@@ -2114,12 +2130,18 @@ function buildHud() {
     volSlider: el.querySelector("#zVolSlider"),
     pauseBtn: el.querySelector("#zPauseBtn"),
     touch: el.querySelector("#zTouch"),
+    touchInteract: el.querySelector("#zTouchInteract"),
     stick: el.querySelector("#zStick"),
     dead: el.querySelector("#zDead"),
     deadH: el.querySelector("#zDead h2"),
     deadP: el.querySelector("#zDead p"),
     again: el.querySelector("#zAgain"),
     deadExit: el.querySelector("#zDeadExit"),
+    victory: el.querySelector("#zVictory"),
+    victoryH: el.querySelector("#zVictory h2"),
+    victoryP: el.querySelector("#zVictory p"),
+    victoryAgain: el.querySelector("#zVictoryAgain"),
+    victoryExit: el.querySelector("#zVictoryExit"),
   };
   Z.hud.again.addEventListener("click", function (e) {
     e.stopPropagation();
@@ -2128,6 +2150,20 @@ function buildHud() {
   Z.hud.deadExit.addEventListener("click", function (e) {
     e.stopPropagation();
     toggleZombies(false);
+  });
+  Z.hud.victoryAgain.addEventListener("click", function (e) {
+    e.stopPropagation();
+    restart();
+  });
+  Z.hud.victoryExit.addEventListener("click", function (e) {
+    e.stopPropagation();
+    toggleZombies(false);
+  });
+  Z.hud.intermission.querySelectorAll("[data-buy]").forEach(function (btn) {
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      buyIntermission(this.getAttribute("data-buy"));
+    });
   });
   var controlLabels = el.querySelectorAll("#zPause .z-controls small");
   PAUSE_CONTROLS.forEach(function (c, i) {
@@ -2146,24 +2182,21 @@ function buildHud() {
   Z.hud.pauseBtn.setAttribute("aria-label", t("z_touch_pause"));
   Z.hud.pauseBtn.textContent = "II";
   var touchBtns = {
-    reload: "R",
-    flash: "🔦",
-    shove: "X",
-    jump: "▲",
-    weapon: "⇄",
-    interact: "E",
-    fire: "●",
+    reload: { icon: "↻", key: "z_control_reload" },
+    flash: { icon: "🔦", key: "z_control_flash" },
+    shove: { icon: "↯", key: "z_control_shove" },
+    jump: { icon: "▲", key: "z_touch_jump" },
+    weapon: { icon: "⇄", key: "z_touch_weapon" },
+    interact: { icon: "◎", key: "z_touch_interact" },
+    fire: { icon: "●", key: "z_touch_fire" },
   };
   el.querySelectorAll("#zTouch [data-act], #zTouch [data-hold]").forEach(function (btn) {
     var act = btn.getAttribute("data-act") || btn.getAttribute("data-hold");
-    btn.textContent = touchBtns[act] || "";
-    if (act === "fire") btn.setAttribute("aria-label", t("z_touch_fire"));
-    else if (act === "jump") btn.setAttribute("aria-label", t("z_touch_jump"));
-    else if (act === "weapon") btn.setAttribute("aria-label", t("z_touch_weapon"));
-    else if (act === "interact") btn.setAttribute("aria-label", t("z_touch_interact"));
-    else if (act === "reload") btn.setAttribute("aria-label", t("z_control_reload"));
-    else if (act === "flash") btn.setAttribute("aria-label", t("z_control_flash"));
-    else if (act === "shove") btn.setAttribute("aria-label", t("z_control_shove"));
+    var touchDef = touchBtns[act];
+    btn.innerHTML = "<b></b><small></small>";
+    btn.querySelector("b").textContent = touchDef ? touchDef.icon : "";
+    btn.querySelector("small").textContent = touchDef ? t(touchDef.key) : "";
+    btn.setAttribute("aria-label", touchDef ? t(touchDef.key) : act);
   });
   Z.hud.qualitySlider.addEventListener("input", function () {
     gameSettings().quality = Number(this.value);
@@ -2215,6 +2248,7 @@ function buildHud() {
   Z.hud.pauseBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     if (Z.p && Z.p.dead) return;
+    touchPulse(10);
     pauseGame(!Z.paused);
   });
   syncSettingsUi();
@@ -2227,6 +2261,7 @@ function buildHud() {
     toggleZombies(false);
   });
   initGrain();
+  syncResponsiveHud();
 }
 
 // animated film grain: one small tiled canvas redrawn a few times a second
@@ -2293,14 +2328,28 @@ function hudSync() {
     nearest = Math.min(nearest, Math.hypot(Z.zeds[zi].x - P.x, Z.zeds[zi].z - P.z));
   }
   if (Z.wave && Z.hud.mission) {
-    if (Z.wave.state === "fight") {
+    if (Z.wave.state === "extract" && Z.extraction) {
+      Z.hud.missionLabel.textContent = t("z_objective_extract");
+      Z.hud.missionCount.textContent = t("z_extract_count", {
+        p: Math.round((Z.extraction.progress / Z.extraction.need) * 100),
+        n: Math.max(0, Math.ceil(Z.extraction.time)),
+      });
+      Z.hud.missionBar.style.width = clamp((Z.extraction.progress / Z.extraction.need) * 100, 0, 100) + "%";
+    } else if (Z.wave.state === "fight") {
       var remaining = Math.max(0, (Z.wave.pending || 0) + live),
         total = Math.max(1, Z.wave.total || remaining || 1);
-      Z.hud.missionLabel.textContent = Z.wave.event
-        ? t("z_objective_event", { event: Z.wave.event.toUpperCase() })
-        : t("z_objective_survive");
-      Z.hud.missionCount.textContent = t("z_remaining", { n: remaining });
-      Z.hud.missionBar.style.width = clamp((1 - remaining / total) * 100, 0, 100) + "%";
+      var obj = Z.objective;
+      if (obj && !obj.completed) {
+        Z.hud.missionLabel.textContent = objectiveLabel(obj);
+        Z.hud.missionCount.textContent = objectiveCount(obj) + "  ·  " + t("z_remaining", { n: remaining });
+        Z.hud.missionBar.style.width = clamp(objectiveProgress(obj) * 100, 0, 100) + "%";
+      } else {
+        Z.hud.missionLabel.textContent = Z.wave.event
+          ? t("z_objective_event", { event: Z.wave.event.toUpperCase() })
+          : t("z_objective_survive");
+        Z.hud.missionCount.textContent = t("z_remaining", { n: remaining });
+        Z.hud.missionBar.style.width = clamp((1 - remaining / total) * 100, 0, 100) + "%";
+      }
     } else {
       var nextIn = Math.max(0, Math.ceil(REST_LEN - Z.wave.timer));
       Z.hud.missionLabel.textContent = t("z_objective_resupply");
@@ -2312,6 +2361,18 @@ function hudSync() {
     var level = nearest < 190 ? "danger" : nearest < 430 ? "near" : "clear";
     Z.hud.threat.className = level;
     Z.hud.threatText.textContent = t("z_threat_" + level);
+  }
+  if (Z.hud.intermission) {
+    var choosing = !!(Z.wave && Z.wave.state === "rest" && Z.intermission && !Z.intermission.chosen);
+    Z.hud.intermission.classList.toggle("on", choosing);
+    if (choosing) {
+      Z.hud.intermissionTitle.textContent = t("z_intermission_title");
+      Z.hud.intermission.querySelectorAll("[data-buy]").forEach(function (btn) {
+        var kind = btn.getAttribute("data-buy"), offer = INTERMISSION_OFFERS[kind];
+        btn.textContent = t(offer.key) + " · " + offer.cost;
+        btn.disabled = (Z.score || 0) < offer.cost;
+      });
+    }
   }
   if (Z.hud.bossBar) {
     if (Z.boss && Z.boss.zed && !Z.boss.zed.dead) {
@@ -2328,21 +2389,22 @@ function hudSync() {
   if (Z.hud.perkDamage) Z.hud.perkDamage.classList.toggle("on", !!(Z.perks && Z.perks.damage));
   if (Z.hud.interact) {
     var prompt = P.dead ? "" : (Z.interactPrompt || "");
-    Z.hud.interact.textContent = prompt;
+    Z.hud.interact.textContent = Z.touchMode ? prompt.replace(/^\[E\]\s*/i, "") : prompt;
     Z.hud.interact.classList.toggle("on", !!prompt);
+    if (Z.hud.touchInteract) Z.hud.touchInteract.classList.toggle("available", !!prompt);
   }
   if (!hudNeedsUpdate) return;
   hudNeedsUpdate = false;
   Z.hud.wname.textContent = W[P.weapon].icon + " " + t(def.key);
   Z.hud.ammo.textContent = def.melee
     ? "∞"
-    : P.ammo[P.weapon] + " / " + P.reserve[P.weapon];
+    : P.reloading > 0 ? t("z_reloading") : P.ammo[P.weapon] + " / " + P.reserve[P.weapon];
   Z.hud.ammo.classList.toggle("low", !def.melee && P.ammo[P.weapon] <= def.mag * 0.25);
   if (Z.hud.frags) {
     Z.hud.frags.textContent = "💣 " + (P.frags || 0);
     Z.hud.frags.classList.toggle("low", !P.frags);
   }
-  Z.hud.wave.textContent = t("z_wave_n", { n: Z.wave.n });
+  Z.hud.wave.textContent = t("z_wave_run", { n: Z.wave.n, max: RUN_WAVES });
   Z.hud.kills.textContent = "☠ " + Z.stats.kills;
   if (Z.hud.score) Z.hud.score.textContent = "★ " + (Z.score || 0);
   var html = "";
@@ -2366,12 +2428,13 @@ function say(msg, dur) {
   Z.hud.msg.classList.add("on");
   Z.msgT = dur || 1.5;
 }
-function hitMarker(head) {
+function hitMarker(kind) {
   if (!Z.hud) return;
-  Z.hud.hit.classList.remove("on", "head");
+  Z.hud.hit.classList.remove("on", "head", "kill");
   void Z.hud.hit.offsetWidth;
   Z.hud.hit.classList.add("on");
-  if (head) Z.hud.hit.classList.add("head");
+  if (kind === true || kind === "head") Z.hud.hit.classList.add("head");
+  if (kind === "kill") Z.hud.hit.classList.add("kill");
   Z.hitT = 0.18;
 }
 function flashScreen(color, alpha) {
@@ -2630,10 +2693,15 @@ function hurtPlayer(dmg, src) {
   if (P.dodgeT > 0.12) return;
   var raw = dmg;
   // armor absorbs 60% until depleted
-  if (P.armor > 0) {
+  var hadArmor = P.armor > 0;
+  if (hadArmor) {
     var absorbed = Math.min(P.armor, raw * 0.6);
     P.armor -= absorbed;
     raw -= absorbed;
+  }
+  if (hadArmor && P.armor <= 0) {
+    say(t("z_armor_broken"), 1.2);
+    flashScreen("#5ec8ff", 0.18);
   }
   // adrenaline reduces damage slightly
   if (P.adrenalT > 0) raw *= 0.75;
@@ -2649,6 +2717,7 @@ function hurtPlayer(dmg, src) {
   // break combo on damage
   Z.combo = 0;
   Z.comboT = 0;
+  if (Z.director) Z.director.lastHurt = Z.t;
   // knocked back a step
   if (src) {
     var dx = P.x - src.x,
@@ -2929,6 +2998,8 @@ function initRadar() {
 
 function stepRadar() {
   if (!Z.hud || !Z.radarCtx || !Z.p) return;
+  if (Z.t < (Z.radarNext || 0)) return;
+  Z.radarNext = Z.t + 0.1;
   var ctx = Z.radarCtx;
   var w = 110, h = 110, cx = 55, cy = 55;
   ctx.clearRect(0, 0, w, h);
@@ -2979,6 +3050,23 @@ function stepRadar() {
     }
   }
 
+  // The cyan pulse is always a real place in this floor plan: the room being
+  // held now, or the room selected as the final extraction point.
+  var nav = Z.wave && Z.wave.state === "extract" ? Z.extraction : Z.objective;
+  if (nav && !nav.completed && fin(nav.x) && fin(nav.z)) {
+    var ndx = (nav.x - P.x) * scale, ndz = (nav.z - P.z) * scale;
+    var nd = Math.hypot(ndx, ndz);
+    if (nd > 45) {
+      ndx *= 45 / nd;
+      ndz *= 45 / nd;
+    }
+    ctx.strokeStyle = "#53e7ff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx + ndx, cy + ndz, 3.5 + Math.sin(Z.t * 5), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
   // living zombies
   if (Z.zeds) {
     Z.zeds.forEach(function (z) {
@@ -3012,7 +3100,7 @@ function stepRadar() {
 
 function getNearestDoorSeg() {
   if (!Z.col || !Z.col.doorSegs || !Z.p) return null;
-  var P = Z.p, nearest = null, minDist = 115;
+  var P = Z.p, nearest = null, minDist = Z.touchMode ? 155 : 115;
   Z.col.doorSegs.forEach(function (ds) {
     var mx = (ds.ax + ds.bx) / 2, mz = (ds.az + ds.bz) / 2;
     var d = Math.hypot(P.x - mx, P.z - mz);
@@ -3260,14 +3348,15 @@ function updateInteractPrompt() {
   var P = Z.p;
   var prompt = "";
   // 1. Fuse box
-  if (Z.fuseBox && Z.blackout && Math.hypot(P.x - Z.fuseBox.x, P.z - Z.fuseBox.z) < 95) {
+  var reach = Z.touchMode ? 135 : 95;
+  if (Z.fuseBox && Z.blackout && Math.hypot(P.x - Z.fuseBox.x, P.z - Z.fuseBox.z) < reach) {
     prompt = t("z_prompt_fusebox");
   }
   // 2. Perk stations
   if (!prompt && Z.perkStations) {
     for (var psi = 0; psi < Z.perkStations.length; psi++) {
       var pst = Z.perkStations[psi];
-      if (Math.hypot(P.x - pst.x, P.z - pst.z) < 85) {
+      if (Math.hypot(P.x - pst.x, P.z - pst.z) < (Z.touchMode ? 125 : 85)) {
         prompt = (Z.perks && Z.perks[pst.kind])
           ? t(pst.key) + " (" + t("z_perk_active") + ")"
           : t("z_prompt_perk", { name: t(pst.key), cost: pst.cost });
@@ -3295,7 +3384,8 @@ function handleInteract() {
   var P = Z.p;
   if (!P || P.dead || Z.paused) return;
   // 1. Fuse box
-  if (Z.fuseBox && Z.blackout && Math.hypot(P.x - Z.fuseBox.x, P.z - Z.fuseBox.z) < 95) {
+  var reach = Z.touchMode ? 135 : 95;
+  if (Z.fuseBox && Z.blackout && Math.hypot(P.x - Z.fuseBox.x, P.z - Z.fuseBox.z) < reach) {
     restorePower(true);
     return;
   }
@@ -3303,7 +3393,7 @@ function handleInteract() {
   if (Z.perkStations) {
     for (var psi = 0; psi < Z.perkStations.length; psi++) {
       var pst = Z.perkStations[psi];
-      if (Math.hypot(P.x - pst.x, P.z - pst.z) < 85) {
+      if (Math.hypot(P.x - pst.x, P.z - pst.z) < (Z.touchMode ? 125 : 85)) {
         buyPerk(pst);
         return;
       }
@@ -3449,6 +3539,248 @@ function waveTypes(n) {
   return pool;
 }
 
+var INTERMISSION_OFFERS = {
+  ammo: { cost: 300, key: "z_buy_ammo" },
+  fortify: { cost: 250, key: "z_buy_fortify" },
+  recover: { cost: 200, key: "z_buy_recover" },
+};
+
+function removeNavMarker() {
+  if (!Z.navMarker) return;
+  if (Z.navMarker.parent) Z.navMarker.parent.remove(Z.navMarker);
+  Z.navMarker.traverse(function (o) {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) o.material.dispose();
+  });
+  Z.navMarker = null;
+}
+
+function placeNavMarker(x, z, radius, color) {
+  removeNavMarker();
+  if (!Z.grp) return;
+  var grp = new THREE.Group();
+  grp.position.set(x, 3, z);
+  var mat = new THREE.MeshBasicMaterial({
+    color: color || 0x53e7ff, transparent: true, opacity: 0.72,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  var ring = new THREE.Mesh(new THREE.RingGeometry(radius - 5, radius, 48), mat);
+  ring.rotation.x = -Math.PI / 2;
+  grp.add(ring);
+  var beamMat = new THREE.MeshBasicMaterial({
+    color: color || 0x53e7ff, transparent: true, opacity: 0.09,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  var beam = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.7, radius, 220, 32, 1, true), beamMat);
+  beam.position.y = 110;
+  grp.add(beam);
+  Z.grp.add(grp);
+  Z.navMarker = grp;
+}
+
+function farthestRoom() {
+  var rooms = liveRooms(), P = Z.p;
+  if (!rooms.length) return null;
+  return rooms.slice().sort(function (a, b) {
+    return Math.hypot(b.cx - P.x, b.cz - P.z) - Math.hypot(a.cx - P.x, a.cz - P.z);
+  })[0];
+}
+
+function makeWaveObjective(n, event) {
+  removeNavMarker();
+  var obj;
+  if (event === "blackout" && Z.fuseBox) {
+    obj = { kind: "power", x: Z.fuseBox.x, z: Z.fuseBox.z, progress: 0, need: 1, completed: false };
+  } else if (n % 2 === 0 && Z.col && Z.col.doorSegs && Z.col.doorSegs.length) {
+    var start = (Z.barricades || []).length;
+    obj = {
+      kind: "secure", progress: 0,
+      start: start, need: Math.min(2, Z.col.doorSegs.length), completed: false,
+    };
+  } else {
+    var rm = farthestRoom(), b = interiorBounds();
+    var x = rm ? rm.cx : b ? (b.minx + b.maxx) / 2 : Z.p.x;
+    var z = rm ? rm.cz : b ? (b.minz + b.maxz) / 2 : Z.p.z;
+    obj = { kind: "hold", x: x, z: z, progress: 0, need: 9 + Math.min(5, n), radius: 125, completed: false };
+    placeNavMarker(x, z, obj.radius, 0x53e7ff);
+  }
+  Z.objective = obj;
+}
+
+function objectiveProgress(obj) {
+  return obj ? clamp((obj.progress || 0) / Math.max(1, obj.need || 1), 0, 1) : 0;
+}
+
+function objectiveLabel(obj) {
+  return t(obj.kind === "hold" ? "z_objective_hold" : obj.kind === "secure" ? "z_objective_secure" : "z_objective_power");
+}
+
+function objectiveCount(obj) {
+  if (obj.kind === "hold") return t("z_hold_count", { n: Math.ceil(Math.max(0, obj.need - obj.progress)) });
+  return Math.min(obj.need, Math.floor(obj.progress || 0)) + " / " + obj.need;
+}
+
+function completeObjective() {
+  var obj = Z.objective;
+  if (!obj || obj.completed) return;
+  obj.completed = true;
+  obj.progress = obj.need;
+  Z.score = (Z.score || 0) + 225;
+  Z.p.armor = Math.min(MAX_ARMOR, (Z.p.armor || 0) + 20);
+  removeNavMarker();
+  sndPickup();
+  flashScreen("#53e7ff", 0.16);
+  say(t("z_objective_complete", { n: 225 }), 2.2);
+  hudDirty();
+}
+
+function stepObjective(dt) {
+  var obj = Z.objective;
+  if (!obj || obj.completed || !Z.wave || Z.wave.state !== "fight") return;
+  if (obj.kind === "hold") {
+    var inside = Math.hypot(Z.p.x - obj.x, Z.p.z - obj.z) <= obj.radius;
+    obj.progress = clamp(obj.progress + dt * (inside ? 1 : -0.35), 0, obj.need);
+  } else if (obj.kind === "secure") {
+    obj.progress = Math.max(0, (Z.barricades || []).length - obj.start);
+  } else if (obj.kind === "power") {
+    obj.progress = Z.blackout ? 0 : 1;
+  }
+  if (obj.progress >= obj.need) completeObjective();
+}
+
+function beginIntermission() {
+  Z.intermission = { chosen: false };
+  hudDirty();
+}
+
+function buyIntermission(kind) {
+  var offer = INTERMISSION_OFFERS[kind];
+  if (!offer || !Z.wave || Z.wave.state !== "rest" || !Z.intermission || Z.intermission.chosen) return;
+  if ((Z.score || 0) < offer.cost) {
+    say(t("z_not_enough"), 1.2);
+    return;
+  }
+  Z.score -= offer.cost;
+  Z.intermission.chosen = true;
+  if (kind === "ammo") {
+    W_ORDER.forEach(function (k) {
+      if (!W[k].melee) Z.p.reserve[k] = Math.max(Z.p.reserve[k] || 0, W[k].mag * 3);
+    });
+    Z.p.frags = Math.min(FRAG.maxCarry, (Z.p.frags || 0) + 2);
+    if (Z.flash) Z.flash.batt = 100;
+  } else if (kind === "fortify") {
+    (Z.barricades || []).forEach(function (b) { b.hp = b.maxHp; });
+    if (!(Z.barricades || []).length && Z.col && Z.col.doorSegs && Z.col.doorSegs.length)
+      buildBarricadeAt(Z.col.doorSegs[0]);
+    Z.p.armor = Math.min(MAX_ARMOR, (Z.p.armor || 0) + 35);
+  } else {
+    Z.p.hp = (Z.perks && Z.perks.jugg) ? 150 : MAX_HP;
+    Z.p.armor = Math.min(MAX_ARMOR, (Z.p.armor || 0) + 60);
+    Z.p.adrenalT = Math.max(Z.p.adrenalT || 0, 5);
+  }
+  sndPerk();
+  flashScreen("#ffd35a", 0.14);
+  say(t("z_purchase_done"), 1.5);
+  hudDirty();
+}
+
+function updateDirector(dt, live) {
+  var D = Z.director;
+  if (!D) D = Z.director = { phase: "build", phaseT: 7, warned: {} };
+  D.phaseT -= dt;
+  if (D.phaseT <= 0) {
+    if (D.phase === "lull") { D.phase = "build"; D.phaseT = 7; }
+    else if (D.phase === "build") { D.phase = "peak"; D.phaseT = 5.5; }
+    else if (D.phase === "peak") { D.phase = "lull"; D.phaseT = live > 2 ? 3.5 : 5; }
+    else { D.phase = "build"; D.phaseT = 7; }
+  }
+  var ammoDef = W[Z.p.weapon];
+  var ammoK = ammoDef.melee ? 1 : clamp(((Z.p.ammo[Z.p.weapon] || 0) + (Z.p.reserve[Z.p.weapon] || 0) * 0.2) / Math.max(1, ammoDef.mag), 0, 1);
+  D.capability = clamp((Z.p.hp / ((Z.perks && Z.perks.jugg) ? 150 : MAX_HP)) * 0.65 + ammoK * 0.35, 0, 1);
+}
+
+function directedType(Wv) {
+  var counts = {};
+  Z.zeds.forEach(function (z) { if (!z.dead) counts[z.type] = (counts[z.type] || 0) + 1; });
+  var type = "walker";
+  for (var i = 0; i < 7; i++) {
+    var candidate = pick(Wv.pool) || "walker";
+    var specialist = candidate === "brute" || candidate === "bloater" || candidate === "screamer";
+    if (specialist && (counts[candidate] || 0) >= 1) continue;
+    if (candidate === "runner" && (counts.runner || 0) >= 4) continue;
+    type = candidate;
+    break;
+  }
+  if ((type === "brute" || type === "bloater" || type === "screamer") && !Z.director.warned[type]) {
+    Z.director.warned[type] = true;
+    say(t("z_role_" + type), 1.8);
+    sndStinger();
+  }
+  return type;
+}
+
+function extractionPoint() {
+  var rm = farthestRoom(), b = interiorBounds();
+  return rm ? { x: rm.cx, z: rm.cz } : b
+    ? { x: Z.p.x < (b.minx + b.maxx) / 2 ? b.maxx - 70 : b.minx + 70, z: (b.minz + b.maxz) / 2 }
+    : { x: Z.p.x + 400, z: Z.p.z };
+}
+
+function beginExtraction() {
+  var pt = extractionPoint();
+  Z.objective = null;
+  Z.intermission = null;
+  Z.extraction = { x: pt.x, z: pt.z, radius: 120, progress: 0, need: 4, time: EXTRACT_LEN };
+  Z.wave.state = "extract";
+  Z.wave.timer = 0;
+  Z.wave.spawnT = 1;
+  Z.wave.pool = waveTypes(RUN_WAVES);
+  placeNavMarker(pt.x, pt.z, Z.extraction.radius, 0x5dff9a);
+  say(t("z_extract_started"), 3);
+  sndStinger();
+  hudDirty();
+}
+
+function finishRun() {
+  if (Z.victory) return;
+  Z.victory = true;
+  Z.paused = true;
+  Z.keys = {};
+  Z.p.firing = false;
+  removeNavMarker();
+  unlockPointer();
+  sndStinger();
+  if (Z.hud) {
+    Z.hud.victoryH.textContent = t("z_victory");
+    Z.hud.victoryP.textContent = t("z_victory_stats", { k: Z.stats.kills, h: Z.stats.heads, s: Z.score || 0 });
+    Z.hud.victoryAgain.textContent = t("z_again");
+    Z.hud.victoryExit.textContent = t("z_exit");
+    Z.hud.victory.classList.add("on");
+  }
+}
+
+function stepExtraction(dt) {
+  var X = Z.extraction, Wv = Z.wave;
+  if (!X) return;
+  X.time -= dt;
+  var inside = Math.hypot(Z.p.x - X.x, Z.p.z - X.z) <= X.radius;
+  X.progress = clamp(X.progress + dt * (inside ? 1 : -0.6), 0, X.need);
+  if (X.progress >= X.need) return finishRun();
+  if (X.time <= 0) {
+    hurtPlayer(999, { x: X.x, z: X.z });
+    return;
+  }
+  Wv.spawnT -= dt;
+  var live = Z.zeds.filter(function (z) { return !z.dead; }).length;
+  var cap = Math.min(qualityHordeCap(), gameSettings().maxAlive || Z_MAX_ALIVE, houseAliveCap(), 10);
+  if (Wv.spawnT <= 0 && live < cap) {
+    Wv.spawnT = rr(0.7, 1.25);
+    var p = pickSpawn(), zd = spawnZed(directedType(Wv), p.x, p.z);
+    zd.alerted = true;
+    zd.state = "chase";
+  }
+}
+
 function startWave(n) {
   var total = Math.min(52, 5 + n * 3 + (n >= 5 ? n : 0));
   // special event waves
@@ -3477,6 +3809,8 @@ function startWave(n) {
     event: event,
     bossSpawned: false,
   };
+  Z.director = { phase: "build", phaseT: n === 1 ? 9 : 7, warned: {} };
+  Z.intermission = null;
   Z.spawnPts = spawnPoints();
   if (event === "horde") say(t("z_event_horde", { n: n }), 2.8);
   else if (event === "blackout") {
@@ -3499,6 +3833,7 @@ function startWave(n) {
     Z.boss = { zed: boss, maxHp: boss.hp, name: t("z_boss_titan") };
     say(t("z_event_titan", { n: n }), 3.2);
   }
+  makeWaveObjective(n, event);
   hudDirty();
 }
 
@@ -3507,6 +3842,7 @@ function stepWave(dt) {
   if (!Wv) return;
   Wv.timer += dt;
   if (Wv.state === "fight") {
+    stepObjective(dt);
     Wv.spawnT -= dt;
     var live = Z.zeds.filter(function (z2) {
       return !z2.dead;
@@ -3514,17 +3850,22 @@ function stepWave(dt) {
     // A horde is hundreds of separately animated meshes. Keep the user's
     // horde choice as an upper bound, while the graphics tier supplies a safe
     // visual cap so Fast actually reduces both CPU simulation and draw calls.
+    updateDirector(dt, live);
     var qualityCap = qualityHordeCap();
     var aliveCap = Math.min(
       gameSettings().maxAlive || Z_MAX_ALIVE,
       qualityCap,
       houseAliveCap(),
     );
+    if (Z.director.phase === "lull") aliveCap = Math.max(3, aliveCap - 3);
+    else if (Z.director.phase === "peak") aliveCap = Math.min(qualityCap, aliveCap + 2);
     if (Wv.pending > 0 && Wv.spawnT <= 0 && live < aliveCap) {
       var baseCd = Wv.event === "horde" ? 1.4 : Wv.event === "runners" ? 1.1 : 2.4;
-      Wv.spawnT = clamp(baseCd - Wv.n * 0.14, 0.35, 2.5) * rr(0.55, 1.35);
+      var phaseScale = Z.director.phase === "lull" ? 2.4 : Z.director.phase === "peak" ? 0.58 : 1;
+      var reliefScale = 1.35 - Z.director.capability * 0.45;
+      Wv.spawnT = clamp(baseCd - Wv.n * 0.14, 0.35, 2.5) * phaseScale * reliefScale * rr(0.7, 1.25);
       var p = pickSpawn(),
-        type = pick(Wv.pool);
+        type = directedType(Wv);
       var zd = spawnZed(type, p.x, p.z);
       // late waves: slight stat ramp
       if (Wv.n > 6) {
@@ -3534,22 +3875,22 @@ function stepWave(dt) {
       Wv.pending--;
     }
     if (Wv.pending <= 0 && live === 0) {
+      if (Wv.n >= RUN_WAVES) {
+        beginExtraction();
+        return;
+      }
       Wv.state = "rest";
       Wv.timer = 0;
       say(t("z_wave_clear", { n: Wv.n }), 3);
       Z.stats.best = Math.max(Z.stats.best, Wv.n);
       Z.score = (Z.score || 0) + 150 + Wv.n * 40;
-      // reward: ammo + battery + small heal/armor
-      W_ORDER.forEach(function (k2) {
-        if (Z.p.owned[k2] && !W[k2].melee)
-          Z.p.reserve[k2] = (Z.p.reserve[k2] || 0) + Math.round(W[k2].mag * 1.1);
-      });
-      if (Z.flash) Z.flash.batt = 100;
-      Z.p.frags = Math.min(FRAG.maxCarry, (Z.p.frags || 0) + 1);
-      Z.p.hp = Math.min(MAX_HP, Z.p.hp + 15);
-      Z.p.armor = Math.min(MAX_ARMOR, (Z.p.armor || 0) + 15);
+      // A small guaranteed breather prevents soft-locks. The meaningful refill
+      // is the one-of-three intermission decision below.
+      Z.p.hp = Math.min((Z.perks && Z.perks.jugg) ? 150 : MAX_HP, Z.p.hp + 6);
       if (Z.blackout) restorePower(false);
       Z.boss = null;
+      removeNavMarker();
+      beginIntermission();
       hudDirty();
     }
   } else if (Wv.state === "rest") {
@@ -3558,7 +3899,7 @@ function stepWave(dt) {
       Wv.warned = true;
       say(t("z_wave_next"), 2.6);
     }
-  }
+  } else if (Wv.state === "extract") stepExtraction(dt);
 }
 
 /* ===========================================================================
@@ -3746,7 +4087,101 @@ function onContext(e) {
   if (Z.active) e.preventDefault();
 }
 function wantsTouchControls() {
-  return typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+  var coarse = typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+  return coarse || (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0);
+}
+
+function touchPulse(pattern) {
+  if (!Z.touchMode || typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
+  try { navigator.vibrate(pattern); } catch (e) {}
+}
+
+function resetTouchPointers() {
+  Z.stick = { x: 0, y: 0 };
+  Z.lookPtr = null;
+  Z.mobileAssistTarget = null;
+  if (Z.p) Z.p.firing = false;
+  if (!Z.hud) return;
+  var nub = Z.hud.stick && Z.hud.stick.querySelector("i");
+  if (nub) nub.style.transform = "translate(0px, 0px)";
+  if (Z.hud.stick) Z.hud.stick.classList.remove("pressed");
+  Z.hud.touch.querySelectorAll(".pressed").forEach(function (el) { el.classList.remove("pressed"); });
+}
+
+function syncResponsiveHud() {
+  if (!Z.hud || !Z.hud.root) return;
+  var vv = window.visualViewport;
+  var w = Math.round(vv && vv.width ? vv.width : window.innerWidth || 1024);
+  var h = Math.round(vv && vv.height ? vv.height : window.innerHeight || 768);
+  var touch = wantsTouchControls();
+  var ratio = w / Math.max(1, h);
+  Z.touchMode = touch;
+  Z.viewport = { w: w, h: h };
+  var root = Z.hud.root;
+  root.classList.toggle("z-touch", touch);
+  root.classList.toggle("z-narrow", w <= 360);
+  root.classList.toggle("z-phone", w < 600);
+  root.classList.toggle("z-tablet", touch && w >= 600);
+  root.classList.toggle("z-fold-open", touch && w >= 600 && w <= 920 && ratio >= 0.78 && ratio <= 1.35);
+  root.classList.toggle("z-landscape", ratio > 1.12);
+  root.classList.toggle("z-short", h <= 520);
+  root.style.setProperty("--z-visual-height", h + "px");
+  // The planner's compact shell normally promotes the plan pane when a phone
+  // or Fold crosses a breakpoint. During Night Shift the game owns the canvas;
+  // reassert 3D after that shell listener runs so resize/unfold cannot collapse
+  // the HUD to a hidden zero-size #view-3d.
+  var center = document.getElementById("center-canvas");
+  if (Z.active && center && !center.classList.contains("max-view-3d") && window.__setViewMode)
+    window.__setViewMode("3d");
+}
+
+function onGameViewportChange() {
+  syncResponsiveHud();
+  // A browser rotation can cancel pointer capture without delivering pointerup.
+  // Explicitly neutralise movement/fire so the player never keeps running or
+  // shooting after unfolding or changing orientation.
+  resetTouchPointers();
+}
+
+function signedAngle(a, b) {
+  return Math.atan2(Math.sin(a - b), Math.cos(a - b));
+}
+
+// Touch look has no mouse-sized precision. While the fire control is held,
+// gently pull toward a visible torso already near the reticle; it never snaps,
+// selects through walls, or turns the player toward an off-screen target.
+function stepMobileAimAssist(dt) {
+  var P = Z.p;
+  if (!Z.touchMode || !P || !P.firing || W[P.weapon].melee || P.dead) {
+    Z.mobileAssistTarget = null;
+    return;
+  }
+  Z.aimAssistT = (Z.aimAssistT || 0) - dt;
+  if (Z.aimAssistT <= 0) {
+    Z.aimAssistT = 0.1;
+    var best = null, bestScore = 1e9;
+    for (var i = 0; i < Z.zeds.length; i++) {
+      var zd = Z.zeds[i];
+      if (zd.dead) continue;
+      var dx = zd.x - P.x, dz = zd.z - P.z, dist = Math.hypot(dx, dz);
+      if (dist > 1050 || dist < 30 || !losClear(P.x, P.z, zd.x, zd.z)) continue;
+      var yawErr = signedAngle(Math.atan2(dx, dz), P.yaw);
+      var wantPitch = Math.atan2(zd.y + (zd.crawler ? 48 : 105) - (P.y + EYE), dist);
+      var pitchErr = wantPitch - P.pitch;
+      if (Math.abs(yawErr) > 0.16 || Math.abs(pitchErr) > 0.2) continue;
+      var score = Math.abs(yawErr) * 2 + Math.abs(pitchErr) + dist / 6000;
+      if (score < bestScore) { bestScore = score; best = zd; }
+    }
+    Z.mobileAssistTarget = best;
+  }
+  var target = Z.mobileAssistTarget;
+  if (!target || target.dead) return;
+  var tx = target.x - P.x, tz = target.z - P.z, td = Math.hypot(tx, tz) || 1;
+  var yawStep = signedAngle(Math.atan2(tx, tz), P.yaw);
+  var pitchStep = Math.atan2(target.y + (target.crawler ? 48 : 105) - (P.y + EYE), td) - P.pitch;
+  var k = clamp(dt * 5.5, 0, 0.32);
+  P.yaw += yawStep * k;
+  P.pitch = clamp(P.pitch + pitchStep * k, -1.35, 1.35);
 }
 
 function onLockChange() {
@@ -3777,7 +4212,7 @@ function onLookPointerDown(e) {
   if (!Z.active || Z.paused || !Z.p || Z.p.dead) return;
   if (e.pointerType === "mouse") return;
   var t = e.target;
-  if (t && t.closest && t.closest("button, input, label, #zPause, #zDead, #zStick, .z-touch-actions, #zPauseBtn")) return;
+  if (t && t.closest && t.closest("button, input, label, #zPause, #zDead, #zVictory, #zIntermission, #zStick, .z-touch-actions, #zPauseBtn")) return;
   Z.lookPtr = { id: e.pointerId, x: e.clientX, y: e.clientY };
 }
 function onLookPointerMove(e) {
@@ -3792,6 +4227,8 @@ function onLookPointerUp(e) {
 
 function bindTouchControls() {
   if (!Z.hud || !Z.hud.touch) return;
+  if (Z.touchBound) return;
+  Z.touchBound = true;
   var stick = Z.hud.stick,
     nub = stick.querySelector("i");
   var stickActive = false,
@@ -3853,6 +4290,7 @@ function bindTouchControls() {
         if (!Z.active || Z.paused || !Z.p || Z.p.dead) return;
         Z.p.firing = true;
         fire();
+        touchPulse(8);
         btn.classList.add("pressed");
         if (btn.setPointerCapture) btn.setPointerCapture(e.pointerId);
         e.preventDefault();
@@ -3874,6 +4312,7 @@ function bindTouchControls() {
       else if (act === "jump") jump();
       else if (act === "weapon") cycleWeapon(1);
       else if (act === "interact") handleInteract();
+      touchPulse(act === "interact" || act === "shove" ? 18 : 10);
       e.preventDefault();
       e.stopPropagation();
     });
@@ -3923,7 +4362,15 @@ function bindEvents() {
   cv.addEventListener("wheel", onWheel, { passive: false });
   cv.addEventListener("contextmenu", onContext);
   document.addEventListener("pointerlockchange", onLockChange);
+  window.addEventListener("resize", onGameViewportChange);
+  window.addEventListener("orientationchange", onGameViewportChange);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", onGameViewportChange);
+  if (typeof window.matchMedia === "function") {
+    Z.coarsePointerQuery = window.matchMedia("(pointer: coarse)");
+    if (Z.coarsePointerQuery.addEventListener) Z.coarsePointerQuery.addEventListener("change", onGameViewportChange);
+  }
   bindTouchControls();
+  syncResponsiveHud();
 }
 function unbindEvents() {
   if (!Z.bound) return;
@@ -3942,6 +4389,12 @@ function unbindEvents() {
   cv.removeEventListener("contextmenu", onContext);
   Z.evTarget = null;
   document.removeEventListener("pointerlockchange", onLockChange);
+  window.removeEventListener("resize", onGameViewportChange);
+  window.removeEventListener("orientationchange", onGameViewportChange);
+  if (window.visualViewport) window.visualViewport.removeEventListener("resize", onGameViewportChange);
+  if (Z.coarsePointerQuery && Z.coarsePointerQuery.removeEventListener)
+    Z.coarsePointerQuery.removeEventListener("change", onGameViewportChange);
+  Z.coarsePointerQuery = null;
   Z.stick = { x: 0, y: 0 };
   Z.lookPtr = null;
 }
@@ -3965,6 +4418,7 @@ function tick(deltaMs) {
   var dt = rawDt * (Z.timeScale || 1);
   Z.lastDt = dt;
   Z.t += dt;
+  stepMobileAimAssist(dt);
   // Collision rebuild is expensive (scene traversal + AABB queries, 20-60ms).
   // Defer it to an idle callback so it never blocks a render frame.
   if (Z.colDirty && !Z.colPending) {
@@ -4038,7 +4492,11 @@ function tick(deltaMs) {
   }
   stepGrain(dt);
   hudSync();
-  if (Z.hud) {
+  // These are DOM/CSS overlay writes, not world simulation. A 25 Hz visual
+  // cadence stays responsive while avoiding a full style/compositing pass on
+  // every rendered frame, which was especially costly on mobile browsers.
+  if (Z.hud && Z.t >= (Z.screenFxNext || 0)) {
+    Z.screenFxNext = Z.t + 0.04;
     var P = Z.p;
     // vignette tightens with damage + when they're close
     var dmgK = 1 - P.hp / MAX_HP,
@@ -4066,6 +4524,7 @@ function tick(deltaMs) {
     Z.hud.root.classList.toggle("aiming", !!P.aim);
     Z.hud.root.classList.toggle("distracted", distK > 0.35);
     Z.hud.root.classList.toggle("adrenaline", P.adrenalT > 0);
+    Z.hud.cross.classList.toggle("assist", !!Z.mobileAssistTarget);
     if (Z.hud.hint) Z.hud.hint.classList.toggle("fade", Z.t > 11);
   }
   return true;
@@ -4075,6 +4534,7 @@ function tick(deltaMs) {
    14. MODE TOGGLE
    =========================================================================== */
 function clearWorld() {
+  removeNavMarker();
   Z.zeds.slice().forEach(removeZed);
   Z.zeds = [];
   clearPickups();
@@ -4100,6 +4560,12 @@ function clearWorld() {
   Z.perkStations = [];
   Z.fuseBox = null;
   Z.boss = null;
+  Z.objective = null;
+  Z.director = null;
+  Z.extraction = null;
+  Z.intermission = null;
+  Z.victory = false;
+  Z.touchMode = wantsTouchControls();
   Z.parts = null;
   Z.tracers = null;
   Z.decals = null;
@@ -4152,6 +4618,8 @@ function restart() {
   }
   if (Z.hud) {
     Z.hud.dead.classList.remove("on");
+    Z.hud.victory.classList.remove("on");
+    Z.hud.intermission.classList.remove("on");
     if (Z.hud.hint) Z.hud.hint.classList.remove("fade");
     var bctx = Z.hud.blood && Z.hud.blood.getContext && Z.hud.blood.getContext("2d");
     if (bctx) bctx.clearRect(0, 0, Z.hud.blood.width, Z.hud.blood.height);
@@ -4183,7 +4651,11 @@ function maximize3D(on) {
     Z.prevMax = isMax ? null : cc.classList.contains("max-view-2d") ? "view-2d" : "split";
     if (!isMax && window.__setViewMode) window.__setViewMode("3d");
   } else if (Z.prevMax && window.__setViewMode) {
-    window.__setViewMode(Z.prevMax === "view-2d" ? "plan" : "split");
+    // If the device folded down while playing, a split restoration would make
+    // the planner unusable. Return compact phones to their normal plan pane;
+    // tablets/desktops still get the exact pre-game view back.
+    var compactPhone = document.body.classList.contains("compact-nav") && Math.min(window.innerWidth, window.innerHeight) < 600;
+    window.__setViewMode(compactPhone ? "plan" : Z.prevMax === "view-2d" ? "plan" : "split");
     Z.prevMax = null;
   }
 }
@@ -4333,6 +4805,8 @@ hooks.hitMarker = hitMarker;
 hooks.flashScreen = flashScreen;
 hooks.hurtPlayer = hurtPlayer;
 hooks.onKill = function (zd, gib) {
+  hitMarker("kill");
+  if (Z.director) Z.director.lastKill = Z.t;
   if (Z.killStreak >= 5) {
     Z.slowT = Math.max(Z.slowT || 0, 0.2);
     Z.timeScale = 0.4;
@@ -4345,4 +4819,14 @@ hooks.onKill = function (zd, gib) {
 };
 hooks.onHeadshot = function () {
   flashScreen("#ff6644", 0.08);
+};
+hooks.onScreamerCall = function () {
+  if (!Z.wave || Z.wave.state !== "fight") return;
+  Z.wave.pending = Math.min(Z.wave.total + 4, Z.wave.pending + 3);
+  if (Z.director) {
+    Z.director.phase = "peak";
+    Z.director.phaseT = Math.max(Z.director.phaseT, 4);
+  }
+  say(t("z_screamer_reinforcements"), 2.0);
+  hudDirty();
 };

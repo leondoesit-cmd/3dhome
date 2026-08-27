@@ -13,6 +13,7 @@ test("modern chrome keeps games, modeler and classic layout in the More menu", (
   assert.match(html, /data-act="walk"/);
   assert.match(html, /data-act="rc"/);
   assert.match(html, /data-act="zombies"/);
+  assert.match(html, /data-act="lava"/);
   assert.match(html, /data-act="toggleLegacy"/);
   assert.match(html, /data-act="openTextureGallery"/);
   assert.match(html, /data-act="autoGenerate"/);

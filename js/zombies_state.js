@@ -16,7 +16,9 @@ export const EYE = 162,          // eye height above the floor (cm)
   MAX_ARMOR = 100,
   MELEE_REACH = 96,
   Z_MAX_ALIVE = 16,     // draw-call cap: procedural rigs have many moving parts
-  REST_LEN = 12;        // seconds of resupply between waves (HUD counts it down)
+  REST_LEN = 15,        // enough time to make one intermission choice
+  RUN_WAVES = 8,        // a run has a climax and an ending instead of fading into grind
+  EXTRACT_LEN = 45;     // seconds to cross the player's plan and hold the exit
 
 /* ---- module state ------------------------------------------------------- */
 export const Z = {
@@ -59,6 +61,11 @@ export const Z = {
   slowT: 0,
   p: null,
   wave: null,
+  objective: null, // room/door objective derived from the current home plan
+  director: null,  // encounter pressure, pacing phase, and specialist warnings
+  extraction: null,
+  intermission: null,
+  victory: false,
   flash: null,
   view: null,
   shake: 0,
@@ -96,6 +103,7 @@ export const hooks = {
   hurtPlayer: null,
   onKill: null,
   onHeadshot: null,
+  onScreamerCall: null,
 };
 
 export function zActive() {
@@ -108,6 +116,11 @@ export function zDebug() {
     zeds: Z.zeds.length,
     wave: Z.wave && Z.wave.n,
     pending: Z.wave && Z.wave.pending,
+    waveState: Z.wave && Z.wave.state,
+    runWaves: RUN_WAVES,
+    objective: Z.objective && { kind: Z.objective.kind, progress: Z.objective.progress, need: Z.objective.need, completed: Z.objective.completed },
+    director: Z.director && { phase: Z.director.phase, capability: Z.director.capability },
+    extraction: Z.extraction && { progress: Z.extraction.progress, need: Z.extraction.need, time: Z.extraction.time },
     hp: Z.p && Math.round(Z.p.hp),
     weapon: Z.p && Z.p.weapon,
     ammo: Z.p && Z.p.ammo,

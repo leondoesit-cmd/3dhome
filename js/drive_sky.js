@@ -14,6 +14,8 @@ const hooks = {
   surfaceY: () => 0,
   applyNightMat: () => {},
   syncVehicleLights: () => {},
+  syncLamps: () => {},
+  syncBloom: () => {},
   bldMats: [],
 };
 export function setSkyHooks(h) {
@@ -55,73 +57,213 @@ export const TOD = [
   },
 ];
 
-// Procedural sky: vertical gradient + sun disc and glow + a drifting fbm cloud
-// deck projected onto a plane above the camera (so clouds converge toward the
-// horizon like a real overcast), plus stars at night. Also rendered into a
-// tiny second scene that PMREM prefilters into the reflection environment.
-const SKY_VERT = `
-varying vec3 vDir;
-void main() {
-  vDir = position;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}`;
-const SKY_FRAG = `
-precision highp float;
-uniform vec3 uZen, uHor, uGnd, uSunC, uSunDir;
-uniform float uCloud, uNight, uTime;
-varying vec3 vDir;
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float vnoise(vec2 p) {
-  vec2 i = floor(p), f = fract(p);
-  f = f * f * (3.0 - 2.0 * f);
-  float a = hash(i), b = hash(i + vec2(1.0, 0.0));
-  float c = hash(i + vec2(0.0, 1.0)), d = hash(i + vec2(1.0, 1.0));
-  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+// Painted sky: the same picture the old GLSL dome drew — vertical gradient,
+// sun disc + halo + scatter, a cloud deck that converges toward the horizon,
+// and stars at night — but rasterised into an equirectangular CANVAS instead of
+// a fragment shader.
+//
+// Why: a raw ShaderMaterial does not survive the WebGPU backend. The node
+// builder rejects it ("Material 'ShaderMaterial' is not compatible", once per
+// frame) and the mesh renders flat — the sky kept a washed-out gradient and
+// silently lost its sun, clouds and stars. A canvas costs one paint per
+// time-of-day switch instead of a 4-octave fbm per pixel per FRAME, and looks
+// identical on both backends.
+const SKY_W = 1024,
+  SKY_H = 512,
+  CLOUD_W = 512,
+  CLOUD_H = 256;
+function smoothstep(e0, e1, x) {
+  const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0 || 1e-6)));
+  return t * t * (3 - 2 * t);
 }
-float fbm(vec2 p) {
-  float s = 0.0, a = 0.5;
-  for (int i = 0; i < 4; i++) { s += a * vnoise(p); p *= 2.03; a *= 0.5; }
-  return s;
+// the same value-noise fbm the shader used, so the cloud shapes are unchanged
+function hash2(x, y) {
+  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return s - Math.floor(s);
 }
-void main() {
-  vec3 d = normalize(vDir);
-  float h = d.y;
-  vec3 sunD = normalize(uSunDir);
-  // pow() bases are kept off zero: pow(0.0, n) is undefined in GLSL and some
-  // drivers hand back NaN, which would poison the whole sky
-  float sd = clamp(dot(d, sunD), 1e-4, 1.0);
-  // gradient: horizon band lifts toward the zenith, ground tone below
-  vec3 col = mix(uHor, uZen, pow(max(h, 1e-4), 0.55));
-  col = mix(col, uGnd, smoothstep(0.0, -0.10, h));
-  // sun: hard disc, tight halo, wide warm scatter across the sky
-  col += uSunC * (smoothstep(0.9994, 0.99975, sd) * 2.2 + pow(sd, 90.0) * 0.55 +
-                  pow(sd, 5.0) * 0.14 * (1.0 - uNight));
-  if (uNight > 0.5 && h > 0.0) {
-    // round pin-points, not the square cells a bare hash grid would give
-    vec2 q = d.xz / max(h, 0.10) * 60.0;
-    vec2 f = fract(q) - 0.5;
-    float st = hash(floor(q));
-    col += vec3(0.82, 0.88, 1.0) * step(0.9968, st) *
-           smoothstep(0.16, 0.0, length(f)) * smoothstep(0.06, 0.45, h) * 1.5;
+function vnoise(x, y) {
+  const ix = Math.floor(x),
+    iy = Math.floor(y);
+  let fx = x - ix,
+    fy = y - iy;
+  fx = fx * fx * (3 - 2 * fx);
+  fy = fy * fy * (3 - 2 * fy);
+  const a = hash2(ix, iy),
+    b = hash2(ix + 1, iy),
+    c = hash2(ix, iy + 1),
+    d = hash2(ix + 1, iy + 1);
+  return a + (b - a) * fx + (c - a + (a - b + d - c) * fx) * fy;
+}
+function fbm(x, y) {
+  let sum = 0,
+    amp = 0.5;
+  for (let i = 0; i < 4; i++) {
+    sum += amp * vnoise(x, y);
+    x *= 2.03;
+    y *= 2.03;
+    amp *= 0.5;
   }
-  if (h > 0.012) {
-    vec2 p = d.xz / max(h, 0.06);
-    float f = fbm(p * 0.5 + vec2(uTime * 0.0055, uTime * 0.0031));
-    float c = smoothstep(0.5, 0.86, f) * uCloud * smoothstep(0.015, 0.24, h);
-    vec3 lit = mix(uHor, vec3(1.0), 0.5) * (0.62 + 0.65 * pow(sd, 7.0));
-    col = mix(col, lit * mix(1.0, 0.22, uNight), clamp(c, 0.0, 1.0));
+  return sum;
+}
+function ensureSkyCanvas() {
+  if (D.skyCanvas) return;
+  D.skyCanvas = document.createElement("canvas");
+  D.skyCanvas.width = SKY_W;
+  D.skyCanvas.height = SKY_H;
+  D.skyTex = new THREE.CanvasTexture(D.skyCanvas);
+  D.skyTex.colorSpace = THREE.SRGBColorSpace;
+  D.cloudCanvas = document.createElement("canvas");
+  D.cloudCanvas.width = CLOUD_W;
+  D.cloudCanvas.height = CLOUD_H;
+  D.cloudTex = new THREE.CanvasTexture(D.cloudCanvas);
+  D.cloudTex.colorSpace = THREE.SRGBColorSpace;
+  D.cloudTex.wrapS = THREE.RepeatWrapping;
+}
+// Sphere UVs: canvas row 0 is the zenith (flipY puts the top row at uv.y = 1),
+// and three builds x = -cos(2πu)·sinθ, z = sin(2πu)·sinθ.
+function skyRowElevation(py, h) {
+  return Math.cos((Math.PI * py) / (h - 1));
+}
+function sunUV(dir) {
+  const d = new THREE.Vector3(dir[0], dir[1], dir[2]).normalize();
+  let u = Math.atan2(d.z, -d.x) / (Math.PI * 2);
+  u = ((u % 1) + 1) % 1;
+  const theta = Math.acos(Math.max(-1, Math.min(1, d.y)));
+  return { u, v: theta / Math.PI, theta, d };
+}
+export function paintSky() {
+  ensureSkyCanvas();
+  const p = TOD[D.todIdx];
+  const x = D.skyCanvas.getContext("2d");
+  const zen = new THREE.Color(p.zen),
+    hor = new THREE.Color(p.hor),
+    gnd = new THREE.Color(p.gnd),
+    sunC = new THREE.Color(p.sunC);
+  const c = new THREE.Color();
+  x.globalCompositeOperation = "source-over";
+  x.globalAlpha = 1;
+  for (let py = 0; py < SKY_H; py++) {
+    const h = skyRowElevation(py, SKY_H);
+    c.copy(hor).lerp(zen, Math.pow(Math.max(h, 1e-4), 0.55));
+    const g = smoothstep(0, -0.1, h); // ground tone below the horizon
+    if (g > 0) c.lerp(gnd, g);
+    x.fillStyle = "#" + c.getHexString();
+    x.fillRect(0, py, SKY_W, 1);
   }
-  gl_FragColor = vec4(col, 1.0);
-}`;
-export function skyMaterial() {
-  return new THREE.ShaderMaterial({
-    uniforms: D.skyUni,
-    vertexShader: SKY_VERT,
-    fragmentShader: SKY_FRAG,
-    side: THREE.BackSide,
-    depthWrite: false,
-    fog: false,
-  });
+  // stars first, so the sun's glow paints over them
+  if (p.night) {
+    x.fillStyle = "#d2e0ff";
+    for (let i = 0; i < 1100; i++) {
+      const py = hash2(i, 3.7) * SKY_H * 0.52;
+      const h = skyRowElevation(py, SKY_H);
+      const a = (0.3 + hash2(i, 11.3) * 0.7) * smoothstep(0.06, 0.45, h);
+      if (a <= 0.02) continue;
+      x.globalAlpha = a;
+      x.fillRect(hash2(i, 5.1) * SKY_W, py, 1.3, 1.3);
+    }
+    x.globalAlpha = 1;
+  }
+  // sun: wide scatter, tight halo, hard disc — drawn three times across the
+  // seam so a sun near u=0 is not sliced in half, and stretched horizontally
+  // by 1/sinθ because equirect squeezes the sky as it climbs
+  const sun = sunUV(p.dir);
+  const sx = sun.u * SKY_W,
+    sy = sun.v * SKY_H;
+  const stretch = 1 / Math.max(0.28, Math.sin(sun.theta));
+  const hexSun = "#" + sunC.getHexString();
+  x.globalCompositeOperation = "lighter";
+  const blob = (r, alpha) => {
+    if (alpha <= 0.002) return;
+    for (let k = -1; k <= 1; k++) {
+      x.save();
+      x.translate(sx + k * SKY_W, sy);
+      x.scale(stretch, 1);
+      const g = x.createRadialGradient(0, 0, 0, 0, 0, r);
+      g.addColorStop(0, hexSun);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      x.globalAlpha = alpha;
+      x.fillStyle = g;
+      x.fillRect(-r, -r, r * 2, r * 2);
+      x.restore();
+    }
+  };
+  blob(SKY_W * 0.3, p.night ? 0.05 : 0.16); // scatter across the sky
+  blob(62, 0.55); // halo
+  blob(15, 0.95); // disc
+  x.globalCompositeOperation = "source-over";
+  x.globalAlpha = 1;
+  D.skyTex.needsUpdate = true;
+  if (D.envTex) D.envTex.needsUpdate = true;
+  paintClouds(p, sun);
+}
+function paintClouds(p, sun) {
+  const x = D.cloudCanvas.getContext("2d");
+  const img = x.createImageData(CLOUD_W, CLOUD_H);
+  const lit = new THREE.Color(p.hor).lerp(new THREE.Color(0xffffff), 0.5);
+  const dim = p.night ? 0.22 : 1;
+  for (let py = 0; py < CLOUD_H; py++) {
+    const el = skyRowElevation(py, CLOUD_H);
+    const band = smoothstep(0.015, 0.5, el); // thin out toward the horizon haze
+    if (el <= 0.012 || band <= 0) continue;
+    const ce = Math.sqrt(Math.max(0, 1 - el * el));
+    // Dividing by the elevation is what makes the deck converge toward the
+    // horizon. The shader's 0.5 scale left the zenith sampling less than ONE
+    // noise cell — a flat, empty sky — so the deck is wound up until it reads:
+    // measured coverage 5% → 26% of the dome.
+    const k = Math.max(el, 0.12);
+    for (let px = 0; px < CLOUD_W; px++) {
+      const az = (px / CLOUD_W) * Math.PI * 2;
+      const dx = -Math.cos(az) * ce,
+        dz = Math.sin(az) * ce;
+      const f = fbm((dx / k) * 1.8 + 12.3, (dz / k) * 1.8 + 4.7);
+      const cover = smoothstep(0.4, 0.72, f) * p.cloud * band;
+      if (cover <= 0.004) continue;
+      // clouds facing the sun pick up its light, same falloff as the shader
+      const sd = Math.max(0, dx * sun.d.x + el * sun.d.y + dz * sun.d.z);
+      const brightness = (0.62 + 0.65 * Math.pow(sd, 7)) * dim;
+      const o = (py * CLOUD_W + px) * 4;
+      img.data[o] = Math.min(255, lit.r * 255 * brightness);
+      img.data[o + 1] = Math.min(255, lit.g * 255 * brightness);
+      img.data[o + 2] = Math.min(255, lit.b * 255 * brightness);
+      img.data[o + 3] = Math.min(1, cover) * 255;
+    }
+  }
+  x.putImageData(img, 0, 0);
+  D.cloudTex.needsUpdate = true;
+}
+// Two domes: the painted sky, and the cloud deck on a slightly smaller sphere
+// that turns slowly — rotating the mesh IS the cloud drift, and it costs one
+// matrix update instead of a per-pixel time offset.
+export function buildSky() {
+  ensureSkyCanvas();
+  paintSky();
+  D.sky = new THREE.Mesh(
+    new THREE.SphereGeometry(2600, 48, 32),
+    new THREE.MeshBasicMaterial({
+      map: D.skyTex, side: THREE.BackSide, depthWrite: false, fog: false,
+    }),
+  );
+  D.sky.frustumCulled = false;
+  D.sky.renderOrder = -2;
+  D.scene.add(D.sky);
+  D.skyClouds = new THREE.Mesh(
+    new THREE.SphereGeometry(2560, 48, 24),
+    new THREE.MeshBasicMaterial({
+      map: D.cloudTex, side: THREE.BackSide, transparent: true,
+      depthWrite: false, fog: false,
+    }),
+  );
+  D.skyClouds.frustumCulled = false;
+  D.skyClouds.renderOrder = -1;
+  D.scene.add(D.skyClouds);
+}
+export function skyFollow(dt) {
+  if (!D.sky) return;
+  D.sky.position.copy(D.camera.position);
+  if (D.skyClouds) {
+    D.skyClouds.position.copy(D.camera.position);
+    D.skyClouds.rotation.y += dt * 0.0055; // wind
+  }
 }
 // Reflection environment for the car paint and glass: a 3-stop equirect
 // gradient (zenith → horizon → ground) with a sun blob painted in, prefiltered
@@ -131,57 +273,53 @@ export function skyMaterial() {
 // main viewer already ships.)
 export function buildEnv() {
   if (!D.renderer) return;
-  const p = TOD[D.todIdx];
-  if (!D.envCanvas) {
-    D.envCanvas = document.createElement("canvas");
-    D.envCanvas.width = 128;
-    D.envCanvas.height = 64;
-    D.envTex = new THREE.CanvasTexture(D.envCanvas);
+  ensureSkyCanvas();
+  // A second texture over the SAME canvas: `map` ignores texture.mapping, but
+  // PMREM needs the equirect mapping, and one texture cannot be both.
+  if (!D.envTex) {
+    D.envTex = new THREE.CanvasTexture(D.skyCanvas);
     D.envTex.mapping = THREE.EquirectangularReflectionMapping;
+    D.envTex.colorSpace = THREE.SRGBColorSpace;
   }
-  const x = D.envCanvas.getContext("2d");
-  const hex = (h) => "#" + new THREE.Color(h).getHexString();
-  const g = x.createLinearGradient(0, 0, 0, 64);
-  g.addColorStop(0, hex(p.zen));
-  g.addColorStop(0.46, hex(p.hor));
-  g.addColorStop(0.5, hex(p.gnd));
-  g.addColorStop(1, hex(p.gnd));
-  x.fillStyle = g;
-  x.fillRect(0, 0, 128, 64);
-  // the sun itself: a soft hot spot the paint can catch as a highlight
-  const d = new THREE.Vector3(p.dir[0], p.dir[1], p.dir[2]).normalize();
-  const su = (Math.atan2(d.x, -d.z) / (Math.PI * 2) + 0.5) * 128,
-    sv = (0.5 - Math.asin(Math.max(-1, Math.min(1, d.y))) / Math.PI) * 64;
-  const sg = x.createRadialGradient(su, sv, 0, su, sv, 22);
-  sg.addColorStop(0, hex(p.sunC));
-  sg.addColorStop(1, "rgba(0,0,0,0)");
-  x.globalAlpha = p.night ? 0.35 : 0.9;
-  x.fillStyle = sg;
-  x.fillRect(su - 22, sv - 22, 44, 44);
-  x.globalAlpha = 1;
   D.envTex.needsUpdate = true;
   // PMREM prefiltering throws on a renderer whose backend has not initialised
   // yet (it is async since r185). Bail out rather than burn the attempt — drive.js
   // re-runs applyTOD once the backend is live.
-  if (!D.renderer || !D.renderer.initialized) return;
+  if (!D.renderer.initialized) return;
   try {
     if (!D.pmrem) D.pmrem = new THREE.PMREMGenerator(D.renderer);
     const rt = D.pmrem.fromEquirectangular(D.envTex);
-    if (D.envRT) D.envRT.dispose();
+    // Do NOT dispose the outgoing target here. WebGPU still has its cubeUv
+    // texture bound in bind groups that are in flight; destroying it in the
+    // same tick raises "Destroyed texture used in a submit" on every following
+    // frame and the picture freezes on the spot (pressing T at night did it
+    // every time). Retire it a beat later, once every material has been
+    // rebuilt against the new one.
+    if (D.envRT) envRetire.push({ rt: D.envRT, at: performance.now(), frame: D.frameNo || 0 });
     D.envRT = rt;
     setCarEnvMap(D.envRT);
   } catch (_) {}
 }
+
+// outgoing PMREM targets waiting out their last frames (see buildEnv)
+const envRetire = [];
+const ENV_RETIRE_MS = 1200;
+const ENV_RETIRE_FRAMES = 3;
+export function envRetireTick(now) {
+  // Frames, not just wall time: what makes an old target safe to destroy is
+  // that the frames referencing it have finished. A tab whose rAF is paused
+  // (or several rebuilds inside one tick) would otherwise hit the timer with
+  // the texture still bound.
+  while (
+    envRetire.length &&
+    now - envRetire[0].at > ENV_RETIRE_MS &&
+    (D.frameNo || 0) - envRetire[0].frame > ENV_RETIRE_FRAMES
+  )
+    envRetire.shift().rt.dispose();
+}
 export function applyTOD(i) {
   D.todIdx = ((i % TOD.length) + TOD.length) % TOD.length;
   const p = TOD[D.todIdx];
-  D.skyUni.uZen.value.setHex(p.zen);
-  D.skyUni.uHor.value.setHex(p.hor);
-  D.skyUni.uGnd.value.setHex(p.gnd);
-  D.skyUni.uSunC.value.setHex(p.sunC);
-  D.skyUni.uSunDir.value.set(p.dir[0], p.dir[1], p.dir[2]);
-  D.skyUni.uCloud.value = p.cloud;
-  D.skyUni.uNight.value = p.night;
   D.sun.color.setHex(p.sunC);
   D.sun.intensity = LUX * p.sunI;
   D.hemi.color.setHex(p.skyC);
@@ -193,6 +331,8 @@ export function applyTOD(i) {
   D.renderer.toneMappingExposure = p.exposure;
   hooks.bldMats.forEach((m) => hooks.applyNightMat(m, !!p.night)); // windows on/off
   D.vehicles.forEach(hooks.syncVehicleLights);
+  hooks.syncLamps(); // street lamps burn from dusk
+  hooks.syncBloom(); // and bleed harder against a dark sky
   if (D.ses && D.ses.ghosts)
     Object.values(D.ses.ghosts).forEach((g) => {
       const L = g.mesh.userData.lamps;
@@ -201,6 +341,7 @@ export function applyTOD(i) {
       L.head.emissiveIntensity = p.night ? 2.6 : 0.4;
       L.tail.emissiveIntensity = p.night ? 1.1 : 0.3;
     });
+  paintSky(); // gradient, sun, stars and clouds are all baked per preset
   buildEnv();
 }
 export function isNight() {
@@ -211,6 +352,7 @@ setCarMeshNightFn(isNight);
 // (it only has to cover what the chase cam can see). The target snaps to the
 // shadow map's texel grid, otherwise every shadow edge crawls as you drive.
 export function sunFollow() {
+  envRetireTick(performance.now());
   const fp = hooks.focusPos();
   const p = TOD[D.todIdx];
   const texel = (SHADOW_HALF * 2) / (D.sun.shadow.mapSize.x || 2048);

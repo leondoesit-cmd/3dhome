@@ -41,6 +41,7 @@ import { initFriends } from "./ui_friends.js";
 import { markerItem, detachMarker } from "./markers.js";
 import { initCadHud, applyLangLabels as cadHudLang } from "./cad_hud.js";
 import { initMobileShell, refreshMobileShell } from "./mobile_shell.js";
+import { initDimKnob } from "./ui_dim_knob.js";
 import { windowChromePosture } from "./chrome_posture.js";
 import { rebuildProject } from "./core/project.js";
 import { initToolSearch } from "./tool_search.js";
@@ -350,6 +351,7 @@ initFriends(); // friends list + realtime chat/voice + visits (after init3D: ava
 initPlanGizmo();
 initCadHud(); // plan status bar + typed length/angle entry
 initMobileShell(); // phone/foldable chrome: contextual row + five-slot bottom nav
+initDimKnob(); // touch: numeric fields are scrubbed on a rotary dial, not typed
 // last: autosave/recovery needs a fully built UI to render its recovery prompt,
 // and the error net should not swallow a genuine boot failure above it
 initPersistence({

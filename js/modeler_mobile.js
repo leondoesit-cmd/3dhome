@@ -59,15 +59,26 @@ function focusPagedTarget(selector) {
   pageState.show(pages.indexOf(page));
 }
 
+/* The generated sheets are height:fit-content, so at mount time the body has
+   not been laid out yet and its clientHeight is the COLLAPSED box. Sizing
+   cards against that split View into two pages for 284px of content that fits
+   a 574px sheet whole — and the controls stranded on page two laid out at 0x0.
+   The cap the sheet may grow into is the honest budget; max-height resolves,
+   unlike the custom property behind it. */
+function generatedPageHeight() {
+  if (!sheet) return 0;
+  var cap = parseFloat(getComputedStyle(sheet).maxHeight);
+  return cap > 0 ? Math.max(210, cap - 104) : 0;
+}
+
 function pageOpenSheet() {
   releasePages();
-  pageHost = (openKey === "tree" || openKey === "cmd" || openKey === "props") && borrowed && borrowed.node
-    ? borrowed.node
-    : sheetBody;
+  var panel = (openKey === "tree" || openKey === "cmd" || openKey === "props") && borrowed && borrowed.node;
+  pageHost = panel || sheetBody;
   if (!pageHost) return;
-  pageState = mountPagedMenu(pageHost, {
-    pinSelector: ".md-strip, .md-right-tabs, .md-inspector-tabs, .md-command-tabs",
-  });
+  var opts = { pinSelector: ".md-strip, .md-right-tabs, .md-inspector-tabs, .md-command-tabs" };
+  if (!panel) opts.pageHeight = generatedPageHeight();
+  pageState = mountPagedMenu(pageHost, opts);
   if (openKey === "tree") focusPagedTarget("#mdQuickSettings:not([hidden])");
 }
 

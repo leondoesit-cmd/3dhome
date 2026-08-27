@@ -13,7 +13,7 @@
                selection, and which pane is showing. It never scrolls — if a
                state has more than three contextual actions, the surplus belongs
                in a sheet, not in a rail the user has to swipe.
-     #mobile-nav   five FIXED slots (View / Tools / Add / Properties / More).
+     #mobile-nav   five FIXED slots (View / Build / Add / Edit / More).
                Each opens a bottom sheet instead of a side drawer, so the plan
                stays visible behind it and a piece can be dragged straight from
                the library onto the canvas.
@@ -34,11 +34,20 @@ var ctxBar = null,
   sheet = null,
   sheetBody = null,
   sheetTitle = null,
-  backdrop = null;
+  backdrop = null,
+  coach = null,
+  coachCopy = null,
+  coachAction = null;
 var openSheet = null; // key of the sheet currently up, or null
 var lastSig = ""; // context-bar signature; a rebuild only happens when it changes
 var libraryPageHost = null;
 var transientPageHosts = [];
+var onboardingActive = false;
+var onboardingStage = "";
+var coachTimer = 0;
+var coachCopyKey = "";
+var coachActionKey = "";
+var MOBILE_FLOW_KEY = "mf_mobile_first_project_done";
 
 function pageInspector() {
   var active = document.querySelector("#right-inspector .grp.props.on");
@@ -52,25 +61,16 @@ function pageInspector() {
   if (active.id === "wallProps") return;
   mountPagedMenu(active, {
     pinSelector: "#selname2, #selname_items, #selname3, #selname4, #selname_sv, #selname_mk, #selname_con, #selname_nd, #selname_walls",
+    namedTabs: true,
   });
-}
-
-function pageGeneratedSheet() {
-  if (!sheetBody || !sheetBody.children.length) return;
-  mountPagedMenu(sheetBody);
 }
 
 function pageLibrary() {
   if (libraryPageHost) releasePagedMenu(libraryPageHost);
   libraryPageHost = null;
-  if (openSheet !== "add") return;
-  var panes = Array.from(document.querySelectorAll("#left-sidebar [data-left-pane]"));
-  var active = panes.find(function (node) { return getComputedStyle(node).display !== "none"; });
-  if (!active) return;
-  var grid = active.querySelector(".furn-grid, .tree-list, .mep-list, .sh-list");
-  if (!grid || grid.children.length < 2) return;
-  libraryPageHost = grid;
-  mountPagedMenu(grid);
+  /* Libraries are browsed and searched, not completed like a form. Keep their
+     named categories in one natural scrolling surface instead of splitting
+     them behind page dots. */
 }
 
 function pageTransientMenus() {
@@ -185,10 +185,25 @@ function aidChip(key, label) {
   };
 }
 
+function cancelPlacement() {
+  S.placeType = null;
+  S.previewPt = null;
+  setTool("select");
+  window.dispatchEvent(new CustomEvent("planner-place"));
+}
+
 /* Up to three contextual actions, chosen by what the user is actually doing.
    Undo/Redo are added by render() and are deliberately NOT part of this list:
    they must never move or disappear, whatever the state. */
 function ctxActions() {
+  /* Library placement is its own mode even though the select tool remains
+     active underneath it. Do not leave the previously selected object's
+     Copy/Edit/Delete verbs on screen while the next tap will place a piece. */
+  if (S.placeType) {
+    return [
+      { icon: "ph-x", label: t("cancel"), run: cancelPlacement },
+    ];
+  }
   if (viewMode() === "3d") {
     return [
       { icon: "ph-cursor-click", label: t("m_edit3d"), on: !!S.edit3D, run: function () { run("edit3d"); } },
@@ -199,7 +214,11 @@ function ctxActions() {
   if (drawing()) {
     // Mid-draw the aids ARE the controls: they decide what the next click
     // produces. Escape doubles as "put the tool down".
+    // OSNAP rides here rather than in the idle row: the chips in #cadToggles
+    // are hidden on a phone, so this is the only place object snapping can be
+    // turned off — and mid-draw is exactly when it grabs the wrong corner.
     return [
+      aidChip("osnap", "cad_osnap"),
       aidChip("ortho", "cad_ortho"),
       aidChip("gsnap", "cad_grid"),
       { icon: "ph-x", label: t("m_endtool"), run: function () { setTool("select"); } },
@@ -214,7 +233,7 @@ function ctxActions() {
       { icon: "ph-trash", label: t("m_a_del"), danger: true, run: function () { run("deleteSel"); } },
     ];
   }
-  return [aidChip("osnap", "cad_osnap"), aidChip("ortho", "cad_ortho"), aidChip("gsnap", "cad_grid")];
+  return [];
 }
 
 function btn(spec) {
@@ -264,6 +283,72 @@ function renderCtx() {
   });
 }
 
+/* ---- milestone coach ---------------------------------------------------- */
+
+function mobileFlowDone() {
+  try { return localStorage.getItem(MOBILE_FLOW_KEY) === "1"; } catch (_) { return false; }
+}
+
+function ensureCoach() {
+  if (coach) return;
+  coach = document.createElement("div");
+  coach.id = "m-coach";
+  coach.setAttribute("role", "status");
+  coach.setAttribute("aria-live", "polite");
+  coach.innerHTML =
+    '<div class="m-coach-copy"></div>' +
+    '<button type="button" class="m-coach-action"></button>' +
+    '<button type="button" class="m-coach-close"><i class="ph ph-x"></i></button>';
+  document.body.appendChild(coach);
+  coachCopy = coach.querySelector(".m-coach-copy");
+  coachAction = coach.querySelector(".m-coach-action");
+  var close = coach.querySelector(".m-coach-close");
+  close.setAttribute("aria-label", t("close"));
+  close.addEventListener("click", dismissCoach);
+}
+
+function hideCoach() {
+  if (coachTimer) clearTimeout(coachTimer);
+  coachTimer = 0;
+  if (coach) coach.classList.remove("on");
+}
+
+function showCoach(copyKey, actionKey, action, timeout) {
+  if (!compact()) return;
+  ensureCoach();
+  if (coachTimer) clearTimeout(coachTimer);
+  coachCopyKey = copyKey || "";
+  coachActionKey = actionKey || "";
+  coachCopy.textContent = t(coachCopyKey);
+  coachAction.hidden = !actionKey || !action;
+  coachAction.textContent = coachActionKey ? t(coachActionKey) : "";
+  coachAction.onclick = action ? function () {
+    hideCoach();
+    action();
+  } : null;
+  coach.classList.add("on");
+  if (timeout) coachTimer = setTimeout(hideCoach, timeout);
+}
+
+/* Finishing the walkthrough and dismissing it are the same decision as far as
+   later sessions are concerned: the user is done being coached. Recording only
+   the completion replayed every milestone forever for anyone who tapped X. */
+function markFlowDone() {
+  onboardingActive = false;
+  onboardingStage = "done";
+  try { localStorage.setItem(MOBILE_FLOW_KEY, "1"); } catch (_) {}
+}
+
+function dismissCoach() {
+  markFlowDone();
+  hideCoach();
+}
+
+function finishOnboarding() {
+  markFlowDone();
+  showCoach("mcoach_complete", null, null, 3600);
+}
+
 /* ---- bottom sheets ------------------------------------------------------ */
 
 function ensureSheet() {
@@ -280,7 +365,7 @@ function ensureSheet() {
   sheet.innerHTML =
     '<div class="m-sheet-grip" aria-hidden="true"></div>' +
     '<div class="m-sheet-head"><h4 id="m-sheet-title"></h4>' +
-    '<button type="button" class="m-sheet-x" aria-label="Close"><i class="ph ph-x"></i></button></div>' +
+    '<button type="button" class="m-sheet-x" aria-label="' + t("close") + '"><i class="ph ph-x"></i></button></div>' +
     '<div class="m-sheet-body" id="m-sheet-body"></div>';
   document.body.appendChild(sheet);
   sheetBody = sheet.querySelector("#m-sheet-body");
@@ -327,6 +412,7 @@ function ensureSheet() {
 }
 
 function closeSheet() {
+  var closingKey = openSheet;
   releasePages();
   openSheet = null;
   if (sheet) {
@@ -339,6 +425,13 @@ function closeSheet() {
   // shown in place (see showSheet) and have to be put back too.
   document.body.classList.remove("show-left", "show-right");
   syncNav();
+  if (closingKey === "props" && onboardingActive && onboardingStage === "edit") {
+    onboardingStage = "preview";
+    showCoach("mcoach_preview", "mcoach_preview_action", function () {
+      if (window.__setViewMode) window.__setViewMode("3d");
+      finishOnboarding();
+    });
+  }
 }
 
 function showSheet(key) {
@@ -365,7 +458,10 @@ function showSheet(key) {
     }
     openSheet = key;
     syncNav();
-    if (key === "props") requestAnimationFrame(pageInspector);
+    if (key === "props") {
+      requestAnimationFrame(pageInspector);
+      if (onboardingActive && onboardingStage === "item") onboardingStage = "edit";
+    }
     if (key === "add") requestAnimationFrame(pageLibrary);
     return;
   }
@@ -383,7 +479,8 @@ function showSheet(key) {
   backdrop.classList.add("on");
   document.body.classList.add("m-sheet-open");
   syncNav();
-  requestAnimationFrame(pageGeneratedSheet);
+  /* Tools, View and More are short named sections that scroll naturally.
+     Inspector forms still use labelled page tabs via pageInspector(). */
 }
 
 /* Tools: the same commands as the desktop rail, but as a labelled grid. The
@@ -454,71 +551,123 @@ function buildViewSheet() {
   sheetBody.appendChild(grid);
 }
 
-/* More: mirrors the topbar rather than restating it. Cloning the live menus
-   means a command added to File/Edit/Export shows up here without a second
-   edit — the usual way a phone menu drifts out of date. */
+/* More keeps the live desktop commands, but gives them a phone-sized
+   information architecture: learn first, common project work next, optional
+   experiences last and collapsed. */
+function menuByKey(key) {
+  var trigger = document.querySelector('#topbar .dropdown-trigger[data-i18n-aria="' + key + '"]');
+  var dd = trigger && trigger.closest(".dropdown");
+  return dd && (dd.querySelector(".dropdown-menu") || menuOf(dd));
+}
+
+function actionLabel(src) {
+  var copy = src.cloneNode(true);
+  copy.querySelectorAll("i,kbd").forEach(function (node) { node.remove(); });
+  return copy.textContent.replace(/\s+/g, " ").trim() || src.getAttribute("data-act") || "";
+}
+
+function clonedAction(src) {
+  var act = src.getAttribute("data-act");
+  var b = document.createElement("button");
+  b.type = "button";
+  b.className = "m-list-btn" + (src.classList.contains("menu-danger") ? " danger" : "");
+  if (src.disabled) b.disabled = true;
+  var ico = src.querySelector("i");
+  var label = actionLabel(src);
+  b.innerHTML = '<i class="' + (ico ? ico.className : "ph ph-dot") + '"></i><span></span>';
+  b.querySelector("span").textContent = label;
+  b.addEventListener("click", function () {
+    closeSheet();
+    run(act);
+  });
+  return b;
+}
+
+function appendMenuGroup(title, menu, options) {
+  if (!menu) return;
+  options = options || {};
+  var host;
+  if (options.collapsed) {
+    host = document.createElement("details");
+    host.className = "m-more-group";
+    var summary = document.createElement("summary");
+    summary.textContent = title;
+    host.appendChild(summary);
+  } else {
+    var h = document.createElement("h5");
+    h.className = "m-sheet-sec";
+    h.textContent = title;
+    sheetBody.appendChild(h);
+    host = document.createElement("div");
+  }
+  var list = document.createElement("div");
+  list.className = "m-list";
+  menu.querySelectorAll("button[data-act]").forEach(function (src) {
+    var act = src.getAttribute("data-act");
+    if ((options.exclude || []).indexOf(act) >= 0) return;
+    list.appendChild(clonedAction(src));
+  });
+  if (options.append) options.append.forEach(function (src) {
+    if (src) list.appendChild(clonedAction(src));
+  });
+  if (!list.children.length) return;
+  host.appendChild(list);
+  sheetBody.appendChild(host);
+}
+
+function quickAction(id) {
+  var src = document.getElementById(id);
+  if (!src) return null;
+  var b = document.createElement("button");
+  b.type = "button";
+  b.className = "m-grid-btn";
+  var ico = src.querySelector("i");
+  var key = src.getAttribute("data-i18n-title") || src.getAttribute("data-i18n-aria");
+  var label = key ? t(key) : src.getAttribute("aria-label") || src.title || "";
+  b.setAttribute("aria-label", label);
+  b.innerHTML = '<i class="' + (ico ? ico.className : "ph ph-gear") + '"></i><span></span>';
+  b.querySelector("span").textContent = label;
+  b.addEventListener("click", function () {
+    closeSheet();
+    src.click();
+  });
+  return b;
+}
+
 function buildMoreSheet() {
-  /* A quick row of the global buttons, named explicitly rather than swept out
-     of .tb-end: half of that row is hidden on a phone on purpose (the legacy
-     chrome, the drawer toggles), and theme/language are hidden BY this shell —
-     a sweep would either lose the ones that belong here or resurrect the ones
-     that don't. */
+  var guide = document.createElement("button");
+  guide.type = "button";
+  guide.className = "m-guide-card";
+  guide.innerHTML =
+    '<i class="ph ph-graduation-cap"></i>' +
+    '<span class="m-guide-card-copy"><strong></strong><small></small></span>' +
+    '<i class="ph ph-caret-right"></i>';
+  guide.querySelector("strong").textContent = t("m_more_guide");
+  guide.querySelector("small").textContent = t("m_more_guide_desc");
+  guide.addEventListener("click", function () {
+    closeSheet();
+    run("plannerTutorial");
+  });
+  sheetBody.appendChild(guide);
+
+  var quickTitle = document.createElement("h5");
+  quickTitle.className = "m-sheet-sec";
+  quickTitle.textContent = t("m_more_settings");
+  sheetBody.appendChild(quickTitle);
   var quick = document.createElement("div");
   quick.className = "m-grid m-grid-4 m-icon-grid";
-  ["btn_settings", "themeToggle", "langBtn", "shortcutsBtn", "friendsBtn"].forEach(function (id) {
-    var src = document.getElementById(id);
-    if (!src) return;
-    var b = document.createElement("button");
-    b.type = "button";
-    b.className = "m-grid-btn";
-    var ico = src.querySelector("i");
-    var key = src.getAttribute("data-i18n-title") || src.getAttribute("data-i18n-aria");
-    var label = key ? t(key) : src.getAttribute("aria-label") || src.title || "";
-    b.setAttribute("aria-label", label);
-    b.title = label;
-    b.innerHTML =
-      '<i class="' + (ico ? ico.className : "ph ph-gear") + '"></i><span>' +
-      label +
-      "</span>";
-    b.addEventListener("click", function () {
-      closeSheet();
-      src.click();
-    });
-    quick.appendChild(b);
+  ["btn_settings", "themeToggle", "langBtn", "friendsBtn"].forEach(function (id) {
+    var b = quickAction(id);
+    if (b) quick.appendChild(b);
   });
   if (quick.children.length) sheetBody.appendChild(quick);
 
-  document.querySelectorAll("#topbar .dropdown").forEach(function (dd) {
-    var trigger = dd.querySelector(".dropdown-trigger");
-    var menu = dd.querySelector(".dropdown-menu") || (menuOf(dd));
-    if (!trigger || !menu) return;
-    var h = document.createElement("h5");
-    h.className = "m-sheet-sec";
-    var tk = trigger.querySelector("span[data-i18n]");
-    h.textContent = tk ? tk.textContent : trigger.getAttribute("aria-label") || "";
-    sheetBody.appendChild(h);
-    var list = document.createElement("div");
-    list.className = "m-list";
-    menu.querySelectorAll("button[data-act]").forEach(function (src) {
-      var act = src.getAttribute("data-act");
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "m-list-btn" + (src.classList.contains("menu-danger") ? " danger" : "");
-      if (src.disabled) b.disabled = true;
-      var ico = src.querySelector("i");
-      var lab = src.querySelector("span");
-      b.innerHTML =
-        '<i class="' + (ico ? ico.className : "ph ph-dot") + '"></i><span>' +
-        (lab ? lab.textContent : act) +
-        "</span>";
-      b.addEventListener("click", function () {
-        closeSheet();
-        run(act);
-      });
-      list.appendChild(b);
-    });
-    if (list.children.length) sheetBody.appendChild(list);
-  });
+  var fileMenu = menuByKey("menu_file");
+  var reset = fileMenu && fileMenu.querySelector('[data-act="reset"]');
+  appendMenuGroup(t("m_more_project"), fileMenu, { exclude: ["reset"], append: [reset] });
+  appendMenuGroup(t("menu_edit"), menuByKey("menu_edit"));
+  appendMenuGroup(t("menu_export"), menuByKey("menu_export"));
+  appendMenuGroup(t("m_more_extras"), menuByKey("menu_more"), { collapsed: true });
 }
 // Topbar menus are portaled to <body> when first opened (the glass topbar
 // clips fixed children), so a dropdown may no longer hold its own menu.
@@ -556,7 +705,10 @@ function syncNav() {
       if (ts) ts.textContent = t("mnav_tools");
       b.classList.toggle("armed", (S.tool || "select") !== "select");
     } else if (k === "props") {
-      b.disabled = !selKind() && openSheet !== "props";
+      var unavailable = !selKind() && openSheet !== "props";
+      b.disabled = false;
+      b.classList.toggle("is-disabled", unavailable);
+      b.setAttribute("aria-disabled", unavailable ? "true" : "false");
     }
     var labelNode = b.querySelector("span");
     if (labelNode) b.setAttribute("aria-label", labelNode.textContent.trim());
@@ -569,6 +721,10 @@ function initNav() {
   nav.addEventListener("click", function (e) {
     var b = e.target.closest("[data-mnav]");
     if (!b || b.disabled) return;
+    if (b.dataset.mnav === "props" && !selKind()) {
+      showCoach("m_props_empty", null, null, 2600);
+      return;
+    }
     showSheet(b.dataset.mnav);
   });
 }
@@ -590,6 +746,7 @@ function sig() {
     S.ortho ? 1 : 0,
     S.gsnap ? 1 : 0,
     S.edit3D ? 1 : 0,
+    S.placeType || "",
   ].join("|");
 }
 
@@ -640,10 +797,49 @@ export function initMobileShell() {
   if (left) left.addEventListener("click", function () {
     if (openSheet === "add") setTimeout(pageLibrary, 0);
   });
+  var canvas = $("center-canvas");
+  if (canvas) canvas.addEventListener("click", function () {
+    /* ui.js closes borrowed drawers on a canvas tap. Keep this module's sheet
+       state in lockstep so Add/Edit cannot remain falsely highlighted. */
+    if (openSheet === "add" || openSheet === "props") closeSheet();
+  });
   /* Picking a library item arms placement; keeping the borrowed library panel
      over the plan makes the next required tap impossible on a phone. */
   window.addEventListener("planner-place", function () {
     if (openSheet === "add" && S.placeType) closeSheet();
+    sync(true);
+  });
+  window.addEventListener("planner-mobile-onboarding-start", function () {
+    if (mobileFlowDone()) return;
+    onboardingActive = true;
+    onboardingStage = "room";
+    hideCoach();
+  });
+  window.addEventListener("planner-room-created", function () {
+    if (mobileFlowDone()) return;
+    /* Only the FIRST room opens the walkthrough. Re-arming on every room sent
+       someone who had already reached openings or furniture back to step one. */
+    if (onboardingActive && onboardingStage !== "room") return;
+    onboardingActive = true;
+    onboardingStage = "door";
+    showCoach("mcoach_room_done", "mcoach_add_door", function () {
+      if (window.__setViewMode) window.__setViewMode("plan");
+      setTool("door");
+    });
+  });
+  window.addEventListener("planner-opening-created", function () {
+    if (!onboardingActive || onboardingStage !== "door") return;
+    onboardingStage = "furnish";
+    showCoach("mcoach_opening_done", "mcoach_add_furniture", function () {
+      showSheet("add");
+    });
+  });
+  window.addEventListener("planner-item-created", function () {
+    if (!onboardingActive || (onboardingStage !== "furnish" && onboardingStage !== "door")) return;
+    onboardingStage = "item";
+    showCoach("mcoach_item_done", "mcoach_edit_item", function () {
+      showSheet("props");
+    });
   });
   /* visualViewport reacts to the software keyboard where window.resize is
      inconsistent. --kb lifts sheets and inspectors so a focused field stays
@@ -677,7 +873,22 @@ export function initMobileShell() {
   syncKeyboard();
   onLangChange(function () {
     sync(true);
-    if (openSheet && openSheet !== "add" && openSheet !== "props") showSheet(openSheet);
+    var closeLabel = t("close");
+    if (sheet) {
+      var sheetClose = sheet.querySelector(".m-sheet-x");
+      if (sheetClose) sheetClose.setAttribute("aria-label", closeLabel);
+    }
+    if (coach) {
+      var coachClose = coach.querySelector(".m-coach-close");
+      if (coachClose) coachClose.setAttribute("aria-label", closeLabel);
+      if (coachCopyKey) coachCopy.textContent = t(coachCopyKey);
+      if (coachActionKey) coachAction.textContent = t(coachActionKey);
+    }
+    if (openSheet && openSheet !== "add" && openSheet !== "props") {
+      var key = openSheet;
+      openSheet = null;
+      showSheet(key);
+    }
   });
   /* Selection can change from the 3D pane and from the tree, neither of which
      repaints the plan. A quarter-second poll on the signature is cheaper than
@@ -686,29 +897,6 @@ export function initMobileShell() {
   setInterval(function () {
     sync(false);
   }, 250);
-  /* One-time touch gesture coach mark for first-time mobile users. */
-  if (!localStorage.getItem("mf_touch_onboarded")) {
-    setTimeout(function () {
-      if (!compact()) return;
-      var tip = document.createElement("div");
-      tip.className = "touch-coach";
-      tip.setAttribute("role", "status");
-      tip.textContent = t("touch_coach");
-      tip.style.cssText = "position:fixed;bottom:calc(var(--mobile-nav-block) + var(--m-ctx-block) + 8px);"
-        + "left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:12px;"
-        + "background:rgba(0,0,0,.82);color:#fff;font-size:12px;font-weight:600;"
-        + "z-index:200;white-space:normal;text-align:center;max-width:min(92vw, 360px);"
-        + "pointer-events:auto;backdrop-filter:blur(8px);"
-        + "-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 20px rgba(0,0,0,.3);animation:sheetUp .28s ease;";
-      document.body.appendChild(tip);
-      var dismiss = function () {
-        if (tip.parentElement) tip.parentElement.removeChild(tip);
-        localStorage.setItem("mf_touch_onboarded", "1");
-      };
-      tip.addEventListener("click", dismiss);
-      setTimeout(dismiss, 6000);
-    }, 2000);
-  }
   sync(true);
 }
 

@@ -183,6 +183,16 @@ function loadZombieModule() {
       });
 }
 
+var lavaModule = null;
+function loadLavaModule() {
+  return lavaModule
+    ? Promise.resolve(lavaModule)
+    : import("./lava.js").then(function (m) {
+        lavaModule = m;
+        return m;
+      });
+}
+
 /* ---- stacking (js/stack.js) from the inspector ----
    Two edits in the inspector move a piece the stack has to follow: its HEIGHT
    (whatever stands on it has to rise or drop with its top) and its ROTATION
@@ -845,6 +855,7 @@ export function placeFurnAt(type, x, z) {
   S.dirty3D = true;
   render2D();
   updateCost();
+  window.dispatchEvent(new CustomEvent("planner-item-created", { detail: { item: it } }));
 }
 
 export function addFurnItem(type) {
@@ -1723,8 +1734,14 @@ export function initUI() {
   }
   function bindSmartDimension(id, dimension) {
     var input = document.getElementById(id);
-    function validateDimension() {
+    /* `live` is a scrub tick from the mobile dimension dial (js/ui_dim_knob.js),
+       not a finished edit. It applies whatever the model accepts outright and
+       says nothing otherwise: a proposal dialog or an error toast belongs to
+       the moment the finger lifts, not to the middle of a drag — and the dial
+       ends every gesture with a real blur, so both still get their say. */
+    function validateDimension(event) {
       if (!S.sel || S.sel.kind !== "item") return;
+      var live = !!event && event.type === "mf-scrub";
       var it = S.sel.ref, value = Number(this.value);
       var field = { width: "w", depth: "d", height: "h" }[dimension];
       if (!Number.isFinite(value) || Math.abs(value - it[field]) < 0.0001) return;
@@ -1732,6 +1749,7 @@ export function initUI() {
         ? requestCabinetDimension(it, dimension, value, ceilingHeight())
         : requestItemDimension(S, it, dimension, value, FURN[it.type] || {});
       if (result.status === "applied") applySmartChoice(it, dimension, result, null, null);
+      else if (live) return;
       else if (result.status === "proposal") showSmartProposal(it, dimension, result, this);
       else {
         cancelPending();
@@ -1740,6 +1758,7 @@ export function initUI() {
       }
     }
     input.addEventListener("blur", validateDimension);
+    input.addEventListener("mf-scrub", validateDimension);
     input.addEventListener("keydown", function (event) {
       if (event.key === "Enter") { event.preventDefault(); this.blur(); }
     });
@@ -3537,13 +3556,15 @@ export function initUI() {
         syncWalkView(false);
       }
       if (zombieModule && zombieModule.zActive()) zombieModule.toggleZombies(false);
+      if (lavaModule && lavaModule.lavaActive()) lavaModule.toggleLava(false);
       var rcOn = rc.toggleRC();
       flash(rcOn ? t("f_rcOn") : t("f_rcOff"));
     } else if (act === "zombies") {
       var zm = await loadZombieModule();
-      // walk / RC / Night Shift all drive the camera — only one at a time
+      // walk / RC / Night Shift / Lava all drive the camera — only one at a time
       if (!zm.zActive()) {
         if (rcModule && rcModule.rcActive()) rcModule.toggleRC(false);
+        if (lavaModule && lavaModule.lavaActive()) lavaModule.toggleLava(false);
         if (document.getElementById("walkBtn").classList.contains("active")) {
           toggleWalk(false);
           document.getElementById("walkBtn").classList.remove("active");
@@ -3552,9 +3573,23 @@ export function initUI() {
       }
       var zOn = zm.toggleZombies();
       flash(zOn ? t("f_zombiesOn") : t("f_zombiesOff"));
+    } else if (act === "lava") {
+      var lv = await loadLavaModule();
+      if (!lv.lavaActive()) {
+        if (rcModule && rcModule.rcActive()) rcModule.toggleRC(false);
+        if (zombieModule && zombieModule.zActive()) zombieModule.toggleZombies(false);
+        if (document.getElementById("walkBtn").classList.contains("active")) {
+          toggleWalk(false);
+          document.getElementById("walkBtn").classList.remove("active");
+          syncWalkView(false);
+        }
+      }
+      var lvOn = lv.toggleLava();
+      flash(lvOn ? t("f_lavaOn") : t("f_lavaOff"));
     } else if (act === "walk") {
       if (rcModule && rcModule.rcActive()) rcModule.toggleRC(false);
       if (zombieModule && zombieModule.zActive()) zombieModule.toggleZombies(false);
+      if (lavaModule && lavaModule.lavaActive()) lavaModule.toggleLava(false);
       var on = toggleWalk();
       document.getElementById("walkBtn").classList.toggle("active", on);
       syncWalkView(on);
@@ -3607,6 +3642,7 @@ export function initUI() {
       render2D();
       frameView();
     } else if (act === "reset") {
+      if (typeof window !== "undefined" && !window.confirm(t("reset_confirm"))) return;
       pushHistory();
       defaultScene();
       S.roomMeta = {};
@@ -3920,6 +3956,7 @@ export function initUI() {
     var ae = document.activeElement;
     if (ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName)) return;
     if (isWalk()) return; // walk/drive modes own the keyboard
+    if (lavaModule && lavaModule.lavaActive()) return;
     var mod = e.ctrlKey || e.metaKey;
     /* Constraint verbs: Ctrl/Cmd+Shift+letter, acting on whatever is selected.
        Authoring a relation used to mean selecting, then finding the right

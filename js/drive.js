@@ -16,6 +16,11 @@
 // the start point so every multiplayer client shares one frame). +x = east,
 // +z = south (the app's convention, see site.js llToLocalCm).
 import * as THREE from "three";
+// Bloom is built as a TSL node graph: the classic EffectComposer stack does not
+// run on WebGPURenderer at all, and three's own BloomNode is not vendored, so
+// this is threshold → box blur → add, three nodes deep.
+import { pass, luminance, smoothstep, uniform, vec4 } from "three/tsl";
+import { boxBlur } from "three/addons/tsl/display/boxBlur.js";
 import { createRenderer, render as gpuRender, ready as gpuReady, LUX } from "./gpu.js";
 import { t } from "./i18n.js";
 import { flash } from "./ui.js";
@@ -37,18 +42,23 @@ import {
   audioStart, audioStop, engineUpdate, gearRpm, sfx, GEARS, IDLE_RPM, REDLINE_RPM,
 } from "./drive_audio.js";
 import {
-  TOD, applyTOD, isNight, setSkyHooks, skyMaterial, sunFollow,
+  TOD, applyTOD, buildSky, isNight, setSkyHooks, skyFollow, sunFollow,
 } from "./drive_sky.js";
 import {
-  applyNightMat, bldMats, fetchRoute, focusPos, insideBuilding, roadYAt, setRouteRibbon, setWorldHooks, surfaceY, svTick, syncBuildings, syncTiles,
+  applyNightMat, bldMats, fetchRouteData, focusPos, insideBuilding, roadYAt, setRouteRibbon, setWorldHooks, surfaceY, svTick, syncBuildings, syncTiles,
 } from "./drive_world.js";
 import {
-  buildBeacon, buildPassenger, disposeVehicleMesh, explodeVehicle, maybeParkOnWay,
-  nearestVehicle, placeVehicleMesh, skidClear, skidInit, spawnVehicle,
-  syncVehicleLights, tyreFx, vehiclesTick, weaponHit, weaponShot, weaponTargets,
+  buildBeacon, buildPassenger, disposeVehicleMesh, dressWay, explodeVehicle,
+  lampsTick, nearestVehicle, placeVehicleMesh, skidClear, skidInit, spawnVehicle,
+  syncLamps, syncVehicleLights, tyreFx, vehiclesTick, weaponHit, weaponShot, weaponTargets,
 } from "./drive_traffic.js";
+import { pedsClear, pedsTick } from "./drive_peds.js";
+import { trafficTick } from "./drive_ai.js";
 import {
-  finishGoto, hudMsg, hudMsgOff, hudUpdate, raceSyncBeacons, raceTarget,
+  applyCarCamera, camModeKey, cinemaFor, cinemaOff, cycleCamera,
+} from "./drive_camera.js";
+import {
+  finishGoto, gotoTick, hudMsg, hudMsgOff, hudUpdate, raceSyncBeacons, raceTarget,
   raceTick, renderRaceResults, setModeHooks, taxiTick,
 } from "./drive_modes.js";
 import { mpHook, mpTick } from "./drive_mp.js";
@@ -68,13 +78,15 @@ function setSessionAnchor(a) {
 function buildScene() {
   // hand the sky module its four world/traffic callbacks up front, so it never
   // has to import back into drive.js
-  setWorldHooks({ maybeParkOnWay });
+  setWorldHooks({ dressWay });
   setModeHooks({ stopDrive });
   setSkyHooks({
     focusPos,
     surfaceY,
     applyNightMat,
     syncVehicleLights,
+    syncLamps,
+    syncBloom,
     bldMats,
   });
   D.scene = new THREE.Scene();
@@ -110,20 +122,7 @@ function buildScene() {
   D.hemi = new THREE.HemisphereLight(0x9cc3e8, 0x585440, LUX * 0.55);
   D.scene.add(D.hemi);
 
-  D.skyUni = {
-    uZen: { value: new THREE.Color(0x2f6ec4) },
-    uHor: { value: new THREE.Color(0xc4dcf0) },
-    uGnd: { value: new THREE.Color(0x59604f) },
-    uSunC: { value: new THREE.Color(0xfff3dc) },
-    uSunDir: { value: new THREE.Vector3(0.36, 0.66, -0.66) },
-    uCloud: { value: 0.5 },
-    uNight: { value: 0 },
-    uTime: { value: 0 },
-  };
-  D.sky = new THREE.Mesh(new THREE.SphereGeometry(2600, 32, 20), skyMaterial());
-  D.sky.frustumCulled = false;
-  D.sky.renderOrder = -1;
-  D.scene.add(D.sky);
+  buildSky(); // painted equirect dome + a drifting cloud deck
 
   D.bldGroup = new THREE.Group();
   D.scene.add(D.bldGroup);
@@ -173,6 +172,9 @@ function onKey(e, down) {
   } else if (e.code === "KeyF") {
     toggleFoot();
     e.preventDefault();
+  } else if (e.code === "KeyC") {
+    if (!player.onFoot) flash(t(cycleCamera()));
+    e.preventDefault();
   } else if (e.code === "KeyT") {
     applyTOD(D.todIdx + 1);
     flash(t(TOD[D.todIdx].key));
@@ -183,6 +185,109 @@ function onKey(e, down) {
     if (D.ses && D.ses.mode === "goto" && D.ses.arrived) finishGoto();
     else if (D.ses && D.ses.resultsShown) stopDrive();
   }
+}
+// ---- gamepad ---------------------------------------------------------------
+// Standard mapping: left stick steers, triggers are throttle/brake, face
+// buttons cover the things the keyboard puts on Space/F/C/T.
+const PAD_BTN = { 0: "brake", 1: "foot", 2: "cam", 3: "tod" };
+function pollGamepad() {
+  if (!navigator.getGamepads) return;
+  const pads = navigator.getGamepads();
+  let pad = null;
+  for (let i = 0; i < pads.length; i++) if (pads[i] && pads[i].connected) { pad = pads[i]; break; }
+  if (!pad) {
+    if (D.padWas) D.padWas = null;
+    return;
+  }
+  const dead = (v) => (Math.abs(v) < 0.14 ? 0 : v); // sticks never rest at zero
+  const ax = dead(pad.axes[0] || 0);
+  const btn = (i) => (pad.buttons[i] ? pad.buttons[i].value || (pad.buttons[i].pressed ? 1 : 0) : 0);
+  if (player.onFoot) {
+    D.axis.steer = 0;
+    D.axis.throttle = 0;
+    D.axis.brake = 0;
+    // walking: the stick moves you, the right stick looks
+    D.keys.up = (pad.axes[1] || 0) < -0.3;
+    D.keys.down = (pad.axes[1] || 0) > 0.3;
+    D.keys.left = ax < -0.3;
+    D.keys.right = ax > 0.3;
+    player.yaw += dead(pad.axes[2] || 0) * 2.4 * 0.016;
+    player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - dead(pad.axes[3] || 0) * 1.8 * 0.016));
+  } else {
+    D.axis.steer = ax;
+    D.axis.throttle = btn(7);
+    D.axis.brake = btn(6);
+  }
+  // edge-triggered face buttons
+  const was = D.padWas || {};
+  const now = {};
+  for (const i in PAD_BTN) {
+    const down = btn(i) > 0.5;
+    now[i] = down;
+    if (!down || was[i]) continue;
+    const act = PAD_BTN[i];
+    if (act === "brake") D.keys.brake = true;
+    else if (act === "foot") toggleFoot();
+    else if (act === "cam") {
+      if (!player.onFoot) flash(t(cycleCamera()));
+    } else if (act === "tod") {
+      applyTOD(D.todIdx + 1);
+      flash(t(TOD[D.todIdx].key));
+    }
+  }
+  if (was[0] && !now[0]) D.keys.brake = false;
+  D.padWas = now;
+}
+
+// ---- touch controls --------------------------------------------------------
+// Drive mode was keyboard-only, which meant it could not be played at all on
+// the device most people would reach for. Buttons rather than a virtual stick,
+// to match the RC mode's controls (js/rc_game.js).
+function buildTouch() {
+  const el = document.createElement("div");
+  el.id = "driveTouch";
+  el.innerHTML =
+    '<div class="dr-t-left">' +
+    '<button data-hold="left" aria-label="' + t("dr_t_left") + '">◀</button>' +
+    '<button data-hold="right" aria-label="' + t("dr_t_right") + '">▶</button></div>' +
+    '<div class="dr-t-right">' +
+    '<div class="dr-t-small">' +
+    '<button data-tap="cam" aria-label="' + t("dr_t_cam") + '">🎥</button>' +
+    '<button data-tap="foot" aria-label="' + t("dr_t_foot") + '">🚪</button>' +
+    '<button data-hold="brake" class="dr-t-hand" aria-label="' + t("dr_t_hand") + '">⚡</button>' +
+    "</div>" +
+    '<button data-hold="down" class="dr-t-brake" aria-label="' + t("dr_t_brake") + '">▼</button>' +
+    '<button data-hold="up" class="dr-t-gas" aria-label="' + t("dr_t_gas") + '">▲</button>' +
+    "</div>";
+  const set = (e, on) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    e.preventDefault();
+    if (b.dataset.hold) {
+      D.keys[b.dataset.hold] = on;
+      b.classList.toggle("on", on);
+    } else if (on && b.dataset.tap) {
+      if (b.dataset.tap === "cam" && !player.onFoot) flash(t(cycleCamera()));
+      else if (b.dataset.tap === "foot") toggleFoot();
+    }
+  };
+  el.addEventListener("pointerdown", (e) => set(e, true));
+  el.addEventListener("pointerup", (e) => set(e, false));
+  el.addEventListener("pointercancel", (e) => set(e, false));
+  el.addEventListener("pointerleave", (e) => set(e, false));
+  el.addEventListener("contextmenu", (e) => e.preventDefault());
+  return el;
+}
+// the walker gets the same pad minus throttle/brake/handbrake
+export function syncTouchMode() {
+  const el = D.overlay && D.overlay.querySelector("#driveTouch");
+  if (el) el.classList.toggle("onfoot", player.onFoot);
+}
+export function touchWanted() {
+  return (
+    typeof matchMedia === "function" &&
+    (matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0)
+  );
 }
 const keyDown = (e) => D.running && onKey(e, true);
 const keyUp = (e) => D.running && onKey(e, false);
@@ -240,6 +345,7 @@ function exitCar() {
   D.overlay.querySelector("#driveHud").style.display = "none";
   D.hudEls.fx.style.opacity = 0;
   D.overlay.classList.add("onfoot");
+  syncTouchMode();
   // mouse-look works unlocked too; the first click upgrades to pointer lock
   const lockEl = D.overlay.querySelector("#footLock");
   lockEl.style.display = "flex";
@@ -276,6 +382,7 @@ function enterCar(v) {
   D.overlay.querySelector("#footPrompt").style.display = "none";
   D.overlay.querySelector("#footLock").style.display = "none";
   D.overlay.classList.remove("onfoot");
+  syncTouchMode();
   setHint("dr_hint");
 }
 // after WASTED: wake up on foot next to where it happened
@@ -308,6 +415,7 @@ function respawnPlayer() {
     D.weapons.setActive(true);
     D.overlay.querySelector("#driveHud").style.display = "none";
     D.overlay.classList.add("onfoot");
+  syncTouchMode();
     setHint("ft_hint");
   }
 }
@@ -390,15 +498,21 @@ function step(dt) {
   let fwd = car.vx * hx + car.vz * hz;
   // gearbox-style curve: hard launch off the line, tapering toward top speed
   const accel = 28 * (1 - (0.55 * Math.abs(fwd)) / maxFwd);
-  if (D.keys.up) fwd += accel * dt;
-  if (D.keys.down) fwd -= (fwd > 0.3 ? brake : 20) * dt; // 20 = snappy reverse
-  if (!D.keys.up && !D.keys.down) fwd -= fwd * drag * dt;
+  // keys are on/off, a stick or a screen button can be anywhere in between
+  const gas = Math.max(D.keys.up ? 1 : 0, D.axis.throttle);
+  const stop = Math.max(D.keys.down ? 1 : 0, D.axis.brake);
+  if (gas > 0) fwd += accel * gas * dt;
+  if (stop > 0) fwd -= (fwd > 0.3 ? brake : 20) * stop * dt; // 20 = snappy reverse
+  if (gas <= 0 && stop <= 0) fwd -= fwd * drag * dt;
   fwd = Math.max(-maxRev, Math.min(maxFwd, fwd));
 
   // full steering authority from ~9 m/s, but never mushy at parking speeds
   const speedK =
     Math.abs(fwd) < 0.4 ? 0 : Math.max(0.45, Math.min(1, Math.abs(fwd) / 9));
-  const steer = (D.keys.left ? -1 : 0) + (D.keys.right ? 1 : 0);
+  const steer = Math.max(
+    -1,
+    Math.min(1, (D.keys.left ? -1 : 0) + (D.keys.right ? 1 : 0) + D.axis.steer),
+  );
   D.steerVis += (steer * 0.45 - D.steerVis) * dampingFactor(10, dt);
   const rate = 2.4 * steer * speedK * (D.keys.brake ? 1.55 : 1);
   car.heading += rate * (fwd >= 0 ? 1 : -1) * dt;
@@ -532,35 +646,12 @@ function draw(fwd, dt, tNow) {
       syncVehicleLights(D.activeV);
     }
 
-    // chase distance, pulled in when the spot behind us is inside a building —
-    // narrow streets used to swallow the camera and fill the screen with wall
-    let back = 11 + speedKmh * 0.045;
-    for (let k = 0; k < 5 && back > 4; k++) {
-      if (!insideBuilding(car.x - Math.sin(car.heading) * back, car.z + Math.cos(car.heading) * back))
-        break;
-      back *= 0.7;
-    }
-    const up = gy + 4.6 + speedKmh * 0.012;
-    const tx = car.x - Math.sin(car.heading) * back,
-      tz = car.z + Math.cos(car.heading) * back;
-    if (!D.camPos) D.camPos = new THREE.Vector3(tx, up, tz);
-    D.camPos.x += (tx - D.camPos.x) * Math.min(1, 5 * dt);
-    D.camPos.y += (up - D.camPos.y) * Math.min(1, 5 * dt);
-    D.camPos.z += (tz - D.camPos.z) * Math.min(1, 5 * dt);
-    D.camera.position.copy(D.camPos);
-    // high-speed rattle, and a kick when the back end steps out
-    const shake =
-      Math.max(0, speedKmh - 120) * 0.00035 + Math.min(0.05, Math.abs(car.slip || 0) * 0.006);
-    if (shake > 0.0005) {
-      D.camera.position.x += (Math.random() - 0.5) * shake;
-      D.camera.position.y += (Math.random() - 0.5) * shake;
-      D.camera.position.z += (Math.random() - 0.5) * shake;
-    }
-    D.camera.lookAt(car.x, gy + 1.6, car.z);
-    D.camera.fov = 62 + Math.min(14, speedKmh * 0.09);
-    D.camera.updateProjectionMatrix();
+    // which rig you are looking through (chase / hood / bumper / the director's
+    // cinematic lens) lives in drive_camera.js — C cycles it
+    applyCarCamera(dt, tNow, gy, speedKmh);
   } else {
     // first-person walker: eye at 1.62 m + head bob, mouse-look, ADS zoom
+    D.overlay.classList.remove("dr-cine");
     const bobA =
       Math.min(1, Math.abs(fwd) / 3) * (player.onGround ? 1 : 0) *
       (1 - D.weapons.adsFactor());
@@ -604,13 +695,15 @@ function draw(fwd, dt, tNow) {
 
   // atmosphere: the sky rides with the camera, the sun rides with the player
   // (keeping the shadow frustum tight), the clouds and tyre marks age
+  D.frameNo = (D.frameNo || 0) + 1; // retiring a GPU target counts frames, not ms
   D.skyT += dt;
-  D.skyUni.uTime.value = D.skyT;
   D.skidUni.uTime.value = tNow / 1000;
-  D.sky.position.copy(D.camera.position);
+  skyFollow(dt);
   sunFollow();
   // no-ops until the GPU backend has finished its async init
-  gpuRender(D.renderer, D.scene, D.camera);
+  if (!D.post && D.renderer.initialized) buildPost();
+  if (D.post) D.post.render();
+  else gpuRender(D.renderer, D.scene, D.camera);
 
   // distances/arrow follow whoever you are right now: the car or your feet
   const ax = player.onFoot ? player.x : car.x,
@@ -627,15 +720,8 @@ function draw(fwd, dt, tNow) {
   } else ar.style.display = "none";
 
   // mode ticks
-  if (D.ses.mode === "goto") {
-    if (!D.ses.arrived && distM < 28) {
-      D.ses.arrived = true;
-      D.overlay.querySelector("#driveArrive").style.display = "flex";
-    } else if (D.ses.arrived && distM >= 40) {
-      D.ses.arrived = false;
-      D.overlay.querySelector("#driveArrive").style.display = "none";
-    }
-  } else if (D.ses.mode === "race") raceTick(tNow, distM);
+  if (D.ses.mode === "goto") gotoTick(tNow, distM);
+  else if (D.ses.mode === "race") raceTick(tNow, distM);
   else if (D.ses.mode === "taxi") taxiTick(tNow);
   if (D.ses.mp) mpTick(tNow);
 }
@@ -661,6 +747,7 @@ function loop(tNow) {
       groundTiles.clear();
     }
   }
+  pollGamepad(); // a connected pad feeds the same axes the screen buttons do
   let fwd = 0;
   forEachPhysicsStep(dt, (stepDt) => {
     fwd = player.onFoot ? stepFoot(stepDt) : step(stepDt);
@@ -674,10 +761,47 @@ function loop(tNow) {
   syncBuildings();
   svTick(tNow); // trickle real Street View facades onto nearby buildings
   vehiclesTick(tNow); // smoke, fire, delayed chain explosions
+  trafficTick(dt, tNow); // cars that drive the streamed streets
+  pedsTick(dt, tNow); // people on the pavement (and out of the way)
+  lampsTick(tNow); // the five-light pool hops to the nearest street lamps
   D.weapons.tick(dt, tNow, player.onFoot ? Math.abs(fwd) : 0, player.onGround);
   draw(fwd, dt, tNow);
 }
 
+// ---- bloom -----------------------------------------------------------------
+// Headlights, lamp heads, lit windows and explosions are all emissive but were
+// only ever as bright as the pixel they landed on; the "glow" was additive
+// billboards faking it. This lets the bright parts of the frame actually bleed.
+function buildPost() {
+  if (D.postFailed) return;
+  try {
+    D.bloomAmt = uniform(0.42);
+    D.bloomCut = uniform(0.72);
+    const p = new THREE.RenderPipeline(D.renderer);
+    // samples:0 pins the scene pass to single-sampled — a multisampled colour
+    // target and the single-sampled depth the blur reads do not agree on WebGPU
+    const scenePass = pass(D.scene, D.camera, { samples: 0 });
+    const color = scenePass.getTextureNode("output");
+    // keep only what is brighter than the cut, blur it wide, add it back
+    const bright = color.mul(smoothstep(D.bloomCut, D.bloomCut.add(0.35), luminance(color.rgb)));
+    const blur = boxBlur(bright, { size: 2, separation: 5 });
+    p.outputNode = vec4(color.rgb.add(blur.rgb.mul(D.bloomAmt)), 1);
+    D.post = p;
+    syncBloom(); // the pipeline is built on the first frame, long after applyTOD
+  } catch (e) {
+    // any backend that will not build the graph keeps the direct render path
+    console.warn("drive bloom unavailable:", e);
+    D.postFailed = true;
+    D.post = null;
+  }
+}
+// night wants a lower threshold and more bleed than a sunlit street
+export function syncBloom() {
+  if (!D.bloomAmt) return;
+  const night = isNight();
+  D.bloomAmt.value = night ? 0.78 : 0.36;
+  D.bloomCut.value = night ? 0.42 : 0.78;
+}
 function sizeCanvas() {
   if (!D.canvas || !D.renderer) return;
   const w = D.overlay.clientWidth,
@@ -716,6 +840,8 @@ function beginSession(cfg) {
   }
   setRouteRibbon(null);
   skidClear();
+  pedsClear(); // walkers belong to the old anchor's streets
+  cinemaOff();
 
   // vehicles + weapons: fresh per session (car/player were reset above)
   D.vehicles.forEach(disposeVehicleMesh);
@@ -744,6 +870,7 @@ function beginSession(cfg) {
   D.wheels = D.carGroup.userData.wheels;
   syncVehicleLights(D.activeV);
   D.overlay.querySelector("#driveHud").style.display = "";
+  syncTouchMode();
   D.hudEls.fx.style.opacity = 0;
   D.overlay.querySelector("#footPrompt").style.display = "none";
   setHint("dr_hint");
@@ -761,7 +888,11 @@ function beginSession(cfg) {
   D.overlay.querySelector("#driveDest").textContent = cfg.title || "";
   D.overlay.querySelector("#driveArrive").style.display = "none";
   D.overlay.querySelector("#driveResults").style.display = "none";
-  D.overlay.querySelector("#driveTimer").textContent = "";
+  const timerEl = D.overlay.querySelector("#driveTimer");
+  timerEl.textContent = "";
+  timerEl.classList.remove("dr-urgent");
+  D.overlay.querySelector("#driveBoard").style.display = "none";
+  D.overlay.querySelector("#driveBonus").replaceChildren();
   hudMsgOff();
   D.overlay.style.display = "block";
   sizeCanvas();
@@ -850,6 +981,9 @@ export function stopDrive() {
   if (D.overlay) D.overlay.classList.remove("onfoot");
   if (D.hudEls) D.hudEls.fx.style.opacity = 0;
   skidClear();
+  pedsClear();
+  cinemaOff();
+  D.overlay && D.overlay.classList.remove("dr-cine");
   D.vehicles.forEach(disposeVehicleMesh);
   D.vehicles = [];
   D.activeV = null;
@@ -857,9 +991,17 @@ export function stopDrive() {
     D.unsubNet();
     D.unsubNet = null;
   }
+  if (D.unsubLeave) {
+    D.unsubLeave();
+    D.unsubLeave = null;
+  }
   if (D.ses) {
     D.ses.beacons.forEach((b) => D.scene.remove(b));
-    Object.values(D.ses.ghosts || {}).forEach((g) => D.scene.remove(g.root));
+    Object.values(D.ses.ghosts || {}).forEach((g) => {
+      D.scene.remove(g.root);
+      if (g.tag && g.tag.material.map) g.tag.material.map.dispose();
+      if (g.tag) g.tag.material.dispose();
+    });
     if (D.ses.pax) D.scene.remove(D.ses.pax);
     if (D.ses.pickupRing) D.scene.remove(D.ses.pickupRing);
     D.ses = null;
@@ -881,21 +1023,45 @@ export function startDrive(friend, onArrive) {
       mLon = 111320 * Math.cos((from.lat * Math.PI) / 180);
     return { x: (to.lon - from.lon) * mLon, z: -(to.lat - from.lat) * mLat };
   })();
+  // Anyone else in the room who is also out driving shows up as a live car —
+  // one shared "cruise" session id, so a race in progress never mixes in.
+  const cruise = net.NET.connected && net.NET.room ? { players: [net.NET.code], cruise: true } : null;
   const ok = beginSession({
     anchor: from,
     spawn: { x: 0, z: 0 },
     heading: Math.atan2(destM.x, -destM.z),
     title: t("dr_to", { name: friend.name }) + (friend.address ? " · " + friend.address : ""),
-    ses: { mode: "goto", friend, onArrive, dest: destM, arrived: false },
+    ses: {
+      mode: "goto",
+      def: { id: "cruise" },
+      mp: cruise,
+      friend,
+      onArrive,
+      dest: destM,
+      arrived: false,
+      route: null,
+      peers: {},
+    },
   });
   if (!ok) return false;
   const beacon = buildBeacon(0xffc828, 12);
   beacon.position.set(destM.x, 0, destM.z);
   D.scene.add(beacon);
   D.ses.beacons.push(beacon);
-  fetchRoute([from, to]).then((r) => {
-    if (!D.running || !r) return;
+  fetchRouteData([from, to]).then((route) => {
+    if (!D.running || !route || !D.ses || D.ses.mode !== "goto") return;
+    const r = route.points;
+    D.ses.route = r;
+    D.ses.routeInfo = { distanceM: route.distanceM, durationS: route.durationS };
     setRouteRibbon(r);
+    // A house address geocodes to the parcel, not to the street outside it.
+    // Park the beacon (and the arrival test) on the routable kerb OSRM snapped
+    // to, so "you have arrived" fires where the car can actually stop.
+    const drop = route.waypoints && route.waypoints[1];
+    if (drop && Math.hypot(drop.x - destM.x, drop.z - destM.z) < 120) {
+      D.ses.dest = { x: drop.x, z: drop.z };
+      beacon.position.set(drop.x, 0, drop.z);
+    }
     if (Math.hypot(car.x, car.z) < 6 && Math.hypot(car.vx, car.vz) < 1) {
       car.x = r[0].x;
       car.z = r[0].z;
@@ -934,6 +1100,7 @@ export function startRace(def, mp) {
       cpIndex: 0,
       splits: [],
       board: {},
+      peers: {},
       finished: false,
       locked: true,
       countdownEnd: performance.now() + Math.max(800, mp && mp.startAt ? mp.startAt - Date.now() : 3600),
@@ -951,11 +1118,25 @@ export function startRace(def, mp) {
     return { x: m.x, z: m.z, mesh: b };
   });
   raceSyncBeacons();
+  // the countdown is input-locked anyway — spend it on a shot of the grid
+  cinemaFor(Math.max(0, D.ses.countdownEnd - performance.now()) + 400, "crane");
   const gridOff = off,
     spawn0 = { x: car.x, z: car.z };
-  fetchRoute(def.points).then((r) => {
-    if (!D.running || !r) return;
+  fetchRouteData(def.points).then((route) => {
+    if (!D.running || !route) return;
+    const r = route.points;
     setRouteRibbon(r);
+    // Geocoded addresses and map clicks often land on a building parcel rather
+    // than its street. Keep every target aligned with the snapped road course.
+    route.waypoints.slice(1).forEach((wp, i) => {
+      const cp = D.ses && D.ses.cps && D.ses.cps[i];
+      if (!cp) return;
+      cp.x = wp.x;
+      cp.z = wp.z;
+      cp.mesh.position.x = wp.x;
+      cp.mesh.position.z = wp.z;
+    });
+    raceSyncBeacons();
     // OSRM snapped the course to real roads — if the player hasn't driven off
     // yet, put the start grid ON the road (route arrives after the countdown
     // more often than not, so gate on movement, not on the clock; the same
@@ -990,7 +1171,12 @@ export function startTaxi(def, mp) {
       cash: 0,
       fares: 0,
       fare: null,
+      combo: 0,
+      bestCombo: 0,
+      stuntCash: 0,
+      extraS: 0,
       board: {},
+      peers: {},
       finished: false,
       locked: true,
       countdownEnd: performance.now() + Math.max(800, mp && mp.startAt ? mp.startAt - Date.now() : 3600),
@@ -998,6 +1184,7 @@ export function startTaxi(def, mp) {
     },
   });
   if (!ok) return false;
+  cinemaFor(Math.max(0, D.ses.countdownEnd - performance.now()) + 400, "crane");
   D.ses.pax = buildPassenger();
   D.ses.pax.visible = false;
   D.scene.add(D.ses.pax);
@@ -1021,6 +1208,7 @@ function buildOverlay() {
     '<span id="driveTimer"></span>' +
     '<button id="driveExit"><i class="ph ph-x"></i> ' + t("dr_exit") + "</button></div>" +
     '<div id="driveSpeedFx"></div>' +
+    '<div id="driveGrade"></div>' +
     '<div id="driveHud">' +
     '<div class="dr-gauge"><svg viewBox="0 0 100 64">' +
     '<path class="dr-arc-bg" d="M6 58 A44 44 0 0 1 94 58"/>' +
@@ -1030,6 +1218,8 @@ function buildOverlay() {
     '<div class="dr-rev"><span></span></div>' +
     '<span class="dr-dist"></span></div></div>' +
     '<div id="driveArrow">▲</div>' +
+    '<div id="driveBoard"></div>' +
+    '<div id="driveBonus"></div>' +
     '<div id="driveMsg"></div>' +
     '<div id="driveArrive"><button id="driveEnterBtn"><i class="ph ph-door-open"></i> ' +
     t("dr_enter") + " <kbd>Enter</kbd></button></div>" +
@@ -1040,6 +1230,10 @@ function buildOverlay() {
     '<div id="footLock">' + t("ft_click") + "</div>" +
     '<div id="driveHint">' + t("dr_hint") + "</div>";
   document.body.appendChild(D.overlay);
+  if (touchWanted()) {
+    D.overlay.appendChild(buildTouch());
+    D.overlay.classList.add("has-touch"); // shifts the HUD clear of the pad
+  }
   D.canvas = D.overlay.querySelector("#driveCanvas");
   D.hudEls = {
     arc: D.overlay.querySelector(".dr-arc"),

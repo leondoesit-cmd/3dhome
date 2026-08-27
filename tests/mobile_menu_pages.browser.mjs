@@ -5,6 +5,118 @@ import { openPage, findChrome } from "../tools/browser_harness.mjs";
 const chrome = await findChrome();
 const opts = chrome ? {} : { skip: "no Chrome found (set CHROME_PATH)" };
 
+test("Planner mobile destinations stay labelled and switch sheets in one tap", opts, async () => {
+  const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
+  try {
+    await page.eval(() => {
+      const start = document.getElementById("start-screen");
+      if (start) start.hidden = true;
+      document.querySelector('[data-mnav="tools"]').click();
+    });
+    await page.eval(() => new Promise((resolve) => setTimeout(resolve, 120)));
+    await page.eval(() => document.querySelector('[data-mnav="add"]').click());
+    await page.eval(() => new Promise((resolve) => setTimeout(resolve, 120)));
+    const switched = await page.eval(() => ({
+      labels: [...document.querySelectorAll("#mobile-nav button > span")].map((node) => ({
+        text: node.textContent.trim(),
+        display: getComputedStyle(node).display,
+      })),
+      addActive: document.querySelector('[data-mnav="add"]').classList.contains("active"),
+      toolsActive: document.querySelector('[data-mnav="tools"]').classList.contains("active"),
+      libraryOpen: document.body.classList.contains("show-left"),
+      generatedSheetOpen: document.getElementById("m-sheet").classList.contains("on"),
+    }));
+    assert.ok(switched.labels.every((label) => label.text && label.display !== "none"), "all five destinations have visible names");
+    assert.equal(switched.addActive, true, "Add becomes active on the first tap");
+    assert.equal(switched.toolsActive, false, "Tools clears immediately");
+    assert.equal(switched.libraryOpen, true, "the Add library opens immediately");
+    assert.equal(switched.generatedSheetOpen, false, "the previous generated sheet closes");
+
+    await page.eval(() => document.querySelector('[data-mnav="more"]').click());
+    await page.eval(() => new Promise((resolve) => setTimeout(resolve, 120)));
+    const more = await page.eval(() => ({
+      guide: !!document.querySelector("#m-sheet .m-guide-card"),
+      groups: [...document.querySelectorAll("#m-sheet .m-sheet-sec, #m-sheet .m-more-group > summary")]
+        .map((node) => node.textContent.trim()),
+      extrasCollapsed: !document.querySelector("#m-sheet .m-more-group")?.open,
+      paged: !!document.querySelector("#m-sheet .mobile-page-shell"),
+      topModeler: getComputedStyle(document.getElementById("openModelerTop")).display,
+      topMoreRects: document.getElementById("moreMenu").getClientRects().length,
+    }));
+    assert.equal(more.guide, true, "Guide is promoted at the top of More");
+    assert.ok(more.groups.includes("Project") && more.groups.includes("Export"), "More has named task groups");
+    assert.equal(more.extrasCollapsed, true, "advanced extras start collapsed");
+    assert.equal(more.paged, false, "More scrolls instead of hiding groups behind anonymous pages");
+    assert.equal(more.topModeler, "none", "Model Editor is demoted from the permanent topbar");
+    assert.equal(more.topMoreRects, 0, "there is only one mobile More destination");
+  } finally {
+    await page.close();
+  }
+});
+
+test("Planner placement guidance and dynamic labels stay visible and localized", opts, async () => {
+  const page = await openPage({ width: 390, height: 844, lang: "he", mobile: true, touch: true });
+  try {
+    await page.eval(() => {
+      const start = document.getElementById("start-screen");
+      if (start) start.hidden = true;
+      window.dispatchEvent(new CustomEvent("planner-mobile-onboarding-start"));
+      window.dispatchEvent(new CustomEvent("planner-room-created"));
+      document.querySelector('[data-mnav="more"]').click();
+      document.getElementById("langBtn").click();
+    });
+    await page.eval(() => new Promise((resolve) => setTimeout(resolve, 160)));
+    const localized = await page.eval(() => ({
+      lang: document.documentElement.lang,
+      sheetClose: document.querySelector("#m-sheet .m-sheet-x")?.getAttribute("aria-label"),
+      coachClose: document.querySelector("#m-coach .m-coach-close")?.getAttribute("aria-label"),
+      coachCopy: document.querySelector("#m-coach .m-coach-copy")?.textContent.trim(),
+      coachAction: document.querySelector("#m-coach .m-coach-action")?.textContent.trim(),
+    }));
+    assert.equal(localized.lang, "en");
+    assert.equal(localized.sheetClose, "Close");
+    assert.equal(localized.coachClose, "Close");
+    assert.match(localized.coachCopy, /Room created/);
+    assert.equal(localized.coachAction, "Add a door");
+
+    const guidance = await page.eval(async () => {
+      document.querySelector('[data-mnav="more"]').click();
+      const { S } = await import("./js/state.js");
+      const { setTool } = await import("./js/interaction.js");
+      setTool("door");
+      const opening = document.getElementById("cadName").textContent.trim();
+      setTool("select");
+      S.sel = { kind: "item", ref: { id: "qa-item", name: "Existing item", w: 80, d: 40 } };
+      S.placeType = "sofa";
+      window.dispatchEvent(new CustomEvent("planner-place"));
+      return {
+        opening,
+        placement: document.getElementById("cadName").textContent.trim(),
+        actions: [...document.querySelectorAll("#m-ctx button")].map((button) => button.getAttribute("aria-label")),
+        overflow: document.getElementById("m-ctx").scrollWidth > document.getElementById("m-ctx").clientWidth + 1,
+      };
+    });
+    assert.equal(guidance.opening, "Tap a wall to place");
+    assert.match(guidance.placement, /Tap the plan to place/);
+    assert.deepEqual(guidance.actions.slice(-1), ["Cancel"]);
+    assert.equal(guidance.actions.includes("Edit"), false, "placement kept stale selection actions");
+    assert.equal(guidance.overflow, false, "placement context row overflows");
+
+    const cancelled = await page.eval(async () => {
+      document.querySelector('#m-ctx button[aria-label="Cancel"]').click();
+      const { S } = await import("./js/state.js");
+      return {
+        placeType: S.placeType,
+        actions: [...document.querySelectorAll("#m-ctx button")].map((button) => button.getAttribute("aria-label")),
+      };
+    });
+    assert.equal(cancelled.placeType, null, "Cancel left furniture placement armed");
+    assert.equal(cancelled.actions.includes("Edit"), true, "selection actions did not return after cancelling placement");
+  } finally {
+    await page.close();
+  }
+});
+
 test("short Planner menus hug the bottom and use only their content height", opts, async () => {
   const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
   try {
@@ -64,9 +176,11 @@ test("Planner Properties is a clipped-free page deck across common phone and Fol
     for (const [width, height, name] of sizes) {
       await page.resize(width, height, { mobile: true, touch: true });
       await page.goto("/?menu-pages-test=" + width + "x" + height);
-      await page.eval(() => {
+      await page.eval(async () => {
         const start = document.getElementById("start-screen");
         if (start) start.hidden = true;
+        const { S } = await import("./js/state.js");
+        S.sel = { kind: "opening", ref: { id: "menu-test-opening" } };
         document.querySelectorAll("#right-inspector .props").forEach((node) => node.classList.remove("on"));
         document.getElementById("openProps").classList.add("on");
         document.getElementById("doorSpecific").style.display = "none";
@@ -164,15 +278,26 @@ test("Model Editor and Cabinet sheets use the same one-card-at-a-time contract",
         bottom: sr.bottom,
         controlsTop: nr.top,
         overflow: getComputedStyle(sheet.querySelector("#md-sheet-body")).overflowY,
+        scrollH: sheet.querySelector("#md-sheet-body").scrollHeight,
+        clientH: sheet.querySelector("#md-sheet-body").clientHeight,
         bodyClass: document.body.className,
         hostClass: sheet.querySelector("#md-sheet-body").className,
         shellParent: sheet.querySelector(".mobile-page-shell")?.parentElement?.className,
       };
     });
-    assert.ok(modeler.paged, "Model Editor sheet is paged");
-    assert.equal(modeler.active, 1, "Model Editor lays out one card");
+    /* "One card at a time" is about what the user SEES, not about whether a
+       pager object exists. A sheet whose content already fits is one card, and
+       mobile_pages.js refuses to page it ("the pager appears only when it
+       removes scrolling rather than adding navigation") — when it did page one
+       anyway, the controls stranded on page two laid out at 0x0 and could not
+       be tapped. So: page only when needed, one active card when paged, and
+       never a continuously scrolling sheet either way. */
+    if (modeler.paged) assert.equal(modeler.active, 1, "Model Editor lays out one card");
     assert.ok(modeler.bottom <= modeler.controlsTop + 1, "Model Editor ends above navigation");
-    assert.equal(modeler.overflow, "hidden", "Model Editor sheet does not continuously scroll " + JSON.stringify(modeler));
+    assert.ok(
+      modeler.scrollH <= modeler.clientH + 1,
+      "Model Editor sheet scrolls continuously " + JSON.stringify(modeler),
+    );
 
     await page.goto("/?cabinet-pages-test=1");
     await page.eval(async () => {
@@ -209,12 +334,16 @@ test("Model Editor and Cabinet sheets use the same one-card-at-a-time contract",
         bottom: sr.bottom,
         controlsTop: nr.top,
         overflow: getComputedStyle(sheet.querySelector(".cbm-body")).overflowY,
+        scrollH: sheet.querySelector(".cbm-body").scrollHeight,
+        clientH: sheet.querySelector(".cbm-body").clientHeight,
       };
     });
-    assert.ok(cabinet.paged, "Cabinet sheet is paged");
-    assert.equal(cabinet.active, 1, "Cabinet lays out one card");
+    if (cabinet.paged) assert.equal(cabinet.active, 1, "Cabinet lays out one card");
     assert.ok(cabinet.bottom <= cabinet.controlsTop + 1, "Cabinet ends above navigation");
-    assert.equal(cabinet.overflow, "hidden", "Cabinet sheet does not continuously scroll");
+    assert.ok(
+      cabinet.scrollH <= cabinet.clientH + 1,
+      "Cabinet sheet scrolls continuously " + JSON.stringify(cabinet),
+    );
   } finally {
     await page.close();
   }
@@ -270,7 +399,8 @@ test("mobile selection identity lives in the top row above translucent Propertie
           topbarHeight: tr.height,
           centreDelta: Math.abs((wr.left + wr.width / 2) - (ir.left + ir.width / 2)),
           phaseAbove: pr.bottom <= wr.top + 1,
-          noOverlap: ir.left >= sr.right - 1 && ir.right <= er.left + 1,
+          noOverlap: ir.left >= sr.right - 1 &&
+            (getComputedStyle(end).display === "none" || ir.right <= er.left + 1),
           phaseSize: parseFloat(getComputedStyle(phase).fontSize),
           nameSize: parseFloat(getComputedStyle(wall).fontSize),
           textAlign: getComputedStyle(wall).textAlign,

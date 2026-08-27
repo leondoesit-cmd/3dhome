@@ -213,8 +213,13 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
     async goto(path = "/") {
       await cdp.send("Page.navigate", { url: app.origin + path });
       await new Promise((r) => {
+        const timer = setTimeout(() => {
+          cdp.ws.off("message", listener);
+          r();
+        }, 15000);
         const done = (m) => {
           if (m.method === "Page.loadEventFired") {
+            clearTimeout(timer);
             cdp.ws.off("message", listener);
             r();
           }
@@ -224,6 +229,17 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
       });
       // give the ES-module graph a beat to boot and paint
       await page.eval(() => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 350))));
+    },
+
+    async screenshot(filepath) {
+      const res = await cdp.send("Page.captureScreenshot", { format: "png" });
+      if (filepath && res?.data) {
+        const { writeFile, mkdir } = await import("node:fs/promises");
+        const { dirname } = await import("node:path");
+        await mkdir(dirname(filepath), { recursive: true });
+        await writeFile(filepath, Buffer.from(res.data, "base64"));
+      }
+      return res?.data;
     },
 
     async setLang(l) {

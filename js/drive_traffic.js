@@ -4,6 +4,7 @@
 // Imports drive_world.js one-way; drive_world reaches back for maybeParkOnWay
 // through its hook (wired in drive.js) so the two never import each other.
 import * as THREE from "three";
+import { attribute, clamp, float, uniform, vec3 } from "three/tsl";
 import * as net from "./net.js";
 import { elevIsReady } from "./drive_geo.js";
 import {
@@ -11,7 +12,9 @@ import {
 } from "./drive_state.js";
 import { isNight } from "./drive_sky.js";
 import { insideBuilding, roadYAt, surfaceY } from "./drive_world.js";
-import { buildCarMesh, CAR_TYPES } from "./drive_car_mesh.js";
+import { buildCarMesh, CAR_TYPES, glowSprite } from "./drive_car_mesh.js";
+import { spawnPedsOnWay } from "./drive_peds.js";
+import { CD_M } from "./gpu.js";
 
 // ---- vehicles --------------------------------------------------------------
 export function placeVehicleMesh(v) {
@@ -131,9 +134,192 @@ export function vehiclesTick(now) {
     }
   }
 }
+// ---- street furniture ------------------------------------------------------
+// Lamps and trees are what turn a grey ribbon into a street. Both share their
+// geometry across the whole city and live in D.roadGroup, so a new session's
+// roadGroup.clear() takes them with it.
+const LAMP_MAX = 44,
+  TREE_MAX = 64,
+  LAMP_SPACING = 34,
+  TREE_SPACING = 24;
+const street = {}; // shared geometry/material cache
+function streetShared() {
+  if (street.pole) return;
+  street.pole = new THREE.CylinderGeometry(0.09, 0.13, 6.4, 7);
+  street.arm = new THREE.CylinderGeometry(0.07, 0.07, 1.5, 6);
+  street.head = new THREE.BoxGeometry(0.62, 0.18, 0.34);
+  street.metal = new THREE.MeshStandardMaterial({ color: 0x4a4f55, roughness: 0.65, metalness: 0.5 });
+  street.trunk = new THREE.CylinderGeometry(0.13, 0.2, 4.4, 6);
+  street.canopy = new THREE.IcosahedronGeometry(1.15, 0);
+  street.bark = new THREE.MeshLambertMaterial({ color: 0x5b4a38 });
+  street.leaves = [0x4e7a3a, 0x3f6b33, 0x5d8a43, 0x6b8f4a].map(
+    (c) => new THREE.MeshLambertMaterial({ color: c, flatShading: true }),
+  );
+}
+function lampHeadMat() {
+  // one shared emissive material: every lamp in town turns on together
+  if (!street.lampMat)
+    street.lampMat = new THREE.MeshStandardMaterial({
+      color: 0x22262b, emissive: 0xffd9a0, emissiveIntensity: 0, roughness: 0.4,
+    });
+  return street.lampMat;
+}
+function buildLamp() {
+  streetShared();
+  const g = new THREE.Group();
+  const pole = new THREE.Mesh(street.pole, street.metal);
+  pole.position.y = 3.2;
+  pole.castShadow = true;
+  g.add(pole);
+  const arm = new THREE.Mesh(street.arm, street.metal);
+  arm.rotation.z = Math.PI / 2;
+  arm.position.set(0.72, 6.3, 0);
+  g.add(arm);
+  const head = new THREE.Mesh(street.head, lampHeadMat());
+  head.position.set(1.4, 6.16, 0);
+  g.add(head);
+  const glow = glowSprite(0xffd9a0, 3.4);
+  glow.position.set(1.4, 6.1, 0);
+  glow.visible = false;
+  g.add(glow);
+  g.userData.glow = glow;
+  return g;
+}
+export function addStreetLamps(rpts, wid, wayId) {
+  if (wid < 5 || D.lamps.length >= LAMP_MAX) return;
+  const side = wayId % 2 ? 1 : -1;
+  let acc = LAMP_SPACING * Math.random();
+  for (let i = 1; i < rpts.length && D.lamps.length < LAMP_MAX; i++) {
+    const a = rpts[i - 1],
+      b = rpts[i];
+    const seg = Math.hypot(b.x - a.x, b.z - a.z);
+    if (seg < 0.5) continue;
+    const h = Math.atan2(b.x - a.x, -(b.z - a.z));
+    const off = wid / 2 + 0.8;
+    for (acc += seg; acc >= LAMP_SPACING && D.lamps.length < LAMP_MAX; acc -= LAMP_SPACING) {
+      const k = 1 - (acc - LAMP_SPACING) / seg;
+      if (k < 0 || k > 1) break;
+      const x = a.x + (b.x - a.x) * k + Math.cos(h) * off * side,
+        z = a.z + (b.z - a.z) * k + Math.sin(h) * off * side;
+      if (insideBuilding(x, z)) continue;
+      const g = buildLamp();
+      g.position.set(x, surfaceY(x, z), z);
+      g.rotation.y = -h + (side < 0 ? Math.PI : 0); // arm reaches over the road
+      D.roadGroup.add(g);
+      D.lamps.push({ g, x, z, glow: g.userData.glow });
+    }
+  }
+  syncLamps();
+}
+export function addStreetTrees(rpts, wid, wayId) {
+  if (wid < 4 || wid > 11 || D.trees.length >= TREE_MAX) return;
+  streetShared();
+  const side = wayId % 2 ? -1 : 1; // opposite kerb to the lamps
+  let acc = TREE_SPACING * Math.random();
+  for (let i = 1; i < rpts.length && D.trees.length < TREE_MAX; i++) {
+    const a = rpts[i - 1],
+      b = rpts[i];
+    const seg = Math.hypot(b.x - a.x, b.z - a.z);
+    if (seg < 0.5) continue;
+    const h = Math.atan2(b.x - a.x, -(b.z - a.z));
+    const off = wid / 2 + 1.5;
+    for (acc += seg; acc >= TREE_SPACING && D.trees.length < TREE_MAX; acc -= TREE_SPACING) {
+      const k = 1 - (acc - TREE_SPACING) / seg;
+      if (k < 0 || k > 1) break;
+      const x = a.x + (b.x - a.x) * k + Math.cos(h) * off * side,
+        z = a.z + (b.z - a.z) * k + Math.sin(h) * off * side;
+      if (insideBuilding(x, z)) continue;
+      const g = new THREE.Group();
+      const trunk = new THREE.Mesh(street.trunk, street.bark);
+      trunk.position.y = 2.2;
+      g.add(trunk);
+      const leaf = street.leaves[(wayId + D.trees.length) % street.leaves.length];
+      for (let c = 0; c < 3; c++) {
+        const m = new THREE.Mesh(street.canopy, leaf);
+        m.position.set((Math.random() - 0.5) * 0.7, 4.2 + c * 0.72, (Math.random() - 0.5) * 0.7);
+        m.scale.setScalar(1 - c * 0.22 + (Math.random() - 0.5) * 0.18);
+        m.rotation.set(Math.random(), Math.random(), Math.random());
+        m.castShadow = c === 0; // only the main canopy pays for a shadow
+        g.add(m);
+      }
+      g.position.set(x, surfaceY(x, z), z);
+      g.scale.setScalar(0.8 + Math.random() * 0.35);
+      D.roadGroup.add(g);
+      D.trees.push({ g, x, z });
+    }
+  }
+}
+// Lamps light the road for real at night: a small pool of point lights hops to
+// whichever lamps are nearest, so the whole city costs five lights.
+const LAMP_LIGHTS = 5;
+// The prop caps are a LIVE budget: without this the first streamed chunk spends
+// every lamp and tree, and the rest of the drive is a bare grey city.
+const PROP_KEEP = 340;
+function pruneProps(fp) {
+  for (const list of [D.lamps, D.trees])
+    for (let i = list.length - 1; i >= 0; i--) {
+      const p = list[i];
+      if (Math.hypot(p.x - fp.x, p.z - fp.z) > PROP_KEEP) {
+        D.roadGroup.remove(p.g); // geometry/materials are shared — nothing to dispose
+        list.splice(i, 1);
+      }
+    }
+}
+export function lampsTick(now) {
+  if (now - (D.lampAt || 0) < 260) return;
+  D.lampAt = now;
+  const focus = player.onFoot ? { x: player.x, z: player.z } : { x: car.x, z: car.z };
+  pruneProps(focus);
+  if (!D.lamps.length) return;
+  if (!D.lampLights) {
+    D.lampLights = [];
+    for (let i = 0; i < LAMP_LIGHTS; i++) {
+      const l = new THREE.PointLight(0xffd2a0, 0, 34, 2);
+      D.scene.add(l);
+      D.lampLights.push(l);
+    }
+  }
+  const night = isNight();
+  if (!night) {
+    D.lampLights.forEach((l) => (l.intensity = 0));
+    return;
+  }
+  const fp = focus;
+  const near = D.lamps
+    .map((L) => ({ L, d: Math.hypot(L.x - fp.x, L.z - fp.z) }))
+    .filter((e) => e.d < 60)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, LAMP_LIGHTS);
+  D.lampLights.forEach((l, i) => {
+    const e = near[i];
+    if (!e) {
+      l.intensity = 0;
+      return;
+    }
+    l.position.set(e.L.x + 1.2, surfaceY(e.L.x, e.L.z) + 6, e.L.z);
+    l.intensity = 5.5 * CD_M;
+  });
+}
+export function syncLamps() {
+  const night = isNight();
+  if (street.lampMat) street.lampMat.emissiveIntensity = night ? 2.4 : 0;
+  D.lamps.forEach((L) => (L.glow.visible = night));
+  if (!night && D.lampLights) D.lampLights.forEach((l) => (l.intensity = 0));
+}
+// Everything a freshly streamed road way gets dressed with: a parked car worth
+// stealing, lamps, trees, and people on the pavement.
+export function dressWay(rpts, wid, wayId) {
+  maybeParkOnWay(rpts, wid, wayId);
+  addStreetLamps(rpts, wid, wayId);
+  addStreetTrees(rpts, wid, wayId);
+  spawnPedsOnWay(rpts, wid, wayId);
+}
 // candidate parked-car spot along a freshly streamed road way
 export function maybeParkOnWay(rpts, wid, wayId) {
-  if (wid < 5.5 || D.vehicles.length >= MAX_PARKED || rpts.length < 2) return;
+  if (wid < 5.5 || rpts.length < 2) return;
+  let parked = 0;
+  for (const v of D.vehicles) if (!v.ai) parked++;
+  if (parked >= MAX_PARKED) return;
   if (Math.random() > 0.45) return;
   const i = Math.max(1, Math.floor(rpts.length / 2));
   const a = rpts[i - 1],
@@ -203,7 +389,9 @@ export function syncVehicleLights(v) {
   const L = v.mesh.userData.lamps;
   if (!L) return;
   const night = isNight(),
-    live = v === D.activeV && !player.onFoot && !v.wrecked;
+    // AI traffic counts as live too — a moving car with dead lights at night
+    // is the tell that it is scenery
+    live = ((v === D.activeV && !player.onFoot) || !!v.ai) && !v.wrecked;
   const braking = live && !!v.braking,
     rev = live && !!v.reversing;
   L.head.emissiveIntensity = v.wrecked ? 0 : night ? 2.6 : 0.4;
@@ -238,29 +426,23 @@ export function skidInit() {
   geo.setAttribute("aBirth", birth);
   geo.setIndex(new THREE.BufferAttribute(idx, 1));
   geo.setDrawRange(0, SKID_MAX * 6);
-  D.skidUni = { uTime: { value: 0 }, uLife: { value: SKID_LIFE } };
+  // A NODE material, not a raw ShaderMaterial: the WebGPU backend's node
+  // builder rejects hand-written GLSL outright ("Material 'ShaderMaterial' is
+  // not compatible"), which left tyre marks as flat black quads that never
+  // faded. The maths is the same — each vertex carries its stamp time and
+  // fades itself out, so the CPU only ever writes four corners.
+  D.skidUni = { uTime: uniform(0), uLife: uniform(SKID_LIFE) };
+  const skidAge = D.skidUni.uTime.sub(attribute("aBirth", "float")).div(D.skidUni.uLife);
+  const skidMat = new THREE.MeshBasicNodeMaterial({
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  skidMat.colorNode = vec3(0.028, 0.028, 0.032);
+  skidMat.opacityNode = clamp(float(1).sub(skidAge), 0, 1).mul(0.55);
   D.skidMesh = new THREE.Mesh(
     geo,
-    new THREE.ShaderMaterial({
-      uniforms: D.skidUni,
-      transparent: true,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      vertexShader: `
-        attribute float aBirth;
-        uniform float uTime, uLife;
-        varying float vA;
-        void main() {
-          vA = clamp(1.0 - (uTime - aBirth) / uLife, 0.0, 1.0);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }`,
-      fragmentShader: `
-        varying float vA;
-        void main() {
-          if (vA <= 0.004) discard;
-          gl_FragColor = vec4(0.028, 0.028, 0.032, vA * 0.55);
-        }`,
-    }),
+    skidMat,
   );
   D.skidMesh.frustumCulled = false;
   D.skidMesh.renderOrder = 1;

@@ -53,9 +53,15 @@ export function createRuntimeRepresentation(instance, rebuild, definition) {
 export function runtimeCollisionRects(state, options = {}) {
   const pad = Number(options.pad) || 0;
   const runtime = state?.parametric?.runtime || {};
+  // Only pieces that are still in the plan. rebuildProject() prunes this map,
+  // but anything that replaces the model without re-deriving it leaves records
+  // behind — and a stale record here becomes solid, invisible geometry in
+  // every game mode that builds its collision from this.
+  const live = new Set((state?.items || []).map((item) => String(item?.id)));
   const out = [];
-  Object.values(runtime).forEach((record) => {
-    (record?.collision || []).forEach((box) => out.push({
+  Object.keys(runtime).forEach((id) => {
+    if (!live.has(String(id))) return;
+    (runtime[id]?.collision || []).forEach((box) => out.push({
       ...box,
       x0: box.x0 - pad, x1: box.x1 + pad,
       z0: box.z0 - pad, z1: box.z1 + pad,

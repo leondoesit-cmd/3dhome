@@ -2,7 +2,7 @@
 // same More menu as games / modeler / textures. Also owns the start screen,
 // floor tabs, left-sidebar panes, tool hints, and library drag-to-place.
 import { S } from "./state.js";
-import { t, onLangChange } from "./i18n.js";
+import { t, tTouch, onLangChange } from "./i18n.js";
 import {
   applyData,
   fillProps,
@@ -12,6 +12,7 @@ import {
   sceneObject,
 } from "./ui.js";
 import { defaultScene, emptyScene, FURN } from "./furniture.js";
+import { rebuildProject } from "./core/project.js";
 import { setTool } from "./interaction.js";
 import { render2D, fitView, wx, wz, dropPoint } from "./plan2d.js";
 import { loadMEP } from "./mep.js";
@@ -173,22 +174,30 @@ function updateToolHint() {
   var el = $("plan-hint");
   if (!el) return;
   var msg = "";
-  if (S.placeType) msg = t("hint_tool_place");
-  else if (S.tool === "wall") msg = t("hint_tool_wall");
-  else if (S.tool === "rect") msg = t("hint_tool_rect");
-  else if (S.tool === "walloffset") msg = t("hint_tool_offset");
-  else if (S.tool === "wallbreak") msg = t("hint_tool_break");
-  else if (S.tool === "walljoin") msg = t("hint_tool_join");
-  else if (S.tool === "wallreverse") msg = t("hint_tool_reverse");
-  else if (S.tool === "wallpaint") msg = t("hint_tool_paint");
-  else if (S.tool === "erase") msg = t("hint_tool_erase");
+  if (S.placeType) msg = tTouch("hint_tool_place");
+  else if (S.tool === "wall") msg = tTouch("hint_tool_wall");
+  else if (S.tool === "rect") msg = tTouch("hint_tool_rect");
+  else if (S.tool === "walloffset") msg = tTouch("hint_tool_offset");
+  else if (S.tool === "wallbreak") msg = tTouch("hint_tool_break");
+  else if (S.tool === "walljoin") msg = tTouch("hint_tool_join");
+  else if (S.tool === "wallreverse") msg = tTouch("hint_tool_reverse");
+  else if (S.tool === "wallpaint") msg = tTouch("hint_tool_paint");
+  else if (S.tool === "erase") msg = tTouch("hint_tool_erase");
   else if (S.tool === "door" || S.tool === "window" || S.tool === "passage")
-    msg = t("hint_tool_opening");
+    msg = tTouch("hint_tool_opening");
   el.textContent = msg;
   el.hidden = !msg || currentUi() === "legacy";
 }
 
 function refreshAfterScene() {
+  /* The start screen swaps the whole model out. Without re-deriving the
+     parametric project, `S.parametric.runtime` keeps a record — including a
+     COLLISION BOX — for every item of the plan that was just replaced, and
+     rebuildProject's own garbage collection is what removes them. The three
+     in-home game modes build their courses from that map, so a skipped rebuild
+     left them climbing furniture that is no longer in the plan. main.js
+     already does this after its own defaultScene() call at boot. */
+  rebuildProject(S, FURN);
   loadMEP(S.mep || null);
   refreshMEPPanel();
   S.dirty3D = true;
@@ -216,6 +225,7 @@ function closeStartScreen(remember) {
 }
 
 function applyStart(kind) {
+  var startsMobileFlow = kind === "blank";
   if (kind === "blank") {
     emptyScene();
     S.roomMeta = {};
@@ -245,6 +255,8 @@ function applyStart(kind) {
   }
   closeStartScreen(true);
   refreshAfterScene();
+  if (startsMobileFlow)
+    window.dispatchEvent(new CustomEvent("planner-mobile-onboarding-start"));
 }
 
 function maybeShowStart() {

@@ -25,6 +25,38 @@ function language() {
   return document.documentElement.lang === "he" ? "he" : "en";
 }
 
+function cleanLabel(text) {
+  return String(text || "").replace(/\s+/g, " ").trim().replace(/[:·–—-]+$/, "");
+}
+
+/* A page dot says only that content exists somewhere else. Derive a short
+   section name from the real controls already on each page so navigation is
+   meaningful without maintaining a second inspector taxonomy. */
+function pageLabel(group, index) {
+  var selectors = [
+    "[data-mobile-page-title]", "h2", "h3", "h4", "h5", "h6", "legend",
+    ".m-sheet-sec", ".con-head", ".sub-panel-title", ".wi-section-title", "label",
+  ];
+  for (var s = 0; s < selectors.length; s++) {
+    for (var i = 0; i < group.length; i++) {
+      var node = group[i];
+      var found = node.matches && node.matches(selectors[s]) ? node : node.querySelector && node.querySelector(selectors[s]);
+      if (!found) continue;
+      var explicit = found.getAttribute && found.getAttribute("data-mobile-page-title");
+      var label = cleanLabel(explicit || found.textContent);
+      if (label) return label.slice(0, 28);
+    }
+  }
+  for (var j = 0; j < group.length; j++) {
+    var control = group[j].matches && group[j].matches("button,[aria-label]")
+      ? group[j]
+      : group[j].querySelector && group[j].querySelector("button,[aria-label]");
+    var fallback = cleanLabel(control && (control.getAttribute("aria-label") || control.textContent));
+    if (fallback) return fallback.slice(0, 28);
+  }
+  return (language() === "he" ? "חלק " : "Section ") + (index + 1);
+}
+
 export function releasePagedMenu(host) {
   var state = host && mounted.get(host);
   if (!state) return;
@@ -72,12 +104,13 @@ export function mountPagedMenu(host, options) {
   next.innerHTML = '<i class="ph ph-caret-right"></i>';
   prev.setAttribute("aria-label", language() === "he" ? "העמוד הקודם" : "Previous page");
   next.setAttribute("aria-label", language() === "he" ? "העמוד הבא" : "Next page");
-  var dots = document.createElement("span");
-  dots.className = "mobile-page-dots";
+  var namedTabs = !!options.namedTabs;
+  var tabs = document.createElement("span");
+  tabs.className = namedTabs ? "mobile-page-tabs" : "mobile-page-dots";
   var count = document.createElement("span");
   count.className = "mobile-page-count";
   count.setAttribute("aria-live", "polite");
-  nav.append(prev, dots, count, next);
+  nav.append(prev, tabs, count, next);
   shell.append(deck, nav);
 
   var anchor = document.createComment("mobile-pages");
@@ -102,12 +135,24 @@ export function mountPagedMenu(host, options) {
   if (current.length) groups.push(current);
 
   /* A compact menu with only a few tiny rows should remain one card. The pager
-     appears only when it removes scrolling rather than adding navigation. */
+     appears only when it removes scrolling rather than adding navigation.
+     This was documented but never enforced: a single-page pager still wrapped
+     the content in the shell, and the shell's own overflow:hidden then laid a
+     late-arriving panel (the Extrude feature form) out at zero height. Nodes
+     have not moved into pages yet here, so backing out is just a teardown. */
+  if (groups.length < 2) {
+    host.removeChild(shell);
+    host.removeChild(anchor);
+    host.classList.remove("mobile-paged-menu");
+    return null;
+  }
+
+  var labels = groups.map(pageLabel);
   groups.forEach(function (group, pageIndex) {
     var page = document.createElement("section");
     page.className = "mobile-menu-page" + (pageIndex === 0 ? " on" : "");
     page.setAttribute("role", "tabpanel");
-    page.setAttribute("aria-label", (language() === "he" ? "עמוד " : "Page ") + (pageIndex + 1));
+    page.setAttribute("aria-label", labels[pageIndex]);
     group.forEach(function (node) { page.appendChild(node); });
     deck.appendChild(page);
   });
@@ -116,21 +161,25 @@ export function mountPagedMenu(host, options) {
   function show(index) {
     active = Math.max(0, Math.min(pages.length - 1, index));
     pages.forEach(function (page, i) { page.classList.toggle("on", i === active); });
-    Array.from(dots.children).forEach(function (dot, i) {
-      dot.classList.toggle("on", i === active);
-      dot.setAttribute("aria-current", i === active ? "page" : "false");
+    Array.from(tabs.children).forEach(function (tab, i) {
+      tab.classList.toggle("on", i === active);
+      tab.setAttribute("aria-current", i === active ? "page" : "false");
+      if (i === active && namedTabs) tab.scrollIntoView({ block: "nearest", inline: "nearest" });
     });
     prev.disabled = active === 0;
     next.disabled = active === pages.length - 1;
     count.textContent = (active + 1) + " / " + pages.length;
   }
   pages.forEach(function (_, i) {
-    var dot = document.createElement("button");
-    dot.type = "button";
-    dot.className = "mobile-page-dot";
-    dot.setAttribute("aria-label", (language() === "he" ? "עבור לעמוד " : "Go to page ") + (i + 1));
-    dot.addEventListener("click", function () { show(i); });
-    dots.appendChild(dot);
+    var tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = namedTabs ? "mobile-page-tab" : "mobile-page-dot";
+    if (namedTabs) tab.textContent = labels[i];
+    tab.setAttribute("aria-label", namedTabs
+      ? labels[i]
+      : (language() === "he" ? "עבור לעמוד " : "Go to page ") + (i + 1));
+    tab.addEventListener("click", function () { show(i); });
+    tabs.appendChild(tab);
   });
   prev.addEventListener("click", function () { show(active - 1); });
   next.addEventListener("click", function () { show(active + 1); });

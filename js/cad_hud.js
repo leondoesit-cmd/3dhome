@@ -15,7 +15,7 @@ import { plan, wx, wz, render2D, segBearing, onAfterRender } from "./plan2d.js";
 import { wallPointPolar } from "./interaction.js";
 import { wallClearLength, pendingCuts, roomName } from "./geometry.js";
 import { flabel } from "./furniture_meta.js";
-import { t } from "./i18n.js";
+import { t, tTouch } from "./i18n.js";
 import { previousRunAngle, resolveWallDrawDefaults, previewMetrics, touchDrawing } from "./wall_draw.js";
 
 var bar = null,
@@ -213,6 +213,7 @@ export function initCadHud() {
   // disagree (interaction's own pointermove is throttled)
   onAfterRender(updateCadHud);
   window.addEventListener("planner-selection", updateCadHud);
+  window.addEventListener("planner-place", updateCadHud);
 
   window.addEventListener("keydown", function (e) {
     var k = e.key;
@@ -420,7 +421,9 @@ export function updateCadHud() {
   /* A finger reads the length off the card that rides the draw point; printing
      it up here too put the same three numbers on screen twice. */
   if (touchDrawing()) main = "";
-  else if (S.tool === "wall" && S.drawing && S.drawFrom != null && S.previewPt) {
+  else if (S.placeType) {
+    main = tTouch("hint_tool_place");
+  } else if (S.tool === "wall" && S.drawing && S.drawFrom != null && S.previewPt) {
     var a = S.nodes[S.drawFrom];
     if (a) {
       // interior span, matching the rubber-band label in the plan
@@ -444,13 +447,25 @@ export function updateCadHud() {
     }
   } else if (S.tool === "walloffset") {
     var od = S.offsetDraft;
-    main = t("hint_tool_offset") + (od ? " · " + Math.round(od.dist) + " " + unit : "");
+    main = tTouch("hint_tool_offset") + (od ? " · " + Math.round(od.dist) + " " + unit : "");
   } else if (S.tool === "wall") {
-    main = t("cad_wall_ready");
+    main = tTouch("hint_tool_wall");
   } else if (S.tool === "rect") {
-    main = t("hint_tool_rect");
+    main = tTouch("hint_tool_rect");
   } else if (S.tool === "slabvoid") {
-    main = t("hint_tool_slabvoid");
+    main = tTouch("hint_tool_slabvoid");
+  } else if (S.tool === "door" || S.tool === "window" || S.tool === "passage") {
+    main = tTouch("hint_tool_opening");
+  } else if (S.tool === "wallbreak") {
+    main = tTouch("hint_tool_break");
+  } else if (S.tool === "walljoin") {
+    main = tTouch("hint_tool_join");
+  } else if (S.tool === "wallreverse") {
+    main = tTouch("hint_tool_reverse");
+  } else if (S.tool === "wallpaint") {
+    main = tTouch("hint_tool_paint");
+  } else if (S.tool === "erase") {
+    main = tTouch("hint_tool_erase");
   } else if (S.sel && S.sel.kind === "slabvoid" && S.sel.ref) {
     selectionName = S.sel.ref.name || t("sv_title");
     selectionDetail = Math.round(S.sel.ref.w) + " × " + Math.round(S.sel.ref.d) + " " + unit;

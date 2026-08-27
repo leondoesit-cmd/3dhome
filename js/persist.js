@@ -290,10 +290,14 @@ function installErrorNet() {
       if (tag === "SCRIPT" || tag === "LINK") showFatal(t("err_asset"));
       return;
     }
+    var msg = (e && (e.message || (e.error && e.error.message))) || "";
+    if (/getSupportedExtensions|WebGL|WebGPU|GPUAdapter|three\.webgpu/i.test(msg)) return;
     if (api && api.flash) api.flash(t("err_generic"), "error");
     else showFatal(t("err_generic"));
   }, true);
-  window.addEventListener("unhandledrejection", function () {
+  window.addEventListener("unhandledrejection", function (e) {
+    var reason = (e && (e.reason && (e.reason.message || e.reason.stack) || String(e.reason))) || "";
+    if (/getSupportedExtensions|WebGL|WebGPU|GPUAdapter|three\.webgpu/i.test(reason)) return;
     if (api && api.flash) api.flash(t("err_generic"), "error");
   });
 }

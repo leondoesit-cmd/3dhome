@@ -7,7 +7,7 @@ import {
   ensureParametricProject, ensureItemDefinition, rebuildItem,
   requestItemDimension, applyItemDimension, commitDefinition,
 } from "../js/core/project.js";
-import { refreshRuntimePlacement } from "../js/core/runtime.js";
+import { refreshRuntimePlacement, runtimeCollisionRects } from "../js/core/runtime.js";
 import { assignCabinetManufacturing, cabinetPartFeatureHistory, captureCabinetAdvancedDelta, mergeCabinetAdvanced } from "../js/core/cabinet_advanced.js";
 
 function boxDefinition() {
@@ -136,4 +136,31 @@ test("advanced cabinet parts survive later composition rebuilds in canonical his
   assert.ok(classified.manufacturing.total>0);
   assert.equal(classified.manufacturing.nesting.unplaced.length,0);
   assert.ok(classified.manufacturing.nesting.sheets.length>0);
+});
+
+/* The three in-home game modes (lava, RC, Night Shift) build their collision
+   from this map, so a record for a piece that is no longer in the plan becomes
+   solid, invisible geometry to climb and walk into. rebuildProject() prunes the
+   map, but nothing guarantees every caller re-derives after swapping the model
+   out — the start screen's own scene swaps did not. */
+test("collision rects come only from items still in the plan", () => {
+  const state = {
+    items: [{ id: 7 }],
+    parametric: {
+      runtime: {
+        7: { collision: [{ x0: 0, x1: 10, z0: 0, z1: 10, y0: 0, y1: 40 }] },
+        99: { collision: [{ x0: 500, x1: 510, z0: 500, z1: 510, y0: 0, y1: 200 }] },
+      },
+    },
+  };
+  const rects = runtimeCollisionRects(state);
+  assert.equal(rects.length, 1, "the deleted item contributes nothing");
+  assert.equal(rects[0].x0, 0);
+
+  const padded = runtimeCollisionRects(state, { pad: 2 });
+  assert.equal(padded[0].x0, -2);
+  assert.equal(padded[0].x1, 12);
+
+  assert.deepEqual(runtimeCollisionRects({ items: [], parametric: state.parametric }), []);
+  assert.deepEqual(runtimeCollisionRects(null), []);
 });

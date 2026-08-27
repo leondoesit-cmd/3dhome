@@ -15,8 +15,10 @@ import {
   roadGrid, texLoader, ROAD_Y, CAR_Y, RG,
 } from "./drive_state.js";
 import { isNight } from "./drive_sky.js";
+import { fetchRoadRoute } from "./road_route.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
-const hooks = { maybeParkOnWay: () => {} };
+const hooks = { dressWay: () => {} };
 export function setWorldHooks(h) {
   Object.assign(hooks, h);
 }
@@ -303,36 +305,43 @@ export function syncTiles() {
 export function chunkKey(x, z) {
   return Math.round(x / 500) + "_" + Math.round(z / 500);
 }
-export async function syncBuildings() {
-  if (!elevIsReady()) return; // roads/buildings drape on terrain — wait for it
-  const fp = focusPos();
-  const key = chunkKey(fp.x, fp.z);
-  if (bldChunks.has(key)) return;
-  bldChunks.add(key);
-  const ll = mToLL(fp.x, fp.z);
+// Chunk streaming. `bldChunks` maps key → {state, tries, retryAt}: a chunk that
+// FAILED must be retryable. The first version added the key before the fetch and
+// only removed it in the catch, so a rate-limited Overpass reply (valid JSON,
+// no `elements`) marked the chunk done forever and you drove the rest of the
+// session through an empty grey city.
+const CHUNK_BACKOFF = 4000,
+  CHUNK_BACKOFF_MAX = 60000,
+  CHUNK_INFLIGHT = 2;
+function chunkState(key) {
+  return bldChunks.get(key) || null;
+}
+function chunkReady(key, now) {
+  const c = chunkState(key);
+  if (!c) return true; // never tried
+  if (c.state === "done" || c.state === "pending") return false;
+  return now >= c.retryAt;
+}
+export function chunkBBox(key) {
+  const [kx, kz] = key.split("_").map(Number);
+  const ll = mToLL(kx * 500, kz * 500);
   const dLat = 400 / 111320,
     dLon = 400 / (111320 * Math.cos((ll.lat * Math.PI) / 180));
-  const bbox =
-    (ll.lat - dLat) + "," + (ll.lon - dLon) + "," + (ll.lat + dLat) + "," + (ll.lon + dLon);
-  let j;
-  try {
-    const r = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      body: "data=" + encodeURIComponent(
-        // highways FIRST in the union: the element cap truncates from the
-        // end, and losing a few buildings beats losing the roads entirely
-        "[out:json][timeout:20];(" +
-          'way[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service|pedestrian)"](' +
-          bbox + ");way[building](" + bbox + "););out geom tags 1400;",
-      ),
-    });
-    j = await r.json();
-  } catch (_) {
-    bldChunks.delete(key);
-    return;
-  }
-  if (!D.running || !j || !j.elements) return;
-  j.elements.forEach((w) => {
+  return (
+    (ll.lat - dLat) + "," + (ll.lon - dLon) + "," + (ll.lat + dLat) + "," + (ll.lon + dLon)
+  );
+}
+export function chunkQuery(bbox) {
+  // highways FIRST in the union: the element cap truncates from the end, and
+  // losing a few buildings beats losing the roads entirely
+  return (
+    "[out:json][timeout:20];(" +
+    'way[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service|pedestrian)"](' +
+    bbox + ");way[building](" + bbox + "););out geom tags 1400;"
+  );
+}
+export function buildChunkElements(elements) {
+  elements.forEach((w) => {
     if (w.type !== "way" || !w.geometry) return;
     const tags = w.tags || {};
     // road way → asphalt ribbon draped on the terrain + junction end discs
@@ -348,7 +357,9 @@ export async function syncBuildings() {
         D.roadGroup.add(m);
         D.roadGroup.add(junctionDisc(rpts[0], wid));
         D.roadGroup.add(junctionDisc(rpts[rpts.length - 1], wid));
-        hooks.maybeParkOnWay(rpts, wid, w.id); // street furniture: stealable cars
+        // drivable lane for the AI traffic, before the way is dressed
+        D.ways.push({ id: w.id, pts: rpts, wid });
+        hooks.dressWay(rpts, wid, w.id); // parked cars, lamps, trees, people
       }
       return;
     }
@@ -364,6 +375,67 @@ export async function syncBuildings() {
     });
     D.bldPolys.push({ poly: pts, minx, maxx, minz, maxz });
   });
+  flushBuildingBatch();
+}
+async function loadChunk(key) {
+  const prev = chunkState(key);
+  const tries = prev ? prev.tries : 0;
+  bldChunks.set(key, { state: "pending", tries, retryAt: 0 });
+  const fail = () => {
+    const n = tries + 1;
+    bldChunks.set(key, {
+      state: "failed",
+      tries: n,
+      retryAt: performance.now() + Math.min(CHUNK_BACKOFF_MAX, CHUNK_BACKOFF * Math.pow(2, n - 1)),
+    });
+  };
+  // a cached chunk skips the network entirely — repeat drives cost nothing
+  const cached = await chunkGet(key);
+  if (cached && cached.length) {
+    if (!D.running) return fail();
+    bldChunks.set(key, { state: "done", tries, retryAt: 0 });
+    buildChunkElements(cached);
+    return;
+  }
+  let j;
+  try {
+    const r = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      body: "data=" + encodeURIComponent(chunkQuery(chunkBBox(key))),
+    });
+    j = await r.json();
+  } catch (_) {
+    return fail();
+  }
+  // a rate-limited reply parses fine and carries no elements: that is a FAILURE
+  if (!j || !Array.isArray(j.elements)) return fail();
+  if (!D.running) return fail();
+  bldChunks.set(key, { state: "done", tries, retryAt: 0 });
+  chunkPut(key, j.elements);
+  buildChunkElements(j.elements);
+}
+export async function syncBuildings() {
+  if (!elevIsReady()) return; // roads/buildings drape on terrain — wait for it
+  const now = performance.now();
+  const fp = focusPos();
+  const want = [chunkKey(fp.x, fp.z)];
+  // prefetch what we are driving into: at 200 km/h you outrun a streamer that
+  // only ever asks for the chunk you are standing in
+  const sp = Math.hypot(car.vx, car.vz);
+  if (sp > 6) {
+    const ahead = chunkKey(fp.x + (car.vx / sp) * 460, fp.z + (car.vz / sp) * 460);
+    if (ahead !== want[0]) want.push(ahead);
+  }
+  let inflight = 0;
+  bldChunks.forEach((c) => {
+    if (c.state === "pending") inflight++;
+  });
+  for (const key of want) {
+    if (inflight >= CHUNK_INFLIGHT) break;
+    if (!chunkReady(key, now)) continue;
+    inflight++;
+    loadChunk(key);
+  }
 }
 
 // ---- buildings: real-data facades ------------------------------------------
@@ -518,6 +590,87 @@ export function facadeMaterial(style, tint) {
   }
   return facadeMats[key];
 }
+// ---- batched facades -------------------------------------------------------
+// A city block used to be ~1000 draw calls: two meshes per building, each with
+// its own material (the per-id tint jitter made the material cache useless).
+// The tint now rides in a vertex-colour attribute instead, so every building of
+// one facade STYLE shares a material and merges into a single mesh per chunk —
+// ~5 wall meshes and one roof mesh per chunk instead of hundreds.
+const facadeBatchMats = {};
+export function facadeBatchMaterial(style) {
+  if (!facadeBatchMats[style])
+    facadeBatchMats[style] = trackBldMat(
+      new THREE.MeshLambertMaterial({
+        map: facadeTexture(style),
+        vertexColors: true,
+        side: THREE.DoubleSide, // OSM ring winding is not guaranteed
+      }),
+      style,
+    );
+  return facadeBatchMats[style];
+}
+let roofBatchMat = null;
+export function roofBatchMaterial() {
+  if (!roofBatchMat)
+    roofBatchMat = new THREE.MeshLambertMaterial({
+      vertexColors: true,
+      side: THREE.DoubleSide,
+    });
+  return roofBatchMat;
+}
+function paintGeometry(geo, tint) {
+  const n = geo.getAttribute("position").count;
+  const col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    col[i * 3] = tint.r;
+    col[i * 3 + 1] = tint.g;
+    col[i * 3 + 2] = tint.b;
+  }
+  geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  return geo;
+}
+function batchBin() {
+  if (!D.bldBatch) D.bldBatch = { walls: {}, roofs: [] };
+  return D.bldBatch;
+}
+// merge one bin into a single mesh and hand every building back the vertex
+// range it landed in, so a Street View photo can still take one building out
+function mergeBin(entries, material, castShadow) {
+  if (!entries.length) return;
+  const merged = mergeGeometries(entries.map((e) => e.geo), false);
+  entries.forEach((e) => e.geo.dispose());
+  if (!merged) return;
+  const mesh = new THREE.Mesh(merged, material);
+  mesh.castShadow = castShadow;
+  mesh.receiveShadow = true;
+  D.bldGroup.add(mesh);
+  let start = 0;
+  entries.forEach((e) => {
+    if (e.rec) e.rec.batch = { mesh, start, count: e.count };
+    start += e.count;
+  });
+}
+export function flushBuildingBatch() {
+  const bin = batchBin();
+  for (const style in bin.walls) {
+    mergeBin(bin.walls[style], facadeBatchMaterial(Number(style)), true);
+    delete bin.walls[style];
+  }
+  mergeBin(bin.roofs, roofBatchMaterial(), true);
+  bin.roofs.length = 0;
+}
+// Take one building's vertices out of its batch by collapsing them to a point.
+// Cheaper and far less error-prone than re-merging the whole chunk, and the
+// degenerate triangles cost nothing to raster.
+export function hideFromBatch(rec) {
+  if (!rec.batch) return;
+  const pos = rec.batch.mesh.geometry.getAttribute("position");
+  const from = rec.batch.start * 3,
+    to = (rec.batch.start + rec.batch.count) * 3;
+  for (let i = from; i < to; i++) pos.array[i] = 0;
+  pos.needsUpdate = true;
+  rec.batch = null;
+}
 export function roofMaterial2(tint) {
   const key = tint.getHexString();
   if (!roofMats[key]) {
@@ -565,8 +718,14 @@ export function idb() {
   return new Promise((res) => {
     if (D.svDB) return res(D.svDB);
     if (!window.indexedDB) return res(null);
-    const rq = indexedDB.open("home3d_svcache", 1);
-    rq.onupgradeneeded = () => rq.result.createObjectStore("sv");
+    const rq = indexedDB.open("home3d_svcache", 2);
+    rq.onupgradeneeded = () => {
+      const db = rq.result;
+      if (!db.objectStoreNames.contains("sv")) db.createObjectStore("sv");
+      // v2: streamed OSM chunks, so a second drive through a city already seen
+      // is instant and survives Overpass being down or rate-limiting us
+      if (!db.objectStoreNames.contains("chunk")) db.createObjectStore("chunk");
+    };
     rq.onsuccess = () => {
       D.svDB = rq.result;
       res(D.svDB);
@@ -597,25 +756,61 @@ export function svPut(key, val) {
     } catch (_) {}
   });
 }
+// ---- streamed-chunk cache --------------------------------------------------
+const CHUNK_TTL = 14 * 24 * 3600 * 1000; // OSM moves slowly; a fortnight is plenty
+export function chunkGet(key) {
+  return idb().then(
+    (db) =>
+      new Promise((res) => {
+        if (!db) return res(null);
+        try {
+          const rq = db.transaction("chunk").objectStore("chunk").get(key);
+          rq.onsuccess = () => {
+            const rec = rq.result;
+            res(rec && Date.now() - rec.at < CHUNK_TTL ? rec.data : null);
+          };
+          rq.onerror = () => res(null);
+        } catch (_) {
+          res(null);
+        }
+      }),
+  );
+}
+export function chunkPut(key, data) {
+  idb().then((db) => {
+    if (!db) return;
+    try {
+      db.transaction("chunk", "readwrite").objectStore("chunk").put({ at: Date.now(), data }, key);
+    } catch (_) {}
+  });
+}
 export function applySVPhoto(rec, dataUrl) {
   const img = new Image();
   img.onload = () => {
-    if (rec.sv || !rec.mesh.parent) return;
+    if (rec.sv || !D.running) return;
     const tex = new THREE.Texture(img);
     tex.needsUpdate = true;
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
     tex.anisotropy = 4;
     tex.colorSpace = THREE.SRGBColorSpace;
     const geo = wallGeometry(rec.pts, rec.base, rec.hEff, true);
-    rec.mesh.geometry.dispose();
-    rec.mesh.geometry = geo;
-    rec.mesh.material = trackBldMat(
-      new THREE.MeshLambertMaterial({
-        map: tex,
-        side: THREE.DoubleSide,
-      }),
+    const mat = trackBldMat(
+      new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }),
       null,
     );
+    if (rec.mesh) {
+      // already standalone (a second photo for the same building)
+      rec.mesh.geometry.dispose();
+      rec.mesh.geometry = geo;
+      rec.mesh.material = mat;
+    } else {
+      // photographed buildings leave the batch and get their own mesh
+      hideFromBatch(rec);
+      rec.mesh = new THREE.Mesh(geo, mat);
+      rec.mesh.castShadow = true;
+      rec.mesh.receiveShadow = true;
+      D.bldGroup.add(rec.mesh);
+    }
     rec.sv = true;
   };
   img.src = dataUrl;
@@ -734,16 +929,18 @@ export function buildBuilding(pts, tags, id) {
   const ac = aerialColorAt(cx, cz);
   if (ac && !tags["building:colour"]) tint.lerp(ac, 0.35);
 
-  const mesh = new THREE.Mesh(
-    wallGeometry(pts, base, hEff, false),
-    facadeMaterial(style, tint),
-  );
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  D.bldGroup.add(mesh);
+  // walls go into this chunk's batch for its facade style; the tint travels as
+  // a vertex colour so one material covers the whole style
+  const wallGeo = paintGeometry(wallGeometry(pts, base, hEff, false), tint);
   // register for Street View facades; a cached photo applies immediately
-  const rec = { id, mesh, pts, base, hEff, cx, cz, sv: false, svTried: false };
+  const rec = { id, mesh: null, batch: null, pts, base, hEff, cx, cz, sv: false, svTried: false };
   D.bldRegistry.push(rec);
+  const bin = batchBin();
+  (bin.walls[style] = bin.walls[style] || []).push({
+    geo: wallGeo,
+    count: wallGeo.getAttribute("position").count,
+    rec,
+  });
   svGet("b" + id).then((durl) => {
     if (durl && !rec.sv) applySVPhoto(rec, durl);
   });
@@ -766,12 +963,11 @@ export function buildBuilding(pts, tags, id) {
   pts.forEach((p, i) => (i ? shape.lineTo(p.x, -p.z) : shape.moveTo(p.x, -p.z)));
   const roofGeo = new THREE.ShapeGeometry(shape);
   roofGeo.rotateX(-Math.PI / 2);
-  const roof = new THREE.Mesh(roofGeo, roofMaterial2(roofC));
-  roof.position.y = base + hEff;
-  roof.castShadow = true;
-  roof.receiveShadow = true;
-  D.bldGroup.add(roof);
+  roofGeo.translate(0, base + hEff, 0); // baked in: a merged mesh has no per-roof transform
+  paintGeometry(roofGeo, roofC);
+  bin.roofs.push({ geo: roofGeo, count: roofGeo.getAttribute("position").count, rec: null });
 }
+
 export function insideBuilding(x, z) {
   for (let i = 0; i < D.bldPolys.length; i++) {
     const b = D.bldPolys[i];
@@ -791,21 +987,22 @@ export function insideBuilding(x, z) {
 }
 
 // ---- OSRM routing ----------------------------------------------------------
-// pointsLL = [{lat,lon}, ...] (2+). Returns local-meter polyline or null.
+// pointsLL = [{lat,lon}, ...] (2+). The rich form keeps OSRM's snapped
+// waypoints so starts and checkpoint beacons can sit on the same roads as the
+// guide ribbon. The compact wrapper preserves the existing callers.
+export async function fetchRouteData(pointsLL) {
+  const route = await fetchRoadRoute(pointsLL);
+  if (!route) return null;
+  return {
+    points: route.points.map((p) => llToM(p.lat, p.lon)),
+    waypoints: route.waypoints.map((p) => llToM(p.lat, p.lon)),
+    distanceM: route.distanceM,
+    durationS: route.durationS,
+  };
+}
 export async function fetchRoute(pointsLL) {
-  try {
-    const coords = pointsLL.map((p) => p.lon + "," + p.lat).join(";");
-    const u =
-      "https://router.project-osrm.org/route/v1/driving/" +
-      coords + "?overview=full&geometries=geojson";
-    const j = await (await fetch(u)).json();
-    const cs =
-      j && j.routes && j.routes[0] && j.routes[0].geometry
-        ? j.routes[0].geometry.coordinates
-        : null;
-    if (cs && cs.length > 1) return cs.map((c) => llToM(c[1], c[0]));
-  } catch (_) {}
-  return null;
+  const route = await fetchRouteData(pointsLL);
+  return route && route.points;
 }
 export function setRouteRibbon(pts) {
   if (D.routeMesh) {
@@ -858,4 +1055,3 @@ export function setRouteRibbon(pts) {
   );
   D.scene.add(D.routeMesh);
 }
-

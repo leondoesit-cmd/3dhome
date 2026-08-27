@@ -34,7 +34,7 @@ import {
 import { isLamp } from "./furniture.js";
 import { holdToWall, reseatHeldItems } from "./item_align.js";
 import { applyAutoFace, markManualRot, rotStep } from "./item_orient.js";
-import { t } from "./i18n.js";
+import { t, tTouch } from "./i18n.js";
 import { plan, render2D, fitView, sx, sz, wx, wz, rotatePx, dropPoint, toBasePx, planRotRad, pickCon, touchLensDistanceMap } from "./plan2d.js";
 import { select, fillProps, refreshTree, flash, setLockStruct, placeFurnAt } from "./ui.js";
 import { syncWallEnd } from "./ui_props.js";
@@ -720,7 +720,7 @@ function commitOffsetWall() {
   pushHistory();
   var a = getOrMakeNode(resolveLanding({ x: ghost.a.x, z: ghost.a.z }, true));
   var b = getOrMakeNode(resolveLanding({ x: ghost.b.x, z: ghost.b.z }, true));
-  if (a === b) { flash(t("hint_tool_rect")); return; }
+  if (a === b) { flash(tTouch("hint_tool_rect")); return; }
   var made = applyWallDrawDefaults({
     id: uid(), a: a, b: b, thickness: WALL_T, height: WALL_H,
   });
@@ -816,7 +816,7 @@ function commitRectFromTo(a, b) {
     z0 = Math.min(a.z, b.z),
     z1 = Math.max(a.z, b.z);
   if (x1 - x0 < 20 || z1 - z0 < 20) {
-    flash(t("hint_tool_rect"));
+    flash(tTouch("hint_tool_rect"));
     return null;
   }
   pushHistory();
@@ -838,6 +838,7 @@ function commitRectFromTo(a, b) {
   S.dirty3D = true;
   render2D();
   refreshTree();
+  window.dispatchEvent(new CustomEvent("planner-room-created", { detail: { walls: walls } }));
   return walls;
 }
 
@@ -845,7 +846,7 @@ function commitSlabFromTo(a, b) {
   var x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x);
   var z0 = Math.min(a.z, b.z), z1 = Math.max(a.z, b.z);
   if (x1 - x0 < 40 || z1 - z0 < 40) {
-    flash(t("hint_tool_slabvoid"));
+    flash(tTouch("hint_tool_slabvoid"));
     return null;
   }
   pushHistory();
@@ -2944,6 +2945,7 @@ export function initInteraction() {
     setTool("select");
     S.dirty3D = true;
     render2D();
+    window.dispatchEvent(new CustomEvent("planner-opening-created", { detail: { opening: made } }));
     return true;
   }
   /* ---- two-finger tap = undo ----

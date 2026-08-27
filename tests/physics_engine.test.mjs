@@ -75,16 +75,18 @@ test("exponential damping is stable across different refresh rates", () => {
 });
 
 test("all real-time physics modes use the shared guarded clock", async () => {
-  const [view, drive, rc, zombies] = await Promise.all([
+  const [view, drive, rc, zombies, lava] = await Promise.all([
     read("js/view3d.js"),
     read("js/drive.js"),
     read("js/rc_game.js"),
     read("js/zombies_game.js"),
+    read("js/lava_game.js"),
   ]);
   assert.match(view, /safeDeltaMilliseconds/);
   assert.match(drive, /safeDeltaSeconds[\s\S]*forEachPhysicsStep/);
   assert.match(rc, /safeDeltaSeconds[\s\S]*forEachPhysicsStep/);
   assert.match(zombies, /safeDeltaSeconds[\s\S]*forEachPhysicsStep/);
+  assert.match(lava, /safeDeltaSeconds[\s\S]*forEachPhysicsStep/);
 });
 
 test("mass from volume matches the centimetre-scale clamp", () => {
@@ -198,16 +200,18 @@ test("hanging cloth keeps the pinned row still and drops the hem", () => {
   assert.ok(hem.y < hemY);
 });
 
-test("walk and Night Shift query the rigid island; cars stay arcade", async () => {
-  const [view, zombies, drive, rc] = await Promise.all([
+test("walk, Night Shift and Lava query the rigid island; cars stay arcade", async () => {
+  const [view, zombies, lava, drive, rc] = await Promise.all([
     read("js/view3d.js"),
     read("js/zombies_game.js"),
+    read("js/lava_game.js"),
     read("js/drive.js"),
     read("js/rc_game.js"),
   ]);
   assert.match(view, /moveKinematicCapsule/);
   assert.match(view, /spawnHangingCloth/);
   assert.match(zombies, /moveKinematicCapsule/);
+  assert.match(lava, /moveKinematicCapsule/);
   assert.doesNotMatch(drive, /moveKinematicCapsule/);
   assert.doesNotMatch(rc, /moveKinematicCapsule/);
 });

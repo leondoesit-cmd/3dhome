@@ -31,13 +31,27 @@ export const D = {
 
   // --- frame / input ---
   keys: {},
+  // analog input: a gamepad stick/triggers or the on-screen buttons write here,
+  // the keyboard still writes booleans into D.keys and the two are max()'d
+  axis: { steer: 0, throttle: 0, brake: 0 },
+  padWas: null, // last frame's gamepad buttons, for edge detection
   lastT: 0,
-  camPos: null, // null = snap the chase camera next frame
+  camPos: null, // null = snap the camera next frame (a cut, not a glide)
+  camMode: 0, // index into drive_camera.CAM_MODES — C cycles, survives sessions
+  cine: null, // the director's current shot
+  cineUntil: 0, // scripted cinematic window (countdown intro, results orbit)
+  cineKind: null,
   steerVis: 0, // smoothed steering angle, for the visible front wheels
   anchor: null, // mirror of drive_geo's anchor for local reads
 
   // --- car / player ---
   vehicles: [], // {mesh,x,z,heading,hp,wrecked,lastFx,pendingBoom,burnUntil}
+  peds: [], // pedestrians walking the streamed sidewalks (js/drive_peds.js)
+  lamps: [], // street lamps (their light pool hops to the nearest five)
+  trees: [], // street trees (capped, shared geometry, recycled as you drive)
+  lampLights: null, // the pooled PointLights — live for the life of the scene
+  lampAt: 0,
+  aiSpawnAt: 0, // last AI traffic spawn (js/drive_ai.js)
   activeV: null, // the vehicle `car` state drives (its mesh = carGroup)
   weapons: null, // FPS system instance (created once, lives on the scene)
   stepAcc: 0, // footstep distance accumulator
@@ -52,6 +66,8 @@ export const D = {
   roadGroup: null,
   bldPolys: [],
   bldRegistry: [],
+  bldBatch: null, // per-chunk facade batches, merged by flushBuildingBatch()
+  ways: [], // drivable road centrelines for the AI traffic
   roadSegs: [],
   routeMesh: null,
 
@@ -64,11 +80,20 @@ export const D = {
   // --- sky / time of day ---
   todIdx: 0,
   hemi: null,
-  sky: null,
-  skyUni: null,
+  sky: null, // painted equirect dome
+  skyClouds: null, // cloud deck on its own slowly turning sphere
+  skyCanvas: null,
+  skyTex: null,
+  cloudCanvas: null,
+  cloudTex: null,
   pmrem: null,
   envRT: null,
   skyT: 0,
+  frameNo: 0, // rendered-frame counter (deferred GPU disposal waits on it)
+  post: null, // bloom node pipeline (null = direct render)
+  postFailed: false,
+  bloomAmt: null,
+  bloomCut: null,
   envCanvas: null,
   envTex: null,
 
@@ -85,6 +110,7 @@ export const D = {
 
   // --- multiplayer ---
   unsubNet: null,
+  unsubLeave: null,
   lastCarSend: 0,
 };
 
@@ -92,7 +118,9 @@ export const D = {
 // Mutated in place, never reassigned, so a plain `const` export is safe.
 export const groundTiles = new Map(); // "tx_ty" -> mesh
 export const tileColors = new Map(); // "tx_ty" -> Uint8ClampedArray (RGBA 32×32)
-export const bldChunks = new Set();
+// key -> {state:'pending'|'done'|'failed', tries, retryAt} — a FAILED chunk has
+// to be retryable, see the note over syncBuildings()
+export const bldChunks = new Map();
 export const bldById = new Set();
 export const roadById = new Set();
 export const roadGrid = new Map(); // "gx_gz" -> [segIdx]
@@ -143,11 +171,20 @@ export function fmtMs(ms) {
 // cleared here — see stopDrive() for teardown that must dispose GPU objects.
 export function resetSessionState() {
   D.camPos = null;
+  D.axis.steer = D.axis.throttle = D.axis.brake = 0;
+  D.padWas = null;
+  D.cine = null;
+  D.cineUntil = 0;
+  D.cineKind = null;
+  D.lamps = [];
+  D.trees = [];
   D.steerVis = 0;
   D.stepAcc = 0;
   D.bobT = 0;
   D.bldPolys = [];
   D.bldRegistry = [];
+  D.bldBatch = null;
+  D.ways = [];
   D.roadSegs = [];
   D.svBudget = 60;
   D.svLastFetch = 0;

@@ -12,6 +12,10 @@ const props = await readFile(new URL("../js/ui_props.js", import.meta.url), "utf
 const cadHud = await readFile(new URL("../js/cad_hud.js", import.meta.url), "utf8");
 const pages = await readFile(new URL("../js/mobile_pages.js", import.meta.url), "utf8");
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
+const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+const chrome = await readFile(new URL("../js/planner_chrome.js", import.meta.url), "utf8");
+const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
 
 test("mobile shells reserve only one 48px nav and one 44px context row", () => {
   assert.match(css, /--mobile-nav-block:\s*calc\(48px \+ env\(safe-area-inset-bottom\)\)/);
@@ -20,20 +24,22 @@ test("mobile shells reserve only one 48px nav and one 44px context row", () => {
   assert.match(css, /--cbm-ctx:\s*44px/);
 });
 
-test("fixed mobile destinations are icon-only but keep accessible names", () => {
-  assert.match(css, /#mobile-nav button > span,[\s\S]*?#md-nav button > span:not\(\.md-nav-glyph\)[\s\S]*?display:\s*none !important/);
+test("fixed Planner destinations keep visible labels without expanding the Model Editor", () => {
+  assert.match(css, /#mobile-nav button > span\s*\{[\s\S]*?display:\s*block/);
+  assert.doesNotMatch(css, /#mobile-nav button > span,[\s\S]{0,180}?display:\s*none !important/);
+  assert.match(css, /#md-nav button > span:not\(\.md-nav-glyph\),[\s\S]*?display:\s*none !important/);
   assert.match(css, /#cabdes \.cb-m-nav button span\s*\{\s*display:\s*none/);
   assert.match(planner, /b\.setAttribute\("aria-label", labelNode\.textContent\.trim\(\)\)/);
   assert.match(modeler, /b\.setAttribute\("aria-label", navLabel\)/);
   assert.match(cabinet, /aria-label="' \+ T\(n\.label\)/);
 });
 
-test("planner icon menus use 48px wrapping pads instead of 66px cards", () => {
+test("Planner icon menus use compact labelled task cards", () => {
   assert.match(planner, /grid\.className = "m-grid m-icon-grid"/);
   assert.match(planner, /m-grid m-grid-3 m-icon-grid/);
   assert.match(planner, /m-grid m-grid-4 m-icon-grid/);
-  assert.match(css, /\.m-icon-grid \.m-grid-btn[\s\S]*?width:\s*48px;[\s\S]*?height:\s*48px/);
-  assert.match(css, /\.m-icon-grid \.m-grid-btn span\s*\{\s*display:\s*none/);
+  assert.match(css, /#m-sheet \.m-icon-grid \.m-grid-btn[\s\S]*?min-height:\s*62px/);
+  assert.match(css, /#m-sheet \.m-icon-grid \.m-grid-btn span\s*\{[\s\S]*?display:\s*-webkit-box/);
 });
 
 test("modeler keeps CAD command names but compacts view and document actions", () => {
@@ -68,15 +74,16 @@ test("sheet headers and phone panels no longer spend space on a separate grip", 
   assert.match(css, /body\.sheet-drawers #left-sidebar,[\s\S]*?height:\s*46dvh/);
 });
 
-test("Planner Add uses icon tabs and a dense accessible category grid", () => {
+test("Planner Add keeps visible tab and category names", () => {
   assert.match(html, /data-left-tab="library"[\s\S]*?ph-books[\s\S]*?data-i18n="left_tab_library"/);
   assert.match(html, /data-left-tab="structure"[\s\S]*?ph-building-office/);
   assert.match(html, /data-left-tab="tree"[\s\S]*?ph-tree-structure/);
   assert.match(main, /furn-grid\$\{navPath\.length < 2 \? " furn-grid-nav"/);
   assert.match(main, /role="button" tabindex="0" aria-label="\$\{label\}"/);
   assert.match(main, /e\.key !== "Enter" && e\.key !== " "/);
-  assert.match(css, /\.furn-grid-nav[\s\S]*?minmax\(44px, 1fr\)/);
-  assert.match(css, /\.furn-grid-nav \.furn-nav > span\s*\{\s*display:\s*none/);
+  assert.match(css, /body\.compact-nav \.left-tabs button > span\s*\{[\s\S]*?display:\s*block/);
+  assert.match(css, /\.furn-grid-nav[\s\S]*?minmax\(76px, 1fr\)/);
+  assert.match(css, /\.furn-grid-nav \.furn-nav > span\s*\{[\s\S]*?display:\s*-webkit-box/);
 });
 
 test("selection identity moves to the top row and wall Properties keeps named icon tabs", () => {
@@ -114,13 +121,14 @@ test("mobile selection card names the object and adds a second Properties entry 
   assert.match(css, /#cad-status \.cad-selection-props:not\(\[hidden\]\)[\s\S]*?min-width:\s*44px/);
 });
 
-test("all three mobile editors use discrete content-sized bottom pages", () => {
+test("long forms use labelled content-sized pages while browse sheets scroll", () => {
   assert.match(planner, /mountPagedMenu\(active/);
-  assert.match(planner, /mountPagedMenu\(sheetBody\)/);
-  assert.match(planner, /mountPagedMenu\(grid\)/);
+  assert.doesNotMatch(planner, /mountPagedMenu\(sheetBody\)/);
+  assert.doesNotMatch(planner, /mountPagedMenu\(grid\)/);
   assert.match(modeler, /mountPagedMenu\(pageHost/);
   assert.match(cabinet, /mountPagedMenu\(pageHost/);
-  assert.match(pages, /mobile-page-dot/);
+  assert.match(pages, /function pageLabel\(/);
+  assert.match(pages, /mobile-page-tab/);
   assert.match(pages, /touchend/);
   assert.match(pages, /pages\.forEach[\s\S]*?page\.classList\.toggle\("on"/);
   assert.match(css, /Content-sized bottom menus/);
@@ -135,4 +143,87 @@ test("compact inspectors keep 44px inputs but remove desktop whitespace", () => 
   assert.match(css, /#right-inspector \.con-block,[\s\S]*?padding:\s*7px/);
   assert.match(css, /#right-inspector \.con-add[\s\S]*?repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /#openProps > \[data-i18n="cm"\][\s\S]*?display:\s*none/);
+});
+
+test("mobile destinations switch above the backdrop and cannot keep a stale drawer state", () => {
+  assert.match(css, /body\.compact-nav #mobile-nav[\s\S]*?z-index:\s*64/);
+  assert.match(css, /#m-sheet-backdrop[\s\S]*?z-index:\s*61/);
+  assert.match(planner, /if \(openSheet === "add" \|\| openSheet === "props"\) closeSheet\(\)/);
+  assert.match(planner, /m_props_empty/);
+});
+
+test("mobile More promotes guidance and groups project work before collapsed extras", () => {
+  assert.match(planner, /className = "m-guide-card"/);
+  assert.match(planner, /run\("plannerTutorial"\)/);
+  assert.match(planner, /appendMenuGroup\(t\("m_more_project"\)/);
+  assert.match(planner, /appendMenuGroup\(t\("m_more_extras"\)[\s\S]*?collapsed: true/);
+  assert.doesNotMatch(planner, /"shortcutsBtn"/);
+  assert.match(css, /body\.compact-nav #openModelerTop\.legacy-chrome\s*\{\s*display:\s*none !important/);
+  assert.match(css, /body\.compact-nav #topbar \.tb-end\s*\{\s*display:\s*none !important/);
+});
+
+test("destructive reset confirms and beginner coaching follows completed milestones", () => {
+  assert.match(ui, /act === "reset"[\s\S]*?window\.confirm\(t\("reset_confirm"\)\)/);
+  assert.match(interaction, /planner-room-created/);
+  assert.match(interaction, /planner-opening-created/);
+  assert.match(ui, /planner-item-created/);
+  assert.match(chrome, /planner-mobile-onboarding-start/);
+  ["mcoach_room_done", "mcoach_opening_done", "mcoach_item_done", "mcoach_preview"].forEach((key) => {
+    assert.match(planner, new RegExp(key));
+  });
+});
+
+test("dismissing the coach ends it for good and only the first room arms it", () => {
+  // Marking the flow done must be reachable from the X, not only from
+  // finishing all five stages, or a dismissal replays every milestone forever.
+  assert.match(planner, /function markFlowDone\(\)[\s\S]*?localStorage\.setItem\(MOBILE_FLOW_KEY, "1"\)/);
+  assert.match(planner, /function dismissCoach\(\)\s*\{\s*markFlowDone\(\);\s*hideCoach\(\);\s*\}/);
+  assert.match(planner, /close\.addEventListener\("click", dismissCoach\)/);
+  assert.match(planner, /function finishOnboarding\(\)\s*\{\s*markFlowDone\(\);/);
+  // A second room drawn mid-flow must not reset the user to step one.
+  assert.match(
+    planner,
+    /planner-room-created[\s\S]*?if \(onboardingActive && onboardingStage !== "room"\) return;/,
+  );
+});
+
+test("object snapping stays reachable while a phone draw tool is active", () => {
+  // #cadToggles is hidden under .compact-nav, so the mid-draw context row is
+  // the only surface that can turn OSNAP off.
+  assert.match(
+    planner,
+    /if \(drawing\(\)\)[\s\S]*?aidChip\("osnap", "cad_osnap"\)[\s\S]*?aidChip\("ortho"[\s\S]*?aidChip\("gsnap"/,
+  );
+  // Six controls in one non-scrolling row: chips give back padding, never the
+  // 44px thumb target.
+  const narrow = css.match(/@media \(max-width: 344px\) \{[\s\S]*?\n\}\n/);
+  assert.ok(narrow, "expected a narrow-phone context-row block");
+  assert.match(narrow[0], /#m-ctx \.mctx-chip,[\s\S]*?min-width:\s*38px/);
+  // Padding is the slack; the 44px thumb target is not.
+  assert.doesNotMatch(narrow[0], /min-height/);
+  assert.match(css, /#m-ctx \.mctx-chip,\n#md-ctx \.mctx-chip \{[\s\S]*?min-height:\s*44px/);
+});
+
+test("touch instructions use explicit translation variants", () => {
+  assert.match(i18n, /export function tTouch\(/);
+  assert.match(i18n, /hint_tool_rect_touch:\s*"Tap the first corner/);
+  assert.match(chrome, /tTouch\("hint_tool_rect"\)/);
+  assert.match(cadHud, /tTouch\("hint_tool_slabvoid"\)/);
+  assert.match(cadHud, /S\.placeType[\s\S]*?tTouch\("hint_tool_place"\)/);
+  assert.match(cadHud, /S\.tool === "door"[\s\S]*?tTouch\("hint_tool_opening"\)/);
+  assert.match(cadHud, /planner-place", updateCadHud/);
+});
+
+test("furniture placement replaces stale selection actions with Cancel", () => {
+  assert.match(planner, /function cancelPlacement\(\)[\s\S]*?S\.placeType = null;[\s\S]*?planner-place/);
+  assert.match(planner, /function ctxActions\(\)\s*\{\s*\/\*[\s\S]*?if \(S\.placeType\)[\s\S]*?t\("cancel"\)/);
+  assert.match(planner, /planner-place[\s\S]*?sync\(true\)/);
+  assert.match(planner, /S\.placeType \|\| ""/);
+});
+
+test("dynamic mobile close labels and coach copy follow language changes", () => {
+  assert.match(planner, /var closeLabel = t\("close"\)/);
+  assert.match(planner, /sheetClose\.setAttribute\("aria-label", closeLabel\)/);
+  assert.match(planner, /coachClose\.setAttribute\("aria-label", closeLabel\)/);
+  assert.match(planner, /coachCopyKey[\s\S]*?coachCopy\.textContent = t\(coachCopyKey\)/);
 });

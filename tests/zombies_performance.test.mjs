@@ -79,3 +79,16 @@ test("Night Shift Fast quality skips CAD post-processing and caps pixel ratio", 
   assert.match(world, /if \(type !== "crawler" && nsQuality\(\) > 0\)/);
   assert.match(world, /var lampCap = nsQuality\(\) >= 2 \? 8 : nsQuality\(\) >= 1 \? 3 : 2/);
 });
+
+test("Night Shift batches rigid zombie pieces and avoids idle visual uploads", async () => {
+  const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
+  const world = await readFile(new URL("../js/zombies_world.js", import.meta.url), "utf8");
+  assert.match(world, /import \{ mergeGeometries \} from "three\/addons\/utils\/BufferGeometryUtils\.js"/);
+  assert.match(world, /function batchZombieRig\(rig\)/);
+  assert.match(world, /batchZombieRig\(rig\)/);
+  assert.match(world, /if \(partDirty\) \{/);
+  assert.match(world, /if \(fireDirty\) \{/);
+  assert.match(world, /if \(M\.updateT >= 0\.05\)/);
+  assert.match(game, /Z\.radarNext = Z\.t \+ 0\.1/);
+  assert.match(game, /Z\.screenFxNext = Z\.t \+ 0\.04/);
+});

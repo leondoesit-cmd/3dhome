@@ -19,6 +19,7 @@ import { geocodeSuggest } from "./site.js";
 import { FRIENDS } from "./friends.js";
 import * as net from "./net.js";
 import { startRace, startTaxi, isDriving } from "./drive.js";
+import { fetchRoadRoute } from "./road_route.js";
 
 function uidRace() {
   return "r" + Date.now().toString(36) + Math.floor(Math.random() * 1e4);
@@ -68,7 +69,7 @@ function myHomePoint() {
 
 // ---- multi-point Leaflet picker -------------------------------------------
 // Every click adds a numbered marker; Done returns them in click order.
-function openMultiMapPicker(onDone, single) {
+function openMultiMapPicker(onDone, single, initial) {
   if (typeof L === "undefined") {
     flash(t("site_no_leaflet"), "error");
     return;
@@ -86,7 +87,8 @@ function openMultiMapPicker(onDone, single) {
   const undo = dlg.body.querySelector("#rcMapUndo");
   const clear = dlg.body.querySelector("#rcMapClear");
   const picked = [];
-  let map = null, routeLine = null;
+  let map = null, routeLine = null, routeInfo = null, routeAbort = null,
+    routeTimer = null, routeSeq = 0;
   const home = myHomePoint();
   const lat0 = home ? home.lat : 32.0853,
     lon0 = home ? home.lon : 34.7818;
@@ -101,28 +103,83 @@ function openMultiMapPicker(onDone, single) {
       opacity: 0.3,
       attribution: "© OSM",
     }).addTo(map);
-    function syncMap() {
+    const routeStatus = dlg.body.querySelector(".race-map-tools span");
+    function drawDirectPreview() {
       if (routeLine) routeLine.remove();
       routeLine = picked.length > 1
         ? L.polyline(picked.map((p) => [p.lat, p.lon]), {
-            color: "#7850ff", weight: 5, opacity: 0.9, dashArray: "10 8",
+            color: "#7850ff", weight: 4, opacity: 0.6, dashArray: "10 8",
           }).addTo(map)
         : null;
-      picked.forEach((p, i) => p.marker.setIcon(L.divIcon({
-        className: "rc-map-pin", html: "<b>" + (i + 1) + "</b>", iconSize: [28, 28],
-      })));
+    }
+    function setSummary(state) {
       summary.textContent = single
         ? (picked.length ? t("mr_areaReady") : t("mr_needArea"))
         : picked.length + " " + t("mr_pointsN") +
-          (picked.length > 1 ? " · " + courseDistanceKm(picked).toFixed(1) + " km" : "");
-      undo.disabled = clear.disabled = !picked.length;
+          (picked.length > 1 && !routeInfo ? " · " + courseDistanceKm(picked).toFixed(1) + " km" : "");
+      routeStatus.className = "route-status " + (state || "");
+      if (single || picked.length < 2) routeStatus.textContent = "";
+      else if (state === "loading") routeStatus.textContent = t("mr_routing");
+      else if (state === "ready" && routeInfo)
+        routeStatus.textContent = t("mr_routeReady", {
+          km: (routeInfo.distanceM / 1000).toFixed(1),
+          min: Math.max(1, Math.round(routeInfo.durationS / 60)),
+        });
+      else if (state === "fallback") routeStatus.textContent = t("mr_routeFallback");
+      else routeStatus.textContent = "";
     }
-    function add(latlng) {
+    async function routeRoads() {
+      if (single || picked.length < 2) return;
+      if (routeAbort) routeAbort.abort();
+      routeAbort = new AbortController();
+      const my = ++routeSeq;
+      setSummary("loading");
+      const routed = await fetchRoadRoute(picked, { signal: routeAbort.signal });
+      if (my !== routeSeq || !map) return;
+      if (!routed) {
+        routeInfo = null;
+        setSummary("fallback");
+        return;
+      }
+      routeInfo = routed;
+      // Move every pin to the road position OSRM chose. The points handed to
+      // the race are now the points the preview actually promised.
+      routed.waypoints.forEach((wp, i) => {
+        if (!picked[i]) return;
+        picked[i].lat = wp.lat;
+        picked[i].lon = wp.lon;
+        picked[i].marker.setLatLng([wp.lat, wp.lon]);
+      });
+      if (routeLine) routeLine.remove();
+      routeLine = L.polyline(routed.points.map((p) => [p.lat, p.lon]), {
+        color: "#7850ff", weight: 6, opacity: 0.92,
+      }).addTo(map);
+      setSummary("ready");
+    }
+    function queueRoadRoute() {
+      clearTimeout(routeTimer);
+      routeTimer = setTimeout(routeRoads, 180);
+    }
+    function syncMap(requestRoute) {
+      clearTimeout(routeTimer);
+      if (routeAbort) routeAbort.abort();
+      routeAbort = null;
+      routeSeq++;
+      routeInfo = null;
+      drawDirectPreview();
+      picked.forEach((p, i) => p.marker.setIcon(L.divIcon({
+        className: "rc-map-pin", html: "<b>" + (i + 1) + "</b>", iconSize: [28, 28],
+      })));
+      setSummary("");
+      undo.disabled = clear.disabled = !picked.length;
+      if (requestRoute !== false) queueRoadRoute();
+    }
+    function add(latlng, label, quiet) {
       if (single && picked.length) {
         picked[0].marker.setLatLng(latlng);
         picked[0].lat = latlng.lat;
         picked[0].lon = latlng.lng;
-        syncMap();
+        if (!quiet) syncMap(false);
         return;
       }
       const n = picked.length + 1;
@@ -130,26 +187,36 @@ function openMultiMapPicker(onDone, single) {
         draggable: true,
         icon: L.divIcon({ className: "rc-map-pin", html: "<b>" + n + "</b>", iconSize: [28, 28] }),
       }).addTo(map);
-      const point = { lat: latlng.lat, lon: latlng.lng, label: t("mr_point") + " " + n, marker };
+      const point = {
+        lat: latlng.lat,
+        lon: latlng.lng,
+        label: label || t("mr_point") + " " + n,
+        marker,
+      };
       marker.on("drag", () => {
         const ll = marker.getLatLng();
         point.lat = ll.lat; point.lon = ll.lng;
-        syncMap();
+        syncMap(false);
       });
+      marker.on("dragend", () => syncMap(true));
       picked.push(point);
-      syncMap();
+      if (!quiet) syncMap(true);
     }
     map.on("click", (e) => add(e.latlng));
     undo.onclick = () => {
       const p = picked.pop();
       if (p) p.marker.remove();
-      syncMap();
+      syncMap(true);
     };
     clear.onclick = () => {
       picked.splice(0).forEach((p) => p.marker.remove());
-      syncMap();
+      syncMap(true);
     };
-    syncMap();
+    (initial || []).forEach((p) => add({ lat: p.lat, lng: p.lon }, p.label, true));
+    if (picked.length === 1) map.setView([picked[0].lat, picked[0].lon], 16);
+    else if (picked.length > 1)
+      map.fitBounds(picked.map((p) => [p.lat, p.lon]), { padding: [36, 36], maxZoom: 17 });
+    syncMap(true);
   });
   const cancel = document.createElement("button");
   cancel.textContent = t("cancel");
@@ -157,7 +224,11 @@ function openMultiMapPicker(onDone, single) {
   done.className = "btn-accent";
   done.textContent = t("mr_done");
   const close = () => {
+    clearTimeout(routeTimer);
+    if (routeAbort) routeAbort.abort();
+    routeSeq++;
     if (map) map.remove();
+    map = null;
     dlg.close();
   };
   cancel.onclick = close;
@@ -166,8 +237,14 @@ function openMultiMapPicker(onDone, single) {
       flash(t(single ? "mr_needArea" : "mr_needPoints"), "error");
       return;
     }
+    const info = routeInfo && {
+      distanceM: routeInfo.distanceM,
+      durationS: routeInfo.durationS,
+      count: picked.length,
+    };
+    const result = picked.map((p) => ({ lat: p.lat, lon: p.lon, label: p.label }));
     close();
-    onDone(picked.map((p) => ({ lat: p.lat, lon: p.lon, label: p.label })));
+    onDone(result, info);
   };
   dlg.actions.appendChild(cancel);
   dlg.actions.appendChild(done);
@@ -181,6 +258,7 @@ export function openRaceModal() {
   const b = dlg.body;
   let mode = "race";
   const points = [];
+  let courseInfo = null;
   const home = myHomePoint();
   if (home) points.push(home);
 
@@ -255,6 +333,7 @@ export function openRaceModal() {
       row.addEventListener("click", (e) => {
         const btn = e.target.closest("button");
         if (!btn) return;
+        courseInfo = null;
         if (btn.dataset.a === "del") points.splice(i, 1);
         else if (btn.dataset.a === "up") {
           const [x] = points.splice(i, 1);
@@ -266,10 +345,18 @@ export function openRaceModal() {
     });
     if (!points.length)
       ptsEl.innerHTML = '<span class="t">' + t(mode === "taxi" ? "mr_needArea" : "mr_needPoints") + "</span>";
-    const km = courseDistanceKm(points);
+    const km = courseInfo && courseInfo.count === points.length
+      ? courseInfo.distanceM / 1000
+      : courseDistanceKm(points);
     courseSummary.textContent = mode === "taxi"
       ? (points.length ? t("mr_areaReady") : "")
-      : (points.length > 1 ? points.length + " " + t("mr_pointsN") + " · " + km.toFixed(1) + " km" : "");
+      : (points.length > 1 ? points.length + " " + t("mr_pointsN") + " · " +
+        (courseInfo
+          ? t("mr_routeReady", {
+              km: km.toFixed(1),
+              min: Math.max(1, Math.round(courseInfo.durationS / 60)),
+            })
+          : km.toFixed(1) + " km") : "");
     reverseBtn.disabled = mode !== "race" || points.length < 2;
   }
   function addPoint(p) {
@@ -279,6 +366,7 @@ export function openRaceModal() {
       flash(t("mr_maxPoints"), "error");
       return;
     }
+    courseInfo = null;
     points.push(p);
     renderPoints();
   }
@@ -296,8 +384,13 @@ export function openRaceModal() {
     frSel.value = "";
   };
   b.querySelector("#rcAddMap").onclick = () =>
-    openMultiMapPicker((pts) => pts.forEach(addPoint), mode === "taxi");
+    openMultiMapPicker((pts, info) => {
+      points.splice(0, points.length, ...pts);
+      courseInfo = info;
+      renderPoints();
+    }, mode === "taxi", points);
   reverseBtn.onclick = () => {
+    courseInfo = null;
     points.reverse();
     renderPoints();
   };

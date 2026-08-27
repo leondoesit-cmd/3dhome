@@ -104,3 +104,57 @@ test("Fast quality keeps a usable night grade and starts with the flashlight on"
   assert.match(world, /var fillI = quality === 0 \? 1\.15 : 0\.55/);
   assert.match(game, /Z\.flash\.batt = 100;\s*Z\.flash\.on = true;/);
 });
+
+test("wave objectives come from real rooms, doors, and the fuse box", () => {
+  assert.match(game, /function makeWaveObjective\(n, event\)/);
+  assert.match(game, /var rm = farthestRoom\(\), b = interiorBounds\(\)/);
+  assert.match(game, /Z\.col\.doorSegs\.length/);
+  assert.match(game, /kind: "power", x: Z\.fuseBox\.x/);
+  assert.match(game, /function placeNavMarker\(/);
+  assert.match(game, /z_objective_complete/);
+});
+
+test("encounter director creates lulls and peaks and reacts to player capability", () => {
+  assert.match(game, /function updateDirector\(dt, live\)/);
+  assert.match(game, /D\.phase === "lull"/);
+  assert.match(game, /D\.phase === "peak"/);
+  assert.match(game, /D\.capability = clamp/);
+  assert.match(game, /phaseScale = Z\.director\.phase === "lull"/);
+});
+
+test("specialists are readable and screamers call real reinforcements", () => {
+  assert.match(game, /function directedType\(Wv\)/);
+  assert.match(game, /candidate === "brute" \|\| candidate === "bloater" \|\| candidate === "screamer"/);
+  assert.match(world, /hooks\.onScreamerCall && hooks\.onScreamerCall\(zd\)/);
+  assert.match(game, /Z\.wave\.pending = Math\.min\(Z\.wave\.total \+ 4, Z\.wave\.pending \+ 3\)/);
+  assert.match(i18n, /z_screamer_reinforcements:/);
+});
+
+test("intermission makes score a one-choice tactical resource", () => {
+  assert.match(game, /var INTERMISSION_OFFERS =/);
+  assert.match(game, /function buyIntermission\(kind\)/);
+  assert.match(game, /Z\.intermission\.chosen = true/);
+  assert.match(game, /data-buy="ammo"/);
+  assert.match(css, /#zIntermission/);
+});
+
+test("runs end with pressured extraction and a victory summary", () => {
+  assert.match(game, /if \(Wv\.n >= RUN_WAVES\)/);
+  assert.match(game, /function beginExtraction\(\)/);
+  assert.match(game, /function stepExtraction\(dt\)/);
+  assert.match(game, /function finishRun\(\)/);
+  assert.match(game, /id="zVictory"/);
+  assert.match(i18n, /z_victory: "EXTRACTED"/);
+});
+
+test("mobile play gets soft visible-target aim and larger interaction radii", () => {
+  assert.match(game, /function stepMobileAimAssist\(dt\)/);
+  assert.match(game, /!losClear\(P\.x, P\.z, zd\.x, zd\.z\)/);
+  assert.match(game, /Math\.abs\(yawErr\) > 0\.16/);
+  assert.match(game, /Z\.touchMode \? 135 : 95/);
+  assert.match(game, /Z\.touchMode \? 82 : 58/);
+});
+
+test("hitscan supplies a camera before Three.js evaluates scene sprites", () => {
+  assert.match(game, /_rc\.set\(origin, dir\);\s*\/\/[\s\S]*?_rc\.camera = getMainCamera\(\);/);
+});

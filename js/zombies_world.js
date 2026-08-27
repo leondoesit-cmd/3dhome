@@ -1,5 +1,6 @@
 /* Night Shift world: collision, textures, VFX, horror grade, zombie AI/mesh. */
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import {
   Fn, Discard, attribute, uniform, texture, uv, positionView, positionLocal,
   vec2, vec3, vec4, float, mix, sin, smoothstep, screenDPR,
@@ -1964,12 +1965,17 @@ export function stepFX(dt) {
   if (P) {
     var pa = P.geo.attributes.iPos.array,
       ca = P.geo.attributes.iCol.array,
-      sa = P.geo.attributes.iSize.array;
+      sa = P.geo.attributes.iSize.array,
+      partDirty = false;
     for (var i = 0; i < (P.activeN || P.n); i++) {
       if (P.life[i] <= 0) {
-        if (sa[i] !== 0) sa[i] = 0;
+        if (sa[i] !== 0) {
+          sa[i] = 0;
+          partDirty = true;
+        }
         continue;
       }
+      partDirty = true;
       P.life[i] -= dt;
       if (P.life[i] <= 0) {
         sa[i] = 0;
@@ -1994,21 +2000,31 @@ export function stepFX(dt) {
       ca[i * 3 + 1] = P.c0[i * 3 + 1] * (0.35 + 0.65 * k);
       ca[i * 3 + 2] = P.c0[i * 3 + 2] * (0.35 + 0.65 * k);
     }
-    P.geo.attributes.iPos.needsUpdate = true;
-    P.geo.attributes.iCol.needsUpdate = true;
-    P.geo.attributes.iSize.needsUpdate = true;
+    // A quiet frame used to re-upload all three full 1,200-instance buffers
+    // even though every size was already zero. Avoiding those idle transfers
+    // removes a persistent GPU/driver cost between combat bursts.
+    if (partDirty) {
+      P.geo.attributes.iPos.needsUpdate = true;
+      P.geo.attributes.iCol.needsUpdate = true;
+      P.geo.attributes.iSize.needsUpdate = true;
+    }
   }
   var F = Z.fireParts;
   if (F) {
     var fpa = F.geo.attributes.iPos.array,
       fsa = F.geo.attributes.iSize.array,
       fha = F.geo.attributes.iHeat.array,
-      faa = F.geo.attributes.iAlpha.array;
+      faa = F.geo.attributes.iAlpha.array,
+      fireDirty = false;
     for (var f = 0; f < (F.activeN || F.n); f++) {
       if (F.life[f] <= 0) {
-        if (fsa[f] !== 0) fsa[f] = 0;
+        if (fsa[f] !== 0) {
+          fsa[f] = 0;
+          fireDirty = true;
+        }
         continue;
       }
+      fireDirty = true;
       F.life[f] -= dt;
       if (F.life[f] <= 0) {
         fsa[f] = 0;
@@ -2026,10 +2042,12 @@ export function stepFX(dt) {
       fha[f] = Math.max(0.05, F.heat0[f] * fk);
       faa[f] = Math.min(1, (1 - fk) * 5) * Math.min(1, fk * 3.2);
     }
-    F.geo.attributes.iPos.needsUpdate = true;
-    F.geo.attributes.iSize.needsUpdate = true;
-    F.geo.attributes.iHeat.needsUpdate = true;
-    F.geo.attributes.iAlpha.needsUpdate = true;
+    if (fireDirty) {
+      F.geo.attributes.iPos.needsUpdate = true;
+      F.geo.attributes.iSize.needsUpdate = true;
+      F.geo.attributes.iHeat.needsUpdate = true;
+      F.geo.attributes.iAlpha.needsUpdate = true;
+    }
   }
   stepGibs(dt);
   var T = Z.tracers;
@@ -2049,23 +2067,31 @@ export function stepFX(dt) {
   // dust drifts and follows the player so the beam always has motes in it
   var M = Z.motes;
   if (M) {
-    M.phase += dt * 0.35;
-    var ma = M.geo.attributes.position.array,
-      px = Z.p.x,
-      pz = Z.p.z;
-    for (var q = 0; q < (M.activeN || M.n); q++) {
-      ma[q * 3 + 1] += Math.sin(M.phase + q) * 0.22;
-      ma[q * 3] += Math.cos(M.phase * 0.7 + q * 0.3) * 0.16;
-      var dx = ma[q * 3] - px,
-        dz = ma[q * 3 + 2] - pz;
-      if (dx > 620) ma[q * 3] -= 1240;
-      else if (dx < -620) ma[q * 3] += 1240;
-      if (dz > 620) ma[q * 3 + 2] -= 1240;
-      else if (dz < -620) ma[q * 3 + 2] += 1240;
-      if (ma[q * 3 + 1] > 265) ma[q * 3 + 1] = 4;
-      else if (ma[q * 3 + 1] < 2) ma[q * 3 + 1] = 262;
+    M.updateT = (M.updateT || 0) + dt;
+    // Dust moves slowly. Updating and uploading its buffer at 20 Hz is smooth
+    // in a flashlight beam and much kinder to mobile unified-memory GPUs.
+    if (M.updateT >= 0.05) {
+      var moteDt = M.updateT;
+      M.updateT = 0;
+      M.phase += moteDt * 0.35;
+      var ma = M.geo.attributes.position.array,
+        px = Z.p.x,
+        pz = Z.p.z,
+        moteScale = moteDt * 60;
+      for (var q = 0; q < (M.activeN || M.n); q++) {
+        ma[q * 3 + 1] += Math.sin(M.phase + q) * 0.22 * moteScale;
+        ma[q * 3] += Math.cos(M.phase * 0.7 + q * 0.3) * 0.16 * moteScale;
+        var dx = ma[q * 3] - px,
+          dz = ma[q * 3 + 2] - pz;
+        if (dx > 620) ma[q * 3] -= 1240;
+        else if (dx < -620) ma[q * 3] += 1240;
+        if (dz > 620) ma[q * 3 + 2] -= 1240;
+        else if (dz < -620) ma[q * 3 + 2] += 1240;
+        if (ma[q * 3 + 1] > 265) ma[q * 3 + 1] = 4;
+        else if (ma[q * 3 + 1] < 2) ma[q * 3 + 1] = 262;
+      }
+      M.geo.attributes.position.needsUpdate = true;
     }
-    M.geo.attributes.position.needsUpdate = true;
   }
   Z.shake = Math.max(0, Z.shake - dt * 2.6);
   Z.shakeV.x = (rnd() - 0.5) * Z.shake * 0.045;
@@ -2620,6 +2646,11 @@ export function prewarmRigs() {
     mats.forEach(function (m) {
       if (!keep.has(m)) m.dispose();
     });
+    // Batching creates a few per-rig merged geometries. The warm-up rig never
+    // enters the scene, so it has no normal removeZed/clearWorld disposal path.
+    rig.root.traverse(function (o) {
+      if (o.isMesh && ownsGeo(o.geometry)) o.geometry.dispose();
+    });
   }
   function next() {
     // A restart or exit invalidates both the old cache and this work queue.
@@ -2645,6 +2676,77 @@ export function clearZedGeoCache() {
 // false for cache-shared body parts, which only clearZedGeoCache() frees
 export function ownsGeo(geo) {
   return !!(geo && !(geo.userData && geo.userData.shared));
+}
+
+/* A procedural zombie is visually detailed but most of that detail is rigid
+   inside one articulated joint. Submitting every cheek, toe, tooth and torso
+   accent separately made a small horde cost hundreds of draw calls on every
+   frame (and again in the flashlight shadow pass). Merge only direct siblings
+   that have the same material/hit region/render state; joint animation,
+   dismemberment, materials and the final pixels stay the same. Clothing stays
+   separate because each shell has its own secondary-motion transform. */
+function batchZombieRig(rig) {
+  if (!rig || !rig.root) return;
+  var protectedMeshes = new Set();
+  (rig.eyes || []).forEach(function (m) { if (m) protectedMeshes.add(m); });
+  [rig.buttL, rig.buttR].forEach(function (m) { if (m) protectedMeshes.add(m); });
+  if (rig.clothes && rig.clothes.meshes)
+    rig.clothes.meshes.forEach(function (m) { if (m) protectedMeshes.add(m); });
+
+  var before = 0,
+    after = 0,
+    groups = [];
+  rig.root.traverse(function (o) {
+    if (o.isMesh) before++;
+    else if (o.children && o.children.length) groups.push(o);
+  });
+  groups.forEach(function (parent) {
+    var buckets = {};
+    parent.children.slice().forEach(function (m) {
+      if (
+        !m.isMesh ||
+        m.children.length ||
+        !m.geometry ||
+        !m.material ||
+        Array.isArray(m.material) ||
+        protectedMeshes.has(m) ||
+        m.userData.cloth ||
+        !m.visible
+      ) return;
+      var key = [
+        m.material.uuid,
+        m.userData.part || "",
+        m.castShadow ? 1 : 0,
+        m.receiveShadow ? 1 : 0,
+        m.renderOrder || 0,
+      ].join("|");
+      (buckets[key] || (buckets[key] = [])).push(m);
+    });
+    Object.keys(buckets).forEach(function (key) {
+      var meshes = buckets[key];
+      if (meshes.length < 2) return;
+      var copies = meshes.map(function (m) {
+        m.updateMatrix();
+        var geo = m.geometry.clone();
+        geo.applyMatrix4(m.matrix);
+        return geo;
+      });
+      var mergedGeo = mergeGeometries(copies, false);
+      copies.forEach(function (geo) { geo.dispose(); });
+      if (!mergedGeo) return;
+      var first = meshes[0],
+        merged = new THREE.Mesh(mergedGeo, first.material);
+      merged.castShadow = first.castShadow;
+      merged.receiveShadow = first.receiveShadow;
+      merged.renderOrder = first.renderOrder;
+      merged.userData.part = first.userData.part;
+      merged.userData.zedBatch = true;
+      meshes.forEach(function (m) { parent.remove(m); });
+      parent.add(merged);
+    });
+  });
+  rig.root.traverse(function (o) { if (o.isMesh) after++; });
+  rig.batchStats = { before: before, after: after };
 }
 
 export function bx(parent, w, h, d, x, y, z, mat, part) {
@@ -3301,7 +3403,7 @@ export function buildZombie(type) {
   // fewer sirens; still a light distraction pull
   var siren = !!(female && usePretty && type !== "brute" && rnd() < 0.28);
 
-  return {
+  var rig = {
     root: root,
     body: body,
     torso: torso,
@@ -3333,6 +3435,8 @@ export function buildZombie(type) {
     siren: siren,
     distract: female && usePretty ? rr(0.35, 0.7) : female ? 0.25 : 0.12,
   };
+  batchZombieRig(rig);
+  return rig;
 }
 
 export function spawnZed(type, x, z) {
@@ -4647,6 +4751,7 @@ export function screamerCall(zd) {
   });
   hooks.say && hooks.say(t("z_screamer"), 1.6);
   hooks.flashScreen && hooks.flashScreen("#7a0d18", 0.35);
+  hooks.onScreamerCall && hooks.onScreamerCall(zd);
 }
 
 // gunfire draws everything nearby

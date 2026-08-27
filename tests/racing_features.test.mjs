@@ -18,7 +18,10 @@ const readRC = async () =>
 const readDrive = async () =>
   (
     await Promise.all(
-      ["drive", "drive_modes", "drive_state", "drive_mp", "drive_world"].map((n) =>
+      [
+        "drive", "drive_modes", "drive_state", "drive_mp", "drive_world",
+        "drive_camera", "drive_peds", "drive_traffic", "drive_sky", "drive_ai",
+      ].map((n) =>
         read("js/" + n + ".js"),
       ),
     )
@@ -70,6 +73,300 @@ test("online map races share one scheduled start", async () => {
   assert.match(race, /race_go[\s\S]*startAt/);
   assert.match(race, /Date\.now\(\) \+ 5000/);
   assert.match(drive, /mp && mp\.startAt \? mp\.startAt - Date\.now\(\)/);
+});
+
+test("map race builder previews and races the same snapped road course", async () => {
+  const [race, world, drive, route] = await Promise.all([
+    read("js/race.js"), read("js/drive_world.js"), read("js/drive.js"), read("js/road_route.js"),
+  ]);
+  assert.match(race, /fetchRoadRoute\(picked/);
+  assert.match(race, /routed\.points\.map/);
+  assert.match(race, /picked\[i\]\.marker\.setLatLng/);
+  assert.match(race, /initial \|\| \[\]/);
+  assert.match(race, /points\.splice\(0, points\.length, \.\.\.pts\)/);
+  assert.match(route, /payload\.waypoints/);
+  assert.match(world, /export async function fetchRouteData/);
+  assert.match(drive, /route\.waypoints\.slice\(1\)/);
+  assert.match(drive, /cp\.mesh\.position\.x = wp\.x/);
+});
+
+test("crazy taxi pays for the driving, not just the delivery", async () => {
+  const [drive, i18n] = await Promise.all([readDrive(), read("js/i18n.js")]);
+  // fare variety with its own pace + payout, and a delivery that buys time back
+  assert.match(drive, /export const FARE_KINDS/);
+  assert.match(drive, /D\.ses\.endAt \+= bonusS \* 1000/);
+  // combo ladder, capped, reset when a passenger bails
+  assert.match(drive, /export function comboMult/);
+  assert.match(drive, /Math\.min\(3, 1 \+ 0\.25/);
+  assert.match(drive, /D\.ses\.combo = 0;[\s\S]*tx_missed/);
+  // stunt cash off near misses and held drifts
+  assert.match(drive, /export function taxiStunts/);
+  assert.match(drive, /nearMissAt/);
+  assert.match(drive, /tx_drift/);
+  // fares are snapped onto the routable street, not left in a back garden
+  assert.match(drive, /const snapped = r\.waypoints && r\.waypoints\[1\]/);
+  // a session ends with a rating and a saved personal best for the area
+  assert.match(drive, /export function taxiGrade/);
+  assert.match(drive, /home3d_taxi_best_/);
+  assert.match(i18n, /tx_grade: "Rating"/);
+  assert.match(i18n, /tx_grade: "דירוג"/);
+});
+
+test("taxi results rank every online player by cash", async () => {
+  const drive = await readDrive();
+  assert.match(drive, /export function renderTaxiResults/);
+  assert.match(drive, /D\.ses\.board\[b\]\.cash \|\| 0\) - \(D\.ses\.board\[a\]\.cash/);
+  // an untrusted peer name never reaches the card as markup
+  assert.match(drive, /escapeHTML\(D\.ses\.board\[c\]\.name\)/);
+  // a peer finishing after you refreshes the card without losing your numbers
+  assert.match(drive, /if \(best == null\) best = D\.ses\.bestCash/);
+});
+
+test("driving to a friend navigates: routed ETA, snapped door, re-routing", async () => {
+  const [drive, i18n] = await Promise.all([readDrive(), read("js/i18n.js")]);
+  assert.match(drive, /export function routeProgress/);
+  assert.match(drive, /t\("dr_eta", \{ min: mins \}\)/);
+  // the beacon moves to the kerb OSRM snapped to, so "arrived" fires on a road
+  assert.match(drive, /D\.ses\.dest = \{ x: drop\.x, z: drop\.z \}/);
+  // strayed off the guide → one fresh route, rate limited
+  assert.match(drive, /p\.off > 70/);
+  assert.match(drive, /dr_reroute/);
+  assert.match(drive, /now - \(D\.ses\.rerouteAt \|\| 0\) > 12000/);
+  assert.match(i18n, /dr_reroute: "Off route/);
+});
+
+test("online drives share one coordinate frame and clean up peers", async () => {
+  const drive = await readDrive();
+  // poses travel as lat/lon: a free cruise anchors each client at its own home
+  assert.match(drive, /la: Math\.round\(ll\.lat \* 1e6\)/);
+  assert.match(drive, /data\.la != null \? llToM\(data\.la, data\.lo\)/);
+  assert.match(drive, /def: \{ id: "cruise" \}/);
+  // a peer who quits stops being a car parked in the road forever
+  assert.match(drive, /GHOST_TIMEOUT/);
+  assert.match(drive, /export function dropGhost/);
+  assert.match(drive, /net\.on\("peer-leave"/);
+});
+
+test("multiplayer standings ride the pose packet already being sent", async () => {
+  const [drive, css] = await Promise.all([readDrive(), read("css/styles.css")]);
+  assert.match(drive, /export function boardTick/);
+  // progress fields on the same 11 Hz car packet — no extra traffic
+  assert.match(drive, /p: D\.ses\.cpIndex \|\| 0/);
+  assert.match(drive, /\$: D\.ses\.cash \|\| 0/);
+  // peer names are relay input: rows are built as text nodes, never innerHTML
+  assert.match(drive, /nm\.textContent = r\.name/);
+  assert.doesNotMatch(drive, /driveBoard[\s\S]{0,400}innerHTML/);
+  assert.match(css, /#driveBoard/);
+  assert.match(css, /\.dr-bd-row\.me/);
+});
+
+test("the drive camera has four rigs and a director that cuts between shots", async () => {
+  const [drive, css, i18n] = await Promise.all([
+    readDrive(), read("css/styles.css"), read("js/i18n.js"),
+  ]);
+  assert.match(drive, /export const CAM_MODES = \["chase", "hood", "bumper", "cinema"\]/);
+  assert.match(drive, /e\.code === "KeyC"/);
+  // the director owns a shot list and re-frames when a shot goes stale
+  assert.match(drive, /const SHOTS = \["orbit", "crane", "dolly", "flyby", "hero"\]/);
+  assert.match(drive, /function shotStale/);
+  // a cut snaps the camera instead of gliding across town
+  assert.match(drive, /D\.camPos = null; \/\/ a cut is a cut/);
+  // never set up a shot inside a wall
+  assert.match(drive, /if \(!insideBuilding\(spot\.x, spot\.z\)\) break/);
+  // scripted beats: the countdown and the results card
+  assert.match(drive, /cinemaFor\(Math\.max\(0, D\.ses\.countdownEnd - performance\.now\(\)\) \+ 400, "crane"\)/);
+  assert.match(drive, /cinemaFor\(90000, "orbit"\)/);
+  // letterbox + grade, and the dashboard steps out of the shot
+  assert.match(css, /#drive-overlay\.dr-cine #driveGrade::before/);
+  assert.match(css, /#drive-overlay\.dr-cine #driveHud/);
+  assert.match(i18n, /dr_cam_cinema: "🎬 Cinematic camera"/);
+  assert.match(i18n, /dr_cam_cinema: "🎬 מצלמה קולנועית"/);
+});
+
+test("pedestrians walk the pavement, dodge cars, and get back up", async () => {
+  const [peds, drive] = await Promise.all([read("js/drive_peds.js"), readDrive()]);
+  // crowd size follows street LENGTH — an OSM straight is two points
+  assert.match(peds, /lineLength\(rpts\) \/ 110/);
+  assert.match(peds, /function walkable/);
+  // a car bearing down makes them run for the far kerb, not down the road
+  assert.match(peds, /function startle/);
+  assert.match(peds, /closing > 3/);
+  // knocked down, then up again — there is no other outcome modelled
+  assert.match(peds, /p\.state = "down"/);
+  assert.match(peds, /p\.state = "walk";\n        p\.g\.rotation\.x = 0/);
+  // live coords, not the parked vehicle's stale x/z
+  assert.match(peds, /car\.vx, car\.vz/);
+  // they are deliberately not shootable
+  assert.doesNotMatch(peds, /weaponTargets|kind: "ped"/);
+  // and they tick from the frame loop
+  assert.match(drive, /pedsTick\(dt, tNow\)/);
+});
+
+test("street dressing is a live budget, not a first-chunk lottery", async () => {
+  const drive = await readDrive();
+  assert.match(drive, /export function dressWay/);
+  assert.match(drive, /hooks\.dressWay\(rpts, wid, w\.id\)/);
+  // lamps and trees are recycled once they fall behind
+  assert.match(drive, /function pruneProps/);
+  assert.match(drive, /PROP_KEEP/);
+  // five pooled lights hop to the nearest lamps instead of one light per lamp
+  assert.match(drive, /const LAMP_LIGHTS = 5/);
+  assert.match(drive, /5\.5 \* CD_M/); // metre-scale candela, not the cm constant
+  assert.match(drive, /export function syncLamps/);
+});
+
+test("a time-of-day switch never destroys an environment still in flight", async () => {
+  const sky = await read("js/drive_sky.js");
+  // disposing the outgoing PMREM target in the same tick froze WebGPU solid
+  assert.match(sky, /envRetire\.push\(\{ rt: D\.envRT, at: performance\.now\(\), frame/);
+  assert.match(sky, /export function envRetireTick/);
+  assert.match(sky, /envRetireTick\(performance\.now\(\)\)/);
+  assert.doesNotMatch(sky, /if \(D\.envRT\) D\.envRT\.dispose\(\);/);
+});
+
+test("traffic drives the streamed network instead of parking on it", async () => {
+  const [drive, ai] = await Promise.all([readDrive(), read("js/drive_ai.js")]);
+  // a lane on the right of the centreline, and a way handed on at its end
+  assert.match(ai, /function lanePoint/);
+  assert.match(ai, /function nextLeg/);
+  assert.match(ai, /JOIN_R/);
+  // a PARKED car at the kerb must not stop the whole street
+  assert.match(ai, /side < \(o\.ai \? 2\.4 : 1\.5\)/);
+  // brake for the player and for people in the road
+  assert.match(ai, /if \(!player\.onFoot\)[\s\S]{0,200}return ahead/);
+  assert.match(ai, /for \(const p of D\.peds\)/);
+  // dense OSM vertices are consumed in one tick, and deadlocks time out
+  assert.match(ai, /for \(let guard = 0; guard < 8 && d < 4\.5/);
+  assert.match(ai, /a\.stuck > 5/);
+  // parked cars and traffic hold separate budgets, and AI runs its lights
+  assert.match(drive, /if \(!v\.ai\) parked\+\+/);
+  assert.match(drive, /\|\| !!v\.ai\) && !v\.wrecked/);
+  assert.match(drive, /trafficTick\(dt, tNow\)/);
+  // walkers now fear any moving car, not just the player's
+  assert.match(drive, /function threats\(\)/);
+  assert.match(drive, /if \(!v\.ai \|\| v\.wrecked \|\| v\.ai\.speed < 3\) continue/);
+});
+
+test("drive mode is playable without a keyboard", async () => {
+  const [drive, css, i18n] = await Promise.all([
+    readDrive(), read("css/styles.css"), read("js/i18n.js"),
+  ]);
+  // analog axes sit alongside the boolean keys, never replacing them
+  assert.match(drive, /axis: \{ steer: 0, throttle: 0, brake: 0 \}/);
+  assert.match(drive, /const gas = Math\.max\(D\.keys\.up \? 1 : 0, D\.axis\.throttle\)/);
+  // gamepad: sticks, triggers, edge-triggered face buttons
+  assert.match(drive, /navigator\.getGamepads/);
+  assert.match(drive, /const PAD_BTN = /);
+  assert.match(drive, /D\.padWas/);
+  // on-screen pad, mounted only where the pointer is coarse
+  assert.match(drive, /export function touchWanted/);
+  assert.match(drive, /pointer: coarse/);
+  assert.match(drive, /id = "driveTouch"/);
+  assert.match(css, /#driveTouch button/);
+  // the dashboard moves clear of the pad and the keyboard hint goes away
+  assert.match(css, /#drive-overlay\.has-touch #driveHint \{ display: none; \}/);
+  assert.match(i18n, /dr_t_gas: "Accelerate"/);
+  assert.match(i18n, /dr_t_gas: "האצה"/);
+});
+
+test("a failed chunk is retried, cached and prefetched", async () => {
+  const [world, state] = await Promise.all([
+    read("js/drive_world.js"), read("js/drive_state.js"),
+  ]);
+  // the bug: a rate-limited reply is valid JSON with no elements
+  assert.match(state, /export const bldChunks = new Map\(\)/);
+  assert.match(world, /if \(!j \|\| !Array\.isArray\(j\.elements\)\) return fail\(\)/);
+  assert.match(world, /state: "failed"/);
+  assert.match(world, /CHUNK_BACKOFF_MAX/);
+  // cached in IndexedDB, so a second drive costs no network at all
+  assert.match(world, /createObjectStore\("chunk"\)/);
+  assert.match(world, /export function chunkGet/);
+  assert.match(world, /chunkPut\(key, j\.elements\)/);
+  // and the streamer looks where the car is going, not only where it is
+  assert.match(world, /if \(sp > 6\)/);
+  assert.match(world, /CHUNK_INFLIGHT/);
+});
+
+test("a city block is a handful of draw calls, not a thousand", async () => {
+  const world = await read("js/drive_world.js");
+  // tint rides in vertex colours so one material covers a whole facade style
+  assert.match(world, /export function facadeBatchMaterial/);
+  assert.match(world, /vertexColors: true/);
+  assert.match(world, /function paintGeometry/);
+  assert.match(world, /mergeGeometries/);
+  assert.match(world, /export function flushBuildingBatch/);
+  // roofs bake their height in: a merged mesh has no per-roof transform
+  assert.match(world, /roofGeo\.translate\(0, base \+ hEff, 0\)/);
+  // a Street View photo still takes one building out of the batch
+  assert.match(world, /export function hideFromBatch/);
+  assert.match(world, /rec\.mesh = new THREE\.Mesh\(geo, mat\)/);
+});
+
+test("night bleeds through a real bloom pass, not just sprites", async () => {
+  const drive = await readDrive();
+  assert.match(drive, /from "three\/tsl"/);
+  assert.match(drive, /boxBlur/);
+  assert.match(drive, /luminance\(color\.rgb\)/);
+  assert.match(drive, /export function syncBloom/);
+  // night drops the threshold and lifts the bleed
+  assert.match(drive, /D\.bloomCut\.value = night \? 0\.42 : 0\.78/);
+  // any backend that will not build the graph keeps rendering directly
+  assert.match(drive, /D\.postFailed = true/);
+  assert.match(drive, /else gpuRender\(D\.renderer, D\.scene, D\.camera\)/);
+});
+
+test("an impossible finish time is flagged rather than believed", async () => {
+  const [drive, i18n] = await Promise.all([readDrive(), read("js/i18n.js")]);
+  assert.match(drive, /export function finishSuspect/);
+  // faster than the countdown, faster than the car, or never seen at the gate
+  assert.match(drive, /if \(ms > now - D\.ses\.t0 \+ 2500\) return true/);
+  assert.match(drive, /courseMeters\(D\.ses\.def\.points\) \/ 62/);
+  assert.match(drive, /\(seen\.cp \|\| 0\) < need/);
+  // shown, sorted last, and labelled — not silently dropped
+  assert.match(drive, /dr-res-suspect/);
+  assert.match(drive, /mr_unverified/);
+  assert.match(i18n, /mr_unverified: "unverified time"/);
+});
+
+test("the sky is painted, because raw GLSL does not survive WebGPU", async () => {
+  const [sky, drive, traffic] = await Promise.all([
+    read("js/drive_sky.js"), read("js/drive.js"), read("js/drive_traffic.js"),
+  ]);
+  // no hand-written shader anywhere in the drive scene: the WebGPU node builder
+  // rejects ShaderMaterial and the sky lost its sun, clouds and stars to it
+  assert.doesNotMatch(sky, /new THREE\.ShaderMaterial/);
+  assert.doesNotMatch(traffic, /new THREE\.ShaderMaterial/);
+  assert.doesNotMatch(sky, /gl_FragColor/);
+  assert.doesNotMatch(traffic, /gl_FragColor/);
+  assert.doesNotMatch(drive, /skyUni/);
+  // an equirect canvas painted once per preset, not an fbm per pixel per frame
+  assert.match(sky, /export function paintSky/);
+  assert.match(sky, /function paintClouds/);
+  assert.match(sky, /gradient, sun, stars and clouds are all baked per preset/);
+  // sun placed to match three's sphere UVs, drawn across the seam
+  assert.match(sky, /function sunUV/);
+  assert.match(sky, /Math\.atan2\(d\.z, -d\.x\)/);
+  assert.match(sky, /for \(let k = -1; k <= 1; k\+\+\)/);
+  // clouds drift by turning their own sphere
+  assert.match(sky, /D\.skyClouds\.rotation\.y \+= dt/);
+  // and the reflection env prefilters the SAME painted sky
+  assert.match(sky, /D\.envTex = new THREE\.CanvasTexture\(D\.skyCanvas\)/);
+  assert.match(sky, /EquirectangularReflectionMapping/);
+});
+
+test("tyre marks fade through a node material", async () => {
+  const traffic = await read("js/drive_traffic.js");
+  assert.match(traffic, /MeshBasicNodeMaterial/);
+  assert.match(traffic, /attribute\("aBirth", "float"\)/);
+  assert.match(traffic, /skidMat\.opacityNode = clamp/);
+  assert.match(traffic, /uniform\(0\), uLife: uniform\(SKID_LIFE\)/);
+});
+
+test("a retired environment map waits for the frames that used it", async () => {
+  const [sky, drive] = await Promise.all([read("js/drive_sky.js"), read("js/drive.js")]);
+  assert.match(sky, /ENV_RETIRE_FRAMES/);
+  assert.match(sky, /\(D\.frameNo \|\| 0\) - envRetire\[0\]\.frame > ENV_RETIRE_FRAMES/);
+  assert.match(drive, /D\.frameNo = \(D\.frameNo \|\| 0\) \+ 1/);
 });
 
 test("miniature RC supports touch and analog gamepad driving", async () => {
