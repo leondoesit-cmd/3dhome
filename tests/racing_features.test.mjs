@@ -1,3 +1,4 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -60,7 +61,7 @@ const importEditorGeom = async () => {
 
 test("map racing and miniature RC use independent UI copy", async () => {
   const [race, drive, i18n] = await Promise.all([
-    read("js/race.js"), readDrive(), read("js/i18n.js"),
+    read("js/race.js"), readDrive(), readI18nSource(),
   ]);
   assert.match(race, /t\("mr_title"\)/);
   assert.match(drive, /t\("mr_leaderboard"\)/);
@@ -91,7 +92,7 @@ test("map race builder previews and races the same snapped road course", async (
 });
 
 test("crazy taxi pays for the driving, not just the delivery", async () => {
-  const [drive, i18n] = await Promise.all([readDrive(), read("js/i18n.js")]);
+  const [drive, i18n] = await Promise.all([readDrive(), readI18nSource()]);
   // fare variety with its own pace + payout, and a delivery that buys time back
   assert.match(drive, /export const FARE_KINDS/);
   assert.match(drive, /D\.ses\.endAt \+= bonusS \* 1000/);
@@ -123,7 +124,7 @@ test("taxi results rank every online player by cash", async () => {
 });
 
 test("driving to a friend navigates: routed ETA, snapped door, re-routing", async () => {
-  const [drive, i18n] = await Promise.all([readDrive(), read("js/i18n.js")]);
+  const [drive, i18n] = await Promise.all([readDrive(), readI18nSource()]);
   assert.match(drive, /export function routeProgress/);
   assert.match(drive, /t\("dr_eta", \{ min: mins \}\)/);
   // the beacon moves to the kerb OSRM snapped to, so "arrived" fires on a road
@@ -162,7 +163,7 @@ test("multiplayer standings ride the pose packet already being sent", async () =
 
 test("the drive camera has four rigs and a director that cuts between shots", async () => {
   const [drive, css, i18n] = await Promise.all([
-    readDrive(), read("css/styles.css"), read("js/i18n.js"),
+    readDrive(), read("css/styles.css"), readI18nSource(),
   ]);
   assert.match(drive, /export const CAM_MODES = \["chase", "hood", "bumper", "cinema"\]/);
   assert.match(drive, /e\.code === "KeyC"/);
@@ -249,7 +250,7 @@ test("traffic drives the streamed network instead of parking on it", async () =>
 
 test("drive mode is playable without a keyboard", async () => {
   const [drive, css, i18n] = await Promise.all([
-    readDrive(), read("css/styles.css"), read("js/i18n.js"),
+    readDrive(), read("css/styles.css"), readI18nSource(),
   ]);
   // analog axes sit alongside the boolean keys, never replacing them
   assert.match(drive, /axis: \{ steer: 0, throttle: 0, brake: 0 \}/);
@@ -316,7 +317,7 @@ test("night bleeds through a real bloom pass, not just sprites", async () => {
 });
 
 test("an impossible finish time is flagged rather than believed", async () => {
-  const [drive, i18n] = await Promise.all([readDrive(), read("js/i18n.js")]);
+  const [drive, i18n] = await Promise.all([readDrive(), readI18nSource()]);
   assert.match(drive, /export function finishSuspect/);
   // faster than the countdown, faster than the car, or never seen at the gate
   assert.match(drive, /if \(ms > now - D\.ses\.t0 \+ 2500\) return true/);
@@ -1218,7 +1219,7 @@ test("RC race craft drafts, passes, looks back and shows live rival gaps", async
   const [rc, css, i18n] = await Promise.all([
     readRC(),
     read("css/styles.css"),
-    read("js/i18n.js"),
+    readI18nSource(),
   ]);
   // Sitting in a rival's wake is extra top speed, not just a visual.
   assert.match(rc, /DRAFT_MULT = 0\.14/);
@@ -1292,7 +1293,7 @@ test("the results camera never outlives the results screen", async () => {
 });
 
 test("room requirements and the RC race no longer share one i18n key", async () => {
-  const [i18n, html] = await Promise.all([read("js/i18n.js"), read("index.html")]);
+  const [i18n, html] = await Promise.all([readI18nSource(), read("index.html")]);
   // rc_title was defined twice per locale; the second definition ("RC Truck
   // Race") won, so the planner's constraints panel announced itself as a race.
   assert.match(i18n, /rcon_title: "דרישות חדר"/);
@@ -1321,7 +1322,7 @@ test("rival gaps stay readable when the player is stationary", async () => {
 });
 
 test("a race the player cannot finish still offers an ending", async () => {
-  const [rc, i18n] = await Promise.all([readRC(), read("js/i18n.js")]);
+  const [rc, i18n] = await Promise.all([readRC(), readI18nSource()]);
   // Only the player crossing the line armed the finish grace: if every rival
   // was home and the player was stuck, the race could never end.
   assert.match(rc, /rc_field_done/);
@@ -1331,7 +1332,7 @@ test("a race the player cannot finish still offers an ending", async () => {
 });
 
 test("a wedged truck is told about the rescue key", async () => {
-  const [rc, i18n] = await Promise.all([readRC(), read("js/i18n.js")]);
+  const [rc, i18n] = await Promise.all([readRC(), readI18nSource()]);
   assert.match(rc, /function updateStuckHint\(pc, input, now\)/);
   assert.match(rc, /updateStuckHint\(pc, pInput, now\);/);
   assert.match(i18n, /rc_stuck: "🔧 תקוע\? הקש R לחילוץ"/);
@@ -1340,7 +1341,7 @@ test("a wedged truck is told about the rescue key", async () => {
 
 test("RC mode has a top-level keyboard shortcut like walk and photo", async () => {
   const [ui, html, i18n] = await Promise.all([
-    read("js/ui.js"), read("index.html"), read("js/i18n.js"),
+    read("js/ui.js"), read("index.html"), readI18nSource(),
   ]);
   assert.match(ui, /e\.key === "c" \|\| e\.key === "C"[\s\S]*?runAction\("rc"\)/);
   assert.match(ui, /\["C", "k_rc"\]/);

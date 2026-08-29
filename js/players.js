@@ -5,7 +5,7 @@
 // like the local walk avatar in view3d.js. Movement is smoothed here with a
 // short lerp toward the last received pose (poses arrive at ~12 Hz), and each
 // smoothing step calls requestRender() so the on-demand render loop paints.
-import * as THREE from "three";
+import { THREE } from "./three_lazy.js";
 import { S } from "./state.js";
 import { getMainScene, requestRender } from "./view3d.js";
 import { HumanFactory } from "./human.js";

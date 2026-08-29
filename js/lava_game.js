@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { S, clamp, fin } from "./state.js";
 import {
   has3D,
+  init3D,
   getMainScene,
   getMainCamera,
   setExternalTick,
@@ -1136,7 +1137,15 @@ function clearWorld() {
 export { lavaActive };
 
 export function toggleLava(on) {
-  if (!has3D) return false;
+  /* The Floor is Lava is played inside the planner's own 3D scene, and three is
+     late-bound now (js/three_lazy.js): a phone session that started on the
+     plan has no renderer yet. Build one and come back, rather than
+     refusing to start. `false` here means "not running yet", which is what
+     the caller already reads it as. */
+  if (!has3D()) {
+    init3D().then(function (ok) { if (ok) toggleLava(on); });
+    return false;
+  }
   var want = on == null ? !L.active : !!on;
   if (want === L.active) return L.active;
   var scene = getMainScene(),

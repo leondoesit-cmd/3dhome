@@ -427,6 +427,53 @@ test("model editor @ 375px: welcome primary is Touch CAD then Open editor", opts
   }
 });
 
+/* The compact welcome layout borrows the guides heading and the guides grid
+   into a <details> it builds. It used to drop that wrapper with them still
+   inside, so the first open in a wider window silently lost every guided track
+   and the one after that threw on a grid that no longer existed — taking the
+   editor down on the way in. */
+test("the welcome guides survive a compact layout being torn down", opts, async () => {
+  const page = await ctx({ width: 375, height: 812 });
+  const reopenWelcome = async () => {
+    await page.eval(() => { window.confirm = () => true; document.getElementById("mdClose")?.click(); });
+    await page.eval(() => new Promise((r) => setTimeout(r, 400)));
+    await page.eval(() => { document.getElementById("openModelerTop").click(); });
+    await page.eval(() => new Promise((r) => setTimeout(r, 500)));
+  };
+  const cards = () => page.eval(() => ({
+    guides: !!document.querySelector("#mdWelcomeGuides"),
+    guideTiles: document.querySelectorAll("#mdWelcomeGuides [data-welcome-guide]").length,
+    startTiles: document.querySelectorAll("#mdWelcomeStart [data-welcome-start]").length,
+  }));
+
+  await page.eval(() => { document.getElementById("openModelerTop").click(); });
+  await page.eval(() => new Promise((r) => setTimeout(r, 500)));
+  const compact = await cards();
+  assert.equal(compact.guides, true, "the guides grid is present on a phone");
+  assert.ok(compact.guideTiles > 0, "and it has guided tracks in it");
+
+  // widen to desktop and come back in: this is the transition that lost them
+  await page.eval(() => { document.querySelector(".md-welcome-close")?.click(); });
+  await page.eval(() => new Promise((r) => setTimeout(r, 250)));
+  await shared.resize(1280, 800, { mobile: false, touch: false });
+  await page.eval(() => new Promise((r) => setTimeout(r, 400)));
+  await reopenWelcome();
+  const wide = await cards();
+  assert.equal(wide.guides, true, "the guides grid survived the wrapper being removed");
+  assert.ok(wide.guideTiles > 0, "with its guided tracks intact");
+  assert.ok(wide.startTiles >= 3, "and the full start list is back on desktop");
+
+  // and once more, which is where it used to throw
+  await reopenWelcome();
+  const again = await cards();
+  assert.equal(again.guides, true);
+  assert.ok(again.guideTiles > 0);
+  const fatal = page.consoleErrors.filter((error) => !NO_GL.test(error));
+  assert.deepEqual(fatal, [], "opening the editor threw");
+  // hand the shared page back as a phone, which is what every case here expects
+  await shared.resize(375, 812, { mobile: true, touch: true });
+});
+
 test("mobile Add sheet launches an interactive editor without inerting unknown integrations", opts, async () => {
   const page = await freshCtx({ width: 390, height: 844 });
   {

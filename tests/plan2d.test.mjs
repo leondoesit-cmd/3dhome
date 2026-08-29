@@ -1,6 +1,8 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { stripComments } from "./source.mjs";
 import { S } from "../js/state.js";
 import { detectRooms, roomsTopologyKey } from "../js/geometry.js";
 import {
@@ -21,7 +23,7 @@ const mainSource = await readFile(new URL("../js/main.js", import.meta.url), "ut
 const elevSource = await readFile(new URL("../js/elevation.js", import.meta.url), "utf8");
 const interactionSource = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
 const cssSource = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
-const i18nSource = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
+const i18nSource = await readI18nSource();
 
 function resetView() {
   S.nodes = [];
@@ -37,8 +39,11 @@ function resetView() {
 }
 
 test("a hidden pane does not wipe the live canvas size", () => {
-  assert.match(planSource, /if \(!\(W > 0\) \|\| !\(H > 0\)\) return/);
-  assert.match(planSource, /Keep the last live size/);
+  const sizing = stripComments(planSource).slice(planSource.indexOf("export function sizeCanvas"));
+  assert.match(sizing, /if \(!\(W > 0\) \|\| !\(H > 0\)\) return/);
+  // the guard is only worth anything ahead of the write it protects
+  assert.ok(sizing.indexOf("(H > 0)) return") < sizing.indexOf("S.CW = W"),
+    "a 0x0 pane returns before the live size is overwritten");
 });
 
 test("render2D refuses to grid-loop when the view transform is unusable", () => {
@@ -48,7 +53,9 @@ test("render2D refuses to grid-loop when the view transform is unusable", () => 
 });
 
 test("site underlay is clipped in screen space before the plan rotation", () => {
-  assert.match(planSource, /Clip in identity \(screen\) space BEFORE the plan rotation/);
+  const drawing = stripComments(planSource).slice(planSource.indexOf("export function render2D"));
+  assert.ok(drawing.indexOf("pc.clip()") < drawing.indexOf("pushPlan()"),
+    "the clip is taken in screen space, before the plan rotation");
   const underlay = planSource.slice(
     planSource.indexOf("function drawSiteUnderlay"),
     planSource.indexOf("export function render2D"),

@@ -158,6 +158,7 @@ import { normalizeWallKind, normalizeWallProfile, setWallKind } from "./wall_cur
 import { wallSchedule, wallScheduleCSV } from "./wall_schedule.js";
 import { wallFramingTakeoff } from "./wall_framing.js";
 import { convertCadToWalls } from "./cad_to_walls.js";
+import { convertGeoJsonToWalls } from "./geojson_to_walls.js";
 import { normalizeBlueprintReference, syncBlueprintTraceControls } from "./blueprint_trace.js";
 import { windowChromePosture } from "./chrome_posture.js";
 
@@ -1094,6 +1095,31 @@ function cornerOff(ni) {
   });
   return worst;
 }
+/* Put a floor material on a room. There are now three ways to ask for it — the
+   inspector select, the contextual row's Floor button and a double-tap on the
+   plan — and exactly one of them may own the rule that makes the pick stick.
+
+   That rule is the custom-texture drop. An uploaded image on a room OVERRIDES
+   its material in 3D (`cTex` beats `t` in view3d.js fmatFor), so choosing a
+   preset on top of one used to change a value nothing renders: the tile you
+   picked was simply not the floor you got, with nothing on screen saying why.
+   The upload is discarded and the swap is named, because silently throwing
+   away an image somebody chose is the other way to get this wrong. */
+function applyRoomFloor(key, type) {
+  if (!key || !type) return false;
+  var meta = (S.roomMeta[key] = S.roomMeta[key] || {});
+  var hadTex = !!meta.floorTex;
+  if (meta.floor === type && !hadTex) return false; // nothing to undo
+  pushHistory();
+  meta.floor = type;
+  if (hadTex) delete meta.floorTex;
+  S.dirty3D = true;
+  fillProps();
+  render2D();
+  if (hadTex) flash(t("floor_custom_dropped"));
+  return true;
+}
+
 /* What to say afterwards. A squaring that cost other walls their stated length
    says so and how many — the plan quietly changing size behind a cheerful
    "squared to 90°" is what made this operation untrustworthy. */
@@ -1912,13 +1938,14 @@ export function initUI() {
     render2D();
   });
   document.getElementById("r_floor").addEventListener("change", function () {
-    var m = roomMetaFor();
-    if (!m) return;
-    pushHistory();
-    m.floor = this.value;
-    S.dirty3D = true;
-    render2D();
+    if (!S.sel || S.sel.kind !== "room") return;
+    applyRoomFloor(S.sel.ref, this.value);
   });
+  var floorPickBtn = document.getElementById("r_floor_pick");
+  if (floorPickBtn)
+    floorPickBtn.addEventListener("click", function () {
+      runAction("roomFloor");
+    });
   document.getElementById("r_floor_scale").addEventListener("input", function () {
     var m = roomMetaFor();
     if (!m) return;
@@ -2920,6 +2947,16 @@ export function initUI() {
     } else if (act === "dupSel") {
       dupSel();
       updateCost();
+    } else if (act === "roomFloor") {
+      if (!S.sel || S.sel.kind !== "room") return;
+      var rfKey = S.sel.ref;
+      (await import("./ui_floorpick.js")).openFloorPicker(roomFloor(rfKey), function (type) {
+        /* The room can be deselected while the picker is open (it is a modal
+           over a live plan, not a modal over a frozen one), so the pick is
+           applied to the key it was opened FOR rather than to whatever is
+           selected when it closes. */
+        applyRoomFloor(rfKey, type);
+      });
     } else if (act === "prodSize") {
       (await import("./ui_prodsize.js")).openProdSizeDialog();
     } else if (act === "pvAdd") {
@@ -3324,6 +3361,44 @@ export function initUI() {
       S.dirty3D = true;
       fillProps();
       render2D();
+    } else if (act === "rotSel90") {
+      /* The quarter turn, independent of the 15/45/90 step control. The step
+         lives in the item inspector, which on a phone is behind a sheet — a
+         one-tap rotate that silently obeyed a setting the user cannot see
+         while pressing it would turn the piece by an amount they never chose.
+         Multi-selection turns each piece about its own centre, which is what
+         "rotate these chairs" means; rotating the group about a common pivot
+         would move them, and moving is what the drag is for. */
+      var rotPicks = !S.sel ? [] : S.sel.kind === "item" ? [S.sel.ref]
+        : S.sel.kind === "items" ? S.sel.refs.slice() : [];
+      rotPicks = rotPicks.filter(function (it) { return it && !it.locked; });
+      if (!rotPicks.length) return;
+      pushHistory();
+      rotPicks.forEach(function (it) {
+        turnItem(it, (((it.rot || 0) + 90) % 360 + 360) % 360);
+      });
+      S.dirty3D = true;
+      fillProps();
+      render2D();
+    } else if (act === "flipSwing") {
+      /* One verb for the whole hinge: hand first, then the side it opens to.
+         Four taps return the door to where it started, so the control is safe
+         to press repeatedly — which is how a swing is actually chosen, by
+         watching the arc rather than by reading "Right, out" in a dropdown. */
+      if (!S.sel || S.sel.kind !== "opening") return;
+      var swOp = S.sel.ref;
+      if (swOp.type !== "door" || swOp.isSliding || swOp.isPocket) {
+        flash(t("f_swingNA"), "error");
+        return;
+      }
+      var SWING_CYCLE = ["R_IN", "L_IN", "L_OUT", "R_OUT"];
+      var swAt = SWING_CYCLE.indexOf(swOp.swingDir || "R_IN");
+      pushHistory();
+      swOp.swingDir = SWING_CYCLE[(swAt < 0 ? 0 : swAt + 1) % SWING_CYCLE.length];
+      S.dirty3D = true;
+      fillProps();
+      render2D();
+      flash(t("f_swingNow", { dir: t("d_" + swOp.swingDir.toLowerCase()) }));
     } else if (act && act.indexOf("rotStep") === 0) {
       // rotStep15 / rotStep45 / rotStep90
       setRotStep(parseInt(act.slice(7), 10));
@@ -3774,12 +3849,12 @@ export function initUI() {
         if (u3) {
           download("home-3d.png", u3);
           flash(t("f_snap3d"));
-        } else flash(has3D ? t("f_snapFail") : t("f_no3d"), "error");
+        } else flash(has3D() ? t("f_snapFail") : t("f_no3d"), "error");
       });
     } else if (act === "exportgltf") {
       exportGLTF(function (glb) {
         if (!glb) {
-          flash(has3D ? t("f_snapFail") : t("f_no3d"), "error");
+          flash(has3D() ? t("f_snapFail") : t("f_no3d"), "error");
           return;
         }
         var blob = new Blob([glb], { type: "application/octet-stream" });
@@ -4094,8 +4169,15 @@ export function initUI() {
       try {
         var d = JSON.parse(rd.result);
         pushHistory();
+        var geo = (d && (d.type === "FeatureCollection" || Array.isArray(d.features) || d.type === "Feature")) ? d : null;
         var cad = d.cadEntities || d.cad || ((d.lines || d.arcs) ? d : null);
-        if (cad && (Array.isArray(cad.lines) || Array.isArray(cad.arcs))) {
+        if (geo) {
+          var convertedGeo = convertGeoJsonToWalls(geo, { height: 300, firstId: S.idc });
+          S.nodes = convertedGeo.nodes; S.walls = convertedGeo.walls; S.openings = convertedGeo.openings;
+          S.items = []; S.markers = []; S.roomMeta = convertedGeo.roomMeta || {}; S.idc = convertedGeo.nextId || S.walls.length + 1;
+          ensureWallTypes(S); rebuildProject(S, FURN); S.sel = null; S.dirty3D = true;
+          render2D(); fitView(); refreshTree(); updateCost();
+        } else if (cad && (Array.isArray(cad.lines) || Array.isArray(cad.arcs))) {
           var converted = convertCadToWalls(cad, {
             wallTypeByLayer: d.wallTypeByLayer || cad.wallTypeByLayer || {},
             singleLineWalls: !!(d.singleLineWalls || cad.singleLineWalls),

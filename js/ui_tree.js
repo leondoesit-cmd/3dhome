@@ -345,20 +345,27 @@ function offerNewRooms(list) {
   input.addEventListener("keydown", function (e) {
     if (e.key === "Enter") accept();
   });
-  // dismissing (Esc / backdrop) keeps the room under its automatic name —
-  // declining is destructive, so it has to be the deliberate choice
-  var origClose = m.close;
-  m.close = function () {
-    origClose();
-    if (!decided) {
-      decided = true;
-      var mm = (S.roomMeta[r.key] = S.roomMeta[r.key] || {});
-      mm.name = suggested;
-      if (!mm.floor) mm.floor = S.floorTex;
-      S.dirty3D = true;
-      finish();
-    }
-  };
+  /* Esc/backdrop is cancellation too. A modal that says "Create room" must not
+     silently take that action when it is dismissed.
+
+     This has to be an onClose HANDLER, not an override of m.close: openModal's
+     own Escape and backdrop listeners call its internal close() directly and
+     never look at the property, so reassigning it left BOTH dismissals doing
+     nothing at all — no name, no decline, no metadata written, while the
+     enclosure went on being drawn as a room. It also skipped finish(), which is
+     what offers the next enclosure, so dismissing the first prompt of several
+     silently dropped the rest. */
+  m.onClose(function () {
+    if (decided) return;
+    decided = true;
+    var mm = (S.roomMeta[r.key] = S.roomMeta[r.key] || {});
+    mm.noRoom = true;
+    mm.cx = r.cx;
+    mm.cz = r.cz;
+    S.dirty3D = true;
+    flash(t("f_roomDeclined"));
+    finish();
+  });
   input.focus();
   input.select();
 }

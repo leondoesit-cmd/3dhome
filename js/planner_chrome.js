@@ -18,6 +18,7 @@ import { render2D, fitView, wx, wz, dropPoint } from "./plan2d.js";
 import { loadMEP } from "./mep.js";
 import { renderPanel as refreshMEPPanel } from "./ui_mep.js";
 import { withoutRoomPrompts } from "./ui_tree.js";
+import { pushHistory, onAfterRestore } from "./history.js";
 import {
   configureFloorIO,
   ensureFloors,
@@ -161,6 +162,7 @@ export function renderFloorTabs() {
 export function addFloorFromUI() {
   ensureFloors();
   var floors = (S.workspace && S.workspace.floors) || [];
+  pushHistory();
   addFloor(t("floor_add"), floors.length * 300, false);
   S.dirty3D = true;
   render2D();
@@ -359,6 +361,11 @@ function updateCostChip() {
 
 function initPlannerChrome() {
   applyPlannerChrome();
+  /* Undo/redo can add or remove a storey, so the tab strip has to be redrawn
+     from the restored workspace. Registered rather than called from history.js:
+     this module is its own entry point in index.html, outside main.js's graph,
+     so nothing there can import it. */
+  onAfterRestore(renderFloorTabs);
   document.body.classList.toggle("legacy-ui", currentUi() === "legacy");
 
   document.querySelectorAll("#leftTabs [data-left-tab]").forEach(function (b) {

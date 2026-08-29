@@ -94,7 +94,11 @@ export function buildCommandCatalog(ctx) {
     { id:"coordsys", icon:"ph-crosshair", label:t("refCoord"), group:t("cmdFeatures"), available:function(){ return partDoc(); }, reason:needPart },
     { id:"regen", icon:"ph-arrows-clockwise", label:t("regenerate"), group:t("cmdEvaluate"), shortcut:"Ctrl+B", available:function(){ return partDoc() && !E.kernelBusy && solids(); }, reason:needSolid },
     { id:"fit", icon:"ph-crosshair-simple", label:t("zoomFit"), group:t("cmdEvaluate"), shortcut:"F" },
-    { id:"drawing", icon:"ph-file-svg", label:t("drawingExport"), group:t("cmdEvaluate"), available:function(){ return partDoc(); }, reason:needPart },
+    /* cad_drawings.js has drawn assembly sheets with BOM balloons all along;
+       only this gate kept them out of reach. */
+    { id:"drawing", icon:"ph-file-svg", label:t("drawingExport"), group:t("cmdEvaluate"),
+      available:function(){ return partDoc() || (assemblyDoc() && E.assembly && E.assembly.components.length); },
+      reason:function(){ return assemblyDoc() ? t("cmdNeedOneComponent") : needPart(); } },
     { id:"mass", icon:"ph-scales", label:t("massProps"), group:t("cmdEvaluate"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"section", icon:"ph-selection-background", label:t("sectionView"), group:t("cmdEvaluate"), terms:"clip clipping slice cross section interior" },
     { id:"standards", icon:"ph-seal-check", label:t("standardsAudit"), group:t("cmdEvaluate"), available:function(){ return partDoc() && solids(); }, reason:needSolid },

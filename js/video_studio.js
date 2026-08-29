@@ -1,6 +1,6 @@
 // Video Studio: capture multi-angle screenshots, synthesize rapid timelapses & reels,
 // render transitions, and export video clips (WebM/MP4) or frame bundles.
-import { has3D, snapshot3D, setOrbitCamera, getOrbitCamera, ensureBuilt } from "./view3d.js";
+import { has3D, init3D, snapshot3D, setOrbitCamera, getOrbitCamera, ensureBuilt } from "./view3d.js";
 import { openModal } from "./ui.js";
 import { t } from "./i18n.js";
 import { getReadyMadeReels } from "./video_presets.js";
@@ -440,7 +440,10 @@ export class VideoStudio {
 }
 
 export async function captureOrbitTurntable(shotsCount = 16, studio = null) {
-  if (!has3D) {
+  // three is late-bound; build the scene rather than falling straight through
+  // to the flat 2D plan capture just because nobody has opened 3D yet.
+  if (!has3D()) await init3D();
+  if (!has3D()) {
     const plan = document.getElementById("plan");
     if (plan && studio) {
       studio.addFrame({ src: plan.toDataURL("image/png"), label: "2D Plan Overview" });
@@ -474,14 +477,14 @@ export async function captureOrbitTurntable(shotsCount = 16, studio = null) {
 
 export async function captureMultiViewAngles(studio = null) {
   if (!studio) return;
-  const initialCam = has3D ? getOrbitCamera() : null;
+  const initialCam = has3D() ? getOrbitCamera() : null;
 
   const plan = document.getElementById("plan");
   if (plan) {
     studio.addFrame({ src: plan.toDataURL("image/png"), label: "Top Blueprint View" });
   }
 
-  if (has3D) {
+  if (has3D()) {
     ensureBuilt();
     const views = [
       { name: "Isometric 3D", theta: 0.92, phi: 0.95 },
@@ -507,7 +510,7 @@ export async function captureMultiViewAngles(studio = null) {
 
 export async function captureCurrentSnapshot(studio = null, customLabel = null) {
   if (!studio) return;
-  if (has3D) {
+  if (has3D()) {
     ensureBuilt();
     const url = await snapshot3D();
     if (url) {

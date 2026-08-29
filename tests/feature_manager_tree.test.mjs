@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 import {
   buildTreeModel, flattenTree, findTreeNode, predictedBodies,
-  sketchOwnership, sketchReferenceIds, treeMode, CANONICAL, LEGACY,
+  friendlyTreeName, sketchOwnership, sketchReferenceIds, treeMode, CANONICAL, LEGACY,
 } from "../js/core/tree_model.js";
 import {
   analyzeLegacyMigration, boundsMatch, convertLegacyDocument,
@@ -60,6 +60,18 @@ test("a feature's sketch references are read from references.sketches and params
   assert.deepEqual(sketchReferenceIds({ references: { sketches: [{ id: "s1" }] }, params: { sketchId: "s1" } }), ["s1"]);
   // inputs are feature-to-feature and must never be mistaken for sketches
   assert.deepEqual(sketchReferenceIds({ inputs: ["f1"] }), []);
+});
+
+test("storage ids and duplicated generated suffixes are cleaned up for display", () => {
+  assert.equal(friendlyTreeName("feature_mtehoax9_1", "Extrude / Boss"), "Extrude / Boss");
+  assert.equal(friendlyTreeName("end sketch", "Sketch"), "End sketch");
+  assert.equal(friendlyTreeName("Extrude / Boss 2 2", "Feature"), "Extrude / Boss 2");
+  const doc = canonicalDoc();
+  doc.sketches[0].name = "sketch_raw_123";
+  const sketch = findTreeNode(buildTreeModel(doc, { definition: doc }).nodes, "sketch:s1");
+  assert.equal(sketch.name, "Sketch");
+  assert.equal(sketch.detail, "Top plane · fully defined");
+  assert.match(sketch.technicalDetail, /s1/);
 });
 
 test("the first consumer in build order owns a sketch", () => {
@@ -371,12 +383,21 @@ test("the renderer carries rename, keyboard navigation, drag and a context menu"
   assert.match(rendererSource, /row\.draggable = true/);
   assert.match(rendererSource, /contextmenu/);
   assert.match(rendererSource, /role", "tree/);
+  assert.match(rendererSource, /let rollbackEmitted = false/);
+  assert.match(rendererSource, /if \(rollbackEmitted\) return/);
 });
 
-test("the eye says Hide on a body and Suppress on a feature", () => {
-  assert.match(rendererSource, /node\.kind === "body"\s*\n?\s*\? deps\.t\(node\.suppressed \? "treeShow" : "treeHide"\)/);
-  assert.match(modelerSource, /treeHide: \[/);
-  assert.match(modelerSource, /treeShow: \[/);
+/* The eye hides what is drawn on a body or a component, and stops a feature or
+   a mate acting. One verb for all four would promise the wrong thing on half
+   of them. */
+test("the eye says Hide on a body or component and Suppress on a feature", () => {
+  assert.match(rendererSource, /node\.kind === "body" \|\| node\.kind === "component"/);
+  assert.match(rendererSource, /node\.kind === "component" \? "treeShowComponent" : "treeShow"/);
+  assert.match(rendererSource, /node\.kind === "component" \? "treeHideComponent" : "treeHide"/);
+  assert.match(rendererSource, /: deps\.t\(node\.suppressed \? "unsuppress" : "suppress"\)/);
+  for (const key of ["treeHide", "treeShow", "treeHideComponent", "treeShowComponent"]) {
+    assert.match(modelerSource, new RegExp(key + ": \\["), key + " has no wording");
+  }
 });
 
 test("focus decides which row the keyboard acts on", () => {
@@ -420,7 +441,8 @@ test("conversion is offered and gated, never applied on load", () => {
 });
 
 test("the tree indents by depth rather than by nesting containers", () => {
-  assert.match(styles, /--md-tree-depth/);
+  assert.match(styles, /--md-tree-indent/);
+  assert.match(rendererSource, /depth \* 13/);
   assert.match(styles, /#modeler \.md-tree-menu \{/);
   assert.match(styles, /#modeler \.md-tree-rename \{/);
 });

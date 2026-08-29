@@ -45,13 +45,35 @@
 body:not(.compact-nav) #modeler.md-left-collapsed .md-left,
 body:not(.compact-nav) #modeler.md-right-collapsed .md-right { display: none; }
 body:not(.compact-nav) #modeler .md-panel-toggle {
-  position: absolute; z-index: 72; top: 12px; display: inline-flex; align-items: center; gap: 5px;
-  min-height: 30px; padding: 5px 8px; border: 1px solid var(--btn-border); border-radius: 8px;
+  position: absolute; z-index: 72; top: 12px; display: inline-flex; align-items: center;
+  justify-content: center; gap: 0; width: 34px; min-width: 34px; min-height: 30px; padding: 5px;
+  border: 1px solid var(--btn-border); border-radius: 8px;
   background: color-mix(in srgb,var(--bg-panel) 92%,transparent); color: var(--text-muted);
   box-shadow: var(--shadow-sm); backdrop-filter: blur(8px); cursor: pointer;
 }
-body:not(.compact-nav) #modeler .md-panel-toggle-left { inset-inline-start: 12px; }
 body:not(.compact-nav) #modeler .md-panel-toggle-right { inset-inline-end: 12px; }
+body:not(.compact-nav) #modeler .md-panel-toggle-right span { display: none; }
+/* One start-edge rail: Tree, then the view cube, then zoom, then Solid /
+   Transparent / Edges as a column. A max-width squeeze on the cube made
+   Edges paint on top of Transparent. */
+body:not(.compact-nav) #modeler .md-panel-toggle-left {
+  inset-inline-start: var(--md-hud-start, 12px);
+  width: var(--md-hud-col, 158px); min-width: 0; padding: 5px 8px; gap: 5px;
+  justify-content: flex-start;
+}
+body:not(.compact-nav) #modeler .md-views {
+  top: 52px; inset-inline-start: var(--md-hud-start, 12px); z-index: 8;
+  width: var(--md-hud-col, 158px); max-width: none;
+}
+/* Selection tools sit centered under Model/Sketch/Drawing, sized to content. */
+body:not(.compact-nav) #modeler .md-context-toolbar {
+  top: 52px; left: 50%; right: auto; transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 24px);
+  justify-content: center; flex-wrap: wrap; z-index: 10;
+}
+/* Accept/Cancel in the confirmation corner shared that same top-end slot with
+   the inspector toggle. */
+body:not(.compact-nav) #modeler .md-context-actions { top: 52px; }
 body:not(.compact-nav) #modeler .md-panel-toggle:hover,
 body:not(.compact-nav) #modeler .md-panel-toggle[aria-pressed="false"] { color: var(--accent); border-color: var(--accent); }
 body.compact-nav #modeler .md-panel-toggle { display: none; }
@@ -99,8 +121,12 @@ html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to le
 @media (min-width: 901px) and (max-width: 1199px) {
   #modeler .md-body { padding: 10px; gap: 10px; }
   #modeler .md-left { width: 224px; }
-  #modeler .md-right { width: 272px; }
+  #modeler .md-right { width: 260px; }
   #modeler .md-command { max-width: 142px; }
+  /* Name + price + Guide + Save to library do not fit 1024px in one row;
+     drop the Guide caption (the icon and data-tip remain) so Close stays fully on screen. */
+  #modeler .md-head-actions .md-guide-launch span { display: none; }
+  #modeler .md-head { gap: 10px; padding: 8px 12px; }
 }
 
 [data-theme="dark"] {
@@ -3153,7 +3179,8 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 /* ---- head ---- */
 #modeler .md-head {
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
-  padding: 7px 16px;
+  min-width: 0;
+  padding: 8px 16px;
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border-color);
   box-shadow: var(--shadow-sm);
@@ -3190,7 +3217,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-head-inputs { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
 /* label above field: the caption used to be a placeholder that vanished the
    moment there was a name, leaving two unexplained boxes in the header */
-#modeler .md-field { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+#modeler .md-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 auto; }
 #modeler .md-field > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #modeler .md-field > span {
   font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em;
@@ -3204,7 +3231,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-field input:focus { border-color: var(--accent); }
 #modeler .md-field-sm { flex: 0 1 96px; }
 #modeler .md-field-sm input { max-width: 96px; }
-#modeler .md-head-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+#modeler .md-head-actions { display: flex; align-items: center; gap: 8px; flex: none; }
 #modeler .md-head-actions button {
   position: relative;
   padding: 6px 10px; border-radius: 7px;
@@ -3803,7 +3830,7 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-command-pane.on { display: flex; }
 #modeler .md-command-group {
   display: flex; flex-direction: column; min-width: max-content;
-  padding: 3px 5px 2px; border: 1px solid var(--separator); border-radius: 8px;
+  padding: 3px 6px 4px; border: 1px solid var(--separator); border-radius: 8px;
   background: color-mix(in srgb, var(--bg-panel) 82%, transparent);
 }
 /* Two rows per group. In one row the Sketch tab measured 2193px against a
@@ -3814,8 +3841,8 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
   align-items: stretch; gap: 2px 3px; height: 48px;
 }
 #modeler .md-command-group-label {
-  text-align: center; color: var(--text-muted); font-size: 9px; font-weight: 600; line-height: 11px;
-  opacity: .75;
+  text-align: center; color: var(--text-muted); font-size: 9px; font-weight: 600; line-height: 12px;
+  opacity: .75; padding-top: 1px;
 }
 /* Icon over caption in a 30px column wasted most of the ribbon on air, and a
    24px glyph over an 11px word read as decoration with a footnote. Side by
@@ -3852,6 +3879,9 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 }
 #modeler .md-command i { font-size: 15px; flex: none; opacity: .85; }
 #modeler .md-command span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Shortcut chips in a 23px ribbon row sat on the command name. The key is
+   already on the button title; the ribbon keeps the label. */
+#modeler .md-command-items .md-command > kbd { display: none; }
 #modeler .md-command > kbd { margin-inline-start: 1px; padding: 1px 3px; font-size: 8px; opacity: .7; }
 #modeler .md-tree-icon { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 18px; height: 18px; }
 #modeler .md-tree-icon .md-cad-icon { width: 16px; height: 16px; }
@@ -3918,25 +3948,37 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
   background: var(--bg-panel); border: 1px solid var(--border-color);
   border-radius: 16px; box-shadow: var(--shadow-md);
 }
-#modeler .md-right { width: 320px; }
+#modeler .md-right { width: 280px; }
 /* No dot pattern under the sketch: the canvas draws a real, zoom-aware grid in
    the model's own centimetres, and a second fixed-pitch one behind it read as
    moiré the moment you zoomed. */
 #modeler .md-mid {
   flex: 1; min-width: 0; position: relative; border-radius: 16px; overflow: hidden;
   background: var(--bg-canvas-2d); border: 1px solid var(--border-color);
+  --md-hud-start: 12px;
+  --md-hud-col: 158px;
+}
+#modeler.md-is3d .md-mid {
+  background:
+    radial-gradient(circle at 52% 42%, color-mix(in srgb,var(--bg-canvas-3d) 72%,#dbe5ef) 0%, transparent 66%),
+    color-mix(in srgb,var(--bg-canvas-3d) 88%,#111827);
 }
 #modeler #mdCanvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
 
 #modeler .md-resizer {
   position: absolute; top: 0; bottom: 0; width: 12px; cursor: ew-resize; z-index: 50;
-  inset-inline-start: -6px;
+  inset-inline-start: -6px; touch-action: none;
 }
 #modeler .md-resizer::after {
   content: ""; position: absolute; top: 50%; inset-inline-start: 5px; width: 2px; height: 34px;
   background: var(--text-muted); transform: translateY(-50%); border-radius: 2px; opacity: 0.35;
 }
 #modeler .md-resizer:hover::after { background: var(--accent); opacity: 1; }
+#modeler .md-resizer:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+#modeler .md-resizer-left {
+  inset-inline-start: auto;
+  inset-inline-end: -6px;
+}
 
 /* ---- panel tab strips + the pane they switch ----
    These were 40px icon squares in a 4-up grid with a group heading above them:
@@ -4006,7 +4048,12 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
   font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none;
   background: var(--hud-bg); color: var(--hud-fg); box-shadow: var(--shadow-md);
 }
-#modeler .md-head-actions [data-tip]:hover::after { inset-inline-start: auto; inset-inline-end: 0; }
+/* Grow toward the start of the action row so a Save/Close tip cannot cover
+   the neighbouring button. Native `title` tooltips ignore this and sit on
+   Close; those buttons use data-tip instead. */
+#modeler .md-head-actions [data-tip]:hover::after {
+  inset-inline-start: auto; inset-inline-end: 0; z-index: 120;
+}
 
 #modeler .md-tabs { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 #modeler .md-pane { display: none; padding: 10px 12px; gap: 8px; flex-direction: column; }
@@ -4036,11 +4083,30 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
    which is exactly how an empty model library made Assembly look. */
 #modeler .md-insert-component button:disabled { opacity: .45; cursor: not-allowed; }
 #modeler .md-component { grid-template-columns: auto minmax(0, 1fr) auto auto; }
-#modeler .md-mate-row { display: flex !important; flex-direction: row !important; align-items: center; justify-content: space-between; min-height: 32px; padding: 4px 7px; border: 1px solid var(--btn-border); border-radius: 6px; }
+#modeler .md-mate-row { display: flex !important; flex-direction: row !important; align-items: center; gap: 6px; justify-content: space-between; min-height: 32px; padding: 4px 7px; border: 1px solid var(--btn-border); border-radius: 6px; }
+#modeler .md-mate-row > span:first-child { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A mate the solver could not honour has to look different from one that
+   holds, or the assembly reads as fine while a component sits loose. */
+#modeler .md-mate-row.md-mate-broken { border-color: var(--danger); }
+#modeler .md-mate-issue { flex: 0 0 auto; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--danger); }
+#modeler .md-mate-rebound { flex: 0 0 auto; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; opacity: .72; }
+/* The two references a mate will be built from, in pick order: A is the one
+   that stays put, B is the one that moves. */
+#modeler .md-mate-picks { display: flex; flex-wrap: wrap; gap: 5px; margin: 5px 0 2px; }
+#modeler .md-mate-pick { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px; font-size: 11px; border: 1px solid var(--btn-border); }
+#modeler .md-mate-pick.a { border-color: var(--accent); color: var(--accent); }
+#modeler .md-mate-pick.b { border-color: var(--warn); color: var(--warn); }
+#modeler .md-mate-pick.a::before { content: "A"; font-weight: 700; }
+#modeler .md-mate-pick.b::before { content: "B"; font-weight: 700; }
+/* Nothing in an assembly is sketched, so the pane and its tab step out. */
+#modeler.md-assembly [data-tab="sketch"],
 #modeler.md-assembly #mdCanvas,
 #modeler.md-assembly .md-views,
 #modeler.md-assembly .md-hint,
 #modeler.md-assembly #mdModes { display: none !important; }
+/* Assembly hides the sketch hint, but flash() is how mate buttons say why a
+   click did nothing. A refusal that cannot be seen is a dead button. */
+#modeler.md-assembly .md-hint.flash { display: block !important; }
 #modeler.md-assembly .md-mid { background: var(--bg-canvas-3d); }
 #modeler.md-assembly .md-3dhost { display: block; }
 /* the history list scrolls itself, so it takes the pane's height rather than
@@ -4082,33 +4148,57 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-drawing-tools kbd { padding: 1px 4px; border: 1px solid currentColor; border-radius: 4px; font-size: 9px; opacity: .75; }
 #modeler .md-drawing-tools-sep { width: 1px; height: 22px; margin: 0 2px; background: var(--separator); }
 
-/* view picker + zoom, stacked down the near edge; the 45° gutter the cabinet
-   designer needs is not a thing here, so they sit flush against the corner */
+/* One compact viewport rail: orientation, navigation and display are related
+   view controls, so they share one surface instead of looking like three
+   unrelated floating dialogs. */
 #modeler .md-views {
   position: absolute; top: 12px; inset-inline-start: 12px; z-index: 6;
-  display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+  display: flex; flex-direction: column; gap: 0; align-items: stretch;
+  padding: 4px; border: 1px solid color-mix(in srgb,var(--border-color) 78%,var(--text-muted));
+  border-radius: 11px; background: color-mix(in srgb,var(--bg-panel) 94%,transparent);
+  box-shadow: 0 6px 18px rgba(8,15,28,.16); backdrop-filter: blur(10px);
 }
 #modeler .md-vgroup {
-  display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: 11px;
-  background: var(--bg-panel); border: 1px solid var(--border-color);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  display: flex; flex-direction: column; gap: 2px; padding: 2px; border: 0;
+  border-radius: 7px; background: transparent; box-shadow: none;
 }
+#modeler .md-vgroup + .md-vgroup { margin-top: 3px; padding-top: 5px; border-top: 1px solid var(--separator); border-radius: 0 0 7px 7px; }
 #modeler .md-vgroup > button {
   position: relative;
-  display: flex; align-items: center; gap: 6px; padding: 5px 8px; font-size: 11px;
+  display: flex; align-items: center; gap: 5px; padding: 4px 7px; font-size: 10.5px;
   border-radius: 8px; background: transparent; border: 1px solid transparent;
   color: var(--text-main); cursor: pointer; white-space: nowrap; text-align: start;
 }
 #modeler .md-vgroup > button:hover { background: var(--btn-bg-hover); }
 #modeler .md-vgroup > button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 #modeler .md-vgroup > button i { font-size: 14px; flex: none; }
-#modeler .md-zoom { flex-direction: row; }
-#modeler .md-zoom > button { padding: 5px 7px; }
-#modeler .md-display { flex-direction: row; }
-#modeler .md-display > button { padding: 5px 7px; }
-#modeler .md-display > button span { font-size: 10px; }
+#modeler .md-vgroup > button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#modeler .md-zoom { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); flex-direction: row; }
+#modeler .md-zoom > button { padding: 5px 7px; justify-content: center; }
+/* Solid / Transparent / Edges are the same kind of exclusive choice as
+   Top / Front / Right, so they share that column instead of a third row that
+   cannot fit three labelled chips. */
+#modeler .md-display { flex-direction: column; }
+#modeler .md-display > button { padding: 5px 8px; justify-content: flex-start; min-width: 0; }
+#modeler .md-display > button span { font-size: 10.5px; }
+/* Edges is an independent visibility toggle, not a third display mode. An
+   outlined state prevents two simultaneous solid-teal choices in one group. */
+#modeler .md-display #mdShowEdges.on {
+  background: color-mix(in srgb,var(--accent) 11%,transparent);
+  border-color: color-mix(in srgb,var(--accent) 58%,var(--btn-border));
+  color: var(--accent);
+}
 /* The same three planes drive both the camera and the active sketch plane. */
 #modeler.md-is3d .md-views { display: flex; }
+#modeler .md-sketch-on-face {
+  position: absolute; left: 50%; bottom: 98px; z-index: 11; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 7px 12px;
+  border: 1px solid var(--accent); border-radius: 9px; background: var(--accent);
+  color: var(--on-accent); box-shadow: 0 6px 20px var(--accent-glow); cursor: pointer;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+#modeler .md-sketch-on-face[hidden] { display: none; }
+#modeler .md-sketch-on-face:hover { background: var(--accent-hover); }
 #modeler .md-finish-plane {
   display: flex; align-items: center; gap: 6px; padding: 7px 9px; border: 1px solid color-mix(in srgb,var(--accent) 55%,var(--border-color));
   border-radius: 9px; background: var(--accent); color: var(--on-accent); box-shadow: 0 4px 14px var(--accent-glow); cursor: pointer; font-size: 10.5px; font-weight: 650;
@@ -4170,9 +4260,25 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-feature-scrubber span { display: flex; align-items: center; gap: 5px; }
 #modeler .md-feature-scrubber span i { color: var(--accent); font-size: 13px; }
 #modeler .md-feature-scrubber input { width: 100%; accent-color: var(--accent); cursor: ew-resize; }
-#modeler .md-feature-actions { display: grid; grid-template-columns: minmax(0,.7fr) minmax(0,1.3fr); gap: 6px; position: sticky; bottom: 0; padding-top: 3px; background: var(--bg-panel); }
-#modeler .md-quick-apply { min-height: 29px; border: 0; border-radius: 7px; background: var(--accent); color: var(--on-accent); font-weight: 650; cursor: pointer; }
-#modeler .md-quick-cancel { min-height: 29px; border: 1px solid var(--btn-border); border-radius: 7px; background: var(--btn-bg); color: var(--text-muted); font-weight: 650; cursor: pointer; }
+/* Equal tracks, not 0.7/1.3: "Cancel command" overflowed the narrow column and
+   painted under Apply. minmax(0,1fr) is what actually clips the label. */
+#modeler .md-feature-actions {
+  display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px;
+  position: sticky; bottom: 0; z-index: 4; margin-top: 4px;
+  padding: 8px 0 2px;
+  background: linear-gradient(var(--bg-panel), var(--bg-panel)) var(--bg-app);
+}
+#modeler .md-quick-apply,
+#modeler .md-quick-cancel {
+  min-width: 0; min-height: 32px; padding: 0 8px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: 11px; cursor: pointer;
+}
+#modeler .md-quick-apply i,
+#modeler .md-quick-cancel i { flex: none; }
+#modeler .md-quick-apply { border: 0; border-radius: 7px; background: var(--accent); color: var(--on-accent); font-weight: 650; }
+#modeler .md-quick-cancel { border: 1px solid var(--btn-border); border-radius: 7px; background: var(--btn-bg); color: var(--text-muted); font-weight: 650; }
 #modeler .md-feature-form-title { display: flex; align-items: center; gap: 9px; padding: 4px 2px; }
 #modeler .md-feature-form-title > i { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: color-mix(in srgb,var(--accent) 12%,transparent); color: var(--accent); font-size: 18px; }
 #modeler .md-feature-form-title span,#modeler .md-feature-form-title b,#modeler .md-feature-form-title small { display: block; min-width: 0; }
@@ -4201,13 +4307,24 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler.md-isdrawing .md-head-actions button:not(#mdClose):not(#mdDrawing):not(#mdSave) { pointer-events: none; opacity: .48; }
 
 #modeler .md-hint {
-  position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: 58px; left: 50%; transform: translateX(-50%);
   font-size: 12px; font-weight: 500; padding: 7px 15px; border-radius: 20px;
   background: var(--bg-panel); border: 1px solid var(--border-color);
   color: var(--text-muted); pointer-events: none; z-index: 5;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.10); white-space: nowrap;
-  max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+  max-width: min(420px, calc(100% - 200px)); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; text-align: center;
+  transition: opacity .2s ease, visibility .2s ease, transform .2s ease;
 }
+#modeler .md-hint.idle-dismissed { opacity: 0; visibility: hidden; transform: translate(-50%,6px); }
+#modeler .md-hint-help {
+  position: absolute; inset-inline-end: 12px; bottom: 38px; z-index: 7;
+  display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 1px solid var(--border-color); border-radius: 50%; background: color-mix(in srgb,var(--bg-panel) 90%,transparent);
+  color: var(--text-muted); box-shadow: var(--shadow-sm); cursor: pointer; opacity: .62;
+}
+#modeler .md-hint-help:hover,#modeler .md-hint-help.on { opacity: 1; color: var(--accent); border-color: var(--accent); }
+#modeler:not(.md-is3d) .md-hint-help,#modeler.md-assembly .md-hint-help { display: none; }
 /* a tool that is mid-sketch is the one moment this deserves the eye */
 #modeler .md-hint.live {
   background: var(--hud-bg); color: var(--hud-fg); border-color: transparent;
@@ -4279,9 +4396,9 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 #modeler .md-context-menu[hidden],
 #modeler .md-gesture-wheel[hidden],
 #modeler .md-breadcrumb[hidden] { display: none; }
-/* Sit under the 2D/3D/Drawing switcher so this never covers Top/Front/Right. */
 #modeler .md-context-toolbar {
-  top: 58px; left: 50%; transform: translateX(-50%);
+  top: 52px; left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 24px);
 }
 #modeler.md-isdrawing .md-context-toolbar { display: none; }
 #modeler .md-shortcut-bar {
@@ -4304,7 +4421,7 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 #modeler .md-context-menu button {
   display: flex; align-items: center; gap: 8px; padding: 7px 10px;
   border: 1px solid transparent; border-radius: 7px; background: transparent;
-  color: var(--text-main); cursor: pointer; font-size: 12px;
+  color: var(--text-main); cursor: pointer; font-size: 12px; flex: none;
 }
 #modeler .md-shortcut-bar button { width: 44px; height: 44px; justify-content: center; padding: 0; position: relative; }
 #modeler .md-shortcut-bar kbd { position: absolute; bottom: 2px; inset-inline-end: 3px; font-size: 8px; opacity: .7; }
@@ -4313,14 +4430,18 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 #modeler .md-view-selector button:hover,
 #modeler .md-context-menu button:hover { background: var(--btn-bg-hover); border-color: var(--btn-border); }
 #modeler .md-sel-filters {
-  position: absolute; inset-inline-start: 12px; bottom: 36px; z-index: 9;
+  position: absolute; inset-inline-start: 12px; bottom: 34px; z-index: 9;
   display: none; gap: 2px; padding: 3px; border-radius: 8px;
   background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
   border: 1px solid var(--border-color);
   box-shadow: 0 4px 14px rgba(0,0,0,.12);
 }
 #modeler.md-is3d .md-sel-filters { display: flex; }
-#modeler.md-assembly.md-is3d .md-sel-filters { top: 12px; bottom: auto; }
+/* Assembly moves the filter strip to the top row next to Tree toggle */
+#modeler.md-assembly.md-is3d .md-sel-filters {
+  top: 12px; bottom: auto;
+  inset-inline-start: calc(var(--md-hud-start, 12px) + var(--md-hud-col, 158px) + 8px);
+}
 #modeler.md-isdrawing .md-sel-filters,
 #modeler.md-model-sketching .md-sel-filters { display: none; }
 #modeler .md-sel-filters button {
@@ -4328,6 +4449,24 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
   padding: 4px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 650; cursor: pointer;
 }
 #modeler .md-sel-filters button.on { background: var(--btn-bg-hover); color: var(--text-main); }
+#modeler .md-assembly-move-mode {
+  position: absolute; top: 12px; inset-inline-end: 52px; z-index: 9;
+  display: none; align-items: center; gap: 2px; padding: 3px;
+  border: 1px solid var(--border-color); border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+  box-shadow: 0 4px 14px rgba(0,0,0,.12);
+}
+#modeler.md-assembly.md-is3d .md-assembly-move-mode { display: flex; }
+#modeler .md-assembly-move-mode > span {
+  padding-inline: 5px 3px; color: var(--text-muted); font-size: 10px; font-weight: 700;
+}
+#modeler .md-assembly-move-mode button {
+  min-width: 26px; height: 24px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  border: 0; border-radius: 6px; padding: 0 7px; background: transparent;
+  color: var(--text-muted); font: 700 10.5px/1 "Inter", "Rubik", sans-serif; cursor: pointer;
+}
+#modeler .md-assembly-move-mode button b { font: inherit; }
+#modeler .md-assembly-move-mode button.on { background: var(--btn-bg-hover); color: var(--text-main); }
 #modeler .md-breadcrumb {
   position: absolute; bottom: 7px; inset-inline-end: 12px; z-index: 9;
   max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -4356,7 +4495,7 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 /* the CAD status line: plane, cursor in cm, grid, object snap, zoom */
 #modeler .md-status {
   position: absolute; bottom: 0; inset-inline-start: 0; inset-inline-end: 0; z-index: 8;
-  display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; padding: 8px 12px 7px;
   font-size: 11px; color: var(--text-muted); pointer-events: none;
   background: linear-gradient(to top, var(--bg-panel), transparent);
   font-variant-numeric: tabular-nums;
@@ -4504,7 +4643,15 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 #modeler .md-tree-unified { display: grid; gap: 3px; }
 #modeler .md-tree-unified .md-tree-row {
   min-height: 34px; gap: 5px;
-  padding-inline-start: calc(4px + var(--md-tree-depth, 0) * 13px);
+  padding-inline-start: calc(4px + var(--md-tree-indent, 0px));
+}
+#modeler .md-tree-unified .md-tree-row.md-tree-nested::before {
+  content: ""; position: absolute; pointer-events: none;
+  inset-inline-start: var(--md-tree-branch-offset, 10px);
+  top: -4px; width: 9px; height: calc(50% + 4px);
+  border-inline-start: 1px solid color-mix(in srgb,var(--accent) 30%,var(--separator));
+  border-bottom: 1px solid color-mix(in srgb,var(--accent) 30%,var(--separator));
+  border-end-start-radius: 5px;
 }
 #modeler .md-tree-unified .md-tree-row .nm { display: flex; flex-direction: column; justify-content: center; gap: 1px; white-space: normal; }
 #modeler .md-tree-unified .md-tree-row .nm b { overflow: hidden; color: inherit; font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
@@ -4622,6 +4769,10 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 #modeler .md-btnrow button:hover,
 #modeler .md-wide:hover,
 #modeler .md-pane > button:hover { background: var(--btn-bg-hover); border-color: var(--accent); }
+#modeler .md-ops button:disabled,
+#modeler .md-ops button:disabled:hover {
+  opacity: .45; cursor: not-allowed; background: var(--btn-bg); border-color: var(--btn-border);
+}
 #modeler .md-wide { width: 100%; }
 #modeler .md-dashed { border-style: dashed; border-color: var(--accent); color: var(--accent); }
 #modeler .btn-danger { color: var(--danger, #e05252); }
@@ -5514,6 +5665,97 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
   max-height: min(56vh, 460px);
 }
 .lib-pick-body .lib-empty { padding: 24px 0; text-align: center; }
+
+/* ---- floor material picker (js/ui_floorpick.js) -------------------------- */
+/* The swatch button that opens it, sitting on the end of the inspector's
+   Floor row. It never shrinks: it is the row's only affordance for "show me
+   what these words look like", and a squeezed 12px glyph reads as decoration. */
+.r-floor-pick {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text-main);
+  cursor: pointer;
+}
+.r-floor-pick:hover { background: var(--btn-bg-hover); }
+.r-floor-pick i { font-size: 16px; }
+/* The select has to be allowed to give the button its width back. */
+#r_floor { min-width: 0; }
+
+.bp-modal:has(.floor-pick-body) { width: 620px; }
+.floor-pick-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: min(62vh, 520px);
+  overflow-y: auto;
+}
+.floor-pick-sec {
+  margin: 10px 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.floor-pick-sec:first-child { margin-top: 0; }
+.floor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+}
+.floor-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 4px 7px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+}
+.floor-tile:hover { background: var(--btn-bg); }
+/* The current material is marked, not merely highlighted on hover: opening the
+   picker has to answer "what is it now?" before it asks "what should it be?". */
+.floor-tile.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 650;
+}
+.floor-tile-swatch {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--btn-bg);
+  object-fit: cover;
+  /* Swatches are 128px images of a 256px pattern shown at ~88px. Smoothing
+     them turns a crisp tile grid into grey mush, which is the one thing the
+     picker exists to prevent. */
+  image-rendering: -webkit-optimize-contrast;
+}
+@media (pointer: coarse) {
+  .r-floor-pick { width: 44px; height: 44px; }
+  .r-floor-pick i { font-size: 20px; }
+  /* Bigger tiles on a phone: the swatch IS the control, and a 44px target with
+     a 40px picture is the whole reason this beats the OS select wheel. */
+  .floor-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+}
 .bp-drop {
   border: 2px dashed var(--border-color); border-radius: 10px;
   padding: 22px; text-align: center; cursor: pointer; color: var(--text-muted);
@@ -6981,6 +7223,9 @@ body.compact-nav #mobile-nav button i {
 body.compact-nav #mobile-nav button.active {
   color: var(--accent);
   background: var(--accent-soft);
+}
+body.compact-nav #mobile-nav {
+  border-top: 1px solid var(--mobile-glass-border, var(--border-color));
 }
 body.compact-nav #mobile-nav button:active {
   background: var(--btn-bg-hover);
@@ -9197,7 +9442,11 @@ body.fold-span #zHud #zIntermission {
   padding-inline-start: calc(8px + var(--d, 0) * 11px);
 }
 .hist-step:hover { background: var(--btn-bg-hover); }
-.hist-step.current { background: var(--btn-bg); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.hist-step.current {
+  background: color-mix(in srgb, var(--accent) 12%, var(--btn-bg));
+  border-color: var(--accent); color: var(--text-main); font-weight: 700;
+  box-shadow: inset 3px 0 var(--accent);
+}
 .hist-step.ahead { opacity: 0.5; }
 .hist-step.other { opacity: 0.55; font-style: italic; }
 .hist-step.dim { opacity: 0.4; }
@@ -9220,7 +9469,16 @@ body.fold-span #zHud #zIntermission {
 .hist-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hist-fork { flex-shrink: 0; font-size: 11px; color: var(--accent); opacity: 0.8; }
 /* what the step touched */
-.hist-chips { display: flex; flex-wrap: wrap; gap: 3px; }
+.hist-chips { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.hist-target-details { display: flex; flex-wrap: wrap; gap: 3px; }
+.hist-target-summary {
+  display: inline-flex; align-items: center; min-height: 22px; padding: 2px 7px;
+  border: 1px solid var(--separator); border-radius: 5px; background: var(--btn-bg);
+  color: var(--text-muted); font-size: 9.5px; font-weight: 650; cursor: pointer;
+}
+.hist-target-summary::after { content: "\2304"; margin-inline-start: 5px; font-size: 9px; }
+.hist-target-summary[aria-expanded="true"]::after { content: "\2303"; }
+.hist-target-summary:hover { border-color: var(--accent); color: var(--accent); }
 .hist-chip {
   display: inline-flex; align-items: center; gap: 2px; max-width: 100%;
   padding: 1px 5px; border-radius: 4px; border: 1px solid var(--separator);
@@ -9393,16 +9651,46 @@ body.fold-span #zHud #zIntermission {
 #modeler .md-rolled .nm { font-style: italic; }
 
 #modeler .md-rollbar {
-  display: flex; align-items: center; gap: 6px; margin: 3px 0; cursor: ns-resize;
-  user-select: none;
+  display: flex; align-items: center; gap: 6px; margin: 3px 0;
+  min-height: 15px; cursor: ns-resize; user-select: none;
 }
-#modeler .md-rollbar span { flex: 1; height: 2px; background: var(--accent); border-radius: 2px; }
+#modeler .md-rollbar span {
+  flex: 1; height: 2px; border-radius: 2px; background: var(--accent);
+}
+#modeler .md-rollbar:hover span { height: 4px; }
 #modeler .md-rollbar b {
-  flex: none; font-size: 9.5px; font-weight: 700; letter-spacing: 0.03em;
+  flex: none; font-size: 8px; font-weight: 700; letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--accent);
 }
-#modeler .md-feature-title { margin-top: 10px; }
+#modeler .md-feature-title { margin: 8px 0 4px; }
+#modeler .md-tree-create-sketch {
+  width: 100%; min-height: 28px; margin: 5px 0 3px; padding: 5px 8px;
+  display: flex; align-items: center; justify-content: flex-start; gap: 6px;
+  border-radius: 7px; background: transparent; border: 1px dashed var(--accent);
+  color: var(--accent); cursor: pointer; font-size: 10px; font-weight: 650;
+}
+#modeler .md-tree-create-sketch span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#modeler .md-tree-create-sketch:hover { background: color-mix(in srgb,var(--accent) 9%,transparent); }
 #modeler .md-part.md-feature.error { border-color: #d0342c; color: #d0342c; }
+#modeler .md-part.md-core-diagnostic {
+  align-items: flex-start; cursor: default; gap: 8px; padding: 7px 9px;
+}
+#modeler .md-part.md-core-diagnostic > i { margin-top: 1px; flex: none; }
+#modeler .md-part.md-core-diagnostic .nm {
+  display: grid; gap: 5px; white-space: normal; overflow: visible; text-overflow: unset; line-height: 1.3;
+}
+#modeler .md-diagnostic-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+#modeler .md-diagnostic-actions button {
+  min-height: 23px; padding: 3px 6px; display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid currentColor; border-radius: 6px; background: transparent;
+  color: inherit; font-size: 8.5px; cursor: pointer;
+}
+#modeler .md-diagnostic-actions button:hover { background: color-mix(in srgb,currentColor 10%,transparent); }
+#modeler .md-tree-issue-focus { animation: md-tree-issue-pulse 1.6s ease-out; }
+@keyframes md-tree-issue-pulse {
+  0%,35% { box-shadow: inset 0 0 0 2px #c98116; background: color-mix(in srgb,#c98116 18%,var(--btn-bg)); }
+  100% { box-shadow: none; }
+}
 #modeler .md-part.md-core-diagnostic.error { border-color: #d0342c; color: #d0342c; }
 #modeler .md-part.md-core-diagnostic.warning { border-color: #c98116; color: #9a610d; }
 
@@ -11330,7 +11618,7 @@ body.compact-nav #mobile-nav button span {
      and trim only the genuinely long translation. */
   body.compact-nav #mobile-nav button {
     padding-inline: 1px;
-    font-size: 8.5px;
+    font-size: 9px;
     letter-spacing: -0.015em;
   }
   body.compact-nav #mobile-nav button span {
@@ -11701,18 +11989,21 @@ body.compact-nav .walk-stick {
      unlabelled glyphs on exactly the widths this rule was meant to serve. */
   .mctx-btn { padding-inline: 5px; }
 }
+/* The View tab already switches Plan / 3D / Split. A CAD view-cube on the
+   2D sheet spends a thumb-sized corner and reads as a second camera. */
 body.compact-nav .plan-gizmo {
-  top: 34px;
+  display: none;
 }
 
-/* On a cover display the blueprint/visibility controls and the plan gizmo
-   occupy the same top edge as the CAD instruction.  Park the instruction
-   below them and leave the gizmo corner clear, so neither text nor a button is
-   hidden. */
+/* On a cover display the blueprint/visibility controls occupy the same top
+   edge as the CAD instruction, so the instruction is parked below them. The
+   inline-end gutter used to reserve the plan gizmo's 76px corner as well; the
+   gizmo is hidden on every compact layout now, so holding that corner open
+   only narrowed the instruction strip for nothing. */
 @media (max-width: 480px) {
   body.compact-nav #cad-status {
     top: 108px;
-    inset-inline: 8px 76px;
+    inset-inline: 8px 8px;
     height: auto;
     min-height: 38px;
     padding: 5px 8px;
@@ -12280,6 +12571,14 @@ body.compact-nav #modeler .md-context-toggle,
 body.compact-nav #modeler .md-resizer {
   display: none !important;
 }
+body.compact-nav #modeler .md-assembly-move-mode {
+  top: 60px; left: 50%; inset-inline-end: auto; transform: translateX(-50%);
+}
+body.compact-nav #modeler .md-assembly-move-mode > span { display: none; }
+body.compact-nav #modeler .md-assembly-move-mode button {
+  min-width: 44px; height: 44px; padding: 0 8px; font-size: 12px;
+}
+body.compact-nav #modeler .md-assembly-move-mode button b { display: none; }
 body.compact-nav #modeler .md-head-logo b {
   font-size: 0.95rem;
 }
@@ -14066,8 +14365,10 @@ body.dock-rail #cabdes.cb-compact:not(.cb-is3d) .cb-right .cb-prev-wrap {
 @media (min-width: 901px) and (max-width: 1199px) {
   body:not(.compact-nav) #modeler .md-body { padding: 10px; gap: 10px; }
   body:not(.compact-nav) #modeler .md-left { width: 224px; }
-  body:not(.compact-nav) #modeler .md-right { width: 272px; }
+  body:not(.compact-nav) #modeler .md-right { width: 260px; }
   body:not(.compact-nav) #modeler .md-command { max-width: 142px; }
+  body:not(.compact-nav) #modeler .md-head-actions .md-guide-launch span { display: none; }
+  body:not(.compact-nav) #modeler .md-head { gap: 10px; padding: 8px 12px; }
 }
 
 /* ==========================================================================
@@ -14107,17 +14408,24 @@ body.compact-nav #mobile-nav button > span {
   display: block;
   max-width: 100%;
   overflow: hidden;
-  font-size: 8.5px;
-  line-height: 1.05;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 body.compact-nav #mobile-nav button i {
-  font-size: 18px;
+  font-size: 20px;
 }
 body.compact-nav #mobile-nav .mnav-primary i {
   width: 36px;
   height: 28px;
+}
+/* The direct caption rule above wins over the older inherited narrow-phone
+   size. Restate the compact size here so 320-360px screens really get the 9px
+   captions the layout promises. */
+@media (max-width: 360px) {
+  body.compact-nav #mobile-nav button > span { font-size: 9px; }
 }
 /* Model Editor has its own compact CAD vocabulary and denser View palette. */
 body.compact-nav #md-nav button {
@@ -14230,7 +14538,8 @@ body.compact-nav #md-sheet {
 .m-sheet-sec,
 #md-sheet .m-sheet-sec {
   margin: 6px 2px 3px;
-  font-size: 9px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
 }
 
 /* Task labels are part of the mobile UI, not tooltip-only metadata. Four
@@ -14674,6 +14983,10 @@ body.compact-nav #wallProps .wi-head {
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -10px 30px rgba(0, 0, 0, .22);
     transform: translateY(calc(100% + var(--mobile-nav-block) + var(--m-ctx-reserve) + var(--kb, 0px)));
+    /* Override the legacy 0.4s side-drawer transition inherited at <=1024px.
+       These are bottom sheets now, and should settle with the generated sheets
+       instead of visibly lagging behind the thumb rows on unfolded phones. */
+    transition: transform 0.22s ease;
     overflow: hidden;
   }
   body.compact-nav.sheet-drawers.show-left #left-sidebar,
@@ -15112,10 +15425,10 @@ body.compact-nav #wallProps .wi-head .wi-acts {
    The canvas remains legible behind open menus, while controls receive a
    denser backing layer so labels, values and focus outlines never wash out. */
 body.compact-nav {
-  --mobile-glass: color-mix(in srgb, var(--bg-panel) 52%, transparent);
-  --mobile-glass-strong: color-mix(in srgb, var(--bg-panel) 72%, transparent);
-  --mobile-glass-control: color-mix(in srgb, var(--input-bg) 50%, var(--bg-panel) 50%);
-  --mobile-glass-border: color-mix(in srgb, var(--border-color) 78%, transparent);
+  --mobile-glass: color-mix(in srgb, var(--bg-panel) 88%, transparent);
+  --mobile-glass-strong: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+  --mobile-glass-control: color-mix(in srgb, var(--input-bg) 82%, var(--bg-panel) 18%);
+  --mobile-glass-border: color-mix(in srgb, var(--border-color) 88%, transparent);
 }
 body.compact-nav #topbar,
 body.compact-nav #m-sheet,
@@ -15143,9 +15456,9 @@ body.compact-nav #md-nav,
 body.compact-nav #md-ctx,
 #cabdes.cb-compact .cb-m-nav,
 #cabdes.cb-compact .cb-m-ctx {
-  background: color-mix(in srgb, var(--bg-topbar) 70%, transparent);
-  backdrop-filter: blur(8px) saturate(1.08);
-  -webkit-backdrop-filter: blur(8px) saturate(1.08);
+  background: color-mix(in srgb, var(--bg-topbar) 92%, transparent);
+  backdrop-filter: blur(12px) saturate(1.12);
+  -webkit-backdrop-filter: blur(12px) saturate(1.12);
 }
 body.compact-nav #right-inspector input:not([type="checkbox"]):not([type="range"]):not([type="color"]),
 body.compact-nav #right-inspector textarea,

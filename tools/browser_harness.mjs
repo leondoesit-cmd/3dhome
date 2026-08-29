@@ -99,12 +99,31 @@ export async function findChrome() {
 
 /* ---- a minimal CDP client ----------------------------------------------- */
 
-class CDP {
+/* Whoever calls send() gets the promise and may await it, catch it, or — if
+   the page closed underneath them — never look at it again. Attaching a
+   throwaway handler stops that last case being reported as an unhandled
+   rejection, while the caller's own copy still throws as normal. */
+function handled(promise) {
+  promise.catch(() => {});
+  return promise;
+}
+
+export class CDP {
   constructor(ws) {
     this.ws = ws;
     this.id = 0;
     this.pending = new Map();
     this.consoleErrors = [];
+    this.dead = null;
+    /* A socket that has gone can never answer the requests already on it, and
+       the timeout below is unref'd so it will not fail them either. Those
+       promises simply dangled: node:test saw a file that had passed every
+       assertion and still had a promise outstanding, and cancelled it. Running
+       the browser files together is what made it show — several Chromes
+       competing for the CPU means there is nearly always a request in flight
+       when a page is closed. */
+    ws.on("close", () => this.fail("closed"));
+    ws.on("error", (error) => this.fail(error && error.message ? error.message : "errored"));
     ws.on("message", (raw) => {
       const msg = JSON.parse(raw);
       if (msg.id && this.pending.has(msg.id)) {
@@ -120,10 +139,20 @@ class CDP {
       }
     });
   }
+  /* Settle everything still outstanding. Called when the socket dies and, so
+     the ordering is not left to an event, directly by close(). */
+  fail(why) {
+    if (!this.dead) this.dead = new Error("CDP connection " + why);
+    for (const { reject, timer } of this.pending.values()) {
+      clearTimeout(timer);
+      reject(this.dead);
+    }
+    this.pending.clear();
+  }
   send(method, params = {}) {
+    if (this.dead) return handled(Promise.reject(this.dead));
     const id = ++this.id;
-    this.ws.send(JSON.stringify({ id, method, params }));
-    return new Promise((resolve, reject) => {
+    const promise = new Promise((resolve, reject) => {
       // unref'd AND cleared on reply: an un-cleared 30s timer per request keeps
       // the event loop alive long after the test has finished
       const timer = setTimeout(() => {
@@ -132,7 +161,73 @@ class CDP {
       timer.unref?.();
       this.pending.set(id, { resolve, reject, timer });
     });
+    handled(promise);
+    try {
+      this.ws.send(JSON.stringify({ id, method, params }));
+    } catch (error) {
+      this.fail(error && error.message ? error.message : "unsendable");
+    }
+    return promise;
   }
+}
+
+/* Waiting on "open" alone is another promise with no way to fail: a socket
+   that errors or closes before it opens simply never fires it. Under a
+   parallel browser run that is a real outcome, and a run that hangs there
+   looks exactly like the dangling-request bug above. */
+export function waitForOpen(ws, what = "devtools socket", ms = 20000) {
+  return new Promise((resolve, reject) => {
+    const done = (error) => {
+      clearTimeout(timer);
+      ws.off("open", onOpen); ws.off("error", onError); ws.off("close", onClose);
+      error ? reject(error) : resolve(ws);
+    };
+    const timer = setTimeout(() => done(new Error(what + " did not open")), ms);
+    const onOpen = () => done(null);
+    const onError = (error) => done(new Error(what + " failed: " + (error && error.message ? error.message : error)));
+    const onClose = () => done(new Error(what + " closed before it opened"));
+    ws.once("open", onOpen); ws.once("error", onError); ws.once("close", onClose);
+  });
+}
+
+/* Startup can fail after any one of these resources has been created. Keep
+   teardown independent of the page object so the catch path can release a
+   half-open socket, Chrome process, server, and profile too. */
+export async function closeHarnessResources({ app, profile, child, browser, pageWs, cdp } = {}) {
+  try { cdp?.fail?.("closed"); } catch {}
+  try { browser?.fail?.("closed"); } catch {}
+  try { if (pageWs) pageWs.terminate(); } catch {}
+  try { if (browser?.ws) browser.ws.terminate(); } catch {}
+
+  /* Chrome's stderr is a pipe, and after startup has read the DevTools URL off
+     it nobody reads it again. Headless Chrome keeps writing, so the stream
+     stays an active libuv handle: killing the process removes the process
+     handle but leaves the pipe, and a test file that had passed every assertion
+     sat there with an open fd and never exited. Under a parallel run — slower
+     browsers, more chatter — that was the hang. */
+  for (const stream of [child?.stderr, child?.stdout, child?.stdin]) {
+    try { stream?.removeAllListeners(); stream?.destroy(); } catch {}
+  }
+
+  if (child?.pid) {
+    const exited = child.exitCode != null || child.signalCode != null
+      ? Promise.resolve()
+      : new Promise((resolve) => child.once("exit", resolve));
+    try { child.kill("SIGKILL"); } catch {}
+    /* The giving-up timer is cleared once the race is over. A SIGKILL'd Chrome
+       normally exits in milliseconds, and an armed 3s timer left behind by each
+       page.close() holds the event loop open long after the file has passed —
+       the same shape of bug as the un-cleared request timeouts above. */
+    let giveUp;
+    const deadline = new Promise((resolve) => { giveUp = setTimeout(resolve, 3000); });
+    giveUp.unref?.();
+    try { await Promise.race([exited, deadline]); } finally { clearTimeout(giveUp); }
+  }
+
+  let closeError = null;
+  try { if (app) await app.close(); } catch (error) { closeError = error; }
+  if (profile) await rm(profile, { recursive: true, force: true }).catch(() => {});
+  if (closeError) throw closeError;
 }
 
 /* ---- the page object the tests actually use ----------------------------- */
@@ -144,10 +239,18 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
   const isTouch = touch !== undefined ? !!touch : isMobile;
 
   const app = await serveApp();
-  const profile = await mkdtemp(join(tmpdir(), "mf-harness-"));
-  const child = spawn(
-    bin,
-    [
+  let profile;
+  try {
+    profile = await mkdtemp(join(tmpdir(), "mf-harness-"));
+  } catch (error) {
+    await app.close().catch(() => {});
+    throw error;
+  }
+  let child;
+  try {
+    child = spawn(
+      bin,
+      [
       "--headless=new",
       "--remote-debugging-port=0",
       "--user-data-dir=" + profile,
@@ -162,31 +265,56 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
       "--hide-scrollbars",
       "--window-size=" + width + "," + height,
       "about:blank",
-    ],
-    { stdio: ["ignore", "ignore", "pipe"] },
-  );
+      ],
+      { stdio: ["ignore", "ignore", "pipe"] },
+    );
+  } catch (error) {
+    await closeHarnessResources({ app, profile });
+    throw error;
+  }
+
+  let browser = null, pageWs = null, cdp = null;
+  let cleanupPromise = null;
+  const cleanup = () => cleanupPromise ||= closeHarnessResources({
+    app, profile, child, browser, pageWs, cdp,
+  });
+
+  try {
 
   // Chrome prints the DevTools ws endpoint on stderr once it is listening
   const wsUrl = await new Promise((resolve, reject) => {
     let buf = "";
-    const timer = setTimeout(() => reject(new Error("chrome did not start")), 20000);
-    child.stderr.on("data", (d) => {
+    const finish = (error, value) => {
+      clearTimeout(timer);
+      child.stderr.off("data", onData);
+      child.off("exit", onExit);
+      child.off("error", onError);
+      error ? reject(error) : resolve(value);
+    };
+    const timer = setTimeout(() => finish(new Error("chrome did not start")), 20000);
+    const onData = (d) => {
       buf += d;
       const m = buf.match(/ws:\/\/[^\s]+/);
-      if (m) {
-        clearTimeout(timer);
-        resolve(m[0]);
-      }
-    });
-    child.on("exit", (c) => reject(new Error("chrome exited early: " + c)));
+      if (m) finish(null, m[0]);
+    };
+    const onExit = (code) => finish(new Error("chrome exited early: " + code));
+    const onError = (error) => finish(new Error("chrome failed to start: " + error.message));
+    child.stderr.on("data", onData);
+    child.once("exit", onExit);
+    child.once("error", onError);
   });
 
-  const browser = new CDP(new WebSocket(wsUrl));
-  await new Promise((r) => browser.ws.once("open", r));
+  /* Keep the pipe flowing and discarded from here on. A paused stream whose
+     buffer fills would also stall Chrome's own writes, and a flowing one has
+     nothing left to hold when it is destroyed at close. */
+  child.stderr.resume();
+
+  browser = new CDP(new WebSocket(wsUrl));
+  await waitForOpen(browser.ws, "browser devtools socket");
   const { targetId } = await browser.send("Target.createTarget", { url: "about:blank" });
-  const pageWs = new WebSocket(wsUrl.replace(/\/devtools\/browser\/.*$/, "/devtools/page/" + targetId));
-  const cdp = new CDP(pageWs);
-  await new Promise((r) => pageWs.once("open", r));
+  pageWs = new WebSocket(wsUrl.replace(/\/devtools\/browser\/.*$/, "/devtools/page/" + targetId));
+  cdp = new CDP(pageWs);
+  await waitForOpen(pageWs, "page devtools socket");
 
   await cdp.send("Page.enable");
   await cdp.send("Runtime.enable");
@@ -227,8 +355,25 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
         const listener = (raw) => done(JSON.parse(raw));
         cdp.ws.on("message", listener);
       });
-      // give the ES-module graph a beat to boot and paint
-      await page.eval(() => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 350))));
+      /* The load event only says the document arrived; the ES-module graph
+         boots after it, and a fixed sleep here is a race that a cold cache or
+         a loaded machine loses — the test then pokes a half-built UI and fails
+         as though the app were broken. main.js sets __home3dBooted as its last
+         step, so wait for that, then one painted frame. */
+      await page.waitForBoot();
+    },
+
+    /* Resolves once main.js has finished initialising and the UI has painted
+       once. Throws rather than continuing silently if boot never completes —
+       a timeout here is a real failure, not something to test through. */
+    async waitForBoot(ms = 20000) {
+      const deadline = Date.now() + ms;
+      for (;;) {
+        if (await page.eval(() => !!window.__home3dBooted)) break;
+        if (Date.now() > deadline) throw new Error("app did not boot within " + ms + "ms");
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      await page.eval(() => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))));
     },
 
     async screenshot(filepath) {
@@ -257,26 +402,7 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
     },
 
     async close() {
-      // These are test-only CDP transports. A graceful WebSocket close waits
-      // for a peer acknowledgement that can never arrive once Chrome begins
-      // shutting down, leaving node:test alive after every assertion passed.
-      try { pageWs.terminate(); browser.ws.terminate(); } catch {}
-      // A process terminated by a signal keeps exitCode=null; signalCode is
-      // the completed-state signal in that case. Registering an `exit` waiter
-      // after such a Chrome has already gone creates a promise that can never
-      // settle (most visible when node:test runs both browser files together).
-      const exited = child.exitCode != null || child.signalCode != null
-        ? Promise.resolve()
-        : new Promise((resolve) => child.once("exit", resolve));
-      child.kill("SIGKILL");
-      await Promise.race([
-        exited,
-        new Promise((resolve) => {
-          setTimeout(resolve, 3000);
-        }),
-      ]);
-      await app.close();
-      await rm(profile, { recursive: true, force: true }).catch(() => {});
+      await cleanup();
     },
   };
 
@@ -286,4 +412,25 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
     await page.goto("/");
   }
   return page;
+  } catch (error) {
+    try { await cleanup(); } catch {}
+    throw error;
+  }
 }
+
+/* Why the browser suite is run with --test-concurrency=3 (package.json):
+ *
+ * node:test defaults to one file per CPU, which on a ten-core machine starts
+ * seven Chromes at once. Measured over the whole suite:
+ *
+ *   serial (1)   266s
+ *   capped  (3)  102s
+ *   default (7)   68-88s
+ *
+ * This is now a resource choice, not a workaround. The runs that used to hang
+ * at the default were the undrained stderr pipe fixed above, found by letting
+ * a hung run write a diagnostic report: of seven test files one was still
+ * alive, holding no process, socket or timer — just an open pipe. With that
+ * fixed the default ran clean six times over, so the cap can be dropped if the
+ * wall clock ever matters more than bounding peak memory to three browsers.
+ */

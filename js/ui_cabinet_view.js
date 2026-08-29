@@ -2,6 +2,7 @@
 
 import { clamp, fin } from "./state.js";
 import { buildItem } from "./furniture.js";
+import { loadThree, threeLoaded } from "./three_lazy.js";
 import { createEditorView, createViewportSwap } from "./editor_view.js";
 import {
   layoutCab,
@@ -1494,6 +1495,20 @@ export function exportPNG() {
 /* The elevation as a shop drawing: white background, a title block with the
    sizes and the finish, and the same drawing the designer shows. */
 export function initPreview() {
+  /* three is late-bound (js/three_lazy.js) and openCabinet() stays synchronous,
+     so the designer's DOM is built whether or not the renderer has arrived.
+     E.pv null is the state every call site already handles (createEditorView
+     returns null on a machine with no GPU); when three lands, come back and
+     stand the viewport up. */
+  if (!threeLoaded()) {
+    loadThree().then(function () {
+      if (E.host && !E.pv) {
+        initPreview();
+        if (E.open) { updatePreview(); renderPreview(); }
+      }
+    }, function () {});
+    return;
+  }
   E.pv = createEditorView({
     canvas: E.host.querySelector("#cbPrev"),
     fov: 42,

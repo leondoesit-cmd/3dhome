@@ -1,3 +1,4 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 /* Regressions found in a QA pass over the new planner surfaces: the wall-draw
    palette, the rebuilt wall inspector, and the walls/openings guide + practice
    tour. Each test pins the user-visible symptom, not the implementation. */
@@ -9,7 +10,7 @@ import { wallGeom, wallClearLength } from "../js/geometry.js";
 import { captureLock, syncLocks } from "../js/constraint_engine.js";
 
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
-const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
+const i18n = await readI18nSource();
 const uiProps = await readFile(new URL("../js/ui_props.js", import.meta.url), "utf8");
 const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
 const uiTree = await readFile(new URL("../js/ui_tree.js", import.meta.url), "utf8");

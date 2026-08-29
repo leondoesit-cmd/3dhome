@@ -1,9 +1,10 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
-const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
+const i18n = await readI18nSource();
 const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
 
 const THEMES = ["light", "soft", "mid", "dark"];

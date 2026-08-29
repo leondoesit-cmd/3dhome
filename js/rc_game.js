@@ -31,6 +31,7 @@ import {
 } from "./rc_editor.js";
 import {
   has3D,
+  init3D,
   ensureBuilt,
   getMainScene,
   getMainCamera,
@@ -2894,7 +2895,15 @@ function bindEvents() {
 
 // ---- mode toggle ------------------------------------------------------------
 export function toggleRC(on) {
-  if (!has3D) return false;
+  /* RC race is played inside the planner's own 3D scene, and three is
+     late-bound now (js/three_lazy.js): a phone session that started on the
+     plan has no renderer yet. Build one and come back, rather than
+     refusing to start. `false` here means "not running yet", which is what
+     the caller already reads it as. */
+  if (!has3D()) {
+    init3D().then(function (ok) { if (ok) toggleRC(on); });
+    return false;
+  }
   var want = on == null ? !R.active : !!on;
   if (want === R.active) return R.active;
   var camera = getMainCamera();

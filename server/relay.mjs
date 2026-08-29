@@ -28,9 +28,10 @@
 import { createServer } from "node:http";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { readFile, writeFile, stat } from "node:fs/promises";
-import { brotliCompressSync, gzipSync } from "node:zlib";
+import { brotliCompress, gzip, constants as ZLIB } from "node:zlib";
 import { join, extname, normalize, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { lookupProduct } from "../js/prodsize.js";
 import { resolvePublicUrl, safeHttpGet, safeLanRequest, safeStaticFile } from "./security.mjs";
 
@@ -62,22 +63,71 @@ const MIME = {
   ".md": "text/markdown; charset=utf-8",
 };
 const staticCache = new Map();
+// One in-flight build per file. Without it, N concurrent first-requests for the
+// same uncached file all miss the cache during `await readFile` and then each
+// compress the same bytes — 196 module requests on a cold boot is exactly that
+// shape. Errors clear the entry so a transient failure is retried, not cached.
+const pendingStatic = new Map();
+// Brotli quality 5, not the default 11: ~90x cheaper for ~17% more bytes on this
+// tree (813 KB -> 955 KB over the seven largest assets), still 16% under gzip.
+// Quality 11 belongs in a build step, not on the request thread.
+const BR_OPTS = { params: { [ZLIB.BROTLI_PARAM_QUALITY]: 5 } };
+const brotliAsync = promisify(brotliCompress);
+const gzipAsync = promisify(gzip);
 
-async function cachedStatic(file, st) {
-  const prior = staticCache.get(file);
-  if (prior && prior.mtime === st.mtimeMs && prior.size === st.size) return prior;
+async function buildStatic(file, st) {
   const body = await readFile(file);
   const compressible = /\.(?:html|css|js|mjs|json|svg|txt)$/i.test(file) && body.length > 1024;
-  const entry = {
+  return {
     mtime: st.mtimeMs,
     size: st.size,
     body,
     etag: '"' + createHash("sha256").update(body).digest("base64url").slice(0, 22) + '"',
-    br: compressible ? brotliCompressSync(body) : null,
-    gzip: compressible ? gzipSync(body) : null,
+    compressible,
+    // Every browser that reaches this server sends `br`; gzip is computed on
+    // the first request that actually needs it (see staticGzip) instead of
+    // costing every cold file a second compression pass nobody reads.
+    br: compressible ? await brotliAsync(body, BR_OPTS) : null,
+    gzip: null,
+    gzipping: null,
   };
-  staticCache.set(file, entry);
-  return entry;
+}
+
+async function cachedStatic(file, st) {
+  const prior = staticCache.get(file);
+  if (prior && prior.mtime === st.mtimeMs && prior.size === st.size) return prior;
+  const inflight = pendingStatic.get(file);
+  if (inflight && inflight.mtime === st.mtimeMs && inflight.size === st.size) return inflight.promise;
+  const promise = buildStatic(file, st).then(
+    (entry) => {
+      if (pendingStatic.get(file)?.promise === promise) pendingStatic.delete(file);
+      staticCache.set(file, entry);
+      return entry;
+    },
+    (err) => {
+      if (pendingStatic.get(file)?.promise === promise) pendingStatic.delete(file);
+      throw err;
+    },
+  );
+  pendingStatic.set(file, { mtime: st.mtimeMs, size: st.size, promise });
+  return promise;
+}
+
+// gzip for the rare client that cannot take brotli. Computed once, lazily, and
+// shared by concurrent askers through the same promise.
+function staticGzip(entry) {
+  if (!entry.compressible) return null;
+  if (entry.gzip) return entry.gzip;
+  if (!entry.gzipping) {
+    entry.gzipping = gzipAsync(entry.body).then((buf) => {
+      entry.gzip = buf;
+      return buf;
+    }, (err) => {
+      entry.gzipping = null;
+      throw err;
+    });
+  }
+  return entry.gzipping;
 }
 
 // Friend codes are public handles; this separate token proves ownership of a
@@ -308,7 +358,15 @@ const http = createServer(async (req, res) => {
       return res.end();
     }
     const accept = String(req.headers["accept-encoding"] || "");
-    const encoding = cached.br && /\bbr\b/.test(accept) ? "br" : cached.gzip && /\bgzip\b/.test(accept) ? "gzip" : "";
+    let encoding = "";
+    let payload = cached.body;
+    if (cached.br && /\bbr\b/.test(accept)) {
+      encoding = "br";
+      payload = cached.br;
+    } else if (cached.compressible && /\bgzip\b/.test(accept)) {
+      encoding = "gzip";
+      payload = await staticGzip(cached);
+    }
     res.writeHead(200, {
       "Content-Type": MIME[extname(file)] || "application/octet-stream",
       "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "no-cache",
@@ -316,7 +374,7 @@ const http = createServer(async (req, res) => {
       "Vary": "Accept-Encoding",
       ...(encoding ? { "Content-Encoding": encoding } : {}),
     });
-    res.end(encoding ? cached[encoding] : cached.body);
+    res.end(payload);
   } catch (_) {
     res.writeHead(404);
     res.end("not found");

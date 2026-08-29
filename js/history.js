@@ -7,7 +7,7 @@
 // pool that keeps snapshots small.
 import { createHistory } from "./edit_history.js";
 import { createHistoryPanel } from "./ui_history.js";
-import { S } from "./state.js";
+import { S, cancelDraftGestures } from "./state.js";
 import { render2D } from "./plan2d.js";
 import { fillProps, refreshTree } from "./ui.js";
 import { withoutRoomPrompts } from "./ui_tree.js";
@@ -26,6 +26,7 @@ import {
 } from "./core/project.js";
 import { exportSpatialProject, importSpatialProject } from "./core/spatial_project.js";
 import { normalizeBlueprintReference, syncBlueprintTraceControls } from "./blueprint_trace.js";
+import { captureFloor } from "./floors.js";
 
 const CAP = 80;
 
@@ -58,10 +59,77 @@ function texUnpack(key, value) {
   return value;
 }
 
+/* ---- storey interning ----------------------------------------------------
+   Floors are model content, not display state, so adding or removing a storey
+   has to be as undoable as moving a wall — which means the workspace travels in
+   every snapshot. Copying every storey's scene into all 80 of them does not:
+   the entry would carry the whole building on each keystroke.
+
+   Two observations make it cheap. The ACTIVE floor's scene is already in the
+   entry, as `spatial` — so it is dropped here and re-captured on the way back
+   in. And an INACTIVE floor's scene is not touched at all between edits, so it
+   can be shared by reference: captureFloor() replaces the active floor's scene
+   object, which is the only one that ever needs a new token. Same bargain as
+   the texture pool above, and bounded the same way — by the number of distinct
+   storey scenes in a session, not by the number of edits. */
+const FLOOR_TOKEN = "@floor:";
+var floorById = new Map(), floorTokenFor = new WeakMap(), floorSeq = 0;
+function floorPack(workspace) {
+  if (!workspace || !Array.isArray(workspace.floors)) return workspace || null;
+  var out = Object.assign({}, workspace);
+  out.floors = workspace.floors.map(function (f) {
+    if (!f || typeof f !== "object") return f;
+    var copy = Object.assign({}, f);
+    if (f.id === workspace.activeFloor) {
+      copy.scene = null; // it IS `spatial`; apply() re-captures it
+      return copy;
+    }
+    if (!f.scene || typeof f.scene !== "object") return copy;
+    var token = floorTokenFor.get(f.scene);
+    if (!token) {
+      token = FLOOR_TOKEN + ++floorSeq;
+      floorTokenFor.set(f.scene, token);
+      floorById.set(token, f.scene);
+    }
+    copy.scene = token;
+    return copy;
+  });
+  return out;
+}
+function floorUnpack(workspace) {
+  if (!workspace || !Array.isArray(workspace.floors)) return workspace;
+  workspace.floors.forEach(function (f) {
+    if (!f || typeof f.scene !== "string" || !floorById.has(f.scene)) return;
+    /* Hand back a copy: the live model mutates whatever it is given, and the
+       pooled scene has to stay exactly as the snapshot that referenced it left
+       it. Registering the copy keeps the NEXT snapshot on one token instead of
+       pooling the same storey again per undo. */
+    var restored = JSON.parse(JSON.stringify(floorById.get(f.scene)));
+    floorTokenFor.set(restored, f.scene);
+    f.scene = restored;
+  });
+  return workspace;
+}
+
+/* What has to run after a snapshot is put back, registered by the modules that
+   own it rather than reached for by name from here. The floor tab strip is the
+   case that forced it: planner_chrome.js is its own <script type="module"> in
+   index.html, deliberately outside main.js's graph, so this file cannot import
+   it — and calling window.__plannerChrome.renderFloorTabs() instead meant a
+   rename would silently stop undo from refreshing the storey tabs, with neither
+   link_check nor module_check able to see it. A registration is a named import
+   in the other direction, which both of them do check. Same shape as
+   onAfterSolve (wall_constraints.js) and onAfterRender (plan2d.js). */
+var afterRestore = [];
+export function onAfterRestore(fn) {
+  if (typeof fn === "function") afterRestore.push(fn);
+}
+
 function snap() {
   var m = S.mep;
   return JSON.stringify({
     spatial: exportSpatialProject(S),
+    workspace: floorPack(S.workspace),
     // acknowledged constraint warnings: "ignore this one" is an edit like any
     // other, so Ctrl+Z brings the glow back
     ignoredWarnings: S.ignoredWarnings || {},
@@ -88,6 +156,8 @@ function apply(str) {
     return false;
   }
   if (!s || typeof s !== "object") return false;
+  if (s.workspace && typeof s.workspace === "object")
+    S.workspace = floorUnpack(JSON.parse(JSON.stringify(s.workspace)));
   if (s.spatial) importSpatialProject(S,s.spatial);
   else { S.nodes=s.nodes || [];S.walls=s.walls || [];S.openings=s.openings || [];S.items=s.items || [];S.markers=s.markers || [];S.slabOpenings=s.slabOpenings || [];S.roomMeta=s.roomMeta || {}; }
   S.ignoredWarnings = s.ignoredWarnings || {};
@@ -98,6 +168,13 @@ function apply(str) {
   S.idc = s.idc || 1;
   importParametricProject(S, s.parametric || {});
   rebuildProject(S, FURN);
+  /* The active storey's scene was left out of the entry (it is `spatial`), so
+     put it back from the model that was just restored — anything reading the
+     workspace before the next floor switch, an export most of all, must see a
+     storey list that is complete. */
+  if (S.workspace && Array.isArray(S.workspace.floors)) {
+    try { captureFloor(); } catch (err) { /* floor IO not configured yet */ }
+  }
   var m = ensureMEP();
   m.nodes = (s.mep && s.mep.nodes) || [];
   m.runs = (s.mep && s.mep.runs) || [];
@@ -106,41 +183,20 @@ function apply(str) {
   m.place = null;
   loadSmart(s.smarthome);
   S.sel = null;
-  /* Transient references into the OLD model (the wall under the cursor, the
-     piece mid-snap-flash, the drop target) point at objects this swap has just
-     replaced — they must not survive into the render below. */
-  S.wallProbe = null;
-  S.snapFlash = null;
-  S.snapFlashKey = null;
-  S.hoverItem = null;
-  S.stackHost = null;
-  S.nodeDrag = null;
-  S.dragRoom = null;
-  /* Undo can run while the wall tool is continuing from an existing endpoint.
-     `drawFrom` is a node index in the model we just replaced, so retaining the
-     rubber-band state makes plan2d dereference a missing (or unrelated) node
-     on its very next render.  Treat an undo/redo state swap like cancelling
-     every other in-progress gesture: the tool may remain armed, but a fresh
-     click must establish its start point in the restored model. */
-  S.drawing = false;
-  S.drawFrom = null;
-  S.drawFromSplit = false;
-  S.drawWalls = [];
-  S.wallPress = null;
-  S.previewPt = null;
-  S.snapGuides = [];
-  S.snapInfo = null;
-  S.markerPreview = null;
-  S.mepDrag = null;
-  S.panStart = null;
-  S.segPreview = null;
-  S.action = null;
+  /* Undo can run while the wall tool is continuing from an existing endpoint,
+     and every transient reference in S points into the model this swap has just
+     replaced. One list, shared with the floor switch, which replaces the model
+     for the same reason — see cancelDraftGestures() in state.js. */
+  cancelDraftGestures();
   S.dirty3D = true;
   render2D();
   fillProps();
   // undo/redo restores whole layouts at once — those enclosures are not new
   // discoveries and must not each pop a "name this room?" prompt
   withoutRoomPrompts(refreshTree);
+  afterRestore.forEach(function (fn) {
+    try { fn(); } catch (err) { /* one bad listener must not eat the undo */ }
+  });
   refreshMEPPanel();
   if (typeof window.__renderSmartHome === "function") window.__renderSmartHome();
   return true;

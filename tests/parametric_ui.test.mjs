@@ -235,6 +235,22 @@ test("assembly keeps a status line and editor drafts persist locally", () => {
   assert.doesNotMatch(styles, /#modeler\.md-assembly \.md-status,/);
 });
 
+test("feature Apply/Cancel sit in equal tracks so the label cannot paint under Apply", () => {
+  assert.match(styles, /#modeler \.md-feature-actions \{[^}]*grid-template-columns: minmax\(0,1fr\) minmax\(0,1fr\)/);
+  assert.match(styles, /#modeler \.md-quick-apply,\s*#modeler \.md-quick-cancel \{[^}]*overflow: hidden/s);
+  assert.match(modelerSource, /namedButton\(btn\('<i class="ph ph-x"><\/i> '\+t\("m_cancel"\)/);
+  assert.match(modelerSource, /save\.dataset\.tip = tip/);
+  assert.match(modelerSource, /save\.removeAttribute\("title"\)/);
+  assert.doesNotMatch(modelerSource, /save\.title = dirty/);
+  assert.match(styles, /--md-hud-col: 158px/);
+  assert.match(styles, /body:not\(\.compact-nav\) #modeler \.md-views \{\s*top: 52px/);
+  assert.match(styles, /body:not\(\.compact-nav\) #modeler \.md-context-toolbar \{[^}]*width:\s*max-content/s);
+  assert.doesNotMatch(styles, /body:not\(\.compact-nav\) #modeler \.md-context-toolbar \{[^}]*inset-inline-end:\s*88px/s);
+  assert.match(styles, /#modeler \.md-display \{ flex-direction: column; \}/);
+  assert.match(styles, /#modeler \.md-part\.md-core-diagnostic \.nm \{[^}]*white-space: normal/s);
+  assert.match(styles, /#modeler \.md-command-items \.md-command > kbd \{ display: none; \}/);
+});
+
 test("sketch witness lines and on-face planes are wired in the editor", () => {
   assert.match(source, /placedDimensionHit\(ensureSketch\(E\.def\)/);
   assert.match(source, /selectedId: E\.dimSel/);

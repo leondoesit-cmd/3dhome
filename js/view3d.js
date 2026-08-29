@@ -1,12 +1,13 @@
 // 3D scene: renderer/camera/lights, builds walls + items, sun-by-time-of-day, orbit controls.
-import * as THREE from "three";
+// three is LATE-BOUND (js/three_lazy.js): the renderer is 3.5 MB and must not
+// sit on the synchronous boot module graph. `THREE`, `TSL` and `ADDONS` are
+// empty objects until init3D() awaits loadThree(); every use below is inside a
+// function body, so nothing here reads them at module-evaluation time.
 // Node-based post-processing (three r185). The classic EffectComposer/SSAOPass
 // stack does not run on WebGPURenderer at all, so AO + AA are rebuilt as a TSL
 // node graph: GTAO replaces SSAO (ground-truth occlusion, far fewer artifacts)
 // and TRAA replaces FXAA (temporal, resolves edges instead of blurring them).
-import { pass, mrt, output, normalView, velocity, vec3, vec4 } from "three/tsl";
-import { ao } from "three/addons/tsl/display/GTAONode.js";
-import { traa } from "three/addons/tsl/display/TRAANode.js";
+import { THREE, TSL, ADDONS, loadThree, threeLoaded } from "./three_lazy.js";
 import { createRenderer, LUX, legacyIntensity } from "./gpu.js";
 import {
   S,
@@ -86,8 +87,22 @@ import { safeDeltaMilliseconds } from "./physics_runtime.js";
 import { resolvePhysicsRole } from "./physics/math.js";
 import { buildMEP3D } from "./mep.js";
 import { wallFraming } from "./wall_framing.js";
+import { ceilingHeight } from "./elevation.js";
 
-export const has3D = typeof THREE !== "undefined";
+/* "Is there a live 3D scene?" — a QUESTION now, not a load-time constant.
+   It used to be `typeof THREE !== "undefined"`, i.e. always true, evaluated the
+   moment the module was parsed. three is late-bound (js/three_lazy.js), so
+   there is no honest synchronous answer at import time: the truthful one is
+   "not yet". `ready3D` starts false, flips once init3D() has actually built the
+   scene, and every guard below reads it — so a call that arrives before the
+   renderer exists no-ops exactly as it did on a machine without WebGL. */
+var ready3D = false;
+export function has3D() {
+  return ready3D;
+}
+/* Non-null while init3D() is in flight, so a second caller joins the first
+   instead of building a second renderer on the same canvas. */
+var init3DPromise = null;
 
 var scene, renderer, camera, dyn, sun, hemi, flt, stars, selectionOutline;
 // real-world site overlay (js/site.js): aerial ground group + street-view skybox.
@@ -205,14 +220,27 @@ export function setQualityPreset(preset) {
   return applyPlannerQuality();
 }
 
+function plannerCompact() {
+  // `document.body` is null until the body element is parsed, so the guard has
+  // to reach that far — checking only for `document` still throws on the very
+  // case it was written to survive.
+  return typeof document !== "undefined" && !!document.body
+    && document.body.classList.contains("compact-nav");
+}
+
 function applyPlannerQuality() {
   var effective = qualityPreset;
+  var compact = plannerCompact();
   if (effective === "auto") {
     var memory = navigator.deviceMemory || 8;
     var cores = navigator.hardwareConcurrency || 8;
     effective = memory <= 4 || cores <= 4 ? "performance" : memory >= 8 && cores >= 8 ? "quality" : "balanced";
+    /* Still orbit on a phone: keep contact shadows and AO. Games cap their
+       own budget through setGameRendererQuality and never reach this path. */
+    if (compact && effective === "performance") effective = "balanced";
   }
   var ratio = effective === "performance" ? 1 : effective === "quality" ? 2 : 1.5;
+  if (compact && ratio > 1.5) ratio = 1.5;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, ratio));
   renderer.shadowMap.enabled = effective !== "performance";
   if (sun) sun.shadow.mapSize.set(effective === "quality" ? 4096 : 2048, effective === "quality" ? 4096 : 2048);
@@ -259,7 +287,8 @@ var tgt,
   theta,
   phi,
   DEFr,
-  userMoved = false;
+  userMoved = false,
+  framedInterior = false; // compact Frame uses the same near-wall cutaway as CAD edit
 // person "walk" mode — first-person (fpv) or third-person (tpv)
 var EYE_H = 165, // eye height (cm) above the floor
   BODY_H = 172; // avatar total height (cm)
@@ -457,7 +486,7 @@ export function toggleWalkView() {
   return walkView;
 }
 export function toggleWalk(on) {
-  if (!has3D) return false;
+  if (!ready3D) return false;
   walk = on == null ? !walk : !!on;
   keys = {}; // drop any keys held from before (prevents "stuck" movement)
   touchMove.x = touchMove.z = 0;
@@ -654,6 +683,12 @@ function buildStraightWall(w, col, tex) {
     })
     .map(function (o) {
       return {
+        /* The opening this was derived from. Everything below is a clamped,
+           flattened COPY for the builder, so identity is lost — and selection
+           matches on identity (userData.opening === S.sel.ref). Carry the
+           original across or a straight wall's doors and windows can never be
+           resolved back to the document. */
+        src: o,
         // clamp opening to fit within the actual drawn wall segment
         s: clamp(o.s, startCursor + o.width / 2, endCursor - o.width / 2),
         width: o.width,
@@ -886,6 +921,16 @@ function buildStraightWall(w, col, tex) {
 
   // Draw frames for openings
   ops.forEach(function (o) {
+    /* Straight walls build an opening's frames, leaf and glazing straight into
+       the wall group, with no per-opening holder — unlike the sampled path,
+       where addSampledOpening() parents them under a Group carrying
+       userData.opening. Selection reads that tag (getSelectionObjects3D, and
+       the picker at pickAt), so on a straight wall — the common case — a door
+       or window resolved to nothing: clicking one could not frame it and the
+       inspector's 3D preview waited forever for geometry that was never going
+       to be identified. Tag whatever THIS opening adds, so both paths answer
+       the same question the same way without re-parenting anything. */
+    var childrenBefore = g.children.length;
     var FR = frameSpec(o);
     var widthOffset = FR.jamb;
     var l = Math.max(startCursor, Math.min(endCursor, o.s - o.width / 2 - widthOffset)),
@@ -1019,6 +1064,8 @@ function buildStraightWall(w, col, tex) {
       }
     }
     // seamless passage: draw nothing — a fully open connection
+    for (var ci = childrenBefore; ci < g.children.length; ci++)
+      g.children[ci].userData.opening = o.src;
   });
 }
 
@@ -1614,7 +1661,7 @@ function applyItemOps() {
 }
 
 export function rebuild3D() {
-  if (!has3D) return;
+  if (!ready3D) return;
   refreshRuntimePlacements(S);
   // geometry is changing — the shadow map and the frame both need a redraw
   shadowsDirty = true;
@@ -2118,14 +2165,22 @@ function upd() {
    rebuild is triggered — so this is safe to run on every camera move. */
 function updateSeeThrough() {
   if (!dyn || !camera || !tgt) return;
-  var on = !!S.edit3D && !walk && !extTick;
+  var on = (!!S.edit3D || framedInterior) && !walk && !extTick;
+  var changed = false;
   dyn.children.forEach(function (g) {
     var w = g.userData && g.userData.wall;
     if (!w) return;
+    /* A floor switch replaces S.nodes/S.walls before rebuild3D replaces dyn.
+       Compact mode can frame the interior during that one-frame handoff, so a
+       stale mesh must not resolve its old node indices against the new floor.
+       The live wall objects are authoritative; the old group disappears on
+       the rebuild immediately afterwards. */
+    if (S.walls.indexOf(w) < 0) return;
     if (!on) {
       if (g.userData.seeThrough) {
         g.userData.seeThrough = false;
         g.visible = true;
+        changed = true;
       }
       return;
     }
@@ -2146,20 +2201,34 @@ function updateSeeThrough() {
       var sAt = (cx - gm.a.x) * gm.ux + (cz - gm.a.z) * gm.uz;
       between = sAt > -60 && sAt < gm.L + 60;
     }
+    if (g.userData.seeThrough !== between || g.visible === between) changed = true;
     g.userData.seeThrough = between;
     g.visible = !between;
   });
+  /* Visibility is a render input just like camera position. toggleEdit3D()
+     calls this directly, outside upd(), so without this wake-up the cutaway
+     did not appear until the next orbit or Frame action. */
+  if (changed) needsRender = true;
 }
 
 export function frameView() {
-  if (!has3D) return;
+  if (!ready3D) return;
   var bb = contentBounds();
   var diag = Math.hypot(bb.w, bb.d);
-  tgt.set(bb.cx, Math.min(120, bb.d * 0.2 + 60), bb.cz);
+  var compact = plannerCompact();
+  framedInterior = compact;
+  /* Phone 3D is a look INTO the room, not a dollhouse from above. Keep the
+     shallower polar angle, but aim near the upper wall line: aiming at 80 cm
+     made the sightline hit the near wall below its top, so Frame showed almost
+     nothing except the exterior wall it was meant to look over. */
+  var targetY = compact
+    ? clamp(ceilingHeight() * 0.78, 180, 230)
+    : Math.min(120, bb.d * 0.2 + 60);
+  tgt.set(bb.cx, targetY, bb.cz);
   sun.target.position.set(bb.cx, 0, bb.cz);
-  radius = clamp(diag * 1.15 + 220, 200, 4000);
-  theta = 0.92;
-  phi = 0.95;
+  radius = clamp(diag * (compact ? 1.08 : 1.15) + (compact ? 180 : 220), 200, 4000);
+  theta = compact ? 0.78 : 0.92;
+  phi = compact ? 1.05 : 0.95;
   userMoved = true;
   tgtTween = null;
   upd();
@@ -2295,7 +2364,7 @@ export function isEdit3D() {
   return !!S.edit3D;
 }
 export function toggleEdit3D(on) {
-  if (!has3D) return false;
+  if (!ready3D) return false;
   S.edit3D = on == null ? !S.edit3D : !!on;
   if (S.edit3D) {
     if (!editMod)
@@ -2565,6 +2634,7 @@ function viewAngles(key, curTheta) {
   return { theta: curTheta, phi: phi };
 }
 function setStandardView(key) {
+  framedInterior = false;
   var a = viewAngles(key, theta);
   var d = a.theta - theta;
   while (d > Math.PI) d -= 2 * Math.PI;
@@ -2619,7 +2689,7 @@ function updateEnvMap(zenC, horC, groundHex) {
 }
 
 export function applyEnv() {
-  if (!has3D) return;
+  if (!ready3D) return;
   // the sun/lighting is about to move — the shadow map (and the frame) is stale
   shadowsDirty = true;
   needsRender = true;
@@ -2715,7 +2785,7 @@ export function applyEnv() {
 // Position + toggle the real-world site overlay (aerial ground + street-view
 // skybox). Cheap and idempotent — safe to call after any scene/site change.
 export function applySite() {
-  if (!has3D) return;
+  if (!ready3D) return;
   var st = S.site || {};
   var showSV = st.enabled && st.streetView && svBox;
   // apartment floor within the real building: drop the surroundings (skybox +
@@ -2812,7 +2882,7 @@ export function applySite() {
 // Build/replace the street-view skybox from 6 cube-face <img>s (or null to
 // clear). Face keys: px,nx,py,ny,pz,nz. Called by the UI after fetch.
 export function setStreetViewCube(faces) {
-  if (!has3D) return;
+  if (!ready3D) return;
   if (svBox) {
     scene.remove(svBox);
     svBox.geometry.dispose();
@@ -2885,7 +2955,7 @@ export function setStreetViewCube(faces) {
 }
 
 export function setSize(w, h) {
-  if (!has3D || w === 0 || h === 0) return;
+  if (!ready3D || w === 0 || h === 0) return;
   needsRender = true;
   renderer.setSize(w, h);
   camera.aspect = w / h;
@@ -2907,6 +2977,7 @@ function renderScene() {
 
 export function setOrbitCamera(opts) {
   if (!opts) return;
+  framedInterior = false;
   if (typeof opts.theta === "number" && isFinite(opts.theta)) theta = opts.theta;
   if (typeof opts.phi === "number" && isFinite(opts.phi)) phi = clamp(opts.phi, 0.12, Math.PI / 2);
   if (typeof opts.radius === "number" && isFinite(opts.radius)) radius = clamp(opts.radius, 180, 4000);
@@ -2933,7 +3004,7 @@ export function getOrbitCamera() {
 // Returns a Promise: the GPU queue has to drain before the canvas is readable,
 // so unlike the old synchronous WebGL path this cannot return a data URL inline.
 export function snapshot3D() {
-  if (!has3D || !renderer || !renderer.initialized) return Promise.resolve(null);
+  if (!ready3D || !renderer || !renderer.initialized) return Promise.resolve(null);
   // Kept promise-returning even though the read is synchronous: the backend may
   // not be up yet (the guard above), and callers already handle the async form.
   try {
@@ -2946,7 +3017,7 @@ export function snapshot3D() {
 }
 
 export function exportGLTF(cb) {
-  if (!has3D) return cb(null);
+  if (!ready3D) return cb(null);
   import("three/addons/exporters/GLTFExporter.js").then(function (mod) {
     ensureBuilt();
     var exporter = new mod.GLTFExporter();
@@ -2956,7 +3027,7 @@ export function exportGLTF(cb) {
 
 // Flush a pending rebuild so the extractor sees the current model.
 export function ensureBuilt() {
-  if (!has3D) return;
+  if (!ready3D) return;
   if (S.dirty3D) {
     S.dirty3D = false;
     rebuild3D();
@@ -2966,7 +3037,7 @@ export function ensureBuilt() {
 
 // Extract the full scene as plain data (analytic prims + triangles) for the path-tracer worker.
 export function extractPTScene() {
-  if (!has3D) return null;
+  if (!ready3D) return null;
   ensureBuilt();
   if (!envPT) applyEnv();
   scene.updateMatrixWorld(true);
@@ -3212,12 +3283,26 @@ export function extractPTScene() {
   };
 }
 
+/* Build the 3D scene. ASYNC now: it fetches three first (js/three_lazy.js), so
+   the 2D planner is interactive before the renderer has even been downloaded.
+   Idempotent — repeated calls return the same promise, and once it has resolved
+   they resolve immediately. Resolves to has3D(): false means three would not
+   load (the #nothree panel is showing), which is the same answer the old
+   `typeof THREE` check gave on a browser without it. */
 export function init3D() {
-  if (!has3D) {
-    document.getElementById("v3d").style.display = "none";
-    document.getElementById("nothree").style.display = "flex";
-    return;
-  }
+  if (init3DPromise) return init3DPromise;
+  init3DPromise = loadThree().then(build3D).catch(function (e) {
+    if (window.console && console.error) console.error("three failed to load:", e);
+    var v3d = document.getElementById("v3d"),
+      nothree = document.getElementById("nothree");
+    if (v3d) v3d.style.display = "none";
+    if (nothree) nothree.style.display = "flex";
+    return false;
+  });
+  return init3DPromise;
+}
+
+function build3D() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xeef0f3);
   // WebGPURenderer drives a WebGPU backend where the browser has it and silently
@@ -3279,6 +3364,10 @@ export function init3D() {
   scene.add(flt);
   dyn = new THREE.Group();
   scene.add(dyn);
+  /* From here on there IS a scene, so the has3D()/ready3D guards must open:
+     the rest of this function calls applyEnv() and rebuild3D(), which are two
+     of them. Everything they need (scene, renderer, camera, dyn) exists. */
+  ready3D = true;
 
   // Post-processing: AO gives the contact/corner darkening that makes interiors
   // read as real instead of "floating"; TRAA cleans the edges the raster pass
@@ -3291,14 +3380,14 @@ export function init3D() {
     // inherits renderer.samples, and a multisampled colour target with the
     // single-sampled depth GTAO/TRAA read produces a per-frame WebGPU
     // sample-count validation error on the depth copy.
-    var scenePass = pass(scene, camera, { samples: 0 });
-    scenePass.setMRT(mrt({ output: output, normal: normalView, velocity: velocity }));
+    var scenePass = TSL.pass(scene, camera, { samples: 0 });
+    scenePass.setMRT(TSL.mrt({ output: TSL.output, normal: TSL.normalView, velocity: TSL.velocity }));
     var colorNode = scenePass.getTextureNode("output");
     var depthNode = scenePass.getTextureNode("depth");
     var normalNode = scenePass.getTextureNode("normal");
     var velocityNode = scenePass.getTextureNode("velocity");
 
-    aoPass = ao(depthNode, normalNode, camera);
+    aoPass = ADDONS.ao(depthNode, normalNode, camera);
     // GTAO's radius is in WORLD units, unlike the old SSAO kernelRadius which was
     // in its own screen-ish space. Scene units are centimetres (room ~400–600cm),
     // so contact occlusion wants tens of cm, not the 0.25 metre-scale default.
@@ -3313,8 +3402,8 @@ export function init3D() {
     // GTAO renders into a single-channel RedFormat target, so the occlusion has
     // to be broadcast to rgb before multiplying — multiplying the vec4 directly
     // zeroes green and blue and the whole view comes out red.
-    var lit = colorNode.mul(vec4(vec3(aoPass.getTextureNode().r), 1));
-    traaPass = traa(lit, depthNode, velocityNode, camera);
+    var lit = colorNode.mul(TSL.vec4(TSL.vec3(aoPass.getTextureNode().r), 1));
+    traaPass = ADDONS.traa(lit, depthNode, velocityNode, camera);
     // ?post=raw|ao|traa (or localStorage home3d_post) bisects the graph when the
     // image comes out wrong — "raw" is the bare scene pass, "ao" adds GTAO.
     var stage = (/[?&]post=(\w+)/.exec(location.search) || [])[1] ||
@@ -3328,6 +3417,11 @@ export function init3D() {
     usePost = false;
   }
   setQualityPreset((S.workspace && S.workspace.quality) || "auto");
+  window.addEventListener("mf-posture", function () {
+    if (!plannerCompact()) framedInterior = false;
+    if (renderer && !gameRendererLock) applyPlannerQuality();
+    upd();
+  });
 
   // The backend comes up asynchronously (adapter/device request on WebGPU). The
   // animate loop already skips frames until renderer.initialized flips, so all
@@ -3823,17 +3917,33 @@ export function init3D() {
     return moving;
   }
 
-  // returns true if any human is present (they animate continuously, so their
-  // presence keeps the render loop live)
+  /* returns true if any human is present (they animate continuously, so their
+     presence keeps the render loop live)
+
+     People are FURNITURE, so their groups hang under itemsRoot, not directly
+     off dyn — dyn.children only ever held itemsRoot itself. This pass used to
+     scan dyn.children, matched nobody, and so people stood frozen while
+     humansLive stayed false forever. A traverse finds them wherever the item
+     reconciler has parented them.
+
+     Throttled to ~30fps, and it only pays for the traverse on the frames it
+     actually animates. The sway is slow enough that half-rate is invisible,
+     and this pass is the one thing in an otherwise idle scene that can pin
+     the render loop (and the 4096² shadow map, see the gate below) at display
+     rate. Frames in between reuse the last answer so `live` stays stable. */
+  var humanFrameT = 0, humansPresent = false;
   function updateHumans(time) {
     if (!dyn) return false;
+    if (humanFrameT && time - humanFrameT < 33) return humansPresent;
+    humanFrameT = time;
     var any = false;
-    dyn.children.forEach(function(c) {
+    dyn.traverse(function (c) {
       if (c.userData && c.userData.isHuman) {
         HumanFactory.animateHuman(c, time);
         any = true;
       }
     });
+    humansPresent = any;
     return any;
   }
 
@@ -3931,10 +4041,19 @@ export function init3D() {
           renderer.shadowMap.needsUpdate = true;
           shadowThrottleT = time;
         }
-      } else if (shadowsDirty || physicsLive || humansLive) {
+      } else if (shadowsDirty || physicsLive) {
         renderer.shadowMap.needsUpdate = true;
         shadowsDirty = false;
         shadowThrottleT = time;
+      } else if (humansLive) {
+        // Same reasoning as extLive above: people move slowly and are small in
+        // frame, so re-rendering a 4096² depth map for their sway on every
+        // frame is the most expensive thing in an otherwise static room. Cap
+        // it at ~5 Hz. Geometry and physics keep the immediate path above.
+        if (!shadowThrottleT || time - shadowThrottleT > 200) {
+          renderer.shadowMap.needsUpdate = true;
+          shadowThrottleT = time;
+        }
       }
       syncSelectionOutline();
       try {
@@ -3953,4 +4072,5 @@ export function init3D() {
       updateViewGizmo(); // keep the orientation triad in sync with the camera
     }
   })();
+  return true;
 }

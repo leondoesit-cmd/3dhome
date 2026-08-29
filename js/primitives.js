@@ -1,6 +1,5 @@
 // Low-level THREE mesh helpers + procedural floor textures + flat polygon geometry.
-import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { THREE, ADDONS } from "./three_lazy.js";
 import { S, fin, PHYSICS_MATS, MAT_PROPS } from "./state.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
 
@@ -150,10 +149,10 @@ export function box(parent, x0, x1, y0, y1, z0, z1, color, opt) {
   // Radius is adaptive & capped so flush-stacked parts don't gap; skip on thin panels.
   var g,
     br = Math.min(1.3, Math.min(bw, bh, bd) * 0.28);
-  if (opt.sharp || br < 0.35 || typeof RoundedBoxGeometry === "undefined") {
+  if (opt.sharp || br < 0.35 || !ADDONS.RoundedBoxGeometry) {
     g = new THREE.BoxGeometry(bw, bh, bd);
   } else {
-    g = new RoundedBoxGeometry(bw, bh, bd, 2, br);
+    g = new ADDONS.RoundedBoxGeometry(bw, bh, bd, 2, br);
   }
   var m;
   if (opt.transmission != null && THREE.MeshPhysicalMaterial) {
@@ -741,6 +740,30 @@ var PAINT = {
 
 // every floor type the UI can offer (order = order in the pickers)
 export const FLOOR_TYPES = Object.keys(PAINT);
+
+/* A floor material, painted small enough for a picker tile.
+   Generated from the SAME table the 3D floor uses, because the one bug a
+   swatch must never have is lying about what it is offering — a separate set
+   of preview images would drift the first time a pattern is retuned. */
+var swatchCache = {};
+export function floorSwatch(type, size) {
+  var px = Math.max(32, Math.min(256, Math.round(size || 96)));
+  var key = type + "@" + px;
+  if (swatchCache[key]) return swatchCache[key];
+  var c = document.createElement("canvas");
+  c.width = c.height = px;
+  var x = c.getContext("2d");
+  if (!x) return "";
+  /* Every painter draws into a fixed 256px frame and does its own wrapping
+     arithmetic against those edges. Scaling the CONTEXT rather than asking for
+     a different size keeps each pattern's proportions and its seams exactly as
+     the floor renders them; a re-tuned tile count would not. */
+  x.scale(px / 256, px / 256);
+  (PAINT[type] || PAINT.concrete)(x);
+  var url = c.toDataURL("image/png");
+  swatchCache[key] = url;
+  return url;
+}
 
 export function floorTexture(type) {
   if (texCache[type]) return texCache[type];

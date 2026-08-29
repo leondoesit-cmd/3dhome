@@ -6,8 +6,15 @@ import { createHistory } from "../js/edit_history.js";
 test("plan undo cancels a continued-wall gesture before rendering restored nodes", async () => {
   const historySource = await readFile(new URL("../js/history.js", import.meta.url), "utf8");
   const planSource = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
+  const stateSource = await readFile(new URL("../js/state.js", import.meta.url), "utf8");
 
-  assert.match(historySource, /S\.drawing = false;[\s\S]*S\.drawFrom = null;[\s\S]*S\.previewPt = null;/);
+  /* The list itself now lives in state.js, shared with the floor switch, which
+     replaces the model for the same reason — so this asserts that undo calls it
+     and that the helper still covers the rubber band plan2d dereferences. */
+  assert.match(historySource, /cancelDraftGestures\(\);/);
+  assert.match(stateSource, /export function cancelDraftGestures\(\)/);
+  const cancel = stateSource.slice(stateSource.indexOf("export function cancelDraftGestures"));
+  assert.match(cancel, /S\.drawing = false;[\s\S]*S\.drawFrom = null;[\s\S]*S\.previewPt = null;/);
   assert.match(planSource, /S\.nodes\[S\.drawFrom\][\s\S]*S\.previewPt/);
 });
 

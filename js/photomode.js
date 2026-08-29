@@ -1,7 +1,7 @@
 // Photo mode: progressive path-traced rendering of the current 3D view in a worker pool.
 // Keeps the live camera framing by default and renders up to 1440p with an
 // edge-aware A-trous denoiser guided by first-hit albedo/normal buffers.
-import { has3D, extractPTScene } from "./view3d.js";
+import { has3D, init3D, extractPTScene } from "./view3d.js";
 import { t } from "./i18n.js";
 
 var RES = {
@@ -471,7 +471,13 @@ function start() {
 }
 
 export function openPhotoMode() {
-  if (!has3D) return false;
+  /* Photo mode path-traces the planner's own 3D scene, and three is late-bound
+     (js/three_lazy.js), so a session that has stayed on the plan has no scene
+     to extract. Build it and come back instead of refusing. */
+  if (!has3D()) {
+    init3D().then(function (ok) { if (ok) openPhotoMode(); });
+    return false;
+  }
   if (!overlay) buildOverlay();
   overlay.classList.add("on");
   // Open on the settings screen — path tracing is expensive, so the user picks

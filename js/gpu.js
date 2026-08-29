@@ -10,7 +10,7 @@
 // ASYNCHRONOUSLY, and `renderer.render()` THROWS if called before it lands.
 // Every render site in the app therefore has to be guarded. Use `ready(r)` to
 // await it, or `render(r, scene, cam)` which no-ops until the backend is live.
-import * as THREE from "three";
+import { THREE } from "./three_lazy.js";
 
 /* ---------------------------------------------------------------------------
    LIGHT UNITS — three r155+ lights are physical, and this scene is in CM.

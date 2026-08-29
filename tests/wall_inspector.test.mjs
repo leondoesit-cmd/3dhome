@@ -1,3 +1,4 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -5,7 +6,7 @@ import { readFile } from "node:fs/promises";
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const props = await readFile(new URL("../js/ui_props.js", import.meta.url), "utf8");
 const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
-const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
+const i18n = await readI18nSource();
 
 const panel = html.slice(html.indexOf('id="wallProps"'), html.indexOf('id="wallMultiProps"'));
 

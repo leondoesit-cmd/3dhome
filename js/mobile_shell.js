@@ -11,8 +11,10 @@
      #m-ctx    a CONTEXTUAL row: Undo/Redo are pinned to its leading edge in
                every state, and the rest changes with the active tool, the
                selection, and which pane is showing. It never scrolls — if a
-               state has more than three contextual actions, the surplus belongs
-               in a sheet, not in a rail the user has to swipe.
+               state has more than four contextual actions, the surplus belongs
+               in a sheet, not in a rail the user has to swipe. The verbs are
+               the ones that KIND answers to, not one row reused everywhere:
+               Rotate on a piece, Flip swing on a door, Add door on a wall.
      #mobile-nav   five FIXED slots (View / Build / Add / Edit / More).
                Each opens a bottom sheet instead of a side drawer, so the plan
                stays visible behind it and a piece can be dragged straight from
@@ -27,7 +29,7 @@ import { t, onLangChange } from "./i18n.js";
 import { setTool } from "./interaction.js";
 import { undo, redo, canUndo, canRedo } from "./history.js";
 import { toggleAid } from "./cad_hud.js";
-import { onAfterRender } from "./plan2d.js";
+import { onAfterRender, render2D, updatePlanGizmo } from "./plan2d.js";
 import { mountPagedMenu, releasePagedMenu } from "./mobile_pages.js";
 
 var ctxBar = null,
@@ -116,6 +118,22 @@ function viewMode() {
 var VIEW_ICONS = { plan: "ph-blueprint", "3d": "ph-cube", split: "ph-rows" };
 var VIEW_LABELS = { plan: "nav_plan", "3d": "nav_3d", split: "nav_split" };
 
+/* Plan means the top-down plan. An elevation can remain selected while the 3D
+   pane is showing, so merely switching panes would otherwise bring the user
+   back to a side view under a control labelled Plan. */
+function setView(k) {
+  /* A drawing gesture cannot remain half-armed behind the 3D pane. Returning
+     to Plan and tapping once must start a fresh gesture, not finish an
+     invisible wall/rectangle from before the inspection detour. */
+  if (k !== "plan" && drawing()) setTool("select");
+  if (k === "plan") {
+    S.viewAxis = "top";
+    render2D();
+    updatePlanGizmo();
+  }
+  if (window.__setViewMode) window.__setViewMode(k);
+}
+
 /* ---- selection ---------------------------------------------------------- */
 
 function selKind() {
@@ -192,7 +210,81 @@ function cancelPlacement() {
   window.dispatchEvent(new CustomEvent("planner-place"));
 }
 
-/* Up to three contextual actions, chosen by what the user is actually doing.
+/* The verbs the CURRENT selection actually answers to.
+
+   Every kind used to get the same Copy / Edit / Delete row, which was wrong in
+   both directions. dupSel() only implements item and items (js/interaction.js),
+   so on a wall, an opening, a room, a corner or a reference point the Copy
+   button was a dead control that consumed a third of the row and did nothing
+   when pressed. And the verb each of those kinds really wants — flip this
+   door's swing, put a door in this wall, turn this chair — was three taps away
+   behind the Edit sheet.
+
+   The row stays at most four controls: under .compact-nav they are 44px
+   icon squares (css/styles.css), so four plus the pinned Undo/Redo still fits
+   a 320px screen without the row having to scroll. */
+function selActions() {
+  var kind = selKind();
+  var propsBtn = { icon: "ph-sliders-horizontal", label: t("m_a_props"), run: function () { showSheet("props"); } };
+  var delBtn = { icon: "ph-trash", label: t("m_a_del"), danger: true, run: function () { run("deleteSel"); } };
+  var dupBtn = { icon: "ph-copy", label: t("m_a_dup"), run: function () { run("dupSel"); } };
+
+  if (kind === "item" || kind === "items") {
+    /* Orienting a piece is the most repeated edit in a furnished plan and it
+       had no control at all outside the inspector's rotation row. */
+    return [
+      { icon: "ph-arrow-clockwise", label: t("m_a_rot90"), run: function () { run("rotSel90"); } },
+      dupBtn,
+      propsBtn,
+      delBtn,
+    ];
+  }
+  if (kind === "opening") {
+    var op = S.sel.ref;
+    var hinged = op && op.type === "door" && !op.isSliding && !op.isPocket;
+    return hinged
+      ? [{ icon: "ph-flip-horizontal", label: t("m_a_swing"), run: function () { run("flipSwing"); } }, propsBtn, delBtn]
+      : [propsBtn, delBtn];
+  }
+  if (kind === "wall") {
+    return [
+      { icon: "ph-door", label: t("m_a_adddoor"), run: function () { run("addWallDoor"); } },
+      { icon: "ph-flip-horizontal", label: t("m_a_flipwall"), run: function () { run("reverseWallLayers"); } },
+      propsBtn,
+      delBtn,
+    ];
+  }
+  if (kind === "node") {
+    return [
+      { icon: "ph-angle", label: t("m_a_square"), run: function () { run("ndSquare"); } },
+      propsBtn,
+      delBtn,
+    ];
+  }
+  if (kind === "marker") {
+    return [
+      { icon: "ph-armchair", label: t("m_a_place"), run: function () { run("mkPlace"); } },
+      propsBtn,
+      delBtn,
+    ];
+  }
+  if (kind === "room") {
+    /* The floor material is the one room property nobody can name from memory
+       and everybody recognises on sight, and it was four taps and an OS wheel
+       of 23 words away. Deliberately NOT joined by Auto-arrange: that action
+       tidies EVERY room (autoArrangeAll), and a verb on this room's row that
+       rearranges the whole plan is the same lie as a Copy button that copies
+       nothing. */
+    return [
+      { icon: "ph-paint-roller", label: t("m_a_floor"), run: function () { run("roomFloor"); } },
+      propsBtn,
+      delBtn,
+    ];
+  }
+  return [propsBtn, delBtn];
+}
+
+/* Up to four contextual actions, chosen by what the user is actually doing.
    Undo/Redo are added by render() and are deliberately NOT part of this list:
    they must never move or disappear, whatever the state. */
 function ctxActions() {
@@ -224,15 +316,7 @@ function ctxActions() {
       { icon: "ph-x", label: t("m_endtool"), run: function () { setTool("select"); } },
     ];
   }
-  if (selKind()) {
-    return [
-      /* Short verbs on purpose: five labelled controls share ~360px here, and
-         a label that ellipses ("Dupl…") is worse than a shorter true word. */
-      { icon: "ph-copy", label: t("m_a_dup"), run: function () { run("dupSel"); } },
-      { icon: "ph-sliders-horizontal", label: t("m_a_props"), run: function () { showSheet("props"); } },
-      { icon: "ph-trash", label: t("m_a_del"), danger: true, run: function () { run("deleteSel"); } },
-    ];
-  }
+  if (selKind()) return selActions();
   return [];
 }
 
@@ -542,13 +626,48 @@ function buildViewSheet() {
     b.title = label;
     b.innerHTML = '<i class="ph ' + VIEW_ICONS[k] + '"></i><span>' + label + "</span>";
     b.addEventListener("click", function () {
-      if (window.__setViewMode) window.__setViewMode(k);
+      setView(k);
       closeSheet();
       sync(true);
     });
     grid.appendChild(b);
   });
   sheetBody.appendChild(grid);
+
+  /* The canvas gizmo is deliberately hidden on a phone, but it also carried
+     the only four elevation commands. Keep the uncluttered sheet and move the
+     commands here instead of silently deleting that drafting capability. */
+  var title = document.createElement("h5");
+  title.className = "m-sheet-sec";
+  title.textContent = t("elev_elevation");
+  sheetBody.appendChild(title);
+  var elevations = document.createElement("div");
+  elevations.className = "m-grid m-grid-4 m-icon-grid m-elevation-grid";
+  [
+    ["front", "ph-arrow-up"],
+    ["right", "ph-arrow-right"],
+    ["back", "ph-arrow-down"],
+    ["left", "ph-arrow-left"],
+  ].forEach(function (entry) {
+    var axis = entry[0];
+    var label = t("elev_" + axis);
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "m-grid-btn" + (S.viewAxis === axis && viewMode() === "plan" ? " on" : "");
+    b.setAttribute("aria-label", label);
+    b.title = label;
+    b.innerHTML = '<i class="ph ' + entry[1] + '"></i><span>' + label + "</span>";
+    b.addEventListener("click", function () {
+      S.viewAxis = axis;
+      render2D();
+      updatePlanGizmo();
+      if (window.__setViewMode) window.__setViewMode("plan");
+      closeSheet();
+      sync(true);
+    });
+    elevations.appendChild(b);
+  });
+  sheetBody.appendChild(elevations);
 }
 
 /* More keeps the live desktop commands, but gives them a phone-sized
@@ -650,6 +769,31 @@ function buildMoreSheet() {
   });
   sheetBody.appendChild(guide);
 
+  /* Ctrl+K lives in the topbar, which on a 6.7" phone is the one strip a thumb
+     cannot reach. The palette itself is already phone-shaped (it re-hosts on
+     body under .compact-nav), so all it needed was a door down here. */
+  var find = document.createElement("button");
+  find.type = "button";
+  find.className = "m-guide-card";
+  find.innerHTML =
+    '<i class="ph ph-magnifying-glass"></i>' +
+    '<span class="m-guide-card-copy"><strong></strong><small></small></span>' +
+    '<i class="ph ph-caret-right"></i>';
+  find.querySelector("strong").textContent = t("m_more_find");
+  find.querySelector("small").textContent = t("m_more_find_desc");
+  find.addEventListener("click", function () {
+    closeSheet();
+    var input = $("toolSearchInput");
+    if (!input) return;
+    // The sheet is still collapsing; focusing inside that frame lets the
+    // backdrop's own click steal the focus straight back.
+    setTimeout(function () {
+      input.focus();
+      input.select();
+    }, 0);
+  });
+  sheetBody.appendChild(find);
+
   var quickTitle = document.createElement("h5");
   quickTitle.className = "m-sheet-sec";
   quickTitle.textContent = t("m_more_settings");
@@ -667,7 +811,13 @@ function buildMoreSheet() {
   appendMenuGroup(t("m_more_project"), fileMenu, { exclude: ["reset"], append: [reset] });
   appendMenuGroup(t("menu_edit"), menuByKey("menu_edit"));
   appendMenuGroup(t("menu_export"), menuByKey("menu_export"));
-  appendMenuGroup(t("m_more_extras"), menuByKey("menu_more"), { collapsed: true });
+  /* RC / Night Shift / lava are games. The planner More sheet keeps Walk
+     (first-person tour), Photo, Model Editor and textures — the extras that
+     still belong to designing the house. */
+  appendMenuGroup(t("m_more_extras"), menuByKey("menu_more"), {
+    collapsed: true,
+    exclude: ["rc", "zombies", "lava"],
+  });
 }
 // Topbar menus are portaled to <body> when first opened (the glass topbar
 // clips fixed children), so a dropdown may no longer hold its own menu.
@@ -697,6 +847,7 @@ function syncNav() {
         s = b.querySelector("span");
       if (i) i.className = "ph " + VIEW_ICONS[mode];
       if (s) s.textContent = t(VIEW_LABELS[mode]);
+      b.title = t("m_view_hold");
     } else if (k === "tools") {
       var ti = b.querySelector("i"),
         ts = b.querySelector("span");
@@ -715,12 +866,98 @@ function syncNav() {
   });
 }
 
+/* The View slot is the only nav slot that is a SWITCH rather than a menu: it
+   already shows the pane you are in, so a tap that merely opens a list of
+   three panes charges two taps to do the one thing it is asked for 95% of the
+   time. Tap flips Plan <-> 3D; press and hold opens the full sheet, which is
+   where Split and the four elevations live. A hold that has fired swallows its
+   own click so the pane does not also change behind the sheet.
+
+   The first few taps announce the hold, because a gesture nobody is told about
+   is the same as a feature that does not exist. */
+var VIEW_HOLD_MS = 420;
+var VIEW_HINT_KEY = "mf_mobile_view_hold_seen";
+var viewHold = 0,
+  viewHeld = false;
+
+function viewHintSeen() {
+  try { return localStorage.getItem(VIEW_HINT_KEY) === "1"; } catch (_) { return false; }
+}
+function markViewHintSeen() {
+  try { localStorage.setItem(VIEW_HINT_KEY, "1"); } catch (_) {}
+}
+
+function cancelViewHold() {
+  if (viewHold) clearTimeout(viewHold);
+  viewHold = 0;
+}
+
+function toggleView() {
+  /* Split is a two-pane compromise; the tap means "show me the other one", and
+     from Split the thing the user cannot currently see whole is the 3D. */
+  setView(viewMode() === "3d" ? "plan" : "3d");
+  if (!viewHintSeen()) {
+    markViewHintSeen();
+    showCoach("m_view_hold", null, null, 3200);
+  }
+  sync(true);
+}
+
 function initNav() {
   var nav = $("mobile-nav");
   if (!nav) return;
+  var viewBtn = nav.querySelector('[data-mnav="view"]');
+  if (viewBtn) {
+    viewBtn.addEventListener("pointerdown", function () {
+      viewHeld = false;
+      cancelViewHold();
+      viewHold = setTimeout(function () {
+        viewHold = 0;
+        viewHeld = true;
+        markViewHintSeen();
+        if (navigator.vibrate) navigator.vibrate(10);
+        showSheet("view");
+      }, VIEW_HOLD_MS);
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) {
+      viewBtn.addEventListener(ev, cancelViewHold);
+    });
+    /* The hold is a pointer gesture, so on its own it puts the full View menu
+       out of reach of a keyboard or switch: Enter on this button only ever
+       toggles the pane. These two are the keyboard equivalents of a long
+       press — the context-menu key (also Shift+F10) and Up, the usual way of
+       opening a menu that sits above its button. */
+    viewBtn.addEventListener("contextmenu", function (e) {
+      e.preventDefault();
+      cancelViewHold();
+      markViewHintSeen();
+      showSheet("view");
+    });
+    viewBtn.addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowUp") return;
+      e.preventDefault();
+      cancelViewHold();
+      markViewHintSeen();
+      showSheet("view");
+    });
+  }
   nav.addEventListener("click", function (e) {
     var b = e.target.closest("[data-mnav]");
     if (!b || b.disabled) return;
+    if (b.dataset.mnav === "view") {
+      cancelViewHold();
+      if (viewHeld) {
+        viewHeld = false;
+        return; // the hold already opened the sheet
+      }
+      /* Any sheet still up is dismissed first. Every other slot swaps one
+         sheet for another, so a View tap that switched the pane and left the
+         More list covering it would be the one nav slot whose result you
+         cannot see. */
+      if (openSheet) closeSheet();
+      toggleView();
+      return;
+    }
     if (b.dataset.mnav === "props" && !selKind()) {
       showCoach("m_props_empty", null, null, 2600);
       return;

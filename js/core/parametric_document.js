@@ -211,15 +211,79 @@ export function historyNode(document, historyId) {
   return (document.history || []).find((entry) => entry.id === historyId) || null;
 }
 
-export function suppressHistoryNode(document, historyId, suppressed = true) {
-  const entry = historyNode(document, historyId);
-  if (!entry) throw new Error("History node does not exist: " + historyId);
+function writeSuppression(document, entry, suppressed) {
   entry.suppressed = !!suppressed;
   const collection = entry.kind === "sketch" ? document.sketches : document.features;
   const target = (collection || []).find((item) => item.id === entry.targetId);
   if (target) target.suppressed = entry.suppressed;
+}
+
+/* Suppressing a step suppresses what that step feeds.
+   A child left building on a parent that no longer builds is not a model state
+   any CAD system offers: SolidWorks, Inventor, NX and Creo all take the
+   dependants with the parent (Creo names them one by one first). The ones taken
+   this way are TAGGED, so releasing the parent releases exactly those and
+   leaves a step the user suppressed by hand suppressed — which is the
+   "unsuppress with dependents" half of the same pair. */
+export function suppressHistoryNode(document, historyId, suppressed = true, options = {}) {
+  const entry = historyNode(document, historyId);
+  if (!entry) throw new Error("History node does not exist: " + historyId);
+  writeSuppression(document, entry, suppressed);
+  delete entry.autoSuppressedBy; // an explicit toggle is the user's own choice
+  const cascaded = [];
+  if (options.cascade !== false) {
+    historyDependents(document, historyId).forEach((child) => {
+      if (suppressed) {
+        if (child.suppressed) return; // already off, and not ours to own
+        writeSuppression(document, child, true);
+        child.autoSuppressedBy = entry.targetId;
+        cascaded.push(child);
+      } else if (child.autoSuppressedBy === entry.targetId) {
+        writeSuppression(document, child, false);
+        delete child.autoSuppressedBy;
+        cascaded.push(child);
+      }
+    });
+  }
+  entry.cascaded = cascaded.map((child) => child.targetId);
+  if (!entry.cascaded.length) delete entry.cascaded;
   document.revision = (Number(document.revision) || 0) + 1;
   return entry;
+}
+
+/* Every feature that would break if these targets stopped building — direct
+   consumers, their consumers, and so on. Sketch ids and feature ids both count:
+   a step consumes a sketch exactly as it consumes an earlier solid. */
+export function dependentTargetIds(document, targetIds) {
+  const seen = new Set((Array.isArray(targetIds) ? targetIds : [targetIds]).filter(Boolean));
+  const out = new Set();
+  const features = document?.features || [];
+  const consumes = (feature, id) =>
+    featureDependencyIds(feature).has(id) ||
+    (feature.references?.sketches || []).map(referenceId).includes(id) ||
+    (feature.params?.sketchId && feature.params.sketchId === id);
+  let frontier = [...seen];
+  while (frontier.length) {
+    const next = [];
+    features.forEach((feature) => {
+      if (seen.has(feature.id)) return;
+      if (!frontier.some((id) => consumes(feature, id))) return;
+      seen.add(feature.id);
+      out.add(feature.id);
+      next.push(feature.id);
+    });
+    frontier = next;
+  }
+  return out;
+}
+
+/* The same cone as history entries, in the order the document builds them, so
+   a caller can name them to the user before anything is suppressed. */
+export function historyDependents(document, historyId) {
+  const entry = historyNode(document, historyId);
+  if (!entry) return [];
+  const ids = dependentTargetIds(document, [entry.targetId]);
+  return (document.history || []).filter((item) => item.kind === "feature" && ids.has(item.targetId));
 }
 
 function featureDependencyIds(feature) {

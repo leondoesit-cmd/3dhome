@@ -22,7 +22,7 @@
 import { S, fin, uid } from "./state.js";
 import { wallById, wallGeom, wallClearLength, openFaceDist, openNodeDist } from "./geometry.js";
 import {
-  snapshotNodes, enforceLocks, settleWallDim, syncClears, syncLocks,
+  snapshotNodes, enforceLocks, relaxLocks, wouldReleaseJoint, settleWallDim, syncClears, syncLocks,
 } from "./constraint_engine.js";
 
 /* Satisfied to within this and the constraint is green. Well under what anyone
@@ -1254,8 +1254,53 @@ function ownerWallOfAnchor(an) {
   return w ? w.id : null;
 }
 
-function protectLocks(before, active) {
-  enforceLocks(before, (active || []).filter(function (id) { return id != null; }));
+/* Putting a corner where a dimension says it goes is the same KIND of edit as
+   typing a length into the wall inspector, so it settles the same way: the rest
+   of the plan is relaxed back onto its own stated interior dimensions first, and
+   only a wall still in contradiction afterwards is handed a private corner.
+
+   Going straight to enforceLocks (which this used to do) tore closed rooms
+   apart. Every other wall standing on a moved corner reads as deformed, so it
+   got its old corner back and the room silently stopped being a room — floor,
+   name and area rule gone — while the solve still reported "0 unresolved". The
+   inspector never had that problem because settleWallDim() relaxes first, and
+   on a rectangle the wall opposite the dimensioned one yields instead. */
+/* While a solve is running this holds the union of the walls its constraints
+   are editing; enforcement is then done ONCE at the end, by settleAfterSolve().
+   Null outside a solve, where a solver called on its own still settles itself. */
+var solveActive = null;
+
+function protectLocks(before, active, moved) {
+  var ids = (active || []).filter(function (id) { return id != null; });
+  /* Nothing moved, so nothing can have been deformed — and both calls below
+     are far too expensive to run on every converged sweep. */
+  if (!moved) return 0;
+  if (solveActive) {
+    ids.forEach(function (id) {
+      if (solveActive.indexOf(id) === -1) solveActive.push(id);
+    });
+    return 0; // the sweeps place the corners; settleAfterSolve() has the last word
+  }
+  return settleLocks(before, ids);
+}
+
+/* Put the plan back on its stated dimensions after an edit moved corners.
+
+   The relaxation is the repair, not the normal path: it is only reached when a
+   joint is genuinely about to come apart, so an ordinary settle still costs one
+   enforceLocks() and geometry the caller placed by hand is left alone.
+
+   Going straight to enforceLocks (which this used to do, after every single
+   constraint) tore closed rooms apart. Every other wall standing on a moved
+   corner reads as deformed, so it got its old corner back and the room silently
+   stopped being a room — floor, name and area rule gone — while the solve still
+   reported "0 unresolved". The inspector never had that problem because
+   settleWallDim() relaxes first, and on a rectangle the wall opposite the
+   dimensioned one yields instead. */
+function settleLocks(before, ids, repair) {
+  if (repair === false || !wouldReleaseJoint(before, ids)) return enforceLocks(before, ids);
+  var relaxed = relaxLocks(ids, Object.keys(pinnedNodes()).map(Number));
+  return enforceLocks(before, ids.concat(relaxed.yielded));
 }
 
 function solveDist(c) {
@@ -1274,7 +1319,7 @@ function solveDist(c) {
   if (len < 1e-4) return 0;
   var before = snapshotNodes();
   var moved = moveNode(ni, P.x + (dx / len) * c.value, P.z + (dz / len) * c.value);
-  protectLocks(before, [ownerWallOfAnchor(moveAn)]);
+  protectLocks(before, [ownerWallOfAnchor(moveAn)], moved);
   return moved;
 }
 
@@ -1320,7 +1365,7 @@ function solveAngle(c) {
     enforceLocks(before, [w2.id].concat(relaxed.yielded));
     return moved;
   }
-  protectLocks(before, [w2.id]);
+  protectLocks(before, [w2.id], moved);
   return moved;
 }
 
@@ -1355,7 +1400,7 @@ function solveOffset(c) {
   var before = snapshotNodes();
   var moved = moveNode(w.a, ax + nx * shift, az + nz * shift);
   moved += moveNode(w.b, bx + nx * shift, bz + nz * shift);
-  protectLocks(before, [w.id]);
+  protectLocks(before, [w.id], moved);
   return moved;
 }
 
@@ -1369,7 +1414,7 @@ function solveAxis(c) {
     delta = c.type === "axisDistX" || c.type === "axisDistZ" ? c.value : 0;
   var moved = moveNode(ni, isX ? P.x + delta : Q.x,
     isX ? Q.z : P.z + delta);
-  protectLocks(before, [ownerWallOfAnchor(moveAn)]);
+  protectLocks(before, [ownerWallOfAnchor(moveAn)], moved);
   return moved;
 }
 
@@ -1384,7 +1429,7 @@ function solveEqualAngle(c) {
   if (L < 1e-4) return 0;
   var before = snapshotNodes(), ang = base + want * Math.PI / 180;
   var moved = moveNode(far, J.x + Math.cos(ang) * L, J.z + Math.sin(ang) * L);
-  protectLocks(before, [w2.id]);
+  protectLocks(before, [w2.id], moved);
   return moved;
 }
 
@@ -1431,7 +1476,7 @@ function solveWallRelation(c) {
     }
     moved += moveNode(w.b, ax + Math.cos(target) * gw.L, az + Math.sin(target) * gw.L);
   }
-  protectLocks(before, [w.id]);
+  protectLocks(before, [w.id], moved);
   return moved;
 }
 
@@ -1449,7 +1494,7 @@ function solvePointWall(c) {
   if (cur == null) return 0;
   var before = snapshotNodes(), shift = c.value - cur;
   var moved = moveNode(ni, p.x - gr.uz * shift, p.z + gr.ux * shift);
-  protectLocks(before, [ownerWallOfAnchor(c.point)]);
+  protectLocks(before, [ownerWallOfAnchor(c.point)], moved);
   return moved;
 }
 
@@ -1462,7 +1507,7 @@ function solveFixed(c) {
   if (ni == null || !fin(c.x) || !fin(c.z)) return 0;
   var before = snapshotNodes();
   var moved = moveNode(ni, c.x, c.z, true);
-  protectLocks(before, [ownerWallOfAnchor(c.a)]);
+  protectLocks(before, [ownerWallOfAnchor(c.a)], moved);
   return moved;
 }
 
@@ -1474,7 +1519,7 @@ function solveCoincident(c) {
   if (!P || ni == null) return 0;
   var before = snapshotNodes();
   var moved = moveNode(ni, P.x, P.z);
-  protectLocks(before, [ownerWallOfAnchor(moveAn)]);
+  protectLocks(before, [ownerWallOfAnchor(moveAn)], moved);
   return moved;
 }
 
@@ -1490,7 +1535,7 @@ function solveSymmetric(c) {
   if (!want) return 0;
   var before = snapshotNodes();
   var moved = moveNode(ni, want.x, want.z);
-  protectLocks(before, [ownerWallOfAnchor(moveAn)]);
+  protectLocks(before, [ownerWallOfAnchor(moveAn)], moved);
   return moved;
 }
 
@@ -1515,7 +1560,7 @@ function solveOnWallLine(c) {
   }
   var before = snapshotNodes();
   var moved = moveNode(ni, tx, tz);
-  protectLocks(before, [ownerWallOfAnchor(c.point)]);
+  protectLocks(before, [ownerWallOfAnchor(c.point)], moved);
   return moved;
 }
 
@@ -1531,7 +1576,7 @@ function solveEqualLengthSet(c) {
     if (!A || g.L < 1e-4) continue;
     var before = snapshotNodes();
     moved += moveNode(w.b, A.x + g.ux * want, A.z + g.uz * want);
-    protectLocks(before, [w.id]);
+    protectLocks(before, [w.id], moved);
   }
   return moved;
 }
@@ -1547,7 +1592,7 @@ function solveEqualSpacing(c) {
       mx = row.mx + l.nx * shift, mz = row.mz + l.nz * shift, half = g.L / 2;
     moved += moveNode(w.a, mx - ux * half, mz - uz * half);
     moved += moveNode(w.b, mx + ux * half, mz + uz * half);
-    protectLocks(before, [w.id]);
+    protectLocks(before, [w.id], moved);
   }
   return moved;
 }
@@ -1673,6 +1718,16 @@ export function solveWallCons(opts) {
   var subset = opts && opts.nodes ? subsetTouching(list, opts.nodes) : null;
   var run = subset || list;
   if (!run.length) return { passes: 0, moved: 0, unresolved: conIssues().length };
+  /* Hold the lock rule until the sweeps have finished. Enforcing it after every
+     individual constraint meant a dimension that moved a shared corner tore the
+     room open before the next constraint had had its say — and the repair for
+     that (relaxLocks) is far too expensive to run per constraint per sweep: a
+     15-room terrace with eight dimensions took three minutes. One settle for
+     the whole solve fixes both. Re-entrant solves (the room rules run one from
+     the afterSolve hook) leave the outermost one in charge. */
+  var outermost = !solveActive,
+    entry = outermost ? snapshotNodes() : null;
+  if (outermost) solveActive = [];
   var total = 0,
     p = 0;
   for (; p < PASSES; p++) {
@@ -1686,6 +1741,17 @@ export function solveWallCons(opts) {
     });
     total += moved;
     if (moved < 0.01) break; // converged
+  }
+  if (outermost) {
+    var edited = solveActive;
+    solveActive = null;
+    /* The repair belongs to a settled edit, not to a frame of a drag. A drag
+       passes opts.nodes, and while a corner is under the pointer the old rule
+       is the right one: the walls the user is not dragging keep their length
+       and let go of the joint, visibly. The gesture ends with a full solve
+       (see the pointerup handler in interaction.js), which is where a plan that
+       can still be reconciled gets reconciled. */
+    if (total >= 0.01) settleLocks(entry, edited, !subset);
   }
   afterSolve.forEach(function (fn) { fn(opts); });
   refreshReports(); // reference dimensions must never read one gesture stale

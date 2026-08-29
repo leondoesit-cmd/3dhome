@@ -1,3 +1,4 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -15,7 +16,7 @@ const ui = await readFile(new URL("../js/ui_dim_knob.js", import.meta.url), "utf
 const props = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
 const main = await readFile(new URL("../js/main.js", import.meta.url), "utf8");
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
-const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
+const i18n = await readI18nSource();
 
 /* ---- the scrub engine --------------------------------------------------- */
 

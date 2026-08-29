@@ -1,3 +1,4 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -14,7 +15,7 @@ const [ui, settings, interaction, modeler, css, i18n] = await Promise.all([
   readFile(new URL("js/interaction.js", root), "utf8"),
   readFile(new URL("js/modeler.js", root), "utf8"),
   readFile(new URL("css/styles.css", root), "utf8"),
-  readFile(new URL("js/i18n.js", root), "utf8"),
+  readI18nSource(),
 ]);
 
 test("touch precision preferences default to the direct loupe and sanitize tuning", () => {

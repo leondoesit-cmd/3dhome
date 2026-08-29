@@ -99,7 +99,11 @@ test("modeler: drawer listeners live on the sheet, never on the borrowed ribbon"
 test("modeler: the sheet is the ribbon's width budget", () => {
   // minmax(96px,1fr) sized against max-content and clipped Hole wizard off the end
   assert.match(css, /\.md-command-items \{[\s\S]{0,400}grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.doesNotMatch(css, /grid-template-columns: repeat\(auto-fill, minmax\(96px, 1fr\)\)/);
+  /* Scoped to the ribbon it is about. A bare file-wide search for the track
+     expression also fired on unrelated grids that legitimately auto-fill
+     (the floor swatch picker), which is a guard failing on the wrong thing. */
+  (css.match(/[^}]*\.md-command-items[^{]*\{[^}]*\}/g) || []).forEach((rule) =>
+    assert.doesNotMatch(rule, /auto-fill/, "the ribbon is sized by its sheet, not by its content"));
   assert.match(css, /\.md-commandmanager\.md-borrowed \{[\s\S]{0,400}min-width: 0;/);
 });
 

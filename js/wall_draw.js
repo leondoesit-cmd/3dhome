@@ -330,6 +330,15 @@ export function extendToHit(origin, cursor, joinTol) {
   });
   if (!best) return null;
   if (len + 1 < best.t - tol) return null;
+  /* ...and the cursor must not be well PAST it either. Aiming a little beyond a
+     wall is how you say "end ON it", so that band is deliberately looser than
+     the one above; a stroke that runs far past is a wall drawn ACROSS it, and
+     splitCrossedByNewWall() cuts both at the crossing once it is committed.
+     Without this the far end was snapped back to the FIRST wall met and the
+     rest of the stroke was thrown away — drawing a partition straight through a
+     room from outside left an 80 cm stub outside the north wall and the room
+     undivided. */
+  if (best.t + tol * 2 < len) return null;
   return best;
 }
 

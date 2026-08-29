@@ -1,6 +1,8 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { stripComments } from "./source.mjs";
 
 const chrome = await readFile(new URL("../js/ui_cabinet.js", import.meta.url), "utf8");
 const view = await readFile(new URL("../js/ui_cabinet_view.js", import.meta.url), "utf8");
@@ -9,7 +11,7 @@ const ctx = await readFile(new URL("../js/ui_cabinet_ctx.js", import.meta.url), 
 const ui = [chrome, view, inspect, ctx].join("\n");
 const adapter = await readFile(new URL("../js/parametric_cabinet.js", import.meta.url), "utf8");
 const planner = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
-const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
+const i18n = await readI18nSource();
 const presets = await readFile(new URL("../js/cabinet_presets.js", import.meta.url), "utf8");
 const engine = await readFile(new URL("../js/cabinet.js", import.meta.url), "utf8");
 
@@ -121,9 +123,13 @@ test("user presets are stored on the spatial project, not localStorage", () => {
 });
 
 test("paste re-tags duplicate hid values in normalizeSpec rather than skipping them", () => {
-  assert.match(engine, /Copy\/paste clones a column whole, hid and/);
-  assert.match(engine, /duplicates are re-tagged here rather than at every paste site/);
-  const tag = engine.slice(engine.indexOf("function tagParts"), engine.indexOf("export function normalizeSpec"));
+  /* normalizeSpec is where every paste lands, so that is where the re-tagging
+     has to happen — asserted on the code, since the comment saying so would
+     satisfy a text match all by itself. */
+  const spec = stripComments(engine).slice(engine.indexOf("export function normalizeSpec"));
+  assert.match(spec, /tagParts\(sp\);/, "every normalize re-tags");
+  const tag = stripComments(engine).slice(engine.indexOf("function tagParts"), engine.indexOf("export function normalizeSpec"));
+  assert.doesNotMatch(tag, /splice\(|\.filter\(/, "a duplicate is re-tagged, never dropped");
   assert.match(tag, /dup\.push\(o\)/);
   assert.match(tag, /o\.hid = id/);
 });

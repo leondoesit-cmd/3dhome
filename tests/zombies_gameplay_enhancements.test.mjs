@@ -1,13 +1,15 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { stripComments } from "./source.mjs";
 
 const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
 const world = await readFile(new URL("../js/zombies_world.js", import.meta.url), "utf8");
 const tex = await readFile(new URL("../js/zombies_tex.js", import.meta.url), "utf8");
 const destruct = await readFile(new URL("../js/zombies_destruct.js", import.meta.url), "utf8");
 const physicsDamage = await readFile(new URL("../js/physics/damage.js", import.meta.url), "utf8");
-const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
+const i18n = await readI18nSource();
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 
 test("texture resolution budgets are reduced by 50% for lower memory footprint", () => {
@@ -156,5 +158,7 @@ test("mobile play gets soft visible-target aim and larger interaction radii", ()
 });
 
 test("hitscan supplies a camera before Three.js evaluates scene sprites", () => {
-  assert.match(game, /_rc\.set\(origin, dir\);\s*\/\/[\s\S]*?_rc\.camera = getMainCamera\(\);/);
+  // read as code: the camera has to be set before the raycast, whether or not
+  // the line comment that explains why is still sitting between the two
+  assert.match(stripComments(game), /_rc\.set\(origin, dir\);[\s\S]*?_rc\.camera = getMainCamera\(\);/);
 });

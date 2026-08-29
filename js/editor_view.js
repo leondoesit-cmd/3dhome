@@ -18,7 +18,7 @@
 // The renderer prefers WebGL2 (see gpu.js): an editor preview gains nothing
 // from WebGPU and the WebGL2 backend comes up faster.
 
-import * as THREE from "three";
+import { THREE } from "./three_lazy.js";
 import { createRenderer, render as gpuRender, ready as gpuReady, LUX } from "./gpu.js";
 import { clearGroup } from "./primitives.js";
 
@@ -149,7 +149,15 @@ export function createEditorView(opts) {
     }
     var grid = null;
     if (opts.grid) {
-      grid = new THREE.GridHelper(400, 20, 0x88aacc, 0xd0d8e0);
+      grid = new THREE.GridHelper(400, 20, opts.gridMajor || 0x73869a, opts.gridMinor || 0xb7c0ca);
+      /* A construction grid is depth information, not the subject. Keep it
+         readable at the horizon without letting it compete with model edges. */
+      var gridMaterials = Array.isArray(grid.material) ? grid.material : [grid.material];
+      gridMaterials.forEach(function (material) {
+        material.transparent = true;
+        material.opacity = opts.gridOpacity == null ? 0.32 : opts.gridOpacity;
+        material.depthWrite = false;
+      });
       sc.add(grid);
     }
     var grp = new THREE.Group();

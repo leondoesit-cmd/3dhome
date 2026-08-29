@@ -518,6 +518,7 @@ export function render2D() {
   }
   drawWallCons();
   drawWallAngleGuide();
+  ensureAngleGuideAnim();
 
   // drafting guides while drawing/dragging a wall corner: a dashed run from the
   // corner being aligned WITH to the point being placed, and a ring marking
@@ -1916,10 +1917,60 @@ function drawSnapFlash() {
    and after the deliberately weak snap, matching double ticks pulse briefly.
    Keeping this on the canvas (rather than a tooltip at the pointer) lets the
    user watch the actual joints while dragging the wall body. */
-var wallAngleGuideT = 0;
+/* ---- snapped angle-guide pulse ----
+   The matching double ticks breathe (drawWallAngleGuide's `pulse`) while the
+   equal-angle snap is held, and through the short confirmation that outlives
+   the release, so those frames have to be asked for. Same self-perpetuating,
+   self-cancelling rAF loop as the MEP flow and the warning glow near the top of
+   this file: it stops the moment the plan is hidden, the snap is let go, or the
+   confirmation runs out, so a plan with no live snap costs nothing. The one
+   frame it asks for on the way out is what wipes the expired badge off the
+   canvas — nothing else is watching the clock. */
+let angleGuideAnimOn = false;
+let angleGuideLastFrame = 0;
+function angleGuideShouldAnimate() {
+  var gd = S.wallAngleGuide;
+  return (
+    !!gd &&
+    gd.snapped &&
+    !isElevation() &&
+    plan.offsetParent !== null &&
+    // held mid-drag, or still inside the post-release confirmation
+    (S.action === "wall" || gd.until > Date.now())
+  );
+}
+function angleGuideAnimStep(time) {
+  if (!angleGuideShouldAnimate()) {
+    angleGuideAnimOn = false;
+    angleGuideLastFrame = 0;
+    // Final frame: drops the guide and clears its ticks. Only needed while one
+    // is still on the canvas — an interaction that dropped it already repainted.
+    if (S.wallAngleGuide) requestRender2D();
+    return;
+  }
+  if (!angleGuideLastFrame || time - angleGuideLastFrame >= 45) {
+    angleGuideLastFrame = time;
+    requestRender2D();
+  }
+  requestAnimationFrame(angleGuideAnimStep);
+}
+function ensureAngleGuideAnim() {
+  if (!angleGuideAnimOn && angleGuideShouldAnimate()) {
+    angleGuideAnimOn = true;
+    requestAnimationFrame(angleGuideAnimStep);
+  }
+}
 function drawWallAngleGuide() {
   var gd = S.wallAngleGuide;
   if (!gd || !gd.wall || !gd.pair) return;
+  /* The guide is a reference INTO the document. If its wall has gone (deleted,
+     undone, or a whole new plan loaded under it) there is nothing left to
+     confirm, and drawing on the stale reference would put a badge on a wall the
+     user cannot see. */
+  if (S.walls.indexOf(gd.wall) === -1) {
+    S.wallAngleGuide = null;
+    return;
+  }
   var lingering = S.action !== "wall" && gd.snapped && gd.until > Date.now();
   if (S.action !== "wall" && !lingering) {
     S.wallAngleGuide = null;
@@ -2026,12 +2077,6 @@ function drawWallAngleGuide() {
     "rgb(" + color + ")",
     gd.snapped,
   );
-
-  if (gd.snapped && !wallAngleGuideT)
-    wallAngleGuideT = setTimeout(function () {
-      wallAngleGuideT = 0;
-      requestRender2D();
-    }, 45);
 }
 
 /* Where the cursor sits along the wall it is over, as the pair of distances a

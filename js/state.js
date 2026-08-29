@@ -495,3 +495,51 @@ export function throttle(fn) {
     }
   };
 }
+
+/* Cancel every in-progress plan gesture and drop every transient reference INTO
+   the model — the corner a rubber band is drawn from, the wall under the
+   cursor, the piece mid-snap-flash, the drop target.
+
+   Two callers replace the model wholesale: undo/redo restoring a snapshot, and
+   switching to another storey. Both kept their own copy of this list, and the
+   copies drifted — which is the bug twice over. A draft holds NODE INDICES into
+   the model it was started in, so one that outlives the swap either completes a
+   rectangle begun on another floor (editing the wrong storey) or makes the next
+   render dereference a corner that no longer exists.
+
+   The TOOL is deliberately left armed: the user picked it and nothing about a
+   state swap says otherwise. Only the gesture restarts. setTool() does NOT use
+   this — its clearing is per-tool ("leaving the arc tool drops the arc draft"),
+   a different rule that happens to touch some of the same fields. */
+export function cancelDraftGestures() {
+  // the wall / rectangle / arc / offset / join drafts, and their preview
+  S.drawing = false;
+  S.drawFrom = null;
+  S.drawStart = null;
+  S.drawFromSplit = false;
+  S.drawWalls = [];
+  S.wallPress = null;
+  S.rectDraft = null;
+  S.arcDraft = null;
+  S.offsetDraft = null;
+  S.joinPick = null;
+  S.previewPt = null;
+  S.segPreview = null;
+  S.markerPreview = null;
+  S.freshWall = null;
+  // snap feedback, which names geometry that may not exist any more
+  S.snapGuides = [];
+  S.snapInfo = null;
+  S.snapFlash = null;
+  S.snapFlashKey = null;
+  // live pointer state and what it had hold of
+  S.action = null;
+  S.nodeDrag = null;
+  S.dragRoom = null;
+  S.mepDrag = null;
+  S.panStart = null;
+  S.wallProbe = null;
+  S.hoverItem = null;
+  S.stackHost = null;
+  S.eraseHover = null;
+}

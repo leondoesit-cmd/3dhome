@@ -1,3 +1,4 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -211,7 +212,7 @@ test("the hand-set flag survives a save and the panel offers 90°", async () => 
   ["rotStep15", "rotStep45", "rotStep90", "faceAuto", "face-toggle"].forEach((hook) => {
     assert.ok(html.includes(hook), hook + " is in the item panel");
   });
-  const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
+  const i18n = await readI18nSource();
   const he = i18n.slice(i18n.indexOf("  he: {"), i18n.indexOf("  en: {"));
   const en = i18n.slice(i18n.indexOf("  en: {"));
   ["auto_face", "rot_step", "face_auto", "f_faced", "f_faceSame"].forEach((key) => {

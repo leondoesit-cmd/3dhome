@@ -13,24 +13,33 @@ function meshBounds(meshData) {
   return Number.isFinite(q.x0) ? q : null;
 }
 
+/* One part's extents, or null when the kind carries no measurable geometry. */
+function partBoundsOf(p) {
+  if (!p) return null;
+  if (p.kind === "box") return { x0:p.x0,x1:p.x1,y0:p.y0,y1:p.y1,z0:p.z0,z1:p.z1 };
+  if (p.kind === "cyl" || p.kind === "sph") {
+    const r = p.r || 0, h = p.kind === "cyl" ? p.h : r * 2;
+    return { x0:p.x-r,x1:p.x+r,y0:p.kind === "cyl" ? p.y : p.y-r,y1:p.kind === "cyl" ? p.y+h : p.y+r,z0:p.z-r,z1:p.z+r };
+  }
+  if (p.kind === "ext") {
+    const us = (p.pts || []).map((pt) => pt.u), vs = (p.pts || []).map((pt) => pt.v);
+    if (!us.length) return null;
+    const u0 = Math.min(...us), u1 = Math.max(...us), v0 = Math.min(...vs), v1 = Math.max(...vs);
+    const lo = Math.min(p.from, p.to), hi = Math.max(p.from, p.to);
+    return p.axis === "z" ? { x0:u0,x1:u1,y0:v0,y1:v1,z0:lo,z1:hi }
+      : p.axis === "x" ? { x0:lo,x1:hi,y0:v0,y1:v1,z0:u0,z1:u1 }
+      : { x0:u0,x1:u1,y0:lo,y1:hi,z0:v0,z1:v1 };
+  }
+  if ((p.kind === "direct" || p.kind === "mesh") && p.meshData) {
+    return p.bounds && Number.isFinite(p.bounds.x0) ? p.bounds : meshBounds(p.meshData);
+  }
+  return null;
+}
+
 function boundsOf(parts) {
   const b = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, z0: Infinity, z1: -Infinity };
   for (const p of parts || []) {
-    let q;
-    if (p.kind === "box") q = { x0:p.x0,x1:p.x1,y0:p.y0,y1:p.y1,z0:p.z0,z1:p.z1 };
-    else if (p.kind === "cyl" || p.kind === "sph") {
-      const r = p.r || 0, h = p.kind === "cyl" ? p.h : r * 2;
-      q = { x0:p.x-r,x1:p.x+r,y0:p.kind === "cyl" ? p.y : p.y-r,y1:p.kind === "cyl" ? p.y+h : p.y+r,z0:p.z-r,z1:p.z+r };
-    } else if (p.kind === "ext") {
-      const us = (p.pts || []).map((pt) => pt.u), vs = (p.pts || []).map((pt) => pt.v);
-      const u0 = Math.min(...us), u1 = Math.max(...us), v0 = Math.min(...vs), v1 = Math.max(...vs);
-      const lo = Math.min(p.from, p.to), hi = Math.max(p.from, p.to);
-      q = p.axis === "z" ? { x0:u0,x1:u1,y0:v0,y1:v1,z0:lo,z1:hi }
-        : p.axis === "x" ? { x0:lo,x1:hi,y0:v0,y1:v1,z0:u0,z1:u1 }
-        : { x0:u0,x1:u1,y0:lo,y1:hi,z0:v0,z1:v1 };
-    } else if ((p.kind === "direct" || p.kind === "mesh") && p.meshData) {
-      q = p.bounds && Number.isFinite(p.bounds.x0) ? p.bounds : meshBounds(p.meshData);
-    } else continue;
+    const q = partBoundsOf(p);
     if (!q) continue;
     for (const k of Object.keys(b)) b[k] = k.endsWith("0") ? Math.min(b[k], q[k]) : Math.max(b[k], q[k]);
   }
@@ -38,21 +47,44 @@ function boundsOf(parts) {
   return b;
 }
 
+/* The (u, v) extents a part occupies in one standard view — the same axis
+   mapping core/mesh_projection.js uses, so an envelope outline lines up with a
+   projected mesh drawn beside it. */
+function viewExtents(q, view) {
+  return view === "top" ? { u0:q.x0, u1:q.x1, v0:q.z0, v1:q.z1 }
+    : view === "front" ? { u0:q.x0, u1:q.x1, v0:q.y0, v1:q.y1 }
+    : { u0:q.z0, u1:q.z1, v0:q.y0, v1:q.y1 };
+}
+
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 const n = (value) => Math.round(value * 1000) / 1000;
 
+/* One outline per part. A mesh gets its projected feature edges; anything else
+   gets the rectangle it occupies in this view, which is the fidelity the sheet
+   has always given a part it cannot project. Drawing only the mesh parts left
+   an assembly of envelopes — or any model of primitives — falling through to a
+   single rectangle around the whole thing, so several components arrived on the
+   sheet as one undifferentiated box with balloons pointing at it. */
 function meshViewPath(parts, view, ox, oy, scale, a0, c1) {
   let d = "";
   for (const part of parts || []) {
-    if ((part.kind !== "direct" && part.kind !== "mesh") || !part.meshData) continue;
-    const projection = projectMeshEdges(part.meshData, view);
-    for (const segment of projection.segments || []) {
-      const x1=ox+(segment.a.u-a0)*scale;
-      const y1=oy+(c1-segment.a.v)*scale;
-      const x2=ox+(segment.b.u-a0)*scale;
-      const y2=oy+(c1-segment.b.v)*scale;
-      d += `M${n(x1)},${n(y1)}L${n(x2)},${n(y2)}`;
+    if ((part.kind === "direct" || part.kind === "mesh") && part.meshData) {
+      const projection = projectMeshEdges(part.meshData, view);
+      for (const segment of projection.segments || []) {
+        const x1=ox+(segment.a.u-a0)*scale;
+        const y1=oy+(c1-segment.a.v)*scale;
+        const x2=ox+(segment.b.u-a0)*scale;
+        const y2=oy+(c1-segment.b.v)*scale;
+        d += `M${n(x1)},${n(y1)}L${n(x2)},${n(y2)}`;
+      }
+      continue;
     }
+    const q = partBoundsOf(part);
+    if (!q) continue;
+    const e = viewExtents(q, view);
+    const x1=ox+(e.u0-a0)*scale, x2=ox+(e.u1-a0)*scale;
+    const y1=oy+(c1-e.v1)*scale, y2=oy+(c1-e.v0)*scale;
+    d += `M${n(x1)},${n(y1)}L${n(x2)},${n(y1)}L${n(x2)},${n(y2)}L${n(x1)},${n(y2)}Z`;
   }
   return d;
 }
@@ -145,7 +177,11 @@ export function createDrawingSvg(def, options = {}) {
     views.push({ name:"SECTION A-A", view:"front", section:true, x:margin*2+viewW, y:margin*2+viewH, w:modelW, h:modelH, a0:b.x0, a1:b.x1, c0:b.y0, c1:b.y1 });
   }
   const callouts = options.holeCallouts === false ? [] : collectHoleCallouts(def);
-  const balloons = options.balloons === false ? [] : (options.balloons === true || def.kind === "assembly" ? collectBalloons(def) : []);
+  /* An assembly numbers its components, not the outlines it happens to be
+     drawn from, so the caller may hand the balloon list in ready-made. */
+  const balloons = Array.isArray(options.balloons) ? options.balloons
+    : options.balloons === false ? []
+    : (options.balloons === true || def.kind === "assembly" ? collectBalloons(def) : []);
   let body = "";
   for (const v of views) {
     const ox = v.x + (viewW-v.w*scale)/2, oy = v.y + (viewH-v.h*scale)/2;

@@ -29,6 +29,7 @@
 // under-, fully- and over-constrained diagnostics.
 
 import { analyzeSketchProfiles } from "./sketch_profiles.js";
+import { gaussNewtonStep, normOf, numericJacobian, rankOf as matrixRank } from "./core/least_squares.js";
 
 const EPS = 1e-6;
 const DEG = Math.PI / 180;
@@ -309,67 +310,32 @@ function variables(sketch) {
   return vars;
 }
 
+/* The sketch's variables live on the point and entity records themselves, so
+   the shared differencer is handed a writer that puts a probe vector back onto
+   them. Forward differences, as before: a drag re-solves sixty times a second
+   and the extra accuracy of a central difference is not worth doubling the
+   residual evaluations here. */
+function readVariables(vars) {
+  return vars.map((v) => Number(v.obj[v.k]) || 0);
+}
+
+function writeVariables(vars, vector) {
+  vars.forEach((v, i) => { v.obj[v.k] = vector[i]; });
+}
+
 function jacobian(sketch, vars, base) {
-  const J = Array.from({ length: base.length }, () => Array(vars.length).fill(0));
-  vars.forEach((v, j) => {
-    const old = Number(v.obj[v.k]) || 0, h = Math.max(1e-5, Math.abs(old) * 1e-6);
-    v.obj[v.k] = old + h;
-    const plus = residuals(sketch);
-    v.obj[v.k] = old;
-    for (let i = 0; i < base.length; i++) J[i][j] = ((plus[i] || 0) - base[i]) / h;
-  });
-  return J;
+  return numericJacobian((vector) => {
+    writeVariables(vars, vector);
+    return residuals(sketch);
+  }, readVariables(vars), base);
 }
 
-function solveLinear(A, b) {
-  const n = b.length, M = A.map((row, i) => row.slice().concat(b[i]));
-  for (let k = 0; k < n; k++) {
-    let pivot = k;
-    for (let i = k + 1; i < n; i++) if (Math.abs(M[i][k]) > Math.abs(M[pivot][k])) pivot = i;
-    if (Math.abs(M[pivot][k]) < 1e-12) continue;
-    [M[k], M[pivot]] = [M[pivot], M[k]];
-    const d = M[k][k];
-    for (let j = k; j <= n; j++) M[k][j] /= d;
-    for (let i = 0; i < n; i++) {
-      if (i === k) continue;
-      const f = M[i][k];
-      for (let j = k; j <= n; j++) M[i][j] -= f * M[k][j];
-    }
-  }
-  return M.map((row) => Number.isFinite(row[n]) ? row[n] : 0);
-}
-
-/* Rank of the Jacobian, which is what turns into the degrees-of-freedom count.
-   Rows are equilibrated to unit maximum first: the residuals are not in the
-   same units — a distance is centimetres while a parallel relation is a
-   normalized cross product — so their rows differ in magnitude by whatever the
-   sketch happens to be scaled to. Against a fixed absolute pivot tolerance,
-   that made the *same shape* rank differently at 40 cm and at 150 cm, and a
-   fully defined sketch drawn large reported phantom freedoms. After scaling,
-   every row's largest entry is 1 and the tolerance means the same thing on all
-   of them. */
+/* Re-exported rather than moved out of reach: wall_dof.js builds its own
+   Jacobian and asks this module for the rank, and the sketch is where that
+   reading is documented. The implementation is shared with the assembly
+   solver — see core/least_squares.js. */
 export function rankOf(J, tolerance = 1e-9) {
-  if (!J.length || !J[0]?.length) return 0;
-  const M = J.map((r) => {
-    const row = r.slice();
-    let peak = 0;
-    for (const v of row) peak = Math.max(peak, Math.abs(v));
-    if (peak > 0) for (let i = 0; i < row.length; i++) row[i] /= peak;
-    return row;
-  });
-  let rank = 0, col = 0;
-  while (rank < M.length && col < M[0].length) {
-    let pivot = rank;
-    for (let i = rank + 1; i < M.length; i++) if (Math.abs(M[i][col]) > Math.abs(M[pivot][col])) pivot = i;
-    if (Math.abs(M[pivot][col]) <= tolerance) { col++; continue; }
-    [M[rank], M[pivot]] = [M[pivot], M[rank]];
-    for (let i = rank + 1; i < M.length; i++) {
-      const f = M[i][col] / M[rank][col];
-      for (let j = col; j < M[0].length; j++) M[i][j] -= f * M[rank][j];
-    }
-    rank++; col++;
-  }
-  return rank;
+  return matrixRank(J, tolerance);
 }
 
 export function solveSketch(sketch, options = {}) {
@@ -378,20 +344,13 @@ export function solveSketch(sketch, options = {}) {
   const maxIterations = options.maxIterations || 60;
   let damping = options.damping || 1e-4, converged = false, iteration = 0;
   let r = residuals(sketch);
-  const norm = (v) => Math.sqrt(v.reduce((s, x) => s + x * x, 0));
-  let error = norm(r);
+  let error = normOf(r);
   for (; iteration < maxIterations && vars.length && r.length; iteration++) {
     if (error < tolerance) { converged = true; break; }
-    const J = jacobian(sketch, vars, r), n = vars.length;
-    const A = Array.from({ length: n }, () => Array(n).fill(0)), b = Array(n).fill(0);
-    for (let i = 0; i < r.length; i++) for (let j = 0; j < n; j++) {
-      b[j] -= J[i][j] * r[i];
-      for (let k = 0; k < n; k++) A[j][k] += J[i][j] * J[i][k];
-    }
-    for (let i = 0; i < n; i++) A[i][i] += damping;
-    const delta = solveLinear(A, b), before = vars.map((v) => v.obj[v.k]);
+    const J = jacobian(sketch, vars, r);
+    const delta = gaussNewtonStep(J, r, damping), before = vars.map((v) => v.obj[v.k]);
     vars.forEach((v, i) => { v.obj[v.k] = (Number(v.obj[v.k]) || 0) + delta[i]; });
-    const next = residuals(sketch), nextError = norm(next);
+    const next = residuals(sketch), nextError = normOf(next);
     if (nextError <= error) { r = next; error = nextError; damping = Math.max(1e-9, damping * 0.35); }
     else { vars.forEach((v, i) => { v.obj[v.k] = before[i]; }); damping *= 10; }
   }

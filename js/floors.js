@@ -1,4 +1,4 @@
-import { S } from "./state.js";
+import { S, cancelDraftGestures } from "./state.js";
 import { t } from "./i18n.js";
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
@@ -324,6 +324,12 @@ export function addFloor(name, elevation, duplicate) {
 
 export function switchFloor(id) {
   if (id === S.workspace.activeFloor) return S.workspace.floors.find((f) => f.id === id);
+  /* Draft coordinates and node indices belong to the floor on which they were
+     captured. Keeping them armed across applyData() lets one click on the next
+     floor complete a rectangle/wall that began on the previous floor. The
+     drawing tool itself may remain selected, but every gesture must restart —
+     the same list undo/redo needs for the same reason, so it is shared. */
+  cancelDraftGestures();
   captureFloor();
   const floor = S.workspace.floors.find((f) => f.id === id);
   if (!floor) return null;

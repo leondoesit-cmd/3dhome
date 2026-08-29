@@ -1419,8 +1419,10 @@ export function pointInPoly(x, z, pts) {
   return inside;
 }
 export function itemsInRoom(r) {
+  var room = typeof r === "string" ? roomByKey(r) : r;
+  if (!room || !Array.isArray(room.pts) || !room.pts.length) return [];
   return S.items.filter(function (it) {
-    return pointInPoly(it.x, it.z, r.pts);
+    return pointInPoly(it.x, it.z, room.pts);
   });
 }
 

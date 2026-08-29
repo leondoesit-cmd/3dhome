@@ -37,6 +37,8 @@ var TXT = {
   noSel: ["בחרו אובייקט כדי לראות את ההיסטוריה שלו", "Select an object to see its own history"],
   noneFor: ["אין שינויים לאובייקט הזה", "Nothing touched this object"],
   more: ["עוד", "more"],
+  showTargets: ["הצגת אובייקטים", "Show affected objects"],
+  hideTargets: ["הסתרת אובייקטים", "Hide affected objects"],
   hidden: ["שלבים אחרים", "other steps"],
   branches: ["ענפים", "branches"],
   branchTip: ["מכאן יוצאות כמה גרסאות — כל אחת עדיין זמינה", "This step forks — every branch below is still reachable"],
@@ -82,6 +84,29 @@ var CHANGE_ICON = { add: "+", edit: "~", del: "−" };
 var VERB = { add: "vAdd", edit: "vEdit", del: "vDel" };
 var MAX_CHIPS = 3;
 
+function looksTechnicalLabel(label, id) {
+  var value = String(label || "").trim();
+  if (!value || value === String(id || "")) return true;
+  return /^(?:feature|entity|sketch|part|component|mate)[_:-][a-z0-9_.:-]+$/i.test(value);
+}
+function friendlyTargetLabel(target) {
+  if (!looksTechnicalLabel(target.label, target.id)) return target.label;
+  var kind = target.kind ? kindWord(target.kind) : T("objects");
+  // KINDS are plural because summaries need them. Removing the English plural
+  // suffix gives raw IDs a useful visible fallback while the exact ID remains
+  // available in the tooltip for diagnostics.
+  if (getLang() === "en" && /s$/.test(kind)) kind = kind.slice(0, -1);
+  return kind.charAt(0).toUpperCase() + kind.slice(1);
+}
+function friendlyStepLabel(label) {
+  var value = String(label || "").trim();
+  if (!value) return value;
+  if (/^(?:feature|entity|sketch|part|component|mate)[_:-][a-z0-9_.:-]+$/i.test(value)) return T("step");
+  // Generated names occasionally arrive as "Extrude 2 2". The duplicated
+  // suffix carries no information and looks like a corrupt history entry.
+  return value.replace(/\b(\d+)\s+\1$/, "$1");
+}
+
 /* Most edits in this app never named themselves — the plan alone pushes eighty
    unlabelled steps — so a step with no label says what it DID, read off the
    objects it touched. "·" instead of a conjugated verb phrase keeps it correct
@@ -111,6 +136,7 @@ export function createHistoryPanel(H, opts) {
      pick re-scopes without asking again. */
   var mode = opts.mode === "scope" ? "scope" : "all",
     opened = {}, // which "… n other steps" gaps the user has unfolded
+    expandedTargets = {}, // long target lists explicitly opened by the user
     frame = 0;
 
   var el = document.createElement("div");
@@ -180,8 +206,9 @@ export function createHistoryPanel(H, opts) {
     var c = document.createElement("button");
     c.type = "button";
     c.className = "hist-chip " + t.change;
-    c.textContent = t.label;
-    c.title = t.label + " · " + T(t.change) + (opts.onPick ? " · " + T("chipTip") : "");
+    var label = friendlyTargetLabel(t);
+    c.textContent = label;
+    c.title = label + (String(t.id || "") !== label ? " · " + t.id : "") + " · " + T(t.change) + (opts.onPick ? " · " + T("chipTip") : "");
     if (opts.onPick)
       c.addEventListener("click", function (ev) {
         ev.stopPropagation();
@@ -195,8 +222,12 @@ export function createHistoryPanel(H, opts) {
   }
 
   function stepRow(s) {
-    var row = document.createElement("button");
-    row.type = "button";
+    // A step contains independently clickable affected-object controls, so it
+    // cannot itself be a <button> (nested buttons have broken keyboard and
+    // screen-reader semantics). It behaves as one through role + keyboard.
+    var row = document.createElement("div");
+    row.setAttribute("role", "button");
+    row.tabIndex = 0;
     row.className =
       "hist-step" +
       (s.current ? " current" : "") +
@@ -219,26 +250,35 @@ export function createHistoryPanel(H, opts) {
     body.className = "hist-body";
     var name = document.createElement("span");
     name.className = "hist-name";
-    name.textContent = s.label || derivedLabel(s);
+    name.textContent = friendlyStepLabel(s.label) || derivedLabel(s);
     body.appendChild(name);
 
     if (s.targets.length) {
       var chips = document.createElement("span");
       chips.className = "hist-chips";
-      s.targets.slice(0, MAX_CHIPS).forEach(function (t) {
-        chips.appendChild(chip(t));
-      });
-      if (s.targets.length > MAX_CHIPS) {
-        var rest = document.createElement("span");
-        rest.className = "hist-chip more";
-        rest.textContent = "+" + (s.targets.length - MAX_CHIPS);
-        rest.title = s.targets
-          .slice(MAX_CHIPS)
-          .map(function (t) {
-            return t.label;
-          })
-          .join(", ");
-        chips.appendChild(rest);
+      var compact = opts.compactTargets !== false && s.targets.length > MAX_CHIPS;
+      if (compact) {
+        var sameKind = s.targets.every(function (t) { return t.kind === s.targets[0].kind; });
+        var sameChange = s.targets.every(function (t) { return t.change === s.targets[0].change; });
+        var summary = document.createElement("button");
+        summary.type = "button";
+        summary.className = "hist-target-summary";
+        summary.setAttribute("aria-expanded", expandedTargets[s.i] ? "true" : "false");
+        summary.title = T(expandedTargets[s.i] ? "hideTargets" : "showTargets");
+        summary.textContent = (sameChange ? (CHANGE_ICON[s.targets[0].change] || "") + " " : "") +
+          s.targets.length + " " + (sameKind ? kindWord(s.targets[0].kind) : T("objects"));
+        summary.addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          expandedTargets[s.i] = !expandedTargets[s.i];
+          refreshNow();
+        });
+        chips.appendChild(summary);
+      }
+      if (!compact || expandedTargets[s.i]) {
+        var details = document.createElement("span");
+        details.className = "hist-target-details";
+        s.targets.forEach(function (t) { details.appendChild(chip(t)); });
+        chips.appendChild(details);
       }
       body.appendChild(chips);
     }
@@ -252,6 +292,11 @@ export function createHistoryPanel(H, opts) {
       row.appendChild(f);
     }
     row.addEventListener("click", function () {
+      H.jump(s.i);
+    });
+    row.addEventListener("keydown", function (ev) {
+      if (ev.target !== row || (ev.key !== "Enter" && ev.key !== " ")) return;
+      ev.preventDefault();
       H.jump(s.i);
     });
     return row;

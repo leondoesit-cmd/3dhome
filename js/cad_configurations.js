@@ -1,3 +1,5 @@
+import { dependentTargetIds } from "./core/parametric_document.js";
+
 // Named configurations: a parameter-override set plus optional feature
 // suppression and an exploded-view pointer. Switching configuration never
 // forks the feature tree; it only changes which values a rebuild consumes.
@@ -47,9 +49,24 @@ export function applyConfiguration(document, configuration) {
   const cfg = configuration || activeConfiguration(document);
   if (!cfg) return document;
   document.parameterOverrides = { ...(cfg.parameterOverrides || {}) };
+  /* A configuration names the steps it removes; what those steps feed goes with
+     them, the same cascade the tree's own suppress applies. Listing only the
+     parent left its children building on a step this configuration does not
+     have. No tag is needed here: every switch recomputes the whole set. */
   const suppressed = new Set(cfg.suppressedFeatureIds || []);
+  dependentTargetIds(document, [...suppressed]).forEach((id) => suppressed.add(id));
   (document.features || []).forEach((feature) => {
     feature.suppressed = suppressed.has(feature.id);
+  });
+  /* A canonical document is suppressed through its HISTORY: the compiled tree,
+     the preview parts the viewport draws and the tree row all read the entry,
+     not the feature. Writing only the feature made a configuration switch a
+     change nothing could see — the boss the configuration removes stayed on
+     screen, and a step suppressed in the tree stayed hidden after switching
+     back to a configuration that does not suppress it. */
+  (document.history || []).forEach((entry) => {
+    if (!entry || entry.kind !== "feature") return;
+    entry.suppressed = suppressed.has(entry.targetId);
   });
   if (document.assembly && cfg.explodedViewId) document.assembly.activeExplodedView = cfg.explodedViewId;
   return document;

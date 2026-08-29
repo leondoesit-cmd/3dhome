@@ -46,6 +46,35 @@ function projectSegment(p, a, b) {
   return { t, x, z, d: Math.hypot(p.x - x, p.z - z), s: Math.sqrt(ll) * t };
 }
 
+function splitAtJunctions(segments, tol = 1.5) {
+  let changed = true, passes = 0;
+  while (changed && passes++ < 20) {
+    changed = false;
+    for (let i = 0; i < segments.length; i++) {
+      const s = segments[i];
+      for (let j = 0; j < segments.length; j++) {
+        if (i === j) continue;
+        const other = segments[j];
+        const pts = [other.a, other.b];
+        for (const pt of pts) {
+          const proj = projectSegment(pt, s.a, s.b);
+          if (proj.d <= tol && proj.t > 0.01 && proj.t < 0.99) {
+            const splitPt = { x: proj.x, z: proj.z };
+            const s1 = { ...s, b: splitPt };
+            const s2 = { ...s, a: splitPt };
+            segments.splice(i, 1, s1, s2);
+            changed = true;
+            break;
+          }
+        }
+        if (changed) break;
+      }
+      if (changed) break;
+    }
+  }
+  return segments;
+}
+
 export function convertCadToWalls(source = {}, options = {}) {
   const lines = (source.lines || []).filter(lineGeom);
   const consumed = new Set(), segments = [];
@@ -81,7 +110,10 @@ export function convertCadToWalls(source = {}, options = {}) {
     });
   }
 
-  const nodes = [], walls = [], openings = [], nodeTol = options.nodeTolerance || 1;
+  const nodeTol = options.nodeTolerance || 1;
+  splitAtJunctions(segments, Math.max(1.5, nodeTol));
+
+  const nodes = [], walls = [], openings = [];
   const node = (p) => {
     let found = nodes.findIndex((n) => dist(n, p) <= nodeTol);
     if (found < 0) { found = nodes.length; nodes.push({ x: p.x, z: p.z }); }

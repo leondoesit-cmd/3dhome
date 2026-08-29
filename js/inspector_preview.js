@@ -1,10 +1,10 @@
 // Quarter-screen, selection-fitted 3D preview for the Properties inspector.
 // It deliberately shares the live planner scene (so nearby walls, floors and
 // furniture remain visible) but owns a small renderer and an orbit-only camera.
-import * as THREE from "three";
+import { THREE, threeLoaded } from "./three_lazy.js";
 import { S } from "./state.js";
 import { createRenderer, ready, render as renderGPU } from "./gpu.js";
-import { getDynGroup, getMainScene, getSelectionBox3D, getSelectionObjects3D } from "./view3d.js";
+import { getDynGroup, getMainScene, getSelectionBox3D, getSelectionObjects3D, init3D } from "./view3d.js";
 import { wallById, wallGeom, wallTangentAt } from "./geometry.js";
 
 var host = null,
@@ -21,8 +21,10 @@ var host = null,
   visible = false,
   renderQueued = false,
   selectionKey = "",
-  selectionBox = new THREE.Box3(),
-  center = new THREE.Vector3(),
+  // three is late-bound, so these two cannot be built at module scope any more.
+  // ensureThreeHere() fills them in before anything reads them.
+  selectionBox = null,
+  center = null,
   radius = 20,
   theta = Math.PI * 0.25,
   phi = Math.PI * 0.34,
@@ -371,6 +373,30 @@ function onPointerUp(event) {
   host.classList.remove("dragging");
 }
 
+/* The preview mirrors the main 3D scene, so it needs three AND a built scene.
+   It can be reached from a session that has never opened the 3D pane (a phone
+   on "plan" that selects a wall), so bounce off the build and come back rather
+   than throwing.
+
+   init3D(), not loadThree(): loadThree() only populates the three namespace,
+   while everything the preview reads — getSelectionObjects3D(), getMainScene()
+   — lives on the `dyn` group that build3D() creates. Gating on the library
+   alone left the preview waiting forever on a scene nobody had asked for, and
+   the animate loop that drains S.dirty3D lives inside build3D too, so pending
+   rebuilds were dropped as well. init3D() is idempotent and returns its own
+   promise, so repeated selections while it is in flight cost nothing. */
+function threeHere() {
+  if (!threeLoaded() || !getDynGroup()) {
+    init3D().then(function () { syncInspectorPreview(); }, function () {});
+    return false;
+  }
+  if (!selectionBox) {
+    selectionBox = new THREE.Box3();
+    center = new THREE.Vector3();
+  }
+  return true;
+}
+
 export function syncInspectorPreview() {
   if (!ensureElements()) return;
   var nextVisible = !!(S.sel && SUPPORTED[S.sel.kind]);
@@ -381,6 +407,8 @@ export function syncInspectorPreview() {
     host.classList.remove("dragging");
     return;
   }
+  // Nothing below this line runs without three, and everything above it does.
+  if (!threeHere()) return;
   var nextKey = keyForSelection(), changed = nextKey !== selectionKey;
   selectionKey = nextKey;
   if (changed) overlayDirty = true;

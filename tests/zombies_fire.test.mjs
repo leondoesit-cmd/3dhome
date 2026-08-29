@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { stripComments } from "./source.mjs";
 
 const world = await readFile(new URL("../js/zombies_world.js", import.meta.url), "utf8");
 const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
@@ -28,7 +29,15 @@ test("Night Shift graphics tiers control its own expensive render paths", () => 
 test("burning zombies use a special staged reaction and clean up their light", () => {
   assert.match(world, /var burnPanic = burning && zd\.panicT > 0/);
   assert.match(world, /if \(burning && !zd\.crawler\)/);
-  assert.match(world, /frantic, asymmetric flailing/);
+  /* Two stages and asymmetry are both in the code: panic scales the amplitude,
+     and the two rotation drivers run at different rates so the limbs never
+     mirror each other. */
+  const burn = stripComments(world);
+  assert.match(burn, /var fireAmp = burnPanic \? 1 : 0\.48;/, "panic is the loud stage");
+  const wr = burn.match(/var wr = Math\.sin\(ph \* ([0-9.]+)\);/);
+  const wr2 = burn.match(/var wr2 = Math\.sin\(ph \* ([0-9.]+) \+ ([0-9.]+)\);/);
+  assert.ok(wr && wr2, "both drivers exist");
+  assert.notEqual(wr[1], wr2[1], "at different rates, so the flailing cannot be symmetric");
   assert.match(world, /if \(zd\.fireLight\) zd\.fireLight\.intensity = 0/);
 });
 

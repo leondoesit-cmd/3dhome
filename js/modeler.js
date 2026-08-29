@@ -10,7 +10,7 @@
 //   ext: {axis:'y'|'z'|'x', from, to, pts:[{u,v}]}  extruded sketch profile
 // Common part fields: id, kind, name, color, metal, rough, opacity, tex(dataURL)
 
-import * as THREE from "three";
+import { THREE, loadThree, threeLoaded } from "./three_lazy.js";
 import { render as gpuRender } from "./gpu.js";
 import { S, uid, clamp, fin, hexStr } from "./state.js";
 import { FURN, PRICE, CATALOG, flabel, clearVSpanCache, buildItem } from "./furniture.js";
@@ -55,7 +55,8 @@ import {
 } from "./cad_kernel.js";
 import { downloadDrawing } from "./cad_drawings.js";
 import { addEdgeFlange, createSheetMetalPart, flatPattern } from "./cad_sheet_metal.js";
-import { solveTopologyMates, topologyReference } from "./cad_mates.js";
+import { mateFrameSupports, mateRequirementFor, solveTopologyMates, topologyReference } from "./cad_mates.js";
+import { eulerMatrix, normalizePose, setRotation } from "./cad_mate_model.js";
 import { analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
 import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
 import { createReferencePlane, createReferenceAxis, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
@@ -463,6 +464,8 @@ var TXT = {
   overDefined: ["האילוץ סותר את הקיימים — בוטל", "That constraint fights the existing ones — undone"],
   constraintList: ["אילוצים בסקיצה", "Sketch constraints"],
   suppress: ["השהה", "Suppress"],
+  suppressedWith: ["הושהו יחד עם זה:", "Suppressed with it:"],
+  unsuppressedWith: ["הופעלו מחדש יחד עם זה:", "Unsuppressed with it:"],
   opSketch: ["סקיצה", "Sketch"],
   opConstraint: ["אילוץ", "Constraint"],
   opDim: ["מידה", "Dimension"],
@@ -516,6 +519,8 @@ var TXT = {
   treeRename: ["שנה שם", "Rename"],
   treeHide: ["הסתר גוף", "Hide body"],
   treeShow: ["הצג גוף", "Show body"],
+  treeHideComponent: ["הסתר רכיב", "Hide component"],
+  treeShowComponent: ["הצג רכיב", "Show component"],
   treeExpandAll: ["פתח הכל", "Expand all"],
   treeCollapseAll: ["כווץ הכל", "Collapse all"],
   treeMigrate: ["המר להיסטוריה פרמטרית", "Convert to parametric history"],
@@ -527,6 +532,8 @@ var TXT = {
   treeRestoreLegacyHint: ["העותק המלא מלפני ההמרה נשמר במסמך", "The complete pre-conversion document is retained"],
   treeRestoreLegacyRun: ["שחזר", "Restore"],
   treeRestoreLegacyDone: ["גרסת המקור שוחזרה · ניתן לבטל", "Legacy original restored · Undo is available"],
+  showIssue: ["הצג בעץ", "Show issue"],
+  editSketchIssue: ["ערוך סקיצה", "Edit sketch"],
   projected: ["הקצוות הוטלו כקווי עזר", "Edges projected as construction lines"],
   cmdFeatures: ["תכונות", "Features"],
   cmdSketch: ["סקיצה", "Sketch"],
@@ -570,6 +577,10 @@ var TXT = {
   screwMate: ["קשר הברגה", "Screw mate"],
   tangentMate: ["משיק", "Tangent mate"],
   limitMate: ["קשר גבול", "Limit mate"],
+  coincidentMate: ["פאות חופפות", "Coincident faces"],
+  concentricMate: ["צירים קונצנטריים", "Concentric axes"],
+  angleMate: ["קשר זווית", "Angle mate"],
+  topologyDistanceMate: ["קשר מרחק", "Distance mate"],
   appearanceFace: ["מראה לפאה", "Face appearance"],
   configSaved: ["תצורה נשמרה", "Configuration saved"],
   configNew: ["תצורה חדשה", "New configuration"],
@@ -604,6 +615,29 @@ var TXT = {
   wfSketch: ["סקיצה", "Sketch"],
   wfFeature: ["תכונה", "Feature"],
   wfHistory: ["היסטוריה", "History"],
+  wfInsert: ["רכיבים", "Insert"],
+  wfGround: ["קיבוע", "Ground"],
+  wfMate: ["קשרים", "Mate"],
+  wfCheck: ["בדיקה", "Check"],
+  wfBom: ["עץ מוצר", "BOM"],
+  wfNoComponents: ["הוסיפו רכיב ראשון", "Add the first component"],
+  wfNoAnchor: ["אין רכיב מקובע", "Nothing is anchored yet"],
+  wfAnchored: ["מקובע", "anchored"],
+  wfNoMates: ["הרכיבים חופשיים", "Components float free"],
+  wfNoInterference: ["לא נמצאו התנגשויות", "No interference detected"],
+  wfCheckClash: ["התנגשויות", "clashes"],
+  wfCheckUnrun: ["טרם נבדק", "Not checked yet"],
+  wfBomLines: ["שורות", "line items"],
+  wfBomLineOne: ["שורה", "line item"],
+  tabPlacement: ["מיקום", "Placement"],
+  treeComponents: ["רכיבים", "Components"],
+  treeMates: ["קשרים", "Mates"],
+  treeGrounded: ["מקובע", "grounded"],
+  treeNoMates: ["אין קשרים", "No mates yet"],
+  treeComponentParts: ["גופים", "solids"],
+  treeComponentPartOne: ["גוף", "solid"],
+  tabComponent: ["רכיב", "Component"],
+  tabMates: ["קשרים", "Mates"],
   wfChoosePlane: ["בחרו מישור או פאה", "Choose a plane or face"],
   wfCreateProfile: ["צרו פרופיל מאופק", "Create a constrained profile"],
   wfFullyDefined: ["מוגדר במלואו", "Fully defined"],
@@ -668,10 +702,12 @@ var TXT = {
   wfDof: ["דרגות חופש", "DOF"],
   facePrefix: ["פאה", "Face"],
   assemblyComponents: ["רכיבים", "components"],
+  assemblyComponentOne: ["רכיב", "component"],
   assemblySelected: ["נבחרו", "selected"],
   reconstruction: ["שחזור", "reconstruction"],
   displayStyle: ["סגנון תצוגה", "Model display style"],
   matesCount: ["אילוצי הרכבה", "mates"],
+  matesCountOne: ["אילוץ הרכבה", "mate"],
   evaluateModel: ["בדיקת ובניית המודל", "Evaluate and rebuild model"],
   profileReady: ["פרופיל סגור ומוכן", "Closed profile ready"],
   profileMultiple: ["נמצאו כמה פרופילים סגורים", "Multiple closed profiles found"],
@@ -878,8 +914,13 @@ var TXT = {
   assemblyPickBody: ["לחצו על אחד הרכיבים ברשימה. הרכיב הנבחר יוצג בלוח המאפיינים עם מיקום וסיבוב.", "Select a component from the list. Its position and rotation appear in the Properties panel."],
   assemblyPickTip: ["הרכיב הראשון מקובע כברירת מחדל ומשמש כעוגן של ההרכבה.", "The first component is grounded by default and anchors the assembly."],
   assemblyMoveTitle: ["2. הזיזו רכיב", "2. Move a component"],
-  assemblyMoveBody: ["בחרו את הרכיב שאינו מקובע ושנו את ערך X, Y או Z בלוח המאפיינים.", "Select the ungrounded component and change its X, Y, or Z value in Properties."],
-  assemblyMoveTip: ["רכיב מקובע אינו זז עד שמבטלים את האפשרות ״מקובע״ בלשונית החומר/נראות.", "A grounded component will not move until Grounded is cleared in the visibility panel."],
+  assemblyMoveBody: ["גררו את הרכיב שאינו מקובע ישירות בתצוגה, בעכבר או במגע. אפשר גם להזין X, Y או Z מדויקים בלוח המאפיינים.", "Drag the ungrounded component directly in the viewport with a mouse or touch. You can also enter exact X, Y, or Z values in Properties."],
+  assemblyMoveTip: ["גרירה על רכיב מזיזה אותו; גרירה על שטח ריק מסובבת את התצוגה. רכיב מקובע לא יזוז עד שמבטלים ״מקובע״.", "Drag a component to move it; drag empty space to orbit. A grounded component will not move until Grounded is cleared."],
+  assemblyMoveMode: ["כיוון תנועה", "Move direction"],
+  assemblyMoveFree: ["חופשי", "Free"],
+  assemblyMoveX: ["לאורך ציר X", "Along X axis"],
+  assemblyMoveY: ["לאורך ציר Y", "Along Y axis"],
+  assemblyMoveZ: ["לאורך ציר Z", "Along Z axis"],
   assemblyPairTitle: ["3. בחרו שני רכיבים", "3. Select two components"],
   assemblyPairBody: ["בחרו רכיב אחד, החזיקו Ctrl/Cmd ולחצו על הרכיב השני.", "Select one component, then hold Ctrl/Cmd and select the other."],
   assemblyPairBodyMobile: ["בחרו רכיב אחד, הפעילו ׳הוסף לבחירה׳ בסרגל התחתון ולחצו על הרכיב השני.", "Tap one component, enable 'Add to selection' in the bottom selection bar, then tap the second component."],
@@ -990,6 +1031,30 @@ var TXT = {
   isolate: ["הצג נבחרים בלבד", "Isolate"],
   isolateOff: ["הצג הכל", "Show all"],
   smartMate: ["הרכבה חכמה", "SmartMate"],
+  smartMateGrounded: ["הרכיב הנגרר מקובע — בטלו ׳מקובע׳ כדי להזיז אותו", "The dragged component is grounded — clear Grounded to let it move"],
+  collapseExplodeView: ["החזרת הרכיבים למקומם", "Collapse exploded view"],
+  mateIssues: ["קשרים שלא נפתרו", "unresolved mates"],
+  mateIssueOne: ["קשר שלא נפתר", "unresolved mate"],
+  mateOrphansDropped: ["הוסרו עם הרכיב", "dropped with the component"],
+  mateIssueMissingComponent: ["רכיב חסר", "Component is gone"],
+  mateIssueGroundedTarget: ["הרכיב הנגרר מקובע", "The component to move is grounded"],
+  mateIssueUnresolved: ["הפאה או הציר לא נמצאו", "Face or axis could not be found"],
+  mateIssueAmbiguous: ["יותר מפאה אחת מתאימה", "More than one face matches"],
+  mateIssueBadFrame: ["חסר מידע גיאומטרי לקשר", "The reference has no usable geometry"],
+  mateIssueOverConstrained: ["קשר אחר גובר על זה", "Another mate overrides this one"],
+  mateIssueNonConvergent: ["הקשרים סותרים זה את זה ולא נפתרו", "These mates contradict each other and were not solved"],
+  mateDofOne: ["דרגת חופש אחת", "1 degree of freedom"],
+  mateDof: ["דרגות חופש", "degrees of freedom"],
+  mateDofFixed: ["מקובע", "fully constrained"],
+  mateRebound: ["הקשר חובר מחדש לפאה מקבילה", "Reattached to an equivalent face"],
+  matePicked: ["הפניות שנבחרו", "Picked references"],
+  matePickedOne: ["הפניה שנבחרה", "Picked reference"],
+  matePickHint: ["לחצו על פאה או קצה עגול ברכיב אחד, ואז Ctrl/Cmd-לחצו על פאה או קצה ברכיב השני", "Click a face or circular edge on one component, then Ctrl/Cmd-click one on the other"],
+  mateUsingPicked: ["לפי ההפניות שנבחרו", "using the picked references"],
+  mateUsingBounds: ["לפי תיבת הגבול", "using bounding boxes"],
+  mateNeedsPlanar: ["דרושות שתי פאות מישוריות או שני קצוות עגולים", "Needs a flat face or circular edge on each component"],
+  mateNeedsAxis: ["דרושים שני צירים — פאה גלילית, קשת או ציר", "Needs an axis on each — a round face, an arc, or an axis"],
+  mateNeedsRound: ["דרושות שתי פאות עגולות עם רדיוס", "Needs a round face with a radius on each"],
   smartMateHint: ["Alt-גררו רכיב אל פאה או קצה של רכיב אחר", "Alt-drag a component onto another face or edge"],
   selFilter: ["מסנן בחירה", "Selection filter"],
   selFilterAll: ["הכל", "All"],
@@ -1074,26 +1139,212 @@ function componentDef(component) {
   var f = FURN[component.modelKey];
   return f && f.custom && Array.isArray(f.custom.parts) ? f.custom : null;
 }
+/* One contract, shared with the solver: `transform.q` is the orientation and
+   rx/ry/rz mirror it. Everything below reads the mirror — the bounds box, the
+   render group, the pose cache key, the inspector — so it has to be derived
+   here rather than merely defaulted, or a component that arrived carrying only
+   a quaternion would draw at identity. */
 function normalizeTransform(component) {
   if (!component.transform) component.transform = {};
-  ["x", "y", "z", "rx", "ry", "rz"].forEach(function (k) {
-    if (!fin(component.transform[k])) component.transform[k] = 0;
-  });
-  return component.transform;
+  return normalizePose(component.transform);
 }
-function applyAssemblyMates(assembly) {
-  if (!assembly) return;
-  (Array.isArray(assembly.mates) ? assembly.mates : []).forEach(function (mate) {
-    var a = assembly.components.find(function (c) { return c.id === mate.a; });
-    var b = assembly.components.find(function (c) { return c.id === mate.b; });
-    if (!a || !b || b.grounded) return;
-    var at = normalizeTransform(a), bt = normalizeTransform(b);
-    if (mate.type === "alignX") bt.x = at.x;
-    else if (mate.type === "alignY") bt.y = at.y;
-    else if (mate.type === "alignZ") bt.z = at.z;
-    else if (mate.type === "distanceX") bt.x = at.x + (fin(mate.value) ? mate.value : 0);
+/* Where the assembly actually is, in assembly coordinates: every component's
+   own bounds, turned and moved into place. Used to frame the camera, so it has
+   to account for rotation — the corners are transformed, not the extents. */
+/* One component's own bounds placed in assembly coordinates. The corners are
+   transformed rather than the extents, because a turned component's box is not
+   the turned box of its extents. `blown` folds in the exploded offset when the
+   caller wants where the part is being drawn rather than where it is mated. */
+function componentWorldBounds(component, options) {
+  var def = componentDef(component);
+  /* Measured against what defBounds will actually walk. Asking `def.parts`
+     instead let a component whose every body is suppressed through, and
+     defBounds answers an empty document with a fixed ±30 box — a 60 cm solid
+     that renders as nothing, clashes with its neighbours and prints on the
+     drawing. */
+  if (!def || !activeParts(def).length) return null;
+  var b = defBounds(def), tr = normalizeTransform(component);
+  var blown = ((!options || options.exploded !== false) && component.explodedOffset) || { x: 0, y: 0, z: 0 };
+  var matrix = new THREE.Matrix4().makeRotationFromEuler(
+    new THREE.Euler((tr.rx * Math.PI) / 180, (tr.ry * Math.PI) / 180, (tr.rz * Math.PI) / 180));
+  var out = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
+  [b.x0, b.x1].forEach(function (x) {
+    [b.y0, b.y1].forEach(function (y) {
+      [b.z0, b.z1].forEach(function (z) {
+        var corner = new THREE.Vector3(x, y, z).applyMatrix4(matrix);
+        var px = corner.x + tr.x + (blown.x || 0), py = corner.y + tr.y + (blown.y || 0), pz = corner.z + tr.z + (blown.z || 0);
+        out.x0 = Math.min(out.x0, px); out.x1 = Math.max(out.x1, px);
+        out.y0 = Math.min(out.y0, py); out.y1 = Math.max(out.y1, py);
+        out.z0 = Math.min(out.z0, pz); out.z1 = Math.max(out.z1, pz);
+      });
+    });
   });
-  solveTopologyMates(assembly);
+  return out;
+}
+
+function assemblyBounds() {
+  var out = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
+  ((E.assembly && E.assembly.components) || []).forEach(function (component) {
+    if (component.visible === false) return;
+    var b = componentWorldBounds(component);
+    if (!b) return;
+    out.x0 = Math.min(out.x0, b.x0); out.x1 = Math.max(out.x1, b.x1);
+    out.y0 = Math.min(out.y0, b.y0); out.y1 = Math.max(out.y1, b.y1);
+    out.z0 = Math.min(out.z0, b.z0); out.z1 = Math.max(out.z1, b.z1);
+  });
+  return Number.isFinite(out.x0) ? out : null;
+}
+
+function applyAssemblyMates(assembly) {
+  if (!assembly) return null;
+  /* The old align/distance mates are part of the system the solver solves —
+     they used to be applied by hand at the head of every pass, which is the
+     best a solver that placed one component at a time could do. Both kinds now
+     settle together because they are solved together. */
+  var result = solveTopologyMates(assembly);
+  /* The solver reports missing topology, ambiguous rebinds, frames it could
+     not use, and — since it now measures the result — mates that another mate
+     has overridden. That report used to be discarded at this line, which is
+     why a mate could quietly stop holding and nothing anywhere said so. */
+  E.mateIssues = (result && result.issues) || [];
+  E.mateRebindings = (result && result.rebindings) || [];
+  E.mateUnsatisfied = (result && result.unsatisfied) || [];
+  /* What the mates have not pinned down. The solver reads it off the rank of
+     the system it just solved, per independent group of components and per
+     component within it, which is the difference between "solved" and "solved,
+     and this bracket can still slide and spin". */
+  E.mateFreedom = (result && result.clusters) || [];
+  E.mateDegreesOfFreedom = (result && result.degreesOfFreedom) || 0;
+  return result;
+}
+
+/* "1 mates" reads as a bug in the counter. Hebrew and English both want the
+   singular spelled out rather than derived, so each count names both keys. */
+function countLabel(n, oneKey, manyKey) {
+  return n + " " + t(n === 1 ? oneKey : manyKey);
+}
+
+function assemblyMateCount(assembly) {
+  return (((assembly && assembly.mates) || []).length) + (((assembly && assembly.topologyMates) || []).length);
+}
+
+/* A deleted component used to take its legacy mates with it and leave its
+   topology mates behind, pointing at nothing, all the way into the saved
+   document. Returns how many were dropped so the caller can say so. */
+function pruneAssemblyMates(assembly) {
+  if (!assembly) return 0;
+  var live = new Set((assembly.components || []).map(function (component) { return component.id; }));
+  var before = assemblyMateCount(assembly);
+  assembly.mates = (Array.isArray(assembly.mates) ? assembly.mates : []).filter(function (mate) {
+    return live.has(mate.a) && live.has(mate.b);
+  });
+  assembly.topologyMates = (Array.isArray(assembly.topologyMates) ? assembly.topologyMates : []).filter(function (mate) {
+    return mate.a && mate.b && live.has(mate.a.componentId) && live.has(mate.b.componentId);
+  });
+  return before - assemblyMateCount(assembly);
+}
+
+var MATE_ISSUE_KEYS = {
+  "missing-component": "mateIssueMissingComponent",
+  "grounded-target": "mateIssueGroundedTarget",
+  "unresolved-topology": "mateIssueUnresolved",
+  "missing-topology": "mateIssueUnresolved",
+  "ambiguous-topology": "mateIssueAmbiguous",
+  "invalid-face-frame": "mateIssueBadFrame",
+  "invalid-axis-frame": "mateIssueBadFrame",
+  "invalid-tangent-frame": "mateIssueBadFrame",
+  "invalid-angle-frame": "mateIssueBadFrame",
+  "over-constrained": "mateIssueOverConstrained",
+  "non-convergent": "mateIssueNonConvergent",
+};
+
+function mateIssueLabel(issue) {
+  var key = MATE_ISSUE_KEYS[issue && issue.code];
+  return key ? t(key) : String((issue && issue.code) || "");
+}
+
+function mateIssuesFor(mateId) {
+  return (E.mateIssues || []).filter(function (issue) { return issue.mate === mateId; })
+    .concat((E.mateUnsatisfied || []).filter(function (issue) { return issue.mate === mateId; }));
+}
+
+/* How many mates are broken — not how many complaints were filed about them.
+   One mate raises several records on the way down: a reference that cannot be
+   found reports its own missing topology, and then the mate reports itself
+   unresolved. Adding the lists up said "2 unresolved mates" for one mate. */
+function brokenMateCount() {
+  var mates = new Set();
+  (E.mateIssues || []).concat(E.mateUnsatisfied || []).forEach(function (issue) {
+    if (issue && issue.mate != null) mates.add(issue.mate);
+  });
+  return mates.size;
+}
+
+/* How many ways a component can still be moved without breaking a mate. Null
+   when the last solve did not say — a component no mate moves is not
+   "6 degrees free", it is simply not solved for. */
+function componentFreedom(componentId) {
+  for (var i = 0; i < (E.mateFreedom || []).length; i++) {
+    var cluster = E.mateFreedom[i];
+    if (cluster && cluster.perComponent && cluster.perComponent[componentId] != null) {
+      return cluster.perComponent[componentId];
+    }
+  }
+  return null;
+}
+
+function freedomLabel(freedom) {
+  if (freedom == null) return "";
+  return freedom ? countLabel(freedom, "mateDofOne", "mateDof") : t("mateDofFixed");
+}
+
+/* A mate whose face was renamed by a rebuild but found again by its geometry
+   still holds — say so, rather than leaving the reattachment invisible. */
+function mateReboundFor(mateId) {
+  return (E.mateRebindings || []).some(function (entry) { return entry.mate === mateId; });
+}
+
+/* Set by a solve, cleared by the refresh that consumes it. Every mutating path
+   is `solveAssembly(); refreshAll();`, and refreshAll solves again for the
+   benefit of callers that changed the assembly without going through
+   solveAssembly — so without this the whole multi-pass solve, plus its residual
+   check, ran twice on every click. */
+var assemblySolveFresh = false;
+
+/* Interference results describe one exact set of visible components at one
+   exact arrangement. Component edits, visibility changes and document
+   restoration all invalidate that answer even when no mate needs solving. */
+function invalidateInterference() {
+  E.interferenceHits = [];
+  E.interferenceChecked = false;
+  E.interferenceRevision = (E.interferenceRevision || 0) + 1;
+  /* Every path that swaps the assembly or changes which components are in it
+     comes through here, which makes it the right place to say a previous solve
+     no longer describes the model — an undo that restored a different pose must
+     not have its solve skipped by a flag left set by an earlier edit. */
+  assemblySolveFresh = false;
+}
+
+/* Everything that changes an assembly goes through here: drop mates whose
+   components have gone, re-solve, and say out loud what the solver could not
+   do. Rebuilds call applyAssemblyMates directly — a render is not the place to
+   delete data or raise a message. */
+function solveAssembly(options) {
+  if (!E.assembly) return null;
+  /* The red clash boxes describe one arrangement of the components. Any edit
+     that moves them makes those boxes a lie, and they used to stay on screen
+     until the document type changed. */
+  invalidateInterference();
+  var dropped = pruneAssemblyMates(E.assembly);
+  var result = applyAssemblyMates(E.assembly);
+  assemblySolveFresh = true;
+  if (options && options.quiet) return result;
+  var notes = [];
+  if (dropped) notes.push(countLabel(dropped, "matesCountOne", "matesCount") + " " + t("mateOrphansDropped"));
+  var broken = brokenMateCount();
+  if (broken) notes.push(countLabel(broken, "mateIssueOne", "mateIssues"));
+  if (notes.length) flash(notes.join(" \u00b7 "));
+  return result;
 }
 
 // bbox over all parts
@@ -1515,9 +1766,16 @@ function topologyEntriesForPart(part) {
     var cached = topologyMergeCache.get(part.meshData);
     if (cached) return cached;
   } else {
+    /* Kernel runs belong to the part document on E.def. A component carries its
+       own document, so borrowing them in an assembly scored a component's faces
+       against another document's topology — and could hand one of those foreign
+       descriptors to a mate. Neither run is cleared when the document type
+       changes, so the guard is on who is asking, not on whether one exists. */
     var sources = [];
-    if (E.brepRun && Array.isArray(E.brepRun.topology)) sources = sources.concat(E.brepRun.topology);
-    if (E.coreRun && Array.isArray(E.coreRun.topology)) sources = sources.concat(E.coreRun.topology);
+    if (E.docType === "part") {
+      if (E.brepRun && Array.isArray(E.brepRun.topology)) sources = sources.concat(E.brepRun.topology);
+      if (E.coreRun && Array.isArray(E.coreRun.topology)) sources = sources.concat(E.coreRun.topology);
+    }
     var seen = new Set();
     kernel = sources.filter(function (entry) {
       if (!entry || seen.has(entry.persistentId)) return false;
@@ -1731,8 +1989,16 @@ function edgePoints(descriptor) {
   return [];
 }
 
+/* Two components cut from the same library model carry identical persistent
+   ids, so a reference has to name its component or picking a face lights up
+   the same face on every instance of that model. */
+function topologyRefInBuiltComponent(reference) {
+  var building = E.buildComponent;
+  if (!building) return true;
+  return !reference || !reference.componentId || reference.componentId === building.id;
+}
 function topologySelected(persistentId, entry) {
-  var sel = E.topologySelection || [];
+  var sel = (E.topologySelection || []).filter(topologyRefInBuiltComponent);
   if (sel.some(function (ref) {
     if (ref.persistentId === persistentId) return true;
     if ((ref.memberPersistentIds || []).includes(persistentId)) return true;
@@ -1742,7 +2008,7 @@ function topologySelected(persistentId, entry) {
   return finishImpliedEdge(persistentId);
 }
 function topologyHovered(persistentId, entry) {
-  if (!E.hoverTopology) return false;
+  if (!E.hoverTopology || !topologyRefInBuiltComponent(E.hoverTopology)) return false;
   if (E.hoverTopology.persistentId === persistentId) return true;
   if ((E.hoverTopology.memberPersistentIds || []).includes(persistentId)) return true;
   return !!(entry && edgesGeometricallyMatch(E.hoverTopology, entry));
@@ -1896,7 +2162,7 @@ function overlayEntriesForPart(part, mesh) {
 }
 
 function addTopologyPickEdges(parent, part) {
-  if (!part || E.docType !== "part") return;
+  if (!part || (E.docType !== "part" && E.docType !== "assembly")) return;
   var mesh = null;
   parent.traverse(function (object) {
     if (!mesh && object.isMesh && object.userData && object.userData.cadPart === part.id) mesh = object;
@@ -2121,7 +2387,7 @@ function faceHighlightMesh(mesh, descriptor, color, opacity, reference) {
   return highlight;
 }
 function addFaceHighlights(parent, part, mesh) {
-  if (!part || !mesh || E.docType !== "part") return;
+  if (!part || !mesh || (E.docType !== "part" && E.docType !== "assembly")) return;
   var entries = topologyEntriesForPart(part).filter(function (entry) { return entry.kind === "face"; });
   var drawn = new Set();
   var featureId = part.featureId || "feature:part:" + part.id;
@@ -2574,6 +2840,7 @@ var E = {
   facePick: null,     // {tool} while a new sketch is waiting for a face click in 3D
   hoverTopology: null, // topology reference under the cursor in the 3D viewport
   selectionFilter: "all",
+  assemblyMoveMode: "free", // free camera-plane motion | world X/Y/Z axis lock
   mobileAddSelection: false,
   inferenceIndex: 0,
   inferenceCandidates: [],
@@ -2585,6 +2852,14 @@ var E = {
   autoDimTyped: true,
   section: { enabled:false, axis:"x", offset:0, flip:false },
   interferenceHits: [],
+  buildComponent: null,   // component whose parts are being built right now
+  mateIssues: [],         // what the last solve could not do, per mate
+  mateRebindings: [],
+  mateUnsatisfied: [],    // mates another mate has overridden
+  mateFreedom: [],        // per-cluster degrees of freedom from the last solve
+  mateDegreesOfFreedom: 0,
+  interferenceChecked: false,
+  interferenceRevision: 0,
   dependencyHighlight: null,
   leftCollapsed: false,
   rightCollapsed: false,
@@ -3146,6 +3421,7 @@ const H = createHistory({
     var o = JSON.parse(s);
     E.def = o.d;
     E.assembly = o.a || null;
+    invalidateInterference();
     // the selected part / entity / component may not exist in the restored doc
     E.sel = null;
     E.ssel = [];
@@ -3222,6 +3498,17 @@ function scanDoc(str) {
     (asm.mates || []).forEach(function (m) {
       out.push({ id: "mate:" + m.id, parent: m.a != null ? "comp:" + m.a : null, kind: "mate", label: m.type, sig: JSON.stringify(m) });
     });
+    /* Topology mates are mates too. Scanning only the older list left every
+       SmartMate and every face mate out of History — undo moved them, but the
+       panel could neither show them nor scope an edit to the component they
+       hold. */
+    (asm.topologyMates || []).forEach(function (m) {
+      var owner = m.a && m.a.componentId;
+      out.push({
+        id: "tmate:" + m.id, parent: owner != null ? "comp:" + owner : null,
+        kind: "mate", label: m.type, sig: JSON.stringify(m),
+      });
+    });
   }
   return out;
 }
@@ -3240,6 +3527,10 @@ function docSubtree(id) {
   } else if (kind === "comp" && E.assembly) {
     (E.assembly.mates || []).forEach(function (m) {
       if (String(m.a) === key || String(m.b) === key) out.push("mate:" + m.id);
+    });
+    (E.assembly.topologyMates || []).forEach(function (m) {
+      var a = m.a && m.a.componentId, b = m.b && m.b.componentId;
+      if (String(a) === key || String(b) === key) out.push("tmate:" + m.id);
     });
   } else if (kind === "part") {
     // a solid the sketch drives is where its profile edits show up
@@ -3341,6 +3632,10 @@ function tryRestoreModelerDraft() {
     E.assembly = draft.assembly;
     if (draft.def) E.def = ensureParametricDocument(draft.def);
     setDocumentType("assembly");
+    /* setDocumentType is intentionally a no-op when the requested type is
+       already active. A restored draft still replaces the whole assembly, so
+       an interference result from the previous document cannot survive it. */
+    invalidateInterference();
   } else if (draft.def) {
     E.def = ensureParametricDocument(draft.def);
     E.docType = "part";
@@ -3402,7 +3697,10 @@ function syncDirty() {
   if (!save) return;
   var dirty = documentDirty();
   save.classList.toggle("is-dirty", dirty);
-  save.title = dirty ? t("dirtySave") + " · Ctrl+S" : "Ctrl+S";
+  var tip = dirty ? t("dirtySave") + " · Ctrl+S" : "Ctrl+S";
+  save.dataset.tip = tip;
+  save.setAttribute("aria-label", t("save") + " · " + tip);
+  save.removeAttribute("title");
 }
 
 function requestCloseModeler() {
@@ -3634,11 +3932,12 @@ function kt(label, key) { return label + " · " + key; }
    whose only clue was a hover caption, so five of them read as five mystery
    buttons; a strip of labelled tabs is both smaller and self-explaining. */
 function tab(id, icon, label, title, extra) {
-  return '<button type="button" data-tab="' + id + '" aria-label="' + (title || label) + '" title="' + (title || label) + '">' +
+  return '<button type="button" role="tab" aria-selected="false" data-tab="' + id + '" aria-label="' + (title || label) + '" title="' + (title || label) + '">' +
     cadIcon(icon || id) + '<span>' + label + "</span>" + (extra || "") + "</button>";
 }
 function tabstrip(side, tabs, extra) {
-  return '<div class="md-strip" data-strip="' + side + '">' + tabs.join("") + (extra || "") + "</div>";
+  var label = side === "L" ? "Model browser" : "Selection inspector";
+  return '<div class="md-strip" data-strip="' + side + '" role="tablist" aria-label="' + label + '">' + tabs.join("") + (extra || "") + "</div>";
 }
 
 /* A labelled CommandManager button — the one place each command lives, so it
@@ -3714,7 +4013,7 @@ function buildDOM() {
     '<button id="mdRedo" data-tip="' + kt(t("redo"), "Ctrl+Y") + '"><i class="ph ph-arrow-u-up-right"></i></button>' +
     '<div class="md-separator"></div>' +
     '<button id="mdGuide" class="md-guide-launch" data-tip="' + t("guideTitle") + '"><i class="ph ph-graduation-cap"></i><span>' + t("guide") + '</span></button>' +
-    '<button id="mdSave" class="btn-accent"><i class="ph ph-floppy-disk"></i> ' + t("save") + "</button>" +
+    '<button id="mdSave" class="btn-accent" data-tip="Ctrl+S"><i class="ph ph-floppy-disk"></i> ' + t("save") + "</button>" +
     '<button id="mdClose" data-tip="' + t("closeTip") + '"><i class="ph ph-x"></i> ' + t("close") + "</button>" +
     "</div>" +
     "</div>" +
@@ -3857,7 +4156,7 @@ function buildDOM() {
        unlabelled glyph while also living in the command manager above. One
        home per command: the ribbon owns the verbs, this panel owns the model
        tree. What's left is a plain text tab strip. */
-    '<div class="md-panel md-left">' +
+    '<div class="md-panel md-left" id="mdLeftPanel">' +
     tabstrip("L", [
       tab("parts", "treeTab", t("tabTreeShort"), t("tabTreeLong"), '<span class="md-badge" id="mdPartBadge"></span>'),
       tab("lib", "libTab", t("tabLibShort"), t("tabLib")),
@@ -3877,6 +4176,7 @@ function buildDOM() {
     '<aside class="md-quick-tools" id="mdQuickTools" aria-label="' + t("quickTools") + '">' +
     '<div class="md-quick-settings" id="mdQuickSettings" hidden></div>' +
     '</aside>' +
+    '<div id="mdLeftResizer" class="md-resizer md-resizer-left" role="separator" aria-orientation="vertical" aria-label="Resize feature tree" tabindex="0"></div>' +
     "</div>" +
 
     /* ---- middle: the drawing, full-bleed, with its controls floating on it ---- */
@@ -3885,10 +4185,10 @@ function buildDOM() {
     '<div id="md3dHost" class="md-3dhost"></div>' +
     '<button type="button" id="mdToggleLeft" class="md-panel-toggle md-panel-toggle-left" aria-label="' + t("toggleTree") + '" title="' + t("toggleTree") + '" aria-pressed="true"><i class="ph ph-tree-structure"></i><span>' + t("tabTreeShort") + '</span></button>' +
     '<button type="button" id="mdToggleRight" class="md-panel-toggle md-panel-toggle-right" aria-label="' + t("toggleInspector") + '" title="' + t("toggleInspector") + '" aria-pressed="true"><i class="ph ph-sidebar-simple"></i><span>' + t("tabShapeShort") + '</span></button>' +
-    '<div class="md-modes" id="mdModes">' +
-    '<button data-mode="3d" class="on" data-tip="3">' + cadIcon("mode3d") + ' ' + t("mode3d") + "</button>" +
-    '<button data-mode="2d" data-tip="2">' + cadIcon("mode2d") + ' ' + t("mode2d") + "</button>" +
-    '<button data-mode="drawing" data-tip="7">' + cadIcon("drawing") + ' ' + t("modeDrawing") + "</button>" +
+    '<div class="md-modes" id="mdModes" role="tablist" aria-label="Editor modes">' +
+    '<button data-mode="3d" class="on" role="tab" aria-selected="true" data-tip="3">' + cadIcon("mode3d") + ' ' + t("mode3d") + "</button>" +
+    '<button data-mode="2d" role="tab" aria-selected="false" data-tip="2">' + cadIcon("mode2d") + ' ' + t("mode2d") + "</button>" +
+    '<button data-mode="drawing" role="tab" aria-selected="false" data-tip="7">' + cadIcon("drawing") + ' ' + t("modeDrawing") + "</button>" +
     "</div>" +
     '<div class="md-drawing-tools" id="mdDrawingTools" role="toolbar" aria-label="Drawing correction tools">' +
     '<button type="button" data-drawing-tool="select" class="on">' + cadIcon("pan") + '<span>' + t("panDrawing") + '</span></button>' +
@@ -3896,7 +4196,7 @@ function buildDOM() {
     '<span class="md-drawing-tools-sep"></span>' +
     '<button type="button" id="mdDrawingSave" class="save"><i class="ph ph-floppy-disk"></i><span>' + t("save") + '</span></button>' +
     '</div>' +
-    '<div class="md-views" id="mdViews">' +
+    '<div class="md-views" id="mdViews" role="toolbar" aria-label="' + t("displayStyle") + '">' +
     '<div class="md-vgroup">' +
     '<button data-view="top" data-tip="' + kt(t("view_top"), "4") + '">' + cadIcon("view_top") + '<span>' + (getLang()==="en"?"Top":"על") + ' · X·Z</span></button>' +
     '<button data-view="front" data-tip="' + kt(t("view_front"), "5") + '">' + cadIcon("view_front") + '<span>' + (getLang()==="en"?"Front":"חזית") + ' · X·Y</span></button>' +
@@ -3912,7 +4212,9 @@ function buildDOM() {
     '<button type="button" data-display="transparent" aria-pressed="false">' + cadIcon("transparentView") + '<span>' + t("transparentView") + '</span></button>' +
     '<button type="button" id="mdShowEdges" class="on" aria-pressed="true" title="' + t("modelEdgesTip") + '">' + cadIcon("modelEdges") + '<span>' + t("modelEdges") + '</span></button>' +
     '</div><button type="button" id="mdFinishPlane" class="md-finish-plane">' + cadIcon("check") + '<span>' + t("exitPlane") + '</span></button></div>' +
+    '<button type="button" id="mdSketchOnFace" class="md-sketch-on-face" hidden><i class="ph ph-pencil-line"></i><span>' + t("createSketchOnRef") + '</span></button>' +
     '<div class="md-hint" id="mdHint"></div>' +
+    '<button type="button" id="mdHintHelp" class="md-hint-help" aria-label="' + t("hint3d") + '" title="' + t("hint3d") + '"><i class="ph ph-question"></i></button>' +
     /* Non-modal on purpose: the viewport underneath it is the control. A modal
        plane dialog is what this bar replaces. */
     '<div class="md-face-prompt" id="mdFacePrompt" hidden>' +
@@ -3940,6 +4242,13 @@ function buildDOM() {
       '<button type="button" data-selfilter="sketch">' + t("selFilterSketch") + '</button>' +
       '<button type="button" data-selfilter="body">' + t("selFilterBody") + '</button>' +
     '</div>' +
+    '<div class="md-assembly-move-mode" id="mdAssemblyMoveMode" role="toolbar" aria-label="' + t("assemblyMoveMode") + '">' +
+      '<span>' + t("assemblyMoveMode") + '</span>' +
+      '<button type="button" data-assembly-move="free" class="on" aria-pressed="true" title="' + t("assemblyMoveFree") + '"><i class="ph ph-arrows-out-cardinal"></i><b>' + t("assemblyMoveFree") + '</b></button>' +
+      '<button type="button" data-assembly-move="x" aria-pressed="false" title="' + t("assemblyMoveX") + '">X</button>' +
+      '<button type="button" data-assembly-move="y" aria-pressed="false" title="' + t("assemblyMoveY") + '">Y</button>' +
+      '<button type="button" data-assembly-move="z" aria-pressed="false" title="' + t("assemblyMoveZ") + '">Z</button>' +
+    '</div>' +
     '<div class="md-breadcrumb" id="mdBreadcrumb"></div>' +
     '<div class="md-shortcut-bar" id="mdShortcutBar" hidden></div>' +
     '<div class="md-view-selector" id="mdViewSelector" hidden></div>' +
@@ -3955,7 +4264,7 @@ function buildDOM() {
 
     /* ---- right: the model as it will look, and the selected part ---- */
     '<div class="md-panel md-right" id="mdRightPanel">' +
-    '<div id="mdRightResizer" class="md-resizer"></div>' +
+    '<div id="mdRightResizer" class="md-resizer" role="separator" aria-orientation="vertical" aria-label="Resize inspector" tabindex="0"></div>' +
     '<div class="md-prev-wrap">' +
     '<canvas id="mdPrev"></canvas>' +
     '<label class="md-context-toggle"><input type="checkbox" id="mdContextBtn"><span>' + t("contextRoom") + "</span></label>" +
@@ -4056,6 +4365,8 @@ function buildDOM() {
     b.addEventListener("click", function () { setModelDisplay(b.getAttribute("data-display")); });
   });
   root.querySelector("#mdShowEdges").addEventListener("click", function () { setShowModelEdges(!(E.showModelEdges !== false)); });
+  root.querySelector("#mdSketchOnFace").addEventListener("click", function () { beginSketchWorkflow(null, { forceNew: true }); });
+  root.querySelector("#mdHintHelp").addEventListener("click", function () { E.hintDismissed = false; syncHint(); });
   root.querySelector("#mdToggleLeft").addEventListener("click", function () { setPanelCollapsed("left", !E.leftCollapsed); });
   root.querySelector("#mdToggleRight").addEventListener("click", function () { setPanelCollapsed("right", !E.rightCollapsed); });
   root.querySelectorAll("[data-section-axis]").forEach(function (button) {
@@ -4159,6 +4470,10 @@ function buildDOM() {
   root.querySelectorAll("[data-selfilter]").forEach(function (button) {
     button.addEventListener("click", function () { setSelectionFilter(button.getAttribute("data-selfilter")); });
   });
+  root.querySelectorAll("[data-assembly-move]").forEach(function (button) {
+    button.addEventListener("click", function () { setAssemblyMoveMode(button.getAttribute("data-assembly-move")); });
+  });
+  setAssemblyMoveMode(E.assemblyMoveMode);
   root.querySelector("#mdTourClose").addEventListener("click", closeTour);
   root.querySelector("#mdTourMin").addEventListener("click", function () {
     var card = root.querySelector(".md-tour-card");
@@ -4223,6 +4538,7 @@ function buildDOM() {
   });
   histPanel = createHistoryPanel(H, {
     showBaseline: true,
+    compactTargets: true,
     scope: docScope,
     onPick: docPick,
   });
@@ -4239,6 +4555,37 @@ function buildDOM() {
   watchSketchSize();
   initPreview();
 
+  // Both persistent desktop panels can give space back to the viewport. The
+  // handles remain outside their panel contents so scrolling the tree/history
+  // never makes the resize target disappear.
+  var leftResizer = root.querySelector("#mdLeftResizer");
+  var leftPanel = root.querySelector("#mdLeftPanel");
+  var lDrag = null;
+  leftResizer.addEventListener("pointerdown", function (e) {
+    leftResizer.setPointerCapture(e.pointerId);
+    lDrag = { startX: e.clientX, startW: leftPanel.offsetWidth };
+  });
+  leftResizer.addEventListener("pointermove", function (e) {
+    if (!lDrag) return;
+    var direction = document.documentElement.dir === "rtl" ? -1 : 1;
+    var dx = (e.clientX - lDrag.startX) * direction;
+    var newW = Math.max(210, Math.min(lDrag.startW + dx, window.innerWidth - 420));
+    leftPanel.style.width = newW + "px";
+    sizeSketch();
+    drawSketch();
+    requestAnimationFrame(layout3DHost);
+  });
+  leftResizer.addEventListener("pointerup", function () { lDrag = null; });
+  leftResizer.addEventListener("pointercancel", function () { lDrag = null; });
+  leftResizer.addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    var direction = document.documentElement.dir === "rtl" ? -1 : 1;
+    var delta = (e.key === "ArrowRight" ? 16 : -16) * direction;
+    leftPanel.style.width = Math.max(210, Math.min(leftPanel.offsetWidth + delta, window.innerWidth - 420)) + "px";
+    sizeSketch(); drawSketch(); requestAnimationFrame(layout3DHost);
+  });
+
   // Resize logic for right panel
   var resizer = root.querySelector("#mdRightResizer");
   var rightPanel = root.querySelector("#mdRightPanel");
@@ -4250,13 +4597,22 @@ function buildDOM() {
   resizer.addEventListener("pointermove", function (e) {
     if (!rDrag) return;
     var dx = rDrag.startX - e.clientX;
-    var newW = Math.max(260, Math.min(rDrag.startW + dx, window.innerWidth - 420));
+    var newW = Math.max(240, Math.min(rDrag.startW + dx, window.innerWidth - 420));
     rightPanel.style.width = newW + "px";
     sizeSketch();
     drawSketch();
     if (E.pv && E.pv.rr) renderPreview();
   });
   resizer.addEventListener("pointerup", function () { rDrag = null; });
+  resizer.addEventListener("pointercancel", function () { rDrag = null; });
+  resizer.addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    var direction = document.documentElement.dir === "rtl" ? -1 : 1;
+    var delta = (e.key === "ArrowLeft" ? 16 : -16) * direction;
+    rightPanel.style.width = Math.max(260, Math.min(rightPanel.offsetWidth + delta, window.innerWidth - 420)) + "px";
+    sizeSketch(); drawSketch(); requestAnimationFrame(layout3DHost);
+  });
 
   root.querySelector("#mdContextBtn").addEventListener("change", function(e) {
     E.pv.inRoom = e.target.checked;
@@ -4537,11 +4893,16 @@ function solidworksCubeTourSteps() {
     {title:"swFinishTitle",body:"swFinishBody",tip:"swFinishTip",target:'[data-mode="3d"]',prepare:function(){setMode("3d");},done:tourCubeIsComplete},
   ];
 }
+/* The cap sits in its own vertical band above the base. Both practice parts
+   used to start at y=0 with the same 20x20 footprint, so the Align X step —
+   which only copies X — buried the cap inside the base and left every side and
+   bottom face coincident, z-fighting into a dithered mess. Stacked, Align X
+   does what its step text promises and no two faces are coplanar. */
 function addPracticeAssemblyComponent(index) {
   var color = index ? "#62a6d8" : "#d89b62";
   var def = {
     key:"tour_component_" + index, name:index ? "Tutorial cap" : "Tutorial base", price:0, col:color,
-    parts:[{id:uid(),kind:"box",name:index ? "cap" : "base",x0:-10,x1:10,y0:0,y1:index?8:12,z0:-10,z1:10,color:color,metal:0.05,rough:0.7}],
+    parts:[{id:uid(),kind:"box",name:index ? "cap" : "base",x0:-10,x1:10,y0:index?12:0,y1:index?20:12,z0:-10,z1:10,color:color,metal:0.05,rough:0.7}],
     constraints:[],sketches:[],features:[],variables:[],
   };
   E.assembly.components.push({
@@ -4657,9 +5018,9 @@ function assemblyTourSteps() {
     {title:"assemblyPickTitle",body:"assemblyPickBody",tip:"assemblyPickTip",target:'#mdParts',
       prepare:function(){setTab("parts");E.componentSel=[];E.sel=null;refreshAll();},
       done:function(){return E.componentSel.length===1;}},
-    {title:"assemblyMoveTitle",body:"assemblyMoveBody",tip:"assemblyMoveTip",target:'#mdInsp .md-prop-grid',
+    {title:"assemblyMoveTitle",body:"assemblyMoveBody",tip:"assemblyMoveTip",target:'.md-mid',
       baseline:tourAssemblyTransformSignature,
-      prepare:function(){var c=E.assembly&&E.assembly.components.filter(function(q){return !q.grounded;})[0];if(c){E.componentSel=[c];E.sel=c;}setTab("shape");refreshAll();},
+      prepare:function(){var c=E.assembly&&E.assembly.components.filter(function(q){return !q.grounded;})[0];if(c){E.componentSel=[c];E.sel=c;}setMode("3d");refreshAll();},
       done:function(){return tourAssemblyTransformSignature()!==E.tour.baseline;}},
     {title:"assemblyPairTitle",body:"assemblyPairBody",tip:"assemblyPairTip",target:'#mdParts',
       prepare:function(){setTab("parts");E.componentSel=[];E.sel=null;refreshAll();},
@@ -5180,6 +5541,7 @@ function performAutomaticTourStep(track,index,showFields) {
 function restoreAutomaticTourOrigin() {
   var origin=E.tour.autoOrigin;if(!origin)return;
   setDocumentType(origin.docType);E.def=cloneData(origin.def);E.assembly=cloneData(origin.assembly);
+  invalidateInterference();
   H.clear().seed();
   E.sel=null;E.ssel=[];E.componentSel=[];E.tour.autoLines=null;E.tour.autoCircle=null;E.tour.autoSeed=null;
   setCommandTab(origin.commandTab||"features");setView(origin.view||"top");setTool(origin.tool||"select");setMode(origin.mode||"2d");
@@ -5275,13 +5637,16 @@ var WELCOME_STARTS = [
 function renderWelcomeCards() {
   if (!root) return;
   var start = root.querySelector("#mdWelcomeStart"), guides = root.querySelector("#mdWelcomeGuides");
-  start.innerHTML = WELCOME_STARTS.map(function (card) {
+  // Whatever survives still renders: half a start screen beats a thrown error
+  // on the way into the editor.
+  if (!start && !guides) return;
+  if (start) start.innerHTML = WELCOME_STARTS.map(function (card) {
     return '<button type="button" data-welcome-start="' + card.id + '" class="md-welcome-tile">' +
       '<span class="md-welcome-art art-' + card.art + '" aria-hidden="true">' + welcomeGlyph(card.art) + '</span>' +
       '<span class="md-welcome-meta"><b>' + t(card.title) + '</b><small>' + t(card.desc) + '</small></span>' +
     '</button>';
   }).join("");
-  guides.innerHTML = welcomeGuideCards().map(function (card) {
+  if (guides) guides.innerHTML = welcomeGuideCards().map(function (card) {
     return '<button type="button" data-welcome-guide="' + card.track + '" class="md-welcome-tile">' +
       '<span class="md-welcome-art art-' + card.art + '" aria-hidden="true">' + welcomeGlyph(card.art) + '<em>' + t("welcomeGuided") + '</em></span>' +
       '<span class="md-welcome-meta"><span class="md-welcome-titlerow"><b>' + t(card.title) + '</b>' +
@@ -5289,7 +5654,7 @@ function renderWelcomeCards() {
       '<small>' + t(card.desc) + '</small></span>' +
     '</button>';
   }).join("");
-  start.querySelectorAll("[data-welcome-start]").forEach(function (tile) {
+  if (start) start.querySelectorAll("[data-welcome-start]").forEach(function (tile) {
     tile.addEventListener("click", function () {
       var card = WELCOME_STARTS.find(function (c) { return c.id === tile.getAttribute("data-welcome-start"); });
       closeWelcome();
@@ -5298,7 +5663,7 @@ function renderWelcomeCards() {
       if (card.command) runCommand(card.command);
     });
   });
-  guides.querySelectorAll("[data-welcome-guide]").forEach(function (tile) {
+  if (guides) guides.querySelectorAll("[data-welcome-guide]").forEach(function (tile) {
     tile.addEventListener("click", function () {
       var track = tile.getAttribute("data-welcome-guide");
       closeWelcome();
@@ -5314,7 +5679,20 @@ function layoutWelcomeCompact() {
     scroll = root.querySelector(".md-welcome-scroll");
   if (!start || !guides || !scroll) return;
   var extra = scroll.querySelector(".md-welcome-extra");
-  if (extra) extra.remove();
+  if (extra) {
+    /* The compact layout borrows two nodes that belong to the dialog itself —
+       the guides heading and the guides grid — into a <details> it builds. It
+       used to drop that wrapper with them still inside, which deleted them from
+       the document: the next open in a wider window then rendered a start grid
+       and nothing else, and the one after that threw on a grid that was no
+       longer there, taking the editor down with it. Hand them back first; the
+       wrapper then only takes what this function made. */
+    var borrowedHeading = extra.querySelector(".md-welcome-group");
+    if (borrowedHeading) scroll.appendChild(borrowedHeading);
+    var borrowedGuides = extra.querySelector("#mdWelcomeGuides");
+    if (borrowedGuides) scroll.appendChild(borrowedGuides);
+    extra.remove();
+  }
   if (!document.body.classList.contains("compact-nav")) return;
   var continueTile = document.createElement("button");
   continueTile.type = "button";
@@ -5438,24 +5816,30 @@ function syncCoach() {
   E._coachSug = null;
   var show = E.open && E.coachEnabled && !E.coachDismissed && !E.tour.active && !E.welcomeOpen && E.mode !== "drawing";
   var sug = show ? coachSuggestion() : null;
-  if (!sug) { bar.hidden = true; return; }
-  E._coachSug = sug;
-  bar.hidden = false;
-  root.querySelector("#mdCoachIcon").className = "ph md-coach-icon " + sug.icon;
-  root.querySelector("#mdCoachText").textContent = t(sug.text);
-  var go = root.querySelector("#mdCoachGo");
-  go.innerHTML = t(sug.act) + '<i class="ph ph-arrow-right"></i>';
-  var dots = root.querySelector("#mdCoachDots");
-  if (E.docType === "part" && isCanonicalAuthoring()) {
-    var steps = ["context", "reference", "sketch", "feature", "history"], active = steps.indexOf(currentWorkflowStep());
-    dots.hidden = false;
-    dots.innerHTML = steps.map(function (s, i) {
-      return '<span class="' + (i < active ? "done" : i === active ? "now" : "") + '"></span>';
-    }).join("");
-  } else dots.hidden = true;
-  if (sug.target) {
-    var target = root.querySelector(sug.target);
-    if (target) target.classList.add("md-coach-target");
+  bar.hidden = !sug;
+  /* The tail below is not the coach's business alone. Returning early when
+     there was no tip meant syncEmptyStart() never ran — so the "Start screen"
+     chip sat over a fully populated assembly for the rest of the session,
+     because the moment it should have stood aside was exactly the moment the
+     coach had nothing left to say. */
+  if (sug) {
+    E._coachSug = sug;
+    root.querySelector("#mdCoachIcon").className = "ph md-coach-icon " + sug.icon;
+    root.querySelector("#mdCoachText").textContent = t(sug.text);
+    var go = root.querySelector("#mdCoachGo");
+    go.innerHTML = t(sug.act) + '<i class="ph ph-arrow-right"></i>';
+    var dots = root.querySelector("#mdCoachDots");
+    if (E.docType === "part" && isCanonicalAuthoring()) {
+      var steps = ["context", "reference", "sketch", "feature", "history"], active = steps.indexOf(currentWorkflowStep());
+      dots.hidden = false;
+      dots.innerHTML = steps.map(function (s, i) {
+        return '<span class="' + (i < active ? "done" : i === active ? "now" : "") + '"></span>';
+      }).join("");
+    } else dots.hidden = true;
+    if (sug.target) {
+      var target = root.querySelector(sug.target);
+      if (target) target.classList.add("md-coach-target");
+    }
   }
   syncEmptyStart();
   syncModelerMobile();
@@ -5745,7 +6129,26 @@ function currentWorkflowStep() {
   });
 }
 
+var ASSEMBLY_WORKFLOW_ACTION = {
+  context: function () { setTab("parts"); },
+  reference: function () {
+    // grounding lives on the component pane, next to visibility
+    if (!E.sel && E.assembly && E.assembly.components.length) {
+      E.componentSel = [E.assembly.components[0]]; E.sel = E.componentSel[0];
+    }
+    setTab("look");
+  },
+  sketch: function () { setTab("ops"); },
+  feature: function () { runInterferenceCheck(); },
+  history: function () { showAssemblyBOM(); },
+};
+
 function activateWorkflowStep(step) {
+  if(E.docType==="assembly"){
+    var action=ASSEMBLY_WORKFLOW_ACTION[step];
+    if(action){action();refreshAll();}
+    return;
+  }
   if(E.docType!=="part")return;
   if(step==="context"){
     E.authoring.workflowFocus="context";
@@ -5781,8 +6184,81 @@ function activateWorkflowStep(step) {
   }
 }
 
+var PART_WORKFLOW = ["wfPart", "wfReference", "wfSketch", "wfFeature", "wfHistory"];
+/* An assembly is not sketched into being — it is filled, anchored, related,
+   checked and counted. Same five slots, so the bar keeps its shape, but naming
+   them after part authoring left every backend improvement in this editor
+   sitting behind a road sign for somewhere else. */
+var ASSEMBLY_WORKFLOW = ["wfInsert", "wfGround", "wfMate", "wfCheck", "wfBom"];
+
+function assemblyWorkflowState() {
+  var components = (E.assembly && E.assembly.components) || [];
+  var grounded = components.filter(function (component) { return component.grounded; }).length;
+  var mates = assemblyMateCount(E.assembly);
+  var broken = brokenMateCount();
+  var clashes = (E.interferenceHits || []).length;
+  var rows = E.assembly ? generateBOM(E.assembly).length : 0;
+  return {
+    components: components.length, grounded: grounded, mates: mates, broken: broken,
+    clashes: clashes, checked: !!E.interferenceChecked, rows: rows,
+    details: [
+      components.length ? countLabel(components.length, "assemblyComponentOne", "assemblyComponents") : t("wfNoComponents"),
+      grounded ? grounded + " " + t("wfAnchored") : t("wfNoAnchor"),
+      mates ? countLabel(mates, "matesCountOne", "matesCount") : t("wfNoMates"),
+      broken ? countLabel(broken, "mateIssueOne", "mateIssues")
+        : clashes ? clashes + " " + t("wfCheckClash")
+        : E.interferenceChecked ? t("wfNoInterference") : t("wfCheckUnrun"),
+      countLabel(rows, "wfBomLineOne", "wfBomLines"),
+    ],
+    // the first thing still left to do is the step the user is on
+    active: !components.length ? 0 : !grounded ? 1 : !mates ? 2 : (broken || !E.interferenceChecked) ? 3 : 4,
+  };
+}
+
+/* Sketch / Shape / Finish are what a part's panes hold. An assembly's hold the
+   component, where it sits, and what relates it — so they say so, and the
+   sketch pane, which has nothing to show here, steps out of the strip. */
+var ASSEMBLY_TAB_LABELS = { shape: "tabPlacement", look: "tabComponent", ops: "tabMates" };
+var PART_TAB_LABELS = { shape: "tabShapeShort", look: "tabLookShort", ops: "tabOpsShort" };
+
+function syncInspectorTabLabels() {
+  if (!root) return;
+  var assembly = E.docType === "assembly";
+  var labels = assembly ? ASSEMBLY_TAB_LABELS : PART_TAB_LABELS;
+  Object.keys(labels).forEach(function (id) {
+    var button = root.querySelector('[data-tab="' + id + '"]');
+    if (!button) return;
+    var caption = button.querySelector("span");
+    if (caption) caption.textContent = t(labels[id]);
+    var full = assembly ? t(labels[id]) : t(id === "shape" ? "tabShape" : id === "look" ? "tabLook" : "tabOps");
+    button.title = full;
+    button.setAttribute("aria-label", full);
+  });
+}
+
+function syncAssemblyWorkflow() {
+  var state = assemblyWorkflowState();
+  root.querySelectorAll("[data-workflow-step]").forEach(function (button, index) {
+    var heading = button.querySelector("b"), detail = button.querySelector("small");
+    if (heading) heading.textContent = t(ASSEMBLY_WORKFLOW[index] || PART_WORKFLOW[index]);
+    if (detail) detail.textContent = state.details[index] || "";
+    button.classList.toggle("active", index === state.active);
+    button.classList.toggle("complete", index < state.active);
+    if (index === state.active) button.setAttribute("aria-current", "step");
+    else button.removeAttribute("aria-current");
+  });
+  root.classList.remove("md-authoring-sketch");
+  syncCoach();
+}
+
 function syncAuthoringWorkflow() {
-  if(!root||!E.def)return;
+  if(!root)return;
+  if(E.docType==="assembly"){syncAssemblyWorkflow();return;}
+  if(!E.def)return;
+  root.querySelectorAll("[data-workflow-step]").forEach(function(button,index){
+    var heading=button.querySelector("b");
+    if(heading)heading.textContent=t(PART_WORKFLOW[index]);
+  });
   var phase=E.authoring && E.authoring.phase || "model",steps=["context","reference","sketch","feature","history"];
   var active=steps.indexOf(currentWorkflowStep());
   if(active<0)active=0;
@@ -5985,7 +6461,11 @@ function setTab(id) {
   var b = root.querySelector('[data-tab="' + id + '"]');
   if (!b) return;
   var panel = b.closest(".md-panel");
-  panel.querySelectorAll("[data-tab]").forEach(function (o) { o.classList.toggle("on", o === b); });
+  panel.querySelectorAll("[data-tab]").forEach(function (o) {
+    var active = o === b;
+    o.classList.toggle("on", active);
+    o.setAttribute("aria-selected", active ? "true" : "false");
+  });
   panel.querySelectorAll(".md-pane").forEach(function (p) { p.classList.toggle("on", p.getAttribute("data-pane") === id); });
   if (id === "hist" && histPanel) histPanel.refresh();
 }
@@ -6051,6 +6531,7 @@ function runCommand(id) {
   else if (id === "stepout") exportStepDocument();
   else if (id === "igesout") exportIgesDocument();
   else if (id === "drawing" && E.docType === "part") downloadDrawing(E.def, { section: true, holeCallouts: true, balloons: true });
+  else if (id === "drawing" && E.docType === "assembly") downloadAssemblyDrawing();
   else if (id === "mass") showMassProperties();
   else if (id === "section") toggleSectionView();
   else if (id === "standards") runStandardsAudit();
@@ -6819,7 +7300,7 @@ function openParametricFeature(type) {
     renderFinishEdgeList();
   }
   var actions=el("div","md-feature-actions");
-    actions.appendChild(btn('<i class="ph ph-x"></i> '+t("cancelCommand"),function(){E.authoring.featureType=null;E.authoring.workflowFocus="history";clearFeaturePreview(true);closeFeaturePanel();syncAuthoringWorkflow();},"md-quick-cancel"));
+    actions.appendChild(namedButton(btn('<i class="ph ph-x"></i> '+t("m_cancel"),function(){E.authoring.featureType=null;E.authoring.workflowFocus="history";clearFeaturePreview(true);closeFeaturePanel();syncAuthoringWorkflow();},"md-quick-cancel"), t("cancelCommand")));
   actions.appendChild(btn('<i class="ph ph-check"></i> '+t("quickApply"),function(){
     var values=readFeatureParameterForm(controls,state.params),params=values.params,ok=false;state.references={...state.references,...values.references};clearFeaturePreview(false);
     if(type==="extrude"||type==="extrudeCut")ok=extrudeClosedSketch({type:type,...params});
@@ -6963,6 +7444,16 @@ function setSelectionFilter(id) {
   });
 }
 
+function setAssemblyMoveMode(mode) {
+  E.assemblyMoveMode = ["x", "y", "z"].includes(mode) ? mode : "free";
+  if (!root) return;
+  root.querySelectorAll("[data-assembly-move]").forEach(function (button) {
+    var active = button.getAttribute("data-assembly-move") === E.assemblyMoveMode;
+    button.classList.toggle("on", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
 function setMobileAddSelection(on) {
   E.mobileAddSelection = !!on;
   syncModelerMobile(true);
@@ -7038,6 +7529,7 @@ function runChromeCommand(id) {
 function hideSelected() {
   if (E.docType === "assembly" && E.componentSel.length) {
     E.componentSel.forEach(function (c) { c.visible = false; });
+    invalidateInterference();
     refreshAll();
     return;
   }
@@ -7049,6 +7541,7 @@ function toggleIsolate() {
   if (E.assembly.isolated) {
     (E.assembly.components || []).forEach(function (c) { c.visible = true; });
     E.assembly.isolated = false;
+    invalidateInterference();
     flash(t("isolateOff"));
     refreshAll();
     return;
@@ -7060,6 +7553,7 @@ function toggleIsolate() {
     if (component) component.visible = row.visible;
   });
   E.assembly.isolated = true;
+  invalidateInterference();
   flash(t("isolate"));
   refreshAll();
 }
@@ -7256,6 +7750,7 @@ function newModel() {
   if (documentDirty() && !window.confirm(t("unsavedNew"))) return;
   if (E.docType === "assembly") {
     E.assembly = newAssembly();
+    invalidateInterference();
     E.componentSel = [];
     E.sel = null;
     H.clear().seed();
@@ -7289,10 +7784,18 @@ function setDocumentType(type) {
   E.facePick = null;
   E.arcPts = null;
   E.componentSel = [];
-  E.interferenceHits = [];
+  invalidateInterference();
   E.dependencyHighlight = null;
   if (type === "assembly" && !E.assembly) E.assembly = newAssembly();
   root.classList.toggle("md-assembly", type === "assembly");
+  // the two document shapes draw different trees; a row id from one of them
+  // means nothing in the other
+  E.treeState = {};
+  E.treeModel = null;
+  syncInspectorTabLabels();
+  /* The sketch pane has nothing to show for an assembly and is hidden there, so
+     do not leave the strip pointing at a tab that is no longer in it. */
+  if (type === "assembly" && activeTab("R") === "sketch") setTab("shape");
   root.querySelectorAll("#mdDocModes [data-doc]").forEach(function (b) {
     b.classList.toggle("on", b.getAttribute("data-doc") === type);
   });
@@ -7408,15 +7911,22 @@ function syncHint() {
      viewport, and on 375px it ellipsises mid-word. It is a first-run message:
      tap it once and it stays gone for the session, coming back the moment the
      hint has something live to say. */
-  var idle = compact && E.mode === "3d" && !E.modelPlaneActive && !topologyCaption;
+  var idle = E.mode === "3d" && !E.modelPlaneActive && !topologyCaption;
   if (compact && !hint.dataset.dismissBound) {
     hint.dataset.dismissBound = "1";
     hint.addEventListener("click", function () { E.hintDismissed = true; syncHint(); });
   }
   hint.classList.toggle("md-hint-dismissable", !!idle);
-  if (idle && E.hintDismissed) hint.textContent = "";
+  hint.classList.toggle("idle-dismissed", !!(idle && E.hintDismissed));
   hint.classList.toggle("live", live);
   hint.classList.toggle("selection",E.mode==="3d" && !E.modelPlaneActive && !!topologyCaption);
+  var help = root && root.querySelector("#mdHintHelp");
+  if (help) help.classList.toggle("on", !!(idle && E.hintDismissed));
+  var sketchAction = root && root.querySelector("#mdSketchOnFace");
+  if (sketchAction) {
+    var canSketchFace = E.docType === "part" && E.mode === "3d" && !E.facePick && !!selectedSketchableFace();
+    sketchAction.hidden = !canSketchFace;
+  }
   // the rebuild banner parks itself under the hint; tell it how tall that is
   if (compact && root) root.style.setProperty("--md-hint-h", (hint.textContent ? Math.round(hint.getBoundingClientRect().height) : 0) + "px");
 }
@@ -7445,12 +7955,19 @@ function syncStatus() {
   if (!st) return;
   if (E.docType === "assembly") {
     var components = E.assembly && E.assembly.components || [];
-    var mates = E.assembly && E.assembly.mates || [];
+    /* Both mate lists count. Reading only the legacy one said "0 mates" on an
+       assembly held together entirely by SmartMates. */
+    var mates = assemblyMateCount(E.assembly);
     var selected = E.componentSel && E.componentSel.length || 0;
+    var picked = (E.topologySelection || []).filter(function (reference) { return reference.componentId; }).length;
+    var broken = brokenMateCount();
     st.innerHTML = '<b>' + t("docAssembly") + '</b>' +
-      '<span class="md-st-sep"></span>' + components.length + " " + t("assemblyComponents") +
-      '<span class="md-st-sep"></span>' + mates.length + " " + t("matesCount") +
+      '<span class="md-st-sep"></span>' + countLabel(components.length, "assemblyComponentOne", "assemblyComponents") +
+      '<span class="md-st-sep"></span>' + countLabel(mates, "matesCountOne", "matesCount") +
+      (broken ? '<span class="md-st-sep"></span><b class="md-st-dirty">' + countLabel(broken, "mateIssueOne", "mateIssues") + "</b>" : "") +
+      (E.mateDegreesOfFreedom ? '<span class="md-st-sep"></span>' + countLabel(E.mateDegreesOfFreedom, "mateDofOne", "mateDof") : "") +
       (selected ? '<span class="md-st-sep"></span><b class="md-st-selection">' + selected + " " + t("assemblySelected") + "</b>" : "") +
+      (picked ? '<span class="md-st-sep"></span><b class="md-st-selection">' + countLabel(picked, "matePickedOne", "matePicked") + "</b>" : "") +
       (documentDirty() ? '<span class="md-st-sep"></span><b class="md-st-dirty">' + t("dirtySave") + "</b>" : "");
     return;
   }
@@ -10506,9 +11023,10 @@ function onKey(e) {
     if ((e.key === "Delete" || e.key === "Backspace") && E.componentSel.length) {
       e.preventDefault();
       var removed = E.componentSel.map(function (c) { return c.id; });
+      pushUndo(t("del"));
       E.assembly.components = E.assembly.components.filter(function (c) { return removed.indexOf(c.id) === -1; });
-      E.assembly.mates = E.assembly.mates.filter(function (m) { return removed.indexOf(m.a) === -1 && removed.indexOf(m.b) === -1; });
-      E.componentSel = []; E.sel = null; refreshAll();
+      E.componentSel = []; E.sel = null; E.topologySelection = [];
+      solveAssembly(); refreshAll();
     }
     return;
   }
@@ -10583,6 +11101,7 @@ function insertAssemblyComponent(modelKey) {
   if (!E.assembly) E.assembly = newAssembly();
   var def = loadLib().find(function (m) { return m.key === modelKey; });
   if (!def) return;
+  pushUndo(t("addComponent"));
   var i = E.assembly.components.length;
   var component = {
     id: uid(), modelKey: def.key, name: def.name || def.key,
@@ -10590,10 +11109,302 @@ function insertAssemblyComponent(modelKey) {
     transform: { x: i * 25, y: 0, z: 0, rx: 0, ry: 0, rz: 0 },
   };
   E.assembly.components.push(component);
+  invalidateInterference();
   E.componentSel = [component];
   E.sel = component;
   refreshAll();
   fitPreview();
+}
+
+/* The assembly used to draw its own flat list of rows while every part
+   document got the FeatureManager — so components had no nesting, no keyboard
+   navigation, no rename, no context menu and no way to reach a mate. The tree
+   renderer is document-shape agnostic: hand it the same node shape and all of
+   that arrives at once. Mates get their own section, the way SolidWorks files
+   them, rather than being duplicated under both components they hold. */
+function assemblyCollapsed(id, fallback) {
+  var state = treeCollapseState();
+  return Object.prototype.hasOwnProperty.call(state, id) ? !!state[id] : !!fallback;
+}
+
+function assemblyTreeNode(fields) {
+  return {
+    id: fields.id, kind: fields.kind, targetId: fields.targetId || null, historyId: null,
+    index: Number.isInteger(fields.index) ? fields.index : null,
+    name: fields.name || "", detail: fields.detail || "", icon: fields.icon || "",
+    state: "", suppressed: !!fields.suppressed, rolled: false, error: fields.error || null,
+    selected: !!fields.selected, collapsed: !!fields.collapsed, shared: false,
+    can: Object.assign({
+      rename: false, suppress: false, rollback: false, remove: false,
+      reorder: false, edit: false, select: false,
+    }, fields.can || {}),
+    children: fields.children || [],
+    swatch: fields.swatch || null,
+  };
+}
+
+function topologyMateLabel(type) {
+  var key = {
+    coincident: "coincidentMate", concentric: "concentricMate",
+    screw: "screwMate", tangent: "tangentMate", limit: "limitMate",
+    angle: "angleMate", distance: "topologyDistanceMate",
+  }[type];
+  return key ? t(key) : t("mate");
+}
+
+function assemblyTreeModel() {
+  var components = (E.assembly && E.assembly.components) || [];
+  var legacy = Array.isArray(E.assembly && E.assembly.mates) ? E.assembly.mates : [];
+  var topology = Array.isArray(E.assembly && E.assembly.topologyMates) ? E.assembly.topologyMates : [];
+
+  /* Two components off the same library model arrive with the same name, and
+     the row label is all the user has to tell them apart in the tree. Number
+     the ones that repeat — only those, so a component that has been renamed
+     keeps exactly the name it was given. */
+  var componentLabelOf = function (component) { return component.name || component.modelKey || t("component"); };
+  var labelCounts = new Map(), labelSeen = new Map();
+  components.forEach(function (component) {
+    var label = componentLabelOf(component);
+    labelCounts.set(label, (labelCounts.get(label) || 0) + 1);
+  });
+
+  var componentRows = components.map(function (component, index) {
+    var def = componentDef(component);
+    var solids = def ? activeParts(def).length : 0;
+    var label = componentLabelOf(component);
+    if (labelCounts.get(label) > 1) {
+      labelSeen.set(label, (labelSeen.get(label) || 0) + 1);
+      label += " " + labelSeen.get(label);
+    }
+    /* The component's own solids, so the tree answers "what is inside this"
+       without leaving the assembly. They select the component — an assembly
+       does not edit a component's geometry in place. */
+    var children = def ? activeParts(def).map(function (part) {
+      return assemblyTreeNode({
+        id: "compbody:" + component.id + ":" + part.id, kind: "body",
+        targetId: component.id, name: part.name || part.kind || t("part"),
+        icon: "components", can: { select: true },
+      });
+    }) : [];
+    return assemblyTreeNode({
+      id: "comp:" + component.id, kind: "component", targetId: component.id, index: index,
+      name: label,
+      detail: [component.grounded ? t("treeGrounded") : "",
+        solids ? countLabel(solids, "treeComponentPartOne", "treeComponentParts") : "",
+        /* What its mates have left free. Only for components a mate actually
+           moves: an ungrounded component nothing is mated to is not "six
+           degrees free", it is simply not being solved for. */
+        freedomLabel(componentFreedom(component.id))]
+        .filter(Boolean).join(" · "),
+      icon: component.grounded ? "stdscrew" : "components",
+      // the eye on a component row hides it, the way it does on a body row
+      suppressed: component.visible === false,
+      selected: E.componentSel.indexOf(component) !== -1,
+      collapsed: assemblyCollapsed("comp:" + component.id, true),
+      error: def ? null : t("mateIssueMissingComponent"),
+      can: { select: true, rename: true, remove: true, suppress: true },
+      children: children,
+    });
+  });
+
+  var mateRows = legacy.map(function (mate, index) {
+    return assemblyTreeNode({
+      id: "mate:" + mate.id, kind: "mate", targetId: mate.a, index: index,
+      name: t(mate.type === "alignX" ? "mateX" : mate.type === "alignY" ? "mateY" : mate.type === "alignZ" ? "mateZ" : "mateDistance"),
+      detail: componentLabel(mate.a) + " ↔ " + componentLabel(mate.b),
+      icon: "ph-link", can: { select: true, remove: true },
+    });
+  }).concat(topology.map(function (mate, index) {
+    var issues = mateIssuesFor(mate.id);
+    return assemblyTreeNode({
+      id: "tmate:" + mate.id, kind: "mate", targetId: mate.a && mate.a.componentId,
+      index: legacy.length + index,
+      name: topologyMateLabel(mate.type),
+      detail: componentLabel(mate.a && mate.a.componentId) + " ↔ " + componentLabel(mate.b && mate.b.componentId),
+      icon: mate.type === "screw" ? "threadfeature" : "ph-link",
+      // the solver already honours mate.suppressed; this is the first way to set it
+      suppressed: !!mate.suppressed,
+      error: issues.length ? mateIssueLabel(issues[0]) : null,
+      /* Mates are solved in list order and the last one wins, so dragging one
+         down the list is a real edit, not a cosmetic sort. */
+      can: { select: true, remove: true, suppress: true, reorder: true },
+    });
+  }));
+
+  var sections = [assemblyTreeNode({
+    id: "section:components", kind: "section", name: t("treeComponents"),
+    icon: "components", detail: String(components.length),
+    collapsed: assemblyCollapsed("section:components", false),
+    children: componentRows,
+  })];
+  sections.push(assemblyTreeNode({
+    id: "section:mates", kind: "section", name: t("treeMates"),
+    icon: "ph-link", detail: String(mateRows.length),
+    collapsed: assemblyCollapsed("section:mates", false),
+    children: mateRows,
+  }));
+  return { mode: "assembly", nodes: sections, rollbackAt: -1, historyCount: 0 };
+}
+
+function assemblyComponentForNode(node) {
+  var id = node.targetId != null ? node.targetId : null;
+  return id == null ? null : assemblyComponentById(id);
+}
+
+/* showTreeMenu's entries all run the part-document handlers, so an assembly
+   needs its own list — same chrome, actions that mean something here. */
+function showAssemblyTreeMenu(node, event, api, handlers) {
+  closeTreeMenu();
+  var items = [];
+  if (node.can.rename) items.push({ label: t("treeRename") + " · F2", icon: "ph-textbox", run: function () { api.rename(); } });
+  if (node.can.suppress) items.push({
+    label: node.kind === "component"
+      ? t(node.suppressed ? "treeShowComponent" : "treeHideComponent")
+      : t(node.suppressed ? "unsuppress" : "suppress"),
+    icon: node.suppressed ? "ph-eye" : "ph-eye-slash",
+    run: function () { handlers.onSuppress(node); },
+  });
+  if (node.kind === "component") {
+    var component = assemblyComponentForNode(node);
+    if (component) items.push({
+      label: (component.grounded ? "✓ " : "") + t("grounded"),
+      icon: component.grounded ? "ph-lock-open" : "ph-anchor",
+      run: function () {
+        pushUndo(t("grounded"));
+        component.grounded = !component.grounded;
+        solveAssembly({ quiet: true });
+        refreshAll();
+      },
+    });
+    items.push({ label: t("isolate"), icon: "ph-eye", run: function () {
+      E.componentSel = [component]; E.sel = component; toggleIsolate();
+    } });
+  }
+  items.push({ label: t("treeExpandAll"), icon: "ph-arrows-out-simple", run: function () { setAllAssemblyCollapsed(false); } });
+  items.push({ label: t("treeCollapseAll"), icon: "ph-arrows-in-simple", run: function () { setAllAssemblyCollapsed(true); } });
+  if (node.can.remove) items.push({ label: t("del"), icon: "ph-trash", run: function () { handlers.onRemove(node); } });
+  if (!items.length) return;
+  openTreeMenu(items, event);
+}
+
+function setAllAssemblyCollapsed(collapsed) {
+  var state = treeCollapseState();
+  var walk = function (nodes) {
+    nodes.forEach(function (node) {
+      if (node.children.length) state[node.id] = collapsed;
+      walk(node.children);
+    });
+  };
+  walk(assemblyTreeModel().nodes);
+  refreshParts();
+}
+
+function assemblyTreeHandlers(model) {
+  var handlers;
+  handlers = {
+    onSelect: function (node, event) {
+      if (node.kind === "mate") {
+        // selecting a mate selects what it holds, which is what you want to see
+        var pair = assemblyMatePair(node.id);
+        E.componentSel = pair.filter(Boolean);
+        E.sel = E.componentSel[E.componentSel.length - 1] || null;
+        refreshAll();
+        return;
+      }
+      var component = assemblyComponentForNode(node);
+      if (!component) return;
+      if (event && (event.ctrlKey || event.metaKey || E.mobileAddSelection)) {
+        var at = E.componentSel.indexOf(component);
+        if (at === -1) E.componentSel.push(component); else E.componentSel.splice(at, 1);
+      } else E.componentSel = [component];
+      E.sel = E.componentSel[E.componentSel.length - 1] || null;
+      refreshAll();
+    },
+    onEdit: function () {},
+    onRename: function (node, name) {
+      var component = assemblyComponentForNode(node);
+      if (!component || node.kind !== "component") return;
+      pushUndo(t("partName"));
+      component.name = String(name || "").slice(0, 80) || component.modelKey;
+      refreshAll();
+    },
+    onSuppress: function (node) {
+      if (node.kind === "component") {
+        var component = assemblyComponentForNode(node);
+        if (!component) return;
+        pushUndo(t("visible"));
+        component.visible = component.visible === false;
+        invalidateInterference();
+        refreshAll();
+        return;
+      }
+      var mate = assemblyMateById(node.id);
+      if (!mate) return;
+      pushUndo(t("suppress"));
+      mate.suppressed = !mate.suppressed;
+      solveAssembly();
+      refreshAll();
+    },
+    onRollback: function () {},
+    onRemove: function (node) {
+      if (node.kind === "component") { removeAssemblyComponent(assemblyComponentForNode(node)); return; }
+      var mate = assemblyMateById(node.id);
+      if (!mate) return;
+      pushUndo(t("del"));
+      E.assembly.mates = (E.assembly.mates || []).filter(function (m) { return m !== mate; });
+      E.assembly.topologyMates = (E.assembly.topologyMates || []).filter(function (m) { return m !== mate; });
+      solveAssembly();
+      refreshAll();
+    },
+    onReorder: function (dragId, target, after) {
+      if (!target.can.reorder) return;
+      var list = E.assembly.topologyMates || [];
+      var drag = assemblyMateById(dragId), onto = assemblyMateById(target.id);
+      var from = list.indexOf(drag), at = list.indexOf(onto);
+      if (from < 0 || at < 0) return;
+      var to = at + (after ? 1 : 0);
+      if (from < to) to -= 1;
+      if (to === from) return;
+      pushUndo(t("reorder"));
+      list.splice(to, 0, list.splice(from, 1)[0]);
+      solveAssembly();
+      refreshAll();
+    },
+    onToggleCollapse: function (node) {
+      treeCollapseState()[node.id] = !node.collapsed;
+      refreshParts();
+    },
+    onContextMenu: function (node, event, api) { showAssemblyTreeMenu(node, event, api, handlers); },
+    onHover: function () {},
+    onRollbackRelease: function () {},
+  };
+  return handlers;
+}
+
+function assemblyMateById(nodeId) {
+  var key = String(nodeId).slice(String(nodeId).indexOf(":") + 1);
+  var found = (E.assembly && E.assembly.mates || []).find(function (m) { return String(m.id) === key; });
+  if (found) return found;
+  return (E.assembly && E.assembly.topologyMates || []).find(function (m) { return String(m.id) === key; }) || null;
+}
+
+function assemblyMatePair(nodeId) {
+  var mate = assemblyMateById(nodeId);
+  if (!mate) return [];
+  var a = mate.a && mate.a.componentId != null ? mate.a.componentId : mate.a;
+  var b = mate.b && mate.b.componentId != null ? mate.b.componentId : mate.b;
+  return [assemblyComponentById(a), assemblyComponentById(b)];
+}
+
+function removeAssemblyComponent(component) {
+  if (!component) return;
+  pushUndo(t("del"));
+  E.assembly.components = E.assembly.components.filter(function (c) { return c !== component; });
+  E.componentSel = E.componentSel.filter(function (c) { return c !== component; });
+  E.topologySelection = (E.topologySelection || []).filter(function (reference) { return reference.componentId !== component.id; });
+  E.sel = E.componentSel[E.componentSel.length - 1] || null;
+  solveAssembly();
+  refreshAll();
 }
 
 function refreshComponents() {
@@ -10626,41 +11437,18 @@ function refreshComponents() {
   var badge = root.querySelector("#mdPartBadge");
   if (badge) { badge.textContent = count || ""; badge.classList.toggle("on", !!count); }
   var sizeEl = root.querySelector("#mdSize");
-  if (sizeEl) sizeEl.textContent = count ? count + " " + t("components").toLowerCase() : "";
+  if (sizeEl) sizeEl.textContent = count ? countLabel(count, "assemblyComponentOne", "assemblyComponents") : "";
   if (!count) {
     emptyState(host, "ph-stack", models.length ? t("noComponents") : t("emptyLibTitle"),
       models.length ? t("noComponentsHint") : t("emptyLibHint"));
     return;
   }
 
-  E.assembly.components.forEach(function (component, index) {
-    var selected = E.componentSel.indexOf(component) !== -1;
-    var row = el("div", "md-part md-component" + (selected ? " on" : ""));
-    row.appendChild(el("span", "md-tree-icon", cadIcon(component.grounded ? "stdscrew" : "components")));
-    row.appendChild(el("span", "nm", (component.name || component.modelKey) + " " + (index + 1)));
-    var vis = btn('<i class="ph ' + (component.visible === false ? "ph-eye-slash" : "ph-eye") + '"></i>', function (e) {
-      e.stopPropagation(); component.visible = component.visible === false; refreshAll();
-    }, "md-part-x");
-    vis.title = t("visible"); row.appendChild(vis);
-    var del = btn('<i class="ph ph-trash"></i>', function (e) {
-      e.stopPropagation();
-      E.assembly.components = E.assembly.components.filter(function (c) { return c !== component; });
-      E.assembly.mates = E.assembly.mates.filter(function (m) { return m.a !== component.id && m.b !== component.id; });
-      E.componentSel = E.componentSel.filter(function (c) { return c !== component; });
-      E.sel = E.componentSel[E.componentSel.length - 1] || null;
-      refreshAll();
-    }, "md-part-x");
-    del.title = t("del"); row.appendChild(del);
-    row.addEventListener("click", function (e) {
-      if (e.ctrlKey || e.metaKey || E.mobileAddSelection) {
-        var at = E.componentSel.indexOf(component);
-        if (at === -1) E.componentSel.push(component); else E.componentSel.splice(at, 1);
-      } else E.componentSel = [component];
-      E.sel = E.componentSel[E.componentSel.length - 1] || null;
-      refreshAll();
-    });
-    host.appendChild(row);
-  });
+  var model = assemblyTreeModel();
+  E.treeModel = model;
+  var mount = el("div", "md-tree-mount");
+  host.appendChild(mount);
+  E.treeState = renderTreeModel(mount, model, treeDeps(), assemblyTreeHandlers(model), E.treeState || {});
   applyFeatureFilter(host);
 }
 
@@ -10719,7 +11507,7 @@ function openFeatureEditor(feature) {
   name.addEventListener("input",function(){feature.name=name.value || feature.name;var entry=(E.def.history || []).find(function(item){return item.targetId===feature.id;});if(entry)entry.name=feature.name;refreshParts();fillInspector();});
   var dependencies=[];(feature.references.sketches || []).forEach(function(id){dependencies.push("Sketch: "+(id.id||id));});(feature.inputs || []).forEach(function(id){dependencies.push("Feature: "+id);});
   host.appendChild(el("div","md-feature-selection-note",dependencies.length?dependencies.join(" · "):"No upstream feature dependencies"));
-  var actions=el("div","md-feature-actions");actions.appendChild(btn('<i class="ph ph-arrow-counter-clockwise"></i> Cancel',function(){cancelFeatureParameterEdit(false);},"md-quick-cancel"));
+  var actions=el("div","md-feature-actions");actions.appendChild(namedButton(btn('<i class="ph ph-arrow-counter-clockwise"></i> '+t("m_cancel"),function(){cancelFeatureParameterEdit(false);},"md-quick-cancel"), t("cancelCommand")));
   actions.appendChild(btn('<i class="ph ph-check"></i> Update feature',function(){
     var values=readFeatureParameterForm(controls,feature.params);
     try{updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});setFeatureReferencesFromForm(feature,values.references);syncProjectionFromFeature(feature);E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();refreshAll();flash("✓ Feature rebuilt from history · all views updated");}
@@ -10846,6 +11634,7 @@ function currentTreeModel() {
     collapsed: treeCollapseState(),
     folders: E.def.treeFolders || [],
     labels: treeLabels(),
+    definition: E.def,
   });
 }
 
@@ -10977,7 +11766,15 @@ function suppressTreeNode(node, model) {
   var next = !node.suppressed;
   pushUndo(next ? t("suppress") : t("unsuppress"));
   if (model.mode === "canonical") {
-    suppressHistoryNode(E.def, node.historyId, next);
+    /* Whatever this step feeds goes with it — and comes back with it. Say which
+       steps those were: a cascade the user cannot see is a tree that changed
+       more than the row they clicked. */
+    var entry = suppressHistoryNode(E.def, node.historyId, next);
+    var names = (entry.cascaded || []).map(function (id) {
+      var child = (E.def.features || []).find(function (item) { return item.id === id; });
+      return (child && child.name) || id;
+    });
+    if (names.length) flash(t(next ? "suppressedWith" : "unsuppressedWith") + " " + names.join(", "));
     var projected = (E.def.parts || []).find(function (item) { return item.featureId === node.targetId; });
     if (projected) projected.suppressed = next;
   } else {
@@ -11125,6 +11922,10 @@ function showTreeMenu(node, model, event, api) {
   if (node.can.remove) items.push({ label: t("del"), icon: "ph-trash", run: function () { removeTreeNode(node, model); } });
   if (!items.length) return;
 
+  openTreeMenu(items, event);
+}
+
+function openTreeMenu(items, event) {
   var menu = el("div", "md-tree-menu");
   menu.setAttribute("role", "menu");
   items.forEach(function (item) {
@@ -11281,11 +12082,9 @@ function buildParametricHistoryTree(host) {
     '<span><b>' + (E.def.history || []).length + '</b> steps</span>' +
     '<span class="' + (analysis.ok ? "ok" : "bad") + '">' +
     (analysis.ok ? "Rebuild order valid" : analysis.issues.length + " dependency issues") + "</span>"));
+  renderCreateSketchAction(host);
   renderFeatureManagerTree(host);
   renderLegacyRestore(host);
-  host.appendChild(btn('<i class="ph ph-plus"></i> ' + t("createSketchOnRef"), function () {
-    beginSketchWorkflow(null, { forceNew: true });
-  }, "md-wide md-dashed"));
   renderCoreDiagnostics(host);
 }
 
@@ -11293,11 +12092,26 @@ function buildParametricHistoryTree(host) {
    drawn by the same renderer. */
 function buildLegacyTree(host) {
   renderCoreDiagnostics(host);
+  renderCreateSketchAction(host, true);
   renderFeatureManagerTree(host);
-  host.appendChild(btn('<i class="ph ph-plus"></i> ' + t("newSketch"), function () {
-    beginSketchWorkflow(null, { forceNew: true });
-  }, "md-wide md-dashed"));
   renderMigrationOffer(host);
+}
+
+/* Keep the next authoring action next to the tree heading. If a datum or face
+   is selected, the button says where the sketch will go and skips the picker;
+   otherwise it starts the normal reference workflow. */
+function renderCreateSketchAction(host, legacy) {
+  var face = selectedSketchableFace();
+  var reference = face || (E.def.references || []).concat(E.def.referenceGeometry || [])
+    .find(function (item) { return item.id === E.selectedReferenceId; });
+  var label = reference ? t("createSketch") + " · " + referenceLabel(reference)
+    : t(legacy ? "newSketch" : "createSketchOnRef");
+  var action = btn('<i class="ph ph-plus"></i><span>' + label + "</span>", function () {
+    if (reference) chooseSketchReference(reference);
+    else beginSketchWorkflow(null, { forceNew: true });
+  }, "md-tree-create-sketch md-dashed");
+  action.title = label;
+  host.appendChild(action);
 }
 
 function refreshParts() {
@@ -11327,6 +12141,41 @@ function refreshParts() {
 
 
 
+function revealCoreIssue(issue) {
+  treeCollapseState()["section:history"] = false;
+  Object.keys(treeCollapseState()).forEach(function (key) {
+    if (key.indexOf("feature:") === 0 || key.indexOf("folder:") === 0) treeCollapseState()[key] = false;
+  });
+  E.authoring.featureSelection = issue.featureId ? [issue.featureId] : [];
+  E.authoring.sketchSelection = issue.sketchId ? [issue.sketchId] : [];
+  refreshParts();
+  requestAnimationFrame(function () {
+    var id = issue.sketchId ? "sketch:" + issue.sketchId : issue.featureId ? "feature:" + issue.featureId : "";
+    var row = id && root.querySelector('[data-node-id="' + id.replace(/["\\]/g, "\\$&") + '"]');
+    if (!row) return;
+    row.classList.add("md-tree-issue-focus");
+    row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    row.focus({ preventScroll: true });
+  });
+}
+
+function editCoreIssue(issue) {
+  var sketch = issue.sketchId && treeTargetSketch({ targetId: issue.sketchId });
+  if (sketch) { editSketchFromHistory(sketch); return; }
+  var feature = issue.featureId && treeTargetFeature({ targetId: issue.featureId });
+  if (feature) openFeatureEditor(feature);
+}
+
+function diagnosticMessage(issue) {
+  var message = issue.message || issue.code || "Rebuild issue";
+  if (issue.code === "under-constrained-sketch" && Number.isFinite(Number(issue.dof))) {
+    var count = Number(issue.dof);
+    var sketch = treeTargetSketch({ targetId: issue.sketchId });
+    message = ((sketch && sketch.name) || "Sketch") + " has " + count + " " + (count === 1 ? "degree" : "degrees") + " of freedom";
+  }
+  return message;
+}
+
 function renderCoreDiagnostics(host) {
   const issues = E.coreRun && E.coreRun.issues ? E.coreRun.issues : [];
   if (!issues.length) return;
@@ -11334,9 +12183,19 @@ function renderCoreDiagnostics(host) {
   issues.slice(0, 8).forEach(function (issue) {
     var row = el("div", "md-part md-core-diagnostic " + (issue.severity === "error" ? "error" : "warning"));
     row.appendChild(el("i", "ph " + (issue.severity === "error" ? "ph-warning-octagon" : "ph-warning")));
-    var message = el("span", "nm");
-    message.textContent = issue.message || issue.code || "Rebuild issue";
-    row.appendChild(message);
+    var content = el("span", "nm");
+    content.appendChild(el("span", "md-diagnostic-message", diagnosticMessage(issue)));
+    if (issue.sketchId || issue.featureId) {
+      var actions = el("span", "md-diagnostic-actions");
+      actions.appendChild(btn('<i class="ph ph-crosshair"></i> ' + t("showIssue"), function (event) {
+        event.stopPropagation(); revealCoreIssue(issue);
+      }));
+      actions.appendChild(btn('<i class="ph ph-pencil-simple"></i> ' + t(issue.sketchId ? "editSketchIssue" : "ctxEditFeature"), function (event) {
+        event.stopPropagation(); editCoreIssue(issue);
+      }));
+      content.appendChild(actions);
+    }
+    row.appendChild(content);
     row.title = issue.code || "";
     host.appendChild(row);
   });
@@ -11405,14 +12264,22 @@ function assemblyTransformInspector() {
   var nameRow = el("label", "md-row md-row-wide");
   nameRow.appendChild(el("span", "t", t("partName")));
   var name = el("input"); name.type = "text"; name.value = component.name || component.modelKey;
-  name.addEventListener("change", function () { component.name = name.value.slice(0, 80) || component.modelKey; refreshAll(); });
+  name.addEventListener("change", function () { pushUndo(t("partName")); component.name = name.value.slice(0, 80) || component.modelKey; refreshAll(); });
   nameRow.appendChild(name); host.appendChild(nameRow);
   host.appendChild(el("h5", "md-h5", t("transform")));
   var grid = el("div", "md-prop-grid"), tr = normalizeTransform(component);
   [["X", "x"], ["Y", "y"], ["Z", "z"], ["RX°", "rx"], ["RY°", "ry"], ["RZ°", "rz"]].forEach(function (pair) {
+    var turns = pair[1] !== "x" && pair[1] !== "y" && pair[1] !== "z";
     numRow(grid, pair[0], function () { return tr[pair[1]]; }, function (v) {
-      if (!component.grounded) tr[pair[1]] = v;
-      applyAssemblyMates(E.assembly);
+      if (!component.grounded) {
+        tr[pair[1]] = v;
+        /* A typed angle is an edit to the orientation, and the orientation is
+           the quaternion. Writing only the mirror would leave `q` describing
+           where the component used to be, and the next normalize — which
+           believes `q` — would put it straight back. */
+        if (turns) setRotation(tr, eulerMatrix(tr));
+      }
+      solveAssembly({ quiet: true });
     }, 0.1);
   });
   host.appendChild(grid);
@@ -11427,7 +12294,7 @@ function assemblyFlagsInspector() {
     var row = el("label", "md-check");
     var input = el("input"); input.type = "checkbox";
     input.checked = entry[0] === "visible" ? component.visible !== false : !!component.grounded;
-    input.addEventListener("change", function () { component[entry[0]] = input.checked; refreshAll(); });
+    input.addEventListener("change", function () { pushUndo(entry[1]); component[entry[0]] = input.checked; solveAssembly({quiet:true}); refreshAll(); });
     row.appendChild(input); row.appendChild(el("span", "", entry[1])); host.appendChild(row);
   });
   var def = componentDef(component);
@@ -11435,15 +12302,19 @@ function assemblyFlagsInspector() {
 }
 
 function addMate(type) {
-  if (!E.assembly || E.componentSel.length !== 2) { flash(t("mateHint")); return; }
-  var a = E.componentSel[0], b = E.componentSel[1];
+  if (!E.assembly) { flash(t("mateHint")); return; }
+  var pair = ungroundedComponentPair();
+  if (!pair) { flash(t("mateHint")); return; }
+  var a = pair.a, b = pair.b;
   var value = 0;
   if (type === "distanceX") {
     value = parseFloat(prompt(t("mateDistance"), normalizeTransform(b).x - normalizeTransform(a).x));
     if (!fin(value)) return;
   }
+  pushUndo(t("mate"));
+  E.assembly.mates = Array.isArray(E.assembly.mates) ? E.assembly.mates : [];
   E.assembly.mates.push({ id: uid(), type: type, a: a.id, b: b.id, value: value });
-  applyAssemblyMates(E.assembly); refreshAll();
+  solveAssembly(); refreshAll();
 }
 
 function componentTopologyRef(component, kind, side) {
@@ -11465,53 +12336,136 @@ function componentTopologyRef(component, kind, side) {
 }
 
 function addTopologyMate(type) {
-  if (!E.assembly || E.componentSel.length !== 2) { flash(t("mateHint")); return; }
-  var a=E.componentSel[0], b=E.componentSel[1];
+  if (!E.assembly) { flash(t("mateHint")); return; }
+  var fits = mateTypeFits(type);
+  if (!fits.ok) { flash(fits.reason); return; }
+  /* Two picked faces beat two synthesized ones. The buttons used to mate the
+     component's +X bounding face to the other's -X face whatever the user had
+     clicked, which is not what "Coincident faces" says it does. */
+  var picked = assemblyPickedRefs(), a, b;
+  if (picked) {
+    a = mateReferenceFromPick(picked.a);
+    b = mateReferenceFromPick(picked.b);
+  } else {
+    var fallback = mateFallbackRefs(type);
+    if (!fallback) { flash(t("mateHint")); return; }
+    a = fallback.a;
+    b = fallback.b;
+  }
+  /* The solver only ever moves B. Pick order is not a promise about which
+     part is grounded — people click the moving hole, then the grounded one
+     they want it on. Swap rather than refuse, or the button does nothing. */
+  var componentA = assemblyComponentById(a.componentId);
+  var componentB = assemblyComponentById(b.componentId);
+  if (componentB && componentB.grounded && componentA && !componentA.grounded) {
+    var swap = a; a = b; b = swap;
+    componentB = componentA;
+  }
+  if (componentB && componentB.grounded) { flash(t("mateIssueGroundedTarget")); return; }
+  pushUndo(t("mate"));
   E.assembly.topologyMates ||= [];
   E.assembly.topologyMates.push({
-    id:uid(), type:type,
-    a:componentTopologyRef(a,type === "concentric" || type === "screw" || type === "tangent" ? "axis" : "face","max"),
-    b:componentTopologyRef(b,type === "concentric" || type === "screw" || type === "tangent" ? "axis" : "face","min"),
-    value: type === "screw" ? 0 : 0,
+    id:uid(), type:type, a:a, b:b,
+    value: 0,
     pitch: type === "screw" ? 0.125 : undefined,
     turns: type === "screw" ? 0 : undefined,
     min: type === "limit" ? 0 : undefined,
     max: type === "limit" ? 2 : undefined,
   });
-  applyAssemblyMates(E.assembly); refreshAll();
+  E.topologySelection = [];
+  solveAssembly(); refreshAll();
+}
+
+function componentLabel(id) {
+  var component = assemblyComponentById(id);
+  return component ? (component.name || component.modelKey || t("component")) : "—";
+}
+
+/* One row per mate: what it is, which two components it holds, and — when the
+   solver could not honour it — why. */
+function mateRow(host, label, detail, issues, remove, rebound) {
+  var row = el("div", "md-mate-row" + (issues && issues.length ? " md-mate-broken" : ""));
+  var text = el("span", "");
+  text.textContent = label + (detail ? " · " + detail : "");
+  row.appendChild(text);
+  if (issues && issues.length) {
+    var warn = el("span", "md-mate-issue");
+    warn.textContent = mateIssueLabel(issues[0]);
+    warn.title = issues.map(mateIssueLabel).join(" · ");
+    row.appendChild(warn);
+  } else if (rebound) {
+    var note = el("span", "md-mate-rebound");
+    note.textContent = t("mateRebound");
+    note.title = t("mateRebound");
+    row.appendChild(note);
+  }
+  row.appendChild(btn('<i class="ph ph-x"></i>', remove, "md-part-x"));
+  host.appendChild(row);
 }
 
 function assemblyMateInspector() {
   var host = root.querySelector("#mdOps"); host.innerHTML = "";
   host.appendChild(el("h5", "md-h5", t("mate")));
-  host.appendChild(el("div", "md-note", t("mateHint")));
+  var picked = assemblyPickedRefs();
+  host.appendChild(el("div", "md-note", picked ? t("matePickHint") : t("mateHint")));
+  if (picked) {
+    var chips = el("div", "md-mate-picks");
+    [picked.a, picked.b].forEach(function (reference, index) {
+      var chip = el("span", "md-mate-pick" + (index ? " b" : " a"));
+      chip.textContent = componentLabel(reference.componentId) + " · " + (reference.kind || "face");
+      chips.appendChild(chip);
+    });
+    host.appendChild(chips);
+  }
   var ops = el("div", "md-ops");
+  var pair = ungroundedComponentPair();
   [["alignX", "mateX"], ["alignY", "mateY"], ["alignZ", "mateZ"], ["distanceX", "mateDistance"]].forEach(function (entry) {
     var mateButton=btn('<i class="ph ph-link"></i> ' + t(entry[1]), function () { addMate(entry[0]); });
-    mateButton.setAttribute("data-mate",entry[0]);ops.appendChild(mateButton);
+    mateButton.setAttribute("data-mate",entry[0]);
+    mateButton.disabled = !pair;
+    mateButton.title = pair ? t(entry[1]) : t("mateHint");
+    ops.appendChild(mateButton);
   });
-  ops.appendChild(btn('<i class="ph ph-selection"></i> Coincident faces', function () { addTopologyMate("coincident"); }));
-  ops.appendChild(btn('<i class="ph ph-circles-three-plus"></i> Concentric axes', function () { addTopologyMate("concentric"); }));
-  ops.appendChild(btn('<i class="ph ph-spiral"></i> ' + t("screwMate"), function () { addTopologyMate("screw"); }));
-  ops.appendChild(btn('<i class="ph ph-circle"></i> ' + t("tangentMate"), function () { addTopologyMate("tangent"); }));
-  ops.appendChild(btn('<i class="ph ph-arrows-in-line-vertical"></i> ' + t("limitMate"), function () { addTopologyMate("limit"); }));
+  var source = picked ? t("mateUsingPicked") : t("mateUsingBounds");
+  [["coincident", 'ph-selection', t("coincidentMate")],
+   ["concentric", 'ph-circles-three-plus', t("concentricMate")],
+   ["screw", 'threadfeature', t("screwMate")],
+   ["tangent", 'ph-circle', t("tangentMate")],
+   ["limit", 'ph-arrows-in-line-vertical', t("limitMate")]].forEach(function (entry) {
+    var mateButton = btn((entry[1] === "threadfeature" ? '<i class="ph ph-spiral"></i>' : '<i class="ph ' + entry[1] + '"></i>') + " " + entry[2], function () { addTopologyMate(entry[0]); });
+    /* A mate the picked references cannot support is disabled and says what it
+       wanted, rather than accepting the pair and placing the component
+       somewhere meaningless. */
+    var fits = mateTypeFits(entry[0]);
+    mateButton.disabled = !fits.ok;
+    mateButton.title = fits.ok ? entry[2] + " — " + source : entry[2] + " — " + fits.reason;
+    ops.appendChild(mateButton);
+  });
   host.appendChild(ops);
-  if (E.assembly && E.assembly.mates.length) {
-    host.appendChild(el("h5", "md-h5", t("mate")));
-    E.assembly.mates.forEach(function (mate) {
-      var row = el("div", "md-mate-row");
-      row.appendChild(el("span", "", t(mate.type === "alignX" ? "mateX" : mate.type === "alignY" ? "mateY" : mate.type === "alignZ" ? "mateZ" : "mateDistance")));
-      row.appendChild(btn('<i class="ph ph-x"></i>', function () {
-        E.assembly.mates = E.assembly.mates.filter(function (m) { return m !== mate; }); refreshAll();
-      }, "md-part-x"));
-      host.appendChild(row);
+  var legacy = Array.isArray(E.assembly && E.assembly.mates) ? E.assembly.mates : [];
+  var topology = Array.isArray(E.assembly && E.assembly.topologyMates) ? E.assembly.topologyMates : [];
+  if (legacy.length || topology.length) {
+    host.appendChild(el("h5", "md-h5", t("matesCount")));
+    legacy.forEach(function (mate) {
+      mateRow(host,
+        t(mate.type === "alignX" ? "mateX" : mate.type === "alignY" ? "mateY" : mate.type === "alignZ" ? "mateZ" : "mateDistance"),
+        componentLabel(mate.a) + " ↔ " + componentLabel(mate.b), null,
+        function () {
+          pushUndo(t("del"));
+          E.assembly.mates = legacy.filter(function (m) { return m !== mate; });
+          solveAssembly(); refreshAll();
+        });
     });
-  }
-  if (E.assembly && E.assembly.topologyMates && E.assembly.topologyMates.length) {
-    host.appendChild(el("h5", "md-h5", "Topology mates"));
-    E.assembly.topologyMates.forEach(function (mate) {
-      var row=el("div","md-mate-row"); row.appendChild(el("span","",mate.type+" · "+mate.a.kind+" ↔ "+mate.b.kind));
-      row.appendChild(btn('<i class="ph ph-x"></i>',function(){E.assembly.topologyMates=E.assembly.topologyMates.filter(function(m){return m!==mate;});refreshAll();},"md-part-x")); host.appendChild(row);
+    topology.forEach(function (mate) {
+      mateRow(host, topologyMateLabel(mate.type),
+        componentLabel(mate.a && mate.a.componentId) + " ↔ " + componentLabel(mate.b && mate.b.componentId),
+        mateIssuesFor(mate.id),
+        function () {
+          pushUndo(t("del"));
+          E.assembly.topologyMates = topology.filter(function (m) { return m !== mate; });
+          solveAssembly(); refreshAll();
+        },
+        mateReboundFor(mate.id));
     });
   }
 }
@@ -12414,9 +13368,42 @@ function promotePickedEdge(entry, entries) {
   return nearestCircularEdge(entries, mid, { maxDist: 2.4 }) || merged;
 }
 
+/* Assembly picking walks the same object tree as the part editor, but every
+   component group carries its own document. Resolve which component owns a hit
+   so the ray is scored against that component's topology, in that component's
+   own coordinates — a mate reference only means anything in the space its
+   component was authored in. */
+function assemblyComponentById(id) {
+  return (E.assembly && E.assembly.components || []).find(function (candidate) { return candidate.id === id; }) || null;
+}
+
+function pickOwnerChain(object, grp) {
+  var partId = null, component = null, group = null;
+  while (object && object !== grp) {
+    var data = object.userData || {};
+    if (!partId && data.cadPart) partId = data.cadPart;
+    if (!component && data.cadComponent) { component = assemblyComponentById(data.cadComponent); group = object; }
+    object = object.parent;
+  }
+  return { partId: partId, component: component, group: group };
+}
+
+function pickPartsFor(component) {
+  if (!component) return (E.def && E.def.parts) || [];
+  var def = componentDef(component);
+  return (def && def.parts) || [];
+}
+
 function resolveTopologyPick(event, view, options) {
   var prefer = options && options.prefer || E.selectionFilter || "all";
-  var rect = (event.currentTarget || view.rr.domElement).getBoundingClientRect();
+  /* A stationary component click is completed by the assembly drag recognizer's
+     window-level pointerup listener. `currentTarget` is therefore Window there,
+     not the canvas, and Window has no getBoundingClientRect(). Prefer the event
+     target only when it is actually an element; otherwise use the view canvas. */
+  var eventTarget = event.currentTarget;
+  var pickSurface = eventTarget && typeof eventTarget.getBoundingClientRect === "function"
+    ? eventTarget : view.rr.domElement;
+  var rect = pickSurface.getBoundingClientRect();
   var pointer = new THREE.Vector2(
     ((event.clientX - rect.left) / rect.width) * 2 - 1,
     -((event.clientY - rect.top) / rect.height) * 2 + 1
@@ -12430,6 +13417,7 @@ function resolveTopologyPick(event, view, options) {
   {
     var part = null;
     var pickedView = null;
+    var pickPoint = null, pickNormalOut = null;
     var topologyReferencePicked = null;
     var helixHit = hits.find(function (hit) { return hit.object && hit.object.userData && hit.object.userData.cadReferenceId; });
     var helixId = helixHit && helixHit.object.userData.cadReferenceId || null;
@@ -12439,11 +13427,10 @@ function resolveTopologyPick(event, view, options) {
       var chosenHit = prefer === "edge" && edgeHit ? edgeHit : edgeHit && edgeHit.distance <= hits[0].distance + edgeSlack ? edgeHit : hits[0];
       var partObject = chosenHit.object;
       var owner = partObject;
-      while (owner && owner !== view.grp) {
-        if (owner.userData && owner.userData.cadPart) {
-          part = E.def.parts.find(function (candidate) { return candidate.id === owner.userData.cadPart; }) || part;
-        }
-        owner = owner.parent;
+      var chosenChain = pickOwnerChain(partObject, view.grp);
+      var pickComponent = chosenChain.component;
+      if (chosenChain.partId) {
+        part = pickPartsFor(pickComponent).find(function (candidate) { return candidate.id === chosenChain.partId; }) || part;
       }
       var entries = part ? topologyEntriesForPart(part) : [];
       var edgeTopology = null;
@@ -12454,8 +13441,26 @@ function resolveTopologyPick(event, view, options) {
       var meshHit = hits.find(function (hit) { return hit.face && hit.face.normal; }) || (chosenHit.face && chosenHit.face.normal ? chosenHit : null);
       if (meshHit && meshHit.face && meshHit.face.normal) {
         var worldNormal = meshHit.face.normal.clone().transformDirection(meshHit.object.matrixWorld);
-        var ax = Math.abs(worldNormal.x), ay = Math.abs(worldNormal.y), az = Math.abs(worldNormal.z);
-        pickedView = ay >= ax && ay >= az ? "top" : az >= ax ? "front" : "side";
+        /* Which standard plane the face faces is a question about the room, so
+           it is asked of the world normal before anything is converted. */
+        var wx = Math.abs(worldNormal.x), wy = Math.abs(worldNormal.y), wz = Math.abs(worldNormal.z);
+        pickedView = wy >= wx && wy >= wz ? "top" : wz >= wx ? "front" : "side";
+        /* Everything below compares the hit against stored descriptors, and in
+           an assembly those live in the component's own space. Bring the point
+           and the normal into it, or a component that has been moved or turned
+           scores every one of its faces against geometry that is no longer
+           where the descriptor says it is. */
+        var meshChain = pickOwnerChain(meshHit.object, view.grp);
+        var pickNormal = worldNormal;
+        if (meshChain.group) {
+          meshChain.group.updateWorldMatrix(true, false);
+          var toComponent = new THREE.Matrix4().copy(meshChain.group.matrixWorld).invert();
+          meshHit = Object.assign({}, meshHit, { point: meshHit.point.clone().applyMatrix4(toComponent) });
+          pickNormal = worldNormal.clone().transformDirection(toComponent);
+        }
+        pickPoint = { x: meshHit.point.x, y: meshHit.point.y, z: meshHit.point.z };
+        pickNormalOut = { x: pickNormal.x, y: pickNormal.y, z: pickNormal.z };
+        var ax = Math.abs(pickNormal.x), ay = Math.abs(pickNormal.y), az = Math.abs(pickNormal.z);
         var topologyId = null;
         var faceRanges = meshHit.object.userData && meshHit.object.userData.cadFaceRanges;
         if (Array.isArray(faceRanges) && fin(meshHit.faceIndex)) {
@@ -12466,9 +13471,10 @@ function resolveTopologyPick(event, view, options) {
         owner = meshHit.object;
         while (owner && owner !== view.grp) {
           if (!featureId && owner.userData && owner.userData.cadFeatureId) featureId = owner.userData.cadFeatureId;
-          if (!part && owner.userData && owner.userData.cadPart) part = E.def.parts.find(function (candidate) { return candidate.id === owner.userData.cadPart; }) || null;
           owner = owner.parent;
         }
+        if (!pickComponent) pickComponent = meshChain.component;
+        if (!part && meshChain.partId) part = pickPartsFor(pickComponent).find(function (candidate) { return candidate.id === meshChain.partId; }) || null;
         if (part) entries = topologyEntriesForPart(part);
         if (partObject.userData && partObject.userData.cadTopology) {
           edgeTopology = promotePickedEdge(partObject.userData.cadTopology, entries.length ? entries : [partObject.userData.cadTopology]);
@@ -12495,12 +13501,16 @@ function resolveTopologyPick(event, view, options) {
             if (descriptor.surface === "cylinder" && descriptor.axis && fin(Number(descriptor.radius))) {
               var axis = descriptor.axis, radius = Math.abs(Number(descriptor.radius));
               var axisLength = Math.hypot(axis.x, axis.y, axis.z) || 1;
-              var ax = axis.x/axisLength, ay = axis.y/axisLength, az = axis.z/axisLength;
+              /* Named for the axis, not ax/ay/az: those already mean the
+                 magnitudes of the picked normal one scope out, and one pair of
+                 names for two different vectors is how a reader ends up
+                 debugging the wrong quantity. */
+              var cylX = axis.x/axisLength, cylY = axis.y/axisLength, cylZ = axis.z/axisLength;
               var dx = meshHit.point.x - (origin && origin.x || 0), dy = meshHit.point.y - (origin && origin.y || 0), dz = meshHit.point.z - (origin && origin.z || 0);
-              var along = dx*ax + dy*ay + dz*az;
-              var rx = dx - ax*along, ry = dy - ay*along, rz = dz - az*along;
+              var along = dx*cylX + dy*cylY + dz*cylZ;
+              var rx = dx - cylX*along, ry = dy - cylY*along, rz = dz - cylZ*along;
               var radial = Math.abs(Math.hypot(rx, ry, rz) - radius);
-              var wall = Math.abs(worldNormal.x*ax + worldNormal.y*ay + worldNormal.z*az);
+              var wall = Math.abs(pickNormal.x*cylX + pickNormal.y*cylY + pickNormal.z*cylZ);
               if (wall < 0.35) {
                 score = 800 - radial * 20;
                 // on this wall, not merely parallel to it — a bore and the boss
@@ -12513,7 +13523,7 @@ function resolveTopologyPick(event, view, options) {
               var sdx = meshHit.point.x - (sphereCenter.x || 0), sdy = meshHit.point.y - (sphereCenter.y || 0), sdz = meshHit.point.z - (sphereCenter.z || 0);
               var sphereDist = Math.abs(Math.hypot(sdx, sdy, sdz) - sphereRadius);
               var sphereLen = Math.hypot(sdx, sdy, sdz) || 1;
-              var sphereFacing = Math.abs((sdx*worldNormal.x + sdy*worldNormal.y + sdz*worldNormal.z) / sphereLen);
+              var sphereFacing = Math.abs((sdx*pickNormal.x + sdy*pickNormal.y + sdz*pickNormal.z) / sphereLen);
               score = 800 - sphereDist * 20;
               if (sphereDist <= Math.max(0.4, sphereRadius * 0.06) && sphereFacing >= 0.75) contained = 1100 - sphereDist*40;
             } else if (descriptor.surface === "cone" && descriptor.axis && fin(Number(descriptor.radius))) {
@@ -12540,7 +13550,7 @@ function resolveTopologyPick(event, view, options) {
               var normal = descriptor.normal;
               var normalLength = Math.hypot(normal.x, normal.y, normal.z) || 1;
               var nx = normal.x/normalLength, ny = normal.y/normalLength, nz = normal.z/normalLength;
-              var alignment = nx*worldNormal.x + ny*worldNormal.y + nz*worldNormal.z;
+              var alignment = nx*pickNormal.x + ny*pickNormal.y + nz*pickNormal.z;
               var planeDistance=0;
               if (origin) planeDistance=Math.abs((meshHit.point.x-origin.x)*nx+(meshHit.point.y-origin.y)*ny+(meshHit.point.z-origin.z)*nz);
               score = alignment*1000-planeDistance;
@@ -12603,20 +13613,29 @@ function resolveTopologyPick(event, view, options) {
         if (!topologyReferencePicked || prefer === "face") {
           if (faceTopology) topologyReferencePicked = topologyReferenceFromEntry(faceTopology);
           else if (featureId && prefer !== "edge") {
-            var semantic = ay >= ax && ay >= az ? (worldNormal.y >= 0 ? "top" : "bottom") : ax >= az ? (worldNormal.x >= 0 ? "right" : "left") : (worldNormal.z >= 0 ? "front" : "back");
-            topologyReferencePicked = createTopologyReference(featureId, "face", featureId + ":face:" + semantic, {surface:"plane",semantic:semantic,origin:{x:meshHit.point.x,y:meshHit.point.y,z:meshHit.point.z},normal:{x:worldNormal.x,y:worldNormal.y,z:worldNormal.z}});
+            var semantic = ay >= ax && ay >= az ? (pickNormal.y >= 0 ? "top" : "bottom") : ax >= az ? (pickNormal.x >= 0 ? "right" : "left") : (pickNormal.z >= 0 ? "front" : "back");
+            topologyReferencePicked = createTopologyReference(featureId, "face", featureId + ":face:" + semantic, {surface:"plane",semantic:semantic,origin:{x:meshHit.point.x,y:meshHit.point.y,z:meshHit.point.z},normal:{x:pickNormal.x,y:pickNormal.y,z:pickNormal.z}});
           }
         }
       }
       while (partObject && partObject !== view.grp) {
         if (partObject.userData && partObject.userData.cadPart) {
-          part = E.def.parts.find(function (candidate) { return candidate.id === partObject.userData.cadPart; }) || null;
+          part = pickPartsFor(pickComponent).find(function (candidate) { return candidate.id === partObject.userData.cadPart; }) || null;
           break;
         }
         partObject = partObject.parent;
       }
     }
-    return { hits: hits, part: part, reference: topologyReferencePicked, pickedView: pickedView, helixId: helixId };
+    return {
+      hits: hits, part: part, component: pickComponent || null, reference: topologyReferencePicked,
+      /* Where the ray actually landed, in the same space as the descriptors.
+         A mate needs a frame, and a resolved reference does not always carry
+         one — the editor draws solids as RoundedBoxGeometry, whose filleted
+         edges make the smooth-face grouping swallow the whole body into a
+         single surface with no normal at all. */
+      pickPoint: pickPoint || null, pickNormal: pickNormalOut || null,
+      pickedView: pickedView, helixId: helixId,
+    };
   }
 }
 
@@ -12624,18 +13643,33 @@ function resolveTopologyPick(event, view, options) {
    says "this is what a click would take", which is the whole difference
    between a viewport you can pick in and one you cannot. */
 function hoverAssemblyTopology(event, view) {
-  if (!view || !view.grp || E.docType !== "part") return;
-  var handle = hitInstant3d(event, view);
+  if (!view || !view.grp) return;
+  if (E.docType !== "part" && E.docType !== "assembly") return;
+  /* Instant-3D drag handles belong to part authoring; an assembly has none. */
+  var handle = E.docType === "part" ? hitInstant3d(event, view) : null;
   if (view.rr && view.rr.domElement) view.rr.domElement.style.cursor = handle ? "grab" : "";
   if (handle) {
     if (E.hoverTopology) { E.hoverTopology = null; updatePreview(); }
     return;
   }
   var found = resolveTopologyPick(event, view, { prefer: E.facePick ? "face" : E.selectionFilter });
-  var next = found && found.reference || null;
+  var next = stampComponentRef(found && found.reference || null, found && found.component, found);
   if (E.facePick && next && next.kind !== "face") next = null;
-  var same = (!next && !E.hoverTopology) || (next && E.hoverTopology && next.persistentId === E.hoverTopology.persistentId);
-  if (view.rr && view.rr.domElement && !handle) view.rr.domElement.style.cursor = E.facePick ? "crosshair" : next ? "pointer" : "";
+  /* Which instance, not just which face. Two components off the same library
+     model share every persistent id, so comparing ids alone called the move
+     from one instance's face to the matching face on the other "no change" and
+     left the highlight behind on the component the pointer had left. In a part
+     document both sides are undefined, which compares equal as before. */
+  var same = (!next && !E.hoverTopology)
+    || (next && E.hoverTopology
+      && next.persistentId === E.hoverTopology.persistentId
+      && next.componentId === E.hoverTopology.componentId);
+  if (view.rr && view.rr.domElement && !handle) {
+    var draggable = E.docType === "assembly" && found && found.component && E.tool === "select";
+    view.rr.domElement.style.cursor = E.facePick ? "crosshair"
+      : draggable ? (found.component.grounded ? "not-allowed" : "grab")
+      : next ? "pointer" : "";
+  }
   if (same) return;
   E.hoverTopology = next;
   updatePreview();
@@ -12706,43 +13740,48 @@ function pickAssemblyComponent(event, view) {
     refreshAll();
     return;
   }
-  var rect = (event.currentTarget || view.rr.domElement).getBoundingClientRect();
-  var pointer = new THREE.Vector2(
-    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    -((event.clientY - rect.top) / rect.height) * 2 + 1
-  );
-  var ray = new THREE.Raycaster();
-  ray.setFromCamera(pointer, view.cam);
-  var hits = ray.intersectObjects(view.grp.children, true);
-  var component = null;
-  if (hits.length) {
-    var object = hits[0].object;
-    while (object && object !== view.grp) {
-      if (object.userData && object.userData.cadComponent) {
-        component = E.assembly.components.find(function (c) { return c.id === object.userData.cadComponent; }) || null;
-        break;
-      }
-      object = object.parent;
-    }
+  /* One pick resolves both halves of an assembly selection: which component
+     was hit, and which face or edge of it. The reference is what a mate is
+     built from, so it is kept rather than thrown away — the old code cleared
+     it on every click, which left the Alt-click SmartMate unreachable and the
+     mate buttons with nothing to work from but bounding boxes. */
+  var found = resolveTopologyPick(event, view, { prefer: E.selectionFilter }) || {};
+  var component = found.component || null;
+  var reference = stampComponentRef(found.reference || null, component, found);
+  /* Imported and smoothly tessellated bodies do not always resolve a persistent
+     face entry even though the ray plainly landed on one. SmartMate already
+     falls back to the geometric hit in that case; ordinary Cmd/Ctrl face
+     selection needs the same fallback or it selects two components but hands
+     the Mate command no faces. Keep the hit on this component — a ray may pass
+     through several instances. */
+  if (!reference && component && (E.selectionFilter === "all" || E.selectionFilter === "face")) {
+    var componentHit = (found.hits || []).find(function (hit) {
+      return hit.face && hit.face.normal && pickOwnerChain(hit.object, view.grp).component === component;
+    });
+    if (componentHit) reference = componentTopologyFromHit(component, componentHit);
   }
-  if (!component) E.componentSel = [];
-  else if (event.ctrlKey || event.metaKey || E.mobileAddSelection) {
+  var additive = event.ctrlKey || event.metaKey || E.mobileAddSelection;
+  if (!component) { E.componentSel = []; E.topologySelection = []; }
+  else if (additive) {
     var at = E.componentSel.indexOf(component);
     if (at === -1) E.componentSel.push(component); else E.componentSel.splice(at, 1);
   } else E.componentSel = [component];
   E.sel = E.componentSel[E.componentSel.length - 1] || null;
-  if (event.altKey && component && (E.topologySelection || []).length) {
-    var moving = componentTopologyFromHit(component, hits[0]);
-    var onto = E.topologySelection[0];
-    var mate = inferSmartMate(onto, moving);
-    if (mate) {
-      E.assembly.topologyMates ||= [];
-      E.assembly.topologyMates.push({ id: uid(), type: mate.type, a: mate.a, b: mate.b, aligned: !!mate.aligned, value: 0 });
-      applyAssemblyMates(E.assembly);
-      flash("✓ " + t("smartMate") + " · " + mate.type);
+  if (component) {
+    var picked = (E.topologySelection || []).filter(function (candidate) { return candidate.componentId; });
+    if (additive) {
+      /* Ctrl/Cmd builds the pair up, and picking the same reference twice takes
+         it back off. Only the last two matter — those are the two the mate
+         buttons act on. */
+      var kept = picked.filter(function (candidate) {
+        return !(reference && candidate.componentId === reference.componentId && candidate.persistentId === reference.persistentId);
+      });
+      var removed = kept.length !== picked.length;
+      E.topologySelection = (reference && !removed ? kept.concat([reference]) : kept).slice(-2);
+    } else {
+      E.topologySelection = reference ? [reference] : [];
     }
   }
-  E.topologySelection = [];
   refreshAll();
 }
 
@@ -12841,12 +13880,132 @@ function positionContextMenu(host, clientX, clientY) {
   E.overlays.menu = true;
 }
 
+/* A reference picked inside an assembly has to remember which component it
+   came off, both so the highlight lands on the right instance and so a mate
+   knows which body it is holding. */
+function stampComponentRef(reference, component, found) {
+  if (!reference || !component) return reference || null;
+  var stamped = Object.assign({}, reference, { componentId: component.id });
+  if (found && found.pickPoint && found.pickNormal) {
+    stamped.pickFrame = { surface: "plane", origin: found.pickPoint, normal: found.pickNormal };
+  }
+  return stamped;
+}
+
+function frameIsUsable(frame) {
+  return !!(frame && frame.origin && (frame.normal || frame.axis));
+}
+
+/* The two most recent picks, when they sit on different components, are what
+   the mate buttons act on. Anything less and they fall back to the synthesized
+   bounding-box frames. */
+function assemblyPickedRefs() {
+  var refs = (E.topologySelection || []).filter(function (reference) { return reference && reference.componentId; });
+  if (refs.length < 2) return null;
+  var a = refs[refs.length - 2], b = refs[refs.length - 1];
+  if (a.componentId === b.componentId) return null;
+  if (!assemblyComponentById(a.componentId) || !assemblyComponentById(b.componentId)) return null;
+  return { a: a, b: b };
+}
+
+/* Align X/Y/Z still mate two components, not two faces. Prefer the pair the
+   topology picks already named; otherwise the Ctrl-selected components. The
+   solver only moves B, so a grounded second pick is swapped rather than
+   refused — that refusal used to make every mate button look dead. */
+function ungroundedComponentPair() {
+  var picked = assemblyPickedRefs();
+  var a = picked ? assemblyComponentById(picked.a.componentId) : E.componentSel[0];
+  var b = picked ? assemblyComponentById(picked.b.componentId) : E.componentSel[1];
+  if (!a || !b || a === b) return null;
+  if (b.grounded && !a.grounded) return { a: b, b: a };
+  if (b.grounded) return null;
+  return { a: a, b: b };
+}
+
+/* What each kind of mate needs from the two references it is given. The solver
+   used to fall back to a face normal when a mate asked for an axis, which is
+   why two flat faces could be handed to Concentric and come back placed like
+   nonsense rather than refused. The requirement now lives beside the solver in
+   cad_mates.js and both ask it, so the button gate cannot promise something
+   the solver will not honour, or refuse something it would. */
+function mateRequirementLabel(requirement) {
+  return t(requirement === "axis" ? "mateNeedsAxis" : requirement === "round" ? "mateNeedsRound" : "mateNeedsPlanar");
+}
+
+/* The one gate every mate goes through, whichever way it was asked for. The
+   inspector buttons are not the only door: SmartMate infers a type from two
+   references and used to push it straight into the list, so an Alt-drag could
+   still build the concentric-from-a-flat-face mate this check exists to refuse.
+   Frames are the two the mate will actually be stored with. */
+function mateFramesFit(type, frameA, frameB) {
+  var requirement = mateRequirementFor(type);
+  if (!mateFrameSupports(requirement, frameA) || !mateFrameSupports(requirement, frameB)) {
+    return { ok: false, reason: mateRequirementLabel(requirement) };
+  }
+  return { ok: true, reason: "" };
+}
+
+/* The references a mate button falls back to when nothing is picked: one face
+   or axis synthesized from each component's own bounding box. The gate and the
+   command build them here, together, so the gate is judging the very frames
+   the mate would be stored with. */
+function mateFallbackRefs(type) {
+  var pair = ungroundedComponentPair();
+  if (!pair) return null;
+  var kind = mateRequirementFor(type) === "planar" ? "face" : "axis";
+  return {
+    a: componentTopologyRef(pair.a, kind, "max"),
+    b: componentTopologyRef(pair.b, kind, "min"),
+  };
+}
+
+/* Whether this mate can be built from what is picked right now, and if not,
+   what it wanted. */
+function mateTypeFits(type) {
+  var picked = assemblyPickedRefs();
+  var frameOf = function (reference) { return mateReferenceFromPick(reference).frame; };
+  if (picked) return mateFramesFit(type, frameOf(picked.a), frameOf(picked.b));
+  /* The bounding-box fallback is not a blank cheque. Its axis frame is a
+     centre line with no radius, so Tangent was offered on any two selected
+     components and then refused by the solver the moment it was clicked —
+     the button promising exactly what this check exists to stop it promising. */
+  var fallback = mateFallbackRefs(type);
+  if (!fallback) return { ok: false, reason: t("mateHint") };
+  return mateFramesFit(type, fallback.a.frame, fallback.b.frame);
+}
+
+/* Picked references carry the descriptor in the component's own space, which
+   is exactly the frame a mate stores. */
+function mateReferenceFromPick(reference) {
+  var descriptor = reference.descriptor || reference.frame;
+  /* Fall back to the plane the ray landed on when the named face cannot supply
+     a frame — better a mate on the surface the user clicked than one the
+     solver has to refuse. */
+  var frame = frameIsUsable(descriptor) ? descriptor : reference.pickFrame || descriptor || {};
+  return topologyReference(reference.componentId, reference.kind, reference.persistentId, frame);
+}
+
+/* Last-resort reference when nothing in the component's topology resolves:
+   name the plane the ray landed on. The hit is in world coordinates and a mate
+   frame is stored in the component's own space, so it has to be brought back
+   through the component transform — labelling a world frame as component-space
+   put every such mate off by exactly that transform. */
 function componentTopologyFromHit(component, hit) {
   if (!component || !hit) return topologyReference(component.id, "face", component.id + ":face", { surface: "plane" });
   var object = hit.object, topology = object && object.userData && object.userData.cadTopology;
   if (topology) return topologyReference(component.id, topology.kind, topology.persistentId, topology.descriptor);
-  var point = hit.point || { x: 0, y: 0, z: 0 };
-  var normal = hit.face && hit.face.normal ? hit.face.normal.clone().transformDirection(object.matrixWorld) : { x: 0, y: 1, z: 0 };
+  var tr = normalizeTransform(component);
+  var toComponent = new THREE.Matrix4()
+    .compose(
+      new THREE.Vector3(tr.x, tr.y, tr.z),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler((tr.rx * Math.PI) / 180, (tr.ry * Math.PI) / 180, (tr.rz * Math.PI) / 180)),
+      new THREE.Vector3(1, 1, 1)
+    )
+    .invert();
+  var point = new THREE.Vector3(hit.point ? hit.point.x : 0, hit.point ? hit.point.y : 0, hit.point ? hit.point.z : 0).applyMatrix4(toComponent);
+  var normal = (hit.face && hit.face.normal
+    ? hit.face.normal.clone().transformDirection(object.matrixWorld)
+    : new THREE.Vector3(0, 1, 0)).transformDirection(toComponent);
   return topologyReference(component.id, "face", component.id + ":face", {
     surface: "plane", origin: { x: point.x, y: point.y, z: point.z },
     normal: { x: normal.x, y: normal.y, z: normal.z },
@@ -12873,6 +14032,26 @@ function screenDeltaToWorld(view, start, event) {
   var scale = instant3dScale(view);
   var dx = (event.clientX - start.x) * scale, dy = -(event.clientY - start.y) * scale;
   return { x: right.x * dx + up.x * dy, y: right.y * dx + up.y * dy, z: right.z * dx + up.z * dy };
+}
+
+/* Match the pointer's travel to the screen projection of one world axis. The
+   denominator matters: simply throwing away the other two coordinates makes an
+   axis feel slower as it points toward the camera and almost immovable near an
+   end-on view. */
+function screenDeltaAlongAxis(view, start, event, axisName) {
+  if (!view || !view.cam) return { x: 0, y: 0, z: 0 };
+  view.place();
+  var right = new THREE.Vector3(), up = new THREE.Vector3(), back = new THREE.Vector3();
+  view.cam.matrixWorld.extractBasis(right, up, back);
+  var axis = axisName === "x" ? { x: 1, y: 0, z: 0 }
+    : axisName === "y" ? { x: 0, y: 1, z: 0 } : { x: 0, y: 0, z: 1 };
+  var screenX = axis.x * right.x + axis.y * right.y + axis.z * right.z;
+  var screenY = -(axis.x * up.x + axis.y * up.y + axis.z * up.z);
+  var projected = screenX * screenX + screenY * screenY;
+  if (projected < 1e-4) return { x: 0, y: 0, z: 0 };
+  var pixels = (event.clientX - start.x) * screenX + (event.clientY - start.y) * screenY;
+  var amount = instant3dScale(view) * pixels / projected;
+  return { x: axis.x * amount, y: axis.y * amount, z: axis.z * amount };
 }
 
 function hitInstant3d(event, view) {
@@ -13062,6 +14241,7 @@ function syncFeatureFormValue(key, value) {
 
 function beginInstant3dDrag(event, view) {
   if (E.docType === "assembly" && event.altKey) return beginSmartMateDrag(event, view);
+  if (E.docType === "assembly" && beginAssemblyComponentDrag(event, view)) return true;
   var pose = hitInstant3d(event, view);
   var authoring = instant3dAuthoringState();
   if (!pose || !authoring) return false;
@@ -13083,55 +14263,238 @@ function beginInstant3dDrag(event, view) {
   return true;
 }
 
-function beginSmartMateDrag(event, view) {
-  var startHit = resolveTopologyPick(event, view);
-  if (!startHit || !startHit.part && E.docType !== "assembly") {
-    /* assembly uses component groups, not cadPart */
+/* Direct assembly manipulation.
+
+   A primary drag that starts on a component moves that component in the camera
+   plane; the same drag on empty space remains the view's orbit gesture. Mouse,
+   pen and touch all arrive as pointer events, so selection, undo and mate
+   solving have one implementation rather than a desktop path and a subtly
+   different mobile path.
+
+   Mates are solved on each move and the existing component groups are reposed
+   in place. Rebuilding every mesh on every pointer event made a constrained
+   chain feel glued down even though the solver itself finishes in a few
+   milliseconds. The normal refresh on release rebuilds highlights, the tree,
+   the inspector and status exactly once. */
+function beginAssemblyComponentDrag(event, view) {
+  if (E.docType !== "assembly" || E.tool !== "select" || E.facePick || !E.assembly || !view) return false;
+  /* A second contact belongs to pinch/pan. The first contact's drag owns this
+     slot until it ends, which prevents two fingers from moving two components
+     while the shared viewport is trying to zoom. */
+  if (E._assemblyDragPointer != null) return false;
+  var found = resolveTopologyPick(event, view, { prefer: E.selectionFilter }) || {};
+  var component = found.component;
+  if (!component) return false;
+
+  event.preventDefault();
+  var pointerId = event.pointerId;
+  E._assemblyDragPointer = pointerId;
+  var canvas = view.rr && view.rr.domElement;
+  var start = { x: event.clientX, y: event.clientY };
+  var keys = ["x", "y", "z", "rx", "ry", "rz"];
+  /* The orientation rides in `q`, so a snapshot that copied only the six
+     numbers restored the mirror and left the quaternion where the abandoned
+     drag had pushed it — and the next normalize believes the quaternion. */
+  var snapshots = (E.assembly.components || []).map(function (item) {
+    var transform = normalizeTransform(item);
+    var pose = { q: Object.assign({}, transform.q) };
+    keys.forEach(function (key) { pose[key] = transform[key]; });
+    return { component: item, pose: pose };
+  });
+  var startPose = Object.assign({}, normalizeTransform(component));
+  var moveMode = E.assemblyMoveMode || "free";
+  /* Cmd/Ctrl is an additive pick, never the start of a move. Keep it inside the
+     custom recognizer so its stationary pointerup follows exactly the same
+     component/face pick path as an ordinary click, but ignore trackpad travel:
+     a Mac click can report a few contact pixels while Cmd is held. */
+  var additivePick = !!(event.ctrlKey || event.metaKey);
+  var threshold = event.pointerType === "touch" ? 10 : 4;
+  var moved = false, undoOpen = false, blocked = false, longPressed = false, multiTouch = false;
+  var longPressTimer = 0;
+
+  function selectMoving() {
+    E.componentSel = [component];
+    E.sel = component;
+    E.topologySelection = [];
   }
-  var startComp = E.componentSel[0];
-  var rect = view.rr.domElement.getBoundingClientRect();
-  var pointer = new THREE.Vector2(
-    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    -((event.clientY - rect.top) / rect.height) * 2 + 1
-  );
-  var ray = new THREE.Raycaster();
-  ray.setFromCamera(pointer, view.cam);
-  var startHits = ray.intersectObjects(view.grp.children, true);
-  var startObject = startHits[0] && startHits[0].object;
-  while (startObject && startObject !== view.grp) {
-    if (startObject.userData && startObject.userData.cadComponent) {
-      startComp = E.assembly.components.find(function (c) { return c.id === startObject.userData.cadComponent; }) || startComp;
-      break;
+  function restoreSnapshots() {
+    snapshots.forEach(function (snapshot) {
+      var transform = normalizeTransform(snapshot.component);
+      keys.forEach(function (key) { transform[key] = snapshot.pose[key]; });
+      transform.q = Object.assign({}, snapshot.pose.q);
+      normalizePose(transform); // re-derive the mirror from the restored orientation
+    });
+  }
+  function posesChanged() {
+    return snapshots.some(function (snapshot) {
+      var transform = normalizeTransform(snapshot.component);
+      return keys.some(function (key) { return Math.abs(transform[key] - snapshot.pose[key]) > 1e-9; });
+    });
+  }
+  function syncGroups() {
+    if (!view.grp) return;
+    view.grp.traverse(function (object) {
+      var id = object.userData && object.userData.cadComponent;
+      if (id) {
+        var item = assemblyComponentById(id);
+        if (!item) return;
+        var transform = normalizeTransform(item), blown = item.explodedOffset || {};
+        object.position.set(transform.x + (blown.x || 0), transform.y + (blown.y || 0), transform.z + (blown.z || 0));
+        object.rotation.set(transform.rx * Math.PI / 180, transform.ry * Math.PI / 180, transform.rz * Math.PI / 180);
+      }
+      if (object.userData && object.userData.cadInterference != null) object.visible = false;
+    });
+    view.render();
+  }
+  function cancelLongPressTimer() {
+    if (longPressTimer) clearTimeout(longPressTimer);
+    longPressTimer = 0;
+  }
+  function secondaryPointerDown(ev) {
+    if (ev.pointerId === pointerId || (ev.pointerType !== "touch" && ev.pointerType !== "pen")) return;
+    multiTouch = true;
+    cancelLongPressTimer();
+    /* If the second finger arrived after a small move, give the whole gesture
+       back to camera navigation instead of committing an accidental nudge. */
+    if (undoOpen) {
+      restoreSnapshots();
+      H.discard();
+      undoOpen = false;
+      solveAssembly({ quiet: true });
+      syncGroups();
     }
-    startObject = startObject.parent;
   }
-  if (!startComp) return false;
-  var fromRef = componentTopologyFromHit(startComp, startHits[0]);
+  function move(ev) {
+    if (ev.pointerId !== pointerId || multiTouch || longPressed || additivePick) return;
+    var travel = Math.hypot(ev.clientX - start.x, ev.clientY - start.y);
+    if (!moved && travel <= threshold) return;
+    cancelLongPressTimer();
+    if (!moved) {
+      moved = true;
+      selectMoving();
+      if (component.grounded) {
+        blocked = true;
+        flash(t("smartMateGrounded"));
+        return;
+      }
+      pushUndo(t("opMove"));
+      undoOpen = true;
+      if (canvas) canvas.style.cursor = "grabbing";
+    }
+    if (blocked) return;
+    var delta = moveMode === "free" ? screenDeltaToWorld(view, start, ev)
+      : screenDeltaAlongAxis(view, start, ev, moveMode);
+    var transform = normalizeTransform(component);
+    transform.x = startPose.x + delta.x;
+    transform.y = startPose.y + delta.y;
+    transform.z = startPose.z + delta.z;
+    solveAssembly({ quiet: true });
+    syncGroups();
+  }
+  function cleanup() {
+    cancelLongPressTimer();
+    window.removeEventListener("pointerdown", secondaryPointerDown, true);
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", cancel);
+    E._assemblyDragPointer = null;
+    if (canvas) canvas.style.cursor = "";
+  }
+  function finish(ev, cancelled) {
+    cleanup();
+    if (multiTouch || longPressed) { refreshAll(); return; }
+    if (!moved) {
+      pickAssemblyComponent(ev, view);
+      return;
+    }
+    if (cancelled && undoOpen) {
+      restoreSnapshots();
+      H.discard();
+      undoOpen = false;
+      solveAssembly({ quiet: true });
+    } else if (undoOpen && !posesChanged()) {
+      H.discard();
+      undoOpen = false;
+    }
+    refreshAll();
+  }
+  function up(ev) {
+    if (ev.pointerId !== pointerId) return;
+    finish(ev, false);
+  }
+  function cancel(ev) {
+    if (ev.pointerId !== pointerId) return;
+    finish(ev, true);
+  }
+
+  if (event.pointerType === "touch") {
+    var press = { clientX: event.clientX, clientY: event.clientY, pointerType: "touch", button: 0 };
+    longPressTimer = setTimeout(function () {
+      longPressTimer = 0;
+      if (moved || multiTouch) return;
+      longPressed = true;
+      showSelectThrough(press, view);
+    }, 520);
+  }
+  window.addEventListener("pointerdown", secondaryPointerDown, true);
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", cancel);
+  return true;
+}
+
+/* Every Alt gesture in an assembly lands here: editor_view hands pointerdown
+   to beginDrag first, and taking it means pick never runs. So this owns both
+   halves of SmartMate — Alt-drag one component onto another, and Alt-click two
+   references in turn for anyone without a mouse to drag with.
+
+   Either way the component being acted on is the one that moves, which makes
+   it the mate's B side: the solver only ever moves B. Passing the drag source
+   as A did the reverse, and since the drop target is usually the grounded
+   base, the solver then refused the mate outright and nothing happened. */
+function beginSmartMateDrag(event, view) {
+  var pick = function (source) {
+    return resolveTopologyPick({ clientX: source.clientX, clientY: source.clientY, pointerType: source.pointerType }, view, { prefer: E.selectionFilter }) || {};
+  };
+  var from = pick(event);
+  var movingComponent = from.component;
+  if (!movingComponent) return false;
+  var movingRef = stampComponentRef(from.reference, movingComponent, from) || componentTopologyFromHit(movingComponent, (from.hits || [])[0]);
+  E.componentSel = [movingComponent];
+  E.sel = movingComponent;
   function up(ev) {
     window.removeEventListener("pointerup", up);
-    var dropRect = view.rr.domElement.getBoundingClientRect();
-    var dropPointer = new THREE.Vector2(
-      ((ev.clientX - dropRect.left) / dropRect.width) * 2 - 1,
-      -((ev.clientY - dropRect.top) / dropRect.height) * 2 + 1
-    );
-    ray.setFromCamera(dropPointer, view.cam);
-    var dropHits = ray.intersectObjects(view.grp.children, true);
-    var dropObject = dropHits[0] && dropHits[0].object, dropComp = null;
-    while (dropObject && dropObject !== view.grp) {
-      if (dropObject.userData && dropObject.userData.cadComponent) {
-        dropComp = E.assembly.components.find(function (c) { return c.id === dropObject.userData.cadComponent; }) || null;
-        break;
+    var onto = pick(ev);
+    var targetComponent = onto.component;
+    var targetRef = null;
+    if (targetComponent && targetComponent !== movingComponent) {
+      targetRef = stampComponentRef(onto.reference, targetComponent, onto) || componentTopologyFromHit(targetComponent, (onto.hits || [])[0]);
+    } else if (Math.hypot(ev.clientX - event.clientX, ev.clientY - event.clientY) <= 4) {
+      /* A click, not a drag: pair this reference with the last one picked on
+         another component, or remember it as the first of the pair. */
+      var earlier = (E.topologySelection || []).filter(function (candidate) {
+        return candidate.componentId && candidate.componentId !== movingComponent.id;
+      });
+      targetRef = earlier[earlier.length - 1] || null;
+      if (!targetRef) {
+        E.topologySelection = [movingRef];
+        flash(t("smartMateHint"));
+        refreshAll();
+        return;
       }
-      dropObject = dropObject.parent;
     }
-    if (!dropComp || dropComp === startComp) return;
-    var onto = componentTopologyFromHit(dropComp, dropHits[0]);
-    var mate = inferSmartMate(fromRef, onto);
-    if (!mate) return;
+    if (!targetRef) { refreshAll(); return; }
+    if (movingComponent.grounded) { flash(t("smartMateGrounded")); refreshAll(); return; }
+    var mate = inferSmartMate(mateReferenceFromPick(targetRef), mateReferenceFromPick(movingRef));
+    if (!mate) { refreshAll(); return; }
+    var fits = mateFramesFit(mate.type, mate.a.frame, mate.b.frame);
+    if (!fits.ok) { flash(fits.reason); refreshAll(); return; }
+    pushUndo(t("smartMate"));
     E.assembly.topologyMates ||= [];
-    E.assembly.topologyMates.push({ id: uid(), type: mate.type, a: mate.a, b: mate.b, aligned: !!mate.aligned, value: 0 });
-    applyAssemblyMates(E.assembly);
-    flash("✓ " + t("smartMate") + " · " + mate.type);
+    E.assembly.topologyMates.push({ id: uid(), type: mate.type, a: mate.a, b: mate.b, aligned: !!mate.aligned, value: 0, pitch: mate.pitch });
+    solveAssembly();
+    E.topologySelection = [];
+    flash("\u2713 " + t("smartMate") + " \u00b7 " + mate.type);
     refreshAll();
   }
   window.addEventListener("pointerup", up);
@@ -13140,11 +14503,26 @@ function beginSmartMateDrag(event, view) {
 }
 
 function initPreview() {
+  /* three is late-bound (js/three_lazy.js), and openModeler() must stay
+     SYNCHRONOUS — callers click #mdSave in the same tick that they open the
+     editor. So the editor's DOM is built either way and only the 3D viewport
+     waits: E.pv stays null until three lands, exactly the state every call
+     site already handles for a machine with no GPU (createEditorView returns
+     null there), and then the viewport appears. */
+  if (!threeLoaded()) {
+    loadThree().then(function () {
+      if (root && !E.pv) {
+        initPreview();
+        if (E.open) { layout3DHost(); updatePreview(); renderPreview(); }
+      }
+    }, function () {});
+    return;
+  }
   E.pv = createEditorView({
     canvas: root.querySelector("#mdPrev"),
     fov: 45, near: 0.1, far: 5000,
-    grid: true, shadows: true,
-    ambient: 0.55, keyLight: 0.9, fill: 0,
+    grid: true, gridOpacity: 0.26, shadows: true,
+    ambient: 0.62, keyLight: 1.05, fill: 0.22,
     az: 0.8, el: 0.5, dist: 260,
     minEl: 0.05, maxEl: 1.5, minDist: 1, maxDist: 2000,
     pad: 16, ratio: 0.75,
@@ -13173,6 +14551,16 @@ function initPreview() {
      the highlight only ever needs to be right at paint time. */
   var canvas = root.querySelector("#mdPrev");
   if (canvas && E.pv) {
+    /* The navigation sentence is first-run help. Once the viewport has been
+       operated, leave only the small ? affordance; live tool and selection
+       messages still take precedence and remain visible. */
+    var dismissIdleHint = function () {
+      if (E.mode !== "3d" || E.modelPlaneActive || E.facePick || (E.topologySelection || []).length) return;
+      E.hintDismissed = true;
+      syncHint();
+    };
+    canvas.addEventListener("pointerdown", dismissIdleHint, { passive: true });
+    canvas.addEventListener("wheel", dismissIdleHint, { passive: true });
     var queued = null;
     canvas.addEventListener("pointermove", function (event) {
       if (event.buttons) return;   // mid-orbit: no picking
@@ -13225,7 +14613,9 @@ function setMode(m) {
   if (m === "3d") fitPreview();
   else if (m === "drawing") { E.ssel=[]; E.sel=null; E.poly=null; E.arcPts=null; E.wallPts=null; fitSketch(); }
   root.querySelectorAll("#mdModes button").forEach(function (b) {
-    b.classList.toggle("on", b.getAttribute("data-mode") === m);
+    var active = b.getAttribute("data-mode") === m;
+    b.classList.toggle("on", active);
+    b.setAttribute("aria-selected", active ? "true" : "false");
   });
   syncTools();
   syncCoach();
@@ -13346,7 +14736,12 @@ function layout3DHost() {
 function fitPreview() {
   if (!E.pv || !E.def) return;
   if (E.docType === "assembly") {
-    var span = Math.max(180, ((E.assembly && E.assembly.components.length) || 1) * 90);
+    /* Framing off the component count showed two small parts as specks and cut
+       widely mated ones off at the edges. Measure what is actually there. */
+    var box = assemblyBounds();
+    var span = box
+      ? Math.max(1, Math.hypot(box.x1 - box.x0, box.y1 - box.y0, box.z1 - box.z0))
+      : 180;
     E.pv.frame(span * 1.5);
     E.pv.render();
     return;
@@ -13368,8 +14763,24 @@ function buildAssembly(parent) {
     var group = new THREE.Group(), tr = normalizeTransform(component);
     group.name = component.name || component.modelKey;
     group.userData.cadComponent = component.id;
-    activeParts(def).forEach(function (part) { buildPart(group, part, E.displayStyle); });
-    group.position.set(tr.x, tr.y, tr.z);
+    /* Face highlights and pick edges are built per part and have no other way
+       to know which instance they belong to. Two components off the same
+       library model share every persistent id, so without this the selected
+       face lights up on both. */
+    E.buildComponent = component;
+    /* Cleared even if a part throws. Leaving it set would filter every later
+       selection and hover against a component that is no longer being built,
+       so face highlights stop appearing anywhere until the editor is reopened. */
+    try {
+      activeParts(def).forEach(function (part) { buildPart(group, part, E.displayStyle); });
+    } finally {
+      E.buildComponent = null;
+    }
+    /* An exploded view is a viewing offset, not a change to the model: it is
+       added to the pose here and never written back to the transform, so
+       collapsing the view restores the mated position exactly. */
+    var blown = component.explodedOffset || null;
+    group.position.set(tr.x + (blown && blown.x || 0), tr.y + (blown && blown.y || 0), tr.z + (blown && blown.z || 0));
     group.rotation.set((tr.rx * Math.PI) / 180, (tr.ry * Math.PI) / 180, (tr.rz * Math.PI) / 180);
     if (E.componentSel.indexOf(component) !== -1) {
       group.traverse(function (object) {
@@ -13393,7 +14804,7 @@ function addInterferenceVisuals(parent) {
     var mesh=new THREE.Mesh(geometry,material);mesh.position.set((bounds.x0+bounds.x1)/2,(bounds.y0+bounds.y1)/2,(bounds.z0+bounds.z1)/2);
     mesh.renderOrder=80;mesh.userData.cadInterference=index;mesh.userData.interferencePair=[hit.a,hit.b];parent.add(mesh);
     var wire=new THREE.LineSegments(new THREE.EdgesGeometry(geometry),new THREE.LineBasicMaterial({color:0xff0038,transparent:true,opacity:.95}));
-    wire.position.copy(mesh.position);wire.renderOrder=81;parent.add(wire);
+    wire.position.copy(mesh.position);wire.renderOrder=81;wire.userData.cadInterference=index;parent.add(wire);
   });
 }
 
@@ -13429,7 +14840,7 @@ function renderPreview() {
    shared viewport to skip its own plain-backdrop pass. */
 function drawInRoom(view) {
   if (E.docType === "assembly") return false;
-  if (!view.inRoom || !has3D) return false;
+  if (!view.inRoom || !has3D()) return false;
   var scene = getMainScene();
   if (!scene) return false;
 
@@ -13505,9 +14916,12 @@ function refreshLib() {
       var top = el("div", "md-card-top");
       top.appendChild(el("i", "ph ph-stack"));
       top.appendChild(el("span", "nm", assembly.name || assembly.key)); card.appendChild(top);
-      card.appendChild(el("div", "md-card-note", (assembly.components || []).length + " " + t("components").toLowerCase() + " · " + (assembly.mates || []).length + " mates"));
+      card.appendChild(el("div", "md-card-note",
+        countLabel((assembly.components || []).length, "assemblyComponentOne", "assemblyComponents") + " · " +
+        countLabel(assemblyMateCount(assembly), "matesCountOne", "matesCount")));
       card.addEventListener("click", function () {
         E.assembly = cloneData(assembly); E.componentSel = []; E.sel = null;
+        invalidateInterference();
         syncHead(); refreshAll(); refreshLib(); fitPreview();
       });
       var del = btn('<i class="ph ph-trash"></i>', function (e) {
@@ -13794,29 +15208,109 @@ function importBundleDocument() {
   input.click();
 }
 
+/* Explode and collapse are the same command. Once the offsets render, a
+   one-way explode is a trap: nothing else in the editor puts the components
+   back, and the offsets follow the assembly into the saved document. */
 function createDefaultExplodedView() {
   if (E.docType !== "assembly" || !E.assembly) return;
+  var exploded = (E.assembly.components || []).some(function (component) {
+    var offset = component.explodedOffset;
+    return offset && (offset.x || offset.y || offset.z);
+  });
+  if (exploded) {
+    pushUndo(t("collapseExplodeView"));
+    E.assembly.components.forEach(function (component) { component.explodedOffset = null; });
+    /* Take the generated view back out with the offsets it placed. Collapsing
+       used to leave it behind, so toggling explode ten times saved ten
+       identical views and the name counter kept climbing. activeExplodedView is
+       what says which one this command owns. */
+    var owned = E.assembly.activeExplodedView;
+    if (owned) {
+      E.assembly.explodedViews = (E.assembly.explodedViews || []).filter(function (view) { return view.id !== owned; });
+    }
+    E.assembly.activeExplodedView = null;
+    refreshAll(); fitPreview(); flash("\u2713 " + t("collapseExplodeView"));
+    return;
+  }
+  pushUndo(t("explodeView"));
   var view = createExplodedView(E.assembly, "Exploded View " + ((E.assembly.explodedViews || []).length + 1));
   E.assembly.components.forEach(function (component, index) {
     if (index) addExplodeStep(view, [component.id], {x:index * 25,y:0,z:0});
   });
-  applyExplodedView(E.assembly, view.id, 1); refreshAll(); flash("✓ " + view.name);
+  E.assembly.activeExplodedView = view.id;
+  applyExplodedView(E.assembly, view.id, 1); refreshAll(); fitPreview(); flash("\u2713 " + view.name);
 }
 
 function createDefaultMotionStudy() {
   if (E.docType !== "assembly" || !E.assembly || !E.assembly.components.length) return;
   var component = E.componentSel[0] || E.assembly.components.find(function (c) { return !c.grounded; }) || E.assembly.components[0];
+  pushUndo(t("motionStudy"));
   var study = createMotionStudy(E.assembly, "Motion Study " + ((E.assembly.motionStudies || []).length + 1));
-  addRotaryMotor(study, component.id, 12); evaluateMotionStudy(E.assembly, study.id, 1); refreshAll(); flash("✓ Motion study added");
+  addRotaryMotor(study, component.id, 12);
+  /* A motor writes a real rotation onto the component, unlike an exploded view
+     offset, so the clash boxes and the "no interference" the workflow is still
+     showing describe a pose the assembly has left. */
+  evaluateMotionStudy(E.assembly, study.id, 1);
+  invalidateInterference();
+  refreshAll(); flash("✓ Motion study added");
 }
 
 async function runInterferenceCheck() {
   if (E.docType !== "assembly" || !E.assembly) return;
-  var hits = await detectInterference(E.assembly.components || []);
+  /* The detector's own fallback only knows boxes, cylinders and spheres and
+     ignores rotation, so a feature-built or turned component measured as
+     nothing and the check reported a clean assembly. Measure here, where the
+     real part bounds live, and hand the result over. Mated position, not
+     exploded position — an exploded view is not a clash. */
+  var revision = E.interferenceRevision || 0;
+  var measured = (E.assembly.components || []).map(function (component) {
+    return Object.assign({}, component, { bounds: componentWorldBounds(component, { exploded: false }) });
+  });
+  var hits = await detectInterference(measured);
+  /* A boolean-kernel check can finish after the user has hidden, inserted or
+     moved something. Do not let that obsolete answer overwrite invalidation. */
+  if (revision !== (E.interferenceRevision || 0)) return;
   E.interferenceHits = hits;
+  E.interferenceChecked = true;
+  syncAssemblyWorkflow();
   updatePreview();
   report("EVALUATE", hits.length ? hits.length + " interference(s)" : "No interference detected",
-    hits.length ? [t("interferenceVisualized")].concat(hits.map(function (h) { return "• " + h.a + " ↔ " + h.b + (h.volume != null ? "   " + h.volume + " cm³" : ""); })) : "No two components overlap.");
+    hits.length ? [t("interferenceVisualized")].concat(hits.map(function (h) {
+      // Component ids mean nothing to the person reading the report.
+      return "• " + componentLabel(h.a) + " ↔ " + componentLabel(h.b) + (h.volume != null ? "   " + h.volume + " cm³" : "");
+    })) : "No two components overlap.");
+}
+
+/* A general-arrangement sheet: one outline per component where the mates put
+   it, numbered against the bill of materials. The drawing module already draws
+   any part it has no mesh for as its view rectangle, so an envelope per
+   component is the fidelity a part sheet gets too, not a shortcut past it. */
+function assemblyDrawingDocument() {
+  var components = (E.assembly.components || []).filter(function (component) { return component.visible !== false; });
+  var rows = generateBOM({ components: components });
+  var itemOf = new Map(rows.map(function (row, index) { return [row.key, index + 1]; }));
+  var parts = [];
+  components.forEach(function (component) {
+    var bounds = componentWorldBounds(component, { exploded: false });
+    if (!bounds) return;
+    parts.push({
+      id: component.id, kind: "box", name: component.name || component.modelKey,
+      x0: bounds.x0, x1: bounds.x1, y0: bounds.y0, y1: bounds.y1, z0: bounds.z0, z1: bounds.z1,
+    });
+  });
+  return {
+    def: { kind: "assembly", name: E.assembly.name || t("docAssembly"), parts: parts },
+    balloons: rows.map(function (row) {
+      return { item: itemOf.get(row.key), name: row.name, material: "", qty: row.quantity };
+    }),
+  };
+}
+
+function downloadAssemblyDrawing() {
+  if (E.docType !== "assembly" || !E.assembly) return;
+  var sheet = assemblyDrawingDocument();
+  if (!sheet.def.parts.length) { flash(t("noComponents")); return; }
+  downloadDrawing(sheet.def, { section: false, holeCallouts: false, balloons: sheet.balloons });
 }
 
 function showAssemblyBOM() {
@@ -13964,6 +15458,12 @@ function syncPreviewFromHistory() {
 
 /* ================= open / close ================= */
 function refreshAll() {
+  /* Solve before anything reads the assembly: the mate list, the status bar
+     and the viewport all report on the same solve. A solveAssembly() that has
+     just run is that solve, so this refresh consumes it rather than repeating
+     it; anything else that touched the assembly still gets solved here. */
+  if (E.docType === "assembly" && E.assembly && !assemblySolveFresh) applyAssemblyMates(E.assembly);
+  assemblySolveFresh = false;
   syncFaceSupportedSketchFrames();
   if(isCanonicalAuthoring()){
     syncPreviewFromHistory();
@@ -14043,6 +15543,7 @@ function mobileBridge() {
         display: E.displayStyle === "transparent" ? "transparent" : "solid",
         edges: E.showModelEdges !== false,
         selFilter: E.selectionFilter || "all",
+        assemblyMoveMode: E.assemblyMoveMode || "free",
         addSelection: !!E.mobileAddSelection,
         topologyCount: (E.topologySelection || []).length,
         componentCount: (E.componentSel || []).length,
@@ -14132,7 +15633,7 @@ export function openModeler(editKey, def, srcItem) {
   E.ssel = [];
   E.topologySelection = [];
   E.facePick = null;
-  E.interferenceHits = [];
+  invalidateInterference();
   E.dependencyHighlight = null;
   E.section = { enabled:false, axis:"x", offset:0, flip:false };
   setSectionState(E.section);
@@ -14182,6 +15683,11 @@ export function openModeler(editKey, def, srcItem) {
 // (saving updates every placed instance); built-ins open as an editable copy,
 // and saving swaps this item over to the new custom model.
 export function openModelerForItem(it) {
+  // defFromBuiltin() below builds real meshes — same late-bound-three bounce.
+  if (!threeLoaded()) {
+    loadThree().then(function () { openModelerForItem(it); }, function () {});
+    return;
+  }
   if (!it || !FURN[it.type]) { openModeler(); return; }
   var canonical = it.cab
     ? syncCabinetDefinition(S, it)

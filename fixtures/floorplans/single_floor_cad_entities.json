@@ -1,0 +1,65 @@
+{
+  "cadEntities": {
+    "singleLineWalls": true,
+    "defaultThickness": 15,
+    "height": 270,
+    "lines": [
+      {
+        "x1": 0,
+        "z1": 0,
+        "x2": 700,
+        "z2": 0,
+        "layer": "walls",
+        "thickness": 20
+      },
+      {
+        "x1": 700,
+        "z1": 0,
+        "x2": 700,
+        "z2": 500,
+        "layer": "walls",
+        "thickness": 20
+      },
+      {
+        "x1": 700,
+        "z1": 500,
+        "x2": 0,
+        "z2": 500,
+        "layer": "walls",
+        "thickness": 20
+      },
+      {
+        "x1": 0,
+        "z1": 500,
+        "x2": 0,
+        "z2": 0,
+        "layer": "walls",
+        "thickness": 20
+      },
+      {
+        "x1": 400,
+        "z1": 0,
+        "x2": 400,
+        "z2": 500,
+        "layer": "interior",
+        "thickness": 10
+      }
+    ],
+    "doors": [
+      {
+        "x": 0,
+        "z": 250,
+        "width": 90,
+        "height": 205
+      }
+    ],
+    "windows": [
+      {
+        "x": 200,
+        "z": 0,
+        "width": 120,
+        "height": 140
+      }
+    ]
+  }
+}

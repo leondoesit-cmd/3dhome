@@ -4,6 +4,7 @@ import { legacyIntensity } from "./gpu.js";
 import { S, clamp, fin } from "./state.js";
 import {
   has3D,
+  init3D,
   getMainScene,
   getMainCamera,
   getDynGroup,
@@ -4661,7 +4662,15 @@ function maximize3D(on) {
 }
 
 export function toggleZombies(on) {
-  if (!has3D) return false;
+  /* Night Shift is played inside the planner's own 3D scene, and three is
+     late-bound now (js/three_lazy.js): a phone session that started on the
+     plan has no renderer yet. Build one and come back, rather than
+     refusing to start. `false` here means "not running yet", which is what
+     the caller already reads it as. */
+  if (!has3D()) {
+    init3D().then(function (ok) { if (ok) toggleZombies(on); });
+    return false;
+  }
   var want = on == null ? !Z.active : !!on;
   if (want === Z.active) return Z.active;
   var scene = getMainScene(),

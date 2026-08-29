@@ -76,3 +76,25 @@ test("mass properties measure frustums, revolves and unknown bodies honestly", (
   assert.equal(unknown.volumeCm3, 0);
   assert.equal(unknown.unmeasured, 1);
 });
+
+/* The fallback bounds understand three primitive kinds and no rotation at all,
+   so a feature-built or turned component measured as nothing and the check
+   reported a clean assembly. The editor measures instead and hands the answer
+   over; a hidden component is not in anyone's way. */
+test("interference uses supplied bounds and skips hidden components", async () => {
+  const box = (id, x0, x1, extra = {}) => ({
+    id, transform: { x: 0, y: 0, z: 0 },
+    bounds: { x0, x1, y0: 0, y1: 10, z0: 0, z1: 10 },
+    ...extra,
+  });
+  const overlapping = await detectInterference([box("a", 0, 10), box("b", 5, 15)]);
+  assert.equal(overlapping.length, 1);
+  assert.equal(overlapping[0].volume, 500);
+  const hidden = await detectInterference([box("a", 0, 10), box("b", 5, 15, { visible: false })]);
+  assert.equal(hidden.length, 0, "a hidden component cannot clash");
+  const lofted = await detectInterference([
+    { id: "a", transform: {}, parts: [{ kind: "loft", pts: [] }] },
+    { id: "b", transform: {}, parts: [{ kind: "loft", pts: [] }] },
+  ]);
+  assert.equal(lofted.length, 0, "unmeasurable parts are reported as no data, not as a clash");
+});

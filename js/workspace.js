@@ -1,7 +1,7 @@
 import { S } from "./state.js";
 import { openModal, flash, serialize, sceneObject, applyData, select, refreshTree, fillProps } from "./ui.js";
 import { render2D, fitView } from "./plan2d.js";
-import { pushHistory } from "./history.js";
+import { pushHistory, beginHistory, commitPending, cancelPending } from "./history.js";
 import { markSaved } from "./persist.js";
 import { listProjects, saveProject, deleteProject, restoreVersion } from "./project_store.js";
 import {
@@ -137,15 +137,26 @@ export async function openWorkspace() {
     ensureFloors().forEach((floor) => {
       const label = document.createElement("strong"); label.textContent = floor.name + (floor.id === S.workspace.activeFloor ? " · active" : "");
       const elev = input(floor.elevation, "Elevation", "number"); elev.title = "Elevation in cm";
-      elev.onchange = () => { floor.elevation = Number(elev.value) || 0; };
+      elev.onchange = () => { pushHistory(); floor.elevation = Number(elev.value) || 0; };
       const open = button("Open", () => { switchFloor(floor.id); draw(); });
-      const del = button("Delete", () => { if (window.confirm("Delete this floor? This cannot be undone." ) && removeFloor(floor.id)) draw(); }, "danger");
+      /* Deleting a storey is the destructive direction, so it is the one that
+         most needs the snapshot — and the workspace has been part of one since
+         adding a floor became undoable, so the warning was only true because
+         this line was missing. */
+      const del = button("Delete", () => {
+        if (!window.confirm("Delete this floor and everything on it?")) return;
+        // begin/commit rather than push: removeFloor refuses to take the last
+        // storey, and a snapshot that reverts nothing is its own small bug
+        beginHistory();
+        if (removeFloor(floor.id)) { commitPending("Delete floor"); draw(); }
+        else cancelPending();
+      }, "danger");
       open.disabled = floor.id === S.workspace.activeFloor; del.disabled = !editable() || S.workspace.floors.length < 2;
       box.append(row(label, elev, open, del));
     });
     const name = input("", "Floor name"), elevation = input("", "Elevation cm", "number");
-    const add = button("Add empty", () => { addFloor(name.value, elevation.value, false); draw(); });
-    const duplicate = button("Duplicate active", () => { addFloor(name.value || "Copy", elevation.value, true); draw(); });
+    const add = button("Add empty", () => { pushHistory(); addFloor(name.value, elevation.value, false); draw(); });
+    const duplicate = button("Duplicate active", () => { pushHistory(); addFloor(name.value || "Copy", elevation.value, true); draw(); });
     add.disabled = duplicate.disabled = !editable(); box.append(row(name, elevation, add, duplicate)); content.append(box);
 
     const reference = section("Reference floor and wall alignment");

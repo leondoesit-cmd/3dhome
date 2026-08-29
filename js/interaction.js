@@ -585,7 +585,13 @@ export function wallPoint(p) {
     flash(t("wall_opening_blocked"), "error");
     return null;
   }
-  pushHistory();
+  /* The first corner owns the undo snapshot for the first segment. Landing
+     that corner on a host wall may split the host immediately, but that split
+     is only an implementation detail of the wall the user is drawing. Do not
+     take another snapshot at the second corner or Ctrl+Z exposes the invisible
+     half-split topology. Continued runs still get one snapshot per additional
+     visible segment. */
+  if (!S.drawing || (S.drawWalls || []).length) pushHistory();
   if (!S.drawing) {
     // Landing mid-span SPLITS that wall (getOrMakeNode), which is a change of
     // topology, not of somebody's stated interior dimension — see below.
@@ -1173,6 +1179,17 @@ function snapPoint(px, pz, fromIdx) {
   S.snapGuides = []; // recomputed below; stale guides must never linger
   S.snapInfo = null; // ditto — the HUD must never show the previous latch
 
+  /* Snap radii are authored for a mouse and deliberately NOT widened by
+     PICK_SLOP (see the note at the top of this file): they decide what the
+     design becomes, not what you hit. Closing the loop you are drawing is the
+     exception, and for the same reason wallJoinTolerance() is one — it is a
+     CONNECTION, not a measurement. Nothing else can be within a fingertip of
+     your own starting corner, so missing it by 4px cannot mean "put the corner
+     here instead"; it means the finger is fatter than the mouse this radius
+     was written for. Missing it left a loose stub and an unclosed room, which
+     is the single most expensive miss in the whole touch drawing flow. */
+  var REACH = { close: thr * PICK_SLOP };
+
   // Object snap off: corners and on-wall points stop attracting the cursor.
   // Angle + grid still apply below, exactly like OSNAP in a real CAD.
   var osnap = S.osnap !== false;
@@ -1191,7 +1208,7 @@ function snapPoint(px, pz, fromIdx) {
     var ax = aim ? aim.x : x,
       az = aim ? aim.z : z;
     var d = Math.hypot(px - ax, pz - az);
-    if (d > thr) return;
+    if (d > (REACH[kind] || thr)) return;
     cands.push({
       kind: kind, x: x, z: z, d: d,
       score: d * (S.SC > 0 ? S.SC : 1) - (SNAP_BONUS[kind] || 0),
@@ -2948,21 +2965,40 @@ export function initInteraction() {
     window.dispatchEvent(new CustomEvent("planner-opening-created", { detail: { opening: made } }));
     return true;
   }
-  /* ---- two-finger tap = undo ----
-     The one editing action a phone user reaches for constantly, given a
-     gesture so it costs no screen at all. Armed by the second finger landing
-     and disarmed by any real pinch: a tap is two fingers down and up inside
+  /* ---- two-finger tap = undo, three-finger tap = redo ----
+     The two editing actions a phone user reaches for constantly, given a
+     gesture so they cost no screen at all. Armed by the second finger landing
+     and disarmed by any real pinch: a tap is fingers down and up inside
      TWOTAP_MS with the pair barely moving, which is nothing like the zoom
-     gesture it shares a starting position with. */
+     gesture it shares a starting position with.
+
+     Redo rides the SAME detector rather than a parallel one, counting the most
+     fingers the gesture ever had. A third finger never lands at the same
+     millisecond as the second, so a separate three-finger arm would either
+     have to re-arm (restarting the clock mid-gesture) or race the two-finger
+     one — and either way an ordinary pinch that briefly grew a third finger
+     would start meaning something. */
   var TWOTAP_MS = 260,
     TWOTAP_SLOP = 16,
     twoTap = null,
     preTouchSel = null; // what was selected before this gesture's first finger
   function armTwoTap() {
     var ids = Object.keys(pointers);
+    if (twoTap) {
+      // Already armed by an earlier finger: only the count grows, so the clock
+      // still runs from when the gesture actually started.
+      twoTap.n = Math.max(twoTap.n, ids.length);
+      return;
+    }
     var a = pointers[ids[0]],
       b = pointers[ids[1]];
-    twoTap = { t: Date.now(), d0: Math.hypot(a.x - b.x, a.y - b.y), ax: a.x, ay: a.y };
+    twoTap = {
+      t: Date.now(),
+      d0: Math.hypot(a.x - b.x, a.y - b.y),
+      ax: a.x,
+      ay: a.y,
+      n: ids.length,
+    };
   }
   function breakTwoTap() {
     twoTap = null;
@@ -2970,13 +3006,15 @@ export function initInteraction() {
   function tryTwoTap() {
     if (!twoTap) return false;
     var hit = Date.now() - twoTap.t <= TWOTAP_MS;
+    var fingers = twoTap.n;
     twoTap = null;
     if (!hit) return false;
     /* The first finger of the gesture already picked whatever it landed on.
        The gesture means "undo", not "select this", so put the selection back
        before undoing — which then replaces it with its own if it has one. */
     S.sel = preTouchSel;
-    undo();
+    if (fingers >= 3) redo();
+    else undo();
     render2D();
     if (navigator.vibrate) navigator.vibrate(12);
     return true;
@@ -3756,6 +3794,28 @@ export function initInteraction() {
     });
   }
 
+  /* Finish a corner that was dragged onto a wall: split the host where the
+     corner has come to rest and merge the two into one shared joint. Called
+     once, from the end of the gesture — see the note in the drag handler about
+     why doing it per frame tore the host wall to pieces. Returns whichever
+     corner index survives, which is the one the drag now owns. */
+  function landNodeOnWall(ni, host, active) {
+    var n = S.nodes[ni];
+    if (!host || !n || host.a === ni || host.b === ni) return ni;
+    var g = wallGeom(host),
+      pr = wallProject(host, n.x, n.z);
+    if (!pr || !fin(pr.s) || pr.s <= 1 || pr.s >= g.L - 1) return ni;
+    var before = snapshotNodes(),
+      mid = splitWallAt(host, pr.s);
+    S.nodes[ni].x = S.nodes[mid].x;
+    S.nodes[ni].z = S.nodes[mid].z;
+    S.jointsReleased += enforceLocks(before, active);
+    dragSolve([ni, mid]);
+    if (!canWeld(mid, ni, active)) return ni;
+    weldNodes(mid, ni);
+    return mid;
+  }
+
   var planMove = function (e) {
     if (isElevation()) {
       // items, openings and points are live in the two elevation axes
@@ -4069,6 +4129,7 @@ export function initInteraction() {
         if (crossing != null) p = { x: p.x, z: p.z, node: crossing, wall: null };
       }
       if (p.node != null) {
+        S.nodeDrag.landOn = null; // a corner-to-corner weld is not a wall landing
         S.nodes[ni].x = S.nodes[p.node].x;
         S.nodes[ni].z = S.nodes[p.node].z;
         S.jointsReleased += enforceLocks(before, active);
@@ -4084,21 +4145,22 @@ export function initInteraction() {
           S.nodeDrag.node = ni;
         }
       } else if (p.wall) {
-        // dropping a corner onto a wall joins it there
-        var mid = splitWallAt(p.wall, p.s);
-        S.nodes[ni].x = S.nodes[mid].x;
-        S.nodes[ni].z = S.nodes[mid].z;
+        /* Dropping a corner onto a wall joins it there — but that join is a
+           topology commit (a split AND a weld), and doing it on every
+           pointermove shredded the host. Each frame split what was left of it
+           again: dragging one corner of a room along the wall next to it left a
+           chain of stubs, a pile of coincident corners and a shape that no
+           longer closed. Preview it as a plain move, remember the host, and
+           commit once when the gesture ends. */
+        S.nodes[ni].x = p.x;
+        S.nodes[ni].z = p.z;
+        S.nodeDrag.landOn = p.wall.id;
         S.jointsReleased += enforceLocks(before, active);
-        dragSolve([ni, mid]);
-        if (canWeld(mid, ni, active)) {
-          weldNodes(mid, ni);
-          ni = mid;
-          if (!S.nodeDrag.wall) select({ kind: "node", ref: ni });
-          S.nodeDrag.node = ni;
-        }
+        dragSolve([ni]);
       } else {
         S.nodes[ni].x = p.x;
         S.nodes[ni].z = p.z;
+        S.nodeDrag.landOn = null;
         S.jointsReleased += enforceLocks(before, active);
         dragSolve([ni]);
       }
@@ -4427,6 +4489,20 @@ export function initInteraction() {
        those walls now HOLD what the user just drew — otherwise the very next
        edit elsewhere would snap them back to their pre-drag size. */
     if (S.action === "node" && S.nodeDrag) {
+      // the corner was left resting on a wall: make that a real joint, once
+      if (S.nodeDrag.landOn != null) {
+        var host = wallById(S.nodeDrag.landOn),
+          hn = S.nodeDrag.node,
+          hostActive = [];
+        S.walls.forEach(function (w) {
+          if (w.a !== hn && w.b !== hn) return;
+          if (!S.nodeDrag.wall || S.nodeDrag.wall === w.id) hostActive.push(w.id);
+        });
+        var landed = landNodeOnWall(hn, host, hostActive);
+        S.nodeDrag.node = landed;
+        S.nodeDrag.landOn = null;
+        if (!S.nodeDrag.wall) select({ kind: "node", ref: landed });
+      }
       var dn = S.nodeDrag.node;
       S.walls.forEach(function (w) {
         if (w.a !== dn && w.b !== dn) return;
@@ -4563,11 +4639,51 @@ export function initInteraction() {
       render2D();
     }
   });
-  plan.addEventListener("dblclick", function () {
-    if (S.tool === "wall") finishDraw();
-    else if (S.tool === "arcwall" && S.arcDraft && S.arcDraft.through && S.previewPt)
-      arcWallPoint(S.previewPt);
-    else if (S.tool === "mepRoute") commitRoute();
+  plan.addEventListener("dblclick", function (e) {
+    if (S.tool === "wall") return void finishDraw();
+    if (S.tool === "arcwall" && S.arcDraft && S.arcDraft.through && S.previewPt)
+      return void arcWallPoint(S.previewPt);
+    if (S.tool === "mepRoute") return void commitRoute();
+    if (S.tool && S.tool !== "select") return;
+    if (S.workspace && S.workspace.role === "viewer") return;
+    if (isElevation()) return; // the elevation pane draws a side view, not a plan
+    /* Direct manipulation for the verb each object is asked for most. Both are
+       the same edit the contextual row offers, one tap cheaper, and both are
+       cyclic — a second double-click undoes the first — so there is nothing to
+       learn and nothing to lose by trying it.
+
+       The hit test is repeated here rather than trusting S.sel: the two clicks
+       that make a double-click have already selected whatever the FIRST one
+       landed on, so acting on the selection alone would rotate the chair you
+       had selected a minute ago when you double-click empty floor next to it. */
+    var r = plan.getBoundingClientRect(),
+      ox = e.clientX - r.left,
+      oy = e.clientY - r.top,
+      px = wx(ox, oy),
+      pz = wz(ox, oy);
+    var op = hitOpening(px, pz);
+    if (op && op.type === "door" && !op.isSliding && !op.isPocket) {
+      if (window.__runAction) {
+        select({ kind: "opening", ref: op });
+        window.__runAction("flipSwing");
+      }
+      return;
+    }
+    var it = hitItem(px, pz);
+    if (it && !it.locked && window.__runAction) {
+      select({ kind: "item", ref: it });
+      window.__runAction("rotSel90");
+      return;
+    }
+    /* The floor is tried LAST because it is the biggest target on the plan:
+       tested first it would swallow every piece and every door standing on it.
+       Bare ground is not a room, so a double-tap outside the walls still means
+       nothing at all. */
+    var rk = hitRoom(px, pz);
+    if (rk != null && window.__runAction) {
+      select({ kind: "room", ref: rk });
+      window.__runAction("roomFloor");
+    }
   });
 
   plan.addEventListener(

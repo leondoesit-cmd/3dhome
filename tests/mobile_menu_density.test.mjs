@@ -1,6 +1,8 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { stripComments } from "./source.mjs";
 
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 const planner = await readFile(new URL("../js/mobile_shell.js", import.meta.url), "utf8");
@@ -12,10 +14,11 @@ const props = await readFile(new URL("../js/ui_props.js", import.meta.url), "utf
 const cadHud = await readFile(new URL("../js/cad_hud.js", import.meta.url), "utf8");
 const pages = await readFile(new URL("../js/mobile_pages.js", import.meta.url), "utf8");
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
+const i18n = await readI18nSource();
 const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
 const chrome = await readFile(new URL("../js/planner_chrome.js", import.meta.url), "utf8");
 const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+const view3d = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
 
 test("mobile shells reserve only one 48px nav and one 44px context row", () => {
   assert.match(css, /--mobile-nav-block:\s*calc\(48px \+ env\(safe-area-inset-bottom\)\)/);
@@ -104,9 +107,9 @@ test("selection identity moves to the top row and wall Properties keeps named ic
 });
 
 test("compact menus use a translucent glass layer with stronger controls", () => {
-  assert.match(css, /--mobile-glass:\s*color-mix\(in srgb, var\(--bg-panel\) 52%, transparent\)/);
+  assert.match(css, /--mobile-glass:\s*color-mix\(in srgb, var\(--bg-panel\) 88%, transparent\)/);
   assert.match(css, /#cabdes\.cb-compact \.cb-panel[\s\S]*?background:\s*var\(--mobile-glass\)[\s\S]*?backdrop-filter:\s*blur\(6px\) saturate\(1\.08\)/);
-  assert.match(css, /--mobile-glass-control:\s*color-mix\(in srgb, var\(--input-bg\) 50%, var\(--bg-panel\) 50%\)/);
+  assert.match(css, /--mobile-glass-control:\s*color-mix\(in srgb, var\(--input-bg\) 82%, var\(--bg-panel\) 18%\)/);
   assert.match(css, /#modeler #md-sheet input[\s\S]*?background:\s*var\(--mobile-glass-control\)/);
   assert.match(css, /#right-inspector > \.cost-section,[\s\S]*?#right-inspector > \.site-section[\s\S]*?display:\s*none !important/);
 });
@@ -131,7 +134,8 @@ test("long forms use labelled content-sized pages while browse sheets scroll", (
   assert.match(pages, /mobile-page-tab/);
   assert.match(pages, /touchend/);
   assert.match(pages, /pages\.forEach[\s\S]*?page\.classList\.toggle\("on"/);
-  assert.match(css, /Content-sized bottom menus/);
+  // (the section comment this used to match is prose; the cap and the two
+  // fit-content rules below are the rule itself)
   assert.match(css, /--mobile-sheet-cap:\s*min\(/);
   assert.match(css, /body\.compact-nav\.sheet-drawers #right-inspector,[\s\S]*?top:\s*auto;[\s\S]*?height:\s*fit-content;[\s\S]*?max-height:\s*var\(--mobile-sheet-cap\)/);
   assert.match(css, /body\.compact-nav #m-sheet,[\s\S]*?height:\s*fit-content !important;[\s\S]*?max-height:\s*var\(--mobile-sheet-cap\)/);
@@ -157,9 +161,26 @@ test("mobile More promotes guidance and groups project work before collapsed ext
   assert.match(planner, /run\("plannerTutorial"\)/);
   assert.match(planner, /appendMenuGroup\(t\("m_more_project"\)/);
   assert.match(planner, /appendMenuGroup\(t\("m_more_extras"\)[\s\S]*?collapsed: true/);
+  assert.match(planner, /exclude: \["rc", "zombies", "lava"\]/);
   assert.doesNotMatch(planner, /"shortcutsBtn"/);
   assert.match(css, /body\.compact-nav #openModelerTop\.legacy-chrome\s*\{\s*display:\s*none !important/);
   assert.match(css, /body\.compact-nav #topbar \.tb-end\s*\{\s*display:\s*none !important/);
+});
+
+test("phone planner chrome keeps readable nav labels and hides the 2D view cube", () => {
+  assert.match(css, /body\.compact-nav #mobile-nav button > span[\s\S]*?font-size:\s*10px/);
+  assert.match(css, /@media \(max-width:\s*360px\)[\s\S]*?body\.compact-nav #mobile-nav button > span\s*\{\s*font-size:\s*9px/);
+  assert.match(css, /body\.compact-nav \.plan-gizmo\s*\{[\s\S]*?display:\s*none/);
+  assert.match(planner, /m-elevation-grid/);
+  ["front", "right", "back", "left"].forEach((axis) => {
+    assert.match(planner, new RegExp('\\["' + axis + '",'));
+  });
+  assert.match(view3d, /compact \? 1\.05 : 0\.95/);
+  assert.match(view3d, /clamp\(ceilingHeight\(\) \* 0\.78, 180, 230\)/);
+  assert.match(view3d, /framedInterior = compact/);
+  assert.match(view3d, /\(!!S\.edit3D \|\| framedInterior\)/);
+  assert.match(view3d, /if \(changed\) needsRender = true/);
+  assert.match(view3d, /compact && effective === "performance"\) effective = "balanced"/);
 });
 
 test("destructive reset confirms and beginner coaching follows completed milestones", () => {
@@ -216,7 +237,9 @@ test("touch instructions use explicit translation variants", () => {
 
 test("furniture placement replaces stale selection actions with Cancel", () => {
   assert.match(planner, /function cancelPlacement\(\)[\s\S]*?S\.placeType = null;[\s\S]*?planner-place/);
-  assert.match(planner, /function ctxActions\(\)\s*\{\s*\/\*[\s\S]*?if \(S\.placeType\)[\s\S]*?t\("cancel"\)/);
+  /* Read as code: the pattern used to require the block comment that happens to
+     open this function, so reflowing that comment broke a passing test. */
+  assert.match(stripComments(planner), /function ctxActions\(\)[\s\S]*?if \(S\.placeType\)[\s\S]*?t\("cancel"\)/);
   assert.match(planner, /planner-place[\s\S]*?sync\(true\)/);
   assert.match(planner, /S\.placeType \|\| ""/);
 });

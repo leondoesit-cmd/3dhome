@@ -62,3 +62,19 @@ test("finish sketch is a catalog command only while a sketch is open", () => {
   });
   assert.equal(commandUnavailableReason("finishsketch", open, "fallback"), "");
 });
+
+/* cad_drawings.js has always known how to balloon an assembly sheet; the
+   command gate was what kept assemblies from ever reaching it. */
+test("the drawing command is offered on an assembly that has components", () => {
+  const editor = { docType: "assembly", def: { parts: [] }, assembly: { components: [] } };
+  const catalog = () => buildCommandCatalog({
+    t: (key) => key, editor, closedSketchProfile: () => null, activeParts: () => [],
+  });
+  const empty = catalog().find((command) => command.id === "drawing");
+  assert.equal(!!empty.available(), false, "an empty assembly has nothing to draw");
+  assert.equal(empty.reason(), "cmdNeedOneComponent");
+  editor.assembly.components = [{ id: "c1" }];
+  assert.equal(!!catalog().find((command) => command.id === "drawing").available(), true);
+  editor.docType = "part";
+  assert.equal(!!catalog().find((command) => command.id === "drawing").available(), true, "part drawings still work");
+});

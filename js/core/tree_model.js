@@ -112,8 +112,18 @@ export function sketchOwnership(def) {
    consumes — the same rule the kernel's "last shape wins" reduction implies,
    generalised to more than one survivor. */
 export function predictedBodies(def) {
+  /* A canonical document rolls back by history index, the way a legacy one
+     rolls back by part index below. A step at or past the bar is not standing,
+     so it is not a body — predicting it listed bodies the rolled-back model
+     does not have, and offered the eye and the rename on them. */
+  const rolledOut = new Set();
+  if (Number.isFinite(def?.rollbackIndex))
+    (def.history || []).forEach((entry, index) => {
+      if (index >= def.rollbackIndex && entry?.targetId) rolledOut.add(entry.targetId);
+    });
   const order = historyFeatureOrder(def).filter((feature) =>
-    !feature.suppressed && SOLID_FEATURES.has(feature.type) && !ANNOTATION_FEATURES.has(feature.type));
+    !feature.suppressed && !rolledOut.has(feature.id)
+    && SOLID_FEATURES.has(feature.type) && !ANNOTATION_FEATURES.has(feature.type));
   if (order.length) {
     const consumed = new Set();
     order.forEach((feature) => (feature.inputs || []).forEach((id) => consumed.add(id)));
@@ -160,6 +170,7 @@ function node(fields) {
     index: Number.isInteger(fields.index) ? fields.index : null,
     name: fields.name || "",
     detail: fields.detail || "",
+    technicalDetail: fields.technicalDetail || "",
     icon: fields.icon || "",
     state: fields.state || "",
     suppressed: !!fields.suppressed,
@@ -175,6 +186,17 @@ function node(fields) {
     children: fields.children || [],
     swatch: fields.swatch || null,
   };
+}
+
+/* Documents imported from older versions often use storage keys as visible
+   names. Keep those keys available as a tooltip, but do not make someone parse
+   feature_mte… or a duplicated numeric suffix to understand the tree. */
+export function friendlyTreeName(value, fallback = "Item") {
+  let name = String(value || "").trim();
+  if (!name) return fallback;
+  if (/^(?:feature|sketch|part|ref)[_:-][a-z0-9_.:-]+$/i.test(name)) return fallback;
+  name = name.replace(/^(.*\b(\d+))\s+\2$/, "$1");
+  return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
 function collapsedFor(state, id, fallback = false) {
@@ -289,7 +311,15 @@ function sketchDetail(sketch, def) {
   if (!sketch) return "";
   const where = sketch.referenceId || sketch.support?.semantic || sketch.support?.persistentId || sketch.plane || "";
   const status = sketch.status || "";
-  return [where, status].filter(Boolean).join(" · ");
+  const reference = (def?.references || []).concat(def?.referenceGeometry || [])
+    .find((item) => referenceId(item) === where);
+  let location = reference?.name || reference?.type || where;
+  if (/^plane:/i.test(location)) location = location.slice(6) + " plane";
+  else if (sketch.support?.persistentId && location === sketch.support.persistentId)
+    location = sketch.support.semantic || "Attached face";
+  location = friendlyTreeName(location, "Reference");
+  const state = status ? String(status).replace(/[-_]+/g, " ") : "";
+  return [location, state].filter(Boolean).join(" · ");
 }
 
 function sketchNode(sketch, options, extra = {}) {
@@ -299,8 +329,9 @@ function sketchNode(sketch, options, extra = {}) {
     targetId: sketch.id,
     historyId: extra.historyId || null,
     index: Number.isInteger(extra.index) ? extra.index : null,
-    name: sketch.name || "Sketch",
-    detail: extra.detail || sketchDetail(sketch),
+    name: friendlyTreeName(sketch.name, "Sketch"),
+    detail: extra.detail || sketchDetail(sketch, options.definition),
+    technicalDetail: [sketch.id, sketch.support?.persistentId || sketch.referenceId].filter(Boolean).join(" · "),
     icon: "newsketch",
     state: extra.state || "",
     suppressed: !!extra.suppressed,
@@ -342,8 +373,8 @@ function canonicalHistory(def, options) {
         state: status.get(entry.targetId) || entry.status || "",
         shared: !!ownership.get(entry.targetId)?.shared,
         detail: ownership.get(entry.targetId)?.shared
-          ? sketchDetail(sketch) + " · " + (options.labels?.sharedSketch || "shared by") + " " + ownership.get(entry.targetId).consumers.length
-          : sketchDetail(sketch),
+          ? sketchDetail(sketch, def) + " · " + (options.labels?.sharedSketch || "shared by") + " " + ownership.get(entry.targetId).consumers.length
+          : sketchDetail(sketch, def),
       }));
       return;
     }
@@ -354,15 +385,16 @@ function canonicalHistory(def, options) {
       .filter((id) => nested.has(id) && ownership.get(id)?.ownerId === feature.id)
       .map((id) => sketches.get(id))
       .filter(Boolean)
-      .map((sketch) => sketchNode(sketch, options, { rolled, detail: sketchDetail(sketch) }));
+      .map((sketch) => sketchNode(sketch, { ...options, definition: def }, { rolled, detail: sketchDetail(sketch, def) }));
     rows.push(node({
       id: "feature:" + feature.id,
       kind: "feature",
       targetId: feature.id,
       historyId: entry.id,
       index,
-      name: feature.name || entry.name || feature.type,
+      name: friendlyTreeName(feature.name || entry.name, spec?.label || friendlyTreeName(feature.type, "Feature")),
       detail: spec?.label || feature.type,
+      technicalDetail: feature.id,
       icon: feature.type,
       state: status.get(feature.id) || entry.status || "",
       suppressed: !!entry.suppressed,

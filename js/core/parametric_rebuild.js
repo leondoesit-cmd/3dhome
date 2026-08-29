@@ -15,18 +15,24 @@ export function rebuildParametricDocument(source, overrides = {}, options = {}) 
   const historyRun = analyzeParametricHistory(snapshot);
   const compiled = compileKernelFeatureTree(snapshot);
   const issues = [...historyRun.issues, ...compiled.issues.filter((issue) => !historyRun.issues.some((known) => stableStringify(known) === stableStringify(issue)))];
-  let core = null;
-  if (!issues.some((issue) => issue.severity === "error")) {
-    const executable = cloneDomain(snapshot);
-    executable.features = compiled.features;
-    core = rebuildDefinition(executable, overrides, options);
-    issues.push(...core.issues);
-  }
+  /* A step that cannot build fails alone.
+     Gating the kernel run on the history analysis meant one suppressed parent,
+     or one sketch deleted out from under a feature, blanked the entire model —
+     including bodies on branches that never touched the broken step. Every CAD
+     system reports the failure on its own row and regenerates the rest, so the
+     failed steps are dropped from the executable tree and the run goes ahead.
+     Whatever consumed them reports its own unavailable input in turn. */
+  const dropped = new Set(issues.filter((issue) => issue.severity === "error").flatMap(issueTargets));
+  const executable = cloneDomain(snapshot);
+  executable.features = compiled.features.filter((feature) =>
+    ![...dropped].some((id) => feature.id === id || feature.id.startsWith(id + ":")));
+  const core = rebuildDefinition(executable, overrides, options);
+  issues.push(...core.issues);
   // Bodies are reported against the *authoring* features, not the lowered ones:
   // a hole compiles into a tool plus a subtract, and only the subtract keeps the
   // authoring id. Reading the compiled tree here would list the tool as a body
   // and name it after an id the tree cannot select.
-  const bodies = core ? bodiesFromResults(snapshot, core.results) : [];
+  const bodies = bodiesFromResults(snapshot, core.results);
   const failed = new Set(issues.filter((issue) => issue.severity === "error").flatMap(issueTargets));
   const warnings = new Set(issues.filter((issue) => issue.severity === "warning").flatMap(issueTargets));
   const status = (snapshot.history || []).map((entry) => ({
@@ -35,7 +41,7 @@ export function rebuildParametricDocument(source, overrides = {}, options = {}) 
     kind: entry.kind,
     state: entry.suppressed ? "suppressed" : failed.has(entry.targetId) ? "failed" : warnings.has(entry.targetId) ? "warning" : "rebuilt",
   }));
-  const ok = !issues.some((issue) => issue.severity === "error") && (core ? core.ok : true);
+  const ok = !issues.some((issue) => issue.severity === "error") && core.ok;
   return {
     ok,
     definitionId: snapshot.id,

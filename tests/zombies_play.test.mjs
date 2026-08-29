@@ -1,9 +1,11 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { stripComments } from "./source.mjs";
 
 const game = await readFile(new URL("../js/zombies_game.js", import.meta.url), "utf8");
-const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
+const i18n = await readI18nSource();
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 
 test("pause sheet labels jump on Space and shove on X", () => {
@@ -17,7 +19,9 @@ test("pause sheet labels jump on Space and shove on X", () => {
 test("dev kit unlocks every weapon from the opening wave", () => {
   assert.match(game, /W_ORDER\.forEach\(function \(k\) \{ o\[k\] = true; \}\)/);
   assert.match(game, /W_ORDER\.forEach\(function \(k\) \{ if \(!W\[k\]\.melee\) a\[k\] = W\[k\]\.mag; \}\)/);
-  assert.match(game, /Dev builds start with the full kit/);
+  // the scavenging order is still declared — unlocking everything up front is a
+  // dev-build shortcut past it, not its deletion
+  assert.match(stripComments(game), /var W_UNLOCK = \[/);
   assert.doesNotMatch(game, /owned: \{ knife: true, pistol: true \}/);
 });
 

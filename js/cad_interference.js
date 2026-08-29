@@ -5,9 +5,11 @@ import { framePoint } from "./core/frame.js";
 
 export async function detectInterference(assemblyComponents) {
   const interferences = [];
-  for (let i = 0; i < assemblyComponents.length; i++) {
-    for (let j = i + 1; j < assemblyComponents.length; j++) {
-      const c1 = assemblyComponents[i], c2 = assemblyComponents[j];
+  // A component the user has hidden is not in the way of anything.
+  const visible = (assemblyComponents || []).filter((component) => component.visible !== false);
+  for (let i = 0; i < visible.length; i++) {
+    for (let j = i + 1; j < visible.length; j++) {
+      const c1 = visible[i], c2 = visible[j];
       const a = componentBounds(c1), b = componentBounds(c2);
       const overlap = a && b ? intersectionBounds(a, b) : null;
       if (c1.brep?.shape && c2.brep?.shape) {
@@ -34,6 +36,14 @@ export async function detectInterference(assemblyComponents) {
 }
 
 export function componentBounds(component) {
+  /* Bounds the caller has already measured win: the editor knows every part
+     kind and applies the component's rotation, where the fallback below knows
+     three primitive kinds and only translates. A measured `null` is an answer
+     too — it means the caller looked and found nothing to measure, as when
+     every body in the component is suppressed. Treating that as "no answer"
+     and re-measuring `def.parts` here put the suppressed geometry back, and
+     reported it clashing with its neighbours. */
+  if (component.bounds !== undefined) return component.bounds;
   const parts = component.def?.parts || component.parts || [];
   if (!parts.length) return null;
   const out={x0:Infinity,y0:Infinity,z0:Infinity,x1:-Infinity,y1:-Infinity,z1:-Infinity};

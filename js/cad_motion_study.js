@@ -1,5 +1,7 @@
 // Motion Study Timeline & Motor Simulation for Assemblies.
 
+import { eulerMatrix, setRotation } from "./cad_mate_model.js";
+
 export function createMotionStudy(assembly, name = "MotionStudy1") {
   if (!assembly.motionStudies) assembly.motionStudies = [];
   const ms = {
@@ -35,6 +37,11 @@ export function evaluateMotionStudy(assembly, motionStudyId, timeInSeconds) {
     if (motor.type === "rotary") {
       const degPerSec = motor.rpm * 6;
       comp.transform.ry = (degPerSec * timeInSeconds) % 360;
+      /* The quaternion is the orientation everything else reads (see the note
+         at the head of cad_mate_model.js). A motor that moved only the angle
+         left it describing where the component used to be, and only the next
+         solve would notice. */
+      setRotation(comp.transform, eulerMatrix(comp.transform));
     }
   }
 }

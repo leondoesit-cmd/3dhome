@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { stripComments } from "./source.mjs";
 
 const modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
 const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
@@ -61,7 +62,13 @@ test("a curved face picks and highlights as one surface, not one tessellated fac
   assert.match(modeler, /cadFaceRanges/);
   assert.match(modeler, /:face:mesh:/);
   assert.match(modeler, /analyticCurvedFace\(containedFace.descriptor\)/);
-  assert.match(modeler, /Kernel ranges are the face/);
+  /* Kernel face ranges are returned before the mesh grouping is consulted;
+     falling through would paint an infinite cylinder. Asserted as an order in
+     the code, not as the sentence that explains it. */
+  const ranges = stripComments(modeler);
+  const wanted = ranges.indexOf("if (wanted) {"), grouped = ranges.indexOf("smoothFacesForMesh(mesh)", wanted);
+  assert.ok(wanted !== -1 && grouped !== -1 && wanted < grouped,
+    "the kernel ranges return before the tessellation fallback");
   assert.match(modeler, /alongSpan && \(along < alongSpan.min - band/);
   assert.match(modeler, /isCylinderTessellationSeam\(edgeEntry, roundWalls\)/);
   assert.doesNotMatch(modeler, /seamCurve !== "circle"/);

@@ -6,7 +6,7 @@
 // its own build() into a small offscreen WebGL scene, lit and auto-framed, so
 // the icon IS the model. Same builder as the 3D view, so a model can never
 // disagree with its icon.
-import * as THREE from "three";
+import { THREE, loadThree, threeLoaded } from "./three_lazy.js";
 import { createRenderer, ready, LUX } from "./gpu.js";
 import { FURN, buildItem } from "./furniture.js";
 import { clearGroup } from "./primitives.js";
@@ -14,7 +14,12 @@ import { clearGroup } from "./primitives.js";
 const SIZE = 192; // render resolution; tiles display it at ~48px
 // front-right three-quarter view (models face +z): reads depth without hiding
 // the front, and stays identical for every entry so the grid looks like a set
-const DIR = new THREE.Vector3(0.58, 0.5, 0.86).normalize();
+// Built on first use, not at module load: three is late-bound (three_lazy.js)
+// and THREE.Vector3 does not exist until something has asked for a scene.
+let DIR = null;
+function dir() {
+  return (DIR ||= new THREE.Vector3(0.58, 0.5, 0.86).normalize());
+}
 
 const cache = new Map(); // type -> data URL (or "" when the model won't render)
 let GL = null,
@@ -117,6 +122,22 @@ function buildGL(r) {
 function gl() {
   if (GL) return GL;
   if (glDead || glPending) return null;
+  /* three is not on the boot path any more, so the catalog panel can render
+     before the renderer library even exists. Take the same road as the async
+     backend below: reserve the pending flag, fetch three, and re-announce
+     "thumbsReady" so the flat art drawn in the meantime is replaced. */
+  if (!threeLoaded()) {
+    glPending = true;
+    loadThree().then(function () {
+      glPending = false;
+      gl();
+      window.dispatchEvent(new CustomEvent("thumbsReady"));
+    }).catch(function () {
+      glPending = false;
+      glDead = true;
+    });
+    return null;
+  }
   glPending = true;
   try {
     const canvas = document.createElement("canvas");
@@ -156,7 +177,7 @@ function gl() {
 function frame(cam, box) {
   const c = box.getCenter(new THREE.Vector3()),
     radius = box.getSize(new THREE.Vector3()).length() || 100;
-  cam.position.copy(c).addScaledVector(DIR, radius + 1000);
+  cam.position.copy(c).addScaledVector(dir(), radius + 1000);
   cam.up.set(0, 1, 0);
   cam.lookAt(c);
   cam.updateMatrixWorld();

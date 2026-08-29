@@ -1,7 +1,7 @@
 // Cabinet mesh builder — the only cabinet module that talks to Three.js.
 // layoutCab / BOM / checks stay in cabinet.js so Node tests can run them
 // without a WebGL renderer.
-import * as THREE from "three";
+import { THREE } from "./three_lazy.js";
 import { CAB, TOP, STEEL, DARK, GLASS, WOOD, FABRIC } from "./state.js";
 import { box, cyl, sph, applyTextureToMaterial } from "./primitives.js";
 import { layoutCab, HW, FINISH } from "./cabinet.js";

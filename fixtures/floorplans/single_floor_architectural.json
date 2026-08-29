@@ -1,0 +1,703 @@
+{
+  "version": 1,
+  "name": "Modern Single Floor Residence",
+  "description": "3-Bedroom Contemporary Single Floor House with Open Living/Kitchen, 2 Baths, and Terrace",
+  "interiorDims": true,
+  "showDims": true,
+  "wallTypes": [
+    {
+      "id": "exterior",
+      "name": "Exterior 20cm",
+      "thickness": 20,
+      "color": "#444"
+    },
+    {
+      "id": "interior",
+      "name": "Interior 10cm",
+      "thickness": 10,
+      "color": "#888"
+    },
+    {
+      "id": "railing",
+      "name": "Terrace Railing",
+      "thickness": 12,
+      "color": "#555"
+    }
+  ],
+  "nodes": [
+    {
+      "x": 0,
+      "z": 0
+    },
+    {
+      "x": 500,
+      "z": 0
+    },
+    {
+      "x": 850,
+      "z": 0
+    },
+    {
+      "x": 1200,
+      "z": 0
+    },
+    {
+      "x": 1200,
+      "z": 450
+    },
+    {
+      "x": 1200,
+      "z": 650
+    },
+    {
+      "x": 1200,
+      "z": 900
+    },
+    {
+      "x": 850,
+      "z": 900
+    },
+    {
+      "x": 600,
+      "z": 900
+    },
+    {
+      "x": 0,
+      "z": 900
+    },
+    {
+      "x": 0,
+      "z": 500
+    },
+    {
+      "x": 500,
+      "z": 500
+    },
+    {
+      "x": 850,
+      "z": 500
+    },
+    {
+      "x": 850,
+      "z": 300
+    },
+    {
+      "x": 500,
+      "z": 300
+    },
+    {
+      "x": 950,
+      "z": 500
+    },
+    {
+      "x": 950,
+      "z": 650
+    },
+    {
+      "x": 850,
+      "z": 650
+    },
+    {
+      "x": 0,
+      "z": 1150
+    },
+    {
+      "x": 600,
+      "z": 1150
+    }
+  ],
+  "walls": [
+    {
+      "id": 1,
+      "a": 0,
+      "b": 1,
+      "thickness": 20,
+      "height": 280,
+      "wallTypeId": "exterior"
+    },
+    {
+      "id": 2,
+      "a": 1,
+      "b": 2,
+      "thickness": 20,
+      "height": 280,
+      "wallTypeId": "exterior"
+    },
+    {
+      "id": 3,
+      "a": 2,
+      "b": 3,
+      "thickness": 20,
+      "height": 280,
+      "wallTypeId": "exterior"
+    },
+    {
+      "id": 4,
+      "a": 3,
+      "b": 4,
+      "thickness": 20,
+      "height": 280,
+      "wallTypeId": "exterior"
+    },
+    {
+      "id": 5,
+      "a": 4,
+      "b": 5,
+      "thickness": 20,
+      "height": 280,
+      "wallTypeId": "exterior"
+    },
+    {
+      "id": 6,
+      "a": 5,
+      "b": 6,
+      "thickness": 20,
+      "height": 280,
+      "wallTypeId": "exterior"
+    },
+    {
+      "id": 7,
+      "a": 6,
+      "b": 7,
+      "thickness": 20,
+      "height": 280,
+      "wallTypeId": "exterior"
+    },
+    {
+      "id": 8,
+      "a": 7,
+      "b": 8,
+      "thickness": 20,
+      "height": 280,
+      "wallTypeId": "exterior"
+    },
+    {
+      "id": 9,
+      "a": 8,
+      "b": 9,
+      "thickness": 20,
+      "height": 280,
+      "wallTypeId": "exterior"
+    },
+    {
+      "id": 10,
+      "a": 9,
+      "b": 10,
+      "thickness": 20,
+      "height": 280,
+      "wallTypeId": "exterior"
+    },
+    {
+      "id": 11,
+      "a": 10,
+      "b": 0,
+      "thickness": 20,
+      "height": 280,
+      "wallTypeId": "exterior"
+    },
+    {
+      "id": 12,
+      "a": 1,
+      "b": 14,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    },
+    {
+      "id": 13,
+      "a": 14,
+      "b": 11,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    },
+    {
+      "id": 14,
+      "a": 14,
+      "b": 13,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    },
+    {
+      "id": 15,
+      "a": 2,
+      "b": 13,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    },
+    {
+      "id": 16,
+      "a": 11,
+      "b": 12,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    },
+    {
+      "id": 17,
+      "a": 13,
+      "b": 12,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    },
+    {
+      "id": 18,
+      "a": 15,
+      "b": 4,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    },
+    {
+      "id": 19,
+      "a": 12,
+      "b": 15,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    },
+    {
+      "id": 20,
+      "a": 16,
+      "b": 5,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    },
+    {
+      "id": 21,
+      "a": 12,
+      "b": 17,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    },
+    {
+      "id": 22,
+      "a": 17,
+      "b": 6,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    },
+    {
+      "id": 23,
+      "a": 17,
+      "b": 7,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    },
+    {
+      "id": 24,
+      "a": 9,
+      "b": 18,
+      "thickness": 12,
+      "height": 90,
+      "wallTypeId": "generic",
+      "kind": "railing"
+    },
+    {
+      "id": 25,
+      "a": 18,
+      "b": 19,
+      "thickness": 12,
+      "height": 90,
+      "wallTypeId": "generic",
+      "kind": "railing"
+    },
+    {
+      "id": 26,
+      "a": 19,
+      "b": 8,
+      "thickness": 12,
+      "height": 90,
+      "wallTypeId": "generic",
+      "kind": "railing"
+    },
+    {
+      "id": 27,
+      "a": 10,
+      "b": 11,
+      "thickness": 10,
+      "height": 280,
+      "wallTypeId": "interior"
+    }
+  ],
+  "openings": [
+    {
+      "id": 101,
+      "type": "door",
+      "wall": 11,
+      "s": 250,
+      "width": 95,
+      "height": 210,
+      "sill": 0,
+      "swingDir": "L_IN"
+    },
+    {
+      "id": 102,
+      "type": "door",
+      "wall": 9,
+      "s": 300,
+      "width": 240,
+      "height": 220,
+      "sill": 0,
+      "isSliding": true
+    },
+    {
+      "id": 103,
+      "type": "door",
+      "wall": 17,
+      "s": 100,
+      "width": 85,
+      "height": 205,
+      "sill": 0,
+      "swingDir": "R_IN"
+    },
+    {
+      "id": 104,
+      "type": "door",
+      "wall": 19,
+      "s": 50,
+      "width": 75,
+      "height": 200,
+      "sill": 0,
+      "swingDir": "L_IN"
+    },
+    {
+      "id": 105,
+      "type": "door",
+      "wall": 21,
+      "s": 75,
+      "width": 75,
+      "height": 200,
+      "sill": 0,
+      "swingDir": "L_IN"
+    },
+    {
+      "id": 106,
+      "type": "door",
+      "wall": 23,
+      "s": 80,
+      "width": 85,
+      "height": 205,
+      "sill": 0,
+      "swingDir": "R_IN"
+    },
+    {
+      "id": 107,
+      "type": "door",
+      "wall": 14,
+      "s": 100,
+      "width": 85,
+      "height": 205,
+      "sill": 0,
+      "swingDir": "L_IN"
+    },
+    {
+      "id": 108,
+      "type": "passage",
+      "wall": 16,
+      "s": 175,
+      "width": 140,
+      "height": 220,
+      "sill": 0
+    },
+    {
+      "id": 201,
+      "type": "window",
+      "wall": 1,
+      "s": 250,
+      "width": 140,
+      "height": 120,
+      "sill": 90
+    },
+    {
+      "id": 202,
+      "type": "window",
+      "wall": 2,
+      "s": 175,
+      "width": 120,
+      "height": 140,
+      "sill": 80
+    },
+    {
+      "id": 203,
+      "type": "window",
+      "wall": 3,
+      "s": 175,
+      "width": 150,
+      "height": 140,
+      "sill": 80
+    },
+    {
+      "id": 204,
+      "type": "window",
+      "wall": 4,
+      "s": 225,
+      "width": 120,
+      "height": 140,
+      "sill": 80
+    },
+    {
+      "id": 205,
+      "type": "window",
+      "wall": 6,
+      "s": 125,
+      "width": 120,
+      "height": 140,
+      "sill": 80
+    },
+    {
+      "id": 206,
+      "type": "window",
+      "wall": 7,
+      "s": 175,
+      "width": 120,
+      "height": 140,
+      "sill": 80
+    },
+    {
+      "id": 207,
+      "type": "window",
+      "wall": 10,
+      "s": 200,
+      "width": 180,
+      "height": 160,
+      "sill": 60
+    },
+    {
+      "id": 109,
+      "type": "passage",
+      "wall": 27,
+      "s": 250,
+      "width": 140,
+      "height": 220,
+      "sill": 0
+    }
+  ],
+  "roomMeta": {
+    "Living Room": {
+      "floor": "wood_herringbone",
+      "ceil": 280
+    },
+    "Kitchen": {
+      "floor": "tile_marble_white",
+      "ceil": 280
+    },
+    "Master Bedroom": {
+      "floor": "wood_light",
+      "ceil": 280
+    },
+    "Ensuite Bathroom": {
+      "floor": "tile_slate_grey",
+      "ceil": 260
+    },
+    "Common Bathroom": {
+      "floor": "tile_blue",
+      "ceil": 260
+    },
+    "Bedroom 2": {
+      "floor": "wood_light",
+      "ceil": 280
+    },
+    "Bedroom 3 / Office": {
+      "floor": "wood_light",
+      "ceil": 280
+    },
+    "Hallway": {
+      "floor": "wood_herringbone",
+      "ceil": 280
+    },
+    "Terrace": {
+      "floor": "deck_wood",
+      "ceil": 0
+    }
+  },
+  "items": [
+    {
+      "id": 301,
+      "type": "sofa",
+      "x": 250,
+      "z": 700,
+      "rot": 0,
+      "w": 220,
+      "d": 90,
+      "h": 85
+    },
+    {
+      "id": 302,
+      "type": "coffee",
+      "x": 250,
+      "z": 600,
+      "rot": 0,
+      "w": 110,
+      "d": 60,
+      "h": 45
+    },
+    {
+      "id": 303,
+      "type": "tv",
+      "x": 250,
+      "z": 520,
+      "rot": 180,
+      "w": 140,
+      "d": 30,
+      "h": 80
+    },
+    {
+      "id": 304,
+      "type": "table",
+      "x": 400,
+      "z": 700,
+      "rot": 90,
+      "w": 160,
+      "d": 90,
+      "h": 75
+    },
+    {
+      "id": 305,
+      "type": "base",
+      "x": 60,
+      "z": 100,
+      "rot": 90,
+      "w": 200,
+      "d": 60,
+      "h": 90
+    },
+    {
+      "id": 306,
+      "type": "sink",
+      "x": 60,
+      "z": 250,
+      "rot": 90,
+      "w": 90,
+      "d": 60,
+      "h": 90
+    },
+    {
+      "id": 307,
+      "type": "fridge",
+      "x": 60,
+      "z": 400,
+      "rot": 90,
+      "w": 80,
+      "d": 75,
+      "h": 185
+    },
+    {
+      "id": 308,
+      "type": "bed",
+      "x": 1050,
+      "z": 150,
+      "rot": 0,
+      "w": 180,
+      "d": 200,
+      "h": 100
+    },
+    {
+      "id": 309,
+      "type": "nightstand",
+      "x": 920,
+      "z": 100,
+      "rot": 0,
+      "w": 50,
+      "d": 45,
+      "h": 55
+    },
+    {
+      "id": 310,
+      "type": "nightstand",
+      "x": 1160,
+      "z": 100,
+      "rot": 0,
+      "w": 50,
+      "d": 45,
+      "h": 55
+    },
+    {
+      "id": 311,
+      "type": "bathtub",
+      "x": 1120,
+      "z": 550,
+      "rot": 270,
+      "w": 160,
+      "d": 75,
+      "h": 60
+    },
+    {
+      "id": 312,
+      "type": "toilet",
+      "x": 990,
+      "z": 550,
+      "rot": 90,
+      "w": 50,
+      "d": 70,
+      "h": 80
+    },
+    {
+      "id": 313,
+      "type": "toilet",
+      "x": 990,
+      "z": 700,
+      "rot": 90,
+      "w": 50,
+      "d": 70,
+      "h": 80
+    },
+    {
+      "id": 314,
+      "type": "vanity",
+      "x": 1120,
+      "z": 700,
+      "rot": 270,
+      "w": 65,
+      "d": 50,
+      "h": 85
+    },
+    {
+      "id": 315,
+      "type": "bed",
+      "x": 1050,
+      "z": 800,
+      "rot": 180,
+      "w": 160,
+      "d": 200,
+      "h": 90
+    },
+    {
+      "id": 316,
+      "type": "desk",
+      "x": 900,
+      "z": 850,
+      "rot": 0,
+      "w": 120,
+      "d": 60,
+      "h": 75
+    },
+    {
+      "id": 317,
+      "type": "desk",
+      "x": 750,
+      "z": 100,
+      "rot": 0,
+      "w": 140,
+      "d": 70,
+      "h": 75
+    },
+    {
+      "id": 318,
+      "type": "bookshelf",
+      "x": 600,
+      "z": 100,
+      "rot": 0,
+      "w": 100,
+      "d": 40,
+      "h": 190
+    }
+  ]
+}

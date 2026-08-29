@@ -28,7 +28,12 @@ function buildRow(node, depth, deps, handlers, state) {
   if (node.targetId) row.dataset.historyTarget = node.targetId;
   row.setAttribute("role", "treeitem");
   row.setAttribute("aria-level", String(depth + 1));
-  row.style.setProperty("--md-tree-depth", String(depth));
+  row.dataset.depth = String(depth);
+  row.style.setProperty("--md-tree-indent", (depth * 13) + "px");
+  if (depth > 1) {
+    row.classList.add("md-tree-nested");
+    row.style.setProperty("--md-tree-branch-offset", 10 + (depth - 1) * 13 + "px");
+  }
   if (node.children.length) row.setAttribute("aria-expanded", String(!node.collapsed));
   row.tabIndex = state.activeId === node.id ? 0 : -1;
 
@@ -56,6 +61,7 @@ function buildRow(node, depth, deps, handlers, state) {
   const label = deps.el("span", "nm");
   const name = deps.el("b", "md-tree-name");
   name.textContent = node.name;
+  if (node.technicalDetail) name.title = node.technicalDetail;
   label.appendChild(name);
   if (node.detail) {
     const detail = deps.el("small", "");
@@ -67,13 +73,16 @@ function buildRow(node, depth, deps, handlers, state) {
   if (node.error) { row.title = node.error; row.appendChild(deps.el("i", "ph ph-warning md-tree-warn")); }
 
   const actions = deps.el("span", "md-history-actions");
-  // The same eye means different things on different rows: on a feature it
-  // stops the step building, on a body it only takes it out of the drawn scene.
-  // Labelling both "Suppress" would promise the wrong one.
+  // The same eye means different things on different rows: on a feature or a
+  // mate it stops the thing acting, on a body or a component it only takes it
+  // out of the drawn scene. Labelling both "Suppress" would promise the wrong
+  // one.
   if (node.can.suppress) actions.appendChild(action(deps,
     '<i class="ph ' + (node.suppressed ? "ph-eye-slash" : "ph-eye") + '"></i>',
-    node.kind === "body"
-      ? deps.t(node.suppressed ? "treeShow" : "treeHide")
+    node.kind === "body" || node.kind === "component"
+      ? deps.t(node.suppressed
+        ? (node.kind === "component" ? "treeShowComponent" : "treeShow")
+        : (node.kind === "component" ? "treeHideComponent" : "treeHide"))
       : deps.t(node.suppressed ? "unsuppress" : "suppress"),
     (event) => { event.stopPropagation(); handlers.onSuppress(node); }));
   if (node.can.rollback) actions.appendChild(action(deps,
@@ -256,6 +265,11 @@ function wireKeyboard(container, model, deps, handlers, state) {
     } else if (event.key === "Delete" || event.key === "Backspace") {
       if (!current.can.remove) return;
       event.preventDefault();
+      // The tree has handled the key. Without this the same keydown reaches the
+      // editor's window listener, which deletes the current selection on top —
+      // and selecting a mate row selects both components it holds, so deleting
+      // one mate took two parts with it.
+      event.stopPropagation();
       handlers.onRemove(current);
     }
   });
@@ -282,12 +296,18 @@ export function renderTreeModel(host, model, deps, handlers, state = {}) {
   container.setAttribute("role", "tree");
   container.dataset.mode = model.mode;
 
+  let rollbackEmitted = false;
+  const emitRollback = () => {
+    if (rollbackEmitted) return;
+    rollbackEmitted = true;
+    container.appendChild(rollbackBar(deps, handlers));
+  };
   const emit = (nodes, depth) => {
     nodes.forEach((node) => {
       // The rollback bar belongs *between* history rows, so it is emitted from
       // the same walk rather than appended after it — a folder or a nested
       // sketch must not push it out of place.
-      if (node.index != null && node.index === model.rollbackAt && depth <= 1) container.appendChild(rollbackBar(deps, handlers));
+      if (node.index != null && node.index === model.rollbackAt && depth <= 1) emitRollback();
       container.appendChild(buildRow(node, depth, deps, handlers, state));
       if (!node.collapsed && node.children.length) emit(node.children, depth + 1);
     });
@@ -296,7 +316,7 @@ export function renderTreeModel(host, model, deps, handlers, state = {}) {
     container.appendChild(buildRow(section, 0, deps, handlers, state));
     if (!section.collapsed && section.children.length) emit(section.children, 1);
     if (section.id === "section:history" && !section.collapsed && model.rollbackAt >= model.historyCount) {
-      container.appendChild(rollbackBar(deps, handlers));
+      emitRollback();
     }
   });
 

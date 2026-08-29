@@ -49,6 +49,66 @@ test("Planner mobile destinations stay labelled and switch sheets in one tap", o
     assert.equal(more.paged, false, "More scrolls instead of hiding groups behind anonymous pages");
     assert.equal(more.topModeler, "none", "Model Editor is demoted from the permanent topbar");
     assert.equal(more.topMoreRects, 0, "there is only one mobile More destination");
+
+    // The View slot is a switcher: one tap flips Plan <-> 3D rather than
+    // spending a tap opening a list to say which pane you want.
+    const toggled = await page.eval(async () => {
+      const before = document.getElementById("center-canvas").className;
+      document.querySelector('[data-mnav="view"]').click();
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      return {
+        before,
+        after: document.getElementById("center-canvas").className,
+        sheetOpen: document.getElementById("m-sheet").classList.contains("on"),
+        label: document.querySelector('[data-mnav="view"] span').textContent.trim(),
+      };
+    });
+    assert.ok(toggled.before.includes("max-view-2d"), "a phone starts on the plan");
+    assert.ok(toggled.after.includes("max-view-3d"), "one tap on View switches the pane");
+    assert.equal(toggled.sheetOpen, false, "the switcher does not spend a sheet on the common case");
+    assert.equal(toggled.label, "3D", "the slot names the pane you are now in");
+
+    // Split and the four elevations stay reachable behind a press-and-hold.
+    await page.eval(async () => {
+      const view = document.querySelector('[data-mnav="view"]');
+      view.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 560));
+      view.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+      view.click();
+    });
+    await page.eval(() => new Promise((resolve) => setTimeout(resolve, 120)));
+    const views = await page.eval(() => [...document.querySelectorAll("#m-sheet .m-elevation-grid button")]
+      .map((button) => button.getAttribute("aria-label")));
+    assert.deepEqual(views, ["Front", "Right", "Back", "Left"], "hiding the canvas gizmo does not remove elevations");
+    await page.eval(() => document.querySelector('#m-sheet .m-elevation-grid button[aria-label="Front"]').click());
+    const elevation = await page.eval(async () => ({
+      axis: (await import("./js/state.js")).S.viewAxis,
+      sheetOpen: document.getElementById("m-sheet").classList.contains("on"),
+    }));
+    assert.equal(elevation.axis, "front", "the mobile elevation command changes the 2D projection");
+    assert.equal(elevation.sheetOpen, false, "the plan is visible immediately after choosing an elevation");
+
+    /* The hold is a pointer gesture, so without a keyboard equivalent the same
+       menu is unreachable without a touchscreen: Enter on the slot only ever
+       toggles the pane. Up and the context-menu key both stand in for it. */
+    const byKey = await page.eval(async () => {
+      const view = document.querySelector('[data-mnav="view"]');
+      const open = async (event) => {
+        view.dispatchEvent(event);
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        const on = document.getElementById("m-sheet").classList.contains("on");
+        const grid = !!document.querySelector("#m-sheet .m-elevation-grid");
+        document.querySelector("#m-sheet .m-sheet-x")?.click();
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        return on && grid;
+      };
+      return {
+        arrowUp: await open(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true })),
+        contextMenu: await open(new MouseEvent("contextmenu", { bubbles: true, cancelable: true })),
+      };
+    });
+    assert.equal(byKey.arrowUp, true, "Up opens the full View menu from the keyboard");
+    assert.equal(byKey.contextMenu, true, "the context-menu key opens it too");
   } finally {
     await page.close();
   }
@@ -424,7 +484,7 @@ test("mobile selection identity lives in the top row above translucent Propertie
       assert.equal(layout.textAlign, "center", name + ": name alignment");
       assert.equal(layout.localDisplay, "none", name + ": Properties does not repeat the title");
       assert.notEqual(layout.panelBlur, "none", name + ": Properties has a real glass blur");
-      assert.ok(layout.panelAlpha < 0.6, name + ": the plan remains clearly visible through Properties " + JSON.stringify(layout));
+      assert.ok(layout.panelAlpha >= 0.75 && layout.panelAlpha <= 0.95, name + ": Properties has a readable translucent layer " + JSON.stringify(layout));
       assert.notEqual(layout.panelBackground, layout.inputBackground, name + ": fields retain a distinct readable backing");
       assert.deepEqual(layout.auxiliaryDisplays, ["none", "none", "none", "none"], name + ": no empty accordion stripes remain");
     }

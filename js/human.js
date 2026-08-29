@@ -2,7 +2,7 @@
  * 🧬 Advanced Anthropomorphic Generation Engine (AAGE)
  */
 
-import * as THREE from "three";
+import { THREE } from "./three_lazy.js";
 import { SKIN, SHIRT, PANTS, HAIR } from "./state.js";
 import { box, cyl, sph } from "./primitives.js";
 

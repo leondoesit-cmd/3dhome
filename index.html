@@ -80,8 +80,9 @@
          Rapier, and cannon-es all live locally — see vendor/README.md for versions and
          how to refresh them. -->
     <link rel="stylesheet" href="vendor/fonts/fonts.css" />
-    <!-- Phosphor regular is the first-paint fallback. Five independent SVG
-         libraries are bundled in js/icon_theme_assets.js and rendered locally. -->
+    <!-- Phosphor regular is the first-paint fallback. Ten independent SVG icon
+         languages live one module per theme in js/icon_themes/ and are rendered
+         locally; js/icon_theme_assets.js loads only the selected one. -->
     <link rel="stylesheet" href="vendor/phosphor/style.css?v=icon-svg-1" />
     <!-- Leaflet: map picker for the real-world site integration (js/ui_site.js).
          defer — only touched when the site map picker opens (guarded in
@@ -1591,6 +1592,17 @@
                     <option value="concrete" data-i18n="floor_concrete">בטון</option>
                   </optgroup>
                 </select>
+                <button
+                  type="button"
+                  id="r_floor_pick"
+                  class="r-floor-pick"
+                  data-i18n-title="floor_pick_title"
+                  data-i18n-aria="floor_pick_title"
+                  aria-label="בחירת ריצוף לפי מראה"
+                  title="בחירת ריצוף לפי מראה"
+                >
+                  <i class="ph ph-paint-roller"></i>
+                </button>
               </label>
               <label id="r_floor_scale_box" style="display:none;">
                 <span data-i18n="floor_scale">גודל ריצוף (ס"מ)</span>

@@ -336,7 +336,16 @@ onLangChange(function () {
 // scene data BEFORE the 3D render loop starts (its first frame runs synchronously)
 defaultScene();
 rebuildProject(S, FURN);
-init3D();
+/* init3D() used to run HERE, which put three.js (3.5 MB) on the synchronous
+   boot path: nothing below could run until the renderer had been fetched,
+   parsed and evaluated. It is now started by maybeInit3D() once the 3D pane
+   actually has a size on screen — immediately after first layout on the
+   desktop split, and never at all in a phone session that stays on the plan.
+   Ordering that used to be expressed as "after init3D" is unaffected: every
+   view3d entry point no-ops while has3D() is false (see js/view3d.js), and the
+   one boot-order comment that named init3D (initFriends, below) only needs the
+   scene when a remote avatar arrives — players.ensurePlayer() already bails
+   out on a missing scene. */
 initInteraction();
 initUI();
 initToolSearch();
@@ -362,14 +371,50 @@ initPersistence({
 });
 window.__home3dBooted = true;
 
+/* Bring the 3D renderer up the first time its pane is really on screen.
+   Cheap and idempotent: init3D() returns its own in-flight promise, and a
+   zero-sized pane (phone on "plan", or either view maximized away) means the
+   user is not looking at 3D, so three is never even downloaded. */
+var init3DQueued = false;
+function maybeInit3D() {
+  if (has3D() || init3DQueued) return;
+  init3DQueued = true;
+  /* On the next TASK, not this one — and a timer rather than a frame, because
+     requestAnimationFrame does not fire at all in a hidden tab and a probe
+     that never runs would strand `init3DQueued` and leave 3D permanently dead.
+     The wait exists because boot lays the panes out in several passes:
+     setSplitDirection() runs long before applyPhoneView() decides that a phone
+     starts single-pane, so a size read taken mid-script says "the 3D pane is
+     658px wide" on a device that is about to hide it entirely. That one beat
+     of patience is what makes the phone case honest — a session that starts on
+     the plan never downloads the renderer at all. */
+  setTimeout(function () {
+    init3DQueued = false;
+    if (has3D()) return;
+    var L = document.getElementById("view-3d");
+    if (!L || !L.clientWidth || !L.clientHeight) return;
+    init3D().then(function (ok) {
+      if (!ok) return;
+      setSize(L.clientWidth, L.clientHeight);
+      frameView();
+    });
+  }, 0);
+}
+
 const resizeAll = throttle(() => {
-  if (has3D) {
+  maybeInit3D();
+  if (has3D()) {
     var L = document.getElementById("view-3d");
     if (L) setSize(L.clientWidth, L.clientHeight);
   }
   sizeCanvas();
   render2D();
 });
+/* The vertical-span probe (furniture_api.baseVSpan) answers "floor-standing"
+   while three is still on the way and asks us back once it can measure the
+   real model. Repaint so stack heights, elevation bands and marker clearances
+   settle on the true numbers. */
+window.addEventListener("vspan:ready", function () { render2D(); });
 window.addEventListener("resize", resizeAll);
 if (window.ResizeObserver) {
   var ro = new ResizeObserver(resizeAll);
@@ -409,7 +454,8 @@ var SPLIT_KEY = "home3d_viewsplit", // persisted 3D pane share %
 // resize both surfaces directly here rather than via the throttled `resizeAll`,
 // so the split tracks the drag frame-for-frame without a rAF lag.
 function syncSurfaces() {
-  if (has3D && view3d) setSize(view3d.clientWidth, view3d.clientHeight);
+  maybeInit3D();
+  if (has3D() && view3d) setSize(view3d.clientWidth, view3d.clientHeight);
   sizeCanvas();
   render2D();
 }
@@ -769,7 +815,8 @@ render2D();
 fillProps();
 syncEnvUI();
 refreshTree(); // populates the tree (if open) + the live cost estimate
-if (has3D) {
+maybeInit3D();
+if (has3D()) {
   resizeAll();
   frameView();
 }

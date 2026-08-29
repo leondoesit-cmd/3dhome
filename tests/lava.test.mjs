@@ -1,3 +1,4 @@
+import { readI18nSource } from "./helpers/i18n_source.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -131,7 +132,7 @@ const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8"
 const game = await readFile(new URL("../js/lava_game.js", import.meta.url), "utf8");
 const world = await readFile(new URL("../js/lava_world.js", import.meta.url), "utf8");
 const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
-const i18n = await readFile(new URL("../js/i18n.js", import.meta.url), "utf8");
+const i18n = await readI18nSource();
 
 test("the mode is wired like the other in-home games", () => {
   assert.match(html, /data-act="lava"/);

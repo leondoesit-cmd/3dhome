@@ -1,5 +1,5 @@
 // Furniture runtime API: build, vertical spans, item factory, default scene.
-import * as THREE from "three";
+import { THREE, loadThree, threeLoaded } from "./three_lazy.js";
 import { S, uid, fin, MOUNTH, WALL_H, WALL_T } from "./state.js";
 import { setSkin } from "./primitives.js";
 import { FURN, variantOf } from "./furniture_models.js";
@@ -95,6 +95,19 @@ function baseVSpan(it) {
     it.type + ":" + it.w + "x" + it.d + "x" + it.h + ":" + (it.variant || "");
   var hit = vSpanCache.get(key);
   if (hit) return hit;
+  /* three is late-bound, and this probe is on the 2D path (stack labels,
+     elevations, marker clearances) — it can be asked before anything has
+     wanted a scene. Answer with the floor-standing fallback WITHOUT caching
+     it, fetch three, and drop the cache when it lands so the next paint gets
+     the real bounding box. Caching the fallback would pin a wall-hung toilet
+     to the floor for the rest of the session. */
+  if (!threeLoaded()) {
+    loadThree().then(function () {
+      clearVSpanCache();
+      window.dispatchEvent(new CustomEvent("vspan:ready"));
+    }, function () {});
+    return { lo: 0, hi: (it && it.h) || 0 };
+  }
   var span = null;
   try {
     var g = new THREE.Group();
@@ -133,15 +146,15 @@ export function lampColor(it) {
 }
 
 export function mkItem(type, x, z, rot) {
-  var f = FURN[type];
+  var f = FURN[type] || { w: 60, d: 60, h: 80 };
   return {
     id: uid(),
     type: type,
     x: x,
     z: z,
-    w: f.w,
-    d: f.d,
-    h: f.h,
+    w: f.w || 60,
+    d: f.d || 60,
+    h: f.h || 80,
     rot: rot || 0,
   };
 }

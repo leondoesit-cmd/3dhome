@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { ICON_SEMANTIC_NAMES, ICON_THEME_ASSETS } from "../js/icon_theme_assets.js";
+import { ICON_SEMANTIC_NAMES, ICON_THEME_IDS, ICON_THEME_ASSETS, loadIconTheme } from "../js/icon_theme_assets.js";
+
+// Each language is now its own module (js/icon_themes/<id>.js) so a browser
+// downloads only the one it draws with; loadIconTheme() fills ICON_THEME_ASSETS.
+// These tests want all ten at once, so they ask for all ten.
+await Promise.all(ICON_THEME_IDS.map(loadIconTheme));
 
 const root = new URL("../", import.meta.url);
 const iconSettings = await readFile(new URL("js/icon_settings.js", root), "utf8");

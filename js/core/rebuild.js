@@ -108,7 +108,10 @@ function sketchDiagnostics(definition, parameters) {
         issues.push({ severity: "error", code: "over-constrained-sketch", sketchId: sketch.id, constraints: result.conflicts || [], message: (sketch.name || sketch.id) + " is over-constrained" });
       else {
         const dof = Number(result.degreesOfFreedom ?? result.dof);
-        if (dof > 0) issues.push({ severity: "warning", code: "under-constrained-sketch", sketchId: sketch.id, dof, message: (sketch.name || sketch.id) + " has " + dof + " degrees of freedom" });
+        if (dof > 0) issues.push({
+          severity: "warning", code: "under-constrained-sketch", sketchId: sketch.id, dof,
+          message: (sketch.name || sketch.id) + " has " + dof + " " + (dof === 1 ? "degree" : "degrees") + " of freedom",
+        });
       }
     } catch (error) {
       issues.push({ severity: "error", code: "sketch-solve-failed", sketchId: sketch.id, message: String(error.message || error) });
@@ -206,7 +209,12 @@ const NON_BODY_RESULTS = new Set(["sketch", "helix", "knurl"]);
    which is what keeps its name steady across rebuilds. */
 export function bodiesFromResults(definition, results) {
   if (!results || typeof results.get !== "function") return [];
-  const features = (definition?.features || []).filter((feature) => !feature.suppressed);
+  /* Only steps that actually built are read. A step the rebuild never reached —
+     one below the rollback bar, or one the compiler dropped — has no result,
+     and counting it as a consumer of its own input erased the body that IS
+     standing: with the bar dragged above a cut, the base extrude was "consumed"
+     by a cut that no longer runs and the model left the body list entirely. */
+  const features = (definition?.features || []).filter((feature) => !feature.suppressed && results.has(feature.id));
   const consumed = new Set();
   features.forEach((feature) => (feature.inputs || []).forEach((id) => consumed.add(id)));
   const bodies = [];
@@ -241,15 +249,19 @@ export function rebuildDefinition(definition, overrides = {}, options = {}) {
   if (!hardFailure()) {
     for (const feature of graph.order) {
       if (feature.suppressed) continue;
+      /* A failure stops THIS feature, not the regeneration: the loop is in
+         build order, so anything downstream reports its own unavailable input
+         when it is reached, and independent branches still build. Breaking here
+         threw away every body after the first bad step. */
       const missingInput = (feature.inputs || []).find((id) => !results.has(id));
       if (missingInput) {
         issues.push({ severity: "error", code: "unavailable-feature-input", featureId: feature.id, reference: missingInput, message: (feature.name || feature.id) + " cannot rebuild because " + missingInput + " is unavailable" });
-        break;
+        continue;
       }
       const topologyRun = resolveFeatureTopologyReferences(feature, topology);
       issues.push(...topologyRun.issues);
       topologyBindings.push(...topologyRun.resolutions);
-      if (topologyRun.issues.some((issue) => issue.severity === "error")) break;
+      if (topologyRun.issues.some((issue) => issue.severity === "error")) continue;
       try {
         const result = featureResult(feature, parameterRun.values, results, topologyRun.resolutions, sketchRun.sketches);
         results.set(feature.id, result);
@@ -260,7 +272,7 @@ export function rebuildDefinition(definition, overrides = {}, options = {}) {
       }
       catch (error) {
         issues.push({ severity: "error", code: "feature-rebuild-failed", featureId: feature.id, message: String(error.message || error) });
-        break;
+        continue;
       }
     }
   }

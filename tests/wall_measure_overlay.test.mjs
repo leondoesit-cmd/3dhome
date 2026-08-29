@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { stripComments } from "./source.mjs";
 
 const planSource = await readFile(new URL("../js/plan2d.js", import.meta.url), "utf8");
 const interactionSource = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
@@ -8,9 +9,11 @@ const measureSource = await readFile(new URL("../js/measure.js", import.meta.url
 const cadHudSource = await readFile(new URL("../js/cad_hud.js", import.meta.url), "utf8");
 
 test("the wall tool tracks a live preview point before the first click", () => {
+  /* Read as code: this used to require the sentence "The four-way overlay" to
+     sit between the two, so rewording a comment failed a test about a call. */
   assert.match(
-    interactionSource,
-    /if \(S\.tool === "wall"\) \{[\s\S]*The four-way overlay[\s\S]*snapPoint\(px, pz, null\)/,
+    stripComments(interactionSource),
+    /if \(S\.tool === "wall"\) \{[\s\S]*?snapPoint\(px, pz, null\)/,
   );
   assert.match(interactionSource, /S\.tool === "arcwall"\) \{\s*var ap = snapPoint\(px, pz, null\)/);
   assert.match(interactionSource, /S\.tool === "rect" \|\| S\.tool === "slabvoid"\) \{\s*var rrp = snapPoint\(px, pz, null\)/);

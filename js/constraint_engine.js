@@ -127,6 +127,53 @@ function cloneNode(p) {
    untouched, because a rigid move changes no dimension.
 
    Returns how many joints were released, so the caller can say so. */
+/* The per-wall verdict this rule reaches, split out so a caller can ASK whether
+   an edit is about to tear a joint before it decides how to settle — see
+   wouldReleaseJoint(). `null` means this wall has nothing to say; `recapture`
+   means it only slid and its centreline lock should be re-read. */
+function lockVerdict(w, before, act) {
+  if (act[w.id] || !isLocked(w)) return null;
+  var pa = before[w.a],
+    pb = before[w.b];
+  if (!pa || !pb) return null; // an end created BY this edit has nothing to restore
+  var na = S.nodes[w.a],
+    nb = S.nodes[w.b];
+  if (!na || !nb) return null;
+  var movedA = Math.hypot(na.x - pa.x, na.z - pa.z) > COINCIDENT,
+    movedB = Math.hypot(nb.x - pb.x, nb.z - pb.z) > COINCIDENT;
+  if (!movedA && !movedB) return null;
+  var L0 = Math.hypot(pb.x - pa.x, pb.z - pa.z),
+    a0 = Math.atan2(pb.z - pa.z, pb.x - pa.x),
+    L1 = Math.hypot(nb.x - na.x, nb.z - na.z),
+    a1 = Math.atan2(nb.z - na.z, nb.x - na.x);
+  if (Math.abs(L1 - L0) < LOCK_TOL_L && Math.abs(angDelta(a1, a0)) < LOCK_TOL_A)
+    return null; // moved, but not deformed
+  /* Interior dimensions are the stated ones, so they decide. A wall whose
+     INTERIOR length and bearing both survived was not deformed, however far
+     its centreline slid: that is exactly what happens to all four walls of a
+     room when one of them is thickened, and defending the centreline there
+     released every corner of an intact room. Re-read the centreline lock so
+     the next edit compares against the geometry that is actually on screen. */
+  if (interiorDims() && !interiorDeformed(w, before, a0, a1)) return { recapture: true };
+  return { movedA: movedA, movedB: movedB, pa: pa, pb: pb };
+}
+
+/* Would enforceLocks() hand a private corner to anybody? Asked by the
+   constraint solver, which can then settle the plan the way a typed dimension
+   does — relax first, tear only if that fails — instead of tearing on the spot.
+   Read-only: it takes no lock re-captures and moves nothing. */
+export function wouldReleaseJoint(before, activeIds) {
+  if (!before) return false;
+  var act = {};
+  (activeIds || []).forEach(function (id) {
+    act[id] = 1;
+  });
+  return S.walls.some(function (w) {
+    var v = lockVerdict(w, before, act);
+    return !!v && !v.recapture;
+  });
+}
+
 export function enforceLocks(before, activeIds) {
   if (!before) return 0;
   var act = {};
@@ -135,32 +182,16 @@ export function enforceLocks(before, activeIds) {
   });
   var released = 0;
   S.walls.forEach(function (w) {
-    if (act[w.id] || !isLocked(w)) return;
-    var pa = before[w.a],
-      pb = before[w.b];
-    if (!pa || !pb) return; // an end created BY this edit has nothing to restore
-    var na = S.nodes[w.a],
-      nb = S.nodes[w.b];
-    if (!na || !nb) return;
-    var movedA = Math.hypot(na.x - pa.x, na.z - pa.z) > COINCIDENT,
-      movedB = Math.hypot(nb.x - pb.x, nb.z - pb.z) > COINCIDENT;
-    if (!movedA && !movedB) return;
-    var L0 = Math.hypot(pb.x - pa.x, pb.z - pa.z),
-      a0 = Math.atan2(pb.z - pa.z, pb.x - pa.x),
-      L1 = Math.hypot(nb.x - na.x, nb.z - na.z),
-      a1 = Math.atan2(nb.z - na.z, nb.x - na.x);
-    if (Math.abs(L1 - L0) < LOCK_TOL_L && Math.abs(angDelta(a1, a0)) < LOCK_TOL_A)
-      return; // moved, but not deformed
-    /* Interior dimensions are the stated ones, so they decide. A wall whose
-       INTERIOR length and bearing both survived was not deformed, however far
-       its centreline slid: that is exactly what happens to all four walls of a
-       room when one of them is thickened, and defending the centreline there
-       released every corner of an intact room. Re-read the centreline lock so
-       the next edit compares against the geometry that is actually on screen. */
-    if (interiorDims() && !interiorDeformed(w, before, a0, a1)) {
+    var verdict = lockVerdict(w, before, act);
+    if (!verdict) return;
+    if (verdict.recapture) {
       captureLock(w);
       return;
     }
+    var pa = verdict.pa,
+      pb = verdict.pb,
+      movedA = verdict.movedA,
+      movedB = verdict.movedB;
     var freed = null;
     if (movedA) {
       w.a = cloneNode(pa);

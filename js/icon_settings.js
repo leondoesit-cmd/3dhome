@@ -1,5 +1,5 @@
 import { getLang, t } from "./i18n.js";
-import { ICON_SEMANTIC_NAMES, ICON_THEME_ASSETS } from "./icon_theme_assets.js";
+import { ICON_SEMANTIC_NAMES, ICON_THEME_ASSETS, loadIconTheme } from "./icon_theme_assets.js";
 
 var THEME_KEY = "home3d_icon_theme";
 var OVERRIDES_KEY = "home3d_icon_overrides";
@@ -24,6 +24,17 @@ var LEGACY_THEME_IDS = {
   contrast: "mdi", forge: "mdi", solid: "material",
 };
 var state = loadState();
+
+/* The ten icon languages are ~117 KB of SVG each and only one is on screen, so
+   they load one module at a time. This top-level await is what lets the rest of
+   this file stay synchronous: the module does not finish evaluating — so
+   initIconSettings() cannot run and no icon can render blank — until the active
+   theme's artwork is in memory. Everything else is fetched on demand: another
+   theme when it is picked, and all ten when the settings pane wants sample
+   cards for them. */
+await loadIconTheme(state.theme).catch(function () {
+  if (state.theme !== DEFAULT_THEME) return loadIconTheme(DEFAULT_THEME).catch(function () {});
+});
 
 var ICON_LABELS = {
   he: {
@@ -83,10 +94,29 @@ function iconClass(node) {
   return "";
 }
 
+/* A theme that is not in memory yet (a `data-icon-static-theme` sample card, or
+   a stored theme that failed to load) draws from the default set for now and
+   asks for its own artwork; the repaint on arrival re-renders it for real. */
 function iconAsset(themeId, semantic) {
-  var theme = ICON_THEME_ASSETS[themeId] || ICON_THEME_ASSETS[DEFAULT_THEME];
+  var theme = ICON_THEME_ASSETS[themeId];
+  if (!theme) {
+    requestTheme(themeId);
+    theme = ICON_THEME_ASSETS[DEFAULT_THEME];
+  }
   var assetName = theme && theme.map[semantic];
   return assetName && theme.icons[assetName] ? theme.icons[assetName] : null;
+}
+
+var requested = {};
+function requestTheme(themeId) {
+  if (!themeId || requested[themeId]) return;
+  requested[themeId] = true;
+  loadIconTheme(themeId).then(function () {
+    // Drop the render keys this theme drew with the stand-in artwork.
+    var stale = document.querySelectorAll('i.ph[data-icon-render-key^="' + themeId + ':"]');
+    for (var i = 0; i < stale.length; i++) stale[i].removeAttribute("data-icon-render-key");
+    applyTree(document.body);
+  }, function () {});
 }
 
 function svgMarkup(themeId, semantic) {
@@ -294,9 +324,13 @@ export function buildIconSettingsPane(closeSettings) {
   var resetAll = make("button", "icon-text-btn", t("icons_reset_all"));
   resetAll.type = "button";
   resetAll.onclick = function () {
-    state.theme = DEFAULT_THEME;
-    state.overrides = {};
-    saveState(); applyAll(); renderThemes(); renderUsed(); renderDetail();
+    // Load first, commit second: the UI never switches to a theme whose
+    // artwork has not arrived, so no icon blinks empty on the way there.
+    loadIconTheme(DEFAULT_THEME).then(function () {
+      state.theme = DEFAULT_THEME;
+      state.overrides = {};
+      saveState(); applyAll(); renderThemes(); renderUsed(); renderDetail();
+    }, function () {});
   };
   themeHead.appendChild(resetAll);
   root.appendChild(themeHead);
@@ -354,7 +388,9 @@ export function buildIconSettingsPane(closeSettings) {
       card.appendChild(nameRow);
       card.appendChild(make("small", null, t(theme.desc)));
       card.onclick = function () {
-        state.theme = theme.id; saveState(); applyAll(); renderThemes(); renderUsed(); renderDetail();
+        loadIconTheme(theme.id).then(function () {
+          state.theme = theme.id; saveState(); applyAll(); renderThemes(); renderUsed(); renderDetail();
+        }, function () {});
       };
       themeGrid.appendChild(card);
     });
@@ -479,5 +515,12 @@ export function buildIconSettingsPane(closeSettings) {
   }
 
   renderThemes(); renderCategories(); renderUsed(); renderDetail();
+  /* This pane is the one place that shows all ten languages at once (the sample
+     row on each card). Fetch the nine that boot did not need and repaint the
+     cards as they land — the pane opens on the active theme's real artwork and
+     fills in rather than waiting on ~1 MB before it appears. */
+  THEMES.forEach(function (item) {
+    if (!ICON_THEME_ASSETS[item.id]) loadIconTheme(item.id).then(renderThemes, function () {});
+  });
   return root;
 }
