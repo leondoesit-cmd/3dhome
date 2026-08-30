@@ -11,6 +11,81 @@
 
 import { framePoint, frameProjectPoint } from "./frame.js";
 
+const LOOP_EPSILON = 1e-8;
+
+function loopPoint(point) {
+  return point && Number.isFinite(point.u) && Number.isFinite(point.v);
+}
+
+function pointOnLoopSegment(point, a, b) {
+  const du = b.u - a.u, dv = b.v - a.v;
+  const cross = (point.u - a.u) * dv - (point.v - a.v) * du;
+  const tolerance = LOOP_EPSILON * Math.max(1, Math.abs(du) + Math.abs(dv));
+  if (Math.abs(cross) > tolerance) return false;
+  const dot = (point.u - a.u) * du + (point.v - a.v) * dv;
+  return dot >= -tolerance && dot <= du * du + dv * dv + tolerance;
+}
+
+function pointInLoop(point, loop, includeBoundary = true) {
+  let inside = false;
+  for (let i = 0, j = loop.length - 1; i < loop.length; j = i++) {
+    const a = loop[i], b = loop[j];
+    if (pointOnLoopSegment(point, a, b)) return includeBoundary;
+    if ((a.v > point.v) !== (b.v > point.v)
+      && point.u < ((b.u - a.u) * (point.v - a.v)) / (b.v - a.v) + a.u) inside = !inside;
+  }
+  return inside;
+}
+
+function orientation(a, b, c) {
+  const value = (b.u - a.u) * (c.v - a.v) - (b.v - a.v) * (c.u - a.u);
+  const scale = Math.max(1, Math.abs(b.u - a.u) + Math.abs(b.v - a.v), Math.abs(c.u - a.u) + Math.abs(c.v - a.v));
+  return Math.abs(value) <= LOOP_EPSILON * scale ? 0 : Math.sign(value);
+}
+
+function segmentsTouchOrCross(a, b, c, d) {
+  const abC = orientation(a, b, c), abD = orientation(a, b, d);
+  const cdA = orientation(c, d, a), cdB = orientation(c, d, b);
+  if (abC !== abD && cdA !== cdB) return true;
+  return (abC === 0 && pointOnLoopSegment(c, a, b))
+    || (abD === 0 && pointOnLoopSegment(d, a, b))
+    || (cdA === 0 && pointOnLoopSegment(a, c, d))
+    || (cdB === 0 && pointOnLoopSegment(b, c, d));
+}
+
+function loopBoundariesMeet(a, b) {
+  for (let ai = 0; ai < a.length; ai++) {
+    const a0 = a[ai], a1 = a[(ai + 1) % a.length];
+    for (let bi = 0; bi < b.length; bi++) {
+      if (segmentsTouchOrCross(a0, a1, b[bi], b[(bi + 1) % b.length])) return true;
+    }
+  }
+  return false;
+}
+
+/* Lightweight profile holes are valid only for loops wholly surrounded by
+   material. A slot that touches or crosses the outer boundary changes that
+   boundary's topology and must be handled as an exact boolean cut. */
+export function loopStrictlyInsideLoop(inner, outer) {
+  if (!Array.isArray(inner) || !Array.isArray(outer) || inner.length < 3 || outer.length < 3
+    || !inner.every(loopPoint) || !outer.every(loopPoint)) return false;
+  if (loopBoundariesMeet(inner, outer)) return false;
+  return inner.every((point) => pointInLoop(point, outer, false));
+}
+
+/* Two voids which meet or overlap are one topological opening, not two profile
+   holes. Route that case through the boolean kernel as well. */
+export function loopsOverlapOrTouch(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length < 3 || b.length < 3
+    || !a.every(loopPoint) || !b.every(loopPoint)) return false;
+  return loopBoundariesMeet(a, b) || pointInLoop(a[0], b, true) || pointInLoop(b[0], a, true);
+}
+
+export function profileLoopIsSeparateHole(loop, outer, existingHoles = []) {
+  return loopStrictlyInsideLoop(loop, outer)
+    && !(existingHoles || []).some((existing) => loopsOverlapOrTouch(loop, existing));
+}
+
 export function sameFrameOrientation(a, b) {
   if (!a || !b || !a.normal || !b.normal || !a.xAxis || !b.xAxis) return false;
   const normal = a.normal.x * b.normal.x + a.normal.y * b.normal.y + a.normal.z * b.normal.z;

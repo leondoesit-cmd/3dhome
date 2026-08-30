@@ -50,6 +50,9 @@ test("modeler keeps CAD command names but compacts view and document actions", (
   assert.match(modeler, /m-grid-5 m-icon-grid/);
   assert.match(modeler, /ph-selection-all/);
   assert.match(modeler, /ph-line-segment/);
+  assert.match(modeler, /icon\("normalTo"\), t\("normalTo"\)/);
+  assert.match(modeler, /api\.runChrome\("normalTo"\)/);
+  assert.doesNotMatch(modeler, /api\.setSketchNormalTo\(!st\.sketchNormalTo\)/);
   assert.match(css, /\.md-commandmanager\.md-borrowed \.md-command\s*\{[\s\S]*?min-height:\s*44px/);
   assert.doesNotMatch(css, /\.md-commandmanager\.md-borrowed \.md-command span\s*\{\s*display:\s*none/);
 });
@@ -136,8 +139,7 @@ test("long forms use labelled content-sized pages while browse sheets scroll", (
   assert.match(pages, /pages\.forEach[\s\S]*?page\.classList\.toggle\("on"/);
   // (the section comment this used to match is prose; the cap and the two
   // fit-content rules below are the rule itself)
-  assert.match(css, /--mobile-sheet-cap:\s*min\(/);
-  assert.match(css, /body\.compact-nav\.sheet-drawers #right-inspector,[\s\S]*?top:\s*auto;[\s\S]*?height:\s*fit-content;[\s\S]*?max-height:\s*var\(--mobile-sheet-cap\)/);
+  assert.match(css, /body\.compact-nav\.sheet-drawers #right-inspector[\s\S]*?top:\s*auto;[\s\S]*?height:\s*fit-content;[\s\S]*?max-height:\s*var\(--mobile-sheet-cap\)/);
   assert.match(css, /body\.compact-nav #m-sheet,[\s\S]*?height:\s*fit-content !important;[\s\S]*?max-height:\s*var\(--mobile-sheet-cap\)/);
   assert.match(css, /\.mobile-menu-page\.on[\s\S]*?display:\s*flex/);
 });

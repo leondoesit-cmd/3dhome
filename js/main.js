@@ -29,7 +29,8 @@ import {
 } from "./interaction.js";
 import { t } from "./i18n.js";
 import { applyStatic, onLangChange } from "./i18n.js";
-import { initModeler, refreshCatalogSelect } from "./modeler.js";
+import { initModeler, ensureModelLibrary } from "./modeler_launch.js";
+import { refreshCatalogSelect } from "./model_catalog.js";
 import { initCabinetUI } from "./ui_cabinet.js";
 import { layoutCab, doorSweeps } from "./cabinet.js";
 import { bindCabinetHelpers } from "./swing_clearance.js";
@@ -350,6 +351,10 @@ initInteraction();
 initUI();
 initToolSearch();
 initModeler();
+/* Pulls js/modeler.js in only when saved custom models are waiting to register
+   into FURN — see ensureModelLibrary(). A session with no custom furniture
+   never fetches the 830 KB editor. */
+ensureModelLibrary();
 initCabinetUI();
 bindCabinetHelpers({ layoutCab, doorSweeps });
 initPlanSync();

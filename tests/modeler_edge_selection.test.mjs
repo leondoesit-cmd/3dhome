@@ -48,8 +48,22 @@ test("two ids for one physical edge collapse to a single finish target", () => {
 test("modeler dedupes the finish edge selection on geometry, not only on id", () => {
   assert.match(modelerSource, /function finishEdgeKey\(/);
   assert.match(modelerSource, /function dedupeFinishRefs\(/);
-  assert.match(modelerSource, /E\.topologySelection = dedupeFinishRefs\(edges\)/);
+  assert.match(modelerSource, /E\.topologySelection = dedupeFinishRefs\(faces\.concat\(canonical\)\)/);
   assert.match(modelerSource, /overlapping = dedupeFinishRefs\(overlapping\)/);
+});
+
+test("finish tools never fall back to pre-cut analytic edges while exact topology rebuilds", () => {
+  assert.match(modelerSource, /function authoritativeFinishTopology\(part\)/);
+  assert.match(modelerSource, /partNeedsExactMesh\(part\)[\s\S]{0,180}return null/);
+  assert.match(modelerSource, /canonicalFinishEdges\(edges,part\)/);
+  assert.doesNotMatch(modelerSource, /measure < 2 \* Math\.PI \* radius \* 0\.92/);
+});
+
+test("saved rim-breaking holes migrate before the editor exposes topology", () => {
+  assert.match(modelerSource, /function migrateBoundaryChangingProfileCuts\(part\)/);
+  assert.match(modelerSource, /part\.cuts3d = \(part\.cuts3d \|\| \[\]\)\.concat\(moved\)/);
+  assert.equal((modelerSource.match(/migrateDefinitionProfileCuts\(E\.def, true\)/g) || []).length, 2,
+    "saved definitions and restored drafts both migrate and schedule exact topology");
 });
 
 test("shift-cycling a list with repeats would stall, so the list is deduped first", () => {

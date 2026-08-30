@@ -16,6 +16,7 @@ export const VISIT = {
   friend: null, // the friend whose apartment I'm in (null = home)
   homeSnapshot: null,
 };
+let visitGeneration = 0;
 
 export function isVisiting() {
   return !!VISIT.friend;
@@ -33,8 +34,12 @@ function friendRoomId(friend) {
   return "apt:" + (friend.code || friend.id);
 }
 
-export function startVisit(friend) {
+/* async because applyData() may have to fetch the model builder before a
+   friend's apartment can be applied — `applied` below must not be set until it
+   really has. Callers ignore the return value. */
+export async function startVisit(friend) {
   if (!friend) return;
+  const generation = ++visitGeneration;
   if (!VISIT.friend) VISIT.homeSnapshot = serialize();
   VISIT.friend = friend;
 
@@ -42,11 +47,17 @@ export function startVisit(friend) {
   let applied = false;
   if (friend.model) {
     try {
-      applyData(friend.model);
-      applied = true;
+      applied = !!(await applyData(friend.model));
     } catch (e) {
       console.error("stored friend model failed to load", e);
     }
+  }
+  if (generation !== visitGeneration || VISIT.friend !== friend) return false;
+  if (friend.model && !applied) {
+    VISIT.friend = null;
+    flash(t("fr_noModel"), "error");
+    window.dispatchEvent(new CustomEvent("visit:change"));
+    return false;
   }
   // …and ask the live owner for the real thing if they're on the relay
   // always record the room switch — joinRoom is offline-safe (it stores the
@@ -60,22 +71,39 @@ export function startVisit(friend) {
   enterWalk(true);
   flash(t("fr_visiting", { name: friend.name }), "success");
   window.dispatchEvent(new CustomEvent("visit:change"));
+  return true;
 }
 
-export function goHome() {
+/* async for the same reason startVisit is: applyData may have to fetch the
+   model builder before it can apply.
+
+   This snapshot was serialized from THIS session, so in practice its custom
+   models are already registered and the apply is synchronous. That argument is
+   almost certainly sound — and it is exactly the kind of "it cannot happen
+   here" reasoning that already hid one silent data loss in this file's
+   neighbours, so awaiting costs a microtask and removes the need to be right. */
+export async function goHome() {
   if (!VISIT.friend) return;
+  const friend = VISIT.friend;
+  const generation = ++visitGeneration;
   VISIT.friend = null;
   if (VISIT.homeSnapshot) {
     try {
-      applyData(JSON.parse(VISIT.homeSnapshot));
+      const applied = await applyData(JSON.parse(VISIT.homeSnapshot));
+      if (generation !== visitGeneration) return false;
+      if (!applied) { VISIT.friend = friend; return false; }
     } catch (e) {
       console.error("home restore failed", e);
+      if (generation === visitGeneration) VISIT.friend = friend;
+      return false;
     }
     VISIT.homeSnapshot = null;
   }
+  if (generation !== visitGeneration) return false;
   net.goHomeRoom(); // offline-safe: records the room for the next (re)connect
   flash(t("fr_backHome"), "success");
   window.dispatchEvent(new CustomEvent("visit:change"));
+  return true;
 }
 
 export function initVisit() {
@@ -87,9 +115,16 @@ export function initVisit() {
     } else if (data.k === "scene") {
       // live layout from the room owner I'm visiting
       if (VISIT.friend && from === VISIT.friend.code) {
+        const friend = VISIT.friend;
+        const generation = visitGeneration;
         try {
-          applyData(JSON.parse(data.json));
-          flash(t("fr_liveScene", { name: VISIT.friend.name }));
+          /* A peer's layout can use custom models this browser has never seen,
+             so applyData may fetch the builder first — announce it only once it
+             has actually landed. */
+          Promise.resolve(applyData(JSON.parse(data.json))).then(function (applied) {
+            if (!applied || generation !== visitGeneration || VISIT.friend !== friend) return;
+            flash(t("fr_liveScene", { name: friend.name }));
+          }, function (e) { console.error("live scene failed to load", e); });
         } catch (e) {
           console.error("live scene failed to load", e);
         }

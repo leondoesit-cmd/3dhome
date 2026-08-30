@@ -65,9 +65,20 @@ function sceneGetter() {
 
 function applyScene(scene) {
   return import("./ui.js").then(function (ui) {
-    applyingRemote = true;
-    try { ui.applyData(scene); }
-    finally { applyingRemote = false; }
+    /* The guard has to span the WHOLE apply: applyData is asynchronous when it
+       must fetch the model builder first, and dropping the flag at the end of
+       this tick would let the tail of that apply echo back as a local edit. */
+    /* Set the flag INSIDE the chain: applyData throws synchronously on a
+       malformed payload ("Invalid scene data"), and that throw would escape
+       before Promise.resolve() existed to attach the finally — leaving
+       applyingRemote stuck true, which silently stops every local edit from
+       reaching peers for the rest of the session. */
+    return Promise.resolve().then(function () {
+      applyingRemote = true;
+      return ui.applyData(scene);
+    }).finally(function () {
+      applyingRemote = false;
+    });
   });
 }
 
@@ -169,7 +180,7 @@ function onData(ev) {
   if (d.k === "plan_sync") {
     if (!d.scene || isHome()) return; // the host never adopts someone else's scene
     planRev = Number(d.rev) || 0;
-    applyScene(d.scene).then(paint);
+    applyScene(d.scene).then(function (applied) { if (applied) paint(); });
     return;
   }
 

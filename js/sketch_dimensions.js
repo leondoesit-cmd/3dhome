@@ -169,13 +169,17 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
       const circ = circleData(entities.get(c.entity), points);
       if (circ) {
         const cp = toPx(circ.center.x, circ.center.y);
-        const rPx = circ.radius * scale;
+        // The leader endpoint is sketch geometry, so project a real UV rim
+        // point. Only its label clearance remains a fixed screen-pixel offset.
+        const direction = -Math.PI / 4;
+        const rim = toPx(circ.center.x + Math.cos(direction) * circ.radius,
+          circ.center.y + Math.sin(direction) * circ.radius);
         ctx.beginPath();
         ctx.moveTo(cp.x, cp.y);
-        ctx.lineTo(cp.x + rPx * 0.7, cp.y - rPx * 0.7);
+        ctx.lineTo(rim.x, rim.y);
         ctx.stroke();
         const label = (c.type === "radius" ? "R " : "Ø ") + `${Math.round(c.value * 10) / 10} cm`;
-        ctx.fillText(label, cp.x + rPx * 0.7 + 4, cp.y - rPx * 0.7 - 4);
+        ctx.fillText(label, rim.x + 4, rim.y - 4);
         continue;
       }
       // an ellipse's dimension points along the semi-axis it actually drives,

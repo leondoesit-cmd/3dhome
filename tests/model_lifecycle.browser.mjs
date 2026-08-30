@@ -136,10 +136,13 @@ test("a reusable model survives edit, instances, undo/redo, reload, and project 
       const { S } = await import("/js/state.js");
       const { applyData, serialize } = await import("/js/ui.js");
       const json = localStorage.getItem("model-lifecycle-qa");
-      applyData(json);
+      // applyData fetches the model builder on a fresh page before it can
+      // register this project's custom definitions, so it must be awaited —
+      // serialize() re-embeds them from FURN and would otherwise see nothing.
+      await applyData(json);
       const exported = JSON.parse(serialize());
       // Import the exported object once more, matching the JSON file workflow.
-      applyData(exported);
+      await applyData(exported);
       const definition = S.parametric.definitions["definition:lifecycle"];
       return {
         name: definition?.name,

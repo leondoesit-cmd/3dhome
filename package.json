@@ -13,7 +13,8 @@
     "check:assertions": "node tools/comment_assertions.mjs",
     "check": "node tools/module_check.mjs && node tools/link_check.mjs && node tools/comment_assertions.mjs",
     "ci": "npm run check && npm test && npm run test:browser",
-    "test:browser": "node --test --test-concurrency=3 tests/*.browser.mjs"
+    "test:browser": "node --test --test-concurrency=3 tests/*.browser.mjs",
+    "audit:overlaps": "node tools/deep_overlap_audit.mjs"
   },
   "dependencies": {
     "opencascade.js": "2.0.0-beta.b5ff984"

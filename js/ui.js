@@ -98,12 +98,14 @@ import {
   undo,
   redo,
   mountHistoryPanel,
+  currentHistoryId,
+  beginHistoryTransaction,
+  commitHistoryTransaction,
+  abortHistoryTransaction,
 } from "./history.js";
-import {
-  registerCustomModel,
-  usedCustomModels,
-  refreshCatalogSelect,
-} from "./modeler.js";
+import { usedCustomModels, refreshCatalogSelect } from "./model_catalog.js";
+import { loadModeler, modelerNow, projectNeedsBuilder } from "./modeler_launch.js";
+import { itemPlaceCommand, executeCommand } from "./commands/index.js";
 
 import { select, fillProps, roomMetaFor, selLamp, refreshMarkerReadout, syncWallEnd, syncWallSide, squarableArm, wallTakeoffRows, wallFlipSymmetric, wallFaceMaterials } from "./ui_props.js";
 import {
@@ -121,6 +123,13 @@ import {
   normalizeStacks,
   findSupport,
 } from "./stack.js";
+
+const UI_COMMAND_HISTORY = Object.freeze({
+  current: currentHistoryId,
+  begin: beginHistoryTransaction,
+  commit: commitHistoryTransaction,
+  abort: abortHistoryTransaction,
+});
 import { loadMEP } from "./mep.js";
 import { renderPanel as refreshMEPPanel } from "./ui_mep.js";
 import {
@@ -323,15 +332,56 @@ export function applyData(d) {
     throw new Error("Invalid scene data");
   }
   if(d.spatial)d={...d,nodes:d.spatial.nodes,walls:d.spatial.walls,wallTypes:d.spatial.wallTypes,openings:d.spatial.openings,items:d.spatial.instances,markers:d.spatial.markers,slabOpenings:d.spatial.slabOpenings,roomMeta:d.spatial.rooms,cabinetPresets:d.spatial.cabinetPresets};
+  return applyDataRequest(d, ++applyRequestGeneration);
+}
+
+/* A request gets its place in the ordering before it can wait for the lazily
+   loaded custom-model builder. Two requests may wait on the same import; the
+   newest request, rather than the first promise callback registered, owns the
+   right to commit once that import completes. */
+var applyRequestGeneration = 0;
+function applyDataRequest(d, requestGeneration) {
+  /* Custom models must register into FURN BEFORE the item filter below, which
+     drops anything FURN does not know — register late and a project's custom
+     furniture is silently discarded, and serialize() cannot re-embed it either
+     (it reads FURN[type].custom). Registering needs the part->geometry builder
+     in js/modeler.js, which is no longer on the boot graph.
+
+     So this function applies SYNCHRONOUSLY in every case it can — no custom
+     models, or the editor already resident — and returns an already-resolved
+     promise. Only a payload whose custom definitions cannot be registered yet
+     has to fetch the builder first and start again from the top; the retry is
+     safe precisely here, because nothing above this point has mutated S.
+
+     Callers that read S straight after MUST await the result. Everything below
+     the early return still runs in the caller's own tick for the common case,
+     so a synchronous caller stays correct whenever no fetch was needed. */
+  var customDefs = Array.isArray(d.customModels) ? d.customModels : [];
+  /* projectNeedsBuilder() looks deeper than customDefs: a multi-storey project
+     keeps each floor's definitions nested under workspace.floors[].scene, and
+     switchFloor() applies those synchronously with no chance to await. Fetching
+     once here, for the whole project, is what keeps every later floor switch
+     correct. */
+  if (projectNeedsBuilder(d)) {
+    var modeler = modelerNow();
+    if (!modeler) {
+      /* Fetching the builder takes long enough for another scene request to
+         arrive. Re-applying an older request then would silently overwrite the
+         user's newer choice, so only the latest valid apply request may commit.
+         Callers get false for a superseded request. */
+      return loadModeler().then(function () {
+        if (applyRequestGeneration !== requestGeneration) return false;
+        return applyDataRequest(d, requestGeneration);
+      });
+    }
+    var customAdded = 0;
+    customDefs.forEach(function (def) { if (modeler.registerCustomModel(def)) customAdded++; });
+    if (customAdded) refreshCatalogSelect();
+  }
   importParametricProject(S, d.parametric || {});
   if (Array.isArray(d.cabinetPresets)) {
     S.spatial.cabinetPresets = JSON.parse(JSON.stringify(d.cabinetPresets));
   }
-  var customAdded = 0;
-  (Array.isArray(d.customModels) ? d.customModels : []).forEach(function (def) {
-    if (registerCustomModel(def)) customAdded++;
-  });
-  if (customAdded) refreshCatalogSelect();
   S.nodes = (d.nodes || []).map(function (n) {
     return { x: fin(n && n.x) ? n.x : 0, z: fin(n && n.z) ? n.z : 0 };
   });
@@ -583,6 +633,9 @@ export function applyData(d) {
   render2D();
   frameView();
   applyEnv();
+  // Already applied — resolved, so `await applyData(...)` costs a microtask and
+  // nothing else. Only the builder-fetch path above is genuinely asynchronous.
+  return Promise.resolve(true);
 }
 function download(name, url) {
   var a = document.createElement("a");
@@ -839,17 +892,26 @@ export function isLegacyUI() {
 }
 
 export function placeFurnAt(type, x, z) {
-  pushHistory();
-  var it = mkItem(type, Math.round(x / 2) * 2, Math.round(z / 2) * 2, 0);
-  if (!fin(it.x) || !fin(it.z)) {
+  var result = executeCommand(itemPlaceCommand, { type: type, x: x, z: z }, {
+    domain: "planner",
+    state: S,
+    history: UI_COMMAND_HISTORY,
+    version: { current: currentHistoryId },
+    itemCatalog: FURN,
+    services: {
+      createItem: mkItem,
+      applyAutoFace: function (it, px, pz) {
+        applyAutoFace(it, px, pz, { host: findSupport(it, px, pz) });
+      },
+    },
+  }, { label: t("f_itemPlaced") });
+  if (!result.ok || !result.created.length) {
     flash(t("f_placeFail"), "error");
     return;
   }
-  /* Face it before it exists on the plan: a piece that arrives already looking
-     the right way is the whole point, and doing it here means the library, the
-     right-click "add item here" and the drag all agree. (js/item_orient.js) */
-  applyAutoFace(it, it.x, it.z, { host: findSupport(it, it.x, it.z) });
-  S.items.push(it);
+  var madeId = result.created[0].id;
+  var it = S.items.find(function (item) { return item.id === madeId; });
+  if (!it) return;
   S.placeType = null;
   window.dispatchEvent(new CustomEvent("planner-place"));
   select({ kind: "item", ref: it });
@@ -3767,9 +3829,13 @@ export function initUI() {
           return;
         }
         pushHistory();
-        applyData(JSON.parse(raw));
-        markSaved();
-        flash(t("f_loaded"), "success");
+        // A saved project can carry custom models whose builder is not resident
+        // yet, so applyData may be asynchronous — confirm only once it applied.
+        Promise.resolve(applyData(JSON.parse(raw))).then(function (applied) {
+          if (!applied) { flash(t("f_loadFail"), "error"); return; }
+          markSaved();
+          flash(t("f_loaded"), "success");
+        }, function () { flash(t("f_loadFail"), "error"); });
       } catch (err) {
         flash(t("f_loadFail"), "error");
       }
@@ -4189,8 +4255,15 @@ export function initUI() {
           S.items = []; S.markers = []; S.roomMeta = {}; S.idc = converted.nextId;
           ensureWallTypes(S); rebuildProject(S, FURN); S.sel = null; S.dirty3D = true;
           render2D(); fitView(); refreshTree(); updateCost();
-        } else applyData(d);
-        flash(t("f_imported"), "success");
+          flash(t("f_imported"), "success");
+        } else {
+          // The imported file is the one path that routinely carries custom
+          // models this browser has never seen; wait for the builder.
+          Promise.resolve(applyData(d)).then(function (applied) {
+            if (!applied) { flash(t("f_badFile"), "error"); return; }
+            flash(t("f_imported"), "success");
+          }, function () { flash(t("f_badFile"), "error"); });
+        }
       } catch (err) {
         flash(t("f_badFile"), "error");
       }

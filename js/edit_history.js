@@ -408,6 +408,23 @@ export function createHistory(opts) {
       return this.discard();
     },
 
+    /* Transaction rollback differs from gesture cancel. cancel() is used for
+       an untouched provisional gesture and therefore only drops its node;
+       abort() is allowed after mutations and first restores the snapshot that
+       begin() captured. Keep the node provisional when restore fails so a
+       caller cannot accidentally commit or start another edit over a model
+       whose rollback did not complete. */
+    abort: function () {
+      if (!provisional) return false;
+      var n = cur();
+      if (!n || n.parent == null || !restore(n.snap)) return false;
+      provisional = false;
+      return this.discard();
+    },
+    isPending: function () {
+      return provisional;
+    },
+
     /* An operation that opened a step and then turned out to be a no-op (a
        fillet that could not be built, a pattern that produced nothing) drops
        its own step rather than leaving a do-nothing entry in the tree. */

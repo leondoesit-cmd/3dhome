@@ -323,7 +323,7 @@ test("Browser QA: Interactive wall drafting, rooms, doors, windows and finishes"
 
       // Step 5: Place Furniture Items
       q.ui.placeFurnAt("sofa", 80, 600);
-      q.ui.placeFurnAt("coffeeTable", 160, 600);
+      q.ui.placeFurnAt("coffee", 160, 600);
       q.ui.placeFurnAt("bed", 516, 120);
       q.ui.placeFurnAt("bed", 516, 750);
       q.ui.placeFurnAt("bathtub", 610, 388);

@@ -10,6 +10,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
+import {
+  createFeatureDefinition,
+  createPartDocument,
+  createSketchDefinition,
+} from "../js/core/parametric_document.js";
+import { createTopologyReference } from "../js/core/topology.js";
 
 const chrome = await findChrome();
 const opts = chrome ? {} : { skip: "no Chrome found (set CHROME_PATH)" };
@@ -56,7 +62,10 @@ async function openDesktopEditor(page) {
     }
     document.getElementById("openModelerTop").click();
   });
-  await page.eval(() => new Promise((r) => setTimeout(r, 400)));
+  await page.waitUntil(() => {
+    const el = document.getElementById("modeler");
+    return !!el && getComputedStyle(el).display !== "none";
+  }, { what: "the model editor to open" });
   await page.eval(() => {
     const c = document.querySelector('#mdWelcome [data-welcome-start="continue"]') || document.querySelector(".md-welcome-close");
     if (c) c.click();
@@ -239,59 +248,300 @@ test("desktop model editor: shortcut bar opens on 'S' key and closes on Escape",
   assert.equal(shortcutClosed, true, "shortcut bar did not close on Escape");
 });
 
-test("desktop model editor: parametric sketch workflow opens plane picker, enters sketch, and accepts", opts, async () => {
+test("desktop model editor: blank part starts a Top sketch; Reference opens the plane picker", opts, async () => {
   const page = await ctx({ width: 1280, height: 800, lang: "en" });
   await page.eval(() => {
-    const btn = document.querySelector('.md-command[data-md-action="newsketch"]') ||
-                [...document.querySelectorAll(".md-command")].find((b) => /sketch/i.test(b.textContent));
-    if (btn) btn.click();
+    window.confirm = () => true;
+    const neu = document.querySelector('[data-act="new"]');
+    if (neu) neu.click();
+  });
+  await page.eval(() => new Promise((r) => setTimeout(r, 200)));
+
+  const treeStart = await page.eval(() => {
+    const btn = document.querySelector(".md-tree-create-sketch.md-tree-start");
+    const box = btn?.getBoundingClientRect();
+    return { visible: !!box && box.width > 0 && box.height > 0 };
+  });
+  assert.equal(treeStart.visible, true, "purple Start Sketch action is not visible in the Tree");
+  await page.eval(() => document.querySelector(".md-tree-create-sketch.md-tree-start")?.click());
+  await page.eval(() => new Promise((r) => setTimeout(r, 300)));
+
+  const afterNew = await page.eval(() => {
+    const picker = document.getElementById("mdReferencePicker");
+    const pickerOpen = picker && !picker.hidden && getComputedStyle(picker).display !== "none";
+    const wf = document.getElementById("mdWorkflow");
+    const activeStep = wf?.querySelector("[data-workflow-step].active")?.getAttribute("data-workflow-step");
+    const ribbonTab = document.querySelector(".md-command-tabs > button.on")?.getAttribute("data-cmdtab");
+    const rectOn = !!document.querySelector('[data-command="srect"].on');
+    const normalTo = document.getElementById("mdNormalToView");
+    const snap = typeof window.cadSketchSnapshot === "function" ? window.cadSketchSnapshot() : null;
+    return {
+      pickerOpen,
+      activeStep,
+      ribbonTab,
+      rectOn,
+      plane: snap && snap.plane,
+      tool: snap && snap.tool,
+      pressed: normalTo && (normalTo.getAttribute("aria-pressed") === "true" || normalTo.classList.contains("on")),
+    };
+  });
+  assert.equal(afterNew.pickerOpen, false, "blank-part New Sketch should skip the plane picker");
+  assert.equal(afterNew.activeStep, "sketch", "workflow did not enter the sketch step");
+  assert.equal(afterNew.ribbonTab, "sketch", "ribbon did not switch to sketch tab");
+  assert.equal(afterNew.tool, "srect", "rectangle tool was not active on the default Top sketch");
+  assert.equal(afterNew.rectOn, true, "rectangle command was not lit on the sketch ribbon");
+  assert.equal(afterNew.pressed, false, "Normal To toolbar button must not stay pressed");
+  assert.equal(afterNew.plane, "top", "expected the default Top plane");
+
+  const planeChip = await page.eval(() => {
+    const chip = document.getElementById("mdSketchPlaneChip");
+    const box = chip?.getBoundingClientRect();
+    return { visible: !!box && box.width > 0 && box.height > 0, text: chip?.textContent || "" };
+  });
+  assert.equal(planeChip.visible, true, "the automatic Top choice has no visible recovery control");
+  assert.match(planeChip.text, /Sketching on\s+Top/i);
+  assert.match(planeChip.text, /Change/i);
+  await page.eval(() => document.getElementById("mdSketchPlaneChip")?.click());
+  await page.waitUntil(() => {
+    const picker = document.getElementById("mdReferencePicker");
+    return !!picker && !picker.hidden && getComputedStyle(picker).display !== "none";
+  }, { what: "the plane picker from Sketching on Top · Change" });
+  await page.eval(() => document.querySelector("[data-reference-cancel]")?.click());
+
+  await page.eval(() => {
+    const crumb = document.querySelector('[data-workflow-step="reference"]');
+    if (crumb) crumb.click();
   });
   await page.eval(() => new Promise((r) => setTimeout(r, 250)));
 
   const planePicker = await page.eval(() => {
-    const picker = document.querySelector(".md-reference-picker");
+    const picker = document.getElementById("mdReferencePicker") || document.querySelector(".md-reference-picker");
     const options = [...(picker?.querySelectorAll(".md-reference-option") || [])];
     return {
       open: picker && !picker.hidden && getComputedStyle(picker).display !== "none",
       optionsCount: options.length,
     };
   });
-  assert.equal(planePicker.open, true, "reference plane picker modal did not open");
+  assert.equal(planePicker.open, true, "Reference step did not open the plane picker");
   assert.ok(planePicker.optionsCount >= 3, "expected at least 3 standard reference planes");
 
-  // Select Top plane
   await page.eval(() => {
-    const opts = [...document.querySelectorAll(".md-reference-option")];
-    const topOpt = opts.find((o) => /top/i.test(o.textContent)) || opts[0];
-    if (topOpt) topOpt.click();
+    const cancel = document.querySelector("[data-reference-cancel]");
+    if (cancel) cancel.click();
   });
-  await page.eval(() => new Promise((r) => setTimeout(r, 300)));
+});
 
-  const sketchMode = await page.eval(() => {
-    const wf = document.getElementById("mdWorkflow");
-    const activeStep = wf.querySelector("[data-workflow-step].active")?.getAttribute("data-workflow-step");
-    const ribbonTab = document.querySelector(".md-command-tabs > button.on")?.getAttribute("data-cmdtab");
-    const contextActions = document.getElementById("mdContextActions");
-    const isContextActionsVisible = contextActions && !contextActions.hidden && getComputedStyle(contextActions).display !== "none";
-    return { activeStep, ribbonTab, isContextActionsVisible };
-  });
-
-  assert.equal(sketchMode.activeStep, "sketch", "workflow did not transition to sketch step");
-  assert.equal(sketchMode.ribbonTab, "sketch", "ribbon did not switch to sketch tab");
-  assert.equal(sketchMode.isContextActionsVisible, true, "context actions (confirm corner) not visible");
-
-  // Accept sketch
+test("desktop model editor: equal screen drag on a Top sketch commits equal UV width and height", opts, async () => {
+  const page = await ctx({ width: 1280, height: 800, lang: "en" });
   await page.eval(() => {
-    const okBtn = document.getElementById("mdAcceptCommand");
-    if (okBtn) okBtn.click();
+    window.confirm = () => true;
+    const neu = document.querySelector('[data-act="new"]');
+    if (neu) neu.click();
   });
-  await page.eval(() => new Promise((r) => setTimeout(r, 350)));
+  await page.eval(() => new Promise((r) => setTimeout(r, 200)));
+  await page.eval(() => new Promise((resolve) => {
+    const start = Date.now();
+    const tick = () => {
+      if (window.cadPreviewView && window.cadPreviewView.cam) return resolve(true);
+      if (Date.now() - start > 8000) return resolve(false);
+      requestAnimationFrame(tick);
+    };
+    tick();
+  }));
+  await page.waitUntil(() => {
+    const btn = document.querySelector(".md-tree-create-sketch.md-tree-start");
+    const box = btn?.getBoundingClientRect();
+    return !!box && box.width > 0 && box.height > 0;
+  }, { what: "the visible Tree Start Sketch action" });
+  await page.eval(() => document.querySelector(".md-tree-create-sketch.md-tree-start")?.click());
+  await page.waitUntil(() => {
+    const snap = typeof window.cadSketchSnapshot === "function" ? window.cadSketchSnapshot() : null;
+    const tool = snap && snap.tool === "srect" || document.querySelector('[data-command="srect"].on');
+    const canvas = document.getElementById("mdCanvas");
+    return !!tool && !!canvas && canvas.getBoundingClientRect().width > 40
+      && snap?.plane === "top" && snap.autoOrient && snap.hasFixedFrame && !!snap.cam;
+  }, { what: "automatically oriented Top sketch with rectangle tool and a live canvas" });
+  const entered = await page.eval(() => window.cadSketchSnapshot());
+  assert.equal(entered.plane, "top");
+  assert.equal(entered.autoOrient, true);
+  assert.equal(entered.hasFixedFrame, true, "opening the sketch did not lock the camera normal to Top");
+  assert.ok(Math.abs(entered.cam.y) > Math.max(1, Math.abs(entered.cam.x), Math.abs(entered.cam.z)) * 8,
+    "Top sketch camera is not predominantly on the plane normal: " + JSON.stringify(entered.cam));
+  await page.eval(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 
-  const afterSketch = await page.eval(() => {
-    const ribbonTab = document.querySelector(".md-command-tabs > button.on")?.getAttribute("data-cmdtab");
-    return ribbonTab;
+  const drawn = await page.eval(async () => {
+    const osnap = document.querySelector("#mdOsnap");
+    if (osnap && osnap.checked) {
+      osnap.checked = false;
+      osnap.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    const canvas = document.getElementById("mdCanvas");
+    const rect = canvas.getBoundingClientRect();
+    const x0 = rect.left + rect.width / 2 - 70;
+    const y0 = rect.top + rect.height / 2 - 70;
+    const x1 = x0 + 140;
+    const y1 = y0 + 140;
+    const fire = (type, x, y, extra) => {
+      canvas.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerId: 41, pointerType: "mouse", isPrimary: true,
+        button: 0, buttons: type === "pointerup" ? 0 : 1, clientX: x, clientY: y, ...extra,
+      }));
+    };
+    fire("pointerdown", x0, y0, {});
+    fire("pointermove", x1, y1, {});
+    fire("pointerup", x1, y1, {});
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    return typeof window.cadSketchSnapshot === "function" ? window.cadSketchSnapshot() : null;
   });
-  assert.equal(afterSketch, "features", "ribbon did not return to features after sketch");
+  assert.ok(drawn, "cadSketchSnapshot was not exposed");
+  assert.equal(drawn.tool, "srect");
+  assert.ok(drawn.pointCount >= 4, "rectangle did not commit four sketch points");
+  assert.ok(drawn.width > 1 && drawn.height > 1, "committed rectangle was degenerate");
+  assert.ok(Math.abs(drawn.width / drawn.height - 1) < 0.05,
+    "equal screen drag must commit equal UV sides, got " + drawn.width + " × " + drawn.height);
+});
+
+test("desktop model editor: automatic sketch orientation is separate from the Normal To command", opts, async () => {
+  const page = await ctx({ width: 1280, height: 800, lang: "en" });
+  await page.eval(() => {
+    window.confirm = () => true;
+    document.querySelector('[data-act="new"]')?.click();
+  });
+  await page.waitUntil(() => {
+    const view = window.cadPreviewView;
+    const start = document.querySelector(".md-tree-create-sketch.md-tree-start")?.getBoundingClientRect();
+    return !!view?.cam && !!start && start.width > 0 && start.height > 0;
+  }, { what: "a blank part, live 3D view, and visible Start Sketch action" });
+
+  const preferenceChange = await page.eval(async () => {
+    const view = window.cadPreviewView;
+    view.place();
+    const before = view.cam.position.toArray();
+    const box = document.getElementById("mdNormalTo");
+    box.checked = false;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    view.place();
+    return {
+      before,
+      after: view.cam.position.toArray(),
+      autoOrient: window.cadSketchSnapshot().autoOrient,
+      fixed: !!view.fixedFrame,
+    };
+  });
+  assert.equal(preferenceChange.autoOrient, false, "automatic-orientation preference did not turn off");
+  assert.equal(preferenceChange.fixed, false, "blank 3D view unexpectedly started camera-locked");
+  assert.deepEqual(preferenceChange.after, preferenceChange.before,
+    "changing the future sketch-entry preference moved the current camera");
+
+  await page.eval(() => document.querySelector(".md-tree-create-sketch.md-tree-start")?.click());
+  await page.waitUntil(() => window.cadSketchSnapshot?.().phase === "sketch", { what: "the Top sketch to open" });
+  const opened = await page.eval(() => window.cadSketchSnapshot());
+  assert.equal(opened.plane, "top");
+  assert.equal(opened.autoOrient, false);
+  assert.equal(opened.hasFixedFrame, false, "disabled automatic orientation still locked the new datum sketch");
+
+  await page.eval(() => document.getElementById("mdNormalToView")?.click());
+  await page.waitUntil(() => !!window.cadPreviewView?.fixedFrame, { what: "Normal To to lock the camera once" });
+  assert.equal(await page.eval(() => window.cadSketchSnapshot().autoOrient), false,
+    "one-shot Normal To changed the automatic-orientation preference");
+
+  await page.eval(() => {
+    const canvas = document.getElementById("mdPrev");
+    // Synthetic PointerEvents are not registered with Chromium's native
+    // pointer stream, so setPointerCapture would reject their pointerId before
+    // the view's orbit recognizer records the drag. Real mouse input captures
+    // normally; neutralise only that browser primitive in this page-side test.
+    canvas.setPointerCapture = () => {};
+    const rect = canvas.getBoundingClientRect();
+    const x = rect.left + Math.max(12, rect.width * 0.15);
+    const y = rect.top + Math.max(12, rect.height * 0.15);
+    const fire = (type, clientX, clientY, buttons) => canvas.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, cancelable: true, pointerId: 73, pointerType: "mouse", isPrimary: true,
+      button: 0, buttons, clientX, clientY,
+    }));
+    fire("pointerdown", x, y, 1);
+    fire("pointermove", x + 36, y + 18, 1);
+    fire("pointerup", x + 36, y + 18, 0);
+  });
+  await page.waitUntil(() => !window.cadPreviewView?.fixedFrame, { what: "orbit to free the Normal To camera lock" });
+  const afterOrbit = await page.eval(() => ({
+    autoOrient: window.cadSketchSnapshot().autoOrient,
+    pressed: document.getElementById("mdNormalToView")?.getAttribute("aria-pressed"),
+    on: document.getElementById("mdNormalToView")?.classList.contains("on"),
+  }));
+  assert.equal(afterOrbit.autoOrient, false, "orbit changed the automatic-orientation preference");
+  assert.notEqual(afterOrbit.pressed, "true", "momentary Normal To command retained a pressed state");
+  assert.equal(afterOrbit.on, false, "momentary Normal To command retained active styling");
+});
+
+test("desktop model editor: leaving an automatically oriented sketch restores the complete 3D pose", opts, async () => {
+  const page = await ctx({ width: 1280, height: 800, lang: "en" });
+  await page.eval(() => {
+    window.confirm = () => true;
+    document.querySelector('[data-act="new"]')?.click();
+  });
+  await page.waitUntil(() => {
+    const start = document.querySelector(".md-tree-create-sketch.md-tree-start")?.getBoundingClientRect();
+    return !!window.cadPreviewView?.cam && !!start && start.width > 0 && start.height > 0;
+  }, { what: "the blank part and its Start Sketch action" });
+  const before = await page.eval(() => {
+    const view = window.cadPreviewView;
+    view.az = 1.07; view.el = .39; view.dist = 337;
+    view.target.set(17, -9, 23); view.render(); view.place();
+    return window.cadSketchSnapshot().viewPose;
+  });
+  await page.eval(() => document.querySelector(".md-tree-create-sketch.md-tree-start")?.click());
+  await page.waitUntil(() => window.cadSketchSnapshot?.().hasFixedFrame, { what: "automatic Normal To on sketch entry" });
+  await page.eval(() => window.dispatchEvent(new KeyboardEvent("keydown", { key:"Escape", bubbles:true })));
+  await page.waitUntil(() => !window.cadSketchSnapshot?.().hasFixedFrame, { what: "the sketch to release its camera frame" });
+  const after = await page.eval(() => window.cadSketchSnapshot().viewPose);
+  assert.deepEqual(after, before, "sketch exit did not restore azimuth, elevation, distance, and target");
+});
+
+test("desktop model editor: oblique rectangle preview matches the geometry committed on release", opts, async () => {
+  const page = await ctx({ width: 1280, height: 800, lang: "en" });
+  await page.eval(() => {
+    window.confirm = () => true;
+    document.querySelector('[data-act="new"]')?.click();
+  });
+  await page.waitUntil(() => {
+    const start = document.querySelector(".md-tree-create-sketch.md-tree-start")?.getBoundingClientRect();
+    return !!window.cadPreviewView?.cam && !!start && start.width > 0 && start.height > 0;
+  }, { what: "the blank part and visible Start Sketch action" });
+  await page.eval(() => document.querySelector(".md-tree-create-sketch.md-tree-start")?.click());
+  await page.waitUntil(() => window.cadSketchSnapshot?.().hasFixedFrame, { what: "the Top sketch to orient" });
+  await page.eval(() => {
+    const view = window.cadPreviewView, canvas = document.getElementById("mdPrev");
+    canvas.setPointerCapture = () => {};
+    const r = canvas.getBoundingClientRect(), x=r.left+r.width*.18, y=r.top+r.height*.2;
+    const fire=(type,cx,cy,buttons)=>canvas.dispatchEvent(new PointerEvent(type,{bubbles:true,cancelable:true,
+      pointerId:91,pointerType:"mouse",isPrimary:true,button:0,buttons,clientX:cx,clientY:cy}));
+    fire("pointerdown",x,y,1);fire("pointermove",x+52,y+29,1);fire("pointerup",x+52,y+29,0);
+  });
+  await page.waitUntil(() => !window.cadSketchSnapshot?.().hasFixedFrame, { what: "an oblique sketch camera" });
+
+  const result = await page.eval(async () => {
+    const osnap=document.getElementById("mdOsnap");
+    if(osnap?.checked){osnap.checked=false;osnap.dispatchEvent(new Event("change",{bubbles:true}));}
+    const canvas=document.getElementById("mdCanvas"),r=canvas.getBoundingClientRect();
+    const x0=r.left+r.width*.38,y0=r.top+r.height*.38,x1=x0+155,y1=y0+96;
+    const fire=(type,x,y,buttons)=>canvas.dispatchEvent(new PointerEvent(type,{bubbles:true,cancelable:true,
+      pointerId:92,pointerType:"mouse",isPrimary:true,button:0,buttons,clientX:x,clientY:y}));
+    fire("pointerdown",x0,y0,1);fire("pointermove",x1,y1,1);
+    await new Promise((resolve)=>requestAnimationFrame(resolve));
+    const preview=window.cadSketchSnapshot().previewRect;
+    fire("pointerup",x1,y1,0);
+    await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const committed=window.cadSketchSnapshot().screenPoints.slice(-4);
+    return {preview,committed};
+  });
+  assert.equal(result.preview?.length, 4, "rectangle rubber-band did not expose its four projected UV corners");
+  assert.equal(result.committed.length, 4, "rectangle did not commit four projected corners");
+  result.preview.forEach((point, index) => {
+    const nearest=Math.min(...result.committed.map((other)=>Math.hypot(point.x-other.x,point.y-other.y)));
+    assert.ok(nearest < 1.25, `preview corner ${index} moved ${nearest.toFixed(2)}px when committed`);
+  });
 });
 
 test("desktop model editor: Document Mode switches to Assembly and back cleanly", opts, async () => {
@@ -336,10 +586,10 @@ test("desktop model editor: Document Mode switches to Assembly and back cleanly"
    second silently never appears. Clear the store, then seed. */
 async function seedModelLibrary(page, models) {
   await page.eval(async (list) => {
-    await new Promise((resolve) => {
-      const request = indexedDB.deleteDatabase("home3d_model_library");
-      request.onsuccess = request.onerror = request.onblocked = () => resolve();
-    });
+    try {
+      const { saveModelLibrary } = await import("./js/core/model_library_store.js");
+      await saveModelLibrary(list);
+    } catch {}
     localStorage.setItem("home3d_models", JSON.stringify(list));
     localStorage.removeItem("home3d_assemblies");
     localStorage.removeItem("home3d_modeler_draft");
@@ -347,6 +597,147 @@ async function seedModelLibrary(page, models) {
   await page.goto("/");
   await openDesktopEditor(page);
 }
+
+test("desktop model editor: selecting a saved model loads its design history", opts, async () => {
+  const page = await freshDesktopCtx({ width: 1280, height: 800, lang: "en" });
+  await seedModelLibrary(page, [{
+    key: "history-model",
+    id: "history-model",
+    definitionId: "history-model",
+    name: "History model",
+    w: 20,
+    d: 12,
+    h: 8,
+    metadata: { authoringSystem: "parametric-v1" },
+    parts: [{
+      id: "history-part",
+      featureId: "history-box",
+      kind: "box",
+      name: "History body",
+      x0: -10,
+      x1: 10,
+      y0: 0,
+      y1: 8,
+      z0: -6,
+      z1: 6,
+    }],
+    sketches: [],
+    features: [{
+      id: "history-box",
+      type: "box",
+      name: "Saved base feature",
+      params: { x: -10, y: 0, z: -6, w: 20, h: 8, d: 12 },
+      inputs: [],
+      references: { sketches: [], features: [], topology: [], references: [] },
+    }],
+    history: [{ id: "history:history-box", kind: "feature", targetId: "history-box", name: "Saved base feature" }],
+  }]);
+
+  await page.eval(() => document.querySelector('#modeler [data-tab="lib"]').click());
+  await page.waitUntil(() => [...document.querySelectorAll("#mdLib .md-card .nm")]
+    .some((node) => node.textContent === "History model"), { what: "the saved model card" });
+  await page.eval(() => [...document.querySelectorAll("#mdLib .md-card")]
+    .find((card) => card.querySelector(".nm")?.textContent === "History model").click());
+  await page.waitUntil(() => document.querySelector('#modeler [data-pane="parts"]')?.classList.contains("on"), {
+    what: "the selected model's design tree",
+  });
+
+  const loaded = await page.eval(() => ({
+    name: document.getElementById("mdName")?.value,
+    libraryStillOpen: document.querySelector('#modeler [data-pane="lib"]')?.classList.contains("on"),
+    treeMode: document.querySelector("#mdParts .md-tree")?.dataset.mode,
+    featureText: document.querySelector('#mdParts [data-node-id="feature:history-box"]')?.textContent || "",
+    historyCount: document.getElementById("mdWorkflowHistory")?.textContent || "",
+  }));
+  assert.equal(loaded.name, "History model");
+  assert.equal(loaded.libraryStillOpen, false, "the library obscures the selected model's history");
+  assert.equal(loaded.treeMode, "canonical");
+  assert.match(loaded.featureText, /Saved base feature/);
+  assert.match(loaded.historyCount, /^[1-9]\d*\b/);
+
+  await page.eval(() => document.querySelector('#modeler [data-tab="hist"]').click());
+  const rightHistory = await page.eval(() => ({
+    visible: document.querySelector('#modeler [data-pane="hist"]')?.classList.contains("on"),
+    designHeading: document.querySelector("#mdHistDesign .md-model-history-head")?.textContent || "",
+    featureText: document.querySelector('#mdHistDesign [data-node-id="feature:history-box"]')?.textContent || "",
+    sessionText: document.querySelector("#mdHistSession")?.textContent || "",
+  }));
+  assert.equal(rightHistory.visible, true);
+  assert.match(rightHistory.designHeading, /Design history/i);
+  assert.match(rightHistory.featureText, /Saved base feature/);
+  assert.match(rightHistory.sessionText, /Session edits/i);
+});
+
+test("desktop model editor: rebuild diagnostics are grouped, compact, and expandable", opts, async () => {
+  const page = await freshDesktopCtx({ width: 1024, height: 768, lang: "en" });
+  const diagnosticModel = createPartDocument({
+    id: "diagnostic-model", definitionId: "diagnostic-model", name: "Diagnostic model",
+  });
+  Object.assign(diagnosticModel, {
+    key: "diagnostic-model", w: 20, d: 12, h: 8,
+    metadata: { authoringSystem: "parametric-v1" },
+    parts: [{id:"diag-part",featureId:"diag-extrude",kind:"ext",name:"Body",axis:"y",from:0,to:8,pts:[{u:-10,v:-6},{u:10,v:-6},{u:10,v:6},{u:-10,v:6}],holes:[]}],
+  });
+  createSketchDefinition(diagnosticModel, {
+    id:"diag-sketch",name:"Base profile",referenceId:"plane:top",plane:"top",points:[
+      {id:"p0",x:-10,y:-6,fixed:true},{id:"p1",x:10,y:-6,fixed:true},
+      {id:"p2",x:10,y:6,fixed:true},{id:"p3",x:-10,y:6,fixed:true},
+    ],entities:[
+      {id:"e0",type:"line",a:"p0",b:"p1"},{id:"e1",type:"line",a:"p1",b:"p2"},
+      {id:"e2",type:"line",a:"p2",b:"p3"},{id:"e3",type:"line",a:"p3",b:"p0"},
+    ],constraints:[],
+  });
+  createFeatureDefinition(diagnosticModel, "extrude", {
+    id:"diag-extrude",name:"Base",params:{axis:"y",from:0,to:8,depth:8,operation:"add",endCondition:"blind",direction:"forward",symmetric:false,draftAngle:0,draftOutward:false,mergeResult:true,profileEntityIds:["e0","e1","e2","e3"]},
+    references:{sketches:["diag-sketch"]},
+  });
+  const missingTargets = Array.from({ length: 4 }, (_, index) => createTopologyReference(
+    "diag-extrude", "edge", "diag-extrude:edge:missing-" + index,
+    {curve:"circle",semantic:"missing-" + index,origin:{x:1000+index,y:1000,z:1000},axis:{x:0,y:1,z:0},measure:1},
+  ));
+  createFeatureDefinition(diagnosticModel, "fillet", {
+    id:"diag-fillet",name:"Fillet 1",params:{radius:1,propagation:"tangent",section:"rational",continuity:"tangent",targets:missingTargets},
+    inputs:["diag-extrude"],references:{features:["diag-extrude"],topology:missingTargets},
+  });
+  await seedModelLibrary(page, [diagnosticModel]);
+  await page.eval(() => document.querySelector('#modeler [data-tab="lib"]').click());
+  await page.waitUntil(() => [...document.querySelectorAll("#mdLib .md-card")]
+    .some((card) => card.querySelector(".nm")?.textContent === "Diagnostic model"), { what:"the diagnostic model card" });
+  await page.eval(() => [...document.querySelectorAll("#mdLib .md-card")]
+    .find((card) => card.querySelector(".nm")?.textContent === "Diagnostic model").click());
+  await page.waitUntil(() => !!document.querySelector("#mdDiagnostics .md-diagnostic-primary"), { what:"grouped rebuild diagnostics" });
+
+  const compact = await page.eval(() => {
+    const panel = document.getElementById("mdParts").getBoundingClientRect();
+    const row = document.querySelector("#mdDiagnostics .md-diagnostic-primary");
+    const box = row.getBoundingClientRect();
+    return {
+      rows:document.querySelectorAll("#mdDiagnostics .md-core-diagnostic").length,
+      titles:[...document.querySelectorAll("#mdDiagnostics .md-core-diagnostic")].map((item) => item.title),
+      open:row.querySelector("details").open,
+      headline:row.querySelector(".md-diagnostic-message").textContent,
+      next:row.querySelector(".md-diagnostic-next").textContent,
+      buttons:row.querySelectorAll(".md-diagnostic-actions button").length,
+      contained:box.left >= panel.left - 1 && box.right <= panel.right + 1,
+    };
+  });
+  assert.equal(compact.rows, 1, "four missing targets should be one repair card: " + JSON.stringify(compact.titles));
+  assert.equal(compact.open, false, "long guidance must start collapsed");
+  assert.match(compact.headline, /lost a selected face or edge · ×4/);
+  assert.match(compact.next, /Edit the feature/);
+  assert.ok(compact.buttons >= 1, "the repair action is not visible");
+  assert.equal(compact.contained, true, "diagnostic card overflows the tree panel");
+
+  await page.eval(() => document.querySelector("#mdDiagnostics .md-diagnostic-primary summary").click());
+  const expanded = await page.eval(() => ({
+    open:document.querySelector("#mdDiagnostics .md-diagnostic-primary details").open,
+    why:document.querySelector("#mdDiagnostics .md-diagnostic-primary .md-diagnostic-explanation").textContent,
+    fix:document.querySelector("#mdDiagnostics .md-diagnostic-primary .md-diagnostic-fix").textContent,
+  }));
+  assert.equal(expanded.open, true);
+  assert.match(expanded.why, /selected face or edge/i);
+  assert.match(expanded.fix, /reselect/i);
+});
 
 /* Assembly mode inherited the part editor's chrome wholesale: a breadcrumb
    reading Part → Reference → Sketch → Feature → History, panes called Sketch /
@@ -544,6 +935,8 @@ test("desktop model editor: assembly components drag with mouse and touch", opts
   assert.ok(Math.abs(touchDelta[0]) > 1, "X-locked touch drag left the component in place");
   assert.ok(Math.abs(touchDelta[1]) < 1e-6 && Math.abs(touchDelta[2]) < 1e-6,
     `X-locked drag leaked into Y/Z (${touchDelta.join(", ")})`);
+  await page.resize(1280, 800, { mobile: false, touch: false });
+  await page.eval(() => new Promise((r) => setTimeout(r, 200)));
 });
 
 /* Components used to be drawn as a flat list of their own while every part
@@ -843,11 +1236,27 @@ test("desktop model editor: Tree toggle does not cover view or zoom controls", o
     return {
       overlap, firstHidden,
       viewsVisible: views.height > 0 && views.width > 0,
+      viewsWidth: views.width,
     };
   });
   assert.equal(hit.viewsVisible, true, "view cube is not laid out");
+  assert.ok(hit.viewsWidth <= 132, "view-control rail is too wide: " + hit.viewsWidth);
   assert.equal(hit.overlap, false, "Tree toggle overlaps the view cube");
   assert.equal(hit.firstHidden, false, "the first view button is behind the Tree toggle");
+});
+
+test("desktop model editor: room context and viewport help do not overlap", opts, async () => {
+  const page = await ctx({ width: 1024, height: 768, lang: "en" });
+  const hit = await page.eval(() => {
+    const room = document.querySelector(".md-3dhost .md-context-toggle").getBoundingClientRect();
+    const help = document.getElementById("mdHintHelp").getBoundingClientRect();
+    const overlap = room.left < help.right - 1 && room.right > help.left + 1
+      && room.top < help.bottom - 1 && room.bottom > help.top + 1;
+    return { overlap, roomVisible: room.width > 0, helpVisible: help.width > 0, room, help };
+  });
+  assert.equal(hit.roomVisible, true, "room-context control is not laid out");
+  assert.equal(hit.helpVisible, true, "viewport-help control is not laid out");
+  assert.equal(hit.overlap, false, "room context overlaps viewport help: " + JSON.stringify(hit));
 });
 
 test("desktop model editor: selection toolbar does not cover the view cube", opts, async () => {

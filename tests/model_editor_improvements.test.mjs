@@ -29,6 +29,13 @@ test("history and zoom icon controls have accessible names", () => {
   assert.match(modeler, /data-zoom="fit"[^>]+aria-label=/);
 });
 
+test("3D hover coalescing resolves the latest pointer sample", () => {
+  assert.match(modeler, /latestHoverEvent = \{/);
+  assert.match(modeler, /var event = latestHoverEvent;/);
+  assert.match(modeler, /if \(event\.buttons\) \{ cancelQueuedHover\(\); return; \}/);
+  assert.match(modeler, /pointerleave[\s\S]{0,100}cancelQueuedHover\(\)/);
+});
+
 test("browser harness teardown is ordered and bounded", () => {
   const graceful = harness.indexOf("server.close((error)");
   const force = harness.indexOf("server.closeAllConnections()", graceful);

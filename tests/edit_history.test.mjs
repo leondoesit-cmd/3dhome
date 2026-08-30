@@ -45,6 +45,53 @@ test("an editor can resume a matching timeline and rejects stale external edits"
   assert.equal(history.matchesCurrent(), false);
 });
 
+test("abort restores a provisional transaction and discards its history step", () => {
+  let model = { walls: [{ id: 1 }], openings: [] };
+  const H = createHistory({
+    get: () => JSON.stringify(model),
+    set: (json) => { model = JSON.parse(json); },
+  });
+  H.seed();
+  const before = H.position();
+
+  H.begin("Place opening");
+  assert.equal(H.isPending(), true);
+  model.openings.push({ id: 2, wallId: 1 });
+  model.walls[0].changed = true;
+
+  assert.equal(H.abort(), true);
+  assert.equal(H.isPending(), false);
+  assert.deepEqual(model, { walls: [{ id: 1 }], openings: [] });
+  assert.equal(H.position(), before);
+  assert.equal(H.tree().length, 1, "the aborted step is not left in the tree");
+  assert.equal(H.canUndo(), false);
+});
+
+test("a failed abort keeps transaction ownership instead of discarding its snapshot", () => {
+  let model = { n: 0 };
+  let rejectRestore = false;
+  const H = createHistory({
+    get: () => JSON.stringify(model),
+    set: (json) => {
+      if (rejectRestore) return false;
+      model = JSON.parse(json);
+    },
+  });
+  H.seed();
+  H.begin("Change");
+  model.n = 1;
+  rejectRestore = true;
+
+  assert.equal(H.abort(), false);
+  assert.equal(H.isPending(), true);
+  assert.equal(H.tree().length, 2);
+
+  rejectRestore = false;
+  assert.equal(H.abort(), true);
+  assert.equal(H.isPending(), false);
+  assert.deepEqual(model, { n: 0 });
+});
+
 /* The history is a TREE: rolling back and editing forks instead of destroying
    what came after, and both futures stay reachable. */
 test("editing from a rolled-back step forks instead of truncating", () => {

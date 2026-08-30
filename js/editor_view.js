@@ -122,7 +122,8 @@ export function createEditorView(opts) {
 
     var sc = new THREE.Scene();
     var cam = new THREE.PerspectiveCamera(opts.fov || 45, 1, opts.near || 1, opts.far || 6000);
-    sc.add(new THREE.AmbientLight(0xffffff, LUX * (opts.ambient || 0.6)));
+    var ambient = new THREE.AmbientLight(0xffffff, LUX * (opts.ambient || 0.6));
+    sc.add(ambient);
     var key = new THREE.DirectionalLight(0xfff2dd, LUX * (opts.keyLight || 0.95));
     key.position.set(180, 340, 260);
     if (opts.shadows) {
@@ -139,11 +140,12 @@ export function createEditorView(opts) {
       key.shadow.camera.far = 4000;
       key.shadow.bias = -0.0004;
       key.shadow.normalBias = 1.2;   // cm
-      sc.add(key.target);
     }
     sc.add(key);
+    sc.add(key.target);
+    var fill = null;
     if (opts.fill !== 0) {
-      var fill = new THREE.DirectionalLight(0xdfe8ff, LUX * (opts.fill || 0.35));
+      fill = new THREE.DirectionalLight(0xdfe8ff, LUX * (opts.fill || 0.35));
       fill.position.set(-200, 120, -160);
       sc.add(fill);
     }
@@ -165,12 +167,45 @@ export function createEditorView(opts) {
 
     view = {
       rr: rr, sc: sc, cam: cam, grp: grp, grid: grid,
+      keyLight: key, ambientLight: ambient, fillLight: fill,
       az: opts.az != null ? opts.az : 0.55,
       el: opts.el != null ? opts.el : 0.28,
       dist: opts.dist || 420,
       target: new THREE.Vector3(),
       big: false,
       fixedFrame: null,
+      pickBounds: null,
+    };
+
+    var initialLightOffset = key.position.clone();
+    view.lighting = {
+      azimuth: Math.atan2(initialLightOffset.x, initialLightOffset.z) * 180 / Math.PI,
+      elevation: Math.asin(initialLightOffset.y / initialLightOffset.length()) * 180 / Math.PI,
+      distance: initialLightOffset.length(),
+      keyColor: "#" + key.color.getHexString(),
+      keyIntensity: key.intensity,
+      ambientColor: "#" + ambient.color.getHexString(),
+      ambientIntensity: ambient.intensity,
+      fillColor: fill ? "#" + fill.color.getHexString() : "#dfe8ff",
+      fillIntensity: fill ? fill.intensity : 0,
+    };
+    function applyLighting(settings) {
+      if (!settings) return;
+      Object.keys(view.lighting).forEach(function (name) {
+        if (settings[name] != null) view.lighting[name] = settings[name];
+      });
+      if (view.lighting.keyColor) key.color.set(view.lighting.keyColor);
+      if (Number.isFinite(Number(view.lighting.keyIntensity))) key.intensity = Number(view.lighting.keyIntensity);
+      if (view.lighting.ambientColor) ambient.color.set(view.lighting.ambientColor);
+      if (Number.isFinite(Number(view.lighting.ambientIntensity))) ambient.intensity = Number(view.lighting.ambientIntensity);
+      if (fill) {
+        if (view.lighting.fillColor) fill.color.set(view.lighting.fillColor);
+        if (Number.isFinite(Number(view.lighting.fillIntensity))) fill.intensity = Number(view.lighting.fillIntensity);
+      }
+    }
+    view.setLighting = function (settings, render) {
+      applyLighting(settings);
+      if (render !== false) view.render();
     };
 
     var minEl = opts.minEl != null ? opts.minEl : -0.2,
@@ -355,6 +390,7 @@ export function createEditorView(opts) {
 
     // put the camera on its orbit around `center`, then draw
     view.place = function () {
+      if (opts.lighting) applyLighting(opts.lighting(view));
       var d = view.dist * (view.big ? (opts.bigZoom || 1.3) : 1),
         az = view.az,
         el = view.el,
@@ -362,6 +398,8 @@ export function createEditorView(opts) {
         tx = view.target.x,
         ty = cy + view.target.y,
         tz = view.target.z;
+      key.target.position.set(tx, ty, tz);
+      key.target.updateMatrixWorld();
       if (key.castShadow) {
         var reach = Math.max(60, d), shadowCam = key.shadow.camera;
         if (shadowCam.right !== reach) {
@@ -369,9 +407,23 @@ export function createEditorView(opts) {
           shadowCam.top = reach; shadowCam.bottom = -reach;
           shadowCam.updateProjectionMatrix();
         }
-        key.target.position.set(tx, ty, tz);
-        key.target.updateMatrixWorld();
+        var neededLightFar = Math.max(4000, (Number(view.lighting.distance) || 1) * 2);
+        if (shadowCam.far !== neededLightFar) {
+          shadowCam.far = neededLightFar;
+          shadowCam.updateProjectionMatrix();
+        }
       }
+      /* Keep the source relative to its target so panning cannot change the
+         illumination direction and callers can reproduce a room light rig. */
+      var lightAz = THREE.MathUtils.degToRad(Number(view.lighting.azimuth) || 0),
+        lightEl = THREE.MathUtils.degToRad(Number(view.lighting.elevation) || 0),
+        lightDistance = Math.max(1, Number(view.lighting.distance) || 1),
+        lightHorizontal = Math.cos(lightEl) * lightDistance;
+      key.position.set(
+        tx + Math.sin(lightAz) * lightHorizontal,
+        ty + Math.sin(lightEl) * lightDistance,
+        tz + Math.cos(lightAz) * lightHorizontal
+      );
       if (view.fixedFrame) {
         var frame = view.fixedFrame,
           origin = {
@@ -412,6 +464,11 @@ export function createEditorView(opts) {
     view.rebuild = function (fn) {
       clearGroup(grp);
       if (fn) fn(grp);
+      /* Cache model bounds once per rebuild. Pointer hover may raycast every
+         animation frame; recomputing a Box3 there makes dense assemblies feel
+         sticky. The farthest bound supplies a safe perspective broad phase. */
+      var box = new THREE.Box3().setFromObject(grp);
+      view.pickBounds = box.isEmpty() ? null : box.getBoundingSphere(new THREE.Sphere());
       view.render();
     };
 
@@ -462,10 +519,19 @@ export function createEditorView(opts) {
     /* World units per screen pixel at the orbit target — what a handle needs to
        stay a constant size on screen, and what a drag needs to track the
        cursor one-to-one instead of racing ahead of it. */
-    view.worldPerPixel = function () {
-      var d = view.dist * (view.big ? (opts.bigZoom || 1.3) : 1);
+    view.worldPerPixelAtDistance = function (distance) {
+      var d = Number(distance);
+      if (!(d > 0)) d = view.dist * (view.big ? (opts.bigZoom || 1.3) : 1);
       var height = Math.max(1, cv.clientHeight || 1);
       return 2 * d * Math.tan(THREE.MathUtils.degToRad(cam.fov * 0.5)) / height;
+    };
+    view.worldPerPixel = function () {
+      return view.worldPerPixelAtDistance(view.dist * (view.big ? (opts.bigZoom || 1.3) : 1));
+    };
+    view.farthestWorldPerPixel = function () {
+      if (!view.pickBounds) return view.worldPerPixel();
+      var distance = cam.position.distanceTo(view.pickBounds.center) + view.pickBounds.radius;
+      return view.worldPerPixelAtDistance(distance);
     };
 
     view.panBy = function (dx, dy, render) {

@@ -29,8 +29,16 @@ configureFloorIO({ sceneObject, applyData });
 
 function openProjectData(raw) {
   pushHistory();
-  applyData(raw);
-  markSaved();
+  /* An opened project is the likeliest source of custom models this browser has
+     never seen, so applyData may fetch the model builder before it can apply —
+     the project is not "saved as loaded" until it has. */
+  return Promise.resolve(applyData(raw)).then(function (applied) {
+    // A superseded apply resolves false: the project on screen is not this one,
+    // so calling it "saved as loaded" would be a lie the user acts on.
+    if (!applied) throw new Error("project apply was superseded");
+    markSaved();
+    return true;
+  });
 }
 
 let activeTab = "project";
@@ -102,9 +110,11 @@ export async function openWorkspace() {
         const meta = document.createElement("small"); meta.textContent = new Date(project.updatedAt).toLocaleString() + " · " + (project.versions?.length || 0) + " versions";
         const load = button("Open", () => {
           try {
-            openProjectData(project.json);
-            dlg.close();
-            flash("Project opened", "success");
+            // openProjectData resolves once the project has really been applied
+            openProjectData(project.json).then(function () {
+              dlg.close();
+              flash("Project opened", "success");
+            }, function () { flash("Could not open project", "error"); });
           } catch (error) {
             flash("Could not open project", "error");
           }
@@ -119,7 +129,7 @@ export async function openWorkspace() {
                 flash("Version not found", "error");
                 return;
               }
-              openProjectData(json);
+              await openProjectData(json);
               dlg.close();
               flash("Version restored", "success");
             } catch (error) {

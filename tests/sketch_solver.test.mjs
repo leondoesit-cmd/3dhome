@@ -5,7 +5,7 @@ import {
   ensureSketch, ensureSketchDoc, addSketch, removeSketch, sketchById, resolveProfilePoints,
 } from "../js/sketch_solver.js";
 import { resolveSketchExtrusion } from "../js/cad_feature_tree.js";
-import { addSmartDimension, currentMeasure, distanceDimensionLayout, hitSketchDimension } from "../js/sketch_dimensions.js";
+import { addSmartDimension, currentMeasure, distanceDimensionLayout, drawSketchDimensions, hitSketchDimension } from "../js/sketch_dimensions.js";
 import { trimEntity, extendEntity, offsetEntity } from "../js/sketch_trim.js";
 import { analyzeSketchProfiles, healSketchEndpoints, pointInProfile, profileCentroid } from "../js/sketch_profiles.js";
 
@@ -40,6 +40,26 @@ test("a placed smart-ruler dimension keeps its offset and is easy to grab", () =
   assert.deepEqual(layout.b, { x:90, y:55 });
   assert.equal(hitSketchDimension(sketch, layout.label.x + 8, layout.label.y - 4, toPx)?.id, "dim");
   assert.equal(hitSketchDimension(sketch, 200, 200, toPx), null);
+});
+
+test("a circle radius leader projects a real sketch-plane rim point", () => {
+  const sketch = {
+    points: [{ id:"c", x:2, y:3 }],
+    entities: [{ id:"circle", type:"circle", c:"c", r:8 }],
+    constraints: [{ id:"radius", type:"radius", entity:"circle", value:8 }],
+  };
+  const lines = [];
+  const ctx = {
+    save() {}, restore() {}, beginPath() {}, moveTo(x, y) { lines.push(["move", x, y]); },
+    lineTo(x, y) { lines.push(["line", x, y]); }, stroke() {}, fillText() {},
+  };
+  const toPx = (x, y) => ({ x:10 + x * 3, y:20 + y * 0.5 });
+  drawSketchDimensions(ctx, sketch, 999, toPx);
+  const direction = -Math.PI / 4;
+  const expected = toPx(2 + Math.cos(direction) * 8, 3 + Math.sin(direction) * 8);
+  assert.deepEqual(lines[0], ["move", 16, 21.5]);
+  assert.ok(Math.abs(lines[1][1] - expected.x) < 1e-9);
+  assert.ok(Math.abs(lines[1][2] - expected.y) < 1e-9);
 });
 
 test("parametric sketch solver supports parallel, equal and coincident rules", () => {

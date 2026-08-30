@@ -54,7 +54,11 @@ async function openEditor(page) {
   await page.eval(() => {
     document.getElementById("openModelerTop").click();
   });
-  await page.eval(() => new Promise((r) => setTimeout(r, 400)));
+  // The editor is fetched on demand now, so wait for it rather than guessing.
+  await page.waitUntil(() => {
+    const el = document.getElementById("modeler");
+    return !!el && getComputedStyle(el).display !== "none";
+  }, { what: "the model editor to open" });
   await page.eval(() => {
     const c = document.querySelector('#mdWelcome [data-welcome-start="continue"]');
     if (c) c.click();
@@ -398,7 +402,7 @@ test("model editor @ 375px: mobile tutorial card docks above bottom chrome and l
   }
 });
 
-test("model editor @ 375px: welcome primary is Touch CAD then Open editor", opts, async () => {
+test("model editor @ 375px: welcome primary is Touch CAD, Blank part, Blank assembly", opts, async () => {
   const page = await ctx({ width: 375, height: 812 });
   {
     await page.eval(() => document.querySelector('[data-mdnav="more"]').click());
@@ -418,12 +422,17 @@ test("model editor @ 375px: welcome primary is Touch CAD then Open editor", opts
         extraHasAssembly: !![...document.querySelectorAll(".md-welcome-extra [data-welcome-start]")].find(
           (b) => b.getAttribute("data-welcome-start") === "assembly",
         ),
+        extraHasContinue: !![...document.querySelectorAll(".md-welcome-extra [data-welcome-start]")].find(
+          (b) => b.getAttribute("data-welcome-start") === "continue",
+        ),
       };
     });
-    assert.equal(welcome.tiles.length, 2, "only two primary welcome tiles");
+    assert.equal(welcome.tiles.length, 3, "three primary welcome tiles");
     assert.match(welcome.tiles[0], /Touch CAD|מחוות/);
-    assert.match(welcome.tiles[1], /Open editor|המשך לעורך/);
-    assert.equal(welcome.extraHasAssembly, true, "blank assembly moved into More starting points");
+    assert.match(welcome.tiles[1], /Blank part|חלק ריק/);
+    assert.match(welcome.tiles[2], /Blank assembly|הרכבה ריקה/);
+    assert.equal(welcome.extraHasAssembly, false, "blank assembly stays on the primary list");
+    assert.equal(welcome.extraHasContinue, true, "Open editor sits in More starting points");
   }
 });
 
@@ -438,7 +447,10 @@ test("the welcome guides survive a compact layout being torn down", opts, async 
     await page.eval(() => { window.confirm = () => true; document.getElementById("mdClose")?.click(); });
     await page.eval(() => new Promise((r) => setTimeout(r, 400)));
     await page.eval(() => { document.getElementById("openModelerTop").click(); });
-    await page.eval(() => new Promise((r) => setTimeout(r, 500)));
+    await page.waitUntil(() => {
+      const el = document.getElementById("modeler");
+      return !!el && getComputedStyle(el).display !== "none";
+    }, { what: "the model editor to open" });
   };
   const cards = () => page.eval(() => ({
     guides: !!document.querySelector("#mdWelcomeGuides"),
@@ -447,7 +459,10 @@ test("the welcome guides survive a compact layout being torn down", opts, async 
   }));
 
   await page.eval(() => { document.getElementById("openModelerTop").click(); });
-  await page.eval(() => new Promise((r) => setTimeout(r, 500)));
+  await page.waitUntil(() => {
+    const el = document.getElementById("modeler");
+    return !!el && getComputedStyle(el).display !== "none";
+  }, { what: "the model editor to open" });
   const compact = await cards();
   assert.equal(compact.guides, true, "the guides grid is present on a phone");
   assert.ok(compact.guideTiles > 0, "and it has guided tracks in it");

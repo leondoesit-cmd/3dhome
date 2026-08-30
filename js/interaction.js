@@ -45,6 +45,10 @@ import {
   cancelPending,
   undo,
   redo,
+  currentHistoryId,
+  beginHistoryTransaction,
+  commitHistoryTransaction,
+  abortHistoryTransaction,
 } from "./history.js";
 import { isWalk } from "./view3d.js";
 import {
@@ -102,6 +106,16 @@ import {
   getTouchPrecisionMode, getTouchPrecisionPrefs, releaseTouchPrecisionTrial, startTouchPrecisionTrial,
   touchPrecisionTrialOwns, updateTouchPrecisionTrial,
 } from "./touch_precision_ui.js";
+import {
+  openingPlaceCommand, wallDrawCommand, roomCreateCommand, executeCommand,
+} from "./commands/index.js";
+
+const PLANNER_COMMAND_HISTORY = Object.freeze({
+  current: currentHistoryId,
+  begin: beginHistoryTransaction,
+  commit: commitHistoryTransaction,
+  abort: abortHistoryTransaction,
+});
 
 /* ---- hit testing (world cm -> selection) ----
    A fingertip covers roughly a 9mm disc; a mouse cursor covers one pixel. The
@@ -623,20 +637,39 @@ export function wallPoint(p) {
      hold — trying anyway made a T-junction shove the whole plan around. Same
      for a wall drawn out in the open: nothing was cut, nothing to restore. */
   var cleanEnds = !S.drawFromSplit && !p.wall && !(p.walls && p.walls.length);
-  var nb = getOrMakeNode(p),
-    made = null;
-  if (nb !== S.drawFrom) {
-    made = {
-      id: uid(),
-      a: S.drawFrom,
-      b: nb,
-      thickness: WALL_T,
-      height: WALL_H,
-    };
-    applyWallDrawDefaults(made);
-    S.walls.push(made);
-    S.drawWalls.push(made.id);
-  }
+  var drawDefaults = resolveWallDrawDefaults();
+  var fromNodeId = S.drawFrom;
+  var fromPoint = S.nodes[fromNodeId];
+  var commandResult = executeCommand(wallDrawCommand, {
+    from: { x: fromPoint.x, z: fromPoint.z },
+    to: { x: p.x, z: p.z },
+    type: drawDefaults.typeId,
+    kind: drawDefaults.kind,
+    loc: drawDefaults.loc,
+    dimSide: drawDefaults.dimSide,
+    height: drawDefaults.height,
+    thickness: drawDefaults.thickness,
+    datum: drawDefaults.datum,
+    phase: drawDefaults.phase,
+  }, {
+    domain: "planner",
+    state: S,
+    version: { current: currentHistoryId },
+    services: {
+      materializeWall: function (params, env) {
+        return materializePlannerWall(params, env, {
+          fromNodeId: fromNodeId,
+          toLanding: p,
+        });
+      },
+    },
+  }, { history: false });
+  var madeEntry = commandResult.ok && commandResult.created.find(function (entry) {
+    return entry.kind === "wall";
+  });
+  var made = madeEntry ? wallById(madeEntry.id) : null;
+  var nb = made ? made.b : fromNodeId;
+  if (made) S.drawWalls.push(made.id);
   S.dirty3D = true;
   /* Chief-style continuous placement: the far endpoint becomes the origin of
      the next segment. The tool stays armed and the live dimensions immediately
@@ -817,30 +850,32 @@ function handleReverseClick(px, pz) {
 }
 
 function commitRectFromTo(a, b) {
-  var x0 = Math.min(a.x, b.x),
-    x1 = Math.max(a.x, b.x),
-    z0 = Math.min(a.z, b.z),
-    z1 = Math.max(a.z, b.z);
-  if (x1 - x0 < 20 || z1 - z0 < 20) {
+  var defaults = resolveWallDrawDefaults();
+  var result = executeCommand(roomCreateCommand, {
+    from: a,
+    to: b,
+    type: defaults.typeId,
+    kind: defaults.kind,
+    loc: defaults.loc,
+    dimSide: defaults.dimSide,
+    height: defaults.height,
+    thickness: defaults.thickness,
+    datum: defaults.datum,
+    phase: defaults.phase,
+  }, {
+    domain: "planner",
+    state: S,
+    history: PLANNER_COMMAND_HISTORY,
+    version: { current: currentHistoryId },
+    services: { materializeWall: materializePlannerWall },
+  }, { label: t("h_addRoom") });
+  if (!result.ok) {
     flash(tTouch("hint_tool_rect"));
     return null;
   }
-  pushHistory();
-  var n0 = getOrMakeNode(resolveLanding({ x: x0, z: z0 }, true));
-  var n1 = getOrMakeNode(resolveLanding({ x: x1, z: z0 }, true));
-  var n2 = getOrMakeNode(resolveLanding({ x: x1, z: z1 }, true));
-  var n3 = getOrMakeNode(resolveLanding({ x: x0, z: z1 }, true));
-  var walls = [
-    { id: uid(), a: n0, b: n1, thickness: WALL_T, height: WALL_H },
-    { id: uid(), a: n1, b: n2, thickness: WALL_T, height: WALL_H },
-    { id: uid(), a: n2, b: n3, thickness: WALL_T, height: WALL_H },
-    { id: uid(), a: n3, b: n0, thickness: WALL_T, height: WALL_H },
-  ];
-  walls.forEach(applyWallDrawDefaults);
-  S.walls.push(walls[0], walls[1], walls[2], walls[3]);
-  walls.forEach(function (w) {
-    if (wallClearLength(w) > 0) w.clearL = wallClearLength(w);
-  });
+  var wallIds = result.created.filter(function (entry) { return entry.kind === "wall"; })
+    .map(function (entry) { return entry.id; });
+  var walls = S.walls.filter(function (wall) { return wallIds.indexOf(wall.id) >= 0; });
   S.dirty3D = true;
   render2D();
   refreshTree();
@@ -1884,8 +1919,12 @@ function splitWallAt(w, s) {
    whose numbers quietly change. Anything closer to an end than the wall's own
    thickness is therefore the CORNER, not a split — which is what the user was
    aiming at anyway. */
-export function resolveLanding(p, autoJoin) {
+export function resolveLanding(p, options) {
   if (!p || p.node != null) return p;
+  var autoJoin = typeof options === "object" ? options.autoJoin !== false : !!options;
+  var exclude = typeof options === "object" && Array.isArray(options.exclude)
+    ? options.exclude.slice()
+    : S.drawing && S.drawFrom != null ? [S.drawFrom] : [];
   /* Chief-style wall intersection: a click visibly beside a wall still joins
      the wall when it lands within a small screen-aware capture band. This is
      intentionally a COMMIT rule, not only a cursor snap—the cursor may have
@@ -1898,7 +1937,7 @@ export function resolveLanding(p, autoJoin) {
         p.x,
         p.z,
         joinTol,
-        S.drawing && S.drawFrom != null ? [S.drawFrom] : [],
+        exclude,
       );
     if (near) {
       var blocked = openingAtWallPosition(near.wall, near.s, 0.05);
@@ -1948,6 +1987,48 @@ function getOrMakeNode(p) {
   if (p.wall) return splitWallAt(p.wall, p.s); // landing on a wall splits it
   S.nodes.push({ x: p.x, z: p.z });
   return S.nodes.length - 1;
+}
+
+/* Planner adapter for wall.draw. The command owns validation/default values;
+   this adapter exposes the existing split/weld landing machinery instead of
+   duplicating topology rules in the command core. */
+function materializePlannerWall(params, env, context) {
+  context = context || {};
+  var oldNodeCount = S.nodes.length;
+  var a = context.fromNodeId != null ? context.fromNodeId
+    : getOrMakeNode(resolveLanding({ x: params.from.x, z: params.from.z }, {
+        autoJoin: true,
+        exclude: [],
+      }));
+  var b = context.toLanding
+    ? getOrMakeNode(context.toLanding)
+    : getOrMakeNode(resolveLanding({ x: params.to.x, z: params.to.z }, {
+        autoJoin: true,
+        exclude: [a],
+      }));
+  if (a === b) return { ok: false, reason: "ZERO_LENGTH_WALL" };
+  var wall = {
+    id: uid(), a: a, b: b,
+    thickness: params.thickness,
+    height: params.height,
+    wallTypeId: params.type,
+    kind: params.kind,
+    loc: params.loc,
+    dimSide: params.dimSide,
+  };
+  if (params.datum) wall.datum = params.datum;
+  if (params.phase) wall.phase = params.phase;
+  S.walls.push(wall);
+  var clear = wallClearLength(wall);
+  if (clear > 0) wall.clearL = clear;
+  var createdNodeIds = [];
+  for (var i = oldNodeCount; i < S.nodes.length; i++) createdNodeIds.push(i);
+  return {
+    ok: true,
+    wall: wall,
+    createdNodeIds: createdNodeIds,
+    changedNodeIds: [a, b].filter(function (id) { return id < oldNodeCount; }),
+  };
 }
 
 /* Final connection repair for the walls committed in THIS run only. A wall
@@ -2930,37 +3011,38 @@ export function initInteraction() {
     if (applyRemove(hit)) finishRemove();
   }
   function placeOpeningAt(tool, px, pz) {
-    var ws = S.walls.filter(function (w) {
-      var projected = wallProject(w, px, pz);
-      return projected && projected.distance < w.thickness / 2 + tolCm(12);
-    });
-    if (!ws.length) {
+    /* Resolve exactly one host with the same resolver used by wallProbe. The
+       previous commit path independently collected every nearby wall, so a
+       click on a corner could create two coincident doors even though hover
+       highlighted only one wall. */
+    var wall = hitWall(px, pz);
+    var projected = wall && wallProject(wall, px, pz);
+    if (!wall || !projected) {
       flash(t("opening_need_wall"));
       return false;
     }
-    pushHistory();
-    var made = null,
-      defs = {
-        door: { width: 90, height: 205, sill: 0 },
-        window: { width: 120, height: 120, sill: 90 },
-        passage: { width: 120, height: 210, sill: 0 },
-      },
-      dd = defs[tool];
-    ws.forEach(function (w) {
-      var gm = wallGeom(w), landing = wallProject(w, px, pz);
-      var s = landing ? landing.s : 0;
-      var o = {
-        id: uid(), type: tool, wall: w.id, s: s,
-        width: dd.width, height: dd.height, sill: dd.sill,
-      };
-      o.s = clamp(o.s, o.width / 2, Math.max(o.width / 2, gm.L - o.width / 2));
-      S.openings.push(o);
-      if (!made) made = o;
+    var result = executeCommand(openingPlaceCommand, {
+      wallId: wall.id,
+      type: tool,
+      s: projected.s,
+    }, {
+      domain: "planner",
+      state: S,
+      history: PLANNER_COMMAND_HISTORY,
+      version: { current: currentHistoryId },
+    }, {
+      label: t("f_openingPlaced", { name: t(tool) }),
     });
+    if (!result.ok || !result.created.length) {
+      flash(t("opening_need_wall"));
+      return false;
+    }
+    var madeId = result.created[0].id;
+    var made = S.openings.find(function (opening) { return opening.id === madeId; });
     if (!made) return false;
     select({ kind: "opening", ref: made });
     setTool("select");
-    S.dirty3D = true;
+    if (result.effects.dirty3D) S.dirty3D = true;
     render2D();
     window.dispatchEvent(new CustomEvent("planner-opening-created", { detail: { opening: made } }));
     return true;

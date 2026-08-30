@@ -4,6 +4,7 @@ import { t } from "./i18n.js";
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const makeId = () => "floor-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 let floorIO = null;
+let floorSwitchGeneration = 0;
 
 /* Keep the floor graph independent from the large browser-only ui.js module.
    workspace.js installs these two synchronous functions when the UI starts;
@@ -333,6 +334,7 @@ export function switchFloor(id) {
   captureFloor();
   const floor = S.workspace.floors.find((f) => f.id === id);
   if (!floor) return null;
+  const switchGeneration = ++floorSwitchGeneration;
   // Snapshot workspace identity before applyData: a floor scene is plain model
   // data (sceneObject(false)), but older or hand-edited saves may still carry a
   // nested workspace — never let that clobber the multi-floor project state.
@@ -341,12 +343,31 @@ export function switchFloor(id) {
   const previousReference = workspace.referenceFloor;
   workspace.activeFloor = id;
   if (workspace.referenceFloor === id) workspace.referenceFloor = previous;
+  var applied;
   try {
-    applyData(clone(floor.scene || {}));
+    applied = applyData(clone(floor.scene || {}));
   } catch (err) {
     workspace.activeFloor = previous;
     workspace.referenceFloor = previousReference;
     throw err;
+  }
+  /* applyData is synchronous unless it has to fetch the model builder first —
+     which it only does for a storey carrying custom definitions, in a session
+     that has not loaded the editor yet. The catch above cannot see a rejection
+     from that path, so without this the storey bookkeeping below would stand
+     over a scene that never applied. Roll back the same way, late. */
+  if (applied && typeof applied.then === "function") {
+    applied.then(function (didApply) {
+      if (didApply || switchGeneration !== floorSwitchGeneration) return;
+      workspace.activeFloor = previous;
+      workspace.referenceFloor = previousReference;
+    }, function (err) {
+      if (switchGeneration !== floorSwitchGeneration) return;
+      workspace.activeFloor = previous;
+      workspace.referenceFloor = previousReference;
+      if (typeof console !== "undefined" && console.error)
+        console.error("floor switch could not apply its scene", err);
+    });
   }
   S.workspace = workspace;
   S.workspace.activeFloor = id;

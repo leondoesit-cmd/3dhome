@@ -19,7 +19,13 @@ export async function initCollaboration(onUpdate) {
       } else if (data.k === "project_present" && data.scene && S.workspace.role === "viewer") {
         import("./ui.js").then((ui) => {
           try {
-            ui.applyData(data.scene);
+            Promise.resolve(ui.applyData(data.scene)).catch(function (err) {
+              // A malformed present payload is expected and ignorable, but a
+              // failed builder fetch leaves the viewer on a blank plan with no
+              // clue why. Still do not blank the plan; just say what happened.
+              if (window.console && console.error)
+                console.error("presented scene failed to apply", err);
+            });
           } catch (_) {
             // A peer can send a malformed present payload; ignore rather than
             // blank the viewer's plan mid-review.

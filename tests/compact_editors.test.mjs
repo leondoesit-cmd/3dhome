@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 const mdMobile = await readFile(new URL("../js/modeler_mobile.js", import.meta.url), "utf8");
 const md = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+const mdTopologyPick = await readFile(new URL("../js/modeler_topology_pick.js", import.meta.url), "utf8");
 const editorView = await readFile(new URL("../js/editor_view.js", import.meta.url), "utf8");
 const plannerTut = await readFile(new URL("../js/planner_tutorial.js", import.meta.url), "utf8");
 const cbMobile = await readFile(new URL("../js/ui_cabinet_mobile.js", import.meta.url), "utf8");
@@ -32,14 +33,14 @@ test("modeler: command search is on the Commands sheet header", () => {
   assert.match(css, /#modeler \.md-commandmanager\.md-borrowed \.md-command-search-btn \{\s*display: none;/);
 });
 
-test("modeler: compact welcome has Touch CAD, Open editor, and a disclosure", () => {
+test("modeler: compact welcome has Touch CAD, blank part/assembly, and a disclosure", () => {
   assert.match(md, /welcomeContinue/);
   assert.match(md, /welcomeMoreStarts/);
   assert.match(md, /function layoutWelcomeCompact\(/);
   assert.match(md, /md-welcome-extra/);
   assert.match(css, /body\.compact-nav #modeler #mdWelcomeStart/);
-  // Touch CAD + Open editor are the only primary tiles; blank part/assembly go in More
-  assert.match(md, /if \(el\.getAttribute\("data-welcome-start"\) === "continue"\) return;/);
+  // Touch CAD + Blank part + Blank assembly are primary; shapes and Open editor go in More
+  assert.match(md, /if \(id === "blank" \|\| id === "assembly"\) return;/);
 });
 
 test("cabinet: W/D/H live on the dock-rail size bar and phone ctx chips", () => {
@@ -134,7 +135,9 @@ test("modeler: touch selection has modifier-free parity", () => {
   assert.match(md, /event\.ctrlKey \|\| event\.metaKey \|\| E\.mobileAddSelection/);
   assert.match(md, /function showSelectThrough\(/);
   assert.match(md, /longPress: showSelectThrough/);
-  assert.match(md, /touchPick \? \.03 : \.018/);
+  assert.match(mdTopologyPick, /if \(prefer === "edge"\) return touch \? 14 : 8/);
+  assert.match(mdTopologyPick, /return touch \? 10 : 5/);
+  assert.match(md, /worldPerPixelAtDistance\(hit\.distance\)/);
   assert.match(md, /pointerType === "touch" \? 14 : 7/);
   assert.match(editorView, /e\.button === 0 \|\| e\.pointerType === "touch"/);
   assert.match(mdMobile, /touchAddSelection/);

@@ -2,6 +2,7 @@
 // tasks ("draw a room", "add furniture") while the DOM index keeps ordinary
 // commands discoverable without maintaining a second copy of every menu.
 import { getLang, onLangChange } from "./i18n.js";
+import { seedCuratedToolMetadata } from "./core/tool_registry.js";
 
 var TXT = {
   en: {
@@ -139,6 +140,10 @@ export var TOOL_SEARCH_ENTRIES = [
     keywords: "automatic apartment layout generate rooms magic create דירה אוטומטי פריסה חדרים יצירה",
     help: bi("Open the generator, enter the apartment requirements, then review the generated rooms before refining them.", "פתחו את המחולל, הזינו את דרישות הדירה ובדקו את החדרים שנוצרו לפני המשך העריכה.") },
 ];
+
+// Search owns presentation metadata only. The semantic registry receives a
+// JSON-safe projection; executable command implementations never live here.
+seedCuratedToolMetadata(TOOL_SEARCH_ENTRIES);
 
 function normalize(s) {
   return String(s || "").toLocaleLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();

@@ -120,6 +120,15 @@ test("right-drag gestures map to Extrude / Dimension / Line / Normal To", () => 
   assert.equal(gestureFromSwipe(2, 2), null);
 });
 
+test("Normal To is a momentary viewport command and looks along the sketch plane, not an isometric orbit", () => {
+  assert.match(modelerSource, /id="mdNormalToView"/);
+  assert.match(modelerSource, /function sketchCameraFrame\(\)/);
+  assert.match(modelerSource, /E\.pv\.lookAtFrame\(frame\)/);
+  assert.match(modelerSource, /#mdNormalToView"\)\.addEventListener\("click", function \(\) \{\s*orientModelToView\(true\)/);
+  assert.doesNotMatch(modelerSource, /setSketchNormalTo\(!E\.sketchNormalTo\)/);
+  assert.match(modelerSource, /return standardPlaneFrame\(E\.view, sketch && sketch\.offset\)/);
+});
+
 test("selection filters, breadcrumbs, box-select and select-through", () => {
   assert.equal(selectionFilterAllows("face", "all"), true);
   assert.equal(selectionFilterAllows("edge", "face"), false);

@@ -584,7 +584,7 @@ function buildViewSheet() {
   });
 
   if (!short) section(t("msheet_views"));
-  var g2 = grid((short ? "m-grid-5" : "m-grid-4") + " m-icon-grid");
+  var g2 = grid((short ? "m-grid-3" : "m-grid-5") + " m-icon-grid");
   [
     ["top", "view_top", "view_top_short"],
     ["front", "view_front", "view_front_short"],
@@ -598,6 +598,12 @@ function buildViewSheet() {
       }),
     );
   });
+  g2.appendChild(
+    gridBtn(icon("normalTo"), t("normalTo"), false, function () {
+      api.runChrome("normalTo");
+      closeSheet();
+    }),
+  );
   if (short) {
     g2.appendChild(gridBtn(icon("fit"), t("zoomFit"), false, function () { api.zoom("fit"); closeSheet(); }));
   } else {
@@ -818,7 +824,8 @@ function sync(force) {
     var count = st.rebuildErrors || st.rebuildWarnings || 0;
     statusBanner.hidden = !count;
     statusBanner.classList.toggle("error", !!st.rebuildErrors);
-    statusBanner.textContent = count ? t(st.rebuildErrors ? "rebuildFail" : "rebuildWarn") + " · " + count : "";
+    statusBanner.textContent = count ? t(st.rebuildErrors ? "rebuildFail" : "rebuildWarn") + " · " + count + " · " + t("issueStartHere") : "";
+    statusBanner.onclick = count ? function () { if (api.focusDiagnostics) api.focusDiagnostics(); } : null;
   }
 }
 

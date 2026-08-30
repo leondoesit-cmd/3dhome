@@ -2,12 +2,43 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { frameFromPlane } from "../js/core/frame.js";
-import { boundsInFrame, cutFootprint } from "../js/core/cut_scope.js";
+import {
+  boundsInFrame,
+  cutFootprint,
+  loopStrictlyInsideLoop,
+  loopsOverlapOrTouch,
+  profileLoopIsSeparateHole,
+} from "../js/core/cut_scope.js";
 
 const circle = (count, radius, cu, cv) => Array.from({ length: count }, (_, i) => ({
   u: cu + radius * Math.cos(2 * Math.PI * i / count),
   v: cv + radius * Math.sin(2 * Math.PI * i / count),
 }));
+
+test("only a cut wholly inside the profile is a lightweight hole", () => {
+  const profile = [{ u: -5, v: -5 }, { u: 5, v: -5 }, { u: 5, v: 5 }, { u: -5, v: 5 }];
+  const enclosed = [{ u: -2, v: -1 }, { u: 2, v: -1 }, { u: 2, v: 1 }, { u: -2, v: 1 }];
+  const breaksRim = [{ u: -2, v: -1 }, { u: 7, v: -1 }, { u: 7, v: 1 }, { u: -2, v: 1 }];
+  const touchesRim = [{ u: -2, v: -1 }, { u: 5, v: -1 }, { u: 5, v: 1 }, { u: -2, v: 1 }];
+
+  assert.equal(loopStrictlyInsideLoop(enclosed, profile), true);
+  assert.equal(loopStrictlyInsideLoop(breaksRim, profile), false);
+  assert.equal(loopStrictlyInsideLoop(touchesRim, profile), false);
+});
+
+test("overlapping or touching voids cannot remain separate profile holes", () => {
+  const first = [{ u: -3, v: -1 }, { u: 1, v: -1 }, { u: 1, v: 1 }, { u: -3, v: 1 }];
+  const overlap = [{ u: 0, v: -1 }, { u: 3, v: -1 }, { u: 3, v: 1 }, { u: 0, v: 1 }];
+  const touch = [{ u: 1, v: -1 }, { u: 3, v: -1 }, { u: 3, v: 1 }, { u: 1, v: 1 }];
+  const separate = [{ u: 2, v: -1 }, { u: 4, v: -1 }, { u: 4, v: 1 }, { u: 2, v: 1 }];
+
+  assert.equal(loopsOverlapOrTouch(first, overlap), true);
+  assert.equal(loopsOverlapOrTouch(first, touch), true);
+  assert.equal(loopsOverlapOrTouch(first, separate), false);
+  const outer = [{ u: -8, v: -5 }, { u: 8, v: -5 }, { u: 8, v: 5 }, { u: -8, v: 5 }];
+  assert.equal(profileLoopIsSeparateHole(separate, outer, [first]), true);
+  assert.equal(profileLoopIsSeparateHole(overlap, outer, [first]), false);
+});
 
 // the same containment rule the modeller applies to a cut loop
 function contains(footprint, point) {

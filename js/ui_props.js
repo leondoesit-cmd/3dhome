@@ -223,7 +223,10 @@ function fillWallLock(w) {
   btn.classList.toggle("active", on);
   btn.setAttribute("aria-pressed", on ? "true" : "false");
   var ic = btn.querySelector("i");
-  if (ic) ic.className = on ? "ph ph-lock-key" : "ph ph-lock-key-open";
+  if (ic) {
+    ic.classList.remove("ph-lock-key", "ph-lock-key-open");
+    ic.classList.add(on ? "ph-lock-key" : "ph-lock-key-open");
+  }
   lbl.textContent = t(on ? "cw_lockOn" : "cw_lockOff");
   // the header carries the same switch, so the state reads without a tab change
   var quick = document.getElementById("w_lockQuick");
@@ -232,7 +235,10 @@ function fillWallLock(w) {
     quick.setAttribute("aria-pressed", on ? "true" : "false");
     quick.title = t(on ? "cw_lockOn" : "cw_lockOff");
     var qi = quick.querySelector("i");
-    if (qi) qi.className = on ? "ph ph-lock-key" : "ph ph-lock-key-open";
+    if (qi) {
+      qi.classList.remove("ph-lock-key", "ph-lock-key-open");
+      qi.classList.add(on ? "ph-lock-key" : "ph-lock-key-open");
+    }
   }
   // quote the FACE length, the same basis as #w_len and the plan label
   state.textContent = on

@@ -32,6 +32,26 @@ test("the editor requires explicit reference selection and renders canonical his
   assert.match(source, /updateFeatureDefinition\(E\.def/);
 });
 
+test("rebuild guidance is reachable without extra clicks and hides raw topology ids", () => {
+  assert.match(modelerSource, /wrap\.id = "mdDiagnostics"/);
+  assert.match(modelerSource, /md-diagnostic-primary/);
+  assert.match(modelerSource, /md-diagnostic-primary \.md-diagnostic-actions button/);
+  assert.match(modelerSource, /issueStartHere: \["התחילו כאן", "Start here"\]/);
+  assert.match(modelerSource, /issueHelp: \["למה ואיך לתקן", "Why & how to fix"\]/);
+  assert.match(modelerSource, /lost a selected face or edge/);
+  assert.match(modelerSource, /groupDiagnostics\(issues\)/);
+  assert.doesNotMatch(modelerSource, /row\.setAttribute\("role", "button"\)/);
+  assert.match(modelerSource, /content\.appendChild\(el\("small", "md-diagnostic-next"[\s\S]{0,500}var disclosure = el\("details", "md-diagnostic-help"\)/);
+  assert.match(modelerSource, /function coachRebuildSuggestion/);
+  assert.match(modelerSource, /phrase: diagnosticMessage\(rebuildIssue\)/);
+  assert.match(modelerSource, /id="mdCoachLabel"/);
+  assert.match(modelerSource, /sug\.rebuild \? "coachActRebuild" : "coachNext"/);
+  assert.match(modelerSource, /isCanonicalAuthoring\(\) && !sug\.rebuild/);
+  assert.match(modelerSource, /target:'#mdParts'/);
+  assert.match(styles, /#modeler \.md-diagnostic-help\[open\] \.md-diagnostic-explanation/);
+  assert.match(styles, /#modeler \.md-diag-jump/);
+});
+
 test("the authoring breadcrumb is a navigator and Finish continues into Extrude", () => {
   assert.match(source, /function currentWorkflowStep/);
   assert.match(source, /function resumeSketchSession/);
@@ -46,6 +66,12 @@ test("the authoring breadcrumb is a navigator and Finish continues into Extrude"
   assert.match(source, /function facePickFromViewport/);
   assert.match(source, /sketchStartMode\(\{/);
   assert.match(source, /if\(start==="pick-face"\)\{beginFacePick\(preferredTool\);return;\}/);
+  assert.match(source, /if\(start==="default-plane"\)/);
+  assert.match(source, /function startSketchOnDefaultPlane/);
+  assert.match(source, /function coachAssemblySuggestion/);
+  assert.match(source, /function startBlankPart/);
+  assert.match(source, /md-tree-create-sketch md-dashed" \+ \(emptyDoc \? " md-tree-start" : ""\)/);
+  assert.match(source, /planePicker:true/);
   assert.match(source, /if \(E\.facePick\) \{/);
   assert.match(source, /return "context"/);
   assert.doesNotMatch(source, /flash\("Select a planar or supported analytic face"\)/);
@@ -242,7 +268,11 @@ test("feature Apply/Cancel sit in equal tracks so the label cannot paint under A
   assert.match(modelerSource, /save\.dataset\.tip = tip/);
   assert.match(modelerSource, /save\.removeAttribute\("title"\)/);
   assert.doesNotMatch(modelerSource, /save\.title = dirty/);
-  assert.match(styles, /--md-hud-col: 158px/);
+  // 120px, not the old 158px: the view rail at 158 overlapped the viewport-help
+  // control, which "desktop model editor: room context and viewport help do not
+  // overlap" now guards with an explicit viewsWidth <= 132 assertion. Pinning
+  // 158 here would contradict that test outright.
+  assert.match(styles, /--md-hud-col: 120px/);
   assert.match(styles, /body:not\(\.compact-nav\) #modeler \.md-views \{\s*top: 52px/);
   assert.match(styles, /body:not\(\.compact-nav\) #modeler \.md-context-toolbar \{[^}]*width:\s*max-content/s);
   assert.doesNotMatch(styles, /body:not\(\.compact-nav\) #modeler \.md-context-toolbar \{[^}]*inset-inline-end:\s*88px/s);
@@ -256,4 +286,37 @@ test("sketch witness lines and on-face planes are wired in the editor", () => {
   assert.match(source, /selectedId: E\.dimSel/);
   assert.match(source, /refType: "on-face"/);
   assert.match(source, /function createHoleFeature/);
+});
+
+test("sketches open Normal To the plane and the live preview is the UV shape", () => {
+  assert.match(modelerSource, /sketchNormalTo: true/);
+  assert.match(modelerSource, /MODELER_PREFS_VERSION = 2/);
+  assert.match(modelerSource, /if \(ver < 2\) \{\s*E\.sketchNormalTo = true/);
+  assert.match(modelerSource, /out = \{ prefsVersion: MODELER_PREFS_VERSION \}/);
+  assert.match(modelerSource, /function sketchCameraFrame\(\)/);
+  assert.match(modelerSource, /return standardPlaneFrame\(E\.view, sketch && sketch\.offset\)/);
+  assert.match(modelerSource, /if \(frame && E\.pv\.lookAtFrame\) \{ E\.pv\.lookAtFrame\(frame\); return; \}/);
+  assert.match(modelerSource, /if \(!force && E\.modelPlaneActive\) return/);
+  assert.doesNotMatch(modelerSource, /if \(active\) orientModelToView\(\)/);
+  assert.match(modelerSource, /if\(stayIn3D && \(E\.sketchNormalTo \|\| topology\)\)\{\s*captureSketchCameraPose\(\);\s*orientModelToView\(true\);\s*\}/);
+  assert.match(modelerSource, /if\(E\.sketchNormalTo\)\{captureSketchCameraPose\(\);orientModelToView\(true\);\}/);
+  assert.match(modelerSource, /if \(E\.mode === "3d"\) orientModelToView\(true\)/);
+  assert.match(modelerSource, /id="mdNormalToView"/);
+  assert.match(modelerSource, /function setSketchNormalTo\(on\)/);
+  assert.doesNotMatch(modelerSource, /id="mdNormalToView"[^>]*aria-pressed/);
+  assert.doesNotMatch(modelerSource, /#mdNormalToView"\)\.addEventListener\("click", function \(\) \{\s*setSketchNormalTo\(!E\.sketchNormalTo\)/);
+  assert.match(modelerSource, /#mdNormalToView"\)\.addEventListener\("click", function \(\) \{\s*orientModelToView\(true\);\s*drawSketch\(\);/);
+  assert.doesNotMatch(modelerSource, /function setSketchNormalTo\(on\) \{[^}]*orientModelToView/s);
+  assert.match(modelerSource, /function strokeUvRect\(c, u0, v0, u1, v1\)/);
+  assert.match(modelerSource, /function pathUvEllipse\(c, o, start, sweep, closed\)/);
+  assert.match(modelerSource, /function pathUvCircleArc\(c, center, radius, start, sweep, closed\)/);
+  assert.match(modelerSource, /strokeUvRect\(c, E\.drag\.u, E\.drag\.v, E\._mouse\.u, E\._mouse\.v\)/);
+  assert.match(modelerSource, /strokeUvCircle\(c, pc\.u, pc\.v, pr\)/);
+  assert.match(modelerSource, /positiveArcSweep\(arcStart, arcEnd\)/);
+  assert.match(modelerSource, /pathUvCircleArc\(c, o\.center, o\.radius, o\.start, positiveArcSweep\(o\.start, o\.end\), false\)/);
+  assert.doesNotMatch(modelerSource, /c\.arc\(ac\.x, ac\.y, ar \* E\.scl/);
+  assert.doesNotMatch(modelerSource, /c\.ellipse\(centre\.x, centre\.y, o\.rx \* E\.scl/);
+  assert.doesNotMatch(modelerSource, /c\.rect\(Math\.min\(a3\.x, m2\.x\)/);
+  assert.doesNotMatch(modelerSource, /pr \* E\.scl/);
+  assert.doesNotMatch(styles, /#modeler \.md-vgroup #mdNormalToView\.on/);
 });

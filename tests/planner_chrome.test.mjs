@@ -24,7 +24,8 @@ test("modern chrome keeps games, modeler and classic layout in the More menu", (
 test("the rectangle-room tool is on the plan toolbar and committed as four walls", () => {
   assert.match(html, /data-tool="rect"/);
   assert.match(interaction, /function commitRectFromTo\(a, b\)/);
-  assert.match(interaction, /S\.walls\.push\(walls\[0\], walls\[1\], walls\[2\], walls\[3\]\)/);
+  assert.match(interaction, /executeCommand\(roomCreateCommand/);
+  assert.match(interaction, /materializeWall: materializePlannerWall/);
   assert.match(interaction, /else if \(e\.key === "8"\) setTool\("rect"\)/);
 });
 

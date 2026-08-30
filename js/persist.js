@@ -242,10 +242,17 @@ function offerRecovery(snap) {
   restore.textContent = t("rec_restore");
   restore.addEventListener("click", function () {
     try {
-      api.applyData(JSON.parse(snap.json));
-      // A recovered plan has not yet been explicitly saved in this session.
-      markDirty();
-      api.flash(t("rec_done"), "success");
+      // applyData may need to fetch the model builder before it can apply a
+      // project carrying custom definitions — report success only once it has.
+      Promise.resolve(api.applyData(JSON.parse(snap.json))).then(function (applied) {
+        // applyData resolves false when a newer apply overtook this one while
+        // the model builder was being fetched — nothing was restored, so say so
+        // rather than marking an unloaded scene as recovered.
+        if (!applied) { api.flash(t("rec_fail"), "error"); return; }
+        // A recovered plan has not yet been explicitly saved in this session.
+        markDirty();
+        api.flash(t("rec_done"), "success");
+      }, function () { api.flash(t("rec_fail"), "error"); });
     } catch (e) {
       api.flash(t("rec_fail"), "error");
     }

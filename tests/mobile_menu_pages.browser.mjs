@@ -283,9 +283,14 @@ test("Planner Properties is a clipped-free page deck across common phone and Fol
       sawMultiPage ||= layout.pageCount > 1;
       assert.equal(layout.activeCount, 1, name + ": exactly one page participates in layout");
       assert.ok(layout.panelTop >= 0, name + ": panel starts on-screen");
-      assert.ok(layout.panelBottom <= layout.controlsTop + 1, name + ": panel ends above thumb controls " + JSON.stringify(layout));
+      if (name === "Fold inner") {
+        assert.match(layout.body, /dock-rail/, name + ": dock-rail posture");
+        assert.equal(layout.panelOverflow, "auto", name + ": dock-rail panel is a docked scrollable column");
+      } else {
+        assert.ok(layout.panelBottom <= layout.controlsTop + 1, name + ": panel ends above thumb controls " + JSON.stringify(layout));
+        assert.equal(layout.panelOverflow, "hidden", name + ": panel is not a continuous scroll");
+      }
       assert.equal(Math.round(layout.inputHeight), 44, name + ": compact fields retain touch height");
-      assert.equal(layout.panelOverflow, "hidden", name + ": panel is not a continuous scroll");
       assert.ok(layout.activeFits, name + ": active card is not clipped");
       assert.match(layout.firstCount || "", /^1 \/ /, name + ": page counter starts at one");
 
@@ -320,7 +325,10 @@ test("Model Editor and Cabinet sheets use the same one-card-at-a-time contract",
       if (start) start.hidden = true;
       document.getElementById("openModelerTop").click();
     });
-    await page.eval(() => new Promise((resolve) => setTimeout(resolve, 420)));
+    await page.waitUntil(() => {
+      const el = document.getElementById("modeler");
+      return !!el && getComputedStyle(el).display !== "none";
+    }, { what: "the model editor to open" });
     await page.eval(() => {
       const start = document.querySelector('#mdWelcome [data-welcome-start="continue"]');
       if (start) start.click();

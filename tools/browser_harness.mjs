@@ -11,7 +11,7 @@
  * not installed, so `npm test` stays green on a machine or CI box without one.
  */
 import { createServer } from "node:http";
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { readFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, extname, normalize } from "node:path";
@@ -19,6 +19,83 @@ import { fileURLToPath } from "node:url";
 import { WebSocket } from "ws";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
+
+/* ---- keeping Chrome from outliving the run ------------------------------
+ *
+ * closeHarnessResources() SIGKILLs the browser and waits for it, and every
+ * normal path calls it. The leak is the paths that never get there: a killed
+ * `npm run ci`, Ctrl-C, a crash. node dies, no cleanup runs, and headless
+ * Chrome keeps going — reparented to launchd. They accumulate silently: a
+ * machine was found carrying five of them aged 8 to 23 hours, quietly
+ * competing with every later run for CPU and making timing-sensitive tests
+ * flaky for reasons no diff could explain.
+ *
+ * Two halves. Signal handlers cover an interrupted run, and a sweep at startup
+ * heals whatever earlier runs already left behind — the sweep is what makes
+ * this self-correcting, because a SIGKILL'd parent never gets to run anything.
+ */
+const HARNESS_PROFILE_TAG = "mf-harness-";
+const liveChildren = new Set();
+
+/* An orphan is identifiable, not guessed at: when its node parent dies the
+   browser is reparented to pid 1, while a browser belonging to a RUNNING
+   harness still has that live parent. Under --test-concurrency=3 several
+   harnesses run at once, so "kill every harness Chrome" would be wrong; "kill
+   the ones whose owner is gone" is safe for all of them. */
+export function sweepOrphanedHarnessChromes() {
+  let out = "";
+  try {
+    out = execFileSync("ps", ["-eo", "pid=,ppid=,command="], { encoding: "utf8", maxBuffer: 8 << 20 });
+  } catch { return 0; }
+  let killed = 0;
+  for (const line of out.split("\n")) {
+    if (!line.includes("--user-data-dir=") || !line.includes(HARNESS_PROFILE_TAG)) continue;
+    const m = line.match(/^\s*(\d+)\s+(\d+)\s/);
+    if (!m) continue;
+    const pid = Number(m[1]), ppid = Number(m[2]);
+    if (ppid !== 1 || pid === process.pid) continue;
+    try { process.kill(pid, "SIGKILL"); killed++; } catch {}
+  }
+  return killed;
+}
+
+let guardsInstalled = false;
+function installExitGuards() {
+  if (guardsInstalled) return;
+  guardsInstalled = true;
+  /* Synchronous by necessity: an "exit" handler cannot await, and a signal
+     handler that awaits may not finish before the process goes. child.kill()
+     is a synchronous syscall, which is all this needs. */
+  const killAll = () => {
+    for (const child of liveChildren) {
+      try { child.kill("SIGKILL"); } catch {}
+    }
+    liveChildren.clear();
+  };
+  /* "exit" covers an uncaught exception too — the process is on its way out by
+     then and this handler still runs — so there is deliberately no
+     uncaughtException listener here. Installing one would preempt the node:test
+     runner's own handling, which is how it attributes a crash to the test that
+     caused it. */
+  process.on("exit", killAll);
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+    process.once(signal, () => {
+      killAll();
+      // Re-raise so the exit status still reads as "killed by <signal>" rather
+      // than a clean 0 that would tell CI the run passed.
+      process.kill(process.pid, signal);
+    });
+  }
+}
+
+/** Register a spawned browser so the guards above can reach it. */
+function trackChild(child) {
+  if (!child) return child;
+  installExitGuards();
+  liveChildren.add(child);
+  child.once("exit", () => liveChildren.delete(child));
+  return child;
+}
 
 const MIME = {
   ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript",
@@ -209,6 +286,7 @@ export async function closeHarnessResources({ app, profile, child, browser, page
     try { stream?.removeAllListeners(); stream?.destroy(); } catch {}
   }
 
+  if (child) liveChildren.delete(child);
   if (child?.pid) {
     const exited = child.exitCode != null || child.signalCode != null
       ? Promise.resolve()
@@ -235,8 +313,12 @@ export async function closeHarnessResources({ app, profile, child, browser, page
 export async function openPage({ width = 375, height = 812, lang = "en", mobile = undefined, touch = undefined } = {}) {
   const bin = await findChrome();
   if (!bin) return null;
-  const isMobile = mobile !== undefined ? !!mobile : (width <= 768);
+  const isMobile = mobile !== undefined ? !!mobile : (width <= 768 || (width <= 1024 && height <= 500));
   const isTouch = touch !== undefined ? !!touch : isMobile;
+
+  /* Heal what earlier runs left behind before adding to it. Cheap (one ps) and
+     it only ever touches browsers whose owning process is gone. */
+  sweepOrphanedHarnessChromes();
 
   const app = await serveApp();
   let profile;
@@ -248,7 +330,7 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
   }
   let child;
   try {
-    child = spawn(
+    child = trackChild(spawn(
       bin,
       [
       "--headless=new",
@@ -267,7 +349,7 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
       "about:blank",
       ],
       { stdio: ["ignore", "ignore", "pipe"] },
-    );
+    ));
   } catch (error) {
     await closeHarnessResources({ app, profile });
     throw error;
@@ -363,6 +445,22 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
       await page.waitForBoot();
     },
 
+    /* Poll a page-side predicate until it is true. For anything the app now
+       does asynchronously, where a fixed sleep is a guess that a loaded machine
+       loses. The model editor is the case that forced this: opening it fetches
+       js/modeler.js on demand (it is no longer on the boot graph), so "click,
+       wait 400ms, assume it is up" held on an idle box and lost under
+       --test-concurrency=3. Throws on timeout — a predicate that never comes
+       true is a real failure, not something to test through. */
+    async waitUntil(fn, { ms = 15000, what = "condition" } = {}) {
+      const deadline = Date.now() + ms;
+      for (;;) {
+        if (await page.eval(fn)) return true;
+        if (Date.now() > deadline) throw new Error("timed out waiting for " + what);
+        await new Promise((r) => setTimeout(r, 25));
+      }
+    },
+
     /* Resolves once main.js has finished initialising and the UI has painted
        once. Throws rather than continuing silently if boot never completes —
        a timeout here is a real failure, not something to test through. */
@@ -392,7 +490,7 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
     },
 
     async resize(w, h, { mobile = undefined, touch = undefined } = {}) {
-      const isMob = mobile !== undefined ? !!mobile : (w <= 768);
+      const isMob = mobile !== undefined ? !!mobile : (w <= 768 || (w <= 1024 && h <= 500));
       const isTch = touch !== undefined ? !!touch : isMob;
       await cdp.send("Emulation.setDeviceMetricsOverride", {
         width: w, height: h, deviceScaleFactor: 1, mobile: isMob,

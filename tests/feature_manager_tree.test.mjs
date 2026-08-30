@@ -412,7 +412,11 @@ test("hiding a body leaves it built, exported and weighed", () => {
   // The filter sits in the draw path only. Putting it in activeParts would make
   // the eye on a body row quietly change what the document builds, which is
   // suppression wearing a hide icon.
-  assert.match(modelerSource, /if\(def===E\.def\) parts=parts\.filter\(function\(part\)\{return !hiddenBodyPart\(part\);\}\);/);
+  // `E &&` guards module-scope callers: the saved library registers into FURN
+  // before `var E` is initialised, and reading E.def there threw for every
+  // model. The point of this assertion is unchanged — the hide filter belongs
+  // to the draw path and to the edited document only.
+  assert.match(modelerSource, /if\(E && E\.open && def===E\.def\) parts=parts\.filter\(function\(part\)\{return !hiddenBodyPart\(part\);\}\);/);
   const activeParts = modelerSource.slice(
     modelerSource.indexOf("function activeParts"),
     modelerSource.indexOf("function hiddenBodyPart"));

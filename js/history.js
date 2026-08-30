@@ -505,6 +505,76 @@ const H = createHistory({
   },
 });
 
+/* ---- command transaction boundary --------------------------------------
+   Commands may batch several mutations into one undo step. The opaque token
+   makes ownership explicit: legacy gesture helpers cannot commit, cancel or
+   push over a command transaction, and a stale token cannot close a later
+   transaction. These transactions are synchronous by design. */
+var transactionSeq = 0,
+  activeTransaction = null;
+
+function requireNoCommandTransaction(action) {
+  if (activeTransaction) throw new Error("Cannot " + action + " during an active history transaction");
+}
+function requireTransaction(token) {
+  if (!activeTransaction || token !== activeTransaction) throw new Error("Invalid history transaction token");
+}
+
+export function beginHistoryTransaction(label) {
+  if (activeTransaction || H.isPending()) throw new Error("A history transaction is already active");
+  var token = Object.freeze({ id: ++transactionSeq });
+  H.begin(label || "");
+  if (!H.isPending()) throw new Error("Could not begin history transaction");
+  activeTransaction = token;
+  return token;
+}
+export function commitHistoryTransaction(token, label) {
+  requireTransaction(token);
+  if (!H.commit(label)) throw new Error("Could not commit history transaction");
+  activeTransaction = null;
+  return true;
+}
+export function abortHistoryTransaction(token) {
+  requireTransaction(token);
+  if (!H.abort()) throw new Error("Could not abort history transaction");
+  activeTransaction = null;
+  return true;
+}
+
+/* Read-only projections for commands, tutors and transports. H owns Maps,
+   Sets and mutable node records; none of those references cross this module. */
+function cloneJSON(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+export function currentHistoryId() {
+  return H.position();
+}
+export function historyTree() {
+  return cloneJSON(H.tree());
+}
+export function historyTargets(id) {
+  return cloneJSON(H.targetsOf(id));
+}
+export function historyObjects() {
+  var out = [];
+  H.objects().forEach(function (value, id) {
+    out.push({
+      id: id,
+      label: value && value.label ? value.label : "",
+      kind: value && value.kind ? value.kind : "",
+      parent: value && value.parent != null ? value.parent : null,
+    });
+  });
+  return cloneJSON(out);
+}
+export function historyScope(id) {
+  return Array.from(H.scope(id), String);
+}
+export function historyTouches(nodeId, objectIds) {
+  var ids = new Set((objectIds || []).map(String));
+  return H.touches(nodeId, ids);
+}
+
 /* ---- the panel ----------------------------------------------------------- */
 var panel = null;
 export function mountHistoryPanel(host) {
@@ -529,10 +599,12 @@ export function refreshHistoryPanel() {
 // `tag` is optional and collapses a run of pushes carrying the same tag into
 // one entry, for edits that fire repeatedly (a dimension typed digit by digit).
 export function pushHistory(label, tag) {
+  requireNoCommandTransaction("push history");
   H.push(label, tag);
 }
 // drag pattern: capture on pointerdown, commit only if a move actually happens
 export function beginHistory() {
+  requireNoCommandTransaction("begin history");
   H.begin();
 }
 /* Every drag in the plan goes through one commit, and the gesture already
@@ -552,16 +624,20 @@ const DRAG_LABEL = {
   mep: "h_moveMEP",
 };
 export function commitPending(label) {
+  requireNoCommandTransaction("commit pending history");
   H.commit(label || (DRAG_LABEL[S.action] ? t(DRAG_LABEL[S.action]) : ""));
 }
 export function cancelPending() {
+  requireNoCommandTransaction("cancel pending history");
   H.cancel();
 }
 
 export function undo() {
+  requireNoCommandTransaction("undo");
   H.undo();
 }
 export function redo() {
+  requireNoCommandTransaction("redo");
   H.redo();
 }
 export function canUndo() {
