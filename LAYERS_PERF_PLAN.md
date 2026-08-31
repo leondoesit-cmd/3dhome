@@ -17,29 +17,49 @@ raycast everything else. Perf is the payoff of layers, not a bolt-on.
 
 ## Measured baseline
 
-From `perf-baseline.md` (regenerate with `node tools/perf_harness.mjs`):
+Regenerated with `node tools/perf_harness.mjs` on this branch's base commit
+(`089e2c5`). **The numbers in the previously committed `perf-baseline.md` were
+stale** — taken at `ee81bf1` with 79 dirty files — and several moved enough to
+re-aim the work. Trust the table below, not the older one.
 
 | metric | now | target |
 |---|--:|--:|
-| `render2D()` per pointermove, dragItem | 1.45 | 1.00 |
-| model-canvas paints per pointermove, dragItem | 1.45 | **0** |
-| `render2D()` in 3 s idle | 8 | **0** |
-| dragItem gesture wall-clock (20 moves) | 546 ms | < 200 ms |
+| `render2D()` per pointermove, **dragWall** | **3.40** | 1.00 |
+| `render2D()` per pointermove, dragItem | 1.05 | 1.00 |
+| `render2D()` per pointermove, panPlan | 1.05 | 1.00 |
+| cost of one full `render2D()` | **~19 ms** | < 8 ms |
+| model-canvas paints per move during a drag | 1.05 – 3.40 | **0** |
+| dragWall gesture wall-clock (20 moves) | 640 ms | < 250 ms |
+| dragItem gesture wall-clock (20 moves) | 448 ms | < 200 ms |
 | `history.snap()` per drag gesture | 4 | 1 |
+| `render2D()` in 3 s idle | 0 (see caveat) | 0 |
 | 3D painted frames/s at idle | 0 | 0 (no change) |
 
-Two facts drive the whole plan:
+Three facts drive the plan:
 
-- **`requestRender2D()` already exists and coalesces** ([plan2d.js:1041](js/plan2d.js:1041))
-  — and is called from **exactly 5 places, all inside `plan2d.js`**. All 330
-  other call sites across 25 files call `render2D()` directly and bypass it.
-  That is the entire 1.45 paints/move number.
-- **The plan repaints in full to animate a halo.** `ensureMEPAnim`,
-  `ensureWarnAnim` and `ensureAngleGuideAnim`
-  ([plan2d.js:106](js/plan2d.js:106), [:141](js/plan2d.js:141),
-  [:1955](js/plan2d.js:1955)) each drive `requestRender2D()` at 22–33 Hz. That
-  is the 8 idle paints, and it also means a pulsing warning glow taxes every
-  frame of every drag.
+- **`dragWall` paints 3.4× per pointermove** — 68 `render2D()` calls for 20
+  moves. `requestRender2D()` already exists and coalesces
+  ([plan2d.js:1041](js/plan2d.js:1041)) but is called from **exactly 5 places,
+  all inside `plan2d.js`**; the 330 call sites across 25 other files all call
+  `render2D()` directly and bypass it. That is the 3.4. **dragWall is the
+  target for the coalescing work — dragItem is already at 1.05.**
+- **One full `render2D()` costs about 19 ms.** `panPlan` does 21 paints in
+  393 ms at 1.05 paints/move — a clean read on the cost of a single paint, with
+  no snapping or hit-testing mixed in. At ~19 ms a paint, coalescing alone
+  cannot make a drag smooth; the paint itself has to stop happening. That is
+  what the model/HUD canvas split is for.
+- **`history.snap()` still runs 4× per drag gesture** — confirmed, unchanged
+  from the old baseline.
+
+**Idle caveat.** Idle now measures 0 paints, where the stale baseline showed 8.
+Nothing was fixed: `ensureMEPAnim` / `ensureWarnAnim` / `ensureAngleGuideAnim`
+([plan2d.js:106](js/plan2d.js:106), [:141](js/plan2d.js:141),
+[:1955](js/plan2d.js:1955)) are self-cancelling and only run when there is a
+live warning or MEP flow to animate. The old harness scene had one and the
+current one does not. A plan with a single unresolved constraint warning still
+pays a **full plan repaint at 22 Hz, forever** — and taxes every frame of every
+drag on top. Do not treat the 0 as evidence the HUD split is unnecessary; treat
+it as a hole in the harness, and have Q1 add a warning-glow idle case.
 
 Non-findings, so nobody "fixes" them: `detectRooms()` is already memoized
 ([geometry.js:1240](js/geometry.js:1240), `roomListCache`), and 3D idle already
@@ -103,7 +123,8 @@ set that genuinely needs a synchronous canvas — the plan PNG export
 test that reads pixels right after a mutation — and point those at
 `render2DNow()`.
 
-Expected: 1.45 → 1.00 paints/move, no behavior change.
+Expected: **dragWall 3.40 → 1.00** paints/move (the big one), dragItem
+1.05 → 1.00, no behaviour change anywhere.
 
 ### P2 — Split the plan into a model canvas and a HUD canvas
 
@@ -133,7 +154,10 @@ flag on the model pass, and the HUD pass redraws just the selected object's
 outline. Do not try to keep chrome on the model canvas and key the cache on
 selection — that reintroduces a full repaint on every click.
 
-Expected: idle model paints 8 → 0; dragItem model paints/move 1.45 → 0.
+Expected: model-canvas paints per move → **0** for the whole of any drag, and
+an animated warning glow stops costing a full ~19 ms plan repaint per frame.
+This is the item that actually decides whether dragging feels smooth: at ~19 ms
+a paint, P1 alone still leaves one full repaint on every move.
 
 ### P3 — Shared spatial index for hits and snaps
 
