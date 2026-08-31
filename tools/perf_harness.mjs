@@ -11,10 +11,10 @@
  *   (a) server   delivery of the heavy assets through server/relay.mjs, cold
  *                (fresh process, empty staticCache) and warm.
  *   (b) boot     request count / JS bytes / DOM size / time-to-interactive.
- *   (c) paint    render2D() calls per scripted gesture.
+ *   (c) paint    model/HUD paint counts per scripted gesture.
  *   (d) three    idle FPS, draw calls/s and shadow passes/s in the 3D pane.
  *
- * IT MODIFIES NO SOURCE FILE. The render2D()/snap() counters for (c) are
+ * IT MODIFIES NO SOURCE FILE. The paint/snap() counters for (c) are
  * injected by the harness's OWN static server as it serves js/plan2d.js and
  * js/history.js (see INSTRUMENT below), so the working tree is never touched
  * and nothing has to be reverted afterwards.
@@ -75,20 +75,59 @@ const GAME_RE = /\/(zombies[^/]*|drive[^/]*|rc_[^/]*|kart|track|race|lava[^/]*)\
    silently reporting zero paints. */
 const INSTRUMENT = [
   {
+    /* THE paint counter. Since the canvas split, renderModel() is the only
+       function that repaints the plan's document image — walls, rooms, items,
+       MEP geometry — and it is what every paint target in the plan is about.
+       The exported render2D() is NOT that: it only schedules a frame, so
+       hooking it counts paint *requests*, and a request that lands on a HUD-only
+       frame (or is coalesced away entirely) costs no model paint at all. */
     file: "/js/plan2d.js",
-    needle: "export function render2D() {",
+    needle: "function renderModel() {",
     inject:
-      "export function render2D() { if (window.__perf) { window.__perf.render2D++; " +
+      "function renderModel() { if (window.__perf) { window.__perf.model++; " +
+      "window.__perf.mT0 = performance.now(); " +
       "if (window.__perfTrace) window.__perfTrace.push(new Error().stack); }",
   },
   {
-    // requestRender2D() coalesces into one rAF, so the render2D() stack always
-    // roots at that callback. Trace the REQUEST to see who is asking.
+    /* The overlay pass: selection chrome, guides, the drag proxy, and the three
+       animation loops. Cheap per paint, but it is the only thing that should be
+       running while a warning breathes, so it has to be counted separately or
+       "0 model paints at idle" cannot be told apart from "nothing animating". */
+    file: "/js/plan2d.js",
+    needle: "function renderHUD() {",
+    /* renderHUD() runs immediately after renderModel() in both painters
+       (render2DNow and the scheduled frame), with nothing in between, so its
+       entry timestamp is the model pass's end and closes the interval the
+       renderModel hook opened. That is how the model half of a full paint is
+       timed without wrapping either function's body. */
+    inject:
+      "function renderHUD() { if (window.__perf) { window.__perf.hud++; " +
+      "if (window.__perf.mT0) { window.__perf.modelMs += performance.now() - window.__perf.mT0; " +
+      "window.__perf.modelTimed++; window.__perf.mT0 = 0; } }",
+  },
+  {
+    /* Requests, not paints. render2D() and requestRender2D() are the same
+       coalescing entry under two names; both are counted into one number,
+       because the interesting ratio is requests-asked vs. model-paints-served.
+       Traced, since a paint's own stack always roots at the rAF callback and
+       only the request says who wanted it. */
+    file: "/js/plan2d.js",
+    needle: "export function render2D() {",
+    inject:
+      "export function render2D() { if (window.__perf) { window.__perf.request2D++; " +
+      "if (window.__perfTrace) window.__perfTrace.push(new Error().stack); }",
+  },
+  {
     file: "/js/plan2d.js",
     needle: "export function requestRender2D() {",
     inject:
       "export function requestRender2D() { if (window.__perf) { window.__perf.request2D++; " +
       "if (window.__perfTrace) window.__perfTrace.push(new Error().stack); }",
+  },
+  {
+    file: "/js/plan2d.js",
+    needle: "export function requestRenderHUD() {",
+    inject: "export function requestRenderHUD() { if (window.__perf) window.__perf.requestHUD++;",
   },
   {
     file: "/js/history.js",
@@ -443,7 +482,8 @@ const installScenario = async (page) => {
     ]);
     const S = state.S;
     const canvas = document.getElementById("plan");
-    window.__perf = window.__perf || { render2D: 0, request2D: 0, snap: 0 };
+    window.__perf = window.__perf ||
+      { model: 0, hud: 0, request2D: 0, requestHUD: 0, snap: 0, modelMs: 0, modelTimed: 0, mT0: 0 };
     const frame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     function ev(type, x, z, opts) {
       const r = canvas.getBoundingClientRect();
@@ -455,7 +495,11 @@ const installScenario = async (page) => {
     }
     window.__perfKit = {
       S, inter, plan2d, geom, engine, cons, ui, view3d, canvas, ev, frame,
-      reset() { window.__perf.render2D = 0; window.__perf.request2D = 0; window.__perf.snap = 0; },
+      reset() {
+        var P = window.__perf;
+        P.model = 0; P.hud = 0; P.request2D = 0; P.requestHUD = 0; P.snap = 0;
+        P.modelMs = 0; P.modelTimed = 0; P.mT0 = 0;
+      },
       room() {
         S.nodes = [{ x: 0, z: 0 }, { x: 600, z: 0 }, { x: 600, z: 400 }, { x: 0, z: 400 }];
         S.walls = [1, 2, 3, 4].map((id, i) => ({
@@ -492,22 +536,42 @@ async function probePaint() {
         q.room();
         await q.frame();
         q.reset();
+        q.after = null;
         const t0 = performance.now();
         await fn();
         await q.frame();
+        /* Did the gesture actually do what it says? A drag that is refused
+           still dispatches every event and still reports a plausible
+           paints/move, so the row has to carry proof of the edit: movedBy is
+           the displacement of the thing the gesture claims to have dragged,
+           and a 0 there means the number above it is measuring a hover. */
         results[name] = {
-          render2DCalls: P.render2D,
-          requestRender2DCalls: P.request2D,
+          modelPaints: P.model,
+          hudPaints: P.hud,
+          paintRequests: P.request2D,
+          hudRequests: P.requestHUD,
           historySnapshots: P.snap,
           pointermoveEvents: moves,
-          paintsPerMove: +(P.render2D / moves).toFixed(2),
+          modelPaintsPerMove: +(P.model / moves).toFixed(2),
           wallMs: +(performance.now() - t0).toFixed(1),
+          ...(q.after ? q.after() : {}),
         };
       }
 
-      // 1. drag an existing wall (grab the south wall's midpoint, slide it down)
+      /* 1. drag an existing wall (grab the south wall's midpoint, slide it down).
+         The work set MUST be pinned to one that ranks structure 0. Under the
+         default "furniture" work set canDrag() refuses a wall outright, the
+         pointerdown falls into the blocked-drag path, and the 20 moves that
+         follow are the idle hover path — which still reports a plausible
+         paints/move number, so the row silently stops measuring a wall drag.
+         "all" is used rather than "structure" so the scene is otherwise
+         identical to the other gestures (nothing else ghosted or deranked). */
       await gesture("dragWall", async () => {
+        S.workSet = "all";
+        S.workSetPinned = true;
         q.inter.setTool("select");
+        const z0 = S.nodes[2].z;
+        q.after = () => ({ movedBy: +(S.nodes[2].z - z0).toFixed(1) });
         q.ev("pointerdown", 300, 400);
         for (let i = 1; i <= moves; i++) {
           q.ev("pointermove", 300, lerp(400, 460, i / moves));
@@ -519,9 +583,13 @@ async function probePaint() {
 
       // 2. drag a furniture item across the room
       await gesture("dragItem", async () => {
+        S.workSet = "furniture";
+        S.workSetPinned = false;
         q.inter.setTool("select");
         q.ui.placeFurnAt("sofa", 200, 200);
         await q.frame();
+        const x0 = S.items[0].x;
+        q.after = () => ({ movedBy: +(S.items[0].x - x0).toFixed(1) });
         q.reset();
         q.ev("pointerdown", 200, 200);
         for (let i = 1; i <= moves; i++) {
@@ -558,35 +626,114 @@ async function probePaint() {
         await q.frame();
       });
 
-      /* 5. control: pure idle, nothing touched. A non-zero number here is a
-         self-sustaining repaint — the plan is painting with no input at all —
-         so the stacks of whatever called render2D() are captured with it. */
-      q.room(); await q.frame();
-      await new Promise((r) => setTimeout(r, 500)); // let the last gesture settle
-      q.reset();
-      window.__perfTrace = [];
-      await new Promise((r) => setTimeout(r, 3000));
-      const traces = window.__perfTrace.map((s) =>
-        String(s).split("\n").slice(1, 5).map((l) => l.trim()).join(" <- "));
-      window.__perfTrace = null;
-      const byStack = {};
-      for (const t of traces) byStack[t] = (byStack[t] || 0) + 1;
-      results.idle3000ms = {
-        render2DCalls: P.render2D,
-        requestRender2DCalls: P.request2D,
-        historySnapshots: P.snap,
-        callers: Object.entries(byStack)
-          .sort((a, b) => b[1] - a[1]).slice(0, 5)
-          .map(([stack, n]) => ({ n, stack })),
-      };
+      /* What one paint actually costs. The gesture rows above cannot answer
+         this: their wall-clock is dominated by the one-animation-frame gap
+         between synthetic pointermoves, which floors any 20-move gesture near
+         MOVES x 16 ms regardless of paint work. So time the painter directly,
+         synchronously, with no rAF in the loop — render2DNow() is model + HUD
+         back to back, which is exactly what the old monolithic render2D() did.
+         Measured on the 4-wall room and again on a 4x4 = 16-room grid, because
+         the model pass scales with the plan and the HUD pass does not. */
+      async function paintCost(name, build) {
+        build();
+        await q.frame();
+        q.plan2d.render2DNow(); // warm: first paint pays for font/style caches
+        q.reset();
+        const runs = 60;
+        const t0 = performance.now();
+        for (let i = 0; i < runs; i++) q.plan2d.render2DNow();
+        const full = (performance.now() - t0) / runs;
+        const model = P.modelTimed ? P.modelMs / P.modelTimed : null;
+        results[name] = {
+          walls: S.walls.length,
+          items: S.items.length,
+          fullPaintMs: +full.toFixed(3),
+          modelPaintMs: model == null ? null : +model.toFixed(3),
+          hudPaintMs: model == null ? null : +(full - model).toFixed(3),
+          paints: P.model,
+        };
+      }
+      await paintCost("paintCostSmall", () => q.room());
+      await paintCost("paintCostBig16Rooms", () => {
+        q.room();
+        S.nodes = []; S.walls = [];
+        const idx = (i, j) => i * 5 + j;
+        for (let i = 0; i < 5; i++)
+          for (let j = 0; j < 5; j++) S.nodes.push({ x: j * 400, z: i * 300 });
+        let id = 1;
+        for (let i = 0; i < 5; i++)
+          for (let j = 0; j < 4; j++)
+            S.walls.push({ id: id++, a: idx(i, j), b: idx(i, j + 1), thickness: 10, height: 270 });
+        for (let j = 0; j < 5; j++)
+          for (let i = 0; i < 4; i++)
+            S.walls.push({ id: id++, a: idx(i, j), b: idx(i + 1, j), thickness: 10, height: 270 });
+        q.cons.ensureNodeIds();
+        q.plan2d.fitView();
+      });
+
+      /* An idle measurement: sit still for 3 s and report what painted anyway.
+         A non-zero MODEL number is a self-sustaining full repaint of the plan
+         document with no input at all, so the stacks of whatever asked for it
+         are captured alongside. */
+      async function idle(name, setup) {
+        q.room();
+        if (setup) setup();
+        await q.frame();
+        await new Promise((r) => setTimeout(r, 500)); // let the last gesture settle
+        q.reset();
+        window.__perfTrace = [];
+        await new Promise((r) => setTimeout(r, 3000));
+        const traces = window.__perfTrace.map((s) =>
+          String(s).split("\n").slice(1, 5).map((l) => l.trim()).join(" <- "));
+        window.__perfTrace = null;
+        const byStack = {};
+        for (const t of traces) byStack[t] = (byStack[t] || 0) + 1;
+        results[name] = {
+          modelPaints: P.model,
+          hudPaints: P.hud,
+          paintRequests: P.request2D,
+          hudRequests: P.requestHUD,
+          historySnapshots: P.snap,
+          callers: Object.entries(byStack)
+            .sort((a, b) => b[1] - a[1]).slice(0, 5)
+            .map(([stack, n]) => ({ n, stack })),
+        };
+      }
+
+      // 5. control: pure idle, nothing touched, nothing to animate.
+      await idle("idle3000ms", null);
+
+      /* 6. idle with an unresolved constraint warning on screen. This is the
+         case the canvas split exists for and the control above cannot see: the
+         three self-cancelling animation loops (MEP flow, warning glow, angle
+         guide) only run when there is something live to animate, so a clean
+         scene reports 0 no matter how expensive a breathing warning would be.
+         A fifth node with a single wall arm is an "openEnd" warning
+         (js/constraint_engine.js jointWarnings), which makes warnShouldAnimate()
+         true and drives the glow at ~22 Hz for as long as it goes unresolved.
+         Before the split each of those frames was a full plan repaint; the
+         model column here should now read 0. */
+      await idle("idleWarning3000ms", () => {
+        S.nodes.push({ x: 300, z: 200 });
+        S.walls.push({ id: 5, a: 0, b: S.nodes.length - 1, thickness: 10, height: 270 });
+        q.cons.ensureNodeIds();
+        q.plan2d.render2DNow();
+      });
+      results.idleWarning3000ms.activeWarnings = q.engine.activeWarnings().length;
 
       return { results, sceneSize: { walls: S.walls.length, items: S.items.length } };
     }, MOVES);
     return {
       note:
-        "render2D() counted by an injected counter (see INSTRUMENT in this file — no " +
-        `source file is modified). Each drag gesture dispatches ${MOVES} pointermove ` +
-        "events, one animation frame apart, because interaction.js rAF-throttles planMove. " +
+        "Paints counted by injected counters (see INSTRUMENT in this file — no source file " +
+        "is modified). `modelPaints` is renderModel(), the plan document image; `hudPaints` " +
+        "is renderHUD(), the overlay; `paintRequests` is render2D()+requestRender2D(), which " +
+        "only schedule a frame. Each drag gesture dispatches " + MOVES + " pointermove " +
+        "events, one animation frame apart, because interaction.js rAF-throttles planMove — " +
+        "so a gesture's wall-clock has a hard floor of MOVES frames (~333 ms at 60 Hz) that " +
+        "no amount of paint work can go under; read paints, not wallMs, for paint cost. " +
+        "`dragWall` pins S.workSet to \"all\": under the default \"furniture\" work set a wall " +
+        "is rank 1 and canDrag() refuses, so the gesture would measure a hover. " +
         "`historySnapshots` counts history.js snap() calls (the expensive JSON.stringify).",
       movesPerGesture: MOVES,
       ...out,
@@ -819,7 +966,10 @@ await step("paint", async () => {
   if (runs.length === 1) return runs[0];
   const merged = runs[0];
   for (const key of Object.keys(merged.results))
-    merged.results[key].render2DCalls = median(runs.map((r) => r.results[key].render2DCalls));
+    for (const field of ["modelPaints", "hudPaints", "paintRequests", "hudRequests", "wallMs",
+      "fullPaintMs", "modelPaintMs", "hudPaintMs"])
+      if (merged.results[key][field] != null)
+        merged.results[key][field] = median(runs.map((r) => r.results[key][field]));
   merged.runs = runs.length;
   return merged;
 });
@@ -877,15 +1027,26 @@ if (out.boot && !out.boot.error) {
   md.push("\n" + b.note + "\n");
 }
 if (out.paint && !out.paint.error) {
-  md.push("## (c) 2D paint count — `render2D()` calls per gesture\n");
-  md.push("| gesture | pointermoves | render2D() calls | paints/move | requestRender2D() | snap() calls | wall ms |");
-  md.push("|---|--:|--:|--:|--:|--:|--:|");
+  md.push("## (c) 2D paint count — model vs. HUD paints per gesture\n");
+  md.push("| gesture | pointermoves | model paints | model/move | HUD paints | paint requests | HUD requests | snap() calls | wall ms | moved by |");
+  md.push("|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|");
   for (const [k, v] of Object.entries(out.paint.results))
-    md.push(`| ${k} | ${v.pointermoveEvents ?? "-"} | ${v.render2DCalls} | ${v.paintsPerMove ?? "-"} | ${v.requestRender2DCalls ?? "-"} | ${v.historySnapshots} | ${v.wallMs ?? "-"} |`);
-  const idle = out.paint.results.idle3000ms;
-  if (idle && idle.callers && idle.callers.length) {
-    md.push("\nWho paints while the app sits idle (3 s, no input at all):\n");
-    idle.callers.forEach((c) => md.push("- " + c.n + "x `" + c.stack + "`"));
+    if (v.modelPaintsPerMove != null || k.startsWith("idle"))
+      md.push(`| ${k} | ${v.pointermoveEvents ?? "-"} | ${v.modelPaints} | ${v.modelPaintsPerMove ?? "-"} | ${v.hudPaints} | ${v.paintRequests} | ${v.hudRequests} | ${v.historySnapshots} | ${v.wallMs ?? "-"} | ${v.movedBy ?? "-"} |`);
+  const costRows = Object.entries(out.paint.results).filter(([, v]) => v.fullPaintMs != null);
+  if (costRows.length) {
+    md.push("\n### What one paint costs (timed synchronously, no rAF in the loop)\n");
+    md.push("| scene | walls | full paint (model+HUD) | model pass | HUD pass |");
+    md.push("|---|--:|--:|--:|--:|");
+    costRows.forEach(([k, v]) =>
+      md.push(`| ${k} | ${v.walls} | ${v.fullPaintMs} ms | ${v.modelPaintMs ?? "-"} ms | ${v.hudPaintMs ?? "-"} ms |`));
+  }
+  for (const key of ["idle3000ms", "idleWarning3000ms"]) {
+    const idle = out.paint.results[key];
+    if (idle && idle.callers && idle.callers.length) {
+      md.push(`\nWhat paints the MODEL canvas during \`${key}\` (no input at all):\n`);
+      idle.callers.forEach((c) => md.push("- " + c.n + "x `" + c.stack + "`"));
+    }
   }
   md.push("\n" + out.paint.note + "\n");
 }
