@@ -140,9 +140,54 @@ with identical sizing and transform.
   guide, snap guides, MEP flow phase, warn glow, plan cursors, touch readout,
   the unlock pill. Repaints per frame, cheaply, over an untouched model image.
 
-The cut point already exists: the tail of `render2D()` from the stack-host
-block ([plan2d.js:474](js/plan2d.js:474)) onward is a contiguous run of exactly
-these draws. That tail becomes `renderHUD()`.
+`render2D()` spans [plan2d.js:374](js/plan2d.js:374)–683. There is **no single
+clean cut line** — an earlier draft of this plan claimed the tail from ~474 was
+purely HUD, and that is wrong. Here is the verified map; split by this list, not
+by a line number:
+
+| line | call | canvas |
+|--:|---|---|
+| 400 | `drawSiteUnderlay` | model |
+| 401 | `drawBlueprintUnderlay` | model |
+| — | grid loop (inline, 402–427) | model |
+| 428 | `drawReferenceFloor` | model |
+| 429 | `drawCachedRooms` | model |
+| 432 | `drawSlabOpenings` | model |
+| — | items loop (inline, 434–440) | model |
+| — | walls / openings loops (inline, 441–450) | model |
+| — | `drawSegPreview` (inline, 451–453) | **HUD** |
+| 455 | `drawWallProbe` | **HUD** |
+| 457 | `drawSnapFlash` | **HUD** |
+| 459 | `drawNodes` | model |
+| 461 | `drawMEP` + `ensureMEPAnim` | model geometry, **HUD** flow phase |
+| 464 | `drawMarkers` | model |
+| 465 | `drawPlanCursors` | **HUD** |
+| 467 | `drawWarnGlow` + `ensureWarnAnim` | **HUD** |
+| ~474 | stack-host outline (inline) | **HUD** |
+| ~497 | align guides (inline) | **HUD** |
+| 519 | `drawWallCons` | model |
+| 520 | `drawWallAngleGuide` + `ensureAngleGuideAnim` | **HUD** |
+| ~523 | snap guides (inline) | **HUD** |
+| 574 | `drawWalker` | **HUD** |
+| 663 | `drawSnapMark` | **HUD** |
+| 665 | `drawMeasureOverlay` | **HUD** |
+| 678 | `drawNorth` | either — put it on the HUD, it is cheap |
+| 680 | `drawTouchGuide` | **HUD** |
+
+Three traps in that table, all of which a naive line-number split gets wrong:
+
+- `drawPlanCursors` (465) and `drawWarnGlow` (467) are HUD but sit **above**
+  most model draws. They must move down into `renderHUD()` regardless of
+  position.
+- `drawMEP` (461) is split down the middle: the pipe/cable geometry is model,
+  but `mepFlowPhase` is what animates. Either pass the phase only on the HUD
+  pass, or draw static MEP geometry on the model canvas and the flowing dashes
+  on the HUD. Read the function before choosing.
+- `drawWallCons` (519) is model (constraint annotations are part of the
+  document) even though it sits deep in the HUD-heavy region.
+
+Verify your split empirically: with the HUD canvas hidden, the model canvas
+alone must look like today's plan minus selection chrome, guides and cursors.
 
 **Drag proxy.** For the duration of a gesture, the dragged object is excluded
 from the model canvas and drawn on the HUD. The model canvas then paints **zero
