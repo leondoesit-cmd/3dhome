@@ -193,6 +193,17 @@ alone must look like today's plan minus selection chrome, guides and cursors.
 from the model canvas and drawn on the HUD. The model canvas then paints **zero
 times** across a whole furniture drag.
 
+**Export regression — do not miss this.** Four places read the plan canvas's
+pixels directly and would silently export the model layer only once the canvas
+is split: [ui.js:3908](js/ui.js:3908) (the "download 2D plan PNG" button) and
+[video_studio.js:449](js/video_studio.js:449), [:484](js/video_studio.js:484),
+[:528](js/video_studio.js:528). Each needs to composite model + HUD into one
+offscreen canvas first. There is no `render2D()` immediately followed by a pixel
+read anywhere in `js/` (checked), so these are the whole set — but `ui.js` and
+`video_studio.js` are **not yours**: fix the compositing behind a helper you
+export from `plan2d.js` (e.g. `planImageCanvas()`), and report the call sites
+for U1 to repoint in wave 2.
+
 Selection chrome is currently inline in `drawItem`/`drawWall`/`drawNodes`
 (verified). Moving it to the HUD means those functions take a `chrome: false`
 flag on the model pass, and the HUD pass redraws just the selected object's
