@@ -893,6 +893,15 @@ html[data-tool="erase"] #plan { cursor: crosshair; }
 #plan-wall-palette.auto-collapsed .wd-sec {
   display: none;
 }
+/* The HUD canvas sits exactly over the model canvas. inset:0 on the same
+   positioned #view-2d gives it the identical client box, which is what
+   sizeCanvas() measures for both; pointer-events:none keeps every pointer
+   gesture on #plan, so no listener in js/interaction.js has to change. */
+#plan-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
 #plan.space-pan { cursor: grab !important; }
 #plan.is-panning { cursor: grabbing !important; }
 .furn-drop-ghost {
@@ -3024,6 +3033,9 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 @media print {
   #topbar, #left-panel, #right-panel, .bp-overlay, #toast-root { display: none !important; }
   #workspace, #plan-wrap, #plan { position: static !important; width: 100% !important; height: auto !important; }
+  /* Print takes the model canvas only: the HUD carries selection chrome and
+     pointer overlays, which are editor state, not drawing. */
+  #plan-hud { display: none !important; }
 }
 
 /* ---- compact inspector rows ---- */
@@ -7116,6 +7128,7 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 /* ---- Live 2D/3D track editor dock (js/rc_editor.js) ---- */
 #right-inspector.rc-editor-mode > .panel-section:not(.rc-ed-panel) { display: none; }
 #view-2d.rc-editor-map-on > #plan,
+#view-2d.rc-editor-map-on > #plan-hud,
 #view-2d.rc-editor-map-on > #plan-tools,
 #view-2d.rc-editor-map-on > .hint,
 #view-2d.rc-editor-map-on > #cad-status,

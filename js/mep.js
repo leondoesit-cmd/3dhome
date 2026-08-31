@@ -12,6 +12,7 @@
 import { S, uid, clamp, fin } from "./state.js";
 import { wallGeom, distSeg } from "./geometry.js";
 import { makeRouter } from "./mep_route.js";
+import { layerRank } from "./layers.js";
 import { getLang } from "./i18n.js";
 
 /* ---- bilingual labels (kept here so all MEP naming lives in one place) --- */
@@ -951,6 +952,13 @@ function angDelta(a, b) {
 // runs. For runs, `vi` is the index of a nearby vertex (for vertex dragging),
 // else -1 (whole-run hit → move the run or just select).
 export function hitMEP(px, pz) {
+  /* Off the pointer entirely when the MEP layer is ghosted or hidden. Sockets,
+     drains and cable vertices are the densest targets on the plan and they sit
+     exactly where furniture wants to go, so a hidden MEP network that still
+     answered clicks would be indistinguishable from a broken hit test. Rank 1
+     (visible, but not the work set) still answers — the pointerdown chain
+     consults it in its second pass and selects without dragging. */
+  if (layerRank("mep") === Infinity) return null;
   var m = ensureMEP();
   var tolN = 12 / S.SC, tolV = 9 / S.SC, tolR = 8 / S.SC;
   // nodes (visible systems only), nearest first

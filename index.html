@@ -688,6 +688,12 @@
           <div id="ctx-menu" role="menu"></div>
           <div id="view-2d">
             <canvas id="plan"></canvas>
+            <!-- Overlay canvas for everything that tracks the pointer or
+                 animates (selection chrome, guides, cursors, the warning glow).
+                 Stacked over #plan at the same size and transform by
+                 sizeCanvas(); pointer-events:none, so every gesture still lands
+                 on #plan. See "the two canvases" in js/plan2d.js. -->
+            <canvas id="plan-hud"></canvas>
             <div id="plan-tools">
             <div id="plan-toolbar" role="toolbar" aria-label="Drawing tools">
               <button class="tool active" data-tool="select" data-i18n-title="tool_select" title="בחירה">

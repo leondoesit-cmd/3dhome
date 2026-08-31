@@ -27,9 +27,9 @@ re-aim the work. Trust the table below, not the older one.
 | `render2D()` per pointermove, **dragWall** | **3.40** | 1.00 |
 | `render2D()` per pointermove, dragItem | 1.05 | 1.00 |
 | `render2D()` per pointermove, panPlan | 1.05 | 1.00 |
-| cost of one full `render2D()` | **~19 ms** | < 8 ms |
+| cost of one full `render2D()` | see correction below | — |
 | model-canvas paints per move during a drag | 1.05 – 3.40 | **0** |
-| dragWall gesture wall-clock (20 moves) | 640 ms | < 250 ms |
+| dragWall gesture wall-clock (20 moves) | 640 ms | not a paint target — see below |
 | dragItem gesture wall-clock (20 moves) | 448 ms | < 200 ms |
 | `history.snap()` per drag gesture | 4 | 1 |
 | `render2D()` in 3 s idle | 0 (see caveat) | 0 |
@@ -43,11 +43,18 @@ Three facts drive the plan:
   all inside `plan2d.js`**; the 330 call sites across 25 other files all call
   `render2D()` directly and bypass it. That is the 3.4. **dragWall is the
   target for the coalescing work — dragItem is already at 1.05.**
-- **One full `render2D()` costs about 19 ms.** `panPlan` does 21 paints in
-  393 ms at 1.05 paints/move — a clean read on the cost of a single paint, with
-  no snapping or hit-testing mixed in. At ~19 ms a paint, coalescing alone
-  cannot make a drag smooth; the paint itself has to stop happening. That is
-  what the model/HUD canvas split is for.
+- ~~**One full `render2D()` costs about 19 ms.**~~ **This was wrong** — it was
+  panPlan's 393 ms ÷ 21 paints, but the harness awaits a `requestAnimationFrame`
+  between synthetic moves, so any 20-move gesture has a ~333 ms floor no matter
+  what a paint costs. Directly timed, a full `render2D()` is **0.48 ms** model /
+  0.02 ms HUD on the harness's 4-wall room, and **3.6 ms model / 0.1 ms HUD** on
+  a 16-room, 64-wall, 48-item plan. The canvas split is still right, but for a
+  different reason than stated: the payoff is the **~30× ratio**, and the fact
+  that only the model half grows with the model. Two consequences: the
+  "< 8 ms per paint" target was meaningless, and **the dragWall < 250 ms
+  wall-clock target is unreachable by any paint work** while the harness inserts
+  a frame per move. That row needs a different gesture driver, not more
+  optimization.
 - **`history.snap()` still runs 4× per drag gesture** — confirmed, unchanged
   from the old baseline.
 
@@ -311,6 +318,76 @@ wall didn't move after the edit" bugs. Cut.
 Boot cost is the largest number in the baseline — 184 JS requests, 9.5 MB
 uncompressed, 1389 ms TTI — and has nothing to do with layers. It gets its own
 plan or it will swallow this one.
+
+---
+
+## Wave 1 landed
+
+`js/layers.js` consumers are wired in 2D and 3D, and the plan canvas is split.
+**1381 tests pass, 0 fail; `npm run check` clean.**
+
+**P1** — `render2DNow()` is the immediate painter; the exported `render2D()`
+coalesces, which fixed all 330 bypassing call sites at once. `<canvas
+id="plan-hud">` added. Verified by pixel diff against HEAD on a deterministic
+scene: composite vs. old with nothing selected is **0 differing pixels of
+236 280**; the model canvas with a selection vs. without is **0** — selection no
+longer touches the model canvas at all. Drag proxy measured at **2–3 model
+paints per whole gesture**, and those are only the two bracket paints from
+`setDragProxy`/`clearDragProxy`; zero occur during the moves.
+
+**H1** — two-pass `runSelectPass(pass)`, each band wrapped in
+`if (layerRank(id) === pass)`. Ordering preserved verbatim within a pass.
+Intended behaviour change: a locked structure layer now refuses **delete** of
+walls, corners, openings, rooms and slab voids; previously `lockStruct` blocked
+the drag and the delete went through silently.
+
+**V1** — `structureRoot` / `itemsRoot` / `mepRoot`; two rank-ordered raycasts.
+Two landmines found: `initPhysicsForScene` and `updateSeeThrough` were the only
+places iterating `dyn.children` **one level deep**, so nesting walls would have
+killed the dollhouse cut and merged every wall into one physics body. Also: the
+vendored three `intersect()` helper does **not** test `object.visible`, so
+`root.visible = false` would still have produced hits — excluding roots from the
+raycast *list* is the only mechanism that works, and a test now pins that claim
+against the vendored file.
+
+### Carried into wave 2 — do not lose these
+
+1. **The drag proxy is built but not wired.** `interaction.js` must
+   `import { setDragProxy, clearDragProxy } from "./plan2d.js"`, call
+   `setDragProxy(S.sel)` right after `S.action` is set on pointerdown (item,
+   wall and node drags), and `clearDragProxy()` on pointerup/cancel/abort.
+   Anything that changes geometry *other than* the dragged object mid-gesture
+   must `clearDragProxy()` first — the model image is deliberately frozen.
+   **Until this is wired, the headline perf win is not in the app.**
+2. **PNG/video export is still reading the raw canvas.** Repoint
+   `js/ui.js:3866` and `js/video_studio.js:449`/`:484`/`:528` at
+   `planImageCanvas()`. Gotcha: `ui.js:3875` computes dpr from
+   `src.clientWidth`, which is `0` on an offscreen canvas and silently yields
+   dpr 1 — read it from the live `#plan` element instead.
+3. **3D has no select-only path.** With the default `furniture` work set,
+   structure is rank 1, so openings can no longer be dragged in 3D and a rank-1
+   click does nothing visible except fire `layers:blocked-drag`. **The layer UI
+   is a hard dependency of this wave being usable, not a nicety.**
+4. **`drawMEP` could not be split as P2 described.** It collapses a missing
+   phase to `0` (`js/mep.js:1003`), so there is no geometry-without-flow call.
+   P1 worked around it per-canvas via one predicate governing both the overlay
+   and the animation loop. A `phase === false` geometry-only mode in `mep.js`
+   would allow the intended split.
+5. **`layers:blocked-drag` detail is `{sel, layer, reason, where}`** — reconciled
+   across both panes; `where` is `"2d"` or `"3d"`.
+
+### Carried into wave 3 (Q1)
+
+- **Move the harness `INSTRUMENT` anchor.** It hooks `export function
+  render2D() {`, which is now the *coalescing* entry, so the column counts
+  paint **requests**, not paints. Move it to `function renderModel() {`.
+- Re-aim the dragWall wall-clock row (see the correction above).
+- Add a warning-glow idle case — idle reads 0 only because the harness scene has
+  nothing animating.
+- V1's unverifiable-in-Node list: that the roots populate and render
+  identically; **the dollhouse cut** (`updateSeeThrough`, highest risk); that a
+  wall is still one physics body per wall; ghost opacity/depth and that
+  repeated toggling leaks no materials; the TV-vs-wall pick itself.
 
 ---
 

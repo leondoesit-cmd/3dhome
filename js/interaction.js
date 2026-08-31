@@ -51,6 +51,7 @@ import {
   abortHistoryTransaction,
 } from "./history.js";
 import { isWalk } from "./view3d.js";
+import { layerRank, layerOf, canDrag, isLayerLocked } from "./layers.js";
 import {
   ensureMEP, snapMEPPoint, routeResolve, wallPath, addNode, hitMEP, nodePos,
   finishRoute, cancelMEP, cancelRoute, deleteMEP, detachNodesFromWalls, runCrossesOpening,
@@ -134,7 +135,14 @@ function tolCm(px) {
   var v = (px * PICK_SLOP) / S.SC;
   return isFinite(v) && v > 0 ? v : px * PICK_SLOP;
 }
+/* ---- rank gates on the hit tests ----
+   Every hit function below opens by asking its layer's rank and answering null
+   at Infinity — ghosted or hidden geometry is not there as far as the pointer
+   is concerned. Ranks 0 and 1 both still answer; separating those two is the
+   pointerdown chain's job (see runSelectPass), not the hit test's, because a
+   rank-1 wall must still be selectable and readable in the inspector. */
 function hitNode(px, pz) {
+  if (layerRank("structure") === Infinity) return null;
   // corners of the walls actually on the plan — a corner left only by hidden
   // walls isn't drawn, so it isn't grabbable either (mirrors plan2d drawNodes)
   var hid = hiddenSets(),
@@ -158,6 +166,7 @@ function hitNode(px, pz) {
   return best;
 }
 function hitOpening(px, pz) {
+  if (layerRank("structure") === Infinity) return null;
   var hid = hiddenSets();
   for (var i = S.openings.length - 1; i >= 0; i--) {
     var o = S.openings[i],
@@ -182,6 +191,7 @@ function inItem(px, pz, it, pad) {
 // What is drawn is what can be picked: anything a hidden room took off the
 // plan is skipped here too (hiddenSets costs nothing when nothing is hidden).
 function hitItem(px, pz) {
+  if (layerRank("furniture") === Infinity) return null;
   var i,
     it,
     hid = hiddenSets();
@@ -207,6 +217,7 @@ function hitItem(px, pz) {
   return null;
 }
 function hitWall(px, pz) {
+  if (layerRank("structure") === Infinity) return null;
   var best = null,
     bd = 1e9,
     hid = hiddenSets();
@@ -247,6 +258,7 @@ export function updateWallProbe(px, pz) {
   };
 }
 function hitRoom(px, pz) {
+  if (layerRank("structure") === Infinity) return null;
   var rs = detectRooms(),
     best = null,
     ba = 1e18;
@@ -2196,12 +2208,59 @@ export function selectAtScreen(ox, oy) {
   return S.sel;
 }
 
+/* Is this selection locked against being moved or removed?
+
+   Two independent padlocks answer here. The LAYER's lock covers everything on
+   it at once (`S.lockStruct` is the structure layer's, so the old L-key
+   behaviour arrives through this branch), and the OBJECT's own `locked` flag
+   covers the one thing the user pinned. Either is enough.
+
+   It used to understand items and nothing else, which meant a locked wall or a
+   pinned MEP device refused a drag (the pointerdown chain checked `lockStruct`
+   by hand) but was still deleted without complaint. The object test is now the
+   generic one, so it extends to structure and MEP for free: a multi-selection
+   counts as locked only when EVERY member is — a marquee that caught one
+   pinned chair among ten should still move the other nine — and `kind: "room"`
+   is the odd one out because its `ref` is a room KEY, with the flag living in
+   S.roomMeta. `canDrag` in js/layers.js mirrors these same two rules
+   deliberately; keep them in step. Rank is NOT consulted here: refusing to
+   delete an off-work-set object is a different, harsher policy than refusing
+   to drag it, and only `canDrag` makes that call. */
 function targetLocked(sel) {
   if (!sel) return false;
-  if (sel.kind === "item") return !!sel.ref.locked;
-  if (sel.kind === "items")
-    return sel.refs.length > 0 && sel.refs.every(function (i) { return i.locked; });
-  return false;
+  var id = layerOf(sel.kind);
+  if (id && isLayerLocked(id)) return true;
+  if (sel.kind === "room") {
+    var meta = S.roomMeta && S.roomMeta[sel.ref];
+    return !!(meta && meta.locked);
+  }
+  if (Array.isArray(sel.refs))
+    return sel.refs.length > 0 && sel.refs.every(function (r) { return !!(r && r.locked); });
+  return !!(sel.ref && sel.ref.locked);
+}
+
+/* A drag was asked for and refused. The reason is worth showing at the cursor —
+   "this layer isn't the one you're editing" and "this thing is pinned" call for
+   completely different next actions — but this module owns no DOM, so it says
+   so on the window and js/ui_layers.js draws the pill.
+
+   `reason` is the FIRST gate that failed, in the order canDrag() tests them:
+     "rank"   — the layer is visible but off the work set (or unreachable)
+     "layer"  — the layer's own padlock is closed
+     "object" — the thing itself is pinned
+   `layer` is the layer id, or null for a kind that belongs to no layer. */
+function blockedDrag(sel) {
+  if (!sel || typeof window === "undefined" || !window.dispatchEvent) return;
+  var id = layerOf(sel.kind),
+    reason = "object";
+  if (!id || layerRank(id) !== 0) reason = "rank";
+  else if (isLayerLocked(id)) reason = "layer";
+  window.dispatchEvent(
+    new CustomEvent("layers:blocked-drag", {
+      // `where` lets one pill serve both panes; js/view3d.js emits "3d".
+      detail: { sel: sel, layer: id, reason: reason, where: "2d" },
+    }),
+  );
 }
 
 function applyRemove(sel) {
@@ -2809,8 +2868,18 @@ export function moveItemTo(it, nx, nz) {
    the model itself lives here, next to the plan drag it mirrors — history,
    snapping and stacking must not fork per view. */
 export function begin3DItemDrag(it) {
-  if (!it || it.locked) return false;
-  select({ kind: "item", ref: it });
+  if (!it) return false;
+  /* One permission for both views. The 3D drag used to consult only the
+     piece's own `locked` flag, so a work set or a layer padlock that stopped
+     the plan drag did nothing here and the two views disagreed about whether
+     the same piece could be moved. `canDrag` is the single answer; the refusal
+     is announced so the pill appears at the cursor in 3D as well. */
+  var sel = { kind: "item", ref: it };
+  if (!canDrag(sel)) {
+    blockedDrag(sel);
+    return false;
+  }
+  select(sel);
   beginHistory();
   render2D();
   return true;
@@ -3253,11 +3322,18 @@ export function initInteraction() {
       }
       var eh = elevationHit(ox, oy);
       select(eh || null);
+      /* Selection is unconditional; the GESTURE is not. An elevation obeys the
+         same rule as the plan — a hit on a layer that is visible but off the
+         work set, on a locked layer, or on a pinned object fills the inspector
+         and stops there, so reading a wall's opening while furnishing can
+         never slide it by accident. */
       if (eh && e.button !== 2) {
-        if (eh.kind === "marker") {
+        if (!canDrag(eh)) {
+          blockedDrag(eh);
+        } else if (eh.kind === "marker") {
           S.action = "markerElev";
           beginHistory();
-        } else if (eh.kind === "item" && !eh.ref.locked) {
+        } else if (eh.kind === "item") {
           S.action = "itemElev";
           S.elevGrab = elevItemGrab(eh.ref, ox, oy);
           beginHistory();
@@ -3522,231 +3598,324 @@ export function initInteraction() {
     }
     // Clear old transient state from projects saved before connected placement.
     S.freshWall = null;
-    // MEP entities are selectable/draggable with the select tool (before items,
-    // so a device sitting on furniture is still grabbable)
-    var hm = hitMEP(px, pz);
-    if (hm) {
-      select(hm.kind === "mepRun" ? { kind: "mepRun", ref: hm.ref } : hm);
-      beginMEPDrag(hm, px, pz);
-      render2D();
-      return;
-    }
-    /* A dimension's own label is selectable, so a constraint can be edited,
-       flipped, suppressed or deleted from the drawing instead of only from a
-       list that is filtered by whichever wall happens to be selected. Tested
-       against SCREEN coordinates, because that is where the labels were laid
-       out, and against the boxes the renderer actually drew (see pickCon) so
-       the target can never drift from the glyph.
+    /* ---- the select-tool pick chain, run twice ----
 
-       Deliberately BEFORE corners and walls: a label is a small box the user
-       aimed at, and it is drawn on top of everything, so it must pick first or
-       the thing underneath swallows every click on it. The pin's ring is the
-       exception and carries its own offset tag for exactly this reason. */
-    var hc = pickCon(e.offsetX, e.offsetY);
-    if (hc) {
-      select({ kind: "con", ref: hc });
-      renderWarnPanel(true);
-      render2D();
-      return;
-    }
-    var hn = hitNode(px, pz);
-    if (hn != null) {
-      /* Ctrl/Cmd (and Shift for parity with item selection) selects structural
-         features without starting a drag. Two selected corners unlock the
-         contextual Join/Distance/Align/Equal-angle palette in the inspector. */
-      if (e.ctrlKey || e.metaKey || e.shiftKey) {
-        var pickedNodes = S.sel && S.sel.kind === "nodes"
-          ? S.sel.refs.slice()
-          : S.sel && S.sel.kind === "node" ? [S.sel.ref] : [];
-        var existingNode = pickedNodes.indexOf(hn);
-        if (existingNode === -1) pickedNodes.push(hn);
-        else pickedNodes.splice(existingNode, 1);
-        /* No cap. It used to drop the oldest corner past two, which made the
-           pair relations easy to reach and made everything that needs three
-           or more — pinning a run of corners, equal spacing, "all of these on
-           one line" — impossible to even select for. The pair-only verbs
-           disable themselves when the count is wrong, which is the honest way
-           round: the selection says what you picked, the palette says what
-           can be done with it. */
-        select(pickedNodes.length > 1
-          ? { kind: "nodes", refs: pickedNodes }
-          : pickedNodes.length === 1 ? { kind: "node", ref: pickedNodes[0] } : null);
-        S.action = null;
-        render2D();
-        return;
+       The chain below is the old one, unchanged in order, wrapped in a
+       function that only tests the layers at ONE rank. It is then run at rank
+       0 and, if nothing focused answered, at rank 1.
+
+       That is the whole fix for "I clicked the TV and got the wall". The plan
+       draws the wall band after the items, and every test used to scan
+       everything in one pass, so whichever band happened to be checked first
+       won regardless of what the user was doing. Now the layer being edited is
+       consulted first as a group, and everything else only gets the click when
+       the focused layers all missed. Nothing becomes unclickable: a rank-1 hit
+       still selects and still fills the inspector — it just never arms a drag
+       (see canDrag in js/layers.js), so an off-work-set wall is readable
+       without being movable.
+
+       Each gate is `layerRank(id) === pass`, which also disposes of rank
+       Infinity for free: a ghosted or hidden layer equals neither 0 nor 1, so
+       it is never reached in either pass, and no band is ever tested twice.
+
+       ORDER WITHIN A PASS IS LOAD-BEARING and every step of it is explained
+       where it sits. In short: MEP before items so a socket standing on
+       furniture is still grabbable; dimension labels before corners and walls
+       because a label is a small box drawn on top of everything; placeholder
+       points before items and openings because a point is a ~12px target that
+       is usually standing INSIDE the footprint of the thing it holds; and
+       rooms last, because a room is the whole floor area and would otherwise
+       swallow every click that lands inside it. */
+    function runSelectPass(pass) {
+      // MEP entities are selectable/draggable with the select tool (before items,
+      // so a device sitting on furniture is still grabbable)
+      if (layerRank("mep") === pass) {
+        var hm = hitMEP(px, pz);
+        if (hm) {
+          var msel = hm.kind === "mepRun" ? { kind: "mepRun", ref: hm.ref } : hm;
+          select(msel);
+          if (canDrag(msel)) beginMEPDrag(hm, px, pz);
+          else {
+            S.action = null;
+            blockedDrag(msel);
+          }
+          render2D();
+          return true;
+        }
       }
-      /* Picking a glowing corner also picks its warning, so the message list
-         scrolls to it and highlights the same thing the canvas does. */
-      var hwarn = hitWarning(px, pz, tolCm(14));
-      /* Grabbing the END of the wall that is already selected resizes THAT wall
-         alone: its neighbours hold their locked dimensions and simply release
-         the joint (see js/constraint_engine.js). Grabbing a bare corner still
-         moves the whole joint — the user took hold of the junction itself, so
-         every wall on it is being edited on purpose. */
-      var endOf =
-        S.sel && S.sel.kind === "wall" &&
-        (S.sel.ref.a === hn || S.sel.ref.b === hn)
-          ? S.sel.ref
-          : null;
-      // grabbing the end of the wall you had selected keeps that wall selected:
-      // the gesture is an edit OF that wall, not a pick of the junction
-      if (!endOf) select({ kind: "node", ref: hn });
-      S.warnSel = hwarn ? hwarn.key : null; // after select(), which clears it
-      if (hwarn) syncWarnHighlight();
-      // structure lock: pick it, read it, but don't let a stray drag move it
-      if (!S.lockStruct) {
-        S.action = "node";
-        S.nodeDrag = { node: hn, wall: endOf ? endOf.id : null };
-        S.jointsReleased = 0;
-        beginHistory();
-      } else S.action = null;
-      render2D();
-      return;
-    }
-    /* Placeholder points are picked before items and openings: a point is a
-       ~12px target that is very often standing INSIDE the footprint of the
-       object it holds, so anything with a larger hit area would bury it. */
-    var hmk = hitMarker(px, pz);
-    if (hmk) {
-      select({ kind: "marker", ref: hmk });
-      S.action = "marker";
-      beginHistory();
-      S.dragOff = { x: px - hmk.x, z: pz - hmk.z };
-      render2D();
-      return;
-    }
-    var ho = hitOpening(px, pz);
-    if (ho) {
-      select({ kind: "opening", ref: ho });
-      if (S.lockStruct) {
-        S.action = null;
-        render2D();
-        return;
+      /* A dimension's own label is selectable, so a constraint can be edited,
+         flipped, suppressed or deleted from the drawing instead of only from a
+         list that is filtered by whichever wall happens to be selected. Tested
+         against SCREEN coordinates, because that is where the labels were laid
+         out, and against the boxes the renderer actually drew (see pickCon) so
+         the target can never drift from the glyph.
+
+         Deliberately BEFORE corners and walls: a label is a small box the user
+         aimed at, and it is drawn on top of everything, so it must pick first or
+         the thing underneath swallows every click on it. The pin's ring is the
+         exception and carries its own offset tag for exactly this reason. */
+      if (layerRank("annotations") === pass) {
+        var hc = pickCon(e.offsetX, e.offsetY);
+        if (hc) {
+          select({ kind: "con", ref: hc });
+          renderWarnPanel(true);
+          render2D();
+          return true;
+        }
       }
-      S.action = "opening";
-      beginHistory();
-      var w2 = wallById(ho.wall),
-        gm2 = wallGeom(w2);
-      S.dragOff.s = (px - gm2.a.x) * gm2.ux + (pz - gm2.a.z) * gm2.uz - ho.s;
-      render2D();
-      return;
-    }
-    var hi = hitItem(px, pz);
-    if (hi) {
-      var toSelect = [hi];
-      if (hi.groupId) {
-         toSelect = S.items.filter(function(it) { return it.groupId === hi.groupId; });
+      if (layerRank("structure") === pass) {
+        var hn = hitNode(px, pz);
+        if (hn != null) {
+          /* Ctrl/Cmd (and Shift for parity with item selection) selects structural
+             features without starting a drag. Two selected corners unlock the
+             contextual Join/Distance/Align/Equal-angle palette in the inspector. */
+          if (e.ctrlKey || e.metaKey || e.shiftKey) {
+            var pickedNodes = S.sel && S.sel.kind === "nodes"
+              ? S.sel.refs.slice()
+              : S.sel && S.sel.kind === "node" ? [S.sel.ref] : [];
+            var existingNode = pickedNodes.indexOf(hn);
+            if (existingNode === -1) pickedNodes.push(hn);
+            else pickedNodes.splice(existingNode, 1);
+            /* No cap. It used to drop the oldest corner past two, which made the
+               pair relations easy to reach and made everything that needs three
+               or more — pinning a run of corners, equal spacing, "all of these on
+               one line" — impossible to even select for. The pair-only verbs
+               disable themselves when the count is wrong, which is the honest way
+               round: the selection says what you picked, the palette says what
+               can be done with it. */
+            select(pickedNodes.length > 1
+              ? { kind: "nodes", refs: pickedNodes }
+              : pickedNodes.length === 1 ? { kind: "node", ref: pickedNodes[0] } : null);
+            S.action = null;
+            render2D();
+            return true;
+          }
+          /* Picking a glowing corner also picks its warning, so the message list
+             scrolls to it and highlights the same thing the canvas does. */
+          var hwarn = hitWarning(px, pz, tolCm(14));
+          /* Grabbing the END of the wall that is already selected resizes THAT wall
+             alone: its neighbours hold their locked dimensions and simply release
+             the joint (see js/constraint_engine.js). Grabbing a bare corner still
+             moves the whole joint — the user took hold of the junction itself, so
+             every wall on it is being edited on purpose. */
+          var endOf =
+            S.sel && S.sel.kind === "wall" &&
+            (S.sel.ref.a === hn || S.sel.ref.b === hn)
+              ? S.sel.ref
+              : null;
+          // grabbing the end of the wall you had selected keeps that wall selected:
+          // the gesture is an edit OF that wall, not a pick of the junction
+          if (!endOf) select({ kind: "node", ref: hn });
+          S.warnSel = hwarn ? hwarn.key : null; // after select(), which clears it
+          if (hwarn) syncWarnHighlight();
+          /* Pick it, read it, but don't let a stray drag move it. canDrag asks
+             three questions at once — is structure the work set, is the layer's
+             padlock open (that IS S.lockStruct), and is the corner itself
+             pinned — so the same call covers the rank-1 case and the L key. */
+          var nodeSel = { kind: "node", ref: hn };
+          if (canDrag(nodeSel)) {
+            S.action = "node";
+            S.nodeDrag = { node: hn, wall: endOf ? endOf.id : null };
+            S.jointsReleased = 0;
+            beginHistory();
+          } else {
+            S.action = null;
+            blockedDrag(nodeSel);
+          }
+          render2D();
+          return true;
+        }
       }
-      
-      if (e.shiftKey) {
-         var cur = (S.sel && S.sel.kind === "items") ? S.sel.refs : (S.sel && S.sel.kind === "item" ? [S.sel.ref] : []);
-         toSelect.forEach(function(it) {
-           if (cur.indexOf(it) === -1) cur.push(it);
-         });
-         if (cur.length > 1) {
-            select({ kind: "items", refs: cur });
-         } else {
-            select({ kind: "item", ref: cur[0] });
-         }
-         S.action = "item";
-      } else {
-         var inCur = (S.sel && S.sel.kind === "items" && S.sel.refs.indexOf(hi) !== -1);
-         if (!inCur) {
-            if (toSelect.length > 1) select({ kind: "items", refs: toSelect });
-            else select({ kind: "item", ref: hi });
-         }
-         S.action = "item";
+      /* Placeholder points are picked before items and openings: a point is a
+         ~12px target that is very often standing INSIDE the footprint of the
+         object it holds, so anything with a larger hit area would bury it. */
+      if (layerRank("annotations") === pass) {
+        var hmk = hitMarker(px, pz);
+        if (hmk) {
+          var mkSel = { kind: "marker", ref: hmk };
+          select(mkSel);
+          if (canDrag(mkSel)) {
+            S.action = "marker";
+            beginHistory();
+            S.dragOff = { x: px - hmk.x, z: pz - hmk.z };
+          } else {
+            S.action = null;
+            blockedDrag(mkSel);
+          }
+          render2D();
+          return true;
+        }
       }
-      
-      if (S.sel.kind === "items") {
-         var cx = 0, cz = 0;
-         S.sel.refs.forEach(function(it) { cx += it.x; cz += it.z; });
-         cx /= S.sel.refs.length; cz /= S.sel.refs.length;
-         S.dragOff = { x: px - cx, z: pz - cz };
-         S.dragOrig = S.sel.refs.map(function(it) { return { it: it, x: it.x, z: it.z }; });
-      } else {
-         if (hi.locked) S.action = null;
-         S.dragOff = { x: px - hi.x, z: pz - hi.z };
+      if (layerRank("structure") === pass) {
+        var ho = hitOpening(px, pz);
+        if (ho) {
+          var opSel = { kind: "opening", ref: ho };
+          select(opSel);
+          if (!canDrag(opSel)) {
+            S.action = null;
+            blockedDrag(opSel);
+            render2D();
+            return true;
+          }
+          S.action = "opening";
+          beginHistory();
+          var w2 = wallById(ho.wall),
+            gm2 = wallGeom(w2);
+          S.dragOff.s = (px - gm2.a.x) * gm2.ux + (pz - gm2.a.z) * gm2.uz - ho.s;
+          render2D();
+          return true;
+        }
       }
-      if (S.action) beginHistory();
-      render2D();
-      return;
-    }
-    var hv = hitSlabOpening(px, pz);
-    if (hv) {
-      select({ kind: "slabvoid", ref: hv });
-      S.action = "slabvoid";
-      beginHistory();
-      S.dragOff = { x: px - hv.x, z: pz - hv.z };
-      render2D();
-      return;
-    }
-    var hw = hitWall(px, pz);
-    if (hw) {
-      if (e.ctrlKey || e.metaKey || e.shiftKey) {
-        var pickedWalls = S.sel && S.sel.kind === "walls"
-          ? S.sel.refs.slice()
-          : S.sel && S.sel.kind === "wall" ? [S.sel.ref] : [];
-        var wallAt = pickedWalls.indexOf(hw);
-        if (wallAt === -1) pickedWalls.push(hw); else pickedWalls.splice(wallAt, 1);
-        select(pickedWalls.length > 1
-          ? { kind: "walls", refs: pickedWalls }
-          : pickedWalls.length === 1 ? { kind: "wall", ref: pickedWalls[0] } : null);
-        S.action = null; render2D(); return;
+      if (layerRank("furniture") === pass) {
+        var hi = hitItem(px, pz);
+        if (hi) {
+          var toSelect = [hi];
+          if (hi.groupId) {
+            toSelect = S.items.filter(function(it) { return it.groupId === hi.groupId; });
+          }
+
+          if (e.shiftKey) {
+            var cur = (S.sel && S.sel.kind === "items") ? S.sel.refs : (S.sel && S.sel.kind === "item" ? [S.sel.ref] : []);
+            toSelect.forEach(function(it) {
+              if (cur.indexOf(it) === -1) cur.push(it);
+            });
+            if (cur.length > 1) {
+              select({ kind: "items", refs: cur });
+            } else {
+              select({ kind: "item", ref: cur[0] });
+            }
+            S.action = "item";
+          } else {
+            var inCur = (S.sel && S.sel.kind === "items" && S.sel.refs.indexOf(hi) !== -1);
+            if (!inCur) {
+              if (toSelect.length > 1) select({ kind: "items", refs: toSelect });
+              else select({ kind: "item", ref: hi });
+            }
+            S.action = "item";
+          }
+
+          if (S.sel.kind === "items") {
+            var cx = 0, cz = 0;
+            S.sel.refs.forEach(function(it) { cx += it.x; cz += it.z; });
+            cx /= S.sel.refs.length; cz /= S.sel.refs.length;
+            S.dragOff = { x: px - cx, z: pz - cz };
+            S.dragOrig = S.sel.refs.map(function(it) { return { it: it, x: it.x, z: it.z }; });
+          } else {
+            S.dragOff = { x: px - hi.x, z: pz - hi.z };
+          }
+          /* The selection above is made either way — the inspector fills for a
+             pinned sofa exactly as it does for a free one. Only the GESTURE is
+             withdrawn, and canDrag reads the selection that was actually made,
+             so a marquee is refused only when every piece in it is pinned. */
+          if (!canDrag(S.sel)) {
+            S.action = null;
+            blockedDrag(S.sel);
+          }
+          if (S.action) beginHistory();
+          render2D();
+          return true;
+        }
       }
-      // clicking a half of the ALREADY selected wall picks which half a typed
-      // length/angle edit grows or shrinks (first click just selects the wall)
-      if (S.sel && S.sel.kind === "wall" && S.sel.ref === hw) {
-        var half = wallHalfAt(hw, px, pz);
-        S.wallEditEnd = S.wallEditEnd === half ? null : half;
-        syncWallEnd();
-      } else select({ kind: "wall", ref: hw });
-      /* The body of a wall is a drag handle: the whole wall travels, both
-         corners with it. It is a rigid move, so the wall keeps its own length
-         and angle; anything else meeting those corners is stretched instead
-         (and a locked neighbour lets go of the joint rather than deform) —
-         the same rule a room drag follows. A pure click moves nothing: the
-         delta is grid-quantised, so it stays 0 until the pointer really
-         travels, which is what keeps the half-picking click above intact. */
-      if (!S.lockStruct) {
-        S.action = "wall";
-        beginHistory();
-        S.jointsReleased = 0;
-        S.wallDrag = {
-          wall: hw,
-          sx: px,
-          sz: pz,
-          orig: [hw.a, hw.b].map(function (i) {
-            return { i: i, x: S.nodes[i].x, z: S.nodes[i].z };
-          }),
-        };
-        S.wallAngleGuide = null;
-      } else S.action = null;
-      render2D();
-      return;
-    }
-    var hk = hitRoom(px, pz);
-    if (hk) {
-      var rm = roomByKey(hk);
-      select({ kind: "room", ref: hk });
-      if (rm && !S.lockStruct && !(S.roomMeta[hk] && S.roomMeta[hk].locked)) {
-        S.action = "room";
-        beginHistory();
-        S.dragRoom = {
-          sx: px,
-          sz: pz,
-          orig: rm.nidx.map(function (i) {
-            return { i: i, x: S.nodes[i].x, z: S.nodes[i].z };
-          }),
-          // items sitting inside the room travel with it (relative offset kept)
-          items: itemsInRoom(rm).map(function (it) {
-            return { it: it, x: it.x, z: it.z };
-          }),
-        };
+      if (layerRank("structure") === pass) {
+        var hv = hitSlabOpening(px, pz);
+        if (hv) {
+          var voidSel = { kind: "slabvoid", ref: hv };
+          select(voidSel);
+          if (canDrag(voidSel)) {
+            S.action = "slabvoid";
+            beginHistory();
+            S.dragOff = { x: px - hv.x, z: pz - hv.z };
+          } else {
+            S.action = null;
+            blockedDrag(voidSel);
+          }
+          render2D();
+          return true;
+        }
+        var hw = hitWall(px, pz);
+        if (hw) {
+          if (e.ctrlKey || e.metaKey || e.shiftKey) {
+            var pickedWalls = S.sel && S.sel.kind === "walls"
+              ? S.sel.refs.slice()
+              : S.sel && S.sel.kind === "wall" ? [S.sel.ref] : [];
+            var wallAt = pickedWalls.indexOf(hw);
+            if (wallAt === -1) pickedWalls.push(hw); else pickedWalls.splice(wallAt, 1);
+            select(pickedWalls.length > 1
+              ? { kind: "walls", refs: pickedWalls }
+              : pickedWalls.length === 1 ? { kind: "wall", ref: pickedWalls[0] } : null);
+            S.action = null; render2D(); return true;
+          }
+          // clicking a half of the ALREADY selected wall picks which half a typed
+          // length/angle edit grows or shrinks (first click just selects the wall)
+          if (S.sel && S.sel.kind === "wall" && S.sel.ref === hw) {
+            var half = wallHalfAt(hw, px, pz);
+            S.wallEditEnd = S.wallEditEnd === half ? null : half;
+            syncWallEnd();
+          } else select({ kind: "wall", ref: hw });
+          /* The body of a wall is a drag handle: the whole wall travels, both
+             corners with it. It is a rigid move, so the wall keeps its own length
+             and angle; anything else meeting those corners is stretched instead
+             (and a locked neighbour lets go of the joint rather than deform) —
+             the same rule a room drag follows. A pure click moves nothing: the
+             delta is grid-quantised, so it stays 0 until the pointer really
+             travels, which is what keeps the half-picking click above intact. */
+          var wallSel = { kind: "wall", ref: hw };
+          if (canDrag(wallSel)) {
+            S.action = "wall";
+            beginHistory();
+            S.jointsReleased = 0;
+            S.wallDrag = {
+              wall: hw,
+              sx: px,
+              sz: pz,
+              orig: [hw.a, hw.b].map(function (i) {
+                return { i: i, x: S.nodes[i].x, z: S.nodes[i].z };
+              }),
+            };
+            S.wallAngleGuide = null;
+          } else {
+            S.action = null;
+            blockedDrag(wallSel);
+          }
+          render2D();
+          return true;
+        }
+        var hk = hitRoom(px, pz);
+        if (hk) {
+          var rm = roomByKey(hk);
+          var roomSel = { kind: "room", ref: hk };
+          select(roomSel);
+          /* canDrag folds in all three of the old conditions — the work set,
+             S.lockStruct, and the per-room padlock it reads out of S.roomMeta
+             (a room selection's ref is a KEY, not an object). `rm` staying in
+             the test is not redundant: a room key with no live polygon has no
+             corners to move. */
+          if (rm && canDrag(roomSel)) {
+            S.action = "room";
+            beginHistory();
+            S.dragRoom = {
+              sx: px,
+              sz: pz,
+              orig: rm.nidx.map(function (i) {
+                return { i: i, x: S.nodes[i].x, z: S.nodes[i].z };
+              }),
+              // items sitting inside the room travel with it (relative offset kept)
+              items: itemsInRoom(rm).map(function (it) {
+                return { it: it, x: it.x, z: it.z };
+              }),
+            };
+          } else {
+            S.action = null;
+            if (rm) blockedDrag(roomSel);
+          }
+          render2D();
+          return true;
+        }
       }
-      render2D();
-      return;
+      return false;
     }
+    if (runSelectPass(0)) return;
+    if (runSelectPass(1)) return;
     // blank space: same "I'm done" gesture as Esc — drop the selection and
     // fall back to the select tool
     select(null);
@@ -4057,31 +4226,42 @@ export function initInteraction() {
     // always-on distance overlay: track the cursor + the item under it while
     // idle on the select tool (over empty floor it measures from the point).
     if (!S.action && S.tool === "select") {
-      S.hoverItem = hitItem(px, pz);
+      /* Hover follows the FOCUSED layers only — rank 0, not merely "hittable".
+         Rank 1 stays clickable on purpose, but hover is the readout that runs
+         with no click at all, and a hover card that keeps inspecting the wall
+         while you are aiming at the TV in front of it re-creates exactly the
+         problem the two-pass pick chain removes. So each band below asks for
+         rank 0 rather than reusing the hit test's Infinity gate. */
+      var focus = {
+        structure: layerRank("structure") === 0,
+        furniture: layerRank("furniture") === 0,
+        annotations: layerRank("annotations") === 0,
+      };
+      S.hoverItem = focus.furniture ? hitItem(px, pz) : null;
       S.hoverPt = { x: px, z: pz };
       // a point under the cursor reads itself out without being selected —
       // same precedence as the click path, where a point wins over the piece
       // standing on it
-      S.hoverMarker = hitMarker(px, pz);
+      S.hoverMarker = focus.annotations ? hitMarker(px, pz) : null;
       // ...and a corner under it reads out the same way, so "what meets here,
       // at what angle" is answerable without clicking anything
-      S.hoverNode = S.hoverMarker == null ? hitNode(px, pz) : null;
+      S.hoverNode = focus.structure && S.hoverMarker == null ? hitNode(px, pz) : null;
       // Constraint labels are real pick targets, so hovering one must reveal
       // the same relation that a click would select (and the same row in the
       // side panel). Screen coordinates are used because pickCon records the
       // exact boxes rendered by the canvas.
-      var hoverCon = pickCon(e.offsetX, e.offsetY);
+      var hoverCon = focus.annotations ? pickCon(e.offsetX, e.offsetY) : null;
       setConstraintHover(hoverCon);
       plan.style.cursor = hoverCon ? "pointer" : "default";
       // hovering the selected wall highlights the half you'd be resizing
       S.wallHoverHalf =
-        S.sel && S.sel.kind === "wall" && hitWall(px, pz) === S.sel.ref
+        focus.structure && S.sel && S.sel.kind === "wall" && hitWall(px, pz) === S.sel.ref
           ? wallHalfAt(S.sel.ref, px, pz)
           : null;
       /* Passing over a glowing corner lights up its row in the warning list —
          and hovering that row lights up the corner. Same field, both ways
          round, so the plan and the list are never telling different stories. */
-      var hoverWarn = hitWarning(px, pz, tolCm(14));
+      var hoverWarn = focus.annotations ? hitWarning(px, pz, tolCm(14)) : null;
       var hk = hoverWarn ? hoverWarn.key : null;
       if (hk !== S.warnHover) {
         S.warnHover = hk;

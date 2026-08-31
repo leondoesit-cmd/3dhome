@@ -9,6 +9,7 @@
 
 import { S, uid, fin } from "./state.js";
 import { pointInPoly, detectRooms } from "./geometry.js";
+import { layerRank } from "./layers.js";
 
 export function slabOpenings() {
   if (!S.slabOpenings) S.slabOpenings = [];
@@ -31,7 +32,11 @@ export function openingCorners(o) {
   });
 }
 
+/* A void is a hole cut in the structure's slab, so it answers to the STRUCTURE
+   layer: hide or ghost structure and the void stops being a pick target along
+   with the walls it belongs to. */
 export function hitSlabOpening(px, pz, pad) {
+  if (layerRank("structure") === Infinity) return null;
   pad = pad || 0;
   var list = slabOpenings(), i, o, cs, minx, maxx, minz, maxz;
   for (i = list.length - 1; i >= 0; i--) {

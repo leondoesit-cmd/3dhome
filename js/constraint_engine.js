@@ -27,6 +27,7 @@ import {
   setWallEnd,
   wallLocFace,
 } from "./geometry.js";
+import { layerRank } from "./layers.js";
 
 /* Tolerances. LOCK_* decide when an edit counts as having DISTORTED a wall
    (below them it is float noise from rotating/rounding, not a real change);
@@ -1092,8 +1093,16 @@ function nearOtherWall(x, z, skipId) {
   return best;
 }
 
-/* Nearest warning glyph to a world point, for hover/pick in the plan. */
+/* Nearest warning glyph to a world point, for hover/pick in the plan.
+
+   Warnings are drawn documentation of the constraint set — a loose endpoint or
+   an out-of-square joint that the engine refused to auto-repair — so they ride
+   the ANNOTATIONS layer with the dimensions they come from, not the structure
+   they point at. Hiding annotations therefore takes the glyphs off the pointer
+   as well as off the canvas, which is the only consistent answer: a glyph you
+   cannot see must not be stealing the click aimed at the corner beneath it. */
 export function hitWarning(px, pz, thr) {
+  if (layerRank("annotations") === Infinity) return null;
   var list = activeWarnings(),
     best = null,
     bd = thr;

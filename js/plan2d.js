@@ -51,17 +51,29 @@ import { blueprintBounds, drawBlueprintUnderlay } from "./blueprint_trace.js";
 import { openingCorners, slabOpenings } from "./slab_openings.js";
 import { openingHasSwingConflict } from "./swing_clearance.js";
 import { cursors, pruneCursors } from "./plan_sync.js";
+import { isLayerVisible, isLayerGhosted, isLayerHidden, layerRank } from "./layers.js";
 
 export {
   sx, sz, wx, wz, planRotRad, toBasePx, rotatePx, dropPoint, centerOn, isOnScreen, niceScaleCm,
 } from "./plan_view.js";
 
 export const plan = typeof document !== "undefined" ? document.getElementById("plan") : null;
-const pc = plan && typeof plan.getContext === "function" ? plan.getContext("2d") : null;
+/* The HUD canvas is stacked over #plan at the same size and transform and has
+   pointer-events:none, so every pointer gesture still lands on #plan and no
+   listener in js/interaction.js changes. See "the two canvases" below. */
+export const planHud = typeof document !== "undefined" ? document.getElementById("plan-hud") : null;
+const mc = plan && typeof plan.getContext === "function" ? plan.getContext("2d") : null;
+const hc = planHud && typeof planHud.getContext === "function" ? planHud.getContext("2d") : null;
+/* The context the draw helpers below write to. Every one of them targets `pc`
+   rather than taking a context, so the two passes swap this instead of
+   threading an argument through ~40 functions. renderModel()/renderHUD() set
+   it on entry; renderHUD() puts it back to the model context on the way out so
+   an unexpected caller never paints into the HUD by accident. */
+var pc = mc;
 
 function planViewReady() {
   return !!(
-    pc &&
+    mc &&
     plan &&
     S.SC > 0 &&
     S.CW > 0 &&
@@ -93,6 +105,10 @@ function mepAnimStep(time) {
   if (!mepShouldAnimate()) {
     mepAnimOn = false;
     mepLastFrame = 0;
+    /* While the flow animates the whole MEP overlay is drawn on the HUD (see
+       mepOnHud); stopping moves it back onto the model canvas, and only a full
+       paint can put it there. */
+    requestRender2D();
     return;
   }
   // The flow overlay does not need 60 full plan redraws per second. Cap it at
@@ -101,7 +117,7 @@ function mepAnimStep(time) {
     var dt = mepLastFrame ? Math.min(80, time - mepLastFrame) : 33;
     mepLastFrame = time;
     mepFlowPhase = (mepFlowPhase + FLOW_SPEED * dt) % 100000;
-    requestRender2D();
+    requestRenderHUD();
   }
   requestAnimationFrame(mepAnimStep);
 }
@@ -136,7 +152,7 @@ function warnAnimStep(time) {
   if (!warnLastFrame || time - warnLastFrame >= 45) {
     warnLastFrame = time;
     warnPhase = time / 1000;
-    requestRender2D();
+    requestRenderHUD();
   }
   requestAnimationFrame(warnAnimStep);
 }
@@ -150,7 +166,7 @@ function ensureWarnAnim() {
 var fittingView = false;
 
 export function sizeCanvas() {
-  if (!plan || !pc) return;
+  if (!plan || !mc) return;
   var W = plan.clientWidth,
     H = plan.clientHeight,
     dpr = Math.min((typeof window !== "undefined" && window.devicePixelRatio) || 1, 2);
@@ -168,7 +184,16 @@ export function sizeCanvas() {
   S.CH = H;
   plan.width = W * dpr;
   plan.height = H * dpr;
-  pc.setTransform(dpr, 0, 0, dpr, 0, 0);
+  mc.setTransform(dpr, 0, 0, dpr, 0, 0);
+  /* The HUD canvas must be sized and transformed by exactly the same numbers,
+     including the dpr clamp above and the 0x0 hidden-pane guard before it:
+     the two images are stacked pixel for pixel, so a HUD that disagreed about
+     either would draw the selection outline off the object it belongs to. */
+  if (planHud && hc) {
+    planHud.width = W * dpr;
+    planHud.height = H * dpr;
+    hc.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
 
   /* fitView can run while the split/chrome shell is still laying itself out.
      If that happened at 0x0, SC used to become the absorbing value 0: later
@@ -371,16 +396,212 @@ function drawSiteUnderlay(bb) {
   pc.restore();
 }
 
+/* ---- the two canvases: model and HUD ----
+
+   The plan is painted onto two stacked canvases of identical size and
+   transform. The MODEL canvas (`#plan`) carries the document — underlay, grid,
+   rooms, slab voids, items, walls, openings, nodes, markers, constraint
+   annotations — and repaints only when the model or the view transform
+   changes. The HUD canvas (`#plan-hud`) carries everything that tracks the
+   pointer or animates — selection chrome, rubber bands, snap flash and guides,
+   the wall probe, the stack host, the warning glow, remote cursors, the
+   measure overlay, the walker — and repaints on its own, over an untouched
+   model image.
+
+   The reason is measured, not aesthetic. On a 16-room, 64-wall, 48-item plan
+   in headless Chrome the model pass took 3.6 ms and the HUD pass 0.1 ms per
+   paint — and only the model half grows with the model. Every frame a
+   breathing constraint warning, a snap flash or a drag asks for used to pay
+   the whole of that. `renderModel()` and `renderHUD()` are the two halves;
+   `render2DNow()` paints both immediately, and the exported `render2D()`
+   coalesces into the next frame. */
+
+/* Paint both canvases right now. This is the synchronous painter the exported
+   render2D() used to be: the only callers that need it are the ones that read
+   the canvas back in the same turn. Everything else should let render2D()
+   coalesce. */
+export function render2DNow() {
+  renderModel();
+  renderHUD();
+  for (var ei = 0; ei < afterRender.length; ei++) afterRender[ei]();
+}
+
+/* ---- paint scheduling ----
+   The default is now coalescing. The 319 render2D() call sites in the other 24
+   modules used to paint synchronously and immediately, and dragWall alone
+   asked for 3.4 of those per pointermove; coalescing takes the same gesture to
+   one model paint per frame. Level 2 repaints both canvases,
+   level 1 only the HUD; a frame takes the highest level asked for since it
+   last ran. While a drag proxy holds the dragged object on the HUD, a level-2
+   request is served as a HUD repaint — that is what takes the model canvas
+   down to zero paints for a whole gesture. Level 3 is the model paint that
+   ignores the proxy, and only setDragProxy/clearDragProxy ask for it: they
+   bracket the gesture with the two paints that take the object off the model
+   image and put it back. */
+var paintLevel = 0, paintQueued = false;
+function schedulePaint(level) {
+  if (level > paintLevel) paintLevel = level;
+  if (paintQueued) return;
+  paintQueued = true;
+  var run = function () {
+    paintQueued = false;
+    var lv = paintLevel;
+    paintLevel = 0;
+    if (lv >= 3 || (lv >= 2 && !dragProxy)) renderModel();
+    renderHUD();
+    for (var ei = 0; ei < afterRender.length; ei++) afterRender[ei]();
+  };
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
+  else setTimeout(run, 16);
+}
 export function render2D() {
-  if (!pc || !plan) {
-    for (var ei = 0; ei < afterRender.length; ei++) afterRender[ei]();
-    return;
-  }
+  schedulePaint(dragProxy ? 1 : 2);
+}
+// Historical name for the same thing: before the default was inverted this was
+// the only coalescing entry point, and five call sites inside this file use it.
+export function requestRender2D() {
+  schedulePaint(dragProxy ? 1 : 2);
+}
+// A HUD-only frame. The animation loops (MEP flow, warning glow, angle guide)
+// and anything else that only moves an overlay ask for this. A single
+// unresolved warning breathes at 22 Hz for as long as it goes unresolved, and
+// used to redraw every room, wall and item of the plan on each of those frames.
+export function requestRenderHUD() {
+  schedulePaint(1);
+}
+/* Model + HUD flattened into one offscreen canvas, for the callers that read
+   the plan's pixels back (the 2D PNG export, the video studio's frame grabs).
+   Since the split, reading #plan alone would silently export the document
+   without any of its selection chrome, guides or cursors. */
+export function planImageCanvas() {
+  render2DNow();
+  if (!plan || typeof document === "undefined") return plan;
+  var out = document.createElement("canvas");
+  out.width = plan.width;
+  out.height = plan.height;
+  var ctx = out.getContext("2d");
+  ctx.drawImage(plan, 0, 0);
+  if (planHud) ctx.drawImage(planHud, 0, 0);
+  return out;
+}
+
+// Screen-space AABB of the (possibly rotated) canvas corners, in base pixels.
+// The grid, the align guides and the overall dimensions all need to span the
+// visible area rather than the canvas rect, which is not the same rectangle
+// once the plan view is rotated.
+function viewExtents() {
+  var c0 = toBasePx(0, 0), c1 = toBasePx(S.CW, 0), c2 = toBasePx(0, S.CH), c3 = toBasePx(S.CW, S.CH);
+  return {
+    bxmin: Math.min(c0.x, c1.x, c2.x, c3.x), bxmax: Math.max(c0.x, c1.x, c2.x, c3.x),
+    bymin: Math.min(c0.y, c1.y, c2.y, c3.y), bymax: Math.max(c0.y, c1.y, c2.y, c3.y),
+  };
+}
+
+/* ---- work-set layer bands ----
+   Every group of draws names the layer it belongs to (js/layers.js), so a
+   hidden layer costs nothing to skip and a ghosted one is drawn once at low
+   alpha instead of in a second colour scheme. Unknown ids and a state with no
+   layer table at all fail OPEN — a plan that draws nothing is a far worse
+   failure than one that draws a band it could have skipped. */
+function bandAlpha(id) {
+  if (isLayerVisible(id)) return 1;
+  if (isLayerGhosted(id)) return 0.35;
+  if (isLayerHidden(id)) return 0;
+  return 1;
+}
+function band(id, draw) {
+  var a = bandAlpha(id);
+  if (!a) return;
+  if (a >= 1) return void draw();
+  pc.save();
+  pc.globalAlpha = a;
+  draw();
+  pc.restore();
+}
+
+/* Selection chrome (the highlight outline on a selected wall/item/node, the
+   wall end grips, the erase-hover red) is drawn by the HUD pass, so the model
+   pass runs with `chromeOn` false and draws the same objects plain. The HUD then
+   redraws just the selected objects on top, chrome and all. Keying the model
+   canvas on the selection instead would put a full model repaint behind every
+   click, which is exactly what the split exists to remove. */
+var chromeOn = true;
+
+/* ---- drag proxy ----
+   For the duration of a gesture the dragged objects are lifted off the model
+   canvas and drawn on the HUD, so a whole drag costs zero model repaints. The
+   model image goes stale in the ways the drag itself cannot fix (rooms do not
+   re-detect under a moving wall) until the gesture ends and clearDragProxy()
+   forces a full paint. js/interaction.js owns the calls; see setDragProxy(). */
+var dragProxy = null;
+function proxied(kind, ref) {
+  if (!dragProxy) return false;
+  return dragProxy[kind] ? dragProxy[kind].indexOf(ref) !== -1 : false;
+}
+/* Normalise a selection-shaped argument into the flat per-kind lists the two
+   passes test against, and close it under the relationships a drag actually
+   moves: a wall drags its two corners, a corner drags every wall on it, and a
+   wall carries its openings. Without that closure the moved wall would be
+   drawn on the HUD while its own corner dots stayed behind on the model. */
+function normalizeProxy(sel) {
+  if (!sel) return null;
+  var p = { item: [], wall: [], node: [], opening: [] };
+  var list = Array.isArray(sel) ? sel : [sel];
+  list.forEach(function (s) {
+    if (!s) return;
+    var refs = s.refs || (s.ref === undefined ? [] : [s.ref]);
+    var k = String(s.kind || "").replace(/s$/, "");
+    if (k === "item" || k === "wall" || k === "node") {
+      refs.forEach(function (r) { if (p[k].indexOf(r) === -1) p[k].push(r); });
+    }
+  });
+  p.wall.forEach(function (w) {
+    [w.a, w.b].forEach(function (n) { if (p.node.indexOf(n) === -1) p.node.push(n); });
+  });
+  S.walls.forEach(function (w) {
+    if (p.wall.indexOf(w) === -1 && (p.node.indexOf(w.a) !== -1 || p.node.indexOf(w.b) !== -1))
+      p.wall.push(w);
+  });
+  S.openings.forEach(function (o) {
+    var host = wallById(o.wall);
+    if (host && p.wall.indexOf(host) !== -1) p.opening.push(o);
+  });
+  return p;
+}
+/* Lift `sel` (a selection object, or an array of them) onto the HUD until
+   clearDragProxy(). Both ends force one full paint: the first to take the
+   object off the model image, the second to put it back. */
+export function setDragProxy(sel) {
+  var p = normalizeProxy(sel);
+  if (!p || (!p.item.length && !p.wall.length && !p.node.length)) return clearDragProxy();
+  dragProxy = p;
+  schedulePaint(3);
+}
+export function clearDragProxy() {
+  if (!dragProxy) return;
+  dragProxy = null;
+  schedulePaint(3);
+}
+
+/* MEP is all-or-nothing per canvas, and this predicate decides which one.
+   drawMEP() cannot be asked for geometry without flow — it collapses a missing
+   phase to 0 and strokes the travelling dashes anyway (js/mep.js:1003) — and
+   js/mep.js is not this file. So: while the flow animates, the whole overlay
+   goes on the HUD, where a 30 Hz flow frame costs a HUD repaint instead of a
+   full plan repaint; the rest of the time it sits on the model canvas in its
+   proper z-order. The two states are governed by the same predicate that runs
+   the animation loop, so they cannot disagree, and mepAnimStep() asks for a
+   full paint on its way out to move the overlay back down. */
+function mepOnHud() {
+  return mepAnimOn && mepShouldAnimate();
+}
+
+/* ---- the model pass ---- */
+function renderModel() {
+  if (!mc || !plan) return;
+  pc = mc;
   pc.clearRect(0, 0, S.CW, S.CH);
-  if (!planViewReady()) {
-    for (var ei = 0; ei < afterRender.length; ei++) afterRender[ei]();
-    return;
-  }
+  if (!planViewReady()) return;
   /* Clip in identity (screen) space BEFORE the plan rotation. Nested clips
      taken after pushPlan() are rotated rectangles, which both miss canvas
      corners and fail to bound a zoomed aerial — the hang that used to OOM
@@ -392,61 +613,211 @@ export function render2D() {
   if (isElevation()) {
     drawElevation(pc); // orthographic side view
     pc.restore();
-    for (var ei = 0; ei < afterRender.length; ei++) afterRender[ei]();
     return;
   }
+  chromeOn = false;
   var rotated = pushPlan(); // rotate the whole plan view (CAD N/E/S/W-up)
-  var bb = contentBounds();
-  drawSiteUnderlay(bb);
-  drawBlueprintUnderlay(pc, sx, sz);
-  // grid — extent = base-frame AABB of the (possibly rotated) canvas corners,
-  // so lines still cover the visible area after the view is rotated
+  var bb = contentBounds(), ext = viewExtents();
+  band("underlay", function () {
+    drawSiteUnderlay(bb);
+    drawBlueprintUnderlay(pc, sx, sz);
+  });
+  drawGrid(ext);
+  band("underlay", drawReferenceFloor);
+  /* The room polygons and the hidden-set maps are needed by every band below,
+     hidden structure included — an item is hidden because its ROOM is, so the
+     furniture loop cannot be filtered without them. drawCachedRooms() returns
+     the pair it had to compute anyway; when the structure band is hidden and
+     never runs, derive them here instead. They are kept for the HUD pass,
+     which needs the same `hid` to know whether the selected wall is on screen
+     at all. */
+  var roomPass = null;
+  band("structure", function () {
+    roomPass = drawCachedRooms();
+    drawSlabOpenings();
+  });
+  if (!roomPass) {
+    var onlyRooms = detectRooms();
+    roomPass = { rooms: onlyRooms, hid: hiddenSets(onlyRooms) };
+  }
+  lastRoomPass = roomPass;
+  var hid = roomPass.hid;
+  // items: rugs/island first, lamps on top
+  band("furniture", function () {
+    S.items
+      .filter(function (it) {
+        return !hid.items[it.id] && !proxied("item", it);
+      })
+      .sort(function (a, b) {
+        return drawRank(a) - drawRank(b);
+      })
+      .forEach(function (it) { drawItem(it); });
+  });
+  band("structure", function () {
+    S.walls.forEach(function (w) {
+      if (!hid.walls[w.id] && !proxied("wall", w)) drawWall(w);
+    });
+    S.openings.forEach(function (o) {
+      if (!hid.walls[o.wall] && !proxied("opening", o)) drawOpening(o);
+    });
+    drawNodes(hid);
+  });
+  if (!mepOnHud())
+    band("mep", function () {
+      drawMEP(pc, sx, sz, label, mepFlowPhase, planRotRad());
+    });
+  band("annotations", function () {
+    // placeholder points sit above everything they are measured against
+    drawMarkers();
+    drawWallCons();
+    // room name + area labels
+    roomPass.rooms.forEach(function (r) {
+      var nm = roomName(r.key),
+        m2 = (r.area / 10000).toFixed(2),
+        isHid = roomHidden(r.key);
+      if (nm) label(r.cx, r.cz - 9, nm, isHid ? "#9a9289" : "#33312c", true);
+      if (S.showDims)
+        label(
+          r.cx,
+          r.cz + (nm ? 9 : 0),
+          m2 + " " + t("sqm"),
+          isHid ? "#a49c93" : "#46504f",
+          !nm,
+        );
+    });
+    if (S.showDims) {
+      var wb = wallBounds();
+      if (wb) drawOverallDims(wb);
+    }
+  });
+  if (rotated) pc.restore(); // end plan rotation
+  pc.restore(); // end screen-space clip
+}
+
+// grid — extent = base-frame AABB of the (possibly rotated) canvas corners,
+// so lines still cover the visible area after the view is rotated
+function drawGrid(ext) {
   pc.strokeStyle = "#e4dcc9";
   pc.lineWidth = 1;
-  var c0 = toBasePx(0, 0), c1 = toBasePx(S.CW, 0), c2 = toBasePx(0, S.CH), c3 = toBasePx(S.CW, S.CH);
-  var bxmin = Math.min(c0.x, c1.x, c2.x, c3.x), bxmax = Math.max(c0.x, c1.x, c2.x, c3.x);
-  var bymin = Math.min(c0.y, c1.y, c2.y, c3.y), bymax = Math.max(c0.y, c1.y, c2.y, c3.y);
   var step = S.SC < 0.45 ? 100 : 50;
-  var gx0 = Math.floor((bxmin - S.OX) / S.SC / step) * step,
-    gx1 = (bxmax - S.OX) / S.SC,
-    gz0 = Math.floor((bymin - S.OY) / S.SC / step) * step,
-    gz1 = (bymax - S.OY) / S.SC;
+  var gx0 = Math.floor((ext.bxmin - S.OX) / S.SC / step) * step,
+    gx1 = (ext.bxmax - S.OX) / S.SC,
+    gz0 = Math.floor((ext.bymin - S.OY) / S.SC / step) * step,
+    gz1 = (ext.bymax - S.OY) / S.SC;
   var gridSpan = Math.max(gx1 - gx0, gz1 - gz0);
   if (gridSpan / step > 240) step = gridSpan / 240;
-  if (step > 0 && isFinite(step) && isFinite(gx0) && isFinite(gz0)) {
-    pc.beginPath();
-    for (var gx = gx0; gx <= gx1; gx += step) {
-      pc.moveTo(sx(gx), bymin);
-      pc.lineTo(sx(gx), bymax);
-    }
-    for (var gz = gz0; gz <= gz1; gz += step) {
-      pc.moveTo(bxmin, sz(gz));
-      pc.lineTo(bxmax, sz(gz));
-    }
-    pc.stroke();
+  if (!(step > 0) || !isFinite(step) || !isFinite(gx0) || !isFinite(gz0)) return;
+  pc.beginPath();
+  for (var gx = gx0; gx <= gx1; gx += step) {
+    pc.moveTo(sx(gx), ext.bymin);
+    pc.lineTo(sx(gx), ext.bymax);
   }
-  drawReferenceFloor();
-  var roomPass = drawCachedRooms();
-  var rooms = roomPass.rooms,
-    hid = roomPass.hid;
-  drawSlabOpenings();
-  // items: rugs/island first, lamps on top
-  var order = S.items
-    .filter(function (it) {
-      return !hid.items[it.id];
-    })
-    .sort(function (a, b) {
-      return drawRank(a) - drawRank(b);
+  for (var gz = gz0; gz <= gz1; gz += step) {
+    pc.moveTo(ext.bxmin, sz(gz));
+    pc.lineTo(ext.bxmax, sz(gz));
+  }
+  pc.stroke();
+}
+
+/* The last room pass the model made. The HUD needs the same hidden-set maps to
+   know whether the selected wall is on screen at all, and re-deriving them per
+   HUD frame would put detectRooms()/hiddenSets() back in the drag path. Any
+   model change repaints the model first, so this is never older than the
+   pixels the HUD is drawing over. */
+var lastRoomPass = null;
+function roomPassForHUD() {
+  if (!lastRoomPass) {
+    var rooms = detectRooms();
+    lastRoomPass = { rooms: rooms, hid: hiddenSets(rooms) };
+  }
+  return lastRoomPass;
+}
+
+/* The objects the HUD redraws with chrome: whatever is selected, whatever the
+   erase tool is hovering, and whatever the drag proxy has lifted off the model
+   canvas. The three overlap during a drag (the dragged thing is normally also
+   the selected thing) so the lists are deduplicated. */
+function chromeSet() {
+  var out = { item: [], wall: [], node: [], opening: [], room: [] };
+  function add(kind, ref) {
+    if (ref == null) return;
+    if (out[kind] && out[kind].indexOf(ref) === -1) out[kind].push(ref);
+  }
+  function fromSel(s) {
+    if (!s) return;
+    var k = String(s.kind || "").replace(/s$/, "");
+    if (!out[k]) return;
+    if (s.refs) s.refs.forEach(function (r) { add(k, r); });
+    else add(k, s.ref);
+  }
+  fromSel(S.sel);
+  if (S.eraseHover) fromSel(S.eraseHover);
+  if (dragProxy) {
+    ["item", "wall", "node", "opening"].forEach(function (k) {
+      dragProxy[k].forEach(function (r) { add(k, r); });
     });
-  order.forEach(drawItem);
-  // walls
-  S.walls.forEach(function (w) {
-    if (!hid.walls[w.id]) drawWall(w);
+  }
+  // a selected wall's openings ride along, or a dragged wall would leave its
+  // door behind on the model canvas
+  out.wall.forEach(function (w) {
+    S.openings.forEach(function (o) { if (o.wall === w.id) add("opening", o); });
   });
-  // openings
-  S.openings.forEach(function (o) {
-    if (!hid.walls[o.wall]) drawOpening(o);
-  });
+  return out;
+}
+
+/* ---- the HUD pass ---- */
+function renderHUD() {
+  if (!hc || !planHud) return;
+  pc = hc;
+  pc.clearRect(0, 0, S.CW, S.CH);
+  if (!planViewReady() || isElevation()) {
+    pc = mc;
+    return;
+  }
+  chromeOn = true;
+  pc.save();
+  pc.beginPath();
+  pc.rect(0, 0, S.CW, S.CH);
+  pc.clip();
+  var rotated = pushPlan();
+  var ext = viewExtents();
+  var roomPass = roomPassForHUD(), hid = roomPass.hid;
+  var sel = chromeSet();
+  // selection chrome, in the model's own z-order: rooms, items, walls,
+  // openings, nodes
+  if (sel.room.length)
+    band("structure", function () {
+      roomPass.rooms.forEach(function (r) {
+        if (sel.room.indexOf(r.key) === -1) return;
+        pc.beginPath();
+        r.pts.forEach(function (p, i) {
+          var X = sx(p.x), Y = sz(p.z);
+          if (i) pc.lineTo(X, Y); else pc.moveTo(X, Y);
+        });
+        pc.closePath();
+        pc.strokeStyle = "#3f6b78";
+        pc.lineWidth = 2.5;
+        pc.setLineDash([8, 5]);
+        pc.stroke();
+        pc.setLineDash([]);
+      });
+    });
+  if (sel.item.length)
+    band("furniture", function () {
+      sel.item.forEach(function (it) {
+        if (S.items.indexOf(it) !== -1 && !hid.items[it.id]) drawItem(it);
+      });
+    });
+  if (sel.wall.length || sel.opening.length || sel.node.length)
+    band("structure", function () {
+      sel.wall.forEach(function (w) {
+        if (S.walls.indexOf(w) !== -1 && !hid.walls[w.id]) drawWall(w);
+      });
+      sel.opening.forEach(function (o) {
+        if (!hid.walls[o.wall]) drawOpening(o);
+      });
+      drawNodes(hid, true);
+    });
   // live preview of a manual "open segment" on the selected wall
   if (S.sel && S.sel.kind === "wall" && S.segPreview)
     drawSegPreview(S.sel.ref, S.segPreview);
@@ -455,16 +826,14 @@ export function render2D() {
   drawWallProbe();
   // the piece that just clicked into a snap, blinking so the jump is explained
   drawSnapFlash();
-  // nodes
-  drawNodes(hid);
-  // MEP infrastructure overlay (pipes/cables + device markers + route HUD)
-  drawMEP(pc, sx, sz, label, mepFlowPhase, planRotRad());
+  if (mepOnHud())
+    band("mep", function () {
+      drawMEP(pc, sx, sz, label, mepFlowPhase, planRotRad());
+    });
   ensureMEPAnim();
-  // placeholder points sit above everything they are measured against
-  drawMarkers();
   drawPlanCursors();
   // constraint-engine warnings: loose endpoints and joints that aren't square
-  drawWarnGlow();
+  band("annotations", drawWarnGlow);
   ensureWarnAnim();
   /* The piece the drag is about to land ON (js/stack.js). The plan is a view
      from above, so a stacked piece would otherwise just cover its host with no
@@ -472,10 +841,10 @@ export function render2D() {
      dropped piece will sit, which is the only cue the plan can give about the
      axis it cannot draw. */
   if (S.stackHost && S.items.indexOf(S.stackHost) !== -1) {
-    var hc = itemCorners(S.stackHost);
+    var hc2 = itemCorners(S.stackHost);
     pc.save();
     pc.beginPath();
-    hc.forEach(function (p, i) {
+    hc2.forEach(function (p, i) {
       var X = sx(p.x), Z = sz(p.z);
       if (i) pc.lineTo(X, Z); else pc.moveTo(X, Z);
     });
@@ -503,20 +872,19 @@ export function render2D() {
     pc.setLineDash([5, 4]);
     if (S.alignX != null) {
       pc.beginPath();
-      pc.moveTo(sx(S.alignX), bymin);
-      pc.lineTo(sx(S.alignX), bymax);
+      pc.moveTo(sx(S.alignX), ext.bymin);
+      pc.lineTo(sx(S.alignX), ext.bymax);
       pc.stroke();
     }
     if (S.alignZ != null) {
       pc.beginPath();
-      pc.moveTo(bxmin, sz(S.alignZ));
-      pc.lineTo(bxmax, sz(S.alignZ));
+      pc.moveTo(ext.bxmin, sz(S.alignZ));
+      pc.lineTo(ext.bxmax, sz(S.alignZ));
       pc.stroke();
     }
     pc.setLineDash([]);
     pc.restore();
   }
-  drawWallCons();
   drawWallAngleGuide();
   ensureAngleGuideAnim();
 
@@ -552,25 +920,6 @@ export function render2D() {
     });
     pc.restore();
   }
-  // room name + area labels
-  rooms.forEach(function (r) {
-    var nm = roomName(r.key),
-      m2 = (r.area / 10000).toFixed(2),
-      isHid = roomHidden(r.key);
-    if (nm) label(r.cx, r.cz - 9, nm, isHid ? "#9a9289" : "#33312c", true);
-    if (S.showDims)
-      label(
-        r.cx,
-        r.cz + (nm ? 9 : 0),
-        m2 + " " + t("sqm"),
-        isHid ? "#a49c93" : "#46504f",
-        !nm,
-      );
-  });
-  if (S.showDims) {
-    var wb = wallBounds();
-    if (wb) drawOverallDims(wb);
-  }
   drawWalker();
   // wall-drawing rubber band — thickness-true ghost on the location line
   if (
@@ -594,9 +943,9 @@ export function render2D() {
     pc.save(); pc.strokeStyle = "#3f6b78"; pc.lineWidth = 2; pc.setLineDash([6, 5]); pc.beginPath();
     if (draftArc) {
       var arcSteps = Math.max(12, Math.ceil(draftArc.L / 20));
-      for (var ai = 0; ai <= arcSteps; ai++) {
-        var arcPoint = pointAtWall(draftArc, draftArc.L * ai / arcSteps);
-        if (ai) pc.lineTo(sx(arcPoint.x), sz(arcPoint.z)); else pc.moveTo(sx(arcPoint.x), sz(arcPoint.z));
+      for (var ai2 = 0; ai2 <= arcSteps; ai2++) {
+        var arcPoint = pointAtWall(draftArc, draftArc.L * ai2 / arcSteps);
+        if (ai2) pc.lineTo(sx(arcPoint.x), sz(arcPoint.z)); else pc.moveTo(sx(arcPoint.x), sz(arcPoint.z));
       }
     } else {
       pc.moveTo(sx(arcStart.x), sz(arcStart.z)); pc.lineTo(sx(S.previewPt.x), sz(S.previewPt.z));
@@ -679,8 +1028,9 @@ export function render2D() {
   if (S.showDims) drawScale();
   drawTouchGuide();
   pc.restore(); // end screen-space clip
-  for (var ai = 0; ai < afterRender.length; ai++) afterRender[ai]();
+  pc = mc;
 }
+
 
 if (typeof window !== "undefined")
   window.addEventListener("blueprint:render", function (e) {
@@ -1036,17 +1386,6 @@ function drawTouchGuide() {
   drawTouchReadout(ox, oy);
 }
 
-// Coalesce callers that only need the next visual frame. Direct render2D()
-// remains available for exports and operations that require an immediate canvas.
-var render2DQueued = false;
-export function requestRender2D() {
-  if (render2DQueued) return;
-  render2DQueued = true;
-  requestAnimationFrame(function () {
-    render2DQueued = false;
-    render2D();
-  });
-}
 function drawOverallDims(bb) {
   pc.strokeStyle = "#9a8f78";
   pc.fillStyle = "#6b6356";
@@ -1513,7 +1852,7 @@ if (typeof window !== "undefined") {
     walkRepaintQueued = true;
     requestAnimationFrame(function () {
       walkRepaintQueued = false;
-      render2D();
+      requestRenderHUD();
     });
   });
 }
@@ -1587,8 +1926,11 @@ function drawRank(it) {
 }
 
 const ERASE_COL = "#c44c43";
+/* Erase-hover red is selection chrome by another name — it tracks the pointer
+   — so like every other highlight it is false on the model pass and drawn by
+   the HUD pass on top. */
 function eraseHover(kind, ref) {
-  return !!(S.eraseHover && S.eraseHover.kind === kind && S.eraseHover.ref === ref);
+  return !!(chromeOn && S.eraseHover && S.eraseHover.kind === kind && S.eraseHover.ref === ref);
 }
 function markCol(isSel, isErase, idle) {
   return isSel ? "#3f6b78" : isErase ? ERASE_COL : idle;
@@ -1599,7 +1941,7 @@ function drawWall(w) {
   ensureWallTypes(S);
   normalizeWall(w, S);
   var gm = wallGeom(w),
-    isSel = S.sel && ((S.sel.kind === "wall" && S.sel.ref === w) ||
+    isSel = chromeOn && S.sel && ((S.sel.kind === "wall" && S.sel.ref === w) ||
       (S.sel.kind === "walls" && S.sel.refs.indexOf(w) !== -1)),
     isErase = eraseHover("wall", w);
   /* Filled as a MITERED quad, not a thick stroke: a stroke can only end square
@@ -1795,15 +2137,12 @@ function paintRooms(ctx, rooms) {
       ctx.fillStyle = FILL2D[roomFloor(r.key)] || "#efe7d6";
       ctx.fill();
     }
-    if (S.sel && S.sel.kind === "room" && S.sel.ref === r.key) {
-      ctx.strokeStyle = "#3f6b78";
-      ctx.lineWidth = 2.5;
-      ctx.setLineDash([8, 5]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
   });
 }
+/* The room fills are cached as a whole bitmap keyed on topology + transform.
+   The selected room's dashed outline used to be part of that bitmap and part of
+   that key, so clicking a room re-painted every room in the plan; it is HUD
+   chrome now, and the key no longer mentions the selection. */
 function drawCachedRooms() {
   var rooms = detectRooms();
   var hid = hiddenSets(rooms);
@@ -1819,8 +2158,6 @@ function drawCachedRooms() {
     S.CW +
     "," +
     S.CH +
-    "|" +
-    (S.sel && S.sel.kind === "room" ? S.sel.ref : "") +
     "|" +
     rooms
       .map(function (r) {
@@ -1908,7 +2245,7 @@ function drawSnapFlash() {
   if (!snapFlashT)
     snapFlashT = setTimeout(function () {
       snapFlashT = 0;
-      render2D();
+      requestRenderHUD();
     }, 60);
 }
 
@@ -1945,12 +2282,12 @@ function angleGuideAnimStep(time) {
     angleGuideLastFrame = 0;
     // Final frame: drops the guide and clears its ticks. Only needed while one
     // is still on the canvas — an interaction that dropped it already repainted.
-    if (S.wallAngleGuide) requestRender2D();
+    if (S.wallAngleGuide) requestRenderHUD();
     return;
   }
   if (!angleGuideLastFrame || time - angleGuideLastFrame >= 45) {
     angleGuideLastFrame = time;
-    requestRender2D();
+    requestRenderHUD();
   }
   requestAnimationFrame(angleGuideAnimStep);
 }
@@ -2265,21 +2602,29 @@ function drawSegPreview(w, seg) {
   pc.setLineDash([]);
   pc.restore();
 }
-function drawNodes(hid) {
+/* `chromeOnly` is the HUD pass asking for the highlighted corners alone: the
+   selected dots and the grips on the selected wall, drawn over the plain dots
+   the model pass already laid down. A corner the drag proxy has lifted counts
+   as highlighted too, which is what keeps a dragged corner moving while the
+   model canvas holds still. */
+function drawNodes(hid, chromeOnly) {
   // corners of hidden-away walls go with them (usedNodes() spans every wall)
   var u = {};
   S.walls.forEach(function (w) {
     if (hid.walls[w.id]) return;
+    if (!chromeOnly && proxied("wall", w)) return;
     u[w.a] = 1;
     u[w.b] = 1;
   });
   for (var k in u) {
     var n = S.nodes[k];
     if (!n || !isFinite(n.x) || !isFinite(n.z)) continue;
-    var isSel = S.sel && (
+    var isSel = chromeOn && S.sel && (
         (S.sel.kind === "node" && S.sel.ref === +k) ||
         (S.sel.kind === "nodes" && S.sel.refs.indexOf(+k) !== -1)
       );
+    if (chromeOnly && !isSel && !proxied("node", +k)) continue;
+    if (!chromeOnly && proxied("node", +k)) continue;
     pc.beginPath();
     pc.arc(sx(n.x), sz(n.z), isSel ? 6 : 4.2, 0, 7);
     pc.fillStyle = isSel ? "#3f6b78" : "#fff";
@@ -2293,7 +2638,7 @@ function drawNodes(hid) {
      of the joint (js/constraint_engine.js) — while dragging a bare corner still
      moves the whole junction. The two gestures land on the same pixel, so the
      grip is the only thing that tells them apart. */
-  if (S.sel && S.sel.kind === "wall" && !hid.walls[S.sel.ref.id]) {
+  if (chromeOn && S.sel && S.sel.kind === "wall" && !hid.walls[S.sel.ref.id]) {
     var sw = S.sel.ref;
     [S.nodes[sw.a], S.nodes[sw.b]].forEach(function (n) {
       if (!n) return;
@@ -3000,7 +3345,8 @@ var GLYPH = {
 };
 function drawItem(it) {
   var f = FURN[it.type],
-    isSelL = (S.sel && S.sel.kind === "item" && S.sel.ref === it) || (S.sel && S.sel.kind === "items" && S.sel.refs.indexOf(it) !== -1) ||
+    isSelL = (chromeOn && S.sel && S.sel.kind === "item" && S.sel.ref === it) ||
+      (chromeOn && S.sel && S.sel.kind === "items" && S.sel.refs.indexOf(it) !== -1) ||
       eraseHover("item", it);
   if (isLamp(it)) {
     drawLamp(it, f, isSelL);
@@ -3575,7 +3921,12 @@ export function conHitTargets() {
 /* The constraint whose label box is under this screen point, or null. Boxes
    are small and may overlap on a dense plan, so the LAST one drawn wins —
    that is the one painted on top, i.e. the one the user can see. */
+/* Constraint labels are annotations, so a hidden or overridden-unpickable
+   annotations layer takes them out of the hit test entirely. Rank 1 still
+   picks: an off-work-set constraint label is worth selecting, it just does not
+   win over a focused layer, and that ordering is the caller's to apply. */
 export function pickCon(sxp, syp) {
+  if (!isFinite(layerRank("annotations"))) return null;
   for (var i = conHits.length - 1; i >= 0; i--) {
     var h = conHits[i];
     if (sxp >= h.x - h.w / 2 - 2 && sxp <= h.x + h.w / 2 + 2 &&

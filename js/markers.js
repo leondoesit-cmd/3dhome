@@ -25,6 +25,7 @@ import { FURN, mkItem, flabel, itemVSpan, isLamp } from "./furniture.js";
 import { detectRooms, pointInPoly, roomName, wallGeom, wallById, distSeg } from "./geometry.js";
 import { itemCorners, markerClearMap } from "./measure.js";
 import { itemPlaceCommand, executeCommand } from "./commands/index.js";
+import { layerRank } from "./layers.js";
 
 export const SURFACES = ["floor", "wall", "ceiling"];
 
@@ -313,8 +314,15 @@ export function markerInfo(m, ceil) {
   };
 }
 
-// hit-test in the top-down plan (world cm)
+/* hit-test in the top-down plan (world cm)
+
+   Points live on the ANNOTATIONS layer, so a hidden or ghosted annotations
+   layer takes them off the pointer entirely (rank Infinity) — what you cannot
+   see you cannot grab. A rank of 1 still answers: an off-work-set point is
+   selectable and inspectable, it just never starts a drag, and that decision
+   belongs to the pointerdown chain (js/interaction.js), not here. */
 export function hitMarker(px, pz) {
+  if (layerRank("annotations") === Infinity) return null;
   var thr = 12 / S.SC;
   if (!isFinite(thr) || thr <= 0) thr = 12;
   var best = null,

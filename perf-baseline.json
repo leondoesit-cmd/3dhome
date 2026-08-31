@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-08-31T10:34:28.086Z",
+  "generatedAt": "2026-08-31T11:03:47.612Z",
   "git": {
-    "head": "089e2c519d8b341c7d926613ae7b385104aab8f6",
-    "dirtyFiles": 0
+    "head": "37c02a37aac02f132204476b4fbdda07cbb518e5",
+    "dirtyFiles": 14
   },
   "node": "v24.5.0",
   "platform": "darwin arm64",
@@ -14,17 +14,17 @@
         "path": "/index.html",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 7.8,
-        "totalMs": 8,
-        "transferredBytes": 23221,
-        "uncompressedBytes": 125439
+        "ttfbMs": 6.2,
+        "totalMs": 6.3,
+        "transferredBytes": 23372,
+        "uncompressedBytes": 125860
       },
       {
         "path": "/vendor/three/three.webgpu.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 30.4,
-        "totalMs": 30.7,
+        "ttfbMs": 29.4,
+        "totalMs": 29.7,
         "transferredBytes": 367001,
         "uncompressedBytes": 2172442
       },
@@ -32,8 +32,8 @@
         "path": "/js/modeler.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 17.2,
-        "totalMs": 17.4,
+        "ttfbMs": 16.3,
+        "totalMs": 16.4,
         "transferredBytes": 244514,
         "uncompressedBytes": 966302
       },
@@ -41,8 +41,8 @@
         "path": "/js/icon_theme_assets.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 0.9,
-        "totalMs": 1,
+        "ttfbMs": 1.1,
+        "totalMs": 1.1,
         "transferredBytes": 2079,
         "uncompressedBytes": 6946
       },
@@ -50,7 +50,7 @@
         "path": "/js/i18n.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 0.9,
+        "ttfbMs": 0.8,
         "totalMs": 0.9,
         "transferredBytes": 1850,
         "uncompressedBytes": 4751
@@ -59,19 +59,19 @@
         "path": "/js/view3d.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 3.6,
-        "totalMs": 3.6,
-        "transferredBytes": 48973,
-        "uncompressedBytes": 160853
+        "ttfbMs": 3.8,
+        "totalMs": 3.8,
+        "transferredBytes": 53645,
+        "uncompressedBytes": 174217
       },
       {
         "path": "/css/styles.css",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 9.2,
-        "totalMs": 9.3,
-        "transferredBytes": 123531,
-        "uncompressedBytes": 657665
+        "ttfbMs": 8.2,
+        "totalMs": 8.3,
+        "transferredBytes": 123707,
+        "uncompressedBytes": 658254
       }
     ],
     "warm": [
@@ -80,16 +80,16 @@
         "status": 200,
         "encoding": "br",
         "ttfbMs": 0.8,
-        "totalMs": 0.8,
-        "transferredBytes": 23221,
-        "uncompressedBytes": 125439
+        "totalMs": 0.9,
+        "transferredBytes": 23372,
+        "uncompressedBytes": 125860
       },
       {
         "path": "/vendor/three/three.webgpu.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 0.6,
-        "totalMs": 0.8,
+        "ttfbMs": 0.5,
+        "totalMs": 0.7,
         "transferredBytes": 367001,
         "uncompressedBytes": 2172442
       },
@@ -98,7 +98,7 @@
         "status": 200,
         "encoding": "br",
         "ttfbMs": 0.4,
-        "totalMs": 0.6,
+        "totalMs": 0.5,
         "transferredBytes": 244514,
         "uncompressedBytes": 966302
       },
@@ -126,8 +126,8 @@
         "encoding": "br",
         "ttfbMs": 0.3,
         "totalMs": 0.3,
-        "transferredBytes": 48973,
-        "uncompressedBytes": 160853
+        "transferredBytes": 53645,
+        "uncompressedBytes": 174217
       },
       {
         "path": "/css/styles.css",
@@ -135,37 +135,37 @@
         "encoding": "br",
         "ttfbMs": 0.3,
         "totalMs": 0.3,
-        "transferredBytes": 123531,
-        "uncompressedBytes": 657665
+        "transferredBytes": 123707,
+        "uncompressedBytes": 658254
       }
     ],
-    "coldTotalMs": 70.9,
-    "warmTotalMs": 3.4
+    "coldTotalMs": 66.5,
+    "warmTotalMs": 3.3
   },
   "boot": {
     "note": "Served by the harness's own no-store static server (no brotli, no cache), so `transferred` here is close to raw size and is NOT the relay's number — use (a) for delivery. Game modules (zombies/drive/rc/kart/track/race/lava) are lazily imported and did not load; they are excluded from every total below.",
-    "requestsTotal": 170,
-    "requestsExcludingGame": 170,
+    "requestsTotal": 171,
+    "requestsExcludingGame": 171,
     "gameModulesLoaded": 0,
-    "jsRequests": 158,
-    "jsDecodedBytes": 7391976,
-    "jsTransferredBytes": 7423566,
-    "allDecodedBytes": 8500366,
-    "allTransferredBytes": 8659688,
-    "timeToInteractiveMs": 1241,
+    "jsRequests": 159,
+    "jsDecodedBytes": 7447369,
+    "jsTransferredBytes": 7479159,
+    "allDecodedBytes": 8556348,
+    "allTransferredBytes": 8716291,
+    "timeToInteractiveMs": 1123,
     "dom": {
-      "elements": 3291,
+      "elements": 3292,
       "buttons": 354,
       "inputs": 151,
-      "canvases": 3,
+      "canvases": 4,
       "svgs": 361,
       "listeners": null,
       "nav": {
-        "domContentLoadedMs": 193.5,
-        "loadEventMs": 195.2,
-        "responseEndMs": 3.7
+        "domContentLoadedMs": 161.5,
+        "loadEventMs": 163.1,
+        "responseEndMs": 2.5
       },
-      "bootMarkMs": 4253.9,
+      "bootMarkMs": 4133.6,
       "heapMB": 17.1
     },
     "largestJs": [
@@ -181,8 +181,13 @@
       },
       {
         "path": "/js/interaction.js",
-        "decoded": 194592,
-        "transferred": 194793
+        "decoded": 204412,
+        "transferred": 204613
+      },
+      {
+        "path": "/js/view3d.js",
+        "decoded": 174217,
+        "transferred": 174418
       },
       {
         "path": "/js/ui.js",
@@ -190,24 +195,19 @@
         "transferred": 173235
       },
       {
-        "path": "/js/view3d.js",
-        "decoded": 160853,
-        "transferred": 161054
-      },
-      {
         "path": "/vendor/leaflet/leaflet.js",
         "decoded": 147552,
         "transferred": 147753
       },
       {
+        "path": "/js/plan2d.js",
+        "decoded": 142805,
+        "transferred": 143006
+      },
+      {
         "path": "/js/cabinet.js",
         "decoded": 135772,
         "transferred": 135973
-      },
-      {
-        "path": "/js/plan2d.js",
-        "decoded": 127342,
-        "transferred": 127543
       },
       {
         "path": "/js/i18n/en.js",
@@ -251,12 +251,12 @@
     "movesPerGesture": 20,
     "results": {
       "dragWall": {
-        "render2DCalls": 68,
-        "requestRender2DCalls": 9,
-        "historySnapshots": 4,
+        "render2DCalls": 22,
+        "requestRender2DCalls": 0,
+        "historySnapshots": 0,
         "pointermoveEvents": 20,
-        "paintsPerMove": 3.4,
-        "wallMs": 640.1
+        "paintsPerMove": 1.1,
+        "wallMs": 494.3
       },
       "dragItem": {
         "render2DCalls": 21,
@@ -264,15 +264,15 @@
         "historySnapshots": 4,
         "pointermoveEvents": 20,
         "paintsPerMove": 1.05,
-        "wallMs": 447.8
+        "wallMs": 431.9
       },
       "drawWall": {
-        "render2DCalls": 25,
-        "requestRender2DCalls": 1,
+        "render2DCalls": 24,
+        "requestRender2DCalls": 0,
         "historySnapshots": 2,
         "pointermoveEvents": 20,
-        "paintsPerMove": 1.25,
-        "wallMs": 406.3
+        "paintsPerMove": 1.2,
+        "wallMs": 391.9
       },
       "panPlan": {
         "render2DCalls": 21,
@@ -280,7 +280,7 @@
         "historySnapshots": 0,
         "pointermoveEvents": 20,
         "paintsPerMove": 1.05,
-        "wallMs": 393
+        "wallMs": 356.7
       },
       "idle3000ms": {
         "render2DCalls": 0,
@@ -305,60 +305,60 @@
     "peopleItemsPlaced": 6,
     "humanMeshesInScene": 6,
     "humansAsDirectDynChildren": 0,
-    "dynChildren": 8,
-    "sceneObjects": 368,
+    "dynChildren": 4,
+    "sceneObjects": 370,
     "samples": [
       {
         "label": "idle, no animated people",
         "seconds": 4,
-        "rafFps": 81.7,
-        "renderedFramesPerSecond": 7.5,
-        "renderedFramesTotal": 30,
+        "rafFps": 119.9,
+        "renderedFramesPerSecond": 0,
+        "renderedFramesTotal": 0,
         "drawCallsPerFrame": 0,
         "trianglesPerFrame": 0,
         "shadowPassesPerSecond": 0,
         "shadowPassesTotal": 0,
         "raw": {
           "before": {
-            "calls": 57,
+            "calls": 129,
             "drawCalls": 0,
             "frameCalls": 0,
             "triangles": 0,
-            "wrapped": 18
+            "wrapped": 0
           },
           "after": {
-            "calls": 87,
+            "calls": 129,
             "drawCalls": 0,
             "frameCalls": 0,
             "triangles": 0,
-            "wrapped": 48
+            "wrapped": 0
           }
         }
       },
       {
         "label": "idle, animated people on",
-        "seconds": 4,
+        "seconds": 4.01,
         "rafFps": 120,
-        "renderedFramesPerSecond": 719.98,
-        "renderedFramesTotal": 2880,
+        "renderedFramesPerSecond": 720.13,
+        "renderedFramesTotal": 2886,
         "drawCallsPerFrame": 0,
         "trianglesPerFrame": 0,
         "shadowPassesPerSecond": 0,
         "shadowPassesTotal": 0,
         "raw": {
           "before": {
-            "calls": 663,
+            "calls": 2349,
             "drawCalls": 0,
             "frameCalls": 0,
             "triangles": 0,
-            "wrapped": 624
+            "wrapped": 2220
           },
           "after": {
-            "calls": 3543,
+            "calls": 5235,
             "drawCalls": 0,
             "frameCalls": 0,
             "triangles": 0,
-            "wrapped": 3504
+            "wrapped": 5106
           }
         }
       }

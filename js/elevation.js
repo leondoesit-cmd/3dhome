@@ -24,6 +24,7 @@ import { FURN, flabel, itemVSpan, fcolor } from "./furniture.js";
 import { t } from "./i18n.js";
 import { markers, markerItem, markerLabel } from "./markers.js";
 import { measure4, markerOrigin } from "./measure.js";
+import { layerRank } from "./layers.js";
 
 export const ELEV_VIEWS = ["front", "back", "left", "right"];
 export function isElevation() {
@@ -764,9 +765,14 @@ export function elevPick(px, py) {
   };
 }
 
-// screen pixel → the marker under it, or null. Markers are small, deliberate
-// targets, so they win over walls and items (same rule as the plan view).
+/* screen pixel → the marker under it, or null. Markers are small, deliberate
+   targets, so they win over walls and items (same rule as the plan view).
+
+   The elevation hit family answers to the same layer ranks as the plan's, so
+   that switching views never changes what is grabbable: a hidden or ghosted
+   layer ranks Infinity and contributes nothing to the pick. */
 export function elevationHitMarker(px, py) {
+  if (layerRank("annotations") === Infinity) return null;
   var view = S.viewAxis,
     thr = 13,
     best = null,
@@ -809,6 +815,7 @@ function elevPointerUV(px, py) {
 }
 
 export function elevWallAt(px, py, throughOpenings) {
+  if (layerRank("structure") === Infinity) return null;
   var view = S.viewAxis,
     vis = shown(),
     uv = elevPointerUV(px, py);
@@ -828,6 +835,7 @@ export function elevWallAt(px, py, throughOpenings) {
 }
 
 export function elevationHitOpening(px, py) {
+  if (layerRank("structure") === Infinity) return null;
   var view = S.viewAxis,
     vis = shown(),
     uv = elevPointerUV(px, py);
@@ -930,8 +938,15 @@ export function elevNudgeOpening(o, du, dv) {
   o.sill = Math.max(0, Math.min(maxSill, Math.round((o.sill || 0) + dv)));
 }
 
-// hit-test a screen pixel in the current elevation → {kind, ref} or null.
-// Nearest-to-viewer wins; items take priority over walls.
+/* hit-test a screen pixel in the current elevation → {kind, ref} or null.
+   Nearest-to-viewer wins; items take priority over walls.
+
+   Each band asks its own layer's rank rather than the composite asking once:
+   markers and openings gate themselves inside their hit functions, and the
+   item and wall sweeps below are skipped outright when furniture or structure
+   is unreachable. Unlike the plan's pointerdown chain this stays a single
+   pass — an elevation has no equivalent of the wall band drawn over the TV, so
+   there is nothing here for a rank split to disambiguate. */
 export function elevationHit(px, py) {
   var view = S.viewAxis,
     vis = shown();
@@ -941,7 +956,7 @@ export function elevationHit(px, py) {
   if (opening) return { kind: "opening", ref: opening };
   var u = (px - TF.ox) / TF.sc, v = (TF.y0 - py) / TF.sc;
   var best = null, bestDepth = -Infinity;
-  vis.items.forEach(function (it) {
+  if (layerRank("furniture") !== Infinity) vis.items.forEach(function (it) {
     var r = itemURange(view, it), sp = itemVSpan(it);
     if (u >= r.lo && u <= r.hi && v >= sp.lo && v <= sp.hi) {
       var d = projDepth(view, it.x, it.z);
@@ -949,6 +964,7 @@ export function elevationHit(px, py) {
     }
   });
   if (best) return best;
+  if (layerRank("structure") === Infinity) return null;
   var bw = null, bwd = -Infinity;
   vis.walls.forEach(function (w) {
     var hit = wallElevationIntersection(view, w, u, v);

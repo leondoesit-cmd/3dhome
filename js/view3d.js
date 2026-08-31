@@ -86,6 +86,7 @@ import {
 import { safeDeltaMilliseconds } from "./physics_runtime.js";
 import { resolvePhysicsRole } from "./physics/math.js";
 import { buildMEP3D } from "./mep.js";
+import { layerRank, layerOf, isLayerVisible, isLayerGhosted } from "./layers.js";
 import { wallFraming } from "./wall_framing.js";
 import { ceilingHeight } from "./elevation.js";
 
@@ -551,7 +552,7 @@ function buildStraightWall(w, col, tex) {
   g.rotation.y = Math.atan2(-gm.dz, gm.dx);
   g.userData.wall = w;
   g.userData.physicsRole = "static";
-  dyn.add(g);
+  structureRoot.add(g);
   var T = wallThickness(w, S),
     H = w.height,
     L = gm.L;
@@ -904,7 +905,7 @@ function buildStraightWall(w, col, tex) {
       });
     });
 
-    addWallFraming(dyn, w, xray);
+    addWallFraming(structureRoot, w, xray);
 
     if (skirtShapes.length) {
       var skGeom = new THREE.ExtrudeGeometry(skirtShapes, { depth: skT, bevelEnabled: false });
@@ -1370,7 +1371,7 @@ function buildSampledWall(w, col) {
   var group = new THREE.Group();
   group.userData.wall = w;
   group.userData.physicsRole = "static";
-  dyn.add(group);
+  structureRoot.add(group);
   var renderWall = Object.assign({}, w);
   if (kind === "half" && renderWall.halfHeight == null && renderWall.capHeight == null) renderWall.halfHeight = Math.min(renderWall.height, HALF_WALL_HEIGHT);
   if (kind === "railing" && renderWall.railingHeight == null && renderWall.railHeight == null) renderWall.railingHeight = Math.min(renderWall.height, 100);
@@ -1483,6 +1484,148 @@ function buildItem(it) {
 var itemsRoot = null;
 var itemCache = new Map(); // item id -> { g, sig }
 
+/* ---- layer roots -----------------------------------------------------------
+   itemsRoot above exists for the item cache, but its shape — one named subtree
+   holding everything of one kind — is also exactly what a work-set layer needs.
+   Give it two siblings on the same pattern and "raycast only the furniture"
+   becomes a list of Object3Ds rather than a per-hit filter.
+
+     dyn
+      ├─ ground plane, per-window daylight PointLights   (not layer-governed)
+      ├─ structureRoot   walls, their framing and openings, room floors,
+      │                  ceilings, passage bridges, slab-void curbs
+      ├─ itemsRoot       furniture (survives clearGroup — see above)
+      └─ mepRoot         conduits and device markers from buildMEP3D
+
+   The ground plane and the site overlay stay OUT of all three: they are not
+   selectable in the planner, so putting them on a layer would only give the
+   user a switch that hides the floor they are standing on.
+
+   Unlike itemsRoot these two are rebuilt from scratch on every rebuild3D, so
+   they are plain children of `dyn` and clearGroup disposes them with the rest.
+   The extra level of nesting is invisible outside this file: every consumer of
+   getDynGroup() — zombies_game, zombies_world, lava_world, inspector_preview —
+   reaches the scene through Object3D.traverse or a recursive raycast, and both
+   descend as far as there is anything to descend into. The two places in HERE
+   that walked `dyn.children` one level deep are the exception, and both are
+   flattened over the new roots explicitly (initPhysicsForScene,
+   updateSeeThrough). */
+var structureRoot = null,
+  mepRoot = null;
+
+/* Which layer id each root answers to. Kept as a function rather than a table
+   because the roots are re-created on every rebuild and a captured reference
+   would go stale after the first one. */
+function layerRoots() {
+  return [
+    { id: "structure", root: structureRoot },
+    { id: "furniture", root: itemsRoot },
+    { id: "mep", root: mepRoot },
+  ];
+}
+
+/* The roots a planner ray may touch at exactly this rank — 0 for the work set,
+   1 for everything else the user can currently see. Rank Infinity (ghosted or
+   hidden) is never returned by either call, and that exclusion has to happen
+   HERE rather than through `root.visible`: THREE.Raycaster does not test
+   `visible` at all — `intersect()` in vendor/three/three.core.js checks only
+   `object.layers` before calling `raycast`, then recurses into every child
+   regardless — which is why the hit loops below filter `h.object.visible` by
+   hand, and why an invisible root would otherwise still return hits. */
+function pickableRoots(rank) {
+  var out = [];
+  layerRoots().forEach(function (e) {
+    if (e.root && layerRank(e.id) === rank) out.push(e.root);
+  });
+  return out;
+}
+
+/* Ghosting is a MATERIAL change, and the materials under these roots are
+   shared: fmatFor caches one floor material per texture across every room, and
+   the furniture catalogue deliberately shares them between pieces (see
+   selected3DBox). Setting `opacity` on what a mesh happens to be pointing at
+   would therefore turn a ghosted wall into a ghosted sofa, permanently — the
+   original value is gone. So each mesh gets its own clone while it is ghosted
+   and the untouched original is parked on userData; un-ghosting puts it back
+   and disposes the clone, which is the only thing that keeps a user toggling
+   the ghost switch from leaking a material set per toggle.
+
+   0.35 rather than something fainter: below about a third the wall stops
+   reading as a surface with a position and starts reading as a smudge, which
+   defeats the purpose of leaving it on screen at all. */
+var GHOST_OPACITY = 0.35;
+function ghostSwap(root, on) {
+  if (!root) return;
+  root.traverse(function (o) {
+    if (!o.material) return;
+    var base = o.userData.ghostBase;
+    if (on) {
+      if (base) return; // already ghosted — never clone a clone
+      o.userData.ghostBase = o.material;
+      var ghosts = [].concat(o.material).map(function (m) {
+        var c = m.clone();
+        c.transparent = true;
+        c.opacity = Math.min(c.opacity, GHOST_OPACITY);
+        // a ghost that writes depth hides whatever it is meant to be revealing
+        c.depthWrite = false;
+        return c;
+      });
+      o.material = Array.isArray(o.userData.ghostBase) ? ghosts : ghosts[0];
+    } else {
+      if (!base) return;
+      [].concat(o.material).forEach(function (m) {
+        m.dispose();
+      });
+      o.material = base;
+      delete o.userData.ghostBase;
+    }
+  });
+}
+
+/* The same swap, but remembering on the root itself which way round it already
+   is. applyLayers3D() runs on every piecewise item update — the per-frame path
+   a 3D drag takes — and an unconditional traverse of the whole model there
+   would hand back with one hand what the layer split just saved with the
+   other. `ghostHeld` makes the overwhelmingly common no-op case a flag read.
+
+   Only ROOTS carry the flag. The one caller that works on a subtree instead
+   (dropItem) reaches for ghostSwap() directly, because there is no flag to
+   consult there and the traverse is a single item group wide. */
+function ghostRoot(root, on) {
+  if (!root) return;
+  on = !!on;
+  if (!!root.userData.ghostHeld === on) return;
+  ghostSwap(root, on);
+  root.userData.ghostHeld = on;
+}
+
+/* Push the layer table's visibility onto the three roots. Hidden hides the
+   whole subtree; ghosted still draws, faintly. Neither state is pickable —
+   layerRank returns Infinity for both and pickableRoots drops the root — so
+   this function only has to get the PICTURE right.
+
+   Exported because the layer UI has to call it: nothing here polls, and the
+   scene is rendered on demand. rebuild3D calls it too, since structureRoot and
+   mepRoot are new objects after every rebuild and start out plain. */
+export function applyLayers3D() {
+  layerRoots().forEach(function (e) {
+    if (!e.root) return;
+    e.root.visible = isLayerVisible(e.id) || isLayerGhosted(e.id);
+    ghostRoot(e.root, isLayerGhosted(e.id));
+  });
+  needsRender = true;
+}
+
+/* The layer UI lives in another module and this one is not on its import path,
+   so the coupling runs the other way: it announces, we listen. Registered at
+   module scope rather than inside init3D because the switch can be flipped
+   before the 3D view has ever been opened — ready3D gates the work, and a
+   scene built later picks the state up from rebuild3D's own call. */
+if (typeof window !== "undefined")
+  window.addEventListener("layers:changed", function () {
+    if (ready3D) applyLayers3D();
+  });
+
 /* Split view should describe one shared model, not two unrelated pictures.
    A lightweight Box3Helper mirrors the plan/tree selection without touching
    furniture materials (many catalogue meshes deliberately share them). */
@@ -1593,6 +1736,9 @@ function disposeSubtree(o) {
 function dropItem(id) {
   var c = itemCache.get(id);
   if (!c) return;
+  // same trap as rebuild3D: while the furniture layer is ghosted every mesh
+  // here points at a clone, and disposing that would strand the original
+  ghostSwap(c.g, false);
   itemsRoot.remove(c.g);
   disposeSubtree(c.g);
   itemCache.delete(id);
@@ -1655,6 +1801,11 @@ function applyItemOps() {
   S.items3D.clear();
   shadowsDirty = true;
   needsRender = true;
+  /* A piece rebuilt on this path arrives with fresh, solid materials, so a
+     ghosted furniture layer has to be re-applied over it. ghostRoot's flag
+     already reads "ghosted", so go through ghostSwap — it skips every mesh
+     that still holds a ghostBase and therefore only touches the new ones. */
+  if (isLayerGhosted("furniture")) ghostSwap(itemsRoot, true);
   // physics owns item transforms while it runs, and bodies are built per
   // rebuild — hand back to the full path rather than desyncing them
   if (escalate || isPhysicsEnabled()) S.dirty3D = true;
@@ -1669,8 +1820,19 @@ export function rebuild3D() {
   S.items3D.clear(); // a full rebuild subsumes every queued per-item update
   clearPhysics();
   if (!itemsRoot) itemsRoot = new THREE.Group();
+  /* Hand the ghosted materials back before anything is disposed. clearGroup
+     disposes what it finds on `o.material`, which while ghosting is a CLONE —
+     the original would survive as an orphan. Only the two roots clearGroup is
+     about to take are un-ghosted: itemsRoot survives the disposal intact, and
+     re-cloning every catalogue material on it once per rebuild would be pure
+     churn. applyLayers3D() at the end puts the other two back. */
+  ghostRoot(structureRoot, false);
+  ghostRoot(mepRoot, false);
   dyn.remove(itemsRoot); // keep the furniture subtree out of the disposal below
-  clearGroup(dyn);
+  clearGroup(dyn); // takes the previous structureRoot and mepRoot with it
+  structureRoot = new THREE.Group();
+  mepRoot = new THREE.Group();
+  dyn.add(structureRoot);
   scene.doors = [];
   var bb = contentBounds();
   var gw = bb.w + 900,
@@ -1799,7 +1961,7 @@ export function rebuild3D() {
       if (m) {
         m.receiveShadow = !xrayFloor;
         m.castShadow = !xrayFloor;
-        dyn.add(m);
+        structureRoot.add(m);
       }
     });
     // Seamless passages: two adjacent rooms (e.g. a corridor and a room) each
@@ -1879,7 +2041,7 @@ export function rebuild3D() {
       if (bm) {
         bm.receiveShadow = !xrayFloor;
         bm.castShadow = !xrayFloor;
-        dyn.add(bm);
+        structureRoot.add(bm);
       }
       // Bridge the wall jambs too: between the two cut walls there is a strip
       // (wall gap + any lateral offset of the paired openings) that exposes the
@@ -1917,7 +2079,7 @@ export function rebuild3D() {
         jm.rotation.y = -Math.atan2(bz - az, bx - ax);
         jm.receiveShadow = !xrayWalls;
         jm.castShadow = !xrayWalls;
-        dyn.add(jm);
+        structureRoot.add(jm);
       });
       // and the ceiling strip, when ceilings are shown
       if (S.showCeiling || xrayCeiling) {
@@ -1931,7 +2093,7 @@ export function rebuild3D() {
         if (cm) {
           cm.receiveShadow = S.showCeiling && !xrayCeiling;
           cm.castShadow = S.showCeiling && !xrayCeiling;
-          dyn.add(cm);
+          structureRoot.add(cm);
         }
       }
     });
@@ -1964,7 +2126,7 @@ export function rebuild3D() {
       if (m) {
         m.castShadow = S.showCeiling && !xrayCeiling;
         m.receiveShadow = S.showCeiling && !xrayCeiling;
-        dyn.add(m);
+        structureRoot.add(m);
       }
     });
   } else {
@@ -1994,11 +2156,11 @@ export function rebuild3D() {
       if (fm) {
         fm.castShadow = !xrayFloor;
         fm.receiveShadow = !xrayFloor;
-        dyn.add(fm);
+        structureRoot.add(fm);
       }
     } else {
       box(
-        dyn,
+        structureRoot,
         bb.minx - 40,
         bb.maxx + 40,
         -3,
@@ -2024,7 +2186,7 @@ export function rebuild3D() {
       rim.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x);
       rim.castShadow = false;
       rim.receiveShadow = true;
-      dyn.add(rim);
+      structureRoot.add(rim);
     }
   });
   // per-room wall color overrides (a wall shared by two painted rooms takes the last one's color)
@@ -2060,12 +2222,18 @@ export function rebuild3D() {
     pl.position.set(wp.x, y, wp.z);
     pl.userData.baseI = legacyIntensity(0.9, winDist);
     pl.userData.win = true;
+    /* Daylight is LIGHTING, not structure: it hangs off `dyn` rather than
+       structureRoot so that ghosting the walls to read the plan through them
+       does not also plunge the rooms into artificial-light-only gloom. */
     dyn.add(pl);
   });
   dyn.add(itemsRoot);
   syncItems(hid);
-  // MEP conduits + device markers embedded in the model
-  buildMEP3D(dyn, THREE);
+  // MEP conduits + device markers embedded in the model. buildMEP3D takes its
+  // parent, and returns early on its own m.show / m.show3D flags — those stay
+  // as filters ON TOP of the mep layer, which owns the root's visibility.
+  dyn.add(mepRoot);
+  buildMEP3D(mepRoot, THREE);
 
   if (isPhysicsEnabled()) {
     initPhysicsForScene();
@@ -2073,6 +2241,7 @@ export function rebuild3D() {
   applySite(); // reposition the aerial overlay for the new content bounds
   // external modes (RC race) rebuild their collision snapshot off this event
   updateSeeThrough(); // the wall groups are brand new: re-apply the dollhouse cut
+  applyLayers3D(); // the roots are brand new too: re-apply hide/ghost to them
   window.dispatchEvent(new Event("scene3d:rebuilt"));
 }
 
@@ -2088,9 +2257,16 @@ function tagItemPhysicsRole(g, it) {
 export function initPhysicsForScene() {
   if (!dyn) return;
   clearPhysics();
+  /* One body per BUILT THING, so this wants the wall groups, floor slabs,
+     conduits and furniture groups — not the three layer roots that now stand
+     between `dyn` and most of them. Flatten the roots back out by one level;
+     everything reachable is exactly what `dyn.children` held before the split
+     (the roots' own children are still the individual groups and meshes). */
   var items = itemsRoot ? itemsRoot.children : [];
   dyn.children
-    .filter(function (c) { return c !== itemsRoot; })
+    .filter(function (c) { return c !== itemsRoot && c !== structureRoot && c !== mepRoot; })
+    .concat(structureRoot ? structureRoot.children : [])
+    .concat(mepRoot ? mepRoot.children : [])
     .concat(items)
     .forEach(function(c) {
       var minY;
@@ -2167,7 +2343,12 @@ function updateSeeThrough() {
   if (!dyn || !camera || !tgt) return;
   var on = (!!S.edit3D || framedInterior) && !walk && !extTick;
   var changed = false;
-  dyn.children.forEach(function (g) {
+  /* Wall groups are children of structureRoot, not of `dyn` — a one-level scan
+     aimed at `dyn` would match nothing at all and the dollhouse cut would
+     silently stop happening, which is the same trap the humans pass fell into
+     when furniture moved under itemsRoot (see updateHumans). */
+  if (!structureRoot) return;
+  structureRoot.children.forEach(function (g) {
     var w = g.userData && g.userData.wall;
     if (!w) return;
     /* A floor switch replaces S.nodes/S.walls before rebuild3D replaces dyn.
@@ -2330,13 +2511,33 @@ function zoomBy(factor, cx, cy) {
   tgtTween = null;
   upd();
 }
-// double-click: ease the target onto whatever is under the cursor, so the next
-// orbit spins around that object rather than around the room's center
+/* double-click: ease the target onto whatever is under the cursor, so the next
+   orbit spins around that object rather than around the room's center.
+
+   This is FRAMING, not selection, and it deliberately keeps rank 1. The work
+   set says what you are editing; it has no opinion about where you want to
+   stand. Refusing to orbit around a wall you can plainly see, because you
+   happen to be furnishing, would read as the camera being broken rather than
+   as a layer being respected — and there is no consolation prize here the way
+   there is for a pick, because the fallback is the flat ground plane and the
+   view would just sink to the floor. Rank Infinity is another matter: ghosted
+   and hidden geometry is not there to be double-clicked, so pickableRoots
+   leaves it out and the ground fallback takes over.
+
+   The ground plane and the per-window lights hang off `dyn` outside all three
+   roots, so they are added back explicitly — framing on bare floor is exactly
+   what a double-click into empty space should do. */
 function focusAt(cx, cy) {
+  if (!dyn) return;
+  var roots = dyn.children.filter(function (c) {
+    return c !== structureRoot && c !== itemsRoot && c !== mepRoot;
+  });
   var ray = pointerRay(cx, cy),
-    hits = ray.intersectObjects([dyn], true).filter(function (h) {
-      return h.object.visible && h.object.type !== "Sprite";
-    });
+    hits = ray
+      .intersectObjects(roots.concat(pickableRoots(0), pickableRoots(1)), true)
+      .filter(function (h) {
+        return h.object.visible && h.object.type !== "Sprite";
+      });
   var p = hits.length ? hits[0].point : pointerGround(cx, cy);
   if (!p) return;
   tgtTween = {
@@ -2381,28 +2582,60 @@ export function toggleEdit3D(on) {
    land on any descendant of one, so walk up to the first tagged ancestor.
    The wall itself is NOT draggable — its geometry only ever gets in the way of
    the piece behind it — so a hit that resolves to bare wall is reported as such
-   and skipped, letting the ray carry on to whatever stands behind the wall. */
+   and skipped, letting the ray carry on to whatever stands behind the wall.
+
+   Two more things get the same treatment, and for the same reason — returning
+   null lets the caller's loop walk on to the next hit instead of stopping on
+   something it cannot act on:
+
+   - a rank-Infinity item or opening. Its root is already left out of the
+     raycast (pickableRoots), so this is belt and braces rather than the only
+     guard; it keeps targetOf honest on its own terms, for the day a second
+     caller hands it a mesh from somewhere else.
+   - a LOCKED opening. The lock is per-object, not per-layer, so no root-level
+     filter can see it; and a pinned window that merely refused to move would
+     shadow the sideboard standing in front of it. */
 function targetOf(obj) {
   for (var o = obj; o; o = o.parent) {
     if (!o.userData) continue;
-    if (o.userData.item) return { kind: "item", ref: o.userData.item };
-    if (o.userData.opening) return { kind: "opening", ref: o.userData.opening };
+    if (o.userData.item)
+      return layerRank("furniture") === Infinity ? null : { kind: "item", ref: o.userData.item };
+    if (o.userData.opening) {
+      if (layerRank("structure") === Infinity || o.userData.opening.locked) return null;
+      return { kind: "opening", ref: o.userData.opening };
+    }
     if (o.userData.wall) return { kind: "wall", ref: o.userData.wall };
   }
   return null;
 }
-// Everything the 3D edit mode can grab: pieces and openings, never walls, and
-// never gated on whether the thing is the FIRST surface under the cursor — the
-// ray keeps going past walls, so a sofa behind a wall drags from any angle.
+/* Everything the 3D edit mode can grab: pieces and openings, never walls, and
+   never gated on whether the thing is the FIRST surface under the cursor — the
+   ray keeps going past walls, so a sofa behind a wall drags from any angle.
+
+   Two passes, not one, and this is the 3D half of the TV-against-the-wall bug.
+   The rank-0 layers are tested alone first, so a piece of furniture wins the
+   pick outright over a wall that is nearer the camera; only when every focused
+   layer misses does the rank-1 pass run. Depth order still decides WITHIN a
+   pass, which is why each pass is its own distance-sorted raycast rather than
+   one call whose results get re-sorted afterwards.
+
+   The rank of the winning pass rides along on the result: a rank-1 hit is a
+   legitimate answer to "what is under the cursor" but must never start a drag
+   (see editDown), mirroring the 2D rule. */
 function pickEditTarget(cx, cy) {
   if (!dyn) return null;
-  var hits = pointerRay(cx, cy).intersectObjects([dyn], true);
-  for (var i = 0; i < hits.length; i++) {
-    var h = hits[i];
-    if (!h.object.visible || h.object.type === "Sprite") continue;
-    var t = targetOf(h.object);
-    if (!t || t.kind === "wall") continue;
-    return { kind: t.kind, ref: t.ref, point: h.point };
+  var ray = pointerRay(cx, cy);
+  for (var rank = 0; rank <= 1; rank++) {
+    var roots = pickableRoots(rank);
+    if (!roots.length) continue;
+    var hits = ray.intersectObjects(roots, true);
+    for (var i = 0; i < hits.length; i++) {
+      var h = hits[i];
+      if (!h.object.visible || h.object.type === "Sprite") continue;
+      var t = targetOf(h.object);
+      if (!t || t.kind === "wall") continue;
+      return { kind: t.kind, ref: t.ref, point: h.point, rank: rank };
+    }
   }
   return null;
 }
@@ -2427,6 +2660,31 @@ function editDown(e) {
   if (!S.edit3D || walk || extTick || e.button !== 0 || e.shiftKey) return false;
   var hit = pickEditTarget(e.clientX, e.clientY);
   if (!hit || !editMod) return false;
+  /* A rank-1 hit is off the work set: it answered "what is under the cursor"
+     and is allowed to, but it must not start a gesture. Declining here rather
+     than in pickEditTarget is what lets the orbit have the press instead —
+     dragging the camera is the more useful thing to do with a click on
+     something you are not currently editing. The event is the same one the 2D
+     hit chain fires so a single piece of UI can explain both refusals. */
+  if (hit.rank !== 0) {
+    window.dispatchEvent(
+      /* Same detail shape the 2D chain emits (js/interaction.js blockedDrag),
+         so one pill can read both: `sel` is the selection that was refused,
+         `layer` its layer id, `reason` the gate that failed — here always
+         "rank", since editDown only reaches this branch for a non-zero rank.
+         `where` is the extra field 3D adds, so the UI can place the pill in
+         the right pane. */
+      new CustomEvent("layers:blocked-drag", {
+        detail: {
+          sel: { kind: hit.kind, ref: hit.ref },
+          layer: layerOf(hit.kind),
+          reason: "rank",
+          where: "3d",
+        },
+      }),
+    );
+    return false;
+  }
   // grab on the horizontal plane through the point actually clicked, so the
   // thing does not jump when you grab it by its top
   var gy = hit.point.y,
