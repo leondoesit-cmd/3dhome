@@ -35,7 +35,7 @@ import { FURN, isLamp, mkItem } from "./furniture.js";
 import { holdToWall, reseatHeldItems } from "./item_align.js";
 import { applyAutoFace, markManualRot, rotStep } from "./item_orient.js";
 import { t, tTouch } from "./i18n.js";
-import { plan, render2D, fitView, sx, sz, wx, wz, rotatePx, dropPoint, toBasePx, planRotRad, pickCon, touchLensDistanceMap } from "./plan2d.js";
+import { plan, render2D, fitView, sx, sz, wx, wz, rotatePx, dropPoint, toBasePx, planRotRad, pickCon, touchLensDistanceMap, setDragProxy, clearDragProxy } from "./plan2d.js";
 import { select, fillProps, refreshTree, flash, setLockStruct, placeFurnAt } from "./ui.js";
 import { syncWallEnd } from "./ui_props.js";
 import {
@@ -51,7 +51,8 @@ import {
   abortHistoryTransaction,
 } from "./history.js";
 import { isWalk } from "./view3d.js";
-import { layerRank, layerOf, canDrag, isLayerLocked } from "./layers.js";
+import { layerRank, layerOf, canDrag, isLayerLocked, isLayerHidden } from "./layers.js";
+import { planIndex } from "./spatial_index.js";
 import {
   ensureMEP, snapMEPPoint, routeResolve, wallPath, addNode, hitMEP, nodePos,
   finishRoute, cancelMEP, cancelRoute, deleteMEP, detachNodesFromWalls, runCrossesOpening,
@@ -135,6 +136,222 @@ function tolCm(px) {
   var v = (px * PICK_SLOP) / S.SC;
   return isFinite(v) && v > 0 ? v : px * PICK_SLOP;
 }
+/* ---- shared broad phase --------------------------------------------------
+   Every pointer path in this file used to answer "what is near the cursor?" by
+   walking the whole model. `snapPoint()` rebuilt its candidate set from
+   scratch on each pointermove — a pass over the corners, the markers, the
+   walls (five separate times), the openings and the items — and the `hit*`
+   family scanned the same arrays linearly right behind it. js/spatial_index.js
+   is the uniform grid that replaces the scans; this section is the planner's
+   half of the deal: it turns S into records, keeps the shared `planIndex`
+   pointed at them, and hands each caller a candidate list.
+
+   Two invariants make the swap safe, and both are load-bearing:
+
+     - the grid is a BROAD phase only. Every exact test — a corner's distance, a
+       wall's perpendicular projection, an item's rotated-box containment, the
+       `nearCursor` window on the intersection pass — still runs, unchanged, on
+       whatever comes back. The grid may hand back records the caller then
+       rejects; what it may never do is leave one out.
+     - so every record's box is a SUPERSET of the geometry it stands for, and
+       every query radius is a superset of the reach the exact test uses. A wall
+       box covers its arc and is padded by a full thickness (half for the wall's
+       own body, half again because wallGeom() shifts a location-line wall's
+       endpoints laterally without moving its arc centre). An item box is the
+       axis-aligned hull of its rotated footprint.
+
+   Ordering is the other half of "same winner". The linear passes iterated
+   S.walls / S.items / S.openings in array order and the corner loop in
+   ascending node index, and both the snap sort (stable, so equal scores keep
+   the order they were offered in) and the `d < bd` ties in hitNode/hitWall
+   read that order. Every record therefore carries `ord`, its position in the
+   array it came from, and nearRecs() sorts by it. */
+var KIND_CACHE = {};
+function kindList(kind) {
+  return KIND_CACHE[kind] || (KIND_CACHE[kind] = [kind]);
+}
+/* Candidates of one kind within `r` of the cursor, in the array order the
+   linear scans used. Sorting a handful of records per query is far below the
+   scan it replaces, and it is what keeps an exact-tie winner identical. */
+function nearRecs(px, pz, r, kind) {
+  var out = planIndex.query(px, pz, r, kindList(kind));
+  if (out.length > 1) out.sort(function (a, b) { return a.ord - b.ord; });
+  return out;
+}
+
+/* The axis-aligned box of a wall's centreline, padded by a whole thickness.
+
+   For an arc the box is the exact one: the two endpoints, plus each of the four
+   axis extremes of the circle that falls inside the swept angle. Sampling the
+   curve would not do — a sampled hull can cut a bulge, and a wall the grid
+   forgets is a snap the user loses. */
+function wallBoxOf(w, g) {
+  var x0, x1, z0, z1;
+  if (g.kind === "arc" && g.curve && g.curve.center && fin(g.curve.radius)) {
+    var c = g.curve;
+    var pts = [g.a, g.b, c.a, c.b];
+    x0 = z0 = Infinity;
+    x1 = z1 = -Infinity;
+    pts.forEach(function (p) {
+      if (!p || !fin(p.x) || !fin(p.z)) return;
+      if (p.x < x0) x0 = p.x;
+      if (p.x > x1) x1 = p.x;
+      if (p.z < z0) z0 = p.z;
+      if (p.z > z1) z1 = p.z;
+    });
+    for (var q = 0; q < 4; q++) {
+      var base = (q * Math.PI) / 2;
+      for (var turn = -2; turn <= 2; turn++) {
+        var ang = base + turn * 2 * Math.PI;
+        var t = c.sweep ? (ang - c.startAngle) / c.sweep : -1;
+        if (!(t >= 0 && t <= 1)) continue;
+        var ex = c.center.x + Math.cos(ang) * c.radius,
+          ez = c.center.z + Math.sin(ang) * c.radius;
+        if (ex < x0) x0 = ex;
+        if (ex > x1) x1 = ex;
+        if (ez < z0) z0 = ez;
+        if (ez > z1) z1 = ez;
+        break;
+      }
+    }
+  } else {
+    x0 = Math.min(g.a.x, g.b.x);
+    x1 = Math.max(g.a.x, g.b.x);
+    z0 = Math.min(g.a.z, g.b.z);
+    z1 = Math.max(g.a.z, g.b.z);
+  }
+  if (!fin(x0) || !fin(z0) || !fin(x1) || !fin(z1)) return null;
+  var pad = Math.max(0, w.thickness || 0);
+  return { minx: x0 - pad, minz: z0 - pad, maxx: x1 + pad, maxz: z1 + pad };
+}
+
+/* The layer filter in force for the current gesture.
+
+   This is the gap layers.js leaves open on purpose. `layerAllowsSnapKind()`
+   filters by snap KIND, and corner / midpoint / onwall map to no layer at all —
+   which is what keeps centring a sofa on a wall alive while furniture is the
+   work set. The cost of that choice is that hiding structure would not stop it
+   offering corners, because nothing on the kind side knows where the corner
+   came from. The source layer does know, and this is where it is asked: a
+   hidden layer contributes no records, so it contributes no candidates of any
+   kind. Widening the kind table instead would have taken the sofa-centring
+   snap away with it.
+
+   Ghosted layers are deliberately still indexed. They are already unhittable
+   (every hit test refuses rank Infinity up front) but they remain snappable,
+   which is what a faded reference layer is for. */
+var snapSession = null;
+function layerOpen(id) {
+  if (snapSession) return snapSession.open[id] !== false;
+  return !isLayerHidden(id);
+}
+/* Pin the layer filter for the length of a gesture and rebuild the index
+   against it. Pinning rather than reading live means a drag cannot change what
+   it snaps to halfway through because a panel was toggled under it. Pass a
+   predicate to override; the default is "everything not hidden". */
+export function beginSnapSession(layerFilter) {
+  var open = {};
+  ["structure", "furniture", "annotations", "mep"].forEach(function (id) {
+    open[id] = layerFilter ? !!layerFilter(id) : !isLayerHidden(id);
+  });
+  snapSession = { open: open };
+  planIndex.invalidate();
+}
+export function endSnapSession() {
+  if (!snapSession) return;
+  snapSession = null;
+  planIndex.invalidate();
+}
+
+/* Everything the pointer paths can land on, as index records. Called by the
+   index itself on the first query after an invalidation, which is why it is
+   handed over as a function rather than an array: a gesture that mutates the
+   model twenty times pays for one rebuild, on the first query that needs it,
+   instead of one per mutation.
+
+   Node records carry the ids of the walls that use them because hitNode()
+   refuses a corner left behind only by hidden walls, and that question cannot
+   be answered from the corner alone. `usedNodes()` — the set snapPoint's corner
+   pass reads — is the same set without the hidden filter, so both callers are
+   served by one record list. */
+function planIndexRecords() {
+  var recs = [];
+  if (layerOpen("structure")) {
+    var byNode = {};
+    S.walls.forEach(function (w, i) {
+      var g = wallGeom(w);
+      if (!g || !g.a || !g.b) return;
+      var box = wallBoxOf(w, g);
+      if (box) {
+        box.kind = "wall";
+        box.id = w.id;
+        box.ref = w;
+        box.ord = i;
+        recs.push(box);
+      }
+      [w.a, w.b].forEach(function (k) {
+        var n = S.nodes[k];
+        if (!n || !fin(n.x) || !fin(n.z)) return;
+        var rec = byNode[k];
+        if (!rec) {
+          rec = byNode[k] = {
+            kind: "node", id: +k, ord: +k, walls: [],
+            minx: n.x, minz: n.z, maxx: n.x, maxz: n.z,
+          };
+          recs.push(rec);
+        }
+        rec.walls.push(w.id);
+      });
+    });
+    /* An opening takes its whole host wall's box. Its jambs and the cursor
+       projection both callers measure from lie on that wall, so the wall's box
+       is a superset of anything either could reach — and one that is already
+       arc-correct, where a box spanning only the two jamb points would cut the
+       bulge of a curved wall between them. Openings are few per wall, so the
+       coarser box costs a handful of rejected candidates and no scan. */
+    S.openings.forEach(function (o, i) {
+      var w = wallById(o.wall);
+      if (!w) return;
+      var g = wallGeom(w);
+      if (!g || !fin(g.L)) return;
+      var box = wallBoxOf(w, g);
+      if (!box) return;
+      box.kind = "opening";
+      box.id = o.id;
+      box.ref = o;
+      box.ord = i;
+      recs.push(box);
+    });
+  }
+  if (layerOpen("furniture"))
+    S.items.forEach(function (it, i) {
+      if (!it || !fin(it.x) || !fin(it.z)) return;
+      var a = ((it.rot || 0) * Math.PI) / 180,
+        ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+      // half-extents of the axis-aligned hull of the rotated footprint
+      var hx = (Math.abs(it.w || 0) * ca + Math.abs(it.d || 0) * sa) / 2,
+        hz = (Math.abs(it.w || 0) * sa + Math.abs(it.d || 0) * ca) / 2;
+      recs.push({
+        kind: "item", id: it.id, ref: it, ord: i,
+        minx: it.x - hx, maxx: it.x + hx, minz: it.z - hz, maxz: it.z + hz,
+      });
+    });
+  if (layerOpen("annotations"))
+    (S.markers || []).forEach(function (m, i) {
+      if (!m || !fin(m.x) || !fin(m.z)) return;
+      recs.push({
+        kind: "marker", id: m.id, ref: m, ord: i,
+        minx: m.x, maxx: m.x, minz: m.z, maxz: m.z,
+      });
+    });
+  return recs;
+}
+/* Point the shared index at this module's view of the model, then mark it
+   stale so the first real query builds against a loaded plan rather than the
+   empty one that exists at import time. */
+planIndex.build(planIndexRecords);
+planIndex.invalidate();
+
 /* ---- rank gates on the hit tests ----
    Every hit function below opens by asking its layer's rank and answering null
    at Infinity — ghosted or hidden geometry is not there as far as the pointer
@@ -146,21 +363,24 @@ function hitNode(px, pz) {
   // corners of the walls actually on the plan — a corner left only by hidden
   // walls isn't drawn, so it isn't grabbable either (mirrors plan2d drawNodes)
   var hid = hiddenSets(),
-    u = {},
     thr = tolCm(10),
     best = null,
     bd = thr;
-  S.walls.forEach(function (w) {
-    if (hid.walls[w.id]) return;
-    u[w.a] = 1;
-    u[w.b] = 1;
-  });
-  for (var k in u) {
-    var n = S.nodes[k],
-      d = Math.hypot(px - n.x, pz - n.z);
+  /* Records arrive in ascending node index, which is the order the `for..in`
+     over usedNodes() ran in — and `d < bd` is strict, so two coincident corners
+     are still separated the same way round. */
+  var near = nearRecs(px, pz, thr, "node");
+  for (var i = 0; i < near.length; i++) {
+    var rec = near[i], shown = false;
+    for (var j = 0; j < rec.walls.length; j++)
+      if (!hid.walls[rec.walls[j]]) { shown = true; break; }
+    if (!shown) continue;
+    var n = S.nodes[rec.id];
+    if (!n) continue;
+    var d = Math.hypot(px - n.x, pz - n.z);
     if (d < bd) {
       bd = d;
-      best = +k;
+      best = rec.id;
     }
   }
   return best;
@@ -168,8 +388,12 @@ function hitNode(px, pz) {
 function hitOpening(px, pz) {
   if (layerRank("structure") === Infinity) return null;
   var hid = hiddenSets();
-  for (var i = S.openings.length - 1; i >= 0; i--) {
-    var o = S.openings[i],
+  // backwards, as the linear scan was: the opening latest in the array wins an
+  // overlap. nearRecs() hands them back in array order, so reversing it here is
+  // the same traversal over a shorter list.
+  var nearOp = nearRecs(px, pz, tolCm(10), "opening");
+  for (var i = nearOp.length - 1; i >= 0; i--) {
+    var o = nearOp[i].ref,
       w = wallById(o.wall);
     if (!w || hid.walls[o.wall]) continue;
     var gm = wallGeom(w), projected = wallProject(w, px, pz);
@@ -195,8 +419,15 @@ function hitItem(px, pz) {
   var i,
     it,
     hid = hiddenSets();
-  for (i = S.items.length - 1; i >= 0; i--) {
-    it = S.items[i];
+  /* The lamp pass grows the footprint by up to tolCm(16) + tolCm(6) along the
+     item's OWN axes, so a point it accepts can sit as far as that times root
+     two from the axis-aligned box the grid stores. 1.5 is the smallest tidy
+     number above root two, and querying wide costs a few rejected candidates
+     where querying short would lose a lamp at 45 degrees. */
+  var near = nearRecs(px, pz, tolCm(22) * 1.5, "item");
+  // both passes still run newest-first, so the piece drawn on top wins
+  for (i = near.length - 1; i >= 0; i--) {
+    it = near[i].ref;
     if (hid.items[it.id]) continue;
     if (
       isLamp(it) &&
@@ -209,8 +440,8 @@ function hitItem(px, pz) {
     )
       return it;
   }
-  for (i = S.items.length - 1; i >= 0; i--) {
-    it = S.items[i];
+  for (i = near.length - 1; i >= 0; i--) {
+    it = near[i].ref;
     if (hid.items[it.id]) continue;
     if (!isLamp(it) && inItem(px, pz, it, 0)) return it;
   }
@@ -221,7 +452,12 @@ function hitWall(px, pz) {
   var best = null,
     bd = 1e9,
     hid = hiddenSets();
-  S.walls.forEach(function (w) {
+  /* A wall record's box already carries a full thickness of padding, so a wall
+     whose centreline is within thickness/2 + tolCm(8) of the cursor has its box
+     within tolCm(8) of it. Records come back in S.walls order and the tie test
+     stays strict, so an exact tie is still won by the earlier wall. */
+  nearRecs(px, pz, tolCm(8), "wall").forEach(function (rec) {
+    var w = rec.ref;
     if (hid.walls[w.id]) return;
     var projected = wallProject(w, px, pz);
     var d = projected ? projected.distance : Infinity;
@@ -1218,7 +1454,11 @@ function overrideKind() {
   return S.snapOnly || null;
 }
 
-function snapPoint(px, pz, fromIdx) {
+/* Exported for tests/snap_broad_phase.test.mjs, which pins the claim the whole
+   broad phase rests on: widen every query to the entire model and the winner
+   must not move. Nothing in the app imports it — the resolver is used by this
+   file's own drag and draw paths. */
+export function snapPoint(px, pz, fromIdx) {
   var origins =
     fromIdx == null ? [] : Array.isArray(fromIdx) ? fromIdx.slice() : [fromIdx];
   var mul = snapMul();
@@ -1264,14 +1504,27 @@ function snapPoint(px, pz, fromIdx) {
     });
   }
 
-  var u = usedNodes();
+  /* The broad phase. Everything below asks the shared grid for the handful of
+     records near the cursor instead of walking S — see the "shared broad phase"
+     block near the top of this file for why each radius is the one it is, and
+     why nothing the exact tests below would have accepted can be missing from
+     these lists. `wide` is the reach the two construction-geometry passes need:
+     an intersection or an extension is offered from a wall that may be a whole
+     extWindow away from the point it produces. */
+  var extWindow = Math.max(100, thr * 8);
+  var nearNodes = nearRecs(px, pz, thr, "node"),
+    nearWalls = nearRecs(px, pz, thr, "wall"),
+    wideWalls = nearRecs(px, pz, thr + extWindow, "wall"),
+    nearItems = nearRecs(px, pz, thr, "item"),
+    nearMarks = nearRecs(px, pz, thr, "marker"),
+    nearOpens = nearRecs(px, pz, thr, "opening");
 
   // 1. existing corners
-  for (var k in u) {
-    if (origins.indexOf(+k) !== -1) continue;
-    var n = S.nodes[k];
-    offer("corner", n.x, n.z, { node: +k });
-  }
+  nearNodes.forEach(function (rec) {
+    if (origins.indexOf(rec.id) !== -1) return;
+    var n = S.nodes[rec.id];
+    if (n) offer("corner", n.x, n.z, { node: rec.id });
+  });
   if (S.tool === "wall" && S.drawing && S.drawStart != null &&
       (S.drawWalls || []).length >= 2 && origins.indexOf(S.drawStart) === -1) {
     var st = S.nodes[S.drawStart];
@@ -1282,7 +1535,8 @@ function snapPoint(px, pz, fromIdx) {
      could anchor a dimension while being impossible to actually draw a wall
      onto, which defeats most of the reason to place one. They are datums, so
      they rank alongside corners. */
-  (S.markers || []).forEach(function (m) {
+  nearMarks.forEach(function (rec) {
+    var m = rec.ref;
     if (!m || !fin(m.x) || !fin(m.z)) return;
     offer("marker", m.x, m.z, {});
   });
@@ -1298,7 +1552,8 @@ function snapPoint(px, pz, fromIdx) {
 
   // 3. wall midpoints — a frequent architectural datum that should not need
   // eyeballing or a temporary half-length dimension.
-  S.walls.forEach(function (w) {
+  nearWalls.forEach(function (rec) {
+    var w = rec.ref;
     if (origins.indexOf(w.a) !== -1 || origins.indexOf(w.b) !== -1) return;
     var g = wallGeom(w), midpoint = wallPointAt(w, g.L / 2);
     offer("midpoint", midpoint.x, midpoint.z,
@@ -1320,7 +1575,8 @@ function snapPoint(px, pz, fromIdx) {
      being aimed at, and at any real zoom the offset centreline is further away
      than the snap tolerance. */
   var faceBack = drawFaceBack();
-  S.openings.forEach(function (o) {
+  nearOpens.forEach(function (rec) {
+    var o = rec.ref;
     var w = wallById(o.wall);
     if (!w || origins.indexOf(w.a) !== -1 || origins.indexOf(w.b) !== -1) return;
     var g = wallGeom(w), half = Math.max(0, o.width || 0) / 2;
@@ -1340,7 +1596,8 @@ function snapPoint(px, pz, fromIdx) {
      dragging the cabinet itself has snapped to walls for ages. The four
      rotated corners and the centre are offered; edge midpoints are not, or a
      large sofa carpets the plan in snap targets. */
-  (S.items || []).forEach(function (it) {
+  nearItems.forEach(function (rec) {
+    var it = rec.ref;
     if (!it || it.locked) return;
     var a = ((it.rot || 0) * Math.PI) / 180,
       ca = Math.cos(a), sa = Math.sin(a),
@@ -1354,16 +1611,19 @@ function snapPoint(px, pz, fromIdx) {
 
   // 5. real or nearby virtual intersections. A real crossing carries every
   // wall it lies on so committing the point splits and welds all of them.
-  var extWindow = Math.max(100, thr * 8);
-  for (var ia = 0; ia < S.walls.length; ia++) {
-    var wa = S.walls[ia];
+  for (var ia = 0; ia < wideWalls.length; ia++) {
+    var wa = wideWalls[ia].ref;
     if (origins.indexOf(wa.a) !== -1 || origins.indexOf(wa.b) !== -1) continue;
     /* Only wall pairs whose bounding boxes come near the cursor are tested.
        The nested loop used to run over every pair on every mouse move, which
-       is fine at thirty walls and not at three hundred. */
+       is fine at thirty walls and not at three hundred. The grid narrows the
+       list the pairs are drawn from; nearCursor stays because it is the exact
+       window this pass is specified in terms of, and because wideWalls is a
+       superset of what it accepts. Records are in S.walls order, so ia < ib
+       still enumerates each unordered pair exactly once, the same way round. */
     if (!nearCursor(wa, px, pz, extWindow)) continue;
-    for (var ib = ia + 1; ib < S.walls.length; ib++) {
-      var wb = S.walls[ib];
+    for (var ib = ia + 1; ib < wideWalls.length; ib++) {
+      var wb = wideWalls[ib].ref;
       if (origins.indexOf(wb.a) !== -1 || origins.indexOf(wb.b) !== -1) continue;
       if (!nearCursor(wb, px, pz, extWindow)) continue;
       var ip = wallLineIntersection(wa, wb);
@@ -1382,7 +1642,8 @@ function snapPoint(px, pz, fromIdx) {
   origins.forEach(function (oi) {
     var O = S.nodes[oi];
     if (!O) return;
-    S.walls.forEach(function (w) {
+    nearWalls.forEach(function (rec) {
+      var w = rec.ref;
       if (w.a === oi || w.b === oi) return;
       var g = wallGeom(w), foot = wallProject(w, O.x, O.z), s = foot && foot.s;
       if (s <= 1 || s >= g.L - 1) return;
@@ -1393,7 +1654,8 @@ function snapPoint(px, pz, fromIdx) {
   // 7. a point ON a wall — without this you can only ever connect to a corner,
   // so a wall drawn across a room left floating endpoints, never split what it
   // crossed, and produced no new rooms.
-  S.walls.forEach(function (w) {
+  nearWalls.forEach(function (rec) {
+    var w = rec.ref;
     // a wall we are drawing FROM is not a valid landing target
     if (origins.indexOf(w.a) !== -1 || origins.indexOf(w.b) !== -1) return;
     var g = wallGeom(w);
@@ -1411,7 +1673,8 @@ function snapPoint(px, pz, fromIdx) {
 
   // 8. wall extension line. Unlike an on-wall snap this is construction
   // geometry only: it does not lengthen the reference wall automatically.
-  S.walls.forEach(function (w) {
+  wideWalls.forEach(function (rec) {
+    var w = rec.ref;
     if (origins.indexOf(w.a) !== -1 || origins.indexOf(w.b) !== -1) return;
     var g = wallGeom(w);
     if (g.kind === "arc") return; // a finite arc has no single straight extension ray
@@ -1448,6 +1711,13 @@ function snapPoint(px, pz, fromIdx) {
 
   // 7. angle snap from the origin corner(s)
   if (origins.length) {
+    /* The one consumer of the FULL corner set that survives the broad phase.
+       An alignment run is a ray from the origin, not a disc around the cursor —
+       the corner it lines up with can be anywhere on the plan — so there is no
+       radius to query with and the whole set is genuinely needed. It is read
+       here rather than at the top of the function because everything above
+       returns before reaching it whenever an object snap wins. */
+    var u = usedNodes();
     var pick = null;
     origins.forEach(function (oi) {
       var a = S.nodes[oi];
@@ -2350,7 +2620,7 @@ export function deleteSel() {
   // Lock has to be honoured BEFORE pushHistory, or refusing to delete still
   // leaves a no-op entry on the undo stack that swallows the next Ctrl+Z.
   if (targetLocked(S.sel)) {
-    flash(t("f_itemLockedDel"), "error");
+    flash(t("f_targetLockedDel"), "error");
     return;
   }
   if (S.sel.kind === "room") {
@@ -2831,6 +3101,80 @@ export function rotateRoom(deg) {
    grid, the smart alignment snap, the stacking host, and the riders standing
    on it. Both the plan drag and the 3D-view drag go through here, so a piece
    behaves the same whichever view you grabbed it in. */
+/* ---- drag proxy ----------------------------------------------------------
+   For the length of a gesture the pieces being dragged are lifted off the model
+   canvas and redrawn on the HUD (js/plan2d.js, setDragProxy). The payoff is
+   that the model canvas — the expensive half, the one that grows with the plan
+   — paints twice for a whole drag instead of once per pointermove.
+
+   The price is a promise: while the proxy is up the model image is FROZEN, so
+   anything the gesture moves that the proxy did not lift would keep being drawn
+   at its old position until pointerup. Two things in this file break that
+   promise if left alone, and both are handled here rather than at the call
+   sites:
+
+     - a dragged piece carries whatever is standing on it (carryChildren, via
+       moveItemTo and the multi-selection branch), and those children are not in
+       S.sel. armDragProxy() adds the whole stack below the selection instead.
+     - the two corner gestures run enforceLocks() and dragSolve() on every move,
+       and both are allowed to move corners this drag never grabbed — a
+       dimension elsewhere in the drawing relaxing, a locked neighbour letting
+       go of a joint — as well as to change the node array outright
+       (splitIntersectionWalls, weldNodes). None of that is predictable from the
+       selection, so auditDragProxy() checks it after the fact against the
+       snapshot those paths already take, and drops the proxy the moment
+       something outside it has moved. Dropping it forces one full model paint,
+       which is exactly the repair. */
+var proxyNodes = null;
+/* Lift the current drag onto the HUD. Called once, immediately after S.action
+   is set on pointerdown, for the three gestures the proxy understands. */
+function armDragProxy() {
+  proxyNodes = null;
+  if (S.action === "item" && S.sel) {
+    /* Everything standing on the selection, at any depth: carryChildren moves
+       exactly this set on every frame of the drag. */
+    var base = S.sel.refs || (S.sel.ref ? [S.sel.ref] : []);
+    var seen = new Set(base);
+    var kids = [];
+    base.forEach(function (it) { descendantsOf(it, seen, kids); });
+    setDragProxy(kids.length ? [S.sel, { kind: "items", refs: kids }] : S.sel);
+    return;
+  }
+  if (S.action === "wall" && S.wallDrag) {
+    var w = S.wallDrag.wall;
+    setDragProxy({ kind: "wall", ref: w });
+    // the corners the gesture is allowed to move: a whole-wall drag translates
+    // both of its own, and nothing else
+    proxyNodes = [w.a, w.b];
+    return;
+  }
+  if (S.action === "node" && S.nodeDrag) {
+    setDragProxy({ kind: "node", ref: S.nodeDrag.node });
+    proxyNodes = [S.nodeDrag.node];
+  }
+}
+// Put the model image back and stop auditing. A no-op when no proxy is up, so
+// it is safe to call unconditionally at every way a gesture can end.
+function dropDragProxy() {
+  proxyNodes = null;
+  clearDragProxy();
+}
+/* Did this frame move a corner the proxy never lifted? `before` is the
+   snapshotNodes() array the corner drags already take for enforceLocks, so this
+   costs one comparison pass over the corners and no extra snapshot. A change in
+   the node array's own length is a topology commit (a split or a weld) and is
+   treated as a miss without looking further. */
+function auditDragProxy(before) {
+  if (!proxyNodes || !before) return;
+  if (S.nodes.length !== before.length) return void dropDragProxy();
+  for (var i = 0; i < S.nodes.length; i++) {
+    if (proxyNodes.indexOf(i) !== -1) continue;
+    var b = before[i], n = S.nodes[i];
+    if (!b !== !n) return void dropDragProxy();
+    if (b && n && (b.x !== n.x || b.z !== n.z)) return void dropDragProxy();
+  }
+}
+
 export function moveItemTo(it, nx, nz) {
   var px0 = it.x,
     pz0 = it.z;
@@ -3061,7 +3405,7 @@ export function initInteraction() {
     var key = eraseKey(hit);
     if (eraseSeen[key]) return;
     if (targetLocked(hit)) {
-      flash(t("f_itemLockedDel"), "error");
+      flash(t("f_targetLockedDel"), "error");
       eraseSeen[key] = 1;
       return;
     }
@@ -3223,6 +3567,9 @@ export function initInteraction() {
       timer: setTimeout(function () {
         lp = null;
         cancelPending();
+        // the press became a context menu, so whatever drag it had started is
+        // abandoned here and never reaches endAction
+        dropDragProxy();
         S.action = null;
         S.dragRoom = null;
         S.nodeDrag = null;
@@ -3255,6 +3602,11 @@ export function initInteraction() {
   });
   plan.addEventListener("pointerdown", function (e) {
     setPickSlop(e.pointerType);
+    /* Open a snap session for the gesture. It pins which layers may contribute
+       candidates (see beginSnapSession) so a panel toggled mid-drag cannot
+       change what the drag snaps to, and it gives the index one build to serve
+       the whole gesture's hit tests and pointermoves. endAction closes it. */
+    beginSnapSession();
     if(e.isTrusted)plan.setPointerCapture(e.pointerId);
     var r = plan.getBoundingClientRect();
     var ox = e.clientX - r.left;
@@ -3914,8 +4266,12 @@ export function initInteraction() {
       }
       return false;
     }
-    if (runSelectPass(0)) return;
-    if (runSelectPass(1)) return;
+    /* One arming point for all three proxied gestures rather than one beside
+       each `S.action = ` — the passes hand back true only after they have set
+       S.action and filled the matching drag record, which is exactly when the
+       proxy can read what it is lifting. */
+    if (runSelectPass(0)) return void armDragProxy();
+    if (runSelectPass(1)) return void armDragProxy();
     // blank space: same "I'm done" gesture as Esc — drop the selection and
     // fall back to the select tool
     select(null);
@@ -4373,12 +4729,16 @@ export function initInteraction() {
         S.nodes[ni].z = S.nodes[p.node].z;
         S.jointsReleased += enforceLocks(before, active);
         dragSolve([ni, p.node]);
+        auditDragProxy(before);
         // coincident is not connected — merge, or the shape only LOOKS closed.
         // The walls being dragged may change shape to make the joint; anything
         // else at that corner may not, and enforceLocks has already given those
         // their own corner back, so this weld can only touch the dragged ones.
         if (canWeld(p.node, ni, active)) {
           weldNodes(p.node, ni);
+          // a weld renumbers S.nodes, and the proxy's corner list is indices —
+          // there is nothing to remap it to, so the gesture finishes unproxied
+          dropDragProxy();
           ni = p.node;
           if (!S.nodeDrag.wall) select({ kind: "node", ref: ni });
           S.nodeDrag.node = ni;
@@ -4396,12 +4756,14 @@ export function initInteraction() {
         S.nodeDrag.landOn = p.wall.id;
         S.jointsReleased += enforceLocks(before, active);
         dragSolve([ni]);
+        auditDragProxy(before);
       } else {
         S.nodes[ni].x = p.x;
         S.nodes[ni].z = p.z;
         S.nodeDrag.landOn = null;
         S.jointsReleased += enforceLocks(before, active);
         dragSolve([ni]);
+        auditDragProxy(before);
       }
       S.dirty3D = true;
       fillProps();
@@ -4500,6 +4862,7 @@ export function initInteraction() {
         });
       S.jointsReleased += enforceLocks(beforeWall, wact);
       dragSolve(Object.keys(mine).map(Number));
+      auditDragProxy(beforeWall);
       S.dirty3D = true;
       render2D();
       return;
@@ -4579,6 +4942,12 @@ export function initInteraction() {
 
   function endAction(e) {
     cancelLongPress();
+    // Every pointerup and pointercancel lands here, so this is the one place a
+    // gesture is guaranteed to be over. It has to run before the settle solve
+    // below moves the rest of the drawing, and it forces the full model paint
+    // that puts the dragged object back onto the document image.
+    dropDragProxy();
+    endSnapSession();
     stopAutoPan();
     if (e && touchPrecisionTrialOwns(e.pointerId)) {
       releaseTouchPrecisionTrial(e.pointerId, e.type === "pointercancel");
@@ -4986,6 +5355,10 @@ export function initInteraction() {
     if (hudKeydown(e)) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return; // Ctrl-combos handled in ui.js
     if (e.key === "Escape") {
+      // Esc during a live drag abandons the gesture's selection while the
+      // pointer is still down; the proxy is keyed on objects rather than the
+      // selection, so it would otherwise stay up with nothing driving it.
+      dropDragProxy();
       var cancelledTutorDraft = !!(S.drawing || S.offsetDraft || S.joinPick || S.arcDraft || S.rectDraft);
       S.freshWall = null; // "I'm done" ends the just-drawn run too
       if (S.conPick) endConPick(null);

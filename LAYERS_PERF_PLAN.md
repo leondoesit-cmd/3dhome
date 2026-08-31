@@ -376,8 +376,46 @@ against the vendored file.
 5. **`layers:blocked-drag` detail is `{sel, layer, reason, where}`** — reconciled
    across both panes; `where` is `"2d"` or `"3d"`.
 
+### Wave 2 landed (U1, X2)
+
+**The drag proxy is wired and the target is met.** Model paints across a
+20-move gesture, measured with the harness anchor moved to `renderModel`:
+
+| gesture | before | after |
+|---|--:|--:|
+| dragWall | 21 | **2** |
+| dragItem | 21 | **2** |
+
+The 2 are the bracket paints from `setDragProxy` / `clearDragProxy` — **zero
+model paints during the moves**. Four mid-gesture mutations genuinely needed
+handling: stacked children moved by `carryChildren()` (fixed by *widening* the
+proxy at arm time, not clearing), `enforceLocks()` + `dragSolve()` moving
+corners the drag never grabbed (an audit against the snapshot those paths
+already take drops the proxy, and the drop *is* the repair),
+`splitIntersectionWalls()`, and `weldNodes()` renumbering `S.nodes`.
+
+`snapPoint` is 2.2–3.2× faster realistically, 4.0–9.4× warm. The gap is the
+invalidation policy: every paint request marks the index stale, so a drag that
+mutates geometry pays a rebuild per move. **Finer-grained invalidation is the
+next win** and would recover the warm column.
+
+Equivalence was proved by driving the real `snapPoint` twice per cursor
+position — the reference run widens `planIndex.query` to the whole plane so
+every pass degenerates to the linear scan it replaced — over ~15k positions
+across two plans and two zooms, comparing the winner, `S.snapInfo.type` and the
+full ranked `S.snapAlts`. The tests were shown to be *sensitive* by mutating
+the source eight ways and confirming each is caught.
+
 ### Carried into wave 3 (Q1)
 
+- **The harness's `dragWall` gesture has not dragged a wall since wave 1.** With
+  the default `furniture` work set, structure is rank 1, `canDrag()` refuses,
+  and the pointerdown falls into `blockedDrag` — the 20 following "moves" are
+  the idle hover path, which is why the row still read a plausible 1.05.
+  **Every dragWall number reported after wave 1 is therefore measuring a hover,
+  not a wall drag**, and the plan's `dragWall 3.40 → 1.00` row cannot be read
+  off the stock harness at all. Pin `S.workSet = "all"` (or `"structure"`) in
+  that scenario before trusting the row again.
 - **Move the harness `INSTRUMENT` anchor.** It hooks `export function
   render2D() {`, which is now the *coalescing* entry, so the column counts
   paint **requests**, not paints. Move it to `function renderModel() {`.

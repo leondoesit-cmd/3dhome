@@ -39,6 +39,7 @@ import { drawTouchPrecisionLens } from "./touch_precision.js";
 import { getTouchPrecisionPrefs } from "./touch_precision_ui.js";
 import { measure4, itemCorners } from "./measure.js";
 import { markers, markerItem, markerLabel, hitMarker, markerInfo } from "./markers.js";
+import { planIndex } from "./spatial_index.js";
 import { activeWarnings } from "./constraint_engine.js";
 import {
   wallCons, anchorPos, anchorNode, conSatisfied, conCurrent,
@@ -421,6 +422,7 @@ function drawSiteUnderlay(bb) {
    the canvas back in the same turn. Everything else should let render2D()
    coalesce. */
 export function render2DNow() {
+  planIndex.invalidate();
   renderModel();
   renderHUD();
   for (var ei = 0; ei < afterRender.length; ei++) afterRender[ei]();
@@ -439,7 +441,18 @@ export function render2DNow() {
    bracket the gesture with the two paints that take the object off the model
    image and put it back. */
 var paintLevel = 0, paintQueued = false;
+/* Invalidating the shared spatial index (js/spatial_index.js) hangs off the
+   paint request, because "the plan needs redrawing" is the one signal every
+   model mutation in the app already sends, from every module, without this file
+   having to know any of them. Marking stale costs a single store, the rebuild is
+   deferred to the next query, and a query only ever comes from a pointer path —
+   so a HUD-only frame invalidating nothing of substance costs nothing: an
+   animation loop at 22 Hz with no pointer on the canvas never triggers a build.
+   It over-invalidates by design. Under-
+   invalidating would hand a hit test a corner that is no longer there, which is
+   a wrong answer rather than a slow one. */
 function schedulePaint(level) {
+  planIndex.invalidate();
   if (level > paintLevel) paintLevel = level;
   if (paintQueued) return;
   paintQueued = true;

@@ -64,7 +64,10 @@ function fresh() {
 function selectChain() {
   const from = interaction.indexOf("function runSelectPass(pass) {");
   assert.ok(from > 0, "the select-tool pick chain is a function that takes a pass");
-  const to = interaction.indexOf("if (runSelectPass(0)) return;", from);
+  // The tail of the call was `return;` until the drag proxy landed and made it
+  // `return void armDragProxy();`. What this slice needs is the pass-numbered
+  // call itself — that is what proves the chain is driven twice, once per rank.
+  const to = interaction.indexOf("if (runSelectPass(0))", from);
   assert.ok(to > from, "and it is called with an explicit pass number");
   return interaction.slice(from, to);
 }
@@ -125,15 +128,20 @@ test("pickErase inherits its gates from the hit tests it chains", () => {
 /* ---- 2. the pointerdown chain runs twice ---- */
 
 test("the select-tool pointerdown chain runs a focused pass, then a fallback", () => {
-  assert.match(interaction, /if \(runSelectPass\(0\)\) return;\s*if \(runSelectPass\(1\)\) return;/);
+  /* Each pass still returns immediately on a hit; the drag proxy gave both
+     returns a tail (`return void armDragProxy();`), so the return statement is
+     matched up to its semicolon rather than as the bare word. What is pinned is
+     unchanged: two adjacent pass-numbered calls, each of which ends the
+     pointerdown, in rank order. */
+  assert.match(interaction, /if \(runSelectPass\(0\)\) return[^;]*;\s*if \(runSelectPass\(1\)\) return[^;]*;/);
   // rank 0 must be consulted first, or the fallback would win the click
   assert.ok(
-    interaction.indexOf("if (runSelectPass(0)) return;") <
-      interaction.indexOf("if (runSelectPass(1)) return;"),
+    interaction.indexOf("if (runSelectPass(0))") <
+      interaction.indexOf("if (runSelectPass(1))"),
     "the focused pass is asked first",
   );
   // and only when both miss does the click count as blank space
-  const after = interaction.slice(interaction.indexOf("if (runSelectPass(1)) return;"));
+  const after = interaction.slice(interaction.indexOf("if (runSelectPass(1))"));
   assert.match(after.slice(0, 400), /select\(null\);/);
 });
 
