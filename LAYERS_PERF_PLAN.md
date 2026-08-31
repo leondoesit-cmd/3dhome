@@ -677,3 +677,59 @@ against the committed baseline.
 The riskiest item is P1's canvas split — it is also the one with the largest
 measured payoff, and it is confined to one agent and three files, so it can be
 reverted on its own.
+
+---
+
+## Final state
+
+`npm run ci` **green** — 1396 unit tests, 129 browser tests, 0 failures.
+
+### Targets
+
+| target | result |
+|---|---|
+| dragWall paints/move 3.40 → 1.00 | **beaten** — 0.10 model paints/move |
+| dragItem paints/move → 1.00 | **beaten** — 0.10 |
+| model paints per move during a drag → 0 | **met** — the only 2 are the set/clear brackets |
+| idle model paints → 0 | **met**, and now meaningfully (see below) |
+| `history.snap()` per gesture 4 → 1 | **missed on purpose** — reached 2; the third cut is documented above as its own change |
+| panPlan paints/move → 1.00 | **missed** — 1.05. A pan has no drag proxy, so the model must repaint; nothing in this plan aimed at it |
+| one full `render2D()` < 8 ms | **met, but the target was wrong** — real cost is 0.50 ms small / 2.03 ms on 16 rooms |
+| dragWall wall-clock < 250 ms | **missed and unreachable by paint work** — the harness spaces 20 synthetic moves one frame apart, a ~333 ms floor before any app code runs. Paint is now under 2% of the per-move budget |
+
+**The number that justifies the canvas split**, previously unmeasured: with an
+unresolved constraint warning breathing at ~20 Hz, the model canvas takes **0**
+paints in 3 s and the HUD takes 60. Before the split every one of those 60 was a
+full plan repaint, forever, on any plan with one open warning.
+
+### Verified in a real GPU browser
+
+TV dragged along a wall without grabbing it; the wall still selects and fills
+the inspector; MEP clicks through ghosted walls; `L` and the chip agree; the
+pill appears and its fix works; `1`–`5` tools vs `Shift+1`–`5` solo. In 3D:
+roots populate with jambs/heads/sills intact; **the dollhouse cut works** (the
+near wall hides, changes on orbit, restores on exit); **one static physics body
+per wall**, not one for `structureRoot`; ghosting leaks nothing across 8
+on/off cycles; edit mode drags the TV, not the wall; the PNG export carries the
+HUD at full dpr.
+
+### Still unverified
+
+- 3D "renders identically" is presence-checked, not pixel-diffed. **Curbs and
+  slab voids were never in the test scene.**
+- RC / zombies / drive / lava were not launched; only raycast reachability was
+  checked.
+- The per-move non-paint cost — the ~13 ms/move that now dominates a wall drag
+  (hit test + snap + `dragSolve`/`enforceLocks`) — is unattributed. **That is
+  where the next real win is**, not in painting.
+
+### Open follow-ups
+
+1. `edit_history.js`'s commit-time settle (the third history snapshot) — see
+   above for the hazard and the safe form.
+2. Finer-grained index invalidation. Every paint request currently marks the
+   index stale, so a mutating drag pays a rebuild per move; fixing it recovers
+   `snapPoint`'s warm column (4.0–9.4× instead of 2.2–3.2×).
+3. `drawMEP` has no `phase === false` geometry-only mode
+   ([mep.js:1003](js/mep.js:1003)), so P2's split there is still a per-canvas
+   predicate rather than the intended geometry/flow cut.

@@ -3211,6 +3211,22 @@ export function moveItemTo(it, nx, nz) {
    The 3D view owns the picking and the ray→floor math; everything that touches
    the model itself lives here, next to the plan drag it mirrors — history,
    snapping and stacking must not fork per view. */
+/* The 3D twin of a rank-1 pick in the plan. A click on something off the work
+   set still answers "what is this" — it selects and fills the inspector — but
+   it must not arm a gesture, so js/view3d.js calls this instead of a
+   begin*Drag and then hands the press to the orbit.
+
+   It lives here rather than in view3d.js because `select` comes from ui.js and
+   ui.js already imports view3d.js; the reverse edge would be a cycle. view3d
+   reaches it through the same lazily-imported `editMod` it uses for the drag
+   verbs. Without it the 3D pane is a dead surface for anything structural
+   under the boot work set, while the identical click in 2D fills the panel. */
+export function select3DTarget(sel) {
+  if (!sel || !sel.ref) return false;
+  select(sel);
+  render2D();
+  return true;
+}
 export function begin3DItemDrag(it) {
   if (!it) return false;
   /* One permission for both views. The 3D drag used to consult only the

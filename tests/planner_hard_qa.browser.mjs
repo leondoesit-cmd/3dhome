@@ -125,6 +125,12 @@ test("dragging a corner along the next wall does not shred it", opts, async () =
     const out = await page.eval(async () => {
       const q = window.__qa;
       q.room();
+      /* Structure is rank 1 under the boot work set ("furniture"), so canDrag()
+         refuses a corner and this gesture would never arm. The work set is the
+         user's answer to "what am I editing"; a test about wall topology is
+         editing structure, so it says so. The refusal itself is covered by the
+         next test, which is the half a bare pin would have hidden. */
+      q.S.workSet = "structure";
       // grab the north wall's east corner and slide it down the east wall
       q.ui.select({ kind: "wall", ref: q.S.walls[0] });
       q.ev("pointerdown", 600, 0);
@@ -151,6 +157,51 @@ test("dragging a corner along the next wall does not shred it", opts, async () =
     assert.ok(out.walls <= 5, "the host wall was split once, not once per frame");
     assert.equal(out.rooms, 1, "and the room still closes");
     assert.ok(out.nodes - out.used <= 1, "no pile of abandoned corners was left behind");
+  } finally {
+    await page.close();
+  }
+});
+
+/* The other half of the rule the test above pins. A corner drag under the
+   furniture work set must not quietly half-happen: it selects so the inspector
+   still answers, it does not arm, it moves nothing, and it says why. Written
+   as a user gesture rather than a canDrag() unit test, because the thing that
+   can break is the pointerdown chain, not the predicate. */
+test("a corner refuses to drag off the work set, but still selects", opts, async () => {
+  const page = await openPage({ width: 1280, height: 900, mobile: false, touch: false });
+  try {
+    await planner(page);
+    const out = await page.eval(async () => {
+      const q = window.__qa;
+      q.room();
+      q.S.workSet = "furniture";
+      let blocked = null;
+      const onBlock = (e) => { blocked = e.detail; };
+      window.addEventListener("layers:blocked-drag", onBlock);
+      const before = q.S.nodes.map((n) => (n ? n.x + "," + n.z : ""));
+      q.ev("pointerdown", 600, 0);
+      await q.frame();
+      const armed = q.S.action;
+      for (let i = 1; i <= 4; i++) { q.ev("pointermove", 600, i * 25); await q.frame(); }
+      q.ev("pointerup", 600, 100);
+      await q.frame();
+      window.removeEventListener("layers:blocked-drag", onBlock);
+      return {
+        armed,
+        selKind: q.S.sel && q.S.sel.kind,
+        moved: q.S.nodes.some((n, i) => n && before[i] !== n.x + "," + n.z),
+        blocked,
+        walls: q.S.walls.length,
+      };
+    });
+    assert.equal(out.armed, null, "the gesture never arms");
+    assert.equal(out.selKind, "node", "but the corner is still selected, so the inspector fills");
+    assert.equal(out.moved, false, "and nothing in the model moved");
+    assert.equal(out.walls, 4, "no wall was split by a drag that did not happen");
+    assert.ok(out.blocked, "the refusal is announced so the pill can explain it");
+    assert.equal(out.blocked.reason, "rank", "and it names the gate that failed");
+    assert.equal(out.blocked.layer, "structure");
+    assert.equal(out.blocked.where, "2d");
   } finally {
     await page.close();
   }

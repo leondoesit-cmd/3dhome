@@ -2667,6 +2667,12 @@ function editDown(e) {
      something you are not currently editing. The event is the same one the 2D
      hit chain fires so a single piece of UI can explain both refusals. */
   if (hit.rank !== 0) {
+    /* Select it anyway. Refusing the DRAG is the rule; refusing to say what
+       was clicked is not, and 2D has always filled the inspector from a
+       rank-1 hit. Without this the 3D pane goes dead for anything structural
+       under the boot work set — the click does nothing a user can see. */
+    if (editMod && editMod.select3DTarget)
+      editMod.select3DTarget({ kind: hit.kind, ref: hit.ref });
     window.dispatchEvent(
       /* Same detail shape the 2D chain emits (js/interaction.js blockedDrag),
          so one pill can read both: `sel` is the selection that was refused,

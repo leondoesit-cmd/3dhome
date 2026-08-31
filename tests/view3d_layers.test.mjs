@@ -41,11 +41,26 @@ test("a rank-1 hit answers the pick but never starts an edit drag", () => {
   const down = slice(view3d, "function editDown(", "function editMove(");
   assert.match(down, /if \(hit\.rank !== 0\)/);
   assert.match(down, /layers:blocked-drag/);
-  // declining lets the press fall through to the orbit, not into a dead click
-  assert.match(down, /if \(hit\.rank !== 0\)[\s\S]{0,900}?return false;/);
+  /* Slice the branch itself rather than counting characters from the `if`.
+     A character window has now been widened twice by edits that only added
+     comments and a select call, which makes it a test of formatting rather
+     than of behaviour — this asserts the three things the branch must do. */
+  const branch = down.slice(
+    down.indexOf("if (hit.rank !== 0)"),
+    down.indexOf("// grab on the horizontal plane"),
+  );
+  assert.ok(branch, "the rank-1 branch is still the one before the grab");
+  // it announces the refusal, so the pill can explain it
+  assert.match(branch, /layers:blocked-drag/);
   // the detail shape is shared with the 2D chain (js/interaction.js blockedDrag)
-  assert.match(down, /sel: \{ kind: hit\.kind, ref: hit\.ref \}/);
-  assert.match(down, /where: "3d"/);
+  assert.match(branch, /sel: \{ kind: hit\.kind, ref: hit\.ref \}/);
+  assert.match(branch, /where: "3d"/);
+  /* It still SELECTS. Refusing the drag is the rule; refusing to say what was
+     clicked is not, and 2D has always filled the inspector from a rank-1 hit.
+     Dropping this line is what turns the 3D pane into a dead surface. */
+  assert.match(branch, /select3DTarget\(\{ kind: hit\.kind, ref: hit\.ref \}\)/);
+  // and declining lets the press fall through to the orbit
+  assert.match(branch, /return false;/);
 });
 
 test("pickableRoots excludes rank-Infinity rather than trusting root.visible", async () => {
