@@ -4,6 +4,11 @@ import { has3D, init3D, snapshot3D, setOrbitCamera, getOrbitCamera, ensureBuilt 
 import { openModal } from "./ui.js";
 import { t } from "./i18n.js";
 import { getReadyMadeReels } from "./video_presets.js";
+/* Since the plan was split into a model canvas and a HUD canvas, `#plan` holds
+   only the model half — reading its pixels would drop selection chrome, guides
+   and cursors from every captured frame. planImageCanvas() paints both
+   synchronously and composites them into one offscreen canvas. */
+import { planImageCanvas } from "./plan2d.js";
 
 var activeStudioModal = null;
 var activeAnimationId = null;
@@ -446,7 +451,7 @@ export async function captureOrbitTurntable(shotsCount = 16, studio = null) {
   if (!has3D()) {
     const plan = document.getElementById("plan");
     if (plan && studio) {
-      studio.addFrame({ src: plan.toDataURL("image/png"), label: "2D Plan Overview" });
+      studio.addFrame({ src: planImageCanvas().toDataURL("image/png"), label: "2D Plan Overview" });
     }
     return;
   }
@@ -481,7 +486,7 @@ export async function captureMultiViewAngles(studio = null) {
 
   const plan = document.getElementById("plan");
   if (plan) {
-    studio.addFrame({ src: plan.toDataURL("image/png"), label: "Top Blueprint View" });
+    studio.addFrame({ src: planImageCanvas().toDataURL("image/png"), label: "Top Blueprint View" });
   }
 
   if (has3D()) {
@@ -525,7 +530,7 @@ export async function captureCurrentSnapshot(studio = null, customLabel = null) 
   const plan = document.getElementById("plan");
   if (plan) {
     studio.addFrame({
-      src: plan.toDataURL("image/png"),
+      src: planImageCanvas().toDataURL("image/png"),
       label: customLabel || `Plan Snapshot (${studio.frames.length + 1})`,
     });
   }

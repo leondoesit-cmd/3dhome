@@ -12280,10 +12280,10 @@ body.compact-nav #right-inspector {
 /* ---- what the two rows replace ------------------------------------------- */
 
 /* The floating tool rail now lives in the Tools sheet, labelled and complete.
-   The wall palette follows it there via the same sheet (it is a child). */
-body.compact-nav #plan-tools {
-  display: none !important;
-}
+   The wall palette follows it there via the same sheet (it is a child). Both
+   are hidden individually at the end of this file rather than by hiding their
+   #plan-tools box, because the layer chips share that box and stay on screen —
+   the work set has to be switchable while you are looking at the plan. */
 /* The status bar's chips moved into the contextual row and its coordinate
    readout is of no use on a touch screen — but the per-tool instruction is, so
    it stays as a slim strip at the TOP of the plan, out of the thumb arc. */
@@ -17016,3 +17016,235 @@ body.lava-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
   #lvHud *, #lvHud *::before, #lvHud *::after { animation: none !important; transition-duration: 0.01ms !important; }
   #lvHaze { display: none; animation: none !important; }
 }
+
+/* ---- work-set layer chips (js/ui_layers.js) ------------------------------
+   A second panel in the #plan-tools cluster, beside the drawing tools. One row
+   per layer: the name selects the work set, the eye cycles show → ghost →
+   hide, the padlock is the layer's own lock (the structure row's padlock is
+   the same bit as #lockStructBtn), and ⋮ opens the overrides popover.
+   Logical properties throughout — the cluster mirrors to the right edge in
+   RTL, so `left`/`right` would put the popover caret on the wrong side. */
+.layer-chips {
+  pointer-events: auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* Wide enough for the longest layer name at 12px/600 beside its icon and
+     three 26px controls — measured, because a truncated "Underlay" is exactly
+     as unreadable as no label. */
+  width: 198px;
+  padding: 6px;
+  max-height: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
+  border-radius: 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+.layer-chips::-webkit-scrollbar { display: none; }
+.lchip {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+}
+.lchip.on {
+  /* The work set is the one thing a glance has to answer, so it gets the
+     accent fill rather than a subtler weight or border change. */
+  background: var(--accent-soft);
+  border-color: var(--accent-glow);
+}
+.lchip > button {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+.lchip > button:hover { background: var(--btn-bg-hover); color: var(--text-main); }
+.lchip .lchip-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-start;
+  display: flex;
+  gap: 6px;
+  padding-inline: 6px;
+  width: auto;
+  font-size: 12px;
+  font-weight: 600;
+}
+.lchip.on .lchip-name { color: var(--accent); }
+.lchip .lchip-t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A ghosted layer reads as ghosted in its own chip; a hidden one is struck
+   through, because "faint" and "gone" have to be distinguishable at 12px. */
+.lchip.ghosted .lchip-name { opacity: 0.55; }
+.lchip.hidden-layer .lchip-name { opacity: 0.45; text-decoration: line-through; }
+.lchip.locked .lchip-lock { color: var(--warn); }
+.lchip .lchip-more { font-size: 13px; }
+
+/* Per-layer overrides. Portaled to <body> and fixed, because #plan-tools is a
+   bounded, internally scrolling column that would clip it. */
+.layer-pop {
+  position: fixed;
+  z-index: 60;
+  width: 232px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  color: var(--text-main);
+  font-size: 12px;
+}
+.layer-pop[hidden] { display: none; }
+.layer-pop .lp-head {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.layer-pop .lp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.layer-pop .lp-lab { flex: 1 1 auto; color: var(--text-muted); }
+.layer-pop .lp-seg {
+  flex: 0 0 auto;
+  display: flex;
+  border: 1px solid var(--btn-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.layer-pop .lp-seg button {
+  padding: 3px 7px;
+  border: none;
+  background: var(--btn-bg);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.layer-pop .lp-seg button + button { border-inline-start: 1px solid var(--btn-border); }
+.layer-pop .lp-seg button.on { background: var(--accent); color: var(--on-accent); }
+.layer-pop .lp-check { cursor: pointer; }
+.layer-pop .lp-check input { margin: 0; }
+.layer-pop .lp-hint {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+/* The refused-drag pill. Fixed, cursor-anchored, clamped into the pane the
+   refusal came from. pointer-events stay on so the fix button is clickable
+   once a double-click has made the pill sticky. */
+.unlock-pill {
+  position: fixed;
+  z-index: 61;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(320px, 70vw);
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--hud-bg);
+  color: var(--hud-fg);
+  font-size: 12px;
+  line-height: 1.2;
+  box-shadow: var(--shadow-md);
+  /* A transient pill is drawn under a live press and must not eat the moves. */
+  pointer-events: none;
+}
+.unlock-pill[hidden] { display: none; }
+.unlock-pill.sticky { pointer-events: auto; }
+.unlock-pill .up-msg { flex: 1 1 auto; }
+.unlock-pill .up-fix {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  /* No target until the pill is sticky: pressing it mid-drag is impossible
+     anyway, and a button that looks live but is not is worse than a dim one. */
+  opacity: 0.55;
+}
+.unlock-pill.sticky .up-fix { opacity: 1; }
+.unlock-pill .up-hint { flex: 0 0 auto; opacity: 0.62; font-size: 11px; }
+.unlock-pill.sticky .up-hint { display: none; }
+
+/* Structure is rank 0 AND unlocked: the one state in which a stray drag moves
+   a wall. Inset so it survives the panes' own borders and the 3D canvas. */
+#view-2d.structure-live::after,
+#view-3d.structure-live::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  border: 2px solid var(--warn);
+  border-radius: inherit;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@media (max-width: 1024px) {
+  /* The cluster becomes a bottom rail here; the chips ride above the tools as
+     a single scrolling line so they cost one row of height, not five. */
+  .layer-chips {
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    touch-action: pan-x;
+  }
+  .lchip { flex: 0 0 auto; }
+  .lchip .lchip-name { flex: 0 0 auto; max-width: 96px; }
+  /* the coarse-pointer minimum: three targets per chip, all thumb-sized */
+  .lchip > button { width: 40px; height: 40px; }
+  .lchip .lchip-name { width: auto; }
+}
+
+/* The floating tool rail and the wall palette move into the Tools sheet on a
+   phone (js/mobile_shell.js reads #plan-toolbar to build it). The layer chips
+   have no sheet equivalent — the work set has to be switchable while you are
+   looking at the plan — so #plan-tools keeps its box and loses only the two
+   children that moved. */
+body.compact-nav #plan-toolbar,
+body.compact-nav #plan-wall-palette {
+  display: none !important;
+}
+body.compact-nav #plan-tools {
+  /* out of the thumb arc and clear of #cad-status, which sits at the top here */
+  top: 48px;
+  bottom: auto;
+  height: auto;
+  background: none;
+  box-shadow: none;
+}
+body.compact-nav #plan-tools::after { display: none; }

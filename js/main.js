@@ -46,9 +46,18 @@ import { initDimKnob } from "./ui_dim_knob.js";
 import { windowChromePosture } from "./chrome_posture.js";
 import { rebuildProject } from "./core/project.js";
 import { initToolSearch } from "./tool_search.js";
+import { initLayers } from "./layers.js";
+import { initLayersUI } from "./ui_layers.js";
 import { initAgent } from "./ui_agent.js";
 import { initTutorRuntime } from "./tutor/runtime.js";
 import { initExternalAgentBridge } from "./agent_external_bridge.js";
+
+/* Work-set layer state is a VIEW preference, not part of the document: it
+   lives in localStorage and is restored before anything paints, hit-tests or
+   raycasts, because every one of those paths asks js/layers.js what the work
+   set is. Restoring it after the first render would flash the default
+   `furniture` focus over a session that was left on structure. */
+initLayers();
 
 // apply static translations for the current language before anything renders
 applyStatic();
@@ -370,6 +379,10 @@ initTutorRuntime();
 initExternalAgentBridge();
 initPlanGizmo();
 initCadHud(); // plan status bar + typed length/angle entry
+/* After initCadHud, and after initUI: the chips sync the plan toolbar's
+   padlock button, which initUI() binds, and they publish `layers:changed`,
+   which js/view3d.js listens for. */
+initLayersUI(); // work-set layer chips + the refused-drag unlock pill
 initMobileShell(); // phone/foldable chrome: contextual row + five-slot bottom nav
 initDimKnob(); // touch: numeric fields are scrubbed on a rotary dial, not typed
 // last: autosave/recovery needs a fully built UI to render its recovery prompt,

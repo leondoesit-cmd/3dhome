@@ -750,6 +750,13 @@
                 <i class="ph ph-trash"></i><kbd>Del</kbd>
               </button>
             </div>
+            <!-- Work-set layer chips: one row per id in LAYER_IDS, with the
+                 name (which layer you are editing), a three-state eye and a
+                 padlock. Built by js/ui_layers.js rather than written out here
+                 so the five rows cannot drift from LAYER_IDS and so the names
+                 come from the active locale. The structure chip's padlock and
+                 #lockStructBtn above are the same bit. -->
+            <div id="layer-chips" class="layer-chips" data-i18n-aria="lay_group" aria-label="Layers"></div>
             <div id="plan-wall-palette" class="plan-wall-palette" hidden>
               <button
                 type="button"

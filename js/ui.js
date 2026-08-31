@@ -31,7 +31,8 @@ import {
 import { t, toggleLang, onLangChange } from "./i18n.js";
 import { snapshotSmart, loadSmart, ensureSmartHome, syncSmartFromLamp } from "./smarthome.js";
 import { pushDevice } from "./smarthome_connect.js";
-import { render2D, fitView, wx, wz, dropPoint, updatePlanGizmo } from "./plan2d.js";
+import { render2D, fitView, wx, wz, dropPoint, updatePlanGizmo, planImageCanvas } from "./plan2d.js";
+import { saveLayers } from "./layers.js";
 import {
   snapshotNodes, enforceLocks, captureLock, setLocked, isLocked, syncLocks,
   captureClear, syncClears, fitWallClearLength, setWallThicknessPreservingClear,
@@ -663,6 +664,13 @@ export function setLockStruct(on) {
         "ph " + (S.lockStruct ? "ph-lock-simple" : "ph-lock-simple-open");
   }
   flash(t(S.lockStruct ? "lock_on" : "lock_off"), S.lockStruct ? "success" : null);
+  /* S.lockStruct is a live accessor onto S.layers.structure.locked
+     (js/state.js), so this button and the structure chip write the same bit.
+     Persist it like any other layer preference and announce it: js/ui_layers.js
+     re-syncs the chips off `layers:changed`, and js/view3d.js listens for the
+     same event to re-apply layer state to the 3D roots. */
+  saveLayers();
+  window.dispatchEvent(new CustomEvent("layers:changed"));
   render2D();
   return S.lockStruct;
 }
@@ -3863,7 +3871,16 @@ export function initUI() {
       (await import("./ui_room_scan.js")).openRoomScanModal();
     } else if (act === "png2d") {
       try {
-        var src = document.getElementById("plan");
+        /* The plan is two stacked canvases now (model + HUD), so `#plan` alone
+           is the model half and exporting it would lose selection chrome,
+           guides and cursors. planImageCanvas() renders both synchronously and
+           returns a composited offscreen copy. */
+        var src = planImageCanvas();
+        /* …but that copy is offscreen, so its `clientWidth` is 0 and the dpr
+           below would silently collapse to 1, halving every label and rule on a
+           retina export. Measure the LIVE element instead — it is the one with
+           a layout box, and both canvases are sized from it. */
+        var live = document.getElementById("plan");
         var extra = 56;
         var out = document.createElement("canvas");
         out.width = src.width;
@@ -3872,7 +3889,7 @@ export function initUI() {
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, out.width, out.height);
         ctx.drawImage(src, 0, 0);
-        var dpr = out.width / Math.max(1, src.clientWidth || src.width);
+        var dpr = out.width / Math.max(1, (live && live.clientWidth) || src.width);
         var by = src.height;
         var bw = out.width;
         var bh = extra * dpr;
