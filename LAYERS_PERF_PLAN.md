@@ -112,6 +112,53 @@ outside the MEP work set. `snapKinds` stays the user's control. Tune from use.
 
 ---
 
+## Wave 0 landed — the API you actually import
+
+`js/layers.js`, `js/state.js` and `tests/layers.test.mjs` are done and green
+(1333 tests pass). **Read this before writing any consumer.**
+
+**The layer table lives in `state.js`, the policy lives in `layers.js`.**
+`state.js` cannot import `layers.js` without a cycle, so if `layers.js` installed
+the table at load, `S.layers` would read as `undefined` in any module that
+touches it without importing `layers.js`. Hence: `LAYER_IDS` and
+`defaultLayers()` are exported from **`state.js`** (`LAYER_IDS` is re-exported
+from `layers.js` too, so either import works); every predicate comes from
+**`layers.js`**.
+
+Exports of `js/layers.js`: `LAYER_IDS`, `resetLayers`, `layerOf`, `layerState`,
+`isLayerVisible`, `isLayerGhosted`, `isLayerHidden`, `isLayerLocked`,
+`layerRank`, `canDrag`, `canDelete`, `layerAllowsSnapKind`, `initLayers`,
+`saveLayers`.
+
+Behaviour worth knowing:
+
+- `layerRank` checks `pickOverride` **first** in both directions, then
+  visibility, then focus. An unknown layer id ranks `Infinity` — it fails closed.
+- `canDrag` object-lock semantics deliberately mirror `targetLocked` in
+  `interaction.js`: a multi-selection counts as locked only when *every* ref is,
+  and `kind: "room"` reads `S.roomMeta[ref].locked` because a room selection's
+  `ref` is a key, not an object. `canDelete` delegates to `canDrag` but is a
+  separate export so H1 has a seam to diverge at.
+
+**Corrected `lockStruct` sites** (the earlier numbers in this plan were stale by
+13–23 lines — there are **7** reads across 2 files, not 5):
+[interaction.js:3597](js/interaction.js:3597), [:3621](js/interaction.js:3621),
+[:3711](js/interaction.js:3711), [:3732](js/interaction.js:3732),
+[:4870](js/interaction.js:4870) (the `L` shortcut), and
+[ui.js:656–667](js/ui.js:656) (`setLockStruct`) plus
+[ui.js:2948](js/ui.js:2948) (the toolbar action). The accessor covers all of
+them, including the non-boolean writes (`!!on`, `!S.lockStruct`).
+
+**Known gap, for X2 in particular.** `layerAllowsSnapKind` filters by *snap
+kind*, and `corner` / `midpoint` / `onwall` deliberately map to no layer — that
+is exactly what keeps centring a sofa on a wall alive while furnishing. The
+consequence: **hiding structure does not stop it offering corner snaps.** If
+hidden structure must stop contributing, `beginSnapSession(layerFilter)` has to
+filter candidates by their *source* layer at index-build time, not by kind.
+Do that in the index, not by widening the kind table.
+
+---
+
 ## Performance work
 
 ### P1 — Invert the paint default

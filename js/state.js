@@ -135,6 +135,35 @@ export const PHYSICS_MATS = {
   default: MAT_PROPS.board // most furniture carcass is engineered board
 };
 
+/* The five work-set layers, in the order the UI lists them. `underlay` is last
+   because it is scenery — an imported blueprint or satellite trace — that you
+   dim and hide but never edit. js/layers.js re-exports this list; the policy
+   lives there, the data lives here, and neither file imports the other's
+   half. */
+export const LAYER_IDS = ["structure", "furniture", "mep", "annotations", "underlay"];
+
+/* A fresh layer table at its defaults.
+
+   `vis` is three-state rather than a boolean because "ghost" is the useful
+   middle: geometry you can still see yourself working against but that no
+   click can reach. `pickOverride`/`snapOverride` are per-layer escape hatches —
+   null follows the work set, true/false pin the answer. `autoLock` re-locks a
+   layer when it stops being the work set, which is wanted for furniture and
+   MEP (dense, easy to shove by accident) and pointedly not for structure. */
+export function defaultLayers() {
+  var t = {};
+  LAYER_IDS.forEach(function (id) {
+    t[id] = {
+      vis: "show",
+      locked: false,
+      pickOverride: null,
+      snapOverride: null,
+      autoLock: id === "furniture" || id === "mep",
+    };
+  });
+  return t;
+}
+
 export const S = {
   // model
   nodes: [],
@@ -268,11 +297,23 @@ export const S = {
   /* transient: typed length/angle entry while the wall tool is rubber-banding
      -> { len:"", ang:"", field:"len" } | null. See js/cad_hud.js. */
   numEntry: null,
-  /* Global structure lock: with it on, the plan still selects walls, corners
-     and rooms but refuses to DRAG them. Panning the drawing or nudging a piece
-     of furniture over a wall is the common gesture; shoving the wall itself is
-     almost never what was meant, and it is only noticed much later. */
-  lockStruct: false,
+  /* Work-set layers. `layers` holds one record per id in LAYER_IDS and
+     `workSet` names the layer being edited ("all" focuses every layer at
+     once); js/layers.js turns the pair into the rank/drag/snap policy that the
+     plan, the hit tests and the 3D raycasts all consult. The table lives here
+     rather than in layers.js so that S is well-formed for anything that reads
+     it, whether or not layers.js has been imported.
+
+     These are view PREFERENCES, not part of the drawing: they persist through
+     localStorage (initLayers/saveLayers) and stay out of history.snap(), which
+     whitelists model fields and deliberately excludes display flags. Undo must
+     never un-hide a layer.
+
+     `workSetPinned` is the user pinning the work set by hand, which stops
+     setTool() from moving it for them. */
+  layers: defaultLayers(),
+  workSet: "furniture",
+  workSetPinned: false,
   // 3D edit mode: left-drag in the 3D view moves the piece under the cursor
   edit3D: false,
   // the piece a drag is about to drop ONTO (js/stack.js) — highlighted in the
@@ -460,6 +501,34 @@ export const S = {
 
 installSpatialProject(S);
 ensureWallTypes(S);
+
+/* Global structure lock: with it on, the plan still selects walls, corners and
+   rooms but refuses to DRAG them. Panning the drawing or nudging a piece of
+   furniture over a wall is the common gesture; shoving the wall itself is
+   almost never what was meant, and it is only noticed much later.
+
+   It is no longer a field of its own — it is a live alias of the structure
+   layer's lock, so the `L` shortcut, the toolbar's lock button and the layer
+   chip cannot drift apart. Enumerable, because it was a plain property before
+   and anything walking S should still see it.
+
+   The default stays `false`. Under a work set, a default-on structure lock is
+   pure friction: while furnishing, structure is already undraggable by rank so
+   the lock changes nothing, and the moment the work set switches TO structure
+   the lock is guaranteed to be in the way — making "unlock" the mandatory
+   first step of every structural edit. A lock is worth having only where it
+   was explicitly asked for. */
+Object.defineProperty(S, "lockStruct", {
+  configurable: true,
+  enumerable: true,
+  get: function () {
+    return !!(S.layers && S.layers.structure && S.layers.structure.locked);
+  },
+  set: function (v) {
+    if (!S.layers) S.layers = defaultLayers();
+    S.layers.structure.locked = !!v;
+  },
+});
 
 export function uid() {
   return S.idc++;

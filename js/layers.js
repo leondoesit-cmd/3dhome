@@ -27,13 +27,13 @@
    an import cycle — `tools/module_check.mjs` and `tools/link_check.mjs` both
    run over the graph, but a cycle here would be felt first as a module that
    loads with half its bindings still in the temporal dead zone. */
-import { S } from "./state.js";
+import { S, LAYER_IDS, defaultLayers } from "./state.js";
 
-/* The five layers, in the order the UI presents them. `underlay` is last
-   because it is scenery (imported blueprint / satellite trace), never a thing
-   you edit — it exists in the list so it can be dimmed and hidden like the
-   rest. */
-export const LAYER_IDS = ["structure", "furniture", "mep", "annotations", "underlay"];
+/* The layer TABLE and its defaults live in state.js, next to the rest of S, so
+   that S is well-formed for a module that reads `S.layers` without importing
+   this one. Re-exported here because this is where callers look for the
+   vocabulary. */
+export { LAYER_IDS };
 
 /* Selection `kind` -> layer. The plural forms are the multi-select kinds that
    `S.sel` uses (`{kind:"items", refs:[...]}`), and they have to map the same
@@ -62,63 +62,16 @@ const KIND_LAYER = {
   con: "annotations",
 };
 
-/* Default layer record. `vis` is three-state rather than a boolean because
-   "ghost" is the useful middle: structure you can still see yourself working
-   against, but that no click can reach.
-
-   `pickOverride` / `snapOverride` are the escape hatches — null means "follow
-   the work set", true/false pin the answer. `autoLock` is for the UI: a layer
-   marked autoLock re-locks itself when it stops being the work set, which is
-   wanted for furniture and MEP (large, easy to shove) and not for structure. */
-function defaults(id) {
-  return {
-    vis: "show",
-    locked: false,
-    pickOverride: null,
-    snapOverride: null,
-    autoLock: id === "furniture" || id === "mep",
-  };
-}
-
-/* Install the layer table onto S. Called once at module load (below) and again
-   by the tests, which need a clean slate between cases. */
+/* Put the layer table, the work set and the pin back at their defaults. The
+   tests need a clean slate between cases, and initLayers() starts from one so
+   that a stored preference file missing a field cannot leave a stale value
+   from a previous session behind. */
 export function resetLayers() {
-  var t = {};
-  LAYER_IDS.forEach(function (id) {
-    t[id] = defaults(id);
-  });
-  S.layers = t;
+  S.layers = defaultLayers();
   S.workSet = "furniture";
   S.workSetPinned = false;
   return S.layers;
 }
-
-resetLayers();
-
-/* `S.lockStruct` predates layers and has consumers in interaction.js (four
-   guards in the pointerdown chain plus the `L` shortcut) and ui.js
-   (setLockStruct and the toolbar action). Rather than rewrite them, the flag
-   becomes a live alias of the structure layer's lock, so the old button, the
-   keyboard shortcut and the new layer chip cannot drift apart.
-
-   It stays enumerable because it was a plain property before, and it keeps its
-   `false` default: under a work set, a default-on structure lock is pure
-   friction. While furnishing, structure is already undraggable by rank so the
-   lock changes nothing; the moment you switch the work set TO structure it is
-   guaranteed to be in the way, making "unlock" the mandatory first action of
-   every structural edit. The lock is worth having only when explicitly asked
-   for, where the pill that reports it is informative rather than noise. */
-Object.defineProperty(S, "lockStruct", {
-  configurable: true,
-  enumerable: true,
-  get: function () {
-    return !!(S.layers && S.layers.structure && S.layers.structure.locked);
-  },
-  set: function (v) {
-    if (!S.layers || !S.layers.structure) resetLayers();
-    S.layers.structure.locked = !!v;
-  },
-});
 
 /* ---- queries ---- */
 
