@@ -399,6 +399,20 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
   await waitForOpen(pageWs, "page devtools socket");
 
   await cdp.send("Page.enable");
+  /* A native dialog blocks the renderer, and nothing in a headless run is there
+     to click it: every later CDP command — Emulation, Runtime.evaluate — then
+     sits until its 30s timeout, so one dirty document turned into a whole file
+     of timeouts that looked like infrastructure failure rather than the one
+     real assertion that started it. persist.js guards reloads with a
+     beforeunload handler whenever there are unsaved edits, which a test that
+     builds anything trips by construction. Accept every dialog as it opens. */
+  cdp.ws.on("message", (raw) => {
+    var msg;
+    try { msg = JSON.parse(raw); } catch (error) { return; }
+    if (msg.method === "Page.javascriptDialogOpening") {
+      cdp.send("Page.handleJavaScriptDialog", { accept: true }).catch(() => {});
+    }
+  });
   await cdp.send("Runtime.enable");
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width, height, deviceScaleFactor: 1, mobile: isMobile,

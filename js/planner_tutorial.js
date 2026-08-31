@@ -11,6 +11,7 @@ import { openVideoStudio } from "./video_studio.js";
 import { getTopicVideoFrames } from "./video_presets.js";
 
 var activeGuide = null;
+var adaptiveSpotlight = null;
 var tour = {
   active: false,
   track: null,
@@ -125,6 +126,37 @@ function progressCount() {
   var done = loadProgress(), n = 0;
   TOUR_TRACKS.forEach(function (item) { if (done[item.id]) n++; });
   return { done: n, total: TOUR_TRACKS.length };
+}
+
+export function plannerTutorialProgress() {
+  var done = loadProgress();
+  return {
+    completedTracks: Object.keys(done).sort(),
+    totalTracks: TOUR_TRACKS.length,
+    active: !!tour.active,
+    activeTrack: tour.track || null,
+    activeStep: tour.active ? tour.step : null,
+    nextTrack: nextTrack(),
+  };
+}
+
+export function spotlightPlannerTarget(selector, duration = 5000) {
+  if (tour.active || typeof document === "undefined") return false;
+  if (adaptiveSpotlight) {
+    clearTimeout(adaptiveSpotlight.timer);
+    adaptiveSpotlight.target.classList.remove("planner-tour-target");
+  }
+  var target = document.querySelector(selector);
+  if (!target) { adaptiveSpotlight = null; return false; }
+  target.classList.add("planner-tour-target");
+  adaptiveSpotlight = {
+    target: target,
+    timer: setTimeout(function () {
+      target.classList.remove("planner-tour-target");
+      adaptiveSpotlight = null;
+    }, Math.max(1000, Number(duration) || 5000)),
+  };
+  return true;
 }
 
 /* The first track the user has not finished — highlighted as "start here". */

@@ -340,11 +340,163 @@ async function smarthomeProxy(req, res) {
   });
 }
 
+// ---- optional server-managed model ---------------------------------------
+// Keeps production API keys out of browser storage. The destination is fixed
+// by the server operator, never supplied by a request, so this is not an open
+// proxy. Any OpenAI-compatible endpoint can be used.
+const AGENT_BASE_URL = String(process.env.HOME3D_AGENT_BASE_URL || "").replace(/\/+$/, "");
+const AGENT_MODEL = String(process.env.HOME3D_AGENT_MODEL || "");
+const AGENT_API_KEY = String(process.env.HOME3D_AGENT_API_KEY || "");
+const AGENT_ACCESS_TOKEN = String(process.env.HOME3D_AGENT_ACCESS_TOKEN || "");
+const AGENT_BRIDGE_TOKEN = String(process.env.HOME3D_AGENT_BRIDGE_TOKEN || "");
+const AGENT_MAX_TOKENS = Math.max(256, Math.min(16384, Number(process.env.HOME3D_AGENT_MAX_TOKENS) || 4096));
+const AGENT_TOOL_NAMES = new Set([
+  "get_app_context", "get_project_summary", "query_objects", "search_app_tools",
+  "get_history_summary", "get_object_history", "compare_history_nodes", "search_catalog",
+  "list_model_commands", "preview_model_command",
+]);
+const agentRate = new Map();
+
+function sameSecret(a, b) {
+  const aa = Buffer.from(String(a || "")), bb = Buffer.from(String(b || ""));
+  return aa.length === bb.length && aa.length > 0 && timingSafeEqual(aa, bb);
+}
+function agentAuthorized(req) {
+  const remote = String(req.socket && req.socket.remoteAddress || "");
+  const loopback = remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1";
+  if (!AGENT_ACCESS_TOKEN) return loopback;
+  return sameSecret(req.headers["x-modelforge-agent-token"], AGENT_ACCESS_TOKEN);
+}
+function agentWithinRate(req) {
+  const now = Date.now(), key = String(req.socket && req.socket.remoteAddress || "unknown");
+  const prior = agentRate.get(key), entry = !prior || now - prior.started >= 60000
+    ? { started: now, count: 0 } : prior;
+  entry.count++;
+  agentRate.set(key, entry);
+  return entry.count <= 30;
+}
+async function responseTextLimited(response, limit) {
+  if (!response.body || typeof response.body.getReader !== "function") {
+    const text = await response.text();
+    if (Buffer.byteLength(text) > limit) throw new Error("Agent response too large");
+    return text;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const part = await reader.read();
+    if (part.done) break;
+    total += part.value.byteLength;
+    if (total > limit) { await reader.cancel(); throw new Error("Agent response too large"); }
+    chunks.push(part.value);
+  }
+  return Buffer.concat(chunks.map((part) => Buffer.from(part))).toString("utf8");
+}
+
+const bridgeQueue = [];
+const bridgePending = new Map();
+function bridgeAuthorized(req) {
+  return !!AGENT_BRIDGE_TOKEN && sameSecret(req.headers["x-modelforge-bridge-token"], AGENT_BRIDGE_TOKEN);
+}
+async function agentBridgeCall(req, res) {
+  if (req.method !== "POST") return json(res, 405, { error: "POST only" });
+  if (!bridgeAuthorized(req)) return json(res, 401, { error: "bridge authorization" });
+  if (!agentWithinRate(req)) return json(res, 429, { error: "bridge rate limit" });
+  if (bridgePending.size >= 50) return json(res, 503, { error: "bridge busy" });
+  let payload;
+  try { payload = await readJsonBody(req, 256 * 1024); }
+  catch (error) { return json(res, 400, { error: String(error.message || error) }); }
+  const id = String(payload.id || "").slice(0, 100), name = String(payload.name || "");
+  if (!id || !AGENT_TOOL_NAMES.has(name)) return json(res, 400, { error: "invalid bridge call" });
+  if (bridgePending.has(id)) return json(res, 409, { error: "duplicate bridge call" });
+  const request = { id, name, args: payload.args && typeof payload.args === "object" ? payload.args : {} };
+  const timer = setTimeout(() => {
+    bridgePending.delete(id);
+    const index = bridgeQueue.findIndex((entry) => entry.id === id);
+    if (index >= 0) bridgeQueue.splice(index, 1);
+    json(res, 504, { error: "No active ModelForge browser answered the bridge call" });
+  }, 30000);
+  bridgePending.set(id, { res, timer });
+  bridgeQueue.push(request);
+}
+function agentBridgePoll(req, res) {
+  if (req.method !== "GET") return json(res, 405, { error: "GET only" });
+  if (req.headers.origin && !allowedOrigin(req)) return json(res, 403, { error: "origin" });
+  if (!bridgeAuthorized(req)) return json(res, 401, { error: "bridge authorization" });
+  const request = bridgeQueue.shift();
+  if (!request) { res.writeHead(204, { "Cache-Control": "no-store" }); return res.end(); }
+  return json(res, 200, request);
+}
+async function agentBridgeReply(req, res) {
+  if (req.method !== "POST") return json(res, 405, { error: "POST only" });
+  if (req.headers.origin && !allowedOrigin(req)) return json(res, 403, { error: "origin" });
+  if (!bridgeAuthorized(req)) return json(res, 401, { error: "bridge authorization" });
+  let payload;
+  try { payload = await readJsonBody(req, 4 * 1024 * 1024); }
+  catch (error) { return json(res, 400, { error: String(error.message || error) }); }
+  const id = String(payload.id || ""), pending = bridgePending.get(id);
+  if (!pending) return json(res, 404, { error: "bridge call not found" });
+  bridgePending.delete(id); clearTimeout(pending.timer);
+  json(pending.res, payload.error ? 502 : 200, payload.error ? { error: String(payload.error) } : { result: payload.result });
+  return json(res, 200, { ok: true });
+}
+
+async function agentStatus(req, res) {
+  if (req.headers.origin && !allowedOrigin(req)) return json(res, 403, { error: "origin" });
+  if (!agentAuthorized(req)) return json(res, 401, { error: "agent authorization" });
+  return json(res, 200, { configured: !!AGENT_BASE_URL && !!AGENT_MODEL, model: AGENT_MODEL || "" });
+}
+
+async function agentChat(req, res) {
+  if (req.method !== "POST") return json(res, 405, { error: "POST only" });
+  if (req.headers.origin && !allowedOrigin(req)) return json(res, 403, { error: "origin" });
+  if (!agentAuthorized(req)) return json(res, 401, { error: "agent authorization" });
+  if (!agentWithinRate(req)) return json(res, 429, { error: "agent rate limit" });
+  if (!AGENT_BASE_URL || !AGENT_MODEL) return json(res, 503, { error: "Agent server is not configured" });
+  let payload;
+  try { payload = await readJsonBody(req, 2 * 1024 * 1024); }
+  catch (err) { return json(res, 400, { error: String(err.message || err) }); }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120000);
+  try {
+    const endpoint = /\/v1$/i.test(AGENT_BASE_URL)
+      ? AGENT_BASE_URL + "/chat/completions" : AGENT_BASE_URL + "/v1/chat/completions";
+    const upstream = await fetch(endpoint, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...(AGENT_API_KEY ? { Authorization: "Bearer " + AGENT_API_KEY } : {}),
+      },
+      body: JSON.stringify({
+        model: AGENT_MODEL,
+        messages: Array.isArray(payload.messages) ? payload.messages : [],
+        tools: Array.isArray(payload.tools) ? payload.tools.filter((tool) =>
+          tool && tool.function && AGENT_TOOL_NAMES.has(tool.function.name)) : [],
+        tool_choice: "auto",
+        max_tokens: AGENT_MAX_TOKENS,
+      }),
+    });
+    const text = await responseTextLimited(upstream, 4 * 1024 * 1024);
+    let data;
+    try { data = JSON.parse(text); } catch (_) { data = { error: text || "Invalid upstream response" }; }
+    json(res, upstream.status, data);
+  } catch (err) {
+    json(res, 502, { error: String(err && err.message ? err.message : err) });
+  } finally { clearTimeout(timer); }
+}
+
 // ---- static app ------------------------------------------------------------
 const http = createServer(async (req, res) => {
   const u = new URL(req.url || "/", "http://localhost");
   if (u.pathname === "/api/prodsize") return prodsize(u, res);
   if (u.pathname === "/api/smarthome") return smarthomeProxy(req, res);
+  if (u.pathname === "/api/agent/status") return agentStatus(req, res);
+  if (u.pathname === "/api/agent/chat") return agentChat(req, res);
+  if (u.pathname === "/api/agent-bridge/call") return agentBridgeCall(req, res);
+  if (u.pathname === "/api/agent-bridge/poll") return agentBridgePoll(req, res);
+  if (u.pathname === "/api/agent-bridge/reply") return agentBridgeReply(req, res);
   if (u.pathname === "/api/ping") return json(res, 200, { ok: true, api: ["prodsize", "smarthome"] });
   try {
     const file = await safeStaticFile(ROOT, u.pathname);

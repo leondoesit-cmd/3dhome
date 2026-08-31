@@ -31,7 +31,7 @@ import {
   applyCornerRestore, applyCornerTreatmentUpdate, applyWallChamfer, applyWallFillet,
   proposeCornerRestore, proposeCornerTreatmentUpdate, proposeWallChamfer, proposeWallFillet,
 } from "./wall_fillet.js";
-import { isLamp } from "./furniture.js";
+import { FURN, isLamp, mkItem } from "./furniture.js";
 import { holdToWall, reseatHeldItems } from "./item_align.js";
 import { applyAutoFace, markManualRot, rotStep } from "./item_orient.js";
 import { t, tTouch } from "./i18n.js";
@@ -107,7 +107,8 @@ import {
   touchPrecisionTrialOwns, updateTouchPrecisionTrial,
 } from "./touch_precision_ui.js";
 import {
-  openingPlaceCommand, wallDrawCommand, roomCreateCommand, executeCommand,
+  openingPlaceCommand, wallDrawCommand, itemDuplicateCommand, roomCreateCommand, executeCommand,
+  executeCommandBatch, plannerCommand, prepareCommand, previewPrepared,
 } from "./commands/index.js";
 
 const PLANNER_COMMAND_HISTORY = Object.freeze({
@@ -2031,6 +2032,79 @@ function materializePlannerWall(params, env, context) {
   };
 }
 
+function agentCommandEnvironment() {
+  return {
+    domain: "planner",
+    state: S,
+    history: PLANNER_COMMAND_HISTORY,
+    version: { current: currentHistoryId },
+    itemCatalog: FURN,
+    services: {
+      materializeWall: materializePlannerWall,
+      createItem: mkItem,
+      applyAutoFace: function (item, x, z) {
+        applyAutoFace(item, x, z, { host: findSupport(item, x, z) });
+      },
+      presentCommandResult: function (result, presentation) {
+        if (result.effects && result.effects.dirty3D) S.dirty3D = true;
+        if (presentation && presentation.selectCreated && result.created.length) {
+          var entry = result.created.find(function (item) { return item.kind !== "node"; });
+          var ref = entry && (entry.kind === "wall" ? wallById(entry.id)
+            : entry.kind === "opening" ? S.openings.find(function (o) { return o.id === entry.id; })
+            : entry.kind === "item" ? S.items.find(function (it) { return it.id === entry.id; }) : null);
+          if (ref) select({ kind: entry.kind, ref: ref });
+        }
+        if (presentation && presentation.switchToolTo) setTool(presentation.switchToolTo);
+        render2D();
+        if (result.effects && result.effects.refreshTree) refreshTree();
+        if (result.effects && result.effects.refreshInspector) fillProps();
+        (result.effects && result.effects.events || []).forEach(function (event) {
+          window.dispatchEvent(new CustomEvent(event.type, { detail: event }));
+        });
+      },
+    },
+  };
+}
+
+export function previewPlannerCommand(commandId, params) {
+  var command = plannerCommand(commandId), env = agentCommandEnvironment();
+  if (!command) return { ok: false, reason: "INVALID_COMMAND" };
+  var prepared = prepareCommand(command, params || {}, env);
+  if (!prepared.ok) return prepared;
+  var preview = previewPrepared(prepared, env);
+  if (!preview.ok) return preview;
+  return {
+    ok: true,
+    commandId: command.id,
+    params: prepared.params,
+    plan: prepared.plan,
+    preview: preview.preview,
+  };
+}
+
+export function executePlannerProposal(proposal) {
+  if (S.workspace && S.workspace.role === "viewer")
+    return { ok: false, reason: "PERMISSION_DENIED" };
+  var proposals = proposal && Array.isArray(proposal.commands) ? proposal.commands : [proposal];
+  if (!proposals.length) return { ok: false, reason: "INVALID_PLAN" };
+  var env = agentCommandEnvironment(), requests = [];
+  for (var i = 0; i < proposals.length; i++) {
+    var entry = proposals[i];
+    if (!entry || !entry.commandId || !entry.plan) return { ok: false, reason: "INVALID_PLAN" };
+    var command = plannerCommand(entry.commandId);
+    if (!command) return { ok: false, reason: "INVALID_COMMAND" };
+    var refreshed = prepareCommand(command, entry.params || entry.plan.params || {}, env);
+    if (!refreshed.ok) return refreshed;
+    if (JSON.stringify(refreshed.plan.params) !== JSON.stringify(entry.plan.params))
+      return { ok: false, reason: "PREVIEW_INVALIDATED" };
+    requests.push({ command: command, params: refreshed.params, plan: refreshed.plan });
+  }
+  return executeCommandBatch(requests, env, {
+    label: proposals.length > 1 ? "AI: batch change" : "AI: " + requests[0].command.id,
+    presentation: { selectCreated: true, switchToolTo: "select" },
+  });
+}
+
 /* Final connection repair for the walls committed in THIS run only. A wall
    endpoint can visually touch a host yet remain loose when a grid/furniture
    snap outranks the wall snap. Chief-style placement treats that as a wall
@@ -2228,48 +2302,23 @@ export function deleteSel() {
   applyRemove(S.sel);
   finishRemove();
 }
-/* Copy an item wholesale, then override only what a copy must not share.
-   Listing fields by hand here is exactly how duplicates came to silently lose
-   spot/cone/pitch when the light inspector gained them — a clone cannot drift
-   from the item schema, so new fields are carried for free. */
-function cloneItem(src, over) {
-  var it = Object.assign({}, src);
-  it.id = uid();
-  delete it.locked; // a copy you can't move is a trap
-  delete it.groupId; // callers opt back in
-  Object.assign(it, over || {});
-  if (it.groupId === undefined) delete it.groupId;
-  return it;
-}
-
 export function dupSel() {
   if (S.sel && S.sel.kind === "item") {
-    pushHistory();
-    var s = S.sel.ref,
-      it = cloneItem(s, { x: s.x + 30, z: s.z + 30 });
-    S.items.push(it);
-    select({ kind: "item", ref: it });
-    S.dirty3D = true;
-    render2D();
-    refreshTree();
-  } else if (S.sel && S.sel.kind === "items") {
-    pushHistory();
-    var newItems = [];
-    var newGroupId = uid();
-    var hasGroup = S.sel.refs.some(function(i) { return i.groupId; });
-    S.sel.refs.forEach(function(s) {
-      var it = cloneItem(s, {
-        x: s.x + 30,
-        z: s.z + 30,
-        groupId: hasGroup && s.groupId ? newGroupId : undefined,
-      });
-      S.items.push(it);
-      newItems.push(it);
+    var result = executeCommand(itemDuplicateCommand, {
+      sourceId: S.sel.ref.id, offsetX: 30, offsetZ: 30, regroup: false,
+    }, agentCommandEnvironment(), {
+      label: "Duplicate item", presentation: { selectCreated: true },
     });
-    select({ kind: "items", refs: newItems });
-    S.dirty3D = true;
+    if (!result.ok) flash(t("f_placeFail"), "error");
+  } else if (S.sel && S.sel.kind === "items") {
+    var many = executeCommand(itemDuplicateCommand, {
+      sourceIds: S.sel.refs.map(function(item) { return item.id; }),
+      offsetX: 30, offsetZ: 30, regroup: true,
+    }, agentCommandEnvironment(), { label: "Duplicate items" });
+    if (!many.ok) { flash(t("f_placeFail"), "error"); return; }
+    var madeIds = new Set(many.created.map(function(entry) { return String(entry.id); }));
+    select({ kind: "items", refs: S.items.filter(function(item) { return madeIds.has(String(item.id)); }) });
     render2D();
-    refreshTree();
   }
 }
 
@@ -2558,58 +2607,23 @@ export function applyNodePairRelation(type) {
   flash(type === "equalAngle" ? "Angles made equal" : "Relation added", "success");
   return true;
 }
-var OPENING_DEFAULTS = {
-  door: { width: 90, height: 205, sill: 0 },
-  window: { width: 120, height: 120, sill: 90 },
-  passage: { width: 120, height: 210, sill: 0 },
-};
-
-/* Place a door, window, or passage on the selected wall (and any wall that
-   sits on the same run at that station). The plan tools do the same from a
-   click; the inspector calls this so the wall does not have to be re-picked. */
+/* The inspector uses the same single-host command as pointer placement. A
+   selected wall is already an unambiguous target; nearby coincident walls are
+   never inferred or modified as a side effect. */
 export function placeOpeningOnSelected(type, opts) {
   if (!S.sel || S.sel.kind !== "wall") return null;
   type = type === "door" || type === "window" || type === "passage" ? type : "passage";
-  var defs = OPENING_DEFAULTS[type];
-  var w = S.sel.ref,
-    gm = wallGeom(w),
-    options = opts || {};
-  var width = clamp(options.width != null ? options.width : defs.width, 10, gm.L);
-  var height = clamp(options.height != null ? options.height : defs.height, 20, w.height);
-  var sill = clamp(options.sill != null ? options.sill : defs.sill, 0, Math.max(0, w.height - height));
-  var s = options.s != null ? options.s : gm.L / 2;
-  s = clamp(s, width / 2, gm.L - width / 2);
-  pushHistory();
-  var chosenPoint = wallPointAt(w, s),
-    Px = chosenPoint.x,
-    Pz = chosenPoint.z,
-    made = null;
-  S.walls.forEach(function (x) {
-    var g = wallGeom(x);
-    var projected = wallProject(x, Px, Pz);
-    if (projected && projected.distance < x.thickness / 2 + 6) {
-      var o = {
-        id: uid(),
-        type: type,
-        wall: x.id,
-        s: projected.s,
-        // a coincident wall can be shorter than the selected one
-        width: Math.min(width, g.L),
-        height: x === w ? height : Math.min(height, x.height),
-        sill: x === w ? sill : Math.min(sill, Math.max(0, x.height - height)),
-      };
-      o.s = clamp(o.s, o.width / 2, Math.max(o.width / 2, g.L - o.width / 2));
-      S.openings.push(o);
-      if (x === w) made = o;
-      else if (!made) made = o;
-    }
+  var w = S.sel.ref, options = opts || {}, gm = wallGeom(w);
+  var params = { wallId: w.id, type: type, s: options.s != null ? Number(options.s) : gm.L / 2 };
+  ["width", "height", "sill"].forEach(function (key) { if (options[key] != null) params[key] = Number(options[key]); });
+  var result = executeCommand(openingPlaceCommand, params, agentCommandEnvironment(), {
+    label: t("f_openingPlaced", { name: t(type) }),
+    presentation: { selectCreated: true },
   });
+  if (!result.ok || !result.created.length) return null;
+  var made = S.openings.find(function (opening) { return opening.id === result.created[0].id; });
   if (!made) return null;
   S.segPreview = null;
-  select({ kind: "opening", ref: made });
-  S.dirty3D = true;
-  render2D();
-  refreshTree();
   return made;
 }
 
@@ -2641,43 +2655,22 @@ export function openWall() {
   flash(t("f_wallOpened", { n: n }));
 }
 export function addSpace(w, d, label, isCorridor) {
-  pushHistory();
   var dp = dropPoint(); // never NaN, even with the plan pane hidden
   var cx = Math.round(dp.x / 10) * 10,
     cz = Math.round(dp.z / 10) * 10;
-  var x0 = cx - w / 2,
-    z0 = cz - d / 2,
-    x1 = cx + w / 2,
-    z1 = cz + d / 2,
-    n = S.nodes.length;
-  S.nodes.push(
-    { x: x0, z: z0 },
-    { x: x1, z: z0 },
-    { x: x1, z: z1 },
-    { x: x0, z: z1 },
-  );
-  var a = [
-    { id: uid(), a: n, b: n + 1, thickness: WALL_T, height: WALL_H },
-    { id: uid(), a: n + 1, b: n + 2, thickness: WALL_T, height: WALL_H },
-    { id: uid(), a: n + 2, b: n + 3, thickness: WALL_T, height: WALL_H },
-    { id: uid(), a: n + 3, b: n, thickness: WALL_T, height: WALL_H },
-  ];
-  a.forEach(applyWallDrawDefaults);
-  S.walls.push(a[0], a[1], a[2], a[3]);
-  var key = a
-    .map(function (x) {
-      return x.id;
-    })
-    .sort(function (p, q) {
-      return p - q;
-    })
-    .join(",");
-  S.roomMeta[key] = { name: label, isCorridor: !!isCorridor };
+  var defaults = resolveWallDrawDefaults();
+  var result = executeCommand(roomCreateCommand, {
+    from: { x: cx - w / 2, z: cz - d / 2 }, to: { x: cx + w / 2, z: cz + d / 2 },
+    type: defaults.typeId, kind: defaults.kind, loc: defaults.loc, dimSide: defaults.dimSide,
+    height: defaults.height, thickness: defaults.thickness, datum: defaults.datum, phase: defaults.phase,
+    name: label, isCorridor: !!isCorridor,
+  }, agentCommandEnvironment(), { label: t("f_added", { label: label }) });
+  if (!result.ok) { flash(t("f_placeFail"), "error"); return; }
+  var key = result.created.filter(function (entry) { return entry.kind === "wall"; })
+    .map(function (entry) { return entry.id; }).sort(function (a, b) { return a - b; }).join(",");
   setTool("select");
   select({ kind: "room", ref: key });
-  S.dirty3D = true;
   render2D();
-  refreshTree();
   flash(t("f_added", { label: label }));
 }
 // open a manual segment in the selected wall: a passage of given width/height centered at `s` (cm along wall).
@@ -3019,19 +3012,18 @@ export function initInteraction() {
     var projected = wall && wallProject(wall, px, pz);
     if (!wall || !projected) {
       flash(t("opening_need_wall"));
+      window.dispatchEvent(new CustomEvent("planner-opening-missed", {
+        detail: { tool: tool, x: px, z: pz },
+      }));
       return false;
     }
     var result = executeCommand(openingPlaceCommand, {
       wallId: wall.id,
       type: tool,
       s: projected.s,
-    }, {
-      domain: "planner",
-      state: S,
-      history: PLANNER_COMMAND_HISTORY,
-      version: { current: currentHistoryId },
-    }, {
+    }, agentCommandEnvironment(), {
       label: t("f_openingPlaced", { name: t(tool) }),
+      presentation: { selectCreated: true, switchToolTo: "select" },
     });
     if (!result.ok || !result.created.length) {
       flash(t("opening_need_wall"));
@@ -3040,11 +3032,6 @@ export function initInteraction() {
     var madeId = result.created[0].id;
     var made = S.openings.find(function (opening) { return opening.id === madeId; });
     if (!made) return false;
-    select({ kind: "opening", ref: made });
-    setTool("select");
-    if (result.effects.dirty3D) S.dirty3D = true;
-    render2D();
-    window.dispatchEvent(new CustomEvent("planner-opening-created", { detail: { opening: made } }));
     return true;
   }
   /* ---- two-finger tap = undo, three-finger tap = redo ----
@@ -3245,33 +3232,23 @@ export function initInteraction() {
       if (S.tool === "door" || S.tool === "window" || S.tool === "passage") {
         var ewh = elevWallAt(ox, oy, true);
         if (!ewh) return;
-        pushHistory();
         var edefs = {
           door: { width: 90, height: 205, sill: 0 },
           window: { width: 120, height: 120, sill: 90 },
           passage: { width: 120, height: 210, sill: 0 },
         };
-        var edd = edefs[S.tool],
-          egm = wallGeom(ewh.w),
-          o = {
-            id: uid(),
-            type: S.tool,
-            wall: ewh.w.id,
-            s: ewh.s,
-            width: edd.width,
-            height: edd.height,
-            sill: edd.sill,
-          };
+        var elevationTool = S.tool, edd = edefs[elevationTool], sill = edd.sill;
         if (S.tool === "window" && isFinite(ewh.v))
-          o.sill = Math.max(0, Math.round(ewh.v - edd.height / 2));
-        o.s = clamp(o.s, o.width / 2, Math.max(o.width / 2, egm.L - o.width / 2));
-        var maxSill = Math.max(0, (ewh.w.height || WALL_H) - o.height);
-        o.sill = clamp(o.sill, 0, maxSill);
-        S.openings.push(o);
-        select({ kind: "opening", ref: o });
-        setTool("select");
-        S.dirty3D = true;
-        render2D();
+          sill = Math.max(0, Math.round(ewh.v - edd.height / 2));
+        sill = clamp(sill, 0, Math.max(0, (ewh.w.height || WALL_H) - edd.height));
+        var elevationResult = executeCommand(openingPlaceCommand, {
+          wallId: ewh.w.id, type: elevationTool, s: ewh.s,
+          width: edd.width, height: edd.height, sill: sill,
+        }, agentCommandEnvironment(), {
+          label: t("f_openingPlaced", { name: t(elevationTool) }),
+          presentation: { selectCreated: true, switchToolTo: "select" },
+        });
+        if (!elevationResult.ok) flash(t("opening_need_wall"), "error");
         return;
       }
       var eh = elevationHit(ox, oy);
@@ -4518,9 +4495,27 @@ export function initInteraction() {
                         return op.wall === x.id && Math.abs(op.s - ss) < 20;
                       });
                       if (!exists) {
-                        var o = { id: uid(), type: "passage", wall: x.id, s: ss, width: width, height: x.height, sill: 0, overlapL: overlap, overlapCenter: ss };
-                        S.openings.push(o);
-                        newOpenings.push(o);
+                        /* Corridor inference is still a model creation path.
+                           Route it through the same validated command as the
+                           pointer, elevation and agent entry points; the room
+                           drag already owns the surrounding history gesture. */
+                        var corridorResult = executeCommand(openingPlaceCommand, {
+                          wallId: x.id,
+                          type: "passage",
+                          s: ss,
+                          width: width,
+                          height: x.height,
+                          sill: 0,
+                        }, agentCommandEnvironment(), { history: false });
+                        if (corridorResult.ok && corridorResult.created.length) {
+                          var createdId = corridorResult.created[0].id;
+                          var o = S.openings.find(function(op) { return op.id === createdId; });
+                          if (o) {
+                            o.overlapL = overlap;
+                            o.overlapCenter = o.s;
+                            newOpenings.push(o);
+                          }
+                        }
                       }
                     }
                   });
@@ -4811,6 +4806,7 @@ export function initInteraction() {
     if (hudKeydown(e)) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return; // Ctrl-combos handled in ui.js
     if (e.key === "Escape") {
+      var cancelledTutorDraft = !!(S.drawing || S.offsetDraft || S.joinPick || S.arcDraft || S.rectDraft);
       S.freshWall = null; // "I'm done" ends the just-drawn run too
       if (S.conPick) endConPick(null);
       else if (S.drawing) finishDraw();
@@ -4833,6 +4829,7 @@ export function initInteraction() {
         if (S.tool !== "select") setTool("select");
       }
       render2D();
+      if (cancelledTutorDraft) window.dispatchEvent(new CustomEvent("planner-draft-cancel"));
     } else if (e.key === "Enter" && S.tool === "mepRoute") {
       commitRoute();
     } else if (e.key === "Delete" || e.key === "Backspace") {

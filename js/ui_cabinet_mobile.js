@@ -21,10 +21,13 @@
    the View and Tools sheets press the real rail buttons; the More sheet holds
    the REAL context bar and level switcher, relocated once. */
 
-import { S, uid } from "./state.js";
-import { pushHistory } from "./history.js";
+import { S } from "./state.js";
+import {
+  currentHistoryId, beginHistoryTransaction, commitHistoryTransaction, abortHistoryTransaction,
+} from "./history.js";
 import { render2D } from "./plan2d.js";
 import { refreshTree } from "./ui_tree.js";
+import { itemDuplicateCommand, executeCommand } from "./commands/index.js";
 import { E, T } from "./ui_cabinet_ctx.js";
 import { setTool, syncHint, draw, sizeCanvas } from "./ui_cabinet_view.js";
 import {
@@ -46,6 +49,12 @@ var lastSig = "";
 var pageHost = null;
 // where the relocated nodes came from, so leaving compact can put them back
 var homes = [];
+const CABINET_COMMAND_HISTORY = Object.freeze({
+  current: currentHistoryId,
+  begin: beginHistoryTransaction,
+  commit: commitHistoryTransaction,
+  abort: abortHistoryTransaction,
+});
 
 function q(sel) {
   return host && host.querySelector(sel);
@@ -327,20 +336,15 @@ function buildToolsSheet() {
 function duplicateCabinet() {
   var src = E.it;
   if (!src) return;
-  pushHistory();
-  var it;
-  try {
-    it = JSON.parse(JSON.stringify(src));
-  } catch (err) {
-    return;
-  }
-  it.id = uid();
-  delete it.locked;
-  delete it.groupId;
-  delete it.runtimeState;
-  it.x = (src.x || 0) + 30;
-  it.z = (src.z || 0) + 30;
-  S.items.push(it);
+  var result = executeCommand(itemDuplicateCommand, {
+    sourceId: src.id, offsetX: 30, offsetZ: 30, regroup: false,
+  }, {
+    domain: "planner",
+    state: S,
+    history: CABINET_COMMAND_HISTORY,
+    version: { current: currentHistoryId },
+  }, { label: "Duplicate cabinet" });
+  if (!result.ok) return;
   S.dirty3D = true;
   render2D();
   refreshTree();

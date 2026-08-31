@@ -50,7 +50,11 @@ export function prepareRoomCreate(params, env) {
         ? params.expectedVersion
         : env && env.version && typeof env.version.current === "function"
           ? env.version.current() : null,
-      params: { bounds: { x0: x0, z0: z0, x1: x1, z1: z1 }, walls: walls },
+      params: {
+        bounds: { x0: x0, z0: z0, x1: x1, z1: z1 }, walls: walls,
+        name: params.name == null ? "" : String(params.name).slice(0, 120),
+        isCorridor: !!params.isCorridor,
+      },
     },
   };
 }
@@ -82,6 +86,13 @@ export function applyRoomCreate(plan, env) {
       if (entry.kind === "wall") wallIds.push(entry.id);
     });
   }
+  var roomKey = wallIds.slice().sort(function (a, b) { return Number(a) - Number(b); }).join(",");
+  if (roomKey && env && env.state && env.state.roomMeta) {
+    env.state.roomMeta[roomKey] = {
+      name: params.name || "",
+      isCorridor: !!params.isCorridor,
+    };
+  }
   return {
     ok: true,
     created: created,
@@ -90,7 +101,7 @@ export function applyRoomCreate(plan, env) {
       dirty3D: true,
       refreshTree: true,
       refreshInspector: true,
-      events: [{ type: "planner-room-created", wallIds: wallIds }],
+      events: [{ type: "planner-room-created", wallIds: wallIds, roomKey: roomKey }],
     },
   };
 }

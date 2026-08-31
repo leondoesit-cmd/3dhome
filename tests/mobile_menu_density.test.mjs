@@ -16,6 +16,7 @@ const pages = await readFile(new URL("../js/mobile_pages.js", import.meta.url), 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const i18n = await readI18nSource();
 const interaction = await readFile(new URL("../js/interaction.js", import.meta.url), "utf8");
+const openingCommand = await readFile(new URL("../js/commands/opening_place.js", import.meta.url), "utf8");
 const chrome = await readFile(new URL("../js/planner_chrome.js", import.meta.url), "utf8");
 const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
 const view3d = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
@@ -188,7 +189,7 @@ test("phone planner chrome keeps readable nav labels and hides the 2D view cube"
 test("destructive reset confirms and beginner coaching follows completed milestones", () => {
   assert.match(ui, /act === "reset"[\s\S]*?window\.confirm\(t\("reset_confirm"\)\)/);
   assert.match(interaction, /planner-room-created/);
-  assert.match(interaction, /planner-opening-created/);
+  assert.match(openingCommand, /planner-opening-created/);
   assert.match(ui, /planner-item-created/);
   assert.match(chrome, /planner-mobile-onboarding-start/);
   ["mcoach_room_done", "mcoach_opening_done", "mcoach_item_done", "mcoach_preview"].forEach((key) => {

@@ -55,7 +55,8 @@ test("cabinet: Duplicate cabinet is a More action", () => {
   assert.match(cbCtx, /dupCab:/);
   assert.match(cbMobile, /function duplicateCabinet\(/);
   assert.match(cbMobile, /T\("dupCab"\)/);
-  assert.match(cbMobile, /JSON\.parse\(JSON\.stringify\(src\)\)/);
+  assert.match(cbMobile, /executeCommand\(itemDuplicateCommand/);
+  assert.match(cbMobile, /sourceId:\s*src\.id/);
 });
 
 test("cabinet: Properties tabs stay in the sheet header", () => {

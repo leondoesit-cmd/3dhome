@@ -44,6 +44,10 @@ function normalizeCapability(definition) {
     capability,
     status: definition.status || (capability === "model-command" ? "planned" : "available"),
     failureCodes: normalizedCodes(definition.failureCodes),
+    prerequisites: Array.isArray(definition.prerequisites) ? clone(definition.prerequisites) : [],
+    effects: Array.isArray(definition.effects) ? clone(definition.effects) : [],
+    reversible: typeof definition.reversible === "boolean" ? definition.reversible : null,
+    availableWhen: definition.availableWhen || "always",
   });
 }
 
@@ -108,6 +112,10 @@ export function seedCuratedToolMetadata(entries = []) {
       icon: entry.icon || "",
       location: entry.location || "",
       selector: entry.selector || "",
+      prerequisites: entry.prerequisites || [],
+      effects: entry.effects || [],
+      reversible: typeof entry.reversible === "boolean" ? entry.reversible : null,
+      availableWhen: entry.availableWhen || "visible in the current planner domain",
     }));
   });
   return seeded;

@@ -956,22 +956,10 @@ export function addFurnItem(type) {
     flash(t("furn_place_armed", { name: flabel(type) }));
     return;
   }
-  pushHistory();
   var p = dropPoint(); // never NaN, even with the plan pane hidden
   var cx = Math.round(p.x / 2) * 2,
     cz = Math.round(p.z / 2) * 2;
-  var it = mkItem(type, cx, cz, 0);
-  if (!fin(it.x) || !fin(it.z)) {
-    // belt and braces: nothing non-finite may ever enter the model
-    flash(t("f_placeFail"), "error");
-    return;
-  }
-  applyAutoFace(it, it.x, it.z, { host: findSupport(it, it.x, it.z) });
-  S.items.push(it);
-  select({ kind: "item", ref: it });
-  S.dirty3D = true;
-  render2D();
-  updateCost();
+  placeFurnAt(type, cx, cz);
 }
 export function syncEnvUI() {
   document.getElementById("hour").value = S.hour;
@@ -2962,6 +2950,7 @@ export function initUI() {
     else if (act === "workspace") (await import("./workspace.js")).openWorkspace();
     else if (act === "openModeler") (await import("./modeler.js")).openModeler();
     else if (act === "plannerTutorial") (await import("./planner_tutorial.js")).showPlannerHub();
+    else if (act === "agent") (await import("./ui_agent.js")).openAgent();
     else if (act === "friends") {
       var fb = document.getElementById("friendsBtn");
       if (fb) fb.click();
@@ -3225,12 +3214,24 @@ export function initUI() {
         var sz = sizeSel.value;
         var rep = repSel.value === "replace";
         dlg.close();
-        pushHistory();
         var loaded = await Promise.all([
           import("./generator.js"),
           import("./mep_auto.js"),
         ]);
-        loaded[0].generateApartment(sz, rep);
+        var generated = executeCommand(loaded[0].apartmentGenerateCommand, {
+          size: sz,
+          replace: rep,
+          seed: sz === "random" ? Math.floor(Math.random() * 0xffffffff) : 1,
+        }, {
+          domain: "planner",
+          state: S,
+          history: UI_COMMAND_HISTORY,
+          version: { current: currentHistoryId },
+        }, { label: t("ag_generated") });
+        if (!generated.ok) {
+          flash(t("f_placeFail"), "error");
+          return;
+        }
         loaded[1].autoInfrastructure(); // rough-in electrical/water/drain/comms for the new rooms
         refreshMEPPanel();
         S.dirty3D = true;

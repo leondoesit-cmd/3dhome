@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { DIAGNOSTIC_CODES, hasDiagnosticHelp } from "../js/core/diagnostic_help.js";
 import {
   CAPABILITY_CLASSES,
@@ -14,6 +17,7 @@ import {
 } from "../js/core/tool_registry.js";
 import {
   CREATABLE_ENTITY_INVENTORY,
+  DIRECT_CREATION_BOUNDARIES,
   ENTITY_CLASSIFICATIONS,
   EXECUTOR_FAILURE_CODES,
   temporaryCreationExceptions,
@@ -22,6 +26,8 @@ import {
 import { TOOL_SEARCH_ENTRIES } from "../js/tool_search.js";
 import { openingPlaceCommand } from "../js/commands/opening_place.js";
 import { ITEM_PLACE_CODES, itemPlaceCommand } from "../js/commands/item_place.js";
+import { ITEM_DUPLICATE_CODES } from "../js/commands/item_duplicate.js";
+import { ITEM_MOVE_CODES } from "../js/commands/item_move.js";
 import { WALL_DRAW_CODES, wallDrawCommand } from "../js/commands/wall_draw.js";
 import { ROOM_CREATE_CODES, roomCreateCommand } from "../js/commands/room_create.js";
 import { plannerCommand, plannerCommandManifest } from "../js/commands/index.js";
@@ -56,7 +62,7 @@ test("registry distinguishes curated UI tools/actions from model commands", () =
 
 test("programmatic clients can enumerate and resolve every initial command", () => {
   assert.deepEqual(plannerCommandManifest().map((entry) => entry.id), [
-    "item.place", "opening.place", "room.create", "wall.draw",
+    "item.duplicate", "item.move", "item.place", "opening.place", "room.create", "wall.draw",
   ]);
   assert.equal(plannerCommand("room.create"), roomCreateCommand);
   assert.equal(plannerCommand("missing.command"), null);
@@ -93,10 +99,32 @@ test("entity inventory is exhaustive, classified, and keeps exceptions visible",
   assert.ok(temporaryCreationExceptions().length > 0, "allow-list remains explicit until migrations land");
 });
 
+test("direct entity pushes cannot grow outside the shrinking source allow-list", () => {
+  const root = dirname(dirname(fileURLToPath(import.meta.url)));
+  const allowed = new Map(DIRECT_CREATION_BOUNDARIES.map((entry) => [entry.file, entry]));
+  function visit(dir) {
+    readdirSync(dir, { withFileTypes: true }).forEach((entry) => {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) return visit(path);
+      if (!entry.name.endsWith(".js")) return;
+      const source = readFileSync(path, "utf8");
+      const count = (source.match(/\bS\.(?:walls|openings|items|nodes)\.push\s*\(/g) || []).length;
+      if (!count) return;
+      const file = relative(root, path).replaceAll("\\", "/");
+      const boundary = allowed.get(file);
+      assert.ok(boundary, file + " introduced an unclassified direct creation path");
+      assert.ok(count <= boundary.maxDirectPushes,
+        file + " direct creation count grew from its allowed maximum of " + boundary.maxDirectPushes);
+      assert.ok(boundary.reason, file + " needs a migration-boundary reason");
+    });
+  }
+  visit(join(root, "js"));
+});
+
 test("registered command failure codes have diagnostic-help coverage", () => {
   const known = new Set(DIAGNOSTIC_CODES);
   assert.deepEqual(validateRegistryConformance({ hasDiagnostic: (code) => known.has(code) }), []);
-  [...EXECUTOR_FAILURE_CODES, ...ITEM_PLACE_CODES, ...WALL_DRAW_CODES, ...ROOM_CREATE_CODES].forEach((code) => {
+  [...EXECUTOR_FAILURE_CODES, ...ITEM_PLACE_CODES, ...ITEM_DUPLICATE_CODES, ...ITEM_MOVE_CODES, ...WALL_DRAW_CODES, ...ROOM_CREATE_CODES].forEach((code) => {
     assert.equal(hasDiagnosticHelp(code), true, code);
   });
 });

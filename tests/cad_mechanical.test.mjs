@@ -10,6 +10,7 @@ import { toolboxFastener, listToolboxPicker, preferredLength } from "../js/cad_t
 import { captureConfiguration, ensureConfigurations, setActiveConfiguration } from "../js/cad_configurations.js";
 import { collectHoleCallouts, createDrawingSvg } from "../js/cad_drawings.js";
 import { solveTopologyMates, topologyReference } from "../js/cad_mates.js";
+import { angleBetween, eulerMatrix, mateResidual, mateResidualVector } from "../js/cad_mate_model.js";
 import { createFeatureDefinition, createPartDocument, createSketchDefinition } from "../js/core/parametric_document.js";
 import { compileKernelFeatureTree } from "../js/core/kernel_feature_adapter.js";
 import { createReferencePlane, createHelix as refHelix } from "../js/cad_reference_geometry.js";
@@ -269,4 +270,47 @@ test("face appearance overrides do not recolor the body, and stock clicks replac
   assert.equal(twice.length, 1);
   assert.equal(twice[0].material, "steel");
   assert.equal(twice[0].id, once[0].id);
+});
+
+/* Angle mates were fully modelled — a residual, a Jacobian and an explicit
+   0°/180° cusp — and had no button anywhere. These pin the behaviour the
+   button now depends on: the stored `value` is degrees, and the endpoints
+   still collapse to parallel and anti-parallel. */
+test("an angle mate turns the moving component to the degrees it stores", () => {
+  const turnedNormal = (degrees) => {
+    const faceA = { surface: "plane", origin: { x: 0, y: 0, z: 0 }, normal: { x: 1, y: 0, z: 0 } };
+    const faceB = { surface: "plane", origin: { x: 0, y: 0, z: 0 }, normal: { x: 1, y: 0, z: 0 } };
+    const assembly = {
+      components: [
+        { id: "a", grounded: true, transform: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } },
+        { id: "b", transform: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } },
+      ],
+      topologyMates: [{
+        id: "ang", type: "angle", value: degrees,
+        a: topologyReference("a", "face", "fa", faceA),
+        b: topologyReference("b", "face", "fb", faceB),
+      }],
+    };
+    const result = solveTopologyMates(assembly);
+    assert.equal(result.ok, true, `angle ${degrees} should solve`);
+    const m = eulerMatrix(assembly.components[1].transform);
+    return { x: m[0][0], y: m[1][0], z: m[2][0] };
+  };
+  assert.ok(Math.abs(angleBetween(turnedNormal(30), { x: 1, y: 0, z: 0 }) - Math.PI / 6) < 1e-4);
+  assert.ok(Math.abs(angleBetween(turnedNormal(90), { x: 1, y: 0, z: 0 }) - Math.PI / 2) < 1e-4);
+  // The two cusps: a 0° angle mate is parallel, a 180° one is anti-parallel.
+  assert.ok(angleBetween(turnedNormal(0), { x: 1, y: 0, z: 0 }) < 1e-4);
+  assert.ok(Math.abs(angleBetween(turnedNormal(180), { x: 1, y: 0, z: 0 }) - Math.PI) < 1e-4);
+});
+
+test("an angle mate reports its residual in the same degrees it was asked for", () => {
+  const fixed = { surface: "plane", origin: { x: 0, y: 0, z: 0 }, normal: { x: 1, y: 0, z: 0 } };
+  const turned = { surface: "plane", origin: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 } };
+  const held = mateResidual({ type: "angle", value: 90 }, fixed, turned);
+  assert.ok(held.angular < 1e-9);
+  const off = mateResidual({ type: "angle", value: 30 }, fixed, turned);
+  assert.ok(Math.abs(off.angular - Math.PI / 3) < 1e-9);
+  // An interior angle is one scalar row; the cusp needs three direction rows.
+  assert.equal(mateResidualVector({ type: "angle", value: 30 }, fixed, turned).length, 1);
+  assert.equal(mateResidualVector({ type: "angle", value: 0 }, fixed, turned).length, 3);
 });

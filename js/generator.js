@@ -1,6 +1,27 @@
 import { S, uid, WALL_T, WALL_H } from "./state.js";
 import { detectRooms, wallGeom, pointInPoly } from "./geometry.js";
 import { FURN } from "./furniture.js";
+import { wallDrawCommand, openingPlaceCommand, itemPlaceCommand, executeCommand } from "./commands/index.js";
+
+function generatedEnv(extra = {}) {
+  return Object.assign({ domain: "planner", state: S, itemCatalog: FURN }, extra);
+}
+
+function commitGeneratedItem(item) {
+  if (!item) return null;
+  var result = executeCommand(itemPlaceCommand, {
+    type: item.type, x: item.x, z: item.z, rot: item.rot || 0,
+  }, generatedEnv({
+    services: {
+      createItem: function () {
+        if (item.id == null) item.id = uid();
+        return item;
+      },
+    },
+  }), { history: false });
+  if (!result.ok) throw new Error(result.reason || "GENERATED_ITEM_FAILED");
+  return item;
+}
 
 // Basic layouts for small and large apartments
 const LAYOUTS = {
@@ -51,15 +72,23 @@ const LAYOUTS = {
 };
 
 // Randomized procedural layouts (same schema as LAYOUTS)
-function rnd(a, b) { return a + Math.random() * (b - a); }
-function ri(a, b) { return Math.round(rnd(a, b) / 10) * 10; }
+function seededRandom(seed) {
+  var value = (Number(seed) >>> 0) || 1;
+  return function() {
+    value = (value * 1664525 + 1013904223) >>> 0;
+    return value / 4294967296;
+  };
+}
+function rnd(a, b, random) { return a + random() * (b - a); }
+function ri(a, b, random) { return Math.round(rnd(a, b, random) / 10) * 10; }
 
-function randomLayout() {
-  if (Math.random() < 0.45) {
+function randomLayout(seed) {
+  var random = seededRandom(seed);
+  if (random() < 0.45) {
     // 1-bedroom flat: open living/kitchen strip + bedroom & bathroom strip
-    const w = ri(620, 760), d = ri(680, 840);
-    const split = ri(Math.max(300, d * 0.4), d * 0.47);
-    const bathW = ri(180, 220);
+    const w = ri(620, 760, random), d = ri(680, 840, random);
+    const split = ri(Math.max(300, d * 0.4), d * 0.47, random);
+    const bathW = ri(180, 220, random);
     return {
       w, d,
       rooms: [
@@ -73,18 +102,18 @@ function randomLayout() {
         { from: "Outside", to: "Living / Kitchen", width: 90, s: 60, wall: "bottom" }
       ],
       windows: [
-        { room: "Living / Kitchen", width: ri(120, 200), height: 120, sill: 90 },
+        { room: "Living / Kitchen", width: ri(120, 200, random), height: 120, sill: 90 },
         { room: "Bedroom", width: 120, height: 120, sill: 90 },
         { room: "Bathroom", width: 60, height: 60, sill: 140 }
       ]
     };
   }
   // 2-bedroom: kitchen|living bottom row, bedrooms + bath off a corridor on top
-  const w = ri(900, 1200), d = ri(800, 1000);
-  const kx = ri(w * 0.3, w * 0.42);        // kitchen / living split
-  const zSplit = ri(Math.max(400, d * 0.42), d * 0.5); // enough depth for usable bedrooms/bath
-  const bx1 = kx + ri(230, 260);           // service core wide enough for real fixtures
-  const corridorDepth = ri(100, 130);      // usable circulation without wasting bedroom area
+  const w = ri(900, 1200, random), d = ri(800, 1000, random);
+  const kx = ri(w * 0.3, w * 0.42, random);        // kitchen / living split
+  const zSplit = ri(Math.max(400, d * 0.42), d * 0.5, random); // enough depth for usable bedrooms/bath
+  const bx1 = kx + ri(230, 260, random);           // service core wide enough for real fixtures
+  const corridorDepth = ri(100, 130, random);      // usable circulation without wasting bedroom area
   const corrZ = zSplit - corridorDepth;
   return {
     w, d,
@@ -105,9 +134,9 @@ function randomLayout() {
       { from: "Outside", to: "Living Room", width: 90, s: 100, wall: "bottom" }
     ],
     windows: [
-      { room: "Living Room", width: ri(160, 240), height: 200, sill: 20 },
+      { room: "Living Room", width: ri(160, 240, random), height: 200, sill: 20 },
       { room: "Kitchen", width: 100, height: 120, sill: 90 },
-      { room: "Master Bedroom", width: ri(120, 160), height: 120, sill: 90 },
+      { room: "Master Bedroom", width: ri(120, 160, random), height: 120, sill: 90 },
       { room: "Bedroom 2", width: 120, height: 120, sill: 90 },
       { room: "Bathroom", width: 60, height: 60, sill: 140 }
     ]
@@ -204,18 +233,14 @@ export function buildLayout(layout, replace) {
       let k2 = seg[1] + "_" + seg[0];
       if (!seenWalls[k1] && !seenWalls[k2]) {
         seenWalls[k1] = true;
-        finalWalls.push({
-          id: uid(),
-          a: seg[0],
-          b: seg[1],
-          thickness: WALL_T,
-          height: WALL_H
-        });
+        var wallResult = executeCommand(wallDrawCommand, {
+          from: finalNodes[seg[0]], to: finalNodes[seg[1]], thickness: WALL_T, height: WALL_H,
+        }, generatedEnv(), { history: false });
+        if (!wallResult.ok) throw new Error(wallResult.reason || "GENERATED_WALL_FAILED");
+        finalWalls = S.walls.slice();
       }
     });
   });
-
-  S.walls = finalWalls;
 
   // Let the geometry engine detect rooms
   let detected = detectRooms();
@@ -301,12 +326,13 @@ export function buildLayout(layout, replace) {
     }).filter(Boolean).sort((a, b) => a.spot.delta - b.spot.delta || b.spot.span - a.spot.span || b.L - a.L);
     if (!viable.length) return null;
     let best = viable[0];
-    let opening = {
-      id: uid(), type: spec.type, wall: best.w.id, s: best.spot.s,
-      width: spec.width, height: spec.height, sill: spec.sill || 0
-    };
-    S.openings.push(opening);
-    return opening;
+    let result = executeCommand(openingPlaceCommand, {
+      wallId: best.w.id, type: spec.type, s: best.spot.s,
+      width: spec.width, height: spec.height, sill: spec.sill || 0,
+    }, generatedEnv(), { history: false });
+    if (!result.ok) return null;
+    let created = result.created.find(entry => entry.kind === "opening");
+    return created && S.openings.find(opening => opening.id === created.id) || null;
   }
 
   // Add doors
@@ -486,8 +512,7 @@ function placeWallMounted(type, room, anchor) {
   item.mounted = true;
   item.anchorId = anchor.id;
   item.functionalZone = anchor.functionalZone;
-  S.items.push(item);
-  return item;
+  return commitGeneratedItem(item);
 }
 
 function frontUseZone(item, depth, width) {
@@ -521,8 +546,7 @@ function placeBathroomFixture(type, room, rule) {
     })) continue;
     item.useZone = useZone;
     item.functionalZone = "bathroom";
-    S.items.push(item);
-    return item;
+    return commitGeneratedItem(item);
   }
   return null;
 }
@@ -536,9 +560,7 @@ function placeItem(type, room, rule) {
   let bounds = roomBounds(room.pts, 0);
   let rx0 = bounds.x0, rx1 = bounds.x1, rz0 = bounds.z0, rz1 = bounds.z1;
   
-  let item = {
-    id: uid(), type: type, x: 0, z: 0, w: w, d: d, h: h, rot: 0
-  };
+  let item = { type: type, x: 0, z: 0, w: w, d: d, h: h, rot: 0 };
 
   let clearance = rule.clearance || 0;
 
@@ -548,8 +570,7 @@ function placeItem(type, room, rule) {
       item.x = rx0 + (rx1 - rx0) * spot[0];
       item.z = rz0 + (rz1 - rz0) * spot[1];
       if (canPlace(item, room.pts, clearance, rule)) {
-        S.items.push(item);
-        return item;
+        return commitGeneratedItem(item);
       }
     }
   }
@@ -563,8 +584,7 @@ function placeItem(type, room, rule) {
       item.x = target.x;
       item.z = target.z;
       item.supportId = target.id;
-      S.items.push(item); 
-      return item;
+      return commitGeneratedItem(item);
     }
   }
 
@@ -581,7 +601,7 @@ function placeItem(type, room, rule) {
       for (let shift of lateral) {
         item.x = target.x + frontX * offset + rightX * shift;
         item.z = target.z + frontZ * offset + rightZ * shift;
-        if (canPlace(item, room.pts, clearance, rule)) { S.items.push(item); return item; }
+        if (canPlace(item, room.pts, clearance, rule)) return commitGeneratedItem(item);
       }
     }
   }
@@ -599,12 +619,12 @@ function placeItem(type, room, rule) {
       // try right
       item.x = target.x + rightX * offset;
       item.z = target.z + rightZ * offset;
-      if (canPlace(item, room.pts, clearance, rule)) { S.items.push(item); return item; }
+      if (canPlace(item, room.pts, clearance, rule)) return commitGeneratedItem(item);
       
       // try left
       item.x = target.x - rightX * offset;
       item.z = target.z - rightZ * offset;
-      if (canPlace(item, room.pts, clearance, rule)) { S.items.push(item); return item; }
+      if (canPlace(item, room.pts, clearance, rule)) return commitGeneratedItem(item);
     }
   }
 
@@ -638,7 +658,7 @@ function placeItem(type, room, rule) {
          item.z = target.z + frontZ * dist;
        }
 
-       if (canPlace(item, room.pts, clearance, rule)) { S.items.push(item); return item; }
+       if (canPlace(item, room.pts, clearance, rule)) return commitGeneratedItem(item);
      }
   }
 
@@ -650,8 +670,7 @@ function placeItem(type, room, rule) {
         let wOpt = wallCandidate(item, bounds, side, frac, clearance);
         item.x = wOpt.x; item.z = wOpt.z;
         if (canPlace(item, room.pts, clearance, rule)) {
-          S.items.push(item);
-          return item;
+          return commitGeneratedItem(item);
         }
       }
     }
@@ -662,7 +681,7 @@ function placeItem(type, room, rule) {
 
 function makeCatalogItem(type, rot) {
   let f = FURN[type];
-  return f && { id: uid(), type, x: 0, z: 0, w: f.w || 50, d: f.d || 50, h: f.h || 50, rot };
+  return f && { type, x: 0, z: 0, w: f.w || 50, d: f.d || 50, h: f.h || 50, rot };
 }
 
 function markZone(items, zone) {
@@ -718,8 +737,9 @@ function placeKitchenRun(room, preferredSides) {
         it.z = cursor + span / 2;
       }
       if (!canPlace(it, room.pts, 0, { itemGap: 0, avoidWindows: it.h > 120, doorDepth: 95 })) break;
+      it = commitGeneratedItem(it);
+      if (!it) break;
       staged.push(it);
-      S.items.push(it);
       cursor += span + 2;
     }
     if (staged.length === list.length) {
@@ -773,7 +793,7 @@ function placeDiningSet(room, exclusionZones = []) {
       chair.groupId = groupId;
       chair.functionalZone = "dining";
       chair.facesId = table.id;
-      S.items.push(chair);
+      commitGeneratedItem(chair);
     }
   });
   placeItem("pendant", room, { onTopOf: "table" });
@@ -790,7 +810,8 @@ function placeLivingPair(room, combined, exclusionZones) {
     Object.assign(sofa, wallCandidate(sofa, bounds, side, frac, 20));
     if (!canPlace(sofa, room.pts, 20, { doorDepth: 105, exclusionZones })) continue;
     sofa.functionalZone = "living";
-    S.items.push(sofa);
+    sofa = commitGeneratedItem(sofa);
+    if (!sofa) continue;
 
     let tv = makeCatalogItem("tv", sofa.rot);
     let rad = sofa.rot * Math.PI / 180;
@@ -810,8 +831,9 @@ function placeLivingPair(room, combined, exclusionZones) {
       if (canPlace(tv, room.pts, 8, { doorDepth: 78, exclusionZones })) {
         tv.functionalZone = "living";
         tv.facesId = sofa.id;
+        tv = commitGeneratedItem(tv);
+        if (!tv) continue;
         sofa.facesId = tv.id;
-        S.items.push(tv);
         placedTv = tv;
         break;
       }
@@ -918,10 +940,10 @@ function furnishRoom(roomMeta, dr) {
   }
 }
 
-export function generateApartment(size = "small", replace = true) {
+function generationPlan(size, replace, state, seed) {
   let layout;
   if (size === "random") {
-    layout = randomLayout();
+    layout = randomLayout(seed);
   } else {
     layout = LAYOUTS[size] || LAYOUTS["small"];
     // Clone layout because we might shift it
@@ -933,13 +955,18 @@ export function generateApartment(size = "small", replace = true) {
      let shiftZ = 0;
      
      // Find max X in current scene to append next to it
-     if (S.nodes.length > 0) {
-        let maxx = Math.max(...S.nodes.map(n => n.x));
+     if (state.nodes.length > 0) {
+        let maxx = Math.max(...state.nodes.map(n => n.x));
         shiftX = maxx + 500;
      }
 
      layout.rooms.forEach(r => { r.x0+=shiftX; r.x1+=shiftX; r.z0+=shiftZ; r.z1+=shiftZ; });
   }
+
+  return layout;
+}
+
+function applyApartmentLayout(layout, replace) {
 
   buildLayout(layout, replace);
 
@@ -954,4 +981,57 @@ export function generateApartment(size = "small", replace = true) {
       furnishRoom(rm, dr);
     }
   });
+}
+
+export const apartmentGenerateCommand = Object.freeze({
+  id: "document.generate_apartment",
+  failureCodes: Object.freeze(["INVALID_GENERATOR_SIZE", "INVALID_GENERATOR_ENVIRONMENT"]),
+  prepare: function(params, env) {
+    params = params || {};
+    var size = params.size == null ? "small" : String(params.size);
+    if (["small", "large", "random"].indexOf(size) === -1)
+      return { ok: false, reason: "INVALID_GENERATOR_SIZE" };
+    if (!env || env.state !== S) return { ok: false, reason: "INVALID_GENERATOR_ENVIRONMENT" };
+    var replace = params.replace !== false;
+    var seed = params.seed == null ? 1 : Number(params.seed);
+    if (!Number.isFinite(seed)) return { ok: false, reason: "INVALID_GENERATOR_SIZE" };
+    var version = env.version && typeof env.version.current === "function" ? env.version.current() : null;
+    return { ok: true, plan: {
+      command: "document.generate_apartment",
+      expectedVersion: version,
+      params: { size: size, replace: replace, seed: seed,
+        layout: generationPlan(size, replace, env.state, seed) },
+    } };
+  },
+  preview: function(plan) {
+    var layout = plan && plan.params && plan.params.layout;
+    if (!layout) return null;
+    return { kind: "document", operation: "generate-apartment",
+      bounds: { x0: 0, z0: 0, x1: layout.w, z1: layout.d },
+      roomCount: layout.rooms.length, replace: plan.params.replace };
+  },
+  apply: function(plan, env) {
+    if (!env || env.state !== S) return { ok: false, reason: "INVALID_GENERATOR_ENVIRONMENT" };
+    var before = {
+      walls: new Set(S.walls.map(function(w) { return String(w.id); })),
+      openings: new Set(S.openings.map(function(o) { return String(o.id); })),
+      items: new Set(S.items.map(function(item) { return String(item.id); })),
+    };
+    applyApartmentLayout(plan.params.layout, plan.params.replace);
+    var created = [];
+    S.walls.forEach(function(w) { if (!before.walls.has(String(w.id))) created.push({ kind: "wall", id: w.id }); });
+    S.openings.forEach(function(o) { if (!before.openings.has(String(o.id))) created.push({ kind: "opening", id: o.id }); });
+    S.items.forEach(function(item) { if (!before.items.has(String(item.id))) created.push({ kind: "item", id: item.id }); });
+    return { ok: true, created: created, changed: [], effects: {
+      dirty3D: true, refreshTree: true, refreshInspector: true,
+      events: [{ type: "planner-apartment-generated" }],
+    } };
+  },
+});
+
+export function generateApartment(size = "small", replace = true) {
+  return executeCommand(apartmentGenerateCommand, {
+    size: size, replace: replace,
+    seed: size === "random" ? Math.floor(Math.random() * 0xffffffff) : 1,
+  }, generatedEnv(), { history: false });
 }

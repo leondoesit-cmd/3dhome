@@ -14,7 +14,10 @@
     "check": "node tools/module_check.mjs && node tools/link_check.mjs && node tools/comment_assertions.mjs",
     "ci": "npm run check && npm test && npm run test:browser",
     "test:browser": "node --test --test-concurrency=3 tests/*.browser.mjs",
-    "audit:overlaps": "node tools/deep_overlap_audit.mjs"
+    "audit:overlaps": "node tools/deep_overlap_audit.mjs",
+    "dataset:tutor": "node tools/generate_tutor_dataset.mjs",
+    "eval:tutor": "node tools/evaluate_tutor_policy.mjs",
+    "mcp:agent": "node server/agent_mcp.mjs"
   },
   "dependencies": {
     "opencascade.js": "2.0.0-beta.b5ff984"

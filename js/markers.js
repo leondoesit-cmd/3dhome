@@ -24,6 +24,7 @@ import { S, uid, fin } from "./state.js";
 import { FURN, mkItem, flabel, itemVSpan, isLamp } from "./furniture.js";
 import { detectRooms, pointInPoly, roomName, wallGeom, wallById, distSeg } from "./geometry.js";
 import { itemCorners, markerClearMap } from "./measure.js";
+import { itemPlaceCommand, executeCommand } from "./commands/index.js";
 
 export const SURFACES = ["floor", "wall", "ceiling"];
 
@@ -177,9 +178,16 @@ export function detachMarker(m) {
 // if the type is unknown or the point somehow holds a non-finite position.
 export function placeOnMarker(m, type) {
   if (!m || !FURN[type] || !fin(m.x) || !fin(m.z)) return null;
-  var it = mkItem(type, m.x, m.z, 0);
-  if (!fin(it.x) || !fin(it.z)) return null;
-  S.items.push(it);
+  var result = executeCommand(itemPlaceCommand, { type: type, x: m.x, z: m.z }, {
+    domain: "planner",
+    state: S,
+    itemCatalog: FURN,
+    services: { createItem: mkItem },
+  }, { history: false });
+  if (!result.ok || !result.created.length) return null;
+  var madeId = result.created[0].id;
+  var it = S.items.find(function(item) { return item.id === madeId; });
+  if (!it) return null;
   attachToMarker(m, it);
   return it;
 }

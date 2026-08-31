@@ -47,3 +47,47 @@ test("all commands in buildCommandCatalog have corresponding CAD icons", () => {
     assert.ok(iconHtml.startsWith("<svg"), `Command ${cmd.id} (${cmd.icon}) should resolve to CAD SVG`);
   });
 });
+
+/* cadIcon resolves a ribbon button through `id -> ICON_ALIASES -> CAD_ICONS`, so
+   two different commands that land on the same CAD_ICONS key draw the same
+   button — which is how "export bundle" and "import bundle" ended up identical. */
+test("distinct ribbon commands do not share a drawing", () => {
+  const catalog = buildCommandCatalog({
+    t: (key) => key,
+    editor: { docType: "part", def: { parts: [] }, kernelBusy: false, assembly: null },
+    closedSketchProfile: () => null,
+    activeParts: () => [],
+  });
+
+  // Deliberate: the same concept offered on the Sketch and the Features tab.
+  const SHARED_BY_DESIGN = [
+    ["mirror", "mirrorfeature"],
+    ["pattern", "patternfeature"],
+  ].map((pair) => pair.slice().sort().join("|"));
+
+  const resolve = (name) => {
+    let key = name;
+    if (!CAD_ICONS[key] && ICON_ALIASES[key]) key = ICON_ALIASES[key];
+    return CAD_ICONS[key] ? key : null;
+  };
+
+  const byIcon = new Map();
+  catalog.forEach((cmd) => {
+    const key = resolve(cmd.id || cmd.icon);
+    assert.ok(key, `Command ${cmd.id} should resolve to a hand-drawn CAD icon`);
+    if (!byIcon.has(key)) byIcon.set(key, []);
+    byIcon.get(key).push(cmd.id);
+  });
+
+  byIcon.forEach((ids, key) => {
+    const unique = [...new Set(ids)];
+    if (unique.length < 2) return;
+    unique.forEach((a, i) => unique.slice(i + 1).forEach((b) => {
+      const pair = [a, b].sort().join("|");
+      assert.ok(
+        SHARED_BY_DESIGN.includes(pair),
+        `Commands ${a} and ${b} both draw the "${key}" icon; give one its own drawing or allowlist the pair`,
+      );
+    }));
+  });
+});

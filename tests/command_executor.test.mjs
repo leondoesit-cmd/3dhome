@@ -91,3 +91,64 @@ test("preview and programmatic execution do not alter selection or active tool",
   assert.equal(f.state.sel, "keep");
   assert.equal(f.state.tool, "wall");
 });
+
+test("command boundaries clone plain JSON and reject functions, undefined, cycles, and non-finite values", () => {
+  const f = fixture(), command = appendCommand();
+  command.prepare = function () { return { ok: true, plan: { command: "test.append", params: { value: 1, bad: undefined } } }; };
+  assert.equal(prepareCommand(command, {}, f.env).reason, "INVALID_PLAN");
+  command.prepare = function () { return { ok: true, plan: { command: "test.append", params: { value: Infinity } } }; };
+  assert.equal(prepareCommand(command, {}, f.env).reason, "INVALID_PLAN");
+  const cyclic = {}; cyclic.self = cyclic;
+  command.prepare = function () { return { ok: true, plan: cyclic }; };
+  assert.equal(prepareCommand(command, {}, f.env).reason, "INVALID_PLAN");
+  command.prepare = function () { return { ok: true, plan: { command: "test.append", params: { value: 2 } } }; };
+  const prepared = prepareCommand(command, {}, f.env);
+  const preview = previewPrepared(prepared, f.env);
+  assert.deepEqual(preview.preview, { kind: "value", value: 2 });
+  assert.notEqual(prepared.plan, command.prepare({}, f.env).plan);
+});
+
+test("supplied prepared plans are revalidated instead of trusted", () => {
+  const f = fixture(), command = appendCommand();
+  const forged = {
+    command: "test.append",
+    expectedVersion: 7,
+    params: { value: 99 },
+  };
+  let result = executeTransaction({
+    commands: [{ command, params: { value: 1 }, plan: forged }],
+  }, f.env);
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "INVALID_PLAN");
+  assert.deepEqual(f.state.values, []);
+
+  result = executeTransaction({
+    commands: [{ command, params: { value: 1 }, plan: { ...forged, command: "other.command", params: { value: 1 } } }],
+  }, f.env);
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "INVALID_PLAN");
+  assert.deepEqual(f.state.values, []);
+});
+
+test("planner topology is post-validated even when a caller supplies no validator", () => {
+  const f = fixture();
+  Object.assign(f.state, {
+    nodes: [{ x: 0, z: 0 }, { x: 100, z: 0 }],
+    walls: [{ id: 1, a: 0, b: 1 }],
+    openings: [],
+    items: [],
+  });
+  const before = structuredClone(f.state);
+  const command = {
+    id: "test.break-topology",
+    prepare() { return { ok: true, plan: { command: this.id, params: {} } }; },
+    apply(_plan, env) {
+      env.state.walls.push({ id: 1, a: 0, b: 9 });
+      return { ok: true, created: [], changed: [], effects: {} };
+    },
+  };
+  const result = executeCommand(command, {}, f.env);
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "POST_VALIDATION_FAILED");
+  assert.deepEqual(f.state, before);
+});

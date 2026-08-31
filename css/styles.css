@@ -105,6 +105,42 @@ body.compact-nav #modeler .md-panel-toggle { display: none; }
 #modeler .md-section-controls output { min-width: 48px; text-align: end; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 #modeler #mdSectionFlip { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; }
 
+/* The non-modal evaluate card: measure, mass properties, BOM. Same floating
+   chrome as the section controls above, and for the same reason — the viewport
+   underneath it stays live, so you can orbit the model while reading what it
+   just told you about itself. */
+#modeler .md-eval-card {
+  position: absolute; z-index: 76; inset-inline-end: 12px; top: 52px; width: min(320px,calc(100% - 24px));
+  max-height: min(60vh,520px); overflow: auto;
+  display: grid; gap: 8px; padding: 10px; border: 1px solid color-mix(in srgb,var(--accent) 38%,var(--border-color));
+  border-radius: 11px; background: color-mix(in srgb,var(--bg-panel) 95%,transparent);
+  color: var(--text-main); box-shadow: var(--shadow-md); backdrop-filter: blur(10px);
+}
+#modeler .md-eval-card[hidden] { display: none; }
+/* Section controls and this card both dock to the same corner; when both are
+   open the card sits under the section panel rather than on top of it. */
+#modeler .md-section-controls:not([hidden]) ~ .md-eval-card { top: 232px; }
+#modeler .md-eval-head { display: flex; align-items: baseline; gap: 8px; }
+#modeler .md-eval-head small { color: var(--text-muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+#modeler .md-eval-head b { flex: 1; font-size: 13px; }
+#modeler .md-eval-head button { width: 28px; height: 28px; padding: 0; flex: none; }
+#modeler .md-eval-body { display: grid; gap: 5px; font-size: 11.5px; }
+#modeler .md-eval-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 5px 7px; border-radius: 7px; background: var(--input-bg); }
+#modeler .md-eval-row > span { color: var(--text-muted); white-space: nowrap; }
+#modeler .md-eval-row > b { font-variant-numeric: tabular-nums; text-align: end; }
+#modeler .md-eval-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+#modeler .md-eval-actions[hidden] { display: none; }
+#modeler .md-eval-actions button { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; font-size: 11px; }
+#modeler .md-eval-actions button.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb,var(--accent) 12%,var(--btn-bg)); }
+#modeler table.md-bom { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+#modeler table.md-bom th { padding: 4px 6px; border-bottom: 1px solid var(--separator); color: var(--text-muted); font-weight: 600; text-align: start; }
+#modeler table.md-bom td { padding: 4px 6px; border-bottom: 1px solid color-mix(in srgb,var(--separator) 55%,transparent); text-align: start; }
+#modeler table.md-bom .md-bom-item,#modeler table.md-bom .md-bom-qty { font-variant-numeric: tabular-nums; width: 1%; white-space: nowrap; }
+/* An angle mate carries a number, so its row carries a field for it. */
+#modeler .md-mate-value { display: inline-flex; align-items: center; gap: 3px; flex: none; }
+#modeler .md-mate-value input { width: 54px; min-height: 26px; padding: 2px 5px; font-size: 11px; text-align: end; font-variant-numeric: tabular-nums; }
+#modeler .md-mate-value b { color: var(--text-muted); font-size: 11px; }
+
 #modeler .md-parametric-node { position: relative; }
 #modeler .md-parametric-node > .nm { min-width: 0; padding-inline-end: 6px; }
 #modeler .md-history-actions {
@@ -3894,6 +3930,14 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-command-panes { height: 76px; overflow-x: auto; overflow-y: hidden; }
 #modeler .md-command-pane { display: none; height: 100%; padding: 4px 12px; box-sizing: border-box; gap: 8px; }
 #modeler .md-command-pane.on { display: flex; }
+/* a whole group can be irrelevant to the open document (Direct modelling in a
+   parametric part); it stays in the DOM so command search still finds it */
+#modeler .md-command-group[hidden] { display: none; }
+/* neither Sketch nor Features has a pane worth showing in an assembly document:
+   every command on both is part-only and greys out there. setCommandTab
+   redirects either one to Assembly so nobody lands on a hidden pane. */
+#modeler.md-assembly .md-command-tabs > [data-cmdtab="sketch"],
+#modeler.md-assembly .md-command-tabs > [data-cmdtab="features"] { display: none; }
 #modeler .md-command-group {
   display: flex; flex-direction: column; min-width: max-content;
   padding: 3px 6px 4px; border: 1px solid var(--separator); border-radius: 8px;
@@ -3901,7 +3945,9 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 }
 /* Two rows per group. In one row the Sketch tab measured 2193px against a
    1280px window, so more than a third of the commands sat off-screen behind a
-   scrollbar; stacked in pairs the same commands fit, labels and all. */
+   scrollbar; stacked in pairs the same commands fit, labels and all. Two rows
+   alone were not enough for Features, which needed the specialty features
+   regrouped and the Direct group hidden as well — see buildDOM. */
 #modeler .md-command-items {
   display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, 23px);
   align-items: stretch; gap: 2px 3px; height: 48px;
@@ -3914,8 +3960,8 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
    24px glyph over an 11px word read as decoration with a footnote. Side by
    side at close to the same size, the label is the button. */
 #modeler .md-command {
-  position: relative; display: flex; align-items: center; gap: 6px;
-  min-width: 0; max-width: 170px; padding: 0 8px; border: 1px solid transparent;
+  position: relative; display: flex; align-items: center; gap: 5px;
+  min-width: 0; max-width: 170px; padding: 0 6px; border: 1px solid transparent;
   border-radius: 6px; background: transparent; color: var(--text-main); cursor: pointer;
   font: 550 12px/1 "Inter", "Rubik", sans-serif; white-space: nowrap;
 }
@@ -3923,9 +3969,27 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-command.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 38%, transparent); }
 #modeler .md-command.primary { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 #modeler .md-command.primary i { color: var(--accent); }
+/* One greyed treatment for every command surface in the editor. opacity:.33
+   dropped the caption under readable contrast in both themes; muted text at a
+   light dimming still reads. These stay real, enabled buttons carrying
+   aria-disabled, because the title — the only place the reason is written —
+   does not open on a button the `disabled` attribute has switched off. */
 #modeler .md-command:disabled,
-#modeler .md-command.unavailable { opacity: 0.33; cursor: default; }
-#modeler .md-command.unavailable:hover { background: var(--btn-bg); border-color: transparent; }
+#modeler .md-command.unavailable,
+#modeler .md-command.unavailable:hover,
+#modeler .md-ops button.unavailable {
+  color: var(--text-muted); cursor: not-allowed;
+}
+/* the caption keeps the muted token at full strength — the same weight every
+   other secondary label in this ribbon carries — and only the glyph and the
+   primary tint recede, so "not now" never costs the word itself */
+#modeler .md-command.unavailable .md-cad-icon,
+#modeler .md-command.unavailable i,
+#modeler .md-ops button.unavailable i { opacity: 0.55; }
+#modeler .md-command.unavailable,
+#modeler .md-command.unavailable:hover { background: transparent; border-color: transparent; }
+#modeler .md-ops button.unavailable,
+#modeler .md-ops button.unavailable:hover { background: var(--btn-bg); border-color: var(--btn-border); }
 #modeler .md-cad-icon {
   display: inline-block;
   vertical-align: middle;
@@ -3944,6 +4008,14 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
   transform: scale(1.06);
 }
 #modeler .md-command i { font-size: 15px; flex: none; opacity: .85; }
+/* Relations on the Sketch tab. Labelled, seven of them are four ribbon columns
+   and the Sketch pane stops fitting a 1280px window; the glyphs are the ones
+   every CAD package uses, so the desktop ribbon shows the glyph alone and keeps
+   the name in aria-label and the tooltip. The caption stays in the DOM because
+   the borrowed phone sheet — where a bare glyph would be a mystery button —
+   shows it again. */
+#modeler .md-command-glyph { justify-content: center; padding-inline: 7px; }
+#modeler .md-commandmanager:not(.md-borrowed) .md-command-glyph > span { display: none; }
 #modeler .md-command span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* Shortcut chips in a 23px ribbon row sat on the command name. The key is
    already on the button title; the ribbon keeps the label. */
@@ -6367,6 +6439,64 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .chat-mine .chat-name { display: none; }
 .chat-inrow { display: flex; gap: 5px; padding: 8px; border-top: 1px solid var(--border-color); }
 .chat-inrow input { flex: 1; min-width: 0; }
+
+/* ---- AI command helper (separate from person-to-person chat) ---- */
+.agent-dock {
+  position: fixed; bottom: 14px; inset-inline-end: 14px; z-index: 65;
+  width: min(390px, calc(100vw - 28px)); height: min(590px, calc(100dvh - 82px));
+  display: none; flex-direction: column; overflow: hidden;
+  border: 1px solid var(--border-color); border-radius: 15px;
+  background: color-mix(in srgb,var(--bg-panel) 94%,transparent);
+  box-shadow: 0 18px 48px rgba(0,0,0,.38); backdrop-filter: blur(16px);
+}
+.agent-dock.on { display: flex; }
+.agent-dock > header { display:flex;align-items:center;gap:5px;padding:9px;border-bottom:1px solid var(--border-color); }
+.agent-dock > header > div { flex:1;min-width:0;display:grid;grid-template-columns:auto 1fr;column-gap:7px;align-items:center; }
+.agent-dock > header > div > i { grid-row:1/3;font-size:22px;color:var(--accent); }
+.agent-dock > header strong { font-size:13px; }.agent-dock > header span { font-size:10px;color:var(--text-muted); }
+#agentMessages { flex:1;overflow:auto;padding:11px;display:flex;flex-direction:column;gap:9px; }
+.agent-line { display:flex;align-items:flex-start;gap:7px;max-width:94%;font-size:12px;line-height:1.45; }
+.agent-line > div { padding:8px 10px;border-radius:11px;background:var(--accent-soft);word-break:break-word; }
+.agent-line.agent-user { align-self:flex-end;flex-direction:row-reverse; }.agent-line.agent-user > div { background:var(--accent);color:var(--on-accent); }
+.agent-avatar { display:grid;place-items:center;flex:0 0 25px;width:25px;height:25px;border-radius:50%;background:var(--btn-bg);color:var(--accent); }
+.agent-input-row { display:flex;align-items:flex-end;gap:7px;padding:9px;border-top:1px solid var(--border-color); }
+.agent-input-row textarea { flex:1;min-width:0;resize:none;max-height:110px;background:var(--input-bg);color:var(--text-main);border:1px solid var(--border-color);border-radius:9px;padding:8px; }
+.agent-input-row button { min-width:38px;min-height:38px; }
+.agent-proposal { display:grid;gap:8px;padding:10px;border:1px solid color-mix(in srgb,var(--accent) 55%,var(--border-color));border-radius:12px;background:color-mix(in srgb,var(--accent) 7%,var(--bg-panel)); }
+.agent-proposal strong { font-size:12px; }.agent-proposal pre { max-height:180px;overflow:auto;margin:0;padding:8px;border-radius:8px;background:var(--input-bg);font-size:10px;white-space:pre-wrap;direction:ltr;text-align:left; }
+.agent-proposal-actions,.agent-settings-actions { display:flex;align-items:center;gap:7px; }.agent-proposal-actions { flex-wrap:wrap; }.agent-proposal-actions button { flex:1 1 82px; }
+.agent-proposal-applied { border-color:color-mix(in srgb,#2da56d 65%,var(--border-color));color:#23875a; }
+.agent-proposal-failed { border-color:color-mix(in srgb,#d34b4b 65%,var(--border-color)); }
+.agent-question-options { display:flex;flex-wrap:wrap;gap:6px;padding-inline-start:32px; }
+.agent-question-options button { min-height:30px;padding:5px 9px;border-radius:999px;font-size:10px; }
+.agent-context-inspector { flex:0 0 auto;max-height:34%;overflow:auto;border-top:1px solid var(--border-color);background:var(--input-bg); }
+.agent-context-inspector summary { position:sticky;top:0;padding:7px 10px;background:var(--bg-panel);font-size:10px;font-weight:700;cursor:pointer; }
+.agent-context-inspector pre { margin:0;padding:9px;font:9px/1.45 ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;direction:ltr;text-align:left; }
+.agent-canvas-preview { position:absolute;inset:0;width:100%;height:100%;z-index:13;pointer-events:none;overflow:visible; }
+.agent-preview-shape { fill:none;stroke:var(--accent);stroke-width:3;stroke-dasharray:9 6;vector-effect:non-scaling-stroke;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));animation:agent-preview-dash 1.2s linear infinite; }
+.agent-preview-room,.agent-preview-item { fill:color-mix(in srgb,var(--accent) 16%,transparent); }
+.agent-preview-origin { opacity:.35;fill:none; }
+.agent-preview-destination { fill:color-mix(in srgb,var(--accent) 24%,transparent);stroke-width:4; }
+.agent-preview-motion { stroke-width:2;stroke-dasharray:4 5;marker-end:none; }
+.agent-preview-opening { fill:color-mix(in srgb,var(--accent) 24%,transparent); }
+@keyframes agent-preview-dash { to { stroke-dashoffset:-30; } }
+#agentBtn.needs-attention { color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 28%,transparent); }
+#agentBtn.needs-attention::after { content:"";position:absolute;width:7px;height:7px;border-radius:50%;background:#ff9f0a;transform:translate(8px,-9px); }
+.settings-agent-pane { box-sizing:border-box;height:100%;overflow-y:auto;padding:14px 2px; }
+.agent-settings { display:grid;gap:14px;max-width:760px; }
+.agent-settings-intro { display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border-color));border-radius:11px;background:color-mix(in srgb,var(--accent) 7%,var(--bg-panel)); }
+.agent-settings-intro > i { display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border-radius:10px;background:var(--accent);color:var(--on-accent);font-size:21px; }
+.agent-settings-intro p { margin:4px 0 0;color:var(--text-muted);font-size:11px;line-height:1.45; }
+.agent-settings-form { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px; }
+.agent-field { display:grid;gap:5px;font-size:11px;font-weight:700; }.agent-field input,.agent-field select { width:100%;box-sizing:border-box; }
+.agent-context-checks { grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px;border:1px solid var(--border-color);border-radius:10px; }
+.agent-context-checks label { display:flex;align-items:center;gap:6px;font-size:11px; }.agent-context-checks input { accent-color:var(--accent); }
+.agent-settings-actions { grid-column:1/-1; }.agent-test-result { color:var(--text-muted);font-size:10px;overflow-wrap:anywhere; }
+.agent-data-actions { grid-column:1/-1;display:flex;flex-wrap:wrap;gap:7px; }
+@media (max-width:600px) {
+  .agent-dock { inset:0;width:100vw;height:100dvh;border-radius:0; }
+  .agent-settings-form { grid-template-columns:1fr; }.agent-context-checks,.agent-settings-actions { grid-column:1; }
+}
 
 /* ---- drive mode ---- */
 #drive-overlay {

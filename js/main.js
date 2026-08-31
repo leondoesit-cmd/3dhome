@@ -46,6 +46,9 @@ import { initDimKnob } from "./ui_dim_knob.js";
 import { windowChromePosture } from "./chrome_posture.js";
 import { rebuildProject } from "./core/project.js";
 import { initToolSearch } from "./tool_search.js";
+import { initAgent } from "./ui_agent.js";
+import { initTutorRuntime } from "./tutor/runtime.js";
+import { initExternalAgentBridge } from "./agent_external_bridge.js";
 
 // apply static translations for the current language before anything renders
 applyStatic();
@@ -362,6 +365,9 @@ initSite();
 initMEP();
 initSmartHome();
 initFriends(); // friends list + realtime chat/voice + visits (after init3D: avatars need the scene)
+initAgent(); // separate AI tutor/command host; Friends chat remains person-to-person
+initTutorRuntime();
+initExternalAgentBridge();
 initPlanGizmo();
 initCadHud(); // plan status bar + typed length/angle entry
 initMobileShell(); // phone/foldable chrome: contextual row + five-slot bottom nav

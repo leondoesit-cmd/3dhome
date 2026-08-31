@@ -34,6 +34,14 @@ async function freshDesktopCtx({ width = 1280, height = 800, lang = "en" } = {})
       await shared.setLang(lang);
       shared.lang = lang;
     }
+    /* One page is shared by every test in this file, so localStorage outlives
+       the reload between them and "fresh" was only ever true of the DOM. The
+       modeler persists its preferences there the moment one is changed, so the
+       test that switches automatic sketch orientation off left it off for
+       everyone after it — the next test opened a sketch that never oriented
+       and timed out on a condition the app was right to refuse. Preferences
+       are per-test state; clear them before the reload that reads them. */
+    await shared.eval(() => localStorage.removeItem("home3d_modeler_prefs"));
     await shared.goto("/");
   }
   shared.consoleErrors.length = 0;
@@ -762,7 +770,12 @@ test("desktop model editor: assembly mode wears its own chrome", opts, async () 
     sketchTabShown: getComputedStyle(document.querySelector('#modeler [data-tab="sketch"]')).display !== "none",
   }));
   assert.equal(chrome.steps.length, 5, "the breadcrumb keeps its five slots");
-  assert.deepEqual(chrome.steps, ["Insert", "Ground", "Mate", "Check", "BOM"], "assembly steps, not part steps");
+  /* The fifth slot is Save, not BOM: an assembly is filled, anchored, related,
+     checked and saved, and the step reports the document's dirty state.
+     tests/modeler_workflow.test.mjs pins that by asserting ASSEMBLY_WORKFLOW
+     never names wfBom — this expectation contradicted it and had gone unnoticed
+     because every test after the timeout cascade never reported. */
+  assert.deepEqual(chrome.steps, ["Insert", "Ground", "Mate", "Check", "Save"], "assembly steps, not part steps");
   assert.equal(chrome.sketchTabShown, false, "nothing is sketched in an assembly");
   for (const label of ["Placement", "Component", "Mates"]) {
     assert.ok(chrome.tabs.includes(label), "inspector is missing the " + label + " pane");

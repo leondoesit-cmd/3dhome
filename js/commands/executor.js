@@ -49,6 +49,29 @@ function sameJSON(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+function jsonClone(value, seen = new Set()) {
+  if (value == null || typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new TypeError("Non-finite JSON number");
+    return value;
+  }
+  if (typeof value !== "object" || seen.has(value)) throw new TypeError("Value is not plain JSON");
+  seen.add(value);
+  var out;
+  if (Array.isArray(value)) out = value.map(function (entry) { return jsonClone(entry, seen); });
+  else {
+    var proto = Object.getPrototypeOf(value);
+    if (proto !== Object.prototype && proto !== null) throw new TypeError("Value is not a plain JSON object");
+    out = {};
+    Object.keys(value).forEach(function (key) {
+      if (value[key] === undefined) throw new TypeError("Undefined is not JSON");
+      out[key] = jsonClone(value[key], seen);
+    });
+  }
+  seen.delete(value);
+  return out;
+}
+
 export function prepareCommand(command, params, env) {
   env = normalizeEnvironment(env);
   if (!commandShape(command)) return failure("INVALID_COMMAND");
@@ -62,13 +85,15 @@ export function prepareCommand(command, params, env) {
     return failure(prepared && prepared.reason || "VALIDATION_FAILED", prepared || {});
   var plan = prepared.plan || prepared;
   if (!plan || typeof plan !== "object") return failure("INVALID_PLAN");
+  try { plan = jsonClone(plan); }
+  catch (error) { return failure("INVALID_PLAN", { message: error.message }); }
   return {
     ok: true,
     command: command,
     commandId: command.id,
     plan: plan,
-    params: JSON.parse(JSON.stringify(params || {})),
-    targets: prepared.targets || plan.targets || [],
+    params: jsonClone(params || {}),
+    targets: jsonClone(prepared.targets || plan.targets || []),
   };
 }
 
@@ -78,8 +103,7 @@ export function previewPrepared(prepared, env) {
     return failure("INVALID_PLAN");
   if (typeof prepared.command.preview !== "function") return { ok: true, preview: null };
   try {
-    var preview = prepared.command.preview(prepared.plan, env) || null;
-    JSON.stringify(preview);
+    var preview = jsonClone(prepared.command.preview(prepared.plan, env) || null);
     return { ok: true, preview: preview };
   } catch (error) {
     return failure("PREVIEW_FAILED", { message: error && error.message || String(error) });
@@ -99,6 +123,38 @@ function mergeEffects(into, effects) {
   return into;
 }
 
+function validateModelState(_result, env) {
+  var state = env && env.state;
+  if (!state || !Array.isArray(state.nodes) || !Array.isArray(state.walls) ||
+      !Array.isArray(state.openings) || !Array.isArray(state.items)) return { ok: true };
+  var wallIds = new Set(), entityIds = new Set();
+  for (var i = 0; i < state.nodes.length; i++) {
+    var node = state.nodes[i];
+    if (!node || !Number.isFinite(Number(node.x)) || !Number.isFinite(Number(node.z)))
+      return { ok: false, reason: "POST_VALIDATION_FAILED" };
+  }
+  for (i = 0; i < state.walls.length; i++) {
+    var wall = state.walls[i], wallId = wall && String(wall.id);
+    if (!wall || wallIds.has(wallId) || !state.nodes[wall.a] || !state.nodes[wall.b] || wall.a === wall.b)
+      return { ok: false, reason: "POST_VALIDATION_FAILED" };
+    wallIds.add(wallId);
+    entityIds.add("wall:" + wallId);
+  }
+  for (i = 0; i < state.openings.length; i++) {
+    var opening = state.openings[i], openingKey = opening && "opening:" + opening.id;
+    if (!opening || entityIds.has(openingKey) || !wallIds.has(String(opening.wall)) ||
+        !Number.isFinite(Number(opening.s))) return { ok: false, reason: "POST_VALIDATION_FAILED" };
+    entityIds.add(openingKey);
+  }
+  for (i = 0; i < state.items.length; i++) {
+    var item = state.items[i], itemKey = item && "item:" + item.id;
+    if (!item || entityIds.has(itemKey) || !Number.isFinite(Number(item.x)) ||
+        !Number.isFinite(Number(item.z))) return { ok: false, reason: "POST_VALIDATION_FAILED" };
+    entityIds.add(itemKey);
+  }
+  return { ok: true };
+}
+
 function refreshStalePrepared(entry, env, currentVersion) {
   var expected = entry.plan && entry.plan.expectedVersion;
   if (expected == null || currentVersion == null || expected === currentVersion) return entry;
@@ -115,17 +171,53 @@ function refreshStalePrepared(entry, env, currentVersion) {
   return refreshed;
 }
 
+/* Prepared plans can cross a delayed-confirmation, MCP or collaboration
+   boundary, so they are data, not authority. Re-run the command normalizer and
+   require the supplied normalized params to match before apply. This also
+   makes cyclic/non-JSON plans fail with INVALID_PLAN instead of escaping as a
+   JSON.stringify/parse exception. */
+function validatePrepared(entry, env, currentVersion) {
+  if (!entry || !entry.ok || !commandShape(entry.command)) return failure("INVALID_PLAN");
+  var plan, params;
+  try {
+    plan = jsonClone(entry.plan);
+    params = jsonClone(entry.params == null ? plan && plan.params || {} : entry.params);
+  } catch (error) {
+    return failure("INVALID_PLAN", { message: error && error.message || String(error) });
+  }
+  if (!plan || typeof plan !== "object" || plan.command !== entry.command.id ||
+      !plan.params || typeof plan.params !== "object") return failure("INVALID_PLAN");
+  /* A genuinely stale plan is compared by refreshStalePrepared below so the
+     caller receives PREVIEW_INVALIDATED, the actionable confirmation code. */
+  if (plan.expectedVersion != null && currentVersion != null && plan.expectedVersion !== currentVersion)
+    return { ok: true, command: entry.command, commandId: entry.command.id,
+      plan: plan, params: params, targets: [] };
+  var normalized = prepareCommand(entry.command, params, env);
+  if (!normalized.ok) return normalized;
+  if (!sameJSON(plan.params, normalized.plan.params))
+    return failure("INVALID_PLAN", { message: "Prepared params do not match command normalization" });
+  return {
+    ok: true,
+    command: entry.command,
+    commandId: entry.command.id,
+    plan: plan,
+    params: params,
+    targets: normalized.targets,
+  };
+}
+
 export function executePreparedBatch(preparedList, env, options = {}) {
   env = normalizeEnvironment(env);
   var list = Array.isArray(preparedList) ? preparedList.slice() : [];
   if (!list.length) return failure("EMPTY_COMMAND_BATCH");
-  for (var i = 0; i < list.length; i++) {
-    if (!list[i] || !list[i].ok || !commandShape(list[i].command))
-      return failure("INVALID_PLAN", { index: i });
-  }
   var useHistory = options.history !== false;
   var history = env.history || null;
   var currentVersion = historyCurrent(history);
+  for (var i = 0; i < list.length; i++) {
+    var validated = validatePrepared(list[i], env, currentVersion);
+    if (!validated.ok) return Object.assign({ index: i }, validated);
+    list[i] = validated;
+  }
   if (options.expectedVersion != null && currentVersion != null && options.expectedVersion !== currentVersion)
     return failure("STALE_DOCUMENT", { expectedVersion: options.expectedVersion, currentVersion: currentVersion });
   for (i = 0; i < list.length; i++) {
@@ -151,8 +243,13 @@ export function executePreparedBatch(preparedList, env, options = {}) {
       if (Array.isArray(result.changed)) changed.push(...result.changed);
       mergeEffects(effects, result.effects);
     }
-    if (typeof options.postValidate === "function") {
-      var validation = options.postValidate({ results, created, changed, effects }, env);
+    var validationInput = { results, created, changed, effects };
+    var validators = [validateModelState];
+    if (env.services && typeof env.services.postValidateCommands === "function")
+      validators.push(env.services.postValidateCommands);
+    if (typeof options.postValidate === "function") validators.push(options.postValidate);
+    for (var validatorIndex = 0; validatorIndex < validators.length; validatorIndex++) {
+      var validation = validators[validatorIndex](validationInput, env);
       if (validation === false || validation && validation.ok === false) {
         var validationError = new Error(validation && validation.reason || "POST_VALIDATION_FAILED");
         validationError.commandResult = validation || null;
@@ -207,7 +304,7 @@ export function executeCommandBatch(requests, env, options) {
     var entry = list[i] || {};
     var result = entry.plan
       ? { ok: true, command: entry.command, commandId: entry.command && entry.command.id,
-          plan: entry.plan, params: JSON.parse(JSON.stringify(entry.params || entry.plan.params || {})) }
+          plan: entry.plan, params: entry.params == null ? entry.plan.params || {} : entry.params }
       : prepareCommand(entry.command, entry.params, env);
     if (!result.ok) return Object.assign({ index: i }, result);
     prepared.push(result);

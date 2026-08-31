@@ -800,7 +800,7 @@ function buildMoreSheet() {
   sheetBody.appendChild(quickTitle);
   var quick = document.createElement("div");
   quick.className = "m-grid m-grid-4 m-icon-grid";
-  ["btn_settings", "themeToggle", "langBtn", "friendsBtn"].forEach(function (id) {
+  ["btn_settings", "themeToggle", "langBtn", "friendsBtn", "agentBtn"].forEach(function (id) {
     var b = quickAction(id);
     if (b) quick.appendChild(b);
   });

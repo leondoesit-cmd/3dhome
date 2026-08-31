@@ -7,7 +7,7 @@ const text = (en, he) => ({ en, he });
 const CASCADE_CODES = new Set(["unavailable-feature-input"]);
 
 const entries = [
-  [["AMBIGUOUS_TARGET"],
+  [["AMBIGUOUS_TARGET", "AMBIGUOUS_ITEM_TARGET"],
     text("The requested operation does not identify one unambiguous target.", "הפעולה המבוקשת אינה מזהה יעד חד־משמעי אחד."),
     text("Choose one specific wall or object, then try again.", "בחרו קיר או אובייקט מסוים אחד ונסו שוב."),
     "show"],
@@ -35,11 +35,15 @@ const entries = [
     text("The requested item position or rotation is invalid.", "המיקום או הסיבוב המבוקשים עבור הפריט אינם תקינים."),
     text("Choose a finite plan position and rotation, then try placing the item again.", "בחרו מיקום וסיבוב סופיים בתוכנית ונסו למקם את הפריט שוב."),
     "show"],
+  [["INVALID_ITEM_SOURCE", "ITEM_SOURCE_NOT_FOUND"],
+    text("One or more source items selected for duplication are missing or invalid.", "פריט מקור אחד או יותר שנבחר לשכפול חסר או אינו תקין."),
+    text("Select existing items and try the duplication again.", "בחרו פריטים קיימים ונסו שוב לשכפל."),
+    "show"],
   [["INVALID_ITEM_DIMENSIONS"],
     text("The catalog item has missing or invalid width, depth, or height values.", "לפריט בקטלוג חסרים ערכי רוחב, עומק או גובה תקינים."),
     text("Correct the catalog dimensions so every size is greater than zero, then try again.", "תקנו את מידות הקטלוג כך שכל מידה תהיה גדולה מאפס ונסו שוב."),
     "show"],
-  [["ITEM_CREATE_FAILED"],
+  [["ITEM_CREATE_FAILED", "ITEM_DUPLICATE_FAILED"],
     text("The application could not create a valid item instance.", "היישום לא הצליח ליצור מופע פריט תקין."),
     text("Verify the item definition and retry. If it continues, undo the attempted change and reload the project.", "בדקו את הגדרת הפריט ונסו שוב. אם התקלה נמשכת, בטלו את השינוי שנוסה וטענו מחדש את הפרויקט."),
     "show"],

@@ -9,6 +9,7 @@ import { render2D, fitView } from "./plan2d.js";
 import { flash, openModal } from "./ui.js";
 import { buildIconSettingsPane, initIconSettings } from "./icon_settings.js";
 import { buildTouchPrecisionSettings } from "./touch_precision_ui.js";
+import { buildAgentSettingsPane } from "./ui_agent.js";
 import { updateCost } from "./ui_tree.js";
 import { applySite, setStreetViewCube } from "./view3d.js";
 import {
@@ -248,7 +249,13 @@ function openSettings() {
   touchTab.setAttribute("role", "tab");
   touchTab.setAttribute("aria-selected", "false");
   touchTab.innerHTML = '<i class="ph ph-hand-tap"></i><span>' + t("settings_touch_tab") + "</span>";
+  var agentTab = el("button");
+  agentTab.type = "button";
+  agentTab.setAttribute("role", "tab");
+  agentTab.setAttribute("aria-selected", "false");
+  agentTab.innerHTML = '<i class="ph ph-robot"></i><span>' + t("settings_agent_tab") + "</span>";
   tabs.appendChild(generalTab);
+  tabs.appendChild(agentTab);
   tabs.appendChild(touchTab);
   tabs.appendChild(iconsTab);
 
@@ -263,7 +270,12 @@ function openSettings() {
   touchPane.setAttribute("role", "tabpanel");
   touchPane.hidden = true;
   touchPane.appendChild(buildTouchPrecisionSettings());
+  var agentPane = el("section", "settings-pane settings-agent-pane");
+  agentPane.setAttribute("role", "tabpanel");
+  agentPane.hidden = true;
+  agentPane.appendChild(buildAgentSettingsPane());
   panes.appendChild(generalPane);
+  panes.appendChild(agentPane);
   panes.appendChild(touchPane);
   panes.appendChild(iconsPane);
   m.body.appendChild(tabs);
@@ -272,18 +284,23 @@ function openSettings() {
   function showPane(which) {
     var showIcons = which === "icons";
     var showTouch = which === "touch";
-    generalPane.hidden = showIcons || showTouch;
+    var showAgent = which === "agent";
+    generalPane.hidden = showIcons || showTouch || showAgent;
+    agentPane.hidden = !showAgent;
     touchPane.hidden = !showTouch;
     iconsPane.hidden = !showIcons;
-    generalTab.classList.toggle("active", !showIcons && !showTouch);
+    generalTab.classList.toggle("active", !showIcons && !showTouch && !showAgent);
+    agentTab.classList.toggle("active", showAgent);
     touchTab.classList.toggle("active", showTouch);
     iconsTab.classList.toggle("active", showIcons);
-    generalTab.setAttribute("aria-selected", showIcons || showTouch ? "false" : "true");
+    generalTab.setAttribute("aria-selected", showIcons || showTouch || showAgent ? "false" : "true");
+    agentTab.setAttribute("aria-selected", showAgent ? "true" : "false");
     touchTab.setAttribute("aria-selected", showTouch ? "true" : "false");
     iconsTab.setAttribute("aria-selected", showIcons ? "true" : "false");
     m.modal.classList.toggle("showing-icon-settings", showIcons);
   }
   generalTab.onclick = function () { showPane("general"); };
+  agentTab.onclick = function () { showPane("agent"); };
   touchTab.onclick = function () { showPane("touch"); };
   iconsTab.onclick = function () { showPane("icons"); };
 

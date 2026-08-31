@@ -12,7 +12,8 @@ test("automatic apartments keep essential furniture, clear openings, and collisi
   const script = String.raw`
     import assert from "node:assert/strict";
     import { S } from "./js/state.js";
-    import { generateApartment } from "./js/generator.js";
+    import { generateApartment, apartmentGenerateCommand } from "./js/generator.js";
+    import { executeCommand } from "./js/commands/executor.js";
     import { detectRooms, pointInPoly, wallGeom } from "./js/geometry.js";
 
     const overlay = new Set(["rug", "ceilingLight", "pendant", "trackLight", "lightStrip", "art", "mirror", "wallMirror", "ac", "hood", "acDiffuser", "acReturn", "acCassette", "acDucted", "tvWall", "tableLamp", "laptop"]);
@@ -131,6 +132,27 @@ test("automatic apartments keep essential furniture, clear openings, and collisi
       const after = S.items.find(it => it.id === before.id);
       assert.deepEqual({ id: after.id, x: after.x, z: after.z, rot: after.rot }, before, "append must preserve existing furniture");
     });
+
+    const keys = ["nodes", "walls", "openings", "items", "roomMeta", "idc"];
+    const snap = () => structuredClone(Object.fromEntries(keys.map(key => [key, S[key]])));
+    const restore = value => keys.forEach(key => { S[key] = structuredClone(value[key]); });
+    const beforeFailedGeneration = snap();
+    let transactionSnapshot = null, commits = 0;
+    const history = {
+      current: () => 42,
+      begin: () => { transactionSnapshot = snap(); return { id: 42 }; },
+      commit: () => { commits += 1; transactionSnapshot = null; },
+      abort: () => { restore(transactionSnapshot); transactionSnapshot = null; },
+    };
+    const failed = executeCommand(apartmentGenerateCommand, {
+      size: "large", replace: true, seed: 3,
+    }, { domain: "planner", state: S, history, version: { current: () => 42 } }, {
+      postValidate: () => ({ ok: false, reason: "TEST_LATE_FAILURE" }),
+    });
+    assert.equal(failed.ok, false);
+    assert.equal(failed.reason, "TEST_LATE_FAILURE");
+    assert.equal(commits, 0);
+    assert.deepEqual(snap(), beforeFailedGeneration, "late generator failure must restore the whole document");
   `;
   const result = spawnSync(process.execPath, ["--experimental-loader", loader, "--input-type=module", "-e", script], {
     cwd: root,

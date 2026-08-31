@@ -634,11 +634,15 @@ export function cancelPending() {
 
 export function undo() {
   requireNoCommandTransaction("undo");
-  H.undo();
+  var changed = H.undo();
+  if (changed && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("plan-undo"));
+  return changed;
 }
 export function redo() {
   requireNoCommandTransaction("redo");
-  H.redo();
+  var changed = H.redo();
+  if (changed && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("plan-redo"));
+  return changed;
 }
 export function canUndo() {
   return H.canUndo();

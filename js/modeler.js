@@ -67,7 +67,7 @@ import { createExplodedView, addExplodeStep, applyExplodedView } from "./cad_exp
 import { createMotionStudy, addRotaryMotor, evaluateMotionStudy } from "./cad_motion_study.js";
 import { detectInterference, generateBOM, computeMassProperties } from "./cad_interference.js";
 import { createProjectBundle, exportProjectBundle, importProjectBundle } from "./cad_project_bundle.js";
-import { measureDistance, evaluateDraftAngle } from "./cad_evaluate.js";
+import { measureAngleBetweenNormals, measureDistance } from "./cad_evaluate.js";
 import { auditStandardParts, involuteGearOutline } from "./cad_standards.js";
 import { holeCallout, holeLayoutPoints, holeTableRow, holeWizardSolids, holeWizardThread, listHoleSizes, normalizeHoleWizard } from "./cad_hole_wizard.js";
 import { cosmeticThread, modeledThreadSolid, normalizeThreadSpec, threadCallout, validateThreadFeature, documentThreadOverlays } from "./cad_thread.js";
@@ -88,7 +88,7 @@ import {
 } from "./core/parametric_document.js";
 import { compileKernelFeatureTree } from "./core/kernel_feature_adapter.js";
 import { publishRebuildStatus, rebuildParametricDocument } from "./core/parametric_rebuild.js";
-import { featureDefaults, featureSpec } from "./core/feature_catalog.js";
+import { featureDefaults, featureLabel, featureSpec, setFeatureLabelResolver } from "./core/feature_catalog.js";
 import { inferAuthoringMode } from "./core/authoring_mode.js";
 import { createImportedDefinition, detectStepLengthUnit, stepUnitCorrection } from "./core/import_normalization.js";
 import { encodeBinaryPayload } from "./core/binary_payload.js";
@@ -115,7 +115,7 @@ import { createSurfaceSketch, supportsSurfaceUV } from "./core/surface_uv.js";
 import { clearMeshProjectionCache, meshFeatureEdges, meshSmoothFaces, projectMeshEdges } from "./core/mesh_projection.js";
 import {
   FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
-  buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
+  bomCsv, bomTableRows, buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
 } from "./modeler_commands.js";
 import { clearModelerDraft, readModelerDraft, writeModelerDraft } from "./modeler_draft.js";
 import {
@@ -401,6 +401,7 @@ var TXT = {
   mateY: ["יישור Y", "Align Y"],
   mateZ: ["יישור Z", "Align Z"],
   mateDistance: ["מרחק X", "X distance"],
+  mateDistanceHint: ["המרחק לאורך X בין שני הרכיבים הנבחרים", "Distance along X between the two selected components"],
   savedAssembly: ["ההרכבה נשמרה", "Assembly saved"],
   regenerate: ["בנה מחדש BREP", "Regenerate BREP"],
   stepImport: ["ייבוא STEP", "Import STEP"],
@@ -417,6 +418,7 @@ var TXT = {
   /* ---- parametric sketcher ---- */
   grpSketch: ["סקיצה", "Sketch"],
   grpSketchEdit: ["עריכת סקיצה", "Sketch edit"],
+  grpRelations: ["יחסים", "Relations"],
   tool_scirc: ["מעגל סקיצה", "Sketch circle"],
   tool_srect: ["מלבן סקיצה", "Sketch rectangle"],
   tool_sarc: ["קשת סקיצה", "Sketch arc"],
@@ -442,7 +444,7 @@ var TXT = {
   twoPointHint: ["גררו, או קליק־קליק · הקלידו מידה ואז Enter", "Drag, or click twice · type a size then Enter"],
   sketchCircPattern: ["מערך מעגלי", "Circular pattern"],
   circPatternNeed: ["בחרו ישויות ונקודת מרכז (או מעגל שמרכזו הציר)", "Select entities plus a centre point (or a circle whose centre is the axis)"],
-  circPatternAngle: ["זווית בין עותקים (מעלות):", "Angle between copies (degrees):"],
+  circPatternAngle: ["זווית בין עותקים (מעלות)", "Angle between copies (degrees)"],
   dyn_length: ["אורך", "L"],
   dyn_angle: ["זווית", "A"],
   dyn_width: ["רוחב", "W"],
@@ -462,7 +464,12 @@ var TXT = {
   extendHint: ["לחצו קרוב לקצה שיש להאריך", "Click near the end you want extended"],
   offsetHint: ["לחצו על ישות כדי להעתיקה במרחק", "Click an entity to copy it at a distance"],
   dimHint2: ["לחצו על ישות (או שתי נקודות) כדי למדוד ולנעול", "Click an entity (or two points) to measure and lock it"],
-  offsetAsk: ["מרחק היסט בס\"מ (שלילי = הצד השני):", "Offset distance in cm (negative = other side):"],
+  offsetAsk: ["מרחק היסט בס\"מ (שלילי = הצד השני)", "Offset distance in cm (negative = other side)"],
+  offsetNeedDistance: ["הזינו מרחק היסט שאינו אפס", "Enter an offset distance other than zero"],
+  offsetFail: ["לא ניתן להסיט את הישות הזו", "That entity cannot be offset"],
+  trimLineOnly: ["גזירה פועלת על קווים ישרים בלבד — מעגלים, קשתות ואליפסות אינם נגזרים", "Trim works on straight lines only — circles, arcs and ellipses are not trimmed"],
+  extendLineOnly: ["הארכה פועלת על קווים ישרים בלבד — מעגלים, קשתות ואליפסות אינם מוארכים", "Extend works on straight lines only — circles, arcs and ellipses are not extended"],
+  extendNoTarget: ["אין גאומטריה מעבר לקצה הזה להאריך אליה", "Nothing beyond that end to extend to"],
   dimAsk: ["ערך המידה:", "Dimension value:"],
   dimEditorTitle: ["מידה חכמה", "Smart dimension"],
   dimValue: ["ערך", "Value"],
@@ -503,6 +510,7 @@ var TXT = {
   opTrim: ["גזירה", "Trim"],
   opDragPt: ["גרירת נקודה", "Drag point"],
   projectEdges: ["הטל קצוות חלק", "Project part edges"],
+  projectEdgesTip: ["הטלת מתאר הגופים כפי שהוא נראה במישור הסקיצה, כגאומטריית עזר (אין המרה של קצוות BREP)", "Project the bodies' outline as seen on this sketch plane, as construction geometry (it does not convert BREP edges)"],
   sketches: ["סקיצות", "Sketches"],
   sketch: ["סקיצה", "Sketch"],
   equations: ["משתנים ומשוואות", "Variables & equations"],
@@ -515,9 +523,12 @@ var TXT = {
   sketchMirror: ["שיקוף", "Mirror"],
   sketchPattern: ["מערך ליניארי", "Linear pattern"],
   mirrorNeed: ["בחרו ישויות ואת קו השיקוף אחרון", "Select the entities, then the mirror line last"],
-  patternAsk: ["מספר עותקים (כולל המקור):", "Copies including the original:"],
-  patternPitch: ["מרווח בס\"מ (שלילי = הכיוון ההפוך):", "Pitch in cm (negative reverses it):"],
-  patternDir: ["כיוון: u (אופקי) או v (אנכי):", "Direction: u (across) or v (up):"],
+  patternAsk: ["מספר עותקים (כולל המקור)", "Copies (including the original)"],
+  patternPitch: ["מרווח בס\"מ (שלילי = הכיוון ההפוך)", "Pitch in cm (negative reverses it)"],
+  patternDir: ["כיוון", "Direction"],
+  patternDirU: ["u — לרוחב", "u — across"],
+  patternDirV: ["v — לגובה", "v — up"],
+  patternBadInput: ["מספר העותקים והמרווח חייבים להיות מספרים תקינים", "Copies and pitch both need a valid number"],
   patternMade: ["המערך נוצר — המרווח הוא מידה שאפשר לנעול או לקשור למשוואה", "Pattern created — its pitch is a dimension you can name or drive with an equation"],
   mirrorMade: ["השיקוף נוצר וקשור לקו — הזזת המקור תזיז גם אותו", "Mirrored and tied to the line — moving the original moves the copy"],
   patternFail: ["לא ניתן ליצור מערך מהבחירה הזו", "That selection cannot be patterned"],
@@ -643,9 +654,28 @@ var TXT = {
   grpStart: ["התחלה", "Start"],
   grpFinish: ["גימור", "Finish"],
   grpReferences: ["ייחוסים", "References"],
-  grpStandards: ["תקנים", "Standards"],
+  grpStandards: ["תקנים והברגות", "Standards & threads"],
   grpDirect: ["מידול ישיר", "Direct"],
   grpEvaluate: ["בדיקה", "Evaluate"],
+  grpSketchOpenClose: ["פתיחה / סגירה", "Open / close"],
+  grpAnalyze: ["ניתוח", "Analyze"],
+  grpFile: ["קבצים", "File"],
+  grpInsert: ["הוספה", "Insert"],
+  grpMates: ["אילוצים", "Mates"],
+  grpReview: ["סקירה", "Review"],
+  insertComponent: ["הוספת רכיב", "Insert component"],
+  /* Ribbon captions. The group heading underneath already supplies the noun,
+     so the caption can be terse; the full name stays in the tooltip. */
+  cap_loft: ["Loft", "Loft"],
+  cap_hole: ["קדח", "Hole"],
+  cap_helix: ["הליקס", "Helix"],
+  cap_knurl: ["חריטה", "Knurl"],
+  cap_insert: ["תושבת", "Insert"],
+  cap_refplane: ["מישור", "Plane"],
+  cap_refaxis: ["ציר", "Axis"],
+  cap_refcoord: ["מערכת צירים", "Coord system"],
+  cap_stdscrew: ["בורג ISO", "ISO screw"],
+  cap_fastener: ["מחברים", "Fastener"],
   massProps: ["תכונות מסה", "Mass properties"],
   standardsAudit: ["ביקורת DIN / ISO", "DIN / ISO audit"],
   projectBundle: ["חבילת פרויקט", "Project bundle"],
@@ -656,6 +686,43 @@ var TXT = {
   interferenceCheck: ["התנגשות", "Interference"],
   interferenceVisualized: ["אזורי החפיפה מסומנים באדום", "Overlap regions are highlighted in red"],
   billOfMaterials: ["עץ מוצר", "Bill of materials"],
+  /* ---- the non-modal evaluate card: measure, mass properties, BOM ---- */
+  measureTool: ["מדידה", "Measure"],
+  measureHint: ["לחצו על שתי נקודות, קודקודים או קצוות במודל", "Click two points, vertices or edges on the model"],
+  measureFacesHint: ["לחצו על שתי פאות כדי למדוד את הזווית ביניהן", "Click two faces to measure the angle between them"],
+  measureModePoints: ["נקודות", "Points"],
+  measureModeFaces: ["פאות", "Faces"],
+  measurePointA: ["נקודה א׳", "Point A"],
+  measurePointB: ["נקודה ב׳", "Point B"],
+  measureFaceA: ["פאה א׳", "Face A"],
+  measureFaceB: ["פאה ב׳", "Face B"],
+  measureLength: ["מרחק", "Distance"],
+  measureAngle: ["זווית", "Angle"],
+  measureNothing: ["אין גאומטריה מתחת לסמן", "No geometry under the cursor"],
+  measureNeedFace: ["בחרו פאה מישורית", "Pick a planar face"],
+  measureReset: ["מדידה חדשה", "New measurement"],
+  measureSnapVertex: ["קודקוד", "vertex"],
+  measureSnapCentre: ["מרכז", "centre"],
+  measureSnapFace: ["פאה", "face"],
+  massVolume: ["נפח", "Volume"],
+  massMass: ["מסה", "Mass"],
+  massDensity: ["צפיפות", "Density"],
+  massCentre: ["מרכז המסה", "Centre of mass"],
+  massUnmeasured: ["גופים שלא ניתן היה למדוד ואינם נכללים", "bodies could not be measured and are excluded"],
+  bomItem: ["פריט", "Item"],
+  bomQty: ["כמות", "Qty"],
+  bomName: ["שם", "Name"],
+  bomEmpty: ["אין עדיין רכיבים בהרכבה הזו", "This assembly has no components yet"],
+  bomCopy: ["העתקה", "Copy"],
+  bomCsvExport: ["ייצוא CSV", "Export CSV"],
+  bomCopied: ["עץ המוצר הועתק", "Bill of materials copied"],
+  bomCopyFailed: ["ההעתקה נכשלה", "Copy failed"],
+  mateAngleValue: ["זווית (מעלות)", "Angle (degrees)"],
+  matePmTitle: ["הוספת קשר", "Add mate"],
+  matePmType: ["סוג קשר", "Mate type"],
+  matePmRefA: ["הפניה א׳", "Reference A"],
+  matePmRefB: ["הפניה ב׳", "Reference B"],
+  matePmNoPicks: ["טרם נבחרו הפניות — ייעשה שימוש בתיבות הגבול", "No references picked yet — bounding boxes will be used"],
   wfPart: ["חלק", "Part"],
   wfReference: ["ייחוס", "Reference"],
   wfSketch: ["סקיצה", "Sketch"],
@@ -1007,10 +1074,12 @@ var TXT = {
   studFinishTitle: ["הכדור עם הניטים מוכן", "Studded ball complete"],
   dreidelIntroTitle: ["נבנה סביבון באמצעות Revolve", "Build a dreidel with Revolve"],
   dreidelIntroBody: ["נצייר חצי־פרופיל שכולל ידית, גוף רחב וחוד, ונסובב אותו סביב הציר האנכי.", "Draw a half-profile containing a handle, wide body, and point, then revolve it around the vertical axis."],
-  dreidelToolTitle: ["1. בחרו גוף סיבוב", "1. Choose Revolve"],
-  dreidelToolBody: ["לחצו על כלי Revolve. העורך יעבור למבט חזית והציר הכחול יהיה ציר הסיבוב.", "Choose Revolve. The editor switches to Front view and the blue axis becomes the revolution axis."],
-  dreidelProfileTitle: ["2. ציירו את חצי־הפרופיל", "2. Draw the half-profile"],
-  dreidelProfileBody: ["התחילו ליד הציר: ידית צרה, כתף רחבה, גוף משופע וחוד. סגרו את הפרופיל בלחיצה כפולה או Enter.", "Start near the axis: narrow handle, wide shoulder, tapered body, and point. Finish with double-click or Enter."],
+  dreidelSketchTitle: ["1. ציירו את חצי־הפרופיל", "1. Draw the half-profile"],
+  dreidelSketchBody: ["Revolve דורש פרופיל סגור. ציירו בלשונית סקיצה מתאר סגור שנוגע בציר האנכי — הידית, הגוף הרחב והחוד. עד שהפרופיל ייסגר, כפתור Revolve יישאר מעומעם.", "Revolve needs a closed profile. On the Sketch tab draw a closed outline that touches the vertical axis — handle, wide body and point. Until it closes, the Revolve button stays greyed out."],
+  dreidelToolTitle: ["2. בחרו גוף סיבוב", "2. Choose Revolve"],
+  dreidelToolBody: ["לחצו על Revolve בלשונית תכונות. נפתח טופס התכונה הפרמטרית, כשהציר האנכי כבר נבחר כציר הסיבוב.", "Choose Revolve on the Features tab. The parametric feature form opens with the vertical axis already picked as the revolution axis."],
+  dreidelProfileTitle: ["3. סובבו את חצי־הפרופיל", "3. Revolve the half-profile"],
+  dreidelProfileBody: ["בטופס בחרו את סקיצת חצי־הפרופיל, השאירו 360° סביב הציר האנכי, ואשרו כדי לקבל את הגוף.", "In the form pick the half-profile sketch, keep 360° around the vertical axis, and apply to get the body."],
   dreidelFinishTitle: ["הסביבון מוכן", "Dreidel complete"],
   patternIntroTitle: ["נלמד מערך (Pattern) של גוף", "Pattern a solid"],
   patternIntroBody: ["מערך משכפל גוף קיים לרשת ליניארית או לטבעת מעגלית. הכלל היחיד שחייבים לזכור: קודם בוחרים גוף אחד, ורק אחר כך פותחים את Pattern — בלי בחירה הפקודה לא תיצור כלום.", "A pattern copies an existing solid into a linear grid or a circular ring. The one rule to remember: select a single solid first, then open Pattern — with nothing selected the command produces nothing."],
@@ -1135,9 +1204,304 @@ var TXT = {
   ctxShowAll: ["הצג הכל", "Show all"],
   inferenceCycle: ["Tab מחליף יעד הצמדה · Ctrl מבטל יחסים אוטומטיים", "Tab cycles snap targets · Ctrl suppresses auto-relations"],
   gestureHint: ["גררו ימין: אקסטרוד · שמאל: קו · מעלה: אקסטרוד · מטה: מידה", "Right-drag: Extrude · left: Line · up: Extrude · down: Dimension"],
+
+  /* ---- gate reasons: why a Features command is greyed out ----
+     These say what to do next, so they have to name what is actually
+     missing — a body, or a second sketch — not a history-tree selection. */
+  cmdNeedTwoSketches: ["צרו לפחות שתי סקיצות תחילה", "Create at least two sketches first"],
+  cmdNeedTwoBodies: ["צרו לפחות שני גופים תחילה", "Create at least two bodies first"],
+
+  /* ---- Evaluate and Assembly reports (the #mdReport card) ----
+     A report is a kicker, a title and a body.  Anything with a count or an
+     error in it keeps the whole sentence in one entry with a {n}/{x}
+     placeholder, so Hebrew keeps its own word order instead of being
+     assembled from translated fragments. */
+  reportKickerStandards: ["DIN / ISO", "DIN / ISO"],
+  reportKickerEvaluate: ["בדיקה", "EVALUATE"],
+  reportKickerSave: ["שמירה", "SAVE"],
+  auditBlocked: ["{x} — נחסם בביקורת התקנים", "{x} blocked by audit"],
+  auditNothing: ["אין מה לבדוק", "Nothing to audit"],
+  auditNothingBody: ["לא נמצאו הצהרות על מחברים או גלגלי שיניים תקניים.", "No standardized fastener or gear declarations were found."],
+  auditPassed: ["הביקורת עברה בהצלחה", "Audit passed"],
+  auditPassedBody: ["כל {n} החלקים התקניים עומדים בתקן.", "All {n} standardized parts conform."],
+  auditPassedBodyOne: ["החלק התקני היחיד עומד בתקן.", "The one standardized part conforms."],
+  auditFailed: ["הביקורת נכשלה", "Audit failed"],
+  interferenceFound: ["נמצאו {n} התנגשויות", "{n} interferences"],
+  interferenceFoundOne: ["נמצאה התנגשות אחת", "1 interference"],
+  interferenceNone: ["לא נמצאה התנגשות", "No interference detected"],
+  interferenceNoneBody: ["אין חפיפה בין שני רכיבים.", "No two components overlap."],
+  saveRebuildFailed: ["הבנייה מחדש נכשלה", "Rebuild failed"],
+  saveAttachmentFailed: ["שמירת הצירוף המדויק נכשלה", "Exact attachment save failed"],
+  saveLibraryFailed: ["שמירת המודל לספרייה נכשלה", "Model library save failed"],
+  saveStorageFull: ["אחסון הדפדפן מלא או אינו זמין.", "Browser storage is full or unavailable."],
+
+  /* ---- feature edit, exchange and sheet-metal notices ---- */
+  featureEditCancelled: ["עריכת התכונה בוטלה · הפרמטרים הקודמים שוחזרו", "Feature edit cancelled · previous parameters restored"],
+  featureRebuiltFromHistory: ["התכונה נבנתה מחדש מההיסטוריה · כל המבטים עודכנו", "Feature rebuilt from history · all views updated"],
+  errBrep: ["BREP", "BREP"],
+  errStep: ["STEP", "STEP"],
+  errIges: ["IGES", "IGES"],
+  errBundle: ["חבילה", "Bundle"],
+  stepExported: ["קובץ STEP יוצא", "STEP exported"],
+  igesExported: ["קובץ IGES יוצא", "IGES exported"],
+  bundleExported: ["חבילת הפרויקט יוצאה", "Project bundle exported"],
+  bundleImported: ["חבילת הפרויקט יובאה", "Project bundle imported"],
+  motionStudyAdded: ["חקר תנועה נוסף", "Motion study added"],
+  stepImported: ["STEP {file} · {recognition} · {units}", "STEP {file} · {recognition} · {units}"],
+  stepDirectOnly: ["ייבוא ישיר בלבד", "direct-only"],
+  stepRecognized: ["זוהו תכונות {mode}", "{mode} recognized"],
+  stepUnitsDeclared: ["יחידות {unit} מהקובץ", "{unit} from file"],
+  stepUnitsOverride: ["יחידות {unit} שנכפו", "{unit} override"],
+  sheetMetalConvert: ["המרה לפח", "Convert to sheet metal"],
+  sheetMetalThickness: ["עובי הפח (ס\"מ):", "Thickness (cm):"],
+  sheetMetalFlange: ["הוספת כיפוף קצה", "Add edge flange"],
+  sheetMetalFlangeLen: ["אורך הכיפוף (ס\"מ):", "Flange length (cm):"],
+  sheetMetalBendAngle: ["זווית הכיפוף (מעלות):", "Bend angle (degrees):"],
+  sheetMetalFlat: ["פריסה שטוחה", "Flat pattern"],
+  sheetMetalNeedPlate: ["המירו את הלוח הנבחר לפח תחילה", "Convert the selected plate to sheet metal first"],
+
+  /* ---- js/core/feature_catalog.js labels, resolved by labelKey ----
+     The catalogue is a shared module that cannot import this table (it is
+     loaded by the kernel adapter and by tests with no UI), so it stores a
+     stable key beside each English string and the editor resolves it here.
+     A missing entry falls back to the catalogue's English — tests/ asserts
+     that none is missing. */
+  /* ---- the feature edit PropertyManager (openFeatureEditor) ---- */
+  featureEditTitle: ["עריכת {name}", "Edit {name}"],
+  featureEditStep: ["שלב בהיסטוריה · {id}", "History step · {id}"],
+  fldFeatureName: ["שם התכונה", "Feature name"],
+  featureLiveAllViews: ["חי · כל מבטי המודל עוקבים אחר הפרמטרים האלה", "Live · every model view follows these parameters"],
+  depSketch: ["סקיצה", "Sketch"],
+  depFeature: ["תכונה", "Feature"],
+  noUpstreamDeps: ["אין תלות בתכונות קודמות", "No upstream feature dependencies"],
+  updateFeature: ["עדכון התכונה", "Update feature"],
+
+  fcFeatExtrude: ["אקסטרוד / בליטה", "Extrude / Boss"],
+  fcFeatExtrudeCut: ["חיתוך באקסטרוד", "Extrude Cut"],
+  fcFeatRevolve: ["גוף סיבוב", "Revolve"],
+  fcFeatSweep: ["Sweep", "Sweep"],
+  fcFeatLoft: ["Loft", "Loft"],
+  fcFeatFillet: ["עיגול פינות", "Fillet"],
+  fcFeatChamfer: ["קיטום פינות", "Chamfer"],
+  fcFeatShell: ["ריקון", "Shell"],
+  fcFeatPattern: ["מערך", "Pattern"],
+  fcFeatMirror: ["שיקוף", "Mirror"],
+  fcFeatBoolean: ["בוליאני", "Boolean"],
+  fcFeatHole: ["אשף קדחים", "Hole wizard"],
+  fcFeatHelix: ["הליקס / ספירלה", "Helix / Spiral"],
+  fcFeatThread: ["הברגה", "Thread"],
+  fcFeatKnurl: ["חריטת אחיזה", "Knurl"],
+  fcFeatInsert: ["תושבת / בושינג", "Insert / bushing"],
+
+  fcGrpExtent: ["מידת האקסטרוד", "Extent"],
+  fcGrpCutExtent: ["מידת החיתוך", "Cut extent"],
+  fcGrpDraft: ["שיפוע דפנות", "Draft"],
+  fcGrpResult: ["תוצאה", "Result"],
+  fcGrpAxisExtent: ["ציר ומידה", "Axis and extent"],
+  fcGrpPathBehavior: ["התנהגות הנתיב", "Path behavior"],
+  fcGrpSections: ["חתכים", "Sections"],
+  fcGrpFilletDefinition: ["הגדרת העיגול", "Fillet definition"],
+  fcGrpChamferDefinition: ["הגדרת הקיטום", "Chamfer definition"],
+  fcGrpWallDefinition: ["הגדרת הדופן", "Wall definition"],
+  fcGrpPatternLayout: ["פריסת המערך", "Pattern layout"],
+  fcGrpAxisX: ["ציר X", "X axis"],
+  fcGrpAxisY: ["ציר Y", "Y axis"],
+  fcGrpAxisZ: ["ציר Z", "Z axis"],
+  fcGrpCircularDefinition: ["הגדרת המערך המעגלי", "Circular definition"],
+  fcGrpInstancesResult: ["עותקים ותוצאה · עד 128 בסך הכול", "Instances and result · max 128 total"],
+  fcGrpMirrorDefinition: ["הגדרת השיקוף", "Mirror definition"],
+  fcGrpBooleanDefinition: ["הגדרת הפעולה הבוליאנית", "Boolean definition"],
+  fcGrpStandard: ["תקן", "Standard"],
+  fcGrpBore: ["קדח", "Bore"],
+  fcGrpHeadRecess: ["שקע לראש הבורג", "Head recess"],
+  fcGrpThread: ["הברגה", "Thread"],
+  fcGrpLayout: ["פריסה", "Layout"],
+  fcGrpHelixDefinition: ["הגדרת ההליקס", "Helix definition"],
+  fcGrpIsoThread: ["הברגה מטרית ISO", "ISO metric thread"],
+  fcGrpDin82Knurl: ["חריטת אחיזה DIN 82", "DIN 82 knurl"],
+  fcGrpInsert: ["תושבת", "Insert"],
+
+  fcFldOperation: ["פעולה", "Operation"],
+  fcFldMergeResult: ["מיזוג התוצאה", "Merge result"],
+  fcFldEndCondition: ["תנאי סיום", "End condition"],
+  fcFldDepth: ["עומק", "Depth"],
+  fcFldDirection: ["כיוון", "Direction"],
+  fcFldSymmetricMid: ["סימטרי / מישור אמצע", "Symmetric / mid-plane"],
+  fcFldSymmetric: ["סימטרי", "Symmetric"],
+  fcFldStartOffset: ["היסט התחלה", "Start offset"],
+  fcFldDraftAngle: ["זווית שיפוע", "Draft angle"],
+  fcFldDraftOutward: ["שיפוע כלפי חוץ", "Draft outward"],
+  fcFldKeepTool: ["שמירת גוף החיתוך", "Keep cutting tool"],
+  fcFldAxis: ["ציר", "Axis"],
+  fcFldAngle: ["זווית", "Angle"],
+  fcFldProfileOrientation: ["כיוון הפרופיל", "Profile orientation"],
+  fcFldTwist: ["פיתול", "Twist"],
+  fcFldEndScale: ["קנה־מידה בסוף", "End scale"],
+  fcFldCreateSolid: ["יצירת גוף מוצק", "Create solid"],
+  fcFldContinuity: ["רציפות", "Continuity"],
+  fcFldMatchProfiles: ["התאמת קודקודי הפרופילים", "Match profile vertices"],
+  fcFldRuledSections: ["חתכים ישרים", "Ruled sections"],
+  fcFldClosedLoft: ["Loft סגור", "Closed loft"],
+  fcFldTolerance: ["סבולת", "Tolerance"],
+  fcFldRadius: ["רדיוס", "Radius"],
+  fcFldEdgeScope: ["היקף הקצוות", "Edge scope"],
+  fcFldSectionRepresentation: ["ייצוג החתך", "Section representation"],
+  fcFldSurfaceContinuity: ["רציפות המשטח", "Surface continuity"],
+  fcFldType: ["סוג", "Type"],
+  fcFldDistance1: ["מרחק 1", "Distance 1"],
+  fcFldDistance2: ["מרחק 2", "Distance 2"],
+  fcFldFlipDirection: ["היפוך כיוון", "Flip direction"],
+  fcFldThickness: ["עובי", "Thickness"],
+  fcFldCornerJoin: ["חיבור בפינה", "Corner join"],
+  fcFldRemoveFaces: ["הסרת הפאות הנבחרות", "Remove selected faces"],
+  fcFldPatternType: ["סוג המערך", "Pattern type"],
+  fcFldCircularInstances: ["עותקים במערך המעגלי", "Circular instances"],
+  fcFldEnableAxisX: ["הפעלת ציר X", "Enable X axis"],
+  fcFldEnableAxisY: ["הפעלת ציר Y", "Enable Y axis"],
+  fcFldEnableAxisZ: ["הפעלת ציר Z", "Enable Z axis"],
+  fcFldInstancesX: ["עותקים בציר X", "X instances"],
+  fcFldInstancesY: ["עותקים בציר Y", "Y instances"],
+  fcFldInstancesZ: ["עותקים בציר Z", "Z instances"],
+  fcFldSpacingAxisX: ["מרווח בציר X", "X spacing"],
+  fcFldSpacingAxisY: ["מרווח בציר Y", "Y spacing"],
+  fcFldSpacingAxisZ: ["מרווח בציר Z", "Z spacing"],
+  fcFldSpacingIncrementX: ["הגדלת המרווח בציר X ב־", "Increase X spacing by"],
+  fcFldSpacingIncrementY: ["הגדלת המרווח בציר Y ב־", "Increase Y spacing by"],
+  fcFldSpacingIncrementZ: ["הגדלת המרווח בציר Z ב־", "Increase Z spacing by"],
+  fcFldCircularExtent: ["טווח הזווית", "Circular extent"],
+  fcFldDistanceFromAxis: ["מרחק מהציר", "Distance from axis"],
+  fcFldCircularAxis: ["ציר הסיבוב", "Circular axis"],
+  fcFldEqualSpacing: ["מרווח שווה", "Equal spacing"],
+  fcFldSkipCopies: ["דילוג על עותקים (2, 5-7)", "Skip copies (2, 5-7)"],
+  fcFldMergeInstances: ["מיזוג העותקים", "Merge instances"],
+  fcFldMirrorPlane: ["מישור השיקוף", "Mirror plane"],
+  fcFldKeepOriginal: ["שמירת המקור", "Keep original"],
+  fcFldMergeTouching: ["מיזוג גופים נוגעים", "Merge touching solids"],
+  fcFldKeepTools: ["שמירת גופי הכלי", "Keep tool bodies"],
+  fcFldHoleType: ["סוג הקדח", "Hole type"],
+  fcFldSize: ["מידה", "Size"],
+  fcFldThroughFit: ["התאמת המעבר", "Through fit"],
+  fcFldDiameter: ["קוטר", "Diameter"],
+  fcFldCounterbore: ["שקע גלילי", "Counterbore"],
+  fcFldCboreDiameter: ["קוטר השקע הגלילי", "C'bore diameter"],
+  fcFldCboreDepth: ["עומק השקע הגלילי", "C'bore depth"],
+  fcFldCountersink: ["שקע חרוטי", "Countersink"],
+  fcFldCsinkDiameter: ["קוטר השקע החרוטי", "C'sink diameter"],
+  fcFldCsinkAngle: ["זווית השקע החרוטי", "C'sink angle"],
+  fcFldThreadDisplay: ["תצוגת ההברגה", "Thread display"],
+  fcFldHand: ["כיווניות", "Hand"],
+  fcFldInstanceLayout: ["פריסת העותקים", "Instance layout"],
+  fcFldCountX: ["כמות X", "Count X"],
+  fcFldCountY: ["כמות Y", "Count Y"],
+  fcFldSpacingX: ["מרווח X", "Spacing X"],
+  fcFldSpacingY: ["מרווח Y", "Spacing Y"],
+  fcFldCircularCount: ["כמות במעגל", "Circular count"],
+  fcFldBoltCircle: ["מעגל הברגים", "Bolt circle"],
+  fcFldPitch: ["פסיעה", "Pitch"],
+  fcFldTurns: ["מספר סיבובים", "Turns"],
+  fcFldHeight: ["גובה", "Height"],
+  fcFldStartAngle: ["זווית התחלה", "Start angle"],
+  fcFldEndRadiusDelta: ["שינוי הרדיוס בסוף", "End radius delta"],
+  fcFldSide: ["צד", "Side"],
+  fcFldDisplay: ["תצוגה", "Display"],
+  fcFldMajorDiameterMm: ["קוטר ראשי Ø (מ\"מ)", "Major Ø (mm)"],
+  fcFldPitchMm: ["פסיעה (מ\"מ)", "Pitch (mm)"],
+  fcFldLength: ["אורך", "Length"],
+  fcFldSeries: ["סדרה", "Series"],
+  fcFldForm: ["צורה", "Form"],
+  fcFldDiameterMm: ["קוטר (מ\"מ)", "Diameter (mm)"],
+  fcFldBandLength: ["אורך הרצועה", "Band length"],
+  fcFldHelixAngle: ["זווית ההליקס", "Helix angle"],
+  fcFldDepthMm: ["עומק (מ\"מ)", "Depth (mm)"],
+  fcFldInnerDiameterMm: ["קוטר פנימי Ø (מ\"מ)", "Inner Ø (mm)"],
+  fcFldOuterDiameterMm: ["קוטר חיצוני Ø (מ\"מ)", "Outer Ø (mm)"],
+  fcFldLengthMm: ["אורך (מ\"מ)", "Length (mm)"],
+  fcFldMaterial: ["חומר", "Material"],
+
+  fcOptAdd: ["הוספת חומר", "Add material"],
+  fcOptNewBody: ["גוף חדש", "New body"],
+  fcOptBlind: ["עומק קבוע", "Blind"],
+  fcOptThroughAll: ["דרך הכול", "Through all"],
+  fcOptUpToNext: ["עד המשטח הבא", "Up to next"],
+  fcOptUpToFace: ["עד פאה", "Up to face"],
+  fcOptMidPlane: ["מישור אמצע", "Mid-plane"],
+  fcOptAlongNormal: ["לאורך הנורמל", "Along normal"],
+  fcOptReverseNormal: ["נגד הנורמל", "Reverse normal"],
+  fcOptFollowPath: ["עוקב אחר הנתיב", "Follow path"],
+  fcOptMinimumTwist: ["פיתול מזערי", "Minimum twist"],
+  fcOptKeepProfileFixed: ["שמירת הפרופיל קבוע", "Keep profile fixed"],
+  fcOptPositionG0: ["מיקום (G0)", "Position (G0)"],
+  fcOptTangentG1: ["משיקות (G1)", "Tangent (G1)"],
+  fcOptCurvatureG2: ["עקמומיות (G2)", "Curvature (G2)"],
+  fcOptTangentChain: ["שרשרת הקצוות המשיקה שנבחרה", "Selected tangent chain"],
+  fcOptWholeFeature: ["כל התכונה", "Whole feature"],
+  fcOptRational: ["רציונלי", "Rational"],
+  fcOptQuasiAngular: ["כמעט־זוויתי", "Quasi-angular"],
+  fcOptPolynomial: ["פולינומי", "Polynomial"],
+  fcOptTangentC1: ["משיקות (C1)", "Tangent (C1)"],
+  fcOptCurvatureC2: ["עקמומיות (C2)", "Curvature (C2)"],
+  fcOptEqualDistance: ["מרחק שווה", "Equal distance"],
+  fcOptTwoDistances: ["שני מרחקים", "Two distances"],
+  fcOptDistanceAngle: ["מרחק וזווית", "Distance and angle"],
+  fcOptInside: ["פנימה", "Inside"],
+  fcOptOutside: ["החוצה", "Outside"],
+  fcOptRound: ["מעוגל", "Round"],
+  fcOptIntersectionJoin: ["חיתוך", "Intersection"],
+  fcOptLinear: ["ליניארי", "Linear"],
+  fcOptCircular: ["מעגלי", "Circular"],
+  fcOptAxisX: ["ציר X", "X axis"],
+  fcOptAxisY: ["ציר Y", "Y axis"],
+  fcOptAxisZ: ["ציר Z", "Z axis"],
+  fcOptUnion: ["איחוד", "Union"],
+  fcOptSubtract: ["חיסור", "Subtract"],
+  fcOptIntersect: ["חיתוך", "Intersect"],
+  fcOptSimple: ["פשוט", "Simple"],
+  fcOptCounterbore: ["שקע גלילי", "Counterbore"],
+  fcOptCountersink: ["שקע חרוטי", "Countersink"],
+  fcOptSpotface: ["שיטוח משטח", "Spotface"],
+  fcOptTapped: ["מוברג", "Tapped"],
+  fcOptTappedCounterbore: ["מוברג עם שקע גלילי", "Tapped counterbore"],
+  fcOptTappedCountersink: ["מוברג עם שקע חרוטי", "Tapped countersink"],
+  fcOptFitClose: ["צמודה", "Close"],
+  fcOptFitNormal: ["רגילה", "Normal"],
+  fcOptFitLoose: ["רפויה", "Loose"],
+  fcOptCosmetic: ["סמלית", "Cosmetic"],
+  fcOptModeled: ["ממודלת", "Modeled"],
+  fcOptRight: ["ימנית", "Right"],
+  fcOptLeft: ["שמאלית", "Left"],
+  fcOptSketchPoints: ["נקודות הסקיצה", "Sketch points"],
+  fcOptExternal: ["חיצונית", "External"],
+  fcOptInternal: ["פנימית", "Internal"],
+  fcOptCoarse: ["גסה", "Coarse"],
+  fcOptFine: ["עדינה", "Fine"],
+  fcOptKnurlDiamond: ["מעוין RGE", "Diamond RGE"],
+  fcOptKnurlStraight: ["ישר RAA", "Straight RAA"],
+  fcOptKnurlLeft: ["שמאלי RBL", "Left RBL"],
+  fcOptKnurlRight: ["ימני RBR", "Right RBR"],
+  fcOptBrassC360: ["פליז C360", "Brass C360"],
+  fcOptSteel304: ["פלדה 304", "Steel 304"],
+  fcOptAluminum6061: ["אלומיניום 6061", "Aluminum 6061"],
+  fcOptTitanium: ["טיטניום", "Titanium"],
 };
 function t(k) {
   return TXT[k] ? TXT[k][getLang() === "en" ? 1 : 0] : k;
+}
+/* One whole sentence per key, with the number or file name substituted in.
+   Concatenating translated fragments produces broken Hebrew word order. */
+function tf(k, values) {
+  return String(t(k)).replace(/\{(\w+)\}/g, function (match, name) {
+    return Object.prototype.hasOwnProperty.call(values || {}, name) ? String(values[name]) : match;
+  });
+}
+/* The feature catalogue cannot import t() — it is a shared module loaded
+   without a UI — so it asks for a translation through this resolver instead.
+   An unknown key falls back to the catalogue's own English string. */
+setFeatureLabelResolver(function (key, fallback) {
+  return TXT[key] ? t(key) : fallback;
+});
+function featureTypeLabel(type) {
+  var spec = featureSpec(type);
+  return spec ? featureLabel(spec) : type;
 }
 
 /* ================= library persistence + FURN registration ================= */
@@ -2975,6 +3339,9 @@ var E = {
   polySides: 6,       // side count the polygon tool draws with
   solveInfo: null,    // last solver report: DOF, status, conflicting constraint ids
   topologySelection: [], // persistent face/edge/axis references from the 3D viewport
+  flashUntil: 0,      // while in the future, flash() owns #mdHint and syncHint stands off
+  measure: null,      // active Measure command: {mode, picks:[]}
+  evalCard: null,     // which command owns the non-modal #mdEvalCard right now
   selectedReferenceId: null, // FeatureManager / overlay pick of a datum or helix
   facePick: null,     // {tool} while a new sketch is waiting for a face click in 3D
   hoverTopology: null, // topology reference under the cursor in the 3D viewport
@@ -4110,6 +4477,19 @@ function btn(label, cb, cls) {
   b.addEventListener("click", cb);
   return b;
 }
+/* The one greyed affordance in the editor: `aria-disabled` plus `.unavailable`,
+   never the `disabled` attribute. A disabled button suppresses its own tooltip,
+   and the tooltip is the only place the *reason* a command cannot run is
+   written — so the button stays enabled and its handler turns the click into
+   that same explanation. */
+function markUnavailable(button, why, label) {
+  if (!button) return button;
+  button.classList.toggle("unavailable", !!why);
+  button.setAttribute("aria-disabled", why ? "true" : "false");
+  button.title = why || label || "";
+  return button;
+}
+
 function namedButton(button, label) {
   if (!button) return button;
   button.setAttribute("aria-label", label);
@@ -4137,15 +4517,51 @@ function tabstrip(side, tabs, extra) {
    `full` is the unabbreviated name for the tooltip and for screen readers. The
    caption itself can be terse because the group heading right underneath
    already supplies the noun: "Rectangle" under "Sketch" says everything
-   "Sketch rectangle" did, in half the ribbon. */
-function commandButton(id, icon, label, key, cls, full) {
+   "Sketch rectangle" did, in half the ribbon.
+   There is no icon argument: every command id is itself an icon key in
+   modeler_icons.js, so the glyph follows from the command. */
+function commandButton(id, label, key, cls, full) {
   var name = full || label;
   return (
     '<button type="button" class="md-command ' + (cls || "") + '" data-command="' + id +
     '" aria-label="' + name + '" title="' + name + (key ? " · " + key : "") + '">' +
-    cadIcon(id || icon) + '<span>' + label + "</span>" +
+    cadIcon(id) + '<span>' + label + "</span>" +
     (key ? '<kbd>' + key + "</kbd>" : "") + "</button>"
   );
+}
+
+/* The relations the ribbon promotes out of the inspector palette — the seven
+   that carry most of a sketch. They are the same CONSTRAINT_DEFS entries the
+   palette renders, gated by the same constraintFits and applied by the same
+   applyConstraint; nothing about the palette changes. */
+var RIBBON_RELATIONS = ["coincident", "horizontal", "vertical", "parallel", "perpendicular", "tangent", "equal"];
+
+/* Glyph-only, deliberately. Seven labelled commands are four ribbon columns
+   (~440px) and the Sketch pane has ~314px of slack at 1280px, so captions here
+   would push the pane into a horizontal scroll. Relations are the one group in
+   this editor with conventional glyphs everybody already reads, so the word
+   lives in aria-label and the tooltip — and stays in the DOM, because the
+   borrowed phone sheet shows it again (see .md-command-glyph in styles.css).
+   `data-relation`, not `data-command`: these are not catalog commands, and
+   syncCommandManager would keep clearing the greyed state they carry. */
+function relationButton(id) {
+  var d = CONSTRAINT_DEFS.filter(function (x) { return x.id === id; })[0];
+  if (!d) return "";
+  var name = t(d.label);
+  return (
+    '<button type="button" class="md-command md-command-glyph" data-relation="' + id +
+    '" aria-label="' + name + '" title="' + name + " — " + d.need + '">' +
+    cadIcon(d.icon) + "<span>" + name + "</span></button>"
+  );
+}
+
+/* Every letter key that picks a tool, straight out of the map the key handler
+   reads, so the shortcut sheet cannot claim a binding the editor does not have.
+   Each tool id names its own `tool_<id>` string. */
+function toolKeyRows() {
+  return Object.keys(KEY_TOOL).map(function (key) {
+    return [t("tool_" + KEY_TOOL[key]), key.toUpperCase()];
+  });
 }
 
 /* `rank` is "secondary" for the groups a phone collapses behind their heading.
@@ -4241,85 +4657,112 @@ function buildDOM() {
     '</div>' +
     '<div class="md-command-panes">' +
     '<div class="md-command-pane on" data-command-pane="features">' +
+      /* Start is the everyday path: open a sketch, then the six verbs that turn
+         a profile into a body. The specialty features moved to Standards so the
+         default tab stops being a third wider than the window. */
       commandGroup(t("grpStart"), [
-        commandButton("newsketch", "ph-pencil-line", t("createSketch"), null, "primary"),
-        commandButton("extrude", "ph-cube", t("opExtrude"), null, "primary"),
-        commandButton("extrudecut", "ph-scissors", t("extrudeCut"), null, "primary"),
-        commandButton("revolvefeature", "ph-arrow-counter-clockwise", t("opRevolve"), "R"),
-        commandButton("sweepfeature", "ph-path", t("opSweep")),
-        commandButton("loftfeature", "ph-stack", t("loftOp")),
-        commandButton("holefeature", "ph-circle-dashed", t("holeWizard"), null, "primary"),
-        commandButton("helixfeature", "helixfeature", t("opHelix")),
-        commandButton("threadfeature", "threadfeature", t("opThread")),
-        commandButton("knurlfeature", "knurlfeature", t("opKnurl")),
+        commandButton("newsketch", t("createSketch"), null, "primary"),
+        commandButton("extrude", t("opExtrude"), null, "primary"),
+        commandButton("extrudecut", t("extrudeCut"), null, "primary"),
+        commandButton("revolvefeature", t("opRevolve"), "R"),
+        commandButton("sweepfeature", t("opSweep")),
+        commandButton("loftfeature", t("cap_loft"), null, "", t("loftOp")),
+        commandButton("holefeature", t("cap_hole"), null, "primary", t("holeWizard")),
       ]) +
       commandGroup(t("grpFinish"), [
-        commandButton("filletfeature", "ph-corners-out", t("quickFillet"), null, "primary"),
-        commandButton("chamferfeature", "ph-corners-in", t("quickChamfer"), null, "primary"),
-        commandButton("shellfeature", "ph-bowl-food", t("shellOp")),
-        commandButton("patternfeature", "ph-dots-nine", t("quickPattern")),
-        commandButton("mirrorfeature", "ph-flip-horizontal", t("quickMirror")),
-        commandButton("booleanfeature", "ph-intersect", t("opBoolean")),
-        commandButton("insertfeature", "insertfeature", t("opInsert")),
+        commandButton("filletfeature", t("quickFillet"), null, "primary"),
+        commandButton("chamferfeature", t("quickChamfer"), null, "primary"),
+        commandButton("shellfeature", t("shellOp")),
+        commandButton("patternfeature", t("quickPattern")),
+        commandButton("mirrorfeature", t("quickMirror")),
+        commandButton("booleanfeature", t("opBoolean")),
       ]) +
+      /* Direct modelling rewrites two of these five into sketch tools and
+         refuses the other three in a parametric-v1 document, so the group is
+         hidden there (syncCommandManager) rather than removed — command search
+         and legacy documents still reach every one of them. */
       commandGroup(t("grpDirect"), [
-        commandButton("directbox", "ph-cube", t("cap_srect"), "B", "", t("tool_rect")),
-        commandButton("directcyl", "ph-cylinder", t("cap_scirc"), "C", "", t("tool_circle")),
-        commandButton("directsph", "ph-sphere", t("tool_sph"), "S"),
-        commandButton("directpoly", "ph-polygon", t("tool_poly"), "P"),
-        commandButton("directrev", "ph-spiral", t("tool_rev")),
+        commandButton("directbox", t("tool_rect"), "B"),
+        commandButton("directcyl", t("tool_circle"), "C"),
+        commandButton("directsph", t("tool_sph"), "S"),
+        commandButton("directpoly", t("tool_poly"), "P"),
+        commandButton("directrev", t("tool_rev")),
       ], "secondary") +
       commandGroup(t("grpReferences"), [
-        commandButton("refplane", "ph-square-half", t("refPlane"), null, "", t("refPlane")),
-        commandButton("refaxis", "ph-axis-arrow", t("refAxis"), null, "", t("refAxis")),
-        commandButton("coordsys", "ph-crosshair", t("refCoord"), null, "", t("refCoord")),
+        commandButton("refplane", t("cap_refplane"), null, "", t("refPlane")),
+        commandButton("refaxis", t("cap_refaxis"), null, "", t("refAxis")),
+        commandButton("coordsys", t("cap_refcoord"), null, "", t("refCoord")),
       ], "secondary") +
+      /* Helix, thread, knurl and insert are all standards-driven detail work
+         (ISO threads, DIN 82 knurls, threaded inserts, the helix that sweeps
+         them), so they sit with the toolbox parts rather than in Start. */
       commandGroup(t("grpStandards"), [
-        commandButton("stdscrew", "ph-screwdriver", t("stdScrewCommand"), null, "", t("stdScrewCommand")),
-        commandButton("toolboxfastener", "stdscrew", t("toolboxFastener"), null, "", t("toolboxFastener")),
-        commandButton("stdgear", "ph-gear-six", t("stdGearCommand"), null, "", t("stdGearCommand")),
+        commandButton("stdscrew", t("cap_stdscrew"), null, "", t("stdScrewCommand")),
+        commandButton("toolboxfastener", t("cap_fastener"), null, "", t("toolboxFastener")),
+        commandButton("stdgear", t("stdGearCommand"), null, "", t("stdGearCommand")),
+        commandButton("helixfeature", t("cap_helix"), null, "", t("opHelix")),
+        commandButton("threadfeature", t("opThread"), null, "", t("opThread")),
+        commandButton("knurlfeature", t("cap_knurl"), null, "", t("opKnurl")),
+        commandButton("insertfeature", t("cap_insert"), null, "", t("opInsert")),
       ], "secondary") +
     '</div>' +
     '<div class="md-command-pane" data-command-pane="sketch">' +
       commandGroup(t("grpSketch"), [
-        commandButton("select", "ph-cursor", t("cap_select"), "V", "", t("tool_select")),
-        commandButton("wall", "ph-line-segment", t("cap_wall"), "L", "primary", t("tool_wall")),
-        commandButton("srect", "ph-rectangle", t("cap_srect"), "Q", "primary", t("tool_srect")),
-        commandButton("scirc", "ph-circle-dashed", t("cap_scirc"), "G", "primary", t("tool_scirc")),
-        commandButton("sarc", "ph-bezier-curve", t("cap_sarc"), "A", "", t("tool_sarc")),
-        commandButton("sslot", "ph-pill", t("tool_sslot"), "J"),
-        commandButton("spoly", "ph-hexagon", t("cap_spoly"), "N", "", t("tool_spoly")),
-        commandButton("sell", "ph-circle", t("tool_sell"), "Y"),
-        commandButton("dim", "ph-ruler", t("cap_dim"), "D", "primary", t("tool_dim")),
-        commandButton("trim", "ph-scissors", t("tool_trim"), "T", "primary"),
-        commandButton("extend", "ph-arrows-out-line-horizontal", t("tool_extend"), "E"),
+        commandButton("select", t("cap_select"), "V", "", t("tool_select")),
+        commandButton("wall", t("cap_wall"), "L", "primary", t("tool_wall")),
+        commandButton("srect", t("cap_srect"), "Q", "primary", t("tool_srect")),
+        commandButton("scirc", t("cap_scirc"), "G", "primary", t("tool_scirc")),
+        commandButton("sarc", t("cap_sarc"), "A", "", t("tool_sarc")),
+        commandButton("sslot", t("tool_sslot"), "J"),
+        commandButton("spoly", t("cap_spoly"), "N", "", t("tool_spoly")),
+        commandButton("sell", t("tool_sell"), "Y"),
+        commandButton("dim", t("cap_dim"), "D", "primary", t("tool_dim")),
+        commandButton("trim", t("tool_trim"), "T", "primary"),
+        commandButton("extend", t("tool_extend"), "E"),
       ]) +
+      /* Relations belong to the tab that owns sketching. They used to live only
+         in the right-hand inspector, which on a phone is a bottom sheet — so
+         the verbs of parametric sketching read as a separate product from the
+         Sketch tab. Same palette plumbing, one tab closer. */
+      commandGroup(t("grpRelations"), RIBBON_RELATIONS.map(relationButton)) +
       commandGroup(t("grpSketchEdit"), [
-        commandButton("finishsketch", "ph-check", t("finishSketch"), null, "primary", t("finishSketch")),
-        commandButton("offset", "ph-copy-simple", t("tool_offset")),
-        commandButton("constr", "ph-line-segments", t("cap_constr"), null, "", t("tool_constr")),
-        commandButton("mirror", "ph-flip-horizontal", t("sketchMirror")),
-        commandButton("pattern", "ph-dots-nine", t("cap_pattern"), null, "", t("sketchPattern")),
-        commandButton("circpattern", "ph-circles-three", t("cap_circpattern"), null, "", t("sketchCircPattern")),
-        commandButton("project", "ph-projector-screen", t("cap_project"), null, "", t("projectEdges")),
+        commandButton("offset", t("tool_offset")),
+        commandButton("constr", t("cap_constr"), null, "", t("tool_constr")),
+        commandButton("mirror", t("sketchMirror")),
+        commandButton("pattern", t("cap_pattern"), null, "", t("sketchPattern")),
+        commandButton("circpattern", t("cap_circpattern"), null, "", t("sketchCircPattern")),
+        // "Project" is a silhouette projection, not SolidWorks' Convert Entities
+        commandButton("project", t("cap_project"), null, "", t("projectEdgesTip")),
       ], "secondary") +
+      /* Opening and committing a sketch are the two ends of this tab's job, so
+         they get their own primary group at its end instead of leaving Finish
+         sketch to sit as a peer of the construction-geometry toggle. */
+      commandGroup(t("grpSketchOpenClose"), [
+        commandButton("newsketch", t("createSketch"), null, "primary"),
+        commandButton("finishsketch", t("finishSketch"), null, "primary", t("finishSketch")),
+      ]) +
     '</div>' +
     '<div class="md-command-pane" data-command-pane="evaluate">' +
-      commandGroup(t("cmdEvaluate"), [
-        commandButton("regen", "ph-arrows-clockwise", t("regenerate"), "Ctrl+B", "primary", t("regenerate")),
-        commandButton("fit", "ph-crosshair-simple", t("zoomFit"), "F"),
-        commandButton("drawing", "ph-file-svg", t("drawingExport")),
-        commandButton("config", "config", t("configurations")),
-        commandButton("mass", "ph-scales", t("massProps"), null, "", t("massProps")),
-        commandButton("section", "ph-selection-background", t("sectionView"), null, "", t("sectionView")),
-        commandButton("standards", "ph-seal-check", t("standardsAudit"), null, "", t("standardsAudit")),
-        commandButton("bundle", "ph-package", t("projectBundle"), null, "", t("projectBundle")),
-        commandButton("bundlein", "ph-package", t("importBundle"), null, "", t("importBundle")),
+      /* What the model tells you about itself, versus what leaves the document.
+         Zoom-to-fit is viewport control, not evaluation — the viewport chrome
+         carries it, and F and command search still reach it. */
+      commandGroup(t("grpAnalyze"), [
+        commandButton("regen", t("regenerate"), "Ctrl+B", "primary", t("regenerate")),
+        commandButton("mass", t("massProps"), null, "", t("massProps")),
+        commandButton("measure", t("measureTool"), null, "", t("measureTool")),
+        commandButton("section", t("sectionView"), null, "", t("sectionView")),
+        commandButton("standards", t("standardsAudit"), null, "", t("standardsAudit")),
       ]) +
-      commandGroup("STEP", [
-        commandButton("stepin", "ph-upload-simple", t("stepImport"), null, "", t("stepImport")),
-        commandButton("stepout", "ph-file-step", t("stepExport"), null, "", t("stepExport")),
-        commandButton("igesout", "ph-file-arrow-down", t("exportIges"), null, "", t("exportIges")),
+      /* Configurations is neither analysis nor interop — it is saved document
+         state, which is what the rest of this group is about. */
+      commandGroup(t("grpFile"), [
+        commandButton("drawing", t("drawingExport")),
+        commandButton("config", t("configurations")),
+        commandButton("bundle", t("projectBundle"), null, "", t("projectBundle")),
+        commandButton("bundlein", t("importBundle"), null, "", t("importBundle")),
+        commandButton("stepin", t("stepImport"), null, "", t("stepImport")),
+        commandButton("stepout", t("stepExport"), null, "", t("stepExport")),
+        commandButton("igesout", t("exportIges"), null, "", t("exportIges")),
         // the unit override belongs next to the import it modifies, not in the header
         '<label class="md-command-field"><span>' + t("sourceUnits") + '</span>' +
         '<select id="mdStepUnit" aria-label="' + t("sourceUnits") + '"><option value="auto">' + t("stepAuto") + '</option>' +
@@ -4327,18 +4770,22 @@ function buildDOM() {
         '<option value="in">inch</option><option value="ft">feet</option></select></label>',
       ]) +
     '</div>' +
+    /* Switching document shape is #mdDocModes' job in the header; repeating it
+       here as two more ribbon buttons gave that command two homes. */
     '<div class="md-command-pane" data-command-pane="assembly">' +
-      commandGroup(t("cmdAssembly"), [
-        commandButton("assembly", "ph-stack", t("docAssembly"), null, "primary"),
-        commandButton("components", "ph-cube", t("components")),
-        commandButton("mates", "ph-link", t("mate")),
-        commandButton("screwmate", "threadfeature", t("screwMate")),
-        commandButton("partdoc", "ph-cube-focus", t("docPart")),
-        commandButton("explode", "ph-arrows-out", t("explodeView"), null, "", t("explodeView")),
-        commandButton("motion", "ph-play-circle", t("motionStudy"), null, "", t("motionStudy")),
-        commandButton("interference", "ph-intersect", t("interferenceCheck")),
-        commandButton("bom", "ph-table", t("billOfMaterials"), null, "", t("billOfMaterials")),
-        commandButton("isolate", "ph-eye", t("isolate"), null, "", t("isolate")),
+      commandGroup(t("grpInsert"), [
+        commandButton("components", t("insertComponent"), null, "primary", t("insertComponent")),
+      ]) +
+      commandGroup(t("grpMates"), [
+        commandButton("mates", t("mate"), null, "primary"),
+        commandButton("screwmate", t("screwMate")),
+      ]) +
+      commandGroup(t("grpReview"), [
+        commandButton("explode", t("explodeView"), null, "", t("explodeView")),
+        commandButton("isolate", t("isolate"), null, "", t("isolate")),
+        commandButton("interference", t("interferenceCheck")),
+        commandButton("bom", t("billOfMaterials"), null, "", t("billOfMaterials")),
+        commandButton("motion", t("motionStudy"), null, "", t("motionStudy")),
       ]) +
     '</div></div></div>' +
     '<div class="md-body">' +
@@ -4435,6 +4882,18 @@ function buildDOM() {
       '<div class="md-section-axis" role="group" aria-label="' + t("sectionAxis") + '"><button type="button" data-section-axis="x" class="on">X</button><button type="button" data-section-axis="y">Y</button><button type="button" data-section-axis="z">Z</button></div>' +
       '<label><span>' + t("sectionOffset") + '</span><input id="mdSectionOffset" type="range" min="-200" max="200" step="1" value="0"><output id="mdSectionValue">0 cm</output></label>' +
       '<button type="button" id="mdSectionFlip"><i class="ph ph-arrows-left-right"></i><span>' + t("sectionFlip") + '</span></button>' +
+    '</section>' +
+    /* Evaluate results that are ANSWERS rather than reports — a measurement,
+       a mass, a BOM — live here rather than in #mdReport. #mdReport is
+       aria-modal, so reading the number it just produced meant giving up the
+       viewport that produced it; you could not orbit the model while reading
+       its centre of mass. This card floats over the viewport instead and
+       nothing under it stops responding. */
+    '<section class="md-eval-card" id="mdEvalCard" aria-live="polite" hidden>' +
+      '<div class="md-eval-head"><small id="mdEvalKicker"></small><b id="mdEvalTitle"></b>' +
+      '<button type="button" id="mdEvalClose" aria-label="' + t("close") + '" title="' + t("close") + '"><i class="ph ph-x"></i></button></div>' +
+      '<div class="md-eval-body" id="mdEvalBody"></div>' +
+      '<div class="md-eval-actions" id="mdEvalActions"></div>' +
     '</section>' +
     '<div class="md-sel-filters" id="mdSelFilters" role="toolbar" aria-label="' + t("selFilter") + '">' +
       '<button type="button" data-selfilter="all" class="on">' + t("selFilterAll") + '</button>' +
@@ -4553,6 +5012,10 @@ function buildDOM() {
   root.querySelectorAll("[data-cmdtab]").forEach(function (b) {
     b.addEventListener("click", function () { setCommandTab(b.getAttribute("data-cmdtab")); });
   });
+  root.querySelectorAll("[data-relation]").forEach(function (b) {
+    // greyed relations stay clickable so applyConstraint can say why (see markUnavailable)
+    b.addEventListener("click", function () { applyConstraint(b.getAttribute("data-relation")); refreshAll(); });
+  });
   root.querySelectorAll("[data-command]").forEach(function (b) {
     b.addEventListener("click", function () { runCommand(b.getAttribute("data-command")); });
   });
@@ -4583,6 +5046,7 @@ function buildDOM() {
   root.querySelector("#mdSectionOffset").addEventListener("input", function () { setSectionState({ enabled:true, offset:Number(this.value) || 0 }); });
   root.querySelector("#mdSectionFlip").addEventListener("click", function () { setSectionState({ enabled:true, flip:!E.section.flip }); });
   root.querySelector("#mdSectionClose").addEventListener("click", function () { setSectionState({ enabled:false }); });
+  root.querySelector("#mdEvalClose").addEventListener("click", function () { closeEvalCard(); });
   root.querySelector("#mdFinishPlane").addEventListener("click", finishSketchWorkflow);
   // tabs swap the pane inside their own panel; the two panels are independent
   root.querySelectorAll("[data-tab]").forEach(function (b) {
@@ -4622,17 +5086,18 @@ function buildDOM() {
     '<div class="md-note">' + t("ortho") + "</div>" +
     '<h5 class="md-h5">' + t("keysTitle") + "</h5>" +
     '<div class="md-keys">' +
-    [
-      [t("tool_select"), "V"], [t("tool_rect"), "B"], [t("tool_circle"), "C"], [t("tool_sph"), "S"],
-      [t("tool_wall"), "L"], [t("tool_srect"), "Q"], [t("tool_scirc"), "G"], [t("tool_sarc"), "A"],
-      [t("tool_dim"), "D"], [t("tool_trim"), "T"], [t("tool_extend"), "E"],
-      [t("tool_poly"), "P"], [t("tool_rev"), "R"], [t("tool_cut"), "X"], [t("tool_cutc"), "O"],
+    /* The tool rows are read out of KEY_TOOL, not restated: a hand-written copy
+       drifted until it advertised Sphere on S (S opens the shortcut bar) and
+       left out slot, ellipse and polygon entirely. Only the keys the handler
+       spends on something other than a tool are spelled out below. */
+    toolKeyRows().concat([
+      [t("opRevolve"), "R"], [t("shortcutBar"), "S"],
       [t("mode3d") + " / " + t("mode2d") + " / " + t("modeDrawing"), "3 / 2 / 7"],
       [t("view_top") + " / " + t("view_front") + " / " + t("view_right"), "4 / 5 / 6"],
       [t("zoomFit"), "F"], [t("ortho"), "Shift"], [t("normalTo"), "Ctrl+8"],
       [t("cmdSearch"), "Ctrl+K · /"], [t("regenerate"), "Ctrl+B"], [t("save"), "Ctrl+S"],
       [t("undo") + " / " + t("redo"), "Ctrl+Z / Y · Shift+Z"], [t("del"), "Del"], [t("cancelCommand"), "Esc"],
-    ].map(function (k) { return '<div class="md-key"><span>' + k[0] + "</span><kbd>" + k[1] + "</kbd></div>"; }).join("") +
+    ]).map(function (k) { return '<div class="md-key"><span>' + k[0] + "</span><kbd>" + k[1] + "</kbd></div>"; }).join("") +
     "</div>";
   cons.querySelector("#mdOsnap").checked = !!E.osnap;
   cons.querySelector("#mdOsnap").addEventListener("change", function () { E.osnap = this.checked; saveModelerPrefs(); });
@@ -5234,11 +5699,42 @@ function patternTourSteps() {
     {title:"patternFinishTitle",body:"patternIntroBody",tip:"projectModelTip",target:'[data-tab="look"]',manual:true},
   ];
 }
+/* The half-profile the dreidel is revolved from: a closed polyline that touches
+   the axis at both ends. Closing it is what un-greys the Revolve button, which
+   is why the tour has a step for it. */
+function tourDreidelProfile() {
+  var sketch = sketchForView();
+  var ids = [{u:0,v:0},{u:5,v:7},{u:18,v:18},{u:16,v:35},{u:5,v:42},{u:5,v:55},{u:0,v:55}]
+    .map(function (q) { return newSketchPoint(sketch, q); });
+  var lines = ids.map(function (id, i) {
+    return {id:uid(),type:"line",name:"Line",a:id,b:ids[(i+1)%ids.length],construction:false};
+  });
+  sketch.entities.push.apply(sketch.entities, lines);
+  resolveSketch(false);
+  E.tour.autoLines = lines;
+  refreshAll();
+  return lines;
+}
+
+/* The Revolve command opens a parametric feature form; it never sets E.tool.
+   Watching for a "rev" tool (and then trying to force one with setTool, which a
+   parametric document refuses outright) left both of these steps unfinishable —
+   patternTourSteps above is the working shape for a step driving a form.
+   Revolve is also gated on a closed sketch profile, so the tour draws one
+   before it reaches the button; without that step the intro said "draw the
+   profile" and the next step pointed at a permanently greyed command. */
 function dreidelTourSteps() {
   return [
     {title:"dreidelIntroTitle",body:"dreidelIntroBody",tip:"projectModelTip",target:'.md-command-pane[data-command-pane="features"]',manual:true,prepare:function(){preparePrimitiveProject("front");}},
-    {title:"dreidelToolTitle",body:"dreidelToolBody",tip:"projectModelTip",target:'[data-command="revolvefeature"]',done:function(){return E.tool==="rev";}},
-    {title:"dreidelProfileTitle",body:"dreidelProfileBody",tip:"projectModelTip",target:'.md-mid',baseline:function(){return tourPartCount("rev");},prepare:function(){if(E.tool!=="rev")setTool("rev");},done:function(){return tourPartCount("rev")>Number(E.tour.baseline||0);}},
+    {title:"dreidelSketchTitle",body:"dreidelSketchBody",tip:"projectModelTip",target:'[data-command="wall"]',
+      prepare:function(){setCommandTab("sketch");setMode("2d");setView("front");setTool("wall");},
+      done:function(){return !!closedSketchProfile();}},
+    {title:"dreidelToolTitle",body:"dreidelToolBody",tip:"projectModelTip",target:'[data-command="revolvefeature"]',
+      prepare:function(){setCommandTab("features");},
+      done:function(){return E.authoring.featureType==="revolve";}},
+    {title:"dreidelProfileTitle",body:"dreidelProfileBody",tip:"projectModelTip",target:'#mdQuickSettings',
+      baseline:function(){return tourPartCount();},prepare:function(){setCommandTab("features");},
+      done:function(){return tourPartCount()>Number(E.tour.baseline||0);}},
     projectViewStep(),
     {title:"dreidelFinishTitle",body:"dreidelIntroBody",tip:"projectModelTip",target:'[data-tab="look"]',manual:true},
   ];
@@ -5736,9 +6232,12 @@ function performAutomaticTourStep(track,index,showFields) {
     if(index===3)setMode("3d");
   } else if(track==="dreidel") {
     preparePrimitiveProject("front");
-    if(index===1)setTool("rev");
-    if(index===2)addPart(Object.assign({id:uid(),kind:"rev",name:"Dreidel",x:0,z:0,pts:[{u:0,v:0},{u:5,v:7},{u:18,v:18},{u:16,v:35},{u:5,v:42},{u:5,v:55},{u:0,v:55}]},tourMaterial("#7659b8")));
-    if(index===3)setMode("3d");
+    // one step per index, and the sketch step is index 1 now
+    if(index===1)tourDreidelProfile();
+    // the demo has to open the same form the step now waits on
+    if(index===2)showTourFeatureForm("revolve",{angle:360});
+    if(index===3){closeFeaturePanel();E.authoring.featureType=null;addPart(Object.assign({id:uid(),kind:"rev",name:"Dreidel",x:0,z:0,pts:[{u:0,v:0},{u:5,v:7},{u:18,v:18},{u:16,v:35},{u:5,v:42},{u:5,v:55},{u:0,v:55}]},tourMaterial("#7659b8")));}
+    if(index===4)setMode("3d");
   } else if(track==="pattern") {
     preparePrimitiveProject("front");
     if(index===1){E.tour.autoSeed=tourBox(12,22,0,10,-5,5,"#5f8fd6","Pattern seed");E.sel=E.tour.autoSeed;setTab("parts");}
@@ -6714,7 +7213,7 @@ function syncAuthoringWorkflow() {
   var sketch=ensureSketch(E.def),hasRecordedSketch=(E.def.history || []).some(function(entry){return entry.kind==="sketch"&&entry.targetId===sketch.id;}),reference=root.querySelector("#mdWorkflowReference");
   if(reference)reference.textContent=(hasRecordedSketch || sketch.referenceId || sketch.support) && phase!=="reference" ? sketchPlaneCaption() : t("wfChoosePlane");
   var sketchText=root.querySelector("#mdWorkflowSketch");if(sketchText){var info=E._solveSketchId===sketch.id&&E.solveInfo ? E.solveInfo : solveSketch(sketch);if(E._solveSketchId!==sketch.id){E.solveInfo=info;E._solveSketchId=sketch.id;}sketchText.textContent=(sketch.entities || []).length ? (info.status==="fully-constrained"?t("wfFullyDefined"):((sketch.constraints || []).length?t("wfPartialDefined")+" · ":t("wfUnderDefined")+" · ")+info.degreesOfFreedom+" "+t("wfDof")) : t("wfCreateProfile");}
-  var feature=root.querySelector("#mdWorkflowFeature");if(feature)feature.textContent=E.authoring && E.authoring.featureType ? (featureSpec(E.authoring.featureType)?.label || E.authoring.featureType) : (closedSketchProfile() ? t("wfReadyExtrude") : t("wfTurnIntent"));
+  var feature=root.querySelector("#mdWorkflowFeature");if(feature)feature.textContent=E.authoring && E.authoring.featureType ? featureTypeLabel(E.authoring.featureType) : (closedSketchProfile() ? t("wfReadyExtrude") : t("wfTurnIntent"));
   var history=root.querySelector("#mdWorkflowHistory");if(history)history.textContent=(E.def.history || []).length+" "+t("wfEditableSteps");
   root.classList.toggle("md-authoring-sketch",phase==="sketch");
   syncCoach();
@@ -6929,7 +7428,15 @@ function activeTab(side) {
 }
 
 function setCommandTab(id) {
-  if (!root || !root.querySelector('[data-command-pane="' + id + '"]')) return;
+  if (!root) return;
+  /* Sketch and Features are both hidden in an assembly document, the way the
+     inspector's sketch pane is (setDocumentType): every command on either one
+     is part-only and greys out there, so the pair is pure dead chrome. Guarding
+     on the pane merely existing let a caller — or a user already sitting on one
+     — select a pane whose tab is not on screen, which reads as a ribbon that
+     has gone blank. */
+  if ((id === "sketch" || id === "features") && E.docType === "assembly") id = "assembly";
+  if (!root.querySelector('[data-command-pane="' + id + '"]')) return;
   E.commandTab = id;
   root.querySelectorAll("[data-cmdtab]").forEach(function (b) {
     var on = b.getAttribute("data-cmdtab") === id;
@@ -6987,6 +7494,7 @@ function runCommand(id) {
   else if (id === "drawing" && E.docType === "part") downloadDrawing(E.def, { section: true, holeCallouts: true, balloons: true });
   else if (id === "drawing" && E.docType === "assembly") downloadAssemblyDrawing();
   else if (id === "mass") showMassProperties();
+  else if (id === "measure") beginMeasure(E.measure && E.measure.mode);
   else if (id === "section") toggleSectionView();
   else if (id === "standards") runStandardsAudit();
   else if (id === "stdscrew") insertISO4017Screw();
@@ -7001,7 +7509,7 @@ function runCommand(id) {
   else if (id === "assembly") setDocumentType("assembly");
   else if (id === "partdoc") setDocumentType("part");
   else if (id === "components") { setDocumentType("assembly"); setTab("parts"); }
-  else if (id === "mates") { setDocumentType("assembly"); setTab("ops"); }
+  else if (id === "mates") openMatePropertyManager();
   else if (id === "explode") createDefaultExplodedView();
   else if (id === "motion") createDefaultMotionStudy();
   else if (id === "interference") runInterferenceCheck();
@@ -7160,13 +7668,13 @@ function createMultiSketchFeature(type, values) {
     params.profile=profileLoop.points.map(function(point){return {x:point.u,y:point.v,z:0};});
     params.path=sampleHelix(helix).points;
     params.helix={origin:helix.origin,axis:helix.axis,radius:helix.radius,radiusEnd:helix.radiusEnd,pitch:helix.pitch,turns:helix.turns,height:helix.height,handedness:helix.handedness,startAngle:helix.startAngle};
-    pushUndo(t("createFeature")+" "+(featureSpec(type)?.label || type));
+    pushUndo(t("createFeature")+" "+featureTypeLabel(type));
     try{createFeatureDefinition(E.def,type,{references:{sketches:[profileSketch.id],features:[],topology:[],references:[helix.id]},params:params});}
     catch(error){H.discard();flash(String(error.message||error));return false;}
     refreshAll();return true;
   }
   var required=type==="loft"?2:2;
-  if(ids.length<required){flash((featureSpec(type)?.label || type)+" "+t("featureNeedsSketches"));return false;}
+  if(ids.length<required){flash(featureTypeLabel(type)+" "+t("featureNeedsSketches"));return false;}
   var refs=ids.slice(0,type==="sweep"?2:ids.length),params={...featureDefaults(type),...((values && values.params) || values || {})};
   if(type==="sweep"){
     var profile=(E.def.sketches || []).find(function(sketch){return sketch.id===refs[0];}),path=(E.def.sketches || []).find(function(sketch){return sketch.id===refs[1];});
@@ -7177,7 +7685,7 @@ function createMultiSketchFeature(type, values) {
     params.sections=refs.map(function(id){var sketch=(E.def.sketches || []).find(function(item){return item.id===id;}),profile=analyzeSketchProfiles(sketch).profiles[0];return profile?profile.points.map(function(point){return {x:point.u,y:point.v,z:sketch.offset || 0};}):null;});
     if(params.sections.some(function(section){return !section;})){flash(t("loftNeed"));return false;}
   }
-  pushUndo(t("createFeature")+" "+(featureSpec(type)?.label || type));
+  pushUndo(t("createFeature")+" "+featureTypeLabel(type));
   try{createFeatureDefinition(E.def,type,{references:{sketches:refs,features:[],topology:[],references:[]},params:params});}
   catch(error){H.discard();flash(String(error.message||error));return false;}
   refreshAll();return true;
@@ -7417,7 +7925,7 @@ function extrudePreviewParts(type,params) {
   var direction=(params.direction==="reverse"?-1:1)*(principalDirection || 1),depth=Math.max(.1,Number(params.depth)||.1),offset=Number(params.offset)||0,symmetric=!!params.symmetric||params.endCondition==="mid-plane";
   var center=(sketch.frameSpace==="local"?0:Number(sketch.offset)||0)+direction*offset,from=symmetric?center-direction*depth/2:center,to=symmetric?center+direction*depth/2:center+direction*depth;
   return areas.map(function(area,index){
-    return {id:"preview:"+type+":"+index,featureId:"preview:"+type,previewOnly:true,kind:"ext",axis:sketch.frameSpace==="local"?"frame":axis,frame:sketch.frameSpace==="local"?cloneData(sketch.frame):undefined,from:from,to:to,pts:area.points,holes:area.holes.slice(),color:type==="extrudeCut"?"#d75a4a":"#6f8de8",opacity:type==="extrudeCut"?.42:.62,metal:.04,rough:.68,name:"Live "+(featureSpec(type)?.label || type)};
+    return {id:"preview:"+type+":"+index,featureId:"preview:"+type,previewOnly:true,kind:"ext",axis:sketch.frameSpace==="local"?"frame":axis,frame:sketch.frameSpace==="local"?cloneData(sketch.frame):undefined,from:from,to:to,pts:area.points,holes:area.holes.slice(),color:type==="extrudeCut"?"#d75a4a":"#6f8de8",opacity:type==="extrudeCut"?.42:.62,metal:.04,rough:.68,name:"Live "+featureTypeLabel(type)};
   });
 }
 
@@ -7652,7 +8160,7 @@ function exactFinishPreviewPart(type,state) {
   var amount=type==="fillet"?Number(state.params.radius):type==="chamfer"?Number(state.params.distance):Number(state.params.thickness);
   if(!Number.isFinite(amount) || amount<=0)return null;
   var preview=cloneData(source);
-  preview.previewOnly=true;preview.id=source.id;preview.name="Live "+(featureSpec(type)?.label || type);
+  preview.previewOnly=true;preview.id=source.id;preview.name="Live "+featureTypeLabel(type);
   preview.color=type==="shell"?"#43a6c9":"#7567e8";preview.opacity=.94;
   preview.exactOperations=preview.exactOperations || [];
   preview.exactOperations.push({
@@ -7757,7 +8265,7 @@ function openParametricFeature(type) {
   var host=root && root.querySelector("#mdQuickSettings");if(!host)return;
   if(E.authoring.featureEdit)cancelFeatureParameterEdit(true);
   clearFeaturePreview(false);E.authoring.featureType=type;E.authoring.phase="model";E.quickAction=type;host.hidden=false;host.innerHTML="";
-  host.appendChild(el("div","md-feature-form-title",'<i class="ph '+spec.icon+'"></i><span><b>'+spec.label+'</b><small>'+t("featureFormHint")+'</small></span>'));
+  host.appendChild(el("div","md-feature-form-title",'<i class="ph '+spec.icon+'"></i><span><b>'+featureTypeLabel(type)+'</b><small>'+t("featureFormHint")+'</small></span>'));
   var state={type:type,params:featureDefaults(type),references:{}};
   if(type==="extrude"||type==="extrudeCut"||type==="hole"){
     state.params.depth=E.depth;state.params.offset=E.baseOff;
@@ -7805,27 +8313,120 @@ function openParametricFeature(type) {
   if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
 }
 
+/* The PropertyManager shape of openParametricFeature above, for the handful of
+   ribbon commands that used to stop the page on a window.prompt(): the same
+   #mdQuickSettings host, the same title card, the same featureField() rows and
+   the same cancel/apply pair. `onLive` is optional — the operations that reach
+   this helper edit sketch geometry rather than a solid, so most of them have
+   nothing to preview until they are applied.
+   `onApply` returning false keeps the panel open (bad input, or the operation
+   refused), which is also why every one of these pushes its undo entry inside
+   onApply: cancelling must leave the history untouched. */
+function openQuickForm(spec) {
+  var host = root && root.querySelector("#mdQuickSettings");
+  if (!host) return null;
+  if (E.authoring && E.authoring.featureEdit) cancelFeatureParameterEdit(true);
+  if (E.authoring && E.authoring.featureType) { clearFeaturePreview(false); E.authoring.featureType = null; }
+  E.quickAction = spec.action || "quickform";
+  host.hidden = false;
+  host.innerHTML = "";
+  host.appendChild(el("div", "md-feature-form-title",
+    '<i class="ph ' + (spec.icon || "ph-sliders-horizontal") + '"></i><span><b>' + spec.title +
+    "</b><small>" + (spec.hint || t("featureFormHint")) + "</small></span>"));
+  var section = el("details", "md-feature-group");
+  section.open = true;
+  section.appendChild(el("summary", "", '<i class="ph ph-sliders-horizontal"></i><span>' + spec.title + "</span><small>" + spec.fields.length + "</small>"));
+  var body = el("div", "md-feature-group-body");
+  var inputs = {};
+  spec.fields.forEach(function (field) { inputs[field.key] = featureField(body, field, field.value); });
+  section.appendChild(body);
+  host.appendChild(section);
+
+  var read = function () {
+    var values = {};
+    spec.fields.forEach(function (field) {
+      var raw = inputs[field.key].value;
+      values[field.key] = field.type === "number" ? (raw === "" ? NaN : Number(raw)) : String(raw);
+    });
+    return values;
+  };
+  if (spec.onLive) Object.keys(inputs).forEach(function (key) {
+    inputs[key].addEventListener("input", function () { spec.onLive(read()); });
+  });
+
+  var close = function () { host.innerHTML = ""; E.quickAction = null; closeFeaturePanel(); };
+  var actions = el("div", "md-feature-actions");
+  actions.appendChild(namedButton(btn('<i class="ph ph-x"></i> ' + t("m_cancel"), function () {
+    close();
+    if (spec.onCancel) spec.onCancel();
+    refreshAll();
+  }, "md-quick-cancel"), t("cancelCommand")));
+  actions.appendChild(btn('<i class="ph ph-check"></i> ' + t("quickApply"), function () {
+    if (spec.onApply(read()) === false) return;
+    close();
+    refreshAll();
+  }, "md-quick-apply"));
+  host.appendChild(actions);
+
+  var first = inputs[spec.fields[0] && spec.fields[0].key];
+  if (first) requestAnimationFrame(function () { try { first.focus(); if (first.select) first.select(); } catch (error) {} });
+  syncCommandManager();
+  if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
+  return inputs;
+}
+
 function commandCatalog() {
-  return buildCommandCatalog({ t: t, editor: E, closedSketchProfile: closedSketchProfile, activeParts: activeParts });
+  return buildCommandCatalog({ t: t, editor: E, closedSketchProfile: closedSketchProfile, activeParts: activeParts, canonicalAuthoring: isCanonicalAuthoring });
 }
 
 function commandUnavailableReason(id) {
   return catalogUnavailableReason(id, commandCatalog(), t("cmdUnavailable"));
 }
 
+/* A ribbon caption whose catalog label would mislead gets its tooltip here.
+   "Project" is not SolidWorks' Convert Entities — projectPartEdges projects the
+   bodies' silhouette on the sketch plane as construction geometry — so the
+   button says so rather than repeating the catalog's "Project part edges". */
+var COMMAND_TOOLTIP = { project: function () { return t("projectEdgesTip"); } };
+
+/* The ribbon relations grey themselves from constraintFits, exactly as the
+   inspector palette does. They carry `data-relation`, so the [data-command]
+   sweep below never touches them. */
+function syncRelationCommands() {
+  if (!root) return;
+  root.querySelectorAll("[data-relation]").forEach(function (b) {
+    var id = b.getAttribute("data-relation");
+    var d = CONSTRAINT_DEFS.filter(function (x) { return x.id === id; })[0];
+    var name = d ? t(d.label) : id;
+    var fits = constraintFits(id);
+    markUnavailable(b, fits ? "" : name + " — " + t("selHint"), name + (d ? " — " + d.need : ""));
+  });
+}
+
 function syncCommandManager() {
   if (!root) return;
+  syncRelationCommands();
   var catalog = commandCatalog();
+  /* Two of Direct's five buttons quietly become sketch tools in a parametric-v1
+     document and the other three refuse outright, so the whole group goes away
+     there. It is part-only besides — leaving it on in an assembly put five dead
+     buttons back on the pane and pushed Features 340px past the fold, which is
+     the overflow this ribbon was rebuilt to remove. Hidden, not removed:
+     command search and legacy part documents still reach every one of them. */
+  var directSeed = root.querySelector('[data-command="directbox"]');
+  var direct = directSeed && directSeed.closest(".md-command-group");
+  if (direct) direct.hidden = E.docType !== "part" || isCanonicalAuthoring();
   root.querySelectorAll("[data-command]").forEach(function (b) {
     var id = b.getAttribute("data-command"), def = catalog.find(function (c) { return c.id === id; });
     // a ribbon button is lit while its tool is picked *or* its feature form is open
     var feature = E.authoring && E.authoring.featureType;
     var why = (def && def.available && !def.available()) ? ((def.reason && def.reason()) || t("cmdUnavailable")) : "";
     b.classList.toggle("on", id === E.tool || (feature && id === FEATURE_COMMAND[feature]) ||
-      (id === "model3d" && E.mode === "3d"));
+      (id === "measure" && !!E.measure) || (id === "model3d" && E.mode === "3d"));
     b.classList.toggle("unavailable", !!why);
     b.setAttribute("aria-disabled", why ? "true" : "false");
     if (why) b.title = why;
+    else if (COMMAND_TOOLTIP[id]) b.title = COMMAND_TOOLTIP[id]();
     else if (def) b.title = def.label + (def.shortcut ? " · " + def.shortcut : "");
   });
 }
@@ -8209,7 +8810,7 @@ function currentCornerInput() {
     toolLabel: ({ wall:t("tool_wall"), poly:t("tool_poly"), cut:t("tool_cut"), rev:t("tool_rev"), sarc:t("tool_sarc"),
       sslot:t("tool_sslot"), sell:t("tool_sell"), spoly:t("tool_spoly"), srect:t("tool_srect"), scirc:t("tool_scirc") })[E.tool],
     featureType: E.authoring && E.authoring.featureType,
-    featureLabel: E.authoring && E.authoring.featureType && (featureSpec(E.authoring.featureType) || {}).label,
+    featureLabel: E.authoring && E.authoring.featureType && featureTypeLabel(E.authoring.featureType),
     sketchPhase: E.authoring && E.authoring.phase === "sketch" && !drawing,
     finishSketchLabel: t("finishSketch"),
   };
@@ -8362,6 +8963,8 @@ function sketchPlaneCaption() {
 function syncHint() {
   var hint = root && root.querySelector("#mdHint");
   if (!hint) return;
+  // A flash still on screen keeps the element; see flash() above.
+  if (flashHolding()) return;
   var live = (E.mode !== "3d" || E.modelPlaneActive) && (E.tool === "wall" || E.tool === "poly" || E.tool === "rev" || E.tool === "cut" || E.tool === "cutc" || E.tool === "sarc" || E.tool === "sslot" || E.tool === "sell");
   var topology=(E.topologySelection || []),finishType=E.authoring && ["fillet","chamfer","shell"].includes(E.authoring.featureType) ? E.authoring.featureType : null;
   var sameKind=topology.length && topology.every(function(reference){return reference.kind===topology[0].kind;});
@@ -9201,13 +9804,26 @@ function reportOpen() {
   return !!(host && !host.hidden);
 }
 
+/* A flashed message owns #mdHint for as long as it is on screen. It has to say
+   so, because almost every command ends in refreshAll() -> syncTools() ->
+   syncHint(), and syncHint rewrites that same element from the active tool —
+   so the answer to "what did that command do?" was being overwritten in the
+   same tick it was written. syncHint honours FLASH_MS, which is why callers no
+   longer have to flash after the refresh. */
+var FLASH_MS = 1800;
 function flash(msg) {
   var hint = root && root.querySelector("#mdHint");
   if (!hint) return;
   hint.textContent = msg;
   hint.classList.add("live", "flash");
+  E.flashUntil = Date.now() + FLASH_MS;
   clearTimeout(E._flashT);
-  E._flashT = setTimeout(function () { hint.classList.remove("flash"); syncTools(); }, 1800);
+  E._flashT = setTimeout(function () { E.flashUntil = 0; hint.classList.remove("flash"); syncTools(); }, FLASH_MS);
+}
+
+// Whether a flashed message is still within its display window.
+function flashHolding() {
+  return !!(E.flashUntil && Date.now() < E.flashUntil);
 }
 
 function finishPoly() {
@@ -10075,24 +10691,55 @@ function mirrorSelection() {
   refreshAll();
 }
 
+/* Count, pitch and direction used to arrive from three chained window.prompt()
+   dialogs, which froze the page and hid the sketch the pattern was about. They
+   are one PropertyManager form now — appendToSketch still owns the undo entry,
+   and it only runs when apply does. */
 function patternSelection() {
   var ents = selEntities();
   if (!ents.length) { flash(t("selHint")); return; }
-  var count = parseInt(prompt(t("patternAsk"), "3"), 10);
-  if (!fin(count) || count < 2) return;
-  var pitch = parseFloat(prompt(t("patternPitch"), "30"));
-  if (!fin(pitch) || !pitch) return;
-  var dir = String(prompt(t("patternDir"), "u") || "u").trim().toLowerCase();
-
-  var made = appendToSketch(t("sketchPattern"), function (sketch) {
-    return linearPatternEntities(sketch, ents.map(function (e) { return e.id; }),
-      { count: count, spacing: pitch, direction: dir === "v" ? "v" : "u" });
+  var ids = ents.map(function (e) { return e.id; });
+  openQuickForm({
+    action: "sketchPattern", icon: "ph-squares-four", title: t("sketchPattern"),
+    fields: [
+      { key: "count", label: t("patternAsk"), type: "number", value: 3, step: 1, min: 2 },
+      { key: "pitch", label: t("patternPitch"), type: "number", value: 30, step: 1, unit: "length" },
+      { key: "dir", label: t("patternDir"), type: "select", value: "u",
+        choices: [{ value: "u", label: t("patternDirU") }, { value: "v", label: t("patternDirV") }] },
+    ],
+    onApply: function (values) {
+      var count = Math.round(values.count), pitch = values.pitch;
+      if (!fin(count) || count < 2 || !fin(pitch) || !pitch) { flash(t("patternBadInput")); return false; }
+      var made = appendToSketch(t("sketchPattern"), function (sketch) {
+        return linearPatternEntities(sketch, ids, { count: count, spacing: pitch, direction: values.dir === "v" ? "v" : "u" });
+      });
+      if (!made) { flash(t("patternFail")); return false; }
+      E.ssel = [];
+      E.sel = null;
+      flash(t("patternMade"));
+      return true;
+    },
   });
-  if (!made) { flash(t("patternFail")); refreshAll(); return; }
-  E.ssel = [];
-  E.sel = null;
-  flash(t("patternMade"));
-  refreshAll();
+}
+
+/* Offset's distance panel. The undo entry belongs to apply, not to the click
+   that picked the entity: the panel is asynchronous, so pushing undo up front
+   would leave a stray history step behind every cancel. */
+function openSketchOffsetForm(entityId) {
+  openQuickForm({
+    action: "offset", icon: "ph-path", title: t("tool_offset"), hint: t("offsetHint"),
+    fields: [{ key: "dist", label: t("offsetAsk"), type: "number", value: 5, step: .5, unit: "length" }],
+    onApply: function (values) {
+      if (!fin(values.dist) || !values.dist) { flash(t("offsetNeedDistance")); return false; }
+      var sketch = ensureSketch(E.def);
+      pushUndo(t("tool_offset"));
+      if (!offsetEntity(sketch, entityId, values.dist)) { H.discard(); flash(t("offsetFail")); return false; }
+      E.ssel = [];
+      E.sel = null;
+      resolveSketch(false);
+      return true;
+    },
+  });
 }
 
 /* Circular pattern. The centre is picked, not typed: a selected sketch point is
@@ -10120,20 +10767,37 @@ function patternCircularSelection() {
   });
   if (!sources.length) { flash(t("circPatternNeed")); return; }
 
-  var count = parseInt(prompt(t("patternAsk"), "6"), 10);
-  if (!fin(count) || count < 2) return;
-  var answer = String(prompt(t("circPatternAngle"), String(Math.round((3600 / count)) / 10)) || "").trim();
-  var angle = parseFloat(answer);
-
-  var made = appendToSketch(t("sketchCircPattern"), function (sketch) {
-    return circularPatternEntities(sketch, sources.map(function (e) { return e.id; }),
-      { count: count, angle: fin(angle) ? angle : 0, center: centre });
+  var ids = sources.map(function (e) { return e.id; });
+  var inputs = openQuickForm({
+    action: "sketchCircPattern", icon: "ph-arrows-clockwise", title: t("sketchCircPattern"),
+    fields: [
+      { key: "count", label: t("patternAsk"), type: "number", value: 6, step: 1, min: 2 },
+      { key: "angle", label: t("circPatternAngle"), type: "number", value: 60, step: 1, unit: "angle" },
+    ],
+    onApply: function (values) {
+      var count = Math.round(values.count), angle = values.angle;
+      if (!fin(count) || count < 2) { flash(t("patternBadInput")); return false; }
+      var made = appendToSketch(t("sketchCircPattern"), function (sketch) {
+        return circularPatternEntities(sketch, ids, { count: count, angle: fin(angle) ? angle : 0, center: centre });
+      });
+      if (!made) { flash(t("patternFail")); return false; }
+      E.ssel = [];
+      E.sel = null;
+      flash(t("patternMade"));
+      return true;
+    },
   });
-  if (!made) { flash(t("patternFail")); refreshAll(); return; }
-  E.ssel = [];
-  E.sel = null;
-  flash(t("patternMade"));
-  refreshAll();
+  /* The old prompt seeded the angle from the count the user had just typed.
+     Keep that: the angle follows the count until it is edited by hand, and
+     stops following the moment it is. */
+  if (inputs) {
+    var angleOwned = false;
+    inputs.angle.addEventListener("input", function () { angleOwned = true; });
+    inputs.count.addEventListener("input", function () {
+      var typed = Math.round(Number(inputs.count.value));
+      if (!angleOwned && fin(typed) && typed >= 2) inputs.angle.value = String(Math.round(3600 / typed) / 10);
+    });
+  }
 }
 
 /* ---- smart dimension: measure what is selected/picked, then lock it ---- */
@@ -11021,17 +11685,27 @@ function wireSketch() {
     if (E.tool === "trim" || E.tool === "extend" || E.tool === "offset" || E.tool === "constr") {
       var target = hitSketch(uv, e.pointerType);
       if (!target || !target.type) { drawSketch(); return; }
-      var sketch = ensureSketch(E.def), ok = false;
-      if (E.tool === "trim") { pushUndo(t("opTrim")); ok = trimEntity(sketch, target.id, { x: uv.u, y: uv.v }); }
-      else if (E.tool === "extend") { pushUndo(t("tool_extend")); ok = extendEntity(sketch, target.id, { x: uv.u, y: uv.v }); }
-      else if (E.tool === "constr") { pushUndo(t("tool_constr")); ok = toggleConstruction(sketch, target.id); }
-      else {
-        var dist = parseFloat(prompt(t("offsetAsk"), "5"));
-        if (!fin(dist) || !dist) return;
-        pushUndo(t("tool_offset"));
-        ok = !!offsetEntity(sketch, target.id, dist);
-      }
-      if (!ok) H.discard(); else { E.ssel = []; E.sel = null; resolveSketch(false); }
+      /* Offset asks for a distance, and the panel that asks is asynchronous —
+         so unlike its three neighbours it cannot push an undo entry here. The
+         apply handler pushes it, and cancelling leaves the history alone. */
+      if (E.tool === "offset") { openSketchOffsetForm(target.id); drawSketch(); return; }
+      var sketch = ensureSketch(E.def), ok = false, why = "";
+      /* A refused trim or extend used to discard its undo and say nothing at
+         all, so clicking Trim on a circle read as a broken build. Both tools
+         are line-only (sketch_trim.js), and extend additionally needs geometry
+         beyond the end you picked. */
+      if (E.tool === "trim") {
+        pushUndo(t("opTrim"));
+        ok = trimEntity(sketch, target.id, { x: uv.u, y: uv.v });
+        if (!ok) why = target.type === "line" ? t("trimHint") : t("trimLineOnly");
+      } else if (E.tool === "extend") {
+        pushUndo(t("tool_extend"));
+        ok = extendEntity(sketch, target.id, { x: uv.u, y: uv.v });
+        if (!ok) why = target.type === "line" ? t("extendNoTarget") : t("extendLineOnly");
+      } else { pushUndo(t("tool_constr")); ok = toggleConstruction(sketch, target.id); }
+      if (!ok) H.discard();
+      else { E.ssel = []; E.sel = null; resolveSketch(false); }
+      if (why) flash(why);
       refreshAll();
       return;
     }
@@ -11581,6 +12255,7 @@ function onKey(e) {
     var referencePicker = root && root.querySelector("#mdReferencePicker");
     if (referencePicker && !referencePicker.hidden) { e.preventDefault(); cancelReferenceSelection(); return; }
     if (E.tour.active) { e.preventDefault(); closeTour(); return; }
+    if (E.measure) { e.preventDefault(); closeEvalCard(); return; }
     if (dynHasEntry()) { E.dynInput = null; drawSketch(); return; }
     if (E.wallPts) { finishWallChain(true); return; }
     if (E.poly) { E.poly = null; drawSketch(); return; }
@@ -11741,6 +12416,20 @@ function assemblyTreeNode(fields) {
     swatch: fields.swatch || null,
   };
 }
+
+/* The topology mates offered by both doors into addTopologyMate: the Ops
+   palette and the ribbon's PropertyManager. Labels are i18n KEYS, not text —
+   this list is built once and the language is chosen per render. Icons are
+   phosphor class names because these buttons are drawn inline rather than
+   through cadIcon. */
+var MATE_PALETTE = [
+  ["coincident", "ph-selection", "coincidentMate"],
+  ["concentric", "ph-circles-three-plus", "concentricMate"],
+  ["angle", "ph-angle", "angleMate"],
+  ["screw", "threadfeature", "screwMate"],
+  ["tangent", "ph-circle", "tangentMate"],
+  ["limit", "ph-arrows-in-line-vertical", "limitMate"],
+];
 
 function topologyMateLabel(type) {
   var key = {
@@ -12090,7 +12779,7 @@ function cancelFeatureParameterEdit(silent) {
   if(feature){Object.keys(feature).forEach(function(key){delete feature[key];});Object.assign(feature,cloneData(edit.snapshot));syncProjectionFromFeature(feature);}
   E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;H.discard();
   closeFeaturePanel();
-  refreshAll();if(!silent)flash("Feature edit cancelled · previous parameters restored");
+  refreshAll();if(!silent)flash(t("featureEditCancelled"));
 }
 
 function openFeatureEditor(feature) {
@@ -12098,20 +12787,20 @@ function openFeatureEditor(feature) {
   if(E.authoring.featureEdit)cancelFeatureParameterEdit(true);
   pushUndo("Edit "+feature.name);E.authoring.featureEdit={featureId:feature.id,snapshot:cloneData(feature)};
   host.hidden=false;host.innerHTML="";E.authoring.featureType=feature.type;E.authoring.editFeatureId=feature.id;
-  host.appendChild(el("div","md-feature-form-title",cadIcon(feature.type)+'<span><b>Edit '+feature.name+'</b><small>History step · '+feature.id+'</small></span>'));
+  host.appendChild(el("div","md-feature-form-title",cadIcon(feature.type)+'<span><b>'+tf("featureEditTitle",{name:feature.name})+'</b><small>'+tf("featureEditStep",{id:feature.id})+'</small></span>'));
   highlightFeatureIssueBanner(host, feature);
-  var name=featureField(host,{key:"$name",label:"Feature name",type:"text"},feature.name),liveBadge=el("div","md-feature-live on",'<i class="ph ph-broadcast"></i> Live · every model view follows these parameters');host.appendChild(liveBadge);
+  var name=featureField(host,{key:"$name",label:t("fldFeatureName"),type:"text"},feature.name),liveBadge=el("div","md-feature-live on",'<i class="ph ph-broadcast"></i> '+t("featureLiveAllViews"));host.appendChild(liveBadge);
   var pendingFrame=0,controls=renderFeatureParameterForm(host,feature.type,feature,function(next){
     feature.params={...feature.params,...next.params};setFeatureReferencesFromForm(feature,next.references);feature.name=name.value || feature.name;
     if(pendingFrame)cancelAnimationFrame(pendingFrame);pendingFrame=requestAnimationFrame(function(){pendingFrame=0;syncProjectionFromFeature(feature);refreshAll();liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);});
   });
   name.addEventListener("input",function(){feature.name=name.value || feature.name;var entry=(E.def.history || []).find(function(item){return item.targetId===feature.id;});if(entry)entry.name=feature.name;refreshParts();fillInspector();});
-  var dependencies=[];(feature.references.sketches || []).forEach(function(id){dependencies.push("Sketch: "+(id.id||id));});(feature.inputs || []).forEach(function(id){dependencies.push("Feature: "+id);});
-  host.appendChild(el("div","md-feature-selection-note",dependencies.length?dependencies.join(" · "):"No upstream feature dependencies"));
+  var dependencies=[];(feature.references.sketches || []).forEach(function(id){dependencies.push(t("depSketch")+": "+(id.id||id));});(feature.inputs || []).forEach(function(id){dependencies.push(t("depFeature")+": "+id);});
+  host.appendChild(el("div","md-feature-selection-note",dependencies.length?dependencies.join(" · "):t("noUpstreamDeps")));
   var actions=el("div","md-feature-actions");actions.appendChild(namedButton(btn('<i class="ph ph-arrow-counter-clockwise"></i> '+t("m_cancel"),function(){cancelFeatureParameterEdit(false);},"md-quick-cancel"), t("cancelCommand")));
-  actions.appendChild(btn('<i class="ph ph-check"></i> Update feature',function(){
+  actions.appendChild(btn('<i class="ph ph-check"></i> '+t("updateFeature"),function(){
     var values=readFeatureParameterForm(controls,feature.params);
-    try{updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});setFeatureReferencesFromForm(feature,values.references);syncProjectionFromFeature(feature);E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();refreshAll();flash("✓ Feature rebuilt from history · all views updated");}
+    try{updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});setFeatureReferencesFromForm(feature,values.references);syncProjectionFromFeature(feature);E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();refreshAll();flash("✓ "+t("featureRebuiltFromHistory"));}
     catch(error){flash(String(error.message||error));}
   },"md-quick-apply"));host.appendChild(actions);syncAuthoringWorkflow();syncCommandManager();
   if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
@@ -13120,11 +13809,26 @@ function addMate(type) {
   var pair = ungroundedComponentPair();
   if (!pair) { flash(t("mateHint")); return; }
   var a = pair.a, b = pair.b;
-  var value = 0;
+  /* Only the distance mate carries a value, and it used to read that value from
+     a blocking prompt seeded with the pair's current X gap. Same seed, in a
+     panel — and the undo entry moves with it, into apply. */
   if (type === "distanceX") {
-    value = parseFloat(prompt(t("mateDistance"), normalizeTransform(b).x - normalizeTransform(a).x));
-    if (!fin(value)) return;
+    openQuickForm({
+      action: "mate", icon: "ph-arrows-left-right", title: t("mateDistance"), hint: t("mateDistanceHint"),
+      fields: [{ key: "value", label: t("mateDistance"), type: "number",
+        value: Math.round((normalizeTransform(b).x - normalizeTransform(a).x) * 10) / 10, step: .5, unit: "length" }],
+      onApply: function (values) {
+        if (!fin(values.value)) { flash(t("needSel")); return false; }
+        commitMate(type, a, b, values.value);
+        return true;
+      },
+    });
+    return;
   }
+  commitMate(type, a, b, 0);
+}
+
+function commitMate(type, a, b, value) {
   pushUndo(t("mate"));
   E.assembly.mates = Array.isArray(E.assembly.mates) ? E.assembly.mates : [];
   E.assembly.mates.push({ id: uid(), type: type, a: a.id, b: b.id, value: value });
@@ -13149,10 +13853,15 @@ function componentTopologyRef(component, kind, side) {
   return topologyReference(component.id, kind, (component.modelKey||component.id)+":"+kind+":"+(side||"center"), frame);
 }
 
-function addTopologyMate(type) {
-  if (!E.assembly) { flash(t("mateHint")); return; }
+/* `value` is the one number a mate can carry. Only Angle asks for one today —
+   every other type stored a hardcoded zero and had nothing to set — so it is
+   optional and clamps to the 0..180 range cad_mate_model measures in.
+   Returns whether a mate was actually stored, so a PropertyManager can stay
+   open on the refusal instead of closing over it. */
+function addTopologyMate(type, value) {
+  if (!E.assembly) { flash(t("mateHint")); return false; }
   var fits = mateTypeFits(type);
-  if (!fits.ok) { flash(fits.reason); return; }
+  if (!fits.ok) { flash(fits.reason); return false; }
   /* Two picked faces beat two synthesized ones. The buttons used to mate the
      component's +X bounding face to the other's -X face whatever the user had
      clicked, which is not what "Coincident faces" says it does. */
@@ -13162,7 +13871,7 @@ function addTopologyMate(type) {
     b = mateReferenceFromPick(picked.b);
   } else {
     var fallback = mateFallbackRefs(type);
-    if (!fallback) { flash(t("mateHint")); return; }
+    if (!fallback) { flash(t("mateHint")); return false; }
     a = fallback.a;
     b = fallback.b;
   }
@@ -13175,12 +13884,12 @@ function addTopologyMate(type) {
     var swap = a; a = b; b = swap;
     componentB = componentA;
   }
-  if (componentB && componentB.grounded) { flash(t("mateIssueGroundedTarget")); return; }
+  if (componentB && componentB.grounded) { flash(t("mateIssueGroundedTarget")); return false; }
   pushUndo(t("mate"));
   E.assembly.topologyMates ||= [];
   E.assembly.topologyMates.push({
     id:uid(), type:type, a:a, b:b,
-    value: 0,
+    value: type === "angle" ? clampMateAngle(value) : 0,
     pitch: type === "screw" ? 0.125 : undefined,
     turns: type === "screw" ? 0 : undefined,
     min: type === "limit" ? 0 : undefined,
@@ -13188,6 +13897,68 @@ function addTopologyMate(type) {
   });
   E.topologySelection = [];
   solveAssembly(); refreshAll();
+  return true;
+}
+
+function clampMateAngle(value) {
+  var degrees = Number(value);
+  if (!fin(degrees)) return 0;
+  return Math.max(0, Math.min(180, degrees));
+}
+
+/* Angle asks for its degrees before it is built. 45° rather than 0° as the
+   seed, because a zero-degree angle mate IS a parallel mate — the cusp
+   cad_mate_model handles specially — and a button that silently makes one
+   looks like a button that did nothing. */
+function openMateAngleForm() {
+  openQuickForm({
+    action: "anglemate", icon: "ph-angle", title: t("angleMate"),
+    hint: assemblyPickedRefs() ? t("mateUsingPicked") : t("mateUsingBounds"),
+    fields: [{ key: "angle", label: t("mateAngleValue"), type: "number", value: 45, step: 1, min: 0, max: 180, unit: "angle" }],
+    onApply: function (values) { return addTopologyMate("angle", values.angle); },
+  });
+}
+
+/* The ribbon's Mate button used to do nothing but switch tabs, which is why
+   mating looked like an inspector-only feature. This is the PropertyManager
+   half of the same command: the two references the viewport has picked, the
+   mate types those picks can actually support, and the value for the one that
+   needs one. The Ops palette is untouched — this is a second door to the same
+   addTopologyMate(), not a replacement for the first. */
+function openMatePropertyManager() {
+  setDocumentType("assembly");
+  setTab("ops");
+  if (!E.assembly) { flash(t("mateHint")); return; }
+  var offered = MATE_PALETTE.filter(function (entry) { return mateTypeFits(entry[0]).ok; });
+  if (!offered.length) { flash(t("mate") + " — " + mateTypeFits("coincident").reason); return; }
+  var picked = assemblyPickedRefs();
+  var referenceLabel = function (reference) {
+    return componentLabel(reference.componentId) + " · " +
+      String(reference.semantic || reference.kind || "face").replace(/[:_-]+/g, " ");
+  };
+  var inputs = openQuickForm({
+    action: "mate", icon: "ph-link", title: t("matePmTitle"),
+    hint: picked ? t("mateUsingPicked") : t("matePmNoPicks"),
+    fields: [
+      { key: "refA", label: t("matePmRefA"), type: "text", value: picked ? referenceLabel(picked.a) : t("mateUsingBounds") },
+      { key: "refB", label: t("matePmRefB"), type: "text", value: picked ? referenceLabel(picked.b) : t("mateUsingBounds") },
+      { key: "type", label: t("matePmType"), type: "select", value: offered[0][0],
+        choices: offered.map(function (entry) { return { value: entry[0], label: t(entry[2]) }; }) },
+      { key: "angle", label: t("mateAngleValue"), type: "number", value: 45, step: 1, min: 0, max: 180, unit: "angle" },
+    ],
+    onApply: function (values) { return addTopologyMate(values.type, values.angle); },
+  });
+  if (!inputs) return;
+  // The two reference rows report the picks; they are not somewhere to type.
+  ["refA", "refB"].forEach(function (key) { if (inputs[key]) inputs[key].readOnly = true; });
+  var angleField = inputs.angle && inputs.angle.closest(".md-quick-field");
+  /* `parameter-hidden`, not the hidden attribute: .md-quick-field sets its own
+     display, which a bare [hidden] does not beat. */
+  var syncAngleField = function () {
+    if (angleField) angleField.classList.toggle("parameter-hidden", inputs.type.value !== "angle");
+  };
+  inputs.type.addEventListener("change", syncAngleField);
+  syncAngleField();
 }
 
 function componentLabel(id) {
@@ -13197,11 +13968,28 @@ function componentLabel(id) {
 
 /* One row per mate: what it is, which two components it holds, and — when the
    solver could not honour it — why. */
-function mateRow(host, label, detail, issues, remove, rebound) {
+function mateRow(host, label, detail, issues, remove, rebound, valueEdit) {
   var row = el("div", "md-mate-row" + (issues && issues.length ? " md-mate-broken" : ""));
   var text = el("span", "");
   text.textContent = label + (detail ? " · " + detail : "");
   row.appendChild(text);
+  /* A mate that carries a number is edited where it is listed. Angle is the
+     only one so far, which is why the field is opt-in per row. */
+  if (valueEdit) {
+    var field = el("label", "md-mate-value");
+    var input = el("input");
+    input.type = "number";
+    input.step = "1";
+    input.min = "0";
+    input.max = "180";
+    input.value = String(valueEdit.value);
+    input.setAttribute("aria-label", valueEdit.label);
+    input.title = valueEdit.label;
+    input.addEventListener("change", function () { valueEdit.onChange(input.value); });
+    field.appendChild(input);
+    field.appendChild(el("b", "", valueEdit.suffix || ""));
+    row.appendChild(field);
+  }
   if (issues && issues.length) {
     var warn = el("span", "md-mate-issue");
     warn.textContent = mateIssueLabel(issues[0]);
@@ -13234,25 +14022,28 @@ function assemblyMateInspector() {
   var ops = el("div", "md-ops");
   var pair = ungroundedComponentPair();
   [["alignX", "mateX"], ["alignY", "mateY"], ["alignZ", "mateZ"], ["distanceX", "mateDistance"]].forEach(function (entry) {
-    var mateButton=btn('<i class="ph ph-link"></i> ' + t(entry[1]), function () { addMate(entry[0]); });
+    var mateButton=btn('<i class="ph ph-link"></i> ' + t(entry[1]), function () {
+      if (!pair) { flash(t("mateHint")); return; }
+      addMate(entry[0]);
+    });
     mateButton.setAttribute("data-mate",entry[0]);
-    mateButton.disabled = !pair;
-    mateButton.title = pair ? t(entry[1]) : t("mateHint");
+    markUnavailable(mateButton, pair ? "" : t("mateHint"), t(entry[1]));
     ops.appendChild(mateButton);
   });
   var source = picked ? t("mateUsingPicked") : t("mateUsingBounds");
-  [["coincident", 'ph-selection', t("coincidentMate")],
-   ["concentric", 'ph-circles-three-plus', t("concentricMate")],
-   ["screw", 'threadfeature', t("screwMate")],
-   ["tangent", 'ph-circle', t("tangentMate")],
-   ["limit", 'ph-arrows-in-line-vertical', t("limitMate")]].forEach(function (entry) {
-    var mateButton = btn((entry[1] === "threadfeature" ? '<i class="ph ph-spiral"></i>' : '<i class="ph ' + entry[1] + '"></i>') + " " + entry[2], function () { addTopologyMate(entry[0]); });
-    /* A mate the picked references cannot support is disabled and says what it
+  MATE_PALETTE.forEach(function (entry) {
+    /* A mate the picked references cannot support is greyed and says what it
        wanted, rather than accepting the pair and placing the component
        somewhere meaningless. */
-    var fits = mateTypeFits(entry[0]);
-    mateButton.disabled = !fits.ok;
-    mateButton.title = fits.ok ? entry[2] + " — " + source : entry[2] + " — " + fits.reason;
+    var fits = mateTypeFits(entry[0]), label = t(entry[2]);
+    var mateButton = btn((entry[1] === "threadfeature" ? '<i class="ph ph-spiral"></i>' : '<i class="ph ' + entry[1] + '"></i>') + " " + label, function () {
+      if (!fits.ok) { flash(label + " — " + fits.reason); return; }
+      // Angle is the one type with a number to choose, so it asks first.
+      if (entry[0] === "angle") openMateAngleForm();
+      else addTopologyMate(entry[0]);
+    });
+    mateButton.setAttribute("data-topology-mate", entry[0]);
+    markUnavailable(mateButton, fits.ok ? "" : label + " — " + fits.reason, label + " — " + source);
     ops.appendChild(mateButton);
   });
   host.appendChild(ops);
@@ -13279,7 +14070,17 @@ function assemblyMateInspector() {
           E.assembly.topologyMates = topology.filter(function (m) { return m !== mate; });
           solveAssembly(); refreshAll();
         },
-        mateReboundFor(mate.id));
+        mateReboundFor(mate.id),
+        mate.type === "angle" ? {
+          label: t("mateAngleValue"), value: clampMateAngle(mate.value), suffix: "°",
+          onChange: function (next) {
+            var degrees = clampMateAngle(next);
+            if (degrees === clampMateAngle(mate.value)) return;
+            pushUndo(t("angleMate"));
+            mate.value = degrees;
+            solveAssembly(); refreshAll();
+          },
+        } : null);
     });
   }
 }
@@ -14163,19 +14964,19 @@ function fillOps() {
   if (p.kind === "box") {
     host.appendChild(el("h5", "md-h5", t("sheetMetal")));
     var smOps = el("div", "md-ops");
-    smOps.appendChild(btn('<i class="ph ph-fold"></i> Convert to sheet metal', function () {
-      var thickness = parseFloat(prompt("Thickness (cm)", E.def.sheetMetal ? E.def.sheetMetal.thickness : 0.15));
+    smOps.appendChild(btn('<i class="ph ph-fold"></i> ' + t("sheetMetalConvert"), function () {
+      var thickness = parseFloat(prompt(t("sheetMetalThickness"), E.def.sheetMetal ? E.def.sheetMetal.thickness : 0.15));
       if (!fin(thickness) || thickness <= 0) return;
       E.def.sheetMetal = createSheetMetalPart({thickness:thickness,insideRadius:thickness,kFactor:.33,base:{width:Math.abs(p.x1-p.x0),height:Math.abs(p.z1-p.z0)}});
       refreshAll();
     }));
-    smOps.appendChild(btn('<i class="ph ph-angle"></i> Add edge flange', function () {
-      if (!E.def.sheetMetal) { flash("Convert the selected plate to sheet metal first"); return; }
-      var length = parseFloat(prompt("Flange length (cm)", 3)), angle = parseFloat(prompt("Bend angle (degrees)", 90));
+    smOps.appendChild(btn('<i class="ph ph-angle"></i> ' + t("sheetMetalFlange"), function () {
+      if (!E.def.sheetMetal) { flash(t("sheetMetalNeedPlate")); return; }
+      var length = parseFloat(prompt(t("sheetMetalFlangeLen"), 3)), angle = parseFloat(prompt(t("sheetMetalBendAngle"), 90));
       if (!fin(length) || !fin(angle)) return;
       addEdgeFlange(E.def.sheetMetal, "right", length, angle); refreshAll();
     }));
-    smOps.appendChild(btn('<i class="ph ph-file-svg"></i> Flat pattern', function () {
+    smOps.appendChild(btn('<i class="ph ph-file-svg"></i> ' + t("sheetMetalFlat"), function () {
       if (!E.def.sheetMetal) return;
       var pattern = flatPattern(E.def.sheetMetal);
       var blob = new Blob([JSON.stringify(pattern,null,2)], {type:"application/json"}), a = document.createElement("a");
@@ -14631,6 +15432,9 @@ function hoverAssemblyTopology(event, view) {
 
 function pickAssemblyComponent(event, view) {
   if (!view || !view.grp) return;
+  /* Measure takes the click whole: it is asking a question about the model,
+     not changing what is selected in it. */
+  if (E.measure) { measureFromPick(event, view); return; }
   if (E.docType === "part") {
     var found = resolveTopologyPick(event, view, { prefer: E.facePick ? "face" : E.selectionFilter }) || {};
     if (found.helixId && !E.facePick) {
@@ -16098,7 +16902,7 @@ async function regenerateExactModel(rebuild) {
     if (!E.brepRun.ok || !E.brepRun.finalShape) throw new Error(E.brepRun.issues[0] ? E.brepRun.issues[0].message : "No supported solid features");
     refreshParts(); flash("✓ " + t("kernelReady")); return E.brepRun;
   } catch (error) {
-    flash("BREP: " + String(error.message || error)); console.error(error); return null;
+    flash(t("errBrep") + ": " + String(error.message || error)); console.error(error); return null;
   } finally { E.kernelBusy = false; syncCommandManager(); }
 }
 
@@ -16112,9 +16916,9 @@ async function exportStepDocument() {
     var blob = new Blob([bytes], {type:"model/step"}), a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = (E.def.name || "model").replace(/[^a-z0-9_-]+/gi,"_") + ".step";
     a.hidden = true; document.body.appendChild(a); a.click(); a.remove();
-    flash("✓ STEP exported");
+    flash("✓ " + t("stepExported"));
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-  } catch (error) { flash("STEP: " + String(error.message || error)); }
+  } catch (error) { flash(t("errStep") + ": " + String(error.message || error)); }
 }
 
 async function exportIgesDocument() {
@@ -16125,8 +16929,8 @@ async function exportIgesDocument() {
   try {
     var bytes = await exportIges(run.finalShape, (E.def.name || "model") + ".igs");
     downloadBytes(bytes, (E.def.name || "model") + ".igs", "model/iges");
-    flash("✓ IGES exported");
-  } catch (error) { flash("IGES: " + String(error.message || error)); }
+    flash("✓ " + t("igesExported"));
+  } catch (error) { flash(t("errIges") + ": " + String(error.message || error)); }
 }
 
 function downloadBytes(bytes, name, type) {
@@ -16174,39 +16978,237 @@ function addReferenceGeometry(kind) {
   refreshAll(); flash("✓ " + item.name);
 }
 
+/* ---- the non-modal evaluate card ----
+   One floating card over the viewport, claimed by one owner at a time. It is
+   deliberately NOT #mdReport: an answer you asked the model for has to be
+   readable while you keep turning the model. */
+function openEvalCard(owner, kicker, title) {
+  var host = root && root.querySelector("#mdEvalCard");
+  if (!host) return null;
+  E.evalCard = owner;
+  root.querySelector("#mdEvalKicker").textContent = kicker;
+  root.querySelector("#mdEvalTitle").textContent = title;
+  var body = root.querySelector("#mdEvalBody"), actions = root.querySelector("#mdEvalActions");
+  body.innerHTML = "";
+  actions.innerHTML = "";
+  actions.hidden = true;
+  host.hidden = false;
+  return body;
+}
+
+function evalCardActions() {
+  var actions = root && root.querySelector("#mdEvalActions");
+  if (actions) actions.hidden = false;
+  return actions;
+}
+
+/* Closing the card ends whatever was writing into it — a measurement in
+   progress has no other readout, so its close button is the card's. */
+function closeEvalCard() {
+  var host = root && root.querySelector("#mdEvalCard");
+  if (host) host.hidden = true;
+  var owner = E.evalCard;
+  E.evalCard = null;
+  if (owner === "measure") endMeasure();
+}
+
+function evalRow(host, label, value) {
+  var row = el("div", "md-eval-row");
+  row.appendChild(el("span", "", label));
+  row.appendChild(el("b", "", value));
+  host.appendChild(row);
+  return row;
+}
+
 function showMassProperties() {
   if (E.docType !== "part") return;
   var mass = computeMassProperties({parts:activeParts(E.def)});
-  var lines = [
-    "Volume            " + mass.volumeCm3 + " cm³",
-    "Mass              " + mass.massKg + " kg   (density " + mass.density + " g/cm³)",
-    "Centre of mass    X " + mass.centerOfMass.x + "   Y " + mass.centerOfMass.y + "   Z " + mass.centerOfMass.z + "   cm",
-  ];
-  if (mass.unmeasured) lines.push("", mass.unmeasured + " body/bodies could not be measured and are excluded.");
-  report("EVALUATE", "Mass properties", lines);
+  var body = openEvalCard("mass", t("cmdEvaluate"), t("massProps"));
+  if (!body) return;
+  evalRow(body, t("massVolume"), mass.volumeCm3 + " cm³");
+  evalRow(body, t("massMass"), mass.massKg + " kg");
+  evalRow(body, t("massDensity"), mass.density + " g/cm³");
+  evalRow(body, t("massCentre"), "X " + mass.centerOfMass.x + "   Y " + mass.centerOfMass.y + "   Z " + mass.centerOfMass.z + " cm");
+  if (mass.unmeasured) body.appendChild(el("div", "md-note", mass.unmeasured + " " + t("massUnmeasured")));
+}
+
+/* ---- Measure ----
+   cad_evaluate.js has done the arithmetic all along; what was missing was a
+   way to hand it two points. Picks come from the same resolveTopologyPick()
+   the selection uses, so Measure can reach exactly what the rest of the editor
+   can pick — and an edge answers with a vertex or a circle centre rather than
+   with the point under the cursor, which is what makes "corner to corner" and
+   "hole to hole" two-click answers. */
+function beginMeasure(mode) {
+  if (E.mode !== "3d") setMode("3d");
+  E.measure = { mode: mode === "faces" ? "faces" : "points", picks: [] };
+  renderMeasureCard();
+  flash(t(E.measure.mode === "faces" ? "measureFacesHint" : "measureHint"));
+  syncCommandManager();
+}
+
+function endMeasure() {
+  if (!E.measure) return;
+  E.measure = null;
+  syncCommandManager();
+  syncHint();
+}
+
+function measureCoordinates(pick) {
+  return "X " + pick.x.toFixed(2) + "   Y " + pick.y.toFixed(2) + "   Z " + pick.z.toFixed(2);
+}
+
+function renderMeasureCard() {
+  var measure = E.measure;
+  if (!measure) return;
+  var body = openEvalCard("measure", t("cmdEvaluate"), t("measureTool"));
+  if (!body) return;
+  var faces = measure.mode === "faces";
+  body.appendChild(el("div", "md-note", t(faces ? "measureFacesHint" : "measureHint")));
+  [0, 1].forEach(function (index) {
+    var pick = measure.picks[index];
+    var label = faces ? (index ? t("measureFaceB") : t("measureFaceA")) : (index ? t("measurePointB") : t("measurePointA"));
+    evalRow(body, label, !pick ? "—"
+      : faces ? pick.label
+      : measureCoordinates(pick) + (pick.snap ? " · " + pick.snap : ""));
+  });
+  if (measure.picks.length === 2) {
+    if (faces) {
+      evalRow(body, t("measureAngle"), measureAngleBetweenNormals(measure.picks[0].normal, measure.picks[1].normal) + "°");
+    } else {
+      var span = measureDistance(measure.picks[0], measure.picks[1]);
+      evalRow(body, t("measureLength"), span.distance + " cm");
+      evalRow(body, "ΔX / ΔY / ΔZ", span.dx + " / " + span.dy + " / " + span.dz + " cm");
+    }
+  }
+  var actions = evalCardActions();
+  if (!actions) return;
+  [["points", t("measureModePoints")], ["faces", t("measureModeFaces")]].forEach(function (entry) {
+    var button = btn(entry[1], function () { beginMeasure(entry[0]); }, measure.mode === entry[0] ? "on" : "");
+    actions.appendChild(button);
+  });
+  actions.appendChild(btn('<i class="ph ph-arrow-counter-clockwise"></i> ' + t("measureReset"), function () {
+    E.measure.picks = [];
+    renderMeasureCard();
+  }));
+}
+
+/* A pick is reported in the picked component's OWN space, and two points
+   measured in two components' spaces are not a distance. Both of these bring
+   one back out to assembly space; in a part document there is no component and
+   they are the identity. */
+function measureWorldMatrix(component) {
+  var tr = normalizeTransform(component);
+  return new THREE.Matrix4().compose(
+    new THREE.Vector3(tr.x, tr.y, tr.z),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler((tr.rx * Math.PI) / 180, (tr.ry * Math.PI) / 180, (tr.rz * Math.PI) / 180)),
+    new THREE.Vector3(1, 1, 1)
+  );
+}
+
+function measureWorldPoint(component, point) {
+  if (!component || !point) return point;
+  var out = new THREE.Vector3(point.x, point.y, point.z).applyMatrix4(measureWorldMatrix(component));
+  return { x: out.x, y: out.y, z: out.z };
+}
+
+function measureWorldDirection(component, direction) {
+  if (!component || !direction) return direction;
+  var out = new THREE.Vector3(direction.x, direction.y, direction.z).transformDirection(measureWorldMatrix(component));
+  return { x: out.x, y: out.y, z: out.z };
+}
+
+/* The points an edge offers instead of the point the ray hit. A line edge is
+   stored as a midpoint, a direction and a length, so both of its ends are
+   derivable; a circular edge offers its centre, and offers it unconditionally
+   — a hole rim is picked at the rim and measured from the middle. */
+function measureSnapCandidates(reference) {
+  var descriptor = reference && reference.descriptor, out = [];
+  if (!descriptor || !descriptor.origin) return out;
+  var origin = descriptor.origin;
+  if (descriptor.curve === "circle") {
+    out.push({ point: { x: origin.x, y: origin.y, z: origin.z }, snap: t("measureSnapCentre"), always: true });
+    return out;
+  }
+  if (descriptor.curve === "line" && descriptor.axis && fin(Number(descriptor.measure))) {
+    var axis = descriptor.axis;
+    var length = Math.hypot(axis.x, axis.y, axis.z) || 1;
+    var half = Math.abs(Number(descriptor.measure)) / 2;
+    [-1, 1].forEach(function (sign) {
+      out.push({
+        point: {
+          x: origin.x + (axis.x / length) * half * sign,
+          y: origin.y + (axis.y / length) * half * sign,
+          z: origin.z + (axis.z / length) * half * sign,
+        },
+        snap: t("measureSnapVertex"), always: false,
+      });
+    });
+  }
+  return out;
+}
+
+function measureFromPick(event, view) {
+  var measure = E.measure;
+  var found = resolveTopologyPick(event, view, { prefer: measure.mode === "faces" ? "face" : E.selectionFilter }) || {};
+  var component = found.component || null;
+  var reference = found.reference || null;
+  if (measure.mode === "faces") {
+    var descriptor = reference && reference.descriptor;
+    var normal = descriptor && descriptor.surface === "plane" && descriptor.normal ? descriptor.normal : found.pickNormal;
+    if (!normal) { flash(t("measureNeedFace")); return; }
+    pushMeasurePick({
+      normal: measureWorldDirection(component, normal),
+      label: String((reference && (reference.semantic || reference.kind)) || t("measureSnapFace")).replace(/[:_-]+/g, " "),
+    });
+    return;
+  }
+  var hits = found.hits || [];
+  var hit = found.pickPoint ? measureWorldPoint(component, found.pickPoint)
+    : hits.length && hits[0].point ? { x: hits[0].point.x, y: hits[0].point.y, z: hits[0].point.z }
+    : null;
+  var tolerance = (view && typeof view.worldPerPixel === "function" ? view.worldPerPixel() : .2) * 18;
+  var best = null, bestDistance = tolerance;
+  (reference && reference.kind === "edge" ? measureSnapCandidates(reference) : []).forEach(function (candidate) {
+    var world = measureWorldPoint(component, candidate.point);
+    var distance = hit ? Math.hypot(world.x - hit.x, world.y - hit.y, world.z - hit.z) : 0;
+    if (candidate.always) { best = { x: world.x, y: world.y, z: world.z, snap: candidate.snap }; bestDistance = -1; return; }
+    if (bestDistance >= 0 && distance <= bestDistance) {
+      bestDistance = distance;
+      best = { x: world.x, y: world.y, z: world.z, snap: candidate.snap };
+    }
+  });
+  if (!best && !hit) { flash(t("measureNothing")); return; }
+  pushMeasurePick(best || { x: hit.x, y: hit.y, z: hit.z, snap: "" });
+}
+
+function pushMeasurePick(pick) {
+  if (E.measure.picks.length >= 2) E.measure.picks = [];
+  E.measure.picks.push(pick);
+  renderMeasureCard();
 }
 
 function standardsGate(action) {
   var audit = auditStandardParts({parts:activeParts(E.def)});
   E.def.lastStandardsAudit = {at:Date.now(),ok:audit.ok,checked:audit.checked,blocking:audit.blocking};
   if (audit.ok) return true;
-  report("DIN / ISO", action + " blocked by audit", audit.blocking.map(function (i) { return "• " + (i.partName || i.partId) + ": " + i.message; }));
+  report(t("reportKickerStandards"), tf("auditBlocked", {x: action}), audit.blocking.map(function (i) { return "• " + (i.partName || i.partId) + ": " + i.message; }));
   return false;
 }
 
 function runStandardsAudit() {
   var audit = auditStandardParts({parts:activeParts(E.def)});
   E.def.lastStandardsAudit = {at:Date.now(),ok:audit.ok,checked:audit.checked,blocking:audit.blocking};
-  if (!audit.checked) { report("DIN / ISO", "Nothing to audit", "No standardized fastener or gear declarations were found."); return; }
-  if (audit.ok) report("DIN / ISO", "Audit passed", "All " + audit.checked + " standardized part(s) conform.");
-  else report("DIN / ISO", "Audit failed", audit.blocking.map(function (i) { return "• " + (i.partName || i.partId) + ": " + i.message; }));
+  if (!audit.checked) { report(t("reportKickerStandards"), t("auditNothing"), t("auditNothingBody")); return; }
+  if (audit.ok) report(t("reportKickerStandards"), t("auditPassed"), audit.checked === 1 ? t("auditPassedBodyOne") : tf("auditPassedBody", {n: audit.checked}));
+  else report(t("reportKickerStandards"), t("auditFailed"), audit.blocking.map(function (i) { return "• " + (i.partName || i.partId) + ": " + i.message; }));
 }
 
 async function exportBundleDocument() {
   try {
     var bundle = await createProjectBundle(E.def, loadAssemblies(), []);
-    exportProjectBundle(bundle); flash("✓ Project bundle exported");
-  } catch (error) { flash("Bundle: " + String(error.message || error)); }
+    exportProjectBundle(bundle); flash("✓ " + t("bundleExported"));
+  } catch (error) { flash(t("errBundle") + ": " + String(error.message || error)); }
 }
 
 function importBundleDocument() {
@@ -16224,8 +17226,8 @@ function importBundleDocument() {
       if (E.brepRun) { releaseRegeneration(E.brepRun); E.brepRun=null; }
       E.docType="part"; E.def=migrateDefinition(bundle.mainModel); E.srcItem=null; E.sel=null; E.ssel=[]; E.topologySelection=[];
       H.clear().seed(); syncHead(); refreshAll(); refreshLib(); setMode("3d"); fitPreview();
-      flash("✓ Project bundle imported");
-    } catch(error) { flash("Bundle: "+String(error.message || error)); }
+      flash("✓ " + t("bundleImported"));
+    } catch(error) { flash(t("errBundle") + ": " + String(error.message || error)); }
   });
   input.click();
 }
@@ -16274,7 +17276,7 @@ function createDefaultMotionStudy() {
      showing describe a pose the assembly has left. */
   evaluateMotionStudy(E.assembly, study.id, 1);
   invalidateInterference();
-  refreshAll(); flash("✓ Motion study added");
+  refreshAll(); flash("✓ " + t("motionStudyAdded"));
 }
 
 async function runInterferenceCheck() {
@@ -16296,11 +17298,11 @@ async function runInterferenceCheck() {
   E.interferenceChecked = true;
   syncAssemblyWorkflow();
   updatePreview();
-  report("EVALUATE", hits.length ? hits.length + " interference(s)" : "No interference detected",
+  report(t("reportKickerEvaluate"), !hits.length ? t("interferenceNone") : hits.length === 1 ? t("interferenceFoundOne") : tf("interferenceFound", {n: hits.length}),
     hits.length ? [t("interferenceVisualized")].concat(hits.map(function (h) {
       // Component ids mean nothing to the person reading the report.
       return "• " + componentLabel(h.a) + " ↔ " + componentLabel(h.b) + (h.volume != null ? "   " + h.volume + " cm³" : "");
-    })) : "No two components overlap.");
+    })) : t("interferenceNoneBody"));
 }
 
 /* A general-arrangement sheet: one outline per component where the mates put
@@ -16335,10 +17337,53 @@ function downloadAssemblyDrawing() {
   downloadDrawing(sheet.def, { section: false, holeCallouts: false, balloons: sheet.balloons });
 }
 
+/* A bill of materials is a table, and it was a column of space-padded text in
+   a modal <pre>. Same counts — generateBOM still does the counting — rendered
+   as rows you can read, copy and export. */
 function showAssemblyBOM() {
   if (E.docType !== "assembly" || !E.assembly) return;
-  var rows = generateBOM(E.assembly);
-  report("ASSEMBLY", "Bill of materials", rows.length ? rows.map(function (r) { return String(r.quantity).padStart(4, " ") + " × " + r.name; }) : "This assembly has no components yet.");
+  var rows = bomTableRows(generateBOM(E.assembly), E.assembly.components || []);
+  var body = openEvalCard("bom", t("cmdAssembly"), t("billOfMaterials"));
+  if (!body) return;
+  if (!rows.length) { body.appendChild(el("div", "md-note", t("bomEmpty"))); return; }
+  var withMaterial = rows.some(function (row) { return !!row.material; });
+  var headers = [t("bomItem"), t("bomQty"), t("bomName"), t("material")];
+  var table = el("table", "md-bom");
+  var head = el("tr", "");
+  headers.slice(0, withMaterial ? 4 : 3).forEach(function (caption) { head.appendChild(el("th", "", caption)); });
+  var thead = el("thead", "");
+  thead.appendChild(head);
+  table.appendChild(thead);
+  var tbody = el("tbody", "");
+  rows.forEach(function (row) {
+    var tr = el("tr", "");
+    tr.appendChild(el("td", "md-bom-item", String(row.item)));
+    tr.appendChild(el("td", "md-bom-qty", String(row.quantity)));
+    var name = el("td", "");
+    name.textContent = row.name;
+    tr.appendChild(name);
+    if (withMaterial) {
+      var material = el("td", "");
+      material.textContent = row.material;
+      tr.appendChild(material);
+    }
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  body.appendChild(table);
+  var actions = evalCardActions();
+  if (!actions) return;
+  var csv = function () { return bomCsv(rows, headers, withMaterial); };
+  actions.appendChild(btn('<i class="ph ph-copy"></i> ' + t("bomCopy"), function () {
+    if (!navigator.clipboard || !navigator.clipboard.writeText) { flash(t("bomCopyFailed")); return; }
+    navigator.clipboard.writeText(csv()).then(
+      function () { flash(t("bomCopied")); },
+      function () { flash(t("bomCopyFailed")); }
+    );
+  }));
+  actions.appendChild(btn('<i class="ph ph-file-csv"></i> ' + t("bomCsvExport"), function () {
+    downloadBytes(csv(), (E.assembly.name || "assembly") + "-bom.csv", "text/csv");
+  }));
 }
 
 function importStepDocument() {
@@ -16387,11 +17432,15 @@ function importStepDocument() {
       E.def.importedStep = cloneData(imported.metadata.import);
       E.sel=E.def.parts[E.def.parts.length-1]; E.ssel=[]; E.topologySelection=[];
       H.clear().seed(); syncHead(); refreshAll(); setMode("3d"); fitPreview();
-      flash("✓ STEP " + file.name + " · " + (imported.metadata.import.recognition === "none" ? "direct-only" : imported.metadata.import.recognition + " recognized") + " · " + (unitOverride === "auto" ? declaredUnit : unitOverride + " override"));
+      flash("✓ " + tf("stepImported", {
+        file: file.name,
+        recognition: imported.metadata.import.recognition === "none" ? t("stepDirectOnly") : tf("stepRecognized", {mode: imported.metadata.import.recognition}),
+        units: unitOverride === "auto" ? tf("stepUnitsDeclared", {unit: declaredUnit}) : tf("stepUnitsOverride", {unit: unitOverride}),
+      }));
     } catch (error) {
       if (shape) disposeBrep(shape);
       if (canonicalShape) disposeBrep(canonicalShape);
-      flash("STEP: " + String(error.message || error));
+      flash(t("errStep") + ": " + String(error.message || error));
     }
   });
   input.click();
@@ -16419,7 +17468,7 @@ async function saveModel() {
   E.coreRun = validation;
   if (!validation.ok) {
     var failures = validation.issues.filter(function (issue) { return issue.severity === "error"; });
-    report("SAVE", "Rebuild failed", failures.slice(0, 6).map(function (issue) { return "• " + (issue.message || issue.code); }));
+    report(t("reportKickerSave"), t("saveRebuildFailed"), failures.slice(0, 6).map(function (issue) { return "• " + (issue.message || issue.code); }));
     refreshParts();
     return;
   }
@@ -16431,13 +17480,13 @@ async function saveModel() {
   }
   try { def=await externalizeAttachments(def); }
   catch (error) {
-    report("SAVE", "Exact attachment save failed", String(error.message || error));
+    report(t("reportKickerSave"), t("saveAttachmentFailed"), String(error.message || error));
     return;
   }
   var lib = loadLib().filter(function (m) { return m.key !== def.key; });
   lib.push(def);
   if (!await saveLib(lib)) {
-    report("SAVE", "Model library save failed", "Browser storage is full or unavailable.");
+    report(t("reportKickerSave"), t("saveLibraryFailed"), t("saveStorageFull"));
     return;
   }
   registerCustomModel(def);

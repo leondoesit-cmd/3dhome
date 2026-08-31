@@ -114,3 +114,61 @@ test("a new feature only claims sketch geometry no earlier feature owns", () => 
   assert.match(modeler, /var scope = selected\.length \? selected : unclaimedSketchEntityIds\(sketch\)/);
   assert.match(modeler, /var scoped = featureAreas\(analysis, sketchRegionAnalysis\(scope\), selected\)/);
 });
+
+/* Mass properties and the BOM used to seize the screen: report() writes into
+   #mdReport, which is aria-modal, so you could not orbit the model while
+   reading the number you had just asked it for. */
+test("mass properties and the BOM are non-modal cards, not #mdReport", () => {
+  const code = stripComments(modeler);
+  const mass = code.slice(code.indexOf("function showMassProperties("), code.indexOf("function beginMeasure("));
+  const bom = code.slice(code.indexOf("function showAssemblyBOM("), code.indexOf("function importStepDocument("));
+  [mass, bom].forEach((block) => assert.doesNotMatch(block, /\breport\(/));
+  assert.match(mass, /openEvalCard\("mass"/);
+  assert.match(bom, /openEvalCard\("bom"/);
+  // Every string these two emit is translated; they used to be English literals.
+  assert.match(mass, /t\("massVolume"\)/);
+  assert.match(mass, /t\("massCentre"\)/);
+  assert.match(bom, /t\("bomEmpty"\)/);
+  assert.match(bom, /bomCsv\(rows, headers, withMaterial\)/);
+  assert.match(code, /id="mdEvalCard"/);
+  assert.doesNotMatch(code, /aria-modal="true"[^>]*id="mdEvalCard"/);
+  assert.match(styles, /\.md-eval-card/);
+  assert.match(styles, /table\.md-bom/);
+});
+
+/* refreshAll() ends in syncTools -> syncHint, which owns #mdHint — so a
+   flash() written just before it was overwritten in the same tick, and users
+   read that as the command having done nothing. */
+test("a flashed message survives the refresh that follows it", () => {
+  const code = stripComments(modeler);
+  assert.match(code, /E\.flashUntil = Date\.now\(\) \+ FLASH_MS/);
+  assert.match(code, /function flashHolding\(\) \{\s*return !!\(E\.flashUntil && Date\.now\(\) < E\.flashUntil\);/);
+  const hint = code.slice(code.indexOf("function syncHint("));
+  assert.match(hint.slice(0, 260), /if \(flashHolding\(\)\) return;/);
+  // and the ordering workaround that used to paper over it is gone
+  assert.match(code, /if \(why\) flash\(why\);\s*refreshAll\(\);/);
+});
+
+test("Measure ships on Evaluate and picks through the topology picker", () => {
+  const code = stripComments(modeler);
+  assert.match(code, /commandButton\("measure"/);
+  assert.match(code, /id === "measure"\) beginMeasure/);
+  assert.match(code, /if \(E\.measure\) \{ measureFromPick\(event, view\); return; \}/);
+  assert.match(code, /resolveTopologyPick\(event, view, \{ prefer: measure\.mode === "faces"/);
+  assert.match(code, /measureAngleBetweenNormals\(/);
+  assert.match(code, /measureDistance\(measure\.picks\[0\], measure\.picks\[1\]\)/);
+  // the dead import this replaced
+  assert.doesNotMatch(code, /evaluateDraftAngle/);
+});
+
+test("Angle is a mate the palette offers and the ribbon's PropertyManager can build", () => {
+  const code = stripComments(modeler);
+  assert.match(code, /\["angle", "ph-angle", "angleMate"\]/);
+  assert.match(code, /value: type === "angle" \? clampMateAngle\(value\) : 0/);
+  assert.match(code, /id === "mates"\) openMatePropertyManager\(\)/);
+  assert.match(code, /function openMatePropertyManager\(\)/);
+  // the Ops palette keeps working: the PropertyManager is an extra door
+  assert.match(code, /function assemblyMateInspector\(\)/);
+  assert.match(code, /MATE_PALETTE\.forEach/);
+  assert.match(styles, /\.md-mate-value/);
+});

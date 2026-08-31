@@ -23,10 +23,10 @@ export const EXECUTOR_FAILURE_CODES = Object.freeze([
 // is the shrinking allow-list: a new creatable kind must be classified here,
 // rather than silently bypassing the command layer.
 export const CREATABLE_ENTITY_INVENTORY = Object.freeze([
-  { kind: "wall", classification: "implemented command", commandId: "wall.draw", source: "interaction.js, generator.js, ui_room_scan.js, ui_site.js" },
+  { kind: "wall", classification: "implemented command", commandId: "wall.draw", source: "command clients; offset/arc gestures and document imports remain explicit boundaries" },
   { kind: "node", classification: "solver/internal-only", source: "wall topology materialization; constraint_engine.js" },
-  { kind: "opening", classification: "implemented command", commandId: "opening.place", source: "interaction.js, generator.js, ui_room_scan.js" },
-  { kind: "item", classification: "implemented command", commandId: "item.place", source: "interaction.js, generator.js, ui.js, markers.js, ui_room_scan.js, ui_cabinet_mobile.js" },
+  { kind: "opening", classification: "implemented command", commandId: "opening.place", source: "pointer, elevation, corridor and generator clients; scan import is a document boundary" },
+  { kind: "item", classification: "implemented command", commandId: "item.place", source: "item.place and item.duplicate clients; scan import and marker replacement are composite boundaries" },
   { kind: "room", classification: "implemented command", commandId: "room.create", source: "derived wall-loop room creation" },
   { kind: "marker", classification: "explicit temporary exception", source: "markers.js" },
   { kind: "slab-opening", classification: "explicit temporary exception", source: "slab_openings.js, floors.js" },
@@ -40,6 +40,17 @@ export const CREATABLE_ENTITY_INVENTORY = Object.freeze([
   { kind: "cabinet-preset", classification: "document-level operation", source: "parametric_cabinet.js" },
   { kind: "project-import", classification: "document-level operation", source: "ui.js GeoJSON/CAD import" },
   { kind: "snapshot-clone-topology", classification: "solver/internal-only", source: "ui.js snapshot/clone loop" },
+]);
+
+// Source-level shrinking allow-list. The test suite counts direct pushes and
+// rejects both a new file and growth inside an existing boundary. Counts may
+// only move down as the remaining gesture/import commands land.
+export const DIRECT_CREATION_BOUNDARIES = Object.freeze([
+  { file: "js/interaction.js", maxDirectPushes: 6, reason: "offset/arc gestures plus wall split/materialization topology service" },
+  { file: "js/ui_room_scan.js", maxDirectPushes: 4, reason: "scan document merge/import boundary" },
+  { file: "js/ui_site.js", maxDirectPushes: 2, reason: "site-footprint document import" },
+  { file: "js/ui.js", maxDirectPushes: 1, reason: "temporary topology snapshot restoration" },
+  { file: "js/constraint_engine.js", maxDirectPushes: 1, reason: "solver-owned node materialization" },
 ]);
 
 export function validateEntityInventory(inventory = CREATABLE_ENTITY_INVENTORY, capabilities = []) {

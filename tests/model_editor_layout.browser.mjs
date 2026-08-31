@@ -256,11 +256,13 @@ test("secondary command groups are drawers, and they open", opts, async () => {
     await openSheet(page, "cmd");
     const state = await page.eval(() => {
       // a blank part opens on Sketch, which has one drawer; the drawers this
-      // test is about (Direct / References / Standards) are on Features
+      // test is about (References / Standards) are on Features. Direct is a
+      // secondary group too, but a parametric part hides it outright — it has
+      // no handle to measure there.
       const tab = document.querySelector('#md-sheet [data-cmdtab="features"]');
       if (tab) tab.click();
       const pane = document.querySelector("#md-sheet .md-command-pane.on");
-      const groups = [...pane.querySelectorAll('[data-cmdgroup="secondary"]')];
+      const groups = [...pane.querySelectorAll('[data-cmdgroup="secondary"]')].filter((g) => !g.hidden);
       const shown = (g) => getComputedStyle(g.querySelector(".md-command-items")).display !== "none";
       const before = groups.map(shown);
       const heads = groups.map((g) => g.querySelector(".md-command-group-label"));

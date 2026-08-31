@@ -308,6 +308,20 @@ export const CAD_ICONS = {
     );
   },
 
+  // Toolbox Fastener: standards library drawer the fastener is pulled from
+  toolboxfastener: function () {
+    return (
+      // Fastener taken out of the library
+      p("M6 1.5 L14 1.5 L14 4 L6 4 Z", 0.5, 1.25) +
+      p("M8.5 4 L11.5 4 L11.5 7 L10 8.6 L8.5 7 Z", 0.3, 1.2) +
+      l("M8.5 5.2 L11.5 5.8 M8.5 6.7 L11.5 7.3", 1.05) +
+      // Library drawer cabinet
+      p("M2 10.5 L18 10.5 L18 18.5 L2 18.5 Z", 0.15, 1.3) +
+      l("M2 14.5 L18 14.5", 1.2) +
+      colorPath("M8 12.5 L12 12.5 M8 16.5 L12 16.5", "none", "#e89a24", 1.35)
+    );
+  },
+
   // Toolbox Gear: precision spur gear with involute teeth and center bore
   stdgear: function () {
     var teeth = 8, d = "", step = 360 / teeth, rRoot = 5.2, rTip = 8.4, rHole = 2.4;
@@ -491,6 +505,22 @@ export const CAD_ICONS = {
     );
   },
 
+  // Measure: two picked points on a model corner with the measured span
+  // between them. Deliberately unlike `dim` — that one draws witness lines and
+  // a value box for a driving sketch dimension; this one is an inspection of a
+  // solid that changes nothing.
+  measure: function () {
+    return (
+      // The corner of the body being measured
+      l("M2 5.5 L2 18 L14.5 18", 1.3) +
+      // The measured span, arrowed at both picks
+      colorPath("M5.9 14.6 L14.1 6.4 M5.9 14.6 L6.3 11.6 M5.9 14.6 L8.9 14.2 M14.1 6.4 L13.7 9.4 M14.1 6.4 L11.1 6.8", "none", "#2684c7", 1.3) +
+      // The two picked points
+      '<circle cx="4.6" cy="15.9" r="1.9" fill="currentColor" fill-opacity="0.3" stroke="#2684c7" stroke-width="1.3"/>' +
+      '<circle cx="15.4" cy="5.1" r="1.9" fill="currentColor" fill-opacity="0.3" stroke="#2684c7" stroke-width="1.3"/>'
+    );
+  },
+
   // Trim Entities: scissors cutting across a sketch curve with trim dash
   trim: function () {
     return (
@@ -625,13 +655,27 @@ export const CAD_ICONS = {
     );
   },
 
-  // Pack and Go (Bundle): archive package box with CAD components
+  // Pack and Go (Bundle, export): taped package box with material leaving it
   bundle: function () {
     return (
-      p("M3 6.5 L10 3 L17 6.5 L17 13.5 L10 17 L3 13.5 Z", 0.2, 1.3) +
-      l("M10 3 L10 17 M3 6.5 L10 10 L17 6.5", 1.2) +
+      p("M3 9 L10 5.5 L17 9 L17 15 L10 18.5 L3 15 Z", 0.2, 1.3) +
+      l("M10 5.5 L10 18.5 M3 9 L10 12.5 L17 9", 1.2) +
       // Strapping / box tape
-      colorPath("M6.5 4.8 L6.5 15.2 M13.5 4.8 L13.5 15.2", "none", "#e89a24", 1.2)
+      colorPath("M6.5 7.25 L6.5 16.75 M13.5 7.25 L13.5 16.75", "none", "#e89a24", 1.2) +
+      // Out-bound transfer arrow (matches stepout)
+      colorPath("M10 9.5 L10 1 M7.5 3.5 L10 1 L12.5 3.5", "none", "#e89a24", 1.65)
+    );
+  },
+
+  // Import Bundle: the same package box with the transfer arrow coming back in
+  bundlein: function () {
+    return (
+      p("M3 9 L10 5.5 L17 9 L17 15 L10 18.5 L3 15 Z", 0.2, 1.3) +
+      l("M10 5.5 L10 18.5 M3 9 L10 12.5 L17 9", 1.2) +
+      // Strapping / box tape
+      colorPath("M6.5 7.25 L6.5 16.75 M13.5 7.25 L13.5 16.75", "none", "#e89a24", 1.2) +
+      // In-bound transfer arrow (matches stepin)
+      colorPath("M10 1 L10 9.5 M7.5 7 L10 9.5 L12.5 7", "none", "#2684c7", 1.65)
     );
   },
 
@@ -688,6 +732,22 @@ export const CAD_ICONS = {
   mates: function () {
     return (
       colorPath("M7 8 L7 14.5 A3.5 3.5 0 0 0 14 14.5 L14 5.5 A2.5 2.5 0 0 0 9 5.5 L9 13.5 A1.5 1.5 0 0 0 12 13.5 L12 7", "none", "#2684c7", 1.55)
+    );
+  },
+
+  // Screw Mate: two mated components on a shared axis with a helical thread cue
+  screwmate: function () {
+    return (
+      // Shared mate axis
+      colorPath("M10 1 L10 19", "none", "#2684c7", 1.05, ' stroke-dasharray="2 1.5"') +
+      // Upper component
+      p("M5 4.2 L10 6 L15 4.2 L15 2.8 L10 1 L5 2.8 Z", 0.28, 1.2) +
+      l("M5 2.8 L10 4.6 L15 2.8", 1.05) +
+      // Lower component
+      p("M5 17 L10 18.8 L15 17 L15 15.6 L10 13.8 L5 15.6 Z", 0.55, 1.2) +
+      l("M5 15.6 L10 17.4 L15 15.6", 1.05) +
+      // Helical screw relation between them
+      colorPath("M10 6 C 14 7.6, 6 12.2, 10 13.8", "none", "#2684c7", 1.5)
     );
   },
 
@@ -984,16 +1044,13 @@ export const ICON_ALIASES = {
   threadfeature: "threadfeature",
   knurlfeature: "knurlfeature",
   insertfeature: "insertfeature",
-  toolboxfastener: "stdscrew",
   appearance: "insertfeature",
   config: "config",
-  screwmate: "threadfeature",
   rect: "directbox",
   circle: "directcyl",
   sph: "directsph",
   poly: "directpoly",
   rev: "directrev",
-  bundlein: "bundle",
   "ph-selection-background": "section",
 
   // Phosphor font classes
