@@ -31,7 +31,7 @@ re-aim the work. Trust the table below, not the older one.
 | model-canvas paints per move during a drag | 1.05 – 3.40 | **0** |
 | dragWall gesture wall-clock (20 moves) | 640 ms | not a paint target — see below |
 | dragItem gesture wall-clock (20 moves) | 448 ms | < 200 ms |
-| `history.snap()` per drag gesture | 4 | 1 |
+| `history.snap()` per drag gesture | 4 | 1 (**reached 2** — see below) |
 | `render2D()` in 3 s idle | 0 (see caveat) | 0 |
 | 3D painted frames/s at idle | 0 | 0 (no change) |
 
@@ -405,6 +405,45 @@ every pass degenerates to the linear scan it replaced — over ~15k positions
 across two plans and two zooms, comparing the winner, `S.snapInfo.type` and the
 full ranked `S.snapAlts`. The tests were shown to be *sensitive* by mutating
 the source eight ways and confirming each is caught.
+
+### P4 stopped at 2 snapshots, not 1 — deliberately
+
+Measured, not inferred: a throwaway harness copy captured `new Error().stack`
+at every `snap()`. The four calls in a `dragItem` gesture were
+
+1. `beginHistory` — the gesture's real pre-state capture.
+2. `ui_history.refreshNow` → `tree()` → `liveTargets()` → `get()`.
+3. `commitPending` — the settle on the first real move.
+4. `ui_history.refreshNow` again.
+
+**Half the cost was the history panel redrawing itself while hidden.** Nothing
+in `history.js` looks like it snapshots, but `H.tree()` asks `liveTargets()` for
+the current step's targets and that re-reads the live model through `get()`,
+which *is* `snap()`. `#planHist` lives inside the toolbar's history dropdown and
+is `display:none` until opened — so this was two full project stringifies per
+drag, for a list nobody could see. Fixed with an `IntersectionObserver` that
+defers the refresh and replays it on the rising edge (an observer rather than a
+DOM check, because `ui.js` portals the open menu to `<body>` and anything
+anchored on the host goes stale).
+
+Of the remaining two, `begin()` is irreducible — it is the state the undo entry
+is made of. **The third cut is real but was deliberately not taken.**
+`commit()`'s `settle(n, get())` at `js/edit_history.js:401` is redundant for
+restore correctness, and deleting it leaves the suite fully green — which is
+exactly why it is dangerous. `H.matchesCurrent()` compares the live model
+against `n.snap`; without the settle, `n.snap` stays at the pre-gesture state
+after a commit, so `matchesCurrent()` returns `false` after any drag, and its
+consumer reads `false` as "an external edit happened, start a new tree". **An
+editor reopened after a drag would silently discard its undo history**, in the
+modeler and cabinet designer as well as the planner, since `edit_history.js` is
+shared ([[3dhome-shared-editor-infra]]).
+
+The safe form is to remove the settle *and* make `matchesCurrent()` (and
+anything else reading `cur().snap` directly) call `sync()` first — moving one
+snapshot off every gesture and onto the rare panel-reopen path. That is a change
+to shared editor infrastructure with a silent, data-losing failure mode and no
+current test coverage. **It should be its own reviewed change with its own
+regression test, not a rider on this plan.**
 
 ### Carried into wave 3 (Q1)
 

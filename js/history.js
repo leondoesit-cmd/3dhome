@@ -576,7 +576,21 @@ export function historyTouches(nodeId, objectIds) {
 }
 
 /* ---- the panel ----------------------------------------------------------- */
-var panel = null;
+/* Redrawing the panel is NOT cheap, which is easy to miss because nothing in
+   this file appears to snapshot: the tree it draws asks edit_history for the
+   current step's targets, liveTargets() re-reads the live model through get(),
+   and get() is snap() — a JSON.stringify of the whole project. So every
+   refresh costs a full snapshot.
+   The panel is mounted into #planHist, which index.html puts inside the
+   toolbar's history dropdown; that menu is `display:none` until its trigger is
+   clicked, i.e. essentially always. Two of the four snapshots the perf harness
+   measured per drag gesture came from here, for a list nobody was looking at:
+   one from the fillProps() on pointerdown, one from the onChange the commit
+   fires. A refresh asked for while the panel is off screen is therefore
+   remembered rather than performed, and paid back the moment it is shown. */
+var panel = null,
+  panelShown = false,
+  panelStale = false;
 export function mountHistoryPanel(host) {
   if (!host || panel) return;
   panel = createHistoryPanel(H, {
@@ -587,10 +601,38 @@ export function mountHistoryPanel(host) {
     onPick: pick,
   });
   host.appendChild(panel.el);
+  watchPanelVisibility();
+}
+/* Visibility is observed, not polled and not asked of the DOM at refresh time:
+   nothing tells history.js that the dropdown opened, and ui.js portals the open
+   menu to <body>, so any check anchored on the host would go stale. An
+   IntersectionObserver follows the element through that move and reports both
+   edges, and the one that matters is the rising one — that is the moment a
+   skipped refresh has to be paid back. Where there is no observer the panel is
+   treated as permanently visible, which is exactly the old behaviour. */
+function watchPanelVisibility() {
+  if (typeof IntersectionObserver !== "function") {
+    panelShown = true;
+    return;
+  }
+  new IntersectionObserver(function (entries) {
+    var e = entries[entries.length - 1];
+    if (!e) return;
+    panelShown = !!e.isIntersecting;
+    if (panelShown && panelStale) {
+      panelStale = false;
+      panel.refresh();
+    }
+  }).observe(panel.el);
 }
 // selection changes re-scope the panel, so fillProps() calls this too
 export function refreshHistoryPanel() {
-  if (panel) panel.refresh();
+  if (!panel) return;
+  if (!panelShown) {
+    panelStale = true;
+    return;
+  }
+  panel.refresh();
 }
 
 // snapshot the CURRENT state as an undo point (call BEFORE mutating).
