@@ -15,7 +15,7 @@ const SUPPORTED_FEATURES = new Set([
   "sketch", "box", "cylinder", "sphere", "extrude", "cut", "revolve", "sweep", "loft",
   "fillet", "chamfer", "shell", "mirror", "linearPattern", "linearGridPattern", "circularPattern", "pattern", "extrudeCut", "boolean",
   "union", "subtract", "intersect", "procedural", "direct", "import", "component", "assembly",
-  "hole", "helix", "thread", "knurl", "insert", "cone",
+  "hole", "helix", "thread", "knurl", "insert", "cone", "toolbox",
 ]);
 
 function parameterValue(parameter) {

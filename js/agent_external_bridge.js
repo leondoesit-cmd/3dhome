@@ -25,7 +25,7 @@ async function poll() {
     try {
       result = executeAgentTool(request.name, request.args || {}, {});
       if (result == null) throw new Error("Unknown or unavailable bridge tool");
-      if (request.name === "preview_model_command" && result.ok)
+      if ((request.name === "preview_model_command" || request.name === "preview_item_snap") && result.ok)
         window.dispatchEvent(new CustomEvent("agent-external-proposal", { detail: result }));
       await reply(request.id, result, null);
     } catch (error) {
@@ -47,4 +47,3 @@ export function stopExternalAgentBridge() {
   if (timer) clearInterval(timer);
   timer = null; initialized = false;
 }
-

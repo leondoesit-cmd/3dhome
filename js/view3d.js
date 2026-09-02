@@ -2806,7 +2806,7 @@ function navTick(dt) {
    axes through the live camera each frame so it always shows the current
    orientation; clicking an axis nub (or the centre = home/iso) snaps the camera
    to that standard view, like a CAD ViewCube. */
-var gizmoEl = null, gizmoAxes = [], gzTmpV = null, gzTmpM = null, viewTween = null;
+var gizmoEl = null, gizmoAxes = [], gzCompass = null, gzTmpV = null, gzTmpM = null, viewTween = null;
 var AXIS_DEFS = [
   { key: "+x", dir: [1, 0, 0], col: "#e0564f", label: "X", pos: true },
   { key: "-x", dir: [-1, 0, 0], col: "#e0564f", label: "", pos: false },
@@ -2815,7 +2815,7 @@ var AXIS_DEFS = [
   { key: "+z", dir: [0, 0, 1], col: "#4f8cf6", label: "Z", pos: true },
   { key: "-z", dir: [0, 0, -1], col: "#4f8cf6", label: "", pos: false },
 ];
-var GZ = { size: 84, cx: 42, cy: 42, R: 27 };
+var GZ = { size: 84, cx: 42, cy: 42, R: 20 };
 function buildViewGizmo() {
   var host = document.getElementById("view-3d");
   if (!host || gizmoEl) return;
@@ -2826,6 +2826,53 @@ function buildViewGizmo() {
   gizmoEl.title = "Click an axis to snap the view";
   var svg = document.createElementNS(NS, "svg");
   svg.setAttribute("viewBox", "0 0 " + GZ.size + " " + GZ.size);
+
+  var compass = document.createElementNS(NS, "g");
+  compass.setAttribute("class", "gz-compass");
+  compass.setAttribute("title", "North (click to face North)");
+
+  var ring = document.createElementNS(NS, "circle");
+  ring.setAttribute("cx", GZ.cx); ring.setAttribute("cy", GZ.cy); ring.setAttribute("r", 35.5);
+  ring.setAttribute("class", "gz-compass-ring");
+  compass.appendChild(ring);
+
+  var nPoly = document.createElementNS(NS, "polygon");
+  nPoly.setAttribute("points", "42,1.5 38.5,6.5 45.5,6.5");
+  nPoly.setAttribute("fill", "#e0564f");
+  compass.appendChild(nPoly);
+
+  var nCirc = document.createElementNS(NS, "circle");
+  nCirc.setAttribute("cx", 42); nCirc.setAttribute("cy", 8.5); nCirc.setAttribute("r", 5);
+  nCirc.setAttribute("fill", "#c0563b"); nCirc.setAttribute("stroke", "#ffffff"); nCirc.setAttribute("stroke-width", 1);
+  compass.appendChild(nCirc);
+
+  var nTxt = document.createElementNS(NS, "text");
+  nTxt.setAttribute("x", 42); nTxt.setAttribute("y", 8.5); nTxt.setAttribute("dy", 2.6);
+  nTxt.setAttribute("text-anchor", "middle");
+  nTxt.setAttribute("class", "gz-lbl gz-north-lbl");
+  nTxt.textContent = "N";
+  compass.appendChild(nTxt);
+
+  var sTick = document.createElementNS(NS, "line");
+  sTick.setAttribute("x1", 42); sTick.setAttribute("y1", 74.5); sTick.setAttribute("x2", 42); sTick.setAttribute("y2", 78);
+  sTick.setAttribute("class", "gz-compass-tick s-tick");
+  compass.appendChild(sTick);
+  var eTick = document.createElementNS(NS, "line");
+  eTick.setAttribute("x1", 74.5); eTick.setAttribute("y1", 42); eTick.setAttribute("x2", 78); eTick.setAttribute("y2", 42);
+  eTick.setAttribute("class", "gz-compass-tick");
+  compass.appendChild(eTick);
+  var wTick = document.createElementNS(NS, "line");
+  wTick.setAttribute("x1", 6); wTick.setAttribute("y1", 42); wTick.setAttribute("x2", 9.5); wTick.setAttribute("y2", 42);
+  wTick.setAttribute("class", "gz-compass-tick");
+  compass.appendChild(wTick);
+
+  compass.addEventListener("click", function (e) {
+    e.stopPropagation();
+    setStandardView("-z");
+  });
+  svg.appendChild(compass);
+  gzCompass = compass;
+
   AXIS_DEFS.forEach(function (a) {
     if (a.pos) {
       var ln = document.createElementNS(NS, "line");
@@ -2835,7 +2882,7 @@ function buildViewGizmo() {
     }
   });
   var home = document.createElementNS(NS, "circle");
-  home.setAttribute("cx", GZ.cx); home.setAttribute("cy", GZ.cy); home.setAttribute("r", 3.6);
+  home.setAttribute("cx", GZ.cx); home.setAttribute("cy", GZ.cy); home.setAttribute("r", 3.2);
   home.setAttribute("class", "gz-home");
   home.addEventListener("click", function (e) { e.stopPropagation(); frameView(); });
   svg.appendChild(home);
@@ -2843,11 +2890,11 @@ function buildViewGizmo() {
     var g = document.createElementNS(NS, "g");
     g.setAttribute("class", "gz-nub");
     var c = document.createElementNS(NS, "circle");
-    c.setAttribute("r", 8);
+    c.setAttribute("r", a.pos ? 6.5 : 5);
     a.circle = c; g.appendChild(c);
     if (a.label) {
       var tx = document.createElementNS(NS, "text");
-      tx.setAttribute("text-anchor", "middle"); tx.setAttribute("dy", "3.2");
+      tx.setAttribute("text-anchor", "middle"); tx.setAttribute("dy", "3.0");
       tx.setAttribute("class", "gz-lbl"); tx.textContent = a.label;
       a.text = tx; g.appendChild(tx);
     }
@@ -2855,6 +2902,7 @@ function buildViewGizmo() {
     a.g = g; a.svg = svg;
     svg.appendChild(g);
   });
+
   gizmoEl.appendChild(svg);
   host.appendChild(gizmoEl);
   gzTmpV = new THREE.Vector3();
@@ -2875,17 +2923,21 @@ function updateViewGizmo() {
     a._depth = v.z; // view space: +z points toward the viewer → front nubs bigger
     a.circle.setAttribute("cx", a._x);
     a.circle.setAttribute("cy", a._y);
-    a.circle.setAttribute("r", Math.max(4.5, 8 + a._depth * 2.2));
+    a.circle.setAttribute("r", a.pos ? Math.max(4.2, 6.5 + a._depth * 1.8) : Math.max(3.5, 5 + a._depth * 1.2));
     a.circle.setAttribute("fill", a.pos ? a.col : "#fff");
     a.circle.setAttribute("stroke", a.col);
-    a.circle.setAttribute("stroke-width", a.pos ? 0 : 1.6);
+    a.circle.setAttribute("stroke-width", a.pos ? 0 : 1.4);
     a.circle.setAttribute("opacity", (0.5 + 0.5 * (a._depth * 0.5 + 0.5)).toFixed(2));
     if (a.text) { a.text.setAttribute("x", a._x); a.text.setAttribute("y", a._y); }
     if (a.line) { a.line.setAttribute("x2", a._x); a.line.setAttribute("y2", a._y); }
   });
+  if (gzCompass) {
+    var deg = ((Math.PI / 2 - theta) * 180 / Math.PI) + (S.northAngle || 0);
+    gzCompass.setAttribute("transform", "rotate(" + deg.toFixed(2) + " 42 42)");
+  }
   // painter's order: append nearer nubs last so they sit on top
   gizmoAxes.slice().sort(function (p, q) { return p._depth - q._depth; })
-    .forEach(function (a) { a.svg.appendChild(a.g); });
+    .forEach(function (a) { if (a.svg && a.g) a.svg.appendChild(a.g); });
 }
 function viewAngles(key, curTheta) {
   var H = Math.PI / 2;

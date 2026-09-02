@@ -29,8 +29,8 @@
   --warn: #d97706;
   --success: #059669;
   --overlay: rgba(243, 245, 248, 0.72);
-  --hud-bg: rgba(15, 23, 42, 0.72);
-  --hud-fg: #f8fafc;
+  --hud-bg: rgba(255, 255, 255, 0.88);
+  --hud-fg: #1a2433;
   --scrollbar: rgba(148, 163, 184, 0.45);
   --scrollbar-hover: rgba(100, 116, 139, 0.7);
   --preview-from: #f4f7fb;
@@ -187,8 +187,8 @@ html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to le
   --border-color: rgba(148, 163, 184, 0.16);
   --text-main: #eef2f7;
   --text-muted: #9aa8b8;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
+  --accent: #60a5fa;
+  --accent-hover: #93c5fd;
   --btn-bg: rgba(255, 255, 255, 0.05);
   --btn-bg-hover: rgba(255, 255, 255, 0.1);
   --btn-border: rgba(255, 255, 255, 0.1);
@@ -200,10 +200,10 @@ html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to le
   --glass-blur: blur(24px);
   --danger: #f87171;
   --danger-soft: rgba(248, 113, 113, 0.16);
-  --accent-soft: rgba(59, 130, 246, 0.16);
-  --accent-glow: rgba(59, 130, 246, 0.34);
-  --accent-alpha: rgba(59, 130, 246, 0.16);
-  --on-accent: #ffffff;
+  --accent-soft: rgba(96, 165, 250, 0.18);
+  --accent-glow: rgba(96, 165, 250, 0.34);
+  --accent-alpha: rgba(96, 165, 250, 0.18);
+  --on-accent: #060b17;
   --warn: #fbbf24;
   --success: #34d399;
   --overlay: rgba(8, 10, 16, 0.62);
@@ -213,7 +213,7 @@ html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to le
   --scrollbar-hover: rgba(100, 116, 139, 0.8);
   --preview-from: #2b3340;
   --preview-to: #12161d;
-  --app-glow-a: rgba(59, 130, 246, 0.1);
+  --app-glow-a: rgba(37, 99, 235, 0.1);
   --app-glow-b: rgba(255, 255, 255, 0.03);
   --panel-bg: var(--bg-panel);
   --color-scheme: dark;
@@ -228,12 +228,12 @@ html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to le
   --bg-canvas-3d: #6f655c;
   --border-color: rgba(86, 72, 62, 0.28);
   --text-main: #2a221c;
-  --text-muted: #5a4c42;
-  --accent: #2a6f6e;
-  --accent-hover: #1f5858;
+  --text-muted: #483c34;
+  --accent: #1f5858;
+  --accent-hover: #164343;
   --btn-bg: rgba(228, 236, 232, 0.86);
   --btn-bg-hover: rgba(205, 226, 221, 0.95);
-  --btn-border: rgba(42, 111, 110, 0.36);
+  --btn-border: rgba(31, 88, 88, 0.36);
   --input-bg: rgba(252, 247, 241, 0.94);
   --input-border: rgba(86, 72, 62, 0.38);
   --shadow-sm: 0 2px 6px rgba(63, 45, 34, 0.1);
@@ -242,21 +242,21 @@ html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to le
   --glass-blur: blur(20px);
   --danger: #a83f4f;
   --danger-soft: rgba(168, 63, 79, 0.14);
-  --accent-soft: rgba(42, 111, 110, 0.16);
-  --accent-glow: rgba(42, 111, 110, 0.3);
-  --accent-alpha: rgba(42, 111, 110, 0.14);
+  --accent-soft: rgba(31, 88, 88, 0.16);
+  --accent-glow: rgba(31, 88, 88, 0.3);
+  --accent-alpha: rgba(31, 88, 88, 0.14);
   --on-accent: #ffffff;
   --warn: #b45309;
   --success: #3f7d5a;
   --overlay: rgba(186, 175, 163, 0.78);
-  --hud-bg: rgba(48, 40, 34, 0.72);
-  --hud-fg: #f6f1ea;
+  --hud-bg: rgba(246, 241, 234, 0.88);
+  --hud-fg: #2a221c;
   --scrollbar: rgba(122, 104, 90, 0.4);
   --scrollbar-hover: rgba(86, 72, 62, 0.6);
   --preview-from: #efe8de;
   --preview-to: #cfc4b6;
   --app-glow-a: rgba(255, 228, 196, 0.28);
-  --app-glow-b: rgba(42, 111, 110, 0.08);
+  --app-glow-b: rgba(31, 88, 88, 0.08);
   --panel-bg: var(--bg-panel);
   --color-scheme: light;
 }
@@ -271,8 +271,8 @@ html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to le
   --border-color: rgba(186, 198, 214, 0.16);
   --text-main: #e4ebf3;
   --text-muted: #a7b4c4;
-  --accent: #0f766e;
-  --accent-hover: #0d5f59;
+  --accent: #5eead4;
+  --accent-hover: #2dd4bf;
   --btn-bg: rgba(255, 255, 255, 0.06);
   --btn-bg-hover: rgba(255, 255, 255, 0.12);
   --btn-border: rgba(255, 255, 255, 0.12);
@@ -284,10 +284,10 @@ html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to le
   --glass-blur: blur(20px);
   --danger: #fb7185;
   --danger-soft: rgba(251, 113, 133, 0.16);
-  --accent-soft: rgba(15, 118, 110, 0.2);
-  --accent-glow: rgba(45, 212, 191, 0.28);
-  --accent-alpha: rgba(45, 212, 191, 0.16);
-  --on-accent: #ffffff;
+  --accent-soft: rgba(45, 212, 191, 0.18);
+  --accent-glow: rgba(45, 212, 191, 0.35);
+  --accent-alpha: rgba(45, 212, 191, 0.18);
+  --on-accent: #042f2e;
   --warn: #fbbf24;
   --success: #34d399;
   --overlay: rgba(22, 26, 34, 0.58);
@@ -785,6 +785,257 @@ button.active i,
   -webkit-backdrop-filter: var(--glass-blur);
 }
 #plan-toolbar::-webkit-scrollbar { display: none; }
+
+/* ---- dockable panels (js/plan_tools_dock.js) -----------------------------
+   #plan-tools stops being a cluster and becomes the dock LAYER: eight zones
+   over the plan, four on the edges and four in the corners, each holding any
+   number of panels. A zone is flush against its edge(s) — no shadow, no outer
+   margin, and no border or radius on a side that touches the pane — and it,
+   not the panels inside it, draws the border and the rounded corners that are
+   left. That is what makes two panels dropped together read as one piece of
+   the frame rather than two cards that happen to touch.
+   The module writes the boxes; every shape change is one of these attributes.
+   The phone rail below 1024px is a different layout entirely, and the module
+   dismantles all of this rather than fight it. */
+#plan-tools.pt-dock {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  transform: none;
+  display: block;
+  gap: 0;
+  pointer-events: none;
+}
+.pt-zone {
+  /* Pure layout: the zone places its panels and caps how much room they may
+     take. It paints nothing — see decorate() in js/plan_tools_dock.js for why
+     the card belongs to the panel. */
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.pt-zone > * { pointer-events: auto; }
+.pt-zone[hidden] { display: none; }
+/* Tiling. Order 0 is always the panel against the flush edge, so a zone flush
+   right or flush bottom lays its panels out backwards. */
+.pt-zone[data-flow="row"] { flex-direction: row; }
+.pt-zone[data-flow="row"][data-rev="1"] { flex-direction: row-reverse; }
+.pt-zone[data-flow="column"] { flex-direction: column; }
+.pt-zone[data-flow="column"][data-rev="1"] { flex-direction: column-reverse; }
+
+/* One dockable panel = its grip plus the panel element. The wrapper is what
+   the dock moves, what carries the card, and what the axis runs along. */
+.pt-panel {
+  display: flex;
+  /* nearly rigid: the panel marked data-give absorbs the squeeze first, and
+     these still give a little rather than push a neighbour off the pane */
+  flex: 0 0.05 auto;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+/* display:flex would otherwise beat the UA's [hidden] rule, and the wall
+   palette — which comes and goes with the tool — would leave its grip behind
+   as a sliver wedged between two panels that are supposed to be flush. */
+.pt-panel[hidden] { display: none; }
+.pt-zone > .pt-panel[data-give] { flex: 0 1 auto; }
+.pt-panel[data-axis="v"] { flex-direction: column; }
+.pt-panel[data-axis="h"] { flex-direction: row; }
+/* Flush against the pane: that side has no border and no radius, so the panel
+   runs into the frame instead of floating in front of it. */
+.pt-panel[data-flush~="left"] {
+  border-left-width: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.pt-panel[data-flush~="right"] {
+  border-right-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.pt-panel[data-flush~="top"] {
+  border-top-width: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.pt-panel[data-flush~="bottom"] {
+  border-bottom-width: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+/* Against a neighbour: square corners on both, and exactly one hairline
+   between them — the panel further from the flush edge keeps its border and
+   the nearer one drops the side it would double up on. */
+.pt-panel[data-join~="left"] {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.pt-panel[data-join~="top"] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.pt-panel[data-join~="right"] {
+  border-right-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.pt-panel[data-join~="bottom"] {
+  border-bottom-width: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+/* The panel inside gives up its card — the wrapper is the card now. */
+#plan-tools.pt-dock .pt-inner {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  max-width: none;
+  max-height: none;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+/* Laid along a horizontal edge, the tool column becomes a tool row and the
+   chips drop to icons — five names side by side would be wider than the plan.
+   Keyed on the panel, not the zone, so a panel in mid-air can preview the
+   shape it is about to take. */
+#plan-toolbar[data-axis="h"] {
+  flex-direction: row;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+#plan-toolbar[data-axis="h"] .tb-sep {
+  width: 1px;
+  height: 32px;
+  margin: 2px 4px;
+}
+#layer-chips[data-axis="h"] {
+  flex-direction: row;
+  width: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+#layer-chips[data-axis="h"] .lchip { flex: 0 0 auto; }
+#layer-chips[data-axis="h"] .lchip .lchip-t { display: none; }
+#layer-chips[data-axis="h"] .lchip .lchip-name {
+  flex: 0 0 auto;
+  width: 26px;
+  padding-inline: 0;
+  justify-content: center;
+}
+
+/* ---- a plan pane too narrow for its own chrome ---------------------------
+   Split view can leave the plan 120px wide on a 1600px monitor, and every one
+   of these panels was sized for a window rather than for the pane it lives in:
+   the layer panel is 198px by design, so it painted over the 3D view and the
+   inspector beside it. js/plan_tools_dock.js measures #view-2d and sets
+   .plan-narrow / .plan-tiny; the rules below are what those mean.
+
+   Order of sacrifice, worst case last: labels, then the wall palette, then the
+   dock itself (the module hands the panels back to the phone rail). What never
+   happens at any width is chrome painting outside the pane — a tool column
+   over the 3D view is worse than one you have to scroll. */
+#view-2d > #plan-tools { max-width: calc(100% - 16px); max-height: 100%; }
+#view-2d.plan-tiny > #plan-tools { max-width: calc(100% - 12px); }
+.pt-zone { overflow: hidden; }
+#view-2d.plan-narrow .layer-chips { width: auto; }
+#view-2d.plan-narrow .lchip .lchip-t { display: none; }
+#view-2d.plan-narrow .lchip .lchip-name {
+  flex: 0 0 auto;
+  width: 26px;
+  padding-inline: 0;
+  justify-content: center;
+}
+#view-2d.plan-narrow #plan-wall-palette { max-width: 100%; }
+/* The gesture hint and the tool hint are both elective prose. In a strip this
+   narrow they wrap into a column and cover the drawing they describe. */
+#view-2d.plan-narrow > .hint,
+#view-2d.plan-narrow #plan-hint { display: none; }
+/* At this size the pane holds one column of chrome, and it is the tools: a
+   second column of layer chips leaves no plan at all. The chips come back the
+   moment the divider is dragged back — nothing about the layers changed. */
+#view-2d.plan-tiny #plan-wall-palette,
+#view-2d.plan-tiny .layer-chips { display: none; }
+#view-2d.plan-tiny #plan-tools:not(.pt-dock) { gap: 4px; inset-inline-start: 6px; }
+/* The status strip keeps the two things a drafter reads while drawing — where
+   the cursor is and which aids are on. The target selector and the tuning
+   button are settings, and settings can wait for a wider pane. */
+#cad-status { overflow: hidden; }
+#view-2d.plan-narrow #cad-status { gap: 8px; padding: 0 6px; }
+#view-2d.plan-narrow #cad-status .cad-main,
+#view-2d.plan-narrow #cad-status .cad-target,
+#view-2d.plan-narrow #cad-status .cad-tune-btn { display: none; }
+#view-2d.plan-narrow #cad-status .cad-coord { min-width: 0; }
+
+/* The handle. One per panel, and the only child of the pair that is never a
+   command — dragging it moves that panel alone. */
+.pt-grip {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: grab;
+  /* the pointer stream has to reach the drag, not the browser's pan/scroll */
+  touch-action: none;
+}
+.pt-panel[data-axis="v"] > .pt-grip { height: 16px; }
+.pt-panel[data-axis="h"] > .pt-grip { width: 16px; }
+.pt-grip:hover { background: var(--btn-bg-hover); color: var(--text-main); }
+.pt-grip:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+#plan-tools.pt-dragging .pt-grip { cursor: grabbing; }
+
+/* In the air it is a card again — it is not part of any frame yet — and the
+   dashed box is where it will land, at which end of which group. */
+.pt-panel.pt-floating {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-panel);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+.pt-drop {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  border: 2px dashed var(--accent);
+  border-radius: 10px;
+  background: var(--accent-soft);
+}
+.pt-drop[hidden] { display: none; }
+
+/* The two controls that were in the top-trailing corner first move down when a
+   panel claims it (js/plan_tools_dock.js sets the lift on #view-2d only, so
+   the 3D pane's own gizmo and button never move). */
+#view-2d .view-max-btn { top: calc(12px + var(--plan-corner-lift, 0px)); }
+#view-2d .plan-gizmo { top: calc(54px + var(--plan-corner-lift, 0px)); }
 /* separators included: anything that shrinks turns the column into slivers */
 #plan-toolbar > * { flex: 0 0 auto; }
 #plan-toolbar .tool {
@@ -1578,7 +1829,7 @@ label span:first-child {
 .lbl {
   position: absolute;
   top: 12px;
-  left: 12px;
+  inset-inline-start: 12px;
   background: var(--hud-bg);
   color: var(--hud-fg);
   padding: 6px 12px;
@@ -1589,6 +1840,7 @@ label span:first-child {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
 }
 /* First-run hint. It used to pulse in the middle of the viewport forever,
    covering the model it was explaining; now it fades out for good once the
@@ -2051,14 +2303,14 @@ body.used-2d #view-2d > .hint {
 .view-max-btn {
   position: absolute;
   top: 12px;
-  right: 12px;
+  inset-inline-end: 12px;
   z-index: 12;
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   cursor: pointer;
   color: var(--hud-fg);
@@ -2067,26 +2319,25 @@ body.used-2d #view-2d > .hint {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   box-shadow: var(--shadow-sm);
-  opacity: 0.55;
-  transition: opacity 0.2s, background 0.2s;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 .view-max-btn:hover {
-  opacity: 1;
   background: var(--accent);
   color: var(--on-accent);
+  border-color: var(--accent);
 }
 /* 3D edit-mode toggle: same chip as the maximize button, one slot inboard */
 .view-edit-btn {
   position: absolute;
   top: 12px;
-  right: 52px;
+  inset-inline-end: 50px;
   z-index: 12;
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   cursor: pointer;
   color: var(--hud-fg);
@@ -2095,18 +2346,17 @@ body.used-2d #view-2d > .hint {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   box-shadow: var(--shadow-sm);
-  opacity: 0.55;
-  transition: opacity 0.2s, background 0.2s;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 .view-edit-btn:hover {
-  opacity: 1;
   background: var(--accent);
   color: var(--on-accent);
+  border-color: var(--accent);
 }
 .view-edit-btn.active {
-  opacity: 1;
   background: var(--accent);
   color: var(--on-accent);
+  border-color: var(--accent);
   box-shadow: 0 4px 12px var(--accent-glow);
 }
 /* divider between the drawing tools and the lock toggle under them */
@@ -3394,6 +3644,10 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-report > section { width: min(520px,100%); }
 #modeler .md-report pre { margin: 14px 0 0; max-height: 46vh; overflow: auto; color: var(--text-main); font: 11.5px/1.75 ui-monospace,monospace; white-space: pre-wrap; word-break: break-word; }
 #modeler .md-report #mdPickList { margin: 14px 0 0; max-height: 46vh; overflow: auto; }
+#modeler .md-pick-toolbar { display: flex; gap: 8px; margin: 12px 0 0; }
+#modeler .md-pick-toolbar[hidden] { display: none; }
+#modeler .md-pick-toolbar #mdPickBack { flex: 0 0 auto; min-height: 40px; padding: 0 12px; border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg); color: var(--text-main); cursor: pointer; }
+#modeler .md-pick-toolbar #mdPickSearch { flex: 1 1 auto; min-width: 0; min-height: 40px; padding: 0 12px; border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg); color: var(--text-main); }
 #modeler .md-reference-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 #modeler .md-reference-option { display: flex; align-items: center; gap: 11px; min-height: 58px; padding: 10px; border: 1px solid var(--btn-border); border-radius: 10px; background: var(--btn-bg); color: var(--text-main); text-align: start; cursor: pointer; }
 #modeler .md-reference-option:hover,#modeler .md-reference-option.selected { border-color: var(--accent); background: color-mix(in srgb,var(--accent) 9%,var(--btn-bg)); }
@@ -4348,6 +4602,71 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-drawing-tools button.save:hover { background: #126a40; }
 #modeler .md-drawing-tools kbd { padding: 1px 4px; border: 1px solid currentColor; border-radius: 4px; font-size: 9px; opacity: .75; }
 #modeler .md-drawing-tools-sep { width: 1px; height: 22px; margin: 0 2px; background: var(--separator); }
+/* Eleven tools do not fit a 900px viewport with their captions: below that the
+   toolbar keeps the icons and the pressed state and drops the words, which the
+   tooltip and the hint line still carry. */
+@media (max-width: 1180px) {
+  #modeler .md-drawing-tools button span { display: none; }
+  #modeler .md-drawing-tools button kbd { display: none; }
+  #modeler .md-drawing-tools button { padding: 5px 7px; }
+}
+
+/* ---- the sheet's own properties, where the tree and inspector would be ----
+   A drawing has nothing to say about features or a sketch plane, and everything
+   to say about paper, views and the title block. */
+#modeler .md-sheet-panel[hidden] { display: none; }
+#modeler .md-sheet-panel {
+  position: absolute; top: 58px; inset-inline-end: 12px; bottom: 44px; z-index: 7;
+  width: 244px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto;
+  padding: 8px; border: 1px solid var(--border-color); border-radius: 12px;
+  background: var(--bg-panel); box-shadow: 0 6px 22px rgba(0,0,0,.16);
+  scrollbar-width: thin;
+}
+#modeler .md-sheet-head {
+  display: flex; align-items: center; gap: 6px; padding: 2px 2px 6px;
+  border-bottom: 1px solid var(--separator); color: var(--text-main); font-size: 12px;
+}
+#modeler .md-sheet-head i { color: var(--accent); font-size: 15px; }
+#modeler .md-sheet-group { border: 1px solid var(--separator); border-radius: 9px; overflow: hidden; }
+#modeler .md-sheet-group > summary {
+  padding: 6px 8px; background: var(--btn-bg); color: var(--text-muted); cursor: pointer;
+  font: 650 11px/1.2 "Inter", "Rubik", sans-serif; list-style: none;
+}
+#modeler .md-sheet-group > summary::-webkit-details-marker { display: none; }
+#modeler .md-sheet-group-body { display: flex; flex-direction: column; gap: 5px; padding: 7px; }
+#modeler .md-sheet-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+#modeler .md-sheet-row > span { flex: 0 0 82px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#modeler .md-sheet-row select,
+#modeler .md-sheet-row input {
+  flex: 1 1 auto; min-width: 0; padding: 4px 6px; border: 1px solid var(--input-border);
+  border-radius: 6px; background: var(--input-bg); color: var(--text-main); font-size: 11px;
+}
+#modeler .md-sheet-check { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); cursor: pointer; }
+#modeler .md-sheet-btn {
+  margin-top: 2px; padding: 6px; border: 1px dashed var(--btn-border); border-radius: 7px;
+  background: transparent; color: var(--text-main); cursor: pointer; font-size: 11px; font-weight: 600;
+}
+#modeler .md-sheet-btn:hover { border-style: solid; background: var(--btn-bg-hover); }
+#modeler .md-sheet-views { display: flex; flex-direction: column; gap: 3px; }
+#modeler .md-sheet-view { display: flex; align-items: center; gap: 4px; }
+#modeler .md-sheet-view-name {
+  flex: 1 1 auto; display: flex; align-items: center; gap: 6px; min-width: 0; padding: 5px 7px;
+  border: 1px solid var(--separator); border-radius: 7px; background: transparent;
+  color: var(--text-main); cursor: pointer; font-size: 11px; font-weight: 600; text-align: start;
+}
+#modeler .md-sheet-view-name span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#modeler .md-sheet-view-name small { color: var(--text-muted); font-weight: 500; }
+#modeler .md-sheet-view.on .md-sheet-view-name { border-color: var(--accent); color: var(--accent); }
+#modeler .md-sheet-view-del {
+  flex: none; display: grid; place-items: center; width: 26px; height: 26px;
+  border: 1px solid transparent; border-radius: 7px; background: transparent;
+  color: var(--text-muted); cursor: pointer;
+}
+#modeler .md-sheet-view-del:hover { color: #c0392b; border-color: var(--separator); }
+#modeler .md-sheet-add-view {
+  width: 100%; padding: 5px 6px; border: 1px dashed var(--btn-border); border-radius: 7px;
+  background: transparent; color: var(--text-main); font-size: 11px;
+}
 
 /* One compact viewport rail: orientation, navigation and display are related
    view controls, so they share one surface instead of looking like three
@@ -4385,9 +4704,10 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 /* Edges is an independent visibility toggle, not a third display mode. An
    outlined state prevents two simultaneous solid-teal choices in one group. */
 #modeler .md-display #mdShowEdges.on {
-  background: color-mix(in srgb,var(--accent) 11%,transparent);
+  background: color-mix(in srgb,var(--bg-panel) 88%,var(--accent) 12%);
   border-color: color-mix(in srgb,var(--accent) 58%,var(--btn-border));
-  color: var(--accent);
+  color: var(--text-main);
+  font-weight: 600;
 }
 /* The same three planes drive both the camera and the active sketch plane. */
 #modeler.md-is3d .md-views { display: flex; }
@@ -4425,11 +4745,24 @@ body.compact-nav #modeler .md-sketch-plane-chip { top: 8px; inset-inline-end: 8p
    transparent; it only carries the sketch. */
 #modeler.md-model-sketching #md3dHost { z-index: 0; opacity: 1; pointer-events: none; }
 #modeler.md-model-sketching #mdCanvas { z-index: 3; background: transparent; }
-#modeler.md-isdrawing .md-mid { background: #dfe3e8; }
-#modeler.md-isdrawing #mdCanvas { cursor: grab; }
-#modeler.md-isdrawing #mdCanvas:active { cursor: grabbing; }
+#modeler.md-isdrawing .md-mid { background: #e6e9ee; }
+#modeler.md-isdrawing #mdCanvas { cursor: default; }
+/* Wide enough for both: the paper gives up the strip the sheet panel needs, so
+   the drawing is never underneath its own properties. Narrower than this the
+   panel floats over the page instead — a 244px column out of 900 leaves no
+   sheet worth looking at. */
+@media (min-width: 1100px) {
+  #modeler.md-isdrawing:not(.md-sheet-collapsed) #mdCanvas { inset-inline-end: 268px; width: auto; }
+}
+#modeler.md-isdrawing.md-sheet-collapsed .md-sheet-panel { display: none; }
+@media (max-width: 760px) {
+  #modeler .md-sheet-panel { width: min(244px, 74vw); top: 96px; bottom: 56px; }
+}
+/* The view cube's Top/Front/Right and the display styles all address the 3D
+   model. On a sheet the views ARE the document, and they are managed in the
+   panel. */
+#modeler.md-isdrawing .md-views { display: none; }
 #modeler.md-isdrawing.md-tool-dim #mdCanvas { cursor: crosshair; }
-#modeler.md-isdrawing.md-tool-dim #mdCanvas:active { cursor: grabbing; }
 
 /* Smart Dimension uses the same canvas-first rhythm as desktop CAD: pull the
    annotation away from its edge, release, then type into a small local modify
@@ -4566,10 +4899,15 @@ body.compact-nav #modeler .md-sketch-plane-chip { top: 8px; inset-inline-end: 8p
 #modeler .md-finish-edge:hover { border-color: var(--accent); }
 #modeler .md-finish-edges-hint { margin: 0; color: var(--text-muted); font-size: 8.5px; line-height: 1.4; }
 #modeler.md-isdrawing .md-quick-tools { display: none; }
+/* One exception: a sheet tool that needs typed text (a note, a dimension
+   override) borrows the same quick form every other command uses. */
+#modeler.md-isdrawing.md-sheet-form .md-quick-tools { display: flex; }
 #modeler.md-isdrawing .md-left,
 #modeler.md-isdrawing .md-right,
 #modeler.md-isdrawing .md-commandmanager { display: none; }
-#modeler.md-isdrawing .md-hint { top: 104px; bottom: auto; }
+/* The hint belongs under the paper, not across it: a sheet fills the pane and
+   a floating caption over the top view hides the geometry it is describing. */
+#modeler.md-isdrawing .md-hint { top: auto; bottom: 12px; }
 #modeler.md-isdrawing .md-docmodes,
 #modeler.md-isdrawing .md-head-inputs,
 #modeler.md-isdrawing .md-head-actions button:not(#mdClose):not(#mdDrawing):not(#mdSave) { pointer-events: none; opacity: .48; }
@@ -4591,9 +4929,9 @@ body.compact-nav #modeler .md-sketch-plane-chip { top: 8px; inset-inline-end: 8p
   position: absolute; inset-inline-end: 12px; bottom: 88px; z-index: 7;
   display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
   border: 1px solid var(--border-color); border-radius: 50%; background: color-mix(in srgb,var(--bg-panel) 90%,transparent);
-  color: var(--text-muted); box-shadow: var(--shadow-sm); cursor: pointer; opacity: .62;
+  color: var(--text-main); box-shadow: var(--shadow-sm); cursor: pointer;
 }
-#modeler .md-hint-help:hover,#modeler .md-hint-help.on { opacity: 1; color: var(--accent); border-color: var(--accent); }
+#modeler .md-hint-help:hover,#modeler .md-hint-help.on { color: var(--accent); border-color: var(--accent); }
 #modeler:not(.md-is3d) .md-hint-help,#modeler.md-assembly .md-hint-help { display: none; }
 /* a tool that is mid-sketch is the one moment this deserves the eye */
 #modeler .md-hint.live {
@@ -6342,22 +6680,32 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 
 /* ---- CAD view-orientation gizmo ---- */
 .view-gizmo {
-  position: absolute; bottom: 16px; right: 16px; width: 84px; height: 84px;
+  position: absolute; bottom: 16px; inset-inline-end: 16px; inset-inline-start: auto; width: 84px; height: 84px;
   z-index: 6; user-select: none; -webkit-user-select: none;
-  background: rgba(18, 20, 28, 0.4); border-radius: 50%;
-  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  background: color-mix(in srgb, var(--bg-panel) 82%, transparent);
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 .view-gizmo svg { width: 100%; height: 100%; overflow: visible; display: block; }
 .gz-nub { cursor: pointer; }
 .gz-nub circle { transition: r 0.12s ease; }
 .gz-nub:hover circle { stroke: #fff !important; stroke-width: 2.2 !important; }
 .gz-lbl { font: 700 8px system-ui, sans-serif; fill: #fff; pointer-events: none; }
-.gz-home { fill: rgba(255, 255, 255, 0.55); cursor: pointer; transition: fill 0.15s ease; }
-.gz-home:hover { fill: #fff; }
+.gz-home { fill: var(--text-muted); opacity: 0.55; cursor: pointer; transition: fill 0.15s ease, opacity 0.15s ease; }
+.gz-home:hover { fill: var(--text-main); opacity: 1; }
+.gz-compass { cursor: pointer; }
+.gz-compass-ring { fill: none; stroke: color-mix(in srgb, var(--text-muted) 28%, transparent); stroke-width: 1.2; stroke-dasharray: 2 3; }
+.gz-compass-tick { stroke: color-mix(in srgb, var(--text-muted) 40%, transparent); stroke-width: 1; }
+.gz-compass-tick.s-tick { stroke: color-mix(in srgb, var(--text-muted) 60%, transparent); stroke-width: 1.3; }
+.gz-compass:hover .gz-compass-ring { stroke: var(--accent); }
+.gz-compass:hover circle { stroke: #fff !important; stroke-width: 1.6 !important; }
+.gz-compass:hover polygon { fill: #ff6b5e !important; }
+.gz-north-lbl { font: 800 7px system-ui, sans-serif; fill: #fff; pointer-events: none; }
 
-/* 2D plan gizmo: top-right (bottom-right holds the scale bar) */
-.plan-gizmo { top: 54px; right: 12px; bottom: auto; width: 76px; height: 76px; }
+/* 2D plan gizmo: top-end (bottom-end holds the scale bar) */
+.plan-gizmo { top: 54px; inset-inline-end: 14px; inset-inline-start: auto; bottom: auto; width: 76px; height: 76px; }
 
 /* MEP auto-generate button */
 .mep-auto-btn {
@@ -6466,6 +6814,14 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .agent-dock > header > div { flex:1;min-width:0;display:grid;grid-template-columns:auto 1fr;column-gap:7px;align-items:center; }
 .agent-dock > header > div > i { grid-row:1/3;font-size:22px;color:var(--accent); }
 .agent-dock > header strong { font-size:13px; }.agent-dock > header span { font-size:10px;color:var(--text-muted); }
+.agent-progress { flex:0 0 auto;display:grid;grid-template-columns:minmax(62px,1fr) auto;gap:3px 9px;padding:7px 10px;border-bottom:1px solid var(--border-color);background:color-mix(in srgb,var(--accent) 6%,var(--bg-panel));font-size:10px; }
+.agent-progress[hidden] { display:none; }
+.agent-progress-track { grid-column:1/-1;height:3px;overflow:hidden;border-radius:99px;background:color-mix(in srgb,var(--accent) 18%,var(--border-color)); }
+.agent-progress-track > span { display:block;width:34%;height:100%;border-radius:inherit;background:var(--accent);animation:agent-progress-slide 1.15s ease-in-out infinite alternate; }
+.agent-progress[data-phase="complete"] .agent-progress-track > span { width:100%;animation:none; }
+.agent-progress-label { min-width:0;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.agent-progress-stats { color:var(--text-muted);font-variant-numeric:tabular-nums;text-align:end;white-space:nowrap; }
+@keyframes agent-progress-slide { from { transform:translateX(-5%); } to { transform:translateX(195%); } }
 #agentMessages { flex:1;overflow:auto;padding:11px;display:flex;flex-direction:column;gap:9px; }
 .agent-line { display:flex;align-items:flex-start;gap:7px;max-width:94%;font-size:12px;line-height:1.45; }
 .agent-line > div { padding:8px 10px;border-radius:11px;background:var(--accent-soft);word-break:break-word; }
@@ -6489,6 +6845,10 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .agent-preview-room,.agent-preview-item { fill:color-mix(in srgb,var(--accent) 16%,transparent); }
 .agent-preview-origin { opacity:.35;fill:none; }
 .agent-preview-destination { fill:color-mix(in srgb,var(--accent) 24%,transparent);stroke-width:4; }
+.agent-preview-front { stroke-width:6;stroke-dasharray:none;stroke-linecap:round; }
+.agent-proposal-incomplete { border-color:var(--warn,#b7791f); }
+.agent-incomplete-message { display:block; color:var(--warn,#9b5315); font-weight:700; margin-top:6px; }
+.agent-choice-overflow { display:block;margin-top:8px;color:var(--muted); }
 .agent-preview-motion { stroke-width:2;stroke-dasharray:4 5;marker-end:none; }
 .agent-preview-opening { fill:color-mix(in srgb,var(--accent) 24%,transparent); }
 @keyframes agent-preview-dash { to { stroke-dashoffset:-30; } }
@@ -10505,42 +10865,80 @@ html[data-ui="legacy"] #plan-hint {
 }
 
 .left-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 10px 12px 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  padding: 10px 10px 4px;
   flex: 0 0 auto;
   min-width: 0;
   box-sizing: border-box;
   width: 100%;
 }
 .left-tabs button {
-  flex: 1 1 0;
+  position: relative;
   min-width: 0;
-  padding: 7px 4px;
-  font-size: 11px;
-  font-weight: 700;
+  width: 100%;
+  min-height: 52px;
+  padding: 7px 3px 6px;
+  font-size: 10px;
+  font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   color: var(--text-muted);
   background: transparent;
   border: 1px solid transparent;
+  border-radius: 9px;
   box-shadow: none;
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.16s ease, background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.left-tabs button:hover {
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--btn-bg-hover) 80%, transparent);
+  border-color: color-mix(in srgb, var(--btn-border) 60%, transparent);
+}
+.left-tabs button:active {
+  transform: scale(0.97);
+}
+.left-tabs button > i {
+  font-size: 20px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: inherit;
+  transition: transform 0.18s ease;
+}
+.left-tabs button:hover > i {
+  transform: translateY(-1px);
 }
 .left-tabs button > span {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
+  overflow: visible;
+  line-height: 1.15;
+  color: inherit;
 }
 .left-tabs button.active {
   color: var(--accent);
   background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--btn-border));
-  box-shadow: none;
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--btn-border));
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 700;
+  transform: none;
+}
+.left-tabs button.active > i {
+  color: var(--accent);
   transform: none;
 }
 html:not([data-ui="legacy"]) #left-sidebar > .panel-section { display: none; }
@@ -10574,7 +10972,9 @@ html:not([data-ui="legacy"]) #left-sidebar[data-left="tree"] > [data-left-pane="
 .plan-hint {
   position: absolute;
   left: 50%;
-  bottom: 38px;
+  /* --plan-hint-lift is set by js/plan_tools_dock.js and is 0 for every dock
+     but the bottom one, where the tool cluster occupies this exact strip. */
+  bottom: calc(38px + var(--plan-hint-lift, 0px));
   transform: translateX(-50%);
   z-index: 12;
   padding: 6px 12px;
@@ -11624,8 +12024,6 @@ html:not([data-ui="legacy"])[data-tool="walloffset"] #cadTuneBtn {
 
 .sh-auto-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .sh-auto-row .sh-auto { flex: 1; }
-
-.left-tabs button { font-size: 10px; padding: 7px 4px; }
 
 /* ==========================================================================
    Phone / foldable finishing pass

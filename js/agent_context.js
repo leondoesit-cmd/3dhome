@@ -4,9 +4,13 @@ import { listCapabilities } from "./core/tool_registry.js";
 import { plannerCommandManifest } from "./commands/index.js";
 import { plannerTutorialProgress } from "./planner_tutorial.js";
 import { getLang } from "./i18n.js";
-import { FURN } from "./furniture.js";
+import { FURN, flabel, itemVSpan } from "./furniture.js";
 import { tutorAttention } from "./tutor/attention_tracker.js";
 import { tutorProgressSnapshot } from "./tutor/progress.js";
+import { itemPlanBounds, spatialDigest } from "./agent_prompt.js";
+import { detectRooms, wallGeom, wallPointAt } from "./geometry.js";
+import { normalizeWallKind } from "./wall_curves.js";
+import { canonicalPlacementItem, canonicalPlacementWall } from "./placement_resolver.js";
 
 function plain(value) {
   if (value == null) return null;
@@ -26,12 +30,22 @@ function entityLists() {
   return {
     nodes: (S.nodes || []).map(function (n, id) { return Object.assign({ id: id }, plain(n) || {}); }),
     walls: (S.walls || []).map(function (w) {
-      return Object.assign({ type: w.wallTypeId || "generic" }, plain(w) || {});
+      var a = S.nodes && S.nodes[w.a], b = S.nodes && S.nodes[w.b];
+      return Object.assign({ type: w.wallTypeId || "generic" }, plain(w) || {}, {
+        from: a ? { x: a.x, z: a.z } : null,
+        to: b ? { x: b.x, z: b.z } : null,
+      });
     }),
     openings: (S.openings || []).map(function (o) {
       return Object.assign({ wallId: o.wall }, plain(o) || {});
     }),
-    items: (S.items || []).map(function (it) { return plain(it); }).filter(Boolean),
+    items: (S.items || []).map(function (it) {
+      var p = plain(it);
+      if (!p) return null;
+      p.label = flabel(it.type);
+      p.bounds = itemPlanBounds(it);
+      return p;
+    }).filter(Boolean),
     markers: plain(S.markers || []), slabOpenings: plain(S.slabOpenings || []),
     wallConstraints: plain(S.wallCons || []), roomConstraints: plain(S.roomCons || []),
     planVariables: plain(S.planVars || []),
@@ -70,6 +84,32 @@ function counts() {
   };
 }
 
+/* Complete execution snapshot for placement tools. Unlike projectAgentContext,
+   this is never prompt-budgeted: a stable item id must resolve identically for
+   the in-app agent, WebMCP and the external bridge. Curves are canonicalized to
+   a fine polyline while the live geometry APIs are available; the resolver that
+   consumes this object remains pure. */
+export function livePlacementScene() {
+  var wallGeometry = { wallGeom: wallGeom, wallPointAt: wallPointAt, normalizeWallKind: normalizeWallKind };
+  var walls = (S.walls || []).map(function(wall) {
+    return canonicalPlacementWall(wall, wallGeometry);
+  }).filter(Boolean);
+  var rooms = detectRooms().map(function(room) {
+    return {
+      key: room.key, area: Number(room.area) || 0, cx: Number(room.cx) || 0, cz: Number(room.cz) || 0,
+      pts: plain(room.pts || []), wallIds: String(room.key || "").split(",").filter(Boolean),
+    };
+  });
+  return plain({
+    schemaVersion: 1,
+    floorId: S.workspace && S.workspace.activeFloor != null ? S.workspace.activeFloor : null,
+    items: (S.items || []).map(function(item) {
+      return canonicalPlacementItem(item, { itemVSpan: itemVSpan });
+    }).filter(Boolean),
+    walls: walls, rooms: rooms,
+  });
+}
+
 export function projectAgentContext(options = {}) {
   var compact = options.compact === true, entityLimit = Math.max(1, Math.min(5000, options.entityLimit || 250));
   var tree = historyTree(), historyLimit = Math.max(1, Math.min(2000, options.historyLimit || 60));
@@ -81,6 +121,9 @@ export function projectAgentContext(options = {}) {
       floors: plain(S.workspace && S.workspace.floors || []),
     },
     locale: getLang(), units: "cm", activeTool: S.tool || "select", selection: selected(), counts: counts(),
+    spatial: spatialDigest({ nodes: S.nodes, walls: S.walls, items: S.items }, {
+      labelOf: function (it) { return flabel(it && it.type); }, limit: entityLimit,
+    }),
     interaction: {
       viewAxis: S.viewAxis || "top", drawing: !!S.drawing, drawFrom: S.drawFrom,
       placeType: S.placeType || null,
@@ -89,13 +132,19 @@ export function projectAgentContext(options = {}) {
       viewport: { scale: S.SC, offsetX: S.OX, offsetY: S.OY },
     },
     warnings: Object.keys(S.ignoredWarnings || {}), commands: plannerCommandManifest(),
-    capabilities: listCapabilities().map(capabilityProjection),
+    capabilities: listCapabilities().map(capabilityProjection).map(function(entry) {
+      return options.capabilityDetail === false ? {
+        id: entry.id, class: entry.class, status: entry.status,
+        modelCommandId: entry.modelCommandId, label: entry.label,
+      } : entry;
+    }),
     projectSettings: {
       roomMeta: plain(S.roomMeta || {}), wallTypes: plain(S.wallTypes || []),
       snapping: { enabled: S.osnap !== false, kinds: plain(S.snapKinds || {}), strength: S.snapStrength },
       northAngle: S.northAngle, activeLevel: S.activeLevel,
     },
-    budgets: { compact: compact, entityLimit: entityLimit, historyLimit: historyLimit },
+    budgets: { compact: compact, entityLimit: entityLimit, historyLimit: historyLimit,
+      capabilityDetail: options.capabilityDetail !== false },
   };
   if (options.includeAttention !== false) {
     context.attention = tutorAttention.snapshot(S);
@@ -118,12 +167,16 @@ export function queryAgentObjects(args = {}) {
   if (!source) return { ok: false, reason: "UNKNOWN_ENTITY_KIND", kinds: Object.keys(lists) };
   var ids = Array.isArray(args.ids) ? new Set(args.ids.map(String)) : null;
   var limit = Math.max(1, Math.min(500, Number(args.limit) || 100));
+  var offset = Math.max(0, Number(args.offset) || 0);
   var filtered = source.filter(function (entry, index) {
     if (!ids) return true;
     var id = entry && entry.id != null ? entry.id : index;
     return ids.has(String(id));
   });
-  return { ok: true, kind: kind, objects: filtered.slice(0, limit), total: filtered.length, truncated: filtered.length > limit };
+  var objects = filtered.slice(offset, offset + limit), nextOffset = offset + objects.length;
+  return { ok: true, kind: kind, objects: objects, total: filtered.length,
+    offset: offset, nextOffset: nextOffset < filtered.length ? nextOffset : null,
+    truncated: nextOffset < filtered.length };
 }
 
 export function searchAgentTools(args = {}) {
@@ -136,10 +189,13 @@ export function searchAgentTools(args = {}) {
 
 export function getAgentHistorySummary(args = {}) {
   var tree = historyTree(), limit = Math.max(1, Math.min(200, Number(args.limit) || 40));
-  var nodes = tree.slice(-limit).map(function (node) {
+  var offset = Math.max(0, Number(args.offset) || 0), end = Math.max(0, tree.length - offset);
+  var start = Math.max(0, end - limit);
+  var nodes = tree.slice(start, end).map(function (node) {
     return { id: node.id, parent: node.parent, label: node.label || node.op || "", targets: historyTargets(node.id) };
   });
-  return { ok: true, current: currentHistoryId(), nodes: nodes, total: tree.length, truncated: tree.length > limit };
+  return { ok: true, current: currentHistoryId(), nodes: nodes, total: tree.length,
+    offset: offset, nextOffset: start > 0 ? offset + nodes.length : null, truncated: start > 0 };
 }
 
 export function getAgentObjectHistory(args = {}) {
@@ -147,10 +203,16 @@ export function getAgentObjectHistory(args = {}) {
   if (objectId && !objectId.includes(":") && args.kind) objectId = String(args.kind) + ":" + objectId;
   if (!objectId) return { ok: false, reason: "OBJECT_ID_REQUIRED" };
   var tree = historyTree(), limit = Math.max(1, Math.min(200, Number(args.limit) || 60));
+  var offset = Math.max(0, Number(args.offset) || 0);
   var nodes = tree.filter(function (node) {
     return historyTargets(node.id).some(function (target) { return String(target.id || target) === objectId; });
   });
-  return { ok: true, objectId: objectId, object: historyObjects().find(function (entry) { return entry.id === objectId; }) || null, nodes: nodes.slice(-limit), total: nodes.length, truncated: nodes.length > limit };
+  var end = Math.max(0, nodes.length - offset), start = Math.max(0, end - limit);
+  var page = nodes.slice(start, end);
+  return { ok: true, objectId: objectId,
+    object: historyObjects().find(function (entry) { return entry.id === objectId; }) || null,
+    nodes: page, total: nodes.length, offset: offset,
+    nextOffset: start > 0 ? offset + page.length : null, truncated: start > 0 };
 }
 
 export function compareAgentHistory(args = {}) {
@@ -164,7 +226,9 @@ export function searchAgentCatalog(args = {}) {
   var query = String(args.query || "").trim().toLowerCase(), limit = Math.max(1, Math.min(100, Number(args.limit) || 30));
   var entries = Object.keys(FURN || {}).map(function (id) {
     var entry = FURN[id] || {};
-    return { id: id, width: entry.w || entry.width, depth: entry.d || entry.depth, height: entry.h || entry.height };
-  }).filter(function (entry) { return !query || entry.id.toLowerCase().includes(query); });
+    return { id: id, label: flabel(id), width: entry.w || entry.width, depth: entry.d || entry.depth, height: entry.h || entry.height };
+  }).filter(function (entry) {
+    return !query || entry.id.toLowerCase().includes(query) || String(entry.label || "").toLowerCase().includes(query);
+  });
   return { ok: true, items: entries.slice(0, limit), total: entries.length, truncated: entries.length > limit };
 }

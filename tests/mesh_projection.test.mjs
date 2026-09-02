@@ -92,9 +92,12 @@ test("drawing SVG uses direct mesh contours instead of generic view rectangles",
     -1,0,-1, 1,0,1, 1,0,-1,
   ]};
   const svg=createDrawingSvg({name:"Imported part",parts:[{kind:"direct",meshData}]});
-  assert.match(svg,/<path class="shape" d="M/);
+  // the plate's four edges, inked as outlines — not the envelope rectangle a
+  // view it could not project used to fall back to
+  assert.equal((svg.match(/<line [^>]*stroke-width="0.5"/g) || []).length >= 4, true);
   assert.match(svg,/>TOP<\/text>/);
-  assert.doesNotMatch(svg,/<text class="title"[^>]*>Untitled part<\/text>/);
+  assert.match(svg,/Imported part/);
+  assert.doesNotMatch(svg,/Untitled part/);
 });
 
 test("a tessellated cylinder wall is one smooth face, not a stave per facet", () => {

@@ -21,6 +21,14 @@ function appendItemPreview(svg, spec, extraClass) {
     return { x: c.x + entry[0] * ca - entry[1] * sa, z: c.z + entry[0] * sa + entry[1] * ca };
   });
   svg.appendChild(svgEl("polygon", { points: polygonPoints(corners), class: "agent-preview-shape agent-preview-item" + (extraClass ? " " + extraClass : "") }));
+  if (extraClass && extraClass.indexOf("destination") !== -1) {
+    var front = [
+      { x: c.x + hw * ca - hd * sa, z: c.z + hw * sa + hd * ca },
+      { x: c.x + -hw * ca - hd * sa, z: c.z + -hw * sa + hd * ca },
+    ];
+    var a = point(front[0]), b = point(front[1]);
+    svg.appendChild(svgEl("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: "agent-preview-shape agent-preview-front" }));
+  }
 }
 
 export function clearAgentPreview() {

@@ -74,11 +74,15 @@ async function openDesktopEditor(page) {
     const el = document.getElementById("modeler");
     return !!el && getComputedStyle(el).display !== "none";
   }, { what: "the model editor to open" });
-  await page.eval(() => {
-    const c = document.querySelector('#mdWelcome [data-welcome-start="continue"]') || document.querySelector(".md-welcome-close");
-    if (c) c.click();
-  });
-  await page.eval(() => new Promise((r) => setTimeout(r, 300)));
+  await page.waitUntil(() => {
+    const welcome = document.getElementById("mdWelcome");
+    const welcomeOpen = welcome && !welcome.hidden && getComputedStyle(welcome).display !== "none";
+    if (welcomeOpen) {
+      const c = welcome.querySelector('[data-welcome-start="continue"]') || welcome.querySelector(".md-welcome-close");
+      if (c) { c.click(); return false; }
+    }
+    return !document.getElementById("modeler")?.classList.contains("md-welcome-open");
+  }, { what: "the welcome dialog to dismiss" });
 }
 
 /* ---- Test Suite --------------------------------------------------------- */
@@ -540,7 +544,10 @@ test("desktop model editor: oblique rectangle preview matches the geometry commi
     await new Promise((resolve)=>requestAnimationFrame(resolve));
     const preview=window.cadSketchSnapshot().previewRect;
     fire("pointerup",x1,y1,0);
-    await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    for (let i = 0; i < 20; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      if (window.cadSketchSnapshot().screenPoints.length >= 4) break;
+    }
     const committed=window.cadSketchSnapshot().screenPoints.slice(-4);
     return {preview,committed};
   });

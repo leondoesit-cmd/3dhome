@@ -48,7 +48,7 @@ export function bomTableRows(rows, components) {
   return (rows || []).map(function (row, index) {
     var component = byKey.get(row.key);
     // A material may be recorded on the instance or on the model it came off.
-    var material = component && (component.material || (component.def && component.def.material)) || "";
+    var material = (component && (component.material || (component.def && component.def.material))) || row.material || "";
     return {
       item: index + 1, key: row.key, name: row.name,
       quantity: row.quantity, material: String(material),
@@ -134,7 +134,7 @@ export function buildCommandCatalog(ctx) {
     { id:"threadfeature", icon:"threadfeature", label:t("opThread"), group:t("cmdFeatures"), terms:"thread screw iso cosmetic modeled tap", available:function(){ return partDoc() && solids(); }, reason:function(){ return needSolid(); } },
     { id:"knurlfeature", icon:"knurlfeature", label:t("opKnurl"), group:t("cmdFeatures"), terms:"knurl diamond grip din 82", available:function(){ return partDoc() && solids(); }, reason:function(){ return needSolid(); } },
     { id:"insertfeature", icon:"insertfeature", label:t("opInsert"), group:t("cmdFeatures"), terms:"insert bushing brass liner", available:function(){ return partDoc() && solids(); }, reason:function(){ return needSolid(); } },
-    { id:"toolboxfastener", icon:"stdscrew", label:t("toolboxFastener"), group:t("cmdFeatures"), terms:"toolbox fastener shcs bolt nut screw", available:function(){return partDoc();}, reason:needPart },
+    { id:"toolboxfastener", icon:"stdscrew", label:t("toolboxFastener"), group:t("cmdFeatures"), terms:"toolbox fastener shcs bolt nut screw washer hinge slide pipe elbow valve flange hardware", available:function(){return partDoc();}, reason:needPart },
     { id:"config", icon:"config", label:t("configurations"), group:t("cmdEvaluate"), terms:"configuration suppress exploded", available:function(){ return partDoc() || assemblyDoc(); }, reason:needPart },
     { id:"refplane", icon:"ph-square-half", label:t("refPlane"), group:t("cmdFeatures"), available:function(){ return partDoc(); }, reason:needPart },
     { id:"refaxis", icon:"ph-axis-arrow", label:t("refAxis"), group:t("cmdFeatures"), available:function(){ return partDoc(); }, reason:needPart },

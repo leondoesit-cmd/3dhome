@@ -39,7 +39,15 @@ test("feature tree retains ordered parametric dependencies", () => {
 test("drawing generator produces three associative orthographic views", () => {
   const svg = createDrawingSvg({name:"Bracket",parts:[{kind:"box",x0:0,x1:20,y0:0,y1:5,z0:0,z1:10}]});
   assert.match(svg, /FRONT/); assert.match(svg, /TOP/); assert.match(svg, /RIGHT/);
-  assert.match(svg, /Bracket/); assert.match(svg, /20 cm/);
+  assert.match(svg, /Bracket/);
+  // the overall width, dimensioned from the projection rather than the caption
+  assert.match(svg, /<text[^>]*>20<\/text>/);
+  // a real sheet says which projection convention it was drawn in, and prints
+  // at the paper size its title block claims
+  assert.match(svg, /THIRD ANGLE/);
+  assert.match(svg, /width="420mm" height="297mm"/);
+  // ISO line weights: visible outlines heavier than dimensions
+  assert.match(svg, /stroke-width="0.5"/);
 });
 
 test("sheet metal flat pattern carries bend allowance and deduction", () => {
@@ -456,11 +464,11 @@ test("a drawing balloons the list it is handed rather than one per outline", () 
     { kind: "box", name: "Frame", x0:0, x1:20, y0:0, y1:5, z0:0, z1:10 },
     { kind: "box", name: "Frame", x0:20, x1:40, y0:0, y1:5, z0:0, z1:10 },
   ]};
-  const perOutline = draw(def, {});
-  assert.equal((perOutline.match(/class="balloon"/g) || []).length, 2);
+  const rows = (svg) => (svg.match(/>Frame</g) || []).length;
+  assert.equal(rows(draw(def, {})), 2, "one parts-list row per outline when nothing better is handed in");
   const perItem = draw(def, { balloons: [{ item: 1, name: "Frame", qty: 2 }] });
-  assert.equal((perItem.match(/class="balloon"/g) || []).length, 1, "two of one part is one line item");
-  assert.match(perItem, /Frame/);
+  assert.equal(rows(perItem), 1, "two of one part is one line item");
+  assert.match(perItem, /DESCRIPTION/, "the list is a parts table on the sheet");
 });
 
 /* One pass down the mate list places a component against whatever pose the

@@ -91,6 +91,22 @@ export function applyPlanOp(op, state) {
     if (Number.isFinite(op.x)) it.x = op.x;
     if (Number.isFinite(op.z)) it.z = op.z;
     if (Number.isFinite(op.rot)) it.rot = op.rot;
+    if (Object.prototype.hasOwnProperty.call(op, "elev")) {
+      if (Number.isFinite(op.elev)) it.elev = op.elev;
+      else delete it.elev;
+    }
+    if (Object.prototype.hasOwnProperty.call(op, "on")) {
+      if (op.on != null) it.on = op.on;
+      else delete it.on;
+    }
+    if (Object.prototype.hasOwnProperty.call(op, "hold")) {
+      if (op.hold != null) it.hold = JSON.parse(JSON.stringify(op.hold));
+      else delete it.hold;
+    }
+    if (Object.prototype.hasOwnProperty.call(op, "rotUser")) {
+      if (op.rotUser != null) it.rotUser = op.rotUser;
+      else delete it.rotUser;
+    }
     return true;
   }
   if (op.type === "openingSet") {
@@ -137,6 +153,37 @@ export function applyPlanOp(op, state) {
     return true;
   }
   return false;
+}
+
+export function itemMovePlanOp(item) {
+  if (!item || item.id == null) return null;
+  return { type: "itemMove", id: item.id, x: item.x, z: item.z, rot: item.rot,
+    elev: item.elev == null ? null : item.elev,
+    on: item.on == null ? null : item.on,
+    hold: item.hold == null ? null : JSON.parse(JSON.stringify(item.hold)),
+    rotUser: item.rotUser == null ? null : item.rotUser };
+}
+
+/* Expand selected roots to their complete carried stacks. A child selected
+   alongside its parent is emitted once, and nested riders are included for
+   both single-item and multi-select 2D/3D gestures. */
+export function itemMovePlanOps(roots, items) {
+  var byParent = new Map(), seen = new Set(), out = [];
+  (items || []).forEach(function(item) {
+    if (!item || item.on == null) return;
+    var key = String(item.on);
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key).push(item);
+  });
+  function add(item) {
+    if (!item || seen.has(String(item.id))) return;
+    seen.add(String(item.id));
+    var op = itemMovePlanOp(item);
+    if (op) out.push(op);
+    (byParent.get(String(item.id)) || []).forEach(add);
+  }
+  (roots || []).forEach(add);
+  return out;
 }
 
 function paint() {
@@ -245,6 +292,10 @@ export function sendPlanCursor(x, z) {
    asks the host to. */
 export function broadcastPlanOp(op) {
   if (applyingRemote || !op) return;
+  // Diagnostic/test seam: this records an accepted local operation request
+  // before the transport gate; it does not mean a network packet was sent.
+  if (typeof window !== "undefined" && typeof window.dispatchEvent === "function")
+    window.dispatchEvent(new CustomEvent("planner-plan-op-requested", { detail: op }));
   if (!NET.connected) return;
   if (isHome()) {
     planRev += 1;

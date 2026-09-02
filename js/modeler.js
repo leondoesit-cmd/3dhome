@@ -55,7 +55,10 @@ import {
   makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, booleanBrep, chamferBrep, extractBrepTopology, filletBrep, shapeToMeshData, shellBrep, disposeBrep,
   serializeBrep, transformBrep, translateBrep,
 } from "./cad_kernel.js";
-import { downloadDrawing } from "./cad_drawings.js";
+import { buildDrawingScene } from "./cad_drawings.js";
+import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, ensureSheetDoc, scaleLabel, sceneToSvg } from "./cad_sheet.js";
+import { DRAWING_TOOLS, createDrawingController } from "./modeler_drawing.js";
+import { tessellateParts } from "./core/part_tessellate.js";
 import { addEdgeFlange, createSheetMetalPart, flatPattern } from "./cad_sheet_metal.js";
 import { mateFrameSupports, mateRequirementFor, solveTopologyMates, topologyReference } from "./cad_mates.js";
 import { eulerMatrix, normalizePose, setRotation } from "./cad_mate_model.js";
@@ -72,7 +75,7 @@ import { auditStandardParts, involuteGearOutline } from "./cad_standards.js";
 import { holeCallout, holeLayoutPoints, holeTableRow, holeWizardSolids, holeWizardThread, listHoleSizes, normalizeHoleWizard } from "./cad_hole_wizard.js";
 import { cosmeticThread, modeledThreadSolid, normalizeThreadSpec, threadCallout, validateThreadFeature, documentThreadOverlays } from "./cad_thread.js";
 import { knurlBandMesh, knurlCallout, knurlGroovePolylines, normalizeKnurlSpec, validateKnurl } from "./cad_knurl.js";
-import { toolboxFastener, listToolboxPicker, FASTENER_LENGTHS_MM } from "./cad_toolbox.js";
+import { toolboxFastener, listToolboxLibrary, toolboxFamily, lengthOptionsForSize, FASTENER_LENGTHS_MM, reducingBranchRows, PVC_D1785, searchToolbox, TOOLBOX_CATEGORY_LABELS } from "./cad_toolbox.js";
 import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides } from "./cad_appearances.js";
 import { captureConfiguration, ensureConfigurations, setActiveConfiguration } from "./cad_configurations.js";
 import { evaluateFit, fitCallout } from "./cad_fits.js";
@@ -275,11 +278,75 @@ var TXT = {
   mode2d: ["שרטוט", "Sketch"],
   mode3d: ["מודל", "Model"],
   modeDrawing: ["גיליון", "Drawing"],
-  drawingHint: ["גיליון שרטוט · הזיזו את הדף או בחרו סרגל חכם לתיקון מידה", "Drawing sheet · pan the page or choose Smart ruler to correct a dimension"],
-  smartRuler: ["סרגל חכם", "Smart ruler"],
-  smartRulerHint: ["בחרו שתי נקודות · גררו את המידה למקום · לחיצה כפולה לעריכת הערך", "Pick two points · drag the dimension into place · double-click its value to edit"],
-  rulerPickPoint: ["בחרו נקודת סקיצה", "Pick a sketch point"],
-  rulerSamePoint: ["בחרו נקודה שנייה שונה", "Pick a different second point"],
+  drawingHint: ["גיליון שרטוט · גררו מבט לאורך קו ההיטל · D למידה · S לחתך", "Drawing sheet · drag a view along its projection line · D to dimension · S to section"],
+  drawToolSelect: ["בחירה", "Select"],
+  drawToolDim: ["מידה", "Dimension"],
+  drawToolDiam: ["קוטר / רדיוס", "Diameter / radius"],
+  drawToolNote: ["הערה", "Note"],
+  drawToolSection: ["חתך", "Section"],
+  drawToolDetail: ["פרט מוגדל", "Detail"],
+  drawDimHint: ["בחרו נקודה, נקודה שנייה, ואז לחצו במקום שבו המידה תשב", "Pick a point, pick a second, then click where the dimension line goes"],
+  drawDiamHint: ["לחצו על מעגל כדי למדוד קוטר או רדיוס", "Click a circle to dimension its diameter or radius"],
+  drawSectionHint: ["גררו קו חתך על פני מבט · כיוון הגרירה הוא כיוון ההסתכלות", "Drag a cutting line across a view · the drag direction is the direction of sight"],
+  drawDetailHint: ["גררו עיגול סביב האזור שיוגדל", "Drag a circle around the area to enlarge"],
+  drawNoteHint: ["הערה על הגיליון · לחצו על גאומטריה כדי לצרף חץ", "A note on the sheet · click geometry first to attach a leader"],
+  drawNoteTitle: ["טקסט הערה", "Note text"],
+  drawDimTextTitle: ["טקסט מידה", "Dimension text"],
+  drawSnapNone: ["אין נקודת אחיזה כאן — כוונו לקצה, לאמצע או למרכז", "Nothing to snap to — aim at an end, a midpoint or a centre"],
+  drawPickCircle: ["לחצו על מעגל", "Click a circle"],
+  drawPickParent: ["בחרו קודם מבט אורתוגרפי", "Start on an orthographic view"],
+  drawSectionAdded: ["מבט חתך נוסף", "Section view added"],
+  drawDetailAdded: ["מבט פרט נוסף", "Detail view added"],
+  drawDetailSmall: ["העיגול קטן מדי", "That callout circle is too small"],
+  drawKeepOneView: ["גיליון חייב מבט אחד לפחות", "A sheet keeps at least one view"],
+  drawNoGeometry: ["אין גאומטריה למדוד", "No geometry to measure"],
+  drawExported: ["גיליון יוצא כ־SVG", "Sheet exported as SVG"],
+  drawPrintFailed: ["ההדפסה נחסמה על ידי הדפדפן", "The browser blocked printing"],
+  drawAutoDim: ["מידות כלליות", "Overall dims"],
+  drawHiddenLines: ["קווים נסתרים", "Hidden lines"],
+  drawPrint: ["הדפסה", "Print"],
+  drawExportSvg: ["ייצוא SVG", "Export SVG"],
+  sheetSetup: ["גיליון", "Sheet"],
+  sheetSize: ["גודל", "Size"],
+  sheetOrientation: ["כיוון", "Orientation"],
+  sheetLandscape: ["לרוחב", "Landscape"],
+  sheetPortrait: ["לאורך", "Portrait"],
+  sheetScale: ["קנה מידה", "Scale"],
+  sheetScaleFit: ["התאמה אוטומטית", "Fit to sheet"],
+  sheetUnits: ["יחידות", "Units"],
+  sheetProjection: ["זווית היטל", "Projection"],
+  sheetThirdAngle: ["זווית שלישית", "Third angle"],
+  sheetFirstAngle: ["זווית ראשונה", "First angle"],
+  sheetShowCenters: ["סימוני מרכז", "Centre marks"],
+  sheetShowZones: ["אזורי גיליון", "Zone marks"],
+  sheetRelayout: ["סידור מחדש", "Re-lay out views"],
+  sheetViews: ["מבטים", "Views"],
+  sheetAddView: ["הוספת מבט", "Add view"],
+  sheetViewScale: ["קנה מידה של המבט", "View scale"],
+  sheetInherit: ["כמו הגיליון", "As sheet"],
+  drawOn: ["מוצג", "Shown"],
+  drawOff: ["מוסתר", "Hidden"],
+  sheetTitleBlock: ["בלוק כותרת", "Title block"],
+  tbTitle: ["שם", "Title"],
+  tbNumber: ["מספר שרטוט", "Drawing no."],
+  tbRev: ["מהדורה", "Rev"],
+  tbAuthor: ["שורטט", "Drawn by"],
+  tbCompany: ["חברה", "Company"],
+  tbMaterial: ["חומר", "Material"],
+  tbFinish: ["גימור", "Finish"],
+  tbMass: ["מסה", "Mass"],
+  tbDate: ["תאריך", "Date"],
+  tbTolerance: ["סבולת כללית", "General tolerance"],
+  opAddDim: ["הוספת מידה", "Add dimension"],
+  opEditDim: ["עריכת מידה", "Edit dimension"],
+  opDeleteDim: ["מחיקת מידה", "Delete dimension"],
+  opAddNote: ["הוספת הערה", "Add note"],
+  opEditNote: ["עריכת הערה", "Edit note"],
+  opDeleteNote: ["מחיקת הערה", "Delete note"],
+  opAddView: ["הוספת מבט", "Add view"],
+  opDeleteView: ["מחיקת מבט", "Delete view"],
+  opSheetSetup: ["הגדרות גיליון", "Sheet setup"],
+  opSheetTitle: ["בלוק כותרת", "Title block"],
   panDrawing: ["הזזת גיליון", "Pan sheet"],
   opMoveDim: ["הזזת מידה", "Move dimension"],
   modelPlaneHint: ["עבודה על מישור", "Working plane"],
@@ -629,7 +696,23 @@ var TXT = {
   opThread: ["הברגה", "Thread"],
   opKnurl: ["חריטת אחיזה", "Knurl"],
   opInsert: ["תושבת / בושינג", "Insert / bushing"],
-  toolboxFastener: ["מחברים", "Toolbox fastener"],
+  toolboxFastener: ["ארגז כלים", "Toolbox library"],
+  toolboxCategory: ["קטגוריה", "Category"],
+  toolboxKind: ["סוג פריט", "Part family"],
+  toolboxSize: ["מידה", "Size"],
+  toolboxLength: ["אורך", "Length"],
+  toolboxOption: ["אפשרות", "Option"],
+  toolboxOptionNamed: ["אפשרות · {name}", "Option · {name}"],
+  toolboxSearch: ["חיפוש בספרייה…", "Search the library…"],
+  toolboxRecent: ["שימוש אחרון", "Last used"],
+  toolboxNoBranch: ["אין מידת ענף קטנה יותר לקו הזה", "No smaller branch size for this run"],
+  toolboxBranch: ["ענף", "Branch"],
+  toolboxSeries: ["סדרה", "Series"],
+  toolboxOverlay: ["חפיפה", "Overlay"],
+  toolboxAngle: ["זווית", "Angle"],
+  toolboxRadius: ["רדיוס", "Radius"],
+  toolboxThread: ["הברגה", "Thread"],
+  toolboxDrawerSide: ["עובי דופן המגירה", "Drawer side thickness"],
   configurations: ["תצורות", "Configurations"],
   screwMate: ["קשר הברגה", "Screw mate"],
   tangentMate: ["משיק", "Tangent mate"],
@@ -641,9 +724,6 @@ var TXT = {
   appearanceFace: ["מראה לפאה", "Face appearance"],
   configSaved: ["תצורה נשמרה", "Configuration saved"],
   configNew: ["תצורה חדשה", "New configuration"],
-  toolboxKind: ["סוג מחבר", "Fastener type"],
-  toolboxSize: ["קוטר", "Size"],
-  toolboxLength: ["אורך", "Length"],
   threadNeed: ["בחרו פאה גלילית להברגה", "Select a cylindrical face for the thread"],
   knurlNeed: ["בחרו פאה גלילית לחריטת אחיזה", "Select a cylindrical face to knurl"],
   insertNeed: ["בחרו קדח או פאה גלילית לתושבת", "Select a hole or cylindrical face for the insert"],
@@ -675,7 +755,7 @@ var TXT = {
   cap_refaxis: ["ציר", "Axis"],
   cap_refcoord: ["מערכת צירים", "Coord system"],
   cap_stdscrew: ["בורג ISO", "ISO screw"],
-  cap_fastener: ["מחברים", "Fastener"],
+  cap_fastener: ["ארגז כלים", "Toolbox"],
   massProps: ["תכונות מסה", "Mass properties"],
   standardsAudit: ["ביקורת DIN / ISO", "DIN / ISO audit"],
   projectBundle: ["חבילת פרויקט", "Project bundle"],
@@ -1292,6 +1372,7 @@ var TXT = {
   fcFeatThread: ["הברגה", "Thread"],
   fcFeatKnurl: ["חריטת אחיזה", "Knurl"],
   fcFeatInsert: ["תושבת / בושינג", "Insert / bushing"],
+  fcFeatToolbox: ["חלק מארגז הכלים", "Toolbox Part"],
 
   fcGrpExtent: ["מידת האקסטרוד", "Extent"],
   fcGrpCutExtent: ["מידת החיתוך", "Cut extent"],
@@ -1320,6 +1401,7 @@ var TXT = {
   fcGrpIsoThread: ["הברגה מטרית ISO", "ISO metric thread"],
   fcGrpDin82Knurl: ["חריטת אחיזה DIN 82", "DIN 82 knurl"],
   fcGrpInsert: ["תושבת", "Insert"],
+  fcGrpToolbox: ["חלק תקני", "Standard part"],
 
   fcFldOperation: ["פעולה", "Operation"],
   fcFldMergeResult: ["מיזוג התוצאה", "Merge result"],
@@ -1417,6 +1499,11 @@ var TXT = {
   fcFldOuterDiameterMm: ["קוטר חיצוני Ø (מ\"מ)", "Outer Ø (mm)"],
   fcFldLengthMm: ["אורך (מ\"מ)", "Length (mm)"],
   fcFldMaterial: ["חומר", "Material"],
+  fcFldToolboxFamily: ["משפחה", "Family"],
+  fcFldToolboxSize: ["מידה", "Size"],
+  fcFldToolboxFinish: ["גימור", "Finish"],
+  fcFldThreadGeometry: ["גאומטריית הברגה", "Thread geometry"],
+  fcFldToolboxLod: ["רמת פירוט", "Detail level"],
 
   fcOptAdd: ["הוספת חומר", "Add material"],
   fcOptNewBody: ["גוף חדש", "New body"],
@@ -2899,8 +2986,17 @@ function addFaceHighlights(parent, part, mesh) {
     drawn.add(reference.persistentId);
     parent.add(highlight);
   };
-  (E.topologySelection || []).forEach(function (reference) { if (reference.kind === "face") paint(reference, hexNum(E.selectedFaceColor), .62); });
-  if (E.hoverTopology && E.hoverTopology.kind === "face") paint(E.hoverTopology, hexNum(E.hoverColor), .38);
+  /* Same instance only. Two components off one library model share every
+     persistent id, so without this filter selecting a face on one of them lit
+     the matching face on all of them — the edge overlays already guard this
+     way through topologySelected/topologyHovered. */
+  (E.topologySelection || []).forEach(function (reference) {
+    if (reference.kind !== "face" || !topologyRefInBuiltComponent(reference)) return;
+    paint(reference, hexNum(E.selectedFaceColor), .62);
+  });
+  if (E.hoverTopology && E.hoverTopology.kind === "face" && topologyRefInBuiltComponent(E.hoverTopology)) {
+    paint(E.hoverTopology, hexNum(E.hoverColor), .38);
+  }
 }
 
 function addFaceAppearances(parent, part, mesh) {
@@ -3374,8 +3470,10 @@ var E = {
   rightCollapsed: false,
   drag: null,
   touchPrecision: null, // active finger + visual-only precision loupe while authoring
-  dimPick: [],        // first/second Smart Ruler endpoints in Drawing mode
+  dimPick: [],        // first/second smart-dimension endpoints in the sketch
   dimSel: null,       // selected placed dimension constraint id
+  sheet: null,        // the drafting table (modeler_drawing.js), built on demand
+  sheetToken: 0,      // bumped whenever the model rebuilds, to re-project views
   dimEditor: null,    // contextual value editor beside a placed dimension
   cv: null, cx: null,
   pv: null,           // preview {renderer,scene,camera,group,az,el,dist}
@@ -4835,12 +4933,23 @@ function buildDOM() {
     '<button data-mode="2d" role="tab" aria-selected="false" data-tip="2">' + cadIcon("mode2d") + ' ' + t("mode2d") + "</button>" +
     '<button data-mode="drawing" role="tab" aria-selected="false" data-tip="7">' + cadIcon("drawing") + ' ' + t("modeDrawing") + "</button>" +
     "</div>" +
-    '<div class="md-drawing-tools" id="mdDrawingTools" role="toolbar" aria-label="Drawing correction tools">' +
-    '<button type="button" data-drawing-tool="select" class="on">' + cadIcon("pan") + '<span>' + t("panDrawing") + '</span></button>' +
-    '<button type="button" data-drawing-tool="dim">' + cadIcon("dim") + '<span>' + t("smartRuler") + '</span><kbd>D</kbd></button>' +
+    '<div class="md-drawing-tools" id="mdDrawingTools" role="toolbar" aria-label="Drawing tools">' +
+    '<button type="button" data-drawing-tool="select" class="on">' + cadIcon("select") + '<span>' + t("drawToolSelect") + '</span><kbd>V</kbd></button>' +
+    '<button type="button" data-drawing-tool="dim">' + cadIcon("dim") + '<span>' + t("drawToolDim") + '</span><kbd>D</kbd></button>' +
+    '<button type="button" data-drawing-tool="diam"><i class="ph ph-circle-dashed"></i><span>' + t("drawToolDiam") + '</span></button>' +
+    '<button type="button" data-drawing-tool="note"><i class="ph ph-note-pencil"></i><span>' + t("drawToolNote") + '</span><kbd>N</kbd></button>' +
+    '<button type="button" data-drawing-tool="section"><i class="ph ph-scissors"></i><span>' + t("drawToolSection") + '</span><kbd>S</kbd></button>' +
+    '<button type="button" data-drawing-tool="detail"><i class="ph ph-magnifying-glass-plus"></i><span>' + t("drawToolDetail") + '</span></button>' +
     '<span class="md-drawing-tools-sep"></span>' +
+    '<button type="button" id="mdSheetAutoDim"><i class="ph ph-ruler"></i><span>' + t("drawAutoDim") + '</span></button>' +
+    '<button type="button" id="mdSheetHidden" aria-pressed="true"><i class="ph ph-eye-closed"></i><span>' + t("drawHiddenLines") + '</span><kbd>H</kbd></button>' +
+    '<button type="button" id="mdSheetFit">' + cadIcon("fit") + '<span>' + t("zoomFit") + '</span><kbd>F</kbd></button>' +
+    '<span class="md-drawing-tools-sep"></span>' +
+    '<button type="button" id="mdSheetPrint"><i class="ph ph-printer"></i><span>' + t("drawPrint") + '</span></button>' +
+    '<button type="button" id="mdSheetExport"><i class="ph ph-file-svg"></i><span>' + t("drawExportSvg") + '</span></button>' +
     '<button type="button" id="mdDrawingSave" class="save"><i class="ph ph-floppy-disk"></i><span>' + t("save") + '</span></button>' +
     '</div>' +
+    '<aside class="md-sheet-panel" id="mdSheetPanel" hidden aria-label="' + t("sheetSetup") + '"></aside>' +
     '<div class="md-views" id="mdViews" role="toolbar" aria-label="' + t("displayStyle") + '">' +
     '<div class="md-vgroup">' +
     '<button data-view="top" data-tip="' + kt(t("view_top"), "4") + '">' + cadIcon("view_top") + '<span>' + (getLang()==="en"?"Top":"על") + ' · X·Z</span></button>' +
@@ -4957,6 +5066,7 @@ function buildDOM() {
     '<div class="md-reference-picker md-report" id="mdReport" hidden>' +
       '<section role="dialog" aria-modal="true" aria-labelledby="mdReportTitle">' +
         '<header><div><small id="mdReportKicker"></small><h3 id="mdReportTitle"></h3></div><button type="button" data-report-close aria-label="' + t("close") + '"><i class="ph ph-x"></i></button></header>' +
+        '<div class="md-pick-toolbar" id="mdPickToolbar" hidden><button type="button" id="mdPickBack"></button><input id="mdPickSearch" type="search" autocomplete="off"></div>' +
         '<pre id="mdReportBody"></pre>' +
         '<div class="md-reference-options" id="mdPickList" hidden></div>' +
       '</section></div>' +
@@ -5039,7 +5149,17 @@ function buildDOM() {
   root.querySelector("#mdSketchOnFace").addEventListener("click", function () { beginSketchWorkflow(null, { forceNew: true }); });
   root.querySelector("#mdHintHelp").addEventListener("click", function () { E.hintDismissed = false; syncHint(); });
   root.querySelector("#mdToggleLeft").addEventListener("click", function () { setPanelCollapsed("left", !E.leftCollapsed); });
-  root.querySelector("#mdToggleRight").addEventListener("click", function () { setPanelCollapsed("right", !E.rightCollapsed); });
+  root.querySelector("#mdToggleRight").addEventListener("click", function () {
+    /* Same button, the panel that is actually on screen: in Drawing mode the
+       inspector is not there to collapse — the sheet's properties are. */
+    if (E.mode === "drawing") {
+      root.classList.toggle("md-sheet-collapsed");
+      sizeSketch();
+      drawSketch();
+      return;
+    }
+    setPanelCollapsed("right", !E.rightCollapsed);
+  });
   root.querySelectorAll("[data-section-axis]").forEach(function (button) {
     button.addEventListener("click", function () { setSectionState({ enabled:true, axis:button.getAttribute("data-section-axis") }); });
   });
@@ -5125,6 +5245,14 @@ function buildDOM() {
 
   root.querySelector("#mdSave").addEventListener("click", saveCurrentDocument);
   root.querySelector("#mdDrawingSave").addEventListener("click", saveCurrentDocument);
+  root.querySelector("#mdSheetAutoDim").addEventListener("click", function () { drawingSheet().autoDimension(); drawSketch(); syncStatus(); });
+  root.querySelector("#mdSheetHidden").addEventListener("click", function () {
+    drawingSheet().setSheetOption("showHidden", !ensureSheetDoc(E.def).showHidden);
+    drawSketch(); syncTools();
+  });
+  root.querySelector("#mdSheetFit").addEventListener("click", function () { drawingSheet().fit(); drawSketch(); syncStatus(); });
+  root.querySelector("#mdSheetPrint").addEventListener("click", printDrawingSheet);
+  root.querySelector("#mdSheetExport").addEventListener("click", exportDrawingSvg);
   root.querySelector("#mdGuide").addEventListener("click", startTour);
   root.querySelector("#mdClose").addEventListener("click", requestCloseModeler);
   root.querySelector("#mdUndo").addEventListener("click", doUndo);
@@ -7288,7 +7416,12 @@ function setTool(id, keepPlaneState) {
   // Smart Ruler is the one editing command that belongs on the released
   // drawing sheet. It writes a real driving sketch dimension, not a detached
   // annotation, so the corrected model and the saved definition stay in sync.
-  if (id !== "select" && id !== "dim" && E.mode === "drawing") setMode("2d");
+  /* The sheet has its own tools; a sketching tool picked while a drawing is
+     open means "go back to the sketch", which is what it always meant. */
+  if (E.mode === "drawing") {
+    if (DRAWING_TOOLS.indexOf(id) >= 0) { E.tool = id; drawingSheet().setTool(id); syncTools(); syncHint(); return; }
+    setMode("2d");
+  }
   syncModelPlane();
   syncTools();
   // Picking a face is an explicit statement about where you want to draw, so
@@ -7491,8 +7624,7 @@ function runCommand(id) {
   else if (id === "stepin") importStepDocument();
   else if (id === "stepout") exportStepDocument();
   else if (id === "igesout") exportIgesDocument();
-  else if (id === "drawing" && E.docType === "part") downloadDrawing(E.def, { section: true, holeCallouts: true, balloons: true });
-  else if (id === "drawing" && E.docType === "assembly") downloadAssemblyDrawing();
+  else if (id === "drawing") exportDrawingSvg();
   else if (id === "mass") showMassProperties();
   else if (id === "measure") beginMeasure(E.measure && E.measure.mode);
   else if (id === "section") toggleSectionView();
@@ -7855,27 +7987,164 @@ function createInsertFeature(options) {
   refreshAll();flash("✓ "+t("opInsert"));return true;
 }
 
-function insertToolboxFastener(kind, size, lengthMm) {
+function insertToolboxFastener(kind, size, lengthMm, extra) {
   if(!kind){ showToolboxPicker(); return false; }
   if(E.docType!=="part")setDocumentType("part");
-  var fastener=toolboxFastener({kind:kind,size:size||"M8",lengthMm:lengthMm,threadMode:"cosmetic"});
+  extra = extra || {};
+  var modeled = kind==="hex-screw" || kind==="hex-bolt";
+  var fastener=toolboxFastener(Object.assign({
+    kind:kind,
+    size: extra.sizeKey || size || "M8",
+    sizeKey: extra.sizeKey || extra.key || size,
+    lengthMm:lengthMm,
+    threadMode: modeled ? "modeled" : "cosmetic",
+    lod:2
+  }, extra));
+  if(fastener && fastener.ok===false){
+    flash(fastener.message || t("toolboxFastener"));
+    return false;
+  }
   pushUndo(t("toolboxFastener"));
-  fastener.parts.forEach(function(part){addPart(Object.assign({id:uid()},part));});
-  E.sel=E.def.parts[E.def.parts.length-1];refreshAll();fitSketch();
+  var feature=null;
+  if(isCanonicalAuthoring()){
+    try{
+      feature=createFeatureDefinition(E.def,"toolbox",{
+        name:fastener.callout,
+        references:{sketches:[],features:[],topology:[],references:[]},
+        params:cloneData(fastener.sourceOptions || Object.assign({},extra,{kind:kind,sizeKey:extra.sizeKey || size,lengthMm:lengthMm})),
+      });
+      feature.toolboxAutoName=fastener.callout;
+    }catch(error){H.discard();flash(String(error.message||error));return false;}
+  }
+  var addedParts=fastener.parts.map(function(part){return addPart(Object.assign({id:uid(),featureId:feature && feature.id,toolboxFeatureId:feature && feature.id},part));});
+  if(E.def && fastener.metadata){
+    E.def.toolboxParts=E.def.toolboxParts||[];
+    E.def.toolboxParts.push(Object.assign({featureId:feature && feature.id},fastener.metadata));
+  }
+  E.sel=addedParts.filter(function(part){return !part.previewOnly;}).slice(-1)[0] || addedParts[addedParts.length-1];refreshAll();fitSketch();
+  lastToolboxPick={kind:kind,label:fastener.callout || kind};
   flash("✓ "+fastener.callout);return true;
 }
 
-function showToolboxPicker() {
-  var catalog=listToolboxPicker();
-  showPickList(t("toolboxFastener"), t("toolboxKind"), catalog.map(function(group){return {kind:group.kind,label:group.label};}), function(kindItem){
-    var group=catalog.find(function(item){return item.kind===kindItem.kind;});
-    showPickList(t("toolboxFastener"), t("toolboxSize"), group.sizes.map(function(row){return {kind:group.kind,size:row.size,lengthMm:row.lengthMm,label:row.size};}), function(sizeItem){
-      if(sizeItem.kind==="hex-nut" || sizeItem.kind==="bushing"){ insertToolboxFastener(sizeItem.kind, sizeItem.size); return; }
-      showPickList(t("toolboxFastener"), t("toolboxLength"), FASTENER_LENGTHS_MM.map(function(mm){
-        return {kind:sizeItem.kind,size:sizeItem.size,lengthMm:mm,label:sizeItem.size+"×"+mm,hint:mm===sizeItem.lengthMm?t("wfSuggested"):""};
-      }), function(lengthItem){ insertToolboxFastener(lengthItem.kind, lengthItem.size, lengthItem.lengthMm); });
+var lastToolboxPick=null;
+
+function toolboxOptionLabel(key) {
+  var labels={ overlay:t("toolboxOverlay"), angle:t("toolboxAngle"), radius:t("toolboxRadius"), thread:t("toolboxThread"), drawerSideMm:t("toolboxDrawerSide") };
+  return labels[key] || key;
+}
+
+function pickToolboxOptions(fam, keys, index, acc, done, onBack) {
+  if(!keys || index>=keys.length){ done(acc); return; }
+  var key=keys[index], values=fam.options[key];
+  if(key==="overlay" && acc.overlay){ pickToolboxOptions(fam, keys, index+1, acc, done, onBack); return; }
+  showPickList(t("toolboxFastener"), tf("toolboxOptionNamed", { name: toolboxOptionLabel(key) }), values.map(function(value){
+    return {value:value,label:String(value)};
+  }), function(item){
+    acc[key]=item.value;
+    pickToolboxOptions(fam, keys, index+1, acc, done, function(){
+      pickToolboxOptions(fam, keys, index, acc, done, onBack);
     });
-  });
+  }, { onBack: onBack });
+}
+
+function showToolboxPicker() {
+  function chooseFamily() {
+    var library=listToolboxLibrary();
+    var items=[];
+    if(lastToolboxPick){
+      items.push({kind:lastToolboxPick.kind,label:lastToolboxPick.label,hint:t("toolboxRecent")});
+    }
+    library.forEach(function(cat){
+      cat.families.forEach(function(fam){
+        if(lastToolboxPick && fam.kind===lastToolboxPick.kind) return;
+        items.push({kind:fam.kind,label:fam.label,hint:(TOOLBOX_CATEGORY_LABELS[cat.id] || cat.label)+" · "+fam.standard});
+      });
+    });
+    showPickList(t("toolboxFastener"), t("toolboxKind"), items, function(famItem){
+      var fam=toolboxFamily(famItem.kind);
+      if(!fam) return;
+      continueToolboxFamily(fam, chooseFamily);
+    }, {
+      searchable:true,
+      filter:function(query, rows){
+        if(!query) return rows;
+        var kinds=new Set(searchToolbox(query).map(function(row){ return row.kind; }));
+        return rows.filter(function(row){ return kinds.has(row.kind); });
+      }
+    });
+  }
+  chooseFamily();
+}
+
+function continueToolboxFamily(fam, onBackToFamilies) {
+  pickToolboxSize(fam, function(sizeItem, seed){
+    var acc=Object.assign({}, seed||{});
+    if(fam.kind==="euro-hinge") acc.overlay=sizeItem.size || sizeItem.key;
+
+    function afterOptions() {
+      var payload=Object.assign({
+        sizeKey:sizeItem.key || sizeItem.size,
+        series:sizeItem.series || acc.series,
+        key:sizeItem.key
+      }, acc);
+      var lengthChoices=lengthOptionsForSize(fam, sizeItem.size || sizeItem.key);
+      if(fam.hasLength && lengthChoices.length){
+        showPickList(t("toolboxFastener"), t("toolboxLength"), lengthChoices.map(function(mm){
+          return {lengthMm:mm,label:(sizeItem.label||sizeItem.size||"")+" × "+mm,hint:mm===sizeItem.lengthMm?t("wfSuggested"):""};
+        }), function(lenItem){ insertToolboxFastener(fam.kind, sizeItem.key || sizeItem.size, lenItem.lengthMm, payload); }, { onBack: function(){ continueToolboxFamily(fam, onBackToFamilies); } });
+        return;
+      }
+      insertToolboxFastener(fam.kind, sizeItem.key || sizeItem.size, sizeItem.lengthMm, payload);
+    }
+
+    function pickOptions() {
+      var optionKeys=fam.options?Object.keys(fam.options):[];
+      if(optionKeys.length) pickToolboxOptions(fam, optionKeys, 0, acc, afterOptions, afterSize);
+      else afterOptions();
+    }
+
+    function afterSize() {
+      if(fam.kind==="tee-reducing"){
+        var runKey=sizeItem.key || sizeItem.size;
+        var run = PVC_D1785[runKey] || null;
+        var branches=reducingBranchRows(run, PVC_D1785);
+        if(!branches.length){ flash(t("toolboxNoBranch")); return; }
+        showPickList(t("toolboxFastener"), tf("toolboxOptionNamed", { name: t("toolboxBranch") }), branches.map(function(item){
+          return {key:item.key,size:item.row.size,label:item.row.size+" · Sch "+item.row.schedule,hint:"Ø "+item.row.odMm};
+        }), function(branchItem){
+          acc.branchKey=branchItem.key;
+          acc.branchSize=branchItem.size;
+          pickOptions();
+        }, { onBack: function(){ continueToolboxFamily(fam, onBackToFamilies); } });
+        return;
+      }
+      pickOptions();
+    }
+
+    afterSize();
+  }, { onBack: onBackToFamilies, searchable: (fam.sizes || []).length > 12 });
+}
+
+function pickToolboxSize(fam, done, extra) {
+  extra = extra || {};
+  if(fam.sizesBySeries){
+    var seriesKeys=Object.keys(fam.sizesBySeries);
+    showPickList(t("toolboxFastener"), tf("toolboxOptionNamed", { name: t("toolboxSeries") }), seriesKeys.map(function(value){
+      return {value:value,label:value};
+    }), function(seriesItem){
+      var sizes=fam.sizesBySeries[seriesItem.value] || [];
+      showPickList(t("toolboxFastener"), t("toolboxSize"), sizes.map(function(row){
+        return {kind:fam.kind,size:row.size,key:row.key,lengthMm:row.lengthMm,label:row.label||row.size,series:seriesItem.value};
+      }), function(sizeItem){ done(sizeItem, {series:seriesItem.value}); }, {
+        onBack: function(){ pickToolboxSize(fam, done, extra); },
+        searchable: sizes.length > 12
+      });
+    }, { onBack: extra.onBack });
+    return;
+  }
+  showPickList(t("toolboxFastener"), t("toolboxSize"), fam.sizes.map(function(row){
+    return {kind:fam.kind,size:row.size,key:row.key,lengthMm:row.lengthMm,label:row.label||row.size,series:row.series};
+  }), function(sizeItem){ done(sizeItem, {}); }, { onBack: extra.onBack, searchable: extra.searchable });
 }
 
 function showConfigurations() {
@@ -8920,11 +9189,18 @@ function syncTools() {
     b.classList.toggle("on", b.getAttribute("data-view") === E.view);
   });
   syncNormalToControls();
+  var sheetTool = E.mode === "drawing" && E.sheet ? E.sheet.getTool() : null;
+  var hiddenButton = root.querySelector("#mdSheetHidden");
+  if (hiddenButton && E.mode === "drawing") {
+    var showsHidden = ensureSheetDoc(E.def).showHidden !== false;
+    hiddenButton.classList.toggle("on", showsHidden);
+    hiddenButton.setAttribute("aria-pressed", showsHidden ? "true" : "false");
+  }
   root.querySelectorAll("[data-drawing-tool]").forEach(function (b) {
-    b.classList.toggle("on", b.getAttribute("data-drawing-tool") === E.tool);
-    b.setAttribute("aria-pressed", b.getAttribute("data-drawing-tool") === E.tool ? "true" : "false");
+    b.classList.toggle("on", b.getAttribute("data-drawing-tool") === sheetTool);
+    b.setAttribute("aria-pressed", b.getAttribute("data-drawing-tool") === sheetTool ? "true" : "false");
   });
-  root.classList.toggle("md-tool-dim", E.mode === "drawing" && E.tool === "dim");
+  root.classList.toggle("md-tool-dim", E.mode === "drawing" && sheetTool !== "select");
   syncHint();
   syncStatus();
   syncExtrudeButton();
@@ -8977,8 +9253,7 @@ function syncHint() {
   var touchHint = compact ? "hint3dTouch" : "hint3d";
   hint.textContent =
     E.mode === "3d" && !E.modelPlaneActive ? (topologyCaption || t(touchHint)) :
-    E.mode === "drawing" && E.tool === "dim" ? t("smartRulerHint") :
-    E.mode === "drawing" ? t("drawingHint") :
+    E.mode === "drawing" ? drawingHintText() :
     E.tool === "sslot" ? t("slotHint") :
     E.tool === "sell" ? t("ellipseHint") :
     E.tool === "spoly" ? t("polygonHint") + " (" + E.polySides + ")" :
@@ -9064,13 +9339,27 @@ function syncStatus() {
   if (E.mode === "3d" && !E.modelPlaneActive) {
     var mode=(E.def && E.def.authoringMode) || "fully-parametric";
     var recognition=E.def && E.def.metadata && E.def.metadata.import && E.def.metadata.import.recognition;
-    var solids = E.def ? activeParts(E.def).length : 0;
+    var solids = E.coreRun && Array.isArray(E.coreRun.bodies) ? E.coreRun.bodies.length : E.def ? activeParts(E.def).length : 0;
     st.innerHTML='<b>'+mode.replace(/-/g," ")+'</b>'+
       (recognition && recognition!=="none" ? '<span class="md-st-sep"></span>'+recognition+' '+t("reconstruction") : "")+
       '<span class="md-st-sep"></span>'+rebuildStatusCaption()+
       (solids ? '<span class="md-st-sep"></span>'+solids+" "+t("parts").toLowerCase() : "")+
       (topologyStatusCaption() ? '<span class="md-st-sep"></span><b class="md-st-selection">'+topologyStatusCaption()+"</b>" : "")+
       (documentDirty() ? '<span class="md-st-sep"></span><b class="md-st-dirty">'+t("dirtySave")+"</b>" : "");
+    return;
+  }
+  /* A drawing's status line is the drawing's: paper, scale, projection angle
+     and what is selected — none of which a sketch plane caption can say. */
+  if (E.mode === "drawing") {
+    var sheetStatus = drawingSheet().status();
+    st.innerHTML = '<b>' + sheetStatus.size + "</b>" +
+      '<span class="md-st-sep"></span><i class="ph ph-arrows-out-line-horizontal"></i> ' + sheetStatus.scale +
+      '<span class="md-st-sep"></span>' + sheetStatus.units +
+      '<span class="md-st-sep"></span>' + t(sheetStatus.projection === "first" ? "sheetFirstAngle" : "sheetThirdAngle") +
+      '<span class="md-st-sep"></span>' + sheetStatus.views + " " + t("sheetViews").toLowerCase() +
+      '<span class="md-st-sep"></span>' + Math.round(sheetStatus.zoom * 100) + "%" +
+      (sheetStatus.selection ? '<span class="md-st-sep"></span><b class="md-st-selection">' + sheetStatus.selection + "</b>" : "") +
+      (documentDirty() ? '<span class="md-st-sep"></span><b class="md-st-dirty">' + t("dirtySave") + "</b>" : "");
     return;
   }
   var lbl = activeSketchFrame() ? ["U", "V"] : E.view === "top" ? ["X", "Z"] : E.view === "front" ? ["X", "Y"] : ["Z", "Y"];
@@ -9080,7 +9369,7 @@ function syncStatus() {
     '<span class="md-st-sep"></span>' +
     (m ? lbl[0] + " " + (Math.round(m.u * 10) / 10) + " · " + lbl[1] + " " + (Math.round(m.v * 10) / 10) + " cm" : "—") +
     '<span class="md-st-sep"></span>' +
-    (E.mode === "drawing" ? '<i class="ph ph-eye"></i> '+t("modeDrawing") : '<i class="ph ph-grid-four"></i> ' + E.grid + " cm") +
+    '<i class="ph ph-grid-four"></i> ' + E.grid + " cm" +
     (E.osnap ? '<span class="md-st-sep"></span><i class="ph ph-magnet"></i>' : "") +
     '<span class="md-st-sep"></span>' + Math.round(E.scl * 50) + "%" +
     (E.docType === "part" && E.solveInfo && ensureSketch(E.def).entities.length
@@ -9099,7 +9388,10 @@ function syncStatus() {
    made of one-pixel strokes is the difference between a CAD view and a smear.
    E.cw/E.ch are the CSS size — the pan/zoom maths is all in those units. */
 function sizeSketch() {
-  var r = E.cv.parentElement.getBoundingClientRect();
+  /* The canvas, not the pane: in Drawing mode the sheet panel takes a column
+     out of the middle and the canvas is inset to match, so measuring the parent
+     would scale the page to a width it does not have. */
+  var r = E.cv.getBoundingClientRect();
   /* The editor is measured the moment it is shown, which on the first open can
      be before layout has run — the pane reports 0×0. Every bit of pan/zoom
      maths is in these units, so a zero here does not fail loudly: it silently
@@ -9131,35 +9423,325 @@ function watchSketchSize() {
   E._sizeObserver.observe(E.cv.parentElement);
 }
 
-/* A released drawing should be useful even when the sketch author never added
-   driving constraints. Explicit dimensions still render normally; uncovered
-   lines, circles and arcs receive lightweight measured dimensions here. */
-function drawAutomaticDrawingDimensions(c, sketch, points) {
-  if (E.mode !== "drawing" || !sketch) return;
-  var covered = new Set((sketch.constraints || []).filter(function(con){
-    return !con.suppressed && con.entity && con.value != null;
-  }).map(function(con){return con.entity;}));
-  c.save(); c.font="10px sans-serif"; c.textAlign="center"; c.textBaseline="middle";
-  (sketch.entities || []).forEach(function(entity){
-    if (entity.construction || covered.has(entity.id)) return;
-    var label, x, y;
-    if (entity.type === "line") {
-      var a=points.get(entity.a), b=points.get(entity.b); if(!a||!b)return;
-      var pa=toPx(a.x,a.y),pb=toPx(b.x,b.y),dx=pb.x-pa.x,dy=pb.y-pa.y,L=Math.hypot(dx,dy);if(L<1)return;
-      label=(Math.round(Math.hypot(b.x-a.x,b.y-a.y)*10)/10)+" cm";
-      x=(pa.x+pb.x)/2-(dy/L)*11;y=(pa.y+pb.y)/2+(dx/L)*11;
-    } else {
-      var circle=circleData(entity,points);if(!circle)return;
-      var center=toPx(circle.center.x,circle.center.y);
-      label="R "+(Math.round(Math.abs(circle.radius)*10)/10)+" cm";
-      x=center.x+Math.abs(circle.radius)*E.scl*.58;y=center.y-Math.abs(circle.radius)*E.scl*.58;
-    }
-    var tw=c.measureText(label).width;
-    c.fillStyle="rgba(255,255,255,.94)";c.fillRect(x-tw/2-3,y-7,tw+6,14);
-    c.fillStyle="#263340";c.fillText(label,x,y);
-  });
-  c.restore();
+/* ================= drawing sheet =================
+   The drafting table lives in modeler_drawing.js; everything here is the wiring
+   it needs from the editor — the triangles to project, the document to write
+   into, undo, and the little dialogs it borrows. */
+
+/* One body's world-space triangles. Read from the very geometry the viewport
+   builds, so the sheet is a projection of the model the user can see and not a
+   second interpretation of the same parameters. */
+function meshWorldTriangles(mesh) {
+  var geometry = mesh.geometry, attribute = geometry && geometry.attributes && geometry.attributes.position;
+  if (!attribute) return [];
+  var index = geometry.index, count = index ? index.count : attribute.count;
+  if (count < 3) return [];
+  var out = new Float64Array(count * 3), point = new THREE.Vector3();
+  for (var i = 0; i < count; i++) {
+    var at = index ? index.getX(i) : i;
+    point.set(attribute.getX(at), attribute.getY(at), attribute.getZ(at)).applyMatrix4(mesh.matrixWorld);
+    out[i * 3] = point.x; out[i * 3 + 1] = point.y; out[i * 3 + 2] = point.z;
+  }
+  return out;
 }
+
+/* The whole document as triangle soups, one per body. Built into a DETACHED
+   group and disposed straight after: the sheet must never depend on the
+   preview scene existing, because Drawing mode is reachable with the viewport
+   swapped out. Falls back to the dependency-free tessellator when three.js has
+   not loaded — which is also the path the exporter and the tests take. */
+function drawingBodies() {
+  if (!threeLoaded() || typeof THREE === "undefined" || !THREE.Group) return tessellateParts(renderedParts(E.def));
+  var group = new THREE.Group(), bodies = [];
+  try {
+    if (E.docType === "assembly" && E.assembly) buildAssembly(group);
+    else renderedParts(E.def).forEach(function (part) { buildPart(group, part, "solid"); });
+    group.updateMatrixWorld(true);
+    group.traverse(function (object) {
+      if (!object.isMesh || object.userData.cadOverlay || object.userData.cadInterference != null) return;
+      var positions = meshWorldTriangles(object);
+      if (positions.length >= 9) bodies.push({ id: object.userData.cadPart || object.uuid, positions: positions });
+    });
+  } catch (error) {
+    bodies = [];
+  } finally {
+    clearGroup(group);
+  }
+  return bodies.length ? bodies : tessellateParts(renderedParts(E.def));
+}
+
+/* A one-field form where a window.prompt() used to be, resolved as a promise so
+   the sheet's tools can await an answer without freezing the page. */
+function sheetPrompt(title, value) {
+  return new Promise(function (resolve) {
+    if (!root) { resolve(null); return; }
+    root.classList.add("md-sheet-form");
+    var settled = false;
+    var finish = function (answer) {
+      if (settled) return;
+      settled = true;
+      root.classList.remove("md-sheet-form");
+      resolve(answer);
+    };
+    var opened = openQuickForm({
+      action: "sheetprompt",
+      icon: "ph-note-pencil",
+      title: title,
+      hint: t("drawNoteHint"),
+      fields: [{ key: "text", label: title, type: "text", value: value || "" }],
+      onApply: function (values) { finish(String(values.text || "").trim()); },
+      onCancel: function () { finish(null); },
+    });
+    if (!opened) finish(null);
+  });
+}
+
+/* ---- the sheet panel ----
+   Drawing mode hides the feature tree and the inspector — neither says anything
+   about a sheet — and puts the drafting document's own properties in their
+   place: the paper, the views on it, and the title block. Built once and then
+   only updated, so a field being typed into is never rebuilt underneath the
+   caret. */
+function sheetRow(host, label, control) {
+  var row = el("label", "md-sheet-row", "<span>" + label + "</span>");
+  row.appendChild(control);
+  host.appendChild(row);
+  return control;
+}
+
+function sheetSelect(options, value, onChange) {
+  var select = el("select", "");
+  options.forEach(function (option) {
+    var node = el("option", "", option.label);
+    node.value = option.value;
+    select.appendChild(node);
+  });
+  select.value = value;
+  select.addEventListener("change", function () { onChange(select.value); });
+  return select;
+}
+
+function sheetToggle(host, label, checked, onChange) {
+  var row = el("label", "md-sheet-check");
+  var box = el("input", "");
+  box.type = "checkbox";
+  box.checked = !!checked;
+  box.addEventListener("change", function () { onChange(box.checked); });
+  row.appendChild(box);
+  row.appendChild(el("span", "", label));
+  host.appendChild(row);
+  return box;
+}
+
+function sheetGroup(host, title) {
+  var group = el("details", "md-sheet-group");
+  group.open = true;
+  group.appendChild(el("summary", "", title));
+  var body = el("div", "md-sheet-group-body");
+  group.appendChild(body);
+  host.appendChild(group);
+  return body;
+}
+
+/* Field values are written straight into the document as you type; the undo
+   entry is opened once per visit to a field, so backing out of a title block
+   edit does not cost twenty undos. */
+function bindTitleField(input, key) {
+  var opened = false;
+  input.addEventListener("focus", function () { opened = false; });
+  input.addEventListener("input", function () {
+    var doc = ensureSheetDoc(E.def);
+    if (!opened) { pushUndo(t("opSheetTitle")); opened = true; }
+    doc.title[key] = input.value;
+    drawSketch();
+  });
+}
+
+function buildSheetPanel(host) {
+  var doc = ensureSheetDoc(E.def), sheet = drawingSheet();
+  host.innerHTML = "";
+  host.appendChild(el("div", "md-sheet-head", '<i class="ph ph-file-dashed"></i><b>' + t("sheetSetup") + "</b>"));
+
+  var setup = sheetGroup(host, t("sheetSetup"));
+  sheetRow(setup, t("sheetSize"), sheetSelect(Object.keys(SHEET_SIZES).map(function (key) {
+    return { value: key, label: SHEET_SIZES[key].label + "  " + Math.round(SHEET_SIZES[key].w) + "×" + Math.round(SHEET_SIZES[key].h) };
+  }), doc.size, function (value) { sheet.setSheetOption("size", value); drawSketch(); })).id = "mdSheetSize";
+  sheetRow(setup, t("sheetOrientation"), sheetSelect([
+    { value: "landscape", label: t("sheetLandscape") }, { value: "portrait", label: t("sheetPortrait") },
+  ], doc.orientation, function (value) { sheet.setSheetOption("orientation", value); drawSketch(); })).id = "mdSheetOrientation";
+  sheetRow(setup, t("sheetScale"), sheetSelect([{ value: "fit", label: t("sheetScaleFit") }].concat(
+    STANDARD_SCALES.map(function (scale) { return { value: scale.join(":"), label: scaleLabel(scale) }; })
+  ), doc.scale === "fit" ? "fit" : scaleLabel(doc.scale).replace(":", ":"), function (value) {
+    sheet.setSheetOption("scale", value === "fit" ? "fit" : value.split(":").map(Number));
+    drawSketch();
+  })).id = "mdSheetScale";
+  sheetRow(setup, t("sheetUnits"), sheetSelect([
+    { value: "mm", label: "mm" }, { value: "cm", label: "cm" }, { value: "m", label: "m" }, { value: "in", label: "in" },
+  ], doc.units, function (value) { sheet.setSheetOption("units", value); drawSketch(); })).id = "mdSheetUnits";
+  sheetRow(setup, t("sheetProjection"), sheetSelect([
+    { value: "third", label: t("sheetThirdAngle") }, { value: "first", label: t("sheetFirstAngle") },
+  ], doc.projection, function (value) { sheet.setSheetOption("projection", value); drawSketch(); })).id = "mdSheetProjection";
+  sheetToggle(setup, t("drawHiddenLines"), doc.showHidden !== false, function (on) { sheet.setSheetOption("showHidden", on); drawSketch(); syncTools(); }).id = "mdSheetHiddenBox";
+  sheetToggle(setup, t("sheetShowCenters"), doc.showCenters !== false, function (on) { sheet.setSheetOption("showCenters", on); drawSketch(); }).id = "mdSheetCentersBox";
+  sheetToggle(setup, t("sheetShowZones"), doc.showZones !== false, function (on) { sheet.setSheetOption("showZones", on); drawSketch(); }).id = "mdSheetZonesBox";
+  setup.appendChild(btn('<i class="ph ph-layout"></i> ' + t("sheetRelayout"), function () { sheet.relayout(); drawSketch(); }, "md-sheet-btn"));
+
+  var views = sheetGroup(host, t("sheetViews"));
+  var list = el("div", "md-sheet-views");
+  doc.views.forEach(function (view) {
+    var selection = sheet.selection();
+    var row = el("div", "md-sheet-view" + (selection && selection.kind === "view" && selection.id === view.id ? " on" : ""));
+    var name = btn('<i class="ph ph-frame-corners"></i><span>' + (view.label || view.dir) + "</span><small>" +
+      scaleLabel(view.scale || sheet.scene().scale) + "</small>", function () {
+      sheet.select({ kind: "view", id: view.id });
+    }, "md-sheet-view-name");
+    row.appendChild(name);
+    row.appendChild(namedButton(btn('<i class="ph ph-trash"></i>', function () {
+      sheet.select({ kind: "view", id: view.id });
+      sheet.deleteSelection();
+      drawSketch();
+    }, "md-sheet-view-del"), t("opDeleteView")));
+    list.appendChild(row);
+  });
+  views.appendChild(list);
+  var available = sheet.availableViews();
+  if (available.length) {
+    var adder = sheetSelect([{ value: "", label: t("sheetAddView") }].concat(available.map(function (dir) {
+      return { value: dir, label: defaultViewLabel(dir) };
+    })), "", function (value) {
+      if (!value) return;
+      sheet.addView(value);
+      drawSketch();
+    });
+    adder.className = "md-sheet-add-view";
+    views.appendChild(adder);
+  }
+  var selected = sheet.selection();
+  var selectedView = selected && selected.kind === "view" && doc.views.filter(function (view) { return view.id === selected.id; })[0];
+  if (selectedView) {
+    sheetRow(views, t("sheetViewScale"), sheetSelect([{ value: "sheet", label: t("sheetInherit") }].concat(
+      STANDARD_SCALES.map(function (scale) { return { value: scale.join(":"), label: scaleLabel(scale) }; })
+    ), selectedView.scale ? selectedView.scale.join(":") : "sheet", function (value) {
+      sheet.setSheetOption("viewScale", value === "sheet" ? "sheet" : value.split(":").map(Number));
+      drawSketch();
+    }));
+    sheetRow(views, t("drawHiddenLines"), sheetSelect([
+      { value: "sheet", label: t("sheetInherit") }, { value: "on", label: t("drawOn") }, { value: "off", label: t("drawOff") },
+    ], selectedView.hidden === null || selectedView.hidden === undefined ? "sheet" : selectedView.hidden ? "on" : "off", function (value) {
+      sheet.setSheetOption("viewHidden", value === "sheet" ? "sheet" : value === "on");
+      drawSketch();
+    }));
+  }
+
+  var title = sheetGroup(host, t("sheetTitleBlock"));
+  [["title", t("tbTitle"), "mdSheetTitleField"], ["number", t("tbNumber")], ["revision", t("tbRev")],
+    ["author", t("tbAuthor")], ["company", t("tbCompany")], ["material", t("tbMaterial")],
+    ["finish", t("tbFinish")], ["mass", t("tbMass")], ["date", t("tbDate")], ["tolerance", t("tbTolerance")],
+  ].forEach(function (field) {
+    var input = el("input", "");
+    input.type = "text";
+    input.value = doc.title[field[0]] || "";
+    if (field[2]) input.id = field[2];
+    input.setAttribute("data-title-field", field[0]);
+    bindTitleField(input, field[0]);
+    sheetRow(title, field[1], input);
+  });
+  host.setAttribute("data-views", doc.views.map(function (view) { return view.id; }).join(","));
+}
+
+function syncSheetPanel() {
+  if (!root) return;
+  var host = root.querySelector("#mdSheetPanel");
+  if (!host) return;
+  var on = E.mode === "drawing";
+  host.hidden = !on;
+  if (!on) return;
+  var doc = ensureSheetDoc(E.def), sheet = drawingSheet();
+  var selection = sheet.selection();
+  var signature = doc.views.map(function (view) {
+    return view.id + ":" + view.label + ":" + (view.scale ? view.scale.join("/") : "-") + ":" + view.hidden;
+  }).join(",") + "#" + (selection && selection.kind === "view" ? selection.id : "");
+  if (host.getAttribute("data-signature") !== signature) {
+    buildSheetPanel(host);
+    host.setAttribute("data-signature", signature);
+    return;
+  }
+  var set = function (id, value) {
+    var node = host.querySelector(id);
+    if (node && node !== document.activeElement) node.value = value;
+  };
+  set("#mdSheetSize", doc.size);
+  set("#mdSheetOrientation", doc.orientation);
+  set("#mdSheetScale", doc.scale === "fit" ? "fit" : scaleLabel(doc.scale));
+  set("#mdSheetUnits", doc.units);
+  set("#mdSheetProjection", doc.projection);
+  var boxes = { "#mdSheetHiddenBox": doc.showHidden !== false, "#mdSheetCentersBox": doc.showCenters !== false, "#mdSheetZonesBox": doc.showZones !== false };
+  Object.keys(boxes).forEach(function (id) {
+    var node = host.querySelector(id);
+    if (node) node.checked = boxes[id];
+  });
+  host.querySelectorAll("[data-title-field]").forEach(function (input) {
+    if (input !== document.activeElement) input.value = doc.title[input.getAttribute("data-title-field")] || "";
+  });
+}
+
+/* What the hint bar says on a sheet: the armed tool's own instruction, because
+   "pan the page" is not why anyone opened a drawing. */
+function drawingHintText() {
+  var tool = E.sheet ? E.sheet.getTool() : "select";
+  if (tool === "dim") return t("drawDimHint");
+  if (tool === "diam") return t("drawDiamHint");
+  if (tool === "section") return t("drawSectionHint");
+  if (tool === "detail") return t("drawDetailHint");
+  if (tool === "note") return t("drawNoteHint");
+  return t("drawingHint");
+}
+
+function drawingSheet() {
+  if (!E.sheet) {
+    E.sheet = createDrawingController({
+      canvas: function () { return E.cv; },
+      width: function () { return E.cw; },
+      height: function () { return E.ch; },
+      doc: function () { return ensureSheetDoc(E.def, { title: { title: E.def && E.def.name || "" } }); },
+      bodies: drawingBodies,
+      bodiesToken: function () { return E.sheetToken; },
+      meta: function () {
+        var doc = ensureSheetDoc(E.def);
+        return { title: doc.title.title || E.def.name || "", material: doc.title.material || E.def.material || "" };
+      },
+      bom: function () {
+        if (E.docType !== "assembly" || !E.assembly) return null;
+        return generateBOM(E.assembly).map(function (row, index) {
+          return { item: index + 1, qty: row.quantity, name: row.name, material: row.material || "" };
+        });
+      },
+      pushUndo: pushUndo,
+      markDirty: function () { E.sheet.invalidate(); drawSketch(); syncSheetPanel(); syncStatus(); },
+      flash: flash,
+      t: t,
+      prompt: sheetPrompt,
+      refresh: function () { drawSketch(); syncSheetPanel(); },
+      editTitleBlock: function () {
+        var field = root && root.querySelector("#mdSheetTitleField");
+        if (field) { field.focus(); field.select(); }
+      },
+    });
+    /* The same debugging door cadPreviewView and cadUpdatePreview open: the
+       browser tests drive the sheet through it, since a canvas drawing has no
+       DOM to assert against. */
+    if (typeof window !== "undefined") window.cadDrawingSheet = E.sheet;
+  }
+  return E.sheet;
+}
+
+/* Every rebuild invalidates the projections: the sheet caches them per body
+   token because hidden-line removal is far too expensive to redo on a paint. */
+function invalidateDrawing() {
+  E.sheetToken++;
+  if (E.sheet) E.sheet.invalidate();
+}
+
 function pathEllipse(c, o) {
   return pathUvEllipse(c, o, 0, Math.PI * 2, true);
 }
@@ -9171,16 +9753,10 @@ function drawSketch() {
   if (!E.cw || !E.ch) sizeSketch();
   var c = E.cx, W = E.cw, H = E.ch;
   c.clearRect(0, 0, W, H);
-  var drawing = E.mode === "drawing";
-  if (drawing) {
-    c.fillStyle = "#dfe3e8"; c.fillRect(0,0,W,H);
-    c.fillStyle = "#fff"; c.fillRect(22,22,Math.max(0,W-44),Math.max(0,H-44));
-    c.strokeStyle = "#202832"; c.lineWidth = 1; c.strokeRect(29.5,29.5,Math.max(0,W-59),Math.max(0,H-59));
-    var titleW=Math.min(230,Math.max(150,W*.3)), titleX=W-30-titleW, titleY=H-86;
-    c.strokeRect(titleX+.5,titleY+.5,titleW,56); c.beginPath();c.moveTo(titleX,titleY+28);c.lineTo(titleX+titleW,titleY+28);c.moveTo(titleX+titleW*.62,titleY);c.lineTo(titleX+titleW*.62,titleY+56);c.stroke();
-    c.fillStyle="#202832";c.font="600 11px sans-serif";c.fillText((E.def&&E.def.name)||t("newModel"),titleX+8,titleY+18);
-    c.font="10px sans-serif";c.fillText(sketchPlaneCaption(),titleX+8,titleY+46);c.fillText("cm",titleX+titleW*.67,titleY+18);
-  }
+  /* Drawing mode is a drafting table, not the sketch canvas with a border
+     drawn round it: modeler_drawing.js owns the paper, the projected views and
+     every annotation on them, so nothing below this line runs there. */
+  if (E.mode === "drawing") { drawingSheet().render(c, W, H); return; }
   /* Grid and axes. Over the model they belong to the sketch PLANE, so they are
      drawn in u/v and projected like everything else — a grid that recedes with
      the face is what tells you which plane you are drawing on when the camera
@@ -9211,16 +9787,12 @@ function drawSketch() {
     c.fillText("V", vB.x + 4, vB.y - 4);
   } else {
     c.beginPath();
-    if (!drawing) {
-      for (var gx = E.ox % step; gx < W; gx += step) { c.moveTo(gx, 0); c.lineTo(gx, H); }
-      for (var gy = E.oy % step; gy < H; gy += step) { c.moveTo(0, gy); c.lineTo(W, gy); }
-    }
+    for (var gx = E.ox % step; gx < W; gx += step) { c.moveTo(gx, 0); c.lineTo(gx, H); }
+    for (var gy = E.oy % step; gy < H; gy += step) { c.moveTo(0, gy); c.lineTo(W, gy); }
     c.stroke();
     // axes through origin
-    c.strokeStyle = drawing ? "rgba(45,55,65,.28)" : "rgba(90,140,220,.5)";
-    if (drawing) c.setLineDash([10,4,2,4]);
+    c.strokeStyle = "rgba(90,140,220,.5)";
     c.beginPath(); c.moveTo(0, E.oy); c.lineTo(W, E.oy); c.moveTo(E.ox, 0); c.lineTo(E.ox, H); c.stroke();
-    c.setLineDash([]);
     c.fillStyle = "rgba(90,110,130,.8)";
     c.font = "11px sans-serif";
     var lbl = activeSketchFrame() ? ["U", "V"] : E.view === "top" ? ["X", "Z"] : E.view === "front" ? ["X", "Y"] : ["Z", "Y"];
@@ -9238,9 +9810,9 @@ function drawSketch() {
     var f = partUV(p), on = p === E.sel, inactive = built.indexOf(p) < 0;
     c.save();
     if (inactive) { c.globalAlpha = 0.4; c.setLineDash([6, 4]); }
-    c.strokeStyle = drawing ? "#18212b" : on ? "#e08030" : "#5a7a9a";
-    c.fillStyle = drawing ? "rgba(255,255,255,0)" : on ? "rgba(224,128,48,.18)" : "rgba(90,122,154,.10)";
-    c.lineWidth = drawing ? 1.45 : on ? 2 : 1.2;
+    c.strokeStyle = on ? "#e08030" : "#5a7a9a";
+    c.fillStyle = on ? "rgba(224,128,48,.18)" : "rgba(90,122,154,.10)";
+    c.lineWidth = on ? 2 : 1.2;
     c.beginPath();
     if (f.type === "rect") {
       var a = toPx(f.u0, f.v0), b = toPx(f.u1, f.v1);
@@ -9291,26 +9863,10 @@ function drawSketch() {
     c.restore();
   });
 
-  // A drawing sheet always carries the projected overall size, independent of
-  // selection. The editable sketch keeps its contextual, selection-based sizes.
-  if (drawing && built.length) {
-    var db=defBounds(E.def), du0,du1,dv0,dv1;
-    if(E.view==="top"){du0=db.x0;du1=db.x1;dv0=db.z0;dv1=db.z1;}
-    else if(E.view==="front"){du0=db.x0;du1=db.x1;dv0=db.y0;dv1=db.y1;}
-    else{du0=db.z0;du1=db.z1;dv0=db.y0;dv1=db.y1;}
-    var d0=toPx(du0,dv0),d1=toPx(du1,dv1),left=Math.min(d0.x,d1.x),right=Math.max(d0.x,d1.x),top=Math.min(d0.y,d1.y),bottom=Math.max(d0.y,d1.y);
-    c.save();c.strokeStyle="#34414e";c.fillStyle="#18212b";c.lineWidth=1;c.font="10px sans-serif";
-    var hy=Math.max(40,top-22);c.beginPath();c.moveTo(left,top);c.lineTo(left,hy-4);c.moveTo(right,top);c.lineTo(right,hy-4);c.moveTo(left,hy);c.lineTo(right,hy);c.moveTo(left,hy);c.lineTo(left+6,hy-3);c.moveTo(left,hy);c.lineTo(left+6,hy+3);c.moveTo(right,hy);c.lineTo(right-6,hy-3);c.moveTo(right,hy);c.lineTo(right-6,hy+3);c.stroke();
-    var wt=(Math.round(Math.abs(du1-du0)*10)/10)+" cm";c.fillStyle="#fff";var wtw=c.measureText(wt).width;c.fillRect((left+right-wtw)/2-4,hy-7,wtw+8,14);c.fillStyle="#18212b";c.fillText(wt,(left+right-wtw)/2,hy+3);
-    var vx=Math.min(W-40,right+24);c.beginPath();c.moveTo(right,top);c.lineTo(vx-4,top);c.moveTo(right,bottom);c.lineTo(vx-4,bottom);c.moveTo(vx,top);c.lineTo(vx,bottom);c.moveTo(vx,top);c.lineTo(vx-3,top+6);c.moveTo(vx,top);c.lineTo(vx+3,top+6);c.moveTo(vx,bottom);c.lineTo(vx-3,bottom-6);c.moveTo(vx,bottom);c.lineTo(vx+3,bottom-6);c.stroke();
-    var ht=(Math.round(Math.abs(dv1-dv0)*10)/10)+" cm";c.save();c.translate(vx+4,(top+bottom)/2);c.rotate(-Math.PI/2);c.fillStyle="#fff";var htw=c.measureText(ht).width;c.fillRect(-htw/2-4,-9,htw+8,14);c.fillStyle="#18212b";c.fillText(ht,-htw/2,1);c.restore();c.restore();
-  }
-
   // True sketch entities are independent from solid parts. Lines carry
   // constraints and metadata but create no 3D body until a feature consumes a
   // closed profile.
-  var drawingSketches = drawing ? sketchesOnPlane(E.view) : [];
-  var sketch = drawingSketches.length ? drawingSketches[drawingSketches.length-1] : ensureSketch(E.def);
+  var sketch = ensureSketch(E.def);
 
   /* Other sketches sharing this plane are drawn first, dimmed and unpickable —
      they are context you constrain against, not geometry you are editing. A
@@ -9321,8 +9877,8 @@ function drawSketch() {
     if (other === sketch || !sameSketchContext(other,sketch)) return;
     var opts = new Map((other.points || []).map(function (q) { return [q.id, q]; }));
     c.save();
-    c.globalAlpha = drawing ? 1 : 0.32;
-    c.strokeStyle = drawing ? "#18212b" : "#5a7a9a";
+    c.globalAlpha = 0.32;
+    c.strokeStyle = "#5a7a9a";
     c.lineWidth = 1.1;
     (other.entities || []).forEach(function (e) {
       c.beginPath();
@@ -9341,10 +9897,6 @@ function drawSketch() {
       }
       c.stroke();
     });
-    if (drawing) {
-      drawAutomaticDrawingDimensions(c, other, opts);
-      drawSketchDimensions(c, other, E.scl, toPx, []);
-    }
     c.restore();
   });
 
@@ -9359,7 +9911,7 @@ function drawSketch() {
     var selected = E.ssel.indexOf(entity) >= 0;
     var status = statuses.entityStatus[entity.id] || (fully ? "fully-defined" : "under-defined");
     c.save();
-    c.strokeStyle = sketchStatusColor(status, { selected: selected, construction: entity.construction, drawing: drawing });
+    c.strokeStyle = sketchStatusColor(status, { selected: selected, construction: entity.construction });
     c.lineWidth = selected ? 2.3 : Math.max(1.2, entity.weight || 1.2);
     if (entity.construction) c.setLineDash([7, 4]);
     c.beginPath();
@@ -9410,29 +9962,18 @@ function drawSketch() {
   });
 
   // sketch points, drawn over the entities so they stay grabbable
-  (live && (!drawing || E.tool === "dim") ? sketch.points || [] : []).forEach(function (q) {
+  (live ? sketch.points || [] : []).forEach(function (q) {
     var s = toPx(q.x, q.y), on = E.ssel.indexOf(q) >= 0;
-    c.fillStyle = on ? "#e08030" : q.fixed ? "#0f8a6a" : drawing ? "#4f46e5" : sketchStatusColor(statuses.pointStatus[q.id] || (fully ? "fully-defined" : "under-defined"));
-    if (drawing) {
-      c.save(); c.strokeStyle = "#fff"; c.lineWidth = 2; c.beginPath(); c.arc(s.x, s.y, on ? 5 : 4, 0, Math.PI * 2); c.stroke(); c.fill(); c.restore();
-    } else c.fillRect(s.x - 3, s.y - 3, 6, 6);
+    c.fillStyle = on ? "#e08030" : q.fixed ? "#0f8a6a" : sketchStatusColor(statuses.pointStatus[q.id] || (fully ? "fully-defined" : "under-defined"));
+    c.fillRect(s.x - 3, s.y - 3, 6, 6);
     if (q.fixed) { c.strokeStyle = "#0f8a6a"; c.lineWidth = 1; c.strokeRect(s.x - 5, s.y - 5, 10, 10); }
   });
-
-  if (drawing && E.tool === "dim" && E.dimPick.length && E._mouse) {
-    var picked = E.dimPick[0], pickPx = toPx(picked.x, picked.y), mousePx = toPx(E._mouse.u, E._mouse.v);
-    c.save(); c.strokeStyle = "#e08030"; c.fillStyle = "#e08030"; c.lineWidth = 1.4; c.setLineDash([5,4]);
-    c.beginPath(); c.moveTo(pickPx.x, pickPx.y); c.lineTo(mousePx.x, mousePx.y); c.stroke(); c.setLineDash([]);
-    c.font = "600 11px sans-serif";
-    c.fillText(Math.round(Math.hypot(E._mouse.u-picked.x,E._mouse.v-picked.y)*10)/10 + " cm", (pickPx.x+mousePx.x)/2+5, (pickPx.y+mousePx.y)/2-6);
-    c.restore();
-  }
 
   if (live) {
     var profileInfo = sketchProfileAnalysis();
     // A faint region fill makes the exact profiles the feature engine sees
     // visible. Open and branched endpoints are called out directly on-canvas.
-    (!drawing ? profileInfo.profiles : []).forEach(function (profile) {
+    profileInfo.profiles.forEach(function (profile) {
       if (!profile.points.length) return;
       c.save(); c.globalAlpha = profile.selected ? 0.14 : 0.065;
       c.fillStyle = profile.selected ? "#e08030" : "#2684c7";
@@ -9448,9 +9989,8 @@ function drawSketch() {
       var sp = toPx(p.x, p.y);
       c.save(); c.fillStyle = "#d0342c"; c.translate(sp.x, sp.y); c.rotate(Math.PI / 4); c.fillRect(-5, -5, 10, 10); c.restore();
     });
-    if (drawing) drawAutomaticDrawingDimensions(c, sketch, spts);
     drawSketchDimensions(c, sketch, E.scl, toPx, conflicts, { selectedId: E.dimSel });
-    if (!drawing) drawConstraintGlyphs(c, sketch, toPx, conflicts);
+    drawConstraintGlyphs(c, sketch, toPx, conflicts);
   }
 
   // in-progress arc: centre→start fixes the radius; the third point selects
@@ -9677,7 +10217,7 @@ function modelerTouchDistances(tc) {
     });
   }
 
-  var sketch = E.mode === "drawing" ? drawingSketch() : ensureSketch(E.def);
+  var sketch = ensureSketch(E.def);
   if (sketch) {
     var points = new Map((sketch.points || []).map(function (point) { return [point.id, point]; }));
     (sketch.entities || []).forEach(function (entity) {
@@ -9774,24 +10314,72 @@ function report(kicker, title, body) {
   host.hidden = false;
 }
 
-function showPickList(kicker, title, items, onPick) {
+function showPickList(kicker, title, items, onPick, extra) {
+  extra = extra || {};
   var host = root && root.querySelector("#mdReport");
   if (!host) { flash(title); return; }
   root.querySelector("#mdReportKicker").textContent = kicker;
   root.querySelector("#mdReportTitle").textContent = title;
   var pre = root.querySelector("#mdReportBody");
   var pick = root.querySelector("#mdPickList");
+  var toolbar = root.querySelector("#mdPickToolbar");
+  var search = root.querySelector("#mdPickSearch");
+  var back = root.querySelector("#mdPickBack");
   if (pre) { pre.hidden = true; pre.textContent = ""; }
   if (!pick) { flash(title); return; }
   pick.hidden = false;
-  pick.innerHTML = "";
-  (items || []).forEach(function (item) {
-    var button = el("button", "md-reference-option", "<span><b>" + item.label + "</b>" + (item.hint ? "<small>" + item.hint + "</small>" : "") + "</span>");
-    button.type = "button";
-    button.addEventListener("click", function () { closeReport(); onPick(item); });
-    pick.appendChild(button);
-  });
+  var showToolbar = extra.searchable || typeof extra.onBack === "function";
+  if (toolbar) toolbar.hidden = !showToolbar;
+  if (back) {
+    back.hidden = typeof extra.onBack !== "function";
+    back.textContent = t("guideBack");
+    back.onclick = extra.onBack || null;
+  }
+  function paintItems(filterText) {
+    pick.textContent = "";
+    var visible = items || [];
+    if (extra.searchable) {
+      var query = String(filterText || "").trim();
+      if (typeof extra.filter === "function") visible = extra.filter(query, items || []);
+      else if (query) {
+        var lower = query.toLowerCase();
+        visible = (items || []).filter(function (item) {
+          return [item.label, item.hint, item.kind, item.size, item.key].join(" ").toLowerCase().indexOf(lower) >= 0;
+        });
+      }
+    }
+    visible.forEach(function (item) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "md-reference-option";
+      var wrap = document.createElement("span");
+      var label = document.createElement("b");
+      label.textContent = item.label == null ? "" : String(item.label);
+      wrap.appendChild(label);
+      if (item.hint) {
+        var hint = document.createElement("small");
+        hint.textContent = String(item.hint);
+        wrap.appendChild(hint);
+      }
+      button.appendChild(wrap);
+      button.addEventListener("click", function () { closeReport(); onPick(item); });
+      pick.appendChild(button);
+    });
+  }
+  if (search) {
+    search.hidden = !extra.searchable;
+    search.placeholder = t("toolboxSearch");
+    if (!extra.searchable) {
+      search.value = "";
+      search.oninput = null;
+    } else {
+      search.oninput = function () { paintItems(search.value); };
+      if (extra.searchValue != null) search.value = extra.searchValue;
+    }
+  }
+  paintItems(search && extra.searchable ? search.value : "");
   host.hidden = false;
+  if (search && extra.searchable) search.focus();
 }
 
 function closeReport() {
@@ -10801,11 +11389,6 @@ function patternCircularSelection() {
 }
 
 /* ---- smart dimension: measure what is selected/picked, then lock it ---- */
-function drawingSketch() {
-  var visible = sketchesOnPlane(E.view);
-  return visible.length ? visible[visible.length - 1] : null;
-}
-
 function activateDrawingSketch(sketch) {
   if (!sketch) return false;
   if (E.def.activeSketch !== sketch.id) E.def.activeSketch = sketch.id;
@@ -10813,20 +11396,11 @@ function activateDrawingSketch(sketch) {
   return true;
 }
 
-function rulerPointAt(sketch, uv) {
-  if (!sketch) return null;
-  var tolerance = 9 / E.scl, best = null, distance = tolerance;
-  (sketch.points || []).forEach(function (point) {
-    var d = Math.hypot(uv.u - point.x, uv.v - point.y);
-    if (d < distance) { best = point; distance = d; }
-  });
-  return best;
-}
-
 function placedDimensionAt(sketch, px, py) {
   var hit = sketch ? hitSketchDimensionHit(sketch, px, py, toPx, 10) : null;
   return hit ? hit.constraint : null;
 }
+
 function placedDimensionHit(sketch, px, py) {
   return sketch ? hitSketchDimensionHit(sketch, px, py, toPx, 10) : null;
 }
@@ -10942,51 +11516,6 @@ function editPlacedDimension(sketch, constraint, historyAlreadyOpen, clientX, cl
     historyAlreadyOpen:historyAlreadyOpen, clientX:clientX, clientY:clientY,
     discardOnCancel:discardOnCancel,
   });
-}
-
-function beginSmartRulerPoint(sketch, point, clientX, clientY) {
-  if (!sketch || !point) { flash(t("rulerPickPoint")); return false; }
-  activateDrawingSketch(sketch);
-  if (!E.dimPick.length) {
-    E.dimPick = [point];
-    E.ssel = [point];
-    E.sel = point;
-    E.dimSel = null;
-    drawSketch();
-    syncStatus();
-    return true;
-  }
-  var first = E.dimPick[0];
-  if (first === point || first.id === point.id) { flash(t("rulerSamePoint")); return false; }
-
-  var existing = (sketch.constraints || []).find(function (constraint) {
-    return constraint.type === "distance" && !constraint.entity
-      && (constraint.a === first.id && constraint.b === point.id || constraint.a === point.id && constraint.b === first.id);
-  });
-  pushUndo(t("opDim"));
-  var constraint = existing;
-  if (!constraint) {
-    var measured = currentMeasure(sketch, { type:"points", a:first.id, b:point.id });
-    var id = addSmartDimension(sketch, { type:"points", a:first.id, b:point.id }, measured);
-    constraint = (sketch.constraints || []).find(function (candidate) { return candidate.id === id; });
-    if (!constraint || !resolveSketch(true)) {
-      if (constraint) sketch.constraints = sketch.constraints.filter(function (candidate) { return candidate !== constraint; });
-      resolveSketch(false);
-      H.discard();
-      E.dimPick = [];
-      E.ssel = [];
-      flash(t("overDefined"));
-      refreshAll();
-      return false;
-    }
-  }
-  E.dimPick = [];
-  E.ssel = [];
-  E.sel = null;
-  E.dimSel = constraint.id;
-  E.drag = { mode:"dimension", sketch:sketch, constraint:constraint, editOnRelease:true, created:!existing, moved:false, px:clientX, py:clientY };
-  drawSketch();
-  return true;
 }
 
 function finishDimensionDrag(clientX, clientY) {
@@ -11524,6 +12053,14 @@ function wireSketch() {
     if(e.isTrusted)cv.setPointerCapture(e.pointerId);
     var r = cv.getBoundingClientRect();
     var localX = e.clientX - r.left, localY = e.clientY - r.top;
+    /* A sheet is not a sketch: the drafting table takes the whole gesture —
+       pan, pick, drag a view along its projection line, place a dimension — and
+       none of the sketching below applies to it. */
+    if (E.mode === "drawing") {
+      if (e.button === 2) e.preventDefault();
+      drawingSheet().pointerDown(e, localX, localY);
+      return;
+    }
     /* Sketching on the model: middle-drag, right-drag or Alt-drag orbits the
        camera without leaving the tool. Being able to look around a solid while
        drawing on one of its faces is the point of sketching in 3D — the sheet
@@ -11542,28 +12079,6 @@ function wireSketch() {
     E.touchPrecision = beginTouchPrecision(e, localX, localY, r, precisionKind);
     var downPoint = touchPrecisionPoint(E.touchPrecision, localX, localY);
     var uv = toUV(downPoint.x, downPoint.y);
-    if (E.mode === "drawing") {
-      if (E.tool === "dim") {
-        var sheetSketch = drawingSketch();
-        var localX = e.clientX - r.left, localY = e.clientY - r.top;
-        var placed = placedDimensionHit(sheetSketch, localX, localY);
-        if (placed) {
-          activateDrawingSketch(sheetSketch);
-          pushUndo(t("opMoveDim"));
-          E.dimPick = [];
-          E.ssel = [];
-          E.sel = null;
-          E.dimSel = placed.constraint.id;
-          E.drag = { mode:"dimension", sketch:sheetSketch, constraint:placed.constraint, editOnRelease:false, moved:false, px:e.clientX, py:e.clientY, instant2d: placed.kind === "label", startValue: Number(placed.constraint.value) || 0 };
-          drawSketch();
-          return;
-        }
-        beginSmartRulerPoint(sheetSketch, rulerPointAt(sheetSketch, uv), e.clientX, e.clientY);
-        return;
-      }
-      E.drag = { mode: "pan", px: e.clientX, py: e.clientY, ox: E.ox, oy: E.oy };
-      return;
-    }
     if (e.button === 2) {
       e.preventDefault();
       E.drag = { mode: "gesture", px: e.clientX, py: e.clientY, moved: false };
@@ -11766,6 +12281,7 @@ function wireSketch() {
     if (threeFinger()) return;
     var r = cv.getBoundingClientRect();
     var localX = e.clientX - r.left, localY = e.clientY - r.top;
+    if (E.mode === "drawing") { drawingSheet().pointerMove(e, localX, localY); syncStatus(); return; }
     if(e.pointerType==="touch"&&touchPrecisionTrialOwns(e.pointerId)){
       updateTouchPrecisionTrial(e.pointerId,localX,localY);return;
     }
@@ -11834,11 +12350,7 @@ function wireSketch() {
       return;
     }
     // live snap feedback while sketching: cursor magnetizes to the target
-    if (E.mode === "drawing" && E.tool === "dim") {
-      var rulerPoint = rulerPointAt(drawingSketch(), uv);
-      if (rulerPoint) E._mouse = { u:rulerPoint.x, v:rulerPoint.y };
-      drawSketch();
-    } else if (E.wallPts && E.wallPts.length) {
+    if (E.wallPts && E.wallPts.length) {
       var wp = snapPt(uv, null, E.wallPts[E.wallPts.length - 1]);
       var wl = E.wallPts[E.wallPts.length - 1];
       E._mouse = E._osnap ? wp : constrainWallPoint(wp, wl, e.shiftKey);
@@ -11851,6 +12363,12 @@ function wireSketch() {
   });
   cv.addEventListener("pointerup", function (e) {
     if (threeFinger()) return;
+    if (E.mode === "drawing") {
+      var sheetRect = cv.getBoundingClientRect();
+      drawingSheet().pointerUp(e, e.clientX - sheetRect.left, e.clientY - sheetRect.top);
+      syncStatus();
+      return;
+    }
     if(touchPrecisionTrialOwns(e.pointerId)){
       releaseTouchPrecisionTrial(e.pointerId,false);E.touchPrecision=null;drawSketch();return;
     }
@@ -11925,14 +12443,8 @@ function wireSketch() {
   });
   cv.addEventListener("dblclick", function (e) {
     if (E.mode === "drawing") {
-      if (E.tool === "dim") {
-        var drawingRect = cv.getBoundingClientRect(), sketch = drawingSketch();
-        var dimension = placedDimensionAt(sketch, e.clientX - drawingRect.left, e.clientY - drawingRect.top);
-        if (dimension) {
-          E.dimSel = dimension.id;
-          editPlacedDimension(sketch, dimension, false, e.clientX, e.clientY);
-        }
-      }
+      var sheetRect = cv.getBoundingClientRect();
+      drawingSheet().doubleClick(e, e.clientX - sheetRect.left, e.clientY - sheetRect.top);
       return;
     }
     if (E.tool === "wall" && E.wallPts) { finishWallChain(false); return; }
@@ -11989,6 +12501,12 @@ function wireSketch() {
   });
   cv.addEventListener("wheel", function (e) {
     e.preventDefault();
+    if (E.mode === "drawing") {
+      var sheetRect = cv.getBoundingClientRect();
+      drawingSheet().wheel(e, e.clientX - sheetRect.left, e.clientY - sheetRect.top);
+      syncStatus();
+      return;
+    }
     // over the model the wheel dollies the camera; there is no separate sheet
     // zoom to change
     if (sketchProjection() && E.pv) {
@@ -12038,6 +12556,12 @@ function wireSketch() {
       var mx = (a.clientX + b.clientX) / 2 - r.left;
       var my = (a.clientY + b.clientY) / 2 - r.top;
       var k = f > 1 ? 1 / 1.12 : 1.12;
+      // a sheet zooms the paper, not the sketch it is not showing
+      if (E.mode === "drawing") {
+        drawingSheet().wheel({ deltaY: f > 1 ? 120 : -120 }, mx, my);
+        syncStatus();
+        return;
+      }
       var ns = clamp(E.scl * k, 0.3, 20);
       E.ox = mx - ((mx - E.ox) / E.scl) * ns;
       E.oy = my - ((my - E.oy) / E.scl) * ns;
@@ -12228,12 +12752,14 @@ function onKey(e) {
     if (e.key === "2") { setMode("2d"); return; }
     if (e.key === "3") { setMode("3d"); return; }
     if (e.key === "7") { setMode("drawing"); return; }
-    if (E.mode === "drawing" && KEY_VIEW[e.key]) { setView(KEY_VIEW[e.key]); return; }
-    if (E.mode === "drawing" && e.key.toLowerCase() === "f") { fitSketch(); return; }
-    if (E.mode === "drawing" && e.key.toLowerCase() === "d") { setTool("dim"); return; }
-    if (E.mode === "drawing" && e.key.toLowerCase() === "v") { setTool("select"); return; }
   }
-  if (E.mode === "drawing" && e.key !== "Escape") return;
+  /* On a sheet the drafting table takes the keyboard: its own tool letters, fit,
+     hidden lines, and Delete on whatever is selected. Only the editor-wide keys
+     above (mode switches, undo, save) get there first. */
+  if (E.mode === "drawing" && !editingField) {
+    if (drawingSheet().keyDown(e)) { e.preventDefault(); syncTools(); syncHint(); syncStatus(); return; }
+    if (e.key !== "Escape") return;
+  }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a" && !editingField) {
     e.preventDefault();
     if (E.docType === "assembly") {
@@ -12750,7 +13276,22 @@ function editSketchFromHistory(sketch) {
 
 function syncProjectionFromFeature(feature) {
   var part=(E.def.parts || []).find(function(item){return item.featureId===feature.id;});
-  if(part && feature.type==="extrude"){
+  if(feature.type==="toolbox"){
+    var generated=toolboxFastener(cloneData(feature.params || {}));
+    if(!generated || generated.ok===false)return false;
+    if(!feature.toolboxAutoName || feature.name===feature.toolboxAutoName){
+      feature.name=generated.callout;feature.toolboxAutoName=generated.callout;
+      var historyEntry=(E.def.history || []).find(function(item){return item.targetId===feature.id;});
+      if(historyEntry)historyEntry.name=feature.name;
+    }
+    var selectedWasToolbox=E.sel && E.sel.toolboxFeatureId===feature.id;
+    E.def.parts=(E.def.parts || []).filter(function(item){return item.toolboxFeatureId!==feature.id;});
+    generated.parts.forEach(function(item){E.def.parts.push(Object.assign({id:uid(),featureId:feature.id,toolboxFeatureId:feature.id},item));});
+    E.def.toolboxParts=(E.def.toolboxParts || []).filter(function(item){return item.featureId!==feature.id;});
+    E.def.toolboxParts.push(Object.assign({featureId:feature.id},generated.metadata));
+    if(selectedWasToolbox)E.sel=E.def.parts.filter(function(item){return item.toolboxFeatureId===feature.id&&!item.previewOnly;}).slice(-1)[0] || null;
+    return true;
+  } else if(part && feature.type==="extrude"){
     var depth=Math.max(.1,Number(feature.params.depth)||.1),offset=Number(feature.params.offset)||0,sketchId=feature.references.sketches[0],sketch=(E.def.sketches || []).find(function(item){return item.id===(sketchId && sketchId.id || sketchId);});
     var normal=sketch && sketch.frame && sketch.frame.normal,axis=part.axis==="frame"?planeAxis(sketch && sketch.plane):part.axis,principal=normal?(axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)):(part.to>=part.from?1:-1);
     var direction=(feature.params.direction==="reverse"?-1:1)*(principal||1),symmetric=!!feature.params.symmetric||feature.params.endCondition==="mid-plane",center=(part.frame?0:(sketch&&Number(sketch.offset)||0))+direction*offset;
@@ -12792,7 +13333,7 @@ function openFeatureEditor(feature) {
   var name=featureField(host,{key:"$name",label:t("fldFeatureName"),type:"text"},feature.name),liveBadge=el("div","md-feature-live on",'<i class="ph ph-broadcast"></i> '+t("featureLiveAllViews"));host.appendChild(liveBadge);
   var pendingFrame=0,controls=renderFeatureParameterForm(host,feature.type,feature,function(next){
     feature.params={...feature.params,...next.params};setFeatureReferencesFromForm(feature,next.references);feature.name=name.value || feature.name;
-    if(pendingFrame)cancelAnimationFrame(pendingFrame);pendingFrame=requestAnimationFrame(function(){pendingFrame=0;syncProjectionFromFeature(feature);refreshAll();liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);});
+    if(pendingFrame)cancelAnimationFrame(pendingFrame);pendingFrame=requestAnimationFrame(function(){pendingFrame=0;syncProjectionFromFeature(feature);refreshAll();if(feature.type==="toolbox"&&name.value!==feature.name)name.value=feature.name;liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);});
   });
   name.addEventListener("input",function(){feature.name=name.value || feature.name;var entry=(E.def.history || []).find(function(item){return item.targetId===feature.id;});if(entry)entry.name=feature.name;refreshParts();fillInspector();});
   var dependencies=[];(feature.references.sketches || []).forEach(function(id){dependencies.push(t("depSketch")+": "+(id.id||id));});(feature.inputs || []).forEach(function(id){dependencies.push(t("depFeature")+": "+id);});
@@ -13098,6 +13639,7 @@ function removeTreeNode(node, model) {
     E.def.parts = (E.def.parts || []).filter(function (item) {
       return item.featureId !== node.targetId && item.derivedFeatureId !== node.targetId;
     });
+    E.def.toolboxParts = (E.def.toolboxParts || []).filter(function (item) { return item.featureId !== node.targetId; });
     refreshAll(); return;
   }
   if (node.kind === "sketch") {
@@ -16417,8 +16959,7 @@ function setMode(m) {
   E.modelPlaneActive = false;
   E.touchPrecision = null;
   if (E.pv) E.pv.clearFixedFrame(false);
-  if (m === "3d") E.tool = "select";
-  if (m === "drawing") E.tool = "select";
+  if (m === "3d" || m === "drawing") E.tool = "select";
   E.dimPick = [];
   E.dimSel = null;
   if (!swapView) {
@@ -16434,7 +16975,26 @@ function setMode(m) {
   syncModelPlane();
   layout3DHost();
   if (m === "3d") fitPreview();
-  else if (m === "drawing") { E.ssel=[]; E.sel=null; E.poly=null; E.arcPts=null; E.wallPts=null; fitSketch(); }
+  else if (m === "drawing") {
+    E.ssel=[]; E.sel=null; E.poly=null; E.arcPts=null; E.wallPts=null;
+    /* Entering the sheet re-projects: the model may have changed since the last
+       visit, and a stale projection is a drawing that lies. */
+    invalidateDrawing();
+    var sheetDoc = ensureSheetDoc(E.def, { title: { title: E.def && E.def.name || "" } });
+    /* A phone has no room for a 244px properties column beside an A3 page, so
+       the sheet gets the screen and the panel is one tap away on the same
+       toggle the inspector uses. */
+    root.classList.toggle("md-sheet-collapsed", document.body.classList.contains("compact-nav"));
+    drawingSheet().setTool("select");
+    drawingSheet().fit();
+    /* A sheet nobody has drafted on still states the two overall sizes — the
+       first thing anyone reads off a drawing — and seeding them is not an edit
+       the user made, so it opens no undo step. */
+    if (!sheetDoc.dims.length && !sheetDoc.seeded) {
+      sheetDoc.seeded = true;
+      drawingSheet().autoDimension(true);
+    }
+  }
   root.querySelectorAll("#mdModes button").forEach(function (b) {
     var active = b.getAttribute("data-mode") === m;
     b.classList.toggle("on", active);
@@ -16442,6 +17002,7 @@ function setMode(m) {
   });
   syncTools();
   syncCoach();
+  syncSheetPanel();
   drawSketch();
 }
 
@@ -16633,6 +17194,10 @@ function addInterferenceVisuals(parent) {
 
 function updatePreview() {
   if (typeof window !== "undefined") window.cadUpdatePreview = updatePreview;
+  /* The sheet projects the same bodies this rebuild is about to replace, and
+     hidden-line removal is far too expensive to redo per paint — so this is
+     where its cache is told the model moved. */
+  invalidateDrawing();
   if (!E.pv) return;
   clearGroup(E.pv.roomGrp);
   if (E.docType === "part") {
@@ -17330,11 +17895,43 @@ function assemblyDrawingDocument() {
   };
 }
 
-function downloadAssemblyDrawing() {
-  if (E.docType !== "assembly" || !E.assembly) return;
-  var sheet = assemblyDrawingDocument();
-  if (!sheet.def.parts.length) { flash(t("noComponents")); return; }
-  downloadDrawing(sheet.def, { section: false, holeCallouts: false, balloons: sheet.balloons });
+/* Export what Drawing mode shows. An unopened document has no sheet yet, so it
+   gets the standard three-view one the exporter builds — the same engine, so
+   the file and the screen can never drift apart. */
+function exportDrawingSvg() {
+  var svg;
+  if (E.mode === "drawing" || (E.def && E.def.drawing)) svg = drawingSheet().svg();
+  else if (E.docType === "assembly" && E.assembly) {
+    var sheet = assemblyDrawingDocument();
+    if (!sheet.def.parts.length) { flash(t("noComponents")); return; }
+    svg = sceneToSvg(buildDrawingScene(sheet.def, { balloons: sheet.balloons, useStored: false }));
+  } else svg = sceneToSvg(buildDrawingScene(E.def, { section: true, holeCallouts: true, useStored: false }));
+  var blob = new Blob([svg], { type: "image/svg+xml" });
+  var link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = ((E.def && E.def.name) || "drawing").replace(/[^a-z0-9_-]+/gi, "_") + ".svg";
+  link.click();
+  setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
+  flash(t("drawExported"));
+}
+
+/* Print the sheet at its true paper size: the SVG is metric millimetres, so a
+   browser print with no margins puts an A3 drawing on A3 paper. */
+function printDrawingSheet() {
+  var svg = drawingSheet().svg();
+  var frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0";
+  document.body.appendChild(frame);
+  var doc = frame.contentDocument;
+  doc.open();
+  doc.write("<!doctype html><meta charset='utf-8'><style>@page{margin:0}html,body{margin:0;padding:0}svg{display:block}</style>" + svg);
+  doc.close();
+  var done = function () {
+    try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (error) { flash(t("drawPrintFailed")); }
+    setTimeout(function () { frame.remove(); }, 1000);
+  };
+  if (doc.readyState === "complete") done(); else frame.addEventListener("load", done);
 }
 
 /* A bill of materials is a table, and it was a column of space-padded text in

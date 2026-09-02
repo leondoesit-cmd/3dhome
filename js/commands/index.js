@@ -26,7 +26,7 @@ export const PLANNER_COMMAND_PARAMETERS = Object.freeze({
   "wall.draw": { required: ["from", "to"], properties: { from: "{x,z} cm", to: "{x,z} cm", type: "wall type id (optional)", thickness: "cm (optional)", height: "cm (optional)", loc: "center | face (optional)", dimSide: "-1 | 0 | 1 (optional)" } },
   "item.place": { required: ["type", "x", "z"], properties: { type: "catalog item id", x: "plan x in cm", z: "plan z in cm", rot: "degrees (optional)" } },
   "item.duplicate": { required: ["sourceIds"], properties: { sourceIds: "existing item ids", offsetX: "cm (optional)", offsetZ: "cm (optional)", regroup: "boolean (optional)" } },
-  "item.move": { required: ["itemId"], properties: { itemId: "existing item id", x: "destination x in cm", z: "destination z in cm", deltaX: "relative x in cm", deltaZ: "relative z in cm" } },
+  "item.move": { required: ["itemId"], properties: { itemId: "existing item id", x: "destination x in cm", z: "destination z in cm", deltaX: "relative x in cm", deltaZ: "relative z in cm", rot: "degrees (optional)" } },
   "room.create": { required: ["from", "to"], properties: { from: "one rectangle corner {x,z} in cm", to: "opposite corner {x,z} in cm", type: "wall type id (optional)", thickness: "cm (optional)", height: "cm (optional)", name: "room name (optional)", isCorridor: "boolean (optional)" } },
 });
 

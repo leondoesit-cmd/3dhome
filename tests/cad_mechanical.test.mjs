@@ -138,8 +138,11 @@ test("drawings add section views, hole callouts and a title block", () => {
   assert.match(svg, /FRONT/);
   assert.match(svg, /SECTION A-A/);
   assert.match(svg, /Flange/);
-  assert.match(svg, /Rev B/);
+  assert.match(svg, /REV B/);
+  assert.match(svg, /A-100/, "the drawing number reaches the title block");
+  assert.match(svg, /THIRD ANGLE/, "a sheet declares its projection convention");
   assert.equal(collectHoleCallouts(def).length, 1);
+  assert.match(svg, /THRU/, "the counterbore callout is annotated on the sheet");
 });
 
 test("a screw mate follows pitch: one turn advances one pitch along the axis", () => {

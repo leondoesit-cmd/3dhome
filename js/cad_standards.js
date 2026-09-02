@@ -3,12 +3,24 @@
 // its name or appearance: it must carry a standard declaration and pass every
 // mandatory rule for that declared edition.
 
+import { isToolboxFamily, validateToolboxSpec } from "./toolbox/audit.js";
+import { ISO4017_HEX, PREFERRED_LENGTHS_MM } from "./toolbox/fastener_tables.js";
+
 export const STANDARD_CATALOG = Object.freeze({
   "ISO 262:2023": { family:"metric-thread", status:"published", source:"https://www.iso.org/standard/85105.html" },
   "ISO 68-1:2023": { family:"metric-thread-profile", status:"published", source:"https://www.iso.org/standard/73032.html" },
   "ISO 724:2023": { family:"metric-thread-basic-dimensions", status:"published", source:"https://www.iso.org/standard/85103.html" },
   "ISO 965-1:2026": { family:"metric-thread-tolerance", status:"published", source:"https://www.iso.org/standard/87889.html" },
+  "ISO 4014:2022": { family:"hex-bolt", status:"published", source:"https://www.iso.org/standard/72583.html" },
   "ISO 4017:2022": { family:"hex-screw", status:"published", source:"https://www.iso.org/standard/72585.html" },
+  "ISO 4032:2023": { family:"hex-nut", status:"published", source:"https://www.iso.org/standard/84744.html" },
+  "ISO 4035:2023": { family:"jam-nut", status:"published", source:"https://www.iso.org/standard/84746.html" },
+  "ISO 4762:2018": { family:"shcs", status:"published", source:"https://www.iso.org/standard/70511.html" },
+  "ISO 7040:2012": { family:"nyloc-nut", status:"published", source:"https://www.iso.org/standard/51351.html" },
+  "ISO 7089:2000": { family:"washer-flat", status:"published", source:"https://www.iso.org/standard/30148.html" },
+  "ISO 7380-1:2022": { family:"button-socket", status:"published", source:"https://www.iso.org/standard/70514.html" },
+  "ISO 10642:2019": { family:"csink-socket", status:"published", source:"https://www.iso.org/standard/70513.html" },
+  "EN 1057": { family:"pipe-copper", status:"published", source:"https://www.en-standard.eu" },
   "ISO 53:1998": { family:"gear-rack-profile", status:"published-confirmed", source:"https://www.iso.org/standard/22643.html" },
   "ISO 54:1996": { family:"gear-module", status:"published-confirmed", source:"https://www.iso.org/standard/22644.html" },
   "ISO 21771-1:2024": { family:"involute-gear-geometry", status:"published-revision-pending", source:"https://www.iso.org/standard/84949.html" },
@@ -21,9 +33,16 @@ const COARSE_PITCH = new Map([[1,0.25],[1.2,0.25],[1.4,0.3],[1.6,0.35],[2,0.4],[
 const ISO54_MODULES = new Set([0.05,0.06,0.08,0.1,0.12,0.15,0.2,0.25,0.3,0.4,0.5,0.6,0.8,1,1.25,1.5,2,2.5,3,4,5,6,8,10,12,16,20,25,32,40,50]);
 // Installed, versioned dimensional pack used by the tutorial generator.  A
 // size absent from this pack is rejected rather than interpolated.
-const ISO4017_PACK = Object.freeze({
-  "M8": Object.freeze({diameterMm:8,pitchMm:1.25,headAcrossFlatsMm:13,headHeightMm:5.3,lengthsMm:[12,16,20,25,30,35,40,45,50,55,60,65,70,80]}),
-});
+const ISO4017_PACK = Object.freeze(Object.fromEntries(
+  Object.keys(ISO4017_HEX).filter((key) => key.startsWith("M")).map((key) => {
+    const row = ISO4017_HEX[key];
+    return [key, Object.freeze({
+      diameterMm: row.diameterMm, pitchMm: row.pitchMm,
+      headAcrossFlatsMm: row.af, headHeightMm: row.h,
+      lengthsMm: PREFERRED_LENGTHS_MM.filter((mm) => mm >= row.diameterMm * 1.5 || mm >= 12),
+    })];
+  }),
+));
 const near = (a,b,t=1e-6) => Math.abs(Number(a)-Number(b)) <= t;
 const issue = (code,message,field,severity="error") => ({code,message,field,severity});
 
@@ -132,21 +151,42 @@ export function validateInvoluteGear(spec) {
 }
 
 export function validateStandardPart(part,def={parts:[part]}) {
-  const declaration=part.standardCompliance;
-  if(!declaration) return report(null,[issue("missing-declaration","Recognized standardized part has no standard declaration","standardCompliance")]);
+  if(!part.standardCompliance && !part.standardPart) return report(null,[issue("missing-declaration","Recognized standardized part has no standard declaration","standardCompliance")], {status:"noncompliant"});
+  const declaration=Object.assign({}, part.standardCompliance||{}, part.standardPart||{});
   if(declaration.family==="metric-thread") return validateMetricThread(declaration);
-  if(declaration.family==="hex-bolt"||declaration.family==="hex-screw") { const r=validateHexBolt(declaration);r.issues.push(...validateHexScrewGeometry(part,def,declaration));r.ok=r.issues.every(i=>i.severity!=="error");return r; }
-  if(declaration.family==="involute-gear") { const r=validateInvoluteGear(declaration);r.issues.push(...validateGearGeometry(part,declaration));r.ok=r.issues.every(i=>i.severity!=="error");return r; }
-  return report(declaration.standard,[issue("unsupported-standard","No verified validator is installed for this standard","standard")]);
+  if(declaration.family==="hex-screw" && String(declaration.standard||"").indexOf("ISO 4017")===0) {
+    const r=validateHexBolt(declaration);r.issues.push(...validateHexScrewGeometry(part,def,declaration));r.ok=r.issues.every(i=>i.severity!=="error");r.status=r.ok?"compliant":"noncompliant";return r;
+  }
+  if(declaration.family==="involute-gear") { const r=validateInvoluteGear(declaration);r.issues.push(...validateGearGeometry(part,declaration));r.ok=r.issues.every(i=>i.severity!=="error");r.status=r.ok?"compliant":"noncompliant";return r; }
+  if(isToolboxFamily(declaration.family)) return validateToolboxSpec(declaration);
+  return report(declaration.standard,[issue("unsupported-standard","No verified validator is installed for this standard","standard")], {status:"unsupported"});
+}
+
+function representativeStandardPart(def, part) {
+  const group=part.standardGroupId;
+  if(!group) return part;
+  const members=(def.parts||[]).filter(p=>p.standardGroupId===group);
+  return members.find(p=>p.standardCompliance) || members.find(p=>p.standardRole==="thread") || part;
 }
 
 export function auditStandardParts(def) {
   const results=[];
+  const seen=new Set();
   for(const part of def.parts||[]){
     const looksStandard=/(bolt|screw|nut|thread|gear|בורג|אום|גלגל שיניים)/i.test(`${part.name||""} ${part.kind||""}`);
-    if(looksStandard||part.standardCompliance) results.push({partId:part.id,name:part.name||part.kind,...validateStandardPart(part,def)});
+    if(!(looksStandard||part.standardCompliance||part.standardPart)) continue;
+    const group=part.standardGroupId;
+    if(group){
+      if(seen.has(group)) continue;
+      seen.add(group);
+    }
+    const target=representativeStandardPart(def, part);
+    results.push({partId:target.id,name:target.name||target.kind,groupId:group,...validateStandardPart(target,def)});
   }
   return {ok:results.every(r=>r.ok),checked:results.length,results,blocking:results.flatMap(r=>r.issues.filter(i=>i.severity==="error").map(i=>({...i,partId:r.partId,partName:r.name})))};
 }
 
-function report(standard,issues,computed={}) { return {ok:issues.every(i=>i.severity!=="error"),standard,edition:standard?.split(":")[1]||null,issues,computed}; }
+function report(standard,issues,computed={}) {
+  const status=computed.status || (issues.some(i=>i.severity==="error")?"noncompliant":"compliant");
+  return {ok:issues.every(i=>i.severity!=="error"),standard,edition:standard?.split(":")[1]||null,issues,computed,status};
+}

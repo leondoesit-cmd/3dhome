@@ -7,6 +7,7 @@ import { cloneDomain } from "./schema.js";
 import { analyzeParametricHistory, ensureParametricDocument, historyEntryRolled } from "./parametric_document.js";
 import { circularPatternStepDegrees, linearPatternOffsets, parseSkippedPatternInstances } from "./pattern_geometry.js";
 import { holeWizardSolids } from "../cad_hole_wizard.js";
+import { generateToolboxPart } from "../toolbox/generate.js";
 
 function idOf(reference) {
   return typeof reference === "string" ? reference : reference?.id || reference?.persistentId || null;
@@ -18,6 +19,51 @@ function sketchInput(feature) {
 
 function topologyReferences(feature) {
   return cloneDomain(feature.references?.topology || []);
+}
+
+function toolboxPrimitive(part, id, name) {
+  const base = { id, name: name || part.name || "Toolbox solid", inputs: [], references: [], suppressed: false };
+  if (part.kind === "cyl") {
+    if (Number.isFinite(part.r2) && Math.abs(part.r2 - part.r) > 1e-9)
+      return { ...base, type: "cone", params: { x:part.x, y:part.y, z:part.z, r:part.r, r2:part.r2, h:part.h } };
+    return { ...base, type: "cylinder", params: { x:part.x, y:part.y, z:part.z, r:part.r, h:part.h } };
+  }
+  if (part.kind === "ext") return { ...base, type: "extrude", params: { axis:part.axis || "y", from:part.from, to:part.to, points:cloneDomain(part.pts || []), holes:cloneDomain(part.holes || []) } };
+  if (part.kind === "rev") return { ...base, type: "revolve", params: { angle:Number(part.angle) || 360, points:cloneDomain(part.pts || []) } };
+  if (part.kind === "box") return { ...base, type: "box", params: { x:Math.min(part.x0,part.x1), y:Math.min(part.y0,part.y1), z:Math.min(part.z0,part.z1), w:Math.abs(part.x1-part.x0), h:Math.abs(part.y1-part.y0), d:Math.abs(part.z1-part.z0) } };
+  return null;
+}
+
+export function lowerToolboxFeature(feature) {
+  const generated = generateToolboxPart(cloneDomain(feature.params || {}));
+  if (!generated?.ok) throw new Error(generated?.message || "Toolbox part could not be generated");
+  const solids = [], cutters = [];
+  (generated.parts || []).forEach((part, index) => {
+    const primitive = toolboxPrimitive(part, feature.id + ":part:" + index, part.name);
+    if (!primitive) throw new Error("Unsupported Toolbox primitive: " + part.kind);
+    (part.previewOnly ? cutters : solids).push(primitive);
+  });
+  if (!solids.length) throw new Error("Toolbox feature generated no solid");
+  const compiled = [...solids, ...cutters];
+  let current = solids[0].id;
+  solids.slice(1).forEach((solid, index) => {
+    const finalUnion = index === solids.length - 2 && cutters.length === 0;
+    const id = finalUnion ? feature.id : feature.id + ":union:" + index;
+    compiled.push({ id, name:feature.name, type:"union", params:{}, inputs:[current,solid.id], references:[], suppressed:false });
+    current = id;
+  });
+  cutters.forEach((cutter, index) => {
+    const id = index === cutters.length - 1 ? feature.id : feature.id + ":cut:" + index;
+    compiled.push({ id, name:feature.name, type:"subtract", params:{}, inputs:[current,cutter.id], references:[], suppressed:false });
+    current = id;
+  });
+  if (current !== feature.id) {
+    const source = compiled.find((item) => item.id === current);
+    source.id = feature.id;
+  }
+  const final = compiled.find((item) => item.id === feature.id);
+  if (final) final.metadata = { toolbox:cloneDomain(generated.metadata), sourceOptions:cloneDomain(generated.sourceOptions) };
+  return compiled;
 }
 
 function lowerExtrudeParams(feature, document) {
@@ -67,6 +113,7 @@ function loweredFeature(feature, document) {
   }
   if (feature.type === "mirror") return [{ ...base, type: "mirror", params: { ...cloneDomain(feature.params), plane: cloneDomain(feature.references?.references?.[0]) } }];
   if (feature.type === "boolean") return [{ ...base, type: feature.params?.operation || "union", params: { keepTools: !!feature.params?.keepTools, tolerance: feature.params?.tolerance } }];
+  if (feature.type === "toolbox") return lowerToolboxFeature(feature);
   if (["helix", "thread", "knurl", "insert"].includes(feature.type)) {
     return [{ ...base, type: feature.type, params: cloneDomain(feature.params) }];
   }

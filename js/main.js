@@ -48,6 +48,7 @@ import { rebuildProject } from "./core/project.js";
 import { initToolSearch } from "./tool_search.js";
 import { initLayers } from "./layers.js";
 import { initLayersUI } from "./ui_layers.js";
+import { initPlanToolsDock } from "./plan_tools_dock.js";
 import { initAgent } from "./ui_agent.js";
 import { initTutorRuntime } from "./tutor/runtime.js";
 import { initExternalAgentBridge } from "./agent_external_bridge.js";
@@ -383,6 +384,9 @@ initCadHud(); // plan status bar + typed length/angle entry
    padlock button, which initUI() binds, and they publish `layers:changed`,
    which js/view3d.js listens for. */
 initLayersUI(); // work-set layer chips + the refused-drag unlock pill
+/* After the chips exist and after initCadHud: the dock measures the whole
+   cluster, and the status bar it must not sit under is created above. */
+initPlanToolsDock(); // drag the tool cluster to any edge of the 2D pane
 initMobileShell(); // phone/foldable chrome: contextual row + five-slot bottom nav
 initDimKnob(); // touch: numeric fields are scrubbed on a rotary dial, not typed
 // last: autosave/recovery needs a fully built UI to render its recovery prompt,
@@ -440,6 +444,10 @@ const resizeAll = throttle(() => {
    settle on the true numbers. */
 window.addEventListener("vspan:ready", function () { render2D(); });
 window.addEventListener("resize", resizeAll);
+/* The pixel floor under the split has to survive the window getting smaller:
+   the share that left a workable plan on a wide screen is a sliver on a narrow
+   one, and nothing else re-applies it. */
+window.addEventListener("resize", function () { setSplit(curSplit, false); });
 if (window.ResizeObserver) {
   var ro = new ResizeObserver(resizeAll);
   var v3 = document.getElementById("view-3d");
@@ -484,9 +492,39 @@ function syncSurfaces() {
   render2D();
 }
 var curSplit = 50; // last-applied top-pane %, persisted on drag end
+/* A share is not a size. 88% of a 1165px canvas is a 140px plan — wide enough
+   for the tool rail and nothing else — so the ratio is clamped in PIXELS too:
+   neither pane drops below a strip you could actually work in, whenever the
+   canvas is big enough to give both of them that much. Below that the
+   percentage limits stand, because on a small screen a lopsided split is the
+   point (and js/plan_tools_dock.js compacts the plan's chrome to match).
+
+   The figure is chosen against that module's own thresholds: the narrowest
+   plan the divider can leave still DOCKS its panels, compacted to icons,
+   rather than falling back to the phone rail — so dragging the split to its
+   limit never takes the layer panel away. */
+var MIN_PANE = 320;
+function splitLimits() {
+  if (!centerCanvas || !view3d || !view2d) return { lo: 12, hi: 88 };
+  var side = splitIsSide();
+  /* The share is of the CONTAINER, but the two panes do not have the container
+     to themselves — the divider is in it, and so is anything else docked
+     alongside. Measuring the panes is what makes MIN_PANE mean that much plan,
+     instead of that much minus whatever else is in the row. */
+  var container = side ? centerCanvas.clientWidth : centerCanvas.clientHeight;
+  var a = side ? view3d.offsetWidth : view3d.offsetHeight;
+  var b = side ? view2d.offsetWidth : view2d.offsetHeight;
+  var panes = a + b;
+  if (!container || !a || !b || panes < MIN_PANE * 2) return { lo: 12, hi: 88 };
+  return {
+    lo: Math.max(12, (MIN_PANE / container) * 100),
+    hi: Math.min(88, ((panes - MIN_PANE) / container) * 100),
+  };
+}
 function setSplit(topPct, persist) {
   if (!view3d) return;
-  curSplit = Math.max(12, Math.min(88, topPct));
+  var limit = splitLimits();
+  curSplit = Math.max(limit.lo, Math.min(limit.hi, topPct));
   view3d.style.flex = "0 0 " + curSplit + "%";
   if (view2d) view2d.style.flex = "1 1 auto";
   syncSurfaces();

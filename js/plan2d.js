@@ -264,17 +264,67 @@ export function centerContent() {
    Top-down analog of the 3D ViewCube: an X/Z/Y axis marker that rotates with the
    plan; clicking an axis rotates the plan so that axis points up (N/E/S/W-up),
    centre (Y) resets to north-up. */
-var planGizmoNubs = [];
+var planGizmoNubs = [], planGizmoCompass = null;
 export function initPlanGizmo() {
   var host = document.getElementById("view-2d");
   if (!host || host.querySelector(".plan-gizmo")) return;
-  var NS = "http://www.w3.org/2000/svg", C = 42, R = 27;
+  var NS = "http://www.w3.org/2000/svg", C = 42, R = 20;
   var el = document.createElement("div");
   el.className = "view-gizmo plan-gizmo";
   el.setAttribute("data-i18n-title", "gizmoHint2d");
   el.title = "Click an axis to view that elevation · center = top (plan)";
   var svg = document.createElementNS(NS, "svg");
   svg.setAttribute("viewBox", "0 0 84 84");
+
+  var compass = document.createElementNS(NS, "g");
+  compass.setAttribute("class", "gz-compass");
+  compass.setAttribute("title", "North (click to reset)");
+
+  var ring = document.createElementNS(NS, "circle");
+  ring.setAttribute("cx", C); ring.setAttribute("cy", C); ring.setAttribute("r", 35.5);
+  ring.setAttribute("class", "gz-compass-ring");
+  compass.appendChild(ring);
+
+  var nPoly = document.createElementNS(NS, "polygon");
+  nPoly.setAttribute("points", "42,1.5 38.5,6.5 45.5,6.5");
+  nPoly.setAttribute("fill", "#e0564f");
+  compass.appendChild(nPoly);
+
+  var nCirc = document.createElementNS(NS, "circle");
+  nCirc.setAttribute("cx", 42); nCirc.setAttribute("cy", 8.5); nCirc.setAttribute("r", 5);
+  nCirc.setAttribute("fill", "#c0563b"); nCirc.setAttribute("stroke", "#ffffff"); nCirc.setAttribute("stroke-width", 1);
+  compass.appendChild(nCirc);
+
+  var nTxt = document.createElementNS(NS, "text");
+  nTxt.setAttribute("x", 42); nTxt.setAttribute("y", 8.5); nTxt.setAttribute("dy", 2.6);
+  nTxt.setAttribute("text-anchor", "middle");
+  nTxt.setAttribute("class", "gz-lbl gz-north-lbl");
+  nTxt.textContent = "N";
+  compass.appendChild(nTxt);
+
+  var sTick = document.createElementNS(NS, "line");
+  sTick.setAttribute("x1", 42); sTick.setAttribute("y1", 74.5); sTick.setAttribute("x2", 42); sTick.setAttribute("y2", 78);
+  sTick.setAttribute("class", "gz-compass-tick s-tick");
+  compass.appendChild(sTick);
+  var eTick = document.createElementNS(NS, "line");
+  eTick.setAttribute("x1", 74.5); eTick.setAttribute("y1", 42); eTick.setAttribute("x2", 78); eTick.setAttribute("y2", 42);
+  eTick.setAttribute("class", "gz-compass-tick");
+  compass.appendChild(eTick);
+  var wTick = document.createElementNS(NS, "line");
+  wTick.setAttribute("x1", 6); wTick.setAttribute("y1", 42); wTick.setAttribute("x2", 9.5); wTick.setAttribute("y2", 42);
+  wTick.setAttribute("class", "gz-compass-tick");
+  compass.appendChild(wTick);
+
+  compass.addEventListener("click", function (e) {
+    e.stopPropagation();
+    S.planRot = 0;
+    S.viewAxis = "top";
+    render2D();
+    updatePlanGizmo();
+  });
+  svg.appendChild(compass);
+  planGizmoCompass = compass;
+
   var g = document.createElementNS(NS, "g");
   function line(x2, y2, col) {
     var l = document.createElementNS(NS, "line");
@@ -284,20 +334,19 @@ export function initPlanGizmo() {
   line(C + R, C, "#e0564f"); // X
   line(C, C + R, "#4f8cf6"); // Z
   planGizmoNubs = [];
-  // clicking an axis views the model as a flat elevation from that side; centre
-  // Y returns to the top-down plan
+
   function nub(x, y, col, label, view) {
     var grp = document.createElementNS(NS, "g");
     grp.setAttribute("class", "gz-nub");
     var c = document.createElementNS(NS, "circle");
-    c.setAttribute("cx", x); c.setAttribute("cy", y); c.setAttribute("r", label ? 8.5 : 7);
+    c.setAttribute("cx", x); c.setAttribute("cy", y); c.setAttribute("r", label ? 6.5 : 5);
     c.setAttribute("stroke", col);
     grp.appendChild(c);
     var tx = null;
     if (label) {
       tx = document.createElementNS(NS, "text");
       tx.setAttribute("x", x); tx.setAttribute("y", y); tx.setAttribute("text-anchor", "middle");
-      tx.setAttribute("dy", "3.2"); tx.setAttribute("class", "gz-lbl"); tx.textContent = label;
+      tx.setAttribute("dy", "3.0"); tx.setAttribute("class", "gz-lbl"); tx.textContent = label;
       grp.appendChild(tx);
     }
     grp.addEventListener("click", function (e) {
@@ -315,6 +364,7 @@ export function initPlanGizmo() {
   nub(C, C - R, "#4f8cf6", "", "back");
   nub(C, C, "#3fa34d", "Y", "top");
   svg.appendChild(g);
+
   el.appendChild(svg);
   host.appendChild(el);
   updatePlanGizmo();
@@ -325,9 +375,13 @@ export function updatePlanGizmo() {
   planGizmoNubs.forEach(function (n) {
     var active = n.view === cur;
     n.circle.setAttribute("fill", active ? n.col : "#fff");
-    n.circle.setAttribute("stroke-width", active ? 2.4 : 1.6);
+    n.circle.setAttribute("stroke-width", active ? 2.2 : 1.4);
     if (n.text) n.text.style.fill = active ? "#fff" : n.col;
   });
+  if (planGizmoCompass) {
+    var deg = (S.northAngle || 0) + (S.planRot || 0);
+    planGizmoCompass.setAttribute("transform", "rotate(" + deg + " 42 42)");
+  }
   /* Load, reset, and axis clicks all land here, so the plan-only wall tools
      disable as soon as the view is an elevation — not only after a later
      toolbar click. */
@@ -1037,7 +1091,6 @@ function renderHUD() {
     else if (S.hoverNode != null && S.nodes[S.hoverNode]) nodeCard(S.hoverNode);
   }
   if (rotated) pc.restore(); // end plan rotation — overlays below stay screen-fixed
-  drawNorth();
   if (S.showDims) drawScale();
   drawTouchGuide();
   pc.restore(); // end screen-space clip
@@ -1870,40 +1923,7 @@ if (typeof window !== "undefined") {
   });
 }
 
-function drawNorth() {
-  var x = 28,
-    y = 34,
-    // needle tracks the plan rotation so it keeps pointing at the drawing's north
-    a = ((S.northAngle + (S.planRot || 0)) * Math.PI) / 180;
-  pc.save();
-  pc.beginPath();
-  pc.arc(x, y, 15, 0, 7);
-  pc.fillStyle = "rgba(255,255,255,.8)";
-  pc.fill();
-  pc.lineWidth = 1;
-  pc.strokeStyle = "#6b6356";
-  pc.stroke();
-  pc.save();
-  pc.translate(x, y);
-  pc.rotate(a);
-  pc.beginPath();
-  pc.moveTo(0, -12);
-  pc.lineTo(-5, 2);
-  pc.lineTo(0, -1);
-  pc.lineTo(5, 2);
-  pc.closePath();
-  pc.fillStyle = "#c0563b";
-  pc.fill();
-  pc.restore();
-  var tx = x + Math.sin(a) * 22,
-    ty = y - Math.cos(a) * 22;
-  pc.fillStyle = "#33312c";
-  pc.font = "bold 10px Arial";
-  pc.textAlign = "center";
-  pc.textBaseline = "middle";
-  pc.fillText(t("n_letter"), tx, ty);
-  pc.restore();
-}
+
 function drawScale() {
   if (!planViewReady()) return;
   var cm = niceScaleCm(S.SC);

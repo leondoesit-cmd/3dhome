@@ -11,6 +11,7 @@ export const BP_ENDPOINT = "http://localhost:11434";
 export const CV_ENDPOINT = "http://localhost:8077";
 
 export const BP_MODELS = [
+  { id: "qwen3.8-27b", label: "Qwen 3.8 27B" },
   { id: "gemma4:12b-instruct-q8_0", label: "Gemma 4 12B (8-bit)" },
   { id: "qwen3.6-vl:27b-q4_K_M", label: "Qwen 3.6 27B (4-bit)" },
   { id: "gemma4:e4b", label: "Gemma 4 E4B (light)" },

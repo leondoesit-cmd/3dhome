@@ -97,7 +97,10 @@ subscription, or cloud service.
 - Inserts/bushings with per-face appearances and named configurations
 - Screw, tangent and limit mates plus ISO 286 hole/shaft fits
 - Toolbox SHCS, hex screws, nuts and brass bushings
-- Drawing sheets with section views, hole callouts, balloons and a title block
+- Drawing sheets on real paper (A4-A0, first/third angle) with hidden-line
+  removal, centre marks and axes, section and detail views, dimensions you place
+  on the projection, leader notes, a parts list and an ISO title block — printed
+  or exported as SVG at true size from the same scene the screen draws
 
 ## Next: parametric sketch kernel, remaining
 
@@ -123,8 +126,9 @@ subscription, or cloud service.
 
 ## Next: drawings and interoperability
 
-- Detail views and fully associative drawing dimensions
-- DXF/SVG/PDF drawing export
+- Drawing dimensions that drive the model, not only measure it
+- Broken-out and aligned sections, revision clouds and GD&T frames
+- DXF export (SVG and print are done; PDF goes through the browser's printer)
 - STEP, STL, OBJ, GLB and 3MF workflows
 - Autosave snapshots, portable project bundles and offline installable PWA
 

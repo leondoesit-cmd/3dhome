@@ -15,6 +15,8 @@ export const HOLE_STANDARDS = Object.freeze(["ISO 4762", "ISO 4017", "ISO 273"])
 // ISO handbook approximation (D − P). Counterbore numbers are DIN 974-1 / ISO
 // 4762 socket-head cap-screw recesses.
 export const METRIC_HOLE_TABLE = Object.freeze({
+  M2:  { size: "M2",  diameterMm: 2,  pitchMm: 0.4,  tapDrillMm: 1.6,  closeMm: 2.2,  normalMm: 2.4,  looseMm: 2.6,  cboreDiaMm: 4.4,  cboreDepthMm: 2.2,  csinkDiaMm: 4.4,  hexAfMm: 1.5, headDiaMm: 3.8,  headHeightMm: 2 },
+  "M2.5": { size: "M2.5", diameterMm: 2.5, pitchMm: 0.45, tapDrillMm: 2.05, closeMm: 2.7, normalMm: 2.9, looseMm: 3.1, cboreDiaMm: 5.5, cboreDepthMm: 2.7, csinkDiaMm: 5.5, hexAfMm: 2, headDiaMm: 4.5, headHeightMm: 2.5 },
   M3:  { size: "M3",  diameterMm: 3,  pitchMm: 0.5,  tapDrillMm: 2.5,  closeMm: 3.4,  normalMm: 3.6,  looseMm: 3.8,  cboreDiaMm: 6.5,  cboreDepthMm: 3.4,  csinkDiaMm: 6.0,  hexAfMm: 2.5, headDiaMm: 5.5,  headHeightMm: 3 },
   M4:  { size: "M4",  diameterMm: 4,  pitchMm: 0.7,  tapDrillMm: 3.3,  closeMm: 4.5,  normalMm: 4.8,  looseMm: 5.0,  cboreDiaMm: 8.0,  cboreDepthMm: 4.4,  csinkDiaMm: 8.0,  hexAfMm: 3,   headDiaMm: 7.0,  headHeightMm: 4 },
   M5:  { size: "M5",  diameterMm: 5,  pitchMm: 0.8,  tapDrillMm: 4.2,  closeMm: 5.5,  normalMm: 5.8,  looseMm: 6.0,  cboreDiaMm: 10.0, cboreDepthMm: 5.4,  csinkDiaMm: 10.0, hexAfMm: 4,   headDiaMm: 8.5,  headHeightMm: 5 },
@@ -22,8 +24,10 @@ export const METRIC_HOLE_TABLE = Object.freeze({
   M8:  { size: "M8",  diameterMm: 8,  pitchMm: 1.25, tapDrillMm: 6.8,  closeMm: 9.0,  normalMm: 10.0, looseMm: 11.0, cboreDiaMm: 15.0, cboreDepthMm: 8.8,  csinkDiaMm: 16.0, hexAfMm: 6,   headDiaMm: 13.0, headHeightMm: 8 },
   M10: { size: "M10", diameterMm: 10, pitchMm: 1.5,  tapDrillMm: 8.5,  closeMm: 11.0, normalMm: 12.0, looseMm: 12.0, cboreDiaMm: 18.0, cboreDepthMm: 10.8, csinkDiaMm: 20.0, hexAfMm: 8,   headDiaMm: 16.0, headHeightMm: 10 },
   M12: { size: "M12", diameterMm: 12, pitchMm: 1.75, tapDrillMm: 10.2, closeMm: 13.5, normalMm: 14.0, looseMm: 15.0, cboreDiaMm: 20.0, cboreDepthMm: 13.0, csinkDiaMm: 24.0, hexAfMm: 10,  headDiaMm: 18.0, headHeightMm: 12 },
+  M14: { size: "M14", diameterMm: 14, pitchMm: 2.0,  tapDrillMm: 12.0, closeMm: 15.5, normalMm: 16.0, looseMm: 17.0, cboreDiaMm: 23.0, cboreDepthMm: 15.2, csinkDiaMm: 28.0, hexAfMm: 12,  headDiaMm: 21.0, headHeightMm: 14 },
   M16: { size: "M16", diameterMm: 16, pitchMm: 2.0,  tapDrillMm: 14.0, closeMm: 17.5, normalMm: 18.0, looseMm: 19.0, cboreDiaMm: 26.0, cboreDepthMm: 17.5, csinkDiaMm: 31.0, hexAfMm: 14,  headDiaMm: 24.0, headHeightMm: 16 },
   M20: { size: "M20", diameterMm: 20, pitchMm: 2.5,  tapDrillMm: 17.5, closeMm: 22.0, normalMm: 24.0, looseMm: 26.0, cboreDiaMm: 33.0, cboreDepthMm: 21.5, csinkDiaMm: 38.0, hexAfMm: 17,  headDiaMm: 30.0, headHeightMm: 20 },
+  M24: { size: "M24", diameterMm: 24, pitchMm: 3.0,  tapDrillMm: 21.0, closeMm: 26.0, normalMm: 28.0, looseMm: 30.0, cboreDiaMm: 40.0, cboreDepthMm: 25.5, csinkDiaMm: 45.0, hexAfMm: 19,  headDiaMm: 36.0, headHeightMm: 24 },
 });
 
 const FIT_COLUMN = { close: "closeMm", normal: "normalMm", loose: "looseMm" };

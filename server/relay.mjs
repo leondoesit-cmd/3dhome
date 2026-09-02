@@ -353,7 +353,7 @@ const AGENT_MAX_TOKENS = Math.max(256, Math.min(16384, Number(process.env.HOME3D
 const AGENT_TOOL_NAMES = new Set([
   "get_app_context", "get_project_summary", "query_objects", "search_app_tools",
   "get_history_summary", "get_object_history", "compare_history_nodes", "search_catalog",
-  "list_model_commands", "preview_model_command",
+  "list_model_commands", "preview_model_command", "preview_item_snap",
 ]);
 const agentRate = new Map();
 
@@ -458,7 +458,11 @@ async function agentChat(req, res) {
   try { payload = await readJsonBody(req, 2 * 1024 * 1024); }
   catch (err) { return json(res, 400, { error: String(err.message || err) }); }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 120000);
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 180000);
+  const clientGone = () => { if (!res.writableEnded) controller.abort(); };
+  req.once("aborted", clientGone);
+  res.once("close", clientGone);
   try {
     const endpoint = /\/v1$/i.test(AGENT_BASE_URL)
       ? AGENT_BASE_URL + "/chat/completions" : AGENT_BASE_URL + "/v1/chat/completions";
@@ -483,8 +487,14 @@ async function agentChat(req, res) {
     try { data = JSON.parse(text); } catch (_) { data = { error: text || "Invalid upstream response" }; }
     json(res, upstream.status, data);
   } catch (err) {
-    json(res, 502, { error: String(err && err.message ? err.message : err) });
-  } finally { clearTimeout(timer); }
+    if (!res.destroyed) json(res, timedOut ? 504 : 502, {
+      error: timedOut ? "Agent request timed out" : String(err && err.message ? err.message : err),
+    });
+  } finally {
+    clearTimeout(timer);
+    req.removeListener("aborted", clientGone);
+    res.removeListener("close", clientGone);
+  }
 }
 
 // ---- static app ------------------------------------------------------------

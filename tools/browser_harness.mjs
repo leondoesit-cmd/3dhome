@@ -424,14 +424,28 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
 
     async eval(fn, ...args) {
       const expr = "(" + fn.toString() + ")(" + args.map((a) => JSON.stringify(a)).join(",") + ")";
-      const { result, exceptionDetails } = await cdp.send("Runtime.evaluate", {
-        expression: expr,
-        awaitPromise: true,
-        returnByValue: true,
-      });
+      let res;
+      try {
+        res = await cdp.send("Runtime.evaluate", {
+          expression: expr,
+          awaitPromise: true,
+          returnByValue: true,
+        });
+      } catch (err) {
+        if (err && err.message && err.message.includes("Promise was collected")) {
+          res = await cdp.send("Runtime.evaluate", {
+            expression: expr,
+            awaitPromise: true,
+            returnByValue: true,
+          });
+        } else {
+          throw err;
+        }
+      }
+      const { result, exceptionDetails } = res;
       if (exceptionDetails)
         throw new Error(exceptionDetails.exception?.description || exceptionDetails.text);
-      return result.value;
+      return result?.value;
     },
 
     async goto(path = "/") {

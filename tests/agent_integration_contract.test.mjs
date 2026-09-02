@@ -18,8 +18,10 @@ test("AI helper has a distinct launcher, settings tab, and boot path", () => {
 });
 
 test("model mutations stop at preview until the user explicitly confirms", () => {
+  assert.match(runtime, /preview_item_snap/);
   assert.match(runtime, /preview_model_command/);
   assert.doesNotMatch(runtime, /name: "execute_model_command"/);
+  assert.match(runtime, /agent-external-proposal/);
   assert.match(ui, /accept\.onclick/);
   assert.match(ui, /executePlannerProposal\(proposal\)/);
   assert.doesNotMatch(runtime, /executeConfirmed/);

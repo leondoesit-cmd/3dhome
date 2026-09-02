@@ -2,6 +2,7 @@
 
 import { booleanBrep } from "./cad_kernel.js";
 import { framePoint } from "./core/frame.js";
+import { bomIdentity } from "./toolbox/schema.js";
 
 export async function detectInterference(assemblyComponents) {
   const interferences = [];
@@ -66,11 +67,28 @@ export function intersectionBounds(a, b) {
   return bounds.x1 > bounds.x0 && bounds.y1 > bounds.y0 && bounds.z1 > bounds.z0 ? bounds : null;
 }
 
+function componentStandardPart(component) {
+  if (!component) return null;
+  if (component.standardPart) return component.standardPart;
+  if (component.def && component.def.standardPart) return component.def.standardPart;
+  const parts = (component.def && component.def.parts) || component.parts || [];
+  for (const part of parts) {
+    if (part && part.standardPart) return part.standardPart;
+  }
+  return null;
+}
+
 export function generateBOM(assembly) {
   const map = new Map();
   for (const comp of assembly.components || []) {
-    const key = comp.modelKey || comp.name || "Unknown";
-    const existing = map.get(key) || { key, name: comp.name || key, quantity: 0 };
+    const meta = componentStandardPart(comp);
+    const key = (meta && bomIdentity(meta)) || (meta && meta.designation) || comp.modelKey || comp.name || "Unknown";
+    const existing = map.get(key) || {
+      key, name: (meta && meta.designation) || comp.name || key, quantity: 0,
+      standard: meta && meta.standard || "", material: meta && meta.material || "",
+      finish: meta && meta.finish || "", category: meta && meta.category || "",
+      materialId: meta && meta.materialId || "", propertyClass: meta && meta.propertyClass || "",
+    };
     existing.quantity += 1;
     map.set(key, existing);
   }

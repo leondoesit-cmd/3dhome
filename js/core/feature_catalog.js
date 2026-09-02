@@ -481,6 +481,27 @@ export const FEATURE_CATALOG = Object.freeze({
       ]},
     ]}]},
   },
+  toolbox: {
+    label: "Toolbox Part",
+    labelKey: "fcFeatToolbox",
+    icon: "toolboxfastener",
+    selection: {},
+    defaults: { kind: "shcs", sizeKey: "M8", lengthMm: 30, material: "steel-8.8-zinc", finish: "Zinc Plated", threadMode: "cosmetic", lod: 2 },
+    parameters: {
+      kind: { type: "string" }, sizeKey: { type: "string" }, lengthMm: { type: "number", min: 0 },
+      material: { type: "string" }, finish: { type: "string" }, threadMode: ENUM("cosmetic", "modeled"),
+      lod: { type: "number", integer: true, min: 0, max: 2 },
+    },
+    editor: { groups: [{ id: "toolbox", label: "Standard part", labelKey: "fcGrpToolbox", icon: "ph-toolbox", fields: [
+      { key: "kind", label: "Family", labelKey: "fcFldToolboxFamily", type: "text" },
+      { key: "sizeKey", label: "Size", labelKey: "fcFldToolboxSize", type: "text" },
+      { key: "lengthMm", label: "Length (mm)", labelKey: "fcFldLengthMm", type: "number", min: 0, step: 1 },
+      { key: "material", label: "Material", labelKey: "fcFldMaterial", type: "text" },
+      { key: "finish", label: "Finish", labelKey: "fcFldToolboxFinish", type: "text" },
+      { key: "threadMode", label: "Thread geometry", labelKey: "fcFldThreadGeometry", type: "select", choices: COSMETIC_MODES },
+      { key: "lod", label: "Detail level", labelKey: "fcFldToolboxLod", type: "number", min: 0, max: 2, step: 1 },
+    ]}]},
+  },
 });
 
 export const PARAMETRIC_FEATURE_TYPES = Object.freeze(Object.keys(FEATURE_CATALOG));

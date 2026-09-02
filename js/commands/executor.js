@@ -229,6 +229,14 @@ export function executePreparedBatch(preparedList, env, options = {}) {
   var token = null, created = [], changed = [], results = [], effects = {};
   try {
     if (useHistory) token = historyBegin(history, options.label || "");
+    if (env.services && typeof env.services.beforeCommandBatchApply === "function") {
+      var beforeBatch = env.services.beforeCommandBatchApply(list, env);
+      if (beforeBatch === false || beforeBatch && beforeBatch.ok === false) {
+        var beforeError = new Error(beforeBatch && beforeBatch.reason || "BATCH_PREPARATION_FAILED");
+        beforeError.commandResult = beforeBatch || null;
+        throw beforeError;
+      }
+    }
     for (i = 0; i < list.length; i++) {
       var entry = list[i];
       var result = entry.command.apply(entry.plan, env);
@@ -242,6 +250,18 @@ export function executePreparedBatch(preparedList, env, options = {}) {
       if (Array.isArray(result.created)) created.push(...result.created);
       if (Array.isArray(result.changed)) changed.push(...result.changed);
       mergeEffects(effects, result.effects);
+    }
+    if (env.services && typeof env.services.afterCommandBatchApply === "function") {
+      var afterBatch = env.services.afterCommandBatchApply(list, env);
+      if (afterBatch === false || afterBatch && afterBatch.ok === false) {
+        var afterError = new Error(afterBatch && afterBatch.reason || "BATCH_FINALIZATION_FAILED");
+        afterError.commandResult = afterBatch || null;
+        throw afterError;
+      }
+      if (afterBatch) {
+        if (Array.isArray(afterBatch.changed)) changed.push(...afterBatch.changed);
+        mergeEffects(effects, afterBatch.effects);
+      }
     }
     var validationInput = { results, created, changed, effects };
     var validators = [validateModelState];
@@ -285,6 +305,10 @@ export function executePreparedBatch(preparedList, env, options = {}) {
       index: error.commandIndex,
       message: error && error.message || String(error),
     });
+  } finally {
+    if (env.services && typeof env.services.cleanupCommandBatchApply === "function") {
+      try { env.services.cleanupCommandBatchApply(list, env); } catch (_) {}
+    }
   }
 }
 

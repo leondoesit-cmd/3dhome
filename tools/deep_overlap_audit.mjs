@@ -164,7 +164,12 @@ window.__runLayoutAudit = function(stageName, isMobile) {
     ".tb-pill button:not([hidden])",
     "#floor-tabs button:not([hidden])",
     ".insp-tab:not([hidden])",
-    ".cad-chip:not([hidden])"
+    ".cad-chip:not([hidden])",
+    ".view-gizmo:not([hidden])",
+    ".plan-gizmo:not([hidden])",
+    ".view-max-btn:not([hidden])",
+    ".view-edit-btn:not([hidden])",
+    ".lbl:not([hidden])"
   ].join(",");
 
   const elements = Array.from(document.querySelectorAll(selector)).filter(isVisible);

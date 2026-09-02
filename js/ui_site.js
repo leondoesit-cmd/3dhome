@@ -227,7 +227,8 @@ function importFootprintWalls() {
 // Both settings that touch the user's Google key live here, opened from the
 // topbar gear. The key drives search, Street View, and the aerial overlay; the
 // map-source select controls the interactive picker's base imagery.
-function openSettings() {
+function openSettings(initialPane) {
+  initialPane = typeof initialPane === "string" ? initialPane : "general";
   var m = openModal(t("settings_title"));
   m.modal.classList.add("settings-modal");
   m.body.classList.add("settings-modal-body");
@@ -303,6 +304,7 @@ function openSettings() {
   agentTab.onclick = function () { showPane("agent"); };
   touchTab.onclick = function () { showPane("touch"); };
   iconsTab.onclick = function () { showPane("icons"); };
+  showPane(initialPane);
 
   // -- Google API key -------------------------------------------------------
   var keyLbl = el("span", "t", t("site_gkey_l"));
@@ -758,6 +760,7 @@ export function initSite() {
   if ($("site_import")) $("site_import").onclick = importFootprintWalls;
   // Google key + map-source now live in the Settings modal (topbar gear).
   if ($("btn_settings")) $("btn_settings").onclick = openSettings;
+  window.addEventListener("agent-open-settings", function () { openSettings("agent"); });
 
   // a plan load (ui.js applyData) fires this after replacing S.site
   window.addEventListener("site:reload", function () {

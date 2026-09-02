@@ -1,9 +1,16 @@
 const STORAGE_KEY = "modelforge_agent_settings_v1";
+const PROVIDER_DEFAULTS = Object.freeze({
+  lmstudio: Object.freeze({ endpoint: "http://localhost:1234/v1", model: "qwen3.8-27b" }),
+  gemini: Object.freeze({ endpoint: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-3.7-flash" }),
+  ollama: Object.freeze({ endpoint: "http://localhost:11434", model: "qwen3.8:27b" }),
+  openai: Object.freeze({ endpoint: "https://api.openai.com/v1", model: "" }),
+  server: Object.freeze({ endpoint: "", model: "" }),
+});
 
 export const AGENT_DEFAULTS = Object.freeze({
-  provider: "ollama",
-  endpoint: "http://localhost:11434",
-  model: "",
+  provider: "lmstudio",
+  endpoint: PROVIDER_DEFAULTS.lmstudio.endpoint,
+  model: PROVIDER_DEFAULTS.lmstudio.model,
   includeEntities: true,
   includeHistory: true,
   includeTutorial: true,
@@ -19,12 +26,13 @@ let sessionBridgeToken = "";
 
 function clean(raw) {
   raw = raw && typeof raw === "object" ? raw : {};
-  var provider = ["ollama", "server", "openai"].includes(raw.provider)
+  var provider = ["ollama", "lmstudio", "gemini", "server", "openai"].includes(raw.provider)
     ? raw.provider : AGENT_DEFAULTS.provider;
+  var defaults = PROVIDER_DEFAULTS[provider];
   return {
     provider: provider,
-    endpoint: String(raw.endpoint || AGENT_DEFAULTS.endpoint).trim().slice(0, 2048),
-    model: String(raw.model || "").trim().slice(0, 200),
+    endpoint: String(raw.endpoint || defaults.endpoint).trim().slice(0, 2048),
+    model: String(raw.model != null ? raw.model : defaults.model).trim().slice(0, 200),
     includeEntities: raw.includeEntities !== false,
     includeHistory: raw.includeHistory !== false,
     includeTutorial: raw.includeTutorial !== false,

@@ -15,6 +15,8 @@
     "ci": "npm run check && npm test && npm run test:browser",
     "test:browser": "node --test --test-concurrency=3 tests/*.browser.mjs",
     "audit:overlaps": "node tools/deep_overlap_audit.mjs",
+    "audit:contrast": "node tools/color_contrast_audit.mjs",
+    "audit:all": "node tools/deep_overlap_audit.mjs && node tools/color_contrast_audit.mjs",
     "dataset:tutor": "node tools/generate_tutor_dataset.mjs",
     "eval:tutor": "node tools/evaluate_tutor_policy.mjs",
     "mcp:agent": "node server/agent_mcp.mjs"

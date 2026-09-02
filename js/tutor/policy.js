@@ -3,7 +3,8 @@ const MODES = Object.freeze(["answer", "ask", "coach", "propose"]);
 function text(value, limit) { return String(value || "").trim().slice(0, limit); }
 
 export function normalizeTutorDecision(value, fallbackMessage = "") {
-  var raw = value && typeof value === "object" ? value : {};
+  var structured = !!(value && typeof value === "object");
+  var raw = structured ? value : {};
   var mode = MODES.includes(raw.mode) ? raw.mode : "answer";
   var confidence = Number(raw.confidence);
   if (!Number.isFinite(confidence)) confidence = 0.5;
@@ -16,10 +17,15 @@ export function normalizeTutorDecision(value, fallbackMessage = "") {
   var operations = Array.isArray(raw.proposedOperations) ? raw.proposedOperations.slice(0, 20).filter(function (entry) {
     return entry && typeof entry === "object" && typeof entry.commandId === "string" && entry.params && typeof entry.params === "object" && !Array.isArray(entry.params);
   }).map(function (entry) { return { commandId: text(entry.commandId, 120), params: entry.params }; }) : [];
+  var question = text(raw.question, 1000), hasOptions = Array.isArray(raw.options) && raw.options.length;
+  if (question && !operations.length && (hasOptions || !text(raw.message || raw.answer, 4000))) mode = "ask";
   return {
     mode: mode,
-    message: text(raw.message || raw.answer || fallbackMessage, 4000),
-    question: mode === "ask" ? text(raw.question, 1000) : "",
+    // A parsed structured response owns its fields. Falling back to its source
+    // text here would expose fenced JSON whenever the model intentionally left
+    // message empty and supplied a question, options, or operations instead.
+    message: text(raw.message || raw.answer || (structured ? "" : fallbackMessage), 4000),
+    question: mode === "ask" ? question : "",
     options: mode === "ask" && Array.isArray(raw.options)
       ? raw.options.slice(0, 4).map(function (option) { return text(option, 160); }).filter(Boolean) : [],
     evidence: evidence,

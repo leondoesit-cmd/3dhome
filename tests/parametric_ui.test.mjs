@@ -7,7 +7,8 @@ const commandSource = await readFile(new URL("../js/modeler_commands.js", import
 const formSource = await readFile(new URL("../js/modeler_feature_form.js", import.meta.url), "utf8");
 const draftSource = await readFile(new URL("../js/modeler_draft.js", import.meta.url), "utf8");
 const workflowSource = await readFile(new URL("../js/modeler_workflow.js", import.meta.url), "utf8");
-const source = [modelerSource, commandSource, formSource, draftSource, workflowSource].join("\n");
+const drawingSource = await readFile(new URL("../js/modeler_drawing.js", import.meta.url), "utf8");
+const source = [modelerSource, commandSource, formSource, draftSource, workflowSource, drawingSource].join("\n");
 const editorViewSource = await readFile(new URL("../js/editor_view.js", import.meta.url), "utf8");
 const featureCatalogSource = await readFile(new URL("../js/core/feature_catalog.js", import.meta.url), "utf8");
 const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
@@ -172,9 +173,8 @@ test("model display starts solid with black edges, and can hide them", () => {
 test("Drawing mode exposes a two-point Smart Ruler that edits and saves the model", () => {
   assert.match(source, /id="mdDrawingTools"/);
   assert.match(source, /data-drawing-tool="dim"/);
-  assert.match(source, /function beginSmartRulerPoint/);
-  assert.match(source, /mode:"dimension"/);
-  assert.match(source, /editPlacedDimension/);
+  assert.match(source, /commitDim/);
+  assert.match(source, /editPlacedDimension|editDim/);
   assert.match(source, /id="mdDrawingSave"/);
   assert.match(source, /#mdDrawingSave"\)\.addEventListener\("click", saveCurrentDocument\)/);
 });

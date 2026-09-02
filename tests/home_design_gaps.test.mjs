@@ -13,7 +13,7 @@ import {
 import { floorAbove, addSlabOpeningToFloor, configureFloorIO } from "../js/floors.js";
 import { convertCadToWalls } from "../js/cad_to_walls.js";
 import { scaleScan, longestScanEdge, roomScanFromPoints, RoomScanError, insetScan, scanBounds } from "../js/room_scan.js";
-import { applyPlanOp } from "../js/plan_sync.js";
+import { applyPlanOp, itemMovePlanOps } from "../js/plan_sync.js";
 import { titleBlockSVG, wrapPlanSVG, sheetLayout, PAPER_SIZES } from "../js/sheet_print.js";
 
 function reset() {
@@ -148,13 +148,30 @@ test("plan ops move items and voids without a DOM", () => {
     slabOpenings: [{ id: 3, x: 0, z: 0, w: 100, d: 200 }],
     nodes: [{ x: 0, z: 0 }],
   };
-  assert.equal(applyPlanOp({ type: "itemMove", id: 5, x: 40, z: 50 }, st), true);
-  assert.equal(st.items[0].x, 40);
+  assert.equal(applyPlanOp({ type: "itemMove", id: 5, x: 40, z: 50, elev: 90, on: 7,
+    hold: { wall: 11, gap: 0, side: 1 }, rotUser: 1 }, st), true);
+  assert.deepEqual(st.items[0], { id: 5, x: 40, z: 50, rot: 0, elev: 90, on: 7,
+    hold: { wall: 11, gap: 0, side: 1 }, rotUser: 1 });
   assert.equal(applyPlanOp({ type: "openingSet", id: 8, fields: { s: 140 } }, st), true);
   assert.equal(st.openings[0].s, 140);
   assert.equal(applyPlanOp({ type: "slabMove", id: 3, x: 12, z: 9 }, st), true);
   assert.equal(st.slabOpenings[0].x, 12);
   assert.equal(applyPlanOp({ type: "bogus" }, st), false);
+});
+
+test("item-move senders serialize full state for selected roots and carried descendants", () => {
+  const parent = { id: 50, x: 100, z: 200, rot: 90, elev: 15,
+    hold: { wall: 3, gap: 0, side: 1 }, rotUser: 1 };
+  const child = { id: 51, x: 110, z: 200, rot: 90, elev: 105, on: 50 };
+  const other = { id: 52, x: 300, z: 400, rot: 0 };
+  assert.deepEqual(itemMovePlanOps([parent, child, other], [parent, child, other]), [
+    { type: "itemMove", id: 50, x: 100, z: 200, rot: 90, elev: 15, on: null,
+      hold: { wall: 3, gap: 0, side: 1 }, rotUser: 1 },
+    { type: "itemMove", id: 51, x: 110, z: 200, rot: 90, elev: 105, on: 50,
+      hold: null, rotUser: null },
+    { type: "itemMove", id: 52, x: 300, z: 400, rot: 0, elev: null, on: null,
+      hold: null, rotUser: null },
+  ]);
 });
 
 /* JSON.parse makes `__proto__` a real own enumerable key, so a blind

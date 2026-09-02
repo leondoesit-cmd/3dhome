@@ -26,12 +26,13 @@ import {
   offsetGhost, offsetSideFromCursor, joinProposal, paintWallWithDefaults,
   reverseWallStyle, resolveWallDrawDefaults,
 } from "./wall_draw.js";
-import { makeArcFromThreePoints } from "./wall_curves.js";
+import { makeArcFromThreePoints, normalizeWallKind } from "./wall_curves.js";
+import { canonicalPlacementItem, canonicalPlacementWall, placementBatchFitsScene, placementWallFingerprint } from "./placement_resolver.js";
 import {
   applyCornerRestore, applyCornerTreatmentUpdate, applyWallChamfer, applyWallFillet,
   proposeCornerRestore, proposeCornerTreatmentUpdate, proposeWallChamfer, proposeWallFillet,
 } from "./wall_fillet.js";
-import { FURN, isLamp, mkItem } from "./furniture.js";
+import { FURN, isLamp, itemVSpan, mkItem } from "./furniture.js";
 import { holdToWall, reseatHeldItems } from "./item_align.js";
 import { applyAutoFace, markManualRot, rotStep } from "./item_orient.js";
 import { t, tTouch } from "./i18n.js";
@@ -69,6 +70,8 @@ import {
   hostOf,
   carryChildren,
   rotateWith,
+  wouldCycle,
+  topOf,
   descendantsOf,
   orphanChildren,
   refreshSupport,
@@ -81,7 +84,7 @@ import {
 import {
   hitSlabOpening, openingFromRect, removeSlabOpening,
 } from "./slab_openings.js";
-import { broadcastPlanOp, sendPlanCursor } from "./plan_sync.js";
+import { broadcastPlanOp, itemMovePlanOp, itemMovePlanOps, sendPlanCursor } from "./plan_sync.js";
 import { syncStairVoids } from "./ui.js";
 import {
   snapshotNodes, enforceLocks, captureLock, canWeld, hitWarning,
@@ -2306,12 +2309,13 @@ function materializePlannerWall(params, env, context) {
   if (clear > 0) wall.clearL = clear;
   var createdNodeIds = [];
   for (var i = oldNodeCount; i < S.nodes.length; i++) createdNodeIds.push(i);
-  return {
+  var result = {
     ok: true,
     wall: wall,
     createdNodeIds: createdNodeIds,
     changedNodeIds: [a, b].filter(function (id) { return id < oldNodeCount; }),
   };
+  return result;
 }
 
 function agentCommandEnvironment() {
@@ -2322,6 +2326,15 @@ function agentCommandEnvironment() {
     version: { current: currentHistoryId },
     itemCatalog: FURN,
     services: {
+      canPlaceItem: function (item) {
+        return !!item && !item.locked && canDrag({ kind: "item", ref: item });
+      },
+      validatePlacementGuard: validatePlacementGuard,
+      commitItemPlacement: commitItemPlacement,
+      beforeCommandBatchApply: beforePlacementCommandBatch,
+      afterCommandBatchApply: afterPlacementCommandBatch,
+      cleanupCommandBatchApply: cleanupPlacementCommandBatch,
+      postValidateCommands: validatePlacementRelations,
       materializeWall: materializePlannerWall,
       createItem: mkItem,
       applyAutoFace: function (item, x, z) {
@@ -2341,11 +2354,62 @@ function agentCommandEnvironment() {
         if (result.effects && result.effects.refreshTree) refreshTree();
         if (result.effects && result.effects.refreshInspector) fillProps();
         (result.effects && result.effects.events || []).forEach(function (event) {
+          if (event.type === "planner-item-moved") {
+            var moved = (S.items || []).find(function(item) { return String(item.id) === String(event.entityId); });
+            if (moved) broadcastPlanOp(itemMovePlanOp(moved));
+          }
           window.dispatchEvent(new CustomEvent(event.type, { detail: event }));
         });
       },
     },
   };
+}
+
+function currentPlacementWallFingerprint(id) {
+  var sampled = canonicalPlacementWall(wallById(id), {
+    wallGeom: wallGeom, wallPointAt: wallPointAt, normalizeWallKind: normalizeWallKind,
+  });
+  return placementWallFingerprint(sampled);
+}
+
+function currentPlacementScene() {
+  var geometry = { wallGeom: wallGeom, wallPointAt: wallPointAt, normalizeWallKind: normalizeWallKind };
+  return {
+    items: (S.items || []).map(function(item) {
+      return placementItemProjection(item);
+    }),
+    walls: (S.walls || []).map(function(wall) { return canonicalPlacementWall(wall, geometry); }).filter(Boolean),
+    rooms: detectRooms().map(function(room) {
+      return { key: room.key, area: room.area, pts: room.pts,
+        wallIds: String(room.key || "").split(",").filter(Boolean) };
+    }),
+  };
+}
+
+function placementItemProjection(item) {
+  return canonicalPlacementItem(item, { itemVSpan: itemVSpan });
+}
+
+function validatePlacementGuard(guard) {
+  if (!guard || typeof guard !== "object") return false;
+  if (guard.hostWall) {
+    if (String(guard.hostWall.fingerprint || "") !==
+        String(currentPlacementWallFingerprint(guard.hostWall.id) || "")) return false;
+  }
+  if (guard.referenceItem) {
+    var expected = guard.referenceItem;
+    var item = (S.items || []).find(function(candidate) { return String(candidate.id) === String(expected.id); });
+    var rotationDelta = Math.abs(normalizedRotation(item && item.rot) - normalizedRotation(expected.rot));
+    if (!item || Math.abs(Number(item.x) - Number(expected.x)) > 0.05 ||
+        Math.abs(Number(item.z) - Number(expected.z)) > 0.05 ||
+        Math.min(rotationDelta, 360 - rotationDelta) > 0.05) return false;
+  }
+  if (guard.targetHold != null && Array.isArray(guard.excludedItemIds) && guard.excludedItemIds.length) {
+    var targetId = String(guard.excludedItemIds[0]);
+    var target = (S.items || []).find(function(item) { return String(item.id) === targetId; });
+    if (!target || JSON.stringify(target.hold || null) !== String(guard.targetHold)) return false;
+  }
+  return true;
 }
 
 export function previewPlannerCommand(commandId, params) {
@@ -2355,13 +2419,22 @@ export function previewPlannerCommand(commandId, params) {
   if (!prepared.ok) return prepared;
   var preview = previewPrepared(prepared, env);
   if (!preview.ok) return preview;
-  return {
+  var result = {
     ok: true,
     commandId: command.id,
     params: prepared.params,
     plan: prepared.plan,
     preview: preview.preview,
   };
+  if (command.id === "item.move") {
+    var moveParams = prepared.plan && prepared.plan.params;
+    var target = moveParams && (S.items || []).find(function(item) {
+      return String(item.id) === String(moveParams.itemId);
+    });
+    if (target && target.hold && moveParams.holdWallId == null)
+      result.warnings = ["PRESERVED_WALL_HOLD"];
+  }
+  return result;
 }
 
 export function executePlannerProposal(proposal) {
@@ -3175,9 +3248,168 @@ function auditDragProxy(before) {
   }
 }
 
+function normalizedRotation(value) {
+  return ((Number(value) || 0) % 360 + 360) % 360;
+}
+
+/* Apply an already-resolved translation. This is deliberately below every
+   pointer/model intent resolver: it never grids, aligns, auto-faces or reads
+   viewport/modifier state. Drag calls it once per frame; a prepared command
+   calls it once inside its existing history transaction. */
+function applyResolvedItemTranslation(it, x, z, options) {
+  options = options || {};
+  var oldX = Number(it.x), oldZ = Number(it.z), changed = [it];
+  it.x = Number(x);
+  it.z = Number(z);
+  var host = null;
+  if (options.resolveSupport !== false) {
+    var oldOn = it.on, oldElev = it.elev;
+    host = findSupport(it, it.x, it.z);
+    if (host) stackAttach(it, host);
+    else if (it.on != null) stackDetach(it);
+    /* Changing this item's own elevation changes the top inherited by every
+       rider above it. Translation alone cannot repair that vertical chain. */
+    stackReseat(it);
+    if (oldOn !== it.on || oldElev !== it.elev) {
+      descendantsOf(it, new Set([it]), []).forEach(function(child) {
+        if (changed.indexOf(child) === -1) changed.push(child);
+        if (options.touch3D) touchItem3D(child, "move");
+      });
+    }
+    if (options.trackDragState) S.stackHost = host || null;
+  }
+  var moved = new Set(options.excludedItems || []); moved.add(it);
+  carryChildren(it, it.x - oldX, it.z - oldZ, moved).forEach(function(child) {
+    changed.push(child);
+    if (options.touch3D) touchItem3D(child, "move");
+  });
+  if (options.touch3D) touchItem3D(it, "move");
+  return changed;
+}
+
+/* Drop-time domain effects, shared by 2D/3D gestures and command commits.
+   Absence of holdWallId means PRESERVE an existing hold; raw coordinates must
+   never invent or silently release one. */
+function finalizeItemPlacement(it, options) {
+  options = options || {};
+  if (!it) return;
+  if (options.releaseMarker !== false) releaseIfMoved(it);
+  if (options.holdWallId != null) {
+    var wall = wallById(options.holdWallId);
+    if (wall && !it.locked) holdToWall(it, wall, 0);
+  }
+  if (options.markRotationUser) markManualRot(it);
+}
+
+/* One-shot exact-pose commit used by planner commands. Resolution has already
+   happened, so re-running moveItemTo here would incorrectly apply zoom-aware
+   snapping and drag-only auto-facing a second time. */
+function commitItemPlacement(it, placement, env) {
+  placement = placement || {};
+  if (!it || it.locked || !canDrag({ kind: "item", ref: it }))
+    return { ok: false, reason: it && it.locked ? "ITEM_LOCKED" : "PERMISSION_DENIED" };
+  var changed = [it], oldRot = normalizedRotation(it.rot);
+  if (placement.rotationSpecified) {
+    var nextRot = normalizedRotation(placement.rotation), delta = nextRot - oldRot;
+    it.rot = nextRot;
+    var spun = new Set(env && env.placementBatchItems || []); spun.add(it);
+    rotateWith(it, delta, spun).forEach(function(child) { changed.push(child); });
+  }
+  applyResolvedItemTranslation(it, placement.x, placement.z, {
+    resolveSupport: !(env && env.placementBatchItems),
+    excludedItems: env && env.placementBatchItems,
+  }).forEach(function(entry) {
+    if (changed.indexOf(entry) === -1) changed.push(entry);
+  });
+  finalizeItemPlacement(it, {
+    releaseMarker: true,
+    holdWallId: placement.holdWallId,
+    markRotationUser: placement.rotationSpecified && placement.markRotationUser,
+  });
+  syncStairVoids(it);
+  return { ok: true, changedIds: changed.map(function(entry) { return entry.id; }) };
+}
+
+function beforePlacementCommandBatch(entries, env) {
+  var items = new Set(), ids = new Set();
+  (entries || []).forEach(function(entry) {
+    if (!entry || entry.commandId !== "item.move") return;
+    var id = entry.plan && entry.plan.params && entry.plan.params.itemId;
+    if (ids.has(String(id))) return;
+    ids.add(String(id));
+    var item = (S.items || []).find(function(candidate) { return String(candidate.id) === String(id); });
+    if (item) items.add(item);
+  });
+  var moveCount = (entries || []).filter(function(entry) { return entry && entry.commandId === "item.move"; }).length;
+  if (ids.size !== moveCount) return { ok: false, reason: "AMBIGUOUS_ITEM_TARGET" };
+  var semantic = (entries || []).filter(function(entry) {
+    return entry && entry.commandId === "item.move" && entry.plan && entry.plan.params && entry.plan.params.placementGuard;
+  }).map(function(entry) {
+    var params = entry.plan.params;
+    return { itemId: params.itemId, x: params.to.x, z: params.to.z,
+      rot: params.rotationSpecified ? params.rotation : null };
+  });
+  if (semantic.length && !placementBatchFitsScene(currentPlacementScene(), semantic))
+    return { ok: false, reason: "PLACEMENT_GEOMETRY_CHANGED" };
+  env.placementBatchItems = items.size ? items : null;
+  return { ok: true };
+}
+
+function afterPlacementCommandBatch(_entries, env) {
+  var items = env.placementBatchItems;
+  if (!items) return { ok: true };
+  var changed = [];
+  items.forEach(function(item) {
+    var oldOn = item.on, oldElev = item.elev;
+    var host = findSupport(item, item.x, item.z);
+    if (host) stackAttach(item, host);
+    else if (item.on != null) stackDetach(item);
+    stackReseat(item);
+    changed.push({ kind: "item", id: item.id });
+    if (oldOn !== item.on || oldElev !== item.elev) {
+      descendantsOf(item, new Set([item]), []).forEach(function(child) {
+        changed.push({ kind: "item", id: child.id });
+      });
+    }
+  });
+  return { ok: true, changed: changed };
+}
+
+function cleanupPlacementCommandBatch(_entries, env) {
+  env.placementBatchItems = null;
+}
+
+function validatePlacementRelations(summary) {
+  var changedIds = new Set((summary.changed || []).filter(function(entry) {
+    return entry && entry.kind === "item";
+  }).map(function(entry) { return String(entry.id); }));
+  if (!changedIds.size) return { ok: true };
+  var markerOwners = new Set();
+  for (var i = 0; i < S.items.length; i++) {
+    var item = S.items[i];
+    if (!changedIds.has(String(item.id))) continue;
+    if (!Number.isFinite(Number(item.x)) || !Number.isFinite(Number(item.z)) ||
+        !Number.isFinite(Number(item.rot || 0))) return { ok: false, reason: "POST_VALIDATION_FAILED" };
+    if (item.on != null) {
+      var host = hostOf(item);
+      if (!host || wouldCycle(item, host) || !Number.isFinite(Number(item.elev)) ||
+          Math.abs(Number(item.elev) - Number(topOf(host))) > 1e-6)
+        return { ok: false, reason: "POST_VALIDATION_FAILED" };
+    }
+    if (item.hold && !wallById(item.hold.wall)) return { ok: false, reason: "POST_VALIDATION_FAILED" };
+  }
+  (S.markers || []).forEach(function(marker) {
+    if (!marker || marker.itemId == null || !changedIds.has(String(marker.itemId))) return;
+    var key = String(marker.itemId);
+    if (markerOwners.has(key)) markerOwners.add("duplicate:" + key);
+    else markerOwners.add(key);
+  });
+  if (Array.from(markerOwners).some(function(key) { return key.indexOf("duplicate:") === 0; }))
+    return { ok: false, reason: "POST_VALIDATION_FAILED" };
+  return { ok: true };
+}
+
 export function moveItemTo(it, nx, nz) {
-  var px0 = it.x,
-    pz0 = it.z;
   var tx = Math.round(nx / 2) * 2,
     tz = Math.round(nz / 2) * 2;
   /* Which way it faces is settled BEFORE the position snap, not after: turning
@@ -3188,23 +3420,7 @@ export function moveItemTo(it, nx, nz) {
   // a piece standing on this one turns with it, exactly as a manual rotation
   if (faced) rotateWith(it, faced, new Set([it]));
   var a = alignItem(tx, tz, it);
-  it.x = a.x;
-  it.z = a.z;
-  /* The vertical axis of the same snap: whatever the piece now sits over
-     becomes its host, and its bottom lands on that host's top. Re-run on
-     every move (rather than only on drop) so the 3D view shows the piece
-     climbing onto the machine while the pointer is still down. */
-  var host = findSupport(it, it.x, it.z);
-  if (host) stackAttach(it, host);
-  else if (it.on != null) stackDetach(it);
-  S.stackHost = host || null;
-  // a piece standing ON the dragged piece rides along
-  carryChildren(it, it.x - px0, it.z - pz0, new Set([it])).forEach(function (c) {
-    touchItem3D(c, "move");
-  });
-  // placeItem() reads elevOffset, so the cheap "move" path already lifts
-  // the piece onto its host — no rebuild needed for a change of height
-  touchItem3D(it, "move");
+  applyResolvedItemTranslation(it, a.x, a.z, { trackDragState: true, touch3D: true });
 }
 
 /* ---- 3D-view editing (js/view3d.js drives these) ----
@@ -3224,6 +3440,7 @@ export function moveItemTo(it, nx, nz) {
 export function select3DTarget(sel) {
   if (!sel || !sel.ref) return false;
   select(sel);
+  S.action = "item";
   render2D();
   return true;
 }
@@ -3240,6 +3457,9 @@ export function begin3DItemDrag(it) {
     return false;
   }
   select(sel);
+  S.action = "item";
+  S.itemSnapWall = null;
+  S.orientHold = false;
   beginHistory();
   render2D();
   return true;
@@ -3258,7 +3478,8 @@ export function drag3DItemElev(it, elev) {
   if (it.on != null) stackDetach(it);
   it.elev = Math.max(0, Math.round(elev));
   touchItem3D(it, "move");
-  carryChildren(it, 0, 0, new Set([it])).forEach(function (c) {
+  stackReseat(it);
+  descendantsOf(it, new Set([it]), []).forEach(function (c) {
     touchItem3D(c, "move");
   });
   render2D();
@@ -3300,10 +3521,18 @@ export function end3DOpeningDrag() {
 
 export function end3DItemDrag() {
   cancelPending();
+  if (S.sel && S.sel.kind === "item") {
+    finalizeItemPlacement(S.sel.ref, { releaseMarker: true, holdWallId: S.itemSnapWall });
+    if (syncStairVoids(S.sel.ref)) render2D();
+    itemMovePlanOps([S.sel.ref], S.items).forEach(broadcastPlanOp);
+  }
+  S.itemSnapWall = null;
+  S.orientHold = false;
   if (S.stackHost || S.alignX != null || S.alignZ != null) {
     S.stackHost = null;
     S.alignX = S.alignZ = null;
   }
+  S.action = null;
   fillProps();
   render2D();
 }
@@ -4689,13 +4918,17 @@ export function initInteraction() {
         // a selection holding both a table and the lamp on it stays put
         var movedSet = new Set();
         S.dragOrig.forEach(function(o) { movedSet.add(o.it); });
-        S.dragOrig.forEach(function(o) {
-           o.it.x = o.x + mdx;
-           o.it.z = o.z + mdz;
+        var frameMoves = S.dragOrig.map(function(o) {
+          return { entry: o, dx: o.x + mdx - o.it.x, dz: o.z + mdz - o.it.z };
+        });
+        frameMoves.forEach(function(move) {
+           var o = move.entry;
+           o.it.x += move.dx;
+           o.it.z += move.dz;
            touchItem3D(o.it, "move");
         });
-        S.dragOrig.forEach(function (o) {
-          carryChildren(o.it, mdx, mdz, movedSet).forEach(function (c) {
+        frameMoves.forEach(function (move) {
+          carryChildren(move.entry.it, move.dx, move.dz, movedSet).forEach(function (c) {
             touchItem3D(c, "move");
           });
         });
@@ -5109,15 +5342,17 @@ export function initInteraction() {
     // An object dragged clear of the point it was standing on frees that point.
     // Room drags carry their contents, so those count too.
     if (S.action === "item" && S.sel) {
-      if (S.sel.kind === "item") releaseIfMoved(S.sel.ref);
-      else if (S.sel.kind === "items") S.sel.refs.forEach(releaseIfMoved);
       /* A piece dropped flush against a wall is held to it from now on. Only
          when the flush snap actually engaged during THIS drag — inferring it
          from the final position alone would grab pieces that merely happen to
          end up near a wall, which is most of them in a small room. */
       var heldWall = S.itemSnapWall != null && wallById(S.itemSnapWall);
-      if (heldWall && S.sel.kind === "item" && !S.sel.ref.locked)
-        holdToWall(S.sel.ref, heldWall, 0);
+      if (S.sel.kind === "item") finalizeItemPlacement(S.sel.ref, {
+        releaseMarker: true, holdWallId: heldWall && heldWall.id,
+      });
+      else if (S.sel.kind === "items") S.sel.refs.forEach(function(item) {
+        finalizeItemPlacement(item, { releaseMarker: true });
+      });
       S.itemSnapWall = null;
       S.orientHold = false; // Alt was for that gesture, not for the session
       /* The drag may have turned the piece for you (js/item_orient.js), so the
@@ -5171,10 +5406,11 @@ export function initInteraction() {
       });
       fillProps();
     }
-    if (S.action === "item" && S.sel && S.sel.kind === "item") {
+    if (S.action === "item" && S.sel && (S.sel.kind === "item" || S.sel.kind === "items")) {
+      var movedRoots = S.sel.kind === "item" ? [S.sel.ref] : S.sel.refs;
       // a dragged flight of stairs takes its stairwell void with it
-      if (syncStairVoids(S.sel.ref)) render2D();
-      broadcastPlanOp({ type: "itemMove", id: S.sel.ref.id, x: S.sel.ref.x, z: S.sel.ref.z, rot: S.sel.ref.rot });
+      movedRoots.forEach(function(item) { if (syncStairVoids(item)) render2D(); });
+      itemMovePlanOps(movedRoots, S.items).forEach(broadcastPlanOp);
     } else if (S.action === "opening" && S.sel && S.sel.kind === "opening") {
       broadcastPlanOp({ type: "openingSet", id: S.sel.ref.id, fields: { s: S.sel.ref.s } });
     } else if (S.action === "slabvoid" && S.sel && S.sel.kind === "slabvoid") {

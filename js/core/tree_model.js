@@ -26,7 +26,7 @@ const SOLID_FEATURES = new Set([
   "import", "insert", "assembly", "union", "subtract", "intersect", "boolean",
   "fillet", "chamfer", "shell", "mirror", "pattern", "linearPattern",
   "linearGridPattern", "circularPattern", "hole", "thread", "extrudeCut",
-  "cut", "direct", "procedural", "component",
+  "cut", "direct", "procedural", "component", "toolbox",
 ]);
 
 /* Types that only decorate an existing solid. They never start a body, so a
