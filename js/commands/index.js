@@ -8,8 +8,9 @@ import { itemPlaceCommand } from "./item_place.js";
 import { itemDuplicateCommand } from "./item_duplicate.js";
 import { itemMoveCommand } from "./item_move.js";
 import { roomCreateCommand } from "./room_create.js";
+import { roomStampCommand } from "./room_stamp.js";
 
-export { openingPlaceCommand, wallDrawCommand, itemPlaceCommand, itemDuplicateCommand, itemMoveCommand, roomCreateCommand };
+export { openingPlaceCommand, wallDrawCommand, itemPlaceCommand, itemDuplicateCommand, itemMoveCommand, roomCreateCommand, roomStampCommand };
 export * from "./executor.js";
 
 export const PLANNER_COMMANDS = Object.freeze({
@@ -19,6 +20,7 @@ export const PLANNER_COMMANDS = Object.freeze({
   "item.duplicate": itemDuplicateCommand,
   "item.move": itemMoveCommand,
   "room.create": roomCreateCommand,
+  "room.stamp": roomStampCommand,
 });
 
 export const PLANNER_COMMAND_PARAMETERS = Object.freeze({
@@ -28,6 +30,7 @@ export const PLANNER_COMMAND_PARAMETERS = Object.freeze({
   "item.duplicate": { required: ["sourceIds"], properties: { sourceIds: "existing item ids", offsetX: "cm (optional)", offsetZ: "cm (optional)", regroup: "boolean (optional)" } },
   "item.move": { required: ["itemId"], properties: { itemId: "existing item id", x: "destination x in cm", z: "destination z in cm", deltaX: "relative x in cm", deltaZ: "relative z in cm", rot: "degrees (optional)" } },
   "room.create": { required: ["from", "to"], properties: { from: "one rectangle corner {x,z} in cm", to: "opposite corner {x,z} in cm", type: "wall type id (optional)", thickness: "cm (optional)", height: "cm (optional)", name: "room name (optional)", isCorridor: "boolean (optional)" } },
+  "room.stamp": { required: ["preset", "x", "z"], properties: { preset: "room preset id (bedroom, bathroom, corridor, ...)", x: "room centre x in cm", z: "room centre z in cm", rot: "0 | 90 | 180 | 270 — swaps width and depth (optional)", w: "clear width in cm, defaults to the preset's (optional)", d: "clear depth in cm (optional)", dock: "false to place exactly where asked instead of snapping against a wall (optional)", abutOnly: "true to refuse the build-a-corridor answer (optional)", connect: "false to skip cutting the door through the shared wall (optional)" } },
 });
 
 const COMMAND_SEMANTICS = Object.freeze({
@@ -37,6 +40,7 @@ const COMMAND_SEMANTICS = Object.freeze({
   "item.duplicate": { prerequisites: ["existing source items"], effects: ["create item copies"], reversible: true, availableWhen: "editable workspace" },
   "item.move": { prerequisites: ["one existing item"], effects: ["move item"], reversible: true, availableWhen: "editable workspace" },
   "room.create": { prerequisites: ["rectangle at least 20 cm per side"], effects: ["create four walls", "derive room"], reversible: true, availableWhen: "planner top view and editable workspace" },
+  "room.stamp": { prerequisites: ["known room preset", "clear floor area at the destination, or inside a host room against one of its walls"], effects: ["create walls", "reuse the wall it docks against", "name and floor the room", "cut a door or passage through the shared wall", "build a corridor when one is asked for", "insert into a host room leaving the leftover as an L or smaller rectangle"], reversible: true, availableWhen: "planner top view and editable workspace" },
 });
 
 [
@@ -46,6 +50,7 @@ const COMMAND_SEMANTICS = Object.freeze({
   [itemDuplicateCommand, "Duplicate item", ["item"]],
   [itemMoveCommand, "Move item", ["item"]],
   [roomCreateCommand, "Create room", ["room", "wall", "node"]],
+  [roomStampCommand, "Place preset room", ["room", "wall", "node", "opening"]],
 ].forEach(function (entry) {
   registerModelCommand(entry[0], {
     title: entry[1],

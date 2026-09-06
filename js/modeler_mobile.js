@@ -462,6 +462,7 @@ function showSheet(key, toggle) {
     setSheetSearch(true);
   } else if (key === "props") {
     title = t("tabShape");
+    if (api && api.ensureInspectorFresh) api.ensureInspectorFresh();
     borrowPanel(".md-right");
   } else if (key === "more") {
     title = t("msheet_more");

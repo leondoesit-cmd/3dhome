@@ -655,6 +655,37 @@ export const CAD_ICONS = {
     );
   },
 
+  // Appearance / Paint Tool: 3D face being colored with angled paintbrush and color swatch dab
+  paint: function () {
+    return (
+      // Face patch being painted
+      p("M2 13 L8 16 L15 13 L9 10 Z", 0.35, 1.2) +
+      // Paint stroke / color dab on face
+      colorPath("M5 13 C 7 14, 10 13, 12 12.5", "none", "#3b82f6", 2) +
+      // Angled paintbrush handle
+      colorPath("M17 2 L13 6", "none", "#d97706", 1.8) +
+      // Ferrule (metal collar)
+      p("M13 6 L14 7 L12 9 L11 8 Z", 0.6, 1.2) +
+      // Brush tip bristles touching the face
+      colorPath("M11 8 C 10 9, 8 11.5, 7.5 13 C 8.5 12.5, 10.5 11, 12 9 Z", "#3b82f6", "#2563eb", 1.2)
+    );
+  },
+
+  // 3D Notes / Annotation: callout note card with leader pointer line and anchor dot
+  note: function () {
+    return (
+      // Anchor dot on 3D model surface
+      colorPath("M4 16 A 1.5 1.5 0 1 1 4 13 A 1.5 1.5 0 1 1 4 16 Z", "#2563eb", "#2563eb", 1.2) +
+      // Leader line from anchor to card
+      colorPath("M4 14.5 L8 10", "none", "#2563eb", 1.3, ' stroke-dasharray="2 1.2"') +
+      // Note callout card
+      p("M8 3 L18 3 L18 12 L10 12 L8 14 Z", 0.25, 1.3) +
+      // Text indicator lines inside note card
+      l("M11 6 L15 6", 1.2) +
+      l("M11 9 L16 9", 1.2)
+    );
+  },
+
   // Pack and Go (Bundle, export): taped package box with material leaving it
   bundle: function () {
     return (
@@ -1102,6 +1133,8 @@ export const ICON_ALIASES = {
   "ph-file-svg": "drawing",
   "ph-scales": "mass",
   "ph-seal-check": "standards",
+  "ph-paint-brush": "paint",
+  "ph-note-pencil": "note",
   "ph-package": "bundle",
   "ph-upload-simple": "stepin",
   "ph-file-step": "stepout",

@@ -166,8 +166,107 @@ test("a rank-1 wall still selects and fills the inspector", opts, async () => {
 });
 
 /* The pill is the only thing that tells a user why a drag did nothing, so its
-   absence is indistinguishable from the app being broken. */
-test("a refused drag raises the unlock pill, and a double-click pins it", opts, async () => {
+   absence is indistinguishable from the app being broken — and so is a pill
+   whose button cannot be pressed. It used to be torn down on the pointerup of
+   the very press that raised it, on the theory that a drag was running behind
+   it; a refused drag arms nothing, so the button was unreachable and the only
+   route to a pressable one was a double-click, which the plan reads as
+   rotate-in-place. The pill now stands until it is answered or the next press
+   lands somewhere else. */
+test("the refused-drag pill stands until it is answered, and its button works", opts, async () => {
+  const page = await openPage({ width: 1280, height: 900, mobile: false, touch: false });
+  try {
+    await planner(page);
+    const out = await page.eval(async () => {
+      const q = window.__lay, S = q.S;
+      q.room();
+      q.ui.placeFurnAt("sofa", 300, 200);
+      await q.frame();
+      const sofa = S.items[0];
+      // what the wall tool leaves behind: structure focused, furniture auto-locked
+      S.workSet = "structure";
+      S.layers.furniture.locked = true;
+      await q.drag(sofa.x, sofa.z, sofa.x + 100, sofa.z);
+      const pill = document.querySelector(".unlock-pill");
+      const fix = pill && pill.querySelector(".up-fix");
+      const after = {
+        hidden: pill.hidden,
+        text: pill.innerText.trim().length > 0,
+        // the CSS half: a button nobody can aim at is the same bug
+        live: getComputedStyle(fix).pointerEvents !== "none",
+      };
+      /* Pressed the way a user presses it — pointerdown first. The global
+         dismiss listener runs on that pointerdown and has to spare the pill
+         that owns the button. */
+      fix.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 2 }));
+      fix.click();
+      await q.frame();
+      const nodes = q.nodes();
+      const action = await q.drag(sofa.x, sofa.z, sofa.x + 100, sofa.z);
+      return {
+        after, hidden: pill.hidden, workSet: S.workSet, pinned: !!S.workSetPinned,
+        locked: S.layers.furniture.locked,
+        action, moved: Math.round(sofa.x - 300), wallsHeldStill: q.nodes() === nodes,
+      };
+    });
+    assert.deepEqual(
+      out.after,
+      { hidden: false, text: true, live: true },
+      "the pill survived the press that raised it, and its button is a live target",
+    );
+    assert.equal(out.workSet, "furniture", "the fix moved the work set to the refused layer");
+    assert.ok(out.pinned, "pinned, so the next tool change does not undo the fix");
+    assert.equal(out.locked, false, "and released the auto-lock that came with it");
+    assert.ok(out.hidden, "the pill goes away once it has been acted on");
+    assert.equal(out.action, "item", "so the very next press grabs the sofa");
+    assert.equal(out.moved, 100, "and moves it");
+    assert.ok(out.wallsHeldStill, "without taking the room along");
+  } finally {
+    await page.close();
+  }
+});
+
+/* The floor is not a target. With the work set on structure — where the wall
+   tool leaves it, and where it stays because the select tool deliberately
+   moves nothing — a rank-0 room used to answer the click before the rank-1
+   pass ever ran, so furniture standing on that floor could not be picked at
+   all: the press grabbed the room and dragged the whole plan, carrying the
+   piece along inside it. */
+test("a rank-1 sofa beats the rank-0 floor it is standing on", opts, async () => {
+  const page = await openPage({ width: 1280, height: 900, mobile: false, touch: false });
+  try {
+    await planner(page);
+    const out = await page.eval(async () => {
+      const q = window.__lay, S = q.S;
+      q.room();
+      q.ui.placeFurnAt("sofa", 300, 200);
+      await q.frame();
+      const sofa = S.items[0];
+      // what the wall tool leaves behind: structure focused, furniture auto-locked
+      S.workSet = "structure";
+      S.layers.furniture.locked = true;
+      const nodes = q.nodes();
+      const action = await q.drag(sofa.x, sofa.z, sofa.x + 100, sofa.z);
+      return {
+        action,
+        selKind: S.sel && S.sel.kind,
+        selectedIsSofa: !!(S.sel && S.sel.ref === sofa),
+        sofaMoved: Math.round(sofa.x - 300),
+        wallsHeldStill: q.nodes() === nodes,
+      };
+    });
+    assert.equal(out.selKind, "item", "the click picked the sofa, not the floor under it");
+    assert.ok(out.selectedIsSofa, "and it is that sofa in the inspector");
+    assert.equal(out.action, null, "off the work set it is select-only, so no drag armed");
+    assert.equal(out.sofaMoved, 0, "the refused drag moved nothing");
+    assert.ok(out.wallsHeldStill, "and above all the room stayed where it was");
+  } finally {
+    await page.close();
+  }
+});
+
+/* Blank floor still selects the room: deferring the test must not delete it. */
+test("clicking bare floor still picks the room", opts, async () => {
   const page = await openPage({ width: 1280, height: 900, mobile: false, touch: false });
   try {
     await planner(page);
@@ -175,25 +274,12 @@ test("a refused drag raises the unlock pill, and a double-click pins it", opts, 
       const q = window.__lay, S = q.S;
       q.room();
       await q.frame();
-      q.ev("pointerdown", 120, 0);
-      const pill = document.querySelector(".unlock-pill");
-      const onPress = pill && { hidden: pill.hidden, text: pill.innerText.trim().length > 0 };
-      q.ev("pointerup", 120, 0);
+      S.sel = null;
+      q.click(300, 200);
       await q.frame();
-      // two more refused presses, then the dblclick the browser would synthesize
-      q.click(120, 0); q.click(120, 0);
-      q.canvas.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
-      await q.frame();
-      const sticky = { hidden: pill.hidden, sticky: pill.classList.contains("sticky") };
-      pill.querySelector(".up-fix").click();
-      await q.frame();
-      return { onPress, sticky, workSet: S.workSet, pinned: !!S.workSetPinned, hidden: pill.hidden };
+      return { kind: S.sel && S.sel.kind };
     });
-    assert.deepEqual(out.onPress, { hidden: false, text: true }, "the pill shows on the refused press");
-    assert.deepEqual(out.sticky, { hidden: false, sticky: true }, "a double-click makes it stay");
-    assert.equal(out.workSet, "structure", "and its fix button moves the work set to the refused layer");
-    assert.ok(out.pinned, "pinned, so the next tool change does not undo the fix");
-    assert.ok(out.hidden, "the pill goes away once it has been acted on");
+    assert.equal(out.kind, "room", "empty floor is still the room's click");
   } finally {
     await page.close();
   }

@@ -62,7 +62,7 @@ test("registry distinguishes curated UI tools/actions from model commands", () =
 
 test("programmatic clients can enumerate and resolve every initial command", () => {
   assert.deepEqual(plannerCommandManifest().map((entry) => entry.id), [
-    "item.duplicate", "item.move", "item.place", "opening.place", "room.create", "wall.draw",
+    "item.duplicate", "item.move", "item.place", "opening.place", "room.create", "room.stamp", "wall.draw",
   ]);
   assert.equal(plannerCommand("room.create"), roomCreateCommand);
   assert.equal(plannerCommand("missing.command"), null);

@@ -12,6 +12,9 @@
 // falls back to the English text, so a missed key degrades to the old
 // behaviour instead of leaking a raw identifier into the form.
 
+import { TOOLBOX_FAMILIES } from "../toolbox/catalog.js";
+import { TOOLBOX_FINISHES, TOOLBOX_MATERIALS } from "../toolbox/schema.js";
+
 const LENGTH = { type: "number", unit: "document-length", min: 1e-6 };
 const SIGNED_LENGTH = { type: "number", unit: "document-length" };
 const ANGLE = { type: "number", unit: "deg" };
@@ -41,6 +44,9 @@ const HANDEDNESS = [
   { value: "rh", label: "Right", labelKey: "fcOptRight" },
   { value: "lh", label: "Left", labelKey: "fcOptLeft" },
 ];
+const TOOLBOX_FAMILY_CHOICES = TOOLBOX_FAMILIES.map((family) => ({ value:family.kind, label:family.label }));
+const TOOLBOX_MATERIAL_CHOICES = [{ value:"", label:"Automatic (family default)" }].concat(Object.values(TOOLBOX_MATERIALS).map((material) => ({ value:material.id, label:material.name })));
+const TOOLBOX_FINISH_CHOICES = [{ value:"", label:"Automatic (family default)" }].concat(Object.entries(TOOLBOX_FINISHES).map(([value,label]) => ({ value, label })));
 
 const resultGroup = (operation = true) => ({
   id: "result", label: "Result", labelKey: "fcGrpResult", icon: "ph-union",
@@ -486,18 +492,18 @@ export const FEATURE_CATALOG = Object.freeze({
     labelKey: "fcFeatToolbox",
     icon: "toolboxfastener",
     selection: {},
-    defaults: { kind: "shcs", sizeKey: "M8", lengthMm: 30, material: "steel-8.8-zinc", finish: "Zinc Plated", threadMode: "cosmetic", lod: 2 },
+    defaults: { kind: "shcs", sizeKey: "M8", lengthMm: 30, material: "", finish: "", threadMode: "cosmetic", lod: 2 },
     parameters: {
       kind: { type: "string" }, sizeKey: { type: "string" }, lengthMm: { type: "number", min: 0 },
       material: { type: "string" }, finish: { type: "string" }, threadMode: ENUM("cosmetic", "modeled"),
       lod: { type: "number", integer: true, min: 0, max: 2 },
     },
     editor: { groups: [{ id: "toolbox", label: "Standard part", labelKey: "fcGrpToolbox", icon: "ph-toolbox", fields: [
-      { key: "kind", label: "Family", labelKey: "fcFldToolboxFamily", type: "text" },
-      { key: "sizeKey", label: "Size", labelKey: "fcFldToolboxSize", type: "text" },
+      { key: "kind", label: "Family", labelKey: "fcFldToolboxFamily", type: "select", choices: TOOLBOX_FAMILY_CHOICES },
+      { key: "sizeKey", label: "Size", labelKey: "fcFldToolboxSize", type: "select", choices: [], dynamicChoices: "toolbox-size" },
       { key: "lengthMm", label: "Length (mm)", labelKey: "fcFldLengthMm", type: "number", min: 0, step: 1 },
-      { key: "material", label: "Material", labelKey: "fcFldMaterial", type: "text" },
-      { key: "finish", label: "Finish", labelKey: "fcFldToolboxFinish", type: "text" },
+      { key: "material", label: "Material", labelKey: "fcFldMaterial", type: "select", choices: TOOLBOX_MATERIAL_CHOICES },
+      { key: "finish", label: "Finish", labelKey: "fcFldToolboxFinish", type: "select", choices: TOOLBOX_FINISH_CHOICES },
       { key: "threadMode", label: "Thread geometry", labelKey: "fcFldThreadGeometry", type: "select", choices: COSMETIC_MODES },
       { key: "lod", label: "Detail level", labelKey: "fcFldToolboxLod", type: "number", min: 0, max: 2, step: 1 },
     ]}]},
@@ -627,5 +633,15 @@ export function validateFeatureDefinition(feature) {
   if (feature.type === "boolean" && !["union", "subtract", "intersect"].includes(feature.params?.operation)) issues.push({
     severity: "error", code: "invalid-boolean-operation", featureId: feature.id, message: "Boolean operation must be union, subtract or intersect",
   });
+  if (feature.type === "toolbox") {
+    const family = TOOLBOX_FAMILIES.find((item) => item.kind === feature.params?.kind);
+    const size = String(feature.params?.sizeKey || feature.params?.size || "");
+    if (!family) issues.push({ severity:"error", code:"invalid-toolbox-family", featureId:feature.id, parameter:"kind", message:"Toolbox Part has an unknown family" });
+    else {
+      const sizeRow = (family.sizes || []).find((item) => String(item.key || item.size) === size || String(item.size) === size);
+      if (!sizeRow) issues.push({ severity:"error", code:"invalid-toolbox-size", featureId:feature.id, parameter:"sizeKey", message:family.label + " does not contain size " + (size || "(none)") });
+      if (family.hasLength && !(Number(feature.params?.lengthMm) > 0)) issues.push({ severity:"error", code:"invalid-toolbox-length", featureId:feature.id, parameter:"lengthMm", message:family.label + " requires a positive length" });
+    }
+  }
   return issues;
 }

@@ -79,6 +79,15 @@ export function createDefinition(options = {}) {
     history: cloneDomain(options.history) || (options.features || []).map((feature) => feature.id),
     parts: cloneDomain(options.parts) || [],
     assemblies: cloneDomain(options.assemblies) || [],
+    /* Annotation and per-face appearance authored in the model editor. These
+       were absent from this whitelist while migrateDefinition()'s unknown-key
+       catch-all quietly carried them, so the load path worked and any direct
+       caller — createPartDocument(), a clone, an importer — dropped them
+       without a word. A field the editor writes belongs in the schema that
+       claims to describe the document. */
+    appearances: cloneDomain(options.appearances) || [],
+    notes: cloneDomain(options.notes) || [],
+    markups: cloneDomain(options.markups) || [],
     rules: cloneDomain(options.rules) || {},
     metadata: cloneDomain(options.metadata) || {},
     topologyBindings: cloneDomain(options.topologyBindings) || [],
@@ -103,11 +112,16 @@ export function createInstance(options = {}) {
   };
 }
 
+/* No cloning here. The only caller reads from `raw`, which migrateDefinition
+   has already deep-cloned from the source, and never touches raw.references
+   again afterwards — so these objects are already private. Whatever survives is
+   handed to createDefinition(), which deep-clones references once more on the
+   way in. Cloning here made that three copies of every reference per migrate. */
 function legacyReference(ref) {
   if (!ref || typeof ref !== "object") return null;
-  if (ref.type === "reference_plane") return { ...cloneDomain(ref), type: "plane" };
-  if (ref.type === "reference_axis") return { ...cloneDomain(ref), type: "axis" };
-  return cloneDomain(ref);
+  if (ref.type === "reference_plane") return { ...ref, type: "plane" };
+  if (ref.type === "reference_axis") return { ...ref, type: "axis" };
+  return ref;
 }
 
 // Turns existing model-editor documents into canonical definitions without

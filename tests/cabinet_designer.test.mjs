@@ -137,3 +137,60 @@ test("paste re-tags duplicate hid values in normalizeSpec rather than skipping t
 test("applyData keeps the modular cabinet spec on the item whitelist", () => {
   assert.match(planner, /cab: it\.cab && typeof it\.cab === "object" \? it\.cab : undefined/);
 });
+
+test("cabinet number inputs preserve focus on Enter instead of calling blur()", () => {
+  assert.match(chrome, /dim\.addEventListener\("keydown",\s*function\s*\(e\)\s*\{/);
+  assert.match(chrome, /if\s*\(e\.key\s*===\s*"Enter"\)\s*\{[\s\S]*?applyOverallSize[\s\S]*?this\.select\(\);/);
+  assert.doesNotMatch(chrome, /dim\.addEventListener\("keydown",\s*function\s*\(e\)\s*\{[\s\S]*?this\.blur\(\);/);
+
+  assert.match(ctx, /i\.addEventListener\("keydown",\s*function\s*\(e\)\s*\{/);
+  assert.match(ctx, /if\s*\(e\.key\s*===\s*"Enter"\)\s*\{[\s\S]*?commit\(\);[\s\S]*?i\.select\(\);/);
+
+  assert.match(inspect, /function withFocusPreserved\(wrap,\s*renderFn\)/);
+  assert.match(inspect, /withFocusPreserved\(wrap,\s*function\s*\(\)\s*\{/);
+});
+
+test("empty column and 0-shelf/0-drawer hardening in cabinet layout", async () => {
+  const { layoutCab } = await import("../js/cabinet.js");
+
+  // Cabinet item with a zero-width column and an empty-secs column
+  const itemZeroCol = {
+    type: "wardrobe",
+    w: 120, h: 200, d: 60,
+    cab: {
+      fam: "wardrobe",
+      plinth: 8,
+      panel: 1.8,
+      cols: [
+        { w: 0, secs: [{ t: "shelves", n: 0, h: 100 }], door: { t: "none" } },
+        { w: 60, secs: [], door: { t: "none" } },
+        { w: 60, secs: [{ t: "drawers", n: 0, h: 100 }], door: { t: "none" } },
+      ],
+    },
+  };
+
+  const layout = layoutCab(itemZeroCol);
+  assert.ok(layout, "layoutCab returns a layout");
+  assert.equal(layout.cols.length, 3, "preserves 3 column metadata entries");
+
+  // Verify all parts have finite positive non-zero dimensions and no NaNs
+  layout.parts.forEach((p, idx) => {
+    if (p.k === "box") {
+      assert.ok(Number.isFinite(p.x0) && Number.isFinite(p.x1), `part ${idx} x is finite`);
+      assert.ok(Number.isFinite(p.y0) && Number.isFinite(p.y1), `part ${idx} y is finite`);
+      assert.ok(Number.isFinite(p.z0) && Number.isFinite(p.z1), `part ${idx} z is finite`);
+      assert.ok(Math.abs(p.x1 - p.x0) > 1e-4, `part ${idx} has non-zero width`);
+      assert.ok(Math.abs(p.y1 - p.y0) > 1e-4, `part ${idx} has non-zero height`);
+      assert.ok(Math.abs(p.z1 - p.z0) > 1e-4, `part ${idx} has non-zero depth`);
+    }
+  });
+
+  // Verify column 0 (0 width) has 0 shelves
+  const col0Sec = layout.cols[0].secs[0];
+  assert.equal(col0Sec.shelves, 0, "0-shelf section creates 0 shelves");
+
+  // Verify column 2 (0 drawers) creates 0 drawer fronts / drawer parts
+  const col2Drawers = layout.parts.filter(p => p.role === "drawerFront" || p.role === "drawerBox");
+  assert.equal(col2Drawers.length, 0, "0-drawer section creates 0 drawer parts");
+});
+

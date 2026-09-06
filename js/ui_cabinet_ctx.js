@@ -335,10 +335,19 @@ export function numInput(val, cb, min, max) {
   if (min != null) i.min = min;
   if (max != null) i.max = max;
   i.value = formatCm(val);
-  i.addEventListener("change", function () {
-    var v = +this.value;
+  function commit() {
+    var v = +i.value;
     if (!fin(v)) return;
     cb(clamp(v, min == null ? 0 : min, max == null ? 1e5 : max));
+  }
+  i.addEventListener("change", commit);
+  i.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commit();
+      i.focus();
+      if (typeof i.select === "function") i.select();
+    }
   });
   return i;
 }

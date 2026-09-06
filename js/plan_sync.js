@@ -35,6 +35,76 @@ const OPENING_FIELDS = {
   isSliding: 1, isPocket: 1, slideDir: 1, type: 1,
 };
 
+/* Rebuild a value from scratch, dropping any `__proto__` key at every level.
+   JSON.parse creates it as a real own property, so a nested wall layer or an
+   arc's geometry could carry one in and swap a prototype on assignment. */
+function plainCopy(value) {
+  if (Array.isArray(value)) return value.map(plainCopy);
+  if (!value || typeof value !== "object") return value;
+  var out = {};
+  Object.keys(value).forEach(function (k) {
+    if (k === "__proto__") return;
+    out[k] = plainCopy(value[k]);
+  });
+  return out;
+}
+
+/* The fields a wall is allowed to arrive with: the list splitWallAt carries
+   onto a new half, the two that describe its own shape, and the DIMENSION
+   LOCKS.
+
+   The locks are the reason this list is written out rather than copied
+   wholesale, and the reason it is worth checking against a real plan. They are
+   what makes a wall hold the length somebody typed (js/constraint_engine.js);
+   a peer whose walls arrive without them gets geometry that looks identical
+   and comes apart the first time anything is solved, because every wall has
+   quietly forgotten what it was holding. */
+const WALL_FIELDS = [
+  "thickness", "height", "tex", "wallTypeId", "layers", "layersReversed", "datum",
+  "kind", "phase", "upperWallTypeId", "splitHeight", "profile", "railing", "join",
+  "layerOverrides", "dimSide", "loc", "geometry",
+  "clearL", "lock", "lockL", "lockClearL", "lockAng",
+];
+
+function sanitizeWall(w) {
+  if (!w || w.id == null) return null;
+  if (!Number.isInteger(w.a) || !Number.isInteger(w.b) || w.a < 0 || w.b < 0) return null;
+  var out = { id: w.id, a: w.a, b: w.b };
+  WALL_FIELDS.forEach(function (k) {
+    if (w[k] !== undefined) out[k] = plainCopy(w[k]);
+  });
+  return out;
+}
+
+function sanitizeOpening(o) {
+  if (!o || o.id == null || o.wall == null || !Number.isFinite(Number(o.s))) return null;
+  var out = { id: o.id, wall: o.wall, s: Number(o.s) };
+  Object.keys(OPENING_FIELDS).forEach(function (k) {
+    if (o[k] !== undefined) out[k] = plainCopy(o[k]);
+  });
+  return out;
+}
+
+const ROOM_META_FIELDS = {
+  name: 1, floor: 1, locked: 1, hidden: 1, noRoom: 1, isCorridor: 1,
+  preset: 1, cx: 1, cz: 1, hid: 1, autoOpenings: 1, tex: 1, ceilTex: 1,
+};
+
+function sanitizeRoomMeta(meta) {
+  var out = {};
+  Object.keys(meta).forEach(function (key) {
+    if (key === "__proto__") return;
+    var entry = meta[key];
+    if (!entry || typeof entry !== "object") return;
+    var copy = {};
+    Object.keys(ROOM_META_FIELDS).forEach(function (k) {
+      if (entry[k] !== undefined) copy[k] = plainCopy(entry[k]);
+    });
+    out[key] = copy;
+  });
+  return out;
+}
+
 export function isApplyingRemote() {
   return applyingRemote;
 }
@@ -78,6 +148,8 @@ function applyScene(scene) {
       return ui.applyData(scene);
     }).finally(function () {
       applyingRemote = false;
+      // the adopted scene is the baseline, for the same reason as applyIncoming
+      lastStructure = structureSignature();
     });
   });
 }
@@ -85,6 +157,22 @@ function applyScene(scene) {
 export function applyPlanOp(op, state) {
   var st = state || S;
   if (!op || typeof op !== "object") return false;
+  var applied = applyPlanOpTo(op, st);
+  /* Whatever an op just did to the LIVE plan is the new baseline.
+   *
+     Without this the render that follows an incoming op sees a structure that
+     differs from the last one this peer sent, concludes it is a local edit,
+     and posts the whole thing back where it came from — a wasted round trip
+     per edit, in both directions, for ever.
+
+     It belongs here rather than in the transport wrapper because the wrapper
+     can be bypassed: anything holding a reference to applyPlanOp can change
+     the live plan, and the invariant is about the plan, not about who asked. */
+  if (applied && st === S) lastStructure = structureSignature();
+  return applied;
+}
+
+function applyPlanOpTo(op, st) {
   if (op.type === "itemMove") {
     var it = (st.items || []).find(function (x) { return x.id === op.id; });
     if (!it) return false;
@@ -137,6 +225,70 @@ export function applyPlanOp(op, state) {
   }
   if (op.type === "slabRemove") {
     st.slabOpenings = (st.slabOpenings || []).filter(function (x) { return x.id !== op.id; });
+    return true;
+  }
+  /* Structure, as an absolute set: the corners, the walls, the openings and
+     the room metadata, wholesale.
+   *
+     Everything else in this protocol addresses an entity by a stable id. Walls
+     cannot: they hold their corners as INDICES into st.nodes, so a corner's
+     identity is its position in an append-only array. That works only while
+     every peer's array is the same array, and nothing kept it that way — the
+     nodeMove op below carries a length and refuses when it disagrees, which
+     was an honest guard over a real hole rather than a fix for it. The moment
+     anybody drew a wall, stamped a room or erased a partition, the two plans
+     diverged and stayed diverged until somebody triggered a full resync.
+
+     Sending the structure entire is what makes index identity survive: after
+     this op both peers hold the same arrays in the same order by construction,
+     so every id and every index means the same thing again. It is the same
+     absolute-set discipline as the rest of the protocol, and it is strictly
+     cheaper than the full-scene resync it replaces — that one carries the
+     furniture, the finishes and the site as well.
+
+     Nothing here is copied by reference. The transport is JSON.parse, which
+     makes `__proto__` a real own key, and assigning a wall wholesale would run
+     Object.prototype's setter; see the note on OPENING_FIELDS. */
+  if (op.type === "structSet") {
+    if (!Array.isArray(op.nodes) || !Array.isArray(op.walls)) return false;
+    st.nodes = op.nodes.map(function (n) {
+      if (!n || !Number.isFinite(Number(n.x)) || !Number.isFinite(Number(n.z))) return null;
+      var node = { x: Number(n.x), z: Number(n.z) };
+      /* `vid` is the corner's STABLE identity, and the only thing a dimension
+         anchor resolves through (js/wall_constraints.js). An index says where
+         a corner is in the array; a vid says which corner it is. Dropping it
+         would hand the peer a plan whose every constraint quietly stopped
+         resolving — the geometry would look right and the dimensions would
+         not hold. */
+      if (typeof n.vid === "string") node.vid = n.vid;
+      return node;
+    });
+    st.walls = op.walls.map(sanitizeWall).filter(function (w) {
+      return w && st.nodes[w.a] && st.nodes[w.b] && w.a !== w.b;
+    });
+    var liveWalls = {};
+    st.walls.forEach(function (w) { liveWalls[w.id] = 1; });
+    st.openings = (Array.isArray(op.openings) ? op.openings : [])
+      .map(sanitizeOpening)
+      .filter(function (o) { return o && liveWalls[o.wall]; });
+    if (op.roomMeta && typeof op.roomMeta === "object") st.roomMeta = sanitizeRoomMeta(op.roomMeta);
+    /* Dimensions are not carried by this op, so the ones already here have to
+       be checked against the walls that just arrived. A constraint anchored to
+       a wall this structure does not contain cannot be solved and cannot be
+       drawn; keeping it would put a permanent unresolvable warning on the
+       peer's plan for a wall they can no longer see. */
+    if (Array.isArray(st.wallCons) && st.wallCons.length) {
+      st.wallCons = st.wallCons.filter(function (c) {
+        return !c || ["wall", "ref"].every(function (k) {
+          return c[k] == null || liveWalls[c[k]];
+        }) && ["a", "b"].every(function (k) {
+          return !c[k] || c[k].wall == null || liveWalls[c[k].wall];
+        });
+      });
+    }
+    /* Never backwards: a peer that has already handed out an id locally must
+       not be told to hand it out again. */
+    if (Number.isFinite(op.idc)) st.idc = Math.max(Number(st.idc) || 1, op.idc);
     return true;
   }
   if (op.type === "nodeMove") {
@@ -273,6 +425,9 @@ export function initPlanSync() {
   if (listening) return;
   listening = true;
   on("data", onData);
+  /* Imported lazily, and only here: plan2d pulls in most of the planner, and
+     this module is loaded by anything that touches a plan op. */
+  import("./plan2d.js").then(function (p) { p.onAfterRender(syncStructureIfChanged); });
   on("peer-join", function () {
     if (!isHome()) requestResync();
   });
@@ -303,6 +458,73 @@ export function broadcastPlanOp(op) {
   } else {
     sendData({ k: "plan_op_req", projectId: projectId(), op: op });
   }
+}
+
+/* ---- keeping the structure in step --------------------------------------
+
+   ONE HOOK, NOT A CALL AT EVERY EDIT. Walls are created, split, welded,
+   de-duplicated and erased from a dozen places — the wall tool, the room
+   stamp, a room drop, an edge resize, the eraser, the bite, the apartment
+   generator, the blueprint importer, a scan merge — and a broadcast bolted to
+   each of them is a list that is wrong the day somebody adds the thirteenth.
+   Instead the plan says what it looks like after every render, and a change in
+   that answer is the trigger. Nothing can edit the structure without the plan
+   redrawing, so nothing can slip past.
+
+   The signature covers geometry AND topology, because a room drag moves four
+   corners without touching a single wall. It deliberately runs only when a
+   gesture has ENDED: mid-drag the finer-grained nodeMove op already carries
+   the live corner, and re-sending the whole structure sixty times a second to
+   describe one wall sliding would be indefensible. */
+var lastStructure = "";
+
+function structureSignature() {
+  var out = (S.nodes || []).length + ":" + (S.walls || []).length + ":";
+  (S.nodes || []).forEach(function (n) {
+    out += n ? Math.round(n.x) + "," + Math.round(n.z) + ";" : "-;";
+  });
+  (S.walls || []).forEach(function (w) {
+    out += w.id + ">" + w.a + "-" + w.b + ";";
+  });
+  (S.openings || []).forEach(function (o) {
+    out += o.id + "@" + o.wall + ":" + Math.round(o.s) + "," + Math.round(o.width) + ";";
+  });
+  out += Object.keys(S.roomMeta || {}).sort().join("|");
+  return out;
+}
+
+export function structurePlanOp() {
+  return {
+    type: "structSet",
+    nodes: (S.nodes || []).map(function (n) {
+      if (!n) return null;
+      var out = { x: n.x, z: n.z };
+      if (typeof n.vid === "string") out.vid = n.vid;
+      return out;
+    }),
+    walls: (S.walls || []).map(sanitizeWall).filter(Boolean),
+    openings: (S.openings || []).map(sanitizeOpening).filter(Boolean),
+    roomMeta: sanitizeRoomMeta(S.roomMeta || {}),
+    idc: Number(S.idc) || 1,
+  };
+}
+
+/* Called after every plan render. Cheap and silent unless something actually
+   changed AND there is somebody to tell. */
+export function syncStructureIfChanged() {
+  if (applyingRemote) return false;
+  if (!NET.connected) {
+    // stay current while alone, so joining a room later does not look like an
+    // edit that never happened
+    lastStructure = structureSignature();
+    return false;
+  }
+  if (S.action) return false; // mid-gesture; the release will render again
+  var now = structureSignature();
+  if (now === lastStructure) return false;
+  lastStructure = now;
+  broadcastPlanOp(structurePlanOp());
+  return true;
 }
 
 export function pruneCursors(maxAge) {

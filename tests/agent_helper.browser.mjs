@@ -226,9 +226,8 @@ test("Gemini connection test validates chat and tools before showing green", opt
       const provider = pane.querySelector("select");
       provider.value = "gemini";
       provider.dispatchEvent(new Event("change"));
-      const inputs = pane.querySelectorAll(".agent-field input");
-      inputs[1].value = "gemini-3.7-flash";
-      inputs[2].value = "test-key";
+      pane.querySelector('[data-role="model"]').value = "gemini-3.7-flash";
+      pane.querySelector('[data-role="api-key"]').value = "test-key";
       const bodies = [];
       const originalFetch = window.fetch;
       window.fetch = async (url, options = {}) => {
@@ -285,6 +284,7 @@ test("a successful LM Studio connection test saves an available model for chat",
       agentConfig.saveAgentConfig({ provider: "lmstudio", endpoint: "http://localhost:1234/v1", model: "" });
       const pane = (await import("/js/ui_agent.js")).buildAgentSettingsPane();
       document.body.appendChild(pane);
+      pane.querySelector('[data-role="model"]').value = "loaded-local-model";
       const originalFetch = window.fetch;
       let chatModel = null;
       window.fetch = async (url, options = {}) => {
@@ -312,7 +312,40 @@ test("a successful LM Studio connection test saves an available model for chat",
     });
     assert.equal(result.savedModel, "loaded-local-model");
     assert.equal(result.chatModel, "loaded-local-model");
-    assert.match(result.testStatus, /^Connected/);
+    assert.match(result.testStatus, /^Ready · loaded-local-model/);
+  } finally { await page.close(); }
+});
+
+test("LM Studio discovery never selects or loads a model automatically", opts, async () => {
+  const page = await openPage({ width: 1100, height: 760, lang: "en", mobile: false, touch: false });
+  try {
+    const result = await page.eval(async () => {
+      const agentConfig = await import("/js/agent_config.js");
+      agentConfig.saveAgentConfig({ provider: "lmstudio", endpoint: "http://localhost:1234/v1", model: "" });
+      const pane = (await import("/js/ui_agent.js")).buildAgentSettingsPane();
+      document.body.appendChild(pane);
+      const originalFetch = window.fetch;
+      let calls = 0;
+      window.fetch = async (url) => {
+        calls++;
+        if (!String(url).endsWith("/models")) throw new Error("discovery attempted inference");
+        return { ok: true, status: 200, json: async () => ({ data: [
+          { id: "google/gemma-4-e4b" }, { id: "qwen3.8-27b" },
+        ] }) };
+      };
+      try {
+        [...pane.querySelectorAll("button")].find((button) => button.textContent === "Discover models").click();
+        for (let i = 0; i < 100 && !pane.querySelector(".agent-test-result").textContent.includes("2 models found"); i++)
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        return { calls, model: pane.querySelector('[data-role="model"]').value,
+          status: pane.querySelector(".agent-test-result").textContent,
+          options: [...pane.querySelectorAll("datalist option")].map((entry) => entry.value) };
+      } finally { window.fetch = originalFetch; pane.remove(); }
+    });
+    assert.equal(result.calls, 1);
+    assert.equal(result.model, "");
+    assert.deepEqual(result.options, ["google/gemma-4-e4b", "qwen3.8-27b"]);
+    assert.match(result.status, /nothing was loaded/);
   } finally { await page.close(); }
 });
 

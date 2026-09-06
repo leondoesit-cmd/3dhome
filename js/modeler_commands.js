@@ -153,6 +153,8 @@ export function buildCommandCatalog(ctx) {
       available:function(){ return partDoc() ? solids() : components(); },
       reason:function(){ return partDoc() ? t("cmdNeedSolid") : t("cmdNeedOneComponent"); } },
     { id:"section", icon:"ph-selection-background", label:t("sectionView"), group:t("cmdEvaluate"), terms:"clip clipping slice cross section interior", available:function(){ return partDoc() ? solids() : components(); }, reason:function(){ return partDoc() ? t("cmdNeedSolid") : t("cmdNeedOneComponent"); } },
+    { id:"paint", icon:"ph-paint-brush", label:t("tool_paint"), group:t("cmdEvaluate"), shortcut:"P", terms:"paint color appearance face material finish brush", available:function(){ return partDoc(); }, reason:needPart },
+    { id:"note", icon:"ph-note-pencil", label:t("tool_note"), group:t("cmdEvaluate"), shortcut:"N", terms:"note annotation callout markup draw ink comment redline", available:function(){ return partDoc(); }, reason:needPart },
     { id:"standards", icon:"ph-seal-check", label:t("standardsAudit"), group:t("cmdEvaluate"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"stdscrew", icon:"ph-screwdriver", label:t("stdScrewCommand"), group:t("cmdFeatures"), available:function(){return partDoc();}, reason:needPart },
     { id:"stdgear", icon:"ph-gear-six", label:t("stdGearCommand"), group:t("cmdFeatures"), available:function(){return partDoc();}, reason:needPart },

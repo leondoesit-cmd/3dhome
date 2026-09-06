@@ -187,7 +187,7 @@ function syncTopSelection() {
 }
 /* ---- the contextual row ------------------------------------------------- */
 
-var DRAW_TOOLS = ["wall", "arcwall", "rect", "door", "window", "passage", "slabvoid", "point", "erase"];
+var DRAW_TOOLS = ["wall", "arcwall", "rect", "roomstamp", "door", "window", "passage", "slabvoid", "point", "erase"];
 function drawing() {
   return DRAW_TOOLS.indexOf(S.tool) >= 0;
 }
@@ -580,6 +580,7 @@ function buildToolsSheet() {
     var tool = src.getAttribute("data-tool");
     var act = src.getAttribute("data-act");
     if (!tool && !act) return;
+    if (act === "toggleToolNames") return;
     var b = document.createElement("button");
     b.type = "button";
     b.className = "m-grid-btn";

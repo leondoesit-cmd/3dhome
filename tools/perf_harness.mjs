@@ -37,13 +37,28 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 /* ---- CLI ---------------------------------------------------------------- */
 const argv = process.argv.slice(2);
-const arg = (name, dflt) => {
-  const hit = argv.find((a) => a.startsWith("--" + name + "="));
-  return hit ? hit.slice(name.length + 3) : dflt;
+const hasFlag = (name) => argv.some((a) => a === "--" + name || a.startsWith("--" + name + "="));
+const getArg = (name, dflt) => {
+  const eq = argv.find((a) => a.startsWith("--" + name + "="));
+  if (eq) return eq.slice(name.length + 3);
+  const idx = argv.indexOf("--" + name);
+  if (idx !== -1 && idx + 1 < argv.length && !argv[idx + 1].startsWith("--")) {
+    return argv[idx + 1];
+  }
+  return dflt;
 };
-const OUT = arg("out", join(ROOT, "perf-baseline.json"));
-const ONLY = new Set(String(arg("only", "server,boot,paint,three")).split(",").map((s) => s.trim()));
-const REPEATS = Math.max(1, parseInt(arg("repeats", "1"), 10) || 1);
+const arg = getArg;
+
+const suiteArg = getArg("suite", null);
+let defaultOnly = "server,boot,paint,three,modeler";
+if (suiteArg === "modeler") defaultOnly = "modeler";
+else if (suiteArg === "planner") defaultOnly = "server,boot,paint,three";
+else if (suiteArg) defaultOnly = suiteArg;
+
+const OUT = getArg("out", join(ROOT, "perf-baseline.json"));
+const ONLY = new Set(String(getArg("only", defaultOnly)).split(",").map((s) => s.trim()));
+const REPEATS = Math.max(1, parseInt(getArg("repeats", "1"), 10) || 1);
+const BASELINE_CLEAN = hasFlag("baseline-clean");
 
 const MIME = {
   ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript",
@@ -133,6 +148,41 @@ const INSTRUMENT = [
     file: "/js/history.js",
     needle: "function snap() {",
     inject: "function snap() { if (window.__perf) window.__perf.snap++;",
+  },
+  {
+    file: "/js/modeler.js",
+    needle: "function updatePreview() {",
+    inject: "function updatePreview() { if (window.__perf) window.__perf.mdPreview++;",
+  },
+  {
+    file: "/js/modeler.js",
+    needle: "function buildPart(g, p, displayStyle) {",
+    inject: "function buildPart(g, p, displayStyle) { if (window.__perf) window.__perf.mdBuildPart++;",
+  },
+  {
+    file: "/js/core/mesh_projection.js",
+    needle: "export function meshFeatureEdges(meshData, options = {}) {",
+    inject: "export function meshFeatureEdges(meshData, options = {}) { if (window.__perf) window.__perf.mdEdgeScan++;",
+  },
+  {
+    file: "/js/primitives.js",
+    needle: "export function clearGroup(g) {",
+    inject: "export function clearGroup(g) { if (window.__perf) window.__perf.mdDispose++;",
+  },
+  {
+    file: "/js/modeler.js",
+    needle: "function refreshAll() {",
+    inject: "function refreshAll() { if (window.__perf) window.__perf.mdRefreshAll++;",
+  },
+  {
+    file: "/js/core/parametric_rebuild.js",
+    needle: "export function rebuildParametricDocument(source, overrides = {}, options = {}) {",
+    inject: "export function rebuildParametricDocument(source, overrides = {}, options = {}) { if (window.__perf) window.__perf.mdRebuildDoc++;",
+  },
+  {
+    file: "/js/core/schema.js",
+    needle: "export function cloneDomain(value) {",
+    inject: "export function cloneDomain(value) { if (window.__perf) window.__perf.mdClone++;",
   },
 ];
 
@@ -483,7 +533,8 @@ const installScenario = async (page) => {
     const S = state.S;
     const canvas = document.getElementById("plan");
     window.__perf = window.__perf ||
-      { model: 0, hud: 0, request2D: 0, requestHUD: 0, snap: 0, modelMs: 0, modelTimed: 0, mT0: 0 };
+      { model: 0, hud: 0, request2D: 0, requestHUD: 0, snap: 0, modelMs: 0, modelTimed: 0, mT0: 0,
+        mdPreview: 0, mdBuildPart: 0, mdEdgeScan: 0, mdDispose: 0, mdRefreshAll: 0, mdRebuildDoc: 0, mdClone: 0 };
     const frame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     function ev(type, x, z, opts) {
       const r = canvas.getBoundingClientRect();
@@ -499,6 +550,8 @@ const installScenario = async (page) => {
         var P = window.__perf;
         P.model = 0; P.hud = 0; P.request2D = 0; P.requestHUD = 0; P.snap = 0;
         P.modelMs = 0; P.modelTimed = 0; P.mT0 = 0;
+        P.mdPreview = 0; P.mdBuildPart = 0; P.mdEdgeScan = 0; P.mdDispose = 0;
+        P.mdRefreshAll = 0; P.mdRebuildDoc = 0; P.mdClone = 0;
       },
       room() {
         S.nodes = [{ x: 0, z: 0 }, { x: 600, z: 0 }, { x: 600, z: 400 }, { x: 0, z: 400 }];
@@ -924,6 +977,217 @@ async function probeThree() {
   }
 }
 
+/* ---- (e) MODEL EDITOR PROBE --------------------------------------------- */
+
+async function probeModeler() {
+  const page = await openPerfPage({ width: 1440, height: 900, gpu: true });
+  try {
+    await page.goto("/");
+    await page.eval(() => {
+      const s = document.getElementById("start-screen");
+      if (s) s.hidden = true;
+    });
+
+    const out = await page.eval(async (moves) => {
+      const { openModeler, closeModeler } = await import("/js/modeler.js");
+      const fixture = await (await fetch("/tests/fixtures/legacy_feature_manager.json")).json();
+      /* The legacy fixture is deliberately NOT parametric-v1, so
+         isCanonicalAuthoring() is false and refreshAll() never reaches
+         rebuildParametricDocument — which is why every rebuildDoc/cloneDomain
+         row below used to read 0 and the parametric work went unmeasured. */
+      const canonicalFixture = await (await fetch("/tests/fixtures/canonical_parametric.json")).json();
+
+      const P = (window.__perf = window.__perf || {
+        model: 0, hud: 0, request2D: 0, requestHUD: 0, snap: 0,
+        mdPreview: 0, mdBuildPart: 0, mdEdgeScan: 0, mdDispose: 0,
+        mdRefreshAll: 0, mdRebuildDoc: 0, mdClone: 0,
+      });
+
+      const resetPerf = () => {
+        P.mdPreview = 0; P.mdBuildPart = 0; P.mdEdgeScan = 0;
+        P.mdDispose = 0; P.mdRefreshAll = 0; P.mdRebuildDoc = 0; P.mdClone = 0;
+      };
+
+      const frame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+      const settle = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      // Open model editor with the fixture
+      openModeler(null, fixture, null);
+      await settle(400);
+
+      // Dismiss welcome modal if open
+      const welcome = document.getElementById("mdWelcome");
+      if (welcome) {
+        const c = welcome.querySelector('[data-welcome-start="continue"]') || welcome.querySelector(".md-welcome-close");
+        if (c) c.click();
+      }
+      await frame();
+
+      const results = {};
+
+      async function gesture(name, fn, gestureMoves = moves) {
+        await frame();
+        resetPerf();
+        const t0 = performance.now();
+        await fn();
+        await frame();
+        results[name] = {
+          mdPreview: P.mdPreview,
+          mdBuildPart: P.mdBuildPart,
+          mdEdgeScan: P.mdEdgeScan,
+          mdDispose: P.mdDispose,
+          mdRefreshAll: P.mdRefreshAll,
+          mdRebuildDoc: P.mdRebuildDoc,
+          mdClone: P.mdClone,
+          pointermoveEvents: gestureMoves,
+          wallMs: +(performance.now() - t0).toFixed(1),
+        };
+      }
+
+      const canvas3d = document.getElementById("mdPrev");
+      const canvas2d = document.getElementById("mdCanvas");
+      const root = document.getElementById("modeler");
+
+      // 1. hoverModel — pointermove across the body in 3D mode, no buttons (20 moves)
+      const mode3dBtn = root.querySelector('[data-mode="3d"]');
+      if (mode3dBtn) mode3dBtn.click();
+      await frame();
+
+      await gesture("hoverModel", async () => {
+        const r = canvas3d.getBoundingClientRect();
+        for (let i = 1; i <= moves; i++) {
+          const x = r.left + r.width * (0.3 + 0.4 * (i / moves));
+          const y = r.top + r.height * 0.5;
+          canvas3d.dispatchEvent(new PointerEvent("pointermove", {
+            bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse",
+            clientX: x, clientY: y, buttons: 0,
+          }));
+          await frame();
+        }
+      });
+
+      // 2. selectFace — single click on a face in 3D mode
+      await gesture("selectFace", async () => {
+        const r = canvas3d.getBoundingClientRect();
+        const x = r.left + r.width * 0.5;
+        const y = r.top + r.height * 0.5;
+        canvas3d.dispatchEvent(new PointerEvent("pointerdown", {
+          bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse",
+          clientX: x, clientY: y, button: 0, buttons: 1,
+        }));
+        await frame();
+        canvas3d.dispatchEvent(new PointerEvent("pointerup", {
+          bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse",
+          clientX: x, clientY: y, button: 0, buttons: 0,
+        }));
+        await frame();
+      }, 0);
+
+      // Switch to 2D mode for 2D sketch/body gestures
+      const mode2dBtn = root.querySelector('[data-mode="2d"]');
+      if (mode2dBtn) mode2dBtn.click();
+      await frame();
+
+      // 3. dragSketchPoint — pointerdown on a sketch point, 20 moves, pointerup
+      await gesture("dragSketchPoint", async () => {
+        const r = canvas2d.getBoundingClientRect();
+        const startX = r.left + r.width * 0.4;
+        const startY = r.top + r.height * 0.4;
+        canvas2d.dispatchEvent(new PointerEvent("pointerdown", {
+          bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse",
+          clientX: startX, clientY: startY, button: 0, buttons: 1,
+        }));
+        await frame();
+        for (let i = 1; i <= moves; i++) {
+          const x = startX + (i / moves) * 50;
+          const y = startY + (i / moves) * 50;
+          canvas2d.dispatchEvent(new PointerEvent("pointermove", {
+            bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse",
+            clientX: x, clientY: y, buttons: 1,
+          }));
+          await frame();
+        }
+        canvas2d.dispatchEvent(new PointerEvent("pointerup", {
+          bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse",
+          clientX: startX + 50, clientY: startY + 50, button: 0, buttons: 0,
+        }));
+        await frame();
+      });
+
+      // 4. dragBody — 2D `move` drag of a part
+      await gesture("dragBody", async () => {
+        const r = canvas2d.getBoundingClientRect();
+        const startX = r.left + r.width * 0.5;
+        const startY = r.top + r.height * 0.5;
+        canvas2d.dispatchEvent(new PointerEvent("pointerdown", {
+          bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse",
+          clientX: startX, clientY: startY, button: 0, buttons: 1,
+        }));
+        await frame();
+        for (let i = 1; i <= moves; i++) {
+          const x = startX + (i / moves) * 40;
+          const y = startY + (i / moves) * 40;
+          canvas2d.dispatchEvent(new PointerEvent("pointermove", {
+            bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse",
+            clientX: x, clientY: y, buttons: 1,
+          }));
+          await frame();
+        }
+        canvas2d.dispatchEvent(new PointerEvent("pointerup", {
+          bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse",
+          clientX: startX + 40, clientY: startY + 40, button: 0, buttons: 0,
+        }));
+        await frame();
+      });
+
+      // 5. openEditor — cold openModeler() on reference document
+      closeModeler();
+      await settle(100);
+      await gesture("openEditor", async () => {
+        openModeler(null, fixture, null);
+        await settle(200);
+      }, 0);
+
+      // 6. openCanonical — the same, on a parametric-v1 document. This is the
+      //    only row that exercises rebuildParametricDocument, so it is the one
+      //    that can see the T10 clone work and the T11 double-rebuild fix.
+      closeModeler();
+      await settle(100);
+      await gesture("openCanonical", async () => {
+        openModeler(null, JSON.parse(JSON.stringify(canonicalFixture)), null);
+        await settle(200);
+      }, 0);
+
+      // 7. selectCanonical — a selection click inside a canonical document.
+      //    refreshAll() runs the parametric rebuild here; T9 is about making
+      //    that stop happening for a pure selection change.
+      await gesture("selectCanonical", async () => {
+        const c = document.querySelector("#mdPrev");
+        if (c) {
+          const r = c.getBoundingClientRect();
+          for (const type of ["pointerdown", "pointerup"]) {
+            c.dispatchEvent(new PointerEvent(type, {
+              bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse",
+              clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+              button: 0, buttons: type === "pointerdown" ? 1 : 0,
+            }));
+          }
+        }
+        await settle(150);
+      }, 0);
+
+      return {
+        results,
+        note: "Model editor CAD gesture baseline: teardowns, part builds, edge scans, disposals, rebuilds.",
+      };
+    }, MOVES);
+
+    return out;
+  } finally {
+    await page.close();
+  }
+}
+
 /* ---- runner ------------------------------------------------------------- */
 
 function median(xs) {
@@ -980,92 +1244,189 @@ await step("three", async () => {
   // report the last run in full and keep the others alongside for variance
   return Object.assign({}, runs[runs.length - 1], { allRuns: runs });
 });
+await step("modeler", async () => {
+  const runs = [];
+  for (let i = 0; i < REPEATS; i++) runs.push(await probeModeler());
+  if (runs.length === 1) return runs[0];
+  const merged = runs[0];
+  for (const key of Object.keys(merged.results))
+    for (const field of [
+      "mdPreview", "mdBuildPart", "mdEdgeScan", "mdDispose",
+      "mdRefreshAll", "mdRebuildDoc", "mdClone", "wallMs", "pointermoveEvents",
+    ])
+  merged.runs = runs.length;
+  return merged;
+});
 
-await writeFile(OUT, JSON.stringify(out, null, 2) + "\n");
+let finalJson = out;
+if (!BASELINE_CLEAN) {
+  try {
+    const existingRaw = await readFile(OUT, "utf8");
+    const existingJson = JSON.parse(existingRaw);
+    finalJson = {
+      ...existingJson,
+      ...out,
+      server: out.server ?? existingJson.server,
+      boot: out.boot ?? existingJson.boot,
+      paint: out.paint ?? existingJson.paint,
+      three: out.three ?? existingJson.three,
+      modeler: out.modeler ?? existingJson.modeler,
+    };
+  } catch {
+    // File didn't exist or was invalid JSON
+  }
+}
+await writeFile(OUT, JSON.stringify(finalJson, null, 2) + "\n");
 process.stderr.write("[perf] wrote " + OUT + "\n");
 
 /* ---- markdown summary --------------------------------------------------- */
 const kb = (n) => (n == null ? "-" : (n / 1024).toFixed(1) + " KB");
-const md = [];
-md.push("# Performance baseline\n");
-md.push(`Generated ${out.generatedAt} · node ${out.node} · ${out.platform}`);
-if (out.git) md.push(`HEAD \`${out.git.head.slice(0, 10)}\` with ${out.git.dirtyFiles} modified/untracked files in the tree`);
-md.push("\nRegenerate with:\n\n```\nnode tools/perf_harness.mjs\n```\n");
+const newSections = new Map();
 
 if (out.server && !out.server.error) {
-  md.push("## (a) Server delivery — `node server/relay.mjs`\n");
-  md.push("| asset | on disk | on wire | enc | cold TTFB | cold total | warm TTFB | warm total |");
-  md.push("|---|--:|--:|---|--:|--:|--:|--:|");
-  out.server.cold.forEach((c, i) => {
-    const w = out.server.warm[i];
-    md.push(`| \`${c.path}\` | ${kb(c.uncompressedBytes)} | ${kb(c.transferredBytes)} | ${c.encoding} | ${c.ttfbMs} ms | ${c.totalMs} ms | ${w.ttfbMs} ms | ${w.totalMs} ms |`);
-  });
-  md.push(`| **total** | | | | | **${out.server.coldTotalMs} ms** | | **${out.server.warmTotalMs} ms** |`);
-  md.push("\n" + out.server.note + "\n");
+  const lines = [
+    "## (a) Server delivery — `node server/relay.mjs`\n",
+    "| asset | on disk | on wire | enc | cold TTFB | cold total | warm TTFB | warm total |",
+    "|---|--:|--:|---|--:|--:|--:|--:|",
+    ...out.server.cold.map((c, i) => {
+      const w = out.server.warm[i];
+      return `| \`${c.path}\` | ${kb(c.uncompressedBytes)} | ${kb(c.transferredBytes)} | ${c.encoding} | ${c.ttfbMs} ms | ${c.totalMs} ms | ${w.ttfbMs} ms | ${w.totalMs} ms |`;
+    }),
+    `| **total** | | | | | **${out.server.coldTotalMs} ms** | | **${out.server.warmTotalMs} ms** |`,
+    "\n" + out.server.note + "\n",
+  ];
+  newSections.set("a", lines.join("\n"));
 }
 if (out.boot && !out.boot.error) {
   const b = out.boot;
-  md.push("## (b) Boot cost (game modules excluded)\n");
-  md.push("| metric | value |");
-  md.push("|---|--:|");
-  md.push(`| network requests (total) | ${b.requestsTotal} |`);
-  md.push(`| network requests (excl. game modules) | ${b.requestsExcludingGame} |`);
-  md.push(`| JS requests | ${b.jsRequests} |`);
-  md.push(`| JS uncompressed | ${kb(b.jsDecodedBytes)} |`);
-  md.push(`| JS transferred | ${kb(b.jsTransferredBytes)} |`);
-  md.push(`| all resources uncompressed | ${kb(b.allDecodedBytes)} |`);
-  md.push(`| time to interactive (nav -> __home3dBooted + 1 frame) | ${b.timeToInteractiveMs} ms |`);
-  md.push(`| DOM elements at idle | ${b.dom.elements} |`);
-  md.push(`| buttons at idle | ${b.dom.buttons} |`);
-  md.push(`| form controls at idle | ${b.dom.inputs} |`);
-  md.push(`| canvases at idle | ${b.dom.canvases} |`);
-  md.push(`| JS heap at idle | ${b.dom.heapMB == null ? "-" : b.dom.heapMB + " MB"} |`);
-  md.push("\nLargest JS modules by uncompressed size:\n");
-  md.push("| module | uncompressed |");
-  md.push("|---|--:|");
-  b.largestJs.forEach((r) => md.push(`| \`${r.path}\` | ${kb(r.decoded)} |`));
-  md.push("\n" + b.note + "\n");
+  const lines = [
+    "## (b) Boot cost (game modules excluded)\n",
+    "| metric | value |",
+    "|---|--:|",
+    `| network requests (total) | ${b.requestsTotal} |`,
+    `| network requests (excl. game modules) | ${b.requestsExcludingGame} |`,
+    `| JS requests | ${b.jsRequests} |`,
+    `| JS uncompressed | ${kb(b.jsDecodedBytes)} |`,
+    `| JS transferred | ${kb(b.jsTransferredBytes)} |`,
+    `| all resources uncompressed | ${kb(b.allDecodedBytes)} |`,
+    `| time to interactive (nav -> __home3dBooted + 1 frame) | ${b.timeToInteractiveMs} ms |`,
+    `| DOM elements at idle | ${b.dom.elements} |`,
+    `| buttons at idle | ${b.dom.buttons} |`,
+    `| form controls at idle | ${b.dom.inputs} |`,
+    `| canvases at idle | ${b.dom.canvases} |`,
+    `| JS heap at idle | ${b.dom.heapMB == null ? "-" : b.dom.heapMB + " MB"} |`,
+    "\nLargest JS modules by uncompressed size:\n",
+    "| module | uncompressed |",
+    "|---|--:|",
+    ...b.largestJs.map((r) => `| \`${r.path}\` | ${kb(r.decoded)} |`),
+    "\n" + b.note + "\n",
+  ];
+  newSections.set("b", lines.join("\n"));
 }
 if (out.paint && !out.paint.error) {
-  md.push("## (c) 2D paint count — model vs. HUD paints per gesture\n");
-  md.push("| gesture | pointermoves | model paints | model/move | HUD paints | paint requests | HUD requests | snap() calls | wall ms | moved by |");
-  md.push("|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|");
-  for (const [k, v] of Object.entries(out.paint.results))
-    if (v.modelPaintsPerMove != null || k.startsWith("idle"))
-      md.push(`| ${k} | ${v.pointermoveEvents ?? "-"} | ${v.modelPaints} | ${v.modelPaintsPerMove ?? "-"} | ${v.hudPaints} | ${v.paintRequests} | ${v.hudRequests} | ${v.historySnapshots} | ${v.wallMs ?? "-"} | ${v.movedBy ?? "-"} |`);
+  const lines = [
+    "## (c) 2D paint count — model vs. HUD paints per gesture\n",
+    "| gesture | pointermoves | model paints | model/move | HUD paints | paint requests | HUD requests | snap() calls | wall ms | moved by |",
+    "|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|",
+  ];
+  for (const [k, v] of Object.entries(out.paint.results)) {
+    if (v.modelPaintsPerMove != null || k.startsWith("idle")) {
+      lines.push(`| ${k} | ${v.pointermoveEvents ?? "-"} | ${v.modelPaints} | ${v.modelPaintsPerMove ?? "-"} | ${v.hudPaints} | ${v.paintRequests} | ${v.hudRequests} | ${v.historySnapshots} | ${v.wallMs ?? "-"} | ${v.movedBy ?? "-"} |`);
+    }
+  }
   const costRows = Object.entries(out.paint.results).filter(([, v]) => v.fullPaintMs != null);
   if (costRows.length) {
-    md.push("\n### What one paint costs (timed synchronously, no rAF in the loop)\n");
-    md.push("| scene | walls | full paint (model+HUD) | model pass | HUD pass |");
-    md.push("|---|--:|--:|--:|--:|");
+    lines.push("\n### What one paint costs (timed synchronously, no rAF in the loop)\n");
+    lines.push("| scene | walls | full paint (model+HUD) | model pass | HUD pass |");
+    lines.push("|---|--:|--:|--:|--:|");
     costRows.forEach(([k, v]) =>
-      md.push(`| ${k} | ${v.walls} | ${v.fullPaintMs} ms | ${v.modelPaintMs ?? "-"} ms | ${v.hudPaintMs ?? "-"} ms |`));
+      lines.push(`| ${k} | ${v.walls} | ${v.fullPaintMs} ms | ${v.modelPaintMs ?? "-"} ms | ${v.hudPaintMs ?? "-"} ms |`));
   }
   for (const key of ["idle3000ms", "idleWarning3000ms"]) {
     const idle = out.paint.results[key];
     if (idle && idle.callers && idle.callers.length) {
-      md.push(`\nWhat paints the MODEL canvas during \`${key}\` (no input at all):\n`);
-      idle.callers.forEach((c) => md.push("- " + c.n + "x `" + c.stack + "`"));
+      lines.push(`\nWhat paints the MODEL canvas during \`${key}\` (no input at all):\n`);
+      idle.callers.forEach((c) => lines.push("- " + c.n + "x `" + c.stack + "`"));
     }
   }
-  md.push("\n" + out.paint.note + "\n");
+  lines.push("\n" + out.paint.note + "\n");
+  newSections.set("c", lines.join("\n"));
 }
 if (out.three && !out.three.error) {
   const t = out.three;
-  md.push("## (d) 3D idle cost\n");
-  if (t.error) md.push("**not measured:** " + t.error + "\n");
+  const lines = ["## (d) 3D idle cost\n"];
+  if (t.error) lines.push("**not measured:** " + t.error + "\n");
   else {
-    md.push(`Backend: \`${t.backend}\` · canvas ${t.canvasSize ? t.canvasSize.w + "x" + t.canvasSize.h : "?"}\n`);
-    md.push(
+    lines.push(`Backend: \`${t.backend}\` · canvas ${t.canvasSize ? t.canvasSize.w + "x" + t.canvasSize.h : "?"}\n`);
+    lines.push(
       `Humans: ${t.peopleItemsPlaced} items placed, ${t.humanMeshesInScene} human meshes in the ` +
       `scene, ${t.humansAsDirectDynChildren} of them direct children of the dyn group ` +
-      `(only those keep the loop live) · ${t.sceneObjects} objects in the scene graph\n`);
-    md.push("| sample | rAF fps | painted frames/s | draw calls/frame | tris/frame | shadow passes/s |");
-    md.push("|---|--:|--:|--:|--:|--:|");
+      `(only those keep the loop live) · ${t.sceneObjects} objects in the scene graph\n`
+    );
+    lines.push("| sample | rAF fps | painted frames/s | draw calls/frame | tris/frame | shadow passes/s |");
+    lines.push("|---|--:|--:|--:|--:|--:|");
     (t.samples || []).forEach((s) =>
-      md.push(`| ${s.label} | ${s.rafFps} | ${s.renderedFramesPerSecond} | ${s.drawCallsPerFrame} | ${s.trianglesPerFrame} | ${s.shadowPassesPerSecond} |`));
-    md.push("\n" + t.note + "\n");
+      lines.push(`| ${s.label} | ${s.rafFps} | ${s.renderedFramesPerSecond} | ${s.drawCallsPerFrame} | ${s.trianglesPerFrame} | ${s.shadowPassesPerSecond} |`));
+    lines.push("\n" + t.note + "\n");
+  }
+  newSections.set("d", lines.join("\n"));
+}
+if (out.modeler && !out.modeler.error) {
+  const m = out.modeler;
+  const lines = [
+    "## (e) Modeler CAD performance — gesture counters & wall clock\n",
+    "| gesture | moves | updatePreview | buildPart | meshFeatureEdges | clearGroup | refreshAll | rebuildDoc | cloneDomain | wall ms |",
+    "|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|",
+    ...Object.entries(m.results).map(([k, v]) =>
+      `| ${k} | ${v.pointermoveEvents ?? "-"} | ${v.mdPreview} | ${v.mdBuildPart} | ${v.mdEdgeScan} | ${v.mdDispose} | ${v.mdRefreshAll} | ${v.mdRebuildDoc} | ${v.mdClone} | ${v.wallMs ?? "-"} |`
+    ),
+    "\n" + m.note + "\n",
+  ];
+  newSections.set("e", lines.join("\n"));
+}
+
+const mdPath = OUT.replace(/\.json$/, "") + ".md";
+let existingSections = new Map();
+let preamble = null;
+
+if (!BASELINE_CLEAN) {
+  try {
+    const existingMd = await readFile(mdPath, "utf8");
+    const sectionSplits = existingMd.split(/(?=^## \([a-e]\))/m);
+    if (sectionSplits.length > 0) {
+      preamble = sectionSplits[0].trim();
+      for (let i = 1; i < sectionSplits.length; i++) {
+        const secText = sectionSplits[i];
+        const match = secText.match(/^## \(([a-e])\)/m);
+        if (match) {
+          existingSections.set(match[1], secText.trim());
+        }
+      }
+    }
+  } catch {
+    // Existing file didn't exist, ignore
   }
 }
-await writeFile(OUT.replace(/\.json$/, "") + ".md", md.join("\n") + "\n");
-process.stderr.write("[perf] wrote " + OUT.replace(/\.json$/, "") + ".md\n");
+
+if (!preamble) {
+  const preLines = [
+    "# Performance baseline\n",
+    `Generated ${out.generatedAt} · node ${out.node} · ${out.platform}`,
+  ];
+  if (out.git) preLines.push(`HEAD \`${out.git.head.slice(0, 10)}\` with ${out.git.dirtyFiles} modified/untracked files in the tree`);
+  preLines.push("\nRegenerate with:\n\n```\nnode tools/perf_harness.mjs\n```\n");
+  preamble = preLines.join("\n");
+}
+
+const finalSections = [];
+for (const letter of ["a", "b", "c", "d", "e"]) {
+  if (newSections.has(letter)) {
+    finalSections.push(newSections.get(letter).trim());
+  } else if (existingSections.has(letter)) {
+    finalSections.push(existingSections.get(letter).trim());
+  }
+}
+
+const finalMd = preamble + "\n\n" + finalSections.join("\n\n") + "\n";
+await writeFile(mdPath, finalMd);
+process.stderr.write("[perf] wrote " + mdPath + "\n");

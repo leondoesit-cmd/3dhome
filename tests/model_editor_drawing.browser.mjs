@@ -74,6 +74,24 @@ test("a sheet opens on the standard views, dimensioned, with its own chrome", op
       dims: (sheet.status().dims),
       panel: !!document.querySelector("#mdSheetPanel:not([hidden])"),
       toolbar: getComputedStyle(document.getElementById("mdDrawingTools")).display,
+      toolbarLeft: parseFloat(getComputedStyle(document.getElementById("mdDrawingTools")).insetInlineStart)
+        || parseFloat(getComputedStyle(document.getElementById("mdDrawingTools")).left),
+      saveDup: !!document.getElementById("mdDrawingSave"),
+      workflow: getComputedStyle(document.getElementById("mdWorkflow")).display,
+      titleOpen: [...document.querySelectorAll("#mdSheetPanel details.md-sheet-group")].at(-1)?.open === true,
+      overlap: (() => {
+        const boxes = scene.views.map((place) => place.box);
+        const hits = [];
+        for (let i = 0; i < boxes.length; i++) {
+          for (let j = i + 1; j < boxes.length; j++) {
+            const a = boxes[i], b = boxes[j];
+            if (a.x < b.x + b.w + 2 && a.x + a.w + 2 > b.x && a.y < b.y + b.h + 2 && a.y + a.h + 2 > b.y) {
+              hits.push(scene.views[i].view.label + " × " + scene.views[j].view.label);
+            }
+          }
+        }
+        return hits;
+      })(),
       tree: getComputedStyle(root.querySelector(".md-left")).display,
       status: document.getElementById("mdStatus").textContent,
       paper: scene.paper,
@@ -83,6 +101,11 @@ test("a sheet opens on the standard views, dimensioned, with its own chrome", op
   assert.equal(state.dims, 2, "the two overall sizes are on the sheet before anyone drafts");
   assert.equal(state.panel, true, "the sheet's properties replace the inspector");
   assert.equal(state.toolbar, "flex");
+  assert.ok(state.toolbarLeft < 40, "tools sit in the left rail, not across the paper");
+  assert.equal(state.saveDup, false, "Save lives in the header, not a second time on the sheet");
+  assert.equal(state.workflow, "none", "the modelling breadcrumb is not a drawing control");
+  assert.equal(state.titleOpen, false, "the title block starts folded so the views stay on screen");
+  assert.deepEqual(state.overlap, [], "views do not sit on top of each other");
   assert.equal(state.tree, "none", "a feature tree says nothing about a drawing");
   assert.deepEqual(state.paper, { w: 420, h: 297, label: "A3" });
   assert.match(state.status, /A3/);
@@ -249,4 +272,87 @@ test("leaving and re-entering Drawing mode keeps the sheet that was drafted", op
     return { before, after: window.cadDrawingSheet.scene().views.length };
   });
   assert.equal(kept.after, kept.before, "the drawing lives in the document, not in the mode");
+});
+
+test("adding multiple views and re-laying out keeps zero overlaps and updates view scales", opts, async () => {
+  const page = await sheetPage();
+  const res = await page.eval(() => {
+    const sheet = window.cadDrawingSheet;
+    sheet.addView("left");
+    sheet.addView("back");
+    sheet.addView("bottom");
+    sheet.relayout();
+    const scene = sheet.scene();
+    const boxes = scene.views.map((place) => place.box);
+    const hits = [];
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i], b = boxes[j];
+        if (a.x < b.x + b.w + 2 && a.x + a.w + 2 > b.x && a.y < b.y + b.h + 2 && a.y + a.h + 2 > b.y) {
+          hits.push(scene.views[i].view.label + " × " + scene.views[j].view.label);
+        }
+      }
+    }
+    const viewListTags = [...document.querySelectorAll(".md-sheet-view-name small")].map((s) => s.textContent);
+    return {
+      viewsCount: scene.views.length,
+      overlap: hits,
+      tags: viewListTags,
+    };
+  });
+  assert.equal(res.viewsCount, 7);
+  assert.deepEqual(res.overlap, []);
+  assert.ok(res.tags.length >= 7);
+});
+
+test("drawing mode hides tree toggle and eliminates inspector toggle overlap on sheet panel", opts, async () => {
+  const page = await sheetPage();
+  const state = await page.eval(() => {
+    const leftToggle = document.getElementById("mdToggleLeft");
+    const rightToggle = document.getElementById("mdToggleRight");
+    const sheetPanel = document.getElementById("mdSheetPanel");
+    const drawingTools = document.getElementById("mdDrawingTools");
+
+    const leftStyle = getComputedStyle(leftToggle);
+    const rightStyle = getComputedStyle(rightToggle);
+    const sheetStyle = getComputedStyle(sheetPanel);
+    const toolsStyle = getComputedStyle(drawingTools);
+
+    const initial = {
+      leftHidden: leftStyle.display === "none",
+      rightHidden: rightStyle.display === "none",
+      sheetVisible: sheetStyle.display !== "none",
+      toolsVisible: toolsStyle.display !== "none",
+    };
+
+    // Collapse sheet panel via header action button
+    const collapseBtn = sheetPanel.querySelector(".md-sheet-head-actions button:last-child");
+    collapseBtn.click();
+
+    const afterCollapse = {
+      sheetDisplay: getComputedStyle(sheetPanel).display,
+      rightDisplay: getComputedStyle(rightToggle).display,
+    };
+
+    // Expand again via floating right toggle
+    rightToggle.click();
+
+    const afterExpand = {
+      sheetDisplay: getComputedStyle(sheetPanel).display,
+      rightDisplay: getComputedStyle(rightToggle).display,
+    };
+
+    return { initial, afterCollapse, afterExpand };
+  });
+
+  assert.equal(state.initial.leftHidden, true, "tree toggle must be hidden in drawing mode");
+  assert.equal(state.initial.rightHidden, true, "inspector toggle must be hidden while sheet panel is open");
+  assert.equal(state.initial.sheetVisible, true);
+  assert.equal(state.initial.toolsVisible, true);
+
+  assert.equal(state.afterCollapse.sheetDisplay, "none", "sheet panel hides when collapsed");
+  assert.notEqual(state.afterCollapse.rightDisplay, "none", "right toggle shows when sheet panel is collapsed");
+
+  assert.notEqual(state.afterExpand.sheetDisplay, "none", "sheet panel shows when re-expanded");
+  assert.equal(state.afterExpand.rightDisplay, "none", "right toggle hides when sheet panel is open");
 });

@@ -13,9 +13,9 @@ import {
 } from "../js/core/hidden_line.js";
 import { polygonArea, tessellatePart, tessellateParts, triangulatePolygon } from "../js/core/part_tessellate.js";
 import {
-  STANDARD_SCALES, buildSheetScene, chainLoops, createProjector, createSheetDoc, createView,
+  STANDARD_SCALES, addViewToSheet, buildSheetScene, chainLoops, createProjector, createSheetDoc, createView,
   ensureSheetDoc, formatLength, hatchLoops, layoutViews, measureDim, removeViewFromSheet,
-  scaleLabel, sceneToSvg,
+  scaleLabel, sceneToSvg, titleBlockBox,
 } from "../js/cad_sheet.js";
 import { createDrawingController } from "../js/modeler_drawing.js";
 
@@ -155,6 +155,73 @@ test("an aligned view keeps its projection line however it is placed", () => {
   const right = layout.placements.get(doc.views[1].id);
   assert.equal(right.y, front.y, "a horizontally aligned view shares the front view's centre line");
   assert.equal(right.x, 260, "and is free along its own axis");
+});
+
+function overlappingViewLabels(scene, gap = 2) {
+  const hits = [];
+  for (let i = 0; i < scene.views.length; i++) {
+    for (let j = i + 1; j < scene.views.length; j++) {
+      const a = scene.views[i].box, b = scene.views[j].box;
+      const overlap = a.x < b.x + b.w + gap && a.x + a.w + gap > b.x &&
+        a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
+      if (overlap) hits.push(scene.views[i].view.label + " × " + scene.views[j].view.label);
+    }
+  }
+  return hits;
+}
+
+test("pictorials and sections pack beside the principals instead of stacking on them", () => {
+  const doc = createSheetDoc({ views: ["front", "top", "right", "iso"] });
+  const front = doc.views[0];
+  addViewToSheet(doc, "front", { label: "SECTION A-A", parent: front.id, section: { axis: "vertical", at: 0, from: front.id, tag: "A" } });
+  addViewToSheet(doc, "right", { label: "SECTION B-B", parent: front.id, section: { axis: "horizontal", at: 0, from: front.id, tag: "B" } });
+  addViewToSheet(doc, "top", { label: "SECTION C-C", parent: front.id, section: { axis: "vertical", at: 4, from: front.id, tag: "C" } });
+  const project = createProjector(doc, bodies(BOX));
+  const scene = buildSheetScene(doc, { projection: project });
+  assert.equal(scene.views.length, 7);
+  assert.deepEqual(overlappingViewLabels(scene), [], "every view keeps its own paper");
+  const placed = Object.fromEntries(scene.views.map((place) => [place.view.label, place]));
+  assert.ok(placed.ISOMETRIC.x > placed.FRONT.x, "the isometric sits to the right of the front view");
+  assert.ok(placed["SECTION A-A"].x !== placed["SECTION B-B"].x || placed["SECTION A-A"].y !== placed["SECTION B-B"].y);
+});
+
+test("eight views with four sections fit on sheet without overlapping or colliding with title block", () => {
+  const CYL = { kind: "cyl", x: 0, y: 0, z: 0, r: 5.36, h: 11.3 };
+  const doc = createSheetDoc({ views: ["front", "top", "right", "iso"], scale: "fit" });
+  const front = doc.views[0];
+  addViewToSheet(doc, "front", { label: "SECTION A-A", parent: front.id, section: { axis: "vertical", at: 0, from: front.id, tag: "A" } });
+  addViewToSheet(doc, "right", { label: "SECTION B-B", parent: front.id, section: { axis: "horizontal", at: 0, from: front.id, tag: "B" } });
+  addViewToSheet(doc, "top", { label: "SECTION C-C", parent: front.id, section: { axis: "vertical", at: 4, from: front.id, tag: "C" } });
+  addViewToSheet(doc, "front", { label: "SECTION D-D", parent: front.id, section: { axis: "vertical", at: -2, from: front.id, tag: "D" } });
+  const project = createProjector(doc, tessellateParts([CYL]));
+  const scene = buildSheetScene(doc, { projection: project });
+  assert.equal(scene.views.length, 8);
+  assert.deepEqual(overlappingViewLabels(scene), [], "no views overlap on eight-view sheet");
+  const title = titleBlockBox(doc);
+  for (const place of scene.views) {
+    const a = place.box, b = title;
+    const collides = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    assert.equal(collides, false, `${place.view.label} must not collide with title block`);
+  }
+});
+
+test("forced scale places all views without crash or title block overlap", () => {
+  const CYL = { kind: "cyl", x: 0, y: 0, z: 0, r: 5.36, h: 11.3 };
+  const doc = createSheetDoc({ views: ["front", "top", "right", "iso"], scale: [1, 1] });
+  const front = doc.views[0];
+  addViewToSheet(doc, "front", { label: "SECTION A-A", parent: front.id, section: { axis: "vertical", at: 0, from: front.id, tag: "A" } });
+  addViewToSheet(doc, "right", { label: "SECTION B-B", parent: front.id, section: { axis: "horizontal", at: 0, from: front.id, tag: "B" } });
+  addViewToSheet(doc, "top", { label: "SECTION C-C", parent: front.id, section: { axis: "vertical", at: 4, from: front.id, tag: "C" } });
+  addViewToSheet(doc, "front", { label: "SECTION D-D", parent: front.id, section: { axis: "vertical", at: -2, from: front.id, tag: "D" } });
+  const project = createProjector(doc, tessellateParts([CYL]));
+  const scene = buildSheetScene(doc, { projection: project });
+  assert.equal(scene.views.length, 8);
+  const title = titleBlockBox(doc);
+  for (const place of scene.views) {
+    const a = place.box, b = title;
+    const collides = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    assert.equal(collides, false, `${place.view.label} must not collide with title block even at 1:1 scale`);
+  }
 });
 
 test("the sheet scale is one of the standard ones, and it fits the paper", () => {

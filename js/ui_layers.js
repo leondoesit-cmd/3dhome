@@ -31,6 +31,7 @@ import { render2D } from "./plan2d.js";
 import { t, onLangChange } from "./i18n.js";
 import { flash, fillProps } from "./ui.js";
 import { pushHistory } from "./history.js";
+import { flabel } from "./furniture_meta.js";
 
 /* One Phosphor glyph per layer, so a chip is recognisable at a glance in the
    narrow phone strip where the name is the first thing to be truncated. */
@@ -56,6 +57,7 @@ var TOOL_SET = {
   wall: "structure",
   arcwall: "structure",
   rect: "structure",
+  roomstamp: "structure",
   door: "structure",
   window: "structure",
   passage: "structure",
@@ -63,6 +65,7 @@ var TOOL_SET = {
   walloffset: "structure",
   walljoin: "structure",
   wallbreak: "structure",
+  wallbite: "structure",
   wallreverse: "structure",
   wallpaint: "structure",
   point: "annotations",
@@ -391,6 +394,15 @@ function fillPopover() {
       },
       function (v) {
         L.autoLock = v;
+        /* Withdrawing the opt-in has to release the lock the opt-in put on.
+           applyAutoLock() only ever writes to layers that still want it, so
+           without this the padlock the automation closed stays closed with
+           nothing left to explain it — an off-work-set layer that refuses
+           every drag and shows no reason for it. Safe because the chip's own
+           padlock clears `autoLock` when pressed by hand: a layer arriving
+           here with autoLock still true was locked by the automation, never
+           by the user. */
+        if (!v) L.locked = false;
         applyAutoLock();
       },
     ),
@@ -423,33 +435,106 @@ var pill = null,
   pillFix = null,
   pillHint = null,
   pillDetail = null,
-  pillSticky = false,
-  lastBlockAt = 0,
   ptX = 0,
   ptY = 0;
 
-// One listener per PRESS, not per move: a pointerdown is the only thing that
-// can precede a blocked drag, so this is enough to place the pill.
+/* One listener per PRESS, not per move: a pointerdown is the only thing that
+   can precede a blocked drag, so this is enough to place the pill.
+
+   It also DISMISSES the pill that is already standing. Capture phase on the
+   window puts it ahead of the canvas handler that dispatches the next
+   `layers:blocked-drag`, so the order for a second refused press is
+   hide-then-show rather than show-then-hide — the pill reappears at the new
+   cursor instead of vanishing. A press inside the pill is exempt, or reaching
+   for its own button would close it. */
 if (typeof window !== "undefined")
   window.addEventListener(
     "pointerdown",
     function (e) {
       ptX = e.clientX;
       ptY = e.clientY;
+      if (pill && !pill.hidden && !pill.contains(e.target)) hidePill();
     },
     true,
   );
 
+var TOOL_INFO = {
+  select: { icon: "ph-cursor", key: "m_t_select" },
+  wall: { icon: "ph-wall", key: "m_t_wall" },
+  rect: { icon: "ph-rectangle", key: "m_t_rect" },
+  arcwall: { icon: "ph-bezier-curve", key: "m_t_arcwall" },
+  door: { icon: "ph-door", key: "m_t_door" },
+  window: { icon: "ph-frame-corners", key: "m_t_window" },
+  passage: { icon: "ph-columns", key: "m_t_passage" },
+  slabvoid: { icon: "ph-stairs", key: "m_t_slabvoid" },
+  point: { icon: "ph-crosshair", key: "m_t_point" },
+  erase: { icon: "ph-eraser", key: "m_t_erase" },
+};
+
+function getStatusWrap() {
+  return document.getElementById("plan-tool-status") || document.getElementById("top-tool-status");
+}
+
+export function syncToolStatus() {
+  var wrap = getStatusWrap();
+  if (!wrap) return;
+  var idleEl = wrap.querySelector(".tool-status-idle");
+  if (!idleEl) return;
+  var iconEl = idleEl.querySelector(".tool-icon");
+  var nameEl = idleEl.querySelector(".tool-name");
+
+  var tool = S.tool || "select";
+  var icon = "ph-cursor";
+  var name = "";
+
+  if (S.placeType) {
+    icon = "ph-armchair";
+    try {
+      name = flabel(S.placeType);
+    } catch (e) {
+      name = S.placeType;
+    }
+  } else {
+    var b = document.querySelector('#plan-toolbar [data-tool="' + tool + '"]');
+    if (b) {
+      var ic = b.querySelector("i");
+      if (ic) {
+        var m = ic.className.match(/ph-[a-z0-9-]+/);
+        if (m) icon = m[0];
+      }
+      var nm = b.querySelector(".tool-name");
+      if (nm && nm.textContent.trim()) name = nm.textContent.trim();
+    }
+    if (!name) {
+      var info = TOOL_INFO[tool];
+      if (info) {
+        icon = info.icon;
+        name = t(info.key);
+      } else {
+        name = tool.charAt(0).toUpperCase() + tool.slice(1);
+      }
+    }
+  }
+
+  if (iconEl) iconEl.className = "tool-icon ph " + icon;
+  if (nameEl) nameEl.textContent = name;
+}
+
 function ensurePill() {
   if (pill) return pill;
-  pill = document.createElement("div");
-  pill.className = "unlock-pill";
-  pill.setAttribute("role", "status");
-  pill.hidden = true;
-  pill.innerHTML =
-    '<i class="ph ph-lock-simple"></i><span class="up-msg"></span>' +
-    '<button type="button" class="up-fix"></button><span class="up-hint"></span>';
-  document.body.appendChild(pill);
+  pill = document.querySelector(".unlock-pill");
+  if (!pill) {
+    pill = document.createElement("div");
+    pill.className = "unlock-pill";
+    pill.setAttribute("role", "status");
+    pill.hidden = true;
+    pill.innerHTML =
+      '<i class="ph ph-lock-simple"></i><span class="up-msg"></span>' +
+      '<button type="button" class="up-fix"></button><span class="up-hint"></span>';
+    var wrap = getStatusWrap();
+    if (wrap) wrap.appendChild(pill);
+    else document.body.appendChild(pill);
+  }
   pillMsg = pill.querySelector(".up-msg");
   pillFix = pill.querySelector(".up-fix");
   pillHint = pill.querySelector(".up-hint");
@@ -460,23 +545,8 @@ function ensurePill() {
   return pill;
 }
 
-function placePill(where) {
-  var pane = document.getElementById(where === "3d" ? "view-3d" : "view-2d");
-  var r = pill.getBoundingClientRect();
-  var box = pane ? pane.getBoundingClientRect() : null;
-  /* A maximized pane hides the other one outright, and a display:none element
-     measures as an all-zero rect — clamping into that puts the pill at negative
-     coordinates, off the top-left of the window. Fall back to the viewport
-     whenever the named pane has no box to aim at. */
-  if (!box || box.width < 8 || box.height < 8)
-    box = { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
-  /* Offset below-right of the cursor, then clamped INTO the named pane so the
-     pill never drifts over the inspector or the other view. Clamping to the
-     pane rather than the viewport is what makes `where` load-bearing. */
-  var x = Math.min(Math.max(box.left + 4, ptX + 16), box.right - r.width - 4);
-  var y = Math.min(Math.max(box.top + 4, ptY + 18), box.bottom - r.height - 4);
-  pill.style.left = x + "px";
-  pill.style.top = y + "px";
+function placePill() {
+  /* Pill is integrated into the 2D view header (#plan-tool-status) */
 }
 
 function fillPill() {
@@ -493,33 +563,32 @@ function fillPill() {
     pillMsg.textContent = t("lp_object");
     pillFix.textContent = t("lp_fix_object");
   }
-  // A drag is still in progress behind a transient pill, so it advertises the
-  // gesture that makes the pill stay put long enough to press its button.
-  pillHint.textContent = pillSticky ? "" : t("lp_hint");
-  pill.classList.toggle("sticky", pillSticky);
+  pillHint.textContent = "";
 }
 
-function showPill(detail, sticky) {
+/* The pill stands until it is answered, another tool is chosen, or the user presses somewhere else. */
+function showPill(detail) {
   if (!detail || !detail.layer) return;
   ensurePill();
   pillDetail = detail;
-  pillSticky = !!sticky;
   fillPill();
   pill.hidden = false;
-  placePill(detail.where);
-  if (sticky) return;
-  // Transient: it lives exactly as long as the press that was refused.
-  window.addEventListener("pointerup", onPillUp, { once: true, capture: true });
-}
-
-function onPillUp() {
-  if (!pillSticky) hidePill();
+  var wrap = getStatusWrap();
+  if (wrap) wrap.classList.add("has-msg");
 }
 
 function hidePill() {
   if (!pill) return;
   pill.hidden = true;
-  pillSticky = false;
+  pillDetail = null;
+  var wrap = getStatusWrap();
+  if (wrap) wrap.classList.remove("has-msg");
+  syncToolStatus();
+}
+
+function onToolOrPlaceChanged() {
+  if (pill && !pill.hidden) hidePill();
+  else syncToolStatus();
 }
 
 /* Unlock the individual object behind the refused drag. Object locks are part
@@ -568,22 +637,16 @@ function applyFix() {
 }
 
 function initPill() {
-  window.addEventListener("layers:blocked-drag", function (e) {
-    lastBlockAt = Date.now();
-    showPill(e.detail, false);
-  });
-  /* Double-click / double-tap on a refused object promotes the transient pill
-     to a sticky one. It needs no hit test of its own: the two presses of the
-     double-click each fired `layers:blocked-drag` first, so a recent block is
-     proof the object under the cursor is the refused one. Browsers synthesize
-     `dblclick` from a double-tap, so this is the touch path too. */
-  ["plan", "v3d"].forEach(function (id) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener("dblclick", function () {
-      if (!pillDetail || Date.now() - lastBlockAt > 700) return;
-      showPill(pillDetail, true);
+  ensurePill();
+  var idleEl = document.getElementById("planToolIdle") || document.getElementById("topToolIdle");
+  if (idleEl) {
+    idleEl.addEventListener("click", function () {
+      var inp = document.getElementById("toolSearchInput");
+      if (inp) inp.focus();
     });
+  }
+  window.addEventListener("layers:blocked-drag", function (e) {
+    showPill(e.detail);
   });
   window.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && pill && !pill.hidden) hidePill();
@@ -626,9 +689,22 @@ export function initLayersUI() {
   build();
   initPill();
   window.addEventListener("layers:changed", sync);
-  window.addEventListener("planner-tool", followTool);
-  window.addEventListener("planner-place", followTool);
+  /* One listener per event, not two. Both handlers want the same two events
+     and both go straight to the DOM, so registering each separately doubled
+     the work per tool change for no ordering guarantee either of them relied
+     on — the order is now explicit instead of incidental. */
+  function onPlannerToolEvent(e) {
+    followTool(e);
+    onToolOrPlaceChanged(e);
+  }
+  window.addEventListener("planner-tool", onPlannerToolEvent);
+  window.addEventListener("planner-place", onPlannerToolEvent);
   window.addEventListener("keydown", onKey, true);
-  onLangChange(relabel);
+  onLangChange(function () {
+    relabel();
+    syncToolStatus();
+    if (pillDetail && pill && !pill.hidden) fillPill();
+  });
   relabel();
+  syncToolStatus();
 }

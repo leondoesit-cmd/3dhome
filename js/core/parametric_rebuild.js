@@ -23,7 +23,7 @@ export function rebuildParametricDocument(source, overrides = {}, options = {}) 
      failed steps are dropped from the executable tree and the run goes ahead.
      Whatever consumed them reports its own unavailable input in turn. */
   const dropped = new Set(issues.filter((issue) => issue.severity === "error").flatMap(issueTargets));
-  const executable = cloneDomain(snapshot);
+  const executable = { ...snapshot, sketches: (snapshot.sketches || []).map((s) => ({ ...s })) };
   executable.features = compiled.features.filter((feature) =>
     ![...dropped].some((id) => feature.id === id || feature.id.startsWith(id + ":")));
   const core = rebuildDefinition(executable, overrides, options);
@@ -46,7 +46,14 @@ export function rebuildParametricDocument(source, overrides = {}, options = {}) 
     ok,
     definitionId: snapshot.id,
     revision: snapshot.revision,
-    signature: stableStringify({ definitionId: snapshot.id, revision: snapshot.revision, history: snapshot.history.map((entry) => ({ id:entry.id, kind:entry.kind, targetId:entry.targetId, suppressed:entry.suppressed })), sketches: snapshot.sketches.map((sketch) => { const copy=cloneDomain(sketch); delete copy.status; delete copy.diagnostics; return copy; }), features: snapshot.features.map((feature) => { const copy=cloneDomain(feature); delete copy.state; delete copy.diagnostics; return copy; }), overrides }),
+    signature: stableStringify({
+      definitionId: snapshot.id,
+      revision: snapshot.revision,
+      history: snapshot.history.map((entry) => ({ id:entry.id, kind:entry.kind, targetId:entry.targetId, suppressed:entry.suppressed })),
+      sketches: snapshot.sketches.map((sketch) => { const { status: _s, diagnostics: _d, ...rest } = sketch; return rest; }),
+      features: snapshot.features.map((feature) => { const { state: _st, diagnostics: _diag, ...rest } = feature; return rest; }),
+      overrides,
+    }),
     document: snapshot,
     compiledFeatures: compiled.features,
     bodies,

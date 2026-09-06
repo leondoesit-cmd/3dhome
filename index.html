@@ -467,6 +467,12 @@
                 <span data-i18n="modeler_launch">עורך מודלים</span>
                 <kbd class="menu-kbd">M</kbd>
               </button>
+              <button data-act="uikitCustomize" role="menuitemcheckbox" aria-checked="false" data-i18n-title="uikit_customize_t" title="סדר מחדש את הממשק: הזזה, הסתרה ושינוי סדר של פאנלים וסרגלים">
+                <i class="ph ph-layout"></i>
+                <span data-i18n="uikit_customize">התאמת ממשק</span>
+                <span class="uikit-menu-check" aria-hidden="true">✓</span>
+                <kbd class="menu-kbd" data-kbd="Ctrl+Alt+E">Ctrl+Alt+E</kbd>
+              </button>
               <button data-act="walk" role="menuitem">
                 <i class="ph ph-person-simple-walk"></i>
                 <span data-i18n="walk">סיור</span>
@@ -652,10 +658,10 @@
         </aside>
 
         <main id="center-canvas">
-          <div id="floor-tabs" class="modern-chrome" hidden></div>
           <div id="view-3d">
             <canvas id="v3d"></canvas>
             <div class="lbl" data-i18n="lbl_3d">תצוגת 3D</div>
+            <div id="floor-tabs" class="modern-chrome" hidden></div>
             <!-- 3D edit mode: left-drag moves the piece under the cursor -->
             <button
               class="view-edit-btn"
@@ -694,37 +700,52 @@
                  sizeCanvas(); pointer-events:none, so every gesture still lands
                  on #plan. See "the two canvases" in js/plan2d.js. -->
             <canvas id="plan-hud"></canvas>
+            <div id="plan-tool-status" class="plan-tool-status top-tool-status" role="status" aria-label="Tool status" data-i18n-aria="tool_status" aria-live="polite">
+              <div class="tool-status-idle" id="planToolIdle">
+                <i class="tool-icon ph ph-cursor"></i>
+                <span class="tool-name" data-i18n="m_t_select">Select</span>
+              </div>
+              <div class="unlock-pill" role="status" hidden>
+                <i class="ph ph-lock-simple"></i>
+                <span class="up-msg"></span>
+                <button type="button" class="up-fix"></button>
+                <span class="up-hint"></span>
+              </div>
+            </div>
             <div id="plan-tools">
             <div id="plan-toolbar" role="toolbar" aria-label="Drawing tools">
               <button class="tool active" data-tool="select" data-i18n-title="tool_select" title="בחירה">
-                <i class="ph ph-cursor"></i><kbd>1</kbd>
+                <i class="ph ph-cursor"></i><span class="tool-name" data-i18n="m_t_select">בחירה</span><kbd>1</kbd>
               </button>
               <button class="tool" data-tool="wall" data-i18n-title="tool_wall" title="צייר קיר">
-                <i class="ph ph-wall"></i><kbd>2</kbd>
+                <i class="ph ph-wall"></i><span class="tool-name" data-i18n="m_t_wall">קיר</span><kbd>2</kbd>
               </button>
               <button class="tool" data-tool="rect" data-i18n-title="tool_rect" title="צייר חדר מלבני">
-                <i class="ph ph-rectangle"></i><kbd>8</kbd>
+                <i class="ph ph-rectangle"></i><span class="tool-name" data-i18n="m_t_rect">חדר</span><kbd>8</kbd>
+              </button>
+              <button class="tool" data-tool="roomstamp" data-i18n-title="tool_roomstamp" title="Place a room preset">
+                <i class="ph ph-squares-four"></i><span class="tool-name" data-i18n="m_t_roomstamp">Preset</span><kbd>0</kbd>
               </button>
               <button class="tool" data-tool="arcwall" data-i18n-title="tool_arcwall" title="צייר קיר מעוגל">
-                <i class="ph ph-bezier-curve"></i><kbd>7</kbd>
+                <i class="ph ph-bezier-curve"></i><span class="tool-name" data-i18n="m_t_arcwall">קשת</span><kbd>7</kbd>
               </button>
               <button class="tool" data-tool="door" data-i18n-title="tool_door" title="דלת">
-                <i class="ph ph-door"></i><kbd>3</kbd>
+                <i class="ph ph-door"></i><span class="tool-name" data-i18n="m_t_door">דלת</span><kbd>3</kbd>
               </button>
               <button class="tool" data-tool="window" data-i18n-title="tool_window" title="חלון">
-                <i class="ph ph-frame-corners"></i><kbd>4</kbd>
+                <i class="ph ph-frame-corners"></i><span class="tool-name" data-i18n="m_t_window">חלון</span><kbd>4</kbd>
               </button>
               <button class="tool" data-tool="passage" data-i18n-title="tool_passage" title="מעבר">
-                <i class="ph ph-columns"></i><kbd>5</kbd>
+                <i class="ph ph-columns"></i><span class="tool-name" data-i18n="m_t_passage">מעבר</span><kbd>5</kbd>
               </button>
               <button class="tool" data-tool="slabvoid" data-i18n-title="tool_slabvoid" title="פתח רצפה">
-                <i class="ph ph-stairs"></i><kbd>9</kbd>
+                <i class="ph ph-stairs"></i><span class="tool-name" data-i18n="m_t_slabvoid">חלל</span><kbd>9</kbd>
               </button>
               <button class="tool" data-tool="point" data-i18n-title="tool_point" title="נקודת סימון">
-                <i class="ph ph-crosshair"></i><kbd>6</kbd>
+                <i class="ph ph-crosshair"></i><span class="tool-name" data-i18n="m_t_point">נקודה</span><kbd>6</kbd>
               </button>
               <button class="tool tool-erase" data-tool="erase" data-i18n-title="tool_erase" title="מחק">
-                <i class="ph ph-eraser"></i><kbd>E</kbd>
+                <i class="ph ph-eraser"></i><span class="tool-name" data-i18n="m_t_erase">מחיקה</span><kbd>E</kbd>
               </button>
               <div class="tb-sep"></div>
               <!-- global structure lock: walls/corners/rooms/openings stay
@@ -736,7 +757,7 @@
                 data-i18n-title="tool_lock"
                 title="נעילת קירות וחדרים"
               >
-                <i class="ph ph-lock-simple-open"></i><kbd>L</kbd>
+                <i class="ph ph-lock-simple-open"></i><span class="tool-name" data-i18n="m_t_lockStruct">נעילה</span><kbd>L</kbd>
               </button>
               <div class="tb-sep"></div>
               <button
@@ -747,7 +768,19 @@
                 title="מחק את הבחירה"
                 aria-label="מחק את הבחירה"
               >
-                <i class="ph ph-trash"></i><kbd>Del</kbd>
+                <i class="ph ph-trash"></i><span class="tool-name" data-i18n="m_t_deleteSel">מחק</span><kbd>Del</kbd>
+              </button>
+              <button
+                class="tool tool-names-toggle"
+                id="toolNamesToggle"
+                data-act="toggleToolNames"
+                data-i18n-title="toggle_tool_names"
+                data-i18n-aria="toggle_tool_names"
+                title="הצג/הסתר שמות כלים"
+                aria-label="הצג/הסתר שמות כלים"
+                aria-pressed="false"
+              >
+                <i class="ph ph-list"></i><span class="tool-name" data-i18n="toggle_tool_names_btn">שמות</span>
               </button>
             </div>
             <!-- Work-set layer chips: one row per id in LAYER_IDS, with the
@@ -758,16 +791,19 @@
                  #lockStructBtn above are the same bit. -->
             <div id="layer-chips" class="layer-chips" data-i18n-aria="lay_group" aria-label="Layers"></div>
             <div id="plan-wall-palette" class="plan-wall-palette" hidden>
-              <button
-                type="button"
-                id="wallPaletteToggle"
-                class="wd-collapse"
-                data-i18n-title="wd_collapse"
-                data-i18n-aria="wd_collapse"
-                title="צמצם אפשרויות קיר"
-                aria-label="צמצם אפשרויות קיר"
-                aria-expanded="true"
-              ><i class="ph ph-caret-left"></i></button>
+              <div class="wd-head">
+                <span class="wd-title" data-i18n="wd_palette_title">קירות</span>
+                <button
+                  type="button"
+                  id="wallPaletteToggle"
+                  class="wd-collapse"
+                  data-i18n-title="wd_collapse"
+                  data-i18n-aria="wd_collapse"
+                  title="צמצם אפשרויות קיר"
+                  aria-label="צמצם אפשרויות קיר"
+                  aria-expanded="true"
+                ><i class="ph ph-caret-left"></i></button>
+              </div>
               <div class="wd-sec">
                 <span class="wd-lab" data-i18n="wd_types">Wall types</span>
                 <div class="wd-row wd-types" role="group" data-i18n-aria="wd_types" aria-label="Wall types">
@@ -805,12 +841,14 @@
                 <div class="wd-row wd-edit" role="toolbar" data-i18n-aria="wd_edit" aria-label="Wall edit">
                   <button type="button" class="wd-btn tool" data-tool="walloffset" data-i18n-title="tool_walloffset" title="Offset wall"><i class="ph ph-arrows-out-line-horizontal"></i></button>
                   <button type="button" class="wd-btn tool" data-tool="wallbreak" data-i18n-title="tool_wallbreak" title="Break wall"><i class="ph ph-hammer"></i></button>
+                  <button type="button" class="wd-btn tool" data-tool="wallbite" data-i18n-title="tool_wallbite" title="Remove part of a wall"><i class="ph ph-scissors"></i></button>
                   <button type="button" class="wd-btn tool" data-tool="walljoin" data-i18n-title="tool_walljoin" title="Join walls"><i class="ph ph-link"></i></button>
                   <button type="button" class="wd-btn tool" data-tool="wallreverse" data-i18n-title="tool_wallreverse" title="Reverse wall"><i class="ph ph-arrows-clockwise"></i></button>
                   <button type="button" class="wd-btn tool" data-tool="wallpaint" data-i18n-title="tool_wallpaint" title="Change wall type"><i class="ph ph-paint-brush-broad"></i></button>
                 </div>
               </div>
             </div>
+            <div id="plan-room-palette" class="plan-room-palette" data-i18n-aria="rp_group" aria-label="Room presets" hidden></div>
             </div>
             <div id="plan-hint" class="plan-hint" hidden></div>
             <button
@@ -1577,6 +1615,23 @@
                   data-i18n-ph="name_ph"
                   placeholder="לדוגמה: סלון"
               /></label>
+              <div class="dim-row" id="r_size_row" style="display:none">
+                <label
+                  ><span data-i18n="width">רוחב</span>
+                  <div class="dim-input-stepper">
+                    <button type="button" class="dim-step-btn" id="r_w_down" title="-10 cm">−</button>
+                    <input id="r_w" type="number" inputmode="numeric" step="5" />
+                    <button type="button" class="dim-step-btn" id="r_w_up" title="+10 cm">+</button>
+                  </div></label>
+                <label
+                  ><span data-i18n="depth">עומק</span>
+                  <div class="dim-input-stepper">
+                    <button type="button" class="dim-step-btn" id="r_d_down" title="-10 cm">−</button>
+                    <input id="r_d" type="number" inputmode="numeric" step="5" />
+                    <button type="button" class="dim-step-btn" id="r_d_up" title="+10 cm">+</button>
+                  </div></label>
+              </div>
+              <div id="r_l_shape_hint" class="r-l-hint" style="display:none" data-i18n="rp_l_shape_hint">L-shaped space · Drag edge handles to resize</div>
               <label
                 ><span data-i18n="floor">רצפה</span>
                 <select id="r_floor">

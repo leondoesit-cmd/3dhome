@@ -204,7 +204,9 @@ function buildDOM() {
     dim.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {
         e.preventDefault();
-        this.blur();
+        applyOverallSize(k === "W" ? "width" : k === "D" ? "depth" : "height", this);
+        this.focus();
+        this.select();
       }
     });
   });

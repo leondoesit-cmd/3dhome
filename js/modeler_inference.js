@@ -132,13 +132,16 @@ export function entityStatuses(sketch, solveInfo) {
     return { entityStatus: entityStatus, pointStatus: pointStatus };
   }
 
+  var entityIds = new Set(entities.map(function (e) { return e.id; }));
+  var pointIds = new Set(points.map(function (p) { return p.id; }));
+
   constraints.forEach(function (c) {
     if (!conflicts.has(c.id) && sketchStatus !== "conflicting") return;
     if (!conflicts.has(c.id) && sketchStatus === "conflicting" && conflicts.size) return;
     [c.entity, c.a, c.b, c.point].forEach(function (id) {
       if (!id) return;
-      if (entities.some(function (e) { return e.id === id; })) entityStatus[id] = "conflicting";
-      if (points.some(function (p) { return p.id === id; })) pointStatus[id] = "conflicting";
+      if (entityIds.has(id)) entityStatus[id] = "conflicting";
+      if (pointIds.has(id)) pointStatus[id] = "conflicting";
     });
   });
 
@@ -147,27 +150,39 @@ export function entityStatuses(sketch, solveInfo) {
     if (p.fixed) pointStatus[p.id] = "fully-defined";
   });
 
+  var coincidentConstraints = constraints.filter(function (c) { return c.type === "coincident"; });
+  var fixedConstraints = constraints.filter(function (c) { return c.type === "fixed"; });
+  var constraintsByEntity = new Map();
+  constraints.forEach(function (c) {
+    if (c.entity) {
+      var list = constraintsByEntity.get(c.entity);
+      if (!list) { list = []; constraintsByEntity.set(c.entity, list); }
+      list.push(c);
+    }
+  });
+  var lineEntities = entities.filter(function (e) { return e.type === "line"; });
+
   var changed = true, guard = 0;
   while (changed && guard++ < 24) {
     changed = false;
-    constraints.forEach(function (c) {
-      if (c.type === "coincident") {
-        if (pointStatus[c.a] === "fully-defined" && pointStatus[c.b] !== "fully-defined" && pointStatus[c.b] !== "conflicting") {
-          pointStatus[c.b] = "fully-defined"; changed = true;
-        }
-        if (pointStatus[c.b] === "fully-defined" && pointStatus[c.a] !== "fully-defined" && pointStatus[c.a] !== "conflicting") {
-          pointStatus[c.a] = "fully-defined"; changed = true;
-        }
+    coincidentConstraints.forEach(function (c) {
+      if (pointStatus[c.a] === "fully-defined" && pointStatus[c.b] !== "fully-defined" && pointStatus[c.b] !== "conflicting") {
+        pointStatus[c.b] = "fully-defined"; changed = true;
       }
-      if (c.type === "fixed" && c.point && pointStatus[c.point] !== "conflicting") {
+      if (pointStatus[c.b] === "fully-defined" && pointStatus[c.a] !== "fully-defined" && pointStatus[c.a] !== "conflicting") {
+        pointStatus[c.a] = "fully-defined"; changed = true;
+      }
+    });
+    fixedConstraints.forEach(function (c) {
+      if (c.point && pointStatus[c.point] !== "conflicting") {
         if (pointStatus[c.point] !== "fully-defined") { pointStatus[c.point] = "fully-defined"; changed = true; }
       }
     });
-    entities.forEach(function (e) {
-      if (e.type !== "line") return;
-      var hasH = constraints.some(function (c) { return c.entity === e.id && c.type === "horizontal"; });
-      var hasV = constraints.some(function (c) { return c.entity === e.id && c.type === "vertical"; });
-      var hasD = constraints.some(function (c) { return c.entity === e.id && c.type === "distance" && !c.driven; });
+    lineEntities.forEach(function (e) {
+      var eConstraints = constraintsByEntity.get(e.id) || [];
+      var hasH = eConstraints.some(function (c) { return c.type === "horizontal"; });
+      var hasV = eConstraints.some(function (c) { return c.type === "vertical"; });
+      var hasD = eConstraints.some(function (c) { return c.type === "distance" && !c.driven; });
       if (!(hasD && (hasH || hasV))) return;
       if (pointStatus[e.a] === "fully-defined" && pointStatus[e.b] !== "fully-defined" && pointStatus[e.b] !== "conflicting") {
         pointStatus[e.b] = "fully-defined"; changed = true;
@@ -187,8 +202,9 @@ export function entityStatuses(sketch, solveInfo) {
     }
     var centreId = e.c || e.center;
     var centreDefined = pointStatus[centreId] === "fully-defined";
-    var hasR = constraints.some(function (c) {
-      return c.entity === e.id && (c.type === "radius" || c.type === "diameter") && !c.driven;
+    var eConstraints = constraintsByEntity.get(e.id) || [];
+    var hasR = eConstraints.some(function (c) {
+      return (c.type === "radius" || c.type === "diameter") && !c.driven;
     });
     entityStatus[e.id] = centreDefined && hasR ? "fully-defined" : "under-defined";
   });

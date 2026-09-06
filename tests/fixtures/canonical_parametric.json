@@ -1,0 +1,536 @@
+{
+  "schemaVersion": 8,
+  "id": "fixture:legacy-feature-manager",
+  "key": "cm_canonical_fixture",
+  "name": "Canonical parametric fixture",
+  "kind": "part",
+  "authoringMode": "fully-parametric",
+  "localFrame": {
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "xAxis": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "yAxis": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "zAxis": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "references": [
+    {
+      "id": "origin",
+      "type": "origin",
+      "name": "Origin",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:top",
+      "type": "plane",
+      "name": "Top Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:front",
+      "type": "plane",
+      "name": "Front Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:right",
+      "type": "plane",
+      "name": "Right Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "axis:x",
+      "type": "axis",
+      "name": "X Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:y",
+      "type": "axis",
+      "name": "Y Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:z",
+      "type": "axis",
+      "name": "Z Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    }
+  ],
+  "parameters": {
+    "width": {
+      "id": "param:width",
+      "name": "width",
+      "label": "width",
+      "value": 18,
+      "unit": "cm",
+      "role": "driving",
+      "exposure": "advanced",
+      "adjustable": true,
+      "fixed": false,
+      "group": "Dimensions"
+    },
+    "depth": {
+      "id": "param:depth",
+      "name": "depth",
+      "label": "depth",
+      "value": 8,
+      "unit": "cm",
+      "role": "driving",
+      "exposure": "advanced",
+      "adjustable": true,
+      "fixed": false,
+      "group": "Dimensions"
+    },
+    "height": {
+      "id": "param:height",
+      "name": "height",
+      "label": "height",
+      "value": 5,
+      "unit": "cm",
+      "role": "driving",
+      "exposure": "advanced",
+      "adjustable": true,
+      "fixed": false,
+      "group": "Dimensions"
+    }
+  },
+  "sketches": [
+    {
+      "id": "sketch:legacy:left",
+      "name": "Left profile",
+      "referenceId": "plane:top",
+      "plane": "top",
+      "points": [
+        {
+          "id": "left:p0",
+          "x": -8,
+          "y": -3,
+          "fixed": true
+        },
+        {
+          "id": "left:p1",
+          "x": -2,
+          "y": -3,
+          "fixed": true
+        },
+        {
+          "id": "left:p2",
+          "x": -2,
+          "y": 3,
+          "fixed": true
+        },
+        {
+          "id": "left:p3",
+          "x": -8,
+          "y": 3,
+          "fixed": true
+        }
+      ],
+      "entities": [
+        {
+          "id": "left:e0",
+          "type": "line",
+          "a": "left:p0",
+          "b": "left:p1"
+        },
+        {
+          "id": "left:e1",
+          "type": "line",
+          "a": "left:p1",
+          "b": "left:p2"
+        },
+        {
+          "id": "left:e2",
+          "type": "line",
+          "a": "left:p2",
+          "b": "left:p3"
+        },
+        {
+          "id": "left:e3",
+          "type": "line",
+          "a": "left:p3",
+          "b": "left:p0"
+        }
+      ],
+      "constraints": []
+    },
+    {
+      "id": "sketch:legacy:right",
+      "name": "Right profile",
+      "referenceId": "plane:top",
+      "plane": "top",
+      "points": [
+        {
+          "id": "right:p0",
+          "x": 2,
+          "y": -2,
+          "fixed": true
+        },
+        {
+          "id": "right:p1",
+          "x": 8,
+          "y": -2,
+          "fixed": true
+        },
+        {
+          "id": "right:p2",
+          "x": 8,
+          "y": 2,
+          "fixed": true
+        },
+        {
+          "id": "right:p3",
+          "x": 2,
+          "y": 2,
+          "fixed": true
+        }
+      ],
+      "entities": [
+        {
+          "id": "right:e0",
+          "type": "line",
+          "a": "right:p0",
+          "b": "right:p1"
+        },
+        {
+          "id": "right:e1",
+          "type": "line",
+          "a": "right:p1",
+          "b": "right:p2"
+        },
+        {
+          "id": "right:e2",
+          "type": "line",
+          "a": "right:p2",
+          "b": "right:p3"
+        },
+        {
+          "id": "right:e3",
+          "type": "line",
+          "a": "right:p3",
+          "b": "right:p0"
+        }
+      ],
+      "constraints": []
+    }
+  ],
+  "features": [
+    {
+      "id": "feature:legacy:left",
+      "type": "extrude",
+      "name": "Left legacy pad",
+      "inputs": [],
+      "params": {
+        "axis": "y",
+        "from": 0,
+        "to": 5,
+        "depth": 5,
+        "points": [
+          {
+            "u": -8,
+            "v": -3
+          },
+          {
+            "u": -2,
+            "v": -3
+          },
+          {
+            "u": -2,
+            "v": 3
+          },
+          {
+            "u": -8,
+            "v": 3
+          }
+        ],
+        "sketchId": "sketch:legacy:left",
+        "profileEntityIds": [
+          "left:e0",
+          "left:e1",
+          "left:e2",
+          "left:e3"
+        ],
+        "endCondition": "blind"
+      },
+      "references": {
+        "sketches": [
+          "sketch:legacy:left"
+        ],
+        "features": [],
+        "topology": [],
+        "references": []
+      }
+    },
+    {
+      "id": "feature:legacy:right",
+      "type": "extrude",
+      "name": "Right legacy pad",
+      "inputs": [],
+      "params": {
+        "axis": "y",
+        "from": 0,
+        "to": 3,
+        "depth": 3,
+        "points": [
+          {
+            "u": 2,
+            "v": -2
+          },
+          {
+            "u": 8,
+            "v": -2
+          },
+          {
+            "u": 8,
+            "v": 2
+          },
+          {
+            "u": 2,
+            "v": 2
+          }
+        ],
+        "sketchId": "sketch:legacy:right",
+        "profileEntityIds": [
+          "right:e0",
+          "right:e1",
+          "right:e2",
+          "right:e3"
+        ],
+        "endCondition": "blind"
+      },
+      "references": {
+        "sketches": [
+          "sketch:legacy:right"
+        ],
+        "features": [],
+        "topology": [],
+        "references": []
+      }
+    }
+  ],
+  "history": [
+    {
+      "id": "history:sketch:sketch:legacy:left",
+      "kind": "sketch",
+      "targetId": "sketch:legacy:left",
+      "name": "Left profile",
+      "suppressed": false,
+      "status": "pending"
+    },
+    {
+      "id": "history:feature:feature:legacy:left",
+      "kind": "feature",
+      "targetId": "feature:legacy:left",
+      "name": "Left legacy pad",
+      "suppressed": false,
+      "status": "pending"
+    },
+    {
+      "id": "history:sketch:sketch:legacy:right",
+      "kind": "sketch",
+      "targetId": "sketch:legacy:right",
+      "name": "Right profile",
+      "suppressed": false,
+      "status": "pending"
+    },
+    {
+      "id": "history:feature:feature:legacy:right",
+      "kind": "feature",
+      "targetId": "feature:legacy:right",
+      "name": "Right legacy pad",
+      "suppressed": false,
+      "status": "pending"
+    }
+  ],
+  "parts": [
+    {
+      "id": "part:legacy:left",
+      "featureId": "feature:legacy:left",
+      "kind": "ext",
+      "name": "Left legacy pad",
+      "axis": "y",
+      "from": 0,
+      "to": 5,
+      "pts": [
+        {
+          "u": -8,
+          "v": -3
+        },
+        {
+          "u": -2,
+          "v": -3
+        },
+        {
+          "u": -2,
+          "v": 3
+        },
+        {
+          "u": -8,
+          "v": 3
+        }
+      ],
+      "holes": [],
+      "sketchDriven": true,
+      "sketchId": "sketch:legacy:left",
+      "profileEntityIds": [
+        "left:e0",
+        "left:e1",
+        "left:e2",
+        "left:e3"
+      ],
+      "color": "#4f83cc"
+    },
+    {
+      "id": "part:legacy:right",
+      "featureId": "feature:legacy:right",
+      "kind": "ext",
+      "name": "Right legacy pad",
+      "axis": "y",
+      "from": 0,
+      "to": 3,
+      "pts": [
+        {
+          "u": 2,
+          "v": -2
+        },
+        {
+          "u": 8,
+          "v": -2
+        },
+        {
+          "u": 8,
+          "v": 2
+        },
+        {
+          "u": 2,
+          "v": 2
+        }
+      ],
+      "holes": [],
+      "sketchDriven": true,
+      "sketchId": "sketch:legacy:right",
+      "profileEntityIds": [
+        "right:e0",
+        "right:e1",
+        "right:e2",
+        "right:e3"
+      ],
+      "color": "#d4873c"
+    }
+  ],
+  "assemblies": [],
+  "rules": {},
+  "metadata": {
+    "authoringSystem": "parametric-v1",
+    "fixtureMarker": "complete-source-must-survive",
+    "material": "Fixture steel"
+  },
+  "topologyBindings": [],
+  "revision": 1,
+  "lastRebuild": null,
+  "definitionId": "fixture:legacy-feature-manager",
+  "rollback": null,
+  "customPayload": {
+    "keep": true,
+    "note": "This field proves that the full original document is retained."
+  },
+  "documentVersion": 1,
+  "context": {
+    "kind": "part",
+    "units": {
+      "length": "cm",
+      "angle": "deg",
+      "mass": "kg",
+      "precision": 3
+    },
+    "activeCoordinateSystemId": "origin"
+  }
+}

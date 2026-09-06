@@ -1,0 +1,30 @@
+{
+  "name": "uikit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Runtime UI-designer layer: move, resize, group, rename, re-icon and re-arrange an app's own chrome, at runtime, as data.",
+  "exports": {
+    ".": "./index.js",
+    "./model/*": "./model/*",
+    "./runtime/*": "./runtime/*",
+    "./editor/*": "./editor/*",
+    "./adapters/*": "./adapters/*",
+    "./uikit.css": "./uikit.css"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "files": [
+    "index.js",
+    "model",
+    "runtime",
+    "editor",
+    "adapters",
+    "uikit.css",
+    "README.md"
+  ],
+  "sideEffects": [
+    "*.css"
+  ]
+}

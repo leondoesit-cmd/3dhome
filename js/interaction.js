@@ -20,6 +20,11 @@ import {
   wallTangentAt,
   wallProject,
   wallClearLength,
+  reconcileRoomMeta,
+  roomEdgeHandles,
+  roomClearSize,
+  applyRoomClearSize,
+  normalizeStructure,
 } from "./geometry.js";
 import {
   applyWallDrawDefaults, drawFaceBack, isWallDrawTool, extendToHit, throughCrossings,
@@ -103,6 +108,10 @@ import {
   syncWarnHighlight, setConstraintHover, renderWarnPanel,
 } from "./ui_warn.js";
 import { hudKeydown, onDrawEnded, updateCadHud, entryOpen } from "./cad_hud.js";
+import { roomPreset, rectInterior, CONNECTION_MODES } from "./room_presets.js";
+import { solveDock, corridorRect, translateRect } from "./room_dock.js";
+import { placeRoom, cutOpening, connectionForWall } from "./room_stamp.js";
+import { wallSeparates, detachRoomSeam } from "./room_graph.js";
 import {
   beginTouchPrecision, planTouchPrecisionKind, touchPrecisionPoint, updateTouchPrecision,
 } from "./touch_precision.js";
@@ -112,8 +121,8 @@ import {
   touchPrecisionTrialOwns, updateTouchPrecisionTrial,
 } from "./touch_precision_ui.js";
 import {
-  openingPlaceCommand, wallDrawCommand, itemDuplicateCommand, roomCreateCommand, executeCommand,
-  executeCommandBatch, plannerCommand, prepareCommand, previewPrepared,
+  openingPlaceCommand, wallDrawCommand, itemDuplicateCommand, roomCreateCommand, roomStampCommand,
+  executeCommand, executeCommandBatch, executePrepared, plannerCommand, prepareCommand, previewPrepared,
 } from "./commands/index.js";
 
 const PLANNER_COMMAND_HISTORY = Object.freeze({
@@ -709,8 +718,18 @@ export function setTool(toolName) {
   if (toolName !== "wall") finishDraw();
   if (toolName !== "arcwall") S.arcDraft = null;
   if (toolName !== "rect" && toolName !== "slabvoid") S.rectDraft = null;
+  if (toolName !== "roomstamp") { S.roomGhost = null; S.roomPrepared = null; }
+  /* Picking the tool from the toolbar or with 0 has to arm SOMETHING, or the
+     first move over the plan shows nothing and the tool looks broken. The last
+     preset used survives, so this default only ever fires once a session. */
+  if (toolName === "roomstamp" && !S.roomStamp) {
+    var firstPreset = roomPreset("bedroom");
+    if (firstPreset)
+      S.roomStamp = { id: firstPreset.id, rot: 0, w: firstPreset.w, d: firstPreset.d, connMode: "auto", doorWallIndex: 0 };
+  }
   if (toolName !== "walloffset") S.offsetDraft = null;
   if (toolName !== "walljoin") S.joinPick = null;
+  if (toolName !== "wallbite") S.biteDraft = null;
   if (toolName !== "point") {
     S.markerPreview = null;
     S.snapGuides = [];
@@ -721,9 +740,9 @@ export function setTool(toolName) {
   document.querySelectorAll(".tool").forEach(function (b) {
     b.classList.toggle("active", b.getAttribute("data-tool") === toolName);
   });
-  plan.style.cursor = toolName === "select" && !S.placeType ? "default" : "crosshair";
+  if (plan && plan.style) plan.style.cursor = toolName === "select" && !S.placeType ? "default" : "crosshair";
   if (toolName !== "point") S.snapInfo = null;
-  document.documentElement.setAttribute("data-tool", toolName || "select");
+  if (document.documentElement) document.documentElement.setAttribute("data-tool", toolName || "select");
   window.dispatchEvent(new CustomEvent("planner-tool"));
   updateCadHud();
   syncElevationTools();
@@ -1041,6 +1060,55 @@ function handleBreakClick(px, pz) {
   refreshTree();
 }
 
+/* Bite a span out of a wall.
+ *
+ * The eraser removes a wall whole, and a passage cuts a hole with a lintel
+ * over it. Between those two there was nothing, and "open this partition up
+ * for two metres" is a normal thing to want — the alcove, the pass-through,
+ * the half-wall that opens a kitchen onto a living room. What is left after a
+ * bite is the two stubs, with nothing above the gap: the wall genuinely stops
+ * and starts again, which is what makes it different from a passage.
+ *
+ * Biting a party wall opens one space into the other, exactly as erasing it
+ * whole does, so it goes through the same metadata repair — otherwise the
+ * merged space takes whichever of the two names the generic reconciler reaches
+ * first. */
+function commitWallBite() {
+  var draft = S.biteDraft;
+  S.biteDraft = null;
+  if (!draft) return;
+  var wall = wallById(draft.wall);
+  if (!wall) return;
+  var g = wallGeom(wall);
+  var lo = Math.max(0, Math.min(draft.s0, draft.s1));
+  var hi = Math.min(g.L, Math.max(draft.s0, draft.s1));
+  if (hi - lo < 20) { flash(t("wd_bite_short")); return; }
+
+  pushHistory();
+  var merging = wallSeparates(detectRooms(), wall.id);
+  var middle = wall;
+  /* Two cuts, in this order: the leading stub first, so the second cut is
+     measured along what is left rather than along the original. splitWallAt
+     keeps the near half in place and returns the new far half at the end of
+     the wall list. */
+  if (lo > 8) {
+    splitWallAt(middle, lo);
+    middle = S.walls[S.walls.length - 1];
+  }
+  var rest = wallGeom(middle);
+  if (hi - lo < rest.L - 8) splitWallAt(middle, hi - lo);
+  applyRemove({ kind: "wall", ref: middle });
+  pruneCons();
+  if (S.sel && S.sel.kind === "wall" && S.sel.ref === middle) select(null);
+  if (merging) adoptMergedRoomMeta(merging);
+  S.dirty3D = true;
+  normalizeStructure();
+  render2D();
+  refreshTree();
+  fillProps();
+  flash(merging ? t("rp_merged") : t("wd_bite_done", { n: Math.round(hi - lo) }));
+}
+
 function handleJoinClick(px, pz) {
   var w = hitWall(px, pz);
   if (!w) { flash(t("wd_join_need")); return; }
@@ -1133,6 +1201,570 @@ function commitRectFromTo(a, b) {
   refreshTree();
   window.dispatchEvent(new CustomEvent("planner-room-created", { detail: { walls: walls } }));
   return walls;
+}
+
+/* ---- preset rooms --------------------------------------------------------
+   Drawing a flat one wall at a time asks the user to hold the whole plan in
+   their head. Stamping asks them for one thing at a time: pick "bedroom",
+   move it until it snaps against the wall it should share, click.
+
+   Three pieces do that, and only the middle one lives here:
+
+     js/room_presets.js  what a bedroom is (clear size, floor, door width)
+     js/room_dock.js     where the rectangle wants to land, given the drawing
+     js/room_graph.js    building it so the result is still a planar graph,
+                         reusing the wall it landed against instead of laying a
+                         second one on top of it
+
+   This file only turns pointer positions into those calls and puts the result
+   through the planner's own choreography — history, the 3D rebuild, the tree.
+
+   The armed preset SURVIVES a placement. Laying out a flat is "bedroom,
+   bedroom, bathroom, corridor", and going back to the palette between every
+   one of those is the difference between a tool and a chore. Escape or the
+   right button disarms it. */
+export function armRoomStamp(presetId, options) {
+  var preset = roomPreset(presetId);
+  if (!preset) return null;
+  var opts = options || {};
+  S.roomStamp = {
+    id: preset.id,
+    rot: Number(opts.rot) || 0,
+    w: fin(opts.w) ? opts.w : preset.w,
+    d: fin(opts.d) ? opts.d : preset.d,
+    connMode: opts.connMode || (S.roomStamp && S.roomStamp.connMode) || "auto",
+    doorWallIndex: opts.doorWallIndex != null ? Number(opts.doorWallIndex) : 0,
+  };
+  S.roomGhost = null;
+  setTool("roomstamp");
+  window.dispatchEvent(new CustomEvent("planner-room-stamp"));
+  return S.roomStamp;
+}
+
+export function disarmRoomStamp() {
+  S.roomStamp = null;
+  S.roomGhost = null;
+  S.roomPrepared = null;
+  window.dispatchEvent(new CustomEvent("planner-room-stamp"));
+}
+
+/* R while stamping turns the rectangle a quarter turn — the preset's clear
+   size swaps rather than the rectangle rotating, because a room stamped at 37
+   degrees would dock against nothing. */
+export function rotateRoomStamp() {
+  if (!S.roomStamp) return;
+  S.roomStamp.rot = (S.roomStamp.rot + 90) % 360;
+  if (S.previewPt) updateRoomGhost(S.previewPt.x, S.previewPt.z);
+  render2D();
+  window.dispatchEvent(new CustomEvent("planner-room-stamp"));
+}
+
+export function setRoomStampConnMode(mode) {
+  var st = S.roomStamp;
+  if (!st) return;
+  if (CONNECTION_MODES.indexOf(mode) === -1) return;
+  st.connMode = mode;
+  if (S.previewPt) updateRoomGhost(S.previewPt.x, S.previewPt.z);
+  render2D();
+  window.dispatchEvent(new CustomEvent("planner-room-stamp"));
+}
+
+export function cycleRoomStampConnMode() {
+  var st = S.roomStamp;
+  if (!st) return;
+  var cur = st.connMode || "auto";
+  var idx = CONNECTION_MODES.indexOf(cur);
+  var next = CONNECTION_MODES[(idx + 1) % CONNECTION_MODES.length];
+  setRoomStampConnMode(next);
+}
+
+export function flipRoomStampDoorWall() {
+  var st = S.roomStamp;
+  if (!st) return;
+  st.doorWallIndex = ((st.doorWallIndex || 0) + 1) % 4;
+  if (S.previewPt) updateRoomGhost(S.previewPt.x, S.previewPt.z);
+  render2D();
+  window.dispatchEvent(new CustomEvent("planner-room-stamp"));
+}
+
+/* Typed W×D for a still-rectangular selected room — the same edit as pulling
+   the +x / +z edge handles, including welding if the side lands on a neighbour. */
+export function setRoomClearSize(w, d) {
+  if (!S.sel || S.sel.kind !== "room") return null;
+  var key = S.sel.ref;
+  var meta = S.roomMeta[key];
+  var preset = meta && meta.preset ? roomPreset(meta.preset) : null;
+  var before = snapshotNodes();
+  var out = applyRoomClearSize(key, w, d, {
+    minW: preset ? preset.min.w : 60,
+    minD: preset ? preset.min.d : 60,
+  });
+  if (!out || !out.ok) {
+    /* A refusal has to say so: the field simply snapping back to its old value
+       reads as a broken input, not as an answer. */
+    if (out && out.reason === "ROOM_SIDE_SHARED") flash(t("rp_sideShared"), "error");
+    return out;
+  }
+  if (out.moved && out.moved.length) {
+    var mine = {};
+    out.moved.forEach(function (o) { mine[o.i] = 1; });
+    var wact = S.walls
+      .filter(function (wall) { return mine[wall.a] || mine[wall.b]; })
+      .map(function (wall) { return wall.id; });
+    enforceLocks(before, wact);
+    var drag = { orig: out.moved };
+    var fused = fuseDroppedRoom(drag);
+    rehomeDraggedRoom(drag, key);
+    connectFusedWalls(fused);
+  }
+  S.dirty3D = true;
+  reconcileRoomMeta();
+  refreshTree();
+  render2D();
+  var live = S.sel && S.sel.kind === "room" ? S.sel.ref : key;
+  return roomClearSize(live);
+}
+
+/* Grow or shrink the armed preset before it is placed, never below the
+   preset's own minimum: a 70 cm "bedroom" is not a smaller bedroom, it is a
+   mistake nobody meant to commit. */
+export function resizeRoomStamp(dw, dd) {
+  var st = S.roomStamp, preset = st && roomPreset(st.id);
+  if (!preset) return;
+  st.w = Math.max(preset.min.w, Math.round(st.w + (dw || 0)));
+  st.d = Math.max(preset.min.d, Math.round(st.d + (dd || 0)));
+  if (S.previewPt) updateRoomGhost(S.previewPt.x, S.previewPt.z);
+  render2D();
+  window.dispatchEvent(new CustomEvent("planner-room-stamp"));
+}
+
+function roomStampSpec() {
+  var defaults = resolveWallDrawDefaults();
+  return {
+    thickness: defaults.thickness,
+    height: defaults.height,
+    wallTypeId: defaults.typeId,
+    kind: defaults.kind,
+    loc: defaults.loc,
+    dimSide: defaults.dimSide,
+    datum: defaults.datum,
+    phase: defaults.phase,
+  };
+}
+
+/* Where the armed room would land if the click happened now. The dock solver
+   gets first refusal; only when nothing is in reach does the grid have a say,
+   because a room snapped to the grid but 3 cm off its neighbour is worse than
+   one flush against it and off the grid. */
+export function updateRoomGhost(px, pz) {
+  var st = S.roomStamp;
+  if (!st || !roomPreset(st.id)) { S.roomGhost = null; return null; }
+  /* The ghost is a PREPARED PLAN, not a second opinion about where the room
+     goes. Everything the click is about to do — the rectangle, the grid
+     fallback, the dock, the refusal — is decided once, in
+     js/commands/room_stamp.js, and drawn from the result. The two used to be
+     separate pieces of arithmetic that happened to agree.
+
+     A refusal still carries its rectangle (see that module), so a stamp over an
+     existing room keeps a ghost to draw, in red, where the pointer is. */
+  S.roomPrepared = prepareCommand(roomStampCommand, roomStampParams(px, pz), roomCommandEnvironment());
+  var prep = S.roomPrepared;
+  if (prep.ok) {
+    var p = prep.plan.params;
+    S.roomGhost = {
+      rect: p.rect, dock: p.dock, preset: p.preset,
+      corridor: p.corridor, size: p.size, blocked: null,
+      connMode: p.connMode, doorWallIndex: p.doorWallIndex,
+    };
+  } else if (prep.rect) {
+    S.roomGhost = {
+      rect: prep.rect, dock: null, preset: st.id, corridor: null,
+      size: rectInterior(prep.rect, roomStampSpec().thickness),
+      blocked: prep.room != null ? prep.room : true,
+      connMode: st.connMode || "auto", doorWallIndex: st.doorWallIndex || 0,
+    };
+  } else {
+    S.roomGhost = null;
+  }
+  return S.roomGhost;
+}
+
+function roomStampParams(px, pz) {
+  var st = S.roomStamp, spec = roomStampSpec();
+  return {
+    preset: st.id,
+    x: px,
+    z: pz,
+    rot: st.rot,
+    w: st.w,
+    d: st.d,
+    connMode: st.connMode || "auto",
+    doorWallIndex: st.doorWallIndex != null ? st.doorWallIndex : 0,
+    spec: spec,
+  };
+}
+
+/* The planner's own services, on top of the shared agent environment: the face
+   trace the overlap guard needs, and the wall split that re-homes openings. */
+function roomCommandEnvironment() {
+  var env = agentCommandEnvironment();
+  env.services = Object.assign({}, env.services, {
+    detectRooms: detectRooms,
+    splitWall: splitPlannerWallAt,
+  });
+  return env;
+}
+
+export function commitRoomStamp() {
+  var ghost = S.roomGhost, st = S.roomStamp, prepared = S.roomPrepared;
+  if (!ghost || !st) return null;
+  if (!prepared || !prepared.ok) {
+    flash(prepared && prepared.reason === "ROOM_OVERLAPS" ? t("rp_overlap") : t("rp_failed"), "error");
+    return null;
+  }
+  /* Apply the plan the ghost was drawn from, rather than re-deriving it. The
+     executor re-runs prepare and refuses if the two disagree, which is exactly
+     the guarantee worth having here: what is committed is what was shown. */
+  var result = executePrepared(prepared, roomCommandEnvironment(), { label: t("rp_placed") });
+  if (!result.ok) {
+    flash(result.reason === "ROOM_OVERLAPS" ? t("rp_overlap") : t("rp_failed"), "error");
+    return null;
+  }
+  var madeWallIds = result.created
+    .filter(function (entry) { return entry.kind === "wall"; })
+    .map(function (entry) { return entry.id; });
+  // every wall the stamp built records its clear span, the same way a wall
+  // drawn by hand does — otherwise the first dimension edit on one of them
+  // has nothing to hold
+  madeWallIds.forEach(function (id) {
+    var w = wallById(id);
+    if (!w) return;
+    var clear = wallClearLength(w);
+    if (clear > 0) w.clearL = clear;
+  });
+  var walls = S.walls.filter(function (w) { return madeWallIds.indexOf(w.id) >= 0; });
+  reconcileRoomMeta();
+  render2D();
+  refreshTree();
+  window.dispatchEvent(new CustomEvent("planner-room-created", { detail: { walls: walls } }));
+  var dock = prepared.plan.params.dock;
+  var opened = result.created.some(function (entry) { return entry.kind === "opening"; });
+  var isConnOpen = prepared.plan.params.connMode === "open";
+  /* Docked but unopened is worth saying out loud: it means the shared wall was
+     too short, or too full, to take a door, and the room is sealed until the
+     user cuts one. */
+  flash(dock && isConnOpen ? t("rp_placedOpen")
+    : dock && dock.mode === "corridor" ? t("rp_placedCorridor")
+    : dock && dock.mode === "insert" ? t("rp_placedInsert")
+    : opened ? t("rp_placedDocked")
+    : dock ? t("rp_noDoor") : t("rp_placed"),
+    dock && dock.mode !== "insert" && dock.mode !== "corridor" && !opened && !isConnOpen ? "error" : undefined);
+  S.roomPrepared = null;
+  return result;
+}
+
+/* The planner's own wall split, in the shape js/room_graph.js asks for: cut at
+   a point, hand back the node the halves now share. splitWallAt() re-homes
+   openings, MEP devices, dimension locks and anchors onto that node, none of
+   which the headless fallback in room_graph.js knows about. */
+/* Follow a room that has just been dragged to its new key.
+ *
+   Its bounding walls change identity the moment it docks — one of them is now
+   the neighbour's wall, another is half of what it was — so the key its name,
+   floor and lock hang from stops naming anything. The generic repair in
+   geometry.js cannot help here: it re-homes an orphan by the centroid the
+   entry RECORDS, and a room that has just been dragged is no longer at the
+   centroid it recorded. It is at the one the gesture just put it at, which is
+   the only thing that knows.
+
+   Also re-points the selection, because everything downstream in this
+   pointerup — the corridor pass included — looks the room up by S.sel.ref. */
+function rehomeDraggedRoom(drag, oldKey) {
+  if (!oldKey) return;
+  var meta = S.roomMeta[oldKey];
+  var rooms = detectRooms();
+  if (!meta || rooms.some(function (r) { return r.key === oldKey; })) return;
+  var cx = 0, cz = 0, n = 0;
+  (drag.orig || []).forEach(function (o) {
+    var p = S.nodes[o.i];
+    if (!p) return;
+    cx += p.x; cz += p.z; n++;
+  });
+  if (!n) return;
+  cx /= n; cz /= n;
+  var home = rooms.find(function (r) {
+    return !S.roomMeta[r.key] && pointInPolyR(cx, cz, r.pts);
+  });
+  if (!home) return;
+  delete S.roomMeta[oldKey];
+  meta.cx = home.cx;
+  meta.cz = home.cz;
+  S.roomMeta[home.key] = meta;
+  if (S.sel && S.sel.kind === "room" && S.sel.ref === oldKey) S.sel.ref = home.key;
+}
+
+/* The edge handle under the pointer, for the room that is currently selected.
+   The radius is in pixels so it stays grabbable at any zoom. */
+function pickRoomEdge(px, pz) {
+  if (!S.sel || S.sel.kind !== "room") return null;
+  var reach = 11 / S.SC, best = null;
+  roomEdgeHandles(S.sel.ref).forEach(function (h) {
+    var d = Math.hypot(h.x - px, h.z - pz);
+    if (d <= reach && (!best || d < best.d)) best = Object.assign({ d: d }, h);
+  });
+  return best;
+}
+
+/* How far in this side may be pulled before the room stops being one.
+ *
+   The floor is the preset's own smaller minimum — a bedroom preset says what a
+   bedroom may shrink to, and it is the room's own claim about itself rather
+   than a number invented here. Which of the preset's two minimums applies
+   depends on how the room was turned, and guessing wrong would forbid a legal
+   size, so the smaller of the pair is used and 60 cm clear is the hard floor
+   underneath it for a room with no preset at all. Nothing here stops the side
+   being pulled OUTWARD; that is what docking is for. */
+function roomEdgeLimit(key, handle) {
+  var room = roomByKey(key);
+  if (!room) return null;
+  var meta = S.roomMeta[key], preset = meta && meta.preset ? roomPreset(meta.preset) : null;
+  var clearMin = Math.max(preset ? Math.min(preset.min.w, preset.min.d) : 0, 60);
+  var along = handle.axis === "x" ? "x" : "z";
+  var lo = Infinity, hi = -Infinity;
+  room.pts.forEach(function (p) {
+    lo = Math.min(lo, p[along]);
+    hi = Math.max(hi, p[along]);
+  });
+  var here = handle.axis === "x" ? handle.x : handle.z;
+  // the side of the room this handle is NOT on
+  var opposite = Math.abs(here - lo) < Math.abs(here - hi) ? hi : lo;
+  return {
+    axis: handle.axis,
+    opposite: opposite,
+    /* Which side of the far wall this one started on. Distance alone is not a
+       limit: pushed far enough, the side sails straight through the opposite
+       one and out the other side, and the room comes back the "right" size
+       again — inside out, with its walls crossed. */
+    sign: here >= opposite ? 1 : -1,
+    minSpan: clearMin + (Number(handle.wall.thickness) || WALL_T),
+  };
+}
+
+/* Build the hallway a room drag proposed, and open it at both ends.
+ *
+ * The corridor's two long walls are laid exactly on the faces they separate —
+ * the dragged room's near side and the wall it stopped short of — so stampRect
+ * finds both of them already standing and reports them as SHARED rather than
+ * building a second wall on top of either. That is what makes the corridor a
+ * space between two rooms instead of a box wedged between them, and it is why
+ * the openings go through the shared walls rather than through anything new.
+ *
+ * Only ever called for a drop whose preview showed the corridor. */
+function buildDragCorridor(drag) {
+  var gap = drag && drag.corridor;
+  if (!gap || !drag.dock || drag.dock.mode !== "corridor") return;
+  var built = placeRoom(S, {
+    preset: "corridor",
+    rect: gap,
+    spec: roomStampSpec(),
+    dock: null,
+    connect: false,
+    // the gap between two rooms, by construction: nothing to overlap
+    allowOverlap: true,
+    detectRooms: detectRooms,
+    splitWall: splitPlannerWallAt,
+  });
+  if (!built.ok) return;
+  var live = detectRooms();
+  var opened = 0;
+  built.shared.forEach(function (id) {
+    if (!wallById(id)) return;
+    if (cutOpening(S, id, connectionForWall(S, id, live))) opened++;
+  });
+  built.created.forEach(function (id) {
+    var w = wallById(id);
+    if (!w) return;
+    var clear = wallClearLength(w);
+    if (clear > 0) w.clearL = clear;
+  });
+  S.dirty3D = true;
+  reconcileRoomMeta();
+  refreshTree();
+  flash(opened ? t("rp_placedCorridor") : t("rp_placed"));
+}
+
+/* The walls a dragged room owns outright — both ends among the corners the
+   gesture is moving. They are excluded from the dock solver, which would
+   otherwise find the room's own far wall and pull it onto itself. */
+function roomOwnWalls(drag) {
+  var mine = {};
+  (drag.orig || []).forEach(function (o) { mine[o.i] = 1; });
+  var ids = new Set();
+  S.walls.forEach(function (w) { if (mine[w.a] && mine[w.b]) ids.add(w.id); });
+  return ids;
+}
+
+/* One space, one name. Merging a bathroom into a bedroom leaves two orphaned
+   metadata entries whose centroids both fall inside the room that is left, and
+   the generic reconciler in geometry.js hands the survivor whichever it reaches
+   first — so knocking a cupboard through into a living room could rename the
+   living room "Store". The room that contributed the most floor keeps its name,
+   its finish and its lock; the smaller entry is dropped rather than left
+   orphaned in the save. */
+function adoptMergedRoomMeta(before) {
+  var ranked = before.slice().sort(function (a, b) { return (b.area || 0) - (a.area || 0); });
+  var winner = S.roomMeta[ranked[0].key] || S.roomMeta[ranked[1].key];
+  if (!winner) return;
+  var merged = detectRooms().find(function (r) {
+    return before.every(function (o) { return o.key !== r.key; })
+      && pointInPolyR(ranked[0].cx, ranked[0].cz, r.pts);
+  });
+  if (!merged) return;
+  before.forEach(function (o) { delete S.roomMeta[o.key]; });
+  winner.cx = merged.cx;
+  winner.cz = merged.cz;
+  S.roomMeta[merged.key] = winner;
+}
+
+/* What happens when a room is DROPPED against another one.
+ *
+ * The drag itself only moves corners, so a room pushed up against its
+ * neighbour arrives with two walls lying exactly on top of each other: one the
+ * room brought, one the neighbour already had. That is not a party wall, it is
+ * a defect — the face trace finds a zero-width room between them, the 3D view
+ * builds both, and there is no single wall to hang a door on. It also looks
+ * completely correct on screen, which is what makes it worth an explicit pass.
+ *
+ * So dropping finishes the join the drag implied, in the order the topology
+ * needs:
+ *
+ *   1. a corner that landed in the MIDDLE of somebody else's wall splits it,
+ *      turning a touch into a junction;
+ *   2. corners that are now in the same place become one corner;
+ *   3. two walls that now run between the same pair of corners become one —
+ *      the survivor keeps the openings of both, because a door the user cut
+ *      into either of them is a door they still want;
+ *   4. and if that leaves a shared wall with nothing through it, the rooms get
+ *      the door the gesture was obviously asking for.
+ *
+ * A drop that touches nothing does nothing here. */
+function fuseDroppedRoom(drag) {
+  if (!drag || !drag.orig || !drag.orig.length) return null;
+  /* Corners the room owns. It GROWS: splitting one of the room's own walls
+     gives it a new corner, and both halves are still the room's. */
+  var mineNode = new Set(drag.orig.map(function (o) { return o.i; }));
+  var isMine = function (w) { return mineNode.has(w.a) && mineNode.has(w.b); };
+
+  // 1. somebody else's wall under one of my corners
+  drag.orig.forEach(function (o) { cutUnder(o.i, function (w) { return !isMine(w); }); });
+  /* 2. ...and MY wall under somebody else's corner, which is the same event
+     seen from the other side. Cutting only one way looks symmetrical until the
+     two walls are different lengths: drop a 330 cm corridor against a 310 cm
+     room and none of the corridor's corners land inside the room's wall, so
+     nothing was cut, nothing welded, and the two walls stayed overlapping —
+     visibly joined, structurally two walls with a sliver between them. */
+  var foreign = [], used = usedNodes();
+  for (var uk in used) if (!mineNode.has(Number(uk))) foreign.push(Number(uk));
+  foreign.forEach(function (ni) {
+    var made = cutUnder(ni, isMine);
+    if (made != null) mineNode.add(made);
+  });
+
+  /* Split whichever wall passing `accept` this corner is sitting in the middle
+     of, and return the corner the two halves now share. One host per corner: a
+     second pass would only find the half just made. */
+  function cutUnder(ni, accept) {
+    var p = S.nodes[ni];
+    if (!p) return null;
+    for (var k = 0; k < S.walls.length; k++) {
+      var w = S.walls[k];
+      if (!accept(w) || w.a === ni || w.b === ni) continue;
+      var g = wallGeom(w), hit = wallProject(w, p.x, p.z);
+      if (!g || !hit || !fin(g.L) || hit.distance > 2) continue;
+      if (hit.s <= 2 || hit.s >= g.L - 2) continue;
+      var cut = splitWallAt(w, hit.s);
+      return fin(cut) ? cut : null;
+    }
+    return null;
+  }
+  weldCoincidentNodes();
+  var fused = dedupeCoincidentWalls();
+  if (!fused.length) return fused;
+  S.dirty3D = true;
+  reconcileRoomMeta();
+  refreshTree();
+  return fused;
+}
+
+/* Cut the connection through each wall the drop turned into a party wall.
+ *
+   Split out from the fuse, and run AFTER the dragged room has been re-keyed,
+   because what the opening should BE is read off the two rooms' presets — and
+   a room whose metadata key is still the pre-drop one looks, to that lookup,
+   like a room with no preset at all. Doing this inside the fuse gave a corridor
+   an 80 cm door instead of the passage it asks for. */
+function connectFusedWalls(fused) {
+  if (!fused || !fused.length) return;
+  var live = detectRooms();
+  var opened = 0;
+  fused.forEach(function (id) {
+    if (!wallById(id)) return;
+    var made = cutOpening(S, id, connectionForWall(S, id, live));
+    if (made) opened++;
+  });
+  if (opened) S.dirty3D = true;
+  flash(opened ? t("rp_placedDocked") : t("rp_placed"));
+}
+
+/* Two walls between the same pair of corners are one wall. The survivor is the
+   older one — it is the wall the rest of the drawing already refers to, in
+   dimensions, in constraints and in whatever the user has selected. Returns
+   the ids of the walls that turned out to be shared. */
+function dedupeCoincidentWalls() {
+  var byPair = {}, fused = [], dead = {};
+  S.walls.forEach(function (w) {
+    var lo = Math.min(w.a, w.b), hi = Math.max(w.a, w.b), key = lo + "_" + hi;
+    var keep = byPair[key];
+    if (!keep) { byPair[key] = w; return; }
+    dead[w.id] = keep.id;
+    if (fused.indexOf(keep.id) === -1) fused.push(keep.id);
+  });
+  if (!fused.length) return fused;
+  /* The openings of the wall that goes come with it — but only where the
+     survivor has room for them. Two rooms pushed together, each with a door in
+     the wall they are about to share, is the ordinary case, and moving both
+     doors across leaves two of them stacked at the same station: one wall, two
+     coincident doors, drawn on top of each other and both real in 3D.
+
+     Two passes, because one is not enough: the survivor's OWN openings have to
+     be known before any are moved onto it. Checking against "everything seen so
+     far" made the winner whichever door happened to come first in the array —
+     which is to say, the wall that happened to be drawn first. */
+  var staying = S.openings.filter(function (o) { return !dead[o.wall]; });
+  var moved = [];
+  S.openings.forEach(function (o) {
+    if (!dead[o.wall]) return;
+    var host = dead[o.wall];
+    var taken = staying.concat(moved).some(function (q) {
+      return q.wall === host && q.s + q.width / 2 > o.s - o.width / 2
+        && q.s - q.width / 2 < o.s + o.width / 2;
+    });
+    if (taken) return; // the survivor already has a way through, there
+    o.wall = host;
+    moved.push(o);
+  });
+  S.openings = staying.concat(moved);
+  S.walls = S.walls.filter(function (w) { return !dead[w.id]; });
+  pruneCons();
+  if (S.sel && S.sel.kind === "wall" && dead[S.sel.ref.id]) select(null);
+  return fused;
+}
+
+function splitPlannerWallAt(state, wall, point) {
+  var proj = wallProject(wall, point.x, point.z);
+  if (!proj || !fin(proj.s)) return null;
+  var ni = splitWallAt(wall, proj.s);
+  return fin(ni) ? ni : null;
 }
 
 function commitSlabFromTo(a, b) {
@@ -3659,7 +4291,18 @@ export function initInteraction() {
       erasePushed = true;
     }
     eraseSeen[key] = 1;
+    /* Erasing the wall BETWEEN two rooms is the way to open one space into
+       another — knock the partition out and the face trace finds one room
+       where there were two. It is also, from the outside, indistinguishable
+       from erasing any other wall, so it says what it did: without that, the
+       two names collapsing into one looks like the app lost something. */
+    var mergedRooms = hit && hit.kind === "wall" && hit.ref
+      ? wallSeparates(detectRooms(), hit.ref.id) : null;
     if (applyRemove(hit)) finishRemove();
+    if (mergedRooms) {
+      adoptMergedRoomMeta(mergedRooms);
+      flash(t("rp_merged"));
+    }
   }
   function placeOpeningAt(tool, px, pz) {
     /* Resolve exactly one host with the same resolver used by wallProbe. The
@@ -4029,6 +4672,16 @@ export function initInteraction() {
       handleBreakClick(px, pz);
       return;
     }
+    if (S.tool === "wallbite") {
+      if (e.button === 2) { S.biteDraft = null; setTool("select"); render2D(); return; }
+      var bw = hitWall(px, pz);
+      var bp = bw && wallProject(bw, px, pz);
+      if (!bw || !bp) { flash(t("wd_bite_need")); return; }
+      S.biteDraft = { wall: bw.id, s0: bp.s, s1: bp.s };
+      S.action = "wallbite";
+      render2D();
+      return;
+    }
     if (S.tool === "walljoin") {
       if (e.button === 2) { S.joinPick = null; setTool("select"); return; }
       handleJoinClick(px, pz);
@@ -4076,6 +4729,15 @@ export function initInteraction() {
       if (commitRectFromTo(S.rectDraft, rp)) setTool("select");
       S.rectDraft = null;
       S.previewPt = null;
+      render2D();
+      return;
+    }
+    if (S.tool === "roomstamp") {
+      if (e.button === 2) { disarmRoomStamp(); setTool("select"); render2D(); return; }
+      updateRoomGhost(px, pz);
+      commitRoomStamp();
+      // the preset stays armed; the ghost follows the pointer to the next room
+      updateRoomGhost(px, pz);
       render2D();
       return;
     }
@@ -4220,9 +4882,9 @@ export function initInteraction() {
        furniture is still grabbable; dimension labels before corners and walls
        because a label is a small box drawn on top of everything; placeholder
        points before items and openings because a point is a ~12px target that
-       is usually standing INSIDE the footprint of the thing it holds; and
-       rooms last, because a room is the whole floor area and would otherwise
-       swallow every click that lands inside it. */
+       is usually standing INSIDE the footprint of the thing it holds. Rooms
+       are not in the chain at all — the floor swallows every click inside it,
+       so it answers after BOTH passes (see runRoomPass below). */
     function runSelectPass(pass) {
       // MEP entities are selectable/draggable with the select tool (before items,
       // so a device sitting on furniture is still grabbable)
@@ -4477,46 +5139,105 @@ export function initInteraction() {
           render2D();
           return true;
         }
-        var hk = hitRoom(px, pz);
-        if (hk) {
-          var rm = roomByKey(hk);
-          var roomSel = { kind: "room", ref: hk };
-          select(roomSel);
-          /* canDrag folds in all three of the old conditions — the work set,
-             S.lockStruct, and the per-room padlock it reads out of S.roomMeta
-             (a room selection's ref is a KEY, not an object). `rm` staying in
-             the test is not redundant: a room key with no live polygon has no
-             corners to move. */
-          if (rm && canDrag(roomSel)) {
-            S.action = "room";
-            beginHistory();
-            S.dragRoom = {
-              sx: px,
-              sz: pz,
-              orig: rm.nidx.map(function (i) {
-                return { i: i, x: S.nodes[i].x, z: S.nodes[i].z };
-              }),
-              // items sitting inside the room travel with it (relative offset kept)
-              items: itemsInRoom(rm).map(function (it) {
-                return { it: it, x: it.x, z: it.z };
-              }),
-            };
-          } else {
-            S.action = null;
-            if (rm) blockedDrag(roomSel);
-          }
-          render2D();
-          return true;
-        }
       }
       return false;
+    }
+    /* An edge handle of the ALREADY SELECTED room outranks everything, because
+       it is a control the user can see and has deliberately aimed at. It is
+       offered only for the current selection, so it can never intercept a
+       click meant for a piece of furniture in a room nobody selected. */
+    function runRoomEdgePass() {
+      if (!S.sel || S.sel.kind !== "room") return false;
+      var handle = pickRoomEdge(px, pz);
+      if (!handle) return false;
+      var edgeSel = { kind: "wall", ref: handle.wall };
+      if (!canDrag(edgeSel)) {
+        /* Clearing matters as much as refusing: an action left armed by the
+           previous pointerdown would otherwise run against the side that was
+           just refused. */
+        S.action = null;
+        blockedDrag(edgeSel);
+        return true;
+      }
+      S.action = "wall";
+      beginHistory();
+      S.jointsReleased = 0;
+      S.wallDrag = {
+        wall: handle.wall,
+        sx: px,
+        sz: pz,
+        orig: [handle.wall.a, handle.wall.b].map(function (i) {
+          return { i: i, x: S.nodes[i].x, z: S.nodes[i].z };
+        }),
+        /* What makes this a RESIZE rather than a wall drag: the side may only
+           travel along its own normal, so pulling the end wall of a room
+           cannot also slide it sideways and turn the rectangle into a
+           parallelogram. */
+        edge: { axis: handle.axis, ux: handle.ux, uz: handle.uz, room: S.sel.ref },
+        limit: roomEdgeLimit(S.sel.ref, handle),
+      };
+      S.wallAngleGuide = null;
+      render2D();
+      return true;
+    }
+    /* The room is the LAST resort, after both passes rather than at the end of
+       the structure block inside each one.
+
+       A room is not a thing you aim at — it is the whole floor area, and every
+       click that lands inside it hits it. Ranking it with the rest of structure
+       therefore broke the two-pass rule it was supposed to serve: with the work
+       set on structure (which is where the wall tool leaves it), a rank-0 room
+       answered the click before pass 1 ever ran, so a sofa, a sink or a TV
+       standing on that floor could not be selected at all — the press grabbed
+       the room and dragged the whole plan, carrying the furniture along inside
+       it. Precise targets on every layer now get both passes first, and the
+       floor only answers when none of them did. */
+    function runRoomPass() {
+      var rank = layerRank("structure");
+      if (rank !== 0 && rank !== 1) return false;
+      var hk = hitRoom(px, pz);
+      if (!hk) return false;
+      var rm = roomByKey(hk);
+      var roomSel = { kind: "room", ref: hk };
+      select(roomSel);
+      /* canDrag folds in all three of the old conditions — the work set,
+         S.lockStruct, and the per-room padlock it reads out of S.roomMeta
+         (a room selection's ref is a KEY, not an object). `rm` staying in
+         the test is not redundant: a room key with no live polygon has no
+         corners to move. */
+      if (rm && canDrag(roomSel)) {
+        S.action = "room";
+        beginHistory();
+        /* An attached room is broken off its neighbours first, so what travels
+           is the room and nothing else. detachRoomSeam returns the corners the
+           room now owns; a free-standing room has no seam and keeps its own. */
+        var carry = detachRoomSeam(S, hk, detectRooms()) || rm.nidx;
+        S.dragRoom = {
+          sx: px,
+          sz: pz,
+          orig: carry.map(function (i) {
+            return { i: i, x: S.nodes[i].x, z: S.nodes[i].z };
+          }),
+          // items sitting inside the room travel with it (relative offset kept)
+          items: itemsInRoom(rm).map(function (it) {
+            return { it: it, x: it.x, z: it.z };
+          }),
+        };
+      } else {
+        S.action = null;
+        if (rm) blockedDrag(roomSel);
+      }
+      render2D();
+      return true;
     }
     /* One arming point for all three proxied gestures rather than one beside
        each `S.action = ` — the passes hand back true only after they have set
        S.action and filled the matching drag record, which is exactly when the
        proxy can read what it is lifting. */
+    if (runRoomEdgePass()) return void armDragProxy();
     if (runSelectPass(0)) return void armDragProxy();
     if (runSelectPass(1)) return void armDragProxy();
+    if (runRoomPass()) return void armDragProxy();
     // blank space: same "I'm done" gesture as Esc — drop the selection and
     // fall back to the select tool
     select(null);
@@ -4746,7 +5467,14 @@ export function initInteraction() {
       render2D();
       return;
     }
-    if (S.tool === "wallbreak" || S.tool === "walljoin" || S.tool === "wallreverse" || S.tool === "wallpaint") {
+    if (S.action === "wallbite" && S.biteDraft) {
+      var bWall = wallById(S.biteDraft.wall);
+      var bProj = bWall && wallProject(bWall, px, pz);
+      if (bProj) S.biteDraft.s1 = clamp(bProj.s, 0, wallGeom(bWall).L);
+      render2D();
+      return;
+    }
+    if (S.tool === "wallbreak" || S.tool === "walljoin" || S.tool === "wallreverse" || S.tool === "wallpaint" || S.tool === "wallbite") {
       S.previewPt = { x: px, z: pz };
       render2D();
       return;
@@ -4766,6 +5494,12 @@ export function initInteraction() {
     if (S.tool === "rect" || S.tool === "slabvoid") {
       var rrp = snapPoint(px, pz, null);
       S.previewPt = fin(rrp.x) && fin(rrp.z) ? { x: rrp.x, z: rrp.z } : null;
+      render2D();
+      return;
+    }
+    if (S.tool === "roomstamp") {
+      S.previewPt = fin(px) && fin(pz) ? { x: px, z: pz } : null;
+      updateRoomGhost(px, pz);
       render2D();
       return;
     }
@@ -5090,6 +5824,23 @@ export function initInteraction() {
           moveZ = equal.dz;
         }
       }
+      /* A room-edge drag is the same move with two rules on it: the side may
+         only travel along its own normal, and it may not be pushed so far in
+         that the room stops being one. Applied here rather than at the start
+         so the grid quantisation and the equal-angle snap above still get
+         their say about how far along that normal it lands. */
+      if (wd.edge) {
+        if (wd.edge.axis === "x") moveZ = 0; else moveX = 0;
+        var lim = wd.limit;
+        if (lim) {
+          var from = wd.edge.axis === "x" ? wd.orig[0].x : wd.orig[0].z;
+          var to = from + (wd.edge.axis === "x" ? moveX : moveZ);
+          if (lim.sign * (to - lim.opposite) < lim.minSpan) {
+            to = lim.opposite + lim.sign * lim.minSpan;
+            if (wd.edge.axis === "x") moveX = to - from; else moveZ = to - from;
+          }
+        }
+      }
       var beforeWall = snapshotNodes();
       wd.orig.forEach(function (o) {
         S.nodes[o.i].x = o.x + moveX;
@@ -5160,6 +5911,42 @@ export function initInteraction() {
         oz,
         THR,
       );
+      /* The same magnet the preset tool places rooms with.
+       *
+         snapAdj above lines the room's bounding box up with other CORNERS, so
+         it only helps when something already sits at that exact coordinate.
+         Pushing a room against the side of a longer wall — the "drag them
+         together until they share a wall" gesture this whole feature is for —
+         matched nothing, and the room came to rest two or three centimetres
+         off. Two or three centimetres is worse than either touching or being
+         clearly apart: the drop's weld tolerance is 2 cm, so it looks joined
+         and is not.
+
+         So the dock solver gets first refusal, exactly as it does while
+         stamping, and only falls back to the corner alignment. Its own walls
+         are excluded, or the room would dock against itself.
+
+         A corridor answer is allowed here too, and drawn while the drag is
+         still live: hold a room roughly a corridor's width off a wall and the
+         hallway that would be built appears in the gap, outlined, before
+         anything is committed. That preview is the whole licence for the mode
+         — a room springing into existence on release that the user was never
+         shown would be the app inventing geometry. */
+      var roomRect = {
+        x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs),
+        z0: Math.min.apply(null, zs), z1: Math.max.apply(null, zs),
+      };
+      var roomDock = solveDock(S, roomRect, {
+        snap: 40 * (fin(S.snapStrength) ? S.snapStrength : 1),
+        skipWalls: roomOwnWalls(S.dragRoom),
+      });
+      if (roomDock) { ax = roomDock.dx; az = roomDock.dz; }
+      S.dragRoom.dock = roomDock;
+      /* The gap is measured from where the room is ABOUT to be, not where the
+         pointer left it — the snap above is part of the proposal. */
+      S.dragRoom.corridor = roomDock && roomDock.mode === "corridor"
+        ? corridorRect(translateRect(roomRect, roomDock.dx, roomDock.dz), roomDock)
+        : null;
       var beforeRoom = snapshotNodes();
       S.dragRoom.orig.forEach(function (o) {
         S.nodes[o.i].x = o.x + dx + ax;
@@ -5260,10 +6047,31 @@ export function initInteraction() {
       // Both fingers gone, nothing zoomed: that was the undo gesture.
       if (!Object.keys(pointers).length && tryTwoTap()) return;
     }
+    /* Settle the topology BEFORE anything reads it. A dropped room has walls
+       to weld and duplicates to merge, and the corridor pass below works off
+       "which walls does this room have" — asked too early, it answered with
+       the pre-drop pair of overlapping walls and cut a passage through each of
+       them. Re-homing runs here too, so the corridor pass looks the room up by
+       a key that still exists. */
+    if (S.action === "room" && S.dragRoom) {
+      S.dragRoom.items.forEach(function (o) { releaseIfMoved(o.it); });
+      var draggedKey = S.sel && S.sel.kind === "room" ? S.sel.ref : null;
+      var fusedWalls = fuseDroppedRoom(S.dragRoom);
+      rehomeDraggedRoom(S.dragRoom, draggedKey);
+      connectFusedWalls(fusedWalls);
+      buildDragCorridor(S.dragRoom);
+    }
     if (S.action === "room" && S.sel && S.sel.kind === "room") {
       var rKey = S.sel.ref;
       var rMeta = S.roomMeta[rKey];
-      if (rMeta && rMeta.isCorridor) {
+      /* A room stamped from a preset brings its own answer to "how do these
+         two spaces connect" (js/room_presets.js), and the drop has already
+         acted on it. This pass is the older, geometric one — every collinear
+         overlap becomes a full-width opening, paired through `overlapL` — and
+         it is what a corridor drawn by hand still wants. Running both gave the
+         stamped corridor an opening as wide as the whole wall AND pairing
+         metadata nobody asked for. */
+      if (rMeta && rMeta.isCorridor && !rMeta.preset) {
         var wids = rKey.split(",");
         var corridorWalls = S.walls.filter(function(w) { return wids.indexOf(String(w.id)) > -1; });
         var otherWalls = S.walls.filter(function(w) { return wids.indexOf(String(w.id)) === -1; });
@@ -5289,8 +6097,15 @@ export function initInteraction() {
                     var g = wallGeom(x);
                     if (distSeg(Px, Pz, g.a.x, g.a.z, g.b.x, g.b.z) < x.thickness / 2 + 6) {
                       var ss = (Px - g.a.x) * g.ux + (Pz - g.a.z) * g.uz;
+                      /* Anything already occupying that stretch of wall — not
+                         just an opening whose CENTRE is within 20 cm. A door
+                         cut by the drop's own fuse pass a moment earlier sits
+                         at whatever station the wall had room for, so the old
+                         centre test happily added a second opening beside it. */
                       var exists = S.openings.some(function(op) {
-                        return op.wall === x.id && Math.abs(op.s - ss) < 20;
+                        return op.wall === x.id
+                          && op.s + op.width / 2 > ss - width / 2
+                          && op.s - op.width / 2 < ss + width / 2;
                       });
                       if (!exists) {
                         /* Corridor inference is still a model creation path.
@@ -5335,6 +6150,7 @@ export function initInteraction() {
       }
     }
 
+    if (S.action === "wallbite") commitWallBite();
     if (S.action === "mep") {
       fillProps(); // refresh readouts (length, position) after a drag
       refreshTree(); // connectivity flags may have changed
@@ -5360,8 +6176,16 @@ export function initInteraction() {
          the plan is worse than no number. */
       fillProps();
     }
-    if (S.action === "room" && S.dragRoom)
-      S.dragRoom.items.forEach(function (o) { releaseIfMoved(o.it); });
+    /* A side pushed up against the neighbouring room has to JOIN it, exactly
+       as a whole dragged room does — otherwise resizing a room until it
+       touches its neighbour leaves two walls in the same place and a sliver of
+       nothing between them. Same repair, same code. */
+    if (S.action === "wall" && S.wallDrag && S.wallDrag.edge) {
+      var edgeKey = S.wallDrag.edge.room;
+      var edgeFused = fuseDroppedRoom(S.wallDrag);
+      rehomeDraggedRoom(S.wallDrag, edgeKey);
+      connectFusedWalls(edgeFused);
+    }
     /* A corner drag is a deliberate re-dimensioning of the walls it moved, so
        those walls now HOLD what the user just drew — otherwise the very next
        edit elsewhere would snap them back to their pre-drag size. */
@@ -5619,6 +6443,7 @@ export function initInteraction() {
       else if (S.joinPick) { S.joinPick = null; render2D(); }
       else if (S.arcDraft) { S.arcDraft = null; S.previewPt = null; render2D(); }
       else if (S.rectDraft) { S.rectDraft = null; S.previewPt = null; setTool("select"); }
+      else if (S.roomStamp) { disarmRoomStamp(); S.previewPt = null; setTool("select"); }
       else if (S.placeType) {
         S.placeType = null;
         S.previewPt = null;
@@ -5640,7 +6465,25 @@ export function initInteraction() {
     } else if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
       deleteSel();
+    } else if (S.tool === "roomstamp" && S.roomStamp && (e.key === "m" || e.key === "M")) {
+      cycleRoomStampConnMode();
+      return;
+    } else if (S.tool === "roomstamp" && S.roomStamp && (e.key === "d" || e.key === "D" || e.key === "Tab")) {
+      e.preventDefault();
+      flipRoomStampDoorWall();
+      return;
+    } else if (S.tool === "roomstamp" && S.roomStamp && (e.key === "[" || e.key === "]")) {
+      e.preventDefault();
+      resizeRoomStamp(e.key === "[" ? -10 : 10, 0);
+      return;
+    } else if (S.tool === "roomstamp" && S.roomStamp && (e.key === "{" || e.key === "}")) {
+      e.preventDefault();
+      resizeRoomStamp(0, e.key === "{" ? -10 : 10);
+      return;
     } else if (e.key === "r" || e.key === "R") {
+      // while a preset room is armed R turns the RECTANGLE, not the selection:
+      // that is the only thing on screen the user is steering
+      if (S.tool === "roomstamp" && S.roomStamp) { rotateRoomStamp(); return; }
       /* The step is whatever the inspector is set to (15/45/90), and Shift
          turns the other way — one key for both directions beats two. */
       var rStep = rotStep() * (e.shiftKey ? -1 : 1);
@@ -5670,6 +6513,7 @@ export function initInteraction() {
     else if (e.key === "7") setTool("arcwall");
     else if (e.key === "8") setTool("rect");
     else if (e.key === "9") setTool("slabvoid");
+    else if (e.key === "0") armRoomStamp(S.roomStamp ? S.roomStamp.id : "bedroom");
     else if (e.key === "e" || e.key === "E") setTool("erase");
     // L toggles the structure lock — the same button the plan toolbar shows
     else if (e.key === "l" || e.key === "L") setLockStruct(!S.lockStruct);

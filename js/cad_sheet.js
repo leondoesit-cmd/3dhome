@@ -238,97 +238,96 @@ function clusterMetrics(doc, extents) {
   return metrics;
 }
 
-const VIEW_GAP = 20;      // millimetres of paper between neighbouring views
+const VIEW_GAP = 20;      // millimetres of paper between neighbouring principal views
+const FLOAT_GAP = 14;     // between pictorials, sections and details
+const LABEL_PAD = TEXT_SIZES.view + 8;  // caption parked under a view
 
-/* The largest standard scale at which the principal views still fit the drawing
-   area with room for their dimensions. A scale a reader cannot reason about is
-   worse than a view with air around it, so this only ever picks from the list. */
-export function fitScale(doc, extents) {
-  const metrics = clusterMetrics(doc, extents);
-  const area = drawingArea(doc, metrics);
-  const modelW = metrics.left + metrics.primarySize.w + metrics.right;
-  const modelH = metrics.above + metrics.primarySize.h + metrics.below;
-  const gapsW = VIEW_GAP * ((metrics.left ? 1 : 0) + (metrics.right ? 1 : 0)) + 24;
-  const gapsH = VIEW_GAP * ((metrics.above ? 1 : 0) + (metrics.below ? 1 : 0)) + 24;
-  for (const scale of STANDARD_SCALES) {
-    const k = paperPerModel(scale);
-    if (modelW * k + gapsW <= area.w && modelH * k + gapsH <= area.h) return scale;
-  }
-  return STANDARD_SCALES[STANDARD_SCALES.length - 1];
+function paperSizeOf(view, extents, doc, sheetScale) {
+  const box = extents.get(view.id) || { w: 10, h: 10 };
+  const k = paperPerModel(viewScaleOf(doc, view, sheetScale));
+  return { w: Math.max(box.w * k, 6), h: Math.max(box.h * k, 6) };
 }
 
-/* The room the principal views get: the frame, less the column reserved for
-   pictorials and sections, less the title block's own corner. */
-function drawingArea(doc, metrics) {
+function occupancyBox(cx, cy, w, h, labelled) {
+  return { x: cx - w / 2, y: cy - h / 2, w, h: h + (labelled !== false ? LABEL_PAD : 0) };
+}
+
+function rectsOverlap(a, b, gap = 0) {
+  return a.x < b.x + b.w + gap && a.x + a.w + gap > b.x &&
+    a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
+}
+
+/* The room the principal views get: the frame, less a column sized for the
+   pictorials and sections at this scale, less the title block when that column
+   is not there to keep them off it. */
+function drawingArea(doc, columnW) {
   const frame = sheetFrame(doc), title = titleBlockBox(doc);
-  const column = metrics.floating.length ? Math.min(frame.w * 0.3, 110) : 0;
+  const column = Math.max(0, columnW || 0);
+  const x1 = frame.x1 - 6 - column;
+  const extendsOverTitle = x1 > title.x - 4;
   return {
     x0: frame.x0 + 6, y0: frame.y0 + 6,
-    x1: frame.x1 - 6 - column, y1: frame.y1 - 6 - (column ? 0 : title.h + 4),
+    x1, y1: extendsOverTitle ? title.y - 6 : frame.y1 - 6,
     get w() { return this.x1 - this.x0; },
     get h() { return this.y1 - this.y0; },
-    column,
+    column, frame, title,
   };
 }
 
-/* Where each view sits, in millimetres. Principal views hold the projection
-   convention — in third angle the top view is above the front and the right
-   view is to its right; first angle puts each one on the opposite side — so a
-   reader can tell which way the object is facing without reading a label. */
-export function layoutViews(doc, extents) {
-  const frame = sheetFrame(doc), title = titleBlockBox(doc);
-  const sheetScale = doc.scale === "fit" ? fitScale(doc, extents) : doc.scale;
+function placePrincipalCluster(doc, extents, sheetScale, area, mustFit = true) {
   const metrics = clusterMetrics(doc, extents);
-  const area = drawingArea(doc, metrics);
   const primary = metrics.primary;
-  const placed = new Map();
-  const paperSize = (view) => {
-    const box = extents.get(view.id) || { w: 10, h: 10 };
-    const k = paperPerModel(viewScaleOf(doc, view, sheetScale));
-    return { w: Math.max(box.w * k, 6), h: Math.max(box.h * k, 6) };
-  };
+  const sizeOf = (view) => paperSizeOf(view, extents, doc, sheetScale);
   const k = paperPerModel(sheetScale);
-  const primarySize = paperSize(primary);
+  const primarySize = sizeOf(primary);
+  let gap = VIEW_GAP;
+  if (!mustFit) {
+    const rawW = (metrics.left + metrics.right) * k + primarySize.w;
+    const rawH = (metrics.above + metrics.below) * k + primarySize.h;
+    const gapsW = (metrics.left ? 1 : 0) + (metrics.right ? 1 : 0);
+    const gapsH = (metrics.above ? 1 : 0) + (metrics.below ? 1 : 0);
+    const availW = area.w - rawW;
+    const availH = area.h - rawH;
+    const maxGapW = gapsW > 0 ? availW / gapsW : VIEW_GAP;
+    const maxGapH = gapsH > 0 ? availH / gapsH : VIEW_GAP;
+    gap = Math.max(4, Math.min(VIEW_GAP, maxGapW, maxGapH));
+  }
+  const spread = {
+    left: metrics.left * k + (metrics.left ? gap : 0),
+    right: metrics.right * k + (metrics.right ? gap : 0),
+    above: metrics.above * k + (metrics.above ? gap : 0),
+    below: metrics.below * k + (metrics.below ? gap : 0),
+  };
+  const clusterW = spread.left + primarySize.w + spread.right;
+  const clusterH = spread.above + primarySize.h + spread.below;
+  if (mustFit && (clusterW > area.w + 0.5 || clusterH > area.h + 0.5)) return null;
+  const placed = new Map();
+  const first = doc.projection === "first";
   /* Centre the whole cluster, not the front view: with a top view above and a
      right view beside it, centring the front alone pushes the group into the
      title block. */
-  const spread = {
-    left: metrics.left * k + (metrics.left ? VIEW_GAP : 0),
-    right: metrics.right * k + (metrics.right ? VIEW_GAP : 0),
-    above: metrics.above * k + (metrics.above ? VIEW_GAP : 0),
-    below: metrics.below * k + (metrics.below ? VIEW_GAP : 0),
-  };
   const anchor = {
-    x: num(primary.x, area.x0 + (area.w - (spread.left + primarySize.w + spread.right)) / 2 + spread.left + primarySize.w / 2),
-    y: num(primary.y, area.y0 + (area.h - (spread.above + primarySize.h + spread.below)) / 2 + spread.above + primarySize.h / 2),
+    x: num(primary.x, area.x0 + Math.max(0, (area.w - clusterW) / 2) + spread.left + primarySize.w / 2),
+    y: num(primary.y, area.y0 + Math.max(0, (area.h - clusterH) / 2) + spread.above + primarySize.h / 2),
   };
-  placed.set(primary.id, { x: anchor.x, y: anchor.y, w: primarySize.w, h: primarySize.h, align: null, scale: viewScaleOf(doc, primary, sheetScale) });
-
-  const first = doc.projection === "first";
-  let floatY = frame.y0 + 8;
-  const floatX = frame.x1 - 8 - (area.column ? area.column / 2 : 0);
+  placed.set(primary.id, {
+    x: anchor.x, y: anchor.y, w: primarySize.w, h: primarySize.h, align: null,
+    scale: viewScaleOf(doc, primary, sheetScale),
+  });
   for (const view of doc.views) {
-    if (view === primary) continue;
-    const size = paperSize(view);
+    if (view === primary || metrics.floating.includes(view)) continue;
+    const size = sizeOf(view);
     let x = anchor.x, y = anchor.y, align = null;
-    const floating = metrics.floating.includes(view);
-    if (floating) {
-      /* Pictorials, sections and details carry no projection relationship, so
-         they stack down the reserved column — clear of the title block. */
-      x = area.column ? floatX - size.w / 2 + Math.min(size.w / 2, area.column / 2) : frame.x1 - size.w / 2 - 8;
-      y = floatY + size.h / 2;
-      floatY += size.h + 14;
-      if (y + size.h / 2 > title.y - 6) { y = title.y - 6 - size.h / 2; floatY = y + size.h / 2 + 14; }
-    } else if (view.dir === "top" || view.dir === "bottom") {
+    if (view.dir === "top" || view.dir === "bottom") {
       const above = (view.dir === "top") !== first;
-      y = anchor.y + (above ? -1 : 1) * (primarySize.h / 2 + size.h / 2 + VIEW_GAP);
+      y = anchor.y + (above ? -1 : 1) * (primarySize.h / 2 + size.h / 2 + gap);
       align = "vertical";
     } else if (view.dir === "right" || view.dir === "left") {
       const right = (view.dir === "right") !== first;
-      x = anchor.x + (right ? 1 : -1) * (primarySize.w / 2 + size.w / 2 + VIEW_GAP);
+      x = anchor.x + (right ? 1 : -1) * (primarySize.w / 2 + size.w / 2 + gap);
       align = "horizontal";
     } else if (view.dir === "back") {
-      x = anchor.x + primarySize.w / 2 + metrics.right * k + size.w / 2 + VIEW_GAP * 2;
+      x = anchor.x + primarySize.w / 2 + metrics.right * k + size.w / 2 + gap * 2;
       align = "horizontal";
     }
     /* A dragged view keeps the projection line it is entitled to: an aligned
@@ -342,7 +341,211 @@ export function layoutViews(doc, extents) {
       scale: viewScaleOf(doc, view, sheetScale),
     });
   }
-  return { placements: placed, sheetScale, primaryId: primary.id, anchor };
+  const title = area.title || titleBlockBox(doc);
+  const titleOcc = { x: title.x - 4, y: title.y - 4, w: title.w + 8, h: title.h + 8 };
+  if (mustFit) {
+    for (const place of placed.values()) {
+      if (rectsOverlap(occupancyBox(place.x, place.y, place.w, place.h, true), titleOcc, 2)) return null;
+    }
+  }
+  return { placed, anchor, primary, metrics };
+}
+
+/* Fill a rectangle left-to-right, top-to-bottom. Views that cannot sit in this
+   rectangle are returned as leftover so a later pass can look elsewhere —
+   stacking them on the title block is how the sheet used to become unreadable. */
+function shelfPack(items, rect, gap) {
+  const placed = [], leftover = [];
+  if (!rect || rect.w < 1 || rect.h < 1) return { placed, leftover: items.slice() };
+  let x = rect.x, y = rect.y, rowH = 0;
+  for (const item of items) {
+    if (item.w > rect.w + 0.5 || item.h > rect.h + 0.5) { leftover.push(item); continue; }
+    if (x > rect.x && x + item.w > rect.x + rect.w + 0.5) {
+      x = rect.x;
+      y += rowH + gap;
+      rowH = 0;
+    }
+    if (y + item.h > rect.y + rect.h + 0.5) { leftover.push(item); continue; }
+    placed.push({ id: item.id, x: x + item.geomW / 2, y: y + item.geomH / 2, w: item.geomW, h: item.geomH });
+    rowH = Math.max(rowH, item.h);
+    x += item.w + gap;
+  }
+  return { placed, leftover };
+}
+
+function findSlot(w, h, occupied, bounds, gap) {
+  const step = 4;
+  for (let y = bounds.y0; y + h <= bounds.y1 + 0.51; y += step) {
+    for (let x = bounds.x0; x + w <= bounds.x1 + 0.51; x += step) {
+      const box = { x, y, w, h };
+      if (occupied.every((other) => !rectsOverlap(box, other, gap))) return box;
+    }
+  }
+  return null;
+}
+
+function findBestPlacement(w, h, occupied, bounds, titleOcc) {
+  for (const gap of [FLOAT_GAP, 8, 4, 2, 0]) {
+    const slot = findSlot(w, h, occupied, bounds, gap);
+    if (slot) return slot;
+  }
+  const step = 4;
+  let bestBox = null, minOverlap = Infinity;
+  for (let y = bounds.y0; y + h <= bounds.y1 + 0.51; y += step) {
+    for (let x = bounds.x0; x + w <= bounds.x1 + 0.51; x += step) {
+      const box = { x, y, w, h };
+      if (rectsOverlap(box, titleOcc, 2)) continue;
+      let overlapArea = 0;
+      for (const other of occupied) {
+        if (rectsOverlap(box, other, 0)) {
+          const ox = Math.max(0, Math.min(box.x + box.w, other.x + other.w) - Math.max(box.x, other.x));
+          const oy = Math.max(0, Math.min(box.y + box.h, other.y + other.h) - Math.max(box.y, other.y));
+          overlapArea += ox * oy;
+        }
+      }
+      if (overlapArea < minOverlap) {
+        minOverlap = overlapArea;
+        bestBox = box;
+        if (overlapArea === 0) return box;
+      }
+    }
+  }
+  if (bestBox) return bestBox;
+  return {
+    x: Math.max(bounds.x0, bounds.x1 - w - (occupied.length % 4) * 24),
+    y: Math.max(bounds.y0, bounds.y0 + (occupied.length % 4) * 24),
+    w, h,
+  };
+}
+
+function uniquePositive(values) {
+  const seen = new Set();
+  return values.filter((value) => {
+    const key = Math.round(value * 10);
+    if (!(value > 0) || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/* Place every view at one scale. mustFit rejects a scale that would pile
+   pictorials or sections on top of each other or the principal cluster. */
+function placeAtScale(doc, extents, sheetScale, mustFit) {
+  const frame = sheetFrame(doc), title = titleBlockBox(doc);
+  const metrics = clusterMetrics(doc, extents);
+  const sizeOf = (view) => paperSizeOf(view, extents, doc, sheetScale);
+  const floats = metrics.floating.map((view) => {
+    const size = sizeOf(view);
+    return {
+      view, id: view.id, geomW: size.w, geomH: size.h,
+      w: size.w, h: size.h + (view.labelled !== false ? LABEL_PAD : 0),
+      scale: viewScaleOf(doc, view, sheetScale),
+      pinned: view.x != null || view.y != null,
+    };
+  });
+  const maxFloatW = floats.reduce((widest, item) => Math.max(widest, item.w), 0);
+  const columnCandidates = !floats.length ? [0] : uniquePositive([
+    maxFloatW + 12,
+    maxFloatW * 1.5 + 12,
+    Math.min(frame.w * 0.42, maxFloatW * 2 + FLOAT_GAP + 12),
+    Math.min(frame.w * 0.5, maxFloatW * 3 + FLOAT_GAP * 2 + 12),
+    Math.max(0, frame.w * 0.35),
+    0,
+  ]);
+
+  let fallback = null;
+  const titleOcc = { x: title.x - 4, y: title.y - 4, w: title.w + 8, h: title.h + 8 };
+  const bounds = { x0: frame.x0 + 6, y0: frame.y0 + 6, x1: frame.x1 - 6, y1: frame.y1 - 6 };
+
+  for (const columnW of columnCandidates) {
+    const area = drawingArea(doc, columnW);
+    const principal = placePrincipalCluster(doc, extents, sheetScale, area, mustFit);
+    if (!principal) continue;
+    const placements = new Map(principal.placed);
+    const occupied = [titleOcc];
+    for (const place of principal.placed.values()) {
+      occupied.push(occupancyBox(place.x, place.y, place.w, place.h, true));
+    }
+
+    const autoFloats = floats.filter((item) => !item.pinned);
+    for (const item of floats.filter((entry) => entry.pinned)) {
+      const x = num(item.view.x, 0), y = num(item.view.y, 0);
+      placements.set(item.id, { x, y, w: item.geomW, h: item.geomH, align: null, scale: item.scale });
+      occupied.push(occupancyBox(x, y, item.geomW, item.geomH, item.view.labelled));
+    }
+
+    const floatRect = columnW ? {
+      x: area.x1 + 8,
+      y: area.y0,
+      w: frame.x1 - 8 - (area.x1 + 8),
+      h: title.y - 8 - area.y0,
+    } : null;
+    const packed = floatRect ? shelfPack(autoFloats, floatRect, FLOAT_GAP) : { placed: [], leftover: autoFloats.slice() };
+    for (const place of packed.placed) {
+      const item = floats.find((entry) => entry.id === place.id);
+      placements.set(place.id, { x: place.x, y: place.y, w: place.w, h: place.h, align: null, scale: item.scale });
+      occupied.push(occupancyBox(place.x, place.y, place.w, place.h, true));
+    }
+
+    let failed = false;
+    for (const item of packed.leftover) {
+      const slot = findSlot(item.w, item.h, occupied, bounds, FLOAT_GAP)
+        || findSlot(item.w, item.h, occupied, bounds, 4)
+        || findSlot(item.w, item.h, occupied, bounds, 1);
+      if (!slot) {
+        failed = true;
+        if (mustFit) break;
+        const best = findBestPlacement(item.w, item.h, occupied, bounds, titleOcc);
+        placements.set(item.id, {
+          x: best.x + item.geomW / 2, y: best.y + item.geomH / 2,
+          w: item.geomW, h: item.geomH, align: null, scale: item.scale,
+        });
+        occupied.push(best);
+        continue;
+      }
+      placements.set(item.id, {
+        x: slot.x + item.geomW / 2, y: slot.y + item.geomH / 2,
+        w: item.geomW, h: item.geomH, align: null, scale: item.scale,
+      });
+      occupied.push(slot);
+    }
+    const result = { placements, sheetScale, primaryId: principal.primary.id, anchor: principal.anchor };
+    if (!failed) return result;
+    if (!mustFit && !fallback) fallback = result;
+  }
+  return fallback;
+}
+
+/* The largest standard scale at which every view still fits the paper without
+   overlapping. A scale a reader cannot reason about is worse than a view with
+   air around it, so this only ever picks from the list. */
+export function fitScale(doc, extents) {
+  for (const scale of STANDARD_SCALES) {
+    if (placeAtScale(doc, extents, scale, true)) return scale;
+  }
+  return STANDARD_SCALES[STANDARD_SCALES.length - 1];
+}
+
+/* Where each view sits, in millimetres. Principal views hold the projection
+   convention — in third angle the top view is above the front and the right
+   view is to its right; first angle puts each one on the opposite side — so a
+   reader can tell which way the object is facing without reading a label.
+   Pictorials, sections and details pack into the leftover paper instead of
+   stacking on the same point once the reserved column runs out. */
+export function layoutViews(doc, extents) {
+  const sheetScale = doc.scale === "fit" ? fitScale(doc, extents) : doc.scale;
+  const placed = placeAtScale(doc, extents, sheetScale, false);
+  if (placed) return placed;
+  const frame = sheetFrame(doc);
+  const primary = doc.views[0];
+  const placements = new Map();
+  doc.views.forEach((view, index) => {
+    const size = paperSizeOf(view, extents, doc, sheetScale);
+    const col = index % 3, row = Math.floor(index / 3);
+    const x = frame.x0 + 40 + col * 100, y = frame.y0 + 40 + row * 80;
+    placements.set(view.id, { x, y, w: size.w, h: size.h, align: null, scale: viewScaleOf(doc, view, sheetScale) });
+  });
+  return { placements, sheetScale, primaryId: primary?.id, anchor: { x: frame.x0 + 60, y: frame.y0 + 60 } };
 }
 
 /* ---- projecting a view -------------------------------------------------- */

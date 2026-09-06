@@ -262,7 +262,8 @@ export async function makeBrepExtrusion(spec) {
     if (!Array.isArray(spec.points) || spec.points.length < 3) throw new Error("Extrusion needs a closed profile");
     const depth = Number(spec.to || 0) - Number(spec.from || 0);
     const circle = fitProfileCircle(spec.points);
-    if (circle) {
+    const holeLoops = (spec.holes || []).map((entry) => Array.isArray(entry) ? entry : entry?.points || entry?.loop || []).filter((loop) => loop.length >= 3);
+    if (circle && !holeLoops.length) {
       const mapPoint = (u, v, w) => spec.frame
         ? framePoint(spec.frame, u, v, w)
         : spec.axis === "z" ? { x: u, y: v, z: w }
@@ -281,20 +282,33 @@ export async function makeBrepExtrusion(spec) {
       const maker = new oc.BRepPrimAPI_MakeCylinder_3(axes, Math.max(1e-6, circle.radius), Math.max(1e-6, Math.abs(depth))); owned.push(maker);
       return { oc, shape: maker.Shape(), kind: "solid" };
     }
-    const polygon = new oc.BRepBuilderAPI_MakePolygon_1(); owned.push(polygon);
-    for (const q of spec.points) {
-      let p;
-      if (spec.frame) {
-        const world = framePoint(spec.frame, q.u, q.v, spec.from || 0);
-        p = new oc.gp_Pnt_3(world.x, world.y, world.z);
+    const wireFor = (loop, reverse = false) => {
+      const polygon = new oc.BRepBuilderAPI_MakePolygon_1(); owned.push(polygon);
+      const points = reverse ? loop.slice().reverse() : loop;
+      for (const q of points) {
+        let p;
+        if (spec.frame) {
+          const world = framePoint(spec.frame, q.u, q.v, spec.from || 0);
+          p = new oc.gp_Pnt_3(world.x, world.y, world.z);
+        }
+        else if (spec.axis === "z") p = new oc.gp_Pnt_3(q.u, q.v, spec.from || 0);
+        else if (spec.axis === "x") p = new oc.gp_Pnt_3(spec.from || 0, q.v, q.u);
+        else p = new oc.gp_Pnt_3(q.u, spec.from || 0, q.v);
+        polygon.Add_1(p); owned.push(p);
       }
-      else if (spec.axis === "z") p = new oc.gp_Pnt_3(q.u, q.v, spec.from || 0);
-      else if (spec.axis === "x") p = new oc.gp_Pnt_3(spec.from || 0, q.v, q.u);
-      else p = new oc.gp_Pnt_3(q.u, spec.from || 0, q.v);
-      polygon.Add_1(p); owned.push(p);
-    }
-    polygon.Close();
-    const faceMaker = new oc.BRepBuilderAPI_MakeFace_15(polygon.Wire(), true); owned.push(faceMaker);
+      polygon.Close();
+      return polygon.Wire();
+    };
+    const signedArea = (loop) => loop.reduce((sum, point, index) => {
+      const next = loop[(index + 1) % loop.length];
+      return sum + Number(point.u || 0) * Number(next.v || 0) - Number(next.u || 0) * Number(point.v || 0);
+    }, 0);
+    const outerArea = signedArea(spec.points);
+    const faceMaker = new oc.BRepBuilderAPI_MakeFace_15(wireFor(spec.points), true); owned.push(faceMaker);
+    // OpenCascade uses opposite wire orientation to distinguish islands from
+    // voids. Normalize either incoming convention instead of assuming that a
+    // caller has already wound inner loops differently from the outline.
+    holeLoops.forEach((loop) => faceMaker.Add(wireFor(loop, signedArea(loop) * outerArea > 0)));
     const vec = spec.frame
       ? new oc.gp_Vec_4(spec.frame.normal.x * depth, spec.frame.normal.y * depth, spec.frame.normal.z * depth)
       : spec.axis === "z" ? new oc.gp_Vec_4(0, 0, depth) : spec.axis === "x" ? new oc.gp_Vec_4(depth, 0, 0) : new oc.gp_Vec_4(0, depth, 0); owned.push(vec);
@@ -645,15 +659,25 @@ export async function shapeToMeshData(brep, options = {}) {
         const transform = location.Transformation();
         const reversed = face.Orientation_1() === oc.TopAbs_Orientation.TopAbs_REVERSED;
         const triangleStart = positions.length / 9;
-        for (let i = 1; i <= triangulation.NbTriangles(); i++) {
+        const nbNodes = triangulation.NbNodes();
+        const nodes = new Float64Array(nbNodes * 3);
+        for (let n = 1; n <= nbNodes; n++) {
+          const point = triangulation.Node(n);
+          point.Transform(transform);
+          const idx = (n - 1) * 3;
+          nodes[idx] = point.X();
+          nodes[idx + 1] = point.Y();
+          nodes[idx + 2] = point.Z();
+          point.delete?.();
+        }
+        const nbTriangles = triangulation.NbTriangles();
+        for (let i = 1; i <= nbTriangles; i++) {
           const triangle = triangulation.Triangle(i);
-          const ids = [triangle.Value(1), triangle.Value(2), triangle.Value(3)];
-          if (reversed) [ids[1], ids[2]] = [ids[2], ids[1]];
+          const i1 = triangle.Value(1), i2 = triangle.Value(2), i3 = triangle.Value(3);
+          const ids = reversed ? [i1, i3, i2] : [i1, i2, i3];
           for (const id of ids) {
-            const point = triangulation.Node(id);
-            point.Transform(transform);
-            positions.push(point.X(), point.Y(), point.Z());
-            point.delete?.();
+            const idx = (id - 1) * 3;
+            positions.push(nodes[idx], nodes[idx + 1], nodes[idx + 2]);
           }
           triangle.delete?.();
         }
@@ -673,7 +697,44 @@ export async function shapeToMeshData(brep, options = {}) {
     explorer.delete(); mesher.delete();
   }
   if (!positions.length) throw new Error("OpenCascade returned an empty mesh");
-  return { positions, faceRanges };
+  /* `positions` stays a plain Array on purpose. Making it a Float32Array would
+     save the push boxing, but meshData rides into localStorage through
+     saveLib() -> JSON.stringify, and a typed array serialises as {"0":..,"1":..}
+     — a saved model would come back with no usable geometry. Several readers
+     also still gate on Array.isArray(meshData.positions). The batching win here
+     is the per-face node cache above (~6x fewer WASM boundary crossings);
+     converting the container is not worth corrupting the library for. */
+  const normals = new Float32Array(positions.length);
+  const colors = new Float32Array(positions.length);
+  for (let t = 0; t < positions.length / 9; t++) {
+    const i0 = t * 9;
+    const ax = positions[i0], ay = positions[i0 + 1], az = positions[i0 + 2];
+    const bx = positions[i0 + 3], by = positions[i0 + 4], bz = positions[i0 + 5];
+    const cx = positions[i0 + 6], cy = positions[i0 + 7], cz = positions[i0 + 8];
+    const abx = bx - ax, aby = by - ay, abz = bz - az;
+    const acx = cx - ax, acy = cy - ay, acz = cz - az;
+    let nx = aby * acz - abz * acy;
+    let ny = abz * acx - abx * acz;
+    let nz = abx * acy - aby * acx;
+    const len = Math.hypot(nx, ny, nz) || 1;
+    nx /= len; ny /= len; nz /= len;
+    normals[i0] = nx; normals[i0 + 1] = ny; normals[i0 + 2] = nz;
+    normals[i0 + 3] = nx; normals[i0 + 4] = ny; normals[i0 + 5] = nz;
+    normals[i0 + 6] = nx; normals[i0 + 7] = ny; normals[i0 + 8] = nz;
+    colors[i0] = 1; colors[i0 + 1] = 1; colors[i0 + 2] = 1;
+    colors[i0 + 3] = 1; colors[i0 + 4] = 1; colors[i0 + 5] = 1;
+    colors[i0 + 6] = 1; colors[i0 + 7] = 1; colors[i0 + 8] = 1;
+  }
+  const subshapeMap = Object.create(null);
+  for (const range of faceRanges) {
+    if (range.persistentId) {
+      if (!subshapeMap[range.persistentId]) subshapeMap[range.persistentId] = [];
+      for (let t = range.triangleStart; t < range.triangleStart + range.triangleCount; t++) {
+        subshapeMap[range.persistentId].push(t);
+      }
+    }
+  }
+  return { positions, normals, colors, faceRanges, subshapeMap };
 }
 
 export async function transformBrep(brep, transform = {}) {

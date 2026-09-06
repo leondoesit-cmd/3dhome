@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-08-31T15:32:00.202Z",
+  "generatedAt": "2026-09-03T07:43:49.423Z",
   "git": {
-    "head": "c338eb403bf0e0a8544583079cead53db2671500",
-    "dirtyFiles": 3
+    "head": "abfd944e929882d76f877483b845f2ac7eaaa400",
+    "dirtyFiles": 50
   },
   "node": "v24.5.0",
   "platform": "darwin arm64",
-  "repeats": 3,
+  "repeats": 2,
   "server": {
     "note": "cold = first request after a fresh `node server/relay.mjs` (empty staticCache); cachedStatic() compresses the file on that first request (brotli quality 5, off-thread). warm = second request, served from the in-process cache. TTFB is measured from before fetch() to the first body chunk.",
     "cold": [
@@ -14,17 +14,17 @@
         "path": "/index.html",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 6.5,
-        "totalMs": 6.6,
-        "transferredBytes": 23579,
-        "uncompressedBytes": 126420
+        "ttfbMs": 8.2,
+        "totalMs": 8.3,
+        "transferredBytes": 23928,
+        "uncompressedBytes": 128583
       },
       {
         "path": "/vendor/three/three.webgpu.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 29.5,
-        "totalMs": 29.8,
+        "ttfbMs": 32.4,
+        "totalMs": 32.7,
         "transferredBytes": 367001,
         "uncompressedBytes": 2172442
       },
@@ -32,17 +32,17 @@
         "path": "/js/modeler.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 16.5,
-        "totalMs": 16.7,
-        "transferredBytes": 244514,
-        "uncompressedBytes": 966302
+        "ttfbMs": 18.9,
+        "totalMs": 19,
+        "transferredBytes": 255526,
+        "uncompressedBytes": 1007596
       },
       {
         "path": "/js/icon_theme_assets.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 0.8,
-        "totalMs": 0.8,
+        "ttfbMs": 1,
+        "totalMs": 1,
         "transferredBytes": 2079,
         "uncompressedBytes": 6946
       },
@@ -50,8 +50,8 @@
         "path": "/js/i18n.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 0.9,
-        "totalMs": 0.9,
+        "ttfbMs": 0.8,
+        "totalMs": 0.8,
         "transferredBytes": 1850,
         "uncompressedBytes": 4751
       },
@@ -59,19 +59,19 @@
         "path": "/js/view3d.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 3.7,
-        "totalMs": 3.7,
-        "transferredBytes": 53645,
-        "uncompressedBytes": 174217
+        "ttfbMs": 3.9,
+        "totalMs": 3.9,
+        "transferredBytes": 54256,
+        "uncompressedBytes": 177013
       },
       {
         "path": "/css/styles.css",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 8.5,
-        "totalMs": 8.6,
-        "transferredBytes": 125542,
-        "uncompressedBytes": 665515
+        "ttfbMs": 9.3,
+        "totalMs": 9.4,
+        "transferredBytes": 132042,
+        "uncompressedBytes": 699454
       }
     ],
     "warm": [
@@ -81,15 +81,15 @@
         "encoding": "br",
         "ttfbMs": 0.5,
         "totalMs": 0.5,
-        "transferredBytes": 23579,
-        "uncompressedBytes": 126420
+        "transferredBytes": 23928,
+        "uncompressedBytes": 128583
       },
       {
         "path": "/vendor/three/three.webgpu.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 1,
-        "totalMs": 1.2,
+        "ttfbMs": 0.6,
+        "totalMs": 0.7,
         "transferredBytes": 367001,
         "uncompressedBytes": 2172442
       },
@@ -97,10 +97,10 @@
         "path": "/js/modeler.js",
         "status": 200,
         "encoding": "br",
-        "ttfbMs": 0.6,
-        "totalMs": 0.7,
-        "transferredBytes": 244514,
-        "uncompressedBytes": 966302
+        "ttfbMs": 0.4,
+        "totalMs": 0.5,
+        "transferredBytes": 255526,
+        "uncompressedBytes": 1007596
       },
       {
         "path": "/js/icon_theme_assets.js",
@@ -126,8 +126,8 @@
         "encoding": "br",
         "ttfbMs": 0.3,
         "totalMs": 0.3,
-        "transferredBytes": 53645,
-        "uncompressedBytes": 174217
+        "transferredBytes": 54256,
+        "uncompressedBytes": 177013
       },
       {
         "path": "/css/styles.css",
@@ -135,38 +135,38 @@
         "encoding": "br",
         "ttfbMs": 0.3,
         "totalMs": 0.3,
-        "transferredBytes": 125542,
-        "uncompressedBytes": 665515
+        "transferredBytes": 132042,
+        "uncompressedBytes": 699454
       }
     ],
-    "coldTotalMs": 67.1,
-    "warmTotalMs": 3.6
+    "coldTotalMs": 75.1,
+    "warmTotalMs": 2.9
   },
   "boot": {
     "note": "Served by the harness's own no-store static server (no brotli, no cache), so `transferred` here is close to raw size and is NOT the relay's number — use (a) for delivery. Game modules (zombies/drive/rc/kart/track/race/lava) are lazily imported and did not load; they are excluded from every total below.",
-    "requestsTotal": 173,
-    "requestsExcludingGame": 173,
+    "requestsTotal": 176,
+    "requestsExcludingGame": 176,
     "gameModulesLoaded": 0,
-    "jsRequests": 161,
-    "jsDecodedBytes": 7509601,
-    "jsTransferredBytes": 7541791,
-    "allDecodedBytes": 8625841,
-    "allTransferredBytes": 8786744,
-    "timeToInteractiveMs": 1118,
+    "jsRequests": 164,
+    "jsDecodedBytes": 7654822,
+    "jsTransferredBytes": 7687614,
+    "allDecodedBytes": 8805001,
+    "allTransferredBytes": 8968669,
+    "timeToInteractiveMs": 1248,
     "dom": {
-      "elements": 3402,
-      "buttons": 374,
+      "elements": 3484,
+      "buttons": 381,
       "inputs": 151,
       "canvases": 4,
-      "svgs": 376,
+      "svgs": 380,
       "listeners": null,
       "nav": {
-        "domContentLoadedMs": 149.9,
-        "loadEventMs": 151.5,
-        "responseEndMs": 2.7
+        "domContentLoadedMs": 201.7,
+        "loadEventMs": 203.3,
+        "responseEndMs": 2.6
       },
-      "bootMarkMs": 4126.2,
-      "heapMB": 17.2
+      "bootMarkMs": 4259.1,
+      "heapMB": 17.5
     },
     "largestJs": [
       {
@@ -181,18 +181,18 @@
       },
       {
         "path": "/js/interaction.js",
-        "decoded": 222877,
-        "transferred": 223078
+        "decoded": 235003,
+        "transferred": 235204
       },
       {
         "path": "/js/view3d.js",
-        "decoded": 174217,
-        "transferred": 174418
+        "decoded": 177013,
+        "transferred": 177214
       },
       {
         "path": "/js/ui.js",
-        "decoded": 174177,
-        "transferred": 174378
+        "decoded": 175117,
+        "transferred": 175318
       },
       {
         "path": "/vendor/leaflet/leaflet.js",
@@ -201,18 +201,18 @@
       },
       {
         "path": "/js/plan2d.js",
-        "decoded": 144182,
-        "transferred": 144383
+        "decoded": 145565,
+        "transferred": 145766
       },
       {
         "path": "/js/cabinet.js",
-        "decoded": 135772,
-        "transferred": 135973
+        "decoded": 137151,
+        "transferred": 137352
       },
       {
         "path": "/js/i18n/en.js",
-        "decoded": 107530,
-        "transferred": 107731
+        "decoded": 110659,
+        "transferred": 110860
       },
       {
         "path": "/js/icon_themes/lucide.js",
@@ -254,12 +254,12 @@
         "modelPaints": 2,
         "hudPaints": 21,
         "paintRequests": 60,
-        "hudRequests": 9,
+        "hudRequests": 11,
         "historySnapshots": 2,
         "pointermoveEvents": 20,
         "modelPaintsPerMove": 0.1,
-        "wallMs": 598.5,
-        "movedBy": 65
+        "wallMs": 695.3,
+        "movedBy": 60
       },
       "dragItem": {
         "modelPaints": 2,
@@ -269,7 +269,7 @@
         "historySnapshots": 2,
         "pointermoveEvents": 20,
         "modelPaintsPerMove": 0.1,
-        "wallMs": 423.3,
+        "wallMs": 607.2,
         "movedBy": 220
       },
       "drawWall": {
@@ -280,7 +280,7 @@
         "historySnapshots": 1,
         "pointermoveEvents": 20,
         "modelPaintsPerMove": 1.1,
-        "wallMs": 423.2
+        "wallMs": 495.1
       },
       "panPlan": {
         "modelPaints": 21,
@@ -290,22 +290,22 @@
         "historySnapshots": 0,
         "pointermoveEvents": 20,
         "modelPaintsPerMove": 1.05,
-        "wallMs": 395.1
+        "wallMs": 469.5
       },
       "paintCostSmall": {
         "walls": 4,
         "items": 0,
-        "fullPaintMs": 0.495,
-        "modelPaintMs": 0.47,
-        "hudPaintMs": 0.025,
+        "fullPaintMs": 0.512,
+        "modelPaintMs": 0.492,
+        "hudPaintMs": 0.02,
         "paints": 60
       },
       "paintCostBig16Rooms": {
         "walls": 40,
         "items": 0,
-        "fullPaintMs": 2.032,
-        "modelPaintMs": 1.978,
-        "hudPaintMs": 0.047,
+        "fullPaintMs": 7.065,
+        "modelPaintMs": 6.998,
+        "hudPaintMs": 0.067,
         "paints": 60
       },
       "idle3000ms": {
@@ -318,7 +318,7 @@
       },
       "idleWarning3000ms": {
         "modelPaints": 0,
-        "hudPaints": 60,
+        "hudPaints": 61,
         "paintRequests": 0,
         "hudRequests": 60,
         "historySnapshots": 0,
@@ -329,15 +329,14 @@
     "sceneSize": {
       "walls": 5,
       "items": 0
-    },
-    "runs": 3
+    }
   },
   "three": {
     "note": "Headless Chrome; if `backend` is not \"webgpu\" the numbers came through a software rasteriser and are relative-only. rafFps is the requestAnimationFrame rate (a display/browser ceiling, ~60 or ~120) and says nothing about app cost — view3d.js's loop runs every frame but only calls renderScene() when needsRender/live/settle says the image changed. `renderedFramesPerSecond` is the real idle cost: it counts renderer.info.render.calls (cumulative) and a wrapper on renderer.render(), whichever moved more. Shadow passes are counted by intercepting assignments of renderer.shadowMap.needsUpdate = true, because polling the flag would miss passes the renderer clears in the same frame.",
     "backend": "webgpu",
     "canvasSize": {
       "w": 820,
-      "h": 809
+      "h": 851
     },
     "shadowCounterWrapped": true,
     "peopleItemsPlaced": 6,
@@ -375,243 +374,114 @@
       },
       {
         "label": "idle, animated people on",
-        "seconds": 4.01,
+        "seconds": 4,
         "rafFps": 120,
-        "renderedFramesPerSecond": 720.02,
-        "renderedFramesTotal": 2886,
+        "renderedFramesPerSecond": 719.91,
+        "renderedFramesTotal": 2880,
         "drawCallsPerFrame": 0,
         "trianglesPerFrame": 0,
         "shadowPassesPerSecond": 0,
         "shadowPassesTotal": 0,
         "raw": {
           "before": {
-            "calls": 2337,
+            "calls": 2325,
             "drawCalls": 0,
             "frameCalls": 0,
             "triangles": 0,
-            "wrapped": 2208
+            "wrapped": 2196
           },
           "after": {
-            "calls": 5223,
+            "calls": 5205,
             "drawCalls": 0,
             "frameCalls": 0,
             "triangles": 0,
-            "wrapped": 5094
+            "wrapped": 5076
           }
         }
       }
-    ],
-    "allRuns": [
-      {
-        "note": "Headless Chrome; if `backend` is not \"webgpu\" the numbers came through a software rasteriser and are relative-only. rafFps is the requestAnimationFrame rate (a display/browser ceiling, ~60 or ~120) and says nothing about app cost — view3d.js's loop runs every frame but only calls renderScene() when needsRender/live/settle says the image changed. `renderedFramesPerSecond` is the real idle cost: it counts renderer.info.render.calls (cumulative) and a wrapper on renderer.render(), whichever moved more. Shadow passes are counted by intercepting assignments of renderer.shadowMap.needsUpdate = true, because polling the flag would miss passes the renderer clears in the same frame.",
-        "backend": "webgpu",
-        "canvasSize": {
-          "w": 820,
-          "h": 809
-        },
-        "shadowCounterWrapped": true,
-        "peopleItemsPlaced": 6,
-        "humanMeshesInScene": 6,
-        "humansAsDirectDynChildren": 0,
-        "dynChildren": 4,
-        "sceneObjects": 370,
-        "samples": [
-          {
-            "label": "idle, no animated people",
-            "seconds": 4,
-            "rafFps": 120,
-            "renderedFramesPerSecond": 0,
-            "renderedFramesTotal": 0,
-            "drawCallsPerFrame": 0,
-            "trianglesPerFrame": 0,
-            "shadowPassesPerSecond": 0,
-            "shadowPassesTotal": 0,
-            "raw": {
-              "before": {
-                "calls": 129,
-                "drawCalls": 0,
-                "frameCalls": 0,
-                "triangles": 0,
-                "wrapped": 0
-              },
-              "after": {
-                "calls": 129,
-                "drawCalls": 0,
-                "frameCalls": 0,
-                "triangles": 0,
-                "wrapped": 0
-              }
-            }
-          },
-          {
-            "label": "idle, animated people on",
-            "seconds": 4.01,
-            "rafFps": 120,
-            "renderedFramesPerSecond": 720.1,
-            "renderedFramesTotal": 2886,
-            "drawCallsPerFrame": 0,
-            "trianglesPerFrame": 0,
-            "shadowPassesPerSecond": 0,
-            "shadowPassesTotal": 0,
-            "raw": {
-              "before": {
-                "calls": 2337,
-                "drawCalls": 0,
-                "frameCalls": 0,
-                "triangles": 0,
-                "wrapped": 2208
-              },
-              "after": {
-                "calls": 5223,
-                "drawCalls": 0,
-                "frameCalls": 0,
-                "triangles": 0,
-                "wrapped": 5094
-              }
-            }
-          }
-        ]
-      },
-      {
-        "note": "Headless Chrome; if `backend` is not \"webgpu\" the numbers came through a software rasteriser and are relative-only. rafFps is the requestAnimationFrame rate (a display/browser ceiling, ~60 or ~120) and says nothing about app cost — view3d.js's loop runs every frame but only calls renderScene() when needsRender/live/settle says the image changed. `renderedFramesPerSecond` is the real idle cost: it counts renderer.info.render.calls (cumulative) and a wrapper on renderer.render(), whichever moved more. Shadow passes are counted by intercepting assignments of renderer.shadowMap.needsUpdate = true, because polling the flag would miss passes the renderer clears in the same frame.",
-        "backend": "webgpu",
-        "canvasSize": {
-          "w": 820,
-          "h": 809
-        },
-        "shadowCounterWrapped": true,
-        "peopleItemsPlaced": 6,
-        "humanMeshesInScene": 6,
-        "humansAsDirectDynChildren": 0,
-        "dynChildren": 4,
-        "sceneObjects": 370,
-        "samples": [
-          {
-            "label": "idle, no animated people",
-            "seconds": 4,
-            "rafFps": 119.9,
-            "renderedFramesPerSecond": 0,
-            "renderedFramesTotal": 0,
-            "drawCallsPerFrame": 0,
-            "trianglesPerFrame": 0,
-            "shadowPassesPerSecond": 0,
-            "shadowPassesTotal": 0,
-            "raw": {
-              "before": {
-                "calls": 129,
-                "drawCalls": 0,
-                "frameCalls": 0,
-                "triangles": 0,
-                "wrapped": 0
-              },
-              "after": {
-                "calls": 129,
-                "drawCalls": 0,
-                "frameCalls": 0,
-                "triangles": 0,
-                "wrapped": 0
-              }
-            }
-          },
-          {
-            "label": "idle, animated people on",
-            "seconds": 4,
-            "rafFps": 120,
-            "renderedFramesPerSecond": 719.93,
-            "renderedFramesTotal": 2880,
-            "drawCallsPerFrame": 0,
-            "trianglesPerFrame": 0,
-            "shadowPassesPerSecond": 0,
-            "shadowPassesTotal": 0,
-            "raw": {
-              "before": {
-                "calls": 2343,
-                "drawCalls": 0,
-                "frameCalls": 0,
-                "triangles": 0,
-                "wrapped": 2214
-              },
-              "after": {
-                "calls": 5223,
-                "drawCalls": 0,
-                "frameCalls": 0,
-                "triangles": 0,
-                "wrapped": 5094
-              }
-            }
-          }
-        ]
-      },
-      {
-        "note": "Headless Chrome; if `backend` is not \"webgpu\" the numbers came through a software rasteriser and are relative-only. rafFps is the requestAnimationFrame rate (a display/browser ceiling, ~60 or ~120) and says nothing about app cost — view3d.js's loop runs every frame but only calls renderScene() when needsRender/live/settle says the image changed. `renderedFramesPerSecond` is the real idle cost: it counts renderer.info.render.calls (cumulative) and a wrapper on renderer.render(), whichever moved more. Shadow passes are counted by intercepting assignments of renderer.shadowMap.needsUpdate = true, because polling the flag would miss passes the renderer clears in the same frame.",
-        "backend": "webgpu",
-        "canvasSize": {
-          "w": 820,
-          "h": 809
-        },
-        "shadowCounterWrapped": true,
-        "peopleItemsPlaced": 6,
-        "humanMeshesInScene": 6,
-        "humansAsDirectDynChildren": 0,
-        "dynChildren": 4,
-        "sceneObjects": 370,
-        "samples": [
-          {
-            "label": "idle, no animated people",
-            "seconds": 4,
-            "rafFps": 120,
-            "renderedFramesPerSecond": 0,
-            "renderedFramesTotal": 0,
-            "drawCallsPerFrame": 0,
-            "trianglesPerFrame": 0,
-            "shadowPassesPerSecond": 0,
-            "shadowPassesTotal": 0,
-            "raw": {
-              "before": {
-                "calls": 129,
-                "drawCalls": 0,
-                "frameCalls": 0,
-                "triangles": 0,
-                "wrapped": 0
-              },
-              "after": {
-                "calls": 129,
-                "drawCalls": 0,
-                "frameCalls": 0,
-                "triangles": 0,
-                "wrapped": 0
-              }
-            }
-          },
-          {
-            "label": "idle, animated people on",
-            "seconds": 4.01,
-            "rafFps": 120,
-            "renderedFramesPerSecond": 720.02,
-            "renderedFramesTotal": 2886,
-            "drawCallsPerFrame": 0,
-            "trianglesPerFrame": 0,
-            "shadowPassesPerSecond": 0,
-            "shadowPassesTotal": 0,
-            "raw": {
-              "before": {
-                "calls": 2337,
-                "drawCalls": 0,
-                "frameCalls": 0,
-                "triangles": 0,
-                "wrapped": 2208
-              },
-              "after": {
-                "calls": 5223,
-                "drawCalls": 0,
-                "frameCalls": 0,
-                "triangles": 0,
-                "wrapped": 5094
-              }
-            }
-          }
-        ]
-      }
     ]
+  },
+  "modeler": {
+    "results": {
+      "hoverModel": {
+        "mdPreview": 0,
+        "mdBuildPart": 0,
+        "mdEdgeScan": 0,
+        "mdDispose": 7,
+        "mdRefreshAll": 0,
+        "mdRebuildDoc": 0,
+        "mdClone": 0,
+        "pointermoveEvents": 20,
+        "wallMs": 174.9
+      },
+      "selectFace": {
+        "mdPreview": 1,
+        "mdBuildPart": 2,
+        "mdEdgeScan": 2,
+        "mdDispose": 1,
+        "mdRefreshAll": 1,
+        "mdRebuildDoc": 0,
+        "mdClone": 0,
+        "pointermoveEvents": 0,
+        "wallMs": 72.7
+      },
+      "dragSketchPoint": {
+        "mdPreview": 1,
+        "mdBuildPart": 2,
+        "mdEdgeScan": 2,
+        "mdDispose": 1,
+        "mdRefreshAll": 1,
+        "mdRebuildDoc": 0,
+        "mdClone": 0,
+        "pointermoveEvents": 20,
+        "wallMs": 206.2
+      },
+      "dragBody": {
+        "mdPreview": 1,
+        "mdBuildPart": 2,
+        "mdEdgeScan": 2,
+        "mdDispose": 1,
+        "mdRefreshAll": 1,
+        "mdRebuildDoc": 0,
+        "mdClone": 0,
+        "pointermoveEvents": 20,
+        "wallMs": 207.7
+      },
+      "openEditor": {
+        "mdPreview": 1,
+        "mdBuildPart": 2,
+        "mdEdgeScan": 2,
+        "mdDispose": 1,
+        "mdRefreshAll": 1,
+        "mdRebuildDoc": 0,
+        "mdClone": 21,
+        "pointermoveEvents": 0,
+        "wallMs": 233.5
+      },
+      "openCanonical": {
+        "mdPreview": 1,
+        "mdBuildPart": 2,
+        "mdEdgeScan": 2,
+        "mdDispose": 1,
+        "mdRefreshAll": 1,
+        "mdRebuildDoc": 1,
+        "mdClone": 62,
+        "pointermoveEvents": 0,
+        "wallMs": 250.5
+      },
+      "selectCanonical": {
+        "mdPreview": 1,
+        "mdBuildPart": 2,
+        "mdEdgeScan": 2,
+        "mdDispose": 1,
+        "mdRefreshAll": 1,
+        "mdRebuildDoc": 0,
+        "mdClone": 0,
+        "pointermoveEvents": 0,
+        "wallMs": 192.4
+      }
+    },
+    "note": "Model editor CAD gesture baseline: teardowns, part builds, edge scans, disposals, rebuilds.",
+    "runs": 2
   }
 }

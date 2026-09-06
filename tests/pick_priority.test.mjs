@@ -196,20 +196,21 @@ test("every band arms its drag behind canDrag and nothing else", () => {
     "the chain asks canDrag, which already folds in the structure lock");
   assert.doesNotMatch(chain, /hi\.locked/,
     "a pinned piece is refused by canDrag on the selection that was made");
-  ["nodeSel", "mkSel", "opSel", "voidSel", "wallSel", "roomSel"].forEach((name) => {
+  ["nodeSel", "mkSel", "opSel", "voidSel", "wallSel", "roomSel", "edgeSel"].forEach((name) => {
     assert.ok(chain.includes("canDrag(" + name + ")"), name + " asks canDrag");
   });
   assert.ok(chain.includes("canDrag(S.sel)"), "the item band asks about the real selection");
   // every S.action the chain sets is inside a canDrag branch, so the count of
   // canDrag calls cannot fall behind the count of armed gestures
   const armed = chain.match(/S\.action = "(node|marker|opening|item|slabvoid|wall|room)"/g) || [];
-  assert.equal(armed.length, 8,
-    "eight arming sites — the item band has two, one per selection shape");
+  assert.equal(armed.length, 9,
+    "nine arming sites — the item band has two, one per selection shape, "
+    + "and a room's edge handle arms a wall drag of its own");
   /* Refusing a drag must also CLEAR any stale action, or a gesture that the
      previous pointerdown left armed would run against the thing just refused. */
   const cleared = chain.match(/S\.action = null;/g) || [];
-  assert.equal(cleared.length, 10,
-    "eight refusal paths clear the action, plus the two ctrl-click multi-selects");
+  assert.equal(cleared.length, 11,
+    "nine refusal paths clear the action, plus the two ctrl-click multi-selects");
 });
 
 test("a refused band still selects, so the inspector fills for a rank-1 hit", () => {

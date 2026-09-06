@@ -1,5 +1,5 @@
 // Pure topology / geometry helpers over the wall graph (no DOM, no THREE).
-import { S, WALL_H, fin, clamp, uid } from "./state.js";
+import { S, WALL_H, WALL_T, fin, clamp, uid } from "./state.js";
 import {
   wallCurveGeom,
   pointAtWall,
@@ -1351,6 +1351,53 @@ export function normalizeStructure() {
   });
 }
 
+/* The draggable edges of a room, as handles.
+ *
+ * Resizing a room has always been possible — grab the wall and move it — but
+ * only if you knew that was the gesture, aimed at the wall rather than at the
+ * room, and did not mind that the wall was then free to travel in both axes at
+ * once. A room you have just placed from a preset is a rectangle with a size,
+ * and the obvious way to change that size is to pull its side.
+ *
+ * Only axis-aligned walls get one: "pull this side out" has a single meaning
+ * for a wall that runs along an axis (move it along its normal, the two
+ * neighbours stretch to follow) and no unambiguous meaning for an oblique one,
+ * where every answer changes the shape as well as the size. The straight sides
+ * of an L therefore get handles and its diagonal does not, which is exactly
+ * what can be resized without redrawing the room.
+ *
+ * Returned in world coordinates with the outward normal, so the caller can
+ * both draw the handle and constrain the drag without recomputing anything. */
+export function roomEdgeHandles(key) {
+  var room = roomByKey(key);
+  if (!room) return [];
+  var box = null;
+  room.pts.forEach(function (p) {
+    if (!box) box = { x0: p.x, x1: p.x, z0: p.z, z1: p.z };
+    box.x0 = Math.min(box.x0, p.x); box.x1 = Math.max(box.x1, p.x);
+    box.z0 = Math.min(box.z0, p.z); box.z1 = Math.max(box.z1, p.z);
+  });
+  if (!box) return [];
+  var cx = (box.x0 + box.x1) / 2, cz = (box.z0 + box.z1) / 2;
+  var out = [];
+  String(key).split(",").forEach(function (id) {
+    var w = wallById(Number(id));
+    if (!w || (w.geometry && w.geometry.type === "arc")) return;
+    var a = S.nodes[w.a], b = S.nodes[w.b];
+    if (!a || !b) return;
+    var horizontal = Math.abs(a.z - b.z) < 1 && Math.abs(a.x - b.x) >= 1;
+    var vertical = Math.abs(a.x - b.x) < 1 && Math.abs(a.z - b.z) >= 1;
+    if (!horizontal && !vertical) return;
+    var mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2;
+    // outward: away from the middle of the room, so the handle reads as "pull
+    // this side out" rather than as an arrow pointing at nothing
+    var ux = vertical ? (mx >= cx ? 1 : -1) : 0;
+    var uz = horizontal ? (mz >= cz ? 1 : -1) : 0;
+    out.push({ wall: w, x: mx, z: mz, ux: ux, uz: uz, axis: vertical ? "x" : "z" });
+  });
+  return out;
+}
+
 export function roomFloor(key) {
   return (S.roomMeta[key] && S.roomMeta[key].floor) || S.floorTex;
 }
@@ -1403,6 +1450,144 @@ export function roomByKey(key) {
   var rs = detectRooms();
   for (var i = 0; i < rs.length; i++) if (rs[i].key === key) return rs[i];
   return null;
+}
+
+/* Clear (interior) W×D of a still-rectangular room, or null for an L or any
+   other leftover the face trace found. T-nodes on a straight side do not
+   disqualify it: those vertices still lie on the bounding rectangle, and the
+   shoelace area still matches the bbox. The inspector and the typed size use
+   this so they only offer a number when pulling a side would mean the same
+   thing. */
+export function roomClearSize(key) {
+  var room = roomByKey(key);
+  if (!room || !room.pts || room.pts.length < 4) return null;
+  var x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  room.pts.forEach(function (p) {
+    x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x);
+    z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z);
+  });
+  var spanX = x1 - x0, spanZ = z1 - z0;
+  if (!(spanX > 20) || !(spanZ > 20)) return null;
+  var boxArea = spanX * spanZ;
+  if (Math.abs((room.area || 0) - boxArea) > Math.max(80, boxArea * 0.02)) return null;
+  var thick = 0, n = 0;
+  String(key).split(",").forEach(function (id) {
+    var w = wallById(Number(id));
+    if (!w) return;
+    var t = Number(w.thickness);
+    thick += fin(t) && t > 0 ? t : WALL_T;
+    n++;
+  });
+  var t = n ? thick / n : WALL_T;
+  return { w: spanX - t, d: spanZ - t, x0: x0, x1: x1, z0: z0, z1: z1, t: t };
+}
+
+/* Move the +x / +z sides of a rectangular room so its clear size becomes
+   `w` × `d`. The opposite corner stays put — the same convention as typing a
+   width into a box rather than grabbing a handle. Returns the nodes that
+   moved (pre-move coordinates) so a caller can weld them the way an edge
+   drag does. */
+export function applyRoomClearSize(key, w, d, options) {
+  var size = roomClearSize(key);
+  if (!size) return { ok: false, reason: "ROOM_NOT_RECT" };
+  var opts = options || {};
+  var minW = fin(opts.minW) ? opts.minW : 60;
+  var minD = fin(opts.minD) ? opts.minD : 60;
+  w = Math.max(minW, Math.round(Number(w)));
+  d = Math.max(minD, Math.round(Number(d)));
+  if (!fin(w) || !fin(d)) return { ok: false, reason: "INVALID_ROOM_BOUNDS" };
+  var dw = w - size.w, dd = d - size.d;
+  var room = roomByKey(key);
+  var mine = {};
+  (room.nidx || []).forEach(function (i) { mine[i] = 1; });
+  var wallObjects = [];
+  String(key).split(",").forEach(function (id) {
+    var wall = wallById(Number(id));
+    if (!wall) return;
+    mine[wall.a] = 1;
+    mine[wall.b] = 1;
+    wallObjects.push(wall);
+  });
+
+  // Determine which side expands. Default: move high (+x / +z) side.
+  // Smart anchor: if high side is shared with another room and low side is free,
+  // move the free low side instead so the neighbour is not deformed.
+  var allRooms = typeof opts.detectRooms === "function" ? opts.detectRooms() : detectRooms();
+  var otherWalls = new Set();
+  (allRooms || []).forEach(function (r) {
+    if (r.key !== key) String(r.key).split(",").forEach(function (id) { otherWalls.add(Number(id)); });
+  });
+
+  var x1Shared = false, x0Shared = false, z1Shared = false, z0Shared = false;
+  wallObjects.forEach(function (w) {
+    var a = S.nodes[w.a], b = S.nodes[w.b];
+    if (!a || !b) return;
+    var isShared = otherWalls.has(w.id);
+    if (Math.abs(a.x - size.x1) <= 2 && Math.abs(b.x - size.x1) <= 2 && isShared) x1Shared = true;
+    if (Math.abs(a.x - size.x0) <= 2 && Math.abs(b.x - size.x0) <= 2 && isShared) x0Shared = true;
+    if (Math.abs(a.z - size.z1) <= 2 && Math.abs(b.z - size.z1) <= 2 && isShared) z1Shared = true;
+    if (Math.abs(a.z - size.z0) <= 2 && Math.abs(b.z - size.z0) <= 2 && isShared) z0Shared = true;
+  });
+
+  var moveX = opts.anchorX === "high" || (opts.anchorX !== "low" && x1Shared && !x0Shared) ? "low" : "high";
+  var moveZ = opts.anchorZ === "high" || (opts.anchorZ !== "low" && z1Shared && !z0Shared) ? "low" : "high";
+
+  var targetX = moveX === "low" ? size.x0 : size.x1;
+  var targetZ = moveZ === "low" ? size.z0 : size.z1;
+  var deltaX = moveX === "low" ? -dw : dw;
+  var deltaZ = moveZ === "low" ? -dd : dd;
+
+  var plan = [];
+  Object.keys(mine).forEach(function (k) {
+    var i = Number(k), n = S.nodes[i];
+    if (!n) return;
+    var onX = Math.abs(n.x - targetX) <= 2 && deltaX !== 0;
+    var onZ = Math.abs(n.z - targetZ) <= 2 && deltaZ !== 0;
+    if (onX || onZ) plan.push({ i: i, x: n.x, z: n.z, onX: onX, onZ: onZ });
+  });
+
+  /* Refuse before moving anything a NEIGHBOUR is also standing on.
+   *
+     The anchor above prefers the free side when exactly one of the two is
+     shared, and that is as far as reasoning about SIDES can get. It does not
+     help a room shared on both — the middle of a row, which is ordinary rather
+     than exotic — and it misses the subtler case entirely: a room whose top
+     and bottom walls are all its own still shares the CORNERS where the party
+     walls either side were split. Deepening it drags those corners, and with
+     them the neighbours' wall stubs, so two rooms nobody touched come out
+     L-shaped.
+
+     Corners are what move, so corners are what to check: if any of them
+     carries a wall this room does not own, there is no answer to which
+     neighbour should give up the floor, and js/room_cons.js's rule applies —
+     report it and let the user decide, rather than pick one and be silently
+     wrong. Dragging the side by hand is still available, and goes through
+     detachRoomSeam. */
+  var ownWalls = {};
+  wallObjects.forEach(function (wall) { ownWalls[wall.id] = 1; });
+  var blocked = { x: false, z: false };
+  plan.forEach(function (m) {
+    var foreign = S.walls.some(function (wall) {
+      return !ownWalls[wall.id] && (wall.a === m.i || wall.b === m.i);
+    });
+    if (!foreign) return;
+    if (m.onX) blocked.x = true;
+    if (m.onZ) blocked.z = true;
+  });
+  if (blocked.x || blocked.z)
+    return {
+      ok: false, reason: "ROOM_SIDE_SHARED",
+      axis: blocked.x && blocked.z ? "both" : blocked.x ? "x" : "z",
+    };
+
+  var moved = [];
+  plan.forEach(function (m) {
+    var n = S.nodes[m.i];
+    moved.push({ i: m.i, x: n.x, z: n.z });
+    if (m.onX) n.x += deltaX;
+    if (m.onZ) n.z += deltaZ;
+  });
+  return { ok: true, key: key, w: w, d: d, moved: moved, moveX: moveX, moveZ: moveZ };
 }
 export function pointInPoly(x, z, pts) {
   var inside = false,

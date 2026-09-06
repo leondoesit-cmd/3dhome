@@ -49,6 +49,7 @@ import { initToolSearch } from "./tool_search.js";
 import { initLayers } from "./layers.js";
 import { initLayersUI } from "./ui_layers.js";
 import { initPlanToolsDock } from "./plan_tools_dock.js";
+import { initRoomPalette } from "./ui_rooms.js";
 import { initAgent } from "./ui_agent.js";
 import { initTutorRuntime } from "./tutor/runtime.js";
 import { initExternalAgentBridge } from "./agent_external_bridge.js";
@@ -386,6 +387,7 @@ initCadHud(); // plan status bar + typed length/angle entry
 initLayersUI(); // work-set layer chips + the refused-drag unlock pill
 /* After the chips exist and after initCadHud: the dock measures the whole
    cluster, and the status bar it must not sit under is created above. */
+initRoomPalette(); // preset-room palette, shown with the room-stamp tool
 initPlanToolsDock(); // drag the tool cluster to any edge of the 2D pane
 initMobileShell(); // phone/foldable chrome: contextual row + five-slot bottom nav
 initDimKnob(); // touch: numeric fields are scrubbed on a rotary dial, not typed
@@ -397,6 +399,19 @@ initPersistence({
   flash: flash,
   openModal: openModal,
 });
+
+/* Runtime UI customisation (uikit/), behind mf_uikit and off by default. It
+   has to run after every chrome initialiser above, because it adopts the
+   elements they built. The import is dynamic so a browser with the flag off
+   never fetches the module at all, and a failure here must not take the app
+   down with it — the layout is a convenience, the planner underneath it is
+   not. */
+if (localStorage.getItem("mf_uikit") === "1") {
+  import("./uikit_host/index.js")
+    .then(function (m) { m.initUIKit(); })
+    .catch(function (e) { console.warn("uikit did not start", e); });
+}
+
 window.__home3dBooted = true;
 
 /* Bring the 3D renderer up the first time its pane is really on screen.

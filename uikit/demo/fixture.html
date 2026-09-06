@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>uikit fixture</title>
+<link rel="stylesheet" href="../uikit.css">
+<style>
+  body { margin: 0; font: 14px system-ui, sans-serif; }
+  /* The "host application": markup uikit knows nothing about and must give
+     back exactly as it found it. */
+  #host { border: 1px solid #ccc; padding: 8px; }
+  #host-topbar { display: flex; gap: 8px; }
+  #uikit-mount { display: flex; flex-direction: column; min-height: 200px; position: relative; }
+</style>
+
+<div id="host">
+  <div id="host-topbar">
+    <button id="host-save" data-act="save">Save</button>
+    <button id="host-load" data-act="load">Load</button>
+    <span id="host-tail">tail</span>
+  </div>
+  <div id="host-notes">notes panel</div>
+</div>
+
+<div id="uikit-mount"></div>
+
+<script type="module">
+  import { createUIKit } from "../index.js";
+  import { createNullStorage } from "../adapters/storage_none.js";
+  import { demoLayout, demoRegistry } from "./registry.js";
+
+  const registry = demoRegistry(document);
+
+  /* ?slots=borrowed is the integration shape a real host uses: uikit renders
+     into the application's OWN element (here #host-topbar) instead of one it
+     created. That element must come back untagged at teardown, which is a
+     different restore path from the slots uikit owns and deletes outright. */
+  const borrowed = new URLSearchParams(location.search).get("slots") === "borrowed";
+  const ui = createUIKit({
+    mount: document.getElementById("uikit-mount"),
+    registry: registry.entries,
+    storage: createNullStorage(),
+    defaults: demoLayout(),
+    slots: borrowed ? { top: "#host-topbar" } : null,
+    variants: { choose: (size) => (size.w < 600 ? "phone" : "base") },
+  });
+
+  // The fixture drives uikit synchronously so a test never races a frame.
+  window.__uikit = {
+    ui,
+    registry,
+    borrowed,
+    /* outerHTML of the host region: the single string the reversibility test
+       compares before and after. */
+    hostHTML: () => document.getElementById("host").outerHTML,
+    render: () => ui.refreshNow(),
+  };
+  window.__uikitReady = true;
+</script>

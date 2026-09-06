@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Free-identifier check for the ES modules in js/, server/, and tools/.
+// Free-identifier check for the ES modules in js/, server/, tools/, and uikit/.
 //
-//   node tools/module_check.mjs                 # whole app (js + server + tools)
+//   node tools/module_check.mjs                 # whole app (js + server + tools + uikit)
 //   node tools/module_check.mjs js/drive*.js    # one module family
 //
 // Reports names a file USES but never declares, imports, or gets from a global.
@@ -356,8 +356,66 @@ export function defaultFiles(root = REPO_ROOT) {
       if (/\.(js|mjs)$/.test(ent.name)) out.push(path.join(dir, ent.name));
     }
   }
-  for (const folder of ["js", "server", "tools"]) walk(path.join(root, folder));
+  for (const folder of ["js", "server", "tools", "uikit"]) walk(path.join(root, folder));
   return out.sort();
+}
+
+export function checkLateBoundThree(ast, onViolation) {
+  let threeName = null;
+  for (const item of ast.body) {
+    if (item.type === "ImportDeclaration" && item.source && typeof item.source.value === "string") {
+      if (/(^|\/)three_lazy(\.js)?$/.test(item.source.value)) {
+        for (const sp of item.specifiers) {
+          if (sp.type === "ImportSpecifier" && sp.imported.name === "THREE") {
+            threeName = sp.local.name;
+            break;
+          }
+        }
+      }
+    }
+  }
+  if (!threeName) return;
+
+  function walkModuleLevel(node) {
+    if (!node) return;
+    if (
+      node.type === "FunctionDeclaration" ||
+      node.type === "FunctionExpression" ||
+      node.type === "ArrowFunctionExpression" ||
+      node.type === "ClassDeclaration" ||
+      node.type === "ClassExpression"
+    ) {
+      return;
+    }
+    if (node.type === "NewExpression") {
+      const callee = node.callee;
+      if (
+        (callee.type === "Identifier" && callee.name === threeName) ||
+        (callee.type === "MemberExpression" &&
+          !callee.computed &&
+          callee.object.type === "Identifier" &&
+          callee.object.name === threeName)
+      ) {
+        const prop = callee.type === "MemberExpression" ? "." + callee.property.name : "";
+        onViolation(node, `new ${threeName}${prop}()`);
+      }
+    }
+    for (const key of Object.keys(node)) {
+      if (key === "type" || key === "start" || key === "end" || key === "loc") continue;
+      const v = node[key];
+      if (Array.isArray(v)) {
+        for (const child of v) {
+          if (child && typeof child.type === "string") walkModuleLevel(child);
+        }
+      } else if (v && typeof v.type === "string") {
+        walkModuleLevel(v);
+      }
+    }
+  }
+
+  for (const node of ast.body) {
+    walkModuleLevel(node);
+  }
 }
 
 export function checkFiles(files, root = REPO_ROOT) {
@@ -382,6 +440,14 @@ export function checkFiles(files, root = REPO_ROOT) {
     }, globals);
     for (const [name, loc] of seen)
       hits.push({ file: rel, name, line: loc.line, column: loc.column + 1 });
+    checkLateBoundThree(ast, (node, expr) => {
+      hits.push({
+        file: rel,
+        name: `module-scope instantiation of late-bound THREE (${expr})`,
+        line: node.loc.start.line,
+        column: node.loc.start.column + 1,
+      });
+    });
   }
   return { total: hits.length, parseErrors, hits };
 }

@@ -1,0 +1,133 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- Without this, a mobile-emulating browser lays the page out at its 980px
+     fallback width and no width-based breakpoint ever fires. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>uikit — standalone demo</title>
+<link rel="stylesheet" href="../uikit.css">
+<style>
+  /* A small application, written the way applications are: its own element
+     names, its own stylesheet, its own layout. uikit is told about it only
+     through the three contracts in the script below. */
+  :root {
+    --demo-accent: #2f6fed;
+    --demo-line: #d6dbe4;
+    --demo-panel: #fbfcfe;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --demo-accent: #6f9dff; --demo-line: #333a47; --demo-panel: #1b1f27; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+  #topbar {
+    display: flex; align-items: center; gap: 10px;
+    height: 48px; padding: 0 12px; border-bottom: 1px solid var(--demo-line);
+  }
+  #topbar button { font: inherit; padding: 4px 10px; border: 1px solid var(--demo-line);
+                   border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+  #topbar .brand { font-weight: 700; color: var(--demo-accent); margin-inline-end: 8px; }
+  #workspace { display: flex; flex: 1; min-height: 0; }
+  #side { width: 240px; border-inline-end: 1px solid var(--demo-line);
+          display: flex; flex-direction: column; overflow: auto; background: var(--demo-panel); }
+  /* The rule this module's no-wrapper design exists for: it only matches while
+     the panels are DIRECT children of #side. Put one div around each and every
+     pane shows at once. */
+  #side > .pane { display: none; padding: 10px; border-bottom: 1px solid var(--demo-line); }
+  #side[data-pane="layers"] > [data-pane-id="layers"],
+  #side[data-pane="notes"] > [data-pane-id="notes"],
+  #side[data-pane="info"] > [data-pane-id="info"] { display: block; }
+  #canvas { flex: 1; display: grid; place-items: center; padding: 24px; }
+  #canvas p { max-width: 46ch; opacity: .8; }
+  kbd { border: 1px solid var(--demo-line); border-radius: 4px; padding: 1px 5px; font: inherit; font-size: .85em; }
+  #tabs { display: flex; gap: 4px; padding: 8px; }
+  #tabs button { flex: 1; font: inherit; padding: 3px; border: 1px solid var(--demo-line);
+                 border-radius: 5px; background: transparent; color: inherit; cursor: pointer; }
+  #tabs button.on { border-color: var(--demo-accent); color: var(--demo-accent); }
+</style>
+
+<div id="app">
+  <header id="topbar">
+    <span class="brand">Demo</span>
+    <div class="group" id="file-group">
+      <button id="act-new" data-act="new">New</button>
+      <button id="act-open" data-act="open">Open</button>
+      <button id="act-save" data-act="save">Save</button>
+    </div>
+    <div class="group" id="edit-group">
+      <button id="act-undo" data-act="undo">Undo</button>
+      <button id="act-redo" data-act="redo">Redo</button>
+    </div>
+    <span style="margin-inline-start:auto"></span>
+    <button id="customize">Customize</button>
+  </header>
+
+  <div id="workspace">
+    <aside id="side" data-pane="layers">
+      <div id="tabs">
+        <button class="on" data-tab="layers">Layers</button>
+        <button data-tab="notes">Notes</button>
+        <button data-tab="info">Info</button>
+      </div>
+      <div class="pane" data-pane-id="layers"><h3>Layers</h3><p>Walls, floors, fixtures.</p></div>
+      <div class="pane" data-pane-id="notes"><h3>Notes</h3><p>Anything you like.</p></div>
+      <div class="pane" data-pane-id="info"><h3>Info</h3><p>Selection details.</p></div>
+    </aside>
+    <main id="canvas">
+      <p>
+        This page has no application framework and no dependency on the project
+        uikit was written in. Press <kbd>Customize</kbd> (or <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>E</kbd>)
+        and rearrange the toolbar and the sidebar: drag things between groups,
+        resize the sidebar, rename a button, hide one. It is saved as you go.
+        <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>U</kbd> puts everything back.
+      </p>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import { createUIKit, createLocalStorage } from "../index.js";
+  import { appLayout, appRegistry } from "./app.js";
+
+  // The host's own behaviour, which uikit never learns anything about.
+  const log = [];
+  document.getElementById("side").addEventListener("click", (e) => {
+    const tab = e.target.closest("[data-tab]");
+    if (!tab) return;
+    document.getElementById("side").dataset.pane = tab.dataset.tab;
+    for (const b of document.querySelectorAll("#tabs button")) b.classList.toggle("on", b === tab);
+  });
+
+  const registry = appRegistry(document, (act) => log.push(act));
+  const ui = createUIKit({
+    mount: document.getElementById("app"),
+    registry: registry.entries,
+    storage: createLocalStorage({ prefix: "uikit-demo:" }),
+    key: "demo",
+    defaults: appLayout(),
+    slots: { topbar: "#topbar", side: "#side" },
+    slotNames: ["topbar", "side"],
+    variants: { choose: (size) => (size.w < 700 ? "phone" : "base") },
+    exportName: "demo-layout",
+    presets: [
+      { id: "default", label: "Default", doc: appLayout },
+      { id: "minimal", label: "Minimal", doc: () => {
+          const doc = appLayout();
+          doc.nodes["item:notes"].hidden = true;
+          doc.nodes["item:info"].hidden = true;
+          return doc;
+        } },
+    ],
+    tokens: [
+      { name: "--demo-accent", label: "Accent", type: "color", fallback: "#2f6fed" },
+      { name: "--uikit-gap", label: "Group spacing", type: "length", min: 0, max: 20, unit: "px", fallback: "6px" },
+    ],
+  });
+
+  ui.mount();
+  document.getElementById("customize").addEventListener("click", () => ui.edit(!ui.editing));
+
+  window.__demo = { ui, log, registry };
+  window.__demoReady = true;
+</script>

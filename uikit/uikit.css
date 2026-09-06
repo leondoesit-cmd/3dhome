@@ -1,0 +1,852 @@
+/* Structure only.
+ *
+ * Two rules govern this file.
+ *
+ * ONE: every selector that could collide with a host stylesheet is wrapped in
+ * :where(), which contributes ZERO specificity — so any rule the host already
+ * has wins without needing !important, and dropping this file into an app
+ * cannot silently restyle it.
+ *
+ * TWO, and more important: the structural rules key off `.uikit-node`, and
+ * that class is only ever on an element UIKIT CREATED. An adopted host panel
+ * and a bound slot (#topbar, #left-sidebar) carry `data-uikit-id` for identity
+ * but never the class, so there is no rule in this file that can reach them.
+ * The host lends uikit its elements; uikit does not get to restyle them in
+ * return. What uikit expresses on a borrowed element is exactly what the user
+ * asked for — hidden, a size, a token — and nothing else.
+ *
+ * There is not a single colour, font or shadow here, on purpose. The moment
+ * uikit ships a palette it stops being portable and starts fighting the
+ * application it was dropped into.
+ */
+
+:where(.uikit-root) {
+  --uikit-gap: 6px;
+  --uikit-pad: 0px;
+}
+
+/* A slot uikit created. A borrowed one keeps whatever display the host gave it. */
+:where(.uikit-slot) {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+:where(.uikit-node) {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+}
+
+:where(.uikit-node[data-uikit-type="dock"]) {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+:where(.uikit-node[data-uikit-type="bar"]),
+:where(.uikit-node[data-uikit-type="group"]),
+:where(.uikit-node[data-uikit-type="stack"]),
+:where(.uikit-node[data-uikit-type="float"]) {
+  display: flex;
+  gap: var(--uikit-gap);
+  padding: var(--uikit-pad);
+}
+
+:where(.uikit-node[data-uikit-orient="row"]) { flex-direction: row; align-items: center; }
+:where(.uikit-node[data-uikit-orient="col"]) { flex-direction: column; align-items: stretch; }
+:where(.uikit-node[data-uikit-flow="row"]) { flex-direction: row; }
+:where(.uikit-node[data-uikit-flow="col"]) { flex-direction: column; }
+
+/* An explicit size the user set.
+ *
+ * This is the second of exactly two places where uikit deliberately outranks
+ * the host's stylesheet, and for the same reason as the first: the user asked
+ * for it. `#left-sidebar { width: 300px }` is specificity 1-0-0, so a rule at
+ * :where()'s zero could never move that sidebar and every drag of its edge
+ * would do nothing visible.
+ *
+ * Scoped to the axis actually set, so resizing a panel's height does not also
+ * pin a width the user never chose. A node with no user size matches neither
+ * rule and carries no width or height declaration at all — which is the true
+ * "untouched" state, not `auto`. */
+[data-uikit-id][data-uikit-sized="w"],
+[data-uikit-id][data-uikit-sized="wh"] { width: var(--uikit-w) !important; flex: 0 0 auto; }
+[data-uikit-id][data-uikit-sized="h"],
+[data-uikit-id][data-uikit-sized="wh"] { height: var(--uikit-h) !important; flex: 0 0 auto; }
+
+/* Floating panels are absolute inside the overlay slot, never fixed — fixed
+   would leave the host's stacking and scroll contexts behind, which in a real
+   app means floating over the modal it should sit under. */
+.uikit-slot[data-uikit-slot="overlay"] {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+[data-uikit-float] {
+  position: absolute;
+  left: var(--uikit-x, 0px);
+  top: var(--uikit-y, 0px);
+  pointer-events: auto;
+}
+
+/* Hiding has to win over whatever display the host's own rules give a borrowed
+   element, which is the one place this file legitimately outranks the host:
+   the user asked for it to be gone. */
+[data-uikit-id][hidden] { display: none !important; }
+:where([data-uikit-collapsed]) > :where(.uikit-node) { display: none; }
+
+:where(.uikit-item) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+:where(.uikit-icon[hidden]) { display: none; }
+
+:where(.uikit-sep) {
+  align-self: stretch;
+  border-inline-start: 1px solid currentColor;
+  opacity: 0.2;
+}
+
+/* A placement whose command no longer exists. Visible only while customizing —
+   in normal mode resolve() never emits one. */
+:where(.uikit-tombstone) {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px dashed currentColor;
+  border-radius: 4px;
+  opacity: 0.55;
+  font: inherit;
+  font-size: 0.85em;
+}
+
+/* ---- customize mode ------------------------------------------------------
+ *
+ * The one place uikit draws UI of its own, so it is the one place with colour.
+ * Every value is a token: a host that wants the editor to match its own accent
+ * sets --uikit-ed-accent and is done. The defaults are chosen to be legible on
+ * both a light and a dark chrome rather than to look like anything.
+ *
+ * The overlay is fixed and covers the viewport because it draws in the same
+ * coordinates getBoundingClientRect() reports. It never receives a pointer —
+ * the designer listens on the document in the capture phase instead — so it
+ * cannot become the thing under the cursor and break its own hit-testing.
+ */
+:where(.uikit-root) {
+  --uikit-ed-accent: #2563eb;
+  --uikit-ed-accent-fg: #ffffff;
+  --uikit-ed-hover: color-mix(in srgb, var(--uikit-ed-accent) 45%, transparent);
+  --uikit-ed-drop: #ff9f2e;
+}
+
+.uikit-ed-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2147483000;
+  contain: strict;
+}
+
+.uikit-ed-box {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.uikit-ed-hover { outline: 1px dashed var(--uikit-ed-hover, #4c8dff88); outline-offset: -1px; }
+.uikit-ed-sel { outline: 2px solid var(--uikit-ed-accent, #4c8dff); outline-offset: -2px; }
+.uikit-ed-drop { background: var(--uikit-ed-drop, #ff9f2e); border-radius: 1px; }
+.uikit-ed-target { outline: 2px dashed var(--uikit-ed-accent, #4c8dff); outline-offset: -2px; }
+.uikit-ed-placeholder {
+  border: 2px dashed var(--uikit-ed-drop, #ff9f2e);
+  background: rgba(255, 159, 46, 0.15);
+  border-radius: 3px;
+}
+.uikit-ed-ghost {
+  opacity: 0.65;
+  background: rgba(37, 99, 235, 0.1);
+  border: 1px solid var(--uikit-ed-accent, #2563eb);
+  border-radius: 3px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+.uikit-ed-tag {
+  position: absolute;
+  inset-inline-start: 0;
+  bottom: 100%;
+  padding: 1px 5px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 3px 3px 0 0;
+  background: var(--uikit-ed-accent, #2563eb);
+  color: var(--uikit-ed-accent-fg, #ffffff);
+  font: 600 10px/1.5 system-ui, sans-serif;
+}
+
+/* While customizing, the app underneath is inert and should look it. */
+:where(.uikit-editing) { cursor: default; }
+:where(.uikit-editing) :where([data-uikit-id]) { user-select: none; }
+
+/* A hidden node stays on screen while customizing so it can be put back. */
+[data-uikit-hidden] { opacity: 0.32; }
+
+/* ---- resize grips and the properties panel -------------------------------
+ *
+ * The grips are painted in the overlay like every other piece of editor
+ * chrome, straddling the edge they resize. The inspector is NOT in the
+ * overlay: the overlay is pointer-events:none by design so it can never be
+ * what the cursor hits, and a panel you cannot click is not a panel.
+ */
+.uikit-ed-grip {
+  background: var(--uikit-ed-accent, #4c8dff);
+  border: 1px solid #fff;
+  border-radius: 2px;
+  pointer-events: auto;
+}
+
+.uikit-ins {
+  position: fixed;
+  inset-block-end: 16px;
+  inset-inline-end: 16px;
+  z-index: 2147483001;
+  box-sizing: border-box;
+  width: min(320px, calc(100vw - 32px));
+  max-block-size: calc(100dvh - 32px);
+  overflow: hidden;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  background: var(--uikit-ins-bg, Canvas);
+  color: var(--uikit-ins-fg, CanvasText);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  font: 12px/1.5 system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+.uikit-ins[hidden] { display: none; }
+.uikit-ins.uikit-ins-at-start {
+  inset-inline-start: 16px;
+  inset-inline-end: auto;
+}
+.uikit-ins-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 10px;
+  border-block-end: 1px solid rgba(128, 128, 128, 0.3);
+  background: var(--uikit-ins-bg, Canvas);
+}
+.uikit-ins-title {
+  flex: 1 1 auto;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.uikit-ins-head-actions { display: flex; gap: 4px; }
+.uikit-ins-head-actions button {
+  padding: 3px 7px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.uikit-ins-head-actions button:disabled { opacity: 0.4; cursor: default; }
+.uikit-ins-head-actions .uikit-ins-done {
+  border-color: var(--uikit-ed-accent, #2563eb);
+  background: var(--uikit-ed-accent, #2563eb);
+  color: var(--uikit-ed-accent-fg, #ffffff);
+}
+.uikit-ins-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+.uikit-ins-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--uikit-ed-accent, #4c8dff) 10%, transparent);
+}
+.uikit-ins-empty[hidden] { display: none; }
+.uikit-ins-empty span { opacity: 0.72; }
+.uikit-ins-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-block-end: 8px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.uikit-ins-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.uikit-ins-crumb:hover {
+  background: rgba(128, 128, 128, 0.15);
+  opacity: 1;
+}
+.uikit-ins-crumb[aria-current="page"] {
+  font-weight: 600;
+  opacity: 1;
+  cursor: default;
+  background: transparent;
+}
+.uikit-ins-crumb-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.uikit-ins-crumb-sep {
+  opacity: 0.4;
+  user-select: none;
+  font-size: 10px;
+}
+.uikit-ins-selection-head { display: flex; align-items: center; gap: 6px; min-width: 0; margin-block-end: 6px; }
+.uikit-ins-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.uikit-ins-selection-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uikit-ins-kind { margin-inline-start: auto; opacity: 0.6; font-size: 10px; }
+.uikit-ins-body { display: flex; flex-direction: column; gap: 6px; }
+.uikit-ins-row { display: grid; grid-template-columns: 58px 1fr; align-items: center; gap: 8px; }
+.uikit-ins-row[hidden] { display: none; }
+.uikit-ins-label { opacity: 0.7; }
+.uikit-ins-input,
+.uikit-ins-num {
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.uikit-ins-num { width: 100%; }
+.uikit-ins-check { display: flex; align-items: center; gap: 6px; }
+.uikit-ins-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.uikit-ins-actions button {
+  flex: 1 1 auto;
+  padding: 4px 8px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.uikit-ins-actions button:disabled { opacity: 0.4; cursor: default; }
+.uikit-ins-danger { color: #c0392b; }
+.uikit-ins-note:empty { display: none; }
+.uikit-ins-note { opacity: 0.75; font-size: 11px; }
+.uikit-ins-browser {
+  border-block-start: 1px solid rgba(128, 128, 128, 0.3);
+  padding-block-start: 7px;
+}
+.uikit-ins-browser > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-weight: 650;
+  cursor: pointer;
+}
+.uikit-ins-summary-count {
+  min-width: 17px;
+  margin-inline-start: auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--uikit-ed-accent, #2563eb);
+  color: var(--uikit-ed-accent-fg, #ffffff);
+  text-align: center;
+  font-size: 10px;
+}
+.uikit-ins-summary-count:empty { display: none; }
+.uikit-ins-tree-list,
+.uikit-ins-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-block-start: 5px;
+}
+.uikit-ins-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  padding: 3px 5px;
+  padding-inline-start: calc(5px + var(--uikit-tree-depth) * 11px);
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.uikit-ins-tree-row:hover,
+.uikit-ins-tree-row[aria-selected="true"] {
+  background: color-mix(in srgb, var(--uikit-ed-accent, #2563eb) 13%, transparent);
+}
+.uikit-ins-tree-row:focus-visible {
+  outline: 2px solid var(--uikit-ed-accent, #2563eb);
+  outline-offset: -1px;
+}
+.uikit-ins-tree-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  font-size: 9px;
+  opacity: 0.75;
+  user-select: none;
+}
+.uikit-ins-tree-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  font-size: 13px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.uikit-ins-tree-icon .uikit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+/* Row actions: rename and reset. Hidden until the row is hovered or focused
+   so a long tree is a list of names rather than a wall of buttons, and always
+   shown on a coarse pointer, where there is no hover to reveal them with. */
+.uikit-ins-tree-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  opacity: 0;
+  cursor: pointer;
+}
+.uikit-ins-tree-item-wrap:hover .uikit-ins-tree-action,
+.uikit-ins-tree-item-wrap:focus-within .uikit-ins-tree-action,
+.uikit-ins-tree-action:focus-visible { opacity: 0.75; }
+.uikit-ins-tree-action:hover { opacity: 1; background: rgba(128, 128, 128, 0.2); }
+@media (pointer: coarse) {
+  .uikit-ins-tree-action { opacity: 0.75; width: 32px; height: 32px; min-width: 32px; }
+}
+
+/* The per-parameter reset in the inspector. It sits at the end of its row and
+   is `hidden` unless that parameter is actually overridden, so the arrows that
+   are on screen are a list of what the user changed. */
+.uikit-ins-reset-one {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  flex-shrink: 0;
+  margin-inline-start: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+.uikit-ins-reset-one:hover { opacity: 1; background: rgba(128, 128, 128, 0.2); }
+.uikit-ins-reset-one[hidden] { display: none; }
+.uikit-ins-pos { opacity: 0.85; font-size: 11px; }
+@media (pointer: coarse) {
+  .uikit-ins-reset-one { width: 32px; height: 32px; min-width: 32px; }
+}
+.uikit-ins-tree-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uikit-ins-tree-role {
+  margin-inline-start: auto;
+  opacity: 0.55;
+  font-size: 9.5px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: rgba(128, 128, 128, 0.12);
+  white-space: nowrap;
+}
+.uikit-ins-tree-state { margin-inline-start: 4px; opacity: 0.6; font-size: 10px; }
+.uikit-ins-tree-state.uikit-ins-tree-missing {
+  opacity: 0.95;
+  color: #dc2626;
+  border: 1px dashed currentColor;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+.uikit-ins-tree-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.uikit-ins-tree-icon-btn:hover {
+  background: rgba(128, 128, 128, 0.2);
+}
+.uikit-ins-tree-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  opacity: 0;
+  cursor: pointer;
+  margin-inline-start: 2px;
+}
+.uikit-ins-tree-item-wrap:hover .uikit-ins-tree-action,
+.uikit-ins-tree-item-wrap:focus-within .uikit-ins-tree-action {
+  opacity: 0.7;
+}
+.uikit-ins-tree-action:hover {
+  opacity: 1;
+  background: rgba(128, 128, 128, 0.2);
+}
+.uikit-ins-tree-inline-input {
+  min-width: 60px;
+  max-width: 160px;
+  padding: 1px 4px;
+  border: 1px solid var(--uikit-ed-accent, #2563eb);
+  border-radius: 3px;
+  background: var(--uikit-ins-bg, Canvas);
+  color: var(--uikit-ins-fg, inherit);
+  font: inherit;
+  font-size: 11px;
+  outline: none;
+}
+.is-tree-dragging {
+  user-select: none;
+}
+.uikit-ins-tree-row.is-dragging {
+  opacity: 0.35;
+}
+.uikit-ins-tree-row.uikit-ins-tree-drop-inside {
+  background: color-mix(in srgb, var(--uikit-ed-drop, #ff9f2e) 25%, transparent) !important;
+  outline: 1px dashed var(--uikit-ed-drop, #ff9f2e);
+}
+.uikit-ins-tree-item-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.uikit-ins-tree-item-wrap .uikit-ins-tree-row {
+  flex: 1;
+  min-width: 0;
+}
+.uikit-ins-tree-drop-line {
+  position: absolute;
+  height: 2px;
+  background: var(--uikit-ed-drop, #ff9f2e);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 10;
+  left: calc(var(--uikit-tree-depth, 0) * 11px + 10px);
+  right: 4px;
+}
+.uikit-ins-tree-drop-line::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--uikit-ed-drop, #ff9f2e);
+}
+.uikit-ins-tree-drop-line.is-before {
+  top: -1px;
+}
+.uikit-ins-tree-drop-line.is-after {
+  bottom: -1px;
+}
+.uikit-ins-icon-picker {
+  position: fixed;
+  z-index: 2147483002;
+  width: 260px;
+  max-height: 320px;
+  background: var(--uikit-ins-bg, Canvas);
+  color: var(--uikit-ins-fg, CanvasText);
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 8px;
+  box-sizing: border-box;
+}
+.uikit-ins-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 12px;
+}
+.uikit-ins-picker-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.7;
+}
+.uikit-ins-picker-close:hover { opacity: 1; }
+.uikit-ins-icon-search {
+  width: 100%;
+  box-sizing: border-box;
+}
+.uikit-ins-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  overflow-y: auto;
+  max-height: 180px;
+  padding: 2px;
+}
+.uikit-ins-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.uikit-ins-icon-btn:hover,
+.uikit-ins-icon-btn:focus-visible {
+  background: rgba(128, 128, 128, 0.15);
+  border-color: rgba(128, 128, 128, 0.3);
+}
+.uikit-ins-icon-btn.is-active {
+  background: var(--uikit-ed-accent, #2563eb);
+  color: #ffffff;
+}
+.uikit-ins-icon-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 14px;
+}
+.uikit-ins-picker-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  opacity: 0.6;
+  font-size: 11px;
+  padding: 12px 0;
+}
+.uikit-ins-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(128, 128, 128, 0.2);
+  padding-top: 6px;
+}
+.uikit-ins-picker-reset {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+}
+.uikit-ins-picker-reset:hover {
+  background: rgba(128, 128, 128, 0.15);
+}
+.uikit-ins-search { width: 100%; margin: 6px 0; }
+.uikit-ins-subtitle { display: block; margin-block: 7px 3px; font-size: 11px; }
+.uikit-ins-list-empty { padding: 4px 5px; opacity: 0.62; }
+.uikit-ins-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 5px;
+  border-radius: 5px;
+  background: rgba(128, 128, 128, 0.08);
+}
+.uikit-ins-item-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uikit-ins-item-row button,
+.uikit-ins-place-target {
+  min-width: 0;
+  padding: 2px 5px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.uikit-ins-item-row button { cursor: pointer; }
+.uikit-ins-item-row button:disabled { opacity: 0.45; cursor: default; }
+.uikit-ins-place-row { grid-template-columns: minmax(72px, 1fr) minmax(80px, 1fr) auto; }
+.uikit-ins-confirm {
+  padding: 8px;
+  border-radius: 7px;
+  background: color-mix(in srgb, #c0392b 10%, transparent);
+}
+.uikit-ins-confirm[hidden] { display: none; }
+.uikit-ins-confirm p { margin: 0 0 7px; }
+.uikit-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The inspector's lower half: what applies to the whole layout rather than to
+   one node. Always present, because a preset or a theme change is what someone
+   reaches for before they have selected anything. */
+.uikit-ins-node[hidden] { display: none; }
+.uikit-ins-doc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(128, 128, 128, 0.3);
+}
+.uikit-ins-tokens { display: flex; flex-direction: column; gap: 4px; }
+.uikit-ins-variant-name { font-weight: 600; }
+.uikit-ins-variant-value { display: flex; flex-direction: column; min-width: 0; }
+.uikit-ins-variant-hint { opacity: 0.7; }
+.uikit-ins-token-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.uikit-ins-token-value {
+  min-width: 38px;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+.uikit-ins-token-reset {
+  padding: 2px 5px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.uikit-ins-token-reset:disabled { visibility: hidden; }
+.uikit-ins-doc input[type="color"] { padding: 0; height: 22px; }
+.uikit-ins-doc input[type="range"] { padding: 0; }
+
+@media (max-width: 600px) {
+  .uikit-ins {
+    inset-inline: 8px;
+    inset-block-end: max(8px, env(safe-area-inset-bottom));
+    width: auto;
+    max-block-size: min(50dvh, calc(100dvh - 16px));
+    border-radius: 12px 12px 0 0;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .uikit-ins {
+    inset-inline-start: auto;
+    inset-inline-end: max(8px, env(safe-area-inset-right));
+    inset-block-end: 8px;
+    width: min(340px, 46vw);
+    max-block-size: calc(100dvh - 16px);
+    border-radius: 10px;
+  }
+}
+
+@media (pointer: coarse) {
+  .uikit-ins input,
+  .uikit-ins select { font-size: 16px; }
+  .uikit-ins-actions button,
+  .uikit-ins-head-actions button { min-height: 44px; }
+  .uikit-ins-check { min-height: 44px; }
+  .uikit-ins-tree-row { min-height: 44px; }
+  .uikit-ins-tree-icon-btn { width: 32px; height: 32px; }
+  .uikit-ins-tree-action { opacity: 0.7; width: 32px; height: 32px; }
+}

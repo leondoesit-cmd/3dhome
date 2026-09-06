@@ -1,6 +1,6 @@
 import { t } from "./i18n.js";
 import { escapeHTML } from "./safe.js";
-import { loadAgentConfig, saveAgentConfig, setAgentApiKey, agentApiKey, setAgentBridgeToken, agentBridgeToken } from "./agent_config.js";
+import { loadAgentConfig, saveAgentConfig, validateAgentConfig, setAgentApiKey, agentApiKey, setAgentBridgeToken, agentBridgeToken } from "./agent_config.js";
 import { listAgentModels, sendAgentChat } from "./agent_transport.js";
 import { runAgentTurn, installAgentBridge } from "./agent_runtime.js";
 import { executePlannerProposal } from "./interaction.js";
@@ -344,25 +344,44 @@ export function buildAgentSettingsPane() {
   var config = loadAgentConfig(), root = el("div", "agent-settings");
   root.innerHTML = '<div class="agent-settings-intro"><i class="ph ph-robot"></i><div><strong>' + escapeHTML(t("agent_settings_title")) + '</strong><p>' + escapeHTML(t("agent_settings_intro")) + '</p></div></div>';
   var form = el("div", "agent-settings-form");
-  function field(label, control) { var wrap = el("label", "agent-field"); wrap.append(el("span", null, label), control); form.appendChild(wrap); return control; }
+  var connection = el("section", "agent-connection-card");
+  connection.appendChild(el("strong", "agent-settings-section-title", t("agent_connection_title")));
+  var connectionHint = el("p", "agent-settings-section-hint", t("agent_connection_hint"));
+  connection.appendChild(connectionHint); form.appendChild(connection);
+  function field(label, control, host = connection) {
+    var wrap = el("label", "agent-field"); wrap.append(el("span", null, label), control); host.appendChild(wrap); return wrap;
+  }
   var provider = document.createElement("select");
   [["ollama", t("agent_provider_local")], ["lmstudio", t("agent_provider_lmstudio")], ["gemini", t("agent_provider_gemini")], ["server", t("agent_provider_server")], ["openai", t("agent_provider_custom")]].forEach(function (pair) { var o = el("option", null, pair[1]); o.value = pair[0]; provider.appendChild(o); });
-  provider.value = config.provider; field(t("agent_provider"), provider);
-  var endpoint = el("input"); endpoint.value = config.endpoint; endpoint.placeholder = "http://localhost:11434"; field(t("agent_endpoint"), endpoint);
-  var model = el("input"); model.value = config.model; model.placeholder = "qwen3.8-27b"; field(t("agent_model"), model);
-  var key = el("input"); key.type = "password"; key.value = agentApiKey(); key.autocomplete = "off"; field(t("agent_api_key"), key);
-  var bridgeKey = el("input"); bridgeKey.type = "password"; bridgeKey.value = agentBridgeToken(); bridgeKey.autocomplete = "off"; field(t("agent_bridge_token"), bridgeKey);
+  provider.value = config.provider; provider.dataset.role = "provider"; field(t("agent_provider"), provider);
+  var modelWrap = el("div", "agent-model-picker");
+  var model = el("input"); model.value = config.model; model.placeholder = t("agent_model_placeholder");
+  model.dataset.role = "model"; model.setAttribute("list", "agentModelSuggestions");
+  var modelSuggestions = document.createElement("datalist"); modelSuggestions.id = "agentModelSuggestions";
+  var discover = el("button", null, t("agent_discover_models")); discover.type = "button";
+  modelWrap.append(model, discover, modelSuggestions); field(t("agent_model"), modelWrap);
+  var modelNote = el("small", "agent-model-note", t("agent_model_safety")); connection.appendChild(modelNote);
+
+  var advanced = el("details", "agent-settings-advanced");
+  advanced.appendChild(el("summary", null, t("agent_advanced")));
+  var advancedBody = el("div", "agent-settings-advanced-body"); advanced.appendChild(advancedBody); form.appendChild(advanced);
+  var endpoint = el("input"); endpoint.value = config.endpoint; endpoint.placeholder = "http://localhost:11434";
+  endpoint.dataset.role = "endpoint"; var endpointField = field(t("agent_endpoint"), endpoint, advancedBody);
+  var key = el("input"); key.type = "password"; key.value = agentApiKey(); key.autocomplete = "off";
+  key.dataset.role = "api-key"; var keyField = field(t("agent_api_key"), key, advancedBody);
+  var bridgeKey = el("input"); bridgeKey.type = "password"; bridgeKey.value = agentBridgeToken(); bridgeKey.autocomplete = "off";
+  bridgeKey.dataset.role = "bridge-key"; field(t("agent_bridge_token"), bridgeKey, advancedBody);
   var checks = el("div", "agent-context-checks");
   [["fullContext", t("agent_full_context")], ["includeEntities", t("agent_ctx_entities")], ["includeHistory", t("agent_ctx_history")], ["includeTutorial", t("agent_ctx_tutorial")],
     ["includeAttention", t("agent_ctx_attention")], ["proactiveTutor", t("agent_proactive")], ["persistConversation", t("agent_persist_chat")],
     ["externalBridge", t("agent_external_bridge")]].forEach(function (pair) {
     var label = el("label"), input = el("input"); input.type = "checkbox"; input.checked = config[pair[0]]; input.dataset.key = pair[0]; label.append(input, document.createTextNode(pair[1])); checks.appendChild(label);
   });
-  form.appendChild(checks);
+  advancedBody.appendChild(checks);
   var dataActions = el("div", "agent-data-actions");
   var exportData = el("button", null, t("agent_export_tutor_data"));
   var resetData = el("button", null, t("agent_reset_tutor_data"));
-  dataActions.append(exportData, resetData); form.appendChild(dataActions);
+  dataActions.append(exportData, resetData); advancedBody.appendChild(dataActions);
   var actions = el("div", "agent-settings-actions"), test = el("button", null, t("agent_test")), save = el("button", "btn-accent", t("save")), result = el("span", "agent-test-result");
   actions.append(test, save, result); form.appendChild(actions); root.appendChild(form);
   function read() {
@@ -372,26 +391,56 @@ export function buildAgentSettingsPane() {
   }
   function syncProvider() {
     endpoint.disabled = provider.value === "server";
+    keyField.hidden = provider.value === "lmstudio" || provider.value === "ollama" || provider.value === "server";
+    connectionHint.textContent = t("agent_provider_hint_" + provider.value);
     if (provider.value === "lmstudio") {
       endpoint.placeholder = "http://localhost:1234/v1";
-      if (!endpoint.value || endpoint.value === "http://localhost:11434") endpoint.value = "http://localhost:1234/v1";
-      if (!model.value || model.value === "qwen3:8b") model.value = "qwen3.8-27b";
     } else if (provider.value === "gemini") {
       endpoint.placeholder = "https://generativelanguage.googleapis.com/v1beta/openai";
-      endpoint.value = "https://generativelanguage.googleapis.com/v1beta/openai";
-      if (!model.value || !model.value.startsWith("gemini-") || model.value.startsWith("models/")) model.value = "gemini-3.7-flash";
     } else if (provider.value === "ollama") {
       endpoint.placeholder = "http://localhost:11434";
-      if (!endpoint.value || endpoint.value === "http://localhost:1234/v1") endpoint.value = "http://localhost:11434";
-      if (!model.value) model.value = "qwen3.8:27b";
     } else if (provider.value === "openai") {
       endpoint.placeholder = "https://api.openai.com/v1";
-      if (!endpoint.value || endpoint.value === "http://localhost:11434" || endpoint.value === "http://localhost:1234/v1") endpoint.value = "https://api.openai.com/v1";
     }
   }
-  provider.onchange = syncProvider; syncProvider();
+  var providerDrafts = {};
+  providerDrafts[config.provider] = { endpoint: config.endpoint, model: config.model };
+  var previousProvider = provider.value;
+  var providerDefaults = {
+    lmstudio: { endpoint: "http://localhost:1234/v1", model: "" },
+    ollama: { endpoint: "http://localhost:11434", model: "" },
+    gemini: { endpoint: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-3.7-flash" },
+    openai: { endpoint: "https://api.openai.com/v1", model: "" },
+    server: { endpoint: "", model: "" },
+  };
+  provider.onchange = function() {
+    providerDrafts[previousProvider] = { endpoint: endpoint.value, model: model.value };
+    previousProvider = provider.value;
+    var draft = providerDrafts[provider.value] || providerDefaults[provider.value];
+    endpoint.value = draft.endpoint; model.value = draft.model;
+    syncProvider();
+  };
+  syncProvider();
   key.oninput = function () { setAgentApiKey(key.value); };
   bridgeKey.oninput = function () { setAgentBridgeToken(bridgeKey.value); };
+  function showModels(models) {
+    modelSuggestions.innerHTML = "";
+    models.forEach(function(id) { var option = document.createElement("option"); option.value = id; modelSuggestions.appendChild(option); });
+    return models;
+  }
+  discover.onclick = async function() {
+    discover.disabled = true; result.dataset.status = "testing"; result.textContent = t("agent_discovering_models");
+    try {
+      setAgentApiKey(key.value);
+      var models = showModels(await listAgentModels(read()));
+      result.dataset.status = "ready";
+      result.textContent = t("agent_models_found", { count: models.length });
+      model.focus();
+    } catch (error) {
+      result.dataset.status = "error"; result.textContent = t("agent_failed") + ": " + (error.message || error);
+    }
+    discover.disabled = false;
+  };
   exportData.onclick = function () {
     var feedback = [];
     try { feedback = JSON.parse(localStorage.getItem(FEEDBACK_KEY) || "[]"); } catch (_) {}
@@ -406,17 +455,20 @@ export function buildAgentSettingsPane() {
     try { localStorage.removeItem(FEEDBACK_KEY); localStorage.removeItem(CONVERSATION_KEY); } catch (_) {}
     conversation = []; result.textContent = t("agent_tutor_data_reset");
   };
-  save.onclick = function () { saveAgentConfig(read()); setAgentApiKey(key.value); setAgentBridgeToken(bridgeKey.value); persistConversation(); result.textContent = t("agent_saved"); };
+  save.onclick = function () {
+    var checked = validateAgentConfig(read());
+    if (!checked.ok) { result.dataset.status = "error"; result.textContent = t("agent_failed") + ": " + checked.reason; return; }
+    saveAgentConfig(read()); setAgentApiKey(key.value); setAgentBridgeToken(bridgeKey.value); persistConversation();
+    result.dataset.status = "saved"; result.textContent = t("agent_saved_model", { model: model.value.trim() });
+  };
   test.onclick = async function () {
-    test.disabled = true; result.textContent = t("agent_testing");
+    test.disabled = true; result.dataset.status = "testing"; result.textContent = t("agent_testing");
     try {
       setAgentApiKey(key.value);
       if (model.value.startsWith("models/")) model.value = model.value.replace(/^models\//, "");
       var models = await listAgentModels(read());
-      if (models.length && (!model.value || !models.includes(model.value))) {
-        model.value = models.includes("gemini-3.7-flash") ? "gemini-3.7-flash" : (models.includes("gemini-2.5-flash") ? "gemini-2.5-flash" : models[0]);
-      }
       if (provider.value !== "server" && !model.value.trim()) throw new Error("MODEL_REQUIRED");
+      if (models.length && !models.includes(model.value.trim())) throw new Error("SELECTED_MODEL_NOT_AVAILABLE");
       if (provider.value === "gemini") await sendAgentChat(read(), [
         { role: "user", content: "Call the connection probe." },
       ], [{ type: "function", function: { name: "agent_connection_probe",
@@ -427,8 +479,9 @@ export function buildAgentSettingsPane() {
       saveAgentConfig(read());
       setAgentBridgeToken(bridgeKey.value);
       persistConversation();
-      result.textContent = t("agent_connected") + (models.length ? " · " + models.slice(0, 3).join(", ") : "");
-    } catch (error) { result.textContent = t("agent_failed") + ": " + (error.message || error); }
+      result.dataset.status = "connected";
+      result.textContent = t("agent_connected_model", { model: model.value.trim() || t("agent_provider_server") });
+    } catch (error) { result.dataset.status = "error"; result.textContent = t("agent_failed") + ": " + (error.message || error); }
     test.disabled = false;
   };
   return root;

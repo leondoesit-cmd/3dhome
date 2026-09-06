@@ -20,6 +20,8 @@ import {
   wallDimSide,
   pendingCuts,
   roomsTopologyKey,
+  roomEdgeHandles,
+  roomByKey,
 } from "./geometry.js";
 import { ensureWallTypes, normalizeWall, wallLayerBands } from "./wall_types.js";
 import {
@@ -1044,6 +1046,186 @@ function renderHUD() {
       );
     }
   }
+  /* The hallway a room drag is proposing, drawn in the gap while the drag is
+     still live.
+   *
+     A dragged room previews itself — it is the thing moving. A corridor does
+     not exist yet, so without this the only difference between "this room will
+     end up flush" and "this room will end up with a whole hallway built
+     between it and that wall" is a distance the eye cannot judge. The outline
+     and the highlighted face it reaches to are what make the second one a
+     choice rather than a surprise on release. */
+  if (S.action === "room" && S.dragRoom && S.dragRoom.corridor) {
+    var dc = S.dragRoom.corridor, dcFace = S.dragRoom.dock && S.dragRoom.dock.face;
+    pc.save();
+    pc.fillStyle = "#e0813a";
+    pc.globalAlpha = 0.12;
+    pc.beginPath();
+    pc.moveTo(sx(dc.x0), sz(dc.z0));
+    pc.lineTo(sx(dc.x1), sz(dc.z0));
+    pc.lineTo(sx(dc.x1), sz(dc.z1));
+    pc.lineTo(sx(dc.x0), sz(dc.z1));
+    pc.closePath();
+    pc.fill();
+    pc.globalAlpha = 1;
+    pc.strokeStyle = "#e0813a";
+    pc.lineWidth = 1.5;
+    pc.setLineDash([6, 4]);
+    pc.stroke();
+    pc.setLineDash([]);
+    if (dcFace) {
+      pc.lineWidth = 4;
+      pc.globalAlpha = 0.5;
+      pc.beginPath();
+      if (dcFace.axis === "v") { pc.moveTo(sx(dcFace.at), sz(dcFace.lo)); pc.lineTo(sx(dcFace.at), sz(dcFace.hi)); }
+      else { pc.moveTo(sx(dcFace.lo), sz(dcFace.at)); pc.lineTo(sx(dcFace.hi), sz(dcFace.at)); }
+      pc.stroke();
+    }
+    pc.restore();
+    if (!touchDrawing()) {
+      var dcW = Math.round(Math.min(dc.x1 - dc.x0, dc.z1 - dc.z0));
+      label((dc.x0 + dc.x1) / 2, (dc.z0 + dc.z1) / 2,
+        t("rp_corridor") + " " + dcW + " " + t("cm"), "#e0813a");
+    }
+  }
+  /* Room resize handles. A room you have just placed is a rectangle with a
+     size, and the obvious way to change that size is to pull its side — but
+     only if the sides look pullable. The handle sits at the middle of each
+     axis-aligned side with a stub pointing out of the room, and while one is
+     being dragged the room's clear size is drawn in the middle of it, because
+     the number is the thing being edited. */
+  if (S.sel && S.sel.kind === "room" && (!S.viewAxis || S.viewAxis === "top")) {
+    var dragging = S.action === "wall" && S.wallDrag && S.wallDrag.edge
+      && S.wallDrag.edge.room === S.sel.ref;
+    roomEdgeHandles(S.sel.ref).forEach(function (h) {
+      var live = dragging && S.wallDrag.wall === h.wall;
+      var out = 9 / S.SC;
+      pc.save();
+      pc.strokeStyle = live ? "#e0813a" : "#3f6b78";
+      pc.lineWidth = live ? 3 : 2;
+      pc.beginPath();
+      pc.moveTo(sx(h.x), sz(h.z));
+      pc.lineTo(sx(h.x + h.ux * out), sz(h.z + h.uz * out));
+      pc.stroke();
+      pc.fillStyle = live ? "#e0813a" : "#fff";
+      pc.strokeStyle = "#3f6b78";
+      pc.lineWidth = 1.5;
+      pc.beginPath();
+      pc.arc(sx(h.x), sz(h.z), 4.5, 0, Math.PI * 2);
+      pc.fill();
+      pc.stroke();
+      pc.restore();
+    });
+    if (dragging && !touchDrawing()) {
+      var rr2 = roomByKey(S.sel.ref);
+      if (rr2) {
+        var bx0 = Infinity, bx1 = -Infinity, bz0 = Infinity, bz1 = -Infinity;
+        rr2.pts.forEach(function (p) {
+          bx0 = Math.min(bx0, p.x); bx1 = Math.max(bx1, p.x);
+          bz0 = Math.min(bz0, p.z); bz1 = Math.max(bz1, p.z);
+        });
+        var th = Number(S.wallDrag.wall.thickness) || 10;
+        label((bx0 + bx1) / 2, (bz0 + bz1) / 2,
+          Math.round(bx1 - bx0 - th) + " × " + Math.round(bz1 - bz0 - th) + " " + t("cm"),
+          "#e0813a");
+      }
+    }
+  }
+  /* Preset-room ghost. Two things have to be readable at a glance while the
+     pointer moves: the rectangle that will be built, and WHAT IT IS ABOUT TO
+     DO to the plan it is over. A room that has found a wall to share is drawn
+     against a highlighted face — that face becomes one party wall, not two —
+     and a corridor dock also outlines the corridor it will build in the gap,
+     because otherwise a room that stops 120 cm short looks like a mistake. */
+  if (S.tool === "roomstamp" && S.roomGhost) {
+    var rmG = S.roomGhost, rr = rmG.rect,
+      rmCol = rmG.blocked ? "#c45c4a"
+        : rmG.dock ? (rmG.dock.mode === "corridor" ? "#e0813a"
+          : rmG.dock.mode === "insert" ? "#2f6f8a" : "#2f7d5b") : "#3f6b78";
+    if (rmG.dock && rmG.dock.mode === "insert" && !rmG.blocked) {
+      pc.save();
+      pc.fillStyle = rmCol;
+      pc.globalAlpha = 0.14;
+      pc.beginPath();
+      pc.moveTo(sx(rr.x0), sz(rr.z0));
+      pc.lineTo(sx(rr.x1), sz(rr.z0));
+      pc.lineTo(sx(rr.x1), sz(rr.z1));
+      pc.lineTo(sx(rr.x0), sz(rr.z1));
+      pc.closePath();
+      pc.fill();
+      pc.restore();
+    }
+    drawGhostWall(rr.x0, rr.z0, rr.x1, rr.z0);
+    drawGhostWall(rr.x1, rr.z0, rr.x1, rr.z1);
+    drawGhostWall(rr.x1, rr.z1, rr.x0, rr.z1);
+    drawGhostWall(rr.x0, rr.z1, rr.x0, rr.z0);
+    if (rmG.corridor) {
+      var cr = rmG.corridor;
+      pc.save();
+      pc.strokeStyle = rmCol; pc.lineWidth = 1.5; pc.setLineDash([4, 4]);
+      // corner by corner through sx/sz, not strokeRect: the plan view rotates
+      pc.beginPath();
+      pc.moveTo(sx(cr.x0), sz(cr.z0));
+      pc.lineTo(sx(cr.x1), sz(cr.z0));
+      pc.lineTo(sx(cr.x1), sz(cr.z1));
+      pc.lineTo(sx(cr.x0), sz(cr.z1));
+      pc.closePath(); pc.stroke();
+      pc.restore();
+    }
+    if (rmG.dock && !rmG.blocked) {
+      var df = rmG.dock.face;
+      pc.save();
+      if (rmG.connMode === "open") {
+        pc.strokeStyle = "#e0813a";
+        pc.lineWidth = 5;
+        pc.globalAlpha = 0.85;
+        pc.setLineDash([6, 4]);
+      } else {
+        pc.strokeStyle = rmCol;
+        pc.lineWidth = 4;
+        pc.globalAlpha = 0.5;
+      }
+      pc.beginPath();
+      if (df.axis === "v") { pc.moveTo(sx(df.at), sz(df.lo)); pc.lineTo(sx(df.at), sz(df.hi)); }
+      else { pc.moveTo(sx(df.lo), sz(df.at)); pc.lineTo(sx(df.hi), sz(df.at)); }
+      pc.stroke(); pc.restore();
+    }
+    if (!touchDrawing()) {
+      var modeSuffix = "";
+      if (rmG.dock && !rmG.blocked && rmG.connMode && rmG.connMode !== "auto") {
+        var modeKey = "rp_conn_" + rmG.connMode;
+        modeSuffix = " · " + (t(modeKey) || rmG.connMode);
+      }
+      label((rr.x0 + rr.x1) / 2, (rr.z0 + rr.z1) / 2,
+        rmG.blocked ? t("rp_overlapShort")
+          : Math.round(rmG.size.w) + " × " + Math.round(rmG.size.d) + " " + t("cm") + modeSuffix, rmCol);
+    }
+  }
+  /* The span about to be bitten out of a wall, drawn over the wall itself in
+     the erase colour so it reads as "this much is going", not "this much is
+     selected". */
+  if (S.biteDraft) {
+    var bw2 = wallById(S.biteDraft.wall);
+    if (bw2) {
+      var bg = wallGeom(bw2);
+      var blo = Math.max(0, Math.min(S.biteDraft.s0, S.biteDraft.s1));
+      var bhi = Math.min(bg.L, Math.max(S.biteDraft.s0, S.biteDraft.s1));
+      var pA = wallPointAt(bw2, blo), pB = wallPointAt(bw2, bhi);
+      pc.save();
+      pc.strokeStyle = "#c45c4a";
+      pc.lineWidth = Math.max(3, (bw2.thickness || 10) * S.SC);
+      pc.globalAlpha = 0.55;
+      pc.lineCap = "butt";
+      pc.beginPath();
+      pc.moveTo(sx(pA.x), sz(pA.z));
+      pc.lineTo(sx(pB.x), sz(pB.z));
+      pc.stroke();
+      pc.restore();
+      if (!touchDrawing())
+        label((pA.x + pB.x) / 2, (pA.z + pB.z) / 2,
+          Math.round(bhi - blo) + " " + t("cm"), "#c45c4a");
+    }
+  }
   if (S.tool === "walloffset" && S.offsetDraft && S.offsetDraft.hostId != null) {
     var oh = wallById(S.offsetDraft.hostId);
     if (oh) {
@@ -1263,6 +1445,7 @@ function drawSnapMark() {
     S.tool === "rect" ||
     S.tool === "walloffset" ||
     S.tool === "wallbreak" ||
+    S.tool === "wallbite" ||
     S.tool === "walljoin" ||
     S.tool === "wallpaint" ||
     S.tool === "point" ||

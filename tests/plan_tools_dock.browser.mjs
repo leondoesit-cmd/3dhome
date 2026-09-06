@@ -248,7 +248,7 @@ test("the arrangement survives a reload, and the phone rail takes the panels bac
   assert.equal(phone.grips, 0, "no grip that cannot move anything");
   assert.deepEqual(
     phone.kids,
-    ["plan-toolbar", "layer-chips", "plan-wall-palette"],
+    ["plan-toolbar", "layer-chips", "plan-wall-palette", "plan-room-palette"],
     "the panels go back to being the rail's own children, in their own order",
   );
 });
@@ -287,7 +287,7 @@ test("a split-view plan keeps its chrome inside the pane, however narrow", opts,
     const pane = document.getElementById("view-2d");
     const paneRect = pane.getBoundingClientRect();
     const outside = [];
-    document.querySelectorAll("#plan-toolbar, #layer-chips, #plan-wall-palette, #cad-status").forEach((panel) => {
+    document.querySelectorAll("#plan-toolbar, #layer-chips, #plan-wall-palette, #plan-room-palette, #cad-status").forEach((panel) => {
       if (!panel.offsetParent) return;
       const box = panel.getBoundingClientRect();
       if (box.right > paneRect.right + 1 || box.left < paneRect.left - 1 ||
@@ -309,4 +309,138 @@ test("a split-view plan keeps its chrome inside the pane, however narrow", opts,
   assert.equal(state.labels, "none", "layer names give way before the plan does");
   assert.equal(state.tiny, false, "the narrowest the divider goes still docks its panels");
   assert.deepEqual(state.outside, [], "nothing paints outside the pane it belongs to");
+});
+
+/* Every test above moves panels and the arrangement is persisted, so these two
+   say where they start from. */
+async function arranged(page, panels, zones) {
+  await page.eval((p, z) => {
+    localStorage.setItem("home3d_plan_dock", JSON.stringify({ panels: p, zones: z }));
+  }, panels, zones);
+  return planner(1440, 900);
+}
+
+/* Two cards of different heights standing side by side are two things that
+   happen to touch; a dock is supposed to produce one piece of frame. And a pair
+   that does not fit across the pane has three possible endings — one slides
+   out, one scrolls, or they stack — of which only stacking keeps every control
+   reachable. */
+test("tiled panels share a size across the flow, and stack when they cannot fit", opts, async () => {
+  let page = await planner(1440, 900);
+  page = await arranged(page, {
+    tools: { zone: "left", order: 0 }, layers: { zone: "left", order: 1 }, walls: { zone: "left", order: 2 },
+  }, { left: { axis: "v", flow: "row" } });
+  const tiled = await page.eval(() => {
+    const tools = window.__dock.box("tools"), layers = window.__dock.box("layers");
+    return {
+      flow: window.__dock.wrap("layers").closest(".pt-zone").getAttribute("data-flow"),
+      heights: [Math.round(tools.h), Math.round(layers.h)],
+      overlap: tools.r > layers.x + 1 && layers.r > tools.x + 1,
+      gap: Math.round(layers.x - tools.r),
+    };
+  });
+  assert.equal(tiled.flow, "row", "they are tiled side by side");
+  assert.equal(tiled.heights[0], tiled.heights[1], "side by side means the same height");
+  assert.equal(tiled.overlap, false, "and no part of one is under the other");
+  assert.equal(tiled.gap, 0, "flush: one hairline between them, not a gutter");
+
+  /* The same pair on the top edge, laid out ALONG the pane rather than across
+     it, and then the pane squeezed until they cannot both fit. */
+  page = await arranged(page, {
+    tools: { zone: "top", order: 0 }, layers: { zone: "top", order: 1 }, walls: { zone: "top", order: 2 },
+  }, { top: { axis: "h", flow: "row" } });
+  const stacked = await page.eval(async () => {
+    const settle = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 40)));
+    window.__setViewMode("split");
+    await settle();
+    const orient = document.getElementById("splitOrientationBtn");
+    if (!document.body.classList.contains("split-side") && orient) orient.click();
+    await settle();
+    const canvas = document.getElementById("center-canvas");
+    const grip = document.getElementById("view-resizer");
+    const rect = canvas.getBoundingClientRect(), y = rect.top + rect.height / 2;
+    const send = (target, type, x) => target.dispatchEvent(new MouseEvent(type, {
+      bubbles: true, cancelable: true, clientX: x, clientY: y, buttons: type === "mouseup" ? 0 : 1,
+    }));
+    send(grip, "mousedown", rect.left + rect.width / 2);
+    for (let i = 1; i <= 6; i++) {
+      send(window, "mousemove", rect.left + rect.width * (0.5 + (0.5 * i) / 6));
+      await settle();
+    }
+    send(window, "mouseup", rect.right);
+    await settle();
+    await settle();
+    const pane = window.__dock.pane().getBoundingClientRect();
+    const tools = window.__dock.box("tools"), layers = window.__dock.box("layers");
+    const scrolls = ["plan-toolbar", "layer-chips"].filter((id) => {
+      const el = document.getElementById(id);
+      return el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
+    });
+    return {
+      paneWidth: Math.round(pane.width),
+      flow: window.__dock.wrap("layers").closest(".pt-zone").getAttribute("data-flow"),
+      widths: [Math.round(tools.w), Math.round(layers.w)],
+      inside: tools.r <= pane.width + 1 && layers.r <= pane.width + 1,
+      overlap: tools.b > layers.y + 1 && layers.b > tools.y + 1,
+      scrolls,
+    };
+  });
+  assert.ok(stacked.paneWidth < 460, "the pane is now narrower than the pair was wide");
+  assert.equal(stacked.flow, "column", "so they move one under the other");
+  assert.equal(stacked.widths[0], stacked.widths[1], "stacked means the same width");
+  assert.equal(stacked.inside, true, "and both are inside the pane");
+  assert.equal(stacked.overlap, false, "and neither is on top of the other");
+  assert.deepEqual(stacked.scrolls, [],
+    "a docked panel wraps to a second row rather than hiding commands behind a scrollbar");
+});
+
+/* The drop is the one moment the user is choosing between arrangements, so the
+   preview has to be the arrangement — the slot, at the size the panel will be
+   in it — and not an outline of the thing they happen to be holding. */
+test("the drag preview is the slot, in the shape the panel will take there", opts, async () => {
+  let page = await planner(1440, 900);
+  page = await arranged(page, {
+    tools: { zone: "left", order: 0 }, layers: { zone: "left", order: 1 }, walls: { zone: "left", order: 2 },
+  }, { left: { axis: "v", flow: "row" } });
+  const preview = await page.eval(async () => {
+    const frame = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 16)));
+    const wrap = window.__dock.wrap("layers"), grip = wrap.querySelector(".pt-grip");
+    const pane = window.__dock.pane().getBoundingClientRect();
+    const start = grip.getBoundingClientRect();
+    const send = (type, x, y) => grip.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, cancelable: true, pointerId: 9, isPrimary: true, pointerType: "mouse",
+      button: 0, buttons: type === "pointerup" ? 0 : 1, clientX: x, clientY: y,
+    }));
+    const docked = wrap.getBoundingClientRect().height;
+    send("pointerdown", start.left + start.width / 2, start.top + start.height / 2);
+    await frame();
+    const lifted = wrap.getBoundingClientRect().height;
+    const to = { x: pane.left + pane.width * 0.5, y: pane.top + pane.height * 0.04 };
+    for (let i = 1; i <= 8; i++) {
+      send("pointermove", start.left + (to.x - start.left) * i / 8, start.top + (to.y - start.top) * i / 8);
+      await frame();
+    }
+    const card = wrap.getBoundingClientRect();
+    const drop = document.querySelector(".pt-drop").getBoundingClientRect();
+    send("pointerup", to.x, to.y);
+    await frame();
+    await frame();
+    const landed = window.__dock.wrap("layers").getBoundingClientRect();
+    return {
+      docked: Math.round(docked), lifted: Math.round(lifted),
+      axis: wrap.getAttribute("data-axis"),
+      card: { w: Math.round(card.width), h: Math.round(card.height) },
+      drop: { w: Math.round(drop.width), h: Math.round(drop.height) },
+      landed: { w: Math.round(landed.width), h: Math.round(landed.height) },
+      dropHidden: document.querySelector(".pt-drop").hidden,
+    };
+  });
+  assert.ok(preview.lifted < preview.docked,
+    "lifted, the card is its own size again rather than the height it was stretched to");
+  assert.equal(preview.axis, "h", "heading for the top edge, it is already a row");
+  assert.ok(Math.abs(preview.card.w - preview.drop.w) <= 24,
+    "the slot is the width the card will be, not the width it used to be");
+  assert.ok(Math.abs(preview.landed.w - preview.drop.w) <= 24,
+    "and the panel lands in the slot the preview promised");
+  assert.equal(preview.dropHidden, true, "the indicator goes away with the drag");
 });

@@ -24,8 +24,12 @@ function topologyReferences(feature) {
 function toolboxPrimitive(part, id, name) {
   const base = { id, name: name || part.name || "Toolbox solid", inputs: [], references: [], suppressed: false };
   if (part.kind === "cyl") {
-    if (Number.isFinite(part.r2) && Math.abs(part.r2 - part.r) > 1e-9)
-      return { ...base, type: "cone", params: { x:part.x, y:part.y, z:part.z, r:part.r, r2:part.r2, h:part.h } };
+    if (Number.isFinite(part.r2) && Math.abs(part.r2 - part.r) > 1e-9) {
+      const x=Number(part.x)||0,y=Number(part.y)||0,z=Number(part.z)||0,r1=Math.max(1e-7,Number(part.r)||0),r2=Math.max(1e-7,Number(part.r2)||0),h=Number(part.h)||0;
+      if (Math.abs(x)<1e-12 && Math.abs(z)<1e-12) return { ...base, type:"revolve", params:{ angle:360, points:[{u:r1,v:y},{u:r2,v:y+h},{u:0,v:y+h},{u:0,v:y}] } };
+      const ring=(radius,height)=>Array.from({length:32},(_,index)=>{const angle=index*Math.PI/16;return{x:x+Math.cos(angle)*radius,y:height,z:z+Math.sin(angle)*radius};});
+      return { ...base, type:"loft", params:{ sections:[ring(r1,y),ring(r2,y+h)],solid:true,ruled:true,matchProfiles:true } };
+    }
     return { ...base, type: "cylinder", params: { x:part.x, y:part.y, z:part.z, r:part.r, h:part.h } };
   }
   if (part.kind === "ext") return { ...base, type: "extrude", params: { axis:part.axis || "y", from:part.from, to:part.to, points:cloneDomain(part.pts || []), holes:cloneDomain(part.holes || []) } };
@@ -35,7 +39,9 @@ function toolboxPrimitive(part, id, name) {
 }
 
 export function lowerToolboxFeature(feature) {
-  const generated = generateToolboxPart(cloneDomain(feature.params || {}));
+  // LOD is a viewport concern.  Exact BREP generation always consumes the
+  // complete recipe, otherwise changing display quality changes STEP output.
+  const generated = generateToolboxPart({ ...cloneDomain(feature.params || {}), groupId:feature.params?.groupId || feature.id, lod:2 });
   if (!generated?.ok) throw new Error(generated?.message || "Toolbox part could not be generated");
   const solids = [], cutters = [];
   (generated.parts || []).forEach((part, index) => {
@@ -180,7 +186,7 @@ export function compileKernelFeatureTree(source) {
   const analysis = analyzeParametricHistory(document);
   const featuresById = new Map((document.features || []).map((feature) => [feature.id, feature]));
   const sketchesById = new Map((document.sketches || []).map((sketch) => [sketch.id, sketch]));
-  const compiled = [];
+  const compiled = [], issues = [...analysis.issues];
   (document.history || []).forEach((entry, index) => {
     if (entry.suppressed || historyEntryRolled(document, index)) return;
     if (entry.kind === "sketch") {
@@ -189,7 +195,12 @@ export function compileKernelFeatureTree(source) {
       return;
     }
     const feature = featuresById.get(entry.targetId);
-    if (feature) compiled.push(...loweredFeature(feature, document));
+    if (feature) {
+      try { compiled.push(...loweredFeature(feature, document)); }
+      catch (error) {
+        issues.push({ severity:"error", code:"feature-lowering-failed", featureId:feature.id, message:String(error.message || error) });
+      }
+    }
   });
-  return { ok: analysis.ok, document, features: compiled, issues: analysis.issues };
+  return { ok: !issues.some((issue) => issue.severity === "error"), document, features: compiled, issues };
 }

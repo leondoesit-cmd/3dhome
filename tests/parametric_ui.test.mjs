@@ -175,8 +175,8 @@ test("Drawing mode exposes a two-point Smart Ruler that edits and saves the mode
   assert.match(source, /data-drawing-tool="dim"/);
   assert.match(source, /commitDim/);
   assert.match(source, /editPlacedDimension|editDim/);
-  assert.match(source, /id="mdDrawingSave"/);
-  assert.match(source, /#mdDrawingSave"\)\.addEventListener\("click", saveCurrentDocument\)/);
+  assert.doesNotMatch(source, /id="mdDrawingSave"/);
+  assert.match(source, /id="mdSave"/);
 });
 
 test("Escape cancels tools and selection without closing the document", () => {

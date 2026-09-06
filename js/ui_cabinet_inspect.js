@@ -25,8 +25,11 @@ export function fillHits() {
   box.innerHTML = "";
   if (!E.q || !sp() || !E.sel) return;
   var L = layoutCab(E.it),
-    col = L.cols[E.sel.col] || L.cols[0],
-    fc = fitCtx(L, col),
+    col = L.cols[E.sel.col] || L.cols[0];
+  // Every hit below is scored against a column's fit envelope, so with no
+  // column there is nothing to offer — and fitCtx has nothing to measure.
+  if (!col) return;
+  var fc = fitCtx(L, col),
     n = 0;
   Object.keys(SEC).forEach(function (k) {
     if (!matches(secLabel(k)) || n > 7) return;
@@ -181,23 +184,99 @@ export function fillPresetCards(wrap, fam) {
   });
 }
 
+function controlsOf(wrap) {
+  return wrap.querySelectorAll("input, select, textarea");
+}
+
+function focusKeyOf(control) {
+  if (!control) return null;
+  return control.dataset.prop || control.getAttribute("name") || control.dataset.cbRole || null;
+}
+
+function rowLabelOf(control) {
+  var row = control && control.closest && control.closest(".cb-row");
+  var span = row && row.querySelector("span");
+  return span ? span.textContent.trim() : null;
+}
+
+/* Put the caret back where the user left it after a re-render.
+ *
+ * Matching on the row's LABEL was the only thing this had, because nothing in
+ * the cabinet UI ever sets dataset.prop, name or dataset.cbRole — so the
+ * explicit branch never fired. A cabinet has one row labelled "Height" per
+ * section, so editing section three's height and pressing Enter re-rendered
+ * and then focused section ONE's height, every time.
+ *
+ * Position is what actually disambiguates: renderFn() rebuilds the same
+ * structure, so the control at the same index is the same control. The label
+ * is kept as a check rather than as the key — if it still matches, the index
+ * is trustworthy; if the structure really did change, fall back to the first
+ * control with that label, which is no worse than what this did before. */
+function withFocusPreserved(wrap, renderFn) {
+  if (!wrap) { renderFn(); return; }
+  var active = document.activeElement;
+  var inside = active && wrap.contains(active);
+  var key = inside ? focusKeyOf(active) : null;
+  var label = inside ? rowLabelOf(active) : null;
+  var index = -1;
+  if (inside) {
+    var before = controlsOf(wrap);
+    for (var b = 0; b < before.length; b++) if (before[b] === active) { index = b; break; }
+  }
+
+  renderFn();
+  if (!inside) return;
+
+  var controls = controlsOf(wrap);
+  var target = null;
+
+  if (key) {
+    for (var k = 0; k < controls.length && !target; k++) {
+      if (focusKeyOf(controls[k]) === key) target = controls[k];
+    }
+  }
+  if (!target && index >= 0 && index < controls.length) {
+    var candidate = controls[index];
+    if (!label || rowLabelOf(candidate) === label) target = candidate;
+  }
+  if (!target && label) {
+    for (var f = 0; f < controls.length && !target; f++) {
+      if (rowLabelOf(controls[f]) === label) target = controls[f];
+    }
+  }
+  if (!target) return;
+
+  target.focus();
+  if (typeof target.select === "function") target.select();
+}
+
 /* ================= elevation ================= */
 export function fillInspector() {
   // the history panel is scoped to the selection, so it follows every pick —
   // and the inspector is the one thing every pick refreshes
   if (E.histPanel) E.histPanel.refresh();
-  var wrap = E.host.querySelector("#cbInsp"),
-    title = E.host.querySelector("#cbInspTitle");
-  wrap.innerHTML = "";
-  if (!E.sel || !sp()) {
-    title.textContent = T("section");
-    wrap.appendChild(el("div", "cb-note", T("nothing")));
-    return;
-  }
-  var col = sp().cols[E.sel.col];
+  var wrap = E.host && E.host.querySelector("#cbInsp"),
+    title = E.host && E.host.querySelector("#cbInspTitle");
+  if (!wrap) return;
+  withFocusPreserved(wrap, function () {
+    wrap.innerHTML = "";
+    if (!E.sel || !sp()) {
+      if (title) title.textContent = T("section");
+      wrap.appendChild(el("div", "cb-note", T("nothing")));
+      return;
+    }
+    var col = sp().cols[E.sel.col];
   if (!col) {
     E.sel = { col: 0, sec: 0 };
     col = sp().cols[0];
+  }
+  /* A spec with no columns at all (a malformed import; delColumn refuses to
+     empty the list) leaves nothing to fall back to. Say so rather than reading
+     .kind off undefined — the rest of this pane is all about a column. */
+  if (!col) {
+    title.textContent = T("column");
+    wrap.appendChild(el("div", "cb-note", T("nothing")));
+    return;
   }
 
   if (E.sel.sec != null && !(col.kind && col.kind !== "normal")) {
@@ -434,6 +513,7 @@ export function fillInspector() {
   }, 0, 250)));
   wrap.appendChild(el("div", "cb-note", T("techHint")));
   wrap.appendChild(btn(T("levelTechnical"), function () { api.setLevel("technical"); }, "cb-more"));
+  });
 }
 
 /* --- drawing partitions ---
@@ -615,57 +695,59 @@ export function fillLook() {
 export function fillTechnical() {
   var wrap = E.host && E.host.querySelector("#cbTechnical");
   if (!wrap || !sp()) return;
-  wrap.innerHTML = "";
-  var s = sp();
-  wrap.appendChild(el("div", "cb-note", T("techHint")));
-  wrap.appendChild(row(T("panel"), numInput(s.panel, function (v) {
-    api.act(T("panel")); s.panel = v; api.changed(true);
-  }, 0.8, 4)));
-  wrap.appendChild(row(T("shelfBoard"), numInput(s.shelf || s.panel, function (v) {
-    api.act(T("shelfBoard")); s.shelf = v; api.changed(true);
-  }, 0.8, 4)));
-  wrap.appendChild(row(T("back"), numInput(s.back, function (v) {
-    api.act(T("back")); s.back = v; api.changed(true);
-  }, 0.3, 3)));
-  wrap.appendChild(row(T("plinthType"), select([
-    ["recessed", T("plinthRecessed")],
-    ["flush", T("plinthFlush")],
-    ["legs", T("plinthLegs")],
-    ["none", T("plinthNone")],
-  ], s.plinthType || "none", function (v) {
-    s.plinthType = v;
-    if (v === "none") s.plinth = 0;
-    else if (!s.plinth) s.plinth = (FAM[s.fam] || FAM.wardrobe).plinth || 8;
-    api.act(T("plinthType"));
-    api.changed(true);
-  })));
-  wrap.appendChild(row(T("plinth"), numInput(s.plinth || 0, function (v) {
-    api.act(T("plinth")); s.plinth = v; s.plinthType = v > 0 ? (s.plinthType === "none" ? "recessed" : s.plinthType) : "none"; api.changed(true);
-  }, 0, 30)));
-  wrap.appendChild(row(T("gap"), numInput(s.gap, function (v) {
-    api.act(T("gap")); s.gap = v; api.changed();
-  }, 0, 2)));
-  wrap.appendChild(row(T("spacing"), numInput(s.space || STD.shelfSpace, function (v) {
-    api.act(T("spacing")); s.space = v; api.changed();
-  }, 12, 80)));
-  wrap.appendChild(el("h5", "cb-h5", T("stock")));
-  [["carcass", "stCarcass"], ["back", "stBack"]].forEach(function (entry) {
-    var pool = sheetsFor(entry[0]);
-    if (!pool.length) return;
-    wrap.appendChild(row(T(entry[1]), select(pool.map(function (sheet) {
-      return [sheet.id, sheetLabel(sheet, isEn()) + " · ₪" + sheetPrice(sheet)];
-    }), (s.stock || {})[entry[0]], function (value) {
-      var sheet = sheetById(value);
-      s.stock = s.stock || {};
-      s.stock[entry[0]] = value;
-      if (sheet && entry[0] === "carcass") { s.panel = sheet.t; s.shelf = sheet.t; }
-      if (sheet && entry[0] === "back" && s.back > 0) s.back = sheet.t;
-      api.act(T(entry[1])); api.changed(true);
+  withFocusPreserved(wrap, function () {
+    wrap.innerHTML = "";
+    var s = sp();
+    wrap.appendChild(el("div", "cb-note", T("techHint")));
+    wrap.appendChild(row(T("panel"), numInput(s.panel, function (v) {
+      api.act(T("panel")); s.panel = v; api.changed(true);
+    }, 0.8, 4)));
+    wrap.appendChild(row(T("shelfBoard"), numInput(s.shelf || s.panel, function (v) {
+      api.act(T("shelfBoard")); s.shelf = v; api.changed(true);
+    }, 0.8, 4)));
+    wrap.appendChild(row(T("back"), numInput(s.back, function (v) {
+      api.act(T("back")); s.back = v; api.changed(true);
+    }, 0.3, 3)));
+    wrap.appendChild(row(T("plinthType"), select([
+      ["recessed", T("plinthRecessed")],
+      ["flush", T("plinthFlush")],
+      ["legs", T("plinthLegs")],
+      ["none", T("plinthNone")],
+    ], s.plinthType || "none", function (v) {
+      s.plinthType = v;
+      if (v === "none") s.plinth = 0;
+      else if (!s.plinth) s.plinth = (FAM[s.fam] || FAM.wardrobe).plinth || 8;
+      api.act(T("plinthType"));
+      api.changed(true);
     })));
+    wrap.appendChild(row(T("plinth"), numInput(s.plinth || 0, function (v) {
+      api.act(T("plinth")); s.plinth = v; s.plinthType = v > 0 ? (s.plinthType === "none" ? "recessed" : s.plinthType) : "none"; api.changed(true);
+    }, 0, 30)));
+    wrap.appendChild(row(T("gap"), numInput(s.gap, function (v) {
+      api.act(T("gap")); s.gap = v; api.changed();
+    }, 0, 2)));
+    wrap.appendChild(row(T("spacing"), numInput(s.space || STD.shelfSpace, function (v) {
+      api.act(T("spacing")); s.space = v; api.changed();
+    }, 12, 80)));
+    wrap.appendChild(el("h5", "cb-h5", T("stock")));
+    [["carcass", "stCarcass"], ["back", "stBack"]].forEach(function (entry) {
+      var pool = sheetsFor(entry[0]);
+      if (!pool.length) return;
+      wrap.appendChild(row(T(entry[1]), select(pool.map(function (sheet) {
+        return [sheet.id, sheetLabel(sheet, isEn()) + " · ₪" + sheetPrice(sheet)];
+      }), (s.stock || {})[entry[0]], function (value) {
+        var sheet = sheetById(value);
+        s.stock = s.stock || {};
+        s.stock[entry[0]] = value;
+        if (sheet && entry[0] === "carcass") { s.panel = sheet.t; s.shelf = sheet.t; }
+        if (sheet && entry[0] === "back" && s.back > 0) s.back = sheet.t;
+        api.act(T(entry[1])); api.changed(true);
+      })));
+    });
+    var price = el("div", "cb-technical-price");
+    price.textContent = T("total") + " · ₪" + cabPrice(E.it).toLocaleString("en-US");
+    wrap.appendChild(price);
   });
-  var price = el("div", "cb-technical-price");
-  price.textContent = T("total") + " · ₪" + cabPrice(E.it).toLocaleString("en-US");
-  wrap.appendChild(price);
 }
 
 /* ================= checks ================= */

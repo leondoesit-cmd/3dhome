@@ -15,6 +15,7 @@ import {
   wallLocFace,
   wallOffsetVec,
   contentBounds,
+  roomClearSize,
 } from "./geometry.js";
 import {
   FURN,
@@ -79,6 +80,7 @@ import {
   chamferSelectedWalls,
   restoreSelectedSharpCorner,
   updateSelectedCornerTreatment,
+  setRoomClearSize,
 } from "./interaction.js";
 import {
   setWallDrawPreset, setWallDrawFrom, activeWallPresetId, isWallDrawTool,
@@ -171,6 +173,7 @@ import { convertCadToWalls } from "./cad_to_walls.js";
 import { convertGeoJsonToWalls } from "./geojson_to_walls.js";
 import { normalizeBlueprintReference, syncBlueprintTraceControls } from "./blueprint_trace.js";
 import { windowChromePosture } from "./chrome_posture.js";
+import { initDropdownMenus } from "./dropdown_menus.js";
 
 export { select, fillProps, updateCost, exportCostCSV, refreshTree };
 
@@ -1988,6 +1991,40 @@ export function initUI() {
   });
 
   // room name / floor / wall color
+  bindNum("r_w", function (v) {
+    if (!S.sel || S.sel.kind !== "room") return;
+    var size = roomClearSize(S.sel.ref);
+    if (!size) return;
+    var next = setRoomClearSize(v, size.d);
+    return next && next.w;
+  }, null, "change");
+  bindNum("r_d", function (v) {
+    if (!S.sel || S.sel.kind !== "room") return;
+    var size = roomClearSize(S.sel.ref);
+    if (!size) return;
+    var next = setRoomClearSize(size.w, v);
+    return next && next.d;
+  }, null, "change");
+  var bindNudgeBtn = function (id, deltaW, deltaD) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      if (!S.sel || S.sel.kind !== "room") return;
+      var size = roomClearSize(S.sel.ref);
+      if (!size) return;
+      var next = setRoomClearSize(size.w + deltaW, size.d + deltaD);
+      if (next) {
+        var wEl = document.getElementById("r_w");
+        var dEl = document.getElementById("r_d");
+        if (wEl) wEl.value = Math.round(next.w);
+        if (dEl) dEl.value = Math.round(next.d);
+      }
+    });
+  };
+  bindNudgeBtn("r_w_down", -10, 0);
+  bindNudgeBtn("r_w_up", 10, 0);
+  bindNudgeBtn("r_d_down", 0, -10);
+  bindNudgeBtn("r_d_up", 0, 10);
   document.getElementById("r_name").addEventListener("input", function () {
     var m = roomMetaFor();
     if (!m) return;
@@ -2198,6 +2235,8 @@ export function initUI() {
     "o_fr_mullv",
     "o_fr_mullh",
     "r_name",
+    "r_w",
+    "r_d",
     "r_wall",
     "mk_x",
     "mk_y",
@@ -2252,6 +2291,30 @@ export function initUI() {
       setTool(b.getAttribute("data-tool"));
     });
   });
+
+  function applyToolNames(on) {
+    var bar = document.getElementById("plan-toolbar");
+    var btn = document.getElementById("toolNamesToggle");
+    if (bar) bar.classList.toggle("show-titles", !!on);
+    if (btn) {
+      btn.classList.toggle("active", !!on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    window.dispatchEvent(new Event("resize"));
+  }
+  function toggleToolNames() {
+    var bar = document.getElementById("plan-toolbar");
+    var on = bar ? !bar.classList.contains("show-titles") : true;
+    applyToolNames(on);
+    try { localStorage.setItem("mf_tool_titles", on ? "1" : "0"); } catch (_) {}
+  }
+  function initToolNames() {
+    var on = false;
+    try { on = localStorage.getItem("mf_tool_titles") === "1"; } catch (_) {}
+    applyToolNames(on);
+  }
+  window.__toggleToolNames = toggleToolNames;
+  initToolNames();
 
   function syncWallDrawPalette() {
     var pal = document.getElementById("plan-wall-palette");
@@ -2759,154 +2822,13 @@ export function initUI() {
   });
   applyFoldSpan();
 
-  // Topbar dropdown menus (File / Edit / Export).
-  // Menus are portaled to <body>: the glass topbar's backdrop-filter turns it
-  // into the containing block for fixed children, so its overflow would clip them.
-  var lastMenuTrigger = null; // focus returns here when a menu closes
-  function menuItems(menu) {
-    return Array.prototype.filter.call(
-      menu.querySelectorAll("button"),
-      function (b) {
-        return !b.disabled;
-      },
-    );
-  }
-  function closeDropdowns(except, refocus) {
-    document.querySelectorAll(".dropdown.open").forEach(function (d) {
-      if (d !== except) {
-        d.classList.remove("open");
-        var tr = d.querySelector(".dropdown-trigger");
-        if (tr) tr.setAttribute("aria-expanded", "false");
-      }
-    });
-    document.querySelectorAll("body > .dropdown-menu.open").forEach(function (m) {
-      if (!except || m._dd !== except) m.classList.remove("open");
-    });
-    if (!except && refocus && lastMenuTrigger) {
-      lastMenuTrigger.focus();
-      lastMenuTrigger = null;
-    }
-  }
-  // Grey out selection-scoped items so the menu reflects what is actually
-  // possible right now instead of failing silently on click.
-  function refreshMenuState(menu) {
-    menu.querySelectorAll("[data-needs]").forEach(function (b) {
-      var need = b.getAttribute("data-needs");
-      var kind = S.sel ? S.sel.kind : null;
-      var ok =
-        need === "sel"
-          ? !!kind
-          : need === "items"
-            ? kind === "items"
-            : true;
-      b.disabled = !ok;
-    });
-  }
-  function focusMenuItem(menu, idx) {
-    var items = menuItems(menu);
-    if (!items.length) return;
-    var i = ((idx % items.length) + items.length) % items.length;
-    items[i].focus();
-  }
-  document.querySelectorAll(".dropdown-trigger").forEach(function (btn) {
-    var dd = btn.closest(".dropdown");
-    var menu = dd.querySelector(".dropdown-menu");
-    menu._dd = dd;
-    btn.setAttribute("aria-haspopup", "true");
-    btn.setAttribute("aria-expanded", "false");
-    document.body.appendChild(menu);
-    menu.addEventListener("click", handleActionClick);
-
-    function openMenu(focusFirst) {
-      closeDropdowns(dd);
-      refreshMenuState(menu);
-      dd.classList.add("open");
-      menu.classList.add("open");
-      btn.setAttribute("aria-expanded", "true");
-      lastMenuTrigger = btn;
-      // Phones render menus as a bottom sheet (CSS), so skip the anchoring math.
-      if (window.innerWidth > 768) {
-        var r = btn.getBoundingClientRect();
-        var mw = Math.max(menu.offsetWidth, 190);
-        var isRTL = document.documentElement.dir === "rtl";
-        var x = isRTL ? r.right - mw : r.left;
-        x = Math.max(8, Math.min(x, window.innerWidth - mw - 8));
-        menu.style.left = x + "px";
-        menu.style.top = r.bottom + 8 + "px";
-        // Flip above the trigger when the menu would run off the bottom.
-        var mh = menu.offsetHeight;
-        if (r.bottom + 8 + mh > window.innerHeight - 8)
-          menu.style.top = Math.max(8, r.top - 8 - mh) + "px";
-      } else {
-        menu.style.left = "";
-        menu.style.top = "";
-      }
-      if (focusFirst) focusMenuItem(menu, 0);
-    }
-    function closeMenu(refocus) {
-      dd.classList.remove("open");
-      menu.classList.remove("open");
-      btn.setAttribute("aria-expanded", "false");
-      if (refocus) btn.focus();
-      lastMenuTrigger = null;
-    }
-
-    btn.addEventListener("click", function (e) {
-      e.stopPropagation();
-      if (dd.classList.contains("open")) closeMenu(false);
-      else openMenu(false);
-    });
-    // Open with the keyboard and land on the first item straight away.
-    btn.addEventListener("keydown", function (e) {
-      if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        openMenu(true);
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        openMenu(false);
-        focusMenuItem(menu, -1);
-      }
-    });
-    // Roving focus inside the menu: arrows/Home/End move, Escape returns to
-    // the trigger, Tab closes, and typing a letter jumps to that item.
-    menu.addEventListener("keydown", function (e) {
-      var items = menuItems(menu);
-      var i = items.indexOf(document.activeElement);
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        focusMenuItem(menu, i + 1);
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        focusMenuItem(menu, i - 1);
-      } else if (e.key === "Home") {
-        e.preventDefault();
-        focusMenuItem(menu, 0);
-      } else if (e.key === "End") {
-        e.preventDefault();
-        focusMenuItem(menu, -1);
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        closeMenu(true);
-      } else if (e.key === "Tab") {
-        closeMenu(false);
-      } else if (/^[a-zA-Z֐-׿]$/.test(e.key)) {
-        var q = e.key.toLowerCase();
-        for (var n = 1; n <= items.length; n++) {
-          var cand = items[(i + n + items.length) % items.length];
-          if ((cand.textContent || "").trim().toLowerCase().indexOf(q) === 0) {
-            cand.focus();
-            break;
-          }
-        }
-      }
-    });
-  });
-  document.addEventListener("click", function (e) {
-    // any click outside an open menu (incl. picking an item) closes menus
-    if (!e.target.closest(".dropdown-trigger")) closeDropdowns();
-  });
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") closeDropdowns(null, true);
+  // Topbar dropdown menus (File / Edit / Export / More). Portaled to <body>
+  // because the glass topbar's backdrop-filter would clip a position:fixed
+  // child. Open/close/pin/path live in js/dropdown_menus.js so customize-mode
+  // pinning and nested submenus cannot drift from a click on a trigger.
+  initDropdownMenus(document, {
+    onAction: function (act) { runAction(act); },
+    selectionKind: function () { return S.sel ? S.sel.kind : null; },
   });
 
   // Collapsible panel sections (click header to fold)
@@ -2941,7 +2863,7 @@ export function initUI() {
   window.__runAction = runAction;
   async function runAction(act) {
     if (S.workspace && S.workspace.role === "viewer") {
-      var readOnlyActions = ["workspace", "frame", "walk", "walkview", "freemove", "photo", "png2d", "png3d", "exportjson", "exportgltf", "exportCost", "tree", "shortcuts", "plannerTutorial", "viewPlan", "view3d", "viewSplit", "openModeler", "friends", "toggleLegacy", "newPlan"];
+      var readOnlyActions = ["workspace", "frame", "walk", "walkview", "freemove", "photo", "png2d", "png3d", "exportjson", "exportgltf", "exportCost", "tree", "shortcuts", "plannerTutorial", "viewPlan", "view3d", "viewSplit", "openModeler", "friends", "toggleLegacy", "newPlan", "toggleToolNames"];
       if (readOnlyActions.indexOf(act) < 0) {
         flash("Viewer access is read-only", "error");
         return;
@@ -2954,9 +2876,11 @@ export function initUI() {
     else if (act === "wallTypeEditor") openWallTypeEditorDialog();
     else if (act === "exportWallSchedule") exportWallScheduleFile();
     else if (act === "lockStruct") setLockStruct(!S.lockStruct);
+    else if (act === "toggleToolNames") toggleToolNames();
     else if (act === "edit3d") setEdit3D(!S.edit3D);
     else if (act === "workspace") (await import("./workspace.js")).openWorkspace();
     else if (act === "openModeler") (await import("./modeler.js")).openModeler();
+    else if (act === "uikitCustomize") (await import("./uikit_host/index.js")).openCustomize();
     else if (act === "plannerTutorial") (await import("./planner_tutorial.js")).showPlannerHub();
     else if (act === "agent") (await import("./ui_agent.js")).openAgent();
     else if (act === "friends") {
@@ -3991,6 +3915,36 @@ export function initUI() {
 
   // ---- keyboard cheat sheet (topbar ⌨ button, or "?" anywhere) ----
   var shortcutsModal = null;
+  /* The guide used to say "Ctrl" on every platform. The app's own handlers have
+     always accepted Cmd as well (`var mod = e.ctrlKey || e.metaKey`), so the
+     shortcuts worked on a Mac while the documentation for them named a key
+     Mac users do not reach for. Substituting only the modifiers — and dropping
+     the "+" separators only when something was actually substituted, so the
+     row that documents the "+" key is not emptied — keeps every other cap as
+     written. */
+  var MAC_KEYS = /Mac|iPhone|iPad|iPod/i.test(
+    (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ""
+  );
+  function macCap(part) {
+    if (!MAC_KEYS) return part;
+    var out = part
+      .replace(/\bCtrl\b/g, "⌘")
+      .replace(/\bAlt\b/g, "⌥")
+      .replace(/\bShift\b/g, "⇧")
+      .replace(/\bDel\b/g, "⌫");
+    return out === part ? part : out.replace(/\+/g, "");
+  }
+
+  /* Any static <kbd data-kbd="..."> in the markup gets the same treatment, so
+     a menu item's hint agrees with the guide. Platform does not change while
+     the page is open, so this runs once. */
+  function applyPlatformKeyCaps() {
+    document.querySelectorAll("kbd[data-kbd]").forEach(function (el) {
+      el.textContent = macCap(el.getAttribute("data-kbd"));
+    });
+  }
+  applyPlatformKeyCaps();
+
   function showShortcuts() {
     if (shortcutsModal) {
       shortcutsModal.close();
@@ -4057,6 +4011,17 @@ export function initUI() {
         ["V", "k_walkview"],
         ["G", "k_hit"],
       ]],
+      ["keys_sec_uikit", [
+        ["Ctrl+Alt+E", "k_uikit_toggle"],
+        ["Ctrl+Alt+U", "k_uikit_reset"],
+        ["Tab", "k_uikit_select"],
+        ["← ↑ → ↓", "k_uikit_move"],
+        ["Alt+Arrow", "k_uikit_moveout"],
+        ["Ctrl+G", "k_uikit_group"],
+        ["Ctrl+Shift+G", "k_uikit_ungroup"],
+        ["Del", "k_uikit_hide"],
+        ["Esc", "k_uikit_exit"],
+      ]],
     ];
     var m = openModal(t("keys_title"));
     shortcutsModal = m;
@@ -4078,7 +4043,7 @@ export function initUI() {
         // split on spaces so each key gets its own <kbd> cap
         row[0].split(" ").forEach(function (part) {
           var kb = document.createElement("kbd");
-          kb.textContent = part;
+          kb.textContent = macCap(part);
           k.appendChild(kb);
         });
         var d = document.createElement("span");
@@ -4129,6 +4094,18 @@ export function initUI() {
     if (mod && e.shiftKey && !e.altKey) {
       var ck = e.key.toLowerCase(), verb = CON_KEYS[ck];
       if (verb) { e.preventDefault(); runConVerb(verb); return; }
+    }
+    /* Ctrl/Cmd+Alt+E opens the interface customizer. It has to be tested here,
+       before the two blocks below that bail out on Alt entirely.
+       e.code, NOT e.key: on macOS Option+E is a dead key for the acute accent,
+       so the event arrives with key "´" and a shortcut written against the
+       letter silently never fires on a Mac. The physical key is the only
+       reliable identity for an Alt combination. Routed through runAction so
+       the menu item and the shortcut cannot drift apart. */
+    if (mod && e.altKey && !e.shiftKey && e.code === "KeyE") {
+      e.preventDefault();
+      runAction("uikitCustomize");
+      return;
     }
     if (mod && !e.altKey) {
       var k = e.key.toLowerCase();

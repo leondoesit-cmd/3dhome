@@ -23,7 +23,7 @@ import {
 import { addFeature, regenerateFeatures, releaseRegeneration } from "../js/cad_feature_tree.js";
 import { createFeatureDefinition, createPartDocument, createSketchDefinition } from "../js/core/parametric_document.js";
 import { compileKernelFeatureTree } from "../js/core/kernel_feature_adapter.js";
-import { createTopologyReference, mergeSmoothTopology, topologyForFeature } from "../js/core/topology.js";
+import { createTopologyReference, mergeSmoothTopology, pointWithinCylinderArc, topologyForFeature } from "../js/core/topology.js";
 import { createImportedDefinition, detectStepLengthUnit, normalizeImportedGeometry } from "../js/core/import_normalization.js";
 import { encodeBinaryPayload } from "../js/core/binary_payload.js";
 import { rebuildDefinition } from "../js/core/rebuild.js";
@@ -74,6 +74,19 @@ test("OpenCascade subshapes bind to semantic topology and mesh face ranges", asy
       mesh.faceRanges.map((range) => range.persistentId).sort(),
       exact.topology.filter((item) => item.kind === "face").map((item) => item.persistentId).sort(),
     );
+  } finally {
+    disposeBrep(brep);
+  }
+});
+
+test("exact extrusion preserves inner profile wires as through holes", async () => {
+  const outer = [{u:-20,v:-20},{u:20,v:-20},{u:20,v:20},{u:-20,v:20}];
+  const inner = [{u:-8,v:-8},{u:8,v:-8},{u:8,v:8},{u:-8,v:8}];
+  const brep = await makeBrepExtrusion({ axis:"y", from:0, to:10, points:outer, holes:[inner] });
+  try {
+    const exact = extractBrepTopology(brep, { ownerFeatureId:"profile-with-hole" });
+    assert.equal(exact.topology.filter((item) => item.kind === "face").length, 10);
+    assert.equal(exact.topology.filter((item) => item.kind === "edge").length, 24);
   } finally {
     disposeBrep(brep);
   }
@@ -643,4 +656,133 @@ test("a revolved body can be built away from the origin and cut", async () => {
   } finally {
     disposeBrep(cut); disposeBrep(tool); disposeBrep(moved); disposeBrep(cone);
   }
+});
+
+/* A gear is the shape that breaks every "same radius, same axis" rule of thumb.
+   Hovering one tooth flank used to light five teeth and a swathe of empty air
+   beside them: the flank fits a circle of radius 120 sitting a metre off the
+   part, and every consumer matched that circle right round the body. A face
+   has to say which arc of its cylinder it actually covers. */
+function gearProfile({ teeth = 20, root = 30, tip = 36, steps = 4 } = {}) {
+  const pitch = 2 * Math.PI / teeth, points = [];
+  const rootHalf = pitch * 0.26, tipHalf = pitch * 0.16;
+  const at = (radius, angle) => ({ u: radius * Math.cos(angle), v: radius * Math.sin(angle) });
+  for (let t = 0; t < teeth; t++) {
+    const crest = t * pitch, gap = crest - pitch / 2;
+    for (let i = 0; i <= steps; i++) points.push(at(root, gap - rootHalf + 2 * rootHalf * i / steps));
+    for (let i = 1; i < steps; i++) {                       // up the flank
+      const f = i / steps;
+      points.push(at(root + (tip - root) * f, gap + rootHalf + (crest - tipHalf - gap - rootHalf) * f));
+    }
+    for (let i = 0; i <= steps; i++) points.push(at(tip, crest - tipHalf + 2 * tipHalf * i / steps));
+    for (let i = 1; i < steps; i++) {                       // down the flank
+      const f = i / steps;
+      points.push(at(tip + (root - tip) * f, crest + tipHalf + (gap + pitch - rootHalf - crest - tipHalf) * f));
+    }
+  }
+  return points;
+}
+
+function sampledCircle(count, radius) {
+  return Array.from({ length: count }, (_, i) => ({
+    u: radius * Math.cos(2 * Math.PI * i / count), v: radius * Math.sin(2 * Math.PI * i / count),
+  }));
+}
+
+test("a gear tooth owns its own arc of the circle it fits, not the whole turn", () => {
+  const teeth = 20, root = 30, tip = 36;
+  const faces = mergeSmoothTopology(topologyForFeature(
+    { id: "gear", type: "extrude" },
+    { axis: "y", from: 0, to: 8, points: gearProfile({ teeth, root, tip }) },
+  )).filter((item) => item.kind === "face");
+
+  const walls = faces.filter((item) => item.descriptor.surface === "cylinder");
+  assert.ok(walls.length >= teeth * 2, "every rounded run of the profile is a wall: " + walls.length);
+
+  walls.forEach((wall) => {
+    const arc = wall.descriptor.arc;
+    assert.ok(arc && arc.sweep > 0 && !arc.closed, "an open run says how far it turns");
+    assert.ok(arc.sweep < Math.PI, "and a gear has no wall that turns half a circle");
+    /* Walk the whole circle this face was fitted to. Before the arc, every one
+       of these points satisfied radius and axis alike — which is exactly the
+       geometry the highlight was painting and the picker was scoring. */
+    const d = wall.descriptor, o = d.origin, samples = 720;
+    const owned = Array.from({ length: samples }, (_, i) => {
+      const t = 2 * Math.PI * i / samples;
+      return pointWithinCylinderArc({ x: o.x + d.radius * Math.cos(t), y: o.y, z: o.z + d.radius * Math.sin(t) }, d);
+    });
+    const kept = owned.filter(Boolean).length;
+    assert.ok(kept > 0, "the face still owns the wall it describes");
+    assert.ok(kept < samples / 4, "and no more than a slice of it: " + kept + "/" + samples);
+    // one slice, not a scatter: exactly one run of owned angles around the ring
+    const runs = owned.filter((value, i) => value && !owned[(i + samples - 1) % samples]).length;
+    assert.equal(runs, 1, "and owns it in one piece");
+  });
+
+  // a flank fits an enormous circle centred off the part; that is the fit, and
+  // it is only harmless because the face is bounded to the flank
+  const phantoms = walls.filter((wall) => wall.descriptor.radius > tip * 2);
+  phantoms.forEach((wall) => {
+    assert.ok(Math.hypot(wall.descriptor.origin.x, wall.descriptor.origin.z) > tip,
+      "the fit really does sit off the gear: that is why the arc matters");
+    assert.ok(wall.descriptor.arc.sweep < 0.2, "and it covers only the flank it was fitted to");
+  });
+
+  // twenty root fillets share an axis, a radius and a height, and are still
+  // twenty faces: coaxial lands that never touch must not merge into one pick
+  const roots = walls.filter((wall) => Math.abs(wall.descriptor.radius - root) < 0.2);
+  assert.equal(roots.length, teeth, "one pickable face per root fillet");
+  assert.ok(roots.every((wall) => !(wall.memberPersistentIds || []).length),
+    "and no root swallowed its neighbours");
+});
+
+test("a drawn circle still extrudes as one whole cylindrical wall", () => {
+  const faces = mergeSmoothTopology(topologyForFeature(
+    { id: "boss", type: "extrude" },
+    { axis: "y", from: 0, to: 12, points: sampledCircle(16, 9) },
+  )).filter((item) => item.kind === "face" && item.descriptor.surface === "cylinder");
+  assert.equal(faces.length, 1, "a circle is one wall, not sixteen staves");
+  assert.ok(faces[0].descriptor.arc?.closed, "and it is closed, so nothing clips the highlight");
+  assert.ok(pointWithinCylinderArc({ x: 0, y: 6, z: -9 }, faces[0].descriptor), "the far side is still this face");
+});
+
+test("a circle drawn as four arcs is still one wall that owns the whole turn", () => {
+  const points = sampledCircle(32, 9);
+  const faces = mergeSmoothTopology(topologyForFeature(
+    { id: "boss", type: "extrude" },
+    { axis: "y", from: 0, to: 12, points, profileEntityIds: points.map((_, i) => "arc" + Math.floor(i / 8)) },
+  )).filter((item) => item.kind === "face" && item.descriptor.surface === "cylinder");
+
+  assert.equal(faces.length, 1, "four arc entities, one round wall");
+  assert.equal((faces[0].memberPersistentIds || []).length, 4, "and every quarter answers to it");
+  assert.ok(faces[0].descriptor.arc?.closed, "their spans close the circle between them");
+  assert.ok(pointWithinCylinderArc({ x: 0, y: 6, z: -9 }, faces[0].descriptor), "so no quarter is clipped away");
+});
+
+test("a closed chain of chords is only a circle when it fits at its own scale", () => {
+  const edgesFrom = (points) => points.map((p, index) => {
+    const next = points[(index + 1) % points.length];
+    return {
+      ownerFeatureId: "rim", kind: "edge", persistentId: "rim:edge:" + index, semantic: "rim",
+      descriptor: {
+        curve: "line", origin: { x: (p.x + next.x) / 2, y: 0, z: (p.z + next.z) / 2 },
+        endpoints: [p, next], measure: Math.hypot(next.x - p.x, next.z - p.z),
+      },
+    };
+  });
+  const ring = (a, b, count = 48) => Array.from({ length: count }, (_, i) => {
+    const angle = 2 * Math.PI * i / count;
+    return { x: a * Math.cos(angle), y: 0, z: b * Math.sin(angle) };
+  });
+
+  const round = mergeSmoothTopology(edgesFrom(ring(100, 100)))
+    .filter((item) => item.descriptor.curve === "circle");
+  assert.equal(round.length, 1, "a real rim still merges into one circle");
+  assert.ok(Math.abs(Number(round[0].descriptor.radius) - 100) < 0.5);
+
+  /* Off by one part in fifty: inside fitCircle's two percent OF THE RADIUS IT
+     INVENTED, and eight times the deviation these chords could hide. */
+  const oval = mergeSmoothTopology(edgesFrom(ring(100, 98)))
+    .filter((item) => item.descriptor.curve === "circle");
+  assert.equal(oval.length, 0, "an oval rim stays the polyline it is");
 });

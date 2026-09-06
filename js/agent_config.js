@@ -1,8 +1,8 @@
 const STORAGE_KEY = "modelforge_agent_settings_v1";
 const PROVIDER_DEFAULTS = Object.freeze({
-  lmstudio: Object.freeze({ endpoint: "http://localhost:1234/v1", model: "qwen3.8-27b" }),
+  lmstudio: Object.freeze({ endpoint: "http://localhost:1234/v1", model: "" }),
   gemini: Object.freeze({ endpoint: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-3.7-flash" }),
-  ollama: Object.freeze({ endpoint: "http://localhost:11434", model: "qwen3.8:27b" }),
+  ollama: Object.freeze({ endpoint: "http://localhost:11434", model: "" }),
   openai: Object.freeze({ endpoint: "https://api.openai.com/v1", model: "" }),
   server: Object.freeze({ endpoint: "", model: "" }),
 });

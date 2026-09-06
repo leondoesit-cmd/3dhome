@@ -31,7 +31,7 @@ test("agent settings persist connection metadata but keep the API key session-on
 });
 
 test("agent configuration validates providers, model and HTTP endpoints", () => {
-  assert.equal(validateAgentConfig(AGENT_DEFAULTS).ok, true);
+  assert.equal(validateAgentConfig(AGENT_DEFAULTS).reason, "MODEL_REQUIRED");
   assert.equal(validateAgentConfig({ provider: "ollama", endpoint: "http://localhost:11434", model: "" }).reason, "MODEL_REQUIRED");
   assert.equal(validateAgentConfig({ provider: "openai", endpoint: "file:///tmp/model", model: "x" }).reason, "INVALID_AGENT_ENDPOINT");
   assert.equal(validateAgentConfig({ provider: "server" }).ok, true);
@@ -42,7 +42,7 @@ test("provider defaults do not leak LM Studio settings into other backends", () 
   storage.setItem("modelforge_agent_settings_v1", JSON.stringify({ provider: "ollama" }));
   assert.deepEqual(
     (({ provider, endpoint, model }) => ({ provider, endpoint, model }))(loadAgentConfig(storage)),
-    { provider: "ollama", endpoint: "http://localhost:11434", model: "qwen3.8:27b" },
+    { provider: "ollama", endpoint: "http://localhost:11434", model: "" },
   );
   storage.setItem("modelforge_agent_settings_v1", JSON.stringify({ provider: "openai" }));
   assert.deepEqual(

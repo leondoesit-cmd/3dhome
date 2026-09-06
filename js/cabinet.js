@@ -19,7 +19,7 @@
 // builder, the elevation editor, the cut list and the price all read it — so
 // what you see in the drawing is what gets built and what gets costed.
 
-import { S } from "./state.js";
+import { S, fin } from "./state.js";
 import { getLang } from "./i18n.js";
 import {
   defaultStock, defaultBand, defaultProfile, resolveSheet, sheetById,
@@ -1295,6 +1295,13 @@ export function layoutCab(it, run) {
     sliding: sliding, run: R, parts: [], units: [], cols: [], hw: {},
   };
   function part(o) {
+    if (!o) return null;
+    if (o.k === "box") {
+      if (!fin(o.x0) || !fin(o.x1) || !fin(o.y0) || !fin(o.y1) || !fin(o.z0) || !fin(o.z1)) return null;
+      if (Math.abs(o.x1 - o.x0) < 1e-4 || Math.abs(o.y1 - o.y0) < 1e-4 || Math.abs(o.z1 - o.z0) < 1e-4) return null;
+    } else if (o.k === "cyl") {
+      if (!fin(o.x) || !fin(o.y) || !fin(o.z) || !fin(o.r) || !fin(o.hgt) || o.r <= 0 || o.hgt <= 0) return null;
+    }
     L.parts.push(o);
     return o;
   }
@@ -1317,17 +1324,22 @@ export function layoutCab(it, run) {
     L.zb = -hd;
     var fx = -hw;
     sp.cols.forEach(function (c, ci) {
-      var fcol = { i: ci, x0: fx, x1: fx + c.w, w: c.w, ref: c, secs: [], kind: "normal" };
+      var cw = Math.max(0, fin(c.w) ? c.w : 0);
+      var fcol = { i: ci, x0: fx, x1: fx + cw, w: cw, ref: c, secs: [], kind: "normal" };
       L.cols.push(fcol);
       var fy = 0;
       function shelf(y) {
-        part({ k: "box", role: "shelf", x0: fcol.x0, x1: fcol.x1, y0: y, y1: y + st, z0: -hd, z1: hd, mat: "front", float: 1 });
+        if (cw > 0.001) {
+          part({ k: "box", role: "shelf", x0: fcol.x0, x1: fcol.x1, y0: y, y1: y + st, z0: -hd, z1: hd, mat: "front", float: 1 });
+        }
       }
-      c.secs.forEach(function (s, si) {
+      var floatSecs = Array.isArray(c.secs) && c.secs.length ? c.secs : [{ t: "open", h: Math.max(0, h) }];
+      floatSecs.forEach(function (s, si) {
+        var sh = Math.max(0, fin(s.h) ? s.h : 0);
         shelf(fy);
         // the compartment owns the board at its foot and the clear space above it
-        fcol.secs.push({ i: si, y0: fy, y1: fy + st + s.h, ref: s, col: fcol, shelves: 0, floatShelf: 1 });
-        fy += st + s.h;
+        fcol.secs.push({ i: si, y0: fy, y1: fy + st + sh, ref: s, col: fcol, shelves: 0, floatShelf: 1 });
+        fy += st + sh;
       });
       shelf(fy); // and the top board caps the run
       fx = fcol.x1;
@@ -1438,13 +1450,14 @@ export function layoutCab(it, run) {
   /* --- columns --- */
   var x = -hw + t;
   sp.cols.forEach(function (c, ci) {
+    var cw = Math.max(0, fin(c.w) ? c.w : 0);
     if (ci > 0) {
       part({ k: "box", role: "divider", x0: x, x1: x + t, y0: yb, y1: yt, z0: zb, z1: zc, mat: "carcass" });
       x += t;
     }
     var cx0 = x,
-      cx1 = x + c.w,
-      col = { i: ci, x0: cx0, x1: cx1, w: c.w, ref: c, secs: [] };
+      cx1 = x + cw,
+      col = { i: ci, x0: cx0, x1: cx1, w: cw, ref: c, secs: [] };
     L.cols.push(col);
 
     /* A filler closes the gap between the run and the wall, and a blind corner
@@ -1452,7 +1465,7 @@ export function layoutCab(it, run) {
        divided, and only the filler shows a face. */
     col.kind = c.kind || "normal";
     if (col.kind !== "normal") {
-      if (col.kind === "filler")
+      if (col.kind === "filler" && cw > 0.001)
         part({ k: "box", role: "filler", x0: cx0, x1: cx1, y0: yb - t, y1: yt + t, z0: zc, z1: zc + STD.doorT, mat: "front" });
       x = cx1;
       return;
@@ -1465,18 +1478,24 @@ export function layoutCab(it, run) {
     col.runs = doorRuns(c);
 
     var y = yb;
-    c.secs.forEach(function (s, si) {
-      if (si > 0) {
+    var rawSecs = Array.isArray(c.secs) && c.secs.length ? c.secs : [{ t: "open", h: Math.max(0, yt - yb) }];
+    rawSecs.forEach(function (s, si) {
+      var sh = Math.max(0, fin(s.h) ? s.h : 0);
+      if (si > 0 && cw > 0.001 && sh > 0.001) {
         part({ k: "box", role: "fixedShelf", x0: cx0, x1: cx1, y0: y, y1: y + st, z0: zb, z1: zc - 1.5, mat: "carcass" });
         y += st;
       }
-      var cell = { i: si, y0: y, y1: y + s.h, ref: s, col: col };
+      var cell = { i: si, y0: y, y1: y + sh, ref: s, col: col };
       cell.covered = coveredBy(col.runs, si);
       col.secs.push(cell);
-      fillSection(L, col, cell, s);
-      y += s.h;
+      if (cw > 0.001 && sh > 0.001) {
+        fillSection(L, col, cell, s);
+      }
+      y += sh;
     });
-    buildDoor(L, col, c);
+    if (cw > 0.001) {
+      buildDoor(L, col, c);
+    }
     x = cx1;
   });
 
@@ -1650,8 +1669,10 @@ function fillSection(L, col, cell, s) {
     shelfFront = zc - 2;
 
   function shelfRun(space, tilt) {
-    var n = s.n != null ? s.n : Math.max(0, Math.round(H / (space || sp.space || STD.shelfSpace)) - 1);
+    if (x1 - x0 <= 0.4 || H <= 0.001) { cell.shelves = 0; return; }
+    var n = s.n != null ? Math.max(0, s.n) : Math.max(0, Math.round(H / (space || sp.space || STD.shelfSpace)) - 1);
     cell.shelves = n;
+    if (n === 0) return;
     for (var i = 1; i <= n; i++) {
       var sy = y0 + (H * i) / (n + 1);
       L.part({
@@ -1800,18 +1821,19 @@ function fillSection(L, col, cell, s) {
 
 // Drawer heights: an explicit ratio list, or an even split.
 function drawerHeights(s, H, gap) {
-  var n = Math.max(1, s.n || Math.max(1, Math.round(H / (STD.drawerH + gap)))),
+  var n = s.n != null ? Math.max(0, s.n) : Math.max(1, Math.round(H / (STD.drawerH + gap))),
     hs = [];
+  if (n <= 0 || H <= 0) return hs;
   if (s.heights && s.heights.length === n) {
     var sum = s.heights.reduce(function (a, b) {
       return a + b;
     }, 0);
-    var avail = H - gap * (n - 1);
+    var avail = Math.max(0, H - gap * (n - 1));
     s.heights.forEach(function (r) {
-      hs.push((avail * r) / sum);
+      hs.push(sum > 0 ? (avail * r) / sum : 0);
     });
   } else {
-    var e = (H - gap * (n - 1)) / n;
+    var e = Math.max(0, (H - gap * (n - 1)) / n);
     for (var i = 0; i < n; i++) hs.push(e);
   }
   return hs;
@@ -1820,13 +1842,15 @@ function drawerHeights(s, H, gap) {
 function drawerStack(L, col, cell, s, behindDoor) {
   var sp = L.sp,
     gap = sp.gap,
-    hs = drawerHeights(s, cell.y1 - cell.y0, gap),
+    H = cell.y1 - cell.y0,
+    hs = drawerHeights(s, H, gap),
     zc = L.zc,
     inset = behindDoor ? 3 : 0, // internal drawers sit back from the door line
     fz1 = zc - inset,
     fz0 = fz1 - STD.doorT,
     y = cell.y0;
   cell.drawers = [];
+  if (hs.length === 0 || col.w <= 0.001 || H <= 0.001) return;
   var drawerOpen = getInteriorOpen(sp.open || 0, behindDoor);
   hs.forEach(function (dh, i) {
     var slide = (L.zc - L.zb) * 0.72 * drawerOpen,
@@ -1883,6 +1907,7 @@ function frontLeaf(L, u, x0, x1, y0, y1, z0, z1, mat, role) {
     w = x1 - x0,
     h = y1 - y0,
     t = z1 - z0;
+  if (w <= 0.01 || h <= 0.01 || t <= 0.001 || !fin(w) || !fin(h) || !fin(t)) return;
   function p(a, b, c, d, e, f, m, r) {
     L.part({ k: "box", role: r || role, x0: a, x1: b, y0: c, y1: d, z0: e, z1: f, mat: m, unit: u });
   }
@@ -1926,7 +1951,7 @@ function buildDoor(L, col, c) {
     hd = L.d / 2,
     y0 = L.yb - L.t - (sp.plinthType === "none" ? 0 : 0),
     y1 = L.yt + L.t;
-  if (dr.t === "none" || dr.t === "drawer") return;
+  if (col.w <= 0.001 || !fin(col.w) || dr.t === "none" || dr.t === "drawer") return;
 
   var mat = dr.t === "glass" ? "glass" : dr.t === "mirror" ? "mirror" : "front";
   col.doorMat = mat;

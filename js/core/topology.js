@@ -60,7 +60,15 @@ function topologyItem(feature, kind, token, descriptor) {
     kind,
     persistentId,
     semantic: descriptor.semantic || token,
-    descriptor: clone(descriptor),
+    /* Not cloned. Every caller below builds this descriptor as a fresh literal
+       and keeps no reference to it, and descriptors are read-only everywhere
+       downstream — there is no `entry.descriptor.<field> = ...` anywhere in the
+       codebase, and the two places that replace a descriptor swap the whole
+       object rather than editing one. Cloning it was 32 structuredClone calls
+       per rebuild of a two-feature document, for a mutation that never happens.
+       `tests/topology_descriptor_immutability.test.mjs` fails if that stops
+       being true. */
+    descriptor,
     signature: topologyDescriptorSignature(descriptor),
   };
 }
@@ -200,6 +208,30 @@ function extrusionTopology(feature, params = {}) {
       })
     : [segments.map((_, index) => index)];
 
+  /* How much of its circle a merged run actually covers. Axis and radius alone
+     do not describe a face: a gear's tooth flank fits a circle of radius 120
+     whose five-percent band is wider than the tooth, so every consumer that
+     matched on radius alone painted — and picked — geometry all the way round
+     the body. The angles use the same basis as every other arc in this file. */
+  const runArc = (loop, fit, closed) => {
+    const axis = mapVector(0, 0, direction), origin = mapPoint(fit.u, fit.v, middle);
+    const basis = basisFromAxis(axis);
+    const angles = loop.map((p) => angleAround(mapPoint(p.u, p.v, middle), origin, basis));
+    if (angles.length < 2) return null;
+    const TAU = Math.PI * 2;
+    let walked = 0, low = 0, high = 0;
+    for (let i = 1; i < angles.length; i++) {
+      let step = angles[i] - angles[i - 1];
+      while (step <= -Math.PI) step += TAU;
+      while (step > Math.PI) step -= TAU;
+      walked += step;
+      low = Math.min(low, walked); high = Math.max(high, walked);
+    }
+    const sweep = closed ? TAU : high - low;
+    if (!(sweep > 1e-9)) return null;
+    return { start: angles[0] + low, sweep, step: sweep / (angles.length - 1), closed };
+  };
+
   runs.forEach((run) => {
     const token = tokenAt(run[0]);
     const first = segments[run[0]], last = segments[run[run.length - 1]];
@@ -208,6 +240,7 @@ function extrusionTopology(feature, params = {}) {
     const mid = segments[run[(run.length - 1) >> 1]];
     const outward = (s) => mapVector(sign * s.uy, -sign * s.ux, 0);
     const sideSemantic = "side:" + token, fit = run.length > 1 ? fitCircle(loop) : null;
+    const arcOfRun = fit ? runArc(loop, fit, run.length === count) : null;
     if (run.length === 1) {
       topology.push(topologyItem(feature, "face", sideSemantic, {
         surface:"plane", semantic:sideSemantic, origin:mapPoint((first.a.u+first.b.u)/2,(first.a.v+first.b.v)/2,middle),
@@ -222,7 +255,10 @@ function extrusionTopology(feature, params = {}) {
         surface: fit ? "cylinder" : "ruled", semantic:sideSemantic,
         origin: fit ? mapPoint(fit.u, fit.v, middle) : mapPoint((mid.a.u+mid.b.u)/2,(mid.a.v+mid.b.v)/2,middle),
         normal: outward(mid), measure:arcLength * absoluteDepth,
-      }, fit ? { axis:mapVector(0, 0, direction), radius:fit.radius, along:{ min: -absoluteDepth / 2, max: absoluteDepth / 2 } } : {})));
+      }, fit ? Object.assign({
+        axis:mapVector(0, 0, direction), radius:fit.radius,
+        along:{ min: -absoluteDepth / 2, max: absoluteDepth / 2 },
+      }, arcOfRun ? { arc:arcOfRun } : {}) : {})));
     }
     for (const end of [["start", from], ["end", to]]) {
       const semantic = "profile:" + token + ":" + end[0], closed = run.length === count;
@@ -614,7 +650,7 @@ function mergeLineEdgesIntoCircles(edges) {
       && distance(first, last) <= Math.max(0.35, chord * 1.5);
     /* Coarse tessellation puts a 30° "corner" on every chord of a real circle.
        Fit the loop first; angle is only a hint, not a veto. */
-    const fit = ((closed || nearlyClosed) && run.length >= 6) ? fitCircle3(points) : null;
+    const fit = ((closed || nearlyClosed) && run.length >= 6) ? soundLoopFit(points) : null;
     /* An arc that never closes is still one edge. The rim of a slot cap or a
        fillet arrives as a fan of chords, and leaving them apart is what makes a
        round cut pick one short rib at a time instead of the whole curve. */
@@ -633,6 +669,23 @@ function mergeLineEdgesIntoCircles(edges) {
     }
   });
   return merged.concat(leftover);
+}
+
+/* fitCircle rejects a fit whose worst point is off by more than two percent OF
+   THE RADIUS IT INVENTED, so a chain that barely curves buys itself both a huge
+   radius and, with it, a huge licence: a gear rim closed a loop and came back a
+   circle. Judge a closed chain the way soundArcFit judges an open one — against
+   the chords it is actually made of, which is a scale the data owns. */
+function soundLoopFit(points) {
+  const fit = fitCircle3(points);
+  if (!fit) return null;
+  let chain = distance(points[points.length - 1], points[0]);
+  for (let i = 1; i < points.length; i++) chain += distance(points[i - 1], points[i]);
+  const chord = chain / points.length;
+  const basis = basisFromAxis(fit.axis);
+  let worst = 0;
+  for (const p of points) worst = Math.max(worst, Math.abs(length(radialFromAxis(p, fit.origin, basis.n)) - fit.radius));
+  return worst <= Math.max(0.02, chord * 0.06) ? fit : null;
 }
 
 /* A chord fan is an arc only when every point really sits on the circle it
@@ -749,6 +802,28 @@ function basisFromAxis(axis) {
 function angleAround(pointOn, origin, basis) {
   const radial = radialFromAxis(pointOn, origin, basis.n);
   return Math.atan2(dotRaw(radial, basis.v), dotRaw(radial, basis.u));
+}
+
+/* Is this point inside the turn the face actually covers? Every consumer that
+   asked only "is it at this radius from this axis" answered yes all the way
+   round the body — which is how hovering one gear tooth lit five of them and a
+   swathe of empty space besides. A descriptor with no arc is a whole turn, as
+   it always was. `slack` is in radians and defaults to half a facet. */
+export function pointWithinCylinderArc(pointOn, descriptor = {}, slack) {
+  const arc = descriptor.arc;
+  if (!arc || arc.closed || !finite(Number(arc.sweep)) || !finite(Number(arc.start))) return true;
+  const sweep = Math.abs(Number(arc.sweep));
+  const TAU = Math.PI * 2;
+  if (!(sweep > 1e-9) || sweep >= TAU - 1e-9) return true;
+  const origin = descriptor.origin || descriptor.center, axis = descriptor.axis;
+  if (!origin || !axis || !pointOn) return true;
+  const give = finite(Number(slack)) ? Math.abs(Number(slack))
+    : finite(Number(arc.step)) ? Math.abs(Number(arc.step)) / 2 : 0;
+  let delta = (angleAround(pointOn, origin, basisFromAxis(axis)) - Number(arc.start)) % TAU;
+  if (delta < 0) delta += TAU;
+  // just short of the start is on the face, not almost all the way round it
+  if (delta > sweep + give) delta -= TAU;
+  return delta >= -give && delta <= sweep + give;
 }
 
 /* Where a merged wall starts and stops turning, and how much of it is really
@@ -880,6 +955,45 @@ function planeMatchesCylinder(face, cylinder) {
   return finite(cylinder.side) ? facing * cylinder.side > 0 : true;
 }
 
+/* Do two stretches of one cylinder actually touch, or are they separate lands
+   that merely share a radius? The axial rule below asks this of a stepped
+   shaft; this asks it round the circumference, for the twenty root fillets of
+   a gear — same axis, same radius, same height, and twenty separate faces.
+   Faces that do not say what arc they cover fall back to the old answer. */
+function arcSpansTouch(a, b) {
+  if (!a || !b || a.closed || b.closed) return true;
+  if (!finite(Number(a.sweep)) || !finite(Number(b.sweep))) return true;
+  const TAU = Math.PI * 2;
+  const give = Math.max(Number(a.step) || 0, Number(b.step) || 0) * 1.5;
+  let delta = (Number(b.start) - Number(a.start)) % TAU;
+  if (delta < 0) delta += TAU;
+  return delta <= Number(a.sweep) + give || TAU - delta <= Number(b.sweep) + give;
+}
+
+/* One span out of several, when a wall was assembled from runs that each know
+   the arc they cover. Anything with a real gap in it — or that wraps past the
+   seam where angles change sign — declines to answer, and the wall keeps the
+   whole turn it had before. */
+function unionArcSpans(arcs) {
+  if (!arcs.length) return null;
+  const TAU = Math.PI * 2;
+  const sorted = arcs.slice().sort((a, b) => Number(a.start) - Number(b.start));
+  let start = Number(sorted[0].start), end = start + Math.abs(Number(sorted[0].sweep));
+  let step = Math.abs(Number(sorted[0].step)) || 0;
+  if (!finite(start) || !finite(end)) return null;
+  for (let i = 1; i < sorted.length; i++) {
+    const from = Number(sorted[i].start), to = from + Math.abs(Number(sorted[i].sweep));
+    if (!finite(from) || !finite(to)) return null;
+    step = Math.max(step, Math.abs(Number(sorted[i].step)) || 0);
+    if (from > end + step * 1.5) return null;
+    end = Math.max(end, to);
+  }
+  const sweep = end - start;
+  if (!(sweep > 1e-9)) return null;
+  return sweep >= TAU - step * 1.5
+    ? { start, sweep: TAU, step, closed: true } : { start, sweep, step, closed: false };
+}
+
 function mergeCylindricalFaces(faces) {
   const planes = [], cylinders = [], leftover = [];
   faces.forEach((face) => {
@@ -905,9 +1019,15 @@ function mergeCylindricalFaces(faces) {
   };
   const addWall = (fit, members, angles) => {
     const span = axialSpanOfFaces(members, fit.origin, fit.axis, fit.radius);
-    const wall = walls.find((entry) => sameWall(entry, fit, axialSpanOfFaces(members, entry.fit.origin, entry.fit.axis, fit.radius)));
-    if (!wall) { walls.push({ fit, members: members.slice(), angles: angles ? angles.slice() : [], along: span }); return; }
+    const arcs = members.map((face) => face.descriptor?.arc).filter(Boolean);
+    /* Joining ANY stretch of the wall joins the wall: a circle drawn as four
+       arc entities arrives as four runs, and the fourth touches only the third. */
+    const joins = (entry) => !arcs.length || !entry.arcs.length
+      || arcs.some((arc) => entry.arcs.some((other) => arcSpansTouch(other, arc)));
+    const wall = walls.find((entry) => sameWall(entry, fit, axialSpanOfFaces(members, entry.fit.origin, entry.fit.axis, fit.radius)) && joins(entry));
+    if (!wall) { walls.push({ fit, members: members.slice(), angles: angles ? angles.slice() : [], arcs, along: span }); return; }
     wall.members.push(...members);
+    wall.arcs.push(...arcs);
     if (angles) wall.angles.push(...angles);
     const union = axialSpanOfFaces(wall.members, wall.fit.origin, wall.fit.axis, wall.fit.radius);
     wall.along = union;
@@ -989,7 +1109,8 @@ function mergeCylindricalFaces(faces) {
     /* Only a wall made entirely of facets can say where its facet seams are; one
        that also holds a real cylindrical face has no seams to hide. */
     const arc = wall.angles.length === wall.members.length && wall.angles.length >= 2
-      ? arcSpanOfAngles(wall.angles) : null;
+      ? arcSpanOfAngles(wall.angles)
+      : wall.arcs.length === wall.members.length ? unionArcSpans(wall.arcs) : null;
     const measure = wall.members.reduce((sum, item) => sum + (Number(item.descriptor.measure) || 0), 0);
     /* Facet topology usually stores only each stave's centre and area. Its raw
        axial span is therefore a zero-width point at mid-height. Recover the

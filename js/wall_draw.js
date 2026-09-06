@@ -14,7 +14,7 @@ import { ensureWallTypes, wallTypeById, wallLayerBands, normalizeWall, setWallTy
 
 export const WALL_DRAW_TOOLS = {
   wall: 1, arcwall: 1, rect: 1,
-  walloffset: 1, wallbreak: 1, walljoin: 1, wallreverse: 1, wallpaint: 1,
+  walloffset: 1, wallbreak: 1, wallbite: 1, walljoin: 1, wallreverse: 1, wallpaint: 1,
 };
 
 export const WALL_DRAW_PRESETS = [

@@ -87,6 +87,16 @@ async function openDesktopEditor(page) {
 
 /* ---- Test Suite --------------------------------------------------------- */
 
+test("desktop model editor boots cleanly and exposes window.cadPreviewView", opts, async () => {
+  const page = await ctx({ width: 1280, height: 800, lang: "en" });
+  const previewReady = await page.eval(() => {
+    return !!window.cadPreviewView && typeof window.cadPreviewView.render === "function";
+  });
+  assert.equal(previewReady, true, "window.cadPreviewView must exist and be functional on open");
+  const errors = page.consoleErrors.filter((e) => !NO_GL.test(e));
+  assert.deepEqual(errors, [], "no uncaught console errors on editor open");
+});
+
 for (const lang of ["en", "he"]) {
   for (const [w, h] of [[1024, 768], [1280, 800], [1920, 1080]]) {
     test(`desktop model editor @ ${w}x${h} (${lang}): 3-column shell layout integrity`, opts, async () => {

@@ -357,8 +357,11 @@ export function createEditorView(opts) {
     /* Sizing follows the box the canvas has been put in. As a panel thumbnail
        that is a fixed aspect ratio; promoted into the middle pane it is the
        view, so it takes the whole room it is given. */
-    var lastW = 0, lastH = 0, settling = 0;
-    view.resize = function () {
+    var lastW = 0, lastH = 0, settling = 0, sizeDirty = true;
+    view.invalidateSize = function () { sizeDirty = true; };
+    if (typeof window !== "undefined") window.addEventListener("resize", function () { sizeDirty = true; });
+    view.resize = function (force) {
+      if (!force && !sizeDirty) return false;
       var box = cv.parentElement;
       if (!box) return false;
       var r = box.getBoundingClientRect();
@@ -372,6 +375,7 @@ export function createEditorView(opts) {
         return false;
       }
       settling = 0;
+      sizeDirty = false;
       var pad = view.big ? 0 : opts.pad || 16,
         w = Math.max(50, Math.round(r.width - pad)),
         h = Math.max(50, Math.round(view.big ? r.height - pad : w * (opts.ratio || 0.78)));

@@ -450,10 +450,25 @@ export const S = {
   offsetDraft: null,
   // join-walls tool: first wall waiting for its collinear partner
   joinPick: null,
+  /* bite-a-wall tool: the span being swept out of one wall
+     -> { wall:<id>, s0, s1 } in cm along it. See commitWallBite(). */
+  biteDraft: null,
   // three-click curved-wall placement (start, end, point on arc)
   arcDraft: null,
   // two-click rectangle-room placement: first corner, then opposite corner
   rectDraft: null,
+  /* Preset-room stamping (js/room_presets.js, js/room_stamp.js). `roomStamp`
+     is the armed preset — { id, rot, w, d } — and survives from one placement
+     to the next so a flat can be laid out room after room without going back
+     to the palette. `roomGhost` is transient, one pointermove long: the
+     centreline rectangle the room would land on and the dock proposal that put
+     it there, which is what the plan draws and what the click commits. */
+  roomStamp: null,
+  roomGhost: null,
+  /* transient: the PREPARED room.stamp plan the ghost was drawn from, so the
+     click applies exactly what was shown rather than resolving the placement a
+     second time. Cleared with the ghost. */
+  roomPrepared: null,
   // library item armed for click-to-place on the plan (modern chrome)
   placeType: null,
   drawFrom: null,
@@ -589,9 +604,12 @@ export function cancelDraftGestures() {
   S.drawWalls = [];
   S.wallPress = null;
   S.rectDraft = null;
+  S.roomGhost = null;
+  S.roomPrepared = null;
   S.arcDraft = null;
   S.offsetDraft = null;
   S.joinPick = null;
+  S.biteDraft = null;
   S.previewPt = null;
   S.segPreview = null;
   S.markerPreview = null;

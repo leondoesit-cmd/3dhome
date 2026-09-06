@@ -13,6 +13,10 @@
 //
 // Vendor / node_modules files are existence-checked only (their exports
 // come from upstream). App modules are parsed with vendor/acorn.
+//
+// It also enforces one architectural rule, because it is the only pass that
+// already knows where every import lands: nothing under uikit/ may import from
+// outside uikit/. See the check near the bottom for why that matters.
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "node:url";
@@ -342,6 +346,29 @@ export function checkGraph({
         continue;
       }
       enqueue(resolved.file, rel(root, file));
+
+      /* THE uikit BOUNDARY.
+       *
+         uikit/ is a standalone module: everything it knows about the
+         application arrives through the three contracts createUIKit() takes,
+         and it may not import from js/ or anywhere else in this repo. That
+         rule is the architecture, not a preference — the moment it imports one
+         host module it stops being droppable into another app, and the drift
+         is invisible until someone tries to extract it.
+       *
+         Checked here because this is the walk that already knows what every
+         specifier resolves to. Traffic the other way is fine and expected:
+         js/uikit_host/ is host glue and imports from both sides. */
+      const from = rel(root, file);
+      const to = rel(root, resolved.file);
+      if (from.startsWith("uikit/") && !to.startsWith("uikit/") && !to.startsWith("vendor/")) {
+        errors.push({
+          file: from,
+          message:
+            `uikit may not import outside itself: "${im.source}" at ${locStr(im.loc)} → ${to}`,
+        });
+      }
+
       if (im.dynamic || im.namespace) continue;
       const names = exportSet(resolved.file);
       if (!names) continue;

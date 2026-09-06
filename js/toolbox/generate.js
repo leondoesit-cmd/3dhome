@@ -51,7 +51,7 @@ function fastenerPropertyClass(options, row) {
 function sourceOptions(kind, sizeKey, lengthMm, options) {
   const source = { kind, size: sizeKey, sizeKey, lengthMm };
   [
-    "lod", "material", "finish", "series", "branchKey", "branchSize", "overlay", "angle", "radius",
+    "groupId", "lod", "material", "finish", "series", "branchKey", "branchSize", "overlay", "angle", "radius",
     "thread", "threadMode", "toleranceClass", "propertyClass", "productGrade", "drawerSideMm",
     "innerMm", "outerMm", "smallOdMm",
   ].forEach((key) => {

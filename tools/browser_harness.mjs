@@ -421,6 +421,7 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
 
   const page = {
     consoleErrors: cdp.consoleErrors,
+    send: (method, params) => cdp.send(method, params),
 
     async eval(fn, ...args) {
       const expr = "(" + fn.toString() + ")(" + args.map((a) => JSON.stringify(a)).join(",") + ")";
@@ -448,7 +449,13 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
       return result?.value;
     },
 
-    async goto(path = "/") {
+    /* `boot: false` for a page that is not the app. waitForBoot() polls for
+       main.js's __home3dBooted, so a standalone fixture — uikit's, or any
+       future module's demo page — would sit there for the full timeout and
+       then throw, reporting a harness timeout instead of the module's own
+       result. Such a page is "booted" once its module graph has run, which is
+       one painted frame after load. */
+    async goto(path = "/", { boot = true } = {}) {
       await cdp.send("Page.navigate", { url: app.origin + path });
       await new Promise((r) => {
         const timer = setTimeout(() => {
@@ -470,7 +477,8 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
          a loaded machine loses — the test then pokes a half-built UI and fails
          as though the app were broken. main.js sets __home3dBooted as its last
          step, so wait for that, then one painted frame. */
-      await page.waitForBoot();
+      if (boot) await page.waitForBoot();
+      else await page.eval(() => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))));
     },
 
     /* Poll a page-side predicate until it is true. For anything the app now

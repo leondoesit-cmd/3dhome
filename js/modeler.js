@@ -18,6 +18,7 @@ import { usedCustomModels, refreshCatalogSelect } from "./model_catalog.js";
 import { reportEditorOpenState } from "./modeler_launch.js";
 import { box, cyl, sph, clearGroup } from "./primitives.js";
 import { getLang, onLangChange } from "./i18n.js";
+import * as ribbon from "./uikit_host/ribbon.js";
 import { stopSpeaking, bindSpeakButton } from "./speech.js";
 import { render2D } from "./plan2d.js";
 import { createHistory } from "./edit_history.js";
@@ -102,7 +103,7 @@ import { rebuildDefinition } from "./core/rebuild.js";
 import { buildTreeModel, findTreeNode } from "./core/tree_model.js";
 import { renderTreeModel } from "./modeler_tree.js";
 import { analyzeLegacyMigration, convertLegacyDocument, evaluateMigration, retainLegacySource, restoreLegacyDocument } from "./core/migration_check.js";
-import { applyTopologyRebindings, createTopologyReference, cutWallTopology, createTopologyRegistry, topologyForFeature, mergeSmoothTopology, isCylinderTessellationSeam, resolveFinishTargetIds, resolveMergedTopology, topologyDescriptorSignature, topologyMemberIds, edgeLiesOnFace, edgesBoundingFace, fitProfileCircle } from "./core/topology.js";
+import { applyTopologyRebindings, createTopologyReference, cutWallTopology, createTopologyRegistry, topologyForFeature, mergeSmoothTopology, isCylinderTessellationSeam, pointWithinCylinderArc, resolveFinishTargetIds, resolveMergedTopology, topologyDescriptorSignature, topologyMemberIds, edgeLiesOnFace, edgesBoundingFace, fitProfileCircle } from "./core/topology.js";
 import { frameDirection, frameFromPlane, framePoint, frameProjectPoint, realignFrame } from "./core/frame.js";
 import {
   bodyDepthRange,
@@ -147,6 +148,21 @@ import { welcomeGlyph } from "./modeler_welcome_glyphs.js";
 import { cadIcon } from "./modeler_icons.js";
 import { initModelerMobile, syncModelerMobile, teardownModelerMobile, showModelerSheet, closeModelerSheet, revealModelerFeatureForm } from "./modeler_mobile.js";
 import { chooseTopologyHit, circularEdgeSweep, filterTopologyHitsByClipPlane, topologyCandidateWorldThreshold, topologyLineWorldThreshold, topologyPickPixelRadius } from "./modeler_topology_pick.js";
+import {
+  NOTE_CATEGORIES,
+  CURATED_SWATCHES,
+  addNoteToDef,
+  updateNoteInDef,
+  deleteNoteFromDef,
+  translateNotes,
+  applyFacePaint,
+  applyBodyPaint,
+  sampleFaceAppearance,
+  clearFacePaint,
+  addMarkupToDef,
+  clearMarkupsFromDef,
+  translateMarkups,
+} from "./modeler_notes_paint.js";
 
 var LS_MODELS = "home3d_models";
 var LS_ASSEMBLIES = "home3d_assemblies";
@@ -216,6 +232,36 @@ var TXT = {
   modelColor: ["צבע המודל", "Model color"],
   faceColor: ["צבע הפאה הנבחרת", "Selected face color"],
   selectFaceForColor: ["בחרו פאה כדי לצבוע אותה בנפרד", "Select a face to color it separately"],
+  tool_paint: ["צביעה / חומר", "Paint tool"],
+  tool_paint_tip: ["צביעת פאות וחלקים ישירות בתלת-ממד (P / B)", "Paint faces and bodies directly in 3D (P / B)"],
+  paintHint: ["לחצו או גררו על פאה לצביעה · Alt לדגימת צבע (טפטפת)", "Click or drag across a face to paint · Alt to sample (eyedropper)"],
+  paintModeFace: ["פאה", "Face"],
+  paintModeBody: ["גוף / חלק", "Body"],
+  paintEyedropper: ["טפטפת (דגימת צבע)", "Eyedropper (Sample)"],
+  clearPaint: ["איפוס צבע פאה", "Clear face paint"],
+  tool_note: ["הערות וסימונים", "Notes & Markups"],
+  tool_note_tip: ["הוספת הערות תלת-ממדיות וסימוני עט חופשי (N)", "Add 3D annotation notes and freehand markups (N)"],
+  noteHint: ["לחצו על המודל להצמדת הערה 3D", "Click on the model to place a 3D annotation note"],
+  markupHint: ["גררו לציור חופשי מעל המודל", "Drag to draw freehand markups over model"],
+  noteModeCallout: ["הערת הצבעה", "Note Callout"],
+  noteModeMarkup: ["עט סימון", "Freehand Pen"],
+  noteModeEraser: ["מחק", "Eraser"],
+  notesAnnotations: ["הערות וסימונים", "Notes & Annotations"],
+  noNotesYet: ["אין הערות במודל", "No notes on this model yet"],
+  noteEditorTitle: ["עריכת הערה", "Edit Note"],
+  notePlaceholder: ["הקלידו הערה או הנחיה...", "Type note or specification..."],
+  noteDelete: ["מחק הערה", "Delete note"],
+  noteDone: ["סיום", "Done"],
+  toggleNotes: ["הצג/הסתר הערות וסימונים", "Show/hide notes and markups"],
+  clearMarkups: ["נקה סימוני עט", "Clear freehand markups"],
+  startPainting: ["הפעל כלי צביעה", "Interactive Paint Tool"],
+  paintFace: ["צביעת פאה", "Paint face"],
+  paintBody: ["צביעת חלק", "Paint body"],
+  addNote: ["הוספת הערה 3D", "Add 3D note"],
+  editNote: ["עריכת הערה", "Edit note"],
+  deleteNote: ["מחיקת הערה", "Delete note"],
+  addMarkup: ["סימון עט חופשי", "Freehand markup"],
+  eraseMarkup: ["מחיקת סימון", "Erase markup"],
   edgeColor: ["צבע קצוות", "Edge color"],
   selectedEdgeColor: ["קצה נבחר", "Selected edge"],
   selectionFaceColor: ["הדגשת פאה", "Selected face highlight"],
@@ -1824,6 +1870,7 @@ function mateReboundFor(mateId) {
    solveAssembly — so without this the whole multi-pass solve, plus its residual
    check, ran twice on every click. */
 var assemblySolveFresh = false;
+var coreRunFresh = false;
 
 /* Interference results describe one exact set of visible components at one
    exact arrangement. Component edits, visibility changes and document
@@ -2209,6 +2256,8 @@ function normalizeDef(def) {
     reference.origin.x+=dx;reference.origin.y+=dy;reference.origin.z+=dz;
   });
   translateTopologyReferences({sketches:def.sketches,parts:def.parts,features:def.features},dx,dy,dz);
+  translateNotes(def.notes, dx, dy, dz);
+  translateMarkups(def.markups, dx, dy, dz);
   b = defBounds(def);
   def.w = Math.max(10, Math.round(b.x1 - b.x0));
   def.d = Math.max(10, Math.round(b.z1 - b.z0));
@@ -2294,10 +2343,17 @@ function smoothTessellationNormals(geometry, limit) {
 }
 
 function buildExactMesh(parent, p) {
-  if (!p.meshData || !Array.isArray(p.meshData.positions) || p.meshData.positions.length < 9) return null;
+  if (!p.meshData || (!Array.isArray(p.meshData.positions) && !ArrayBuffer.isView(p.meshData.positions)) || p.meshData.positions.length < 9) return null;
   var geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(p.meshData.positions, 3));
-  geometry.computeVertexNormals();
+  if (p.meshData.normals) {
+    geometry.setAttribute("normal", new THREE.Float32BufferAttribute(p.meshData.normals, 3));
+  } else {
+    geometry.computeVertexNormals();
+  }
+  if (p.meshData.colors) {
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(p.meshData.colors, 3));
+  }
   smoothTessellationNormals(geometry);
   geometry.computeBoundingSphere();
   var material = new THREE.MeshStandardMaterial({
@@ -2321,8 +2377,12 @@ function buildExactMesh(parent, p) {
    the one place that edits a mesh in place (movePart) clear the entry. */
 var topologyMergeCache = new WeakMap();
 var meshSmoothFaceCache = new WeakMap();
+var overlayEntryCache = new WeakMap();
 function clearTopologyCache(part) {
-  if (part && part.meshData) topologyMergeCache.delete(part.meshData);
+  if (part && part.meshData) {
+    topologyMergeCache.delete(part.meshData);
+    overlayEntryCache.delete(part.meshData);
+  }
 }
 
 function smoothFacesForMesh(mesh) {
@@ -2677,6 +2737,24 @@ function overlayEntriesForPart(part, mesh) {
      post-cut topology is rebuilding. Those lines may cross empty space and
      become selectable even though the corresponding material is gone. */
   if (partNeedsExactMesh(part) && !(part.meshData && Array.isArray(part.meshData.topology) && part.meshData.topology.length)) return [];
+  /* Cache key. An exact body keys on its meshData, which survives rebuilds;
+     a primitive has none, so it keys on the tessellated geometry — and
+     buildPart makes a NEW geometry every rebuild, so primitives never hit.
+     That is deliberate, not an oversight. Measured cost of the pass this
+     cache exists to avoid (meshFeatureEdges, this machine):
+
+         box      12 tri   0.04 ms      cylinder  192 tri   0.40 ms
+         kernel 2000 tri   3.76 ms      kernel   8000 tri  15.46 ms
+
+     The expensive case is exactly the one that keys on meshData and does hit.
+     Do NOT "fix" primitives by hashing their geometry fields into a value
+     signature: it must enumerate every field the entries depend on, forever,
+     and a miss is a silently stale edge overlay. 0.4 ms is not worth that. */
+  var cacheKey = (part && part.meshData) || (mesh && mesh.geometry) || null;
+  if (cacheKey) {
+    var cached = overlayEntryCache.get(cacheKey);
+    if (cached) return cached;
+  }
   /* An exact body carries the kernel's own edge list.  Re-deriving edges from
      its tessellation drew every facet crease of a small fillet or chamfer as a
      separate black line, which is what made a filleted body look shredded. */
@@ -2685,8 +2763,60 @@ function overlayEntriesForPart(part, mesh) {
     : geometryToMeshData(mesh && mesh.geometry);
   var features = data ? meshFeatureEdges(data) : { circles: [], polylines: [] };
   var exact = exactOverlayEntries(part, features);
-  if (exact.length) return exact;
+  if (exact.length) {
+    if (cacheKey) overlayEntryCache.set(cacheKey, exact);
+    return exact;
+  }
   var kernelEdges = topologyEntriesForPart(part).filter(function (entry) { return entry.kind === "edge"; });
+  /* Both loops below used to scan every kernel edge per mesh feature, which is
+     O(n^2) on a body with a few hundred edges. Bucket once instead.
+
+     A circle only matches within max(0.25, r*0.05) of its radius, and a
+     polyline only matches when BOTH endpoints land within
+     max(0.45, measure*0.04) — which bounds the length difference at twice that.
+     So a candidate can never sit outside a band of buckets around the query,
+     and probing that band is exact, not approximate: the original predicate
+     still decides every hit. Candidates are re-sorted into their original
+     kernelEdges order before matching so "first match wins" resolves exactly as
+     it did when the list was scanned end to end. */
+  var kernelCircleBuckets = new Map(), kernelLineBuckets = new Map();
+  var midpointKey = function (a, b) {
+    return Math.round(((a.x + b.x) + (a.y + b.y) + (a.z + b.z)) / 2);
+  };
+  var bucketPush = function (map, key, value) {
+    var list = map.get(key);
+    if (!list) { list = []; map.set(key, list); }
+    list.push(value);
+  };
+  kernelEdges.forEach(function (entry, index) {
+    var record = { entry: entry, index: index };
+    var descriptor = entry.descriptor;
+    if (descriptor && descriptor.curve === "circle") {
+      bucketPush(kernelCircleBuckets, Math.round(Number(descriptor.radius) || 0), record);
+    } else {
+      /* Bucket on the ENDPOINT MIDPOINT, not on path length. The predicate
+         below only ever compares endpoints, so two polylines can share them
+         and still differ in length — a straight kernel edge against a mesh
+         chain that approximates a curve between the same two points. Length
+         buckets would file those apart and lose the match. The midpoint is
+         orientation-invariant (the predicate accepts either winding) and moves
+         at most `tol` per axis when both endpoints do, so a one-dimensional
+         key over its coordinate sum is a strict superset: never a missed
+         candidate, and the original predicate still decides. */
+      var ends = descriptor ? edgePoints(descriptor) : [];
+      bucketPush(kernelLineBuckets, ends.length >= 2 ? midpointKey(ends[0], ends[ends.length - 1]) : 0, record);
+    }
+  });
+  var bucketCandidates = function (map, centre, reach) {
+    var found = [];
+    var lo = Math.round(centre - reach), hi = Math.round(centre + reach);
+    for (var key = lo; key <= hi; key++) {
+      var list = map.get(key);
+      if (list) found = found.concat(list);
+    }
+    found.sort(function (a, b) { return a.index - b.index; });
+    return found.map(function (record) { return record.entry; });
+  };
   var featureId = part.featureId || "feature:part:" + part.id;
   var used = new Set(), entries = [];
   features.circles.forEach(function (circle, index) {
@@ -2697,7 +2827,8 @@ function overlayEntriesForPart(part, mesh) {
     if (!circle.closed && circle.points && circle.points.length >= 2) {
       descriptor.endpoints = [circle.points[0], circle.points[circle.points.length - 1]];
     }
-    var kernelHit = kernelEdges.find(function (entry) {
+    var radius = Number(descriptor.radius) || 0;
+    var kernelHit = bucketCandidates(kernelCircleBuckets, radius, Math.max(0.25, radius * 0.05) + 1).find(function (entry) {
       return entry.descriptor && circleDescriptorsMatch(descriptor, entry.descriptor) && !used.has(entry.persistentId);
     });
     if (kernelHit) used.add(kernelHit.persistentId);
@@ -2721,7 +2852,8 @@ function overlayEntriesForPart(part, mesh) {
       endpoints: points,
       measure: measure,
     };
-    var kernelHit = kernelEdges.find(function (entry) {
+    var lineTol = Math.max(0.45, measure * 0.04);
+    var kernelHit = bucketCandidates(kernelLineBuckets, midpointKey(a, b), 3 * lineTol + 1).find(function (entry) {
       if (used.has(entry.persistentId) || !entry.descriptor || entry.descriptor.curve === "circle") return false;
       var ends = edgePoints(entry.descriptor);
       if (ends.length < 2) return false;
@@ -2739,15 +2871,18 @@ function overlayEntriesForPart(part, mesh) {
       memberPersistentIds: kernelHit && kernelHit.memberPersistentIds,
     });
   });
+  if (cacheKey) overlayEntryCache.set(cacheKey, entries);
   return entries;
 }
 
-function addTopologyPickEdges(parent, part) {
+function addTopologyPickEdges(parent, part, explicitMesh) {
   if (!part || (E.docType !== "part" && E.docType !== "assembly")) return;
-  var mesh = null;
-  parent.traverse(function (object) {
-    if (!mesh && object.isMesh && object.userData && object.userData.cadPart === part.id) mesh = object;
-  });
+  var mesh = explicitMesh || null;
+  if (!mesh) {
+    parent.traverse(function (object) {
+      if (!mesh && object.isMesh && object.userData && object.userData.cadPart === part.id) mesh = object;
+    });
+  }
   var bounds = partBounds(part);
   var span = Math.max(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0, bounds.z1 - bounds.z0, 1);
   var show = E.showModelEdges !== false;
@@ -2761,11 +2896,12 @@ function addTopologyPickEdges(parent, part) {
     var material = new THREE.LineBasicMaterial({
       color: selected ? hexNum(E.selectedEdgeColor) : hovered ? hexNum(E.hoverColor) : finish ? 0xf2d27a : hexNum(E.edgeColor),
       transparent: true,
-      opacity: visible ? (selected || hovered ? .98 : finish ? .9 : .95) : 0,
+      opacity: selected || hovered ? .98 : finish ? .9 : .95,
       depthTest: true,
       depthWrite: false,
     });
     var line = new THREE.Line(geometry, material);
+    line.visible = visible;
     line.renderOrder = selected || hovered ? 22 : 20;
     line.userData.cadPart = part.id;
     line.userData.cadFeatureId = entry.ownerFeatureId;
@@ -2820,8 +2956,16 @@ function triangleSetForFace(mesh, descriptor, reference) {
     if (!wanted) wanted = {};
     wanted[t] = true;
   };
-  var ranges = mesh && mesh.userData && mesh.userData.cadFaceRanges;
+  var subshapeMap = mesh && mesh.userData && mesh.userData.cadSubshapeMap;
   var ids = highlightIdsFor(reference);
+  if (subshapeMap && ids.length) {
+    ids.forEach(function (id) {
+      var list = subshapeMap[id];
+      if (Array.isArray(list)) list.forEach(add);
+    });
+  }
+  if (wanted) return wanted;
+  var ranges = mesh && mesh.userData && mesh.userData.cadFaceRanges;
   if (Array.isArray(ranges) && ids.length) {
     ranges.forEach(function (range) {
       if (!range || ids.indexOf(range.persistentId) === -1) return;
@@ -2846,12 +2990,20 @@ function triangleSetForFace(mesh, descriptor, reference) {
   return wanted;
 }
 
-/* A selected face has to LOOK selected. The picker resolved a face reference
-   long before this existed, but nothing on screen changed, so the honest
-   reading was "face selection does not work". Kernel meshes already know which
-   triangles belong to a BREP face; tessellated curves without that map are
-   grouped across non-crease edges, and analytic cylinders/spheres still match
-   by geometry so a wall never lights as a single stave. */
+var _faceVecA = null, _faceVecB = null, _faceVecC = null;
+var _faceVecAB = null, _faceVecAC = null, _faceVecTN = null, _faceVecRadial = null;
+function initFaceScratchVectors() {
+  if (!_faceVecA) {
+    _faceVecA = new THREE.Vector3();
+    _faceVecB = new THREE.Vector3();
+    _faceVecC = new THREE.Vector3();
+    _faceVecAB = new THREE.Vector3();
+    _faceVecAC = new THREE.Vector3();
+    _faceVecTN = new THREE.Vector3();
+    _faceVecRadial = new THREE.Vector3();
+  }
+}
+
 function faceHighlightMesh(mesh, descriptor, color, opacity, reference) {
   if (!mesh || !mesh.geometry || !descriptor) return null;
   var surface = descriptor.surface;
@@ -2876,6 +3028,10 @@ function faceHighlightMesh(mesh, descriptor, color, opacity, reference) {
   var minor = Math.abs(Number(descriptor.minorRadius)) || 0;
   var slope = cone ? Math.tan(Number(descriptor.angle) || 0) : 0;
   var band = Math.max(.35, (torus ? minor : radius) * .05);
+  /* A facet is not a point: the vertex tested below can sit half a facet
+     outside the arc its face covers, and the radial band buys its own slack. */
+  var arcSlack = round && radius > 1e-9
+    ? Math.max(band / radius, Math.abs(Number(descriptor.arc && descriptor.arc.step) || 0) / 2) : 0;
   var alongSpan = null;
   if (round && descriptor.along && fin(Number(descriptor.along.min)) && fin(Number(descriptor.along.max))) {
     alongSpan = { min: Number(descriptor.along.min), max: Number(descriptor.along.max) };
@@ -2884,8 +3040,9 @@ function faceHighlightMesh(mesh, descriptor, color, opacity, reference) {
     alongSpan = { min: -half, max: half };
   }
   mesh.updateMatrixWorld(true);   // built this frame; its matrix is not current yet
-  var a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
-  var ab = new THREE.Vector3(), ac = new THREE.Vector3(), tn = new THREE.Vector3(), radial = new THREE.Vector3();
+  initFaceScratchVectors();
+  var a = _faceVecA, b = _faceVecB, c = _faceVecC;
+  var ab = _faceVecAB, ac = _faceVecAC, tn = _faceVecTN, radial = _faceVecRadial;
   var kept = [];
   for (var t = 0; t < triangleCount; t++) {
     if (listed && !listed[t]) continue;
@@ -2923,6 +3080,11 @@ function faceHighlightMesh(mesh, descriptor, color, opacity, reference) {
         if (alongSpan && (along < alongSpan.min - band || along > alongSpan.max + band)) continue;
         radial.addScaledVector(axis, -along);           // drop the along-axis part
         if (Math.abs(radial.length() - radius) > band) continue;   // a bore inside the same body is not this wall
+        /* And on the part of the wall this face is. A merged run fits a circle
+           the face covers a few degrees of; without this the band swept every
+           triangle at that radius right round the body, which is what lit five
+           gear teeth and a swathe of thin air when one flank was hovered. */
+        if (!pointWithinCylinderArc(a, descriptor, arcSlack)) continue;
         n.copy(tn);                                                // lift each facet along its own outward normal
       } else if (curved) {
         continue;
@@ -3102,7 +3264,67 @@ function applyViewportDisplayStyle(mesh, style, previewOnly) {
   mesh.receiveShadow = style !== "transparent";
 }
 
+var decoGroups = [];
+/* Test seams. buildPart is called through its LOCAL binding everywhere, so a
+   spy installed on a window handle can never observe it — the perf suite tried
+   that and its counter silently read zero while hover rebuilt the whole scene.
+   A counter incremented inside the function is the only honest signal, and the
+   hover setter lets a test drive the one piece of state (E.hoverTopology) that
+   decides whether decoration is per-component isolated. */
+var buildPartCount = 0;
+var rebuildDocCount = 0;
+if (typeof window !== "undefined") {
+  window.cadDecoGroups = decoGroups;
+  window.cadRefreshDecorations = refreshDecorations;
+  window.cadBuildPart = buildPart;
+  window.cadBuildPartCount = function () { return buildPartCount; };
+  window.cadRebuildDocCount = function () { return rebuildDocCount; };
+  window.cadSetHoverTopology = function (reference) { E.hoverTopology = reference || null; };
+}
+
+var lastDecoratedHover = null;
+function isEntryAffectedByHover(entry, hoverRef) {
+  if (!hoverRef) return false;
+  if (entry.component) {
+    return hoverRef.componentId === entry.component.id;
+  }
+  if (hoverRef.ownerFeatureId && entry.part && entry.part.featureId) {
+    return hoverRef.ownerFeatureId === entry.part.featureId;
+  }
+  return true;
+}
+
+function refreshDecorations() {
+  if (!E.pv) return;
+  var currentHover = E.hoverTopology;
+  var hasSelection = (E.topologySelection || []).length > 0;
+  var finishActive = finishCommandActive();
+  decoGroups.forEach(function (entry) {
+    var needsRebuild = entry.group.children.length === 0
+      || entry.dirty
+      || hasSelection
+      || finishActive
+      || entry.hadHighlight
+      || isEntryAffectedByHover(entry, currentHover)
+      || isEntryAffectedByHover(entry, lastDecoratedHover);
+    if (!needsRebuild) return;
+    clearGroup(entry.group);
+    E.buildComponent = entry.component || null;
+    try {
+      addTopologyPickEdges(entry.group, entry.part, entry.mesh);
+      addFaceHighlights(entry.group, entry.part, entry.mesh);
+    } finally {
+      E.buildComponent = null;
+    }
+    entry.dirty = false;
+    entry.hadHighlight = isEntryAffectedByHover(entry, currentHover);
+  });
+  lastDecoratedHover = currentHover;
+  E.pv.render();
+}
+
 function buildPart(g, p, displayStyle) {
+  buildPartCount++;
   var rotations=partPatternRotations(p);
   /* The newest transform is the outermost group: R(new) × R(previous) × body.
      This also makes a pattern of an existing pattern behave predictably. */
@@ -3150,6 +3372,7 @@ function buildPart(g, p, displayStyle) {
     me.userData.cadPart = p.id;
     me.userData.cadFeatureId = p.featureId || "feature:part:" + p.id;
     me.userData.cadFaceRanges = p.meshData && p.meshData.faceRanges || null;
+    me.userData.cadSubshapeMap = p.meshData && p.meshData.subshapeMap || null;
     if (p === E.sel && me.material) {
       me.material = me.material.clone();
       if (me.material.emissive) me.material.emissive.setHex(0x3f2508);
@@ -3163,9 +3386,13 @@ function buildPart(g, p, displayStyle) {
       me.material=me.material.clone();me.material.transparent=true;me.material.opacity=Math.min(Number(me.material.opacity)||1,.2);me.material.depthWrite=false;
     }
     addMeshSharpEdges(me);
-    addTopologyPickEdges(g, p);
+    var deco = new THREE.Group();
+    deco.userData.cadDeco = p.id;
+    g.add(deco);
+    decoGroups.push({ part: p, mesh: me, group: deco, component: E.buildComponent || null });
+    addTopologyPickEdges(deco, p, me);
     addFaceAppearances(g, p, me);
-    addFaceHighlights(g, p, me);
+    addFaceHighlights(deco, p, me);
     addPartFeatureOverlays(g, p);
   }
   return me;
@@ -3491,6 +3718,18 @@ var E = {
   coachEnabled: true,   // slim "next step" coach bar under the workflow nav
   welcomeOpen: false,
   coachDismissed: false, // per-session: the X on the coach bar
+  paintColor: "#3b82f6",
+  paintMode: "face",
+  paintMetal: 0.1,
+  paintRough: 0.5,
+  paintEyedropper: false,
+  notesVisible: true,
+  activeNoteId: null,
+  noteEditorOpen: false,
+  noteMode: "callout",
+  markupColor: "#ef4444",
+  markupWidth: 3,
+  activeMarkupStroke: null,
 };
 
 /* Sketching habits are per-user, not per-document — they outlive the model the
@@ -3531,7 +3770,10 @@ function newDef() {
     col: "#c9bfae", parts: [], constraints: [], rollback: null,
     sketches: [], activeSketch: null, variables: [],
     features: [], history:[], referenceGeometry: [], metadata:{authoringSystem:"parametric-v1"},
+    notes: [], markups: [], appearances: [],
   });
+  def.notes = [];
+  def.markups = [];
   def.metadata.authoringSystem="parametric-v1";
   return def;
 }
@@ -4463,9 +4705,20 @@ function computeSketchProjection() {
   if (fin(scale) && scale > 0.01) E.scl = scale;
   return proj;
 }
+var _scratchSketchNdc = null;
+var _scratchSketchDir = null;
+function getScratchSketchNdc() {
+  if (!_scratchSketchNdc) _scratchSketchNdc = new THREE.Vector3();
+  return _scratchSketchNdc;
+}
+function getScratchSketchDir() {
+  if (!_scratchSketchDir) _scratchSketchDir = new THREE.Vector3();
+  return _scratchSketchDir;
+}
+
 function projectSketchPoint(proj, u, v) {
   var world = framePoint(proj.frame, u, v, 0);
-  var ndc = new THREE.Vector3(world.x, world.y, world.z).project(proj.cam);
+  var ndc = getScratchSketchNdc().set(world.x, world.y, world.z).project(proj.cam);
   return { x: proj.dx + (ndc.x * .5 + .5) * proj.w, y: proj.dy + (-ndc.y * .5 + .5) * proj.h };
 }
 function toPx(u, v) {
@@ -4480,9 +4733,10 @@ function toUV(px, py) {
     // Cast the pointer ray and land it on the sketch plane. Behind the camera,
     // or parallel to the plane, there is no answer — hold the last one rather
     // than throwing geometry to infinity.
-    var ndc = new THREE.Vector3(((px - proj.dx) / proj.w) * 2 - 1, -(((py - proj.dy) / proj.h) * 2 - 1), .5);
+    var ndc = getScratchSketchNdc().set(((px - proj.dx) / proj.w) * 2 - 1, -(((py - proj.dy) / proj.h) * 2 - 1), .5);
     ndc.unproject(proj.cam);
-    var eye = proj.cam.position, dir = ndc.sub(eye).normalize();
+    var eye = proj.cam.position;
+    var dir = getScratchSketchDir().subVectors(ndc, eye).normalize();
     var n = proj.frame.normal, o = proj.frame.origin;
     var denom = dir.x * n.x + dir.y * n.y + dir.z * n.z;
     if (Math.abs(denom) < 1e-6) return E._lastUV || { u: 0, v: 0 };
@@ -4666,10 +4920,20 @@ function toolKeyRows() {
    It is inert on the desktop ribbon, which lays every group out side by side —
    it only tells the borrowed-into-a-sheet stylesheet which headings are
    drawers, so 23 commands stop arriving as one endless column. */
-function commandGroup(label, commands, rank) {
-  return '<div class="md-command-group" data-cmdgroup="' + (rank || "primary") + '">' +
+/* A ribbon group, addressed by its own i18n KEY rather than by the words that
+   key happens to produce.
+ *
+   The key is what is stable: it does not move when the wording is edited, it
+   does not differ between English and Hebrew, and it is already unique. That
+   makes `data-mdgroup` an identity a saved layout can still resolve after a
+   release — which is what uikit needs to let a user rearrange this ribbon, and
+   it is why the label is looked up here instead of at each of the fourteen
+   call sites. */
+function commandGroup(key, commands, rank) {
+  return '<div class="md-command-group" data-mdgroup="' + key +
+    '" data-cmdgroup="' + (rank || "primary") + '">' +
     '<div class="md-command-items">' + commands.join("") +
-    '</div><span class="md-command-group-label">' + label + "</span></div>";
+    '</div><span class="md-command-group-label">' + t(key) + "</span></div>";
 }
 
 /* The chrome is built once, with the labels of the language current at the
@@ -4687,6 +4951,10 @@ function destroyDOM() {
   E.modelPlaneActive = false;
   window.removeEventListener("keydown", onKey);
   teardownModelerMobile(); // returns any borrowed panel before root is dropped
+  /* Before root.remove(): unregistering the panes makes uikit drop the four
+     containers and hand the group elements back INTO the tree that is about to
+     go, rather than being left holding them in a detached one. */
+  ribbon.detach();
   setModelerBackgroundIsolation(false);
   if (root) root.remove();
   root = null;
@@ -4758,7 +5026,7 @@ function buildDOM() {
       /* Start is the everyday path: open a sketch, then the six verbs that turn
          a profile into a body. The specialty features moved to Standards so the
          default tab stops being a third wider than the window. */
-      commandGroup(t("grpStart"), [
+      commandGroup("grpStart", [
         commandButton("newsketch", t("createSketch"), null, "primary"),
         commandButton("extrude", t("opExtrude"), null, "primary"),
         commandButton("extrudecut", t("extrudeCut"), null, "primary"),
@@ -4767,7 +5035,7 @@ function buildDOM() {
         commandButton("loftfeature", t("cap_loft"), null, "", t("loftOp")),
         commandButton("holefeature", t("cap_hole"), null, "primary", t("holeWizard")),
       ]) +
-      commandGroup(t("grpFinish"), [
+      commandGroup("grpFinish", [
         commandButton("filletfeature", t("quickFillet"), null, "primary"),
         commandButton("chamferfeature", t("quickChamfer"), null, "primary"),
         commandButton("shellfeature", t("shellOp")),
@@ -4779,14 +5047,14 @@ function buildDOM() {
          refuses the other three in a parametric-v1 document, so the group is
          hidden there (syncCommandManager) rather than removed — command search
          and legacy documents still reach every one of them. */
-      commandGroup(t("grpDirect"), [
+      commandGroup("grpDirect", [
         commandButton("directbox", t("tool_rect"), "B"),
         commandButton("directcyl", t("tool_circle"), "C"),
         commandButton("directsph", t("tool_sph"), "S"),
         commandButton("directpoly", t("tool_poly"), "P"),
         commandButton("directrev", t("tool_rev")),
       ], "secondary") +
-      commandGroup(t("grpReferences"), [
+      commandGroup("grpReferences", [
         commandButton("refplane", t("cap_refplane"), null, "", t("refPlane")),
         commandButton("refaxis", t("cap_refaxis"), null, "", t("refAxis")),
         commandButton("coordsys", t("cap_refcoord"), null, "", t("refCoord")),
@@ -4794,7 +5062,7 @@ function buildDOM() {
       /* Helix, thread, knurl and insert are all standards-driven detail work
          (ISO threads, DIN 82 knurls, threaded inserts, the helix that sweeps
          them), so they sit with the toolbox parts rather than in Start. */
-      commandGroup(t("grpStandards"), [
+      commandGroup("grpStandards", [
         commandButton("stdscrew", t("cap_stdscrew"), null, "", t("stdScrewCommand")),
         commandButton("toolboxfastener", t("cap_fastener"), null, "", t("toolboxFastener")),
         commandButton("stdgear", t("stdGearCommand"), null, "", t("stdGearCommand")),
@@ -4805,7 +5073,7 @@ function buildDOM() {
       ], "secondary") +
     '</div>' +
     '<div class="md-command-pane" data-command-pane="sketch">' +
-      commandGroup(t("grpSketch"), [
+      commandGroup("grpSketch", [
         commandButton("select", t("cap_select"), "V", "", t("tool_select")),
         commandButton("wall", t("cap_wall"), "L", "primary", t("tool_wall")),
         commandButton("srect", t("cap_srect"), "Q", "primary", t("tool_srect")),
@@ -4822,8 +5090,8 @@ function buildDOM() {
          in the right-hand inspector, which on a phone is a bottom sheet — so
          the verbs of parametric sketching read as a separate product from the
          Sketch tab. Same palette plumbing, one tab closer. */
-      commandGroup(t("grpRelations"), RIBBON_RELATIONS.map(relationButton)) +
-      commandGroup(t("grpSketchEdit"), [
+      commandGroup("grpRelations", RIBBON_RELATIONS.map(relationButton)) +
+      commandGroup("grpSketchEdit", [
         commandButton("offset", t("tool_offset")),
         commandButton("constr", t("cap_constr"), null, "", t("tool_constr")),
         commandButton("mirror", t("sketchMirror")),
@@ -4835,7 +5103,7 @@ function buildDOM() {
       /* Opening and committing a sketch are the two ends of this tab's job, so
          they get their own primary group at its end instead of leaving Finish
          sketch to sit as a peer of the construction-geometry toggle. */
-      commandGroup(t("grpSketchOpenClose"), [
+      commandGroup("grpSketchOpenClose", [
         commandButton("newsketch", t("createSketch"), null, "primary"),
         commandButton("finishsketch", t("finishSketch"), null, "primary", t("finishSketch")),
       ]) +
@@ -4844,16 +5112,18 @@ function buildDOM() {
       /* What the model tells you about itself, versus what leaves the document.
          Zoom-to-fit is viewport control, not evaluation — the viewport chrome
          carries it, and F and command search still reach it. */
-      commandGroup(t("grpAnalyze"), [
+      commandGroup("grpAnalyze", [
         commandButton("regen", t("regenerate"), "Ctrl+B", "primary", t("regenerate")),
         commandButton("mass", t("massProps"), null, "", t("massProps")),
         commandButton("measure", t("measureTool"), null, "", t("measureTool")),
         commandButton("section", t("sectionView"), null, "", t("sectionView")),
+        commandButton("paint", t("tool_paint"), "P", "", t("tool_paint_tip")),
+        commandButton("note", t("tool_note"), "N", "", t("tool_note_tip")),
         commandButton("standards", t("standardsAudit"), null, "", t("standardsAudit")),
       ]) +
       /* Configurations is neither analysis nor interop — it is saved document
          state, which is what the rest of this group is about. */
-      commandGroup(t("grpFile"), [
+      commandGroup("grpFile", [
         commandButton("drawing", t("drawingExport")),
         commandButton("config", t("configurations")),
         commandButton("bundle", t("projectBundle"), null, "", t("projectBundle")),
@@ -4871,14 +5141,14 @@ function buildDOM() {
     /* Switching document shape is #mdDocModes' job in the header; repeating it
        here as two more ribbon buttons gave that command two homes. */
     '<div class="md-command-pane" data-command-pane="assembly">' +
-      commandGroup(t("grpInsert"), [
+      commandGroup("grpInsert", [
         commandButton("components", t("insertComponent"), null, "primary", t("insertComponent")),
       ]) +
-      commandGroup(t("grpMates"), [
+      commandGroup("grpMates", [
         commandButton("mates", t("mate"), null, "primary"),
         commandButton("screwmate", t("screwMate")),
       ]) +
-      commandGroup(t("grpReview"), [
+      commandGroup("grpReview", [
         commandButton("explode", t("explodeView"), null, "", t("explodeView")),
         commandButton("isolate", t("isolate"), null, "", t("isolate")),
         commandButton("interference", t("interferenceCheck")),
@@ -4947,7 +5217,6 @@ function buildDOM() {
     '<span class="md-drawing-tools-sep"></span>' +
     '<button type="button" id="mdSheetPrint"><i class="ph ph-printer"></i><span>' + t("drawPrint") + '</span></button>' +
     '<button type="button" id="mdSheetExport"><i class="ph ph-file-svg"></i><span>' + t("drawExportSvg") + '</span></button>' +
-    '<button type="button" id="mdDrawingSave" class="save"><i class="ph ph-floppy-disk"></i><span>' + t("save") + '</span></button>' +
     '</div>' +
     '<aside class="md-sheet-panel" id="mdSheetPanel" hidden aria-label="' + t("sheetSetup") + '"></aside>' +
     '<div class="md-views" id="mdViews" role="toolbar" aria-label="' + t("displayStyle") + '">' +
@@ -4966,6 +5235,7 @@ function buildDOM() {
     '<button type="button" data-display="solid" class="on" aria-pressed="true">' + cadIcon("solidView") + '<span>' + t("solidView") + '</span></button>' +
     '<button type="button" data-display="transparent" aria-pressed="false">' + cadIcon("transparentView") + '<span>' + t("transparentView") + '</span></button>' +
     '<button type="button" id="mdShowEdges" class="on" aria-pressed="true" title="' + t("modelEdgesTip") + '">' + cadIcon("modelEdges") + '<span>' + t("modelEdges") + '</span></button>' +
+    '<button type="button" id="mdToggleNotesView" class="on" aria-pressed="true" title="' + t("toggleNotes") + '"><i class="ph ph-chat-circle-text"></i><span>' + t("notesAnnotations") + '</span></button>' +
     '</div><button type="button" id="mdFinishPlane" class="md-finish-plane">' + cadIcon("check") + '<span>' + t("exitPlane") + '</span></button></div>' +
     '<button type="button" id="mdSketchOnFace" class="md-sketch-on-face" hidden><i class="ph ph-pencil-line"></i><span>' + t("createSketchOnRef") + '</span></button>' +
     '<button type="button" id="mdSketchPlaneChip" class="md-sketch-plane-chip" hidden>' +
@@ -5022,6 +5292,59 @@ function buildDOM() {
     '<div class="md-shortcut-bar" id="mdShortcutBar" hidden></div>' +
     '<div class="md-view-selector" id="mdViewSelector" hidden></div>' +
     '<div class="md-context-menu" id="mdContextMenu" hidden></div>' +
+    '<div class="md-paint-toolbar" id="mdPaintToolbar" hidden role="toolbar" aria-label="' + t("tool_paint") + '">' +
+      '<div class="md-paint-mode-toggle" role="group" aria-label="Paint mode">' +
+        '<button type="button" data-paint-mode="face" class="on" title="' + t("paintModeFace") + '">' + t("paintModeFace") + '</button>' +
+        '<button type="button" data-paint-mode="body" title="' + t("paintModeBody") + '">' + t("paintModeBody") + '</button>' +
+      '</div>' +
+      '<span class="md-paint-sep"></span>' +
+      '<div class="md-paint-swatches" id="mdPaintSwatches"></div>' +
+      '<label class="md-paint-custom" title="' + t("color") + '">' +
+        '<input type="color" id="mdPaintColorInput" value="#3b82f6">' +
+      '</label>' +
+      '<span class="md-paint-sep"></span>' +
+      '<button type="button" id="mdPaintEyedropper" class="md-paint-tool-btn" title="' + t("paintEyedropper") + '">' +
+        '<i class="ph ph-eyedropper"></i>' +
+      '</button>' +
+      '<button type="button" id="mdPaintClear" class="md-paint-tool-btn" title="' + t("clearPaint") + '">' +
+        '<i class="ph ph-arrow-counter-clockwise"></i>' +
+      '</button>' +
+    '</div>' +
+    '<div class="md-notes-toolbar" id="mdNotesToolbar" hidden role="toolbar" aria-label="' + t("tool_note") + '">' +
+      '<div class="md-notes-mode-toggle" role="group" aria-label="Note mode">' +
+        '<button type="button" data-note-mode="callout" class="on" title="' + t("noteModeCallout") + '"><i class="ph ph-chat-circle-text"></i><span>' + t("noteModeCallout") + '</span></button>' +
+        '<button type="button" data-note-mode="markup" title="' + t("noteModeMarkup") + '"><i class="ph ph-pencil-simple-line"></i><span>' + t("noteModeMarkup") + '</span></button>' +
+        '<button type="button" data-note-mode="eraser" title="' + t("noteModeEraser") + '"><i class="ph ph-eraser"></i><span>' + t("noteModeEraser") + '</span></button>' +
+      '</div>' +
+      '<span class="md-paint-sep"></span>' +
+      '<div class="md-markup-colors" id="mdMarkupColors">' +
+        '<button type="button" data-markup-color="#ef4444" class="on" style="background:#ef4444" title="Red"></button>' +
+        '<button type="button" data-markup-color="#eab308" style="background:#eab308" title="Yellow"></button>' +
+        '<button type="button" data-markup-color="#22c55e" style="background:#22c55e" title="Green"></button>' +
+        '<button type="button" data-markup-color="#3b82f6" style="background:#3b82f6" title="Blue"></button>' +
+        '<button type="button" data-markup-color="#ffffff" style="background:#ffffff" title="White"></button>' +
+      '</div>' +
+      '<span class="md-paint-sep"></span>' +
+      '<button type="button" id="mdToggleNotesVisibility" class="md-paint-tool-btn on" title="' + t("toggleNotes") + '">' +
+        '<i class="ph ph-eye"></i>' +
+      '</button>' +
+      '<button type="button" id="mdClearMarkupsBtn" class="md-paint-tool-btn" title="' + t("clearMarkups") + '">' +
+        '<i class="ph ph-trash"></i>' +
+      '</button>' +
+    '</div>' +
+    '<div class="md-note-editor" id="mdNoteEditor" hidden role="dialog" aria-modal="true" aria-label="' + t("noteEditorTitle") + '">' +
+      '<div class="md-note-editor-head">' +
+        '<i class="ph ph-chat-circle-text"></i>' +
+        '<b id="mdNoteEditorTitle">' + t("noteEditorTitle") + '</b>' +
+        '<button type="button" id="mdNoteEditorClose" aria-label="' + t("close") + '"><i class="ph ph-x"></i></button>' +
+      '</div>' +
+      '<div class="md-note-editor-cats" id="mdNoteEditorCats"></div>' +
+      '<textarea id="mdNoteEditorText" rows="3" placeholder="' + t("notePlaceholder") + '"></textarea>' +
+      '<div class="md-note-editor-actions">' +
+        '<button type="button" id="mdNoteEditorDelete" class="danger" title="' + t("noteDelete") + '"><i class="ph ph-trash"></i></button>' +
+        '<button type="button" id="mdNoteEditorDone" class="accept"><i class="ph ph-check"></i><span>' + t("noteDone") + '</span></button>' +
+      '</div>' +
+    '</div>' +
     '<div class="md-gesture-wheel" id="mdGestureWheel" hidden>' +
       '<span data-dir="up" data-cmd="extrude">' + cadIcon("extrude") + '<span>' + t("opExtrude") + '</span></span>' +
       '<span data-dir="right" data-cmd="normalTo">' + cadIcon("normalTo") + '<span>' + t("normalTo") + '</span></span>' +
@@ -5036,6 +5359,9 @@ function buildDOM() {
     '<div id="mdRightResizer" class="md-resizer" role="separator" aria-orientation="vertical" aria-label="Resize inspector" tabindex="0"></div>' +
     '<div class="md-prev-wrap">' +
     '<canvas id="mdPrev"></canvas>' +
+    '<svg id="mdNotesSvg" class="md-notes-svg"></svg>' +
+    '<canvas id="mdMarkupCanvas" class="md-markup-canvas"></canvas>' +
+    '<div id="mdNotesHost" class="md-notes-host"></div>' +
     '<label class="md-context-toggle"><input type="checkbox" id="mdContextBtn"><span>' + t("contextRoom") + "</span></label>" +
     "</div>" +
     tabstrip("R", [
@@ -5111,6 +5437,9 @@ function buildDOM() {
         '<button type="button" id="mdTourNext" class="btn-accent">' + t("guideNext") + '<i class="ph ph-arrow-left"></i></button></div>' +
       '</section></div>';
   document.body.appendChild(root);
+  /* The ribbon's four command panes become uikit slots, so a saved layout can
+     rearrange the groups in them. A no-op unless uikit is running. */
+  ribbon.attach(root);
 
   // tools: mutually exclusive, one drawing mode at a time
   root.querySelectorAll("[data-tool]").forEach(function (b) {
@@ -5146,6 +5475,136 @@ function buildDOM() {
     b.addEventListener("click", function () { setModelDisplay(b.getAttribute("data-display")); });
   });
   root.querySelector("#mdShowEdges").addEventListener("click", function () { setShowModelEdges(!(E.showModelEdges !== false)); });
+  var toggleNotesView = root.querySelector("#mdToggleNotesView");
+  if (toggleNotesView) {
+    toggleNotesView.addEventListener("click", function () {
+      E.notesVisible = !(E.notesVisible !== false);
+      syncNotesToolbar();
+      syncViewsToolbarNotes();
+      if (E.pv) syncNotesAndMarkups(E.pv);
+    });
+  }
+
+  // Paint toolbar swatches and controls
+  var swatchesHost = root.querySelector("#mdPaintSwatches");
+  if (swatchesHost) {
+    swatchesHost.innerHTML = "";
+    CURATED_SWATCHES.forEach(function (sw) {
+      var sBtn = el("button", "md-paint-swatch" + (sw.color === E.paintColor ? " on" : ""));
+      sBtn.type = "button";
+      sBtn.style.background = sw.color;
+      sBtn.title = sw.name;
+      sBtn.setAttribute("data-swatch-color", sw.color);
+      sBtn.addEventListener("click", function () {
+        E.paintColor = sw.color;
+        E.paintMetal = sw.metal;
+        E.paintRough = sw.rough;
+        E.paintEyedropper = false;
+        syncPaintToolbar();
+      });
+      swatchesHost.appendChild(sBtn);
+    });
+  }
+  root.querySelectorAll("[data-paint-mode]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      E.paintMode = b.getAttribute("data-paint-mode");
+      syncPaintToolbar();
+    });
+  });
+  var paintColorInput = root.querySelector("#mdPaintColorInput");
+  if (paintColorInput) {
+    paintColorInput.addEventListener("input", function () {
+      E.paintColor = this.value;
+      syncPaintToolbar();
+    });
+  }
+  var eyedropperBtn = root.querySelector("#mdPaintEyedropper");
+  if (eyedropperBtn) {
+    eyedropperBtn.addEventListener("click", function () {
+      E.paintEyedropper = !E.paintEyedropper;
+      syncPaintToolbar();
+      flash(E.paintEyedropper ? (t("paintEyedropper") + " — " + t("paintHint")) : t("paintFace"));
+    });
+  }
+  var clearPaintBtn = root.querySelector("#mdPaintClear");
+  if (clearPaintBtn) {
+    clearPaintBtn.addEventListener("click", function () {
+      var face = (E.topologySelection || []).find(function (item) { return item.kind === "face"; });
+      if (face) {
+        clearFacePaint(E.def, face);
+        pushUndo(t("clearPaint"));
+        updatePreview();
+        refreshParts();
+      } else {
+        flash(t("selectFaceForColor"));
+      }
+    });
+  }
+
+  // Notes toolbar controls
+  root.querySelectorAll("[data-note-mode]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      E.noteMode = b.getAttribute("data-note-mode");
+      syncNotesToolbar();
+      syncHint();
+    });
+  });
+  root.querySelectorAll("[data-markup-color]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      E.markupColor = b.getAttribute("data-markup-color");
+      syncNotesToolbar();
+    });
+  });
+  var toggleNotesVisBtn = root.querySelector("#mdToggleNotesVisibility");
+  if (toggleNotesVisBtn) {
+    toggleNotesVisBtn.addEventListener("click", function () {
+      E.notesVisible = !(E.notesVisible !== false);
+      syncNotesToolbar();
+      syncViewsToolbarNotes();
+      if (E.pv) syncNotesAndMarkups(E.pv);
+    });
+  }
+  var clearMarkupsBtn = root.querySelector("#mdClearMarkupsBtn");
+  if (clearMarkupsBtn) {
+    clearMarkupsBtn.addEventListener("click", function () {
+      if (E.def && E.def.markups && E.def.markups.length) {
+        clearMarkupsFromDef(E.def);
+        pushUndo(t("clearMarkups"));
+        if (E.pv) syncNotesAndMarkups(E.pv);
+        refreshParts();
+      }
+    });
+  }
+
+  // Note editor dialog
+  var noteEditorClose = root.querySelector("#mdNoteEditorClose");
+  if (noteEditorClose) noteEditorClose.addEventListener("click", closeNoteEditor);
+  var noteEditorDone = root.querySelector("#mdNoteEditorDone");
+  if (noteEditorDone) {
+    noteEditorDone.addEventListener("click", function () {
+      if (E.activeNoteId && E.def) {
+        var textarea = root.querySelector("#mdNoteEditorText");
+        var text = textarea ? textarea.value.trim() : "";
+        updateNoteInDef(E.def, E.activeNoteId, { text: text || "Note" });
+        pushUndo(t("editNote"));
+        if (E.pv) syncNotesAndMarkups(E.pv);
+        refreshParts();
+      }
+      closeNoteEditor();
+    });
+  }
+  var noteEditorDelete = root.querySelector("#mdNoteEditorDelete");
+  if (noteEditorDelete) {
+    noteEditorDelete.addEventListener("click", function () {
+      if (E.activeNoteId && E.def) {
+        deleteNoteFromDef(E.def, E.activeNoteId);
+        pushUndo(t("deleteNote"));
+        if (E.pv) syncNotesAndMarkups(E.pv);
+        refreshParts();
+      }
+      closeNoteEditor();
+    });
+  }
   root.querySelector("#mdSketchOnFace").addEventListener("click", function () { beginSketchWorkflow(null, { forceNew: true }); });
   root.querySelector("#mdHintHelp").addEventListener("click", function () { E.hintDismissed = false; syncHint(); });
   root.querySelector("#mdToggleLeft").addEventListener("click", function () { setPanelCollapsed("left", !E.leftCollapsed); });
@@ -5244,7 +5703,6 @@ function buildDOM() {
   cons.querySelector("#mdWallWidth").addEventListener("change", function () { E.wallWidth = Math.max(0.5, +this.value || 10); });
 
   root.querySelector("#mdSave").addEventListener("click", saveCurrentDocument);
-  root.querySelector("#mdDrawingSave").addEventListener("click", saveCurrentDocument);
   root.querySelector("#mdSheetAutoDim").addEventListener("click", function () { drawingSheet().autoDimension(); drawSketch(); syncStatus(); });
   root.querySelector("#mdSheetHidden").addEventListener("click", function () {
     drawingSheet().setSheetOption("showHidden", !ensureSheetDoc(E.def).showHidden);
@@ -5441,6 +5899,7 @@ function buildDOM() {
 
   root.querySelector("#mdContextBtn").addEventListener("change", function(e) {
     if (E.pv) E.pv.inRoom = e.target.checked;
+    updatePreview();
     renderPreview();
   });
 
@@ -7384,6 +7843,20 @@ function attachSketchToSelectedFace() {
 function setTool(id, keepPlaneState) {
   if (E.dimEditor && !applyDimensionEditor()) return;
   E.touchPrecision = null;
+  if (id === "paint" || id === "note") {
+    E.tool = id;
+    if (E.mode !== "3d") setMode("3d");
+    E.modelPlaneActive = false;
+    if (id === "note" && !E.noteMode) E.noteMode = "callout";
+    syncModelPlane();
+    syncTools();
+    syncHint();
+    if (E.pv) {
+      syncNotesAndMarkups(E.pv);
+      E.pv.render();
+    }
+    return;
+  }
   if(E.mode !== "drawing" && isCanonicalAuthoring() && !E.tour.active) {
     if(SKETCH_TOOLS.includes(id) && E.authoring.phase!=="sketch") { beginSketchWorkflow(id); return; }
     if(["rect","circle","sph","poly","rev","cut","cutc"].includes(id)) {
@@ -7554,6 +8027,10 @@ function setTab(id) {
   });
   panel.querySelectorAll(".md-pane").forEach(function (p) { p.classList.toggle("on", p.getAttribute("data-pane") === id); });
   if (id === "hist" && histPanel) histPanel.refresh();
+  if (typeof inspectorDirty !== "undefined" && inspectorDirty[id]) {
+    fillInspectorTab(id);
+    inspectorDirty[id] = false;
+  }
 }
 function activeTab(side) {
   var p = root && root.querySelector('.md-tabs[data-side="' + side + '"] .md-pane.on');
@@ -7647,6 +8124,8 @@ function runCommand(id) {
   else if (id === "interference") runInterferenceCheck();
   else if (id === "bom") showAssemblyBOM();
   else if (id === "isolate") toggleIsolate();
+  else if (id === "paint") { setMode("3d"); setTool("paint"); }
+  else if (id === "note") { setMode("3d"); setTool("note"); }
   closeCommandSearch();
   syncCommandManager();
 }
@@ -9201,6 +9680,18 @@ function syncTools() {
     b.setAttribute("aria-pressed", b.getAttribute("data-drawing-tool") === sheetTool ? "true" : "false");
   });
   root.classList.toggle("md-tool-dim", E.mode === "drawing" && sheetTool !== "select");
+  var paintBar = root.querySelector("#mdPaintToolbar");
+  if (paintBar) {
+    var showPaint = E.tool === "paint";
+    paintBar.hidden = !showPaint;
+    if (showPaint) syncPaintToolbar();
+  }
+  var notesBar = root.querySelector("#mdNotesToolbar");
+  if (notesBar) {
+    var showNotes = E.tool === "note";
+    notesBar.hidden = !showNotes;
+    if (showNotes) syncNotesToolbar();
+  }
   syncHint();
   syncStatus();
   syncExtrudeButton();
@@ -9241,6 +9732,16 @@ function syncHint() {
   if (!hint) return;
   // A flash still on screen keeps the element; see flash() above.
   if (flashHolding()) return;
+  if (E.tool === "paint") {
+    hint.textContent = t("paintHint");
+    hint.classList.remove("on");
+    return;
+  }
+  if (E.tool === "note") {
+    hint.textContent = E.noteMode === "markup" ? t("markupHint") : t("noteHint");
+    hint.classList.remove("on");
+    return;
+  }
   var live = (E.mode !== "3d" || E.modelPlaneActive) && (E.tool === "wall" || E.tool === "poly" || E.tool === "rev" || E.tool === "cut" || E.tool === "cutc" || E.tool === "sarc" || E.tool === "sslot" || E.tool === "sell");
   var topology=(E.topologySelection || []),finishType=E.authoring && ["fillet","chamfer","shell"].includes(E.authoring.featureType) ? E.authoring.featureType : null;
   var sameKind=topology.length && topology.every(function(reference){return reference.kind===topology[0].kind;});
@@ -9533,9 +10034,9 @@ function sheetToggle(host, label, checked, onChange) {
   return box;
 }
 
-function sheetGroup(host, title) {
+function sheetGroup(host, title, defaultOpen) {
   var group = el("details", "md-sheet-group");
-  group.open = true;
+  group.open = defaultOpen !== false;
   group.appendChild(el("summary", "", title));
   var body = el("div", "md-sheet-group-body");
   group.appendChild(body);
@@ -9560,7 +10061,15 @@ function bindTitleField(input, key) {
 function buildSheetPanel(host) {
   var doc = ensureSheetDoc(E.def), sheet = drawingSheet();
   host.innerHTML = "";
-  host.appendChild(el("div", "md-sheet-head", '<i class="ph ph-file-dashed"></i><b>' + t("sheetSetup") + "</b>"));
+  var head = el("div", "md-sheet-head");
+  head.innerHTML = '<i class="ph ph-file-dashed"></i><b>' + t("sheetSetup") + "</b>";
+  var headActions = el("div", "md-sheet-head-actions");
+  var collapseBtn = namedButton(btn('<i class="ph ph-sidebar-simple"></i>', function () {
+    setPanelCollapsed("right", true);
+  }, "md-sheet-icon"), t("collapsePanel") || "Collapse");
+  headActions.appendChild(collapseBtn);
+  head.appendChild(headActions);
+  host.appendChild(head);
 
   var setup = sheetGroup(host, t("sheetSetup"));
   sheetRow(setup, t("sheetSize"), sheetSelect(Object.keys(SHEET_SIZES).map(function (key) {
@@ -9633,7 +10142,7 @@ function buildSheetPanel(host) {
     }));
   }
 
-  var title = sheetGroup(host, t("sheetTitleBlock"));
+  var title = sheetGroup(host, t("sheetTitleBlock"), false);
   [["title", t("tbTitle"), "mdSheetTitleField"], ["number", t("tbNumber")], ["revision", t("tbRev")],
     ["author", t("tbAuthor")], ["company", t("tbCompany")], ["material", t("tbMaterial")],
     ["finish", t("tbFinish")], ["mass", t("tbMass")], ["date", t("tbDate")], ["tolerance", t("tbTolerance")],
@@ -11985,8 +12494,17 @@ function constrainWallPoint(point, origin, hardOrtho) {
   return { u: origin.u + Math.cos(snapped) * length, v: origin.v + Math.sin(snapped) * length };
 }
 
+var cancel2DPointerMoveGlobal = null;
+
 function wireSketch() {
   var cv = E.cv;
+  function getCanvasRect() {
+    if (!E._cvRect) {
+      E._cvRect = cv.getBoundingClientRect();
+      requestAnimationFrame(function () { E._cvRect = null; });
+    }
+    return E._cvRect;
+  }
   var threeFinger = bindThreeFingerPan(cv, function (dx, dy) {
     if (E.drag && E.drag.mode !== "pan") E.drag = null;
     if (sketchProjection() && E.pv) {
@@ -12051,7 +12569,7 @@ function wireSketch() {
     if (threeFinger()) return;
     if (E.dimEditor && !applyDimensionEditor()) return;
     if(e.isTrusted)cv.setPointerCapture(e.pointerId);
-    var r = cv.getBoundingClientRect();
+    var r = getCanvasRect();
     var localX = e.clientX - r.left, localY = e.clientY - r.top;
     /* A sheet is not a sketch: the drafting table takes the whole gesture —
        pan, pick, drag a view along its projection line, place a dimension — and
@@ -12277,9 +12795,33 @@ function wireSketch() {
     if (p) { pushUndo(t("opMove")); E.drag = { mode: "move", u: uv.u, v: uv.v }; }
     refreshAll();
   });
-  cv.addEventListener("pointermove", function (e) {
+  var pointerMoveRaf = 0;
+  var latest2DMove = null;
+
+  function flush2DPointerMove() {
+    if (pointerMoveRaf) {
+      cancelAnimationFrame(pointerMoveRaf);
+      pointerMoveRaf = 0;
+    }
+    if (latest2DMove) {
+      var ev = latest2DMove;
+      latest2DMove = null;
+      process2DPointerMove(ev);
+    }
+  }
+
+  function cancel2DPointerMove() {
+    if (pointerMoveRaf) {
+      cancelAnimationFrame(pointerMoveRaf);
+      pointerMoveRaf = 0;
+    }
+    latest2DMove = null;
+  }
+  cancel2DPointerMoveGlobal = cancel2DPointerMove;
+
+  function process2DPointerMove(e) {
     if (threeFinger()) return;
-    var r = cv.getBoundingClientRect();
+    var r = getCanvasRect();
     var localX = e.clientX - r.left, localY = e.clientY - r.top;
     if (E.mode === "drawing") { drawingSheet().pointerMove(e, localX, localY); syncStatus(); return; }
     if(e.pointerType==="touch"&&touchPrecisionTrialOwns(e.pointerId)){
@@ -12307,7 +12849,7 @@ function wireSketch() {
         E.ox = E.drag.ox + (e.clientX - E.drag.px);
         E.oy = E.drag.oy + (e.clientY - E.drag.py);
       } else if (E.drag.mode === "dimension") {
-        var dimensionRect = cv.getBoundingClientRect();
+        var dimensionRect = r;
         if (E.drag.instant2d) {
           var delta = (e.clientX - E.drag.px) + (e.clientY - E.drag.py) * 0.25;
           E.drag.constraint.value = dimensionValueFromDrag(E.drag.startValue, delta, E.scl);
@@ -12360,11 +12902,32 @@ function wireSketch() {
       if (E._osnap) E._mouse = mp;
       drawSketch();
     }
+  }
+
+  cv.addEventListener("pointermove", function (e) {
+    latest2DMove = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      shiftKey: e.shiftKey,
+      pointerId: e.pointerId,
+      pointerType: e.pointerType,
+    };
+    if (!pointerMoveRaf) {
+      pointerMoveRaf = requestAnimationFrame(function () {
+        pointerMoveRaf = 0;
+        if (latest2DMove) {
+          var ev = latest2DMove;
+          latest2DMove = null;
+          process2DPointerMove(ev);
+        }
+      });
+    }
   });
   cv.addEventListener("pointerup", function (e) {
+    flush2DPointerMove();
     if (threeFinger()) return;
     if (E.mode === "drawing") {
-      var sheetRect = cv.getBoundingClientRect();
+      var sheetRect = getCanvasRect();
       drawingSheet().pointerUp(e, e.clientX - sheetRect.left, e.clientY - sheetRect.top);
       syncStatus();
       return;
@@ -12372,7 +12935,7 @@ function wireSketch() {
     if(touchPrecisionTrialOwns(e.pointerId)){
       releaseTouchPrecisionTrial(e.pointerId,false);E.touchPrecision=null;drawSketch();return;
     }
-    var releaseRect = cv.getBoundingClientRect();
+    var releaseRect = getCanvasRect();
     var releaseX = e.clientX - releaseRect.left, releaseY = e.clientY - releaseRect.top;
     var activePrecision = E.touchPrecision && E.touchPrecision.pointerId === e.pointerId ? E.touchPrecision : null;
     var releasePoint = touchPrecisionPoint(activePrecision, releaseX, releaseY);
@@ -12432,6 +12995,7 @@ function wireSketch() {
     drawSketch();
   });
   cv.addEventListener("pointercancel", function (e) {
+    cancel2DPointerMove();
     if(touchPrecisionTrialOwns(e.pointerId)){
       releaseTouchPrecisionTrial(e.pointerId,true);E.touchPrecision=null;drawSketch();return;
     }
@@ -12576,6 +13140,7 @@ function wireSketch() {
     cv.addEventListener("touchcancel", end);
   })();
   cv.addEventListener("pointerleave", function () {
+    cancel2DPointerMove();
     if (!E.drag) E.touchPrecision = null;
     E._mouse = null; syncStatus();
   });
@@ -12624,7 +13189,7 @@ function wireSketch() {
     apRAF = requestAnimationFrame(apStep);
   }
   function autoPanFrom(e) {
-    var rect = cv.getBoundingClientRect();
+    var rect = getCanvasRect();
     apPtr = { x: e.clientX - rect.left, y: e.clientY - rect.top, shiftKey: e.shiftKey };
     if (!apRAF && apActive() && (apAxis(apPtr.x, E.cw) || apAxis(apPtr.y, E.ch))) {
       apT0 = apLast = performance.now();
@@ -12773,6 +13338,8 @@ function onKey(e) {
     return;
   }
   if (e.key === "Escape") {
+    if (E.noteEditorOpen) { e.preventDefault(); closeNoteEditor(); return; }
+    if (E.tool === "paint" || E.tool === "note") { setTool("select"); return; }
     if (E.overlays && (E.overlays.shortcut || E.overlays.views || E.overlays.menu || E.overlays.gesture)) {
       e.preventDefault(); closeChromeOverlays(); return;
     }
@@ -12834,6 +13401,8 @@ function onKey(e) {
   else if (KEY_VIEW[e.key]) setView(KEY_VIEW[e.key]);
   else if (k === "r") runCommand("revolvefeature");
   else if (k === "s") showShortcutBar();
+  else if ((k === "p" || k === "b") && E.mode === "3d" && !E.modelPlaneActive) setTool("paint");
+  else if (k === "n" && E.mode === "3d" && !E.modelPlaneActive) setTool("note");
   else if (KEY_TOOL[k]) setTool(KEY_TOOL[k]);
   else if (k === "f") E.mode === "3d" && !E.modelPlaneActive ? fitPreview() : fitSketch();
   else if ((e.key === "Delete" || e.key === "Backspace") && E.sel) {
@@ -14017,6 +14586,7 @@ function refreshParts() {
   }
   addFeatureFilter(host);
   if (canonical) buildParametricHistoryTree(host); else buildLegacyTree(host);
+  renderTreeAnnotations(host);
   applyFeatureFilter(host);
 }
 
@@ -14627,6 +15197,22 @@ function assemblyMateInspector() {
   }
 }
 
+var inspectorDirty = { sketch: true, shape: true, look: true, ops: true };
+if (typeof window !== "undefined") window.cadInspectorDirty = inspectorDirty;
+
+function fillInspectorTab(id) {
+  if (E.docType === "assembly") {
+    if (id === "shape") assemblyTransformInspector();
+    else if (id === "look") assemblyFlagsInspector();
+    else if (id === "ops") assemblyMateInspector();
+    return;
+  }
+  if (id === "shape") fillShape();
+  else if (id === "look") fillLook();
+  else if (id === "ops") fillOps();
+  else if (id === "sketch") fillSketchPane();
+}
+
 function fillInspector() {
   if (E.docType === "assembly") {
     assemblyTransformInspector();
@@ -14638,12 +15224,19 @@ function fillInspector() {
     if (anm) anm.textContent = E.sel ? (E.sel.name || E.sel.modelKey) : "";
     return;
   }
-  fillShape();
-  fillLook();
-  fillOps();
-  fillSketchPane();
-  var nm = root.querySelector("#mdSelName"),topologyCount=(E.topologySelection || []).length;
-  if (nm) nm.textContent = E.sel ? (E.sel.name || E.sel.kind)+(topologyCount?" · "+topologyCount+" "+(E.topologySelection[0].kind || "reference")+(topologyCount===1?"":"s")+" selected":"") : "";
+  var nm = root.querySelector("#mdSelName"), topologyCount = (E.topologySelection || []).length;
+  if (nm) nm.textContent = E.sel ? (E.sel.name || E.sel.kind) + (topologyCount ? " · " + topologyCount + " " + (E.topologySelection[0].kind || "reference") + (topologyCount === 1 ? "" : "s") + " selected" : "") : "";
+
+  inspectorDirty.sketch = true;
+  inspectorDirty.shape = true;
+  inspectorDirty.look = true;
+  inspectorDirty.ops = true;
+
+  var current = activeTab("R") || "shape";
+  if (inspectorDirty[current]) {
+    fillInspectorTab(current);
+    inspectorDirty[current] = false;
+  }
 }
 
 function fillShape() {
@@ -14727,7 +15320,7 @@ function fillShape() {
       row.appendChild(label);
       topologyCard.appendChild(row);
     });
-    topologyCard.appendChild(btn(t("clearTopologySelection"), function () { E.topologySelection = []; refreshAll(); }, "md-wide"));
+    topologyCard.appendChild(btn(t("clearTopologySelection"), function () { E.topologySelection = []; refreshSelection(); }, "md-wide"));
     host.appendChild(topologyCard);
   }
   }
@@ -15195,6 +15788,14 @@ function fillLook() {
   appendViewportColor(host, t("selectedEdgeColor"), "selectedEdgeColor");
   appendViewportColor(host, t("selectionFaceColor"), "selectedFaceColor");
   appendViewportColor(host, t("hoverColor"), "hoverColor");
+
+  var paintBanner = el("div", "md-paint-launch-banner");
+  var paintBtn = btn('<i class="ph ph-paint-brush"></i> ' + t("startPainting"), function () {
+    setMode("3d");
+    setTool("paint");
+  }, "btn-accent");
+  paintBanner.appendChild(paintBtn);
+  host.appendChild(paintBanner);
 
   var p = E.sel;
   if (!p) { emptyState(host, "ph-paint-brush", t("noSel"), t("noSelHint")); return; }
@@ -15664,6 +16265,25 @@ function dedupeTopologyCandidates(candidates) {
   return out;
 }
 
+/* Scratch instances for the pick paths, which run per pointermove. These must
+   be created lazily: THREE is late-bound (js/three_lazy.js) and is an EMPTY
+   object at module-evaluation time, so constructing one here throws and takes
+   the whole module down with it. Both call sites are downstream of the
+   openModeler() loadThree() gate, so by the time either runs three is up. */
+var pickRaycaster = null;
+var pickPointer = null;
+var _scratchCandidateBox = null;
+var _scratchToComponent = null;
+var _scratchPickNormal = null;
+function getScratchCandidateBox() {
+  if (!_scratchCandidateBox) _scratchCandidateBox = new THREE.Box3();
+  return _scratchCandidateBox;
+}
+function pickScratch() {
+  if (!pickRaycaster) { pickRaycaster = new THREE.Raycaster(); pickPointer = new THREE.Vector2(); }
+  return pickRaycaster;
+}
+
 function resolveTopologyPick(event, view, options) {
   var prefer = options && options.prefer || E.selectionFilter || "all";
   /* A stationary component click is completed by the assembly drag recognizer's
@@ -15674,11 +16294,11 @@ function resolveTopologyPick(event, view, options) {
   var pickSurface = eventTarget && typeof eventTarget.getBoundingClientRect === "function"
     ? eventTarget : view.rr.domElement;
   var rect = pickSurface.getBoundingClientRect();
-  var pointer = new THREE.Vector2(
+  var ray = pickScratch();
+  var pointer = pickPointer.set(
     ((event.clientX - rect.left) / rect.width) * 2 - 1,
     -((event.clientY - rect.top) / rect.height) * 2 + 1
   );
-  var ray = new THREE.Raycaster();
   var finishPick = finishCommandActive();
   var pickPixels = topologyPickPixelRadius(event.pointerType, prefer, finishPick);
   var worldPerPixel = view && typeof view.worldPerPixel === "function" ? view.worldPerPixel() : (view.dist || 120) * .0024;
@@ -15691,7 +16311,26 @@ function resolveTopologyPick(event, view, options) {
   var farWorldPerPixel = view && typeof view.farthestWorldPerPixel === "function"
     ? view.farthestWorldPerPixel() : worldPerPixel * 2;
   ray.params.Line.threshold = topologyCandidateWorldThreshold(worldPerPixel, farWorldPerPixel, pickPixels);
-  var hits = ray.intersectObjects(view.grp.children, true);
+  var candidates = view.grp.children;
+  if (candidates.length > 2) {
+    var candidateBox = getScratchCandidateBox();
+    var filtered = [];
+    var threshold = ray.params.Line.threshold || 1;
+    for (var ci = 0; ci < candidates.length; ci++) {
+      var child = candidates[ci];
+      candidateBox.setFromObject(child);
+      if (candidateBox.isEmpty()) {
+        filtered.push(child);
+        continue;
+      }
+      candidateBox.expandByScalar(threshold);
+      if (ray.ray.intersectsBox(candidateBox)) {
+        filtered.push(child);
+      }
+    }
+    candidates = filtered;
+  }
+  var hits = candidates.length > 0 ? ray.intersectObjects(candidates, true) : [];
   if (E.section && E.section.enabled) hits = filterTopologyHitsByClipPlane(hits, sectionPlane());
   /* Line.raycast returns the closest point on the segment but, unlike Points,
      this vendored three.js does not include distanceToRay. Derive the actual
@@ -15753,9 +16392,11 @@ function resolveTopologyPick(event, view, options) {
         var pickNormal = worldNormal;
         if (meshChain.group) {
           meshChain.group.updateWorldMatrix(true, false);
-          var toComponent = new THREE.Matrix4().copy(meshChain.group.matrixWorld).invert();
+          if (!_scratchToComponent) _scratchToComponent = new THREE.Matrix4();
+          var toComponent = _scratchToComponent.copy(meshChain.group.matrixWorld).invert();
           meshHit = Object.assign({}, meshHit, { point: meshHit.point.clone().applyMatrix4(toComponent) });
-          pickNormal = worldNormal.clone().transformDirection(toComponent);
+          if (!_scratchPickNormal) _scratchPickNormal = new THREE.Vector3();
+          pickNormal = _scratchPickNormal.copy(worldNormal).transformDirection(toComponent);
         }
         pickPoint = { x: meshHit.point.x, y: meshHit.point.y, z: meshHit.point.z };
         pickNormalOut = { x: pickNormal.x, y: pickNormal.y, z: pickNormal.z };
@@ -15810,7 +16451,11 @@ function resolveTopologyPick(event, view, options) {
               var rx = dx - cylX*along, ry = dy - cylY*along, rz = dz - cylZ*along;
               var radial = Math.abs(Math.hypot(rx, ry, rz) - radius);
               var wall = Math.abs(pickNormal.x*cylX + pickNormal.y*cylY + pickNormal.z*cylZ);
-              if (wall < 0.35) {
+              /* Radius and axis alone name a whole cylinder. A wall merged from
+                 a run of chords only owns its own arc of one, and scoring the
+                 rest of that circle let a tooth flank claim hits clear across
+                 the body. */
+              if (wall < 0.35 && pointWithinCylinderArc(meshHit.point, descriptor, Math.max(0.4, radius * 0.06) / Math.max(radius, 1e-9))) {
                 score = 800 - radial * 20;
                 // on this wall, not merely parallel to it — a bore and the boss
                 // around it share an axis and differ only by radius
@@ -15939,14 +16584,14 @@ function resolveTopologyPick(event, view, options) {
 /* Hover feedback. Nothing here changes the model or the selection — it only
    says "this is what a click would take", which is the whole difference
    between a viewport you can pick in and one you cannot. */
-function hoverAssemblyTopology(event, view) {
+function hoverAssemblyTopology(event, view, precomputedHandle) {
   if (!view || !view.grp) return;
   if (E.docType !== "part" && E.docType !== "assembly") return;
   /* Instant-3D drag handles belong to part authoring; an assembly has none. */
-  var handle = E.docType === "part" ? hitInstant3d(event, view) : null;
+  var handle = precomputedHandle !== undefined ? precomputedHandle : (E.docType === "part" ? hitInstant3d(event, view) : null);
   if (view.rr && view.rr.domElement) view.rr.domElement.style.cursor = handle ? "grab" : "";
   if (handle) {
-    if (E.hoverTopology) { E.hoverTopology = null; updatePreview(); }
+    if (E.hoverTopology) { E.hoverTopology = null; refreshDecorations(); }
     return;
   }
   var found = resolveTopologyPick(event, view, { prefer: E.facePick ? "face" : E.selectionFilter });
@@ -15969,7 +16614,699 @@ function hoverAssemblyTopology(event, view) {
   }
   if (same) return;
   E.hoverTopology = next;
-  updatePreview();
+  refreshDecorations();
+}
+
+/* ================= 3D Notes, Annotations & Painting ================= */
+function syncViewsToolbarNotes() {
+  var b = root && root.querySelector("#mdToggleNotesView");
+  if (!b) return;
+  var vis = E.notesVisible !== false;
+  b.classList.toggle("on", vis);
+  b.setAttribute("aria-pressed", vis ? "true" : "false");
+}
+
+function syncPaintToolbar() {
+  var bar = root && root.querySelector("#mdPaintToolbar");
+  if (!bar) return;
+  bar.querySelectorAll("[data-paint-mode]").forEach(function (btn) {
+    var mode = btn.getAttribute("data-paint-mode");
+    var on = mode === (E.paintMode || "face");
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  var eyedropperBtn = bar.querySelector("#mdPaintEyedropper");
+  if (eyedropperBtn) {
+    eyedropperBtn.classList.toggle("on", !!E.paintEyedropper);
+    eyedropperBtn.setAttribute("aria-pressed", E.paintEyedropper ? "true" : "false");
+  }
+  var colorInp = bar.querySelector("#mdPaintColorInput");
+  if (colorInp && colorInp.value !== E.paintColor) {
+    colorInp.value = E.paintColor || "#3b82f6";
+  }
+  bar.querySelectorAll(".md-paint-swatch").forEach(function (swatch) {
+    var col = swatch.getAttribute("data-swatch-color");
+    swatch.classList.toggle("on", col === E.paintColor);
+  });
+}
+
+function syncNotesToolbar() {
+  var bar = root && root.querySelector("#mdNotesToolbar");
+  if (!bar) return;
+  bar.querySelectorAll("[data-note-mode]").forEach(function (btn) {
+    var mode = btn.getAttribute("data-note-mode");
+    var on = mode === (E.noteMode || "callout");
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  bar.querySelectorAll("[data-markup-color]").forEach(function (btn) {
+    var col = btn.getAttribute("data-markup-color");
+    var on = col === (E.markupColor || "#ef4444");
+    btn.classList.toggle("on", on);
+  });
+  var visBtn = bar.querySelector("#mdToggleNotesVisibility");
+  if (visBtn) {
+    var vis = E.notesVisible !== false;
+    visBtn.classList.toggle("on", vis);
+    visBtn.innerHTML = '<i class="ph ' + (vis ? "ph-eye" : "ph-eye-closed") + '"></i>';
+  }
+}
+
+function syncNotesAndMarkups(view) {
+  if (!view || !view.rr || !view.cam) return;
+  var canvas = view.rr.domElement;
+  var wrap = canvas && canvas.parentElement;
+  if (!wrap) return;
+  var svg = wrap.querySelector("#mdNotesSvg");
+  var host = wrap.querySelector("#mdNotesHost");
+  var mcv = wrap.querySelector("#mdMarkupCanvas");
+  if (!svg || !host || !mcv) return;
+
+  var w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;
+
+  if (svg.getAttribute("width") !== String(w) || svg.getAttribute("height") !== String(h)) {
+    svg.setAttribute("width", w);
+    svg.setAttribute("height", h);
+    svg.style.width = w + "px";
+    svg.style.height = h + "px";
+  }
+  var dpr = window.devicePixelRatio || 1;
+  var rw = Math.round(w * dpr), rh = Math.round(h * dpr);
+  if (mcv.width !== rw || mcv.height !== rh) {
+    mcv.width = rw;
+    mcv.height = rh;
+    mcv.style.width = w + "px";
+    mcv.style.height = h + "px";
+  }
+
+  drawMarkupsOverlay(mcv, dpr);
+  syncNotesCards(svg, host, view, canvas);
+}
+
+var markupsLastDrawnSig = null;
+var markupsLastDrawnVis = null;
+
+function markupsSignature() {
+  var list = E.def && Array.isArray(E.def.markups) ? E.def.markups : [];
+  var last = list[list.length - 1];
+  return list.length + ":" + (last && last.points ? last.points.length : 0);
+}
+
+function drawMarkupsOverlay(mcv, dpr) {
+  var sig = markupsSignature();
+  var live = !!(E.activeMarkupStroke && E.activeMarkupStroke.points && E.activeMarkupStroke.points.length > 1);
+  if (!live && sig === markupsLastDrawnSig && E.notesVisible === markupsLastDrawnVis) {
+    return;
+  }
+  markupsLastDrawnSig = live ? null : sig;
+  markupsLastDrawnVis = E.notesVisible;
+
+  var ctx = mcv.getContext("2d");
+  ctx.clearRect(0, 0, mcv.width, mcv.height);
+  if (E.notesVisible === false || !E.def) return;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+
+  var markups = Array.isArray(E.def.markups) ? E.def.markups : [];
+  for (var i = 0; i < markups.length; i++) {
+    var s = markups[i];
+    if (!s || !Array.isArray(s.points) || s.points.length < 2) continue;
+    ctx.beginPath();
+    ctx.strokeStyle = s.color || "#ef4444";
+    ctx.lineWidth = s.width || 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    var pts = s.points;
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (var j = 1; j < pts.length; j++) {
+      ctx.lineTo(pts[j].x, pts[j].y);
+    }
+    ctx.stroke();
+  }
+
+  if (E.activeMarkupStroke && E.activeMarkupStroke.points && E.activeMarkupStroke.points.length > 1) {
+    var livePts = E.activeMarkupStroke.points;
+    ctx.beginPath();
+    ctx.strokeStyle = E.activeMarkupStroke.color || E.markupColor || "#ef4444";
+    ctx.lineWidth = E.activeMarkupStroke.width || E.markupWidth || 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.moveTo(livePts[0].x, livePts[0].y);
+    for (var k = 1; k < livePts.length; k++) {
+      ctx.lineTo(livePts[k].x, livePts[k].y);
+    }
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+/* Note callouts are re-projected on EVERY rendered frame — this runs from the
+   view's afterRender hook — so nothing in here may rebuild DOM. An earlier
+   version assigned card.innerHTML and svg.innerHTML per frame, which parsed
+   markup 60 times a second while the camera moved and, worse, destroyed the
+   card's own subtree mid-gesture: the delete button lost hover and any
+   in-flight pointer press, so it was not reliably clickable during an orbit.
+
+   Build once, then write only what the projection actually changed. */
+var notesScratch = null;
+function noteScratch() {
+  if (!notesScratch) notesScratch = new THREE.Vector3();
+  return notesScratch;
+}
+
+var SVG_NS = "http://www.w3.org/2000/svg";
+function svgEl(tag) {
+  return document.createElementNS(SVG_NS, tag);
+}
+
+/* The connector: an anchor dot on the surface, a leader line, and a dot at the
+   card. Created once per note and then only re-pointed. */
+function noteConnector(svg, id) {
+  if (!svg._connectors) svg._connectors = new Map();
+  var g = svg._connectors.get(id);
+  if (g && g.parentElement === svg) return g;
+  g = svg.querySelector('[data-note-id="' + id + '"]');
+  if (g) { svg._connectors.set(id, g); return g; }
+  g = svgEl("g");
+  g.setAttribute("data-note-id", id);
+  var anchor = svgEl("circle");
+  anchor.setAttribute("r", "4");
+  anchor.setAttribute("stroke", "#ffffff");
+  anchor.setAttribute("stroke-width", "1.5");
+  var leader = svgEl("line");
+  leader.setAttribute("stroke-width", "1.8");
+  leader.setAttribute("stroke-dasharray", "3 2");
+  var tip = svgEl("circle");
+  tip.setAttribute("r", "2.5");
+  g.append(anchor, leader, tip);
+  svg.appendChild(g);
+  svg._connectors.set(id, g);
+  return g;
+}
+
+function setAttrIfChanged(node, name, value) {
+  if (node.getAttribute(name) !== value) node.setAttribute(name, value);
+}
+
+/* The parts of a card that depend on the note rather than on the camera. */
+function noteCardParts(card) {
+  if (card._parts) return card._parts;
+  var badge = el("span", "md-note-card-badge");
+  var text = el("span", "md-note-card-text");
+  var del = document.createElement("button");
+  del.type = "button";
+  del.className = "md-note-card-del";
+  del.appendChild(el("i", "ph ph-x"));
+  card.append(badge, text, del);
+  card._parts = { badge: badge, text: text, del: del };
+  return card._parts;
+}
+
+function noteCardElement(host, note) {
+  if (!host._cards) host._cards = new Map();
+  var card = host._cards.get(note.id);
+  if (card && card.parentElement === host) return card;
+  card = host.querySelector('[data-note-id="' + note.id + '"]');
+  if (!card) {
+    card = el("div", "md-note-card");
+    card.setAttribute("data-note-id", note.id);
+    host.appendChild(card);
+    bindNoteCardEvents(card, note);
+  }
+  host._cards.set(note.id, card);
+  return card;
+}
+
+function syncNotesCards(svg, host, view, canvas) {
+  var notes = E.def && Array.isArray(E.def.notes) ? E.def.notes : [];
+  if (E.notesVisible === false || !notes.length) {
+    if (svg.firstChild) svg.replaceChildren();
+    if (host.firstChild) host.replaceChildren();
+    if (svg._connectors) svg._connectors.clear();
+    if (host._cards) host._cards.clear();
+    return;
+  }
+
+  view.cam.updateMatrixWorld();
+  var camProj = noteScratch();
+  var cw = canvas.clientWidth, ch = canvas.clientHeight;
+  var renderedIds = new Set();
+
+  for (var i = 0; i < notes.length; i++) {
+    var note = notes[i];
+    if (!note || !note.point) continue;
+    renderedIds.add(note.id);
+
+    var color = note.color || (NOTE_CATEGORIES[note.category] && NOTE_CATEGORIES[note.category].color) || "#2563eb";
+    var card = noteCardElement(host, note);
+    var connector = noteConnector(svg, note.id);
+
+    camProj.set(note.point.x, note.point.y, note.point.z).project(view.cam);
+    if (camProj.z > 1) {
+      // behind the camera: the card and its leader go away together
+      if (card.style.display !== "none") card.style.display = "none";
+      if (connector.style.display !== "none") connector.style.display = "none";
+      continue;
+    }
+    if (connector.style.display === "none") connector.style.display = "";
+
+    var sx = (camProj.x * 0.5 + 0.5) * cw;
+    var sy = (-camProj.y * 0.5 + 0.5) * ch;
+    var offX = Number(note.offset && note.offset.x) || 40;
+    var offY = Number(note.offset && note.offset.y) || -40;
+    var cardX = sx + offX;
+    var cardY = sy + offY;
+
+    var anchor = connector.firstChild, leader = anchor.nextSibling, tip = leader.nextSibling;
+    setAttrIfChanged(anchor, "cx", sx.toFixed(1));
+    setAttrIfChanged(anchor, "cy", sy.toFixed(1));
+    setAttrIfChanged(anchor, "fill", color);
+    setAttrIfChanged(leader, "x1", sx.toFixed(1));
+    setAttrIfChanged(leader, "y1", sy.toFixed(1));
+    setAttrIfChanged(leader, "x2", cardX.toFixed(1));
+    setAttrIfChanged(leader, "y2", cardY.toFixed(1));
+    setAttrIfChanged(leader, "stroke", color);
+    setAttrIfChanged(tip, "cx", cardX.toFixed(1));
+    setAttrIfChanged(tip, "cy", cardY.toFixed(1));
+    setAttrIfChanged(tip, "fill", color);
+
+    if (card.style.display !== "flex") card.style.display = "flex";
+    var left = Math.round(cardX) + "px", top = Math.round(cardY) + "px";
+    if (card.style.left !== left) card.style.left = left;
+    if (card.style.top !== top) card.style.top = top;
+    card.classList.toggle("selected", E.activeNoteId === note.id);
+
+    /* Content, only when the note itself changed. The camera moving is not a
+       reason to touch any of this. */
+    var parts = noteCardParts(card);
+    var label = String(i + 1);
+    var body = note.text || "Note";
+    if (card._noteIndex !== label) { parts.badge.textContent = label; card._noteIndex = label; }
+    if (card._noteColor !== color) { parts.badge.style.background = color; card._noteColor = color; }
+    if (card._noteText !== body) { parts.text.textContent = body; card._noteText = body; }
+    var delTitle = t("deleteNote");
+    if (card._delTitle !== delTitle) { parts.del.title = delTitle; card._delTitle = delTitle; }
+  }
+
+  if (host._cards) {
+    host._cards.forEach(function (cNode, cid) {
+      if (!renderedIds.has(cid)) {
+        cNode.remove();
+        host._cards.delete(cid);
+      }
+    });
+  }
+  if (svg._connectors) {
+    svg._connectors.forEach(function (gNode, gid) {
+      if (!renderedIds.has(gid)) {
+        gNode.remove();
+        svg._connectors.delete(gid);
+      }
+    });
+  }
+}
+
+function bindNoteCardEvents(card, note) {
+  card.addEventListener("click", function (e) {
+    if (e.target.closest(".md-note-card-del")) {
+      e.stopPropagation();
+      deleteNoteFromDef(E.def, note.id);
+      pushUndo(t("deleteNote"));
+      if (E.activeNoteId === note.id) closeNoteEditor();
+      if (E.pv) syncNotesAndMarkups(E.pv);
+      refreshParts();
+      return;
+    }
+    openNoteEditor(note);
+  });
+
+  card.addEventListener("pointerdown", function (e) {
+    if (e.target.closest(".md-note-card-del")) return;
+    e.stopPropagation();
+    try { card.setPointerCapture(e.pointerId); } catch (_) {}
+    var startX = e.clientX, startY = e.clientY;
+    var initOffX = Number(note.offset && note.offset.x) || 40;
+    var initOffY = Number(note.offset && note.offset.y) || -40;
+    var moved = false;
+
+    function onMove(ev) {
+      var dx = ev.clientX - startX, dy = ev.clientY - startY;
+      if (Math.hypot(dx, dy) > 3) moved = true;
+      note.offset = { x: initOffX + dx, y: initOffY + dy };
+      if (E.pv) syncNotesAndMarkups(E.pv);
+    }
+
+    function onUp(ev) {
+      card.removeEventListener("pointermove", onMove);
+      card.removeEventListener("pointerup", onUp);
+      try { card.releasePointerCapture(ev.pointerId); } catch (_) {}
+      if (moved) {
+        pushUndo(t("editNote"));
+      }
+    }
+
+    card.addEventListener("pointermove", onMove);
+    card.addEventListener("pointerup", onUp);
+  });
+}
+
+function openNoteEditor(note) {
+  if (!root || !note) return;
+  var dlg = root.querySelector("#mdNoteEditor");
+  if (!dlg) return;
+  E.activeNoteId = note.id;
+  E.noteEditorOpen = true;
+  var titleEl = dlg.querySelector("#mdNoteEditorTitle");
+  if (titleEl) {
+    var idx = (E.def && Array.isArray(E.def.notes) ? E.def.notes.findIndex(function (n) { return n.id === note.id; }) : -1);
+    titleEl.textContent = t("noteEditorTitle") + (idx >= 0 ? " #" + (idx + 1) : "");
+  }
+  var textarea = dlg.querySelector("#mdNoteEditorText");
+  if (textarea) {
+    textarea.value = note.text || "";
+    setTimeout(function () { textarea.focus(); textarea.select(); }, 50);
+  }
+  var catsHost = dlg.querySelector("#mdNoteEditorCats");
+  if (catsHost) {
+    catsHost.innerHTML = "";
+    Object.keys(NOTE_CATEGORIES).forEach(function (key) {
+      var cat = NOTE_CATEGORIES[key];
+      var label = getLang() === "he" && cat.labelHe ? cat.labelHe : cat.label;
+      var chip = el("button", "md-note-cat-chip" + (note.category === key ? " on" : ""), label);
+      chip.type = "button";
+      if (note.category === key) chip.style.background = cat.color;
+      chip.addEventListener("click", function () {
+        updateNoteInDef(E.def, note.id, { category: key, color: cat.color });
+        openNoteEditor(note);
+        if (E.pv) syncNotesAndMarkups(E.pv);
+      });
+      catsHost.appendChild(chip);
+    });
+  }
+  dlg.hidden = false;
+}
+
+function closeNoteEditor() {
+  if (!root) return;
+  var dlg = root.querySelector("#mdNoteEditor");
+  if (dlg) dlg.hidden = true;
+  E.noteEditorOpen = false;
+}
+
+function beginPaintDrag(event, view) {
+  if (!view || !view.grp) return false;
+  var hit = resolveTopologyPick(event, view, { prefer: "face" }) || {};
+  if (!hit.part && (!hit.reference || hit.reference.kind !== "face")) return false;
+
+  event.preventDefault();
+  var canvas = view.rr && view.rr.domElement;
+  if (canvas) {
+    try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
+  }
+
+  if (event.altKey || E.paintEyedropper) {
+    var appearance = sampleFaceAppearance(E.def, hit.reference, hit.part);
+    E.paintColor = appearance.color || "#3b82f6";
+    E.paintMetal = appearance.metal != null ? appearance.metal : 0.1;
+    E.paintRough = appearance.rough != null ? appearance.rough : 0.5;
+    E.paintEyedropper = false;
+    syncPaintToolbar();
+    flash((t("paintEyedropper") || "Sampled") + ": " + E.paintColor);
+    return true;
+  }
+
+  var paintedCount = 0;
+  var paintedKeys = new Set();
+  /* Dragging across a model paints each new face once — paintedKeys already
+     stops a face being repainted — but every one of those still forced a
+     synchronous updatePreview() and refreshParts() from a pointermove
+     handler. Sweeping thirty faces meant thirty full rebuilds, which is the
+     uncoalesced-work-on-pointermove that MODEL_EDITOR_PERF_PLAN.md exists to
+     forbid. Mark dirty, rebuild once on the next frame. */
+  var rebuildFrame = 0;
+  function scheduleRebuild() {
+    if (rebuildFrame) return;
+    rebuildFrame = requestAnimationFrame(function () {
+      rebuildFrame = 0;
+      updatePreview();
+      refreshParts();
+    });
+  }
+  function cancelRebuild() {
+    if (!rebuildFrame) return;
+    cancelAnimationFrame(rebuildFrame);
+    rebuildFrame = 0;
+  }
+  function paintTarget(h) {
+    if (E.paintMode === "face" && h.reference && h.reference.kind === "face") {
+      if (paintedKeys.has(h.reference.persistentId)) return;
+      paintedKeys.add(h.reference.persistentId);
+      applyFacePaint(E.def, h.reference, { color: E.paintColor, metal: E.paintMetal, rough: E.paintRough });
+      paintedCount++;
+      scheduleRebuild();
+    } else if (E.paintMode === "body" && h.part) {
+      if (paintedKeys.has(h.part.id)) return;
+      paintedKeys.add(h.part.id);
+      applyBodyPaint(h.part, { color: E.paintColor, metal: E.paintMetal, rough: E.paintRough });
+      paintedCount++;
+      scheduleRebuild();
+    }
+  }
+
+  paintTarget(hit);
+
+  function onMove(ev) {
+    var moveHit = resolveTopologyPick(ev, view, { prefer: "face" }) || {};
+    paintTarget(moveHit);
+  }
+
+  function onUp(ev) {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    if (canvas) {
+      try { canvas.releasePointerCapture(ev.pointerId); } catch (_) {}
+    }
+    /* The gesture is over, so the coalesced frame has nothing left to do —
+       this rebuild supersedes it, and letting both run would rebuild twice. */
+    cancelRebuild();
+    if (paintedCount > 0) {
+      pushUndo(E.paintMode === "face" ? t("paintFace") : t("paintBody"));
+      updatePreview();
+      refreshParts();
+    }
+  }
+
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  return true;
+}
+
+function pickPaintAction(event, view) {
+  var hit = resolveTopologyPick(event, view, { prefer: "face" }) || {};
+  if (event.altKey || E.paintEyedropper) {
+    var appearance = sampleFaceAppearance(E.def, hit.reference, hit.part);
+    E.paintColor = appearance.color || "#3b82f6";
+    E.paintMetal = appearance.metal != null ? appearance.metal : 0.1;
+    E.paintRough = appearance.rough != null ? appearance.rough : 0.5;
+    E.paintEyedropper = false;
+    syncPaintToolbar();
+    flash((t("paintEyedropper") || "Sampled") + ": " + E.paintColor);
+    return;
+  }
+  if (E.paintMode === "face" && hit.reference && hit.reference.kind === "face") {
+    applyFacePaint(E.def, hit.reference, { color: E.paintColor, metal: E.paintMetal, rough: E.paintRough });
+    pushUndo(t("paintFace"));
+    updatePreview();
+    refreshParts();
+  } else if (E.paintMode === "body" && hit.part) {
+    applyBodyPaint(hit.part, { color: E.paintColor, metal: E.paintMetal, rough: E.paintRough });
+    pushUndo(t("paintBody"));
+    updatePreview();
+    refreshParts();
+  }
+}
+
+function beginMarkupDrag(event, view) {
+  if (!view || !view.rr) return false;
+  event.preventDefault();
+  var canvas = view.rr.domElement;
+  var rect = canvas.getBoundingClientRect();
+  var startX = event.clientX - rect.left;
+  var startY = event.clientY - rect.top;
+
+  if (E.noteMode === "eraser") {
+    /* One swipe is one edit. Erasing pushed an undo state per stroke it
+       touched, so wiping five strokes cost five undo entries and five
+       rebuilds — and undoing it took five presses. Count here, commit once. */
+    var erased = eraseMarkupAt(startX, startY) ? 1 : 0;
+    function onEraseMove(ev) {
+      if (eraseMarkupAt(ev.clientX - rect.left, ev.clientY - rect.top)) erased++;
+    }
+    function onEraseUp() {
+      window.removeEventListener("pointermove", onEraseMove);
+      window.removeEventListener("pointerup", onEraseUp);
+      if (erased) pushUndo(t("eraseMarkup"));
+    }
+    window.addEventListener("pointermove", onEraseMove);
+    window.addEventListener("pointerup", onEraseUp);
+    return true;
+  }
+
+  var pts = [{ x: startX, y: startY }];
+  E.activeMarkupStroke = {
+    color: E.markupColor || "#ef4444",
+    width: E.markupWidth || 3,
+    points: pts,
+  };
+  syncNotesAndMarkups(view);
+
+  function onMove(ev) {
+    var px = ev.clientX - rect.left, py = ev.clientY - rect.top;
+    var last = pts[pts.length - 1];
+    if (!last || Math.hypot(px - last.x, py - last.y) >= 2) {
+      pts.push({ x: px, y: py });
+      syncNotesAndMarkups(view);
+    }
+  }
+
+  function onUp() {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    if (pts.length >= 2) {
+      addMarkupToDef(E.def, {
+        color: E.markupColor || "#ef4444",
+        width: E.markupWidth || 3,
+        points: pts,
+      });
+      pushUndo(t("addMarkup"));
+    }
+    E.activeMarkupStroke = null;
+    syncNotesAndMarkups(view);
+    refreshParts();
+  }
+
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  return true;
+}
+
+/* Returns whether a stroke was removed, so a drag can count what it wiped and
+   commit a single undo step for the whole gesture. */
+function eraseMarkupAt(x, y) {
+  if (!E.def || !Array.isArray(E.def.markups)) return false;
+  var markups = E.def.markups;
+  var hitIndex = -1;
+  var radius = 14;
+  for (var i = markups.length - 1; i >= 0; i--) {
+    var stroke = markups[i];
+    if (!stroke || !Array.isArray(stroke.points)) continue;
+    for (var j = 0; j < stroke.points.length; j++) {
+      var p = stroke.points[j];
+      if (Math.hypot(p.x - x, p.y - y) <= radius) {
+        hitIndex = i;
+        break;
+      }
+    }
+    if (hitIndex >= 0) break;
+  }
+  if (hitIndex < 0) return false;
+  markups.splice(hitIndex, 1);
+  /* The overlay follows immediately so the stroke disappears under the
+     pointer; the undo step is the caller's to commit when the gesture ends. */
+  if (E.pv) syncNotesAndMarkups(E.pv);
+  refreshParts();
+  return true;
+}
+
+function pickNoteAction(event, view) {
+  var canvas = view.rr && view.rr.domElement;
+  if (!canvas) return;
+  var rect = canvas.getBoundingClientRect();
+  /* The file's existing lazy-scratch pattern: THREE is late-bound, so these
+     cannot be module-level constants, and a click should not mint a raycaster. */
+  var raycaster = pickScratch();
+  var mouse = pickPointer.set(
+    ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1,
+    -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1
+  );
+  raycaster.setFromCamera(mouse, view.cam);
+  var hits = raycaster.intersectObjects(view.grp.children, true);
+  var hit = hits.find(function (h) {
+    return h.object && h.object.isMesh && h.object.userData && (h.object.userData.cadPart || h.object.userData.cadFeatureId);
+  }) || hits.find(function (h) { return h.object && h.object.isMesh; });
+
+  if (hit && hit.point) {
+    var noteNormal = { x: 0, y: 1, z: 0 };
+    if (hit.face && hit.face.normal) {
+      var nVec = hit.face.normal.clone();
+      if (hit.object.matrixWorld) nVec.transformDirection(hit.object.matrixWorld);
+      noteNormal = { x: nVec.x, y: nVec.y, z: nVec.z };
+    }
+    var num = ((E.def && E.def.notes && E.def.notes.length) || 0) + 1;
+    var note = addNoteToDef(E.def, {
+      point: { x: hit.point.x, y: hit.point.y, z: hit.point.z },
+      normal: noteNormal,
+      text: "Note " + num,
+      category: "general",
+    });
+    pushUndo(t("addNote"));
+    E.activeNoteId = note.id;
+    openNoteEditor(note);
+    syncNotesAndMarkups(view);
+    refreshParts();
+  }
+}
+
+function renderTreeAnnotations(host) {
+  var notes = E.def && Array.isArray(E.def.notes) ? E.def.notes : [];
+  var markups = E.def && Array.isArray(E.def.markups) ? E.def.markups : [];
+  if (!notes.length && !markups.length) return;
+
+  var details = el("details", "md-tree-group md-tree-notes");
+  details.open = true;
+  var summary = el("summary", "", '<i class="ph ph-chat-circle-text"></i> ' + t("notesAnnotations") + " (" + (notes.length + (markups.length ? " · " + markups.length + " " + (t("noteModeMarkup") || "pen") : "")) + ")");
+  details.appendChild(summary);
+
+  for (var i = 0; i < notes.length; i++) {
+    (function (n, index) {
+      var item = el("div", "md-tree-note-item");
+      item.innerHTML =
+        '<span class="md-tree-note-badge" style="background:' + (n.color || "#2563eb") + '">' + (index + 1) + '</span>' +
+        '<span class="md-tree-note-text"></span>' +
+        '<button type="button" class="md-tree-note-del" title="' + t("deleteNote") + '"><i class="ph ph-trash"></i></button>';
+
+      var textEl = item.querySelector(".md-tree-note-text");
+      if (textEl) textEl.textContent = n.text || "Note";
+
+      item.addEventListener("click", function (e) {
+        if (e.target.closest(".md-tree-note-del")) return;
+        E.activeNoteId = n.id;
+        if (E.mode !== "3d") setMode("3d");
+        if (E.pv) {
+          E.pv.target.set(n.point.x, n.point.y, n.point.z);
+          E.pv.render();
+        }
+        openNoteEditor(n);
+      });
+
+      var delBtn = item.querySelector(".md-tree-note-del");
+      if (delBtn) {
+        delBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          deleteNoteFromDef(E.def, n.id);
+          pushUndo(t("deleteNote"));
+          if (E.activeNoteId === n.id) closeNoteEditor();
+          refreshAll();
+        });
+      }
+      details.appendChild(item);
+    })(notes[i], i);
+  }
+
+  host.appendChild(details);
 }
 
 function pickAssemblyComponent(event, view) {
@@ -15977,12 +17314,14 @@ function pickAssemblyComponent(event, view) {
   /* Measure takes the click whole: it is asking a question about the model,
      not changing what is selected in it. */
   if (E.measure) { measureFromPick(event, view); return; }
+  if (E.tool === "paint") { pickPaintAction(event, view); return; }
+  if (E.tool === "note" && (!E.noteMode || E.noteMode === "callout")) { pickNoteAction(event, view); return; }
   if (E.docType === "part") {
     var found = resolveTopologyPick(event, view, { prefer: E.facePick ? "face" : E.selectionFilter }) || {};
     if (found.helixId && !E.facePick) {
       E.selectedReferenceId = found.helixId;
       if (!event.ctrlKey && !event.metaKey) E.topologySelection = [];
-      refreshAll();
+      refreshSelection();
       return;
     }
     var part = found.part || null, topologyReferencePicked = found.reference || null;
@@ -15995,7 +17334,7 @@ function pickAssemblyComponent(event, view) {
       return;
     }
     if (E.selectionFilter === "body") topologyReferencePicked = null;
-    else if (E.selectionFilter === "sketch") { refreshAll(); return; }
+    else if (E.selectionFilter === "sketch") { refreshSelection(); return; }
     else if (topologyReferencePicked && !selectionFilterAllows(topologyReferencePicked.kind, E.selectionFilter)) {
       topologyReferencePicked = null;
       if (E.selectionFilter !== "all") part = null;
@@ -16026,7 +17365,7 @@ function pickAssemblyComponent(event, view) {
       else if (topologyReferencePicked.kind === "edge") toggleFinishEdges([topologyReferencePicked]);
       return;
     }
-    if (finishCommandActive() && !topologyReferencePicked) { refreshAll(); return; }
+    if (finishCommandActive() && !topologyReferencePicked) { refreshSelection(); return; }
     if (!part || !topologyReferencePicked) E.topologySelection = topologyReferencePicked ? [topologyReferencePicked] : [];
     else if (event.ctrlKey || event.metaKey || E.mobileAddSelection) {
       var selectedAt = E.topologySelection.findIndex(function (reference) { return reference.persistentId === topologyReferencePicked.persistentId; });
@@ -16043,7 +17382,7 @@ function pickAssemblyComponent(event, view) {
        single most disorienting thing this editor did. Use the view cube, or
        Normal To, when you actually want to be square to it. */
     if (part && found.pickedView) E.selectedFaceView = found.pickedView;
-    refreshAll();
+    refreshSelection();
     return;
   }
   /* One pick resolves both halves of an assembly selection: which component
@@ -16088,7 +17427,7 @@ function pickAssemblyComponent(event, view) {
       E.topologySelection = reference ? [reference] : [];
     }
   }
-  refreshAll();
+  refreshSelection();
 }
 
 function showSelectThrough(event, view) {
@@ -16363,11 +17702,11 @@ function hitInstant3d(event, view) {
   if (!view || !view.grp || !view.cam) return null;
   if (view.place) view.place();
   var rect = view.rr.domElement.getBoundingClientRect();
-  var pointer = new THREE.Vector2(
+  var ray = pickScratch();
+  var pointer = pickPointer.set(
     ((event.clientX - rect.left) / rect.width) * 2 - 1,
     -((event.clientY - rect.top) / rect.height) * 2 + 1
   );
-  var ray = new THREE.Raycaster();
   ray.params.Line.threshold = 12;
   ray.setFromCamera(pointer, view.cam);
   var handles = [];
@@ -16416,15 +17755,27 @@ function instant3dValueChip(view) {
   return chip;
 }
 
+var instantVectors = null;
+function instantScratch() {
+  if (!instantVectors) {
+    instantVectors = { dir: new THREE.Vector3(), anchor: new THREE.Vector3() };
+  }
+  return instantVectors;
+}
+
 function syncInstant3dValue(view) {
   var chip = instant3dValueChip(view), pose = E._instant3dPose;
   if (!chip) return;
   if (!pose || !view.cam) { chip.hidden = true; return; }
   var canvas = view.rr.domElement;
   view.cam.updateMatrixWorld();
-  var dir = new THREE.Vector3(pose.direction.x, pose.direction.y, pose.direction.z);
+  /* Scratch, not fresh: this runs from afterRender alongside syncNotesCards,
+     so two allocations here are two per frame for the whole time a drag
+     handle is live. */
+  var s = instantScratch();
+  var dir = s.dir.set(pose.direction.x, pose.direction.y, pose.direction.z);
   if (!dir.length()) dir.set(0, 1, 0);
-  var anchor = new THREE.Vector3(pose.origin.x, pose.origin.y, pose.origin.z)
+  var anchor = s.anchor.set(pose.origin.x, pose.origin.y, pose.origin.z)
     .addScaledVector(dir.normalize(), (pose.hitLength || pose.length || 0) * 0.6)
     .project(view.cam);
   if (anchor.z > 1) { chip.hidden = true; return; }
@@ -16547,6 +17898,8 @@ function syncFeatureFormValue(key, value) {
 function beginInstant3dDrag(event, view) {
   if (E.docType === "assembly" && event.altKey) return beginSmartMateDrag(event, view);
   if (E.docType === "assembly" && beginAssemblyComponentDrag(event, view)) return true;
+  if (E.tool === "paint") return beginPaintDrag(event, view);
+  if (E.tool === "note" && (E.noteMode === "markup" || E.noteMode === "eraser")) return beginMarkupDrag(event, view);
   var pose = hitInstant3d(event, view);
   var authoring = instant3dAuthoringState();
   if (!pose || !authoring) return false;
@@ -16843,7 +18196,10 @@ function initPreview() {
     beginDrag: beginInstant3dDrag,
     contextMenu: function (event) { showSelectThrough(event, E.pv); },
     longPress: showSelectThrough,
-    afterRender: syncInstant3dValue,
+    afterRender: function (view) {
+      syncInstant3dValue(view);
+      syncNotesAndMarkups(view);
+    },
     lighting: editorLightingSettings,
     gesturePreview: previewMouseGesture,
     gesture: function (event, view, dx, dy) { applyMouseGesture(dx, dy); },
@@ -16891,10 +18247,11 @@ function initPreview() {
         /* Show where the arrow's grab zone is. Missing it starts an orbit
            instead, and an orbit is exactly what "the handle does nothing"
            looks like from the outside. */
-        var overHandle = !E.facePick && !!(instant3dAuthoringState() && hitInstant3d(event, E.pv));
+        var instantHit = !E.facePick && instant3dAuthoringState() ? hitInstant3d(event, E.pv) : null;
+        var overHandle = !!instantHit;
         canvas.style.cursor = E.facePick ? "crosshair" : overHandle ? "grab" : "";
         if (overHandle) return;
-        hoverAssemblyTopology(event, E.pv);
+        hoverAssemblyTopology(event, E.pv, instantHit);
       });
     });
     canvas.addEventListener("pointerleave", function () {
@@ -16902,7 +18259,7 @@ function initPreview() {
       canvas.style.cursor = "";
       if (!E.hoverTopology) return;
       E.hoverTopology = null;
-      updatePreview();
+      refreshDecorations();
     });
   }
 }
@@ -17032,7 +18389,12 @@ function setPanelCollapsed(side, collapsed) {
   if (!root) return;
   var left = side === "left";
   if (left) E.leftCollapsed = !!collapsed;
-  else E.rightCollapsed = !!collapsed;
+  else {
+    E.rightCollapsed = !!collapsed;
+    if (E.mode === "drawing") {
+      root.classList.toggle("md-sheet-collapsed", !!collapsed);
+    }
+  }
   root.classList.toggle(left ? "md-left-collapsed" : "md-right-collapsed", !!collapsed);
   var button = root.querySelector(left ? "#mdToggleLeft" : "#mdToggleRight");
   if (button) button.setAttribute("aria-pressed", collapsed ? "false" : "true");
@@ -17112,7 +18474,10 @@ function toggleSectionView() {
    view fills it with plain `inset: 0` and the old measure-the-gaps pass (which
    also had to mirror itself in RTL) is gone. */
 function layout3DHost() {
-  if (E.pv) E.pv.render();
+  if (E.pv) {
+    if (E.pv.invalidateSize) E.pv.invalidateSize();
+    E.pv.render();
+  }
 }
 
 /* Frame whatever is modelled so it fills the view it has just been given —
@@ -17194,17 +18559,22 @@ function addInterferenceVisuals(parent) {
 
 function updatePreview() {
   if (typeof window !== "undefined") window.cadUpdatePreview = updatePreview;
+  decoGroups.length = 0;   // truncate, never reassign: window.cadDecoGroups holds this reference
   /* The sheet projects the same bodies this rebuild is about to replace, and
      hidden-line removal is far too expensive to redo per paint — so this is
      where its cache is told the model moved. */
   invalidateDrawing();
   if (!E.pv) return;
-  clearGroup(E.pv.roomGrp);
-  if (E.docType === "part") {
-    renderedParts(E.def).forEach(function (p) { buildPart(E.pv.roomGrp, p, E.displayStyle); });
-    addDocumentOverlays(E.pv.roomGrp, E.def);
+  if (E.pv.inRoom) {
+    clearGroup(E.pv.roomGrp);
+    if (E.docType === "part") {
+      renderedParts(E.def).forEach(function (p) { buildPart(E.pv.roomGrp, p, E.displayStyle); });
+      addDocumentOverlays(E.pv.roomGrp, E.def);
+    }
+    applySectionClipping(E.pv.roomGrp);
+  } else if (E.pv.roomGrp && E.pv.roomGrp.children.length) {
+    clearGroup(E.pv.roomGrp);
   }
-  applySectionClipping(E.pv.roomGrp);
   E.pv.rebuild(function (grp) {
     if (E.docType === "assembly") buildAssembly(grp);
     else {
@@ -18124,6 +19494,20 @@ function syncPreviewFromHistory() {
   });
 }
 
+/* A selection change cannot alter the document, so the parametric rebuild that
+   refreshAll() would run is guaranteed to reproduce the coreRun already in
+   hand — two structuredClones of the whole document and a kernel tree compile
+   for a byte-identical answer. Consume the existing run instead. Everything
+   else in the refresh still happens, so nothing downstream can go stale; this
+   skips the one step that is provably redundant.
+
+   Only for callers that touch selection and nothing else. Anything that edits
+   geometry, parameters, history or suppression must still call refreshAll(). */
+function refreshSelection() {
+  coreRunFresh = true;
+  refreshAll();
+}
+
 /* ================= open / close ================= */
 function refreshAll() {
   /* Solve before anything reads the assembly: the mate list, the status bar
@@ -18135,9 +19519,16 @@ function refreshAll() {
   syncFaceSupportedSketchFrames();
   if(isCanonicalAuthoring()){
     syncPreviewFromHistory();
-    E.coreRun=rebuildParametricDocument(E.def,E.srcItem && E.srcItem.parameterOverrides || {},{lastGood:E.coreRun && E.coreRun.lastGood});
-    publishRebuildStatus(E.def,E.coreRun);
+    if (!coreRunFresh) {
+      rebuildDocCount++;
+      E.coreRun=rebuildParametricDocument(E.def,E.srcItem && E.srcItem.parameterOverrides || {},{lastGood:E.coreRun && E.coreRun.lastGood});
+      publishRebuildStatus(E.def,E.coreRun);
+    }
   }
+  /* Cleared outside the canonical branch on purpose. A flag set while the
+     document was legacy used to survive until it became canonical and then
+     swallow the first rebuild that genuinely needed to run. */
+  coreRunFresh = false;
   refreshParts();
   refreshModelHistoryPane();
   fillInspector();
@@ -18234,6 +19625,13 @@ function mobileBridge() {
           "/" + (E.topologySelection || []).map(function (r) { return r.kind + (r.persistentId || ""); }).join(","),
       };
     },
+    ensureInspectorFresh: function () {
+      var id = activeTab("R") || "shape";
+      if (typeof inspectorDirty !== "undefined" && inspectorDirty[id]) {
+        fillInspectorTab(id);
+        inspectorDirty[id] = false;
+      }
+    },
   };
 }
 
@@ -18256,6 +19654,7 @@ function queueModelerChrome() {
 }
 
 export function openModeler(editKey, def, srcItem) {
+  inspectorDirty.sketch = true; inspectorDirty.shape = true; inspectorDirty.look = true; inspectorDirty.ops = true;
   modelerReturnFocus = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
   if (root && E.lang !== getLang()) destroyDOM();
   if (!root) buildDOM();
@@ -18323,7 +19722,10 @@ export function openModeler(editKey, def, srcItem) {
   E._mouse = null;
   E.solveInfo = solveSketch(ensureSketch(E.def));
   E._solveSketchId = ensureSketch(E.def).id;
+  if (isCanonicalAuthoring()) rebuildDocCount++;
   E.coreRun = isCanonicalAuthoring() ? rebuildParametricDocument(E.def,E.srcItem && E.srcItem.parameterOverrides || {}) : rebuildDefinition(E.def, E.srcItem && E.srcItem.parameterOverrides || {});
+  if (isCanonicalAuthoring()) publishRebuildStatus(E.def, E.coreRun);
+  coreRunFresh = true;
   H.clear().seed();
   markDocumentClean();
   E._centered = false;
@@ -18387,7 +19789,12 @@ export function closeModeler() {
   closeTour();
   closeWelcome();
   if(E.authoring && E.authoring.featureEdit)cancelFeatureParameterEdit(true);else clearFeaturePreview(false);
+  if (cancel2DPointerMoveGlobal) cancel2DPointerMoveGlobal();
+  E.drag = null;
+  E.hoverTopology = null;
   E.open = false;
+  decoGroups.length = 0;   // truncate, never reassign: window.cadDecoGroups holds this reference
+  inspectorDirty.sketch = true; inspectorDirty.shape = true; inspectorDirty.look = true; inspectorDirty.ops = true;
   // Before the root is hidden: the mobile sheets hold the REAL tree/inspector/
   // ribbon while they are open, and those have to be put back inside it.
   teardownModelerMobile();

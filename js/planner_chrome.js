@@ -181,6 +181,7 @@ function updateToolHint() {
   else if (S.tool === "rect") msg = tTouch("hint_tool_rect");
   else if (S.tool === "walloffset") msg = tTouch("hint_tool_offset");
   else if (S.tool === "wallbreak") msg = tTouch("hint_tool_break");
+  else if (S.tool === "wallbite") msg = tTouch("hint_tool_wallbite");
   else if (S.tool === "walljoin") msg = tTouch("hint_tool_join");
   else if (S.tool === "wallreverse") msg = tTouch("hint_tool_reverse");
   else if (S.tool === "wallpaint") msg = tTouch("hint_tool_paint");

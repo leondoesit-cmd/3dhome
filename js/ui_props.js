@@ -1,5 +1,5 @@
 import { S, hexStr, TILE } from "./state.js";
-import { wallById, roomByKey, roomFloor, roomName, wallGeom, itemsInRoom, wallClearLength, wallDimSide, wallSideNormal, jointInfo, nodeDegree } from "./geometry.js";
+import { wallById, roomByKey, roomFloor, roomName, roomClearSize, wallGeom, itemsInRoom, wallClearLength, wallDimSide, wallSideNormal, jointInfo, nodeDegree } from "./geometry.js";
 import { flabel, isLamp, lampColor, variantList, variantOf, vlabel, itemVSpan } from "./furniture.js";
 import { t } from "./i18n.js";
 import { refreshTree } from "./ui_tree.js";
@@ -2036,6 +2036,15 @@ export function fillProps() {
     if (roomTitle) roomTitle.textContent = roomName(r.key) || t("room");
     renderRoomCons(r.key);
     document.getElementById("r_name").value = roomName(r.key);
+    var size = roomClearSize(r.key);
+    var sizeRow = document.getElementById("r_size_row");
+    var lHint = document.getElementById("r_l_shape_hint");
+    if (sizeRow) sizeRow.style.display = size ? "" : "none";
+    if (lHint) lHint.style.display = size ? "none" : "";
+    if (size) {
+      document.getElementById("r_w").value = Math.round(size.w);
+      document.getElementById("r_d").value = Math.round(size.d);
+    }
     document.getElementById("r_floor").value = roomFloor(r.key);
     var tScale = S.roomMeta[r.key] && S.roomMeta[r.key].floorScale;
     var rf = roomFloor(r.key);

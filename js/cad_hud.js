@@ -452,10 +452,23 @@ export function updateCadHud() {
     main = tTouch("hint_tool_wall");
   } else if (S.tool === "rect") {
     main = tTouch("hint_tool_rect");
+  } else if (S.tool === "roomstamp") {
+    /* The armed preset and what the ghost is about to do to the plan are the
+       two things the pointer cannot tell you on its own. */
+    var rg = S.roomGhost;
+    main = rg && rg.blocked ? t("rp_overlapShort")
+      : rg && rg.dock ? tTouch(rg.dock.mode === "corridor" ? "hint_tool_roomstamp_corr"
+        : rg.dock.mode === "insert" ? "hint_tool_roomstamp_insert" : "hint_tool_roomstamp_dock")
+      : tTouch("hint_tool_roomstamp");
   } else if (S.tool === "slabvoid") {
     main = tTouch("hint_tool_slabvoid");
   } else if (S.tool === "door" || S.tool === "window" || S.tool === "passage") {
     main = tTouch("hint_tool_opening");
+  } else if (S.tool === "wallbite") {
+    var bd = S.biteDraft;
+    main = bd
+      ? t("cad_len") + " " + Math.round(Math.abs(bd.s1 - bd.s0)) + " " + unit
+      : tTouch("hint_tool_wallbite");
   } else if (S.tool === "wallbreak") {
     main = tTouch("hint_tool_break");
   } else if (S.tool === "walljoin") {

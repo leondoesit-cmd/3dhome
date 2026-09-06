@@ -4,6 +4,7 @@
 import { featureEditorGroups } from "./core/feature_catalog.js";
 import { linearPatternAxisDefinitions, linearPatternDirection, patternAxisEnabled } from "./core/pattern_geometry.js";
 import { holeTableRow } from "./cad_hole_wizard.js";
+import { toolboxFamily } from "./cad_toolbox.js";
 
 export function featureControlValue(control) {
   if (control.field.type === "boolean") return !!control.input.checked;
@@ -102,6 +103,32 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     });
   }
   function syncConditionalFields(changedKey) {
+    if (type === "toolbox") {
+      var familyControl = controls.find(function (item) { return item.field.key === "kind"; });
+      var sizeControl = controls.find(function (item) { return item.field.key === "sizeKey"; });
+      var lengthControl = controls.find(function (item) { return item.field.key === "lengthMm"; });
+      var family = familyControl && toolboxFamily(familyControl.input.value);
+      if (family && sizeControl && (changedKey === "kind" || !sizeControl.input.options.length)) {
+        var previousSize = sizeControl.input.value;
+        sizeControl.input.innerHTML = "";
+        (family.sizes || []).forEach(function (row) {
+          var option = el("option", "", row.label || row.size || row.key);
+          option.value = row.key || row.size;
+          sizeControl.input.appendChild(option);
+        });
+        var available = (family.sizes || []).some(function (row) { return String(row.key || row.size) === String(previousSize); });
+        sizeControl.input.value = available ? previousSize : family.defaultSize || (family.sizes[0] && (family.sizes[0].key || family.sizes[0].size)) || "";
+      }
+      if (family && lengthControl) {
+        var lengthWrap = lengthControl.input.closest(".md-quick-field");
+        if (lengthWrap) lengthWrap.classList.toggle("parameter-hidden", !family.hasLength);
+        if (family.hasLength && changedKey === "kind") {
+          var selected = (family.sizes || []).find(function (row) { return String(row.key || row.size) === String(sizeControl && sizeControl.input.value); });
+          var preferred = family.defaultLength || (selected && selected.lengthMm) || (family.lengthOptions && family.lengthOptions[0]);
+          if (Number(preferred) > 0) lengthControl.input.value = String(preferred);
+        }
+      }
+    }
     var mode = controls.find(function (item) { return item.field.key === "mode"; });
     if (type === "pattern" && mode) {
       var linear = mode.input.value === "linear";
@@ -177,7 +204,12 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     section.open = true;
     section.appendChild(el("summary", "", '<i class="ph ' + (group.icon || "ph-sliders-horizontal") + '"></i><span>' + group.label + "</span><small>" + group.fields.length + "</small>"));
     var body = el("div", "md-feature-group-body");
-    group.fields.forEach(function (field) {
+    group.fields.forEach(function (sourceField) {
+      var field = { ...sourceField };
+      if (type === "toolbox" && field.dynamicChoices === "toolbox-size") {
+        var initialFamily = toolboxFamily(state.params && state.params.kind);
+        field.choices = (initialFamily && initialFamily.sizes || []).map(function (row) { return { value:row.key || row.size, label:row.label || row.size || row.key }; });
+      }
       var value = field.key === "$axisReference" ? featureReferenceValue(state, "axis-reference")
         : field.key === "$planeReference" ? featureReferenceValue(state, "plane-reference")
         : ["axisX", "axisY", "axisZ"].includes(field.key) ? patternAxisEnabled(state.params, field.key.slice(-1).toLowerCase())

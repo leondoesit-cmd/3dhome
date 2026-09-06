@@ -94,7 +94,12 @@ test("modeler: drawer listeners live on the sheet, never on the borrowed ribbon"
   // a handler bound to the ribbon itself would ride home to the desktop layout
   assert.match(mdMobile, /sheet\.addEventListener\("click", function \(e\) \{\s*var head = e\.target\.closest\("\.md-command-group-label"\)/);
   assert.match(mdMobile, /data-cmdgroup="secondary"/);
-  assert.match(md, /function commandGroup\(label, commands, rank\)/);
+  /* commandGroup takes the group's i18n KEY, not the words it produces: the
+     key is what stays put when the wording is edited or the language changes,
+     which is what makes data-mdgroup an identity a saved layout can resolve
+     after a release. */
+  assert.match(md, /function commandGroup\(key, commands, rank\)/);
+  assert.match(md, /data-mdgroup="' \+ key \+/);
   assert.match(css, /\[data-cmdgroup="secondary"\]:not\(\.md-group-open\) > \.md-command-items \{\s*display: none;/);
 });
 
