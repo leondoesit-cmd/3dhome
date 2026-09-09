@@ -13,6 +13,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
+import {
+  circularPatternStepDegrees, composeRigidTransforms, patternPlacementTransform,
+  patternRotationTransform,
+} from "../js/core/pattern_geometry.js";
 
 const chrome = await findChrome();
 const opts = chrome ? {} : { skip: "no Chrome found (set CHROME_PATH)" };
@@ -134,6 +138,62 @@ test("the same curve pattern spread along the sketch stays separate bodies", opt
   assert.equal(run.ok, true);
   assert.equal(run.bodies.length, 4, "the spread run is four bodies: " + JSON.stringify(run.bodies));
   assert.deepEqual(run.bodies.map((body) => body.fused), [0, 0, 0, 0]);
+});
+
+/* A cluster the SEED IS NOT IN, driven from the real editor.
+ *
+ * The host of a cluster is its lowest-indexed member, and only member 0 is the
+ * seed — so a run whose copies reach each other but not the seed is hosted by a
+ * ROTATED copy. A copy's turn is not baked into its BREP; buildPart nests it
+ * around the whole body. The stored placement therefore has to be the host's
+ * frame, and the two must multiply back out to where the copy was laid.
+ *
+ * 8 degrees a step with instances 1-2 skipped puts the copies at 24 and 32
+ * degrees: they reach each other, and at 40 cm of radius neither reaches the
+ * seed. That is the whole scenario the linear cases above cannot produce.
+ */
+const RING_DOC = {
+  ...CUBE_DOC,
+  id: "fixture:pattern-merge-ring",
+  definitionId: "fixture:pattern-merge-ring",
+  key: "fixture_pattern_merge_ring",
+  parts: [{ ...CUBE_DOC.parts[0], x0: 40, x1: 50, y0: 0, y1: 10, z0: -5, z1: 5 }],
+};
+const RING_PARAMS = { mode: "circular", axis: "y", count: 5, angle: 8, equalSpacing: false, radialDistance: 0, skipInstances: "1-2", mergeResult: true };
+
+test("a circular cluster the seed is not in is stored in its host's frame", opts, async () => {
+  const run = await page.eval(async (input) => {
+    const { openModeler } = await import("/js/modeler.js");
+    window.cadCloseFeatureForm();
+    openModeler(null, structuredClone(input.doc), null);
+    const ok = await window.cadPatternRun(input.params);
+    return { ok, bodies: window.cadBodySnapshot() };
+  }, { doc: RING_DOC, params: RING_PARAMS });
+
+  assert.equal(run.ok, true, "the command applied");
+  assert.equal(run.bodies.length, 2, "the seed stands alone and the two copies fused: " + JSON.stringify(run.bodies));
+  const seed = run.bodies.find((body) => !body.rotations.length);
+  const host = run.bodies.find((body) => body.fused > 0);
+  assert.ok(seed && host, "one untouched seed and one fused host: " + JSON.stringify(run.bodies));
+  assert.equal(seed.fused, 0, "the seed hosts a cluster of one and keeps no merge");
+  assert.equal(seed.merges, 0);
+  assert.equal(host.fused, 1, "the fourth instance was absorbed by the third");
+  assert.equal(host.merges, 1);
+  assert.equal(host.error, null);
+  assert.equal(host.rotations.length, 1, "and the host is a turned copy, not the seed");
+
+  /* The assertion that catches the double turn: the host's own turn applied to
+     the stored placement has to be the transform the fourth copy was laid with.
+     A placement kept in WORLD space passes through the turn a second time and
+     lands off the ring — with the same volume, which is why this is a position
+     check and not a volume one. */
+  const step = circularPatternStepDegrees(RING_PARAMS, RING_PARAMS.count) * Math.PI / 180;
+  const laid = patternPlacementTransform(RING_PARAMS, { circularIndex: 4 }, step);
+  const drawn = composeRigidTransforms(patternRotationTransform(host.rotations), host.placements[0]);
+  laid.matrix.forEach((value, index) => assert.ok(Math.abs(drawn.matrix[index] - value) < 1e-9,
+    "matrix " + index + ": " + drawn.matrix[index] + " vs " + value));
+  ["x", "y", "z"].forEach((axis) => assert.ok(Math.abs(drawn.translation[axis] - laid.translation[axis]) < 1e-9,
+    axis + ": the fused copy is drawn at " + drawn.translation[axis] + ", it was laid at " + laid.translation[axis]));
 });
 
 /* ---- the LIVE preview of a merged pattern ----

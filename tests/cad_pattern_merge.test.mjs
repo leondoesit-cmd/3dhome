@@ -18,7 +18,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { featureDefaults } from "../js/core/feature_catalog.js";
-import { patternPlacementTransform, rotatePointAroundAxis, circularPatternStepDegrees } from "../js/core/pattern_geometry.js";
+import {
+  circularPatternPivot, circularPatternStepDegrees, composeRigidTransforms, curvePatternPlacements,
+  invertRigidTransform, patternPlacementTransform, patternRotationTransform, RIGID_IDENTITY,
+  rotatePointAroundAxis,
+} from "../js/core/pattern_geometry.js";
 import { regenerateFeatures, releaseRegeneration } from "../js/cad_feature_tree.js";
 import { placedBodyBrep } from "../js/modeler_part_geometry.js";
 import {
@@ -275,9 +279,11 @@ test("the fused instances reach the viewport, the exact tree and a rebuild", () 
 });
 
 test("a fused instance travels with the body it was fused into", () => {
-  // world-placed, so it moves in the shift and not in a profile loop
-  assert.match(partGeometry, /if \(merge\.kind !== "placed"\) return;/);
-  assert.match(partGeometry, /placement\.translation\.x \+= dx; placement\.translation\.y \+= dy; placement\.translation\.z \+= dz;/);
+  // placed by a rigid transform, so it moves in the shift and not in a profile
+  // loop — and the shift is carried into the HOST'S frame first, because that
+  // is the frame the placement itself is written in
+  assert.match(partGeometry, /var placedMerges = \(p\.merges3d \|\| \[\]\)\.filter\(function \(merge\) \{ return merge\.kind === "placed"; \}\);/);
+  assert.match(partGeometry, /placement\.translation\.x \+= shift\.x; placement\.translation\.y \+= shift\.y; placement\.translation\.z \+= shift\.z;/);
 });
 
 test("the merged copy is the whole body, cached mesh excluded", () => {
@@ -322,4 +328,197 @@ test("the merged pattern's live preview is debounced, tokened and honest", () =>
   ["livePatternMergeCheck", "livePatternMergeReady", "livePatternMergeApart", "livePatternMergeFail"].forEach((key) => {
     assert.match(strings, new RegExp("\\n  " + key + ": \\[\""), key + " has a [he, en] entry");
   });
+});
+
+/* --- a cluster the SEED IS NOT IN ----------------------------------------
+ *
+ * fusePatternInstances hosts a cluster on its LOWEST-INDEXED member, and only
+ * member 0 is the seed. A circular or curve run in which copies reach each
+ * other but not the seed is therefore hosted by a ROTATED COPY — and a copy's
+ * turn is not baked into its BREP: buildPart nests it around the whole body and
+ * exactBrepForPart leaves it out. A placement stored in WORLD space is then
+ * turned a second time on the way to the screen, and the fused lump flies off
+ * the ring. Linear runs and seed-rooted clusters never showed it, because the
+ * host's transform is the identity in both.
+ *
+ * The fix: a placement is stored relative to the host, hostTurn^-1 . member.
+ */
+const RING_SEED = { kind:"box", id:"ring-seed", x0:40, x1:50, y0:0, y1:10, z0:-5, z1:5 };
+// 8 degrees a step, so instances 3 and 4 (24 and 32 degrees) reach each other
+// and neither reaches the seed — verified below rather than assumed
+const RING = { mode:"circular", axis:"y", count:5, angle:8, equalSpacing:false, radialDistance:0 };
+const RING_STEP = circularPatternStepDegrees(RING, RING.count) * Math.PI / 180;
+const ringTransform = (index) => patternPlacementTransform(RING, { circularIndex:index }, RING_STEP);
+
+const ARC_PATH = Array.from({ length:24 }, (_, i) => {
+  const a = -Math.PI / 2 + (i / 23) * (Math.PI / 2);
+  return { x:5 + 40 * Math.cos(a), y:5, z:45 + 40 * Math.sin(a) };
+});
+const ARC = { mode:"curve", path:ARC_PATH, curveCount:8, curveAlign:"tangent" };
+
+const centroid = async (brep) => {
+  const oc = await loadCadKernel(), props = new oc.GProp_GProps_1();
+  try {
+    oc.BRepGProp.VolumeProperties_1(brep.shape, props, false, false, false);
+    const point = props.CentreOfMass();
+    try { return { x:point.X(), y:point.Y(), z:point.Z() }; } finally { point.delete(); }
+  } finally { props.delete(); }
+};
+
+const apart = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+
+/* The cluster as the editor actually RENDERS it: the host's own BREP with the
+   stored placements fused into it, and then the host's own pattern turn nested
+   around the lot — exactBrepForPart then buildPart, in that order. */
+async function clusterAsRendered(source, hostBaked, hostRotations, storedPlacements) {
+  const body = await placedBodyBrep({ part:source, placements:[hostBaked, ...storedPlacements] });
+  try { return await placeBrep(body, patternRotationTransform(hostRotations)); } finally { disposeBrep(body); }
+}
+
+test("a circular cluster that excludes the seed lands where its copies were", async () => {
+  const seed = { x:40, y:0, z:-5, w:10, h:10, d:10 };
+  let base = null, atSeed = null, at3 = null, at4 = null, expected = null, fused = null, world = null;
+  try {
+    base = await makeBrepPrimitive({ type:"box", ...seed });
+    atSeed = await placeBrep(base, ringTransform(0));
+    at3 = await placeBrep(base, ringTransform(3));
+    at4 = await placeBrep(base, ringTransform(4));
+    // the premise: instances 3 and 4 share material with each other and with
+    // nothing else, so the cluster is hosted by instance 3 — a ROTATED copy
+    assert.equal(await brepsOverlap(at3, at4), true, "instances 3 and 4 must overlap");
+    assert.equal(await brepsOverlap(atSeed, at3), false, "and the seed must be clear of both");
+    assert.equal(await brepsOverlap(atSeed, at4), false);
+    const groups = await brepConnectedGroups([{ brep:atSeed }, { brep:at3 }, { brep:at4 }]);
+    assert.deepEqual(groups.map((group) => group.slice().sort()).sort((a, b) => a[0] - b[0]), [[0], [1, 2]],
+      "the seed hosts a cluster of one and is left exactly as it was laid");
+
+    // where the un-merged copies actually are: the answer the fuse must match
+    expected = await placedBodyBrep({ part:RING_SEED, placements:[ringTransform(3), ringTransform(4)] });
+    const expectedVolume = await volume(expected), expectedCentre = await centroid(expected);
+    assert.ok(expectedVolume < 2 * CUBE_VOLUME - 1e-6, "the pair really does share material: " + expectedVolume);
+
+    // a circular copy is turned, not moved, so its own BREP is the seed's and
+    // the whole of its transform is the turn buildPart nests around it
+    const rotations = [{ axis:"y", angle:RING_STEP * 3, pivot:circularPatternPivot({ axis:"y", radialDistance:RING.radialDistance }) }];
+    const stored = composeRigidTransforms(invertRigidTransform(patternRotationTransform(rotations)), ringTransform(4));
+    fused = await clusterAsRendered(RING_SEED, RIGID_IDENTITY, rotations, [stored]);
+    assert.equal(await solidCount(fused), 1, "the cluster is one solid");
+    assert.ok(Math.abs(await volume(fused) - expectedVolume) < 1e-6,
+      "shared material counted once: " + (await volume(fused)) + " vs " + expectedVolume);
+    assert.ok(apart(await centroid(fused), expectedCentre) < 1e-6,
+      "and it sits where the copies were: " + JSON.stringify(await centroid(fused)) + " vs " + JSON.stringify(expectedCentre));
+
+    /* The bug, kept as the control: storing the member's WORLD transform makes
+       the host's turn apply on top of it. The volume can survive that — a rigid
+       transform preserves it — which is why the position is the assertion. */
+    world = await clusterAsRendered(RING_SEED, RIGID_IDENTITY, rotations, [ringTransform(4)]);
+    assert.ok(apart(await centroid(world), expectedCentre) > 1,
+      "a world placement would be turned twice and land elsewhere");
+  } finally {
+    [base, atSeed, at3, at4, expected, fused, world].forEach((entry) => entry && disposeBrep(entry));
+  }
+});
+
+test("a curve cluster that excludes the seed lands where its copies were", async () => {
+  const placements = curvePatternPlacements(ARC);
+  const third = placements[2], fourth = placements[3];
+  const hostTransform = patternPlacementTransform(ARC, third, 0), other = patternPlacementTransform(ARC, fourth, 0);
+  let base = null, atSeed = null, at3 = null, at4 = null, expected = null, fused = null, world = null;
+  try {
+    base = await makeBrepPrimitive({ type:"box", x:0, y:0, z:0, w:10, h:10, d:10 });
+    atSeed = await placeBrep(base, RIGID_IDENTITY);
+    at3 = await placeBrep(base, hostTransform);
+    at4 = await placeBrep(base, other);
+    assert.equal(await brepsOverlap(at3, at4), true, "stations 3 and 4 must overlap");
+    assert.equal(await brepsOverlap(atSeed, at3), false, "and the seed must be clear of both");
+    assert.equal(await brepsOverlap(atSeed, at4), false);
+
+    expected = await placedBodyBrep({ part:CUBE, placements:[hostTransform, other] });
+    const expectedVolume = await volume(expected), expectedCentre = await centroid(expected);
+    assert.ok(expectedVolume < 2 * CUBE_VOLUME - 1e-6, "the pair shares material: " + expectedVolume);
+
+    /* A curve copy is MOVED to its station and then turned about it, so half of
+       its transform is baked into its definition and half is the turn buildPart
+       nests around it. Only the turn may be divided out. */
+    const baked = { matrix:RIGID_IDENTITY.matrix.slice(), translation:{ x:third.x, y:third.y, z:third.z } };
+    const stored = composeRigidTransforms(invertRigidTransform(patternRotationTransform(third.rotations)), other);
+    fused = await clusterAsRendered(CUBE, baked, third.rotations, [stored]);
+    assert.equal(await solidCount(fused), 1);
+    assert.ok(Math.abs(await volume(fused) - expectedVolume) < 1e-6, "actual " + (await volume(fused)));
+    assert.ok(apart(await centroid(fused), expectedCentre) < 1e-6,
+      "the fused body sits on the path: " + JSON.stringify(await centroid(fused)) + " vs " + JSON.stringify(expectedCentre));
+
+    world = await clusterAsRendered(CUBE, baked, third.rotations, [other]);
+    assert.ok(apart(await centroid(world), expectedCentre) > 1, "a world placement would be turned twice");
+  } finally {
+    [base, atSeed, at3, at4, expected, fused, world].forEach((entry) => entry && disposeBrep(entry));
+  }
+});
+
+test("the exact tree builds the same seed-excluded cluster as the viewport", async () => {
+  /* The row rebuildFeatureTreeFromDocument writes for the cluster above: the
+     host's own body, the stored placements as one placedBody, and the union.
+     The tree does not carry a part's pattern turn (a pre-existing gap that
+     moves every circular copy, merged or not), so the comparison is made in the
+     HOST'S frame — carry the viewport's answer back through that turn and the
+     two must agree exactly. A world placement makes them disagree, which is the
+     divergence between the viewport and STEP export this pins. */
+  const rotations = [{ axis:"y", angle:RING_STEP * 3, pivot:circularPatternPivot({ axis:"y", radialDistance:RING.radialDistance }) }];
+  const intoHost = invertRigidTransform(patternRotationTransform(rotations));
+  const stored = composeRigidTransforms(intoHost, ringTransform(4));
+  const def = {
+    featureVersion: 1,
+    features: [
+      { id:"host", type:"box", name:"Host", params:{ x:40, y:0, z:-5, w:10, h:10, d:10 }, inputs:[], references:[] },
+      { id:"copies", type:"placedBody", name:"Merged body 1", inputs:[], references:[], params:{ part:RING_SEED, placements:[stored] } },
+      { id:"merge", type:"union", name:"Merge 1", params:{}, inputs:["host", "copies"], references:[] },
+    ],
+  };
+  const run = await regenerateFeatures(def);
+  let expected = null;
+  try {
+    assert.ok(run.ok, JSON.stringify(run.issues));
+    assert.equal(await solidCount(run.finalShape), 1, "one body in the exact tree too");
+    expected = await placedBodyBrep({ part:RING_SEED, placements:[ringTransform(3), ringTransform(4)] });
+    const expectedVolume = await volume(expected), expectedCentre = await centroid(expected);
+    assert.ok(Math.abs(await volume(run.finalShape) - expectedVolume) < 1e-6,
+      "the tree bills the shared material once: " + (await volume(run.finalShape)) + " vs " + expectedVolume);
+    const centre = await centroid(run.finalShape), inHostFrame = {
+      x:intoHost.matrix[0] * expectedCentre.x + intoHost.matrix[1] * expectedCentre.y + intoHost.matrix[2] * expectedCentre.z + intoHost.translation.x,
+      y:intoHost.matrix[3] * expectedCentre.x + intoHost.matrix[4] * expectedCentre.y + intoHost.matrix[5] * expectedCentre.z + intoHost.translation.y,
+      z:intoHost.matrix[6] * expectedCentre.x + intoHost.matrix[7] * expectedCentre.y + intoHost.matrix[8] * expectedCentre.z + intoHost.translation.z,
+    };
+    assert.ok(apart(centre, inHostFrame) < 1e-6,
+      "viewport and exact tree describe one shape: " + JSON.stringify(centre) + " vs " + JSON.stringify(inHostFrame));
+  } finally { releaseRegeneration(run); if (expected) disposeBrep(expected); }
+});
+
+test("a rigid inverse is the transpose and the negated rotated shift", () => {
+  const turn = patternRotationTransform([
+    { axis:"y", angle:0.4, pivot:{ x:-8, y:0, z:0 } },
+    { axis:"x", angle:-0.7, pivot:{ x:1, y:2, z:3 } },
+  ]);
+  const back = invertRigidTransform(turn);
+  const round = composeRigidTransforms(turn, back);
+  RIGID_IDENTITY.matrix.forEach((value, index) => assert.ok(Math.abs(round.matrix[index] - value) < 1e-12, "matrix " + index));
+  ["x", "y", "z"].forEach((axis) => assert.ok(Math.abs(round.translation[axis]) < 1e-12, axis));
+  // and the composition agrees with applying the same turns point by point
+  const point = { x:5, y:-2, z:7 };
+  let walked = point;
+  [{ axis:"y", angle:0.4, pivot:{ x:-8, y:0, z:0 } }, { axis:"x", angle:-0.7, pivot:{ x:1, y:2, z:3 } }]
+    .forEach((rotation) => { walked = rotatePointAroundAxis(walked, rotation.axis, rotation.angle, rotation.pivot); });
+  const m = turn.matrix, t = turn.translation;
+  ["x", "y", "z"].forEach((axis, row) => assert.ok(Math.abs(
+    m[row * 3] * point.x + m[row * 3 + 1] * point.y + m[row * 3 + 2] * point.z + t[axis] - walked[axis]) < 1e-12,
+    axis + ": the composed transform must be the rotation list buildPart nests"));
+});
+
+test("a cluster's placements are stored relative to its host, never in world", () => {
+  const fuse = modeler.match(/function fusePatternInstances\([\s\S]*?\n\}\n/)[0];
+  assert.match(fuse, /invertRigidTransform\(patternRotationTransform\(partPatternRotations\(host\)\)\)/,
+    "the host's own turn is divided out");
+  assert.match(fuse, /composeRigidTransforms\(fromHost,members\[at\]\.transform\)/,
+    "and every member is composed through it");
+  // the same rule governs the shift when the fused body is dragged
+  assert.match(partGeometry, /applyRigidMatrix\(intoHost\.matrix, \{x:dx, y:dy, z:dz\}\)/);
 });

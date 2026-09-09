@@ -10,7 +10,7 @@ import { uid, fin } from "./state.js";
 import { normalizePose } from "./cad_mate_model.js";
 import { isKernelBody, kernelBodyBounds, buildKernelBrep, offsetKernelBody } from "./core/kernel_body.js";
 import { framePoint } from "./core/frame.js";
-import { circularPatternPivot, rotatedPatternBounds } from "./core/pattern_geometry.js";
+import { applyRigidMatrix, circularPatternPivot, invertRigidTransform, patternRotationTransform, rotatedPatternBounds } from "./core/pattern_geometry.js";
 import { cutFootprint as cutScopeFootprint, profileLoopIsSeparateHole } from "./core/cut_scope.js";
 import { createTopologyRegistry, resolveFinishTargetIds, topologyForFeature } from "./core/topology.js";
 import { clearMeshProjectionCache } from "./core/mesh_projection.js";
@@ -259,15 +259,24 @@ export function movePart(p, dx, dy, dz) {
     if (!cut.frame || !cut.frame.origin) return;
     cut.frame.origin.x += dx; cut.frame.origin.y += dy; cut.frame.origin.z += dz;
   });
-  /* A fused pattern instance is placed in world coordinates, not in the host's
-     profile plane, so it travels in the shift rather than in a loop. */
-  (p.merges3d || []).forEach(function (merge) {
-    if (merge.kind !== "placed") return;
-    (merge.placements || []).forEach(function (placement) {
-      placement.translation = placement.translation || {x:0,y:0,z:0};
-      placement.translation.x += dx; placement.translation.y += dy; placement.translation.z += dz;
+  /* A fused pattern instance is placed by a rigid transform, not by a loop in
+     the host's profile plane, so it travels in the shift. The shift is carried
+     back through the host's OWN pattern turn first, because the placement is
+     expressed in the host's frame (see fusePatternInstances): the render puts
+     the host's turn around the fused body, so a world dx has to arrive here as
+     the dx the turn will map onto it. An unturned host leaves this the plain
+     addition it has always been. */
+  var placedMerges = (p.merges3d || []).filter(function (merge) { return merge.kind === "placed"; });
+  if (placedMerges.length) {
+    var intoHost = invertRigidTransform(patternRotationTransform(partPatternRotations(p)));
+    var shift = applyRigidMatrix(intoHost.matrix, {x:dx, y:dy, z:dz});
+    placedMerges.forEach(function (merge) {
+      (merge.placements || []).forEach(function (placement) {
+        placement.translation = placement.translation || {x:0,y:0,z:0};
+        placement.translation.x += shift.x; placement.translation.y += shift.y; placement.translation.z += shift.z;
+      });
     });
-  });
+  }
   if (p.meshData && Array.isArray(p.meshData.positions)) {
     for (var mi=0;mi<p.meshData.positions.length;mi+=3) {
       p.meshData.positions[mi]+=dx;

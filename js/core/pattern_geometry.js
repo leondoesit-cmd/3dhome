@@ -120,6 +120,82 @@ export function rotatePointAroundAxis(point, axis, angle, pivot = {}) {
   return { x:x*c+z*s+px, y:y+py, z:-x*s+z*c+pz };
 }
 
+/* ---- rigid transforms, v -> M.v + t --------------------------------------
+ *
+ * The one algebra a pattern needs: a placement is a rigid transform, and so is
+ * the turn the editor draws a copy with. Composing and inverting them here
+ * keeps every caller from writing its own 3x3 by hand — and a rigid inverse is
+ * the rotation transposed with the rotated shift negated, which is exact and
+ * costs nine multiplies, so nothing here ever wants a general matrix inverse. */
+export const RIGID_IDENTITY = { matrix:[1, 0, 0, 0, 1, 0, 0, 0, 1], translation:{ x:0, y:0, z:0 } };
+
+/* The matrices rotatePointAroundAxis applies, written out. */
+export function axisRotationMatrix(axis, angle) {
+  const c = Math.cos(Number(angle) || 0), s = Math.sin(Number(angle) || 0);
+  if (axis === "x") return [1, 0, 0, 0, c, -s, 0, s, c];
+  if (axis === "z") return [c, -s, 0, s, c, 0, 0, 0, 1];
+  return [c, 0, s, 0, 1, 0, -s, 0, c];
+}
+
+/* "Turn by M about P" as the pair the kernel takes: v -> M.v + (P - M.P). */
+export function rigidTransformAboutPivot(matrix, pivot = {}) {
+  const px = Number(pivot.x) || 0, py = Number(pivot.y) || 0, pz = Number(pivot.z) || 0;
+  return { matrix:matrix.slice(), translation:{
+    x: px - (matrix[0] * px + matrix[1] * py + matrix[2] * pz),
+    y: py - (matrix[3] * px + matrix[4] * py + matrix[5] * pz),
+    z: pz - (matrix[6] * px + matrix[7] * py + matrix[8] * pz),
+  } };
+}
+
+export function applyRigidMatrix(matrix, vector = {}) {
+  const x = Number(vector.x) || 0, y = Number(vector.y) || 0, z = Number(vector.z) || 0;
+  return {
+    x: matrix[0] * x + matrix[1] * y + matrix[2] * z,
+    y: matrix[3] * x + matrix[4] * y + matrix[5] * z,
+    z: matrix[6] * x + matrix[7] * y + matrix[8] * z,
+  };
+}
+
+/* outer . inner — inner applies first. */
+export function composeRigidTransforms(outer, inner) {
+  const a = (outer && outer.matrix) || RIGID_IDENTITY.matrix, b = (inner && inner.matrix) || RIGID_IDENTITY.matrix;
+  const matrix = [];
+  for (let row = 0; row < 3; row++) for (let column = 0; column < 3; column++) {
+    matrix.push(a[row * 3] * b[column] + a[row * 3 + 1] * b[3 + column] + a[row * 3 + 2] * b[6 + column]);
+  }
+  const shifted = applyRigidMatrix(a, (inner && inner.translation) || {});
+  const outerShift = (outer && outer.translation) || {};
+  return { matrix, translation:{
+    x: shifted.x + (Number(outerShift.x) || 0),
+    y: shifted.y + (Number(outerShift.y) || 0),
+    z: shifted.z + (Number(outerShift.z) || 0),
+  } };
+}
+
+export function invertRigidTransform(transform) {
+  const m = (transform && transform.matrix) || RIGID_IDENTITY.matrix;
+  const matrix = [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]];   // a rotation's inverse is its transpose
+  const back = applyRigidMatrix(matrix, (transform && transform.translation) || {});
+  return { matrix, translation:{ x:-back.x, y:-back.y, z:-back.z } };
+}
+
+/* The editor's list of axis turns as ONE rigid transform.
+ *
+ * A part carries its pattern turns as `patternRotations`, and buildPart nests
+ * them newest-OUTERMOST — R[n-1] . ... . R[0] . body — so the composition has to
+ * run in that order or the answer describes a body nobody drew. This is the
+ * transform a copy gets at render time and that exactBrepForPart does NOT bake
+ * into its BREP, which is exactly why anything fused INTO such a copy has to be
+ * expressed relative to it. */
+export function patternRotationTransform(rotations = []) {
+  // a fresh object, never the shared constant: callers hand these to builders
+  let composed = { matrix:RIGID_IDENTITY.matrix.slice(), translation:{ ...RIGID_IDENTITY.translation } };
+  rotations.forEach((rotation) => {
+    composed = composeRigidTransforms(rigidTransformAboutPivot(axisRotationMatrix(rotation.axis, rotation.angle), rotation.pivot), composed);
+  });
+  return composed;
+}
+
 /* One pattern placement as a single rigid transform, v -> M.v + t.
  *
  * The editor lays a copy by moving its definition and pushing axis rotations
@@ -134,16 +210,8 @@ export function patternPlacementTransform(params = {}, placement = {}, circularS
   if (params.mode === "circular") {
     const axis = ["x", "y", "z"].includes(params.axis) ? params.axis : "y";
     const angle = Number(circularStep) * (Number(placement.circularIndex) || 0);
-    const c = Math.cos(angle), s = Math.sin(angle);
-    const m = axis === "x" ? [1, 0, 0, 0, c, -s, 0, s, c]
-      : axis === "z" ? [c, -s, 0, s, c, 0, 0, 0, 1]
-      : [c, 0, s, 0, 1, 0, -s, 0, c];
     const pivot = circularPatternPivot({ axis, radialDistance: params.radialDistance });
-    return { matrix: m, translation: {
-      x: pivot.x - (m[0] * pivot.x + m[1] * pivot.y + m[2] * pivot.z),
-      y: pivot.y - (m[3] * pivot.x + m[4] * pivot.y + m[5] * pivot.z),
-      z: pivot.z - (m[6] * pivot.x + m[7] * pivot.y + m[8] * pivot.z),
-    } };
+    return rigidTransformAboutPivot(axisRotationMatrix(axis, angle), pivot);
   }
   if (Array.isArray(placement.matrix) && placement.matrix.length === 9) {
     return { matrix: placement.matrix.slice(), translation: { ...(placement.translation || { x: 0, y: 0, z: 0 }) } };

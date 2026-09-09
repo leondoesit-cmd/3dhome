@@ -117,7 +117,7 @@ import {
   profileLoopIsSeparateHole,
 } from "./core/cut_scope.js";
 import { diagnosticHelp, groupDiagnostics, recommendedDiagnostic } from "./core/diagnostic_help.js";
-import { circularPatternPivot, circularPatternStepDegrees, curvePatternPath, curvePatternPlacements, linearPatternOffsets, parseSkippedPatternInstances, patternPlacementTransform, rotatedPatternBounds } from "./core/pattern_geometry.js";
+import { circularPatternPivot, circularPatternStepDegrees, composeRigidTransforms, curvePatternPath, curvePatternPlacements, invertRigidTransform, linearPatternOffsets, parseSkippedPatternInstances, patternPlacementTransform, patternRotationTransform, rotatedPatternBounds } from "./core/pattern_geometry.js";
 import { finalizeCabinetAdvancedDefinition, syncCabinetDefinition } from "./parametric_cabinet.js";
 import { assignCabinetManufacturing, CABINET_MANUFACTURING_ROLES } from "./core/cabinet_advanced.js";
 import { layoutCab } from "./cabinet.js";
@@ -1169,6 +1169,12 @@ if (typeof window !== "undefined") {
         id: part.id, kind: part.kind, merges: (part.merges3d || []).length,
         fused: (part.merges3d || []).reduce(function (total, entry) { return total + (entry.placements || []).length; }, 0),
         pending: !!part.exactPending, error: part.exactError || null,
+        /* The turn the body is DRAWN with, and the placements stored inside it:
+           the two halves a merged instance's world position is made of, so a
+           test can check they still multiply out to where the copy was laid. */
+        rotations: partPatternRotations(part),
+        placements: (part.merges3d || []).filter(function (entry) { return entry.kind === "placed"; })
+          .reduce(function (all, entry) { return all.concat(entry.placements || []); }, []),
         triangles: part.meshData ? (part.meshData.positions || []).length / 9 : 0,
       };
     });
@@ -6556,12 +6562,22 @@ function fusePatternInstances(seed, source, entries, feature) {
         if(group.length<2)return;
         var host=members[group[0]].part;
         hosts.push(host);
+        /* A placement is stored RELATIVE TO THE HOST, never in world space.
+           A copy's own turn is NOT baked into its BREP — buildPart nests it as
+           groups around the whole body, exactBrepForPart leaves it out — so a
+           merge fused into that body is turned by the host's transform on the
+           way to the screen. A world placement would therefore be turned twice.
+           The seed hosts at the identity and a linear copy carries no turn, so
+           those clusters read the same either way; a circular or curve cluster
+           that does not contain the seed is hosted by a ROTATED copy, and only
+           the host-relative form puts it where the copies were. */
+        var fromHost=invertRigidTransform(patternRotationTransform(partPatternRotations(host)));
         /* ONE record per cluster, carrying every instance's placement, rather
            than one per instance: the shape being copied is stored once instead
            of N times in the saved model, and the cluster's copies are welded to
            each other before they meet the host. */
         host.merges3d=host.merges3d || [];
-        host.merges3d.push({kind:"placed",part:cloneData(source),placements:group.slice(1).map(function(at){return members[at].transform;}),...(featureId?{featureId:featureId,patternFeatureId:featureId}:{})});
+        host.merges3d.push({kind:"placed",part:cloneData(source),placements:group.slice(1).map(function(at){return composeRigidTransforms(fromHost,members[at].transform);}),...(featureId?{featureId:featureId,patternFeatureId:featureId}:{})});
         group.slice(1).forEach(function(at){absorbed.push(members[at].part);});
       });
       if(!absorbed.length)return;
