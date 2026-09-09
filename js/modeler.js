@@ -54,7 +54,7 @@ import { addFeature, ensureFeatureTree, regenerateFeatures, releaseRegeneration 
 import {
   exportStep, exportIges, importStep,
   makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, booleanBrep, brepConnectedGroups, chamferBrep, draftBrep, extractBrepTopology, filletBrep, shapeToMeshData, moveBodyBrep, placeBrep, ribBrep, shellBrep, splitBrep, thickenBrep, disposeBrep,
-  serializeBrep, transformBrep, translateBrep,
+  serializeBrep, transformBrep, translateBrep, unifyBrepFaces,
 } from "./cad_kernel.js";
 import { buildDrawingScene } from "./cad_drawings.js";
 import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, ensureSheetDoc, scaleLabel, sceneToSvg } from "./cad_sheet.js";
@@ -1204,6 +1204,21 @@ if (typeof window !== "undefined") {
      place the preview teardown has to live — reachable on its own so a test can
      prove that rather than proving a Cancel button that clears first. */
   window.cadCloseFeatureForm = function () { closeFeaturePanel(); };
+  /* Retype the open form's parameters and resync its preview, the way editing a
+     field does — minus the frame. queueNewFeaturePreview runs off
+     requestAnimationFrame, which never fires in a headless pane, so a test that
+     waited for one would see a preview that never moved. The body the feature
+     works on is picked the way cadPatternRun picks it, since a pattern with no
+     seed selected has nothing to preview. */
+  window.cadSetFeatureFormParams = function (params) {
+    var state = E.authoring && E.authoring.featurePreviewState;
+    if (!state || !E.authoring.featureType) return false;
+    if (!selectedSolid()) E.sel = activeParts(E.def)[activeParts(E.def).length - 1] || E.sel;
+    state.params = { ...state.params, ...(params || {}) };
+    syncNewFeaturePreview(E.authoring.featureType, state, E.authoring.featurePreviewBadge);
+    updatePreview();
+    return true;
+  };
   window.cadFinishPreviewSnapshot = function () {
     var badge = root && root.querySelector("#mdQuickSettings .md-feature-live");
     return {
@@ -1214,8 +1229,18 @@ if (typeof window !== "undefined") {
       approximate: !!(E.authoring && E.authoring.approxFinishPreview),
       replaces: (E.authoring && E.authoring.previewReplacesPartId) || null,
       parts: ((E.authoring && E.authoring.previewParts) || []).map(function (part) {
-        return { id: part.id, kind: part.kind, approximate: !!part.approximate, points: (part.pts || []).length, holes: (part.holes || []).length };
+        return {
+          id: part.id, kind: part.kind, approximate: !!part.approximate,
+          points: (part.pts || []).length, holes: (part.holes || []).length,
+          // a fused pattern cluster is a mesh and nothing else, so the triangle
+          // count is the only thing that says the kernel really answered
+          merged: !!part.merged, triangles: part.meshData ? (part.meshData.positions || []).length / 9 : 0,
+        };
       }),
+      /* The merged pattern's second pass: which stage it is at, and how many
+         bodies it says the run will end up as. It is async and debounced, so a
+         test polls this rather than settling. */
+      merge: cloneData((E.authoring && E.authoring.mergedPatternPreview) || null),
       badge: badge ? { state: badge.getAttribute("data-preview-state"), text: (badge.textContent || "").trim() } : null,
       formOpen: !!(root && root.querySelector("#mdQuickSettings") && !root.querySelector("#mdQuickSettings").hidden),
     };
@@ -7120,6 +7145,10 @@ function createRevolveCutFeature(options) {
 function clearFeaturePreview(refresh) {
   if(!E.authoring)return;E.authoring.previewParts=[];E.authoring.previewReplacesPartId=null;
   E.authoring.approxFinishPreview=null;E.authoring.pendingExactPreview=null;
+  /* A merged pattern's fuse is in flight for as long as the kernel takes; the
+     token bump below is what stops it landing a mesh in a scene the form has
+     already been dismissed from. */
+  E.authoring.mergedPatternPreview=null;
   E.authoring.featurePreviewState=null;E.authoring.featurePreviewBadge=null;
   E._featurePreviewToken=(E._featurePreviewToken || 0)+1;
   if(E._featureExactPreviewTimer){clearTimeout(E._featureExactPreviewTimer);E._featureExactPreviewTimer=0;}
@@ -7642,6 +7671,121 @@ function queueExactFeaturePreview(preview,type,liveBadge) {
   },90);
 }
 
+/* The live picture of "Merge instances".
+ *
+ * The N copies are laid immediately and unconditionally by the pattern branch
+ * above; that is the cheap honest answer, and it is what stays on screen if
+ * anything below fails. Whether any two of them share material is a question
+ * only the kernel can answer, so the fuse is a DEBOUNCED second pass — a
+ * parameter drag coalesces onto one run and a superseded run is dropped when it
+ * lands, on the same E._featurePreviewToken queueExactFeaturePreview uses.
+ *
+ * The badge tells the truth at every stage: "approximate" for as long as the
+ * un-merged copies are what is drawn, and "exact" only once the picture IS the
+ * answer — which includes the kernel reporting that nothing overlaps, since the
+ * separate copies are then already right. A failure says so and withdraws
+ * nothing: a body OCC could not build is never shown. */
+var PATTERN_MERGE_PREVIEW_DELAY = 140;
+
+function syncMergedPatternPreview(seed,params,instances,liveBadge) {
+  var previous=E.authoring.mergedPatternPreview;
+  E.authoring.mergedPatternPreview=null;
+  if(!params || !params.mergeResult || !seed || !(instances || []).length || !partSupportsExactMesh(seed)){
+    // merge off (or a body the kernel cannot rebuild): the copies are the whole
+    // answer, so the badge must stop claiming anything about a fuse
+    if(liveBadge && previous){liveBadge.classList.remove("approx");liveBadge.removeAttribute("data-preview-state");}
+    return;
+  }
+  var token=(E._featurePreviewToken || 0)+1;E._featurePreviewToken=token;
+  E.authoring.mergedPatternPreview={token:token,state:"approximate",bodies:instances.length+1,fused:0};
+  patternMergePreviewBadge(liveBadge,"approximate","ph-scribble-loop",t("livePatternMergeCheck"));
+  if(E._featureExactPreviewTimer)clearTimeout(E._featureExactPreviewTimer);
+  E._featureExactPreviewTimer=setTimeout(function(){
+    E._featureExactPreviewTimer=0;
+    runMergedPatternPreview(seed,params,instances,liveBadge,token);
+  },PATTERN_MERGE_PREVIEW_DELAY);
+}
+
+function patternMergePreviewBadge(liveBadge,state,icon,text) {
+  if(!liveBadge)return;
+  liveBadge.classList.add("on");liveBadge.classList.toggle("approx",state==="approximate");
+  liveBadge.setAttribute("data-preview-state",state);
+  liveBadge.innerHTML='<i class="ph '+icon+'"></i> '+text;
+}
+
+/* The form may have been dismissed, retyped or pointed at another body while
+   the kernel worked; only the run the form is still waiting for may draw. */
+function mergedPatternPreviewIsLive(token) {
+  var pending=E.authoring && E.authoring.mergedPatternPreview;
+  return !!(pending && pending.token===token && E.authoring.featureType==="pattern" && E._featurePreviewToken===token);
+}
+
+/* A fused cluster as a preview body: the kernel's mesh and nothing else. Every
+   instance was placed in WORLD coordinates before the union, so this body must
+   carry no pattern rotation of its own — buildPart would apply it a second
+   time — and no profile, which the mesh has already superseded. */
+function mergedPatternPreviewBody(seed,meshData,index) {
+  var id="preview:pattern:merge:"+index;
+  /* kind "mesh": the tessellation is the whole body, and basePartBounds reads a
+     mesh body's box off the positions it already has. */
+  return {id:id,featureId:id,previewOnly:true,merged:true,kind:"mesh",meshData:meshData,
+    color:seed.color,opacity:.62,metal:seed.metal,rough:seed.rough,
+    name:featureTypeLabel("pattern")};
+}
+
+async function runMergedPatternPreview(seed,params,instances,liveBadge,token) {
+  var source=patternMergeSource(seed),members=[{part:seed,transform:PATTERN_IDENTITY_PLACEMENT}].concat(instances);
+  var base=null,placed=[];
+  try{
+    base=await exactBrepForPart(source);
+    for(var i=0;i<members.length;i++)placed.push(await placeBrep(base,members[i].transform));
+    var groups=await brepConnectedGroups(placed.map(function(brep,at){return {brep:brep,bounds:partBounds(members[at].part)};}));
+    var clusters=groups.filter(function(group){return group.length>1;});
+    if(!mergedPatternPreviewIsLive(token))return;
+    if(!clusters.length){
+      E.authoring.mergedPatternPreview={token:token,state:"exact",bodies:members.length,fused:0};
+      patternMergePreviewBadge(liveBadge,"exact","ph-broadcast",t("livePatternMergeApart"));
+      return;
+    }
+    var bodies=[],absorbed=[];
+    for(var c=0;c<clusters.length;c++){
+      var group=clusters[c],solid=null;
+      for(var k=1;k<group.length;k++){
+        var next=await booleanBrep("union",solid || placed[group[0]],placed[group[k]]);
+        if(solid)disposeBrep(solid);
+        solid=next;
+      }
+      var welded=await unifyBrepFaces(solid);disposeBrep(solid);solid=welded;
+      try{
+        var meshData=await shapeToMeshData(solid,{deflection:.24,angle:.16});
+        meshData.topology=cloneData(solid.topology || []);
+        bodies.push(mergedPatternPreviewBody(seed,meshData,c));
+      }finally{disposeBrep(solid);}
+      group.forEach(function(at){absorbed.push(members[at].part);});
+    }
+    if(!mergedPatternPreviewIsLive(token))return;
+    /* The fused clusters REPLACE the copies they are made of; a copy that met
+       nothing stays exactly as it was laid, and the seed is a real body of the
+       document that was never a preview part in the first place. */
+    E.authoring.previewParts=(E.authoring.previewParts || []).filter(function(part){return !absorbed.includes(part);}).concat(bodies);
+    var fused=absorbed.length-clusters.length;
+    E.authoring.mergedPatternPreview={token:token,state:"exact",bodies:members.length-fused,fused:fused};
+    patternMergePreviewBadge(liveBadge,"exact","ph-broadcast",tf("livePatternMergeReady",{bodies:members.length-fused}));
+    updatePreview();renderPreview();
+  }catch(error){
+    if(!mergedPatternPreviewIsLive(token))return;
+    /* The un-merged copies stand — they are what Apply would leave behind too
+       when the fuse fails — and the badge stops claiming a merge is coming. */
+    console.warn("merged pattern preview failed:",error);
+    E.authoring.mergedPatternPreview={token:token,state:"error",error:String(error && error.message || error)};
+    patternMergePreviewBadge(liveBadge,"error","ph-warning",t("livePatternMergeFail"));
+    if(liveBadge)liveBadge.title=String(error && error.message || error);
+  }finally{
+    placed.forEach(function(copy){disposeBrep(copy);});
+    if(base)disposeBrep(base);
+  }
+}
+
 function syncNewFeaturePreview(type,state,liveBadge) {
   var previews=[];
   E.authoring.previewReplacesPartId=null;
@@ -7653,8 +7797,8 @@ function syncNewFeaturePreview(type,state,liveBadge) {
     var revCut=type==="revolveCut";
     var profile=closedSketchProfile();if(profile)previews.push({id:"preview:revolve",featureId:"preview:revolve",previewOnly:true,kind:"rev",x:0,z:0,seg:48,pts:profile.points,angle:state.params.angle,direction:state.params.direction,symmetric:state.params.symmetric,color:revCut?"#d75a4a":"#6f8de8",opacity:revCut?.42:.62,metal:.04,rough:.68,name:"Live "+featureTypeLabel(type)});
   } else if(type==="pattern"){
-    var seed=selectedSolid(),count=Math.max(2,Math.min(100,Math.round(Number(state.params.count)||2))),circularStep=circularPatternStepDegrees(state.params,count)*Math.PI/180,placements=patternPlacements(state.params);
-    if(seed)placements.forEach(function(placement,index){var copy=resetClonedPartIdentity(cloneData(seed));copy.previewOnly=true;copy.id="preview:pattern:"+(index+1);copy.featureId=copy.id;copy.opacity=.52;placePatternCopy(copy,state.params,placement,circularStep);copy.patternGridIndex=placement.indices;previews.push(copy);});
+    var seed=selectedSolid(),count=Math.max(2,Math.min(100,Math.round(Number(state.params.count)||2))),circularStep=circularPatternStepDegrees(state.params,count)*Math.PI/180,placements=patternPlacements(state.params),patternInstances=[];
+    if(seed)placements.forEach(function(placement,index){var copy=resetClonedPartIdentity(cloneData(seed));copy.previewOnly=true;copy.id="preview:pattern:"+(index+1);copy.featureId=copy.id;copy.opacity=.52;placePatternCopy(copy,state.params,placement,circularStep);copy.patternGridIndex=placement.indices;previews.push(copy);patternInstances.push({part:copy,transform:patternPlacementTransform(state.params,placement,circularStep)});});
   } else if(type==="mirror"){
     var source=selectedSolid();if(source){var plane=state.references && state.references.plane || "plane:right",copy=mirrorProjectionPart(resetClonedPartIdentity(cloneData(source)),plane);copy.previewOnly=true;copy.id="preview:mirror";copy.featureId=copy.id;copy.opacity=.52;previews.push(copy);}
   } else if(FINISH_FEATURES.includes(type)){
@@ -7674,6 +7818,7 @@ function syncNewFeaturePreview(type,state,liveBadge) {
   if(!FINISH_FEATURES.includes(type)){E.authoring.approxFinishPreview=null;E.authoring.pendingExactPreview=null;}
   E.authoring.previewParts=previews;
   if(finish)queueExactFeaturePreview(finish,type,liveBadge || E.authoring.featurePreviewBadge);
+  if(type==="pattern")syncMergedPatternPreview(seed,state.params,patternInstances,liveBadge || E.authoring.featurePreviewBadge);
 }
 
 /* The exact body may be standing in previewParts already, or may still be
@@ -7692,7 +7837,10 @@ function adoptExactFinishPreview(preview) {
 
 function queueNewFeaturePreview(type,state,liveBadge) {
   if(E._featurePreviewFrame)cancelAnimationFrame(E._featurePreviewFrame);
-  E._featurePreviewFrame=requestAnimationFrame(function(){E._featurePreviewFrame=0;syncNewFeaturePreview(type,state,liveBadge);refreshAll();if(liveBadge && !FINISH_FEATURES.includes(type)){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveViewsSynced");}});
+  E._featurePreviewFrame=requestAnimationFrame(function(){E._featurePreviewFrame=0;syncNewFeaturePreview(type,state,liveBadge);refreshAll();
+    // a merged pattern's badge is owned by its own fuse pass: overwriting it
+    // here would claim the views are synced while the copies are still unfused
+    if(liveBadge && !FINISH_FEATURES.includes(type) && !(E.authoring && E.authoring.mergedPatternPreview)){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveViewsSynced");}});
 }
 
 /* The features that work on an existing body's topology rather than on a

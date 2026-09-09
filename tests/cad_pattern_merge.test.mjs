@@ -287,3 +287,39 @@ test("the merged copy is the whole body, cached mesh excluded", () => {
   assert.doesNotMatch(source, /"holes"/, "but its holes and cuts are part of the shape being copied");
   assert.doesNotMatch(source, /"cuts3d"/);
 });
+
+test("the merged pattern's live preview is debounced, tokened and honest", () => {
+  /* The runtime browser case proves the picture; these are the invariants that
+     case cannot reach — the ones a kernel run per keystroke, or a badge that
+     lies for a moment, would quietly break. */
+  const sync = modeler.match(/function syncMergedPatternPreview\([\s\S]*?\n\}\n/)[0];
+  assert.match(sync, /!params\.mergeResult \|\| !seed \|\| !\(instances \|\| \[\]\)\.length \|\| !partSupportsExactMesh\(seed\)/,
+    "merge off, no seed or a body the kernel cannot rebuild asks the kernel nothing");
+  assert.match(sync, /E\._featurePreviewToken=token/, "the fuse rides the one preview token");
+  assert.match(sync, /clearTimeout\(E\._featureExactPreviewTimer\)/, "a parameter drag coalesces onto one run");
+  assert.match(sync, /patternMergePreviewBadge\(liveBadge,"approximate"/,
+    "the badge says approximate while the un-merged copies are what is drawn");
+  assert.match(sync, /setTimeout\(function\(\)\{[\s\S]*runMergedPatternPreview/);
+
+  const run = modeler.match(/async function runMergedPatternPreview\([\s\S]*?\n\}\n/)[0];
+  assert.match(run, /await brepConnectedGroups\(/, "the kernel decides which copies share material");
+  assert.match(run, /if\(!mergedPatternPreviewIsLive\(token\)\)return;/, "a superseded run draws nothing");
+  assert.match(run, /patternMergePreviewBadge\(liveBadge,"exact","ph-broadcast",t\("livePatternMergeApart"\)\)/,
+    "nothing overlapping makes the copies themselves the exact answer");
+  assert.match(run, /patternMergePreviewBadge\(liveBadge,"error","ph-warning",t\("livePatternMergeFail"\)\)/);
+  const failure = run.match(/\}catch\(error\)\{[\s\S]*?\}finally\{/)[0];
+  assert.doesNotMatch(failure, /previewParts=/, "a kernel failure withdraws nothing — the copies stand");
+  // memory: every placed copy and the base solid are released
+  assert.match(run, /placed\.forEach\(function\(copy\)\{disposeBrep\(copy\);\}\);/);
+  assert.match(run, /if\(base\)disposeBrep\(base\);/);
+  assert.match(run, /disposeBrep\(solid\);/);
+
+  // and dismissing the form drops the pass, so no mesh lands in an empty scene
+  const clear = modeler.match(/function clearFeaturePreview\(refresh\) \{[\s\S]*?\n\}\n/)[0];
+  assert.match(clear, /E\.authoring\.mergedPatternPreview=null;/);
+  assert.match(clear, /E\._featurePreviewToken=\(E\._featurePreviewToken \|\| 0\)\+1;/);
+
+  ["livePatternMergeCheck", "livePatternMergeReady", "livePatternMergeApart", "livePatternMergeFail"].forEach((key) => {
+    assert.match(strings, new RegExp("\\n  " + key + ": \\[\""), key + " has a [he, en] entry");
+  });
+});
