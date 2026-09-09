@@ -167,7 +167,11 @@ test("rebuild publishes an under-defined sketch state from the solver's DOF", ()
 });
 
 test("every canonical feature exposes grouped professional parameters", () => {
-    const minimumFields = { extrude:9, extrudeCut:8, revolve:6, sweep:6, loft:8, fillet:4, chamfer:5, shell:5, pattern:8, mirror:3, boolean:3, hole:6, helix:6, thread:6, knurl:6, insert:4 };
+    /* loft is 7, not 8: "Closed loft" was removed when loft started producing
+       a real body, because BRepOffsetAPI_ThruSections has no way to bend the
+       last section back onto the first. A control the kernel ignores does not
+       count as an exposed parameter. */
+    const minimumFields = { extrude:9, extrudeCut:8, revolve:6, sweep:6, loft:7, fillet:4, chamfer:5, shell:5, pattern:8, mirror:3, boolean:3, hole:6, helix:6, thread:6, knurl:6, insert:4 };
   for (const [type, minimum] of Object.entries(minimumFields)) {
     const groups = featureEditorGroups(type);
     assert.ok(groups.length, type + " needs at least one parameter group");

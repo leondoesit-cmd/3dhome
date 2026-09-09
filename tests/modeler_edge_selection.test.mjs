@@ -5,6 +5,10 @@ import { createTopologyRegistry, mergeSmoothTopology, resolveFinishTargetIds } f
 import { cycleOverlappingHits } from "../js/modeler_chrome.js";
 
 const modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+/* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
+const partGeometry = await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
+/* Pick-to-reference and reference-to-screen geometry, split out of js/modeler.js. */
+const pickGeometry = await readFile(new URL("../js/modeler_pick_geometry.js", import.meta.url), "utf8");
 
 const pt = (x, y, z) => ({ x, y, z });
 const face = { ownerFeatureId: "f", kind: "face", persistentId: "f:face:top", descriptor: { surface: "plane", origin: pt(0, 10, 0), normal: pt(0, 1, 0), measure: 100 } };
@@ -46,8 +50,8 @@ test("two ids for one physical edge collapse to a single finish target", () => {
 });
 
 test("modeler dedupes the finish edge selection on geometry, not only on id", () => {
-  assert.match(modelerSource, /function finishEdgeKey\(/);
-  assert.match(modelerSource, /function dedupeFinishRefs\(/);
+  assert.match(pickGeometry, /function finishEdgeKey\(/);
+  assert.match(pickGeometry, /function dedupeFinishRefs\(/);
   assert.match(modelerSource, /E\.topologySelection = dedupeFinishRefs\(faces\.concat\(canonical\)\)/);
   assert.match(modelerSource, /overlapping = dedupeFinishRefs\(overlapping\)/);
 });
@@ -60,8 +64,8 @@ test("finish tools never fall back to pre-cut analytic edges while exact topolog
 });
 
 test("saved rim-breaking holes migrate before the editor exposes topology", () => {
-  assert.match(modelerSource, /function migrateBoundaryChangingProfileCuts\(part\)/);
-  assert.match(modelerSource, /part\.cuts3d = \(part\.cuts3d \|\| \[\]\)\.concat\(moved\)/);
+  assert.match(partGeometry, /function migrateBoundaryChangingProfileCuts\(part\)/);
+  assert.match(partGeometry, /part\.cuts3d = \(part\.cuts3d \|\| \[\]\)\.concat\(moved\)/);
   assert.equal((modelerSource.match(/migrateDefinitionProfileCuts\(E\.def, true\)/g) || []).length, 2,
     "saved definitions and restored drafts both migrate and schedule exact topology");
 });

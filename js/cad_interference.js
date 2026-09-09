@@ -202,6 +202,12 @@ function partMass(part) {
     for (let i = 0; i < 3; i++) { total += weights[i]; u += weights[i] * centres[i].u; v += weights[i] * centres[i].v; w += weights[i] * spans[i]; }
     return { volume, ...extrusionPoint(part, u / total, v / total, w / total) };
   }
+  /* A kernel body is measured from its tessellation below, and from nothing
+     else: while the kernel is still building (or after it failed) there is no
+     shape, and the bounds fallback at the end of this function would report a
+     solid block where a swept pipe belongs. An obviously missing number beats
+     an invented one on a mass report. */
+  if (part.kind === "kernel" && !(part.meshData && (part.meshData.positions || []).length >= 9)) return none;
   const positions = part.meshData && part.meshData.positions;
   if (Array.isArray(positions) && positions.length >= 9) {
     // Divergence theorem over the triangle soup — exact for a closed mesh.

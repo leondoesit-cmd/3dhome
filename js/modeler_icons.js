@@ -64,6 +64,37 @@ export const CAD_ICONS = {
     );
   },
 
+  /* Revolved Cut: the same lathe as revolvefeature, but the revolved profile is
+     the groove taken out of a block rather than the body added. */
+  revolvecutfeature: function () {
+    return (
+      // Block the groove is turned out of
+      p("M3 3 L17 3 L17 17 L3 17 Z", 0.15, 1.3) +
+      // Dashed centerline the profile turns about
+      colorPath("M10 1 L10 19", "none", "#2684c7", 1.2, ' stroke-dasharray="2.5 1.5"') +
+      // The turned groove, open to the right edge
+      p("M17 7 L12 8.5 L12 11.5 L17 13 Z", 0.5, 1.25) +
+      // Red revolve-and-remove arrow
+      colorPath("M6.5 13 A4 4 0 1 0 6.5 7", "none", "#d0342c", 1.5) +
+      colorPath("M5 5.5 L6.5 7 L5 8.5", "none", "#d0342c", 1.4)
+    );
+  },
+
+  /* Swept Cut: the sweepfeature trajectory, driving a channel out of a face. */
+  sweepcutfeature: function () {
+    return (
+      // The face the channel is cut into
+      p("M2 6 L10 2 L18 6 L10 10 Z", 0.15, 1.25) +
+      l("M2 6 L2 13 L10 17 L18 13 L18 6 M10 10 L10 17", 1.15) +
+      // Guide trajectory
+      colorPath("M3 8 C 7 5, 12 10, 17 7", "none", "#2684c7", 1.2, ' stroke-dasharray="2.2 1.5"') +
+      // The channel the profile carves along it
+      p("M3 10 C 7 7, 12 12, 17 9 L17 6.5 C 12 9.5, 7 4.5, 3 7.5 Z", 0.5, 1.2) +
+      // Red remove arrow into the channel
+      colorPath("M10 12.5 L10 16 M8.5 14.5 L10 16 L11.5 14.5", "none", "#d0342c", 1.5)
+    );
+  },
+
   // Swept Boss/Base: curved 3D trajectory spline with swept circular cross-section
   sweepfeature: function () {
     return (
@@ -188,6 +219,78 @@ export const CAD_ICONS = {
       p("M4 6.5 L10 3.5 L16 6.5 L10 9.5 Z", 0.45, 1.2) +
       l("M4 6.5 L4 12 L10 15 L16 12 L16 6.5", 1.25) +
       l("M10 9.5 L10 15", 1.15)
+    );
+  },
+
+  /* Draft: a wall leaning off vertical, with the neutral plane it pivots on
+     drawn as the dashed line at the top and the pull direction as the arrow. */
+  draftfeature: function () {
+    return (
+      // Tapered block: the right wall leans in going down, the left stays square
+      p("M5 4 L15 4 L12.5 16 L7.5 16 Z", 0.2, 1.3) +
+      // The vertical the drafted wall is measured against
+      colorPath("M15 4 L15 16", "none", "#8899aa", 1.1, ' stroke-dasharray="1.8 1.5"') +
+      // Neutral plane: the parting line the wall pivots on
+      colorPath("M2.5 4 L17.5 4", "none", "#2684c7", 1.3, ' stroke-dasharray="2.5 1.5"') +
+      // The draft angle itself, between the wall and the vertical
+      colorPath("M15 10 A6 6 0 0 0 13.75 10", "none", "#e89a24", 1.5) +
+      // Pull direction
+      colorPath("M10 16.5 L10 18.5 M10 1.5 L10 3.5 M8 3.5 L10 1.5 L12 3.5", "none", "#e89a24", 1.5)
+    );
+  },
+
+  /* Split Body: one isometric block parted along a plane, the two halves drawn
+     apart so it reads as two bodies rather than one scored one. */
+  splitbodyfeature: function () {
+    return (
+      // the half above the plane, lifted clear
+      p("M3 7 L10 10 L17 7 L17 3.5 L10 0.5 L3 3.5 Z", 0.3, 1.2) +
+      // and the half below it
+      p("M3 16 L10 19 L17 16 L17 12.5 L10 9.5 L3 12.5 Z", 0.15, 1.2) +
+      // the parting plane between them
+      colorPath("M1.5 11 L18.5 11", "none", "#2684c7", 1.4, ' stroke-dasharray="2.6 1.6"')
+    );
+  },
+
+  /* Move / Copy Body: a block and its ghost, with the offset arrow between. */
+  movebodyfeature: function () {
+    return (
+      // the body where it was
+      p("M1.5 13 L7 15.5 L12.5 13 L12.5 8 L7 5.5 L1.5 8 Z", 0.12, 1.15, ' stroke-dasharray="2.2 1.6"') +
+      // and where it lands
+      p("M7 15 L12.5 17.5 L18 15 L18 10 L12.5 7.5 L7 10 Z", 0.35, 1.25) +
+      // the move itself
+      colorPath("M6 4 L14 4 M11.6 1.8 L14 4 L11.6 6.2", "none", "#e89a24", 1.5)
+    );
+  },
+
+  /* Rib: a triangular web bridging a floor and an upright wall — the shape a
+     brace actually takes — with the amber gauge across it for the thickness. */
+  ribfeature: function () {
+    return (
+      // the corner the rib braces: a floor and an upright
+      l("M2.5 16.5 L17.5 16.5 M4.5 16.5 L4.5 3", 1.35) +
+      // the web itself
+      p("M5.5 15.5 L14.5 15.5 L5.5 5 Z", 0.35, 1.25) +
+      // the thickness the feature is defined by
+      colorPath("M8 12 L11.5 13.6 M8 12 L8 10.4 M11.5 13.6 L11.5 15.2", "none", "#e89a24", 1.3)
+    );
+  },
+
+  /* Thicken: a surface sheet given a depth. The bright diamond is the face the
+     feature starts from; the faint body under it is the slab it becomes, and
+     the amber double arrow is the thickness that separates them. */
+  thickenfeature: function () {
+    return (
+      // the sheet being thickened
+      p("M3 7.5 L10 4 L17 7.5 L10 11 Z", 0.45, 1.3) +
+      // the solid it becomes: the same sheet carried down by its thickness
+      p("M3 7.5 L3 11.5 L10 15 L17 11.5 L17 7.5 L10 11 Z", 0.15, 1.3) +
+      l("M10 11 L10 15", 1.15) +
+      // witness lines out to the dimension
+      colorPath("M17 7.5 L18.6 7.9 M17 11.5 L18.6 11.9", "none", "#8899aa", 1, ' stroke-dasharray="1.6 1.2"') +
+      // the thickness itself
+      colorPath("M18.6 7.9 L18.6 11.9 M17.6 8.9 L18.6 7.9 L19.6 8.9 M17.6 10.9 L18.6 11.9 L19.6 10.9", "none", "#e89a24", 1.3)
     );
   },
 
@@ -1055,14 +1158,32 @@ export const CAD_ICONS = {
 
 // Aliases mapping command IDs, feature names, and phosphor classes to CAD icons
 export const ICON_ALIASES = {
+  /* Selection operations have no drawn CAD glyph of their own; they fall
+     through to Phosphor, which needs the ph- name rather than the command id.
+     Without these the context menu drew an empty box where the icon goes. */
+  selectloop: "ph-circle-notch",
+  selecttangency: "ph-flow-arrow",
+  selectconnected: "ph-graph",
+  selectinvert: "ph-selection-inverse",
+  selectgrow: "ph-arrows-out",
+  selectshrink: "ph-arrows-in",
+  selectsave: "ph-bookmark-simple",
+  selectrecall: "ph-bookmarks-simple",
   // Feature Catalog names & command IDs
   extrudeCut: "extrudecut",
   revolve: "revolvefeature",
+  revolveCut: "revolvecutfeature",
+  sweepCut: "sweepcutfeature",
   sweep: "sweepfeature",
   loft: "loftfeature",
   fillet: "filletfeature",
   chamfer: "chamferfeature",
   shell: "shellfeature",
+  draft: "draftfeature",
+  thicken: "thickenfeature",
+  rib: "ribfeature",
+  splitBody: "splitbodyfeature",
+  moveBody: "movebodyfeature",
   pattern: "patternfeature",
   mirror: "mirrorfeature",
   boolean: "booleanfeature",
@@ -1094,6 +1215,11 @@ export const ICON_ALIASES = {
   "ph-corners-out": "filletfeature",
   "ph-corners-in": "chamferfeature",
   "ph-bowl-food": "shellfeature",
+  "ph-angle": "draftfeature",
+  "ph-stack-simple": "thickenfeature",
+  "ph-triangle": "ribfeature",
+  "ph-square-split-horizontal": "splitbodyfeature",
+  "ph-arrows-out-cardinal": "movebodyfeature",
   "ph-dots-nine": "patternfeature",
   "ph-circles-three": "circpattern",
   "ph-flip-horizontal": "mirrorfeature",
@@ -1173,8 +1299,11 @@ export function cadIcon(name, extraClass) {
   if (!CAD_ICONS[key] && ICON_ALIASES[key]) key = ICON_ALIASES[key];
   var make = CAD_ICONS[key];
   if (!make) {
-    // If not found in CAD_ICONS, return phosphor fallback icon
-    return '<i class="ph ' + (name && name.startsWith("ph-") ? name : "ph-" + name) + (extraClass ? " " + extraClass : "") + '"></i>';
+    /* Fall back to Phosphor on the RESOLVED key, not the name that was asked
+       for: an alias pointing at a "ph-" class is how a command with no drawn
+       glyph borrows one, and reading `name` here made every such alias emit a
+       class that does not exist and draw an empty box. */
+    return '<i class="ph ' + (key && key.startsWith("ph-") ? key : "ph-" + key) + (extraClass ? " " + extraClass : "") + '"></i>';
   }
   var svgMarkup = svg(make());
   if (extraClass) {

@@ -5,7 +5,7 @@
 
 import { cloneDomain } from "./schema.js";
 import { analyzeParametricHistory, ensureParametricDocument, historyEntryRolled } from "./parametric_document.js";
-import { circularPatternStepDegrees, linearPatternOffsets, parseSkippedPatternInstances } from "./pattern_geometry.js";
+import { circularPatternStepDegrees, curvePatternPlacements, linearPatternOffsets, parseSkippedPatternInstances } from "./pattern_geometry.js";
 import { holeWizardSolids } from "../cad_hole_wizard.js";
 import { generateToolboxPart } from "../toolbox/generate.js";
 
@@ -94,6 +94,14 @@ function lowerExtrudeParams(feature, document) {
   return params;
 }
 
+function revolveToolParams(feature) {
+  return {
+    ...cloneDomain(feature.params),
+    sketchId: sketchInput(feature),
+    profileEntityIds: cloneDomain(feature.params?.profileEntityIds || feature.references?.profileEntityIds || []),
+  };
+}
+
 function loweredFeature(feature, document) {
   const base = { id: feature.id, name: feature.name, suppressed: !!feature.suppressed, inputs: cloneDomain(feature.inputs || []), references: topologyReferences(feature) };
   if (feature.type === "extrude") return [{ ...base, type: "extrude", params: lowerExtrudeParams(feature, document) }];
@@ -107,10 +115,28 @@ function loweredFeature(feature, document) {
       { ...base, type: "subtract", params: {}, inputs: [target, toolId].filter(Boolean) },
     ];
   }
-  if (feature.type === "revolve") return [{ ...base, type: "revolve", params: { ...cloneDomain(feature.params), sketchId: sketchInput(feature), profileEntityIds: cloneDomain(feature.params?.profileEntityIds || feature.references?.profileEntityIds || []) } }];
+  if (feature.type === "revolve") return [{ ...base, type: "revolve", params: revolveToolParams(feature) }];
   if (feature.type === "sweep" || feature.type === "loft") return [{ ...base, type: feature.type, params: cloneDomain(feature.params) }];
-  if (["fillet", "chamfer", "shell"].includes(feature.type)) return [{ ...base, type: feature.type, params: cloneDomain(feature.params) }];
+  /* The subtractive twins. One revolve implementation and one sweep
+     implementation, each followed by a subtract — the shape of extrudeCut
+     above, which is why neither re-states how a profile becomes a solid. */
+  if (feature.type === "revolveCut" || feature.type === "sweepCut") {
+    const target = feature.inputs?.[0] || idOf(feature.references?.features?.[0]);
+    const toolId = feature.id + ":tool";
+    const toolType = feature.type === "revolveCut" ? "revolve" : "sweep";
+    return [
+      { id: toolId, name: feature.name + " tool", type: toolType, params: toolType === "revolve" ? revolveToolParams(feature) : cloneDomain(feature.params), inputs: [], references: topologyReferences(feature), suppressed: !!feature.suppressed },
+      { ...base, type: "subtract", params: {}, inputs: [target, toolId].filter(Boolean) },
+    ];
+  }
+  if (["fillet", "chamfer", "shell", "draft"].includes(feature.type)) return [{ ...base, type: feature.type, params: cloneDomain(feature.params) }];
   if (feature.type === "pattern") {
+    /* The curve layout lowers to its own kernel op: its copies are turned as
+       well as moved, and the grid op only carries offsets. */
+    if (feature.params?.mode === "curve") {
+      const placements = curvePatternPlacements(feature.params).map(({ matrix, translation }) => ({ matrix, translation }));
+      return [{ ...base, type: "curvePattern", params: { placements } }];
+    }
     const mode = feature.params?.mode === "circular" ? "circularPattern" : "linearPattern";
     const count = Math.max(2, Math.round(Number(feature.params?.count) || 2));
     if (mode === "circularPattern") return [{ ...base, type:mode, params:{ count, angle:circularPatternStepDegrees(feature.params, count), axis:feature.params.axis || "y", radialDistance:Number(feature.params?.radialDistance)||0, skipIndices:[...parseSkippedPatternInstances(feature.params?.skipInstances)] } }];

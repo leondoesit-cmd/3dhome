@@ -56,7 +56,98 @@ const resultGroup = (operation = true) => ({
   ],
 });
 
+/* Primitives are placed, not profiled.
+   A box, cylinder, sphere or cone has no sketch and no topology selection: it
+   is fully described by numbers, which is exactly why legacy documents built
+   from them had nowhere to go — the catalogue is what the migration coverage
+   gate and the feature editor read, and neither could see a primitive.
+
+   The parameter names are not invented here. They are the ones the rest of the
+   codebase already writes for these feature types (js/modeler.js's
+   rebuildFeatureTreeFromDocument, js/core/cabinet_advanced.js) and the ones
+   js/core/topology.js already names faces and edges from, so one spec now
+   describes the same feature everywhere: box = origin + size, cylinder and cone
+   = base point + radii + height, sphere = centre + radius.
+
+   Bilingual note: `welcomeShapeBox` / `welcomeShapeCyl` / `welcomeShapeSph`
+   already carry exactly these words in both languages, so they are reused
+   rather than duplicated. The remaining labels below have no entry in the
+   modeler's TXT table yet and therefore fall back to English, the same
+   deliberate fallback the "ABS" and metric-size choices use. */
 export const FEATURE_CATALOG = Object.freeze({
+  box: {
+    label: "Box",
+    labelKey: "welcomeShapeBox",
+    icon: "directbox",
+    selection: {},
+    defaults: { x: 0, y: 0, z: 0, w: 10, h: 10, d: 10 },
+    parameters: { x: SIGNED_LENGTH, y: SIGNED_LENGTH, z: SIGNED_LENGTH, w: LENGTH, h: LENGTH, d: LENGTH },
+    editor: { groups: [{ id: "box", label: "Corner and size", icon: "ph-cube", fields: [
+      { key: "x", label: "X", type: "number", unit: "length", step: 0.1 },
+      { key: "y", label: "Y", type: "number", unit: "length", step: 0.1 },
+      { key: "z", label: "Z", type: "number", unit: "length", step: 0.1 },
+      { key: "w", label: "Width", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+      { key: "h", label: "Height", labelKey: "fcFldHeight", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+      { key: "d", label: "Depth", labelKey: "fcFldDepth", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+    ]}]},
+  },
+  cylinder: {
+    label: "Cylinder",
+    labelKey: "welcomeShapeCyl",
+    icon: "directcyl",
+    selection: {},
+    /* No axis parameter. Every other producer of a canonical cylinder — the
+       cabinet adapter, import recognition, the Toolbox lowering, the modeler's
+       own exact build — writes exactly {x, y, z, r, h} and means "up the Y
+       axis", and both consumers agree with them: core/topology.js defaults an
+       absent axis to Y, and cad_kernel.js's makeBrepPrimitive defaults it to
+       the vector {0,1,0}. Offering the string "x" here would have been read as
+       a vector by the exact kernel and produced a null direction. */
+    defaults: { x: 0, y: 0, z: 0, r: 5, h: 10 },
+    parameters: { x: SIGNED_LENGTH, y: SIGNED_LENGTH, z: SIGNED_LENGTH, r: LENGTH, h: LENGTH },
+    editor: { groups: [{ id: "cylinder", label: "Base and size", icon: "ph-cylinder", fields: [
+      { key: "x", label: "X", type: "number", unit: "length", step: 0.1 },
+      { key: "y", label: "Base Y", type: "number", unit: "length", step: 0.1 },
+      { key: "z", label: "Z", type: "number", unit: "length", step: 0.1 },
+      { key: "r", label: "Radius", labelKey: "fcFldRadius", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+      { key: "h", label: "Height", labelKey: "fcFldHeight", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+    ]}]},
+  },
+  cone: {
+    /* A legacy cylinder with a second radius is a frustum, not a cylinder, and
+       naming it one would make the geometry comparison disagree with the
+       picture. It converts to this instead.
+       `r1`/`r2`, not `r`/`r2`: cad_kernel.js's makeBrepCone reads r1 first and
+       otherwise falls back to a hole-wizard diameter, so a base radius written
+       as `r` would have silently built a needle. */
+    label: "Cone",
+    icon: "directcyl",
+    selection: {},
+    defaults: { x: 0, y: 0, z: 0, r1: 5, r2: 0, h: 10 },
+    parameters: { x: SIGNED_LENGTH, y: SIGNED_LENGTH, z: SIGNED_LENGTH, r1: LENGTH, r2: { type: "number", unit: "document-length", min: 0 }, h: LENGTH },
+    editor: { groups: [{ id: "cone", label: "Base and size", icon: "ph-cylinder", fields: [
+      { key: "x", label: "X", type: "number", unit: "length", step: 0.1 },
+      { key: "y", label: "Base Y", type: "number", unit: "length", step: 0.1 },
+      { key: "z", label: "Z", type: "number", unit: "length", step: 0.1 },
+      { key: "r1", label: "Radius", labelKey: "fcFldRadius", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+      { key: "r2", label: "Top radius", type: "number", unit: "length", min: 0, step: 0.1 },
+      { key: "h", label: "Height", labelKey: "fcFldHeight", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+    ]}]},
+  },
+  sphere: {
+    label: "Sphere",
+    labelKey: "welcomeShapeSph",
+    icon: "directsph",
+    selection: {},
+    defaults: { x: 0, y: 0, z: 0, r: 5 },
+    parameters: { x: SIGNED_LENGTH, y: SIGNED_LENGTH, z: SIGNED_LENGTH, r: LENGTH },
+    editor: { groups: [{ id: "sphere", label: "Centre and radius", icon: "ph-sphere", fields: [
+      { key: "x", label: "X", type: "number", unit: "length", step: 0.1 },
+      { key: "y", label: "Y", type: "number", unit: "length", step: 0.1 },
+      { key: "z", label: "Z", type: "number", unit: "length", step: 0.1 },
+      { key: "r", label: "Radius", labelKey: "fcFldRadius", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+    ]}]},
+  },
   extrude: {
     label: "Extrude / Boss",
     labelKey: "fcFeatExtrude",
@@ -118,6 +209,30 @@ export const FEATURE_CATALOG = Object.freeze({
       resultGroup(true),
     ]},
   },
+  revolveCut: {
+    /* The subtractive twin of revolve. It is a separate catalogue entry rather
+       than an `operation` on revolve because the two ask for different things:
+       a cut needs a body to remove material from, which the selection rules
+       below state, and a revolve does not. The profile, the axis and the extent
+       are revolve's own — js/core/kernel_feature_adapter.js lowers this to the
+       same revolve step followed by a subtract, exactly as extrudeCut lowers to
+       extrude + subtract, so there is one revolve implementation, not two. */
+    label: "Revolve Cut",
+    labelKey: "fcFeatRevolveCut",
+    icon: "ph-arrow-counter-clockwise",
+    selection: { sketches: { min: 1, max: 1 }, features: { min: 1, max: 1 }, references: { kinds: ["axis"], max: 1 } },
+    defaults: { operation: "subtract", angle: 360, direction: "forward", symmetric: false, keepTool: false },
+    parameters: { operation: ENUM("subtract"), angle: { ...ANGLE, min: 1e-6, max: 360 }, direction: ENUM("forward", "reverse"), symmetric: BOOLEAN, keepTool: BOOLEAN },
+    editor: { groups: [
+      { id: "axis", label: "Axis and extent", labelKey: "fcGrpAxisExtent", icon: "ph-axis-arrow", fields: [
+        { key: "$axisReference", label: "Axis", labelKey: "fcFldAxis", type: "axis-reference" },
+        { key: "angle", label: "Angle", labelKey: "fcFldAngle", type: "number", unit: "angle", min: 1e-6, max: 360, step: 1 },
+        { key: "direction", label: "Direction", labelKey: "fcFldDirection", type: "select", choices: DIRECTIONS },
+        { key: "symmetric", label: "Symmetric", labelKey: "fcFldSymmetric", type: "boolean" },
+        { key: "keepTool", label: "Keep cutting tool", labelKey: "fcFldKeepTool", type: "boolean" },
+      ]},
+    ]},
+  },
   sweep: {
     label: "Sweep",
     labelKey: "fcFeatSweep",
@@ -139,13 +254,40 @@ export const FEATURE_CATALOG = Object.freeze({
       resultGroup(true),
     ]},
   },
+  sweepCut: {
+    // Sweep's subtractive twin, on the same terms as revolveCut above: the
+    // profile and path resolution is sweep's, and the adapter appends the
+    // subtract.
+    label: "Sweep Cut",
+    labelKey: "fcFeatSweepCut",
+    icon: "ph-path",
+    selection: { sketches: { min: 2, max: 2 }, features: { min: 1, max: 1 } },
+    defaults: { operation: "subtract", orientation: "follow-path", twistAngle: 0, scale: 1, keepTool: false },
+    parameters: { operation: ENUM("subtract"), orientation: ENUM("follow-path", "minimum-twist", "fixed"), twistAngle: ANGLE, scale: { type: "number", min: 1e-6 }, keepTool: BOOLEAN },
+    editor: { groups: [
+      { id: "path", label: "Path behavior", labelKey: "fcGrpPathBehavior", icon: "ph-path", fields: [
+        { key: "orientation", label: "Profile orientation", labelKey: "fcFldProfileOrientation", type: "select", choices: [
+          {value:"follow-path",label:"Follow path",labelKey:"fcOptFollowPath"},
+          {value:"minimum-twist",label:"Minimum twist",labelKey:"fcOptMinimumTwist"},
+          {value:"fixed",label:"Keep profile fixed",labelKey:"fcOptKeepProfileFixed"},
+        ] },
+        { key: "twistAngle", label: "Twist", labelKey: "fcFldTwist", type: "number", unit: "angle", step: 1 },
+        { key: "scale", label: "End scale", labelKey: "fcFldEndScale", type: "number", min: 1e-6, step: 0.05 },
+        { key: "keepTool", label: "Keep cutting tool", labelKey: "fcFldKeepTool", type: "boolean" },
+      ]},
+    ]},
+  },
   loft: {
     label: "Loft",
     labelKey: "fcFeatLoft",
     icon: "ph-stack",
     selection: { sketches: { min: 2 } },
-    defaults: { operation: "add", continuity: "position", solid: true, ruled: false, closed: false, matchProfiles: true, tolerance: 0.001, mergeResult: true },
-    parameters: { operation: ENUM("add", "new-body"), continuity: ENUM("position", "tangent", "curvature"), solid: BOOLEAN, ruled: BOOLEAN, closed: BOOLEAN, matchProfiles: BOOLEAN, tolerance: LENGTH, mergeResult: BOOLEAN },
+    /* No `closed` here. BRepOffsetAPI_ThruSections runs an open chain of
+       sections; there is no way to ask it to bend the last one back onto the
+       first, so offering the switch would have been a control the kernel
+       ignores. `continuity` stays because SetContinuity() receives it. */
+    defaults: { operation: "add", continuity: "position", solid: true, ruled: false, matchProfiles: true, tolerance: 0.001, mergeResult: true },
+    parameters: { operation: ENUM("add", "new-body"), continuity: ENUM("position", "tangent", "curvature"), solid: BOOLEAN, ruled: BOOLEAN, matchProfiles: BOOLEAN, tolerance: LENGTH, mergeResult: BOOLEAN },
     editor: { groups: [
       { id: "sections", label: "Sections", labelKey: "fcGrpSections", icon: "ph-stack", fields: [
         { key: "continuity", label: "Continuity", labelKey: "fcFldContinuity", type: "select", choices: [
@@ -155,7 +297,6 @@ export const FEATURE_CATALOG = Object.freeze({
         ] },
         { key: "matchProfiles", label: "Match profile vertices", labelKey: "fcFldMatchProfiles", type: "boolean" },
         { key: "ruled", label: "Ruled sections", labelKey: "fcFldRuledSections", type: "boolean" },
-        { key: "closed", label: "Closed loft", labelKey: "fcFldClosedLoft", type: "boolean" },
         { key: "solid", label: "Create solid", labelKey: "fcFldCreateSolid", type: "boolean" },
         { key: "tolerance", label: "Tolerance", labelKey: "fcFldTolerance", type: "number", unit: "length", min: 1e-6, step: 0.001 },
       ]},
@@ -167,10 +308,24 @@ export const FEATURE_CATALOG = Object.freeze({
     labelKey: "fcFeatFillet",
     icon: "ph-corners-out",
     selection: { features: { min: 1, max: 1 }, topology: { kinds: ["edge", "face"], min: 1 } },
-    defaults: { radius: 1, propagation: "tangent", section: "rational", continuity: "tangent" },
-    parameters: { radius: LENGTH, propagation: ENUM("tangent", "feature"), section: ENUM("rational", "quasi-angular", "polynomial"), continuity: ENUM("tangent", "curvature") },
+    /* One feature, not two. A variable-radius fillet differs from a constant
+       one only in how much radius each end of an edge gets: the selection, the
+       propagation, the section representation and the continuity all mean
+       exactly the same thing, and BRepFilletAPI_MakeFillet takes both through
+       the same maker (Add_2 vs Add_3). A second catalogue entry would have
+       duplicated four controls and split the edge collector in half.
+       `radius` is the radius at each edge's first vertex; `endRadius` the one
+       at its last, used only while `variableRadius` is on. `edgeRadii` holds
+       the per-edge overrides the edge list writes — it is a list, not a scalar,
+       so it is deliberately not in `parameters`: the validator there speaks
+       numbers, enums and booleans, and normalising the list belongs to the one
+       place that reads it (filletEdgeRadius in js/cad_kernel.js). */
+    defaults: { radius: 1, variableRadius: false, endRadius: 1, edgeRadii: [], propagation: "tangent", section: "rational", continuity: "tangent" },
+    parameters: { radius: LENGTH, variableRadius: BOOLEAN, endRadius: LENGTH, propagation: ENUM("tangent", "feature"), section: ENUM("rational", "quasi-angular", "polynomial"), continuity: ENUM("tangent", "curvature") },
     editor: { groups: [{ id: "shape", label: "Fillet definition", labelKey: "fcGrpFilletDefinition", icon: "ph-corners-out", fields: [
       { key: "radius", label: "Radius", labelKey: "fcFldRadius", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+      { key: "variableRadius", label: "Variable radius", labelKey: "fcFldVariableRadius", type: "boolean" },
+      { key: "endRadius", label: "End radius", labelKey: "fcFldEndRadius", type: "number", unit: "length", min: 1e-6, step: 0.1 },
       { key: "propagation", label: "Edge scope", labelKey: "fcFldEdgeScope", type: "select", choices: [
         {value:"tangent",label:"Selected tangent chain",labelKey:"fcOptTangentChain"},
         {value:"feature",label:"Whole feature",labelKey:"fcOptWholeFeature"},
@@ -226,18 +381,170 @@ export const FEATURE_CATALOG = Object.freeze({
       { key: "removeOpenings", label: "Remove selected faces", labelKey: "fcFldRemoveFaces", type: "boolean" },
     ]}]},
   },
+  draft: {
+    /* Draft has lived only as a sub-parameter of extrude and cut, which can
+       only taper the walls one feature happens to create. A moulded part is
+       drafted after the fact, on faces that came from several features and
+       often from a boolean, so it is its own history node here.
+       The neutral plane is square to the pull direction and sits at one end of
+       the body along it — that is where a parting line falls — which is why it
+       is stated as an end plus an offset rather than as a free plane: every
+       field below is something js/cad_kernel.js's draftBrep actually reads. */
+    label: "Draft",
+    labelKey: "fcFeatDraft",
+    icon: "ph-angle",
+    selection: { features: { min: 1, max: 1 }, topology: { kinds: ["face"], min: 1 } },
+    defaults: { angle: 3, pullAxis: "y", pullDirection: "forward", neutral: "end", neutralOffset: 0 },
+    parameters: {
+      angle: { ...ANGLE, min: -89, max: 89 },
+      pullAxis: ENUM("x", "y", "z"), pullDirection: ENUM("forward", "reverse"),
+      neutral: ENUM("start", "end"), neutralOffset: SIGNED_LENGTH,
+    },
+    editor: { groups: [{ id: "draft", label: "Draft definition", labelKey: "fcGrpDraftDefinition", icon: "ph-angle", fields: [
+      { key: "angle", label: "Draft angle", labelKey: "fcFldDraftAngle", type: "number", unit: "angle", min: -89, max: 89, step: 0.5 },
+      { key: "pullAxis", label: "Pull direction", labelKey: "fcFldPullDirection", type: "select", choices: [
+        {value:"x",label:"X axis",labelKey:"fcOptAxisX"},
+        {value:"y",label:"Y axis",labelKey:"fcOptAxisY"},
+        {value:"z",label:"Z axis",labelKey:"fcOptAxisZ"},
+      ] },
+      { key: "pullDirection", label: "Direction", labelKey: "fcFldDirection", type: "select", choices: DIRECTIONS },
+      { key: "neutral", label: "Neutral plane", labelKey: "fcFldNeutralPlane", type: "select", choices: [
+        {value:"start",label:"Start of pull axis",labelKey:"fcOptNeutralStart"},
+        {value:"end",label:"End of pull axis",labelKey:"fcOptNeutralEnd"},
+      ] },
+      { key: "neutralOffset", label: "Neutral offset", labelKey: "fcFldNeutralOffset", type: "number", unit: "length", step: 0.1 },
+    ]}]},
+  },
+  splitBody: {
+    /* Cut a body in two and keep what was asked for. The plane is stated as an
+       axis and a coordinate on it rather than as a free plane, because that is
+       what the splitter needs and what a part is actually parted along.
+       "Both" is the compound BRepAlgoAPI_Splitter itself returns; the model
+       editor turns that into two independently selectable bodies, which is what
+       "split into separate bodies" means to someone holding the part. */
+    label: "Split Body",
+    labelKey: "fcFeatSplitBody",
+    icon: "ph-square-split-horizontal",
+    selection: { features: { min: 1, max: 1 } },
+    defaults: { axis: "y", offset: 0, keep: "both" },
+    parameters: { axis: ENUM("x", "y", "z"), offset: SIGNED_LENGTH, keep: ENUM("both", "positive", "negative") },
+    editor: { groups: [{ id: "split", label: "Split definition", labelKey: "fcGrpSplitDefinition", icon: "ph-square-split-horizontal", fields: [
+      { key: "axis", label: "Plane normal", labelKey: "fcFldPlaneNormal", type: "select", choices: [
+        {value:"x",label:"X axis",labelKey:"fcOptAxisX"},
+        {value:"y",label:"Y axis",labelKey:"fcOptAxisY"},
+        {value:"z",label:"Z axis",labelKey:"fcOptAxisZ"},
+      ] },
+      { key: "offset", label: "Plane position", labelKey: "fcFldPlanePosition", type: "number", unit: "length", step: 0.5 },
+      { key: "keep", label: "Keep", labelKey: "fcFldKeep", type: "select", choices: [
+        {value:"both",label:"Both halves",labelKey:"fcOptKeepBoth"},
+        {value:"positive",label:"Above the plane",labelKey:"fcOptKeepPositive"},
+        {value:"negative",label:"Below the plane",labelKey:"fcOptKeepNegative"},
+      ] },
+    ]}]},
+  },
+  moveBody: {
+    /* Move or copy a whole body. The rotation turns about the body's own centre
+       of mass — a body a metre from the origin would otherwise be flung across
+       the document by five degrees — and the turn happens before the offset, so
+       the two numbers read in the order they are applied. A copy is a second
+       body beside the first, never a fuse. */
+    label: "Move / Copy Body",
+    labelKey: "fcFeatMoveBody",
+    icon: "ph-arrows-out-cardinal",
+    selection: { features: { min: 1, max: 1 } },
+    defaults: { dx: 0, dy: 0, dz: 0, axis: "y", angle: 0, copy: false },
+    parameters: { dx: SIGNED_LENGTH, dy: SIGNED_LENGTH, dz: SIGNED_LENGTH, axis: ENUM("x", "y", "z"), angle: ANGLE, copy: BOOLEAN },
+    editor: { groups: [
+      { id: "offset", label: "Offset", labelKey: "fcGrpOffset", icon: "ph-arrows-out-cardinal", fields: [
+        { key: "dx", label: "X offset", labelKey: "fcFldOffsetX", type: "number", unit: "length", step: 0.5 },
+        { key: "dy", label: "Y offset", labelKey: "fcFldOffsetY", type: "number", unit: "length", step: 0.5 },
+        { key: "dz", label: "Z offset", labelKey: "fcFldOffsetZ", type: "number", unit: "length", step: 0.5 },
+      ]},
+      { id: "turn", label: "Rotation", labelKey: "fcGrpRotation", icon: "ph-arrows-clockwise", fields: [
+        { key: "axis", label: "Rotation axis", labelKey: "fcFldRotationAxis", type: "select", choices: [
+          {value:"x",label:"X axis",labelKey:"fcOptAxisX"},
+          {value:"y",label:"Y axis",labelKey:"fcOptAxisY"},
+          {value:"z",label:"Z axis",labelKey:"fcOptAxisZ"},
+        ] },
+        { key: "angle", label: "Angle", labelKey: "fcFldAngle", type: "number", unit: "angle", step: 1 },
+        { key: "copy", label: "Leave a copy behind", labelKey: "fcFldLeaveCopy", type: "boolean" },
+      ]},
+    ]},
+  },
+  rib: {
+    /* A drawn line braced into a web. The sketch is open — a rib is traced, not
+       outlined — and the thickness is typed, so every field here is a number
+       js/cad_kernel.js's ribBrep reads: how thick, which side of the line it
+       goes, how far it runs, which way, and the draft on its walls. The draft
+       angle carries draft's own sign convention (positive narrows the web away
+       from the sketch plane) because it IS that taper, applied to the two walls
+       the rib is about to create. */
+    label: "Rib",
+    labelKey: "fcFeatRib",
+    icon: "ph-triangle",
+    selection: { sketches: { min: 1, max: 1 }, features: { min: 1, max: 1 } },
+    defaults: { thickness: 1, side: "both", extent: "up-to-body", depth: 10, direction: "forward", draftAngle: 0 },
+    parameters: {
+      thickness: LENGTH, side: ENUM("both", "left", "right"),
+      extent: ENUM("up-to-body", "blind"), depth: LENGTH,
+      direction: ENUM("forward", "reverse"), draftAngle: { ...ANGLE, min: 0, max: 60 },
+    },
+    editor: { groups: [
+      { id: "web", label: "Web definition", labelKey: "fcGrpWebDefinition", icon: "ph-triangle", fields: [
+        { key: "thickness", label: "Thickness", labelKey: "fcFldThickness", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+        { key: "side", label: "Thickness side", labelKey: "fcFldThicknessSide", type: "select", choices: [
+          {value:"both",label:"Both sides",labelKey:"fcOptBothSides"},
+          {value:"left",label:"Left of the line",labelKey:"fcOptLeftOfLine"},
+          {value:"right",label:"Right of the line",labelKey:"fcOptRightOfLine"},
+        ] },
+        { key: "extent", label: "End condition", labelKey: "fcFldEndCondition", type: "select", choices: [
+          {value:"up-to-body",label:"Up to the body",labelKey:"fcOptUpToBody"},
+          {value:"blind",label:"Blind",labelKey:"fcOptBlind"},
+        ] },
+        { key: "depth", label: "Depth", labelKey: "fcFldDepth", type: "number", unit: "length", min: 1e-6, step: 0.5 },
+        { key: "direction", label: "Direction", labelKey: "fcFldDirection", type: "select", choices: DIRECTIONS },
+      ]},
+      { id: "draft", label: "Draft", labelKey: "fcGrpDraft", icon: "ph-angle", fields: [
+        { key: "draftAngle", label: "Draft angle", labelKey: "fcFldDraftAngle", type: "number", unit: "angle", min: 0, max: 60, step: 0.5 },
+      ]},
+    ]},
+  },
+  thicken: {
+    /* Turn a surface into a solid. The selected faces are offset into a slab of
+       their own thickness; on a surface body (a sweep or a loft with "Create
+       solid" off) that slab is the whole answer, and on a solid it is fused
+       back in as a boss so the body it grew from is not silently replaced.
+       Two fields, both read by js/cad_kernel.js's thickenBrep: the offset and
+       its sign. */
+    label: "Thicken",
+    labelKey: "fcFeatThicken",
+    icon: "ph-stack-simple",
+    selection: { features: { min: 1, max: 1 }, topology: { kinds: ["face"], min: 1 } },
+    defaults: { thickness: 1, direction: "outside" },
+    parameters: { thickness: LENGTH, direction: ENUM("outside", "inside") },
+    editor: { groups: [{ id: "thicken", label: "Thicken definition", labelKey: "fcGrpThickenDefinition", icon: "ph-stack-simple", fields: [
+      { key: "thickness", label: "Thickness", labelKey: "fcFldThickness", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+      { key: "direction", label: "Direction", labelKey: "fcFldDirection", type: "select", choices: [
+        {value:"outside",label:"Outside",labelKey:"fcOptOutside"},
+        {value:"inside",label:"Inside",labelKey:"fcOptInside"},
+      ] },
+    ]}]},
+  },
   pattern: {
     label: "Pattern",
     labelKey: "fcFeatPattern",
     icon: "ph-dots-nine",
-    selection: { features: { min: 1, max: 1 }, references: { kinds: ["axis", "direction"], max: 1 } },
-    defaults: { mode: "linear", count: 2, spacing: 10, countX: 2, spacingX: 10, spacingIncrementX: 0, countY: 2, spacingY: 10, spacingIncrementY: 0, countZ: 2, spacingZ: 10, spacingIncrementZ: 0, skipInstances: "", angle: 360, radialDistance: 0, equalSpacing: true, axis: "y", directionAxis: "x", direction: { x: 1, y: 0, z: 0 }, mergeResult: false },
-    parameters: { mode: ENUM("linear", "circular"), count: { type: "number", integer: true, min: 2, max: 100 }, spacing: SIGNED_LENGTH, countX: { type: "number", integer: true, min: 2, max: 100 }, spacingX: SIGNED_LENGTH, spacingIncrementX: SIGNED_LENGTH, countY: { type: "number", integer: true, min: 2, max: 100 }, spacingY: SIGNED_LENGTH, spacingIncrementY: SIGNED_LENGTH, countZ: { type: "number", integer: true, min: 2, max: 100 }, spacingZ: SIGNED_LENGTH, spacingIncrementZ: SIGNED_LENGTH, skipInstances: { type: "string" }, angle: { ...ANGLE, min: 1e-6, max: 360 }, radialDistance: SIGNED_LENGTH, equalSpacing: BOOLEAN, axis: ENUM("x", "y", "z"), axisX: BOOLEAN, axisY: BOOLEAN, axisZ: BOOLEAN, directionAxis: ENUM("x", "y", "z"), mergeResult: BOOLEAN },
+    /* `sketches` is optional and capped at one: only the curve layout uses it,
+       and a linear or circular pattern must keep validating with none. */
+    selection: { features: { min: 1, max: 1 }, sketches: { max: 1 }, references: { kinds: ["axis", "direction"], max: 1 } },
+    defaults: { mode: "linear", count: 2, spacing: 10, countX: 2, spacingX: 10, spacingIncrementX: 0, countY: 2, spacingY: 10, spacingIncrementY: 0, countZ: 2, spacingZ: 10, spacingIncrementZ: 0, skipInstances: "", angle: 360, radialDistance: 0, equalSpacing: true, axis: "y", directionAxis: "x", direction: { x: 1, y: 0, z: 0 }, curveCount: 4, curveSpacingMode: "fit", curveSpacing: 0, curveAlign: "tangent", mergeResult: false },
+    parameters: { mode: ENUM("linear", "circular", "curve"), count: { type: "number", integer: true, min: 2, max: 100 }, spacing: SIGNED_LENGTH, countX: { type: "number", integer: true, min: 2, max: 100 }, spacingX: SIGNED_LENGTH, spacingIncrementX: SIGNED_LENGTH, countY: { type: "number", integer: true, min: 2, max: 100 }, spacingY: SIGNED_LENGTH, spacingIncrementY: SIGNED_LENGTH, countZ: { type: "number", integer: true, min: 2, max: 100 }, spacingZ: SIGNED_LENGTH, spacingIncrementZ: SIGNED_LENGTH, skipInstances: { type: "string" }, angle: { ...ANGLE, min: 1e-6, max: 360 }, radialDistance: SIGNED_LENGTH, equalSpacing: BOOLEAN, axis: ENUM("x", "y", "z"), axisX: BOOLEAN, axisY: BOOLEAN, axisZ: BOOLEAN, directionAxis: ENUM("x", "y", "z"), curveCount: { type: "number", integer: true, min: 2, max: 128 }, curveSpacingMode: ENUM("fit", "spacing"), curveSpacing: { type: "number", min: 0 }, curveAlign: ENUM("tangent", "none"), mergeResult: BOOLEAN },
     editor: { groups: [
       { id: "layout", label: "Pattern layout", labelKey: "fcGrpPatternLayout", icon: "ph-dots-nine", fields: [
         { key: "mode", label: "Pattern type", labelKey: "fcFldPatternType", type: "select", choices: [
           {value:"linear",label:"Linear",labelKey:"fcOptLinear"},
           {value:"circular",label:"Circular",labelKey:"fcOptCircular"},
+          {value:"curve",label:"Along a curve",labelKey:"fcOptCurve"},
         ] },
         { key: "count", label: "Circular instances", labelKey: "fcFldCircularInstances", type: "number", min: 2, max: 100, step: 1 },
       ]},
@@ -268,6 +575,18 @@ export const FEATURE_CATALOG = Object.freeze({
           {value:"z",label:"Z axis",labelKey:"fcOptAxisZ"},
         ] },
         { key: "equalSpacing", label: "Equal spacing", labelKey: "fcFldEqualSpacing", type: "boolean" },
+      ]},
+      { id: "curve", label: "Curve definition", labelKey: "fcGrpCurveDefinition", icon: "ph-bezier-curve", fields: [
+        { key: "curveCount", label: "Curve instances", labelKey: "fcFldCurveInstances", type: "number", min: 2, max: 128, step: 1 },
+        { key: "curveSpacingMode", label: "Along the curve", labelKey: "fcFldCurveSpacingMode", type: "select", choices: [
+          {value:"fit",label:"Fit to the whole curve",labelKey:"fcOptCurveFit"},
+          {value:"spacing",label:"Fixed arc spacing",labelKey:"fcOptCurveSpacing"},
+        ] },
+        { key: "curveSpacing", label: "Arc spacing", labelKey: "fcFldCurveArcSpacing", type: "number", unit: "length", min: 0, step: 0.1 },
+        { key: "curveAlign", label: "Orientation", labelKey: "fcFldCurveAlign", type: "select", choices: [
+          {value:"tangent",label:"Follow the curve",labelKey:"fcOptCurveFollow"},
+          {value:"none",label:"Keep the seed's orientation",labelKey:"fcOptCurveKeep"},
+        ] },
       ]},
       { id: "result", label: "Instances and result · max 128 total", labelKey: "fcGrpInstancesResult", icon: "ph-funnel", fields: [
         { key: "skipInstances", label: "Skip copies (2, 5-7)", labelKey: "fcFldSkipCopies", type: "text" },
@@ -511,6 +830,14 @@ export const FEATURE_CATALOG = Object.freeze({
 });
 
 export const PARAMETRIC_FEATURE_TYPES = Object.freeze(Object.keys(FEATURE_CATALOG));
+
+/* Features that stand on their own numbers: no sketch, no profile, no upstream
+   body. The migration gate and the geometry comparison both need to ask this. */
+export const PRIMITIVE_FEATURE_TYPES = Object.freeze(["box", "cylinder", "cone", "sphere"]);
+
+export function isPrimitiveFeatureType(type) {
+  return PRIMITIVE_FEATURE_TYPES.includes(type);
+}
 
 /* Bilingual labels without a circular import.
    This module is loaded by the kernel adapter, the history layer, the

@@ -76,6 +76,11 @@ body:not(.compact-nav) #modeler .md-panel-toggle-left {
 body:not(.compact-nav) #modeler .md-views {
   top: 52px; inset-inline-start: var(--md-hud-start, 12px); z-index: 8;
   width: var(--md-hud-col, 120px); max-width: none;
+  /* The stack is a fixed list of buttons and the viewport is not a fixed
+     height: on a short window it grew straight through the selection row and
+     the status line below it. Scroll the stack rather than let it print over
+     them — the reserve is the selection row plus the status line. */
+  max-height: calc(100% - 132px); overflow-y: auto; overscroll-behavior: contain;
 }
 /* Selection tools sit centered under Model/Sketch/Drawing, sized to content. */
 body:not(.compact-nav) #modeler .md-context-toolbar {
@@ -85,13 +90,12 @@ body:not(.compact-nav) #modeler .md-context-toolbar {
 }
 /* Accept/Cancel in the confirmation corner shared that same top-end slot with
    the inspector toggle. */
-body:not(.compact-nav) #modeler .md-context-actions { top: 52px; }
 body:not(.compact-nav) #modeler .md-panel-toggle:hover,
 body:not(.compact-nav) #modeler .md-panel-toggle[aria-pressed="false"] { color: var(--accent); border-color: var(--accent); }
 body.compact-nav #modeler .md-panel-toggle { display: none; }
 
 #modeler .md-section-controls {
-  position: absolute; z-index: 76; inset-inline-end: 12px; top: 52px; width: min(260px,calc(100% - 24px));
+  width: 260px; max-width: 100%;
   display: grid; gap: 9px; padding: 10px; border: 1px solid color-mix(in srgb,var(--accent) 38%,var(--border-color));
   border-radius: 11px; background: color-mix(in srgb,var(--bg-panel) 95%,transparent);
   color: var(--text-main); box-shadow: var(--shadow-md); backdrop-filter: blur(10px);
@@ -109,17 +113,49 @@ body.compact-nav #modeler .md-panel-toggle { display: none; }
    chrome as the section controls above, and for the same reason — the viewport
    underneath it stays live, so you can orbit the model while reading what it
    just told you about itself. */
+/* Viewport chrome shelves. Every overlay used to pin itself to a corner with
+   its own top/bottom/inset, which works right up to the moment two of them are
+   open together — and then the newer one simply covers the older one, silently,
+   with no layout rule anywhere that could have said so. A rail is a flex line
+   the overlays are children of: whatever is open stacks, whatever is [hidden]
+   collapses, and none of them has to know the heights of the others. */
+#modeler .md-rail { position: absolute; display: flex; pointer-events: none; }
+#modeler .md-rail > * { pointer-events: auto; }
+/* Read-only text keeps its transparency to the orbit gesture underneath. */
+#modeler .md-rail > .md-hint,
+#modeler .md-rail > .md-breadcrumb { pointer-events: none; }
+#modeler .md-rail-end {
+  z-index: 76; top: 52px; inset-inline-end: 12px;
+  /* Shrink to the widest thing actually open, and stop short of the top-centre
+     lane the contextual toolbar sits in — a full-width eval card reached it. */
+  width: max-content; max-width: min(320px, calc(50% - 44px));
+  flex-direction: column; align-items: flex-end; gap: 8px;
+}
+body.compact-nav #modeler .md-rail-end { top: 8px; inset-inline-end: 8px; }
+/* Above the selection row, which is itself above the status line. */
+#modeler .md-rail-bottom {
+  z-index: 60; bottom: 64px; left: 50%; transform: translateX(-50%);
+  /* Symmetric so the rail stays centred: the round Help button owns the end
+     lane, and a wide profile offer used to run its corner into it. */
+  width: max-content; max-width: calc(100% - 96px);
+  flex-direction: column; align-items: center; gap: 8px;
+  /* Two centred stacks share the middle of the viewport: this one growing up
+     from the bottom, the contextual toolbar growing down from the top. Giving
+     each a little under half the height is what stops them meeting on a short
+     window — they used to simply pass through each other. */
+  max-height: calc(50% - 66px); overflow-y: auto; overscroll-behavior: contain;
+}
+#modeler .md-rail-row {
+  z-index: 9; bottom: 34px; inset-inline: 12px;
+  align-items: flex-end; justify-content: space-between; gap: 12px;
+}
 #modeler .md-eval-card {
-  position: absolute; z-index: 76; inset-inline-end: 12px; top: 52px; width: min(320px,calc(100% - 24px));
-  max-height: min(60vh,520px); overflow: auto;
+  width: 320px; max-width: 100%; max-height: min(60vh,520px); overflow: auto;
   display: grid; gap: 8px; padding: 10px; border: 1px solid color-mix(in srgb,var(--accent) 38%,var(--border-color));
   border-radius: 11px; background: color-mix(in srgb,var(--bg-panel) 95%,transparent);
   color: var(--text-main); box-shadow: var(--shadow-md); backdrop-filter: blur(10px);
 }
 #modeler .md-eval-card[hidden] { display: none; }
-/* Section controls and this card both dock to the same corner; when both are
-   open the card sits under the section panel rather than on top of it. */
-#modeler .md-section-controls:not([hidden]) ~ .md-eval-card { top: 232px; }
 #modeler .md-eval-head { display: flex; align-items: baseline; gap: 8px; }
 #modeler .md-eval-head small { color: var(--text-muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 #modeler .md-eval-head b { flex: 1; font-size: 13px; }
@@ -369,6 +405,27 @@ body {
   align-items: center;
   justify-content: center;
   min-width: 0;
+}
+.plan-save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.plan-save-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.plan-save-status.is-dirty { color: var(--accent); }
+@media (max-width: 1100px) {
+  .plan-save-status { font-size: 10px; gap: 4px; }
 }
 .tb-end {
   display: flex;
@@ -814,13 +871,11 @@ button.active i,
      take. It paints nothing — see decorate() in js/plan_tools_dock.js for why
      the card belongs to the panel.
 
-     `stretch` is the whole reason two panels dropped together read as one
-     piece of the frame: tiled side by side they are the same height, stacked
-     they are the same width. Top-aligned cards of different heights are two
-     things that happen to touch. */
+     Panels keep their content size so a short layer list does not paint an
+     empty card all the way down beside the drawing tools. */
   position: absolute;
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
   box-sizing: border-box;
   pointer-events: none;
 }
@@ -832,6 +887,8 @@ button.active i,
 .pt-zone[data-flow="row"][data-rev="1"] { flex-direction: row-reverse; }
 .pt-zone[data-flow="column"] { flex-direction: column; }
 .pt-zone[data-flow="column"][data-rev="1"] { flex-direction: column-reverse; }
+.pt-zone[data-flow="row"][data-zone^="bottom"] { align-items: flex-end; }
+.pt-zone[data-flow="column"][data-zone$="right"] { align-items: flex-end; }
 
 /* One dockable panel = its grip plus the panel element. The wrapper is what
    the dock moves, what carries the card, and what the axis runs along. */
@@ -854,6 +911,9 @@ button.active i,
    as a sliver wedged between two panels that are supposed to be flush. */
 .pt-panel[hidden] { display: none; }
 .pt-zone > .pt-panel[data-give] { flex: 0 1 auto; }
+.pt-zone > .pt-panel.pt-sized {
+  flex: 0 0 auto;
+}
 .pt-panel[data-axis="v"] { flex-direction: column; }
 .pt-panel[data-axis="h"] {
   flex-direction: row;
@@ -1058,7 +1118,7 @@ button.active i,
    over the 3D view is worse than one you have to scroll. */
 #view-2d > #plan-tools { max-width: calc(100% - 16px); max-height: 100%; }
 #view-2d.plan-tiny > #plan-tools { max-width: calc(100% - 12px); }
-.pt-zone { overflow: hidden; }
+.pt-zone { overflow: visible; }
 #view-2d.plan-narrow .layer-chips { width: auto; }
 #view-2d.plan-narrow .lchip .lchip-t { display: none; }
 #view-2d.plan-narrow .lchip .lchip-name {
@@ -1123,6 +1183,85 @@ button.active i,
    dashed box is where it will land, at which end of which group. Slightly
    translucent, and lifted: the slot underneath is the answer to the question
    the drag is asking, so it must not be the thing being hidden. */
+/* Dropped in open plan rather than against an edge: no zone owns it, so the
+   panel draws the whole card itself. This is the resting state of the drag —
+   what you saw under the cursor is what stays. */
+.pt-panel.pt-free {
+  position: absolute;
+  z-index: 3;
+  pointer-events: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-panel);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.pt-panel.pt-sized {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.pt-panel.pt-sized > .pt-inner {
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  flex: 1 1 auto;
+}
+/* Overlay chrome was absolutely positioned on the pane; once wrapped the
+   wrapper owns the box, so the inner element has to become a normal child. */
+.pt-panel.pt-free > .pt-inner,
+.pt-panel.pt-overlay > .pt-inner {
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: none !important;
+  margin: 0;
+  max-width: 100% !important;
+  overflow: auto;
+  box-shadow: none;
+}
+.pt-panel[data-panel="gizmo"] > .pt-grip,
+.pt-panel[data-panel="max"] > .pt-grip {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 18px;
+  height: 18px;
+  z-index: 2;
+  border-radius: 6px;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-sm);
+}
+.pt-rh {
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  pointer-events: auto;
+  touch-action: none;
+  display: none;
+}
+.pt-dock .pt-panel .pt-rh { display: block; }
+.pt-rh-n, .pt-rh-s { left: 10px; right: 10px; height: 8px; }
+.pt-rh-e, .pt-rh-w { top: 10px; bottom: 10px; width: 8px; }
+.pt-rh-n { top: -4px; }
+.pt-rh-s { bottom: -4px; }
+.pt-rh-e { right: -4px; }
+.pt-rh-w { left: -4px; }
+.pt-rh-n, .pt-rh-s { cursor: ns-resize; }
+.pt-rh-e, .pt-rh-w { cursor: ew-resize; }
+.pt-rh-ne, .pt-rh-nw, .pt-rh-se, .pt-rh-sw {
+  width: 10px;
+  height: 10px;
+}
+.pt-rh-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.pt-rh-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.pt-rh-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.pt-rh-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
 .pt-panel.pt-floating {
   position: absolute;
   z-index: 3;
@@ -1136,7 +1275,6 @@ button.active i,
   -webkit-backdrop-filter: var(--glass-blur);
   opacity: 0.82;
   transform: scale(0.98);
-  transition: width 0.12s ease, height 0.12s ease;
 }
 .pt-drop {
   position: absolute;
@@ -1303,7 +1441,7 @@ html[data-tool="erase"] #plan { cursor: crosshair; }
 #plan-toolbar.show-titles[data-axis="h"] {
   width: auto;
   min-width: 0;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   padding: 0 4px;
@@ -5263,8 +5401,7 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-sketch-on-face:hover { background: var(--accent-hover); }
 #modeler .md-sketch-plane-chip[hidden] { display: none; }
 #modeler .md-sketch-plane-chip {
-  position: absolute; z-index: 12; top: 52px; inset-inline-end: 12px;
-  display: inline-flex; align-items: center; gap: 6px; max-width: min(310px, calc(100% - 24px));
+  display: inline-flex; align-items: center; gap: 6px; max-width: min(310px, 100%);
   min-height: 30px; padding: 5px 9px; border: 1px solid color-mix(in srgb,var(--accent) 42%,var(--border-color));
   border-radius: 999px; background: color-mix(in srgb,var(--bg-panel) 94%,transparent);
   color: var(--text-main); box-shadow: 0 5px 16px rgba(8,15,28,.16); cursor: pointer;
@@ -5274,7 +5411,7 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-sketch-plane-chip span { overflow: hidden; text-overflow: ellipsis; }
 #modeler .md-sketch-plane-chip b { color: var(--accent); font-size: 10px; }
 #modeler .md-sketch-plane-chip:hover { border-color: var(--accent); background: var(--btn-bg-hover); }
-body.compact-nav #modeler .md-sketch-plane-chip { top: 8px; inset-inline-end: 8px; min-height: 36px; }
+body.compact-nav #modeler .md-sketch-plane-chip { min-height: 36px; }
 #modeler .md-finish-plane {
   display: flex; align-items: center; gap: 6px; padding: 7px 9px; border: 1px solid color-mix(in srgb,var(--accent) 55%,var(--border-color));
   border-radius: 9px; background: var(--accent); color: var(--on-accent); box-shadow: 0 4px 14px var(--accent-glow); cursor: pointer; font-size: 10.5px; font-weight: 650;
@@ -5420,6 +5557,9 @@ body:not(.compact-nav) #modeler.md-isdrawing:not(.md-sheet-collapsed) .md-panel-
   padding: 8px 0 2px;
   background: linear-gradient(var(--bg-panel), var(--bg-panel)) var(--bg-app);
 }
+/* The corner is up: it owns the commit, so the form's pair goes away rather
+   than sitting under it saying the same thing. */
+#modeler .md-feature-actions[hidden] { display: none; }
 #modeler .md-quick-apply,
 #modeler .md-quick-cancel {
   min-width: 0; min-height: 32px; padding: 0 8px;
@@ -5439,7 +5579,17 @@ body:not(.compact-nav) #modeler.md-isdrawing:not(.md-sheet-collapsed) .md-panel-
 #modeler .md-feature-selection-note { padding: 7px; border-radius: 7px; background: color-mix(in srgb,var(--accent) 7%,var(--input-bg)); color: var(--text-muted); font-size: 9px; line-height: 1.45; }
 #modeler .md-feature-selection-note.ready { border: 1px solid rgba(15,138,106,.35); background: rgba(15,138,106,.09); color: #0f8a6a; font-weight: 650; }
 #modeler .md-finish-edges { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--separator); border-radius: 8px; background: var(--input-bg); }
-#modeler .md-finish-edges-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* An armed collector reads as a well waiting for picks, not as a read-out of
+   what happens to be selected. Same treatment for the Shell note, which has no
+   list of its own but is collecting just as much. */
+#modeler .md-feature-selection-note.is-collecting,
+#modeler .md-finish-edges.is-collecting {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+#modeler .md-collector-armed {
+  color: var(--text-dim, #6f675f); font-size: 9px; font-weight: 600; letter-spacing: .01em;
+}
+#modeler .md-finish-edges-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 #modeler .md-finish-edges-head b { color: var(--text-main); font-size: 10px; }
 #modeler .md-finish-edges-tools { display: flex; gap: 4px; }
 #modeler .md-finish-edges-tools button { min-height: 22px; padding: 0 8px; border: 1px solid var(--btn-border); border-radius: 6px; background: var(--btn-bg); color: var(--text-main); font-size: 9px; font-weight: 650; cursor: pointer; }
@@ -5449,6 +5599,11 @@ body:not(.compact-nav) #modeler.md-isdrawing:not(.md-sheet-collapsed) .md-panel-
 #modeler .md-finish-edge i { color: var(--text-muted); font-size: 11px; }
 #modeler .md-finish-edge:hover { border-color: var(--accent); }
 #modeler .md-finish-edges-hint { margin: 0; color: var(--text-muted); font-size: 8.5px; line-height: 1.4; }
+/* Variable-radius fillet: the edge row grows two radius fields beside the
+   toggle button, so the list stays one row per edge. */
+#modeler .md-finish-edge-row { display: grid; grid-template-columns: minmax(0,1fr) 62px 62px; align-items: center; gap: 4px; }
+#modeler .md-finish-edge-radius { display: flex; align-items: center; gap: 3px; min-width: 0; color: var(--text-muted); font-size: 8px; }
+#modeler .md-finish-edge-radius input { width: 100%; min-width: 0; min-height: 22px; padding: 0 4px; border: 1px solid var(--btn-border); border-radius: 5px; background: var(--input-bg); color: var(--text-main); font-size: 9px; }
 #modeler.md-isdrawing .md-quick-tools { display: none; }
 /* One exception: a sheet tool that needs typed text (a note, a dimension
    override) borrows the same quick form every other command uses. */
@@ -5464,16 +5619,15 @@ body:not(.compact-nav) #modeler.md-isdrawing:not(.md-sheet-collapsed) .md-panel-
 #modeler.md-isdrawing .md-head-actions button:not(#mdClose):not(#mdDrawing):not(#mdSave) { pointer-events: none; opacity: .48; }
 
 #modeler .md-hint {
-  position: absolute; bottom: 58px; left: 50%; transform: translateX(-50%);
   font-size: 12px; font-weight: 500; padding: 7px 15px; border-radius: 20px;
   background: var(--bg-panel); border: 1px solid var(--border-color);
   color: var(--text-muted); pointer-events: none; z-index: 5;
   box-shadow: 0 4px 14px rgba(0,0,0,0.10);
-  max-width: min(420px, calc(100% - 200px)); overflow: hidden; text-overflow: ellipsis;
+  max-width: min(420px, 100%); overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; text-align: center;
   transition: opacity .2s ease, visibility .2s ease, transform .2s ease;
 }
-#modeler .md-hint.idle-dismissed { opacity: 0; visibility: hidden; transform: translate(-50%,6px); }
+#modeler .md-hint.idle-dismissed { opacity: 0; visibility: hidden; transform: translateY(6px); }
 #modeler .md-hint-help {
   /* The room-context chip occupies the bottom-end corner in Model mode. Keep
      Help above it instead of letting the round button peek through the chip. */
@@ -5498,9 +5652,8 @@ body:not(.compact-nav) #modeler.md-isdrawing:not(.md-sheet-collapsed) .md-panel-
    so only the bar itself takes pointer events. */
 #modeler .md-face-prompt[hidden] { display: none; }
 #modeler .md-face-prompt {
-  position: absolute; bottom: 84px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 11px; z-index: 60; pointer-events: auto;
-  max-width: calc(100% - 28px); padding: 8px 10px 8px 13px;
+  display: flex; align-items: center; gap: 11px; pointer-events: auto;
+  max-width: 100%; padding: 8px 10px 8px 13px;
   border: 1px solid color-mix(in srgb,var(--accent) 52%,var(--border-color)); border-radius: 12px;
   background: color-mix(in srgb,var(--bg-panel) 96%,transparent);
   box-shadow: 0 12px 34px rgba(8,15,28,.28); backdrop-filter: blur(10px);
@@ -5523,7 +5676,6 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
    has actually started, so ordinary selection stays uncluttered. */
 #modeler .md-context-actions[hidden] { display: none; }
 #modeler .md-context-actions {
-  position: absolute; top: 14px; inset-inline-end: 14px; z-index: 9;
   display: flex; align-items: center; gap: 4px; padding: 4px;
   border: 1px solid var(--border-color); border-radius: 9px;
   background: var(--bg-panel); box-shadow: 0 5px 18px rgba(0,0,0,0.15);
@@ -5541,9 +5693,62 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
   white-space: nowrap; color: var(--text-muted); font-size: 10.5px; font-weight: 600;
 }
 
-#modeler .md-context-toolbar,
 #modeler .md-shortcut-bar,
 #modeler .md-view-selector,
+/* "3 of 5 here" beside the cursor after a pick that had overlapping
+   candidates. Deliberately small and quiet: it is an offer, not a prompt, and
+   it sits over the model the user is trying to look at. */
+#modeler .md-pick-cycle {
+  position: fixed; z-index: 42; pointer-events: auto;
+}
+#modeler .md-pick-cycle[hidden] { display: none; }
+#modeler .md-pick-cycle button {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 999px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  background: var(--panel, #fbf9f6); color: inherit;
+  font-size: 10.5px; font-weight: 650; line-height: 1.5;
+  box-shadow: 0 2px 8px rgb(0 0 0 / .18);
+}
+#modeler .md-pick-cycle button:hover { background: color-mix(in srgb, currentColor 8%, var(--panel, #fbf9f6)); }
+#modeler .md-sel-filters button:disabled { opacity: .4; cursor: not-allowed; }
+/* The offer that replaced the automatic Extrude: a closed profile lights the
+   four features that could consume it, next to where the sketch's own accept
+   button was. Leading choice is accented and answers Enter. */
+#modeler .md-profile-offer {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; max-width: min(560px, 100%);
+  padding: 6px 9px; border-radius: 10px;
+  border: 1px solid var(--separator, rgb(0 0 0 / .12));
+  background: var(--panel, #fbf9f6);
+  box-shadow: 0 6px 20px rgb(0 0 0 / .18);
+}
+#modeler .md-profile-offer[hidden] { display: none; }
+#modeler .md-profile-offer-label { color: var(--text-dim, #6f675f); font-size: 10.5px; font-weight: 650; }
+#modeler .md-profile-offer button {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 9px; border-radius: 7px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  background: transparent; color: inherit; font-size: 11px; font-weight: 600;
+}
+#modeler .md-profile-offer button:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+#modeler .md-profile-offer button.btn-accent {
+  border-color: transparent; background: var(--accent, #2684c7); color: #fff;
+}
+/* Window select in the 3D viewport. Same reading as the sketch marquee: solid
+   blue dragged left-to-right takes what is enclosed, dashed orange dragged
+   right-to-left takes what it crosses. */
+#modeler .md-marquee {
+  position: fixed; z-index: 41; pointer-events: none;
+  border: 1px solid #2684c7; background: rgb(38 132 199 / .12);
+}
+#modeler .md-marquee.is-crossing {
+  border-style: dashed; border-color: #c07020; background: rgb(192 112 32 / .12);
+}
+#modeler .md-marquee[hidden] { display: none; }
+/* Divides the menu's sections: what to select next, then what to build. */
+#modeler .md-context-sep {
+  height: 1px; margin: 3px 2px; background: var(--separator, rgb(0 0 0 / .12));
+}
 #modeler .md-context-menu {
   position: absolute; z-index: 12; display: flex; gap: 4px; padding: 6px;
   border: 1px solid var(--border-color); border-radius: 10px;
@@ -5555,9 +5760,14 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 #modeler .md-context-menu[hidden],
 #modeler .md-gesture-wheel[hidden],
 #modeler .md-breadcrumb[hidden] { display: none; }
+/* Fixed positioning is for the overlays JS places at the cursor. This one has
+   a static top/left, so `fixed` measured it against the window and parked it in
+   the app's top chrome instead of over the model. */
 #modeler .md-context-toolbar {
+  position: absolute; z-index: 42; pointer-events: auto;
   top: 52px; left: 50%; transform: translateX(-50%);
   width: max-content; max-width: calc(100% - 24px);
+  max-height: calc(50% - 60px); overflow-y: auto; overscroll-behavior: contain;
 }
 #modeler.md-isdrawing .md-context-toolbar { display: none; }
 #modeler .md-shortcut-bar {
@@ -5589,8 +5799,7 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 #modeler .md-view-selector button:hover,
 #modeler .md-context-menu button:hover { background: var(--btn-bg-hover); border-color: var(--btn-border); }
 #modeler .md-sel-filters {
-  position: absolute; inset-inline-start: 12px; bottom: 34px; z-index: 9;
-  display: none; gap: 2px; padding: 3px; border-radius: 8px;
+  flex: none; display: none; gap: 2px; padding: 3px; border-radius: 8px;
   background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
   border: 1px solid var(--border-color);
   box-shadow: 0 4px 14px rgba(0,0,0,.12);
@@ -5626,11 +5835,25 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 }
 #modeler .md-assembly-move-mode button b { font: inherit; }
 #modeler .md-assembly-move-mode button.on { background: var(--btn-bg-hover); color: var(--text-main); }
+/* The trail is now a row of controls, so it takes pointer events — but only
+   on the steps themselves: the gap between them must stay transparent to the
+   orbit gesture underneath. */
 #modeler .md-breadcrumb {
-  position: absolute; bottom: 7px; inset-inline-end: 12px; z-index: 9;
-  max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: flex; align-items: center; gap: 3px; min-width: 0; flex: 0 1 auto;
+  overflow: hidden; white-space: nowrap;
   font-size: 11px; color: var(--text-muted); pointer-events: none;
 }
+#modeler .md-breadcrumb-sep { opacity: .55; }
+#modeler .md-breadcrumb-step {
+  pointer-events: auto; cursor: pointer;
+  max-width: 15ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 1px 4px; border: 0; border-radius: 4px;
+  background: transparent; color: inherit; font: inherit;
+}
+#modeler .md-breadcrumb-step:hover {
+  background: color-mix(in srgb, currentColor 14%, transparent); color: var(--text-main);
+}
+#modeler .md-breadcrumb-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 #modeler .md-gesture-wheel {
   position: absolute; top: 50%; left: 50%; z-index: 13; width: 176px; height: 176px;
   transform: translate(-50%, -50%); border-radius: 50%;
@@ -10970,6 +11193,16 @@ body.fold-span #zHud #zIntermission {
 #modeler .md-diagnostics-hint {
   margin: 0; color: var(--text-dim,#6f675f); font-size: 10.5px; line-height: 1.35;
 }
+/* Warnings with no rebuild failure cost one line until the user asks for them.
+   A failed rebuild keeps the open <section> above — the whole point is that the
+   two stop looking alike. Laid out as a block, not the grid the section uses:
+   a collapsed <details> must not reserve the grid's row gaps. */
+#modeler details.md-diagnostics-advisory { display: block; }
+#modeler details.md-diagnostics-advisory > summary {
+  cursor: pointer; list-style: none;
+}
+#modeler details.md-diagnostics-advisory > summary::-webkit-details-marker { display: none; }
+#modeler details.md-diagnostics-advisory[open] > * + * { margin-top: 6px; }
 #modeler .md-part.md-core-diagnostic {
   align-items: flex-start; cursor: default; gap: 8px; padding: 7px 9px;
 }
@@ -11443,7 +11676,7 @@ html[data-ui="legacy"] #plan-hint {
 
 .left-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 5px;
   padding: 10px 10px 4px;
   flex: 0 0 auto;
@@ -11519,6 +11752,7 @@ html[data-ui="legacy"] #plan-hint {
   transform: none;
 }
 html:not([data-ui="legacy"]) #left-sidebar > .panel-section { display: none; }
+html:not([data-ui="legacy"]) #left-sidebar[data-left="project"] > [data-left-pane="project"],
 html:not([data-ui="legacy"]) #left-sidebar[data-left="library"] > [data-left-pane="library"],
 html:not([data-ui="legacy"]) #left-sidebar[data-left="home"] > [data-left-pane="home"],
 html:not([data-ui="legacy"]) #left-sidebar[data-left="structure"] > [data-left-pane="structure"],
@@ -17836,6 +18070,14 @@ body.lava-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
 #lvCross i:nth-child(3), #lvCross i:nth-child(4) { width: 2px; height: 8px; left: 8px; }
 #lvCross i:nth-child(3) { top: 0; }
 #lvCross i:nth-child(4) { bottom: 0; }
+/* the reticle answers one question: is there anything to fire a web at */
+#lvHud.aim #lvCross i { background: #eaf6ff; box-shadow: 0 0 8px rgba(120, 200, 255, 0.9); }
+#lvHud.aim #lvCross { transform: translate(-50%, -50%) scale(0.72); transition: transform 0.12s ease; }
+#lvHud.swing #lvCross i, #lvHud.clung #lvCross i {
+  background: #cfe9ff; box-shadow: 0 0 10px rgba(120, 200, 255, 0.95);
+}
+#lvHud.swing #lvCross { transform: translate(-50%, -50%) scale(1.35) rotate(45deg); }
+#lvHud.clung #lvCross { transform: translate(-50%, -50%) rotate(45deg); }
 
 #lvCompass {
   position: absolute; left: 50%; top: 50%; width: 0; height: 0;
@@ -17980,6 +18222,13 @@ body.lava-on #center-canvas { position: fixed; inset: 0; z-index: 2000; }
   width: 52px; height: 52px; background: rgba(40, 14, 8, 0.65);
 }
 .lv-touch-actions button[data-act="crouch"]::before { content: "▾"; font-size: 18px; }
+.lv-touch-actions button[data-act="web"], .lv-touch-actions button[data-act="zip"] {
+  background: rgba(40, 110, 190, 0.6);
+}
+.lv-touch-actions button[data-act="web"] { width: 58px; height: 58px; }
+.lv-touch-actions button[data-act="web"]::before { content: "✳"; font-size: 20px; }
+.lv-touch-actions button[data-act="zip"] { width: 52px; height: 52px; }
+.lv-touch-actions button[data-act="zip"]::before { content: "➶"; font-size: 18px; }
 
 #lvReady, #lvPause, #lvEnd {
   display: none; pointer-events: auto; position: absolute; inset: 0;
@@ -18602,3 +18851,52 @@ body.compact-nav #plan-tools::after { display: none; }
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 8px 12px; border-radius: 8px; font-weight: 600;
 }
+
+/* Optional planning brief, inside the existing desktop panel / phone sheet. */
+.guide-panel { gap: 10px; overflow-y: auto; padding: 14px; min-width: 0; }
+.guide-panel h3, .guide-panel p { margin: 0; }
+.guide-note { color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.guide-field { display: flex; flex-direction: column; gap: 5px; margin-block: 8px; font-size: 12px; min-width: 0; }
+.guide-panel input, .guide-panel select { width: 100%; min-width: 0; box-sizing: border-box; min-height: 36px; }
+.guide-panel button { white-space: normal; min-height: 36px; overflow-wrap: anywhere; text-align: start; }
+.guide-section { border-block-start: 1px solid var(--border-color); padding-block: 10px; }
+.guide-section > summary { cursor: pointer; font-weight: 600; padding-block: 5px; }
+.guide-room { border-block-start: 1px solid var(--border-color); padding-block: 10px; }
+.guide-room > button { width: 100%; }
+.guide-room .guide-section { border: 0; padding-bottom: 0; }
+.guide-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.guide-actions > button { flex: 1 1 100px; }
+.start-secondary button { min-height: 68px; }
+@media (max-width: 768px) {
+  .guide-panel button, .guide-panel input, .guide-panel select, .guide-section > summary { min-height: 44px; }
+}
+
+.redesign-comparison { width: 100%; font-size: 11px; border-collapse: collapse; }
+.redesign-comparison th, .redesign-comparison td { text-align: start; padding: 5px 3px; border-bottom: 1px solid var(--border-color); }
+
+.redesign-drawings { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.redesign-drawings figure { margin: 0; min-width: 0; }
+.redesign-drawings figcaption { font-size: 11px; text-align: center; }
+.redesign-drawings svg { width: 100%; height: 120px; border: 1px solid var(--border-color); border-radius: 6px; }
+/* Exact room dimensions keep their controls inside the narrow project sheet. */
+.guide-actions > .guide-field { flex: 1 1 90px; min-width: 0; }
+.guide-actions > .guide-field input { width: 100%; min-width: 0; box-sizing: border-box; }
+
+/* ---- Export for Blender (js/ui_blender.js) ----
+   A settings list, not a form: every row is one decision with the reason for it
+   underneath, because the difference between metres and centimetres is invisible
+   until the file is already open in Blender at 100x. */
+.bx-modal { width: 560px; }
+.bx-intro, .bx-note { margin: 0; color: var(--text-muted); font-size: 12.5px; line-height: 1.55; }
+.bx-note { padding-top: 4px; border-top: 1px solid var(--border-color); }
+.bx-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 7px 0; cursor: pointer;
+}
+.bx-row + .bx-row { border-top: 1px solid var(--border-color); }
+.bx-lbl { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; min-width: 0; color: var(--text-main); font-size: 13px; }
+.bx-hint { color: var(--text-muted); font-size: 11.5px; line-height: 1.4; }
+/* The sheet has a global "select { width: 100% }", which let the dropdown eat
+   the row and clip the label it belongs to down to two characters. */
+.bx-row select { flex: 0 0 190px; width: 190px; }
+.bx-row input[type="checkbox"] { flex: 0 0 auto; width: 16px; height: 16px; cursor: pointer; }

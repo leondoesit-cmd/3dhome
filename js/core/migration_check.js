@@ -15,12 +15,15 @@
 //   geometry  both engines run on a snapshot and their results are compared.
 //             A mismatch leaves the document legacy.
 //
-// The coverage check is the one that bites: the canonical catalogue has no
-// primitive features at all, so a legacy document built from boxes, cylinders
-// and spheres has nowhere to go and is refused outright. Sketch-driven legacy
-// documents (extrude, revolve, loft over a sketch profile) do map.
+// The coverage check used to be the one that bit: the canonical catalogue had
+// no primitive features at all, so a legacy document built from boxes,
+// cylinders and spheres — which is most of them — had nowhere to go and was
+// refused outright, and two rebuild engines had to be maintained forever.
+// FEATURE_CATALOG now carries box/cylinder/cone/sphere, so those documents map
+// as straightforwardly as the sketch-driven ones (extrude, revolve, loft), and
+// the geometry comparison below is left as the thing that actually decides.
 
-import { featureSpec } from "./feature_catalog.js";
+import { featureSpec, isPrimitiveFeatureType } from "./feature_catalog.js";
 import { stableStringify } from "./dependency_graph.js";
 import { cloneDomain, domainId } from "./schema.js";
 import { normalizeHistory } from "./parametric_document.js";
@@ -28,8 +31,19 @@ import { normalizeHistory } from "./parametric_document.js";
 export const MIGRATION_EQUIVALENCE_VERSION = 2;
 
 /* Legacy part kind -> canonical feature type. A kind that is absent here has no
-   canonical equivalent and blocks the whole document. */
+   canonical equivalent and blocks the whole document.
+
+   Mapping a kind is necessary, not sufficient. The verdict still comes from the
+   two engines: the legacy one builds from the `features` list the editor
+   projects out of the render parts (rebuildFeatureTreeFromDocument, in
+   js/modeler.js). That projection long had no sphere case and no
+   tapered-cylinder case, so a document containing either measured differently
+   on the two sides and was refused with nothing actually wrong with it. Both
+   branches now exist, and the comparison is back to catching real drift. */
 export const PART_KIND_FEATURES = Object.freeze({
+  box: "box",
+  cyl: "cylinder",
+  sph: "sphere",
   ext: "extrude",
   rev: "revolve",
   loft: "loft",
@@ -38,12 +52,51 @@ export const PART_KIND_FEATURES = Object.freeze({
 /* Legacy part kinds we know about but deliberately refuse. Naming them lets the
    report say *why* rather than "unknown kind". */
 export const UNCONVERTIBLE_PART_KINDS = Object.freeze({
-  box: "The canonical catalogue has no box feature; primitives stay direct geometry",
-  cyl: "The canonical catalogue has no cylinder feature; primitives stay direct geometry",
-  sph: "The canonical catalogue has no sphere feature; primitives stay direct geometry",
   direct: "Direct-modelled geometry has no feature history to rebuild from",
   mesh: "An imported mesh has no exact profile to rebuild from",
 });
+
+/* Which canonical feature a legacy part becomes.
+   Only one kind is ambiguous: a legacy "cyl" carries an optional second radius,
+   and a cylinder with two different radii is a frustum. Calling that a cylinder
+   would convert a tapered leg into a straight one and the geometry comparison
+   would — correctly — refuse the whole document, so it becomes a cone. */
+export function partFeatureType(part) {
+  const kind = part?.kind || "";
+  if (kind === "cyl" && Number.isFinite(Number(part.r2)) && Math.abs(Number(part.r2) - Number(part.r)) > 1e-9) return "cone";
+  return PART_KIND_FEATURES[kind] || null;
+}
+
+const number = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
+
+/* A primitive's parameters, read straight off the legacy part. The names are
+   the catalogue's, which are also the ones core/topology.js names faces from
+   and the ones js/modeler.js already writes for box and cylinder features. */
+export function primitiveFeatureParams(type, part) {
+  if (type === "box") {
+    const x0 = Math.min(number(part.x0), number(part.x1)), y0 = Math.min(number(part.y0), number(part.y1)), z0 = Math.min(number(part.z0), number(part.z1));
+    return { x:x0, y:y0, z:z0, w:Math.abs(number(part.x1) - number(part.x0)), h:Math.abs(number(part.y1) - number(part.y0)), d:Math.abs(number(part.z1) - number(part.z0)) };
+  }
+  if (type === "sphere") return { x:number(part.x), y:number(part.y), z:number(part.z), r:number(part.r) };
+  const base = { x:number(part.x), y:number(part.y), z:number(part.z), h:number(part.h) };
+  /* A cone's base radius is `r1`, not `r`: that is the name the exact kernel's
+     makeBrepCone reads first. Neither carries an axis — a legacy primitive is
+     always built up the Y axis, and both the topology namer and the kernel
+     default an absent axis to exactly that. */
+  return type === "cone"
+    ? { ...base, r1:number(part.r), r2:number(part.r2) }
+    : { ...base, r:number(part.r) };
+}
+
+/* A primitive with no size is not a shape. It converts arithmetically, draws
+   nothing, and would sail through a bounds comparison of two empty models — so
+   it is named as a blocker rather than silently migrated. */
+function degeneratePrimitive(type, params) {
+  if (type === "box") return !(params.w > 0 && params.h > 0 && params.d > 0);
+  if (type === "sphere") return !(params.r > 0);
+  if (type === "cone") return !(params.h !== 0 && (params.r1 > 0 || params.r2 > 0));
+  return !(params.r > 0 && params.h !== 0);
+}
 
 function issue(severity, code, message, extra = {}) {
   return { severity, code, message, ...extra };
@@ -67,7 +120,7 @@ export function analyzeLegacyMigration(def) {
   const convertible = [];
   parts.forEach((part, index) => {
     const kind = part?.kind || "";
-    const mapped = PART_KIND_FEATURES[kind];
+    const mapped = partFeatureType(part);
     if (mapped) { convertible.push({ part, index, type: mapped }); return; }
     blockers.push(issue("error", "unconvertible-part-kind",
       (part?.name || kind || "Feature " + (index + 1)) + ": " +
@@ -77,14 +130,24 @@ export function analyzeLegacyMigration(def) {
   if (!parts.length) blockers.push(issue("error", "empty-document", "The document has no features to convert"));
   // A sketch-driven part that lost its profile cannot be rebuilt from a sketch,
   // which is the only thing the canonical engine knows how to do with it.
-  convertible.forEach(({ part, index }) => {
-    const hasProfile = (part.profileEntityIds || []).length || (part.pts || []).length >= 3 || (part.pts0 || []).length >= 3;
-    if (!hasProfile) blockers.push(issue("error", "profile-missing",
-      (part.name || "Feature " + (index + 1)) + " has no profile to rebuild from",
-      { partId: part.id || null, index }));
+  convertible.forEach(({ part, index, type }) => {
+    /* Primitives are placed by numbers, so the profile requirement is only
+       asked of the kinds that are actually rebuilt from one. What replaces it
+       for a primitive is a size check. */
+    if (isPrimitiveFeatureType(type)) {
+      if (degeneratePrimitive(type, primitiveFeatureParams(type, part))) blockers.push(issue("error", "degenerate-primitive",
+        (part.name || "Feature " + (index + 1)) + " has no measurable size to convert",
+        { partId: part.id || null, index, type }));
+    } else {
+      const hasProfile = (part.profileEntityIds || []).length || (part.pts || []).length >= 3 || (part.pts0 || []).length >= 3;
+      if (!hasProfile) blockers.push(issue("error", "profile-missing",
+        (part.name || "Feature " + (index + 1)) + " has no profile to rebuild from",
+        { partId: part.id || null, index }));
+    }
     const unsupportedModifiers = [];
     if ((part.exactOperations || []).some((operation) => !operation.suppressed)) unsupportedModifiers.push("finish operations");
     if ((part.cuts3d || []).some((cut) => !cut.suppressed)) unsupportedModifiers.push("3D cuts");
+    if ((part.merges3d || []).some((entry) => !entry.suppressed)) unsupportedModifiers.push("merged bodies");
     if ((part.patternRotations || []).length || part.patternRotation) unsupportedModifiers.push("pattern transforms");
     if (unsupportedModifiers.length) blockers.push(issue("error", "unsupported-legacy-modifier",
       (part.name || "Feature " + (index + 1)) + " uses " + unsupportedModifiers.join(", ") + " that cannot be represented by the converted feature",
@@ -136,12 +199,14 @@ export function convertLegacyDocument(def) {
   converted.history = [];
   converted.metadata = { ...(converted.metadata || {}), authoringSystem: "parametric-v1", migratedFrom: "legacy-adapter" };
   (def.parts || []).forEach((part, index) => {
-    const type = PART_KIND_FEATURES[part.kind];
+    const type = partFeatureType(part);
     if (!type) return;
     const id = part.featureId || ("feature:" + (part.id || domainId("part")) + ":" + index);
     const points = profilePoints(part);
     const params = { ...cloneDomain(part.params || {}) };
-    if (type === "extrude") {
+    if (isPrimitiveFeatureType(type)) {
+      Object.assign(params, primitiveFeatureParams(type, part));
+    } else if (type === "extrude") {
       const from = Number(part.from) || 0, to = Number(part.to) || 0;
       params.depth = Math.abs(to - from) || Number(part.depth) || 1;
       params.direction = to >= from ? "forward" : "reverse";
@@ -256,10 +321,30 @@ function holeShapes(holes) {
     .filter((loop) => loop.length >= 3).map((loop) => loop.map(point2));
 }
 
+/* One descriptor shape per primitive, written once and produced from both
+   sides. The fingerprint compares these literally, so the two builders must
+   agree on field names and rounding — which is the point: a converted cylinder
+   that quietly lost its taper, moved its base, or changed axis stops matching
+   here rather than in the viewport. */
+function primitiveDescriptor(type, source) {
+  if (type === "box") return {
+    type:"box", x:rounded(source.x), y:rounded(source.y), z:rounded(source.z),
+    w:rounded(source.w), h:rounded(source.h), d:rounded(source.d),
+  };
+  if (type === "sphere") return { type:"sphere", x:rounded(source.x), y:rounded(source.y), z:rounded(source.z), r:rounded(source.r) };
+  const base = { type, x:rounded(source.x), y:rounded(source.y), z:rounded(source.z), h:rounded(source.h) };
+  return type === "cone"
+    ? { ...base, r1:rounded(source.r1), r2:rounded(source.r2) }
+    : { ...base, r:rounded(source.r) };
+}
+
 function legacyDescriptors(def) {
   const parts = def?.parts || [];
   const rollback = Number.isFinite(def?.rollback) ? Math.max(0, Math.min(def.rollback, parts.length)) : parts.length;
   return parts.slice(0, rollback).filter((part) => part && !part.suppressed).map((part) => {
+    const primitive = partFeatureType(part);
+    if (primitive && isPrimitiveFeatureType(primitive))
+      return primitiveDescriptor(primitive, primitiveFeatureParams(primitive, part));
     if (part.kind === "ext") return {
       type:"extrude", axis:part.axis || "y", frame:frameShape(part.frame),
       from:rounded(part.from), to:rounded(part.to), points:(part.pts || []).map(point2), holes:holeShapes(part.holes),
@@ -280,8 +365,9 @@ function legacyDescriptors(def) {
 
 function canonicalDescriptors(run) {
   const results = run?.core?.resultList || run?.resultList || [];
-  return results.filter((result) => result && result.kind !== "sketch" && ["extrude", "revolve", "loft"].includes(result.type)).map((result) => {
+  return results.filter((result) => result && result.kind !== "sketch" && ["box", "cylinder", "cone", "sphere", "extrude", "revolve", "loft"].includes(result.type)).map((result) => {
     const params = result.params || {};
+    if (isPrimitiveFeatureType(result.type)) return primitiveDescriptor(result.type, params);
     if (result.type === "extrude") return {
       type:"extrude", axis:params.axis || "y", frame:frameShape(params.frame),
       from:rounded(params.from), to:rounded(params.to), points:(params.points || params.pts || []).map(point2), holes:holeShapes(params.holes),
@@ -322,6 +408,14 @@ function sectionCentroid(points) {
 }
 
 function descriptorVolume(descriptor) {
+  if (descriptor.type === "box") return Math.abs(descriptor.w * descriptor.h * descriptor.d);
+  if (descriptor.type === "sphere") return (4 / 3) * Math.PI * Math.pow(Math.abs(descriptor.r), 3);
+  if (descriptor.type === "cylinder") return Math.PI * descriptor.r * descriptor.r * Math.abs(descriptor.h);
+  // Conical frustum: the cylinder formula is the r2 === r case of this one.
+  if (descriptor.type === "cone") {
+    const r1 = Math.abs(descriptor.r1), r2 = Math.abs(descriptor.r2);
+    return (Math.PI * Math.abs(descriptor.h) * (r1 * r1 + r1 * r2 + r2 * r2)) / 3;
+  }
   if (descriptor.type === "extrude") {
     const outer = loopMoments(descriptor.points), holes = descriptor.holes.reduce((sum, loop) => sum + loopMoments(loop).area, 0);
     return Math.max(0, outer.area - holes) * Math.abs(descriptor.to - descriptor.from);
@@ -352,6 +446,22 @@ function worldExtrudePoint(descriptor, point, span) {
 }
 
 function descriptorPoints(descriptor) {
+  if (descriptor.type === "box") return [
+    { x:descriptor.x, y:descriptor.y, z:descriptor.z },
+    { x:descriptor.x + descriptor.w, y:descriptor.y + descriptor.h, z:descriptor.z + descriptor.d },
+  ];
+  if (descriptor.type === "sphere") {
+    const r = Math.abs(descriptor.r);
+    return [{ x:descriptor.x - r, y:descriptor.y - r, z:descriptor.z - r }, { x:descriptor.x + r, y:descriptor.y + r, z:descriptor.z + r }];
+  }
+  if (descriptor.type === "cylinder" || descriptor.type === "cone") {
+    // Always about the Y axis; see primitiveFeatureParams.
+    const radius = Math.max(Math.abs(descriptor.r ?? descriptor.r1), Math.abs(descriptor.r2 ?? descriptor.r ?? descriptor.r1));
+    const lo = Math.min(0, descriptor.h), hi = Math.max(0, descriptor.h);
+    return [
+      { x:descriptor.x - radius, y:descriptor.y + lo, z:descriptor.z - radius },
+      { x:descriptor.x + radius, y:descriptor.y + hi, z:descriptor.z + radius }];
+  }
   if (descriptor.type === "extrude") return descriptor.points.flatMap((point) => [worldExtrudePoint(descriptor, point, descriptor.from), worldExtrudePoint(descriptor, point, descriptor.to)]);
   if (descriptor.type === "revolve") {
     const radius = Math.max(0, ...descriptor.points.map((point) => Math.abs(point.u)));

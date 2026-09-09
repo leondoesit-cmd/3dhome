@@ -209,13 +209,23 @@ test("collapse state hides children from navigation as well as from the page", (
 
 /* ---- the migration gate ---- */
 
-test("a primitive-built legacy document is refused, with the reason", () => {
+/* A primitive-built document used to be refused outright, because the
+   catalogue had no box, cylinder or sphere for it to map onto. It has them now
+   (tests/migration_primitives.test.mjs covers the mapping in full), so the
+   refusal belongs to the kinds that genuinely have no recipe to rebuild from. */
+test("a primitive-built legacy document maps, and a bodiless one is refused with the reason", () => {
   const analysis = analyzeLegacyMigration(legacyDoc());
-  assert.equal(analysis.ok, false);
-  assert.equal(analysis.convertible, 0);
-  assert.equal(analysis.blockers[0].code, "unconvertible-part-kind");
-  assert.match(analysis.blockers[0].message, /no box feature/);
-  assert.equal(convertLegacyDocument(legacyDoc()).ok, false);
+  assert.equal(analysis.ok, true, JSON.stringify(analysis.blockers));
+  assert.equal(analysis.convertible, 2);
+  assert.deepEqual(convertLegacyDocument(legacyDoc()).document.features.map((feature) => feature.type),
+    ["box", "cylinder"]);
+  const scanned = legacyDoc();
+  scanned.parts.push({ id: "p3", name: "Scan", kind: "mesh" });
+  const refusal = analyzeLegacyMigration(scanned);
+  assert.equal(refusal.ok, false);
+  assert.equal(refusal.blockers[0].code, "unconvertible-part-kind");
+  assert.match(refusal.blockers[0].message, /no exact profile/);
+  assert.equal(convertLegacyDocument(scanned).ok, false);
 });
 
 test("a sketch-driven legacy document converts, and keeps its build order", () => {
@@ -241,12 +251,12 @@ test("a sketch-driven legacy document converts, and keeps its build order", () =
 });
 
 test("every converted feature must have an editor, or the conversion is refused", () => {
-  assert.equal(featureEditability([{ id: "a", type: "extrude" }]).ok, true);
-  const coverage = featureEditability([{ id: "b", type: "box", name: "Base" }]);
+  assert.equal(featureEditability([{ id: "a", type: "extrude" }, { id: "b", type: "box" }]).ok, true);
+  const coverage = featureEditability([{ id: "c", type: "wobble", name: "Base" }]);
   assert.equal(coverage.ok, false);
-  assert.deepEqual(coverage.uneditable.map((entry) => entry.type), ["box"]);
+  assert.deepEqual(coverage.uneditable.map((entry) => entry.type), ["wobble"]);
   const verdict = evaluateMigration({
-    canonicalRun: { ok: true, document: { features: [{ id: "b", type: "box", name: "Base" }] } },
+    canonicalRun: { ok: true, document: { features: [{ id: "c", type: "wobble", name: "Base" }] } },
   });
   assert.equal(verdict.ok, false);
   assert.equal(verdict.reasons[0].code, "uneditable-feature");
@@ -362,6 +372,8 @@ test("legacy rollback is mapped past the matching feature and its sketch", () =>
 /* ---- the editor actually uses the one renderer ---- */
 
 const modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+/* The editor's [he, en] table lives in js/modeler_strings.js. */
+const modelerStrings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 const rendererSource = await readFile(new URL("../js/modeler_tree.js", import.meta.url), "utf8");
 const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 
@@ -396,7 +408,7 @@ test("the eye says Hide on a body or component and Suppress on a feature", () =>
   assert.match(rendererSource, /node\.kind === "component" \? "treeHideComponent" : "treeHide"/);
   assert.match(rendererSource, /: deps\.t\(node\.suppressed \? "unsuppress" : "suppress"\)/);
   for (const key of ["treeHide", "treeShow", "treeHideComponent", "treeShowComponent"]) {
-    assert.match(modelerSource, new RegExp(key + ": \\["), key + " has no wording");
+    assert.match(modelerStrings, new RegExp(key + ": \\["), key + " has no wording");
   }
 });
 

@@ -410,7 +410,7 @@ export function applyHistoryToPreviewParts(document) {
       if (!operation?.id || !known.has(operation.id)) return;
       setFlag(operation, "suppressed", !active.has(operation.id), part.id);
     });
-    (part.cuts3d || []).forEach((cut) => {
+    [...(part.cuts3d || []), ...(part.merges3d || [])].forEach((cut) => {
       if (!cut?.featureId || !known.has(cut.featureId)) return;
       setFlag(cut, "suppressed", !active.has(cut.featureId), part.id);
     });

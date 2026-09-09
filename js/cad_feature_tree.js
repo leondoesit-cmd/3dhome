@@ -1,5 +1,6 @@
-import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, deserializeBrep, disposeBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepExtrusion, makeBrepHelicalPipe, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, shellBrep } from "./cad_kernel.js";
+import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepExtrusion, makeBrepHelicalPipe, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
 import { resolveProfilePoints } from "./sketch_solver.js";
+import { sketchProfileSegments } from "./core/profile_curves.js";
 import { createTopologyRegistry, resolveFeatureTopologyReferences, topologyForFeature } from "./core/topology.js";
 import { realignFrame } from "./core/frame.js";
 import { resolveParameters } from "./core/rebuild.js";
@@ -87,6 +88,7 @@ export async function regenerateFeatures(def, options = {}) {
       let result = null, effectiveParams = materialize(feature.params || {});
       if (feature.type === "box") result = await makeBrepPrimitive({ type: "box", ...effectiveParams });
       else if (feature.type === "cylinder") result = await makeBrepPrimitive({ type: "cylinder", ...effectiveParams });
+      else if (feature.type === "sphere") result = await makeBrepPrimitive({ type: "sphere", ...effectiveParams });
       else if (feature.type === "import") {
         if (!effectiveParams.sourcePayload) throw new Error("Imported mesh has no persistent exact BREP payload");
         if (effectiveParams.sourcePayload.format !== "brep") throw new Error("Unsupported exact import payload: " + effectiveParams.sourcePayload.format);
@@ -152,6 +154,7 @@ export async function regenerateFeatures(def, options = {}) {
         const source=results.get(feature.inputs[0]);result=await linearGridPatternBrep(source,effectiveParams);
       }
       else if(feature.type==="circularPattern") { const source=results.get(feature.inputs[0]);result=await circularPatternBrep(source,effectiveParams); }
+      else if(feature.type==="curvePattern") { const source=results.get(feature.inputs[0]);result=await curvePatternBrep(source,effectiveParams); }
       else if(feature.type==="mirror") {
         const source=results.get(feature.inputs[0]);
         let plane=effectiveParams.plane;
@@ -172,6 +175,9 @@ export async function regenerateFeatures(def, options = {}) {
           propagation: effectiveParams.propagation,
           section: effectiveParams.section,
           continuity: effectiveParams.continuity,
+          variableRadius: effectiveParams.variableRadius,
+          endRadius: effectiveParams.endRadius,
+          edgeRadii: effectiveParams.edgeRadii,
         });
       }
       else if (feature.type === "chamfer") {
@@ -197,6 +203,40 @@ export async function regenerateFeatures(def, options = {}) {
           direction: effectiveParams.direction,
           tolerance: effectiveParams.tolerance,
           join: effectiveParams.join,
+        });
+      }
+      else if (feature.type === "splitBody") {
+        const source = results.get(feature.inputs[0]);
+        if (!source?.shape) throw new Error("Split input is unavailable");
+        result = await splitBrep(source, effectiveParams);
+      }
+      else if (feature.type === "moveBody") {
+        const source = results.get(feature.inputs[0]);
+        if (!source?.shape) throw new Error("Move body input is unavailable");
+        result = await moveBodyBrep(source, effectiveParams);
+      }
+      else if (feature.type === "rib") {
+        const source = results.get(feature.inputs[0]);
+        if (!source?.shape) throw new Error("Rib input is unavailable");
+        result = await ribBrep(source, effectiveParams);
+      }
+      else if (feature.type === "thicken") {
+        const source = results.get(feature.inputs[0]);
+        if (!source?.shape) throw new Error("Thicken input is unavailable");
+        result = await thickenBrep(source, effectiveParams.thickness, {
+          facePersistentIds: resolvedSubshapeIds(topologyRun.resolutions, "face"),
+          direction: effectiveParams.direction,
+        });
+      }
+      else if (feature.type === "draft") {
+        const source = results.get(feature.inputs[0]);
+        if (!source?.shape) throw new Error("Draft input is unavailable");
+        result = await draftBrep(source, effectiveParams.angle, {
+          facePersistentIds: resolvedSubshapeIds(topologyRun.resolutions, "face"),
+          pullAxis: effectiveParams.pullAxis,
+          pullDirection: effectiveParams.pullDirection,
+          neutral: effectiveParams.neutral,
+          neutralOffset: effectiveParams.neutralOffset,
         });
       }
       else if (["union", "subtract", "intersect"].includes(feature.type)) {
@@ -250,7 +290,26 @@ export function resolveSketchExtrusion(def, params) {
   // cannot disagree about what the feature currently is.
   const points = resolveProfilePoints(sketch, params.profileEntityIds);
   if (!points) throw new Error("Sketch profile is missing, open or unsupported");
-  return { ...params, points };
+  return withProfileSegments({ ...params, points }, sketch, params.profileEntityIds);
+}
+
+/* The sampled points are what the mesh draws; the typed segments are what the
+   sketch actually drew. Handing both down lets the exact kernel build a real
+   cylinder where the mesh shows tangent chords — without them the two sides
+   disagree about how many faces a round wall has. A sketch we cannot describe
+   exactly just keeps the points. */
+function withProfileSegments(params, sketch, entityIds) {
+  const segments = sketchProfileSegments(sketch, entityIds);
+  const holeIds = Array.isArray(params.holeProfileEntityIds) ? params.holeProfileEntityIds : null;
+  const holes = holeIds && Array.isArray(params.holes)
+    ? params.holes.map((hole, index) => {
+      const inner = sketchProfileSegments(sketch, holeIds[index]);
+      if (!inner) return hole;
+      return { points: Array.isArray(hole) ? hole : hole?.points || hole?.loop || [], segments: inner };
+    })
+    : params.holes;
+  const next = segments ? { ...params, segments } : params;
+  return holes === params.holes ? next : { ...next, holes };
 }
 
 export function resolveSketchProfile(def,params) {
@@ -259,7 +318,7 @@ export function resolveSketchProfile(def,params) {
   if(!sketch)throw new Error("Feature profile is missing its sketch");
   const points=resolveProfilePoints(sketch,params.profileEntityIds);
   if(!points)throw new Error("Feature profile is missing, open or unsupported");
-  return {...params,points};
+  return withProfileSegments({...params,points},sketch,params.profileEntityIds);
 }
 
 export function alignExtrusionToSupport(params, resolutions = []) {

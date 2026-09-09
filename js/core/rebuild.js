@@ -13,7 +13,7 @@ import {
 
 const SUPPORTED_FEATURES = new Set([
   "sketch", "box", "cylinder", "sphere", "extrude", "cut", "revolve", "sweep", "loft",
-  "fillet", "chamfer", "shell", "mirror", "linearPattern", "linearGridPattern", "circularPattern", "pattern", "extrudeCut", "boolean",
+  "fillet", "chamfer", "shell", "draft", "thicken", "rib", "splitBody", "moveBody", "mirror", "linearPattern", "linearGridPattern", "circularPattern", "curvePattern", "pattern", "extrudeCut", "revolveCut", "sweepCut", "boolean",
   "union", "subtract", "intersect", "procedural", "direct", "import", "component", "assembly",
   "hole", "helix", "thread", "knurl", "insert", "cone", "toolbox",
 ]);
@@ -177,12 +177,50 @@ function featureResult(feature, parameters, previous, topologyResolutions, sketc
   return result;
 }
 
+/* The measured extent of an analytic primitive.
+   A box is written two ways in this codebase — corner+size by the modeler's own
+   projection and by the cabinet adapter, min/max corners by older documents —
+   so both are read here rather than only one. Cylinders, cones and spheres were
+   measured by nothing at all, which is why a document built from them fell back
+   to the crude width/depth/height envelope below and the migration gate had no
+   real bounds to compare. */
+function primitiveBounds(type, p) {
+  const number = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
+  if (type === "box") {
+    const x0 = number(p.x0) ?? number(p.x), y0 = number(p.y0) ?? number(p.y), z0 = number(p.z0) ?? number(p.z);
+    if (x0 == null || y0 == null || z0 == null) return null;
+    const x1 = number(p.x1) ?? (number(p.w ?? p.width) == null ? null : x0 + Number(p.w ?? p.width));
+    const y1 = number(p.y1) ?? (number(p.h ?? p.height) == null ? null : y0 + Number(p.h ?? p.height));
+    const z1 = number(p.z1) ?? (number(p.d ?? p.depth) == null ? null : z0 + Number(p.d ?? p.depth));
+    if (x1 == null || y1 == null || z1 == null) return null;
+    return { x0:Math.min(x0,x1), x1:Math.max(x0,x1), y0:Math.min(y0,y1), y1:Math.max(y0,y1), z0:Math.min(z0,z1), z1:Math.max(z0,z1) };
+  }
+  // A cone names its base radius r1 (what the exact kernel reads); everything
+  // else names it r. Both spellings are accepted so one measurement serves the
+  // migration's trial build, the body list and the viewport frame.
+  const x = number(p.x), y = number(p.y), z = number(p.z), r = number(p.r ?? p.r1 ?? p.radius);
+  if (x == null || y == null || z == null || r == null) return null;
+  if (type === "sphere") return { x0:x-r, x1:x+r, y0:y-r, y1:y+r, z0:z-r, z1:z+r };
+  const height = number(p.h ?? p.height);
+  if (height == null) return null;
+  const radius = Math.max(r, number(p.r2) ?? r), axis = p.axis || "y";
+  const lo = Math.min(0, height), hi = Math.max(0, height);
+  if (axis === "x") return { x0:x+lo, x1:x+hi, y0:y-radius, y1:y+radius, z0:z-radius, z1:z+radius };
+  if (axis === "z") return { x0:x-radius, x1:x+radius, y0:y-radius, y1:y+radius, z0:z+lo, z1:z+hi };
+  return { x0:x-radius, x1:x+radius, y0:y+lo, y1:y+hi, z0:z-radius, z1:z+radius };
+}
+
+const ANALYTIC_PRIMITIVES = new Set(["box", "cylinder", "cone", "sphere"]);
+
 function boundsFromResults(results, parameters) {
   const boxes = [];
   results.forEach((result) => {
     const p = result?.params;
     if (!p) return;
-    if (result.type === "box" && [p.x0, p.x1, p.y0, p.y1, p.z0, p.z1].every(Number.isFinite)) boxes.push(p);
+    if (ANALYTIC_PRIMITIVES.has(result.type)) {
+      const bounds = primitiveBounds(result.type, p);
+      if (bounds) boxes.push(bounds);
+    }
     else if (["direct", "import"].includes(result.type) && p.bounds?.min && p.bounds?.max) boxes.push({
       x0:Number(p.bounds.min.x),x1:Number(p.bounds.max.x),y0:Number(p.bounds.min.y),y1:Number(p.bounds.max.y),z0:Number(p.bounds.min.z),z1:Number(p.bounds.max.z),
     });

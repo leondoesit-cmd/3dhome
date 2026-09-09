@@ -228,6 +228,62 @@ export function analyzeSketchProfiles(sketch, options = {}) {
   return { status, profiles, openEnds, branchPoints, openEntityIds:[...new Set(openEntityIds)], nearMergeCount, tolerance };
 }
 
+/* Open chains — the sketches that are NOT profiles.
+ *
+ * analyzeSketchProfiles above throws every non-closed component onto
+ * openEntityIds and moves on, because an extrusion needs a closed loop. A rib
+ * is drawn as a line: the web runs where the line runs and the thickness is
+ * typed, so the feature needs exactly the chains that analysis calls failures.
+ * A chain qualifies when it has two loose ends and no junction — a Y has no
+ * single path through it and is left out rather than picked arbitrarily.
+ */
+export function analyzeSketchChains(sketch, options = {}) {
+  const tolerance = Math.max(1e-6, Number(options.tolerance) || 0.05);
+  const selected = new Set(options.selectedIds || []);
+  const eligible = (sketch?.entities || []).filter((e) => !e.construction && (e.type === "line" || e.type === "arc"));
+  const { points, canonical } = canonicalEndpoints(sketch || {}, eligible, tolerance);
+  const { components, adjacency } = connectedComponents(eligible, canonical);
+  const chains = [];
+  components.forEach((component) => {
+    const nodes = new Set(component.flatMap((e) => endpointIds(e).map((id) => canonical.get(id))));
+    const degrees = [...nodes].map((id) => ({ id, degree:(adjacency.get(id) || []).filter((e) => component.includes(e)).length }));
+    if (degrees.some((d) => d.degree > 2)) return;          // a junction has no one path
+    const ends = degrees.filter((d) => d.degree === 1);
+    if (ends.length !== 2) return;                          // closed, or a stray point
+    const ordered = orderOpenComponent(component, canonical, points, ends[0].id);
+    if (!ordered) return;
+    const entityIds = ordered.ordered.map((step) => step.entity.id);
+    chains.push({ entityIds, points:ordered.points, length:chainLength(ordered.points), selected:entityIds.some((id) => selected.has(id)) });
+  });
+  chains.sort((a, b) => Number(b.selected) - Number(a.selected) || b.length - a.length);
+  return { chains, status: chains.length ? "ready" : "none" };
+}
+
+function chainLength(points) {
+  let total = 0;
+  for (let i = 1; i < points.length; i++) total += Math.hypot(points[i].u - points[i-1].u, points[i].v - points[i-1].v);
+  return total;
+}
+
+function orderOpenComponent(edges, canonical, points, startId) {
+  const remaining = edges.slice(), ordered = [];
+  let tail = startId;
+  while (remaining.length) {
+    const index = remaining.findIndex((e) => canonical.get(e.a) === tail || canonical.get(e.b) === tail);
+    if (index < 0) return null;
+    const next = remaining.splice(index, 1)[0];
+    const forward = canonical.get(next.a) === tail;
+    ordered.push({ entity:next, forward });
+    tail = canonical.get(forward ? next.b : next.a);
+  }
+  // sampleEdge omits each edge's far end so a closed ring does not repeat a
+  // point; an open chain has to put the very last one back.
+  const sampled = ordered.flatMap((step) => sampleEdge(step.entity, step.forward, points));
+  const last = points.get(tail);
+  if (last) sampled.push({ u:last.x, v:last.y });
+  return sampled.length >= 2 ? { ordered, points:sampled } : null;
+}
+
 export function healSketchEndpoints(sketch, entityIds, tolerance = 0.05) {
   if (!sketch || !Array.isArray(entityIds) || !entityIds.length) return 0;
   const wanted = new Set(entityIds);

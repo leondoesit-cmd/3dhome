@@ -7,6 +7,7 @@
 // missing matches are hard failures for the consuming feature.
 
 import { frameDirection, framePoint } from "./frame.js";
+import { ribLoop } from "./rib_profile.js";
 
 const finite = (value) => typeof value === "number" && Number.isFinite(value);
 const q = (value) => Math.round((Number(value) || 0) * 1000) / 1000;
@@ -1242,6 +1243,106 @@ function consumedTopologyIds(feature, params, inherited = []) {
   return ids;
 }
 
+/* THE FACES THESE FOUR FEATURES CREATE.
+ *
+ * thicken, rib, splitBody and moveBody were inheritance-only: they consumed
+ * names and made none. A fillet taken on a face one of them CREATED therefore
+ * bound by extraction — geometry matched against the rebuilt solid — and lost
+ * its grip the moment an upstream parameter moved. Naming the new faces is
+ * what makes those references survive a rebuild.
+ *
+ * Each namer covers the case it can state exactly and returns nothing for the
+ * case it cannot, because a named face with the wrong descriptor mis-binds and
+ * is worse than an unnamed one. The two gaps are called out where they are. */
+function splitTopology(feature, params = {}, inherited = []) {
+  const axisName = params.axis === "x" ? "x" : params.axis === "z" ? "z" : "y";
+  const offset = Number(params.offset) || 0, keep = params.keep || "both";
+  // The plane is stated by an axis and a coordinate; the two coordinates it
+  // does not fix come from where the body already is.
+  const origins = inherited.map((item) => item.descriptor?.origin || item.descriptor?.center).filter(Boolean);
+  if (!origins.length) return [];
+  const mean = (key) => origins.reduce((sum, q) => sum + (Number(q[key]) || 0), 0) / origins.length;
+  const at = { x: mean("x"), y: mean("y"), z: mean("z") };
+  at[axisName] = offset;
+  const normal = (sign) => vector(axisName === "x" ? sign : 0, axisName === "y" ? sign : 0, axisName === "z" ? sign : 0);
+  const created = [];
+  // The face on the piece ABOVE the plane looks back down it, and vice versa.
+  if (keep !== "negative") created.push(topologyItem(feature, "face", "cut-positive", { surface: "plane", semantic: "cut-positive", origin: point(at.x, at.y, at.z), normal: normal(-1) }));
+  if (keep !== "positive") created.push(topologyItem(feature, "face", "cut-negative", { surface: "plane", semantic: "cut-negative", origin: point(at.x, at.y, at.z), normal: normal(1) }));
+  return created;
+}
+
+function thickenTopology(feature, params = {}) {
+  // The offset twin of each selected face: same surface, same normal, pushed
+  // by the thickness. The band around the rim is a face too, but its shape is
+  // the face's boundary, which a descriptor does not carry — so it is left to
+  // extraction rather than named wrongly.
+  const thickness = Math.abs(Number(params.thickness) || 0);
+  if (!(thickness > 1e-9)) return [];
+  const pull = params.direction === "inside" ? -1 : 1;
+  const seen = new Set(), created = [];
+  const visit = (value) => {
+    if (!value || typeof value !== "object") return;
+    if (value.kind === "face" && typeof value.persistentId === "string") {
+      const descriptor = fallbackDescriptor(value);
+      const origin = descriptor?.origin, normal = descriptor?.normal;
+      if (!origin || !normal || seen.has(value.persistentId)) return;
+      seen.add(value.persistentId);
+      created.push(topologyItem(feature, "face", "offset:" + value.persistentId, {
+        ...descriptor, semantic: "offset",
+        origin: point((Number(origin.x) || 0) + (Number(normal.x) || 0) * thickness * pull,
+          (Number(origin.y) || 0) + (Number(normal.y) || 0) * thickness * pull,
+          (Number(origin.z) || 0) + (Number(normal.z) || 0) * thickness * pull),
+      }));
+      return;
+    }
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    Object.values(value).forEach(visit);
+  };
+  visit(params.targets); visit(params.topologyReferences); visit(feature.references);
+  return created;
+}
+
+function ribTopology(feature, params = {}) {
+  /* A rib's web is the open line offset into a closed loop and run along the
+     sketch normal, which is exactly an extrusion — so the extrusion namer does
+     the work and the two walls, the end and the cap all get the names an
+     extruded profile gets. Only a BLIND rib: "up to the body" measures its
+     depth against the solid it braces, a number this pure function does not
+     have, and a wall named at the wrong depth would mis-bind. */
+  const line = params.points || params.line || [];
+  const thickness = Math.abs(Number(params.thickness) || 0);
+  if (line.length < 2 || !(thickness > 1e-9) || params.extent !== "blind") return [];
+  const depth = Math.abs(Number(params.depth) || 0);
+  if (!(depth > 1e-9)) return [];
+  const from = Number(params.from) || 0, run = params.direction === "reverse" ? -1 : 1;
+  let loop;
+  try { loop = ribLoop(line, thickness, params.side); }
+  catch { return []; }
+  if (!Array.isArray(loop) || loop.length < 3) return [];
+  return extrusionTopology(feature, { axis: params.axis, frame: params.frame, from, to: from + run * depth, points: loop });
+}
+
+function movedTopology(feature, params = {}, inherited = []) {
+  /* moveBody creates no face at all — it carries the same ones somewhere else,
+     and inheriting them unchanged left every descriptor pointing at where the
+     body USED to be. Only the offset is applied here: the rotation turns about
+     the body's centre of mass, which is a property of the solid and not of this
+     list, so a rotated move still inherits stale directions. */
+  const dx = Number(params.dx) || 0, dy = Number(params.dy) || 0, dz = Number(params.dz) || 0;
+  if (Number(params.angle) || (!dx && !dy && !dz)) return inherited;
+  const shift = (q) => (q ? point((Number(q.x) || 0) + dx, (Number(q.y) || 0) + dy, (Number(q.z) || 0) + dz) : q);
+  return inherited.map((item) => {
+    const descriptor = item.descriptor;
+    if (!descriptor || (!descriptor.origin && !descriptor.center && !descriptor.endpoints)) return item;
+    const next = { ...descriptor };
+    if (descriptor.origin) next.origin = shift(descriptor.origin);
+    if (descriptor.center) next.center = shift(descriptor.center);
+    if (Array.isArray(descriptor.endpoints)) next.endpoints = descriptor.endpoints.map(shift);
+    return { ...item, descriptor: next, signature: topologyDescriptorSignature(next) };
+  });
+}
+
 export function topologyForFeature(feature, params = {}, inputs = []) {
   if (!feature?.id) return [];
   if (["direct", "import"].includes(feature.type) && Array.isArray(params.topology)) {
@@ -1254,9 +1355,14 @@ export function topologyForFeature(feature, params = {}, inputs = []) {
   if (feature.type === "procedural" && finite(Number(params.width)) && finite(Number(params.depth)) && finite(Number(params.height))) {
     return boxTopology(feature, { x0: -Number(params.width) / 2, x1: Number(params.width) / 2, y0: 0, y1: Number(params.height), z0: -Number(params.depth) / 2, z1: Number(params.depth) / 2 });
   }
-  if (["cut", "fillet", "chamfer", "shell", "union", "subtract", "intersect", "mirror", "linearPattern", "linearGridPattern", "circularPattern", "pattern"].includes(feature.type)) {
+  if (["cut", "fillet", "chamfer", "shell", "draft", "thicken", "rib", "splitBody", "moveBody", "union", "subtract", "intersect", "mirror", "linearPattern", "linearGridPattern", "circularPattern", "curvePattern", "pattern"].includes(feature.type)) {
     const inherited = inheritedTopology(feature, inputs), consumed = consumedTopologyIds(feature, params, inherited);
-    return consumed.size ? inherited.filter((item) => !consumed.has(item.persistentId)) : inherited;
+    const kept = consumed.size ? inherited.filter((item) => !consumed.has(item.persistentId)) : inherited;
+    if (feature.type === "moveBody") return movedTopology(feature, params, kept);
+    if (feature.type === "splitBody") return kept.concat(splitTopology(feature, params, kept));
+    if (feature.type === "thicken") return kept.concat(thickenTopology(feature, params));
+    if (feature.type === "rib") return kept.concat(ribTopology(feature, params));
+    return kept;
   }
   return [];
 }

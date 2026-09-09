@@ -12,15 +12,19 @@ import { readFile } from "node:fs/promises";
 import { FEATURE_CATALOG, featureEditorGroups, featureLabel, setFeatureLabelResolver } from "../js/core/feature_catalog.js";
 
 const modelerSource = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+/* The TXT table itself lives in js/modeler_strings.js; modeler.js keeps the
+   setFeatureLabelResolver wiring that reads it. */
+const stringsSource = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 
-/* js/modeler.js cannot be imported under Node (bare `three` specifiers), so
-   read TXT out of the source the same way the other modeler tests do. */
+/* js/modeler_strings.js cannot be imported under Node (it reaches i18n.js, and
+   the editor family uses bare `three` specifiers), so read TXT out of the
+   source the same way the other modeler tests do. */
 function modelerTable() {
-  const start = modelerSource.indexOf("var TXT = {");
-  assert.ok(start >= 0, "TXT table not found in js/modeler.js");
-  const end = modelerSource.indexOf("\n};", start);
+  const start = stringsSource.indexOf("export var TXT = {");
+  assert.ok(start >= 0, "TXT table not found in js/modeler_strings.js");
+  const end = stringsSource.indexOf("\n};", start);
   assert.ok(end > start, "TXT table has no terminator");
-  const body = modelerSource.slice(start, end);
+  const body = stringsSource.slice(start, end);
   const entries = new Map();
   const row = /^\s{2}([A-Za-z_$][\w$]*):\s*\[\s*"((?:[^"\\]|\\.)*)"\s*,\s*"((?:[^"\\]|\\.)*)"\s*\]\s*,\s*$/gm;
   let match;
@@ -149,13 +153,14 @@ test("interpolated report sentences keep their placeholder in both languages", (
     assert.ok(entry.he.includes("{" + placeholder + "}"), key + " lost its placeholder in Hebrew");
     assert.ok(entry.en.includes("{" + placeholder + "}"), key + " lost its placeholder in English");
   });
-  assert.match(modelerSource, /function tf\(k, values\)/);
+  assert.match(stringsSource, /export function tf\(k, values\)/);
 });
 
 test("the Evaluate, Assembly and Save reports no longer hardcode English", () => {
-  // Everything after the TXT table — the table itself legitimately holds the
-  // English column of every one of these strings.
-  const code = modelerSource.slice(modelerSource.indexOf("\n};", modelerSource.indexOf("var TXT = {")));
+  // The editor's code only. The TXT table (js/modeler_strings.js) legitimately
+  // holds the English column of every one of these strings, so it is not read
+  // here — since the split, modeler.js is code all the way down.
+  const code = modelerSource;
   [
     /report\("DIN \/ ISO"/,
     /report\("EVALUATE"/,

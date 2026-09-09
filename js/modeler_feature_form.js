@@ -81,10 +81,11 @@ export function featureField(host, field, value, options) {
 export function renderFeatureParameterForm(host, type, state, onLive, options) {
   options = options || {};
   var el = options.el;
-  var controls = [], groups = featureEditorGroups(type), patternMode = state.params && state.params.mode || "linear", patternDrafts = { linear: {}, circular: {} };
+  var controls = [], groups = featureEditorGroups(type), patternMode = state.params && state.params.mode || "linear", patternDrafts = { linear: {}, circular: {}, curve: {} };
   var patternModeKeys = {
     linear: ["axisX", "countX", "spacingX", "spacingIncrementX", "axisY", "countY", "spacingY", "spacingIncrementY", "axisZ", "countZ", "spacingZ", "spacingIncrementZ"],
     circular: ["count", "angle", "radialDistance", "axis", "equalSpacing"],
+    curve: ["curveCount", "curveSpacingMode", "curveSpacing", "curveAlign"],
   };
   function rememberPatternSettings(mode) {
     if (type !== "pattern") return;
@@ -140,9 +141,17 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         });
       });
       var circularCount = controls.find(function (item) { return item.field.key === "count"; }), circularWrap = circularCount && circularCount.input.closest(".md-quick-field");
-      if (circularWrap) circularWrap.classList.toggle("parameter-inactive", linear);
+      if (circularWrap) circularWrap.classList.toggle("parameter-inactive", mode.input.value !== "circular");
       host.querySelectorAll('[data-parameter="angle"],[data-parameter="radialDistance"],[data-parameter="axis"],[data-parameter="equalSpacing"]').forEach(function (node) {
         node.closest(".md-quick-field").classList.toggle("parameter-inactive", mode.input.value !== "circular");
+      });
+      var curve = mode.input.value === "curve";
+      var spacingMode = controls.find(function (item) { return item.field.key === "curveSpacingMode"; });
+      ["curveCount", "curveSpacingMode", "curveSpacing", "curveAlign"].forEach(function (key) {
+        var control = controls.find(function (item) { return item.field.key === key; }), wrap = control && control.input.closest(".md-quick-field");
+        // Arc spacing is only a number when the copies are not being fitted to
+        // the whole run; fitted, the curve's own length decides it.
+        if (wrap) wrap.classList.toggle("parameter-inactive", !curve || (key === "curveSpacing" && !(spacingMode && spacingMode.input.value === "spacing")));
       });
       if (linear) {
         var axisParams = {};
@@ -159,6 +168,12 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         });
       }
     }
+    if (type === "fillet") {
+      var variable = controls.find(function (item) { return item.field.key === "variableRadius"; });
+      var endRadius = controls.find(function (item) { return item.field.key === "endRadius"; });
+      var endWrap = endRadius && endRadius.input.closest(".md-quick-field");
+      if (endWrap) endWrap.classList.toggle("parameter-hidden", !(variable && variable.input.checked));
+    }
     if (type === "chamfer" && mode) {
       var active = { secondDistance: mode.input.value === "two-distance", angle: mode.input.value === "distance-angle", flip: mode.input.value !== "equal-distance" };
       ["secondDistance", "angle", "flip"].forEach(function (key) {
@@ -173,9 +188,14 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       if (row && ["standardSize", "holeType", "fit"].indexOf(changedKey) >= 0) {
         var fit = (controls.find(function (item) { return item.field.key === "fit"; }) || {}).input;
         var fitKey = fit && fit.value === "close" ? "closeMm" : fit && fit.value === "loose" ? "looseMm" : "normalMm";
+        /* Millimetres from the standards table become the centimetre field the
+           form edits. Rounding the MILLIMETRE value first quantised the whole
+           table to whole millimetres: M3 normal clearance (3.6) came out as 4,
+           and the normal and loose fits (3.6 / 3.8) collapsed onto one value.
+           Convert first, then trim only the noise from the division. */
         var setNum = function (key, mm) {
           var control = controls.find(function (item) { return item.field.key === key; });
-          if (control && Number.isFinite(mm)) control.input.value = String(Math.round(mm) / 10);
+          if (control && Number.isFinite(mm)) control.input.value = String(Math.round(mm * 1000) / 10000);
         };
         setNum("diameter", row[fitKey] || row.diameterMm);
         setNum("cboreDiameter", row.cboreDiaMm);
@@ -232,7 +252,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     section.appendChild(body);
     host.appendChild(section);
   });
-  if (type === "pattern") { rememberPatternSettings("linear"); rememberPatternSettings("circular"); }
+  if (type === "pattern") { rememberPatternSettings("linear"); rememberPatternSettings("circular"); rememberPatternSettings("curve"); }
   syncConditionalFields();
   return controls;
 }

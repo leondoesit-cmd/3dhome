@@ -4,6 +4,12 @@ import { readFile } from "node:fs/promises";
 import { stripComments } from "./source.mjs";
 
 const modeler = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+/* Pure part geometry and the exact-kernel part recipe, split out of js/modeler.js. */
+const partGeometry = await readFile(new URL("../js/modeler_part_geometry.js", import.meta.url), "utf8");
+/* The editor's [he, en] table lives in js/modeler_strings.js. */
+const modelerStrings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
+/* Pure mesh/edge/face geometry, split out of js/modeler.js. */
+const meshGeometry = await readFile(new URL("../js/modeler_mesh_geometry.js", import.meta.url), "utf8");
 const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 const harness = await readFile(new URL("../tools/browser_harness.mjs", import.meta.url), "utf8");
 
@@ -48,52 +54,52 @@ test("browser harness teardown is ordered and bounded", () => {
 
 test("picking inside a hole resolves the whole bore, not the facet under the cursor", () => {
   // every hole and cut loop is named once and read by both the edge and face pass
-  assert.match(modeler, /function forEachCutLoop\(part, visit\)/);
-  assert.match(modeler, /function holeAndCutFaces\(part, featureId\)/);
-  assert.match(modeler, /faces\.push\.apply\(faces, cutWallTopology\(/);
+  assert.match(meshGeometry, /function forEachCutLoop\(part, visit\)/);
+  assert.match(meshGeometry, /function holeAndCutFaces\(part, featureId\)/);
+  assert.match(meshGeometry, /faces\.push\.apply\(faces, cutWallTopology\(/);
   assert.match(modeler, /\.concat\(kernel\.length \? \[\] : holeAndCutFaces\(part, featureId\)\)/);
   // a face candidate only wins outright when the hit point lies on it
   assert.match(modeler, /if \(radial <= Math\.max\(0\.4, radius \* 0\.06\)\) contained =/);
   assert.match(modeler, /if \(Math\.abs\(alignment\) >= 0\.9 && planeDistance <= 0\.4\) contained =/);
   assert.match(modeler, /if \(analyticCurvedFace\(containedFace.descriptor\)\) exactFace = true;/);
   // and the overlay lifts off the side the facet shows, not into the material
-  assert.match(modeler, /if \(tn\.dot\(n\) < 0\) n\.multiplyScalar\(-1\);/);
+  assert.match(meshGeometry, /if \(tn\.dot\(n\) < 0\) n\.multiplyScalar\(-1\);/);
 });
 
 test("a curved face picks and highlights as one surface, not one tessellated facet", () => {
-  assert.match(modeler, /function meshFaceEntries\(part, featureId\)/);
-  assert.match(modeler, /function smoothFacesForMesh\(mesh\)/);
-  assert.match(modeler, /meshSmoothFaces\(/);
+  assert.match(meshGeometry, /function meshFaceEntries\(part, featureId\)/);
+  assert.match(meshGeometry, /function smoothFacesForMesh\(mesh\)/);
+  assert.match(meshGeometry, /meshSmoothFaces\(/);
   assert.match(modeler, /descriptor\.surface === "sphere"/);
-  assert.match(modeler, /function triangleSetForFace\(/);
-  assert.match(modeler, /cadFaceRanges/);
-  assert.match(modeler, /:face:mesh:/);
+  assert.match(meshGeometry, /function triangleSetForFace\(/);
+  assert.match(meshGeometry, /cadFaceRanges/);
+  assert.match(meshGeometry, /:face:mesh:/);
   assert.match(modeler, /analyticCurvedFace\(containedFace.descriptor\)/);
   /* Kernel face ranges are returned before the mesh grouping is consulted;
      falling through would paint an infinite cylinder. Asserted as an order in
      the code, not as the sentence that explains it. */
-  const ranges = stripComments(modeler);
+  const ranges = stripComments(meshGeometry);
   const wanted = ranges.indexOf("if (wanted) {"), grouped = ranges.indexOf("smoothFacesForMesh(mesh)", wanted);
   assert.ok(wanted !== -1 && grouped !== -1 && wanted < grouped,
     "the kernel ranges return before the tessellation fallback");
-  assert.match(modeler, /alongSpan && \(along < alongSpan.min - band/);
+  assert.match(meshGeometry, /alongSpan && \(along < alongSpan.min - band/);
   assert.match(modeler, /isCylinderTessellationSeam\(edgeEntry, roundWalls\)/);
-  assert.doesNotMatch(modeler, /seamCurve !== "circle"/);
+  assert.doesNotMatch(modeler + meshGeometry, /seamCurve !== "circle"/);
 });
 
 test("a cut applies to every body under it, and names the ones it cannot take", () => {
   // turned and lofted bodies are rebuildable, so they can be cut
-  assert.match(modeler, /function partSupportsExactMesh\(p\)/);
-  assert.match(modeler, /if \(p\.kind === "loft"\) return \(p\.pts0 \|\| \[\]\)\.length >= 3/);
-  assert.match(modeler, /if \(p\.kind === "rev"\) return \(p\.pts \|\| \[\]\)\.length >= 3 && Math\.abs\(Number\(p\.angle\) \|\| 360\) >= 359\.5/);
+  assert.match(partGeometry, /function partSupportsExactMesh\(p\)/);
+  assert.match(partGeometry, /if \(p\.kind === "loft"\) return \(p\.pts0 \|\| \[\]\)\.length >= 3/);
+  assert.match(partGeometry, /if \(p\.kind === "rev"\) return \(p\.pts \|\| \[\]\)\.length >= 3 && Math\.abs\(Number\(p\.angle\) \|\| 360\) >= 359\.5/);
   // the exact kernel builds them about the origin and moves them into place
-  assert.match(modeler, /makeBrepRevolve\(\{axis:"y",angle:360,points:\[\{u:0,v:0\},\{u:base,v:0\},\{u:top,v:tall\},\{u:0,v:tall\}\]\}\)/);
-  assert.match(modeler, /solid=await moveTo\(solid,\{x:p\.x\|\|0,y:0,z:p\.z\|\|0\}\)/);
-  assert.match(modeler, /makeBrepLoft\(\{sections:\[section\(p\.pts0,p\.from\),section\(p\.pts1,p\.to\)\]/);
+  assert.match(partGeometry, /makeBrepRevolve\(\{axis:"y",angle:360,points:\[\{u:0,v:0\},\{u:base,v:0\},\{u:top,v:tall\},\{u:0,v:tall\}\]\}\)/);
+  assert.match(partGeometry, /solid=await moveTo\(solid,\{x:p\.x\|\|0,y:0,z:p\.z\|\|0\}\)/);
+  assert.match(partGeometry, /makeBrepLoft\(\{sections:\[section\(p\.pts0,p\.from\),section\(p\.pts1,p\.to\)\]/);
   // and a body that still cannot be cut is reported instead of skipped quietly
   assert.match(modeler, /if \(inside && !partSupportsExactMesh\(p\)\) \{ skipped\.push/);
   assert.match(modeler, /function cutSkipNote\(\)/);
-  assert.match(modeler, /cutSkipped: \["לא נחתך", "not cut"\]/);
+  assert.match(modelerStrings, /cutSkipped: \["לא נחתך", "not cut"\]/);
   assert.match(modeler, /flash\(\(applyCut\(E\.poly\) \? t\("cutDone"\) : t\("cutNone"\)\) \+ cutSkipNote\(\)\)/);
 });
 
@@ -101,7 +107,7 @@ test("a cut measures the bodies under it in the cut's own space", () => {
   // not partUV(): that reads the active sketch frame, which Finish sketch has
   // already cleared by the time the cut runs
   assert.match(modeler, /var footprint=cutFootprint\(p, frame, ax\)/);
-  assert.match(modeler, /return cutScopeFootprint\(part, partBounds\(part\), frame, axisName/);
+  assert.match(partGeometry, /return cutScopeFootprint\(part, partBounds\(part\), frame, axisName/);
   assert.doesNotMatch(modeler, /var footprint=partUV\(p\)/);
 });
 

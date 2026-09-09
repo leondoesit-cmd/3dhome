@@ -8,6 +8,8 @@ import {
   fitProfileCircle,
 } from "./core/topology.js";
 import { framePoint } from "./core/frame.js";
+import { isSegmentProfile, pathFrames, segmentProfilePoints } from "./core/profile_curves.js";
+import { ribDraftedLoop, ribLoop } from "./core/rib_profile.js";
 
 let kernelPromise = null;
 
@@ -232,6 +234,111 @@ export function resolveBrepSubshape(brep, persistentId, kind) {
   return entry && (!kind || entry.kind === kind) ? entry.shape : null;
 }
 
+/* --- profile input ------------------------------------------------------
+   Every wire builder below takes a loop in one of two shapes:
+
+     legacy  [{u,v} | {x,y,z}, ...]                  -> a closed polygon wire
+     typed   [{type, ...}, ...]  or  {points, segments:[{type, ...}]}
+
+   The typed segment kinds are documented in core/profile_curves.js. A bare
+   point array must keep producing exactly the polygon it produced before, so
+   nothing that already calls these makers changes behaviour; a caller opts in
+   by handing over segments as well. An unrecognised segment kind degrades to a
+   chord rather than throwing, so adding a kind never breaks an old build. */
+const loopSegments = (loop) => (isSegmentProfile(loop) ? (Array.isArray(loop) ? loop : loop.segments) : null);
+const loopPoints = (loop) => (Array.isArray(loop) ? (isSegmentProfile(loop) ? [] : loop) : loop?.points || []);
+
+/* `place` maps one profile coordinate to world; `normal` is the plane the
+   conic segments are drawn on, which is what fixes an ellipse's tilt and a
+   circle's sense. Everything allocated lands in the caller's `owned` list. */
+function wireFromSegments(oc, owned, segments, place, normal) {
+  const wire = new oc.BRepBuilderAPI_MakeWire_1(); owned.push(wire);
+  const dir = new oc.gp_Dir_4(normal.x || 0, normal.y || 0, normal.z || 0); owned.push(dir);
+  const at = (value) => {
+    const world = place(value), point = new oc.gp_Pnt_3(world.x, world.y, world.z);
+    owned.push(point);
+    return point;
+  };
+  // The plane direction of a 2D angle, measured through the same mapping as the
+  // points, so an ellipse stays tilted the way the sketch drew it on any frame.
+  const planeDirection = (center, angle) => {
+    const dx = Math.cos(angle), dy = Math.sin(angle);
+    const stepped = center.u !== undefined
+      ? { ...center, u: center.u + dx, v: center.v + dy }
+      : { ...center, x: (center.x || 0) + dx, y: (center.y || 0) + dy };
+    const from = place(center), to = place(stepped);
+    const d = new oc.gp_Dir_4(to.x - from.x, to.y - from.y, to.z - from.z); owned.push(d);
+    return d;
+  };
+  // Embind will not upcast a Handle_Geom_TrimmedCurve/BSplineCurve to the
+  // Handle_Geom_Curve the edge maker wants, so rewrap the raw pointer.
+  const curveEdge = (handle) => {
+    const generic = new oc.Handle_Geom_Curve_2(handle.get()); owned.push(generic);
+    return new oc.BRepBuilderAPI_MakeEdge_24(generic);
+  };
+  for (const segment of segments) {
+    let maker;
+    if (segment.type === "arc" && segment.mid) {
+      const arc = new oc.GC_MakeArcOfCircle_4(at(segment.from), at(segment.mid), at(segment.to)); owned.push(arc);
+      if (!arc.IsDone()) throw new Error("Profile arc could not be built");
+      const curve = arc.Value(); owned.push(curve);
+      maker = curveEdge(curve);
+    } else if (segment.type === "circle") {
+      const axes = new oc.gp_Ax2_3(at(segment.center), dir); owned.push(axes);
+      const circle = new oc.gp_Circ_2(axes, Math.max(1e-6, Number(segment.radius) || 0)); owned.push(circle);
+      maker = new oc.BRepBuilderAPI_MakeEdge_8(circle);
+    } else if (segment.type === "ellipse") {
+      const rot = Number(segment.rot) || 0;
+      const rx = Math.abs(Number(segment.rx) || 0), ry = Math.abs(Number(segment.ry) || 0);
+      // gp_Elips insists the major radius is the larger one; a "tall" ellipse
+      // is the same curve turned a quarter turn, not an error.
+      const major = Math.max(rx, ry), minor = Math.min(rx, ry);
+      const axes = new oc.gp_Ax2_2(at(segment.center), dir, planeDirection(segment.center, rx >= ry ? rot : rot + Math.PI / 2)); owned.push(axes);
+      const ellipse = new oc.gp_Elips_2(axes, Math.max(1e-6, major), Math.max(1e-7, minor)); owned.push(ellipse);
+      maker = new oc.BRepBuilderAPI_MakeEdge_12(ellipse);
+    } else if (segment.type === "spline" && (segment.points || []).length > 2) {
+      const points = segment.points, array = new oc.TColgp_Array1OfPnt_2(1, points.length); owned.push(array);
+      points.forEach((value, index) => array.SetValue(index + 1, at(value)));
+      const fit = new oc.GeomAPI_PointsToBSpline_2(array, 3, 8, oc.GeomAbs_Shape.GeomAbs_C2, 1e-3); owned.push(fit);
+      if (!fit.IsDone()) throw new Error("Profile spline could not be fitted");
+      const curve = fit.Curve(); owned.push(curve);
+      maker = curveEdge(curve);
+    } else {
+      maker = new oc.BRepBuilderAPI_MakeEdge_3(at(segment.from), at(segment.to));
+    }
+    owned.push(maker);
+    if (!maker.IsDone()) throw new Error("Profile segment could not be built: " + segment.type);
+    wire.Add_1(maker.Edge());
+  }
+  if (!wire.IsDone()) throw new Error("Profile segments do not form a wire");
+  const built = wire.Wire(); owned.push(built);
+  return built;
+}
+
+// Polygon wire — the historical path, unchanged in behaviour.
+function wireFromPoints(oc, owned, points, place, close) {
+  const polygon = new oc.BRepBuilderAPI_MakePolygon_1(); owned.push(polygon);
+  for (const q of points) {
+    const world = place(q), p = new oc.gp_Pnt_3(world.x, world.y, world.z);
+    polygon.Add_1(p); owned.push(p);
+  }
+  if (close) polygon.Close();
+  const built = polygon.Wire(); owned.push(built);
+  return built;
+}
+
+function profileWire(oc, owned, loop, place, normal, options = {}) {
+  const segments = loopSegments(loop), reverse = !!options.reverse, close = options.close !== false;
+  const wire = segments
+    ? wireFromSegments(oc, owned, segments, place, normal)
+    : wireFromPoints(oc, owned, reverse ? loopPoints(loop).slice().reverse() : loopPoints(loop), place, close);
+  // A closed conic is one edge, so its direction cannot be expressed by
+  // reversing a list of points the way a polygon's can.
+  if (!segments || !reverse) return wire;
+  const flipped = oc.TopoDS.Wire_1(wire.Reversed()); owned.push(flipped);
+  return flipped;
+}
+
 export async function makeBrepPrimitive(spec) {
   const oc = await loadCadKernel();
   const owned = [];
@@ -249,6 +356,13 @@ export async function makeBrepPrimitive(spec) {
       const maker = new oc.BRepPrimAPI_MakeCylinder_3(axes, Math.max(1e-6, spec.r), Math.max(1e-6, spec.h)); owned.push(maker);
       return { oc, shape: maker.Shape(), kind: "solid" };
     }
+    if (spec.type === "sphere") {
+      // The exact tree grew a sphere case only when the editor's projection did:
+      // before that a legacy sphere reached neither engine and simply vanished.
+      const p = new oc.gp_Pnt_3(spec.x || 0, spec.y || 0, spec.z || 0); owned.push(p);
+      const maker = new oc.BRepPrimAPI_MakeSphere_5(p, Math.max(1e-6, Number(spec.r) || 0)); owned.push(maker);
+      return { oc, shape: maker.Shape(), kind: "solid" };
+    }
     throw new Error("Unsupported BREP primitive: " + spec.type);
   } finally {
     // Shape() returns a handle copy; makers and construction values can go.
@@ -256,64 +370,125 @@ export async function makeBrepPrimitive(spec) {
   }
 }
 
+/* A drafted extrusion: the prism's WALLS are tilted, its caps left alone.
+ *
+ * `draftAngle` was declared on extrude and extrudeCut from the start and read
+ * by nothing, so the two most-used features in the editor showed a control that
+ * did nothing. It is real here, and it is the same construction the standalone
+ * Draft feature performs — BRepOffsetAPI_DraftAngle about the line where each
+ * wall meets a neutral plane — with two things decided instead of asked for:
+ * the neutral plane is the SKETCH plane (the drawn profile keeps its size, the
+ * far end changes), and the walls are selected by geometry rather than by
+ * picking, because they do not exist until this function has built them.
+ *
+ * A wall is any face whose normal is not parallel to the pull; that leaves the
+ * two caps out on a prism of any profile, holes included. Drafting a circular
+ * wall this way yields an exact cone, not a faceted approximation.
+ *
+ * Sign: a positive angle NARROWS the solid away from the sketch plane (a
+ * moulded boss releasing from its tool), which is the same sense the rib's own
+ * draft uses. `draftOutward` flares it instead. */
+function draftPrismWalls(oc, shape, { angle, axis, at, outward }) {
+  const owned = [];
+  const pull = { x: axis.x || 0, y: axis.y || 0, z: axis.z || 0 };
+  try {
+    // OCCT tilts a wall so it CLOSES IN along the pull, so the default pull is
+    // the run itself and a flared draft is the one that points back.
+    const sign = outward ? -1 : 1;
+    const pullDir = new oc.gp_Dir_4(pull.x * sign, pull.y * sign, pull.z * sign); owned.push(pullDir);
+    const origin = new oc.gp_Pnt_3(at.x, at.y, at.z); owned.push(origin);
+    const planeDir = new oc.gp_Dir_4(pull.x, pull.y, pull.z); owned.push(planeDir);
+    const plane = new oc.gp_Pln_3(origin, planeDir); owned.push(plane);
+    const maker = new oc.BRepOffsetAPI_DraftAngle_2(shape); owned.push(maker);
+    const explorer = new oc.TopExp_Explorer_2(shape, oc.TopAbs_ShapeEnum.TopAbs_FACE, oc.TopAbs_ShapeEnum.TopAbs_SHAPE); owned.push(explorer);
+    let walls = 0;
+    while (explorer.More()) {
+      const face = oc.TopoDS.Face_1(explorer.Current()); owned.push(face);
+      const descriptor = faceDescriptor(oc, face);
+      const alongPull = Math.abs(descriptor.normal.x * pull.x + descriptor.normal.y * pull.y + descriptor.normal.z * pull.z);
+      if (alongPull < 0.999) { maker.Add(face, pullDir, Math.abs(angle), plane, true); walls++; }
+      explorer.Next();
+    }
+    if (!walls) throw new Error("This extrusion has no wall to draft");
+    if (!maker.AddDone()) throw new Error("The draft angle cannot be applied to this profile");
+    const progress = new oc.Message_ProgressRange_1(); owned.push(progress);
+    maker.Build(progress);
+    if (!maker.IsDone?.()) throw new Error("OpenCascade extrusion draft failed");
+    return maker.Shape();
+  } finally { disposeAll(owned); }
+}
+
 export async function makeBrepExtrusion(spec) {
   const oc = await loadCadKernel(), owned = [];
   try {
     if (!Array.isArray(spec.points) || spec.points.length < 3) throw new Error("Extrusion needs a closed profile");
     const depth = Number(spec.to || 0) - Number(spec.from || 0);
-    const circle = fitProfileCircle(spec.points);
-    const holeLoops = (spec.holes || []).map((entry) => Array.isArray(entry) ? entry : entry?.points || entry?.loop || []).filter((loop) => loop.length >= 3);
+    // Fitting a circle to the samples is a guess; typed segments are a fact, so
+    // they win — a 40-chord ellipse fits a circle rather well.
+    const circle = spec.segments ? null : fitProfileCircle(spec.points);
+    const holeLoops = (spec.holes || []).map((entry) => Array.isArray(entry)
+      ? { points: entry }
+      : { points: entry?.points || entry?.loop || [], segments: entry?.segments })
+      .filter((loop) => loopSegments(loop) || loop.points.length >= 3);
+    const mapPoint = (u, v, w) => spec.frame
+      ? framePoint(spec.frame, u, v, w)
+      : spec.axis === "z" ? { x: u, y: v, z: w }
+      : spec.axis === "x" ? { x: w, y: v, z: u }
+      : { x: u, y: w, z: v };
+    const axis = spec.frame
+      ? spec.frame.normal
+      : spec.axis === "z" ? { x: 0, y: 0, z: 1 }
+      : spec.axis === "x" ? { x: 1, y: 0, z: 0 }
+      : { x: 0, y: 1, z: 0 };
+    /* The draft is applied to the finished prism rather than folded into the
+       profile, so it is exact for a circular or splined wall too, and so the
+       undrafted build stays byte-for-byte what it always was. The neutral
+       plane is the sketch plane, and the pull follows the material. */
+    const draftAngle = ((Number(spec.draftAngle) || 0) * Math.PI) / 180;
+    const finish = (shape) => {
+      if (!Math.abs(draftAngle) || Math.abs(depth) < 1e-9) return shape;
+      const run = depth >= 0 ? 1 : -1;
+      // `draftBase` names the plane the profile was drawn on when the run has
+      // since been stretched past it (a through-all cut); otherwise it IS `from`.
+      const base = mapPoint(0, 0, Number.isFinite(Number(spec.draftBase)) ? Number(spec.draftBase) : (spec.from || 0));
+      return draftPrismWalls(oc, shape, {
+        angle: draftAngle,
+        axis: { x: (axis.x || 0) * run, y: (axis.y || 0) * run, z: (axis.z || 0) * run },
+        at: base,
+        outward: Number(spec.draftAngle) < 0 ? !spec.draftOutward : !!spec.draftOutward,
+      });
+    };
     if (circle && !holeLoops.length) {
-      const mapPoint = (u, v, w) => spec.frame
-        ? framePoint(spec.frame, u, v, w)
-        : spec.axis === "z" ? { x: u, y: v, z: w }
-        : spec.axis === "x" ? { x: w, y: v, z: u }
-        : { x: u, y: w, z: v };
-      const axis = spec.frame
-        ? spec.frame.normal
-        : spec.axis === "z" ? { x: 0, y: 0, z: 1 }
-        : spec.axis === "x" ? { x: 1, y: 0, z: 0 }
-        : { x: 0, y: 1, z: 0 };
       const sign = depth >= 0 ? 1 : -1;
       const start = mapPoint(circle.u, circle.v, spec.from || 0);
       const p = new oc.gp_Pnt_3(start.x, start.y, start.z); owned.push(p);
       const dir = new oc.gp_Dir_4((axis.x || 0) * sign, (axis.y || 0) * sign, (axis.z || 0) * sign); owned.push(dir);
       const axes = new oc.gp_Ax2_3(p, dir); owned.push(axes);
       const maker = new oc.BRepPrimAPI_MakeCylinder_3(axes, Math.max(1e-6, circle.radius), Math.max(1e-6, Math.abs(depth))); owned.push(maker);
-      return { oc, shape: maker.Shape(), kind: "solid" };
+      return { oc, shape: finish(maker.Shape()), kind: "solid" };
     }
-    const wireFor = (loop, reverse = false) => {
-      const polygon = new oc.BRepBuilderAPI_MakePolygon_1(); owned.push(polygon);
-      const points = reverse ? loop.slice().reverse() : loop;
-      for (const q of points) {
-        let p;
-        if (spec.frame) {
-          const world = framePoint(spec.frame, q.u, q.v, spec.from || 0);
-          p = new oc.gp_Pnt_3(world.x, world.y, world.z);
-        }
-        else if (spec.axis === "z") p = new oc.gp_Pnt_3(q.u, q.v, spec.from || 0);
-        else if (spec.axis === "x") p = new oc.gp_Pnt_3(spec.from || 0, q.v, q.u);
-        else p = new oc.gp_Pnt_3(q.u, spec.from || 0, q.v);
-        polygon.Add_1(p); owned.push(p);
-      }
-      polygon.Close();
-      return polygon.Wire();
-    };
+    const place = (q) => mapPoint(q.u, q.v, spec.from || 0);
+    const wireFor = (loop, reverse = false) => profileWire(oc, owned, loop, place, axis, { reverse });
+    const outerLoop = spec.segments ? { points: spec.points, segments: spec.segments } : spec.points;
     const signedArea = (loop) => loop.reduce((sum, point, index) => {
       const next = loop[(index + 1) % loop.length];
       return sum + Number(point.u || 0) * Number(next.v || 0) - Number(next.u || 0) * Number(point.v || 0);
     }, 0);
-    const outerArea = signedArea(spec.points);
-    const faceMaker = new oc.BRepBuilderAPI_MakeFace_15(wireFor(spec.points), true); owned.push(faceMaker);
+    // Winding has to be read off whatever actually becomes the wire: a typed
+    // chain may be ordered differently from the analyzer's sampled points, and
+    // a hole's reversal is decided against the outline's direction.
+    const winding = (loop) => signedArea(loopSegments(loop) ? segmentProfilePoints(loopSegments(loop)) : loopPoints(loop));
+    const outerArea = winding(outerLoop);
+    const faceMaker = new oc.BRepBuilderAPI_MakeFace_15(wireFor(outerLoop), true); owned.push(faceMaker);
     // OpenCascade uses opposite wire orientation to distinguish islands from
     // voids. Normalize either incoming convention instead of assuming that a
     // caller has already wound inner loops differently from the outline.
-    holeLoops.forEach((loop) => faceMaker.Add(wireFor(loop, signedArea(loop) * outerArea > 0)));
+    holeLoops.forEach((loop) => faceMaker.Add(wireFor(loop, winding(loop) * outerArea > 0)));
     const vec = spec.frame
       ? new oc.gp_Vec_4(spec.frame.normal.x * depth, spec.frame.normal.y * depth, spec.frame.normal.z * depth)
       : spec.axis === "z" ? new oc.gp_Vec_4(0, 0, depth) : spec.axis === "x" ? new oc.gp_Vec_4(depth, 0, 0) : new oc.gp_Vec_4(0, depth, 0); owned.push(vec);
     const prism = new oc.BRepPrimAPI_MakePrism_1(faceMaker.Face(), vec, true, true); owned.push(prism);
-    return { oc, shape: prism.Shape(), kind: "solid" };
+    return { oc, shape: finish(prism.Shape()), kind: "solid" };
   } finally { disposeAll(owned); }
 }
 
@@ -322,10 +497,9 @@ export async function makeBrepRevolve(spec) {
   try {
     const points = spec.points || spec.pts;
     if (!Array.isArray(points) || points.length < 3) throw new Error("Revolve requires a closed profile");
-    const polygon = new oc.BRepBuilderAPI_MakePolygon_1(); owned.push(polygon);
-    for (const q of points) { const p = new oc.gp_Pnt_3(q.u, q.v, 0); owned.push(p); polygon.Add_1(p); }
-    polygon.Close();
-    const face = new oc.BRepBuilderAPI_MakeFace_15(polygon.Wire(), true); owned.push(face);
+    const loop = spec.segments ? { points, segments: spec.segments } : points;
+    const wire = profileWire(oc, owned, loop, (q) => ({ x: q.u, y: q.v, z: 0 }), { x: 0, y: 0, z: 1 });
+    const face = new oc.BRepBuilderAPI_MakeFace_15(wire, true); owned.push(face);
     const axisName=spec.axis || "y", sign=spec.direction === "reverse" ? -1 : 1;
     const origin = new oc.gp_Pnt_3(0, 0, 0), direction = new oc.gp_Dir_4(axisName==="x"?sign:0, axisName==="y"?sign:0, axisName==="z"?sign:0); owned.push(origin, direction);
     const axis = new oc.gp_Ax1_2(origin, direction); owned.push(axis);
@@ -334,28 +508,171 @@ export async function makeBrepRevolve(spec) {
   } finally { disposeAll(owned); }
 }
 
+const world = (q) => ({ x: Number(q.x ?? q.u) || 0, y: Number(q.y ?? q.v) || 0, z: Number(q.z ?? q.w) || 0 });
+
 export async function makeBrepSweep(spec) {
   const oc = await loadCadKernel(), owned = [];
   try {
-    if (!Array.isArray(spec.profile) || spec.profile.length < 3 || !Array.isArray(spec.path) || spec.path.length < 2) throw new Error("Sweep requires a profile and path");
-    const profile = new oc.BRepBuilderAPI_MakePolygon_1(), path = new oc.BRepBuilderAPI_MakePolygon_1(); owned.push(profile, path);
-    for (const q of spec.profile) { const p = new oc.gp_Pnt_3(q.x, q.y, q.z || 0); owned.push(p); profile.Add_1(p); } profile.Close();
-    for (const q of spec.path) { const p = new oc.gp_Pnt_3(q.x, q.y, q.z || 0); owned.push(p); path.Add_1(p); }
-    const maker = new oc.BRepOffsetAPI_MakePipe_1(path.Wire(), profile.Wire()); owned.push(maker);
-    return { oc, shape: maker.Shape(), kind: "solid" };
+    const profileLoop = spec.profileSegments ? { points: spec.profile, segments: spec.profileSegments } : spec.profile;
+    const pathLoop = spec.pathSegments ? { points: spec.path, segments: spec.pathSegments } : spec.path;
+    const profilePoints = loopPoints(profileLoop).map(world), pathPoints = loopPoints(pathLoop).map(world);
+    if (profilePoints.length < 3 || pathPoints.length < 2) throw new Error("Sweep requires a profile and path");
+    const frames = pathFrames(pathPoints);
+    if (!frames) throw new Error("Sweep path has no length");
+    const spine = profileWire(oc, owned, pathLoop, (q) => world(q), frames[0].tangent, { close: false });
+    const maker = new oc.BRepOffsetAPI_MakePipeShell(spine); owned.push(maker);
+    // Frenet spins the section with the path's curvature; corrected Frenet is
+    // the minimum-twist carry-along; a fixed binormal keeps one world axis up.
+    const orientation = spec.orientation || "follow-path";
+    if (orientation === "fixed") {
+      const up = spec.binormal || { x: 0, y: 0, z: 1 };
+      const parallel = Math.abs(frames[0].tangent.x * (up.x || 0) + frames[0].tangent.y * (up.y || 0) + frames[0].tangent.z * (up.z || 0)) > 0.999;
+      const chosen = parallel ? frames[0].normal : up;
+      const dir = new oc.gp_Dir_4(chosen.x || 0, chosen.y || 0, chosen.z || 0); owned.push(dir);
+      maker.SetMode_3(dir);
+    } else maker.SetMode_1(orientation === "follow-path");
+
+    const twist = ((Number(spec.twistAngle) || 0) * Math.PI) / 180;
+    const scale = Number(spec.scale) > 0 ? Number(spec.scale) : 1;
+    const base = frames[0];
+    // The profile expressed in the first station's frame, so every later
+    // station can re-place it without OpenCascade having to guess a mapping.
+    const localOf = (q) => {
+      const p = world(q), d = { x: p.x - base.origin.x, y: p.y - base.origin.y, z: p.z - base.origin.z };
+      return {
+        u: d.x * base.normal.x + d.y * base.normal.y + d.z * base.normal.z,
+        v: d.x * base.binormal.x + d.y * base.binormal.y + d.z * base.binormal.z,
+        w: d.x * base.tangent.x + d.y * base.tangent.y + d.z * base.tangent.z,
+      };
+    };
+    const placeAt = (frame, angle, factor) => (q) => {
+      const local = localOf(q), cos = Math.cos(angle), sin = Math.sin(angle);
+      const u = (local.u * cos - local.v * sin) * factor, v = (local.u * sin + local.v * cos) * factor;
+      return {
+        x: frame.origin.x + frame.normal.x * u + frame.binormal.x * v + frame.tangent.x * local.w,
+        y: frame.origin.y + frame.normal.y * u + frame.binormal.y * v + frame.tangent.y * local.w,
+        z: frame.origin.z + frame.normal.z * u + frame.binormal.z * v + frame.tangent.z * local.w,
+      };
+    };
+    // With no twist or taper the sweep mode alone decides every intermediate
+    // section, so pinning extra ones would only fight it. Otherwise pin enough
+    // stations that a quarter turn is never interpolated across in one step.
+    const stations = twist || scale !== 1
+      ? Math.max(2, Math.ceil(Math.abs(twist) / (Math.PI / 4)) + 1)
+      : 1;
+    if (stations === 1) maker.Add_1(profileWire(oc, owned, profileLoop, (q) => world(q), base.tangent), false, false);
+    else for (let i = 0; i < stations; i++) {
+      const t = i / (stations - 1);
+      // frames are sampled by arc length, so pick the one nearest this fraction
+      let frame = frames[0];
+      for (const candidate of frames) if (Math.abs(candidate.t - t) < Math.abs(frame.t - t)) frame = candidate;
+      const place = placeAt(frame, twist * t, 1 + (scale - 1) * t);
+      maker.Add_1(profileWire(oc, owned, profileLoop, place, frame.tangent), false, false);
+    }
+    if (!maker.IsReady()) throw new Error("Sweep profile and path are not compatible");
+    const progress = new oc.Message_ProgressRange_1(); owned.push(progress);
+    maker.Build(progress);
+    if (!maker.IsDone()) throw new Error("Sweep could not be built");
+    if (spec.solid !== false) maker.MakeSolid();
+    return { oc, shape: maker.Shape(), kind: spec.solid === false ? "shell" : "solid" };
   } finally { disposeAll(owned); }
+}
+
+/* A LOFT BETWEEN TWO COAXIAL CIRCLES IS A CONE, AND ThruSections DOES NOT
+   MAKE ONE.
+   Given two circles it interpolates their rational poles linearly, which is a
+   different surface from the cone through the same rims: a 2 -> 4 radius loft
+   over height 10 measured 287.52 where the cone is 293.22. `ruled: true` does
+   not help — it rules between the same poles. So the case is detected and
+   handed to the primitive, which is exact by construction. Only this case:
+   anything else is still ThruSections' job. */
+function loftCircleSection(section) {
+  const segments = loopSegments(section);
+  if (segments) {
+    // A typed circle IS the answer, and it was the case that mattered most:
+    // an exactly drawn rim still got the interpolated wall. Its plane is the
+    // one the wire would be built on, which is the step between sections, so
+    // a null normal here means "square to the axis by construction".
+    const only = segments.length === 1 ? segments[0] : null;
+    if (!only || only.type !== "circle" || !(Number(only.radius) > 1e-9)) return null;
+    return { centre: world(only.center || {}), normal: null, radius: Number(only.radius) };
+  }
+  const points = loopPoints(section).map(world);
+  if (points.length < 12) return null;
+  const n = points.length;
+  const centre = points.reduce((sum, q) => ({ x: sum.x + q.x / n, y: sum.y + q.y / n, z: sum.z + q.z / n }), { x: 0, y: 0, z: 0 });
+  // Newell's normal is stable for a closed ring however it is wound
+  let normal = { x: 0, y: 0, z: 0 };
+  for (let i = 0; i < n; i++) {
+    const a = points[i], b = points[(i + 1) % n];
+    normal = { x: normal.x + (a.y - b.y) * (a.z + b.z), y: normal.y + (a.z - b.z) * (a.x + b.x), z: normal.z + (a.x - b.x) * (a.y + b.y) };
+  }
+  const size = Math.hypot(normal.x, normal.y, normal.z);
+  if (!(size > 1e-9)) return null;
+  normal = { x: normal.x / size, y: normal.y / size, z: normal.z / size };
+  let radius = 0, perimeter = 0;
+  const radii = points.map((q) => Math.hypot(q.x - centre.x, q.y - centre.y, q.z - centre.z));
+  radius = radii.reduce((sum, r) => sum + r, 0) / n;
+  if (!(radius > 1e-9)) return null;
+  if (radii.some((r) => Math.abs(r - radius) > radius * 1e-3)) return null;
+  for (let i = 0; i < n; i++) {
+    const a = points[i], b = points[(i + 1) % n];
+    perimeter += Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+    // every point on one plane, or it is not a circle at all
+    if (Math.abs((a.x - centre.x) * normal.x + (a.y - centre.y) * normal.y + (a.z - centre.z) * normal.z) > radius * 1e-3) return null;
+  }
+  // a hexagon inscribed in the same ring would pass every test above
+  if (Math.abs(perimeter - 2 * Math.PI * radius) > 2 * Math.PI * radius * 0.06) return null;
+  return { centre, normal, radius };
+}
+
+function loftConeSpec(spec) {
+  const sections = spec.sections || [];
+  if (spec.solid === false || sections.length !== 2) return null;
+  const lower = loftCircleSection(sections[0]), upper = loftCircleSection(sections[1]);
+  if (!lower || !upper) return null;
+  const step = { x: upper.centre.x - lower.centre.x, y: upper.centre.y - lower.centre.y, z: upper.centre.z - lower.centre.z };
+  const height = Math.hypot(step.x, step.y, step.z);
+  if (!(height > 1e-9)) return null;
+  const axis = { x: step.x / height, y: step.y / height, z: step.z / height };
+  // coaxial means BOTH rims are square to the line joining their centres
+  const square = (normal) => !normal || Math.abs(Math.abs(normal.x * axis.x + normal.y * axis.y + normal.z * axis.z) - 1) < 1e-6;
+  if (!square(lower.normal) || !square(upper.normal)) return null;
+  return { origin: lower.centre, axis, r1: lower.radius, r2: upper.radius, height };
 }
 
 export async function makeBrepLoft(spec) {
   const oc = await loadCadKernel(), owned = [], sections = spec.sections || [];
   try {
     if (sections.length < 2) throw new Error("Loft requires at least two profiles");
+    const cone = loftConeSpec(spec);
+    if (cone) {
+      const p = new oc.gp_Pnt_3(cone.origin.x, cone.origin.y, cone.origin.z);
+      const dir = new oc.gp_Dir_4(cone.axis.x, cone.axis.y, cone.axis.z); owned.push(p, dir);
+      const axes = new oc.gp_Ax2_3(p, dir); owned.push(axes);
+      // equal radii is a cylinder; a cone of zero semi-angle is not a surface
+      const maker = Math.abs(cone.r1 - cone.r2) < Math.max(cone.r1, cone.r2) * 1e-9
+        ? new oc.BRepPrimAPI_MakeCylinder_3(axes, cone.r1, cone.height)
+        : new oc.BRepPrimAPI_MakeCone_3(axes, cone.r1, cone.r2, cone.height);
+      owned.push(maker);
+      return { oc, shape: maker.Shape(), kind: "solid" };
+    }
     const maker = new oc.BRepOffsetAPI_ThruSections(spec.solid !== false, !!spec.ruled, Math.max(1e-7,Number(spec.tolerance)||1e-6)); owned.push(maker);
     for (const section of sections) {
-      const wire = new oc.BRepBuilderAPI_MakePolygon_1(); owned.push(wire);
-      for (const q of section) { const p = new oc.gp_Pnt_3(q.x ?? q.u ?? 0, q.y ?? q.v ?? 0, q.z ?? q.w ?? 0); owned.push(p); wire.Add_1(p); }
-      wire.Close(); maker.AddWire(wire.Wire());
+      const points = loopPoints(section).map(world);
+      if (points.length < 2 && !loopSegments(section)) throw new Error("Loft section needs a closed profile");
+      // Sections stack along their own run, so the plane a conic sits on is the
+      // step to the next section (the last one borrows the step before it).
+      const index = sections.indexOf(section), other = sections[index ? index - 1 : 1];
+      const near = loopPoints(other).map(world)[0] || points[0];
+      const away = points[0], step = index ? { x: away.x - near.x, y: away.y - near.y, z: away.z - near.z } : { x: near.x - away.x, y: near.y - away.y, z: near.z - away.z };
+      const normal = Math.hypot(step.x, step.y, step.z) > 1e-9 ? step : { x: 0, y: 1, z: 0 };
+      maker.AddWire(profileWire(oc, owned, section, (q) => world(q), normal));
     }
+    /* Only meaningful for a smoothed loft: a ruled one is planar between
+       neighbours by construction, and asking for tangency there does nothing. */
+    const continuity = { position: "GeomAbs_C0", tangent: "GeomAbs_G1", curvature: "GeomAbs_G2" }[spec.continuity || "position"];
+    if (!spec.ruled && continuity && oc.GeomAbs_Shape?.[continuity]) maker.SetContinuity(oc.GeomAbs_Shape[continuity]);
     maker.CheckCompatibility(spec.matchProfiles !== false); maker.Build(new oc.Message_ProgressRange_1());
     return { oc, shape: maker.Shape(), kind: "solid" };
   } finally { disposeAll(owned); }
@@ -372,7 +689,9 @@ export async function makeBrepCone(spec) {
     const p = new oc.gp_Pnt_3(origin.x, origin.y, origin.z);
     const dir = new oc.gp_Dir_4(axis.x || 0, axis.y || 0, axis.z || 0); owned.push(p, dir);
     const axes = new oc.gp_Ax2_3(p, dir); owned.push(axes);
-    const maker = new oc.BRepPrimAPI_MakeCone_2(axes, r1, Math.max(1e-7, r2), height); owned.push(maker);
+    // _2 is (R1, R2, H, angle) and takes no axes; _3 is the placed one. Passing
+    // a gp_Ax2 where a radius belongs built a shape of no volume at all.
+    const maker = new oc.BRepPrimAPI_MakeCone_3(axes, r1, Math.max(1e-7, r2), height); owned.push(maker);
     return { oc, shape: maker.Shape(), kind: "solid" };
   } finally { disposeAll(owned); }
 }
@@ -398,6 +717,39 @@ export async function booleanBrep(operation, left, right) {
   } finally {
     algorithm?.delete?.(); progress.delete();
   }
+}
+
+/* Per-edge radii, normalised once.
+ *
+ * `edgeRadii` is a list of {id, radius, endRadius} written by the edge list in
+ * the feature form. Ids are persistent topology ids, so an override survives a
+ * rebuild that reorders the explorer; an id that no longer resolves is simply
+ * not applied rather than shifting onto whatever edge now sits in that slot.
+ * A missing or non-positive number falls back to the feature-wide value, which
+ * is what makes "variable on two edges, constant on the rest" one feature. */
+function filletRadiusOverrides(brep, options = {}) {
+  const list = Array.isArray(options.edgeRadii) ? options.edgeRadii : [];
+  const resolved = [];
+  list.forEach((entry) => {
+    const id = entry && (entry.id || entry.persistentId);
+    if (!id) return;
+    const shape = resolveBrepSubshape(brep, id, "edge");
+    if (!shape) return;
+    resolved.push({
+      shape,
+      radius: Number(entry.radius) > 0 ? Number(entry.radius) : null,
+      endRadius: Number(entry.endRadius) > 0 ? Number(entry.endRadius) : null,
+    });
+  });
+  return resolved;
+}
+
+function filletEdgeRadius(edge, overrides, base, options = {}) {
+  const match = overrides.find((entry) => entry.shape.IsSame(edge));
+  const start = Math.max(1e-6, (match && match.radius) || base);
+  if (!options.variableRadius) return { start, end: start };
+  const declared = (match && match.endRadius) || (Number(options.endRadius) > 0 ? Number(options.endRadius) : null);
+  return { start, end: Math.max(1e-6, declared || start) };
 }
 
 // Apply a real 3D fillet to a BREP result.  The lightweight editor used to
@@ -427,6 +779,8 @@ export async function filletBrep(brep, radius, options = {}) {
   // contour. "feature" deliberately widens that source selection to every
   // edge; "tangent" leaves the kernel contour as the source of truth.
   const finish = finishEdgeSelection(brep, options);
+  const overrides = filletRadiusOverrides(brep, options);
+  const baseRadius = Math.max(1e-6, Number(radius) || 0);
   const seenEdges = [];
   let added = 0;
   try {
@@ -445,7 +799,15 @@ export async function filletBrep(brep, radius, options = {}) {
       seenEdges.push(edge);
       const selectedById = edgeIsFinishTarget(brep, edge, finish);
       if (selectedById && (!options.filter || options.filter(count, explorer.Current()))) {
-        maker.Add_2(Math.max(1e-6, Number(radius) || 0), edge);
+        /* Add_3(R1, R2, E) is the variable-radius overload: R1 lands on the
+           edge's first vertex, R2 on its last, and OCCT interpolates a linear
+           law between them along the contour the edge grows into. Equal ends
+           would be that law with zero slope — Add_2 is the cheaper, and the
+           only one whose round comes back as an analytic cylinder or torus
+           rather than as a fitted surface. */
+        const { start, end } = filletEdgeRadius(edge, overrides, baseRadius, options);
+        if (Math.abs(start - end) > 1e-9) maker.Add_3(start, end, edge);
+        else maker.Add_2(start, edge);
         added++;
       }
       count++;
@@ -627,6 +989,344 @@ export async function shellBrep(brep, thickness, options = {}) {
   }
 }
 
+function shapeHasSolid(oc, shape) {
+  const explorer = new oc.TopExp_Explorer_2(shape, oc.TopAbs_ShapeEnum.TopAbs_SOLID, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+  try { return explorer.More(); } finally { explorer.delete(); }
+}
+
+function shapeVolume(oc, shape) {
+  const props = new oc.GProp_GProps_1();
+  try { oc.BRepGProp.VolumeProperties_1(shape, props, false, false, false); return props.Mass(); }
+  finally { props.delete(); }
+}
+
+/* Thicken: give a surface a thickness.
+ *
+ * The selected faces are offset into a slab of their own. On a surface body —
+ * a sweep or a loft built with "Create solid" off, which has no volume at all —
+ * that slab IS the answer, which is the classic surface-to-solid. On a solid it
+ * is a boss standing on the chosen faces, so the slab is fused back in; leaving
+ * it loose would silently replace the body it was grown from.
+ *
+ * MakeThickSolidBySimple is the offset used rather than the join variant: a
+ * face is a single sheet with nothing to intersect against, and the join
+ * variant returns a corner-rounded shell of the wrong volume for one. It has
+ * one trap — a POSITIVE offset comes back inside out (negative volume) while a
+ * negative one does not — so the orientation is read off the volume and fixed
+ * rather than assumed from the sign. */
+export async function thickenBrep(brep, thickness, options = {}) {
+  if (!brep?.shape) throw new Error("Thicken needs a BREP shape");
+  const oc = brep.oc || await loadCadKernel();
+  const faces = selectedBrepSubshapes(brep, "face", options.facePersistentIds || options.faces || []);
+  if (!faces.length) throw new Error("Thicken has no resolved faces");
+  const size = Math.abs(Number(thickness) || 0);
+  if (!(size > 1e-6)) throw new Error("Thicken needs a non-zero thickness");
+  const offset = (options.direction === "inside" ? -1 : 1) * size;
+  const owned = [];
+  let slab = null;
+  try {
+    let source = faces[0];
+    if (faces.length > 1) {
+      // Separate sheets offset separately would overlap at every shared edge;
+      // sewn first, they are one surface and the offset is one wall.
+      const sewing = new oc.BRepBuilderAPI_Sewing(1e-6, true, true, true, false); owned.push(sewing);
+      const sewProgress = new oc.Message_ProgressRange_1(); owned.push(sewProgress);
+      faces.forEach((face) => sewing.Add(face));
+      sewing.Perform(sewProgress);
+      source = sewing.SewedShape();
+    }
+    const maker = new oc.BRepOffsetAPI_MakeThickSolid(); owned.push(maker);
+    const progress = new oc.Message_ProgressRange_1(); owned.push(progress);
+    maker.MakeThickSolidBySimple(source, offset);
+    maker.Build(progress);
+    if (maker.HasErrors?.() || !maker.IsDone?.()) throw new Error("OpenCascade thicken failed");
+    let shape = maker.Shape();
+    const volume = shapeVolume(oc, shape);
+    if (!Number.isFinite(volume) || Math.abs(volume) < 1e-9) throw new Error("Thicken produced an empty solid");
+    if (volume < 0) shape = shape.Reversed();
+    slab = { oc, shape, kind: "solid", operation: "thicken" };
+    if (!shapeHasSolid(oc, brep.shape)) return slab;   // a surface has nothing to fuse into
+    const fused = await booleanBrep("union", brep, slab);
+    disposeBrep(slab); slab = null;
+    fused.operation = "thicken";
+    return fused;
+  } catch (error) {
+    if (slab) disposeBrep(slab);
+    throw error;
+  } finally { disposeAll(owned); }
+}
+
+function solidPieces(oc, shape) {
+  const explorer = new oc.TopExp_Explorer_2(shape, oc.TopAbs_ShapeEnum.TopAbs_SOLID, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+  const pieces = [];
+  try {
+    while (explorer.More()) {
+      const solid = oc.TopoDS.Solid_1(explorer.Current());
+      const props = new oc.GProp_GProps_1();
+      try {
+        oc.BRepGProp.VolumeProperties_1(solid, props, false, false, false);
+        const centre = props.CentreOfMass();
+        try { pieces.push({ shape: solid, volume: props.Mass(), centre: pointOf(centre) }); }
+        finally { centre.delete(); }
+      } finally { props.delete(); }
+      explorer.Next();
+    }
+  } finally { explorer.delete(); }
+  return pieces;
+}
+
+/* Split a solid in two along a plane.
+ *
+ * BRepAlgoAPI_Splitter, not a pair of boolean cuts: the splitter cuts once and
+ * hands back both pieces already sharing the new face, so the two halves meet
+ * exactly instead of each carrying its own rounding of the same plane.
+ *
+ * Which half survives is stated, not inferred, because both are real answers:
+ * "positive" is the side the plane's normal points at, "negative" the other,
+ * and "both" is the compound the splitter itself returns — a document that
+ * wants two independently selectable bodies asks for the two sides separately,
+ * which is what the model editor's Split command does. */
+export async function splitBrep(brep, options = {}) {
+  if (!brep?.shape) throw new Error("Split needs a BREP shape");
+  const oc = brep.oc || await loadCadKernel();
+  const axis = options.axis === "x" ? "x" : options.axis === "z" ? "z" : "y";
+  const at = Number(options.offset) || 0;
+  const bounds = shapeBounds(oc, brep.shape);
+  if (!bounds) throw new Error("Split body has no measurable bounds");
+  /* A plane flush with a face is not a cut, and Bnd_Box overshoots by about a
+     ten-millionth, so the guard needs a margin scaled to the body rather than
+     an absolute epsilon — otherwise "split at 0" quietly returns the whole
+     body as if it had been parted. */
+  const margin = Math.max(1e-6, 1e-6 * (bounds.max[axis] - bounds.min[axis]));
+  if (at <= bounds.min[axis] + margin || at >= bounds.max[axis] - margin)
+    throw new Error("The split plane misses the body it is meant to cut");
+  const keep = options.keep === "negative" ? "negative" : options.keep === "both" ? "both" : "positive";
+  // a plane face wider than the body in every direction, so the cut is complete
+  const reach = Math.hypot(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y, bounds.max.z - bounds.min.z) + 1;
+  const centre = {
+    x: (bounds.min.x + bounds.max.x) / 2, y: (bounds.min.y + bounds.max.y) / 2, z: (bounds.min.z + bounds.max.z) / 2,
+  };
+  centre[axis] = at;
+  const owned = [];
+  try {
+    const point = new oc.gp_Pnt_3(centre.x, centre.y, centre.z); owned.push(point);
+    const normal = new oc.gp_Dir_4(axis === "x" ? 1 : 0, axis === "y" ? 1 : 0, axis === "z" ? 1 : 0); owned.push(normal);
+    const plane = new oc.gp_Pln_3(point, normal); owned.push(plane);
+    const faceMaker = new oc.BRepBuilderAPI_MakeFace_9(plane, -reach, reach, -reach, reach); owned.push(faceMaker);
+    const splitter = new oc.BRepAlgoAPI_Splitter_1(); owned.push(splitter);
+    const args = new oc.TopTools_ListOfShape_1(), tools = new oc.TopTools_ListOfShape_1(); owned.push(args, tools);
+    args.Append_1(brep.shape); tools.Append_1(faceMaker.Face());
+    splitter.SetArguments(args); splitter.SetTools(tools);
+    const progress = new oc.Message_ProgressRange_1(); owned.push(progress);
+    splitter.Build(progress);
+    if (splitter.HasErrors?.()) throw new Error("OpenCascade split failed");
+    const result = splitter.Shape();
+    if (keep === "both") return { oc, shape: result, kind: "compound", operation: "split" };
+    const pieces = solidPieces(oc, result);
+    const wanted = pieces.filter((piece) => (keep === "positive" ? piece.centre[axis] > at : piece.centre[axis] < at));
+    pieces.filter((piece) => !wanted.includes(piece)).forEach((piece) => piece.shape.delete?.());
+    if (!wanted.length) throw new Error("The split left nothing on the side that was asked for");
+    if (wanted.length === 1) return { oc, shape: wanted[0].shape, kind: "solid", operation: "split" };
+    // a concave body can leave several lumps on one side; they are one result
+    const joined = await compoundBrep(wanted.map((piece) => ({ oc, shape: piece.shape })));
+    joined.operation = "split";
+    return joined;
+  } finally { disposeAll(owned); }
+}
+
+/* Move or copy a whole body.
+ *
+ * The rotation turns about the body's own centre of mass rather than the world
+ * origin, because a body sitting a metre out would otherwise be flung across
+ * the document by a five-degree turn. Rotation is applied first and the
+ * translation after it, so the numbers in the form mean what they read: turn it
+ * this much, then shift it this far.
+ *
+ * `copy` returns the original AND the moved body as a compound — not a fuse,
+ * because two bodies that happen to touch are still two bodies. */
+export async function moveBodyBrep(brep, options = {}) {
+  if (!brep?.shape) throw new Error("Move body needs a BREP shape");
+  const oc = brep.oc || await loadCadKernel();
+  const dx = Number(options.dx) || 0, dy = Number(options.dy) || 0, dz = Number(options.dz) || 0;
+  const angle = ((Number(options.angle) || 0) * Math.PI) / 180;
+  if (!dx && !dy && !dz && !angle) throw new Error("Move body has nothing to move: no offset and no rotation");
+  const axis = options.axis === "x" ? "x" : options.axis === "z" ? "z" : "y";
+  const owned = [];
+  let moved = null;
+  try {
+    const rotation = new oc.gp_Trsf_1(); owned.push(rotation);
+    if (angle) {
+      const props = new oc.GProp_GProps_1(); owned.push(props);
+      oc.BRepGProp.VolumeProperties_1(brep.shape, props, false, false, false);
+      const mass = props.CentreOfMass(); owned.push(mass);
+      const pivot = new oc.gp_Pnt_3(mass.X(), mass.Y(), mass.Z()); owned.push(pivot);
+      const direction = new oc.gp_Dir_4(axis === "x" ? 1 : 0, axis === "y" ? 1 : 0, axis === "z" ? 1 : 0); owned.push(direction);
+      const line = new oc.gp_Ax1_2(pivot, direction); owned.push(line);
+      rotation.SetRotation_1(line, angle);
+    }
+    const shift = new oc.gp_Trsf_1(); owned.push(shift);
+    const vector = new oc.gp_Vec_4(dx, dy, dz); owned.push(vector);
+    shift.SetTranslation_1(vector);
+    const combined = shift.Multiplied(rotation); owned.push(combined);
+    const maker = new oc.BRepBuilderAPI_Transform_2(brep.shape, combined, true); owned.push(maker);
+    moved = { oc, shape: maker.Shape(), kind: brep.kind || "solid", operation: "moveBody" };
+    if (!options.copy) return moved;
+    const both = await compoundBrep([{ oc, shape: brep.shape }, moved]);
+    both.operation = "moveBody";
+    moved = null;
+    return both;
+  } finally { disposeAll(owned); }
+}
+
+/* Rib: a drawn line braced into a web.
+ *
+ * The sketch is a LINE, so the loop is made here rather than picked: ribLoop
+ * offsets the polyline to both sides (js/core/rib_profile.js) and the result is
+ * carried out of the sketch plane. A draft angle makes it a loft between the
+ * full-thickness section at the plane and the narrowed one at the far end,
+ * which is exactly the taper draftBrep would tilt the side walls to — and it
+ * needs no face selection, because the rib's own walls do not exist yet.
+ *
+ * Two things then make it a rib rather than a free-standing fin. The web is
+ * TRIMMED to the extent of the body it braces, so a line drawn past the wall it
+ * ends at does not shoot out into space; and it is FUSED into that body, so the
+ * brace and the part are one solid the way a moulded rib is.
+ *
+ * "up-to-body" runs the web across the body's whole extent along the pull and
+ * lets the trim decide where it stops. "blind" runs a stated depth instead. */
+export async function ribBrep(brep, params = {}) {
+  if (!brep?.shape) throw new Error("Rib needs a body to brace");
+  const oc = brep.oc || await loadCadKernel();
+  const line = params.points || params.line || [];
+  if ((line || []).length < 2) throw new Error("Rib needs an open sketch line of at least two points");
+  const thickness = Math.abs(Number(params.thickness) || 0);
+  if (!(thickness > 1e-6)) throw new Error("Rib needs a non-zero thickness");
+  const bounds = shapeBounds(oc, brep.shape);
+  if (!bounds) throw new Error("Rib body has no measurable bounds");
+
+  const frame = params.frame || null;
+  const axisName = params.axis === "x" ? "x" : params.axis === "z" ? "z" : "y";
+  const normal = frame ? frame.normal : { x: axisName === "x" ? 1 : 0, y: axisName === "y" ? 1 : 0, z: axisName === "z" ? 1 : 0 };
+  const sign = params.direction === "reverse" ? -1 : 1;
+  const base = Number(params.from) || 0;
+  // How far the body reaches from the sketch plane along the pull, so
+  // "up to the body" is a measured distance rather than a guess.
+  const corners = [];
+  for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z])
+    corners.push((x * normal.x + y * normal.y + z * normal.z) * sign);
+  const span = Math.max(...corners) - base * sign;
+  const depth = params.extent === "blind"
+    ? Math.abs(Number(params.depth) || 0)
+    : span;
+  if (!(depth > 1e-6)) throw new Error("The rib runs away from the body it braces, so it never reaches it");
+
+  const near = ribLoop(line, thickness, params.side);
+  const draftAngle = Number(params.draftAngle) || 0;
+  const far = draftAngle ? ribDraftedLoop(line, thickness, params.side, depth, draftAngle) : near;
+  const place = (loop, w) => loop.map((q) => (frame ? framePoint(frame, q.u, q.v, w) : mapSketchPoint(axisName, q.u, q.v, w)));
+
+  /* The trim is LATERAL only. Clipping to the body's box outright would delete
+     every rib that stands proud of the part — which is most of them — so the
+     clip is the body's footprint SEEN FROM the sketch plane, run the length of
+     the web. A line drawn past the wall it ends at is cut back to the part; a
+     web standing up off a plate is left alone. */
+  const flat = [];
+  for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z])
+    flat.push(sketchCoordinates({ x, y, z }, frame, axisName));
+  const pad = Math.max(1e-3, thickness);
+  const rect = {
+    u0: Math.min(...flat.map((q) => q.u)), u1: Math.max(...flat.map((q) => q.u)),
+    v0: Math.min(...flat.map((q) => q.v)), v1: Math.max(...flat.map((q) => q.v)),
+  };
+
+  let web = null, trimmed = null, clip = null;
+  try {
+    web = draftAngle
+      ? await makeBrepLoft({ sections: [place(near, base), place(far, base + sign * depth)], solid: true, ruled: true })
+      : await makeBrepExtrusion({ axis: axisName, frame, from: base, to: base + sign * depth, points: near });
+    clip = await makeBrepExtrusion({
+      axis: axisName, frame,
+      from: Math.min(base, base + sign * depth) - pad, to: Math.max(base, base + sign * depth) + pad,
+      points: [{ u: rect.u0, v: rect.v0 }, { u: rect.u1, v: rect.v0 }, { u: rect.u1, v: rect.v1 }, { u: rect.u0, v: rect.v1 }],
+    });
+    trimmed = await booleanBrep("intersect", web, clip);
+    if (!shapeHasSolid(oc, trimmed.shape)) throw new Error("The rib line does not cross the body it braces");
+    const fused = await booleanBrep("union", brep, trimmed);
+    fused.operation = "rib";
+    return fused;
+  } finally {
+    if (web) disposeBrep(web);
+    if (clip) disposeBrep(clip);
+    if (trimmed) disposeBrep(trimmed);
+  }
+}
+
+/* The (u,v) a world point has on the rib's sketch plane — the inverse of the
+   mapping the profile is placed through, so the trim rectangle is measured in
+   the same coordinates the line was drawn in. */
+function sketchCoordinates(point, frame, axisName) {
+  if (frame) {
+    const d = { x: point.x - (frame.origin?.x || 0), y: point.y - (frame.origin?.y || 0), z: point.z - (frame.origin?.z || 0) };
+    return {
+      u: d.x * frame.xAxis.x + d.y * frame.xAxis.y + d.z * frame.xAxis.z,
+      v: d.x * frame.yAxis.x + d.y * frame.yAxis.y + d.z * frame.yAxis.z,
+    };
+  }
+  if (axisName === "z") return { u: point.x, v: point.y };
+  if (axisName === "x") return { u: point.z, v: point.y };
+  return { u: point.x, v: point.z };
+}
+
+function mapSketchPoint(axisName, u, v, w) {
+  if (axisName === "z") return { x: u, y: v, z: w };
+  if (axisName === "x") return { x: w, y: v, z: u };
+  return { x: u, y: w, z: v };
+}
+
+/* Draft as a feature of its own, not a sub-parameter of an extrusion.
+   OCCT tilts each selected face about the line where it meets the neutral
+   plane, so that plane is a real input rather than something inferred: the same
+   faces at the same angle give a different solid depending on which end of the
+   pull direction keeps its size. The neutral plane is perpendicular to the pull
+   direction and sits at one extreme of the body along it (`neutral`), which is
+   where a parting line actually falls, plus an explicit offset. */
+export async function draftBrep(brep, angleDegrees, options = {}) {
+  if (!brep?.shape) throw new Error("Draft needs a BREP shape");
+  const oc = brep.oc || await loadCadKernel();
+  const faces = selectedBrepSubshapes(brep, "face", options.facePersistentIds || options.faces || []);
+  if (!faces.length) throw new Error("Draft has no resolved faces");
+  const angle = ((Number(angleDegrees) || 0) * Math.PI) / 180;
+  if (!Number.isFinite(angle) || Math.abs(angle) < 1e-9) throw new Error("Draft angle must be non-zero");
+  const axis = options.pullAxis === "x" ? "x" : options.pullAxis === "z" ? "z" : "y";
+  const sign = options.pullDirection === "reverse" ? -1 : 1;
+  const bounds = shapeBounds(oc, brep.shape);
+  if (!bounds) throw new Error("Draft body has no measurable bounds");
+  const owned = [];
+  try {
+    const at = (options.neutral === "start" ? bounds.min[axis] : bounds.max[axis]) + (Number(options.neutralOffset) || 0);
+    const centre = {
+      x: (bounds.min.x + bounds.max.x) / 2,
+      y: (bounds.min.y + bounds.max.y) / 2,
+      z: (bounds.min.z + bounds.max.z) / 2,
+    };
+    centre[axis] = at;
+    const point = new oc.gp_Pnt_3(centre.x, centre.y, centre.z); owned.push(point);
+    const normal = new oc.gp_Dir_4(axis === "x" ? 1 : 0, axis === "y" ? 1 : 0, axis === "z" ? 1 : 0); owned.push(normal);
+    const plane = new oc.gp_Pln_3(point, normal); owned.push(plane);
+    const pull = new oc.gp_Dir_4(axis === "x" ? sign : 0, axis === "y" ? sign : 0, axis === "z" ? sign : 0); owned.push(pull);
+    const maker = new oc.BRepOffsetAPI_DraftAngle_2(brep.shape); owned.push(maker);
+    const progress = new oc.Message_ProgressRange_1(); owned.push(progress);
+    // A face square to the pull direction has no line to tilt about. OCCT
+    // records that in AddDone() rather than throwing, so it is read back here
+    // instead of building a shape that silently ignored the selection.
+    faces.forEach((face) => maker.Add(face, pull, angle, plane, true));
+    if (!maker.AddDone()) throw new Error("Draft cannot tilt one of the selected faces about this neutral plane");
+    maker.Build(progress);
+    if (!maker.IsDone?.()) throw new Error("OpenCascade draft failed");
+    return { oc, shape: maker.Shape(), kind: "solid", operation: "draft" };
+  } finally { disposeAll(owned); }
+}
+
 // Convert any BREP (including booleans and fillets) to serialisable triangle
 // data for Three.js.  Keeping plain arrays on the document means the exact
 // result survives save/load without retaining WASM handles.
@@ -795,6 +1495,37 @@ export async function circularPatternBrep(source,params={}) {
   if(!source?.shape)throw new Error("Pattern seed is unavailable");const oc=source.oc || await loadCadKernel(),count=Math.max(1,Math.min(256,Math.round(Number(params.count)||1))),step=(Number(params.angle)||360/count)*Math.PI/180,copies=[source],skipped=new Set((params.skipIndices || []).map((value)=>Math.round(Number(value)))),distance=Number(params.radialDistance)||0;
   for(let index=1;index<count;index++){if(skipped.has(index))continue;const origin=new oc.gp_Pnt_3(params.axis==="x"?0:-distance,params.axis==="x"?-distance:0,0),direction=new oc.gp_Dir_4(params.axis==="x"?1:0,params.axis==="y"||!params.axis?1:0,params.axis==="z"?1:0),axis=new oc.gp_Ax1_2(origin,direction),trsf=new oc.gp_Trsf_1();let maker;try{trsf.SetRotation_1(axis,step*index);maker=new oc.BRepBuilderAPI_Transform_2(source.shape,trsf,true);copies.push({oc,shape:maker.Shape(),kind:"pattern-copy"});}finally{maker?.delete?.();trsf.delete();axis.delete();direction.delete();origin.delete();}}
   const result=await compoundBrep(copies);copies.slice(1).forEach((copy)=>disposeBrep(copy));return result;
+}
+
+/* A pattern along a curve. Each copy is one rigid transform — the rotation the
+   parallel-transport frame turned through, and the shift that puts the seed on
+   its station — so the kernel result carries the same orientation the viewport
+   draws rather than the bare offset a grid pattern would reduce it to.
+   gp_Trsf::SetValues takes the 3x4 row-major matrix directly; a frame's basis
+   is orthonormal by construction, which is what it insists on. */
+export async function curvePatternBrep(source, params = {}) {
+  if (!source?.shape) throw new Error("Pattern seed is unavailable");
+  const oc = source.oc || await loadCadKernel();
+  const placements = (Array.isArray(params.placements) ? params.placements : []).slice(0, 127);
+  const copies = [source];
+  try {
+    for (const placement of placements) {
+      const m = placement && placement.matrix, t = (placement && placement.translation) || { x: 0, y: 0, z: 0 };
+      if (!Array.isArray(m) || m.length !== 9) throw new Error("Curve pattern placement has no transform");
+      const trsf = new oc.gp_Trsf_1();
+      let maker;
+      try {
+        trsf.SetValues(
+          m[0], m[1], m[2], Number(t.x) || 0,
+          m[3], m[4], m[5], Number(t.y) || 0,
+          m[6], m[7], m[8], Number(t.z) || 0,
+        );
+        maker = new oc.BRepBuilderAPI_Transform_2(source.shape, trsf, true);
+        copies.push({ oc, shape: maker.Shape(), kind: "pattern-copy" });
+      } finally { maker?.delete?.(); trsf.delete(); }
+    }
+    return await compoundBrep(copies);
+  } finally { copies.slice(1).forEach((copy) => disposeBrep(copy)); }
 }
 
 export async function mirrorBrep(source, params = {}) {

@@ -53,20 +53,22 @@ import { mirrorEntities, linearPatternEntities, circularPatternEntities } from "
 import { addFeature, ensureFeatureTree, regenerateFeatures, releaseRegeneration } from "./cad_feature_tree.js";
 import {
   exportStep, exportIges, importStep,
-  makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, booleanBrep, chamferBrep, extractBrepTopology, filletBrep, shapeToMeshData, shellBrep, disposeBrep,
+  makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, booleanBrep, chamferBrep, draftBrep, extractBrepTopology, filletBrep, shapeToMeshData, moveBodyBrep, ribBrep, shellBrep, splitBrep, thickenBrep, disposeBrep,
   serializeBrep, transformBrep, translateBrep,
 } from "./cad_kernel.js";
 import { buildDrawingScene } from "./cad_drawings.js";
 import { SHEET_SIZES, STANDARD_SCALES, defaultViewLabel, ensureSheetDoc, scaleLabel, sceneToSvg } from "./cad_sheet.js";
 import { DRAWING_TOOLS, createDrawingController } from "./modeler_drawing.js";
 import { tessellateParts } from "./core/part_tessellate.js";
+import { KERNEL_BODY_KIND, buildKernelBrep, featureBuildsKernelBody, isKernelBody, kernelBodyBounds, kernelBodyMeshData, kernelBodySpec, meshDataBounds, offsetKernelBody } from "./core/kernel_body.js";
 import { addEdgeFlange, createSheetMetalPart, flatPattern } from "./cad_sheet_metal.js";
 import { mateFrameSupports, mateRequirementFor, solveTopologyMates, topologyReference } from "./cad_mates.js";
 import { eulerMatrix, normalizePose, setRotation } from "./cad_mate_model.js";
-import { analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
+import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
 import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
 import { createReferencePlane, createReferenceAxis, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
 import { sampleHelix, documentHelixOverlays, sweepUsesHelixPath } from "./cad_helix.js";
+import { loftSourceRecord, resolveSketchSources as resolveSweptSources, sketchWorldPoint, sweepSourceRecord } from "./core/swept_sources.js";
 import { createExplodedView, addExplodeStep, applyExplodedView } from "./cad_exploded_view.js";
 import { createMotionStudy, addRotaryMotor, evaluateMotionStudy } from "./cad_motion_study.js";
 import { detectInterference, generateBOM, computeMassProperties } from "./cad_interference.js";
@@ -104,6 +106,10 @@ import { buildTreeModel, findTreeNode } from "./core/tree_model.js";
 import { renderTreeModel } from "./modeler_tree.js";
 import { analyzeLegacyMigration, convertLegacyDocument, evaluateMigration, retainLegacySource, restoreLegacyDocument } from "./core/migration_check.js";
 import { applyTopologyRebindings, createTopologyReference, cutWallTopology, createTopologyRegistry, topologyForFeature, mergeSmoothTopology, isCylinderTessellationSeam, pointWithinCylinderArc, resolveFinishTargetIds, resolveMergedTopology, topologyDescriptorSignature, topologyMemberIds, edgeLiesOnFace, edgesBoundingFace, fitProfileCircle } from "./core/topology.js";
+import {
+  edgeEndpoints, growSelection, invertSelection, selectConnected, selectLoop,
+  selectTangentChain, shrinkSelection, vertexEntriesFrom,
+} from "./core/topology_selection.js";
 import { frameDirection, frameFromPlane, framePoint, frameProjectPoint, realignFrame } from "./core/frame.js";
 import {
   bodyDepthRange,
@@ -111,7 +117,7 @@ import {
   profileLoopIsSeparateHole,
 } from "./core/cut_scope.js";
 import { diagnosticHelp, groupDiagnostics, recommendedDiagnostic } from "./core/diagnostic_help.js";
-import { circularPatternPivot, circularPatternStepDegrees, linearPatternOffsets, parseSkippedPatternInstances, rotatedPatternBounds } from "./core/pattern_geometry.js";
+import { circularPatternPivot, circularPatternStepDegrees, curvePatternPath, curvePatternPlacements, linearPatternOffsets, parseSkippedPatternInstances, rotatedPatternBounds } from "./core/pattern_geometry.js";
 import { finalizeCabinetAdvancedDefinition, syncCabinetDefinition } from "./parametric_cabinet.js";
 import { assignCabinetManufacturing, CABINET_MANUFACTURING_ROLES } from "./core/cabinet_advanced.js";
 import { layoutCab } from "./cabinet.js";
@@ -126,7 +132,7 @@ import {
   featureField as featureFieldCore, readFeatureParameterForm, renderFeatureParameterForm as renderFeatureParameterFormCore,
 } from "./modeler_feature_form.js";
 import {
-  resolveAssemblyWorkflow, defaultSketchPlane, nextFeatureAfterFinishedSketch,
+  resolveAssemblyWorkflow, defaultSketchPlane, featuresForClosedProfile,
   resolveWorkflowStep, shouldResumeSketchSession, shouldSkipReferencePicker,
   sketchStartMode,
 } from "./modeler_workflow.js";
@@ -136,7 +142,7 @@ import {
 } from "./modeler_inference.js";
 import {
   boxSelectMode, boundsHitBox, confirmationCornerState, contextMenuItems,
-  contextToolbarItems, cycleOverlappingHits, featureHistoryIndex, gestureFromSwipe,
+  contextToolbarItems, cycleOverlappingHits, featureHistoryIndex, gestureFromSwipe, selectionMenuItems,
   selectionBreadcrumb, selectionFilterAllows, shortcutBarItems, VIEW_PRESETS,
 } from "./modeler_chrome.js";
 import {
@@ -148,6 +154,7 @@ import { welcomeGlyph } from "./modeler_welcome_glyphs.js";
 import { cadIcon } from "./modeler_icons.js";
 import { initModelerMobile, syncModelerMobile, teardownModelerMobile, showModelerSheet, closeModelerSheet, revealModelerFeatureForm } from "./modeler_mobile.js";
 import { chooseTopologyHit, circularEdgeSweep, filterTopologyHitsByClipPlane, topologyCandidateWorldThreshold, topologyLineWorldThreshold, topologyPickPixelRadius } from "./modeler_topology_pick.js";
+import { approximateFinishPreviewShapes, chamferVertex, filletVertex, insetLoop, pointInPoly } from "./modeler_finish_preview.js";
 import {
   NOTE_CATEGORIES,
   CURATED_SWATCHES,
@@ -163,1469 +170,41 @@ import {
   clearMarkupsFromDef,
   translateMarkups,
 } from "./modeler_notes_paint.js";
+/* The editor's string table and its local t()/tf() live in
+   js/modeler_strings.js — a flat [he, en] table, not js/i18n/*.js. */
+import { TXT, t, tf } from "./modeler_strings.js";
+/* Pure mesh/edge/face geometry, lifted out of this file; it never touches E. */
+import {
+  addMeshSharpEdges, analyticCurvedFace, buildExactMesh, circleDescriptorsMatch,
+  clearTopologyCache, distanceToCircularEdge, edgePoints, edgesGeometricallyMatch,
+  exactOverlayEntries, faceHighlightMesh, forEachCutLoop, geometryToMeshData,
+  hexNum, highlightIdsFor, holeAndCutEdges, holeAndCutFaces,
+  holeLoop, matchingMeshChain, meshCircleEntries, meshFaceEntries,
+  overlayEntryCache, profileAxisToWorld, profilePointToWorld, smoothFacesForMesh,
+  smoothTessellationNormals, topologyMergeCache, triangleSetForFace,
+} from "./modeler_mesh_geometry.js";
+/* Pure part geometry and the exact-kernel part recipe; it never touches E. */
+import {
+  FACE_DRIVEN_OPERATIONS, boxToExt, buildLoft, buildRev,
+  cloneData, cutFootprint, cutRangeForAxis, exactBrepForPart,
+  footprintHasPoint, footprintPoint, kernelRecipeBounds, loopCentroid,
+  migrateBoundaryChangingProfileCuts, mirrorProjectionPart, movePart, normalizeTransform,
+  partBounds, partNeedsExactMesh, partPatternRotations, partSupportsExactMesh,
+  placePatternCopy, resetClonedPartIdentity, revMaxR, rotPartY,
+  translateTopologyReferences,
+} from "./modeler_part_geometry.js";
+/* Pick-to-reference and reference-to-screen geometry; it never touches E. */
+import {
+  dedupeFinishRefs, dedupeTopologyCandidates, entryScreenBounds, finishEdgeKey,
+  finishEdgeLabel, getScratchCandidateBox, nearestCircularEdge, pickPointer, pickScratch,
+  projectToScreen, promotePickedEdge, sameFinishEdge, topologyReferenceFromEntry,
+  viewportRect,
+} from "./modeler_pick_geometry.js";
 
 var LS_MODELS = "home3d_models";
 var LS_ASSEMBLIES = "home3d_assemblies";
 var modelLibraryCache = [];
 
-/* ================= i18n (local, he/en) ================= */
-var TXT = {
-  title: ["עורך מודלים", "Model Editor"],
-  /* phone shell (js/modeler_mobile.js) */
-  view_iso: ["איזומטרי", "Isometric"],
-  m_accept: ["סיום", "Finish"],
-  m_cancel: ["ביטול", "Cancel"],
-  msheet_view: ["תצוגה", "View"],
-  msheet_mode: ["מצב מסמך", "Document mode"],
-  msheet_views: ["מבטים", "Standard views"],
-  msheet_doc: ["מסמך", "Document"],
-  msheet_actions: ["פעולות", "Actions"],
-  msheet_more: ["עוד", "More"],
-  mnav_commands: ["פקודות", "Commands"],
-  mnav_props: ["מאפיינים", "Properties"],
-  mnav_more: ["עוד", "More"],
-  guideMoreProjects: ["עוד פרויקטים", "More projects"],
-  guideMoreProjectsNote: ["מסלולים אלה נכתבו למסך רחב — חלק מהכלים נמצאים בגיליון פקודות או בעץ.", "These paths were written for a wide screen — some tools live in Commands or Tree on a phone."],
-  guideMoveCard: ["גררו להזזה", "Drag to move"],
-  coachStepSketchMobile: ["פתחו סקיצה על מישור ברירת המחדל והתחילו במלבן", "Start a sketch on the default plane with the rectangle tool"],
-  coachActSketchMobile: ["התחלת סקיצה", "Start sketch"],
-  name: ["שם המודל", "Model name"],
-  price: ["מחיר ₪", "Price ₪"],
-  save: ["שמור לספרייה", "Save to library"],
-  close: ["סגור", "Close"],
-  tool_select: ["בחירה / הזזה", "Select / move"],
-  tool_rect: ["מלבן (תיבה)", "Rectangle (box)"],
-  tool_circle: ["עיגול (גליל)", "Circle (cylinder)"],
-  tool_poly: ["מצולע ← אקסטרוד", "Polygon → extrude"],
-  tool_wall: ["קו סקיצה מחובר", "Connected sketch line"],
-  tool_sph: ["כדור", "Sphere"],
-  /* Short forms for the phone's view sheet: the axis hint is a desktop
-     nicety that wraps every Hebrew label onto a second line and pushes the
-     sheet past the fold. The plane is obvious once you are looking at it. */
-  view_top_short: ["מבט על", "Top"],
-  view_front_short: ["חזית", "Front"],
-  view_right_short: ["ימין", "Right"],
-  view_iso_short: ["איזומטרי", "Iso"],
-  view_top: ["מבט על (X·Z)", "Top (X·Z)"],
-  view_front: ["מבט חזית (X·Y)", "Front (X·Y)"],
-  view_side: ["מבט צד (Z·Y)", "Side (Z·Y)"],
-  view_right: ["מבט ימין (Z·Y)", "Right (Z·Y)"],
-  depth: ["עומק אקסטרוד", "Extrude depth"],
-  base: ["גובה בסיס", "Base offset"],
-  parts: ["חלקים", "Parts"],
-  inspector: ["מאפיינים", "Properties"],
-  material: ["חומר", "Material"],
-  color: ["צבע", "Color"],
-  metal: ["מתכתיות", "Metalness"],
-  rough: ["חספוס", "Roughness"],
-  opacity: ["אטימות", "Opacity"],
-  solidView: ["מוצק", "Solid"],
-  transparentView: ["שקוף", "Transparent"],
-  modelEdges: ["קצוות", "Edges"],
-  modelEdgesTip: ["הצג קצוות שחורות על המודל", "Show black model edges"],
-  viewportAppearance: ["תצוגה ותאורה", "Viewport & lighting"],
-  matchRoomLight: ["התאם את התאורה לחדר", "Match room light"],
-  matchRoomLightHint: ["השתמש באותו מקור, כיוון ומרחק של אור השמש בחדר", "Use the room sun's source, direction, and distance"],
-  lightAzimuth: ["כיוון אופקי", "Light direction"],
-  lightElevation: ["גובה האור", "Light elevation"],
-  lightDistance: ["מרחק המקור", "Source distance"],
-  modelColor: ["צבע המודל", "Model color"],
-  faceColor: ["צבע הפאה הנבחרת", "Selected face color"],
-  selectFaceForColor: ["בחרו פאה כדי לצבוע אותה בנפרד", "Select a face to color it separately"],
-  tool_paint: ["צביעה / חומר", "Paint tool"],
-  tool_paint_tip: ["צביעת פאות וחלקים ישירות בתלת-ממד (P / B)", "Paint faces and bodies directly in 3D (P / B)"],
-  paintHint: ["לחצו או גררו על פאה לצביעה · Alt לדגימת צבע (טפטפת)", "Click or drag across a face to paint · Alt to sample (eyedropper)"],
-  paintModeFace: ["פאה", "Face"],
-  paintModeBody: ["גוף / חלק", "Body"],
-  paintEyedropper: ["טפטפת (דגימת צבע)", "Eyedropper (Sample)"],
-  clearPaint: ["איפוס צבע פאה", "Clear face paint"],
-  tool_note: ["הערות וסימונים", "Notes & Markups"],
-  tool_note_tip: ["הוספת הערות תלת-ממדיות וסימוני עט חופשי (N)", "Add 3D annotation notes and freehand markups (N)"],
-  noteHint: ["לחצו על המודל להצמדת הערה 3D", "Click on the model to place a 3D annotation note"],
-  markupHint: ["גררו לציור חופשי מעל המודל", "Drag to draw freehand markups over model"],
-  noteModeCallout: ["הערת הצבעה", "Note Callout"],
-  noteModeMarkup: ["עט סימון", "Freehand Pen"],
-  noteModeEraser: ["מחק", "Eraser"],
-  notesAnnotations: ["הערות וסימונים", "Notes & Annotations"],
-  noNotesYet: ["אין הערות במודל", "No notes on this model yet"],
-  noteEditorTitle: ["עריכת הערה", "Edit Note"],
-  notePlaceholder: ["הקלידו הערה או הנחיה...", "Type note or specification..."],
-  noteDelete: ["מחק הערה", "Delete note"],
-  noteDone: ["סיום", "Done"],
-  toggleNotes: ["הצג/הסתר הערות וסימונים", "Show/hide notes and markups"],
-  clearMarkups: ["נקה סימוני עט", "Clear freehand markups"],
-  startPainting: ["הפעל כלי צביעה", "Interactive Paint Tool"],
-  paintFace: ["צביעת פאה", "Paint face"],
-  paintBody: ["צביעת חלק", "Paint body"],
-  addNote: ["הוספת הערה 3D", "Add 3D note"],
-  editNote: ["עריכת הערה", "Edit note"],
-  deleteNote: ["מחיקת הערה", "Delete note"],
-  addMarkup: ["סימון עט חופשי", "Freehand markup"],
-  eraseMarkup: ["מחיקת סימון", "Erase markup"],
-  edgeColor: ["צבע קצוות", "Edge color"],
-  selectedEdgeColor: ["קצה נבחר", "Selected edge"],
-  selectionFaceColor: ["הדגשת פאה", "Selected face highlight"],
-  hoverColor: ["הדגשת ריחוף", "Hover highlight"],
-  texture: ["טקסטורה אישית", "Custom image"],
-  textureGallery: ["חיפוש בגלריה", "Gallery search"],
-  clearTex: ["הסר טקסטורה", "Remove texture"],
-  dup: ["שכפל", "Duplicate"],
-  del: ["מחק", "Delete"],
-  mirrorX: ["שיקוף X", "Mirror X"],
-  centerX: ["מרכז X", "Center X"],
-  centerZ: ["מרכז Z", "Center Z"],
-  floor: ["הצמד לרצפה", "Snap to floor"],
-  constraints: ["אילוצים", "Constraints"],
-  snap: ["הצמדה לרשת", "Grid snap"],
-  ortho: ["אילוץ ניצב (Shift)", "Ortho lock (Shift)"],
-  dimHint: ["לחיצה כפולה על צלע: קביעת אורך", "Dbl-click an edge: set its length"],
-  library: ["מודלים שמורים", "Saved models"],
-  load: ["טען", "Load"],
-  newModel: ["מודל חדש", "New model"],
-  saved: ["המודל נשמר לספרייה", "Model saved to library"],
-  needParts: ["הוסיפו לפחות חלק אחד", "Add at least one part"],
-  polyHint: ["קליק: נקודה · קליק כפול/Enter: סגירה ואקסטרוד · Esc: ביטול", "Click: point · Dbl-click/Enter: close & extrude · Esc: cancel"],
-  // editModel / openModeler moved to js/modeler_launch.js with their buttons
-  segLen: ["אורך צלע (ס\"מ):", "Edge length (cm):"],
-  undo: ["בטל", "Undo"],
-  redo: ["בצע שוב", "Redo"],
-  osnap: ["הצמדה לאובייקטים", "Object snap"],
-  tool_cut: ["חיתוך מצולע (חור)", "Polygon cut (hole)"],
-  tool_cutc: ["חיתוך עגול (קדח)", "Circular cut (bore)"],
-  cutHint: ["שרטטו את קו החיתוך על חלק קיים · קליק כפול/Enter: ביצוע חיתוך", "Sketch the cut on an existing part · Dbl-click/Enter: apply cut"],
-  cutcHint: ["גררו ממרכז הקדח החוצה על חלק קיים", "Drag from bore center outward on an existing part"],
-  cutDone: ["החיתוך בוצע", "Cut applied"],
-  cutNone: ["אין חלק מתאים מתחת לחיתוך (עובד על אקסטרוזיה, תיבה, גליל, סיבוב ולופט)", "No suitable body under the cut (works on extrude, box, cylinder, revolve and loft)"],
-  cutSkipped: ["לא נחתך", "not cut"],
-  fillet: ["רדיוס פינה, או c+מרחק לקיטום ישר (למשל 5 או c5):", "Corner radius, or c+distance for a chamfer (e.g. 5 or c5):"],
-  vertexHint: ["לחיצה כפולה על פינה: Fillet/Chamfer", "Dbl-click a corner: fillet/chamfer"],
-  patLin: ["מערך ליניארי", "Linear pattern"],
-  patCirc: ["מערך מעגלי", "Circular pattern"],
-  patCount: ["מספר עותקים (כולל המקור):", "Instance count (incl. original):"],
-  patStep: ["מרווח dx,dy,dz בס\"מ:", "Spacing dx,dy,dz in cm:"],
-  patAngle: ["זווית כוללת במעלות (360=מעגל שלם):", "Total angle in degrees (360=full circle):"],
-  patSkip: ["חלק זה אינו נתמך במערך מעגלי", "This part type is unsupported in a circular pattern"],
-  tool_rev: ["גוף סיבוב (Revolve)", "Revolve"],
-  revHint: ["שרטטו פרופיל (חצי חתך) · הציר האנכי הכחול הוא ציר הסיבוב · קליק כפול/Enter: סיום", "Sketch a half-profile · the blue vertical axis is the revolve axis · Dbl-click/Enter: finish"],
-  shellOp: ["ריקון (Shell)", "Shell"],
-  shellT: ["עובי דופן בס\"מ:", "Wall thickness (cm):"],
-  shellFail: ["לא ניתן לרוקן את החלק הזה (נתמך: אקסטרוד/תיבה/גליל ישר)", "Cannot shell this part (supported: extrude/box/straight cylinder)"],
-  loftOp: ["Loft / פחיסה", "Loft / Taper"],
-  loftScale: ["קנה־מידה של הפרופיל העליון (למשל 0.5):", "Top profile scale (e.g. 0.5):"],
-  loftOff: ["היסט הפרופיל העליון du,dv בס\"מ:", "Top profile offset du,dv (cm):"],
-  loftFail: ["Loft נתמך רק על חלקי אקסטרוד (ללא חורים)", "Loft works on extrude parts without holes"],
-  /* step names for the history list — what the panel calls each operation */
-  hint3d: ["גררו לסיבוב · שלוש אצבעות או Shift+גרירה להזזה · גלגלת לזום", "Drag to orbit · 3-finger or Shift-drag to pan · wheel to zoom"],
-  hint3dTouch: ["גרירה = סיבוב · שתי אצבעות = הזזה · צביטה = זום · לחיצה ארוכה = בחירה מדויקת", "Drag to orbit · two fingers to pan · pinch to zoom · long-press for precise selection"],
-  touchAddSelection: ["הוספה לבחירה", "Add to selection"],
-  touchReplaceSelection: ["החלפת בחירה", "Replace selection"],
-  touchClearSelection: ["ניקוי", "Clear"],
-  touchSelectThrough: ["בחירה דרך", "Select through"],
-  mode2d: ["שרטוט", "Sketch"],
-  mode3d: ["מודל", "Model"],
-  modeDrawing: ["גיליון", "Drawing"],
-  drawingHint: ["גיליון שרטוט · גררו מבט לאורך קו ההיטל · D למידה · S לחתך", "Drawing sheet · drag a view along its projection line · D to dimension · S to section"],
-  drawToolSelect: ["בחירה", "Select"],
-  drawToolDim: ["מידה", "Dimension"],
-  drawToolDiam: ["קוטר / רדיוס", "Diameter / radius"],
-  drawToolNote: ["הערה", "Note"],
-  drawToolSection: ["חתך", "Section"],
-  drawToolDetail: ["פרט מוגדל", "Detail"],
-  drawDimHint: ["בחרו נקודה, נקודה שנייה, ואז לחצו במקום שבו המידה תשב", "Pick a point, pick a second, then click where the dimension line goes"],
-  drawDiamHint: ["לחצו על מעגל כדי למדוד קוטר או רדיוס", "Click a circle to dimension its diameter or radius"],
-  drawSectionHint: ["גררו קו חתך על פני מבט · כיוון הגרירה הוא כיוון ההסתכלות", "Drag a cutting line across a view · the drag direction is the direction of sight"],
-  drawDetailHint: ["גררו עיגול סביב האזור שיוגדל", "Drag a circle around the area to enlarge"],
-  drawNoteHint: ["הערה על הגיליון · לחצו על גאומטריה כדי לצרף חץ", "A note on the sheet · click geometry first to attach a leader"],
-  drawNoteTitle: ["טקסט הערה", "Note text"],
-  drawDimTextTitle: ["טקסט מידה", "Dimension text"],
-  drawSnapNone: ["אין נקודת אחיזה כאן — כוונו לקצה, לאמצע או למרכז", "Nothing to snap to — aim at an end, a midpoint or a centre"],
-  drawPickCircle: ["לחצו על מעגל", "Click a circle"],
-  drawPickParent: ["בחרו קודם מבט אורתוגרפי", "Start on an orthographic view"],
-  drawSectionAdded: ["מבט חתך נוסף", "Section view added"],
-  drawDetailAdded: ["מבט פרט נוסף", "Detail view added"],
-  drawDetailSmall: ["העיגול קטן מדי", "That callout circle is too small"],
-  drawKeepOneView: ["גיליון חייב מבט אחד לפחות", "A sheet keeps at least one view"],
-  drawNoGeometry: ["אין גאומטריה למדוד", "No geometry to measure"],
-  drawExported: ["גיליון יוצא כ־SVG", "Sheet exported as SVG"],
-  drawPrintFailed: ["ההדפסה נחסמה על ידי הדפדפן", "The browser blocked printing"],
-  drawAutoDim: ["מידות כלליות", "Overall dims"],
-  drawHiddenLines: ["קווים נסתרים", "Hidden lines"],
-  drawPrint: ["הדפסה", "Print"],
-  drawExportSvg: ["ייצוא SVG", "Export SVG"],
-  sheetSetup: ["גיליון", "Sheet"],
-  sheetSize: ["גודל", "Size"],
-  sheetOrientation: ["כיוון", "Orientation"],
-  sheetLandscape: ["לרוחב", "Landscape"],
-  sheetPortrait: ["לאורך", "Portrait"],
-  sheetScale: ["קנה מידה", "Scale"],
-  sheetScaleFit: ["התאמה אוטומטית", "Fit to sheet"],
-  sheetUnits: ["יחידות", "Units"],
-  sheetProjection: ["זווית היטל", "Projection"],
-  sheetThirdAngle: ["זווית שלישית", "Third angle"],
-  sheetFirstAngle: ["זווית ראשונה", "First angle"],
-  sheetShowCenters: ["סימוני מרכז", "Centre marks"],
-  sheetShowZones: ["אזורי גיליון", "Zone marks"],
-  sheetRelayout: ["סידור מחדש", "Re-lay out views"],
-  sheetViews: ["מבטים", "Views"],
-  sheetAddView: ["הוספת מבט", "Add view"],
-  sheetViewScale: ["קנה מידה של המבט", "View scale"],
-  sheetInherit: ["כמו הגיליון", "As sheet"],
-  drawOn: ["מוצג", "Shown"],
-  drawOff: ["מוסתר", "Hidden"],
-  sheetTitleBlock: ["בלוק כותרת", "Title block"],
-  tbTitle: ["שם", "Title"],
-  tbNumber: ["מספר שרטוט", "Drawing no."],
-  tbRev: ["מהדורה", "Rev"],
-  tbAuthor: ["שורטט", "Drawn by"],
-  tbCompany: ["חברה", "Company"],
-  tbMaterial: ["חומר", "Material"],
-  tbFinish: ["גימור", "Finish"],
-  tbMass: ["מסה", "Mass"],
-  tbDate: ["תאריך", "Date"],
-  tbTolerance: ["סבולת כללית", "General tolerance"],
-  opAddDim: ["הוספת מידה", "Add dimension"],
-  opEditDim: ["עריכת מידה", "Edit dimension"],
-  opDeleteDim: ["מחיקת מידה", "Delete dimension"],
-  opAddNote: ["הוספת הערה", "Add note"],
-  opEditNote: ["עריכת הערה", "Edit note"],
-  opDeleteNote: ["מחיקת הערה", "Delete note"],
-  opAddView: ["הוספת מבט", "Add view"],
-  opDeleteView: ["מחיקת מבט", "Delete view"],
-  opSheetSetup: ["הגדרות גיליון", "Sheet setup"],
-  opSheetTitle: ["בלוק כותרת", "Title block"],
-  panDrawing: ["הזזת גיליון", "Pan sheet"],
-  opMoveDim: ["הזזת מידה", "Move dimension"],
-  modelPlaneHint: ["עבודה על מישור", "Working plane"],
-  exitPlane: ["סיום עבודה על המישור", "Finish plane editing"],
-  quickTools: ["מידול מהיר", "Quick model"],
-  quickValue: ["ערך", "Value"],
-  quickApply: ["החל", "Apply"],
-  quickNeedPart: ["בחרו חלק מהמודל או מעץ החלקים", "Select a part in the model or parts tree"],
-  quickNeedSketch: ["נדרשת סקיצה סגורה עבור Extrude", "A closed sketch is required for Extrude"],
-  quickFillet: ["עיגול פינות", "Fillet"],
-  quickChamfer: ["קיטום פינות", "Chamfer"],
-  needEdges: ["בחרו פאה או קצה אחד או יותר בתצוגת התלת־ממד", "Select a face or one or more edges in the 3D view first"],
-  selKindEdge: ["קצוות", "edge(s)"],
-  selKindFace: ["פאות", "face(s)"],
-  selKindMixed: ["ישויות", "references"],
-  selCountTip: ["נבחרו · Ctrl/Cmd מוסיף או מסיר", "selected · Ctrl/Cmd-click adds or removes"],
-  selCountTipTouch: ["נבחרו", "selected"],
-  finishEdges: ["קצוות", "Edges"],
-  selectAllEdges: ["כל הקצוות", "All edges"],
-  clearEdges: ["ניקוי", "None"],
-  clickEdgesHint: ["צהוב = קצה לבחירה, כתום = נבחר. לחצו על קצה או על פאה. All = כל קצוות הגוף.", "Yellow = clickable edge, orange = selected. Click an edge or a face. All = every edge of the body."],
-  appliedFeature: ["הוחל", "applied"],
-  needFace: ["בחרו פאה בתצוגת התלת־ממד", "Select a face in the 3D view first"],
-  prefNormalTo: ["בפתיחת סקיצה הסתכלו בניצב למישור (Normal To)", "Look straight at the sketch plane when it opens (Normal To)"],
-  prefAutoDim: ["הפוך ערך שהוקלד למידה מניעה", "Typed value becomes a driving dimension"],
-  normalTo: ["ניצב למישור", "Normal to"],
-  sketchingOn: ["סקיצה על", "Sketching on"],
-  changePlane: ["שינוי", "Change"],
-  quickHole: ["קדח", "Hole"],
-  quickPattern: ["מערך", "Pattern"],
-  quickMirror: ["שיקוף", "Mirror"],
-  quickDuplicate: ["שכפול", "Duplicate"],
-  opDraw: ["שרטוט חלק", "Draw part"],
-  opRevolve: ["גוף סיבוב", "Revolve"],
-  opCut: ["חיתוך", "Cut"],
-  opExtrude: ["אקסטרוד", "Extrude"],
-  opMove: ["הזזת חלק", "Move part"],
-  opVertex: ["הזזת פינה", "Move vertex"],
-  opFillet: ["עיגול פינה", "Fillet corner"],
-  opSegLen: ["אורך צלע", "Edge length"],
-  opProp: ["שינוי מאפיין", "Change property"],
-  opTexture: ["טקסטורה", "Texture"],
-  /* ---- panel chrome: icon groups, tabs, empty states ---- */
-  grpCreate: ["יצירה", "Create"],
-  grpModel: ["מודל", "Model"],
-  grpPart: ["חלק נבחר", "Selected part"],
-  tabParts: ["חלקים", "Parts"],
-  tabLib: ["מודלים שמורים", "Saved models"],
-  tabSet: ["הגדרות שרטוט", "Sketch settings"],
-  tabShape: ["צורה ומידות", "Shape & size"],
-  tabLook: ["חומר וגימור", "Material & finish"],
-  tabOps: ["פעולות על החלק", "Part operations"],
-  tabHist: ["היסטוריה", "History"],
-  /* the tab strips show their caption now instead of hiding it in a tooltip,
-     so each pane needs a name that survives a 60px-wide tab */
-  tabTreeShort: ["עץ", "Tree"],
-  tabTreeLong: ["עץ התכן וההיסטוריה", "Design tree & history"],
-  tabLibShort: ["ספרייה", "Library"],
-  tabSetShort: ["הגדרות", "Settings"],
-  tabSketchShort: ["סקיצה", "Sketch"],
-  tabShapeShort: ["צורה", "Shape"],
-  tabLookShort: ["גימור", "Finish"],
-  tabOpsShort: ["פעולות", "Ops"],
-  tabHistShort: ["היסטוריה", "History"],
-  noSel: ["לא נבחר חלק", "No part selected"],
-  noSelHint: ["בחרו חלק בשרטוט או ברשימת החלקים", "Pick a part on the canvas or in the parts list"],
-  noParts: ["התחילו בסקיצה", "Start with a sketch"],
-  noPartsHint: ["לחצו ׳התחלת סקיצה׳ — היא נפתחת על המישור העליון עם כלי המלבן. מישור אחר: לשונית הייחוס למעלה.", "Tap Start sketch — it opens on the Top plane with the rectangle tool. Another plane: the Reference step above."],
-  noLib: ["אין עדיין מודלים שמורים", "Nothing saved yet"],
-  noLibHint: ["\"שמור לספרייה\" מוסיף את המודל לקטלוג", "\"Save to library\" adds this model to the catalog"],
-  partName: ["שם החלק", "Part name"],
-  partCount: ["חלקים", "parts"],
-  views: ["מבט", "View"],
-  zoomIn: ["התקרב", "Zoom in"],
-  zoomOut: ["התרחק", "Zoom out"],
-  zoomFit: ["התאם לתצוגה", "Zoom to fit"],
-  sectionView: ["מבט חתך", "Section view"],
-  sectionAxis: ["ציר חיתוך", "Section axis"],
-  sectionOffset: ["מיקום החתך", "Section position"],
-  sectionFlip: ["הפוך צד", "Flip side"],
-  sectionClose: ["סגור חתך", "Close section"],
-  advancedDiagnostics: ["אבחון מתקדם", "Advanced diagnostics"],
-  toggleTree: ["הצג או הסתר עץ", "Show or hide tree"],
-  toggleInspector: ["הצג או הסתר מאפיינים", "Show or hide inspector"],
-  delModel: ["מחק מהספרייה", "Delete from library"],
-  askDel: ["למחוק את המודל מהספרייה?", "Delete this model from the library?"],
-  opAlign: ["יישור", "Align"],
-  opCopy: ["שכפול", "Duplicate"],
-  opShape: ["עריכת צורה", "Reshape"],
-  keysTitle: ["קיצורי מקלדת", "Keyboard shortcuts"],
-  size: ["מידות המודל", "Model size"],
-  contextRoom: ["בתוך החדר", "In the room"],
-  loftNoTex: ["לגוף Loft אין מיפוי טקסטורה — צבע בלבד", "Lofted geometry has no UVs — colour only"],
-  gridSize: ["צעד רשת", "Grid step"],
-  wallWidth: ["עובי תצוגת קו", "Line display weight"],
-  wallHint: ["קליק: נקודה הבאה · הקלידו אורך, Tab וזווית, Enter · Enter נוסף לסיום", "Click the next point · type length, Tab and angle, Enter · Enter again to finish"],
-  constraintLength: ["אילוץ אורך", "Length constraint"],
-  constraintAngle: ["אילוץ זווית", "Angle constraint"],
-  constraintDriven: ["המידות נשמרות כאילוצים וניתנות לעריכה", "Dimensions are saved as editable constraints"],
-  docPart: ["חלק", "Part"],
-  docAssembly: ["הרכבה", "Assembly"],
-  components: ["רכיבים", "Components"],
-  addComponent: ["הוסף רכיב", "Insert component"],
-  noComponents: ["אין רכיבים בהרכבה", "No components in this assembly"],
-  noComponentsHint: ["שמרו חלקים לספרייה ואז הוסיפו אותם להרכבה", "Save parts to the library, then insert them into the assembly"],
-  emptyLibTitle: ["ספריית המודלים ריקה", "Your model library is empty"],
-  emptyLibHint: ["רכיבים בהרכבה מגיעים ממודלים שמורים. שמרו חלק לספרייה, או הריצו את מדריך ההרכבה שמוסיף שני רכיבי תרגול.", "Assembly components come from saved models. Save a part to the library, or run the assembly tutorial — it adds two practice components for you."],
-  runAssemblyGuide: ["פתחו את מדריך ההרכבה", "Run the assembly tutorial"],
-  assemblyName: ["שם ההרכבה", "Assembly name"],
-  saveAssembly: ["שמור הרכבה", "Save assembly"],
-  newAssembly: ["הרכבה חדשה", "New assembly"],
-  assemblies: ["הרכבות שמורות", "Saved assemblies"],
-  transform: ["מיקום וסיבוב", "Position & rotation"],
-  grounded: ["מקובע", "Grounded"],
-  visible: ["מוצג", "Visible"],
-  mate: ["Mate / אילוץ הרכבה", "Assembly mate"],
-  mateHint: ["בחרו שני רכיבים עם Ctrl/Cmd ואז הוסיפו Mate", "Ctrl/Cmd-select two components, then add a mate"],
-  mateX: ["יישור X", "Align X"],
-  mateY: ["יישור Y", "Align Y"],
-  mateZ: ["יישור Z", "Align Z"],
-  mateDistance: ["מרחק X", "X distance"],
-  mateDistanceHint: ["המרחק לאורך X בין שני הרכיבים הנבחרים", "Distance along X between the two selected components"],
-  savedAssembly: ["ההרכבה נשמרה", "Assembly saved"],
-  regenerate: ["בנה מחדש BREP", "Regenerate BREP"],
-  stepImport: ["ייבוא STEP", "Import STEP"],
-  stepExport: ["ייצוא STEP", "Export STEP"],
-  drawingExport: ["שרטוט SVG", "Drawing SVG"],
-  sheetMetal: ["פח", "Sheet metal"],
-  kernelReady: ["גאומטריית BREP נבנתה", "BREP geometry regenerated"],
-  kernelBusy: ["טוען מנוע CAD…", "Loading CAD kernel…"],
-  exactBuilding: ["בונה חיתוך BREP מדויק…", "Building exact BREP boolean…"],
-  exactReady: ["גוף BREP מדויק", "Exact BREP solid"],
-  exactFailed: ["בניית הגוף המדויק נכשלה", "Exact solid build failed"],
-  topologySelection: ["בחירת טופולוגיה", "Topology selection"],
-  clearTopologySelection: ["נקה בחירה", "Clear selection"],
-  /* ---- parametric sketcher ---- */
-  grpSketch: ["סקיצה", "Sketch"],
-  grpSketchEdit: ["עריכת סקיצה", "Sketch edit"],
-  grpRelations: ["יחסים", "Relations"],
-  tool_scirc: ["מעגל סקיצה", "Sketch circle"],
-  tool_srect: ["מלבן סקיצה", "Sketch rectangle"],
-  tool_sarc: ["קשת סקיצה", "Sketch arc"],
-  tool_sslot: ["חריץ", "Slot"],
-  tool_spoly: ["מצולע משוכלל", "Regular polygon"],
-  tool_sell: ["אליפסה", "Ellipse"],
-  /* Ribbon captions. The group heading above them already says "Sketch", so
-     these drop the noun the full name repeats and the tab stops overflowing. */
-  cap_select: ["בחירה", "Select"],
-  cap_wall: ["קו", "Line"],
-  cap_srect: ["מלבן", "Rectangle"],
-  cap_scirc: ["מעגל", "Circle"],
-  cap_sarc: ["קשת", "Arc"],
-  cap_spoly: ["מצולע", "Polygon"],
-  cap_dim: ["מידה", "Dimension"],
-  cap_constr: ["קו עזר", "Construction"],
-  cap_project: ["הטלה", "Project"],
-  cap_pattern: ["ליניארי", "Linear"],
-  cap_circpattern: ["מעגלי", "Circular"],
-  slotHint: ["קליק: התחלת ציר · קליק: סוף · קליק: רוחב · הקלידו מספר לערך מדויק", "Click: centreline start · click: end · click: width · type a number for an exact value"],
-  ellipseHint: ["קליק: מרכז · קליק: קצה הציר הראשי · קליק: רדיוס משני", "Click: centre · click: major axis end · click: minor radius"],
-  polygonHint: ["גררו מהמרכז לקודקוד · הקלידו מספר צלעות ב-Tab", "Drag centre → corner · Tab to type the side count"],
-  twoPointHint: ["גררו, או קליק־קליק · הקלידו מידה ואז Enter", "Drag, or click twice · type a size then Enter"],
-  sketchCircPattern: ["מערך מעגלי", "Circular pattern"],
-  circPatternNeed: ["בחרו ישויות ונקודת מרכז (או מעגל שמרכזו הציר)", "Select entities plus a centre point (or a circle whose centre is the axis)"],
-  circPatternAngle: ["זווית בין עותקים (מעלות)", "Angle between copies (degrees)"],
-  dyn_length: ["אורך", "L"],
-  dyn_angle: ["זווית", "A"],
-  dyn_width: ["רוחב", "W"],
-  dyn_height: ["גובה", "H"],
-  dyn_diameter: ["קוטר", "Ø"],
-  dyn_major: ["ציר ראשי", "Major"],
-  dyn_minor: ["ציר משני", "Minor"],
-  dyn_sides: ["צלעות", "Sides"],
-  tool_trim: ["גזירה", "Trim"],
-  tool_extend: ["הארכה", "Extend"],
-  tool_offset: ["היסט", "Offset"],
-  tool_dim: ["מידה חכמה", "Smart dimension"],
-  tool_constr: ["קו עזר", "Construction toggle"],
-  tabSketch: ["סקיצה ואילוצים", "Sketch & constraints"],
-  arcHint: ["קליק: מרכז · קליק: התחלה · קליק: סוף", "Click: centre · click: start · click: end"],
-  trimHint: ["לחצו על הקטע שברצונכם להסיר", "Click the piece you want gone"],
-  extendHint: ["לחצו קרוב לקצה שיש להאריך", "Click near the end you want extended"],
-  offsetHint: ["לחצו על ישות כדי להעתיקה במרחק", "Click an entity to copy it at a distance"],
-  dimHint2: ["לחצו על ישות (או שתי נקודות) כדי למדוד ולנעול", "Click an entity (or two points) to measure and lock it"],
-  offsetAsk: ["מרחק היסט בס\"מ (שלילי = הצד השני)", "Offset distance in cm (negative = other side)"],
-  offsetNeedDistance: ["הזינו מרחק היסט שאינו אפס", "Enter an offset distance other than zero"],
-  offsetFail: ["לא ניתן להסיט את הישות הזו", "That entity cannot be offset"],
-  trimLineOnly: ["גזירה פועלת על קווים ישרים בלבד — מעגלים, קשתות ואליפסות אינם נגזרים", "Trim works on straight lines only — circles, arcs and ellipses are not trimmed"],
-  extendLineOnly: ["הארכה פועלת על קווים ישרים בלבד — מעגלים, קשתות ואליפסות אינם מוארכים", "Extend works on straight lines only — circles, arcs and ellipses are not extended"],
-  extendNoTarget: ["אין גאומטריה מעבר לקצה הזה להאריך אליה", "Nothing beyond that end to extend to"],
-  dimAsk: ["ערך המידה:", "Dimension value:"],
-  dimEditorTitle: ["מידה חכמה", "Smart dimension"],
-  dimValue: ["ערך", "Value"],
-  dimMode: ["מצב", "Mode"],
-  dimDriving: ["מניעה", "Driving"],
-  dimReference: ["ייחוס", "Reference"],
-  dimNameOptional: ["שם (אופציונלי)", "Name (optional)"],
-  dimDelete: ["מחק מידה", "Delete dimension"],
-  dimApply: ["החל מידה", "Apply dimension"],
-  dofFull: ["מוגדר במלואו", "Fully defined"],
-  dofUnder: ["דרגות חופש", "DOF"],
-  dofOver: ["מוגדר יתר על המידה", "Over-defined"],
-  dofConflict: ["אילוצים סותרים", "Conflicting constraints"],
-  noSketch: ["הסקיצה ריקה", "The sketch is empty"],
-  noSketchHint: ["ציירו קו, מעגל או קשת ואז הוסיפו אילוצים", "Draw a line, circle or arc, then add constraints"],
-  selHint: ["בחרו ישות (Ctrl/Cmd לבחירה מרובה) כדי להפעיל אילוץ", "Select entities (Ctrl/Cmd for more than one) to apply a constraint"],
-  cCoincident: ["מתלכדות", "Coincident"],
-  cHorizontal: ["אופקי", "Horizontal"],
-  cVertical: ["אנכי", "Vertical"],
-  cParallel: ["מקביל", "Parallel"],
-  cPerpendicular: ["ניצב", "Perpendicular"],
-  cTangent: ["משיק", "Tangent"],
-  cEqual: ["שווה", "Equal"],
-  cConcentric: ["קונצנטרי", "Concentric"],
-  cMidpoint: ["אמצע", "Midpoint"],
-  cSymmetric: ["סימטרי", "Symmetric"],
-  cFixed: ["קיבוע", "Fix"],
-  cPointOnLine: ["נקודה על ישות", "Point on entity"],
-  needSel: ["הבחירה אינה מתאימה לאילוץ הזה", "That selection does not fit this constraint"],
-  overDefined: ["האילוץ סותר את הקיימים — בוטל", "That constraint fights the existing ones — undone"],
-  constraintList: ["אילוצים בסקיצה", "Sketch constraints"],
-  suppress: ["השהה", "Suppress"],
-  suppressedWith: ["הושהו יחד עם זה:", "Suppressed with it:"],
-  unsuppressedWith: ["הופעלו מחדש יחד עם זה:", "Unsuppressed with it:"],
-  opSketch: ["סקיצה", "Sketch"],
-  opConstraint: ["אילוץ", "Constraint"],
-  opDim: ["מידה", "Dimension"],
-  opTrim: ["גזירה", "Trim"],
-  opDragPt: ["גרירת נקודה", "Drag point"],
-  projectEdges: ["הטל קצוות חלק", "Project part edges"],
-  projectEdgesTip: ["הטלת מתאר הגופים כפי שהוא נראה במישור הסקיצה, כגאומטריית עזר (אין המרה של קצוות BREP)", "Project the bodies' outline as seen on this sketch plane, as construction geometry (it does not convert BREP edges)"],
-  sketches: ["סקיצות", "Sketches"],
-  sketch: ["סקיצה", "Sketch"],
-  equations: ["משתנים ומשוואות", "Variables & equations"],
-  addVariable: ["משתנה חדש", "New variable"],
-  varName: ["שם", "Name"],
-  varExpr: ["ערך או ביטוי", "Value or expression"],
-  dimName: ["שם המידה", "Dimension name"],
-  badName: ["השם אינו חוקי או תפוס", "That name is invalid or already taken"],
-  eqHelp: ["אפשר לכתוב מידה כפונקציה של אחרת, למשל Width / 2", "Write one dimension in terms of another, e.g. Width / 2"],
-  sketchMirror: ["שיקוף", "Mirror"],
-  sketchPattern: ["מערך ליניארי", "Linear pattern"],
-  mirrorNeed: ["בחרו ישויות ואת קו השיקוף אחרון", "Select the entities, then the mirror line last"],
-  patternAsk: ["מספר עותקים (כולל המקור)", "Copies (including the original)"],
-  patternPitch: ["מרווח בס\"מ (שלילי = הכיוון ההפוך)", "Pitch in cm (negative reverses it)"],
-  patternDir: ["כיוון", "Direction"],
-  patternDirU: ["u — לרוחב", "u — across"],
-  patternDirV: ["v — לגובה", "v — up"],
-  patternBadInput: ["מספר העותקים והמרווח חייבים להיות מספרים תקינים", "Copies and pitch both need a valid number"],
-  patternMade: ["המערך נוצר — המרווח הוא מידה שאפשר לנעול או לקשור למשוואה", "Pattern created — its pitch is a dimension you can name or drive with an equation"],
-  mirrorMade: ["השיקוף נוצר וקשור לקו — הזזת המקור תזיז גם אותו", "Mirrored and tied to the line — moving the original moves the copy"],
-  patternFail: ["לא ניתן ליצור מערך מהבחירה הזו", "That selection cannot be patterned"],
-  profileBroken: ["הפרופיל בסקיצה נשבר — מוצגת הצורה האחרונה התקינה", "This feature's sketch profile is broken — showing its last good shape"],
-  newSketch: ["סקיצה חדשה במישור הזה", "New sketch on this plane"],
-  sketchPlane: ["מישור הסקיצה", "Sketch plane"],
-  sketchOffset: ["היסט", "Offset"],
-  /* ---- feature history ---- */
-  featureTree: ["עץ הפעולות", "Feature tree"],
-  brepTree: ["פעולות BREP", "BREP features"],
-  reorder: ["גררו לשינוי הסדר", "Drag to reorder"],
-  unsuppress: ["הפעל מחדש", "Unsuppress"],
-  rollbackTo: ["גלגל לכאן", "Roll back to here"],
-  rollbackBar: ["סרגל הגלגול", "Rollback bar"],
-  rollbackRelease: ["לחיצה כפולה: שחרור לסוף", "Double-click: release to the end"],
-  historyMoveUp: ["העבר שלב למעלה", "Move history step up"],
-  historyMoveDown: ["העבר שלב למטה", "Move history step down"],
-  designHistory: ["היסטוריית תכן", "Design history"],
-  sessionHistory: ["שינויים בפעילות הנוכחית", "Session edits"],
-  noDesignHistory: ["עדיין אין שלבי תכן", "No design steps yet"],
-  rolledNote: ["חלק מהפעולות מגולגלות ואינן נבנות", "Some features are rolled back and are not being built"],
-  /* ---- unified FeatureManager tree ---- */
-  treeDocument: ["מסמך", "Document"],
-  treeBodies: ["גופים", "Solid Bodies"],
-  treeNoMaterial: ["חומר <לא הוגדר>", "Material <not specified>"],
-  treeEquations: ["משוואות", "Equations"],
-  treeSharedSketch: ["משותפת ל-", "shared by"],
-  treeDerivedBody: ["נגזר", "derived"],
-  treeSketchDriven: ["מונע ע\"י סקיצה", "sketch driven"],
-  treeFolder: ["תיקייה", "Folder"],
-  treeNewFolder: ["קבץ לתיקייה", "Group into folder"],
-  treeUngroup: ["פרק תיקייה", "Ungroup folder"],
-  treeRename: ["שנה שם", "Rename"],
-  treeHide: ["הסתר גוף", "Hide body"],
-  treeShow: ["הצג גוף", "Show body"],
-  treeHideComponent: ["הסתר רכיב", "Hide component"],
-  treeShowComponent: ["הצג רכיב", "Show component"],
-  treeExpandAll: ["פתח הכל", "Expand all"],
-  treeCollapseAll: ["כווץ הכל", "Collapse all"],
-  treeMigrate: ["המר להיסטוריה פרמטרית", "Convert to parametric history"],
-  treeMigrateHint: ["נבדק מול המנוע הישן לפני ההחלפה", "Verified against the current engine before it is adopted"],
-  treeMigrateRun: ["בדוק והמר", "Verify and convert"],
-  treeMigrateBlocked: ["לא ניתן להמיר מסמך זה", "This document cannot be converted"],
-  treeMigrateDone: ["הומר בהצלחה · הגרסה הישנה נשמרה", "Converted · the original is kept alongside"],
-  treeRestoreLegacy: ["שחזר גרסת מקור", "Restore legacy original"],
-  treeRestoreLegacyHint: ["העותק המלא מלפני ההמרה נשמר במסמך", "The complete pre-conversion document is retained"],
-  treeRestoreLegacyRun: ["שחזר", "Restore"],
-  treeRestoreLegacyDone: ["גרסת המקור שוחזרה · ניתן לבטל", "Legacy original restored · Undo is available"],
-  showIssue: ["הצג בעץ", "Show issue"],
-  editSketchIssue: ["ערוך סקיצה", "Edit sketch"],
-  issueWhy: ["למה:", "Why:"],
-  issueFix: ["תיקון:", "Fix:"],
-  issueHelp: ["למה ואיך לתקן", "Why & how to fix"],
-  issueNext: ["הצעד הבא:", "Next:"],
-  issueStartHere: ["התחילו כאן", "Start here"],
-  rebuildDiagnostics: ["אבחון בנייה", "Rebuild diagnostics"],
-  rebuildDiagnosticsHint: ["תקנו קודם את הפריט האדום הראשון. תכונות בהמשך ייבנו מחדש לבד.", "Fix the first red item. Downstream features retry on their own."],
-  issueFixUpstream: ["תקן קודם", "Fix earlier"],
-  issueEditParams: ["פתח משוואות", "Open equations"],
-  issueSameCount: ["אותו כשל, כמה יעדים", "Same failure, several targets"],
-  coachStepRebuild: ["תקנו את בעיית הבנייה הראשונה בעץ", "Fix the first rebuild issue in the tree"],
-  coachActRebuild: ["תיקון", "Fix"],
-  projected: ["הקצוות הוטלו כקווי עזר", "Edges projected as construction lines"],
-  cmdFeatures: ["תכונות", "Features"],
-  cmdSketch: ["סקיצה", "Sketch"],
-  cmdEvaluate: ["בדיקה", "Evaluate"],
-  cmdAssembly: ["הרכבה", "Assembly"],
-  cmdSearch: ["חיפוש פקודה", "Search commands"],
-  cmdSearchHint: ["הקלידו שם כלי או פעולה…", "Type a tool or command…"],
-  featureFilter: ["סינון עץ הפעולות", "Filter feature tree"],
-  finishCommand: ["סיום הפעולה", "Finish command"],
-  cancelCommand: ["ביטול הפעולה", "Cancel command"],
-  noCommands: ["לא נמצאו פקודות", "No matching commands"],
-  unsavedClose: ["יש שינויים שלא נשמרו. לסגור בלי לשמור?", "There are unsaved changes. Close without saving?"],
-  unsavedNew: ["יש שינויים שלא נשמרו. להתחיל מודל חדש?", "There are unsaved changes. Start a new model?"],
-  dirtySave: ["יש שינויים שלא נשמרו", "Unsaved changes"],
-  cmdUnavailable: ["הפקודה אינה זמינה כרגע", "That command is not available right now"],
-  cmdNeedPartDoc: ["פקודה זו זמינה במסמך חלק", "This command is available on a part document"],
-  cmdNeedAssembly: ["פקודה זו זמינה במסמך הרכבה", "This command is available on an assembly"],
-  cmdNeedClosedSketch: ["שרטטו פרופיל סגור תחילה", "Draw a closed sketch profile first"],
-  cmdNeedOpenSketch: ["אין סקיצה פתוחה לסיום", "No open sketch to finish"],
-  cmdNeedSolid: ["הוסיפו גוף מוצק תחילה", "Add a solid body first"],
-  cmdNeedComponents: ["הוסיפו לפחות שני רכיבים", "Add at least two components first"],
-  cmdNeedOneComponent: ["הוסיפו רכיב אחד לפחות", "Add at least one component first"],
-  rebuildOk: ["המודל תקין", "Rebuild succeeded"],
-  rebuildFail: ["שגיאות בנייה", "Rebuild errors"],
-  rebuildWarn: ["אזהרות בנייה", "Rebuild warnings"],
-  closeTip: ["סגור את העורך", "Close the editor"],
-  createSketch: ["סקיצה חדשה", "Create sketch"],
-  finishSketch: ["סיום סקיצה", "Finish sketch"],
-  createSketchOnRef: ["צרו סקיצה על ייחוס", "Create sketch on reference"],
-  extrudeCut: ["חיתוך באקסטרוד", "Extrude cut"],
-  opSweep: ["Sweep", "Sweep"],
-  opBoolean: ["בוליאני", "Boolean"],
-  holeWizard: ["אשף קדחים", "Hole wizard"],
-  holeNeed: ["בחרו פאה או שרטטו עיגול לקדח", "Select a face or sketch a circle for the hole"],
-  opHelix: ["הליקס", "Helix / Spiral"],
-  opThread: ["הברגה", "Thread"],
-  opKnurl: ["חריטת אחיזה", "Knurl"],
-  opInsert: ["תושבת / בושינג", "Insert / bushing"],
-  toolboxFastener: ["ארגז כלים", "Toolbox library"],
-  toolboxCategory: ["קטגוריה", "Category"],
-  toolboxKind: ["סוג פריט", "Part family"],
-  toolboxSize: ["מידה", "Size"],
-  toolboxLength: ["אורך", "Length"],
-  toolboxOption: ["אפשרות", "Option"],
-  toolboxOptionNamed: ["אפשרות · {name}", "Option · {name}"],
-  toolboxSearch: ["חיפוש בספרייה…", "Search the library…"],
-  toolboxRecent: ["שימוש אחרון", "Last used"],
-  toolboxNoBranch: ["אין מידת ענף קטנה יותר לקו הזה", "No smaller branch size for this run"],
-  toolboxBranch: ["ענף", "Branch"],
-  toolboxSeries: ["סדרה", "Series"],
-  toolboxOverlay: ["חפיפה", "Overlay"],
-  toolboxAngle: ["זווית", "Angle"],
-  toolboxRadius: ["רדיוס", "Radius"],
-  toolboxThread: ["הברגה", "Thread"],
-  toolboxDrawerSide: ["עובי דופן המגירה", "Drawer side thickness"],
-  configurations: ["תצורות", "Configurations"],
-  screwMate: ["קשר הברגה", "Screw mate"],
-  tangentMate: ["משיק", "Tangent mate"],
-  limitMate: ["קשר גבול", "Limit mate"],
-  coincidentMate: ["פאות חופפות", "Coincident faces"],
-  concentricMate: ["צירים קונצנטריים", "Concentric axes"],
-  angleMate: ["קשר זווית", "Angle mate"],
-  topologyDistanceMate: ["קשר מרחק", "Distance mate"],
-  appearanceFace: ["מראה לפאה", "Face appearance"],
-  configSaved: ["תצורה נשמרה", "Configuration saved"],
-  configNew: ["תצורה חדשה", "New configuration"],
-  threadNeed: ["בחרו פאה גלילית להברגה", "Select a cylindrical face for the thread"],
-  knurlNeed: ["בחרו פאה גלילית לחריטת אחיזה", "Select a cylindrical face to knurl"],
-  insertNeed: ["בחרו קדח או פאה גלילית לתושבת", "Select a hole or cylindrical face for the insert"],
-  helixAdded: ["הליקס נוסף", "Helix added"],
-  refPlane: ["מישור ייחוס", "Reference plane"],
-  refAxis: ["ציר ייחוס", "Reference axis"],
-  refCoord: ["מערכת צירים", "Coordinate system"],
-  grpStart: ["התחלה", "Start"],
-  grpFinish: ["גימור", "Finish"],
-  grpReferences: ["ייחוסים", "References"],
-  grpStandards: ["תקנים והברגות", "Standards & threads"],
-  grpDirect: ["מידול ישיר", "Direct"],
-  grpEvaluate: ["בדיקה", "Evaluate"],
-  grpSketchOpenClose: ["פתיחה / סגירה", "Open / close"],
-  grpAnalyze: ["ניתוח", "Analyze"],
-  grpFile: ["קבצים", "File"],
-  grpInsert: ["הוספה", "Insert"],
-  grpMates: ["אילוצים", "Mates"],
-  grpReview: ["סקירה", "Review"],
-  insertComponent: ["הוספת רכיב", "Insert component"],
-  /* Ribbon captions. The group heading underneath already supplies the noun,
-     so the caption can be terse; the full name stays in the tooltip. */
-  cap_loft: ["Loft", "Loft"],
-  cap_hole: ["קדח", "Hole"],
-  cap_helix: ["הליקס", "Helix"],
-  cap_knurl: ["חריטה", "Knurl"],
-  cap_insert: ["תושבת", "Insert"],
-  cap_refplane: ["מישור", "Plane"],
-  cap_refaxis: ["ציר", "Axis"],
-  cap_refcoord: ["מערכת צירים", "Coord system"],
-  cap_stdscrew: ["בורג ISO", "ISO screw"],
-  cap_fastener: ["ארגז כלים", "Toolbox"],
-  massProps: ["תכונות מסה", "Mass properties"],
-  standardsAudit: ["ביקורת DIN / ISO", "DIN / ISO audit"],
-  projectBundle: ["חבילת פרויקט", "Project bundle"],
-  importBundle: ["ייבוא חבילה", "Import bundle"],
-  exportIges: ["ייצוא IGES", "Export IGES"],
-  explodeView: ["מבט מפוצץ", "Exploded view"],
-  motionStudy: ["חקר תנועה", "Motion study"],
-  interferenceCheck: ["התנגשות", "Interference"],
-  interferenceVisualized: ["אזורי החפיפה מסומנים באדום", "Overlap regions are highlighted in red"],
-  billOfMaterials: ["עץ מוצר", "Bill of materials"],
-  /* ---- the non-modal evaluate card: measure, mass properties, BOM ---- */
-  measureTool: ["מדידה", "Measure"],
-  measureHint: ["לחצו על שתי נקודות, קודקודים או קצוות במודל", "Click two points, vertices or edges on the model"],
-  measureFacesHint: ["לחצו על שתי פאות כדי למדוד את הזווית ביניהן", "Click two faces to measure the angle between them"],
-  measureModePoints: ["נקודות", "Points"],
-  measureModeFaces: ["פאות", "Faces"],
-  measurePointA: ["נקודה א׳", "Point A"],
-  measurePointB: ["נקודה ב׳", "Point B"],
-  measureFaceA: ["פאה א׳", "Face A"],
-  measureFaceB: ["פאה ב׳", "Face B"],
-  measureLength: ["מרחק", "Distance"],
-  measureAngle: ["זווית", "Angle"],
-  measureNothing: ["אין גאומטריה מתחת לסמן", "No geometry under the cursor"],
-  measureNeedFace: ["בחרו פאה מישורית", "Pick a planar face"],
-  measureReset: ["מדידה חדשה", "New measurement"],
-  measureSnapVertex: ["קודקוד", "vertex"],
-  measureSnapCentre: ["מרכז", "centre"],
-  measureSnapFace: ["פאה", "face"],
-  massVolume: ["נפח", "Volume"],
-  massMass: ["מסה", "Mass"],
-  massDensity: ["צפיפות", "Density"],
-  massCentre: ["מרכז המסה", "Centre of mass"],
-  massUnmeasured: ["גופים שלא ניתן היה למדוד ואינם נכללים", "bodies could not be measured and are excluded"],
-  bomItem: ["פריט", "Item"],
-  bomQty: ["כמות", "Qty"],
-  bomName: ["שם", "Name"],
-  bomEmpty: ["אין עדיין רכיבים בהרכבה הזו", "This assembly has no components yet"],
-  bomCopy: ["העתקה", "Copy"],
-  bomCsvExport: ["ייצוא CSV", "Export CSV"],
-  bomCopied: ["עץ המוצר הועתק", "Bill of materials copied"],
-  bomCopyFailed: ["ההעתקה נכשלה", "Copy failed"],
-  mateAngleValue: ["זווית (מעלות)", "Angle (degrees)"],
-  matePmTitle: ["הוספת קשר", "Add mate"],
-  matePmType: ["סוג קשר", "Mate type"],
-  matePmRefA: ["הפניה א׳", "Reference A"],
-  matePmRefB: ["הפניה ב׳", "Reference B"],
-  matePmNoPicks: ["טרם נבחרו הפניות — ייעשה שימוש בתיבות הגבול", "No references picked yet — bounding boxes will be used"],
-  wfPart: ["חלק", "Part"],
-  wfReference: ["ייחוס", "Reference"],
-  wfSketch: ["סקיצה", "Sketch"],
-  wfFeature: ["תכונה", "Feature"],
-  wfHistory: ["היסטוריה", "History"],
-  wfInsert: ["רכיבים", "Insert"],
-  wfGround: ["קיבוע", "Ground"],
-  wfMate: ["קשרים", "Mate"],
-  wfCheck: ["בדיקה", "Check"],
-  wfBom: ["עץ מוצר", "BOM"],
-  wfSave: ["שמירה", "Save"],
-  wfNoComponents: ["הוסיפו רכיב ראשון", "Add the first component"],
-  wfNoAnchor: ["אין רכיב מקובע", "Nothing is anchored yet"],
-  wfAnchored: ["מקובע", "anchored"],
-  wfNoMates: ["הרכיבים חופשיים", "Components float free"],
-  wfNoInterference: ["לא נמצאו התנגשויות", "No interference detected"],
-  wfCheckClash: ["התנגשויות", "clashes"],
-  wfCheckUnrun: ["טרם נבדק", "Not checked yet"],
-  wfBomLines: ["שורות", "line items"],
-  wfBomLineOne: ["שורה", "line item"],
-  tabPlacement: ["מיקום", "Placement"],
-  treeComponents: ["רכיבים", "Components"],
-  treeMates: ["קשרים", "Mates"],
-  treeGrounded: ["מקובע", "grounded"],
-  treeNoMates: ["אין קשרים", "No mates yet"],
-  treeComponentParts: ["גופים", "solids"],
-  treeComponentPartOne: ["גוף", "solid"],
-  tabComponent: ["רכיב", "Component"],
-  tabMates: ["קשרים", "Mates"],
-  wfChoosePlane: ["בחרו מישור או פאה", "Choose a plane or face"],
-  wfCreateProfile: ["צרו פרופיל מאופק", "Create a constrained profile"],
-  wfFullyDefined: ["מוגדר במלואו", "Fully defined"],
-  wfPartialDefined: ["מוגדר חלקית", "Partially defined"],
-  wfUnderDefined: ["חסר הגדרה", "Under-defined"],
-  wfTurnIntent: ["הפכו כוונה לגיאומטריה", "Turn intent into geometry"],
-  wfReadyExtrude: ["מוכן לאקסטרוד", "Ready to extrude"],
-  wfEditableSteps: ["שלבים לעריכה", "editable steps"],
-  wfNone: ["אין", "none"],
-  wfEmpty: ["ריק", "empty"],
-  wfLastUsed: ["שימוש אחרון", "Last used"],
-  wfSuggested: ["מוצע", "Suggested"],
-  wfAria: ["שלבי מידול", "Authoring workflow"],
-  selectedFace: ["פאה נבחרת", "Selected face"],
-  needPlanarFace: ["בחרו פאה מישורית למישור ייחוס", "Select a planar face for a reference plane"],
-  needPlanarOrAnalytic: ["בחרו פאה מישורית או משטח נתמך", "Select a planar or supported analytic face"],
-  needSketchThenFeature: ["צרו או בחרו סקיצה, ואז החילו תכונה", "Create or select a sketch, then apply a declarative feature"],
-  surfaceUnwrapped: ["המשטח נפרש למרחב סקיצת UV", "Surface unwrapped into UV sketch space"],
-  featureFormHint: ["השלמת הגדרת התכונה · תצוגה מקדימה חיה לפני אישור", "Complete feature definition · live preview before commit"],
-  livePreviewReady: ["תצוגה מקדימה חיה מוכנה", "Live preview ready"],
-  unsupportedFeature: ["תכונה לא נתמכת", "Unsupported feature"],
-  chooseReferenceFirst: ["בחרו ייחוס יציב לפני כניסה לסקיצה", "Choose a stable reference before entering sketch mode"],
-  resolveConflictsFirst: ["פתרו אילוצים סותרים לפני סיום הסקיצה", "Resolve conflicting constraints before finishing the sketch"],
-  sketchSavedDof: ["הסקיצה נשמרה", "Sketch saved"],
-  sketchFullySaved: ["סקיצה מוגדרת במלואה נשמרה", "Fully defined sketch saved"],
-  newSketchKicker: ["סקיצה חדשה", "NEW SKETCH"],
-  referencePickerTitle: ["בחרו ייחוס יציב", "Choose a stable reference"],
-  referencePickerBody: ["סקיצה חייבת להיות מחוברת למישור או לפאה מישורית. הייחוס נשאר בהיסטוריה ונפתר בכל בנייה מחדש.", "A sketch must be attached to a plane or planar face. This reference remains in design history and is resolved on every rebuild."],
-  pickFaceTitle: ["לחצו על פאה לסקיצה", "Click a face to sketch on"],
-  pickFaceBody: ["בחרו פאה במודל — המצלמה תסתובב אליה", "Pick a face on the model — the camera turns to face it"],
-  pickFacePlanes: ["מישורי בסיס", "Datum planes"],
-  pickFaceCancel: ["ביטול בחירת פאה", "Cancel face pick"],
-  unsavedDraft: ["נמצאה טיוטה שלא נשמרה. לשחזר אותה?", "An unsaved draft was found. Restore it?"],
-  draftSaved: ["טיוטה נשמרה", "Draft saved"],
-  cmdManager: ["מנהל פקודות", "Command manager"],
-  sourceUnits: ["יחידות מקור", "Source units"],
-  stepAuto: ["אוטומטי", "Auto"],
-  addRefGeom: ["הוספת גאומטריית ייחוס", "Add reference geometry"],
-  extrudeCutNeed: ["חיתוך באקסטרוד דורש גוף יעד", "Extrude Cut requires a target feature"],
-  booleanNeedTwo: ["בחרו שני צמתים בעץ ההיסטוריה לפעולה בוליאנית", "Select two feature history nodes for a Boolean"],
-  sweepNeed: ["Sweep דורש פרופיל סגור ונתיב משרטט", "Sweep needs a closed profile and a sketched path"],
-  loftNeed: ["כל סקיצת loft חייבת להכיל פרופיל סגור", "Every loft sketch must contain a closed profile"],
-  sketchesSelected: ["סקיצות נבחרו", "sketch(es) selected"],
-  featuresSelected: ["תכונות", "feature(s)"],
-  topologyRefs: ["ייחוסי טופולוגיה", "topology reference(s)"],
-  selectSolidFirst: ["בחרו גוף מוצק בחלון התצוגה תחילה", "Select a solid body in the viewport first"],
-  selectFaceRemove: ["בחרו פאה להסרה", "Select a face to remove"],
-  selectEdges: ["בחרו פאה או קצה אחד או יותר", "Select a face or one or more edges"],
-  addWithCtrl: ["בחלון התצוגה · Ctrl/Cmd מוסיף עוד", "in the viewport · Ctrl/Cmd-click adds more"],
-  livePreviewDrag: ["גררו את הערך למטה לתצוגה מקדימה חיה", "drag the value below for a live preview"],
-  liveExactCalc: ["תצוגה מקדימה חיה · מחשב גיאומטריה מדויקת", "Live · calculating exact"],
-  liveExactReady: ["תצוגה מקדימה מדויקת מתעדכנת בזמן עריכה", "Live · exact preview updates as you edit"],
-  previewUnavailable: ["תצוגה מקדימה אינה זמינה · התאימו ערך או בחירה", "Preview unavailable · adjust the value or selection"],
-  previewRadiusTooLarge: ["הרדיוס גדול מדי לקצה זה · גררו את החץ פנימה", "Radius is too large for this edge · drag the arrow inward"],
-  previewFilletConflict: ["לא ניתן לעגל את קבוצת הקצוות הזו ברדיוס הנוכחי · הסירו קצה או הקטינו את הרדיוס", "These edges cannot be filleted together at this radius · remove an edge or reduce the radius"],
-  previewNoResolvedEdges: ["לא ניתן לזהות את הקצה · בחרו אותו שוב", "The selected edge could not be resolved · pick it again"],
-  liveViewsSynced: ["תצוגה מקדימה חיה · סקיצה, תלת־ממד, אורתוגרפי ושרטוט מסונכרנים", "Live · sketch, 3D, orthographic and drawing views synced"],
-  dragForLive: ["גררו לתצוגה מקדימה חיה", "Drag for live preview"],
-  featureNeedsSketches: ["דורש סקיצות נבחרות בהיסטוריה", "requires sketches selected in history"],
-  createFeature: ["יצירת", "Create"],
-  createBoolean: ["יצירת פעולה בוליאנית", "Create Boolean"],
-  liveLabel: ["חי", "Live"],
-  wfDof: ["דרגות חופש", "DOF"],
-  facePrefix: ["פאה", "Face"],
-  assemblyComponents: ["רכיבים", "components"],
-  assemblyComponentOne: ["רכיב", "component"],
-  assemblySelected: ["נבחרו", "selected"],
-  reconstruction: ["שחזור", "reconstruction"],
-  displayStyle: ["סגנון תצוגה", "Model display style"],
-  matesCount: ["אילוצי הרכבה", "mates"],
-  matesCountOne: ["אילוץ הרכבה", "mate"],
-  evaluateModel: ["בדיקת ובניית המודל", "Evaluate and rebuild model"],
-  profileReady: ["פרופיל סגור ומוכן", "Closed profile ready"],
-  profileMultiple: ["נמצאו כמה פרופילים סגורים", "Multiple closed profiles found"],
-  profilePartial: ["נמצא פרופיל סגור, אך יש גם גאומטריה פתוחה", "Closed profile found with additional open geometry"],
-  profileOpen: ["הסקיצה פתוחה", "The sketch has open endpoints"],
-  profileBranched: ["יש הסתעפות בפרופיל", "The profile contains a branch"],
-  profileEmpty: ["עדיין אין פרופיל סגור", "No closed profile yet"],
-  profileHeal: ["אחד קצוות חופפים", "Merge overlapping endpoints"],
-  profileHealed: ["קצוות חופפים אוחדו", "Overlapping endpoints merged"],
-  profileEnds: ["קצוות פתוחים", "open endpoints"],
-  profileLoops: ["לולאות סגורות", "closed loops"],
-  profileHoles: ["חורים פנימיים", "inner holes"],
-  profileRegions: ["אזורים סגורים", "enclosed regions"],
-  selectionInfo: ["מידע בחירה", "Selection info"],
-  selectAllSketch: ["בחר הכול בסקיצה", "Select all sketch geometry"],
-  constraintExists: ["האילוץ כבר קיים", "That constraint already exists"],
-  removeConflicts: ["הסר אילוצים סותרים", "Remove conflicting constraints"],
-  entitiesLabel: ["ישויות", "entities"],
-  dimensionsLabel: ["מידות", "dimensions"],
-  selectedLabel: ["נבחרו", "selected"],
-  drivingDimension: ["מידה מניעה", "Driving dimension"],
-  drivenDimension: ["מידת ייחוס", "Driven/reference dimension"],
-  guide: ["מדריך", "Guide"],
-  speakReadAloud: ["הקראה קולית", "Read aloud"],
-  speakStop: ["עצור הקראה", "Stop reading"],
-  speakPlaying: ["מקריא כעת...", "Reading..."],
-  guideTitle: ["מדריך אינטראקטיבי", "Interactive guide"],
-  guideStep: ["שלב", "Step"],
-  guideOf: ["מתוך", "of"],
-  guideBack: ["הקודם", "Back"],
-  guideNext: ["המשך", "Continue"],
-  guideSkip: ["דלג על השלב", "Skip step"],
-  guideRestart: ["התחילו את השלב מחדש", "Restart step"],
-  guideCollapse: ["כווצו את המדריך", "Collapse the guide"],
-  guideExpand: ["הרחיבו את המדריך", "Expand the guide"],
-  guideClose: ["סגור מדריך", "Close guide"],
-  guideDone: ["הושלם", "Completed"],
-  guideWaiting: ["מחכה לפעולה שלך", "Waiting for your action"],
-  guideIntroTitle: ["בואו נכיר את סביבת הסקיצה", "Meet the sketch workspace"],
-  guideIntroBody: ["בתרגול קצר ניצור צורה, נערוך אותה, נבחר קווים ונגדיר אילוצים ויחסים. הפעולות מתבצעות על המודל הפתוח וניתנות לביטול כרגיל.", "In this short exercise you will create and edit geometry, select lines, and add constraints and relations. Changes are made in the open model and can be undone normally."],
-  guideIntroTip: ["חלק ריק נפתח ישירות לסקיצה על המישור העליון. אפשר לסגור את המדריך בכל רגע ולחזור אליו מכפתור המדריך.", "A blank part opens a sketch on the Top plane. Close the guide at any time and reopen it from the Guide button."],
-  guideToolsTitle: ["1. בחרו כלי ליצירת צורה", "1. Choose a shape tool"],
-  guideToolsBody: ["בסרגל הסקיצה נמצאים קו, מלבן, מעגל וקשת. התחילו בלחיצה על ״מלבן סקיצה״.", "The Sketch ribbon contains line, rectangle, circle, and arc tools. Start by choosing Sketch rectangle."],
-  guideToolsTip: ["קיצורי הדרך מופיעים על הכלים: Q למלבן, L לקו, G למעגל ו־A לקשת.", "Shortcuts appear on the tools: Q for rectangle, L for line, G for circle, and A for arc."],
-  guideDrawTitle: ["2. צרו מלבן על משטח העבודה", "2. Draw a rectangle"],
-  guideDrawBody: ["גררו מנקודת ההתחלה אל הפינה הנגדית. ארבעת הקווים ייווצרו כסקיצה אחת עם פינות משותפות.", "Drag from the first corner to the opposite corner. Four connected sketch lines will be created."],
-  guideDrawTip: ["החזיקו Shift בזמן יצירה או הזזה כדי לנעול כיוון.", "Hold Shift while drawing or moving to lock the direction."],
-  guideMoveTitle: ["3. בצעו מניפולציה על הצורה", "3. Manipulate the shape"],
-  guideMoveBody: ["עברנו לכלי הבחירה. גררו אחת מפינות המלבן ושימו לב כיצד הקווים המחוברים והאילוצים מגיבים יחד.", "The Select tool is active. Drag a rectangle corner and watch the connected lines and constraints respond together."],
-  guideMoveTip: ["אפשר גם לבחור ישות ולערוך ערכי X, Y, אורך וזווית בלוח המאפיינים.", "You can also select an entity and edit X, Y, length, and angle in Properties."],
-  guideSelectTitle: ["4. בחרו קו", "4. Select a line"],
-  guideSelectBody: ["לחצו על אחד מקווי המלבן. קו שנבחר מודגש, והמידע עליו מופיע בלוח הימני.", "Click one rectangle edge. The selected line is highlighted and its details appear in the right panel."],
-  guideSelectTip: ["לחיצה רגילה מחליפה בחירה; Ctrl/Cmd מוסיף או מסיר ישות מהבחירה.", "A regular click replaces the selection; Ctrl/Cmd adds or removes an entity."],
-  guideSelectTipMobile: ["לחיצה בוחרת ישות; השתמשו ב׳הוסף לבחירה׳ בסרגל הבחירה כדי לסמן מספר ישויות במגע.", "Tap to select; use 'Add to selection' in the selection bar to build a multi-selection on touch."],
-  guideDimTitle: ["5. הגדירו אילוץ אורך", "5. Add a length constraint"],
-  guideDimBody: ["בלוח ״צורה ומידות״ שנו את ערך ״אילוץ אורך״ של הקו. הערך יהפוך למידה מניעה שתישאר ניתנת לעריכה.", "In Shape & size, change the selected line's Length constraint value. It becomes a driving dimension that remains editable."],
-  guideDimTip: ["למדידה ישירה על הקנבס אפשר להשתמש גם בכלי ״מידה חכמה״ (D).", "For direct canvas measurement you can also use Smart dimension (D)."],
-  guideDimTipMobile: ["פתחו את לוח המאפיינים (Properties) בסרגל התחתון כדי לערוך מידות או בחרו מידה חכמה בגיליון הפקודות.", "Open Properties from the bottom bar to edit dimensions or tap Smart dimension in Commands."],
-  guidePairTitle: ["6. בחרו שני קווים", "6. Select two lines"],
-  guidePairBody: ["בחרו קו אחד, ואז החזיקו Ctrl/Cmd ולחצו על קו נוסף. לוח האילוצים יפעיל רק יחסים שמתאימים לבחירה.", "Select one line, then hold Ctrl/Cmd and click another. The constraint palette enables only relations that fit the selection."],
-  guidePairBodyMobile: ["בחרו קו אחד, הפעילו ׳הוסף לבחירה׳ בסרגל הבחירה ולחצו על הקו השני.", "Tap one line, turn on 'Add to selection' in the selection bar, and tap the second line."],
-  guidePairTip: ["אפשר לבצע בחירה מרובה גם מרשימת הישויות בצד שמאל.", "You can also multi-select from the entity list on the left."],
-  guideRelationTitle: ["7. הגדירו יחס בין הקווים", "7. Define a relation between lines"],
-  guideRelationBody: ["לחצו על ״שווה״ בלוח האילוצים. אורך הקו השני ייקשר לאורך הראשון, והיחס יופיע ברשימת האילוצים.", "Choose Equal in the constraint palette. The second line will follow the first line's length, and the relation will appear in the constraint list."],
-  guideRelationTip: ["באותה דרך אפשר להגדיר מקביל, ניצב, משיק, קונצנטרי ועוד — לפי סוגי הישויות שנבחרו.", "The same flow supports parallel, perpendicular, tangent, concentric, and more, depending on the selected entities."],
-  guideFinishTitle: ["מעולה — יסודות הסקיצה בידיכם", "Great — you know the sketch basics"],
-  guideFinishBody: ["יצרתם צורה, ערכתם אותה, הוספתם מידה והגדרתם יחס בין קווים. מכאן אפשר לסגור פרופיל ולבצע Extrude כדי להפוך אותו לגוף תלת־ממדי.", "You created and edited geometry, added a dimension, and defined a relation between lines. Next, close a profile and Extrude it into a 3D solid."],
-  guideFinishTip: ["מד ה־DOF בלוח הסקיצה מראה כמה חופש עוד נשאר. אחרי Extrude, אזהרות DOF מופיעות בראש עץ המודל תחת אבחון בנייה — לחצו תיקון בכרטיס הראשון.", "The DOF indicator shows how much freedom remains. After Extrude, leftover DOF warnings appear at the top of Tree under Rebuild diagnostics — tap Fix on the first card."],
-  guideFinish: ["סיום", "Finish"],
-  guideFinishTutorial: ["סיום המדריך", "Finish tutorial"],
-  guideContinueEditing: ["המשך עריכת החלק", "Continue editing this part"],
-  guideHubTitle: ["מה תרצו ללמוד?", "What would you like to learn?"],
-  guideHubBody: ["בחרו מסלול. כל מסלול מדגיש את הכלים הרלוונטיים ומתקדם רק לאחר שביצעתם את הפעולה בעורך.", "Choose a learning path. Each path highlights the relevant tools and advances after you perform the action in the editor."],
-  guideMobileTrack: ["מחוות וממשק מובייל", "Touch CAD & gestures"],
-  guideMobileTrackDesc: ["סרגל תחתון, מחוות ניווט, בחירה מרובה ואישור פעולות", "Bottom sheets, touch navigation, multi-selection, and thumb actions"],
-  guideMobileIntroTitle: ["מבנה העורך בסמארטפון", "Mobile editor layout"],
-  guideMobileIntroBody: ["בטלפון העורך משתמש בגיליונות תחתונים: תצוגה, עץ, פקודות ומאפיינים. גררו אצבע אחת לסיבוב, שתי אצבעות להזזה וצבטו לזום.", "On a phone the editor uses bottom sheets for View, Tree, Commands, and Properties. Drag one finger to orbit, two fingers to pan, and pinch to zoom."],
-  guideMobileIntroTip: ["הסרגל התחתון ושורת הפעולות נשארים בהישג האגודל.", "The bottom navigation and action row stay within thumb reach."],
-  guideMobileNavTitle: ["1. פתיחת סרגל הפקודות", "1. Open the Commands sheet"],
-  guideMobileNavBody: ["לחצו על פקודות בסרגל התחתון, ואז בחרו מלבן בלשונית הסקיצה.", "Tap Commands in the bottom bar, then choose Rectangle on the Sketch tab."],
-  guideMobileNavTip: ["גיליון הפקודות נסגר אוטומטית בעת בחירת כלי כדי לפנות מקום למודל.", "The Commands sheet auto-collapses when you pick a tool so the canvas stays clear."],
-  guideMobileSketchTitle: ["2. שרטוט סקיצה במגע", "2. Touch sketching"],
-  guideMobileSketchBody: ["גררו על המסך כדי ליצור מלבן סקיצה. השהיית מגע קצרה והצמדה מגנטית מונעות החלקה מקרית של המצלמה.", "Drag on the canvas to draw a rectangle. A short touch delay and magnetic snapping keep the camera from drifting."],
-  guideMobileSketchTip: ["הקווים והמידות מתעדכנים בזמן אמת.", "Lines and dimensions update in real time with magnetic snap."],
-  guideMobileExtrudeTitle: ["3. ביצוע אקסטרוד ואישור באגודל", "3. Extrude & thumb-friendly Accept"],
-  guideMobileExtrudeBody: ["לחצו על אקסטרוד בשורת הפעולות מעל הניווט. גיליון העץ נפתח עם עומק האקסטרוד — ערכו אותו ואז לחצו על סיום.", "Tap Extrude in the action row above the navigation. Tree opens with the depth field — adjust it, then tap Finish."],
-  guideMobileExtrudeTip: ["אישור וביטול נשארים בהישג האגודל, בלי לחפש אותם בפינות המסך.", "Accept and Cancel stay within thumb reach — no hunting in the top corners."],
-  guideMobileSelectTitle: ["4. בחירה מרובה עם סרגל הבחירה", "4. Multi-selection & selection bar"],
-  guideMobileSelectBody: ["בלי מקלדת, לחצו קודם על פאה או קצה במודל. אחר כך הפעילו ׳הוספה לבחירה׳ בסרגל שמופיע כדי לסמן עוד ישויות.", "With no keyboard, tap a face or edge first. Then turn on Add to selection in the bar that appears to pick more entities."],
-  guideMobileSelectTip: ["ניקוי מאפס את הבחירה, והסינון ממקד פאות או קצוות.", "Clear resets the selection set, while Filter isolates faces or edges."],
-  guideMobileTreeTitle: ["5. עץ המודל ובריאות הבנייה", "5. Tree sheet & rebuild health"],
-  guideMobileTreeBody: ["לחצו על עץ בסרגל התחתון, או על באנר השגיאות הצהוב/אדום מעל המודל. אבחון בנייה בראש העץ מציג למה ואיך לתקן — לחצו תיקון בכרטיס ׳התחילו כאן׳.", "Tap Tree in the bottom nav, or the yellow/red rebuild banner above the model. Rebuild diagnostics at the top of Tree already shows why and how to fix — tap Fix on the Start here card."],
-  guideMobileTreeTip: ["במכשירים מתקפלים במצב רחב, עץ המודל מוצמד כעמודה קבועה לצד המודל. באנר הבנייה נפתח ישירות לאבחון.", "On unfolded foldables or tablets, Tree docks as a side rail. The rebuild banner jumps straight to diagnostics."],
-  guideMobileFinishTitle: ["מוכנים לעבודה במובייל!", "Ready for touch CAD!"],
-  guideMobileFinishBody: ["למדתם את כל יסודות העבודה במגע: ניווט, מחוות, גיליונות פקודות, בחירה מרובה ואישור מהיר.", "You now know all mobile CAD essentials: touch navigation, bottom sheets, multi-selection, and quick thumb actions."],
-  guideMobileFinishTip: ["החלק שיצרתם נשאר פתוח לעריכה. לחיצה ארוכה על גאומטריה מציגה את תפריט ׳בחר דרך׳ לקצוות חופפים.", "Your new part remains open for editing. Long-pressing geometry opens Select through for overlapping topology."],
-  guideSketchTrack: ["יסודות סקיצה", "Sketch basics"],
-  guideSketchTrackDesc: ["צורות, בחירה, מידות ויחסים", "Shapes, selection, dimensions, and relations"],
-  guideSolidworksTrack: ["פרויקט: קוביית CAD", "Project: CAD cube"],
-  guideSolidworksTrackDesc: ["ארבע סקיצות מוגדרות, Extrude ושלושה קדחים", "Four defined sketches, Extrude, and three bores"],
-  swIntroTitle: ["נבנה את הקובייה מהסרטון", "Build the cube from the video"],
-  swIntroBody: ["המסלול משחזר את הרצף מדקה 1:05: סקיצה על המישור העליון, ריבוע מוגדר, Extrude, שלושה קדחים ניצבים ועיגול קצוות.", "This path recreates the sequence from 1:05: sketch on Top, dimension a square, Extrude it, cut three perpendicular bores, and round the edges."],
-  swIntroTip: ["לחיצה על פאה במודל בוחרת אוטומטית את מישור הסקיצה המתאים.", "Clicking a model face automatically chooses its sketch plane."],
-  swIntroTipMobile: ["לחיצה על פאה במודל בוחרת אוטומטית את מישור הסקיצה ופותחת פעולות רלוונטיות בסרגל התחתון.", "Tapping a model face selects its sketch plane and exposes relevant actions in the bottom row."],
-  swPlaneTitle: ["1. פתחו סקיצה על המישור העליון", "1. Start a sketch on the Top plane"],
-  swPlaneBody: ["מה עושים: לחצו התחלת סקיצה בסרגל הצעד הבא או בראש העץ — המישור העליון וכלי המלבן נפתחים יחד. למה: האקסטרוד יעלה בציר Y. תוצאה צפויה: רשת X·Z וכלי המלבן פעיל.", "Do: tap Start sketch in the Next-step bar or at the top of Tree — Top plane and the rectangle tool open together. Why: Extrude will run along Y. Expected: the X·Z grid is visible and Rectangle is active."],
-  swPlaneTip: ["במודל קיים אפשר ללחוץ על פאה ואז לבחור כלי סקיצה; המבט והמישור יתעדכנו יחד.", "On an existing model, click a face and then a sketch tool; the view and plane update together."],
-  swRectTitle: ["2. שרטטו ריבוע ממורכז", "2. Draw a centred square"],
-  swRectBody: ["מה עושים: יוצרים ריבוע 60×60 ס״מ סביב הראשית. ארבע הפינות חייבות להיות מחוברות. תוצאה צפויה: ארבעה קווים, פרופיל סגור, אך עדיין נשארות דרגות חופש.", "Do: create a 60 × 60 cm square around the origin. All four corners must be connected. Expected: four lines and one closed profile, still with remaining DOF."],
-  swRectTip: ["הצמדה לראשית ולרשת עוזרת לשמור על סקיצה סימטרית.", "Origin and grid snaps make a symmetric sketch easier."],
-  swDimTitle: ["3. הגדירו רוחב וגובה", "3. Dimension width and height"],
-  swDimBody: ["מה ממלאים: רוחב 60 ס״מ, גובה 60 ס״מ ומיקום פינת עיגון ביחס לראשית. תוצאה צפויה: Fully defined, ללא אדום וללא DOF חופשי.", "Fill: width 60 cm, height 60 cm, and anchor one corner to the origin reference. Expected: Fully defined, no red state, and zero free DOF."],
-  swDimTip: ["אפשר להשתמש ב׳מידה חכמה׳ או לערוך אילוץ אורך בלוח צורה ומידות.", "Use Smart dimension or edit the Length constraint in Shape & size."],
-  swExtrudeTitle: ["4. בצעו Extrude לקובייה", "4. Extrude the cube"],
-  swExtrudeBody: ["בדקו את כל השדות: End condition=Blind, Depth=60, Direction=Forward, Offset=0, Draft=0, Operation=Add ו־Merge=On. רק אז Apply. תוצאה: קובייה 60×60×60.", "Check every field: End condition=Blind, Depth=60, Direction=Forward, Offset=0, Draft=0, Operation=Add, Merge=On. Then Apply. Expected: a 60 × 60 × 60 cube."],
-  swExtrudeTip: ["הסקיצה נשארת מקושרת לגוף, כך ששינוי מידה מעדכן את המודל.", "The sketch remains linked to the solid, so changing a dimension updates the model."],
-  swCircleTitle: ["5. שרטטו מעגל על פאה", "5. Sketch a circle on a face"],
-  swCircleBody: ["מה עושים: בוחרים את פאת Front, פותחים עליה Sketch ומציירים מעגל. מרכז המעגל נמצא באמצע הפאה. תוצאה צפויה: סקיצה חדשה בשם Front bore sketch.", "Do: select the Front face, start a Sketch on it, and draw a circle at the face centre. Expected: a separate sketch named Front bore sketch."],
-  swCircleTip: ["הפאה שנלחצה קובעת את מישור הסקיצה החדש.", "The clicked face determines the new sketch plane."],
-  swDiameterTitle: ["6. הגדירו את קוטר הקדח", "6. Dimension the bore"],
-  swDiameterBody: ["מה ממלאים: קוטר 40 ס״מ ושתי מידות מיקום למרכז. תוצאה צפויה: Fully defined. אם מד ה־DOF אינו אפס, אין להמשיך לחיתוך.", "Fill: diameter 40 cm and two centre-location dimensions. Expected: Fully defined. Do not continue to the cut while any DOF remains."],
-  swDiameterTip: ["בחרו את המעגל והשתמשו במידה חכמה כדי לקבע קוטר.", "Select the circle and use Smart dimension to lock its diameter."],
-  swCutTitle: ["7. בצעו חיתוך Through all", "7. Cut Through all"],
-  swCutBody: ["בדקו: End condition=Through all, Direction=Forward, Offset=0, Draft=0 ו־Keep tool=Off. Apply יוצר Pocket התלוי בסקיצה וב־Extrude הקודם. תוצאה צפויה: קדח אחד וללא Rebuild errors.", "Check: End condition=Through all, Direction=Forward, Offset=0, Draft=0, Keep tool=Off. Apply creates a Pocket dependent on the sketch and prior Extrude. Expected: one bore and no rebuild errors."],
-  swCutTip: ["החיתוך נבנה כ־Boolean BREP אמיתי, לא רק כחור מצויר על הפאה.", "The cut is a real BREP boolean, not merely a face overlay."],
-  swOtherCutsTitle: ["8. הוסיפו קדחים בשתי הפאות הנוספות", "8. Add bores on the other two faces"],
-  swOtherCutsBody: ["צרו סקיצה חדשה על פאת ימין ועל הפאה העליונה, ובכל אחת הפעילו Extrude cut. שלושת הקדחים הניצבים נפגשים בתוך גוף אחד.", "Create a new sketch on the right and top faces, then use Extrude cut on each. The three perpendicular bores meet inside one solid."],
-  swOtherCutsTip: ["אפשר לסובב את המודל בין הפעולות; לחיצה על כל פאה בוחרת את הציר הנכון.", "Orbit between operations; clicking each face picks the correct axis."],
-  swRightCircleTitle: ["8. סקיצת הקדח הימני", "8. Sketch the right bore"],
-  swRightCircleBody: ["על פאת ימין צרו מעגל שמרכזו מוגדר בשתי מידות מיקום.", "On the right face, create a circle whose centre is located by two driving dimensions."],
-  swRightDimTitle: ["9. הגדירו במלואה את סקיצת ימין", "9. Fully define the right sketch"],
-  swRightDimBody: ["הגדירו את מיקום המרכז ואת הקוטר. מד ה־DOF חייב להציג ׳מוגדר במלואו׳.", "Dimension the centre location and diameter. The DOF indicator must show Fully defined."],
-  swRightCutTitle: ["10. הגדירו Extrude cut ימני", "10. Define the right Extrude cut"],
-  swTopCircleTitle: ["11. סקיצת הקדח העליון", "11. Sketch the top bore"],
-  swTopCircleBody: ["על הפאה העליונה צרו את המעגל השלישי ומקמו את מרכזו במידות.", "On the top face, create the third circle and locate its centre with dimensions."],
-  swTopDimTitle: ["12. הגדירו במלואה את הסקיצה העליונה", "12. Fully define the top sketch"],
-  swTopDimBody: ["השלימו מידות מרכז וקוטר עד שלא נשארות דרגות חופש.", "Complete the centre and diameter dimensions until no degrees of freedom remain."],
-  swTopCutTitle: ["13. הגדירו Extrude cut עליון", "13. Define the top Extrude cut"],
-  swFeatureFormTip: ["בדקו כל שדה בטופס לפני Apply — גם ערכי ברירת המחדל הם חלק מהגדרת התכונה.", "Review every field before Apply—even default values are part of the feature definition."],
-  swFilletTitle: ["14. בדקו את שרשרת הבנייה", "14. Check the rebuild chain"],
-  swFilletBody: ["פתחו את לשונית העץ. הסדר צריך להיות: Sketch בסיס → Extrude → שלוש זוגות של Bore sketch ו־Extrude Cut. אם מופיע אבחון בנייה בראש העץ, לחצו תיקון בכרטיס ׳התחילו כאן׳ — הסיבה והתיקון כבר על הכרטיס. אדום פירושו reference חסר ואין לסיים עד שהרשימה ריקה.", "Open Tree. The order should be: base Sketch → Extrude → three Bore sketch / Extrude Cut pairs. If Rebuild diagnostics appears at the top, tap Fix on the Start here card — why and how to fix are already on it. Red means a missing reference; the model is not ready until the list is empty."],
-  swFilletTip: ["Fillet דורש קצוות מדויקים מתוצאת ה־BREP; מוסיפים אותו רק לאחר שהאבחון ריק ובחירת קצוות אמיתיים. לחיצה על כרטיס האבחון פותחת ישירות את התכונה או הסקיצה לתיקון.", "Fillet requires exact edges from the BREP result; add it only after diagnostics are empty and real edges are selected. Clicking a diagnostic card opens the feature or sketch to fix."],
-  swFinishTitle: ["קוביית ה־CAD מוכנה", "The CAD cube is complete"],
-  swFinishBody: ["נוצר גוף פרמטרי תקין עם ארבע סקיצות מוגדרות במלואן, Extrude ושלושה חיתוכי Through all בשרשרת תלות רציפה וללא שגיאות rebuild.", "You now have a valid parametric body with four fully defined sketches, one Extrude, and three chained Through all cuts with no rebuild errors."],
-  swFinishTip: ["כל פעולה מופיעה בעץ ובהיסטוריה וניתנת לביטול או לעריכה.", "Every operation remains available in the tree/history for undo or editing."],
-  guideFlowerTrack: ["פרויקט: פרח", "Project: Flower"],
-  guideFlowerTrackDesc: ["בניית פרח מכדורים ותיבות", "Build a flower from spheres and boxes"],
-  guideAssemblyTrack: ["יסודות הרכבה", "Assembly basics"],
-  guideAssemblyTrackDesc: ["רכיבים, טרנספורמציה ו־Mates", "Components, transforms, and mates"],
-  guideScrewTrack: ["פרויקט: בורג", "Project: Screw"],
-  guideScrewTrackDesc: ["בורג M8×30 תקני ובדיקת ISO", "Standards-compliant M8×30 screw and ISO audit"],
-  guideGearTrack: ["פרויקט: גלגל שיניים", "Project: Gear"],
-  guideGearTrackDesc: ["פרופיל אינוולוטי ובדיקת ISO", "Involute profile and ISO audit"],
-  stdScrewCommand: ["בורג ISO 4017", "ISO 4017 screw"],
-  stdGearCommand: ["גלגל שיניים ISO", "ISO gear"],
-  standardAuditTitle: ["2. הריצו בדיקת DIN / ISO", "2. Run the DIN / ISO audit"],
-  standardAuditBody: ["הבדיקה מודדת את הגאומטריה ומשווה אותה לפרופיל התקן המותקן. רק תוצאה ללא חריגות מאשרת המשך.", "The audit measures the geometry against the installed standard profile. Only a result with no deviations permits continuation."],
-  guideStudBallTrack: ["פרויקט: כדור עם ניטים", "Project: Studded ball"],
-  guideStudBallTrackDesc: ["כדור מרכזי וניטים כדוריים", "Sphere core with spherical studs"],
-  guideDreidelTrack: ["פרויקט: סביבון", "Project: Dreidel"],
-  guideDreidelTrackDesc: ["פרופיל וגוף סיבוב", "Profile and revolved body"],
-  guideTracksBack: ["לכל המסלולים", "All learning paths"],
-  guideModeTitle: ["איך תרצו ללמוד?", "How would you like to learn?"],
-  guideModeBody: ["בחרו תרגול מודרך או הדגמה אוטומטית שבונה את המודל מולכם.", "Choose guided practice or an automatic demonstration that builds the model for you."],
-  guideInteractiveMode: ["תרגול אינטראקטיבי", "Interactive practice"],
-  guideInteractiveModeDesc: ["אתם מבצעים כל פעולה והמדריך בודק את ההתקדמות", "You perform each action and the guide checks your progress"],
-  guideAutoMode: ["הדגמה אוטומטית", "Automatic demonstration"],
-  guideAutoModeDesc: ["המדריך מבצע את העבודה ומציג את התהליך שלב אחר שלב", "The guide performs the work and shows the process step by step"],
-  guideAutoWatching: ["הדגמה אוטומטית", "Automatic demonstration"],
-  guideAutoBody: ["צפו בעבודה המתבצעת כעת בעורך. אין צורך לבצע פעולה.", "Watch the work being performed in the editor. No action is required."],
-  guideAutoSlider: ["שלב בהדגמה", "Demo step"],
-  guideAutoPause: ["השהיה", "Pause"],
-  guideAutoResume: ["המשך הדגמה", "Resume demo"],
-  guideKeepResult: ["שמרו את התוצאה", "Keep result"],
-  guideKeepResultTip: ["השאירו את המודל שההדגמה בנתה במקום לשחזר את המודל שלכם", "Leave the demonstrated model in place instead of restoring your own"],
-  guideDemoRestored: ["ההדגמה נוקתה · המודל שלכם חזר", "Demo cleared · your model is back"],
-  guideDemoKept: ["המודל של ההדגמה נשמר בעורך", "The demonstrated model was kept in the editor"],
-  flowerIntroTitle: ["נבנה פרח מצורות בסיסיות", "Build a flower from basic shapes"],
-  flowerIntroBody: ["נעבוד במבט חזית ונרכיב ראש פרח מכדורים, גבעול ועציץ מתיבות. הצורות יתווספו למודל הפתוח וניתנות לביטול.", "Work in Front view to build a blossom from spheres, plus a stem and pot from boxes. Shapes are added to the open model and can be undone."],
-  flowerIntroTip: ["מומלץ להתחיל במודל ריק, אך המדריך סופר רק את הצורות שתוסיפו בכל שלב.", "A blank model is recommended, but the guide counts only shapes added during each step."],
-  flowerCenterTitle: ["1. צרו את מרכז הפרח", "1. Create the flower center"],
-  flowerCenterBody: ["כלי הכדור פעיל. גררו במרכז החלק העליון של השרטוט כדי ליצור כדור קטן שיהיה לב הפרח.", "The Sphere tool is active. Drag near the upper center of the canvas to create a small sphere for the flower center."],
-  flowerCenterTip: ["במבט חזית מיקום הכדור נקבע ישירות לפי X ו־Y.", "In Front view, the sphere position follows X and Y directly."],
-  flowerPetalsTitle: ["2. הוסיפו ארבעה עלי כותרת", "2. Add four petals"],
-  flowerPetalsBody: ["צרו ארבעה כדורים קטנים נוספים מסביב למרכז — למעלה, למטה ובשני הצדדים.", "Create four more small spheres around the center: above, below, left, and right."],
-  flowerPetalsTip: ["אין צורך בדיוק מושלם; אחר כך תוכלו לבחור כל כדור ולגרור אותו למקום.", "Perfect placement is not required; you can select and drag each sphere afterward."],
-  flowerStemTitle: ["3. צרו גבעול", "3. Create the stem"],
-  flowerStemBody: ["כלי התיבה פעיל. גררו מלבן צר וגבוה מתחת לראש הפרח כדי ליצור גבעול.", "The Box tool is active. Drag a tall, narrow rectangle below the blossom to create the stem."],
-  flowerStemTip: ["עומק האקסטרוד בלוח ההגדרות קובע את עובי התיבה בתלת־ממד.", "Extrude depth in Sketch settings controls the box thickness in 3D."],
-  flowerPotTitle: ["4. הוסיפו עציץ", "4. Add a pot"],
-  flowerPotBody: ["צרו תיבה רחבה ונמוכה בבסיס הגבעול. היא תשמש כעציץ פשוט.", "Create a short, wide box at the base of the stem for a simple flower pot."],
-  flowerPotTip: ["בחרו את התיבה לאחר היצירה כדי לשנות מידות מדויקות בלוח צורה ומידות.", "Select the box afterward to enter exact dimensions in Shape & size."],
-  flowerViewTitle: ["5. עברו לתצוגת מודל", "5. Switch to Model view"],
-  flowerViewBody: ["לחצו על ״מודל״ כדי לראות את הפרח בתלת־ממד. גררו את התצוגה לסיבוב וגללו לזום.", "Choose Model to inspect the flower in 3D. Drag to orbit and scroll to zoom."],
-  flowerViewTip: ["אפשר לחזור לשרטוט בכל רגע עם מקש 2 ולמודל עם מקש 3.", "Press 2 to return to Sketch and 3 for Model at any time."],
-  flowerViewTipMobile: ["לחצו על View בסרגל התחתון כדי לעבור בין מודל תלת־ממדי לסקיצה דו־ממדית.", "Tap View in the bottom bar to switch between 3D Model and 2D Sketch views."],
-  flowerFinishTitle: ["הפרח הבסיסי מוכן", "Your basic flower is ready"],
-  flowerFinishBody: ["הרכבתם מודל מורכב מכמה גופים בסיסיים. נסו כעת לצבוע את המרכז, עלי הכותרת, הגבעול והעציץ בחומרים שונים.", "You assembled a model from basic solids. Next, try assigning different colors and materials to the center, petals, stem, and pot."],
-  flowerFinishTip: ["בחרו חלק ופתחו את לשונית ״חומר וגימור״ כדי להעניק לכל חלק צבע משלו.", "Select a part and open Material & finish to give each piece its own color."],
-  assemblyIntroTitle: ["נכיר הרכבות ו־Mates", "Learn assemblies and mates"],
-  assemblyIntroBody: ["הרכבה מחברת כמה מודלים כרכיבים עצמאיים. אם אין בהרכבה שני רכיבים, יתווספו שני רכיבי תרגול זמניים שאינם נשמרים בספרייה.", "An assembly combines independent model components. If fewer than two components exist, two temporary practice components are added without saving them to the library."],
-  assemblyIntroTip: ["בפרויקט רגיל שומרים חלקים לספרייה. אם הספרייה ריקה, הצעד הבא מפעיל את המדריך ומוסיף שני רכיבי תרגול.", "In a real project, save parts to the library. If the library is empty, Next step runs this tutorial and adds two practice components."],
-  assemblyPickTitle: ["1. בחרו רכיב", "1. Select a component"],
-  assemblyPickBody: ["לחצו על אחד הרכיבים ברשימה. הרכיב הנבחר יוצג בלוח המאפיינים עם מיקום וסיבוב.", "Select a component from the list. Its position and rotation appear in the Properties panel."],
-  assemblyPickTip: ["הרכיב הראשון מקובע כברירת מחדל ומשמש כעוגן של ההרכבה.", "The first component is grounded by default and anchors the assembly."],
-  assemblyMoveTitle: ["2. הזיזו רכיב", "2. Move a component"],
-  assemblyMoveBody: ["גררו את הרכיב שאינו מקובע ישירות בתצוגה, בעכבר או במגע. אפשר גם להזין X, Y או Z מדויקים בלוח המאפיינים.", "Drag the ungrounded component directly in the viewport with a mouse or touch. You can also enter exact X, Y, or Z values in Properties."],
-  assemblyMoveTip: ["גרירה על רכיב מזיזה אותו; גרירה על שטח ריק מסובבת את התצוגה. רכיב מקובע לא יזוז עד שמבטלים ״מקובע״.", "Drag a component to move it; drag empty space to orbit. A grounded component will not move until Grounded is cleared."],
-  assemblyMoveMode: ["כיוון תנועה", "Move direction"],
-  assemblyMoveFree: ["חופשי", "Free"],
-  assemblyMoveX: ["לאורך ציר X", "Along X axis"],
-  assemblyMoveY: ["לאורך ציר Y", "Along Y axis"],
-  assemblyMoveZ: ["לאורך ציר Z", "Along Z axis"],
-  assemblyPairTitle: ["3. בחרו שני רכיבים", "3. Select two components"],
-  assemblyPairBody: ["בחרו רכיב אחד, החזיקו Ctrl/Cmd ולחצו על הרכיב השני.", "Select one component, then hold Ctrl/Cmd and select the other."],
-  assemblyPairBodyMobile: ["בחרו רכיב אחד, הפעילו ׳הוסף לבחירה׳ בסרגל התחתון ולחצו על הרכיב השני.", "Tap one component, enable 'Add to selection' in the bottom selection bar, then tap the second component."],
-  assemblyPairTip: ["סדר הבחירה חשוב: הרכיב הראשון הוא המקור והשני מותאם אליו.", "Selection order matters: the first component is the reference and the second follows it."],
-  assemblyMateTitle: ["4. הוסיפו Mate של יישור X", "4. Add an Align X mate"],
-  assemblyMateBody: ["לחצו על ״יישור X״. הרכיב השני יתיישר לאותו מיקום X של הרכיב הראשון והקשר יישמר בהרכבה.", "Choose Align X. The second component moves to the first component's X position and the relation remains in the assembly."],
-  assemblyMateTip: ["אפשר להוסיף גם יישור Y/Z, מרחק, הצמדת פאות וצירים קונצנטריים.", "You can also add Y/Z alignment, distance, coincident faces, and concentric axes."],
-  assemblySaveTitle: ["5. שמרו את ההרכבה", "5. Save the assembly"],
-  assemblySaveBody: ["לחצו על ״שמור הרכבה״ כדי לשמור את הרכיבים, הטרנספורמציות וה־Mates יחד.", "Choose Save assembly to store the components, transforms, and mates together."],
-  assemblySaveTip: ["שינוי עתידי ב־Mate יעדכן שוב את מיקום הרכיבים בזמן הבנייה.", "Future mate changes will reapply component positioning during rebuild."],
-  assemblyFinishTitle: ["הרכבת התרגול מוכנה", "Practice assembly complete"],
-  assemblyFinishBody: ["בחרתם רכיבים, הזזתם רכיב והגדרתם קשר ביניהם. אפשר להמשיך עם Mates נוספים או להוסיף מודלים מהספרייה.", "You selected components, moved one, and related them with a mate. Continue with more mates or add library models."],
-  assemblyFinishTip: ["להרכבות יציבות: מקבעים רכיב בסיס אחד ומגדירים את שאר המיקומים באמצעות Mates.", "For stable assemblies, ground one base component and position the rest with mates."],
-  screwIntroTitle: ["נבנה בורג מגופים בסיסיים", "Build a screw from basic solids"],
-  screwIntroBody: ["ניצור בורג M8×30 עם ראש משושה מתוך מחולל ISO 4017:2022 ונאמת את מידותיו אוטומטית.", "Create an M8×30 hexagon-head screw from the ISO 4017:2022 generator and validate its dimensions automatically."],
-  screwShaftTitle: ["1. צרו את גוף הבורג", "1. Create the screw shaft"],
-  screwShaftBody: ["לחצו על ״בורג ISO 4017״. המחולל ייצור קוטר M8, פסיעה 1.25 מ״מ, אורך 30 מ״מ וראש משושה לפי חבילת המידות המותקנת.", "Choose ISO 4017 screw. The generator creates M8 diameter, 1.25 mm pitch, 30 mm length, and a hexagonal head from the installed dimensional pack."],
-  screwHeadTitle: ["2. הוסיפו ראש", "2. Add the head"],
-  screwHeadBody: ["צרו תיבה רחבה יותר סביב מרכז הגליל כדי לקבל ראש בורג.", "Create a wider box around the cylinder center for the screw head."],
-  screwSlotTitle: ["3. סמנו חריץ בראש", "3. Mark a head slot"],
-  screwSlotBody: ["צרו תיבה דקה וארוכה לרוחב הראש. צבע שונה יגרום לה להיקרא כחריץ.", "Create a long, thin box across the head. A contrasting color will make it read as a slot."],
-  screwFinishTitle: ["הבורג הסכמטי מוכן", "Schematic screw complete"],
-  gearIntroTitle: ["נבנה גלגל שיניים", "Build a gear"],
-  gearIntroBody: ["ניצור גלגל שיניים אינוולוטי, מודול 2 מ״מ ו־20 שיניים, לפי ISO 53, ISO 54 ו־ISO 21771-1.", "Create a 20-tooth, module 2 mm involute gear following ISO 53, ISO 54, and ISO 21771-1."],
-  gearBlankTitle: ["1. צרו דיסקה מרכזית", "1. Create the center blank"],
-  gearBlankBody: ["לחצו על ״גלגל שיניים ISO״. המחולל יחשב את מעגל הפסיעה, מעגל הבסיס וכל נקודות פרופיל האינוולוטה.", "Choose ISO gear. The generator calculates the pitch circle, base circle, and every involute-profile sample."],
-  gearTeethTitle: ["2. הוסיפו שש שיניים", "2. Add six teeth"],
-  gearTeethBody: ["צרו לפחות שש תיבות קטנות מסביב להיקף הדיסקה. סובבו או מקמו אותן לפי הכיוון הרדיאלי.", "Create at least six small boxes around the disk perimeter. Position or rotate them radially."],
-  gearFinishTitle: ["גלגל השיניים הבסיסי מוכן", "Basic gear complete"],
-  studIntroTitle: ["נבנה כדור עם ניטים", "Build a studded ball"],
-  studIntroBody: ["ניצור כדור מרכזי ונוסיף סביבו כדורים קטנים שישמשו כניטים.", "Create a central sphere and surround it with smaller spheres as studs."],
-  studCoreTitle: ["1. צרו כדור מרכזי", "1. Create the core sphere"],
-  studCoreBody: ["במבט חזית גררו כדור גדול במרכז השרטוט.", "In Front view, drag a large sphere at the center."],
-  studAddTitle: ["2. הוסיפו שישה ניטים", "2. Add six studs"],
-  studAddBody: ["צרו לפחות שישה כדורים קטנים סביב קו המתאר של הכדור המרכזי.", "Create at least six small spheres around the core outline."],
-  studFinishTitle: ["הכדור עם הניטים מוכן", "Studded ball complete"],
-  dreidelIntroTitle: ["נבנה סביבון באמצעות Revolve", "Build a dreidel with Revolve"],
-  dreidelIntroBody: ["נצייר חצי־פרופיל שכולל ידית, גוף רחב וחוד, ונסובב אותו סביב הציר האנכי.", "Draw a half-profile containing a handle, wide body, and point, then revolve it around the vertical axis."],
-  dreidelSketchTitle: ["1. ציירו את חצי־הפרופיל", "1. Draw the half-profile"],
-  dreidelSketchBody: ["Revolve דורש פרופיל סגור. ציירו בלשונית סקיצה מתאר סגור שנוגע בציר האנכי — הידית, הגוף הרחב והחוד. עד שהפרופיל ייסגר, כפתור Revolve יישאר מעומעם.", "Revolve needs a closed profile. On the Sketch tab draw a closed outline that touches the vertical axis — handle, wide body and point. Until it closes, the Revolve button stays greyed out."],
-  dreidelToolTitle: ["2. בחרו גוף סיבוב", "2. Choose Revolve"],
-  dreidelToolBody: ["לחצו על Revolve בלשונית תכונות. נפתח טופס התכונה הפרמטרית, כשהציר האנכי כבר נבחר כציר הסיבוב.", "Choose Revolve on the Features tab. The parametric feature form opens with the vertical axis already picked as the revolution axis."],
-  dreidelProfileTitle: ["3. סובבו את חצי־הפרופיל", "3. Revolve the half-profile"],
-  dreidelProfileBody: ["בטופס בחרו את סקיצת חצי־הפרופיל, השאירו 360° סביב הציר האנכי, ואשרו כדי לקבל את הגוף.", "In the form pick the half-profile sketch, keep 360° around the vertical axis, and apply to get the body."],
-  dreidelFinishTitle: ["הסביבון מוכן", "Dreidel complete"],
-  patternIntroTitle: ["נלמד מערך (Pattern) של גוף", "Pattern a solid"],
-  patternIntroBody: ["מערך משכפל גוף קיים לרשת ליניארית או לטבעת מעגלית. הכלל היחיד שחייבים לזכור: קודם בוחרים גוף אחד, ורק אחר כך פותחים את Pattern — בלי בחירה הפקודה לא תיצור כלום.", "A pattern copies an existing solid into a linear grid or a circular ring. The one rule to remember: select a single solid first, then open Pattern — with nothing selected the command produces nothing."],
-  patternSeedTitle: ["1. צרו גוף מקור", "1. Create the seed solid"],
-  patternSeedBody: ["גררו תיבה קטנה במרכז השרטוט. זהו הגוף שממנו יבנה המערך.", "Drag a small box near the center. This is the solid the pattern will copy."],
-  patternSelectTitle: ["2. בחרו את הגוף", "2. Select the solid"],
-  patternSelectBody: ["לחצו על התיבה ברשימת החלקים (או בתצוגה) עד שהיא מסומנת. Pattern פועל על גוף אחד נבחר בלבד.", "Click the box in the parts list (or in the viewport) until it is highlighted. Pattern works on exactly one selected solid."],
-  patternOpenTitle: ["3. פתחו את Pattern", "3. Open Pattern"],
-  patternOpenBody: ["בלשונית Features לחצו על Pattern. ייפתח טופס עם תצוגה מקדימה חיה של העותקים.", "In the Features tab choose Pattern. A form opens with a live preview of the copies."],
-  patternLinearTitle: ["4. מערך ליניארי", "4. Linear pattern"],
-  patternLinearBody: ["השאירו Pattern type על Linear, סמנו Enable X axis, קבעו X instances ל‑4 ו‑X spacing למרווח שגדול מרוחב התיבה, ולחצו Apply. מרווח קטן מהגוף גורם לעותקים לחפוף — זו הסיבה הנפוצה ל״לא קרה כלום״.", "Leave Pattern type on Linear, tick Enable X axis, set X instances to 4 and X spacing larger than the box width, then Apply. A spacing smaller than the solid makes the copies overlap — the usual reason it looks like nothing happened."],
-  patternCircularTitle: ["5. מערך מעגלי", "5. Circular pattern"],
-  patternCircularBody: ["בחרו שוב גוף, פתחו Pattern, החליפו Pattern type ל‑Circular, קבעו Circular instances ל‑6, Circular extent 360° וציר Y, ולחצו Apply. הסיבוב הוא סביב ציר המודל — גוף שיושב על הציר יסתובב בתוך עצמו.", "Select a solid again, open Pattern, switch Pattern type to Circular, set Circular instances to 6, extent 360° and axis Y, then Apply. The ring turns about the model axis — a solid sitting on that axis spins inside itself."],
-  patternFinishTitle: ["המערך מוכן", "Pattern complete"],
-  guidePatternTrack: ["פרויקט: מערך ליניארי ומעגלי", "Project: Linear & circular pattern"],
-  guidePatternTrackDesc: ["שכפול גוף לרשת ולטבעת", "Copy a solid into a grid and a ring"],
-  projectModelTip: ["עברו למודל כדי לבדוק את התוצאה בתלת־ממד, ואז צבעו כל חלק מלשונית חומר וגימור.", "Switch to Model to inspect the result in 3D, then color parts in Material & finish."],
-  projectViewTitle: ["בדקו את התוצאה בתלת־ממד", "Inspect the result in 3D"],
-  projectViewBody: ["לחצו על ״מודל״, סובבו את התצוגה ובדקו כיצד הגופים מתחברים.", "Choose Model, orbit the view, and inspect how the solids fit together."],
-  /* ---- visual start screen + next-step coach ---- */
-  welcomeKicker: ["נקודת פתיחה", "Start here"],
-  welcomeTitle: ["מה נבנה היום?", "What shall we build today?"],
-  welcomeSub: ["בחרו נקודת התחלה: מודל ריק, צורה מוכנה, או פרויקט מודרך שמלמד את העורך צעד אחר צעד.", "Pick a starting point — a blank model, a ready shape, or a guided project that teaches the editor step by step."],
-  welcomeStartGroup: ["התחלה מהירה", "Quick start"],
-  welcomeGuidesGroup: ["פרויקטים מודרכים", "Guided projects"],
-  welcomeBlank: ["חלק ריק", "Blank part"],
-  welcomeBlankDesc: ["סקיצה על המישור העליון, ואז אקסטרוד", "Sketch on Top, then Extrude"],
-  welcomeAssemblyDoc: ["הרכבה ריקה", "Blank assembly"],
-  welcomeAssemblyDocDesc: ["הוסיפו רכיב מהספרייה או הריצו את המדריך", "Insert a library part, or run the assembly tutorial"],
-  welcomeShapeBox: ["קובייה", "Box"],
-  welcomeShapeCyl: ["גליל", "Cylinder"],
-  welcomeShapeSph: ["כדור", "Sphere"],
-  welcomeShapeDesc: ["גררו על מישור העבודה והקלידו מידות", "Drag on the work plane, then type dimensions"],
-  welcomeSteps: ["שלבים", "steps"],
-  welcomeGuided: ["מודרך", "Guided"],
-  welcomeDontShow: ["אל תציגו מסך זה שוב בפתיחה", "Don't show this screen on open"],
-  welcomeSettingsHint: ["אפשר להחזיר אותו בכל רגע מהגדרות העורך", "You can bring it back anytime from the editor settings"],
-  welcomeContinue: ["המשך לעורך", "Open editor"],
-  welcomeContinueDesc: ["דלגו אל המודל הריק", "Skip to the empty model"],
-  welcomeMoreStarts: ["עוד נקודות התחלה", "More starting points"],
-  coachKicker: ["ליווי צעד־אחר־צעד", "Step-by-step coach"],
-  coachNext: ["הצעד הבא", "Next step"],
-  coachStepPlane: ["בחרו מישור עבודה ופתחו את הסקיצה הראשונה", "Choose a work plane and open your first sketch"],
-  coachActPlane: ["בחירת מישור", "Choose plane"],
-  coachStepSketch: ["שרטטו על המישור העליון — כלי המלבן מוכן", "Sketch on the Top plane — the rectangle tool is ready"],
-  coachActSketch: ["התחלת סקיצה", "Start sketch"],
-  coachStepAddSketch: ["הוסיפו סקיצה על פאה כדי להמשיך את החלק", "Add a sketch on a face to keep building this part"],
-  coachActAddSketch: ["סקיצה על פאה", "Sketch on face"],
-  coachStepAssemblyGuide: ["אין חלקים שמורים עדיין — המדריך מוסיף שני רכיבי תרגול", "No saved parts yet — the tutorial adds two practice components"],
-  coachStepComponentSecond: ["הוסיפו רכיב שני כדי שאפשר יהיה לקשור אותם", "Insert a second component so they can be mated"],
-  coachActComponentSecond: ["רכיב נוסף", "Insert another"],
-  coachStepGround: ["קבעו רכיב אחד כעוגן כדי שהשאר יוכלו לזוז ביחס אליו", "Ground one component so the others can move relative to it"],
-  coachActGround: ["קיבוע", "Ground"],
-  coachStepMate: ["קשרו את הרכיבים — Alt-גרירה או לחצן קשר במישור/ציר", "Mate the components — Alt-drag, or a mate button on faces/axes"],
-  coachActMate: ["פתיחת קשרים", "Open mates"],
-  coachStepCheck: ["בדקו התנגשויות לפני השמירה", "Check for interference before saving"],
-  coachActCheck: ["בדיקת התנגשות", "Check interference"],
-  coachAssemblyStages: ["הוספה ← קיבוע ← קשר ← בדיקה ← שמירה", "Insert → Ground → Mate → Check → Save"],
-  createSketchOnTop: ["התחלת סקיצה · מישור עליון", "Start sketch · Top plane"],
-  coachStepDraw: ["שרטטו פרופיל — מלבן (Q) או מעגל (G) הם ההתחלה הקלה", "Draw a profile — rectangle (Q) or circle (G) are the easy start"],
-  coachActDraw: ["כלי המלבן", "Rectangle tool"],
-  coachStepClose: ["סגרו את הפרופיל כדי שיהיה אפשר להפוך אותו לגוף", "Close the profile so it can become a solid"],
-  coachActClose: ["כלי הקו", "Line tool"],
-  coachStepFinishSketch: ["הפרופיל סגור — סיימו את הסקיצה כדי לעבור לתכונה", "Profile closed — finish the sketch to move on to a feature"],
-  coachActFinishSketch: ["סיום סקיצה", "Finish sketch"],
-  coachStepExtrude: ["הפכו את הסקיצה לגוף תלת־ממדי עם אקסטרוד", "Turn the sketch into a 3D solid with Extrude"],
-  coachActExtrude: ["פתחו Extrude", "Open Extrude"],
-  coachStepSave: ["המודל בהיסטוריה — שמרו אותו לספרייה", "Your model has history — save it to the library"],
-  coachActSave: ["שמירה לספרייה", "Save to library"],
-  coachStepComponent: ["הוסיפו את הרכיב הראשון להרכבה מהספרייה", "Insert the first assembly component from the library"],
-  coachActComponent: ["הוספת רכיב", "Insert component"],
-  coachDismiss: ["הסתרה להפעלה הנוכחית", "Hide for this session"],
-  coachDontShow: ["אל תציגו שוב — אפשר להחזיר מההגדרות", "Don't show again — you can re-enable it in Settings"],
-  guidanceTitle: ["הדרכה וליווי", "Guidance"],
-  prefWelcome: ["מסך פתיחה חזותי בכניסה לעורך", "Visual start screen when opening the editor"],
-  prefCoach: ["שורת ״הצעד הבא״ המלווה את העבודה", "'Next step' coach bar while you work"],
-  guideRelaunch: ["פתחו את המדריך האינטראקטיבי", "Open the interactive guide"],
-  emptyStart: ["מסך הפתיחה", "Start screen"],
-  emptyStartTip: ["פתחו שוב את גלריית נקודות ההתחלה", "Reopen the starting-points gallery"],
-  coachStages: ["חלק ← מישור ← סקיצה ← תכונה ← היסטוריה", "Part → Reference → Sketch → Feature → History"],
-  isolate: ["הצג נבחרים בלבד", "Isolate"],
-  isolateOff: ["הצג הכל", "Show all"],
-  smartMate: ["הרכבה חכמה", "SmartMate"],
-  smartMateGrounded: ["הרכיב הנגרר מקובע — בטלו ׳מקובע׳ כדי להזיז אותו", "The dragged component is grounded — clear Grounded to let it move"],
-  collapseExplodeView: ["החזרת הרכיבים למקומם", "Collapse exploded view"],
-  mateIssues: ["קשרים שלא נפתרו", "unresolved mates"],
-  mateIssueOne: ["קשר שלא נפתר", "unresolved mate"],
-  mateOrphansDropped: ["הוסרו עם הרכיב", "dropped with the component"],
-  mateIssueMissingComponent: ["רכיב חסר", "Component is gone"],
-  mateIssueGroundedTarget: ["הרכיב הנגרר מקובע", "The component to move is grounded"],
-  mateIssueUnresolved: ["הפאה או הציר לא נמצאו", "Face or axis could not be found"],
-  mateIssueAmbiguous: ["יותר מפאה אחת מתאימה", "More than one face matches"],
-  mateIssueBadFrame: ["חסר מידע גיאומטרי לקשר", "The reference has no usable geometry"],
-  mateIssueOverConstrained: ["קשר אחר גובר על זה", "Another mate overrides this one"],
-  mateIssueNonConvergent: ["הקשרים סותרים זה את זה ולא נפתרו", "These mates contradict each other and were not solved"],
-  mateDofOne: ["דרגת חופש אחת", "1 degree of freedom"],
-  mateDof: ["דרגות חופש", "degrees of freedom"],
-  mateDofFixed: ["מקובע", "fully constrained"],
-  mateRebound: ["הקשר חובר מחדש לפאה מקבילה", "Reattached to an equivalent face"],
-  matePicked: ["הפניות שנבחרו", "Picked references"],
-  matePickedOne: ["הפניה שנבחרה", "Picked reference"],
-  matePickHint: ["לחצו על פאה או קצה עגול ברכיב אחד, ואז Ctrl/Cmd-לחצו על פאה או קצה ברכיב השני", "Click a face or circular edge on one component, then Ctrl/Cmd-click one on the other"],
-  mateUsingPicked: ["לפי ההפניות שנבחרו", "using the picked references"],
-  mateUsingBounds: ["לפי תיבת הגבול", "using bounding boxes"],
-  mateNeedsPlanar: ["דרושות שתי פאות מישוריות או שני קצוות עגולים", "Needs a flat face or circular edge on each component"],
-  mateNeedsAxis: ["דרושים שני צירים — פאה גלילית, קשת או ציר", "Needs an axis on each — a round face, an arc, or an axis"],
-  mateNeedsRound: ["דרושות שתי פאות עגולות עם רדיוס", "Needs a round face with a radius on each"],
-  smartMateHint: ["Alt-גררו רכיב אל פאה או קצה של רכיב אחר", "Alt-drag a component onto another face or edge"],
-  selFilter: ["מסנן בחירה", "Selection filter"],
-  selFilterAll: ["הכל", "All"],
-  selFilterFace: ["פאה", "Face"],
-  selFilterEdge: ["קצה", "Edge"],
-  selFilterVertex: ["קודקוד", "Vertex"],
-  selFilterSketch: ["סקיצה", "Sketch"],
-  selFilterBody: ["גוף", "Body"],
-  shortcutBar: ["סרגל קיצור", "Shortcut bar"],
-  viewSelector: ["בורר מבט", "View selector"],
-  isoView: ["איזומטרי", "Isometric"],
-  ctxEditFeature: ["ערוך תכונה", "Edit feature"],
-  ctxRollbackHere: ["גלגל אחורה לכאן", "Rollback to here"],
-  ctxHide: ["הסתר", "Hide"],
-  ctxShowAll: ["הצג הכל", "Show all"],
-  inferenceCycle: ["Tab מחליף יעד הצמדה · Ctrl מבטל יחסים אוטומטיים", "Tab cycles snap targets · Ctrl suppresses auto-relations"],
-  gestureHint: ["גררו ימין: אקסטרוד · שמאל: קו · מעלה: אקסטרוד · מטה: מידה", "Right-drag: Extrude · left: Line · up: Extrude · down: Dimension"],
-
-  /* ---- gate reasons: why a Features command is greyed out ----
-     These say what to do next, so they have to name what is actually
-     missing — a body, or a second sketch — not a history-tree selection. */
-  cmdNeedTwoSketches: ["צרו לפחות שתי סקיצות תחילה", "Create at least two sketches first"],
-  cmdNeedTwoBodies: ["צרו לפחות שני גופים תחילה", "Create at least two bodies first"],
-
-  /* ---- Evaluate and Assembly reports (the #mdReport card) ----
-     A report is a kicker, a title and a body.  Anything with a count or an
-     error in it keeps the whole sentence in one entry with a {n}/{x}
-     placeholder, so Hebrew keeps its own word order instead of being
-     assembled from translated fragments. */
-  reportKickerStandards: ["DIN / ISO", "DIN / ISO"],
-  reportKickerEvaluate: ["בדיקה", "EVALUATE"],
-  reportKickerSave: ["שמירה", "SAVE"],
-  auditBlocked: ["{x} — נחסם בביקורת התקנים", "{x} blocked by audit"],
-  auditNothing: ["אין מה לבדוק", "Nothing to audit"],
-  auditNothingBody: ["לא נמצאו הצהרות על מחברים או גלגלי שיניים תקניים.", "No standardized fastener or gear declarations were found."],
-  auditPassed: ["הביקורת עברה בהצלחה", "Audit passed"],
-  auditPassedBody: ["כל {n} החלקים התקניים עומדים בתקן.", "All {n} standardized parts conform."],
-  auditPassedBodyOne: ["החלק התקני היחיד עומד בתקן.", "The one standardized part conforms."],
-  auditFailed: ["הביקורת נכשלה", "Audit failed"],
-  interferenceFound: ["נמצאו {n} התנגשויות", "{n} interferences"],
-  interferenceFoundOne: ["נמצאה התנגשות אחת", "1 interference"],
-  interferenceNone: ["לא נמצאה התנגשות", "No interference detected"],
-  interferenceNoneBody: ["אין חפיפה בין שני רכיבים.", "No two components overlap."],
-  saveRebuildFailed: ["הבנייה מחדש נכשלה", "Rebuild failed"],
-  saveAttachmentFailed: ["שמירת הצירוף המדויק נכשלה", "Exact attachment save failed"],
-  saveLibraryFailed: ["שמירת המודל לספרייה נכשלה", "Model library save failed"],
-  saveStorageFull: ["אחסון הדפדפן מלא או אינו זמין.", "Browser storage is full or unavailable."],
-
-  /* ---- feature edit, exchange and sheet-metal notices ---- */
-  featureEditCancelled: ["עריכת התכונה בוטלה · הפרמטרים הקודמים שוחזרו", "Feature edit cancelled · previous parameters restored"],
-  featureRebuiltFromHistory: ["התכונה נבנתה מחדש מההיסטוריה · כל המבטים עודכנו", "Feature rebuilt from history · all views updated"],
-  errBrep: ["BREP", "BREP"],
-  errStep: ["STEP", "STEP"],
-  errIges: ["IGES", "IGES"],
-  errBundle: ["חבילה", "Bundle"],
-  stepExported: ["קובץ STEP יוצא", "STEP exported"],
-  igesExported: ["קובץ IGES יוצא", "IGES exported"],
-  bundleExported: ["חבילת הפרויקט יוצאה", "Project bundle exported"],
-  bundleImported: ["חבילת הפרויקט יובאה", "Project bundle imported"],
-  motionStudyAdded: ["חקר תנועה נוסף", "Motion study added"],
-  stepImported: ["STEP {file} · {recognition} · {units}", "STEP {file} · {recognition} · {units}"],
-  stepDirectOnly: ["ייבוא ישיר בלבד", "direct-only"],
-  stepRecognized: ["זוהו תכונות {mode}", "{mode} recognized"],
-  stepUnitsDeclared: ["יחידות {unit} מהקובץ", "{unit} from file"],
-  stepUnitsOverride: ["יחידות {unit} שנכפו", "{unit} override"],
-  sheetMetalConvert: ["המרה לפח", "Convert to sheet metal"],
-  sheetMetalThickness: ["עובי הפח (ס\"מ):", "Thickness (cm):"],
-  sheetMetalFlange: ["הוספת כיפוף קצה", "Add edge flange"],
-  sheetMetalFlangeLen: ["אורך הכיפוף (ס\"מ):", "Flange length (cm):"],
-  sheetMetalBendAngle: ["זווית הכיפוף (מעלות):", "Bend angle (degrees):"],
-  sheetMetalFlat: ["פריסה שטוחה", "Flat pattern"],
-  sheetMetalNeedPlate: ["המירו את הלוח הנבחר לפח תחילה", "Convert the selected plate to sheet metal first"],
-
-  /* ---- js/core/feature_catalog.js labels, resolved by labelKey ----
-     The catalogue is a shared module that cannot import this table (it is
-     loaded by the kernel adapter and by tests with no UI), so it stores a
-     stable key beside each English string and the editor resolves it here.
-     A missing entry falls back to the catalogue's English — tests/ asserts
-     that none is missing. */
-  /* ---- the feature edit PropertyManager (openFeatureEditor) ---- */
-  featureEditTitle: ["עריכת {name}", "Edit {name}"],
-  featureEditStep: ["שלב בהיסטוריה · {id}", "History step · {id}"],
-  fldFeatureName: ["שם התכונה", "Feature name"],
-  featureLiveAllViews: ["חי · כל מבטי המודל עוקבים אחר הפרמטרים האלה", "Live · every model view follows these parameters"],
-  depSketch: ["סקיצה", "Sketch"],
-  depFeature: ["תכונה", "Feature"],
-  noUpstreamDeps: ["אין תלות בתכונות קודמות", "No upstream feature dependencies"],
-  updateFeature: ["עדכון התכונה", "Update feature"],
-
-  fcFeatExtrude: ["אקסטרוד / בליטה", "Extrude / Boss"],
-  fcFeatExtrudeCut: ["חיתוך באקסטרוד", "Extrude Cut"],
-  fcFeatRevolve: ["גוף סיבוב", "Revolve"],
-  fcFeatSweep: ["Sweep", "Sweep"],
-  fcFeatLoft: ["Loft", "Loft"],
-  fcFeatFillet: ["עיגול פינות", "Fillet"],
-  fcFeatChamfer: ["קיטום פינות", "Chamfer"],
-  fcFeatShell: ["ריקון", "Shell"],
-  fcFeatPattern: ["מערך", "Pattern"],
-  fcFeatMirror: ["שיקוף", "Mirror"],
-  fcFeatBoolean: ["בוליאני", "Boolean"],
-  fcFeatHole: ["אשף קדחים", "Hole wizard"],
-  fcFeatHelix: ["הליקס / ספירלה", "Helix / Spiral"],
-  fcFeatThread: ["הברגה", "Thread"],
-  fcFeatKnurl: ["חריטת אחיזה", "Knurl"],
-  fcFeatInsert: ["תושבת / בושינג", "Insert / bushing"],
-  fcFeatToolbox: ["חלק מארגז הכלים", "Toolbox Part"],
-
-  fcGrpExtent: ["מידת האקסטרוד", "Extent"],
-  fcGrpCutExtent: ["מידת החיתוך", "Cut extent"],
-  fcGrpDraft: ["שיפוע דפנות", "Draft"],
-  fcGrpResult: ["תוצאה", "Result"],
-  fcGrpAxisExtent: ["ציר ומידה", "Axis and extent"],
-  fcGrpPathBehavior: ["התנהגות הנתיב", "Path behavior"],
-  fcGrpSections: ["חתכים", "Sections"],
-  fcGrpFilletDefinition: ["הגדרת העיגול", "Fillet definition"],
-  fcGrpChamferDefinition: ["הגדרת הקיטום", "Chamfer definition"],
-  fcGrpWallDefinition: ["הגדרת הדופן", "Wall definition"],
-  fcGrpPatternLayout: ["פריסת המערך", "Pattern layout"],
-  fcGrpAxisX: ["ציר X", "X axis"],
-  fcGrpAxisY: ["ציר Y", "Y axis"],
-  fcGrpAxisZ: ["ציר Z", "Z axis"],
-  fcGrpCircularDefinition: ["הגדרת המערך המעגלי", "Circular definition"],
-  fcGrpInstancesResult: ["עותקים ותוצאה · עד 128 בסך הכול", "Instances and result · max 128 total"],
-  fcGrpMirrorDefinition: ["הגדרת השיקוף", "Mirror definition"],
-  fcGrpBooleanDefinition: ["הגדרת הפעולה הבוליאנית", "Boolean definition"],
-  fcGrpStandard: ["תקן", "Standard"],
-  fcGrpBore: ["קדח", "Bore"],
-  fcGrpHeadRecess: ["שקע לראש הבורג", "Head recess"],
-  fcGrpThread: ["הברגה", "Thread"],
-  fcGrpLayout: ["פריסה", "Layout"],
-  fcGrpHelixDefinition: ["הגדרת ההליקס", "Helix definition"],
-  fcGrpIsoThread: ["הברגה מטרית ISO", "ISO metric thread"],
-  fcGrpDin82Knurl: ["חריטת אחיזה DIN 82", "DIN 82 knurl"],
-  fcGrpInsert: ["תושבת", "Insert"],
-  fcGrpToolbox: ["חלק תקני", "Standard part"],
-
-  fcFldOperation: ["פעולה", "Operation"],
-  fcFldMergeResult: ["מיזוג התוצאה", "Merge result"],
-  fcFldEndCondition: ["תנאי סיום", "End condition"],
-  fcFldDepth: ["עומק", "Depth"],
-  fcFldDirection: ["כיוון", "Direction"],
-  fcFldSymmetricMid: ["סימטרי / מישור אמצע", "Symmetric / mid-plane"],
-  fcFldSymmetric: ["סימטרי", "Symmetric"],
-  fcFldStartOffset: ["היסט התחלה", "Start offset"],
-  fcFldDraftAngle: ["זווית שיפוע", "Draft angle"],
-  fcFldDraftOutward: ["שיפוע כלפי חוץ", "Draft outward"],
-  fcFldKeepTool: ["שמירת גוף החיתוך", "Keep cutting tool"],
-  fcFldAxis: ["ציר", "Axis"],
-  fcFldAngle: ["זווית", "Angle"],
-  fcFldProfileOrientation: ["כיוון הפרופיל", "Profile orientation"],
-  fcFldTwist: ["פיתול", "Twist"],
-  fcFldEndScale: ["קנה־מידה בסוף", "End scale"],
-  fcFldCreateSolid: ["יצירת גוף מוצק", "Create solid"],
-  fcFldContinuity: ["רציפות", "Continuity"],
-  fcFldMatchProfiles: ["התאמת קודקודי הפרופילים", "Match profile vertices"],
-  fcFldRuledSections: ["חתכים ישרים", "Ruled sections"],
-  fcFldClosedLoft: ["Loft סגור", "Closed loft"],
-  fcFldTolerance: ["סבולת", "Tolerance"],
-  fcFldRadius: ["רדיוס", "Radius"],
-  fcFldEdgeScope: ["היקף הקצוות", "Edge scope"],
-  fcFldSectionRepresentation: ["ייצוג החתך", "Section representation"],
-  fcFldSurfaceContinuity: ["רציפות המשטח", "Surface continuity"],
-  fcFldType: ["סוג", "Type"],
-  fcFldDistance1: ["מרחק 1", "Distance 1"],
-  fcFldDistance2: ["מרחק 2", "Distance 2"],
-  fcFldFlipDirection: ["היפוך כיוון", "Flip direction"],
-  fcFldThickness: ["עובי", "Thickness"],
-  fcFldCornerJoin: ["חיבור בפינה", "Corner join"],
-  fcFldRemoveFaces: ["הסרת הפאות הנבחרות", "Remove selected faces"],
-  fcFldPatternType: ["סוג המערך", "Pattern type"],
-  fcFldCircularInstances: ["עותקים במערך המעגלי", "Circular instances"],
-  fcFldEnableAxisX: ["הפעלת ציר X", "Enable X axis"],
-  fcFldEnableAxisY: ["הפעלת ציר Y", "Enable Y axis"],
-  fcFldEnableAxisZ: ["הפעלת ציר Z", "Enable Z axis"],
-  fcFldInstancesX: ["עותקים בציר X", "X instances"],
-  fcFldInstancesY: ["עותקים בציר Y", "Y instances"],
-  fcFldInstancesZ: ["עותקים בציר Z", "Z instances"],
-  fcFldSpacingAxisX: ["מרווח בציר X", "X spacing"],
-  fcFldSpacingAxisY: ["מרווח בציר Y", "Y spacing"],
-  fcFldSpacingAxisZ: ["מרווח בציר Z", "Z spacing"],
-  fcFldSpacingIncrementX: ["הגדלת המרווח בציר X ב־", "Increase X spacing by"],
-  fcFldSpacingIncrementY: ["הגדלת המרווח בציר Y ב־", "Increase Y spacing by"],
-  fcFldSpacingIncrementZ: ["הגדלת המרווח בציר Z ב־", "Increase Z spacing by"],
-  fcFldCircularExtent: ["טווח הזווית", "Circular extent"],
-  fcFldDistanceFromAxis: ["מרחק מהציר", "Distance from axis"],
-  fcFldCircularAxis: ["ציר הסיבוב", "Circular axis"],
-  fcFldEqualSpacing: ["מרווח שווה", "Equal spacing"],
-  fcFldSkipCopies: ["דילוג על עותקים (2, 5-7)", "Skip copies (2, 5-7)"],
-  fcFldMergeInstances: ["מיזוג העותקים", "Merge instances"],
-  fcFldMirrorPlane: ["מישור השיקוף", "Mirror plane"],
-  fcFldKeepOriginal: ["שמירת המקור", "Keep original"],
-  fcFldMergeTouching: ["מיזוג גופים נוגעים", "Merge touching solids"],
-  fcFldKeepTools: ["שמירת גופי הכלי", "Keep tool bodies"],
-  fcFldHoleType: ["סוג הקדח", "Hole type"],
-  fcFldSize: ["מידה", "Size"],
-  fcFldThroughFit: ["התאמת המעבר", "Through fit"],
-  fcFldDiameter: ["קוטר", "Diameter"],
-  fcFldCounterbore: ["שקע גלילי", "Counterbore"],
-  fcFldCboreDiameter: ["קוטר השקע הגלילי", "C'bore diameter"],
-  fcFldCboreDepth: ["עומק השקע הגלילי", "C'bore depth"],
-  fcFldCountersink: ["שקע חרוטי", "Countersink"],
-  fcFldCsinkDiameter: ["קוטר השקע החרוטי", "C'sink diameter"],
-  fcFldCsinkAngle: ["זווית השקע החרוטי", "C'sink angle"],
-  fcFldThreadDisplay: ["תצוגת ההברגה", "Thread display"],
-  fcFldHand: ["כיווניות", "Hand"],
-  fcFldInstanceLayout: ["פריסת העותקים", "Instance layout"],
-  fcFldCountX: ["כמות X", "Count X"],
-  fcFldCountY: ["כמות Y", "Count Y"],
-  fcFldSpacingX: ["מרווח X", "Spacing X"],
-  fcFldSpacingY: ["מרווח Y", "Spacing Y"],
-  fcFldCircularCount: ["כמות במעגל", "Circular count"],
-  fcFldBoltCircle: ["מעגל הברגים", "Bolt circle"],
-  fcFldPitch: ["פסיעה", "Pitch"],
-  fcFldTurns: ["מספר סיבובים", "Turns"],
-  fcFldHeight: ["גובה", "Height"],
-  fcFldStartAngle: ["זווית התחלה", "Start angle"],
-  fcFldEndRadiusDelta: ["שינוי הרדיוס בסוף", "End radius delta"],
-  fcFldSide: ["צד", "Side"],
-  fcFldDisplay: ["תצוגה", "Display"],
-  fcFldMajorDiameterMm: ["קוטר ראשי Ø (מ\"מ)", "Major Ø (mm)"],
-  fcFldPitchMm: ["פסיעה (מ\"מ)", "Pitch (mm)"],
-  fcFldLength: ["אורך", "Length"],
-  fcFldSeries: ["סדרה", "Series"],
-  fcFldForm: ["צורה", "Form"],
-  fcFldDiameterMm: ["קוטר (מ\"מ)", "Diameter (mm)"],
-  fcFldBandLength: ["אורך הרצועה", "Band length"],
-  fcFldHelixAngle: ["זווית ההליקס", "Helix angle"],
-  fcFldDepthMm: ["עומק (מ\"מ)", "Depth (mm)"],
-  fcFldInnerDiameterMm: ["קוטר פנימי Ø (מ\"מ)", "Inner Ø (mm)"],
-  fcFldOuterDiameterMm: ["קוטר חיצוני Ø (מ\"מ)", "Outer Ø (mm)"],
-  fcFldLengthMm: ["אורך (מ\"מ)", "Length (mm)"],
-  fcFldMaterial: ["חומר", "Material"],
-  fcFldToolboxFamily: ["משפחה", "Family"],
-  fcFldToolboxSize: ["מידה", "Size"],
-  fcFldToolboxFinish: ["גימור", "Finish"],
-  fcFldThreadGeometry: ["גאומטריית הברגה", "Thread geometry"],
-  fcFldToolboxLod: ["רמת פירוט", "Detail level"],
-
-  fcOptAdd: ["הוספת חומר", "Add material"],
-  fcOptNewBody: ["גוף חדש", "New body"],
-  fcOptBlind: ["עומק קבוע", "Blind"],
-  fcOptThroughAll: ["דרך הכול", "Through all"],
-  fcOptUpToNext: ["עד המשטח הבא", "Up to next"],
-  fcOptUpToFace: ["עד פאה", "Up to face"],
-  fcOptMidPlane: ["מישור אמצע", "Mid-plane"],
-  fcOptAlongNormal: ["לאורך הנורמל", "Along normal"],
-  fcOptReverseNormal: ["נגד הנורמל", "Reverse normal"],
-  fcOptFollowPath: ["עוקב אחר הנתיב", "Follow path"],
-  fcOptMinimumTwist: ["פיתול מזערי", "Minimum twist"],
-  fcOptKeepProfileFixed: ["שמירת הפרופיל קבוע", "Keep profile fixed"],
-  fcOptPositionG0: ["מיקום (G0)", "Position (G0)"],
-  fcOptTangentG1: ["משיקות (G1)", "Tangent (G1)"],
-  fcOptCurvatureG2: ["עקמומיות (G2)", "Curvature (G2)"],
-  fcOptTangentChain: ["שרשרת הקצוות המשיקה שנבחרה", "Selected tangent chain"],
-  fcOptWholeFeature: ["כל התכונה", "Whole feature"],
-  fcOptRational: ["רציונלי", "Rational"],
-  fcOptQuasiAngular: ["כמעט־זוויתי", "Quasi-angular"],
-  fcOptPolynomial: ["פולינומי", "Polynomial"],
-  fcOptTangentC1: ["משיקות (C1)", "Tangent (C1)"],
-  fcOptCurvatureC2: ["עקמומיות (C2)", "Curvature (C2)"],
-  fcOptEqualDistance: ["מרחק שווה", "Equal distance"],
-  fcOptTwoDistances: ["שני מרחקים", "Two distances"],
-  fcOptDistanceAngle: ["מרחק וזווית", "Distance and angle"],
-  fcOptInside: ["פנימה", "Inside"],
-  fcOptOutside: ["החוצה", "Outside"],
-  fcOptRound: ["מעוגל", "Round"],
-  fcOptIntersectionJoin: ["חיתוך", "Intersection"],
-  fcOptLinear: ["ליניארי", "Linear"],
-  fcOptCircular: ["מעגלי", "Circular"],
-  fcOptAxisX: ["ציר X", "X axis"],
-  fcOptAxisY: ["ציר Y", "Y axis"],
-  fcOptAxisZ: ["ציר Z", "Z axis"],
-  fcOptUnion: ["איחוד", "Union"],
-  fcOptSubtract: ["חיסור", "Subtract"],
-  fcOptIntersect: ["חיתוך", "Intersect"],
-  fcOptSimple: ["פשוט", "Simple"],
-  fcOptCounterbore: ["שקע גלילי", "Counterbore"],
-  fcOptCountersink: ["שקע חרוטי", "Countersink"],
-  fcOptSpotface: ["שיטוח משטח", "Spotface"],
-  fcOptTapped: ["מוברג", "Tapped"],
-  fcOptTappedCounterbore: ["מוברג עם שקע גלילי", "Tapped counterbore"],
-  fcOptTappedCountersink: ["מוברג עם שקע חרוטי", "Tapped countersink"],
-  fcOptFitClose: ["צמודה", "Close"],
-  fcOptFitNormal: ["רגילה", "Normal"],
-  fcOptFitLoose: ["רפויה", "Loose"],
-  fcOptCosmetic: ["סמלית", "Cosmetic"],
-  fcOptModeled: ["ממודלת", "Modeled"],
-  fcOptRight: ["ימנית", "Right"],
-  fcOptLeft: ["שמאלית", "Left"],
-  fcOptSketchPoints: ["נקודות הסקיצה", "Sketch points"],
-  fcOptExternal: ["חיצונית", "External"],
-  fcOptInternal: ["פנימית", "Internal"],
-  fcOptCoarse: ["גסה", "Coarse"],
-  fcOptFine: ["עדינה", "Fine"],
-  fcOptKnurlDiamond: ["מעוין RGE", "Diamond RGE"],
-  fcOptKnurlStraight: ["ישר RAA", "Straight RAA"],
-  fcOptKnurlLeft: ["שמאלי RBL", "Left RBL"],
-  fcOptKnurlRight: ["ימני RBR", "Right RBR"],
-  fcOptBrassC360: ["פליז C360", "Brass C360"],
-  fcOptSteel304: ["פלדה 304", "Steel 304"],
-  fcOptAluminum6061: ["אלומיניום 6061", "Aluminum 6061"],
-  fcOptTitanium: ["טיטניום", "Titanium"],
-};
-function t(k) {
-  return TXT[k] ? TXT[k][getLang() === "en" ? 1 : 0] : k;
-}
-/* One whole sentence per key, with the number or file name substituted in.
-   Concatenating translated fragments produces broken Hebrew word order. */
-function tf(k, values) {
-  return String(t(k)).replace(/\{(\w+)\}/g, function (match, name) {
-    return Object.prototype.hasOwnProperty.call(values || {}, name) ? String(values[name]) : match;
-  });
-}
 /* The feature catalogue cannot import t() — it is a shared module loaded
    without a UI — so it asks for a translation through this resolver instead.
    An unknown key falls back to the catalogue's own English string. */
@@ -1676,8 +255,13 @@ function loadAssemblies() {
     return [];
   }
 }
+/* Returns whether the write landed, exactly as saveLib() does. Swallowing the
+   quota error and returning nothing let saveAssemblyDocument() announce a save
+   that never happened, mark the document clean and delete its recovery draft —
+   the one copy of the work that was left. */
 function saveAssemblies(list) {
-  try { localStorage.setItem(LS_ASSEMBLIES, JSON.stringify(list)); } catch (e) {}
+  try { localStorage.setItem(LS_ASSEMBLIES, JSON.stringify(list)); return true; }
+  catch (e) { return false; }
 }
 function newAssembly() {
   return {
@@ -1687,10 +271,6 @@ function newAssembly() {
     mates: [],
   };
 }
-function cloneData(value) {
-  if(value == null)return value;
-  return typeof structuredClone==="function" ? structuredClone(value) : JSON.parse(JSON.stringify(value));
-}
 function componentDef(component) {
   if (!component) return null;
   if (component.def && Array.isArray(component.def.parts)) return component.def;
@@ -1698,15 +278,6 @@ function componentDef(component) {
   for (var i = 0; i < lib.length; i++) if (lib[i].key === component.modelKey) return lib[i];
   var f = FURN[component.modelKey];
   return f && f.custom && Array.isArray(f.custom.parts) ? f.custom : null;
-}
-/* One contract, shared with the solver: `transform.q` is the orientation and
-   rx/ry/rz mirror it. Everything below reads the mirror — the bounds box, the
-   render group, the pose cache key, the inspector — so it has to be derived
-   here rather than merely defaulted, or a component that arrived carrying only
-   a quaternion would draw at identity. */
-function normalizeTransform(component) {
-  if (!component.transform) component.transform = {};
-  return normalizePose(component.transform);
 }
 /* Where the assembly actually is, in assembly coordinates: every component's
    own bounds, turned and moved into place. Used to frame the camera, so it has
@@ -1908,118 +479,7 @@ function solveAssembly(options) {
   return result;
 }
 
-// bbox over all parts
-function basePartBounds(p) {
-  if ((p.kind === "direct" || p.kind === "mesh") && p.bounds) return { ...p.bounds };
-  if ((p.kind === "direct" || p.kind === "mesh") && p.meshData) {
-    var mp=p.meshData.positions || [], mb={x0:Infinity,x1:-Infinity,y0:Infinity,y1:-Infinity,z0:Infinity,z1:-Infinity};
-    for (var mbi=0;mbi+2<mp.length;mbi+=3) {
-      mb.x0=Math.min(mb.x0,mp[mbi]);mb.x1=Math.max(mb.x1,mp[mbi]);
-      mb.y0=Math.min(mb.y0,mp[mbi+1]);mb.y1=Math.max(mb.y1,mp[mbi+1]);
-      mb.z0=Math.min(mb.z0,mp[mbi+2]);mb.z1=Math.max(mb.z1,mp[mbi+2]);
-    }
-    if (isFinite(mb.x0)) return mb;
-  }
-  if (p.kind === "box") return { x0: Math.min(p.x0, p.x1), x1: Math.max(p.x0, p.x1), y0: Math.min(p.y0, p.y1), y1: Math.max(p.y0, p.y1), z0: Math.min(p.z0, p.z1), z1: Math.max(p.z0, p.z1) };
-  if (p.kind === "cyl") { var R = Math.max(p.r, p.r2 != null ? p.r2 : p.r); return { x0: p.x - R, x1: p.x + R, y0: p.y, y1: p.y + p.h, z0: p.z - R, z1: p.z + R }; }
-  if (p.kind === "sph") return { x0: p.x - p.r, x1: p.x + p.r, y0: p.y - p.r, y1: p.y + p.r, z0: p.z - p.r, z1: p.z + p.r };
-  if (p.kind === "rev") {
-    var RR = 0, ry0 = 1e9, ry1 = -1e9;
-    p.pts.forEach(function (q) { RR = Math.max(RR, Math.abs(q.u)); ry0 = Math.min(ry0, q.v); ry1 = Math.max(ry1, q.v); });
-    return { x0: p.x - RR, x1: p.x + RR, y0: ry0, y1: ry1, z0: p.z - RR, z1: p.z + RR };
-  }
-  if (p.kind === "loft") {
-    var lu0 = 1e9, lu1 = -1e9, lv0 = 1e9, lv1 = -1e9;
-    (p.pts0 || []).concat(p.pts1 || []).forEach(function (q) { lu0 = Math.min(lu0, q.u); lu1 = Math.max(lu1, q.u); lv0 = Math.min(lv0, q.v); lv1 = Math.max(lv1, q.v); });
-    var llo = Math.min(p.from, p.to), lhi = Math.max(p.from, p.to);
-    if (p.axis === "y") return { x0: lu0, x1: lu1, z0: lv0, z1: lv1, y0: llo, y1: lhi };
-    if (p.axis === "z") return { x0: lu0, x1: lu1, y0: lv0, y1: lv1, z0: llo, z1: lhi };
-    return { z0: lu0, z1: lu1, y0: lv0, y1: lv1, x0: llo, x1: lhi };
-  }
-  // ext
-  if (p.frame) {
-    var framed=(p.pts || []).flatMap(function(q){return [framePoint(p.frame,q.u,q.v,p.from),framePoint(p.frame,q.u,q.v,p.to)];});
-    if (framed.length) return {
-      x0:Math.min.apply(null,framed.map(function(q){return q.x;})),x1:Math.max.apply(null,framed.map(function(q){return q.x;})),
-      y0:Math.min.apply(null,framed.map(function(q){return q.y;})),y1:Math.max.apply(null,framed.map(function(q){return q.y;})),
-      z0:Math.min.apply(null,framed.map(function(q){return q.z;})),z1:Math.max.apply(null,framed.map(function(q){return q.z;})),
-    };
-  }
-  var u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
-  p.pts.forEach(function (q) { u0 = Math.min(u0, q.u); u1 = Math.max(u1, q.u); v0 = Math.min(v0, q.v); v1 = Math.max(v1, q.v); });
-  var lo = Math.min(p.from, p.to), hi = Math.max(p.from, p.to);
-  if (p.axis === "y") return { x0: u0, x1: u1, z0: v0, z1: v1, y0: lo, y1: hi };
-  if (p.axis === "z") return { x0: u0, x1: u1, y0: v0, y1: v1, z0: lo, z1: hi };
-  return { z0: u0, z1: u1, y0: v0, y1: v1, x0: lo, x1: hi };
-}
-function partBounds(p) {
-  return rotatedPatternBounds(basePartBounds(p), partPatternRotations(p));
-}
-function holeLoop(hl, includeSuppressed) {
-  if (!hl) return [];
-  if (Array.isArray(hl)) return hl;
-  if (!includeSuppressed && hl.suppressed) return [];
-  return hl.points || hl.loop || [];
-}
-/* Which bodies the exact kernel can rebuild from their own definition — and so
-   which ones a 3D cut can be applied to at all. A sphere or an imported mesh
-   has no profile to rebuild from: a cut through one has to be refused out loud
-   rather than dropped on the floor, which is what "it cut the box but not the
-   shape on top of it" was. */
-function partSupportsExactMesh(p) {
-  if (!p) return false;
-  if (p.kind === "box" || p.kind === "ext") return true;
-  if (p.kind === "cyl") return fin(p.r) && fin(p.h);
-  if (p.kind === "loft") return (p.pts0 || []).length >= 3 && (p.pts1 || []).length === (p.pts0 || []).length;
-  // a partial revolve would have to agree with the preview's start angle, which
-  // the kernel revolve does not take; a full turn has no start to disagree about
-  if (p.kind === "rev") return (p.pts || []).length >= 3 && Math.abs(Number(p.angle) || 360) >= 359.5;
-  return false;
-}
-function partNeedsExactMesh(p) {
-  if (!p) return false;
-  if (fin(p.exactFillet) && p.exactFillet > 0) return true;
-  if ((p.exactOperations || []).some(function (operation) { return !operation.suppressed; })) return true;
-  if ((p.cuts3d || []).some(function (cut) { return !cut.suppressed; })) return true;
-  return false;
-}
 
-/* Older documents could encode a rim-breaking slot as a profile `hole`.
-   Analytic extrusion topology necessarily keeps the outer wire intact in that
-   representation, which made the already removed segment light up and become
-   a fillet target. Upgrade those records in place to boolean cuts before any
-   topology is exposed. Enclosed, non-overlapping holes stay lightweight. */
-function migrateBoundaryChangingProfileCuts(part) {
-  if (!part || part.kind !== "ext" || !(part.holes || []).length || !(part.pts || []).length) return false;
-  var retained = [], acceptedLoops = [], moved = [], bounds = null;
-  (part.holes || []).forEach(function (entry) {
-    var loop = holeLoop(entry, true);
-    if (entry && !Array.isArray(entry) && entry.suppressed) { retained.push(entry); return; }
-    if (profileLoopIsSeparateHole(loop, part.pts, acceptedLoops)) {
-      retained.push(entry);
-      acceptedLoops.push(loop);
-      return;
-    }
-    if (loop.length < 3) { retained.push(entry); return; }
-    bounds = bounds || partBounds(part);
-    var range = cutRangeForAxis(bounds, part.axis);
-    moved.push({
-      axis:part.axis,
-      ...(part.frame ? {frame:cloneData(part.frame)} : {}),
-      from:range.from,
-      to:range.to,
-      loop:cloneData(loop),
-      featureId:entry && !Array.isArray(entry) ? entry.featureId : undefined,
-    });
-  });
-  if (!moved.length) return false;
-  part.holes = retained;
-  part.cuts3d = (part.cuts3d || []).concat(moved);
-  delete part.meshData;
-  part.exactPending = false;
-  part.exactError = null;
-  return true;
-}
 
 function migrateDefinitionProfileCuts(definition, schedule) {
   var changed = false;
@@ -2106,39 +566,6 @@ function addPart(part) {
   return part;
 }
 
-function resetClonedPartIdentity(part) {
-  var oldPartId = part.id, oldFeatureId = part.featureId || (oldPartId && "feature:part:" + oldPartId);
-  part.id = uid();
-  part.featureId = "feature:part:" + part.id;
-  var remap = function (value) {
-    return typeof value === "string" && oldFeatureId && value.indexOf(oldFeatureId) === 0
-      ? part.featureId + value.slice(oldFeatureId.length)
-      : value;
-  };
-  (part.exactFilletTargets || []).forEach(function (reference) {
-    reference.ownerFeatureId = remap(reference.ownerFeatureId);
-    reference.persistentId = remap(reference.persistentId);
-  });
-  part.exactFilletEdges = (part.exactFilletEdges || []).map(remap);
-  (part.exactOperations || []).forEach(function (operation) {
-    operation.id = remap(operation.id) || part.featureId + ":" + operation.type + ":" + uid();
-    (operation.targets || []).forEach(function (reference) {
-      reference.ownerFeatureId = remap(reference.ownerFeatureId);
-      reference.persistentId = remap(reference.persistentId);
-    });
-  });
-  if (part.meshData && Array.isArray(part.meshData.topology)) {
-    part.meshData.topology.forEach(function (entry) {
-      entry.ownerFeatureId = remap(entry.ownerFeatureId);
-      entry.persistentId = remap(entry.persistentId);
-    });
-    (part.meshData.faceRanges || []).forEach(function (entry) { entry.persistentId = remap(entry.persistentId); });
-    clearTopologyCache(part);
-  }
-  delete part.exactBuildToken;
-  part.exactPending = false;
-  return part;
-}
 
 function defBounds(def) {
   var b = { x0: 1e9, x1: -1e9, y0: 1e9, y1: -1e9, z0: 1e9, z1: -1e9 };
@@ -2150,88 +577,6 @@ function defBounds(def) {
   });
   if (b.x1 < b.x0) b = { x0: -30, x1: 30, y0: 0, y1: 60, z0: -30, z1: 30 };
   return b;
-}
-function translateDescriptor(descriptor,dx,dy,dz) {
-  if (!descriptor || typeof descriptor!=="object") return;
-  [descriptor.origin,descriptor.center].forEach(function(point){if(point){point.x+=dx;point.y+=dy;point.z+=dz;}});
-  (descriptor.endpoints || []).forEach(function(point){point.x+=dx;point.y+=dy;point.z+=dz;});
-  if (descriptor.bounds) [descriptor.bounds.min,descriptor.bounds.max].forEach(function(point){if(point){point.x+=dx;point.y+=dy;point.z+=dz;}});
-}
-function translateTopologyReferences(value,dx,dy,dz) {
-  if (!value || typeof value!=="object") return;
-  if (value.type==="topology-reference") {translateDescriptor(value.descriptor,dx,dy,dz);return;}
-  if (Array.isArray(value)) value.forEach(function(item){translateTopologyReferences(item,dx,dy,dz);});
-  else Object.keys(value).forEach(function(key){translateTopologyReferences(value[key],dx,dy,dz);});
-}
-function movePart(p, dx, dy, dz) {
-  if (p.kind === "box") { p.x0 += dx; p.x1 += dx; p.y0 += dy; p.y1 += dy; p.z0 += dz; p.z1 += dz; }
-  else if (p.kind === "cyl" || p.kind === "sph") { p.x += dx; p.y += dy; p.z += dz; }
-  else if (p.kind === "rev") {
-    p.x += dx; p.z += dz;
-    p.pts.forEach(function (q) { q.v += dy; }); // profile v is absolute height
-  }
-  else if (p.kind === "loft") {
-    var lu, lv, lw;
-    if (p.axis === "y") { lu = dx; lv = dz; lw = dy; }
-    else if (p.axis === "z") { lu = dx; lv = dy; lw = dz; }
-    else { lu = dz; lv = dy; lw = dx; }
-    [p.pts0, p.pts1].forEach(function (lp) { lp.forEach(function (q) { q.u += lu; q.v += lv; }); });
-    p.from += lw; p.to += lw;
-  }
-  else if (p.kind === "direct" || p.kind === "mesh") {
-    if (p.bounds) {p.bounds.x0+=dx;p.bounds.x1+=dx;p.bounds.y0+=dy;p.bounds.y1+=dy;p.bounds.z0+=dz;p.bounds.z1+=dz;}
-  }
-  else if (p.frame) {
-    p.frame.origin.x += dx; p.frame.origin.y += dy; p.frame.origin.z += dz;
-  }
-  else {
-    var du, dv, dw;
-    if (p.axis === "y") { du = dx; dv = dz; dw = dy; }
-    else if (p.axis === "z") { du = dx; dv = dy; dw = dz; }
-    else { du = dz; dv = dy; dw = dx; }
-    [p.pts].concat((p.holes || []).map(function (hl) { return holeLoop(hl, true); })).forEach(function (lp) {
-      lp.forEach(function (q) { q.u += du; q.v += dv; });
-    });
-    (p.cuts3d || []).forEach(function (cut) {
-      if (cut.frame) return;
-      var cu = cut.axis === "y" || cut.axis === "z" ? dx : dz;
-      var cv = cut.axis === "y" ? dz : dy;
-      (cut.loop || []).forEach(function (q) { q.u += cu; q.v += cv; });
-    });
-    if (p.sketch && p.sketch.kind === "wall" && p.axis === "y") {
-      p.sketch.a.u += du; p.sketch.a.v += dv;
-      p.sketch.b.u += du; p.sketch.b.v += dv;
-    }
-    p.from += dw; p.to += dw;
-  }
-  (p.cuts3d || []).forEach(function (cut) {
-    if (!cut.frame || !cut.frame.origin) return;
-    cut.frame.origin.x += dx; cut.frame.origin.y += dy; cut.frame.origin.z += dz;
-  });
-  if (p.meshData && Array.isArray(p.meshData.positions)) {
-    for (var mi=0;mi<p.meshData.positions.length;mi+=3) {
-      p.meshData.positions[mi]+=dx;
-      p.meshData.positions[mi+1]+=dy;
-      p.meshData.positions[mi+2]+=dz;
-    }
-    clearMeshProjectionCache(p.meshData);
-    clearTopologyCache(p);
-    (p.meshData.topology || []).forEach(function (entry) {
-      var descriptor = entry && entry.descriptor;
-      if (!descriptor) return;
-      [descriptor.origin, descriptor.center].forEach(function (point) {
-        if (!point) return;
-        point.x += dx; point.y += dy; point.z += dz;
-      });
-      (descriptor.endpoints || []).forEach(function (point) { point.x += dx; point.y += dy; point.z += dz; });
-      if (descriptor.bounds) {
-        [descriptor.bounds.min, descriptor.bounds.max].forEach(function (point) {
-          if (!point) return;
-          point.x += dx; point.y += dy; point.z += dz;
-        });
-      }
-    });
-  }
 }
 
 // Center model in x/z, rest on floor, and compute catalog dims.
@@ -2269,7 +614,6 @@ function normalizeDef(def) {
   }
 }
 
-function hexNum(s) { return parseInt(String(s || "#999999").replace("#", ""), 16); }
 
 // texture cache for custom-part image textures (shared with primitives' box() via opt.tex)
 function applyTexTo(mesh, p, wCm, hCm) {
@@ -2297,103 +641,9 @@ function applyTexTo(mesh, p, wCm, hCm) {
   mesh.material.needsUpdate = true;
 }
 
-/* Shade a tessellated curve as a curve.
-   `computeVertexNormals` on unindexed triangles gives every facet its own flat
-   normal, so a cylinder lights up as a ring of flat staves no matter how finely
-   it is divided — subdividing further only makes narrower staves. Averaging the
-   normals of neighbouring facets that meet within `limit` rounds the shading
-   off, while anything sharper keeps its own normal, so a box still has crisp
-   corners and the rim where a wall meets its cap stays a hard edge. */
-function smoothTessellationNormals(geometry, limit) {
-  var position = geometry.getAttribute("position");
-  if (!position || geometry.getIndex()) return geometry;
-  var triangles = Math.floor(position.count / 3);
-  if (triangles < 2) return geometry;
-  var faces = new Float32Array(triangles * 3);
-  var a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
-  for (var f = 0; f < triangles; f++) {
-    a.fromBufferAttribute(position, f * 3); b.fromBufferAttribute(position, f * 3 + 1); c.fromBufferAttribute(position, f * 3 + 2);
-    n.crossVectors(b.sub(a), c.sub(a));
-    if (n.lengthSq() > 1e-20) n.normalize();
-    faces[f * 3] = n.x; faces[f * 3 + 1] = n.y; faces[f * 3 + 2] = n.z;
-  }
-  // Vertices that share a corner share a smoothing decision; quantising the key
-  // is safe because the extruder emits the very same profile point each time.
-  var shared = new Map();
-  for (var v = 0; v < triangles * 3; v++) {
-    var key = Math.round(position.getX(v) * 1e4) + "," + Math.round(position.getY(v) * 1e4) + "," + Math.round(position.getZ(v) * 1e4);
-    if (!shared.has(key)) shared.set(key, []);
-    shared.get(key).push(v);
-  }
-  var cutoff = Math.cos(limit == null ? Math.PI / 4.5 : limit), normals = new Float32Array(triangles * 3 * 3);
-  shared.forEach(function (group) {
-    group.forEach(function (vertex) {
-      var own = Math.floor(vertex / 3) * 3, x = 0, y = 0, z = 0;
-      group.forEach(function (other) {
-        var face = Math.floor(other / 3) * 3;
-        if (faces[own] * faces[face] + faces[own + 1] * faces[face + 1] + faces[own + 2] * faces[face + 2] < cutoff) return;
-        x += faces[face]; y += faces[face + 1]; z += faces[face + 2];
-      });
-      var size = Math.hypot(x, y, z) || 1;
-      normals[vertex * 3] = x / size; normals[vertex * 3 + 1] = y / size; normals[vertex * 3 + 2] = z / size;
-    });
-  });
-  geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
-  return geometry;
-}
 
-function buildExactMesh(parent, p) {
-  if (!p.meshData || (!Array.isArray(p.meshData.positions) && !ArrayBuffer.isView(p.meshData.positions)) || p.meshData.positions.length < 9) return null;
-  var geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(p.meshData.positions, 3));
-  if (p.meshData.normals) {
-    geometry.setAttribute("normal", new THREE.Float32BufferAttribute(p.meshData.normals, 3));
-  } else {
-    geometry.computeVertexNormals();
-  }
-  if (p.meshData.colors) {
-    geometry.setAttribute("color", new THREE.Float32BufferAttribute(p.meshData.colors, 3));
-  }
-  smoothTessellationNormals(geometry);
-  geometry.computeBoundingSphere();
-  var material = new THREE.MeshStandardMaterial({
-    color: hexNum(p.color),
-    metalness: fin(p.metal) ? p.metal : 0.08,
-    roughness: fin(p.rough) ? p.rough : 0.8,
-    transparent: fin(p.opacity) && p.opacity < 1,
-    opacity: fin(p.opacity) ? p.opacity : 1,
-    side: THREE.DoubleSide,
-  });
-  var mesh = new THREE.Mesh(geometry, material);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
-}
 
-/* Merging a cut body's staves back into round faces is real arithmetic, and the
-   hover path asks for it on every frame. The answer only changes when the mesh
-   does, and a rebuilt mesh is a new object — so cache on that object, and let
-   the one place that edits a mesh in place (movePart) clear the entry. */
-var topologyMergeCache = new WeakMap();
-var meshSmoothFaceCache = new WeakMap();
-var overlayEntryCache = new WeakMap();
-function clearTopologyCache(part) {
-  if (part && part.meshData) {
-    topologyMergeCache.delete(part.meshData);
-    overlayEntryCache.delete(part.meshData);
-  }
-}
 
-function smoothFacesForMesh(mesh) {
-  if (!mesh || !mesh.geometry) return { faces: [], faceOfTriangle: new Int32Array(0) };
-  var cached = meshSmoothFaceCache.get(mesh.geometry);
-  if (cached) return cached;
-  var data = geometryToMeshData(mesh.geometry);
-  var grouped = data ? meshSmoothFaces(data) : { faces: [], faceOfTriangle: new Int32Array(0) };
-  meshSmoothFaceCache.set(mesh.geometry, grouped);
-  return grouped;
-}
 
 function topologyEntriesForPart(part) {
   if (!part) return [];
@@ -2441,190 +691,14 @@ function topologyEntriesForPart(part) {
   return entries;
 }
 
-function profilePointToWorld(part, u, v, w, frame) {
-  frame = frame || part.frame;
-  if (frame) return framePoint(frame, u, v, w);
-  var axis = part.axis || "y";
-  if (axis === "x") return { x: w, y: v, z: u };
-  if (axis === "z") return { x: u, y: v, z: w };
-  return { x: u, y: w, z: v };
-}
 
-function profileAxisToWorld(part, frame) {
-  frame = frame || part.frame;
-  if (frame && frame.normal) return { x: frame.normal.x, y: frame.normal.y, z: frame.normal.z };
-  var axis = part.axis || "y";
-  if (axis === "x") return { x: 1, y: 0, z: 0 };
-  if (axis === "z") return { x: 0, y: 0, z: 1 };
-  return { x: 0, y: 1, z: 0 };
-}
 
-function holeAndCutEdges(part, featureId) {
-  var edges = [];
-  var addLoop = function (loop, tag, from, to, frame, axisName) {
-    if (!loop || loop.length < 3) return;
-    var fit = fitProfileCircle(loop);
-    /* A 3D cut carries its own extrusion direction: reading the part's would
-       lay a hole rim across the wrong plane on a cut made from another view. */
-    var profile = { axis: axisName || part.axis, frame: frame || part.frame };
-    var axis = profileAxisToWorld(profile, frame);
-    ["start", "end"].forEach(function (end, index) {
-      var w = index ? to : from;
-      var persistentId = featureId + ":edge:hole:" + tag + ":" + end;
-      if (fit) {
-        var origin = profilePointToWorld(profile, fit.u, fit.v, w, frame);
-        edges.push({
-          ownerFeatureId: featureId, kind: "edge", persistentId: persistentId, semantic: "hole:" + tag + ":" + end,
-          descriptor: { curve: "circle", semantic: "hole:" + tag + ":" + end, origin: origin, axis: axis, radius: fit.radius, measure: 2 * Math.PI * fit.radius },
-        });
-        return;
-      }
-      loop.forEach(function (pt, i) {
-        var nxt = loop[(i + 1) % loop.length];
-        var a = profilePointToWorld(profile, pt.u, pt.v, w, frame);
-        var b = profilePointToWorld(profile, nxt.u, nxt.v, w, frame);
-        edges.push({
-          ownerFeatureId: featureId, kind: "edge", persistentId: persistentId + ":" + i, semantic: "hole:" + tag + ":" + end,
-          descriptor: { curve: "line", origin: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 }, endpoints: [a, b], measure: Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) },
-        });
-      });
-    });
-  };
-  forEachCutLoop(part, addLoop);
-  return edges;
-}
 
-/* Every hole and cut loop of an extruded part, in the one place both the edge
-   and the face pass read them from. */
-function forEachCutLoop(part, visit) {
-  (part.holes || []).forEach(function (hl, index) {
-    visit(holeLoop(hl), "profile:" + index, part.from, part.to, part.frame, part.axis);
-  });
-  (part.cuts3d || []).forEach(function (cut, index) {
-    if (!cut || cut.suppressed) return;
-    var from = fin(cut.from) ? cut.from : part.from;
-    var to = fin(cut.to) ? cut.to : part.to;
-    var frame = cut.frame || part.frame;
-    var axisName = !frame && cut.axis && cut.axis !== "frame" ? cut.axis : part.axis;
-    visit(cut.loop || holeLoop(cut), "cut:" + index, from, to, frame, axisName);
-  });
-}
 
-/* A bore is a wall too: give every hole and cut loop of an extruded part the
-   face topology the outer profile already has, so picking inside a hole selects
-   the whole round wall instead of the one facet under the cursor. */
-function holeAndCutFaces(part, featureId) {
-  if (part.kind !== "ext") return [];
-  var faces = [];
-  forEachCutLoop(part, function (loop, tag, from, to, frame, axisName) {
-    if (!loop || loop.length < 3 || !fin(from) || !fin(to) || from === to) return;
-    faces.push.apply(faces, cutWallTopology({ id: featureId }, {
-      points: loop, axis: axisName || part.axis, frame: frame || part.frame, from: from, to: to, tag: tag,
-    }));
-  });
-  return faces;
-}
 
-function geometryToMeshData(geometry) {
-  if (!geometry || !geometry.getAttribute) return null;
-  var position = geometry.getAttribute("position");
-  if (!position || !position.count) return null;
-  var index = geometry.getIndex();
-  var positions = [];
-  var push = function (i) { positions.push(position.getX(i), position.getY(i), position.getZ(i)); };
-  if (index) {
-    for (var i = 0; i < index.count; i++) push(index.getX(i));
-  } else {
-    for (var i = 0; i < position.count; i++) push(i);
-  }
-  return positions.length >= 9 ? { positions: positions } : null;
-}
 
-function meshCircleEntries(part, featureId) {
-  var data = part && part.meshData && Array.isArray(part.meshData.positions) && part.meshData.positions.length >= 9 ? part.meshData : null;
-  if (!data) return [];
-  return meshFeatureEdges(data).circles.map(function (circle, index) {
-    var descriptor = {
-      curve: "circle",
-      semantic: "mesh-circle:" + index,
-      origin: circle.origin,
-      axis: circle.axis,
-      radius: circle.radius,
-      measure: Number(circle.measure) || (2 * Math.PI * circle.radius),
-    };
-    if (!circle.closed && circle.points && circle.points.length >= 2) {
-      descriptor.endpoints = [circle.points[0], circle.points[circle.points.length - 1]];
-    }
-    return {
-      ownerFeatureId: featureId,
-      kind: "edge",
-      persistentId: featureId + ":edge:mesh-circle:" + index,
-      semantic: descriptor.semantic,
-      descriptor: descriptor,
-    };
-  });
-}
 
-function meshFaceEntries(part, featureId) {
-  var data = part && part.meshData && Array.isArray(part.meshData.positions) && part.meshData.positions.length >= 9 ? part.meshData : null;
-  if (!data) return [];
-  return meshSmoothFaces(data).faces.map(function (face, index) {
-    var descriptor = Object.assign({ semantic: "mesh-face:" + index }, face.descriptor || {});
-    return {
-      ownerFeatureId: featureId,
-      kind: "face",
-      persistentId: featureId + ":face:mesh:" + index,
-      semantic: descriptor.semantic,
-      descriptor: descriptor,
-    };
-  });
-}
 
-function edgePoints(descriptor) {
-  if (!descriptor) return [];
-  var origin = descriptor.origin, axis = descriptor.axis;
-  if (descriptor.curve === "circle" && origin && axis && fin(Number(descriptor.radius))) {
-    var radius = Number(descriptor.radius);
-    var n = new THREE.Vector3(axis.x, axis.y, axis.z).normalize();
-    var seed = Math.abs(n.y) < .9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
-    var u = new THREE.Vector3().crossVectors(n, seed).normalize(), v = new THREE.Vector3().crossVectors(n, u).normalize();
-    var points = [], steps = curveSegments(radius, Math.PI * 2, 24, 128);
-    var start = 0, sweep = Math.PI * 2;
-    var ends = descriptor.endpoints;
-    if (Array.isArray(ends) && ends.length >= 2 && Math.hypot(ends[0].x - ends[1].x, ends[0].y - ends[1].y, ends[0].z - ends[1].z) > 1e-3) {
-      var measure = Number(descriptor.measure);
-      if (fin(measure) && measure > 0) {
-        var toAngle = function (p) {
-          var dx = p.x - origin.x, dy = p.y - origin.y, dz = p.z - origin.z;
-          return Math.atan2(dx * v.x + dy * v.y + dz * v.z, dx * u.x + dy * u.y + dz * u.z);
-        };
-        var arc = circularEdgeSweep(radius, measure, toAngle(ends[0]), toAngle(ends[1]), true);
-        start = arc.start;
-        sweep = arc.sweep;
-        steps = curveSegments(radius, Math.abs(sweep), 12, 96);
-      }
-    }
-    for (var i = 0; i <= steps; i++) {
-      var angle = start + sweep * i / steps;
-      points.push({
-        x: origin.x + (u.x * Math.cos(angle) + v.x * Math.sin(angle)) * radius,
-        y: origin.y + (u.y * Math.cos(angle) + v.y * Math.sin(angle)) * radius,
-        z: origin.z + (u.z * Math.cos(angle) + v.z * Math.sin(angle)) * radius,
-      });
-    }
-    return points;
-  }
-  if (Array.isArray(descriptor.endpoints) && descriptor.endpoints.length >= 2) return descriptor.endpoints;
-  var length = Number(descriptor.measure);
-  if (descriptor.curve === "line" && origin && axis && fin(length)) {
-    var size = Math.hypot(axis.x, axis.y, axis.z) || 1, half = length / (2 * size);
-    return [
-      {x:origin.x-axis.x*half,y:origin.y-axis.y*half,z:origin.z-axis.z*half},
-      {x:origin.x+axis.x*half,y:origin.y+axis.y*half,z:origin.z+axis.z*half},
-    ];
-  }
-  return [];
-}
 
 /* Two components cut from the same library model carry identical persistent
    ids, so a reference has to name its component or picking a face lights up
@@ -2651,19 +725,6 @@ function topologyHovered(persistentId, entry) {
   return !!(entry && edgesGeometricallyMatch(E.hoverTopology, entry));
 }
 
-function edgesGeometricallyMatch(a, b) {
-  if (!a || !b) return false;
-  var da = a.descriptor || {}, db = b.descriptor || {};
-  if ((da.curve === "circle" || db.curve === "circle") && (da.curve === "circle" && db.curve === "circle")) {
-    return circleDescriptorsMatch(da, db);
-  }
-  var pa = edgePoints(da), pb = edgePoints(db);
-  if (pa.length < 2 || pb.length < 2) return false;
-  var a0 = pa[0], a1 = pa[pa.length - 1], b0 = pb[0], b1 = pb[pb.length - 1];
-  var tol = Math.max(0.55, Math.abs(Number(da.measure) || 0) * 0.04, Math.abs(Number(db.measure) || 0) * 0.04);
-  var dist = function (p, q) { return Math.hypot((p.x || 0) - (q.x || 0), (p.y || 0) - (q.y || 0), (p.z || 0) - (q.z || 0)); };
-  return (dist(a0, b0) < tol && dist(a1, b1) < tol) || (dist(a0, b1) < tol && dist(a1, b0) < tol);
-}
 function finishImpliedEdge(persistentId) {
   if (!E.authoring || !["fillet", "chamfer"].includes(E.authoring.featureType)) return false;
   var faces = (E.topologySelection || []).filter(function (reference) { return reference.kind === "face"; });
@@ -2674,60 +735,9 @@ function finishImpliedEdge(persistentId) {
   return !!(entry && entry.kind === "edge" && faces.some(function (face) { return edgeLiesOnFace(entry, face); }));
 }
 
-function addMeshSharpEdges(mesh) {
-  if (!mesh || !mesh.material) return;
-  var materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-  materials.forEach(function (material) {
-    if (!material) return;
-    material.polygonOffset = true;
-    material.polygonOffsetFactor = 1;
-    material.polygonOffsetUnits = 1;
-  });
-}
 
-function circleDescriptorsMatch(a, b) {
-  if (!a || !b || a.curve !== "circle" || b.curve !== "circle") return false;
-  var ra = Number(a.radius), rb = Number(b.radius);
-  if (!fin(ra) || !fin(rb) || Math.abs(ra - rb) > Math.max(0.25, ra * 0.05)) return false;
-  var ax = a.axis || {}, bx = b.axis || {};
-  if (Math.abs((ax.x || 0) * (bx.x || 0) + (ax.y || 0) * (bx.y || 0) + (ax.z || 0) * (bx.z || 0)) < 0.92) return false;
-  return distanceToCircularEdge(a.origin, b) <= Math.max(0.45, ra * 0.06);
-}
 
-function exactOverlayEntries(part, features) {
-  var topology = part && part.meshData && Array.isArray(part.meshData.topology) ? part.meshData.topology : null;
-  if (!topology || !topology.length) return [];
-  var chains = (features && features.polylines || []).filter(function (line) { return (line.points || []).length >= 2; });
-  var entries = [];
-  topology.forEach(function (entry) {
-    if (!entry || entry.kind !== "edge" || !entry.descriptor) return;
-    var descriptor = entry.descriptor;
-    if (descriptor.curve !== "line" && descriptor.curve !== "circle") {
-      /* The kernel reports a free curve as two endpoints only; drawing that as
-         a chord cuts straight through the body.  Borrow the tessellated chain
-         that runs between the same ends, and skip the edge when none does. */
-      var chain = matchingMeshChain(descriptor, chains);
-      if (!chain) return;
-      descriptor = Object.assign({}, descriptor, { curve: "polyline", endpoints: chain.points });
-    }
-    if (edgePoints(descriptor).length < 2) return;
-    entries.push(descriptor === entry.descriptor ? entry : Object.assign({}, entry, { descriptor: descriptor }));
-  });
-  if (!entries.length) return [];
-  return mergeSmoothTopology(entries).filter(function (entry) { return entry.kind === "edge"; });
-}
 
-function matchingMeshChain(descriptor, chains) {
-  var ends = Array.isArray(descriptor.endpoints) ? descriptor.endpoints : [];
-  if (ends.length < 2) return null;
-  var a = ends[0], b = ends[ends.length - 1];
-  var tol = Math.max(0.45, Math.abs(Number(descriptor.measure) || 0) * 0.08);
-  var dist = function (p, q) { return Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z); };
-  return chains.find(function (line) {
-    var p0 = line.points[0], p1 = line.points[line.points.length - 1];
-    return (dist(a, p0) < tol && dist(b, p1) < tol) || (dist(a, p1) < tol && dist(b, p0) < tol);
-  }) || null;
-}
 
 /* Overlay and pick targets are the crease edges of the solid that is on
    screen. Analytic box ribs that a cut already removed never get a line, and a
@@ -2914,7 +924,22 @@ function addTopologyPickEdges(parent, part, explicitMesh) {
       var closed = !!(entry.descriptor && entry.descriptor.curve === "circle" && !entry.descriptor.endpoints);
       if (closed && vectors.length > 2 && vectors[0].distanceToSquared(vectors[vectors.length - 1]) < 1e-8) vectors = vectors.slice(0, -1);
       var path = vectors.length === 2 ? new THREE.LineCurve3(vectors[0], vectors[1]) : new THREE.CatmullRomCurve3(vectors, closed, "centripetal");
-      var radius = selected ? Math.max(.38, span * .0055) : hovered ? Math.max(.26, span * .004) : Math.max(.14, span * .0024);
+      /* Screen-space, like the pick band it is supposed to advertise. Sizing
+         the highlight off the MODEL span made it a constant in world units:
+         zoomed in it drew a pipe over the edge, zoomed out it thinned to
+         nothing while still being pickable at 5-8 px. Falls back to the old
+         span-relative numbers when the view cannot say what a pixel is
+         worth — a decoration built before the first render. */
+      var perPixel = decorationWorldPerPixel();
+      /* Stamped HERE, where the width is actually baked into geometry, rather
+         than in refreshDecorations(): decorations are also built by the
+         preview rebuild, and recording the scale only on one of those paths
+         left the stamp at zero, which read as "nothing to compare" and meant
+         the re-bake below never fired at all. */
+      if (perPixel > 0) decoratedWorldPerPixel = perPixel;
+      var radius = perPixel > 0
+        ? perPixel * (selected ? 2.2 : hovered ? 1.7 : 1.1)
+        : selected ? Math.max(.38, span * .0055) : hovered ? Math.max(.26, span * .004) : Math.max(.14, span * .0024);
       var glow = new THREE.Mesh(
         new THREE.TubeGeometry(path, Math.max(8, vectors.length * 2), radius, 6, closed),
         new THREE.MeshBasicMaterial({
@@ -2932,204 +957,10 @@ function addTopologyPickEdges(parent, part, explicitMesh) {
   });
 }
 
-function analyticCurvedFace(descriptor) {
-  if (!descriptor) return false;
-  var surface = descriptor.surface;
-  if (surface === "cylinder") return !!(descriptor.axis && fin(Number(descriptor.radius)));
-  if (surface === "sphere") return fin(Number(descriptor.radius));
-  if (surface === "cone") return !!(descriptor.axis && fin(Number(descriptor.radius)));
-  if (surface === "torus") return !!(descriptor.axis && fin(Number(descriptor.majorRadius)) && fin(Number(descriptor.minorRadius)));
-  return false;
-}
 
-function highlightIdsFor(reference) {
-  var ids = [];
-  if (!reference) return ids;
-  if (reference.persistentId) ids.push(reference.persistentId);
-  (reference.memberPersistentIds || []).forEach(function (id) { if (id && ids.indexOf(id) === -1) ids.push(id); });
-  return ids;
-}
 
-function triangleSetForFace(mesh, descriptor, reference) {
-  var wanted = null, add = function (t) {
-    if (!(t >= 0)) return;
-    if (!wanted) wanted = {};
-    wanted[t] = true;
-  };
-  var subshapeMap = mesh && mesh.userData && mesh.userData.cadSubshapeMap;
-  var ids = highlightIdsFor(reference);
-  if (subshapeMap && ids.length) {
-    ids.forEach(function (id) {
-      var list = subshapeMap[id];
-      if (Array.isArray(list)) list.forEach(add);
-    });
-  }
-  if (wanted) return wanted;
-  var ranges = mesh && mesh.userData && mesh.userData.cadFaceRanges;
-  if (Array.isArray(ranges) && ids.length) {
-    ranges.forEach(function (range) {
-      if (!range || ids.indexOf(range.persistentId) === -1) return;
-      var start = range.triangleStart || 0, count = range.triangleCount || 0;
-      for (var t = start; t < start + count; t++) add(t);
-    });
-  }
-  if (wanted) {
-    /* Kernel ranges are the face. A merged tessellated wall expands through
-       member ids already in `ids`; throwing the ranges away would paint an
-       infinite cylinder and light every coaxial land of the same radius. */
-    return wanted;
-  }
-  var meshIndex = reference && reference.persistentId && /:face:mesh:(\d+)$/.exec(reference.persistentId);
-  if (meshIndex) {
-    var grouped = smoothFacesForMesh(mesh);
-    var face = grouped.faces[Number(meshIndex[1])];
-    if (face && Array.isArray(face.triangles)) face.triangles.forEach(add);
-  }
-  if (wanted) return wanted;
-  if (descriptor && Array.isArray(descriptor.triangleIndices)) descriptor.triangleIndices.forEach(add);
-  return wanted;
-}
 
-var _faceVecA = null, _faceVecB = null, _faceVecC = null;
-var _faceVecAB = null, _faceVecAC = null, _faceVecTN = null, _faceVecRadial = null;
-function initFaceScratchVectors() {
-  if (!_faceVecA) {
-    _faceVecA = new THREE.Vector3();
-    _faceVecB = new THREE.Vector3();
-    _faceVecC = new THREE.Vector3();
-    _faceVecAB = new THREE.Vector3();
-    _faceVecAC = new THREE.Vector3();
-    _faceVecTN = new THREE.Vector3();
-    _faceVecRadial = new THREE.Vector3();
-  }
-}
 
-function faceHighlightMesh(mesh, descriptor, color, opacity, reference) {
-  if (!mesh || !mesh.geometry || !descriptor) return null;
-  var surface = descriptor.surface;
-  var round = surface === "cylinder" && descriptor.axis && fin(Number(descriptor.radius));
-  var ball = surface === "sphere" && fin(Number(descriptor.radius));
-  var cone = surface === "cone" && descriptor.axis && fin(Number(descriptor.radius));
-  var torus = surface === "torus" && descriptor.axis && fin(Number(descriptor.majorRadius)) && fin(Number(descriptor.minorRadius));
-  var curved = round || ball || cone || torus || surface === "other" || surface === "revolution" || surface === "bspline";
-  var normal = descriptor.normal, origin = descriptor.origin || descriptor.center;
-  var listed = triangleSetForFace(mesh, descriptor, reference);
-  if (!listed && (!origin || (!normal && !curved))) return null;
-  var position = mesh.geometry.getAttribute("position");
-  if (!position) return null;
-  var index = mesh.geometry.getIndex();
-  var triangleCount = Math.floor((index ? index.count : position.count) / 3);
-  var n = normal ? new THREE.Vector3(normal.x, normal.y, normal.z).normalize() : new THREE.Vector3(0, 1, 0);
-  var axis = (round || cone || torus) && descriptor.axis
-    ? new THREE.Vector3(descriptor.axis.x, descriptor.axis.y, descriptor.axis.z).normalize() : null;
-  var centre = origin ? new THREE.Vector3(origin.x, origin.y, origin.z) : new THREE.Vector3();
-  var radius = Math.abs(Number(descriptor.radius)) || 0;
-  var major = Math.abs(Number(descriptor.majorRadius)) || 0;
-  var minor = Math.abs(Number(descriptor.minorRadius)) || 0;
-  var slope = cone ? Math.tan(Number(descriptor.angle) || 0) : 0;
-  var band = Math.max(.35, (torus ? minor : radius) * .05);
-  /* A facet is not a point: the vertex tested below can sit half a facet
-     outside the arc its face covers, and the radial band buys its own slack. */
-  var arcSlack = round && radius > 1e-9
-    ? Math.max(band / radius, Math.abs(Number(descriptor.arc && descriptor.arc.step) || 0) / 2) : 0;
-  var alongSpan = null;
-  if (round && descriptor.along && fin(Number(descriptor.along.min)) && fin(Number(descriptor.along.max))) {
-    alongSpan = { min: Number(descriptor.along.min), max: Number(descriptor.along.max) };
-  } else if (round && radius > 1e-9 && fin(Number(descriptor.measure)) && Number(descriptor.measure) > 0) {
-    var half = Number(descriptor.measure) / (2 * Math.PI * radius) / 2;
-    alongSpan = { min: -half, max: half };
-  }
-  mesh.updateMatrixWorld(true);   // built this frame; its matrix is not current yet
-  initFaceScratchVectors();
-  var a = _faceVecA, b = _faceVecB, c = _faceVecC;
-  var ab = _faceVecAB, ac = _faceVecAC, tn = _faceVecTN, radial = _faceVecRadial;
-  var kept = [];
-  for (var t = 0; t < triangleCount; t++) {
-    if (listed && !listed[t]) continue;
-    var i = t * 3;
-    var ia = index ? index.getX(i) : i, ib = index ? index.getX(i+1) : i+1, ic = index ? index.getX(i+2) : i+2;
-    a.fromBufferAttribute(position, ia).applyMatrix4(mesh.matrixWorld);
-    b.fromBufferAttribute(position, ib).applyMatrix4(mesh.matrixWorld);
-    c.fromBufferAttribute(position, ic).applyMatrix4(mesh.matrixWorld);
-    tn.crossVectors(ab.subVectors(b, a), ac.subVectors(c, a));
-    if (tn.lengthSq() < 1e-12) continue;
-    tn.normalize();   // already world space — the corners were transformed above
-    if (!listed) {
-      if (ball) {
-        radial.subVectors(a, centre);
-        if (Math.abs(radial.length() - radius) > band) continue;
-        n.copy(radial.lengthSq() > 1e-12 ? radial.normalize() : tn);
-      } else if (torus) {
-        radial.subVectors(a, centre);
-        radial.addScaledVector(axis, -radial.dot(axis));
-        if (radial.lengthSq() < 1e-12) continue;
-        radial.normalize().multiplyScalar(major).add(centre);
-        if (a.distanceTo(radial) > minor + band) continue;
-        n.copy(tn);
-      } else if (cone) {
-        radial.subVectors(a, centre);
-        var along = radial.dot(axis);
-        radial.addScaledVector(axis, -along);
-        var expected = Math.abs(radius + along * slope);
-        if (Math.abs(radial.length() - expected) > Math.max(band, expected * .05)) continue;
-        n.copy(tn);
-      } else if (round) {
-        if (Math.abs(tn.dot(axis)) > .25) continue;               // caps face along the axis, walls across it
-        radial.subVectors(a, centre);
-        var along = radial.dot(axis);
-        if (alongSpan && (along < alongSpan.min - band || along > alongSpan.max + band)) continue;
-        radial.addScaledVector(axis, -along);           // drop the along-axis part
-        if (Math.abs(radial.length() - radius) > band) continue;   // a bore inside the same body is not this wall
-        /* And on the part of the wall this face is. A merged run fits a circle
-           the face covers a few degrees of; without this the band swept every
-           triangle at that radius right round the body, which is what lit five
-           gear teeth and a swathe of thin air when one flank was hovered. */
-        if (!pointWithinCylinderArc(a, descriptor, arcSlack)) continue;
-        n.copy(tn);                                                // lift each facet along its own outward normal
-      } else if (curved) {
-        continue;
-      } else {
-        /* Geometry winding is not guaranteed to agree with the analytic face
-           normal (especially on extrusions).  Plane distance already rejects
-           the opposite side, so orientation must be compared unsigned. */
-        if (Math.abs(tn.dot(n)) < .96) continue;
-        // and in the same plane, not just parallel to it — the far side of a box
-        // is parallel to the near one
-        var offset = (a.x-origin.x)*n.x + (a.y-origin.y)*n.y + (a.z-origin.z)*n.z;
-        if (Math.abs(offset) > .35) continue;
-        /* Lift along the side the facet actually shows. A pocket wall's analytic
-           normal points into the material it was cut from, and lifting that way
-           buries the overlay inside the body. */
-        if (tn.dot(n) < 0) n.multiplyScalar(-1);
-      }
-    } else {
-      n.copy(tn);
-    }
-    /* Lift the overlay a hair off the surface it copies. Coincident triangles
-       z-fight no matter what the render order says, and polygon offset alone is
-       not reliable across backends — the highlight has to be visible or the
-       selection is invisible again. */
-    var lift = .06;
-    kept.push(
-      a.x+n.x*lift, a.y+n.y*lift, a.z+n.z*lift,
-      b.x+n.x*lift, b.y+n.y*lift, b.z+n.z*lift,
-      c.x+n.x*lift, c.y+n.y*lift, c.z+n.z*lift
-    );
-  }
-  if (!kept.length) return null;
-  var geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(kept, 3));
-  geometry.computeVertexNormals();
-  var highlight = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
-    color: color, transparent: true, opacity: opacity, side: THREE.DoubleSide,
-    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-  }));
-  highlight.renderOrder = 18;
-  /* The overlay is feedback, never geometry.  Letting it participate in the
-     raycast made the highlighted face become unclickable on the next click. */
-  highlight.raycast=function(){};
-  return highlight;
-}
 function addFaceHighlights(parent, part, mesh) {
   if (!part || !mesh || (E.docType !== "part" && E.docType !== "assembly")) return;
   var entries = topologyEntriesForPart(part).filter(function (entry) { return entry.kind === "face"; });
@@ -3159,6 +990,35 @@ function addFaceHighlights(parent, part, mesh) {
   if (E.hoverTopology && E.hoverTopology.kind === "face" && topologyRefInBuiltComponent(E.hoverTopology)) {
     paint(E.hoverTopology, hexNum(E.hoverColor), .38);
   }
+  addVertexHighlights(parent);
+}
+
+/* A picked corner has to be visible, and a corner is a point — there is no
+   overlay geometry it can borrow the way a face borrows its surface. Drawn as
+   a small screen-sized marker so it stays findable at any zoom, for the same
+   reason the edge tubes are sized in pixels. */
+function addVertexHighlights(parent) {
+  var marks = (E.topologySelection || []).filter(function (reference) { return reference.kind === "vertex"; })
+    .map(function (reference) { return { reference: reference, color: hexNum(E.selectedEdgeColor), opacity: .98 }; });
+  if (E.hoverTopology && E.hoverTopology.kind === "vertex"
+    && !marks.some(function (mark) { return mark.reference.persistentId === E.hoverTopology.persistentId; })) {
+    marks.push({ reference: E.hoverTopology, color: hexNum(E.hoverColor), opacity: .85 });
+  }
+  if (!marks.length) return;
+  var perPixel = decorationWorldPerPixel();
+  var radius = perPixel > 0 ? perPixel * 4 : 0.35;
+  marks.forEach(function (mark) {
+    var point = mark.reference.descriptor && (mark.reference.descriptor.point || mark.reference.descriptor.origin);
+    if (!point) return;
+    var dot = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 10, 8),
+      new THREE.MeshBasicMaterial({ color: mark.color, transparent: true, opacity: mark.opacity, depthTest: false, depthWrite: false })
+    );
+    dot.position.set(point.x, point.y, point.z);
+    dot.renderOrder = 26;
+    dot.raycast = function () {};
+    parent.add(dot);
+  });
 }
 
 function addFaceAppearances(parent, part, mesh) {
@@ -3279,10 +1139,182 @@ if (typeof window !== "undefined") {
   window.cadBuildPart = buildPart;
   window.cadBuildPartCount = function () { return buildPartCount; };
   window.cadRebuildDocCount = function () { return rebuildDocCount; };
+  /* Kernel bodies arrive asynchronously, so a test cannot settle for them — it
+     has to poll for the answer or for the failure. This reports both without
+     handing out the editor's whole state. */
+  window.cadKernelBodySnapshot = function () {
+    return (E.def && E.def.parts || []).filter(isKernelBody).map(function (part) {
+      return {
+        id: part.id, name: part.name, type: part.kernel && part.kernel.type,
+        pending: !!part.exactPending, error: part.exactError || null,
+        triangles: part.meshData ? (part.meshData.positions || []).length / 9 : 0,
+        bounds: part.bounds ? { ...part.bounds } : null,
+      };
+    });
+  };
   window.cadSetHoverTopology = function (reference) { E.hoverTopology = reference || null; };
+  /* What the selection grammar actually did, as opposed to what the source
+     says it should do. E.sel is reported by KIND rather than by value because
+     the bug this guards against was a sketch entity being assigned to the slot
+     that holds the selected solid — a check on the count alone would miss it. */
+  /* Drive the selection operations without synthesising a pointer sequence: a
+     browser test can pick a reference and grow it the way the menu does, which
+     is the behaviour worth pinning rather than the click that reached it. */
+  window.cadSelectTopologyById = function (persistentId) {
+    var part = selectedSolid() || activeParts(E.def)[activeParts(E.def).length - 1] || null;
+    var entry = topologyEntriesForPart(part).find(function (item) { return item.persistentId === persistentId; });
+    if (!entry) return false;
+    E.sel = part;
+    E.topologySelection = [topologyReferenceFromEntry(entry)];
+    refreshSelection();
+    return true;
+  };
+  window.cadRunSelectionOperation = function (id) { runSelectionOperation(id); };
+  /* What the finish preview actually put in the scene, and what the badge is
+     claiming about it. The approximation runs off requestAnimationFrame, which
+     never fires in a headless pane, so a test opens the form (which syncs the
+     preview directly) and reads the result here rather than waiting for a
+     frame that will not come. */
+  window.cadOpenFeatureForm = function (type) {
+    openParametricFeature(type);
+    return !!(E.authoring && E.authoring.featureType === type);
+  };
+  /* closeFeaturePanel() is the one way a feature form is dismissed, and the one
+     place the preview teardown has to live — reachable on its own so a test can
+     prove that rather than proving a Cancel button that clears first. */
+  window.cadCloseFeatureForm = function () { closeFeaturePanel(); };
+  window.cadFinishPreviewSnapshot = function () {
+    var badge = root && root.querySelector("#mdQuickSettings .md-feature-live");
+    return {
+      type: (E.authoring && E.authoring.featureType) || null,
+      // what the form has actually collected, so a test can prove a control is
+      // read rather than merely rendered
+      params: cloneData((E.authoring && E.authoring.featurePreviewState && E.authoring.featurePreviewState.params) || null),
+      approximate: !!(E.authoring && E.authoring.approxFinishPreview),
+      replaces: (E.authoring && E.authoring.previewReplacesPartId) || null,
+      parts: ((E.authoring && E.authoring.previewParts) || []).map(function (part) {
+        return { id: part.id, kind: part.kind, approximate: !!part.approximate, points: (part.pts || []).length, holes: (part.holes || []).length };
+      }),
+      badge: badge ? { state: badge.getAttribute("data-preview-state"), text: (badge.textContent || "").trim() } : null,
+      formOpen: !!(root && root.querySelector("#mdQuickSettings") && !root.querySelector("#mdQuickSettings").hidden),
+    };
+  };
+  /* Pick a real face on a component, the way a viewport click does — from the
+     component's own topology, not from its bounding box. A mate test that
+     cannot do this can only exercise the envelope fallback, which is exactly
+     the thing that had to go. */
+  window.cadClearTopologySelection = function () { E.topologySelection = []; refreshSelection(); };
+  window.cadAssemblySnapshot = function () {
+    return { components: (E.assembly && E.assembly.components || []).map(function (item) { return item.id; }) };
+  };
+  window.cadSelectComponentFace = function (componentId, want) {
+    var component = (E.assembly && E.assembly.components || []).find(function (item) { return item.id === componentId; });
+    if (!component) return null;
+    var match = typeof want === "string" ? { semantic: want } : (want || {});
+    var entry = null;
+    pickPartsFor(component).some(function (part) {
+      entry = topologyEntriesForPart(part).find(function (item) {
+        if (item.kind !== "face") return false;
+        if (match.semantic && item.descriptor.semantic !== match.semantic) return false;
+        if (match.surface && item.descriptor.surface !== match.surface) return false;
+        return true;
+      });
+      return !!entry;
+    });
+    if (!entry) return null;
+    var reference = stampComponentRef(topologyReferenceFromEntry(entry), component, null);
+    E.componentSel = [component];
+    E.sel = component;
+    E.topologySelection = (E.topologySelection || []).concat([reference]);
+    refreshSelection();
+    return reference.persistentId;
+  };
+  /* Named selections without driving the naming sheet: the sheet is its own
+     surface with its own tests, and what matters here is that a set round
+     trips through the document. */
+  window.cadSaveNamedSelection = function (name) {
+    var refs = dedupeFinishRefs(E.topologySelection || []);
+    if (!refs.length) return 0;
+    var list = namedSelections();
+    var at = list.findIndex(function (entry) { return entry.name === name; });
+    var record = { id: at >= 0 ? list[at].id : uid(), name: name, refs: cloneData(refs) };
+    if (at >= 0) list[at] = record; else list.push(record);
+    return refs.length;
+  };
+  window.cadRestoreNamedSelection = function (name) {
+    restoreNamedSelection(namedSelections().find(function (record) { return record.name === name; }));
+    return (E.topologySelection || []).length;
+  };
+  window.cadVertexCount = function () {
+    var part = selectedSolid() || activeParts(E.def)[activeParts(E.def).length - 1] || null;
+    return vertexEntriesFrom(topologyEntriesForPart(part)).length;
+  };
+  window.cadSelectionSnapshot = function () {
+    var topology = E.topologySelection || [];
+    return {
+      mode: E.mode,
+      tool: E.tool,
+      modelPlane: !!E.modelPlaneActive,
+      filter: E.selectionFilter,
+      sketchFilterAvailable: selectionFilterAvailable("sketch"),
+      activeFilter: commandSelectionPrefer(),
+      topology: topology.length,
+      kinds: topology.map(function (reference) { return reference.kind; }),
+      ids: topology.map(function (reference) { return reference.persistentId; }),
+      selKind: !E.sel ? null : E.sel.kind ? "part" : E.sel.type ? "entity" : "other",
+      sketchSel: (E.ssel || []).length,
+      cycle: E.pickCycle ? { index: E.pickCycle.index, count: E.pickCycle.candidates.length } : null,
+    };
+  };
+  /* The modelling loop, in the four terms the loop is judged by: what the ghost
+     currently claims, what the document actually owns, how many undo steps the
+     commit cost, and whether the viewport was still the thing being looked at.
+     Assembled here rather than read off six globals in the test, so a rename
+     inside the editor breaks the seam instead of quietly passing. */
+  window.cadLoopSnapshot = function () {
+    var preview = E.authoring && E.authoring.featurePreviewState;
+    var history = (E.def && E.def.history) || [];
+    var last = history[history.length - 1] || null;
+    var feature = last && E.def && (E.def.features || []).find(function (f) { return f.id === last.targetId; });
+    var corner = confirmationCornerState(currentCornerInput());
+    var actions = root && root.querySelector("#mdQuickSettings .md-feature-actions");
+    return {
+      steps: history.length,
+      parts: ((E.def && E.def.parts) || []).length,
+      undoDepth: H.length(),
+      undoPosition: H.position(),
+      authoring: (E.authoring && E.authoring.featureType) || null,
+      ghost: preview ? { type: preview.type, params: { ...preview.params } } : null,
+      last: last ? { kind: last.kind, name: last.name } : null,
+      lastFeature: feature ? { type: feature.type, params: { ...feature.params } } : null,
+      corner: { visible: corner.visible, mode: corner.mode, canAccept: corner.canAccept },
+      formActionsHidden: actions ? !!actions.hidden : null,
+      formActionsPresent: !!actions,
+    };
+  };
 }
 
 var lastDecoratedHover = null;
+/* What one pixel was worth when the decorations were last built. Highlight
+   tubes are real geometry, so a screen-space width has to be re-baked when the
+   zoom moves enough to notice — but only then: rebuilding on every frame of an
+   orbit is exactly the churn the decoration cache exists to avoid. */
+var decoratedWorldPerPixel = 0;
+
+function decorationWorldPerPixel() {
+  var view = E.pv;
+  return view && typeof view.worldPerPixel === "function" ? Number(view.worldPerPixel()) || 0 : 0;
+}
+
+/* A third either way. Small enough that a highlight never visibly drifts from
+   its intended width, coarse enough that a continuous zoom rebuilds a handful
+   of times rather than once per frame. */
+function decorationScaleStale() {
+  var now = decorationWorldPerPixel();
+  if (!(now > 0) || !(decoratedWorldPerPixel > 0)) return false;
+  var ratio = now / decoratedWorldPerPixel;
+  return ratio > 1.34 || ratio < 0.75;
+}
 function isEntryAffectedByHover(entry, hoverRef) {
   if (!hoverRef) return false;
   if (entry.component) {
@@ -3321,6 +1353,17 @@ function refreshDecorations() {
   });
   lastDecoratedHover = currentHover;
   E.pv.render();
+}
+
+/* Called after each frame: re-bakes highlight widths once a zoom has carried
+   them far enough from the size they were built at. Nothing is highlighted
+   most of the time, and then this costs one comparison. */
+function refreshDecorationScale() {
+  if (!E.pv) return;
+  if (!(E.topologySelection || []).length && !E.hoverTopology && !finishCommandActive()) return;
+  if (!decorationScaleStale()) return;
+  decoGroups.forEach(function (entry) { entry.dirty = true; });
+  refreshDecorations();
 }
 
 function buildPart(g, p, displayStyle) {
@@ -3629,6 +1672,11 @@ var E = {
   def: null,          // model being edited
   assembly: null,
   brepRun: null,
+  /* Which document, at which revision, E.brepRun was regenerated from. The
+     exact run is a cache of a kernel solve that costs seconds; without a stamp
+     the exports below could not tell a current shape from a shape belonging to
+     a model the user closed two documents ago. See exactRunIsCurrent(). */
+  brepStamp: null,
   coreRun: null,
   lastCutSkipped: [],   // bodies the last cut passed through but could not take
   componentSel: [],   // assembly multi-selection; last entry is primary
@@ -3668,6 +1716,11 @@ var E = {
   selectedReferenceId: null, // FeatureManager / overlay pick of a datum or helix
   facePick: null,     // {tool} while a new sketch is waiting for a face click in 3D
   hoverTopology: null, // topology reference under the cursor in the 3D viewport
+  pickCycle: null,    // {candidates, index, x, y} for the "N of M here" chip
+  lastFinishAmount: null, // repeat-last seed per finish feature type
+  hoverPoint: null,   // where the cursor's ray last met the model, for Measure
+  profileOffer: null, // feature types a just-finished closed profile can become
+  filterChord: null,  // a held Shift+digit filter, to restore on release
   selectionFilter: "all",
   assemblyMoveMode: "free", // free camera-plane motion | world X/Y/Z axis lock
   mobileAddSelection: false,
@@ -3791,8 +1844,11 @@ function snapTargets(excludePart) {
     if (f.type === "rect") {
       var u0 = Math.min(f.u0, f.u1), u1 = Math.max(f.u0, f.u1), v0 = Math.min(f.v0, f.v1), v1 = Math.max(f.v0, f.v1);
       ts.push({ u: u0, v: v0, k: "e" }, { u: u1, v: v0, k: "e" }, { u: u0, v: v1, k: "e" }, { u: u1, v: v1, k: "e" });
-    } else if (f.type !== "circle") {
-      var loops = [f.pts].concat((p.holes || []).map(function (hl) { return holeLoop(hl); }).filter(function (lp) { return lp.length; }));
+    } else if (f.type === "poly") {
+      /* Only a poly footprint has loop points. A mesh-projected one (an import,
+         a kernel body) answers with segments, and reading .pts off it used to
+         throw inside every snap on the plan. */
+      var loops = [f.pts || []].concat((p.holes || []).map(function (hl) { return holeLoop(hl); }).filter(function (lp) { return lp.length; }));
       loops.forEach(function (lp) {
         lp.forEach(function (q) { ts.push({ u: q.u, v: q.v, k: "e" }); });
       });
@@ -3823,120 +1879,13 @@ function snapPt(uv, excludePart, origin) {
   return raw;
 }
 
-function pointInPoly(uv, pts) {
-  var inside = false;
-  for (var a = 0, b = pts.length - 1; a < pts.length; b = a++) {
-    if (pts[a].v > uv.v !== pts[b].v > uv.v &&
-      uv.u < ((pts[b].u - pts[a].u) * (uv.v - pts[a].v)) / (pts[b].v - pts[a].v) + pts[a].u) inside = !inside;
-  }
-  return inside;
-}
-function loopCentroid(pts) {
-  var u = 0, v = 0;
-  pts.forEach(function (q) { u += q.u; v += q.v; });
-  return { u: u / pts.length, v: v / pts.length };
-}
 
-// Convert a box part to the equivalent extrude along `ax` (so it can take holes / rotate).
-function boxToExt(p, ax) {
-  var q = { id: p.id, featureId:p.featureId, kind: "ext", axis: ax, name: p.name || "box", color: p.color, metal: p.metal, rough: p.rough, opacity: p.opacity, tex: p.tex, holes: [] };
-  function rectPts(u0, u1, v0, v1) { return [{ u: u0, v: v0 }, { u: u1, v: v0 }, { u: u1, v: v1 }, { u: u0, v: v1 }]; }
-  if (ax === "y") { q.pts = rectPts(p.x0, p.x1, p.z0, p.z1); q.from = p.y0; q.to = p.y1; }
-  else if (ax === "z") { q.pts = rectPts(p.x0, p.x1, p.y0, p.y1); q.from = p.z0; q.to = p.z1; }
-  else { q.pts = rectPts(p.z0, p.z1, p.y0, p.y1); q.from = p.x0; q.to = p.x1; }
-  return q;
-}
 
-function cutRangeForAxis(bounds, axis) {
-  var lo = axis === "x" ? bounds.x0 : axis === "y" ? bounds.y0 : bounds.z0;
-  var hi = axis === "x" ? bounds.x1 : axis === "y" ? bounds.y1 : bounds.z1;
-  var pad = Math.max(2, (hi - lo) * 0.08);
-  return { from: lo - pad, to: hi + pad };
-}
+
+
 
 var exactBuildTimers = new WeakMap();
 
-async function exactBrepForPart(p) {
-  if (!partSupportsExactMesh(p)) throw new Error("This body has no profile the exact kernel can rebuild");
-  var ownerFeatureId = p.featureId || "feature:part:" + p.id, solid, expectedTopology;
-  /* Everything the kernel builds is made about the origin and moved into place,
-     because a revolve turns around the world axis wherever the body sits. */
-  var moveTo = async function (shape, delta) {
-    if (!delta || (!delta.x && !delta.y && !delta.z)) return shape;
-    var moved = await translateBrep(shape, delta);
-    disposeBrep(shape);
-    return moved;
-  };
-  if (p.kind==="box") {
-    var boxParams={x:Math.min(p.x0,p.x1),y:Math.min(p.y0,p.y1),z:Math.min(p.z0,p.z1),w:Math.abs(p.x1-p.x0),h:Math.abs(p.y1-p.y0),d:Math.abs(p.z1-p.z0)};
-    solid=await makeBrepPrimitive({type:"box",...boxParams});
-    expectedTopology=topologyForFeature({id:ownerFeatureId,type:"box"},boxParams);
-  } else if (p.kind==="cyl" && (p.r2==null || Math.abs(p.r2-p.r)<1e-6)) {
-    var cylParams={x:p.x,y:p.y,z:p.z,r:p.r,h:p.h};
-    solid=await makeBrepPrimitive({type:"cylinder",...cylParams});
-    expectedTopology=topologyForFeature({id:ownerFeatureId,type:"cylinder"},cylParams);
-  } else if (p.kind==="cyl") {
-    // a cone or a taper: revolve the meridian the preview lathes
-    var base=Math.max(1e-4,Math.abs(Number(p.r)||0)), top=Math.max(1e-4,Math.abs(Number(p.r2!=null?p.r2:p.r)||0)), tall=Math.abs(Number(p.h)||0);
-    solid=await makeBrepRevolve({axis:"y",angle:360,points:[{u:0,v:0},{u:base,v:0},{u:top,v:tall},{u:0,v:tall}]});
-    solid=await moveTo(solid,{x:p.x,y:p.y,z:p.z});
-  } else if (p.kind==="rev") {
-    solid=await makeBrepRevolve({axis:"y",angle:360,points:(p.pts||[]).map(function(q){return {u:Math.abs(Number(q.u)||0),v:Number(q.v)||0};})});
-    solid=await moveTo(solid,{x:p.x||0,y:0,z:p.z||0});
-  } else if (p.kind==="loft") {
-    var section=function(points,w){return points.map(function(q){var xyz=loftXYZ(p.axis,q.u,q.v,w);return {x:xyz[0],y:xyz[1],z:xyz[2]};});};
-    solid=await makeBrepLoft({sections:[section(p.pts0,p.from),section(p.pts1,p.to)],solid:true,ruled:true});
-  } else {
-    solid=await makeBrepExtrusion({axis:p.axis,frame:p.frame,from:p.from,to:p.to,points:p.pts});
-    expectedTopology=topologyForFeature({id:ownerFeatureId,type:"extrude"},{axis:p.axis,frame:p.frame,from:p.from,to:p.to,points:p.pts,profileEntityIds:p.profileEntityIds});
-  }
-  var b = partBounds(p), cuts = [];
-  (p.holes || []).forEach(function (entry) {
-    var loop = holeLoop(entry);
-    if (loop.length >= 3) cuts.push({axis:p.axis,frame:p.frame,from:p.from,to:p.to,loop:loop});
-  });
-  (p.cuts3d || []).forEach(function (cut) { if (!cut.suppressed) cuts.push(cut); });
-  for (var i = 0; i < cuts.length; i++) {
-    var cut = cuts[i], range = fin(cut.from) && fin(cut.to) ? {from:cut.from,to:cut.to} : cutRangeForAxis(b, cut.axis);
-    var cutter = await makeBrepExtrusion({axis:cut.axis,frame:cut.frame,from:range.from,to:range.to,points:cut.loop});
-    var next = await booleanBrep("subtract", solid, cutter);
-    disposeBrep(solid); disposeBrep(cutter); solid = next;
-  }
-  extractBrepTopology(solid, { ownerFeatureId:ownerFeatureId, expectedTopology:expectedTopology });
-  var operations = Array.isArray(p.exactOperations) && p.exactOperations.length ? p.exactOperations.filter(function(operation){return !operation.suppressed;}) : [];
-  if (!operations.length && fin(p.exactFillet) && p.exactFillet > 0) operations.push({
-    id:ownerFeatureId + ":fillet", type:"fillet", amount:p.exactFillet,
-    targets:cloneData(p.exactFilletTargets || []), persistentIds:(p.exactFilletEdges || []).slice(),
-  });
-  try {
-    for (var oi=0;oi<operations.length;oi++) {
-      var operation=operations[oi], priorTopology=cloneData(solid.topology || []), next;
-      var opId=operation.id || ownerFeatureId + ":" + operation.type + ":" + (oi+1);
-      var opParams={targets:cloneData(operation.targets || [])};
-      var registry=createTopologyRegistry(solid.topology || []);
-      var persistentIds=resolveFinishTargetIds(operation.targets, registry, operation.type==="shell"?"face":"edge");
-      if (!persistentIds.length) persistentIds=(operation.persistentIds || []).slice();
-      var facePersistentIds=operation.type==="shell"?[]:resolveFinishTargetIds(operation.targets, registry, "face");
-      if (operation.type==="fillet") {
-        opParams={...opParams,...cloneData(operation.params || {}),radius:operation.amount};
-        next=await filletBrep(solid, operation.amount, {...(operation.params || {}),edgePersistentIds:persistentIds,facePersistentIds:facePersistentIds});
-      } else if (operation.type==="chamfer") {
-        opParams={...opParams,...cloneData(operation.params || {}),distance:operation.amount};
-        next=await chamferBrep(solid, operation.amount, {...(operation.params || {}),edgePersistentIds:persistentIds,facePersistentIds:facePersistentIds});
-      } else if (operation.type==="shell") {
-        opParams.thickness=operation.amount;
-        next=await shellBrep(solid, operation.amount, {facePersistentIds:persistentIds,direction:operation.params && operation.params.direction,tolerance:operation.params && operation.params.tolerance,join:operation.params && operation.params.join});
-      } else throw new Error("Unsupported exact operation: " + operation.type);
-      var expectedAfter=topologyForFeature({id:opId,type:operation.type},opParams,[{topology:priorTopology}]);
-      disposeBrep(solid); solid=next;
-      extractBrepTopology(solid,{ownerFeatureId:opId,expectedTopology:expectedAfter});
-    }
-  } catch (error) {
-    disposeBrep(solid);
-    throw error;
-  }
-  return solid;
-}
 
 function queueExactMesh(p) {
   if (!partSupportsExactMesh(p)) return;
@@ -3946,6 +1895,10 @@ function queueExactMesh(p) {
   p.exactBuildToken = token;
   p.exactPending = true;
   p.exactError = null;
+  /* A kernel body has no analytic form to fall back to, so a stale mesh left up
+     while the kernel works — or after it fails — would be a different shape
+     from the answer. Drop it here, exactly as queueKernelBody does. */
+  if (isKernelBody(p)) { delete p.meshData; delete p.bounds; clearTopologyCache(p); }
   updatePreview();
   // The full browser kernel is intentionally lazy-loaded.  Keep the editor
   // interactive and replace an indefinite spinner with an actionable status
@@ -3964,10 +1917,21 @@ function queueExactMesh(p) {
       meshData.topology = cloneData(brep.topology || []);
       if (p.exactBuildToken !== token) return;
       if (slowTimer) clearTimeout(slowTimer);
+      if (isKernelBody(p)) {
+        /* This mesh IS the body — it is saved with the document rather than
+           rebuilt from analytic fields on load — so the Float32Array normals
+           and colours go, because JSON.stringify turns them into {"0":…}.
+           buildExactMesh() derives flat normals when they are absent. */
+        delete meshData.normals; delete meshData.colors;
+        meshData.bounds = meshDataBounds(meshData.positions);
+        p.bounds = meshData.bounds;
+        clearTopologyCache(p);
+      }
       p.meshData = meshData;
       p.exactPending = false;
       p.exactError = null;
       updatePreview();
+      if (isKernelBody(p) && root) refreshParts();
       if (E.mode === "3d") renderPreview();
     } finally { disposeBrep(brep); }
   }).catch(function (error) {
@@ -3977,6 +1941,7 @@ function queueExactMesh(p) {
     p.exactError = String(error && error.message || error);
     console.warn("Exact CAD mesh build failed:", p.exactError);
     updatePreview();
+    if (isKernelBody(p) && root) refreshParts();
   });
 }
 
@@ -3990,45 +1955,107 @@ function scheduleExactMesh(p) {
   }, 140));
 }
 
-/* A committed cut changes the source solid underneath any cached exact mesh.
+/* A committed cut — or a merge, which is the same event with the other sign —
+   changes the source solid underneath any cached exact mesh.
    This matters most for Cut-after-Fillet: a same-axis cut can stay a cheap
    profile hole, but the fillet's old mesh would otherwise keep rendering and
    hide the new hole forever.  Drop the stale mesh immediately so the analytic
    fallback shows profile holes, then rebuild when this body still needs the
    exact kernel (cross-cuts, fillets, chamfers, or shells). */
-function invalidatePartMeshAfterCut(p) {
+function invalidatePartMeshAfterEdit(p) {
   if (!p) return;
   delete p.meshData;
+  // no analytic fallback: stale bounds would keep snapping and framing the
+  // shape the cut just removed
+  if (isKernelBody(p)) delete p.bounds;
   p.exactPending = false;
   p.exactError = null;
   if (partNeedsExactMesh(p)) scheduleExactMesh(p);
 }
 
-// Through-cut: punch `loop` as a hole into every part under it in the current view.
-// Cuts on the extrusion axis remain lightweight profile holes. Orthogonal cuts
-// become OpenCascade booleans, so the same body can be bored from several faces
-// just like the workflow in a full CAD modeller.
-function footprintHasPoint(footprint, q) {
-  if (!footprint || !q) return false;
-  if (footprint.type === "poly") return pointInPoly(q, footprint.pts);
-  if (footprint.type === "circle") return Math.hypot(q.u - footprint.u, q.v - footprint.v) <= footprint.r;
-  if (!fin(footprint.u0) || !fin(footprint.v0)) return false;
-  return q.u >= Math.min(footprint.u0,footprint.u1) && q.u <= Math.max(footprint.u0,footprint.u1)
-    && q.v >= Math.min(footprint.v0,footprint.v1) && q.v <= Math.max(footprint.v0,footprint.v1);
-}
-function footprintPoint(footprint) {
-  if (!footprint) return null;
-  if (footprint.type === "poly") return footprint.pts && footprint.pts.length ? loopCentroid(footprint.pts) : null;
-  if (footprint.type === "circle") return { u:footprint.u, v:footprint.v };
-  if (!fin(footprint.u0) || !fin(footprint.v0)) return null;
-  return { u:(footprint.u0 + footprint.u1) / 2, v:(footprint.v0 + footprint.v1) / 2 };
+/* ---- kernel bodies ------------------------------------------------------
+   Sweep, loft and everything after them produce a solid only OpenCascade can
+   compute. queueExactMesh above rebuilds a body from its own analytic fields;
+   this rebuilds one from `p.kernel`, the recipe copied off the feature. Same
+   token discipline, same status fields, so the inspector, the tree and the
+   viewport need to learn nothing new — and an overtaken build cannot land on
+   top of a newer one. */
+function queueKernelBody(p) {
+  if (!isKernelBody(p) || !p.kernel) return;
+  /* Once cuts or finish operations sit on the body, the recipe alone is no
+     longer its shape. exactBrepForPart() starts from the same recipe and then
+     applies them, so there is one builder rather than two disagreeing answers. */
+  if (partNeedsExactMesh(p)) { queueExactMesh(p); return; }
+  var token = (p.exactBuildToken || 0) + 1;
+  p.exactBuildToken = token;
+  p.exactPending = true;
+  p.exactError = null;
+  /* No stand-in solid while the kernel works, and none left behind when it
+     fails: a kernel body has no analytic form to fall back to, so drawing one
+     would mean drawing a different shape from the answer. The step fails alone
+     — nothing else in the document is touched — and leaves no ghost. */
+  delete p.meshData;
+  delete p.bounds;
+  clearTopologyCache(p);
+  updatePreview();
+  kernelBodyMeshData(p.kernel, {origin:p.origin, ownerFeatureId:p.featureId || "feature:part:" + p.id}).then(function (meshData) {
+    if (p.exactBuildToken !== token) return;
+    p.meshData = meshData;
+    p.bounds = meshData.bounds;
+    p.exactPending = false;
+    p.exactError = null;
+    clearTopologyCache(p);
+    /* The same three surfaces queueExactMesh() refreshes, and for the same
+       reason: refreshAll() would re-enter the parametric rebuild from inside an
+       async callback the rebuild itself started. */
+    updatePreview();
+    if (root) refreshParts();
+    if (E.mode === "3d") renderPreview();
+  }).catch(function (error) {
+    if (p.exactBuildToken !== token) return;
+    p.exactPending = false;
+    p.exactError = String(error && error.message || error);
+    console.warn("Kernel body build failed:", p.exactError);
+    updatePreview();
+    if (root) refreshParts();
+    flash(tf("kernelBodyFailed", {error:p.exactError}));
+  });
 }
 
-/* Which bodies a cut passes through, measured in the cut's own space — see
-   core/cut_scope.js for why that space is the cut's and not the viewport's. */
-function cutFootprint(part, frame, axisName) {
-  return cutScopeFootprint(part, partBounds(part), frame, axisName, function (hole) { return holeLoop(hole); });
+
+/* One derived preview body for a feature the kernel owns. Canonical feature
+   creation has already happened; this is the projection adapter, exactly as
+   addPart() is for the analytic kinds. */
+function addKernelBodyPart(feature, type, params, sketchSources) {
+  var spec;
+  try { spec = kernelBodySpec(type, params); }
+  catch (error) { flash(String(error && error.message || error)); return null; }
+  var part = addPart({
+    id: uid(),
+    featureId: feature && feature.id,
+    kind: KERNEL_BODY_KIND,
+    name: (feature && feature.name) || featureTypeLabel(type),
+    kernel: spec,
+    // The link back to the sketches, kept on the PART: kernelBodySpec drops
+    // everything the kernel would not read, and this is not a kernel input.
+    ...(sketchSources ? { sketchSources: cloneData(sketchSources) } : {}),
+    origin: {x:0, y:0, z:0},
+    color: "#b89a6e", metal: .08, rough: .7,
+  });
+  queueKernelBody(part);
+  return part;
 }
+
+/* A kernel body loaded from a saved model already carries its last mesh, so it
+   draws at once; one that lost it (an older save, a failed build, a cleared
+   cache) rebuilds from the recipe instead of staying invisible forever. */
+function restoreKernelBodies(def) {
+  (def && def.parts || []).forEach(function (part) {
+    if (isKernelBody(part) && part.kernel && !(part.meshData && (part.meshData.positions || []).length >= 9)) queueKernelBody(part);
+  });
+}
+
+
 
 function applyCut(loop, featureId, hint, cutSpec) {
   if (!loop || loop.length < 3) return 0;
@@ -4044,6 +2071,11 @@ function applyCut(loop, featureId, hint, cutSpec) {
   var bounded=!["through-all","up-to-next","up-to-face"].includes(cutSpec.endCondition || "through-all")
     && fin(cutSpec.from) && fin(cutSpec.to);
   var c = hint && fin(hint.u) && fin(hint.v) ? hint : loopInteriorPoint(loop);
+  /* The cut's own draft. `draftBase` pins the neutral plane to where the loop
+     was drawn, so a through-all cutter stretched across the body still tapers
+     from the sketch plane rather than from wherever the stretch started. */
+  var draftAngle=Number(cutSpec.draftAngle)||0;
+  var draftRecord=draftAngle?{draftAngle:draftAngle,draftOutward:!!cutSpec.draftOutward,draftBase:fin(cutSpec.from)?cutSpec.from:0}:{};
   var skipped = [];
   E.def.parts = E.def.parts.map(function (p) {
     var footprint=cutFootprint(p, frame, ax), reference=footprintPoint(footprint);
@@ -4065,9 +2097,9 @@ function applyCut(loop, featureId, hint, cutSpec) {
     if (frame && inside && partSupportsExactMesh(p)) {
       var range=bounded ? {from:cutSpec.from,to:cutSpec.to} : frameRangeForBounds(partBounds(p),frame);
       p.cuts3d=p.cuts3d || [];
-      p.cuts3d.push({axis:"frame",frame:cloneData(frame),from:range.from,to:range.to,loop:loop.map(function(q){return {u:q.u,v:q.v};}),featureId:featureId || undefined});
+      p.cuts3d.push({axis:"frame",frame:cloneData(frame),from:range.from,to:range.to,loop:loop.map(function(q){return {u:q.u,v:q.v};}),featureId:featureId || undefined,...draftRecord});
       changed++;
-      invalidatePartMeshAfterCut(p);
+      invalidatePartMeshAfterEdit(p);
       return p;
     }
     if (p.kind === "box") {
@@ -4076,6 +2108,7 @@ function applyCut(loop, featureId, hint, cutSpec) {
     if (inside) {
       var copy = loop.map(function (q) { return { u:q.u, v:q.v }; });
       var containedProfileHole = p.kind === "ext" && p.axis === ax && !bounded
+        && !draftAngle   // a drafted cut is a taper; a profile hole is a prism
         && !(p.cuts3d && p.cuts3d.length)
         && profileLoopIsSeparateHole(copy, p.pts || [], (p.holes || []).map(function (hole) { return holeLoop(hole); }));
       if (containedProfileHole) {
@@ -4084,10 +2117,10 @@ function applyCut(loop, featureId, hint, cutSpec) {
       } else {
         p.cuts3d = p.cuts3d || [];
         var cutRange=bounded ? {from:cutSpec.from,to:cutSpec.to} : cutRangeForAxis(partBounds(p),ax);
-        p.cuts3d.push({axis:ax,from:cutRange.from,to:cutRange.to,loop:copy,featureId:featureId || undefined});
+        p.cuts3d.push({axis:ax,from:cutRange.from,to:cutRange.to,loop:copy,featureId:featureId || undefined,...draftRecord});
       }
       changed++;
-      invalidatePartMeshAfterCut(p);
+      invalidatePartMeshAfterEdit(p);
     }
     return p;
   });
@@ -4103,170 +2136,42 @@ function cutSkipNote() {
   return " · " + t("cutSkipped") + ": " + skipped.join(", ");
 }
 
-// Fillet: replace polygon corner i with an arc of radius r (SolidWorks-style corner round).
-function filletVertex(pts, i, r) {
-  var n = pts.length;
-  var p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n];
-  var a1u = p0.u - p1.u, a1v = p0.v - p1.v, a2u = p2.u - p1.u, a2v = p2.v - p1.v;
-  var l1 = Math.hypot(a1u, a1v), l2 = Math.hypot(a2u, a2v);
-  if (l1 < 0.01 || l2 < 0.01) return false;
-  a1u /= l1; a1v /= l1; a2u /= l2; a2v /= l2;
-  var ang = Math.acos(clamp(a1u * a2u + a1v * a2v, -1, 1));
-  if (ang < 0.05 || ang > Math.PI - 0.05) return false;
-  var d = r / Math.tan(ang / 2);
-  var dm = Math.min(l1, l2) * 0.49;
-  if (d > dm) { d = dm; r = d * Math.tan(ang / 2); }
-  var t1 = { u: p1.u + a1u * d, v: p1.v + a1v * d }, t2 = { u: p1.u + a2u * d, v: p1.v + a2v * d };
-  var bu = a1u + a2u, bv = a1v + a2v, bl = Math.hypot(bu, bv);
-  var cen = { u: p1.u + (bu / bl) * (r / Math.sin(ang / 2)), v: p1.v + (bv / bl) * (r / Math.sin(ang / 2)) };
-  var s1 = Math.atan2(t1.v - cen.v, t1.u - cen.u), s2 = Math.atan2(t2.v - cen.v, t2.u - cen.u);
-  var sweep = s2 - s1;
-  while (sweep > Math.PI) sweep -= 2 * Math.PI;
-  while (sweep < -Math.PI) sweep += 2 * Math.PI;
-  var steps = Math.max(2, Math.ceil(Math.abs(sweep) / (Math.PI / 12)));
-  var arc = [];
-  for (var k = 0; k <= steps; k++) {
-    var aa = s1 + (sweep * k) / steps;
-    arc.push({ u: cen.u + Math.cos(aa) * r, v: cen.v + Math.sin(aa) * r });
-  }
-  pts.splice.apply(pts, [i, 1].concat(arc));
-  return true;
+
+
+/* The curve a curve pattern runs along is authored as a sketch and stored as
+   the world polyline every consumer reads — the same trade sweep makes, and
+   the reason pattern_geometry.js never has to know what a sketch is. Only an
+   Pattern command being AUTHORED may reach for the selection: a document being
+   rebuilt already carries its own path, and an edit of an existing pattern must
+   not be re-aimed at whatever sketch happens to be active. */
+function resolvePatternCurvePath(params) {
+  if(!params || params.mode!=="curve" || curvePatternPath(params).length>=2)return params;
+  if(!E.authoring || E.authoring.featureType!=="pattern" || E.authoring.featureEdit)return params;
+  var sketch=patternCurveSketch();
+  if(!sketch)return params;
+  var points=(sketch.points || []).map(function(point){return sketchWorldPoint(sketch,point.x,point.y);});
+  return points.length>=2 ? {...params,path:points} : params;
 }
 
-// Chamfer: replace polygon corner i with a straight cut `d` cm along both edges.
-function chamferVertex(pts, i, d) {
-  var n = pts.length;
-  var p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n];
-  var l1 = Math.hypot(p0.u - p1.u, p0.v - p1.v), l2 = Math.hypot(p2.u - p1.u, p2.v - p1.v);
-  if (l1 < 0.01 || l2 < 0.01) return false;
-  d = Math.min(d, l1 * 0.49, l2 * 0.49);
-  var t1 = { u: p1.u + ((p0.u - p1.u) / l1) * d, v: p1.v + ((p0.v - p1.v) / l1) * d };
-  var t2 = { u: p1.u + ((p2.u - p1.u) / l2) * d, v: p1.v + ((p2.v - p1.v) / l2) * d };
-  pts.splice(i, 1, t1, t2);
-  return true;
+function patternCurveSketch() {
+  var ids=selectedSketchIds();
+  for(var index=0;index<ids.length;index++){
+    var sketch=(E.def.sketches || []).find(function(item){return item.id===ids[index];});
+    if(sketch && (sketch.points || []).length>=2)return sketch;
+  }
+  return null;
 }
 
-// Inset a polygon loop inward by t (miter offset). Interior side is detected per
-// edge by point-in-polygon probing, so winding order doesn't matter.
-function insetLoop(pts, t) {
-  var n = pts.length, offs = [];
-  for (var i = 0; i < n; i++) {
-    var a = pts[i], b = pts[(i + 1) % n];
-    var du = b.u - a.u, dv = b.v - a.v, L = Math.hypot(du, dv);
-    if (L < 0.01) return null;
-    var nu = -dv / L, nv = du / L;
-    var mid = { u: (a.u + b.u) / 2 + nu * 0.1, v: (a.v + b.v) / 2 + nv * 0.1 };
-    if (!pointInPoly(mid, pts)) { nu = -nu; nv = -nv; }
-    offs.push({ au: a.u + nu * t, av: a.v + nv * t, du: du, dv: dv });
-  }
-  var out = [];
-  for (var k = 0; k < n; k++) {
-    var e0 = offs[(k - 1 + n) % n], e1 = offs[k];
-    // intersect offset lines e0 and e1
-    var den = e0.du * e1.dv - e0.dv * e1.du;
-    if (Math.abs(den) < 1e-6) { out.push({ u: e1.au, v: e1.av }); continue; }
-    var s = ((e1.au - e0.au) * e1.dv - (e1.av - e0.av) * e1.du) / den;
-    out.push({ u: e0.au + e0.du * s, v: e0.av + e0.dv * s });
-  }
-  // sanity: every inset vertex must land inside the original loop
-  for (var m = 0; m < n; m++) if (!pointInPoly(out[m], pts)) return null;
-  return out;
-}
-
-/* ---- revolve (lathe) & loft solids ---- */
-function stdMat(p) {
-  return new THREE.MeshStandardMaterial({
-    color: hexNum(p.color),
-    metalness: fin(p.metal) ? p.metal : 0.08,
-    roughness: fin(p.rough) ? p.rough : 0.8,
-    transparent: fin(p.opacity) && p.opacity < 1,
-    opacity: fin(p.opacity) ? p.opacity : 1,
-    side: THREE.DoubleSide,
-  });
-}
-function revMaxR(p) {
-  var R = 0;
-  p.pts.forEach(function (q) { R = Math.max(R, Math.abs(q.u)); });
-  return R;
-}
-function buildRev(parent, p) {
-  if (!p.pts || p.pts.length < 2) return null;
-  var prof = p.pts.map(function (q) { return new THREE.Vector2(Math.max(0.01, Math.abs(q.u)), q.v); });
-  prof.push(prof[0].clone()); // close the loop so the solid has no missing wall
-  var g;
-  try {
-    var angle=Math.max(.001,Math.min(360,Number(p.angle)||360))*Math.PI/180;
-    var start=p.symmetric ? -angle/2 : p.direction==="reverse" ? -angle : 0;
-    g = new THREE.LatheGeometry(prof, p.seg || 32, start, angle);
-  } catch (e) {
-    return null;
-  }
-  g.translate(p.x || 0, 0, p.z || 0);
-  var me = new THREE.Mesh(g, stdMat(p));
-  me.castShadow = true;
-  me.receiveShadow = true;
-  parent.add(me);
-  return me;
-}
-// map sketch-plane (u,v) + axis coordinate w into model xyz, per extrude axis convention
-function loftXYZ(axis, u, v, w) {
-  if (axis === "y") return [u, w, v];
-  if (axis === "z") return [u, v, w];
-  return [w, v, u];
-}
-function buildLoft(parent, p) {
-  var n = (p.pts0 || []).length;
-  if (n < 3 || !p.pts1 || p.pts1.length !== n) return null;
-  var pos = [], idx = [], i;
-  for (i = 0; i < n; i++) pos.push.apply(pos, loftXYZ(p.axis, p.pts0[i].u, p.pts0[i].v, p.from));
-  for (i = 0; i < n; i++) pos.push.apply(pos, loftXYZ(p.axis, p.pts1[i].u, p.pts1[i].v, p.to));
-  for (i = 0; i < n; i++) { // side walls
-    var a = i, b = (i + 1) % n;
-    idx.push(a, b, n + b, a, n + b, n + a);
-  }
-  try { // end caps
-    [p.pts0, p.pts1].forEach(function (ring, ri) {
-      var tris = THREE.ShapeUtils.triangulateShape(ring.map(function (q) { return new THREE.Vector2(q.u, q.v); }), []);
-      tris.forEach(function (tr) { idx.push(ri * n + tr[0], ri * n + tr[1], ri * n + tr[2]); });
-    });
-  } catch (e) {}
-  var g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.setIndex(idx);
-  g.computeVertexNormals();
-  var me = new THREE.Mesh(g, stdMat(p));
-  me.castShadow = true;
-  me.receiveShadow = true;
-  parent.add(me);
-  return me;
-}
-
-function partPatternRotations(p) {
-  var rotations=Array.isArray(p && p.patternRotations) ? p.patternRotations.slice() : [];
-  if(p && p.patternRotation)rotations.push(p.patternRotation);
-  return rotations.filter(function(rotation){return rotation && ["x","y","z"].includes(rotation.axis) && Number.isFinite(Number(rotation.angle));}).map(function(rotation){return {axis:rotation.axis,angle:Number(rotation.angle),pivot:rotation.pivot ? {x:Number(rotation.pivot.x)||0,y:Number(rotation.pivot.y)||0,z:Number(rotation.pivot.z)||0}:undefined};});
-}
-
-// Circular pattern copies keep an explicit model-space transform. Applying it
-// to a render group supports every part kind and all three axes, including
-// imported meshes and boxes that previously stayed coincident with the seed.
-function rotatePatternPart(p, axis, angle, radialDistance) {
-  if(!p)return null;
-  p.patternRotations=partPatternRotations(p);
-  var normalizedAxis=["x","y","z"].includes(axis)?axis:"y";
-  p.patternRotations.push({axis:normalizedAxis,angle:Number(angle)||0,pivot:circularPatternPivot({axis:normalizedAxis,radialDistance:radialDistance})});
-  delete p.patternRotation;
-  return p;
-}
 function patternPlacements(params) {
   var count=Math.max(2,Math.min(100,Math.round(Number(params && params.count)||2)));
+  // The curve layout carries its own count and its own turn per copy.
+  if(params && params.mode==="curve")return curvePatternPlacements(resolvePatternCurvePath(params));
   if(params && params.mode==="circular"){
     var skipped=parseSkippedPatternInstances(params.skipInstances);
     return Array.from({length:count-1},function(_,index){return {circularIndex:index+1,instance:index+1};}).filter(function(placement){return !skipped.has(placement.instance);});
   }
   return linearPatternOffsets(params || {},count);
 }
-function rotPartY(p, ang) { return rotatePatternPart(p,"y",ang); }
 /* ================= undo =================
    Tree machinery is shared (edit_history.js); the modeler only says what a
    snapshot is and what is inside one. It stays local to the editor: Ctrl+Z
@@ -4479,10 +2384,18 @@ function scheduleModelerDraft() {
   draftSaveTimer = setTimeout(flushModelerDraft, 1500);
 }
 
+/* A draft that cannot be written means crash recovery is off, which the user
+   has no other way to find out. Said once per session: this runs on a timer
+   after every edit, and a warning on each one would be its own problem. */
+var draftFailureReported = false;
 function flushModelerDraft() {
   draftSaveTimer = 0;
   if (!E.open || !E.def) return;
-  writeModelerDraft(modelerDraftStorage(), { docType: E.docType, def: E.def, assembly: E.assembly });
+  if (writeModelerDraft(modelerDraftStorage(), { docType: E.docType, def: E.def, assembly: E.assembly })) {
+    draftFailureReported = false;
+    return;
+  }
+  if (!draftFailureReported) { draftFailureReported = true; flash(t("draftSaveFailed")); }
 }
 
 function discardModelerDraft() {
@@ -4513,6 +2426,7 @@ function tryRestoreModelerDraft() {
     part.featureId = part.featureId || "feature:part:" + part.id;
   });
   migrateDefinitionProfileCuts(E.def, true);
+  restoreKernelBodies(E.def);
   var restoredSketch = ensureSketch(E.def), restoredHistory = E.def.history || [];
   E.solveInfo = solveSketch(restoredSketch);
   E._solveSketchId = restoredSketch.id;
@@ -4545,16 +2459,23 @@ function syncUndoButtons() {
   if (histPanel) histPanel.refresh();
 }
 
-function documentDirty() {
+/* The editor's revision number. Every edit that can change geometry goes
+   through pushUndo(), so the id of the current history node is what "the
+   document as it stands now" means here — for the dirty flag, and for deciding
+   whether a cached kernel solve still describes this document. */
+function currentHistoryNode() {
   var tree = H.tree(), i;
-  for (i = 0; i < tree.length; i++) if (tree[i].current) return tree[i].i !== savedHistoryId;
-  return false;
+  for (i = 0; i < tree.length; i++) if (tree[i].current) return tree[i].i;
+  return null;
+}
+
+function documentDirty() {
+  var node = currentHistoryNode();
+  return node !== null && node !== savedHistoryId;
 }
 
 function markDocumentClean() {
-  var tree = H.tree(), i;
-  savedHistoryId = null;
-  for (i = 0; i < tree.length; i++) if (tree[i].current) { savedHistoryId = tree[i].i; break; }
+  savedHistoryId = currentHistoryNode();
   syncDirty();
 }
 
@@ -4570,8 +2491,18 @@ function syncDirty() {
   save.removeAttribute("title");
 }
 
+/* The one place that asks before unsaved work is thrown away. Every path that
+   replaces or abandons the open document goes through here — New, Close, and
+   both panes of the library. The library cards used to replace the document
+   with no question at all, so a click on a card was an unrecoverable way to
+   lose an unsaved model. */
+function confirmDiscardDocument(promptKey) {
+  if (!documentDirty()) return true;
+  return window.confirm(t(promptKey || "unsavedClose"));
+}
+
 function requestCloseModeler() {
-  if (documentDirty() && !window.confirm(t("unsavedClose"))) return;
+  if (!confirmDiscardDocument("unsavedClose")) return;
   closeModeler();
 }
 
@@ -4623,7 +2554,7 @@ function partUV(p) {
     [b.x0,b.x1].forEach(function(x){[b.y0,b.y1].forEach(function(y){[b.z0,b.z1].forEach(function(z){projected.push(frameProjectPoint(frame,{x:x,y:y,z:z}));});});});
     return rect(Math.min.apply(null,projected.map(function(q){return q.u;})),Math.max.apply(null,projected.map(function(q){return q.u;})),Math.min.apply(null,projected.map(function(q){return q.v;})),Math.max.apply(null,projected.map(function(q){return q.v;})));
   }
-  if ((p.kind === "direct" || p.kind === "mesh") && p.meshData) {
+  if ((isKernelBody(p) || p.kind === "direct" || p.kind === "mesh") && p.meshData) {
     var meshProjection=projectMeshEdges(p.meshData,E.view);
     if(meshProjection.segments.length)return meshProjection;
   }
@@ -5031,7 +2962,9 @@ function buildDOM() {
         commandButton("extrude", t("opExtrude"), null, "primary"),
         commandButton("extrudecut", t("extrudeCut"), null, "primary"),
         commandButton("revolvefeature", t("opRevolve"), "R"),
+        commandButton("revolvecutfeature", t("opRevolveCut")),
         commandButton("sweepfeature", t("opSweep")),
+        commandButton("sweepcutfeature", t("opSweepCut")),
         commandButton("loftfeature", t("cap_loft"), null, "", t("loftOp")),
         commandButton("holefeature", t("cap_hole"), null, "primary", t("holeWizard")),
       ]) +
@@ -5039,6 +2972,11 @@ function buildDOM() {
         commandButton("filletfeature", t("quickFillet"), null, "primary"),
         commandButton("chamferfeature", t("quickChamfer"), null, "primary"),
         commandButton("shellfeature", t("shellOp")),
+        commandButton("draftfeature", t("draftOp")),
+        commandButton("thickenfeature", t("thickenOp")),
+        commandButton("ribfeature", t("ribOp")),
+        commandButton("splitbodyfeature", t("splitBodyOp")),
+        commandButton("movebodyfeature", t("moveBodyOp")),
         commandButton("patternfeature", t("quickPattern")),
         commandButton("mirrorfeature", t("quickMirror")),
         commandButton("booleanfeature", t("opBoolean")),
@@ -5238,24 +3176,20 @@ function buildDOM() {
     '<button type="button" id="mdToggleNotesView" class="on" aria-pressed="true" title="' + t("toggleNotes") + '"><i class="ph ph-chat-circle-text"></i><span>' + t("notesAnnotations") + '</span></button>' +
     '</div><button type="button" id="mdFinishPlane" class="md-finish-plane">' + cadIcon("check") + '<span>' + t("exitPlane") + '</span></button></div>' +
     '<button type="button" id="mdSketchOnFace" class="md-sketch-on-face" hidden><i class="ph ph-pencil-line"></i><span>' + t("createSketchOnRef") + '</span></button>' +
+    /* One shelf, not four things all claiming the same corner. The chip, the
+       confirmation corner, the section panel and the evaluate card each used to
+       pin themselves to top/inset-inline-end on their own, so any two of them
+       open at once landed on top of each other — the plane chip covered the
+       green check completely, and the eval card needed a hand-tuned 232px to
+       dodge the section panel. A flex column stacks whatever is open and needs
+       to know nothing about the heights of the rest. */
+    '<div class="md-rail md-rail-end" id="mdRailEnd">' +
     '<button type="button" id="mdSketchPlaneChip" class="md-sketch-plane-chip" hidden>' +
       '<i class="ph ph-square-half" aria-hidden="true"></i><span id="mdSketchPlaneLabel"></span><b>' + t("changePlane") + '</b></button>' +
-    '<div class="md-hint" id="mdHint"></div>' +
-    '<button type="button" id="mdHintHelp" class="md-hint-help" aria-label="' + t("hint3d") + '" title="' + t("hint3d") + '"><i class="ph ph-question"></i></button>' +
-    /* Non-modal on purpose: the viewport underneath it is the control. A modal
-       plane dialog is what this bar replaces. */
-    '<div class="md-face-prompt" id="mdFacePrompt" hidden>' +
-    '<i class="ph ph-cursor-click"></i>' +
-    '<span><b>' + t("pickFaceTitle") + '</b><small>' + t("pickFaceBody") + '</small></span>' +
-    '<button type="button" id="mdFacePromptPlanes">' + t("pickFacePlanes") + '</button>' +
-    '<button type="button" id="mdFacePromptCancel" class="cancel" aria-label="' + t("pickFaceCancel") + '" title="' + t("pickFaceCancel") + '"><i class="ph ph-x"></i></button>' +
-    '</div>' +
-    '<button type="button" id="mdEmptyStart" class="md-empty-start" title="' + t("emptyStartTip") + '" hidden><i class="ph ph-sparkle"></i><span>' + t("emptyStart") + '</span></button>' +
     '<div class="md-context-actions" id="mdContextActions" hidden>' +
     '<button type="button" id="mdAcceptCommand" class="accept" aria-label="' + t("finishCommand") + '" title="' + t("finishCommand") + '">' + cadIcon("check") + '</button>' +
     '<button type="button" id="mdCancelCommand" class="cancel" aria-label="' + t("cancelCommand") + '" title="' + t("cancelCommand") + '">' + cadIcon("cross") + '</button>' +
     '<span id="mdActiveCommand"></span></div>' +
-    '<div class="md-context-toolbar" id="mdContextToolbar" hidden></div>' +
     '<section class="md-section-controls" id="mdSectionControls" aria-label="' + t("sectionView") + '" hidden>' +
       '<div class="md-section-head"><b>' + t("sectionView") + '</b><button type="button" id="mdSectionClose" aria-label="' + t("sectionClose") + '" title="' + t("sectionClose") + '"><i class="ph ph-x"></i></button></div>' +
       '<div class="md-section-axis" role="group" aria-label="' + t("sectionAxis") + '"><button type="button" data-section-axis="x" class="on">X</button><button type="button" data-section-axis="y">Y</button><button type="button" data-section-axis="z">Z</button></div>' +
@@ -5274,12 +3208,38 @@ function buildDOM() {
       '<div class="md-eval-body" id="mdEvalBody"></div>' +
       '<div class="md-eval-actions" id="mdEvalActions"></div>' +
     '</section>' +
+    '</div>' +
+    /* The bottom-centre shelf, same reason: the hint, the face prompt and the
+       profile offer are all "a sentence under the model", and all three used to
+       be centred at their own `bottom`, so the offer sat squarely on the hint. */
+    '<div class="md-rail md-rail-bottom" id="mdRailBottom">' +
+    '<div class="md-profile-offer" id="mdProfileOffer" hidden></div>' +
+    /* Non-modal on purpose: the viewport underneath it is the control. A modal
+       plane dialog is what this bar replaces. */
+    '<div class="md-face-prompt" id="mdFacePrompt" hidden>' +
+    '<i class="ph ph-cursor-click"></i>' +
+    '<span><b>' + t("pickFaceTitle") + '</b><small>' + t("pickFaceBody") + '</small></span>' +
+    '<button type="button" id="mdFacePromptPlanes">' + t("pickFacePlanes") + '</button>' +
+    '<button type="button" id="mdFacePromptCancel" class="cancel" aria-label="' + t("pickFaceCancel") + '" title="' + t("pickFaceCancel") + '"><i class="ph ph-x"></i></button>' +
+    '</div>' +
+    '<div class="md-hint" id="mdHint"></div>' +
+    '</div>' +
+    '<button type="button" id="mdHintHelp" class="md-hint-help" aria-label="' + t("hint3d") + '" title="' + t("hint3d") + '"><i class="ph ph-question"></i></button>' +
+    '<button type="button" id="mdEmptyStart" class="md-empty-start" title="' + t("emptyStartTip") + '" hidden><i class="ph ph-sparkle"></i><span>' + t("emptyStart") + '</span></button>' +
+    '<div class="md-context-toolbar" id="mdContextToolbar" hidden></div>' +
+    /* The selection row: filters at the start, breadcrumb at the end, one flex
+       row so they compete for width instead of overlapping at narrow sizes —
+       and so the breadcrumb stops printing itself over the status line. */
+    '<div class="md-rail md-rail-row" id="mdRailRow">' +
     '<div class="md-sel-filters" id="mdSelFilters" role="toolbar" aria-label="' + t("selFilter") + '">' +
       '<button type="button" data-selfilter="all" class="on">' + t("selFilterAll") + '</button>' +
       '<button type="button" data-selfilter="face">' + t("selFilterFace") + '</button>' +
       '<button type="button" data-selfilter="edge">' + t("selFilterEdge") + '</button>' +
+      '<button type="button" data-selfilter="vertex">' + t("selFilterVertex") + '</button>' +
       '<button type="button" data-selfilter="sketch">' + t("selFilterSketch") + '</button>' +
       '<button type="button" data-selfilter="body">' + t("selFilterBody") + '</button>' +
+    '</div>' +
+    '<div class="md-breadcrumb" id="mdBreadcrumb"></div>' +
     '</div>' +
     '<div class="md-assembly-move-mode" id="mdAssemblyMoveMode" role="toolbar" aria-label="' + t("assemblyMoveMode") + '">' +
       '<span>' + t("assemblyMoveMode") + '</span>' +
@@ -5288,10 +3248,11 @@ function buildDOM() {
       '<button type="button" data-assembly-move="y" aria-pressed="false" title="' + t("assemblyMoveY") + '">Y</button>' +
       '<button type="button" data-assembly-move="z" aria-pressed="false" title="' + t("assemblyMoveZ") + '">Z</button>' +
     '</div>' +
-    '<div class="md-breadcrumb" id="mdBreadcrumb"></div>' +
     '<div class="md-shortcut-bar" id="mdShortcutBar" hidden></div>' +
     '<div class="md-view-selector" id="mdViewSelector" hidden></div>' +
     '<div class="md-context-menu" id="mdContextMenu" hidden></div>' +
+    '<div class="md-pick-cycle" id="mdPickCycle" hidden></div>' +
+    '<div class="md-marquee" id="mdMarquee" hidden></div>' +
     '<div class="md-paint-toolbar" id="mdPaintToolbar" hidden role="toolbar" aria-label="' + t("tool_paint") + '">' +
       '<div class="md-paint-mode-toggle" role="group" aria-label="Paint mode">' +
         '<button type="button" data-paint-mode="face" class="on" title="' + t("paintModeFace") + '">' + t("paintModeFace") + '</button>' +
@@ -5805,11 +3766,29 @@ function buildDOM() {
     onPick: docPick,
   });
   root.querySelector("#mdHistSession").appendChild(histPanel.el);
+  /* Renaming or repricing is a document edit like any other. These handlers
+     used to assign straight into E.def, which put them outside the only thing
+     that defines dirtiness here: documentDirty() compares the current undo-tree
+     node against savedHistoryId, so an edit that creates no history node is
+     invisible by construction. A renamed model stayed "clean", closed without
+     the unsaved-work prompt, and never reached a draft. `change` fires on blur
+     or Enter, not per keystroke, so this is one undo step per rename. */
   root.querySelector("#mdName").addEventListener("change", function () {
-    if (E.docType === "assembly" && E.assembly) E.assembly.name = this.value;
+    var assembly = E.docType === "assembly" && E.assembly;
+    if ((assembly ? E.assembly.name : E.def.name) === this.value) return;
+    pushUndo(t("renameDocument"));
+    if (assembly) E.assembly.name = this.value;
     else E.def.name = this.value;
+    syncUndoButtons();
   });
-  root.querySelector("#mdPrice").addEventListener("change", function () { if (E.docType === "part") E.def.price = +this.value || 0; });
+  root.querySelector("#mdPrice").addEventListener("change", function () {
+    if (E.docType !== "part") return;
+    var price = +this.value || 0;
+    if (E.def.price === price) return;
+    pushUndo(t("setPrice"));
+    E.def.price = price;
+    syncUndoButtons();
+  });
 
   E.cv = root.querySelector("#mdCanvas");
   E.cx = E.cv.getContext("2d");
@@ -5904,6 +3883,7 @@ function buildDOM() {
   });
 
   window.addEventListener("keydown", onKey);
+  window.addEventListener("keyup", function (e) { if (E.open) releaseSelectionFilterChord(e); });
 }
 
 /* ================= interactive sketch guide =================
@@ -7310,6 +5290,21 @@ function updateTourProgress() {
 }
 
 var SKETCH_TOOLS = ["wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "dim", "trim", "extend", "offset", "constr"];
+
+/* The tools that DRAW, as opposed to the ones that edit what is already drawn.
+   Only these may open a sketch from model mode: "start drawing and I will make
+   you a sketch" is a reasonable offer, while Trim or Dimension arriving on an
+   empty new sketch is an offer to edit nothing. */
+var SKETCH_DRAW_TOOLS = ["wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell"];
+
+/* Which tools own the sketch sheet. Everything else — Select above all — used
+   to open it too: setTool() armed E.modelPlaneActive for ANY tool change in
+   3D, so pressing V, or leaving Paint with Escape, laid #mdCanvas over the
+   viewport and killed face picking until you pressed Finish plane. It also
+   silently re-mapped the keyboard, because the Paint and Note chords are gated
+   on !E.modelPlaneActive and fall through to KEY_TOOL's sketch tools once the
+   sheet is up. One accidental overlay, three keys changed meaning. */
+var MODEL_PLANE_TOOLS = SKETCH_TOOLS.concat(["rect", "circle", "sph", "poly", "rev", "cut", "cutc"]);
 /* The plane the camera should look along for Normal To. Datum Top/Front/Right
    sketches have no sketch.frame, so fall back to the standard triad — orbitTo
    for Top is nearly degenerate (el≈86° with world-Y up). */
@@ -7397,6 +5392,10 @@ function syncModelPlane() {
   if (!root) return;
   var active = E.mode === "3d" && E.modelPlaneActive;
   root.classList.toggle("md-model-sketching", active);
+  /* A sketch laid over the model puts sketch geometry in front of the pointer
+     without changing E.mode, so this — not setMode() — is where the Sketch
+     filter becomes reachable and unreachable again. */
+  syncSelectionFilters();
   var finish = root.querySelector("#mdFinishPlane");
   if (finish) finish.hidden = !active;
   var chip = root.querySelector("#mdSketchPlaneChip");
@@ -7549,7 +5548,8 @@ function beginFacePick(preferredTool) {
   E.authoring.preferredTool=typeof preferredTool==="string" ? preferredTool : null;
   E.facePick={tool:E.authoring.preferredTool};
   E.topologySelection=[];
-  E.selectionFilter=selectionFilterAllows("face",E.selectionFilter) ? E.selectionFilter : "all";
+  // commandSelectionPrefer() forces "face" while E.facePick is set; the user's
+  // own filter is left alone so it is still theirs when the pick is over.
   if(E.mode!=="3d")setMode("3d");
   /* The sketch sheet is a canvas laid over the model — leave it up and it eats
      the very click we are asking for. */
@@ -7620,18 +5620,36 @@ function finishSketchWorkflow() {
     return;
   }
   var sketch=ensureSketch(E.def),run=solveSketch(sketch);
-  if(run.status==="conflicting"||run.status==="over-constrained"){
-    setTab("sketch");flash(t("resolveConflictsFirst"));return;
+  /* Finishing is no longer refused. Blocking it taught people to delete
+     dimensions until the message stopped, which REDUCES how well defined the
+     sketch is — the opposite of what the block was protecting.
+   *
+     The two states it used to lump together are not the same thing. A sketch
+     is "over-constrained" when it solved perfectly and merely carries a
+     redundant dimension (see solveSketch: converged, zero DOF, rank short of
+     the residual count) — that geometry is correct and there was never a
+     reason to hold the solid hostage to it. "Conflicting" means the solver did
+     not converge, so the points are wherever it gave up; that one finishes too,
+     but it is stated plainly and the rebuild raises an error against the sketch
+     node, which opens the diagnostics panel and fails the features downstream.
+     Nothing here claims the geometry is right — it says what happened and lets
+     the rest of the pipeline report on it. */
+  if(run.status==="conflicting"){
+    setTab("sketch");
+    flash(t("sketchConflictWarn"));
+  } else if(run.status==="over-constrained"){
+    flash(t("sketchRedundantWarn"));
   }
   recordSketchInHistory(E.def,sketch);
   E.authoring.phase="model";E.authoring.sketchId=sketch.id;E.authoring.referenceId=sketch.referenceId;E.authoring.sketchSelection=[sketch.id];
   E.authoring.featureType=null;E.authoring.workflowFocus="feature";E.authoring.resumePhase=null;
   E.modelPlaneActive=false;setMode("3d");restoreSketchCameraPose();setCommandTab("features");setTab("parts");
-  flash(run.degreesOfFreedom ? t("sketchSavedDof") + " · " + run.degreesOfFreedom + " " + t("wfDof") : "✓ " + t("sketchFullySaved"));
+  if(run.status!=="conflicting" && run.status!=="over-constrained"){
+    flash(run.degreesOfFreedom ? t("sketchSavedDof") + " · " + run.degreesOfFreedom + " " + t("wfDof") : "✓ " + t("sketchFullySaved"));
+  }
   refreshAll();
-  var next=nextFeatureAfterFinishedSketch(!!closedSketchProfile());
-  if(next)openParametricFeature(next);
-  else syncAuthoringWorkflow();
+  offerProfileFeatures();
+  syncAuthoringWorkflow();
 }
 
 function currentWorkflowStep() {
@@ -7687,7 +5705,7 @@ function activateWorkflowStep(step) {
     if(E.authoring.featureType){setCommandTab("features");syncAuthoringWorkflow();return;}
     if(closedSketchProfile()){
       if(E.authoring.phase==="sketch")finishSketchWorkflow();
-      else{setCommandTab("features");openParametricFeature("extrude");}
+      else{setCommandTab("features");offerProfileFeatures();}
       return;
     }
     setCommandTab("features");
@@ -7858,20 +5876,29 @@ function setTool(id, keepPlaneState) {
     return;
   }
   if(E.mode !== "drawing" && isCanonicalAuthoring() && !E.tour.active) {
-    if(SKETCH_TOOLS.includes(id) && E.authoring.phase!=="sketch") { beginSketchWorkflow(id); return; }
+    if(SKETCH_TOOLS.includes(id) && E.authoring.phase!=="sketch") {
+      // Trim, Dimension, Extend, Offset and the constraint tool edit geometry;
+      // handing them a brand-new empty sketch is a dead end that looks like a
+      // mode change. Say what is missing instead.
+      if(!SKETCH_DRAW_TOOLS.includes(id)) { flash(t("needSketchForTool")); return; }
+      beginSketchWorkflow(id); return;
+    }
     if(["rect","circle","sph","poly","rev","cut","cutc"].includes(id)) {
       var replacement=id==="rect"?"srect":id==="circle"?"scirc":null;
       if(replacement)beginSketchWorkflow(replacement);else flash(t("needSketchThenFeature"));
       return;
     }
   }
-  var openingModelPlane = E.mode === "3d" && !E.modelPlaneActive && !keepPlaneState;
-  var attachedToFace=openingModelPlane && id !== "select" ? attachSketchToSelectedFace() : false;
+  var opensSketchPlane = MODEL_PLANE_TOOLS.includes(id);
+  var openingModelPlane = E.mode === "3d" && !E.modelPlaneActive && !keepPlaneState && opensSketchPlane;
+  var attachedToFace = openingModelPlane ? attachSketchToSelectedFace() : false;
   if (E.wallPts && id !== "wall") finishWallChain(false);
   if (id !== E.tool) E.dynInput = null;
   if (id !== E.tool) { E.dimPick = []; E.dimSel = null; }
   E.tool = id;
-  if (E.mode === "3d" && !keepPlaneState) E.modelPlaneActive = true;
+  /* Arms the sheet, never disarms it: picking Select inside a sketch you are
+     already drawing means "select in this sketch", not "leave it". */
+  if (E.mode === "3d" && !keepPlaneState && opensSketchPlane) E.modelPlaneActive = true;
   E.poly = null;
   if (id !== "sarc") E.arcPts = null;
   if (id !== "sslot") E.slotPts = null;
@@ -8062,6 +6089,11 @@ function closeFeaturePanel() {
   if (!root) return;
   var host = root.querySelector("#mdQuickSettings");
   if (host) host.hidden = true;
+  /* Dismissing the form dismisses its ghost body. Several callers used to close
+     the panel without clearing the preview, which left an approximate (or a
+     half-built exact) finish body in the scene until the next full rebuild. */
+  clearFeaturePreview(false);
+  updatePreview();
   syncCommandManager(); // puts the ribbon button that opened the form back out
 }
 
@@ -8077,11 +6109,18 @@ function runCommand(id) {
   else if (id === "extrude") openParametricFeature("extrude");
   else if (id === "extrudecut") openParametricFeature("extrudeCut");
   else if (id === "revolvefeature") openParametricFeature("revolve");
+  else if (id === "revolvecutfeature") openParametricFeature("revolveCut");
+  else if (id === "sweepcutfeature") openParametricFeature("sweepCut");
   else if (id === "sweepfeature") openParametricFeature("sweep");
   else if (id === "loftfeature") openParametricFeature("loft");
   else if (id === "filletfeature") openParametricFeature("fillet");
   else if (id === "chamferfeature") openParametricFeature("chamfer");
   else if (id === "shellfeature") openParametricFeature("shell");
+  else if (id === "draftfeature") openParametricFeature("draft");
+  else if (id === "thickenfeature") openParametricFeature("thicken");
+  else if (id === "ribfeature") openParametricFeature("rib");
+  else if (id === "splitbodyfeature") openParametricFeature("splitBody");
+  else if (id === "movebodyfeature") openParametricFeature("moveBody");
   else if (id === "patternfeature") openParametricFeature("pattern");
   else if (id === "mirrorfeature") openParametricFeature("mirror");
   else if (id === "booleanfeature") openParametricFeature("boolean");
@@ -8145,21 +6184,6 @@ function quickDuplicatePart() {
   refreshAll(); return true;
 }
 
-function mirrorProjectionPart(q,planeId) {
-  var plane=planeId || "plane:right",loops=function(part){return part.kind==="loft"?[part.pts0,part.pts1]:[part.pts].concat((part.holes || []).map(function (hl) { return holeLoop(hl, true); }));};
-  if(plane==="plane:top"){
-    if(q.kind==="box"){var y0=q.y0;q.y0=-q.y1;q.y1=-y0;}
-    else if(q.kind==="cyl"){q.y=-q.y-q.h;}else if(q.kind==="sph")q.y=-q.y;else if(q.kind==="rev"){q.pts.forEach(function(v){v.v=-v.v;});q.pts.reverse();}
-    else if(q.axis==="y"){var fy=q.from;q.from=-q.to;q.to=-fy;}else loops(q).forEach(function(loop){(loop || []).forEach(function(v){v.v=-v.v;});loop && loop.reverse();});
-  } else if(plane==="plane:front"){
-    if(q.kind==="box"){var z0=q.z0;q.z0=-q.z1;q.z1=-z0;}else if(q.kind==="cyl"||q.kind==="sph"||q.kind==="rev")q.z=-q.z;
-    else if(q.axis==="z"){var fz=q.from;q.from=-q.to;q.to=-fz;}else loops(q).forEach(function(loop){(loop || []).forEach(function(v){if(q.axis==="x")v.u=-v.u;else v.v=-v.v;});loop && loop.reverse();});
-  } else {
-    if(q.kind==="box"){var x0=q.x0;q.x0=-q.x1;q.x1=-x0;}else if(q.kind==="cyl"||q.kind==="sph"||q.kind==="rev")q.x=-q.x;
-    else if(q.axis==="x"){var fx=q.from;q.from=-q.to;q.to=-fx;}else loops(q).forEach(function(loop){(loop || []).forEach(function(v){v.u=-v.u;});loop && loop.reverse();});
-  }
-  return q;
-}
 
 function quickMirrorPart(options) {
   var params={...featureDefaults("mirror"),...(options || {})};
@@ -8171,6 +6195,7 @@ function quickMirrorPart(options) {
   delete params.planeReference;
   if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"mirror",{inputs:[p.featureId],references:{sketches:[],features:[p.featureId],topology:[],references:[planeId]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
   var q = mirrorProjectionPart(resetClonedPartIdentity(cloneData(p)),planeId);
+  if(!q){H.discard();flash(t("kernelBodyNoMirror"));return false;}
   if(feature){q.derivedFeatureId=feature.id;q.sourceFeatureId=p.featureId;}
   if(params.keepOriginal!==false)addPart(q);else{var index=E.def.parts.indexOf(p);if(index>=0)E.def.parts.splice(index,1,q);else addPart(q);} E.sel = q; refreshAll(); return true;
 }
@@ -8180,13 +6205,20 @@ function quickRoundPart(kind, amount) {
   amount=kind==="fillet"?params.radius:params.distance;
   var p = selectedSolid();
   if (!p) { flash(t("quickNeedPart")); return false; }
-  if (!["box","cyl","ext"].includes(p.kind) || (p.kind==="cyl" && p.r2!=null && Math.abs(p.r2-p.r)>=1e-6)) { flash(t("quickNeedPart")); return false; }
+  if (!partSupportsExactMesh(p)) { flash(t("quickNeedPart")); return false; }
   var sourceFeatureId=(E.authoring.featureSelection || []).slice(-1)[0] || p.featureId;
   /* Edges come from the selection. A face with no edges picked means every
      edge of that face — not the whole body, which is what an empty edge list
      used to do. */
   var targets=finishFeatureTargets(kind).filter(function(reference){return reference.kind==="edge" || reference.kind==="face";});
   if (!targets.length) { flash(t("needEdges")); return false; }
+  /* An override for an edge that is no longer in the selection means nothing,
+     and storing it would make the saved feature claim a radius it never uses. */
+  if (kind === "fillet" && Array.isArray(params.edgeRadii)) {
+    params.edgeRadii = params.edgeRadii.filter(function (entry) {
+      return entry && targets.some(function (reference) { return reference.persistentId === entry.id; });
+    });
+  }
   pushUndo(kind === "fillet" ? t("quickFillet") : t("quickChamfer"));
   var feature;
   if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,kind,{inputs:[sourceFeatureId],references:{sketches:[],features:[sourceFeatureId],topology:targets,references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
@@ -8205,7 +6237,7 @@ function quickShellPart(thickness) {
   var params={...featureDefaults("shell"),...(typeof thickness==="object"?thickness:{thickness:thickness})};thickness=params.thickness;
   var p = selectedSolid();
   if (!p) { flash(t("quickNeedPart")); return false; }
-  if (!["box","cyl","ext"].includes(p.kind) || (p.kind==="cyl" && p.r2!=null && Math.abs(p.r2-p.r)>=1e-6)) { flash(t("shellFail")); return false; }
+  if (!partSupportsExactMesh(p)) { flash(t("shellFail")); return false; }
   var targets=cloneData((E.topologySelection || []).filter(function(reference){return reference.kind==="face";}));
   if (!targets.length) { flash(t("needFace")); return false; }
   pushUndo(t("shellOp"));
@@ -8219,15 +6251,204 @@ function quickShellPart(thickness) {
   E.sel=p; queueExactMesh(p); refreshAll(); return true;
 }
 
+/* Draft, like shell, is recorded as an exact operation on the selected body
+   rather than as a new part: the solid keeps its identity and OpenCascade
+   re-tilts its walls on the next exact build. */
+function quickDraftPart(options) {
+  var params={...featureDefaults("draft"),...(typeof options==="object"?options:{angle:options})};
+  var angle=Number(params.angle);
+  var p = selectedSolid();
+  if (!p) { flash(t("quickNeedPart")); return false; }
+  if (!partSupportsExactMesh(p)) { flash(t("draftFail")); return false; }
+  if (!Number.isFinite(angle) || angle===0) { flash(t("draftFail")); return false; }
+  var targets=finishFeatureTargets("draft");
+  if (!targets.length) { flash(t("needFace")); return false; }
+  pushUndo(t("draftOp"));
+  var feature;
+  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"draft",{inputs:[p.featureId],references:{sketches:[],features:[p.featureId],topology:targets,references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
+  p.exactOperations=p.exactOperations || [];
+  p.exactOperations.push({
+    id:feature ? feature.id : (p.featureId || "feature:part:"+p.id)+":draft:"+(p.exactOperations.length+1),
+    type:"draft",amount:angle,targets:targets,params:cloneData(params),
+  });
+  E.sel=p; queueExactMesh(p); refreshAll();
+  flash("\u2713 "+t("draftOp")+" "+t("appliedFeature"));
+  return true;
+}
+
+/* Split Body. The plane cuts once; what the command does with the two halves is
+   the whole point of the feature.
+
+   "Both" is not a compound body here — a compound would be one row in the tree
+   holding two lumps nobody can pick apart. The half that is kept stays on the
+   original part and the other half becomes a part of its own, carrying the same
+   source recipe with the complementary split recorded on it. Two rows, two
+   bodies, both selectable, both saveable, and neither of them a special kind
+   the rest of the editor has to learn about. */
+function quickSplitBodyPart(options) {
+  var params={...featureDefaults("splitBody"),...(typeof options==="object"?options:{offset:options})};
+  var p = selectedSolid();
+  if (!p) { flash(t("quickNeedPart")); return false; }
+  if (!partSupportsExactMesh(p)) { flash(t("splitBodyFail")); return false; }
+  var offset=Number(params.offset);
+  if (!Number.isFinite(offset)) { flash(t("splitBodyFail")); return false; }
+  var bounds=partBounds(p), axis=params.axis==="x"?"x":params.axis==="z"?"z":"y";
+  if (!bounds || offset<=bounds[axis+"0"]+1e-9 || offset>=bounds[axis+"1"]-1e-9) { flash(t("splitBodyFail")); return false; }
+  var both=params.keep!=="positive" && params.keep!=="negative";
+  pushUndo(t("splitBodyOp"));
+  /* Both halves are cut from the SAME body, so both history rows take the
+     original part's feature as their input — the clone's own feature id names
+     nothing in the tree yet and would dangle. */
+  var sourceFeatureId=p.featureId;
+  var record=function(part,keep){
+    var half={...params,keep:keep};
+    var feature;
+    if(isCanonicalAuthoring())feature=createFeatureDefinition(E.def,"splitBody",{inputs:[sourceFeatureId],references:{sketches:[],features:[sourceFeatureId],topology:[],references:[]},params:half});
+    part.exactOperations=part.exactOperations || [];
+    part.exactOperations.push({
+      id:feature ? feature.id : (part.featureId || "feature:part:"+part.id)+":split:"+(part.exactOperations.length+1),
+      type:"splitBody",amount:offset,targets:[],params:cloneData(half),
+    });
+    queueExactMesh(part);
+  };
+  try{
+    if(both){
+      var other=resetClonedPartIdentity(cloneData(p));
+      other.name=tf("splitBodyHalf",{name:p.name || t("selFilterBody")});
+      delete other.meshData; delete other.bounds;
+      addPart(other);
+      record(p,"positive");
+      record(other,"negative");
+    } else record(p,params.keep);
+  }catch(error){H.discard();flash(String(error.message||error));return false;}
+  E.sel=p; refreshAll();
+  flash("✓ "+t("splitBodyOp")+" "+t("appliedFeature"));
+  return true;
+}
+
+/* Move / Copy Body. A move rewrites the body in place; a copy leaves the
+   original alone and puts the transform on a new part, because two bodies that
+   happen to touch are still two bodies and a fuse would make them one. */
+function quickMoveBodyPart(options) {
+  var params={...featureDefaults("moveBody"),...(typeof options==="object"?options:{dx:options})};
+  var p = selectedSolid();
+  if (!p) { flash(t("quickNeedPart")); return false; }
+  if (!partSupportsExactMesh(p)) { flash(t("moveBodyFail")); return false; }
+  var moved=(Number(params.dx)||0)||(Number(params.dy)||0)||(Number(params.dz)||0)||(Number(params.angle)||0);
+  if (!moved) { flash(t("moveBodyNothing")); return false; }
+  var copy=!!params.copy;
+  pushUndo(t("moveBodyOp"));
+  /* `copy` is handled here, not by the kernel: moveBodyBrep's compound is the
+     right answer for one BREP result, but a part must be one body. */
+  var target=p;
+  if(copy){
+    target=resetClonedPartIdentity(cloneData(p));
+    target.name=tf("moveBodyCopyName",{name:p.name || t("selFilterBody")});
+    delete target.meshData; delete target.bounds;
+    addPart(target);
+  }
+  var kernelParams={...params,copy:false};
+  var feature;
+  // a copy is cut from the original body too, so its row names that body
+  var sourceFeatureId=p.featureId;
+  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"moveBody",{inputs:[sourceFeatureId],references:{sketches:[],features:[sourceFeatureId],topology:[],references:[]},params:kernelParams});}catch(error){H.discard();flash(String(error.message||error));return false;}
+  target.exactOperations=target.exactOperations || [];
+  target.exactOperations.push({
+    id:feature ? feature.id : (target.featureId || "feature:part:"+target.id)+":movebody:"+(target.exactOperations.length+1),
+    type:"moveBody",amount:Number(params.angle)||0,targets:[],params:cloneData(kernelParams),
+  });
+  E.sel=target; queueExactMesh(target); refreshAll();
+  flash("✓ "+t("moveBodyOp")+" "+t("appliedFeature"));
+  return true;
+}
+
+/* Rib. Sketch-driven like extrude, body-driven like shell: the open line says
+   where the web runs, the selected body says what it braces, and the result is
+   recorded as an exact operation on that body because a rib IS part of the
+   solid it stiffens — never a loose fin standing next to it. */
+function createRibFeature(options) {
+  var params={...featureDefaults("rib"),...(typeof options==="object"?options:{thickness:options})};
+  var thickness=Number(params.thickness);
+  if(!Number.isFinite(thickness) || thickness<=0){flash(t("ribFail"));return false;}
+  var sketch=ensureSketch(E.def);
+  var chain=analyzeSketchChains(sketch,{selectedIds:selEntities().map(function(entity){return entity.id;})}).chains[0];
+  if(!chain){flash(t("ribNeedLine"));setTab("sketch");return false;}
+  var p=selectedSolid() || activeParts(E.def)[activeParts(E.def).length-1];
+  if(!p){flash(t("quickNeedPart"));return false;}
+  if(!partSupportsExactMesh(p)){flash(t("ribFail"));return false;}
+  var axis=planeAxis(sketch.plane),localFrame=sketch.frameSpace==="local" && sketch.frame;
+  var normal=sketch.frame && sketch.frame.normal;
+  /* The sketch plane already carries a direction; the form's forward/reverse is
+     stated relative to it, so the two are combined once here rather than being
+     re-guessed by the kernel. */
+  var principal=localFrame || !normal ? 1 : (axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)) || 1;
+  var ribParams={...params,
+    points:chain.points.map(function(q){return {u:q.u,v:q.v};}),
+    axis:localFrame?"frame":axis,
+    ...(localFrame?{frame:cloneData(sketch.frame)}:{}),
+    from:localFrame?0:(Number(sketch.offset)||0),
+    direction:(principal<0)!==(params.direction==="reverse")?"reverse":"forward",
+    sketchId:sketch.id,
+  };
+  pushUndo(t("ribOp"));
+  recordSketchInHistory(E.def,sketch);
+  var feature;
+  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"rib",{inputs:[p.featureId],references:{sketches:[sketch.id],features:[p.featureId],topology:[],references:[]},params:ribParams});}catch(error){H.discard();flash(String(error.message||error));return false;}
+  p.exactOperations=p.exactOperations || [];
+  p.exactOperations.push({
+    id:feature ? feature.id : (p.featureId || "feature:part:"+p.id)+":rib:"+(p.exactOperations.length+1),
+    type:"rib",amount:thickness,targets:[],params:cloneData(ribParams),
+  });
+  E.sel=p; queueExactMesh(p); refreshAll();
+  flash("✓ "+t("ribOp")+" "+t("appliedFeature"));
+  return true;
+}
+
+/* Thicken. Recorded like shell and draft — an exact operation on the selected
+   body, not a new part — because the slab it grows is fused back into that
+   body. On a surface body (a sweep or loft with "Create solid" off) there is
+   nothing to fuse into and the slab becomes the body, which is the whole point:
+   a sheet acquires a thickness without changing identity in the tree. */
+function quickThickenPart(options) {
+  var params={...featureDefaults("thicken"),...(typeof options==="object"?options:{thickness:options})};
+  var thickness=Number(params.thickness);
+  var p = selectedSolid();
+  if (!p) { flash(t("quickNeedPart")); return false; }
+  if (!partSupportsExactMesh(p)) { flash(t("thickenFail")); return false; }
+  if (!Number.isFinite(thickness) || thickness<=0) { flash(t("thickenFail")); return false; }
+  var targets=finishFeatureTargets("thicken");
+  if (!targets.length) { flash(t("needFace")); return false; }
+  pushUndo(t("thickenOp"));
+  var feature;
+  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"thicken",{inputs:[p.featureId],references:{sketches:[],features:[p.featureId],topology:targets,references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
+  p.exactOperations=p.exactOperations || [];
+  p.exactOperations.push({
+    id:feature ? feature.id : (p.featureId || "feature:part:"+p.id)+":thicken:"+(p.exactOperations.length+1),
+    type:"thicken",amount:thickness,targets:targets,params:cloneData(params),
+  });
+  E.sel=p; queueExactMesh(p); refreshAll();
+  flash("✓ "+t("thickenOp")+" "+t("appliedFeature"));
+  return true;
+}
+
 function quickPatternPart(count, pitch) {
   var params={...featureDefaults("pattern"),...(typeof count==="object"?count:{count:count,spacing:pitch})};count=Math.max(2,Math.round(params.count));pitch=Number(params.spacing)||0;
   var p = selectedSolid();
   if (!p) { flash(t("quickNeedPart")); return false; }
+  var curveSketch=params.mode==="curve"?patternCurveSketch():null;
+  /* The path is baked into the feature before it is created, so a reload
+     rebuilds the same run of copies without the sketch having to be selected
+     again — and so a later edit of the sketch does not silently re-aim it. */
+  if(params.mode==="curve"){
+    params=resolvePatternCurvePath(params);
+    if(curvePatternPath(params).length<2){flash(t("patternNeedCurve"));return false;}
+  }
   pushUndo(t("quickPattern"));
   var feature;
-  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"pattern",{inputs:[p.featureId],references:{sketches:[],features:[p.featureId],topology:[],references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
+  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"pattern",{inputs:[p.featureId],references:{sketches:curveSketch?[curveSketch.id]:[],features:[p.featureId],topology:[],references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
   var circularStep=circularPatternStepDegrees(params,count)*Math.PI/180,placements=patternPlacements(params);
-  placements.forEach(function(placement,index){var q=resetClonedPartIdentity(cloneData(p));if(params.mode==="circular")rotatePatternPart(q,params.axis,circularStep*placement.circularIndex,params.radialDistance);else movePart(q,placement.x,placement.y,placement.z);if(feature){q.derivedFeatureId=feature.id;q.sourceFeatureId=p.featureId;q.patternIndex=index+1;q.patternGridIndex=placement.indices;}addPart(q);});
+  if(!placements.length){H.discard();flash(t("patternNeedCurve"));return false;}
+  placements.forEach(function(placement,index){var q=resetClonedPartIdentity(cloneData(p));placePatternCopy(q,params,placement,circularStep);if(feature){q.derivedFeatureId=feature.id;q.sourceFeatureId=p.featureId;q.patternIndex=index+1;q.patternGridIndex=placement.indices;}addPart(q);});
   refreshAll(); return true;
 }
 
@@ -8276,29 +6497,71 @@ function createMultiSketchFeature(type, values) {
     var profileRun=analyzeSketchProfiles(profileSketch),profileLoop=profileRun.profiles[0];
     if(!profileLoop){flash(t("sweepNeed"));return false;}
     var params={...featureDefaults(type),...((values && values.params) || values || {})};
-    params.profile=profileLoop.points.map(function(point){return {x:point.u,y:point.v,z:0};});
+    params.profile=profileLoop.points.map(function(point){return sketchWorldPoint(profileSketch,point.u,point.v);});
     params.path=sampleHelix(helix).points;
+    var helixSources={kind:"sweep",profile:{sketchId:profileSketch.id,entityIds:(profileLoop.entityIds || []).slice()},helixId:helix.id};
     params.helix={origin:helix.origin,axis:helix.axis,radius:helix.radius,radiusEnd:helix.radiusEnd,pitch:helix.pitch,turns:helix.turns,height:helix.height,handedness:helix.handedness,startAngle:helix.startAngle};
     pushUndo(t("createFeature")+" "+featureTypeLabel(type));
-    try{createFeatureDefinition(E.def,type,{references:{sketches:[profileSketch.id],features:[],topology:[],references:[helix.id]},params:params});}
+    var helixFeature=null;
+    try{helixFeature=createFeatureDefinition(E.def,type,{references:{sketches:[profileSketch.id],features:[],topology:[],references:[helix.id]},params:params});}
     catch(error){H.discard();flash(String(error.message||error));return false;}
+    var helixHost=mergeTargetBody(kernelRecipeBounds(type,params),params);
+    if(helixHost){
+      helixHost.merges3d=helixHost.merges3d || [];
+      helixHost.merges3d.push({kind:"sweep",profile:cloneData(params.profile),path:cloneData(params.path),orientation:params.orientation,twistAngle:params.twistAngle,scale:params.scale,sketchSources:helixSources,featureId:helixFeature && helixFeature.id || undefined});
+      invalidatePartMeshAfterEdit(helixHost);
+      E.sel=helixHost;queueExactMesh(helixHost);
+    } else E.sel=addKernelBodyPart(helixFeature,type,params,helixSources) || E.sel;
     refreshAll();return true;
   }
   var required=type==="loft"?2:2;
   if(ids.length<required){flash(featureTypeLabel(type)+" "+t("featureNeedsSketches"));return false;}
-  var refs=ids.slice(0,type==="sweep"?2:ids.length),params={...featureDefaults(type),...((values && values.params) || values || {})};
-  if(type==="sweep"){
+  var refs=ids.slice(0,type==="sweep"||type==="sweepCut"?2:ids.length),params={...featureDefaults(type),...((values && values.params) || values || {})},sources=null;
+  if(type==="sweep"||type==="sweepCut"){
     var profile=(E.def.sketches || []).find(function(sketch){return sketch.id===refs[0];}),path=(E.def.sketches || []).find(function(sketch){return sketch.id===refs[1];});
     var profileRun=analyzeSketchProfiles(profile),profileLoop=profileRun.profiles[0];
     if(!profileLoop||!(path.points || []).length){flash(t("sweepNeed"));return false;}
-    params.profile=profileLoop.points.map(function(point){return {x:point.u,y:point.v,z:0};});params.path=(path.points || []).map(function(point){return {x:point.x,y:point.y,z:path.offset || 0};});
+    params.profile=profileLoop.points.map(function(point){return sketchWorldPoint(profile,point.u,point.v);});params.path=(path.points || []).map(function(point){return sketchWorldPoint(path,point.x,point.y);});
+    sources=sweepSourceRecord(profile,profileLoop.entityIds,path);
   } else {
-    params.sections=refs.map(function(id){var sketch=(E.def.sketches || []).find(function(item){return item.id===id;}),profile=analyzeSketchProfiles(sketch).profiles[0];return profile?profile.points.map(function(point){return {x:point.u,y:point.v,z:sketch.offset || 0};}):null;});
+    var sectionSketches=refs.map(function(id){return (E.def.sketches || []).find(function(item){return item.id===id;});}),sectionIds=[];
+    params.sections=sectionSketches.map(function(sketch){var loop=sketch?analyzeSketchProfiles(sketch).profiles[0]:null;sectionIds.push(loop && loop.entityIds || []);return loop?loop.points.map(function(point){return sketchWorldPoint(sketch,point.u,point.v);}):null;});
     if(params.sections.some(function(section){return !section;})){flash(t("loftNeed"));return false;}
+    sources=loftSourceRecord(sectionSketches,sectionIds);
+  }
+  /* Sweep Cut removes the very solid Sweep would have added: same two sketches,
+     same params record, and the tool lands on the target's cut list instead of
+     on the document as a body. */
+  var cutTarget=null,cutTargetId=null;
+  if(type==="sweepCut"){
+    cutTarget=cutTargetBody();
+    if(!cutTarget){flash(t("extrudeCutNeed"));return false;}
+    if(!partSupportsExactMesh(cutTarget)){flash(t("cutNeedExactBody"));return false;}
+    cutTargetId=cutTargetFeatureId(cutTarget);
   }
   pushUndo(t("createFeature")+" "+featureTypeLabel(type));
-  try{createFeatureDefinition(E.def,type,{references:{sketches:refs,features:[],topology:[],references:[]},params:params});}
+  var created=null;
+  try{created=createFeatureDefinition(E.def,type,{inputs:cutTargetId?[cutTargetId]:[],references:{sketches:refs,features:cutTargetId?[cutTargetId]:[],topology:[],references:[]},params:params});}
   catch(error){H.discard();flash(String(error.message||error));return false;}
+  /* The whole point of the kernel-body kind. Before it, this branch created a
+     feature row, an exact BREP run that only STEP export could see, and NO
+     visible geometry — sweep and loft added a step and drew nothing. */
+  var mergeHost=cutTarget?null:mergeTargetBody(kernelRecipeBounds(type,params),params);
+  if(mergeHost){
+    mergeHost.merges3d=mergeHost.merges3d || [];
+    mergeHost.merges3d.push(type==="loft"
+      ? {kind:"loft",sections:cloneData(params.sections),solid:params.solid!==false,ruled:!!params.ruled,matchProfiles:params.matchProfiles!==false,continuity:params.continuity,tolerance:params.tolerance,sketchSources:sources,featureId:created && created.id || undefined}
+      : {kind:"sweep",profile:cloneData(params.profile),path:cloneData(params.path),orientation:params.orientation,twistAngle:params.twistAngle,scale:params.scale,sketchSources:sources,featureId:created && created.id || undefined});
+    invalidatePartMeshAfterEdit(mergeHost);
+    E.sel=mergeHost;queueExactMesh(mergeHost);refreshAll();return true;
+  }
+  if(!cutTarget)E.sel=addKernelBodyPart(created,type,params,sources) || E.sel;
+  if(cutTarget){
+    cutTarget.cuts3d=cutTarget.cuts3d || [];
+    cutTarget.cuts3d.push({kind:"sweep",profile:cloneData(params.profile),path:cloneData(params.path),orientation:params.orientation,twistAngle:params.twistAngle,scale:params.scale,sketchSources:sources,featureId:created && created.id || undefined});
+    invalidatePartMeshAfterEdit(cutTarget);
+    E.sel=cutTarget;queueExactMesh(cutTarget);
+  }
   refreshAll();return true;
 }
 
@@ -8652,11 +6915,87 @@ function createRevolveFeature(options) {
   pushUndo(t("opRevolve"));recordSketchInHistory(E.def,sketch);var feature;
   var axisReference=params.axisReference || "axis:y";delete params.axisReference;
   try{feature=createFeatureDefinition(E.def,"revolve",{references:{sketches:[sketch.id],features:[],topology:[],references:[axisReference],profileEntityIds:profile.entityIds},params:{...params,axis:String(axisReference).split(":")[1] || "y",profileEntityIds:profile.entityIds,sketchId:sketch.id}});}catch(error){H.discard();flash(String(error.message||error));return false;}
-  E.sel=addPart({id:uid(),featureId:feature.id,kind:"rev",name:feature.name,x:0,z:0,seg:48,angle:params.angle,direction:params.direction,symmetric:params.symmetric,pts:profile.points,color:"#b89a6e",metal:.08,rough:.7,sketchDriven:true,sketchId:sketch.id,profileEntityIds:profile.entityIds});refreshAll();return true;
+  var revolved={id:uid(),featureId:feature.id,kind:"rev",name:feature.name,x:0,z:0,seg:48,angle:params.angle,direction:params.direction,symmetric:params.symmetric,pts:profile.points,color:"#b89a6e",metal:.08,rough:.7,sketchDriven:true,sketchId:sketch.id,profileEntityIds:profile.entityIds};
+  var revolveHost=mergeTargetBody(partBounds(revolved),params);
+  if(revolveHost){
+    revolveHost.merges3d=revolveHost.merges3d || [];
+    revolveHost.merges3d.push({kind:"revolve",axis:String(axisReference).split(":")[1] || "y",angle:Number(params.angle)||360,direction:params.direction,loop:profile.points.map(function(q){return {u:q.u,v:q.v};}),featureId:feature.id});
+    invalidatePartMeshAfterEdit(revolveHost);
+    E.sel=revolveHost;queueExactMesh(revolveHost);refreshAll();return true;
+  }
+  E.sel=addPart(revolved);refreshAll();return true;
+}
+
+/* The body a cut is aimed at. Extrude Cut picks the selected solid and falls
+   back to the last one built; the revolved and swept cuts want exactly the same
+   rule, so it is stated once instead of three times. */
+function cutTargetBody() {
+  var parts=activeParts(E.def);
+  return selectedSolid() || parts[parts.length-1] || null;
+}
+
+/* The body a MERGED feature fuses into.
+ *
+ * "Merge result" was declared by extrude, revolve, sweep and loft and wired by
+ * none of them: every additive feature made a body of its own whatever the box
+ * said. It is a choice between one body and two, so it only means anything when
+ * there IS a second body to be — a solid the new one actually reaches. A boss
+ * standing alone in space has nothing to fuse with and stays its own body
+ * however the box is ticked, which is what a CAD modeller does with the option
+ * greyed out; saying otherwise would be a different kind of lie.
+ *
+ * Touching counts: a boss grown off the top face of a plate meets it on a plane
+ * and nowhere else, and that is the commonest merge there is. */
+function mergeTargetBody(box, params) {
+  if (!box || !params || params.mergeResult === false || params.operation === "new-body") return null;
+  var touches = function (part) {
+    var other = partBounds(part);
+    if (!other) return false;
+    return box.x0 <= other.x1 + 1e-6 && box.x1 >= other.x0 - 1e-6
+      && box.y0 <= other.y1 + 1e-6 && box.y1 >= other.y0 - 1e-6
+      && box.z0 <= other.z1 + 1e-6 && box.z1 >= other.z0 - 1e-6;
+  };
+  var candidates = activeParts(E.def).filter(function (part) { return partSupportsExactMesh(part) && touches(part); });
+  if (!candidates.length) return null;
+  var selected = selectedSolid();
+  return candidates.includes(selected) ? selected : candidates[candidates.length - 1];
+}
+
+function cutTargetFeatureId(target) {
+  var selected=(E.authoring.featureSelection || []).slice(-1)[0];
+  if(selected && !(E.def.features || []).some(function(item){return item.id===selected;}))selected=null;
+  return selected || ((E.def.features || []).slice(-1)[0] || {}).id || (target && target.featureId) || null;
+}
+
+/* Revolve Cut. The profile, the axis and the extent are the ones Revolve would
+   have used — createRevolveFeature above builds an identical params record —
+   and the difference is only where the resulting solid goes: onto the document
+   as a body, or onto the target's cut list as a tool. */
+function createRevolveCutFeature(options) {
+  var params={...featureDefaults("revolveCut"),...(typeof options==="number"?{angle:options}:options || {})};
+  var profile=closedSketchProfile(),sketch=ensureSketch(E.def);
+  if(!profile){flash(t("quickNeedSketch"));return false;}
+  var target=cutTargetBody();
+  if(!target){flash(t("extrudeCutNeed"));return false;}
+  if(!partSupportsExactMesh(target)){flash(t("cutNeedExactBody"));return false;}
+  var axisReference=params.axisReference || "axis:y";delete params.axisReference;
+  var axis=String(axisReference).split(":")[1] || "y";
+  pushUndo(t("opRevolveCut"));recordSketchInHistory(E.def,sketch);
+  var targetFeatureId=cutTargetFeatureId(target),feature=null;
+  try{feature=createFeatureDefinition(E.def,"revolveCut",{
+    inputs:targetFeatureId?[targetFeatureId]:[],
+    references:{sketches:[sketch.id],features:targetFeatureId?[targetFeatureId]:[],topology:[],references:[axisReference],profileEntityIds:profile.entityIds},
+    params:{...params,axis:axis,profileEntityIds:profile.entityIds,sketchId:sketch.id},
+  });}catch(error){H.discard();flash(String(error.message||error));return false;}
+  target.cuts3d=target.cuts3d || [];
+  target.cuts3d.push({kind:"revolve",axis:axis,angle:Number(params.angle)||360,direction:params.direction,loop:profile.points.map(function(q){return {u:q.u,v:q.v};}),featureId:feature && feature.id || undefined});
+  invalidatePartMeshAfterEdit(target);
+  E.sel=target;queueExactMesh(target);refreshAll();return true;
 }
 
 function clearFeaturePreview(refresh) {
   if(!E.authoring)return;E.authoring.previewParts=[];E.authoring.previewReplacesPartId=null;
+  E.authoring.approxFinishPreview=null;E.authoring.pendingExactPreview=null;
   E.authoring.featurePreviewState=null;E.authoring.featurePreviewBadge=null;
   E._featurePreviewToken=(E._featurePreviewToken || 0)+1;
   if(E._featureExactPreviewTimer){clearTimeout(E._featureExactPreviewTimer);E._featureExactPreviewTimer=0;}
@@ -8702,34 +7041,8 @@ function overlayEdgesOnFace(part, face, mesh) {
   return refs;
 }
 
-/* One physical edge can arrive under two ids — the kernel edge and the
-   tessellated overlay line the user clicked. Selection state is deduped on
-   geometry as well as on the id, or "Edges · 2" can mean one edge picked
-   twice. The semantic tail is dropped: it is the one part of the signature
-   that differs between those two routes to the same edge. */
-function finishEdgeKey(reference) {
-  var signature = reference && reference.descriptor ? topologyDescriptorSignature(reference.descriptor) : "";
-  if (!signature) return "id:" + (reference && reference.persistentId || "");
-  return signature.slice(0, signature.lastIndexOf(":"));
-}
 
-function dedupeFinishRefs(refs) {
-  var ids = new Set(), keys = new Set(), out = [];
-  (refs || []).forEach(function (reference) {
-    if (!reference) return;
-    var key = finishEdgeKey(reference);
-    if (ids.has(reference.persistentId) || keys.has(key)) return;
-    ids.add(reference.persistentId);
-    keys.add(key);
-    out.push(reference);
-  });
-  return out;
-}
 
-function sameFinishEdge(a, b) {
-  if (!a || !b) return false;
-  return a.persistentId === b.persistentId || finishEdgeKey(a) === finishEdgeKey(b);
-}
 
 /* Cuts invalidate the exact mesh while OpenCascade rebuilds it. The analytic
    primitive underneath still describes the pre-cut body, so it is not an
@@ -8776,12 +7089,6 @@ function currentFinishEdges() {
   return (E.topologySelection || []).filter(function (reference) { return reference.kind === "edge"; });
 }
 
-function finishEdgeLabel(reference, index) {
-  var semantic = reference.semantic || (reference.descriptor && reference.descriptor.semantic) || "";
-  if (semantic) return String(semantic).replace(/:/g, " · ");
-  var id = String(reference.persistentId || ""), tail = id.split(":edge:").pop();
-  return t("finishEdges") + " " + (index + 1) + (tail && tail !== id ? " · " + tail : "");
-}
 
 function setFinishEdges(edges, options) {
   var part = selectedSolid();
@@ -8820,6 +7127,140 @@ function adoptFinishEdgeSelection() {
   E.authoring.finishEdgePool = edges.map(function (reference) { return reference.persistentId; });
 }
 
+/* Select All in the 3D view of a part. It used to run the sketch branch here
+   whatever the mode, which did not merely fail to select topology: it assigned
+   a SKETCH ENTITY to E.sel, the slot holding the selected solid, so the
+   inspector and every command reading selectedSolid() were handed a line.
+   Honour the active filter, the way SolidWorks scopes Select All. */
+function selectAllTopology() {
+  var part = selectedSolid() || activeParts(E.def)[activeParts(E.def).length - 1] || null;
+  if (!part) { flash(t("needParts")); return; }
+  E.ssel = [];
+  E.sel = part;
+  var filter = commandSelectionPrefer();
+  // Body is a selection of the solid itself; there is no topology to gather.
+  if (filter === "body" || filter === "sketch") { E.topologySelection = []; return; }
+  E.topologySelection = dedupeFinishRefs(topologyEntriesForPart(part)
+    .filter(function (entry) { return entry.kind === "face" || entry.kind === "edge"; })
+    .map(topologyReferenceFromEntry)
+    .filter(function (reference) { return reference && selectionFilterAllows(reference.kind, filter); }));
+  flash(t("selAllTopology") + " · " + E.topologySelection.length + " " + t("topologyRefs"));
+}
+
+/* Loop / tangency / connected / invert, over the topology of the body the pick
+   belongs to. These are selection operations, so they neither push undo nor
+   touch the document — only what is highlighted. While a finish command is
+   collecting they feed its well instead, which is what makes "double-click an
+   edge, apply a fillet" one gesture rather than twelve clicks. */
+function runSelectionOperation(id) {
+  var reference = (E.topologySelection || [])[0];
+  if (!reference && id !== "selectinvert") { flash(t("selectEdges")); return; }
+  var part = selectedSolid() || activeParts(E.def)[activeParts(E.def).length - 1] || null;
+  var entries = topologyEntriesForPart(part);
+  if (!entries.length) { flash(t("selectOpEmpty")); return; }
+  var grown =
+    id === "selectloop" ? selectLoop(reference, entries) :
+    id === "selecttangency" ? selectTangentChain(reference, entries) :
+    id === "selectconnected" ? selectConnected(reference, entries) :
+    id === "selectgrow" ? growSelection(E.topologySelection || [], entries) :
+    id === "selectshrink" ? shrinkSelection(E.topologySelection || [], entries) :
+    invertSelection(E.topologySelection || [], entries);
+  var refs = dedupeFinishRefs(grown.map(topologyReferenceFromEntry).filter(Boolean));
+  if (!refs.length) { flash(t("selectOpEmpty")); return; }
+  if (part) E.sel = part;
+  /* Tangency and loop are how a fillet set is built, so they must land in the
+     collector when one is armed rather than beside it. */
+  if (finishCommandActive()) setFinishEdges(refs, { pool: true });
+  else { E.topologySelection = refs; refreshSelection(); }
+  hidePickCycle();
+  flash(tf("selectOpResult", { count: refs.length }));
+}
+
+/* Double-click grows whatever the two clicks under it selected: an edge gives
+   its loop, a face gives the smooth run of faces it belongs to. Both are what
+   the same gesture does in SolidWorks and Fusion, and neither had any binding
+   here — dblclick was wired to the 2D canvas only. */
+function growSelectionFromDoubleClick() {
+  var reference = (E.topologySelection || [])[0] || (finishCommandActive() ? currentFinishEdges()[0] : null);
+  if (!reference) return;
+  runSelectionOperation(reference.kind === "face" ? "selecttangency" : "selectloop");
+}
+
+/* Saved selection sets. A run of edges that took a minute to pick is worth
+   keeping: the fillet gets tweaked, the model gets rebuilt, and the same set is
+   wanted again. Stored on the document (see namedSelections in core/schema.js)
+   so it survives save and reload, and pushed through undo like any other edit
+   to it. */
+function namedSelections() {
+  if (!Array.isArray(E.def.namedSelections)) E.def.namedSelections = [];
+  return E.def.namedSelections;
+}
+
+async function saveNamedSelection() {
+  var refs = dedupeFinishRefs(E.topologySelection || []);
+  if (!refs.length) { flash(t("selectOpEmpty")); return; }
+  var name = await sheetPrompt(t("nameSelection"), t("selectionSet") + " " + (namedSelections().length + 1));
+  name = String(name == null ? "" : name).trim();
+  if (!name) return;
+  pushUndo(t("nameSelection"));
+  var list = namedSelections();
+  var at = list.findIndex(function (entry) { return entry.name === name; });
+  var record = { id: at >= 0 ? list[at].id : uid(), name: name, refs: cloneData(refs) };
+  if (at >= 0) list[at] = record; else list.push(record);
+  refreshAll();
+  flash("✓ " + name + " · " + refs.length);
+}
+
+/* Restoring rebinds by persistent id against the body as it stands now, so a
+   set saved before a rebuild does not quietly select nothing — and says how
+   much of it survived rather than pretending it all did. */
+function restoreNamedSelection(record) {
+  if (!record) return;
+  var part = selectedSolid() || activeParts(E.def)[activeParts(E.def).length - 1] || null;
+  var entries = topologyEntriesForPart(part);
+  var byId = new Map(entries.map(function (entry) { return [entry.persistentId, entry]; }));
+  var found = (record.refs || []).map(function (reference) {
+    var entry = byId.get(reference.persistentId);
+    return entry ? topologyReferenceFromEntry(entry) : null;
+  }).filter(Boolean);
+  if (!found.length) { flash(t("selectionSetStale")); return; }
+  if (part) E.sel = part;
+  if (finishCommandActive()) setFinishEdges(found, { pool: true });
+  else { E.topologySelection = dedupeFinishRefs(found); refreshSelection(); }
+  flash(found.length < (record.refs || []).length
+    ? tf("selectionSetPartial", { found: found.length, saved: (record.refs || []).length })
+    : record.name + " · " + found.length);
+}
+
+function deleteNamedSelection(record) {
+  if (!record) return;
+  var list = namedSelections();
+  var at = list.findIndex(function (entry) { return entry.id === record.id; });
+  if (at < 0) return;
+  pushUndo(t("nameSelection"));
+  list.splice(at, 1);
+  refreshAll();
+}
+
+/* Restore mode by default, with one entry that flips the same list into delete
+   mode — showPickList has no room for a per-row control, and a second menu
+   command for deleting would sit in the context menu forever to be used twice
+   a year. */
+function showNamedSelections(deleting) {
+  var list = namedSelections();
+  if (!list.length) { flash(t("selectionSetNone")); return; }
+  var rows = list.map(function (record) {
+    return { id: record.id, label: record.name, hint: (record.refs || []).length + " " + t("topologyRefs") };
+  });
+  if (!deleting) rows.push({ id: "$delete", label: t("selectionSetDelete") });
+  showPickList(t("selectionSets"), t(deleting ? "selectionSetDelete" : "selectionSets"), rows, function (item) {
+    if (item.id === "$delete") { showNamedSelections(true); return; }
+    var record = list.find(function (entry) { return entry.id === item.id; });
+    if (deleting) deleteNamedSelection(record);
+    else restoreNamedSelection(record);
+  }, deleting ? { onBack: function () { showNamedSelections(false); } } : {});
+}
+
 function selectedTopologyFaces() {
   return (E.topologySelection || []).filter(function (reference) { return reference.kind === "face"; });
 }
@@ -8844,14 +7285,86 @@ function allCandidateFinishEdges(part) {
   return dedupeFinishRefs(entries.map(topologyReferenceFromEntry));
 }
 
+/* The params object the open feature form is editing, when it is a fillet.
+   The per-edge radii live there rather than in a parallel store, so Apply
+   carries them with every other parameter and Cancel drops them with the rest. */
+function activeFilletParams() {
+  if (!E.authoring || E.authoring.featureType !== "fillet") return null;
+  var state = E.authoring.featurePreviewState;
+  return state && state.params ? state.params : null;
+}
+
+function filletEdgeRadiusEntry(params, persistentId, create) {
+  if (!params) return null;
+  if (!Array.isArray(params.edgeRadii)) params.edgeRadii = [];
+  var found = params.edgeRadii.find(function (entry) { return entry && entry.id === persistentId; });
+  if (found || !create) return found || null;
+  found = { id: persistentId };
+  params.edgeRadii.push(found);
+  return found;
+}
+
+/* One number per end of one edge. Blank means "use the feature's own radius",
+   which is why an emptied field deletes the override instead of storing 0 —
+   a zero radius is not a fillet, and the kernel would clamp it to 1e-6 and
+   fail on that edge alone. */
+function filletEdgeRadiusInput(row, reference, key, params) {
+  var field = el("label", "md-finish-edge-radius");
+  field.appendChild(el("span", "", t(key === "radius" ? "edgeRadiusStart" : "edgeRadiusEnd")));
+  var input = el("input");
+  input.type = "number";
+  input.min = "0";
+  input.step = "0.1";
+  input.dataset.edgeRadius = key;
+  input.dataset.edgeId = reference.persistentId;
+  var entry = filletEdgeRadiusEntry(params, reference.persistentId, false);
+  input.value = entry && Number(entry[key]) > 0 ? String(entry[key]) : "";
+  input.addEventListener("input", function () {
+    /* Read the live params object, not the one captured at render time: every
+       form edit replaces state.params with a fresh spread, so a closed-over
+       reference would collect radii nobody would ever apply. */
+    var live = activeFilletParams();
+    if (!live) return;
+    var value = Number(input.value);
+    if (input.value === "" || !Number.isFinite(value) || value <= 0) {
+      var existing = filletEdgeRadiusEntry(live, reference.persistentId, false);
+      if (existing) delete existing[key];
+      if (existing && existing.radius == null && existing.endRadius == null) {
+        live.edgeRadii = live.edgeRadii.filter(function (item) { return item !== existing; });
+      }
+    } else filletEdgeRadiusEntry(live, reference.persistentId, true)[key] = value;
+    if (E.authoring.featurePreviewState) {
+      queueNewFeaturePreview("fillet", E.authoring.featurePreviewState, E.authoring.featurePreviewBadge);
+    }
+  });
+  field.appendChild(input);
+  row.appendChild(field);
+}
+
 function renderFinishEdgeList() {
   var host = root && root.querySelector("#mdQuickSettings [data-finish-edges]");
   if (!host) return;
   var part = selectedSolid();
   var edges = currentFinishEdges();
+  var filletParams = activeFilletParams();
+  var variable = !!(filletParams && filletParams.variableRadius);
+  /* refreshAll() re-runs this on every preview tick, and rebuilding the list
+     under a half-typed radius steals the caret. Only redraw when the list is
+     actually different. */
+  var signature = (variable ? "v|" : "c|") + edges.map(function (reference) { return reference.persistentId; }).join("|");
+  if (host.dataset.edgeSignature === signature) return;
+  host.dataset.edgeSignature = signature;
   host.innerHTML = "";
   var head = el("div", "md-finish-edges-head");
+  /* An armed collector, not a read-out. Fillet already routes every click into
+     toggleFinishEdges(), but nothing on screen said so — the panel looked like
+     a list of what happened to be selected. The armed state and the kind it
+     wants are now stated, so a click that lands somewhere unexpected is
+     traceable to the command rather than to a broken pick. */
+  host.classList.add("is-collecting");
+  host.setAttribute("data-collector-kind", "edge");
   head.appendChild(el("b", "", t("finishEdges") + " · " + edges.length));
+  head.appendChild(el("small", "md-collector-armed", t("collectorArmedEdges")));
   var tools = el("div", "md-finish-edges-tools");
   tools.appendChild(btn(t("selectAllEdges"), function () {
     setFinishEdges(selectedTopologyFaces().concat(allCandidateFinishEdges(part)));
@@ -8879,15 +7392,20 @@ function renderFinishEdgeList() {
       event.preventDefault();
       toggleFinishEdges([reference]);
     });
-    list.appendChild(row);
+    if (!variable) { list.appendChild(row); return; }
+    var wrap = el("div", "md-finish-edge-row");
+    wrap.appendChild(row);
+    filletEdgeRadiusInput(wrap, reference, "radius", filletParams);
+    filletEdgeRadiusInput(wrap, reference, "endRadius", filletParams);
+    list.appendChild(wrap);
   });
   host.appendChild(list);
-  host.appendChild(el("p", "md-finish-edges-hint", t("clickEdgesHint")));
+  host.appendChild(el("p", "md-finish-edges-hint", variable ? t("edgeRadiiHint") : t("clickEdgesHint")));
 }
 
 function finishFeatureTargets(type) {
   var sel=E.topologySelection || [];
-  if(type==="shell")return cloneData(sel.filter(function(reference){return reference.kind==="face";}));
+  if(FACE_DRIVEN_OPERATIONS.has(type))return cloneData(sel.filter(function(reference){return reference.kind==="face";}));
   var edges=dedupeFinishRefs(sel.filter(function(reference){return reference.kind==="edge";}));
   var faces=sel.filter(function(reference){return reference.kind==="face";});
   var part=selectedSolid();
@@ -8900,21 +7418,63 @@ function finishFeatureTargets(type) {
   return cloneData(edges.length ? edges : faces);
 }
 
+/* Which parameter each finish feature means by "the amount" — the number the
+   scrubber drags, the preview reads and the exact operation is recorded with. */
+var FINISH_AMOUNT_KEY = { fillet:"radius", chamfer:"distance", shell:"thickness", draft:"angle", thicken:"thickness", rib:"thickness" };
+/* Body operations have no single scrubbed number — their params ARE the whole
+   definition — so they are named here rather than by an amount key. */
+var BODY_OPERATIONS = new Set(["splitBody", "moveBody"]);
+
+function finishFeatureAmount(type,params) {
+  var key=FINISH_AMOUNT_KEY[type];
+  return key ? Number((params || {})[key]) : NaN;
+}
+
 function exactFinishPreviewPart(type,state) {
   var source=selectedSolid();
-  if(!source || !["box","cyl","ext"].includes(source.kind))return null;
+  if(!partSupportsExactMesh(source))return null;
   var targets=finishFeatureTargets(type);
   if(!targets.length)return null;
-  var amount=type==="fillet"?Number(state.params.radius):type==="chamfer"?Number(state.params.distance):Number(state.params.thickness);
-  if(!Number.isFinite(amount) || amount<=0)return null;
+  var amount=finishFeatureAmount(type,state.params);
+  // A draft angle is the one finish amount that is meaningfully signed: a
+  // negative angle tips the wall the other way rather than being invalid.
+  if(!Number.isFinite(amount) || (type==="draft"?amount===0:amount<=0))return null;
   var preview=cloneData(source);
   preview.previewOnly=true;preview.id=source.id;preview.name="Live "+featureTypeLabel(type);
-  preview.color=type==="shell"?"#43a6c9":"#7567e8";preview.opacity=.94;
+  preview.color=type==="shell"?"#43a6c9":type==="draft"?"#c98f43":type==="thicken"?"#5fae7a":"#7567e8";preview.opacity=.94;
   preview.exactOperations=preview.exactOperations || [];
   preview.exactOperations.push({
     id:"preview:"+type,type:type,amount:amount,targets:targets,params:cloneData(state.params),
   });
   return preview;
+}
+
+/* The approximate stand-in.  Fillet, chamfer and shell are the three features
+   whose parameter is purely visual, and the three whose exact result is the
+   slowest to compute — so the mesh path answers immediately, in mesh space,
+   while OpenCascade works.  The answer is an approximation and the badge above
+   the form says so; a selection or a body the approximation cannot describe
+   simply produces nothing and the form waits for the exact result, exactly as
+   it used to.  Pure arithmetic on plain objects: safe on a frame. */
+function approximateFinishPreviewParts(type,state,source) {
+  var amount=type==="fillet"?Number(state.params.radius):type==="chamfer"?Number(state.params.distance):Number(state.params.thickness);
+  var shapes=[];
+  try{
+    shapes=approximateFinishPreviewShapes({part:source,type:type,amount:amount,targets:finishFeatureTargets(type)});
+  }catch(error){
+    console.warn("approximate finish preview failed:",error);
+    return [];
+  }
+  return shapes.map(function(shape,index){
+    return Object.assign({},shape,{
+      id:"preview:"+type+":approx:"+index,
+      featureId:"preview:"+type+":approx",
+      previewOnly:true,approximate:true,
+      name:tf("approxPreviewName",{feature:featureTypeLabel(type)}),
+      color:type==="shell"?"#43a6c9":"#7567e8",
+      opacity:.72,metal:.04,rough:.7,
+    });
+  });
 }
 
 /* Exact finish previews are debounced so dragging a radius scrubber does not
@@ -8923,23 +7483,34 @@ function exactFinishPreviewPart(type,state) {
 function queueExactFeaturePreview(preview,type,liveBadge) {
   var token=(E._featurePreviewToken || 0)+1;E._featurePreviewToken=token;
   if(E._featureExactPreviewTimer)clearTimeout(E._featureExactPreviewTimer);
-  if(liveBadge){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-spinner-gap"></i> '+t("liveExactCalc")+" "+type+"…";}
+  /* Two different claims: with an approximation on screen the badge must not
+     say the views are synced or exact — it says the picture is approximate. */
+  var approximate=!!(E.authoring && E.authoring.approxFinishPreview);
+  if(liveBadge){liveBadge.classList.add("on");liveBadge.classList.toggle("approx",approximate);liveBadge.setAttribute("data-preview-state",approximate?"approximate":"calculating");
+    liveBadge.innerHTML=approximate?'<i class="ph ph-scribble-loop"></i> '+t("liveApproxPreview"):'<i class="ph ph-spinner-gap"></i> '+t("liveExactCalc")+" "+type+"…";}
   E._featureExactPreviewTimer=setTimeout(async function(){
     E._featureExactPreviewTimer=0;var brep=null;
     try{
       brep=await exactBrepForPart(preview);
       var meshData=await shapeToMeshData(brep,{deflection:.24,angle:.16});
       meshData.topology=cloneData(brep.topology || []);
-      if(token!==E._featurePreviewToken || !E.authoring || !(E.authoring.previewParts || []).includes(preview))return;
-      preview.meshData=meshData;preview.exactError=null;updatePreview();renderPreview();
-      if(liveBadge){liveBadge.title="";liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveExactReady");liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);}
+      if(token!==E._featurePreviewToken || !E.authoring || !finishPreviewIsLive(preview))return;
+      preview.meshData=meshData;preview.exactError=null;
+      adoptExactFinishPreview(preview);   // the approximation has served its purpose
+      updatePreview();renderPreview();
+      if(liveBadge){liveBadge.title="";liveBadge.classList.remove("approx");liveBadge.setAttribute("data-preview-state","exact");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveExactReady");liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);}
     }catch(error){
       if(token!==E._featurePreviewToken)return;
+      /* The kernel refused this radius/thickness. Keeping the approximation up
+         would show a body that cannot be built, so it goes and the untouched
+         source comes back — today's behaviour — with the reason in the badge. */
+      if(E.authoring && E.authoring.approxFinishPreview){adoptExactFinishPreview(preview);updatePreview();renderPreview();}
       preview.exactError=String(error && error.message || error);
       console.warn("exact feature preview failed:",preview.exactError);
       if(liveBadge){
         var message=preview.exactError;
         var caption=/no resolved edges/i.test(message)?t("previewNoResolvedEdges"):/fillet failed/i.test(message)?t("previewFilletConflict"):/chamfer failed|shell failed/i.test(message)?t("previewRadiusTooLarge"):t("previewUnavailable");
+        liveBadge.classList.remove("approx");liveBadge.setAttribute("data-preview-state","error");
         liveBadge.innerHTML='<i class="ph ph-warning"></i> '+caption;
         liveBadge.title=message;   // the caption is a guess; keep the real reason reachable
       }
@@ -8952,31 +7523,64 @@ function syncNewFeaturePreview(type,state,liveBadge) {
   E.authoring.previewReplacesPartId=null;
   if(type==="extrude"||type==="extrudeCut"||type==="hole"){
     previews.push.apply(previews,extrudePreviewParts(type==="hole"?"extrudeCut":type,state.params));
-  } else if(type==="revolve"){
-    var profile=closedSketchProfile();if(profile)previews.push({id:"preview:revolve",featureId:"preview:revolve",previewOnly:true,kind:"rev",x:0,z:0,seg:48,pts:profile.points,angle:state.params.angle,direction:state.params.direction,symmetric:state.params.symmetric,color:"#6f8de8",opacity:.62,metal:.04,rough:.68,name:"Live Revolve"});
+  } else if(type==="revolve"||type==="revolveCut"){
+    /* The cut shows the tool it will remove, in the cut colour, the way
+       extrudePreviewParts draws a red prism for Extrude Cut. */
+    var revCut=type==="revolveCut";
+    var profile=closedSketchProfile();if(profile)previews.push({id:"preview:revolve",featureId:"preview:revolve",previewOnly:true,kind:"rev",x:0,z:0,seg:48,pts:profile.points,angle:state.params.angle,direction:state.params.direction,symmetric:state.params.symmetric,color:revCut?"#d75a4a":"#6f8de8",opacity:revCut?.42:.62,metal:.04,rough:.68,name:"Live "+featureTypeLabel(type)});
   } else if(type==="pattern"){
     var seed=selectedSolid(),count=Math.max(2,Math.min(100,Math.round(Number(state.params.count)||2))),circularStep=circularPatternStepDegrees(state.params,count)*Math.PI/180,placements=patternPlacements(state.params);
-    if(seed)placements.forEach(function(placement,index){var copy=resetClonedPartIdentity(cloneData(seed));copy.previewOnly=true;copy.id="preview:pattern:"+(index+1);copy.featureId=copy.id;copy.opacity=.52;if(state.params.mode==="circular")rotatePatternPart(copy,state.params.axis,circularStep*placement.circularIndex,state.params.radialDistance);else movePart(copy,placement.x,placement.y,placement.z);copy.patternGridIndex=placement.indices;previews.push(copy);});
+    if(seed)placements.forEach(function(placement,index){var copy=resetClonedPartIdentity(cloneData(seed));copy.previewOnly=true;copy.id="preview:pattern:"+(index+1);copy.featureId=copy.id;copy.opacity=.52;placePatternCopy(copy,state.params,placement,circularStep);copy.patternGridIndex=placement.indices;previews.push(copy);});
   } else if(type==="mirror"){
     var source=selectedSolid();if(source){var plane=state.references && state.references.plane || "plane:right",copy=mirrorProjectionPart(resetClonedPartIdentity(cloneData(source)),plane);copy.previewOnly=true;copy.id="preview:mirror";copy.featureId=copy.id;copy.opacity=.52;previews.push(copy);}
-  } else if(type==="fillet"||type==="chamfer"||type==="shell"){
+  } else if(FINISH_FEATURES.includes(type)){
     var finish=exactFinishPreviewPart(type,state);
-    if(finish){previews.push(finish);E.authoring.previewReplacesPartId=finish.id;}
+    if(finish){
+      E.authoring.previewReplacesPartId=finish.id;
+      /* Approximate first, exact when it lands.  Only one of the two is ever in
+         the scene: drawing both made the old exact fillet flicker against the
+         sharp body underneath, and an approximation is no different. */
+      var approximate=approximateFinishPreviewParts(type,state,finish);
+      E.authoring.approxFinishPreview=approximate.length?approximate:null;
+      E.authoring.pendingExactPreview=finish;
+      if(approximate.length)previews.push.apply(previews,approximate);
+      else previews.push(finish);
+    }
   }
+  if(!FINISH_FEATURES.includes(type)){E.authoring.approxFinishPreview=null;E.authoring.pendingExactPreview=null;}
   E.authoring.previewParts=previews;
   if(finish)queueExactFeaturePreview(finish,type,liveBadge || E.authoring.featurePreviewBadge);
 }
 
+/* The exact body may be standing in previewParts already, or may still be
+   waiting behind an approximation; either way it is the preview this run owns. */
+function finishPreviewIsLive(preview) {
+  if(!E.authoring)return false;
+  return (E.authoring.previewParts || []).includes(preview) || E.authoring.pendingExactPreview===preview;
+}
+
+/* Retire the approximation in favour of the exact body it stood in for. */
+function adoptExactFinishPreview(preview) {
+  if(!E.authoring)return;
+  if(!(E.authoring.previewParts || []).includes(preview))E.authoring.previewParts=[preview];
+  E.authoring.approxFinishPreview=null;
+}
+
 function queueNewFeaturePreview(type,state,liveBadge) {
   if(E._featurePreviewFrame)cancelAnimationFrame(E._featurePreviewFrame);
-  E._featurePreviewFrame=requestAnimationFrame(function(){E._featurePreviewFrame=0;syncNewFeaturePreview(type,state,liveBadge);refreshAll();if(liveBadge && !["fillet","chamfer","shell"].includes(type)){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveViewsSynced");}});
+  E._featurePreviewFrame=requestAnimationFrame(function(){E._featurePreviewFrame=0;syncNewFeaturePreview(type,state,liveBadge);refreshAll();if(liveBadge && !FINISH_FEATURES.includes(type)){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveViewsSynced");}});
 }
+
+/* The features that work on an existing body's topology rather than on a
+   sketch: they collect a selection, preview through the exact kernel, and are
+   recorded as an exactOperation on the part. */
+var FINISH_FEATURES = ["fillet", "chamfer", "shell", "draft", "thicken"];
 
 function finishSelectionMessage(type) {
   var targets=finishFeatureTargets(type),count=targets.length;
-  var required=type==="shell"?"face":(targets.every(function(reference){return reference.kind==="face";})?"face":targets.every(function(reference){return reference.kind==="edge";})?"edge":"reference");
+  var required=FACE_DRIVEN_OPERATIONS.has(type)?"face":(targets.every(function(reference){return reference.kind==="face";})?"face":targets.every(function(reference){return reference.kind==="edge";})?"edge":"reference");
   if(!selectedSolid())return t("selectSolidFirst");
-  if(!count)return (type==="shell"?t("selectFaceRemove"):t("selectEdges"))+" "+t("addWithCtrl");
+  if(!count)return (type==="draft"?t("selectFaceDraft"):type==="thicken"?t("selectFaceThicken"):type==="shell"?t("selectFaceRemove"):t("selectEdges"))+" "+t("addWithCtrl");
   return "✓ "+count+" "+required+(count===1?"":"s")+" "+t("selectedLabel")+" · "+t("livePreviewDrag");
 }
 
@@ -8985,8 +7589,15 @@ function syncActiveFeatureSelectionFeedback() {
   var note=root.querySelector("#mdQuickSettings [data-live-selection]");
   if(!note)return;
   var type=note.getAttribute("data-live-selection");
-  note.textContent=["fillet","chamfer","shell"].includes(type)?finishSelectionMessage(type):["extrude","extrudeCut","revolve","sweep","loft","hole"].includes(type)?selectedSketchIds().length+" "+t("sketchesSelected"):selectedFeatureIds().length+" "+t("featuresSelected")+" · "+(E.topologySelection || []).length+" "+t("topologyRefs");
+  note.textContent=FINISH_FEATURES.includes(type)?finishSelectionMessage(type):["extrude","extrudeCut","revolve","revolveCut","sweep","sweepCut","loft","hole"].includes(type)?selectedSketchIds().length+" "+t("sketchesSelected"):selectedFeatureIds().length+" "+t("featuresSelected")+" · "+(E.topologySelection || []).length+" "+t("topologyRefs");
   note.classList.toggle("ready",note.textContent.indexOf("✓")===0);
+  /* Shell has no edge list to render, but it is just as much a collector — and
+     the one whose picks were being silently dropped, since an edge clicked
+     during Shell lands in the selection and finishFeatureTargets() then keeps
+     only faces. commandSelectionPrefer() now stops the edge being acquired at
+     all; this says which kind the command is waiting for. */
+  note.classList.toggle("is-collecting",FINISH_FEATURES.includes(type));
+  note.setAttribute("data-collector-kind",FACE_DRIVEN_OPERATIONS.has(type)?"face":"edge");
   renderFinishEdgeList();
   if(type==="pattern"){
     var selected=selectedSolid(),selectionId=selected && selected.id || null;
@@ -9007,6 +7618,16 @@ function addFinishScrubber(host,type,controls) {
   var note=host.querySelector(".md-feature-selection-note");host.insertBefore(wrap,note || null);
 }
 
+/* Which parameter each of these means by "the amount", for repeat-last. */
+var REPEATABLE_AMOUNT = { fillet: "radius", chamfer: "distance", shell: "thickness" };
+
+function rememberFinishAmount(type, params) {
+  var key = REPEATABLE_AMOUNT[type];
+  if (!key || !params || !fin(Number(params[key]))) return;
+  E.lastFinishAmount = Object.assign({}, E.lastFinishAmount);
+  E.lastFinishAmount[type] = Number(params[key]);
+}
+
 function openParametricFeature(type) {
   if(E.docType!=="part")return;if(E.mode==="drawing")setMode("3d");
   var spec=featureSpec(type);if(!spec){flash(t("unsupportedFeature")+": "+type);return;}
@@ -9015,6 +7636,14 @@ function openParametricFeature(type) {
   clearFeaturePreview(false);E.authoring.featureType=type;E.authoring.phase="model";E.quickAction=type;host.hidden=false;host.innerHTML="";
   host.appendChild(el("div","md-feature-form-title",'<i class="ph '+spec.icon+'"></i><span><b>'+featureTypeLabel(type)+'</b><small>'+t("featureFormHint")+'</small></span>'));
   var state={type:type,params:featureDefaults(type),references:{}};
+  /* Repeat-last: a second fillet reuses the radius the first one was given.
+     Extrude already works this way through E.depth; fillet and chamfer did not,
+     so every edge in a run of identical rounds was retyped. The feature is
+     still a new history node with its own copied params — nothing is shared
+     but the seed. */
+  if(REPEATABLE_AMOUNT[type] && fin(E.lastFinishAmount && E.lastFinishAmount[type])){
+    state.params[REPEATABLE_AMOUNT[type]]=E.lastFinishAmount[type];
+  }
   if(type==="extrude"||type==="extrudeCut"||type==="hole"){
     state.params.depth=E.depth;state.params.offset=E.baseOff;
     var activeFeatureSketch=ensureSketch(E.def);
@@ -9022,10 +7651,10 @@ function openParametricFeature(type) {
        by travelling into material; the user can still flip it explicitly. */
     if((type==="extrudeCut"||type==="hole")&&activeFeatureSketch.frameSpace==="local"&&activeFeatureSketch.support)state.params.direction="reverse";
   }
-  if(type==="revolve")state.references.axis="axis:y";if(type==="mirror")state.references.plane=E.authoring.referenceId||"plane:right";
+  if(type==="revolve"||type==="revolveCut")state.references.axis="axis:y";if(type==="mirror")state.references.plane=E.authoring.referenceId||"plane:right";
   var liveBadge=el("div","md-feature-live",'<i class="ph ph-broadcast"></i> '+t("livePreviewReady"));host.appendChild(liveBadge);
   E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;
-  var controls=renderFeatureParameterForm(host,type,state,function(next){state.params=next.params;state.references={...state.references,...next.references};E.depth=Number(state.params.depth)||E.depth;E.baseOff=Number(state.params.offset)||0;queueNewFeaturePreview(type,state,liveBadge);});
+  var controls=renderFeatureParameterForm(host,type,state,function(next){state.params=next.params;state.references={...state.references,...next.references};E.depth=Number(state.params.depth)||E.depth;E.baseOff=Number(state.params.offset)||0;if(type==="fillet")renderFinishEdgeList();queueNewFeaturePreview(type,state,liveBadge);});
   var selectionNote=el("div","md-feature-selection-note");
   selectionNote.setAttribute("data-live-selection",type);host.appendChild(selectionNote);syncActiveFeatureSelectionFeedback();addFinishScrubber(host,type,controls);
   if(["fillet","chamfer"].includes(type)){
@@ -9041,6 +7670,8 @@ function openParametricFeature(type) {
     var values=readFeatureParameterForm(controls,state.params),params=values.params,ok=false;state.references={...state.references,...values.references};clearFeaturePreview(false);
     if(type==="extrude"||type==="extrudeCut")ok=extrudeClosedSketch({type:type,...params});
     else if(type==="revolve")ok=createRevolveFeature({...params,axisReference:state.references.axis});
+    else if(type==="revolveCut")ok=createRevolveCutFeature({...params,axisReference:state.references.axis});
+    else if(type==="sweepCut")ok=createMultiSketchFeature("sweepCut",params);
     else if(type==="hole")ok=createHoleFeature(params);
     else if(type==="helix")ok=createHelixFeature(params);
     else if(type==="thread")ok=createThreadFeature(params);
@@ -9049,13 +7680,18 @@ function openParametricFeature(type) {
     else if(type==="sweep"||type==="loft")ok=createMultiSketchFeature(type,params);
     else if(type==="fillet"||type==="chamfer")ok=quickRoundPart(type,params);
     else if(type==="shell")ok=quickShellPart(params);
+    else if(type==="draft")ok=quickDraftPart(params);
+    else if(type==="thicken")ok=quickThickenPart(params);
+    else if(type==="rib")ok=createRibFeature(params);
+    else if(type==="splitBody")ok=quickSplitBodyPart(params);
+    else if(type==="moveBody")ok=quickMoveBodyPart(params);
     else if(type==="pattern")ok=quickPatternPart(params);
     else if(type==="mirror"){E.authoring.referenceId=state.references.plane;ok=quickMirrorPart({...params,planeReference:state.references.plane});}
     else if(type==="boolean"){
       var ids=selectedFeatureIds();if(ids.length<2){flash(t("booleanNeedTwo"));syncNewFeaturePreview(type,state);refreshAll();return;}
       pushUndo(t("createBoolean"));try{createFeatureDefinition(E.def,"boolean",{inputs:ids.slice(0,2),references:{sketches:[],features:ids.slice(0,2),topology:[],references:[]},params:params});ok=true;refreshAll();}catch(error){H.discard();flash(String(error.message||error));}
     }
-    if(ok){E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();setMode("3d");setTab("parts");syncAuthoringWorkflow();}else{E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;syncNewFeaturePreview(type,state,liveBadge);refreshAll();}
+    if(ok){rememberFinishAmount(type,params);E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();setMode("3d");setTab("parts");syncAuthoringWorkflow();}else{E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;syncNewFeaturePreview(type,state,liveBadge);refreshAll();}
   },"md-quick-apply"));host.appendChild(actions);
   syncNewFeaturePreview(type,state,liveBadge);refreshAll();syncAuthoringWorkflow();
   if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
@@ -9070,6 +7706,54 @@ function openParametricFeature(type) {
    `onApply` returning false keeps the panel open (bad input, or the operation
    refused), which is also why every one of these pushes its undo entry inside
    onApply: cancelling must leave the history untouched. */
+/* The two double-click edits on a polygon, as forms rather than as the
+   window.prompt() pair they used to be. Both keep the canvas live, so the
+   geometry being dimensioned stays on screen while the number is typed. */
+function cornerRoundForm(points, index) {
+  openQuickForm({
+    action: "cornerround",
+    icon: "ph-corners-out",
+    title: t("cornerRound"),
+    hint: t("cornerRoundHint"),
+    fields: [
+      { key: "kind", label: t("cornerRoundKind"), type: "select", choices: [
+        { value: "fillet", label: t("quickFillet") },
+        { value: "chamfer", label: t("quickChamfer") },
+      ] },
+      { key: "amount", label: t("cornerRoundAmount"), type: "number", unit: "length", min: 1e-6, step: 0.1, value: 5 },
+    ],
+    onApply: function (values) {
+      var amount = Number(values.amount);
+      if (!fin(amount) || amount <= 0) { flash(t("cornerRoundAmount")); return false; }
+      pushUndo(t("opFillet"));
+      var ok = values.kind === "chamfer" ? chamferVertex(points, index, amount) : filletVertex(points, index, amount);
+      if (!ok) { H.discard(); flash(t("cornerRoundFailed")); return false; }
+      return true;
+    },
+  });
+}
+
+function segmentLengthForm(from, to) {
+  var current = Math.hypot(to.u - from.u, to.v - from.v);
+  if (!(current > 0)) return;
+  openQuickForm({
+    action: "seglen",
+    icon: "ph-ruler",
+    title: t("segLen"),
+    hint: t("segLenHint"),
+    fields: [{ key: "length", label: t("segLen"), type: "number", unit: "length", min: 1e-6, step: 0.1, value: Math.round(current * 10) / 10 }],
+    onApply: function (values) {
+      var length = Number(values.length);
+      if (!fin(length) || length <= 0) return false;
+      pushUndo(t("opSegLen"));
+      var k = length / current;
+      to.u = from.u + (to.u - from.u) * k;
+      to.v = from.v + (to.v - from.v) * k;
+      return true;
+    },
+  });
+}
+
 function openQuickForm(spec) {
   var host = root && root.querySelector("#mdQuickSettings");
   if (!host) return null;
@@ -9259,18 +7943,65 @@ function chromeSelectionInput() {
     assembly: E.docType === "assembly",
     oneComponent: E.docType === "assembly" && E.componentSel.length >= 1,
     twoComponents: E.docType === "assembly" && E.componentSel.length === 2,
+    topologyCount: (E.topologySelection || []).length,
+    namedSelections: (E.def && E.def.namedSelections || []).length,
     hideable: !!(E.sel || (E.componentSel && E.componentSel.length)),
     hidden: !!(E.assembly && E.assembly.isolated),
     sketchPhase: E.authoring && E.authoring.phase === "sketch",
   };
 }
 
+/* Sketch geometry is not in the 3D viewport's pick set, so the Sketch filter
+   has nothing to acquire there. It used to be selectable anyway and every
+   click became a silent no-op — the filter said it was on, the model refused
+   to select, and nothing explained why. The button is disabled instead. */
+function selectionFilterAvailable(id) {
+  if (id !== "sketch") return true;
+  return E.mode !== "3d" || E.modelPlaneActive;
+}
+
 function setSelectionFilter(id) {
-  E.selectionFilter = id || "all";
+  id = id || "all";
+  if (!selectionFilterAvailable(id)) { flash(t("selFilterSketch3d")); return; }
+  E.selectionFilter = id;
+  syncSelectionFilters();
+}
+
+/* Painted whenever the filter OR the mode changes: leaving the sketch view
+   with the Sketch filter on has to both demote the filter and repaint. */
+function syncSelectionFilters() {
   if (!root) return;
+  if (!selectionFilterAvailable(E.selectionFilter)) E.selectionFilter = "all";
   root.querySelectorAll("[data-selfilter]").forEach(function (button) {
-    button.classList.toggle("on", button.getAttribute("data-selfilter") === E.selectionFilter);
+    var id = button.getAttribute("data-selfilter"), available = selectionFilterAvailable(id);
+    button.classList.toggle("on", id === E.selectionFilter);
+    button.disabled = !available;
+    button.dataset.tip = available ? "" : t("selFilterSketch3d");
   });
+}
+
+function selectionFilterLabel(id) {
+  var key = { face: "selFilterFace", edge: "selFilterEdge", vertex: "selFilterVertex", sketch: "selFilterSketch", body: "selFilterBody" }[id];
+  return key ? t(key) : t("selFilterAll");
+}
+
+/* The filter the ACTIVE COMMAND needs, layered over the user's sticky filter
+   rather than overwriting it. beginFacePick() used to assign E.selectionFilter
+   directly and never put it back, so asking for a sketch plane silently reset
+   a filter the user had chosen for the whole session.
+
+   Fillet and chamfer are deliberately NOT forced to "edge": under All a face
+   pick expands to its bounding edges, which is the fast way to fillet a boss,
+   and prefer:"edge" would additionally make edges hidden behind the solid
+   pickable. Their widened pick band is handled by the `finish` flag in
+   topologyPickPixelRadius() instead. */
+function commandSelectionPrefer() {
+  if (E.facePick) return "face";
+  var type = E.authoring && !E.authoring.featureEdit ? E.authoring.featureType : null;
+  // Shell and draft consume faces only; an edge picked here lands in the
+  // selection and is then silently dropped by finishFeatureTargets().
+  if (FACE_DRIVEN_OPERATIONS.has(type)) return "face";
+  return E.selectionFilter;
 }
 
 function setAssemblyMoveMode(mode) {
@@ -9313,7 +8044,10 @@ function chromeCommandLabel(id) {
     rollbackhere: "ctxRollbackHere", mates: "mate", isolate: "isolate",
     components: "components", explode: "explodeView", interference: "interferenceCheck",
     fit: "zoomFit", regen: "regenerate", normalTo: "normalTo", hide: "ctxHide",
-    showall: "ctxShowAll",
+    showall: "ctxShowAll", selectloop: "selectLoopCmd", selecttangency: "selectTangencyCmd",
+    selectconnected: "selectConnectedCmd", selectinvert: "selectInvertCmd",
+    selectgrow: "selectGrowCmd", selectshrink: "selectShrinkCmd",
+    selectsave: "nameSelection", selectrecall: "selectionSets",
   };
   return t(keys[id] || id);
 }
@@ -9337,6 +8071,12 @@ function fillActionHost(host, items, close) {
 }
 
 function runChromeCommand(id) {
+  if (["selectloop", "selecttangency", "selectconnected", "selectinvert", "selectgrow", "selectshrink"].includes(id)) {
+    runSelectionOperation(id);
+    return;
+  }
+  if (id === "selectsave") { saveNamedSelection(); return; }
+  if (id === "selectrecall") { showNamedSelections(false); return; }
   if (id === "editfeature") {
     var featureId = E.authoring && (E.authoring.featureSelection || [])[0];
     var feature = featureId && (E.def.features || []).find(function (item) { return item.id === featureId; });
@@ -9405,12 +8145,61 @@ function syncSelectionChrome() {
   var bar = root.querySelector("#mdBreadcrumb");
   if (bar) {
     bar.hidden = !crumbs.length;
-    bar.textContent = crumbs.map(function (c) { return c.label; }).join(" › ");
+    /* Face › Feature › Body walks the selection. selectionBreadcrumb() has
+       always returned the id beside each label; joining them into a string
+       threw that away and left a line that looked interactive and was not.
+       Clicking Body drops to the solid, Feature opens the step that made it. */
+    bar.innerHTML = "";
+    crumbs.forEach(function (crumb, index) {
+      if (index) bar.appendChild(el("span", "md-breadcrumb-sep", "›"));
+      var button = el("button", "md-breadcrumb-step");
+      button.type = "button";
+      // textContent, not innerHTML: a crumb label can be a model or body name,
+      // which is whatever the user typed into it.
+      button.textContent = crumb.label;
+      button.dataset.crumbKind = crumb.kind;
+      button.addEventListener("click", function () { pickBreadcrumb(crumb); });
+      bar.appendChild(button);
+    });
   }
   syncModelerMobile();
 }
 
+/* Each crumb names something already in the document, so selecting it is a
+   lookup rather than a pick. A crumb whose target has gone (a feature rolled
+   back, a body suppressed) selects nothing rather than throwing. */
+function pickBreadcrumb(crumb) {
+  if (!crumb) return;
+  if (crumb.kind === "feature") {
+    var feature = (E.def.features || []).find(function (item) { return item.id === crumb.id; });
+    if (feature) { openFeatureEditor(feature); return; }
+  }
+  if (crumb.kind === "body" || crumb.kind === "feature") {
+    var part = (E.def.parts || []).find(function (item) { return String(item.id) === String(crumb.id) || item.featureId === crumb.id; });
+    if (!part) return;
+    E.sel = part;
+    E.topologySelection = [];
+    E.ssel = [];
+    refreshSelection();
+    return;
+  }
+  if (crumb.kind === "component" && E.assembly) {
+    var component = (E.assembly.components || []).find(function (item) { return item.id === crumb.id; });
+    if (!component) return;
+    E.componentSel = [component];
+    E.sel = component;
+    refreshSelection();
+    return;
+  }
+  // A face or edge crumb is the pick itself: keep it, and clear the rest.
+  var reference = (E.topologySelection || []).find(function (item) { return item.persistentId === crumb.id; });
+  if (!reference) return;
+  E.topologySelection = [reference];
+  refreshSelection();
+}
+
 function closeChromeOverlays() {
+  hidePickCycle();
   E.overlays.shortcut = false;
   E.overlays.views = false;
   E.overlays.menu = false;
@@ -9468,7 +8257,13 @@ function showContextMenu(clientX, clientY, view) {
   E.overlays.menu = true;
   host.hidden = false;
   host.innerHTML = "";
+  /* Grouped, because the menu now carries two kinds of thing: what to select
+     next, and what to build from it. Run together they read as one undivided
+     list and the selection operations get lost among the features. */
+  var lastGroup = null;
   contextMenuItems(chromeSelectionInput()).forEach(function (item) {
+    if (lastGroup !== null && item.group !== lastGroup) host.appendChild(el("div", "md-context-sep"));
+    lastGroup = item.group;
     var button = el("button", "", cadIcon(item.id || item.icon) + "<span>" + chromeCommandLabel(item.id) + "</span>");
     button.type = "button";
     button.addEventListener("click", function () { closeChromeOverlays(); runChromeCommand(item.id); });
@@ -9564,6 +8359,41 @@ function currentCornerInput() {
   };
 }
 
+/* The offer that replaces the auto-extrude. A closed profile lights the four
+   features that can consume it, in the confirmation corner where the sketch's
+   own accept button just was — so the next click is one click away without the
+   editor having decided which. Enter takes the first, which is Extrude: the
+   common case still costs one keystroke, it just is not silently assumed. */
+function offerProfileFeatures() {
+  var host = root && root.querySelector("#mdProfileOffer");
+  var choices = featuresForClosedProfile(!!closedSketchProfile());
+  if (!host) return;
+  E.profileOffer = choices.length ? choices : null;
+  host.hidden = !choices.length;
+  host.innerHTML = "";
+  if (!choices.length) return;
+  host.appendChild(el("span", "md-profile-offer-label", t("profileOfferLabel")));
+  choices.forEach(function (type, index) {
+    var command = FEATURE_COMMAND[type];
+    var label = chromeCommandLabel(command);
+    var button = el("button", index ? "" : "btn-accent", cadIcon(command) + "<span>" + label + "</span>");
+    button.type = "button";
+    button.title = label + (index ? "" : " · Enter");
+    button.addEventListener("click", function () {
+      dismissProfileOffer();
+      setCommandTab("features");
+      openParametricFeature(type);
+    });
+    host.appendChild(button);
+  });
+}
+
+function dismissProfileOffer() {
+  E.profileOffer = null;
+  var host = root && root.querySelector("#mdProfileOffer");
+  if (host) { host.hidden = true; host.innerHTML = ""; }
+}
+
 function syncContextActions() {
   var bar = root && root.querySelector("#mdContextActions");
   if (!bar) return;
@@ -9573,11 +8403,32 @@ function syncContextActions() {
     root.querySelector("#mdActiveCommand").textContent = state.label || t("cmdSketch");
     root.querySelector("#mdAcceptCommand").disabled = !state.canAccept;
   }
+  syncDuplicateCommit(state);
   syncSelectionChrome();
 }
 
+/* Two commit buttons is one too many. While the corner is up it already owns
+   the beat — green check, red X, Enter, Esc — and the feature form's own
+   apply/cancel pair repeats it a panel-width away from the geometry the user
+   is looking at, which is the one place they are not. The row is hidden rather
+   than removed: finishActiveCommand still clicks .md-quick-apply behind it, so
+   both routes commit through exactly one code path and cannot drift apart.
+   The phone is the exception and keeps its pair, because there the form is a
+   sheet over the viewport and the corner it would defer to is behind it. */
+function syncDuplicateCommit(state) {
+  var actions = root && root.querySelector("#mdQuickSettings .md-feature-actions");
+  if (!actions) return;
+  var cornerOwnsCommit = state.visible && state.mode === "feature";
+  actions.hidden = cornerOwnsCommit && !document.body.classList.contains("compact-nav");
+}
+
 function newModel() {
-  if (documentDirty() && !window.confirm(t("unsavedNew"))) return;
+  if (!confirmDiscardDocument("unsavedNew")) return;
+  /* Same rule as opening another document: once the user has confirmed the
+     discard, the previous document's draft has stopped being recovery material.
+     Left behind it is offered back on the next fresh open — "restore this
+     draft?" for work they just said to drop. */
+  discardModelerDraft();
   E.sketchCameraReturnPose = null;
   if (E.docType === "assembly") {
     E.assembly = newAssembly();
@@ -9647,7 +8498,10 @@ function saveAssemblyDocument() {
   var saved = cloneData(E.assembly);
   var list = loadAssemblies().filter(function (a) { return a.key !== saved.key; });
   list.push(saved);
-  saveAssemblies(list);
+  if (!saveAssemblies(list)) {
+    report(t("reportKickerSave"), t("saveAssemblyFailed"), t("saveStorageFull"));
+    return;
+  }
   refreshLib();
   flash("✓ " + t("savedAssembly"));
   markDocumentClean();
@@ -9727,6 +8581,31 @@ function sketchPlaneCaption() {
   if (activeSketchFrame() && sketch.support) return t("facePrefix") + " · " + (sketch.support.semantic || sketch.support.persistentId);
   return t(E.view === "top" ? "view_top" : E.view === "front" ? "view_front" : "view_right");
 }
+/* "Face", "Edge 42 cm", "Vertex" — the kind, and the one number that makes an
+   edge identifiable when several run parallel a few pixels apart. */
+function hoverReadout(reference) {
+  var kind = reference.kind === "face" ? t("selFilterFace")
+    : reference.kind === "edge" ? t("selFilterEdge")
+    : reference.kind === "vertex" ? t("selFilterVertex")
+    : t("selKindMixed");
+  var measure = Number(reference.descriptor && reference.descriptor.measure);
+  if (reference.kind !== "edge" || !fin(measure) || measure <= 0) return kind;
+  // "cm" reads the same in both languages, as it does on the library cards.
+  return kind + " · " + (Math.round(measure * 10) / 10) + " cm";
+}
+
+/* The distance an armed Measure would report if you clicked here. Nothing when
+   Measure is not running, when the pointer is off the model, or in Faces mode
+   — an angle needs two normals, and one of them is not picked yet. */
+function liveMeasureReadout() {
+  if (!E.measure || E.measure.mode !== "points" || !E.hoverPoint) return null;
+  var first = E.measure.picks[0];
+  if (E.measure.picks.length >= 2) return null;
+  if (!first) return measureCoordinates(E.hoverPoint);
+  var span = measureDistance(first, E.hoverPoint);
+  return t("measureLength") + " " + span.distance + " cm";
+}
+
 function syncHint() {
   var hint = root && root.querySelector("#mdHint");
   if (!hint) return;
@@ -9743,11 +8622,21 @@ function syncHint() {
     return;
   }
   var live = (E.mode !== "3d" || E.modelPlaneActive) && (E.tool === "wall" || E.tool === "poly" || E.tool === "rev" || E.tool === "cut" || E.tool === "cutc" || E.tool === "sarc" || E.tool === "sslot" || E.tool === "sell");
-  var topology=(E.topologySelection || []),finishType=E.authoring && ["fillet","chamfer","shell"].includes(E.authoring.featureType) ? E.authoring.featureType : null;
+  var topology=(E.topologySelection || []),finishType=E.authoring && FINISH_FEATURES.includes(E.authoring.featureType) ? E.authoring.featureType : null;
   var sameKind=topology.length && topology.every(function(reference){return reference.kind===topology[0].kind;});
   var kindLabel=!sameKind?t("selKindMixed"):topology[0].kind==="edge"?t("selKindEdge"):topology[0].kind==="face"?t("selKindFace"):t("selKindMixed");
   var compact = document.body.classList.contains("compact-nav");
   var topologyCaption=topology.length ? topology.length+" "+kindLabel+" "+t(compact ? "selCountTipTouch" : "selCountTip") : finishType ? finishSelectionMessage(finishType) : null;
+  /* With nothing selected the line is a first-run message nobody reads twice.
+     What IS worth saying there is what the cursor is over — a face and the edge
+     bounding it sit within a few pixels of each other, and knowing which one
+     the click will take is the difference between one pick and three. */
+  if (!topologyCaption && E.hoverTopology) topologyCaption = hoverReadout(E.hoverTopology);
+  /* Measure answers while the pointer moves, not only on the second click.
+     The card still records the committed picks; this is the number under the
+     cursor on the way there. */
+  var live = liveMeasureReadout();
+  if (live) topologyCaption = live;
   /* The 3D hint is written for a mouse and a keyboard ("Shift-drag", "wheel").
      On the phone shell it is the one line of text left over the model, so it
      had better describe the device it is on. */
@@ -10376,6 +9265,7 @@ function drawSketch() {
   // constraints and metadata but create no 3D body until a feature consumes a
   // closed profile.
   var sketch = ensureSketch(E.def);
+  drawFeatureAreaHatch(c);
 
   /* Other sketches sharing this plane are drawn first, dimmed and unpickable —
      they are context you constrain against, not geometry you are editing. A
@@ -11052,21 +9942,112 @@ function unclaimedSketchEntityIds(sketch) {
 /* Every area a feature should act on, computed off the two analyses the editor
    already keeps warm. Lives in sketch_regions.js so it can be tested on its
    own; here it is only wired to the memos and to the current selection. */
+/* What the next feature will actually act on, drawn as a hatch over each area.
+   The set was already computed — sketchFeatureAreas() — and already used by
+   Extrude; it simply was not visible, so "how many of these loops am I about
+   to extrude?" had no answer short of pressing the button. The hatch is UI
+   over that same set, never a second opinion about it. */
+function drawFeatureAreaHatch(c) {
+  if (E.docType !== "part" || E.mode === "drawing") return;
+  var areas = sketchFeatureAreas();
+  if (!areas.length) return;
+  var span = Math.max(E.cw, E.ch);
+  c.save();
+  areas.forEach(function (area) {
+    var loop = (area.points || []).map(function (point) { return toPx(point.u, point.v); });
+    if (loop.length < 3) return;
+    c.beginPath();
+    loop.forEach(function (point, index) { index ? c.lineTo(point.x, point.y) : c.moveTo(point.x, point.y); });
+    c.closePath();
+    // Holes are cut out of the fill, so a ring reads as a ring rather than a disc.
+    (area.holes || []).forEach(function (hole) {
+      var ring = (hole || []).map(function (point) { return toPx(point.u, point.v); });
+      if (ring.length < 3) return;
+      c.moveTo(ring[0].x, ring[0].y);
+      for (var i = ring.length - 1; i >= 1; i--) c.lineTo(ring[i].x, ring[i].y);
+      c.closePath();
+    });
+    c.save();
+    c.clip("evenodd");
+    c.globalAlpha = 0.5;
+    c.strokeStyle = "#2684c7";
+    c.lineWidth = 1;
+    c.beginPath();
+    // 45° hatch, spaced in screen pixels so it stays legible at any zoom.
+    for (var offset = -span; offset < span * 2; offset += 9) {
+      c.moveTo(offset, 0);
+      c.lineTo(offset + span, span);
+    }
+    c.stroke();
+    c.restore();
+  });
+  c.restore();
+}
+
+/* Which area the pointer is inside, holes excluded. */
+function featureAreaAt(u, v) {
+  var areas = sketchFeatureAreas();
+  for (var i = 0; i < areas.length; i++) {
+    var area = areas[i];
+    if (!pointInProfile({ u: u, v: v }, area.points || [])) continue;
+    var inHole = (area.holes || []).some(function (hole) { return pointInProfile({ u: u, v: v }, hole || []); });
+    if (!inHole) return area;
+  }
+  return null;
+}
+
+/* Clicking inside a hatched area takes it out of the feature, or puts it back.
+   Inclusion is expressed the way the solver already reads it — as a selection
+   of the area's own entities — so this moves nothing but the selection, and
+   sselAuto is cleared because a click IS a selection the user made. */
+function toggleFeatureArea(area) {
+  if (!area) return false;
+  var ids = area.sourceEntityIds || [];
+  if (!ids.length) return false;
+  var sketch = ensureSketch(E.def);
+  var entities = (sketch.entities || []).filter(function (entity) { return ids.includes(entity.id); });
+  if (!entities.length) return false;
+  var chosen = E.sselAuto ? [] : (E.ssel || []).slice();
+  var already = entities.every(function (entity) { return chosen.indexOf(entity) >= 0; });
+  E.sselAuto = false;
+  if (already) E.ssel = chosen.filter(function (item) { return entities.indexOf(item) === -1; });
+  else E.ssel = chosen.concat(entities.filter(function (entity) { return chosen.indexOf(entity) === -1; }));
+  E.sel = E.ssel[E.ssel.length - 1] || null;
+  refreshAll();
+  return true;
+}
+
+var featureAreaMemo = { sketch:null, key:0, scope:"", value:null };
 function sketchFeatureAreas() {
   // A selection the user made picks the areas; the one the draw tool left
   // behind does not — see markDrawnSelection.
   var selected = E.sselAuto ? [] : selEntities().map(function (entity) { return entity.id; });
   var sketch = ensureSketch(E.def);
+  /* Memoised on the same fingerprint as the two analyses it composes. The
+     hatch draws this every frame, and while both of those are already cached,
+     rebuilding the area list on top of them per frame is the kind of quiet
+     per-frame allocation this file has had to hunt down before. */
+  var areaKey = sketchFingerprint(sketch, selected);
+  var areaScope = selected.slice().sort().join("|");
+  if (featureAreaMemo.sketch === sketch && featureAreaMemo.key === areaKey && featureAreaMemo.scope === areaScope) {
+    return featureAreaMemo.value;
+  }
   var analysis = sketchProfileAnalysis();
   /* Arrange only what this feature may act on. Arranging everything and
      filtering afterwards cannot separate two loops that cross: their fused
      outline is bounded by both, so it answers to either one's selection. */
   var scope = selected.length ? selected : unclaimedSketchEntityIds(sketch);
+  var value = null;
   if (scope.length) {
     var scoped = featureAreas(analysis, sketchRegionAnalysis(scope), selected);
-    if (scoped.length) return scoped;
+    if (scoped.length) value = scoped;
   }
-  return featureAreas(analysis, sketchRegionAnalysis(), selected);
+  if (!value) value = featureAreas(analysis, sketchRegionAnalysis(), selected);
+  featureAreaMemo.sketch = sketch;
+  featureAreaMemo.key = areaKey;
+  featureAreaMemo.scope = areaScope;
+  featureAreaMemo.value = value;
+  return value;
 }
 
 /* Extrude or cut with the sketch — the whole sketch.
@@ -11128,6 +10109,7 @@ function extrudeClosedSketch(options) {
       var removed=applyCut(cutArea.points, cutFeature && cutFeature.id, cutArea.interior,{
         axis:localFrame?"frame":axis,frame:localFrame?cloneData(sketch.frame):undefined,
         from:start,to:end,endCondition:params.endCondition,
+        draftAngle:Number(params.draftAngle)||0,draftOutward:!!params.draftOutward,
       });
       cutSkipped=cutSkipped.concat(E.lastCutSkipped || []);
       if(!removed){if(cutFeature)removeHistoryNode(E.def,"history:feature:"+cutFeature.id);continue;}
@@ -11140,21 +10122,36 @@ function extrudeClosedSketch(options) {
     flash("✓ "+t("extrudeCut")+" · "+(params.endCondition || "through-all")+(cutCount>1?" · "+cutCount+" "+t("profileRegions"):"")+cutSkipNote());
     return true;
   }
-  var made=[],holeCount=0;
+  var made=[],merged=[],holeCount=0;
   for(var a=0;a<areas.length;a++){
     var area=areas[a],feature=null;
-    try{feature=defineFeature(area,null);}catch(error){H.discard();flash(String(error.message||error));return false;}
     var part = { id: uid(), kind: "ext", axis: localFrame ? "frame" : axis, frame:localFrame ? cloneData(sketch.frame) : undefined, from: start, to: end,
       pts: area.points, holes:area.holes.slice(),
       profileEntityIds: area.entityIds || undefined, holeProfileEntityIds:area.entityIds && area.holeEntityIds ? area.holeEntityIds : undefined,
       sketchId: sketch.id, sketchDriven: !!area.entityIds, support:cloneData(sketch.support), supportBaseOffset:(Number(sketch.supportOffset)||0)+offset, supportDepth:depth,
       direction:params.direction,symmetric:symmetric,draftAngle:Number(params.draftAngle)||0,draftOutward:!!params.draftOutward,
       featureId:feature ? feature.id : undefined,
-      color: "#b89a6e", metal: 0.08, rough: 0.7, name: feature ? feature.name : "Sketch Extrude" };
+      color: "#b89a6e", metal: 0.08, rough: 0.7, name: "Sketch Extrude" };
+    /* "Merge result": the boss joins the body it lands on instead of standing
+       beside it. Decided before the feature is defined, because a merged
+       feature depends on its host and says so in the tree. */
+    var host=mergeTargetBody(partBounds(part),params);
+    try{feature=defineFeature(area,host?host.featureId:null);}catch(error){H.discard();flash(String(error.message||error));return false;}
+    if(feature){part.featureId=feature.id;part.name=feature.name;}
     holeCount+=area.holes.length;
+    if(host){
+      host.merges3d=host.merges3d || [];
+      host.merges3d.push({axis:part.axis,...(part.frame?{frame:cloneData(part.frame)}:{}),from:start,to:end,loop:area.points.map(function(q){return {u:q.u,v:q.v};}),
+        draftAngle:Number(params.draftAngle)||0,draftOutward:!!params.draftOutward,draftBase:start,featureId:feature?feature.id:undefined});
+      invalidatePartMeshAfterEdit(host);
+      queueExactMesh(host);
+      merged.push(host);
+      continue;
+    }
     addPart(part); made.push(part);
+    scheduleExactMesh(part);   // a drafted boss has no analytic form to draw
   }
-  E.sel = made[made.length-1]; refreshAll();
+  E.sel = made[made.length-1] || merged[merged.length-1] || E.sel; refreshAll();
   flash("✓ " + t("opExtrude") + (made.length > 1 ? " · " + made.length + " " + t("profileRegions") : "")
     + (holeCount ? " · " + holeCount + " " + t("profileHoles") : "") + (healed ? " · " + t("profileHealed") : ""));
   E.authoring.featureType=null;E.authoring.phase="model";
@@ -11339,6 +10336,36 @@ function syncSketchDrivenParts() {
       delete p.meshData;
       if ((p.cuts3d && p.cuts3d.length) || p.exactFillet || (p.exactOperations && p.exactOperations.length)) scheduleExactMesh(p);
     }
+  });
+  if (syncSweptSourceParts()) changed = true;
+  return changed;
+}
+
+/* The same parametric promise, for the bodies that only recently started
+   drawing: a sweep or a loft re-reads its sketches too. A snapshot with no
+   `sketchSources` is a body from before this existed and is left frozen —
+   re-deriving it would move geometry the user never asked to move. */
+function syncSweptSourceParts() {
+  var changed = false;
+  var same = function (a, b) { return JSON.stringify(a) === JSON.stringify(b); };
+  (E.def.parts || []).forEach(function (p) {
+    if (isKernelBody(p) && p.kernel && p.sketchSources) {
+      var resolved = resolveSweptSources(E.def, p.sketchSources, resolveProfilePoints);
+      if (!resolved) { if (!p.profileError) { p.profileError = true; changed = true; } return; }
+      if (p.profileError) { p.profileError = false; changed = true; }
+      var next = kernelBodySpec(p.kernel.type, {...p.kernel.params, ...resolved});
+      if (!same(next, p.kernel)) { p.kernel = next; delete p.meshData; queueKernelBody(p); changed = true; }
+    }
+    var entries = (p.merges3d || []).concat(p.cuts3d || []).filter(function (entry) { return entry && entry.sketchSources; });
+    var touched = false;
+    entries.forEach(function (entry) {
+      var resolved = resolveSweptSources(E.def, entry.sketchSources, resolveProfilePoints);
+      if (!resolved) return;
+      if (resolved.sections) { if (!same(resolved.sections, entry.sections)) { entry.sections = resolved.sections; touched = true; } return; }
+      if (!same(resolved.profile, entry.profile)) { entry.profile = resolved.profile; touched = true; }
+      if (!same(resolved.path, entry.path)) { entry.path = resolved.path; touched = true; }
+    });
+    if (touched) { delete p.meshData; scheduleExactMesh(p); changed = true; }
   });
   return changed;
 }
@@ -12071,7 +11098,15 @@ function finishBoxSelect(box) {
   var sketch = ensureSketch(E.def);
   var mode = boxSelectMode(box.x0, box.x1);
   var area = { x0: box.x0, y0: box.y0, x1: box.x1, y1: box.y1 };
-  if (Math.hypot(box.x1 - box.x0, box.y1 - box.y0) < 4) return;
+  /* A click that never became a drag, inside one of the hatched areas, means
+     "not this one" — or "this one after all". The box drag starts on any empty
+     click, so this is where a stationary one is still recoverable as a region
+     pick rather than as a zero-sized marquee. */
+  if (Math.hypot(box.x1 - box.x0, box.y1 - box.y0) < 4) {
+    var at = toUV(box.x0, box.y0);
+    if (toggleFeatureArea(featureAreaAt(at.u, at.v))) return;
+    return;
+  }
   E.sselAuto = false;
   E.ssel = (sketch.entities || []).filter(function (entity) {
     return boundsHitBox(sketchEntityScreenBounds(entity, sketch), area, mode);
@@ -12461,16 +11496,27 @@ function dynEllipse(live, typedKeys) {
    values in white and the measured fallback dimmed. */
 function dynDrawHud(c, px, py) {
   var fields = dynFields();
-  if (!fields || !E.dynInput || E.dynInput.tool !== E.tool) return;
+  if (!fields) return;
+  /* Measured first, typed second. This used to require E.dynInput — which the
+     first keystroke creates — so a rubber-band carried no numbers at all until
+     you had already committed to typing one, and there was no way to see the
+     size you were dragging out. The measured value was ALREADY the fallback
+     below and already drawn dimmer than a typed one; only its arrival was
+     behind a keystroke. dynFields() is null unless a drag is live, so this
+     still says nothing when there is nothing to say.
+
+     Grey is what the pointer is saying, white is what you told it. */
+  var input = E.dynInput && E.dynInput.tool === E.tool ? E.dynInput : null;
   var live = dynLive();
   c.save();
   c.font = "600 11px sans-serif";
   var boxes = fields.map(function (f) {
-    var typed = E.dynInput.values[f.k];
-    var shown = typed !== "" && typed != null ? typed
+    var typed = input ? input.values[f.k] : null;
+    var hasTyped = typed !== "" && typed != null;
+    var shown = hasTyped ? typed
       : (f.whole ? String(Math.round(live[f.k] || 0)) : String(Math.round((live[f.k] || 0) * 10) / 10));
     var label = t("dyn_" + f.k) + " " + shown + f.u;
-    return { on: f.k === E.dynInput.field, typed: typed !== "" && typed != null, text: label, w: c.measureText(label).width + 16 };
+    return { on: !!input && f.k === input.field, typed: hasTyped, text: label, w: c.measureText(label).width + 16 };
   });
   var total = boxes.reduce(function (s, b) { return s + b.w + 4; }, 0);
   var x = Math.min(E.cw - total - 8, px + 14), y = Math.max(8, Math.min(E.ch - 30, py + 14));
@@ -13029,15 +12075,12 @@ function wireSketch() {
       for (var vi = 0; vi < pts.length; vi++) {
         var vs = toPx(pts[vi].u, pts[vi].v);
         if (Math.hypot(vs.x - mx, vs.y - my) < 7) {
-          var ans = String(prompt(t("fillet"), 5) || "").trim();
-          var isCh = /^c/i.test(ans);
-          var fr = parseFloat(isCh ? ans.slice(1) : ans);
-          if (fin(fr) && fr > 0) {
-            pushUndo(t("opFillet"));
-            var ok = isCh ? chamferVertex(pts, vi, fr) : filletVertex(pts, vi, fr);
-            if (!ok) H.discard();
-            refreshAll();
-          }
+          /* A window.prompt() freezes the canvas the corner is on, so the one
+             thing you want to look at while typing a radius — the corner — is
+             behind a modal. The quick form is the same two questions with the
+             drawing still visible, and it makes the fillet/chamfer choice a
+             control rather than a "c" prefix nobody could discover. */
+          cornerRoundForm(pts, vi);
           return;
         }
       }
@@ -13049,15 +12092,7 @@ function wireSketch() {
         var tt = clamp(((mx - a.x) * (b.x - a.x) + (my - a.y) * (b.y - a.y)) / (L2 * L2), 0, 1);
         if (Math.hypot(a.x + (b.x - a.x) * tt - mx, a.y + (b.y - a.y) * tt - my) < 6) {
           var q0 = pts[i], q1 = pts[(i + 1) % pts.length];
-          var cur = Math.hypot(q1.u - q0.u, q1.v - q0.v);
-          var val = parseFloat(prompt(t("segLen"), Math.round(cur)));
-          if (fin(val) && val > 0 && cur > 0) {
-            pushUndo(t("opSegLen"));
-            var k = val / cur;
-            q1.u = q0.u + (q1.u - q0.u) * k;
-            q1.v = q0.v + (q1.v - q0.v) * k;
-            refreshAll();
-          }
+          segmentLengthForm(q0, q1);
           return;
         }
       }
@@ -13263,6 +12298,37 @@ function makeDrawnPart(u0, v0, u1, v1) {
 // Letter keys pick a sketch or direct tool. R is reserved for parametric
 // Revolve (FEATURE_COMMAND / KEY_TOOL in modeler_commands.js).
 
+/* Shift + a digit picks the selection filter. NOT the letters SolidWorks uses
+   for this — v, b, e and x are all sketch tools here, and taking them would
+   cost four tools to save four keystrokes. Keyed on e.code rather than e.key
+   because Shift+2 arrives as "@" on a US layout and something else again
+   elsewhere; the physical key is what the user is reaching for. */
+var SELECTION_FILTER_KEYS = {
+  Digit1: "all", Digit2: "face", Digit3: "edge", Digit4: "vertex", Digit5: "body",
+};
+
+/* Tap to switch, hold to borrow. A filter held down for longer than a tap
+   snaps back on release, which is how a fillet set gets swept without leaving
+   the session's own filter changed underneath the user. */
+function handleSelectionFilterChord(e, editingField) {
+  var wanted = SELECTION_FILTER_KEYS[e.code];
+  if (!wanted || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || editingField) return false;
+  e.preventDefault();
+  if (e.repeat) return true;
+  if (!E.filterChord) E.filterChord = { code: e.code, previous: E.selectionFilter, at: Date.now() };
+  setSelectionFilter(wanted);
+  return true;
+}
+
+function releaseSelectionFilterChord(e) {
+  var chord = E.filterChord;
+  if (!chord || e.code !== chord.code) return;
+  E.filterChord = null;
+  // Under a third of a second reads as a tap, and a tap is meant to stick.
+  if (Date.now() - chord.at < 300) return;
+  if (selectionFilterAvailable(chord.previous)) setSelectionFilter(chord.previous);
+}
+
 function onKey(e) {
   if (!E.open) return;
   var commandSearch = root && root.querySelector("#mdCommandSearch");
@@ -13273,6 +12339,7 @@ function onKey(e) {
     if (e.key === "Escape") { e.preventDefault(); closeWelcome(); }
     return;
   }
+  if (handleSelectionFilterChord(e, editingField)) return;
   if (e.ctrlKey || e.metaKey) {
     var chord = e.key.toLowerCase();
     if (chord === "s") { e.preventDefault(); saveCurrentDocument(); return; }
@@ -13330,6 +12397,8 @@ function onKey(e) {
     if (E.docType === "assembly") {
       E.componentSel = (E.assembly && E.assembly.components || []).slice();
       E.sel = E.componentSel[E.componentSel.length - 1] || null;
+    } else if (E.mode === "3d" && !E.modelPlaneActive) {
+      selectAllTopology();
     } else {
       E.ssel = ensureSketch(E.def).entities.slice();
       E.sel = E.ssel[E.ssel.length - 1] || null;
@@ -13337,7 +12406,23 @@ function onKey(e) {
     refreshAll();
     return;
   }
+  /* The profile offer is a real choice waiting on the model, so it owns Enter
+     while it is up — the common case (Extrude) stays one keystroke, without
+     the editor having picked it on the user's behalf. */
+  if (e.key === "Enter" && E.profileOffer && E.profileOffer.length && !editingField) {
+    e.preventDefault();
+    var leading = E.profileOffer[0];
+    dismissProfileOffer();
+    setCommandTab("features");
+    openParametricFeature(leading);
+    return;
+  }
   if (e.key === "Escape") {
+    /* Before any of the branches that return: the chip and the profile offer
+       are things floating over the model, and Escape is what a CAD user presses
+       to dismiss an offer. Neither may survive whichever branch takes the key. */
+    hidePickCycle();
+    dismissProfileOffer();
     if (E.noteEditorOpen) { e.preventDefault(); closeNoteEditor(); return; }
     if (E.tool === "paint" || E.tool === "note") { setTool("select"); return; }
     if (E.overlays && (E.overlays.shortcut || E.overlays.views || E.overlays.menu || E.overlays.gesture)) {
@@ -13836,11 +12921,43 @@ function refreshComponents() {
   applyFeatureFilter(host);
 }
 
+/* Editing a sketch enters it exactly the way creating one does — see
+   chooseSketchReference(), whose comment explains the rule this now shares.
+   Edit used to end with setMode("2d") unconditionally, so a sketch drawn on a
+   face of the solid was reopened as a flat drawing with the model gone: the
+   one thing it was dimensioned against was no longer on screen. The camera
+   pose is captured here so Finish and Escape can put it back; both already
+   call restoreSketchCameraPose(), which had nothing to restore because this
+   path never captured. */
 function editSketchFromHistory(sketch) {
+  var stayIn3D = E.mode === "3d";
+  var onFace = !!sketch.support;
   E.def.activeSketch=sketch.id;E.authoring.phase="sketch";E.authoring.sketchId=sketch.id;E.authoring.referenceId=sketch.referenceId;
-  E.authoring.sketchSelection=[sketch.id];E.ssel=[];E.sel=null;E.view=sketch.plane || referencePlaneView((E.def.references || []).find(function(reference){return reference.id===sketch.referenceId;}));
+  E.authoring.sketchSelection=[sketch.id];E.authoring.workflowFocus="sketch";E.authoring.resumePhase=null;
+  E.ssel=[];E.sel=null;E.view=sketch.plane || referencePlaneView((E.def.references || []).find(function(reference){return reference.id===sketch.referenceId;}));
   E.solveInfo=solveSketch(sketch);E._solveSketchId=sketch.id;
-  setMode("2d");setCommandTab("sketch");setTab("sketch");refreshAll();requestAnimationFrame(fitSketch);
+  if(stayIn3D){E.modelPlaneActive=true;syncModelPlane();}else setMode("2d");
+  setCommandTab("sketch");setTab("sketch");
+  setTool("select",true);
+  /* A sketch on a face snaps square whatever the preference says — the same
+     rule the face-pick path uses, and for the same reason: you are editing
+     geometry that was drawn flat on that face. */
+  if(stayIn3D && (E.sketchNormalTo || onFace)){
+    captureSketchCameraPose();
+    orientModelToView(true);
+  }
+  refreshAll();
+  if(!stayIn3D || E.sketchNormalTo || onFace)requestAnimationFrame(fitSketch);else drawSketch();
+}
+
+/* Where a merged feature's geometry ended up: on its host's merge list, not on
+   a part of its own. */
+function mergeRecordFor(featureId) {
+  var found=null;
+  (E.def && E.def.parts || []).forEach(function(part){
+    (part.merges3d || []).forEach(function(merge){ if(merge.featureId===featureId) found={part:part,merge:merge}; });
+  });
+  return found;
 }
 
 function syncProjectionFromFeature(feature) {
@@ -13865,21 +12982,43 @@ function syncProjectionFromFeature(feature) {
     var normal=sketch && sketch.frame && sketch.frame.normal,axis=part.axis==="frame"?planeAxis(sketch && sketch.plane):part.axis,principal=normal?(axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)):(part.to>=part.from?1:-1);
     var direction=(feature.params.direction==="reverse"?-1:1)*(principal||1),symmetric=!!feature.params.symmetric||feature.params.endCondition==="mid-plane",center=(part.frame?0:(sketch&&Number(sketch.offset)||0))+direction*offset;
     part.from=symmetric?center-direction*depth/2:center;part.to=symmetric?center+direction*depth/2:center+direction*depth;part.supportDepth=depth;part.supportBaseOffset=offset;
-    part.direction=feature.params.direction;part.symmetric=symmetric;part.draftAngle=Number(feature.params.draftAngle)||0;part.draftOutward=!!feature.params.draftOutward;delete part.meshData;part.exactPending=false;
+    part.direction=feature.params.direction;part.symmetric=symmetric;part.draftAngle=Number(feature.params.draftAngle)||0;part.draftOutward=!!feature.params.draftOutward;delete part.meshData;part.exactPending=false;scheduleExactMesh(part);
+  } else if(!part && feature.type==="extrude" && mergeRecordFor(feature.id)){
+    /* A merged boss is not a part, so the branch above finds nothing. Its run
+       still has to follow the depth the form is showing. */
+    var record=mergeRecordFor(feature.id),host=record.part,merge=record.merge;
+    var mergedDepth=Math.max(.1,Number(feature.params.depth)||.1),mergedOffset=Number(feature.params.offset)||0;
+    var mergedSketchId=feature.references.sketches[0],mergedSketch=(E.def.sketches || []).find(function(item){return item.id===(mergedSketchId && mergedSketchId.id || mergedSketchId);});
+    var mergedNormal=mergedSketch && mergedSketch.frame && mergedSketch.frame.normal,mergedAxis=merge.axis==="frame"?planeAxis(mergedSketch && mergedSketch.plane):merge.axis;
+    var mergedPrincipal=mergedNormal?(mergedAxis==="x"?Math.sign(mergedNormal.x||1):mergedAxis==="y"?Math.sign(mergedNormal.y||1):Math.sign(mergedNormal.z||1)):(merge.to>=merge.from?1:-1);
+    var mergedDirection=(feature.params.direction==="reverse"?-1:1)*(mergedPrincipal||1),mergedSymmetric=!!feature.params.symmetric||feature.params.endCondition==="mid-plane";
+    var mergedCentre=(merge.frame?0:(mergedSketch&&Number(mergedSketch.offset)||0))+mergedDirection*mergedOffset;
+    merge.from=mergedSymmetric?mergedCentre-mergedDirection*mergedDepth/2:mergedCentre;
+    merge.to=mergedSymmetric?mergedCentre+mergedDirection*mergedDepth/2:mergedCentre+mergedDirection*mergedDepth;
+    merge.draftBase=merge.from;
+    merge.draftAngle=Number(feature.params.draftAngle)||0;merge.draftOutward=!!feature.params.draftOutward;
+    invalidatePartMeshAfterEdit(host);scheduleExactMesh(host);
   } else if(part && feature.type==="revolve"){
     part.angle=Math.max(.001,Math.min(360,Number(feature.params.angle)||360));part.direction=feature.params.direction;part.symmetric=!!feature.params.symmetric;delete part.meshData;part.exactPending=false;
+  } else if(part && isKernelBody(part) && featureBuildsKernelBody(feature.type)){
+    /* A kernel body is rebuilt, not adjusted: the recipe is replaced with the
+       feature's current parameters and the kernel runs again — the same
+       contract as retyping an extrude's depth, just asynchronous. */
+    try{part.kernel=kernelBodySpec(feature.type,feature.params);}
+    catch(error){part.exactPending=false;part.exactError=String(error && error.message||error);return;}
+    queueKernelBody(part);
   }
   if(feature.type==="pattern"){
     var seed=(E.def.parts || []).find(function(item){return item.featureId===feature.inputs[0];});
     E.def.parts=(E.def.parts || []).filter(function(item){return item.derivedFeatureId!==feature.id;});
-    if(seed){var count=Math.max(2,Math.min(100,Math.round(Number(feature.params.count)||2))),circularStep=circularPatternStepDegrees(feature.params,count)*Math.PI/180,placements=patternPlacements(feature.params);placements.forEach(function(placement,index){var copy=resetClonedPartIdentity(cloneData(seed));copy.derivedFeatureId=feature.id;copy.sourceFeatureId=seed.featureId;copy.patternIndex=index+1;copy.patternGridIndex=placement.indices;if(feature.params.mode==="circular")rotatePatternPart(copy,feature.params.axis,circularStep*placement.circularIndex,feature.params.radialDistance);else movePart(copy,placement.x,placement.y,placement.z);E.def.parts.push(copy);});}
+    if(seed){var count=Math.max(2,Math.min(100,Math.round(Number(feature.params.count)||2))),circularStep=circularPatternStepDegrees(feature.params,count)*Math.PI/180,placements=patternPlacements(feature.params);placements.forEach(function(placement,index){var copy=resetClonedPartIdentity(cloneData(seed));copy.derivedFeatureId=feature.id;copy.sourceFeatureId=seed.featureId;copy.patternIndex=index+1;copy.patternGridIndex=placement.indices;placePatternCopy(copy,feature.params,placement,circularStep);E.def.parts.push(copy);});}
   } else if(feature.type==="mirror"){
     var mirrorSeed=(E.def.parts || []).find(function(item){return item.featureId===feature.inputs[0];}),planeReference=(feature.references.references || ["plane:right"])[0];
     E.def.parts=(E.def.parts || []).filter(function(item){return item.derivedFeatureId!==feature.id;});
-    if(mirrorSeed){var mirrored=mirrorProjectionPart(resetClonedPartIdentity(cloneData(mirrorSeed)),typeof planeReference==="string"?planeReference:planeReference.id);mirrored.derivedFeatureId=feature.id;mirrored.sourceFeatureId=mirrorSeed.featureId;E.def.parts.push(mirrored);}
+    if(mirrorSeed){var mirrored=mirrorProjectionPart(resetClonedPartIdentity(cloneData(mirrorSeed)),typeof planeReference==="string"?planeReference:planeReference.id);if(mirrored){mirrored.derivedFeatureId=feature.id;mirrored.sourceFeatureId=mirrorSeed.featureId;E.def.parts.push(mirrored);}}
   }
   (E.def.parts || []).forEach(function(item){
-    (item.exactOperations || []).forEach(function(operation){if(operation.id!==feature.id)return;if(feature.type==="fillet")operation.amount=feature.params.radius;else if(feature.type==="chamfer")operation.amount=feature.params.distance;else if(feature.type==="shell")operation.amount=feature.params.thickness;operation.params=cloneData(feature.params);scheduleExactMesh(item);});
+    (item.exactOperations || []).forEach(function(operation){if(operation.id!==feature.id)return;if(FINISH_AMOUNT_KEY[feature.type]!==undefined)operation.amount=Number(feature.params[FINISH_AMOUNT_KEY[feature.type]]);operation.params=cloneData(feature.params);scheduleExactMesh(item);});
   });
 }
 
@@ -14727,17 +13866,27 @@ function renderCoreDiagnostics(host) {
   if (!issues.length) return;
   var groups = groupDiagnostics(issues);
   var errors = issues.filter(function (issue) { return issue.severity === "error"; }).length;
-  var wrap = el("section", "md-diagnostics");
+  /* A rebuild that FAILED is a reason to stop and look; a sketch that merely
+     has degrees of freedom left is refinement the user may never want. Giving
+     both the same open panel, the same "start here" and the same accent button
+     is what teaches people to read past the panel entirely — so when there is
+     nothing but warnings the whole block collapses to its own summary line and
+     no row is promoted. The severities themselves already say which is which;
+     only the presentation was treating them alike. */
+  var advisory = !errors;
+  var wrap = el(advisory ? "details" : "section", "md-diagnostics" + (advisory ? " md-diagnostics-advisory" : ""));
   wrap.id = "mdDiagnostics";
-  var title = el("h5", "md-h5 md-feature-title md-diagnostics-title", t("rebuildDiagnostics"));
+  var title = el(advisory ? "summary" : "h5", "md-h5 md-feature-title md-diagnostics-title",
+    "<span>" + t("rebuildDiagnostics") + "</span>");
   title.appendChild(el("span", "md-diagnostics-counts",
     t(errors ? "rebuildFail" : "rebuildWarn") + " · " + (errors || issues.length)));
   wrap.appendChild(title);
-  wrap.appendChild(el("p", "md-diagnostics-hint", t("rebuildDiagnosticsHint")));
+  // Inside a <details> this is part of the collapsed body, not the summary.
+  wrap.appendChild(el("p", "md-diagnostics-hint", t(advisory ? "rebuildWarnHint" : "rebuildDiagnosticsHint")));
   groups.forEach(function (group, index) {
     var issue = group.issue;
     var help = diagnosticHelp(issue, E.lang);
-    var primary = index === 0;
+    var primary = index === 0 && !advisory;
     var row = el("div", "md-part md-core-diagnostic " + (issue.severity === "error" ? "error" : "warning") +
       (primary ? " md-diagnostic-primary" : ""));
     row.appendChild(el("i", "ph " + (issue.severity === "error" ? "ph-warning-octagon" : "ph-warning")));
@@ -14977,16 +14126,17 @@ function addTopologyMate(type, value) {
   /* Two picked faces beat two synthesized ones. The buttons used to mate the
      component's +X bounding face to the other's -X face whatever the user had
      clicked, which is not what "Coincident faces" says it does. */
-  var picked = assemblyPickedRefs(), a, b;
-  if (picked) {
-    a = mateReferenceFromPick(picked.a);
-    b = mateReferenceFromPick(picked.b);
-  } else {
-    var fallback = mateFallbackRefs(type);
-    if (!fallback) { flash(t("mateHint")); return false; }
-    a = fallback.a;
-    b = fallback.b;
-  }
+  /* No picks, no mate. A bounding box is not geometry the user chose: mating
+     one component's +X box face to another's -X box face produced a real
+     constraint, moved the model, and wrote a history node — all of it derived
+     from an envelope rather than from anything on the part. The panel said
+     "using bounding boxes" and then acted as though that were an answer, which
+     made this the one place the editor stated a guess and committed it. Two
+     picked faces, or nothing. */
+  var picked = assemblyPickedRefs();
+  if (!picked) { flash(t("mateNeedTwoFaces")); return false; }
+  var a = mateReferenceFromPick(picked.a);
+  var b = mateReferenceFromPick(picked.b);
   /* The solver only ever moves B. Pick order is not a promise about which
      part is grounded — people click the moving hole, then the grounded one
      they want it on. Swap rather than refuse, or the button does nothing. */
@@ -15025,7 +14175,7 @@ function clampMateAngle(value) {
 function openMateAngleForm() {
   openQuickForm({
     action: "anglemate", icon: "ph-angle", title: t("angleMate"),
-    hint: assemblyPickedRefs() ? t("mateUsingPicked") : t("mateUsingBounds"),
+    hint: assemblyPickedRefs() ? t("mateUsingPicked") : t("mateNeedTwoFaces"),
     fields: [{ key: "angle", label: t("mateAngleValue"), type: "number", value: 45, step: 1, min: 0, max: 180, unit: "angle" }],
     onApply: function (values) { return addTopologyMate("angle", values.angle); },
   });
@@ -15052,8 +14202,8 @@ function openMatePropertyManager() {
     action: "mate", icon: "ph-link", title: t("matePmTitle"),
     hint: picked ? t("mateUsingPicked") : t("matePmNoPicks"),
     fields: [
-      { key: "refA", label: t("matePmRefA"), type: "text", value: picked ? referenceLabel(picked.a) : t("mateUsingBounds") },
-      { key: "refB", label: t("matePmRefB"), type: "text", value: picked ? referenceLabel(picked.b) : t("mateUsingBounds") },
+      { key: "refA", label: t("matePmRefA"), type: "text", value: picked ? referenceLabel(picked.a) : t("matePmPickFace") },
+      { key: "refB", label: t("matePmRefB"), type: "text", value: picked ? referenceLabel(picked.b) : t("matePmPickFace") },
       { key: "type", label: t("matePmType"), type: "select", value: offered[0][0],
         choices: offered.map(function (entry) { return { value: entry[0], label: t(entry[2]) }; }) },
       { key: "angle", label: t("mateAngleValue"), type: "number", value: 45, step: 1, min: 0, max: 180, unit: "angle" },
@@ -15063,6 +14213,15 @@ function openMatePropertyManager() {
   if (!inputs) return;
   // The two reference rows report the picks; they are not somewhere to type.
   ["refA", "refB"].forEach(function (key) { if (inputs[key]) inputs[key].readOnly = true; });
+  /* Apply is disabled rather than left live over an empty pair. The panel used
+     to print "using bounding boxes" in these two rows and then commit a mate
+     built from exactly that. Saying what is missing and refusing is the honest
+     version of the same screen. */
+  var applyButton = root && root.querySelector("#mdQuickSettings .md-quick-apply");
+  if (applyButton && !picked) {
+    applyButton.disabled = true;
+    applyButton.dataset.tip = t("mateNeedTwoFaces");
+  }
   var angleField = inputs.angle && inputs.angle.closest(".md-quick-field");
   /* `parameter-hidden`, not the hidden attribute: .md-quick-field sets its own
      display, which a bare [hidden] does not beat. */
@@ -15142,7 +14301,7 @@ function assemblyMateInspector() {
     markUnavailable(mateButton, pair ? "" : t("mateHint"), t(entry[1]));
     ops.appendChild(mateButton);
   });
-  var source = picked ? t("mateUsingPicked") : t("mateUsingBounds");
+  var source = picked ? t("mateUsingPicked") : t("mateNeedTwoFaces");
   MATE_PALETTE.forEach(function (entry) {
     /* A mate the picked references cannot support is greyed and says what it
        wanted, rather than accepting the pair and placing the component
@@ -15282,7 +14441,7 @@ function fillShape() {
       advanced.appendChild(summary);host.appendChild(advanced);
       host.appendChild(btn('<i class="ph ph-pencil-simple"></i> Edit feature in history',function(){openFeatureEditor(feature);},"md-wide btn-accent"));
       if ((E.topologySelection || []).length) {
-        host.appendChild(el("div","md-note",E.topologySelection.length+" topology reference"+(E.topologySelection.length===1?"":"s")+" selected"));
+        host.appendChild(el("div","md-note",E.topologySelection.length+" "+t("topologyRefs")+" "+t("selectedLabel")));
       }
       return;
     }
@@ -16043,64 +15202,104 @@ function fillOps() {
     E.sel = q;
     refreshAll();
   }));
+  /* One form, not a chain of window.prompt()s. Each of these used to ask two or
+     three questions in a row, every one of them freezing the model behind a
+     modal — and answering the last one wrong meant starting the chain again.
+     A step typed as "20,0,0" into a text box is also not an input, it is a
+     parsing puzzle; three numbers are three fields. */
   ops.appendChild(btn('<i class="ph ph-dots-three-outline"></i> ' + t("patLin"), function () {
-    var n = parseInt(prompt(t("patCount"), 3), 10);
-    if (!fin(n) || n < 2) return;
-    var st = String(prompt(t("patStep"), "20,0,0") || "").split(",").map(parseFloat);
-    if (st.length < 3 || !st.every(fin)) return;
-    pushUndo(t("patLin"));
-    for (var k = 1; k < n; k++) {
-      var q = resetClonedPartIdentity(JSON.parse(JSON.stringify(p)));
-      movePart(q, st[0] * k, st[1] * k, st[2] * k);
-      addPart(q);
-    }
-    refreshAll();
+    openQuickForm({
+      action: "patlin", icon: "ph-dots-three-outline", title: t("patLin"), hint: t("patLinHint"),
+      fields: [
+        { key: "count", label: t("patCount"), type: "number", integer: true, min: 2, max: 64, step: 1, value: 3 },
+        { key: "stepX", label: "X", type: "number", unit: "length", step: 1, value: 20 },
+        { key: "stepY", label: "Y", type: "number", unit: "length", step: 1, value: 0 },
+        { key: "stepZ", label: "Z", type: "number", unit: "length", step: 1, value: 0 },
+      ],
+      onApply: function (values) {
+        var n = Math.round(Number(values.count));
+        var step = [Number(values.stepX), Number(values.stepY), Number(values.stepZ)];
+        if (!fin(n) || n < 2 || !step.every(fin)) return false;
+        if (!step.some(function (axis) { return axis !== 0; })) { flash(t("patStepZero")); return false; }
+        pushUndo(t("patLin"));
+        for (var k = 1; k < n; k++) {
+          var q = resetClonedPartIdentity(JSON.parse(JSON.stringify(p)));
+          movePart(q, step[0] * k, step[1] * k, step[2] * k);
+          addPart(q);
+        }
+        return true;
+      },
+    });
   }));
   ops.appendChild(btn('<i class="ph ph-circles-three"></i> ' + t("patCirc"), function () {
-    var n = parseInt(prompt(t("patCount"), 4), 10);
-    if (!fin(n) || n < 2) return;
-    var tot = parseFloat(prompt(t("patAngle"), 360));
-    if (!fin(tot) || !tot) return;
-    // full circle: don't duplicate the original at 360°
-    var step = (tot === 360 ? tot / n : tot / (n - 1)) * Math.PI / 180;
-    pushUndo(t("patCirc"));
-    var made = 0;
-    for (var k = 1; k < n; k++) {
-      var q = rotPartY(JSON.parse(JSON.stringify(p)), step * k);
-      if (!q) break;
-      resetClonedPartIdentity(q);
-      addPart(q);
-      made++;
-    }
-    if (!made) { H.discard(); flash(t("patSkip")); return; }
-    refreshAll();
+    openQuickForm({
+      action: "patcirc", icon: "ph-circles-three", title: t("patCirc"), hint: t("patCircHint"),
+      fields: [
+        { key: "count", label: t("patCount"), type: "number", integer: true, min: 2, max: 64, step: 1, value: 4 },
+        { key: "angle", label: t("patAngle"), type: "number", unit: "angle", min: -360, max: 360, step: 5, value: 360 },
+      ],
+      onApply: function (values) {
+        var n = Math.round(Number(values.count)), total = Number(values.angle);
+        if (!fin(n) || n < 2 || !fin(total) || !total) return false;
+        // full circle: don't duplicate the original at 360°
+        var step = (total === 360 ? total / n : total / (n - 1)) * Math.PI / 180;
+        pushUndo(t("patCirc"));
+        var made = 0;
+        for (var k = 1; k < n; k++) {
+          var q = rotPartY(JSON.parse(JSON.stringify(p)), step * k);
+          if (!q) break;
+          resetClonedPartIdentity(q);
+          addPart(q);
+          made++;
+        }
+        if (!made) { H.discard(); flash(t("patSkip")); return false; }
+        return true;
+      },
+    });
   }));
   host.appendChild(ops);
 
   host.appendChild(el("h5", "md-h5", t("opShape")));
   ops = el("div", "md-ops");
   ops.appendChild(btn('<i class="ph ph-bowl-food"></i> ' + t("shellOp"), function () {
-    var th = parseFloat(prompt(t("shellT"), 2));
-    if (!fin(th) || th <= 0) return;
-    quickShellPart(th);
+    openQuickForm({
+      action: "quickshell", icon: "ph-bowl-food", title: t("shellOp"), hint: t("shellHint"),
+      fields: [{ key: "thickness", label: t("shellT"), type: "number", unit: "length", min: 1e-6, step: 0.1, value: 2 }],
+      onApply: function (values) {
+        var thickness = Number(values.thickness);
+        if (!fin(thickness) || thickness <= 0) return false;
+        quickShellPart(thickness);
+        return true;
+      },
+    });
   }));
   ops.appendChild(btn('<i class="ph ph-trapezoid"></i> ' + t("loftOp"), function () {
     if (p.kind !== "ext" || (p.holes && p.holes.length)) { flash(t("loftFail")); return; }
-    var sc = parseFloat(prompt(t("loftScale"), 0.6));
-    if (!fin(sc) || sc <= 0) return;
-    var off = String(prompt(t("loftOff"), "0,0") || "").split(",").map(parseFloat);
-    if (off.length < 2 || !fin(off[0]) || !fin(off[1])) off = [0, 0];
-    pushUndo(t("loftOp"));
-    var c = loopCentroid(p.pts);
-    p.kind = "loft";
-    p.name = p.name === "extrude" ? "loft" : p.name;
-    p.pts0 = p.pts;
-    p.pts1 = p.pts.map(function (q2) { return { u: c.u + (q2.u - c.u) * sc + off[0], v: c.v + (q2.v - c.v) * sc + off[1] }; });
-    delete p.pts;
-    delete p.holes;
-    delete p.tex; // lofted geometry has no UVs
-    E.sel = p;
-    refreshAll();
+    openQuickForm({
+      action: "quickloft", icon: "ph-trapezoid", title: t("loftOp"), hint: t("loftHint"),
+      fields: [
+        { key: "scale", label: t("loftScale"), type: "number", min: 1e-6, step: 0.05, value: 0.6 },
+        { key: "offsetU", label: "U", type: "number", unit: "length", step: 1, value: 0 },
+        { key: "offsetV", label: "V", type: "number", unit: "length", step: 1, value: 0 },
+      ],
+      onApply: function (values) {
+        var scale = Number(values.scale);
+        if (!fin(scale) || scale <= 0) return false;
+        var offU = fin(Number(values.offsetU)) ? Number(values.offsetU) : 0;
+        var offV = fin(Number(values.offsetV)) ? Number(values.offsetV) : 0;
+        pushUndo(t("loftOp"));
+        var c = loopCentroid(p.pts);
+        p.kind = "loft";
+        p.name = p.name === "extrude" ? "loft" : p.name;
+        p.pts0 = p.pts;
+        p.pts1 = p.pts.map(function (q2) { return { u: c.u + (q2.u - c.u) * scale + offU, v: c.v + (q2.v - c.v) * scale + offV }; });
+        delete p.pts;
+        delete p.holes;
+        delete p.tex; // lofted geometry has no UVs
+        E.sel = p;
+        return true;
+      },
+    });
   }));
   host.appendChild(ops);
 
@@ -16108,16 +15307,35 @@ function fillOps() {
     host.appendChild(el("h5", "md-h5", t("sheetMetal")));
     var smOps = el("div", "md-ops");
     smOps.appendChild(btn('<i class="ph ph-fold"></i> ' + t("sheetMetalConvert"), function () {
-      var thickness = parseFloat(prompt(t("sheetMetalThickness"), E.def.sheetMetal ? E.def.sheetMetal.thickness : 0.15));
-      if (!fin(thickness) || thickness <= 0) return;
-      E.def.sheetMetal = createSheetMetalPart({thickness:thickness,insideRadius:thickness,kFactor:.33,base:{width:Math.abs(p.x1-p.x0),height:Math.abs(p.z1-p.z0)}});
-      refreshAll();
+      openQuickForm({
+        action: "sheetmetal", icon: "ph-fold", title: t("sheetMetalConvert"), hint: t("sheetMetalHint"),
+        fields: [{ key: "thickness", label: t("sheetMetalThickness"), type: "number", unit: "length", min: 1e-6, step: 0.01,
+          value: E.def.sheetMetal ? E.def.sheetMetal.thickness : 0.15 }],
+        onApply: function (values) {
+          var thickness = Number(values.thickness);
+          if (!fin(thickness) || thickness <= 0) return false;
+          pushUndo(t("sheetMetalConvert"));
+          E.def.sheetMetal = createSheetMetalPart({thickness:thickness,insideRadius:thickness,kFactor:.33,base:{width:Math.abs(p.x1-p.x0),height:Math.abs(p.z1-p.z0)}});
+          return true;
+        },
+      });
     }));
     smOps.appendChild(btn('<i class="ph ph-angle"></i> ' + t("sheetMetalFlange"), function () {
       if (!E.def.sheetMetal) { flash(t("sheetMetalNeedPlate")); return; }
-      var length = parseFloat(prompt(t("sheetMetalFlangeLen"), 3)), angle = parseFloat(prompt(t("sheetMetalBendAngle"), 90));
-      if (!fin(length) || !fin(angle)) return;
-      addEdgeFlange(E.def.sheetMetal, "right", length, angle); refreshAll();
+      openQuickForm({
+        action: "sheetflange", icon: "ph-angle", title: t("sheetMetalFlange"), hint: t("sheetMetalFlangeHint"),
+        fields: [
+          { key: "length", label: t("sheetMetalFlangeLen"), type: "number", unit: "length", min: 1e-6, step: 0.1, value: 3 },
+          { key: "angle", label: t("sheetMetalBendAngle"), type: "number", unit: "angle", min: -180, max: 180, step: 5, value: 90 },
+        ],
+        onApply: function (values) {
+          var length = Number(values.length), angle = Number(values.angle);
+          if (!fin(length) || length <= 0 || !fin(angle)) return false;
+          pushUndo(t("sheetMetalFlange"));
+          addEdgeFlange(E.def.sheetMetal, "right", length, angle);
+          return true;
+        },
+      });
     }));
     smOps.appendChild(btn('<i class="ph ph-file-svg"></i> ' + t("sheetMetalFlat"), function () {
       if (!E.def.sheetMetal) return;
@@ -16136,66 +15354,9 @@ function fillOps() {
   }, "md-wide btn-danger"));
 }
 
-/* ================= 3D preview =================
-   Renderer, orbit and sizing come from editor_view.js — the same viewport the
-   cabinet designer uses, so the two editors show a model the same way and there
-   is one place to fix when they do not. What stays here is the modeler's own
-   second destination: rendering the working parts INSIDE the real room, with
-   the plan's lighting and everything around them, instead of on a blank
-   backdrop. */
-/* Resolve what is under the cursor into a part plus a face/edge reference.
-   Split out of the click handler so hovering can run exactly the same
-   resolution — the highlight you see before you click has to be the thing the
-   click then selects, or picking is a guessing game. */
-function topologyReferenceFromEntry(entry) {
-  if (!entry) return null;
-  return createTopologyReference(entry.ownerFeatureId, entry.kind, entry.persistentId, entry.descriptor, { memberPersistentIds: entry.memberPersistentIds });
-}
 
-function distanceToCircularEdge(point, descriptor) {
-  if (!point || !descriptor || descriptor.curve !== "circle") return Infinity;
-  var origin = descriptor.origin || {}, axis = descriptor.axis || { x: 0, y: 1, z: 0 };
-  var radius = Number(descriptor.radius);
-  if (!fin(radius) || radius <= 0) return Infinity;
-  var nx = axis.x || 0, ny = axis.y || 0, nz = axis.z || 0, len = Math.hypot(nx, ny, nz) || 1;
-  nx /= len; ny /= len; nz /= len;
-  var dx = point.x - (origin.x || 0), dy = point.y - (origin.y || 0), dz = point.z - (origin.z || 0);
-  var along = dx * nx + dy * ny + dz * nz;
-  var rx = dx - nx * along, ry = dy - ny * along, rz = dz - nz * along;
-  return Math.hypot(along, Math.abs(Math.hypot(rx, ry, rz) - radius));
-}
 
-function nearestCircularEdge(entries, point, options) {
-  options = options || {};
-  var maxDist = fin(options.maxDist) ? options.maxDist : 1.8;
-  var cylinder = options.cylinder;
-  var best = null, bestDist = Infinity;
-  (entries || []).filter(function (entry) { return entry.kind === "edge" && entry.descriptor && entry.descriptor.curve === "circle"; }).forEach(function (entry) {
-    var d = entry.descriptor, origin = d.origin;
-    if (!origin) return;
-    if (cylinder) {
-      var sameRadius = !fin(Number(cylinder.radius)) || Math.abs(Number(d.radius) - Number(cylinder.radius)) <= Math.max(0.35, Number(cylinder.radius) * 0.06);
-      var axis = d.axis || {}, caxis = cylinder.axis || {};
-      var aligned = Math.abs((axis.x || 0) * (caxis.x || 0) + (axis.y || 0) * (caxis.y || 0) + (axis.z || 0) * (caxis.z || 0)) > 0.92;
-      if (!sameRadius || (caxis.x || caxis.y || caxis.z) && !aligned) return;
-    }
-    var dist = distanceToCircularEdge(point, d);
-    if (dist < bestDist) { bestDist = dist; best = entry; }
-  });
-  return best && bestDist <= maxDist ? best : null;
-}
 
-function promotePickedEdge(entry, entries) {
-  if (!entry) return null;
-  var merged = resolveMergedTopology(entries.length ? entries : [entry], entry.persistentId) || entry;
-  if (merged.descriptor && merged.descriptor.curve === "circle") return merged;
-  var points = edgePoints(merged.descriptor);
-  var mid = points.length >= 2
-    ? points[points.length >> 1]
-    : merged.descriptor && merged.descriptor.origin;
-  if (!mid) return merged;
-  return nearestCircularEdge(entries, mid, { maxDist: 2.4 }) || merged;
-}
 
 /* Assembly picking walks the same object tree as the part editor, but every
    component group carries its own document. Resolve which component owns a hit
@@ -16223,10 +15384,28 @@ function pickPartsFor(component) {
   return (def && def.parts) || [];
 }
 
-/* Resolve every raw ray hit far enough for Select Through. Ordinary picking
-   performs richer analytic face matching below, but a kernel face range is
-   already an exact persistent-topology answer and must not disappear merely
-   because an edge overlay was the first object on the ray. */
+
+
+function nearestVertexReference(part, event, view, pixelRadius) {
+  if (!part) return null;
+  var rect = viewportRect(view);
+  if (!rect) return null;
+  var entries = vertexEntriesFrom(topologyEntriesForPart(part));
+  if (!entries.length) return null;
+  var best = null, bestDistance = Infinity;
+  var band = Math.max(6, Number(pixelRadius) || 0);
+  entries.forEach(function (entry) {
+    var at = projectToScreen(view, entry.descriptor.point, rect);
+    if (!at) return;
+    var distance = Math.hypot(event.clientX - at.x, event.clientY - at.y);
+    if (distance > band || distance >= bestDistance) return;
+    bestDistance = distance;
+    best = entry;
+  });
+  return best ? topologyReferenceFromEntry(best) : null;
+}
+
+
 function rawTopologyPickCandidate(hit, view) {
   if (!hit || !hit.object) return null;
   var chain = pickOwnerChain(hit.object, view.grp);
@@ -16251,38 +15430,9 @@ function rawTopologyPickCandidate(hit, view) {
   return { part: part, reference: topologyReferenceFromEntry(face) };
 }
 
-function dedupeTopologyCandidates(candidates) {
-  var seen = new Set(), out = [];
-  (candidates || []).forEach(function (candidate) {
-    if (!candidate || !candidate.reference) return;
-    var partId = candidate.part && candidate.part.id || "";
-    var reference = candidate.reference;
-    var key = partId + "|" + (reference.persistentId || finishEdgeKey(reference));
-    if (seen.has(key)) return;
-    seen.add(key);
-    out.push(candidate);
-  });
-  return out;
-}
 
-/* Scratch instances for the pick paths, which run per pointermove. These must
-   be created lazily: THREE is late-bound (js/three_lazy.js) and is an EMPTY
-   object at module-evaluation time, so constructing one here throws and takes
-   the whole module down with it. Both call sites are downstream of the
-   openModeler() loadThree() gate, so by the time either runs three is up. */
-var pickRaycaster = null;
-var pickPointer = null;
-var _scratchCandidateBox = null;
 var _scratchToComponent = null;
 var _scratchPickNormal = null;
-function getScratchCandidateBox() {
-  if (!_scratchCandidateBox) _scratchCandidateBox = new THREE.Box3();
-  return _scratchCandidateBox;
-}
-function pickScratch() {
-  if (!pickRaycaster) { pickRaycaster = new THREE.Raycaster(); pickPointer = new THREE.Vector2(); }
-  return pickRaycaster;
-}
 
 function resolveTopologyPick(event, view, options) {
   var prefer = options && options.prefer || E.selectionFilter || "all";
@@ -16568,6 +15718,14 @@ function resolveTopologyPick(event, view, options) {
         partObject = partObject.parent;
       }
     }
+    /* A corner beats whatever it sits on, but only while the Vertex filter is
+       asking for one. Vertices are derived from edge endpoints rather than
+       carried in the topology, so they cost nothing until something wants
+       them — and leaving All-mode arbitration alone means the face-vs-edge
+       rules the rest of the editor is built on do not shift underfoot. */
+    if (prefer === "vertex") {
+      topologyReferencePicked = nearestVertexReference(part, event, view, pickPixels) || null;
+    }
     return {
       hits: hits, part: part, component: pickComponent || null, reference: topologyReferencePicked,
       /* Where the ray actually landed, in the same space as the descriptors.
@@ -16594,9 +15752,15 @@ function hoverAssemblyTopology(event, view, precomputedHandle) {
     if (E.hoverTopology) { E.hoverTopology = null; refreshDecorations(); }
     return;
   }
-  var found = resolveTopologyPick(event, view, { prefer: E.facePick ? "face" : E.selectionFilter });
+  var found = resolveTopologyPick(event, view, { prefer: commandSelectionPrefer() });
   var next = stampComponentRef(found && found.reference || null, found && found.component, found);
   if (E.facePick && next && next.kind !== "face") next = null;
+  /* Hover used to pre-highlight references the filter would then refuse to
+     select, so the model lit up under the cursor and the click did nothing.
+     Highlight only what is actually acquirable, and say so in the cursor. */
+  var hoverFilter = commandSelectionPrefer();
+  var filterBlocked = !!(next && !selectionFilterAllows(next.kind, hoverFilter));
+  if (filterBlocked) next = null;
   /* Which instance, not just which face. Two components off the same library
      model share every persistent id, so comparing ids alone called the move
      from one instance's face to the matching face on the other "no change" and
@@ -16610,11 +15774,20 @@ function hoverAssemblyTopology(event, view, precomputedHandle) {
     var draggable = E.docType === "assembly" && found && found.component && E.tool === "select";
     view.rr.domElement.style.cursor = E.facePick ? "crosshair"
       : draggable ? (found.component.grounded ? "not-allowed" : "grab")
-      : next ? "pointer" : "";
+      : next ? "pointer" : filterBlocked ? "not-allowed" : "";
+    /* "pointer" says something is there; it does not say what. A CAD cursor
+       has to distinguish a face from the edge that bounds it, because the two
+       sit within a few pixels of each other and picking the wrong one is the
+       most common way a click goes astray. */
+    view.rr.domElement.dataset.hoverKind = next ? next.kind : filterBlocked ? "blocked" : "";
   }
-  if (same) return;
+  // Where the ray met the model, so an armed Measure can read out live.
+  E.hoverPoint = found && found.pickPoint ? found.pickPoint : null;
+  if (same) { syncHint(); return; }
   E.hoverTopology = next;
   refreshDecorations();
+  // The readout above is about the cursor, so it updates when the cursor does.
+  syncHint();
 }
 
 /* ================= 3D Notes, Annotations & Painting ================= */
@@ -17317,7 +16490,7 @@ function pickAssemblyComponent(event, view) {
   if (E.tool === "paint") { pickPaintAction(event, view); return; }
   if (E.tool === "note" && (!E.noteMode || E.noteMode === "callout")) { pickNoteAction(event, view); return; }
   if (E.docType === "part") {
-    var found = resolveTopologyPick(event, view, { prefer: E.facePick ? "face" : E.selectionFilter }) || {};
+    var found = resolveTopologyPick(event, view, { prefer: commandSelectionPrefer() }) || {};
     if (found.helixId && !E.facePick) {
       E.selectedReferenceId = found.helixId;
       if (!event.ctrlKey && !event.metaKey) E.topologySelection = [];
@@ -17333,16 +16506,21 @@ function pickAssemblyComponent(event, view) {
       facePickFromViewport(topologyReferencePicked);
       return;
     }
-    if (E.selectionFilter === "body") topologyReferencePicked = null;
-    else if (E.selectionFilter === "sketch") { refreshSelection(); return; }
-    else if (topologyReferencePicked && !selectionFilterAllows(topologyReferencePicked.kind, E.selectionFilter)) {
+    var activeFilter = commandSelectionPrefer();
+    if (activeFilter === "body") topologyReferencePicked = null;
+    else if (topologyReferencePicked && !selectionFilterAllows(topologyReferencePicked.kind, activeFilter)) {
+      /* The pointer is over geometry the active filter refuses. Dropping both
+         the reference and the part without a word is what makes picking feel
+         broken — the click looks identical to a click on nothing. Name the
+         filter that rejected it instead. */
+      flash(tf("selFilterBlocked", { kind: selectionFilterLabel(activeFilter) }));
       topologyReferencePicked = null;
-      if (E.selectionFilter !== "all") part = null;
+      if (activeFilter !== "all") part = null;
     }
     var overlappingCandidates = (found.hits || []).map(function (hit) {
       return rawTopologyPickCandidate(hit, view);
     }).filter(function (candidate) {
-      return candidate && selectionFilterAllows(candidate.reference.kind, E.selectionFilter);
+      return candidate && selectionFilterAllows(candidate.reference.kind, activeFilter);
     });
     if (topologyReferencePicked) overlappingCandidates.unshift({ part: part, reference: topologyReferencePicked });
     overlappingCandidates = dedupeTopologyCandidates(overlappingCandidates);
@@ -17351,13 +16529,14 @@ function pickAssemblyComponent(event, view) {
        several tessellated hits onto one merged edge. Cycling a list with
        repeats lands back on the current pick and looks like a dead click. */
     overlapping = dedupeFinishRefs(overlapping);
-    if (event.shiftKey && overlapping.length > 1) {
-      topologyReferencePicked = cycleOverlappingHits(overlapping, E.topologySelection[0] && E.topologySelection[0].persistentId);
-      var cycled = overlappingCandidates.find(function (candidate) {
-        return candidate.reference.persistentId === topologyReferencePicked.persistentId;
-      });
-      if (cycled && cycled.part) part = cycled.part;
-    }
+    /* Shift used to cycle these. It cannot: Shift is what CAD users press to
+       GROW a selection, and here it was also the pan modifier (editor_view.js)
+       — three jobs on one key, none of them "add". Cycling moved to the chip
+       offered next to the cursor, which also makes it discoverable; Select
+       Through on right-click remains the exhaustive list. The old cycle keyed
+       off E.topologySelection[0] rather than what is under the pointer, so a
+       second Shift-click somewhere else cycled the previous pick. */
+    offerPickCycle(overlappingCandidates, topologyReferencePicked, event);
     E.sel = part;
     E.ssel = [];
     if (finishCommandActive() && topologyReferencePicked) {
@@ -17370,8 +16549,14 @@ function pickAssemblyComponent(event, view) {
     else if (event.ctrlKey || event.metaKey || E.mobileAddSelection) {
       var selectedAt = E.topologySelection.findIndex(function (reference) { return reference.persistentId === topologyReferencePicked.persistentId; });
       if (selectedAt === -1) E.topologySelection.push(topologyReferencePicked); else E.topologySelection.splice(selectedAt,1);
+    } else if (event.shiftKey) {
+      // Add, never remove: that asymmetry with Ctrl is what makes Shift safe to
+      // hold down while sweeping a fillet set.
+      if (!E.topologySelection.some(function (reference) { return reference.persistentId === topologyReferencePicked.persistentId; })) {
+        E.topologySelection.push(topologyReferencePicked);
+      }
     } else E.topologySelection = [topologyReferencePicked];
-    if (topologyReferencePicked && !event.ctrlKey && !event.metaKey) E.selectedReferenceId = null;
+    if (topologyReferencePicked && !event.ctrlKey && !event.metaKey && !event.shiftKey) E.selectedReferenceId = null;
     if(part && activeTab("R")==="sketch")setTab("shape");
     if(E.authoring && E.authoring.featureType && E.authoring.featurePreviewState && !E.authoring.featureEdit){
       syncNewFeaturePreview(E.authoring.featureType,E.authoring.featurePreviewState,E.authoring.featurePreviewBadge);
@@ -17415,18 +16600,84 @@ function pickAssemblyComponent(event, view) {
   if (component) {
     var picked = (E.topologySelection || []).filter(function (candidate) { return candidate.componentId; });
     if (additive) {
-      /* Ctrl/Cmd builds the pair up, and picking the same reference twice takes
-         it back off. Only the last two matter — those are the two the mate
-         buttons act on. */
+      /* Ctrl/Cmd builds the selection up, and picking the same reference twice
+         takes it back off. The set is NOT capped at two: that cap was right for
+         SmartMate and wrong for everything else an assembly selection feeds —
+         measuring, appearances, hiding several faces at once — all of which
+         silently lost the earlier picks. assemblyPickedRefs() takes the pair it
+         needs out of the full set instead. */
       var kept = picked.filter(function (candidate) {
         return !(reference && candidate.componentId === reference.componentId && candidate.persistentId === reference.persistentId);
       });
       var removed = kept.length !== picked.length;
-      E.topologySelection = (reference && !removed ? kept.concat([reference]) : kept).slice(-2);
+      E.topologySelection = reference && !removed ? kept.concat([reference]) : kept;
     } else {
       E.topologySelection = reference ? [reference] : [];
     }
   }
+  refreshSelection();
+}
+
+/* "3 of 5 here" beside the cursor whenever a click resolved one of several
+   overlapping references. Clicking it steps to the next one, which is the job
+   Shift used to do invisibly — nothing in the editor said a second candidate
+   existed, so the feature was only ever found by accident. Right-click still
+   opens the full Select Through list; this is the one-handed version.
+
+   The candidate list is captured at pick time. Re-raycasting on each step
+   would let a hand that drifted two pixels renumber the list mid-cycle. */
+function offerPickCycle(candidates, picked, event) {
+  var list = (candidates || []).filter(function (candidate) { return candidate && candidate.reference; });
+  if (!picked || list.length < 2 || !event || event.pointerType === "touch") { hidePickCycle(); return; }
+  var at = list.findIndex(function (candidate) { return candidate.reference.persistentId === picked.persistentId; });
+  E.pickCycle = { candidates: list, index: at < 0 ? 0 : at, x: event.clientX, y: event.clientY };
+  renderPickCycle();
+}
+
+function hidePickCycle() {
+  E.pickCycle = null;
+  var host = root && root.querySelector("#mdPickCycle");
+  if (host) { host.hidden = true; host.innerHTML = ""; }
+}
+
+function renderPickCycle() {
+  var host = root && root.querySelector("#mdPickCycle"), cycle = E.pickCycle;
+  if (!host) return;
+  if (!cycle) { hidePickCycle(); return; }
+  host.innerHTML = "";
+  var button = el("button", "", '<i class="ph ph-stack-simple"></i> ' +
+    tf("pickCycle", { index: cycle.index + 1, count: cycle.candidates.length }));
+  button.type = "button";
+  button.dataset.tip = t("pickCycleTip");
+  button.addEventListener("click", function (clickEvent) {
+    clickEvent.stopPropagation();
+    stepPickCycle();
+  });
+  host.appendChild(button);
+  host.hidden = false;
+  var width = host.offsetWidth || 120, height = host.offsetHeight || 26;
+  host.style.left = Math.max(8, Math.min(cycle.x + 14, window.innerWidth - width - 8)) + "px";
+  host.style.top = Math.max(8, Math.min(cycle.y + 14, window.innerHeight - height - 8)) + "px";
+}
+
+function stepPickCycle() {
+  var cycle = E.pickCycle;
+  if (!cycle || !cycle.candidates.length) return;
+  var current = cycle.candidates[cycle.index];
+  /* One implementation of "the next one under here", shared with the tests
+     that cover it. The index is kept alongside only so the chip can count. */
+  var next = cycleOverlappingHits(cycle.candidates.map(function (candidate) { return candidate.reference; }),
+    current && current.reference.persistentId);
+  if (!next) return;
+  var at = cycle.candidates.findIndex(function (candidate) { return candidate.reference.persistentId === next.persistentId; });
+  cycle.index = at < 0 ? 0 : at;
+  var candidate = cycle.candidates[cycle.index];
+  if (candidate.part) E.sel = candidate.part;
+  if (finishCommandActive()) {
+    if (candidate.reference.kind === "face") toggleFinishEdges(edgeRefsForFaces([candidate.reference], candidate.part || selectedSolid()));
+    else if (candidate.reference.kind === "edge") toggleFinishEdges([candidate.reference]);
+  } else E.topologySelection = [candidate.reference];
+  renderPickCycle();
   refreshSelection();
 }
 
@@ -17490,6 +16741,19 @@ function showSelectThrough(event, view) {
   if (!host) return;
   closeChromeOverlays();
   host.innerHTML = "";
+  /* Select Through is one section of this menu, not the whole of it. Growing a
+     selection is the far more common reason to right-click, so it comes first
+     and the ambiguity list sits under its own heading below. */
+  var selectionOps = selectionMenuItems(chromeSelectionInput());
+  if (selectionOps.length) {
+    selectionOps.forEach(function (item) {
+      var opButton = el("button", "md-context-op", cadIcon(item.id) + "<span>" + chromeCommandLabel(item.id) + "</span>");
+      opButton.type = "button";
+      opButton.addEventListener("click", function () { closeChromeOverlays(); runChromeCommand(item.id); });
+      host.appendChild(opButton);
+    });
+    host.appendChild(el("div", "md-context-sep"));
+  }
   host.appendChild(el("strong", "md-context-title", t("touchSelectThrough")));
   candidates.forEach(function (candidate, index) {
     var reference = candidate.reference;
@@ -17507,6 +16771,7 @@ function showSelectThrough(event, view) {
     });
     host.appendChild(button);
   });
+  host.appendChild(el("div", "md-context-sep"));
   contextToolbarItems(chromeSelectionInput()).slice(0, 4).forEach(function (item) {
     var button = el("button", "md-context-op", "<span>" + chromeCommandLabel(item.id) + "</span>");
     button.type = "button";
@@ -17540,14 +16805,18 @@ function frameIsUsable(frame) {
   return !!(frame && frame.origin && (frame.normal || frame.axis));
 }
 
-/* The two most recent picks, when they sit on different components, are what
-   the mate buttons act on. Anything less and they fall back to the synthesized
-   bounding-box frames. */
+/* The mate pair: the newest pick, and the most recent one before it that sits
+   on a DIFFERENT component. Reading the last two literally meant a third pick
+   on the same component — or any unrelated face gathered for measuring — broke
+   the pair and left the mate buttons falling back to bounding-box frames. */
 function assemblyPickedRefs() {
   var refs = (E.topologySelection || []).filter(function (reference) { return reference && reference.componentId; });
   if (refs.length < 2) return null;
-  var a = refs[refs.length - 2], b = refs[refs.length - 1];
-  if (a.componentId === b.componentId) return null;
+  var b = refs[refs.length - 1], a = null;
+  for (var i = refs.length - 2; i >= 0; i--) {
+    if (refs[i].componentId !== b.componentId) { a = refs[i]; break; }
+  }
+  if (!a) return null;
   if (!assemblyComponentById(a.componentId) || !assemblyComponentById(b.componentId)) return null;
   return { a: a, b: b };
 }
@@ -17593,29 +16862,17 @@ function mateFramesFit(type, frameA, frameB) {
    or axis synthesized from each component's own bounding box. The gate and the
    command build them here, together, so the gate is judging the very frames
    the mate would be stored with. */
-function mateFallbackRefs(type) {
-  var pair = ungroundedComponentPair();
-  if (!pair) return null;
-  var kind = mateRequirementFor(type) === "planar" ? "face" : "axis";
-  return {
-    a: componentTopologyRef(pair.a, kind, "max"),
-    b: componentTopologyRef(pair.b, kind, "min"),
-  };
-}
 
 /* Whether this mate can be built from what is picked right now, and if not,
    what it wanted. */
 function mateTypeFits(type) {
   var picked = assemblyPickedRefs();
+  /* Every mate type is unavailable until two faces on two components are
+     picked. This used to fall back to the bounding-box frames and answer from
+     those, so the palette offered mates whose geometry did not exist. */
+  if (!picked) return { ok: false, reason: t("mateNeedTwoFaces") };
   var frameOf = function (reference) { return mateReferenceFromPick(reference).frame; };
-  if (picked) return mateFramesFit(type, frameOf(picked.a), frameOf(picked.b));
-  /* The bounding-box fallback is not a blank cheque. Its axis frame is a
-     centre line with no radius, so Tangent was offered on any two selected
-     components and then refused by the solver the moment it was clicked —
-     the button promising exactly what this check exists to stop it promising. */
-  var fallback = mateFallbackRefs(type);
-  if (!fallback) return { ok: false, reason: t("mateHint") };
-  return mateFramesFit(type, fallback.a.frame, fallback.b.frame);
+  return mateFramesFit(type, frameOf(picked.a), frameOf(picked.b));
 }
 
 /* Picked references carry the descriptor in the component's own space, which
@@ -17897,6 +17154,14 @@ function syncFeatureFormValue(key, value) {
 
 function beginInstant3dDrag(event, view) {
   if (E.docType === "assembly" && event.altKey) return beginSmartMateDrag(event, view);
+  /* Ctrl/Cmd-drag is a window select. Plain primary-drag is this editor's
+     orbit — the documented CAD navigation — so taking it for a marquee the way
+     SolidWorks does would cost the gesture people use most. Ctrl/Cmd has no
+     drag meaning today (the click handler requires a stationary pointer) and
+     already means "add to the selection" on click, which is exactly what the
+     window does. On macOS a Ctrl-drag cannot open the context menu either:
+     that handler ignores a pointer that moved. */
+  if ((event.ctrlKey || event.metaKey) && beginBoxSelectDrag(event, view)) return true;
   if (E.docType === "assembly" && beginAssemblyComponentDrag(event, view)) return true;
   if (E.tool === "paint") return beginPaintDrag(event, view);
   if (E.tool === "note" && (E.noteMode === "markup" || E.noteMode === "eraser")) return beginMarkupDrag(event, view);
@@ -18110,6 +17375,148 @@ function beginAssemblyComponentDrag(event, view) {
    it the mate's B side: the solver only ever moves B. Passing the drag source
    as A did the reverse, and since the drop target is usually the grounded
    base, the solver then refused the mate outright and nothing happened. */
+/* Window select in 3D, with the 2D canvas's grammar: dragged left-to-right
+   takes only what is fully enclosed, right-to-left takes anything it crosses.
+   boxSelectMode/boundsHitBox are the same helpers the sketch marquee uses, so
+   the two views cannot drift apart on what "crossing" means. */
+function beginBoxSelectDrag(event, view) {
+  if (E.docType !== "part" || E.tool !== "select" || E.facePick) return false;
+  var rect = viewportRect(view);
+  if (!rect) return false;
+  var part = selectedSolid() || activeParts(E.def)[activeParts(E.def).length - 1] || null;
+  if (!part) return false;
+  /* Started ON the model, the same Ctrl/Cmd-drag paints instead of windowing.
+     A window drawn from a point already inside the body is nearly useless —
+     it starts over the thing it is meant to enclose — and sweeping along a run
+     of edges is the gesture actually wanted there. Same split Instant3D makes
+     between a handle and open space. */
+  var over = resolveTopologyPick(event, view, { prefer: commandSelectionPrefer() });
+  if (over && over.reference) return beginPaintSelectDrag(event, view, part, over.reference);
+  var host = root && root.querySelector("#mdMarquee");
+  if (!host) return false;
+  event.preventDefault();
+  var start = { x: event.clientX, y: event.clientY };
+  var box = { x0: start.x, y0: start.y, x1: start.x, y1: start.y };
+  var moved = false;
+  var paint = function () {
+    var mode = boxSelectMode(box.x0, box.x1);
+    host.hidden = false;
+    host.classList.toggle("is-crossing", mode === "crossing");
+    host.style.left = Math.min(box.x0, box.x1) + "px";
+    host.style.top = Math.min(box.y0, box.y1) + "px";
+    host.style.width = Math.abs(box.x1 - box.x0) + "px";
+    host.style.height = Math.abs(box.y1 - box.y0) + "px";
+  };
+  function move(ev) {
+    box.x1 = ev.clientX; box.y1 = ev.clientY;
+    if (Math.hypot(box.x1 - start.x, box.y1 - start.y) > 3) moved = true;
+    if (moved) paint();
+  }
+  function up() {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", up);
+    host.hidden = true;
+    host.classList.remove("is-crossing");
+    if (moved) applyBoxSelection(part, box, view, rect);
+  }
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
+  return true;
+}
+
+/* Sweep to accumulate: everything the pointer passes over joins the selection,
+   and nothing leaves it. Additive only, like the Shift-click it is the dragged
+   form of — a sweep that could also deselect would undo its own work as the
+   pointer re-crossed an edge it had just taken. */
+function beginPaintSelectDrag(event, view, part, firstReference) {
+  var added = new Set();
+  var take = function (reference) {
+    if (!reference || added.has(reference.persistentId)) return;
+    added.add(reference.persistentId);
+    if (finishCommandActive()) {
+      if (reference.kind === "face") toggleFinishEdges(edgeRefsForFaces([reference], part));
+      else if (reference.kind === "edge") toggleFinishEdges([reference]);
+      return;
+    }
+    if ((E.topologySelection || []).some(function (item) { return item.persistentId === reference.persistentId; })) return;
+    E.topologySelection = (E.topologySelection || []).concat([reference]);
+  };
+  E.sel = part;
+  take(firstReference);
+  refreshSelection();
+  event.preventDefault();
+  function move(ev) {
+    var found = resolveTopologyPick(ev, view, { prefer: commandSelectionPrefer() });
+    if (!found || !found.reference) return;
+    var before = added.size;
+    take(found.reference);
+    if (added.size !== before) refreshSelection();
+  }
+  function up() {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", up);
+    if (added.size > 1) flash(tf("selectOpResult", { count: (E.topologySelection || []).length }));
+  }
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
+  return true;
+}
+
+function applyBoxSelection(part, box, view, rect) {
+  var filter = commandSelectionPrefer();
+  var entries = topologyEntriesForPart(part);
+  var mode = boxSelectMode(box.x0, box.x1);
+  /* A planar face has no outline in its descriptor, so it is taken when the
+     edges that bound it are taken — enclosed needs all of them inside,
+     crossing needs one. That keeps faces honest rather than approximating a
+     surface from a centre point and an area. */
+  var wantsFaces = filter === "face" || filter === "all";
+  var picked = [];
+  var edgeHit = new Map();
+  entries.forEach(function (entry) {
+    if (entry.kind !== "edge" && entry.kind !== "vertex") return;
+    var bounds = entryScreenBounds(entry, view, rect);
+    if (!bounds) return;
+    var hit = boundsHitBox(bounds, box, mode);
+    if (entry.kind === "edge") edgeHit.set(entry.persistentId, hit);
+    if (!hit || !selectionFilterAllows(entry.kind, filter)) return;
+    picked.push(entry);
+  });
+  if (filter === "vertex" || filter === "edge" || filter === "all") {
+    vertexEntriesFrom(entries).forEach(function (entry) {
+      if (!selectionFilterAllows("vertex", filter)) return;
+      var bounds = entryScreenBounds(entry, view, rect);
+      if (bounds && boundsHitBox(bounds, box, mode)) picked.push(entry);
+    });
+  }
+  if (wantsFaces) {
+    var registry = createTopologyRegistry(entries);
+    entries.filter(function (entry) { return entry.kind === "face"; }).forEach(function (face) {
+      var bounding = edgesBoundingFace(face, registry);
+      if (!bounding.length) return;
+      var taken = bounding.map(function (edge) { return edgeHit.get(edge.persistentId) === true; });
+      var include = mode === "enclosed" ? taken.every(Boolean) : taken.some(Boolean);
+      if (include) picked.push(face);
+    });
+  }
+  var refs = dedupeFinishRefs(picked.map(topologyReferenceFromEntry).filter(Boolean));
+  if (!refs.length) { flash(t("selectOpEmpty")); return; }
+  E.sel = part;
+  // Ctrl/Cmd is add, here as on a click.
+  if (finishCommandActive()) setFinishEdges(currentFinishEdges().concat(refs), { pool: true });
+  else {
+    var have = new Set((E.topologySelection || []).map(function (reference) { return reference.persistentId; }));
+    E.topologySelection = (E.topologySelection || []).concat(refs.filter(function (reference) { return !have.has(reference.persistentId); }));
+    refreshSelection();
+  }
+  hidePickCycle();
+  flash(tf("selectOpResult", { count: (E.topologySelection || []).length }));
+}
+
 function beginSmartMateDrag(event, view) {
   var pick = function (source) {
     return resolveTopologyPick({ clientX: source.clientX, clientY: source.clientY, pointerType: source.pointerType }, view, { prefer: E.selectionFilter }) || {};
@@ -18196,9 +17603,11 @@ function initPreview() {
     beginDrag: beginInstant3dDrag,
     contextMenu: function (event) { showSelectThrough(event, E.pv); },
     longPress: showSelectThrough,
+    doubleClick: function () { growSelectionFromDoubleClick(); },
     afterRender: function (view) {
       syncInstant3dValue(view);
       syncNotesAndMarkups(view);
+      refreshDecorationScale();
     },
     lighting: editorLightingSettings,
     gesturePreview: previewMouseGesture,
@@ -18315,6 +17724,12 @@ function setMode(m) {
   E.mode = m;
   E.modelPlaneActive = false;
   E.touchPrecision = null;
+  /* The chip names candidates from one viewport ray; a mode change invalidates
+     it. syncSelectionFilters() also demotes the Sketch filter, which has
+     nothing to acquire once the sketch view is gone. */
+  hidePickCycle();
+  dismissProfileOffer();
+  syncSelectionFilters();
   if (E.pv) E.pv.clearFixedFrame(false);
   if (m === "3d" || m === "drawing") E.tool = "select";
   E.dimPick = [];
@@ -18678,8 +18093,17 @@ function refreshLib() {
         countLabel((assembly.components || []).length, "assemblyComponentOne", "assemblyComponents") + " · " +
         countLabel(assemblyMateCount(assembly), "matesCountOne", "matesCount")));
       card.addEventListener("click", function () {
+        if (!confirmDiscardDocument("unsavedOpen")) return;
         E.assembly = cloneData(assembly); E.componentSel = []; E.sel = null;
         invalidateInterference();
+        /* Opening an assembly is a document open, the same as the part cards
+           below. Without these two lines the new assembly inherited the
+           previous document's undo stack and its saved baseline, so Undo
+           reached back into a document that was no longer open and the dirty
+           flag was reporting on one that no longer existed. */
+        H.clear().seed();
+        markDocumentClean();
+        discardModelerDraft();
         syncHead(); refreshAll(); refreshLib(); fitPreview();
       });
       var del = btn('<i class="ph ph-trash"></i>', function (e) {
@@ -18714,6 +18138,7 @@ function refreshLib() {
          look as though it had not loaded.  Use the one document-open path so
          selecting a saved model behaves exactly like opening it from a placed
          instance and lands on its design tree. */
+      if (!confirmDiscardDocument("unsavedOpen")) return;
       openModeler(null, m, null);
     });
     var x = btn('<i class="ph ph-trash"></i>', async function (e) {
@@ -18749,6 +18174,30 @@ function syncHead() {
   if (sub) sub.textContent = E.docType === "assembly" ? "· " + t("docAssembly") : E.srcItem ? "· " + (flabel ? flabel(E.srcItem.type) : E.srcItem.type) : "";
 }
 
+/* The exact-tree twin of the `merges3d` fusion the viewport performs.
+   Every merge kind gets emitted, not just the analytic extrusion: a merged
+   sweep that only the viewport knew about was a body STEP export, mass and
+   interference all silently built without. The params are the kernel-facing
+   ones, which is exactly what regenerateFeatures hands to makeBrep*. */
+function mergeFeatureRecipe(merge) {
+  if (merge.kind === "revolve") return { type:"revolve", params:{ axis:merge.axis || "y", angle:Number(merge.angle)||360, direction:merge.direction, points:cloneData(merge.loop || []) } };
+  if (merge.kind === "sweep") return { type:"sweep", params:{ profile:cloneData(merge.profile || []), path:cloneData(merge.path || []), orientation:merge.orientation, twistAngle:merge.twistAngle, scale:merge.scale, solid:true } };
+  if (merge.kind === "loft") return { type:"loft", params:{ sections:cloneData(merge.sections || []), solid:merge.solid !== false, ruled:!!merge.ruled, matchProfiles:merge.matchProfiles !== false, continuity:merge.continuity, tolerance:merge.tolerance } };
+  if (merge.kind) return null;
+  return { type:"extrude", params:{ axis:merge.axis, ...(merge.frame ? {frame:cloneData(merge.frame)} : {}), from:merge.from, to:merge.to, points:cloneData(merge.loop || []), draftAngle:Number(merge.draftAngle)||0, draftOutward:!!merge.draftOutward } };
+}
+
+function emitPartMerges(target, part, feature) {
+  (part.merges3d || []).forEach(function (merge, mergeIndex) {
+    if (merge.suppressed) return;
+    var recipe = mergeFeatureRecipe(merge);
+    if (!recipe) return;
+    var addition = addFeature(target, { id:part.featureId + ":merge-body:" + mergeIndex, type:recipe.type, name:"Merged body " + (mergeIndex+1), params:recipe.params });
+    feature = addFeature(target, { id:part.featureId + ":merge:" + mergeIndex, type:"union", name:"Merge " + (mergeIndex+1), inputs:[feature.id,addition.id] });
+  });
+  return feature;
+}
+
 function rebuildFeatureTreeFromDocument(target) {
   target=target || E.def;
   var previousFeatures=new Map((target.features || []).map(function(feature){return [feature.id,feature];}));
@@ -18767,6 +18216,15 @@ function rebuildFeatureTreeFromDocument(target) {
       var cylinderParams=part.parametricEnvelope === "cylinder" && target.parameters
         ? {x:0,y:0,z:0,r:"$radius",h:"$height"} : {x:part.x,y:part.y,z:part.z,r:part.r,h:part.h};
       feature = addFeature(target, { id:part.featureId, type:"cylinder", name:part.name || "Cylinder", params:cylinderParams });
+    } else if (part.kind === "cyl") {
+      /* A tapered leg is a cone, not a cylinder. Without this branch the
+         projection emitted nothing for it, so the legacy engine measured a
+         document the canonical one had converted — and migration_check's
+         two-engine comparison refused a document it could see nothing wrong
+         with. Same for the sphere below. `r1` is the name makeBrepCone reads. */
+      feature = addFeature(target, { id:part.featureId, type:"cone", name:part.name || "Cone", params:{x:part.x,y:part.y,z:part.z,r1:part.r,r2:part.r2,h:part.h} });
+    } else if (part.kind === "sph") {
+      feature = addFeature(target, { id:part.featureId, type:"sphere", name:part.name || "Sphere", params:{x:part.x,y:part.y,z:part.z,r:part.r} });
     } else if (part.kind === "ext") {
       feature = addFeature(target, { id:part.featureId, type:"extrude", name:part.name || "Extrude", params:{axis:part.axis,...(part.frame ? {frame:cloneData(part.frame)} : {}),from:part.from,to:part.to,points:cloneData(part.pts),...(part.profileEntityIds ? {profileEntityIds:cloneData(part.profileEntityIds), sketchId:part.sketchId} : {}),...(part.support ? {support:cloneData(part.support),baseOffset:Number(part.supportBaseOffset)||0,depth:Number(part.supportDepth)||Math.abs(part.to-part.from)} : {})}, inputs:part.support ? [part.support.ownerFeatureId] : [] });
       (part.holes || []).forEach(function (hole, holeIndex) {
@@ -18783,6 +18241,11 @@ function rebuildFeatureTreeFromDocument(target) {
       });
     } else if (part.kind === "rev") {
       feature=addFeature(target,{id:part.featureId,type:"revolve",name:part.name || "Revolve",params:{angle:360,points:cloneData(part.pts),...(part.profileEntityIds?{profileEntityIds:cloneData(part.profileEntityIds),sketchId:part.sketchId}:{})}});
+    } else if (isKernelBody(part) && part.kernel) {
+      /* The recipe IS the feature. Re-emitting it keeps a kernel body in the
+         exact BREP tree — STEP/IGES export, mass, interference — instead of
+         dropping it silently, which is what an unrecognised kind does here. */
+      feature=addFeature(target,{id:part.featureId,type:part.kernel.type,name:part.name || "Body",params:cloneData(part.kernel.params)});
     } else if ((part.kind === "direct" || part.kind === "mesh") && part.meshData) {
       var directBounds=partBounds(part);
       var previousImport=previousFeatures.get(part.featureId), directPayload=part.sourcePayload || previousImport && previousImport.params && previousImport.params.sourcePayload;
@@ -18793,14 +18256,22 @@ function rebuildFeatureTreeFromDocument(target) {
       }});
     }
     if (feature) {
+      // Merges land before the finish operations, the order the viewport
+      // rebuild uses: a fillet is taken on the fused body, not on the host
+      // before the boss existed.
+      feature = emitPartMerges(target, part, feature);
       var exactOperations=Array.isArray(part.exactOperations) && part.exactOperations.length ? part.exactOperations.filter(function(operation){return !operation.suppressed;}) : [];
       if (!exactOperations.length && fin(part.exactFillet) && part.exactFillet>0) exactOperations=[{id:part.featureId+":fillet",type:"fillet",amount:part.exactFillet,targets:part.exactFilletTargets || []}];
       exactOperations.forEach(function(operation,operationIndex){
         var params={targets:cloneData(operation.targets || [])};
-        if (operation.type==="fillet") params.radius=operation.amount;
-        else if (operation.type==="chamfer") params.distance=operation.amount;
-        else if (operation.type==="shell") params.thickness=operation.amount;
-        else return;
+        if (FINISH_AMOUNT_KEY[operation.type]===undefined && !BODY_OPERATIONS.has(operation.type)) return;
+        // The recorded params carry the operation's other settings (draft's
+        // pull axis and neutral plane, a fillet's section); the amount is
+        // authoritative and therefore written last. A split or a move has no
+        // such number, and dropping it here left the exact tree — STEP export,
+        // mass, interference — rebuilding a body that was never split.
+        Object.assign(params, cloneData(operation.params || {}));
+        if (FINISH_AMOUNT_KEY[operation.type]!==undefined) params[FINISH_AMOUNT_KEY[operation.type]]=operation.amount;
         feature=addFeature(target,{
           id:operation.id || part.featureId+":"+operation.type+":"+(operationIndex+1),
           type:operation.type,name:operation.type[0].toUpperCase()+operation.type.slice(1),params:params,inputs:[feature.id],
@@ -18814,6 +18285,30 @@ function rebuildFeatureTreeFromDocument(target) {
   return combined;
 }
 
+/* The exact (kernel) run owns native OpenCascade handles, so dropping the
+   reference is not enough — every path that stops using a run has to release
+   it. Document open and close used to do neither: the shape leaked, and
+   E.brepRun stayed pointing at the previous model's solid, which the STEP and
+   IGES exports below then happily wrote out under the new model's name. */
+function releaseExactRun() {
+  if (E.brepRun) releaseRegeneration(E.brepRun);
+  E.brepRun = null;
+  E.brepStamp = null;
+}
+
+function exactRunStamp() {
+  return { doc: (E.def && (E.def.definitionId || E.def.key)) || null, node: currentHistoryNode() };
+}
+
+/* A cached run may be exported only while it still describes THIS document at
+   THIS revision. Anything else regenerates: a stale export is silently wrong,
+   a redundant regeneration is merely slow. */
+function exactRunIsCurrent() {
+  if (!E.brepRun || !E.brepRun.finalShape || !E.brepStamp) return false;
+  var now = exactRunStamp();
+  return E.brepStamp.doc === now.doc && E.brepStamp.node === now.node;
+}
+
 async function regenerateExactModel(rebuild) {
   if (E.docType !== "part" || !activeParts(E.def).length) { flash(t("needParts")); return null; }
   /* The busy state is a flag, not a button handle. This used to reach for
@@ -18823,7 +18318,7 @@ async function regenerateExactModel(rebuild) {
      every disabled state; see its comment. */
   E.kernelBusy = true; syncCommandManager(); flash(t("kernelBusy"));
   try {
-    if (E.brepRun) releaseRegeneration(E.brepRun);
+    releaseExactRun();
     var preserveRecognized=E.def.metadata && E.def.metadata.import && E.def.metadata.import.recognition && E.def.metadata.import.recognition!=="none",executionDocument=E.def;
     if(isCanonicalAuthoring()){
       var compiled=compileKernelFeatureTree(E.def);if(!compiled.ok)throw new Error(compiled.issues[0] && compiled.issues[0].message || "Invalid parametric history");
@@ -18835,8 +18330,13 @@ async function regenerateExactModel(rebuild) {
     }
     E.brepRun = await regenerateFeatures(executionDocument);
     if (!E.brepRun.ok || !E.brepRun.finalShape) throw new Error(E.brepRun.issues[0] ? E.brepRun.issues[0].message : "No supported solid features");
-    refreshParts(); flash("✓ " + t("kernelReady")); return E.brepRun;
+    refreshParts();
+    /* Stamped after refreshParts(), so the run is only ever marked current
+       once the document it belongs to has settled. */
+    E.brepStamp = exactRunStamp();
+    flash("✓ " + t("kernelReady")); return E.brepRun;
   } catch (error) {
+    E.brepStamp = null;
     flash(t("errBrep") + ": " + String(error.message || error)); console.error(error); return null;
   } finally { E.kernelBusy = false; syncCommandManager(); }
 }
@@ -18844,7 +18344,7 @@ async function regenerateExactModel(rebuild) {
 async function exportStepDocument() {
   if (E.docType !== "part") return;
   if (!standardsGate("STEP export")) return;
-  var run = E.brepRun && E.brepRun.finalShape ? E.brepRun : await regenerateExactModel();
+  var run = exactRunIsCurrent() ? E.brepRun : await regenerateExactModel();
   if (!run || !run.finalShape) return;
   try {
     var bytes = await exportStep(run.finalShape, (E.def.name || "model") + ".step");
@@ -18859,7 +18359,7 @@ async function exportStepDocument() {
 async function exportIgesDocument() {
   if (E.docType !== "part") return;
   if (!standardsGate("IGES export")) return;
-  var run = E.brepRun && E.brepRun.finalShape ? E.brepRun : await regenerateExactModel();
+  var run = exactRunIsCurrent() ? E.brepRun : await regenerateExactModel();
   if (!run || !run.finalShape) return;
   try {
     var bytes = await exportIges(run.finalShape, (E.def.name || "model") + ".igs");
@@ -19158,7 +18658,7 @@ function importBundleDocument() {
         bundle.assemblies.forEach(function(item){if(item && item.key)merged.set(item.key,item);});
         saveAssemblies(Array.from(merged.values()));
       }
-      if (E.brepRun) { releaseRegeneration(E.brepRun); E.brepRun=null; }
+      releaseExactRun();
       E.docType="part"; E.def=migrateDefinition(bundle.mainModel); E.srcItem=null; E.sel=null; E.ssel=[]; E.topologySelection=[];
       H.clear().seed(); syncHead(); refreshAll(); refreshLib(); setMode("3d"); fitPreview();
       flash("✓ " + t("bundleImported"));
@@ -19381,7 +18881,7 @@ function importStepDocument() {
         imported.features[0].params.sourcePayload=cloneData(exactPayload);
         imported.metadata.import.exactSource={format:"brep",byteLength:exactPayload.byteLength,checksum:exactPayload.checksum};
       }
-      if (E.brepRun) releaseRegeneration(E.brepRun);
+      releaseExactRun();
       if (!activeParts(E.def).length) {
         imported.key=E.def.key; imported.id=E.def.id || E.def.definitionId || E.def.key; imported.definitionId=imported.id;
         imported.price=E.def.price || 0; E.def=imported;
@@ -19399,6 +18899,9 @@ function importStepDocument() {
       E.def.importedStep = cloneData(imported.metadata.import);
       E.sel=E.def.parts[E.def.parts.length-1]; E.ssel=[]; E.topologySelection=[];
       H.clear().seed(); syncHead(); refreshAll(); setMode("3d"); fitPreview();
+      // Stamped after the history is reseeded, so the run matches the revision
+      // the freshly imported document actually starts on.
+      E.brepStamp = exactRunStamp();
       flash("✓ " + tf("stepImported", {
         file: file.name,
         recognition: imported.metadata.import.recognition === "none" ? t("stepDirectOnly") : tf("stepRecognized", {mode: imported.metadata.import.recognition}),
@@ -19416,6 +18919,11 @@ function importStepDocument() {
 async function saveModel() {
   if (!E.def.parts.length && !ensureSketchDoc(E.def).some(function (s) { return s.entities.length; })) { flash(t("needParts")); return; }
   if (!standardsGate("Save")) return;
+  /* Which document this save is FOR. Attachment externalization and the
+     library write below are both awaited, and openModeler() is synchronous —
+     a library card clicked in that window swaps E.def out from under the tail
+     of this function. See the guard before markDocumentClean(). */
+  var savingDoc = E.def, savingItem = E.srcItem, savingNode = currentHistoryNode();
   E.def.name = root.querySelector("#mdName").value || E.def.name;
   E.def.price = +root.querySelector("#mdPrice").value || 0;
   // Canonical documents already own their feature history.  Reconstructing it
@@ -19470,12 +18978,22 @@ async function saveModel() {
     item.d = item.parameterOverrides && fin(item.parameterOverrides.depth) ? item.parameterOverrides.depth : def.d;
     item.h = item.parameterOverrides && fin(item.parameterOverrides.height) ? item.parameterOverrides.height : def.h;
   });
-  if (E.srcItem && committed.affected.indexOf(E.srcItem) === -1 && S.items.indexOf(E.srcItem) !== -1) {
-    E.srcItem.definitionId = def.id;
-    E.srcItem.type = def.key;
+  if (savingItem && committed.affected.indexOf(savingItem) === -1 && S.items.indexOf(savingItem) !== -1) {
+    savingItem.definitionId = def.id;
+    savingItem.type = def.key;
   }
   render2D();
   S.dirty3D = true; // placed instances of an edited model rebuild with new geometry
+  /* Everything above is about the document that was written and holds however
+     long the awaits took. Everything below is editor state, and the editor may
+     have moved on: marking clean and discarding the recovery draft would then
+     be done to a document nobody saved, throwing away its only backup. The
+     history node is part of the check because an edit made DURING the save is
+     genuinely not in the bytes that were written. */
+  if (E.def !== savingDoc || E.srcItem !== savingItem || currentHistoryNode() !== savingNode) {
+    flash("✓ " + tf("savedNamed", { name: def.name || def.key }));
+    return;
+  }
   flash("✓ " + t("saved"));
   markDocumentClean();
   discardModelerDraft();
@@ -19487,6 +19005,9 @@ function syncPreviewFromHistory() {
   (result.dirtyPartIds || []).forEach(function (id) {
     var part = (E.def.parts || []).find(function (item) { return item.id === id; });
     if (!part) return;
+    // A kernel body has no analytic mesh to fall back on, so dropping its cache
+    // without ordering a rebuild would erase it from the viewport for good.
+    if (isKernelBody(part)) { queueKernelBody(part); return; }
     delete part.meshData;
     part.exactPending = false;
     part.exactError = null;
@@ -19654,6 +19175,9 @@ function queueModelerChrome() {
 }
 
 export function openModeler(editKey, def, srcItem) {
+  // Whether this call REPLACES a document that is already open, as opposed to
+  // opening the editor. The recovery draft below turns on the difference.
+  var replacingOpenDocument = E.open;
   inspectorDirty.sketch = true; inspectorDirty.shape = true; inspectorDirty.look = true; inspectorDirty.ops = true;
   modelerReturnFocus = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
   if (root && E.lang !== getLang()) destroyDOM();
@@ -19668,6 +19192,10 @@ export function openModeler(editKey, def, srcItem) {
   // technology and automation in a control that disappears mid-activation.
   setTimeout(function () { if (E.open) setModelerBackgroundIsolation(true); }, 50);
   E.docType = "part";
+  // The previous document's exact solid is native memory and belongs to a
+  // model that is about to stop being open; it is neither reusable here nor
+  // freed by anything else.
+  releaseExactRun();
   // Tree state is per document: a hidden body or a collapsed branch from the
   // last model must not carry over onto ids that mean something else here.
   E.treeState = {};
@@ -19691,6 +19219,7 @@ export function openModeler(editKey, def, srcItem) {
   /* This runs before selection, history seeding, and the first rebuild so a
      saved legacy slot can never publish its obsolete outer rim even once. */
   migrateDefinitionProfileCuts(E.def, true);
+  restoreKernelBodies(E.def);
   // The FeatureManager's legacy reference rows mirror the canonical reference
   // table until that renderer is fully migrated.
   if (!Array.isArray(E.def.referenceGeometry) || !E.def.referenceGeometry.length) {
@@ -19728,6 +19257,13 @@ export function openModeler(editKey, def, srcItem) {
   coreRunFresh = true;
   H.clear().seed();
   markDocumentClean();
+  /* The draft is a single slot shared by whichever document is open. Once the
+     user has agreed to abandon the previous one, its draft has stopped being
+     recovery material and become a trap — it would be offered back in place of
+     the document they actually asked for. Only when replacing, and only for a
+     named document: a draft left by a previous SESSION is the whole point of
+     the feature, and the no-argument open below is what offers it. */
+  if (replacingOpenDocument && (editKey || def || srcItem)) discardModelerDraft();
   E._centered = false;
   // Every editor session starts in an opaque, shaded view.
   setModelDisplay("solid", false);
@@ -19793,6 +19329,7 @@ export function closeModeler() {
   E.drag = null;
   E.hoverTopology = null;
   E.open = false;
+  releaseExactRun();
   decoGroups.length = 0;   // truncate, never reassign: window.cadDecoGroups holds this reference
   inspectorDirty.sketch = true; inspectorDirty.shape = true; inspectorDirty.look = true; inspectorDirty.ops = true;
   // Before the root is hidden: the mobile sheets hold the REAL tree/inspector/

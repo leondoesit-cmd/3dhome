@@ -307,8 +307,8 @@ test("all fourteen ribbon groups are containers holding their buttons inside .md
   });
 
   assert.equal(result.groupCount, 14, "fourteen groups checked");
-  assert.equal(result.totalButtons, 76, "76 ribbon buttons across all 14 groups");
-  assert.equal(result.taggedButtons, 76, "all 76 buttons adopted with data-uikit-id");
+  assert.equal(result.totalButtons, 83, "83 ribbon buttons across all 14 groups");
+  assert.equal(result.taggedButtons, 83, "all 83 buttons adopted with data-uikit-id");
   /* The converse of the assertion above, and the one that catches drift the
      other direction: buildDOM() is a string in js/modeler.js and RIBBON_BUTTONS
      is a static table describing it. Add a fifteenth button to a group and
@@ -451,7 +451,7 @@ test("button arrangement inside a ribbon group survives language switch and DOM 
   assert.equal(after.firstButtonId, "cmd:grpFinish:booleanfeature", "booleanfeature is still first after language rebuild");
   assert.equal(after.groupLabel, "גימור", "group label is in Hebrew");
   assert.equal(after.buttonLabel, "בוליאני", "button label is in Hebrew");
-  assert.equal(after.totalTagged, 76, "all 76 ribbon buttons re-adopted after rebuild");
+  assert.equal(after.totalTagged, 83, "all 83 ribbon buttons re-adopted after rebuild");
 
   await page.eval(async () => {
     const i18n = await import("/js/i18n.js");
