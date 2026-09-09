@@ -120,6 +120,37 @@ export function rotatePointAroundAxis(point, axis, angle, pivot = {}) {
   return { x:x*c+z*s+px, y:y+py, z:-x*s+z*c+pz };
 }
 
+/* One pattern placement as a single rigid transform, v -> M.v + t.
+ *
+ * The editor lays a copy by moving its definition and pushing axis rotations
+ * onto it; the KERNEL has no notion of a pivot and needs the pair. Every mode
+ * answers here so a merged pattern has one place to ask where a copy went — the
+ * curve mode already computed exactly this pair for its own kernel path, and a
+ * linear offset is the identity turn with the offset as the shift. The matrices
+ * are the ones rotatePointAroundAxis applies, written out, so the fused solid
+ * lands where the viewport drew the unfused copies. */
+export function patternPlacementTransform(params = {}, placement = {}, circularStep = 0) {
+  const identity = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+  if (params.mode === "circular") {
+    const axis = ["x", "y", "z"].includes(params.axis) ? params.axis : "y";
+    const angle = Number(circularStep) * (Number(placement.circularIndex) || 0);
+    const c = Math.cos(angle), s = Math.sin(angle);
+    const m = axis === "x" ? [1, 0, 0, 0, c, -s, 0, s, c]
+      : axis === "z" ? [c, -s, 0, s, c, 0, 0, 0, 1]
+      : [c, 0, s, 0, 1, 0, -s, 0, c];
+    const pivot = circularPatternPivot({ axis, radialDistance: params.radialDistance });
+    return { matrix: m, translation: {
+      x: pivot.x - (m[0] * pivot.x + m[1] * pivot.y + m[2] * pivot.z),
+      y: pivot.y - (m[3] * pivot.x + m[4] * pivot.y + m[5] * pivot.z),
+      z: pivot.z - (m[6] * pivot.x + m[7] * pivot.y + m[8] * pivot.z),
+    } };
+  }
+  if (Array.isArray(placement.matrix) && placement.matrix.length === 9) {
+    return { matrix: placement.matrix.slice(), translation: { ...(placement.translation || { x: 0, y: 0, z: 0 }) } };
+  }
+  return { matrix: identity, translation: { x: Number(placement.x) || 0, y: Number(placement.y) || 0, z: Number(placement.z) || 0 } };
+}
+
 export function rotatedPatternBounds(bounds, rotations = []) {
   if (!bounds || !rotations.length) return bounds;
   const points = [];

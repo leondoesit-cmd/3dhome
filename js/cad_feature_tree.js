@@ -155,6 +155,18 @@ export async function regenerateFeatures(def, options = {}) {
       }
       else if(feature.type==="circularPattern") { const source=results.get(feature.inputs[0]);result=await circularPatternBrep(source,effectiveParams); }
       else if(feature.type==="curvePattern") { const source=results.get(feature.inputs[0]);result=await curvePatternBrep(source,effectiveParams); }
+      else if (feature.type === "placedBody") {
+        /* A body that is a copy of another body under one rigid transform, and
+           the fused run of such copies a merged pattern produces. The builder
+           lives with exactBrepForPart because that is what rebuilds the shape
+           being copied — holes, 3D cuts and finish operations included — and a
+           second implementation here would be a second answer. Imported at the
+           point of use: only a model-editor document contains this row, and a
+           static import would put the editor's geometry module on the boot
+           graph of every consumer of the exact tree. */
+        const { placedBodyBrep } = await import("./modeler_part_geometry.js");
+        result = await placedBodyBrep(effectiveParams);
+      }
       else if(feature.type==="mirror") {
         const source=results.get(feature.inputs[0]);
         let plane=effectiveParams.plane;

@@ -1461,6 +1461,102 @@ export async function transformBrep(brep, transform = {}) {
   }
 }
 
+/* A copy of `source` put down by one rigid transform: the row-major 3x3
+   rotation and the shift that follows it, v -> M.v + t. It is the shape every
+   pattern placement already speaks — curvePatternPlacements() computes exactly
+   this pair, and a linear offset is the identity matrix with the offset as t —
+   so a merged pattern does not need a second notion of "where the copy went".
+   gp_Trsf::SetValues takes the 3x4 directly and insists the basis be
+   orthonormal, which a rotation is by construction. */
+export async function placeBrep(source, placement = {}) {
+  if (!source?.shape) throw new Error("Placement needs a BREP shape");
+  const oc = source.oc || await loadCadKernel();
+  const m = Array.isArray(placement.matrix) && placement.matrix.length === 9 ? placement.matrix.map(Number) : [1, 0, 0, 0, 1, 0, 0, 0, 1];
+  const t = placement.translation || { x: 0, y: 0, z: 0 };
+  const owned = [];
+  try {
+    const trsf = new oc.gp_Trsf_1(); owned.push(trsf);
+    trsf.SetValues(
+      m[0], m[1], m[2], Number(t.x) || 0,
+      m[3], m[4], m[5], Number(t.y) || 0,
+      m[6], m[7], m[8], Number(t.z) || 0,
+    );
+    const maker = new oc.BRepBuilderAPI_Transform_2(source.shape, trsf, true); owned.push(maker);
+    return { oc, shape: maker.Shape(), kind: source.kind || "solid" };
+  } finally { disposeAll(owned); }
+}
+
+/* Coplanar faces welded back into one after a boolean.
+ *
+ * BRepAlgoAPI_Fuse keeps the argument faces as it found them, so fusing a run
+ * of overlapping copies leaves the outside of the result cut into as many
+ * panels as there were copies — the material is one solid, but the SEAMS of the
+ * bodies that made it are still faces. Picking one to fillet then rounds a
+ * third of an edge. Unifying same-domain faces and edges is what makes the
+ * fused body indistinguishable from a body that was always one shape, which is
+ * the whole promise of "merge". */
+export async function unifyBrepFaces(brep) {
+  if (!brep?.shape) throw new Error("Unify needs a BREP shape");
+  const oc = brep.oc || await loadCadKernel();
+  const owned = [];
+  try {
+    const unifier = new oc.ShapeUpgrade_UnifySameDomain_2(brep.shape, true, true, false); owned.push(unifier);
+    unifier.Build();
+    return { oc, shape: unifier.Shape(), kind: brep.kind || "solid" };
+  } finally { disposeAll(owned); }
+}
+
+/* Do these two solids share material? The question a merged pattern asks of
+   every neighbouring pair, and the only honest answer comes from the kernel:
+   two thin radial blades have overlapping bounding boxes and touch nowhere.
+   Common-and-measure rather than fuse-and-count-lumps because it costs one
+   boolean and gives a number, not a topology walk. Solids that meet on a plane
+   and nowhere else share no volume and are reported apart — "overlap" is the
+   rule the option states, and a measure-zero contact is not one. A boolean that
+   fails answers "apart": leaving two bodies standing is the recoverable
+   mistake, fusing them on a failed test is not. */
+export async function brepsOverlap(left, right, tolerance = 1e-9) {
+  if (!left?.shape || !right?.shape) return false;
+  let common = null;
+  try {
+    common = await booleanBrep("intersect", left, right);
+    const oc = common.oc;
+    if (!shapeHasSolid(oc, common.shape)) return false;
+    return Math.abs(shapeVolume(oc, common.shape)) > tolerance;
+  } catch { return false; }
+  finally { if (common) disposeBrep(common); }
+}
+
+/* The connected lumps of a set of solids, as index groups.
+ *
+ * Overlap is transitive here — A meets B and B meets C makes one body even
+ * though A and C never touch — so this is a union-find over the pairs that a
+ * cheap bounding-box test says are worth asking the kernel about. Pairs already
+ * in the same group are skipped, which is what keeps a heavily overlapping
+ * pattern near linear instead of testing all n(n-1)/2 pairs. */
+export async function brepConnectedGroups(entries = []) {
+  const parent = entries.map((entry, index) => index);
+  const find = (index) => { while (parent[index] !== index) { parent[index] = parent[parent[index]]; index = parent[index]; } return index; };
+  const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[rb] = ra; };
+  const boxesMeet = (a, b) => {
+    if (!a || !b) return true;
+    return a.x0 <= b.x1 + 1e-6 && a.x1 >= b.x0 - 1e-6 && a.y0 <= b.y1 + 1e-6
+      && a.y1 >= b.y0 - 1e-6 && a.z0 <= b.z1 + 1e-6 && a.z1 >= b.z0 - 1e-6;
+  };
+  for (let i = 0; i < entries.length; i++) for (let j = i + 1; j < entries.length; j++) {
+    if (find(i) === find(j)) continue;
+    if (!boxesMeet(entries[i].bounds, entries[j].bounds)) continue;
+    if (await brepsOverlap(entries[i].brep, entries[j].brep)) union(i, j);
+  }
+  const groups = new Map();
+  entries.forEach((entry, index) => {
+    const root = find(index);
+    if (!groups.has(root)) groups.set(root, []);
+    groups.get(root).push(index);
+  });
+  return [...groups.values()];
+}
+
 /* A plain move. transformBrep states one as a frame whose origin is the negated
    delta, which is easy to get backwards at the call site. */
 export async function translateBrep(brep, delta = {}) {

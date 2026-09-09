@@ -264,8 +264,12 @@ const partGeometry = readFileSync(new URL("../js/modeler_part_geometry.js", impo
 
 test("the editor lays every pattern copy through one placement helper", () => {
   assert.match(partGeometry, /function placePatternCopy\(copy, params, placement, circularStep\)/);
-  // preview, apply and document rebuild must not drift apart again
-  assert.equal(((modeler + partGeometry).match(/placePatternCopy\(/g) || []).length, 4);
+  /* Preview, apply and document rebuild must not drift apart again. Apply and
+     rebuild now share layPatternCopies (see cad_pattern_merge.test.mjs), so the
+     three sites are the helper's definition, the live preview and that one
+     layer — one fewer place to drift, not one more. */
+  assert.equal(((modeler + partGeometry).match(/placePatternCopy\(/g) || []).length, 3);
+  assert.match(modeler, /function layPatternCopies\(/);
   assert.match(modeler, /if\(params && params\.mode==="curve"\)return curvePatternPlacements\(resolvePatternCurvePath\(params\)\);/);
 });
 

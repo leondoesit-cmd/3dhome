@@ -19,7 +19,7 @@ import { clearTopologyCache, hexNum, holeLoop } from "./modeler_mesh_geometry.js
 import {
   booleanBrep, chamferBrep, disposeBrep, draftBrep, extractBrepTopology, filletBrep,
   makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep,
-  moveBodyBrep, ribBrep, shellBrep, splitBrep, thickenBrep, translateBrep,
+  moveBodyBrep, placeBrep, ribBrep, shellBrep, splitBrep, thickenBrep, translateBrep, unifyBrepFaces,
 } from "./cad_kernel.js";
 
 export function cloneData(value) {
@@ -259,6 +259,15 @@ export function movePart(p, dx, dy, dz) {
     if (!cut.frame || !cut.frame.origin) return;
     cut.frame.origin.x += dx; cut.frame.origin.y += dy; cut.frame.origin.z += dz;
   });
+  /* A fused pattern instance is placed in world coordinates, not in the host's
+     profile plane, so it travels in the shift rather than in a loop. */
+  (p.merges3d || []).forEach(function (merge) {
+    if (merge.kind !== "placed") return;
+    (merge.placements || []).forEach(function (placement) {
+      placement.translation = placement.translation || {x:0,y:0,z:0};
+      placement.translation.x += dx; placement.translation.y += dy; placement.translation.z += dz;
+    });
+  });
   if (p.meshData && Array.isArray(p.meshData.positions)) {
     for (var mi=0;mi<p.meshData.positions.length;mi+=3) {
       p.meshData.positions[mi]+=dx;
@@ -319,6 +328,7 @@ export var FACE_DRIVEN_OPERATIONS = new Set(["shell", "draft", "thicken"]);
    feature records exactly the same shape and is fused instead of subtracted, so
    both lists are built here. */
 export async function toolSolidBrep(cut, bodyBounds) {
+  if (cut.kind === "placed") return placedBodyBrep(cut);
   if (cut.kind === "loft") return makeBrepLoft({
     sections:cut.sections, solid:cut.solid !== false, ruled:!!cut.ruled,
     matchProfiles:cut.matchProfiles !== false, continuity:cut.continuity, tolerance:cut.tolerance,
@@ -335,6 +345,63 @@ export async function toolSolidBrep(cut, bodyBounds) {
      `range.from` once a through-all cut has been stretched to the body. */
   return makeBrepExtrusion({axis:cut.axis,frame:cut.frame,from:range.from,to:range.to,points:cut.loop,
     draftAngle:Number(cut.draftAngle)||0,draftOutward:!!cut.draftOutward,draftBase:fin(cut.draftBase)?cut.draftBase:undefined});
+}
+
+/* A body that is another body's shape, put down somewhere else.
+ *
+ * A merged pattern is N of these: the seed part is rebuilt once and each fused
+ * instance is that solid under the one rigid transform its placement amounts
+ * to, all unioned into a single connected lump. The seed is rebuilt through
+ * exactBrepForPart rather than from a stripped-down recipe so a copy carries
+ * the holes, 3D cuts and finish operations the seed carries — a patterned
+ * bored plate fuses as a bored plate.
+ *
+ * One builder, two callers: the viewport's merge loop below, and the
+ * `placedBody` row rebuildFeatureTreeFromDocument writes into the exact feature
+ * tree. They cannot disagree about the shape because there is only one. */
+export async function placedBodyBrep(spec) {
+  const source = spec && (spec.part || spec.body);
+  if (!source) throw new Error("A placed body needs the body it is a copy of");
+  const placements = Array.isArray(spec.placements) && spec.placements.length
+    ? spec.placements : [{ matrix: spec.matrix, translation: spec.translation }];
+  let base = null, solid = null;
+  try {
+    base = await exactBrepForPart(source);
+    for (const placement of placements) {
+      const copy = await placeBrep(base, placement || {});
+      if (!solid) { solid = copy; continue; }
+      const fused = await booleanBrep("union", solid, copy);
+      disposeBrep(solid); disposeBrep(copy);
+      solid = fused;
+    }
+    if (placements.length > 1) {
+      const welded = await unifyBrepFaces(solid);
+      disposeBrep(solid);
+      solid = welded;
+    }
+    const result = solid;
+    solid = null;
+    return result;
+  } finally {
+    if (base) disposeBrep(base);
+    if (solid) disposeBrep(solid);
+  }
+}
+
+/* What a merged pattern stores as the shape its instances are copies of: the
+   seed's definition with its identity and its cached tessellation removed. The
+   mesh goes because it is a cache of a shape the recipe rebuilds — and because
+   its normals and colours are Float32Arrays, which JSON.stringify turns into
+   {"0":..} objects on the way into a saved model. Holes, 3D cuts, finish
+   operations and any EARLIER merges stay: they are part of the shape being
+   copied. The caller snapshots before this pattern's own fusions land, so a
+   merged pattern never records itself as its own source. */
+export function patternMergeSource(seed) {
+  const source = cloneData(seed) || {};
+  ["id", "featureId", "meshData", "derivedFeatureId", "sourceFeatureId", "patternIndex",
+    "patternGridIndex", "patternRotations", "patternRotation", "previewOnly", "exactPending",
+    "exactError", "exactBuildToken"].forEach((key) => { delete source[key]; });
+  return source;
 }
 
 export async function exactBrepForPart(p) {
@@ -397,6 +464,14 @@ export async function exactBrepForPart(p) {
     var addition = await toolSolidBrep(merges[mi], b);
     var fused = await booleanBrep("union", solid, addition);
     disposeBrep(solid); disposeBrep(addition); solid = fused;
+  }
+  /* The fuse leaves the seam between the two bodies standing as a pair of
+     coplanar faces, so picking the top of a merged body picked half of it.
+     Welding same-domain faces is what makes a merged body behave like a body
+     that was always one shape. */
+  if (merges.length) {
+    var welded = await unifyBrepFaces(solid);
+    disposeBrep(solid); solid = welded;
   }
   extractBrepTopology(solid, { ownerFeatureId:ownerFeatureId, expectedTopology:expectedTopology });
   var operations = Array.isArray(p.exactOperations) && p.exactOperations.length ? p.exactOperations.filter(function(operation){return !operation.suppressed;}) : [];

@@ -53,7 +53,7 @@ import { mirrorEntities, linearPatternEntities, circularPatternEntities } from "
 import { addFeature, ensureFeatureTree, regenerateFeatures, releaseRegeneration } from "./cad_feature_tree.js";
 import {
   exportStep, exportIges, importStep,
-  makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, booleanBrep, chamferBrep, draftBrep, extractBrepTopology, filletBrep, shapeToMeshData, moveBodyBrep, ribBrep, shellBrep, splitBrep, thickenBrep, disposeBrep,
+  makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, booleanBrep, brepConnectedGroups, chamferBrep, draftBrep, extractBrepTopology, filletBrep, shapeToMeshData, moveBodyBrep, placeBrep, ribBrep, shellBrep, splitBrep, thickenBrep, disposeBrep,
   serializeBrep, transformBrep, translateBrep,
 } from "./cad_kernel.js";
 import { buildDrawingScene } from "./cad_drawings.js";
@@ -117,7 +117,7 @@ import {
   profileLoopIsSeparateHole,
 } from "./core/cut_scope.js";
 import { diagnosticHelp, groupDiagnostics, recommendedDiagnostic } from "./core/diagnostic_help.js";
-import { circularPatternPivot, circularPatternStepDegrees, curvePatternPath, curvePatternPlacements, linearPatternOffsets, parseSkippedPatternInstances, rotatedPatternBounds } from "./core/pattern_geometry.js";
+import { circularPatternPivot, circularPatternStepDegrees, curvePatternPath, curvePatternPlacements, linearPatternOffsets, parseSkippedPatternInstances, patternPlacementTransform, rotatedPatternBounds } from "./core/pattern_geometry.js";
 import { finalizeCabinetAdvancedDefinition, syncCabinetDefinition } from "./parametric_cabinet.js";
 import { assignCabinetManufacturing, CABINET_MANUFACTURING_ROLES } from "./core/cabinet_advanced.js";
 import { layoutCab } from "./cabinet.js";
@@ -190,7 +190,7 @@ import {
   footprintHasPoint, footprintPoint, kernelRecipeBounds, loopCentroid,
   migrateBoundaryChangingProfileCuts, mirrorProjectionPart, movePart, normalizeTransform,
   partBounds, partNeedsExactMesh, partPatternRotations, partSupportsExactMesh,
-  placePatternCopy, resetClonedPartIdentity, revMaxR, rotPartY,
+  patternMergeSource, placePatternCopy, resetClonedPartIdentity, revMaxR, rotPartY,
   translateTopologyReferences,
 } from "./modeler_part_geometry.js";
 /* Pick-to-reference and reference-to-screen geometry; it never touches E. */
@@ -1149,6 +1149,27 @@ if (typeof window !== "undefined") {
         pending: !!part.exactPending, error: part.exactError || null,
         triangles: part.meshData ? (part.meshData.positions || []).length / 9 : 0,
         bounds: part.bounds ? { ...part.bounds } : null,
+      };
+    });
+  };
+  /* A pattern whose instances merge finishes in the kernel, AFTER the command
+     has returned — the copies are laid synchronously and the fuse is a second,
+     asynchronous pass. E.patternFusion is that pass, and awaiting it is the
+     only honest way for a test to see the finished document; there is no frame
+     to settle for, because rAF never fires in a headless pane. */
+  window.cadPatternRun = function (params) {
+    var part = selectedSolid() || activeParts(E.def)[activeParts(E.def).length - 1] || null;
+    if (part) E.sel = part;
+    var ok = quickPatternPart(params);
+    return Promise.resolve(E.patternFusion).then(function () { return ok; });
+  };
+  window.cadBodySnapshot = function () {
+    return activeParts(E.def).map(function (part) {
+      return {
+        id: part.id, kind: part.kind, merges: (part.merges3d || []).length,
+        fused: (part.merges3d || []).reduce(function (total, entry) { return total + (entry.placements || []).length; }, 0),
+        pending: !!part.exactPending, error: part.exactError || null,
+        triangles: part.meshData ? (part.meshData.positions || []).length / 9 : 0,
       };
     });
   };
@@ -6431,6 +6452,109 @@ function quickThickenPart(options) {
   return true;
 }
 
+/* "Merge instances", the last of the pattern controls that was declared and
+ * never read.
+ *
+ * WHAT IT MEANS. Copies that share material with a neighbour — or with the seed
+ * — become ONE solid: the wall between them goes, and the shared material is
+ * counted once. Copies that reach nothing stay bodies of their own. The number
+ * of bodies is therefore the geometry's answer, not the flag's: a tight run
+ * collapses to one, a spread run stays N, a partly overlapping run comes out as
+ * however many connected clusters it actually forms.
+ *
+ * WHY THE COPIES ARE LAID FIRST AND FUSED SECOND. Whether two solids share
+ * material is a question only the kernel can answer (two thin radial blades
+ * have overlapping bounding boxes and touch nowhere), and the kernel is
+ * asynchronous while laying a pattern is not. So placePatternCopy stays the one
+ * place an instance is put down, the document holds the honest un-merged run
+ * until the answer arrives, and a kernel failure leaves that run standing
+ * rather than a half-fused ghost.
+ *
+ * WHY merges3d AND NOT A NEW PART KIND. A fused cluster is one body made of a
+ * host plus solids fused into it, which is what merges3d already means:
+ * exactBrepForPart fuses them, partNeedsExactMesh already knows such a body
+ * needs the kernel, emitPartMerges already unions them into the exact tree that
+ * feeds STEP/IGES, mass and interference, and the host keeps its own identity —
+ * so the seed of a patterned extrude can still have its depth retyped
+ * afterwards. Several clusters are simply several hosts. The one thing merges3d
+ * could not previously express is a tool that is another BODY under a rigid
+ * transform, which is what the "placed" merge kind adds. */
+var PATTERN_IDENTITY_PLACEMENT = { matrix:[1,0,0,0,1,0,0,0,1], translation:{x:0,y:0,z:0} };
+
+function clearPatternMerges(featureId) {
+  if(!featureId)return;
+  (E.def.parts || []).forEach(function(part){
+    if(!(part.merges3d || []).length)return;
+    var kept=part.merges3d.filter(function(entry){return entry.patternFeatureId!==featureId;});
+    if(kept.length===part.merges3d.length)return;
+    if(kept.length)part.merges3d=kept;else delete part.merges3d;
+    invalidatePartMeshAfterEdit(part);
+  });
+}
+
+/* Lay one run of pattern copies. Both Apply and the rebuild that follows a
+   parameter edit come through here, so a merged pattern does not grow a second
+   placement path. `push` is the only difference between the two callers. */
+function layPatternCopies(seed, params, feature, placements, circularStep, push) {
+  /* Snapshotted BEFORE this pattern's own fusions land on the seed, so the
+     copies are the shape the seed was when they were made. */
+  var source=params.mergeResult?patternMergeSource(seed):null,entries=[];
+  placements.forEach(function(placement,index){
+    var copy=resetClonedPartIdentity(cloneData(seed));
+    placePatternCopy(copy,params,placement,circularStep);
+    if(feature){copy.derivedFeatureId=feature.id;copy.sourceFeatureId=seed.featureId;copy.patternIndex=index+1;copy.patternGridIndex=placement.indices;}
+    push(copy);
+    entries.push({part:copy,transform:patternPlacementTransform(params,placement,circularStep)});
+  });
+  E.patternFusion=source&&entries.length?fusePatternInstances(seed,source,entries,feature):null;
+  return entries;
+}
+
+/* The second pass: ask the kernel which instances share material, then collapse
+   each connected cluster onto its first member. A cluster of one is left
+   exactly as it was laid. */
+function fusePatternInstances(seed, source, entries, feature) {
+  if(!partSupportsExactMesh(seed)){flash(t("patternMergeUnsupported"));return;}
+  var def=E.def,featureId=feature&&feature.id||null;
+  var members=[{part:seed,transform:PATTERN_IDENTITY_PLACEMENT}].concat(entries);
+  return (async function(){
+    var base=null,copies=[];
+    try{
+      base=await exactBrepForPart(source);
+      for(var index=0;index<members.length;index++)copies.push(await placeBrep(base,members[index].transform));
+      var groups=await brepConnectedGroups(copies.map(function(brep,at){return {brep:brep,bounds:partBounds(members[at].part)};}));
+      // The document may have moved on while the kernel worked; a stale answer
+      // is worse than no answer.
+      if(E.def!==def||!members.every(function(member){return (def.parts || []).includes(member.part);}))return;
+      var absorbed=[],hosts=[];
+      groups.forEach(function(group){
+        if(group.length<2)return;
+        var host=members[group[0]].part;
+        hosts.push(host);
+        /* ONE record per cluster, carrying every instance's placement, rather
+           than one per instance: the shape being copied is stored once instead
+           of N times in the saved model, and the cluster's copies are welded to
+           each other before they meet the host. */
+        host.merges3d=host.merges3d || [];
+        host.merges3d.push({kind:"placed",part:cloneData(source),placements:group.slice(1).map(function(at){return members[at].transform;}),...(featureId?{featureId:featureId,patternFeatureId:featureId}:{})});
+        group.slice(1).forEach(function(at){absorbed.push(members[at].part);});
+      });
+      if(!absorbed.length)return;
+      def.parts=(def.parts || []).filter(function(part){return !absorbed.includes(part);});
+      hosts.forEach(function(host){invalidatePartMeshAfterEdit(host);queueExactMesh(host);});
+      if(absorbed.includes(E.sel))E.sel=hosts[0];
+      refreshAll();
+      flash("✓ "+tf("patternMerged",{count:absorbed.length,bodies:(def.parts || []).filter(function(part){return part===seed||part.derivedFeatureId===featureId;}).length}));
+    }catch(error){
+      console.warn("Pattern merge failed:",error);
+      if(E.def===def)flash(t("patternMergeFail"));
+    }finally{
+      copies.forEach(function(copy){disposeBrep(copy);});
+      if(base)disposeBrep(base);
+    }
+  })();
+}
+
 function quickPatternPart(count, pitch) {
   var params={...featureDefaults("pattern"),...(typeof count==="object"?count:{count:count,spacing:pitch})};count=Math.max(2,Math.round(params.count));pitch=Number(params.spacing)||0;
   var p = selectedSolid();
@@ -6448,7 +6572,7 @@ function quickPatternPart(count, pitch) {
   if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"pattern",{inputs:[p.featureId],references:{sketches:curveSketch?[curveSketch.id]:[],features:[p.featureId],topology:[],references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
   var circularStep=circularPatternStepDegrees(params,count)*Math.PI/180,placements=patternPlacements(params);
   if(!placements.length){H.discard();flash(t("patternNeedCurve"));return false;}
-  placements.forEach(function(placement,index){var q=resetClonedPartIdentity(cloneData(p));placePatternCopy(q,params,placement,circularStep);if(feature){q.derivedFeatureId=feature.id;q.sourceFeatureId=p.featureId;q.patternIndex=index+1;q.patternGridIndex=placement.indices;}addPart(q);});
+  layPatternCopies(p,params,feature,placements,circularStep,addPart);
   refreshAll(); return true;
 }
 
@@ -13011,7 +13135,10 @@ function syncProjectionFromFeature(feature) {
   if(feature.type==="pattern"){
     var seed=(E.def.parts || []).find(function(item){return item.featureId===feature.inputs[0];});
     E.def.parts=(E.def.parts || []).filter(function(item){return item.derivedFeatureId!==feature.id;});
-    if(seed){var count=Math.max(2,Math.min(100,Math.round(Number(feature.params.count)||2))),circularStep=circularPatternStepDegrees(feature.params,count)*Math.PI/180,placements=patternPlacements(feature.params);placements.forEach(function(placement,index){var copy=resetClonedPartIdentity(cloneData(seed));copy.derivedFeatureId=feature.id;copy.sourceFeatureId=seed.featureId;copy.patternIndex=index+1;copy.patternGridIndex=placement.indices;placePatternCopy(copy,feature.params,placement,circularStep);E.def.parts.push(copy);});}
+    /* A rebuild starts from the un-merged run: the fusions the previous run
+       left on their hosts describe placements that no longer exist. */
+    clearPatternMerges(feature.id);
+    if(seed){var count=Math.max(2,Math.min(100,Math.round(Number(feature.params.count)||2))),circularStep=circularPatternStepDegrees(feature.params,count)*Math.PI/180,placements=patternPlacements(feature.params);layPatternCopies(seed,feature.params,feature,placements,circularStep,function(copy){E.def.parts.push(copy);});}
   } else if(feature.type==="mirror"){
     var mirrorSeed=(E.def.parts || []).find(function(item){return item.featureId===feature.inputs[0];}),planeReference=(feature.references.references || ["plane:right"])[0];
     E.def.parts=(E.def.parts || []).filter(function(item){return item.derivedFeatureId!==feature.id;});
@@ -18180,6 +18307,10 @@ function syncHead() {
    interference all silently built without. The params are the kernel-facing
    ones, which is exactly what regenerateFeatures hands to makeBrep*. */
 function mergeFeatureRecipe(merge) {
+  /* A pattern instance: another body's shape under one rigid transform. The
+     recipe is the body itself, because the copy is a copy of the whole body —
+     holes, 3D cuts and finish operations included — and not of a profile. */
+  if (merge.kind === "placed") return { type:"placedBody", params:{ part:cloneData(merge.part), placements:cloneData(merge.placements || []) } };
   if (merge.kind === "revolve") return { type:"revolve", params:{ axis:merge.axis || "y", angle:Number(merge.angle)||360, direction:merge.direction, points:cloneData(merge.loop || []) } };
   if (merge.kind === "sweep") return { type:"sweep", params:{ profile:cloneData(merge.profile || []), path:cloneData(merge.path || []), orientation:merge.orientation, twistAngle:merge.twistAngle, scale:merge.scale, solid:true } };
   if (merge.kind === "loft") return { type:"loft", params:{ sections:cloneData(merge.sections || []), solid:merge.solid !== false, ruled:!!merge.ruled, matchProfiles:merge.matchProfiles !== false, continuity:merge.continuity, tolerance:merge.tolerance } };
