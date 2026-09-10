@@ -1,3 +1,4 @@
+import { evaluateExpression } from "./sketch_equations.js";
 // Feature property manager: grouped parameter forms with live callbacks.
 // The editor supplies DOM helpers, document units, and reference options.
 
@@ -8,8 +9,37 @@ import { toolboxFamily } from "./cad_toolbox.js";
 
 export function featureControlValue(control) {
   if (control.field.type === "boolean") return !!control.input.checked;
-  if (control.field.type === "number") return control.input.value === "" ? NaN : Number(control.input.value);
+  if (control.field.type === "number") {
+    try { return evaluateFeatureNumber(control.input.value, control.field); }
+    catch (error) { return NaN; }
+  }
   return control.input.value;
+}
+
+// Arithmetic is evaluated once on entry, in the field's displayed units.
+// It does not create a persistent equation or execute JavaScript.
+export function evaluateFeatureNumber(raw, field) {
+  const text = String(raw).trim();
+  // Preserve numeric scientific notation emitted by small geometry values.
+  const value = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(text) ? Number(text) : evaluateExpression(text);
+  if (!Number.isFinite(value)) throw new Error("Enter a finite number");
+  if (field.min != null && value < Number(field.min)) throw new Error("Minimum: " + field.min);
+  if (field.max != null && value > Number(field.max)) throw new Error("Maximum: " + field.max);
+  if (/^(count|.*Count|count[XYZ])$/.test(field.key) && !Number.isInteger(value)) throw new Error("Enter a whole number");
+  return value;
+}
+
+export function validateFeatureInputs(host) {
+  const inputs = Array.from(host.querySelectorAll('input[data-parameter-type="number"]'));
+  for (const input of inputs) {
+    if (input.closest('.parameter-hidden, .parameter-inactive')) continue;
+    if (input._validateFeatureValue) input._validateFeatureValue();
+    if (!input.checkValidity()) {
+      const group = input.closest('details'); if (group) group.open = true;
+      input.focus(); input.reportValidity(); return false;
+    }
+  }
+  return true;
 }
 
 export function featureReferenceValue(feature, type) {
@@ -25,10 +55,11 @@ export function featureReferenceValue(feature, type) {
 }
 
 export function readFeatureParameterForm(controls, baseParams) {
-  var params = { ...(baseParams || {}) }, references = {};
+  var params = { ...(baseParams || {}) }, references = {}, valid = true;
   controls.forEach(function (control) {
+    if (control.input.closest && control.input.closest(".parameter-hidden, .parameter-inactive")) return;
     var value = featureControlValue(control);
-    if (typeof value === "number" && !Number.isFinite(value)) return;
+    if (typeof value === "number" && !Number.isFinite(value)) { valid = false; return; }
     if (control.field.key === "$axisReference") references.axis = value;
     else if (control.field.key === "$planeReference") references.plane = value;
     else params[control.field.key] = value;
@@ -37,8 +68,10 @@ export function readFeatureParameterForm(controls, baseParams) {
   if (["axisX", "axisY", "axisZ"].some(function (key) { return Object.prototype.hasOwnProperty.call(params, key); }) || params.directionAxis) {
     params.direction = linearPatternDirection(params);
   }
-  return { params: params, references: references };
+  return { params: params, references: references, valid: valid };
 }
+
+var expressionFieldId = 0;
 
 export function featureField(host, field, value, options) {
   options = options || {};
@@ -66,11 +99,32 @@ export function featureField(host, field, value, options) {
     });
     wrap.appendChild(input);
   } else {
-    input = el("input"); input.type = field.type === "text" ? "text" : "number"; input.value = value ?? "";
+    input = el("input"); input.type = "text"; input.value = value ?? "";
     if (field.min != null) input.min = field.min;
     if (field.max != null) input.max = field.max;
     input.step = field.step || ".1";
     wrap.appendChild(input);
+  }
+  if (field.type === "number") {
+    input.inputMode = "text";
+    input.spellcheck = false;
+    var result = el("small", "md-expression-result");
+    result.id = "mdExpression-" + field.key + "-" + (++expressionFieldId);
+    input.setAttribute("aria-describedby", result.id);
+    wrap.appendChild(result);
+    var validate = function () {
+      try {
+        var number = evaluateFeatureNumber(input.value, field);
+        input.setCustomValidity(""); input.removeAttribute("aria-invalid");
+        result.textContent = String(input.value).trim() === String(number) ? "" : "= " + Number(number.toPrecision(12));
+        result.classList.remove("invalid");
+      } catch (error) {
+        input.setCustomValidity(error.message); input.setAttribute("aria-invalid", "true");
+        result.textContent = error.message; result.classList.add("invalid");
+      }
+    };
+    input._validateFeatureValue = validate;
+    input.addEventListener("input", validate); input.addEventListener("change", validate); validate();
   }
   input.dataset.parameter = field.key;
   input.dataset.parameterType = field.type;
@@ -91,7 +145,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     if (type !== "pattern") return;
     (patternModeKeys[mode] || []).forEach(function (key) {
       var control = controls.find(function (item) { return item.field.key === key; });
-      if (control) patternDrafts[mode][key] = featureControlValue(control);
+      if (control) { var value = featureControlValue(control); if (typeof value !== "number" || Number.isFinite(value)) patternDrafts[mode][key] = value; }
     });
   }
   function restorePatternSettings(mode) {
@@ -158,13 +212,13 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         ["X", "Y", "Z"].forEach(function (suffix) {
           ["axis", "count", "spacing"].forEach(function (prefix) {
             var key = prefix + suffix, control = controls.find(function (item) { return item.field.key === key; });
-            axisParams[key] = prefix === "axis" ? !!(control && control.input.checked) : Number(control && control.input.value);
+            axisParams[key] = prefix === "axis" ? !!(control && control.input.checked) : (control ? featureControlValue(control) : NaN);
           });
         });
         linearPatternAxisDefinitions(axisParams).forEach(function (definition) {
           if (definition.axis === "vector") return;
           var control = controls.find(function (item) { return item.field.key === "count" + definition.axis.toUpperCase(); });
-          if (control && Number(control.input.value) !== definition.count) control.input.value = String(definition.count);
+          if (control && changedKey !== control.field.key && featureControlValue(control) !== definition.count) control.input.value = String(definition.count);
         });
       }
     }
@@ -243,8 +297,10 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         }
         if (type === "pattern" && ["axisX", "axisY", "axisZ"].includes(field.key) && !controls.some(function (item) { return ["axisX", "axisY", "axisZ"].includes(item.field.key) && item.input.checked; })) input.checked = true;
         syncConditionalFields(field.key);
+        controls.forEach(function(item){if(item.input._validateFeatureValue)item.input._validateFeatureValue();});
         if (type === "pattern") rememberPatternSettings(patternMode);
-        if (onLive) onLive(readFeatureParameterForm(controls, state.params));
+        var next = readFeatureParameterForm(controls, state.params);
+        if (onLive && next.valid) onLive(next);
       };
       input.addEventListener("input", live);
       input.addEventListener("change", live);

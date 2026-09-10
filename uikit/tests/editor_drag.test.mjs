@@ -2,13 +2,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  distanceToRect,
   dropPlaceholder,
+  nearestContainer,
+  SNAP_REACH,
   treeZone,
   treeDropTarget,
   passedThreshold,
   DRAG_THRESHOLD,
   TOUCH_DRAG_THRESHOLD,
 } from "../editor/drag.js";
+import { ghostRect, previewScale } from "../editor/ghost.js";
 
 test("passedThreshold respects mouse and touch thresholds", () => {
   const from = { x: 10, y: 10 };
@@ -114,4 +118,59 @@ test("treeDropTarget refuses a drop into the dragged node's own subtree", () => 
   const intoChild = treeDropTarget(rows, { x: 10, y: 45 }, "outer", () => true);
   assert.equal(intoChild.valid, false, "type policy would allow group-into-group; ancestry must not");
   assert.equal(intoChild.zone, "inside");
+});
+
+
+/* ---- reaching for a target the pointer missed ---------------------------- */
+
+const BAR = { id: "bar", rect: { x: 0, y: 0, w: 400, h: 40 } };
+const GROUP = { id: "group", rect: { x: 100, y: 4, w: 90, h: 32 } };
+const SIDE = { id: "side", rect: { x: 0, y: 60, w: 200, h: 500 } };
+
+test("distance is measured to the box, not to its centre", () => {
+  assert.equal(distanceToRect({ x: 200, y: 20 }, BAR.rect), 0, "inside is zero from anywhere in it");
+  assert.equal(distanceToRect({ x: 200, y: 50 }, BAR.rect), 10);
+  assert.equal(distanceToRect({ x: 10, y: 20 }, SIDE.rect), 40,
+    "a tall panel is not further away because it is tall");
+});
+
+test("a drop in the gutter lands in the nearest thing that would take it", () => {
+  const near = nearestContainer([BAR, GROUP, SIDE], { x: 200, y: 50 });
+  assert.equal(near.id, "bar", "10px below the toolbar still means the toolbar");
+  assert.equal(near.distance, 10);
+});
+
+test("a tie goes to the innermost box", () => {
+  // the pointer sits inside both the bar and the group nested in it
+  const near = nearestContainer([BAR, GROUP], { x: 140, y: 20 });
+  assert.equal(near.id, "group", "the smaller of two equally-close boxes wins");
+});
+
+test("reach is finite, so a drag over empty canvas is honestly homeless", () => {
+  assert.equal(nearestContainer([BAR], { x: 200, y: 40 + SNAP_REACH + 5 }), null);
+  assert.equal(nearestContainer([], { x: 0, y: 0 }), null);
+});
+
+/* ---- the preview under the cursor ---------------------------------------- */
+
+test("the preview keeps the grip the pointer took, it does not centre itself", () => {
+  const rect = { x: 100, y: 100, w: 200, h: 40 };
+  const grab = { dx: 180, dy: 20 };            // grabbed near the right-hand edge
+  const at = ghostRect({ x: 500, y: 300 }, grab, rect, 1);
+  assert.deepEqual(at, { x: 320, y: 280, w: 200, h: 40 });
+  assert.equal(at.x + grab.dx, 500, "the grabbed pixel is still under the pointer");
+  assert.equal(at.y + grab.dy, 300);
+});
+
+test("a scaled preview keeps the same proportional grip", () => {
+  const rect = { x: 0, y: 0, w: 800, h: 600 };
+  const scale = previewScale(rect);
+  assert.ok(scale < 1, "a sidebar-sized node is shrunk to stay out of its own way");
+  const at = ghostRect({ x: 500, y: 400 }, { dx: 400, dy: 300 }, rect, scale);
+  assert.equal(at.x + Math.round(400 * scale), 500);
+  assert.equal(at.y + Math.round(300 * scale), 400);
+});
+
+test("something already small enough is shown at its own size", () => {
+  assert.equal(previewScale({ x: 0, y: 0, w: 120, h: 32 }), 1);
 });

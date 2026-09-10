@@ -43,6 +43,7 @@ var statusBanner = null;
 var selectionBar = null;
 var pageHost = null;
 var pageState = null;
+var featureSheetOpen = false;
 
 function releasePages() {
   if (pageHost) releasePagedMenu(pageHost);
@@ -76,6 +77,14 @@ function pageOpenSheet() {
   var panel = (openKey === "tree" || openKey === "cmd" || openKey === "props") && borrowed && borrowed.node;
   pageHost = panel || sheetBody;
   if (!pageHost) return;
+  // The property manager overlays the tree and scrolls its own fields. Putting
+  // that absolute panel into a page gives the page zero intrinsic height.
+  if (openKey === "tree" && panel && panel.querySelector("#mdQuickSettings:not([hidden])")) {
+    featureSheetOpen = true;
+    var title = panel.querySelector(".md-feature-form-title b");
+    if (title) sheetTitle.textContent = title.textContent;
+    return;
+  }
   var opts = { pinSelector: ".md-strip, .md-right-tabs, .md-inspector-tabs, .md-command-tabs" };
   if (!panel) opts.pageHeight = generatedPageHeight();
   pageState = mountPagedMenu(pageHost, opts);
@@ -112,6 +121,7 @@ function applyTreeDock() {
   var was = api.root.classList.contains("md-tree-on");
   api.root.classList.toggle("md-tree-on", want);
   if (was !== want) window.dispatchEvent(new Event("resize"));
+  if (was && !want && compact() && api.root.querySelector("#mdQuickSettings:not([hidden])")) showSheet("tree");
 }
 
 /* ---- the contextual row ------------------------------------------------- */
@@ -125,12 +135,14 @@ var MODE_ICONS = { "3d": "mode3d", "2d": "mode2d", drawing: "drawing" };
 function ctxActions() {
   var st = api.state();
   if (st.cornerVisible) {
-    return [
+    var activeActions = [
       /* Short verbs: "Finish command" ellipses to "Finish com…" in a row that
          is already sharing ~360px with Undo and Redo. */
       { icon: "check", label: t("m_accept"), primary: true, disabled: !st.canAccept, run: api.accept },
       { icon: "cross", label: t("m_cancel"), danger: true, run: api.cancel },
     ];
+    if (st.collectingFeature) activeActions.unshift({ph:"ph-sliders-horizontal", label:t("returnToParameters"), run:api.returnToParameters});
+    return activeActions;
   }
   var selected = (st.topologyCount || 0) + (st.componentCount || 0);
   var out = [];
@@ -156,7 +168,7 @@ function ctxActions() {
       },
     });
   }
-  var sug = selected ? null : api.coach();
+  var sug = selected || st.closedSketch ? null : api.coach();
   if (sug) {
     var command = sug.command || ((String(sug.target || "").match(/data-command="([^"]+)"/) || [])[1] || "");
     push({
@@ -404,6 +416,7 @@ function setSheetTall(on) {
 }
 
 function closeSheet() {
+  featureSheetOpen = false;
   openKey = null;
   release();
   setSheetSearch(false);
@@ -470,6 +483,7 @@ function showSheet(key, toggle) {
   }
   sheetTitle.textContent = title;
   openKey = key;
+  featureSheetOpen = key === "tree" && !!api.root.querySelector("#mdQuickSettings:not([hidden])");
   sheet.classList.add("on");
   sheet.setAttribute("aria-modal", "true");
   sheet.removeAttribute("aria-hidden");
@@ -801,6 +815,7 @@ function sig() {
     st.rebuildErrors || 0,
     st.rebuildWarnings || 0,
     st.contextRoom ? 1 : 0,
+    st.collectingFeature ? 1 : 0,
     st.cornerVisible ? 1 : 0,
     st.closedSketch ? 1 : 0,
     st.canAccept ? 1 : 0,
@@ -814,6 +829,7 @@ function sig() {
 function sync(force) {
   if (!api || !compact() || !api.state().open) return;
   applyTreeDock();
+  if (featureSheetOpen && !api.root.querySelector("#mdQuickSettings:not([hidden])")) closeSheet();
   var s = sig();
   if (!force && s === lastSig) return;
   lastSig = s;

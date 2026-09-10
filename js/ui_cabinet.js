@@ -1,3 +1,4 @@
+import { captureCabinetSession, restoreCabinetSession } from "./cabinet_session.js";
 // Cabinet designer overlay chrome: open/close, size, history, keyboard and wiring.
 // Elevation drawing lives in ui_cabinet_view.js; inspector panes in ui_cabinet_inspect.js.
 
@@ -30,7 +31,9 @@ import {
   fillChecks, saveUserPreset, fillMine, fillHardware, fillBOM, exportBOM,
 } from "./ui_cabinet_inspect.js";
 
+var cabinetListeners = null;
 function destroyDOM() {
+  if (cabinetListeners) cabinetListeners.abort();
   if (E.pv && E.pv.rr) E.pv.rr.dispose();
   E.pv = null;
   E.swapView = null; // it closes over elements that are about to be removed
@@ -41,6 +44,7 @@ function destroyDOM() {
 }
 
 function buildDOM() {
+  cabinetListeners = new AbortController();
   E.lang = getLang();
   E.host = el("div", "", "");
   E.host.id = "cabdes";
@@ -63,7 +67,7 @@ function buildDOM() {
     "</div></div>" +
     '<div class="cb-context-bar">' +
     '<div class="cb-control-group cb-size-group"><span class="cb-group-title">' + T("cabinetSize") + '</span>' +
-    '<div class="cb-dims">' +
+    '<span class="cb-scope-note">' + T("scopeNote") + '</span><div class="cb-dims">' +
     '<label><span>' + T("width") + '</span><span class="cb-number"><input id="cbW" type="number" inputmode="decimal"><em>cm</em></span></label>' +
     '<label><span>' + T("depth") + '</span><span class="cb-number"><input id="cbD" type="number" inputmode="decimal"><em>cm</em></span></label>' +
     '<label><span>' + T("height") + '</span><span class="cb-number"><input id="cbH" type="number" inputmode="decimal"><em>cm</em></span></label>' +
@@ -205,8 +209,7 @@ function buildDOM() {
       if (e.key === "Enter") {
         e.preventDefault();
         applyOverallSize(k === "W" ? "width" : k === "D" ? "depth" : "height", this);
-        this.focus();
-        this.select();
+        if (!isSizeDlgOpen()) { this.focus(); this.select(); }
       }
     });
   });
@@ -301,21 +304,25 @@ function buildDOM() {
       draw();
       renderPreview();
     }
-  });
+  }, { signal: cabinetListeners.signal });
   /* The cut plan opens on top of the designer and edits the same spec: when it
      closes, whatever it changed (material, board thickness) has to show up
      here. */
   window.addEventListener("cabStockChanged", function () {
     if (E.open) changed(true);
-  });
+  }, { signal: cabinetListeners.signal });
   document.addEventListener("keydown", function (e) {
     // the cut plan sits on top of us and has its own Escape
     if (!E.open || isNestOpen()) return;
     if (isSizeDlgOpen()) {
-      if (e.key === "Escape") {
+      if (e.key === "Escape") { e.preventDefault(); dismissSizeDlg(); }
+      if (e.key === "Tab") {
+        var controls = Array.from(E.host.querySelectorAll("#cbSizeDlg button:not(:disabled)"));
+        var at = controls.indexOf(document.activeElement);
         e.preventDefault();
-        dismissSizeDlg();
+        controls[(at + (e.shiftKey ? -1 : 1) + controls.length) % controls.length].focus();
       }
+      e.stopImmediatePropagation();
       return;
     }
     var typing = /input|textarea|select/i.test((document.activeElement || {}).tagName || "");
@@ -378,7 +385,7 @@ function buildDOM() {
       draw();
       fillInspector();
     }
-  });
+  }, { signal: cabinetListeners.signal });
 }
 function syncDimInputs() {
   if (!E.host || !E.it) return;
@@ -416,8 +423,13 @@ function isSizeDlgOpen() {
 
 function dismissSizeDlg() {
   var dlg = E.host && E.host.querySelector("#cbSizeDlg");
-  if (dlg) dlg.hidden = true;
+  if (dlg) {
+    dlg.hidden = true;
+    ((E.sizeDlg && E.sizeDlg.inertNodes) || []).forEach(function (entry) { entry.node.inert = entry.was; });
+  }
+  var input = E.sizeDlg && E.sizeDlg.input;
   E.sizeDlg = null;
+  if (input && input.isConnected) input.focus();
   syncDimInputs();
 }
 
@@ -453,6 +465,16 @@ function showSizeProposal(dimension, result, input) {
   });
   dlg.querySelector("#cbSizeDlgKeep").textContent = T("keepSize");
   dlg.hidden = false;
+  E.sizeDlg.inertNodes = [];
+  var branch = dlg;
+  while (branch.parentElement && branch !== document.body) {
+    Array.from(branch.parentElement.children).forEach(function (node) {
+      if (node === branch || node.tagName === "SCRIPT" || node.tagName === "STYLE") return;
+      E.sizeDlg.inertNodes.push({ node: node, was: node.inert }); node.inert = true;
+    });
+    branch = branch.parentElement;
+  }
+  (choices.querySelector("button") || dlg.querySelector("#cbSizeDlgKeep")).focus();
 }
 
 function commitSizeChoice(result, alternativeId) {
@@ -471,7 +493,7 @@ function commitSizeChoice(result, alternativeId) {
 function applyOverallSize(dimension, input) {
   if (!E.it) return;
   var limit = CAB_LIMITS[dimension];
-  var value = Number(input.value);
+  var value = input.value.trim() === "" ? NaN : Number(input.value);
   if (!limit || !Number.isFinite(value) || Math.abs(value - E.it[limit.field]) < 0.0001) {
     syncDimInputs();
     return;
@@ -620,14 +642,11 @@ function isEdited() {
 function revert() {
   if (!E.base || !E.it) return;
   var s = JSON.parse(E.base);
-  E.it.cab = s.cab;
-  E.it.w = s.w;
-  E.it.d = s.d;
-  E.it.h = s.h;
+  restoreCabinetSession(S, E.it, s);
   syncDimInputs();
   syncOpenUI(s.cab.open || 0);
   E.sel = { col: 0, sec: 0 };
-  changed(true);
+  changed(true, false);
 }
 
 /* The model updates live, but Revert is scoped to this editor session. Keeping
@@ -661,12 +680,13 @@ function touch() {
    previous state when it really differs. Door-opening is excluded so dragging
    the preview slider does not bury the stack. */
 function stateOf() {
-  return E.it ? JSON.stringify({ cab: E.it.cab, w: E.it.w, h: E.it.h, d: E.it.d }) : "";
+  return E.it ? JSON.stringify(captureCabinetSession(S, E.it)) : "";
 }
 function stateKey(json) {
   if (!json) return "";
   var o = JSON.parse(json);
   delete o.cab.open;
+  (o.linked || []).forEach(function (other) { delete other.cab.open; });
   return JSON.stringify(o);
 }
 /* ---- what is inside a design -------------------------------------------
@@ -756,14 +776,11 @@ const H = createHistory({
   onChange: syncUndoButtons,
   set: function (json) {
     var s = JSON.parse(json);
-    E.it.cab = s.cab;
-    E.it.w = s.w;
-    E.it.h = s.h;
-    E.it.d = s.d;
+    restoreCabinetSession(S, E.it, s);
     syncDimInputs();
     syncOpenUI(s.cab.open || 0);
     if (E.sel && E.sel.col >= s.cab.cols.length) E.sel = { col: 0, sec: 0 };
-    changed(true);
+    changed(true, false);
   },
 });
 /* What the next recorded step is called. Handlers set it just before they
@@ -785,11 +802,11 @@ function redo() {
 }
 function syncUndoButtons() {
   if (!E.host) return;
-  refreshCabinetMobile(); // the compact row mirrors these two disabled flags
   var u = E.host.querySelector("#cbUndo"), r = E.host.querySelector("#cbRedo");
   u.disabled = !H.canUndo();
   u.title = "Ctrl+Z · " + (H.undoLabel() || T("noUndo"));
   r.disabled = !H.canRedo();
+  refreshCabinetMobile();
   r.title = "Ctrl+Y · " + (H.redoLabel() || T("noRedo"));
   if (E.histPanel) E.histPanel.refresh();
 }
@@ -852,10 +869,10 @@ function flashHint(msg) {
 /* Everything that has to happen after any edit: re-fit the spec to the size
    (or re-plan it, while it is still the preset's own layout — see specOf),
    repaint the elevation and the preview, and let the app know. */
-function changed(refit) {
+function changed(refit, propagate) {
   if (!E.it) return;
   specOf(E.it);
-  syncCabinetDefinition(S, E.it, { propagate:true });
+  syncCabinetDefinition(S, E.it, { propagate:propagate !== false });
   clearVSpanCache();
   S.dirty3D = true;
   draw();

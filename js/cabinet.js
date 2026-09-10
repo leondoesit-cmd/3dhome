@@ -1,3 +1,4 @@
+import { applyCabinetLayoutEdits } from "./core/cabinet_parts.js";
 // Modular cabinet system ("מערכת ארונות") — carcass, internal division,
 // doors, drawers, shelves, rails and hardware, all generated from one spec
 // that re-flows when the piece is resized.
@@ -1261,7 +1262,11 @@ export function famOf(it) {
 /* Turns the spec into flat geometry. Everything downstream — the 3D build,
    the elevation drawing, the cut list and the price — reads this and only
    this, so they can never disagree with each other. */
-export function layoutCab(it, run) {
+export function layoutCab(it, run, options) {
+  function finish(layout) {
+    const edits = !options?.semanticOnly && S.parametric?.definitions?.[it.definitionId]?.metadata?.advancedEdits;
+    return applyCabinetLayoutEdits(layout, edits);
+  }
   var sp = specOf(it),
     // where this unit sits among its neighbours — a run of one when it stands
     // alone, which is what a wardrobe in the middle of a wall always is
@@ -1353,14 +1358,14 @@ export function layoutCab(it, run) {
       L.hw.floatShelves += n;
       L.hw.brackets += n * (col.w > 90 ? 3 : 2);
     });
-    return L;
+    return finish(L);
   }
 
   /* --- a corner unit is a different shape, so it builds itself --- */
   if (isCorner(sp)) {
     layoutCorner(L, part);
     countHardware(L);
-    return L;
+    return finish(L);
   }
 
   /* --- carcass --- */
@@ -1500,7 +1505,7 @@ export function layoutCab(it, run) {
   });
 
   countHardware(L);
-  return L;
+  return finish(L);
 }
 
 /* --- the corner unit ---
@@ -2656,6 +2661,8 @@ export function checkCab(it, ceilH) {
     out.push({ level: level, msg: msg, col: col });
   }
 
+  if (S.parametric?.definitions?.[it.definitionId]?.metadata?.manufacturingReviewRequired)
+    add("warn", "שינויי מודל מתקדמים דורשים בדיקת ייצור; כתב הכמויות הוא אומדן חלקי.", "Advanced model edits require manufacturing review; the bill of materials is a partial estimate.");
   if (ceilH && sp.elev + it.h > ceilH + 0.5)
     add("err", "הארון גבוה מהתקרה (" + Math.round(ceilH) + ' ס"מ)', "Taller than the ceiling (" + Math.round(ceilH) + " cm)");
   if (sp.elev > 0 && sp.elev < 40 && sp.plinth > 0)

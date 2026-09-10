@@ -43,9 +43,11 @@ export function normalizeHistory(document, sourceHistory = document.history) {
   const features = new Map((document.features || []).map((feature) => [feature.id, feature]));
   const output = [];
   const included = new Set();
+  const includedTargets = new Set();
   const append = (entry) => {
-    if (!entry || included.has(entry.id)) return;
+    if (!entry || included.has(entry.id) || includedTargets.has(entry.kind + ":" + entry.targetId)) return;
     included.add(entry.id);
+    includedTargets.add(entry.kind + ":" + entry.targetId);
     output.push(entry);
   };
   const requested = [];

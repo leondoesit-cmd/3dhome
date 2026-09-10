@@ -1534,18 +1534,20 @@ export async function brepsOverlap(left, right, tolerance = 1e-9) {
  * cheap bounding-box test says are worth asking the kernel about. Pairs already
  * in the same group are skipped, which is what keeps a heavily overlapping
  * pattern near linear instead of testing all n(n-1)/2 pairs. */
+export function boundsMayOverlap(a, b) {
+  if (!a || !b) return true;
+  return a.x0 <= b.x1 + 1e-6 && a.x1 >= b.x0 - 1e-6 && a.y0 <= b.y1 + 1e-6
+    && a.y1 >= b.y0 - 1e-6 && a.z0 <= b.z1 + 1e-6 && a.z1 >= b.z0 - 1e-6;
+}
+
 export async function brepConnectedGroups(entries = []) {
   const parent = entries.map((entry, index) => index);
   const find = (index) => { while (parent[index] !== index) { parent[index] = parent[parent[index]]; index = parent[index]; } return index; };
   const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[rb] = ra; };
-  const boxesMeet = (a, b) => {
-    if (!a || !b) return true;
-    return a.x0 <= b.x1 + 1e-6 && a.x1 >= b.x0 - 1e-6 && a.y0 <= b.y1 + 1e-6
-      && a.y1 >= b.y0 - 1e-6 && a.z0 <= b.z1 + 1e-6 && a.z1 >= b.z0 - 1e-6;
-  };
+
   for (let i = 0; i < entries.length; i++) for (let j = i + 1; j < entries.length; j++) {
     if (find(i) === find(j)) continue;
-    if (!boxesMeet(entries[i].bounds, entries[j].bounds)) continue;
+    if (!boundsMayOverlap(entries[i].bounds, entries[j].bounds)) continue;
     if (await brepsOverlap(entries[i].brep, entries[j].brep)) union(i, j);
   }
   const groups = new Map();

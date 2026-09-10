@@ -40,7 +40,7 @@ test("AI helper has connection settings, projected context, and a separate dock"
     assert.deepEqual(result.settings, { provider: true, endpoint: true, confirmationCopy: true });
     assert.equal(result.dockOpen, true);
     assert.equal(result.friendsSeparate, true);
-    assert.deepEqual(result.commands, ["item.duplicate", "item.move", "item.place", "opening.place", "room.create", "wall.draw"]);
+    assert.deepEqual(result.commands, ["item.duplicate", "item.move", "item.place", "opening.place", "room.create", "room.stamp", "wall.draw"]);
     assert.equal(result.context.domain, "planner");
     assert.ok(result.context.spatial);
     assert.ok(Array.isArray(result.context.spatial.walls));

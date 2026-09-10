@@ -19,7 +19,7 @@ test.after(async () => {
   if (shared) await shared.close();
 });
 
-async function designing() {
+async function designing(options = {}) {
   if (!shared) shared = await openPage({ width: 1440, height: 900 });
   else await shared.resize(1440, 900);
   /* Two loads on purpose. Opening customize mode SETS mf_uikit, and
@@ -54,8 +54,23 @@ async function designing() {
     window.__ui = host.activeUIKit();
     window.__ed = window.__ui.editor;
     window.__frame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    /* The first child of a toolbar column that this build actually renders. */
+    window.__visibleChild = (parent) => (window.__ui.doc.nodes[parent].children || []).find((id) => {
+      const el = document.querySelector('[data-uikit-id="' + CSS.escape(id) + '"]');
+      const r = el && el.getBoundingClientRect();
+      return !!r && r.width > 8 && r.height > 8;
+    });
     if (!window.__ed) throw new Error("customize mode never opened");
   });
+  if (options.openTree !== false) {
+    await shared.eval(() => {
+      const tree = document.querySelector(".uikit-ins-tree");
+      if (tree && !tree.open) {
+        tree.open = true;
+        tree.dispatchEvent(new Event("toggle"));
+      }
+    });
+  }
   return shared;
 }
 
@@ -107,7 +122,7 @@ test("a resize is clamped by the constraints the host declared", opts, async () 
     "a panel cannot be crushed below the floor its host set");
 });
 
-test("grips are drawn only on the axes that can move", opts, async () => {
+test("grips are free on both axes unless the host pinned one", opts, async () => {
   const page = await designing();
   const result = await page.eval(() => {
     const ed = window.__ed;
@@ -123,10 +138,12 @@ test("grips are drawn only on the axes that can move", opts, async () => {
     return { sidebar, pane, gridColumn };
   });
 
-  assert.deepEqual(result.sidebar, ["e", "w"], "a sidebar is widened, not heightened");
-  assert.deepEqual(result.pane, ["n", "s"], "a stacked pane is heightened");
+  assert.deepEqual(result.sidebar, ["e", "n", "ne", "nw", "s", "se", "sw", "w"],
+    "n:left declares no axis, so every edge and corner is on offer");
+  assert.deepEqual(result.pane, ["n", "s"],
+    "a pane whose host pinned resize:y still offers only its own two");
   assert.deepEqual(result.gridColumn, [],
-    "a topbar grid track offers nothing, because a width there cannot be honoured");
+    "a topbar grid track offers nothing, because the host said resize:none");
 });
 
 test("the right inspector is resizable but cannot be hidden", opts, async () => {
@@ -738,6 +755,73 @@ test("Done exits for pointer users and the More menu reflects the session", opts
   assert.equal(result.after, "false");
   assert.equal(result.editing, false);
   assert.equal(result.inspector, false);
+});
+
+test("Discard restores the layout from the start of the customization session", opts, async () => {
+  const page = await designing();
+  const result = await page.eval(async () => {
+    const ui = window.__ui;
+    const before = JSON.stringify(ui.doc);
+    const beforeOrder = ui.doc.nodes["panel:leftTabs"].children.slice();
+    window.__ed.command("retitle", { id: "tab:structure", label: "Temporary" });
+    window.__ed.command("move", { id: "tab:structure", parent: "panel:leftTabs", index: 0 });
+    document.getElementById("langBtn").click();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    document.querySelector(".uikit-ins-head-action[title]").click();
+    for (let i = 0; i < 20 && document.querySelector(".uikit-ins"); i++) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+    return {
+      editing: ui.editing,
+      inspector: !!document.querySelector(".uikit-ins"),
+      restored: JSON.stringify(ui.doc) === before,
+      order: ui.doc.nodes["panel:leftTabs"].children,
+      beforeOrder,
+      stored: localStorage.getItem("home3d_uikit:planner") === before,
+    };
+  });
+  assert.equal(result.editing, false);
+  assert.equal(result.inspector, false);
+  assert.equal(result.restored, true);
+  assert.deepEqual(result.order, result.beforeOrder);
+  assert.equal(result.stored, true, "the restored session start is persisted for reload");
+});
+
+test("layout tree starts closed and search reveals matching paths", opts, async () => {
+  const page = await designing({ openTree: false });
+  const result = await page.eval(async () => {
+    const tree = document.querySelector(".uikit-ins-tree");
+    const initiallyOpen = tree.open;
+    tree.open = true;
+    tree.dispatchEvent(new Event("toggle"));
+    const search = tree.querySelector(".uikit-ins-tree-search");
+    search.value = "Hole wizard";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    await window.__frame();
+    return {
+      initiallyOpen,
+      hasMatch: !!tree.querySelector('[data-node-id="cmd:grpStart:holefeature"]'),
+      hasUnrelated: !!tree.querySelector('[data-node-id="cmd:grpAnalyze:mass"]'),
+      visibleRows: tree.querySelectorAll(".uikit-ins-tree-row").length,
+    };
+  });
+  assert.equal(result.initiallyOpen, false);
+  assert.equal(result.hasMatch, true);
+  assert.equal(result.hasUnrelated, false);
+  assert.ok(result.visibleRows > 1, "the matching row includes its ancestor path");
+});
+
+test("tree distinguishes unavailable workspace tools from missing elements", opts, async () => {
+  const page = await designing();
+  const result = await page.eval(() => {
+    const unavailable = document.querySelector('.uikit-ins-tree-row[data-node-id="cmd:grpStart:holefeature"]');
+    return {
+      unavailable: unavailable && unavailable.querySelector(".uikit-ins-tree-unavailable")?.textContent,
+      missing: !!(unavailable && unavailable.querySelector(".uikit-ins-tree-missing")),
+    };
+  });
+  assert.match(result.unavailable || "", /Unavailable here/i);
+  assert.equal(result.missing, false);
 });
 
 test("restoring defaults requires confirmation and offers a backup", opts, async () => {
@@ -1701,7 +1785,7 @@ test("left tab buttons can be reordered in panel:leftTabs and clicking one switc
     };
   });
 
-  assert.equal(result.tabsBefore[0], "library", "library was first tab");
+  assert.equal(result.tabsBefore[0], "project", "project guide is the first tab");
   assert.equal(result.moved, true, "reordering tab:structure is allowed");
   assert.equal(result.tabsAfter[0], "structure", "structure tab moved to first in real DOM");
   assert.equal(result.firstBtnTab, "structure", "first button element is structure tab");
@@ -2172,3 +2256,179 @@ test("phone viewport nested menus use a single sheet with Back", opts, async () 
   assert.equal(result.hasBack, true, "nested sheet offers Back");
 });
 
+
+test("icon picker Escape closes only the picker and restores keyboard focus", opts, async () => {
+  const page = await designing();
+  const result = await page.eval(() => {
+    window.__ed.command("select", { id: "act:undo" });
+    const trigger = document.querySelector(".uikit-ins-header-icon");
+    trigger.click();
+    const search = document.querySelector(".uikit-ins-icon-search");
+    let leaked = 0;
+    const spy = () => leaked++;
+    document.addEventListener("keydown", spy);
+    search.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
+    search.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    document.removeEventListener("keydown", spy);
+    return {
+      active: window.__ed.isActive(),
+      picker: !!document.querySelector(".uikit-ins-icon-picker"),
+      focused: document.activeElement === trigger,
+      tag: trigger.tagName,
+      label: trigger.getAttribute("aria-label"),
+      leaked,
+    };
+  });
+  assert.equal(result.active, true);
+  assert.equal(result.picker, false);
+  assert.equal(result.focused, true);
+  assert.equal(result.tag, "BUTTON");
+  assert.ok(result.label);
+  assert.equal(result.leaked, 0, "typing in the picker never reaches host shortcuts");
+});
+
+test("icon picker closes when its selection changes or customization ends", opts, async () => {
+  const page = await designing();
+  const result = await page.eval(async () => {
+    window.__ed.command("select", { id: "act:undo" });
+    document.querySelector(".uikit-ins-header-icon").click();
+    window.__ed.command("select", { id: "act:redo" });
+    const afterSelection = !!document.querySelector(".uikit-ins-icon-picker");
+    document.querySelector(".uikit-ins-header-icon").click();
+    await window.__ui.edit(false);
+    return { afterSelection, afterExit: !!document.querySelector(".uikit-ins-icon-picker") };
+  });
+  assert.equal(result.afterSelection, false);
+  assert.equal(result.afterExit, false);
+});
+
+test("layout tree icon picker is removed when customization ends", opts, async () => {
+  const page = await designing();
+  const result = await page.eval(async () => {
+    document.querySelector(".uikit-ins-tree-icon-btn").click();
+    const opened = !!document.querySelector(".uikit-ins-icon-picker");
+    await window.__ui.edit(false);
+    return { opened, remains: !!document.querySelector(".uikit-ins-icon-picker") };
+  });
+  assert.equal(result.opened, true);
+  assert.equal(result.remains, false);
+});
+
+/* ---- the drag preview and how far a drop can reach ------------------------
+ *
+ * The arithmetic is unit-tested in uikit/tests/editor_drag.test.mjs. What only
+ * a browser can answer is whether the preview is actually a picture of the
+ * element — a snapshot lifted out of the host's tree keeps none of the host's
+ * CSS unless ghost.js carries the computed style across, and "the ghost is an
+ * empty blue box" is exactly the failure this replaced.
+ */
+test("the drag preview is the element itself, held where the pointer grabbed it", opts, async () => {
+  const page = await designing();
+  const result = await page.eval(async () => {
+    const ed = window.__ed;
+    /* A real adopted host control in the toolbar's start column. Picked by
+       measurement rather than by index: several of that column's children are
+       features this build hides, and a zero-sized node has no picture to take. */
+    const id = window.__visibleChild("panel:tb-start");
+    const el = document.querySelector('[data-uikit-id="' + CSS.escape(id) + '"]');
+    const box = el.getBoundingClientRect();
+    /* Drill to the column, so the press picks up the control rather than the
+       whole toolbar section the depth rule would otherwise resolve to. */
+    ed.setFocus("panel:tb-start");
+    /* Grabbed deliberately off-centre, near the right-hand edge. */
+    const grabX = box.left + box.width - 4;
+    const grabY = box.top + 3;
+    const at = (x, y) => ({ clientX: x, clientY: y, bubbles: true, cancelable: true, button: 0 });
+
+    document.dispatchEvent(new PointerEvent("pointerdown", at(grabX, grabY)));
+    document.dispatchEvent(new PointerEvent("pointermove", at(grabX + 120, grabY + 60)));
+    await window.__frame();
+
+    const ghost = document.querySelector(".uikit-ed-ghost");
+    const shot = ghost && ghost.querySelector(".uikit-ed-ghost-shot");
+    const ghostBox = ghost.getBoundingClientRect();
+    const shotStyle = shot ? getComputedStyle(shot.firstElementChild) : null;
+    const sourceStyle = getComputedStyle(el);
+    const out = {
+      hasShot: !!shot,
+      /* the same words, not a label the editor invented */
+      shotText: shot ? shot.textContent.replace(/\s+/g, " ").trim() : "",
+      sourceText: el.textContent.replace(/\s+/g, " ").trim(),
+      shotColor: shotStyle ? shotStyle.color : null,
+      sourceColor: sourceStyle.color,
+      shotFont: shotStyle ? shotStyle.fontFamily : null,
+      sourceFont: sourceStyle.fontFamily,
+      /* the grabbed pixel is still under the pointer */
+      gripX: Math.round(grabX + 120 - ghostBox.left),
+      gripY: Math.round(grabY + 60 - ghostBox.top),
+      expectX: Math.round(grabX - box.left),
+      expectY: Math.round(grabY - box.top),
+      width: Math.round(ghostBox.width),
+      sourceWidth: Math.round(box.width),
+      lifted: el.hasAttribute("data-uikit-lifted"),
+      cursor: document.documentElement.style.cursor,
+      /* the copy must not be addressable, or a label's `for` follows it */
+      idsInShot: shot ? shot.querySelectorAll("[id], [data-uikit-id]").length : -1,
+    };
+
+    document.dispatchEvent(new PointerEvent("pointerup", at(grabX + 120, grabY + 60)));
+    await window.__frame();
+    out.ghostsAfter = document.querySelectorAll(".uikit-ed-ghost").length;
+    out.liftedAfter = document.querySelectorAll("[data-uikit-lifted]").length;
+    out.cursorAfter = document.documentElement.style.cursor;
+    return out;
+  });
+
+  assert.equal(result.hasShot, true, "the preview carries a snapshot, not just an outline");
+  assert.equal(result.shotText, result.sourceText, "and the snapshot is the element's own content");
+  assert.equal(result.shotColor, result.sourceColor, "computed style crossed with it");
+  assert.equal(result.shotFont, result.sourceFont);
+  assert.equal(result.width, result.sourceWidth, "shown at the size it really is");
+  assert.equal(result.gripX, result.expectX, "the grabbed pixel is still under the pointer");
+  assert.equal(result.gripY, result.expectY);
+  assert.equal(result.lifted, true, "the original is dimmed while its copy is carried");
+  assert.equal(result.cursor, "grabbing");
+  assert.equal(result.idsInShot, 0, "nothing in the copy can be addressed");
+  assert.equal(result.ghostsAfter, 0, "and it is all gone on release");
+  assert.equal(result.liftedAfter, 0);
+  assert.equal(result.cursorAfter, "");
+});
+
+test("a drop that misses every container reaches for the nearest one that fits", opts, async () => {
+  const page = await designing();
+  const result = await page.eval(async () => {
+    const ed = window.__ed;
+    const id = window.__visibleChild("panel:tb-start");
+    const el = document.querySelector('[data-uikit-id="' + CSS.escape(id) + '"]');
+    const box = el.getBoundingClientRect();
+    const bar = document.getElementById("topbar").getBoundingClientRect();
+    ed.setFocus("panel:tb-start");
+    const at = (x, y) => ({ clientX: x, clientY: y, bubbles: true, cancelable: true, button: 0 });
+
+    document.dispatchEvent(new PointerEvent("pointerdown",
+      at(box.left + box.width / 2, box.top + box.height / 2)));
+    /* Into the gutter below the toolbar — over nothing that accepts a command.
+       The old editor showed no indicator and dropped nothing at all here. */
+    const overX = bar.right - 60;
+    const overY = bar.bottom + 14;
+    document.dispatchEvent(new PointerEvent("pointermove", at(overX, overY)));
+    await window.__frame();
+    const snapped = !!document.querySelector(".uikit-ed-ghost-snapped");
+    const target = !!document.querySelector(".uikit-ed-target");
+    const parentBefore = window.__ui.doc.nodes["panel:tb-start"].children.slice();
+    document.dispatchEvent(new PointerEvent("pointerup", at(overX, overY)));
+    await window.__frame();
+    return {
+      snapped, target, parentBefore,
+      moved: ed.selection()[0],
+      parentAfter: window.__ui.doc.nodes["panel:tb-start"].children.slice(),
+      id,
+    };
+  });
+
+  assert.equal(result.target, true, "a target is shown rather than the gesture dying in the gutter");
+  assert.equal(result.snapped, true, "and the preview says the target was reached for, not landed on");
+  assert.equal(result.moved, result.id, "the drop committed, and the moved node stays selected");
+  assert.notDeepEqual(result.parentAfter, result.parentBefore,
+    "it left the column it started in, rather than the gesture being dropped");
+});

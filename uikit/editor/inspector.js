@@ -24,6 +24,7 @@ export function createInspector(context) {
 
   let root = null;
   let current = null;
+  let iconPicker = null;
   let els = {};
 
   function el(tag, className, parent) {
@@ -74,9 +75,14 @@ export function createInspector(context) {
     const head = el("header", "uikit-ins-head", root);
     els.title = el("strong", "uikit-ins-title", head);
     els.title.textContent = t("uikit_ins_title", "Customize interface");
+    el("span", "uikit-ins-subtitle", head).textContent = t(
+      "uikit_ins_subtitle", "Make this workspace yours"
+    );
     const headActions = el("div", "uikit-ins-head-actions", head);
     els.undo = button(headActions, t("uikit_ins_undo", "Undo"), "uikit-ins-head-action");
     els.redo = button(headActions, t("uikit_ins_redo", "Redo"), "uikit-ins-head-action");
+    els.discard = button(headActions, t("uikit_ins_discard", "Discard"), "uikit-ins-head-action");
+    els.discard.title = t("uikit_ins_discard_hint", "Discard changes from this customization session");
     els.done = button(headActions, t("uikit_ins_done", "Done"), "uikit-ins-done");
 
     els.live = el("div", "uikit-sr-only", root);
@@ -95,6 +101,7 @@ export function createInspector(context) {
       "Click to select · drag to move · Shift-click to select more."
     );
 
+    buildPresets();
     buildNodeSection();
     els.note = el("div", "uikit-ins-note", els.scroll);
     buildBrowsers();
@@ -124,9 +131,6 @@ export function createInspector(context) {
       isRenameEverywhere: () => !!(els.everywhere && els.everywhere.checked),
     });
     els.scroll.appendChild(els.treeBrowser.element);
-    if (typeof els.treeBrowser.open === "function") {
-      els.treeBrowser.open();
-    }
     els.palette = createPalette({
       document: doc,
       uikit,
@@ -158,7 +162,8 @@ export function createInspector(context) {
     els.breadcrumbs = el("nav", "uikit-ins-breadcrumbs", els.node);
     els.breadcrumbs.setAttribute("aria-label", t("uikit_ins_hierarchy", "Hierarchy"));
     const selectionHead = el("div", "uikit-ins-selection-head", els.node);
-    els.headerIcon = el("span", "uikit-ins-header-icon", selectionHead);
+    els.headerIcon = el("button", "uikit-ins-header-icon", selectionHead);
+    els.headerIcon.type = "button";
     els.selectionTitle = el("strong", "uikit-ins-selection-title", selectionHead);
     els.kind = el("span", "uikit-ins-kind", selectionHead);
     els.body = el("div", "uikit-ins-body", els.node);
@@ -259,7 +264,9 @@ export function createInspector(context) {
 
   /* Everything here applies to the layout rather than the selected node. */
   function buildDocSection() {
-    const wrap = el("section", "uikit-ins-doc", els.scroll);
+    const section = el("details", "uikit-ins-browser uikit-ins-settings", els.scroll);
+    el("summary", null, section).textContent = t("uikit_ins_settings", "Layout & appearance");
+    const wrap = el("section", "uikit-ins-doc", section);
 
     const variantRow = el("div", "uikit-ins-row uikit-ins-variant", wrap);
     el("span", "uikit-ins-label", variantRow).textContent = t("uikit_ins_variant", "Applies to");
@@ -267,7 +274,7 @@ export function createInspector(context) {
     els.variant = el("strong", "uikit-ins-variant-name", variantValue);
     els.variantHint = el("span", "uikit-ins-variant-hint", variantValue);
 
-    const presetRow = row(wrap, t("uikit_ins_preset", "Preset"));
+    const presetRow = row(els.presetsBody, t("uikit_ins_preset", "Current"));
     els.preset = el("select", "uikit-ins-input uikit-ins-preset", presetRow);
     const blank = doc.createElement("option");
     blank.value = "";
@@ -324,6 +331,78 @@ export function createInspector(context) {
     els.file.accept = ".json,application/json";
     els.file.hidden = true;
     els.file.setAttribute("aria-label", t("uikit_ins_import", "Import"));
+  }
+
+  function buildPresets() {
+    els.presets = el("details", "uikit-ins-browser uikit-ins-presets", els.scroll);
+    els.presets.open = true;
+    el("summary", null, els.presets).textContent = t("uikit_ins_presets", "Presets & saved layouts");
+    els.presetsBody = el("div", "uikit-ins-presets-body", els.presets);
+    el("p", "uikit-ins-preset-hint", els.presetsBody).textContent = t(
+      "uikit_ins_presets_hint", "Choose a starting point, then make it yours. Applies to all screen sizes; Undo brings your previous layout back."
+    );
+    const grid = el("div", "uikit-ins-preset-grid", els.presetsBody);
+    els.presetCards = new Map();
+    for (const preset of uikit.presets()) {
+      const card = button(grid, "", "uikit-ins-preset-card");
+      card.setAttribute("data-preset", preset.id);
+      card.setAttribute("aria-pressed", "false");
+      const name = (preset.key && t(preset.key, preset.label)) || preset.label || preset.id;
+      card.setAttribute("aria-label", t("uikit_ins_apply", "Apply") + " " + name);
+      const preview = el("span", "uikit-ins-preset-preview", card);
+      preview.setAttribute("aria-hidden", "true");
+      preview.style.setProperty("--preset-accent", preset.preview?.accent || "#4f46e5");
+      preview.style.setProperty("--preset-sidebar", preset.preview?.sidebar || "26%");
+      for (const part of ["bar", "side", "canvas", "inspector"]) el("span", "uikit-ins-preview-" + part, preview);
+      el("strong", null, card).textContent = name;
+      el("span", "uikit-ins-preset-description", card).textContent = preset.description || "";
+      card.addEventListener("click", () => {
+        uikit.applyPreset(preset.id);
+        ctx.onChanged();
+      });
+      els.presetCards.set(preset.id, card);
+    }
+    el("strong", "uikit-ins-saved-title", els.presetsBody).textContent = t("uikit_ins_saved", "Your saved layouts");
+    const saveRow = row(els.presetsBody, t("uikit_ins_layout_name", "Layout name"));
+    els.saveName = el("input", "uikit-ins-input", saveRow);
+    els.saveName.type = "text";
+    els.saveName.maxLength = 60;
+    els.saveName.placeholder = t("uikit_ins_layout_placeholder", "e.g. My workspace");
+    const saveActions = el("div", "uikit-ins-actions", els.presetsBody);
+    els.saveLayout = button(saveActions, t("uikit_ins_save_layout", "Save current layout"));
+    els.savedList = el("div", "uikit-ins-saved-list", els.presetsBody);
+    els.savedStatus = el("span", "uikit-ins-note", els.presetsBody);
+    els.savedStatus.setAttribute("role", "status");
+    const save = () => {
+      if (!els.saveName.value.trim()) { els.saveName.focus(); return; }
+      const ok = uikit.saveNamedLayout(els.saveName.value);
+      els.savedStatus.textContent = ok ? t("uikit_ins_layout_saved", "Saved in this browser.")
+        : t("uikit_ins_layout_save_failed", "Could not save. Export a backup from Layout & appearance.");
+      if (ok) { els.saveName.value = ""; paintSavedLayouts(); }
+    };
+    els.saveLayout.addEventListener("click", save);
+    els.saveName.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") { event.preventDefault(); save(); }
+    });
+    paintSavedLayouts();
+  }
+
+  function paintSavedLayouts() {
+    els.savedList.replaceChildren();
+    const layouts = uikit.savedLayouts();
+    if (!layouts.length) {
+      el("span", "uikit-ins-note", els.savedList).textContent = t("uikit_ins_no_saved", "Save your manual edits here to reuse them later.");
+    }
+    for (const layout of layouts) {
+      const load = button(els.savedList, layout.name, "uikit-ins-saved-layout");
+      load.title = t("uikit_ins_load_layout", "Load saved layout");
+      load.addEventListener("click", () => {
+        const ok = uikit.loadNamedLayout(layout.id);
+        els.savedStatus.textContent = ok ? t("uikit_ins_layout_loaded", "Layout loaded. You can keep editing or Undo to go back.")
+          : t("uikit_ins_layout_missing", "This saved layout is no longer available.");
+        ctx.onChanged();
+      });
+    }
   }
 
   function buildToken(parent, spec) {
@@ -431,6 +510,7 @@ export function createInspector(context) {
   function wire() {
     els.undo.addEventListener("click", () => ctx.command("undo"));
     els.redo.addEventListener("click", () => ctx.command("redo"));
+    els.discard.addEventListener("click", () => ctx.command("cancelSession"));
     els.done.addEventListener("click", () => ctx.command("exit"));
 
     els.label.addEventListener("input", () => {
@@ -597,6 +677,11 @@ export function createInspector(context) {
 
     const id = selected();
     const node = id ? nodeOf(id) : null;
+    if (node && id !== current) els.presets.open = false;
+    if (id !== current && iconPicker) {
+      iconPicker.__cleanup(false);
+      iconPicker = null;
+    }
     els.node.hidden = !node;
     els.empty.hidden = !!node;
     if (!node) {
@@ -636,7 +721,10 @@ export function createInspector(context) {
       separator: "Divider",
     }[kindKey] || node.type;
     const kindLabel = t("uikit_kind_" + kindKey, kindFallback);
-    els.kind.textContent = kindLabel + (node.tombstone ? " · " + t("uikit_ins_missing", "Missing") : "");
+    const unavailable = node.type === "item" && node.entry && ctx.hasElement && !ctx.hasElement(id);
+    els.kind.textContent = kindLabel
+      + (node.tombstone ? " · " + t("uikit_ins_missing", "Missing") : "")
+      + (unavailable ? " · " + t("uikit_ins_unavailable", "Unavailable here") : "");
 
     els.headerIcon.className = "uikit-ins-header-icon";
     els.headerIcon.replaceChildren();
@@ -650,8 +738,10 @@ export function createInspector(context) {
     }
     els.headerIcon.style.cursor = "pointer";
     els.headerIcon.title = t("uikit_ins_icon_select", "Change icon");
+    els.headerIcon.setAttribute("aria-label", els.headerIcon.title);
+    els.headerIcon.setAttribute("aria-haspopup", "dialog");
     els.headerIcon.onclick = () => {
-      openIconPicker({
+      iconPicker = openIconPicker({
         document: doc,
         anchor: els.headerIcon,
         currentIcon: node.icon || null,
@@ -800,10 +890,9 @@ export function createInspector(context) {
     els.resetVariant.disabled = uikit.variant === "base"
       || !variant || !Object.keys(variant.patch || {}).length;
 
-    if (els.preset !== focused) {
-      els.preset.value = typeof uikit.matchingPreset === "function"
-        ? uikit.matchingPreset() || "" : "";
-    }
+    const matching = typeof uikit.matchingPreset === "function" ? uikit.matchingPreset() || "" : "";
+    if (els.preset !== focused) els.preset.value = matching;
+    for (const [id, card] of els.presetCards) card.setAttribute("aria-pressed", String(id === matching));
 
     const tokens = (uikit.doc && uikit.doc.overrides && uikit.doc.overrides.tokens) || {};
     for (const [name, control] of els.tokenControls) {
@@ -830,6 +919,8 @@ export function createInspector(context) {
       return root;
     },
     unmount() {
+      if (iconPicker) iconPicker.__cleanup(false);
+      iconPicker = null;
       if (els.treeBrowser && typeof els.treeBrowser.destroy === "function") {
         els.treeBrowser.destroy();
       }

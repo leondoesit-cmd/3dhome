@@ -32,9 +32,11 @@ export const PANELS = [
   { id: "panel:tb-end", sel: "#topbar .tb-end", key: "uikit_p_tb_end", en: "Toolbar end",
     constraints: { resize: "none", accepts: ["command", "panel", "group", "item", "menu", "separator"] } },
 
-  // left sidebar: the tab strip and the six panes it switches between
+  // Left sidebar panes share the same customization registry as their tabs.
   { id: "panel:leftTabs", sel: "#leftTabs", key: "uikit_p_left_tabs", en: "Pane tabs",
     constraints: { resize: "y", minH: 28, maxH: 240 } },
+  { id: "panel:planningGuide", sel: "#planningGuide", key: "guide_title", en: "Project guide",
+    constraints: { resize: "y", minW: 180, minH: 120 } },
   { id: "panel:library", sel: "#left-sidebar .panel-section.furn-panel", key: "uikit_p_library", en: "Library",
     constraints: { resize: "y", minW: 180, minH: 120 } },
   { id: "panel:smarthome", sel: "#left-sidebar .panel-section.sh-section", key: "uikit_p_smarthome", en: "Smart home",
@@ -297,6 +299,12 @@ export function deepEntries(doc, runAction) {
     deep("act:lang", "command", "lang_toggle", "Language", "ph-globe",
       at("#langBtn"), runs("lang")),
     // ---- #leftTabs ------------------------------------------------------
+    deep("tab:project", "command", "guide_tab", "Project tab", "ph-clipboard-text",
+      at("#leftTabs button[data-left-tab='project']"),
+      () => {
+        const el = d.querySelector("#leftTabs button[data-left-tab='project']");
+        if (el) el.click();
+      }),
     deep("tab:library", "command", "left_tab_library", "Library tab", "ph-books",
       at("#leftTabs button[data-left-tab='library']"),
       () => {

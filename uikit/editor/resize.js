@@ -1,14 +1,28 @@
 /* Resizing a node: which edges you may pull, where the handles are drawn, and
  * what the new size is once the constraints have had their say.
  *
- * WHICH AXIS. Not every edge of every node is meaningful. You resize a
- * sidebar's WIDTH and a toolbar's HEIGHT; pulling the other edge of either is
- * a gesture the layout cannot honour, and offering a handle for it is a
- * promise the editor then breaks. So the axis is decided, in order:
+ * WHICH AXIS. Both, unless someone says otherwise. An earlier version inferred
+ * a single axis per node — you widen a sidebar, you heighten a toolbar — on
+ * the grounds that the other edge was a promise the layout could not keep.
+ * That reasoning predates the sizing rules in uikit.css, which write `width`
+ * and `height` with `!important` and `flex: 0 0 auto` on any node the user has
+ * actually sized. Both edges are honoured now, so offering one and hiding the
+ * other is not caution, it is a missing feature: a panel whose height is fixed
+ * by the host stylesheet had no way back.
  *
- *   1. the registry entry, when the host has said (constraints.resize)
- *   2. a container's own orientation — a column is resized across, a row down
- *   3. a leaf's PARENT orientation, for the same reason one step up
+ * So the axis is decided, in order:
+ *
+ *   1. the registry entry or the node, when the host has said so
+ *      (constraints.resize: "none" | "x" | "y" | "both")
+ *   2. otherwise "both" — every edge, and every corner
+ *
+ * A host that means it can still pin an axis, and `"none"` still means no
+ * handles at all rather than handles that do nothing. What changed is the
+ * DEFAULT, which is the case nobody declared.
+ *
+ * primaryAxis() keeps the old inference for the places that want to know which
+ * way a node naturally stretches — a container across its own orientation, a
+ * leaf across its parent's — without that answer also being a restriction.
  *
  * The tree is not used to infer this geometrically. It cannot be: the layout
  * document is a logical hierarchy, and in this app #left-sidebar is a child of
@@ -26,8 +40,29 @@ const Y_HANDLES = Object.freeze(["n", "s"]);
 const isContainer = (node) => node && node.type !== "item" && node.type !== "separator";
 
 export function resizeAxis(node, parent) {
-  const declared = node && node.constraints && node.constraints.resize;
+  const declared = declaredAxis(node);
   if (declared) return declared;
+  return "both";
+}
+
+/* The host's word, from the node or from the registry entry behind it. Read
+   through the entry too, because a command's constraints live in the catalogue
+   the app publishes, not in the layout document the user edits. */
+function declaredAxis(node) {
+  if (!node) return null;
+  const own = node.constraints && node.constraints.resize;
+  if (own) return own;
+  const entry = node.entry && node.entry.constraints && node.entry.constraints.resize;
+  return entry || null;
+}
+
+/* Which way this node naturally stretches: a container across its own
+   orientation, a leaf across its parent's. Not a restriction — a hint, for
+   anything that wants to lead with one number (the inspector's size fields
+   order themselves by it). */
+export function primaryAxis(node, parent) {
+  const declared = declaredAxis(node);
+  if (declared && declared !== "both") return declared;
   if (node && node.type === "float") return "both";
   if (isContainer(node)) return orientOf(node) === "col" ? "x" : "y";
   return orientOf(parent) === "col" ? "y" : "x";
@@ -79,19 +114,60 @@ export function clamp(value, lo, hi) {
  * the sidebar. A float is the exception and gets its rect adjusted by the
  * caller, since there the position IS the user's.
  */
-export function sizeFrom(start, handle, dx, dy, constraints) {
+export function sizeFrom(start, handle, dx, dy, constraints, options) {
   const c = constraints || {};
-  const grows = {
-    n: { w: 0, h: -1 }, s: { w: 0, h: 1 },
-    w: { w: -1, h: 0 }, e: { w: 1, h: 0 },
-    ne: { w: 1, h: -1 }, nw: { w: -1, h: -1 },
-    se: { w: 1, h: 1 }, sw: { w: -1, h: 1 },
-  }[handle] || { w: 0, h: 0 };
+  const grows = GROWS[handle];
+  if (!grows) return null;
 
+  const opts = options || {};
+  let mx = dx;
+  let my = dy;
+
+  /* Aspect lock (Shift). Both axes follow whichever one the pointer has moved
+     further along, so a corner drag keeps the box's shape and an EDGE drag
+     picks up the second dimension it does not normally touch — which is how
+     "hold Shift to keep the proportions" behaves in every design tool. */
+  if (opts.aspect && start.w && start.h) {
+    const ratio = start.w / start.h;
+    const wantW = start.w + (grows.w || 1) * mx;
+    const wantH = start.h + (grows.h || 1) * my;
+    if (Math.abs(wantW - start.w) * (1 / ratio) >= Math.abs(wantH - start.h)) {
+      my = ((wantW / ratio) - start.h) / (grows.h || 1);
+    } else {
+      mx = ((wantH * ratio) - start.w) / (grows.w || 1);
+    }
+  }
+
+  const both = opts.aspect || opts.free;
   const out = {};
-  if (grows.w) out.w = clamp(Math.round(start.w + grows.w * dx), c.minW, c.maxW);
-  if (grows.h) out.h = clamp(Math.round(start.h + grows.h * dy), c.minH, c.maxH);
+  if (grows.w || both) out.w = clamp(Math.round(start.w + (grows.w || 1) * mx), c.minW, c.maxW);
+  if (grows.h || both) out.h = clamp(Math.round(start.h + (grows.h || 1) * my), c.minH, c.maxH);
   return Object.keys(out).length ? out : null;
+}
+
+const GROWS = Object.freeze({
+  n: { w: 0, h: -1 }, s: { w: 0, h: 1 },
+  w: { w: -1, h: 0 }, e: { w: 1, h: 0 },
+  ne: { w: 1, h: -1 }, nw: { w: -1, h: -1 },
+  se: { w: 1, h: 1 }, sw: { w: -1, h: 1 },
+});
+
+/* A free node keeps its far edge still. Pulling the west handle of a floating
+ * panel makes it wider AND moves its left edge left; pulling the east handle
+ * moves nothing. For a docked node the position belongs to the layout and this
+ * is never called — which is the difference the comment above sizeFrom draws.
+ */
+export function rectFrom(start, handle, size) {
+  const grows = GROWS[handle] || { w: 0, h: 0 };
+  const out = {
+    x: start.x,
+    y: start.y,
+    w: size && size.w != null ? size.w : start.w,
+    h: size && size.h != null ? size.h : start.h,
+  };
+  if (grows.w < 0) out.x = start.x + (start.w - out.w);
+  if (grows.h < 0) out.y = start.y + (start.h - out.h);
+  return out;
 }
 
 /* Which handle a point is over, if any. Checked against the drawn rects so the

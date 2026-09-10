@@ -40,3 +40,12 @@ test("plan_tools_dock.js registers status as a dockable panel defaulting to top 
   assert.match(dockJs, /key:\s*"status",\s*id:\s*"plan-tool-status"/);
   assert.match(dockJs, /status:\s*\{\s*zone:\s*"top",\s*order:\s*0\s*\}/);
 });
+
+test("plan chrome overlays are claimed as movable panels and snap is a thin magnet", () => {
+  assert.match(dockJs, /key:\s*"floors",\s*id:\s*"floor-tabs"/);
+  assert.match(dockJs, /key:\s*"cad",\s*id:\s*"cad-status"/);
+  assert.match(dockJs, /sel:\s*"\.plan-gizmo"/);
+  assert.match(dockJs, /var SNAP_PAD = 14;/);
+  assert.match(dockJs, /function claimOverlays\(/);
+  assert.match(dockJs, /function onSizeDown\(/);
+});

@@ -306,6 +306,15 @@ export function createEditorView(opts) {
       if (wasClick && opts.pick) opts.pick(e, view);
     });
     cv.addEventListener("pointercancel", function () { cancelLongPress(); drag = null; });
+    /* A double-click is the CAD shorthand for "grow this pick" — loop from an
+       edge, tangent run from a face. The two clicks underneath still land as
+       ordinary picks, which is what leaves the right entity selected for the
+       grow to start from. Mouse only: a double tap is a zoom gesture on touch,
+       and long-press already owns the touch equivalent. */
+    cv.addEventListener("dblclick", function (e) {
+      if (threeFinger() || e.pointerType === "touch") return;
+      if (opts.doubleClick) { e.preventDefault(); opts.doubleClick(e, view); }
+    });
     cv.addEventListener("contextmenu", function (e) {
       e.preventDefault();
       if (threeFinger() || view._skipContext) { view._skipContext = false; return; }
@@ -378,7 +387,7 @@ export function createEditorView(opts) {
       sizeDirty = false;
       var pad = view.big ? 0 : opts.pad || 16,
         w = Math.max(50, Math.round(r.width - pad)),
-        h = Math.max(50, Math.round(view.big ? r.height - pad : w * (opts.ratio || 0.78)));
+        h = Math.max(50, Math.round((view.big || (typeof opts.fitContainerHeight === "function" ? opts.fitContainerHeight() : opts.fitContainerHeight)) ? r.height - pad : w * (opts.ratio || 0.78)));
       // compare against what we asked for, not canvas.width — that is the
       // backing-store size and never equals w on a 2x display, so the old
       // check re-sized the renderer on literally every frame

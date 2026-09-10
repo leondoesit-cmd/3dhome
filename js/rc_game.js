@@ -1,6 +1,7 @@
 /* Micro-RC gameplay: HUD, race flow, simulation, input, mode toggle. */
 import * as THREE from "three";
 import { S, clamp, fin } from "./state.js";
+import { motorDrag, passedGate, courseAhead } from "./rc_driving.js";
 import { detectRooms, roomHidden } from "./geometry.js";
 import { FURN } from "./furniture.js";
 import { openModeler } from "./modeler.js";
@@ -190,6 +191,8 @@ function buildHud() {
     '<div id="rcTop"><span id="rcLap"></span><span id="rcTime"></span>' +
     '<span id="rcLapT"></span><span id="rcDelta"></span><span id="rcBest"></span></div>' +
     '<div id="rcSplits"></div>' +
+    '<div id="rcCoach" role="status"></div>' +
+    '<div id="rcActions"><button id="rcPauseButton">' + t('rc_pause_action') + '</button><button id="rcRescueButton">' + t('rc_rescue') + '</button></div>' +
     '<div id="rcLights" aria-hidden="true"><i></i><i></i><i></i></div>' +
     '<div id="rcMsg"></div>' +
     '<div id="rcWarn"></div>' +
@@ -254,6 +257,8 @@ function buildHud() {
   R.hud.skip.addEventListener("click", function () {
     finishRace(performance.now(), true);
   });
+  el.querySelector("#rcPauseButton").addEventListener("click", function () { setPaused(!R.paused); });
+  el.querySelector("#rcRescueButton").addEventListener("click", function () { rescueCar(); });
   miniInit(el);
   miniSetOn(R.minimap);
   bindTouchControls();
@@ -625,6 +630,8 @@ function showPanel() {
     '<div class="rc-row"><button id="rcHome"' +
     (R.homeMode ? ' class="active"' : "") +
     ' title="' + t("rc_home_hint") + '">🏠 ' + t("rc_home") + "</button></div>" +
+    '<button id="rcAssist" aria-pressed="' + R.brakeAssist + '">' + t('rc_brake_assist') + ': ' + t(R.brakeAssist ? 'rc_on' : 'rc_off') + '</button>' +
+    '<p class="rc-howto">' + t('rc_quick_help') + '</p>' +
     '<div class="rc-row"><label>' + t("rc_camera") + '</label><select id="rcCam">' +
     opts(
       [["chase", t("rc_cam_chase")], ["hood", t("rc_cam_hood")], ["cockpit", t("rc_cam_cockpit")]],
@@ -652,10 +659,29 @@ function showPanel() {
     (bLap ? '<div class="rc-best">' + t("rc_best_lap") + " " + fmtT(bLap) +
       (ghostHas() ? " 👻" : "") + "</div>" : "") +
     '<div class="rc-bank">◉ ' + R.bank + " " + t("rc_bank") + "</div>" +
+    '<p id="rcCourseStatus" role="status"></p>' +
+    (R.track && R.track.feats.automatic && !R.followAnchors ? '<button id="rcReverse" aria-pressed="' + R.reverseCourse + '">↔ ' + t('rc_reverse_course') + '</button>' : '') +
     '<button id="rcStart" class="rc-primary"><i class="ph ph-flag-checkered"></i> ' +
     (trial ? t("rc_start_trial") : t("rc_start")) + "</button>" +
     '<div class="rc-row"><button id="rcFree">' + t("rc_free") + "</button>" +
     '<button id="rcQuit">' + t("rc_quit") + "</button></div>";
+  p.querySelector("#rcCourseStatus").textContent = R.trackError || (!R.track ? t("rc_course_failed") : t("rc_course_ready"));
+  var coverage = R.track && R.track.feats.coverage;
+  if (coverage && !R.trackError) p.querySelector("#rcCourseStatus").textContent =
+    t("rc_house_tour") + " · " + coverage.visited + "/" + coverage.total + " " + t("rc_tour_objects") +
+    " · " + coverage.rooms + "/" + coverage.totalRooms + " " + t("rc_tour_rooms");
+  else if (R.homeFeatures && R.homeMode && R.track && !R.trackError) p.querySelector("#rcCourseStatus").textContent = t("rc_tour_fallback");
+  p.querySelector("#rcStart").disabled = !R.track;
+  p.querySelector("#rcAssist").addEventListener("click", function () {
+    R.brakeAssist = !R.brakeAssist; prefsSave(); showPanel();
+  });
+  var reverse = p.querySelector("#rcReverse");
+  if (reverse) reverse.addEventListener("click", function () {
+    R.reverseCourse = !R.reverseCourse;
+    buildTrack();
+    R.cars.forEach(function (c, i) { gridPlace(c, i, R.cars.length); });
+    prefsSave(); showPanel();
+  });
   function mode(m) {
     R.mode = m;
     prefsSave();
@@ -750,7 +776,8 @@ function showPanel() {
     R.cars.forEach(function (c, i) {
       gridPlace(c, i, R.cars.length);
     });
-    showMsg(R.homeMode ? t("rc_home_on") : t("rc_home_off"), 2200);
+    showPanel();
+    if (!R.trackError) showMsg(R.homeMode ? t("rc_home_on") : t("rc_home_off"), 2200);
   });
   p.querySelector("#rcWater").addEventListener("click", function (e) {
     R.waterTool = !R.waterTool;
@@ -1023,6 +1050,7 @@ function centerBack(i0, dist) {
 }
 
 function gridPlace(car, idx, total) {
+  if (!R.track || R.track.wps.length < 2) return;
   var wps = R.track.wps;
   var a = wps[0],
     b = wps[1];
@@ -1053,7 +1081,7 @@ function gridPlace(car, idx, total) {
     gy = p.y != null ? p.y : null;
     heading = Math.atan2(ux, uz);
     // last guard: if the offset spot isn't over the deck, sit dead centre
-    if (!onRoad(gx, gz, gy != null ? gy : 0)) {
+    if (!R.homeMode && !onRoad(gx, gz, gy != null ? gy : 0)) {
       gx = p.x;
       gz = p.z;
     }
@@ -1128,6 +1156,7 @@ function startRace(o) {
   editorClose(); // no handles in the way once the flag drops
   setPaused(false);
   if (!R.track) buildTrack();
+  if (!R.track) { showPanel(); showMsg(t("rc_course_failed"), 5000); return; }
   clearCars(true);
   var trial = (o.mode || R.mode) === "trial";
   if (o.laps) R.laps = clamp(o.laps, 1, 9);
@@ -1159,7 +1188,7 @@ function startRace(o) {
   if (R.phase === "foot") enterCarPhase(pc);
   openAllDoors();
   kartReset(); // fresh item boxes, no shells left over from the last race
-  var countIn = o.inMs != null ? Math.max(600, o.inMs) : 3200;
+  var countIn = o.inMs != null ? Math.max(600, o.inMs) : 3000;
   R.race = {
     state: "count",
     mode: trial ? "trial" : "race",
@@ -1236,6 +1265,19 @@ function endRace() {
 
 function updateRings(nextIdx) {
   if (!R.track) return;
+  var guide = R.track.group.getObjectByName("rcCourseGuide");
+  if (guide && guide.userData.nextGate !== nextIdx) {
+    guide.userData.nextGate = nextIdx;
+    var target = R.track.wps[nextIdx], end = target ? centerIndexNear(target.x, target.z) : -1;
+    var count = R.track.center.length, colors = guide.geometry.getAttribute("color");
+    colors.array.set(guide.userData.baseColors);
+    guide.userData.courseRanges.forEach(function (range) {
+      var behind = (end - range.i + count) % count;
+      if (end < 0 || behind > 18) return;
+      for (var j = range.start; j < range.start + range.count; j++) colors.setXYZ(j, 0.2, 1, 0.55);
+    });
+    colors.needsUpdate = true;
+  }
   var pulse = 0.55 + 0.35 * Math.sin(performance.now() / 140);
   R.track.wps.forEach(function (wp, i) {
     if (!wp.mats) return;
@@ -1249,26 +1291,14 @@ function updateRings(nextIdx) {
   });
 }
 
-function checkWaypoints(car, now) {
+function checkWaypoints(car, now, from) {
   if (!R.race || car.done || car.dead) return;
   var wps = R.track && R.track.wps;
   if (!wps || !wps.length || !wps[car.next]) return;
-  // minor (smoothing) points are generous and skippable: hitting the point
-  // after a minor also counts, so a wide fluid line never strands the racer
-  var cand = [car.next];
-  if (wps[car.next].minor) cand.push((car.next + 1) % wps.length);
-  var hitIdx = -1;
-  for (var ci = 0; ci < cand.length; ci++) {
-    var tgt = wps[cand[ci]];
-    var rr = tgt.minor ? PASS_R_MINOR : car.ai ? PASS_R_AI : PASS_R;
-    if (
-      Math.hypot(car.x - tgt.x, car.z - tgt.z) < rr &&
-      Math.abs(car.y - tgt.y) < 12 // a gate under the table doesn't count from the tabletop
-    ) {
-      hitIdx = cand[ci];
-      break;
-    }
-  }
+  // Everyone must cross the same gate forwards, inside the lane. Sweeping the
+  // movement segment also catches fast trucks that pass between frames.
+  var hitIdx = passedGate(from, car, wps[car.next], wps[(car.next + 1) % wps.length],
+    (R.roadWidth || 26) / 2) ? car.next : -1;
   if (hitIdx >= 0) {
     car.next = hitIdx; // in case a minor was skipped
     if (!car.ai && !wps[hitIdx].minor) beep(880, 0.08, 0.35);
@@ -1428,7 +1458,7 @@ function carPhysics(car, dt, input, now) {
     if (car.v > 2) car.v -= BRAKE * brk * dt;
     else car.v -= ACC * 0.6 * brk * dt;
   }
-  car.v -= car.v * DRAG * dt;
+  car.v -= car.v * motorDrag(thr, DRAG) * dt;
   car.v = clamp(car.v, -REV_MAX, maxv);
   // steering / drift state
   var st = spun ? 0 : Number.isFinite(input.steerAxis)
@@ -1695,7 +1725,7 @@ function carPhysics(car, dt, input, now) {
   }
   car.spin += (car.v / WHEEL_R) * dt;
   syncCarMesh(car);
-  checkWaypoints(car, now);
+  checkWaypoints(car, now, { x: moveFromX, z: moveFromZ, y: car.y });
 }
 
 // bumper cars: circle-vs-circle between trucks, with ram damage on hard hits
@@ -1826,7 +1856,7 @@ function syncCarMesh(car) {
   }
 }
 
-function aiInput(car) {
+function aiInput(car, dt) {
   var input = { fwd: false, back: false, left: false, right: false };
   if (!R.race || R.race.state !== "run" || car.done || car.dead) {
     return input;
@@ -1858,6 +1888,8 @@ function aiInput(car) {
     ax = (tgt.x + la.x) / 2;
     az = (tgt.z + la.z) / 2;
   }
+  var ahead = courseAhead(R.track.center, car, MAXV * car.aiSkill);
+  if (ahead && ahead.off < (R.roadWidth || 26)) { ax = ahead.target.x; az = ahead.target.z; }
   var want = Math.atan2(ax - car.x, az - car.z);
   var diff = want - car.heading;
   while (diff > Math.PI) diff -= Math.PI * 2;
@@ -1951,6 +1983,7 @@ function aiInput(car) {
     input.drift = (car.aiDrift || 0) > now && Math.abs(diff) > 0.15;
   }
   var slow =
+    (ahead && car.v > ahead.speed + 3) ||
     Math.abs(diff) > 1.15 ||
     (cBlock && Math.abs(car.v) > 40) ||
     (!car.passSide &&
@@ -1974,8 +2007,8 @@ function aiInput(car) {
   } else if (dTgt < (car.progD == null ? dTgt : car.progD) - 0.4) {
     car.progD = dTgt;
     car.stuck = 0;
-  } else car.stuck += 1 / 60;
-  if (input.fwd && Math.abs(car.v) < 2.5) car.stuck += 1 / 60;
+  } else car.stuck += dt;
+  if (input.fwd && Math.abs(car.v) < 2.5) car.stuck += dt;
   if (car.stuck > 1.7) {
     car.stuck = 0;
     car.progD = dTgt;
@@ -2342,10 +2375,8 @@ function tick(delta) {
   if (R.colDirty) {
     buildColModel();
     if (R.race) openAllDoors();
-    // The walls moved (a room edited, a new apartment generated): the circuit
-    // was laid out for the old flat, so lay a new one. Only when the plan
-    // signature really changed — furniture edits fire this event too.
-    if (!R.race && R.trackSig && R.trackSig !== planSig()) buildTrack();
+    // Furniture and doorway edits can invalidate the lane without moving walls.
+    if (!R.race) buildTrack();
   }
   var pc = playerCar();
   // race countdown / clock
@@ -2425,7 +2456,7 @@ function tick(delta) {
         if (!ac.done) aiGone = false;
         else if (ac.finT > lastAi) lastAi = ac.finT;
       }
-      if (aiGone && lastAi && now - lastAi > FINISH_GRACE_MS) {
+      if (aiGone && lastAi && now - R.race.t0 - lastAi > FINISH_GRACE_MS) {
         R.hud.wait.classList.add("on");
         R.hud.waitTxt.textContent = t("rc_field_done");
       }
@@ -2434,9 +2465,13 @@ function tick(delta) {
   // cars
   R.cars.forEach(function (c) {
     var input;
-    if (c.ai) input = aiInput(c);
+    if (c.ai) input = aiInput(c, dt);
     else if (R.phase === "drive") input = pInput;
     else input = {};
+    if (!c.ai && R.brakeAssist && R.race && R.race.state === "run" && input.fwd && !input.drift && !input.run) {
+      var ahead = courseAhead(R.track.center, c, MAXV);
+      if (ahead && ahead.off < R.roadWidth && c.v > ahead.speed + 2) input = Object.assign({}, input, { throttle: -0.45 });
+    }
     forEachPhysicsStep(dt, function (stepDt) {
       carPhysics(c, stepDt, input, now);
     });
@@ -2448,6 +2483,12 @@ function tick(delta) {
   updateGaps(pc);
   updateWrongWay(pc);
   updateStuckHint(pc, pInput, now);
+  var coach = R.hud.root.querySelector("#rcCoach");
+  var route = pc && R.race && R.race.state === "run" && !pc.done && courseAhead(R.track.center, pc, MAXV);
+  coach.hidden = !route;
+  if (route) coach.textContent = route.off > R.roadWidth ? t("rc_return_course") :
+    pc.v > route.speed + 3 ? t("rc_brake_corner") : route.turn ?
+      (route.turn > 0 ? "↶ " : "↷ ") + t("rc_corner_ahead") : t("rc_clear_straight");
   if (R.hud && R.hud.root)
     R.hud.root.classList.toggle("drafting", !!(pc && (pc.draft || 0) > 0.35));
   stepShards(dt, now);
@@ -2998,6 +3039,10 @@ export function toggleRC(on) {
     watersLoad();
     openAllDoors();
     R.active = true;
+    var cc = document.getElementById("center-canvas");
+    R.playPrevView = cc && (cc.classList.contains("max-view-2d") ? "plan" : cc.classList.contains("max-view-3d") ? "3d" : "split");
+    if (window.__setViewMode) window.__setViewMode("3d");
+    document.body.classList.add("rc-playing");
     R.waterTool = false;
     R.phase = "drive";
     R.keys = {};
@@ -3025,6 +3070,9 @@ export function toggleRC(on) {
     R.touch = {};
     R.paused = false;
     editorClose();
+    document.body.classList.remove("rc-playing");
+    if (R.playPrevView && window.__setViewMode) window.__setViewMode(R.playPrevView);
+    R.playPrevView = null;
     setExternalTick(null);
     engineOff();
     ghostClear();

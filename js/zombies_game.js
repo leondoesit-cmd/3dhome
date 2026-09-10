@@ -16,15 +16,19 @@ import {
   setQualityPreset,
   setGameRendererQuality,
   clearGameRendererQuality,
+  setGameRenderEffect,
 } from "./view3d.js";
 import { t } from "./i18n.js";
-import { pointInPoly } from "./geometry.js";
+import { awardRunPoints, encounterCap, securedCount, reachableFloor, cameraPose } from "./zombies_rules.js";
+import { createBodyCamera } from "./zombies_camera.js";
+import { pointInPoly, roomName } from "./geometry.js";
 import {
   Z, hooks, zActive, EYE, EYE_CROUCH, P_RAD, P_CLEAR, STEP, SPD_WALK, SPD_SPRINT, SPD_CROUCH,
   ACCEL, GRAV, MAX_HP, MAX_ARMOR, Z_MAX_ALIVE, REST_LEN, RUN_WAVES, EXTRACT_LEN, rr, pick, rnd,
 } from "./zombies_state.js";
 import {
   buildCol,
+  blockedAt,
   buildFlashlight,
   collideCircle,
   moveCircle,
@@ -174,6 +178,8 @@ var PAUSE_CONTROLS = [
   { kbd: "X", key: "z_control_shove" },
   { kbd: "R", key: "z_control_reload" },
   { kbd: "F", key: "z_control_flash" },
+  { kbd: "E", key: "z_touch_interact" },
+  { kbd: "LMB", key: "z_touch_fire" },
 ];
 
 /* --- frag grenades -------------------------------------------------------
@@ -204,6 +210,15 @@ function gameSettings() {
   var quality = fin(savedQuality) ? Math.round(clamp(savedQuality, 0, 2)) : 0;
   Z.settings = {
     quality: quality,
+    sandbox: !!saved.sandbox,
+    difficulty: ["easy", "normal", "hard"].includes(saved.difficulty) ? saved.difficulty : "normal",
+    bodycam: saved.bodycam !== false,
+    fov: fin(Number(saved.fov)) ? clamp(Number(saved.fov), 60, 95) : 82,
+    shake: fin(Number(saved.shake)) ? clamp(Number(saved.shake), 0, 1) : 0.45,
+    bob: fin(Number(saved.bob)) ? clamp(Number(saved.bob), 0, 1) : 0.5,
+    lens: fin(Number(saved.lens)) ? clamp(Number(saved.lens), 0, 1) : 0.65,
+    flashes: fin(Number(saved.flashes)) ? clamp(Number(saved.flashes), 0, 1) : 0.35,
+    blood: saved.blood !== false,
     // no saved choice: match the old coupling (destruction only at High)
     // rather than defaulting low-spec devices into paying for physics
     destruct: fin(savedDestruct) ? Math.round(clamp(savedDestruct, 0, 2)) : quality >= 2 ? 2 : 0,
@@ -229,6 +244,12 @@ function applyGameSettings() {
   setFXDensity(cfg.fx / 100);
   syncDestruction(cfg.destruct);
   if (Z.hud && Z.hud.root) Z.hud.root.classList.toggle("z-lite", cfg.quality === 0);
+  if (Z.hud) {
+    Z.hud.root.classList.toggle("z-no-blood", !cfg.blood);
+    Z.hud.root.classList.toggle("z-no-flashes", cfg.flashes === 0);
+    Z.hud.root.classList.toggle("z-bodycam", cfg.bodycam);
+  }
+  if (Z.active) setGameRenderEffect(cfg.bodycam && cfg.lens > 0 ? bodyCameraFactory : null);
   applyAudioVolume();
 }
 function applyAudioVolume() {
@@ -242,7 +263,11 @@ function applyAudioVolume() {
   }
 }
 function qualityHordeCap() {
-  return [8, 12, 16][gameSettings().quality || 0];
+  return 16; // Graphics quality never changes encounter rules.
+}
+function bodyCameraFactory(renderer, scene, camera) {
+  var effect = createBodyCamera(renderer, scene, camera);
+  return { render: function () { effect.render(gameSettings(), Z.t, Z.blackout); }, dispose: effect.dispose };
 }
 // A 12 m² studio cannot host the graphics-tier horde cap. One live threat
 // per ~6 m² keeps wave 1 from stacking eight walkers on the player.
@@ -871,7 +896,7 @@ function muzzleFlash(pos, def) {
     Z.grp.add(F);
   }
   F.position.copy(pos);
-  F.intensity = legacyIntensity(7 * (def.pellets > 1 ? 1.6 : 1), 620);
+  F.intensity = legacyIntensity(7 * (def.pellets > 1 ? 1.6 : 1), 620) * gameSettings().flashes;
   F.userData.t = 0.055;
   sparkBurst(pos.x, pos.y, pos.z, 0, 0, 0, def.pellets > 1 ? 14 : 7, true);
 }
@@ -893,6 +918,7 @@ function finishReload() {
     take = Math.min(need, P.reserve[P.weapon]);
   P.ammo[P.weapon] += take;
   P.reserve[P.weapon] -= take;
+  if (take > 0) Z.tutorialStage = 2;
   hudDirty();
 }
 
@@ -1092,7 +1118,7 @@ function detonate(x, y, z) {
     Z.grp.add(L);
   }
   L.position.set(x, y + 20, z);
-  L.intensity = legacyIntensity(30, 1400);
+  L.intensity = legacyIntensity(30, 1400) * gameSettings().flashes;
   L.userData.t = 0.16;
   sparkBurst(x, y + 10, z, 0, 1, 0, 40, true);
   boneBurst(x, y + 10, z, 12);
@@ -1150,7 +1176,7 @@ function stepViewModel(dt) {
   P.swayY += (P.lookDY * -0.2 - P.swayY) * Math.min(1, dt * 9);
   P.lookDX *= 0.82;
   P.lookDY *= 0.82;
-  var bobA = P.speedK * (P.sprint ? 2.4 : 1.4),
+  var bobA = P.speedK * (P.sprint ? 2.4 : 1.4) * gameSettings().bob,
     bx2 = Math.sin(P.bob) * bobA,
     by = Math.abs(Math.cos(P.bob)) * bobA * 0.8;
   P.vmKick *= Math.pow(0.0016, dt);
@@ -1396,7 +1422,7 @@ function takePickup(pu) {
     }
     if (Z.flash) Z.flash.batt = Math.min(100, Z.flash.batt + 45);
   }
-  Z.score = (Z.score || 0) + 25;
+  awardRunPoints(Z, 25);
   sndPickup();
   hudDirty();
 }
@@ -2006,8 +2032,8 @@ function buildHud() {
     '<div id="zDamage"><i></i></div>' +
     '<div id="zTop"><span id="zWave"></span><span id="zKills"></span><span id="zScore"></span></div>' +
     '<div id="zBossBar"><div class="z-boss-hdr"><span id="zBossName"></span><b id="zBossHpText"></b></div><div class="z-boss-track"><i id="zBossFill"></i></div></div>' +
-    '<div id="zMission"><div><span id="zMissionLabel"></span><strong id="zMissionCount"></strong></div><b><i></i></b></div>' +
-    '<div id="zThreat"><i></i><span></span></div>' +
+    '<div id="zReadouts"><div id="zMission"><div><span id="zMissionLabel"></span><strong id="zMissionCount"></strong></div><b><i></i></b></div>' +
+    '<div id="zThreat"><i></i><span></span></div></div>' +
     '<div id="zCombo"></div>' +
     '<div id="zMsg"></div>' +
     '<div id="zIntermission"><span></span><div>' +
@@ -2026,6 +2052,7 @@ function buildHud() {
     '<div id="zAmmo"><span id="zFrags"></span><span id="zWName"></span><span id="zAmmoN"></span></div>' +
     "</div>" +
     '<div id="zWheel"></div>' +
+    '<div id="zTutorial" role="status"></div>' +
     '<div id="zHint"></div>' +
     '<button type="button" id="zPauseBtn" aria-label=""></button>' +
     '<div id="zTouch" aria-label="">' +
@@ -2057,6 +2084,34 @@ function buildHud() {
     '<button id="zResume"></button><button id="zExit"></button></div></div>' +
     '<div id="zDead"><h2></h2><p></p><button id="zAgain"></button><button id="zDeadExit"></button></div>' +
     '<div id="zVictory"><h2></h2><p></p><button id="zVictoryAgain"></button><button id="zVictoryExit"></button></div>';
+  var extra = document.createElement("div");
+  extra.className = "z-extra-settings";
+  var controls = [
+    ["difficulty", "select", ["easy", "normal", "hard"]], ["sandbox", "checkbox"],
+    ["bodycam", "checkbox"], ["fov", "range", 60, 95, 1],
+    ["shake", "range", 0, 1, 0.05], ["bob", "range", 0, 1, 0.05],
+    ["lens", "range", 0, 1, 0.05], ["flashes", "range", 0, 1, 0.05], ["blood", "checkbox"]
+  ];
+  controls.forEach(function (spec) {
+    var label = document.createElement("label"), title = document.createElement("span");
+    title.textContent = t("z_option_" + spec[0]);
+    var input = document.createElement(spec[1] === "select" ? "select" : "input");
+    input.dataset.setting = spec[0];
+    input.setAttribute("aria-label", title.textContent);
+    if (spec[1] === "select") spec[2].forEach(function (value) {
+      var option = document.createElement("option"); option.value = value; option.textContent = t("z_difficulty_" + value); input.appendChild(option);
+    });
+    else input.type = spec[1];
+    if (spec[1] === "range") { input.min = spec[2]; input.max = spec[3]; input.step = spec[4]; }
+    if (spec[1] === "checkbox") input.checked = gameSettings()[spec[0]];
+    else input.value = gameSettings()[spec[0]];
+    input.addEventListener("change", function () {
+      gameSettings()[spec[0]] = spec[1] === "checkbox" ? input.checked : spec[1] === "range" ? Number(input.value) : input.value;
+      saveGameSettings(); applyGameSettings();
+    });
+    label.append(title, input); extra.appendChild(label);
+  });
+  el.querySelector(".z-game-settings").appendChild(extra);
   host.appendChild(el);
   Z.hud = {
     root: el,
@@ -2202,13 +2257,7 @@ function buildHud() {
   Z.hud.qualitySlider.addEventListener("input", function () {
     gameSettings().quality = Number(this.value);
     saveGameSettings();
-    var texBudgetChanged = setTexBudget(gameSettings().quality);
     applyGameSettings();
-    if (texBudgetChanged && Z.active) {
-      clearViewModels();
-      dropTextureCaches();
-      restart();
-    }
     syncSettingsUi();
   });
   if (Z.hud.destructSlider) {
@@ -2328,9 +2377,14 @@ function hudSync() {
     live++;
     nearest = Math.min(nearest, Math.hypot(Z.zeds[zi].x - P.x, Z.zeds[zi].z - P.z));
   }
+  var tutorial = Z.hud.root.querySelector("#zTutorial");
+  if (tutorial) {
+    var lesson = Z.stats.shots === 0 ? "fire" : Z.tutorialStage < 2 ? "reload" : "objective";
+    tutorial.textContent = Z.wave && Z.wave.n === 1 && Z.wave.state === "fight" ? t("z_tutorial_" + lesson) : "";
+  }
   if (Z.wave && Z.hud.mission) {
     if (Z.wave.state === "extract" && Z.extraction) {
-      Z.hud.missionLabel.textContent = t("z_objective_extract");
+      Z.hud.missionLabel.textContent = t("z_objective_extract") + " · " + Z.extraction.name + " · " + Math.ceil(Math.hypot(P.x - Z.extraction.x, P.z - Z.extraction.z) / 100) + " m";
       Z.hud.missionCount.textContent = t("z_extract_count", {
         p: Math.round((Z.extraction.progress / Z.extraction.need) * 100),
         n: Math.max(0, Math.ceil(Z.extraction.time)),
@@ -2370,8 +2424,8 @@ function hudSync() {
       Z.hud.intermissionTitle.textContent = t("z_intermission_title");
       Z.hud.intermission.querySelectorAll("[data-buy]").forEach(function (btn) {
         var kind = btn.getAttribute("data-buy"), offer = INTERMISSION_OFFERS[kind];
-        btn.textContent = t(offer.key) + " · " + offer.cost;
-        btn.disabled = (Z.score || 0) < offer.cost;
+        btn.textContent = t(offer.key) + " · " + offer.cost + " — " + t("z_supply_" + kind);
+        btn.disabled = (Z.credits || 0) < offer.cost;
       });
     }
   }
@@ -2407,7 +2461,7 @@ function hudSync() {
   }
   Z.hud.wave.textContent = t("z_wave_run", { n: Z.wave.n, max: RUN_WAVES });
   Z.hud.kills.textContent = "☠ " + Z.stats.kills;
-  if (Z.hud.score) Z.hud.score.textContent = "★ " + (Z.score || 0);
+  if (Z.hud.score) Z.hud.score.textContent = "★ " + (Z.score || 0) + " · " + t("z_credits", { n: Z.credits || 0 });
   var html = "";
   W_ORDER.forEach(function (k, i) {
     if (!P.owned[k]) return;
@@ -2441,7 +2495,7 @@ function hitMarker(kind) {
 function flashScreen(color, alpha) {
   if (!Z.hud) return;
   Z.hud.flash.style.background = color;
-  Z.hud.flash.style.opacity = alpha;
+  Z.hud.flash.style.opacity = alpha * gameSettings().flashes;
   Z.flashT = 0.12;
 }
 function showDamageDirection(src) {
@@ -2524,6 +2578,7 @@ function bloodCtx() {
 }
 
 function bloodSplat(intensity) {
+  if (!gameSettings().blood) return;
   var ctx = bloodCtx();
   if (!ctx) return;
   var imgs = loadBloodImgs(),
@@ -2650,17 +2705,17 @@ function newPlayer() {
     weapon: "knife",
     owned: (function () {
       var o = {};
-      W_ORDER.forEach(function (k) { o[k] = true; });
+      W_ORDER.forEach(function (k) { o[k] = gameSettings().sandbox || k === "knife" || k === "pistol"; });
       return o;
     })(),
     ammo: (function () {
       var a = {};
-      W_ORDER.forEach(function (k) { if (!W[k].melee) a[k] = W[k].mag; });
+      W_ORDER.forEach(function (k) { if (!W[k].melee) a[k] = gameSettings().sandbox || k === "pistol" ? W[k].mag : 0; });
       return a;
     })(),
     reserve: (function () {
       var r = {};
-      W_ORDER.forEach(function (k) { if (!W[k].melee) r[k] = W[k].reserve; });
+      W_ORDER.forEach(function (k) { if (!W[k].melee) r[k] = gameSettings().sandbox || k === "pistol" ? W[k].reserve : 0; });
       return r;
     })(),
     nextShot: 0,
@@ -2714,7 +2769,7 @@ function hurtPlayer(dmg, src) {
   showDamageDirection(src);
   shake(0.55 + Math.min(0.4, raw * 0.02));
   sndHurt();
-  if (Z.flash) Z.flash.dip = 0.28;
+  if (Z.flash) Z.flash.dip = 0.28 * gameSettings().flashes;
   // break combo on damage
   Z.combo = 0;
   Z.comboT = 0;
@@ -2959,10 +3014,12 @@ function stepDistract(dt, P) {
 function applyCamera() {
   var P = Z.p,
     cam = getMainCamera();
-  var eye = (P.crouch ? EYE_CROUCH : EYE) + Math.abs(Math.sin(P.bob)) * 2.4 * P.speedK;
+  var cfg = gameSettings();
+  var pose = cameraPose(P, cfg, Z.cameraMotion || (Z.cameraMotion = {}), Z.lastDt || 1 / 60);
+  var eye = pose.height;
   if (P.dead) eye = clamp(EYE - P.deadT * 180, 26, EYE); // the fall
-  var pitch = P.pitch + Z.shakeV.y + (P.dead ? Math.min(0.9, P.deadT * 0.5) : 0);
-  var yaw = P.yaw + Z.shakeV.x;
+  var pitch = P.pitch + pose.pitch + Z.shakeV.y * cfg.shake + (P.dead ? Math.min(0.9, P.deadT * 0.5) : 0);
+  var yaw = P.yaw + Z.shakeV.x * cfg.shake;
   cam.position.set(P.x, P.y + eye, P.z);
   var dx = Math.cos(pitch) * Math.sin(yaw),
     dy = Math.sin(pitch),
@@ -2971,16 +3028,10 @@ function applyCamera() {
   cam.lookAt(P.x + dx * 400, P.y + eye + dy * 400, P.z + dz * 400);
   // roll: lean into strafing, tilt hard when dying
   var strafe = (Z.keys.right ? 1 : 0) - (Z.keys.left ? 1 : 0);
-  cam.rotateZ((P.dead ? Math.min(1.2, P.deadT * 0.8) : 0) + strafe * -0.02 - Math.sin(P.bob) * 0.007 * P.speedK);
+  cam.rotateZ((P.dead ? Math.min(1.2, P.deadT * 0.8) : 0) + strafe * -0.008 * cfg.bob + pose.roll);
   // FOV punch: aim tightens, sprint opens up, hurt/adrenal/distract pulses
   if (Z.baseFov == null) Z.baseFov = cam.fov || 60;
-  var want =
-    Z.baseFov +
-    (P.sprint ? 6 : 0) -
-    (P.aim ? 12 : 0) +
-    (P.hurtT > 0 ? 2 : 0) +
-    (P.adrenalT > 0 ? 4 : 0) +
-    (P.distract > 0.3 ? P.distract * 5 : 0);
+  var want = pose.fov;
   // frame-rate independent approach (~0.18 per 60Hz frame)
   cam.fov += (want - cam.fov) * (1 - Math.pow(0.82, (Z.lastDt || 1 / 60) * 60));
   cam.updateProjectionMatrix();
@@ -3159,7 +3210,7 @@ function buildBarricadeAt(ds) {
   });
   sndHammer();
   flashScreen("#ffb850", 0.08);
-  Z.score = (Z.score || 0) + 20;
+  awardRunPoints(Z, 20);
   say(t("z_barricaded"), 1.2);
   hudDirty();
 }
@@ -3257,11 +3308,11 @@ function buyPerk(st) {
     say(t(st.key) + " (" + t("z_perk_active") + ")", 1.2);
     return;
   }
-  if ((Z.score || 0) < st.cost) {
+  if ((Z.credits || 0) < st.cost) {
     say(t(st.key) + " — " + t("z_cost_pts", { n: st.cost }), 1.4);
     return;
   }
-  Z.score -= st.cost;
+  Z.credits -= st.cost;
   if (!Z.perks) Z.perks = {};
   Z.perks[st.kind] = true;
 
@@ -3283,6 +3334,11 @@ function spawnFuseBox() {
   var rooms = liveRooms();
   var r = rooms.length > 1 ? rooms[1] : rooms[0];
   var fx = r ? r.cx : 0, fz = r ? r.cz : 0;
+  var reachable = farthestRoom().route;
+  var fuseSpot = reachable.reduce(function (best, pt) {
+    return Math.hypot(pt.x - fx, pt.z - fz) < Math.hypot(best.x - fx, best.z - fz) ? pt : best;
+  }, reachable[0]);
+  fx = fuseSpot.x; fz = fuseSpot.z;
   var grp = new THREE.Group();
   grp.position.set(fx, 130, fz);
 
@@ -3334,7 +3390,7 @@ function restorePower(manual) {
   }
   sndPower();
   if (manual) {
-    Z.score = (Z.score || 0) + 150;
+    awardRunPoints(Z, 150);
     say(t("z_power_restored"), 2.0);
   }
   flashScreen("#20e870", 0.18);
@@ -3580,29 +3636,48 @@ function placeNavMarker(x, z, radius, color) {
 }
 
 function farthestRoom() {
-  var rooms = liveRooms(), P = Z.p;
-  if (!rooms.length) return null;
-  return rooms.slice().sort(function (a, b) {
-    return Math.hypot(b.cx - P.x, b.cz - P.z) - Math.hypot(a.cx - P.x, a.cz - P.z);
-  })[0];
+  var rooms = liveRooms(), b = interiorBounds(), P = Z.p;
+  var points = reachableFloor(P, b, function (x, z) {
+    return blockedAt(x, z, P_RAD + 2, P.y, P_CLEAR, STEP) || Math.abs(groundAt(x, z, P.y, STEP) - P.y) > STEP;
+  }, function (x, z) { return !rooms.length || rooms.some(function (rm) { return rm.pts && pointInPoly(x, z, rm.pts); }); });
+  var best = points[0], bestRoom = null;
+  points.forEach(function (pt) {
+    if (pt.distance > best.distance) { best = pt; }
+  });
+  // Prefer a clear reachable point near a room center, ranked by route length.
+  var candidates = rooms.map(function (rm) {
+    var pt = points.reduce(function (a, c) {
+      return Math.hypot(c.x - rm.cx, c.z - rm.cz) < Math.hypot(a.x - rm.cx, a.z - rm.cz) ? c : a;
+    }, points[0]);
+    return { room: rm, point: pt, near: Math.hypot(pt.x - rm.cx, pt.z - rm.cz) };
+  }).filter(function (c) { return c.near < 150 && c.point.distance > 160; });
+  candidates.sort(function (a, c) { return c.point.distance - a.point.distance; });
+  if (candidates.length) { best = candidates[0].point; bestRoom = candidates[0].room; }
+  return { cx: best.x, cz: best.z, distance: best.distance,
+    name: bestRoom ? roomName(bestRoom.key) || t("z_destination_room") : t("z_destination_safe"),
+    route: points, point: best };
 }
 
 function makeWaveObjective(n, event) {
   removeNavMarker();
+  var rm = farthestRoom(), b = interiorBounds();
+  var targets = (Z.col && Z.col.doorSegs || []).map(function (ds) {
+    return { x: (ds.ax + ds.bx) / 2, z: (ds.az + ds.bz) / 2 };
+  }).filter(function (target) {
+    return rm.route.some(function (pt) { return Math.hypot(pt.x - target.x, pt.z - target.z) < 90; });
+  });
   var obj;
   if (event === "blackout" && Z.fuseBox) {
     obj = { kind: "power", x: Z.fuseBox.x, z: Z.fuseBox.z, progress: 0, need: 1, completed: false };
-  } else if (n % 2 === 0 && Z.col && Z.col.doorSegs && Z.col.doorSegs.length) {
-    var start = (Z.barricades || []).length;
+  } else if (n % 2 === 0 && targets.length) {
     obj = {
       kind: "secure", progress: 0,
-      start: start, need: Math.min(2, Z.col.doorSegs.length), completed: false,
+      targets: targets, need: Math.min(2, targets.length), completed: false,
     };
   } else {
-    var rm = farthestRoom(), b = interiorBounds();
     var x = rm ? rm.cx : b ? (b.minx + b.maxx) / 2 : Z.p.x;
     var z = rm ? rm.cz : b ? (b.minz + b.maxz) / 2 : Z.p.z;
-    obj = { kind: "hold", x: x, z: z, progress: 0, need: 9 + Math.min(5, n), radius: 125, completed: false };
+    obj = { kind: "hold", name: rm.name, x: x, z: z, progress: 0, need: 9 + Math.min(5, n), radius: 125, completed: false };
     placeNavMarker(x, z, obj.radius, 0x53e7ff);
   }
   Z.objective = obj;
@@ -3613,7 +3688,9 @@ function objectiveProgress(obj) {
 }
 
 function objectiveLabel(obj) {
-  return t(obj.kind === "hold" ? "z_objective_hold" : obj.kind === "secure" ? "z_objective_secure" : "z_objective_power");
+  var label = t(obj.kind === "hold" ? "z_objective_hold" : obj.kind === "secure" ? "z_objective_secure" : "z_objective_power");
+  if (obj.x != null) label += " · " + (obj.name || t("z_destination_room")) + " · " + Math.ceil(Math.hypot(Z.p.x - obj.x, Z.p.z - obj.z) / 100) + " m";
+  return t("z_optional") + " · " + label;
 }
 
 function objectiveCount(obj) {
@@ -3626,7 +3703,7 @@ function completeObjective() {
   if (!obj || obj.completed) return;
   obj.completed = true;
   obj.progress = obj.need;
-  Z.score = (Z.score || 0) + 225;
+  awardRunPoints(Z, 225);
   Z.p.armor = Math.min(MAX_ARMOR, (Z.p.armor || 0) + 20);
   removeNavMarker();
   sndPickup();
@@ -3642,7 +3719,12 @@ function stepObjective(dt) {
     var inside = Math.hypot(Z.p.x - obj.x, Z.p.z - obj.z) <= obj.radius;
     obj.progress = clamp(obj.progress + dt * (inside ? 1 : -0.35), 0, obj.need);
   } else if (obj.kind === "secure") {
-    obj.progress = Math.max(0, (Z.barricades || []).length - obj.start);
+    obj.progress = securedCount(obj.targets, Z.barricades || []);
+    var next = obj.targets.find(function (target) { return securedCount([target], Z.barricades || []) === 0; });
+    if (next && (obj.x !== next.x || obj.z !== next.z)) {
+      obj.x = next.x; obj.z = next.z;
+      placeNavMarker(next.x, next.z, 45, 0x53e7ff);
+    }
   } else if (obj.kind === "power") {
     obj.progress = Z.blackout ? 0 : 1;
   }
@@ -3657,15 +3739,15 @@ function beginIntermission() {
 function buyIntermission(kind) {
   var offer = INTERMISSION_OFFERS[kind];
   if (!offer || !Z.wave || Z.wave.state !== "rest" || !Z.intermission || Z.intermission.chosen) return;
-  if ((Z.score || 0) < offer.cost) {
+  if ((Z.credits || 0) < offer.cost) {
     say(t("z_not_enough"), 1.2);
     return;
   }
-  Z.score -= offer.cost;
+  Z.credits -= offer.cost;
   Z.intermission.chosen = true;
   if (kind === "ammo") {
     W_ORDER.forEach(function (k) {
-      if (!W[k].melee) Z.p.reserve[k] = Math.max(Z.p.reserve[k] || 0, W[k].mag * 3);
+      if (!W[k].melee && Z.p.owned[k]) Z.p.reserve[k] = Math.max(Z.p.reserve[k] || 0, W[k].mag * 3);
     });
     Z.p.frags = Math.min(FRAG.maxCarry, (Z.p.frags || 0) + 2);
     if (Z.flash) Z.flash.batt = 100;
@@ -3721,17 +3803,15 @@ function directedType(Wv) {
 }
 
 function extractionPoint() {
-  var rm = farthestRoom(), b = interiorBounds();
-  return rm ? { x: rm.cx, z: rm.cz } : b
-    ? { x: Z.p.x < (b.minx + b.maxx) / 2 ? b.maxx - 70 : b.minx + 70, z: (b.minz + b.maxz) / 2 }
-    : { x: Z.p.x + 400, z: Z.p.z };
+  var rm = farthestRoom();
+  return { x: rm.cx, z: rm.cz, distance: rm.distance, name: rm.name };
 }
 
 function beginExtraction() {
   var pt = extractionPoint();
   Z.objective = null;
   Z.intermission = null;
-  Z.extraction = { x: pt.x, z: pt.z, radius: 120, progress: 0, need: 4, time: EXTRACT_LEN };
+  Z.extraction = { x: pt.x, z: pt.z, radius: 120, progress: 0, need: 4, name: pt.name, time: Math.max(EXTRACT_LEN, pt.distance / SPD_WALK * 2 + 12) };
   Z.wave.state = "extract";
   Z.wave.timer = 0;
   Z.wave.spawnT = 1;
@@ -3783,7 +3863,7 @@ function stepExtraction(dt) {
 }
 
 function startWave(n) {
-  var total = Math.min(52, 5 + n * 3 + (n >= 5 ? n : 0));
+  var total = Math.round(Math.min(52, 5 + n * 3 + (n >= 5 ? n : 0)) * ({ easy: 0.75, normal: 1, hard: 1.25 }[gameSettings().difficulty]));
   // special event waves
   var event = null;
   if (n > 1 && n % 5 === 0) event = "horde";
@@ -3809,6 +3889,7 @@ function startWave(n) {
     pool: pool,
     event: event,
     bossSpawned: false,
+    difficulty: gameSettings().difficulty,
   };
   Z.director = { phase: "build", phaseT: n === 1 ? 9 : 7, warned: {} };
   Z.intermission = null;
@@ -3858,12 +3939,11 @@ function stepWave(dt) {
       qualityCap,
       houseAliveCap(),
     );
-    if (Z.director.phase === "lull") aliveCap = Math.max(3, aliveCap - 3);
-    else if (Z.director.phase === "peak") aliveCap = Math.min(qualityCap, aliveCap + 2);
+    aliveCap = encounterCap(aliveCap, houseAliveCap(), Z.director.phase);
     if (Wv.pending > 0 && Wv.spawnT <= 0 && live < aliveCap) {
       var baseCd = Wv.event === "horde" ? 1.4 : Wv.event === "runners" ? 1.1 : 2.4;
       var phaseScale = Z.director.phase === "lull" ? 2.4 : Z.director.phase === "peak" ? 0.58 : 1;
-      var reliefScale = 1.35 - Z.director.capability * 0.45;
+      var reliefScale = (1.35 - Z.director.capability * 0.45) * ({ easy: 1.25, normal: 1, hard: 0.8 }[Wv.difficulty || "normal"]);
       Wv.spawnT = clamp(baseCd - Wv.n * 0.14, 0.35, 2.5) * phaseScale * reliefScale * rr(0.7, 1.25);
       var p = pickSpawn(),
         type = directedType(Wv);
@@ -3884,7 +3964,7 @@ function stepWave(dt) {
       Wv.timer = 0;
       say(t("z_wave_clear", { n: Wv.n }), 3);
       Z.stats.best = Math.max(Z.stats.best, Wv.n);
-      Z.score = (Z.score || 0) + 150 + Wv.n * 40;
+      awardRunPoints(Z, 150 + Wv.n * 40);
       // A small guaranteed breather prevents soft-locks. The meaningful refill
       // is the one-of-three intermission decision below.
       Z.p.hp = Math.min((Z.perks && Z.perks.jugg) ? 150 : MAX_HP, Z.p.hp + 6);
@@ -4500,8 +4580,8 @@ function tick(deltaMs) {
     Z.screenFxNext = Z.t + 0.04;
     var P = Z.p;
     // vignette tightens with damage + when they're close
-    var dmgK = 1 - P.hp / MAX_HP,
-      hurt = Math.max(0, P.hurtT / 0.55),
+    var dmgK = clamp(1 - P.hp / (Z.perks.jugg ? 150 : MAX_HP), 0, 1),
+      hurt = Math.max(0, P.hurtT / 0.55) * gameSettings().flashes,
       adr = P.adrenalT > 0 ? 0.2 : 0,
       distK = P.distract || 0;
     Z.hud.vig.style.opacity = (0.48 + dmgK * 0.42 + hurt * 0.35 + adr + distK * 0.25).toFixed(3);
@@ -4510,10 +4590,10 @@ function tick(deltaMs) {
     // chromatic aberration pulse on hurt / adrenaline / distraction
     if (Z.hud.chrom) {
       var ca = hurt * 0.55 + (P.adrenalT > 0 ? 0.25 : 0) + (Z.timeScale < 0.9 ? 0.35 : 0) + distK * 0.45;
-      Z.hud.chrom.style.opacity = ca.toFixed(3);
+      Z.hud.chrom.style.opacity = (ca * gameSettings().flashes).toFixed(3);
     }
     if (Z.hud.distractFx) {
-      Z.hud.distractFx.style.opacity = (distK * 0.55).toFixed(3);
+      Z.hud.distractFx.style.opacity = (distK * 0.55 * gameSettings().flashes).toFixed(3);
     }
     // crosshair spread follows bloom + distraction
     var aimTight = P.aim ? 0.45 : 1;
@@ -4582,6 +4662,10 @@ function clearWorld() {
 
 function restart() {
   clearWorld();
+  if (setTexBudget(gameSettings().quality)) {
+    clearViewModels();
+    dropTextureCaches();
+  }
   // Changing the in-game texture budget drops the shared maps before calling
   // restart. Recreate them before FX materials consume the decal families.
   ensureTex();
@@ -4595,6 +4679,9 @@ function restart() {
   initCritters();
   Z.stats = { kills: 0, heads: 0, melee: 0, best: Z.stats.best, shots: 0, hits: 0, dmgDealt: 0, dmgTaken: 0 };
   Z.score = 0;
+  Z.credits = 0;
+  Z.cameraMotion = {};
+  Z.tutorialStage = 0;
   Z.combo = 0;
   Z.comboT = 0;
   Z.killStreak = 0;
@@ -4706,6 +4793,7 @@ export function toggleZombies(on) {
     enterHorror();
     buildFlashlight();
     Z.active = true;
+    applyGameSettings();
     Z.t = 0;
     Z.keys = {};
     Z.doorsOpened = [];

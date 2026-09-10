@@ -191,7 +191,8 @@ test("destructive reset confirms and beginner coaching follows completed milesto
   assert.match(interaction, /planner-room-created/);
   assert.match(openingCommand, /planner-opening-created/);
   assert.match(ui, /planner-item-created/);
-  assert.match(chrome, /planner-mobile-onboarding-start/);
+  assert.match(chrome, /if \(intention\)[\s\S]*?openPlanningGuide\(\)/);
+  assert.match(planner, /if \(S\.workspace\?\.guidance\?\.enabled\) return/);
   ["mcoach_room_done", "mcoach_opening_done", "mcoach_item_done", "mcoach_preview"].forEach((key) => {
     assert.match(planner, new RegExp(key));
   });

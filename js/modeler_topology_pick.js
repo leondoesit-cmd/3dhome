@@ -7,6 +7,9 @@
 export function topologyPickPixelRadius(pointerType, prefer, finish) {
   if (prefer === "face") return 0;
   var touch = pointerType === "touch";
+  /* A corner is a point, so its band is tighter than an edge's — but not so
+     tight that a finger cannot land on one. */
+  if (prefer === "vertex") return touch ? 16 : 9;
   if (prefer === "edge") return touch ? 14 : 8;
   if (finish) return touch ? 12 : 7;
   return touch ? 10 : 5;

@@ -1,3 +1,4 @@
+import { cylinderAxis } from "./cylinder_axis.js";
 /* Triangles for a document's bodies, without a renderer.
  *
  * The drawing sheet needs the same solid the viewport shows, but it also has to
@@ -131,6 +132,19 @@ function cylinderTriangles(part, steps = 48) {
     pushQuad(out, bottom[i], top[i], top[next], bottom[next]);
     pushTriangle(out, { x: cx, y: cy, z: cz }, bottom[i], bottom[next]);
     pushTriangle(out, { x: cx, y: cy + height, z: cz }, top[next], top[i]);
+  }
+  if (part.axis) {
+    const axis = cylinderAxis(part.axis);
+    const tangent = Math.abs(axis.y) < .9 ? { x: axis.z, y: 0, z: -axis.x } : { x: axis.y, y: -axis.x, z: 0 };
+    const length = Math.hypot(tangent.x, tangent.y, tangent.z);
+    const u = { x: tangent.x / length, y: tangent.y / length, z: tangent.z / length };
+    const v = { x: u.y * axis.z - u.z * axis.y, y: u.z * axis.x - u.x * axis.z, z: u.x * axis.y - u.y * axis.x };
+    for (let i = 0; i < out.length; i += 3) {
+      const x = out[i] - cx, y = out[i + 1] - cy, z = out[i + 2] - cz;
+      out[i] = cx + u.x * x + axis.x * y + v.x * z;
+      out[i + 1] = cy + u.y * x + axis.y * y + v.y * z;
+      out[i + 2] = cz + u.z * x + axis.z * y + v.z * z;
+    }
   }
   return out;
 }

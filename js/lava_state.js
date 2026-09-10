@@ -3,24 +3,36 @@
 import { clamp } from "./state.js";
 import { segCross } from "./col2d.js";
 
-export const EYE = 158,
-  EYE_CROUCH = 102,
-  P_RAD = 22,
-  P_CLEAR = 168,
-  STEP = 48,
-  SPD_WALK = 255,
-  SPD_SPRINT = 430,
-  SPD_CROUCH = 128,
+/* The runner is a quarter of a person — about 42cm from sole to scalp, which
+   makes a kitchen a canyon and a sofa a cliff. Lengths scale with P_SCALE and
+   speeds with its square root (Froude scaling: halving the stride while
+   keeping real gravity is what stops a small body from moving like a balloon).
+   Gravity itself is NOT scaled — it is the room's, not the runner's. A jump
+   now clears about 21cm, which is why the spider kit in lava_spider.js is not
+   a garnish: above knee height, climbing is the only way up. */
+export const P_SCALE = 0.25;
+var LEN = P_SCALE,
+  VEL = Math.sqrt(P_SCALE);
+
+export const EYE = 158 * LEN,
+  EYE_CROUCH = 102 * LEN,
+  P_RAD = 22 * LEN,
+  P_CLEAR = 168 * LEN,
+  P_CROUCH_CLEAR = 100 * LEN,
+  STEP = 48 * LEN,
+  SPD_WALK = 255 * VEL,
+  SPD_SPRINT = 430 * VEL,
+  SPD_CROUCH = 128 * VEL,
   ACCEL = 16,
   GRAV = 1400,
-  JUMP_V = 490,
+  JUMP_V = 490 * VEL,
   COYOTE = 0.14,
   JUMP_BUF = 0.12,
-  MANTLE_MIN = 36,
-  MANTLE_MAX = 124,
-  MANTLE_REACH = 40,
+  MANTLE_MIN = 36 * LEN,
+  MANTLE_MAX = 124 * LEN,
+  MANTLE_REACH = 40 * LEN,
   MANTLE_DUR = 0.26,
-  BURN_MARGIN = 5,
+  BURN_MARGIN = 5 * LEN,
   GEM_R = 34,
   EXTRACT_R = 52,
   EXTRACT_HOLD = 0.7,
@@ -31,11 +43,11 @@ export const EYE = 158,
   DEATH_HOLD = 0.45,
   LAVA_START_Y = -10,
   GHOST_SAMPLE_MS = 55,
-  HEAT_RANGE = 92,
-  JUMP_RANGE = 280,     // horizontal cover on a sprint jump
-  VAULT_GAP = 60,       // mantle from the lip, not from across the room
-  STEP_MIN = 25,        // a first step has to actually get you off the floor
-  STEP_AREA = 700,      // …and be big enough to land on at a sprint
+  HEAT_RANGE = 92 * LEN,
+  JUMP_RANGE = 280 * LEN,     // horizontal cover on a sprint jump
+  VAULT_GAP = 60 * LEN,       // mantle from the lip, not from across the room
+  STEP_MIN = 25 * LEN,        // a first step has to actually get you off the floor
+  STEP_AREA = 700 * LEN * LEN, // …and be big enough to land on at a sprint
   REACTION = 1.6,       // look up, find the ledge, commit
   ROUTE_SLACK = 1.35,   // nobody runs a straight line through a furnished room
   MAX_COUNTDOWN = 16;
@@ -81,10 +93,12 @@ export const L = {
   prevQuality: null,
   prevNear: null,
   prevGfx: null,
+  unrelight: null, // un-registers the re-grade hook when the mode exits
   audio: null,
   doorsOpened: [],
   practicals: [],
   stepMesh: null,
+  webMesh: null,
   spec: null, // the live run's clock: difficulty + a countdown sized to the spawn
   bounds: null,
   visT: 0,
@@ -299,12 +313,12 @@ export function pickSpawn(rects, bounds, extract) {
     az = 0;
     m = 1;
   }
-  var reach = Math.max(best.x1 - best.x0, best.z1 - best.z0) / 2 + 55;
+  var reach = Math.max(best.x1 - best.x0, best.z1 - best.z0) / 2 + 55 * LEN;
   var x = bx + (ax / m) * reach,
     z = bz + (az / m) * reach;
   if (bounds) {
-    x = clamp(x, bounds.minx + 40, bounds.maxx - 40);
-    z = clamp(z, bounds.minz + 40, bounds.maxz - 40);
+    x = clamp(x, bounds.minx + 40 * LEN, bounds.maxx - 40 * LEN);
+    z = clamp(z, bounds.minz + 40 * LEN, bounds.maxz - 40 * LEN);
   }
   return { x: x, z: z, step: best };
 }

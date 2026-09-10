@@ -48,19 +48,20 @@ export function normalizeHoleWizard(params = {}) {
   if ((type === "simple" || type === "countersink") && params.counterbore) type = "counterbore";
   const row = holeTableRow(params.standardSize || params.size);
   const fit = FIT_COLUMN[params.fit] ? params.fit : "normal";
-  const explicitMm = Number(params.diameterMm);
-  const explicitCm = Number(params.diameter);
-  const diameterMm = (Number.isFinite(explicitMm) && explicitMm > 0 ? explicitMm : 0)
-    || (Number.isFinite(explicitCm) && explicitCm > 0 ? explicitCm * 10 : 0)
-    || (row ? row[FIT_COLUMN[fit]] : 10);
-  const tapDrillMm = Number(params.tapDrillMm) || row?.tapDrillMm || (row ? row.diameterMm - row.pitchMm : diameterMm);
-  const pitchMm = Number(params.pitchMm) || row?.pitchMm || 1.5;
-  const threadDiaMm = Number(params.threadDiameterMm) || row?.diameterMm || diameterMm;
+  const diameterMm = pickMm(params.diameterMm, params.diameter) || (row ? row[FIT_COLUMN[fit]] : 10);
+  const tapDrillMm = pickMm(params.tapDrillMm, params.tapDrill) || row?.tapDrillMm || (row ? row.diameterMm - row.pitchMm : diameterMm);
+  const pitchMm = pickMm(params.pitchMm, params.pitch) || row?.pitchMm || 1.5;
+  const threadDiaMm = pickMm(params.threadDiameterMm, params.threadDiameter) || row?.diameterMm || diameterMm;
   const endCondition = params.endCondition === "blind" ? "blind" : "through-all";
-  const depthMm = Number(params.depthMm) || cmToMmSafe(params.depth) || (endCondition === "through-all" ? 0 : threadDiaMm * 2);
-  const cboreDiaMm = Number(params.cboreDiameterMm) || row?.cboreDiaMm || diameterMm * 1.8;
-  const cboreDepthMm = Number(params.cboreDepthMm) || row?.cboreDepthMm || row?.headHeightMm || threadDiaMm;
-  const csinkDiaMm = Number(params.csinkDiameterMm) || row?.csinkDiaMm || diameterMm * 2;
+  const depthMm = pickMm(params.depthMm, params.depth) || (endCondition === "through-all" ? 0 : threadDiaMm * 2);
+  const cboreDiaMm = pickMm(params.cboreDiameterMm, params.cboreDiameter) || row?.cboreDiaMm || diameterMm * 1.8;
+  const cboreDepthMm = pickMm(params.cboreDepthMm, params.cboreDepth) || row?.cboreDepthMm || row?.headHeightMm || threadDiaMm;
+  /* The feature form spells this field `countersinkDiameter` (see the hole
+     entry in core/feature_catalog.js) while the tables and the kernel spell it
+     `csink`. Both spellings are accepted here; reading only one of them made
+     the countersink diameter uneditable rather than merely mis-scaled. */
+  const csinkDiaMm = pickMm(params.csinkDiameterMm ?? params.countersinkDiameterMm, params.csinkDiameter ?? params.countersinkDiameter)
+    || row?.csinkDiaMm || diameterMm * 2;
   const csinkAngle = Number(params.csinkAngle) || 90;
   const spotfaceDepthMm = Number(params.spotfaceDepthMm) || Math.max(0.3, cboreDiaMm * 0.05);
   const threaded = type.startsWith("tap");
@@ -98,9 +99,17 @@ export function normalizeHoleWizard(params = {}) {
   };
 }
 
-function cmToMmSafe(value) {
-  const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? n * 10 : 0;
+/* Every wizard dimension arrives either as an explicit millimetre value — what
+   the standards tables and the kernel speak — or as the centimetre field the
+   feature form actually edits. Both spellings must be consulted for every
+   field. Consulting only the millimetre key silently dropped whatever the user
+   typed and fell through to the table row, so a custom 20 x 10 mm counterbore
+   rebuilt itself as the M6 book value (11 x 6.6 mm) with no warning. */
+function pickMm(mmValue, cmValue) {
+  const mm = Number(mmValue);
+  if (Number.isFinite(mm) && mm > 0) return mm;
+  const cm = Number(cmValue);
+  return Number.isFinite(cm) && cm > 0 ? cm * 10 : 0;
 }
 
 export function holeWizardSolids(params) {

@@ -1,3 +1,4 @@
+import { askModelerDecision, dismissModelerDecision, modelerDecisionOpen } from "./modeler_decision.js";
 // Custom model editor ("CAD-lite"): sketch profiles, extrude, add primitives,
 // apply materials/textures, constrain dimensions, and save reusable models.
 // Saved models register into FURN/PRICE so they behave exactly like built-ins:
@@ -53,7 +54,7 @@ import { mirrorEntities, linearPatternEntities, circularPatternEntities } from "
 import { addFeature, ensureFeatureTree, regenerateFeatures, releaseRegeneration } from "./cad_feature_tree.js";
 import {
   exportStep, exportIges, importStep,
-  makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, booleanBrep, brepConnectedGroups, chamferBrep, draftBrep, extractBrepTopology, filletBrep, shapeToMeshData, moveBodyBrep, placeBrep, ribBrep, shellBrep, splitBrep, thickenBrep, disposeBrep,
+  makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, booleanBrep, boundsMayOverlap, brepConnectedGroups, chamferBrep, draftBrep, extractBrepTopology, filletBrep, shapeToMeshData, moveBodyBrep, placeBrep, ribBrep, shellBrep, splitBrep, thickenBrep, disposeBrep,
   serializeBrep, transformBrep, translateBrep, unifyBrepFaces,
 } from "./cad_kernel.js";
 import { buildDrawingScene } from "./cad_drawings.js";
@@ -130,7 +131,7 @@ import {
 } from "./modeler_commands.js";
 import { clearModelerDraft, readModelerDraft, writeModelerDraft } from "./modeler_draft.js";
 import {
-  featureField as featureFieldCore, readFeatureParameterForm, renderFeatureParameterForm as renderFeatureParameterFormCore,
+  featureField as featureFieldCore, featureControlValue, validateFeatureInputs, readFeatureParameterForm, renderFeatureParameterForm as renderFeatureParameterFormCore,
 } from "./modeler_feature_form.js";
 import {
   resolveAssemblyWorkflow, defaultSketchPlane, featuresForClosedProfile,
@@ -1248,11 +1249,12 @@ if (typeof window !== "undefined") {
       // what the form has actually collected, so a test can prove a control is
       // read rather than merely rendered
       params: cloneData((E.authoring && E.authoring.featurePreviewState && E.authoring.featurePreviewState.params) || null),
+      patternOverlap: !!(E.authoring && E.authoring.patternOverlap),
       approximate: !!(E.authoring && E.authoring.approxFinishPreview),
       replaces: (E.authoring && E.authoring.previewReplacesPartId) || null,
       parts: ((E.authoring && E.authoring.previewParts) || []).map(function (part) {
         return {
-          id: part.id, kind: part.kind, approximate: !!part.approximate,
+          id: part.id, kind: part.kind, color:part.color, approximate: !!part.approximate,
           points: (part.pts || []).length, holes: (part.holes || []).length,
           // a fused pattern cluster is a mesh and nothing else, so the triangle
           // count is the only thing that says the kernel really answered
@@ -1391,19 +1393,17 @@ function isEntryAffectedByHover(entry, hoverRef) {
   if (hoverRef.ownerFeatureId && entry.part && entry.part.featureId) {
     return hoverRef.ownerFeatureId === entry.part.featureId;
   }
-  return true;
+  return !!(entry.part && hoverRef.partId && hoverRef.partId === entry.part.id);
 }
 
 function refreshDecorations() {
   if (!E.pv) return;
   var currentHover = E.hoverTopology;
-  var hasSelection = (E.topologySelection || []).length > 0;
-  var finishActive = finishCommandActive();
   decoGroups.forEach(function (entry) {
+    var selectionStamp = JSON.stringify((E.topologySelection || []).filter(function (ref) { return isEntryAffectedByHover(entry, ref); }));
     var needsRebuild = entry.group.children.length === 0
       || entry.dirty
-      || hasSelection
-      || finishActive
+      || entry.selectionStamp !== selectionStamp
       || entry.hadHighlight
       || isEntryAffectedByHover(entry, currentHover)
       || isEntryAffectedByHover(entry, lastDecoratedHover);
@@ -1417,6 +1417,7 @@ function refreshDecorations() {
       E.buildComponent = null;
     }
     entry.dirty = false;
+    entry.selectionStamp = selectionStamp;
     entry.hadHighlight = isEntryAffectedByHover(entry, currentHover);
   });
   lastDecoratedHover = currentHover;
@@ -1558,6 +1559,24 @@ function addPartFeatureOverlays(parent, part) {
 
 function addDocumentOverlays(parent, def) {
   if (!def) return;
+  if(E.docType==="part" && E.mode==="3d" && !(def.parts || []).length && !(ensureSketch(def).entities || []).length && E.authoring.phase==="model") {
+    ["top","front","right"].forEach(function(plane,index){
+      var mesh=new THREE.Mesh(new THREE.PlaneGeometry(40,40),new THREE.MeshBasicMaterial({color:[0x438dd8,0x59a879,0xd6a34b][index],transparent:true,opacity:.18,side:THREE.DoubleSide,depthWrite:false}));
+      if(plane==="top")mesh.rotation.x=-Math.PI/2;
+      if(plane==="right")mesh.rotation.y=Math.PI/2;
+      mesh.userData.cadReferenceId="plane:"+plane;
+      parent.add(mesh);
+      var edge=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),new THREE.LineBasicMaterial({color:[0x438dd8,0x59a879,0xd6a34b][index]}));
+      edge.rotation.copy(mesh.rotation); edge.userData.cadReferenceId=mesh.userData.cadReferenceId; parent.add(edge);
+    });
+  }
+  var repair=E.authoring && E.authoring.repairMarker;
+  if(repair) {
+    var radius=Math.max(1,decorationWorldPerPixel()*14), at=repair.origin;
+    var marker=new THREE.Mesh(new THREE.SphereGeometry(radius,12,8),new THREE.MeshBasicMaterial({color:0xe8a23a,wireframe:true,depthTest:false,transparent:true,opacity:.9}));
+    marker.position.set(at.x,at.y,at.z);marker.renderOrder=90;
+    marker.userData.cadRepairReference=repair.reference;parent.add(marker);
+  }
   documentHelixOverlays(def).forEach(function (curve) {
     var selected = curve.id && curve.id === E.selectedReferenceId;
     addOverlayPolyline(parent, curve.points, selected ? 0xffd060 : 0xf0b429, selected ? 28 : 23, { cadReferenceId: curve.id });
@@ -1830,7 +1849,10 @@ var E = {
   interferenceRevision: 0,
   dependencyHighlight: null,
   leftCollapsed: false,
-  rightCollapsed: false,
+  rightCollapsed: true,
+  rightCollapsedPreference: true,
+  workflowVisible: true,
+  expertDensity: false,
   drag: null,
   touchPrecision: null, // active finger + visual-only precision loupe while authoring
   dimPick: [],        // first/second smart-dimension endpoints in the sketch
@@ -1872,8 +1894,18 @@ var E = {
    switch happened to be flipped in. */
 var LS_MODELER_PREFS = "home3d_modeler_prefs";
 var MODELER_PREFS_VERSION = 2;
-var MODELER_PREFS = ["sketchNormalTo", "autoDimTyped", "osnap", "welcomeOnOpen", "coachEnabled"];
+var MODELER_PREFS = ["sketchNormalTo", "autoDimTyped", "osnap", "welcomeOnOpen", "coachEnabled", "workflowVisible", "expertDensity", "rightCollapsedPreference"];
 var MODELER_VIEW_PREFS = ["edgeColor", "selectedEdgeColor", "selectedFaceColor", "hoverColor", "lightMatchRoom", "lightAzimuth", "lightElevation", "lightDistance"];
+function syncDensity() {
+  if (!root) return;
+  root.classList.toggle("md-density-expert",E.expertDensity);
+  root.classList.toggle("md-workflow-hidden",!E.workflowVisible);
+  var density=root.querySelector("#mdDensity");
+  if(density)density.value=E.expertDensity?"expert":E.workflowVisible||E.coachEnabled?"guided":"standard";
+  var welcome=root.querySelector("#mdPrefWelcome"), coach=root.querySelector("#mdPrefCoach");
+  if(welcome)welcome.checked=E.welcomeOnOpen;
+  if(coach)coach.checked=E.coachEnabled;
+}
 function loadModelerPrefs() {
   try {
     var stored = JSON.parse(localStorage.getItem(LS_MODELER_PREFS)) || {};
@@ -2465,6 +2497,7 @@ function modelerDraftStorage() {
 function scheduleModelerDraft() {
   if (draftSaveTimer) clearTimeout(draftSaveTimer);
   draftSaveTimer = setTimeout(flushModelerDraft, 1500);
+  syncDraftStatus("draftPending");
 }
 
 /* A draft that cannot be written means crash recovery is off, which the user
@@ -2476,8 +2509,10 @@ function flushModelerDraft() {
   if (!E.open || !E.def) return;
   if (writeModelerDraft(modelerDraftStorage(), { docType: E.docType, def: E.def, assembly: E.assembly })) {
     draftFailureReported = false;
+    syncDraftStatus("draftSaved");
     return;
   }
+  syncDraftStatus("draftSaveFailed");
   if (!draftFailureReported) { draftFailureReported = true; flash(t("draftSaveFailed")); }
 }
 
@@ -2489,7 +2524,21 @@ function discardModelerDraft() {
 function tryRestoreModelerDraft() {
   var draft = readModelerDraft(modelerDraftStorage());
   if (!draft) return false;
-  if (typeof confirm === "function" && !confirm(t("unsavedDraft"))) return false;
+  var documentAtRequest = E.def;
+  askModelerDecision(root, {
+    title:t("recoverDraftTitle"),
+    message:t("unsavedDraft") + "\n" + ((draft.docType === "assembly" ? draft.assembly : draft.def).name || t("title")) + "\n" + new Date(draft.at).toLocaleString(),
+    accept:t("restoreDraftAction"), cancel:t("startWithoutDraft"), dismiss:t("recoverLater"), focusAccept:true,
+  }).then(function (accepted) {
+    if (!E.open || E.def !== documentAtRequest) return;
+    if (accepted) restoreModelerDraft(draft);
+    else if (accepted === false) discardModelerDraft();
+    else closeModeler();
+  });
+  return true;
+}
+
+function restoreModelerDraft(draft) {
   if (draft.docType === "assembly" && draft.assembly) {
     E.assembly = draft.assembly;
     if (draft.def) E.def = ensureParametricDocument(draft.def);
@@ -2522,6 +2571,7 @@ function tryRestoreModelerDraft() {
   H.clear().seed();
   savedHistoryId = null;
   syncDirty();
+  syncDraftStatus("draftSaved");
   syncHead();
   refreshAll();
   fitPreview();
@@ -2557,9 +2607,24 @@ function documentDirty() {
   return node !== null && node !== savedHistoryId;
 }
 
+function syncDraftStatus(key) {
+  if (!root) return;
+  var status = root.querySelector("#mdDraftStatus");
+  if (!status) {
+    status = el("small", "md-draft-status"); status.id = "mdDraftStatus";
+    status.setAttribute("role", "status");
+    root.querySelector("#mdName").parentElement.appendChild(status);
+  }
+  status.textContent = t(key);
+  status.classList.toggle("is-error", key === "draftSaveFailed");
+  var save = root.querySelector("#mdSave");
+  if (save) save.setAttribute("aria-describedby", status.id);
+}
+
 function markDocumentClean() {
   savedHistoryId = currentHistoryNode();
   syncDirty();
+  syncDraftStatus("documentSaved");
 }
 
 function syncDirty() {
@@ -2579,13 +2644,16 @@ function syncDirty() {
    both panes of the library. The library cards used to replace the document
    with no question at all, so a click on a card was an unrecoverable way to
    lose an unsaved model. */
-function confirmDiscardDocument(promptKey) {
+async function confirmDiscardDocument(promptKey) {
   if (!documentDirty()) return true;
-  return window.confirm(t(promptKey || "unsavedClose"));
+  var documentAtRequest = E.def, assemblyAtRequest = E.assembly;
+  var accepted = await askModelerDecision(root, { title:t("unsavedChangesTitle"), message:t(promptKey || "unsavedClose"), accept:t("discardChangesAction"), cancel:t("keepEditingAction") });
+  return accepted && E.open && E.def === documentAtRequest && E.assembly === assemblyAtRequest;
 }
 
-function requestCloseModeler() {
-  if (!confirmDiscardDocument("unsavedClose")) return;
+async function requestCloseModeler() {
+  if (!await confirmDiscardDocument("unsavedClose")) return;
+  discardModelerDraft();
   closeModeler();
 }
 
@@ -3311,7 +3379,8 @@ function buildDOM() {
     '<div class="md-hint" id="mdHint"></div>' +
     '</div>' +
     '<button type="button" id="mdHintHelp" class="md-hint-help" aria-label="' + t("hint3d") + '" title="' + t("hint3d") + '"><i class="ph ph-question"></i></button>' +
-    '<button type="button" id="mdEmptyStart" class="md-empty-start" title="' + t("emptyStartTip") + '" hidden><i class="ph ph-sparkle"></i><span>' + t("emptyStart") + '</span></button>' +
+    '<div id="mdEmptyStart" class="md-empty-start" role="group" aria-label="' + t("wfChoosePlane") + '" hidden>' +
+      ["top","front","right"].map(function(plane){return '<button type="button" data-origin-plane="'+plane+'">'+t("view_"+plane)+'</button>';}).join("") + '</div>' +
     '<div class="md-context-toolbar" id="mdContextToolbar" hidden></div>' +
     /* The selection row: filters at the start, breadcrumb at the end, one flex
        row so they compete for width instead of overlapping at narrow sizes —
@@ -3665,6 +3734,7 @@ function buildDOM() {
       return;
     }
     setPanelCollapsed("right", !E.rightCollapsed);
+    E.rightCollapsedPreference = E.rightCollapsed; saveModelerPrefs();
   });
   root.querySelectorAll("[data-section-axis]").forEach(function (button) {
     button.addEventListener("click", function () { setSectionState({ enabled:true, axis:button.getAttribute("data-section-axis") }); });
@@ -3725,6 +3795,22 @@ function buildDOM() {
       [t("undo") + " / " + t("redo"), "Ctrl+Z / Y · Shift+Z"], [t("del"), "Del"], [t("cancelCommand"), "Esc"],
     ]).map(function (k) { return '<div class="md-key"><span>' + k[0] + "</span><kbd>" + k[1] + "</kbd></div>"; }).join("") +
     "</div>";
+  cons.prepend(root.querySelector(".md-head-inputs"));
+  var statusRow=el("div", "md-status-row");
+  var workflow=root.querySelector("#mdWorkflow");
+  workflow.before(statusRow); statusRow.append(workflow,root.querySelector("#mdCoach"));
+  var densityRow=el("label","md-row"), density=el("select");
+  density.id="mdDensity";
+  densityRow.appendChild(el("span","t",t("density")));
+  ["guided","standard","expert"].forEach(function(value){var option=el("option","",t("density_"+value));option.value=value;density.appendChild(option);});
+  densityRow.appendChild(density); cons.querySelector("#mdPrefWelcome").closest("label").before(densityRow);
+  density.addEventListener("change",function(){
+    E.expertDensity=this.value==="expert";
+    E.workflowVisible=this.value==="guided"; E.coachEnabled=E.workflowVisible;
+    E.welcomeOnOpen=E.workflowVisible; E.coachDismissed=false;
+    saveModelerPrefs(); syncDensity(); syncCoach(); sizeSketch(); requestAnimationFrame(layout3DHost);
+  });
+  syncDensity();
   cons.querySelector("#mdOsnap").checked = !!E.osnap;
   cons.querySelector("#mdOsnap").addEventListener("change", function () { E.osnap = this.checked; saveModelerPrefs(); });
   var normalToBox = cons.querySelector("#mdNormalTo");
@@ -3829,7 +3915,10 @@ function buildDOM() {
     flash(t("coachDontShow"));
   });
   root.querySelector("#mdCoachDots").title = t("coachStages");
-  root.querySelector("#mdEmptyStart").addEventListener("click", openWelcome);
+  root.querySelector("#mdEmptyStart").addEventListener("click", function(event){
+    var button=event.target.closest("[data-origin-plane]");
+    if(button){var reference=(E.def.references || []).find(function(ref){return ref.id==="plane:"+button.dataset.originPlane;});if(reference)chooseSketchReference(reference);}
+  });
   var diagJump = root.querySelector("#mdDiagJump");
   if (diagJump) diagJump.addEventListener("click", function () { focusTreeDiagnostics(); });
   var statusEl = root.querySelector("#mdStatus");
@@ -6172,9 +6261,11 @@ function setCommandTab(id) {
 }
 
 function closeFeaturePanel() {
+  E.collectingFeature = false;
   if (!root) return;
   var host = root.querySelector("#mdQuickSettings");
   if (host) host.hidden = true;
+  if(E.authoring)E.authoring.repairMarker=null;
   /* Dismissing the form dismisses its ghost body. Several callers used to close
      the panel without clearing the preview, which left an approximate (or a
      half-built exact) finish body in the scene until the next full rebuild. */
@@ -6185,6 +6276,14 @@ function closeFeaturePanel() {
 
 function runCommand(id) {
   if (!id) return;
+  if (id === "repeatlast") {
+    var last = E.lastOperation;
+    if (!last) { flash(t("repeatUnavailable")); return; }
+    var reason = commandUnavailableReason(FEATURE_COMMAND[last.type]);
+    if (reason) { flash(reason); return; }
+    E.topologySelection = [];
+    openParametricFeature(last.type, last.params); closeCommandSearch(); return;
+  }
   var blocked = commandUnavailableReason(id);
   if (blocked) { flash(blocked); closeCommandSearch(); return; }
   if (DIRECT_COMMAND_TOOLS[id]) { setTool(DIRECT_COMMAND_TOOLS[id]); closeCommandSearch(); syncCommandManager(); return; }
@@ -6650,6 +6749,7 @@ function quickPatternPart(count, pitch) {
   var circularStep=circularPatternStepDegrees(params,count)*Math.PI/180,placements=patternPlacements(params);
   if(!placements.length){H.discard();flash(t("patternNeedCurve"));return false;}
   layPatternCopies(p,params,feature,placements,circularStep,addPart);
+  if(E.authoring.patternOverlap && !params.mergeResult)flash(t("livePatternOverlapHint"));
   refreshAll(); return true;
 }
 
@@ -7195,6 +7295,7 @@ function createRevolveCutFeature(options) {
 }
 
 function clearFeaturePreview(refresh) {
+  if(E.authoring)E.authoring.patternOverlap=false;
   if(!E.authoring)return;E.authoring.previewParts=[];E.authoring.previewReplacesPartId=null;
   E.authoring.approxFinishPreview=null;E.authoring.pendingExactPreview=null;
   /* A merged pattern's fuse is in flight for as long as the kernel takes; the
@@ -7841,6 +7942,7 @@ async function runMergedPatternPreview(seed,params,instances,liveBadge,token) {
 function syncNewFeaturePreview(type,state,liveBadge) {
   var previews=[];
   E.authoring.previewReplacesPartId=null;
+  E.authoring.patternOverlap=false;
   if(type==="extrude"||type==="extrudeCut"||type==="hole"){
     previews.push.apply(previews,extrudePreviewParts(type==="hole"?"extrudeCut":type,state.params));
   } else if(type==="revolve"||type==="revolveCut"){
@@ -7851,6 +7953,14 @@ function syncNewFeaturePreview(type,state,liveBadge) {
   } else if(type==="pattern"){
     var seed=selectedSolid(),count=Math.max(2,Math.min(100,Math.round(Number(state.params.count)||2))),circularStep=circularPatternStepDegrees(state.params,count)*Math.PI/180,placements=patternPlacements(state.params),patternInstances=[];
     if(seed)placements.forEach(function(placement,index){var copy=resetClonedPartIdentity(cloneData(seed));copy.previewOnly=true;copy.id="preview:pattern:"+(index+1);copy.featureId=copy.id;copy.opacity=.52;placePatternCopy(copy,state.params,placement,circularStep);copy.patternGridIndex=placement.indices;previews.push(copy);patternInstances.push({part:copy,transform:patternPlacementTransform(state.params,placement,circularStep)});});
+    if(seed && !state.params.mergeResult) {
+      var members=[seed].concat(previews), bounds=members.map(partBounds), overlapping=new Set();
+      bounds.forEach(function(a,i){ bounds.slice(i+1).forEach(function(b,j){
+        if(a && b && boundsMayOverlap(a,b)){ overlapping.add(i); overlapping.add(i+j+1); }
+      }); });
+      E.authoring.patternOverlap=overlapping.size>0;
+      previews.forEach(function(copy,i){if(overlapping.has(i+1)){copy.color="#d0342c";copy.opacity=.52;}});
+    }
   } else if(type==="mirror"){
     var source=selectedSolid();if(source){var plane=state.references && state.references.plane || "plane:right",copy=mirrorProjectionPart(resetClonedPartIdentity(cloneData(source)),plane);copy.previewOnly=true;copy.id="preview:mirror";copy.featureId=copy.id;copy.opacity=.52;previews.push(copy);}
   } else if(FINISH_FEATURES.includes(type)){
@@ -7870,7 +7980,19 @@ function syncNewFeaturePreview(type,state,liveBadge) {
   if(!FINISH_FEATURES.includes(type)){E.authoring.approxFinishPreview=null;E.authoring.pendingExactPreview=null;}
   E.authoring.previewParts=previews;
   if(finish)queueExactFeaturePreview(finish,type,liveBadge || E.authoring.featurePreviewBadge);
-  if(type==="pattern")syncMergedPatternPreview(seed,state.params,patternInstances,liveBadge || E.authoring.featurePreviewBadge);
+  if(type==="pattern") { syncMergedPatternPreview(seed,state.params,patternInstances,liveBadge || E.authoring.featurePreviewBadge); syncPatternOverlapBadge(liveBadge || E.authoring.featurePreviewBadge); }
+}
+
+function syncPatternOverlapBadge(badge) {
+  if (!badge) return;
+  if (!E.authoring.patternOverlap) {
+    badge.removeAttribute("title");
+    if(!E.authoring.mergedPatternPreview){badge.classList.add("on");badge.textContent=t("liveViewsSynced");}
+    return;
+  }
+  badge.classList.add("on");
+  badge.textContent=t("livePatternOverlap");
+  badge.title=t("livePatternOverlapHint");
 }
 
 /* The exact body may be standing in previewParts already, or may still be
@@ -7892,7 +8014,7 @@ function queueNewFeaturePreview(type,state,liveBadge) {
   E._featurePreviewFrame=requestAnimationFrame(function(){E._featurePreviewFrame=0;syncNewFeaturePreview(type,state,liveBadge);refreshAll();
     // a merged pattern's badge is owned by its own fuse pass: overwriting it
     // here would claim the views are synced while the copies are still unfused
-    if(liveBadge && !FINISH_FEATURES.includes(type) && !(E.authoring && E.authoring.mergedPatternPreview)){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveViewsSynced");}});
+    if(liveBadge && !E.authoring.patternOverlap && !FINISH_FEATURES.includes(type) && !(E.authoring && E.authoring.mergedPatternPreview)){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveViewsSynced");}});
 }
 
 /* The features that work on an existing body's topology rather than on a
@@ -7934,11 +8056,11 @@ function addFinishScrubber(host,type,controls) {
   if(!key)return;
   var control=controls.find(function(item){return item.field.key===key;}),part=selectedSolid();
   if(!control || !part)return;
-  var b=partBounds(part),limit=Math.max(Number(control.input.value)||1,maxFinishAmount(b));
+  var b=partBounds(part),limit=Math.max(featureControlValue(control)||1,maxFinishAmount(b));
   var wrap=el("label","md-feature-scrubber");wrap.appendChild(el("span","",'<i class="ph ph-arrows-left-right"></i> '+t("dragForLive")));
-  var range=el("input"),step=Number(control.field.step)||.1;range.type="range";range.min=String(Math.max(Number(control.field.min)||step,step));range.max=String(Math.max(limit,Number(control.input.value)||1));range.step=String(step);range.value=control.input.value;wrap.appendChild(range);
+  var range=el("input"),step=Number(control.field.step)||.1;range.type="range";range.min=String(Math.max(Number(control.field.min)||step,step));range.max=String(Math.max(limit,featureControlValue(control)||1));range.step=String(step);range.value=control.input.value;wrap.appendChild(range);
   range.addEventListener("input",function(){control.input.value=range.value;control.input.dispatchEvent(new Event("input",{bubbles:true}));});
-  control.input.addEventListener("input",function(){var value=Number(control.input.value);if(Number.isFinite(value)){if(value>Number(range.max))range.max=String(value);range.value=String(value);}});
+  control.input.addEventListener("input",function(){var value=featureControlValue(control);if(Number.isFinite(value)){if(value>Number(range.max))range.max=String(value);range.value=String(value);}});
   var note=host.querySelector(".md-feature-selection-note");host.insertBefore(wrap,note || null);
 }
 
@@ -7952,10 +8074,12 @@ function rememberFinishAmount(type, params) {
   E.lastFinishAmount[type] = Number(params[key]);
 }
 
-function openParametricFeature(type) {
+function openParametricFeature(type, repeatedParams) {
+  E.collectingFeature = false;
   if(E.docType!=="part")return;if(E.mode==="drawing")setMode("3d");
   var spec=featureSpec(type);if(!spec){flash(t("unsupportedFeature")+": "+type);return;}
   var host=root && root.querySelector("#mdQuickSettings");if(!host)return;
+  dismissProfileOffer();
   if(E.authoring.featureEdit)cancelFeatureParameterEdit(true);
   clearFeaturePreview(false);E.authoring.featureType=type;E.authoring.phase="model";E.quickAction=type;host.hidden=false;host.innerHTML="";
   host.appendChild(el("div","md-feature-form-title",'<i class="ph '+spec.icon+'"></i><span><b>'+featureTypeLabel(type)+'</b><small>'+t("featureFormHint")+'</small></span>'));
@@ -7976,6 +8100,7 @@ function openParametricFeature(type) {
     if((type==="extrudeCut"||type==="hole")&&activeFeatureSketch.frameSpace==="local"&&activeFeatureSketch.support)state.params.direction="reverse";
   }
   if(type==="revolve"||type==="revolveCut")state.references.axis="axis:y";if(type==="mirror")state.references.plane=E.authoring.referenceId||"plane:right";
+  if (repeatedParams) state.params = {...state.params, ...cloneData(repeatedParams)};
   var liveBadge=el("div","md-feature-live",'<i class="ph ph-broadcast"></i> '+t("livePreviewReady"));host.appendChild(liveBadge);
   E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;
   var controls=renderFeatureParameterForm(host,type,state,function(next){state.params=next.params;state.references={...state.references,...next.references};E.depth=Number(state.params.depth)||E.depth;E.baseOff=Number(state.params.offset)||0;if(type==="fillet")renderFinishEdgeList();queueNewFeaturePreview(type,state,liveBadge);});
@@ -7988,9 +8113,18 @@ function openParametricFeature(type) {
     host.appendChild(edgeBox);
     renderFinishEdgeList();
   }
+  if (["fillet","chamfer","shell","draft","thicken"].includes(type)) {
+    var collect = btn(t("selectForFeature"), function () {
+      E.collectingFeature = true;
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      closeModelerSheet(); syncContextActions();
+    }, "md-collect-geometry");
+    host.appendChild(collect);
+  }
   var actions=el("div","md-feature-actions");
     actions.appendChild(namedButton(btn('<i class="ph ph-x"></i> '+t("m_cancel"),function(){E.authoring.featureType=null;E.authoring.workflowFocus="history";clearFeaturePreview(true);closeFeaturePanel();syncAuthoringWorkflow();},"md-quick-cancel"), t("cancelCommand")));
   actions.appendChild(btn('<i class="ph ph-check"></i> '+t("quickApply"),function(){
+    if (!validateFeatureInputs(host)) return;
     var values=readFeatureParameterForm(controls,state.params),params=values.params,ok=false;state.references={...state.references,...values.references};clearFeaturePreview(false);
     if(type==="extrude"||type==="extrudeCut")ok=extrudeClosedSketch({type:type,...params});
     else if(type==="revolve")ok=createRevolveFeature({...params,axisReference:state.references.axis});
@@ -8015,7 +8149,11 @@ function openParametricFeature(type) {
       var ids=selectedFeatureIds();if(ids.length<2){flash(t("booleanNeedTwo"));syncNewFeaturePreview(type,state);refreshAll();return;}
       pushUndo(t("createBoolean"));try{createFeatureDefinition(E.def,"boolean",{inputs:ids.slice(0,2),references:{sketches:[],features:ids.slice(0,2),topology:[],references:[]},params:params});ok=true;refreshAll();}catch(error){H.discard();flash(String(error.message||error));}
     }
-    if(ok){rememberFinishAmount(type,params);E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();setMode("3d");setTab("parts");syncAuthoringWorkflow();}else{E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;syncNewFeaturePreview(type,state,liveBadge);refreshAll();}
+    if(ok){
+      var reusable = {};
+      controls.forEach(function(control){ if(control.field.key[0] !== "$" && ["number","boolean","select"].includes(control.field.type)) reusable[control.field.key] = params[control.field.key]; });
+      E.lastOperation = {type:type, params:cloneData(reusable)};
+      rememberFinishAmount(type,params);E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();setMode("3d");setTab("parts");syncAuthoringWorkflow();}else{E.authoring.featurePreviewState=state;E.authoring.featurePreviewBadge=liveBadge;syncNewFeaturePreview(type,state,liveBadge);refreshAll();}
   },"md-quick-apply"));host.appendChild(actions);
   syncNewFeaturePreview(type,state,liveBadge);refreshAll();syncAuthoringWorkflow();
   if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
@@ -8102,7 +8240,7 @@ function openQuickForm(spec) {
     var values = {};
     spec.fields.forEach(function (field) {
       var raw = inputs[field.key].value;
-      values[field.key] = field.type === "number" ? (raw === "" ? NaN : Number(raw)) : String(raw);
+      values[field.key] = field.type === "number" ? featureControlValue({field:field,input:inputs[field.key]}) : String(raw);
     });
     return values;
   };
@@ -8118,6 +8256,7 @@ function openQuickForm(spec) {
     refreshAll();
   }, "md-quick-cancel"), t("cancelCommand")));
   actions.appendChild(btn('<i class="ph ph-check"></i> ' + t("quickApply"), function () {
+    if (!validateFeatureInputs(host)) return;
     if (spec.onApply(read()) === false) return;
     close();
     refreshAll();
@@ -8325,6 +8464,7 @@ function commandSelectionPrefer() {
   // Shell and draft consume faces only; an edge picked here lands in the
   // selection and is then silently dropped by finishFeatureTargets().
   if (FACE_DRIVEN_OPERATIONS.has(type)) return "face";
+  if (E.collectingFeature && ["fillet", "chamfer"].includes(type)) return "all";
   return E.selectionFilter;
 }
 
@@ -8359,7 +8499,7 @@ function hideOverlay(id) {
 
 function chromeCommandLabel(id) {
   var keys = {
-    newsketch: "createSketch", extrude: "opExtrude", extrudecut: "extrudeCut",
+    newsketch: "createSketch", extrude: "opExtrude", extrudecut: "extrudeCut", revolvefeature: "opRevolve",
     holefeature: "holeWizard", helixfeature: "opHelix", threadfeature: "opThread",
     knurlfeature: "opKnurl", insertfeature: "opInsert", shellfeature: "shellOp", filletfeature: "quickFillet",
     chamferfeature: "quickChamfer", patternfeature: "quickPattern", finishsketch: "finishSketch",
@@ -8669,6 +8809,18 @@ function cancelActiveCommand() {
   syncContextActions();
 }
 
+function featureSelectionReady() {
+  var type = E.authoring && E.authoring.featureType;
+  if (E.authoring && E.authoring.featureEdit) return true;
+  return !["fillet","chamfer","shell","draft","thicken"].includes(type) || !!(selectedSolid() && finishFeatureTargets(type).length);
+}
+
+function returnToFeatureParameters() {
+  E.collectingFeature = false;
+  if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
+  syncContextActions();
+}
+
 function currentCornerInput() {
   var drawing = !!(E.wallPts || E.poly || E.arcPts || E.slotPts || E.ellPts || (E.drag && E.drag.sticky));
   return {
@@ -8676,6 +8828,7 @@ function currentCornerInput() {
     canAccept: !E.arcPts && !(E.poly && E.poly.length < 3) && !((E.slotPts || E.ellPts || (E.drag && E.drag.sticky)) && !dynHasEntry()),
     toolLabel: ({ wall:t("tool_wall"), poly:t("tool_poly"), cut:t("tool_cut"), rev:t("tool_rev"), sarc:t("tool_sarc"),
       sslot:t("tool_sslot"), sell:t("tool_sell"), spoly:t("tool_spoly"), srect:t("tool_srect"), scirc:t("tool_scirc") })[E.tool],
+    featureReady: featureSelectionReady(),
     featureType: E.authoring && E.authoring.featureType,
     featureLabel: E.authoring && E.authoring.featureType && featureTypeLabel(E.authoring.featureType),
     sketchPhase: E.authoring && E.authoring.phase === "sketch" && !drawing,
@@ -8727,6 +8880,12 @@ function syncContextActions() {
     root.querySelector("#mdActiveCommand").textContent = state.label || t("cmdSketch");
     root.querySelector("#mdAcceptCommand").disabled = !state.canAccept;
   }
+  var parameters = root.querySelector("#mdReturnParameters");
+  if (!parameters) {
+    parameters = btn(t("returnToParameters"), returnToFeatureParameters);
+    parameters.id = "mdReturnParameters"; bar.appendChild(parameters);
+  }
+  parameters.hidden = !E.collectingFeature;
   syncDuplicateCommit(state);
   syncSelectionChrome();
 }
@@ -8737,22 +8896,23 @@ function syncContextActions() {
    is looking at, which is the one place they are not. The row is hidden rather
    than removed: finishActiveCommand still clicks .md-quick-apply behind it, so
    both routes commit through exactly one code path and cannot drift apart.
-   The phone is the exception and keeps its pair, because there the form is a
-   sheet over the viewport and the corner it would defer to is behind it. */
+   On compact screens the labelled thumb row owns these same actions and stays
+   above the sheet and software keyboard, so the form can give its space back. */
 function syncDuplicateCommit(state) {
   var actions = root && root.querySelector("#mdQuickSettings .md-feature-actions");
   if (!actions) return;
   var cornerOwnsCommit = state.visible && state.mode === "feature";
-  actions.hidden = cornerOwnsCommit && !document.body.classList.contains("compact-nav");
+  actions.hidden = cornerOwnsCommit;
 }
 
-function newModel() {
-  if (!confirmDiscardDocument("unsavedNew")) return;
+async function newModel() {
+  if (!await confirmDiscardDocument("unsavedNew")) return;
   /* Same rule as opening another document: once the user has confirmed the
      discard, the previous document's draft has stopped being recovery material.
      Left behind it is offered back on the next fresh open — "restore this
      draft?" for work they just said to drop. */
   discardModelerDraft();
+  E.lastOperation = null;
   E.sketchCameraReturnPose = null;
   if (E.docType === "assembly") {
     E.assembly = newAssembly();
@@ -12749,7 +12909,7 @@ function releaseSelectionFilterChord(e) {
 }
 
 function onKey(e) {
-  if (!E.open) return;
+  if (!E.open || modelerDecisionOpen()) return;
   var commandSearch = root && root.querySelector("#mdCommandSearch");
   var focusedField = document.activeElement;
   var editingField = focusedField && (focusedField.tagName === "INPUT" || focusedField.tagName === "TEXTAREA" || focusedField.isContentEditable);
@@ -13460,6 +13620,7 @@ function openFeatureEditor(feature) {
   host.hidden=false;host.innerHTML="";E.authoring.featureType=feature.type;E.authoring.editFeatureId=feature.id;
   host.appendChild(el("div","md-feature-form-title",cadIcon(feature.type)+'<span><b>'+tf("featureEditTitle",{name:feature.name})+'</b><small>'+tf("featureEditStep",{id:feature.id})+'</small></span>'));
   highlightFeatureIssueBanner(host, feature);
+  if(E.authoring.repairMarker)host.appendChild(el("div","md-note",t("repairLastLocation")));
   var name=featureField(host,{key:"$name",label:t("fldFeatureName"),type:"text"},feature.name),liveBadge=el("div","md-feature-live on",'<i class="ph ph-broadcast"></i> '+t("featureLiveAllViews"));host.appendChild(liveBadge);
   var pendingFrame=0,controls=renderFeatureParameterForm(host,feature.type,feature,function(next){
     feature.params={...feature.params,...next.params};setFeatureReferencesFromForm(feature,next.references);feature.name=name.value || feature.name;
@@ -13470,6 +13631,7 @@ function openFeatureEditor(feature) {
   host.appendChild(el("div","md-feature-selection-note",dependencies.length?dependencies.join(" · "):t("noUpstreamDeps")));
   var actions=el("div","md-feature-actions");actions.appendChild(namedButton(btn('<i class="ph ph-arrow-counter-clockwise"></i> '+t("m_cancel"),function(){cancelFeatureParameterEdit(false);},"md-quick-cancel"), t("cancelCommand")));
   actions.appendChild(btn('<i class="ph ph-check"></i> '+t("updateFeature"),function(){
+    if (!validateFeatureInputs(host)) return;
     var values=readFeatureParameterForm(controls,feature.params);
     try{updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});setFeatureReferencesFromForm(feature,values.references);syncProjectionFromFeature(feature);E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();refreshAll();flash("✓ "+t("featureRebuiltFromHistory"));}
     catch(error){flash(String(error.message||error));}
@@ -13917,6 +14079,10 @@ function treeHandlers(model) {
   return {
     onSelect: function (node, event) { selectTreeNode(node, model, event); },
     onEdit: function (node) { editTreeNode(node, model); },
+    onRepair: function (node) {
+      var issue=(E.coreRun && E.coreRun.issues || []).find(function(item){return item.featureId===node.targetId || item.sketchId===node.targetId;});
+      if(issue)runDiagnosticAction(issue);else editTreeNode(node,model);
+    },
     onRename: function (node, name) { renameTreeNode(node, model, name); },
     onSuppress: function (node) { suppressTreeNode(node, model); },
     onRollback: function (node) { rollbackToTreeNode(node, model); },
@@ -14211,6 +14377,18 @@ function unsuppressDiagnosticTarget(issue) {
 }
 
 function runDiagnosticAction(issue) {
+  if(issue.code==="missing-topology-reference" || issue.code==="ambiguous-topology-reference") {
+    var feature=(E.def.features || []).find(function(item){return item.id===issue.featureId;});
+    var refs=feature && feature.references && feature.references.topology || [];
+    E.topologySelection=refs.filter(function(ref){return ref.persistentId===issue.reference;});
+    var failed=E.topologySelection[0], origin=failed && failed.descriptor && (failed.descriptor.origin || failed.descriptor.point);
+    E.authoring.repairMarker=origin && [origin.x,origin.y,origin.z].every(Number.isFinite)?{origin:cloneData(origin),reference:issue.reference}:null;
+    E.authoring.featureSelection=issue.featureId?[issue.featureId]:[];
+    // Keep the failed reference visible in the form; highlight surviving candidates.
+    var candidates=issue.candidates || [];
+    (E.def.parts || []).forEach(function(part){topologyEntriesForPart(part).forEach(function(entry){if(candidates.includes(entry.persistentId))E.topologySelection.push(topologyReferenceFromEntry(entry));});});
+    updatePreview();
+  }
   var action = diagnosticHelp(issue, E.lang).action;
   if (action === "repair-upstream") {
     var earlier = recommendedDiagnostic((E.coreRun && E.coreRun.issues || []).filter(function (item) {
@@ -15351,7 +15529,7 @@ function appendViewportColor(host, label, key) {
   var input = el("input", "color-inp");
   input.type = "color";
   input.value = E[key];
-  input.addEventListener("input", function () { E[key] = input.value; updatePreview(); });
+  input.addEventListener("input", function () { E[key] = input.value; decoGroups.forEach(function (entry) { entry.dirty = true; }); refreshDecorations(); });
   input.addEventListener("change", saveModelerPrefs);
   row.appendChild(input);
   host.appendChild(row);
@@ -15431,7 +15609,17 @@ function fillLook() {
   var colInp = el("input", "color-inp");
   colInp.type = "color";
   colInp.value = p.color || "#999999";
-  colInp.addEventListener("input", function () { p.color = colInp.value; updatePreview(); refreshParts(); drawSketch(); });
+  var colorFrame = 0, colorEditing = false;
+  colInp.addEventListener("input", function () {
+    // History snapshots precede mutation; one undo owns the whole picker drag.
+    if (!colorEditing) { pushUndo(t("color")); colorEditing = true; }
+    p.color = colInp.value;
+    if (!colorFrame) colorFrame = requestAnimationFrame(function () {
+      colorFrame = 0;
+      if (E.open && E.def.parts.includes(p)) { updatePreview(); refreshParts(); }
+    });
+  });
+  colInp.addEventListener("change", function () { colorEditing = false; scheduleModelerDraft(); });
   var colLbl = el("span", "t");
   colLbl.textContent = t("modelColor");
   mrow.appendChild(colLbl);
@@ -16939,6 +17127,10 @@ function pickAssemblyComponent(event, view) {
   if (E.docType === "part") {
     var found = resolveTopologyPick(event, view, { prefer: commandSelectionPrefer() }) || {};
     if (found.helixId && !E.facePick) {
+      if(found.helixId.indexOf("plane:")===0){
+        var originPlane=(E.def.references || []).find(function(ref){return ref.id===found.helixId;});
+        if(originPlane){chooseSketchReference(originPlane);return;}
+      }
       E.selectedReferenceId = found.helixId;
       if (!event.ctrlKey && !event.metaKey) E.topologySelection = [];
       refreshSelection();
@@ -17453,7 +17645,18 @@ function instant3dValueChip(view) {
   if (!wrap) return null;
   var chip = wrap.querySelector(".md-instant3d-value");
   if (!chip) {
-    chip = el("div", "md-instant3d-value");
+    chip = el("input", "md-instant3d-value");
+    chip.type="number"; chip.step="any"; chip.inputMode="decimal";
+    chip.addEventListener("pointerdown",function(event){event.stopPropagation();});
+    chip.addEventListener("input",function(){
+      var pose=E._instant3dPose, value=chip.valueAsNumber;
+      if(pose && Number.isFinite(value) && chip.validity.valid)syncFeatureFormValue(pose.key,value);
+    });
+    chip.addEventListener("keydown",function(event){
+      event.stopPropagation();
+      if(event.key==="Enter"){event.preventDefault();chip.blur();}
+      if(event.key==="Escape"){event.preventDefault();chip.blur();syncInstant3dValue(view);}
+    });
     wrap.appendChild(chip);
   }
   return chip;
@@ -17484,7 +17687,11 @@ function syncInstant3dValue(view) {
     .project(view.cam);
   if (anchor.z > 1) { chip.hidden = true; return; }
   var units = E.def && E.def.context && E.def.context.units && E.def.context.units.length || "cm";
-  chip.textContent = (Math.round((pose.value || 0) * 100) / 100) + " " + units;
+  var control=instant3dFormControl(pose.key);
+  if(document.activeElement!==chip)chip.value=String(Math.round((pose.value || 0)*100)/100);
+  chip.min=control && control.min || ""; chip.max=control && control.max || "";
+  chip.setAttribute("aria-label",featureTypeLabel(instant3dAuthoringState().type)+" · "+(control && control.closest("label") && control.closest("label").querySelector(".md-feature-field-label")?.textContent || pose.key)+" ("+(pose.key==="angle"?"°":units)+")");
+  chip.title=chip.getAttribute("aria-label");
   chip.style.left = (canvas.offsetLeft + (anchor.x * 0.5 + 0.5) * canvas.clientWidth) + "px";
   chip.style.top = (canvas.offsetTop + (-anchor.y * 0.5 + 0.5) * canvas.clientHeight) + "px";
   chip.hidden = false;
@@ -17503,21 +17710,22 @@ function addInstant3dHandles(grp) {
        unrelated body. */
     var part = (E.authoring.previewParts || [])[0] || (E.authoring.featureEdit ? selectedSolid() : null);
     if (part) pose = extrudeHandlePose(partBounds(part), part.axis === "frame" ? "y" : (part.axis || "y"), params);
-  } else if (type === "fillet" || type === "chamfer" || type === "shell") {
+  } else if (type === "fillet" || type === "chamfer" || type === "shell" || type === "draft") {
     /* A finish handle belongs on the edge or face it rounds. With nothing
        picked there is no such anchor, and the old fallback dropped an arrow at
        the world origin — an arrow in the middle of the view that could not do
        anything, because the feature had nothing to work on either. Show it
        only once there is a reference to hang it on. */
-    var wantKind = type === "shell" ? "face" : "edge";
+    var wantKind = type === "shell" || type === "draft" ? "face" : "edge";
     var references = (E.topologySelection || []).filter(function (item) {
       return item && item.descriptor && item.descriptor.origin;
     });
     var reference = references.find(function (item) { return item.kind === wantKind; }) || references[0];
     if (reference && selectedSolid()) {
-      pose = filletHandlePose(reference.descriptor.origin, params.radius || params.distance || params.thickness, filletGrowDirection(reference.descriptor));
+      pose = filletHandlePose(reference.descriptor.origin, params.radius || params.distance || params.thickness || params.angle, filletGrowDirection(reference.descriptor));
       pose.type = type;
-      pose.key = type === "chamfer" ? "distance" : type === "shell" ? "thickness" : "radius";
+      pose.key = type === "chamfer" ? "distance" : type === "shell" ? "thickness" : type === "draft" ? "angle" : "radius";
+      pose.value=Number(params[pose.key]) || 0;
     }
   } else if (type === "pattern") {
     var seed = selectedSolid();
@@ -17618,7 +17826,15 @@ function beginInstant3dDrag(event, view) {
   event.preventDefault();
   if (view && view.rr && view.rr.domElement) view.rr.domElement.style.cursor = "grabbing";
   var start = { x: event.clientX, y: event.clientY, params: Object.assign({}, authoring.params), pose: pose };
+  function typeValue(ev) {
+    var chip=instant3dValueChip(view);
+    if(!chip || document.activeElement===chip || ev.ctrlKey || ev.metaKey || ev.altKey || !/^[0-9.\-]$/.test(ev.key))return;
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    chip.focus({preventScroll:true}); chip.value=ev.key;
+    chip.dispatchEvent(new Event("input",{bubbles:true}));
+  }
   function move(ev) {
+    if(document.activeElement===instant3dValueChip(view))return;
     var world = screenDeltaToWorld(view, start, ev);
     var next = applyHandleDrag(authoring.type, start.params, world, start.pose.direction);
     syncFeatureFormValue(start.pose.key, next[start.pose.key]);
@@ -17626,10 +17842,14 @@ function beginInstant3dDrag(event, view) {
   function up() {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", up);
+    window.removeEventListener("keydown", typeValue, true);
     if (view && view.rr && view.rr.domElement) view.rr.domElement.style.cursor = "";
   }
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
+  window.addEventListener("keydown", typeValue, true);
   return true;
 }
 
@@ -18539,8 +18759,8 @@ function refreshLib() {
       card.appendChild(el("div", "md-card-note",
         countLabel((assembly.components || []).length, "assemblyComponentOne", "assemblyComponents") + " · " +
         countLabel(assemblyMateCount(assembly), "matesCountOne", "matesCount")));
-      card.addEventListener("click", function () {
-        if (!confirmDiscardDocument("unsavedOpen")) return;
+      card.addEventListener("click", async function () {
+        if (!await confirmDiscardDocument("unsavedOpen")) return;
         E.assembly = cloneData(assembly); E.componentSel = []; E.sel = null;
         invalidateInterference();
         /* Opening an assembly is a document open, the same as the part cards
@@ -18575,7 +18795,7 @@ function refreshLib() {
     card.appendChild(el("div", "md-card-note",
       (m.parts ? m.parts.length : 0) + " " + t("partCount") +
       (fin(m.w) ? " · " + m.w + "×" + m.d + "×" + m.h + " cm" : "")));
-    card.addEventListener("click", function () {
+    card.addEventListener("click", async function () {
       /* A library choice is a document open, not an in-place geometry swap.
          Replacing E.def directly skipped the initialization below in
          openModeler(): canonical history/authoring state, active sketch,
@@ -18585,12 +18805,12 @@ function refreshLib() {
          look as though it had not loaded.  Use the one document-open path so
          selecting a saved model behaves exactly like opening it from a placed
          instance and lands on its design tree. */
-      if (!confirmDiscardDocument("unsavedOpen")) return;
+      if (!await confirmDiscardDocument("unsavedOpen")) return;
       openModeler(null, m, null);
     });
     var x = btn('<i class="ph ph-trash"></i>', async function (e) {
       e.stopPropagation();
-      if (!confirm(t("askDel") + "\n" + (m.name || m.key))) return;
+      if (!await askModelerDecision(root, { title:t("delModel"), message:t("askDel") + "\n" + (m.name || m.key), accept:t("del"), cancel:t("m_cancel") })) return;
       await saveLib(loadLib().filter(function (q) { return q.key !== m.key; }));
       delete FURN[m.key];
       delete PRICE[m.key];
@@ -19576,6 +19796,7 @@ function mobileBridge() {
     chromeLabel: chromeCommandLabel,
     runChrome: runChromeCommand,
     runCommand: runCommand,
+    returnToParameters: returnToFeatureParameters,
     accept: finishActiveCommand,
     cancel: cancelActiveCommand,
     setMode: setMode,
@@ -19619,6 +19840,7 @@ function mobileBridge() {
         rebuildErrors: E.coreRun && E.coreRun.issues ? E.coreRun.issues.filter(function (issue) { return issue.severity === "error"; }).length : 0,
         rebuildWarnings: E.coreRun && E.coreRun.issues ? E.coreRun.issues.filter(function (issue) { return issue.severity === "warning"; }).length : 0,
         contextRoom: !!(root && root.querySelector("#mdContextBtn") && root.querySelector("#mdContextBtn").checked),
+        collectingFeature: !!E.collectingFeature,
         cornerVisible: corner.visible,
         canAccept: corner.canAccept,
         /* Nothing modelled yet: the Features tab is six disabled buttons and
@@ -19659,6 +19881,7 @@ function queueModelerChrome() {
 }
 
 export function openModeler(editKey, def, srcItem) {
+  dismissModelerDecision();
   // Whether this call REPLACES a document that is already open, as opposed to
   // opening the editor. The recovery draft below turns on the difference.
   var replacingOpenDocument = E.open;
@@ -19675,6 +19898,8 @@ export function openModeler(editKey, def, srcItem) {
   // the clicked ancestor inert inside the same dispatch can strand assistive
   // technology and automation in a control that disappears mid-activation.
   setTimeout(function () { if (E.open) setModelerBackgroundIsolation(true); }, 50);
+  E.lastOperation = null;
+  E.collectingFeature = false;
   E.docType = "part";
   // The previous document's exact solid is native memory and belongs to a
   // model that is about to stop being open; it is neither reusable here nor
@@ -19725,7 +19950,7 @@ export function openModeler(editKey, def, srcItem) {
   E.section = { enabled:false, axis:"x", offset:0, flip:false };
   setSectionState(E.section);
   setPanelCollapsed("left", false);
-  setPanelCollapsed("right", false);
+  setPanelCollapsed("right", E.rightCollapsedPreference);
   E.mobileAddSelection = false;
   E.poly = null;
   E.arcPts = null;
@@ -19768,7 +19993,9 @@ export function openModeler(editKey, def, srcItem) {
   E.coachDismissed = false; // a new session re-arms the coach's session dismiss
   // The start screen belongs to fresh beginnings only — editing an existing
   // model or resuming a draft already has a direction.
-  if (!editKey && !def && !srcItem && !restoredDraft && E.welcomeOnOpen) openWelcome();
+  if (!editKey && !def && !srcItem && !restoredDraft && E.welcomeOnOpen) {
+    E.welcomeOnOpen=false; saveModelerPrefs(); openWelcome(); syncDensity();
+  }
   else {
     closeWelcome();
     syncCoach();
@@ -19806,6 +20033,7 @@ export function openModelerForItem(it) {
 }
 
 export function closeModeler() {
+  dismissModelerDecision();
   closeTour();
   closeWelcome();
   if(E.authoring && E.authoring.featureEdit)cancelFeatureParameterEdit(true);else clearFeaturePreview(false);

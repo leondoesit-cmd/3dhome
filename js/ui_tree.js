@@ -395,7 +395,7 @@ export function refreshTree() {
       return !wasKnown(r) && !(mm && (mm.name || mm.noRoom));
     });
     seedKnownRooms(cycles);
-    if (promptsOn && fresh.length) offerNewRooms(fresh);
+    if (promptsOn && fresh.length && !S.workspace?.guidance?.enabled) offerNewRooms(fresh);
   }
   var rs = cycles.filter(function (r) {
     return !roomDeclined(r.key);

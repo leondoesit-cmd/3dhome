@@ -152,17 +152,36 @@ export function startBlank() {
   api.changed(true);
 }
 
+function presetPreview(p) {
+  var family = FAM[p.fam], same = sp().fam === p.fam;
+  var width = E.it.w, height = same ? E.it.h : family.h, depth = same ? E.it.d : family.d;
+  var spec = makeSpec(p.id, width, height, depth, JSON.parse(JSON.stringify(E.it.cab)));
+  var x = 2, total = spec.cols.reduce(function (sum, column) { return sum + column.w; }, 0);
+  var lines = '<rect x="2" y="2" width="76" height="66" rx="1"/>';
+  spec.cols.forEach(function (column) {
+    var w = 76 * column.w / total, y = 68, sum = column.secs.reduce(function (n, section) { return n + section.h; }, 0);
+    if (x > 2) lines += '<path d="M' + x + ' 2V68"/>';
+    column.secs.forEach(function (section, index) {
+      y -= 66 * section.h / sum;
+      if (index < column.secs.length - 1) lines += '<path d="M' + x + ' ' + y + 'h' + w + '"/>';
+    });
+    x += w;
+  });
+  return '<svg class="cb-p-preview" viewBox="0 0 80 70" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">' + lines + '</svg>' +
+    '<div class="cb-p-note">' + (isEn() ? 'Replaces full layout' : 'מחליף את כל החלוקה') + ' · ' + formatCm(width) + ' × ' + formatCm(depth) + ' × ' + formatCm(height) + ' cm</div>';
+}
+
 export function fillPresetCards(wrap, fam) {
   var list = PRESETS.slice().sort(function (a, b) {
     return (a.fam === fam ? 0 : 1) - (b.fam === fam ? 0 : 1);
   });
   list.forEach(function (p) {
     if (!matches(presetLabel(p) + " " + presetNote(p) + " " + famLabel(p.fam))) return;
-    var card = el("div", "cb-preset" + (sp() && sp().preset === p.id ? " on" : ""));
+    var card = el("button", "cb-preset" + (sp() && sp().preset === p.id ? " on" : ""));
     card.innerHTML =
       '<div class="cb-p-top"><i class="ph ' + (FAM[p.fam] || {}).icon + '"></i><b>' + presetLabel(p) + "</b></div>" +
       '<div class="cb-p-note">' + presetNote(p) + "</div>" +
-      '<div class="cb-p-fam">' + famLabel(p.fam) + "</div>";
+      '<div class="cb-p-fam">' + famLabel(p.fam) + "</div>" + presetPreview(p);
     card.addEventListener("click", function () {
       var it = E.it,
         f = FAM[p.fam];
@@ -285,7 +304,7 @@ export function fillInspector() {
       E.sel.sec = 0;
       s = col.secs[0];
     }
-    title.textContent = T("section") + " " + (E.sel.col + 1) + "." + (E.sel.sec + 1);
+    title.textContent = T("column") + " " + (E.sel.col + 1) + " → " + T("section") + " " + (E.sel.sec + 1);
     /* Type picker. Anything this cabinet cannot physically hold is greyed out
        with the reason on it — a television niche in a 40 cm column, hanging in a
        35 cm deep carcass, a drawer wider than any runner. Width and depth are
@@ -777,10 +796,11 @@ export function fillChecks() {
       return order[a.level] - order[b.level];
     })
     .forEach(function (c) {
-      var row2 = el("div", "cb-check cb-" + c.level, c.msg);
+      var row2 = el(c.col != null ? "button" : "div", "cb-check cb-" + c.level, c.msg);
       if (c.col != null)
         row2.addEventListener("click", function () {
-          E.sel = { col: c.col, sec: 0 };
+          E.sel = { col: c.col, sec: c.sec == null ? 0 : c.sec };
+          api.setTab("insp", false);
           api.draw();
           fillInspector();
         });
@@ -820,6 +840,8 @@ export function fillMine() {
   list.forEach(function (u, i) {
     if (!matches(u && u.name)) return;
     var card = el("div", "cb-preset cb-mine");
+    card.tabIndex = 0; card.setAttribute("role", "button");
+    card.addEventListener("keydown", function (event) { if (event.target === card && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); card.click(); } });
     // Build with textContent — preset names come from prompt() and must never
     // be interpolated into innerHTML (stored XSS if a name contains markup).
     var top = el("div", "cb-p-top");
@@ -902,6 +924,8 @@ export function fillBOM() {
   var L = layoutCab(E.it),
     boards = cutList(E.it, L),
     hwl = hardwareList(E.it, L);
+  var manufacturing = S.parametric && S.parametric.definitions[E.it.definitionId];
+  if (manufacturing && manufacturing.metadata.manufacturingReviewRequired) wrap.appendChild(el("div", "cb-check cb-warn", T("manufacturingReview")));
   var tb = el("table", "cb-bom");
   tb.innerHTML = "<thead><tr><th>" + T("boards") + "</th><th>" + T("qty") + "</th></tr></thead>";
   var body = el("tbody");
@@ -949,6 +973,8 @@ export function exportBOM() {
     isEn() ? "Sheet material" : "חומר גלם",
     isEn() ? "Banding (m each)" : "קנט (מ׳ ליחידה)",
   ]];
+  var manufacturing = S.parametric && S.parametric.definitions[E.it.definitionId];
+  if (manufacturing && manufacturing.metadata.manufacturingReviewRequired) rows.push([T("manufacturingReview")]);
   cutList(E.it).forEach(function (r) {
     var sh = r.sheet ? sheetById(r.sheet) : null;
     rows.push([

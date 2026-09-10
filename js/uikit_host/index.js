@@ -204,6 +204,7 @@ function hostNames() {
   map["act:undo"] = ["undo", "Undo"];
   map["act:redo"] = ["redo", "Redo"];
   map["menu:history"] = ["hist_title", "Edit history"];
+  map["tab:project"] = ["guide_tab", "Project tab"];
   map["tab:library"] = ["left_tab_library", "Library tab"];
   map["tab:home"] = ["left_tab_home", "Smart home tab"];
   map["tab:structure"] = ["left_tab_structure", "Structure tab"];

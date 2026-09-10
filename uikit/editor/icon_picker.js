@@ -47,11 +47,13 @@ export function openIconPicker(options) {
   searchInput.type = "search";
   searchInput.className = "uikit-ins-input uikit-ins-icon-search";
   searchInput.placeholder = t("uikit_ins_icon_search", "Search icons…");
+  searchInput.setAttribute("aria-label", searchInput.placeholder);
   popover.appendChild(searchInput);
 
   const grid = doc.createElement("div");
   grid.className = "uikit-ins-icon-grid";
-  grid.setAttribute("role", "listbox");
+  grid.setAttribute("role", "group");
+  grid.setAttribute("aria-label", t("uikit_ins_icon_select", "Select icon"));
   popover.appendChild(grid);
 
   const iconList = (icons && typeof icons.list === "function") ? icons.list() : [];
@@ -78,7 +80,7 @@ export function openIconPicker(options) {
       if (name === currentIcon) btn.classList.add("is-active");
       btn.setAttribute("title", name);
       btn.setAttribute("aria-label", name);
-      btn.setAttribute("role", "option");
+      btn.setAttribute("aria-pressed", String(name === currentIcon));
       btn.dataset.iconName = name;
 
       const span = doc.createElement("span");
@@ -92,7 +94,7 @@ export function openIconPicker(options) {
 
       btn.addEventListener("click", () => {
         if (typeof onSelect === "function") onSelect(name);
-        cleanup(false);
+        cleanup(false, true);
       });
       grid.appendChild(btn);
     }
@@ -112,7 +114,7 @@ export function openIconPicker(options) {
   resetBtn.textContent = t("uikit_ins_token_reset", "Reset to default");
   resetBtn.addEventListener("click", () => {
     if (typeof onReset === "function") onReset();
-    cleanup(false);
+    cleanup(false, true);
   });
   footer.appendChild(resetBtn);
   popover.appendChild(footer);
@@ -135,6 +137,7 @@ export function openIconPicker(options) {
   }
 
   function onKeyDown(e) {
+    if (!popover.contains(e.target)) return;
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
@@ -148,14 +151,19 @@ export function openIconPicker(options) {
     }
   }
 
-  function cleanup(notifyClose = true) {
+  function cleanup(notifyClose = true, restoreFocus = false) {
+    const hadFocus = popover.contains(doc.activeElement);
     doc.removeEventListener("keydown", onKeyDown, true);
     doc.removeEventListener("pointerdown", onPointerDown, true);
     if (popover.parentNode) popover.parentNode.removeChild(popover);
+    if ((restoreFocus || (notifyClose && hadFocus)) && anchor && anchor.isConnected) anchor.focus();
     if (notifyClose && typeof onClose === "function") onClose();
   }
 
   popover.__cleanup = cleanup;
+  for (const type of ["keydown", "pointerdown", "click"]) {
+    popover.addEventListener(type, (event) => event.stopPropagation());
+  }
   doc.addEventListener("keydown", onKeyDown, true);
   doc.addEventListener("pointerdown", onPointerDown, true);
 

@@ -577,48 +577,23 @@ test("RC home mode drives the flat itself and only decks what it must", async ()
   }).length;
   assert.equal(stuck, 0, "the lap runs into something solid");
 
-  // 4. The bed is driven ON, up a ramp — and the top of it carries the truck
-  //    without a deck being drawn over the thing you climbed up to drive on.
-  assert.ok(road.feats.rides > 0, "nothing in the flat gets climbed");
-  const onBed = C.filter((p) => p.hold && !p.deck && p.y > 40);
-  assert.ok(onBed.length > 2, "the bed is not actually driven along");
-  onBed.forEach((p) => {
-    assert.ok(
-      Math.abs(env.groundAt(p.x, p.z, p.y + 2.2, 2.2) - p.y) < 0.6,
-      "a bare sample floats above what should carry it",
-    );
-  });
-  const ramp = C.filter((p) => p.deck && p.y > 5 && p.y < 40);
-  assert.ok(ramp.length > 3, "there is no ramp up to it");
+  // Automatic racing starts with a simple floor circuit. Climbing furniture
+  // is an explicit option and cannot be a prerequisite for a valid lap.
+  assert.equal(road.feats.rides, 0);
+  assert.equal(road.feats.through, 0);
+  assert.equal(road.quality.valid, true);
+  assert.ok(road.quality.minRadius >= 21.9);
+
 });
 
-test("home-mode auto tour climbs elevated tabletops and visits more than four models", async () => {
-  const track = await read("js/track.js");
-  const rc = await readRC();
-  // The apartment is the course: every rideable model is a candidate, not a
-  // handful of detours off a room-centre loop, and a tabletop mesh that does
-  // not include the legs is still something you drive on.
-  assert.match(track, /ATTRACT_MAX = 16/);
-  assert.match(track, /export function seedHomeTour\(/);
-  assert.match(rc, /out = seedHomeTour\(/);
-  assert.doesNotMatch(track, /t\.y0 > 6 \|\| t\.y1 < RIDE_MIN/);
-  assert.doesNotMatch(track, /r\.y0 <= 6 &&\s*\n\s*Math\.min/);
-
+test("optional furniture visits never displace a safe automatic floor circuit", async () => {
   const { road } = await buildHomeRoad([
     { x0: 380, z0: 380, x1: 540, z1: 520, y0: 38, y1: 42 },
-  ]);
+  ], undefined, { homeFeatures: true });
   assert.ok(road && road.feats.home);
-  assert.ok(
-    road.feats.rides >= 2,
-    `auto tour only climbed ${road.feats.rides} model(s)`,
-  );
-  const onTable = road.center.filter((p) => p.hold && !p.deck && p.y > 36 && p.y < 44);
-  assert.ok(onTable.length > 1, "the tabletop is not actually driven along");
-  const decked = road.center.filter((p) => p.deck).length;
-  assert.ok(
-    decked / road.center.length < 0.55,
-    `${Math.round((decked / road.center.length) * 100)}% of the lap is road`,
-  );
+  assert.equal(road.quality.valid, true);
+  assert.equal(road.feats.through, 0);
+  assert.ok(road.quality.minRadius >= 21.9);
 });
 
 test("RC home mode hands collision back to the apartment", async () => {
@@ -910,7 +885,7 @@ test("the live RC track editor defers rebuilds and edits from both views", async
   assert.match(rc, /function planSig\(\)/);
   assert.match(rc, /R\.anchorsSig === planSig\(\)/);
   assert.match(rc, /var anchors = customAnchors\(\) \|\| routeAllRooms\(rooms\);/);
-  assert.match(rc, /R\.trackSig && R\.trackSig !== planSig\(\)\) buildTrack\(\);/);
+  assert.match(rc, /if \(!R\.race\) buildTrack\(\);/);
   assert.match(ed, /var seed = (?:ST\.)?E\.anchors\(\) \|\| (?:ST\.)?E\.presets\.auto/);
   assert.match(ed, /function reseedForPlan\(\)/);
 
@@ -1058,7 +1033,7 @@ test("the RC pass-by tool edits intent and keeps rule and points together", asyn
   assert.match(ed, /if \(a\.f\) out\.f = a\.f;[\s\S]*?if \(a\.ride\) out\.ride = true;/);
 
   // The builder must not spiral a ride point off the bed it was put on.
-  assert.match(rc, /if \(a\.ride\) return \{ x: a\.x, z: a\.z, ride: true \};/);
+  assert.match(rc, /if \(a\.ride \|\| fin\(a\.y\)\) return Object\.assign\(\{\}, a\);/);
   assert.match(track, /function attachRides\(anchors, plats, tops\)/);
   assert.match(track, /roundTurnarounds\(attachRides\(anchors, plats, tops\)\)/);
 });
@@ -1326,7 +1301,7 @@ test("a race the player cannot finish still offers an ending", async () => {
   // Only the player crossing the line armed the finish grace: if every rival
   // was home and the player was stuck, the race could never end.
   assert.match(rc, /rc_field_done/);
-  assert.match(rc, /if \(aiGone && lastAi && now - lastAi > FINISH_GRACE_MS\)/);
+  assert.match(rc, /if \(aiGone && lastAi && now - R\.race\.t0 - lastAi > FINISH_GRACE_MS\)/);
   assert.match(i18n, /rc_field_done: "כל היריבים סיימו — דלג לתוצאות"/);
   assert.match(i18n, /rc_field_done: "Field's home — skip to results"/);
 });

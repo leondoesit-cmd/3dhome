@@ -5,7 +5,7 @@ import {
   assemblyCoachPhase,
   resolveAssemblyWorkflow,
   defaultSketchPlane,
-  nextFeatureAfterFinishedSketch,
+  featuresForClosedProfile,
   resolveWorkflowStep,
   shouldResumeSketchSession,
   shouldSkipReferencePicker,
@@ -67,9 +67,14 @@ test("a selected face skips the plane picker; an open sketch resumes", () => {
   assert.equal(shouldResumeSketchSession("model", false), false);
 });
 
-test("finish sketch continues into Extrude when the profile is closed", () => {
-  assert.equal(nextFeatureAfterFinishedSketch(true), "extrude");
-  assert.equal(nextFeatureAfterFinishedSketch(false), null);
+test("a closed profile is offered to every feature that could consume it", () => {
+  /* This used to answer "extrude", and finishing a sketch opened that form
+     unasked — right for a boss, wrong for a hole, a revolve, or a profile
+     someone was only defining. Extrude still leads, because leading is not
+     the same as deciding. */
+  assert.deepEqual(featuresForClosedProfile(true), ["extrude", "extrudeCut", "revolve", "hole"]);
+  assert.equal(featuresForClosedProfile(true)[0], "extrude");
+  assert.deepEqual(featuresForClosedProfile(false), []);
 });
 
 test("a new sketch asks you to click a face; the plane dialog is the fallback", () => {

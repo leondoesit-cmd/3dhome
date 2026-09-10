@@ -324,7 +324,7 @@ function buildTune(host) {
   // plan is one more thing covering the drawing
   document.addEventListener("pointerdown", function (e) {
     if (!tune || tune.hidden) return;
-    if (tune.contains(e.target) || e.target.closest("#cadTuneBtn")) return;
+    if (tune.contains(e.target) || e.target.closest("#cadTuneBtn") || e.target.closest('.pt-panel[data-panel="tune"]')) return;
     tune.hidden = true;
   });
 }
@@ -655,10 +655,11 @@ export function entryOpen() {
 }
 
 function positionEntry() {
-  /* Pinned just above the status bar rather than following the cursor: a panel
-     that chases the pointer sits under the hand mid-type and jitters with the
-     rubber band. The inline offset clears the floating tool pill, which is
-     vertically centred and reaches this low on a short pane. */
+  /* The plan dock owns placement once the entry is wrapped. Until then, pin
+     just above the status bar rather than following the cursor: a panel that
+     chases the pointer sits under the hand mid-type and jitters with the
+     rubber band. */
+  if (entry.classList.contains("pt-inner")) return;
   entry.style.insetInlineStart = "80px";
   entry.style.bottom = "40px";
 }

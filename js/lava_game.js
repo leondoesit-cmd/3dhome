@@ -21,7 +21,7 @@ import { isPhysicsEnabled, moveKinematicCapsule } from "./physics_facade.js";
 import {
   L, lavaActive, EYE, EYE_CROUCH, P_RAD, P_CLEAR, STEP,
   SPD_WALK, SPD_SPRINT, SPD_CROUCH, ACCEL, GRAV, JUMP_V,
-  COYOTE, JUMP_BUF, MANTLE_DUR, BURN_MARGIN,
+  COYOTE, JUMP_BUF, MANTLE_DUR, BURN_MARGIN, P_CROUCH_CLEAR, P_SCALE,
   GEM_FREEZE, EXTRACT_HOLD, GHOST_SAMPLE_MS, LAVA_START_Y,
   FREEZE_BAR, DEATH_HOLD,
   specFor, nextLavaY, heatFactor, isBurned, formatTime, formatDelta,
@@ -29,12 +29,18 @@ import {
   interpolateGhost, ghostSample, comboOnLand, firstStep, countdownFor,
 } from "./lava_state.js";
 import {
+  castWeb, aimAnchor, findCling, findCeiling, wallBasis, ropeConstrain, lookDir,
+  WEB_RANGE, WEB_MIN, ZIP_SPEED, ZIP_ARRIVE, ZIP_MAX_T, CLING_REACH,
+  CRAWL_SPD, CRAWL_SPRINT, WALL_JUMP_OUT, WALL_JUMP_UP, NO_CLING,
+  SWING_ACCEL, REEL_SPD, SWING_MIN_LEN, AUTO_REEL, hangLength,
+} from "./lava_spider.js";
+import {
   buildCol, groundAt, moveCircle, spawnCourseMeshes, stepCourseVisuals,
   stepLavaVisual, applyScorch, clearScorch, enterHeat, exitHeat,
   spawnPlayer, audioOpen, audioClose, applyAudioVolume,
   sndSiren, sndGem, sndExtract, sndBurn, sndLand, startRumble, stepRumble, stopRumble,
   stepGhostVisual, disposeGroup, reheatAfterRebuild, relayoutAfterRebuild, stepGuide,
-  rebuildLavaMesh,
+  rebuildLavaMesh, collideCircle, updateWebLine, wallTop, sndWeb,
 } from "./lava_world.js";
 import { detectTouch } from "./chrome_posture.js";
 
@@ -53,9 +59,15 @@ var PAUSE_CONTROLS = [
   { kbd: "SPACE", key: "lv_control_jump" },
   { kbd: "HOLD JUMP", key: "lv_control_mantle" },
   { kbd: "CTRL", key: "lv_control_crouch" },
+  { kbd: "WALL", key: "lv_control_cling" },
+  { kbd: "SPACE", key: "lv_control_walljump" },
+  { kbd: "LMB / F", key: "lv_control_swing" },
+  { kbd: "RMB / E", key: "lv_control_zip" },
 ];
 
 var _movePoint2D = { x: 0, z: 0 };
+var _aimT = 0;
+var _aimOn = false;
 var _scorchT = 0;
 var _sirenT = 0;
 
@@ -138,6 +150,8 @@ function buildHud() {
     '<div class="lv-touch-actions">' +
     '<button type="button" data-act="crouch"></button>' +
     '<button type="button" data-act="sprint"></button>' +
+    '<button type="button" data-act="zip"></button>' +
+    '<button type="button" data-act="web"></button>' +
     '<button type="button" data-act="jump"></button>' +
     "</div></div>" +
     '<div id="lvReady"><div class="lv-card">' +
@@ -261,21 +275,38 @@ function wireHud() {
       }
       if (act === "sprint") L.keys.sprint = true;
       if (act === "crouch") L.keys.crouchKey = true;
+      if (act === "zip") fireZip();
+      if (act === "web") {
+        L.keys.web = true;
+        fireWeb();
+      }
     });
     btn.addEventListener("pointerup", function () {
       if (act === "jump") L.keys.jumpHold = false;
       if (act === "sprint") L.keys.sprint = false;
       if (act === "crouch") L.keys.crouchKey = false;
+      if (act === "web") {
+        L.keys.web = false;
+        if (L.p) releaseWeb(L.p);
+      }
     });
     btn.addEventListener("pointerleave", function () {
       if (act === "jump") L.keys.jumpHold = false;
       if (act === "sprint") L.keys.sprint = false;
       if (act === "crouch") L.keys.crouchKey = false;
+      if (act === "web") {
+        L.keys.web = false;
+        if (L.p) releaseWeb(L.p);
+      }
     });
     btn.addEventListener("pointercancel", function () {
       if (act === "jump") L.keys.jumpHold = false;
       if (act === "sprint") L.keys.sprint = false;
       if (act === "crouch") L.keys.crouchKey = false;
+      if (act === "web") {
+        L.keys.web = false;
+        if (L.p) releaseWeb(L.p);
+      }
     });
   });
   bindStick();
@@ -329,6 +360,10 @@ function localizeHud() {
   if (sprintBtn) sprintBtn.setAttribute("aria-label", t("lv_control_sprint"));
   if (jumpBtn) jumpBtn.setAttribute("aria-label", t("lv_touch_jump"));
   if (crouchBtn) crouchBtn.setAttribute("aria-label", t("lv_touch_crouch"));
+  var webBtn = L.hud.touch.querySelector('[data-act="web"]');
+  var zipBtn = L.hud.touch.querySelector('[data-act="zip"]');
+  if (webBtn) webBtn.setAttribute("aria-label", t("lv_touch_web"));
+  if (zipBtn) zipBtn.setAttribute("aria-label", t("lv_touch_zip"));
   L.hud.mantle.textContent = t("lv_mantle_prompt");
   L.hud.hint.textContent = t("lv_hint");
   var best = L.bestMs ? t("lv_best") + " " + formatTime(L.bestMs) : t("lv_no_best");
@@ -470,7 +505,328 @@ function newPlayer(spot) {
     dead: false, won: false, deadT: 0,
     extractT: 0,
     gems: 0,
+    /* the spider kit: what you are holding, what you fired, and how long
+       until you are allowed to stick to something again */
+    cling: null, ceil: null, noCling: 0,
+    web: null, zip: null, roll: 0, webs: 0,
   };
+}
+
+/* ---- the spider kit ---- */
+
+function bodyOf(P) {
+  return P && P.crouch ? P_CROUCH_CLEAR : P_CLEAR;
+}
+
+function eyeY(P) {
+  return P && P.crouch ? EYE_CROUCH : EYE;
+}
+
+function clingOpts(P) {
+  return {
+    wallTop: wallTop(), body: bodyOf(P), rad: P_RAD,
+    ceilY: wallTop(), bounds: L.bounds,
+  };
+}
+
+/* What a fired line is allowed to catch: the same world the walk code
+   collides with, plus the ceiling plane the planner never builds a mesh for. */
+function webOpts() {
+  return { wallTop: wallTop(), ceilY: wallTop(), bounds: L.bounds, range: WEB_RANGE };
+}
+
+/* The line leaves the hand, not the pupil — a rope drawn from the exact centre
+   of the screen is a dot, and reads as no rope at all. */
+function handPos(P) {
+  var eye = eyeY(P);
+  var f = lookDir(P.yaw, P.pitch);
+  var rx = Math.cos(P.yaw),
+    rz = -Math.sin(P.yaw);
+  return {
+    x: P.x + rx * P_RAD * 0.8 + f.x * P_RAD,
+    y: P.y + eye - P_RAD * 0.35 + f.y * P_RAD,
+    z: P.z + rz * P_RAD * 0.8 + f.z * P_RAD,
+  };
+}
+
+function releaseWeb(P) {
+  if (P) P.web = null;
+}
+
+function releaseCling(P, grace) {
+  if (!P) return;
+  P.cling = null;
+  P.ceil = null;
+  P.noCling = Math.max(P.noCling || 0, grace || 0);
+}
+
+/* Sticking to a surface is a landing: it ends a fall, it is where the combo
+   chain continues, and it is the only way up anything taller than a shoebox
+   now that the runner is 42cm tall. */
+function attachCling(P, cl) {
+  P.cling = {
+    nx: cl.nx, nz: cl.nz, top: cl.top, bottom: cl.bottom,
+    kind: cl.kind, id: cl.id,
+  };
+  P.ceil = null;
+  P.x = cl.px + cl.nx * P_RAD;
+  P.z = cl.pz + cl.nz * P_RAD;
+  P.vx = 0;
+  P.vy = 0;
+  P.vz = 0;
+  P.airborne = false;
+  releaseWeb(P);
+  landOn("cling:" + (cl.id == null ? cl.kind : cl.id));
+  sndLand();
+}
+
+function attachCeiling(P, c) {
+  P.ceil = { y: c.y, id: c.id };
+  P.cling = null;
+  P.y = c.y - bodyOf(P);
+  P.vx = 0;
+  P.vy = 0;
+  P.vz = 0;
+  P.airborne = false;
+  releaseWeb(P);
+  landOn("ceil:" + (c.id == null ? "roof" : c.id));
+  sndLand();
+}
+
+function tryCling(P) {
+  if (!L.col || P.noCling > 0 || P.crouch || P.mantle > 0) return false;
+  if (P.vy > 0) {
+    var c = findCeiling(L.col, P.x, P.y, P.z, CLING_REACH, clingOpts(P));
+    if (c) {
+      attachCeiling(P, c);
+      return true;
+    }
+  }
+  var cl = findCling(L.col, P.x, P.y, P.z, CLING_REACH, clingOpts(P));
+  if (!cl) return false;
+  // only into a surface you are actually meeting, so a jump straight up
+  // beside a wall is still a jump
+  var into = P.vx * -cl.nx + P.vz * -cl.nz;
+  if (into < 4 && P.vy > -12) return false;
+  attachCling(P, cl);
+  return true;
+}
+
+/* Off the wall: away from it, along the sightline, and up. */
+function wallLeap(P) {
+  var f = lookDir(P.yaw, P.pitch);
+  if (P.ceil) {
+    P.vx = f.x * WALL_JUMP_OUT * 0.8;
+    P.vz = f.z * WALL_JUMP_OUT * 0.8;
+    P.vy = -20;
+  } else {
+    var n = P.cling;
+    P.vx = n.nx * WALL_JUMP_OUT + f.x * WALL_JUMP_OUT * 0.7;
+    P.vz = n.nz * WALL_JUMP_OUT + f.z * WALL_JUMP_OUT * 0.7;
+    P.vy = WALL_JUMP_UP;
+  }
+  releaseCling(P, NO_CLING);
+  P.airborne = true;
+  P.coyote = 0;
+  P.jumpBuf = 0;
+}
+
+function fireZip() {
+  var P = L.p;
+  if (!P || P.dead || P.won || !L.started || L.paused || !L.col) return;
+  var eye = eyeY(P);
+  var d = lookDir(P.yaw, P.pitch);
+  var h = castWeb(L.col, P.x, P.y + eye, P.z, d.x, d.y, d.z, WEB_RANGE, webOpts());
+  if (!h || h.dist < WEB_MIN) {
+    say(t("lv_web_miss"), 0.6);
+    return;
+  }
+  releaseWeb(P);
+  releaseCling(P, 0);
+  P.webs++;
+  P.zip = { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, kind: h.kind, t: 0 };
+  P.mantle = 0;
+  sndWeb();
+}
+
+function fireWeb() {
+  var P = L.p;
+  if (!P || P.dead || P.won || !L.started || L.paused || !L.col) return;
+  if (P.web) return;
+  var eye = eyeY(P);
+  var h = aimAnchor(L.col, P.x, P.y + eye, P.z, P.yaw, P.pitch, webOpts());
+  if (!h) {
+    say(t("lv_web_miss"), 0.6);
+    return;
+  }
+  releaseCling(P, NO_CLING);
+  P.zip = null;
+  P.webs++;
+  var len = Math.hypot(P.x - h.x, P.y - h.y, P.z - h.z);
+  P.web = { x: h.x, y: h.y, z: h.z, len: Math.max(SWING_MIN_LEN, len), taut: false };
+  /* Fired from a standstill the rope is already slack at exactly its own
+     length, so nothing happens: you stand there attached to the ceiling. The
+     first swing has to be a launch — off the floor and along the line — and
+     from then on the arc feeds itself. */
+  if (!P.airborne) {
+    var fx = h.x - P.x,
+      fz = h.z - P.z,
+      fl = Math.hypot(fx, fz);
+    P.vy = Math.max(P.vy, JUMP_V * 0.9);
+    if (fl > 1) {
+      P.vx += (fx / fl) * SPD_SPRINT * 0.85;
+      P.vz += (fz / fl) * SPD_SPRINT * 0.85;
+    }
+  }
+  P.airborne = true;
+  sndWeb();
+}
+
+/* The zip ignores the collision hull on purpose: the line was fired down a
+   clear ray, so the flight along it is clear by construction, and stepping it
+   through moveCircle instead made every zip stop dead on the doorframe it had
+   just been aimed through. */
+function stepZip(P, dt) {
+  var z = P.zip;
+  z.t += dt;
+  var ty = z.y;
+  if (z.ny > 0.5) ty = z.y; // a top face: stand on it
+  else if (z.ny < -0.5) ty = z.y - bodyOf(P); // an underside: hang off it
+  else ty = z.y - bodyOf(P) * 0.5; // a wall: meet it chest-on
+  var dx = z.x - z.nx * P_RAD - P.x,
+    dy = ty - P.y,
+    dz = z.z - z.nz * P_RAD - P.z;
+  var d = Math.hypot(dx, dy, dz);
+  var stepLen = ZIP_SPEED * dt;
+  if (d <= Math.max(ZIP_ARRIVE, stepLen) || z.t > ZIP_MAX_T || d < 1e-3) {
+    if (d > 1e-3) {
+      P.x += dx;
+      P.y += dy;
+      P.z += dz;
+    }
+    P.zip = null;
+    P.noCling = 0;
+    // carry a little of the pull out the far side, so a zip chains into a jump
+    P.vx = d > 1e-3 ? (dx / d) * ZIP_SPEED * 0.35 : 0;
+    P.vz = d > 1e-3 ? (dz / d) * ZIP_SPEED * 0.35 : 0;
+    P.vy = 0;
+    P.airborne = true;
+    if (z.ny < -0.5) {
+      var c = findCeiling(L.col, P.x, P.y, P.z, CLING_REACH * 2, clingOpts(P));
+      if (c) attachCeiling(P, c);
+    } else if (Math.abs(z.ny) < 0.5) {
+      var cl = findCling(L.col, P.x, P.y, P.z, CLING_REACH * 2, clingOpts(P));
+      if (cl) attachCling(P, cl);
+    }
+    return;
+  }
+  P.x += (dx / d) * stepLen;
+  P.y += (dy / d) * stepLen;
+  P.z += (dz / d) * stepLen;
+  P.vx = (dx / d) * ZIP_SPEED;
+  P.vy = (dy / d) * ZIP_SPEED;
+  P.vz = (dz / d) * ZIP_SPEED;
+  P.airborne = true;
+}
+
+/* Crawling. Movement is in the plane of the surface and steered by the
+   sightline, then the body is re-glued to whatever is nearest — which is what
+   carries the runner around an outside corner without a special case for it. */
+function stepCling(P, dt) {
+  var K = L.keys;
+  if (K.crouchKey) {
+    releaseCling(P, NO_CLING);
+    return;
+  }
+  var stickX = L.stick ? L.stick.x : 0,
+    stickY = L.stick ? L.stick.y : 0;
+  var mF = (K.fwd ? 1 : 0) - (K.back ? 1 : 0) + stickY,
+    mR = (K.right ? 1 : 0) - (K.left ? 1 : 0) + stickX;
+  var ml = Math.hypot(mF, mR);
+  if (ml > 1) {
+    mF /= ml;
+    mR /= ml;
+  }
+  var spd = K.sprint ? CRAWL_SPRINT : CRAWL_SPD;
+  P.speedK = clamp(Math.hypot(mF, mR) * (spd / SPD_WALK), 0, 2.4);
+
+  if (P.ceil) {
+    var f = lookDir(P.yaw, 0);
+    var rx = Math.cos(P.yaw),
+      rz = -Math.sin(P.yaw);
+    _movePoint2D.x = P.x;
+    _movePoint2D.z = P.z;
+    var body = bodyOf(P);
+    moveCircle(
+      _movePoint2D,
+      (f.x * mF + rx * mR) * spd * dt,
+      (f.z * mF + rz * mR) * spd * dt,
+      P_RAD, P.y, body, STEP
+    );
+    P.x = _movePoint2D.x;
+    P.z = _movePoint2D.z;
+    var c = findCeiling(L.col, P.x, P.y, P.z, CLING_REACH * 2.2, clingOpts(P));
+    if (!c) {
+      releaseCling(P, 0.05);
+      return;
+    }
+    P.ceil = c;
+    P.y = c.y - body;
+    return;
+  }
+
+  var cl = P.cling;
+  var b = wallBasis(cl.nx, cl.nz, P.yaw, P.pitch);
+  P.x += (b.ux * mF + b.rx * mR) * spd * dt;
+  P.y += (b.uy * mF + b.ry * mR) * spd * dt;
+  P.z += (b.uz * mF + b.rz * mR) * spd * dt;
+  P.vx = 0;
+  P.vy = 0;
+  P.vz = 0;
+
+  var g = groundAt(P.x, P.z, P.y + 2, STEP);
+  if (P.y <= g) {
+    P.y = g;
+    releaseCling(P, 0.02);
+    return;
+  }
+  if (P.y >= cl.top - 1) {
+    if (cl.kind === "wall") {
+      // the top of a wall is the ceiling: there is nothing to step onto
+      P.y = cl.top - 1;
+      var c2 = findCeiling(L.col, P.x, P.y, P.z, CLING_REACH * 2, clingOpts(P));
+      if (c2) attachCeiling(P, c2);
+      return;
+    }
+    // over the lip and onto the top face
+    P.y = cl.top;
+    P.x -= cl.nx * (P_RAD + 2);
+    P.z -= cl.nz * (P_RAD + 2);
+    var gt = groundAt(P.x, P.z, P.y + 4, STEP);
+    if (gt > P.y - 6 && gt < P.y + 8) P.y = gt;
+    releaseCling(P, 0.05);
+    sndLand();
+    return;
+  }
+  var next = findCling(L.col, P.x, P.y, P.z, CLING_REACH * 2.2, clingOpts(P));
+  if (!next) {
+    releaseCling(P, 0.05);
+    return;
+  }
+  P.cling = {
+    nx: next.nx, nz: next.nz, top: next.top, bottom: next.bottom,
+    kind: next.kind, id: next.id,
+  };
+  P.x = next.px + next.nx * P_RAD;
+  P.z = next.pz + next.nz * P_RAD;
+}
+
+function landOn(id) {
+  var c = comboOnLand(L.lastLandId, id, L.combo);
+  L.combo = c.combo;
+  L.lastLandId = c.id;
+  if (c.freeze) L.freeze += c.freeze;
+  if (!reduceMotion()) L.fovPunch = Math.max(L.fovPunch || 0, 4);
 }
 
 function restart() {
@@ -628,6 +984,10 @@ function tryJump() {
 function maybeJump() {
   var P = L.p;
   if (!P || P.jumpBuf <= 0) return;
+  if (P.cling || P.ceil) {
+    wallLeap(P);
+    return;
+  }
   var g = groundAt(P.x, P.z, P.y, STEP);
   var grounded = P.y <= g + 3 && P.vy <= 40;
   if (!grounded && P.coyote <= 0) return;
@@ -640,6 +1000,11 @@ function maybeJump() {
 function tryMantle() {
   var P = L.p;
   if (!P || P.mantle > 0 || P.dead || P.won) return;
+  /* Jump is one key for two moves, and the wall leap has to win: with a ledge
+     anywhere in reach the mantle used to fire on the same keypress a frame
+     later and swallow the leap whole — vaulting you straight back onto the
+     thing you had just pushed off. */
+  if (P.noCling > 0 || P.web || P.zip) return;
   if (!L.keys.fwd && !(L.stick && L.stick.y > 0.4) && P.jumpBuf <= 0 && !L.keys.jumpHold) return;
   var ledge = mantleTarget(L.platforms, P.x, P.z, P.y, P.yaw, { lavaY: L.lavaY });
   if (!ledge) return;
@@ -661,6 +1026,18 @@ function stepPlayer(dt) {
   }
   if (P.jumpBuf > 0) P.jumpBuf -= dt;
   if (P.coyote > 0) P.coyote -= dt;
+  if (P.noCling > 0) P.noCling -= dt;
+  if (P.zip) {
+    stepZip(P, dt);
+    P.bob += dt * 6;
+    return;
+  }
+  if (P.cling || P.ceil) {
+    P.crouch = false;
+    stepCling(P, dt);
+    maybeJump();
+    return;
+  }
   if (K.jumpHold) tryMantle();
 
   if (P.mantle > 0) {
@@ -701,11 +1078,24 @@ function stepPlayer(dt) {
   var l = Math.hypot(mx, mz);
   if (l > 0.001) { mx /= l; mz /= l; }
   var damp = dampingFactor(ACCEL, dt);
-  P.vx += (mx * spd - P.vx) * damp;
-  P.vz += (mz * spd - P.vz) * damp;
+  if (P.web) {
+    /* On the rope you steer, you do not drive: damping toward a walk speed
+       would eat the arc the swing is entirely made of. */
+    P.vx += mx * SWING_ACCEL * dt;
+    P.vz += mz * SWING_ACCEL * dt;
+    var cap = SPD_SPRINT * 3.6,
+      flat = Math.hypot(P.vx, P.vz);
+    if (flat > cap) {
+      P.vx *= cap / flat;
+      P.vz *= cap / flat;
+    }
+  } else {
+    P.vx += (mx * spd - P.vx) * damp;
+    P.vz += (mz * spd - P.vz) * damp;
+  }
   _movePoint2D.x = P.x;
   _movePoint2D.z = P.z;
-  var body = P.crouch ? 100 : P_CLEAR;
+  var body = bodyOf(P);
   if (isPhysicsEnabled()) {
     var next = moveKinematicCapsule(P.x, P.y, P.z, P.vx * dt, 0, P.vz * dt, P_RAD, body);
     P.x = next.x;
@@ -726,19 +1116,16 @@ function stepPlayer(dt) {
       P.vy = 0;
     }
   }
-  P.airborne = P.y > g + 2 || P.vy > 0;
+  if (P.web) stepSwing(P, dt);
+  P.airborne = P.y > g + 2 || P.vy > 0 || !!P.web;
   if (!P.airborne) P.coyote = COYOTE;
   if (wasAir && !P.airborne) {
     sndLand();
-    var landId = landIdAt(P.x, P.z, P.y);
-    var c = comboOnLand(L.lastLandId, landId, L.combo);
-    L.combo = c.combo;
-    L.lastLandId = c.id;
-    if (c.freeze) L.freeze += c.freeze;
-    if (!reduceMotion()) L.fovPunch = Math.max(L.fovPunch || 0, 4);
+    landOn(landIdAt(P.x, P.z, P.y));
   }
   maybeJump();
   if (P.airborne && (K.jumpHold || P.jumpBuf > 0)) tryMantle();
+  if (P.airborne && !P.web && !P.mantle) tryCling(P);
 
   P.speedK = clamp(Math.hypot(P.vx, P.vz) / SPD_WALK, 0, 2.4);
   P.bob += dt * Math.hypot(P.vx, P.vz) * (P.sprint ? 0.05 : 0.04);
@@ -773,6 +1160,61 @@ function stepPlayer(dt) {
     });
 }
 
+/* The rope, applied after the frame's own integration: hold forward or jump to
+   reel in and the arc tightens into a climb, let go and everything the swing
+   built is still in the velocity. */
+function stepSwing(P, dt) {
+  var w = P.web,
+    K = L.keys;
+  if (K.fwd || K.jumpHold) w.len = Math.max(SWING_MIN_LEN, w.len - REEL_SPD * dt);
+  if (!w.taut) {
+    // a slack line hauls itself in until it has an arc to swing on
+    w.len = Math.max(hangLength(w.y, P.y), w.len - AUTO_REEL * dt);
+  }
+  var r = ropeConstrain(P.x, P.y, P.z, P.vx, P.vy, P.vz, w.x, w.y, w.z, w.len);
+  w.taut = !!r;
+  if (r) {
+    P.x = r.x;
+    P.y = r.y;
+    P.z = r.z;
+    P.vx = r.vx;
+    P.vy = r.vy;
+    P.vz = r.vz;
+    _movePoint2D.x = P.x;
+    _movePoint2D.z = P.z;
+    collideCircle(_movePoint2D, P_RAD, P.y, bodyOf(P), STEP);
+    /* The rope does not know about the sideboard. Without a response to the
+       push-out the constraint just re-seats the body against it every frame
+       and the swing grinds along the wall at full speed, going nowhere. Kill
+       the speed that went into the surface, and on a real impact let go — a
+       swing that ends against a wall is a swing that ends stuck to it. */
+    var px = _movePoint2D.x - P.x,
+      pz = _movePoint2D.z - P.z,
+      pl = Math.hypot(px, pz);
+    P.x = _movePoint2D.x;
+    P.z = _movePoint2D.z;
+    if (pl > 0.01) {
+      var nx = px / pl,
+        nz = pz / pl,
+        into = -(P.vx * nx + P.vz * nz);
+      if (into > 0) {
+        P.vx += nx * into;
+        P.vz += nz * into;
+        if (into > 40) releaseWeb(P);
+      }
+    }
+  }
+  var g = groundAt(P.x, P.z, P.y, STEP);
+  if (P.y < g) {
+    P.y = g;
+    if (P.vy < 0) P.vy = 0;
+  }
+  // reeled all the way to the anchor: the rope is spent
+  if (P.y > w.y - P_RAD * 1.5 || w.len <= SWING_MIN_LEN + 0.01) {
+    if (Math.hypot(P.x - w.x, P.y - w.y, P.z - w.z) < SWING_MIN_LEN + 2) releaseWeb(P);
+  }
+}
+
 function landIdAt(x, z, y) {
   var R = L.platforms || [];
   for (var i = 0; i < R.length; i++) {
@@ -787,14 +1229,32 @@ function stepCamera(dt) {
   var cam = getMainCamera();
   var P = L.p;
   if (!cam || !P) return;
-  var eye = P.crouch ? EYE_CROUCH : EYE;
-  var bob = P.airborne || P.mantle > 0 ? 0 : Math.sin(P.bob) * 2.4 * P.speedK;
+  var eye = eyeY(P);
+  var bob = P.airborne || P.mantle > 0 ? 0 : Math.sin(P.bob) * 2.4 * P_SCALE * P.speedK;
   cam.position.set(P.x, P.y + eye + bob, P.z);
   var dx = Math.cos(P.pitch) * Math.sin(P.yaw),
     dy = Math.sin(P.pitch),
     dz = Math.cos(P.pitch) * Math.cos(P.yaw);
-  cam.up.set(0, 1, 0);
+  /* The rope is the one thing in this mode that banks the horizon. Rolling the
+     camera with the swing is what tells you which way the arc is going when
+     the walls are a blur; the head stays level for everything else, cling and
+     ceiling crawl included, because a wall crawl that rolls the world 90° is
+     motion sickness, not a power. */
+  var rollTo = 0;
+  if (P.web && !reduceMotion()) {
+    var rgt = Math.hypot(dx, dz) || 1;
+    rollTo = clamp((P.vx * (-dz / rgt) + P.vz * (dx / rgt)) / 620, -0.42, 0.42);
+  }
+  P.roll += (rollTo - P.roll) * Math.min(1, dt * 5);
+  if (Math.abs(P.roll) > 0.002) {
+    var ur = Math.hypot(dx, dz) || 1,
+      sr = Math.sin(P.roll),
+      cr = Math.cos(P.roll);
+    cam.up.set((-dz / ur) * sr, cr, (dx / ur) * sr);
+  } else cam.up.set(0, 1, 0);
   cam.lookAt(P.x + dx * 400, P.y + eye + bob + dy * 400, P.z + dz * 400);
+  var line = P.web || P.zip;
+  updateWebLine(line ? handPos(P) : null, line);
   var motion = !reduceMotion();
   var heat = heatFactor(P.y, L.lavaY);
   var punch = L.fovPunch || 0;
@@ -844,6 +1304,20 @@ function stepHud(spec, dt) {
     h.compass.style.transform = "translate(-50%, -50%) rotate(" + heading + "rad)";
     h.compass.classList.add("on");
   } else if (h.compass) h.compass.classList.remove("on");
+  /* What the crosshair is for: whether there is anything to fire at, and
+     whether you are currently holding on to the house. */
+  /* Six rays over every wall and box in the plan, four times a second rather
+     than sixty: the reticle is a hint, and nobody can see it flicker. */
+  _aimT -= dt || 0.016;
+  if (_aimT <= 0) {
+    _aimT = 0.25;
+    _aimOn = false;
+    if (L.col && L.started && !L.paused && !P.dead && !P.won && !P.web && !P.zip)
+      _aimOn = !!aimAnchor(L.col, P.x, P.y + eyeY(P), P.z, P.yaw, P.pitch, webOpts());
+  }
+  h.root.classList.toggle("aim", _aimOn && !P.web && !P.zip);
+  h.root.classList.toggle("clung", !!(P.cling || P.ceil));
+  h.root.classList.toggle("swing", !!(P.web || P.zip));
   if (L.msgT > 0) {
     L.msgT -= dt || 0.016;
     if (L.msgT <= 0) h.msg.classList.remove("on");
@@ -977,6 +1451,19 @@ function onKeyDown(e) {
     e.preventDefault();
     return;
   }
+  if (e.code === "KeyF") {
+    if (!L.keys.web) {
+      L.keys.web = true;
+      fireWeb();
+    }
+    e.preventDefault();
+    return;
+  }
+  if (e.code === "KeyE") {
+    fireZip();
+    e.preventDefault();
+    return;
+  }
   if (e.code === "Space") {
     L.keys.jumpHold = true;
     tryJump();
@@ -989,6 +1476,10 @@ function onKeyUp(e) {
   e.stopImmediatePropagation();
   var m = KEYMAP[e.code];
   if (m) L.keys[m] = false;
+  if (e.code === "KeyF") {
+    L.keys.web = false;
+    if (L.p) releaseWeb(L.p);
+  }
   if (e.code === "Space") L.keys.jumpHold = false;
 }
 
@@ -1006,8 +1497,25 @@ function onMouseDown(e) {
   if (!L.active || !L.started || L.paused) return;
   if (L.p && (L.p.dead || L.p.won)) return;
   if (e.target && e.target.closest && e.target.closest("#lvHud .lv-card, #lvPauseBtn, #lvTouch")) return;
-  lockPointer();
+  /* Once the cursor is captured the two mouse buttons ARE the web: left holds
+     a swing line, right fires a zip. Before that, a click is still just the
+     click that grabs the cursor back. */
+  if (L.locked) {
+    if (e.button === 2) fireZip();
+    else if (e.button === 0) {
+      L.keys.web = true;
+      fireWeb();
+    }
+  } else lockPointer();
   e.preventDefault();
+}
+
+function onMouseUp(e) {
+  if (!L.active) return;
+  if (e.button === 0 && L.keys.web) {
+    L.keys.web = false;
+    if (L.p) releaseWeb(L.p);
+  }
 }
 
 function onContext(e) {
@@ -1066,6 +1574,7 @@ function bindEvents() {
   window.addEventListener("keyup", onKeyUp, true);
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mousedown", onMouseDown);
+  window.addEventListener("mouseup", onMouseUp);
   window.addEventListener("contextmenu", onContext);
   document.addEventListener("pointerlockchange", onLockChange);
   window.addEventListener("pointerdown", onLookPointerDown);
@@ -1084,6 +1593,7 @@ function unbindEvents() {
   window.removeEventListener("keyup", onKeyUp, true);
   window.removeEventListener("mousemove", onMouseMove);
   window.removeEventListener("mousedown", onMouseDown);
+  window.removeEventListener("mouseup", onMouseUp);
   window.removeEventListener("contextmenu", onContext);
   document.removeEventListener("pointerlockchange", onLockChange);
   window.removeEventListener("pointerdown", onLookPointerDown);
@@ -1117,6 +1627,7 @@ function clearWorld() {
   L.lavaMesh = null;
   L.ghostMesh = null;
   L.stepMesh = null;
+  L.webMesh = null;
   L.spec = null;
   L.gems = [];
   L.platforms = [];

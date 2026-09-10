@@ -1,3 +1,4 @@
+import { generatedChangePermission } from "./redesign.js";
 // Blueprint import modal: upload a floor-plan image, run it through the local
 // VLM (blueprint.js), preview the parse, then commit it to the scene via
 // buildLayout(). Also owns the failure states (server offline, model missing,
@@ -290,6 +291,7 @@ export function openBlueprintModal() {
 
   btnApply.onclick = function () {
     if (!lastResult) return;
+    if (!generatedChangePermission(S, "document.import_blueprint").ok) { flash(t("redesign_protected"), "error"); return; }
     pushHistory();
     /* Newer/local parsers may return actual wall surface lines and arcs.  Keep
        the established room-box path as a fallback, but prefer analytic CAD

@@ -11,12 +11,17 @@ import {
   DIFFICULTY, LAVA_START_Y, GEM_FREEZE, COMBO_FREEZE,
   firstStep, countdownFor, pickSpawn, SPD_SPRINT, MAX_COUNTDOWN,
   busGains, lavaDetail, canVault, reachableFromFloor, pathOpen, rectHitsSegs,
-  COMBO_FREEZE_AT,
+  COMBO_FREEZE_AT, P_SCALE, MANTLE_MAX,
 } from "../js/lava_state.js";
 
-test("jump apex clears sofa height without becoming a rocket", () => {
+/* The runner is a quarter of a person, so a jump is a quarter of a jump: it
+   clears a threshold strip, not a sofa. Anything taller is a climb, which is
+   the whole reason the spider kit exists. */
+test("jump apex clears a doorstep without becoming a rocket", () => {
   const apex = jumpApex(JUMP_V, GRAV);
-  assert.ok(apex > 70 && apex < 110);
+  assert.ok(apex > MANTLE_MAX * 0.5, "a jump is worth taking: " + apex);
+  assert.ok(apex < MANTLE_MAX, "but it never beats a mantle: " + apex);
+  assert.ok(apex < 30 * P_SCALE * 4, "and it is a small body's jump");
 });
 
 test("lava seeps during the siren then climbs unless frozen", () => {
@@ -73,10 +78,11 @@ test("stairs expand into climbable treads and bookshelves into shelves", () => {
 });
 
 test("mantle prefers a facing ledge in the vault window", () => {
-  const sofa = { x0: -40, x1: 40, z0: 30, z1: 90, y0: 0, y1: 80, item: { id: "s1" } };
+  const h = 80 * P_SCALE;
+  const sofa = { x0: -10, x1: 10, z0: 7, z1: 22, y0: 0, y1: h, item: { id: "s1" } };
   const hit = mantleTarget([sofa], 0, 0, 0, 0);
   assert.ok(hit);
-  assert.equal(hit.y1, 80);
+  assert.equal(hit.y1, h);
   const behind = mantleTarget([sofa], 0, 0, 0, Math.PI);
   assert.equal(behind, null);
 });
@@ -132,6 +138,7 @@ const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8"
 const game = await readFile(new URL("../js/lava_game.js", import.meta.url), "utf8");
 const world = await readFile(new URL("../js/lava_world.js", import.meta.url), "utf8");
 const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
+const view3d = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
 const i18n = await readI18nSource();
 
 test("the mode is wired like the other in-home games", () => {
@@ -149,11 +156,34 @@ test("parkour uses mantle, coyote time, and the shared physics clock", () => {
   assert.match(game, /P\.coyote = COYOTE/);
   assert.match(game, /safeDeltaSeconds[\s\S]*forEachPhysicsStep/);
   assert.match(game, /moveKinematicCapsule/);
-  assert.match(world, /ShaderMaterial/);
+  // the melt is a node material, never a raw ShaderMaterial: the WebGPU
+  // backend refuses those, and an unrendered lava plane takes the whole
+  // graded room down to black with it
+  assert.match(world, /new THREE\.MeshBasicNodeMaterial/);
+  assert.doesNotMatch(world, /new THREE\.ShaderMaterial/);
   assert.match(world, /uTime/);
   assert.match(world, /emergencyCrates/);
   assert.match(css, /body\.lava-on #floor-tabs/);
   assert.match(css, /#lvHud/);
+});
+
+/* The grade is not a one-shot: applyEnv() is the planner's own lighting pass
+   and it lands on its own schedule — the first entry of a session finishes the
+   initial build's pass AFTER enterHeat, which is how the mode came up as a
+   daylight showroom with the sun at full and the IBL back on. */
+test("the heat grade survives every relight, and lets go on the way out", () => {
+  assert.match(view3d, /export function onRelight\(fn\)/);
+  assert.match(view3d, /applySite\(\);[\s\S]{0,120}runRelightHooks\(\);/, "applyEnv ends by re-grading");
+  assert.match(world, /L\.unrelight = onRelight\(reheatAfterRebuild\);/);
+  // unregistering has to come before exitHeat's own early return, or a stale
+  // hook keeps re-grading the planner for the rest of the session
+  assert.match(
+    world,
+    /export function exitHeat\(\) \{[\s\S]{0,320}?L\.unrelight\(\);[\s\S]{0,200}?if \(!scene \|\| !L\.prevGfx\) return;/
+  );
+  assert.match(world, /L\.prevGfx = null;[\s\S]{0,500}applyEnv\(\);/, "exit relights for real");
+  // …and a relight has to re-hang the cached env map, not just skip the work
+  assert.match(view3d, /if \(key === lastEnvKey && envRT\) \{\s*scene\.environment = envRT\.texture;/);
 });
 
 test("combo breaks when landing on the floor", () => {
@@ -260,9 +290,16 @@ test("the control hint is readable and takes itself away", () => {
 
 /* ---- the siren has to fit the room it is sounding in ---- */
 
+/* Fixtures are written at human scale and shrunk to the runner: the design
+   intent they encode ("a 60cm ledge in the next room is not your first step")
+   is about a person-sized house, and the runner is a quarter of a person. */
 function step(x, z, y1, half) {
-  half = half || 40;
-  return { x0: x - half, x1: x + half, z0: z - half, z1: z + half, y0: 0, y1: y1 };
+  half = half == null ? 40 : half;
+  return {
+    x0: (x - half) * P_SCALE, x1: (x + half) * P_SCALE,
+    z0: (z - half) * P_SCALE, z1: (z + half) * P_SCALE,
+    y0: 0, y1: y1 * P_SCALE,
+  };
 }
 
 test("the siren stretches to cover the ground this spawn has to cross", () => {
@@ -285,12 +322,12 @@ test("the first step is the near, roomy, climbable one", () => {
     step(600, 0, 60),   // right height, wrong postcode
     step(120, 0, 60),   // the answer
     step(90, 0, 260),   // a wardrobe you cannot vault from the floor
-    { x0: 100, x1: 108, z0: 0, z1: 8, y0: 0, y1: 60 }, // too small to land on
+    step(100, 0, 60, 4), // too small to land on
   ];
   const found = firstStep(rects, 0, 0, 0);
   assert.ok(found, "something is climbable here");
-  assert.equal(found.rc.x1, 160, "picked the near 60cm ledge");
-  assert.ok(found.dist > 0 && found.dist < 120);
+  assert.equal(found.rc.x1, 160 * P_SCALE, "picked the near 60cm ledge");
+  assert.ok(found.dist > 0 && found.dist < 120 * P_SCALE);
   assert.equal(firstStep([step(0, 0, 8)], 0, 0, 0), null, "a rug is not a step");
   assert.equal(firstStep([], 0, 0, 0), null);
 });
@@ -302,10 +339,10 @@ test("the drill starts beside a step, and away from the goal", () => {
   const spawn = pickSpawn([near, far], null, extract);
   assert.ok(spawn, "a spawn was chosen");
   assert.ok(spawn.step === far, "start at the step furthest from extraction");
-  assert.ok(spawn.x > 800, "stand off it on the far side, not on top of it");
+  assert.ok(spawn.x > 800 * P_SCALE, "stand off it on the far side, not on top of it");
   // and whatever is chosen, the step is genuinely within reach of the siren
   const reach = firstStep([near, far], spawn.x, spawn.z, 0);
-  assert.ok(reach && reach.dist < 120, "the first move is a stride, not a trek");
+  assert.ok(reach && reach.dist < 120 * P_SCALE, "the first move is a stride, not a trek");
   assert.equal(pickSpawn([step(0, 0, 8)], null, extract), null, "no steps, no opinion");
 });
 
@@ -354,28 +391,28 @@ test("quality detail drops tessellation and gem lights on Fast", () => {
 });
 
 test("extraction prefers a climbable platform over an isolated roof", () => {
-  const sofa = { x0: 0, x1: 80, z0: 0, z1: 80, y0: 0, y1: 80 };
+  const sofa = { x0: 0, x1: 80, z0: 0, z1: 80, y0: 0, y1: 80 * P_SCALE };
   const roof = { x0: 4000, x1: 4120, z0: 4000, z1: 4120, y0: 0, y1: 400 };
   const extract = pickExtraction([sofa, roof]);
-  assert.equal(extract.y, 80);
+  assert.equal(extract.y, 80 * P_SCALE);
   const seen = reachableFromFloor([sofa, roof]);
   assert.equal(seen[0], 1);
   assert.ok(!seen[1]);
 });
 
 test("a wall between platforms blocks a vault", () => {
-  const a = { x0: 0, x1: 40, z0: 0, z1: 40, y1: 50 };
-  const b = { x0: 80, x1: 120, z0: 0, z1: 40, y1: 90 };
+  const a = { x0: 0, x1: 10, z0: 0, z1: 10, y1: 50 * P_SCALE };
+  const b = { x0: 20, x1: 30, z0: 0, z1: 10, y1: 90 * P_SCALE };
   assert.equal(canVault(a, b), true);
-  const wall = [{ ax: 60, az: -40, bx: 60, bz: 40 }];
-  assert.equal(pathOpen(20, 20, 100, 20, wall), false);
+  const wall = [{ ax: 15, az: -10, bx: 15, bz: 10 }];
+  assert.equal(pathOpen(5, 5, 25, 5, wall), false);
   assert.equal(canVault(a, b, wall), false);
 });
 
 test("the first step prefers a ledge in this room over one through a wall", () => {
   const blocked = step(120, 0, 60);
   const open = step(0, 160, 60);
-  const wall = [{ ax: 50, az: -80, bx: 50, bz: 80 }];
+  const wall = [{ ax: 50 * P_SCALE, az: -80 * P_SCALE, bx: 50 * P_SCALE, bz: 80 * P_SCALE }];
   const found = firstStep([blocked, open], 0, 0, 0, wall);
   assert.ok(found);
   assert.equal(found.rc, open);

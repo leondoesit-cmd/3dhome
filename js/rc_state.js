@@ -142,6 +142,10 @@ export const R = {
   // truck — access ramps, short bridges and the jump. ON by default; the full
   // Rainbow-Road ribbon (spiral, flyover) is one click away.
   homeMode: true,
+  homeFeatures: true,
+  brakeAssist: true,
+  reverseCourse: false,
+  trackError: null,
   // Home-mode A* otherwise rewrites a hand-drawn lap around every sofa. Once
   // the user has moved a point, the builder follows those points instead.
   followAnchors: false,
@@ -247,6 +251,9 @@ export function prefsLoad() {
     if (fin(p.laps)) R.laps = clamp(p.laps, 1, 9);
     if (p.items != null) kartSetOn(!!p.items);
     if (p.walls != null) R.walls = !!p.walls;
+    R.homeFeatures = p.tourVersion >= 1 ? p.homeFeatures !== false : true;
+    R.brakeAssist = p.brakeAssist !== false;
+    R.reverseCourse = p.reverseCourse === true;
     if (p.homeMode != null) R.homeMode = !!p.homeMode;
     if (p.followAnchors != null) R.followAnchors = !!p.followAnchors;
     if (Array.isArray(p.customAnchors)) R.customAnchors = p.customAnchors;
@@ -294,6 +301,9 @@ export function prefsSave() {
         items: kartIsOn(),
         walls: R.walls,
         homeMode: R.homeMode,
+        homeFeatures: !!R.homeFeatures,
+        brakeAssist: !!R.brakeAssist,
+        reverseCourse: !!R.reverseCourse,
         followAnchors: !!R.followAnchors,
         customAnchors: R.customAnchors,
         faceRules: R.faceRules,
@@ -303,6 +313,7 @@ export function prefsSave() {
         roadTheme: R.roadTheme,
         hasJump: R.hasJump,
         safetyVersion: 2,
+        tourVersion: 1,
         physConfig: R.physConfig,
       }),
     );

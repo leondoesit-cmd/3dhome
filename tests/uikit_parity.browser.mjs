@@ -190,12 +190,12 @@ test("uikit adds no element to the document and tags only what it borrowed", opt
     "n:right", "n:topbar", "panel:cost",
     "panel:environment", "panel:friends", "panel:inspectorMain",
     "panel:leftTabs", "panel:library", "panel:mep",
-    "panel:params", "panel:site", "panel:smarthome",
+    "panel:params", "panel:planningGuide", "panel:site", "panel:smarthome",
     "panel:tb-center", "panel:tb-end", "panel:tb-start",
     "panel:tree", "panel:warnings", "pt:layers",
     "pt:rooms", "pt:status", "pt:tools", "pt:walls",
     "sep:edit-1", "sep:edit-2", "sep:file-1",
-    "sep:more-1", "sep:more-2", "tab:home", "tab:library", "tab:structure",
+    "sep:more-1", "sep:more-2", "tab:home", "tab:library", "tab:project", "tab:structure",
     "tab:tree",
   ], "every node in the document, and nothing else");
 });
@@ -222,7 +222,7 @@ test("the registry finds the app's real commands, through its one dispatcher", o
   });
 
   assert.ok(result.commands >= 140, "found the app's data-act catalogue: " + result.commands);
-  assert.equal(result.hasPanels, 15, "and the fifteen curated containers");
+  assert.equal(result.hasPanels, 16, "including the project guide container");
   assert.ok(result.hasSave);
   assert.ok(result.saveTitle && result.saveTitle.length, "labels come from the page, in the active language");
   assert.equal(result.saveIcon, "ph-floppy-disk", "and icons from the button or the curated list");

@@ -23,7 +23,7 @@
  */
 
 import { presetRect, presetConnection, roomPreset } from "./room_presets.js";
-import { stampRect, rectOverlapsRooms, rectInsideRoom, pointInPolygon, DEFAULT_WALL_SPEC, removeWall } from "./room_graph.js";
+import { stampRect, rectOverlapsRooms, rectInsideRoom, pointInPolygon, roomMetaKey, DEFAULT_WALL_SPEC, removeWall } from "./room_graph.js";
 import { solveDock, corridorRect, translateRect } from "./room_dock.js";
 
 const EDGE_MARGIN = 12; // cm of wall left beside an opening, so jambs can exist
@@ -116,6 +116,7 @@ export function roomMetaFor(state, key, preset, rect) {
     name: preset ? preset.name : "",
     floor: preset ? preset.floor : undefined,
     preset: preset ? preset.id : undefined,
+    roomType: preset ? preset.id : undefined,
     /* The flag the rest of the app already reads for "this is circulation":
        the floor-inheritance rule in ui.js and the corridor opening pass in
        interaction.js both look for it. Storing only `preset` would have made a
@@ -303,22 +304,13 @@ export function placeRoom(state, options) {
 function mergeContributors(state, opts, stamp) {
   if (typeof opts.detectRooms !== "function") return [];
   const shared = new Set((stamp.shared || []).map(String));
-  const meta = state.roomMeta || {};
   return opts.detectRooms()
     .filter((r) => String(r.key) === String(stamp.key)
       || String(r.key).split(",").some((id) => shared.has(id)))
     .map((r) => ({
       key: r.key, area: r.area || 0, cx: r.cx, cz: r.cz,
-      /* Which metadata entry belongs to this room, which is NOT simply
-         meta[r.key]. Docking split the host's wall, so the host is already
-         keyed under a set of walls it no longer has — looking it up by key
-         finds nothing, and the room with the most floor loses the argument by
-         default. Fall back to the entry whose recorded centroid is inside it. */
-      metaKey: meta[r.key] ? r.key : Object.keys(meta).find((k) => {
-        const entry = meta[k];
-        return entry && Number.isFinite(entry.cx) && Number.isFinite(entry.cz)
-          && pointInPolygon({ x: entry.cx, z: entry.cz }, r.pts);
-      }),
+      // never meta[r.key] — see roomMetaKey
+      metaKey: roomMetaKey(state, r),
     }));
 }
 

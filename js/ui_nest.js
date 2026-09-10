@@ -905,7 +905,9 @@ function fillWarnings() {
     host = root.querySelector("#nzWarn");
   host.innerHTML = "";
   var un = E.q ? E.q.nest.unplaced : [];
-  sec.style.display = un.length ? "" : "none";
+  var review = E.q && E.q.manufacturingReviewRequired;
+  sec.style.display = un.length || review ? "" : "none";
+  if (review) host.appendChild(el("div", "nz-warn", isEn() ? "Partial estimate — advanced model edits require manufacturing review." : "אומדן חלקי — שינויי מודל מתקדמים דורשים בדיקת ייצור."));
   if (!un.length) return;
   host.appendChild(el("div", "nz-note", T("unplacedNote")));
   un.forEach(function (p) {

@@ -1,3 +1,4 @@
+import { normalizeBaselines, normalizeRedesign, mergeBaselineArchives } from "./redesign.js";
 /* Live shared plan over the existing WebSocket relay.
 
    The relay is a dumb room broadcast (server/relay.mjs), so ordering has to be
@@ -16,6 +17,7 @@
    Remote ops apply WITHOUT pushing the local undo stack: Ctrl+Z stays "what
    I did", not "what the other person did". */
 
+import { normalizePlanningGuide } from "./planning_guide.js";
 import { S } from "./state.js";
 import { NET, on, sendData, isHome, peerName } from "./net.js";
 
@@ -86,8 +88,8 @@ function sanitizeOpening(o) {
 }
 
 const ROOM_META_FIELDS = {
-  name: 1, floor: 1, locked: 1, hidden: 1, noRoom: 1, isCorridor: 1,
-  preset: 1, cx: 1, cz: 1, hid: 1, autoOpenings: 1, tex: 1, ceilTex: 1,
+  name: 1, floor: 1, wall: 1, floorTex: 1, floorScale: 1, floorBump: 1, locked: 1, hidden: 1, noRoom: 1, isCorridor: 1,
+  layoutPreferences: 1, relationships: 1, shape: 1, roomType: 1, preset: 1, cx: 1, cz: 1, hid: 1, autoOpenings: 1, tex: 1, ceilTex: 1,
 };
 
 function sanitizeRoomMeta(meta) {
@@ -130,7 +132,7 @@ function sameProject(d) {
 }
 
 function sceneGetter() {
-  return import("./ui.js").then(function (ui) { return ui.sceneObject(false); });
+  return import("./ui.js").then(function (ui) { return ui.sceneObject(true); });
 }
 
 function applyScene(scene) {
@@ -145,11 +147,14 @@ function applyScene(scene) {
        reaching peers for the rest of the session. */
     return Promise.resolve().then(function () {
       applyingRemote = true;
-      return ui.applyData(scene);
+      // Document metadata travels with the snapshot; access and display preferences stay local.
+      const incoming = scene.workspace ? { ...scene, workspace: { ...scene.workspace, role: S.workspace?.role || "editor", quality: S.workspace?.quality || "auto" } } : scene;
+      return ui.applyData(incoming);
     }).finally(function () {
       applyingRemote = false;
       // the adopted scene is the baseline, for the same reason as applyIncoming
       lastStructure = structureSignature();
+      lastRedesign = redesignSignature();
     });
   });
 }
@@ -168,11 +173,21 @@ export function applyPlanOp(op, state) {
      It belongs here rather than in the transport wrapper because the wrapper
      can be bypassed: anything holding a reference to applyPlanOp can change
      the live plan, and the invariant is about the plan, not about who asked. */
-  if (applied && st === S) lastStructure = structureSignature();
+  if (applied && st === S) { lastStructure = structureSignature(); lastRedesign = redesignSignature(); }
   return applied;
 }
 
 function applyPlanOpTo(op, st) {
+  if (op.type === "redesignSet") {
+    if (!st.workspace || typeof op.documentKey !== "string" || !op.documentKey) return false;
+    // Adopt document identity through a scene/structure snapshot first.
+    if (st.workspace.documentKey && st.workspace.documentKey !== op.documentKey) return false;
+    const incoming = normalizeBaselines(op.baselines);
+    st.workspace.documentKey = op.documentKey;
+    st.workspace.baselines = mergeBaselineArchives(st.workspace.baselines, incoming);
+    st.workspace.redesign = normalizeRedesign(op.redesign, st.workspace.baselines);
+    return true;
+  }
   if (op.type === "itemMove") {
     var it = (st.items || []).find(function (x) { return x.id === op.id; });
     if (!it) return false;
@@ -251,6 +266,9 @@ function applyPlanOpTo(op, st) {
      Object.prototype's setter; see the note on OPENING_FIELDS. */
   if (op.type === "structSet") {
     if (!Array.isArray(op.nodes) || !Array.isArray(op.walls)) return false;
+    if (st.workspace && typeof op.documentKey === "string" && op.documentKey && st.workspace.documentKey !== op.documentKey) {
+      st.workspace.documentKey = op.documentKey; st.workspace.baselines = Object.freeze([]); st.workspace.redesign = {};
+    }
     st.nodes = op.nodes.map(function (n) {
       if (!n || !Number.isFinite(Number(n.x)) || !Number.isFinite(Number(n.z))) return null;
       var node = { x: Number(n.x), z: Number(n.z) };
@@ -272,6 +290,7 @@ function applyPlanOpTo(op, st) {
       .map(sanitizeOpening)
       .filter(function (o) { return o && liveWalls[o.wall]; });
     if (op.roomMeta && typeof op.roomMeta === "object") st.roomMeta = sanitizeRoomMeta(op.roomMeta);
+    if (op.guidance && st.workspace) st.workspace.guidance = normalizePlanningGuide(op.guidance);
     /* Dimensions are not carried by this op, so the ones already here have to
        be checked against the walls that just arrived. A constraint anchored to
        a wall this structure does not contain cannot be solved and cannot be
@@ -476,7 +495,15 @@ export function broadcastPlanOp(op) {
    gesture has ENDED: mid-drag the finer-grained nodeMove op already carries
    the live corner, and re-sending the whole structure sixty times a second to
    describe one wall sliding would be indefensible. */
-var lastStructure = "";
+var lastStructure = "", lastRedesign = "";
+function redesignSignature() {
+  const w = S.workspace || {};
+  return JSON.stringify([w.documentKey, (w.baselines || []).map(b => b.id), w.redesign]);
+}
+export function redesignPlanOp() {
+  const w = S.workspace || {};
+  return { type: "redesignSet", documentKey: w.documentKey, baselines: w.baselines || [], redesign: w.redesign || {} };
+}
 
 function structureSignature() {
   var out = (S.nodes || []).length + ":" + (S.walls || []).length + ":";
@@ -489,13 +516,20 @@ function structureSignature() {
   (S.openings || []).forEach(function (o) {
     out += o.id + "@" + o.wall + ":" + Math.round(o.s) + "," + Math.round(o.width) + ";";
   });
-  out += Object.keys(S.roomMeta || {}).sort().join("|");
+  // Track semantic edits without serializing floor/wall texture data on every
+  // pointer render. The full sanitized metadata travels only when we send.
+  out += JSON.stringify(Object.keys(S.roomMeta || {}).sort().map(function (key) {
+    var meta = S.roomMeta[key] || {};
+    return [key, meta.name, meta.roomType, meta.preset, meta.hid, meta.floor, meta.wall, !!meta.floorTex, meta.floorScale, meta.floorBump, meta.layoutPreferences, meta.shape, meta.relationships];
+  }));
+  out += JSON.stringify([S.workspace && S.workspace.guidance || null, S.workspace && S.workspace.documentKey]);
   return out;
 }
 
 export function structurePlanOp() {
   return {
     type: "structSet",
+    documentKey: S.workspace && S.workspace.documentKey,
     nodes: (S.nodes || []).map(function (n) {
       if (!n) return null;
       var out = { x: n.x, z: n.z };
@@ -505,6 +539,7 @@ export function structurePlanOp() {
     walls: (S.walls || []).map(sanitizeWall).filter(Boolean),
     openings: (S.openings || []).map(sanitizeOpening).filter(Boolean),
     roomMeta: sanitizeRoomMeta(S.roomMeta || {}),
+    guidance: normalizePlanningGuide(S.workspace && S.workspace.guidance),
     idc: Number(S.idc) || 1,
   };
 }
@@ -517,14 +552,18 @@ export function syncStructureIfChanged() {
     // stay current while alone, so joining a room later does not look like an
     // edit that never happened
     lastStructure = structureSignature();
+    lastRedesign = redesignSignature();
     return false;
   }
   if (S.action) return false; // mid-gesture; the release will render again
+  const redesignNow = redesignSignature();
+  const redesignChanged = redesignNow !== lastRedesign;
   var now = structureSignature();
-  if (now === lastStructure) return false;
-  lastStructure = now;
-  broadcastPlanOp(structurePlanOp());
-  return true;
+  const structureChanged = now !== lastStructure;
+  if (structureChanged) { lastStructure = now; broadcastPlanOp(structurePlanOp()); }
+  // Adopt a new document identity before sending its archive and permissions.
+  if (redesignChanged) { lastRedesign = redesignNow; broadcastPlanOp(redesignPlanOp()); }
+  return structureChanged || redesignChanged;
 }
 
 export function pruneCursors(maxAge) {

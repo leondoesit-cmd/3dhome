@@ -156,7 +156,7 @@ function proposalCard(proposal) {
         pendingProposalCard = null;
         choiceCard.className = "agent-proposal " + (result.ok ? "agent-proposal-applied" : "agent-proposal-failed");
         choiceCard.innerHTML = '<strong><i class="ph ' + (result.ok ? "ph-check-circle" : "ph-warning-circle") + '"></i> ' +
-          escapeHTML(result.ok ? t("agent_applied_short") : t("agent_failed") + ": " + result.reason) + '</strong>';
+          escapeHTML(result.ok ? t("agent_applied_short") : t("agent_failed") + ": " + (result.reason === "PROTECTED_STRUCTURE" ? t("redesign_protected") : result.reason)) + '</strong>';
       };
       choiceActions.appendChild(button);
     });
@@ -224,7 +224,7 @@ function proposalCard(proposal) {
     pendingProposalCard = null;
     card.classList.add(result.ok ? "agent-proposal-applied" : "agent-proposal-failed");
     card.innerHTML = '<strong><i class="ph ' + (result.ok ? "ph-check-circle" : "ph-warning-circle") + '"></i> ' +
-      escapeHTML(result.ok ? t("agent_applied_short") : t("agent_failed") + ": " + result.reason) + '</strong>';
+      escapeHTML(result.ok ? t("agent_applied_short") : t("agent_failed") + ": " + (result.reason === "PROTECTED_STRUCTURE" ? t("redesign_protected") : result.reason)) + '</strong>';
   };
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }

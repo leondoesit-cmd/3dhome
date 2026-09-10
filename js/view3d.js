@@ -50,6 +50,7 @@ import {
   roomByKey,
   roomFloor,
   roomHidden,
+  roomName,
   hiddenSets,
   usedNodes,
   nodeDegree,
@@ -212,6 +213,13 @@ var shadowsDirty = true; // rebuild the sun shadow map next paint (geometry/sun 
 var shadowThrottleT = 0;  // timestamp of last shadow pass (for extLive throttle)
 var qualityPreset = "auto";
 var gameRendererLock = false;
+var gameEffectFactory = null, gameEffect = null;
+export function setGameRenderEffect(factory) {
+  if (factory === gameEffectFactory) return;
+  if (gameEffect) gameEffect.dispose();
+  gameEffect = null;
+  gameEffectFactory = factory;
+}
 export function requestRender() { needsRender = true; settle = SETTLE_FRAMES; }
 export function requestShadowUpdate() { shadowsDirty = true; needsRender = true; settle = SETTLE_FRAMES; }
 
@@ -274,6 +282,7 @@ export function setGameRendererQuality(quality) {
 }
 
 export function clearGameRendererQuality() {
+  setGameRenderEffect(null);
   gameRendererLock = false;
 }
 var skyCanvas,
@@ -1832,6 +1841,14 @@ export function rebuild3D() {
   clearGroup(dyn); // takes the previous structureRoot and mepRoot with it
   structureRoot = new THREE.Group();
   mepRoot = new THREE.Group();
+  /* Which layer each root IS, as data rather than as a module-local variable.
+     js/blender_export.js walks `dyn` from the outside and has to know where the
+     three roots end and the individual walls, slabs and pieces begin; matching
+     on "a Group whose children look structural" would break the first time a
+     root came back empty. */
+  structureRoot.userData.layerRoot = "structure";
+  itemsRoot.userData.layerRoot = "furniture";
+  mepRoot.userData.layerRoot = "mep";
   dyn.add(structureRoot);
   scene.doors = [];
   var bb = contentBounds();
@@ -1850,6 +1867,7 @@ export function rebuild3D() {
   var showSV = st.enabled && st.streetView && svBox;
   gp.visible = !showSV;
   
+  gp.userData.role = "ground";
   groundPlaneRef = gp; // Save reference for toggling in applySite
   dyn.add(gp);
   var rooms = detectRooms(),
@@ -1961,6 +1979,10 @@ export function rebuild3D() {
       if (m) {
         m.receiveShadow = !xrayFloor;
         m.castShadow = !xrayFloor;
+        // named so an export can say WHICH room's floor this is (blender_names.js)
+        m.userData.role = "floor";
+        m.userData.roomLabel = roomName(r.key) || "";
+        m.userData.finish = t || "";
         structureRoot.add(m);
       }
     });
@@ -2041,6 +2063,8 @@ export function rebuild3D() {
       if (bm) {
         bm.receiveShadow = !xrayFloor;
         bm.castShadow = !xrayFloor;
+        bm.userData.role = "floorBridge";
+        bm.userData.roomLabel = (rk && roomName(rk)) || "";
         structureRoot.add(bm);
       }
       // Bridge the wall jambs too: between the two cut walls there is a strip
@@ -2079,6 +2103,7 @@ export function rebuild3D() {
         jm.rotation.y = -Math.atan2(bz - az, bx - ax);
         jm.receiveShadow = !xrayWalls;
         jm.castShadow = !xrayWalls;
+        jm.userData.role = "jamb";
         structureRoot.add(jm);
       });
       // and the ceiling strip, when ceilings are shown
@@ -2093,6 +2118,7 @@ export function rebuild3D() {
         if (cm) {
           cm.receiveShadow = S.showCeiling && !xrayCeiling;
           cm.castShadow = S.showCeiling && !xrayCeiling;
+          cm.userData.role = "ceiling";
           structureRoot.add(cm);
         }
       }
@@ -2126,6 +2152,12 @@ export function rebuild3D() {
       if (m) {
         m.castShadow = S.showCeiling && !xrayCeiling;
         m.receiveShadow = S.showCeiling && !xrayCeiling;
+        /* With ceilings switched off this slab is still built, at opacity 0, so
+           the room keeps a surface for rays and physics. Say so, rather than
+           leaving an export to guess from the material why a ceiling it can see
+           in the outliner is invisible in the viewport. */
+        m.userData.role = S.showCeiling || xrayCeiling ? "ceiling" : "ceilingHidden";
+        m.userData.roomLabel = roomName(r.key) || "";
         structureRoot.add(m);
       }
     });
@@ -2156,10 +2188,11 @@ export function rebuild3D() {
       if (fm) {
         fm.castShadow = !xrayFloor;
         fm.receiveShadow = !xrayFloor;
+        fm.userData.role = "floor";
         structureRoot.add(fm);
       }
     } else {
-      box(
+      var fbox = box(
         structureRoot,
         bb.minx - 40,
         bb.maxx + 40,
@@ -2170,6 +2203,7 @@ export function rebuild3D() {
         FLOOR,
         fBoxOpt,
       );
+      if (fbox) fbox.userData.role = "floor";
     }
   }
   /* The curb around each well. Outside the rooms branch so a void on an
@@ -2186,6 +2220,7 @@ export function rebuild3D() {
       rim.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x);
       rim.castShadow = false;
       rim.receiveShadow = true;
+      rim.userData.role = "curb";
       structureRoot.add(rim);
     }
   });
@@ -2982,7 +3017,15 @@ function updateEnvMap(zenC, horC, groundHex) {
     return;
   }
   var key = zenC.getHexString() + horC.getHexString() + groundHex;
-  if (key === lastEnvKey && envRT) return;
+  /* The cache is about not re-prefiltering the same sky, NOT about whether the
+     scene is still using it: a game mode that nulls scene.environment for its
+     own grade got the daylight sky back on exit but no image-based fill at
+     all, because the key had not changed and this returned before the
+     assignment. Re-hanging a texture we already have is free. */
+  if (key === lastEnvKey && envRT) {
+    scene.environment = envRT.texture;
+    return;
+  }
   lastEnvKey = key;
   var ex = envSrcCanvas.getContext("2d"),
     H = envSrcCanvas.height,
@@ -3096,6 +3139,36 @@ export function applyEnv() {
     }
   });
   applySite(); // keep the site skybox/sky-dome visibility in sync with day/night
+  runRelightHooks();
+}
+
+/* A game mode overwrites the whole rig — sun, hemisphere, environment map,
+   exposure, and every practical in the house. applyEnv() above is the one
+   place the planner's daylight lands, and it runs on its own schedule (the
+   initial build finishes it AFTER the mode has already graded the scene, which
+   is how The Floor is Lava came up as a bright showroom). Whoever is holding a
+   grade registers here and re-applies at the end of every relight; nothing in
+   this file needs to know which mode that is. */
+var relightHooks = [];
+
+export function onRelight(fn) {
+  if (typeof fn !== "function") return function () {};
+  relightHooks.push(fn);
+  return function () {
+    var i = relightHooks.indexOf(fn);
+    if (i >= 0) relightHooks.splice(i, 1);
+  };
+}
+
+function runRelightHooks() {
+  for (var i = 0; i < relightHooks.length; i++) {
+    try {
+      relightHooks[i]();
+    } catch (e) {
+      /* a mode that fails to re-grade must not take the planner's own
+         lighting pass down with it */
+    }
+  }
 }
 
 // Position + toggle the real-world site overlay (aerial ground + street-view
@@ -3287,6 +3360,16 @@ export function setSize(w, h) {
 // respect renderer.initialized (the animate loop and snapshot3D both do).
 function renderScene() {
   if (!renderer || !renderer.initialized) return;
+  if (gameEffectFactory) {
+    try {
+      if (!gameEffect) gameEffect = gameEffectFactory(renderer, scene, camera);
+      gameEffect.render();
+      return;
+    } catch (error) {
+      console.warn("Body camera lens unavailable; using direct rendering", error);
+      setGameRenderEffect(null);
+    }
+  }
   if (usePost && post) post.render();
   else renderer.render(scene, camera);
 }
@@ -3332,14 +3415,12 @@ export function snapshot3D() {
   }
 }
 
-export function exportGLTF(cb) {
-  if (!ready3D) return cb(null);
-  import("three/addons/exporters/GLTFExporter.js").then(function (mod) {
-    ensureBuilt();
-    var exporter = new mod.GLTFExporter();
-    exporter.parse(dyn, function (gltf) { cb(gltf); }, { binary: true });
-  }).catch(function () { cb(null); });
-}
+/* glTF export lives in js/blender_export.js, not here. It used to be four
+   lines pointing GLTFExporter straight at `dyn`, which is a renderer's scene
+   graph: centimetres, no names, view aids and all. What it produced opened in
+   Blender as a 100x oversized pile of "Object.001". The replacement builds a
+   throwaway scene first; getDynGroup() and ensureBuilt() are what it needs
+   from here. */
 
 // Flush a pending rebuild so the extractor sees the current model.
 export function ensureBuilt() {

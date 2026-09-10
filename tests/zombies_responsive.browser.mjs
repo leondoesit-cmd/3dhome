@@ -82,19 +82,22 @@ test("Night Shift HUD lays out without collisions on every posture", async (t) =
   if (!page) return t.skip("chrome not installed");
   try {
     await nightShift(page);
-    for (const posture of POSTURES) {
-      await page.resize(posture.w, posture.h, { mobile: true, touch: true });
-      await page.eval(() => new Promise((r) => setTimeout(r, 320)));
-      const m = await page.eval(MEASURE);
-      const where = `${posture.name} (${posture.w}x${posture.h})`;
-      assert.equal(m.err, undefined, where);
-      assert.deepEqual(m.controls,
-        ["fire", "flash", "interact", "jump", "reload", "shove", "weapon"],
-        where + ": all seven controls visible and distinct");
-      assert.deepEqual(m.overlaps, [], where + ": HUD boxes must not overlap");
-      assert.deepEqual(m.offscreen, [], where + ": HUD must stay inside the viewport");
-      assert.deepEqual(m.tooSmall, [], where + ": touch targets stay reachable");
-      assert.equal(m.hScroll, false, where + ": the game must not scroll sideways");
+    for (const lang of ["en", "he"]) {
+      await page.setLang(lang);
+      for (const posture of POSTURES) {
+        await page.resize(posture.w, posture.h, { mobile: true, touch: true });
+        await page.eval(() => new Promise((r) => setTimeout(r, 320)));
+        const m = await page.eval(MEASURE);
+        const where = `${posture.name} (${posture.w}x${posture.h}, ${lang})`;
+        assert.equal(m.err, undefined, where);
+        assert.deepEqual(m.controls,
+          ["fire", "flash", "interact", "jump", "reload", "shove", "weapon"],
+          where + ": all seven controls visible and distinct");
+        assert.deepEqual(m.overlaps, [], where + ": HUD boxes must not overlap");
+        assert.deepEqual(m.offscreen, [], where + ": HUD must stay inside the viewport");
+        assert.deepEqual(m.tooSmall, [], where + ": touch targets stay reachable");
+        assert.equal(m.hScroll, false, where + ": the game must not scroll sideways");
+      }
     }
   } finally { await page.close(); }
 });

@@ -54,7 +54,7 @@ async function customizing({ width = 1440, height = 900 } = {}) {
     window.__btn = (text) =>
       [...document.querySelectorAll(".uikit-ins button")]
         .find((b) => b.textContent.trim().toLowerCase() === text.toLowerCase());
-    window.__field = (i) => document.querySelectorAll(".uikit-ins input[type=text]")[i || 0];
+    window.__field = (i) => document.querySelectorAll(".uikit-ins-node input[type=text]")[i || 0];
     window.__ids = (sel) => [...document.querySelector(sel).children]
       .map((e) => e.getAttribute("data-uikit-id") || e.id || e.className);
   });
@@ -119,7 +119,7 @@ test("a real click on the node actions does what the keyboard does", opts, async
     ed.command("select", { id: "panel:tree" });
     ed.command("select", { id: "panel:library", additive: true });
     await window.__frame();
-    const manyLabel = document.querySelector(".uikit-ins-actions button:last-of-type").textContent;
+    const manyLabel = document.querySelector(".uikit-ins-node .uikit-ins-actions button:last-of-type").textContent;
 
     return { wasHidden, nowHidden, oneLabel, manyLabel };
   });
@@ -385,4 +385,61 @@ test("accent token pair satisfies WCAG AA contrast ratio (>= 4.5:1)", opts, asyn
   });
 
   assert.ok(ratio >= 4.5, `contrast ratio ${ratio.toFixed(2)}:1 meets WCAG AA (>= 4.5:1)`);
+});
+
+test("preset cards apply a styled layout and Undo restores manual edits", opts, async () => {
+  const page = await customizing();
+  const result = await page.eval(async () => {
+    const { ops } = await import('/uikit/index.js');
+    const ui = window.__ui;
+    ui.apply('Manual width', ops.resize(ui.doc, { id: 'n:left', size: { w: 275 } }));
+    ui.refreshNow();
+    const before = ui.exportLayout();
+    document.querySelector('[data-preset="focus"]').click();
+    await window.__frame();
+    const applied = {
+      accent: ui.doc.overrides.tokens['--accent'],
+      width: ui.doc.nodes['n:left'].size.w,
+      pressed: document.querySelector('[data-preset="focus"]').getAttribute('aria-pressed'),
+    };
+    ui.undo();
+    ui.refreshNow();
+    return { applied, restored: ui.exportLayout() === before };
+  });
+  assert.deepEqual(result.applied, { accent: '#0f766e', width: 232, pressed: 'true' });
+  assert.equal(result.restored, true);
+});
+
+test("named layouts persist separately and restore an editable snapshot", opts, async () => {
+  const page = await customizing();
+  const result = await page.eval(async () => {
+    const ui = window.__ui;
+    localStorage.removeItem('home3d_uikit:planner:saved');
+    ui.applyPreset('focus');
+    const original = ui.exportLayout();
+    const name = document.querySelector('.uikit-ins-presets input');
+    name.value = 'My focused layout';
+    window.__btn('Save current layout').click();
+    const saved = ui.savedLayouts();
+    ui.applyPreset('studio');
+    const studio = ui.exportLayout();
+    const loaded = ui.loadNamedLayout(saved[0].id);
+    const restored = ui.exportLayout() === original;
+    ui.undo();
+    ui.refreshNow();
+    return { saved, loaded, restored, undo: ui.exportLayout() === studio,
+      stored: JSON.parse(localStorage.getItem('home3d_uikit:planner:saved')).length };
+  });
+  assert.equal(result.saved[0].name, 'My focused layout');
+  assert.equal(result.loaded, true);
+  assert.equal(result.restored, true);
+  assert.equal(result.undo, true);
+  assert.equal(result.stored, 1);
+  await page.goto('/');
+  const persisted = await page.eval(async () => {
+    const { activeUIKit } = await import('/js/uikit_host/index.js');
+    return activeUIKit().savedLayouts().map(item => item.name);
+  });
+  assert.deepEqual(persisted, ['My focused layout']);
+  await page.eval(() => localStorage.removeItem('home3d_uikit:planner:saved'));
 });

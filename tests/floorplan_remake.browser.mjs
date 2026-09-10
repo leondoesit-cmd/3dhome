@@ -277,7 +277,10 @@ test("Browser QA: Interactive wall drafting, rooms, doors, windows and finishes"
 
       // Place Windows
       q.inter.setTool("window");
-      q.click(100, 884); // Living front window
+      q.click(100, 884); // This would overlap the entry door and must be refused.
+      await q.frame();
+      const overlappingWindowRefused = q.S.openings.filter(o => o.type === 'window').length === 0;
+      q.click(70, 884); // Keep the full window width clear of the entry door.
       await q.frame();
 
       q.inter.setTool("window");
@@ -298,7 +301,10 @@ test("Browser QA: Interactive wall drafting, rooms, doors, windows and finishes"
 
       // Place Cased Passage
       q.inter.setTool("passage");
-      q.click(310, 600); // Hall to living
+      q.click(310, 600); // A 120 cm passage does not fit this 99 cm segment.
+      await q.frame();
+      const undersizedHostRefused = q.S.openings.filter(o => o.type === 'passage').length === 0;
+      q.click(262, 500); // Full-size passage on the longer hall/living wall.
       await q.frame();
 
       q.inter.setTool("select");
@@ -340,6 +346,7 @@ test("Browser QA: Interactive wall drafting, rooms, doors, windows and finishes"
         finalRoomsCount: q.geom.detectRooms().length,
         wallsCount: q.S.walls.length,
         openingsCount: q.S.openings.length,
+        overlappingWindowRefused, undersizedHostRefused,
         doorsCount: q.S.openings.filter((o) => o.type === "door").length,
         windowsCount: q.S.openings.filter((o) => o.type === "window").length,
         passagesCount: q.S.openings.filter((o) => o.type === "passage").length,
@@ -350,6 +357,8 @@ test("Browser QA: Interactive wall drafting, rooms, doors, windows and finishes"
     assert.equal(result.perimeterRooms, 1, "exterior perimeter forms 1 room");
     assert.ok(result.finalRoomsCount >= 5, "all interior rooms divided and detected");
     assert.equal(result.doorsCount, 5, "5 doors placed");
+    assert.equal(result.overlappingWindowRefused, true, "overlapping opening is refused");
+    assert.equal(result.undersizedHostRefused, true, "opening is never silently shrunk");
     assert.equal(result.windowsCount, 5, "5 windows placed");
     assert.equal(result.passagesCount, 1, "1 passage opening placed");
     assert.equal(result.itemsCount, 8, "8 furniture items placed");

@@ -118,6 +118,7 @@ export const TB_END_CHILDREN = [
 ];
 
 export const LEFT_TAB_CHILDREN = [
+  "tab:project",
   "tab:library",
   "tab:home",
   "tab:structure",
@@ -126,6 +127,7 @@ export const LEFT_TAB_CHILDREN = [
 
 export const LEFT_CHILDREN = [
   "panel:leftTabs",
+  "panel:planningGuide",
   "panel:library",
   "panel:smarthome",
   "panel:mep",

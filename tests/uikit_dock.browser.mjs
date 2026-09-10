@@ -255,7 +255,7 @@ test("uikit never unhides a panel the app itself hid", opts, async () => {
 test("the dock still owns how it looks: flush edges and axis are untouched", opts, async () => {
   const page = await docked();
   const result = await page.eval(async () => {
-    window.__nudge("tools", "ArrowUp"); // to the top edge: a column becomes a row
+    window.__nudge("tools", "ArrowUp"); // to the top edge; keep the column's axis
     await window.__frame();
     const zone = document.querySelector('.pt-zone[data-zone="top"]');
     const wrap = document.querySelector('.pt-panel[data-panel="tools"]');
@@ -270,7 +270,7 @@ test("the dock still owns how it looks: flush edges and axis are untouched", opt
     };
   });
 
-  assert.equal(result.axis, "h", "the tool column became a tool row, as it always did");
+  assert.equal(result.axis, "v", "docking must not restyle the column into a row");
   assert.equal(result.flush, "top");
   assert.ok(result.flow, "the fit pass still ran");
   assert.ok(result.flushTop, "and the zone is still flush against the pane edge");

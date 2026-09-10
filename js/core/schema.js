@@ -91,6 +91,12 @@ export function createDefinition(options = {}) {
     rules: cloneDomain(options.rules) || {},
     metadata: cloneDomain(options.metadata) || {},
     topologyBindings: cloneDomain(options.topologyBindings) || [],
+    /* Saved selection sets: a named pile of topology references the user can
+       recall — the fillet set for a run of edges they will come back to. In
+       the whitelist for the reason the comment above gives: a field the editor
+       writes is a field this schema has to name, or every direct caller drops
+       it silently. */
+    namedSelections: cloneDomain(options.namedSelections) || [],
     revision: Number(options.revision) || 1,
     lastRebuild: cloneDomain(options.lastRebuild) || null,
   };

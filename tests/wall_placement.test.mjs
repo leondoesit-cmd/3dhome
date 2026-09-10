@@ -10,7 +10,7 @@ const state = await readFile(new URL("../js/state.js", import.meta.url), "utf8")
 test("committing a wall carries its endpoint into a continuous placement run", () => {
   const body = interaction.slice(
     interaction.indexOf("export function wallPoint(p)"),
-    interaction.indexOf("export function wallPointPolar"),
+    interaction.indexOf("\nfunction splitCrossedByNewWall", interaction.indexOf("export function wallPoint(p)")),
   );
 
   assert.match(body, /S\.drawFrom\s*=\s*nb/);

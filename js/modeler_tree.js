@@ -70,7 +70,14 @@ function buildRow(node, depth, deps, handlers, state) {
   }
   row.appendChild(label);
   if (node.shared) row.appendChild(deps.el("span", "md-tree-badge", "shared"));
-  if (node.error) { row.title = node.error; row.appendChild(deps.el("i", "ph ph-warning md-tree-warn")); }
+  if (node.error) {
+    row.title = node.error;
+    const warning=deps.el("button", "ph ph-warning md-tree-warn");
+    warning.type="button"; warning.title=deps.t("issueStartHere")+": "+node.error;
+    warning.setAttribute("aria-label",warning.title);
+    warning.addEventListener("click",(event)=>{event.stopPropagation(); if(handlers.onRepair)handlers.onRepair(node);else handlers.onEdit(node);});
+    row.appendChild(warning);
+  }
 
   const actions = deps.el("span", "md-history-actions");
   // The same eye means different things on different rows: on a feature or a
@@ -229,7 +236,7 @@ export function beginRename(row, node, deps, handlers) {
    first child, F2 renames, Enter opens. */
 function wireKeyboard(container, model, deps, handlers, state) {
   container.addEventListener("keydown", (event) => {
-    if (event.target.classList?.contains("md-tree-rename")) return;
+    if (event.target.classList?.contains("md-tree-rename") || event.target.closest("button")) return;
     const visible = flattenTree(model.nodes).map((entry) => entry.node);
     if (!visible.length) return;
     const currentIndex = Math.max(0, visible.findIndex((item) => item.id === state.activeId));
@@ -261,7 +268,9 @@ function wireKeyboard(container, model, deps, handlers, state) {
       if (row) beginRename(row, current, deps, handlers);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      if (current.can.edit) handlers.onEdit(current);
+      event.stopPropagation();
+      if (current.error && handlers.onRepair) handlers.onRepair(current);
+      else if (current.can.edit) handlers.onEdit(current);
     } else if (event.key === "Delete" || event.key === "Backspace") {
       if (!current.can.remove) return;
       event.preventDefault();

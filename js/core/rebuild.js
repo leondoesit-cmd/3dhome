@@ -1,3 +1,5 @@
+import { cylinderBounds } from "./cylinder_axis.js";
+import { materializeCabinetDefinition } from "./cabinet_definition.js";
 import { evaluateExpression, resolveEquations } from "../sketch_equations.js";
 import { resolveProfilePoints, solveSketch } from "../sketch_solver.js";
 import { buildDependencyGraph, stableStringify } from "./dependency_graph.js";
@@ -203,6 +205,7 @@ function primitiveBounds(type, p) {
   if (type === "sphere") return { x0:x-r, x1:x+r, y0:y-r, y1:y+r, z0:z-r, z1:z+r };
   const height = number(p.h ?? p.height);
   if (height == null) return null;
+  if (p.axis && typeof p.axis === "object") return cylinderBounds({ ...p, x, y, z, r, h: height });
   const radius = Math.max(r, number(p.r2) ?? r), axis = p.axis || "y";
   const lo = Math.min(0, height), hi = Math.max(0, height);
   if (axis === "x") return { x0:x+lo, x1:x+hi, y0:y-radius, y1:y+radius, z0:z-radius, z1:z+radius };
@@ -276,6 +279,8 @@ export function rebuildDefinition(definition, overrides = {}, options = {}) {
   const issues = validateDefinition(definition);
   const parameterRun = resolveParameters(definition, overrides);
   issues.push(...parameterRun.issues);
+  if (!parameterRun.issues.some((issue) => issue.severity === "error")) definition = materializeCabinetDefinition(definition, parameterRun.values);
+  issues.push(...(definition.metadata?.parameterIssues || []));
   const sketchRun = sketchDiagnostics(definition, parameterRun.values);
   issues.push(...sketchRun.issues);
   const graph = buildDependencyGraph(definition);
@@ -347,6 +352,7 @@ export function rebuildDefinition(definition, overrides = {}, options = {}) {
   const signature = stableStringify({ id: definition.id, revision: definition.revision, parameters: parameterRun.values, features: definition.features, sketches: definition.sketches });
   const output = {
     ok,
+    document: definition,
     definitionId: definition.id,
     revision: definition.revision,
     signature,

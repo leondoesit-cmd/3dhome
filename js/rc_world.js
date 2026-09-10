@@ -9,7 +9,8 @@ import {
   pointInPoly,
 } from "./geometry.js";
 import { FURN } from "./furniture.js";
-import { buildRoad, canRide, seedHomeTour } from "./track.js";
+import { buildRoad, courseQuality, roomCircuit } from "./track.js";
+import { courseFingerprint } from "./rc_driving.js";
 import { surfaceHeightAt, surfaceHeightNear, surfaceSampleAt } from "./road_surface.js";
 import { t } from "./i18n.js";
 import {
@@ -111,8 +112,7 @@ export function buildColModel() {
             best = d;
           }
         });
-        seg(l, r, best || undefined);
-        if (!best) col.doorSegs.pop(); // no pivot found → treat as open passage
+        if (best) seg(l, r, best);
       }
       pos = r;
     });
@@ -810,12 +810,8 @@ export function roomAt(rooms, x, z) {
   return -1;
 }
 
-// Every room, not just the longest loop: a depth-first walk of the doorway
-// graph enters each room and comes back out, so the circuit tours the whole
-// apartment instead of the biggest cycle it can find. Branches are retraced —
-// track.js shifts the line to the right of travel so the two directions sit in
-// their own lanes, and the return leg flies home elevated anyway.
-export function routeAllRooms(rooms) {
+// Prefer a simple doorway circuit; a home with only branches uses a local loop.
+function tourDoors(rooms) {
   if (!rooms.length) return [];
   var conns = [];
   S.walls.forEach(function (w) {
@@ -829,56 +825,13 @@ export function routeAllRooms(rooms) {
       var ra = roomAt(rooms, px + nx * 30, pz + nz * 30),
         rb = roomAt(rooms, px - nx * 30, pz - nz * 30);
       if (ra >= 0 && rb >= 0 && ra !== rb)
-        conns.push({ a: ra, b: rb, x: px, z: pz });
+        conns.push({ a: ra, b: rb, x: px, z: pz, ux: gm.ux, uz: gm.uz, nx: nx, nz: nz, width: o.width - 6, height: o.height || w.height });
     });
   });
-  var adj = rooms.map(function () {
-    return [];
-  });
-  conns.forEach(function (c, ci) {
-    adj[c.a].push({ to: c.b, c: ci });
-    adj[c.b].push({ to: c.a, c: ci });
-  });
-  var start = 0;
-  rooms.forEach(function (r, i) {
-    if (r.area > rooms[start].area) start = i;
-  });
-  var seen = {},
-    out = [];
-  seen[start] = 1;
-  out.push({ x: rooms[start].cx, z: rooms[start].cz });
-  if (rooms.length >= 2) {
-    (function walk(node) {
-      adj[node].forEach(function (e) {
-        if (seen[e.to]) return;
-        seen[e.to] = 1;
-        var c = conns[e.c];
-        out.push({ x: c.x, z: c.z }); // through the doorway
-        out.push({ x: rooms[e.to].cx, z: rooms[e.to].cz }); // into the room
-        walk(e.to);
-        out.push({ x: c.x, z: c.z }); // back out the same doorway
-        out.push({ x: rooms[node].cx, z: rooms[node].cz });
-      });
-    })(start);
-  }
-  // the walk finishes back on the start centre — don't close onto a duplicate
-  while (
-    out.length > 3 &&
-    Math.hypot(out[out.length - 1].x - out[0].x, out[out.length - 1].z - out[0].z) < 20
-  )
-    out.pop();
-  // Home mode is a tour of the MODELS, not of empty room centres. Climb onto
-  // every sofa / bed / table the builder can ramp, and keep the doorway walk
-  // only as the floor that joins them. Road is laid later, and only where the
-  // world cannot carry the truck (a ramp up, a bridge between two tops).
-  if (R.homeMode && R.col) {
-    var tops = R.col.tops || [];
-    var plats = (R.col.rects || []).filter(function (r) {
-      return canRide(r, tops);
-    });
-    if (plats.length) out = seedHomeTour(out, plats, tops);
-  }
-  return out;
+  return conns;
+}
+export function routeAllRooms(rooms) {
+  return roomCircuit(rooms, tourDoors(rooms));
 }
 
 // single-room home (or nothing connected): an oval inside the main room
@@ -1120,7 +1073,7 @@ function ghostRoadCrossings(center) {
 // road builder (js/track.js) for the 3D ribbon with its spiral, elevated leg
 // and ramp-jump, then hang the gates and the item layer off the result.
 export function buildTrack() {
-  clearTrack();
+  R.trackError = null;
   applyPhysicsConfig();
   var rooms = detectRooms().filter(function (r) {
     return !roomHidden(r.key) && r.area > 12000; // skip cupboards < 1.2m²
@@ -1131,16 +1084,19 @@ export function buildTrack() {
     // A point the editor put ON a piece of furniture ("drive over the bed") is
     // deliberately inside a collision box: spiralling it out to free floor is
     // exactly what must NOT happen to it.
-    if (a.ride) return { x: a.x, z: a.z, ride: true };
+    if (a.ride || fin(a.y)) return Object.assign({}, a);
     var s = findFreeSpot(a.x, a.z, 12);
     var out = { x: s.x, z: s.z };
-    if (fin(a.y)) out.y = a.y;
+    if (a.surf) out.surf = a.surf;
     return out;
   });
-  var road = buildRoad(anchors, rooms, {
-    groundAt: groundAt,
+  var environment = {
+    groundAt: function (x, z, y, step) { return Col2D.groundAt(R.col, x, z, y, step); },
     blockedAt: blockedAt,
     homeMode: !!R.homeMode,
+    homeFeatures: !!R.homeFeatures,
+    tourDoors: tourDoors(rooms),
+    reverseCourse: !!R.reverseCourse,
     followAnchors: !!R.followAnchors,
     roadWidth: R.roadWidth,
     highElevation: R.highElevation,
@@ -1155,8 +1111,19 @@ export function buildTrack() {
     segs: function () {
       return (R.col && R.col.segs) || [];
     },
-  });
-  if (!road) return;
+  };
+  var road = buildRoad(anchors, rooms, environment);
+  var quality = road && R.homeMode ? courseQuality(road.center, environment, rooms, (R.roadWidth || 26) / 2) : null;
+  if (!road || (quality && !quality.valid)) {
+    if (road) disposeGrp(road.group);
+    R.trackError = t("rc_course_failed");
+    // Keep a previous course only if it still fits the current world.
+    if (R.track && (R.trackSig !== planSig() || (R.homeMode && !courseQuality(R.track.center, environment, rooms, (R.roadWidth || 26) / 2).valid))) clearTrack();
+    if (hooks.showMsg) hooks.showMsg(R.trackError, 5000);
+    editorSynced();
+    return false;
+  }
+  clearTrack();
   if (R.col) {
     R.col.road = road.col.road.slice();
     R.col.surface = (road.col.surface || []).slice();
@@ -1179,23 +1146,15 @@ export function buildTrack() {
     high: road.high,
     center: road.center, // dense centreline — the editor's 2D map draws it
     len: road.len,
-    sig: "home3d_rc_best_" + wps.length + "_" + Math.round(road.len / 25),
+    quality: quality,
+    sig: courseFingerprint(road.center),
   };
   R.trackSig = planSig(); // what flat this circuit was built for
   // item boxes, coin trails and boost pads along the finished racing line
   kartBuild(wps, { pads: road.pads });
-  // Only a DECK can hide something you are allowed to drive through. In home
-  // mode the bed the route climbs onto is the track — fading it out would be
-  // exactly the disconnection the mode exists to remove — so only the ramps and
-  // bridges get to ghost what they pass through.
-  ghostRoadCrossings(
-    R.homeMode
-      ? road.center.filter(function (p) {
-          return p.deck;
-        })
-      : road.center,
-  );
+  if (!R.homeMode) ghostRoadCrossings(road.center);
   editorSynced(); // live editor: refresh handles, map and stats
+  return true;
 }
 
 export function clearTrack() {
@@ -1224,7 +1183,7 @@ export function clearTrack() {
 
 export function bestTime() {
   if (!R.track) return 0;
-  var v = parseInt(localStorage.getItem(R.track.sig) || "0", 10);
+  var v = parseInt(localStorage.getItem(R.track.sig + "_race_" + R.laps) || "0", 10);
   return v > 0 ? v : 0;
 }
 // Best single lap is a separate record from best total: a 5-lap race and a time
@@ -1251,7 +1210,7 @@ export function saveBestTime(ms) {
   var b = bestTime();
   if (b && ms >= b) return false;
   try {
-    localStorage.setItem(R.track.sig, String(Math.round(ms)));
+    localStorage.setItem(R.track.sig + "_race_" + R.laps, String(Math.round(ms)));
   } catch (e) {}
   return true;
 }

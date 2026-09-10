@@ -187,3 +187,50 @@ function occupies(rows, ancestorId, id) {
   }
   return false;
 }
+
+/* ---- reaching a target the pointer is not actually over ------------------
+ *
+ * A drop that only counts when the cursor is inside a container makes the
+ * editor feel walled in: aim at the two-pixel gap between a toolbar and the
+ * canvas and the gesture dies with no indicator, no target and no explanation,
+ * which reads as "you are not allowed to put it there" rather than "you missed
+ * by two pixels". Every real design tool resolves an ambiguous drop to the
+ * nearest thing that could accept it.
+ *
+ * So when nothing under the pointer will take the node, the caller falls back
+ * to the closest candidate within reach. Distance is measured to the box, not
+ * to its centre — a wide toolbar is not further away because it is wide.
+ */
+export function distanceToRect(point, rect) {
+  if (!rect) return Infinity;
+  const dx = Math.max(rect.x - point.x, 0, point.x - (rect.x + rect.w));
+  const dy = Math.max(rect.y - point.y, 0, point.y - (rect.y + rect.h));
+  return Math.hypot(dx, dy);
+}
+
+/* How far a drop may reach for a container it is not over. Generous enough to
+   cover the gutters between regions and a mis-aimed finger, small enough that
+   a drag parked over the middle of the canvas is still honestly homeless. */
+export const SNAP_REACH = 96;
+
+/* The closest acceptable container, from candidates the caller has already
+ * filtered for compatibility. `deepest` breaks ties toward the innermost box,
+ * so a group inside a bar wins over the bar when the pointer sits between two
+ * of the group's own children.
+ */
+export function nearestContainer(candidates, point, reach = SNAP_REACH) {
+  let best = null;
+  let bestDist = Infinity;
+  for (const c of candidates || []) {
+    if (!c || !c.rect) continue;
+    const dist = distanceToRect(point, c.rect);
+    if (dist > reach) continue;
+    const area = c.rect.w * c.rect.h;
+    if (dist < bestDist - 0.5 ||
+        (Math.abs(dist - bestDist) <= 0.5 && best && area < best.rect.w * best.rect.h)) {
+      best = c;
+      bestDist = dist;
+    }
+  }
+  return best ? { id: best.id, distance: bestDist } : null;
+}

@@ -18,8 +18,8 @@
  * here for the automatic apartment generator, which has no user to ask, and for
  * the guided semi-automatic flow that will ask once and apply to many.
  *
- * `min` is a floor, not a suggestion: the resize handles refuse to take a room
- * below it, so a preset cannot be dragged down into something unbuildable.
+ * `min` describes advisory furnishing preferences. Manual capture and resizing
+ * may use smaller positive dimensions while topology and locks stay enforced.
  * `kind` drives the connection the docking code makes — a wet room gets a
  * door, a circulation space gets an open passage.
  */

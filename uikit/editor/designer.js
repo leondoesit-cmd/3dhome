@@ -36,12 +36,14 @@ import {
   dropIndicator,
   dropPlaceholder,
   insertionIndex,
+  nearestContainer,
   passedThreshold,
   TOUCH_DRAG_THRESHOLD,
   TOUCH_LONG_PRESS_MS,
 } from "./drag.js";
+import { ghostRect, previewScale, snapshot } from "./ghost.js";
 import { candidateAt, drillTarget, ascend, withinFocus } from "./depth.js";
-import { CURSORS, handleAt, handleRects, handlesFor, sizeFrom } from "./resize.js";
+import { CURSORS, handleAt, handleRects, handlesFor, rectFrom, sizeFrom } from "./resize.js";
 import { groupProblem, nextGroupId, PROBLEM_TEXT, ungroupProblem } from "./group.js";
 import { createInspector } from "./inspector.js";
 import { containerAccepts } from "./policy.js";
@@ -170,6 +172,61 @@ export function createDesigner(context) {
     return { x: r.left, y: r.top, w: r.width, h: r.height };
   }
 
+  /* The box a DRAG is about, which is not always the box the selection outline
+   * is about. rectOf() prefers a node's portal — a menu's open dropdown is
+   * tagged data-uikit-target and is what the user is looking at once the menu
+   * is pinned open — but you press on the menu BUTTON, and taking the preview
+   * from the panel puts a 150px dropdown under a cursor that grabbed a 47px
+   * button, offset by wherever the panel happens to be. The preview is of the
+   * thing under the pointer, so the pointer decides which box that is.
+   */
+  function grabTarget(id, point) {
+    const el = elementOf(id);
+    if (el) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && point.x >= r.left && point.x <= r.right &&
+          point.y >= r.top && point.y <= r.bottom) {
+        return { el, rect: { x: r.left, y: r.top, w: r.width, h: r.height } };
+      }
+    }
+    const target = targetOf(id);
+    return { el: target || el, rect: rectOf(id) };
+  }
+
+  /* ---- free nodes --------------------------------------------------------
+   *
+   * A float is the one node whose POSITION is the user's rather than the
+   * layout's, so it is the one node a drag translates instead of reparenting.
+   * Its rect is measured against the overlay slot the host placed, never the
+   * viewport — see the FLOAT IS NOT position:fixed note in model/schema.js —
+   * so both directions of the conversion go through the slot's own box.
+   */
+  function isFree(id) {
+    const node = nodeFor(id);
+    return !!(node && (node.type === "float" || node.slot === "overlay"));
+  }
+
+  function slotOrigin(id) {
+    const el = elementOf(id);
+    const slot = el && el.closest ? el.closest(".uikit-slot") : null;
+    if (!slot) return { x: 0, y: 0 };
+    const r = slot.getBoundingClientRect();
+    return { x: r.left, y: r.top };
+  }
+
+  /* The node's own rect in slot space: what it has been given, or where it
+     currently sits when nobody has given it one yet. Starting a free drag from
+     the measured box is what stops the first pixel of movement teleporting the
+     panel to the slot's top-left corner. */
+  function freeRectOf(id) {
+    const node = nodeFor(id);
+    if (node && node.rect) return Object.assign({}, node.rect);
+    const r = rectOf(id);
+    if (!r) return null;
+    const origin = slotOrigin(id);
+    return { x: Math.round(r.x - origin.x), y: Math.round(r.y - origin.y), w: r.w, h: r.h };
+  }
+
   /* The root is selectable but never movable: it is the region the host handed
      over, and "drag the whole app somewhere" is not a gesture. */
   function isMovable(id) {
@@ -243,7 +300,13 @@ export function createDesigner(context) {
     for (const id of selection) {
       const r = rectOf(id);
       if (!r) continue;
-      layer.appendChild(box("sel", r, labelFor(id)));
+      /* While a resize is live the tag reads out the numbers instead of the
+         name: during the one gesture where the size is the subject, the label
+         you already know is the less useful of the two. */
+      const tag = (sizing && sizing.id === id)
+        ? Math.round(r.w) + " \u00d7 " + Math.round(r.h)
+        : labelFor(id);
+      layer.appendChild(box("sel", r, tag));
       /* Handles only on the last-selected node. Eight grips on each of five
          selected panels is noise, and a resize gesture has one subject. */
       if (id !== firstSelected()) continue;
@@ -268,17 +331,18 @@ export function createDesigner(context) {
       if (drag.indicator) {
         layer.appendChild(box("drop", drag.indicator));
       }
-      if (drag.point && drag.id) {
-        const movingRect = rectOf(drag.id);
-        if (movingRect) {
-          const ghostRect = {
-            x: drag.point.x - movingRect.w / 2,
-            y: drag.point.y - movingRect.h / 2,
-            w: movingRect.w,
-            h: movingRect.h,
-          };
-          layer.appendChild(box("ghost", ghostRect, labelFor(drag.id)));
-        }
+      if (drag.point && drag.id && drag.startRect) {
+        /* The preview is the element, at the size it really is, held where the
+           user grabbed it — not a box centred on the pointer. drag.startRect
+           is the rect at pointerdown deliberately: the live one moves as the
+           layout reflows around the drag, and a ghost that resizes mid-gesture
+           is the tell that you are dragging a diagram of the thing. */
+        const gr = ghostRect(drag.point, drag.grab, drag.startRect, drag.scale);
+        const el = box("ghost", gr, drag.shot ? null : labelFor(drag.id));
+        if (drag.shot) el.appendChild(drag.shot);
+        if (!drag.target) el.classList.add("uikit-ed-ghost-homeless");
+        else if (drag.target.snapped) el.classList.add("uikit-ed-ghost-snapped");
+        layer.appendChild(el);
       }
     }
     if (resizeObserver) {
@@ -723,6 +787,8 @@ export function createDesigner(context) {
       case "undo": uikit.undo(); uikit.refreshNow(); sync(); return true;
       case "redo": uikit.redo(); uikit.refreshNow(); sync(); return true;
       case "reset": uikit.resetAll(); uikit.refreshNow(); selection = []; sync(); return true;
+      case "cancelSession":
+        return typeof uikit.discardEdit === "function" ? uikit.discardEdit() : false;
       case "exit": uikit.edit(false); return true;
       default: return false;
     }
@@ -809,6 +875,62 @@ export function createDesigner(context) {
     return !!(el && el.closest && el.closest(".uikit-ins"));
   }
 
+  /* Every container that would take this node, with its box — the candidate
+     set for a drop the pointer did not land inside. Hidden and unrendered
+     containers are excluded: reaching for something that is not on screen is
+     not a friendlier drop, it is a mystery. */
+  function acceptingCandidates(movingId) {
+    const moving = movingId ? nodeFor(movingId) : null;
+    const out = [];
+    for (const item of flat()) {
+      const node = item.node;
+      if (!layoutContainer(node) || node.id === movingId) continue;
+      if (node.hidden || contains(movingId, node.id)) continue;
+      if (moving && !containerAccepts(node, moving, uikit.registry)) continue;
+      const rect = rectOf(node.id);
+      if (rect && rect.w > 0 && rect.h > 0) out.push({ id: node.id, rect });
+    }
+    return out;
+  }
+
+  /* The cursor is the app's, so it is set on the root element and taken back
+     when the gesture ends. A drag that leaves the pointer looking idle reads
+     as a drag that is not happening. */
+  function setDragCursor(cursor) {
+    const root = doc.documentElement;
+    if (!root) return;
+    if (cursor) root.style.setProperty("cursor", cursor, "important");
+    else root.style.removeProperty("cursor");
+  }
+
+  /* The moment a press becomes a drag: take the picture, dim the original, and
+     say so with the cursor. Deferred to here rather than pointerdown because
+     the snapshot costs a style read per element and most presses are clicks. */
+  function beginDrag() {
+    if (!drag || !drag.startRect) return;
+    setDragCursor("grabbing");
+    const el = drag.shotFrom || elementOf(drag.id);
+    if (el) {
+      /* Photograph first, dim second: the dimming is an attribute on the very
+         element being copied, and a clone taken after it carries the styling
+         meant for the thing left behind. */
+      drag.scale = previewScale(drag.startRect);
+      drag.shot = snapshot(el, drag.startRect, { scale: drag.scale });
+      el.setAttribute("data-uikit-lifted", "");
+    }
+  }
+
+  function endDrag(pending) {
+    setDragCursor(null);
+    const el = pending && pending.id ? elementOf(pending.id) : null;
+    if (el) el.removeAttribute("data-uikit-lifted");
+    /* Belt and braces: a re-render during the drag can hand back a different
+       element for the same id, and a stale dimmed node would stay dimmed. */
+    for (const marked of doc.querySelectorAll("[data-uikit-lifted]")) {
+      marked.removeAttribute("data-uikit-lifted");
+    }
+  }
+
   function onPointerDown(e) {
     if (!active || e.button !== 0) return;
     const point = { x: e.clientX, y: e.clientY };
@@ -823,10 +945,15 @@ export function createDesigner(context) {
     const grip = gripAt(point);
     if (grip) {
       const node = nodeFor(grip.id);
+      const free = isFree(grip.id);
       sizing = {
         id: grip.id, handle: grip.key, from: point, start: grip.rect,
         constraints: (node && node.constraints) || {},
+        free,
+        startRect: free ? freeRectOf(grip.id) : null,
+        readout: null,
       };
+      setDragCursor(CURSORS[grip.key] || "default");
       return;
     }
 
@@ -881,6 +1008,8 @@ export function createDesigner(context) {
     }
 
     if (targetId && isMovable(targetId)) {
+      const grabbed = grabTarget(targetId, point);
+      const startRect = grabbed.rect;
       drag = {
         id: targetId,
         from: point,
@@ -890,6 +1019,15 @@ export function createDesigner(context) {
         placeholder: null,
         target: null,
         pointerType: e.pointerType,
+        /* Where inside the box the pointer went down, so the preview can keep
+           that exact grip for the whole gesture. */
+        grab: startRect ? { dx: point.x - startRect.x, dy: point.y - startRect.y } : { dx: 0, dy: 0 },
+        startRect,
+        scale: 1,
+        shot: null,
+        free: isFree(targetId),
+        freeStart: isFree(targetId) ? freeRectOf(targetId) : null,
+        shotFrom: grabbed.el,
       };
     }
   }
@@ -901,15 +1039,29 @@ export function createDesigner(context) {
     if (sizing) {
       e.preventDefault();
       e.stopPropagation();
+      /* Shift keeps the proportions; Alt frees the second axis on an edge
+         handle, so pulling a bar's bottom edge can also set a width without
+         reaching for the corner. Read per move, not at pointerdown, because a
+         modifier pressed mid-drag has to take effect while the drag is live. */
       const size = sizeFrom(sizing.start, sizing.handle,
-        point.x - sizing.from.x, point.y - sizing.from.y, sizing.constraints);
+        point.x - sizing.from.x, point.y - sizing.from.y, sizing.constraints,
+        { aspect: e.shiftKey, free: e.altKey });
       /* One history step for the whole drag, not one per pixel: the tag folds
          every apply in this gesture into the step already open. */
-      apply("Resize " + labelFor(sizing.id), ctx.ops.resize(uikit.doc, {
+      let next = ctx.ops.resize(uikit.doc, {
         id: sizing.id, size, variant: uikit.variant,
         min: { w: sizing.constraints.minW, h: sizing.constraints.minH },
         max: { w: sizing.constraints.maxW, h: sizing.constraints.maxH },
-      }), "resize:" + sizing.id);
+      });
+      /* A free node keeps the edge you are NOT holding still, which means the
+         box moves as well as grows. Docked nodes never do: there the position
+         is the layout's, and resize.js says so. */
+      if (sizing.free && size) {
+        const moved = rectFrom(sizing.startRect, sizing.handle, size);
+        next = ctx.ops.setRect(next, { id: sizing.id, rect: moved, variant: uikit.variant });
+      }
+      apply("Resize " + labelFor(sizing.id), next, "resize:" + sizing.id);
+      sizing.readout = size;
       sync();
       return;
     }
@@ -918,6 +1070,10 @@ export function createDesigner(context) {
       const id = nodeAt(point.x, point.y);
       if (id !== hover) {
         hover = id;
+        /* "You can pick this up" is worth saying before the pick-up, and the
+           cursor is the cheapest place to say it. */
+        const overGrip = !!gripAt(point);
+        setDragCursor(!overGrip && id && isMovable(id) ? "grab" : null);
         sync();
       }
       return;
@@ -932,10 +1088,39 @@ export function createDesigner(context) {
       clearTimeout(touchTimer);
       touchTimer = null;
     }
+    if (!drag.live) beginDrag();
     drag.live = true;
     drag.point = point;
 
-    const container = containerAt(point.x, point.y, drag.id);
+    /* A free node is carried, not re-filed: the gesture writes its rect and
+       never looks for a container at all. */
+    if (drag.free && drag.freeStart) {
+      const origin = slotOrigin(drag.id);
+      const rect = {
+        x: Math.round(point.x - drag.grab.dx - origin.x),
+        y: Math.round(point.y - drag.grab.dy - origin.y),
+        w: drag.freeStart.w,
+        h: drag.freeStart.h,
+      };
+      apply("Move " + labelFor(drag.id),
+        ctx.ops.setRect(uikit.doc, { id: drag.id, rect, variant: uikit.variant }),
+        "rect:" + drag.id);
+      sync();
+      return;
+    }
+
+    const moving = nodeFor(drag.id);
+    let container = containerAt(point.x, point.y, drag.id);
+    let snapped = false;
+    /* Nothing under the pointer will take it — reach for the closest thing
+       that will, rather than letting the gesture die in a gutter. */
+    if (!container) {
+      const near = nearestContainer(acceptingCandidates(drag.id), point);
+      if (near) {
+        container = nodeFor(near.id);
+        snapped = true;
+      }
+    }
     if (!container) {
       drag.indicator = null;
       drag.placeholder = null;
@@ -945,7 +1130,6 @@ export function createDesigner(context) {
       return;
     }
 
-    const moving = nodeFor(drag.id);
     if (!containerAccepts(container, moving, uikit.registry)) {
       drag.indicator = null;
       drag.placeholder = null;
@@ -961,7 +1145,7 @@ export function createDesigner(context) {
     const index = insertionIndex(rects, point, axis);
     const containerRect = rectOf(container.id);
     const movingRect = rectOf(drag.id);
-    drag.target = { parent: container.id, index };
+    drag.target = { parent: container.id, index, snapped };
     drag.indicator = containerRect ? dropIndicator(containerRect, rects, index, axis) : null;
     drag.placeholder = (containerRect && movingRect)
       ? dropPlaceholder(containerRect, rects, index, axis, { w: movingRect.w, h: movingRect.h })
@@ -980,6 +1164,7 @@ export function createDesigner(context) {
       e.preventDefault();
       e.stopPropagation();
       sizing = null;
+      setDragCursor(null);
       sync();
       return;
     }
@@ -988,6 +1173,14 @@ export function createDesigner(context) {
     e.stopPropagation();
     const pending = drag;
     drag = null;
+    endDrag(pending);
+    /* A free node was written to the document on the way, so the pointerup has
+       nothing left to commit — the drag WAS the edit. */
+    if (pending.live && pending.free) {
+      select(pending.id, false);
+      sync();
+      return;
+    }
     if (pending.live && pending.target) {
       command("move", {
         id: pending.id,
@@ -1038,6 +1231,8 @@ export function createDesigner(context) {
        situation it exists for. Tested on accel rather than ctrlKey alone,
        because on a Mac the combination arrives with Cmd. */
     if (accel(e) && e.altKey) return;
+    // The picker owns Escape until its dialog has closed.
+    if (e.target && e.target.closest && e.target.closest(".uikit-ins-icon-picker")) return;
     /* Inputs, selects and buttons in the inspector own their normal keys.
        Escape is the one intentional exception: it is the universal way to
        finish the editing session even while a field has focus. */
@@ -1072,10 +1267,28 @@ export function createDesigner(context) {
     if (cmd) command(cmd.name, cmd);
   }
 
+  /* A pointer the browser takes back — a system gesture, a lost capture, a
+     context menu — never sends pointerup. Without this the ghost, the dimmed
+     original and the grabbing cursor all survive a drag that has ended. */
+  function onPointerCancel() {
+    if (!active) return;
+    const pending = drag;
+    drag = null;
+    sizing = null;
+    endDrag(pending);
+    setDragCursor(null);
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      touchTimer = null;
+    }
+    sync();
+  }
+
   const LISTENERS = [
     ["pointerdown", onPointerDown],
     ["pointermove", onPointerMove],
     ["pointerup", onPointerUp],
+    ["pointercancel", onPointerCancel],
     ["click", onClick],
     ["keydown", onKeyDown],
   ];
@@ -1129,6 +1342,8 @@ export function createDesigner(context) {
       overlay = null;
       if (inspector) inspector.unmount();
       inspector = null;
+      endDrag(drag);
+      setDragCursor(null);
       selection = [];
       hover = null;
       drag = null;

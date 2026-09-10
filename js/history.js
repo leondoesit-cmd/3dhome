@@ -1,3 +1,4 @@
+import { mergeBaselineArchives } from "./redesign.js";
 // Undo/redo via JSON snapshots of the model (walls/rooms/openings/furniture/MEP).
 // Display/environment settings (time, north, floor, wall color) are intentionally NOT tracked.
 //
@@ -72,11 +73,18 @@ function texUnpack(key, value) {
    object, which is the only one that ever needs a new token. Same bargain as
    the texture pool above, and bounded the same way — by the number of distinct
    storey scenes in a session, not by the number of edits. */
+const baselinePool = new Map(), baselineTokens = new WeakMap();
+let baselineSeq = 0, rollingBackBaseline = false;
 const FLOOR_TOKEN = "@floor:";
 var floorById = new Map(), floorTokenFor = new WeakMap(), floorSeq = 0;
 function floorPack(workspace) {
   if (!workspace || !Array.isArray(workspace.floors)) return workspace || null;
   var out = Object.assign({}, workspace);
+  if (Array.isArray(workspace.baselines)) {
+    let token = baselineTokens.get(workspace.baselines);
+    if (!token) { token = "@baseline:" + ++baselineSeq; baselineTokens.set(workspace.baselines, token); baselinePool.set(token, workspace.baselines); }
+    out.baselines = token;
+  }
   out.floors = workspace.floors.map(function (f) {
     if (!f || typeof f !== "object") return f;
     var copy = Object.assign({}, f);
@@ -98,6 +106,7 @@ function floorPack(workspace) {
 }
 function floorUnpack(workspace) {
   if (!workspace || !Array.isArray(workspace.floors)) return workspace;
+  if (baselinePool.has(workspace.baselines)) workspace.baselines = baselinePool.get(workspace.baselines);
   workspace.floors.forEach(function (f) {
     if (!f || typeof f.scene !== "string" || !floorById.has(f.scene)) return;
     /* Hand back a copy: the live model mutates whatever it is given, and the
@@ -156,8 +165,12 @@ function apply(str) {
     return false;
   }
   if (!s || typeof s !== "object") return false;
-  if (s.workspace && typeof s.workspace === "object")
+  if (s.workspace && typeof s.workspace === "object") {
+    const previous = S.workspace;
     S.workspace = floorUnpack(JSON.parse(JSON.stringify(s.workspace)));
+    if (!rollingBackBaseline && previous?.documentKey && previous.documentKey === S.workspace.documentKey)
+      S.workspace.baselines = mergeBaselineArchives(previous.baselines, S.workspace.baselines);
+  }
   if (s.spatial) importSpatialProject(S,s.spatial);
   else { S.nodes=s.nodes || [];S.walls=s.walls || [];S.openings=s.openings || [];S.items=s.items || [];S.markers=s.markers || [];S.slabOpenings=s.slabOpenings || [];S.roomMeta=s.roomMeta || {}; }
   S.ignoredWarnings = s.ignoredWarnings || {};
@@ -536,7 +549,9 @@ export function commitHistoryTransaction(token, label) {
 }
 export function abortHistoryTransaction(token) {
   requireTransaction(token);
-  if (!H.abort()) throw new Error("Could not abort history transaction");
+  rollingBackBaseline = true;
+  try { if (!H.abort()) throw new Error("Could not abort history transaction"); }
+  finally { rollingBackBaseline = false; }
   activeTransaction = null;
   return true;
 }

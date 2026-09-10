@@ -197,7 +197,7 @@ test("an Instant3D handle only appears where it has something to hold on to", ()
   // no fallback to the world origin: an arrow in the middle of the view with no
   // edge or face under it could not do anything
   assert.doesNotMatch(modelerSource, /filletHandlePose\(origin,/);
-  assert.match(modelerSource, /var wantKind = type === "shell" \? "face" : "edge"/);
+  assert.match(modelerSource, /var wantKind = type === "shell" \|\| type === "draft" \? "face" : "edge"/);
   assert.match(modelerSource, /function finishFeatureTargets/);
   assert.match(modelerSource, /if \(reference && selectedSolid\(\)\) \{/);
   // sized in screen pixels, so the arrow is never a hairline to grab

@@ -317,3 +317,51 @@ test("an angle mate reports its residual in the same degrees it was asked for", 
   assert.equal(mateResidualVector({ type: "angle", value: 30 }, fixed, turned).length, 1);
   assert.equal(mateResidualVector({ type: "angle", value: 0 }, fixed, turned).length, 3);
 });
+
+/* The hole wizard speaks millimetres; the feature form edits centimetres. The
+   two conversions used to lose the fraction in opposite directions — the form
+   rounded mm to whole numbers before dividing, and the normalizer read only
+   the `*Mm` keys and so ignored the form entirely. Both directions are pinned
+   here because either one alone silently produces a wrong hole. */
+test("standard hole sizes survive the millimetre/centimetre round trip", () => {
+  // What the form's setNum() writes into the centimetre field.
+  const toCm = (mm) => Math.round(mm * 1000) / 10000;
+  for (const [size, expected] of [["M3", 3.6], ["M4", 4.8], ["M5", 5.8], ["M12", 14]]) {
+    const hole = normalizeHoleWizard({ standardSize: size, fit: "normal", diameter: toCm(expected) });
+    assert.ok(Math.abs(hole.diameterMm - expected) < 1e-9, `${size} normal fit should stay ${expected} mm, got ${hole.diameterMm}`);
+  }
+  // The three fits of one size must stay three distinct values: rounding to
+  // whole millimetres collapsed M3 normal (3.6) and loose (3.8) onto 4.
+  const fits = ["close", "normal", "loose"].map((fit) => normalizeHoleWizard({ standardSize: "M3", fit }).diameterMm);
+  assert.deepEqual(fits, [3.4, 3.6, 3.8]);
+  assert.equal(new Set(fits.map(toCm)).size, 3);
+});
+
+test("a custom recess overrides the table in either unit", () => {
+  const table = normalizeHoleWizard({ standardSize: "M6", holeType: "counterbore" });
+  assert.equal(table.cboreDiameterMm, 11);
+  assert.equal(table.cboreDepthMm, 6.6);
+
+  // Centimetres, as the feature form supplies them.
+  const cm = normalizeHoleWizard({
+    standardSize: "M6", holeType: "counterbore",
+    cboreDiameter: 2, cboreDepth: 1, countersinkDiameter: 2.5,
+  });
+  assert.equal(cm.cboreDiameterMm, 20);
+  assert.equal(cm.cboreDepthMm, 10);
+  // `countersinkDiameter` is the form's spelling of `csinkDiameter`.
+  assert.equal(cm.csinkDiameterMm, 25);
+
+  // Millimetres, as the kernel and the standards tables supply them.
+  const mm = normalizeHoleWizard({
+    standardSize: "M6", holeType: "counterbore",
+    cboreDiameterMm: 20, cboreDepthMm: 10, csinkDiameterMm: 25,
+  });
+  assert.equal(mm.cboreDiameterMm, 20);
+  assert.equal(mm.cboreDepthMm, 10);
+  assert.equal(mm.csinkDiameterMm, 25);
+
+  // An explicit millimetre value still wins over the centimetre field.
+  const both = normalizeHoleWizard({ standardSize: "M6", cboreDiameterMm: 20, cboreDiameter: 99 });
+  assert.equal(both.cboreDiameterMm, 20);
+});

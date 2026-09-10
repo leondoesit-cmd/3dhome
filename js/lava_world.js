@@ -1,5 +1,9 @@
 /* The Floor is Lava — world: collision, molten plane, gems, ghost, audio. */
 import * as THREE from "three";
+import {
+  uniform, positionLocal, vec2, vec3, float, mix, sin, dot, floor, fract,
+  smoothstep, pow,
+} from "three/tsl";
 import { legacyIntensity, LUX } from "./gpu.js";
 import { S, fin, clamp } from "./state.js";
 import {
@@ -7,13 +11,15 @@ import {
   getDynGroup,
   getRenderer,
   getRigLights,
+  onRelight,
+  applyEnv,
 } from "./view3d.js";
 import { wallGeom, hiddenSets, usedNodes } from "./geometry.js";
 import * as Col2D from "./col2d.js";
 import { runtimeCollisionRects, hasRuntimeRepresentation } from "./core/runtime.js";
 import {
   L, P_RAD, P_CLEAR, STEP, expandParkourRects, emergencyCrates, highPlatformCount,
-  pickExtraction, placeGems, scorchAmount, pickSpawn, lavaDetail, busGains,
+  pickExtraction, placeGems, scorchAmount, pickSpawn, lavaDetail, busGains, P_SCALE,
 } from "./lava_state.js";
 
 var LAVA_I = legacyIntensity(2.8, 900, 1.4, 0.2);
@@ -22,6 +28,8 @@ var _colBox3 = new THREE.Box3();
 var _colVec3 = new THREE.Vector3();
 var _colDirectOpt = { passes: 4, state: { hit: 0, hard: 0 } };
 var _colMoveOpt = { passes: 3, state: { hit: 0, hard: 0 } };
+var _webVec = new THREE.Vector3();
+var _webUp = new THREE.Vector3(0, 1, 0);
 
 export function floorOpenings(w) {
   return S.openings.filter(function (o) {
@@ -209,90 +217,88 @@ export function freeSpot(x, z, r) {
   return Col2D.freeSpot(L.col, x, z, r, 0, P_CLEAR, STEP, 280, 18, 16);
 }
 
-function lavaShaders(octaves) {
-  octaves = Math.max(2, Math.min(5, octaves || 4));
-  var vertLoop = octaves >= 4 ? 4 : 2;
-  var fragLoop = octaves >= 4 ? 5 : octaves >= 3 ? 3 : 2;
-  var LAVA_VERT = [
-    "varying vec3 vPos;",
-    "uniform float uTime;",
-    "uniform float uFrozen;",
-    "float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
-    "float vnoise(vec2 p){",
-    "  vec2 i = floor(p), f = fract(p);",
-    "  f = f * f * (3.0 - 2.0 * f);",
-    "  float a = hash(i), b = hash(i + vec2(1.0, 0.0));",
-    "  float c = hash(i + vec2(0.0, 1.0)), d = hash(i + vec2(1.0, 1.0));",
-    "  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);",
-    "}",
-    "float fbm(vec2 p){",
-    "  float v = 0.0, a = 0.5;",
-    "  for (int i = 0; i < " + vertLoop + "; i++) { v += a * vnoise(p); p *= 2.03; a *= 0.5; }",
-    "  return v;",
-    "}",
-    "void main(){",
-    "  vPos = position;",
-    "  vec3 p = position;",
-    "  float n = fbm(p.xz * 0.018 + vec2(uTime * 0.22, uTime * 0.13));",
-    "  float n2 = vnoise(p.xz * 0.05 - uTime * 0.4);",
-    "  float frozen = clamp(uFrozen, 0.0, 1.0);",
-    "  p.y += (n * 7.5 + n2 * 3.4) * (1.0 - frozen * 0.85);",
-    "  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);",
-    "}",
-  ].join("\n");
-  var LAVA_FRAG = [
-    "precision highp float;",
-    "varying vec3 vPos;",
-    "uniform float uTime;",
-    "uniform float uHeat;",
-    "uniform float uFrozen;",
-    "float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
-    "float vnoise(vec2 p){",
-    "  vec2 i = floor(p), f = fract(p);",
-    "  f = f * f * (3.0 - 2.0 * f);",
-    "  float a = hash(i), b = hash(i + vec2(1.0, 0.0));",
-    "  float c = hash(i + vec2(0.0, 1.0)), d = hash(i + vec2(1.0, 1.0));",
-    "  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);",
-    "}",
-    "float fbm(vec2 p){",
-    "  float v = 0.0, a = 0.5;",
-    "  for (int i = 0; i < " + fragLoop + "; i++) { v += a * vnoise(p); p *= 2.07; a *= 0.52; }",
-    "  return v;",
-    "}",
-    "void main(){",
-    "  vec2 uv = vPos.xz * 0.012;",
-    "  float n = fbm(uv + vec2(uTime * 0.12, -uTime * 0.08));",
-    "  float flow = fbm(uv * 2.4 + vec2(-uTime * 0.28, uTime * 0.19));",
-    "  float crust = smoothstep(0.32, 0.72, n);",
-    "  vec3 cool = vec3(0.07, 0.015, 0.01);",
-    "  vec3 hot = vec3(1.0, 0.28, 0.04);",
-    "  vec3 core = vec3(1.0, 0.82, 0.28);",
-    "  vec3 col = mix(hot, cool, crust);",
-    "  col = mix(col, core, pow(flow, 2.4) * 0.85);",
-    "  float frozen = clamp(uFrozen, 0.0, 1.0);",
-    "  vec3 ice = vec3(0.18, 0.22, 0.28);",
-    "  col = mix(col, mix(cool * 1.6, ice, 0.55), frozen * 0.78);",
-    "  float em = 0.55 + flow * 1.55 + uHeat * 0.35;",
-    "  em *= 1.0 - frozen * 0.5;",
-    "  gl_FragColor = vec4(col * em, 1.0);",
-    "}",
-  ].join("\n");
-  return { vert: LAVA_VERT, frag: LAVA_FRAG };
+/* The molten surface, as a TSL node graph rather than the hand-written GLSL it
+   used to be. A raw ShaderMaterial does not survive the WebGPU backend: the
+   node builder rejects it outright ("Material 'ShaderMaterial' is not
+   compatible", once per frame) and the mesh simply does not draw — which in
+   this mode means the lava is invisible AND the room it is supposed to be
+   lighting reads as a black screen, since the heat grade has already taken the
+   sun, the IBL and the house lights away. Same maths, same look, both
+   backends. See drive_traffic.js / zombies_world.js for the same port.
+
+   The fbm loops are unrolled in JS: `octaves` is a quality setting, so the
+   iteration count is known when the graph is built and never at draw time. */
+function nHash(p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453));
+}
+
+function nVnoise(p) {
+  var i = floor(p),
+    f0 = fract(p);
+  var f = f0.mul(f0).mul(float(3).sub(f0.mul(2)));
+  var a = nHash(i),
+    b = nHash(i.add(vec2(1, 0))),
+    c = nHash(i.add(vec2(0, 1))),
+    d = nHash(i.add(vec2(1, 1)));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+function nFbm(p, loops, lac, gain) {
+  var v = float(0),
+    a = 0.5,
+    q = p;
+  for (var i = 0; i < loops; i++) {
+    v = v.add(nVnoise(q).mul(a));
+    q = q.mul(lac);
+    a *= gain;
+  }
+  return v;
 }
 
 function lavaMaterial(octaves) {
-  var sh = lavaShaders(octaves);
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uTime: { value: 0 },
-      uHeat: { value: 0.4 },
-      uFrozen: { value: 0 },
-    },
-    vertexShader: sh.vert,
-    fragmentShader: sh.frag,
-    side: THREE.DoubleSide,
-    fog: false,
-  });
+  octaves = Math.max(2, Math.min(5, octaves || 4));
+  var vertLoop = octaves >= 4 ? 4 : 2;
+  var fragLoop = octaves >= 4 ? 5 : octaves >= 3 ? 3 : 2;
+  var uTime = uniform(0),
+    uHeat = uniform(0.4),
+    uFrozen = uniform(0);
+  var frozen = uFrozen.clamp(0, 1);
+  var flat = positionLocal.xz;
+
+  // vertex: a slow swell, held still while the melt is frozen
+  var swell = nFbm(
+    flat.mul(0.018).add(vec2(uTime.mul(0.22), uTime.mul(0.13))),
+    vertLoop, 2.03, 0.5
+  );
+  var chop = nVnoise(flat.mul(0.05).sub(uTime.mul(0.4)));
+  var lift = swell.mul(7.5).add(chop.mul(3.4)).mul(float(1).sub(frozen.mul(0.85)));
+
+  // fragment: crust over flow, cooling to ice while frozen
+  var uv2 = flat.mul(0.012);
+  var n = nFbm(uv2.add(vec2(uTime.mul(0.12), uTime.mul(-0.08))), fragLoop, 2.07, 0.52);
+  var flow = nFbm(
+    uv2.mul(2.4).add(vec2(uTime.mul(-0.28), uTime.mul(0.19))),
+    fragLoop, 2.07, 0.52
+  );
+  var crust = smoothstep(0.32, 0.72, n);
+  var cool = vec3(0.07, 0.015, 0.01),
+    hot = vec3(1.0, 0.28, 0.04),
+    core = vec3(1.0, 0.82, 0.28),
+    ice = vec3(0.18, 0.22, 0.28);
+  var col = mix(hot, cool, crust);
+  col = mix(col, core, pow(flow, 2.4).mul(0.85));
+  col = mix(col, mix(cool.mul(1.6), ice, 0.55), frozen.mul(0.78));
+  var em = float(0.55)
+    .add(flow.mul(1.55))
+    .add(uHeat.mul(0.35))
+    .mul(float(1).sub(frozen.mul(0.5)));
+
+  var mat = new THREE.MeshBasicNodeMaterial({ side: THREE.DoubleSide, fog: false });
+  mat.positionNode = vec3(positionLocal.x, positionLocal.y.add(lift), positionLocal.z);
+  mat.colorNode = col.mul(em);
+  // the loop drives these by hand, the way it drove the old uniforms
+  mat.userData.lavaUniforms = { uTime: uTime, uHeat: uHeat, uFrozen: uFrozen };
+  return mat;
 }
 
 export function buildLavaMesh(bounds, quality) {
@@ -343,9 +349,12 @@ export function stepLavaVisual(grp, lavaY, time, heat, px, pz, freeze, motion) {
   var vis = grp.userData.lava;
   if (!vis) return;
   var frozen = freeze > 0 ? 1 : 0;
-  vis.mat.uniforms.uTime.value = motion === false ? vis.mat.uniforms.uTime.value : time;
-  vis.mat.uniforms.uHeat.value = heat;
-  vis.mat.uniforms.uFrozen.value = frozen;
+  var u = vis.mat.userData.lavaUniforms;
+  if (u) {
+    if (motion !== false) u.uTime.value = time;
+    u.uHeat.value = heat;
+    u.uFrozen.value = frozen;
+  }
   vis.light.intensity = LAVA_I * (0.55 + heat * 0.9) * (frozen ? 0.45 : 1);
   vis.light.distance = 700 + heat * 900;
   /* One point light at the centre of a 24m plane lights the middle of the plan
@@ -485,6 +494,71 @@ export function stepGuide(step, show, time) {
   m.material.opacity = 0.55 + 0.3 * (0.5 + 0.5 * Math.sin(time * 6));
 }
 
+/* The web line. A drawn line would be one pixel wide at any distance, and at
+   quarter scale that reads as a scratch on the lens rather than a rope, so it
+   is a thin cylinder aimed from the hand to the anchor every frame. */
+export function buildWebLine() {
+  var geo = new THREE.CylinderGeometry(0.55, 0.55, 1, 5, 1, true);
+  geo.translate(0, 0.5, 0); // grows from its base, so it can be aimed and scaled
+  var mesh = new THREE.Mesh(
+    geo,
+    new THREE.MeshBasicMaterial({ color: 0xf6f9ff, transparent: true, opacity: 0.92, fog: false })
+  );
+  mesh.renderOrder = 5;
+  mesh.visible = false;
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+export function updateWebLine(from, to) {
+  var m = L.webMesh;
+  if (!m) return;
+  if (!from || !to) {
+    m.visible = false;
+    return;
+  }
+  _webVec.set(to.x - from.x, to.y - from.y, to.z - from.z);
+  var len = _webVec.length();
+  if (!(len > 0.5)) {
+    m.visible = false;
+    return;
+  }
+  m.visible = true;
+  m.position.set(from.x, from.y, from.z);
+  m.quaternion.setFromUnitVectors(_webUp, _webVec.divideScalar(len));
+  m.scale.set(1, len, 1);
+}
+
+/* Tallest wall in the plan — the height a web can be anchored at, and the top
+   of every wall the runner can crawl up. */
+export function wallTop() {
+  var ch = 0;
+  (S.walls || []).forEach(function (w) {
+    if (w && w.height > ch) ch = w.height;
+  });
+  return ch > 0 ? ch : 270;
+}
+
+export function sndWeb() {
+  var ctx = audioCtx();
+  if (!ctx || !L.audio) return;
+  var o = ctx.createOscillator();
+  var g = envGain(0.14, 0.14);
+  if (!g) return;
+  o.type = "sawtooth";
+  o.frequency.setValueAtTime(1650, ctx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(240, ctx.currentTime + 0.11);
+  var f = ctx.createBiquadFilter();
+  f.type = "bandpass";
+  f.frequency.value = 1200;
+  f.Q.value = 1.6;
+  o.connect(f);
+  f.connect(g);
+  o.start();
+  o.stop(ctx.currentTime + 0.16);
+  trackNode(o, 0.16);
+}
+
 export function buildGhostAvatar() {
   /* The replay marker has to read at a glance, and the molten grade leaves
      almost no light above waist height — lit rather than self-lit, the ghost
@@ -515,6 +589,7 @@ export function buildGhostAvatar() {
   part(new THREE.CylinderGeometry(5, 5, 52, 6), 42).position.x = 7;
   part(new THREE.CylinderGeometry(5, 5, 52, 6), 42).position.x = -7;
   grp.visible = false;
+  grp.scale.setScalar(P_SCALE); // the replay is the same runner, same size
   grp.userData.ghostMat = mat;
   return grp;
 }
@@ -576,6 +651,8 @@ export function spawnCourseMeshes(grp, spec, quality) {
   grp.add(L.ghostMesh);
   L.stepMesh = buildStepGuide();
   grp.add(L.stepMesh);
+  L.webMesh = buildWebLine();
+  grp.add(L.webMesh);
   return laid;
 }
 
@@ -733,6 +810,14 @@ export function enterHeat() {
   };
   harvestPracticals();
   applyHeatGrade();
+  /* The grade is not a one-shot. applyEnv() is the planner's own lighting
+     pass and it lands whenever it likes — the first entry of the session
+     finishes the initial build's pass AFTER this one, which put the whole mode
+     back into daylight: sun at full, the IBL env map regenerated, exposure at
+     1.12, every practical back to party brightness. Re-grade after every
+     relight for as long as the mode is up. */
+  if (L.unrelight) L.unrelight();
+  L.unrelight = onRelight(reheatAfterRebuild);
 }
 
 /* After rebuild3D the grade is gone and every practical is a new object.
@@ -745,6 +830,12 @@ export function reheatAfterRebuild() {
 }
 
 export function exitHeat() {
+  // first, before any early return: a hook left registered would keep
+  // re-grading the planner's scene for the rest of the session
+  if (L.unrelight) {
+    L.unrelight();
+    L.unrelight = null;
+  }
   var scene = getMainScene();
   var renderer = getRenderer();
   var rig = getRigLights();
@@ -777,6 +868,12 @@ export function exitHeat() {
   });
   L.practicals = [];
   L.prevGfx = null;
+  /* The snapshot is only as good as the moment it was taken, and on the first
+     entry of a session that moment is mid-build — its `env` was still null
+     because the map had not been generated yet. Restoring it verbatim leaves
+     the planner with no image-based lighting until something else happens to
+     relight; one pass puts the real sky, exposure and shadows back. */
+  applyEnv();
 }
 
 export function spawnPlayer() {

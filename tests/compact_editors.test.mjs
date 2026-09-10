@@ -5,6 +5,8 @@ import { readFile } from "node:fs/promises";
 const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
 const mdMobile = await readFile(new URL("../js/modeler_mobile.js", import.meta.url), "utf8");
 const md = await readFile(new URL("../js/modeler.js", import.meta.url), "utf8");
+/* The editor's [he, en] table, split out of js/modeler.js. */
+const mdStrings = await readFile(new URL("../js/modeler_strings.js", import.meta.url), "utf8");
 const mdTopologyPick = await readFile(new URL("../js/modeler_topology_pick.js", import.meta.url), "utf8");
 const editorView = await readFile(new URL("../js/editor_view.js", import.meta.url), "utf8");
 const plannerTut = await readFile(new URL("../js/planner_tutorial.js", import.meta.url), "utf8");
@@ -154,7 +156,7 @@ test("modeler: touch selection has modifier-free parity", () => {
 test("modeler: selected geometry keeps CAD verbs separate from selection management", () => {
   assert.match(mdMobile, /function renderSelectionBar\(/);
   assert.match(mdMobile, /selectionBar\.appendChild\(btn\(/);
-  assert.match(mdMobile, /var sug = selected \? null : api\.coach\(\)/);
+  assert.match(mdMobile, /var sug = selected \|\| st\.closedSketch \? null : api\.coach\(\)/);
   assert.match(mdMobile, /api\.contextItems\(\)\.forEach\(function \(item\) \{/);
   assert.match(mdMobile, /function push\(item\)/);
   assert.doesNotMatch(mdMobile, /if \(selected\) \{[\s\S]{0,800}return \[/);
@@ -201,14 +203,14 @@ test("modeler: mobile tutorial track teaches touch CAD layout and bottom sheet w
   assert.match(mdMobile, /export function showModelerSheet/);
   assert.match(mdMobile, /export function closeModelerSheet/);
   assert.match(mdMobile, /grp\.classList\.add\("md-group-open"\)/);
-  assert.match(md, /guideSelectTipMobile/);
-  assert.match(md, /guidePairBodyMobile/);
-  assert.match(md, /assemblyPairBodyMobile/);
+  assert.match(mdStrings, /guideSelectTipMobile/);
+  assert.match(mdStrings, /guidePairBodyMobile/);
+  assert.match(mdStrings, /assemblyPairBodyMobile/);
   assert.match(css, /body\.compact-nav #modeler \.md-tour-card/);
   assert.match(md, /target: '\[data-mdnav="cmd"\]'/);
   assert.match(md, /target: '\[data-md-action="extrude"\]'/);
   assert.match(md, /autoCollapseMobile: true/);
-  assert.match(md, /guideContinueEditing/);
+  assert.match(mdStrings, /guideContinueEditing/);
   assert.match(md, /id="mdTourRestart"/);
   assert.match(mdMobile, /b\.dataset\.mdAction = spec\.action/);
   assert.match(css, /body\.compact-nav #modeler \.md-command kbd/);

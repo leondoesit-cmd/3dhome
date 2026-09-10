@@ -1,3 +1,8 @@
+import {generationPlan} from "./generation_layout.js";
+import { generatedChangePermission } from "./redesign.js";
+import { roomTypeOf } from "./room_types.js";
+import {roomMeasurements} from './room_summary.js';
+import {assignChecklistRoom} from './planning_guide.js';
 import { S, uid, WALL_T, WALL_H } from "./state.js";
 import { detectRooms, wallGeom, pointInPoly } from "./geometry.js";
 import { FURN } from "./furniture.js";
@@ -23,126 +28,6 @@ function commitGeneratedItem(item) {
   return item;
 }
 
-// Basic layouts for small and large apartments
-const LAYOUTS = {
-  small: {
-    w: 600, d: 700,
-    rooms: [
-      { name: "Living / Kitchen", x0: 0, z0: 300, x1: 600, z1: 700, floor: "wood" },
-      { name: "Bedroom", x0: 200, z0: 0, x1: 600, z1: 300, floor: "wood" },
-      { name: "Bathroom", x0: 0, z0: 0, x1: 200, z1: 300, floor: "tiles" }
-    ],
-    doors: [
-      { from: "Living / Kitchen", to: "Bedroom", width: 80, s: 100 },
-      { from: "Living / Kitchen", to: "Bathroom", width: 70, s: 100 },
-      { from: "Outside", to: "Living / Kitchen", width: 90, s: 50, wall: "bottom" }
-    ],
-    windows: [
-      { room: "Living / Kitchen", width: 120, height: 120, sill: 90 },
-      { room: "Bedroom", width: 120, height: 120, sill: 90 },
-      { room: "Bathroom", width: 60, height: 60, sill: 140 }
-    ]
-  },
-  large: {
-    w: 1000, d: 900,
-    rooms: [
-      { name: "Living Room", x0: 400, z0: 400, x1: 1000, z1: 900, floor: "wood" },
-      { name: "Kitchen", x0: 0, z0: 400, x1: 400, z1: 900, floor: "tiles" },
-      { name: "Corridor", x0: 400, z0: 250, x1: 600, z1: 400, floor: "wood" },
-      { name: "Master Bedroom", x0: 600, z0: 0, x1: 1000, z1: 400, floor: "wood" },
-      { name: "Bedroom 2", x0: 0, z0: 0, x1: 400, z1: 400, floor: "wood" },
-      { name: "Bathroom", x0: 400, z0: 0, x1: 600, z1: 250, floor: "tiles" }
-    ],
-    doors: [
-      { from: "Corridor", to: "Living Room", width: 120, s: 100, isPassage: true },
-      { from: "Living Room", to: "Kitchen", width: 150, s: 200, isPassage: true },
-      { from: "Corridor", to: "Master Bedroom", width: 80, s: 50 },
-      { from: "Corridor", to: "Bedroom 2", width: 80, s: 50 },
-      { from: "Corridor", to: "Bathroom", width: 70, s: 50 },
-      { from: "Outside", to: "Living Room", width: 90, s: 100, wall: "bottom" }
-    ],
-    windows: [
-      { room: "Living Room", width: 200, height: 200, sill: 20 },
-      { room: "Kitchen", width: 100, height: 120, sill: 90 },
-      { room: "Master Bedroom", width: 120, height: 120, sill: 90 },
-      { room: "Bedroom 2", width: 120, height: 120, sill: 90 },
-      { room: "Bathroom", width: 60, height: 60, sill: 140 }
-    ]
-  }
-};
-
-// Randomized procedural layouts (same schema as LAYOUTS)
-function seededRandom(seed) {
-  var value = (Number(seed) >>> 0) || 1;
-  return function() {
-    value = (value * 1664525 + 1013904223) >>> 0;
-    return value / 4294967296;
-  };
-}
-function rnd(a, b, random) { return a + random() * (b - a); }
-function ri(a, b, random) { return Math.round(rnd(a, b, random) / 10) * 10; }
-
-function randomLayout(seed) {
-  var random = seededRandom(seed);
-  if (random() < 0.45) {
-    // 1-bedroom flat: open living/kitchen strip + bedroom & bathroom strip
-    const w = ri(620, 760, random), d = ri(680, 840, random);
-    const split = ri(Math.max(300, d * 0.4), d * 0.47, random);
-    const bathW = ri(180, 220, random);
-    return {
-      w, d,
-      rooms: [
-        { name: "Living / Kitchen", x0: 0, z0: split, x1: w, z1: d, floor: "wood" },
-        { name: "Bedroom", x0: bathW, z0: 0, x1: w, z1: split, floor: "wood" },
-        { name: "Bathroom", x0: 0, z0: 0, x1: bathW, z1: split, floor: "tiles" }
-      ],
-      doors: [
-        { from: "Living / Kitchen", to: "Bedroom", width: 80, s: 100 },
-        { from: "Living / Kitchen", to: "Bathroom", width: 70, s: 100 },
-        { from: "Outside", to: "Living / Kitchen", width: 90, s: 60, wall: "bottom" }
-      ],
-      windows: [
-        { room: "Living / Kitchen", width: ri(120, 200, random), height: 120, sill: 90 },
-        { room: "Bedroom", width: 120, height: 120, sill: 90 },
-        { room: "Bathroom", width: 60, height: 60, sill: 140 }
-      ]
-    };
-  }
-  // 2-bedroom: kitchen|living bottom row, bedrooms + bath off a corridor on top
-  const w = ri(900, 1200, random), d = ri(800, 1000, random);
-  const kx = ri(w * 0.3, w * 0.42, random);        // kitchen / living split
-  const zSplit = ri(Math.max(400, d * 0.42), d * 0.5, random); // enough depth for usable bedrooms/bath
-  const bx1 = kx + ri(230, 260, random);           // service core wide enough for real fixtures
-  const corridorDepth = ri(100, 130, random);      // usable circulation without wasting bedroom area
-  const corrZ = zSplit - corridorDepth;
-  return {
-    w, d,
-    rooms: [
-      { name: "Living Room", x0: kx, z0: zSplit, x1: w, z1: d, floor: "wood" },
-      { name: "Kitchen", x0: 0, z0: zSplit, x1: kx, z1: d, floor: "tiles" },
-      { name: "Corridor", x0: kx, z0: corrZ, x1: bx1, z1: zSplit, floor: "wood" },
-      { name: "Master Bedroom", x0: bx1, z0: 0, x1: w, z1: zSplit, floor: "wood" },
-      { name: "Bedroom 2", x0: 0, z0: 0, x1: kx, z1: zSplit, floor: "wood" },
-      { name: "Bathroom", x0: kx, z0: 0, x1: bx1, z1: corrZ, floor: "tiles" }
-    ],
-    doors: [
-      { from: "Corridor", to: "Living Room", width: 120, s: 100, isPassage: true },
-      { from: "Living Room", to: "Kitchen", width: 150, s: 200, isPassage: true },
-      { from: "Corridor", to: "Master Bedroom", width: 80, s: 50 },
-      { from: "Corridor", to: "Bedroom 2", width: 80, s: 50 },
-      { from: "Corridor", to: "Bathroom", width: 70, s: 50 },
-      { from: "Outside", to: "Living Room", width: 90, s: 100, wall: "bottom" }
-    ],
-    windows: [
-      { room: "Living Room", width: ri(160, 240, random), height: 200, sill: 20 },
-      { room: "Kitchen", width: 100, height: 120, sill: 90 },
-      { room: "Master Bedroom", width: ri(120, 160, random), height: 120, sill: 90 },
-      { room: "Bedroom 2", width: 120, height: 120, sill: 90 },
-      { room: "Bathroom", width: 60, height: 60, sill: 140 }
-    ]
-  };
-}
-
 function clearScene() {
   S.nodes = [];
   S.walls = [];
@@ -152,7 +37,18 @@ function clearScene() {
   S.idc = 1;
 }
 
+// Replacement cannot leave document objects referring to discarded geometry.
+function replacementBlocked(state) {
+  return !!(state.structLocked || state.layers?.structure?.locked ||
+    state.walls.some(w => w.locked) || state.items.some(i => i.locked) ||
+    state.wallCons?.length || state.roomCons?.length || state.slabOpenings?.length ||
+    state.markers?.length || state.mep?.nodes?.length || state.mep?.runs?.length || state.mep?.edges?.length);
+}
+
 export function buildLayout(layout, replace) {
+  const permission = generatedChangePermission(S, "document.generate_apartment", { replace });
+  if (!permission.ok) throw new Error(permission.reason);
+  if (replace && replacementBlocked(S)) throw new Error('PROTECTED_STRUCTURE');
   if (replace) {
     clearScene();
   }
@@ -252,7 +148,7 @@ export function buildLayout(layout, replace) {
       return pointInPoly(cx, cz, dr.pts);
     });
     if (match) {
-      S.roomMeta[dr.key] = { name: match.name, floor: match.floor };
+      S.roomMeta[dr.key] = { name: match.name, roomType: roomTypeOf(match), floor: match.floor };
     }
   });
 
@@ -862,9 +758,9 @@ function furnishLiving(room, combined, exclusionZones = []) {
 
 function furnishRoom(roomMeta, dr) {
   placeItem("ceilingLight", dr, { center: true });
-  let name = roomMeta.name;
+  const type = roomTypeOf(roomMeta);
 
-  if (name === "Living / Kitchen") {
+  if (type === "livingKitchen") {
     // Open-plan spaces need both functions. The old name-based branch matched
     // "Living" first and silently skipped the entire kitchen and dining area.
     // In an open room, anchor the compact kitchen to one side first. This
@@ -875,10 +771,10 @@ function furnishRoom(roomMeta, dr) {
     let exclusions = kitchenZone ? [kitchenZone] : [];
     furnishLiving(dr, true, exclusions);
     placeDiningSet(dr, exclusions);
-  } else if (name === "Living Room") {
+  } else if (type === "living") {
     furnishLiving(dr, false);
     placeDiningSet(dr);
-  } else if (name === "Kitchen") {
+  } else if (type === "kitchen") {
     placeKitchenRun(dr, ["west", "north", "south", "east"]);
     let b = roomBounds(dr.pts);
     if ((b.x1 - b.x0) * (b.z1 - b.z0) > 210000) {
@@ -889,7 +785,7 @@ function furnishRoom(roomMeta, dr) {
         placeItem("pendant", dr, { onTopOf: "island" });
       }
     }
-  } else if (name === "Master Bedroom" || name === "Bedroom") {
+  } else if (type === "masterBedroom" || type === "bedroom") {
     placeItem("rug", dr, { center: true });
     let bed = placeItem("bed", dr, { wall: true, preferredSides: ["west", "east", "north"], clearance: 22, avoidWindows: true, doorDepth: 72 }) ||
       placeItem("bed", dr, { wall: true, preferredSides: ["west", "east", "north"], clearance: 10, doorDepth: 52 });
@@ -903,7 +799,7 @@ function furnishRoom(roomMeta, dr) {
     placeItem("wardrobe", dr, { wall: true, preferredSides: ["north", "south", "east", "west"], clearance: 45, avoidWindows: true, doorDepth: 100 });
     let dresser = placeItem("dresser", dr, { wall: true, preferredSides: ["south", "east", "north"], clearance: 30, avoidWindows: true });
     if (dresser) placeWallMounted("wallMirror", dr, dresser);
-  } else if (name === "Bedroom 2") {
+  } else if (type === "kidsRoom") {
     placeItem("bunk", dr, { wall: true, preferredSides: ["west", "east", "north"], clearance: 24, avoidWindows: true, doorDepth: 105 });
     let desk = placeItem("desk", dr, { wall: true, preferredSides: ["north", "east", "south"], clearance: 32, doorDepth: 95 });
     if (desk) {
@@ -912,11 +808,11 @@ function furnishRoom(roomMeta, dr) {
     }
     placeItem("wardrobe", dr, { wall: true, preferredSides: ["south", "east", "north"], clearance: 35, avoidWindows: true, doorDepth: 95 });
     placeItem("bookshelf", dr, { wall: true, preferredSides: ["east", "north", "south"], clearance: 20, avoidWindows: true });
-  } else if (name === "Corridor") {
+  } else if (type === "corridor" || type === "entry" || type === "landing") {
     placeItem("shoeCab", dr, { wall: true, preferredSides: ["west", "east"], clearance: 12, doorDepth: 80 });
     placeItem("coatRack", dr, { nextTo: "shoeCab", dist: 12 });
     placeItem("mirror", dr, { wall: true, preferredSides: ["west", "east"], clearance: 10 });
-  } else if (name.includes("Bathroom")) {
+  } else if (type === "bathroom" || type === "ensuite") {
     // Residential minimums: keep 53cm usable in front of sanitary fixtures
     // and the WC centre at least 38cm from a side obstruction. Clear approach
     // zones may overlap each other, but no physical fixture may occupy one.
@@ -940,35 +836,10 @@ function furnishRoom(roomMeta, dr) {
   }
 }
 
-function generationPlan(size, replace, state, seed) {
-  let layout;
-  if (size === "random") {
-    layout = randomLayout(seed);
-  } else {
-    layout = LAYOUTS[size] || LAYOUTS["small"];
-    // Clone layout because we might shift it
-    layout = JSON.parse(JSON.stringify(layout));
-  }
-
-  if (!replace) {
-     let shiftX = 2000;
-     let shiftZ = 0;
-     
-     // Find max X in current scene to append next to it
-     if (state.nodes.length > 0) {
-        let maxx = Math.max(...state.nodes.map(n => n.x));
-        shiftX = maxx + 500;
-     }
-
-     layout.rooms.forEach(r => { r.x0+=shiftX; r.x1+=shiftX; r.z0+=shiftZ; r.z1+=shiftZ; });
-  }
-
-  return layout;
-}
-
-function applyApartmentLayout(layout, replace) {
+function applyApartmentLayout(layout, replace, furnish = true) {
 
   buildLayout(layout, replace);
+  if (!furnish) return;
 
   let detected = detectRooms();
   detected.forEach(dr => {
@@ -985,7 +856,7 @@ function applyApartmentLayout(layout, replace) {
 
 export const apartmentGenerateCommand = Object.freeze({
   id: "document.generate_apartment",
-  failureCodes: Object.freeze(["INVALID_GENERATOR_SIZE", "INVALID_GENERATOR_ENVIRONMENT"]),
+  failureCodes: Object.freeze(["INVALID_GENERATOR_SIZE", "INVALID_GENERATOR_ENVIRONMENT", "PROTECTED_STRUCTURE"]),
   prepare: function(params, env) {
     params = params || {};
     var size = params.size == null ? "small" : String(params.size);
@@ -993,14 +864,21 @@ export const apartmentGenerateCommand = Object.freeze({
       return { ok: false, reason: "INVALID_GENERATOR_SIZE" };
     if (!env || env.state !== S) return { ok: false, reason: "INVALID_GENERATOR_ENVIRONMENT" };
     var replace = params.replace !== false;
+    if (replace && replacementBlocked(S)) return { ok: false, reason: 'PROTECTED_STRUCTURE' };
+    var permission = generatedChangePermission(S, "document.generate_apartment", { replace });
+    if (!permission.ok) return permission;
     var seed = params.seed == null ? 1 : Number(params.seed);
     if (!Number.isFinite(seed)) return { ok: false, reason: "INVALID_GENERATOR_SIZE" };
+    var layout;
+    try { layout = generationPlan(size, replace, env.state, seed, params); }
+    catch(error) { return {ok:false,reason:'INVALID_GENERATOR_SIZE',message:error.message}; }
+    if(params.openings===false){layout.doors=[];layout.windows=[];}
     var version = env.version && typeof env.version.current === "function" ? env.version.current() : null;
     return { ok: true, plan: {
       command: "document.generate_apartment",
       expectedVersion: version,
-      params: { size: size, replace: replace, seed: seed,
-        layout: generationPlan(size, replace, env.state, seed) },
+      params: { size: size, replace: replace, seed: seed, furnish: params.furnish !== false, exactRooms:!!params.requirements?.length,
+        layout: layout },
     } };
   },
   preview: function(plan) {
@@ -1011,13 +889,24 @@ export const apartmentGenerateCommand = Object.freeze({
       roomCount: layout.rooms.length, replace: plan.params.replace };
   },
   apply: function(plan, env) {
+    const permission = generatedChangePermission(S, "document.generate_apartment", plan.params);
+    if (!permission.ok) return permission;
     if (!env || env.state !== S) return { ok: false, reason: "INVALID_GENERATOR_ENVIRONMENT" };
+    if (plan.params.replace && replacementBlocked(S)) return { ok: false, reason: 'PROTECTED_STRUCTURE' };
     var before = {
       walls: new Set(S.walls.map(function(w) { return String(w.id); })),
       openings: new Set(S.openings.map(function(o) { return String(o.id); })),
       items: new Set(S.items.map(function(item) { return String(item.id); })),
     };
-    applyApartmentLayout(plan.params.layout, plan.params.replace);
+    applyApartmentLayout(plan.params.layout, plan.params.replace, plan.params.furnish);
+    if(plan.params.exactRooms){
+      const rooms=detectRooms();
+      for(const requested of plan.params.layout.rooms){
+        const room=rooms.find(r=>pointInPoly((requested.x0+requested.x1)/2,(requested.z0+requested.z1)/2,r.pts)),measurement=roomMeasurements(S,room)?.interior;
+        if(!measurement||Math.abs(measurement.width-(requested.x1-requested.x0-WALL_T))>1e-5||Math.abs(measurement.depth-(requested.z1-requested.z0-WALL_T))>1e-5)return {ok:false,reason:'INVALID_GENERATOR_SIZE'};
+        if(requested.checklistId){const assigned=assignChecklistRoom(S,requested.checklistId,room.key);if(!assigned.ok)return assigned;}
+      }
+    }
     var created = [];
     S.walls.forEach(function(w) { if (!before.walls.has(String(w.id))) created.push({ kind: "wall", id: w.id }); });
     S.openings.forEach(function(o) { if (!before.openings.has(String(o.id))) created.push({ kind: "opening", id: o.id }); });

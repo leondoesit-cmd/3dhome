@@ -8,6 +8,21 @@ import { getLang } from "./i18n.js";
 
 /* ================= i18n (local, he/en) ================= */
 export var TXT = {
+  recoverLater: ["לא עכשיו", "Not now"],
+  recoverDraftTitle: ["שחזור טיוטה", "Recover draft"],
+  restoreDraftAction: ["שחזור", "Restore draft"],
+  startWithoutDraft: ["מחיקת הטיוטה והתחלה חדשה", "Discard draft and start fresh"],
+  unsavedChangesTitle: ["שינויים שלא נשמרו", "Unsaved changes"],
+  discardChangesAction: ["ויתור על השינויים", "Discard changes"],
+  keepEditingAction: ["המשך עריכה", "Keep editing"],
+  draftPending: ["שומר טיוטה…", "Saving draft…"],
+  draftSaved: ["הטיוטה נשמרה במכשיר", "Draft saved on this device"],
+  documentSaved: ["אין שינויים שלא נשמרו", "No unsaved changes"],
+  repeatOperation: ["חזרה על הפעולה האחרונה", "Repeat last operation"],
+  repeatUnavailable: ["יש להשלים פעולה תחילה", "Complete a feature operation first"],
+  selectForFeature: ["בחירת גאומטריה", "Select geometry"],
+  returnToParameters: ["חזרה לפרמטרים", "Parameters"],
+
   title: ["עורך מודלים", "Model Editor"],
   /* phone shell (js/modeler_mobile.js) */
   view_iso: ["איזומטרי", "Isometric"],
@@ -848,6 +863,13 @@ export var TXT = {
   previewNoResolvedEdges: ["לא ניתן לזהות את הקצה · בחרו אותו שוב", "The selected edge could not be resolved · pick it again"],
   liveApproxPreview: ["תצוגה מקדימה מקורבת · הגיאומטריה המדויקת מחושבת", "Approximate preview · computing the exact result"],
   approxPreviewName: ["קירוב {feature}", "Approximate {feature}"],
+  repairLastLocation: ["הסמן הכתום מציין את המיקום האחרון הידוע של הייחוס החסר.", "The amber marker shows the missing reference’s last known location."],
+  density: ["צפיפות הממשק", "Interface density"],
+  density_guided: ["מודרך", "Guided"],
+  density_standard: ["רגיל", "Standard"],
+  density_expert: ["מומחה", "Expert"],
+  livePatternOverlap: ["ייתכן שהעותקים חופפים", "Copies may overlap"],
+  livePatternOverlapHint: ["ייתכן שהעותקים חופפים — הגדילו את המרווח או הפעילו מיזוג. זו בדיקה מקורבת.", "Copies may overlap — increase spacing or enable Merge. This is an approximate check."],
   livePatternMergeCheck: ["מוצגים העותקים הנפרדים · נבדק אילו מהם מתמזגים", "Separate copies shown · checking which ones merge"],
   livePatternMergeReady: ["המערך מתמזג ל־{bodies} גופים", "The pattern merges into {bodies} bodies"],
   livePatternMergeApart: ["אף מופע אינו חופף לשכנו · כולם נשארים נפרדים", "No instance overlaps another · they all stay separate"],

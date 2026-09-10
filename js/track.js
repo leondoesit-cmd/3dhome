@@ -123,15 +123,17 @@ function Strip() {
   this.pos = [];
   this.col = [];
   this.idx = [];
+  this.normals = [];
   this.n = 0;
 }
-Strip.prototype.quad = function (a, b, c, d, col) {
+Strip.prototype.quad = function (a, b, c, d, col, normals) {
   var p = this.pos,
     k = this.n;
   p.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2], d[0], d[1], d[2]);
   if (col)
     for (var i = 0; i < 4; i++) this.col.push(col[0], col[1], col[2]);
   this.idx.push(k, k + 1, k + 2, k, k + 2, k + 3);
+  if (normals) normals.forEach((normal, i) => this.normals.push({ index: k + i, normal }));
   this.n += 4;
 };
 Strip.prototype.mesh = function (mat) {
@@ -142,6 +144,8 @@ Strip.prototype.mesh = function (mat) {
     g.setAttribute("color", new THREE.Float32BufferAttribute(this.col, 3));
   g.setIndex(this.idx);
   g.computeVertexNormals();
+  const normal = g.getAttribute("normal");
+  this.normals.forEach(v => normal.setXYZ(v.index, v.normal.x, v.normal.y, v.normal.z));
   var m = new THREE.Mesh(g, mat);
   m.castShadow = m.receiveShadow = true;
   m.userData.rc = true;
@@ -1114,7 +1118,7 @@ function gridRoute(anchors, occ) {
     out.push(a);
     if (pathFree(occ, a.x, a.z, b.x, b.z)) continue; // already a clear run
     var path = astar(occ, a.x, a.z, b.x, b.z);
-    if (!path || !path.length) continue; // no way through: keep the straight leg
+    if (!path || !path.length) return { pts: [], routed: routed, failed: true };
     stringPull(path, occ).forEach(function (p, k, all) {
       if (k < all.length - 1) out.push(p); // the last one IS the next anchor
     });
@@ -1731,40 +1735,6 @@ function applyFeature(f, pts, prof, deck, hold, wide, used, env) {
   for (var u2 = f.a0; u2 <= f.b1; u2++) used[at(u2)] = 1;
 }
 
-// Last resort. A crowded flat has stretches where the line cannot climb the
-// item, cannot bridge it and cannot get round it — a sofa across the only route
-// between two rooms. Leaving the samples there would park a waypoint inside a
-// solid object and strand every truck that drives at it, so lay a flat deck
-// through it at floor height: the deck owns collision (rc.js), and rc_world
-// fades out anything a deck passes through, which is exactly what the full-road
-// mode has always done. Rare, visible, and driveable.
-function homeThrough(runs, pts, prof, deck, hold, wide, used, env, halfVal) {
-  var n = pts.length,
-    at = function (i) {
-      return ((i % n) + n) % n;
-    },
-    made = 0;
-  runs.forEach(function (run) {
-    var any = false;
-    // Full road width, and started well before the item: the deck is what makes
-    // the sofa passable, so a truck aiming at the gate inside it has to be over
-    // the deck BEFORE it reaches the upholstery. A narrow strip that begins at
-    // the item's edge just moves the collision to the corner of the sofa, where
-    // the bots ground themselves to a standstill lap after lap.
-    for (var i = run.s - THROUGH_LEAD; i <= run.e + THROUGH_LEAD; i++) {
-      var j = at(i);
-      if (used[j]) continue;
-      prof[j] = groundUnder(env, pts[j].x, pts[j].z) + 0.25;
-      deck[j] = hold[j] = 1;
-      wide[j] = halfVal;
-      used[j] = 1;
-      any = true;
-    }
-    if (any) made++;
-  });
-  return made;
-}
-
 // Runs of samples whose step still scrapes a wall once the router has done its
 // best — a doorway too narrow for the line's turn, or a leg A* could find no way
 // round at all.
@@ -1974,27 +1944,14 @@ function buildHome(base, env, occ, plats, tops, L, halfVal, extra) {
       applyFeature(f, base, prof, deck, hold, wide, used, env);
       features.push(f);
     }
-    // A step that still scrapes a wall after every repair is the same problem as
-    // a sofa in the doorway: whatever the reason, a truck has to be able to get
-    // past it. Deck it too — the wall fades out, exactly as the full-road mode
-    // has always done, and the lap stays driveable.
-    var through = homeThrough(
-      leftover.concat(wallRuns(base, occ)),
-      base,
-      prof,
-      deck,
-      hold,
-      wide,
-      used,
-      env,
-      halfVal,
-    );
+    const through = leftover.length + wallRuns(base, occ).length;
+    const quality = courseQuality(base.map((p, i) => ({ x: p.x, z: p.z, y: prof[i], w: wide[i] || halfVal })), env, [], halfVal);
     var rides = 0;
     features.forEach(function (ft) {
       if (ft.ride) rides++;
     });
-    // a lap you drive ON the furniture beats one that drives through it
-    var score = rides * 4 + (features.length - rides) - through * 1.5;
+    // Safety outranks feature count; an extra climb cannot buy an invalid lap.
+    var score = (quality.valid && !through ? 1000000 : 0) + rides * 4 + (features.length - rides) - through * 100;
     if (!best || score > best.score)
       best = {
         score: score,
@@ -2130,7 +2087,419 @@ function homePads(C, features) {
 
 // ---- build ------------------------------------------------------------------
 // anchors: [{x,z}] closed loop · rooms: detectRooms() output · env: rc.js probes
+// A circuit is accepted only after all shaping and feature placement. These
+// checks use world centimetres and the full lane, including the closing leg.
+export function courseQuality(C, env, rooms, half = 13) {
+  const bad = (reason) => ({ valid: false, reason });
+  if (!C || C.length < 14) return bad("short");
+  const n = C.length, pref = [0];
+  let minRadius = Infinity;
+  const walls = env.segs ? env.segs() : [];
+  const rects = env.rects ? env.rects() : [];
+  for (let i = 0; i < n; i++) {
+    const p = C[i], q = C[(i + 1) % n], a = C[(i + n - 1) % n];
+    if (![p.x, p.z, p.y == null ? 0 : p.y].every(Number.isFinite)) return bad("invalid");
+    const len = Math.hypot(q.x - p.x, q.z - p.z);
+    if (len < 0.5 || len > 12) return bad("spacing");
+    pref.push(pref[i] + len);
+    const angle = angleAt(a, p, q);
+    const radius = angle > 1e-5
+      ? (len + Math.hypot(p.x - a.x, p.z - a.z)) / (2 * angle) : Infinity;
+    minRadius = Math.min(minRadius, radius);
+    if (radius < MIN_R_HOME - 0.1) return bad("turn");
+    const lane = Math.max(p.w || half, q.w || half);
+    // Sample the swept corridor, not just its centre or its endpoints.
+    for (let k = 0; k <= 2; k++) {
+      const t = k / 2, x = p.x + (q.x - p.x) * t, z = p.z + (q.z - p.z) * t;
+      const y = (p.y || 0) + ((q.y || 0) - (p.y || 0)) * t;
+      const margin = lane + len / 4; // covers the space between probes
+      if (walls.some(s => distToSeg({ x, z }, { x: s.ax, z: s.az }, { x: s.bx, z: s.bz }) < margin + s.half))
+        return bad("wall");
+      if (rects.some(r => {
+        if (r.y0 >= y + CAR_BAND || r.y1 <= y + STEP_UP) return false;
+        if (!(p.deck || q.deck || p.hold || q.hold))
+          return Math.hypot(Math.max(r.x0 - x, 0, x - r.x1), Math.max(r.z0 - z, 0, z - r.z1)) < margin;
+        // Ramps meet a top at its edge. Inflating by the lane width in the
+        // direction of travel falsely rejects that join. Sweep the actual
+        // transverse lane instead, with a small sampling margin.
+        const nx = -(q.z - p.z) / len, nz = (q.x - p.x) / len;
+        for (let side = -lane; side <= lane; side += 1) {
+          const px = x + nx * side, pz = z + nz * side;
+          if (px >= r.x0 - len / 4 - 0.5 && px <= r.x1 + len / 4 + 0.5 && pz >= r.z0 - len / 4 - 0.5 && pz <= r.z1 + len / 4 + 0.5) return true;
+        }
+        return false;
+      })) return bad("obstacle");
+      if (rooms && rooms.some(r => r.ceilH && pointInPoly(x,z,r.pts) && y + 15 > r.ceilH)) return bad("ceiling");
+      if ((env.tourDoors || []).some(d => d.height && Math.abs((x-d.x)*d.nx+(z-d.z)*d.nz) < lane+5 &&
+        Math.abs((x-d.x)*d.ux+(z-d.z)*d.uz) < d.width/2 && y+10 > d.height)) return bad("door-height");
+      if (rooms && rooms.length && !rooms.some(r => pointInPoly(x, z, r.pts) ||
+        r.pts.some((v, j) => distToSeg({ x, z }, v, r.pts[(j + 1) % r.pts.length]) <= 6)))
+        return bad("outside");
+    }
+    if (!p.gap && !q.gap && Math.abs((p.y || 0) - (q.y || 0)) > len * RAMP_STEEP)
+      return bad("slope");
+  }
+  const length = pref[n];
+  for (let i = 0; i < n; i++) {
+    const p = C[i], q = C[(i + 1) % n];
+    for (let j = i + 1; j < n; j++) {
+      const along = Math.min(pref[j] - pref[i], length - pref[j] + pref[i]);
+      if (along < Math.max(70, half * 5)) continue;
+      const a = C[j], b = C[(j + 1) % n];
+      if (Math.min(p.y || 0, q.y || 0) > Math.max(a.y || 0, b.y || 0) + CAR_BAND + 2 ||
+          Math.min(a.y || 0, b.y || 0) > Math.max(p.y || 0, q.y || 0) + CAR_BAND + 2) continue;
+      const gap = Math.max(p.w || half, q.w || half) + Math.max(a.w || half, b.w || half) + 2;
+      if (Math.max(p.x, q.x) + gap < Math.min(a.x, b.x) || Math.max(a.x, b.x) + gap < Math.min(p.x, q.x) ||
+          Math.max(p.z, q.z) + gap < Math.min(a.z, b.z) || Math.max(a.z, b.z) + gap < Math.min(p.z, q.z)) continue;
+      const cross = (u, v, w) => (v.x - u.x) * (w.z - u.z) - (v.z - u.z) * (w.x - u.x);
+      const crossing = cross(p, q, a) * cross(p, q, b) < 0 && cross(a, b, p) * cross(a, b, q) < 0;
+      if (crossing || Math.min(distToSeg(p, a, b), distToSeg(q, a, b), distToSeg(a, p, q), distToSeg(b, p, q)) < gap)
+        return bad("overlap");
+    }
+  }
+  return { valid: true, length, minRadius };
+}
+
+// Follow a simple cycle of doorways. Tree branches are deliberately omitted:
+// going into every room and retracing each doorway is a tour, not a race loop.
+export function roomCircuit(rooms, connections) {
+  const adj = rooms.map(() => []);
+  connections.forEach(c => { adj[c.a].push(c); adj[c.b].push(c); });
+  let best = [], budget = 4000;
+  const starts = rooms.map((r, i) => i).sort((a, b) => (rooms[b].area || 0) - (rooms[a].area || 0));
+  for (const start of starts) {
+    const walk = (at, visited, edges) => {
+      if (--budget < 0 || edges.length > 12) return;
+      for (const edge of adj[at]) {
+        if (edges.includes(edge)) continue;
+        const to = edge.a === at ? edge.b : edge.a;
+        if (to === start && edges.length >= 1) {
+          const loop = edges.concat(edge);
+          if (loop.length > best.length) best = loop;
+        } else if (!visited.has(to)) {
+          walk(to, new Set([...visited, to]), edges.concat(edge));
+        }
+      }
+    };
+    walk(start, new Set([start]), []);
+    if (budget < 0) break;
+  }
+  // Room centres give a doorway approach room to bend. A two-room circuit
+  // needs two distinct doors and four anchors, not a line between two doors.
+  if (!best.length) return [];
+  let at = best[0].a;
+  if (!(best[1].a === best[0].b || best[1].b === best[0].b)) at = best[0].b;
+  const out = [];
+  for (const edge of best) {
+    out.push({ x: rooms[at].cx, z: rooms[at].cz }, { x: edge.x, z: edge.z });
+    at = edge.a === at ? edge.b : edge.a;
+  }
+  return out;
+}
+
+function roundedCourse(cx, cz, rx, rz) {
+  const r = Math.min(60, rx, rz);
+  if (r < MIN_R_HOME + 2) return [];
+  const pts = [];
+  for (let corner = 0; corner < 4; corner++) {
+    const angle = corner * Math.PI / 2;
+    const x = cx + (corner === 0 || corner === 3 ? 1 : -1) * (rx - r);
+    const z = cz + (corner < 2 ? 1 : -1) * (rz - r);
+    const steps = Math.ceil(Math.PI * r / 8);
+    for (let k = 0; k <= steps; k++) {
+      const a = angle + k / steps * Math.PI / 2;
+      pts.push({ x: x + Math.cos(a) * r, z: z + Math.sin(a) * r });
+    }
+  }
+  return respace(pts, SAMP);
+}
+
+// Prefer a valid connected loop; otherwise search smaller circuits in each
+// room. Candidate generation never turns a failed path into a wall crossing.
+function floorCircuit(anchors, rooms, env, half) {
+  let best = null;
+  const consider = pts => {
+    if (pts.length < 14) return;
+    const C = pts.map(p => ({ x: p.x, z: p.z, y: groundUnder(env, p.x, p.z), w: half, deck: false, hold: false }));
+    const quality = courseQuality(C, env, rooms, half);
+    if (quality.valid && (!best || quality.length > best.quality.length)) best = { C, quality };
+  };
+  consider(resampleClosed(anchors, SAMP));
+  if (best) return best;
+  for (const room of rooms) {
+    const xs = room.pts.map(p => p.x), zs = room.pts.map(p => p.z);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const rx = (x1 - x0) / 2 - half - 14, rz = (z1 - z0) / 2 - half - 14;
+    if (rx < 40 || rz < 40) continue;
+    for (const sx of [1, 0.8, 0.6, 0.5, 0.4, 0.3, 0.25, 0.2]) {
+      for (const sz of [1, 0.8, 0.6, 0.5, 0.4, 0.3, 0.25, 0.2]) {
+        if (best && 4 * (rx * sx + rz * sz) <= best.quality.length) continue;
+        for (const dx of [-1, 0, 1]) for (const dz of [-1, 0, 1]) {
+          consider(roundedCourse(cx + dx * rx * (1 - sx), cz + dz * rz * (1 - sz), rx * sx, rz * sz));
+        }
+      }
+    }
+  }
+  return best;
+}
+
+function disposeRoad(road) {
+  if (!road) return;
+  const geometries = new Set(), materials = new Set();
+  road.group.traverse(o => {
+    if (o.geometry) geometries.add(o.geometry);
+    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => materials.add(m));
+  });
+  geometries.forEach(g => g.dispose());
+  materials.forEach(m => m.dispose());
+}
+
+// House tours are planned in two stages: a simple horizontal lap that covers
+// rooms, then one continuous elevation profile above the objects it visits.
+// Nearby objects share connecting road instead of each demanding a floor exit.
+function tourCoverage(C, rects, rooms) {
+  const items = new Map();
+  for (const r of rects) {
+    const key = r.item && r.item.id != null ? r.item.id : r;
+    if (!items.has(key)) items.set(key, []);
+    items.get(key).push(r);
+  }
+  let visited = 0, over = 0;
+  for (const boxes of items.values()) {
+    let near = false, above = false;
+    for (const r of boxes) for (const p of C) {
+      const distance = Math.hypot(Math.max(r.x0 - p.x, 0, p.x - r.x1), Math.max(r.z0 - p.z, 0, p.z - r.z1));
+      if (distance <= 65 && Math.abs(p.y - Math.min(r.y1, Math.max(r.y0, p.y))) <= 65) near = true;
+      if (distance === 0 && p.y >= r.y1 && p.y - r.y1 <= 14) above = true;
+    }
+    if (near) visited++;
+    if (above) over++;
+  }
+  return { visited, total: items.size, over, totalRooms: rooms.length, rooms: rooms.filter(r => C.some(p => pointInPoly(p.x, p.z, r.pts))).length };
+}
+
+function tourElevations(base, env, half) {
+  const rects = env.rects ? env.rects() : [], n = base.length;
+  const arc = [0], required = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const p = base[i], q = base[(i + 1) % n];
+    arc.push(arc[i] + Math.hypot(q.x - p.x, q.z - p.z));
+    required[i] = Math.max(FLOOR_Y, groundUnder(env, p.x, p.z));
+    for (const r of rects) {
+      if (r.y0 >= 70) continue; // suspended objects are passed underneath
+      // Include the whole slab and kerbs, with extra runway before its edge.
+      const gap = Math.hypot(Math.max(r.x0 - p.x, 0, p.x - r.x1), Math.max(r.z0 - p.z, 0, p.z - r.z1));
+      if (gap < half + KERB_W + 12) required[i] = Math.max(required[i], r.y1 + THICK + 1);
+    }
+  }
+  const length = arc[n], profile = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let y = FLOOR_Y;
+    for (let j = 0; j < n; j++) {
+      if (required[j] <= FLOOR_Y) continue;
+      const d = Math.min(Math.abs(arc[i] - arc[j]), length - Math.abs(arc[i] - arc[j]));
+      // Quintic ramps arrive with zero slope and zero vertical acceleration.
+      const run = Math.max(50, (required[j] - FLOOR_Y) * 1.875 / 0.55);
+      const t = clamp((d - 18) / run, 0, 1);
+      const ease = t * t * t * (10 + t * (-15 + 6 * t));
+      y = Math.max(y, FLOOR_Y + (required[j] - FLOOR_Y) * (1 - ease));
+    }
+    profile[i] = y;
+  }
+  // Round transitions between overlapping ramps. Each height constraint has
+  // an 18cm plateau extension, so this 12cm convolution preserves clearance.
+  const C = base.map((p, i) => {
+    let y = 0;
+    for (let k = -2; k <= 2; k++) y += profile[(i + k + n) % n] * (3 - Math.abs(k)) / 9;
+    return { x: p.x, z: p.z, y, w: half, deck: true, hold: true, bank: 0, lift: 0 };
+  });
+  C.forEach((p, i) => { const dir = tangent(C, i); p.ux = dir.x; p.uz = dir.z; });
+  return C;
+}
+
+function tourBridge(a, b, door, side, half) {
+  const normal = { x: b.x - a.x, z: b.z - a.z };
+  const dot = normal.x * door.nx + normal.z * door.nz;
+  const nx = door.nx * (dot < 0 ? -1 : 1), nz = door.nz * (dot < 0 ? -1 : 1);
+  const px = door.x + door.ux * side * (half + 4), pz = door.z + door.uz * side * (half + 4);
+  const mid = { x: px, z: pz, ux: nx, uz: nz };
+  const out = [];
+  function curve(p, q) {
+    const length = Math.hypot(q.x - p.x, q.z - p.z), handle = length * 0.55;
+    const count = Math.max(4, Math.ceil(length / 3));
+    for (let k = 0; k < count; k++) {
+      const t = k / count, u = 1 - t;
+      out.push({ x: u*u*u*p.x + 3*u*u*t*(p.x+p.ux*handle) + 3*u*t*t*(q.x-q.ux*handle) + t*t*t*q.x,
+        z: u*u*u*p.z + 3*u*u*t*(p.z+p.uz*handle) + 3*u*t*t*(q.z-q.uz*handle) + t*t*t*q.z });
+    }
+  }
+  curve(a, mid); curve(mid, b);
+  return out;
+}
+
+function joinTourLoops(A, B, door, half, valid) {
+  if (door.width < 4 * half + 18) return null;
+  const nearest = C => C.reduce((best, p, i) => Math.hypot(p.x-door.x,p.z-door.z) < Math.hypot(C[best].x-door.x,C[best].z-door.z) ? i : best, 0);
+  for (const cut of [8, 11, 14, 18]) for (const reverse of [false, true]) {
+    const bLoop = reverse ? B.slice().reverse() : B;
+    const ai = nearest(A), bi = nearest(bLoop);
+    const open = (C, at) => {
+      const out = [];
+      for (let k = cut; k <= C.length-cut; k++) {
+        const i = (at+k)%C.length, p = C[i], dir = tangent(C,i);
+        out.push({x:p.x,z:p.z,ux:dir.x,uz:dir.z});
+      }
+      return out;
+    };
+    if (Math.min(A.length,bLoop.length) <= cut*2+14) continue;
+    const a = open(A,ai), b = open(bLoop,bi);
+    for (const side of [-1,1]) {
+      const joined = respace([...a, ...tourBridge(a[a.length-1],b[0],door,side,half), ...b,
+        ...tourBridge(b[b.length-1],a[0],door,-side,half)], SAMP);
+      if (valid(joined)) return joined;
+    }
+  }
+  return null;
+}
+
+function houseTour(anchors, rooms, env, half) {
+  const flatEnv = { ...env, rects: () => [] };
+  const valid = pts => courseQuality(pts.map(p => ({...p,y:0})), flatEnv, rooms, half + KERB_W).valid;
+  const rects = env.rects ? env.rects() : [];
+  let best = null;
+  function consider(base) {
+    if (!valid(base)) return;
+    const C = tourElevations(base, env, half);
+    const quality = courseQuality(C, env, rooms, half);
+    if (!quality.valid) return;
+    const coverage = tourCoverage(C, rects, rooms);
+    const averageHeight = C.reduce((s,p) => s+p.y,0)/C.length;
+    const score = coverage.rooms * 10000 + coverage.visited * 1000 + coverage.over * 250 + quality.length * 0.15 - averageHeight;
+    if (!best || score > best.score) best = { C, quality, coverage, score };
+  }
+  if (anchors.length > 2) consider(resampleClosed(anchors,SAMP));
+  const shapes = [[1,1],[0.9,0.9],[0.8,0.8],[0.7,0.7],[0.6,0.6],[0.55,0.55],
+    [0.6,0.85],[0.85,0.6],[0.7,1],[1,0.7],[0.55,0.85],[0.85,0.55]];
+  for (const [sx,sz] of shapes) {
+    const loops = rooms.map(room => {
+      const xs=room.pts.map(p=>p.x), zs=room.pts.map(p=>p.z);
+      const x0=Math.min(...xs), x1=Math.max(...xs), z0=Math.min(...zs), z1=Math.max(...zs);
+      const pts=roundedCourse((x0+x1)/2,(z0+z1)/2,((x1-x0)/2-half-22)*sx,((z1-z0)/2-half-22)*sz);
+      return pts.length && valid(pts) ? pts : null;
+    });
+    for (let start=0;start<loops.length;start++) {
+      if (!loops[start]) continue;
+      let joined=loops[start];
+      const visited=new Set([start]);
+      for (let pass=0;pass<rooms.length;pass++) {
+        let added=false;
+        for (const door of env.tourDoors || []) {
+          const child=visited.has(door.a) ? door.b : visited.has(door.b) ? door.a : -1;
+          if (child<0 || visited.has(child) || !loops[child]) continue;
+          const candidate=joinTourLoops(joined,loops[child],door,half,valid);
+          if (candidate) { joined=candidate;visited.add(child);added=true; }
+        }
+        if (!added) break;
+      }
+      consider(joined);
+    }
+  }
+  if (!best) return null;
+  if (env.reverseCourse) best.C.reverse();
+  best.C.forEach((p,i)=>{ const dir=tangent(best.C,i);p.ux=dir.x;p.uz=dir.z; });
+  const col=buildCollision(best.C);
+  return {center:best.C, len:best.quality.length, high:Math.max(...best.C.map(p=>p.y)), quality:best.quality,
+    feats:{home:true,automatic:true,tour:true,coverage:best.coverage,rides:best.coverage.over,bridges:1,jump:false,through:0,rideList:[]},
+    group:buildMesh(best.C,env,col),col,wps:buildWps(best.C),pads:[]};
+}
+
 export function buildRoad(anchors, rooms, env) {
+  const automatic = env.homeMode && !env.followAnchors && !anchors.some(p => Number.isFinite(p.y) || p.ride);
+  if (!automatic) return buildRoadCandidate(anchors, rooms, env);
+  HALF_ACTIVE = (env.roadWidth || W) / 2;
+  HOME_ACTIVE = true;
+  if (env.homeFeatures) {
+    const tour = houseTour(anchors, rooms, env, HALF_ACTIVE);
+    if (tour) return tour;
+  }
+  const floor = floorCircuit(anchors, rooms, env, HALF_ACTIVE);
+  if (!floor) return null;
+  if (env.reverseCourse) floor.C.reverse();
+  if (env.homeFeatures) {
+    const featured = furnitureCircuit(floor, rooms, env, HALF_ACTIVE);
+    if (featured) return featured;
+  }
+  return finishFloorCircuit(floor, rooms, env, HALF_ACTIVE);
+}
+
+function finishFloorCircuit(floor, rooms, env, half) {
+  let C = floor.C;
+  let jump = false;
+  if (env.hasJump === true) {
+    const n = C.length, prof = Float64Array.from(C, p => p.y);
+    const deck = new Uint8Array(n), hold = new Uint8Array(n), wide = new Float64Array(n);
+    const used = new Uint8Array(n), gap = new Uint8Array(n);
+    if (homeJump(C, prof, deck, hold, wide, used, gap, env.rects ? env.rects() : [], env)) {
+      const proposed = C.map((p, i) => Object.assign({}, p, { y: prof[i], deck: !!deck[i], hold: !!hold[i], w: wide[i] || half, gap: !!gap[i] }));
+      if (courseQuality(proposed, env, rooms, half).valid) { C = proposed; jump = true; }
+    }
+  }
+  C.forEach((p, i) => {
+    const dir = tangent(C, i);
+    p.ux = dir.x; p.uz = dir.z; p.bank = 0; p.lift = 0;
+  });
+  const col = buildCollision(C);
+  return { center: C, len: floor.quality.length, high: Math.max(...C.map(p => p.y)),
+    quality: courseQuality(C, env, rooms, half), feats: { home: true, automatic: true, rides: 0, bridges: 0, jump, through: 0, detours: 0, routed: 0, rideList: [] },
+    group: buildMesh(C, env, col), col, wps: buildWps(C), pads: [] };
+}
+
+// Bend one clear straight toward a nearby rideable top with a broad, eased
+// approach and exit. Feature proposals preserve the loop's ordering and never
+// insert an out-and-back visit. At most four proposals, all checked in full.
+function furnitureCircuit(floor, rooms, env, half) {
+  const C = floor.C, n = C.length, rects = env.rects ? env.rects() : [];
+  const tops = env.tops ? env.tops() : rects;
+  const candidates = rects.filter(r => canRide(r, tops)).map(r => {
+    const target = rideTarget(r, tops);
+    if (!target) return null;
+    let at = 0, dist = Infinity;
+    C.forEach((p, i) => { const d = Math.hypot(p.x - target.x, p.z - target.z); if (d < dist) { at = i; dist = d; } });
+    return { target, at, dist, rect: r };
+  }).filter(Boolean).sort((a, b) => a.dist - b.dist);
+  for (const candidate of candidates.slice(0, 4)) {
+    const { target, at, dist } = candidate;
+    const flat = Math.max(candidate.rect.x1 - candidate.rect.x0, candidate.rect.z1 - candidate.rect.z0) / 2 + half + 40;
+    const reach = flat + Math.max(180, dist * 3, target.y / RAMP_GRADE + 100);
+    if (reach * 2 > floor.quality.length * 0.75) continue;
+    const dx = target.x - C[at].x, dz = target.z - C[at].z;
+    const proposed = C.map((p, i) => {
+      const along = Math.min((i - at + n) % n, (at - i + n) % n) * SAMP;
+      const weight = along <= flat ? 1 : along < reach ? (1 + Math.cos(Math.PI * (along - flat) / (reach - flat))) / 2 : 0;
+      return { x: p.x + dx * weight, z: p.z + dz * weight };
+    });
+    let base = respace(proposed, SAMP);
+    const xs = base.map(p => p.x), zs = base.map(p => p.z);
+    const occ = occupancy(env, Math.min(...xs) - ROUTE_PAD, Math.min(...zs) - ROUTE_PAD,
+      Math.max(...xs) + ROUTE_PAD, Math.max(...zs) + ROUTE_PAD, 0, [], rooms);
+    limitCurvature(base, occ, MIN_R_HOME + 10, HOME_ROUNDS, false);
+    base = respace(base, SAMP);
+    const road = buildHome(base, env, occ, [], tops, base.length * SAMP, half, { follow: true, detours: 1, routed: 0 });
+    const quality = road && courseQuality(road.center, env, rooms, half);
+    if (road && road.feats.rides && !road.feats.through && quality.valid) {
+      road.quality = quality;
+      road.feats.automatic = true;
+      road.feats.follow = false;
+      road.len = quality.length;
+      return road;
+    }
+    disposeRoad(road);
+  }
+  return null;
+}
+
+function buildRoadCandidate(anchors, rooms, env) {
   var W_VAL = (env && env.roadWidth) || W;
   var HALF_VAL = W_VAL / 2;
   HALF_ACTIVE = HALF_VAL;
@@ -2173,7 +2542,7 @@ export function buildRoad(anchors, rooms, env) {
   // willing to climb are excluded from the grid that pushes the route away.
   var tops = (env && env.tops && env.tops()) || (env && env.rects && env.rects()) || [];
   var plats =
-    homeMode && !manualHeight
+    homeMode && !manualHeight && env.attractFurniture !== false
       ? ((env && env.rects && env.rects()) || []).filter(function (r) {
           return rideable(r, tops);
         })
@@ -2200,8 +2569,8 @@ export function buildRoad(anchors, rooms, env) {
     // the fold it fixes. A* re-merges the legs in the doorway anyway (the
     // shifted anchors move the ends, not the route between them), while the
     // offset ends themselves scrape the jambs — decked pass-throughs went 3 to
-    // 6 and corners under a 20cm radius doubled. Dead-end tips are opened on the
-    // finished line instead, by spreadHairpins in smoothAfterRepair.
+    // 6 and corners under a 20cm radius doubled. The automatic planner now
+    // avoids repeated branches and validates the completed feature proposal.
     // followAnchors: the live editor has taken the wheel. Keep ride snaps for
     // points the user put ON a model, but do not invent extra visits and do
     // not A* the line away from the handles they are dragging.
@@ -2209,10 +2578,11 @@ export function buildRoad(anchors, rooms, env) {
       roundTurnarounds(attachRides(anchors, plats, tops)),
       plats,
       tops,
-      !follow,
+      !follow && env.attractFurniture !== false,
     );
     if (!follow) {
       var routed = gridRoute(seeded.pts, occ);
+      if (routed.failed) return null;
       if (routed.pts.length >= 3) {
         var re = resampleClosed(routed.pts, SAMP);
         if (re.length >= 14) base = re;
@@ -2706,6 +3076,14 @@ function buildMesh(C, env, colInfo) {
     kerb = new Strip(),
     rail = new Strip(),
     dash = new Strip();
+  // Every adjacent deck quad uses the same endpoint normal, including the
+  // closing seam. Skirts keep sharp normals; the running surface is smooth.
+  const topNormals = C.map((p, i) => {
+    const a = C[(i + M - 1) % M], b = C[(i + 1) % M], e = edges(p);
+    const along = new THREE.Vector3(b.x-a.x, b.y-a.y, b.z-a.z);
+    const across = new THREE.Vector3(e[1][0]-e[0][0], e[1][1]-e[0][1], e[1][2]-e[0][2]);
+    return along.cross(across).normalize();
+  });
   var RED = [0.85, 0.16, 0.13],
     WHITE = [0.93, 0.93, 0.95],
     RAILA = [0.15, 0.75, 0.95],
@@ -2718,7 +3096,7 @@ function buildMesh(C, env, colInfo) {
     if (!decked(p) || !decked(q)) continue;
     var pe = edges(p),
       qe = edges(q);
-    deck.quad(pe[0], qe[0], qe[1], pe[1]); // running surface
+    deck.quad(pe[0], qe[0], qe[1], pe[1], null, [topNormals[i], topNormals[(i+1)%M], topNormals[(i+1)%M], topNormals[i]]); // running surface
     var pb0 = drop(pe[0], THICK),
       pb1 = drop(pe[1], THICK),
       qb0 = drop(qe[0], THICK),
@@ -2795,7 +3173,7 @@ function buildMesh(C, env, colInfo) {
   });
   if (roadEmiss) roadMat.emissive = new THREE.Color(roadEmiss);
   var road = deck.mesh(roadMat);
-  if (road) grp.add(road);
+  if (road) { road.name = "rcRoadDeck"; grp.add(road); }
   var km = kerb.mesh(
     new THREE.MeshStandardMaterial({
       vertexColors: true,
@@ -2867,20 +3245,22 @@ function guideMesh(C, env) {
   if (!env || !env.homeMode) return null;
   var M = C.length,
     line = new Strip(),
+    ranges = [],
     AMBER = [1.0, 0.76, 0.2],
     CYAN = [0.35, 0.9, 1.0];
   function surf(p) {
     var g = env.groundAt ? env.groundAt(p.x, p.z, p.y + 1.5, 2.2) : 0;
-    return Math.max(g, p.y) + GUIDE_LIFT;
+    return (decked(p) ? p.y + (p.lift || 0) : Math.max(g, p.y)) + GUIDE_LIFT;
   }
   for (var i = 0; i < M; i++) {
     var p = C[i],
       q = C[(i + 1) % M];
-    if (decked(p) || p.gap || q.gap) continue; // the deck is its own signage
+    if (p.gap || q.gap) continue;
+    var firstVertex = line.n;
     var py = surf(p),
       qy = surf(q);
-    // a break in the paint every third pair keeps it reading as a dashed line
-    if ((i >> 1) % 3 !== 2) {
+    // A continuous line and two lane edges make ramps and floor agree.
+    {
       var pl = -p.uz * GUIDE_W,
         pk = p.ux * GUIDE_W,
         ql = -q.uz * GUIDE_W,
@@ -2893,26 +3273,37 @@ function guideMesh(C, env) {
         AMBER,
       );
     }
+    for (var side of [-1, 1]) {
+      var edgeP = halfAt(p) * side, edgeQ = halfAt(q) * side;
+      line.quad(
+        [p.x - p.uz * (edgeP - 0.4), py, p.z + p.ux * (edgeP - 0.4)],
+        [q.x - q.uz * (edgeQ - 0.4), qy, q.z + q.ux * (edgeQ - 0.4)],
+        [q.x - q.uz * (edgeQ + 0.4), qy, q.z + q.ux * (edgeQ + 0.4)],
+        [p.x - p.uz * (edgeP + 0.4), py, p.z + p.ux * (edgeP + 0.4)], [0.9, 0.95, 1],
+      );
+    }
     // arrowhead: which way round the lap you are meant to be going
-    if (i % 12 === 0) {
+    if (i % 8 === 0) {
       var nx = -p.uz,
         nz = p.ux,
         tipx = p.x + p.ux * 4.2,
         tipz = p.z + p.uz * 4.2;
+      var grade = (qy - py) / (Math.hypot(q.x - p.x, q.z - p.z) || 1);
       line.quad(
-        [tipx, py, tipz],
-        [p.x - p.ux * 1.2 + nx * 2.8, py, p.z - p.uz * 1.2 + nz * 2.8],
-        [p.x - p.ux * 1.2 - nx * 2.8, py, p.z - p.uz * 1.2 - nz * 2.8],
-        [tipx, py, tipz],
+        [tipx, py + grade * 4.2, tipz],
+        [p.x - p.ux * 1.2 + nx * 2.8, py - grade * 1.2, p.z - p.uz * 1.2 + nz * 2.8],
+        [p.x - p.ux * 1.2 - nx * 2.8, py - grade * 1.2, p.z - p.uz * 1.2 - nz * 2.8],
+        [tipx, py + grade * 4.2, tipz],
         CYAN,
       );
     }
+    ranges.push({ i: i, start: firstVertex, count: line.n - firstVertex });
   }
   var m = line.mesh(
     new THREE.MeshBasicMaterial({
       vertexColors: true,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.95,
       depthWrite: false,
       side: THREE.DoubleSide,
       polygonOffset: true,
@@ -2921,7 +3312,12 @@ function guideMesh(C, env) {
     }),
   );
   // paint, not geometry: a line that casts a shadow reads as a kerb
-  if (m) m.castShadow = m.receiveShadow = false;
+  if (m) {
+    m.castShadow = m.receiveShadow = false;
+    m.name = "rcCourseGuide";
+    m.userData.courseRanges = ranges;
+    m.userData.baseColors = m.geometry.getAttribute("color").array.slice();
+  }
   return m;
 }
 

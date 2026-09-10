@@ -1,3 +1,6 @@
+import { newDocumentKey } from "./redesign.js";
+import { normalizePlanningGuide } from "./planning_guide.js";
+import { initPlanningGuide, openPlanningGuide } from "./ui_planning_guide.js";
 // Planner main-page chrome: modern layout by default, classic layout from the
 // same More menu as games / modeler / textures. Also owns the start screen,
 // floor tabs, left-sidebar panes, tool hints, and library drag-to-place.
@@ -37,6 +40,14 @@ function $(id) {
   return document.getElementById(id);
 }
 
+function savedPreference(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch (_) {
+    return null;
+  }
+}
+
 function currentUi() {
   return document.documentElement.getAttribute("data-ui") === "legacy" ? "legacy" : "modern";
 }
@@ -56,7 +67,7 @@ export function applyPlannerChrome() {
   });
   var left = $("left-sidebar");
   if (left && !legacy) {
-    var tab = left.getAttribute("data-left") || localStorage.getItem(LEFT_KEY) || "library";
+    var tab = left.getAttribute("data-left") || savedPreference(LEFT_KEY) || "library";
     setLeftTab(tab, false);
   } else if (left) {
     left.removeAttribute("data-left");
@@ -74,7 +85,7 @@ function persistUi(mode) {
   applyPlannerChrome();
   if (typeof window.__setViewMode === "function") {
     if (mode === "legacy") window.__setViewMode("split");
-    else window.__setViewMode(localStorage.getItem(VIEW_KEY) || "plan");
+    else window.__setViewMode(savedPreference(VIEW_KEY) || "plan");
   }
 }
 
@@ -86,7 +97,7 @@ export function toggleLegacyUI() {
 function setLeftTab(id, persist) {
   var left = $("left-sidebar");
   if (!left) return;
-  if (id !== "library" && id !== "structure" && id !== "tree" && id !== "home") id = "library";
+  if (id !== "library" && id !== "structure" && id !== "tree" && id !== "home" && id !== "project") id = "library";
   left.setAttribute("data-left", id);
   document.querySelectorAll("#leftTabs [data-left-tab]").forEach(function (b) {
     b.classList.toggle("active", b.getAttribute("data-left-tab") === id);
@@ -109,8 +120,16 @@ function syncViewPills() {
   var map = { plan: "viewPlanBtn", "3d": "view3dBtn", split: "viewSplitBtn" };
   Object.keys(map).forEach(function (k) {
     var b = $(map[k]);
-    if (b) b.classList.toggle("active", k === mode);
+    if (b) {
+      b.classList.toggle("active", k === mode);
+      b.setAttribute("aria-pressed", String(k === mode));
+    }
   });
+  // The strip belongs to a visible pane; keeping it under 3D hides floor
+  // navigation whenever the user maximizes the plan.
+  var host = $("floor-tabs");
+  var pane = $(mode === "plan" ? "view-2d" : "view-3d");
+  if (host && pane && host.parentElement !== pane) pane.appendChild(host);
 }
 
 export function renderFloorTabs() {
@@ -228,16 +247,23 @@ function closeStartScreen(remember) {
 }
 
 function applyStart(kind) {
-  var startsMobileFlow = kind === "blank";
+  var intention = kind === "blank" ? "design" : ["recreate", "design", "explore"].includes(kind) ? kind : null;
+  if (intention) kind = "blank";
+  // Reopening the start screen must not discard the current edit without an
+  // undo snapshot. Save before either scene helper replaces the model.
+  if (kind === "blank" || kind === "demo") pushHistory();
+  if (kind === "blank" || kind === "demo") S.workspace = { ...S.workspace, documentKey: newDocumentKey(), baselines: Object.freeze([]), redesign: {} };
   if (kind === "blank") {
     emptyScene();
     S.roomMeta = {};
+    S.workspace.guidance = normalizePlanningGuide({ enabled: !!intention, intention: intention || "explore" });
     S.hour = 13;
     S.northAngle = 0;
     loadMEP(null);
     setTool("rect");
   } else if (kind === "demo") {
     defaultScene();
+    S.workspace.guidance = normalizePlanningGuide(null);
     loadMEP(null);
     setTool("select");
   } else if (kind === "generate") {
@@ -258,8 +284,10 @@ function applyStart(kind) {
   }
   closeStartScreen(true);
   refreshAfterScene();
-  if (startsMobileFlow)
-    window.dispatchEvent(new CustomEvent("planner-mobile-onboarding-start"));
+  if (intention) {
+    if (typeof window.__setViewMode === "function") window.__setViewMode("plan");
+    openPlanningGuide();
+  }
 }
 
 function maybeShowStart() {
@@ -395,6 +423,7 @@ function initPlannerChrome() {
   }
 
   bindLibraryDrag();
+  initPlanningGuide();
   onLangChange(function () {
     applyPlannerChrome();
     updateToolHint();

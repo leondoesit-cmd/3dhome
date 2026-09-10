@@ -137,7 +137,7 @@ test("a preset replaces the document, and is undoable", opts, async () => {
     return { before, after, options, backWidth: size("n:left") };
   });
 
-  assert.deepEqual(result.options, ["default", "compact", "touch", "drafting"]);
+  assert.deepEqual(result.options, ["default", "compact", "touch", "drafting", "focus", "studio"]);
   assert.equal(result.before.width, null, "the shipped layout sets no width");
   assert.deepEqual(result.after.width, { w: 232 }, "the preset does");
   assert.equal(result.after.domWidth, "232px", "and it reached the real sidebar");

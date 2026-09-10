@@ -46,8 +46,16 @@ export function defaultSketchPlane(references, lastId) {
     || null;
 }
 
-export function nextFeatureAfterFinishedSketch(hasClosedProfile) {
-  return hasClosedProfile ? "extrude" : null;
+/* What a closed profile could become. This used to be a single answer —
+   "extrude" — and finishing a sketch opened that form unasked, which is right
+   for a boss and wrong for a hole, a revolve, or a profile the user was only
+   defining. The editor offers the four instead of guessing one; nothing is
+   opened until one is chosen.
+
+   Order is the offer's order: Extrude leads because it is the common case, and
+   leading is not the same as deciding. */
+export function featuresForClosedProfile(hasClosedProfile) {
+  return hasClosedProfile ? ["extrude", "extrudeCut", "revolve", "hole"] : [];
 }
 
 /* One state model for both the assembly workflow bar and its coach. Insert

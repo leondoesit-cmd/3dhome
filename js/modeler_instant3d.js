@@ -95,7 +95,7 @@ export function patternHandlePose(bounds, params) {
     origin: origin,
     direction: params.mode === "circular" ? { x: 0, y: 1, z: 0 } : { x: 1, y: 0, z: 0 },
     length: Math.max(8, spacing * 0.5),
-    value: spacing,
+    value: params.mode === "circular" ? num(params.angle, 90) : spacing,
   };
 }
 
@@ -107,17 +107,35 @@ export function projectDeltaOnAxis(delta, direction) {
     + num(delta.z, 0) * num(direction.z, 0);
 }
 
+/* Dragging a depth handle back through the plane FLIPS the feature and grows it
+   the other way. It used to clamp at 1e-6, so pulling past zero pinned the
+   ghost to nothing and the preview simply refused to follow the pointer — the
+   single thing that reads as broken in a live drag.
+ *
+   Only the depth types get this. They are the ones with a `direction` to flip
+   (see the extrude/cut/hole entries in core/feature_catalog.js); a negative
+   fillet radius or shell thickness is not a direction, it is a value that does
+   not exist, and there the clamp IS the honest answer. */
+function flipDepth(params, depth) {
+  if (depth >= 1e-6) { params.depth = depth; return params; }
+  params.direction = params.direction === "reverse" ? "forward" : "reverse";
+  params.depth = Math.max(1e-6, -depth);
+  return params;
+}
+
 export function applyHandleDrag(type, params, worldDelta, direction) {
   params = Object.assign({}, params || {});
   var along = projectDeltaOnAxis(worldDelta, direction);
   if (type === "extrude" || type === "extrudeCut" || type === "hole") {
-    params.depth = Math.max(1e-6, num(params.depth, 10) + along);
+    return flipDepth(params, num(params.depth, 10) + along);
   } else if (type === "fillet") {
     params.radius = Math.max(1e-6, num(params.radius, 1) + along);
   } else if (type === "chamfer") {
     params.distance = Math.max(1e-6, num(params.distance, 1) + along);
   } else if (type === "shell") {
     params.thickness = Math.max(1e-6, num(params.thickness, 0.5) + along);
+  } else if (type === "draft") {
+    params.angle = Math.max(-89, Math.min(89, num(params.angle, 5) + along));
   } else if (type === "pattern") {
     if (params.mode === "circular") params.angle = Math.max(1, Math.min(360, num(params.angle, 90) + along));
     else params.spacingX = Math.max(0.1, num(params.spacingX, 20) + along);

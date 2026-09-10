@@ -24,6 +24,14 @@ shipped a real assembly bug, T6 gained a second listener it had missed, and the
 two questions T7 and T10 left open ("verify before changing") are now **answered
 in the task** — do not re-litigate them.
 
+**Status, Sep 2026.** Phase 1 hover decoupling **landed**. Hover does not call
+`updatePreview()`; `hoverModel` measures 0 rebuilds (`MODEL_EDITOR_PERF_FIXES.md`).
+Do not quote the thesis above as current hover behaviour. Colour sliders and the
+`hasSelection` / `finishActive` decoration gate are **also closed** (see
+`MODEL_EDITOR_UX_PLAN.md` T1/T2). Remaining `updatePreview` on hover would be a
+regression, not leftover work. UX status lives in that plan; implementation
+notes in `docs/model-editor-ux-implementation.md`.
+
 ---
 
 ## Step 0 — Measure (do this first, do not skip)

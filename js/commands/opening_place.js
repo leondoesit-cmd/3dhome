@@ -9,6 +9,9 @@ export const OPENING_PLACE_CODES = Object.freeze([
   "INVALID_HOST_WALL",
   "INVALID_OPENING_TYPE",
   "INVALID_OPENING_VALUE",
+  "OPENING_OUT_OF_BOUNDS",
+  "OPENING_OVERLAP",
+  "HOST_WALL_LOCKED",
 ]);
 
 export const OPENING_DEFAULTS = Object.freeze({
@@ -70,6 +73,7 @@ export function prepareOpeningPlace(params, env) {
   if (params.wallId == null) return fail("AMBIGUOUS_TARGET");
   var wall = wallOf(state, params.wallId);
   if (!wall) return fail("HOST_WALL_NOT_FOUND");
+  if(state.workspace?.role==="viewer"||state.structLocked||state.layers?.structure?.locked||wall.locked)return fail("HOST_WALL_LOCKED");
   var type = String(params.type || "");
   var defaults = OPENING_DEFAULTS[type];
   if (!defaults) return fail("INVALID_OPENING_TYPE");
@@ -84,9 +88,11 @@ export function prepareOpeningPlace(params, env) {
   if (!finite(width) || width <= 0 || !finite(height) || height <= 0 ||
       !finite(sill) || sill < 0 || !finite(s)) return fail("INVALID_OPENING_VALUE");
 
-  // Preserve the established pointer-tool dimensions, including on unusually
-  // short walls. Only the station is clamped, exactly as the old commit path.
-  s = clamp(s, width / 2, Math.max(width / 2, geometry.L - width / 2));
+  const margin=Math.max(1,Number(wall.thickness||10)/2);
+  if(width+2*margin>geometry.L+1e-6||sill+height>Number(wall.height||270)+1e-6)return fail("OPENING_OUT_OF_BOUNDS");
+  // The pointer preview and commit share this safe station; dimensions never shrink.
+  s = clamp(s, width/2+margin, geometry.L-width/2-margin);
+  if((state.openings||[]).some(o=>String(o.wall)===String(wall.id)&&Math.abs(o.s-s)<(o.width+width)/2+1&&Math.min((o.sill||0)+o.height,sill+height)>Math.max(o.sill||0,sill)))return fail("OPENING_OVERLAP");
   return {
     ok: true,
     plan: {

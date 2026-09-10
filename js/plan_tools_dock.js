@@ -42,6 +42,7 @@
    queries in css/styles.css own its layout. */
 import { t, onLangChange } from "./i18n.js";
 import * as bridge from "./uikit_host/dock.js";
+import { ALL_HANDLES, CURSORS, rectFrom, sizeFrom } from "../uikit/editor/resize.js";
 
 var PREFS = "home3d_plan_dock";
 /* The top-trailing corner is shared by the view gizmo and the maximize button.
@@ -49,16 +50,40 @@ var PREFS = "home3d_plan_dock";
    edge's centre zone stops short of them. */
 var GIZMO_W = 100;
 // how close to an existing group a drop counts as joining it rather than as
-// claiming the edge behind it
-var JOIN_PAD = 72;
+// claiming the edge behind it. This has to be a tap on the group, not an
+// aura around it: a row along the top used to steal every drop 72px into
+// the plan, which is why a pill parked just under it would not stay free.
+var JOIN_PAD = 16;
+/* How close to a pane edge a Shift-drop has to land to mean "dock here".
+   Ordinary drags never snap: the Select pill lives on the top strip, and a
+   magnet there is exactly the dashed preset the drag is trying to leave. */
+var SNAP_PAD = 14;
+// A panel that is not in any of the eight zones. Kept as a string so it stores
+// and restores like any other zone id.
+var FREE = "free";
 
+/* Cluster panels live in #plan-tools and can dock. Overlay panels are the rest
+   of the 2D pane chrome (floors, CAD bar, gizmo, …): same grip/move/resize,
+   defaulting to free, never sent to the phone rail. */
 var PANELS = [
-  { key: "tools", id: "plan-toolbar" },
-  { key: "layers", id: "layer-chips" },
-  { key: "walls", id: "plan-wall-palette" },
-  { key: "rooms", id: "plan-room-palette" },
-  { key: "status", id: "plan-tool-status" },
+  { key: "tools", id: "plan-toolbar", minW: 48, minH: 120 },
+  { key: "layers", id: "layer-chips", minW: 80, minH: 44 },
+  { key: "walls", id: "plan-wall-palette", minW: 160, minH: 80 },
+  { key: "rooms", id: "plan-room-palette", minW: 160, minH: 80 },
+  { key: "status", id: "plan-tool-status", minW: 72, minH: 28 },
+  { key: "floors", id: "floor-tabs", overlay: true, axis: "h", minW: 80, minH: 28 },
+  { key: "cad", id: "cad-status", overlay: true, axis: "h", minW: 200, minH: 28 },
+  { key: "tune", id: "cad-tune", overlay: true, axis: "v", minW: 180, minH: 120 },
+  { key: "entry", id: "cad-entry", overlay: true, axis: "h", minW: 160, minH: 40 },
+  { key: "gizmo", sel: ".plan-gizmo", overlay: true, axis: "v", minW: 48, minH: 48 },
+  { key: "max", sel: "#view-2d > .view-max-btn", overlay: true, axis: "v", minW: 28, minH: 28 },
+  { key: "trace", id: "bp-trace-controls", overlay: true, axis: "h", minW: 120, minH: 36 },
+  { key: "hint", id: "plan-hint", overlay: true, axis: "h", minW: 120, minH: 28 },
 ];
+var PANEL_BY_KEY = {};
+PANELS.forEach(function (p) { PANEL_BY_KEY[p.key] = p; });
+function specOf(key) { return PANEL_BY_KEY[key] || { key: key, minW: 48, minH: 28 }; }
+function isOverlay(key) { return !!specOf(key).overlay; }
 var ZONES = [
   "top-left", "top", "top-right",
   "left", "right",
@@ -91,9 +116,11 @@ var DEFAULT_AXIS = {
 };
 
 var st = null;
+// what the layout document last reported per panel — see adoptArrangement
+var docZone = {};
 var layer = null, pane = null;
 var els = {}, wraps = {}, grips = {}, zoneEls = {}, dropEl = null;
-var drag = null, pending = false, lastSig = "";
+var drag = null, sizing = null, pending = false, lastSig = "";
 
 function clamp(lo, v, hi) {
   return hi < lo ? lo : v < lo ? lo : v > hi ? hi : v;
@@ -102,17 +129,28 @@ function clamp(lo, v, hi) {
 /* ---- state ---- */
 
 function defaults() {
-  return {
-    // the pre-dock arrangement: all three against the left edge, side by side
-    panels: {
-      tools: { zone: "left", order: 0 },
-      layers: { zone: "left", order: 1 },
-      walls: { zone: "left", order: 2 },
-      rooms: { zone: "left", order: 3 },
-      status: { zone: "top", order: 0 },
-    },
-    zones: {},
+  var panels = {
+    tools: { zone: "left", order: 0 },
+    layers: { zone: "left", order: 1 },
+    walls: { zone: "left", order: 2 },
+    rooms: { zone: "left", order: 3 },
+    status: { zone: "top", order: 0 },
   };
+  PANELS.forEach(function (p) {
+    if (!panels[p.key]) {
+      var stick = p.key === "cad" ? "bottom"
+        : p.key === "floors" ? "floors"
+        : p.key === "gizmo" ? "gizmo"
+        : p.key === "max" ? "max"
+        : p.key === "tune" ? "tune"
+        : p.key === "entry" ? "entry"
+        : p.key === "trace" ? "trace"
+        : p.key === "hint" ? "hint"
+        : null;
+      panels[p.key] = { zone: FREE, order: 0, free: { axis: p.axis || "h", stick: stick } };
+    }
+  });
+  return { panels: panels, zones: {} };
 }
 /* Every read of a panel's placement goes through here.
  *
@@ -125,8 +163,51 @@ function defaults() {
  * has a home whether or not the user has ever arranged it. */
 function panelState(key) {
   var p = st.panels[key];
-  if (!p) p = st.panels[key] = defaults().panels[key] || { zone: "left", order: PANELS.length };
+  if (!p) {
+    var home = defaults().panels[key];
+    p = st.panels[key] = home ? Object.assign({}, home) : { zone: isOverlay(key) ? FREE : "left", order: PANELS.length };
+  }
   return p;
+}
+function isFree(key) {
+  return panelState(key).zone === FREE;
+}
+/* Where a floating panel sits, which way round it is, and the box the user
+   last chose. Stored in pane pixels; place() keeps the grip reachable after
+   the pane has been resized. w/h are optional: missing means content-size. */
+function freeState(key) {
+  var p = panelState(key);
+  var axis = specOf(key).axis || DEFAULT_AXIS.left;
+  if (!p.free) p.free = { x: 24, y: 24, axis: axis };
+  if (p.free.axis !== "h" && p.free.axis !== "v") p.free.axis = axis;
+  if (typeof p.free.x !== "number") p.free.x = 24;
+  if (typeof p.free.y !== "number") p.free.y = 24;
+  return p.free;
+}
+// The axis a panel is currently laid out on, docked or floating. zoneState()
+// would happily invent an st.zones.free entry if handed the sentinel.
+function axisOf(key) {
+  var p = panelState(key);
+  if (p.axis === "h" || p.axis === "v") return p.axis;
+  if (p.free && (p.free.axis === "h" || p.free.axis === "v")) return p.free.axis;
+  return isFree(key) ? freeState(key).axis : zoneState(p.zone).axis;
+}
+function chosenSize(key) {
+  var f = panelState(key).free;
+  if (f && f.w > 0 && f.h > 0) return { w: f.w, h: f.h };
+  return null;
+}
+function applyChosenSize(w, key) {
+  var sz = chosenSize(key);
+  if (!sz) {
+    w.classList.remove("pt-sized");
+    w.style.removeProperty("width");
+    w.style.removeProperty("height");
+    return;
+  }
+  w.classList.add("pt-sized");
+  w.style.width = Math.round(sz.w) + "px";
+  w.style.height = Math.round(sz.h) + "px";
 }
 
 /* Take a stored arrangement over the defaults, PER KNOWN PANEL rather than
@@ -140,7 +221,16 @@ function adoptArrangement(source) {
   if (!source) return;
   PANELS.forEach(function (panel) {
     var q = source.panels && source.panels[panel.key];
-    if (q) st.panels[panel.key] = Object.assign(panelState(panel.key), q);
+    if (!q) return;
+    /* A panel the user dropped in open plan stays there while the document
+       keeps saying what it said last time. Only a document that has actually
+       changed its mind about this panel pulls it back into a zone. */
+    if (isFree(panel.key) && docZone[panel.key] === q.zone) {
+      docZone[panel.key] = q.zone;
+      return;
+    }
+    docZone[panel.key] = q.zone;
+    st.panels[panel.key] = Object.assign(panelState(panel.key), q);
   });
   st.zones = source.zones || {};
 }
@@ -154,26 +244,22 @@ function zoneState(id) {
 /* The layout document is the durable store when uikit is running, and this
    file's own localStorage when it is not. Both have to work: uikit is behind a
    flag that is off by default, so the second is still the shipped path. */
-function restore() {
-  st = defaults();
-  var fromDoc = bridge.active() ? bridge.readState() : null;
-  if (fromDoc) {
-    adoptArrangement(fromDoc);
-    return;
-  }
-  var p;
-  try {
-    p = JSON.parse(localStorage.getItem(PREFS) || "null");
-  } catch (err) {
-    p = null; /* a corrupt store just means the default arrangement */
-  }
+function readFreeBox(q) {
+  if (!q || typeof q.x !== "number" || typeof q.y !== "number") return null;
+  var out = { x: q.x, y: q.y, axis: q.axis };
+  if (typeof q.w === "number" && isFinite(q.w) && q.w > 0) out.w = q.w;
+  if (typeof q.h === "number" && isFinite(q.h) && q.h > 0) out.h = q.h;
+  if (q.seeded) out.seeded = true;
+  if (typeof q.stick === "string") out.stick = q.stick;
+  return out;
+}
+function applyLocal(p) {
   if (!p) return;
-  /* The first version of this file docked the cluster as a whole and stored
-     {dock, pos}. Read it as "all three panels on that edge" rather than
-     throwing away the one choice the user had already made. */
   if (typeof p.dock === "string") {
     if (ZONES.indexOf(p.dock) >= 0) {
-      PANELS.forEach(function (panel) { panelState(panel.key).zone = p.dock; });
+      PANELS.forEach(function (panel) {
+        if (!isOverlay(panel.key)) panelState(panel.key).zone = p.dock;
+      });
       zoneState(p.dock);
     }
     return;
@@ -182,7 +268,14 @@ function restore() {
     var q = p.panels && p.panels[panel.key];
     if (!q) return;
     if (ZONES.indexOf(q.zone) >= 0) panelState(panel.key).zone = q.zone;
+    if (q.zone === FREE && q.free) {
+      panelState(panel.key).zone = FREE;
+      var box = readFreeBox(q.free);
+      if (box) panelState(panel.key).free = box;
+      freeState(panel.key);
+    }
     if (typeof q.order === "number" && isFinite(q.order)) panelState(panel.key).order = q.order;
+    if (q.axis === "h" || q.axis === "v") panelState(panel.key).axis = q.axis;
   });
   ZONES.forEach(function (id) {
     var q = p.zones && p.zones[id];
@@ -191,6 +284,20 @@ function restore() {
     if (q.axis === "h" || q.axis === "v") z.axis = q.axis;
     if (q.flow === "row" || q.flow === "column") z.flow = q.flow;
   });
+}
+function restore() {
+  st = defaults();
+  var p;
+  try {
+    p = JSON.parse(localStorage.getItem(PREFS) || "null");
+  } catch (err) {
+    p = null;
+  }
+  applyLocal(p);
+  /* Overlay chrome is this file's store even when uikit owns the cluster.
+     Read local first, then the document overwrites only the keys it knows. */
+  var fromDoc = bridge.active() ? bridge.readState() : null;
+  if (fromDoc) adoptArrangement(fromDoc);
 }
 function save() {
   try {
@@ -237,18 +344,33 @@ function compact() {
   return window.innerWidth <= 1024 || document.body.classList.contains("compact-nav") || posture() === "tiny";
 }
 function statusH() {
-  var bar = document.getElementById("cad-status");
-  return bar && bar.offsetParent ? bar.offsetHeight : 0;
+  if (!isFree("cad")) return 0;
+  var bar = els.cad || document.getElementById("cad-status");
+  var host = wraps.cad && wraps.cad.parentNode ? wraps.cad : bar;
+  if (!host || !host.offsetParent || (bar && bar.hidden)) return 0;
+  if (pane) {
+    var pr = pane.getBoundingClientRect();
+    var r = host.getBoundingClientRect();
+    /* Parked up in the plan: do not keep reserving the bottom strip. Still
+       sitting on the bottom edge (the default): docked zones stay above it. */
+    if (r.top < pr.top + pr.height * 0.65 && pr.bottom - r.bottom > 10) return 0;
+  }
+  return host.offsetHeight;
 }
 // `hidden` is exactly how js/ui.js toggles the wall palette, so it is also the
 // only visibility question this module has to ask.
 function shown(key) {
-  return !!els[key] && !els[key].hidden;
+  var el = els[key];
+  if (!el || el.hidden) return false;
+  if (isOverlay(key) && pane && el.parentElement !== pane && wraps[key] && el.parentElement !== wraps[key]) {
+    return false;
+  }
+  return true;
 }
 function members(id, onlyShown) {
   return PANELS.map(function (p) { return p.key; })
     .filter(function (k) {
-      if (panelState(k).zone !== id || !els[k]) return false;
+      if (panelState(k).zone !== id || !els[k] || !wraps[k]) return false;
       if (drag && drag.key === k) return false; // a panel in the air is in no zone
       return !onlyShown || shown(k);
     })
@@ -270,11 +392,13 @@ function reversed(id, flow) {
    first that does not overflow wins, the user's own choice first. */
 function fitFlow(z, zs, vis, w, h) {
   if (vis.length < 2) return zs.flow;
-  if (zs.axis === "h") {
+  if (zs.flow === "row") {
     var totalW = 0;
-    vis.forEach(function (k) { totalW += natural(k, "h").w; });
-    if (zs.flow === "row" && totalW > w) return "column";
-    return zs.flow;
+    vis.forEach(function (k) {
+      var sz = chosenSize(k);
+      totalW += sz ? sz.w : (wraps[k] && wraps[k].offsetWidth) || 0;
+    });
+    if (totalW > w) return "column";
   }
   return zs.flow;
 }
@@ -341,26 +465,37 @@ function ensureDom() {
 /* Hand the panels back to the phone rail: original order, direct children of
    #plan-tools, none of the dock's own elements left behind. */
 function release() {
-  if (!layer.classList.contains("pt-dock")) return;
+  var wasDock = layer.classList.contains("pt-dock");
   layer.classList.remove("pt-dock");
   /* Before anything is reparented. Unregistering the slots makes uikit skip
      the eight zone containers on its next pass, which releases the wrappers it
      was holding — if it still held them while this function moved the panels
      out of them, the next render would put them straight back. */
-  bridge.unregisterZones();
+  if (wasDock) bridge.unregisterZones();
   PANELS.forEach(function (p) {
     var el = els[p.key];
     if (!el) return;
     el.removeAttribute("data-axis");
     el.classList.remove("pt-inner");
-    if (p.key !== "status") {
-      layer.appendChild(el);
+    if (p.overlay || p.key === "status") {
+      if (el.parentElement === pane || (wraps[p.key] && el.parentElement === wraps[p.key])) {
+        pane.appendChild(el);
+      }
     } else {
-      pane.appendChild(el);
+      layer.appendChild(el);
     }
     var w = wraps[p.key];
     if (!w) return;
     ["data-flush", "data-join", "data-give"].forEach(function (a) { w.removeAttribute(a); });
+    /* The phone rail lays the panels out itself; a stored free position is a
+       desktop fact and must not follow them into it. The state survives — this
+       clears the styling only, so widening the pane restores the arrangement. */
+    w.classList.remove("pt-free");
+    w.classList.remove("pt-sized");
+    w.style.removeProperty("left");
+    w.style.removeProperty("top");
+    w.style.removeProperty("width");
+    w.style.removeProperty("height");
     if (w.parentNode) w.parentNode.removeChild(w);
   });
   ZONES.forEach(function (id) {
@@ -384,34 +519,40 @@ function place() {
   if (!layer || !pane) return;
   syncPosture();
   if (compact()) return release();
+  claimAll();
   ensureDom();
   layer.classList.add("pt-dock");
 
   var pw = pane.clientWidth, ph = pane.clientHeight;
   if (!pw || !ph) return;
-  var bottom = ph - statusH(); // the usable bottom: #cad-status owns the strip below it
 
   // 1. every panel into its zone, in order, with the zone's axis on it
   ZONES.forEach(function (id) {
     var z = zoneEls[id], zs = zoneState(id), all = members(id, false);
     var kids = all.map(function (k) {
       var w = wraps[k], el = els[k];
+      if (!w || !el) return null;
+      if (isOverlay(k) && pane && !pane.contains(el) && el.parentNode !== w) {
+        w.hidden = true;
+        return null;
+      }
       /* A hidden panel keeps its place in the zone's DOM order — the wall
          palette comes and goes with the tool — but its wrapper has to go with
          it, or the grip alone leaves an 18px sliver of card behind.
          Two owners, one write: the app hides a panel whose tool is not active,
          and the layout hides one the user put away. Either is enough. */
       w.hidden = !shown(k) || bridge.hiddenInDoc(k);
-      w.setAttribute("data-axis", zs.axis);
-      el.setAttribute("data-axis", zs.axis);
+      w.setAttribute("data-axis", axisOf(k));
+      el.setAttribute("data-axis", axisOf(k));
       el.classList.add("pt-inner");
       if (el.parentNode !== w) w.appendChild(el);
+      applyChosenSize(w, k);
       return w;
-    });
+    }).filter(Boolean);
     if (!sameKids(z, kids)) kids.forEach(function (w) { z.appendChild(w); });
     var vis = members(id, true);
     z.hidden = vis.length === 0;
-    var flow = fitFlow(z, zs, vis, pw, bottom);
+    var flow = fitFlow(z, zs, vis, pw, ph);
     z.setAttribute("data-flow", flow);
     z.setAttribute("data-rev", reversed(id, flow) ? "1" : "0");
     decorate(id, flow, vis);
@@ -420,6 +561,10 @@ function place() {
     var dw = wraps[drag.key];
     if (dw.parentNode !== layer) layer.appendChild(dw);
   }
+  placeFree(pw, ph);
+  /* Free overlays (the CAD bar at the bottom) have to be sitting where they
+     will actually be before docked zones measure the leftover room. */
+  var bottom = ph - statusH();
 
   // 2. natural sizes, capped only by the pane
   var nat = {};
@@ -489,6 +634,79 @@ function place() {
   lastSig = sig();
 }
 
+/* Panels the user dropped in open plan. They belong to no zone, so they carry
+   the whole card themselves — border, radius and shadow on all four sides — and
+   sit where they were left. The clamp is not decoration: the pane is resizable
+   and a stored position outlives the size it was chosen at, so a panel parked
+   at the right edge of a wide pane has to still be reachable in a narrow one. */
+function placeFree(pw, ph) {
+  PANELS.forEach(function (panel) {
+    var key = panel.key, w = wraps[key];
+    if (!w) return;
+    if (!isFree(key) || (drag && drag.key === key) || (sizing && sizing.key === key)) {
+      if ((!drag || drag.key !== key) && (!sizing || sizing.key !== key)) {
+        w.classList.remove("pt-free");
+        w.style.removeProperty("left");
+        w.style.removeProperty("top");
+        if (!chosenSize(key)) {
+          w.classList.remove("pt-sized");
+          w.style.removeProperty("width");
+          w.style.removeProperty("height");
+        }
+      }
+      return;
+    }
+    var el = els[key];
+    if (!el || (isOverlay(key) && el.parentElement !== w && el.parentElement !== pane)) {
+      w.hidden = true;
+      return;
+    }
+    if (el.parentNode !== w) w.appendChild(el);
+    var f = freeState(key);
+    applyStick(key, f, w, pw, ph);
+    seedFreeIfNeeded(key, w, pw, ph);
+    f = freeState(key);
+    w.hidden = !shown(key) || bridge.hiddenInDoc(key);
+    ["data-flush", "data-join", "data-give"].forEach(function (a) { w.removeAttribute(a); });
+    w.setAttribute("data-axis", f.axis);
+    el.setAttribute("data-axis", f.axis);
+    el.classList.add("pt-inner");
+    if (w.parentNode !== layer) layer.appendChild(w);
+    w.classList.add("pt-free");
+    /* Kept reachable, not kept wholly inside. Two reasons it is a corner of the
+       panel rather than the whole box: a panel is measured on the frame it
+       appears, before its rows have settled, and requiring the full height to
+       fit made it jump on that frame and settle back a frame later; and a
+       window manager does not shove your window up the screen because it is
+       tall — it only guarantees you can still grab it. The grip runs along the
+       top, so a visible top edge is exactly that guarantee.
+       Display only, never written back: a pane that is briefly narrow — a split
+       mid-drag — must not quietly consume the position the user chose. */
+    var sized = typeof f.w === "number" && typeof f.h === "number";
+    w.classList.toggle("pt-sized", sized);
+    w.style.maxWidth = Math.round(pw) + "px";
+    w.style.maxHeight = Math.round(ph) + "px";
+    if (sized) {
+      w.style.width = Math.round(Math.min(f.w, pw)) + "px";
+      w.style.height = Math.round(Math.min(f.h, ph)) + "px";
+    } else {
+      w.style.removeProperty("width");
+      w.style.removeProperty("height");
+    }
+    var r = w.getBoundingClientRect();
+    var keep = 64;
+    w.style.left = Math.round(clamp(keep - Math.round(r.width), f.x, Math.max(0, pw - keep))) + "px";
+    var keepTop = Math.min(32, Math.max(16, Math.round(r.height)));
+    w.style.top = Math.round(clamp(0, f.y, Math.max(0, ph - keepTop))) + "px";
+  });
+}
+
+function seedFreeIfNeeded(key, w, pw, ph) {
+  var f = freeState(key);
+  if (f.stick || f.seeded) return;
+  applyStick(key, f, w, pw, ph);
+}
+
 /* The zone's room, as a style AND as two variables. A percentage cannot resolve
    against a box that is only max-constrained, so a panel that wants to wrap
    inside the zone — rather than scroll, or spill — has no way to know how much
@@ -501,14 +719,23 @@ function cap(z, w, h) {
   z.style.setProperty("--pt-h", ch + "px");
 }
 function sig() {
+  /* Free panels are in the signature too: a pane resize that leaves every zone
+     the same size can still have pushed a floating panel out of view, and the
+     clamp that fixes that only runs if this string moves. */
+  var free = PANELS.map(function (p) {
+    if (!isFree(p.key)) return "";
+    var f = freeState(p.key);
+    return p.key + ":" + Math.round(f.x) + "," + Math.round(f.y) +
+      (typeof f.w === "number" ? "x" + Math.round(f.w) + "x" + Math.round(f.h || 0) : "");
+  }).join(",");
   return ZONES.map(function (id) {
     var z = zoneEls[id];
     return z ? z.offsetWidth + "x" + z.offsetHeight : "";
-  }).join("|");
+  }).join("|") + "|" + free + "|" + (pane ? pane.clientWidth + "x" + pane.clientHeight : "");
 }
 
 function relayout() {
-  if (pending || drag) return;
+  if (pending || drag || sizing) return;
   pending = true;
   var done = false;
   var run = function () {
@@ -528,39 +755,44 @@ function relayout() {
 // moves every zone that is centred or flush on the far side. Guarded on the
 // measured sizes so re-placing cannot chase its own writes.
 function onResize() {
-  if (drag || !layer.classList.contains("pt-dock")) return relayout();
+  if (drag || sizing || !layer.classList.contains("pt-dock")) return relayout();
   if (sig() === lastSig) return;
   relayout();
 }
 
 /* ---- picking a target while dragging ---- */
 
-function targetFor(px, py, pw, ph) {
-  var bottom = ph - statusH();
-  var d = { left: px, right: pw - px, top: py, bottom: bottom - py };
+function targetFor(px, py, pw, ph, axisNow, noDock) {
+  var d = { left: px, right: pw - px, top: py, bottom: ph - py };
   var edge = "left";
   ["right", "top", "bottom"].forEach(function (k) { if (d[k] < d[edge]) edge = k; });
   var horiz = edge === "top" || edge === "bottom";
   var wantAxis = horiz ? "h" : "v";
 
-  /* Dropped ON or beside a panel: join that panel's group only if its axis
-     matches the edge being dropped on. An existing vertical column on the left edge
-     must NEVER hijack a drop heading for the top edge and rotate itself horizontal. */
+  if (noDock) return { zone: FREE, axis: axisNow || wantAxis };
+
+  /* Dropped ON or immediately beside a panel: join that group. Do not require
+     the nearest pane edge to match — a column on the left is still the target
+     when the pointer is 10px off it, even if the top edge is closer. */
   var best = null;
   ZONES.forEach(function (id) {
     var R = occupied(id);
     if (!R) return;
-    var zs = zoneState(id);
-    if (zs.axis !== wantAxis) return;
     var near = Math.max(
       px < R.x ? R.x - px : px > R.r ? px - R.r : 0,
       py < R.y ? R.y - py : py > R.b ? py - R.b : 0,
     );
     if (near <= JOIN_PAD && (!best || near < best.d)) best = { id: id, d: near };
   });
-  if (best) return { zone: best.id, axis: wantAxis };
+  if (best) return { zone: best.id, axis: axisNow || zoneState(best.id).axis };
 
-  var along = horiz ? px / Math.max(1, pw) : py / Math.max(1, bottom);
+  /* Nowhere near an edge and not on a group: the drop means the plan.
+     A free panel keeps the axis it already had. */
+  if (Math.min(d.left, d.right, d.top, d.bottom) > SNAP_PAD) {
+    return { zone: FREE, axis: axisNow || wantAxis };
+  }
+
+  var along = horiz ? px / Math.max(1, pw) : py / Math.max(1, ph);
   var end = along < 1 / 3 ? 1 : along > 2 / 3 ? 2 : 0;
   var cand = EDGE_ZONES[edge][end];
   // If the candidate corner is already occupied by a panel with a conflicting axis,
@@ -594,6 +826,22 @@ function insertion(id, px, py) {
   var R = occupied(id);
   if (!R) return { flow: zoneState(id).flow, lead: true, rect: null };
   var f = FLUSH[id], axis = zoneState(id).axis;
+  var pr = pane.getBoundingClientRect();
+  var band = SNAP_PAD + 8;
+  /* A pointer in the snap band is choosing the edge, not "under the pill
+     already there". Stacking in that band is what parked a column 46px down. */
+  if (f.indexOf("top") >= 0 && py <= band) {
+    return { flow: "row", lead: px < R.x + R.w / 2, rect: R };
+  }
+  if (f.indexOf("bottom") >= 0 && (pr.height - py) <= band) {
+    return { flow: "row", lead: px < R.x + R.w / 2, rect: R };
+  }
+  if (f.indexOf("left") >= 0 && px <= band) {
+    return { flow: "column", lead: py < R.y + R.h / 2, rect: R };
+  }
+  if (f.indexOf("right") >= 0 && (pr.width - px) <= band) {
+    return { flow: "column", lead: py < R.y + R.h / 2, rect: R };
+  }
   var flow, lead;
   if (axis === "v") {
     // Vertical rail (left / right edge):
@@ -643,15 +891,11 @@ function insertion(id, px, py) {
   return { flow: flow, lead: lead, rect: R };
 }
 
-/* Where the panel lands, at the size it will BE there — measured in the target
-   axis, sized across the flow to the group it is joining, and stacked instead
-   of tiled when tiling would not fit the pane. The drop is the one moment the
-   user is choosing between arrangements, so the box has to be the arrangement
-   rather than an outline of the thing they happen to be holding. */
+/* Where the panel lands. The slot is the card they are holding, parked
+   against the edge — not a restyled row/column the dock guessed for them. */
 function previewRect(target, ins, pw, ph) {
   var f = FLUSH[target.zone], R = ins.rect;
-  var size = natural(drag.key, target.axis);
-  var w = Math.min(size.w, pw), h = size.h;
+  var w = Math.min(drag.w, pw), h = drag.h;
   var bottom = ph - statusH();
   if (!R) {
     return {
@@ -660,8 +904,6 @@ function previewRect(target, ins, pw, ph) {
       w: w, h: h,
     };
   }
-  /* fitFlow() will stack a row that does not fit; the preview says so first,
-     rather than promising a slot beside the group and delivering one under it */
   var flow = ins.flow;
   if (flow === "row" && R.w + w > pw) {
     flow = "column";
@@ -671,14 +913,14 @@ function previewRect(target, ins, pw, ph) {
     var atEnd = f.indexOf("right") >= 0;
     return {
       x: ins.lead ? (atEnd ? R.r - w : R.x) : atEnd ? R.x - w : R.r,
-      y: R.y, w: w, h: Math.max(R.h, h),
+      y: R.y, w: w, h: h,
     };
   }
   var atBottom = f.indexOf("bottom") >= 0;
   return {
     x: R.x,
     y: ins.lead ? (atBottom ? R.b - h : R.y) : atBottom ? R.y - h : R.b,
-    w: Math.max(R.w, w), h: h,
+    w: w, h: h,
   };
 }
 
@@ -720,15 +962,21 @@ function onDown(e) {
   var w = wraps[key];
   if (!w || !shown(key)) return;
   var r = w.getBoundingClientRect(), pr = pane.getBoundingClientRect();
-  var axis = zoneState(panelState(key).zone).axis;
+  var axis = axisOf(key);
+  var wasFree = isFree(key);
   drag = {
     key: key, id: e.pointerId,
     dx: e.clientX - r.left, dy: e.clientY - r.top,
     sx: e.clientX, sy: e.clientY, moved: false,
+    alt: !!e.altKey,
+    shift: !!e.shiftKey,
     axis: axis, sizes: {},
     target: { zone: panelState(key).zone, axis: axis },
-    ins: { flow: zoneState(panelState(key).zone).flow, lead: true, rect: null },
+    ins: wasFree
+      ? { flow: "row", lead: true, rect: null }
+      : { flow: zoneState(panelState(key).zone).flow, lead: true, rect: null },
   };
+  w.classList.remove("pt-free");
   // in the air it belongs to no group: a whole card, not a tiled piece of one
   w.removeAttribute("data-flush");
   w.removeAttribute("data-join");
@@ -739,7 +987,10 @@ function onDown(e) {
      and freezing that is how the drag came to carry a mostly empty card around
      the pane. Out of the zone's flex box it sizes to its own content, which is
      both what it looks like in the air and what it will look like alone. */
-  var nat = natural(key, axis);
+  var sized = wasFree && freeState(key);
+  var nat = (sized && sized.w && sized.h)
+    ? { w: sized.w, h: sized.h }
+    : natural(key, axis);
   drag.w = nat.w;
   drag.h = nat.h;
   drag.dx = Math.min(drag.dx, Math.max(8, nat.w - 8));
@@ -747,6 +998,8 @@ function onDown(e) {
   w.style.width = nat.w + "px";
   w.style.height = nat.h + "px";
   place(); // the zone it left closes up behind it, immediately
+  w.setAttribute("data-axis", axis);
+  els[key].setAttribute("data-axis", axis);
   floatAt(r.left - pr.left, r.top - pr.top);
   try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
   e.preventDefault();
@@ -755,34 +1008,22 @@ function onDown(e) {
 function onMove(e) {
   if (!drag) return;
   if (!drag.moved && Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 4) drag.moved = true;
+  drag.alt = !!e.altKey;
+  drag.shift = !!e.shiftKey;
   var pr = pane.getBoundingClientRect();
   var px = e.clientX - pr.left, py = e.clientY - pr.top;
-  var pw = pane.clientWidth, ph = pane.clientHeight;
+  var pw = pr.width, ph = pr.height;
   floatAt(clamp(-drag.w / 2, px - drag.dx, pw - drag.w / 2), clamp(0, py - drag.dy, ph - 20));
   if (!drag.moved) return;
 
-  /* The POINTER picks the zone, never the floating panel's own box: a panel
-     laid out along an edge is nearly as wide as the pane, so its centre can
-     never come close enough to a side edge to choose it. */
-  var target = targetFor(clamp(0, px, pw), clamp(0, py, ph), pw, ph);
-  var ins = insertion(target.zone, px, py);
+  /* Ordinary drags stay free. Shift is the opt-in to dock; Alt still cancels
+     it. The dashed box is a dock slot, so it only appears for that gesture. */
+  var target = targetFor(clamp(0, px, pw), clamp(0, py, ph), pw, ph, drag.axis, !drag.shift || drag.alt);
+  var free = target.zone === FREE;
+  var ins = free ? { flow: "row", lead: true, rect: null } : insertion(target.zone, px, py);
   drag.target = target;
   drag.ins = ins;
-  /* The card in the air takes the shape it is heading for: a tool column
-     dragged to the top edge becomes a tool row before it is dropped, so the
-     drop holds no surprises. */
-  if (target.axis !== drag.axis) {
-    var size = natural(drag.key, target.axis);
-    drag.axis = target.axis;
-    drag.w = size.w;
-    drag.h = size.h;
-    drag.dx = Math.min(drag.dx, Math.max(8, size.w - 8));
-    drag.dy = Math.min(drag.dy, Math.max(8, size.h - 8));
-    wraps[drag.key].style.width = size.w + "px";
-    wraps[drag.key].style.height = size.h + "px";
-  }
-  wraps[drag.key].setAttribute("data-axis", target.axis);
-  els[drag.key].setAttribute("data-axis", target.axis);
+  if (free) { dropEl.hidden = true; return; }
   var rect = previewRect(target, ins, pw, ph);
   dropEl.hidden = false;
   dropEl.style.left = Math.round(clamp(0, rect.x, pw)) + "px";
@@ -795,6 +1036,25 @@ function onUp(e) {
   if (!drag) return;
   var d = drag;
   var w = wraps[d.key];
+  /* Read before the inline styles come off: the panel's own left/top IS the
+     answer for a free drop, and it is already clamped to the pane by onMove. */
+  var landed = { x: parseFloat(w.style.left) || 0, y: parseFloat(w.style.top) || 0 };
+  var shift = !!(e && e.shiftKey);
+  var alt = !!(e && e.altKey);
+  /* Resolve the drop WHILE this panel is still "in the air". members()
+     ignores drag.key; clearing drag first made occupied() include this wrap
+     at 0,0 and every Shift-drop joined the zone it had just left. */
+  if (!d.moved) {
+    d.target = { zone: panelState(d.key).zone, axis: d.axis };
+  } else if (shift && !alt && pane && e && e.clientX != null) {
+    var pr = pane.getBoundingClientRect();
+    var px = e.clientX - pr.left, py = e.clientY - pr.top;
+    var pw = pr.width, ph = pr.height;
+    d.target = targetFor(clamp(0, px, pw), clamp(0, py, ph), pw, ph, d.axis, false);
+    d.ins = d.target.zone === FREE ? d.ins : insertion(d.target.zone, px, py);
+  } else {
+    d.target = { zone: FREE, axis: d.axis };
+  }
   w.classList.remove("pt-floating");
   w.style.removeProperty("left");
   w.style.removeProperty("top");
@@ -804,17 +1064,78 @@ function onUp(e) {
   if (dropEl) dropEl.hidden = true;
   try { grips[d.key].releasePointerCapture(d.id); } catch (err) {}
   drag = null;
-  if (!d.moved) return cycle(d.key); // a click on the grip, not a drag
-  dock(d.key, d.target.zone, d.target.axis, d.ins.flow, d.ins.lead);
+  if (!d.moved) {
+    if (d.alt) flipAxis(d.key);
+    else place();
+    return;
+  }
+  if (d.target.zone === FREE) {
+    return setFree(d.key, landed.x, landed.y, d.axis, { w: d.w, h: d.h });
+  }
+  /* Keep the axis the card already has. Passing the edge's axis is what
+     restyled a column into a row the moment it touched the top. */
+  dock(d.key, d.target.zone, d.axis, d.ins.flow, d.ins.lead, { w: d.w, h: d.h });
+}
+
+/* Leave a panel where it was dropped. The counterpart of dock(): it takes the
+   panel out of whatever zone it was numbered into, so the zone it left closes
+   up exactly as it does for any other move. */
+function applyStick(key, f, w, pw, ph) {
+  var stick = f.stick;
+  if (!stick) return;
+  var hh = Math.max(w.offsetHeight || 0, f.h || 30);
+  var ww = Math.max(w.offsetWidth || 0, f.w || 80);
+  if (stick === "bottom") { f.x = 0; f.y = Math.max(0, ph - hh); f.w = pw; f.h = hh; }
+  else if (stick === "floors") { f.x = Math.max(0, pw - Math.max(ww, 160) - 88); f.y = 12; }
+  else if (stick === "gizmo") { f.x = Math.max(0, pw - 90); f.y = 54; }
+  else if (stick === "max") { f.x = Math.max(0, pw - 46); f.y = 12; }
+  else if (stick === "tune") { f.x = Math.max(0, pw - 246); f.y = Math.max(0, ph - 320); }
+  else if (stick === "entry") { f.x = 80; f.y = Math.max(0, ph - 90); }
+  else if (stick === "trace") { f.x = 12; f.y = 12; }
+  else if (stick === "hint") { f.x = Math.max(0, (pw - Math.max(ww, 200)) / 2); f.y = Math.max(0, ph - 80); }
+}
+
+function setFree(key, x, y, axis, box) {
+  var p = panelState(key), from = p.zone;
+  var prev = p.free || {};
+  p.zone = FREE;
+  p.axis = axis === "h" ? "h" : "v";
+  p.free = {
+    x: x, y: y,
+    axis: p.axis,
+    seeded: true,
+  };
+  var keepW = (box && box.w > 0) ? box.w : prev.w;
+  var keepH = (box && box.h > 0) ? box.h : prev.h;
+  if (keepW > 0) p.free.w = keepW;
+  if (keepH > 0) p.free.h = keepH;
+  if (ZONES.indexOf(from) >= 0) {
+    members(from, false).forEach(function (k, i) { panelState(k).order = i; });
+  }
+  /* The layout document models the eight zones as nodes, and "nowhere" is not
+     one of them — so a free position is this file's own state and lives in
+     localStorage even when uikit is driving everything else. docZone remembers
+     what the document last said about this panel, so the next sync can tell a
+     stale re-read (leave it floating) from the user actually re-docking it in
+     the designer (obey). */
+  save();
+  place();
 }
 
 /* Commit a panel to a zone. Everything else in that zone is renumbered, so
    `order` stays a dense 0..n-1 and index 0 always means "against the edge". */
-function dock(key, zone, axis, flow, lead) {
+function dock(key, zone, axis, flow, lead, box) {
   var zs = zoneState(zone);
-  if (axis) zs.axis = axis;
   if (flow) zs.flow = flow;
-  panelState(key).zone = zone;
+  var p = panelState(key);
+  if (axis === "h" || axis === "v") p.axis = axis;
+  p.zone = zone;
+  if (box && box.w > 0 && box.h > 0) {
+    if (!p.free) p.free = {};
+    p.free.w = box.w;
+    p.free.h = box.h;
+    if (p.axis) p.free.axis = p.axis;
+  }
   var rest = members(zone, false).filter(function (k) { return k !== key; });
   rest.splice(lead === false ? rest.length : 0, 0, key);
   rest.forEach(function (k, i) { panelState(k).order = i; });
@@ -822,7 +1143,7 @@ function dock(key, zone, axis, flow, lead) {
      a grip drag into the same undo history as everything else the user can
      rearrange; writeDock re-enters here through syncFromDoc, which is why the
      local state is settled BEFORE it is called. */
-  if (!bridge.writeDock(key, zone, axis, flow, lead)) save();
+  if (!bridge.writeDock(key, zone, null, flow, lead)) save();
   place();
 }
 
@@ -848,25 +1169,54 @@ export function syncFromDoc() {
 
 /* ---- grip without a pointer ---- */
 
-// One press = the next dock position, all the way round the eight.
-function cycle(key) {
-  if (compact()) return;
-  var i = RING.indexOf(panelState(key).zone);
-  var next = RING[(i + 1) % RING.length];
-  dock(key, next, DEFAULT_AXIS[next], null, false);
+function flipAxis(key) {
+  if (compact() || !isFree(key)) return;
+  var f = freeState(key);
+  f.axis = f.axis === "h" ? "v" : "h";
+  panelState(key).axis = f.axis;
+  f.seeded = true;
+  save();
+  place();
   if (grips[key]) grips[key].focus();
 }
-/* An arrow sends the panel to that edge; pressing the same arrow again walks
-   it along that edge, centre → start → end, which is how the corners are
-   reachable from the keyboard. */
+
+// Keyboard Enter still walks the eight dock positions; a pointer click does not.
+function cycle(key) {
+  if (compact()) return;
+  if (isFree(key)) return flipAxis(key);
+  var i = RING.indexOf(panelState(key).zone);
+  var next = RING[(i + 1) % RING.length];
+  dock(key, next, axisOf(key), null, false);
+  if (grips[key]) grips[key].focus();
+}
+/* An arrow sends a docked panel to that edge. A free panel nudges by pixels
+   instead — Alt+arrow still docks, so the keyboard path to a zone remains. */
 function onKey(e) {
-  var dir = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "top", ArrowDown: "bottom" }[e.key];
-  if (!dir || compact()) return;
-  e.preventDefault();
   var key = e.currentTarget.getAttribute("data-grip");
+  if (compact() || !key) return;
+  if (e.key === "r" || e.key === "R") {
+    e.preventDefault();
+    flipAxis(key);
+    return;
+  }
+  var dir = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "top", ArrowDown: "bottom" }[e.key];
+  if (!dir) return;
+  e.preventDefault();
+  if (isFree(key) && !e.altKey) {
+    var f = freeState(key);
+    var step = e.shiftKey ? 24 : 4;
+    if (dir === "left") f.x -= step;
+    else if (dir === "right") f.x += step;
+    else if (dir === "top") f.y -= step;
+    else f.y += step;
+    f.seeded = true;
+    save();
+    place();
+    return;
+  }
   var list = EDGE_ZONES[dir], at = list.indexOf(panelState(key).zone);
   var next = list[at < 0 ? 0 : (at + 1) % list.length];
-  dock(key, next, dir === "top" || dir === "bottom" ? "h" : "v", null, false);
+  dock(key, next, axisOf(key), null, false);
   if (grips[key]) grips[key].focus();
 }
 
@@ -893,41 +1243,190 @@ function label() {
   });
 }
 
+function findEl(panel) {
+  if (els[panel.key] && els[panel.key].isConnected) return els[panel.key];
+  if (panel.id) {
+    var byId = document.getElementById(panel.id);
+    if (byId) return byId;
+  }
+  if (panel.sel && pane) {
+    var found = pane.querySelector(panel.sel);
+    if (found) return found;
+  }
+  return null;
+}
+
+function fillHandles(w, key) {
+  ALL_HANDLES.forEach(function (h) {
+    var rh = document.createElement("div");
+    rh.className = "pt-rh pt-rh-" + h;
+    rh.setAttribute("data-rh", h);
+    rh.setAttribute("data-panel", key);
+    rh.style.cursor = CURSORS[h];
+    rh.addEventListener("pointerdown", onSizeDown);
+    rh.addEventListener("pointermove", onSizeMove);
+    rh.addEventListener("pointerup", onSizeUp);
+    rh.addEventListener("pointercancel", onSizeUp);
+    w.appendChild(rh);
+  });
+}
+
+function ensureWrap(p, el) {
+  if (!el) return null;
+  if (wraps[p.key]) {
+    els[p.key] = el;
+    if (el.parentNode !== wraps[p.key] && pane &&
+        (el.parentElement === pane || el.parentElement === wraps[p.key] || el.parentElement === layer)) {
+      if (!wraps[p.key].isConnected && el.parentNode) el.parentNode.insertBefore(wraps[p.key], el);
+      wraps[p.key].appendChild(el);
+    }
+    return wraps[p.key];
+  }
+  els[p.key] = el;
+  if (p.overlay && pane && isFree(p.key) && !freeState(p.key).seeded && !freeState(p.key).stick) {
+    var pr = pane.getBoundingClientRect();
+    var box = el.getBoundingClientRect();
+    if (pr.width > 80 && pr.height > 80 && box.width >= 2 && box.height >= 2) {
+      var f = freeState(p.key);
+      f.x = box.left - pr.left;
+      f.y = box.top - pr.top;
+      f.w = box.width;
+      f.h = box.height;
+      f.seeded = true;
+    }
+  }
+  var w = document.createElement("div");
+  w.className = "pt-panel" + (p.overlay ? " pt-overlay" : "");
+  w.setAttribute("data-panel", p.key);
+  var g = document.createElement("button");
+  g.type = "button";
+  g.className = "pt-grip";
+  g.setAttribute("data-grip", p.key);
+  /* No data-tool and no data-act on purpose: js/mobile_shell.js builds the
+     Tools sheet from exactly those attributes and js/tool_search.js indexes
+     them, and a grip is neither a tool nor a command. It also sits in the
+     WRAPPER rather than inside the panel, so the chips keep a clean
+     role="radiogroup" and js/ui_layers.js can still wipe and rebuild the
+     strip without taking the grip with it. */
+  g.innerHTML = '<i class="ph ph-dots-six"></i>';
+  g.addEventListener("pointerdown", onDown);
+  g.addEventListener("pointermove", onMove);
+  g.addEventListener("pointerup", onUp);
+  g.addEventListener("pointercancel", onUp);
+  g.addEventListener("keydown", onKey);
+  g.addEventListener("click", function (ev) { if (ev.detail === 0) cycle(p.key); });
+  w.appendChild(g);
+  // Keep the live control connected while the pane changes mode. Layout can
+  // defer placement when its width is temporarily zero; taking the control
+  // into a detached wrapper here made floor navigation disappear meanwhile.
+  if (el.parentNode) el.parentNode.insertBefore(w, el);
+  w.appendChild(el);
+  fillHandles(w, p.key);
+  wraps[p.key] = w;
+  grips[p.key] = g;
+  return w;
+}
+
+function claimOverlays() {
+  claimPanels(true);
+}
+function claimAll() {
+  claimPanels(false);
+}
+function claimPanels(overlayOnly) {
+  if (!pane) return;
+  PANELS.forEach(function (p) {
+    if (overlayOnly && !p.overlay) return;
+    var el = findEl(p);
+    if (!el) return;
+    if (p.overlay) {
+      if (el.hidden && !wraps[p.key]) return;
+      if (pane && !pane.contains(el)) return;
+    }
+    ensureWrap(p, el);
+  });
+}
+
+function onSizeDown(e) {
+  if (compact() || (e.button != null && e.button > 0) || drag) return;
+  var key = e.currentTarget.getAttribute("data-panel");
+  var handle = e.currentTarget.getAttribute("data-rh");
+  var w = wraps[key];
+  if (!w || !shown(key)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  var r = w.getBoundingClientRect(), pr = pane.getBoundingClientRect();
+  /* Docked, the zone's flex box owns the size. Pull the panel out first so
+     the handle is resizing the card, not fighting a stretch. */
+  if (!isFree(key)) {
+    setFree(key, r.left - pr.left, r.top - pr.top, axisOf(key), { w: r.width, h: r.height });
+    w = wraps[key];
+    if (!w) return;
+    r = w.getBoundingClientRect();
+    pr = pane.getBoundingClientRect();
+  }
+  if (!isFree(key)) return;
+  sizing = {
+    key: key, id: e.pointerId, handle: handle,
+    start: { x: r.left - pr.left, y: r.top - pr.top, w: r.width, h: r.height },
+    px: e.clientX, py: e.clientY,
+  };
+  w.classList.add("pt-sizing");
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+}
+
+function onSizeMove(e) {
+  if (!sizing) return;
+  var spec = specOf(sizing.key);
+  var size = sizeFrom(sizing.start, sizing.handle, e.clientX - sizing.px, e.clientY - sizing.py, {
+    minW: spec.minW || 48,
+    minH: spec.minH || 28,
+    maxW: pane.clientWidth,
+    maxH: pane.clientHeight,
+  });
+  if (!size) return;
+  var box = rectFrom(sizing.start, sizing.handle, size);
+  var w = wraps[sizing.key];
+  w.style.left = Math.round(box.x) + "px";
+  w.style.top = Math.round(box.y) + "px";
+  w.style.width = Math.round(box.w) + "px";
+  w.style.height = Math.round(box.h) + "px";
+  w.classList.add("pt-sized");
+}
+
+function onSizeUp() {
+  if (!sizing) return;
+  var s = sizing;
+  var w = wraps[s.key];
+  if (w) w.classList.remove("pt-sizing");
+  sizing = null;
+  if (!w) return;
+  var f = freeState(s.key);
+  delete f.stick;
+  f.x = parseFloat(w.style.left);
+  f.y = parseFloat(w.style.top);
+  f.w = parseFloat(w.style.width);
+  f.h = parseFloat(w.style.height);
+  f.seeded = true;
+  if (!isFinite(f.x) || !isFinite(f.y) || !isFinite(f.w) || !isFinite(f.h)) return;
+  save();
+  place();
+}
+
 export function initPlanToolsDock() {
   layer = document.getElementById("plan-tools");
   if (!layer || wraps.tools) return;
   pane = layer.parentElement;
   restore();
 
-  PANELS.forEach(function (p) {
-    var el = document.getElementById(p.id);
-    if (!el) return;
-    els[p.key] = el;
-    var w = document.createElement("div");
-    w.className = "pt-panel";
-    w.setAttribute("data-panel", p.key);
-    var g = document.createElement("button");
-    g.type = "button";
-    g.className = "pt-grip";
-    g.setAttribute("data-grip", p.key);
-    /* No data-tool and no data-act on purpose: js/mobile_shell.js builds the
-       Tools sheet from exactly those attributes and js/tool_search.js indexes
-       them, and a grip is neither a tool nor a command. It also sits in the
-       WRAPPER rather than inside the panel, so the chips keep a clean
-       role="radiogroup" and js/ui_layers.js can still wipe and rebuild the
-       strip without taking the grip with it. */
-    g.innerHTML = '<i class="ph ph-dots-six"></i>';
-    g.addEventListener("pointerdown", onDown);
-    g.addEventListener("pointermove", onMove);
-    g.addEventListener("pointerup", onUp);
-    g.addEventListener("pointercancel", onUp);
-    g.addEventListener("keydown", onKey);
-    // detail 0 is a keyboard-activated click; the pointer path already ran
-    g.addEventListener("click", function (ev) { if (ev.detail === 0) cycle(p.key); });
-    w.appendChild(g);
-    wraps[p.key] = w;
-    grips[p.key] = g;
-  });
+  if (!compact()) {
+    PANELS.forEach(function (p) {
+      if (p.overlay) return;
+      var el = findEl(p);
+      if (el) ensureWrap(p, el);
+    });
+    claimOverlays();
+  }
   label();
 
   /* Hand the bridge the two things it cannot reach from outside this closure:
@@ -948,5 +1447,10 @@ export function initPlanToolsDock() {
     attributes: true,
     attributeFilter: ["class"],
   });
+  new MutationObserver(function () {
+    if (compact() || drag || sizing) return;
+    claimOverlays();
+    relayout();
+  }).observe(pane, { childList: true });
   place();
 }

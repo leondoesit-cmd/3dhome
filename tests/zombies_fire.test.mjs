@@ -20,8 +20,8 @@ test("Night Shift graphics tiers control its own expensive render paths", () => 
   assert.match(world, /Z\.flash\.volumetric = quality > 0/);
   assert.match(world, /applyZedShadowQuality\(rig\.root\)/);
   assert.match(game, /var qualityCap = qualityHordeCap\(\)/);
-  assert.match(game, /return \[8, 12, 16\]\[gameSettings\(\)\.quality \|\| 0\]/);
-  assert.match(game, /var texBudgetChanged = setTexBudget\(gameSettings\(\)\.quality\)/);
+  assert.match(game, /function qualityHordeCap\(\)\s*\{\s*return 16/);
+  assert.match(game, /if \(setTexBudget\(gameSettings\(\)\.quality\)\)/);
   assert.match(game, /setGameRendererQuality/);
   assert.match(game, /if \(Z\.settings\.quality >= 2\) enableDestruction\(\)/);
 });

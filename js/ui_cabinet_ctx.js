@@ -8,6 +8,8 @@ export const api = {};
 
 /* ================= local i18n ================= */
 export var TXT = {
+  manufacturingReview: ["נדרשת בדיקת ייצור לשינויי CAD · אומדן חלקי בלבד", "CAD edits need manufacturing review · partial estimate only"],
+  scopeNote: ["מידות לארון זה · חלוקה משותפת לעותקים מקושרים", "Size: this cabinet · Layout: linked cabinets"],
   title: ["מעצב ארונות", "Cabinet designer"],
   presets: ["פריסטים", "Presets"],
   family: ["סוג ארון", "Cabinet type"],
@@ -177,7 +179,7 @@ export var TXT = {
   g_edit: ["עריכה", "Edit"],
   g_review: ["בקרה וייצוא", "Review & export"],
   loadPreset: ["טעינת עיצוב שמור", "Load a saved design"],
-  inspTab: ["התא / העמודה הנבחרים", "The selected compartment or column"],
+  inspTab: ["התא / העמודה הנבחרים", "Properties"],
   snapOn: ["עיגול מידות", "Snap sizes"],
   snapOff: ["מידה חופשית", "Free sizes"],
   snapTip: [

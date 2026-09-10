@@ -62,6 +62,7 @@ export function createUIKit(options) {
   let doc = null;
   let problems = [];
   let edit = false;
+  let editStartDoc = null;
   let mounted = false;
   let frame = 0;
 
@@ -289,6 +290,15 @@ export function createUIKit(options) {
       return doc;
     },
 
+    discardEdit() {
+      if (!edit || !editStartDoc) return false;
+      adopt(editStartDoc, { label: "Discard customization session" });
+      api.save();
+      refresh();
+      api.edit(false);
+      return true;
+    },
+
     setVariant(name) {
       if (variants.set(name)) schedule();
       return variants.current();
@@ -300,6 +310,7 @@ export function createUIKit(options) {
     async edit(on) {
       const want = !!on;
       if (want === edit) return edit;
+      if (want) editStartDoc = JSON.parse(JSON.stringify(doc));
       edit = want;
       if (edit && !api._editor) {
         const mod = await import("./editor/designer.js").catch(() => null);
@@ -330,6 +341,7 @@ export function createUIKit(options) {
       refresh();
       if (api._editor) api._editor.setActive(edit);
       if (typeof opts.onEditChange === "function") opts.onEditChange(edit);
+      if (!edit) editStartDoc = null;
       return edit;
     },
 
@@ -407,7 +419,33 @@ export function createUIKit(options) {
     /* ---- document-level ------------------------------------------------ */
 
     tokens: () => getTokens().slice(),
-    presets: () => getPresets().map((p) => ({ id: p.id, label: p.label, key: p.key })),
+    presets: () => getPresets().map((p) => ({ id: p.id, label: p.label, key: p.key, description: p.description, preview: p.preview })),
+
+    savedLayouts() {
+      const saved = storage.load(storageKey + ":saved");
+      return Array.isArray(saved) ? saved.filter((item) => item && typeof item.id === "string"
+        && typeof item.name === "string" && item.doc && item.doc.nodes).map(({ id, name }) => ({ id, name })) : [];
+    },
+
+    saveNamedLayout(name) {
+      const title = String(name || "").trim().slice(0, 60);
+      if (!title || !doc) return false;
+      const loaded = storage.load(storageKey + ":saved");
+      const saved = Array.isArray(loaded) ? loaded.filter((item) => item && item.doc && typeof item.id === "string" && typeof item.name === "string") : [];
+      saved.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name: title, doc });
+      return storage.save(storageKey + ":saved", saved);
+    },
+
+    loadNamedLayout(id) {
+      const saved = storage.load(storageKey + ":saved");
+      const found = Array.isArray(saved) && saved.find((item) => item && item.id === id && item.doc);
+      if (!found) return false;
+      const next = typeof opts.migrateDocument === "function" ? opts.migrateDocument(found.doc) || found.doc : found.doc;
+      const report = normalizeDoc(next);
+      api.apply("Layout: " + found.name, report.doc);
+      api.refreshNow();
+      return true;
+    },
 
     /* Keep the preset selector honest after undo, redo, import and edits. */
     matchingPreset() {

@@ -21,6 +21,16 @@ export function createTreeBrowser(context) {
   summary.textContent = t("uikit_ins_tree", "Layout tree");
   root.appendChild(summary);
 
+  const tools = doc.createElement("div");
+  tools.className = "uikit-ins-tree-tools";
+  const search = doc.createElement("input");
+  search.type = "search";
+  search.className = "uikit-ins-input uikit-ins-tree-search";
+  search.placeholder = t("uikit_ins_search_tree", "Search layout");
+  search.setAttribute("aria-label", search.placeholder);
+  tools.appendChild(search);
+  root.appendChild(tools);
+
   const list = doc.createElement("div");
   list.className = "uikit-ins-tree-list";
   list.setAttribute("role", "tree");
@@ -35,11 +45,25 @@ export function createTreeBrowser(context) {
   let dwellTimer = null;
   let dropLineEl = null;
   let lastRowUp = null;
+  let iconPicker = null;
+  let query = "";
   const collapsed = new Set();
 
   function title(node) {
     return ctx.titleFor ? ctx.titleFor(node)
       : node.label || (node.entry && node.entry.title) || node.ref || node.id;
+  }
+
+  function matches(node) {
+    if (!query) return true;
+    const role = node && node.entry && node.entry.kind;
+    return [title(node), node && node.id, node && node.ref, node && node.type, role]
+      .some((value) => String(value || "").toLocaleLowerCase().includes(query));
+  }
+
+  function subtreeMatches(node) {
+    if (!node) return false;
+    return matches(node) || (node.children || []).some(subtreeMatches);
   }
 
   function findPathTo(tree, targetId, path = []) {
@@ -245,6 +269,8 @@ export function createTreeBrowser(context) {
   doc.addEventListener("pointerup", onTreePointerUp);
 
   function destroy() {
+    if (iconPicker) iconPicker.__cleanup(false);
+    iconPicker = null;
     doc.removeEventListener("pointermove", onTreePointerMove);
     doc.removeEventListener("pointerup", onTreePointerUp);
     if (dwellTimer) {
@@ -255,7 +281,9 @@ export function createTreeBrowser(context) {
     clearDropIndicators();
   }
 
-  function row(node, depth, selected, index, totalSiblings, parentId) {
+  function row(node, depth, selected, index, totalSiblings, parentId, ancestorMatched = false) {
+    const selfMatched = matches(node);
+    if (query && !ancestorMatched && !selfMatched && !subtreeMatches(node)) return;
     const hasChildren = !!(node.children && node.children.length);
     const isCollapsed = hasChildren && collapsed.has(node.id);
     const isSelected = selected.has(node.id);
@@ -319,7 +347,7 @@ export function createTreeBrowser(context) {
 
     iconBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      openIconPicker({
+      iconPicker = openIconPicker({
         document: doc,
         anchor: iconBtn,
         currentIcon: node.icon || null,
@@ -381,14 +409,24 @@ export function createTreeBrowser(context) {
     rowEl.appendChild(roleSpan);
 
     const isLeaf = !(node.children && node.children.length);
+    const hasElement = !isLeaf || !ctx.hasElement || ctx.hasElement(node.id);
     const isMissing = !!(node.tombstone || (node.entry && node.entry.tombstone)
-      || (isLeaf && ctx.hasElement && !ctx.hasElement(node.id)));
+      || (isLeaf && !hasElement && (node.type === "separator" || !node.entry)));
+    const isUnavailable = !!(isLeaf && !hasElement && node.entry && node.type === "item" && !isMissing);
     if (isMissing) {
       const missingState = doc.createElement("span");
       missingState.className = "uikit-ins-tree-state uikit-ins-tree-missing";
       missingState.textContent = t("uikit_ins_missing", "Missing");
       rowEl.setAttribute("aria-description", t("uikit_ins_missing", "Missing"));
       rowEl.appendChild(missingState);
+    }
+
+    if (isUnavailable) {
+      const unavailableState = doc.createElement("span");
+      unavailableState.className = "uikit-ins-tree-state uikit-ins-tree-unavailable";
+      unavailableState.textContent = t("uikit_ins_unavailable", "Unavailable here");
+      rowEl.setAttribute("aria-description", t("uikit_ins_unavailable_hint", "Available in another workspace"));
+      rowEl.appendChild(unavailableState);
     }
 
     if (node.hidden) {
@@ -511,10 +549,11 @@ export function createTreeBrowser(context) {
     itemWrap.appendChild(rowEl);
     list.appendChild(itemWrap);
 
-    if (hasChildren && !isCollapsed) {
+    if (hasChildren && (!isCollapsed || query)) {
       const children = node.children || [];
       for (let i = 0; i < children.length; i++) {
-        row(children[i], depth + 1, selected, i, children.length, node.id);
+        row(children[i], depth + 1, selected, i, children.length, node.id,
+          ancestorMatched || selfMatched);
       }
     }
   }
@@ -527,6 +566,13 @@ export function createTreeBrowser(context) {
 
     const selected = new Set(lastSelection);
     row(lastTree, 0, selected, 0, 1, null);
+
+    if (!list.querySelector(".uikit-ins-tree-row")) {
+      const empty = doc.createElement("div");
+      empty.className = "uikit-ins-tree-empty";
+      empty.textContent = t("uikit_ins_no_tree_results", "No matching layout items.");
+      list.appendChild(empty);
+    }
 
     const active = list.querySelector(`[data-node-id="${focusedId}"]`);
     if (active) {
@@ -634,6 +680,10 @@ export function createTreeBrowser(context) {
     lastTree = tree;
     lastSelection = selection || [];
     const newKey = lastSelection.join(",");
+    if (newKey !== prevSelectionKey && iconPicker) {
+      iconPicker.__cleanup(false);
+      iconPicker = null;
+    }
     if (newKey && newKey !== prevSelectionKey) {
       prevSelectionKey = newKey;
       for (const selId of lastSelection) {
@@ -649,6 +699,11 @@ export function createTreeBrowser(context) {
 
   root.addEventListener("toggle", () => {
     if (root.open) renderCurrent();
+  });
+
+  search.addEventListener("input", () => {
+    query = search.value.trim().toLocaleLowerCase();
+    renderCurrent();
   });
 
   return {

@@ -127,6 +127,7 @@ export function buildCommandCatalog(ctx) {
     { id:"sweepfeature", icon:"ph-path", label:t("opSweep"), group:t("cmdFeatures"), available:function(){ return partDoc() && sketchCount() >= 2; }, reason:needSketches },
     { id:"sweepcutfeature", icon:"sweepcutfeature", label:t("opSweepCut"), group:t("cmdFeatures"), terms:"sweep cut channel slot subtract path", available:function(){ return partDoc() && sketchCount() >= 2 && solids(); }, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : sketchCount() < 2 ? t("cmdNeedTwoSketches") : t("cmdNeedSolid"); } },
     { id:"loftfeature", icon:"ph-stack", label:t("loftOp"), group:t("cmdFeatures"), available:function(){ return partDoc() && sketchCount() >= 2; }, reason:needSketches },
+    { id:"repeatlast", icon:"ph-arrow-clockwise", label:t("repeatOperation"), group:t("cmdFeatures"), terms:"repeat last again", available:function(){ return partDoc() && !!E.lastOperation; }, reason:function(){ return t("repeatUnavailable"); } },
     { id:"filletfeature", icon:"ph-corners-out", label:t("quickFillet"), group:t("cmdFeatures"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"chamferfeature", icon:"ph-corners-in", label:t("quickChamfer"), group:t("cmdFeatures"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"shellfeature", icon:"ph-bowl-food", label:t("shellOp"), group:t("cmdFeatures"), available:function(){ return partDoc() && solids(); }, reason:needSolid },

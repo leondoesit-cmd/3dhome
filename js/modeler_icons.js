@@ -19,6 +19,12 @@ function colorPath(d, fill, stroke, sw, extra) {
 }
 
 export const CAD_ICONS = {
+  // Repeat the last committed operation: a return arrow around a small solid.
+  repeatlast: function () {
+    return l("M4 6 A7 7 0 1 1 3 13 M4 2 L4 6 L8 6") +
+      p("M7 10 L11 8 L15 10 L15 14 L11 16 L7 14 Z", .18) +
+      l("M7 10 L11 12 L15 10 M11 12 L11 16");
+  },
   // ==========================================
   // 1. 3D FEATURES (SolidWorks Features)
   // ==========================================

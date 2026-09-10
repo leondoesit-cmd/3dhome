@@ -304,6 +304,9 @@ export async function openWorkspace() {
       button("DXF plan", () => downloadText("home3d-plan.dxf", toDXF(), "application/dxf")),
       button("IFC model", () => downloadText("home3d-model.ifc", toIFC(), "application/x-step")),
       button("CSV schedules", () => downloadText("home3d-schedules.csv", toScheduleCSV(), "text/csv")),
+      /* The 3D handoff belongs on the same shelf as the 2D ones. Loaded on
+         click because it pulls in three's glTF exporter (js/blender_export.js). */
+      button("GLB for Blender", async () => (await import("./ui_blender.js")).openBlenderExport()),
       button("Print report", () => window.print())
     )); content.append(box);
   }

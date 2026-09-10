@@ -274,6 +274,7 @@
           <button data-act="redo" title="Ctrl+Y" data-i18n-title="redo">
             <i class="ph ph-arrow-u-up-right"></i>
           </button>
+          <span id="planSaveStatus" class="plan-save-status" role="status" aria-live="polite" aria-atomic="true"></span>
           <div class="dropdown history-dropdown-wrap">
             <button class="dropdown-trigger" data-i18n-title="hist_title" title="היסטוריית עריכה">
               <i class="ph ph-clock-counter-clockwise"></i>
@@ -565,11 +566,13 @@
       <div id="workspace">
         <aside id="left-sidebar" data-left="library">
           <div class="left-tabs modern-chrome" id="leftTabs" role="tablist">
+            <button type="button" data-left-tab="project" data-i18n-aria="guide_title"><i class="ph ph-clipboard-text" aria-hidden="true"></i><span data-i18n="guide_tab">פרויקט</span></button>
             <button type="button" data-left-tab="library" class="active" data-i18n-aria="left_tab_library"><i class="ph ph-books" aria-hidden="true"></i><span data-i18n="left_tab_library">ספרייה</span></button>
             <button type="button" data-left-tab="home" data-i18n-aria="left_tab_home"><i class="ph ph-house" aria-hidden="true"></i><span data-i18n="left_tab_home">בית</span></button>
             <button type="button" data-left-tab="structure" data-i18n-aria="left_tab_structure"><i class="ph ph-building-office" aria-hidden="true"></i><span data-i18n="left_tab_structure">מבנה</span></button>
             <button type="button" data-left-tab="tree" data-i18n-aria="left_tab_tree"><i class="ph ph-tree-structure" aria-hidden="true"></i><span data-i18n="left_tab_tree">עץ</span></button>
           </div>
+          <div class="panel-section guide-panel" data-left-pane="project" id="planningGuide"></div>
           <div class="panel-section furn-panel" data-left-pane="library">
             <h3 data-i18n="library">ספרייה</h3>
             <div class="lib-search">
@@ -1617,17 +1620,17 @@
               /></label>
               <div class="dim-row" id="r_size_row" style="display:none">
                 <label
-                  ><span data-i18n="width">רוחב</span>
+                  ><span data-i18n="guide_resize_width">רוחב</span>
                   <div class="dim-input-stepper">
                     <button type="button" class="dim-step-btn" id="r_w_down" title="-10 cm">−</button>
-                    <input id="r_w" type="number" inputmode="numeric" step="5" />
+                    <input id="r_w" type="number" inputmode="decimal" min="20" step="any" />
                     <button type="button" class="dim-step-btn" id="r_w_up" title="+10 cm">+</button>
                   </div></label>
                 <label
-                  ><span data-i18n="depth">עומק</span>
+                  ><span data-i18n="guide_resize_depth">עומק</span>
                   <div class="dim-input-stepper">
                     <button type="button" class="dim-step-btn" id="r_d_down" title="-10 cm">−</button>
-                    <input id="r_d" type="number" inputmode="numeric" step="5" />
+                    <input id="r_d" type="number" inputmode="decimal" min="20" step="any" />
                     <button type="button" class="dim-step-btn" id="r_d_up" title="+10 cm">+</button>
                   </div></label>
               </div>
@@ -2142,11 +2145,21 @@
         <h2 id="startTitle" data-i18n="start_title">איך להתחיל?</h2>
         <p data-i18n="start_intro">ציירו תוכנית, רהטו, ובדקו בתלת-ממד.</p>
         <div class="start-actions">
+          <button type="button" data-start="recreate">
+            <i class="ph ph-house-line"></i><strong data-i18n="guide_recreate">לשחזר את הבית שלי</strong>
+            <span data-i18n="guide_recreate_d">ייבוא תוכנית או ציור לפי מידות</span>
+          </button>
           <button type="button" data-start="blank">
             <i class="ph ph-square"></i>
-            <strong data-i18n="start_blank">תוכנית ריקה</strong>
-            <span data-i18n="start_blank_d">התחילו מקירות</span>
+            <strong data-i18n="guide_design">תוכנית ריקה</strong>
+            <span data-i18n="guide_design_d">התחילו מקירות</span>
           </button>
+          <button type="button" data-start="explore">
+            <i class="ph ph-pencil-simple"></i><strong data-i18n="guide_explore">פשוט להתנסות</strong>
+            <span data-i18n="guide_explore_d">דף ריק, ללא שאלות חובה</span>
+          </button>
+        </div>
+        <div class="start-actions start-secondary">
           <button type="button" data-start="demo">
             <i class="ph ph-armchair"></i>
             <strong data-i18n="start_demo">הדגמה מרוהטת</strong>

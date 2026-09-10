@@ -318,7 +318,7 @@ html[dir="rtl"] #modeler .md-history-actions { background: linear-gradient(to le
   --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.3);
   --separator: rgba(255, 255, 255, 0.1);
   --glass-blur: blur(20px);
-  --danger: #fb7185;
+  --danger: #fc8092;
   --danger-soft: rgba(251, 113, 133, 0.16);
   --accent-soft: rgba(45, 212, 191, 0.18);
   --accent-glow: rgba(45, 212, 191, 0.35);
@@ -1172,7 +1172,7 @@ button.active i,
   width: 14px;
   height: 100%;
   font-size: 13px;
-  opacity: 0.55;
+  opacity: 1;
   transition: opacity 0.15s ease, background 0.15s ease;
 }
 .pt-grip:hover { background: var(--btn-bg-hover); color: var(--text-main); opacity: 1; }
@@ -5540,6 +5540,12 @@ body:not(.compact-nav) #modeler.md-isdrawing:not(.md-sheet-collapsed) .md-panel-
 #modeler .md-feature-unit { color: var(--accent); font-size: 8px; font-weight: 700; }
 #modeler .md-quick-field input,#modeler .md-quick-field select { width: 100%; min-width: 0; padding: 6px 7px; border: 1px solid var(--input-border); border-radius: 7px; background: var(--input-bg); color: var(--text-main); font-size: 11px; }
 #modeler .md-quick-field input:focus,#modeler .md-quick-field select:focus { border-color: var(--accent); outline: 2px solid color-mix(in srgb,var(--accent) 15%,transparent); }
+body.compact-nav #modeler .md-quick-field input:not([type="checkbox"]),
+body.compact-nav #modeler .md-quick-field select {
+  font-size: 16px;
+  min-height: 44px;
+  box-sizing: border-box;
+}
 #modeler .md-quick-field.type-boolean { grid-template-columns: minmax(0,1fr) 34px; cursor: pointer; }
 #modeler .md-quick-field.type-boolean input { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 #modeler .md-quick-field.type-boolean .md-feature-field-label,#modeler .md-quick-field.type-boolean .md-feature-switch { pointer-events: none; }
@@ -9151,6 +9157,20 @@ body.fold-stack #view-resizer {
 /* one pane is shown at a time now, so the panel itself does not scroll — the
    active pane does, and the icon bars stay put above it */
 #cabdes .cb-right .cb-fill { flex: 1; min-height: 0; overflow: hidden; }
+/* Keep the selected properties reachable on short laptop windows. */
+#cabdes:not(.cb-compact) .cb-right { overflow-y: auto; }
+#cabdes:not(.cb-compact) .cb-right > .cb-prev-wrap { flex: none; height: clamp(96px, 18vh, 170px); overflow: hidden; }
+
+#cabdes:not(.cb-compact) .cb-right > .cb-grp { flex: none; padding: 5px; margin-top: 5px; }
+#cabdes:not(.cb-compact) .cb-right > .cb-grp .cb-icons { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#cabdes:not(.cb-compact) .cb-right > .cb-grp .cb-icons button { min-height: 42px; padding: 5px; justify-content: center; }
+#cabdes:not(.cb-compact) .cb-right > .cb-grp .cb-icon-label { display: none; }
+#cabdes:not(.cb-compact) .cb-right .cb-fill { flex: 1 0 240px; min-height: 240px; overflow: visible; }
+#cabdes:not(.cb-compact) .cb-right .cb-pane.on { overflow: visible; flex: none; }
+#cabdes .cb-scope-note { max-width: 150px; font-size: 10px; color: var(--text-muted); }
+#cabdes.cb-compact .cb-scope-note { max-width: none; }
+#cabdes button.cb-preset { width: 100%; text-align: start; color: inherit; font: inherit; }
+#cabdes button.cb-check { width: 100%; text-align: start; cursor: pointer; }
 #cabdes .cb-mid {
   flex: 1; position: relative; border-radius: 16px; overflow: hidden;
   background-color: var(--bg-canvas-2d);
@@ -14349,11 +14369,18 @@ body.dock-rail.compact-nav #modeler.md-tree-on .md-left:not(.md-borrowed) {
   max-width: 42vw;
   flex: 0 0 auto;
   height: auto;
+  max-height: none;
   min-height: 0;
   border-radius: 0;
   border: none;
   border-inline-end: 1px solid var(--border-color);
   box-shadow: none;
+}
+/* The unfolded dock is narrower than a phone sheet. Stack field labels so
+   readable numeric inputs and selected options do not shrink to 92px. */
+body.dock-rail.compact-nav #modeler .md-left:not(.md-borrowed) .md-quick-field:not(.type-boolean) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
 }
 /* The live tool/selection guidance, as a slim strip at the TOP — out of the
    thumb arc, and the only text left over the model. */
@@ -14396,7 +14423,7 @@ body.compact-nav #md-ctx {
   display: flex;
   position: fixed;
   inset-inline: 0;
-  bottom: var(--mobile-nav-block);
+  bottom: calc(var(--mobile-nav-block) + var(--kb, 0px));
   z-index: 302; /* over #modeler (300) */
   box-sizing: border-box;
   height: var(--m-ctx-block);
@@ -14624,7 +14651,7 @@ body.compact-nav #md-nav {
   display: flex;
   position: fixed;
   inset-inline: 0;
-  bottom: 0;
+  bottom: var(--kb, 0px);
   z-index: 302;
   box-sizing: border-box;
   height: var(--mobile-nav-block);
@@ -14734,6 +14761,9 @@ body.compact-nav #md-nav .md-nav-glyph svg {
 #md-sheet #md-sheet-body {
   padding-bottom: 4px;
 }
+/* Hosted panels own the available height; an empty generated body must not
+   take half of it through the shared flex rule. */
+#md-sheet #md-sheet-body:empty { display: none; }
 
 /* ---- the editor's sheet -------------------------------------------------- */
 
@@ -14747,7 +14777,7 @@ body.compact-nav #md-nav .md-nav-glyph svg {
   display: none;
   position: absolute;
   inset: 0;
-  z-index: 39;
+  z-index: 79;
   background: rgba(0, 0, 0, 0.32);
 }
 #md-sheet-backdrop.on {
@@ -14759,7 +14789,7 @@ body.compact-nav #md-sheet {
   position: absolute;
   inset-inline: 0;
   bottom: 0;
-  z-index: 40;
+  z-index: 80;
   box-sizing: border-box;
   max-height: 56%;
   padding-bottom: 6px;
@@ -14867,6 +14897,7 @@ body.compact-nav #md-sheet.tall:has(.md-sheet-host > *) {
   display: none !important;
 }
 #modeler .md-left.md-borrowed #mdQuickTools {
+  box-sizing: border-box;
   width: 100%;
   flex: 1 1 auto;
 }
@@ -15141,6 +15172,9 @@ body.compact-nav #modeler .md-mobile-status.error {
   border-color: rgba(208,52,44,.65);
   background: rgba(64,25,25,.95);
   color: #ffb7b2;
+}
+body.dock-rail.compact-nav #modeler.md-tree-on .md-mobile-status {
+  inset-inline-start: calc(clamp(220px, 32vw, 280px) + 8px);
 }
 .md-sheet-fields {
   display: flex;
@@ -16189,6 +16223,17 @@ body.compact-nav #md-ctx {
 #md-selection-bar .mctx-btn span {
   display: none;
 }
+/* These verbs change with the modelling state. Their labels are needed to
+   distinguish Start sketch, Extrude, Finish and Cancel on a touch screen. */
+body.compact-nav #md-ctx > .mctx-btn:not(.mctx-icon-only) {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 160px;
+  padding-inline: 8px;
+}
+body.compact-nav #md-ctx > .mctx-btn:not(.mctx-icon-only) span {
+  display: block;
+}
 #m-ctx .mctx-chip,
 #md-ctx .mctx-chip {
   min-width: 44px;
@@ -16730,6 +16775,9 @@ body.compact-nav #wallProps .wi-head {
   body.compact-nav #md-sheet:not(.tall):has(.md-sheet-host > *) {
     height: 48% !important;
   }
+  /* Unlike the planner sheet, this sheet is inside an editor which already
+     ends above the thumb rows. Do not subtract those rows a second time. */
+  body.compact-nav #md-sheet { bottom: 0; }
   body.compact-nav .dropdown-menu.open.mobile-paged-menu,
   body.compact-nav #ctx-menu.as-sheet.mobile-paged-menu {
     position: fixed;
@@ -18915,3 +18963,121 @@ body.compact-nav #plan-tools::after { display: none; }
    the row and clip the label it belongs to down to two characters. */
 .bx-row select { flex: 0 0 190px; width: 190px; }
 .bx-row input[type="checkbox"] { flex: 0 0 auto; width: 16px; height: 16px; cursor: pointer; }
+
+/* Racing owns the stage; leaving it restores the planner's selected view. */
+body.rc-playing #left-sidebar, body.rc-playing:not(:has(#rcEd)) #right-inspector,
+body.rc-playing #topbar, body.rc-playing #view-3d > #floor-tabs, body.rc-playing #view-3d > .lbl,
+body.rc-playing #view-3d > .hint, body.rc-playing #view-3d > .view-edit-btn, body.rc-playing #view-3d > .view-max-btn, body.rc-playing #view-3d > .view-gizmo { display: none !important; }
+body.rc-playing #center-canvas { flex: 1; width: 100%; min-width: 0; }
+body.rc-playing #workspace { height: 100dvh; }
+#rcActions { position: absolute; left: 16px; top: 138px; height: fit-content; display: flex; gap: 8px; pointer-events: auto; }
+#rcActions button { color: #fff; background: #172538e8; border: 1px solid #ffffff40; border-radius: 12px; padding: 10px 16px; font: inherit; cursor: pointer; }
+#rcCoach { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); padding: 10px 18px; border-radius: 30px; color: #ecfff8; background: #102d2be8; border: 1px solid #8af3cb70; font-weight: 600; text-align: center; }
+#rcCoach[hidden] { display: none; }
+#rcHud:has(#rcPanel.on) #rcActions, #rcHud:has(#rcPanel.on) #rcCoach,
+#rcHud:has(#rcResults.on) #rcActions, #rcHud:has(#rcResults.on) #rcCoach,
+#rcHud:has(#rcPause.on) #rcActions, #rcHud:has(#rcPause.on) #rcCoach { display: none; }
+#rcPanel .rc-howto { color: #c5d3df; font-size: 12px; line-height: 1.5; margin: 2px 0; }
+#rcPanel #rcStart { min-height: 44px; background: #126c58; font-weight: 700; }
+#rcPanel #rcAssist[aria-pressed="true"] { border-color: #71eac4; }
+@media (max-width: 760px) {
+  #rcCoach { bottom: 160px; max-width: 65%; font-size: 12px; }
+  #rcActions { top: 138px; left: 8px; }
+}
+
+/* Night Shift camera comfort and run choices. Keep all settings scrollable. */
+#zHud.z-no-blood #zBlood { display: none !important; }
+#zHud.z-no-flashes #zFlashCol,
+#zHud.z-no-flashes #zChrom,
+#zHud.z-no-flashes #zDistractFx { display: none !important; }
+#zHud.z-bodycam #zGrain { opacity: .025; }
+#zHud.z-bodycam #zVig { opacity: .35; }
+#zHud.z-bodycam #zChrom { opacity: .025 !important; }
+.z-extra-settings { border-top: 1px solid #ffffff20; margin-top: 16px; padding-top: 12px; }
+.z-extra-settings select { width: 100%; min-height: 32px; color: #eee; background: #24282d; border: 1px solid #697078; border-radius: 4px; }
+.z-extra-settings input[type="checkbox"] { width: 18px; height: 18px; justify-self: end; }
+#zTutorial { position: absolute; top: 128px; left: 50%; transform: translateX(-50%); max-width: min(560px, 85vw); color: #e8edf1; background: #111920c9; border-radius: 5px; padding: 6px 10px; font-size: 12px; text-align: center; pointer-events: none; }
+#zTutorial:empty { display: none; }
+#zIntermission button { white-space: normal; line-height: 1.4; }
+@media (max-width: 600px) { #zTutorial { top: 112px; font-size: 10px; width: 78vw; } }
+/* Objective name and destination need their own line beside the progress. */
+#zMission > div { display: grid; gap: 5px; }
+#zMissionLabel { white-space: normal; line-height: 1.35; letter-spacing: .06em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+#zThreat { top: calc(max(20px, env(safe-area-inset-top)) + 94px); }
+#zTutorial { top: 155px; }
+@media (max-width: 720px) {
+  #zThreat { top: calc(max(12px, env(safe-area-inset-top)) + 94px); }
+  #zTutorial { top: 192px; }
+}
+#zHud.z-landscape.z-short #zTutorial { top: 120px; font-size: 10px; }
+#zHud.paused #zTutorial { display: none; }
+#zHud.paused #zInteractPrompt, #zHud.paused #zMsg { visibility: hidden; }
+#zHud .z-extra-settings label > span { color: #d9dde1; font-size: 12px; }
+#zTop > span { white-space: nowrap; }
+@media (max-width: 720px) {
+  #zTop { width: max-content; max-width: calc(100vw - 24px); gap: 9px; font-size: 11px; letter-spacing: .07em; }
+}
+
+body.rc-playing:has(#rcEd) #rcActions { display: none; }
+
+/* Cabinet dimensions remain legible in the narrow model inspector. */
+#modeler .md-prop-grid.md-cab-parameters { grid-template-columns: minmax(0, 1fr); }
+#modeler .md-cab-parameters .md-grid-cell .t { white-space: normal; overflow: visible; text-overflow: clip; }
+
+.cb-p-preview { width: 44px; height: 40px; float: inline-end; margin-inline-start: 8px; opacity: .7; }
+
+#cabdes button.cb-preset { display: block; height: auto; min-height: 0; white-space: normal; flex-shrink: 0; overflow: hidden; }
+
+/* Shared density: retain the live workflow and coach in one desktop row. */
+#modeler .md-status-row { display:flex; flex:none; align-items:center; min-width:0; border-bottom:1px solid var(--border-color); }
+#modeler .md-status-row .md-workflow { min-width:0; flex:0 1 auto; border:0; padding:0 8px; }
+#modeler .md-status-row .md-workflow button:not(.active) { display:none; }
+#modeler .md-status-row .md-workflow button::before { display:none; }
+#modeler .md-status-row .md-coach { flex:1; min-width:0; min-height:32px; border:0; padding:2px 8px; background:none; }
+#modeler .md-status-row .md-coach-text { min-width:0; }
+#modeler .md-status-row .md-coach-text small,
+#modeler .md-status-row .md-coach-pulse,
+#modeler .md-status-row .md-coach-dots { display:none; }
+#modeler.md-workflow-hidden #mdWorkflow { display:none; }
+#modeler .md-status-row:has(.md-coach[hidden]):has(.md-workflow) { min-height:0; }
+#modeler #mdCons .md-head-inputs { display:flex; flex-direction:column; align-items:stretch; gap:10px; margin-bottom:14px; }
+#modeler #mdCons .md-field input { max-width:none; box-sizing:border-box; min-height:36px; }
+#modeler.md-density-expert .md-commandmanager:not(.md-borrowed) .md-command > span { display:none; }
+#modeler.md-density-expert .md-commandmanager:not(.md-borrowed) .md-command { min-width:36px; }
+body.compact-nav #modeler .md-status-row { display:none; }
+body.compact-nav #modeler #mdCons .md-field input { min-height:44px; font-size:16px; }
+
+#modeler input.md-instant3d-value { pointer-events:auto; width:100px; min-height:36px; box-sizing:border-box; border:1px solid #8fb8f8; text-align:center; }
+body.compact-nav #modeler input.md-instant3d-value { min-height:44px; font-size:16px; }
+#modeler button.md-tree-warn { border:0; background:none; color:var(--danger); min-width:32px; min-height:32px; cursor:pointer; }
+body.compact-nav #modeler button.md-tree-warn { min-width:44px; min-height:44px; }
+
+#modeler #mdEmptyStart { display:flex; gap:6px; background:var(--bg-panel); }
+#modeler #mdEmptyStart[hidden] { display:none; }
+#modeler #mdEmptyStart button { min-height:44px; min-width:54px; padding:6px 10px; }
+
+/* On an empty model these are plane choices, not the retired welcome launcher. */
+body.compact-nav #modeler #mdEmptyStart:not([hidden]) { display:flex !important; max-width:calc(100% - 24px); padding:6px; gap:4px; box-sizing:border-box; }
+
+/* Objective text can wrap: proximity follows its actual height. */
+#zReadouts { position:absolute; top:max(20px, env(safe-area-inset-top)); left:max(20px, env(safe-area-inset-left)); width:min(276px, 32vw); display:flex; flex-direction:column; gap:8px; }
+#zHud #zReadouts #zMission { position:static; width:100%; max-width:none; box-sizing:border-box; }
+#zHud #zReadouts #zThreat { position:static; flex-wrap:wrap; }
+@media (max-width:1024px) {
+  #zReadouts { top:max(12px, env(safe-area-inset-top)); left:max(12px, env(safe-area-inset-left)); width:min(245px, calc(100vw - 110px)); }
+  #zHud #zTop { top:calc(max(12px, env(safe-area-inset-top)) + 124px); }
+  #zHud #zCombo { top:calc(max(12px, env(safe-area-inset-top)) + 134px); }
+}
+
+.md-decision { color:var(--text, #eee); background:var(--panel, #252932); border:1px solid var(--line, #657080); border-radius:16px; padding:20px; width:min(440px, calc(100vw - 32px)); max-height:calc(100dvh - 32px - var(--kb, 0px)); box-sizing:border-box; overflow:auto; }
+.md-decision::backdrop { background:#0008; }
+.md-decision h2 { margin:0 0 12px; font-size:18px; }
+.md-decision p { white-space:pre-line; overflow-wrap:anywhere; line-height:1.5; }
+.md-decision-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.md-decision-actions button { flex:1 1 140px; min-height:44px; padding:10px; color:inherit; background:transparent; border:1px solid currentColor; border-radius:8px; font:inherit; }
+.md-decision button:focus-visible { outline:3px solid #88baff; outline-offset:3px; }
+.md-expression-result { display:block; grid-column:1 / -1; overflow-wrap:anywhere; font-size:12px; line-height:1.4; }
+.md-expression-result:empty { display:none; }
+.md-expression-result.invalid, .md-draft-status.is-error { color:var(--danger, #ff9898); }
+.md-quick-field input[aria-invalid="true"] { border-color:var(--danger, #ff9898); }
+.md-draft-status { display:block; font-size:12px; flex-basis:100%; }

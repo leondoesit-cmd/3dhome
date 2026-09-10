@@ -56,12 +56,34 @@ export const PRESETS = [
   { id: "drafting", key: "uikit_preset_drafting", en: "Drafting", doc: drafting },
 ];
 
+function styled(base, accent, hover) {
+  let doc = base();
+  doc = ops.setToken(doc, { id: null, name: "--accent", value: accent });
+  return ops.setToken(doc, { id: null, name: "--accent-hover", value: hover });
+}
+
+PRESETS.push(
+  { id: "focus", key: "uikit_preset_focus", en: "Focus", doc: () => styled(compact, "#0f766e", "#115e59") },
+  { id: "studio", key: "uikit_preset_studio", en: "Studio", doc: () => styled(touch, "#7c3aed", "#6d28d9") },
+);
+
+const PRESENTATION = {
+  default: ["Balanced tools and panels for everyday work.", "#4f46e5", "26%"],
+  compact: ["Slim sidebar and tighter spacing. More room to draw.", "#4f46e5", "18%"],
+  touch: ["Wider sidebar and generous group spacing.", "#4f46e5", "34%"],
+  drafting: ["A drawing-first layout with fewer library panels.", "#4f46e5", "22%"],
+  focus: ["A compact workspace with a calm teal accent.", "#0f766e", "18%"],
+  studio: ["An open, spacious layout with a violet accent.", "#7c3aed", "34%"],
+};
+
 export function presetList(label) {
   return PRESETS.map((preset) => ({
     id: preset.id,
     key: preset.key,
     label: label ? label(preset.key, preset.en) : preset.en,
     doc: preset.doc,
+    description: label ? label("uikit_preset_" + preset.id + "_desc", PRESENTATION[preset.id][0]) : PRESENTATION[preset.id][0],
+    preview: { accent: PRESENTATION[preset.id][1], sidebar: PRESENTATION[preset.id][2] },
   }));
 }
 

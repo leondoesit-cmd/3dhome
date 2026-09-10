@@ -20,6 +20,7 @@
  * nothing to show would make the ghost disappear exactly when the user most
  * needs to see where it is.
  */
+import { planningGuide, assignChecklistRoom } from "../planning_guide.js";
 import { roomPreset, presetRect, rectInterior } from "../room_presets.js";
 import { solveDock, corridorRect, translateRect } from "../room_dock.js";
 import { rectOverlapsRooms, DEFAULT_WALL_SPEC } from "../room_graph.js";
@@ -83,10 +84,18 @@ export function prepareRoomStamp(params, env) {
   const x = Number(params.x), z = Number(params.z);
   if (!finite(x) || !finite(z)) return fail("INVALID_ROOM_ORIGIN");
 
+  const entry = params.checklistId ? planningGuide(state).rooms.find((room) => room.id === params.checklistId) : null;
+  if (params.checklistId) {
+    if (!entry || entry.type !== preset.id) return fail("INVALID_CHECKLIST_ENTRY");
+    if (entry.roomHid && (entry.floorId !== state.workspace.activeFloor
+        ? (state.workspace.floors || []).some((floor) => floor.id === entry.floorId)
+        : (traceOf(env) || []).some((room) => state.roomMeta[room.key]?.hid === entry.roomHid)))
+      return fail("ROOM_ALREADY_ASSIGNED");
+  }
   const spec = specOf(params);
   const width = finite(Number(params.w)) ? Number(params.w) : preset.w;
   const depth = finite(Number(params.d)) ? Number(params.d) : preset.d;
-  if (width < preset.min.w || depth < preset.min.d) return fail("ROOM_TOO_SMALL");
+  if (width < 20 || depth < 20) return fail("ROOM_TOO_SMALL");
 
   let rect = presetRect(preset, x, z, {
     thickness: spec.thickness, rot: params.rot, w: width, d: depth,
@@ -122,6 +131,8 @@ export function prepareRoomStamp(params, env) {
       expectedVersion: params.expectedVersion != null ? params.expectedVersion : versionOf(env),
       params: {
         preset: preset.id,
+        checklistId: entry ? entry.id : "",
+        checklistName: entry ? entry.name : "",
         rect: rect,
         dock: usedDock || null,
         corridor: usedDock && usedDock.mode === "corridor" ? corridorRect(rect, usedDock) : null,
@@ -172,6 +183,10 @@ export function applyRoomStamp(plan, env) {
   });
   if (!out.ok) return fail(out.reason || "ROOM_STAMP_FAILED", { room: out.room });
 
+  if (params.checklistId) {
+    const assignment = assignChecklistRoom(state, params.checklistId, out.key);
+    if (!assignment.ok) return assignment;
+  }
   const created = out.created.map((id) => ({ kind: "wall", id: id }))
     .concat(out.openings.map((o) => ({ kind: "opening", id: o.id })));
   const deleted = (out.removedShared || []).map((w) => ({ kind: "wall", id: w.id }));
@@ -182,7 +197,8 @@ export function applyRoomStamp(plan, env) {
     mode: out.mode,
     // a shared wall is not new, but it now bounds a room it did not before and
     // may have gained the door through it
-    changed: out.shared.map((id) => ({ kind: "wall", id: id })),
+    changed: out.shared.map((id) => ({ kind: "wall", id: id }))
+      .concat(params.checklistId ? [{ kind: "project", id: state.workspace.id }] : []),
     effects: {
       dirty3D: true,
       refreshTree: true,

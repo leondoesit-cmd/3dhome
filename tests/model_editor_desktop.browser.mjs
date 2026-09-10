@@ -99,8 +99,10 @@ test("desktop model editor boots cleanly and exposes window.cadPreviewView", opt
 
 for (const lang of ["en", "he"]) {
   for (const [w, h] of [[1024, 768], [1280, 800], [1920, 1080]]) {
-    test(`desktop model editor @ ${w}x${h} (${lang}): 3-column shell layout integrity`, opts, async () => {
+    test(`desktop model editor @ ${w}x${h} (${lang}): collapsed inspector opens into a usable three-column layout`, opts, async () => {
       const page = await ctx({ width: w, height: h, lang });
+      assert.equal(await page.eval(() => document.getElementById("modeler").classList.contains("md-right-collapsed")), true);
+      await page.eval(() => document.getElementById("mdToggleRight").click());
       const layout = await page.eval(() => {
         const root = document.getElementById("modeler");
         const head = root.querySelector(".md-head");
@@ -150,7 +152,7 @@ for (const lang of ["en", "he"]) {
       assert.equal(layout.fullHeightFits, true, "body overflows window height");
     });
 
-    test(`desktop model editor @ ${w}x${h} (${lang}): workflow breadcrumbs fit without overflow`, opts, async () => {
+    test(`desktop model editor @ ${w}x${h} (${lang}): current workflow step fits without overflow`, opts, async () => {
       const page = await ctx({ width: w, height: h, lang });
       const wf = await page.eval(() => {
         const bar = document.getElementById("mdWorkflow");
@@ -168,7 +170,8 @@ for (const lang of ["en", "he"]) {
 
       assert.equal(wf.count, 5, "expected 5 workflow steps");
       assert.equal(wf.overflows, false, "workflow breadcrumbs overflow bar width");
-      assert.ok(wf.steps.every((s) => s.w > 40), "every step has a visible clickable width");
+      assert.equal(wf.steps.filter((s) => s.w > 0).length, 1, "only the current step occupies the status row");
+      assert.ok(wf.steps.find((s) => s.active).w > 40, "the current step remains clickable");
     });
   }
 }
@@ -978,7 +981,13 @@ test("desktop model editor: assembly components drag with mouse and touch", opts
 test("desktop model editor: an assembly is drawn by the FeatureManager tree", opts, async () => {
   const page = await ctx({ width: 1280, height: 800, lang: "en" });
   await seedModelLibrary(page, [
-    { key: "treeA", name: "Tree A", w: 20, d: 10, h: 10, parts: [{ id: "treeA-p", kind: "box", name: "Body", x0: -10, x1: 10, y0: 0, y1: 10, z0: -5, z1: 5 }] },
+    /* Tree A carries a boss as well, so a Concentric mate below has a real
+       round face on BOTH sides. It used to be a bare box: the mate worked only
+       because the bounding-box fallback invented a centre-line axis for it. */
+    { key: "treeA", name: "Tree A", w: 20, d: 10, h: 10, parts: [
+      { id: "treeA-p", kind: "box", name: "Body", x0: -10, x1: 10, y0: 0, y1: 10, z0: -5, z1: 5 },
+      { id: "treeA-q", kind: "cyl", name: "Boss", x: 0, y: 10, z: 0, r: 2, h: 4 },
+    ] },
     { key: "treeB", name: "Tree B", w: 12, d: 10, h: 10, parts: [
       { id: "treeB-p", kind: "box", name: "Body", x0: -6, x1: 6, y0: 0, y1: 10, z0: -5, z1: 5 },
       { id: "treeB-q", kind: "cyl", name: "Boss", x: 0, y: 10, z: 0, r: 2, h: 4 },
@@ -1018,18 +1027,57 @@ test("desktop model editor: an assembly is drawn by the FeatureManager tree", op
   });
   assert.deepEqual(nested, ["Body", "Boss"], "the component's solids hang off it");
 
-  // two mates on the same pair, so the second overrides the first
+  /* Two mates on the same pair, so the second overrides the first.
+   *
+   * A face is picked on each component first. Selecting the two COMPONENTS and
+   * clicking Coincident used to be enough, because the mate fell back to the
+   * bounding boxes — it mated one envelope's +X face to the other's -X face
+   * whatever the parts looked like, and the panel admitted as much while doing
+   * it. Selecting two components does not say which faces should touch, so
+   * that pair of clicks now correctly leaves every topology mate greyed. */
   const addMate = async (label) => {
+    /* Coincident wants two planar faces; Concentric wants two round ones. The
+       planar pair is A's right face against B's left, so the two mates
+       genuinely disagree about where B goes — which is what makes their solve
+       ORDER observable further down. Facing faces is also what the old
+       bounding-box fallback approximated, now said with real geometry. */
+    const picked = await page.eval((wanted) => {
+      const components = window.cadAssemblySnapshot().components;
+      const round = wanted === "Concentric";
+      window.cadClearTopologySelection();
+      return [
+        window.cadSelectComponentFace(components[0], round ? { surface: "cylinder" } : "right"),
+        window.cadSelectComponentFace(components[1], round ? { surface: "cylinder" } : "left"),
+      ];
+    }, label);
+    assert.ok(picked[0] && picked[1], "both faces must be pickable: " + JSON.stringify(picked));
     await page.eval((wanted) => {
-      const rows = [...document.querySelectorAll("#mdParts .md-tree-component")];
-      rows[0].click();
-      rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
       document.querySelector('#modeler [data-tab="ops"]').click();
-      [...document.querySelectorAll("#mdOps .md-ops button")].find((b) => b.textContent.includes(wanted)).click();
+      const button = [...document.querySelectorAll("#mdOps .md-ops button")].find((b) => b.textContent.includes(wanted));
+      if (button.classList.contains("unavailable")) throw new Error(wanted + " is unavailable with two faces picked: " + button.title);
+      button.click();
       document.querySelector('#modeler [data-tab="parts"]').click();
     }, label);
     await page.eval(() => new Promise((r) => setTimeout(r, 600)));
   };
+
+  // With only components selected, a face-to-face mate has nothing to work from.
+  const greyed = await page.eval(() => {
+    window.cadClearTopologySelection();
+    const rows = [...document.querySelectorAll("#mdParts .md-tree-component")];
+    rows[0].click();
+    rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    document.querySelector('#modeler [data-tab="ops"]').click();
+    const button = [...document.querySelectorAll("#mdOps .md-ops button")].find((b) => b.textContent.includes("Coincident"));
+    return {
+      unavailable: !!button && button.classList.contains("unavailable"),
+      ariaDisabled: button && button.getAttribute("aria-disabled"),
+      tip: button ? button.title : "",
+    };
+  });
+  assert.equal(greyed.unavailable, true, "Coincident must not be offered on two components with no faces picked");
+  assert.equal(greyed.ariaDisabled, "true");
+  assert.match(greyed.tip, /face/i, "and it must say what is missing: " + greyed.tip);
   await addMate("Coincident");
   await addMate("Concentric");
   const mateNames = await page.eval(() => [...document.querySelectorAll('#mdParts [data-node-id^="tmate:"] .md-tree-name')]
@@ -1139,7 +1187,7 @@ test("desktop model editor: section controls and collapsible side panels are ope
 
   await page.eval(() => {
     document.getElementById("mdToggleLeft").click();
-    document.getElementById("mdToggleRight").click();
+    if (!document.getElementById("modeler").classList.contains("md-right-collapsed")) document.getElementById("mdToggleRight").click();
   });
   const collapsed = await page.eval(() => {
     const root = document.getElementById("modeler");
@@ -1221,8 +1269,9 @@ test("desktop model editor: interactive tutorial opens SolidWorks CAD track and 
   assert.equal(tourClosed, true, "tutorial did not close cleanly");
 });
 
-test("desktop model editor: header labels, Save, and Close do not overlap", opts, async () => {
+test("desktop model editor: Settings labels and header actions do not overlap", opts, async () => {
   const page = await ctx({ width: 1280, height: 800, lang: "en" });
+  await page.eval(() => document.querySelector('#modeler [data-tab="set"]').click());
   const chrome = await page.eval(() => {
     const name = document.querySelector("#modeler .md-field");
     const label = name?.querySelector("span");

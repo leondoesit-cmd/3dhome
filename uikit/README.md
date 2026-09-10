@@ -91,10 +91,11 @@ A flat catalogue. `get(id)` and `ids()`, or just an array.
 by the code that owns it, and a stale reference means adopting a node that is
 no longer in the document.
 
-`constraints.resize` is `"x" | "y" | "both" | "none"`, and it is yours to
-declare because you are what knows how your chrome is laid out. You widen a
-sidebar and you heighten a toolbar; offering the other edge is a promise the
-layout cannot keep.
+`constraints.resize` is `"x" | "y" | "both" | "none"`. **The default is
+`"both"`** — every edge and every corner — because a user size is written with
+`!important` and both axes really are honoured. Declare one only where your
+chrome genuinely cannot take it: a fixed grid track is `"none"`, a sidebar you
+want widened but never heightened is `"x"`. Nothing is pinned on your behalf.
 
 ### 2. Layout document — uikit owns it, you persist it
 
@@ -229,6 +230,9 @@ the name, because layouts get imported from files.
 presets: [{ id: "compact", label: "Compact", doc: () => buildCompact() }]
 ui.applyPreset("compact");     // replaces the document; undoable
 ui.exportLayout();             // pretty-printed JSON
+ui.saveNamedLayout("My workspace"); // saves a separate named snapshot; returns false if storage fails
+ui.savedLayouts();              // [{ id, name }], stored independently from the active layout
+ui.loadNamedLayout(id);         // restores a snapshot as an undoable edit
 ui.importLayout(text);         // -> { ok, problems }
 ```
 
@@ -245,7 +249,7 @@ with nothing to say so.
 index.js            createUIKit() — the only entry point
 model/              pure, no DOM: schema, validate, ops, history, resolve
 runtime/            adopt, render, slots, tokens, variants, keys
-editor/             lazy: designer, drag, resize, group, inspector, a11y
+editor/             lazy: designer, drag, resize, ghost, group, inspector, a11y
 adapters/           storage_local, storage_none
 demo/               a standalone application that imports nothing else
 tests/              node --test, DOM-free

@@ -518,10 +518,20 @@ function closeSheet() {
   }
 }
 
+function borrowedDrawerVisible(key) {
+  return document.body.classList.contains(key === "add" ? "show-left" : "show-right");
+}
+
+function reconcileDrawerState() {
+  if ((openSheet === "add" || openSheet === "props") && !borrowedDrawerVisible(openSheet)) closeSheet();
+}
+
 function showSheet(key) {
   ensureSheet();
   if (window.__hideCtxMenu) window.__hideCtxMenu();
-  if (openSheet === key) return closeSheet();
+  // Swipes and other chrome can dismiss a borrowed panel before the observer
+  // runs. A stale key must not consume the next tap as another close.
+  if (openSheet === key && (!(key === "add" || key === "props") || borrowedDrawerVisible(key))) return closeSheet();
   // The two panel keys reuse the existing drawers, restyled as sheets by CSS.
   if (key === "add" || key === "props") {
     sheet.classList.remove("on", "tall");
@@ -1016,6 +1026,9 @@ export function initMobileShell() {
 
   initNav();
   ensureSheet();
+  // ui.js owns the legacy swipe/backdrop handlers. Observe the shared drawer
+  // classes so their dismissals also retire our backdrop and expanded state.
+  new MutationObserver(reconcileDrawerState).observe(document.body, { attributes:true, attributeFilter:["class"] });
   applyTouchHints();
   window.addEventListener("resize", applyTouchHints);
   onAfterRender(function () {
@@ -1047,6 +1060,12 @@ export function initMobileShell() {
     if (openSheet === "add" && S.placeType) closeSheet();
     sync(true);
   });
+  window.addEventListener("planner-guide-open", function () {
+    if (openSheet !== "add") showSheet("add");
+  });
+  window.addEventListener("planner-guide-place", function () {
+    if (openSheet === "add") closeSheet();
+  });
   window.addEventListener("planner-mobile-onboarding-start", function () {
     if (mobileFlowDone()) return;
     onboardingActive = true;
@@ -1054,6 +1073,7 @@ export function initMobileShell() {
     hideCoach();
   });
   window.addEventListener("planner-room-created", function () {
+    if (S.workspace?.guidance?.enabled) return;
     if (mobileFlowDone()) return;
     /* Only the FIRST room opens the walkthrough. Re-arming on every room sent
        someone who had already reached openings or furniture back to step one. */

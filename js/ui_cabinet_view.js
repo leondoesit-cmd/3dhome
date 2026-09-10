@@ -1515,7 +1515,7 @@ export function initPreview() {
     ambient: 0.6, keyLight: 0.95, fill: 0.35,
     az: 0.55, el: 0.28, dist: 420,
     minEl: -0.2, maxEl: 1.3, minDist: 60, maxDist: 2500,
-    pad: 24, ratio: 0.82,
+    pad: 24, ratio: 0.82, fitContainerHeight: function () { return E.host && !E.host.classList.contains("cb-compact"); },
     // the big view is framed with room for an open door to swing into
     bigZoom: 1.3,
     // centre on where the piece actually is — a wall unit hangs at 145
@@ -1531,7 +1531,7 @@ export function initPreview() {
 export function updatePreview() {
   if (!E.pv || !E.it) return;
   // frame the piece for the size it now is
-  E.pv.frame(Math.max(E.it.w * 0.95, E.it.h) * 1.35);
+  E.pv.frame(Math.hypot(E.it.w, E.it.h, E.it.d) * 1.5);
   // buildItem, not build(): it sets the item's style variant and clears it
   // again, which is the only correct way to render a piece
   E.pv.rebuild(function (grp) { buildItem(grp, E.it); });

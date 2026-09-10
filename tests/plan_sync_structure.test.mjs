@@ -262,3 +262,58 @@ test("adopting a peer's structure does not post it straight back", () => {
       "the structure just adopted is the baseline, so the render that follows is silent");
   });
 });
+
+test("project guide and semantic room types synchronize without sharing references", () => {
+  blank(S);
+  room(S, 0, 0, 400, 300, 1);
+  S.roomMeta["1,2,3,4"] = { hid: "r5", name: "Guest", roomType: "bedroom" };
+  S.workspace.guidance = { version: 1, enabled: true, intention: "recreate", details: { displayUnit: "m", entrances: {"floor-1":"9"}, routeWidth: 90, propertyType: "apartment", usableAreaTarget: 80 },
+    rooms: [{ id: "wanted-1", type: "bedroom", name: "Guest", width: 181.25, depth: 202.75, floorId: "floor-1", roomHid: "r5", skipped: false }] };
+  const target = peer();
+  target.workspace = { activeFloor: "floor-1" };
+  const op = structurePlanOp();
+  assert.equal(applyPlanOp(op, target), true);
+  assert.deepEqual(target.workspace.guidance, S.workspace.guidance);
+  assert.equal(target.roomMeta["1,2,3,4"].roomType, "bedroom");
+  op.guidance.rooms[0].name = "Mutated transport";
+  assert.equal(target.workspace.guidance.rooms[0].name, "Guest");
+  delete S.workspace.guidance;
+});
+
+test('redesign synchronization keeps immutable archives, scope and document identity separate', async () => {
+  const {normalizeBaselines}=await import('../js/redesign.js');
+  const state={workspace:{documentKey:'doc-a',baselines:[],redesign:{}}};
+  const baselines=normalizeBaselines([{id:'survey',floorId:'f',name:'Original',scene:{nodes:[],walls:[],openings:[],items:[]}}]);
+  const op={type:'redesignSet',documentKey:'doc-a',baselines,redesign:{f:{baselineId:'survey',allowedWallIds:['1']}}};
+  assert.equal(applyPlanOp(op,state),true);
+  assert.ok(Object.isFrozen(state.workspace.baselines[0].scene));
+  assert.deepEqual(state.workspace.redesign.f.allowedWallIds,['1']);
+  assert.equal(applyPlanOp({...op,baselines:[{...baselines[0],name:'Overwrite'}],redesign:{}},state),true);
+  assert.equal(state.workspace.baselines[0].name,'Original');
+  assert.deepEqual(state.workspace.redesign,{});
+  assert.equal(applyPlanOp({...op,documentKey:'unrelated'},state),false);
+  assert.equal(applyPlanOp({type:'structSet',documentKey:'new-document',nodes:[],walls:[],openings:[],roomMeta:{}},state),true);
+  assert.equal(state.workspace.baselines.length,0);
+  assert.equal(state.workspace.documentKey,'new-document');
+});
+
+test('malformed structure operations cannot clear a redesign archive', () => {
+  const workspace={documentKey:'keep',baselines:[{id:'b'}],redesign:{f:{baselineId:'b',allowedWallIds:[]}}};
+  const before=JSON.stringify(workspace);
+  assert.equal(applyPlanOp({type:'structSet',documentKey:'other'},{workspace}),false);
+  assert.equal(JSON.stringify(workspace),before);
+});
+test('room finish metadata synchronizes including custom-image removal',()=>{
+ const previous=S.roomMeta;
+ try{
+  S.roomMeta={'1,2,3,4':{name:'Room',floor:'wood',wall:0x112233,floorTex:'custom-image',floorScale:150,floorBump:0.3}};
+  const peer=blank({workspace:{}});
+  assert.equal(applyPlanOp(structurePlanOp(),peer),true);
+  assert.equal(peer.roomMeta['1,2,3,4'].wall,0x112233);
+  assert.equal(peer.roomMeta['1,2,3,4'].floorTex,'custom-image');
+  delete S.roomMeta['1,2,3,4'].floorTex;S.roomMeta['1,2,3,4'].floor='tiles';
+  assert.equal(applyPlanOp(structurePlanOp(),peer),true);
+  assert.equal(peer.roomMeta['1,2,3,4'].floorTex,undefined);
+  assert.equal(peer.roomMeta['1,2,3,4'].floor,'tiles');
+ }finally{S.roomMeta=previous;}
+});

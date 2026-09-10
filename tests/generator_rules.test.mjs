@@ -125,6 +125,15 @@ test("automatic apartments keep essential furniture, clear openings, and collisi
     audit("large");
     for (let i = 0; i < 40; i++) audit("random");
 
+    for (const [field, value] of [["slabOpenings", [{id: 999}]], ["markers", [{id: 999}]], ["mep", {nodes: [{id: 999}], edges: []}], ["mep", {nodes: [], runs: [{id: 999}]}]]) {
+      const previous = S[field]; S[field] = value;
+      const before = JSON.stringify([S.nodes, S.walls, S.openings, S.items]);
+      assert.equal(apartmentGenerateCommand.prepare({replace: true}, {state: S}).reason, "PROTECTED_STRUCTURE");
+      assert.equal(apartmentGenerateCommand.prepare({replace: false}, {state: S}).ok, true);
+      assert.equal(JSON.stringify([S.nodes, S.walls, S.openings, S.items]), before);
+      S[field] = previous;
+    }
+
     generateApartment("small", true);
     const old = S.items.map(it => ({ id: it.id, x: it.x, z: it.z, rot: it.rot }));
     generateApartment("small", false);

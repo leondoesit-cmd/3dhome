@@ -1,3 +1,4 @@
+import { S } from "./state.js";
 // Cut plan and quote — turns cabinets into panels, panels into sheets, and
 // sheets into a price.
 //
@@ -541,6 +542,7 @@ export function quote(items, opt) {
 
   return {
     items: list,
+    manufacturingReviewRequired: list.some((item) => S.parametric?.definitions?.[item.definitionId]?.metadata?.manufacturingReviewRequired),
     nest: res,
     panelCount: panels.length,
     sheets: lines,
@@ -636,6 +638,7 @@ export function cutCSV(q, en) {
       ? ["Part #", "Sheet material", "Sheet #", "Part", "Item", "Length (mm)", "Width (mm)", "Thk (mm)", "Grain locked", "Banding (m)", "X (mm)", "Y (mm)", "Rotated"]
       : ["מס׳ חלק", "חומר", "פלטה", "חלק", "פריט", 'אורך (מ"מ)', 'רוחב (מ"מ)', 'עובי (מ"מ)', "כיוון סיב", "קנט (מ׳)", 'X (מ"מ)', 'Y (מ"מ)', "מסובב"],
   ];
+  if (q.manufacturingReviewRequired) rows.unshift([en ? "PARTIAL ESTIMATE — advanced model edits require manufacturing review" : "אומדן חלקי — שינויי מודל מתקדמים דורשים בדיקת ייצור"]);
   q.nest.groups.forEach(function (g) {
     g.sheets.forEach(function (sh) {
       sh.place
@@ -782,6 +785,7 @@ export function quoteHTML(q, opt) {
     (opt.date ? esc(opt.date) + "<br>" : "") +
     (opt.ref ? L("סימוכין: ", "Ref: ") + esc(opt.ref) : "") +
     "</div></header>" +
+    (q.manufacturingReviewRequired ? "<p><strong>" + L("אומדן חלקי — שינויי מודל מתקדמים דורשים בדיקת ייצור", "PARTIAL ESTIMATE — advanced model edits require manufacturing review") + "</strong></p>" : "") +
     "<h2>" + L("הפריטים", "Items") + "</h2><table><thead><tr><th>#</th><th>" + L("פריט", "Item") +
     "</th><th class=n>" + L('רוחב × עומק × גובה (ס"מ)', "W × D × H (cm)") + "</th><th>" + L("חזית וגימור", "Front & finish") +
     "</th><th class=n>" + L("מחיר", "Price") + "</th></tr></thead><tbody>" + rows + "</tbody></table>" +

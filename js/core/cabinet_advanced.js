@@ -35,16 +35,51 @@ function partArea(part) {
 
 function partPanelSize(part){if(part.kind==="box"){const dims=[Math.abs(part.x1-part.x0),Math.abs(part.y1-part.y0),Math.abs(part.z1-part.z0)].sort((a,b)=>b-a);return{width:dims[0],height:dims[1]};}if(part.kind==="ext"){const pts=part.pts || [],us=pts.map((p)=>p.u),vs=pts.map((p)=>p.v);if(us.length)return{width:Math.max(...us)-Math.min(...us),height:Math.max(...vs)-Math.min(...vs)};}return{width:0,height:0};}
 
-export function cabinetSheetNesting(rows,options={}){const sheetWidth=Number(options.width)||280,sheetHeight=Number(options.height)||207,gap=Number(options.gap)||.4,sheets=[];rows.filter((row)=>row.classified&&row.role!=="hardware"&&row.width>0&&row.height>0).forEach((row)=>{let placed=false,maximum=sheets.length;for(let sheetIndex=0;sheetIndex<=maximum&&!placed;sheetIndex++){if(sheetIndex===sheets.length)sheets.push({width:sheetWidth,height:sheetHeight,placements:[],cursorX:0,cursorY:0,rowHeight:0});const sheet=sheets[sheetIndex];for(const rotated of [false,true]){const width=(rotated?row.height:row.width)+gap,height=(rotated?row.width:row.height)+gap;if(sheet.cursorX+width>sheetWidth){sheet.cursorX=0;sheet.cursorY+=sheet.rowHeight;sheet.rowHeight=0;}if(sheet.cursorY+height<=sheetHeight){sheet.placements.push({partId:row.partId,x:sheet.cursorX,y:sheet.cursorY,width:width-gap,height:height-gap,rotated});sheet.cursorX+=width;sheet.rowHeight=Math.max(sheet.rowHeight,height);placed=true;break;}}}});return{sheets:sheets.map(({cursorX,cursorY,rowHeight,...sheet})=>sheet),unplaced:rows.filter((row)=>row.classified&&row.role!=="hardware"&&!sheets.some((sheet)=>sheet.placements.some((placement)=>placement.partId===row.partId))).map((row)=>row.partId)};}
+export function cabinetSheetNesting(rows, options = {}) {
+  const sheetWidth = Number(options.width) > 0 ? Number(options.width) : 280;
+  const sheetHeight = Number(options.height) > 0 ? Number(options.height) : 207;
+  const gap = Number.isFinite(options.gap) && options.gap >= 0 ? options.gap : 0.4;
+  const sheets = [], unplaced = [];
+  for (const row of rows.filter((candidate) => candidate.classified && candidate.role !== "hardware")) {
+    const valid = [row.width, row.height].every((value) => Number.isFinite(value) && value > 0);
+    const orientations = (row.grain ? [false] : [false, true]).map((rotated) => ({
+      rotated, width: rotated ? row.height : row.width, height: rotated ? row.width : row.height,
+    })).filter((size) => valid && size.width <= sheetWidth && size.height <= sheetHeight);
+    if (!orientations.length) { unplaced.push(row.partId); continue; }
+    const stockKey = [row.materialRole || "board", row.thickness || 0, row.sheetId || ""].join(":");
+    let placed = false;
+    const candidates = sheets.filter((sheet) => sheet.stockKey === stockKey);
+    const fresh = { width: sheetWidth, height: sheetHeight, stockKey, placements: [], cursorX: 0, cursorY: 0, rowHeight: 0 };
+    for (const sheet of [...candidates, fresh]) {
+      for (const size of orientations) {
+        let x = sheet.cursorX, y = sheet.cursorY, rowHeight = sheet.rowHeight;
+        if (x + size.width > sheetWidth) { x = 0; y += rowHeight + gap; rowHeight = 0; }
+        if (x + size.width > sheetWidth || y + size.height > sheetHeight) continue;
+        sheet.placements.push({ partId: row.partId, x, y, ...size });
+        sheet.cursorX = x + size.width + gap;
+        sheet.cursorY = y;
+        sheet.rowHeight = Math.max(rowHeight, size.height);
+        if (sheet === fresh) sheets.push(sheet);
+        placed = true;
+        break;
+      }
+      if (placed) break;
+    }
+    if (!placed) unplaced.push(row.partId);
+  }
+  return { sheets: sheets.map(({ cursorX, cursorY, rowHeight, ...sheet }) => sheet), unplaced };
+}
 
 export function cabinetAdvancedManufacturing(edits) {
   const changed=[...Object.values(edits?.partOverrides || {}),...(edits?.addedParts || [])];
   const rows=changed.map((part)=>{
-    const policy=CABINET_MANUFACTURING_ROLES[part.role],classified=!!(policy && part.materialRole);
+    const aliases = { side:"panel", top:"panel", bottom:"panel", divider:"panel", fixedShelf:"shelf", filler:"panel", door:"front", drawerFront:"front", doorPanel:"front", plinth:"trim", worktop:"panel" };
+    const policy=CABINET_MANUFACTURING_ROLES[part.role] || CABINET_MANUFACTURING_ROLES[aliases[part.role]],classified=!!(policy && part.materialRole);
     const quantity=1,area=partArea(part),rate=Number(part.manufacturingUnitRate)||policy?.rate||0;
-    const size=partPanelSize(part);return {partId:part.id,name:part.name || part.id,role:part.role,materialRole:part.materialRole,quantity,area,width:size.width,height:size.height,rate,cost:classified?Math.round((part.role==="hardware"?rate:area*rate)*100)/100:null,classified};
+    const size=partPanelSize(part);const thickness=part.kind==="box"?Math.min(Math.abs(part.x1-part.x0),Math.abs(part.y1-part.y0),Math.abs(part.z1-part.z0)):Math.abs((part.to || 0)-(part.from || 0));return {thickness,partId:part.id,name:part.name || part.id,role:part.role,materialRole:part.materialRole,quantity,area,width:size.width,height:size.height,rate,cost:classified?Math.round((part.role==="hardware"?rate:area*rate)*100)/100:null,classified};
   });
-  return {rows,total:Math.round(rows.reduce((sum,row)=>sum+(row.cost || 0),0)*100)/100,complete:rows.every((row)=>row.classified),nesting:cabinetSheetNesting(rows)};
+  const nesting = cabinetSheetNesting(rows);
+  return {rows,total:Math.round(rows.reduce((sum,row)=>sum+(row.cost || 0),0)*100)/100,complete:rows.every((row)=>row.classified) && !nesting.unplaced.length,nesting};
 }
 
 function cleanPart(part) {
@@ -62,8 +97,20 @@ function stable(value) {
 export function mergeCabinetAdvanced(base,edits,kind) {
   if (!edits) return clone(base);
   const removed=new Set(edits["removed"+kind+"Ids"] || []),overrides=edits[kind.toLowerCase()+"Overrides"] || {};
-  const merged=base.filter((item)=>!removed.has(item.id)).map((item)=>overrides[item.id]?clone(overrides[item.id]):clone(item));
-  const added=kind==="Sketch"?(edits.addedSketches || edits.addedSketchs):(edits.addedParts || []);
+  const merged=base.filter((item)=>!removed.has(item.id)).map((item)=>{
+    const override = overrides[item.id], original = edits.partBases?.[item.id];
+    if (!override) return clone(item);
+    const result = clone(override);
+    if (kind === "Part" && original && item.kind === original.kind && result.kind === original.kind) {
+      // Authored offsets follow their semantic panel when the cabinet resizes.
+      for (const key of ["x0","x1","y0","y1","z0","z1","x","y","z","r","h","from","to"]) {
+        if ([item[key], original[key], result[key]].every(Number.isFinite)) result[key] = item[key] + result[key] - original[key];
+      }
+      result.source = clone(item.source);
+    }
+    return result;
+  });
+  const added=kind==="Sketch"?(edits.addedSketches || edits.addedSketchs || []):(edits.addedParts || []);
   added.forEach((item)=>{if(!merged.some((candidate)=>candidate.id===item.id)) merged.push(clone(item));});
   return merged;
 }
@@ -78,6 +125,7 @@ export function captureCabinetAdvancedDelta(definition,baseParts,baseSketches) {
   const edits={
     version:1,
     partOverrides,
+    partBases: Object.fromEntries(Object.keys(partOverrides).map((id) => [id, clone(basePartMap.get(id))])),
     addedParts:currentParts.filter((part)=>!basePartMap.has(part.id)),
     removedPartIds:Array.from(basePartMap.keys()).filter((id)=>!currentPartMap.has(id)),
     sketchOverrides,
@@ -94,10 +142,11 @@ export function cabinetPartFeatureHistory(part) {
   const metadata={cabinetUnit:part.cabinetUnit,materialRole:part.materialRole,advanced:!String(part.id).startsWith("cabpart:")};
   let base;
   if(part.kind==="box") base={id,type:"box",name:part.name,role:part.role,params:{x:Math.min(part.x0,part.x1),y:Math.min(part.y0,part.y1),z:Math.min(part.z0,part.z1),w:Math.abs(part.x1-part.x0),h:Math.abs(part.y1-part.y0),d:Math.abs(part.z1-part.z0),role:part.role},inputs:[],metadata};
-  else if(part.kind==="cyl") base={id,type:"cylinder",name:part.name,role:part.role,params:{x:part.x,y:part.y,z:part.z,r:part.r,h:part.h,role:part.role},inputs:[],metadata};
+  else if(part.kind==="cyl") base={id,type:"cylinder",name:part.name,role:part.role,params:{x:part.x,y:part.y,z:part.z,r:part.r,h:part.h,axis:clone(part.axis),role:part.role},inputs:[],metadata};
   else if(part.kind==="sph") base={id,type:"sphere",name:part.name,role:part.role,params:{x:part.x,y:part.y,z:part.z,r:part.r,role:part.role},inputs:[],metadata};
   else if(part.kind==="ext") base={id,type:"extrude",name:part.name,role:part.role,params:{axis:part.axis,...(part.frame?{frame:clone(part.frame)}:{}),from:part.from,to:part.to,points:clone(part.pts),...(part.profileEntityIds?{profileEntityIds:clone(part.profileEntityIds),sketchId:part.sketchId}:{}),...(part.support?{support:clone(part.support),baseOffset:Number(part.supportBaseOffset)||0,depth:Number(part.supportDepth)||Math.abs(part.to-part.from)}:{}),role:part.role},inputs:part.support?[part.support.ownerFeatureId]:[],metadata};
   else base={id,type:"direct",name:part.name,role:part.role,params:clone(part),inputs:[],metadata};
+  base.suppressed = !!part.suppressed;
   const features=[base];let output=base;
   if(part.kind==="ext") {
     (part.holes || []).forEach((loop,index)=>{

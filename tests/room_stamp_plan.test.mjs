@@ -233,11 +233,12 @@ test("room.stamp inserts a WC inward against a living room wall", () => {
   assert.equal(out.created.filter((e) => e.kind === "opening").length, 1);
 });
 
-test("room.stamp rejects an unknown preset and a room below its own minimum", () => {
+test("room.stamp rejects invalid spans but permits manual sizes below advisory preferences", () => {
   blankPlan();
   assert.equal(prepareCommand(roomStampCommand, { preset: "ballroom", x: 0, z: 0 }, env()).reason, "UNKNOWN_PRESET");
   assert.equal(prepareCommand(roomStampCommand, { preset: "bedroom", x: 0 }, env()).reason, "INVALID_ROOM_ORIGIN");
-  assert.equal(prepareCommand(roomStampCommand, { preset: "bedroom", x: 0, z: 0, w: 60 }, env()).reason, "ROOM_TOO_SMALL");
+  assert.equal(prepareCommand(roomStampCommand, { preset: "bedroom", x: 0, z: 0, w: 60 }, env()).ok, true);
+  assert.equal(prepareCommand(roomStampCommand, { preset: "bedroom", x: 0, z: 0, w: 19 }, env()).reason, "ROOM_TOO_SMALL");
 });
 
 test("the prepared plan is what gets applied — preview and commit cannot drift", () => {

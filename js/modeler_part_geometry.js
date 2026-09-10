@@ -1,3 +1,4 @@
+import { cylinderBounds } from "./core/cylinder_axis.js";
 /* Part geometry for the model editor: bounds, moves, pattern placement and the
    exact-kernel recipe a single part is rebuilt from.
 
@@ -55,6 +56,7 @@ export function basePartBounds(p) {
     if (isFinite(mb.x0)) return mb;
   }
   if (p.kind === "box") return { x0: Math.min(p.x0, p.x1), x1: Math.max(p.x0, p.x1), y0: Math.min(p.y0, p.y1), y1: Math.max(p.y0, p.y1), z0: Math.min(p.z0, p.z1), z1: Math.max(p.z0, p.z1) };
+  if (p.kind === "cyl" && p.axis) return cylinderBounds(p);
   if (p.kind === "cyl") { var R = Math.max(p.r, p.r2 != null ? p.r2 : p.r); return { x0: p.x - R, x1: p.x + R, y0: p.y, y1: p.y + p.h, z0: p.z - R, z1: p.z + R }; }
   if (p.kind === "sph") return { x0: p.x - p.r, x1: p.x + p.r, y0: p.y - p.r, y1: p.y + p.r, z0: p.z - p.r, z1: p.z + p.r };
   if (p.kind === "rev") {
@@ -434,7 +436,7 @@ export async function exactBrepForPart(p) {
     solid=await makeBrepPrimitive({type:"box",...boxParams});
     expectedTopology=topologyForFeature({id:ownerFeatureId,type:"box"},boxParams);
   } else if (p.kind==="cyl" && (p.r2==null || Math.abs(p.r2-p.r)<1e-6)) {
-    var cylParams={x:p.x,y:p.y,z:p.z,r:p.r,h:p.h};
+    var cylParams={x:p.x,y:p.y,z:p.z,r:p.r,h:p.h,axis:p.axis};
     solid=await makeBrepPrimitive({type:"cylinder",...cylParams});
     expectedTopology=topologyForFeature({id:ownerFeatureId,type:"cylinder"},cylParams);
   } else if (p.kind==="cyl") {

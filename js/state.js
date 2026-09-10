@@ -1,3 +1,4 @@
+import { newDocumentKey } from "./redesign.js";
 // Shared application state + constants + tiny helpers.
 // All mutable cross-module state lives on the single object `S` so any module can read/write it.
 import { refreshRuntimePlacement } from "./core/runtime.js";
@@ -493,6 +494,7 @@ export const S = {
   // without another workspace object, preventing recursive saves.
   workspace: {
     id: "project-default",
+    documentKey: newDocumentKey(), baselines: Object.freeze([]), redesign: {},
     name: "Home project",
     activeFloor: "floor-1",
     referenceFloor: null,

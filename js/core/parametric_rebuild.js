@@ -1,5 +1,6 @@
+import { materializeCabinetDefinition } from "./cabinet_definition.js";
 import { stableStringify } from "./dependency_graph.js";
-import { bodiesFromResults, rebuildDefinition } from "./rebuild.js";
+import { bodiesFromResults, rebuildDefinition, resolveParameters } from "./rebuild.js";
 import { cloneDomain } from "./schema.js";
 import { analyzeParametricHistory, ensureParametricDocument } from "./parametric_document.js";
 import { compileKernelFeatureTree } from "./kernel_feature_adapter.js";
@@ -11,7 +12,9 @@ function issueTargets(issue) {
 export function rebuildParametricDocument(source, overrides = {}, options = {}) {
   // Rebuild a snapshot.  A failed feature is never allowed to half-mutate the
   // user's authoring document; callers explicitly publish the returned status.
-  const snapshot = ensureParametricDocument(cloneDomain(source));
+  const parameters = resolveParameters(source, overrides);
+  const prepared = parameters.issues.some((issue) => issue.severity === "error") ? source : materializeCabinetDefinition(source, parameters.values);
+  const snapshot = ensureParametricDocument(cloneDomain(prepared));
   const historyRun = analyzeParametricHistory(snapshot);
   const compiled = compileKernelFeatureTree(snapshot);
   const issues = [...historyRun.issues, ...compiled.issues.filter((issue) => !historyRun.issues.some((known) => stableStringify(known) === stableStringify(issue)))];
@@ -66,6 +69,9 @@ export function rebuildParametricDocument(source, overrides = {}, options = {}) 
 
 export function publishRebuildStatus(document, run) {
   if (!document || !run) return document;
+  if (run.ok && document.metadata?.adapter === "cabinet" && run.document?.metadata?.generatedParameters && JSON.stringify(document.metadata.generatedParameters) !== JSON.stringify(run.document.metadata.generatedParameters)) {
+    for (const key of ["parts", "features", "sketches", "history", "metadata", "w", "d", "h"]) document[key] = cloneDomain(run.document[key]);
+  }
   const byId = new Map((run.status || []).map((entry) => [entry.historyId, entry]));
   (document.history || []).forEach((entry) => {
     entry.status = byId.get(entry.id)?.state || "pending";

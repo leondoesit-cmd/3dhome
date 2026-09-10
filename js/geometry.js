@@ -1,3 +1,4 @@
+import {shapeBoundarySignature} from "./room_shapes.js";
 // Pure topology / geometry helpers over the wall graph (no DOM, no THREE).
 import { S, WALL_H, WALL_T, fin, clamp, uid } from "./state.js";
 import {
@@ -22,7 +23,9 @@ function topologySignature() {
     wall;
   for (i = 0; i < n.length; i++) {
     node = n[i];
-    parts.push(";", (node.x * 100 + 0.5) | 0, ",", (node.z * 100 + 0.5) | 0);
+    // Typed dimensions can differ by less than a hundredth of a centimetre.
+    // Cache the actual coordinates so a successful edit cannot show stale faces.
+    parts.push(";", node.x, ",", node.z);
   }
   for (i = 0; i < w.length; i++) {
     wall = w[i];
@@ -1305,6 +1308,7 @@ export function reconcileRoomMeta(rooms) {
   rooms.forEach(function (r) {
     var m = S.roomMeta[r.key];
     if (m) {
+      if(m.shape && m.shape.type!=="custom" && m.shape.signature!==shapeBoundarySignature(S,r.key))m.shape={version:1,type:"custom",wallIds:r.key.split(",")};
       m.cx = r.cx;
       m.cz = r.cz;
     }

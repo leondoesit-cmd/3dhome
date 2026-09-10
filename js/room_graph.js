@@ -407,6 +407,36 @@ export function rectInsideRoom(rect, pts, tol) {
   return true;
 }
 
+/* WHICH METADATA ENTRY BELONGS TO THIS ROOM.
+ *
+ * Not `roomMeta[room.key]`, and that is the whole point of the function
+ * existing. A room is keyed by its sorted bounding wall ids, so the key of a
+ * room that was standing there before the current edit is already stale the
+ * moment anything split one of its walls — which docking a room against it
+ * does, every time. Reading it by key then finds nothing, and the caller
+ * silently treats a named room as unnamed.
+ *
+ * That mistake has been made independently in three separate places in this
+ * feature: it renamed a living room after a WC it was merged with, it dropped
+ * the neighbour's name when a room docked, and it lost a dragged room's name
+ * when the drag changed its walls. It is not a mistake anyone makes twice on
+ * purpose; it is what `meta[r.key]` looks like it should do.
+ *
+ * The fallback is the entry whose recorded centroid lies inside the room —
+ * the same evidence geometry.js's reconcileRoomMeta uses, because the centroid
+ * is the one thing about a room that its walls changing does not invalidate. */
+export function roomMetaKey(state, room) {
+  const meta = (state && state.roomMeta) || {};
+  if (!room) return undefined;
+  if (meta[room.key]) return room.key;
+  if (!room.pts) return undefined;
+  return Object.keys(meta).find((k) => {
+    const entry = meta[k];
+    return entry && Number.isFinite(entry.cx) && Number.isFinite(entry.cz)
+      && pointInPolygon({ x: entry.cx, z: entry.cz }, room.pts);
+  });
+}
+
 /* Local ray cast rather than geometry.js's: importing that would drag the
    planner's global state into a module that deliberately has none. */
 export function pointInPolygon(p, pts) {
@@ -457,4 +487,22 @@ export function rectOfPoints(pts) {
     z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z);
   });
   return { x0, z0, x1, z1 };
+}
+
+// All authored straight closed shapes share the same graph insertion path.
+// Caller validates the entire loop and overlap scope before entering a transaction.
+export function stampClosedLoop(state,points,spec,options={}){
+ const wallSpec=Object.assign({},DEFAULT_WALL_SPEC,spec||{});
+ const idx=points.map(point=>resolveNode(state,point,options).index),created=[],shared=[];
+ for(let i=0;i<idx.length;i++){
+  const edge=buildEdge(state,idx[i],idx[(i+1)%idx.length],wallSpec,options);
+  created.push(...edge.created);shared.push(...edge.shared);
+ }
+ const key=[...new Set([...created,...shared])].sort((a,b)=>Number(a)-Number(b)).join(',');
+ return {ok:true,created,shared,nodes:idx,key};
+}
+
+export function insertWallSegment(state,from,to,spec,options={}){
+ const a=resolveNode(state,from,options).index,b=resolveNode(state,to,options).index;
+ return buildEdge(state,a,b,Object.assign({},DEFAULT_WALL_SPEC,spec),options);
 }

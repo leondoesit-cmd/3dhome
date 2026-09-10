@@ -1,3 +1,4 @@
+import { awardRunPoints } from "./zombies_rules.js";
 /* Night Shift world: collision, textures, VFX, horror grade, zombie AI/mesh. */
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -2355,6 +2356,8 @@ export function stepLamps(dt) {
       k = 0.86 + 0.14 * Math.sin(L.ph * 1.7);
     }
     // the model's own lamps stay recognisable but never light the whole flat
+    var comfort = Z.settings && Z.settings.flashes != null ? Z.settings.flashes : 1;
+    k = (L.mode === "dead" ? 0 : 0.75) * (1 - comfort) + k * comfort;
     L.l.intensity = L.i0 * 0.3 * k;
   });
   // wave-danger red pulse on the practicals when a horde is closing
@@ -2363,7 +2366,7 @@ export function stepLamps(dt) {
     for (var i = 0; i < Z.zeds.length; i++)
       if (!Z.zeds[i].dead) near = Math.min(near, Z.zeds[i].dist);
     if (near < 320) {
-      var pulse = 0.5 + 0.5 * Math.sin(Z.t * 6);
+      var pulse = 0.5 + 0.5 * Math.sin(Z.t * 6) * (Z.settings && Z.settings.flashes != null ? Z.settings.flashes : 1);
       Z.lamps.forEach(function (L) {
         L.l.color.setRGB(1, 0.42 - 0.2 * pulse, 0.22 - 0.14 * pulse);
       });
@@ -3524,7 +3527,7 @@ export function killZed(zd, dir, gib, style) {
   Z.combo = (Z.combo || 0) + 1;
   Z.comboT = 3.2;
   var basePts = zd.type === "brute" ? 250 : zd.type === "screamer" ? 180 : zd.type === "runner" ? 120 : 100;
-  Z.score = (Z.score || 0) + Math.round(basePts * (1 + Math.min(8, Z.combo) * 0.15));
+  awardRunPoints(Z, Math.round(basePts * (1 + Math.min(8, Z.combo) * 0.15)));
   bloodBurst(zd.x, 95, zd.z, 0, 0.4, 0, 28);
   decal(zd.x, 0.8, zd.z, 0, 1, 0, rr(55, 110));
   if (zd.type === "bloater") spawnAcidCloud(zd.x, zd.y + 40, zd.z);

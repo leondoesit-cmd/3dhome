@@ -69,6 +69,8 @@ export function editorOpen() {
   });
   // E.anchors() returns the stored route only when it was drawn on THIS flat
   var seed = ST.E.anchors() || ST.E.presets.auto(ST.E.rooms());
+  var acceptedCourse = builtAnchors();
+  seed = acceptedCourse || seed;
   if (!seed || seed.length < 3) seed = ST.E.presets.oval(ST.E.rooms());
   ST.D = {
     on: true,
@@ -123,10 +125,13 @@ export function editorOpen() {
   ST.E.overview(true);
   build3d();
   fitView();
-  writeThrough(false);
+  // Opening a generated tour is a read-only preview. Its sampled heights
+  // must not become manual constraints until the driver actually edits it.
+  if (!acceptedCourse) writeThrough(false);
   revalidate();
   stats();
-  scheduleBuild(0);
+  if (!acceptedCourse) scheduleBuild(0);
+  else editorStatus("ready");
   bindKeys();
   // console/test hook (mirrors window.rcDebug in rc.js)
   window.rcEdDebug = function () {
@@ -153,6 +158,18 @@ export function editorClose() {
   ST.D = null;
 }
 
+// Show handles on the accepted automatic course, including a smaller fallback.
+// The old room-centre hints may cross furniture even when the built lap is safe.
+function builtAnchors() {
+  var track = ST.E.track();
+  if (!track || !track.feats.automatic || ST.E.cfg.followAnchors || ST.E.cfg.trackError) return null;
+  var C = track.center, count = Math.max(4, Math.floor(C.length / 4));
+  return Array.from({ length: count }, function (_, i) {
+    var p = C[Math.floor(i * C.length / count)];
+    return track.feats.tour ? { x: p.x, z: p.z, y: p.y } : { x: p.x, z: p.z };
+  });
+}
+
 // rc.js calls this after every buildTrack() so the map and the handles show the
 // road that actually exists.
 export function editorSynced() {
@@ -160,13 +177,15 @@ export function editorSynced() {
   ST.D.roomCache = null; // the scene may have changed under us
   facesInvalidate(); // ...so the furniture the pass-by rules point at may have too
   reseedForPlan();
+  var accepted = builtAnchors();
+  if (accepted) ST.D.anchors = accepted;
   ST.D.ghostPts = null;
   revalidate(); // the walls this route is judged against just moved
   sync3d();
   stats();
   refreshSelection();
   refreshFaces();
-  editorStatus(ST.D.anchors.length >= 3 ? "ready" : "warning");
+  editorStatus(!ST.E.cfg.trackError && ST.D.anchors.length >= 3 ? "ready" : "warning");
   refreshFollow();
   refreshHud();
   draw();
@@ -180,6 +199,7 @@ function reseedForPlan() {
   if (sig === ST.D.sig) return false;
   ST.D.sig = sig;
   var seed = ST.E.anchors() || ST.E.presets.auto(ST.E.rooms());
+  seed = builtAnchors() || seed;
   if (!seed || seed.length < 3) seed = ST.E.presets.oval(ST.E.rooms());
   ST.D.anchors = cloneAnchors(seed);
   // a pass-by belongs to a piece of furniture in a flat that no longer exists
@@ -851,16 +871,16 @@ function buildDom() {
     '<div class="rc-ed-surface-head"><strong>' + L("איפה נוסעים?", "Where should the truck drive?") + '</strong>' +
     '<small id="rcEdSurfaceHint"></small></div>' +
     '<div class="rc-ed-surface-options" role="group">' +
-    '<button type="button" id="rcEdHome"><b>🏠 ' + L("רצפה ורהיטים", "Floor + furniture") + '</b><small>' +
-    L("המסלול מצויר על הבית · כביש רק ברמפה או גשר", "The lap is painted on the house · road only for ramps/bridges") + '</small></button>' +
+    '<button type="button" id="rcEdHome"><b>🏠 ' + L("סיור בבית", "House tour") + '</b><small>' +
+    L("מסלול בין רהיטים עם רמפות וגשרים חלקים", "Visit furniture with smooth ramps and connecting roads") + '</small></button>' +
     '<button type="button" id="rcEdRoad"><b>🛣️ ' + L("כביש מלא", "Full road") + '</b><small>' +
     L("רצועת כביש רציפה מעל הכל", "A continuous road ribbon on top of everything") + '</small></button>' +
     "</div>" +
     '<div class="rc-ed-path-options" id="rcEdPathOpts" role="group">' +
     '<button type="button" id="rcEdFollow"><b>✋ ' + L("עקוב אחרי הנקודות", "Follow my points") + '</b><small>' +
     L("המשאית נוסעת איפה ששמת את הידיות", "The truck drives where you put the handles") + "</small></button>" +
-    '<button type="button" id="rcEdAutoPath"><b>🪄 ' + L("סביב הרהיטים", "Around furniture") + '</b><small>' +
-    L("מוצא מסלול פנוי לבד", "Finds a clear path on its own") + "</small></button>" +
+    '<button type="button" id="rcEdAutoPath"><b>🪄 ' + L("תכנון סיור", "Plan the tour") + '</b><small>' +
+    L("מחבר חדרים ורהיטים למסלול זורם", "Connects rooms and furniture into a flowing route") + "</small></button>" +
     "</div></div>" +
     '<div class="rc-ed-how" id="rcEdHow"></div>' +
     '<div class="rc-ed-stats" id="rcEdStats"></div>' +
@@ -1096,7 +1116,7 @@ function refreshHow() {
           L("בחר מקטע כדי להפוך אותו לכביש או להשאיר על הרצפה", "Select a section to make it a road or keep it on the floor"),
         ]
       : [
-          L("הנקודות הן הצעה — המסלול יעקוף רהיטים לבד", "Points are a hint — the path goes around furniture"),
+          L("הנקודות מנחות סיור בין חדרים ורהיטים", "Points guide a tour through rooms and furniture"),
           L("לחץ «עקוב אחרי הנקודות» אם המסלול מתעלם ממך", "Click Follow my points if the path ignores you"),
           L("לחץ על רהיט כדי לנסוע עליו", "Click a model to drive on it"),
         ]
@@ -1159,7 +1179,7 @@ function editorStatus(kind) {
     warning: L("לא שלם", "Incomplete"),
   };
   ST.D.statusEl.className = "rc-ed-status " + kind;
-  ST.D.statusEl.textContent = labels[kind] || labels.ready;
+  ST.D.statusEl.textContent = ST.E.cfg.trackError || labels[kind] || labels.ready;
 }
 
 function row(html) {
@@ -1477,6 +1497,8 @@ function paneStyle(p) {
       '<button id="rcEdJump" class="' + (cfg.hasJump !== false ? "active" : "") + '">🛫 ' +
       t("rc_ramp_jump") + "</button>",
     ) +
+    row('<button id="rcEdFurniture" class="' + (cfg.homeFeatures ? "active" : "") + '">⬆ '+
+      t("rc_furniture_features") + "</button>") +
     '<div class="rc-ed-themes">' +
     THEMES.map(function (k) {
       return (
@@ -1499,6 +1521,12 @@ function paneStyle(p) {
     p.querySelector("#rcEdHV").textContent = cfg.highElevation + " cm";
     ST.E.save();
     scheduleBuild(220);
+  };
+  p.querySelector("#rcEdFurniture").onclick = function (e) {
+    cfg.homeFeatures = !cfg.homeFeatures;
+    e.currentTarget.classList.toggle("active", cfg.homeFeatures);
+    ST.E.save();
+    scheduleBuild(0);
   };
   p.querySelector("#rcEdJump").onclick = function (e) {
     cfg.hasJump = cfg.hasJump === false;
@@ -1641,6 +1669,8 @@ function snapshot() {
     highElevation: cfg.highElevation,
     roadTheme: cfg.roadTheme,
     homeMode: !!cfg.homeMode,
+    homeFeatures: !!cfg.homeFeatures,
+    reverseCourse: !!cfg.reverseCourse,
     followAnchors: !!cfg.followAnchors,
     hasJump: cfg.hasJump,
     physConfig: cfg.physConfig,
@@ -1657,6 +1687,8 @@ function loadSnapshot(s) {
   if (fin(s.roadWidth)) cfg.roadWidth = s.roadWidth;
   if (fin(s.highElevation)) cfg.highElevation = s.highElevation;
   if (s.roadTheme) cfg.roadTheme = s.roadTheme;
+  if (s.homeFeatures != null) cfg.homeFeatures = !!s.homeFeatures;
+  if (s.reverseCourse != null) cfg.reverseCourse = !!s.reverseCourse;
   if (s.homeMode != null) cfg.homeMode = !!s.homeMode;
   if (s.followAnchors != null) {
     ST.D.follow = !!s.followAnchors;

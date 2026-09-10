@@ -1,35 +1,48 @@
 /* Which edges a node offers, and what a pull on one of them means. */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ALL_HANDLES, handleAt, handleRects, handlesFor, resizeAxis, sizeFrom } from "../editor/resize.js";
+import {
+  ALL_HANDLES, handleAt, handleRects, handlesFor, primaryAxis, rectFrom, resizeAxis, sizeFrom,
+} from "../editor/resize.js";
 import { groupProblem, nextGroupId, ungroupProblem } from "../editor/group.js";
 import { normalizeDoc } from "../model/validate.js";
 
 const stack = { type: "stack", orient: "col" };
 const bar = { type: "bar", orient: "row" };
 
-test("a container is resized across its own axis, a leaf across its parent's", () => {
-  // you widen a sidebar and you heighten a toolbar
-  assert.equal(resizeAxis(stack, null), "x");
-  assert.equal(resizeAxis(bar, null), "y");
-  // a panel stacked in a sidebar has its height free
-  assert.equal(resizeAxis({ type: "item" }, stack), "y");
-  // a button in a toolbar has its width free
-  assert.equal(resizeAxis({ type: "item" }, bar), "x");
+test("nothing is pinned to one axis unless the host asked for it", () => {
+  // the sizing rules in uikit.css honour both edges, so both are offered
+  assert.equal(resizeAxis(stack, null), "both");
+  assert.equal(resizeAxis(bar, null), "both");
+  assert.equal(resizeAxis({ type: "item" }, bar), "both");
 });
 
-test("the host's own declaration wins over anything inferred", () => {
+test("the natural axis survives as a hint, without being a restriction", () => {
+  // you widen a sidebar and you heighten a toolbar
+  assert.equal(primaryAxis(stack, null), "x");
+  assert.equal(primaryAxis(bar, null), "y");
+  // a panel stacked in a sidebar stretches down; a button in a toolbar across
+  assert.equal(primaryAxis({ type: "item" }, stack), "y");
+  assert.equal(primaryAxis({ type: "item" }, bar), "x");
+  assert.equal(primaryAxis({ type: "item", constraints: { resize: "x" } }, stack), "x",
+    "a declared axis is still the answer");
+});
+
+test("the host's own declaration wins over the free default", () => {
   assert.equal(resizeAxis({ type: "item", constraints: { resize: "none" } }, stack), "none");
-  assert.equal(resizeAxis({ type: "stack", orient: "col", constraints: { resize: "both" } }, null), "both");
+  assert.equal(resizeAxis({ type: "stack", constraints: { resize: "x" } }, null), "x");
+  assert.equal(resizeAxis({ type: "item", entry: { constraints: { resize: "y" } } }, bar), "y",
+    "a command's constraints live in the registry entry, not in the layout");
   assert.deepEqual(handlesFor({ type: "item", constraints: { resize: "none" } }, bar), [],
     "no axis means no handles, not handles that do nothing");
 });
 
-test("handles are offered only where a pull can be honoured", () => {
-  assert.deepEqual(handlesFor(stack, null), ["w", "e"]);
-  assert.deepEqual(handlesFor(bar, null), ["n", "s"]);
-  assert.deepEqual(handlesFor({ type: "item" }, stack), ["n", "s"]);
+test("every edge and corner is offered by default", () => {
+  assert.deepEqual(handlesFor(stack, null), ALL_HANDLES.slice());
+  assert.deepEqual(handlesFor(bar, null), ALL_HANDLES.slice());
   assert.deepEqual(handlesFor({ type: "float" }, null), ALL_HANDLES.slice(), "a float is free on both");
+  assert.deepEqual(handlesFor({ type: "stack", constraints: { resize: "x" } }, null), ["w", "e"],
+    "a pinned axis still shows only its own two");
 });
 
 const rect = { x: 100, y: 100, w: 200, h: 80 };
@@ -47,6 +60,24 @@ test("a pull grows the box away from the handle, whichever side it is on", () =>
   assert.deepEqual(sizeFrom(rect, "s", 0, 20), { h: 100 });
   assert.deepEqual(sizeFrom(rect, "n", 0, -20), { h: 100 });
   assert.deepEqual(sizeFrom(rect, "se", 40, 20), { w: 240, h: 100 }, "a corner moves both");
+});
+
+test("Shift keeps the proportions, on an edge as well as a corner", () => {
+  assert.deepEqual(sizeFrom(rect, "se", 40, 0, null, { aspect: true }), { w: 240, h: 96 },
+    "the further-moved axis leads and the other follows the 200:80 ratio");
+  assert.deepEqual(sizeFrom(rect, "e", 40, 0, null, { aspect: true }), { w: 240, h: 96 },
+    "an edge drag picks up the second dimension it does not normally touch");
+});
+
+test("Alt frees the axis an edge handle does not own", () => {
+  assert.deepEqual(sizeFrom(rect, "e", 40, 20, null, { free: true }), { w: 240, h: 100 });
+});
+
+test("a free node keeps the edge you are not holding still", () => {
+  assert.deepEqual(rectFrom({ x: 100, y: 100, w: 200, h: 80 }, "nw", { w: 240, h: 100 }),
+    { x: 60, y: 80, w: 240, h: 100 }, "pulling north-west moves the box as it grows");
+  assert.deepEqual(rectFrom({ x: 100, y: 100, w: 200, h: 80 }, "se", { w: 240 }),
+    { x: 100, y: 100, w: 240, h: 80 }, "pulling south-east moves nothing");
 });
 
 test("only the axes the handle touches are written", () => {

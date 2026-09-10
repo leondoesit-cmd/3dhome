@@ -1,3 +1,4 @@
+import { cylinderAxis } from "./cylinder_axis.js";
 // Persistent topology naming for the canonical rebuild pipeline.
 //
 // A reference never stores an explorer index ("edge 7").  It stores the
@@ -112,7 +113,7 @@ function cylinderTopology(feature, params = {}) {
   const x = Number(params.x) || 0, y = Number(params.y) || 0, z = Number(params.z) || 0;
   const radius = Math.max(0, Number(params.r ?? params.radius) || 0), height = Math.max(0, Number(params.h ?? params.height) || 0);
   const axisName = params.axis || "y";
-  const axis = axisName === "x" ? vector(1, 0, 0) : axisName === "z" ? vector(0, 0, 1) : vector(0, 1, 0);
+  const axis = cylinderAxis(axisName);
   const base = point(x, y, z), top = point(x + axis.x * height, y + axis.y * height, z + axis.z * height);
   const middle = point((base.x + top.x) / 2, (base.y + top.y) / 2, (base.z + top.z) / 2);
   return [

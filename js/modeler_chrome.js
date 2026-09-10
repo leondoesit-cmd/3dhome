@@ -18,7 +18,7 @@ export function confirmationCornerState(input) {
     return { visible: true, mode: "draw", label: input.toolLabel || "Sketch", canAccept: !!input.canAccept };
   }
   if (input.featureType) {
-    return { visible: true, mode: "feature", label: input.featureLabel || input.featureType, canAccept: true };
+    return { visible: true, mode: "feature", label: input.featureLabel || input.featureType, canAccept: input.featureReady !== false };
   }
   if (input.sketchPhase) {
     return { visible: true, mode: "sketch", label: input.finishSketchLabel || "Finish sketch", canAccept: true };
@@ -107,11 +107,33 @@ export function shortcutBarItems(input) {
   ];
 }
 
+/* Selection operations, ahead of the modelling commands. The menu used to be
+   nothing but "what can I build from this?", so growing a selection — the
+   thing a CAD user reaches for far more often — had no home at all and every
+   fillet was clicked edge by edge. */
+export function selectionMenuItems(input) {
+  input = input || {};
+  var items = [];
+  if (input.face || input.edge) {
+    items.push({ id: "selectloop", icon: "ph-circle-notch", group: "select" });
+    items.push({ id: "selecttangency", icon: "ph-flow-arrow", group: "select" });
+    items.push({ id: "selectconnected", icon: "ph-graph", group: "select" });
+  }
+  if (input.topologyCount) {
+    items.push({ id: "selectgrow", icon: "ph-arrows-out", group: "select" });
+    if (input.topologyCount > 1) items.push({ id: "selectshrink", icon: "ph-arrows-in", group: "select" });
+    items.push({ id: "selectinvert", icon: "ph-selection-inverse", group: "select" });
+    items.push({ id: "selectsave", icon: "ph-bookmark-simple", group: "select" });
+  }
+  if (input.namedSelections) items.push({ id: "selectrecall", icon: "ph-bookmarks-simple", group: "select" });
+  return items;
+}
+
 export function contextMenuItems(input) {
   input = input || {};
-  var items = contextToolbarItems(input).map(function (item) {
+  var items = selectionMenuItems(input).concat(contextToolbarItems(input).map(function (item) {
     return Object.assign({ group: "action" }, item);
-  });
+  }));
   items.push({ id: "normalTo", icon: "ph-arrows-in-cardinal", group: "view" });
   items.push({ id: "fit", icon: "ph-crosshair-simple", group: "view" });
   if (input.hideable) items.push({ id: "hide", icon: "ph-eye-slash", group: "display" });

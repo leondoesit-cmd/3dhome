@@ -225,7 +225,7 @@ test("the stamp refuses to land on a room and says so", opts, async () => {
   }
 });
 
-test("a selected room can be resized by pulling its side, and stops at its minimum", opts, async () => {
+test("a selected room can be resized by pulling its side, and stops before collapsing", opts, async () => {
   const page = await openPage({ width: 1280, height: 900, mobile: false, touch: false });
   try {
     await planner(page);
@@ -258,7 +258,7 @@ test("a selected room can be resized by pulling its side, and stops at its minim
       // drag cannot slide the side sideways
       const action = await q.drag(right.x, right.z, right.x + 100, right.z + 40);
       const wider = size();
-      // now push the same side well past the preset's minimum
+      // now push the same side well past the positive-span floor
       const h2 = q.geom.roomEdgeHandles(key).find((h) => h.axis === "x" && h.ux > 0);
       await q.drag(h2.x, h2.z, h2.x - 900, h2.z);
       return { action, before, wider, clamped: size(), rooms: q.geom.detectRooms().length, typed };
@@ -270,7 +270,7 @@ test("a selected room can be resized by pulling its side, and stops at its minim
     assert.deepEqual(out.wider, { w: 450, d: 300 },
       "the side moved along its normal only — the depth is untouched");
     assert.equal(out.clamped.d, 300, "still only one axis");
-    assert.equal(out.clamped.w, 220, "and it stopped at the bedroom preset's own minimum");
+    assert.equal(out.clamped.w, 20, "advisory bedroom dimensions do not prevent a manual measurement");
     assert.equal(out.rooms, 1, "the room is still a room");
   } finally {
     await page.close();

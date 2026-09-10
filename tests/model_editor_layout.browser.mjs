@@ -122,11 +122,11 @@ for (const lang of ["en", "he"]) {
       }
     });
 
-    test(`model editor @ ${w}px (${lang}): contextual verbs are compact accessible icons`, opts, async () => {
+    test(`model editor @ ${w}px (${lang}): contextual verbs are labelled and fit the thumb row`, opts, async () => {
       const page = await ctx({ width: w, height: h, lang });
       {
-        // Captions no longer spend scarce canvas width, but every icon keeps a
-        // translated accessible name and a full-size touch target.
+        // Changing modelling verbs need visible names; stable undo/redo icons
+        // keep their accessible labels and the same full-size touch targets.
         const bar = await page.eval(() => {
           const ctx = document.getElementById("md-ctx");
           return {
@@ -136,6 +136,7 @@ for (const lang of ["en", "he"]) {
               const sp = b.querySelector("span");
               return {
                 chip: b.classList.contains("mctx-chip"),
+                iconOnly: b.classList.contains("mctx-icon-only"),
                 w: Math.round(r.width),
                 h: Math.round(r.height),
                 labelShown: !!sp && getComputedStyle(sp).display !== "none" &&
@@ -150,7 +151,7 @@ for (const lang of ["en", "he"]) {
           assert.ok(b.aria && b.aria.length, "every control is named for AT");
           assert.ok(b.h >= TAP, `control ${b.aria} is ${b.h}px tall`);
           assert.ok(b.w >= TAP, `control ${b.aria} is ${b.w}px wide`);
-          if (!b.chip) assert.equal(b.labelShown, false, `verb "${b.aria}" wastes width on a caption`);
+          if (!b.chip && !b.iconOnly) assert.equal(b.labelShown, true, `verb "${b.aria}" needs a visible caption`);
         }
       }
     });
@@ -411,7 +412,7 @@ test("model editor @ 375px: welcome primary is Touch CAD, Blank part, Blank asse
     await page.eval(() => new Promise((r) => setTimeout(r, 200)));
     await page.eval(() => {
       const btns = [...document.querySelectorAll("#md-sheet-body .m-grid-btn")];
-      const start = btns.find((b) => /start screen|מסך הפתיחה/i.test(b.innerText));
+      const start = btns.find((b) => /start screen|מסך הפתיחה/i.test(b.textContent));
       if (start) start.click();
     });
     await page.eval(() => new Promise((r) => setTimeout(r, 250)));
@@ -446,7 +447,7 @@ test("model editor @ 375px: welcome primary is Touch CAD, Blank part, Blank asse
 test("the welcome guides survive a compact layout being torn down", opts, async () => {
   const page = await ctx({ width: 375, height: 812 });
   const reopenWelcome = async () => {
-    await page.eval(() => { window.confirm = () => true; document.getElementById("mdClose")?.click(); });
+    await page.eval(() => { const pref=document.getElementById("mdPrefWelcome"); pref.checked=true; pref.dispatchEvent(new Event("change",{bubbles:true})); window.confirm = () => true; document.getElementById("mdClose")?.click(); });
     await page.eval(() => new Promise((r) => setTimeout(r, 400)));
     await page.eval(() => { document.getElementById("openModelerTop").click(); });
     await page.waitUntil(() => {
@@ -460,7 +461,7 @@ test("the welcome guides survive a compact layout being torn down", opts, async 
     startTiles: document.querySelectorAll("#mdWelcomeStart [data-welcome-start]").length,
   }));
 
-  await page.eval(() => { document.getElementById("openModelerTop").click(); });
+  await reopenWelcome();
   await page.waitUntil(() => {
     const el = document.getElementById("modeler");
     return !!el && getComputedStyle(el).display !== "none";

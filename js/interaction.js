@@ -1,3 +1,4 @@
+import { generatedChangePermission, captureProtectedStructure, validateProtectedStructure } from "./redesign.js";
 // Pointer/keyboard interaction: hit-testing, tools, drag/draw, and structural edit operations.
 import { S, WALL_T, WALL_H, uid, fin, clamp, SNAP_GRID, throttle, touchItem3D } from "./state.js";
 import {
@@ -22,8 +23,6 @@ import {
   wallClearLength,
   reconcileRoomMeta,
   roomEdgeHandles,
-  roomClearSize,
-  applyRoomClearSize,
   normalizeStructure,
 } from "./geometry.js";
 import {
@@ -111,7 +110,7 @@ import { hudKeydown, onDrawEnded, updateCadHud, entryOpen } from "./cad_hud.js";
 import { roomPreset, rectInterior, CONNECTION_MODES } from "./room_presets.js";
 import { solveDock, corridorRect, translateRect } from "./room_dock.js";
 import { placeRoom, cutOpening, connectionForWall } from "./room_stamp.js";
-import { wallSeparates, detachRoomSeam } from "./room_graph.js";
+import { wallSeparates, detachRoomSeam, roomMetaKey } from "./room_graph.js";
 import {
   beginTouchPrecision, planTouchPrecisionKind, touchPrecisionPoint, updateTouchPrecision,
 } from "./touch_precision.js";
@@ -1229,6 +1228,7 @@ export function armRoomStamp(presetId, options) {
   var opts = options || {};
   S.roomStamp = {
     id: preset.id,
+    checklistId: opts.checklistId || "",
     rot: Number(opts.rot) || 0,
     w: fin(opts.w) ? opts.w : preset.w,
     d: fin(opts.d) ? opts.d : preset.d,
@@ -1287,52 +1287,12 @@ export function flipRoomStampDoorWall() {
   window.dispatchEvent(new CustomEvent("planner-room-stamp"));
 }
 
-/* Typed W×D for a still-rectangular selected room — the same edit as pulling
-   the +x / +z edge handles, including welding if the side lands on a neighbour. */
-export function setRoomClearSize(w, d) {
-  if (!S.sel || S.sel.kind !== "room") return null;
-  var key = S.sel.ref;
-  var meta = S.roomMeta[key];
-  var preset = meta && meta.preset ? roomPreset(meta.preset) : null;
-  var before = snapshotNodes();
-  var out = applyRoomClearSize(key, w, d, {
-    minW: preset ? preset.min.w : 60,
-    minD: preset ? preset.min.d : 60,
-  });
-  if (!out || !out.ok) {
-    /* A refusal has to say so: the field simply snapping back to its old value
-       reads as a broken input, not as an answer. */
-    if (out && out.reason === "ROOM_SIDE_SHARED") flash(t("rp_sideShared"), "error");
-    return out;
-  }
-  if (out.moved && out.moved.length) {
-    var mine = {};
-    out.moved.forEach(function (o) { mine[o.i] = 1; });
-    var wact = S.walls
-      .filter(function (wall) { return mine[wall.a] || mine[wall.b]; })
-      .map(function (wall) { return wall.id; });
-    enforceLocks(before, wact);
-    var drag = { orig: out.moved };
-    var fused = fuseDroppedRoom(drag);
-    rehomeDraggedRoom(drag, key);
-    connectFusedWalls(fused);
-  }
-  S.dirty3D = true;
-  reconcileRoomMeta();
-  refreshTree();
-  render2D();
-  var live = S.sel && S.sel.kind === "room" ? S.sel.ref : key;
-  return roomClearSize(live);
-}
-
-/* Grow or shrink the armed preset before it is placed, never below the
-   preset's own minimum: a 70 cm "bedroom" is not a smaller bedroom, it is a
-   mistake nobody meant to commit. */
+/* Manual dimensions may fall below advisory furnishing preferences. */
 export function resizeRoomStamp(dw, dd) {
   var st = S.roomStamp, preset = st && roomPreset(st.id);
   if (!preset) return;
-  st.w = Math.max(preset.min.w, Math.round(st.w + (dw || 0)));
-  st.d = Math.max(preset.min.d, Math.round(st.d + (dd || 0)));
+  st.w = Math.max(20, st.w + (dw || 0));
+  st.d = Math.max(20, st.d + (dd || 0));
   if (S.previewPt) updateRoomGhost(S.previewPt.x, S.previewPt.z);
   render2D();
   window.dispatchEvent(new CustomEvent("planner-room-stamp"));
@@ -1393,6 +1353,7 @@ function roomStampParams(px, pz) {
   var st = S.roomStamp, spec = roomStampSpec();
   return {
     preset: st.id,
+    checklistId: st.checklistId || "",
     x: px,
     z: pz,
     rot: st.rot,
@@ -1460,6 +1421,7 @@ export function commitRoomStamp() {
     : dock ? t("rp_noDoor") : t("rp_placed"),
     dock && dock.mode !== "insert" && dock.mode !== "corridor" && !opened && !isConnOpen ? "error" : undefined);
   S.roomPrepared = null;
+  if (st.checklistId) { disarmRoomStamp(); setTool("select"); }
   return result;
 }
 
@@ -1515,20 +1477,11 @@ function pickRoomEdge(px, pz) {
   return best;
 }
 
-/* How far in this side may be pulled before the room stops being one.
- *
-   The floor is the preset's own smaller minimum — a bedroom preset says what a
-   bedroom may shrink to, and it is the room's own claim about itself rather
-   than a number invented here. Which of the preset's two minimums applies
-   depends on how the room was turned, and guessing wrong would forbid a legal
-   size, so the smaller of the pair is used and 60 cm clear is the hard floor
-   underneath it for a room with no preset at all. Nothing here stops the side
-   being pulled OUTWARD; that is what docking is for. */
+/* Keep a positive clear span; preset furnishing minima remain advisory. */
 function roomEdgeLimit(key, handle) {
   var room = roomByKey(key);
   if (!room) return null;
-  var meta = S.roomMeta[key], preset = meta && meta.preset ? roomPreset(meta.preset) : null;
-  var clearMin = Math.max(preset ? Math.min(preset.min.w, preset.min.d) : 0, 60);
+  var clearMin = 20;
   var along = handle.axis === "x" ? "x" : "z";
   var lo = Infinity, hi = -Infinity;
   room.pts.forEach(function (p) {
@@ -1613,7 +1566,13 @@ function roomOwnWalls(drag) {
    orphaned in the save. */
 function adoptMergedRoomMeta(before) {
   var ranked = before.slice().sort(function (a, b) { return (b.area || 0) - (a.area || 0); });
-  var winner = S.roomMeta[ranked[0].key] || S.roomMeta[ranked[1].key];
+  /* Through roomMetaKey, not S.roomMeta[key]. Today's caller hands over keys
+     from a trace taken moments earlier, so they happen to be live — but the
+     day a structural edit lands between the trace and the merge, reading by
+     key alone silently makes the LARGER room the one with no metadata, and the
+     small room's name wins. That is exactly how the open-mode merge broke. */
+  var metaKeys = ranked.map(function (o) { return roomMetaKey(S, o); });
+  var winner = metaKeys.map(function (k) { return k && S.roomMeta[k]; }).find(Boolean);
   if (!winner) return;
   var merged = detectRooms().find(function (r) {
     return before.every(function (o) { return o.key !== r.key; })
@@ -1621,6 +1580,7 @@ function adoptMergedRoomMeta(before) {
   });
   if (!merged) return;
   before.forEach(function (o) { delete S.roomMeta[o.key]; });
+  metaKeys.forEach(function (k) { if (k) delete S.roomMeta[k]; });
   winner.cx = merged.cx;
   winner.cz = merged.cz;
   S.roomMeta[merged.key] = winner;
@@ -3045,6 +3005,8 @@ function validatePlacementGuard(guard) {
 }
 
 export function previewPlannerCommand(commandId, params) {
+  const permission = generatedChangePermission(S, commandId, params);
+  if (!permission.ok) return permission;
   var command = plannerCommand(commandId), env = agentCommandEnvironment();
   if (!command) return { ok: false, reason: "INVALID_COMMAND" };
   var prepared = prepareCommand(command, params || {}, env);
@@ -3069,7 +3031,7 @@ export function previewPlannerCommand(commandId, params) {
   return result;
 }
 
-export function executePlannerProposal(proposal) {
+export function executePlannerProposal(proposal, options = {}) {
   if (S.workspace && S.workspace.role === "viewer")
     return { ok: false, reason: "PERMISSION_DENIED" };
   var proposals = proposal && Array.isArray(proposal.commands) ? proposal.commands : [proposal];
@@ -3078,6 +3040,8 @@ export function executePlannerProposal(proposal) {
   for (var i = 0; i < proposals.length; i++) {
     var entry = proposals[i];
     if (!entry || !entry.commandId || !entry.plan) return { ok: false, reason: "INVALID_PLAN" };
+    const permission = generatedChangePermission(S, entry.commandId, entry.params || entry.plan.params);
+    if (!permission.ok) return permission;
     var command = plannerCommand(entry.commandId);
     if (!command) return { ok: false, reason: "INVALID_COMMAND" };
     var refreshed = prepareCommand(command, entry.params || entry.plan.params || {}, env);
@@ -3086,7 +3050,13 @@ export function executePlannerProposal(proposal) {
       return { ok: false, reason: "PREVIEW_INVALIDATED" };
     requests.push({ command: command, params: refreshed.params, plan: refreshed.plan });
   }
+  const protectedBefore = captureProtectedStructure(S);
   return executeCommandBatch(requests, env, {
+    postValidate: () => {
+      const protectedResult = validateProtectedStructure(protectedBefore, S);
+      if (!protectedResult.ok) return protectedResult;
+      return options.postValidate ? options.postValidate() : protectedResult;
+    },
     label: proposals.length > 1 ? "AI: batch change" : "AI: " + requests[0].command.id,
     presentation: { selectCreated: true, switchToolTo: "select" },
   });

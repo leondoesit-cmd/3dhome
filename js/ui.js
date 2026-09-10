@@ -1,3 +1,7 @@
+import { roomMeasurements } from "./room_summary.js";
+import { resizeSelectedRoom } from "./ui_planning_guide.js";
+import { newDocumentKey, normalizeBaselines, normalizeRedesign, mergeBaselineArchives } from "./redesign.js";
+import { normalizePlanningGuide } from "./planning_guide.js";
 // UI controller: property panels, control wiring, ownership tree, save/load.
 import { S, uid, fin, hexStr, touchItem3D } from "./state.js";
 import {
@@ -15,7 +19,6 @@ import {
   wallLocFace,
   wallOffsetVec,
   contentBounds,
-  roomClearSize,
 } from "./geometry.js";
 import {
   FURN,
@@ -55,7 +58,6 @@ import {
   isFreeMove,
   snapshot3D,
   has3D,
-  exportGLTF,
   rebuild3D,
   isWalk,
   setQualityPreset,
@@ -80,7 +82,6 @@ import {
   chamferSelectedWalls,
   restoreSelectedSharpCorner,
   updateSelectedCornerTreatment,
-  setRoomClearSize,
 } from "./interaction.js";
 import {
   setWallDrawPreset, setWallDrawFrom, activeWallPresetId, isWallDrawTool,
@@ -563,7 +564,13 @@ function applyDataRequest(d, requestGeneration) {
   rebuildProject(S, FURN);
   S.idc = d.idc || 1000;
   if (d.workspace && typeof d.workspace === "object") {
-    S.workspace = d.workspace;
+    const previousWorkspace = S.workspace;
+    S.workspace = { ...d.workspace, guidance: normalizePlanningGuide(d.workspace.guidance) };
+    S.workspace.documentKey = typeof d.workspace.documentKey === "string" && d.workspace.documentKey ? d.workspace.documentKey : newDocumentKey();
+    S.workspace.baselines = normalizeBaselines(d.workspace.baselines);
+    if (previousWorkspace?.documentKey === S.workspace.documentKey)
+      S.workspace.baselines = mergeBaselineArchives(previousWorkspace.baselines, S.workspace.baselines);
+    S.workspace.redesign = normalizeRedesign(d.workspace.redesign, S.workspace.baselines);
     if (!Array.isArray(S.workspace.floors)) S.workspace.floors = [];
     if (!Array.isArray(S.workspace.constraints)) S.workspace.constraints = [];
     if (!Array.isArray(S.workspace.comments)) S.workspace.comments = [];
@@ -572,6 +579,7 @@ function applyDataRequest(d, requestGeneration) {
     document.body.dataset.projectRole = S.workspace.role;
     setQualityPreset(S.workspace.quality);
   }
+  if (!d.workspace) S.workspace = { ...S.workspace, documentKey: newDocumentKey(), baselines: Object.freeze([]), redesign: {}, guidance: normalizePlanningGuide(null) };
   if (d.floorTex) {
     S.floorTex = d.floorTex;
     var floorsel = document.getElementById("floorsel");
@@ -1991,34 +1999,28 @@ export function initUI() {
   });
 
   // room name / floor / wall color
-  bindNum("r_w", function (v) {
+  // The command owns history; ordinary bindNum would create a second checkpoint.
+  const resizeInspectorRoom = (width, depth) => {
     if (!S.sel || S.sel.kind !== "room") return;
-    var size = roomClearSize(S.sel.ref);
-    if (!size) return;
-    var next = setRoomClearSize(v, size.d);
-    return next && next.w;
-  }, null, "change");
-  bindNum("r_d", function (v) {
-    if (!S.sel || S.sel.kind !== "room") return;
-    var size = roomClearSize(S.sel.ref);
-    if (!size) return;
-    var next = setRoomClearSize(size.w, v);
-    return next && next.d;
-  }, null, "change");
-  var bindNudgeBtn = function (id, deltaW, deltaD) {
-    var btn = document.getElementById(id);
-    if (!btn) return;
-    btn.addEventListener("click", function () {
+    resizeSelectedRoom({roomKey:S.sel.ref, width, depth});
+    // Also restore the accepted values after a refusal or invalid input.
+    fillProps();
+  };
+  for (const [id, axis] of [["r_w", "width"], ["r_d", "depth"]]) {
+    document.getElementById(id).addEventListener("change", function () {
       if (!S.sel || S.sel.kind !== "room") return;
-      var size = roomClearSize(S.sel.ref);
+      const size = roomMeasurements(S, roomByKey(S.sel.ref))?.interior;
       if (!size) return;
-      var next = setRoomClearSize(size.w + deltaW, size.d + deltaD);
-      if (next) {
-        var wEl = document.getElementById("r_w");
-        var dEl = document.getElementById("r_d");
-        if (wEl) wEl.value = Math.round(next.w);
-        if (dEl) dEl.value = Math.round(next.d);
-      }
+      const value = this.value.trim() === "" ? NaN : Number(this.value);
+      resizeInspectorRoom(axis === "width" ? value : size.width,
+        axis === "depth" ? value : size.depth);
+    });
+  }
+  const bindNudgeBtn = (id, deltaW, deltaD) => {
+    document.getElementById(id)?.addEventListener("click", () => {
+      if (!S.sel || S.sel.kind !== "room") return;
+      const size = roomMeasurements(S, roomByKey(S.sel.ref))?.interior;
+      if (size) resizeInspectorRoom(size.width + deltaW, size.depth + deltaD);
     });
   };
   bindNudgeBtn("r_w_down", -10, 0);
@@ -2235,8 +2237,6 @@ export function initUI() {
     "o_fr_mullv",
     "o_fr_mullh",
     "r_name",
-    "r_w",
-    "r_d",
     "r_wall",
     "mk_x",
     "mk_y",
@@ -2309,8 +2309,8 @@ export function initUI() {
     try { localStorage.setItem("mf_tool_titles", on ? "1" : "0"); } catch (_) {}
   }
   function initToolNames() {
-    var on = false;
-    try { on = localStorage.getItem("mf_tool_titles") === "1"; } catch (_) {}
+    var on = true;
+    try { on = localStorage.getItem("mf_tool_titles") !== "0"; } catch (_) {}
     applyToolNames(on);
   }
   window.__toggleToolNames = toggleToolNames;
@@ -2851,7 +2851,7 @@ export function initUI() {
       if (p) act = p.getAttribute("data-act");
       if (!act) return;
     }
-    runAction(act);
+    runAction(act, e); // the click itself, so an action can read its modifiers
   }
 
   // Single dispatch point for every named action. Menus, toolbar buttons and
@@ -2861,7 +2861,7 @@ export function initUI() {
      at runtime and cannot use the delegated [data-act] listeners bound to the
      static chrome, so it calls in here instead of duplicating any behaviour. */
   window.__runAction = runAction;
-  async function runAction(act) {
+  async function runAction(act, ev) {
     if (S.workspace && S.workspace.role === "viewer") {
       var readOnlyActions = ["workspace", "frame", "walk", "walkview", "freemove", "photo", "png2d", "png3d", "exportjson", "exportgltf", "exportCost", "tree", "shortcuts", "plannerTutorial", "viewPlan", "view3d", "viewSplit", "openModeler", "friends", "toggleLegacy", "newPlan", "toggleToolNames"];
       if (readOnlyActions.indexOf(act) < 0) {
@@ -3161,7 +3161,7 @@ export function initUI() {
           version: { current: currentHistoryId },
         }, { label: t("ag_generated") });
         if (!generated.ok) {
-          flash(t("f_placeFail"), "error");
+          flash(t(generated.reason === "PROTECTED_STRUCTURE" ? "redesign_protected" : "f_placeFail"), "error");
           return;
         }
         loaded[1].autoInfrastructure(); // rough-in electrical/water/drain/comms for the new rooms
@@ -3860,19 +3860,13 @@ export function initUI() {
         } else flash(has3D() ? t("f_snapFail") : t("f_no3d"), "error");
       });
     } else if (act === "exportgltf") {
-      exportGLTF(function (glb) {
-        if (!glb) {
-          flash(has3D() ? t("f_snapFail") : t("f_no3d"), "error");
-          return;
-        }
-        var blob = new Blob([glb], { type: "application/octet-stream" });
-        var url = URL.createObjectURL(blob);
-        download("home-model.glb", url);
-        setTimeout(function () {
-          URL.revokeObjectURL(url);
-        }, 2000);
-        flash(t("f_downloaded"), "success");
-      });
+      /* Straight to the file when the modifier is held — the options are
+         remembered, so the second export of an afternoon rarely needs the
+         dialog (js/ui_blender.js). */
+      var bx = await import("./ui_blender.js");
+      if (!has3D()) flash(t("f_no3d"), "error");
+      else if (ev && (ev.shiftKey || ev.altKey)) bx.runExport();
+      else bx.openBlenderExport();
     } else if (act === "cutPlan") {
       (await import("./ui_nest.js")).openNestForPlan();
     } else if (act === "exportCost") {

@@ -33,7 +33,7 @@ test("opening.place prepares a serializable, normalized plan for one explicit wa
   assert.deepEqual(result.plan, {
     command: "opening.place",
     expectedVersion: 47,
-    params: { wallId: 10, type: "door", s: 45, width: 90, height: 205, sill: 0 },
+    params: { wallId: 10, type: "door", s: 50, width: 90, height: 205, sill: 0 },
   });
   assert.doesNotThrow(() => JSON.stringify(result.plan));
 });
@@ -73,7 +73,7 @@ test("opening.place applies exactly one opening even where two walls meet", () =
   assert.equal(result.ok, true);
   assert.equal(state.openings.length, 1);
   assert.deepEqual(state.openings[0], {
-    id: 20, type: "door", wall: 10, s: 45, width: 90, height: 205, sill: 0,
+    id: 20, type: "door", wall: 10, s: 50, width: 90, height: 205, sill: 0,
   });
   assert.equal(state.idc, 21);
   assert.deepEqual(result.created, [{ kind: "opening", id: 20 }]);
@@ -88,4 +88,15 @@ test("opening.place preview respects a face-authored wall centreline", () => {
   const prepared = prepareOpeningPlace({ wallId: 10, type: "passage", s: 200 }, { state });
   const preview = previewOpeningPlace(prepared.plan, { state });
   assert.deepEqual(preview.center, { x: 200, z: -10 });
+});
+
+test("opening.place rejects overwide, overheight, overlapping and locked hosts without edits",()=>{
+ const state=fixture(),env={state};
+ const before=JSON.stringify(state);
+ assert.equal(prepareOpeningPlace({wallId:10,type:'door',s:100,width:500},env).reason,'OPENING_OUT_OF_BOUNDS');
+ assert.equal(prepareOpeningPlace({wallId:10,type:'window',s:100,sill:200,height:100},env).reason,'OPENING_OUT_OF_BOUNDS');
+ assert.equal(JSON.stringify(state),before);
+ state.openings.push({id:99,wall:10,s:100,width:90,height:205,sill:0});
+ assert.equal(prepareOpeningPlace({wallId:10,type:'door',s:150},env).reason,'OPENING_OVERLAP');
+ state.walls[0].locked=true;assert.equal(prepareOpeningPlace({wallId:10,type:'door',s:300},env).reason,'HOST_WALL_LOCKED');
 });

@@ -16,13 +16,9 @@ test("pause sheet labels jump on Space and shove on X", () => {
   assert.doesNotMatch(game, /z_control_shove", "z_control_reload"\]/);
 });
 
-test("dev kit unlocks every weapon from the opening wave", () => {
-  assert.match(game, /W_ORDER\.forEach\(function \(k\) \{ o\[k\] = true; \}\)/);
-  assert.match(game, /W_ORDER\.forEach\(function \(k\) \{ if \(!W\[k\]\.melee\) a\[k\] = W\[k\]\.mag; \}\)/);
-  // the scavenging order is still declared — unlocking everything up front is a
-  // dev-build shortcut past it, not its deletion
+test("normal runs retain progression and sandbox is explicit", () => {
+  assert.match(game, /o\[k\] = gameSettings\(\)\.sandbox \|\| k === "knife" \|\| k === "pistol"/);
   assert.match(stripComments(game), /var W_UNLOCK = \[/);
-  assert.doesNotMatch(game, /owned: \{ knife: true, pistol: true \}/);
 });
 
 test("death screen can return to the planner", () => {

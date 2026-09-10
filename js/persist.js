@@ -5,7 +5,7 @@
 // from main.js rather than importing ui.js, so there is no import cycle with
 // the module it protects. history.js and ui.js only import the tiny
 // markDirty/markSaved pair from here.
-import { t } from "./i18n.js";
+import { t, onLangChange } from "./i18n.js";
 import { needsRecovery } from "./recovery.js";
 
 const AUTO_KEY = "home3d_auto"; // { json, at } — the rolling background copy
@@ -83,13 +83,25 @@ async function clearAutoDB() {
    need its own notion of what counts as an edit. */
 export function markDirty() {
   dirty = true;
+  syncSaveStatus();
   if (!api) return;
   if (timer) clearTimeout(timer);
   timer = setTimeout(writeAuto, DEBOUNCE_MS);
 }
 export function markSaved() {
   dirty = false;
+  syncSaveStatus();
 }
+function syncSaveStatus() {
+  if (typeof document === "undefined") return;
+  var el = document.getElementById("planSaveStatus");
+  if (!el) return;
+  var label = t(dirty ? "save_status_dirty" : "save_status_saved");
+  if (el.textContent !== label) el.textContent = label;
+  el.classList.toggle("is-dirty", dirty);
+  el.title = label + ". " + t("save_status_hint");
+}
+onLangChange(syncSaveStatus);
 export function isDirty() {
   return dirty;
 }
@@ -311,6 +323,7 @@ function installErrorNet() {
 
 export function initPersistence(deps) {
   api = deps;
+  syncSaveStatus();
   installErrorNet();
 
   // Read previous state before adding this tab's lease. BroadcastChannel tells
