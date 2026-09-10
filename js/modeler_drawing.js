@@ -15,12 +15,12 @@
 import {
   LINE_STYLES, SHEET_SIZES, STANDARD_SCALES,
   addViewToSheet, availableViewDirs, buildSheetScene, createProjector, defaultViewLabel,
-  dimensionText, measureDim, nextSectionTag, removeViewFromSheet,
-  scaleLabel, scaleValue, sceneToSvg, sheetDimIssues, sheetPaper, topologyAnchors,
+  dimensionText, measureDim, nextSectionTag, removeViewFromSheet, resolveDimAnchor,
+  scaleLabel, scaleValue, sceneToSvg, sheetDimIssues, sheetPaper, topologyAnchors, topologyCrossings,
 } from "./cad_sheet.js";
 import { isOrthoView, projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
 
-export const DRAWING_TOOLS = ["select", "dim", "diam", "note", "section", "detail"];
+export const DRAWING_TOOLS = ["select", "dim", "angle", "diam", "baseline", "chain", "note", "section", "detail"];
 
 /* null is "the layout has not placed this yet", and Number(null) is 0 — which is
    a real coordinate on the sheet, and the reason a dragged view used to jump to
@@ -92,11 +92,11 @@ export function createDrawingController(host) {
       for (const value of [dim.id, dim.type, dim.viewId, dim.offset, dim.angle, dim.radius,
         dim.text, dim.tolerance, dim.reference, dim.auto]) hash = fold(hash, value);
       for (const ref of dim.refs || []) {
-        for (const value of [ref.u, ref.v, ref.pid, ref.kind, ref.at]) hash = fold(hash, value);
+        for (const value of [ref.u, ref.v, ref.pid, ref.pid2, ref.kind, ref.at]) hash = fold(hash, value);
       }
     }
     for (const note of doc.notes || []) {
-      for (const value of [note.id, note.text, note.x, note.y, note.size, note.leader]) hash = fold(hash, value);
+      for (const value of [note.id, note.text, note.x, note.y, note.size, note.leader, note.feature]) hash = fold(hash, value);
     }
     return String(hash);
   }
@@ -108,6 +108,7 @@ export function createDrawingController(host) {
     state.scene = buildSheetScene(doc, {
       projection: projectionFor,
       topology: host.topology ? host.topology() : null,
+      callouts: host.callouts ? host.callouts() : null,
       meta: host.meta ? host.meta() : null,
       bom: host.bom ? host.bom() : null,
     }, { selectedDim: state.selection?.kind === "dim" ? state.selection.id : null });
@@ -298,6 +299,11 @@ export function createDrawingController(host) {
       if (state.snap.kind === "end") { c.strokeRect(at.x - 4, at.y - 4, 8, 8); }
       else if (state.snap.kind === "mid") {
         c.beginPath(); c.moveTo(at.x - 5, at.y + 4); c.lineTo(at.x, at.y - 5); c.lineTo(at.x + 5, at.y + 4); c.closePath(); c.stroke();
+      } else if (state.snap.kind === "cross") {
+        c.beginPath();
+        c.moveTo(at.x - 5, at.y - 5); c.lineTo(at.x + 5, at.y + 5);
+        c.moveTo(at.x + 5, at.y - 5); c.lineTo(at.x - 5, at.y + 5);
+        c.stroke();
       } else if (state.snap.kind === "centre") {
         c.beginPath(); c.moveTo(at.x - 7, at.y); c.lineTo(at.x + 7, at.y); c.moveTo(at.x, at.y - 7); c.lineTo(at.x, at.y + 7); c.stroke();
       }
@@ -315,22 +321,29 @@ export function createDrawingController(host) {
       const points = draft.refs.map((ref) => toScreen(place.toSheet(ref)));
       c.beginPath();
       points.forEach((point, index) => { if (index) c.lineTo(point.x, point.y); else c.moveTo(point.x, point.y); });
-      if (draft.refs.length === 1 && state.cursor) {
+      if (draft.refs.length < draftPicks(draft) && state.cursor) {
         const cursor = toScreen(state.cursor);
         c.lineTo(cursor.x, cursor.y);
       }
       c.stroke();
       points.forEach((point) => { c.fillStyle = "#e08030"; c.fillRect(point.x - 3, point.y - 3, 6, 6); });
-      if (draft.refs.length === 2) {
-        const preview = previewDim(draft, place);
-        if (preview) {
-          const text = dimensionText(Object.assign({}, preview, { measure: measureDim(preview) }), host.doc());
-          const at = toScreen(state.cursor);
-          c.font = "600 12px " + FONT;
-          c.fillStyle = "#e08030";
-          c.fillText(text, at.x + 10, at.y - 8);
-        }
+      /* The value is previewed from the pick still in the pointer, so an angle
+         reads live off the second arm the way a linear reads off the drop. */
+      const preview = previewDim(draft, place);
+      if (preview) {
+        const text = dimensionText(Object.assign({}, preview, { measure: measureDim(preview) }), host.doc());
+        const at = toScreen(state.cursor);
+        c.font = "600 12px " + FONT;
+        c.fillStyle = "#e08030";
+        c.fillText(text, at.x + 10, at.y - 8);
       }
+    } else if (draft.kind === "run" && place) {
+      /* Where the run has been, and where the next member would reach to. */
+      const points = draft.refs.map((ref) => toScreen(place.toSheet(ref)));
+      const from = points[draft.mode === "baseline" ? 0 : points.length - 1];
+      const cursor = toScreen(state.cursor);
+      c.beginPath(); c.moveTo(from.x, from.y); c.lineTo(cursor.x, cursor.y); c.stroke();
+      points.forEach((point) => { c.fillStyle = "#e08030"; c.fillRect(point.x - 3, point.y - 3, 6, 6); });
     } else if (draft.kind === "section" && place) {
       const start = toScreen(draft.start), cursor = toScreen(state.cursor);
       c.strokeStyle = "#8a2f2f";
@@ -376,6 +389,17 @@ export function createDrawingController(host) {
       push(round.u, round.v + round.radius, "quad");
       push(round.u, round.v - round.radius, "quad");
     }
+    /* Intersections come from the NAMED edges rather than from these projected
+       segments: a crossing has two parents, and only the topology can say which
+       two. A crossing of lines nobody named is therefore not offered — see
+       topologyCrossings. Its identity travels on the snap point itself, because
+       unlike every other snap it cannot be recovered by looking up one id. */
+    const index = scene().topologyIndex, basis = projection?.basis;
+    if (index && basis) {
+      for (const cross of topologyCrossings(index, basis)) {
+        points.push({ u: cross.u, v: cross.v, kind: "cross", pid: cross.pid, pid2: cross.pid2, at: cross.at });
+      }
+    }
     place._snaps = points;
     return points;
   }
@@ -402,7 +426,11 @@ export function createDrawingController(host) {
     return best ? { u: best.u, v: best.v, pid: best.pid, kind: best.kind, at: best.at } : null;
   }
 
-  const dimRef = (place, point) => bindAnchor(place, point) || { u: point.u, v: point.v };
+  /* An intersection already knows what it is: it carried both parent ids from
+     the snap set, because no single-id lookup could recover them. */
+  const dimRef = (place, point) => (point.kind === "cross"
+    ? { u: point.u, v: point.v, pid: point.pid, pid2: point.pid2, kind: "cross", at: "x" }
+    : bindAnchor(place, point) || { u: point.u, v: point.v });
 
   function snapAt(sheetPoint) {
     const built = scene();
@@ -414,7 +442,8 @@ export function createDrawingController(host) {
         const at = place.toSheet(point);
         const distance = Math.hypot(at.x - sheetPoint.x, at.y - sheetPoint.y);
         if (distance > reach) continue;
-        const rank = point.kind === "end" ? 0 : point.kind === "centre" ? 1 : point.kind === "quad" ? 2 : 3;
+        const rank = point.kind === "end" ? 0 : point.kind === "centre" ? 1
+          : point.kind === "cross" ? 1.5 : point.kind === "quad" ? 2 : 3;
         if (!best || distance + rank * 0.3 < best.distance + best.rank * 0.3) {
           best = { distance, rank, kind: point.kind, model: point, sheet: at, viewId: place.id, place };
         }
@@ -469,9 +498,21 @@ export function createDrawingController(host) {
     host.refresh();
   }
 
+  /* How many picks a dimension of this kind is waiting for: an angle names two
+     arms about a corner, everything else spans two points. */
+  const draftPicks = (draft) => (draft?.dimType === "angle" ? 3 : 2);
+
   function previewDim(draft, place) {
     const cursor = state.cursor;
-    if (!cursor || draft.refs.length < 2) return null;
+    if (!cursor) return null;
+    if (draft.dimType === "angle") {
+      if (draft.refs.length !== 2) return null;
+      /* The arm still under the pointer is a plain view point — it is only a
+         preview, and nothing is bound until the third pick lands on a snap. */
+      const third = place.toModel(cursor);
+      return { type: "angle", viewId: draft.viewId, offset: 12, refs: draft.refs.concat([{ u: third.u, v: third.v }]) };
+    }
+    if (draft.refs.length < 2) return null;
     const a = place.toSheet(draft.refs[0]), b = place.toSheet(draft.refs[1]);
     const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const dx = Math.abs(cursor.x - mid.x), dy = Math.abs(cursor.y - mid.y);
@@ -488,13 +529,53 @@ export function createDrawingController(host) {
     return (cursor.x - a.x) * normal.x + (cursor.y - a.y) * normal.y;
   }
 
-  function commitDim(dim) {
+  /* One dimension onto the paper. No undo of its own: a run places several and
+     the whole run is one step (see the run tools), so the step is opened by
+     whoever owns the gesture. */
+  function pushDim(dim) {
     const doc = host.doc();
-    host.pushUndo(host.t("opAddDim"));
     doc.dims.push(Object.assign({ id: "d" + Math.random().toString(36).slice(2, 9) }, dim));
-    state.draft = null;
-    state.selection = { kind: "dim", id: doc.dims[doc.dims.length - 1].id };
+    const placed = doc.dims[doc.dims.length - 1];
+    state.selection = { kind: "dim", id: placed.id };
     host.markDirty();
+    return placed;
+  }
+
+  function commitDim(dim) {
+    host.pushUndo(host.t("opAddDim"));
+    state.draft = null;
+    return pushDim(dim);
+  }
+
+  /* Baseline and chain: a run of features dimensioned from one datum, or end to
+     end. Each member is an ordinary dimension — bound on its own, dangling on
+     its own, dragged on its own — and the only thing the run adds is WHERE the
+     next line sits, which is the sheet's existing signed offset stepped
+     outwards. A run holds ONE direction, taken from its first span: a baseline
+     that changes axis halfway is not a baseline, it is two of them. */
+  const RUN_BASE = { horizontal: -12, vertical: 12 };   // the sides autoDimension uses
+  const RUN_STEP = 8;
+
+  function runPick(mode, snap, place) {
+    const ref = dimRef(place, snap.model);
+    const run = state.draft?.kind === "run" && state.draft.mode === mode && state.draft.viewId === snap.viewId
+      ? state.draft : null;
+    if (!run) {
+      state.draft = { kind: "run", mode, viewId: snap.viewId, refs: [ref], count: 0, type: null, pushed: false };
+      return;
+    }
+    const from = mode === "baseline" ? run.refs[0] : run.refs[run.refs.length - 1];
+    const type = run.type || (Math.abs(ref.u - from.u) >= Math.abs(ref.v - from.v) ? "horizontal" : "vertical");
+    const span = type === "horizontal" ? Math.abs(ref.u - from.u) : Math.abs(ref.v - from.v);
+    /* A pick that adds no distance would put a "0" on the paper. */
+    if (!(span > 1e-9)) { host.flash(host.t("drawRunFlat")); return; }
+    run.type = type;
+    if (!run.pushed) { host.pushUndo(host.t("opAddDimRun")); run.pushed = true; }
+    const base = RUN_BASE[type];
+    const offset = base + Math.sign(base) * (mode === "baseline" ? run.count * RUN_STEP : 0);
+    pushDim({ type, viewId: run.viewId, refs: [from, ref], offset });
+    run.refs.push(ref);
+    run.count += 1;
   }
 
   /* ---- layout drags ------------------------------------------------------ */
@@ -547,8 +628,29 @@ export function createDrawingController(host) {
       state.drag = { mode: "pan", x, y, ox: state.ox, oy: state.oy };
       return true;
     }
-    if (state.tool === "dim" || state.tool === "diam") {
+    if (state.tool === "dim" || state.tool === "diam" || state.tool === "angle") {
       const snap = snapAt(sheetPoint);
+      if (state.tool === "angle") {
+        if (!snap) { host.flash(host.t("drawSnapNone")); return true; }
+        /* Arm, corner, arm — three picks, each bound on its own, in the order
+           an angle is read (∠ABC). The corner is refs[1] because that is where
+           measureDim and dimensionItems put the vertex. */
+        if (!state.draft || state.draft.kind !== "dim" || state.draft.dimType !== "angle" || state.draft.viewId !== snap.viewId) {
+          state.draft = { kind: "dim", dimType: "angle", viewId: snap.viewId, refs: [dimRef(snap.place, snap.model)] };
+        } else {
+          state.draft.refs.push(dimRef(snap.place, snap.model));
+          if (state.draft.refs.length >= 3) {
+            const refs = state.draft.refs.slice(0, 3);
+            const measure = measureDim({ type: "angle", refs });
+            /* Three points on one line, or a pick repeated, measure nothing —
+               committing that would put a "0°" on the paper. */
+            if (!(measure > 1e-6)) { state.draft = null; host.flash(host.t("drawAngleFlat")); host.refresh(); return true; }
+            commitDim({ type: "angle", viewId: state.draft.viewId, refs, offset: 12 });
+          }
+        }
+        host.refresh();
+        return true;
+      }
       if (state.tool === "diam") {
         const round = circleAt(sheetPoint);
         if (round) {
@@ -584,6 +686,13 @@ export function createDrawingController(host) {
         state.draft.refs.push(dimRef(snap.place, snap.model));
         state.draft.aligned = event.shiftKey;
       }
+      host.refresh();
+      return true;
+    }
+    if (state.tool === "baseline" || state.tool === "chain") {
+      const snap = snapAt(sheetPoint);
+      if (!snap) { host.flash(host.t("drawSnapNone")); return true; }
+      runPick(state.tool, snap, snap.place);
       host.refresh();
       return true;
     }
@@ -693,6 +802,11 @@ export function createDrawingController(host) {
           const centre = place.toSheet(shown.refs[0]);
           dim.angle = Math.atan2(sheetPoint.y - centre.y, sheetPoint.x - centre.x);
           dim.offset = Math.max(3, Math.hypot(sheetPoint.x - centre.x, sheetPoint.y - centre.y) - num(shown.radius) * place.k);
+        } else if (dim.type === "angle") {
+          /* An angle's offset is the arc's radius from the corner, which is
+             what the arc is drawn at — the same one number, dragged. */
+          const vertex = place.toSheet(shown.refs[1] || { u: 0, v: 0 });
+          dim.offset = Math.max(4, Math.hypot(sheetPoint.x - vertex.x, sheetPoint.y - vertex.y));
         } else {
           const a = place.toSheet(shown.refs[0]), b = place.toSheet(shown.refs[1]);
           const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
@@ -715,7 +829,7 @@ export function createDrawingController(host) {
       }
       return true;
     }
-    if (state.tool === "dim") state.snap = snapAt(sheetPoint);
+    if (state.tool === "dim" || state.tool === "angle" || state.tool === "baseline" || state.tool === "chain") state.snap = snapAt(sheetPoint);
     else if (state.tool !== "select") state.snap = null;
     else state.hover = hitTest(sheetPoint);
     host.refresh();
@@ -841,17 +955,34 @@ export function createDrawingController(host) {
     host.markDirty();
   }
 
+  /* Editing a dimension is one form with two fields: what it SAYS, and the
+     tolerance that applies to this dimension alone. The tolerance overrides the
+     title block's general note for this one number (see dimensionText), so it
+     belongs next to the value override rather than in sheet setup — and it is
+     free text because "±0.1", "H7" and "+0.2/0" are all things a drawing says.
+     host.promptFields is the editor's own promise-based form; the single-field
+     fallback keeps a host that only offers prompt() working. */
   async function editDim(id) {
     const doc = host.doc();
     const dim = (doc.dims || []).find((entry) => entry.id === id);
     if (!dim) return;
     const shown = scene().dims.get(id)?.dim || dim;
-    const current = dim.text || dimensionText(Object.assign({}, shown, { measure: measureDim(shown) }), doc);
-    const next = await host.prompt(host.t("drawDimTextTitle"), current);
-    if (next === null) return;
+    /* What the sheet would say with nothing overridden: the yardstick a typed
+       value is compared against, so retyping the measured number clears the
+       override instead of freezing it. */
+    const measured = dimensionText(Object.assign({}, shown, { measure: measureDim(shown), text: "", tolerance: "" }), doc);
+    const current = dim.text || measured;
+    const answer = host.promptFields
+      ? await host.promptFields(host.t("drawDimTextTitle"), [
+        { key: "text", label: host.t("drawDimTextLabel"), value: current },
+        { key: "tolerance", label: host.t("drawDimTolLabel"), value: dim.tolerance || "", hint: host.t("drawDimTolHint") },
+      ])
+      : await host.prompt(host.t("drawDimTextTitle"), current).then((text) => (text === null ? null : { text, tolerance: dim.tolerance || "" }));
+    if (!answer) return;
     host.pushUndo(host.t("opEditDim"));
-    const measured = dimensionText(Object.assign({}, shown, { measure: measureDim(shown), text: "" }), doc);
-    dim.text = next.trim() && next.trim() !== measured ? next.trim() : "";
+    const next = String(answer.text ?? "").trim();
+    dim.text = next && next !== measured ? next : "";
+    dim.tolerance = String(answer.tolerance ?? "").trim();
     host.markDirty();
   }
 
@@ -899,6 +1030,63 @@ export function createDrawingController(host) {
     state.selection = { kind: "view", id: view.id };
     invalidate();
     host.markDirty();
+  }
+
+  /* The hole this feature cut, in the view's own coordinates. A hole is named
+     by its WALL faces (cutWallTopology), not by an edge, so this is an exact-id
+     lookup under the feature's own prefix rather than a search of the snap set
+     — the same contract every bound reference on this sheet keeps. Ids are
+     walked in sorted order so two runs pick the same wall. */
+  function holeAnchor(index, basis, featureId) {
+    if (!index || !basis || !featureId) return null;
+    const prefix = featureId + ":";
+    for (const pid of Array.from(index.keys()).sort()) {
+      if (!pid.startsWith(prefix)) continue;
+      const entry = index.get(pid);
+      const at = resolveDimAnchor({ pid, kind: entry?.kind, at: "centre" }, index, basis);
+      if (at) return { pid, kind: entry.kind, at: "centre", u: at.u, v: at.v };
+    }
+    return null;
+  }
+
+  /* Hole callouts, read off the FEATURE TREE rather than typed. Each note names
+     the hole it came from, so its text is re-derived on every build (see
+     resolveNote) — a leader that still says M6 after the wizard was changed to
+     M8 is the same lie as a dimension frozen at its placed value.
+
+     A hole whose topology this sheet cannot see (an assembly's components, a
+     kernel body nobody named) still gets its callout, WITHOUT a leader: the
+     text is bound and the position is not, and a note that points at nothing is
+     honest about that where an arrow aimed at the nearest circle would not
+     be. */
+  function addHoleCallouts() {
+    const doc = host.doc();
+    const rows = host.holeCallouts ? host.holeCallouts() || [] : [];
+    if (!rows.length) { host.flash(host.t("drawNoHoles")); return; }
+    const built = scene();
+    const place = built.views.find((entry) => entry.id === built.primaryId) || built.views[0];
+    if (!place) { host.flash(host.t("drawNoGeometry")); return; }
+    const basis = place.projection?.basis || null;
+    const fresh = rows.filter((row) => !(doc.notes || []).some((note) => note.feature === row.id));
+    if (!fresh.length) { host.flash(host.t("drawCalloutsDone")); return; }
+    host.pushUndo(host.t("opAddCallout"));
+    let unbound = 0;
+    fresh.forEach((row, index) => {
+      const anchor = holeAnchor(built.topologyIndex, basis, row.id);
+      if (!anchor) unbound++;
+      const from = anchor ? place.toSheet(anchor) : { x: place.box.x, y: place.box.y };
+      doc.notes.push({
+        id: "n" + Math.random().toString(36).slice(2, 9),
+        x: from.x + 14, y: from.y - 10 - index * 6,
+        feature: row.id,
+        text: row.text,
+        leader: anchor ? { viewId: place.id, u: anchor.u, v: anchor.v, pid: anchor.pid, kind: anchor.kind, at: anchor.at } : null,
+      });
+    });
+    state.selection = { kind: "note", id: doc.notes[doc.notes.length - 1].id };
+    invalidate();
+    host.markDirty();
+    if (unbound) host.flash(host.t("drawCalloutUnbound"));
   }
 
   /* Automatic overall dimensions: the two sizes every drawing carries, placed
@@ -983,6 +1171,9 @@ export function createDrawingController(host) {
     const lower = String(key).toLowerCase();
     if (lower === "f") { fit(); host.refresh(); return true; }
     if (lower === "d") { setTool("dim"); return true; }
+    if (lower === "a" && !event.ctrlKey && !event.metaKey) { setTool("angle"); return true; }
+    if (lower === "b") { setTool("baseline"); return true; }
+    if (lower === "c" && !event.ctrlKey && !event.metaKey) { setTool("chain"); return true; }
     if (lower === "v") { setTool("select"); return true; }
     if (lower === "n") { setTool("note"); return true; }
     if (lower === "s" && !event.ctrlKey && !event.metaKey) { setTool("section"); return true; }
@@ -1020,7 +1211,7 @@ export function createDrawingController(host) {
     selection: () => state.selection,
     select: (value) => { state.selection = value; state.scene = null; host.refresh(); },
     pointerDown, pointerMove, pointerUp, doubleClick, wheel, keyDown,
-    deleteSelection, addView, autoDimension, setSheetOption, relayout,
+    deleteSelection, addView, autoDimension, addHoleCallouts, setSheetOption, relayout, editDim,
     danglingDims: () => sheetDimIssues(scene()),
     document: () => host.doc(),
     availableViews: () => availableViewDirs(host.doc()),

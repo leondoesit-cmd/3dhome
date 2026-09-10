@@ -715,11 +715,17 @@ export function formatLength(modelValue, doc) {
   return fixed || "0";
 }
 
+/* A dimension's own tolerance is SPECIFIC: it overrides the title block's
+   general note (meta.tolerance, printed once above the block) for this one
+   dimension, which is why it prints on the dimension itself and the general
+   one never is. It also survives an overridden value — a draughtsman who
+   writes "2×⌀5" over the measured number has not withdrawn the fit beside
+   it. */
 export function dimensionText(dim, doc) {
-  if (dim.text) return dim.text;
+  const suffix = dim.tolerance ? " " + dim.tolerance : "";
+  if (dim.text) return dim.text + suffix;
   const value = formatLength(dim.measure, doc);
   const prefix = dim.type === "diameter" ? "⌀" : dim.type === "radius" ? "R" : "";
-  const suffix = dim.tolerance ? " " + dim.tolerance : "";
   if (dim.type === "angle") return trimNumber(Math.round(num(dim.measure) * 10) / 10) + "°" + suffix;
   return prefix + value + suffix;
 }
@@ -806,9 +812,80 @@ export const projectToView = (point, basis) => (point && basis ? {
   v: point.x * basis.up.x + point.y * basis.up.y + point.z * basis.up.z,
 } : null);
 
+/* One named straight edge as a segment in the view's own frame, or null when
+   it is a circle, unnamed, or projects to a point (an edge seen end-on). */
+function edgeSegmentInView(entry, basis) {
+  if (!entry || entry.kind !== "edge") return null;
+  const ends = edgeEndpoints(entry.descriptor || {});
+  if (!ends) return null;
+  const p = projectToView(ends[0], basis), q = projectToView(ends[1], basis);
+  if (!p || !q) return null;
+  return Math.hypot(q.u - p.u, q.v - p.v) > 1e-9 ? { p, q } : null;
+}
+
+/* Where two segments cross, or null when they are parallel or when the meeting
+   point is off the end of either. Off-the-end is deliberately NOT returned: the
+   point the user snapped to was two lines crossing, and lines that no longer
+   cross have not moved that point, they have destroyed it. */
+export function segmentIntersection(a, b, slack = 1e-9) {
+  const rx = a.q.u - a.p.u, ry = a.q.v - a.p.v;
+  const sx = b.q.u - b.p.u, sy = b.q.v - b.p.v;
+  const denominator = rx * sy - ry * sx;
+  const scale = Math.hypot(rx, ry) * Math.hypot(sx, sy);
+  if (!(Math.abs(denominator) > 1e-12 * Math.max(scale, 1e-6))) return null;
+  const t = ((b.p.u - a.p.u) * sy - (b.p.v - a.p.v) * sx) / denominator;
+  const u = ((b.p.u - a.p.u) * ry - (b.p.v - a.p.v) * rx) / denominator;
+  if (t < -slack || t > 1 + slack || u < -slack || u > 1 + slack) return null;
+  return { u: a.p.u + rx * t, v: a.p.v + ry * t };
+}
+
+/* An intersection is a DERIVED anchor: two parents, not one. The ref names both
+   ids and the point is recomputed by crossing the two named edges in the view's
+   own frame on every build, so it follows the model exactly as a single-parent
+   ref does — and it dangles the moment EITHER parent is gone, because half a
+   parentage is not a reference. */
+function crossAnchor(ref, index, basis) {
+  const a = edgeSegmentInView(index.get(ref.pid), basis);
+  const b = edgeSegmentInView(index.get(ref.pid2), basis);
+  if (!a || !b) return null;
+  return segmentIntersection(a, b, 1e-6);
+}
+
+/* Every crossing of two named edges in one view. A crossing that no topology
+   names is deliberately absent: it would have to bind to the triangles, which
+   carry no identity at all. Quadratic, so it is capped — beyond that many named
+   edges the crossings are unreadable on paper anyway. */
+export const MAX_CROSS_EDGES = 240;
+
+export function topologyCrossings(index, basis) {
+  const out = [];
+  if (!index || !basis) return out;
+  const ids = Array.from(index.keys()).sort();
+  const segments = [];
+  for (const pid of ids) {
+    const segment = edgeSegmentInView(index.get(pid), basis);
+    if (segment) segments.push({ pid, segment });
+    if (segments.length >= MAX_CROSS_EDGES) break;
+  }
+  for (let i = 0; i < segments.length; i++) {
+    for (let j = i + 1; j < segments.length; j++) {
+      const point = segmentIntersection(segments[i].segment, segments[j].segment);
+      if (!point) continue;
+      /* Two edges that merely meet at a shared corner are not an intersection:
+         that point already has a one-parent name of its own ("a" or "b"), and
+         offering it twice would let the same corner bind two different ways. */
+      const ends = [segments[i].segment.p, segments[i].segment.q, segments[j].segment.p, segments[j].segment.q];
+      if (ends.some((end) => Math.hypot(end.u - point.u, end.v - point.v) < 1e-7)) continue;
+      out.push({ pid: segments[i].pid, pid2: segments[j].pid, kind: "cross", at: "x", u: point.u, v: point.v });
+    }
+  }
+  return out;
+}
+
 /* Where one ref sits in the view NOW, or null if its id is gone. */
 export function resolveDimAnchor(ref, index, basis) {
   if (!ref?.pid || !index || !basis) return null;
+  if (ref.kind === "cross") return ref.pid2 ? crossAnchor(ref, index, basis) : null;
   const entry = index.get(ref.pid);
   if (!entry || (ref.kind && entry.kind !== ref.kind)) return null;
   const descriptor = entry.descriptor || {};
@@ -857,7 +934,14 @@ export function resolveDim(dim, index, basis, projection) {
     if (!ref?.pid) return ref;
     const at = resolveDimAnchor(ref, index, basis);
     if (at) return Object.assign({}, ref, at);
-    if (index) { result.dangling = true; result.missing.push(ref.pid); }
+    if (index) {
+      result.dangling = true;
+      /* An intersection reports the parent that is actually gone, not just the
+         first of the two it names — the panel lists these ids verbatim. */
+      const parents = ref.kind === "cross" ? [ref.pid, ref.pid2] : [ref.pid];
+      const lost = parents.filter((pid) => pid && !index.has(pid));
+      result.missing.push(...(lost.length ? lost : [ref.pid]));
+    }
     return ref;                                     // drawn where it last was
   });
   const patch = { refs: next };
@@ -891,11 +975,40 @@ export function topologyAnchors(index, basis) {
   return out;
 }
 
-/* Every dim on the sheet that lost its reference, for the UI to list. */
+/* A callout note names a FEATURE, not a sentence. Its text is re-read from
+   that feature on every build — a leader that still says M6 after the wizard
+   was changed to M8 is the same lie as a dimension frozen at its placed value
+   — and its leader binds to topology like any dimension reference, so it
+   follows the hole rather than pointing at where the hole used to be.
+   A plain typed note carries neither and is never touched. */
+export function resolveNote(note, callouts, index, basis) {
+  const result = { note, dangling: false, missing: [] };
+  if (!note) return result;
+  const patch = {};
+  if (note.feature && callouts) {
+    const text = typeof callouts.get === "function" ? callouts.get(note.feature) : callouts[note.feature];
+    if (text) patch.text = text;
+    else { result.dangling = true; result.missing.push(note.feature); }
+  }
+  const leader = note.leader;
+  if (leader?.pid) {
+    const at = resolveDimAnchor(leader, index, basis);
+    if (at) patch.leader = Object.assign({}, leader, at);
+    else if (index) { result.dangling = true; result.missing.push(leader.pid); }
+  }
+  if (Object.keys(patch).length) result.note = Object.assign({}, note, patch);
+  return result;
+}
+
+/* Everything on the sheet that lost its reference, for the UI to list: a
+   dimension that can no longer measure, and a callout whose hole is gone. */
 export function sheetDimIssues(scene) {
   const out = [];
   for (const [id, entry] of scene?.dims || []) {
-    if (entry.dangling) out.push({ id, viewId: entry.dim.viewId, missing: entry.missing.slice() });
+    if (entry.dangling) out.push({ kind: "dim", id, viewId: entry.dim.viewId, missing: entry.missing.slice() });
+  }
+  for (const [id, entry] of scene?.notes || []) {
+    if (entry.dangling) out.push({ kind: "note", id, viewId: entry.note.leader?.viewId || null, missing: entry.missing.slice() });
   }
   return out;
 }
@@ -999,6 +1112,7 @@ function dimensionItems(dim, place, doc, options = {}) {
 
 /* @param doc       the sheet document (see createSheetDoc)
  * @param provider  { projection(view) -> hidden_line projection,
+ *                    topology, callouts (featureId -> live callout text),
  *                    meta, bom }
  * @returns { paper, items, views, scale } — millimetres, ready to paint.
  */
@@ -1121,7 +1235,14 @@ export function buildSheetScene(doc, provider, options = {}) {
       items.push(Object.assign(item, { dimId: dim.id, viewId: dim.viewId }));
     }
   }
-  for (const note of doc.notes || []) items.push(...noteItems(note, byId, doc));
+  const notes = new Map();
+  for (const note of doc.notes || []) {
+    const place = note.leader ? byId.get(note.leader.viewId) : null;
+    const basis = place ? (place.projection?.basis || viewBasis(place.view.dir)) : null;
+    const resolved = resolveNote(note, provider?.callouts, topologyIndex, basis);
+    notes.set(note.id, resolved);
+    items.push(...noteItems(resolved.note, byId, doc, { dangling: resolved.dangling }));
+  }
 
   /* View captions go on LAST, below whatever that view ended up carrying: a
      label parked at the outline's edge lands inside the overall dimension the
@@ -1147,7 +1268,7 @@ export function buildSheetScene(doc, provider, options = {}) {
   }
   return {
     paper, frame, items, views: placements, scale: layout.sheetScale,
-    projections, primaryId: layout.primaryId, dims, topologyIndex,
+    projections, primaryId: layout.primaryId, dims, notes, topologyIndex,
   };
 }
 
@@ -1243,13 +1364,18 @@ function detailMarker(view, placements) {
   ];
 }
 
-function noteItems(note, byId, doc) {
+function noteItems(note, byId, doc, options = {}) {
   const items = [];
   const x = num(note.x), y = num(note.y);
-  const lines = String(note.text || "").split("\n");
+  /* A callout whose hole is gone reads as the LAST thing that hole was called,
+     bracketed and flagged — the same contract a dangling dimension keeps. */
+  const style = options.dangling ? "dimLost" : "dim";
+  const body = options.dangling ? "⚠ (" + String(note.text || "") + ")" : String(note.text || "");
+  const lines = body.split("\n");
   lines.forEach((row, index) => {
     items.push(text(x, y + index * (TEXT_SIZES.dim * 1.35), row, {
       size: note.size || TEXT_SIZES.dim, anchor: "start", noteId: note.id,
+      color: LINE_STYLES[style].color,
     }));
   });
   if (note.leader) {
@@ -1257,8 +1383,8 @@ function noteItems(note, byId, doc) {
     if (place) {
       const target = place.toSheet(note.leader);
       const elbow = { x: x - 3, y: y + 1 };
-      items.push(line(elbow.x, elbow.y, x + 1, elbow.y, "dim", { noteId: note.id }));
-      items.push(line(target.x, target.y, elbow.x, elbow.y, "dim", { noteId: note.id }));
+      items.push(line(elbow.x, elbow.y, x + 1, elbow.y, style, { noteId: note.id }));
+      items.push(line(target.x, target.y, elbow.x, elbow.y, style, { noteId: note.id }));
       items.push(arrowHead(target.x, target.y, target.x - elbow.x, target.y - elbow.y));
     }
   }

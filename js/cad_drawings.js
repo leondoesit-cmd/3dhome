@@ -16,21 +16,12 @@ import {
 } from "./cad_sheet.js";
 import { tessellateParts } from "./core/part_tessellate.js";
 import { projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
-import { holeCallout, holeLayoutPoints } from "./cad_hole_wizard.js";
+import { calloutText, calloutTextById, holeCallouts } from "./core/hole_callout.js";
 
-export function collectHoleCallouts(def) {
-  const features = def?.features || [];
-  return features.filter((feature) => feature.type === "hole" && !feature.suppressed).map((feature, index) => {
-    const points = holeLayoutPoints(feature.params);
-    return {
-      id: feature.id,
-      item: index + 1,
-      callout: holeCallout(feature.params || {}),
-      quantity: points.length,
-      points,
-    };
-  });
-}
+/* Kept as the name this module has always exported; the walk itself is shared
+   with the interactive sheet (see core/hole_callout.js) so both engines spell a
+   callout the same way. */
+export const collectHoleCallouts = holeCallouts;
 
 export function collectBalloons(def) {
   const parts = def?.parts || [];
@@ -120,7 +111,10 @@ function calloutNotes(doc, callouts) {
     doc.notes.push({
       id: uid("n"),
       x: 30 + index * 4, y: 34 + index * 8,
-      text: row.callout + (row.quantity > 1 ? "  ×" + row.quantity : ""),
+      /* feature names WHICH hole this is; the text beside it is the last known
+         reading, re-derived from the feature on every build. */
+      feature: row.id,
+      text: calloutText(row),
       leader: { viewId: primary.id, u: point.u, v: point.v },
     });
   });
@@ -137,6 +131,7 @@ export function buildDrawingScene(def, options = {}) {
       : (options.balloons === true || def?.kind === "assembly" ? collectBalloons(def) : []);
   return buildSheetScene(doc, {
     projection: project,
+    callouts: calloutTextById(def),
     meta: { title: options.title || doc.title.title || def?.name || "Untitled part" },
     bom: balloons.map((row) => ({ item: row.item, qty: row.qty, name: row.name, material: row.material })),
   });

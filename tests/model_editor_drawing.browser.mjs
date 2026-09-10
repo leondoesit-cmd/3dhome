@@ -512,3 +512,63 @@ test("a dragged view is one undo step the editor's own history can unwind", opts
   assert.equal(result.undoDisabled, false, "the drag armed Undo");
   assert.equal(result.undone, null, "and one Undo put the view back where the layout had it");
 });
+
+test("the angle tool is reachable from the real toolbar and binds all three picks", opts, async () => {
+  const page = await sheetPage();
+  const result = await page.eval(() => {
+    const sheet = window.cadDrawingSheet, canvas = document.getElementById("mdCanvas");
+    const rect = canvas.getBoundingClientRect(), state = sheet.state;
+    const at = (mm) => ({ x: mm.x * state.zoom + state.ox + rect.left, y: mm.y * state.zoom + state.oy + rect.top });
+    const send = (type, x, y) => canvas.dispatchEvent(new PointerEvent(type, {
+      clientX: x, clientY: y, bubbles: true, pointerId: 1, button: 0, buttons: type === "pointerup" ? 0 : 1,
+    }));
+    const click = (point) => { send("pointermove", point.x, point.y); send("pointerdown", point.x, point.y); send("pointerup", point.x, point.y); };
+    const button = document.querySelector('[data-drawing-tool="angle"]');
+    button.click();
+    const armed = { tool: sheet.getTool(), on: button.classList.contains("on"), pressed: button.getAttribute("aria-pressed") };
+    const front = sheet.scene().views.find((place) => place.view.label === "FRONT");
+    /* The base of the bracket and the upright that meets it: a right angle
+       every reader of this sheet can check by eye. */
+    const gap = (p, q) => Math.hypot(p.u - q.u, p.v - q.v);
+    let base = null;
+    for (const segment of front.projection.visible) {
+      if (Math.abs(segment.a.v - segment.b.v) > 0.01) continue;
+      const length = Math.abs(segment.a.u - segment.b.u);
+      /* Ties on length go to the lower edge: the bracket's base and the top of
+         its base are both 20 wide, and only the base's ends are corners. */
+      if (!base || length > base.length || (length === base.length && segment.a.v < base.a.v)) {
+        base = { length, a: segment.a, b: segment.b };
+      }
+    }
+    const corner = base.a.u < base.b.u ? base.a : base.b;     // the left-hand end
+    const arm = base.a.u < base.b.u ? base.b : base.a;
+    /* The upright that rises from that same corner: the vertical edge whose
+       nearer end is the corner itself. */
+    let upright = null, best = 0.05;
+    for (const segment of front.projection.visible) {
+      if (Math.abs(segment.a.u - segment.b.u) > 0.01) continue;
+      const ends = [[segment.a, segment.b], [segment.b, segment.a]];
+      for (const [near, far] of ends) {
+        const distance = gap(near, corner);
+        if (distance < best) { best = distance; upright = far; }
+      }
+    }
+    if (!arm || !corner || !upright) return { armed, debug: { base, corner, upright, segs: front.projection.visible.slice(0, 12) } };
+    click(at(front.toSheet(arm)));
+    click(at(front.toSheet(corner)));
+    click(at(front.toSheet(upright)));
+    const dim = sheet.document().dims.filter((entry) => entry.type === "angle")[0];
+    const label = sheet.scene().items.find((item) => item.dimId === dim?.id && item.type === "text");
+    return {
+      armed, hint: document.getElementById("mdHint")?.textContent || "",
+      bound: dim ? dim.refs.map((ref) => !!ref.pid) : [],
+      text: label ? label.text : null,
+    };
+  });
+  assert.deepEqual(result.armed, { tool: "angle", on: true, pressed: "true" },
+    "the toolbar button arms the tool and syncTools shows it armed");
+  assert.equal(result.debug, undefined, JSON.stringify(result.debug));
+  assert.match(result.hint, /arm/i, "and the hint bar tells you what the three picks are");
+  assert.deepEqual(result.bound, [true, true, true], "every one of the three picks bound to named geometry");
+  assert.equal(result.text, "90°", "the bracket's base meets its upright square");
+});

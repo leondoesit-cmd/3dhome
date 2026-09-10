@@ -76,6 +76,7 @@ import { createProjectBundle, exportProjectBundle, importProjectBundle } from ".
 import { measureAngleBetweenNormals, measureDistance } from "./cad_evaluate.js";
 import { auditStandardParts, involuteGearOutline } from "./cad_standards.js";
 import { holeCallout, holeLayoutPoints, holeTableRow, holeWizardSolids, holeWizardThread, listHoleSizes, normalizeHoleWizard } from "./cad_hole_wizard.js";
+import { calloutText, calloutTextById, holeCallouts } from "./core/hole_callout.js";
 import { cosmeticThread, modeledThreadSolid, normalizeThreadSpec, threadCallout, validateThreadFeature, documentThreadOverlays } from "./cad_thread.js";
 import { knurlBandMesh, knurlCallout, knurlGroovePolylines, normalizeKnurlSpec, validateKnurl } from "./cad_knurl.js";
 import { toolboxFastener, listToolboxLibrary, toolboxFamily, lengthOptionsForSize, FASTENER_LENGTHS_MM, reducingBranchRows, PVC_D1785, searchToolbox, TOOLBOX_CATEGORY_LABELS } from "./cad_toolbox.js";
@@ -118,7 +119,7 @@ import {
 } from "./core/cut_scope.js";
 import { diagnosticHelp, groupDiagnostics, recommendedDiagnostic } from "./core/diagnostic_help.js";
 import { circularPatternPivot, circularPatternStepDegrees, composeRigidTransforms, curvePatternPath, curvePatternPlacements, invertRigidTransform, linearPatternOffsets, parseSkippedPatternInstances, patternPlacementTransform, patternRotationTransform, rigidTransformIsIdentity, rotatedPatternBounds } from "./core/pattern_geometry.js";
-import { finalizeCabinetAdvancedDefinition, syncCabinetDefinition } from "./parametric_cabinet.js";
+import { cabinetDefinitionFromItem, finalizeCabinetAdvancedDefinition, syncCabinetDefinition } from "./parametric_cabinet.js";
 import { assignCabinetManufacturing, CABINET_MANUFACTURING_ROLES } from "./core/cabinet_advanced.js";
 import { layoutCab } from "./cabinet.js";
 import { createSurfaceSketch, supportsSurfaceUV } from "./core/surface_uv.js";
@@ -581,6 +582,9 @@ function defBounds(def) {
 
 // Center model in x/z, rest on floor, and compute catalog dims.
 function normalizeDef(def) {
+  // Cabinet coordinates are the semantic carcass frame, including plinth and
+  // motion pivots. Centering the mesh would detach them from that frame.
+  if (def.metadata && def.metadata.adapter === "cabinet") return;
   var b = defBounds(def);
   var cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, fy = b.y0;
   var dx=-cx,dy=-fy,dz=-cz;
@@ -1468,7 +1472,9 @@ function buildPart(g, p, displayStyle) {
     // The furniture default of 24 sides is fine across a room; under a modeller's
     // nose a 40 cm cylinder shows every one of them.
     opt.seg = curveSegments(Math.max(p.r, opt.r2), Math.PI * 2, 24, 96);
-    me = cyl(g, p.x, p.y + p.h / 2, p.z, p.r, p.h, col, opt);
+    var cylinderDirection = p.axis ? new THREE.Vector3(p.axis.x, p.axis.y, p.axis.z).normalize() : new THREE.Vector3(0, 1, 0);
+    me = cyl(g, p.x + cylinderDirection.x * p.h / 2, p.y + cylinderDirection.y * p.h / 2, p.z + cylinderDirection.z * p.h / 2, p.r, p.h, col, opt);
+    if (me && p.axis) me.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), cylinderDirection);
     if (p.tex) applyTexTo(me, p, Math.PI * 2 * p.r, p.h);
   } else if (p.kind === "sph") {
     me = sph(g, p.x, p.y, p.z, p.r, col, opt);
@@ -1626,6 +1632,8 @@ export function registerCustomModel(def) {
           /* Advanced cabinet parts remain grouped by their semantic motion
              unit, so the existing door/drawer opening slider still drives the
              authored geometry after a CAD edit. */
+          var current = S.parametric && S.parametric.definitions[it.definitionId] || def;
+          var cabinetDef = cabinetDefinitionFromItem(it, current);
           var L = layoutCab(it), groups = {}, yo = (it.cab && it.cab.elev) || 0;
           function groupFor(p) {
             var unitId = p.cabinetUnit;
@@ -1638,7 +1646,7 @@ export function registerCustomModel(def) {
             }
             return { parent:groups[unitId], off:L.units[unitId] };
           }
-          activeParts(def).forEach(function (p) {
+          activeParts(cabinetDef).forEach(function (p) {
             var target = groupFor(p), q = cloneData(p);
             if (target.off) movePart(q, -(target.off.px || 0), -(target.off.py || 0), -(target.off.pz || 0));
             else if (yo) movePart(q, 0, yo, 0);
@@ -3219,7 +3227,10 @@ function buildDOM() {
     '<div class="md-drawing-tools" id="mdDrawingTools" role="toolbar" aria-label="Drawing tools">' +
     '<button type="button" data-drawing-tool="select" class="on">' + cadIcon("select") + '<span>' + t("drawToolSelect") + '</span><kbd>V</kbd></button>' +
     '<button type="button" data-drawing-tool="dim">' + cadIcon("dim") + '<span>' + t("drawToolDim") + '</span><kbd>D</kbd></button>' +
+    '<button type="button" data-drawing-tool="angle"><i class="ph ph-angle"></i><span>' + t("drawToolAngle") + '</span><kbd>A</kbd></button>' +
     '<button type="button" data-drawing-tool="diam"><i class="ph ph-circle-dashed"></i><span>' + t("drawToolDiam") + '</span></button>' +
+    '<button type="button" data-drawing-tool="baseline"><i class="ph ph-rows"></i><span>' + t("drawToolBaseline") + '</span><kbd>B</kbd></button>' +
+    '<button type="button" data-drawing-tool="chain"><i class="ph ph-link-simple-horizontal"></i><span>' + t("drawToolChain") + '</span><kbd>C</kbd></button>' +
     '<button type="button" data-drawing-tool="note"><i class="ph ph-note-pencil"></i><span>' + t("drawToolNote") + '</span><kbd>N</kbd></button>' +
     '<button type="button" data-drawing-tool="section"><i class="ph ph-scissors"></i><span>' + t("drawToolSection") + '</span><kbd>S</kbd></button>' +
     '<button type="button" data-drawing-tool="detail"><i class="ph ph-magnifying-glass-plus"></i><span>' + t("drawToolDetail") + '</span></button>' +
@@ -9197,9 +9208,11 @@ function drawingTopology() {
   return out.length ? out : null;
 }
 
-/* A one-field form where a window.prompt() used to be, resolved as a promise so
-   the sheet's tools can await an answer without freezing the page. */
-function sheetPrompt(title, value) {
+/* The form where a window.prompt() used to be, resolved as a promise so the
+   sheet's tools can await an answer without freezing the page. One field or
+   several — a dimension is edited as its displayed value AND its own
+   tolerance, which is one decision and so one dialog. */
+function sheetForm(title, fields, hint) {
   return new Promise(function (resolve) {
     if (!root) { resolve(null); return; }
     root.classList.add("md-sheet-form");
@@ -9214,12 +9227,24 @@ function sheetPrompt(title, value) {
       action: "sheetprompt",
       icon: "ph-note-pencil",
       title: title,
-      hint: t("drawNoteHint"),
-      fields: [{ key: "text", label: title, type: "text", value: value || "" }],
-      onApply: function (values) { finish(String(values.text || "").trim()); },
+      hint: hint || fields.map(function (field) { return field.hint; }).filter(Boolean)[0] || t("drawNoteHint"),
+      fields: fields.map(function (field) {
+        return { key: field.key, label: field.label || title, type: "text", value: field.value || "" };
+      }),
+      onApply: function (values) {
+        var answer = {};
+        fields.forEach(function (field) { answer[field.key] = String(values[field.key] || "").trim(); });
+        finish(answer);
+      },
       onCancel: function () { finish(null); },
     });
     if (!opened) finish(null);
+  });
+}
+
+function sheetPrompt(title, value) {
+  return sheetForm(title, [{ key: "text", label: title, value: value }]).then(function (answer) {
+    return answer ? answer.text : null;
   });
 }
 
@@ -9327,6 +9352,9 @@ function buildSheetPanel(host) {
   sheetToggle(setup, t("sheetShowCenters"), doc.showCenters !== false, function (on) { sheet.setSheetOption("showCenters", on); drawSketch(); }).id = "mdSheetCentersBox";
   sheetToggle(setup, t("sheetShowZones"), doc.showZones !== false, function (on) { sheet.setSheetOption("showZones", on); drawSketch(); }).id = "mdSheetZonesBox";
   setup.appendChild(btn('<i class="ph ph-layout"></i> ' + t("sheetRelayout"), function () { sheet.relayout(); drawSketch(); }, "md-sheet-btn"));
+  /* Callouts are read off the feature tree, never typed: the button is here
+     rather than in the tool row because it annotates every hole at once. */
+  setup.appendChild(btn('<i class="ph ph-crosshair"></i> ' + t("sheetHoleCallouts"), function () { sheet.addHoleCallouts(); drawSketch(); }, "md-sheet-btn"));
 
   var views = sheetGroup(host, t("sheetViews"));
   var list = el("div", "md-sheet-views");
@@ -9410,7 +9438,7 @@ function syncDanglingDims(host) {
   box.appendChild(el("div", "md-sheet-dangling-note", tf("drawDanglingCount", { count: issues.length })));
   issues.forEach(function (issue) {
     var button = btn("", function () {
-      sheet.select({ kind: "dim", id: issue.id });
+      sheet.select({ kind: issue.kind || "dim", id: issue.id });
     }, "md-sheet-dangling-item");
     /* Persistent ids come from the document, so they go in as text. */
     button.textContent = "⚠ " + (issue.missing.length ? issue.missing.join(", ") : issue.id);
@@ -9461,6 +9489,9 @@ function syncSheetPanel() {
 function drawingHintText() {
   var tool = E.sheet ? E.sheet.getTool() : "select";
   if (tool === "dim") return t("drawDimHint");
+  if (tool === "angle") return t("drawAngleHint");
+  if (tool === "baseline") return t("drawBaselineHint");
+  if (tool === "chain") return t("drawChainHint");
   if (tool === "diam") return t("drawDiamHint");
   if (tool === "section") return t("drawSectionHint");
   if (tool === "detail") return t("drawDetailHint");
@@ -9477,6 +9508,12 @@ function drawingSheet() {
       doc: function () { return ensureSheetDoc(E.def, { title: { title: E.def && E.def.name || "" } }); },
       bodies: drawingBodies,
       topology: drawingTopology,
+      /* The live spelling of every hole, re-read on each build so a callout
+         cannot outlive the parameters it was placed from. */
+      callouts: function () { return calloutTextById(E.def); },
+      holeCallouts: function () {
+        return holeCallouts(E.def).map(function (row) { return { id: row.id, text: calloutText(row) }; });
+      },
       bodiesToken: function () { return E.sheetToken; },
       meta: function () {
         var doc = ensureSheetDoc(E.def);
@@ -9500,6 +9537,7 @@ function drawingSheet() {
       flash: flash,
       t: t,
       prompt: sheetPrompt,
+      promptFields: sheetForm,
       refresh: function () { drawSketch(); syncSheetPanel(); },
       editTitleBlock: function () {
         var field = root && root.querySelector("#mdSheetTitleField");
@@ -13972,7 +14010,7 @@ function runVerifiedMigration() {
   if (!conversion.ok) { flash(conversion.analysis.blockers[0].message); return; }
   var legacyRun, canonicalRun;
   try {
-    var overrides = (E.srcItem && E.srcItem.parameterOverrides) || {};
+    var overrides = modelParameterOverrides();
     legacyRun = rebuildDefinition(cloneData(E.def), overrides);
     canonicalRun = rebuildParametricDocument(conversion.document, overrides);
   } catch (error) { flash(String(error.message || error)); return; }
@@ -14010,7 +14048,7 @@ function restoreLegacySource() {
   E.sel = null;
   E.ssel = [];
   E.topologySelection = [];
-  E.coreRun = rebuildDefinition(E.def, E.srcItem && E.srcItem.parameterOverrides || {});
+  E.coreRun = rebuildDefinition(E.def, modelParameterOverrides());
   flash(t("treeRestoreLegacyDone"));
   refreshAll();
 }
@@ -14782,11 +14820,36 @@ function fillInspector() {
   }
 }
 
+function modelParameterOverrides() {
+  return E.def && E.def.metadata && E.def.metadata.adapter === "cabinet" ? {} : E.srcItem && E.srcItem.parameterOverrides || {};
+}
+
+function fillCabinetParameters(host) {
+  if (!E.def.metadata || E.def.metadata.adapter !== "cabinet") return;
+  host.appendChild(el("h5", "md-h5", getLang() === "en" ? "Cabinet parameters (cm)" : "פרמטרי ארון (ס״מ)"));
+  var grid = el("div", "md-prop-grid md-cab-parameters");
+  Object.entries(E.def.parameters || {}).forEach(function (entry) {
+    var key = entry[0], parameter = entry[1];
+    if (typeof parameter.value !== "number") return;
+    numRow(grid, parameter.label || key, function () { return parameter.value; }, function (value) {
+      if (value < parameter.min || value > parameter.max) return;
+      var previousValue = parameter.value;
+      parameter.value = value;
+      var run = rebuildParametricDocument(E.def, {});
+      if (!run.ok) { parameter.value = previousValue; flash(run.issues.filter(function (issue) { return issue.severity === "error"; }).map(function (issue) { return issue.message; }).join(" · ")); return; }
+      publishRebuildStatus(E.def, run);
+      E.sel = null; coreRunFresh = false;
+    }, 0.1);
+  });
+  host.appendChild(grid);
+}
+
 function fillShape() {
   var host = root.querySelector("#mdInsp");
   host.innerHTML = "";
+  fillCabinetParameters(host);
   var p = E.sel;
-  if (!p) { emptyState(host, "ph-cursor-click", t("noSel"), t("noSelHint")); return; }
+  if (!p) { if (!E.def.metadata || E.def.metadata.adapter !== "cabinet") emptyState(host, "ph-cursor-click", t("noSel"), t("noSelHint")); return; }
 
   // Generated solids are read-only projections in a canonical document. The
   // editable source of truth is the feature definition in design history.
@@ -18734,10 +18797,10 @@ async function regenerateExactModel(rebuild) {
     if(isCanonicalAuthoring()){
       var compiled=compileKernelFeatureTree(E.def);if(!compiled.ok)throw new Error(compiled.issues[0] && compiled.issues[0].message || "Invalid parametric history");
       executionDocument=compiled.document;executionDocument.features=compiled.features;
-      E.coreRun=rebuildParametricDocument(E.def,E.srcItem && E.srcItem.parameterOverrides || {});publishRebuildStatus(E.def,E.coreRun);
+      E.coreRun=rebuildParametricDocument(E.def,modelParameterOverrides());publishRebuildStatus(E.def,E.coreRun);
     } else {
       if ((!preserveRecognized && rebuild !== false) || !ensureFeatureTree(E.def).length) rebuildFeatureTreeFromDocument();
-      E.coreRun = rebuildDefinition(E.def, E.srcItem && E.srcItem.parameterOverrides || {});
+      E.coreRun = rebuildDefinition(E.def, modelParameterOverrides());
     }
     E.brepRun = await regenerateFeatures(executionDocument);
     if (!E.brepRun.ok || !E.brepRun.finalShape) throw new Error(E.brepRun.issues[0] ? E.brepRun.issues[0].message : "No supported solid features");
@@ -19350,7 +19413,7 @@ async function saveModel() {
   def.authoringMode=inferAuthoringMode(Object.assign({},def,{authoringMode:null}));
   def.definitionId = E.def.definitionId || E.def.id || def.key;
   def.id = def.definitionId;
-  var validation = canonical ? rebuildParametricDocument(def,E.srcItem && E.srcItem.parameterOverrides || {}) : rebuildDefinition(def, E.srcItem && E.srcItem.parameterOverrides || {});
+  var validation = canonical ? rebuildParametricDocument(def,modelParameterOverrides()) : rebuildDefinition(def, modelParameterOverrides());
   E.coreRun = validation;
   if (!validation.ok) {
     var failures = validation.issues.filter(function (issue) { return issue.severity === "error"; });
@@ -19361,7 +19424,7 @@ async function saveModel() {
   var reboundAudit = applyTopologyRebindings(canonical ? validation.core && validation.core.topologyBindings || [] : validation.topologyBindings);
   if (reboundAudit.length) {
     def.topologyBindings = (def.topologyBindings || []).concat(reboundAudit.map(function (entry) { return Object.assign({ savedAt: Date.now() }, entry); }));
-    validation = canonical ? rebuildParametricDocument(def,E.srcItem && E.srcItem.parameterOverrides || {}) : rebuildDefinition(def, E.srcItem && E.srcItem.parameterOverrides || {});
+    validation = canonical ? rebuildParametricDocument(def,modelParameterOverrides()) : rebuildDefinition(def, modelParameterOverrides());
     E.coreRun = validation;
   }
   try { def=await externalizeAttachments(def); }
@@ -19376,6 +19439,11 @@ async function saveModel() {
     return;
   }
   registerCustomModel(def);
+  if (def.metadata && def.metadata.adapter === "cabinet" && savingItem) {
+    savingItem.w = def.w; savingItem.d = def.d; savingItem.h = def.h;
+    savingItem.cab = cloneDomain(def.metadata.cabSpec);
+    savingItem.parameterOverrides = Object.assign({}, savingItem.parameterOverrides, { width: def.w, depth: def.d, height: def.h });
+  }
   var committed = commitDefinition(S, def);
   refreshCatalogSelect();
   refreshLib();
@@ -19384,6 +19452,10 @@ async function saveModel() {
   // Every linked instance sees the new shared definition. Cabinet instances
   // keep their semantic spec, interactions and dynamic BOM/pricing adapter.
   committed.affected.forEach(function (item) {
+    if (def.metadata && def.metadata.adapter === "cabinet") {
+      var open = item.cab && item.cab.open || 0;
+      item.cab = cloneDomain(def.metadata.cabSpec); item.cab.open = open;
+    }
     item.type = def.key;
     item.w = item.parameterOverrides && fin(item.parameterOverrides.width) ? item.parameterOverrides.width : def.w;
     item.d = item.parameterOverrides && fin(item.parameterOverrides.depth) ? item.parameterOverrides.depth : def.d;
@@ -19395,6 +19467,7 @@ async function saveModel() {
   }
   render2D();
   S.dirty3D = true; // placed instances of an edited model rebuild with new geometry
+  import("./ui_props.js").then(function (ui) { ui.fillProps(); });
   /* Everything above is about the document that was written and holds however
      long the awaits took. Everything below is editor state, and the editor may
      have moved on: marking clean and discarding the recovery draft would then
@@ -19453,7 +19526,7 @@ function refreshAll() {
     syncPreviewFromHistory();
     if (!coreRunFresh) {
       rebuildDocCount++;
-      E.coreRun=rebuildParametricDocument(E.def,E.srcItem && E.srcItem.parameterOverrides || {},{lastGood:E.coreRun && E.coreRun.lastGood});
+      E.coreRun=rebuildParametricDocument(E.def,modelParameterOverrides(),{lastGood:E.coreRun && E.coreRun.lastGood});
       publishRebuildStatus(E.def,E.coreRun);
     }
   }
@@ -19663,7 +19736,7 @@ export function openModeler(editKey, def, srcItem) {
   E.solveInfo = solveSketch(ensureSketch(E.def));
   E._solveSketchId = ensureSketch(E.def).id;
   if (isCanonicalAuthoring()) rebuildDocCount++;
-  E.coreRun = isCanonicalAuthoring() ? rebuildParametricDocument(E.def,E.srcItem && E.srcItem.parameterOverrides || {}) : rebuildDefinition(E.def, E.srcItem && E.srcItem.parameterOverrides || {});
+  E.coreRun = isCanonicalAuthoring() ? rebuildParametricDocument(E.def,modelParameterOverrides()) : rebuildDefinition(E.def, modelParameterOverrides());
   if (isCanonicalAuthoring()) publishRebuildStatus(E.def, E.coreRun);
   coreRunFresh = true;
   H.clear().seed();
