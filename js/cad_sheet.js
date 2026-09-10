@@ -52,6 +52,9 @@ export const LINE_STYLES = Object.freeze({
   hatch:    { width: 0.18, color: "#5c646d" },
   dim:      { width: 0.25, color: "#101418" },
   dimRef:   { width: 0.25, color: "#6b7280", dash: [3, 1.5] },
+  /* A dimension that lost its reference. Loud on purpose: the alternative is a
+     stale number that reads as measured. */
+  dimLost:  { width: 0.35, color: "#c0392b", dash: [1.8, 1.4] },
   border:   { width: 0.7,  color: "#101418" },
   frame:    { width: 0.35, color: "#101418" },
   thin:     { width: 0.18, color: "#6b7280" },
@@ -721,9 +724,11 @@ export function dimensionText(dim, doc) {
   return prefix + value + suffix;
 }
 
-/* The measured value of a dimension, from the points it was placed on. Stored
+/* The measured value of a dimension, from the points it holds. Stored
    references are in the view's own model coordinates, so a view that moves or
-   rescales carries its dimensions with it and they still read true. */
+   rescales carries its dimensions with it and they still read true.
+   Call it on the copy resolveDim returns, not on the stored record: the stored
+   points are where the dimension WAS placed, which after a rebuild is history. */
 export function measureDim(dim) {
   const [a, b] = dim.refs || [];
   if (dim.type === "radius" || dim.type === "diameter") {
@@ -745,14 +750,169 @@ export function measureDim(dim) {
   return Math.hypot(b.u - a.u, b.v - a.v);
 }
 
+/* ---- associative references ---------------------------------------------
+
+   A dimension is anchored to NAMED geometry, not to a frozen pair of view
+   coordinates. A ref carries the persistent topology id it was placed on plus
+   the (u, v) it projected to at the time; the stored point is the LAST KNOWN
+   position, never the measurement, because a number that used to be right and
+   silently stays is exactly the defect this replaces.
+
+   Resolution is EXACT ID ONLY — the same contract resolveBrepSubshape and the
+   variable-radius fillet's per-edge overrides keep. An id that no longer exists
+   is DROPPED; it is never slid onto the nearest neighbouring edge, because a
+   dimension that quietly re-aims at different geometry is worse than one that
+   admits it lost its reference. See resolveTopologyReference for the ranked
+   fallback this deliberately does NOT use.
+
+   A ref names one entry and one anchor on it: "a"/"b" (an edge's ends, ordered
+   by coordinate), "mid" (its centre of mass), "centre" and "qu+"/"qu-"/"qv+"/
+   "qv-" (a circular edge's centre and quadrants, in the view's own frame). */
+
+/* Endpoints are ordered by coordinate, matching how extractBrepTopology sorts
+   the ones it stores, so "a" means the same end whichever source named it. */
+const byCoordinate = (p, q) => p.x - q.x || p.y - q.y || p.z - q.z;
+
+export function createTopologyIndex(source) {
+  const index = new Map();
+  const walk = (item) => {
+    if (!item) return;
+    if (Array.isArray(item)) { item.forEach(walk); return; }
+    if (Array.isArray(item.topology)) { item.topology.forEach(walk); return; }
+    if (item.persistentId && !index.has(item.persistentId)) index.set(item.persistentId, item);
+  };
+  walk(source);
+  return index;
+}
+
+/* Kernel edges carry their endpoints; analytic ones (a box rib, an extrusion
+   side) carry a centre, a tangent and a length, which is the same two points. */
+function edgeEndpoints(descriptor) {
+  const stored = descriptor?.endpoints;
+  if (Array.isArray(stored) && stored.length >= 2) return stored.slice(0, 2).sort(byCoordinate);
+  const origin = descriptor?.origin, axis = descriptor?.axis, measure = num(descriptor?.measure);
+  if (!origin || !axis || !(measure > 0) || descriptor.curve === "circle") return null;
+  const length = Math.hypot(axis.x, axis.y, axis.z);
+  if (!(length > 1e-9)) return null;
+  const half = measure / (2 * length);
+  return [
+    { x: origin.x - axis.x * half, y: origin.y - axis.y * half, z: origin.z - axis.z * half },
+    { x: origin.x + axis.x * half, y: origin.y + axis.y * half, z: origin.z + axis.z * half },
+  ].sort(byCoordinate);
+}
+
+export const projectToView = (point, basis) => (point && basis ? {
+  u: point.x * basis.right.x + point.y * basis.right.y + point.z * basis.right.z,
+  v: point.x * basis.up.x + point.y * basis.up.y + point.z * basis.up.z,
+} : null);
+
+/* Where one ref sits in the view NOW, or null if its id is gone. */
+export function resolveDimAnchor(ref, index, basis) {
+  if (!ref?.pid || !index || !basis) return null;
+  const entry = index.get(ref.pid);
+  if (!entry || (ref.kind && entry.kind !== ref.kind)) return null;
+  const descriptor = entry.descriptor || {};
+  const at = ref.at || "mid";
+  if (at === "a" || at === "b") {
+    const ends = edgeEndpoints(descriptor);
+    return ends ? projectToView(ends[at === "a" ? 0 : 1], basis) : null;
+  }
+  const centre = projectToView(descriptor.origin || descriptor.center, basis);
+  if (!centre) return null;
+  if (at === "mid" || at === "centre") return centre;
+  const radius = num(descriptor.radius);
+  if (!(radius > 0)) return null;
+  if (at === "qu+") return { u: centre.u + radius, v: centre.v };
+  if (at === "qu-") return { u: centre.u - radius, v: centre.v };
+  if (at === "qv+") return { u: centre.u, v: centre.v + radius };
+  if (at === "qv-") return { u: centre.u, v: centre.v - radius };
+  return null;
+}
+
+const boundsRefs = (type, bounds) => (type === "vertical"
+  ? [{ u: bounds.u1, v: bounds.v0 }, { u: bounds.u1, v: bounds.v1 }]
+  : [{ u: bounds.u0, v: bounds.v0 }, { u: bounds.u1, v: bounds.v0 }]);
+
+/* One dimension as the sheet should read it right now.
+ *
+ * @returns {dim, dangling, missing} — `dim` is a COPY with reprojected refs;
+ *          the document is never rewritten, so a legacy sheet stays legacy.
+ *
+ * A ref with no `pid` is a legacy point: it measures exactly as it always has,
+ * frozen, with no complaint. Only a ref that names an id and cannot find it is
+ * dangling. With no topology source at all (an exporter handed only triangles)
+ * nothing is flagged — absent information is not a lost reference. */
+export function resolveDim(dim, index, basis, projection) {
+  const result = { dim, dangling: false, missing: [] };
+  if (!dim) return result;
+  if (dim.auto === "extent") {
+    const bounds = projection ? projectionBounds(projection) : null;
+    if (!bounds) { result.dangling = true; return result; }
+    result.dim = Object.assign({}, dim, { refs: boundsRefs(dim.type, bounds) });
+    return result;
+  }
+  const refs = dim.refs || [];
+  if (!refs.some((ref) => ref?.pid)) return result;
+  const next = refs.map((ref) => {
+    if (!ref?.pid) return ref;
+    const at = resolveDimAnchor(ref, index, basis);
+    if (at) return Object.assign({}, ref, at);
+    if (index) { result.dangling = true; result.missing.push(ref.pid); }
+    return ref;                                     // drawn where it last was
+  });
+  const patch = { refs: next };
+  if (dim.type === "radius" || dim.type === "diameter") {
+    const entry = refs[0]?.pid ? index?.get(refs[0].pid) : null;
+    const radius = num(entry?.descriptor?.radius);
+    if (radius > 0) patch.radius = radius;
+  }
+  result.dim = Object.assign({}, dim, patch);
+  return result;
+}
+
+/* Every named point of the model, in one view's coordinates — what a pick is
+   matched against so a new dimension is BOUND rather than merely placed.
+   Ordered by id so two anchors that coincide always bind the same way. */
+export function topologyAnchors(index, basis) {
+  const out = [];
+  if (!index || !basis) return out;
+  const ids = Array.from(index.keys()).sort();
+  for (const pid of ids) {
+    const entry = index.get(pid);
+    if (entry?.kind !== "edge") continue;             // faces have no drawable snap
+    const descriptor = entry.descriptor || {};
+    const circle = descriptor.curve === "circle" && num(descriptor.radius) > 0;
+    const wanted = circle ? ["centre", "qu+", "qu-", "qv+", "qv-"] : ["a", "b", "mid"];
+    for (const at of wanted) {
+      const point = resolveDimAnchor({ pid, kind: "edge", at }, index, basis);
+      if (point) out.push({ pid, kind: "edge", at, u: point.u, v: point.v, radius: num(descriptor.radius) });
+    }
+  }
+  return out;
+}
+
+/* Every dim on the sheet that lost its reference, for the UI to list. */
+export function sheetDimIssues(scene) {
+  const out = [];
+  for (const [id, entry] of scene?.dims || []) {
+    if (entry.dangling) out.push({ id, viewId: entry.dim.viewId, missing: entry.missing.slice() });
+  }
+  return out;
+}
+
 /* One dimension, in sheet millimetres, as the items that draw it: extension
    lines, the dimension line, two arrowheads and the value. */
 function dimensionItems(dim, place, doc, options = {}) {
   const items = [];
-  const style = options.selected ? "highlight" : dim.reference ? "dimRef" : "dim";
+  const style = options.selected ? "highlight"
+    : options.dangling ? "dimLost" : dim.reference ? "dimRef" : "dim";
   const toSheet = place.toSheet;
   const offset = num(dim.offset, 10);
-  const label = dimensionText(Object.assign({}, dim, { measure: measureDim(dim) }), doc);
+  /* A dangling value is the LAST one that was true, and it is bracketed and
+     flagged so nobody reads it as a measurement of what is on the paper. */
+  const label = options.dangling
+    ? "⚠ (" + dimensionText(Object.assign({}, dim, { measure: measureDim(dim), text: "" }), doc) + ")"
+    : dimensionText(Object.assign({}, dim, { measure: measureDim(dim) }), doc);
   const size = TEXT_SIZES.dim;
   if (dim.type === "radius" || dim.type === "diameter") {
     const centre = toSheet(dim.refs?.[0] || { u: 0, v: 0 });
@@ -845,6 +1005,10 @@ function dimensionItems(dim, place, doc, options = {}) {
 export function buildSheetScene(doc, provider, options = {}) {
   const items = [];
   const frame = sheetFrame(doc), paper = frame.paper;
+  /* null, not an empty index: "no topology was offered" and "this id is gone"
+     must not look the same to a bound dimension. */
+  const rawTopology = typeof provider?.topology === "function" ? provider.topology() : provider?.topology;
+  const topologyIndex = rawTopology ? createTopologyIndex(rawTopology) : null;
   const projections = new Map();
   const extents = new Map();
   for (const view of doc.views) {
@@ -943,11 +1107,17 @@ export function buildSheetScene(doc, provider, options = {}) {
   }
 
   const byId = new Map(placements.map((place) => [place.id, place]));
+  const dims = new Map();
   for (const dim of doc.dims || []) {
     const place = byId.get(dim.viewId);
     if (!place) continue;
-    const measured = Object.assign({}, dim, { measure: measureDim(dim) });
-    for (const item of dimensionItems(measured, place, doc, { selected: options.selectedDim === dim.id })) {
+    const basis = place.projection?.basis || viewBasis(place.view.dir);
+    const resolved = resolveDim(dim, topologyIndex, basis, place.projection);
+    dims.set(dim.id, resolved);
+    const measured = Object.assign({}, resolved.dim, { measure: measureDim(resolved.dim) });
+    for (const item of dimensionItems(measured, place, doc, {
+      selected: options.selectedDim === dim.id, dangling: resolved.dangling,
+    })) {
       items.push(Object.assign(item, { dimId: dim.id, viewId: dim.viewId }));
     }
   }
@@ -977,7 +1147,7 @@ export function buildSheetScene(doc, provider, options = {}) {
   }
   return {
     paper, frame, items, views: placements, scale: layout.sheetScale,
-    projections, primaryId: layout.primaryId,
+    projections, primaryId: layout.primaryId, dims, topologyIndex,
   };
 }
 

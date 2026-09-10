@@ -5326,6 +5326,21 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
   background: transparent; color: var(--text-main); cursor: pointer; font-size: 11px; font-weight: 600;
 }
 #modeler .md-sheet-btn:hover { border-style: solid; background: var(--btn-bg-hover); }
+/* Dangling dimensions: the sheet has lost a reference and is no longer
+   measuring. Red on the paper, red in the panel — never a quiet footnote. */
+#modeler .md-sheet-dangling {
+  display: flex; flex-direction: column; gap: 5px; margin: 0 7px 7px;
+  padding: 7px; border: 1px solid #c0392b; border-radius: 7px;
+  background: color-mix(in srgb, #c0392b 12%, transparent);
+}
+#modeler .md-sheet-dangling-head { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #c0392b; }
+#modeler .md-sheet-dangling-note { font-size: 10px; color: var(--text-muted); line-height: 1.35; }
+#modeler .md-sheet-dangling-item {
+  padding: 4px 6px; border: 1px solid #c0392b; border-radius: 6px; background: transparent;
+  color: var(--text-main); font-size: 10px; text-align: start; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#modeler .md-sheet-dangling-item:hover { background: color-mix(in srgb, #c0392b 20%, transparent); }
 #modeler .md-sheet-views { display: flex; flex-direction: column; gap: 3px; }
 #modeler .md-sheet-view { display: flex; align-items: center; gap: 4px; }
 #modeler .md-sheet-view-name {

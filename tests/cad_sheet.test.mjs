@@ -18,6 +18,7 @@ import {
   scaleLabel, sceneToSvg, titleBlockBox,
 } from "../js/cad_sheet.js";
 import { createDrawingController } from "../js/modeler_drawing.js";
+import { topologyForFeature } from "../js/core/topology.js";
 
 const BOX = { kind: "box", x0: -10, x1: 10, y0: 0, y1: 20, z0: -5, z1: 5 };
 const bodies = (...parts) => tessellateParts(parts);
@@ -254,18 +255,41 @@ test("the SVG is the same scene at real paper size, with ISO line weights", () =
 
 /* ---- the drafting table -------------------------------------------------- */
 
-function table(def) {
+/* The editor names a part's geometry with topologyForFeature (see
+   topologyEntriesForPart in modeler.js); the sheet only ever sees the result,
+   so the table can produce it directly. */
+function partTopology(part) {
+  const feature = { id: "feature:part:" + (part.id || "p") };
+  if (part.kind === "box") return topologyForFeature({ ...feature, type: "box" }, part);
+  if (part.kind === "ext") {
+    return topologyForFeature({ ...feature, type: "extrude" },
+      { axis: part.axis, frame: part.frame, from: part.from, to: part.to, points: part.pts });
+  }
+  return [];
+}
+
+function table(def, options = {}) {
   const document = def || { name: "Bracket", parts: [BOX] };
+  const table = {
+    token: 1,
+    topology: options.topology === false ? () => null
+      : () => document.parts.flatMap(partTopology),
+  };
   const host = {
     canvas: () => ({}), width: () => 900, height: () => 600,
     doc: () => ensureSheetDoc(document),
     bodies: () => tessellateParts(document.parts),
-    bodiesToken: () => 1,
+    topology: () => table.topology(),
+    bodiesToken: () => table.token,
     pushUndo: () => {}, markDirty: () => {}, flash: () => {}, refresh: () => {},
     t: (key) => key, prompt: async () => null, editTitleBlock: () => {},
   };
   ensureSheetDoc(document);
-  return { controller: createDrawingController(host), document };
+  table.controller = createDrawingController(host);
+  /* What a rebuild is, from the sheet's side: the triangles changed. */
+  table.rebuild = () => { table.token += 1; table.controller.invalidate(); };
+  table.document = document;
+  return table;
 }
 
 test("a sheet opens with the standard views and can gain and lose one", () => {
@@ -320,4 +344,188 @@ test("a stored sheet is what the exporter draws, not a fresh one", () => {
   const svg = controller.svg();
   assert.match(svg, /width="297mm" height="210mm"/);
   assert.equal(createView("front").x, null, "a new view has no position until the layout gives it one");
+});
+
+/* ---- associative dimensions ----------------------------------------------
+ *
+ * The point of the whole sheet: a dimension is anchored to named geometry, so
+ * it rewrites itself when the model rebuilds — and when its reference is gone
+ * it SAYS SO rather than quietly going on reading the old number.
+ */
+
+const PLATE = {
+  id: "plate", kind: "ext", axis: "z", from: -5, to: 5,
+  pts: [{ u: -10, v: 0 }, { u: 10, v: 0 }, { u: 10, v: 20 }, { u: -10, v: 20 }],
+};
+const plateDoc = () => ({ name: "Plate", parts: [{ ...PLATE, pts: PLATE.pts.map((p) => ({ ...p })) }] });
+
+/* The depth edge of the plate, as the sheet's own binder would record it: the
+   persistent id plus the point it projected to in the top view when it was
+   placed. That point is the LAST KNOWN position, never the measurement. */
+const depthRef = (at) => ({
+  u: -10, v: at === "a" ? 5 : -5, pid: "feature:part:plate:edge:depth:1", kind: "edge", at,
+});
+
+function labelOf(controller, dimId) {
+  const item = controller.scene().items
+    .find((entry) => entry.dimId === dimId && entry.type === "text");
+  return item ? item.text : null;
+}
+
+test("a dimension bound to a named edge rewrites itself when the model rebuilds", () => {
+  const rig = table(plateDoc());
+  const doc = rig.document.drawing;
+  const top = doc.views.find((view) => view.dir === "top") || doc.views[0];
+  doc.dims.push({
+    id: "dDepth", viewId: top.id, type: "vertical", offset: 12,
+    refs: [depthRef("a"), depthRef("b")],
+  });
+  assert.equal(labelOf(rig.controller, "dDepth"), "100", "10 cm of depth, in sheet millimetres");
+
+  rig.document.parts[0].to = 9;                     // the extrude gets deeper
+  rig.rebuild();
+  assert.equal(labelOf(rig.controller, "dDepth"), "140",
+    "the dimension followed the model instead of freezing at its placed value");
+
+  const svg = rig.controller.svg();
+  assert.ok(svg.includes(">140<"), "the export reads what the canvas reads");
+  assert.ok(!svg.includes(">100<"), "and nothing anywhere still says the old size");
+});
+
+test("a legacy dimension with no persistent ids keeps measuring exactly as it did", () => {
+  const rig = table(plateDoc());
+  const doc = rig.document.drawing;
+  const top = doc.views.find((view) => view.dir === "top") || doc.views[0];
+  /* What every sheet saved before this change carries: frozen view points. */
+  doc.dims.push({
+    id: "dOld", viewId: top.id, type: "vertical", offset: 12,
+    refs: [{ u: -10, v: -5 }, { u: -10, v: 5 }],
+  });
+  assert.equal(labelOf(rig.controller, "dOld"), "100");
+  rig.document.parts[0].to = 9;
+  rig.rebuild();
+  assert.equal(labelOf(rig.controller, "dOld"), "100",
+    "an old sheet is never migrated behind the user's back, so it never changes");
+  assert.deepEqual(rig.controller.status().dangling, [], "and it is not reported as broken either");
+  assert.deepEqual(doc.dims[0].refs, [{ u: -10, v: -5 }, { u: -10, v: 5 }],
+    "the stored document was not rewritten");
+});
+
+test("a dimension whose reference is gone dangles loudly instead of lying", () => {
+  const rig = table(plateDoc());
+  const doc = rig.document.drawing;
+  const top = doc.views.find((view) => view.dir === "top") || doc.views[0];
+  doc.dims.push({
+    id: "dDepth", viewId: top.id, type: "vertical", offset: 12,
+    refs: [depthRef("a"), depthRef("b")],
+  });
+  assert.equal(labelOf(rig.controller, "dDepth"), "100");
+
+  /* The feature that named this edge is deleted: the id resolves to nothing. */
+  rig.document.parts[0].id = "plate2";
+  rig.rebuild();
+  assert.equal(labelOf(rig.controller, "dDepth"), "⚠ (100)",
+    "the last known value, flagged and bracketed — never a bare number");
+  const issues = rig.controller.status().dangling;
+  assert.equal(issues.length, 1);
+  assert.deepEqual(issues[0].missing, ["feature:part:plate:edge:depth:1", "feature:part:plate:edge:depth:1"]);
+  const drawn = rig.controller.scene().items.filter((item) => item.dimId === "dDepth");
+  assert.ok(drawn.some((item) => item.style === "dimLost"), "and it is drawn in the dangling style");
+  assert.ok(rig.controller.svg().includes("⚠ (100)"), "the export says so too");
+});
+
+test("geometry nobody named — an up-to-body rib, a rotated moveBody — dangles, it does not drift", () => {
+  /* Those two cases are deliberately unnamed (see topologyForFeature): a rib
+     measured against the body it braces and a moveBody that turns about its
+     centre of mass cannot be named by a pure function, so their faces resolve
+     by extraction and their ids are regenerated on every build. A dimension on
+     one must go dangling, NOT slide onto whatever came out closest. */
+  const rig = table(plateDoc());
+  const doc = rig.document.drawing;
+  const top = doc.views.find((view) => view.dir === "top") || doc.views[0];
+  const generated = (ordinal) => ({
+    u: 0, v: 5, pid: "feature:rib:1:edge:generated:line:" + ordinal, kind: "edge", at: "a",
+  });
+  const extraction = [
+    { persistentId: "feature:rib:1:edge:generated:line:1", kind: "edge", semantic: "generated-1",
+      descriptor: { curve: "line", origin: { x: 0, y: 0, z: 0 }, axis: { x: 0, y: 0, z: 1 }, measure: 10 } },
+  ];
+  rig.topology = () => rig.document.parts.flatMap(partTopology).concat(extraction);
+  doc.dims.push({
+    id: "dRib", viewId: top.id, type: "vertical", offset: 20,
+    refs: [generated(1), depthRef("b")],
+  });
+  const before = labelOf(rig.controller, "dRib");
+  assert.ok(before && !before.startsWith("⚠"), "it reads as a real dimension while the id exists");
+
+  /* The rebuild renumbers the generated names — the same geometry, a new id. */
+  extraction[0].persistentId = "feature:rib:1:edge:generated:line:2";
+  rig.rebuild();
+  assert.equal(labelOf(rig.controller, "dRib"), "⚠ (" + before + ")",
+    "an unnamed face's dimension dangles rather than rebinding to the renamed edge");
+  assert.deepEqual(rig.controller.status().dangling[0].missing, ["feature:rib:1:edge:generated:line:1"]);
+});
+
+test("automatic overall sizes re-read the model, they do not need re-running", () => {
+  const rig = table(plateDoc());
+  rig.controller.autoDimension(true);
+  const dims = rig.document.drawing.dims;
+  assert.equal(dims.length, 2);
+  assert.equal(labelOf(rig.controller, dims[0].id), "200", "the plate is 20 cm wide");
+
+  rig.document.parts[0].pts[1].u = 20;
+  rig.document.parts[0].pts[2].u = 20;
+  rig.rebuild();
+  assert.equal(labelOf(rig.controller, dims[0].id), "300",
+    "the overall size followed the rebuild without anyone clicking Auto Dimension");
+});
+
+test("a bound dimension survives the save/load round trip the model takes", () => {
+  const rig = table(plateDoc());
+  const doc = rig.document.drawing;
+  doc.dims.push({
+    id: "dDepth", viewId: doc.views[0].id, type: "vertical", offset: 12,
+    refs: [depthRef("a"), depthRef("b")],
+  });
+  const reopened = JSON.parse(JSON.stringify(rig.document));
+  ensureSheetDoc(reopened);
+  assert.deepEqual(reopened.drawing.dims[0].refs, [depthRef("a"), depthRef("b")],
+    "the persistent ids are still there after a serialize/parse/ensure cycle");
+});
+
+test("with no topology offered at all, a bound dimension freezes rather than crying wolf", () => {
+  const rig = table(plateDoc(), { topology: false });
+  const doc = rig.document.drawing;
+  doc.dims.push({
+    id: "dDepth", viewId: doc.views[0].id, type: "vertical", offset: 12,
+    refs: [depthRef("a"), depthRef("b")],
+  });
+  assert.deepEqual(rig.controller.status().dangling, [],
+    "absent information is not a lost reference");
+});
+
+test("placing a dimension on the drafting table binds it to what was clicked", () => {
+  const rig = table(plateDoc());
+  const controller = rig.controller;
+  controller.fit();
+  const front = controller.scene().views.find((place) => place.view.dir === "front");
+  const screen = (u, v) => {
+    const at = front.toSheet({ u, v });
+    return [at.x * controller.state.zoom + controller.state.ox, at.y * controller.state.zoom + controller.state.oy];
+  };
+  controller.setTool("dim");
+  controller.pointerDown({ button: 0 }, ...screen(-10, 20));
+  controller.pointerDown({ button: 0 }, ...screen(10, 20));
+  controller.pointerMove({ button: 0 }, ...screen(0, 26));
+  controller.pointerDown({ button: 0 }, ...screen(0, 26));
+
+  const dim = rig.document.drawing.dims[0];
+  assert.ok(dim, "a dimension was placed");
+  assert.ok(dim.refs.every((ref) => ref.pid), "both picks bound to named edges");
+  assert.equal(labelOf(controller, dim.id), "200");
+
+  rig.document.parts[0].pts[1].u = 20;
+  rig.document.parts[0].pts[2].u = 20;
+  rig.rebuild();
+  assert.equal(labelOf(controller, dim.id), "300", "and it followed the widened profile");
 });

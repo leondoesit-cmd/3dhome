@@ -16,9 +16,9 @@ import {
   LINE_STYLES, SHEET_SIZES, STANDARD_SCALES,
   addViewToSheet, availableViewDirs, buildSheetScene, createProjector, defaultViewLabel,
   dimensionText, measureDim, nextSectionTag, removeViewFromSheet,
-  scaleLabel, scaleValue, sceneToSvg, sheetPaper,
+  scaleLabel, scaleValue, sceneToSvg, sheetDimIssues, sheetPaper, topologyAnchors,
 } from "./cad_sheet.js";
-import { isOrthoView, viewBasis, viewForSight } from "./core/hidden_line.js";
+import { isOrthoView, projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
 
 export const DRAWING_TOOLS = ["select", "dim", "diam", "note", "section", "detail"];
 
@@ -65,14 +65,49 @@ export function createDrawingController(host) {
 
   /* ---- the scene --------------------------------------------------------- */
 
+  /* The paint loop asks for the scene on every pointer move, so this runs at
+     mouse rate. It used to be JSON.stringify of the whole drawing document —
+     affordable only while a dimension was two small numbers. A bound dimension
+     carries a persistent id per reference, which are long strings, so the key
+     folds the fields the scene actually depends on into one 32-bit digest
+     instead of building a document-sized string every frame. */
+  function fold(hash, value) {
+    if (value === null || value === undefined) return Math.imul(hash ^ 1, 16777619) >>> 0;
+    const text = typeof value === "object" ? JSON.stringify(value) : String(value);
+    let out = hash;
+    for (let i = 0; i < text.length; i++) out = Math.imul(out ^ text.charCodeAt(i), 16777619) >>> 0;
+    return Math.imul(out ^ 0x5f, 16777619) >>> 0;
+  }
+
+  function sceneKey(doc) {
+    let hash = 2166136261;
+    for (const value of [doc.size, doc.orientation, doc.projection, doc.units, doc.scale,
+      doc.showHidden, doc.showCenters, doc.showZones, doc.title,
+      host.bodiesToken(), state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
+    for (const view of doc.views || []) {
+      for (const value of [view.id, view.dir, view.label, view.x, view.y, view.scale, view.primary,
+        view.parent, view.hidden, view.centers, view.labelled, view.section, view.detail]) hash = fold(hash, value);
+    }
+    for (const dim of doc.dims || []) {
+      for (const value of [dim.id, dim.type, dim.viewId, dim.offset, dim.angle, dim.radius,
+        dim.text, dim.tolerance, dim.reference, dim.auto]) hash = fold(hash, value);
+      for (const ref of dim.refs || []) {
+        for (const value of [ref.u, ref.v, ref.pid, ref.kind, ref.at]) hash = fold(hash, value);
+      }
+    }
+    for (const note of doc.notes || []) {
+      for (const value of [note.id, note.text, note.x, note.y, note.size, note.leader]) hash = fold(hash, value);
+    }
+    return String(hash);
+  }
+
   function scene() {
     const doc = host.doc();
-    const key = JSON.stringify({
-      d: doc, token: host.bodiesToken(), sel: state.selection,
-    });
+    const key = sceneKey(doc);
     if (state.scene && state.sceneKey === key) return state.scene;
     state.scene = buildSheetScene(doc, {
       projection: projectionFor,
+      topology: host.topology ? host.topology() : null,
       meta: host.meta ? host.meta() : null,
       bom: host.bom ? host.bom() : null,
     }, { selectedDim: state.selection?.kind === "dim" ? state.selection.id : null });
@@ -345,6 +380,30 @@ export function createDrawingController(host) {
     return points;
   }
 
+  /* What a picked point IS, in the model. The snap set comes from the projected
+     triangles, which carry no identity; the named anchors come from topology.
+     A pick binds only when it lands on a named anchor to within a fraction of a
+     pen width — this is identifying what was clicked, not guessing later. An
+     unnamed pick still places a dimension, it just places a frozen one. */
+  function bindAnchor(place, point) {
+    const index = scene().topologyIndex;
+    const basis = place.projection?.basis;
+    if (!index || !basis) return null;
+    if (!place._anchors) place._anchors = topologyAnchors(index, basis);
+    /* Coincidence, not proximity: a fraction of a percent of the view. Wide
+       enough that a tessellated rim's fitted centre still counts as the rim it
+       came from, far too tight to reach a different feature. */
+    const tolerance = Math.max(1e-6, (place.box.w + place.box.h) / place.k * 2e-3);
+    let best = null, distance = Infinity;
+    for (const anchor of place._anchors) {
+      const gap = Math.hypot(anchor.u - point.u, anchor.v - point.v);
+      if (gap < distance && gap <= tolerance) { best = anchor; distance = gap; }
+    }
+    return best ? { u: best.u, v: best.v, pid: best.pid, kind: best.kind, at: best.at } : null;
+  }
+
+  const dimRef = (place, point) => bindAnchor(place, point) || { u: point.u, v: point.v };
+
   function snapAt(sheetPoint) {
     const built = scene();
     const reach = 9 / state.zoom;              // millimetres of paper under 9px
@@ -453,9 +512,13 @@ export function createDrawingController(host) {
       if (state.tool === "diam") {
         const round = circleAt(sheetPoint);
         if (round) {
+          /* A hole's size is the one number on a drawing most likely to be
+             edited later, so it binds to the rim's own id when there is one. */
+          const bound = bindAnchor(round.place, round.circle);
           commitDim({
             type: round.circle.kind === "round" ? "diameter" : "radius",
-            viewId: round.viewId, refs: [{ u: round.circle.u, v: round.circle.v }],
+            viewId: round.viewId,
+            refs: [bound && bound.at === "centre" ? bound : { u: round.circle.u, v: round.circle.v }],
             radius: round.circle.radius, offset: 9, angle: -Math.PI / 4,
           });
           return true;
@@ -476,9 +539,9 @@ export function createDrawingController(host) {
       }
       if (!snap) { host.flash(host.t("drawSnapNone")); return true; }
       if (!state.draft || state.draft.kind !== "dim" || state.draft.viewId !== snap.viewId) {
-        state.draft = { kind: "dim", viewId: snap.viewId, refs: [{ u: snap.model.u, v: snap.model.v }], aligned: event.shiftKey };
+        state.draft = { kind: "dim", viewId: snap.viewId, refs: [dimRef(snap.place, snap.model)], aligned: event.shiftKey };
       } else {
-        state.draft.refs.push({ u: snap.model.u, v: snap.model.v });
+        state.draft.refs.push(dimRef(snap.place, snap.model));
         state.draft.aligned = event.shiftKey;
       }
       host.refresh();
@@ -572,13 +635,16 @@ export function createDrawingController(host) {
       const dim = host.doc().dims.find((entry) => entry.id === state.drag.id);
       const built = scene();
       const place = built.views.find((entry) => entry.id === dim?.viewId);
+      /* Drag against where the dimension IS on the paper, which after a rebuild
+         is the reprojected copy, not the points stored in the document. */
+      const shown = built.dims.get(state.drag.id)?.dim || dim;
       if (dim && place) {
         if (dim.type === "radius" || dim.type === "diameter") {
-          const centre = place.toSheet(dim.refs[0]);
+          const centre = place.toSheet(shown.refs[0]);
           dim.angle = Math.atan2(sheetPoint.y - centre.y, sheetPoint.x - centre.x);
-          dim.offset = Math.max(3, Math.hypot(sheetPoint.x - centre.x, sheetPoint.y - centre.y) - dim.radius * place.k);
+          dim.offset = Math.max(3, Math.hypot(sheetPoint.x - centre.x, sheetPoint.y - centre.y) - num(shown.radius) * place.k);
         } else {
-          const a = place.toSheet(dim.refs[0]), b = place.toSheet(dim.refs[1]);
+          const a = place.toSheet(shown.refs[0]), b = place.toSheet(shown.refs[1]);
           const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
           dim.offset = dim.type === "horizontal" ? mid.y - sheetPoint.y
             : dim.type === "vertical" ? sheetPoint.x - mid.x
@@ -728,11 +794,12 @@ export function createDrawingController(host) {
     const doc = host.doc();
     const dim = (doc.dims || []).find((entry) => entry.id === id);
     if (!dim) return;
-    const current = dim.text || dimensionText(Object.assign({}, dim, { measure: measureDim(dim) }), doc);
+    const shown = scene().dims.get(id)?.dim || dim;
+    const current = dim.text || dimensionText(Object.assign({}, shown, { measure: measureDim(shown) }), doc);
     const next = await host.prompt(host.t("drawDimTextTitle"), current);
     if (next === null) return;
     host.pushUndo(host.t("opEditDim"));
-    const measured = dimensionText(Object.assign({}, dim, { measure: measureDim(dim), text: "" }), doc);
+    const measured = dimensionText(Object.assign({}, shown, { measure: measureDim(shown), text: "" }), doc);
     dim.text = next.trim() && next.trim() !== measured ? next.trim() : "";
     host.markDirty();
   }
@@ -793,15 +860,21 @@ export function createDrawingController(host) {
       if (!seeding) host.flash(host.t("drawNoGeometry"));
       return;
     }
-    const bounds = place.projection.bounds;
+    /* The same extents the sheet re-reads on rebuild (see resolveDim), so the
+       dimension does not shift the instant it is placed. */
+    const bounds = projectionBounds(place.projection);
+    if (!bounds) { if (!seeding) host.flash(host.t("drawNoGeometry")); return; }
     if (!seeding) host.pushUndo(host.t("opAddDim"));
     doc.dims = (doc.dims || []).filter((dim) => !dim.auto || dim.viewId !== place.id);
+    /* auto:"extent" is a reference in its own right — "how wide this view is" —
+       so the sheet re-reads the bounds on every rebuild. auto:true (what older
+       sheets carry) is a one-shot placement and stays frozen. */
     doc.dims.push({
-      id: "d" + Math.random().toString(36).slice(2, 9), auto: true, viewId: place.id, type: "horizontal",
+      id: "d" + Math.random().toString(36).slice(2, 9), auto: "extent", viewId: place.id, type: "horizontal",
       refs: [{ u: bounds.u0, v: bounds.v0 }, { u: bounds.u1, v: bounds.v0 }], offset: -12,
     });
     doc.dims.push({
-      id: "d" + Math.random().toString(36).slice(2, 9), auto: true, viewId: place.id, type: "vertical",
+      id: "d" + Math.random().toString(36).slice(2, 9), auto: "extent", viewId: place.id, type: "vertical",
       refs: [{ u: bounds.u1, v: bounds.v0 }, { u: bounds.u1, v: bounds.v1 }], offset: 12,
     });
     host.markDirty();
@@ -874,6 +947,7 @@ export function createDrawingController(host) {
       projection: doc.projection,
       views: doc.views.length,
       dims: (doc.dims || []).length,
+      dangling: sheetDimIssues(built),
       selection: selected ? selected.label || defaultViewLabel(selected.dir) : null,
       cursor: state.cursor,
       zoom: state.zoom,
@@ -887,6 +961,8 @@ export function createDrawingController(host) {
     select: (value) => { state.selection = value; state.scene = null; host.refresh(); },
     pointerDown, pointerMove, pointerUp, doubleClick, wheel, keyDown,
     deleteSelection, addView, autoDimension, setSheetOption, relayout,
+    danglingDims: () => sheetDimIssues(scene()),
+    document: () => host.doc(),
     availableViews: () => availableViewDirs(host.doc()),
     zoomBy: (factor) => { zoomBy(factor, host.width() / 2, host.height() / 2); host.refresh(); },
   };

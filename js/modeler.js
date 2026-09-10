@@ -9162,6 +9162,26 @@ function drawingBodies() {
   return bodies.length ? bodies : tessellateParts(renderedParts(E.def));
 }
 
+/* The named geometry the sheet's dimensions bind to: the same persistent ids
+   the feature tree, the fillet overrides and the mates already use, so a
+   dimension survives a rebuild for exactly the reasons they do — and dangles
+   for exactly the reasons they lose a reference. Triangles alone carry no
+   identity, which is why this is a second provider and not a field on one. */
+function drawingTopology() {
+  /* An assembly's bodies come from component documents whose topology is not
+     ours to index; offering an empty one would dangle every bound dimension on
+     a sheet whose references are all still there. Absent is not lost. */
+  if (E.docType === "assembly") return null;
+  var out = [];
+  try {
+    renderedParts(E.def).forEach(function (part) {
+      var entries = topologyEntriesForPart(part);
+      if (entries && entries.length) out = out.concat(entries);
+    });
+  } catch (error) { return null; }
+  return out.length ? out : null;
+}
+
 /* A one-field form where a window.prompt() used to be, resolved as a promise so
    the sheet's tools can await an answer without freezing the page. */
 function sheetPrompt(title, value) {
@@ -9262,6 +9282,13 @@ function buildSheetPanel(host) {
   head.appendChild(headActions);
   host.appendChild(head);
 
+  /* A dangling dimension is drawn in red on the paper, but the paper may be
+     scrolled away from it — so the sheet panel is where it can be acted on. */
+  var dangling = el("div", "md-sheet-dangling");
+  dangling.id = "mdSheetDangling";
+  dangling.hidden = true;
+  host.appendChild(dangling);
+
   var setup = sheetGroup(host, t("sheetSetup"));
   sheetRow(setup, t("sheetSize"), sheetSelect(Object.keys(SHEET_SIZES).map(function (key) {
     return { value: key, label: SHEET_SIZES[key].label + "  " + Math.round(SHEET_SIZES[key].w) + "×" + Math.round(SHEET_SIZES[key].h) };
@@ -9347,6 +9374,34 @@ function buildSheetPanel(host) {
     sheetRow(title, field[1], input);
   });
   host.setAttribute("data-views", doc.views.map(function (view) { return view.id; }).join(","));
+  syncDanglingDims(host);
+}
+
+/* Which dimensions no longer measure anything, and a way to reach each one.
+   Built from the scene, so it can never disagree with what the paper shows. */
+function syncDanglingDims(host) {
+  var box = host && host.querySelector("#mdSheetDangling");
+  if (!box) return;
+  var sheet = drawingSheet(), issues = sheet.danglingDims();
+  var signature = issues.map(function (issue) { return issue.id; }).join(",");
+  if (box.getAttribute("data-issues") === signature) return;
+  box.setAttribute("data-issues", signature);
+  box.innerHTML = "";
+  box.hidden = !issues.length;
+  if (!issues.length) return;
+  var head = el("div", "md-sheet-dangling-head");
+  head.innerHTML = '<i class="ph ph-warning"></i><b>' + t("drawDangling") + "</b>";
+  box.appendChild(head);
+  box.appendChild(el("div", "md-sheet-dangling-note", tf("drawDanglingCount", { count: issues.length })));
+  issues.forEach(function (issue) {
+    var button = btn("", function () {
+      sheet.select({ kind: "dim", id: issue.id });
+    }, "md-sheet-dangling-item");
+    /* Persistent ids come from the document, so they go in as text. */
+    button.textContent = "⚠ " + (issue.missing.length ? issue.missing.join(", ") : issue.id);
+    button.title = t("drawDanglingSelect");
+    box.appendChild(button);
+  });
 }
 
 function syncSheetPanel() {
@@ -9383,6 +9438,7 @@ function syncSheetPanel() {
   host.querySelectorAll("[data-title-field]").forEach(function (input) {
     if (input !== document.activeElement) input.value = doc.title[input.getAttribute("data-title-field")] || "";
   });
+  syncDanglingDims(host);
 }
 
 /* What the hint bar says on a sheet: the armed tool's own instruction, because
@@ -9405,6 +9461,7 @@ function drawingSheet() {
       height: function () { return E.ch; },
       doc: function () { return ensureSheetDoc(E.def, { title: { title: E.def && E.def.name || "" } }); },
       bodies: drawingBodies,
+      topology: drawingTopology,
       bodiesToken: function () { return E.sheetToken; },
       meta: function () {
         var doc = ensureSheetDoc(E.def);

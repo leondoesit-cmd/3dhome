@@ -356,3 +356,66 @@ test("drawing mode hides tree toggle and eliminates inspector toggle overlap on 
   assert.notEqual(state.afterExpand.sheetDisplay, "none", "sheet panel shows when re-expanded");
   assert.equal(state.afterExpand.rightDisplay, "none", "right toggle hides when sheet panel is open");
 });
+
+/* Associativity, in the real editor: the sheet only knows the model's named
+   geometry because modeler.js hands it topologyEntriesForPart. Nothing below
+   the controller can be exercised anywhere else.
+
+   The two points picked are the boss's rims, which the cylinder's topology
+   names. A box's corner is deliberately NOT used: the editor draws solids as
+   RoundedBoxGeometry, so the projected corner is a fillet and coincides with no
+   named vertex — and a dimension that bound to the ideal corner anyway would be
+   the nearest-match guess this whole mechanism refuses to make. */
+test("a placed dimension binds to the model's own topology, and a lost one is listed", opts, async () => {
+  const page = await sheetPage();
+  const result = await page.eval(() => {
+    const sheet = window.cadDrawingSheet, canvas = document.getElementById("mdCanvas");
+    const rect = canvas.getBoundingClientRect(), state = sheet.state;
+    const at = (mm) => ({ x: mm.x * state.zoom + state.ox + rect.left, y: mm.y * state.zoom + state.oy + rect.top });
+    const send = (type, x, y) => canvas.dispatchEvent(new PointerEvent(type, {
+      clientX: x, clientY: y, bubbles: true, pointerId: 1, button: 0, buttons: type === "pointerup" ? 0 : 1,
+    }));
+    const click = (point) => { send("pointermove", point.x, point.y); send("pointerdown", point.x, point.y); send("pointerup", point.x, point.y); };
+    document.querySelector('[data-drawing-tool="dim"]').click();
+    const front = sheet.scene().views.find((place) => place.view.label === "FRONT");
+    /* The boss is x=4, y=-1, h=6: its two rims are seen edge-on here. */
+    click(at(front.toSheet({ u: 4, v: 5 })));
+    click(at(front.toSheet({ u: 4, v: -1 })));
+    click(at({ x: front.box.x + front.box.w + 18, y: front.y }));
+    const doc = sheet.document();
+    const placed = doc.dims[doc.dims.length - 1];
+    const bound = (placed.refs || []).map((ref) => ref.pid || null);
+    const healthy = sheet.danglingDims().length;
+    const panelClean = document.getElementById("mdSheetDangling").hidden;
+    const value = (() => {
+      const label = sheet.scene().items.find((item) => item.dimId === placed.id && item.type === "text");
+      return label ? label.text : null;
+    })();
+
+    /* Now lose the reference the way a deleted feature would. */
+    placed.refs.forEach((ref) => { ref.pid = "feature:gone:edge:x"; });
+    sheet.invalidate();
+    sheet.select({ kind: "dim", id: placed.id });
+    const issues = sheet.danglingDims();
+    const label = sheet.scene().items.find((item) => item.dimId === placed.id && item.type === "text");
+    const panel = document.getElementById("mdSheetDangling");
+    return {
+      bound, healthy, panelClean, value,
+      issues: issues.length,
+      label: label ? label.text : null,
+      panelShown: !panel.hidden,
+      panelRows: panel.querySelectorAll(".md-sheet-dangling-item").length,
+      exported: sheet.svg().includes("⚠ ("),
+    };
+  });
+  assert.ok(result.bound.length === 2 && result.bound.every(Boolean),
+    "both picks recorded a persistent topology id, not just a pair of view coordinates");
+  assert.equal(result.value, "60", "and it measures the boss, 6 cm tall, in sheet millimetres");
+  assert.equal(result.healthy, 0, "a sheet whose references all resolve reports nothing");
+  assert.equal(result.panelClean, true);
+  assert.equal(result.issues, 1);
+  assert.match(result.label, /^⚠ \(/, "a dangling value is flagged and bracketed on the paper");
+  assert.equal(result.panelShown, true, "and listed in the sheet panel where it can be acted on");
+  assert.equal(result.panelRows, 1);
+  assert.equal(result.exported, true, "the export says the same thing the canvas does");
+});
