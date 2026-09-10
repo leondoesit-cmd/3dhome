@@ -172,6 +172,13 @@ export function composeRigidTransforms(outer, inner) {
   } };
 }
 
+/* Nothing to do: lets a caller drop an identity row rather than emit one. */
+export function rigidTransformIsIdentity(transform, tolerance = 1e-12) {
+  const m = (transform && transform.matrix) || RIGID_IDENTITY.matrix, t = (transform && transform.translation) || RIGID_IDENTITY.translation;
+  return RIGID_IDENTITY.matrix.every((value, index) => Math.abs(m[index] - value) <= tolerance)
+    && ["x", "y", "z"].every((axis) => Math.abs(Number(t[axis]) || 0) <= tolerance);
+}
+
 export function invertRigidTransform(transform) {
   const m = (transform && transform.matrix) || RIGID_IDENTITY.matrix;
   const matrix = [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]];   // a rotation's inverse is its transpose

@@ -196,6 +196,47 @@ test("a circular cluster the seed is not in is stored in its host's frame", opts
     axis + ": the fused copy is drawn at " + drawn.translation[axis] + ", it was laid at " + laid.translation[axis]));
 });
 
+/* The EXACT TREE the same run produces, from the running editor.
+ *
+ * The unit tests prove one copy's rows rebuild where the copy was laid; this
+ * proves the editor writes those rows at all. Before the fix the tree held only
+ * the copy's own body row, so STEP/IGES, mass and interference put every
+ * circular copy back at the seed's angle: the ONE assertion that matters here
+ * is that a `transformBody` row exists per turned copy and carries that copy's
+ * turn. Un-merged on purpose — the gap is in the plain pattern, not in the
+ * merge — and rebuilding the tree is what cadFeatureTreeSnapshot does. */
+test("the exact tree carries every circular copy's own turn", opts, async () => {
+  const params = { mode:"circular", axis:"y", count:4, angle:360, radialDistance:20, mergeResult:false };
+  const run = await page.eval(async (input) => {
+    const { openModeler } = await import("/js/modeler.js");
+    window.cadCloseFeatureForm();
+    openModeler(null, structuredClone(input.doc), null);
+    const ok = await window.cadPatternRun(input.params);
+    return { ok, bodies:window.cadBodySnapshot(), features:window.cadFeatureTreeSnapshot() };
+  }, { doc:CUBE_DOC, params });
+
+  assert.equal(run.ok, true, "the command applied");
+  assert.equal(run.bodies.length, 4, "four loose bodies: " + JSON.stringify(run.bodies.map((body) => body.id)));
+  const turned = run.bodies.filter((body) => body.rotations.length);
+  assert.equal(turned.length, 3, "the seed is not turned, the three copies are");
+
+  const turnRows = run.features.filter((feature) => feature.type === "transformBody");
+  assert.equal(turnRows.length, 3, "one turn row per turned copy: " + JSON.stringify(run.features.map((f) => f.type)));
+  turned.forEach((body) => {
+    const row = turnRows.find((feature) => feature.id === "feature:part:" + body.id + ":pattern-turn");
+    assert.ok(row, "no turn row for copy " + body.id + ": " + JSON.stringify(turnRows.map((f) => f.id)));
+    assert.deepEqual(row.inputs, ["feature:part:" + body.id], "and it wraps that copy's own body");
+    const expected = patternRotationTransform(body.rotations);
+    expected.matrix.forEach((value, index) => assert.ok(Math.abs(row.params.matrix[index] - value) < 1e-12,
+      body.id + " matrix " + index + ": " + row.params.matrix[index] + " vs " + value));
+    ["x", "y", "z"].forEach((axis) => assert.ok(Math.abs(row.params.translation[axis] - expected.translation[axis]) < 1e-9,
+      body.id + " " + axis + ": " + row.params.translation[axis] + " vs " + expected.translation[axis]));
+  });
+  // the seed carries no turn, so it gets no row — the tree is not padded
+  const seed = run.bodies.find((body) => !body.rotations.length);
+  assert.ok(!turnRows.some((feature) => feature.id.startsWith("feature:part:" + seed.id)), "the untouched seed emits nothing");
+});
+
 /* ---- the LIVE preview of a merged pattern ----
  *
  * The copies must appear at once — the cheap honest answer — and the fuse is a

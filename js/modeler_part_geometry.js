@@ -671,6 +671,14 @@ export function partPatternRotations(p) {
   return rotations.filter(function(rotation){return rotation && ["x","y","z"].includes(rotation.axis) && Number.isFinite(Number(rotation.angle));}).map(function(rotation){return {axis:rotation.axis,angle:Number(rotation.angle),pivot:rotation.pivot ? {x:Number(rotation.pivot.x)||0,y:Number(rotation.pivot.y)||0,z:Number(rotation.pivot.z)||0}:undefined};});
 }
 
+/* The same turn as ONE rigid transform: what buildPart nests as groups around
+   the whole rendered body, and what the exact tree's `transformBody` row applies
+   outside the holes, the merges and the finish operations. Both sides ask here
+   so the viewport and STEP/IGES cannot answer differently. */
+export function partPatternTransform(p) {
+  return patternRotationTransform(partPatternRotations(p));
+}
+
 // Circular pattern copies keep an explicit model-space transform. Applying it
 // to a render group supports every part kind and all three axes, including
 // imported meshes and boxes that previously stayed coincident with the seed.

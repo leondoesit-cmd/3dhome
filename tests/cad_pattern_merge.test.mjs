@@ -456,22 +456,25 @@ test("a curve cluster that excludes the seed lands where its copies were", async
 });
 
 test("the exact tree builds the same seed-excluded cluster as the viewport", async () => {
-  /* The row rebuildFeatureTreeFromDocument writes for the cluster above: the
-     host's own body, the stored placements as one placedBody, and the union.
-     The tree does not carry a part's pattern turn (a pre-existing gap that
-     moves every circular copy, merged or not), so the comparison is made in the
-     HOST'S frame — carry the viewport's answer back through that turn and the
-     two must agree exactly. A world placement makes them disagree, which is the
-     divergence between the viewport and STEP export this pins. */
+  /* The rows rebuildFeatureTreeFromDocument writes for the cluster above: the
+     host's own body, the stored placements as one placedBody, the union, and
+     then the HOST'S OWN pattern turn wrapped around the lot. That last row is
+     what makes the host-relative placement correct on the exact side as well:
+     the placements are stored in the host's frame, so the frame has to be
+     re-entered outside them — exactly where buildPart nests its groups. The
+     comparison is therefore made in WORLD coordinates, against the un-merged
+     copies, with no correction applied by the test itself. */
   const rotations = [{ axis:"y", angle:RING_STEP * 3, pivot:circularPatternPivot({ axis:"y", radialDistance:RING.radialDistance }) }];
-  const intoHost = invertRigidTransform(patternRotationTransform(rotations));
-  const stored = composeRigidTransforms(intoHost, ringTransform(4));
+  const turn = patternRotationTransform(rotations);
+  const stored = composeRigidTransforms(invertRigidTransform(turn), ringTransform(4));
   const def = {
     featureVersion: 1,
     features: [
       { id:"host", type:"box", name:"Host", params:{ x:40, y:0, z:-5, w:10, h:10, d:10 }, inputs:[], references:[] },
       { id:"copies", type:"placedBody", name:"Merged body 1", inputs:[], references:[], params:{ part:RING_SEED, placements:[stored] } },
       { id:"merge", type:"union", name:"Merge 1", params:{}, inputs:["host", "copies"], references:[] },
+      { id:"merge:pattern-turn", type:"transformBody", name:"Pattern turn", inputs:["merge"], references:[],
+        params:{ matrix:turn.matrix.slice(), translation:{ ...turn.translation } } },
     ],
   };
   const run = await regenerateFeatures(def);
@@ -483,13 +486,23 @@ test("the exact tree builds the same seed-excluded cluster as the viewport", asy
     const expectedVolume = await volume(expected), expectedCentre = await centroid(expected);
     assert.ok(Math.abs(await volume(run.finalShape) - expectedVolume) < 1e-6,
       "the tree bills the shared material once: " + (await volume(run.finalShape)) + " vs " + expectedVolume);
-    const centre = await centroid(run.finalShape), inHostFrame = {
-      x:intoHost.matrix[0] * expectedCentre.x + intoHost.matrix[1] * expectedCentre.y + intoHost.matrix[2] * expectedCentre.z + intoHost.translation.x,
-      y:intoHost.matrix[3] * expectedCentre.x + intoHost.matrix[4] * expectedCentre.y + intoHost.matrix[5] * expectedCentre.z + intoHost.translation.y,
-      z:intoHost.matrix[6] * expectedCentre.x + intoHost.matrix[7] * expectedCentre.y + intoHost.matrix[8] * expectedCentre.z + intoHost.translation.z,
-    };
-    assert.ok(apart(centre, inHostFrame) < 1e-6,
-      "viewport and exact tree describe one shape: " + JSON.stringify(centre) + " vs " + JSON.stringify(inHostFrame));
+    assert.ok(apart(await centroid(run.finalShape), expectedCentre) < 1e-6,
+      "viewport and exact tree describe one shape, in world: " + JSON.stringify(await centroid(run.finalShape)) + " vs " + JSON.stringify(expectedCentre));
+
+    /* The two compensations are ONE each, not two that cancel: drop the turn
+       row and the fused lump falls back to the host's frame; keep the turn but
+       store the member in world and it is turned twice. Both must be wrong. */
+    const noTurn = { ...def, features:def.features.slice(0, 3) };
+    const worldStored = { ...def, features:def.features.map((feature) => feature.id === "copies"
+      ? { ...feature, params:{ ...feature.params, placements:[ringTransform(4)] } } : feature) };
+    for (const [label, broken] of [["without the turn row", noTurn], ["with a world placement", worldStored]]) {
+      const other = await regenerateFeatures(broken);
+      try {
+        assert.ok(other.ok, JSON.stringify(other.issues));
+        assert.ok(apart(await centroid(other.finalShape), expectedCentre) > 1,
+          label + " must land elsewhere, not cancel: " + apart(await centroid(other.finalShape), expectedCentre).toFixed(3) + " cm");
+      } finally { releaseRegeneration(other); }
+    }
   } finally { releaseRegeneration(run); if (expected) disposeBrep(expected); }
 });
 

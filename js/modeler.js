@@ -117,7 +117,7 @@ import {
   profileLoopIsSeparateHole,
 } from "./core/cut_scope.js";
 import { diagnosticHelp, groupDiagnostics, recommendedDiagnostic } from "./core/diagnostic_help.js";
-import { circularPatternPivot, circularPatternStepDegrees, composeRigidTransforms, curvePatternPath, curvePatternPlacements, invertRigidTransform, linearPatternOffsets, parseSkippedPatternInstances, patternPlacementTransform, patternRotationTransform, rotatedPatternBounds } from "./core/pattern_geometry.js";
+import { circularPatternPivot, circularPatternStepDegrees, composeRigidTransforms, curvePatternPath, curvePatternPlacements, invertRigidTransform, linearPatternOffsets, parseSkippedPatternInstances, patternPlacementTransform, patternRotationTransform, rigidTransformIsIdentity, rotatedPatternBounds } from "./core/pattern_geometry.js";
 import { finalizeCabinetAdvancedDefinition, syncCabinetDefinition } from "./parametric_cabinet.js";
 import { assignCabinetManufacturing, CABINET_MANUFACTURING_ROLES } from "./core/cabinet_advanced.js";
 import { layoutCab } from "./cabinet.js";
@@ -189,7 +189,7 @@ import {
   cloneData, cutFootprint, cutRangeForAxis, exactBrepForPart,
   footprintHasPoint, footprintPoint, kernelRecipeBounds, loopCentroid,
   migrateBoundaryChangingProfileCuts, mirrorProjectionPart, movePart, normalizeTransform,
-  partBounds, partNeedsExactMesh, partPatternRotations, partSupportsExactMesh,
+  partBounds, partNeedsExactMesh, partPatternRotations, partPatternTransform, partSupportsExactMesh,
   patternMergeSource, placePatternCopy, resetClonedPartIdentity, revMaxR, rotPartY,
   translateTopologyReferences,
 } from "./modeler_part_geometry.js";
@@ -1177,6 +1177,18 @@ if (typeof window !== "undefined") {
           .reduce(function (all, entry) { return all.concat(entry.placements || []); }, []),
         triangles: part.meshData ? (part.meshData.positions || []).length / 9 : 0,
       };
+    });
+  };
+  /* The rows the exact tree is built from — what STEP/IGES, mass properties and
+     interference see, as opposed to what the viewport draws. It REBUILDS the
+     tree, the way opening a legacy document does, because the question is what
+     the emission produces for the document as it now stands. Reported by type
+     and input: the defect this guards is a missing row, not a wrong number in
+     one. */
+  window.cadFeatureTreeSnapshot = function () {
+    rebuildFeatureTreeFromDocument();
+    return (E.def.features || []).map(function (feature) {
+      return { id:feature.id, type:feature.type, inputs:(feature.inputs || []).slice(), params:cloneData(feature.params || {}) };
     });
   };
   window.cadSetHoverTopology = function (reference) { E.hoverTopology = reference || null; };
@@ -6564,9 +6576,11 @@ function fusePatternInstances(seed, source, entries, feature) {
         hosts.push(host);
         /* A placement is stored RELATIVE TO THE HOST, never in world space.
            A copy's own turn is NOT baked into its BREP — buildPart nests it as
-           groups around the whole body, exactBrepForPart leaves it out — so a
-           merge fused into that body is turned by the host's transform on the
-           way to the screen. A world placement would therefore be turned twice.
+           groups around the whole body and the exact tree wraps it in the
+           `transformBody` row emitPartPatternTurn writes, exactBrepForPart
+           itself leaves it out — so a merge fused into that body is turned by
+           the host's transform on both routes out. A world placement would
+           therefore be turned twice.
            The seed hosts at the identity and a linear copy carries no turn, so
            those clusters read the same either way; a circular or curve cluster
            that does not contain the seed is hosted by a ROTATED copy, and only
@@ -18493,6 +18507,28 @@ function emitPartMerges(target, part, feature) {
   return feature;
 }
 
+/* A part's OWN pattern turn, as the last row of its chain.
+ *
+ * rotatePatternPart records a circular or curve copy's turn on the part as
+ * `patternRotations`, and buildPart nests it as groups around the whole
+ * rendered body — outside the profile holes, outside the merges, outside the
+ * finish operations. Nothing emitted it here, so STEP/IGES, mass properties and
+ * interference rebuilt every such copy at the SEED's angle: translated but
+ * never turned. Emitting it last is what makes the exact tree describe the body
+ * the viewport draws.
+ *
+ * It also has to be last for the merges below it: fusePatternInstances stores a
+ * cluster's placements in the HOST's frame, which is only correct if the host's
+ * turn is applied outside them, which is exactly where this row sits. */
+function emitPartPatternTurn(target, part, feature) {
+  var turn = partPatternTransform(part);
+  if (rigidTransformIsIdentity(turn)) return feature;
+  return addFeature(target, {
+    id:part.featureId + ":pattern-turn", type:"transformBody", name:"Pattern turn",
+    params:{matrix:turn.matrix.slice(), translation:{...turn.translation}}, inputs:[feature.id],
+  });
+}
+
 function rebuildFeatureTreeFromDocument(target) {
   target=target || E.def;
   var previousFeatures=new Map((target.features || []).map(function(feature){return [feature.id,feature];}));
@@ -18572,6 +18608,7 @@ function rebuildFeatureTreeFromDocument(target) {
           type:operation.type,name:operation.type[0].toUpperCase()+operation.type.slice(1),params:params,inputs:[feature.id],
         });
       });
+      feature = emitPartPatternTurn(target, part, feature);
     }
     if (!feature) return;
     if (!combined) combined = feature;

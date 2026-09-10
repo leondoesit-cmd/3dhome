@@ -1,4 +1,4 @@
-import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepExtrusion, makeBrepHelicalPipe, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
+import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepExtrusion, makeBrepHelicalPipe, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, placeBrep, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
 import { resolveProfilePoints } from "./sketch_solver.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { createTopologyRegistry, resolveFeatureTopologyReferences, topologyForFeature } from "./core/topology.js";
@@ -166,6 +166,18 @@ export async function regenerateFeatures(def, options = {}) {
            graph of every consumer of the exact tree. */
         const { placedBodyBrep } = await import("./modeler_part_geometry.js");
         result = await placedBodyBrep(effectiveParams);
+      }
+      else if (feature.type === "transformBody") {
+        /* The body it was handed, put where the viewport draws it: one rigid
+           transform, matrix and shift, with no pivot of its own — the pivot is
+           already folded into the shift by rigidTransformAboutPivot. This is
+           what carries a part's `patternRotations` into the exact tree, so a
+           circular or curve pattern copy is EXPORTED at its own angle instead
+           of at the seed's. It is not moveBody: that turns a body about its own
+           centre of mass, which is not where a pattern pivots. */
+        const source = results.get(feature.inputs[0]);
+        if (!source?.shape) throw new Error("Transform input is unavailable");
+        result = await placeBrep(source, effectiveParams);
       }
       else if(feature.type==="mirror") {
         const source=results.get(feature.inputs[0]);
