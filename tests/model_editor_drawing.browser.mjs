@@ -362,10 +362,9 @@ test("drawing mode hides tree toggle and eliminates inspector toggle overlap on 
    the controller can be exercised anywhere else.
 
    The two points picked are the boss's rims, which the cylinder's topology
-   names. A box's corner is deliberately NOT used: the editor draws solids as
-   RoundedBoxGeometry, so the projected corner is a fillet and coincides with no
-   named vertex — and a dimension that bound to the ideal corner anyway would be
-   the nearest-match guess this whole mechanism refuses to make. */
+   names. Box corners bind too — see the sharp-body test at the end of this
+   file; this one stays on the rims because losing a reference is what it is
+   about, and a cylinder is the case that never depended on the sharp fix. */
 test("a placed dimension binds to the model's own topology, and a lost one is listed", opts, async () => {
   const page = await sheetPage();
   const result = await page.eval(() => {
@@ -418,4 +417,98 @@ test("a placed dimension binds to the model's own topology, and a lost one is li
   assert.equal(result.panelShown, true, "and listed in the sheet panel where it can be acted on");
   assert.equal(result.panelRows, 1);
   assert.equal(result.exported, true, "the export says the same thing the canvas does");
+});
+
+/* The sheet projects the SHARP body.
+ *
+ * The editor draws a box through RoundedBoxGeometry so a solid catches a
+ * highlight along its arris; the projected corner then sat ~1.1 cm — 5.6% of
+ * this 20 cm base — from the sharp vertex the topology names, and a pick on it
+ * bound to nothing. Widening the match tolerance to cover that gap would be the
+ * nearest-match guess associativity exists to refuse, so drawingBodies() builds
+ * sharp instead (sheetSharpSolids in modeler.js) and only the sheet does.
+ *
+ * Both halves matter: the pick binds, and the bound dimension then REWRITES
+ * itself when the box it names changes size. */
+test("a box corner binds as exactly as a cylinder rim, and follows the box", opts, async () => {
+  const page = await sheetPage();
+  const result = await page.eval(async () => {
+    const sheet = window.cadDrawingSheet, canvas = document.getElementById("mdCanvas");
+    const rect = canvas.getBoundingClientRect(), state = sheet.state;
+    const at = (mm) => ({ x: mm.x * state.zoom + state.ox + rect.left, y: mm.y * state.zoom + state.oy + rect.top });
+    const send = (type, x, y) => canvas.dispatchEvent(new PointerEvent(type, {
+      clientX: x, clientY: y, bubbles: true, pointerId: 1, button: 0, buttons: type === "pointerup" ? 0 : 1,
+    }));
+    const click = (point) => { send("pointermove", point.x, point.y); send("pointerdown", point.x, point.y); send("pointerup", point.x, point.y); };
+    const valueOf = (id) => {
+      const label = sheet.scene().items.find((item) => item.dimId === id && item.type === "text");
+      return label ? label.text : null;
+    };
+
+    document.querySelector('[data-drawing-tool="dim"]').click();
+    const front = sheet.scene().views.find((place) => place.view.label === "FRONT");
+    /* The base is x -10..10, y 0..4: its two bottom corners, seen face-on. */
+    click(at(front.toSheet({ u: -10, v: 0 })));
+    click(at(front.toSheet({ u: 10, v: 0 })));
+    click(at({ x: front.box.x + front.box.w / 2, y: front.box.y + front.box.h + 20 }));
+
+    const doc = sheet.document();
+    const placed = doc.dims[doc.dims.length - 1];
+    const bound = (placed.refs || []).map((ref) => ref.pid || null);
+    const before = valueOf(placed.id);
+    const gaps = (placed.refs || []).map((ref, index) => {
+      const want = index === 0 ? { u: -10, v: 0 } : { u: 10, v: 0 };
+      return Math.hypot(ref.u - want.u, ref.v - want.v);
+    });
+
+    /* Resize the base the way any edit would, then let the editor rebuild. */
+    const base = (window.cadDecoGroups || []).find((entry) => entry.part && entry.part.id === "p1");
+    if (base) base.part.x1 = 16;
+    window.cadUpdatePreview();
+    const after = valueOf(placed.id);
+    return { bound, before, after, gaps, dangling: sheet.danglingDims().length, resized: !!base };
+  });
+  assert.equal(result.resized, true, "the test found the base to resize");
+  assert.ok(result.bound.length === 2 && result.bound.every(Boolean),
+    "a box corner records a persistent topology id — the rounded display corner used to miss it");
+  assert.ok(Math.max(...result.gaps) < 1e-6,
+    "and the recorded point IS the sharp corner, not a fillet vertex near it: " + JSON.stringify(result.gaps));
+  assert.equal(result.before, "200", "20 cm of base, in sheet millimetres");
+  assert.equal(result.after, "260", "and the dimension rewrites itself when the base grows to 26 cm");
+  assert.equal(result.dangling, 0, "the reference survived the rebuild rather than dangling");
+});
+
+/* Layout is undoable in the REAL editor, not only against a stub history.
+ * The controller's begin/commit/cancel triad is wired to the modeler's own H
+ * in drawingSheet(); this is the wiring, end to end, through the same Undo
+ * button the toolbar shows. */
+test("a dragged view is one undo step the editor's own history can unwind", opts, async () => {
+  const page = await sheetPage();
+  const result = await page.eval(() => {
+    const sheet = window.cadDrawingSheet, canvas = document.getElementById("mdCanvas");
+    const rect = canvas.getBoundingClientRect(), state = sheet.state;
+    const px = (mm) => ({ x: mm.x * state.zoom + state.ox + rect.left, y: mm.y * state.zoom + state.oy + rect.top });
+    const send = (type, at) => canvas.dispatchEvent(new PointerEvent(type, {
+      clientX: at.x, clientY: at.y, bubbles: true, pointerId: 1, button: 0, buttons: type === "pointerup" ? 0 : 1,
+    }));
+    const viewX = (id) => sheet.document().views.find((view) => view.id === id).x;
+
+    document.querySelector('[data-drawing-tool="select"]').click();
+    const place = sheet.scene().views.find((entry) => entry.view.label === "FRONT");
+    const from = { x: place.box.x + place.box.w / 2, y: place.box.y + place.box.h / 2 };
+    const to = { x: from.x + 20, y: from.y };
+    const before = viewX(place.id);
+    send("pointerdown", px(from));
+    send("pointermove", px(to));
+    send("pointerup", px(to));
+    const moved = viewX(place.id);
+    const undoDisabled = document.getElementById("mdUndo").disabled;
+    document.getElementById("mdUndo").click();
+    return { before, laidOut: place.x, moved, undone: viewX(place.id), undoDisabled };
+  });
+  assert.equal(result.before, null, "an undragged view is not pinned");
+  assert.ok(Math.abs(result.moved - (result.laidOut + 20)) < 1e-6,
+    "the view moved exactly 20 mm across the paper: " + result.moved + " vs " + (result.laidOut + 20));
+  assert.equal(result.undoDisabled, false, "the drag armed Undo");
+  assert.equal(result.undone, null, "and one Undo put the view back where the layout had it");
 });

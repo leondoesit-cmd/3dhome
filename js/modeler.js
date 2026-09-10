@@ -1430,6 +1430,16 @@ function refreshDecorationScale() {
   refreshDecorations();
 }
 
+/* The viewport rounds a box's edges because a solid with a highlight along its
+   arris reads as an object rather than as raw CGI. A drawing is a measured
+   document: its corners have to be the corners the topology names, or a
+   dimension picked on one binds to nothing (the fillet pushes the projected
+   corner ~1.1 cm — 5.6% of a 20 cm part — off the sharp vertex). This flag is
+   the ONE point where the two diverge: set only around drawingBodies(), so the
+   sheet projects the sharp body and the preview the user orbits keeps its
+   rounding. */
+var sheetSharpSolids = false;
+
 function buildPart(g, p, displayStyle) {
   buildPartCount++;
   var rotations=partPatternRotations(p);
@@ -1451,6 +1461,7 @@ function buildPart(g, p, displayStyle) {
     me = buildExactMesh(g, p);
   } else if (p.kind === "box") {
     if (p.tex) opt.tex = p.tex; // box() handles texture mapping itself
+    if (sheetSharpSolids) opt.sharp = true;   // see sheetSharpSolids
     me = box(g, p.x0, p.x1, p.y0, p.y1, p.z0, p.z1, col, opt);
   } else if (p.kind === "cyl") {
     opt.r2 = p.r2 != null ? p.r2 : p.r;
@@ -9140,11 +9151,14 @@ function meshWorldTriangles(mesh) {
 /* The whole document as triangle soups, one per body. Built into a DETACHED
    group and disposed straight after: the sheet must never depend on the
    preview scene existing, because Drawing mode is reachable with the viewport
-   swapped out. Falls back to the dependency-free tessellator when three.js has
-   not loaded — which is also the path the exporter and the tests take. */
+   swapped out. Built SHARP (sheetSharpSolids) — the one place the sheet's
+   geometry is deliberately not the viewport's. Falls back to the
+   dependency-free tessellator when three.js has not loaded — which is also the
+   path the exporter and the tests take. */
 function drawingBodies() {
   if (!threeLoaded() || typeof THREE === "undefined" || !THREE.Group) return tessellateParts(renderedParts(E.def));
   var group = new THREE.Group(), bodies = [];
+  sheetSharpSolids = true;
   try {
     if (E.docType === "assembly" && E.assembly) buildAssembly(group);
     else renderedParts(E.def).forEach(function (part) { buildPart(group, part, "solid"); });
@@ -9157,6 +9171,7 @@ function drawingBodies() {
   } catch (error) {
     bodies = [];
   } finally {
+    sheetSharpSolids = false;
     clearGroup(group);
   }
   return bodies.length ? bodies : tessellateParts(renderedParts(E.def));
@@ -9474,6 +9489,13 @@ function drawingSheet() {
         });
       },
       pushUndo: pushUndo,
+      /* The drag triad: the step is opened on pointerdown while the sheet is
+         still untouched, named on pointerup, and dropped when the gesture put
+         everything back (a plain click, or Escape). scheduleModelerDraft runs
+         on commit only, because an abandoned gesture changed nothing to save. */
+      beginUndo: function (label) { H.begin(label || ""); },
+      commitUndo: function (label) { if (H.commit(label)) scheduleModelerDraft(); },
+      cancelUndo: function () { H.cancel(); },
       markDirty: function () { E.sheet.invalidate(); drawSketch(); syncSheetPanel(); syncStatus(); },
       flash: flash,
       t: t,

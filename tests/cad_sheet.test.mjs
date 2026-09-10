@@ -275,14 +275,33 @@ function table(def, options = {}) {
     topology: options.topology === false ? () => null
       : () => document.parts.flatMap(partTopology),
   };
+  /* The editor's history, reduced to what the sheet is allowed to ask of it:
+     push a step, or open one (begin) and then name it (commit) or drop it
+     (cancel). Snapshots are of the drawing document alone, which is all the
+     sheet can touch. */
+  const steps = [];
+  let pending = null;
+  const snapshot = () => JSON.stringify(document.drawing);
   const host = {
     canvas: () => ({}), width: () => 900, height: () => 600,
     doc: () => ensureSheetDoc(document),
     bodies: () => tessellateParts(document.parts),
     topology: () => table.topology(),
     bodiesToken: () => table.token,
-    pushUndo: () => {}, markDirty: () => {}, flash: () => {}, refresh: () => {},
+    pushUndo: (label) => { pending = null; steps.push({ label, snap: snapshot() }); },
+    beginUndo: (label) => { pending = { label, snap: snapshot() }; },
+    commitUndo: (label) => { if (pending) steps.push({ label: label || pending.label, snap: pending.snap }); pending = null; },
+    cancelUndo: () => { pending = null; },
+    markDirty: () => {}, flash: () => {}, refresh: () => {},
     t: (key) => key, prompt: async () => null, editTitleBlock: () => {},
+  };
+  table.steps = () => steps.map((step) => step.label);
+  table.undo = () => {
+    const step = steps.pop();
+    if (!step) return null;
+    document.drawing = JSON.parse(step.snap);
+    table.controller.invalidate();
+    return step.label;
   };
   ensureSheetDoc(document);
   table.controller = createDrawingController(host);
@@ -528,4 +547,143 @@ test("placing a dimension on the drafting table binds it to what was clicked", (
   rig.document.parts[0].pts[2].u = 20;
   rig.rebuild();
   assert.equal(labelOf(controller, dim.id), "300", "and it followed the widened profile");
+});
+
+/* ---- layout drags are edits ---------------------------------------------- */
+
+/* Dragging a view, a dimension or a note used to mutate the document on every
+   pointermove and never open a step, so the sheet had undo for everything you
+   CREATED and none for anything you MOVED — one Ctrl+Z after nudging a view
+   threw away the dimension you placed before it. One gesture is one step now:
+   opened while the paper is untouched, named on pointerup, dropped when the
+   gesture put everything back. */
+
+function drafting(doc) {
+  const rig = table(doc);
+  rig.controller.fit();
+  rig.controller.autoDimension(true);    // the two overall sizes a real sheet opens with
+  return rig;
+}
+
+/* Sheet millimetres -> the canvas pixels the controller is driven in. */
+const pixels = (controller, point) => [
+  point.x * controller.state.zoom + controller.state.ox,
+  point.y * controller.state.zoom + controller.state.oy,
+];
+
+function dragBy(controller, from, dx, dy, { escape = false } = {}) {
+  const to = { x: from.x + dx, y: from.y + dy };
+  controller.pointerDown({ button: 0 }, ...pixels(controller, from));
+  controller.pointerMove({ button: 0 }, ...pixels(controller, to));
+  if (escape) { controller.keyDown({ key: "Escape" }); return; }
+  controller.pointerUp({ button: 0 }, ...pixels(controller, to));
+}
+
+const near = (value, want, what) =>
+  assert.ok(Math.abs(value - want) < 1e-6, what + ": " + value + " is not " + want);
+
+const noteAt = (doc, x, y) => {
+  const note = { id: "nDrag", text: "SHARP EDGES", x, y };
+  doc.notes.push(note);
+  return note;
+};
+
+const itemFor = (controller, key, id, type) =>
+  controller.scene().items.find((item) => item[key] === id && item.type === type);
+
+/* Where a horizontal dimension's own line sits, which is what a user grabs.
+   Pressing anywhere else on it is a legitimate drag too, but the offset is
+   recomputed from the pointer rather than nudged, so the arithmetic below would
+   be measuring the press point rather than the movement. */
+function dimLineAt(controller, dim) {
+  const built = controller.scene();
+  const place = built.views.find((entry) => entry.id === dim.viewId);
+  const shown = built.dims.get(dim.id).dim;
+  const a = place.toSheet(shown.refs[0]), b = place.toSheet(shown.refs[1]);
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - dim.offset };
+}
+
+test("a dragged view is one undo step, and undo puts it back", () => {
+  const rig = drafting();
+  const controller = rig.controller;
+  const place = controller.scene().views.find((entry) => entry.view.dir === "front");
+  const before = { x: place.x, y: place.y };
+  /* ensureSheetDoc rebuilds every view object on each read, so a view is looked
+     up fresh rather than held. */
+  const stored = () => rig.document.drawing.views.find((view) => view.id === place.id);
+  assert.equal(stored().x, null, "an undragged view carries no pinned position");
+
+  dragBy(controller, { x: place.box.x + place.box.w / 2, y: place.box.y + place.box.h / 2 }, 24, -9);
+  near(stored().x, before.x + 24, "the view moved with the pointer");
+  near(stored().y, before.y - 9, "on both axes, since the primary view is free");
+  assert.deepEqual(rig.steps(), ["opMoveView"], "one step for the whole gesture, not one per move");
+
+  assert.equal(rig.undo(), "opMoveView");
+  const back = rig.document.drawing.views.find((view) => view.id === place.id);
+  assert.equal(back.x, null, "undo restores the document as it was, null and all");
+  assert.equal(back.y, null);
+});
+
+test("a dragged dimension and a dragged note are each one undo step", () => {
+  const rig = drafting();
+  const controller = rig.controller;
+  const doc = rig.document.drawing;
+  const note = noteAt(doc, 30, 40);
+  controller.invalidate();
+
+  const dim = doc.dims[0];
+  const wasOffset = dim.offset;
+  dragBy(controller, dimLineAt(controller, dim), 0, -7);
+  near(dim.offset, wasOffset + 7, "a horizontal dimension's offset is measured up from the model");
+
+  const label = itemFor(controller, "noteId", note.id, "text");
+  dragBy(controller, { x: label.x + 2, y: label.y - label.size * 0.4 }, 12, 5);
+  near(note.x, 42, "the note followed the pointer");
+  near(note.y, 45);
+
+  assert.deepEqual(rig.steps(), ["opMoveDim", "opMoveNote"]);
+  assert.equal(rig.undo(), "opMoveNote");
+  const afterNoteUndo = rig.document.drawing;
+  assert.deepEqual(
+    [afterNoteUndo.notes[0].x, afterNoteUndo.notes[0].y], [30, 40], "undo puts the note back");
+  near(afterNoteUndo.dims[0].offset, wasOffset + 7, "and leaves the dimension where the earlier step left it");
+  assert.equal(rig.undo(), "opMoveDim");
+  near(rig.document.drawing.dims[0].offset, wasOffset, "the second undo unwinds the dimension");
+});
+
+test("Escape during a drag puts the thing back and leaves no step behind", () => {
+  const rig = drafting();
+  const controller = rig.controller;
+  const doc = rig.document.drawing;
+  const note = noteAt(doc, 30, 40);
+  controller.invalidate();
+
+  const place = controller.scene().views.find((entry) => entry.view.dir === "front");
+  const stored = () => rig.document.drawing.views.find((view) => view.id === place.id);
+  dragBy(controller, { x: place.box.x + place.box.w / 2, y: place.box.y + place.box.h / 2 }, 40, 25, { escape: true });
+  assert.equal(stored().x, null, "the view never moved");
+  assert.equal(stored().y, null);
+
+  const dim = doc.dims[0], wasOffset = dim.offset;
+  dragBy(controller, dimLineAt(controller, dim), 0, -14, { escape: true });
+  assert.equal(dim.offset, wasOffset, "the dimension never moved");
+
+  const label = itemFor(controller, "noteId", note.id, "text");
+  dragBy(controller, { x: label.x + 2, y: label.y - label.size * 0.4 }, -20, 30, { escape: true });
+  assert.deepEqual([note.x, note.y], [30, 40], "the note never moved");
+
+  assert.deepEqual(rig.steps(), [], "three abandoned gestures, no undo entries");
+});
+
+test("a click that never became a drag is not an edit", () => {
+  const rig = drafting();
+  const controller = rig.controller;
+  const place = controller.scene().views.find((entry) => entry.view.dir === "front");
+  const centre = { x: place.box.x + place.box.w / 2, y: place.box.y + place.box.h / 2 };
+  controller.pointerDown({ button: 0 }, ...pixels(controller, centre));
+  controller.pointerUp({ button: 0 }, ...pixels(controller, centre));
+  assert.deepEqual(controller.selection(), { kind: "view", id: place.id }, "it selected, which is what a click is for");
+  assert.deepEqual(rig.steps(), [], "and left no no-op step in the history");
+  assert.equal(rig.document.drawing.views.find((view) => view.id === place.id).x, null,
+    "nor pinned the view where the layout happened to put it");
 });

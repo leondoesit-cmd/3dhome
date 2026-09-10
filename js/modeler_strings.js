@@ -253,6 +253,8 @@ export var TXT = {
   opSheetTitle: ["בלוק כותרת", "Title block"],
   panDrawing: ["הזזת גיליון", "Pan sheet"],
   opMoveDim: ["הזזת מידה", "Move dimension"],
+  opMoveView: ["הזזת מבט", "Move view"],
+  opMoveNote: ["הזזת הערה", "Move note"],
   modelPlaneHint: ["עבודה על מישור", "Working plane"],
   exitPlane: ["סיום עבודה על המישור", "Finish plane editing"],
   quickTools: ["מידול מהיר", "Quick model"],

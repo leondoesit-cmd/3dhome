@@ -497,6 +497,46 @@ export function createDrawingController(host) {
     host.markDirty();
   }
 
+  /* ---- layout drags ------------------------------------------------------ */
+
+  /* Moving a view, a dimension or a note is one edit, however many pointermoves
+     it took. So the step is opened while the document is still untouched and
+     named on pointerup — the same begin/commit gesture the plan drags use (see
+     beginHistory/commitPending in history.js) rather than a push per frame.
+
+     A gesture that goes nowhere leaves no step: the pre-drag values are put
+     back from state.drag and the provisional node is dropped. Restoring here
+     rather than through the history's own rollback matters because EVERY click
+     on a view opens a drag — a snapshot restore and a full document rebuild per
+     click would be the cure being worse than the disease. */
+  function beginLayout(label) { if (host.beginUndo) host.beginUndo(host.t(label)); state.drag.label = label; }
+
+  /* @returns true if the document actually moved back, so a plain click — a
+     drag that never had a pointermove — does not throw the scene away. */
+  function restoreLayout(drag) {
+    const doc = host.doc();
+    const target = drag.mode === "view" ? doc.views.find((entry) => entry.id === drag.id)
+      : drag.mode === "note" ? (doc.notes || []).find((entry) => entry.id === drag.id)
+        : (doc.dims || []).find((entry) => entry.id === drag.id);
+    if (!target) return false;
+    const raw = drag.raw || {};
+    const was = drag.mode === "dim" ? [target.offset, target.angle] : [target.x, target.y];
+    if (drag.mode === "dim") { target.offset = raw.offset; target.angle = raw.angle; }
+    else { target.x = raw.x; target.y = raw.y; }
+    const now = drag.mode === "dim" ? [target.offset, target.angle] : [target.x, target.y];
+    if (was[0] === now[0] && was[1] === now[1]) return false;
+    state.scene = null;
+    return true;
+  }
+
+  function commitLayout(drag) { if (host.commitUndo) host.commitUndo(drag.label ? host.t(drag.label) : ""); }
+
+  function cancelLayout(drag) {
+    const moved = restoreLayout(drag);
+    if (host.cancelUndo) host.cancelUndo();
+    return moved;
+  }
+
   /* ---- pointer ----------------------------------------------------------- */
 
   function pointerDown(event, x, y) {
@@ -578,13 +618,23 @@ export function createDrawingController(host) {
       state.drag = {
         mode: "view", id: hit.id, x, y,
         startX: num(view.x, place.x), startY: num(view.y, place.y), align: place.align,
+        /* Cancel restores what the DOCUMENT held, which is not startX/startY: a
+           view that has never been dragged carries null ("wherever the layout
+           puts me"), and writing the laid-out number back would quietly pin
+           it. */
+        raw: { x: view.x, y: view.y },
       };
+      beginLayout("opMoveView");
     } else if (hit?.kind === "dim") {
       const dim = host.doc().dims.find((entry) => entry.id === hit.id);
-      state.drag = { mode: "dim", id: hit.id, x, y, offset: num(dim.offset, 10), angle: num(dim.angle, -Math.PI / 4) };
+      state.drag = { mode: "dim", id: hit.id, x, y, offset: num(dim.offset, 10), angle: num(dim.angle, -Math.PI / 4),
+        raw: { offset: dim.offset, angle: dim.angle } };
+      beginLayout("opMoveDim");
     } else if (hit?.kind === "note") {
       const note = host.doc().notes.find((entry) => entry.id === hit.id);
-      state.drag = { mode: "note", id: hit.id, x, y, startX: num(note.x), startY: num(note.y) };
+      state.drag = { mode: "note", id: hit.id, x, y, startX: num(note.x), startY: num(note.y),
+        raw: { x: note.x, y: note.y } };
+      beginLayout("opMoveNote");
     } else {
       state.drag = { mode: "pan", x, y, ox: state.ox, oy: state.oy };
     }
@@ -684,7 +734,8 @@ export function createDrawingController(host) {
       return true;
     }
     if (drag?.mode === "view" || drag?.mode === "dim" || drag?.mode === "note") {
-      if (Math.hypot(x - drag.x, y - drag.y) > 2) host.markDirty();
+      if (Math.hypot(x - drag.x, y - drag.y) > 2) { commitLayout(drag); host.markDirty(); }
+      else cancelLayout(drag);
       return true;
     }
     host.refresh();
@@ -914,6 +965,15 @@ export function createDrawingController(host) {
   function keyDown(event) {
     const key = event.key;
     if (key === "Escape") {
+      /* An in-flight layout drag outranks the draft/tool/selection ladder
+         below: the gesture on screen is the one the user is escaping from. */
+      if (state.drag && (state.drag.mode === "view" || state.drag.mode === "dim" || state.drag.mode === "note")) {
+        const drag = state.drag;
+        state.drag = null;
+        cancelLayout(drag);
+        host.refresh();
+        return true;
+      }
       if (state.draft) { state.draft = null; host.refresh(); return true; }
       if (state.tool !== "select") { setTool("select"); return true; }
       if (state.selection) { state.selection = null; host.refresh(); return true; }
