@@ -679,3 +679,10 @@ export function initCabinetMobile() {
 export function refreshCabinetMobile() {
   sync(true);
 }
+
+export function showCabinetPropertiesMobile() {
+  if (host && host.classList.contains("cb-compact")) {
+    closeSheet();
+    showSheet("props");
+  }
+}

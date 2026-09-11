@@ -81,7 +81,7 @@ test("two fingers undo and three redo through one detector", () => {
 });
 
 test("double-click acts on what it landed on, not on the standing selection", () => {
-  const block = interaction.slice(interaction.indexOf('plan.addEventListener("dblclick"'));
+  const block = interaction.slice(interaction.indexOf('function doubleClick('));
   assert.match(block, /var op = hitOpening\(px, pz\);[\s\S]*?flipSwing/);
   assert.match(block, /var it = hitItem\(px, pz\);[\s\S]*?rotSel90/);
   assert.match(block, /if \(S\.tool && S\.tool !== "select"\) return;/);
@@ -154,7 +154,7 @@ test("every route to a floor goes through one setter that drops the custom image
 });
 
 test("the plan's biggest target is double-tapped last", () => {
-  const block = interaction.slice(interaction.indexOf('plan.addEventListener("dblclick"'));
+  const block = interaction.slice(interaction.indexOf('function doubleClick('));
   const opening = block.indexOf("hitOpening");
   const item = block.indexOf("hitItem");
   const room = block.indexOf("hitRoom");

@@ -13,7 +13,12 @@ async function openEditor(width, height, lang) {
   await page.setLang(lang);
   await page.goto("/");
   await page.waitForBoot();
-  await page.eval(() => document.getElementById("openModelerTop").click());
+  // Each viewport case starts a fresh document. A preceding case may have
+  // autosaved its profile; recovery belongs to the dedicated recovery tests.
+  await page.eval(() => {
+    localStorage.removeItem("home3d_modeler_draft");
+    document.getElementById("openModelerTop").click();
+  });
   await page.waitUntil(() => !!document.getElementById("mdWelcomeClose"));
   await page.eval(() => document.getElementById("mdWelcomeClose").click());
 }
@@ -65,13 +70,13 @@ for (const [width, height, lang] of [[344, 812, "en"], [390, 844, "he"], [717, 8
         const hit = document.elementFromPoint(form.left + form.width / 2, form.top + 16);
         return { gap: form.top - head.bottom, height: form.height, right: form.right,
           sheetRight: sheet.right, bottomGap: ctx.top - sheet.bottom,
-          hitForm: !!hit?.closest("#mdQuickSettings") };
+          hit: hit?.outerHTML.slice(0, 400), hitForm: !!hit?.closest("#mdQuickSettings") };
       });
       assert.ok(layout.gap < 35, JSON.stringify(layout));
       assert.ok(layout.height > 230, JSON.stringify(layout));
       assert.ok(layout.right <= layout.sheetRight, JSON.stringify(layout));
       assert.ok(Math.abs(layout.bottomGap) < 3, JSON.stringify(layout));
-      assert.ok(layout.hitForm, "canvas overlays intercepted the form");
+      assert.ok(layout.hitForm, JSON.stringify(layout));
       // Simulate the inset supplied by visualViewport. This tests layout, not
       // an actual OS keyboard, which still needs physical-device verification.
       await page.eval(() => document.documentElement.style.setProperty("--kb", "280px"));

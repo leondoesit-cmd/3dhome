@@ -432,6 +432,7 @@ test("a placed dimension binds to the model's own topology, and a lost one is li
  * itself when the box it names changes size. */
 test("a box corner binds as exactly as a cylinder rim, and follows the box", opts, async () => {
   const page = await sheetPage();
+  await page.waitUntil(()=>window.cadDecoGroups?.some(entry=>entry.part?.id==='p1'),{what:'base preview geometry'});
   const result = await page.eval(async () => {
     const sheet = window.cadDrawingSheet, canvas = document.getElementById("mdCanvas");
     const rect = canvas.getBoundingClientRect(), state = sheet.state;

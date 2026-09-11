@@ -31,6 +31,7 @@ import { createAdopter } from "./runtime/adopt.js";
 import { createRenderer } from "./runtime/render.js";
 import { createSlots } from "./runtime/slots.js";
 import { createVariants } from "./runtime/variants.js";
+import { applyScopedLayout, presentation, scopeTokens } from "./model/layout_scope.js";
 import { accel, matchesLetter } from "./runtime/keys.js";
 import { createNullStorage } from "./adapters/storage_none.js";
 
@@ -53,10 +54,9 @@ export function createUIKit(options) {
   const defaults = opts.defaults || null;
   /* Variables the host is willing to let a user retheme, and the layouts it
      ships as starting points. Both are the host's vocabulary, not uikit's. */
-  const getPresets = () => (typeof opts.presets === "function" ? opts.presets() : Array.isArray(opts.presets) ? opts.presets : []);
+  const getPresets = (scope) => (typeof opts.presets === "function" ? opts.presets(scope) : Array.isArray(opts.presets) ? opts.presets : []);
   const getTokens = () => (typeof opts.tokens === "function" ? opts.tokens() : Array.isArray(opts.tokens) ? opts.tokens : []);
   const tokenSpecs = getTokens();
-  const presets = getPresets();
   const allowedTokens = tokenSpecs.map((spec) => spec.name).filter(Boolean);
 
   let doc = null;
@@ -419,10 +419,10 @@ export function createUIKit(options) {
     /* ---- document-level ------------------------------------------------ */
 
     tokens: () => getTokens().slice(),
-    presets: () => getPresets().map((p) => ({ id: p.id, label: p.label, key: p.key, description: p.description, preview: p.preview })),
+    presets: () => getPresets(api.variant).map((p) => ({ id: p.id, label: p.label, key: p.key, description: p.description, preview: p.preview })),
 
     savedLayouts() {
-      const saved = storage.load(storageKey + ":saved");
+      const saved = storage.load(storageKey + ":saved" + (api.variant === "base" ? "" : ":" + api.variant));
       return Array.isArray(saved) ? saved.filter((item) => item && typeof item.id === "string"
         && typeof item.name === "string" && item.doc && item.doc.nodes).map(({ id, name }) => ({ id, name })) : [];
     },
@@ -430,19 +430,20 @@ export function createUIKit(options) {
     saveNamedLayout(name) {
       const title = String(name || "").trim().slice(0, 60);
       if (!title || !doc) return false;
-      const loaded = storage.load(storageKey + ":saved");
+      const key = storageKey + ":saved" + (api.variant === "base" ? "" : ":" + api.variant);
+      const loaded = storage.load(key);
       const saved = Array.isArray(loaded) ? loaded.filter((item) => item && item.doc && typeof item.id === "string" && typeof item.name === "string") : [];
-      saved.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name: title, doc });
-      return storage.save(storageKey + ":saved", saved);
+      saved.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name: title, scope: api.variant, doc });
+      return storage.save(key, saved);
     },
 
     loadNamedLayout(id) {
-      const saved = storage.load(storageKey + ":saved");
+      const saved = storage.load(storageKey + ":saved" + (api.variant === "base" ? "" : ":" + api.variant));
       const found = Array.isArray(saved) && saved.find((item) => item && item.id === id && item.doc);
       if (!found) return false;
       const next = typeof opts.migrateDocument === "function" ? opts.migrateDocument(found.doc) || found.doc : found.doc;
       const report = normalizeDoc(next);
-      api.apply("Layout: " + found.name, report.doc);
+      api.apply("Layout: " + found.name, applyScopedLayout(doc, report.doc, api.variant, found.scope || "base"));
       api.refreshNow();
       return true;
     },
@@ -450,27 +451,26 @@ export function createUIKit(options) {
     /* Keep the preset selector honest after undo, redo, import and edits. */
     matchingPreset() {
       if (!doc) return null;
-      const current = JSON.stringify(doc);
-      for (const preset of getPresets()) {
+      const signature = (value, scope) => JSON.stringify([presentation(value, scope), scopeTokens(value, scope)]);
+      const current = signature(doc, api.variant);
+      for (const preset of getPresets(api.variant)) {
         const built = typeof preset.doc === "function" ? preset.doc() : preset.doc;
         if (!built) continue;
         const report = normalizeDoc(built);
-        if (JSON.stringify(report.doc) === current) return preset.id;
+        if (signature(report.doc, "base") === current) return preset.id;
       }
       return null;
     },
 
-    /* A preset REPLACES the document. It is not a merge: a starting point that
-       half-applies over whatever was there is neither the preset nor what the
-       user had, and there is no way to describe the result to them. Undoable,
-       unlike resetAll — picking a preset is a choice, not an escape. */
+    /* Replace this screen’s presentation while preserving other screen layouts.
+       Preset choices participate in the same undo history as manual edits. */
     applyPreset(id) {
-      const preset = presets.find((p) => p.id === id);
+      const preset = getPresets(api.variant).find((p) => p.id === id);
       if (!preset) return null;
       const built = typeof preset.doc === "function" ? preset.doc() : preset.doc;
       if (!built) return null;
       const report = normalizeDoc(built);
-      history.apply("Preset: " + (preset.label || id), report.doc);
+      history.apply("Preset: " + (preset.label || id), applyScopedLayout(doc, report.doc, api.variant));
       doc = history.doc;
       problems = report.problems;
       api.save();

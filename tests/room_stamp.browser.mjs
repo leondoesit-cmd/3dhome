@@ -233,6 +233,9 @@ test("a selected room can be resized by pulling its side, and stops before colla
       const q = window.__rs, S = q.S;
       q.blank();
       q.stamp("bedroom", 0, 0);                    // 350 x 300 clear, 360 x 310 centreline
+      // Keep this geometry check away from the viewport edge: edge panning
+      // deliberately changes world coordinates underneath a stationary pointer.
+      S.SC *= 0.65; q.plan2d.render2DNow();
       const key = q.geom.detectRooms()[0].key;
       q.select({ kind: "room", ref: key });
       const ui = await import("/js/ui.js");

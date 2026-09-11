@@ -453,7 +453,7 @@ function ensureCharacter(radiusM, halfM) {
   return true;
 }
 
-export function moveCharacterCm(x, y, z, dx, dy, dz, radius, height) {
+export function moveCharacterCm(x, y, z, dx, dy, dz, radius, height, profile) {
   const r = Math.max(8, radius || 18) * CM_TO_M;
   const h = Math.max(r * 2 + 0.04, (height || 165) * CM_TO_M);
   const half = Math.max(0.02, h / 2 - r);
@@ -464,6 +464,13 @@ export function moveCharacterCm(x, y, z, dx, dy, dz, radius, height) {
   const originY = y * CM_TO_M + r + half + 0.005;
   charRaw.setTranslation({ x: x * CM_TO_M, y: originY, z: z * CM_TO_M }, true);
   ctx.world.raw.propagateModifiedBodyPositionsToColliders();
+  if (profile) {
+    if (profile.stepHeight > 0) charController.enableAutostep(profile.stepHeight*CM_TO_M, Math.max(.01,radius*CM_TO_M), true);
+    else charController.disableAutostep();
+    charController.setMaxSlopeClimbAngle(profile.slopeLimit*Math.PI/180);
+    charController.setMinSlopeSlideAngle(profile.slopeLimit*Math.PI/180);
+    charController.enableSnapToGround(.05);
+  }
   charController.computeColliderMovement(
     charCollider,
     { x: dx * CM_TO_M, y: dy * CM_TO_M, z: dz * CM_TO_M },

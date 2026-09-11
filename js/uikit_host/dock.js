@@ -49,47 +49,13 @@ const DEFAULT_AXIS = {
   "top-left": "v", "top-right": "v", "bottom-left": "v", "bottom-right": "v",
 };
 
-/* The dock's own starting arrangement, as document nodes: the three tool
-   panels against the left edge, the status strip along the top. */
-const HOME = { tools: "left", layers: "left", walls: "left", rooms: "left", status: "top" };
-
-/* What the dock had arranged before the document existed.
- *
- * This is the migration, and it matters: someone who has already dragged the
- * layer chips to the bottom-right corner must not have that undone the first
- * time they open customize mode. The dock's own store is read once, to seed a
- * document that does not yet describe the dock; after that the document is
- * the truth and this is never consulted again. */
-function seedFromDockPrefs() {
-  let saved = null;
-  try {
-    saved = JSON.parse(localStorage.getItem("home3d_plan_dock") || "null");
-  } catch (_) {
-    saved = null;
-  }
-  const seed = { panels: {}, zones: {} };
-  for (const key of PANEL_KEYS) seed.panels[key] = { zone: HOME[key], order: PANEL_KEYS.indexOf(key) };
-  if (!saved) return seed;
-  // the very first version of the dock stored one edge for the whole cluster
-  if (typeof saved.dock === "string" && ZONES.indexOf(saved.dock) >= 0) {
-    for (const key of PANEL_KEYS) seed.panels[key].zone = saved.dock;
-    return seed;
-  }
-  for (const key of PANEL_KEYS) {
-    const q = saved.panels && saved.panels[key];
-    if (!q) continue;
-    if (ZONES.indexOf(q.zone) >= 0) seed.panels[key].zone = q.zone;
-    if (typeof q.order === "number" && isFinite(q.order)) seed.panels[key].order = q.order;
-  }
-  for (const zone of ZONES) {
-    const q = saved.zones && saved.zones[zone];
-    if (q) seed.zones[zone] = { axis: q.axis, flow: q.flow };
-  }
-  return seed;
-}
+/* Main commands and contextual submenus form two top rows; layers live at the side. */
+const HOME = { tools: "top", layers: "left", walls: "top", rooms: "top", status: "left" };
 
 export function dockLayoutNodes() {
-  const seed = seedFromDockPrefs();
+  // A preset is deterministic; saved layouts are restored separately.
+  const seed = { panels: {}, zones: { top: { axis: "h", flow: "column" }, left: { axis: "v", flow: "column" } } };
+  for (const key of PANEL_KEYS) seed.panels[key] = { zone: HOME[key], order: PANEL_KEYS.indexOf(key) };
   const nodes = {};
   for (const zone of ZONES) {
     const zs = seed.zones[zone] || {};

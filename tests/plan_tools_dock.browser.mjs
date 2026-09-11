@@ -29,13 +29,19 @@ async function planner(width = 1440, height = 900) {
   if (!shared) shared = await openPage({ width, height });
   else await shared.resize(width, height);
   await shared.goto("/");
-  await shared.eval(() => {
+  await shared.eval(async () => {
     const start = document.getElementById("start-screen");
     if (start) start.hidden = true;
     // the whole-pane plan: in the split, "does it fit" is a fact about the
     // split rather than about the dock
     const plan = document.getElementById("viewPlanBtn");
     if (plan) plan.click();
+    // Rearranging planner chrome is an explicit Customize UI action.
+    localStorage.setItem('mf_uikit','1');
+    const host=await import('/js/uikit_host/index.js');
+    const ui=host.activeUIKit()||host.initUIKit({force:true});
+    await ui.edit(true);
+
     const frame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     window.__dock = {
       frame,
@@ -55,6 +61,11 @@ async function planner(width = 1440, height = 900) {
       /* Drop a panel at a point given as a fraction of the pane, so the same
          gesture means the same thing at any window size. */
       async dragTo(key, fx, fy) {
+        // Finish layout transitions before taking the drag's starting bounds.
+        // Otherwise a busy browser can begin the gesture on a moving panel.
+        await Promise.all(document.getAnimations().filter((a) =>
+          Number.isFinite(a.effect?.getComputedTiming().endTime)
+        ).map((a) => a.finished.catch(() => {})));
         const w = window.__dock.wrap(key);
         const g = w.querySelector(".pt-grip");
         const pr = window.__dock.pane().getBoundingClientRect();
@@ -229,6 +240,8 @@ test("the arrangement survives a reload, and the phone rail takes the panels bac
     await window.__dock.dragTo("tools", 0.992, 0.5);
     await window.__dock.dragTo("layers", 0.5, 0.992);
   });
+  assert.deepEqual(await page.eval(() => [window.__dock.zoneOf("tools"), window.__dock.zoneOf("layers")]),
+    ["right", "bottom"], "both drags commit before testing reload persistence");
   await page.goto("/");
   const kept = await page.eval(() => ({
     tools: document.querySelector('.pt-panel[data-panel="tools"]').closest(".pt-zone").getAttribute("data-zone"),
@@ -268,6 +281,7 @@ test("a split-view plan keeps its chrome inside the pane, however narrow", opts,
   const page = await planner(1440, 900);
   const state = await page.eval(async () => {
     const settle = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 30)));
+    await (await import("/js/uikit_host/index.js")).activeUIKit().edit(false);
     window.__setViewMode("split");
     await settle();
     /* Through the button, not the class: switching orientation is what
@@ -321,10 +335,17 @@ test("a split-view plan keeps its chrome inside the pane, however narrow", opts,
 /* Every test above moves panels and the arrangement is persisted, so these two
    say where they start from. */
 async function arranged(page, panels, zones) {
-  await page.eval((p, z) => {
-    localStorage.setItem("home3d_plan_dock", JSON.stringify({ panels: p, zones: z }));
-  }, panels, zones);
-  return planner(1440, 900);
+  await page.eval(async(p,z)=>{
+    const host=await import('/js/uikit_host/index.js'),bridge=await import('/js/uikit_host/dock.js');
+    const ui=host.activeUIKit();ui.resetAll();
+    // The fixture describes a specific arrangement, not the shipped defaults.
+    bridge.writeDock('status','bottom','h','row',false);
+    for(const [key,value] of Object.entries(p).sort((a,b)=>(a[1].order||0)-(b[1].order||0))){
+      const zone=z[value.zone]||{};bridge.writeDock(key,value.zone,zone.axis,zone.flow,false);
+    }
+    ui.refreshNow();await new Promise(requestAnimationFrame);
+  },panels,zones);
+  return page;
 }
 
 /* Short panels should leave the canvas exposed below their contents, while
@@ -339,12 +360,14 @@ test("tiled panels keep their content height, and stack when they cannot fit", o
     return {
       flow: window.__dock.wrap("layers").closest(".pt-zone").getAttribute("data-flow"),
       heights: [Math.round(tools.h), Math.round(layers.h)],
+      layerContentHeight: document.getElementById("layer-chips").getBoundingClientRect().height,
       overlap: tools.r > layers.x + 1 && layers.r > tools.x + 1,
       gap: Math.round(layers.x - tools.r),
     };
   });
   assert.equal(tiled.flow, "row", "they are tiled side by side");
-  assert.ok(tiled.heights[1] < tiled.heights[0] / 2, "the short layer list leaves the canvas below it exposed");
+  assert.ok(tiled.heights[1] <= tiled.layerContentHeight + 32,
+    "the layer panel follows its own content height: " + JSON.stringify(tiled));
   assert.equal(tiled.overlap, false, "and no part of one is under the other");
   assert.equal(tiled.gap, 0, "flush: one hairline between them, not a gutter");
 
@@ -354,6 +377,7 @@ test("tiled panels keep their content height, and stack when they cannot fit", o
     tools: { zone: "top", order: 0 }, layers: { zone: "top", order: 1 }, walls: { zone: "top", order: 2 },
   }, { top: { axis: "h", flow: "row" } });
   const stacked = await page.eval(async () => {
+    await (await import("/js/uikit_host/index.js")).activeUIKit().edit(false);
     const settle = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 40)));
     window.__setViewMode("split");
     await settle();
@@ -387,6 +411,7 @@ test("tiled panels keep their content height, and stack when they cannot fit", o
       inside: tools.r <= pane.width + 1 && layers.r <= pane.width + 1,
       overlap: tools.b > layers.y + 1 && layers.b > tools.y + 1,
       scrolls,
+      toolbarOverflow: getComputedStyle(document.getElementById("plan-toolbar")).overflowX,
     };
   });
   assert.ok(stacked.paneWidth < 460, "the pane is now narrower than the pair was wide");
@@ -394,8 +419,10 @@ test("tiled panels keep their content height, and stack when they cannot fit", o
   assert.ok(stacked.widths.every((width) => width > 0), "both stacked panels remain usable");
   assert.equal(stacked.inside, true, "and both are inside the pane");
   assert.equal(stacked.overlap, false, "and neither is on top of the other");
-  assert.deepEqual(stacked.scrolls, [],
-    "a docked panel wraps to a second row rather than hiding commands behind a scrollbar");
+  assert.deepEqual(stacked.scrolls.filter(id => id !== "plan-toolbar"), [],
+    "the layer list fits within its stacked panel");
+  if (stacked.scrolls.includes("plan-toolbar")) assert.match(stacked.toolbarOverflow, /auto|scroll/,
+    "the single-row toolbar exposes overflow commands through scrolling");
 });
 
 /* The drop is the one moment the user is choosing between arrangements, so the

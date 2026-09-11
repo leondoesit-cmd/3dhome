@@ -1,3 +1,4 @@
+import { sx, sz, wx, wz, rotatePx, toBasePx, planRotRad, inputScale, inputBounds, inputIs3D, plannerInputView, setPlannerInputView, registerPlannerController } from "./planner_input.js";
 import { generatedChangePermission, captureProtectedStructure, validateProtectedStructure } from "./redesign.js";
 // Pointer/keyboard interaction: hit-testing, tools, drag/draw, and structural edit operations.
 import { S, WALL_T, WALL_H, uid, fin, clamp, SNAP_GRID, throttle, touchItem3D } from "./state.js";
@@ -40,7 +41,7 @@ import { FURN, isLamp, itemVSpan, mkItem } from "./furniture.js";
 import { holdToWall, reseatHeldItems } from "./item_align.js";
 import { applyAutoFace, markManualRot, rotStep } from "./item_orient.js";
 import { t, tTouch } from "./i18n.js";
-import { plan, render2D, fitView, sx, sz, wx, wz, rotatePx, dropPoint, toBasePx, planRotRad, pickCon, touchLensDistanceMap, setDragProxy, clearDragProxy } from "./plan2d.js";
+import { plan, render2D, fitView, dropPoint, pickCon as flatPickCon, touchLensDistanceMap, setDragProxy, clearDragProxy } from "./plan2d.js";
 import { select, fillProps, refreshTree, flash, setLockStruct, placeFurnAt } from "./ui.js";
 import { syncWallEnd } from "./ui_props.js";
 import {
@@ -54,6 +55,7 @@ import {
   beginHistoryTransaction,
   commitHistoryTransaction,
   abortHistoryTransaction,
+  captureHistorySession, restoreHistorySession,
 } from "./history.js";
 import { isWalk } from "./view3d.js";
 import { layerRank, layerOf, canDrag, isLayerLocked, isLayerHidden } from "./layers.js";
@@ -63,7 +65,7 @@ import {
   finishRoute, cancelMEP, cancelRoute, deleteMEP, detachNodesFromWalls, runCrossesOpening,
 } from "./mep.js";
 import {
-  isElevation, elevationHit, elevPick, elevDragTo, elevNudge,
+  isElevation as flatIsElevation, elevationHit, elevPick, elevDragTo, elevNudge,
   elevWallAt, elevItemGrab, elevDragItemTo, elevNudgeItem,
   elevOpeningGrab, elevDragOpeningTo, elevNudgeOpening,
 } from "./elevation.js";
@@ -124,6 +126,9 @@ import {
   executeCommand, executeCommandBatch, executePrepared, plannerCommand, prepareCommand, previewPrepared,
 } from "./commands/index.js";
 
+function pickCon(x,y){return inputIs3D()?plannerInputView()?.constraint||null:flatPickCon(x,y);}
+function isElevation() { return !inputIs3D() && flatIsElevation(); }
+
 const PLANNER_COMMAND_HISTORY = Object.freeze({
   current: currentHistoryId,
   begin: beginHistoryTransaction,
@@ -144,7 +149,7 @@ export function setPickSlop(pointerType) {
 // Screen px of tolerance -> world cm, slop applied. Guards the degenerate
 // transform (SC 0/NaN) the same way the call sites used to do by hand.
 function tolCm(px) {
-  var v = (px * PICK_SLOP) / S.SC;
+  var v = (px * PICK_SLOP) / inputScale();
   return isFinite(v) && v > 0 ? v : px * PICK_SLOP;
 }
 /* ---- shared broad phase --------------------------------------------------
@@ -486,7 +491,7 @@ function hitWall(px, pz) {
 export function updateWallProbe(px, pz) {
   // before the first render the scale is 0, which makes hitWall's screen-space
   // tolerance infinite — every wall would answer
-  var w = S.SC > 0 ? hitWall(px, pz) : null;
+  var w = inputScale() > 0 ? hitWall(px, pz) : null;
   if (!w) {
     if (S.wallProbe) S.wallProbe = null;
     return;
@@ -595,7 +600,7 @@ function alignItem(nx, nz, it) {
   if (S.snapObj === false) return { x: nx, z: nz };
 
   var mul = snapMul(),
-    thr = (8 * mul) / S.SC,
+    thr = (8 * mul) / inputScale(),
     he = it ? halfExtents(it) : { hx: 0, hz: 0 },
     itemsX = [],
     itemsZ = [],
@@ -1469,7 +1474,7 @@ function rehomeDraggedRoom(drag, oldKey) {
    The radius is in pixels so it stays grabbable at any zoom. */
 function pickRoomEdge(px, pz) {
   if (!S.sel || S.sel.kind !== "room") return null;
-  var reach = 11 / S.SC, best = null;
+  var reach = 11 / inputScale(), best = null;
   roomEdgeHandles(S.sel.ref).forEach(function (h) {
     var d = Math.hypot(h.x - px, h.z - pz);
     if (d <= reach && (!best || d < best.d)) best = Object.assign({ d: d }, h);
@@ -2057,7 +2062,7 @@ export function snapPoint(px, pz, fromIdx) {
   var origins =
     fromIdx == null ? [] : Array.isArray(fromIdx) ? fromIdx.slice() : [fromIdx];
   var mul = snapMul();
-  var thr = (14 * mul) / S.SC;
+  var thr = (14 * mul) / inputScale();
   if (!isFinite(thr) || thr <= 0) thr = 14 * mul; // degenerate transform: fixed cm
   S.snapGuides = []; // recomputed below; stale guides must never linger
   S.snapInfo = null; // ditto — the HUD must never show the previous latch
@@ -2094,7 +2099,7 @@ export function snapPoint(px, pz, fromIdx) {
     if (d > (REACH[kind] || thr)) return;
     cands.push({
       kind: kind, x: x, z: z, d: d,
-      score: d * (S.SC > 0 ? S.SC : 1) - (SNAP_BONUS[kind] || 0),
+      score: d * (inputScale() > 0 ? inputScale() : 1) - (SNAP_BONUS[kind] || 0),
       extra: extra || {},
     });
   }
@@ -2450,7 +2455,7 @@ export function snapPoint(px, pz, fromIdx) {
          the ray already fixes the 90°, this fixes where it ends. */
       var ux = Math.cos(ang),
         uz = Math.sin(ang),
-        alignTol = (12 * mul) / S.SC;
+        alignTol = (12 * mul) / inputScale();
       if (!isFinite(alignTol) || alignTol <= 0) alignTol = 12 * mul;
       var bestT = null,
         bestGap = alignTol;
@@ -2659,7 +2664,7 @@ function finishConPick(px, pz) {
       if (own) target = { k: "wall", id: own.id, end: own.a === ni ? "a" : "b" };
     }
     if (!target) {
-      var mk = hitMarker(px, pz);
+      var mk = hitMarker(px, pz, inputScale());
       if (mk) target = { k: "marker", id: mk.id };
     }
     if (!target) return endConPick(t("wc_needPoint"));
@@ -3113,7 +3118,7 @@ function healDrawnWallEnds() {
 export function selectAtScreen(ox, oy) {
   var px = wx(ox, oy),
     pz = wz(ox, oy);
-  var hmk = hitMarker(px, pz);
+  var hmk = hitMarker(px, pz, inputScale());
   var ho = hmk ? null : hitOpening(px, pz);
   if (hmk) {
     select({ kind: "marker", ref: hmk });
@@ -3203,7 +3208,7 @@ function blockedDrag(sel) {
   window.dispatchEvent(
     new CustomEvent("layers:blocked-drag", {
       // `where` lets one pill serve both panes; js/view3d.js emits "3d".
-      detail: { sel: sel, layer: id, reason: reason, where: "2d" },
+      detail: { sel: sel, layer: id, reason: reason, where: inputIs3D()?"3d":"2d" },
     }),
   );
 }
@@ -3268,9 +3273,9 @@ function pickErase(px, pz, ox, oy) {
     var hc = pickCon(ox, oy);
     if (hc) return { kind: "con", ref: hc };
   }
-  var hm = hitMEP(px, pz);
+  var hm = hitMEP(px, pz, inputScale());
   if (hm) return hm;
-  var hmk = hitMarker(px, pz);
+  var hmk = hitMarker(px, pz, inputScale());
   if (hmk) return { kind: "marker", ref: hmk };
   var ho = hitOpening(px, pz);
   if (ho) return { kind: "opening", ref: ho };
@@ -4368,9 +4373,9 @@ export function initInteraction() {
       my = (a.y + b.y) / 2;
     pinch = {
       dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
-      wmx: (mx - S.OX) / S.SC,
-      wmy: (my - S.OY) / S.SC,
-      sc: S.SC,
+      wmx: (mx - S.OX) / inputScale(),
+      wmy: (my - S.OY) / inputScale(),
+      sc: inputScale(),
     };
     cancelPending();
     S.wallPress = null; // a second finger turns the gesture into navigation
@@ -4394,8 +4399,8 @@ export function initInteraction() {
         Math.hypot(a.x - twoTap.ax, a.y - twoTap.ay) > TWOTAP_SLOP))
       breakTwoTap();
     S.SC = clamp(pinch.sc * (dist / pinch.dist), 0.08, 6);
-    S.OX = mx - pinch.wmx * S.SC;
-    S.OY = my - pinch.wmy * S.SC;
+    S.OX = mx - pinch.wmx * inputScale();
+    S.OY = my - pinch.wmy * inputScale();
     render2D();
   }
 
@@ -4458,7 +4463,9 @@ export function initInteraction() {
   plan.addEventListener("contextmenu", function (e) {
     e.preventDefault();
   });
-  plan.addEventListener("pointerdown", function (e) {
+  let gestureSession = null;
+  function pointerDown(e) {
+    gestureSession = captureHistorySession();
     setPickSlop(e.pointerType);
     /* Open a snap session for the gesture. It pins which layers may contribute
        candidates (see beginSnapSession) so a panel toggled mid-drag cannot
@@ -4466,7 +4473,7 @@ export function initInteraction() {
        the whole gesture's hit tests and pointermoves. endAction closes it. */
     beginSnapSession();
     if(e.isTrusted)plan.setPointerCapture(e.pointerId);
-    var r = plan.getBoundingClientRect();
+    var r = inputBounds(plan);
     var ox = e.clientX - r.left;
     var oy = e.clientY - r.top;
 
@@ -4859,7 +4866,7 @@ export function initInteraction() {
       // MEP entities are selectable/draggable with the select tool (before items,
       // so a device sitting on furniture is still grabbable)
       if (layerRank("mep") === pass) {
-        var hm = hitMEP(px, pz);
+        var hm = hitMEP(px, pz, inputScale());
         if (hm) {
           var msel = hm.kind === "mepRun" ? { kind: "mepRun", ref: hm.ref } : hm;
           select(msel);
@@ -4959,7 +4966,7 @@ export function initInteraction() {
          ~12px target that is very often standing INSIDE the footprint of the
          object it holds, so anything with a larger hit area would bury it. */
       if (layerRank("annotations") === pass) {
-        var hmk = hitMarker(px, pz);
+        var hmk = hitMarker(px, pz, inputScale());
         if (hmk) {
           var mkSel = { kind: "marker", ref: hmk };
           select(mkSel);
@@ -5212,10 +5219,11 @@ export function initInteraction() {
     // fall back to the select tool
     select(null);
     if (S.tool !== "select") setTool("select");
-    S.action = "pan";
+    S.action = inputIs3D() ? null : "pan";
     S.panStart = { ox: S.OX, oy: S.OY, px: e.offsetX, py: e.offsetY };
     render2D();
-  });
+  }
+  plan.addEventListener("pointerdown", function(e) { setPlannerInputView(null); pointerDown(e); });
 
   /* ---- edge auto-pan ----
      A gesture that reaches the border of the plan canvas — drawing a wall,
@@ -5395,7 +5403,7 @@ export function initInteraction() {
       updatePinch();
       return;
     }
-    var moveRect = plan.getBoundingClientRect();
+    var moveRect = inputBounds(plan);
     var movePoint = planPrecisionPoint(e, e.offsetX, e.offsetY, moveRect, false);
     var px = wx(movePoint.x, movePoint.y),
       pz = wz(movePoint.x, movePoint.y);
@@ -5547,7 +5555,7 @@ export function initInteraction() {
       // a point under the cursor reads itself out without being selected —
       // same precedence as the click path, where a point wins over the piece
       // standing on it
-      S.hoverMarker = focus.annotations ? hitMarker(px, pz) : null;
+      S.hoverMarker = focus.annotations ? hitMarker(px, pz, inputScale()) : null;
       // ...and a corner under it reads out the same way, so "what meets here,
       // at what angle" is answerable without clicking anything
       S.hoverNode = focus.structure && S.hoverMarker == null ? hitNode(px, pz) : null;
@@ -5733,7 +5741,11 @@ export function initInteraction() {
       var wd = S.wallDrag;
       var wdx = Math.round((px - wd.sx) / SNAP_GRID) * SNAP_GRID,
         wdz = Math.round((pz - wd.sz) / SNAP_GRID) * SNAP_GRID,
-        WTHR = 12 / S.SC;
+        WTHR = 12 / inputScale();
+      // A side handle has one degree of freedom. Remove off-axis pointer
+      // motion before angle snapping, otherwise symmetry can turn it into an
+      // unwanted change of the room's width or depth.
+      if (wd.edge) { if (wd.edge.axis === "x") wdz = 0; else wdx = 0; }
       var mine = {};
       wd.orig.forEach(function (o) {
         mine[o.i] = 1;
@@ -5775,8 +5787,8 @@ export function initInteraction() {
           ? equalWallAngleTranslation(wd.wall, base, moveX, moveZ)
           : null,
         strength = fin(S.snapStrength) ? S.snapStrength : 1,
-        catchDist = (8 * strength) / S.SC,
-        previewDist = (28 * strength) / S.SC;
+        catchDist = (8 * strength) / inputScale(),
+        previewDist = (28 * strength) / inputScale();
       S.wallAngleGuide = null;
       if (equal && equal.correction <= previewDist) {
         var caught = equal.correction <= catchDist;
@@ -5852,7 +5864,7 @@ export function initInteraction() {
       commitPending();
       var dx = Math.round((px - S.dragRoom.sx) / SNAP_GRID) * SNAP_GRID,
         dz = Math.round((pz - S.dragRoom.sz) / SNAP_GRID) * SNAP_GRID,
-        THR = 12 / S.SC;
+        THR = 12 / inputScale();
       var inR = {};
       S.dragRoom.orig.forEach(function (o) {
         inR[o.i] = 1;
@@ -5941,12 +5953,31 @@ export function initInteraction() {
   // Movement cancels the long press on the RAW event, not the throttled one:
   // a fast flick can cross the slop and be back before planMove next runs.
   plan.addEventListener("pointermove", trackLongPress);
-  plan.addEventListener("pointermove", throttle(function (e) {
+  const throttledPlanMove=throttle(function (e) {
+    setPlannerInputView(null);
     autoPanFrom(e);
     planMove(e);
-  }));
+  });
+  plan.addEventListener('pointermove',e=>{
+    // offsetX/offsetY are target-relative only during event dispatch. Capture
+    // the canvas coordinates before deferring work to the animation frame.
+    const r=plan.getBoundingClientRect();
+    throttledPlanMove({type:e.type,clientX:e.clientX,clientY:e.clientY,offsetX:e.clientX-r.left,offsetY:e.clientY-r.top,
+      pointerId:e.pointerId,pointerType:e.pointerType,button:e.button,buttons:e.buttons,altKey:e.altKey,shiftKey:e.shiftKey,
+      ctrlKey:e.ctrlKey,metaKey:e.metaKey,timeStamp:e.timeStamp,target:e.target,isTrusted:e.isTrusted,
+      preventDefault:()=>{},stopPropagation:()=>{}});
+  });
 
   function endAction(e) {
+    if (e?.type === "pointercancel") {
+      const active = S.action;
+      cancelLongPress(); stopAutoPan(); dropDragProxy(); endSnapSession();
+      S.wallPress = null;
+      if (active && active !== "pan" && gestureSession) restoreHistorySession(gestureSession);
+      gestureSession = null;
+      S.action = null; S.drag = null; S.dragRoom = null; S.touchContact = null;
+      render2D(); return;
+    }
     cancelLongPress();
     // Every pointerup and pointercancel lands here, so this is the one place a
     // gesture is guaranteed to be over. It has to run before the settle solve
@@ -5967,7 +5998,7 @@ export function initInteraction() {
       var pendingHost = touchHostPlacement;
       touchHostPlacement = null;
       if (e && e.type === "pointerup") {
-        var hostRect = plan.getBoundingClientRect();
+        var hostRect = inputBounds(plan);
         var hostX = e.clientX - hostRect.left, hostY = e.clientY - hostRect.top;
         var hostPoint = planPrecisionPoint(e, hostX, hostY, hostRect, false);
         var hostPx = wx(hostPoint.x, hostPoint.y), hostPz = wz(hostPoint.x, hostPoint.y);
@@ -5985,7 +6016,7 @@ export function initInteraction() {
       var wp = S.wallPress;
       S.wallPress = null;
       if (e && e.type === "pointerup" && S.tool === "wall" && S.drawing) {
-        var wr = plan.getBoundingClientRect(),
+        var wr = inputBounds(plan),
           wox = e.clientX - wr.left,
           woy = e.clientY - wr.top;
         var releasePoint = planPrecisionPoint(e, wox, woy, wr, false);
@@ -6271,7 +6302,9 @@ export function initInteraction() {
       render2D();
     }
   }
-  plan.addEventListener("pointerup", endAction);
+  registerPlannerController({down:pointerDown, move:planMove, up:endAction, cancel:endAction, double:doubleClick});
+  window.addEventListener("planner-cancel-gesture", () => endAction({type:"pointercancel"}));
+  plan.addEventListener("pointerup", e => { setPlannerInputView(null); endAction(e); });
   plan.addEventListener("pointercancel", endAction);
   if (typeof window !== "undefined")
     window.addEventListener("plan:view-axis", syncElevationTools);
@@ -6311,7 +6344,7 @@ export function initInteraction() {
       render2D();
     }
   });
-  plan.addEventListener("dblclick", function (e) {
+  function doubleClick(e) {
     if (S.tool === "wall") return void finishDraw();
     if (S.tool === "arcwall" && S.arcDraft && S.arcDraft.through && S.previewPt)
       return void arcWallPoint(S.previewPt);
@@ -6328,7 +6361,7 @@ export function initInteraction() {
        that make a double-click have already selected whatever the FIRST one
        landed on, so acting on the selection alone would rotate the chair you
        had selected a minute ago when you double-click empty floor next to it. */
-    var r = plan.getBoundingClientRect(),
+    var r = inputBounds(plan),
       ox = e.clientX - r.left,
       oy = e.clientY - r.top,
       px = wx(ox, oy),
@@ -6356,7 +6389,8 @@ export function initInteraction() {
       select({ kind: "room", ref: rk });
       window.__runAction("roomFloor");
     }
-  });
+  }
+  plan.addEventListener("dblclick", e => { setPlannerInputView(null); doubleClick(e); });
 
   plan.addEventListener(
     "wheel",
@@ -6364,15 +6398,15 @@ export function initInteraction() {
       e.preventDefault();
       if (isElevation()) return; // elevations auto-fit; no zoom/pan
       var f = Math.pow(1.0015, -e.deltaY);
-      var r = plan.getBoundingClientRect();
+      var r = inputBounds(plan);
       var ox = e.clientX - r.left, oy = e.clientY - r.top;
       var bx = wx(ox, oy),
         bz = wz(ox, oy);
-      S.SC = clamp(S.SC * f, 0.08, 6);
+      S.SC = clamp(inputScale() * f, 0.08, 6);
       // keep the world point under the cursor fixed (in the rotated base frame)
       var base = toBasePx(ox, oy);
-      S.OX = base.x - bx * S.SC;
-      S.OY = base.y - bz * S.SC;
+      S.OX = base.x - bx * inputScale();
+      S.OY = base.y - bz * inputScale();
       render2D();
     },
     { passive: false },
@@ -6394,7 +6428,7 @@ export function initInteraction() {
     if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
     // Walk/drive modes own the keyboard (WASD, V, G, T…). Without this, keys
     // like Delete or 1-5 kept editing the plan behind the first-person view.
-    if (isWalk()) return;
+    if (isWalk() && inputIs3D() && /^(Key[WASD]|Arrow)/.test(e.code)) return;
     /* A digit typed while the wall tool is rubber-banding means "this exact
        length", not "switch to the door tool" — the precision entry gets first
        refusal on the key before the 1-6 shortcuts below can claim it. */

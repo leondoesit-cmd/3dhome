@@ -40,6 +40,9 @@ async function designing(options = {}) {
     localStorage.removeItem("home3d_uikit:planner");
     window.__ids = (sel) => [...document.querySelector(sel).children]
       .map((e) => e.getAttribute("data-uikit-id") || e.id || e.className);
+    // Flush the guide's queued model read before taking a markup baseline.
+    // A later frame may otherwise update area/door options during this test.
+    (await import("/js/ui_planning_guide.js")).renderPlanningGuide();
     /* Captured BEFORE anything mounts. Mounting reorders the whitespace text
        nodes between the panels — syncChildren inserts elements ahead of the
        cursor and the blank text drifts to the end — so a baseline taken after
@@ -169,7 +172,7 @@ test("the right inspector is resizable but cannot be hidden", opts, async () => 
       hideResult,
       mainHideDisabled,
       mainHideResult,
-      note: document.querySelector(".uikit-ins-note").textContent,
+      note: document.querySelector(".uikit-ins-feedback").textContent,
     };
   });
   assert.deepEqual(result.grips, ["e", "w"]);
@@ -265,7 +268,7 @@ test("grouping refuses what it cannot do, and says why", opts, async () => {
   const page = await designing();
   const result = await page.eval(() => {
     const ed = window.__ed;
-    const note = () => document.querySelector(".uikit-ins-note").textContent;
+    const note = () => document.querySelector(".uikit-ins-feedback").textContent;
 
     ed.command("select", { id: "panel:tree" });
     ed.command("group");
@@ -303,11 +306,11 @@ test("the inspector edits the selected node, and cannot be clicked through", opt
     }));
     const afterClick = ed.selection().slice();
 
-    const label = ins.querySelector(".uikit-ins-input");
+    const label = ins.querySelector('[data-uikit-field="label"]');
     label.value = "My tree";
     label.dispatchEvent(new Event("input", { bubbles: true }));
 
-    const icon = ins.querySelectorAll(".uikit-ins-input")[1];
+    const icon = ins.querySelector('[data-uikit-field="icon"]');
     icon.value = "ph-star";
     icon.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -335,7 +338,7 @@ test("real inspector clicks and editing keys stay inside the inspector", opts, a
     const ed = window.__ed;
     ed.command("select", { id: "panel:tree" });
     const ins = document.querySelector(".uikit-ins");
-    const name = ins.querySelector('.uikit-ins-input[type="text"]');
+    const name = ins.querySelector('[data-uikit-field="label"]');
     const hidden = [...ins.querySelectorAll('.uikit-ins-check input[type="checkbox"]')]
       .find((input) => input.parentElement.textContent.includes("Hidden"));
 
@@ -705,7 +708,7 @@ test("rename this one, or rename it everywhere, are different edits", opts, asyn
   const result = await page.eval(() => {
     const ed = window.__ed;
     const ins = document.querySelector(".uikit-ins");
-    const label = ins.querySelector(".uikit-ins-input");
+    const label = ins.querySelector('[data-uikit-field="label"]');
     const everywhere = ins.querySelector(".uikit-ins-check input");
 
     ed.command("select", { id: "panel:tree" });
@@ -1195,15 +1198,15 @@ test("moving an escaping node out of its parent warns in the inspector note", op
     // Moving more:walk out of More onto the toolbar
     const moved = ed.command("move", { id: "more:walk", parent: "panel:tb-start", index: 0 });
     await window.__frame();
-    const noteText = document.querySelector(".uikit-ins-note")?.textContent || "";
+    const noteText = document.querySelector(".uikit-ins-feedback")?.textContent || "";
 
     const movedBack = ed.command("move", { id: "more:walk", parent: "menu:more", index: 2 });
     await window.__frame();
-    const noteAfterReturn = document.querySelector(".uikit-ins-note")?.textContent || "";
+    const noteAfterReturn = document.querySelector(".uikit-ins-feedback")?.textContent || "";
 
     const movedOutAgain = ed.command("move", { id: "more:walk", parent: "panel:tb-start", index: 0 });
     await window.__frame();
-    const noteAfterSecondMove = document.querySelector(".uikit-ins-note")?.textContent || "";
+    const noteAfterSecondMove = document.querySelector(".uikit-ins-feedback")?.textContent || "";
 
     return {
       moved,
@@ -1581,7 +1584,7 @@ test("menu item moved to .tb-end warns escapes and still runs its action", opts,
     const moved = ed.command("move", { id: "act:save", parent: "panel:tb-end", index: 0 });
     await window.__frame();
 
-    const noteText = document.querySelector(".uikit-ins-note")?.textContent || "";
+    const noteText = document.querySelector(".uikit-ins-feedback")?.textContent || "";
     const saveInTbEnd = document.querySelector("#topbar .tb-end button[data-act='save']");
 
     // Run action via registry entry
@@ -1632,7 +1635,7 @@ test("tree lists Edit menu items while closed and moving one reorders real menu 
     // Move act:dupSel from menu:edit to panel:tb-end and check escape warning
     const movedTbEnd = ed.command("move", { id: "act:dupSel", parent: "panel:tb-end", index: 0 });
     await window.__frame();
-    const noteText = document.querySelector(".uikit-ins-note")?.textContent || "";
+    const noteText = document.querySelector(".uikit-ins-feedback")?.textContent || "";
     const dupInTbEnd = document.querySelector("#topbar .tb-end button[data-act='dupSel']");
 
     let dispatched = null;
@@ -1708,7 +1711,7 @@ test("tree lists Export menu items and opening pins it portaled to body without 
     // Move act:png2d to tb-end and verify escape note & run
     const movedTbEnd = ed.command("move", { id: "act:png2d", parent: "panel:tb-end", index: 0 });
     await window.__frame();
-    const noteText = document.querySelector(".uikit-ins-note")?.textContent || "";
+    const noteText = document.querySelector(".uikit-ins-feedback")?.textContent || "";
     let dispatched = null;
     window.__runAction = (act) => { dispatched = act; };
     const entry = ui.registry.get("act:png2d");
@@ -1801,7 +1804,7 @@ test("moving a left tab button out of panel:leftTabs warns escapes", opts, async
     const moved = ed.command("move", { id: "tab:library", parent: "panel:tb-end", index: 0 });
     await window.__frame();
 
-    const noteText = document.querySelector(".uikit-ins-note")?.textContent || "";
+    const noteText = document.querySelector(".uikit-ins-feedback")?.textContent || "";
     const tabInTbEnd = document.querySelector("#topbar .tb-end button[data-left-tab='library']");
 
     return {
@@ -1983,7 +1986,7 @@ test("inspector Name clicks do not close a pinned File menu", opts, async () => 
     await window.__frame();
     const wrap = document.querySelector('[data-uikit-id="menu:file"]');
     const panel = [...document.querySelectorAll("body > .dropdown-menu")].find((m) => m._dd === wrap);
-    const name = document.querySelector(".uikit-ins-input");
+    const name = document.querySelector('[data-uikit-field="label"]');
     if (name) {
       name.click();
       name.focus();
@@ -2022,9 +2025,9 @@ test("More is a menu of placements distinct from toolbar twins", opts, async () 
     const moreLaunch = ui.registry.get("more:openModeler");
     ed.command("select", { id: "more:uikitCustomize" });
     const hidden = ed.command("setHidden", { id: "more:uikitCustomize", hidden: true });
-    const note = document.querySelector(".uikit-ins-note")?.textContent || "";
+    const note = document.querySelector(".uikit-ins-feedback")?.textContent || "";
     const moved = ed.command("move", { id: "more:walk", parent: "panel:tb-start", index: 0 });
-    const escapeNote = document.querySelector(".uikit-ins-note")?.textContent || "";
+    const escapeNote = document.querySelector(".uikit-ins-feedback")?.textContent || "";
     return {
       moreKids,
       walkUnderMore: moreKids.includes("more:walk"),
@@ -2365,7 +2368,11 @@ test("the drag preview is the element itself, held where the pointer grabbed it"
       expectY: Math.round(grabY - box.top),
       width: Math.round(ghostBox.width),
       sourceWidth: Math.round(box.width),
-      lifted: el.hasAttribute("data-uikit-lifted"),
+      // Selection may cause the host to replace an adopted control. Assert
+      // the visible source, rather than a reference captured before selection.
+      lifted: !!document.querySelector('[data-uikit-id="' + CSS.escape(id) + '"]')?.hasAttribute("data-uikit-lifted"),
+      dragSource: { id, selected: ed.selection(), connected: el.isConnected,
+        lifted: [...document.querySelectorAll('[data-uikit-lifted]')].map(node=>node.getAttribute('data-uikit-id')) },
       cursor: document.documentElement.style.cursor,
       /* the copy must not be addressable, or a label's `for` follows it */
       idsInShot: shot ? shot.querySelectorAll("[id], [data-uikit-id]").length : -1,
@@ -2386,7 +2393,7 @@ test("the drag preview is the element itself, held where the pointer grabbed it"
   assert.equal(result.width, result.sourceWidth, "shown at the size it really is");
   assert.equal(result.gripX, result.expectX, "the grabbed pixel is still under the pointer");
   assert.equal(result.gripY, result.expectY);
-  assert.equal(result.lifted, true, "the original is dimmed while its copy is carried");
+  assert.equal(result.lifted, true, "the original is dimmed while its copy is carried: " + JSON.stringify(result.dragSource));
   assert.equal(result.cursor, "grabbing");
   assert.equal(result.idsInShot, 0, "nothing in the copy can be addressed");
   assert.equal(result.ghostsAfter, 0, "and it is all gone on release");

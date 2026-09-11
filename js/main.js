@@ -1,3 +1,5 @@
+import { initSurvey } from "./ui_survey.js";
+import { initPlanner3D, syncPlannerViewport } from "./planner_3d.js";
 // Entry point: wires the modules together and boots the app.
 import { S, throttle } from "./state.js";
 import { onBeforeSolve, onAfterSolve } from "./wall_constraints.js";
@@ -388,7 +390,9 @@ initLayersUI(); // work-set layer chips + the refused-drag unlock pill
 /* After the chips exist and after initCadHud: the dock measures the whole
    cluster, and the status bar it must not sit under is created above. */
 initRoomPalette(); // preset-room palette, shown with the room-stamp tool
-initPlanToolsDock(); // drag the tool cluster to any edge of the 2D pane
+initPlanToolsDock();
+initPlanner3D();
+initSurvey(); // drag the tool cluster to any edge of the 2D pane
 initMobileShell(); // phone/foldable chrome: contextual row + five-slot bottom nav
 initDimKnob(); // touch: numeric fields are scrubbed on a rotary dial, not typed
 // last: autosave/recovery needs a fully built UI to render its recovery prompt,
@@ -650,6 +654,7 @@ function setMaximized(viewId) {
     if (icon) icon.className = on ? "ph ph-arrows-in" : "ph ph-arrows-out";
     btn.title = t(on ? "restoreView" : "maximizeView");
   });
+  syncPlannerViewport(centerCanvas.classList.contains("max-view-3d") ? "3d" : centerCanvas.classList.contains("max-view-2d") ? "plan" : document.documentElement.dataset.plannerViewport || "plan");
   syncSurfaces();
   syncMobileNav();
   syncSplitOrientationButton();
@@ -676,8 +681,7 @@ function setViewMode(mode) {
   else syncMobileNav();
   syncSplitOrientationButton();
   try {
-    // Only remember choices made on the phone layout, so unfolding (which
-    // forces "split") doesn't clobber the preferred cover-screen view.
+    // Remember the cover-screen choice independently of desktop preferences.
     if (isCompactPhoneViewport()) sessionStorage.setItem(VIEWMODE_KEY, mode);
   } catch (_) {}
 }
@@ -710,8 +714,8 @@ function applyPhoneView() {
     var saved = sessionStorage.getItem(VIEWMODE_KEY);
     setViewMode(saved && saved !== "split" ? saved : "plan");
   } else {
-    // Unfolded / tablet / desktop: there's room for both panes again.
-    setViewMode("split");
+    // Keep Planner as the default when unfolding or returning to desktop.
+    setViewMode(localStorage.getItem("home3d_viewmode") || "plan");
   }
 }
 // React to folding/unfolding (the viewport width jumps across 768px). Watch
@@ -728,7 +732,7 @@ window.addEventListener("mf-posture", checkPhoneCrossing);
 window.addEventListener("mf-posture", syncSplitOrientationButton);
 onLangChange(syncSplitOrientationButton);
 new ResizeObserver(checkPhoneCrossing).observe(document.body);
-if (isCompactPhoneViewport()) applyPhoneView();
+applyPhoneView();
 syncMobileNav();
 
 // Drawing needs the whole plan on phones and foldables. If a drawing command

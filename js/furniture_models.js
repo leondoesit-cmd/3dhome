@@ -2076,15 +2076,16 @@ export const FURN = {
     h: 260,
     col: "#b09a76",
     build: function (g, it) {
-      for (var i = 0; i < 10; i++)
+      const steps = Math.max(2, Math.min(100, Math.round(it.configuration?.stepCount || it.steps || 10)));
+      for (var i = 0; i < steps; i++)
         box(
           g,
           -it.w / 2,
           it.w / 2,
           0,
-          ((i + 1) * it.h) / 10,
-          it.d / 2 - ((i + 1) * it.d) / 10,
-          it.d / 2 - (i * it.d) / 10,
+          ((i + 1) * it.h) / steps,
+          it.d / 2 - ((i + 1) * it.d) / steps,
+          it.d / 2 - (i * it.d) / steps,
           0xb09a76,
           { rough: 0.7 },
         );

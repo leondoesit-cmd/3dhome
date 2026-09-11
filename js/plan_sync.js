@@ -1,3 +1,6 @@
+import { requestSurveyPhotos, handleSurveyPhoto, forgetSurveyPhotoPeer } from './survey_photo_sync.js';
+import { normalizeSurvey, normalizeSurveyFeatures } from "./survey.js";
+import { normalizeNavigationProfile } from "./navigation_profile.js";
 import { normalizeBaselines, normalizeRedesign, mergeBaselineArchives } from "./redesign.js";
 /* Live shared plan over the existing WebSocket relay.
 
@@ -290,6 +293,9 @@ function applyPlanOpTo(op, st) {
       .map(sanitizeOpening)
       .filter(function (o) { return o && liveWalls[o.wall]; });
     if (op.roomMeta && typeof op.roomMeta === "object") st.roomMeta = sanitizeRoomMeta(op.roomMeta);
+    if (op.survey && st.workspace) st.workspace.survey=normalizeSurvey(op.survey);
+    if (op.navigationProfile && st.workspace) st.workspace.navigationProfile=normalizeNavigationProfile(op.navigationProfile);
+    if (op.surveyFeatures) st.surveyFeatures=normalizeSurveyFeatures(op.surveyFeatures);
     if (op.guidance && st.workspace) st.workspace.guidance = normalizePlanningGuide(op.guidance);
     /* Dimensions are not carried by this op, so the ones already here have to
        be checked against the walls that just arrived. A constraint anchored to
@@ -379,6 +385,7 @@ function onData(ev) {
   var from = ev.from, d = ev.data;
   if (!d || typeof d !== "object") return;
   if (!sameProject(d)) return;
+  if(d.k?.startsWith('survey_photo_')){handleSurveyPhoto(d,from,S.workspace?.survey,projectId(),sendData).catch(()=>{});return;}
 
   if (d.k === "plan_cursor") {
     if (from === NET.code) return;
@@ -398,7 +405,7 @@ function onData(ev) {
   if (d.k === "plan_sync") {
     if (!d.scene || isHome()) return; // the host never adopts someone else's scene
     planRev = Number(d.rev) || 0;
-    applyScene(d.scene).then(function (applied) { if (applied) paint(); });
+    applyScene(d.scene).then(function (applied) { if (applied) {paint();requestSurveyPhotos(S.workspace?.survey,from,projectId(),sendData).catch(()=>{});} });
     return;
   }
 
@@ -412,6 +419,7 @@ function onData(ev) {
       });
       return;
     }
+    requestSurveyPhotos(S.workspace?.survey,from,projectId(),sendData).catch(()=>{});
     planRev += 1;
     sendData({ k: "plan_op", projectId: projectId(), rev: planRev, op: d.op });
     paint();
@@ -428,6 +436,7 @@ function onData(ev) {
       return;
     }
     if (applyIncoming(d.op)) {
+      requestSurveyPhotos(S.workspace?.survey,from,projectId(),sendData).catch(()=>{});
       if (Number.isFinite(next)) planRev = next;
       paint();
     } else {
@@ -438,11 +447,20 @@ function onData(ev) {
 
 function forgetPeer(code) {
   if (code && cursors[code]) delete cursors[code];
+  if(code)forgetSurveyPhotoPeer(code);
 }
 
 export function initPlanSync() {
   if (listening) return;
   listening = true;
+  let photoPeerIndex=0,photoRetryBusy=false;
+  setInterval(async()=>{
+    if(photoRetryBusy||!NET.connected||!S.workspace?.survey?.photos?.length)return;
+    const peers=Object.keys(NET.peers);if(!peers.length)return;
+    photoRetryBusy=true;
+    try{await requestSurveyPhotos(S.workspace.survey,peers[photoPeerIndex++%peers.length],projectId(),sendData);}catch{/* Retry after connectivity or storage recovers. */}
+    finally{photoRetryBusy=false;}
+  },15000);
   on("data", onData);
   /* Imported lazily, and only here: plan2d pulls in most of the planner, and
      this module is loaded by anything that touches a plan op. */
@@ -522,7 +540,7 @@ function structureSignature() {
     var meta = S.roomMeta[key] || {};
     return [key, meta.name, meta.roomType, meta.preset, meta.hid, meta.floor, meta.wall, !!meta.floorTex, meta.floorScale, meta.floorBump, meta.layoutPreferences, meta.shape, meta.relationships];
   }));
-  out += JSON.stringify([S.workspace && S.workspace.guidance || null, S.workspace && S.workspace.documentKey]);
+  out += JSON.stringify([S.workspace && S.workspace.guidance || null, S.workspace && S.workspace.documentKey,S.workspace?.survey,S.workspace?.navigationProfile,S.surveyFeatures]);
   return out;
 }
 
@@ -540,6 +558,7 @@ export function structurePlanOp() {
     openings: (S.openings || []).map(sanitizeOpening).filter(Boolean),
     roomMeta: sanitizeRoomMeta(S.roomMeta || {}),
     guidance: normalizePlanningGuide(S.workspace && S.workspace.guidance),
+    survey:normalizeSurvey(S.workspace?.survey),navigationProfile:normalizeNavigationProfile(S.workspace?.navigationProfile),surveyFeatures:normalizeSurveyFeatures(S.surveyFeatures),
     idc: Number(S.idc) || 1,
   };
 }

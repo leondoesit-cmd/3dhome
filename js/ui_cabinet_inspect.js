@@ -352,6 +352,7 @@ export function fillInspector() {
           // design loaded from a file can be inspected and moved off
           b.disabled = !cur;
           b.title = secLabel(k) + " — " + o.fit.why;
+          b.appendChild(el("small", "cb-fit-reason", o.fit.why));
         } else if (o.rank === 1) b.title = secLabel(k) + " — " + T("unusualFor") + " " + famLabel(fam);
         grid.appendChild(b);
       });

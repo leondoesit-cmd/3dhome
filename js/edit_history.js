@@ -602,6 +602,17 @@ export function createHistory(opts) {
       return keyOf ? keyOf(live) === keyOf(n.snap) : live === n.snap;
     },
 
+    saveSession: function () {
+      sync();
+      return structuredClone({nodes,known,seq,root,pos,provisional,lastKey,lastFull});
+    },
+    loadSession: function (saved) {
+      const copy = structuredClone(saved);
+      nodes=copy.nodes; known=copy.known; seq=copy.seq; root=copy.root; pos=copy.pos;
+      provisional=copy.provisional; lastKey=copy.lastKey; lastFull=copy.lastFull;
+      fire();
+    },
+
     /* Start a new editing session — a different model was loaded, so the old
        tree does not describe it. */
     clear: function () {

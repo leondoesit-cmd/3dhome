@@ -18,7 +18,7 @@ export function drawingSnapshot(){
   }
   return [...left,...right.reverse()];
  }).filter(p=>p.length);
- return {walls:S.walls.flatMap(w=>w.geometry?.type==='arc'?[wallOutline(w)]:bandsFor(w).map(b=>{const p=wallBandOutline(w,b.start,b.end);return p?[p.a0,p.b0,p.b1,p.a1]:null;})).filter(Boolean),openings,
+ return {surveyFeatures:JSON.parse(JSON.stringify(S.surveyFeatures||[])),walls:S.walls.flatMap(w=>w.geometry?.type==='arc'?[wallOutline(w)]:bandsFor(w).map(b=>{const p=wallBandOutline(w,b.start,b.end);return p?[p.a0,p.b0,p.b1,p.a1]:null;})).filter(Boolean),openings,
   swings:S.openings.map(o=>doorSwingPoly(o)).filter(Boolean),voids:(S.slabOpenings||[]).map(openingCorners),items:S.items.map(i=>footprint(i)),
   rooms:detectRooms().map(room=>({points:room.pts,cx:room.cx,cz:room.cz,name:S.roomMeta[room.key]?.name||'',...roomMeasurements(S,room)?.interior}))};
 }

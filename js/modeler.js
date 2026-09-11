@@ -3497,7 +3497,7 @@ function buildDOM() {
     "</div></div></div>" +
     '<div class="md-command-search" id="mdCommandSearch" hidden role="dialog" aria-modal="true" aria-label="' + t("cmdSearch") + '">' +
     '<div class="md-command-search-card"><div class="md-command-search-input"><i class="ph ph-magnifying-glass"></i>' +
-    '<input id="mdCommandSearchInput" type="search" autocomplete="off" placeholder="' + t("cmdSearchHint") + '" aria-autocomplete="list" aria-controls="mdCommandResults" role="combobox" aria-expanded="true"><kbd>Esc</kbd></div>' +
+    '<input id="mdCommandSearchInput" type="search" autocomplete="off" placeholder="' + t("cmdSearchHint") + '" aria-autocomplete="list" aria-controls="mdCommandResults" role="combobox" aria-expanded="true"><button type="button" id="mdCommandSearchClose" aria-label="' + t("close") + '"><i class="ph ph-x"></i></button></div>' +
     '<div id="mdCommandResults" class="md-command-results" role="listbox"></div></div></div>' +
     '<div class="md-reference-picker" id="mdReferencePicker" hidden>' +
       '<section role="dialog" aria-modal="true" aria-labelledby="mdReferenceTitle">' +
@@ -3850,6 +3850,7 @@ function buildDOM() {
   root.querySelector("#mdRedo").addEventListener("click", doRedo);
   root.querySelector("#mdCommandSearchBtn").addEventListener("click", function () { openCommandSearch(); });
   root.querySelector("#mdCommandSearchInput").addEventListener("input", renderCommandResults);
+  root.querySelector("#mdCommandSearchClose").addEventListener("click", closeCommandSearch);
   root.querySelector("#mdCommandSearch").addEventListener("pointerdown", function (e) {
     if (e.target === this) closeCommandSearch();
   });
@@ -6258,6 +6259,12 @@ function setCommandTab(id) {
   root.querySelectorAll("[data-command-pane]").forEach(function (p) {
     p.classList.toggle("on", p.getAttribute("data-command-pane") === id);
   });
+  if (document.body.classList.contains("compact-nav")) {
+    const sheet = root.querySelector("#md-sheet");
+    if (sheet) sheet.querySelectorAll(".md-commandmanager, .md-command-panes, .md-command-pane, #md-sheet-body").forEach(function (panel) {
+      panel.scrollTop = 0;
+    });
+  }
 }
 
 function closeFeaturePanel() {

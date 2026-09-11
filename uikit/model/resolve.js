@@ -21,6 +21,7 @@
  */
 
 import { isContainer, isKnownType, withDefaults } from "./schema.js";
+import { scopeTokens } from "./layout_scope.js";
 
 /* The registry may arrive as an array of entries, a Map, or anything with a
    get(id). Hosts build these three ways and none of them is wrong. */
@@ -147,7 +148,7 @@ export function resolve(doc, options) {
     edit,
     variant: variantName,
     tombstones,
-    tokens: (doc.overrides && doc.overrides.tokens) || null,
+    tokens: scopeTokens(doc, variantName),
   };
 }
 

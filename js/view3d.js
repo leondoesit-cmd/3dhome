@@ -1,3 +1,8 @@
+import { buildBlueprintUnderlay3D } from './blueprint_3d.js';
+import { switchFloorAndWait } from './floors.js';
+import { buildSurveyGeometry } from './survey_mesh.js';
+import { moveSurveyWalker, navigationPosition, navigationFloorTransition } from './navigation_geometry.js';
+import { navigationProfile, cameraRetraction } from "./navigation_profile.js";
 // 3D scene: renderer/camera/lights, builds walls + items, sun-by-time-of-day, orbit controls.
 // three is LATE-BOUND (js/three_lazy.js): the renderer is 3.5 MB and must not
 // sit on the synchronous boot module graph. `THREE`, `TSL` and `ADDONS` are
@@ -99,6 +104,38 @@ import { ceilingHeight } from "./elevation.js";
    scene, and every guard below reads it — so a call that arrives before the
    renderer exists no-ops exactly as it did on a machine without WebGL. */
 var ready3D = false;
+let plannerRenderHook = null;
+let pendingOrbitCamera = null;
+let pendingNavigationView = null;
+export function setPlannerRenderHook(fn) { plannerRenderHook = fn; }
+export function plannerPlanePoint3D(cx,cy,origin,normal) {
+  if(!ready3D||!camera||extTick)return null;
+  const plane=new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(normal.x,normal.y,normal.z),new THREE.Vector3(origin.x,origin.y,origin.z));
+  const p=pointerRay(cx,cy).ray.intersectPlane(plane,new THREE.Vector3());
+  return p?{x:p.x,y:p.y,z:p.z}:null;
+}
+export function plannerPointer3D(cx,cy) {
+  if (!ready3D || !camera || extTick) return null;
+  const r=renderer.domElement.getBoundingClientRect();
+  const ray=pointerRay(cx,cy);
+  let point=rayAtHeight(cx,cy,0), hit=null;
+  if (!['wall','arcwall','rect','roomstamp','slabvoid'].includes(S.tool)) {
+    for(const rank of [0,1]) {
+      for(const h of ray.intersectObjects(pickableRoots(rank),true)) {
+        const target=targetOf(h.object);
+        if(!target)continue;
+        hit={...target,rank,point:{x:h.point.x,y:h.point.y,z:h.point.z}};
+        point={x:h.point.x,z:h.point.z};break;
+      }
+      if(hit)break;
+    }
+  }
+  if(!point)return null;
+  const distance=Math.max(1,camera.position.distanceTo(new THREE.Vector3(point.x,hit?.point.y||0,point.z)));
+  const scale=r.height/(2*Math.tan(camera.fov*Math.PI/360)*distance);
+  return {point,hit,scale,width:r.width,height:r.height};
+}
+
 export function has3D() {
   return ready3D;
 }
@@ -304,6 +341,7 @@ var EYE_H = 165, // eye height (cm) above the floor
   BODY_H = 172; // avatar total height (cm)
 var walk = false,
   walkView = "fpv", // "fpv" | "tpv"
+  walkFloorPending = false,
   walkPos = { x: 0, y: 0, z: 0 }, // feet position on the floor
   yaw = Math.PI,
   pitch = 0,
@@ -339,7 +377,10 @@ function buildAvatar() {
   scene.add(avatar);
 }
 
+let cameraBoom = 230, cameraAt = 0;
 function walkLook() {
+  const profile=navigationProfile(S);
+  EYE_H=profile.eyeHeight;
   needsRender = true;
   // mirror the pose for the 2D plan's you-are-here indicator (plan2d listens
   // for walk:look and repaints, rAF-throttled)
@@ -362,7 +403,7 @@ function walkLook() {
   if (walk && walkView === "tpv") {
     // orbit the camera behind the avatar, aiming at its torso and sitting a bit
     // above the sightline for a nice over-the-shoulder framing of the whole body;
-    // clamp inside the room so walls never occlude the person
+    // retract against physical geometry along the camera boom
     var pX = walkPos.x,
       pY = walkPos.y + 95, // torso pivot
       pZ = walkPos.z;
@@ -370,22 +411,36 @@ function walkLook() {
     var cx = pX - dx * tpDist,
       cy = pY - dy * tpDist + elev,
       cz = pZ - dz * tpDist;
-    var bb = freeMove ? null : interiorBounds();
-    if (bb) {
-      var m = 10;
-      cx = clamp(cx, bb.minx + m, bb.maxx - m);
-      cz = clamp(cz, bb.minz + m, bb.maxz - m);
+    const pivot=new THREE.Vector3(pX,pY,pZ), desired=new THREE.Vector3(cx,cy,cz);
+    const direction=desired.clone().sub(pivot), desiredDistance=direction.length();
+    direction.normalize();
+    let allowed=desiredDistance;
+    if(!freeMove&&dyn){
+      const side=new THREE.Vector3().crossVectors(direction,new THREE.Vector3(0,1,0)).normalize();
+      for(const offset of [new THREE.Vector3(),side.clone().multiplyScalar(profile.cameraRadius),side.clone().multiplyScalar(-profile.cameraRadius),new THREE.Vector3(0,profile.cameraRadius,0),new THREE.Vector3(0,-profile.cameraRadius,0)]){
+        const ray=new THREE.Raycaster(pivot.clone().add(offset),direction,0,desiredDistance);
+        const hits=ray.intersectObjects(layerRoots().map(e=>e.root).filter(Boolean),true);
+        const obstacle=hits.find(h=>!h.object.userData?.cameraIgnore&&h.object.type!=='Sprite');
+        if(obstacle)allowed=Math.min(allowed,Math.max(2,obstacle.distance-profile.cameraRadius));
+      }
     }
-    cy = clamp(cy, 30, 265);
+    const now=performance.now();
+    cameraBoom=cameraRetraction(cameraBoom,allowed,desiredDistance,Math.min(.1,(now-cameraAt)/1000));cameraAt=now;
+    const safe=pivot.addScaledVector(direction,cameraBoom);cx=safe.x;cy=safe.y;cz=safe.z;
+    S.cameraObstructed=allowed<desiredDistance-1;
     camera.position.set(cx, cy, cz);
     camera.lookAt(pX, pY, pZ);
   } else {
+    S.cameraObstructed=false;
     camera.position.set(eyeX, eyeY, eyeZ);
     camera.lookAt(eyeX + dx * lookDist, eyeY + dy * lookDist, eyeZ + dz * lookDist);
   }
 }
-function moveWalk() {
-  var spd = 4,
+function moveWalk(dt) {
+  if(document.documentElement.dataset.plannerViewport==='plan'||document.activeElement?.matches('input,textarea,select,[contenteditable="true"]')){for(const key of Object.keys(keys))keys[key]=false;return;}
+  const profile=navigationProfile(S);
+  tpDist=profile.cameraDistance;
+  var spd = profile.speed * Math.min(.05,Math.max(0,dt||0)),
     fx = Math.sin(yaw),
     fz = Math.cos(yaw),
     rx = -Math.cos(yaw),
@@ -412,33 +467,25 @@ function moveWalk() {
     mx += fx * -touchMove.z + rx * touchMove.x;
     mz += fz * -touchMove.z + rz * touchMove.x;
   }
-  if (mx || mz) {
+  if ((mx || mz) && !walkFloorPending) {
     var l = Math.hypot(mx, mz) || 1;
     var dx = (mx / l) * spd;
     var dz = (mz / l) * spd;
     var curX = walkPos.x, curZ = walkPos.z, nx, nz;
-    if (isPhysicsEnabled()) {
-      var next = moveKinematicCapsule(curX, walkPos.y, curZ, dx, 0, dz, 18, EYE_H);
-      nx = next.x;
-      nz = next.z;
-    } else {
-      nx = curX + dx;
-      nz = curZ + dz;
-    }
-    /* A stairwell is a hole in the floor, so it has to stop the walker as well
-       as the renderer — walkPos.y is fixed, so without this you stroll straight
-       across the well. Axis-separated so the edge can be walked ALONG rather
-       than stuck to. No-clip ignores it, like it ignores walls. */
-    if (voidBlocked(nx, nz)) {
-      if (!voidBlocked(nx, curZ)) nz = curZ;
-      else if (!voidBlocked(curX, nz)) nx = curX;
-      else { nx = curX; nz = curZ; }
-    }
+    const next=freeMove?{x:curX+dx,y:walkPos.y,z:curZ+dz}:moveSurveyWalker(S,walkPos,dx,dz,profile,detectRooms());
+    nx=next.x;nz=next.z;walkPos.y=next.y;
     walkPos.x = nx;
     walkPos.z = nz;
-    if (!isPhysicsEnabled()) clampWalk();
+    const landing=freeMove?null:navigationFloorTransition(S,walkPos,profile);
+    if(landing){
+      walkFloorPending=true;
+      switchFloorAndWait(landing.floorId).then(floor=>{
+        if(floor&&walk){walkPos=landing.position;S.dirty3D=true;walkLook();}
+      }).catch(error=>console.error("Walking floor transition failed",error))
+        .finally(()=>{walkFloorPending=false;});
+    }
     walkLook();
-  }
+  } else if(walkView==='tpv')walkLook();
 }
 // the walker's body stops at the curb, not with its centre over the drop
 function voidBlocked(x, z) {
@@ -508,9 +555,16 @@ export function toggleWalk(on) {
     walkPos = ib
       ? { x: (ib.minx + ib.maxx) / 2, y: 0, z: (ib.minz + ib.maxz) / 2 }
       : { x: bb.cx, y: 0, z: bb.cz };
+    if(!navigationPosition(S,walkPos,navigationProfile(S),detectRooms()).clear){
+      const rooms=detectRooms();let found=null;
+      for(const room of rooms){for(const p of room.pts){const candidate={x:(p.x+room.cx)/2,y:0,z:(p.z+room.cz)/2};if(navigationPosition(S,candidate,navigationProfile(S),rooms).clear){found=candidate;break;}}if(found)break;}
+      if(found)walkPos=found;
+    }
+    const support=navigationPosition(S,walkPos,navigationProfile(S),detectRooms());
+    if(support.clear)walkPos.y=support.y;
     yaw = Math.PI;
     pitch = 0;
-    tpDist = 230;
+    tpDist = navigationProfile(S).cameraDistance;
     walkLook();
   } else {
     if (avatar) avatar.visible = false;
@@ -1045,6 +1099,7 @@ function buildStraightWall(w, col, tex) {
           box(doorPivot, hX0, hX1, o.height * 0.5 - 6, o.height * 0.5 + 6, zP0 - 0.4, zP0, HANDLE, { metal: 0.7, rough: 0.3 });
           box(doorPivot, hX0, hX1, o.height * 0.5 - 6, o.height * 0.5 + 6, zP1, zP1 + 0.4, HANDLE, { metal: 0.7, rough: 0.3 });
         }
+        doorPivot.userData.opening=o.src;doorPivot.userData.open=o.src?.open===true;
         g.add(doorPivot);
         if (scene && scene.doors) scene.doors.push(doorPivot);
       }
@@ -1328,7 +1383,7 @@ function addSampledOpening(group, w, o) {
     var pivot = new THREE.Group();
     var left = String(o.swingDir || "R_IN").startsWith("L");
     pivot.position.x = left ? -half + jamb : half - jamb;
-    pivot.userData = { isDoor: true, open: false, type: "swing", width: o.width, maxOpen: left ? Math.PI / 2 : -Math.PI / 2 };
+    pivot.userData = { opening:o, isDoor: true, open: o.open===true, type: "swing", width: o.width, maxOpen: left ? Math.PI / 2 : -Math.PI / 2 };
     localBox(pivot, left ? 0 : -o.width + 2 * jamb, left ? o.width - 2 * jamb : 0, 1, Math.max(2, top - FR.head), 2, o.color ? parseInt(o.color.slice(1), 16) : WOOD, { rough: 0.6 });
     holder.add(pivot);
     if (scene && scene.doors) scene.doors.push(pivot);
@@ -2269,6 +2324,8 @@ export function rebuild3D() {
   // as filters ON TOP of the mep layer, which owns the root's visibility.
   dyn.add(mepRoot);
   buildMEP3D(mepRoot, THREE);
+  buildSurveyGeometry(structureRoot,THREE,S.surveyFeatures);
+  if(isLayerVisible("underlay"))buildBlueprintUnderlay3D(dyn,THREE,S.blueprintTrace);
 
   if (isPhysicsEnabled()) {
     initPhysicsForScene();
@@ -3372,10 +3429,12 @@ function renderScene() {
   }
   if (usePost && post) post.render();
   else renderer.render(scene, camera);
+  if (plannerRenderHook) plannerRenderHook();
 }
 
 export function setOrbitCamera(opts) {
   if (!opts) return;
+  if(!tgt){pendingOrbitCamera=opts;return;}
   framedInterior = false;
   if (typeof opts.theta === "number" && isFinite(opts.theta)) theta = opts.theta;
   if (typeof opts.phi === "number" && isFinite(opts.phi)) phi = clamp(opts.phi, 0.12, Math.PI / 2);
@@ -3390,12 +3449,22 @@ export function setOrbitCamera(opts) {
   needsRender = true;
 }
 
+export function getNavigationView(){return {walk,walkView,position:{...walkPos},yaw,pitch,freeMove,orbit:getOrbitCamera()};}
+export function restoreNavigationView(view){
+  if(!view)return;if(!ready3D||!tgt){pendingNavigationView=view;return;}
+  toggleWalk(!!view.walk);walkView=view.walkView==='tpv'?'tpv':'fpv';freeMove=!!view.freeMove;
+  if(view.position&&['x','y','z'].every(k=>Number.isFinite(view.position[k])))walkPos={...view.position};
+  if(Number.isFinite(view.yaw))yaw=view.yaw;if(Number.isFinite(view.pitch))pitch=view.pitch;
+  if(walk)walkLook();else setOrbitCamera(view.orbit);
+  window.dispatchEvent(new Event('planner-navigation-restored'));requestRender();
+}
+
 export function getOrbitCamera() {
   return {
     theta: theta,
     phi: phi,
     radius: radius,
-    target: { x: tgt.x, y: tgt.y, z: tgt.z },
+    target: { x: tgt?.x || 0, y: tgt?.y || 0, z: tgt?.z || 0 },
   };
 }
 
@@ -3550,6 +3619,7 @@ export function extractPTScene() {
     };
   }
   dyn.traverse(function (o) {
+    if (o.userData?.exportSkip) return;
     if (o.isPointLight || o.isSpotLight) {
       if (!o.userData.win) {
         var lp = o.getWorldPosition(new THREE.Vector3());
@@ -3891,6 +3961,7 @@ function build3D() {
   scene.add(skyDome);
 
   tgt = new THREE.Vector3(200, 70, 150);
+  if(pendingOrbitCamera){const saved=pendingOrbitCamera;pendingOrbitCamera=null;setOrbitCamera(saved);}
   radius = 620;
   theta = 0.92;
   phi = 0.95;
@@ -3973,7 +4044,7 @@ function build3D() {
     down = true;
     userMoved = true;
     // middle button, right button or Shift+left = pan; plain left = orbit
-    dragPan = !walk && (e.button === 1 || e.button === 2 || e.shiftKey);
+    dragPan = !walk && (e.button === 1 || e.shiftKey);
     if (e.button === 1) e.preventDefault(); // no autoscroll cursor
     lx = e.clientX;
     ly = e.clientY;
@@ -4040,7 +4111,8 @@ function build3D() {
     return null;
   }
   window.addEventListener("keydown", function (e) {
-    if (!walk) return;
+    const focused=document.activeElement;
+    if (!walk || document.documentElement.dataset.plannerViewport==='plan' || focused?.matches('input,textarea,select,[contenteditable="true"]') || document.querySelector('#cad-entry:not([hidden]) input:focus')) return;
     var d = moveDir(e);
     if (d) {
       keys[d] = true;
@@ -4077,6 +4149,7 @@ function build3D() {
           }
         });
         if (nearestDoor) {
+          window.dispatchEvent(new CustomEvent('planner-door-toggle',{detail:{opening:nearestDoor.userData.opening,open:!nearestDoor.userData.open}}));
           nearestDoor.userData.open = !nearestDoor.userData.open;
           toggledDoor = true;
         }
@@ -4346,6 +4419,7 @@ function build3D() {
 
   var lastTime = 0;
   buildViewGizmo();
+  if(pendingNavigationView){const view=pendingNavigationView;pendingNavigationView=null;restoreNavigationView(view);}
   (function animate(time) {
     time = time || performance.now();
     var delta = safeDeltaMilliseconds(lastTime ? time - lastTime : 16, 16);
@@ -4403,7 +4477,7 @@ function build3D() {
     // held navigation keys (pan / rise / zoom) — needs a live frame while down
     if (!walk) navTick(delta);
     syncPhysicsToThree(delta);
-    if (walk) moveWalk();
+    if (walk) moveWalk(delta / 1000);
     var extLive = false;
     if (extTick) {
       try {

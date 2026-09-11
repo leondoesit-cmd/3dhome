@@ -334,6 +334,14 @@ export function setToken(doc, args) {
     else next[name] = value;
     return setField(doc, id, "tokens", Object.keys(next).length ? next : null, variant);
   }
+  if (variant && variant !== "base") {
+    const screen = doc.variants[variant];
+    if (!screen) return doc;
+    const tokens = { ...(screen.tokens || doc.overrides.tokens || {}) };
+    if (value == null) delete tokens[name];
+    else tokens[name] = value;
+    return { ...doc, variants: { ...doc.variants, [variant]: { ...screen, tokens } } };
+  }
   const current = doc.overrides.tokens || {};
   if (current[name] === value) return doc;
   const tokens = Object.assign({}, current);
@@ -466,9 +474,9 @@ export function resetVariant(doc, args) {
   const name = (args && args.variant) || BASE;
   if (name === BASE) return doc;
   const variant = variantOf(doc, name);
-  if (!variant || !variant.patch || !Object.keys(variant.patch).length) return doc;
+  if (!variant || (!Object.keys(variant.patch || {}).length && !variant.tokens)) return doc;
   const variants = Object.assign({}, doc.variants, {
-    [name]: Object.assign({}, variant, { patch: {} }),
+    [name]: Object.assign({}, variant, { patch: {}, tokens: null }),
   });
   return Object.assign({}, doc, { variants });
 }

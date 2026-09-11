@@ -304,6 +304,7 @@
 .uikit-ins-head-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-block-start: 8px; }
 .uikit-ins-head-actions button {
   min-height: 32px;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
   padding: 5px 10px;
   border: 1px solid rgba(128, 128, 128, 0.4);
   border-radius: 6px;

@@ -130,11 +130,11 @@ function clamp(lo, v, hi) {
 
 function defaults() {
   var panels = {
-    tools: { zone: "left", order: 0 },
-    layers: { zone: "left", order: 1 },
-    walls: { zone: "left", order: 2 },
-    rooms: { zone: "left", order: 3 },
-    status: { zone: "top", order: 0 },
+    tools: { zone: "top", order: 0 },
+    layers: { zone: "left", order: 0 },
+    walls: { zone: "top", order: 1 },
+    rooms: { zone: "top", order: 2 },
+    status: { zone: "left", order: 1 },
   };
   PANELS.forEach(function (p) {
     if (!panels[p.key]) {
@@ -150,7 +150,7 @@ function defaults() {
       panels[p.key] = { zone: FREE, order: 0, free: { axis: p.axis || "h", stick: stick } };
     }
   });
-  return { panels: panels, zones: {} };
+  return { panels: panels, zones: { top: { axis: "h", flow: "column" }, left: { axis: "v", flow: "column" } } };
 }
 /* Every read of a panel's placement goes through here.
  *
@@ -287,13 +287,17 @@ function applyLocal(p) {
 }
 function restore() {
   st = defaults();
+  docZone = {};
   var p;
   try {
     p = JSON.parse(localStorage.getItem(PREFS) || "null");
   } catch (err) {
     p = null;
   }
-  applyLocal(p);
+  if (p && p.version === 3) {
+    applyLocal(p);
+    for (var key of Object.keys(p.docZone || {})) if (PANEL_BY_KEY[key] && ZONES.includes(p.docZone[key])) docZone[key] = p.docZone[key];
+  }
   /* Overlay chrome is this file's store even when uikit owns the cluster.
      Read local first, then the document overwrites only the keys it knows. */
   var fromDoc = bridge.active() ? bridge.readState() : null;
@@ -301,7 +305,7 @@ function restore() {
 }
 function save() {
   try {
-    localStorage.setItem(PREFS, JSON.stringify({ panels: st.panels, zones: st.zones }));
+    localStorage.setItem(PREFS, JSON.stringify({ version: 3, panels: st.panels, zones: st.zones, docZone: docZone }));
   } catch (err) {
     /* a full or disabled quota must never break an edit */
   }
@@ -336,12 +340,10 @@ function syncPosture() {
   pane.classList.toggle("plan-tiny", p === "tiny");
   return p;
 }
-// The phone rail owns these panels below 1024px, the compact shell owns them at
-// any width (there #plan-toolbar and the palette are display:none and only the
-// chips show), and a pane too small to dock in owns them however wide the
-// window is.
+// The compact touch shell and very small panes use the phone rail.
+// Narrow desktop windows keep the same dock as full-size windows.
 function compact() {
-  return window.innerWidth <= 1024 || document.body.classList.contains("compact-nav") || posture() === "tiny";
+  return document.body.classList.contains("compact-nav") || posture() === "tiny";
 }
 function statusH() {
   if (!isFree("cad")) return 0;
@@ -362,6 +364,7 @@ function statusH() {
 function shown(key) {
   var el = els[key];
   if (!el || el.hidden) return false;
+  if (key === "status" && !el.classList.contains("has-msg") && !editingLayout()) return false;
   if (isOverlay(key) && pane && el.parentElement !== pane && wraps[key] && el.parentElement !== wraps[key]) {
     return false;
   }
@@ -580,10 +583,13 @@ function place() {
   var span = {
     top: { l: nat["top-left"].w, r: pw - Math.max(nat["top-right"].w, trFree) },
     bottom: { l: nat["bottom-left"].w, r: pw - nat["bottom-right"].w },
-    left: { t: nat["top-left"].h, b: bottom - nat["bottom-left"].h },
-    right: { t: nat["top-right"].h, b: bottom - nat["bottom-right"].h },
+    left: { t: Math.max(nat["top-left"].h, nat.top.h), b: bottom - nat["bottom-left"].h },
+    right: { t: Math.max(nat["top-right"].h, nat.top.h), b: bottom - nat["bottom-right"].h },
   };
   cap(zoneEls.top, Math.max(120, span.top.r - span.top.l), bottom);
+  // Capping the top can add a wrapped row; measure before placing side palettes.
+  span.left.t = Math.max(span.left.t, zoneEls.top.offsetHeight);
+  span.right.t = Math.max(span.right.t, zoneEls.top.offsetHeight);
   cap(zoneEls.bottom, Math.max(120, span.bottom.r - span.bottom.l), bottom);
   cap(zoneEls.left, pw, Math.max(80, span.left.b - span.left.t));
   cap(zoneEls.right, pw, Math.max(80, span.right.b - span.right.t));
@@ -604,7 +610,7 @@ function place() {
     else if (f.indexOf("bottom") >= 0) y = bottom - h;
     else {
       var sy = span[id];
-      y = clamp(sy.t, sy.t + (sy.b - sy.t - h) / 2, Math.max(sy.t, sy.b - h));
+      y = sy.t;
     }
     z.style.left = Math.round(x) + "px";
     z.style.top = Math.round(y) + "px";
@@ -631,6 +637,10 @@ function place() {
     if (boxes[id]) lift = Math.max(lift, boxes[id].h);
   });
   pane.style.setProperty("--plan-hint-lift", Math.round(lift + (lift ? 8 : 0)) + "px");
+  // Position anchored floor navigation below the final wrapped toolbar.
+  if (wraps.floors && isFree("floors") && freeState("floors").stick === "floors") {
+    wraps.floors.style.top = Math.round((boxes.top ? boxes.top.h : 0) + 8) + "px";
+  }
   lastSig = sig();
 }
 
@@ -784,7 +794,9 @@ function targetFor(px, py, pw, ph, axisNow, noDock) {
     );
     if (near <= JOIN_PAD && (!best || near < best.d)) best = { id: id, d: near };
   });
-  if (best) return { zone: best.id, axis: axisNow || zoneState(best.id).axis };
+  // Inside the explicit edge band, Shift chooses that edge or corner. A
+  // nearby palette must not steal a deliberate corner drop.
+  if (best && Math.min(d.left, d.right, d.top, d.bottom) > SNAP_PAD) return { zone: best.id, axis: axisNow || zoneState(best.id).axis };
 
   /* Nowhere near an edge and not on a group: the drop means the plan.
      A free panel keeps the axis it already had. */
@@ -956,7 +968,12 @@ function floatAt(x, y) {
   w.style.top = Math.round(y) + "px";
 }
 
+function editingLayout() {
+  return !!document.querySelector("#app.uikit-editing");
+}
+
 function onDown(e) {
+  if (!editingLayout()) return;
   if (compact() || (e.button != null && e.button > 0)) return;
   var key = e.currentTarget.getAttribute("data-grip");
   var w = wraps[key];
@@ -1182,6 +1199,7 @@ function flipAxis(key) {
 
 // Keyboard Enter still walks the eight dock positions; a pointer click does not.
 function cycle(key) {
+  if (!editingLayout()) return;
   if (compact()) return;
   if (isFree(key)) return flipAxis(key);
   var i = RING.indexOf(panelState(key).zone);
@@ -1192,6 +1210,7 @@ function cycle(key) {
 /* An arrow sends a docked panel to that edge. A free panel nudges by pixels
    instead — Alt+arrow still docks, so the keyboard path to a zone remains. */
 function onKey(e) {
+  if (!editingLayout()) return;
   var key = e.currentTarget.getAttribute("data-grip");
   if (compact() || !key) return;
   if (e.key === "r" || e.key === "R") {
@@ -1261,6 +1280,7 @@ function fillHandles(w, key) {
     var rh = document.createElement("div");
     rh.className = "pt-rh pt-rh-" + h;
     rh.setAttribute("data-rh", h);
+    rh.setAttribute("data-uikit-native-gesture", "");
     rh.setAttribute("data-panel", key);
     rh.style.cursor = CURSORS[h];
     rh.addEventListener("pointerdown", onSizeDown);
@@ -1302,6 +1322,7 @@ function ensureWrap(p, el) {
   g.type = "button";
   g.className = "pt-grip";
   g.setAttribute("data-grip", p.key);
+  g.setAttribute("data-uikit-native-gesture", "");
   /* No data-tool and no data-act on purpose: js/mobile_shell.js builds the
      Tools sheet from exactly those attributes and js/tool_search.js indexes
      them, and a grip is neither a tool nor a command. It also sits in the
@@ -1348,6 +1369,7 @@ function claimPanels(overlayOnly) {
 }
 
 function onSizeDown(e) {
+  if (!editingLayout()) return;
   if (compact() || (e.button != null && e.button > 0) || drag) return;
   var key = e.currentTarget.getAttribute("data-panel");
   var handle = e.currentTarget.getAttribute("data-rh");
@@ -1453,4 +1475,21 @@ export function initPlanToolsDock() {
     relayout();
   }).observe(pane, { childList: true });
   place();
+}
+
+// Move the existing controls, retaining their event bindings and dock layout.
+export function movePlanToolsTo(id) {
+  const next=document.getElementById(id);
+  if(!next||!layer||next===pane)return;
+  const previous=pane;
+  pane=next;
+  next.appendChild(layer);
+  for(const key of ['cad','tune','entry','status','trace','hint']) {
+    const spec=PANEL_BY_KEY[key];
+    const node=spec?.id?document.getElementById(spec.id):null;
+    const wrapper=node?.closest('.pt-panel');
+    if(wrapper?.parentElement===previous)next.appendChild(wrapper);
+    else if(node?.parentElement===previous)next.appendChild(node);
+  }
+  relayout();
 }

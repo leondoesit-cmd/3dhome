@@ -96,8 +96,8 @@ test("every plan hit test refuses an unreachable layer before it scans", () => {
 });
 
 test("the hit tests outside interaction.js carry the same gate", () => {
-  assert.match(markerSource, /export function hitMarker\(px, pz\) \{\s*if \(layerRank\("annotations"\) === Infinity\) return null;/);
-  assert.match(mepSource, /export function hitMEP\(px, pz\) \{\s*if \(layerRank\("mep"\) === Infinity\) return null;/);
+  assert.match(markerSource, /export function hitMarker\(px, pz, scale=S\.SC\) \{\s*if \(layerRank\("annotations"\) === Infinity\) return null;/);
+  assert.match(mepSource, /export function hitMEP\(px, pz, scale=S\.SC\) \{\s*if \(layerRank\("mep"\) === Infinity\) return null;/);
   assert.match(slabSource, /export function hitSlabOpening\(px, pz, pad\) \{\s*if \(layerRank\("structure"\) === Infinity\) return null;/);
   assert.match(constraintSource, /export function hitWarning\(px, pz, thr\) \{\s*if \(layerRank\("annotations"\) === Infinity\) return null;/);
 });
@@ -162,10 +162,10 @@ test("each band of the chain is gated on its own layer's rank matching the pass"
 test("the order within a pass is exactly the order it always was", () => {
   const chain = selectChain();
   const order = [
-    "hitMEP(px, pz)",
+    "hitMEP(px, pz, inputScale())",
     "pickCon(e.offsetX, e.offsetY)",
     "hitNode(px, pz)",
-    "hitMarker(px, pz)",
+    "hitMarker(px, pz, inputScale())",
     "hitOpening(px, pz)",
     "hitItem(px, pz)",
     "hitSlabOpening(px, pz)",
@@ -181,9 +181,9 @@ test("the order within a pass is exactly the order it always was", () => {
   /* The two that are easiest to "tidy" into the wrong place, called out by
      name: a device standing on furniture stays grabbable, and a ~12px point
      standing inside its own object's footprint is not buried by it. */
-  assert.ok(chain.indexOf("hitMEP(px, pz)") < chain.indexOf("hitItem(px, pz)"));
-  assert.ok(chain.indexOf("hitMarker(px, pz)") < chain.indexOf("hitItem(px, pz)"));
-  assert.ok(chain.indexOf("hitMarker(px, pz)") < chain.indexOf("hitOpening(px, pz)"));
+  assert.ok(chain.indexOf("hitMEP(px, pz, inputScale())") < chain.indexOf("hitItem(px, pz)"));
+  assert.ok(chain.indexOf("hitMarker(px, pz, inputScale())") < chain.indexOf("hitItem(px, pz)"));
+  assert.ok(chain.indexOf("hitMarker(px, pz, inputScale())") < chain.indexOf("hitOpening(px, pz)"));
 });
 
 /* ---- 3. drag gating ---- */
@@ -274,7 +274,7 @@ test("select-tool idle hover lights focused layers only", () => {
   assert.match(hover, /furniture: layerRank\("furniture"\) === 0/);
   assert.match(hover, /annotations: layerRank\("annotations"\) === 0/);
   assert.match(hover, /S\.hoverItem = focus\.furniture \? hitItem\(px, pz\) : null;/);
-  assert.match(hover, /S\.hoverMarker = focus\.annotations \? hitMarker\(px, pz\) : null;/);
+  assert.match(hover, /S\.hoverMarker = focus\.annotations \? hitMarker\(px, pz, inputScale\(\)\) : null;/);
   assert.match(hover, /S\.hoverNode = focus\.structure && S\.hoverMarker == null/);
   assert.match(hover, /var hoverCon = focus\.annotations \? pickCon\(/);
   assert.match(hover, /S\.wallHoverHalf =\s*focus\.structure &&/);
@@ -291,7 +291,7 @@ test("a refused drag is announced on the window, with the gate that failed", () 
   assert.match(fn, /new CustomEvent\("layers:blocked-drag"/);
   /* `where` distinguishes the pane so one pill serves both; js/view3d.js
      emits the same four fields with where: "3d". */
-  assert.match(fn, /detail: \{ sel: sel, layer: id, reason: reason, where: "2d" \}/);
+  assert.match(fn, /detail: \{ sel: sel, layer: id, reason: reason, where: inputIs3D\(\)\?"3d":"2d" \}/);
   // the three reasons, in the order canDrag tests them
   assert.match(fn, /reason = "object"/);
   assert.match(fn, /layerRank\(id\) !== 0\) reason = "rank"/);

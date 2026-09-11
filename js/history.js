@@ -707,3 +707,24 @@ export function canUndo() {
 export function canRedo() {
   return H.canRedo();
 }
+
+// In-memory checkpoints are used for cancelled drags and isolated practice.
+export function captureHistorySession(portable=false) {
+  requireNoCommandTransaction("capture session");
+  const model=snap(),history=H.saveSession();
+  return {model,history,...(portable?{pools:{tex:[...texById],floors:[...floorById],baselines:[...baselinePool],texSeq,floorSeq,baselineSeq}}:{})};
+}
+export function restoreHistorySession(saved) {
+  requireNoCommandTransaction("restore session");
+  if (!saved) return false;
+  if(saved.pools){
+    for(const [k,v] of saved.pools.tex){texById.set(k,v);texKeyFor.set(v,k);}
+    for(const [k,v] of saved.pools.floors)floorById.set(k,v);
+    for(const [k,v] of saved.pools.baselines)baselinePool.set(k,v);
+    texSeq=Math.max(texSeq,saved.pools.texSeq);floorSeq=Math.max(floorSeq,saved.pools.floorSeq);baselineSeq=Math.max(baselineSeq,saved.pools.baselineSeq);
+  }
+  rollingBackBaseline = true;
+  try { apply(saved.model); H.loadSession(saved.history); }
+  finally { rollingBackBaseline = false; }
+  return true;
+}

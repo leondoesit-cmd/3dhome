@@ -290,7 +290,7 @@ export function initUIKit(options) {
     variants: { choose: chooseVariant },
     /* The host's vocabulary, not uikit's: which layouts it ships as starting
        points, and which of its own CSS variables a user may retint. */
-    presets: () => presetList(label),
+    presets: (scope) => presetList(label, scope),
     tokens: () => tokenList(label),
     exportName: "modelforge-layout",
     holdOpen: (nodeId, on) => holdDropdownOpen(doc, nodeId, on),

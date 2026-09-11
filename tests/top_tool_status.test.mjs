@@ -36,9 +36,9 @@ test("ui_layers.js exports syncToolStatus and integrates pill with 2D view", () 
   assert.match(uiLayers, /wrap\.classList\.remove\("has-msg"\)/);
 });
 
-test("plan_tools_dock.js registers status as a dockable panel defaulting to top edge", () => {
+test("plan_tools_dock.js registers status as a dockable panel defaulting to the side", () => {
   assert.match(dockJs, /key:\s*"status",\s*id:\s*"plan-tool-status"/);
-  assert.match(dockJs, /status:\s*\{\s*zone:\s*"top",\s*order:\s*0\s*\}/);
+  assert.match(dockJs, /status:\s*\{\s*zone:\s*"left",\s*order:\s*1\s*\}/);
 });
 
 test("plan chrome overlays are claimed as movable panels and snap is a thin magnet", () => {

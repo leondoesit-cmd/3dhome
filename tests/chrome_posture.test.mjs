@@ -56,7 +56,7 @@ const CASES = [
   {
     name: "narrow desktop window (no touch)",
     w: 700, h: 800, touch: false,
-    compact: true, roomy: true, phone: false, classes: "compact-nav dock-rail split-row",
+    compact: false, roomy: false, phone: false, classes: "",
   },
   {
     name: "laptop (no touch)",

@@ -164,7 +164,7 @@ test("mobile More promotes guidance and groups project work before collapsed ext
   assert.match(planner, /run\("plannerTutorial"\)/);
   assert.match(planner, /appendMenuGroup\(t\("m_more_project"\)/);
   assert.match(planner, /appendMenuGroup\(t\("m_more_extras"\)[\s\S]*?collapsed: true/);
-  assert.match(planner, /exclude: \["rc", "zombies", "lava"\]/);
+  assert.match(planner, /exclude: \["rc", "zombies", "lava", "openModeler", "uikitCustomize", "friends", "agent"\]/);
   assert.doesNotMatch(planner, /"shortcutsBtn"/);
   assert.match(css, /body\.compact-nav #openModelerTop\.legacy-chrome\s*\{\s*display:\s*none !important/);
   assert.match(css, /body\.compact-nav #topbar \.tb-end\s*\{\s*display:\s*none !important/);

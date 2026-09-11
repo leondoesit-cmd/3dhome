@@ -5,6 +5,7 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 const makeId = () => "floor-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 let floorIO = null;
 let floorSwitchGeneration = 0;
+let pendingFloorApplication = Promise.resolve(true);
 
 /* Keep the floor graph independent from the large browser-only ui.js module.
    workspace.js installs these two synchronous functions when the UI starts;
@@ -351,6 +352,7 @@ export function switchFloor(id) {
     workspace.referenceFloor = previousReference;
     throw err;
   }
+  pendingFloorApplication = Promise.resolve(applied);
   /* applyData is synchronous unless it has to fetch the model builder first —
      which it only does for a storey carrying custom definitions, in a session
      that has not loaded the editor yet. The catch above cannot see a rejection
@@ -374,6 +376,15 @@ export function switchFloor(id) {
   if (typeof document !== "undefined" && document.body)
     document.body.dataset.projectRole = S.workspace.role || "owner";
   return floor;
+}
+
+// Camera transitions wait for custom definitions before resuming movement.
+export async function switchFloorAndWait(id) {
+  const workspace=S.workspace;
+  const floor=switchFloor(id);
+  await pendingFloorApplication;
+  if(typeof window!=="undefined")window.__plannerChrome?.renderFloorTabs();
+  return S.workspace===workspace&&S.workspace.activeFloor===id ? floor : null;
 }
 
 /* The storey immediately above the active one, by elevation. A stairwell void

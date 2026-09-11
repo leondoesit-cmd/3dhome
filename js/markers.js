@@ -321,9 +321,9 @@ export function markerInfo(m, ceil) {
    see you cannot grab. A rank of 1 still answers: an off-work-set point is
    selectable and inspectable, it just never starts a drag, and that decision
    belongs to the pointerdown chain (js/interaction.js), not here. */
-export function hitMarker(px, pz) {
+export function hitMarker(px, pz, scale=S.SC) {
   if (layerRank("annotations") === Infinity) return null;
-  var thr = 12 / S.SC;
+  var thr = 12 / scale;
   if (!isFinite(thr) || thr <= 0) thr = 12;
   var best = null,
     bd = thr;

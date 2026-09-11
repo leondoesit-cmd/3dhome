@@ -951,7 +951,7 @@ function angDelta(a, b) {
 // Returns the topmost MEP entity under the cursor. Nodes take priority over
 // runs. For runs, `vi` is the index of a nearby vertex (for vertex dragging),
 // else -1 (whole-run hit → move the run or just select).
-export function hitMEP(px, pz) {
+export function hitMEP(px, pz, scale=S.SC) {
   /* Off the pointer entirely when the MEP layer is ghosted or hidden. Sockets,
      drains and cable vertices are the densest targets on the plan and they sit
      exactly where furniture wants to go, so a hidden MEP network that still
@@ -960,7 +960,7 @@ export function hitMEP(px, pz) {
      consults it in its second pass and selects without dragging. */
   if (layerRank("mep") === Infinity) return null;
   var m = ensureMEP();
-  var tolN = 12 / S.SC, tolV = 9 / S.SC, tolR = 8 / S.SC;
+  var tolN = 12 / scale, tolV = 9 / scale, tolR = 8 / scale;
   // nodes (visible systems only), nearest first
   var bn = null, bd = tolN;
   m.nodes.forEach(function (n) {

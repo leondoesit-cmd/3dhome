@@ -57,6 +57,8 @@ export function createDesigner(context) {
   const doc = mount.ownerDocument;
 
   let active = false;
+  let nativePointer = null;
+  const nativeHandle=target=>{const handle=target?.closest?.("[data-uikit-native-gesture]");return handle&&mount.contains(handle);};
   let overlay = null;
   let selection = [];
   let hover = null;
@@ -290,6 +292,12 @@ export function createDesigner(context) {
      rebuilding is cheaper than diffing and cannot go stale. */
   function sync() {
     if (!active) return;
+    if(drag?.live){
+      // A host repaint can strip transient attributes when it re-adopts a
+      // control. Keep the visible source dimmed for the whole live gesture.
+      const source=drag.shotFrom?.isConnected?drag.shotFrom:elementOf(drag.id);
+      if(source&&!source.hasAttribute('data-uikit-lifted'))source.setAttribute('data-uikit-lifted','');
+    }
     const layer = ensureOverlay();
     layer.replaceChildren();
 
@@ -922,6 +930,7 @@ export function createDesigner(context) {
 
   function endDrag(pending) {
     setDragCursor(null);
+    pending?.shotFrom?.removeAttribute('data-uikit-lifted');
     const el = pending && pending.id ? elementOf(pending.id) : null;
     if (el) el.removeAttribute("data-uikit-lifted");
     /* Belt and braces: a re-render during the drag can hand back a different
@@ -933,6 +942,7 @@ export function createDesigner(context) {
 
   function onPointerDown(e) {
     if (!active || e.button !== 0) return;
+    if(nativeHandle(e.target)){nativePointer=e.pointerId;return;}
     const point = { x: e.clientX, y: e.clientY };
     if (overOwnUI(point)) return;
     e.preventDefault();
@@ -1033,7 +1043,7 @@ export function createDesigner(context) {
   }
 
   function onPointerMove(e) {
-    if (!active) return;
+    if (!active || nativePointer===e.pointerId) return;
     const point = { x: e.clientX, y: e.clientY };
 
     if (sizing) {
@@ -1155,6 +1165,7 @@ export function createDesigner(context) {
   }
 
   function onPointerUp(e) {
+    if(nativePointer===e.pointerId){nativePointer=null;return;}
     if (!active) return;
     if (touchTimer) {
       clearTimeout(touchTimer);
@@ -1217,14 +1228,14 @@ export function createDesigner(context) {
      letting the click through would run whatever the host bound to it — the
      one thing customize mode must never do. */
   function onClick(e) {
-    if (!active) return;
+    if (!active || nativeHandle(e.target)) return;
     if (isOwnUITarget(e.target)) return;
     e.preventDefault();
     e.stopPropagation();
   }
 
   function onKeyDown(e) {
-    if (!active) return;
+    if (!active || (e.key!=="Escape"&&nativeHandle(e.target))) return;
     /* Accel+Alt is reserved: Ctrl/Cmd+Alt+U is createUIKit's escape hatch and
        Ctrl/Cmd+Alt+E is the host's way in and out. Claiming either here would
        put the way out behind the editor being in a good state, which is the
@@ -1297,6 +1308,7 @@ export function createDesigner(context) {
     const want = !!on;
     if (want === active) return active;
     active = want;
+    nativePointer = null;
     if (active) {
       if (mount && mount.style) mount.style.touchAction = "none";
       for (const [type, fn] of LISTENERS) doc.addEventListener(type, fn, true);

@@ -382,7 +382,7 @@ test("moving a ribbon button out of its group warns in the inspector note", opts
     const moved = ed.command("move", { id: "cmd:grpStart:extrude", parent: "panel:tb-end", index: 0 });
     await window.__frame();
 
-    const noteText = document.querySelector(".uikit-ins-note")?.textContent || "";
+    const noteText = document.querySelector(".uikit-ins-feedback")?.textContent || "";
     const parentNodeId = ui.doc.nodes["cmd:grpStart:extrude"]
       ? ui.doc.nodes["panel:tb-end"].children[0]
       : null;

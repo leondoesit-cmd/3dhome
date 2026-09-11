@@ -2,7 +2,7 @@ import {inside,footprint} from './layout_analysis.js';
 function distance(p,a,b){const dx=b.x-a.x,dz=b.z-a.z,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.z-a.z)*dz)/(dx*dx+dz*dz||1)));return Math.hypot(p.x-a.x-t*dx,p.z-a.z-t*dz);}
 function nearPolygon(p,poly,radius){return inside(p,poly)||poly.some((a,i)=>distance(p,a,poly[(i+1)%poly.length])<radius-1e-6);}
 export function reviewAccess(snapshot){
- const {scene,doors=[],entranceId,width=60}=snapshot,rooms=scene.rooms;
+ const {scene,doors=[],entranceId,width=60,bodyHeight=180}=snapshot,rooms=scene.rooms;
  const links=doors.map(door=>({...door,rooms:rooms.filter(r=>(r.wallIds||String(r.key).split(',')).map(String).includes(String(door.wall))).map(r=>r.key)}));
  const entrance=links.find(door=>String(door.id)===String(entranceId));
  const connected=new Set(entrance?.rooms||[]),pending=[...connected];
@@ -12,9 +12,10 @@ export function reviewAccess(snapshot){
  const xs=rooms.flatMap(r=>r.pts.map(p=>p.x)),zs=rooms.flatMap(r=>r.pts.map(p=>p.z)),x0=Math.min(...xs),z0=Math.min(...zs),step=10;
  const columns=Math.ceil((Math.max(...xs)-x0)/step),rows=Math.ceil((Math.max(...zs)-z0)/step);
  if(columns*rows>120000)return {...base,walkable:null,reason:'too-large'};
- const radius=width/2,itemPolys=scene.items.filter(i=>i.blocksPlacement!==false&&(i.elev||0)<180).map(i=>footprint(i)),voids=snapshot.voids||[];
+ const radius=width/2,itemPolys=scene.items.filter(i=>i.blocksPlacement!==false&&(i.elev||0)<bodyHeight).map(i=>footprint(i)),voids=snapshot.voids||[];
  const free=p=>{
   if(!rooms.some(r=>inside(p,r.pts)))return false;
+  if(snapshot.canOccupy)return snapshot.canOccupy(p);
   if([...itemPolys,...voids].some(poly=>nearPolygon(p,poly,radius)))return false;
   for(const wall of scene.walls){
    if(wall.physical===false)continue;let station=0;
@@ -45,9 +46,9 @@ export function reviewAccess(snapshot){
  }
  const reachedPoints=[...reached].map(key=>cells.get(key));
  const walkable=rooms.filter(room=>reachedPoints.some(p=>inside(p,room.pts))).map(r=>r.key);
- const blockedItems=scene.items.filter(i=>i.blocksPlacement!==false&&(i.elev||0)<180).filter(item=>{
+ const blockedItems=scene.items.filter(i=>i.blocksPlacement!==false&&(i.elev||0)<bodyHeight).filter(item=>{
   const angle=(item.rot||0)*Math.PI/180,p={x:item.x-Math.sin(angle)*(item.d/2+radius+step),z:item.z+Math.cos(angle)*(item.d/2+radius+step)};
   return !reachedPoints.some(q=>Math.hypot(q.x-p.x,q.z-p.z)<step*1.5);
  }).map(i=>i.id);
- return {...base,walkable,blockedItems,step};
+ return {...base,walkable,blockedItems,step,reachedPoints};
 }

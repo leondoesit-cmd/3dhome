@@ -49,6 +49,7 @@ async function docked({ seed = null, width = 1440, height = 900 } = {}) {
     const host = await import("/js/uikit_host/index.js");
     window.__ui = host.activeUIKit();
     if (!window.__ui) throw new Error("uikit did not start");
+    await window.__ui.edit(true);
     window.__zoneOf = (key) => {
       const wrap = document.querySelector('.pt-panel[data-panel="' + key + '"]');
       const zone = wrap && wrap.closest(".pt-zone");
@@ -94,10 +95,10 @@ test("the dock's zones are uikit slots, and the document holds the arrangement",
 
   assert.equal(result.slots.length, 8, "all eight zones are registered: " + result.slots.join(","));
   assert.equal(result.zoneNodes, 8);
-  assert.deepEqual(result.leftChildren, ["pt:tools", "pt:layers", "pt:walls", "pt:rooms"],
+  assert.deepEqual(result.leftChildren, ["pt:layers", "pt:status"],
     "the shipped arrangement, as document nodes");
-  assert.equal(result.domZone, "left");
-  assert.equal(result.docZone, "left", "and the DOM agrees with the document");
+  assert.equal(result.domZone, "top");
+  assert.equal(result.docZone, "top", "and the DOM agrees with the document");
   assert.ok(result.tagged, "the panel wrappers are nodes, so customize mode can select them");
 });
 
@@ -142,11 +143,11 @@ test("reset all takes the dock back with the rest of the chrome", opts, async ()
   });
 
   assert.equal(result.moved, "right");
-  assert.equal(result.doc, "left", "reset restored the shipped arrangement");
-  assert.equal(result.after, "left", "and the pane was laid out again for it");
+  assert.equal(result.doc, "top", "reset restored the shipped arrangement");
+  assert.equal(result.after, "top", "and the pane was laid out again for it");
 });
 
-test("an arrangement made before the document existed is inherited, not discarded", opts, async () => {
+test("an unversioned dock seed does not override the current layout preset", opts, async () => {
   const page = await docked({
     seed: {
       panels: {
@@ -168,13 +169,11 @@ test("an arrangement made before the document existed is inherited, not discarde
     flow: window.__ui.doc.nodes["n:pt-bottom-right"].flow,
   }));
 
-  assert.equal(result.tools, "bottom-right", "the corner the user had already chosen");
-  assert.equal(result.layers, "bottom-right");
-  assert.equal(result.walls, "left");
-  assert.deepEqual(result.order, ["pt:tools", "pt:layers"], "in the order they were in");
-  assert.equal(result.orient, "row", "the zone's axis came across too (h -> row)");
-  assert.equal(result.flow, "col", "and its flow (column -> col)");
-  assert.equal(result.domTools, "bottom-right", "and that is where the panel actually is");
+  assert.equal(result.tools, "top");
+  assert.equal(result.layers, "left");
+  assert.equal(result.walls, "top");
+  assert.deepEqual(result.order, []);
+  assert.equal(result.domTools, "top", "the current preset determines the panel position");
 });
 
 test("on a phone the zones stop existing, and the document simply skips them", opts, async () => {
@@ -216,12 +215,13 @@ test("on a phone the zones stop existing, and the document simply skips them", o
     return { slots: document.querySelectorAll('[data-uikit-slot^="pt:"]').length, zone: window.__zoneOf("tools") };
   });
   assert.equal(back.slots, 8, "and they come back");
-  assert.equal(back.zone, "left");
+  assert.equal(back.zone, "top");
 });
 
 test("uikit never unhides a panel the app itself hid", opts, async () => {
   const page = await docked();
   const result = await page.eval(async () => {
+    await window.__ui.edit(false);
     /* The wall palette comes and goes with the active tool. That visibility is
        the app's business, and a layout pass that wrote hidden=false on every
        node would drag it back on screen a frame after the app hid it. */
@@ -255,7 +255,10 @@ test("uikit never unhides a panel the app itself hid", opts, async () => {
 test("the dock still owns how it looks: flush edges and axis are untouched", opts, async () => {
   const page = await docked();
   const result = await page.eval(async () => {
-    window.__nudge("tools", "ArrowUp"); // to the top edge; keep the column's axis
+    window.__nudge("tools", "ArrowDown");
+    await window.__frame();
+    window.__nudge("tools", "ArrowUp"); // return to top while preserving toolbar orientation
+    await window.__ui.edit(false);
     await window.__frame();
     const zone = document.querySelector('.pt-zone[data-zone="top"]');
     const wrap = document.querySelector('.pt-panel[data-panel="tools"]');
@@ -270,7 +273,7 @@ test("the dock still owns how it looks: flush edges and axis are untouched", opt
     };
   });
 
-  assert.equal(result.axis, "v", "docking must not restyle the column into a row");
+  assert.equal(result.axis, "h", "docking preserves the toolbar row orientation");
   assert.equal(result.flush, "top");
   assert.ok(result.flow, "the fit pass still ran");
   assert.ok(result.flushTop, "and the zone is still flush against the pane edge");

@@ -235,6 +235,12 @@ function imageFor(ref) {
   return cachedImage;
 }
 
+// Share the source raster with 3D without reading or sizing the 2D canvas.
+export function blueprintRaster(ref = S.blueprintTrace) {
+  const img=imageFor(ref);
+  return img?.complete&&img.naturalWidth ? img : null;
+}
+
 export function drawBlueprintUnderlay(ctx, sx, sz) {
   var ref = S.blueprintTrace;
   // this runs on every 2D repaint, i.e. every pointermove — only touch the DOM
@@ -280,7 +286,7 @@ export function syncBlueprintTraceControls() {
   // cheap early-out: nothing the bar renders has moved since the last repaint
   if (sig === controlsSig && document.getElementById("bp-trace-controls")) return;
   controlsSig = sig;
-  var host = document.getElementById("view-2d");
+  var host = document.getElementById(document.documentElement.dataset.plannerViewport === "3d" ? "view-3d" : "view-2d");
   if (!host) return;
   var bar = document.getElementById("bp-trace-controls");
   if (!bar) {

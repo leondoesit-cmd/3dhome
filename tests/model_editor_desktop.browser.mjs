@@ -89,6 +89,8 @@ async function openDesktopEditor(page) {
 
 test("desktop model editor boots cleanly and exposes window.cadPreviewView", opts, async () => {
   const page = await ctx({ width: 1280, height: 800, lang: "en" });
+  await page.waitUntil(() => !!window.cadPreviewView && typeof window.cadPreviewView.render === "function",
+    { what: "the asynchronously initialized model preview" });
   const previewReady = await page.eval(() => {
     return !!window.cadPreviewView && typeof window.cadPreviewView.render === "function";
   });

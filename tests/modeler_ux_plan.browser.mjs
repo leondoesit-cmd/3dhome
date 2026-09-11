@@ -61,6 +61,7 @@ test('tree repair works by button and Enter and marks a missing reference',opts,
    openModeler(null,def,null);
   });
   await page.waitUntil(()=>!!document.querySelector('[data-node-id="feature:broken"] button.md-tree-warn'));
+  await page.waitUntil(()=>!!window.cadPreviewView?.grp,{what:'repair preview scene'});
   await page.eval(()=>document.querySelector('[data-node-id="feature:broken"] button.md-tree-warn').click());
   await page.waitUntil(()=>!document.getElementById('mdQuickSettings').hidden);
   assert.equal(await page.eval(()=>window.cadPreviewView.grp.children.some(x=>x.userData.cadRepairReference==='base:missing')),true);

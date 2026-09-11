@@ -55,7 +55,7 @@ test("the posture picks the variant, and the app says which one is being edited"
     base: window.__ins(".uikit-ins-variant-name").getAttribute("data-base"),
   }));
   assert.equal(wide.variant, "base", "a 1440x900 window is the base layout");
-  assert.equal(wide.shown, "All screens");
+  assert.equal(wide.shown, "Desktop");
   assert.equal(wide.base, "1");
 
   await page.resize(390, 844);
@@ -257,4 +257,46 @@ test("resetting the breakpoint clears only that breakpoint's patch", opts, async
   assert.equal(result.patch, undefined, "the phone patch is gone");
   assert.equal(result.label, "Everywhere",
     "and the base edit, which applies at every size, is untouched");
+});
+
+test('phone and folded/tablet presets and named saves stay separate across resize', opts, async () => {
+  const page = await customizing({width:390,height:844});
+  const phone = await page.eval(async () => {
+    localStorage.removeItem('home3d_uikit:planner:saved:phone');
+    localStorage.removeItem('home3d_uikit:planner:saved:compact');
+    const ui = window.__ui;
+    const ids = ui.presets().map(p=>p.id);
+    ui.applyPreset('phone-model');
+    ui.saveNamedLayout('Phone workspace');
+    await window.__frame();
+    return { ids, cards: [...document.querySelectorAll('.uikit-ins-preset-card')].map(b=>b.dataset.preset), saved:ui.savedLayouts() };
+  });
+  assert.deepEqual(phone.cards,phone.ids);
+  assert.ok(phone.ids.every(id=>id.startsWith('phone-')));
+  await page.resize(673,841);
+  const fold = await page.eval(async () => {
+    for(let i=0;i<20;i++) await window.__frame();
+    const ui=window.__ui;
+    const before=ui.savedLayouts();
+    ui.applyPreset('compact-draw');
+    ui.saveNamedLayout('Fold workspace');
+    return {variant:ui.variant,before,ids:ui.presets().map(p=>p.id),phone:ui.doc.variants.phone.tokens['--accent'],saved:ui.savedLayouts()};
+  });
+  assert.equal(fold.variant,'compact');
+  assert.deepEqual(fold.before,[]);
+  assert.ok(fold.ids.every(id=>id.startsWith('compact-')));
+  assert.equal(fold.phone,'#0f766e');
+  await page.resize(390,844);
+  const returned=await page.eval(async()=>{
+    for(let i=0;i<20;i++) await window.__frame();
+    const ui=window.__ui;
+    return {saved:ui.savedLayouts().map(p=>p.name), matched:ui.matchingPreset(), wrong:ui.loadNamedLayout('not-a-phone-id')};
+  });
+  assert.deepEqual(returned.saved,['Phone workspace']);
+  assert.equal(returned.matched,'phone-model');
+  assert.equal(returned.wrong,false);
+  await page.eval(()=>{
+    localStorage.removeItem('home3d_uikit:planner:saved:phone');
+    localStorage.removeItem('home3d_uikit:planner:saved:compact');
+  });
 });

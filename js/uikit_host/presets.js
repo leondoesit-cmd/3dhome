@@ -76,7 +76,34 @@ const PRESENTATION = {
   studio: ["An open, spacious layout with a violet accent.", "#7c3aed", "34%"],
 };
 
-export function presetList(label) {
+function portableLayout(scope, mode) {
+  let doc = defaultLayout();
+  const roomy = scope === "compact";
+  doc = ops.resize(doc, { id: "n:left", size: { w: roomy ? 272 : 320 } });
+  doc = ops.resize(doc, { id: "n:right", size: { w: roomy ? 288 : 320 } });
+  doc = ops.setToken(doc, { id: null, name: "--uikit-gap", value: "8px" });
+  doc = ops.setToken(doc, { id: null, name: "--uikit-pad", value: "4px" });
+  if (mode === "draw") for (const id of SECONDARY) doc = ops.hide(doc, { id, hidden: true });
+  if (mode === "model") {
+    doc = ops.resize(doc, { id: "n:left", size: { w: roomy ? 240 : 300 } });
+    doc = ops.setToken(doc, { id: null, name: "--accent", value: "#0f766e" });
+    doc = ops.setToken(doc, { id: null, name: "--accent-hover", value: "#115e59" });
+  }
+  return doc;
+}
+
+export function presetList(label, scope = "base") {
+  if (scope !== "base") return [
+    ["everyday", "Everyday", "Comfortable spacing with all design panels available."],
+    ["draw", "Floor planning", "Fewer secondary panels for focused room planning."],
+    ["model", "Model & cabinet", "A slimmer library and a calm teal accent for detailed work."],
+  ].map(([id, name, description]) => ({
+    id: scope + "-" + id, key: "uikit_portable_" + id,
+    label: label ? label("uikit_portable_" + id, name) : name,
+    description: label ? label("uikit_portable_" + id + "_desc", description) : description,
+    preview: { accent: id === "model" ? "#0f766e" : "#4f46e5", sidebar: scope === "phone" ? "12%" : "24%" },
+    doc: () => portableLayout(scope, id),
+  }));
   return PRESETS.map((preset) => ({
     id: preset.id,
     key: preset.key,

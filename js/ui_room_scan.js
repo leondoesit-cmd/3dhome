@@ -4,6 +4,11 @@
    - iPhone/iPad RoomPlan: import a CapturedRoom JSON export. Safari does not
      expose RoomPlan/LiDAR to web pages, so that bridge is explicit in the UI.
  */
+import { alignRoomScan, scanReconciliation } from "./survey_alignment.js";
+import { st } from "./survey_strings.js";
+import { StableScanPoint } from "./survey_exchange.js";
+import { normalizeSurvey } from "./survey.js";
+import { surveyStore } from "./survey_store.js";
 import { S } from "./state.js";
 import { t } from "./i18n.js";
 import { pushHistory } from "./history.js";
@@ -315,7 +320,9 @@ function startErrorMessage(error) {
   return "rs_ar_failed";
 }
 
-export function openRoomScanModal() {
+export function openRoomScanModal(initialResult = null, exchange = null) {
+  const stablePoint = new StableScanPoint();
+  const detectedPlanes=new Map();
   let result = null, xrSession = null, hitSource = null, latestPoint = null, points = [];
   // the same corners in metres with their measured floor height, kept only so
   // the in-camera markers can be drawn where they were actually placed
@@ -324,6 +331,7 @@ export function openRoomScanModal() {
      the longest wall is often the one you cannot reach with a tape — so the
      preview lets you pick the one you actually measured. */
   let calIndex = -1;
+  let alignment = null;
   // AR corners are tapped on the INSIDE face; RoomPlan fits a plane to the
   // visible face too, so both may need pushing out to a centre-line.
   let faceMode = "centre";
@@ -470,7 +478,7 @@ export function openRoomScanModal() {
     const square = cal.querySelector("#rs_square");
     if (square && square.checked) squareScan(copy);
     if (faceMode === "inside") insetScan(copy, 1);
-    return copy;
+    return alignment ? alignRoomScan(copy,alignment.source,alignment.target) : copy;
   }
 
   /* The scan knows when it is unreliable — crossed walls, low-confidence
@@ -478,6 +486,7 @@ export function openRoomScanModal() {
      discovery to after the plan has replaced the user's work. */
   function showWarnings(shown) {
     const notes = [];
+    if(result.surfaceObservations?.length)notes.push(["ph-info",st("inferred_surfaces")+" "+result.surfaceObservations.length]);
     if (scanSelfIntersects(shown)) notes.push(["ph-warning-octagon", t("rs_warn_cross")]);
     if (result.lowConfidenceCount)
       notes.push(["ph-warning", t("rs_warn_confidence", { n: result.lowConfidenceCount })]);
@@ -530,11 +539,9 @@ export function openRoomScanModal() {
     calIndex = (next.cad.lines || []).findIndex((l) => longest && l.a === longest.a && l.b === longest.b);
     // AR corners are floor taps on the inside face; an imported scan is not
     faceMode = next.source === "WebXR AR" ? "inside" : "centre";
-    /* Hand-tapped corners are always a degree or two out, so squaring is the
-       right default there. RoomPlan already fits planes and regularizes them,
-       so an import is left exactly as measured unless the user asks. */
+    // Squaring is an explicit correction; retain all measured angles initially.
     const square = cal.querySelector("#rs_square");
-    if (square) square.checked = next.source === "WebXR AR";
+    if (square) square.checked = false;
     // only an import can carry furniture, so the choice only appears with some
     const hasObjects = !!next.objectCount;
     cal.querySelector(".roomscan-furniture").hidden = !hasObjects;
@@ -666,7 +673,7 @@ export function openRoomScanModal() {
            "supported" session that opens the camera but hides every capture
            button on browsers that cannot present DOM inside immersive AR. */
         requiredFeatures: ["hit-test", "dom-overlay"],
-        optionalFeatures: ["local-floor"],
+        optionalFeatures: ["local-floor", "plane-detection"],
         domOverlay: { root: stage },
       });
       /* Everything below here can still reject, and a session with no end
@@ -782,10 +789,16 @@ export function openRoomScanModal() {
         onFloor = level && !raised;
         // centimetres on every axis: a vector that mixed cm and metres was one
         // careless read away from a wrong floor height
-        latestPoint = at ? { x: at.x * 100, y: at.y * 100, z: at.z * 100 } : null;
+        latestPoint = stablePoint.add(at ? { x: at.x * 100, y: at.y * 100, z: at.z * 100 } : null, performance.now());
         capture.disabled = !latestPoint || raised;
         reticle.classList.toggle("locked", !!latestPoint && onFloor);
         reticle.classList.toggle("offfloor", !!latestPoint && !onFloor);
+        for(const plane of xrFrame.detectedPlanes||[]){
+          if(detectedPlanes.size>=200&&!detectedPlanes.has(plane))continue;
+          const pose=xrFrame.getPose(plane.planeSpace,refSpace);if(!pose)continue;const m=pose.transform.matrix;
+          const polygon=Array.from(plane.polygon||[]).map(p=>({x:100*(m[0]*p.x+m[4]*p.y+m[8]*p.z+m[12]),y:100*(m[1]*p.x+m[5]*p.y+m[9]*p.z+m[13]),z:100*(m[2]*p.x+m[6]*p.y+m[10]*p.z+m[14])}));
+          detectedPlanes.set(plane,{id:detectedPlanes.get(plane)?.id||crypto.randomUUID(),orientation:plane.orientation,points:polygon,status:'estimated',source:'WebXR plane detection'});
+        }
         const viewerPose = xrFrame.getViewerPose(refSpace);
         if (viewerPose) {
           const vp = viewerPose.transform.position;
@@ -809,6 +822,7 @@ export function openRoomScanModal() {
         let next;
         try { next = roomScanFromPoints(points); }
         catch (error) { return setHint("rs_need_three", 1800); }
+        next.surfaceObservations=Array.from(detectedPlanes.values());
         await xrSession.end();
         showResult(next);
       };
@@ -831,6 +845,8 @@ export function openRoomScanModal() {
         }
         // the renderer works in WebXR's metres
         anchors.push({ x: at.x / 100, y: at.y / 100, z: at.z / 100 });
+        surveyStore("put","capture-draft",{points:JSON.parse(JSON.stringify(points)),at:Date.now()}).catch(()=>{});
+        stablePoint.reset();
         setHint("rs_move_next", 1000);
         mapAt = 0; refresh();
         tones.corner();
@@ -839,6 +855,7 @@ export function openRoomScanModal() {
       undo.onclick = () => {
         if (!points.length) return;
         points.pop();
+        surveyStore("put","capture-draft",{points:JSON.parse(JSON.stringify(points)),at:Date.now()}).catch(()=>{});
         anchors.pop();
         setHint(points.length ? "rs_aim_next" : "rs_surface_ready");
         mapAt = 0; refresh();
@@ -868,7 +885,16 @@ export function openRoomScanModal() {
   arCard.onclick = showTutorial;
   tutorialStart.onclick = startAR;
 
-  apply.onclick = () => {
+  const alignButton=el('button','btn',st('align'));alignButton.type='button';foot.prepend(alignButton);
+  alignButton.onclick=()=>{
+    if(!result)return;
+    const box=el('div','survey-form'),instructions=el('p',null,st('align_help')),coords=el('textarea');coords.rows=4;coords.placeholder='x z\nx z\nx z\nx z';
+    const confirm=el('button','btn',st('apply')),reset=el('button','btn',st('discard'));confirm.type=reset.type='button';
+    box.append(instructions,coords,confirm,reset);modal.append(box);
+    confirm.onclick=()=>{try{const pts=coords.value.trim().split('\n').map(row=>{const n=row.trim().split(/[ ,]+/).map(Number);if(n.length!==2||!n.every(Number.isFinite))throw new Error();return {x:n[0],z:n[1]};});if(pts.length!==4)throw new Error();alignment={source:pts.slice(0,2),target:pts.slice(2)};previewCopy();repaint();box.remove();}catch(_){alignment=null;status.textContent=st('SURVEY_ALIGNMENT_SCALE');}};
+    reset.onclick=()=>{alignment=null;box.remove();repaint();};
+  };
+  apply.onclick = async () => {
     if (!result) return;
     const merge = cal.querySelector('input[name="rs_mode"]:checked');
     const addBeside = merge && merge.value === "merge" && S.walls.length;
@@ -887,7 +913,7 @@ export function openRoomScanModal() {
       status.textContent = t(error && error.kind === "bad-scale" ? "rs_laser_hint" : "rs_no_walls");
       return;
     }
-    if (addBeside) {
+    if (addBeside && !alignment) {
       const bb = contentBounds();
       const sb = scanBounds(next);
       offsetScan(next, bb.maxx + 120 - sb.minX, bb.minz - sb.minZ);
@@ -895,11 +921,13 @@ export function openRoomScanModal() {
     /* Each scanned wall carries its own measured height; cad_to_walls keeps it
        and falls back to this only for a line that never had one. */
     const fallbackHeight = next.cad.lines.reduce((sum, line) => sum + (line.height || 270), 0) / next.cad.lines.length;
-    const converted = convertCadToWalls(next.cad, {
+    let converted = convertCadToWalls(next.cad, {
       singleLineWalls: true, defaultThickness: 10, height: fallbackHeight,
       nodeTolerance: 18, openingTolerance: 45, firstId: S.idc,
     });
     if (converted.walls.length < 3) { status.textContent = t("rs_no_walls"); return; }
+    if(alignment&&addBeside){const review=scanReconciliation(converted,S);if(review.conflicts.length){status.textContent=st('alignment_conflict');return;}if(review.shared.length&&!window.confirm(st('alignment_shared')+' '+review.shared.length))return;converted=review.converted;}
+    if(exchange){try{for(const photo of exchange.attachments||[])await surveyStore('put',photo.id,photo);}catch(_){status.textContent=st('SURVEY_PHOTO_MISSING');return;}}
     pushHistory();
     if (addBeside) {
       const nodeOff = S.nodes.length;
@@ -910,6 +938,11 @@ export function openRoomScanModal() {
       S.nodes = converted.nodes; S.walls = converted.walls; S.openings = converted.openings;
       S.items = []; S.markers = []; S.slabOpenings = []; S.roomMeta = {};
     }
+    const survey = normalizeSurvey(S.workspace.survey);
+    if(exchange?.survey){const incoming=normalizeSurvey(exchange.survey);for(const key of ['observations','missions','captures','photos']){const existing=new Set(survey[key].map(x=>x.id));survey[key].push(...incoming[key].filter(x=>!existing.has(x.id)));}survey.enabled=true;}
+    survey.captures.push({id:crypto.randomUUID(),source:result.source,units:'cm',createdAt:Date.now(),original:JSON.parse(JSON.stringify(result)),applied:JSON.parse(JSON.stringify(next)),exchange:exchange?{format:exchange.format,version:exchange.version}:null});
+    S.workspace.survey=survey;
+    surveyStore('delete','capture-draft').catch(()=>{});
     S.idc = converted.nextId; S.sel = null;
     /* After the replace branch has cleared S.items, never before it. Each
        piece is an ordinary editable item from here on — the scan seeds the
@@ -931,6 +964,8 @@ export function openRoomScanModal() {
     flash(t(addBeside ? "rs_applied_merge" : "rs_applied"), "success");
   };
 
+  if(initialResult)showResult(initialResult);
+  else surveyStore('get','capture-draft').then(saved=>{if(saved?.points?.length>=3&&overlay.parentElement){const recover=el('button','btn',st('recover_capture'));recover.type='button';recover.onclick=()=>{showResult(roomScanFromPoints(saved.points));recover.remove();};foot.prepend(recover);}}).catch(()=>{});
   arCapability().then(({ supported, issue }) => {
     if (!overlay.parentElement) return;
     arCard.disabled = !supported;

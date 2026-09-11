@@ -260,6 +260,7 @@ export function defaultLayout() {
 
   return {
     v: 1,
+    plannerDockVersion: 3,
     variants: {
       base: { root: "n:app", patch: {} },
       compact: { root: "n:app", patch: {} },
@@ -346,6 +347,24 @@ function dropNode(doc, id) {
 export function migrateSavedLayout(saved) {
   if (!saved || typeof saved !== "object" || !saved.nodes) return saved;
   const doc = JSON.parse(JSON.stringify(saved));
+
+  // One-time upgrade also fixes saved floating/vertical tool arrangements.
+  // Other interface customization is preserved; future dock edits remain editable.
+  if (doc.plannerDockVersion !== 3) {
+    const defaults = dockLayoutNodes();
+    const ids = new Set(Object.keys(defaults));
+    for (const node of Object.values(doc.nodes)) {
+      if (node.children) node.children = node.children.filter(id => !ids.has(id));
+    }
+    Object.assign(doc.nodes, defaults);
+    if (doc.nodes["n:app"]) {
+      doc.nodes["n:app"].children = (doc.nodes["n:app"].children || []).concat(dockRootChildren());
+    }
+    for (const variant of Object.values(doc.variants || {})) {
+      for (const id of ids) if (variant.patch) delete variant.patch[id];
+    }
+    doc.plannerDockVersion = 3;
+  }
 
   for (const [from, to] of Object.entries(RENAMED_NODES)) renameIn(doc, from, to);
 

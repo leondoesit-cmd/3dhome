@@ -156,32 +156,28 @@ for (const lang of ["en", "he"]) {
       }
     });
 
-    test(`model editor @ ${w}px (${lang}): View sheet needs no scrolling`, opts, async () => {
+    test(`model editor @ ${w}px (${lang}): View pages need no scrolling`, opts, async () => {
       const page = await ctx({ width: w, height: h, lang });
       {
         await openSheet(page, "view");
-        const v = await page.eval(() => {
-          const body = document.getElementById("md-sheet-body");
-          const btns = [...body.querySelectorAll(".m-grid-btn")];
-          return {
-            scrollH: body.scrollHeight,
-            clientH: body.clientHeight,
-            count: btns.length,
-            shortest: Math.min(...btns.map((b) => Math.round(b.getBoundingClientRect().height))),
-            escaped: btns.filter((b) => {
-              const r = b.getBoundingClientRect();
-              const sr = document.getElementById("md-sheet").getBoundingClientRect();
-              return r.right > sr.right + 1 || r.left < sr.left - 1;
-            }).length,
-          };
+        const pages = await page.eval(() => {
+          const body = document.getElementById("md-sheet-body"), sheet=document.getElementById("md-sheet");
+          const tabs=[...body.querySelectorAll(".mobile-page-tab,.mobile-page-dot")];
+          return (tabs.length?tabs:[null]).map(tab=>{
+            tab?.click();
+            const btns=[...body.querySelectorAll(".m-grid-btn")].filter(b=>b.getBoundingClientRect().height>0);
+            const sr=sheet.getBoundingClientRect();
+            return {count:btns.length,scrollH:body.scrollHeight,clientH:body.clientHeight,
+              shortest:Math.min(...btns.map(b=>Math.round(b.getBoundingClientRect().height))),
+              escaped:btns.filter(b=>{const r=b.getBoundingClientRect();return r.right>sr.right+1||r.left<sr.left-1;}).length};
+          });
         });
-        assert.ok(v.count > 10, "the view sheet rendered its controls");
-        assert.ok(
-          v.scrollH <= v.clientH + 1,
-          `view sheet scrolls: ${v.scrollH} of content in ${v.clientH}`,
-        );
-        assert.ok(v.shortest >= TAP, `a view control is only ${v.shortest}px tall`);
-        assert.equal(v.escaped, 0, "a view control escaped the sheet");
+        assert.ok(pages.reduce((n,p)=>n+p.count,0)>10,"all View controls remain reachable through the pages");
+        for(const v of pages){
+          assert.ok(v.scrollH<=v.clientH+1,`view page scrolls: ${v.scrollH} of content in ${v.clientH}`);
+          assert.ok(v.shortest>=TAP,`a view control is only ${v.shortest}px tall`);
+          assert.equal(v.escaped,0,"a view control escaped the sheet");
+        }
       }
     });
   }
@@ -230,8 +226,9 @@ test("closing the editor leaves the desktop layout whole", opts, async () => {
   const page = await ctx();
   {
     await openSheet(page, "tree"); // borrow the left panel, then tear down on top of it
-    const after = await page.eval(() => {
+    const after = await page.eval(async () => {
       document.getElementById("mdClose").click();
+      await new Promise(requestAnimationFrame);
       const root = document.getElementById("modeler");
       return {
         left: !!root.querySelector(".md-left"),
@@ -537,7 +534,7 @@ test("mobile Add sheet launches an interactive editor without inerting unknown i
   }
 });
 
-test("model editor @ 344px: all nav destinations are reachable named icons", opts, async () => {
+test("model editor @ 344px: all nav destinations retain visible names and icons", opts, async () => {
   const page = await ctx({ width: 344, height: 882 });
   {
     const nav = await page.eval(() => {
@@ -566,7 +563,7 @@ test("model editor @ 344px: all nav destinations are reachable named icons", opt
     assert.equal(nav.buttons.length, 5, "expected every navigation destination");
     assert.ok(nav.buttons.every((button) => button.aria && button.iconShown), "a destination lost its icon or accessible name");
     assert.ok(nav.buttons.every((button) => button.w >= TAP && button.h >= TAP), "a destination fell below the touch floor");
-    assert.ok(nav.buttons.every((button) => !button.labelShown), "Fold cover still spends space on navigation captions");
+    assert.ok(nav.buttons.every((button) => button.labelShown), "Fold cover hid a navigation caption");
     assert.equal(nav.overflows, false, "icon navigation overflows the viewport");
   }
 });

@@ -69,8 +69,8 @@ async function arPage() {
     };
     window.__step = async function (x, y, z) {
       window.__xr.hit = { x, y, z };
-      window.__xr.raf(performance.now(), window.__xr.frame);
-      await new Promise((r) => setTimeout(r, 40));
+      // A corner is eligible only after a fresh stable sample window.
+      for(let i=0;i<10;i++){window.__xr.raf(performance.now(), window.__xr.frame);await new Promise((r)=>setTimeout(r,40));}
     };
   });
   return page;

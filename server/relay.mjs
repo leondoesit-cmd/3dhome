@@ -26,6 +26,7 @@
 // (LAN-only Home Assistant / Hue / Shelly proxy; private IPs, short port list).
 
 import { createServer } from "node:http";
+import { createServer as createSecureServer } from "node:https";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { readFile, writeFile, stat } from "node:fs/promises";
 import { brotliCompress, gzip, constants as ZLIB } from "node:zlib";
@@ -498,7 +499,10 @@ async function agentChat(req, res) {
 }
 
 // ---- static app ------------------------------------------------------------
-const http = createServer(async (req, res) => {
+const tlsCert = process.env.HOME3D_TLS_CERT, tlsKey = process.env.HOME3D_TLS_KEY;
+if (!!tlsCert !== !!tlsKey) throw new Error("Set both HOME3D_TLS_CERT and HOME3D_TLS_KEY");
+const tlsOptions = tlsCert ? { cert: await readFile(tlsCert), key: await readFile(tlsKey) } : null;
+const serve = async (req, res) => {
   const u = new URL(req.url || "/", "http://localhost");
   if (u.pathname === "/api/prodsize") return prodsize(u, res);
   if (u.pathname === "/api/smarthome") return smarthomeProxy(req, res);
@@ -541,7 +545,8 @@ const http = createServer(async (req, res) => {
     res.writeHead(404);
     res.end("not found");
   }
-});
+};
+const http = tlsOptions ? createSecureServer(tlsOptions, serve) : createServer(serve);
 
 // ---- WebSocket framing (RFC 6455, server side) -----------------------------
 function accept(key) {
@@ -764,6 +769,6 @@ http.on("upgrade", (req, sock) => {
 });
 
 http.listen(PORT, () => {
-  console.log(`3dhome relay + app server on http://localhost:${PORT}`);
-  console.log(`Friends on your network: http://<your-ip>:${PORT}`);
+  console.log(`3dhome relay + app server on ${tlsOptions ? "https" : "http"}://localhost:${PORT}`);
+  console.log(`Friends on your network: ${tlsOptions ? "https" : "http"}://<your-ip>:${PORT}`);
 });

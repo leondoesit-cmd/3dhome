@@ -24,7 +24,7 @@ import {
   sizeCanvas, setMode, setAxis, syncHint, syncViewPreferences, draw, wireCanvas,
   setTool, exportPNG, initPreview, updatePreview, renderPreview,
 } from "./ui_cabinet_view.js";
-import { initCabinetMobile, refreshCabinetMobile } from "./ui_cabinet_mobile.js";
+import { initCabinetMobile, refreshCabinetMobile, showCabinetPropertiesMobile } from "./ui_cabinet_mobile.js";
 import {
   fillHits, applySearch, fillFamilies, fillPresets, startBlank, fillInspector,
   splitSection, delSection, splitColumn, dupColumn, delColumn, fillLook, fillTechnical,
@@ -414,6 +414,7 @@ function setLevel(level) {
     fillTechnical();
     setTab("technical", false);
   } else setTab("insp", false);
+  showCabinetPropertiesMobile();
 }
 
 function isSizeDlgOpen() {

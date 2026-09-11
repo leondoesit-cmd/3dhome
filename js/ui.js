@@ -1,3 +1,5 @@
+import { normalizeSurvey, normalizeSurveyFeatures } from "./survey.js";
+import { normalizeNavigationProfile } from "./navigation_profile.js";
 import { roomMeasurements } from "./room_summary.js";
 import { resizeSelectedRoom } from "./ui_planning_guide.js";
 import { newDocumentKey, normalizeBaselines, normalizeRedesign, mergeBaselineArchives } from "./redesign.js";
@@ -336,7 +338,7 @@ export function applyData(d) {
   if (!d || typeof d !== "object" || Array.isArray(d)) {
     throw new Error("Invalid scene data");
   }
-  if(d.spatial)d={...d,nodes:d.spatial.nodes,walls:d.spatial.walls,wallTypes:d.spatial.wallTypes,openings:d.spatial.openings,items:d.spatial.instances,markers:d.spatial.markers,slabOpenings:d.spatial.slabOpenings,roomMeta:d.spatial.rooms,cabinetPresets:d.spatial.cabinetPresets};
+  if(d.spatial)d={...d,nodes:d.spatial.nodes,walls:d.spatial.walls,wallTypes:d.spatial.wallTypes,openings:d.spatial.openings,items:d.spatial.instances,markers:d.spatial.markers,slabOpenings:d.spatial.slabOpenings,surveyFeatures:d.spatial.surveyFeatures,roomMeta:d.spatial.rooms,cabinetPresets:d.spatial.cabinetPresets};
   return applyDataRequest(d, ++applyRequestGeneration);
 }
 
@@ -557,6 +559,7 @@ function applyDataRequest(d, requestGeneration) {
   // above simply loads as a free point
   S.markers = normalizeMarkers(d.markers, S.items);
   S.slabOpenings = normalizeSlabOpenings(d.slabOpenings);
+  S.surveyFeatures=normalizeSurveyFeatures(d.surveyFeatures);
   // …and a piece whose host did not survive simply loads on the floor. Mount
   // heights of stacked pieces are re-derived here rather than trusted, so a
   // file written before a model's shape changed still stacks correctly.
@@ -565,7 +568,7 @@ function applyDataRequest(d, requestGeneration) {
   S.idc = d.idc || 1000;
   if (d.workspace && typeof d.workspace === "object") {
     const previousWorkspace = S.workspace;
-    S.workspace = { ...d.workspace, guidance: normalizePlanningGuide(d.workspace.guidance) };
+    S.workspace = { ...d.workspace, survey:normalizeSurvey(d.workspace.survey), navigationProfile:normalizeNavigationProfile(d.workspace.navigationProfile), guidance: normalizePlanningGuide(d.workspace.guidance) };
     S.workspace.documentKey = typeof d.workspace.documentKey === "string" && d.workspace.documentKey ? d.workspace.documentKey : newDocumentKey();
     S.workspace.baselines = normalizeBaselines(d.workspace.baselines);
     if (previousWorkspace?.documentKey === S.workspace.documentKey)
@@ -579,7 +582,7 @@ function applyDataRequest(d, requestGeneration) {
     document.body.dataset.projectRole = S.workspace.role;
     setQualityPreset(S.workspace.quality);
   }
-  if (!d.workspace) S.workspace = { ...S.workspace, documentKey: newDocumentKey(), baselines: Object.freeze([]), redesign: {}, guidance: normalizePlanningGuide(null) };
+  if (!d.workspace) S.workspace = { ...S.workspace, documentKey: newDocumentKey(), baselines: Object.freeze([]), redesign: {}, survey:normalizeSurvey(null), navigationProfile:normalizeNavigationProfile(), guidance: normalizePlanningGuide(null) };
   if (d.floorTex) {
     S.floorTex = d.floorTex;
     var floorsel = document.getElementById("floorsel");
@@ -605,6 +608,7 @@ function applyDataRequest(d, requestGeneration) {
     var cbIn = document.getElementById("cb_interior");
     if (cbIn) cbIn.checked = S.interiorDims;
   }
+  S.roomStamp=null;S.placeType=null;S.drawing=false;S.drawFrom=null;S.arcDraft=null;S.rectDraft=null;S.biteDraft=null;S.offsetDraft=null;S.joinPick=null;S.previewPt=null;S.action=null;S.drag=null;
   S.roomMeta = d.roomMeta || {};
   S.ignoredWarnings =
     d.ignoredWarnings && typeof d.ignoredWarnings === "object"
@@ -645,6 +649,7 @@ function applyDataRequest(d, requestGeneration) {
   render2D();
   frameView();
   applyEnv();
+  window.__plannerChrome?.renderFloorTabs();
   // Already applied — resolved, so `await applyData(...)` costs a microtask and
   // nothing else. Only the builder-fetch path above is genuinely asynchronous.
   return Promise.resolve(true);
@@ -2349,9 +2354,37 @@ export function initUI() {
       b.classList.toggle("active", on);
       b.setAttribute("aria-pressed", on ? "true" : "false");
     });
+    pal.querySelectorAll(".wd-choice-select").forEach(function (select) {
+      select.querySelectorAll("option").forEach(function (option) {
+        option.textContent = t(option.dataset.labelKey);
+      });
+      select.value = select.dataset.choice === "preset" ? preset : from;
+      select.setAttribute("aria-label", t(select.dataset.choice === "preset" ? "wd_types" : "wd_from"));
+    });
   }
   var pal = document.getElementById("plan-wall-palette");
   if (pal) {
+    // Desktop ribbon uses named choices; touch layouts keep the visual buttons.
+    [[".wd-types", "data-wall-preset", "preset"], [".wd-loc", "data-wall-from", "from"]].forEach(function (spec) {
+      var group = pal.querySelector(spec[0]);
+      if (!group) return;
+      var select = document.createElement("select");
+      select.className = "wd-choice-select";
+      select.dataset.choice = spec[2];
+      group.querySelectorAll("button").forEach(function (button) {
+        var option = document.createElement("option");
+        option.value = button.getAttribute(spec[1]);
+        option.dataset.labelKey = button.dataset.i18nTitle || button.dataset.i18nAria;
+        select.appendChild(option);
+      });
+      group.after(select);
+      select.addEventListener("change", function () {
+        if (spec[2] === "preset") setWallDrawPreset(select.value);
+        else setWallDrawFrom(select.value);
+        syncWallDrawPalette();
+        render2D();
+      });
+    });
     pal.addEventListener("click", function (e) {
       var collapseBtn = e.target.closest("#wallPaletteToggle");
       if (collapseBtn) {
@@ -2378,7 +2411,7 @@ export function initUI() {
   window.addEventListener("planner-tool", syncWallDrawPalette);
   window.addEventListener("planner-draw-defaults", syncWallDrawPalette);
   window.addEventListener("planner-draw-start", function () {
-    if (pal && !pal.hidden) {
+    if (pal && !pal.hidden && !pal.closest('.pt-zone[data-zone="top"]')) {
       pal.classList.add("auto-collapsed");
       syncWallDrawPalette();
     }
@@ -3720,6 +3753,8 @@ export function initUI() {
       syncBlueprintTraceControls();
       S.markers = []; // points belong to the plan that was reset away
       S.slabOpenings = [];
+      S.surveyFeatures=[];
+      S.workspace.survey=normalizeSurvey(null);
       S.hour = 13;
       S.northAngle = 0;
       S.wallColor = 0xefe9dd;

@@ -333,7 +333,7 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
     child = trackChild(spawn(
       bin,
       [
-      "--headless=new",
+      ...(process.env.MF_BROWSER_GPU==="1"?[]:["--headless=new"]),
       "--remote-debugging-port=0",
       "--user-data-dir=" + profile,
       "--no-first-run",
@@ -343,7 +343,7 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
          tests/model_editor_layout.browser.mjs). Software GL would render it for
          real but costs minutes per run — this harness tests chrome LAYOUT, and
          layout does not depend on whether the viewport painted a model. */
-      "--disable-gpu",
+      ...(process.env.MF_BROWSER_GPU==="1"?[]:["--disable-gpu"]),
       "--hide-scrollbars",
       "--window-size=" + width + "," + height,
       "about:blank",

@@ -172,3 +172,23 @@ test("a saved menu group is a column so items can move vertically", () => {
   assert.equal(out.nodes["menu:edit"].orient, "col");
   assert.equal(out.nodes["menu:file"].orient, "col");
 });
+
+
+test("Planner default puts tools and submenus above side layers", () => {
+  const doc = defaultLayout();
+  assert.deepEqual(doc.nodes["n:pt-top"].children, ["pt:tools", "pt:walls", "pt:rooms"]);
+  assert.deepEqual(doc.nodes["n:pt-left"].children, ["pt:layers", "pt:status"]);
+  assert.equal(doc.nodes["n:pt-top"].flow, "col");
+});
+
+test("old dock upgrades once and subsequent customizations survive", () => {
+  const doc = defaultLayout();
+  delete doc.plannerDockVersion;
+  doc.nodes["n:pt-left"].children = ["pt:tools", "pt:layers", "pt:walls", "pt:rooms"];
+  doc.nodes["n:pt-top"].children = ["pt:status"];
+  const next = migrateSavedLayout(doc);
+  assert.deepEqual(next.nodes["n:pt-top"].children, ["pt:tools", "pt:walls", "pt:rooms"]);
+  assert.deepEqual(migrateSavedLayout(next), next);
+  next.nodes["n:pt-left"].children.reverse();
+  assert.deepEqual(migrateSavedLayout(next).nodes["n:pt-left"].children, next.nodes["n:pt-left"].children);
+});

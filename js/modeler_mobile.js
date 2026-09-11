@@ -85,6 +85,9 @@ function pageOpenSheet() {
     if (title) sheetTitle.textContent = title.textContent;
     return;
   }
+  // A feature tree is one continuous hierarchy, not a second page behind a
+  // dimension summary. Its own scroll container keeps every branch reachable.
+  if (panel) return;
   var opts = { pinSelector: ".md-strip, .md-right-tabs, .md-inspector-tabs, .md-command-tabs" };
   if (!panel) opts.pageHeight = generatedPageHeight();
   pageState = mountPagedMenu(pageHost, opts);

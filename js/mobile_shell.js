@@ -765,6 +765,29 @@ function quickAction(id) {
 }
 
 function buildMoreSheet() {
+  var designTitle = document.createElement("h5");
+  designTitle.className = "m-sheet-sec";
+  designTitle.textContent = t("m_more_design");
+  sheetBody.appendChild(designTitle);
+  var design = document.createElement("div");
+  design.className = "m-grid m-grid-2 m-design-shortcuts";
+  [["openModeler", "modeler_launch", "ph-cube"], ["uikitCustomize", "uikit_ins_title", "ph-layout"],
+    ["save", "save", "ph-floppy-disk"]].forEach(function (entry) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "m-grid-btn";
+    b.innerHTML = '<i class="ph ' + entry[2] + '"></i><span></span>';
+    b.querySelector("span").textContent = t(entry[1]);
+    b.addEventListener("click", function () { closeSheet(); run(entry[0]); });
+    design.appendChild(b);
+  });
+  var cabinet = quickAction("cabNewBtn");
+  if (cabinet) {
+    cabinet.setAttribute("aria-label", t("m_more_cabinet"));
+    cabinet.querySelector("span").textContent = t("m_more_cabinet");
+    design.appendChild(cabinet);
+  }
+  sheetBody.appendChild(design);
   var guide = document.createElement("button");
   guide.type = "button";
   guide.className = "m-guide-card";
@@ -827,7 +850,7 @@ function buildMoreSheet() {
      still belong to designing the house. */
   appendMenuGroup(t("m_more_extras"), menuByKey("menu_more"), {
     collapsed: true,
-    exclude: ["rc", "zombies", "lava"],
+    exclude: ["rc", "zombies", "lava", "openModeler", "uikitCustomize", "friends", "agent"],
   });
 }
 // Topbar menus are portaled to <body> when first opened (the glass topbar

@@ -14,9 +14,9 @@ export function chromePosture(w, h, opts) {
   var shortEdge = Math.min(w, h);
   var longEdge = Math.max(w, h);
   /* Height ≤ 500 is a phone on its side (iPhone 14 landscape is 844×390).
-     Width ≤ 768 still catches a narrow desktop window and iPad portrait. */
+     Mouse-driven split-screen windows keep their desktop menus. */
   var shortPhone = w <= 1024 && h <= 500;
-  var compact = w <= 768 || shortPhone || (touch && w <= 1024);
+  var compact = w <= 500 || (touch && (w <= 1024 || shortPhone));
   /* Both axes tablet-sized. Pixel Fold inner (673×841) is roomy even though
      its CSS width sits under 700; a 390px-tall phone never is. */
   var roomy = compact && shortEdge >= 520 && longEdge >= 700;

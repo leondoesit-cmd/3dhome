@@ -23,11 +23,17 @@ async function planner(width = 1440, height = 900) {
   else await shared.resize(width, height);
   await shared.eval(() => localStorage.removeItem("home3d_plan_dock"));
   await shared.goto("/");
-  await shared.eval(() => {
+  await shared.eval(async () => {
     const start = document.getElementById("start-screen");
     if (start) start.hidden = true;
     const plan = document.getElementById("viewPlanBtn");
     if (plan) plan.click();
+    // Rearranging planner chrome is an explicit Customize UI action.
+    localStorage.setItem('mf_uikit','1');
+    const host=await import('/js/uikit_host/index.js');
+    const ui=host.activeUIKit()||host.initUIKit({force:true});
+    await ui.edit(true);
+
     const frame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     window.__free = {
       frame,
@@ -166,6 +172,7 @@ test("a free position survives a reload and cannot be resized out of reach", opt
      top-left corner has to remain inside the pane — not that a tall panel gets
      shoved up the pane to fit whole. */
   await page.resize(1200, 720);
+  await page.eval(async()=>{await (await import("/js/uikit_host/index.js")).activeUIKit().edit(true);});
   await page.eval(() => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 120))));
   const narrow = await page.eval(() => {
     const pr = document.getElementById("view-2d").getBoundingClientRect();
@@ -279,6 +286,7 @@ test("a free panel can be resized and the size survives a reload", opts, async (
   const before = await page.eval(async () => {
     await window.__free.dragTo("tools", 0.45, 0.4);
     const w = window.__free.wrap("tools");
+    const initial = window.__free.box("tools");
     const rh = w.querySelector(".pt-rh-se");
     const pr = window.__free.pane().getBoundingClientRect();
     const r = rh.getBoundingClientRect();
@@ -296,9 +304,10 @@ test("a free panel can be resized and the size survives a reload", opts, async (
     ev("pointerup", to.x, to.y);
     await window.__free.frame();
     const box = window.__free.box("tools");
-    return { w: box.w, h: box.h, pw: pr.width };
+    return { w: box.w, h: box.h, pw: pr.width, initial };
   });
-  assert.ok(before.w > 80 && before.h > 80, "resize should grow the tools card");
+  assert.ok(before.w > before.initial.w && before.h > before.initial.h,
+    "resize should grow the tools card: " + JSON.stringify(before));
 
   await page.goto("/");
   await page.eval(() => {

@@ -1,6 +1,7 @@
+import { normalizeSurveyFeatures } from "../survey.js";
 const clone=(value)=>value==null?value:typeof structuredClone==="function"?structuredClone(value):JSON.parse(JSON.stringify(value));
 
-export const SPATIAL_SCHEMA_VERSION=3;
+export const SPATIAL_SCHEMA_VERSION=4;
 
 /* STOREYS ARE NOT PART OF THE SPATIAL DOCUMENT. They live in
    state.workspace.floors, and each of those carries a `scene` — which is itself
@@ -17,7 +18,9 @@ export function installSpatialProject(state) {
   state.spatial.schemaVersion=SPATIAL_SCHEMA_VERSION;
   if (state.spatial.floors) delete state.spatial.floors;
   if (!Array.isArray(state.spatial.slabOpenings)) state.spatial.slabOpenings = state.slabOpenings || [];
-  const aliases={nodes:"nodes",walls:"walls",wallTypes:"wallTypes",openings:"openings",items:"instances",roomMeta:"rooms",markers:"markers",slabOpenings:"slabOpenings",wallCons:"wallCons",roomCons:"roomCons",planVars:"planVars"};
+  spatialFeatures();
+  function spatialFeatures() { if (!Array.isArray(state.spatial.surveyFeatures)) state.spatial.surveyFeatures=normalizeSurveyFeatures(state.surveyFeatures); }
+  const aliases={surveyFeatures:"surveyFeatures",nodes:"nodes",walls:"walls",wallTypes:"wallTypes",openings:"openings",items:"instances",roomMeta:"rooms",markers:"markers",slabOpenings:"slabOpenings",wallCons:"wallCons",roomCons:"roomCons",planVars:"planVars"};
   Object.entries(aliases).forEach(([legacy,canonical])=>{
     const current=state[legacy];
     if (current!==undefined && state.spatial[canonical]===undefined) state.spatial[canonical]=current;
@@ -28,11 +31,12 @@ export function installSpatialProject(state) {
 
 export function exportSpatialProject(state) {
   const spatial=installSpatialProject(state);
-  return clone({schemaVersion:spatial.schemaVersion,id:spatial.id,nodes:spatial.nodes,walls:spatial.walls,wallTypes:spatial.wallTypes,openings:spatial.openings,instances:spatial.instances,rooms:spatial.rooms,markers:spatial.markers,slabOpenings:spatial.slabOpenings || [],wallCons:spatial.wallCons,roomCons:spatial.roomCons,planVars:spatial.planVars,cabinetPresets:spatial.cabinetPresets || [],revision:spatial.revision});
+  return clone({schemaVersion:spatial.schemaVersion,id:spatial.id,nodes:spatial.nodes,walls:spatial.walls,wallTypes:spatial.wallTypes,openings:spatial.openings,instances:spatial.instances,rooms:spatial.rooms,markers:spatial.markers,slabOpenings:spatial.slabOpenings || [],surveyFeatures:normalizeSurveyFeatures(spatial.surveyFeatures),wallCons:spatial.wallCons,roomCons:spatial.roomCons,planVars:spatial.planVars,cabinetPresets:spatial.cabinetPresets || [],revision:spatial.revision});
 }
 
 export function importSpatialProject(state,source={}) {
   const spatial=installSpatialProject(state);
+  spatial.surveyFeatures=normalizeSurveyFeatures(source.surveyFeatures);
   spatial.id=source.id || spatial.id; spatial.nodes=clone(source.nodes || []); spatial.walls=clone(source.walls || []); spatial.wallTypes=clone(source.wallTypes || []); spatial.openings=clone(source.openings || []);
   spatial.instances=clone(source.instances || source.items || []); spatial.rooms=clone(source.rooms || source.roomMeta || {}); spatial.markers=clone(source.markers || []); spatial.slabOpenings=clone(source.slabOpenings || []); spatial.wallCons=clone(source.wallCons || []); spatial.roomCons=clone(source.roomCons || []); spatial.planVars=clone(source.planVars || []); spatial.cabinetPresets=clone(source.cabinetPresets || []); spatial.revision=Number(source.revision)||1;
   return spatial;

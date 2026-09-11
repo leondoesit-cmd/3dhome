@@ -1,0 +1,44 @@
+name: ModelForgeSurvey
+options:
+  bundleIdPrefix: local.modelforge
+  deploymentTarget:
+    iOS: '17.0'
+targets:
+  ModelForgeSurvey:
+    type: application
+    platform: iOS
+    sources: [ModelForgeSurvey]
+    settings:
+      base:
+        SWIFT_VERSION: '5.0'
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSCameraUsageDescription: Capture room geometry and survey photographs locally.
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        TARGETED_DEVICE_FAMILY: '1,2'
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+  ModelForgeSurveyTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [ModelForgeSurveyTests]
+    dependencies:
+      - target: ModelForgeSurvey
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+  ModelForgeSurveyUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [ModelForgeSurveyUITests]
+    dependencies:
+      - target: ModelForgeSurvey
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  ModelForgeSurvey:
+    build:
+      targets:
+        ModelForgeSurvey: all
+    test:
+      targets: [ModelForgeSurveyTests, ModelForgeSurveyUITests]

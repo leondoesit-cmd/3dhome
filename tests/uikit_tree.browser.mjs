@@ -701,6 +701,12 @@ test("tree drag of a sibling onto the next row's lower half inserts immediately 
     const kids = () => (window.__ui.doc.nodes["n:app"].children || []).slice();
     const before = kids();
 
+    // Keep both sibling drop targets visible beneath the preset controls.
+    const branch = list.querySelector('[data-node-id="n:topbar"]');
+    if (branch.getAttribute("aria-expanded") === "true") branch.querySelector(".uikit-ins-tree-mark").click();
+    list.querySelector('[data-node-id="n:left"]').scrollIntoView({block:"center"});
+    await window.__frame();
+
     const topbar = list.querySelector('[data-node-id="n:topbar"]');
     const left = list.querySelector('[data-node-id="n:left"]');
     const rFrom = topbar.getBoundingClientRect();
