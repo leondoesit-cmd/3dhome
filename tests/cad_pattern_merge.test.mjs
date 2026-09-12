@@ -241,7 +241,7 @@ test("one placement path lays every pattern copy, merged or not", () => {
   // only caller left.
   assert.match(modeler, /function layPatternCopies\(seed, params, feature, placements, circularStep, push\) \{/);
   assert.match(modeler, /layPatternCopies\(p,params,feature,placements,circularStep,addPart\);/);
-  assert.match(modeler, /layPatternCopies\(seed,feature\.params,feature,placements,circularStep,function\(copy\)\{E\.def\.parts\.push\(copy\);\}\);/);
+  assert.match(modeler, /layPatternCopies\(seed,feature\.params,feature,placements,circularStep,function\(copy\)\{markLiveDirtyPart\(copy\);E\.def\.parts\.push\(copy\);\}\);/);
   const layer = modeler.match(/function layPatternCopies\([\s\S]*?\n\}\n/)[0];
   assert.match(layer, /placePatternCopy\(copy,params,placement,circularStep\)/);
   assert.match(layer, /params\.mergeResult\?patternMergeSource\(seed\):null/, "the control is read here and nowhere else");

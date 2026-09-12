@@ -556,6 +556,20 @@ function renderedParts(def) {
   return parts;
 }
 
+function livePreviewParts() {
+  return (E && E.authoring && Array.isArray(E.authoring.previewParts)) ? E.authoring.previewParts : [];
+}
+
+/* Bodies that already belong to the document. Live ghosts ride a separate
+   THREE group so dragging a new feature does not dispose them. */
+function committedRenderedParts(def) {
+  var live = livePreviewParts();
+  if (!live.length) return renderedParts(def);
+  var ids = {};
+  live.forEach(function (part) { ids[part.id] = true; });
+  return renderedParts(def).filter(function (part) { return !ids[part.id]; });
+}
+
 /* Add one derived preview part.  Canonical feature creation happens before this
    adapter is called; this function never records design intent. */
 function addPart(part) {
@@ -1157,6 +1171,31 @@ if (typeof window !== "undefined") {
       };
     });
   };
+  /* One committed body's raw tessellation. A triangle COUNT cannot see a live
+     ghost writing through a shared buffer into the seed — the count is
+     unchanged while every vertex has moved — so this hands back the numbers. */
+  window.cadPartMeshSnapshot = function (partId) {
+    var part = (E.def && E.def.parts || []).find(function (item) { return item.id === partId; });
+    if (!part || !part.meshData) return null;
+    var positions = part.meshData.positions || [];
+    return { id: part.id, count: positions.length, positions: Array.prototype.slice.call(positions) };
+  };
+  /* Which tessellation buffers a live ghost SHARES with its seed. The speed of
+     the live preview rests on sharing the big immutable ones and the
+     correctness of it on copying the written ones, and object identity is the
+     only honest way to state either. */
+  window.cadSeedAndGhostMesh = function (seedId) {
+    var seed = (E.def && E.def.parts || []).find(function (item) { return item.id === seedId; });
+    var ghost = ((E.authoring && E.authoring.previewParts) || []).find(function (item) { return !!item.meshData; });
+    if (!seed || !seed.meshData || !ghost) return null;
+    return {
+      sharesPositions: ghost.meshData.positions === seed.meshData.positions,
+      sharesNormals: ghost.meshData.normals === seed.meshData.normals,
+      sharesColors: ghost.meshData.colors === seed.meshData.colors,
+      sharesSubshapeMap: ghost.meshData.subshapeMap === seed.meshData.subshapeMap,
+      sharesTopology: ghost.meshData.topology === seed.meshData.topology,
+    };
+  };
   /* A pattern whose instances merge finishes in the kernel, AFTER the command
      has returned — the copies are laid synchronously and the fuse is a second,
      asynchronous pass. E.patternFusion is that pass, and awaiting it is the
@@ -1239,8 +1278,41 @@ if (typeof window !== "undefined") {
     if (!selectedSolid()) E.sel = activeParts(E.def)[activeParts(E.def).length - 1] || E.sel;
     state.params = { ...state.params, ...(params || {}) };
     syncNewFeaturePreview(E.authoring.featureType, state, E.authoring.featurePreviewBadge);
-    updatePreview();
+    refreshLivePreview();
     return true;
+  };
+  /* Retype an EXISTING feature's parameters the way dragging its form does,
+     minus the frame: openFeatureEditor's live callback runs off
+     requestAnimationFrame, which never fires in a headless pane. */
+  window.cadEditFeatureParams = function (featureId, params) {
+    var feature = (E.def.features || []).find(function (item) { return item.id === featureId; });
+    if (!feature) return false;
+    var editing = function () { return !!(E.authoring && E.authoring.featureEdit && E.authoring.featureEdit.featureId === featureId); };
+    if (!editing()) openFeatureEditor(feature);
+    if (!editing()) return false;
+    feature.params = { ...feature.params, ...(params || {}) };
+    syncLiveFeatureEdit(feature);
+    return true;
+  };
+  /* Where every body actually SITS after a live edit, and what the kernel tier
+     is still owed. A downstream body that did not follow reports the extent it
+     had before the edit, which is the whole defect this guards. */
+  window.cadLiveEditSnapshot = function () {
+    var badge = liveFeatureEditBadge();
+    return {
+      downstream: E._liveDownstream ? { state: E._liveDownstream.state, features: E._liveDownstream.features.slice() } : null,
+      badge: badge ? { state: badge.getAttribute("data-preview-state"), text: (badge.textContent || "").trim() } : null,
+      bodies: (E.def.parts || []).filter(function (part) { return !part.previewOnly; }).map(function (part) {
+        var bounds = partBounds(part);
+        return {
+          id: part.id, featureId: part.featureId || null, derivedFeatureId: part.derivedFeatureId || null,
+          from: part.from, to: part.to,
+          pending: !!part.exactPending, error: part.exactError || null,
+          triangles: part.meshData ? (part.meshData.positions || []).length / 9 : 0,
+          bounds: bounds ? { x0: bounds.x0, x1: bounds.x1, y0: bounds.y0, y1: bounds.y1, z0: bounds.z0, z1: bounds.z1 } : null,
+        };
+      }),
+    };
   };
   window.cadFinishPreviewSnapshot = function () {
     var badge = root && root.querySelector("#mdQuickSettings .md-feature-live");
@@ -1447,6 +1519,15 @@ var sheetSharpSolids = false;
 
 function buildPart(g, p, displayStyle) {
   buildPartCount++;
+  /* One THREE child per body so a live parameter drag can dispose this part
+     without tearing down every other GPU mesh in the viewport. */
+  var partRoot = new THREE.Group();
+  partRoot.userData.cadPartRoot = p.id;
+  partRoot.userData.cadFeatureId = p.featureId || "feature:part:" + p.id;
+  if (p.derivedFeatureId) partRoot.userData.cadDerivedFeatureId = p.derivedFeatureId;
+  if (p.toolboxFeatureId) partRoot.userData.cadToolboxFeatureId = p.toolboxFeatureId;
+  g.add(partRoot);
+  g = partRoot;
   var rotations=partPatternRotations(p);
   /* The newest transform is the outermost group: R(new) × R(previous) × body.
      This also makes a pattern of an existing pattern behave predictably. */
@@ -2014,7 +2095,7 @@ function queueExactMesh(p) {
      while the kernel works — or after it fails — would be a different shape
      from the answer. Drop it here, exactly as queueKernelBody does. */
   if (isKernelBody(p)) { delete p.meshData; delete p.bounds; clearTopologyCache(p); }
-  updatePreview();
+  refreshChangedPart(p);
   // The full browser kernel is intentionally lazy-loaded.  Keep the editor
   // interactive and replace an indefinite spinner with an actionable status
   // on devices where compiling the WASM module takes unusually long.  The
@@ -2024,7 +2105,7 @@ function queueExactMesh(p) {
     if (p.exactBuildToken !== token || !p.exactPending) return;
     p.exactPending = false;
     p.exactError = "Exact CAD kernel is still loading; the lightweight preview remains active.";
-    updatePreview();
+    refreshChangedPart(p);
   }, 15000) : null;
   exactBrepForPart(p).then(async function (brep) {
     try {
@@ -2045,7 +2126,7 @@ function queueExactMesh(p) {
       p.meshData = meshData;
       p.exactPending = false;
       p.exactError = null;
-      updatePreview();
+      refreshChangedPart(p);
       if (isKernelBody(p) && root) refreshParts();
       if (E.mode === "3d") renderPreview();
     } finally { disposeBrep(brep); }
@@ -2055,7 +2136,7 @@ function queueExactMesh(p) {
     p.exactPending = false;
     p.exactError = String(error && error.message || error);
     console.warn("Exact CAD mesh build failed:", p.exactError);
-    updatePreview();
+    refreshChangedPart(p);
     if (isKernelBody(p) && root) refreshParts();
   });
 }
@@ -2067,6 +2148,19 @@ function scheduleExactMesh(p) {
   exactBuildTimers.set(p, setTimeout(function () {
     exactBuildTimers.delete(p);
     queueExactMesh(p);
+  }, 140));
+}
+
+/* Live parameter drags used to call queueKernelBody on every frame, which
+   blanks the mesh and starts OpenCascade before the previous run has
+   finished. One delayed rebuild after the pointer settles is enough. */
+function scheduleKernelBody(p) {
+  if (!isKernelBody(p) || !p.kernel) return;
+  var old = exactBuildTimers.get(p);
+  if (old) clearTimeout(old);
+  exactBuildTimers.set(p, setTimeout(function () {
+    exactBuildTimers.delete(p);
+    queueKernelBody(p);
   }, 140));
 }
 
@@ -2112,7 +2206,7 @@ function queueKernelBody(p) {
   delete p.meshData;
   delete p.bounds;
   clearTopologyCache(p);
-  updatePreview();
+  refreshChangedPart(p);
   kernelBodyMeshData(p.kernel, {origin:p.origin, ownerFeatureId:p.featureId || "feature:part:" + p.id}).then(function (meshData) {
     if (p.exactBuildToken !== token) return;
     p.meshData = meshData;
@@ -2123,7 +2217,7 @@ function queueKernelBody(p) {
     /* The same three surfaces queueExactMesh() refreshes, and for the same
        reason: refreshAll() would re-enter the parametric rebuild from inside an
        async callback the rebuild itself started. */
-    updatePreview();
+    refreshChangedPart(p);
     if (root) refreshParts();
     if (E.mode === "3d") renderPreview();
   }).catch(function (error) {
@@ -2131,7 +2225,7 @@ function queueKernelBody(p) {
     p.exactPending = false;
     p.exactError = String(error && error.message || error);
     console.warn("Kernel body build failed:", p.exactError);
-    updatePreview();
+    refreshChangedPart(p);
     if (root) refreshParts();
     flash(tf("kernelBodyFailed", {error:p.exactError}));
   });
@@ -6277,6 +6371,9 @@ function closeFeaturePanel() {
      the panel without clearing the preview, which left an approximate (or a
      half-built exact) finish body in the scene until the next full rebuild. */
   clearFeaturePreview(false);
+  /* The badge goes with the form it lives on, and a debounced downstream run
+     left armed would re-lay the document after the edit was dismissed. */
+  clearLiveDownstream(null);
   updatePreview();
   syncCommandManager(); // puts the ribbon button that opened the form back out
 }
@@ -7414,6 +7511,7 @@ function setFinishEdges(edges, options) {
   syncActiveFeatureSelectionFeedback();
   if (E.authoring && E.authoring.featureType && E.authoring.featurePreviewState && !E.authoring.featureEdit) {
     queueNewFeaturePreview(E.authoring.featureType, E.authoring.featurePreviewState, E.authoring.featurePreviewBadge);
+    return;
   }
   refreshAll();
 }
@@ -7693,12 +7791,12 @@ function renderFinishEdgeList() {
     row.appendChild(el("i", "ph ph-x"));
     row.addEventListener("mouseenter", function () {
       E.hoverTopology = reference;
-      if (E.pv) updatePreview();
+      if (E.pv) refreshChangedPart(part);
     });
     row.addEventListener("mouseleave", function () {
       if (E.hoverTopology && E.hoverTopology.persistentId === reference.persistentId) {
         E.hoverTopology = null;
-        if (E.pv) updatePreview();
+        if (E.pv) refreshChangedPart(part);
       }
     });
     row.addEventListener("click", function (event) {
@@ -7752,7 +7850,7 @@ function exactFinishPreviewPart(type,state) {
   // A draft angle is the one finish amount that is meaningfully signed: a
   // negative angle tips the wall the other way rather than being invalid.
   if(!Number.isFinite(amount) || (type==="draft"?amount===0:amount<=0))return null;
-  var preview=cloneData(source);
+  var preview=clonePartWithoutTessellationCopy(source);
   preview.previewOnly=true;preview.id=source.id;preview.name="Live "+featureTypeLabel(type);
   preview.color=type==="shell"?"#43a6c9":type==="draft"?"#c98f43":type==="thicken"?"#5fae7a":"#7567e8";preview.opacity=.94;
   preview.exactOperations=preview.exactOperations || [];
@@ -7810,14 +7908,14 @@ function queueExactFeaturePreview(preview,type,liveBadge) {
       if(token!==E._featurePreviewToken || !E.authoring || !finishPreviewIsLive(preview))return;
       preview.meshData=meshData;preview.exactError=null;
       adoptExactFinishPreview(preview);   // the approximation has served its purpose
-      updatePreview();renderPreview();
+      refreshLivePreview();renderPreview();
       if(liveBadge){liveBadge.title="";liveBadge.classList.remove("approx");liveBadge.setAttribute("data-preview-state","exact");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveExactReady");liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);}
     }catch(error){
       if(token!==E._featurePreviewToken)return;
       /* The kernel refused this radius/thickness. Keeping the approximation up
          would show a body that cannot be built, so it goes and the untouched
          source comes back — today's behaviour — with the reason in the badge. */
-      if(E.authoring && E.authoring.approxFinishPreview){adoptExactFinishPreview(preview);updatePreview();renderPreview();}
+      if(E.authoring && E.authoring.approxFinishPreview){adoptExactFinishPreview(preview);refreshLivePreview();renderPreview();}
       preview.exactError=String(error && error.message || error);
       console.warn("exact feature preview failed:",preview.exactError);
       if(liveBadge){
@@ -7931,7 +8029,7 @@ async function runMergedPatternPreview(seed,params,instances,liveBadge,token) {
     var fused=absorbed.length-clusters.length;
     E.authoring.mergedPatternPreview={token:token,state:"exact",bodies:members.length-fused,fused:fused};
     patternMergePreviewBadge(liveBadge,"exact","ph-broadcast",tf("livePatternMergeReady",{bodies:members.length-fused}));
-    updatePreview();renderPreview();
+    refreshLivePreview();renderPreview();
   }catch(error){
     if(!mergedPatternPreviewIsLive(token))return;
     /* The un-merged copies stand — they are what Apply would leave behind too
@@ -7944,6 +8042,51 @@ async function runMergedPatternPreview(seed,params,instances,liveBadge,token) {
     placed.forEach(function(copy){disposeBrep(copy);});
     if(base)disposeBrep(base);
   }
+}
+
+/* Copy exactly the fields a preview path writes and share the rest.
+   `normals`, `colors` and `subshapeMap` are the expensive buffers and NOTHING
+   between here and Apply writes them, so they ride by reference — that is the
+   whole speed win. `positions` cannot: it is a plain Array (cad_kernel.js
+   deliberately keeps it one so saveLib()'s JSON.stringify does not turn it into
+   {"0":..}), Array.isArray() therefore passes, and movePart() — which every
+   pattern ghost reaches through placePatternCopy — adds dx/dy/dz into it in
+   place. Sharing it translated the SEED'S committed geometry once per ghost per
+   keystroke. `topology` is written just as deeply (resetClonedPartIdentity
+   remaps ownerFeatureId/persistentId, movePart shifts descriptor
+   origin/center/endpoints/bounds) and `faceRanges[].persistentId` likewise, so
+   both stay deep clones. The projection and topology caches are WeakMaps keyed
+   on the meshData object; this returns a fresh one, so clearing the ghost's
+   entry cannot evict the seed's. */
+function clonedPartMeshData(mesh) {
+  if (!mesh) return null;
+  return Object.assign({}, mesh, {
+    positions: (mesh.positions || []).slice(),
+    topology: cloneData(mesh.topology || []),
+    faceRanges: cloneData(mesh.faceRanges || []),
+    bounds: mesh.bounds ? Object.assign({}, mesh.bounds) : mesh.bounds,
+  });
+}
+
+function clonePartWithoutTessellationCopy(seed) {
+  if (!seed) return null;
+  var mesh = seed.meshData;
+  try {
+    if (mesh) seed.meshData = null;
+    var copy = cloneData(seed);
+    if (mesh) copy.meshData = clonedPartMeshData(mesh);
+    return copy;
+  } finally {
+    if (mesh) seed.meshData = mesh;
+  }
+}
+
+/* Pattern and mirror ghosts are rigid copies of a body already on screen.
+   structuredClone of its Float32Array normal/colour buffers is what froze the
+   editor on every count/spacing keystroke; clonedPartMeshData shares those and
+   copies only what the ghost writes. */
+function clonePartForLivePreview(seed) {
+  return resetClonedPartIdentity(clonePartWithoutTessellationCopy(seed));
 }
 
 function syncNewFeaturePreview(type,state,liveBadge) {
@@ -7959,7 +8102,7 @@ function syncNewFeaturePreview(type,state,liveBadge) {
     var profile=closedSketchProfile();if(profile)previews.push({id:"preview:revolve",featureId:"preview:revolve",previewOnly:true,kind:"rev",x:0,z:0,seg:48,pts:profile.points,angle:state.params.angle,direction:state.params.direction,symmetric:state.params.symmetric,color:revCut?"#d75a4a":"#6f8de8",opacity:revCut?.42:.62,metal:.04,rough:.68,name:"Live "+featureTypeLabel(type)});
   } else if(type==="pattern"){
     var seed=selectedSolid(),count=Math.max(2,Math.min(100,Math.round(Number(state.params.count)||2))),circularStep=circularPatternStepDegrees(state.params,count)*Math.PI/180,placements=patternPlacements(state.params),patternInstances=[];
-    if(seed)placements.forEach(function(placement,index){var copy=resetClonedPartIdentity(cloneData(seed));copy.previewOnly=true;copy.id="preview:pattern:"+(index+1);copy.featureId=copy.id;copy.opacity=.52;placePatternCopy(copy,state.params,placement,circularStep);copy.patternGridIndex=placement.indices;previews.push(copy);patternInstances.push({part:copy,transform:patternPlacementTransform(state.params,placement,circularStep)});});
+    if(seed)placements.forEach(function(placement,index){var copy=clonePartForLivePreview(seed);copy.previewOnly=true;copy.id="preview:pattern:"+(index+1);copy.featureId=copy.id;copy.opacity=.52;placePatternCopy(copy,state.params,placement,circularStep);copy.patternGridIndex=placement.indices;previews.push(copy);patternInstances.push({part:copy,transform:patternPlacementTransform(state.params,placement,circularStep)});});
     if(seed && !state.params.mergeResult) {
       var members=[seed].concat(previews), bounds=members.map(partBounds), overlapping=new Set();
       bounds.forEach(function(a,i){ bounds.slice(i+1).forEach(function(b,j){
@@ -7969,7 +8112,7 @@ function syncNewFeaturePreview(type,state,liveBadge) {
       previews.forEach(function(copy,i){if(overlapping.has(i+1)){copy.color="#d0342c";copy.opacity=.52;}});
     }
   } else if(type==="mirror"){
-    var source=selectedSolid();if(source){var plane=state.references && state.references.plane || "plane:right",copy=mirrorProjectionPart(resetClonedPartIdentity(cloneData(source)),plane);copy.previewOnly=true;copy.id="preview:mirror";copy.featureId=copy.id;copy.opacity=.52;previews.push(copy);}
+    var source=selectedSolid();if(source){var plane=state.references && state.references.plane || "plane:right",copy=mirrorProjectionPart(clonePartForLivePreview(source),plane);copy.previewOnly=true;copy.id="preview:mirror";copy.featureId=copy.id;copy.opacity=.52;previews.push(copy);}
   } else if(FINISH_FEATURES.includes(type)){
     var finish=exactFinishPreviewPart(type,state);
     if(finish){
@@ -8018,7 +8161,7 @@ function adoptExactFinishPreview(preview) {
 
 function queueNewFeaturePreview(type,state,liveBadge) {
   if(E._featurePreviewFrame)cancelAnimationFrame(E._featurePreviewFrame);
-  E._featurePreviewFrame=requestAnimationFrame(function(){E._featurePreviewFrame=0;syncNewFeaturePreview(type,state,liveBadge);refreshAll();
+  E._featurePreviewFrame=requestAnimationFrame(function(){E._featurePreviewFrame=0;syncNewFeaturePreview(type,state,liveBadge);refreshLivePreview();
     // a merged pattern's badge is owned by its own fuse pass: overwriting it
     // here would claim the views are synced while the copies are still unfused
     if(liveBadge && !E.authoring.patternOverlap && !FINISH_FEATURES.includes(type) && !(E.authoring && E.authoring.mergedPatternPreview)){liveBadge.classList.add("on");liveBadge.innerHTML='<i class="ph ph-broadcast"></i> '+t("liveViewsSynced");}});
@@ -8054,7 +8197,7 @@ function syncActiveFeatureSelectionFeedback() {
   renderFinishEdgeList();
   if(type==="pattern"){
     var selected=selectedSolid(),selectionId=selected && selected.id || null;
-    if(E.authoring._patternPreviewSelectionId!==selectionId){E.authoring._patternPreviewSelectionId=selectionId;syncNewFeaturePreview(type,E.authoring.featurePreviewState || {params:featureDefaults("pattern"),references:{}},E.authoring.featurePreviewBadge);updatePreview();drawSketch();}
+    if(E.authoring._patternPreviewSelectionId!==selectionId){E.authoring._patternPreviewSelectionId=selectionId;syncNewFeaturePreview(type,E.authoring.featurePreviewState || {params:featureDefaults("pattern"),references:{}},E.authoring.featurePreviewBadge);refreshLivePreview();drawSketch();}
   }
 }
 
@@ -13562,13 +13705,14 @@ function syncProjectionFromFeature(feature) {
     E.def.toolboxParts=(E.def.toolboxParts || []).filter(function(item){return item.featureId!==feature.id;});
     E.def.toolboxParts.push(Object.assign({featureId:feature.id},generated.metadata));
     if(selectedWasToolbox)E.sel=E.def.parts.filter(function(item){return item.toolboxFeatureId===feature.id&&!item.previewOnly;}).slice(-1)[0] || null;
+    (E.def.parts || []).forEach(function(item){if(item.toolboxFeatureId===feature.id)markLiveDirtyPart(item);});
     return true;
   } else if(part && feature.type==="extrude"){
     var depth=Math.max(.1,Number(feature.params.depth)||.1),offset=Number(feature.params.offset)||0,sketchId=feature.references.sketches[0],sketch=(E.def.sketches || []).find(function(item){return item.id===(sketchId && sketchId.id || sketchId);});
     var normal=sketch && sketch.frame && sketch.frame.normal,axis=part.axis==="frame"?planeAxis(sketch && sketch.plane):part.axis,principal=normal?(axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)):(part.to>=part.from?1:-1);
     var direction=(feature.params.direction==="reverse"?-1:1)*(principal||1),symmetric=!!feature.params.symmetric||feature.params.endCondition==="mid-plane",center=(part.frame?0:(sketch&&Number(sketch.offset)||0))+direction*offset;
     part.from=symmetric?center-direction*depth/2:center;part.to=symmetric?center+direction*depth/2:center+direction*depth;part.supportDepth=depth;part.supportBaseOffset=offset;
-    part.direction=feature.params.direction;part.symmetric=symmetric;part.draftAngle=Number(feature.params.draftAngle)||0;part.draftOutward=!!feature.params.draftOutward;delete part.meshData;part.exactPending=false;scheduleExactMesh(part);
+    part.direction=feature.params.direction;part.symmetric=symmetric;part.draftAngle=Number(feature.params.draftAngle)||0;part.draftOutward=!!feature.params.draftOutward;delete part.meshData;part.exactPending=false;markLiveDirtyPart(part);scheduleExactMesh(part);
   } else if(!part && feature.type==="extrude" && mergeRecordFor(feature.id)){
     /* A merged boss is not a part, so the branch above finds nothing. Its run
        still has to follow the depth the form is showing. */
@@ -13583,16 +13727,16 @@ function syncProjectionFromFeature(feature) {
     merge.to=mergedSymmetric?mergedCentre+mergedDirection*mergedDepth/2:mergedCentre+mergedDirection*mergedDepth;
     merge.draftBase=merge.from;
     merge.draftAngle=Number(feature.params.draftAngle)||0;merge.draftOutward=!!feature.params.draftOutward;
-    invalidatePartMeshAfterEdit(host);scheduleExactMesh(host);
+    invalidatePartMeshAfterEdit(host);markLiveDirtyPart(host);scheduleExactMesh(host);
   } else if(part && feature.type==="revolve"){
-    part.angle=Math.max(.001,Math.min(360,Number(feature.params.angle)||360));part.direction=feature.params.direction;part.symmetric=!!feature.params.symmetric;delete part.meshData;part.exactPending=false;
+    part.angle=Math.max(.001,Math.min(360,Number(feature.params.angle)||360));part.direction=feature.params.direction;part.symmetric=!!feature.params.symmetric;delete part.meshData;part.exactPending=false;markLiveDirtyPart(part);
   } else if(part && isKernelBody(part) && featureBuildsKernelBody(feature.type)){
     /* A kernel body is rebuilt, not adjusted: the recipe is replaced with the
        feature's current parameters and the kernel runs again — the same
        contract as retyping an extrude's depth, just asynchronous. */
     try{part.kernel=kernelBodySpec(feature.type,feature.params);}
     catch(error){part.exactPending=false;part.exactError=String(error && error.message||error);return;}
-    queueKernelBody(part);
+    markLiveDirtyPart(part);scheduleKernelBody(part);
   }
   if(feature.type==="pattern"){
     var seed=(E.def.parts || []).find(function(item){return item.featureId===feature.inputs[0];});
@@ -13600,15 +13744,144 @@ function syncProjectionFromFeature(feature) {
     /* A rebuild starts from the un-merged run: the fusions the previous run
        left on their hosts describe placements that no longer exist. */
     clearPatternMerges(feature.id);
-    if(seed){var count=Math.max(2,Math.min(100,Math.round(Number(feature.params.count)||2))),circularStep=circularPatternStepDegrees(feature.params,count)*Math.PI/180,placements=patternPlacements(feature.params);layPatternCopies(seed,feature.params,feature,placements,circularStep,function(copy){E.def.parts.push(copy);});}
+    if(seed){markLiveDirtyPart(seed);var count=Math.max(2,Math.min(100,Math.round(Number(feature.params.count)||2))),circularStep=circularPatternStepDegrees(feature.params,count)*Math.PI/180,placements=patternPlacements(feature.params);layPatternCopies(seed,feature.params,feature,placements,circularStep,function(copy){markLiveDirtyPart(copy);E.def.parts.push(copy);});}
   } else if(feature.type==="mirror"){
     var mirrorSeed=(E.def.parts || []).find(function(item){return item.featureId===feature.inputs[0];}),planeReference=(feature.references.references || ["plane:right"])[0];
     E.def.parts=(E.def.parts || []).filter(function(item){return item.derivedFeatureId!==feature.id;});
-    if(mirrorSeed){var mirrored=mirrorProjectionPart(resetClonedPartIdentity(cloneData(mirrorSeed)),typeof planeReference==="string"?planeReference:planeReference.id);if(mirrored){mirrored.derivedFeatureId=feature.id;mirrored.sourceFeatureId=mirrorSeed.featureId;E.def.parts.push(mirrored);}}
+    if(mirrorSeed){var mirrored=mirrorProjectionPart(resetClonedPartIdentity(cloneData(mirrorSeed)),typeof planeReference==="string"?planeReference:planeReference.id);if(mirrored){mirrored.derivedFeatureId=feature.id;mirrored.sourceFeatureId=mirrorSeed.featureId;markLiveDirtyPart(mirrored);E.def.parts.push(mirrored);}}
   }
   (E.def.parts || []).forEach(function(item){
-    (item.exactOperations || []).forEach(function(operation){if(operation.id!==feature.id)return;if(FINISH_AMOUNT_KEY[feature.type]!==undefined)operation.amount=Number(feature.params[FINISH_AMOUNT_KEY[feature.type]]);operation.params=cloneData(feature.params);scheduleExactMesh(item);});
+    (item.exactOperations || []).forEach(function(operation){if(operation.id!==feature.id)return;if(FINISH_AMOUNT_KEY[feature.type]!==undefined)operation.amount=Number(feature.params[FINISH_AMOUNT_KEY[feature.type]]);operation.params=cloneData(feature.params);markLiveDirtyPart(item);scheduleExactMesh(item);});
   });
+}
+
+/* ---- live DOWNSTREAM refresh ------------------------------------------
+ *
+ * syncProjectionFromFeature() edits the feature in hand and nothing else, so
+ * while an extrude's depth is dragged a pattern OF it, or a fillet ON it, used
+ * to sit at the old shape until Apply. These follow live, in two tiers,
+ * because the two costs are three orders of magnitude apart:
+ *
+ *   ANALYTIC downstream — a plain pattern, a mirror, a toolbox row: a profile
+ *   re-lay and a structuredClone of a body that has no tessellation while it is
+ *   being dragged. Sub-millisecond, so it runs on EVERY tick and is what makes
+ *   the model feel connected.
+ *
+ *   KERNEL-BACKED downstream — anything OpenCascade has to answer. That is
+ *   "a second or more per keystroke" (modeler_finish_preview.js), so it may
+ *   never gate a frame: it is debounced and cancelled on the same
+ *   E._featurePreviewToken and PATTERN_MERGE_PREVIEW_DELAY the merged-pattern
+ *   preview already uses, and a superseded run returns before it touches the
+ *   scene. Meanwhile the stale exact mesh is dropped rather than left on
+ *   screen as a confident wrong shape, and the badge says which stage it is
+ *   at in the data-preview-state vocabulary the merged-pattern work
+ *   established.
+ *
+ * No second scheduler, and no fixed-rate timer: a rate slow enough for the
+ * kernel would make the cheap tier feel broken, and a rate fast enough for the
+ * cheap tier would queue OpenCascade runs faster than they finish. */
+
+function liveFeatureEditBadge() {
+  return root && root.querySelector("#mdQuickSettings .md-feature-live");
+}
+
+function partsForFeature(featureId) {
+  return (E.def && E.def.parts || []).filter(function(part){return partBelongsToFeature(part,featureId);});
+}
+
+/* Cheap means "rebuilds without OpenCascade". A kernel recipe, a finish
+   operation, a 3D cut or merge, or a pattern asked to fuse its instances all
+   reach the kernel; a plain pattern, a mirror and a toolbox row do not. */
+function featureRebuildNeedsKernel(feature) {
+  if(!feature)return false;
+  if(featureBuildsKernelBody(feature.type) || FINISH_FEATURES.includes(feature.type))return true;
+  if(feature.type==="pattern" && feature.params && feature.params.mergeResult)return true;
+  return partsForFeature(feature.id).some(function(part){
+    return isKernelBody(part) || (part.exactOperations || []).length>0
+      || (part.cuts3d || []).length>0 || (part.merges3d || []).length>0;
+  });
+}
+
+/* Document order is build order, so a downstream chain is re-laid in it: a
+   mirror of a pattern has to see the pattern's copies before it runs. */
+function downstreamFeaturesOf(featureId) {
+  var downstream=dependencySets(featureId).downstream;
+  return (E.def && E.def.features || []).filter(function(item){return downstream.has(item.id);});
+}
+
+function liveDownstreamIsLive(token) {
+  var pending=E._liveDownstream;
+  return !!(pending && pending.token===token && E.authoring && E.authoring.featureEdit && E._featurePreviewToken===token);
+}
+
+function clearLiveDownstream(liveBadge) {
+  E._liveDownstream=null;
+  if(E._liveDownstreamTimer){clearTimeout(E._liveDownstreamTimer);E._liveDownstreamTimer=0;}
+  if(liveBadge){liveBadge.classList.remove("approx");liveBadge.removeAttribute("data-preview-state");}
+}
+
+/* What the badge may claim about the kernel tier, read off the bodies rather
+   than assumed: the debounced run only STARTS the rebuild, and the meshes land
+   later through queueExactMesh. */
+function syncLiveDownstreamBadge() {
+  var pending=E._liveDownstream;if(!pending)return;
+  var liveBadge=liveFeatureEditBadge();if(!liveBadge)return;
+  var parts=pending.features.reduce(function(all,id){return all.concat(partsForFeature(id));},[]);
+  var failed=parts.find(function(part){return part.exactError;});
+  if(failed){
+    pending.state="error";
+    patternMergePreviewBadge(liveBadge,"error","ph-warning",tf("liveDownstreamFailed",{error:failed.exactError}));
+    return;
+  }
+  if(pending.state==="calculating" || parts.some(function(part){return part.exactPending;}))return;
+  pending.state="exact";
+  patternMergePreviewBadge(liveBadge,"exact","ph-broadcast",t("liveDownstreamReady"));
+}
+
+function runLiveDownstream(features,token) {
+  // superseded by a newer tick: drop it before it touches the scene
+  if(!liveDownstreamIsLive(token))return;
+  features.forEach(function(feature){syncProjectionFromFeature(feature);});
+  if(!liveDownstreamIsLive(token))return;
+  E._liveDownstream.state="pending";
+  syncLiveDownstreamBadge();
+  refreshLivePreview();
+}
+
+function syncLiveDownstream(feature) {
+  var liveBadge=liveFeatureEditBadge();
+  var features=downstreamFeaturesOf(feature.id);
+  if(!features.length){clearLiveDownstream(liveBadge);return;}
+  var cheap=[],heavy=[];
+  features.forEach(function(item){(featureRebuildNeedsKernel(item)?heavy:cheap).push(item);});
+  cheap.forEach(function(item){syncProjectionFromFeature(item);});
+  /* A re-laid pattern copy is a NEW part object, so a selection still pointing
+     at the one that was just dropped would keep a body alive that the document
+     no longer has. Follow it by id, or let it go. */
+  if(E.sel && E.sel.id && !(E.def.parts || []).includes(E.sel) && !livePreviewParts().includes(E.sel)){
+    E.sel=(E.def.parts || []).find(function(part){return part.id===E.sel.id;}) || null;
+  }
+  if(!heavy.length){clearLiveDownstream(liveBadge);return;}
+  /* The stale exact mesh goes NOW. Leaving it up would draw a fillet that
+     still hugs the depth the extrude no longer has — the analytic fallback is
+     approximate, but it is not a lie. */
+  heavy.forEach(function(item){partsForFeature(item.id).forEach(function(part){delete part.meshData;if(isKernelBody(part))delete part.bounds;markLiveDirtyPart(part);});});
+  var token=(E._featurePreviewToken || 0)+1;E._featurePreviewToken=token;
+  E._liveDownstream={token:token,state:"calculating",features:heavy.map(function(item){return item.id;})};
+  if(liveBadge)patternMergePreviewBadge(liveBadge,"calculating","ph-scribble-loop",tf("liveDownstreamCalc",{count:heavy.length}));
+  if(E._liveDownstreamTimer)clearTimeout(E._liveDownstreamTimer);
+  E._liveDownstreamTimer=setTimeout(function(){
+    E._liveDownstreamTimer=0;
+    runLiveDownstream(heavy,token);
+  },PATTERN_MERGE_PREVIEW_DELAY);
+}
+
+/* The one live entry point for a feature EDIT. Apply and Cancel still go
+   through refreshAll(); this is what a dragged or retyped value reaches. */
+function syncLiveFeatureEdit(feature) {
+  syncProjectionFromFeature(feature);
+  syncLiveDownstream(feature);
+  refreshLivePreview();
 }
 
 function cancelFeatureParameterEdit(silent) {
@@ -13631,7 +13904,7 @@ function openFeatureEditor(feature) {
   var name=featureField(host,{key:"$name",label:t("fldFeatureName"),type:"text"},feature.name),liveBadge=el("div","md-feature-live on",'<i class="ph ph-broadcast"></i> '+t("featureLiveAllViews"));host.appendChild(liveBadge);
   var pendingFrame=0,controls=renderFeatureParameterForm(host,feature.type,feature,function(next){
     feature.params={...feature.params,...next.params};setFeatureReferencesFromForm(feature,next.references);feature.name=name.value || feature.name;
-    if(pendingFrame)cancelAnimationFrame(pendingFrame);pendingFrame=requestAnimationFrame(function(){pendingFrame=0;syncProjectionFromFeature(feature);refreshAll();if(feature.type==="toolbox"&&name.value!==feature.name)name.value=feature.name;liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);});
+    if(pendingFrame)cancelAnimationFrame(pendingFrame);pendingFrame=requestAnimationFrame(function(){pendingFrame=0;syncLiveFeatureEdit(feature);if(feature.type==="toolbox"&&name.value!==feature.name)name.value=feature.name;liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);});
   });
   name.addEventListener("input",function(){feature.name=name.value || feature.name;var entry=(E.def.history || []).find(function(item){return item.targetId===feature.id;});if(entry)entry.name=feature.name;refreshParts();fillInspector();});
   var dependencies=[];(feature.references.sketches || []).forEach(function(id){dependencies.push(t("depSketch")+": "+(id.id||id));});(feature.inputs || []).forEach(function(id){dependencies.push(t("depFeature")+": "+id);});
@@ -17811,7 +18084,7 @@ function syncFeatureFormValue(key, value) {
   if (!authoring) return;
   authoring.params[key] = value;
   if (authoring.preview) queueNewFeaturePreview(E.authoring.featureType, E.authoring.featurePreviewState, E.authoring.featurePreviewBadge);
-  else if (authoring.feature) { syncProjectionFromFeature(authoring.feature); refreshAll(); }
+  else if (authoring.feature) { syncLiveFeatureEdit(authoring.feature); }
 }
 
 function beginInstant3dDrag(event, view) {
@@ -18646,9 +18919,202 @@ function addInterferenceVisuals(parent) {
   });
 }
 
+function fillLivePreviewGroup(live) {
+  if (!live) return;
+  livePreviewParts().forEach(function (part) { buildPart(live, part, E.displayStyle); });
+  addInstant3dHandles(live);
+}
+
+function dropPreviewDecorationGroups() {
+  for (var i = decoGroups.length - 1; i >= 0; i--) {
+    if (decoGroups[i].part && decoGroups[i].part.previewOnly) decoGroups.splice(i, 1);
+  }
+}
+
+function setCommittedPartVisible(partId, visible) {
+  if (!E.pv || !E.pv.grp || !partId) return;
+  E.pv.grp.children.forEach(function (child) {
+    if (child === E.pv.liveGrp) return;
+    var match = false;
+    child.traverse(function (object) {
+      var data = object.userData;
+      if (data && (data.cadPart === partId || data.cadDeco === partId || data.cadPartRoot === partId)) match = true;
+    });
+    if (match) child.visible = visible;
+  });
+}
+
+function syncReplacedBodyVisibility() {
+  var hideId = E.authoring && E.authoring.previewReplacesPartId || null;
+  if (E._hiddenPreviewReplaceId && E._hiddenPreviewReplaceId !== hideId) {
+    setCommittedPartVisible(E._hiddenPreviewReplaceId, true);
+  }
+  if (hideId) setCommittedPartVisible(hideId, false);
+  E._hiddenPreviewReplaceId = hideId;
+}
+
+function patchLivePreviewLayer() {
+  if (!E.pv || !E.pv.liveGrp || !E.pv.liveGrp.parent) return false;
+  dropPreviewDecorationGroups();
+  clearGroup(E.pv.liveGrp);
+  fillLivePreviewGroup(E.pv.liveGrp);
+  applySectionClipping(E.pv.liveGrp);
+  syncReplacedBodyVisibility();
+  var box = new THREE.Box3().setFromObject(E.pv.grp);
+  E.pv.pickBounds = box.isEmpty() ? null : box.getBoundingSphere(new THREE.Sphere());
+  E.pv.render();
+  return true;
+}
+
+function markLiveDirtyPart(part) {
+  if (!part || !part.id) return;
+  if (!E._liveDirtyPartIds) E._liveDirtyPartIds = {};
+  E._liveDirtyPartIds[part.id] = true;
+}
+
+function partBelongsToFeature(part, featureId) {
+  if (!part || !featureId) return false;
+  if (part.featureId === featureId || part.derivedFeatureId === featureId || part.toolboxFeatureId === featureId) return true;
+  if ((part.exactOperations || []).some(function (operation) { return operation.id === featureId; })) return true;
+  if ((part.merges3d || []).some(function (merge) { return merge.featureId === featureId; })) return true;
+  return false;
+}
+
+function gpuChildMatchesPartIds(child, ids) {
+  if (!child || !ids || child === (E.pv && E.pv.liveGrp)) return false;
+  var data = child.userData || {};
+  if (data.cadPartRoot && ids[data.cadPartRoot]) return true;
+  var hit = false;
+  child.traverse(function (object) {
+    var user = object.userData;
+    if (!user) return;
+    if ((user.cadPart && ids[user.cadPart]) || (user.cadDeco && ids[user.cadDeco]) || (user.cadPartRoot && ids[user.cadPartRoot])) hit = true;
+  });
+  return hit;
+}
+
+function gpuChildMatchesFeature(child, featureId) {
+  if (!featureId || !child || child === (E.pv && E.pv.liveGrp)) return false;
+  var hit = false;
+  child.traverse(function (object) {
+    var user = object.userData;
+    if (!user) return;
+    if (user.cadFeatureId === featureId || user.cadDerivedFeatureId === featureId || user.cadToolboxFeatureId === featureId) hit = true;
+  });
+  return hit;
+}
+
+function dropCommittedGpu(matchChild) {
+  if (!E.pv || !E.pv.grp) return;
+  var doomed = [];
+  E.pv.grp.children.forEach(function (child) {
+    if (child === E.pv.liveGrp) return;
+    if (matchChild(child)) doomed.push(child);
+  });
+  doomed.forEach(function (child) {
+    E.pv.grp.remove(child);
+    clearGroup(child);
+  });
+}
+
+function dropDecoMatching(matchPart) {
+  for (var i = decoGroups.length - 1; i >= 0; i--) {
+    if (decoGroups[i].part && matchPart(decoGroups[i].part)) decoGroups.splice(i, 1);
+  }
+}
+
+function paintViewportAfterPartialRebuild() {
+  if (!E.pv || !E.pv.grp) return;
+  applySectionClipping(E.pv.grp);
+  if (E.pv.liveGrp) applySectionClipping(E.pv.liveGrp);
+  syncReplacedBodyVisibility();
+  var box = new THREE.Box3().setFromObject(E.pv.grp);
+  E.pv.pickBounds = box.isEmpty() ? null : box.getBoundingSphere(new THREE.Sphere());
+  E.pv.render();
+}
+
+function collectDirtyPartIds(featureId, extraIds) {
+  var ids = Object.assign({}, extraIds || {});
+  decoGroups.forEach(function (entry) {
+    if (entry.part && (ids[entry.part.id] || (featureId && partBelongsToFeature(entry.part, featureId)))) ids[entry.part.id] = true;
+  });
+  (E.def.parts || []).forEach(function (part) {
+    if (ids[part.id] || (featureId && partBelongsToFeature(part, featureId))) ids[part.id] = true;
+  });
+  return ids;
+}
+
+function rebuildCommittedPartsById(ids) {
+  if (!E.pv || !E.pv.grp || !ids) return;
+  committedRenderedParts(E.def).forEach(function (part) {
+    if (ids[part.id]) buildPart(E.pv.grp, part, E.displayStyle);
+  });
+}
+
+/* One body changed (exact mesh landed, hover edge, kernel blanked). Do not
+   dispose the rest of the viewport. */
+function refreshChangedPart(part) {
+  if (typeof window !== "undefined") window.cadRefreshChangedPart = refreshChangedPart;
+  /* The one place a body's exact mesh is known to have landed or failed, so
+     it is where the live downstream badge stops saying "calculating". */
+  syncLiveDownstreamBadge();
+  if (!part || !E.pv) return;
+  if (E.docType === "assembly" || E.pv.inRoom || !E.pv.grp) {
+    updatePreview();
+    return;
+  }
+  if (part.previewOnly) {
+    if (!patchLivePreviewLayer()) updatePreview();
+    return;
+  }
+  var ids = {};
+  ids[part.id] = true;
+  dropCommittedGpu(function (child) { return gpuChildMatchesPartIds(child, ids); });
+  dropDecoMatching(function (item) { return item.id === part.id; });
+  rebuildCommittedPartsById(ids);
+  if ((E.authoring && E.authoring.previewParts || []).length) {
+    if (!patchLivePreviewLayer()) paintViewportAfterPartialRebuild();
+  } else {
+    paintViewportAfterPartialRebuild();
+  }
+}
+
+function patchEditedFeatureLayer() {
+  if (!E.pv || !E.pv.grp || !E.pv.liveGrp || !E.pv.liveGrp.parent) return false;
+  if (E.docType === "assembly" || E.pv.inRoom) return false;
+  var featureId = E.authoring && E.authoring.featureEdit && E.authoring.featureEdit.featureId;
+  if (!featureId) return false;
+  var ids = collectDirtyPartIds(featureId, E._liveDirtyPartIds);
+  dropCommittedGpu(function (child) {
+    return gpuChildMatchesPartIds(child, ids) || gpuChildMatchesFeature(child, featureId);
+  });
+  dropDecoMatching(function (part) { return ids[part.id] || partBelongsToFeature(part, featureId); });
+  rebuildCommittedPartsById(ids);
+  E._liveDirtyPartIds = null;
+  return patchLivePreviewLayer();
+}
+
+/* Viewport-only refresh for a live feature ghost. refreshAll() clones the
+   parametric document, rebuilds the FeatureManager and inspector, and
+   disposes every GPU buffer — none of that changes while a new feature's
+   parameters are being dragged. Apply and Cancel still go through refreshAll. */
+function refreshLivePreview() {
+  if (typeof window !== "undefined") window.cadRefreshLivePreview = refreshLivePreview;
+  if (E.authoring && E.authoring.featureEdit) {
+    if (!patchEditedFeatureLayer()) updatePreview();
+    drawSketch();
+    return;
+  }
+  if (E.docType === "assembly" || (E.pv && E.pv.inRoom) || !patchLivePreviewLayer()) {
+    updatePreview();
+  }
+  drawSketch();
+}
+
 function updatePreview() {
   if (typeof window !== "undefined") window.cadUpdatePreview = updatePreview;
   decoGroups.length = 0;   // truncate, never reassign: window.cadDecoGroups holds this reference
+  E._hiddenPreviewReplaceId = null;
   /* The sheet projects the same bodies this rebuild is about to replace, and
      hidden-line removal is far too expensive to redo per paint — so this is
      where its cache is told the model moved. */
@@ -18667,10 +19133,14 @@ function updatePreview() {
   E.pv.rebuild(function (grp) {
     if (E.docType === "assembly") buildAssembly(grp);
     else {
-      renderedParts(E.def).forEach(function (p) { buildPart(grp, p, E.displayStyle); });
+      committedRenderedParts(E.def).forEach(function (p) { buildPart(grp, p, E.displayStyle); });
       addDocumentOverlays(grp, E.def);
     }
-    addInstant3dHandles(grp);
+    var live = new THREE.Group();
+    live.userData.cadLivePreview = true;
+    E.pv.liveGrp = live;
+    grp.add(live);
+    fillLivePreviewGroup(live);
     applySectionClipping(grp);
   });
   syncSectionHelper();

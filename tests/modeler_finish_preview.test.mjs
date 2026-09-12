@@ -193,8 +193,72 @@ test("an approximate preview does not claim the views are synced", () => {
   assert.match(modeler, /liveBadge\.setAttribute\("data-preview-state","exact"\)/);
 });
 
+test("live feature preview does not rebuild the parametric document", () => {
+  const queueAt = modeler.indexOf("function queueNewFeaturePreview");
+  const queue = modeler.slice(queueAt, queueAt + 900);
+  assert.match(queue, /refreshLivePreview\(\)/);
+  assert.doesNotMatch(queue, /refreshAll\(\)/);
+  const liveAt = modeler.indexOf("function refreshLivePreview()");
+  assert.ok(liveAt >= 0, "refreshLivePreview exists");
+  const live = modeler.slice(liveAt, modeler.indexOf("\nfunction updatePreview()", liveAt));
+  assert.doesNotMatch(live, /rebuildParametricDocument|fillInspector|refreshParts\(/);
+  assert.match(live, /patchLivePreviewLayer\(\)/);
+  assert.match(live, /patchEditedFeatureLayer\(\)/, "editing a history feature patches that body, it does not dispose the scene");
+  assert.match(modeler, /E\.pv\.liveGrp = live/);
+  assert.match(modeler, /committedRenderedParts\(E\.def\)/);
+  const edges = modeler.slice(modeler.indexOf("function setFinishEdges"), modeler.indexOf("\nfunction toggleFinishEdges"));
+  assert.match(edges, /queueNewFeaturePreview/);
+  assert.match(edges, /return;/);
+});
+
+/* WHAT a live ghost shares with its seed is a behavioural claim and lives in
+   tests/live_preview.browser.mjs, which reads object identity off a real ghost
+   and the seed's vertices off a real document. This only pins that the ghost
+   goes through the one helper, and that the helper copies the buffer movePart()
+   writes into — sharing positions translated the SEED's committed geometry once
+   per ghost per keystroke. */
+test("a live pattern ghost goes through the one clone helper", () => {
+  assert.match(modeler, /function clonePartForLivePreview\(/);
+  assert.match(modeler, /function clonePartWithoutTessellationCopy\(/);
+  const preview = modeler.slice(modeler.indexOf("function syncNewFeaturePreview"), modeler.indexOf("\nfunction syncPatternOverlapBadge"));
+  assert.match(preview, /clonePartForLivePreview\(seed\)/);
+  assert.doesNotMatch(preview, /cloneData\(seed\)/);
+  const clone = modeler.match(/function clonedPartMeshData\(mesh\)[\s\S]*?\n\}\n/)[0];
+  assert.match(clone, /positions: \(mesh\.positions \|\| \[\]\)\.slice\(\)/, "movePart adds dx/dy/dz straight into this array");
+  assert.doesNotMatch(clone, /normals:|colors:/, "the big immutable buffers ride by reference — that is the whole win");
+  const exact = modeler.match(/function queueExactMesh\(p\)[\s\S]*?\n\}\n/)[0];
+  assert.match(exact, /refreshChangedPart\(p\)/);
+  assert.doesNotMatch(exact, /updatePreview\(\)/);
+});
+
+/* The two-tier live DOWNSTREAM refresh. WHAT it does — an analytic feature
+   following on the tick, a kernel-backed one debounced and declared stale — is
+   behavioural and lives in tests/live_preview.browser.mjs. What is pinned here
+   is the SHAPE: no fixed-rate timer, and no second scheduler alongside the
+   merged-pattern one. A 5-per-second tick was the tempting answer and it is
+   wrong in both directions — too slow for the mesh tier to feel connected, and
+   still fast enough to queue OpenCascade runs faster than they finish. */
+test("downstream refresh debounces on the existing token, it does not add a timer", () => {
+  const sync = modeler.match(/function syncLiveDownstream\(feature\)[\s\S]*?\n\}\n/)[0];
+  assert.match(sync, /featureRebuildNeedsKernel\(item\)\?heavy:cheap/, "the split is made once, by cost");
+  assert.match(sync, /cheap\.forEach\(function\(item\)\{syncProjectionFromFeature\(item\);\}\)/, "the cheap tier runs on the tick");
+  assert.match(sync, /E\._featurePreviewToken=token/, "and the heavy tier rides the token the merged-pattern preview already uses");
+  assert.match(sync, /PATTERN_MERGE_PREVIEW_DELAY/, "with its delay, not a second constant");
+  assert.doesNotMatch(sync, /setInterval|requestAnimationFrame/, "no fixed-rate timer");
+  assert.doesNotMatch(modeler, /setInterval\([^)]*[Dd]ownstream/);
+
+  // a superseded run is dropped BEFORE it touches the scene, not after
+  const run = modeler.match(/function runLiveDownstream\(features,token\)[\s\S]*?\n\}\n/)[0];
+  assert.match(run, /^\s*\/\/[^\n]*\n\s*if\(!liveDownstreamIsLive\(token\)\)return;\s*\n\s*features\.forEach/m);
+
+  // Apply and Cancel still do the full refresh
+  const cancel = modeler.match(/function cancelFeatureParameterEdit\(silent\)[\s\S]*?\n\}\n/)[0];
+  assert.match(cancel, /refreshAll\(\)/);
+});
+
 test("both Hebrew and English are present for every new preview string", () => {
-  ["liveApproxPreview", "approxPreviewName"].forEach((key) => {
+  ["liveApproxPreview", "approxPreviewName",
+   "liveDownstreamCalc", "liveDownstreamReady", "liveDownstreamFailed"].forEach((key) => {
     const line = modelerStrings.split("\n").find((row) => row.trim().startsWith(key + ":"));
     assert.ok(line, "missing key " + key);
     const pair = line.match(/\["([^"]+)",\s*"([^"]+)"\]/);

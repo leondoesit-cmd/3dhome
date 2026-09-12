@@ -47,7 +47,11 @@ test("hover across model does zero part-geometry disposals and zero buildPart ca
       window._geometryDisposals = 0;
       window._buildPartAtStart = window.cadBuildPartCount();
 
-      const partMeshes = (window.cadPreviewView.grp?.children || []).filter((c) => c.isMesh);
+      /* Each body now hangs under its own partRoot Group so a live parameter
+         drag can dispose one body's meshes without touching the rest, so the
+         part meshes are no longer direct children of grp. */
+      const partMeshes = [];
+      window.cadPreviewView.grp?.traverse((c) => { if (c.isMesh) partMeshes.push(c); });
       window._trackedGeometries = new Set();
       partMeshes.forEach((m) => {
         if (m.geometry) {
@@ -86,7 +90,7 @@ test("hover across model does zero part-geometry disposals and zero buildPart ca
       return {
         buildPartCalls: window.cadBuildPartCount() - window._buildPartAtStart,
         geometryDisposals: window._geometryDisposals,
-        activeMeshes: (window.cadPreviewView.grp?.children || []).filter((c) => c.isMesh).length,
+        activeMeshes: (() => { let n = 0; window.cadPreviewView.grp?.traverse((c) => { if (c.isMesh) n++; }); return n; })(),
       };
     });
 

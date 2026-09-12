@@ -107,7 +107,14 @@ test("feature parameters are grouped and drive every visual projection live", ()
   assert.match(source, /function renderFeatureParameterForm/);
   assert.match(source, /function queueNewFeaturePreview/);
   assert.match(source, /Live · sketch, 3D, orthographic and drawing views synced/);
-  assert.match(source, /syncProjectionFromFeature\(feature\);refreshAll\(\)/);
+  /* One live entry point for a feature edit: the feature itself, then its
+     downstream chain, then the viewport patch. Apply and Cancel still refreshAll. */
+  assert.match(source, /pendingFrame=0;syncLiveFeatureEdit\(feature\);/);
+  const live = source.match(/function syncLiveFeatureEdit\(feature\)[\s\S]*?\n\}\n/)[0];
+  assert.match(live, /syncProjectionFromFeature\(feature\)/);
+  assert.match(live, /syncLiveDownstream\(feature\)/);
+  assert.match(live, /refreshLivePreview\(\)/);
+  assert.doesNotMatch(live, /refreshAll\(\)/);
   assert.match(source, /function cancelFeatureParameterEdit/);
   assert.match(source, /renderedParts\(E\.def\)/);
   // Preview, apply and rebuild all lay a copy through the one helper, so a

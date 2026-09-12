@@ -223,7 +223,13 @@ test("sweep and loft push a body instead of only a history row", () => {
 test("editing a sweep or loft feature rebuilds its body", () => {
   const sync = modeler.match(/function syncProjectionFromFeature\(feature\)[\s\S]*?\n\}\n/)[0];
   assert.match(sync, /featureBuildsKernelBody\(feature\.type\)/);
-  assert.match(sync, /queueKernelBody/);
+  assert.match(sync, /scheduleKernelBody/, "live edits debounce the kernel so a dragged parameter does not start OpenCascade on every frame");
+});
+
+test("a dragged kernel-body parameter is debounced", () => {
+  const schedule = modeler.match(/function scheduleKernelBody\(p\)[\s\S]*?\n\}\n/)[0];
+  assert.match(schedule, /140/);
+  assert.match(schedule, /queueKernelBody\(p\)/);
 });
 
 test("a failed kernel build leaves no ghost body", () => {
@@ -231,6 +237,8 @@ test("a failed kernel build leaves no ghost body", () => {
   assert.match(queue, /delete p\.meshData/, "the stale mesh goes before the rebuild starts");
   assert.match(queue, /delete p\.bounds/, "and so do the bounds, so nothing draws or snaps to a body that failed");
   assert.match(queue, /p\.exactError = /, "the failure is reported on the step that failed");
+  assert.match(queue, /refreshChangedPart\(p\)/, "blanking one kernel body must not dispose every other GPU mesh");
+  assert.doesNotMatch(queue, /updatePreview\(\)/);
 });
 
 test("the loft editor offers no control the kernel ignores", () => {

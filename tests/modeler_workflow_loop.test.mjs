@@ -163,7 +163,7 @@ test("a handle release updates the ghost; only Enter or Apply commits", () => {
   // A NEW feature moves the preview; an existing one writes its own params.
   const sync = body("syncFeatureFormValue");
   assert.match(sync, /if \(authoring\.preview\) queueNewFeaturePreview/);
-  assert.match(sync, /else if \(authoring\.feature\) \{ syncProjectionFromFeature/);
+  assert.match(sync, /else if \(authoring\.feature\) \{ syncLiveFeatureEdit/, "which also carries its downstream chain live");
 });
 
 test("the areas a feature will act on are drawn, and can be clicked out of it", () => {
