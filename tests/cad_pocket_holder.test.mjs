@@ -29,3 +29,17 @@ test('a hollow holder depends on the pocket result even when its floor retains t
   }finally{releaseRegeneration(run);}
  }
 });
+
+test('a drafted annular holder keeps circular-edge centres on the extrusion axis',async()=>{
+ const sketch={id:'holderSketch',plane:'top',points:[{id:'center',x:0,y:0}],entities:[{id:'outer',type:'circle',c:'center',r:1.651},{id:'inner',type:'circle',c:'center',r:1.397}],constraints:[]};
+ const holder={id:'holderTool',type:'extrude',inputs:[],params:{sketchId:sketch.id,profileEntityIds:['outer'],holeProfileEntityIds:[['inner']],axis:'y',from:.508,to:1.524,draftAngle:3}};
+ const run=await regenerateFeatures({sketches:[sketch],features:[holder]});
+ try{
+  assert.equal(run.ok,true,JSON.stringify(run.issues));
+  const circles=(run.results.get('holderTool').topology||[]).filter(t=>t.kind==='edge'&&t.descriptor.curve==='circle');
+  assert.ok(circles.length>=2,JSON.stringify(circles.map(c=>c.descriptor)));
+  for(const edge of circles){
+   assert.ok(Math.hypot(edge.descriptor.origin.x,edge.descriptor.origin.z)<0.001,JSON.stringify(edge.descriptor.origin));
+  }
+ }finally{releaseRegeneration(run);}
+});

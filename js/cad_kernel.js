@@ -3,7 +3,7 @@ import {restoreProfileCurve} from './cad_profile_serialization.js';
 import {circularPatternPivot} from "./core/pattern_geometry.js";
 import { holeToolPlacements } from "./core/hole_geometry.js";
 import { cylinderAxis } from "./core/cylinder_axis.js";
-import { revolveInterval, revolvePoint } from "./core/revolve_geometry.js";
+import { revolveInterval, revolvePoint, assertRevolveProfile } from "./core/revolve_geometry.js";
 // OpenCascade BREP backend. Loaded lazily because the WASM module is large;
 // ordinary sketch editing must remain instant and does not need a solid kernel.
 
@@ -518,6 +518,7 @@ export async function makeBrepRevolve(spec) {
   try {
     const points = spec.points || spec.pts;
     if (!Array.isArray(points) || points.length < 3) throw new Error("Revolve requires a closed profile");
+    if (spec.radialProfile && !spec.profileFrame) assertRevolveProfile(points);
     const loop = spec.segments ? { points, segments: spec.segments } : points;
     const interval=revolveInterval(spec);
     const axisName=spec.axis || "y", radial=!!spec.radialProfile;

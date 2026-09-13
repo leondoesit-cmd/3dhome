@@ -1,26 +1,36 @@
 const DB_NAME="home3d_model_library";
-const STORE="models";
-let memory=[];
+const DB_VERSION=2;
+const MODEL_STORE="models";
+const ASSEMBLY_STORE="assemblies";
+const DRAFT_STORE="drafts";
+const DRAFT_ID="latest";
+
+let modelMemory=[];
+let assemblyMemory=[];
+let draftMemory=null;
 
 const clone=(value)=>value==null ? value : typeof structuredClone==="function" ? structuredClone(value) : JSON.parse(JSON.stringify(value));
 
 function openDatabase() {
   return new Promise((resolve,reject)=>{
-    if (typeof indexedDB==="undefined") return reject(new Error("IndexedDB unavailable"));
-    const request=indexedDB.open(DB_NAME,1);
+    if (typeof indexedDB === "undefined") return reject(new Error("IndexedDB unavailable"));
+    const request=indexedDB.open(DB_NAME,DB_VERSION);
     request.onupgradeneeded=()=>{
-      if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE,{keyPath:"key"});
+      const db=request.result;
+      if (!db.objectStoreNames.contains(MODEL_STORE)) db.createObjectStore(MODEL_STORE,{keyPath:"key"});
+      if (!db.objectStoreNames.contains(ASSEMBLY_STORE)) db.createObjectStore(ASSEMBLY_STORE,{keyPath:"key"});
+      if (!db.objectStoreNames.contains(DRAFT_STORE)) db.createObjectStore(DRAFT_STORE,{keyPath:"id"});
     };
     request.onsuccess=()=>resolve(request.result);
     request.onerror=()=>reject(request.error || new Error("Model library database failed"));
   });
 }
 
-async function run(mode,operation) {
+async function run(storeName, mode, operation) {
   const database=await openDatabase();
   try {
     return await new Promise((resolve,reject)=>{
-      const transaction=database.transaction(STORE,mode), store=transaction.objectStore(STORE);
+      const transaction=database.transaction(storeName,mode), store=transaction.objectStore(storeName);
       let result;
       try { result=operation(store,transaction); } catch(error) { reject(error); return; }
       transaction.oncomplete=()=>resolve(result);
@@ -30,30 +40,75 @@ async function run(mode,operation) {
   } finally { database.close(); }
 }
 
-export async function loadModelLibrary(legacy=[]) {
+async function loadKeyedStore(storeName, memoryRef, legacy=[]) {
   if (typeof indexedDB==="undefined") {
-    if (!memory.length && legacy.length) memory=clone(legacy);
-    return clone(memory);
+    if (!memoryRef.list.length && legacy.length) memoryRef.list=clone(legacy);
+    return clone(memoryRef.list);
   }
-  const records=await run("readonly",(store)=>new Promise((resolve,reject)=>{
+  const records=await run(storeName,"readonly",(store)=>new Promise((resolve,reject)=>{
     const request=store.getAll(); request.onsuccess=()=>resolve(request.result || []); request.onerror=()=>reject(request.error);
   }));
-  if (!records.length && legacy.length) {
-    await saveModelLibrary(legacy);
+  const usable=records.filter((item)=>item && item.key);
+  if (!usable.length && legacy.length) {
+    await saveKeyedStore(storeName, memoryRef, legacy);
     return clone(legacy);
   }
-  memory=clone(records);
-  return clone(records);
+  memoryRef.list=clone(usable);
+  return clone(usable);
 }
 
-export async function saveModelLibrary(models=[]) {
-  const next=clone(models);
-  if (typeof indexedDB!=="undefined") await run("readwrite",(store)=>{
+async function saveKeyedStore(storeName, memoryRef, items=[]) {
+  const next=clone(items);
+  if (typeof indexedDB!=="undefined") await run(storeName,"readwrite",(store)=>{
     store.clear();
-    next.forEach((model)=>store.put(model));
+    next.forEach((item)=>store.put(item));
   });
-  memory=next;
+  memoryRef.list=next;
   return clone(next);
 }
 
-export function clearMemoryModelLibrary() { memory=[]; }
+const modelRef={get list(){return modelMemory;}, set list(value){modelMemory=value;}};
+const assemblyRef={get list(){return assemblyMemory;}, set list(value){assemblyMemory=value;}};
+
+export async function loadModelLibrary(legacy=[]) {
+  return loadKeyedStore(MODEL_STORE, modelRef, legacy);
+}
+
+export async function saveModelLibrary(models=[]) {
+  return saveKeyedStore(MODEL_STORE, modelRef, models);
+}
+
+export async function loadAssemblyLibrary(legacy=[]) {
+  return loadKeyedStore(ASSEMBLY_STORE, assemblyRef, legacy);
+}
+
+export async function saveAssemblyLibrary(assemblies=[]) {
+  return saveKeyedStore(ASSEMBLY_STORE, assemblyRef, assemblies);
+}
+
+export async function loadModelerDraftRecord() {
+  if (typeof indexedDB==="undefined") return clone(draftMemory);
+  const record=await run(DRAFT_STORE,"readonly",(store)=>new Promise((resolve,reject)=>{
+    const request=store.get(DRAFT_ID); request.onsuccess=()=>resolve(request.result || null); request.onerror=()=>reject(request.error);
+  }));
+  if (!record) { draftMemory=null; return null; }
+  const {id, ...draft} = record;
+  draftMemory=clone(draft);
+  return clone(draft);
+}
+
+export async function saveModelerDraftRecord(draft) {
+  const next=clone(draft);
+  if (typeof indexedDB!=="undefined") await run(DRAFT_STORE,"readwrite",(store)=>{
+    store.put({...next, id:DRAFT_ID});
+  });
+  draftMemory=next;
+  return clone(next);
+}
+
+export async function clearModelerDraftRecord() {
+  if (typeof indexedDB!=="undefined") await run(DRAFT_STORE,"readwrite",(store)=>store.delete(DRAFT_ID));
+  draftMemory=null;
+}
+
+export function clearMemoryModelLibrary() { modelMemory=[]; assemblyMemory=[]; draftMemory=null; }

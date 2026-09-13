@@ -12,6 +12,32 @@ export const STOCK_MATERIALS = Object.freeze({
   titanium: { name: "Titanium Grade 5", color: "#9aa3ad", metal: 0.7, rough: 0.35, density: 4.43 },
 });
 
+export const DEFAULT_MASS_DENSITY = 7.85;
+
+export function stockMaterialKey(part) {
+  const catalog = String(part?.materialCatalogId || "");
+  if (catalog.startsWith("stock:")) return catalog.slice(6);
+  if (part?.material && STOCK_MATERIALS[part.material]) return part.material;
+  if (part?.materialName) {
+    const hit = Object.keys(STOCK_MATERIALS).find((key) => STOCK_MATERIALS[key].name === part.materialName);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+export function stockMaterialForPart(part) {
+  const key = stockMaterialKey(part);
+  return key ? STOCK_MATERIALS[key] : null;
+}
+
+export function partMaterialDensity(part, fallback = DEFAULT_MASS_DENSITY) {
+  const authored = Number(part?.density);
+  if (authored > 0) return authored;
+  const stock = stockMaterialForPart(part);
+  if (stock?.density > 0) return stock.density;
+  return Number(fallback) > 0 ? Number(fallback) : DEFAULT_MASS_DENSITY;
+}
+
 export function createAppearanceOverride(options = {}) {
   const stock = STOCK_MATERIALS[options.material] || null;
   return {

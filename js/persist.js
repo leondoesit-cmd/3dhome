@@ -117,25 +117,22 @@ function writeAuto() {
   }
   if (json === lastWritten) return;
   var snap = { json: json, at: Date.now(), session: sessionId };
-  // Large scene JSON belongs in IndexedDB, which has a much larger quota and
-  // writes off the main thread. localStorage keeps only recovery metadata; a
-  // compact scene is duplicated there as a synchronous page-exit fallback.
-  writeAutoDB(snap).catch(function () {
-    try { localStorage.setItem(AUTO_KEY, JSON.stringify(snap)); } catch (_) {}
+  lastWritten = json;
+  // Recovery metadata stays in localStorage. The scene JSON itself is only
+  // written to IndexedDB so a large plan cannot blow the 5 MB quota.
+  writeAutoDB(snap).then(function () {
+    try { localStorage.setItem(AUTO_KEY, JSON.stringify({ at: snap.at, session: sessionId, indexedDB: true })); }
+    catch (e) { warnQuota(); }
+  }).catch(function () {
+    // IndexedDB failed; a compact scene can still ride in localStorage.
+    try { localStorage.setItem(AUTO_KEY, JSON.stringify(json.length < 500000 ? snap : { at: snap.at, session: sessionId, indexedDB: false })); }
+    catch (e) { warnQuota(); }
   });
-  try {
-    localStorage.setItem(
-      AUTO_KEY,
-      JSON.stringify(json.length < 500000 ? snap : { at: snap.at, session: sessionId, indexedDB: true }),
-    );
-    lastWritten = json;
-  } catch (e) {
-    // Almost always the ~5 MB quota, blown by embedded base64 textures. Say so
-    // once — silently failing to autosave is worse than a one-time nudge.
-    if (!quotaWarned) {
-      quotaWarned = true;
-      api.flash(t("f_autoQuota"), "error");
-    }
+}
+function warnQuota() {
+  if (!quotaWarned) {
+    quotaWarned = true;
+    api.flash(t("f_autoQuota"), "error");
   }
 }
 

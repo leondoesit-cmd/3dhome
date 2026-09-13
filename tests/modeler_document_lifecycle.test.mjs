@@ -77,10 +77,10 @@ test("a save reports failure instead of announcing one that did not happen", () 
 
   // And the save path acts on that answer before it claims success.
   const save = body("saveAssemblyDocument");
-  assert.match(save, /if \(!saveAssemblies\(list\)\) \{[\s\S]*?return;/);
+  assert.match(save, /if \(!await saveAssemblies\(list\)\) \{[\s\S]*?return;/);
   // The success tail must come after the guard, never before it.
-  assert.ok(save.indexOf("if (!saveAssemblies(list))") < callAt(save, "markDocumentClean"));
-  assert.ok(save.indexOf("if (!saveAssemblies(list))") < callAt(save, "discardModelerDraft"));
+  assert.ok(save.indexOf("if (!await saveAssemblies(list))") < callAt(save, "markDocumentClean"));
+  assert.ok(save.indexOf("if (!await saveAssemblies(list))") < callAt(save, "discardModelerDraft"));
 
   // The crash-recovery draft is just as silent when storage refuses it.
   assert.match(draftSource, /export function writeModelerDraft[\s\S]*?return false;/);

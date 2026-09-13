@@ -104,7 +104,7 @@ import { calloutText, calloutTextById, holeCallouts } from "./core/hole_callout.
 import { cosmeticThread, modeledThreadSolid, normalizeThreadSpec, threadCallout, validateThreadFeature, validateThreadFit, documentThreadOverlays } from "./cad_thread.js";
 import { knurlBandMesh, knurlCallout, knurlGroovePolylines, normalizeKnurlSpec, validateKnurl } from "./cad_knurl.js";
 import { toolboxFastener, listToolboxLibrary, toolboxFamily, lengthOptionsForSize, FASTENER_LENGTHS_MM, reducingBranchRows, PVC_D1785, searchToolbox, TOOLBOX_CATEGORY_LABELS } from "./cad_toolbox.js";
-import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides } from "./cad_appearances.js";
+import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides, partMaterialDensity, stockMaterialForPart } from "./cad_appearances.js";
 import { appearanceGroups } from "./core/appearance_groups.js";
 import { captureConfiguration, ensureConfigurations, setActiveConfiguration } from "./cad_configurations.js";
 import { evaluateFit, fitCallout, fitLimitSource } from "./cad_fits.js";
@@ -126,7 +126,7 @@ import { createImportedDefinition, detectStepLengthUnit, stepUnitCorrection } fr
 import { encodeBinaryPayload } from "./core/binary_payload.js";
 import { externalizeAttachments } from "./core/attachment_store.js";
 import { garbageCollectAttachments } from "./core/attachment_gc.js";
-import { loadModelLibrary, saveModelLibrary } from "./core/model_library_store.js";
+import { loadModelLibrary, saveModelLibrary, loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord } from "./core/model_library_store.js";
 import { rebuildDefinition } from "./core/rebuild.js";
 import { buildTreeModel, findTreeNode } from "./core/tree_model.js";
 import { renderTreeModel } from "./modeler_tree.js";
@@ -153,7 +153,7 @@ import {
   FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
   bomCsv, bomTableRows, buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
 } from "./modeler_commands.js";
-import { clearModelerDraft, readModelerDraft, writeModelerDraft } from "./modeler_draft.js";
+import { MODELER_DRAFT_KEY, clearModelerDraft, parseModelerDraft, readModelerDraft, serializeModelerDraft, writeModelerDraft } from "./modeler_draft.js";
 import {
   featureField as featureFieldCore, featureControlValue, validateFeatureInputs, readFeatureParameterForm, renderFeatureParameterForm as renderFeatureParameterFormCore,
 } from "./modeler_feature_form.js";
@@ -230,6 +230,8 @@ import {
 var LS_MODELS = "home3d_models";
 var LS_ASSEMBLIES = "home3d_assemblies";
 var modelLibraryCache = [];
+var assemblyLibraryCache = [];
+var modelerDraftCache = null;
 
 /* The feature catalogue cannot import t() — it is a shared module loaded
    without a UI — so it asks for a translation through this resolver instead.
@@ -247,19 +249,38 @@ function loadLib() {
   return cloneData(modelLibraryCache);
 }
 async function initializeModelLibrary() {
-  var legacy=[];
+  var legacy=[], legacyAssemblies=[];
   try {
     var stored=JSON.parse(localStorage.getItem(LS_MODELS)) || [];
     if (Array.isArray(stored) && stored.some(function(model){return Array.isArray(model.parts);})) legacy=stored;
   } catch(e) {}
+  try {
+    var storedAssemblies=JSON.parse(localStorage.getItem(LS_ASSEMBLIES)) || [];
+    if (Array.isArray(storedAssemblies) && storedAssemblies.some(function(item){return Array.isArray(item.components);})) legacyAssemblies=storedAssemblies;
+  } catch(e) {}
   try { modelLibraryCache=await loadModelLibrary(legacy); }
   catch(e) { modelLibraryCache=legacy; }
+  try { assemblyLibraryCache=await loadAssemblyLibrary(legacyAssemblies); }
+  catch(e) { assemblyLibraryCache=legacyAssemblies; }
+  try {
+    modelerDraftCache=await loadModelerDraftRecord();
+    if (!modelerDraftCache) modelerDraftCache=readModelerDraft(modelerDraftStorage());
+  } catch(e) { modelerDraftCache=readModelerDraft(modelerDraftStorage()); }
   writeLibraryIndex(modelLibraryCache);
+  writeAssemblyIndex(assemblyLibraryCache);
 }
 function writeLibraryIndex(lib) {
   try {
     localStorage.setItem(LS_MODELS, JSON.stringify(lib.map(function(model){return {
       key:model.key,name:model.name,w:model.w,d:model.d,h:model.h,partCount:(model.parts || []).length,updatedAt:Date.now()
+    };})));
+    return true;
+  } catch (e) { return false; }
+}
+function writeAssemblyIndex(list) {
+  try {
+    localStorage.setItem(LS_ASSEMBLIES, JSON.stringify((list || []).map(function(item){return {
+      key:item.key,name:item.name,componentCount:(item.components || []).length,updatedAt:Date.now()
     };})));
     return true;
   } catch (e) { return false; }
@@ -274,20 +295,19 @@ async function saveLib(lib) {
 }
 
 function loadAssemblies() {
-  try {
-    var list = JSON.parse(localStorage.getItem(LS_ASSEMBLIES)) || [];
-    return Array.isArray(list) ? list : [];
-  } catch (e) {
-    return [];
-  }
+  return cloneData(assemblyLibraryCache);
 }
 /* Returns whether the write landed, exactly as saveLib() does. Swallowing the
    quota error and returning nothing let saveAssemblyDocument() announce a save
    that never happened, mark the document clean and delete its recovery draft —
    the one copy of the work that was left. */
-function saveAssemblies(list) {
-  try { localStorage.setItem(LS_ASSEMBLIES, JSON.stringify(list)); return true; }
-  catch (e) { return false; }
+async function saveAssemblies(list) {
+  try {
+    await saveAssemblyLibrary(list);
+    assemblyLibraryCache=cloneData(list);
+    writeAssemblyIndex(list);
+    return true;
+  } catch (e) { return false; }
 }
 function newAssembly() {
   return {
@@ -1929,6 +1949,7 @@ var E = {
      a model the user closed two documents ago. See exactRunIsCurrent(). */
   brepStamp: null,
   coreRun: null,
+  exactRestoring: false,
   lastCutSkipped: [],   // bodies the last cut passed through but could not take
   componentSel: [],   // assembly multi-selection; last entry is primary
   sel: null,          // selected part
@@ -2701,22 +2722,34 @@ var draftFailureReported = false;
 function flushModelerDraft() {
   draftSaveTimer = 0;
   if (!E.open || !(E.docType === "assembly" ? E.assembly : E.def)) return;
-  if (writeModelerDraft(modelerDraftStorage(), { docType: E.docType, def: E.def, assembly: E.assembly })) {
+  var payload = { docType: E.docType, def: E.def, assembly: E.assembly };
+  var parsed = parseModelerDraft(serializeModelerDraft(payload));
+  modelerDraftCache = parsed;
+  saveModelerDraftRecord(parsed).then(function () {
+    try { localStorage.setItem(MODELER_DRAFT_KEY, JSON.stringify({ v: parsed.v, at: parsed.at, docType: parsed.docType, indexedDB: true })); }
+    catch (error) {}
     draftFailureReported = false;
     syncDraftStatus("draftSaved");
-    return;
-  }
-  syncDraftStatus("draftSaveFailed");
-  if (!draftFailureReported) { draftFailureReported = true; flash(t("draftSaveFailed")); }
+  }).catch(function () {
+    if (writeModelerDraft(modelerDraftStorage(), payload)) {
+      draftFailureReported = false;
+      syncDraftStatus("draftSaved");
+      return;
+    }
+    syncDraftStatus("draftSaveFailed");
+    if (!draftFailureReported) { draftFailureReported = true; flash(t("draftSaveFailed")); }
+  });
 }
 
 function discardModelerDraft() {
   if (draftSaveTimer) { clearTimeout(draftSaveTimer); draftSaveTimer = 0; }
+  modelerDraftCache = null;
   clearModelerDraft(modelerDraftStorage());
+  clearModelerDraftRecord().catch(function () {});
 }
 
 function tryRestoreModelerDraft() {
-  var draft = readModelerDraft(modelerDraftStorage());
+  var draft = modelerDraftCache && (modelerDraftCache.def || modelerDraftCache.assembly) ? modelerDraftCache : readModelerDraft(modelerDraftStorage());
   if (!draft) return false;
   var documentAtRequest = E.def;
   askModelerDecision(root, {
@@ -2768,9 +2801,10 @@ function restoreModelerDraft(draft) {
   syncDirty();
   syncDraftStatus("draftSaved");
   syncHead();
+  E.exactRestoring = isCanonicalAuthoring() && activeParts(E.def).length && !(E.def && E.def.exactTopologyCache);
   refreshAll();
   fitPreview();
-  if(isCanonicalAuthoring() && activeParts(E.def).length)regenerateExactModel();
+  scheduleExactRestore();
   return true;
 }
 function syncUndoButtons() {
@@ -4490,9 +4524,7 @@ function tourCubeIsComplete() {
   var modeledSketches = ensureSketchDoc(E.def).filter(function (sketch) {
     return (sketch.entities || []).length > 0;
   });
-  var rebuildErrors = E.coreRun && E.coreRun.issues
-    ? E.coreRun.issues.some(function (issue) { return issue.severity === "error"; })
-    : false;
+  var rebuildErrors = displayedCoreIssues().some(function (issue) { return issue.severity === "error"; });
   return modeledSketches.length >= 4
     && modeledSketches.every(tourSketchIsFullyDefined)
     && tourPartCount("ext") >= 1
@@ -5267,7 +5299,7 @@ function closeTour() {
     else {
       // The assembly demo saves, so restoring the document is not enough — drop
       // the library entry it wrote too, or every replay leaves another orphan.
-      if (E.tour.demoAssemblyKey) saveAssemblies(loadAssemblies().filter(function (a) { return a.key !== E.tour.demoAssemblyKey; }));
+      if (E.tour.demoAssemblyKey) saveAssemblies(loadAssemblies().filter(function (a) { return a.key !== E.tour.demoAssemblyKey; })).catch(function () {});
       E.tour.preparing = true; restoreAutomaticTourOrigin(); E.tour.preparing = false; refreshAll(); flash(t("guideDemoRestored"));
     }
   }
@@ -5535,7 +5567,7 @@ function coachSuggestion() {
   if (E.docType === "assembly") return coachAssemblySuggestion();
   if (!isCanonicalAuthoring()) return null;
   var step = currentWorkflowStep(), sketch = ensureSketch(E.def);
-  var rebuildIssue = recommendedDiagnostic(E.coreRun && E.coreRun.issues);
+  var rebuildIssue = recommendedDiagnostic(displayedCoreIssues());
   var liveAuthoring = step === "reference" || step === "sketch" || step === "feature";
   if (rebuildIssue && !liveAuthoring) return coachRebuildSuggestion(rebuildIssue);
   if (step === "context" || step === "reference") {
@@ -9569,14 +9601,14 @@ function setDocumentType(type) {
   if (type === "assembly") fitPreview(); else fitSketch();
 }
 
-function saveAssemblyDocument() {
+async function saveAssemblyDocument() {
   if (!E.assembly) E.assembly = newAssembly();
   E.assembly.name = root.querySelector("#mdName").value || E.assembly.name;
   applyAssemblyMates(E.assembly);
   var saved = cloneData(E.assembly);
   var list = loadAssemblies().filter(function (a) { return a.key !== saved.key; });
   list.push(saved);
-  if (!saveAssemblies(list)) {
+  if (!await saveAssemblies(list)) {
     report(t("reportKickerSave"), t("saveAssemblyFailed"), t("saveStorageFull"));
     return;
   }
@@ -9767,8 +9799,14 @@ function syncHint() {
 
 /* A CAD status line: which plane you are drawing on, where the cursor is in
    centimetres, the grid it will land on, and the zoom. */
+function displayedCoreIssues() {
+  return ((E.coreRun && E.coreRun.issues) || []).filter(function (issue) {
+    return !E.exactRestoring || (issue.code !== "missing-topology-reference" && issue.code !== "ambiguous-topology-reference");
+  });
+}
+
 function rebuildStatusCaption() {
-  var run = E.coreRun, issues = run && run.issues || [];
+  var issues = displayedCoreIssues();
   var errors = issues.filter(function (issue) { return issue.severity === "error"; }).length;
   var warnings = issues.filter(function (issue) { return issue.severity === "warning"; }).length;
   if (errors) return '<button type="button" class="md-st-rebuild md-st-dof md-dof-conflicting">' + t("rebuildFail") + " · " + errors + "</button>";
@@ -15205,7 +15243,7 @@ function refreshParts() {
   if (badge) {
     badge.textContent = n || "";
     badge.classList.toggle("on", !!n);
-    var issueList = E.coreRun && E.coreRun.issues || [];
+    var issueList = displayedCoreIssues();
     var hasErrors = issueList.some(function (issue) { return issue.severity === "error"; });
     badge.classList.toggle("md-badge-error", hasErrors);
     badge.classList.toggle("md-badge-warn", !!(issueList.length && !hasErrors));
@@ -15234,7 +15272,7 @@ function refreshParts() {
 function syncDiagnosticJump() {
   var jump = root && root.querySelector("#mdDiagJump");
   if (!jump) return;
-  var issues = E.docType === "assembly" ? [] : (E.coreRun && E.coreRun.issues || []);
+  var issues = E.docType === "assembly" ? [] : displayedCoreIssues();
   var errors = issues.filter(function (issue) { return issue.severity === "error"; }).length;
   if (!issues.length) {
     jump.hidden = true;
@@ -15374,7 +15412,7 @@ function diagnosticMessage(issue, count) {
 }
 
 function renderCoreDiagnostics(host) {
-  const issues = E.coreRun && E.coreRun.issues ? E.coreRun.issues : [];
+  const issues = displayedCoreIssues();
   if (!issues.length) return;
   var groups = groupDiagnostics(issues);
   var errors = issues.filter(function (issue) { return issue.severity === "error"; }).length;
@@ -15440,7 +15478,7 @@ function renderCoreDiagnostics(host) {
 }
 
 function issuesForTarget(targetId) {
-  return (E.coreRun && E.coreRun.issues || []).filter(function (issue) {
+  return displayedCoreIssues().filter(function (issue) {
     return issue.featureId === targetId || issue.sketchId === targetId;
   });
 }
@@ -16684,7 +16722,7 @@ function fillLook() {
       if(face){
         E.def.appearances=upsertAppearanceOverride(E.def.appearances, createAppearanceOverride({persistentId:face.persistentId,kind:"face",material:key,color:mat.color,metal:mat.metal,rough:mat.rough,name:mat.name}));
       } else {
-        p.color=mat.color; p.metal=mat.metal; p.rough=mat.rough; p.materialName=mat.name;
+        p.color=mat.color; p.metal=mat.metal; p.rough=mat.rough; p.materialName=mat.name; p.density=mat.density;
         if(p.materialCatalogId!=="stock:"+key){delete p.materialQualificationId;delete p.gearVerificationReport;delete E.def.lastStandardsAudit;}p.materialCatalogId="stock:"+key;
         E.def.appearances=upsertAppearanceOverride(E.def.appearances, createAppearanceOverride({persistentId:p.id,kind:"body",material:key,color:mat.color,metal:mat.metal,rough:mat.rough,name:mat.name}));
       }
@@ -16692,6 +16730,10 @@ function fillLook() {
     }));
   });
   host.appendChild(stock);
+  var densityNote=el("div","md-note");
+  var assigned=stockMaterialForPart(p);
+  densityNote.textContent=t("massDensity")+": "+partMaterialDensity(p).toFixed(2)+" g/cm³"+(assigned?" · "+assigned.name:"");
+  host.appendChild(densityNote);
   var materialTools=materialValidationTools(),engineering=el("div","md-ops");
   const engineeringButton=(key,action)=>{const button=btn(materialTools.label(key),action);button.dataset.engineeringAction=key;engineering.appendChild(button);};
   engineeringButton("title",()=>materialTools.profile(p));
@@ -20089,7 +20131,11 @@ function refreshLib() {
         syncHead(); refreshAll(); refreshLib(); fitPreview();
       });
       var del = btn('<i class="ph ph-trash"></i>', function (e) {
-        e.stopPropagation(); saveAssemblies(loadAssemblies().filter(function (a) { return a.key !== assembly.key; })); refreshLib();
+        e.stopPropagation();
+        saveAssemblies(loadAssemblies().filter(function (a) { return a.key !== assembly.key; })).then(function (ok) {
+          if (!ok) flash(t("saveStorageFull"));
+          refreshLib();
+        });
       }, "md-card-x");
       del.title = t("del"); card.appendChild(del); host.appendChild(card);
     });
@@ -20353,6 +20399,17 @@ function exactRunIsCurrent() {
 }
 
 var exactModelRebuild = null;
+function scheduleExactRestore() {
+  if (!(isCanonicalAuthoring() && E.def && activeParts(E.def).length)) {
+    E.exactRestoring = false;
+    return;
+  }
+  Promise.resolve(regenerateExactModel()).finally(function () {
+    if (!E.exactRestoring) return;
+    E.exactRestoring = false;
+    refreshAll();
+  });
+}
 async function regenerateExactModel(rebuild) {
   var pending=(exactModelRebuild || Promise.resolve()).then(function(){return regenerateExactModelNow(rebuild);});
   exactModelRebuild=pending;
@@ -20373,7 +20430,8 @@ async function regenerateExactModelNow(rebuild) {
     if(isCanonicalAuthoring()){
       var compiled=compileKernelFeatureTree(E.def);if(!compiled.ok)throw new Error(compiled.issues[0] && compiled.issues[0].message || "Invalid parametric history");
       executionDocument=compiled.document;executionDocument.features=compiled.features;
-      E.coreRun=rebuildParametricDocument(E.def,modelParameterOverrides());publishRebuildStatus(E.def,E.coreRun);
+      E.coreRun=rebuildParametricDocument(E.def,modelParameterOverrides());
+      if (!E.exactRestoring) publishRebuildStatus(E.def,E.coreRun);
     } else {
       if ((!preserveRecognized && rebuild !== false) || !ensureFeatureTree(E.def).length) rebuildFeatureTreeFromDocument();
       E.coreRun = rebuildDefinition(E.def, modelParameterOverrides());
@@ -20550,6 +20608,7 @@ function evalRow(host, label, value) {
   return row;
 }
 
+var massDisplayUnits = "si";
 async function showMassProperties() {
   if (E.docType !== "part") return;
   var documentAtStart=E.def, snapshot=cloneData({...E.def,parts:activeParts(E.def)});
@@ -20562,18 +20621,37 @@ async function showMassProperties() {
     releaseSolid:function(solid){releases.get(solid)?.();releases.delete(solid);},
   });
   if(E.def!==documentAtStart || E.evalCard!=="mass" || !body.isConnected)return;
-  body.textContent="";
-  evalRow(body,t("massAccuracy"),t("massAccuracy_"+mass.accuracy));
-  if (mass.bounds) evalRow(body,t("massOverallSize"),["x","y","z"].map(function(axis){return axis.toUpperCase()+" "+Number(((mass.bounds.max[axis]-mass.bounds.min[axis])*10).toFixed(4));}).join(" · ")+" mm");
-  evalRow(body, t("massVolume"), mass.volumeCm3.toPrecision(7) + " cm³");
-  evalRow(body, t("massMass"), mass.massKg.toPrecision(7) + " kg");
-  evalRow(body, t("massDensity"), mass.density + " g/cm³");
-  evalRow(body, t("massCentre"), "X " + mass.centerOfMass.x + "   Y " + mass.centerOfMass.y + "   Z " + mass.centerOfMass.z + " cm");
-  if(mass.inertiaKgM2){
-    evalRow(body,t("massInertia"),"kg·m²");
-    mass.inertiaKgM2.forEach(function(row,i){evalRow(body,"XYZ"[i],row.map(function(v){return v.toPrecision(6);}).join("   "));});
+  function paintMass() {
+    body.textContent="";
+    var mmg=massDisplayUnits==="mmg";
+    var units=el("div","md-ops");
+    [["si",t("massUnitsSi")],["mmg",t("massUnitsMmG")]].forEach(function(pair){
+      var button=btn(pair[1], function(){ massDisplayUnits=pair[0]; paintMass(); });
+      if(pair[0]===massDisplayUnits) button.setAttribute("aria-pressed","true");
+      units.appendChild(button);
+    });
+    body.appendChild(units);
+    evalRow(body,t("massAccuracy"),t("massAccuracy_"+mass.accuracy));
+    if (mass.bounds) evalRow(body,t("massOverallSize"),["x","y","z"].map(function(axis){return axis.toUpperCase()+" "+Number(((mass.bounds.max[axis]-mass.bounds.min[axis])*10).toFixed(4));}).join(" · ")+" mm");
+    evalRow(body, t("massVolume"), mmg ? (mass.volumeCm3*1000).toPrecision(7)+" mm³" : mass.volumeCm3.toPrecision(7)+" cm³");
+    evalRow(body, t("massMass"), mmg ? mass.massG.toPrecision(7)+" g" : mass.massKg.toPrecision(7)+" kg");
+    evalRow(body, t("massDensity"), mass.density == null ? t("massMixedDensity") : mass.density+" g/cm³");
+    evalRow(body, t("massCentre"), mmg
+      ? "X "+(mass.centerOfMass.x*10)+"   Y "+(mass.centerOfMass.y*10)+"   Z "+(mass.centerOfMass.z*10)+" mm"
+      : "X "+mass.centerOfMass.x+"   Y "+mass.centerOfMass.y+"   Z "+mass.centerOfMass.z+" cm");
+    (mass.bodies || []).forEach(function(row,index){
+      var label=(row.materialName || t("massNoMaterial"));
+      var volume=mmg ? (row.volume*1000).toPrecision(6)+" mm³" : row.volume.toPrecision(6)+" cm³";
+      var massText=mmg ? ((row.massKg||0)*1000).toPrecision(6)+" g" : (row.massKg||0).toPrecision(6)+" kg";
+      evalRow(body, t("massBodyRow")+" "+(index+1)+" · "+label, volume+" · "+massText+" · "+row.density+" g/cm³");
+    });
+    if(mass.inertiaKgM2){
+      evalRow(body,t("massInertia"),"kg·m²");
+      mass.inertiaKgM2.forEach(function(row,i){evalRow(body,"XYZ"[i],row.map(function(v){return v.toPrecision(6);}).join("   "));});
+    }
+    if (mass.unmeasured) body.appendChild(el("div", "md-note", mass.unmeasured + " " + t("massUnmeasured")));
   }
-  if (mass.unmeasured) body.appendChild(el("div", "md-note", mass.unmeasured + " " + t("massUnmeasured")));
+  paintMass();
 }
 
 /* ---- Measure ----
@@ -20765,7 +20843,7 @@ function importBundleDocument() {
       if (Array.isArray(bundle.assemblies) && bundle.assemblies.length) {
         var merged=new Map(loadAssemblies().map(function(item){return [item.key,item];}));
         bundle.assemblies.forEach(function(item){if(item && item.key)merged.set(item.key,item);});
-        saveAssemblies(Array.from(merged.values()));
+        if (!await saveAssemblies(Array.from(merged.values()))) throw new Error(t("saveStorageFull"));
       }
       releaseExactRun();
       E.docType="part"; E.def=migrateDefinition(bundle.mainModel); E.srcItem=null; E.sel=null; E.ssel=[]; E.topologySelection=[];
@@ -21421,8 +21499,9 @@ export function openModeler(editKey, def, srcItem) {
   E.solveInfo = solveSketch(ensureSketch(E.def));
   E._solveSketchId = ensureSketch(E.def).id;
   if (isCanonicalAuthoring()) rebuildDocCount++;
+  E.exactRestoring = isCanonicalAuthoring() && activeParts(E.def).length && !(E.def && E.def.exactTopologyCache);
   E.coreRun = isCanonicalAuthoring() ? rebuildParametricDocument(E.def,modelParameterOverrides()) : rebuildDefinition(E.def, modelParameterOverrides());
-  if (isCanonicalAuthoring()) publishRebuildStatus(E.def, E.coreRun);
+  if (isCanonicalAuthoring() && !E.exactRestoring) publishRebuildStatus(E.def, E.coreRun);
   coreRunFresh = true;
   H.clear().seed();
   markDocumentClean();
@@ -21447,7 +21526,7 @@ export function openModeler(editKey, def, srcItem) {
   refreshLib();
   refreshAll();
   // Rebuild cached render parts from the ordered history when reopening.
-  if(isCanonicalAuthoring() && activeParts(E.def).length)regenerateExactModel();
+  scheduleExactRestore();
   // The editor opens on the solid model; sketch and drawing remain one click away.
   fitPreview();
   var restoredDraft = false;

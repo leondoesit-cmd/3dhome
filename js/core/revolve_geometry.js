@@ -1,5 +1,19 @@
 // Legacy meridians use u=radius and v=axial distance. Match the viewport lathe:
 // angle zero is +Z (Y axis), +Z (X axis), or +Y (Z axis).
+export const REVOLVE_AXIS_CROSSING = "The revolve profile crosses the axis";
+
+export function assertRevolveProfile(points) {
+  let side = 0;
+  for (const point of points || []) {
+    const u = Number(point?.u ?? point?.x);
+    if (!Number.isFinite(u) || Math.abs(u) <= 1e-9) continue;
+    const sign = Math.sign(u);
+    if (side && sign !== side) throw new Error(REVOLVE_AXIS_CROSSING);
+    side = sign;
+  }
+  return side;
+}
+
 export function revolveInterval(part) {
   const degrees=Number(part.angle ?? 360);
   if(!Number.isFinite(degrees)||degrees<=0||degrees>360)throw new Error("Revolution angle must be greater than zero and at most 360 degrees");
@@ -17,6 +31,7 @@ export function revolvePoint(part, point, angle) {
   return revolvePlacement(part,Math.abs(point.u)*Math.sin(angle),point.v,Math.abs(point.u)*Math.cos(angle));
 }
 export function revolveBounds(part) {
+  assertRevolveProfile(part.pts);
   const {start,end}=revolveInterval(part),angles=[start,end];
   for(let a=Math.ceil(start/(Math.PI/2))*Math.PI/2;a<end;a+=Math.PI/2)angles.push(a);
   const bounds={x0:Infinity,y0:Infinity,z0:Infinity,x1:-Infinity,y1:-Infinity,z1:-Infinity};
@@ -24,5 +39,7 @@ export function revolveBounds(part) {
   return bounds;
 }
 export function revolveRecipe(part) {
-  return {radialProfile:true,axis:part.axis||"y",angle:part.angle??360,direction:part.direction,symmetric:part.symmetric,x:part.x||0,y:part.y||0,z:part.z||0,points:(part.pts||[]).map(q=>({u:Math.abs(q.u ?? q.x),v:q.v ?? q.y}))};
+  const points=part.pts||[];
+  assertRevolveProfile(points);
+  return {radialProfile:true,axis:part.axis||"y",angle:part.angle??360,direction:part.direction,symmetric:part.symmetric,x:part.x||0,y:part.y||0,z:part.z||0,points:points.map(q=>({u:Math.abs(q.u ?? q.x),v:q.v ?? q.y}))};
 }

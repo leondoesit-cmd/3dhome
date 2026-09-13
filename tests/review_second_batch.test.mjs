@@ -40,7 +40,12 @@ test('clockwise full circles do not duplicate the seed',()=>{
 test('assembly autosave reaches the writer without a part definition',()=>{
  let saved;
  const E={open:true,docType:'assembly',def:null,assembly:{name:'assembly',components:[]}};
- const flush=extract('modeler','flushModelerDraft',{E,draftSaveTimer:0,draftFailureReported:false,modelerDraftStorage:()=>({}),writeModelerDraft:(_s,d)=>(saved=d,true),syncDraftStatus:()=>{}});
+ const flush=extract('modeler','flushModelerDraft',{
+   E,draftSaveTimer:0,draftFailureReported:false,modelerDraftStorage:()=>({}),
+   parseModelerDraft:d=>d,serializeModelerDraft:p=>p,MODELER_DRAFT_KEY:'k',
+   saveModelerDraftRecord:d=>{saved=d;return {then(){return {catch(){}};}};},
+   writeModelerDraft:()=>false,syncDraftStatus:()=>{},
+ });
  flush();assert.equal(saved.assembly,E.assembly);
 });
 test('axis cuts follow framed and primitive hosts in all three dimensions',()=>{
