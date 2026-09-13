@@ -44,7 +44,7 @@ Out of scope unless the book needs it: surfacing, weldments, simulation, CAM, PD
 | O-RING | 311–314 | Saved | Configurations (Ch 9), material |
 | SWITCH | 315–320 | Saved | – |
 | LENSCAP | 323–332 | Book's last step (262, rename `Thread`) reached, 11 steps | Dimensional and mass acceptance not done |
-| HOUSING | 335–364 | **Not started** | Blocked by Phase 2A |
+| HOUSING | 335–364 | **Not started** | Blocked by Phase 2A-7 |
 | LENSANDBULB, BATTERYANDPLATE, CAPANDLENS, FLASHLIGHT | 379–434 | **Not started** | Blocked by Phase 2B |
 | BATTERY, FLASHLIGHT, O-RING drawings | 435–480 | **Not started** | Phase 4 |
 | Homework Ch 5–9 (~63 exercises) | various | **Not inventoried** | Phase 5 |
@@ -120,7 +120,7 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | 2A-3 | Sketch Fillet (G2): trims two connected lines, inserts a tangent arc, keeps relations | **Done.** Vertex or two-line pick; 0.5 in HandlePath L stays fully defined; radius dimension rebuilds |
 | 2A-4 | Intersection relation (G3) in the solver plus the Add Relations UI | **Done.** Point stays on both edges after the housing edges move |
 | 2A-5 | Tangent Arc tool (G4) | **Done.** Book step 633: click the line endpoint, then the other end; the arc stays tangent |
-| 2A-6 | Browser-verify on a test body: rib up-to-body, two-direction linear pattern with "pattern seed only", plane through a vertex parallel to a plane, feature Mirror | Each committed and rebuilt |
+| 2A-6 | Browser-verify on a test body: rib up-to-body, two-direction linear pattern with "pattern seed only", plane through a vertex parallel to a plane, feature Mirror | **Done.** Through-vertex-parallel planes follow the two edges at the picked vertex; Pattern seed only copies a rib's web on a 3×3 grid (including picked-edge directions); Geometry pattern is stored; Mirror keep-original doubles volume |
 | 2A-7 | **Build HOUSING end to end from the book**: Base Extrude, BatteryLoftPlane, loft with guide curves, Boss-Stop, Shell, ThreadPlane/ThreadPath/ThreadSection/Thread, HandlePath/HandleProfile/Handle sweep, SwitchHole (Up To Surface), Rib1 plus linear pattern, LongRibPlane, Rib2, Mirror | Ritual passes; record time and clicks vs book steps 267–655 |
 
 ### Phase 2B — Nested assemblies (parallel with 2A)
@@ -194,7 +194,7 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | O-RING | 311–314 | Planchard O-RING | | 2.748212 cm³ | ✅ bounds | | CAPANDLENS, design table | 4-5 |
 | SWITCH | 315–320 | Planchard SWITCH | | 1.754454 cm³ (after edit) | | | FLASHLIGHT | |
 | LENSCAP | 323–332 | Planchard LENSCAP | 11 | | ❌ ritual pending | | CAPANDLENS, STL | 1-3 |
-| HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | 2A-6…2A-7 |
+| HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | 2A-7 |
 | LENSANDBULB | 379–434 | – | | | | | CAPANDLENS | 2B-4 |
 | BATTERYANDPLATE | 379–434 | – | | | | | FLASHLIGHT | 2B-4 |
 | CAPANDLENS | 379–434 | – | | | | | FLASHLIGHT | 2B-5 |

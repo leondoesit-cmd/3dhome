@@ -8,7 +8,7 @@ export function createReferencePlane(options = {}) {
     origin: options.origin || { x: 0, y: 0, z: 0 },
     normal: options.normal || { x: 0, y: 1, z: 0 },
     offset: Number(options.offset || 0),
-    refType: options.refType || "offset", // 'offset', '3point', 'angle', 'midplane'
+    refType: options.refType || "offset", // 'offset', 'through-vertex-parallel', 'on-face'
   };
 }
 

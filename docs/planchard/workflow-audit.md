@@ -73,7 +73,7 @@ The working to-do list and coverage matrix live in [book-completion-plan.md](boo
 | O-RING | 311–314 | Planchard O-RING | | 2.748212 cm³ | ✅ bounds | | CAPANDLENS, design table | 4-5 |
 | SWITCH | 315–320 | Planchard SWITCH | | 1.754454 cm³ (after edit) | | | FLASHLIGHT | |
 | LENSCAP | 323–332 | Planchard LENSCAP | 11 | | ❌ ritual pending | | CAPANDLENS, STL | 1-3 |
-| HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | 2A-6…2A-7 |
+| HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | 2A-7 |
 | LENSANDBULB | 379–434 | – | | | | | CAPANDLENS | 2B-4 |
 | BATTERYANDPLATE | 379–434 | – | | | | | FLASHLIGHT | 2B-4 |
 | CAPANDLENS | 379–434 | – | | | | | FLASHLIGHT | 2B-5 |
@@ -229,3 +229,8 @@ Renamed the driving sketch Sketch-path; the name was saved, but the tree's stora
 The LENSCAP continuation was recreated in the browser through the feature tree: a rear inward revolved groove (`BackCut`), a face-supported inward offset `ThreadPlane`, an exact converted circular edge, a right-handed tapered helix (`ThreadPath`, 0.250 in pitch, 2.5 turns, 5° inward taper), and a fully defined trapezoidal `ThreadSection` with a midpoint pierce relation and named `ThreadHeight` equation (0.125 in).
 
 The authoring model now includes helix-aware sweep plumbing in the parametric rebuild, dependency graph, kernel adapter, and browser feature manager. The browser sweep command exposes sketch-profile mode, carries the helix reference through the confirmation corner, and resolves it again at commit time so a single ThreadSection can drive the sweep. The feature validator now recognizes that helix-backed sweeps use one profile sketch plus a helix reference while ordinary sketch-path sweeps still require two sketches. Browser acceptance completed the feature as step 11 (`Sweep 1`), with rebuild order valid and one solid body.
+
+### HOUSING tools 2A-6 (2026-09-13)
+
+Reference planes can be **through a vertex, parallel** to a parent plane (LongRibPlane). The plane stores the two edges that meet at the vertex and follows that corner after the body is edited. Linear Pattern **Pattern seed only** copies a rib's added web on a two-direction grid (XYZ toggles or two picked edges) without re-running Up To Body per copy; **Geometry pattern** is stored on the feature. Feature Mirror with Keep original was re-verified on a test body. Rib up-to-body was already kernel-tested. HOUSING itself is still 2A-7.
+

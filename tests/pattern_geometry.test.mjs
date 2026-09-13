@@ -51,6 +51,23 @@ test("large multi-axis requests are balanced under the crash guard", () => {
   assert.ok(linearPatternOffsets(params).length<=127);
 });
 
+test("two picked edge directions build a grid independent of the XYZ toggles", () => {
+  const params = {
+    axisX: false, axisY: false, axisZ: false,
+    direction1: { x: 1, y: 0, z: 0 }, count1: 3, spacing1: 6,
+    direction2: { x: 0, y: 0, z: 1 }, count2: 3, spacing2: 6,
+  };
+  const offsets = linearPatternOffsets(params);
+  assert.equal(offsets.length, 8);
+  assert.ok(offsets.some((offset) => offset.x === 12 && offset.z === 12 && offset.y === 0));
+  assert.ok(offsets.some((offset) => offset.x === 6 && offset.z === 0));
+  const xyz = linearPatternOffsets({ axisX: true, axisY: false, axisZ: true, countX: 3, spacingX: 6, countZ: 3, spacingZ: 6 });
+  assert.deepEqual(
+    offsets.map(({ x, y, z }) => ({ x, y, z })).sort((a, b) => a.x - b.x || a.z - b.z),
+    xyz.map(({ x, y, z }) => ({ x, y, z })).sort((a, b) => a.x - b.x || a.z - b.z),
+  );
+});
+
 test("legacy single-axis pattern directions remain editable", () => {
   assert.deepEqual(linearPatternDirection({directionAxis:"y",direction:{x:0,y:1,z:0}}),{x:0,y:1,z:0});
   assert.equal(patternAxisEnabled({directionAxis:"y",direction:{x:0,y:1,z:0}},"y"),true);

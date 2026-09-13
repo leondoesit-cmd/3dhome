@@ -11,6 +11,7 @@ import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, curvePatte
 import {resolveProfilePoints, solveSketch} from "./sketch_solver.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { createTopologyRegistry, resolveFeatureTopologyReferences, topologyForFeature } from "./core/topology.js";
+import { vertexEntriesFrom } from "./core/topology_selection.js";
 import { realignFrame } from "./core/frame.js";
 import { aabbFromTopology, resolveExtrudeExtent, resolvedEndFace } from "./core/extrude_extent.js";
 import { resolveParameters, sketchDiagnostics } from "./core/rebuild.js";
@@ -117,8 +118,16 @@ export async function regenerateFeatures(def, options = {}) {
       if (sketchId) effectiveParams.sketchId = sketchId;
       const sketchIndex=executionDef.sketches.findIndex(s=>s.id===sketchId);
       let linkedSketch=executionDef.sketches[sketchIndex];
-      if(linkedSketch){const moved=resolveOffsetSketch(linkedSketch,executionDef.references,ref=>results.get(ref.ownerFeatureId)?.topology?.find(t=>t.persistentId===ref.persistentId));
-        if(moved!==linkedSketch){linkedSketch=moved;executionDef.sketches[sketchIndex]=moved;boundaryUpdates.set(moved.id,{sketch:moved,oldEntityIds:[],newEntityIds:[]});}}
+      const topologyLookup=ref=>{
+        if(!ref)return null;
+        const topology=results.get(ref.ownerFeatureId)?.topology || [];
+        return topology.find(item=>item.persistentId===ref.persistentId)
+          || (ref.semantic ? topology.find(item=>item.kind===(ref.kind||"edge")&&item.semantic===ref.semantic) : null)
+          || vertexEntriesFrom(topology).find(item=>item.persistentId===ref.persistentId);
+      };
+      if(linkedSketch){const moved=resolveOffsetSketch(linkedSketch,executionDef.references,topologyLookup);
+        if(moved!==linkedSketch){linkedSketch=moved;executionDef.sketches[sketchIndex]=moved;boundaryUpdates.set(moved.id,{sketch:moved,oldEntityIds:[],newEntityIds:[]});}
+        if(feature.type==="rib" && moved.frame)effectiveParams={...effectiveParams,frame:moved.frame,axis:"frame"};}
 
       if(linkedSketch?.pierce){
         const link=linkedSketch.pierce,curve=results.get(link.featureId)?.spec;if(!curve)throw new Error('Pierce curve is unavailable');

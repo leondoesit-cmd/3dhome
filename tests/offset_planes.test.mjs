@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {resolveOffsetPlanes} from '../js/core/offset_planes.js';
+import {resolveOffsetPlanes, offsetPlaneOwners, throughVertexBinding, throughVertexPoint} from '../js/core/offset_planes.js';
+import {topologyForFeature} from '../js/core/topology.js';
+
 function fixture(){return {references:[{id:'top',type:'plane',origin:{x:0,y:0,z:0},normal:{x:0,y:1,z:0}},{id:'p1',type:'plane',baseReferenceId:'top',offset:1.27},{id:'p2',type:'plane',baseReferenceId:'p1',offset:1.27}],sketches:[{id:'middle',referenceId:'p1'},{id:'upper',referenceId:'p2'}]};}
 test('dependent offset planes move attached sketches after parent edits and serialization',()=>{
  let doc=fixture();assert.equal(resolveOffsetPlanes(doc).ok,true);assert.equal(doc.sketches[1].frame.origin.y,2.54);
@@ -21,4 +23,51 @@ test('face offset planes and their children follow rebuilt supporting faces',asy
  assert.equal(moved.frame.origin.z,-3.857);
  assert.deepEqual(offsetPlaneOwners('thread',doc.references),['shell']);
  assert.throws(()=>resolveOffsetSketch(doc.sketches[0],doc.references,()=>null),/unavailable/);
+});
+
+test('a through-vertex plane stays parallel to the parent and sits on the vertex',()=>{
+ const doc={
+  references:[
+   {id:'right',type:'plane',origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0}},
+   {id:'longrib',type:'plane',baseReferenceId:'right',refType:'through-vertex-parallel',
+    throughVertex:{ownerFeatureId:'handle',descriptor:{point:{x:5,y:1,z:2}}}},
+  ],
+  sketches:[{id:'s',referenceId:'longrib'}],
+ };
+ assert.equal(resolveOffsetPlanes(doc).ok,true);
+ assert.ok(Math.abs(doc.sketches[0].frame.origin.x-5)<1e-9);
+ assert.ok(Math.abs(doc.sketches[0].frame.origin.y)<1e-9);
+ assert.deepEqual(doc.sketches[0].frame.normal,{x:1,y:0,z:0});
+ assert.deepEqual(offsetPlaneOwners('longrib',doc.references),['handle']);
+ doc.references[1].throughVertex.descriptor.point.x=8;
+ assert.equal(resolveOffsetPlanes(doc).ok,true);
+ assert.ok(Math.abs(doc.sketches[0].frame.origin.x-8)<1e-9);
+});
+
+test('a missing through-vertex leaves geometry untouched',()=>{
+ const doc={
+  references:[
+   {id:'right',type:'plane',origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0}},
+   {id:'longrib',type:'plane',baseReferenceId:'right',refType:'through-vertex-parallel'},
+  ],
+  sketches:[{id:'s',referenceId:'longrib'}],
+ };
+ const before=JSON.stringify(doc);
+ assert.equal(resolveOffsetPlanes(doc).ok,false);
+ assert.equal(JSON.stringify(doc),before);
+});
+
+test('through-vertex binding stores the two edges that meet at a box corner',()=>{
+ const box={id:'box',type:'box',params:{x:0,y:0,z:0,w:10,h:4,d:6}};
+ const entries=topologyForFeature(box,box.params);
+ const vertex={kind:'vertex',ownerFeatureId:'box',descriptor:{point:{x:10,y:4,z:6}}};
+ const binding=throughVertexBinding(vertex,entries);
+ assert.ok(binding);
+ assert.equal(binding.throughEdges.length,2);
+ assert.ok(binding.throughEdges.every((edge)=>edge.ownerFeatureId==='box' && edge.kind==='edge'));
+ const plane={throughEdges:binding.throughEdges};
+ assert.deepEqual(throughVertexPoint(plane),{x:10,y:4,z:6});
+ assert.deepEqual(offsetPlaneOwners('longrib',[
+  {id:'longrib',type:'plane',baseReferenceId:'plane:right',throughEdges:binding.throughEdges},
+ ]),['box']);
 });

@@ -1,7 +1,7 @@
 import {pierceSketchToHelix} from './core/sketch_pierce.js';
 import {helixFromSketch} from './core/sketch_helix.js';
 import {coneSilhouette,projectCircularEdge} from './core/cone_silhouette.js';
-import {resolveOffsetPlanes} from './core/offset_planes.js';
+import {resolveOffsetPlanes, throughVertexBinding} from './core/offset_planes.js';
 import {thinSketchProfile} from './core/thin_profile.js';
 import { synchronizeExtrusionProjections } from "./core/extrusion_projection.js";
 import { threePointArc } from "./sketch_three_point_arc.js";
@@ -122,7 +122,7 @@ import {
   recordSketchInHistory, removeHistoryNode, reorderHistoryNode, suppressHistoryNode,
   updateFeatureDefinition, setHistoryRollback, historyEntryRolled, applyHistoryToPreviewParts,
 } from "./core/parametric_document.js";
-import { compileKernelFeatureTree } from "./core/kernel_feature_adapter.js";
+import { compileKernelFeatureTree, FEATURE_PATTERN_SEED_TYPES } from "./core/kernel_feature_adapter.js";
 import { publishRebuildStatus, rebuildParametricDocument } from "./core/parametric_rebuild.js";
 import { featureDefaults, featureLabel, featureSpec, setFeatureLabelResolver } from "./core/feature_catalog.js";
 import { inferAuthoringMode } from "./core/authoring_mode.js";
@@ -7089,6 +7089,35 @@ function fusePatternInstances(seed, source, entries, feature) {
   })();
 }
 
+function topologyEdgeDirection(entry) {
+  var d = entry && entry.descriptor || {};
+  if (d.axis && (Number(d.axis.x) || Number(d.axis.y) || Number(d.axis.z))) return { x: Number(d.axis.x) || 0, y: Number(d.axis.y) || 0, z: Number(d.axis.z) || 0 };
+  var ends = edgeEndpoints(entry);
+  if (ends.length < 2) return null;
+  return { x: ends[1].x - ends[0].x, y: ends[1].y - ends[0].y, z: ends[1].z - ends[0].z };
+}
+function patternParamsFromSelectedEdges(params) {
+  var edges = (E.topologySelection || []).filter(function (item) { return item.kind === "edge"; });
+  if (!edges.length || params.mode && params.mode !== "linear") return params;
+  var next = { ...params };
+  var first = topologyEdgeDirection(edges[0]);
+  if (first) {
+    next.direction1 = first;
+    next.direction1Ref = cloneData(edges[0]);
+    next.count1 = Number(params.countX || params.count) || 2;
+    next.spacing1 = Number(params.spacingX != null ? params.spacingX : params.spacing) || 0;
+  }
+  if (edges[1]) {
+    var second = topologyEdgeDirection(edges[1]);
+    if (second) {
+      next.direction2 = second;
+      next.direction2Ref = cloneData(edges[1]);
+      next.count2 = Number(params.countY || params.countZ || params.count) || 2;
+      next.spacing2 = Number(params.spacingY != null ? params.spacingY : params.spacingZ != null ? params.spacingZ : params.spacing) || 0;
+    }
+  }
+  return next;
+}
 function selectedPatternBody(seedId) {
   var selected=selectedSolid();if(selected)return selected;
   function contains(id,seen){if(id===seedId)return true;if(!id || seen.has(id))return false;seen.add(id);var feature=(E.def.features || []).find(function(item){return item.id===id;});return (feature?.inputs || []).some(function(input){return contains(input,seen);});}
@@ -7096,6 +7125,7 @@ function selectedPatternBody(seedId) {
 }
 function quickPatternPart(count, pitch) {
   var params={...featureDefaults("pattern"),...(typeof count==="object"?count:{count:count,spacing:pitch})};count=Math.max(2,Math.round(params.count));pitch=Number(params.spacing)||0;
+  params=patternParamsFromSelectedEdges(params);
   var p = selectedPatternBody(params.seedFeatureId);
   if (!p) { flash(t("quickNeedPart")); return false; }
   if(params.scope==="feature"){
@@ -8720,7 +8750,7 @@ function openParametricFeature(type, repeatedParams) {
     if(sweepHelix){state.params.helixId=sweepHelix.id;state.params.sweepPathMode="helix";}
   }
   if(type==="pattern"){
-    var patternSeed=(E.def.features || []).find(function(feature){return (E.authoring.featureSelection || []).includes(feature.id) && ["extrudeCut","revolveCut","sweepCut","hole","extrude","revolve"].includes(feature.type) && feature.inputs?.length;});
+    var patternSeed=(E.def.features || []).find(function(feature){return (E.authoring.featureSelection || []).includes(feature.id) && FEATURE_PATTERN_SEED_TYPES.includes(feature.type) && feature.inputs?.length;});
     if(patternSeed){state.params.scope="feature";state.params.seedFeatureId=patternSeed.id;}
   }
   if(type==="revolve"||type==="revolveCut"){state.params.useSketchPlane=true;state.params.thinFeature=!closedSketchProfile();}
@@ -20734,19 +20764,42 @@ function downloadBytes(bytes, name, type) {
 
 function openOffsetPlaneForm(existing) {
   var selectedFace=(E.topologySelection || []).find(function(face){return face.kind==="face" && face.descriptor?.surface==="plane";});
+  var selectedVertex=(E.topologySelection || []).find(function(item){return item.kind==="vertex";});
   var support=existing?.support || selectedFace;
+  var throughVertex=existing?.throughVertex || selectedVertex;
+  var throughEdges=existing?.throughEdges;
   var planes=(E.def.references || []).filter(function(r){return r.type==="plane" && r.id!==existing?.id;});
-  openQuickForm({action:"offsetplane",icon:"ph-square",title:existing?"Edit reference plane":"Reference plane",hint:"Offset from a parent plane. Dependent planes and sketches follow edits.",fields:[
+  var initialMode=existing?.refType==="through-vertex-parallel" || throughVertex ? "through-vertex" : "offset";
+  var inputs=openQuickForm({action:"offsetplane",icon:"ph-square",title:existing?"Edit reference plane":t("refPlane"),hint:t("refPlaneHint"),fields:[
     {key:"name",label:"Plane name",type:"text",value:existing?.name || "Plane "+((E.def.referenceGeometry || []).length+1)},
+    {key:"mode",label:t("refPlaneMode"),type:"select",value:initialMode,choices:[
+      {value:"offset",label:t("refPlaneOffset")},
+      {value:"through-vertex",label:t("refPlaneThroughVertex")}
+    ]},
     {key:"parent",label:"Parent plane",type:"select",value:support?"selected-face":existing?.baseReferenceId || E.selectedReferenceId || "plane:top",choices:[...(support?[{value:"selected-face",label:"Selected planar face"}]:[]),...planes.map(function(r){return {value:r.id,label:r.name || r.id};})]},
     {key:"offset",label:"Offset distance",type:"number",unit:"length",value:existing?.offset ?? 1.27,step:.01},
     {key:"count",label:"Planes to create",type:"number",value:1,min:1,max:20,step:1}
-  ],onApply:function(values){
-    var trial=cloneData(E.def),parent=values.parent,count=existing?1:Math.max(1,Math.min(20,Math.round(values.count))),last;
+  ],onLive:function(values){
+    var offsetWrap=inputs && inputs.offset && inputs.offset.closest(".md-quick-field");
+    var countWrap=inputs && inputs.count && inputs.count.closest(".md-quick-field");
+    if(offsetWrap)offsetWrap.classList.toggle("parameter-hidden",values.mode==="through-vertex");
+    if(countWrap)countWrap.classList.toggle("parameter-hidden",values.mode==="through-vertex");
+  },onApply:function(values){
+    var trial=cloneData(E.def),parent=values.parent,through=values.mode==="through-vertex",count=existing || through?1:Math.max(1,Math.min(20,Math.round(values.count))),last;
+    var binding=through?throughVertexBinding(throughVertex, topologyEntriesForPart(selectedSolid())):null;
+    if(through && !binding && !throughEdges){flash(t("needVertex"));return false;}
     trial.references ||= [];trial.referenceGeometry ||= [];
     for(var i=0;i<count;i++){
       var plane=existing?trial.references.find(function(r){return r.id===existing.id;}):{...createReferencePlane(),id:"plane_"+uid(),type:"plane"};
-      plane.name=values.name+(count>1?" "+(i+1):"");delete plane.support;delete plane.baseReferenceId;if(parent==="selected-face")plane.support=cloneData(support);else plane.baseReferenceId=parent;plane.offset=values.offset;plane.refType="offset";
+      plane.name=values.name+(count>1?" "+(i+1):"");delete plane.support;delete plane.baseReferenceId;delete plane.throughVertex;delete plane.throughEdges;
+      if(parent==="selected-face")plane.support=cloneData(support);else plane.baseReferenceId=parent;
+      if(through){
+        plane.refType="through-vertex-parallel";
+        if(binding){plane.throughVertex=cloneData(binding.throughVertex);if(binding.throughEdges.length>=2)plane.throughEdges=cloneData(binding.throughEdges);}
+        else {plane.throughVertex=cloneData(throughVertex);if(throughEdges)plane.throughEdges=cloneData(throughEdges);}
+      }else{
+        plane.offset=values.offset;plane.refType="offset";
+      }
       if(!existing){trial.references.push(plane);trial.referenceGeometry.push({...cloneData(plane),type:"reference_plane"});}
       parent=plane.id;last=plane;
     }
@@ -20754,6 +20807,7 @@ function openOffsetPlaneForm(existing) {
     pushUndo(existing?"Edit reference plane":"Reference planes");E.def.references=trial.references;E.def.referenceGeometry=trial.referenceGeometry;E.def.sketches=trial.sketches;E.selectedReferenceId=last.id;
     syncSketchDrivenParts();if(activeParts(E.def).length)regenerateExactModel();refreshAll();return true;
   }});
+  if(inputs && inputs.mode)inputs.mode.dispatchEvent(new Event("input",{bubbles:true}));
 }
 
 function addReferenceGeometry(kind) {

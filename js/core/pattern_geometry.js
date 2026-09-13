@@ -34,7 +34,37 @@ export function patternAxisEnabled(params = {}, axis) {
   return !!direction[axis];
 }
 
+function patternDirectionVector(value) {
+  if (!value) return null;
+  const axis = value.descriptor?.axis || value.axis;
+  const source = axis && Number.isFinite(Number(axis.x ?? axis.y ?? axis.z)) ? axis : value;
+  const x = Number(source.x) || 0, y = Number(source.y) || 0, z = Number(source.z) || 0;
+  const length = Math.hypot(x, y, z);
+  if (!(length > 1e-12) || !Number.isFinite(length)) return null;
+  const sign = source.reverse || value.reverse ? -1 : 1;
+  return { x: sign * x / length, y: sign * y / length, z: sign * z / length };
+}
+
 export function linearPatternAxes(params = {}) {
+  // Book HOUSING: Direction 1 and 2 are picked edges, not the XYZ toggles.
+  const first = patternDirectionVector(params.direction1);
+  const second = patternDirectionVector(params.direction2);
+  if (first || second) {
+    const axes = [];
+    if (first) axes.push({
+      axis: "vector", vector: first, component: 1,
+      count: params.count1 ?? params.countX,
+      spacing: params.spacing1 ?? params.spacingX ?? params.spacing,
+      spacingIncrement: params.spacingIncrement1 ?? params.spacingIncrementX ?? 0,
+    });
+    if (second) axes.push({
+      axis: "vector", vector: second, component: 1,
+      count: params.count2 ?? params.countY ?? params.countZ,
+      spacing: params.spacing2 ?? params.spacingY ?? params.spacingZ ?? params.spacing,
+      spacingIncrement: params.spacingIncrement2 ?? params.spacingIncrementY ?? params.spacingIncrementZ ?? 0,
+    });
+    return axes;
+  }
   const toggled = AXES.filter((axis) => Object.prototype.hasOwnProperty.call(params, "axis" + axis.toUpperCase()) && params["axis" + axis.toUpperCase()]);
   if (AXES.some((axis) => Object.prototype.hasOwnProperty.call(params, "axis" + axis.toUpperCase()))) {
     return (toggled.length ? toggled : ["x"]).map((axis) => ({ axis, component:1 }));
@@ -61,7 +91,10 @@ export function parseSkippedPatternInstances(value) {
 export function linearPatternAxisDefinitions(params = {}, countValue, limit = LINEAR_PATTERN_INSTANCE_LIMIT) {
   const axes=linearPatternAxes(params),legacyCount=Math.max(2,Math.min(100,Math.round(Number(countValue ?? params.count) || 2)));
   const definitions=axes.map((entry)=>{
-    if(entry.axis==="vector")return {...entry,count:legacyCount,spacing:Number(params.spacing)||0,spacingIncrement:Number(params.spacingIncrement)||0};
+    if(entry.axis==="vector"){
+      const count=Math.max(2,Math.min(100,Math.round(Number(entry.count ?? legacyCount) || 2)));
+      return {...entry,count,spacing:Number(entry.spacing ?? params.spacing)||0,spacingIncrement:Number(entry.spacingIncrement ?? params.spacingIncrement)||0};
+    }
     const suffix=entry.axis.toUpperCase(),count=Math.max(2,Math.min(100,Math.round(Number(params["count"+suffix] ?? legacyCount) || 2)));
     return {...entry,count,spacing:Number(params["spacing"+suffix] ?? params.spacing) || 0,spacingIncrement:Number(params["spacingIncrement"+suffix] ?? params.spacingIncrement) || 0};
   });

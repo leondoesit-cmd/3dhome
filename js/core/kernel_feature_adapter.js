@@ -11,6 +11,8 @@ import { circularPatternStepDegrees, curvePatternPlacements, linearPatternOffset
 import { holeWizardSolids } from "../cad_hole_wizard.js";
 import { generateToolboxPart } from "../toolbox/generate.js";
 
+export const FEATURE_PATTERN_SEED_TYPES = ["extrudeCut", "revolveCut", "sweepCut", "hole", "extrude", "revolve", "rib"];
+
 function idOf(reference) {
   return typeof reference === "string" ? reference : reference?.id || reference?.persistentId || null;
 }
@@ -158,14 +160,21 @@ function loweredFeature(feature, document) {
       { ...base, type: "subtract", params: {}, inputs: [target, toolId].filter(Boolean) },
     ];
   }
+  if (feature.type === "rib") {
+    const sketchId = sketchInput(feature);
+    const sketch = (document.sketches || []).find((item) => item.id === sketchId);
+    const params = cloneDomain(feature.params);
+    if (sketch?.frame) { params.axis = "frame"; params.frame = cloneDomain(sketch.frame); params.sketchId = sketchId; }
+    return [{ ...base, type: "rib", params }];
+  }
   if (["fillet", "chamfer", "shell", "dome", "draft"].includes(feature.type)) return [{ ...base, type: feature.type, params: cloneDomain(feature.params) }];
   if (feature.type === "pattern") {
-    if(feature.params?.scope==="feature"){
+    if(feature.params?.scope==="feature" || feature.params?.seedOnly){
       const seed=document.features.find(item=>item.id===feature.params.seedFeatureId);
       const subtractive=["extrudeCut","revolveCut","sweepCut","hole"].includes(seed?.type);
-      if(!seed?.inputs?.[0] || (!subtractive && !["extrude","revolve"].includes(seed.type)))throw new Error("Select an additive or cutting feature with a source body");
+      if(!seed?.inputs?.[0] || (!subtractive && !FEATURE_PATTERN_SEED_TYPES.includes(seed.type)))throw new Error("Select an additive or cutting feature with a source body");
       const delta=feature.id+":delta",copies=feature.id+":instances";
-      const layout=loweredFeature({...feature,id:copies,inputs:[delta],params:{...feature.params,scope:"body"}},document);
+      const layout=loweredFeature({...feature,id:copies,inputs:[delta],params:{...feature.params,scope:"body",seedOnly:false}},document);
       return [{...base,id:delta,type:"subtract",inputs:subtractive?[seed.inputs[0],seed.id]:[seed.id,seed.inputs[0]],params:{}},...layout,{...base,type:subtractive?"subtract":"union",inputs:[feature.inputs[0],copies],params:{}}];
     }
     /* The curve layout lowers to its own kernel op: its copies are turned as
