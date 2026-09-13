@@ -62,20 +62,27 @@ Unit suffix support is for numeric feature/property forms, including Center rect
 
 ## Remaining project coverage
 
-| Book section | Printed pages | Status / required next validation |
-| --- | --- | --- |
-| BATTERY | 5-11–5-27 (PDF 229–245) | Base, side fillets, 3.81 mm inset, 5.08 mm cut and 1.27 mm rim fillet saved and reopened. Need two equal Ø12.7 mm terminals with 25.4 mm spacing/45° placement and 15.24 mm extrusion at 5° draft, then verify 114.3 mm overall height. |
-| BATTERYPLATE | 5-28–5-35 | Recreated through the browser, saved/reopened with 12 editable steps and FilletFolder. Full round, hollow drafted holder, three-radius fillet and STEP export verified. Exact bounds 68.5801 × 15.24 × 68.5801 mm. Two holes currently use two features sharing one sketch; book uses one multi-contour cut. |
-| LENS | 6-4–6-17 | Browser recreated and saved as Planchard LENS with 13 steps; LensShield suppressed in final book state; transparency .25 persisted. See continuation notes. |
-| BULB | 6-18–6-29 | Browser recreated and saved with 10 editable steps: two revolves, thin revolved cut, Dome, fully constrained dimension-free SeedCut and circular feature pattern changed from 4 to 8 instances. |
-| O-RING | 7-4–7-6 | Browser-created circular sweep saved as Planchard O-RING. Ø110.49 mm path, Ø3.175 mm section, exact 113.665 × 113.665 × 3.175 mm bounds and 2.748212 cm³ volume. Later configurations/design-table variants remain. |
-| SWITCH | 7-7–7-13 | Not recreated. Reference-plane loft and dome. |
-| LENSCAP | 7-14–7-24 | Not recreated. Extrusion/cut/shell, thin revolved cut, thread and helix sweep. |
-| HOUSING | 7-25–7-57 | Not recreated. Loft/extrude/shell/draft, thread, swept handle, up-to-surface cut, ribs, patterns and mirror. |
-| Subassemblies and FLASHLIGHT | 8-10–8-32 | Not recreated. LENSANDBULB, BATTERYANDPLATE, CAPANDLENS, full assembly, mates, interference, explode and export. |
-| Drawings | 9-4–9-36 | Not recreated. Templates, BATTERY views/detail/dimensions, FLASHLIGHT exploded BOM/balloons, O-RING design table and center of mass. |
-| Additional exercises / CSWA models | Chapter exercises and Chapter 10 | Not yet individually inventoried or recreated. |
-| Manufacturing/export | Chapter 11 | Not validated against the book's STL/AMF/3MF and print-preparation workflows. |
+The working to-do list and coverage matrix live in [book-completion-plan.md](book-completion-plan.md) (§4–§6). This audit stays the history log. Matrix below matches the plan’s §2 status as of the 1-2 freeze.
+
+| Item | Book pages | Saved name | Steps | Exact volume / mass (material) | Dims accepted | Time / clicks vs book steps | Downstream consumer | Open issues |
+|---|---|---|---|---|---|---|---|---|
+| BATTERY | 229–245 | Planchard BATTERY | 9 | | ✅ | | BATTERYANDPLATE, BATTERY drawing | |
+| BATTERYPLATE | 246–254 | Planchard BATTERYPLATE | 12 | 28.18955 cm³ | ❌ centre offset | | BATTERYANDPLATE, STL | 1-4 |
+| LENS | 269–285 | Planchard LENS | 13 | | | | LENSANDBULB | |
+| BULB | 286–298 | Planchard BULB | 10 | | | | LENSANDBULB | |
+| O-RING | 311–314 | Planchard O-RING | | 2.748212 cm³ | ✅ bounds | | CAPANDLENS, design table | 4-5 |
+| SWITCH | 315–320 | Planchard SWITCH | | 1.754454 cm³ (after edit) | | | FLASHLIGHT | |
+| LENSCAP | 323–332 | Planchard LENSCAP | 11 | | ❌ | | CAPANDLENS, STL | 1-3 |
+| HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | Phase 2A |
+| LENSANDBULB | 379–434 | – | | | | | CAPANDLENS | 2B-4 |
+| BATTERYANDPLATE | 379–434 | – | | | | | FLASHLIGHT | 2B-4 |
+| CAPANDLENS | 379–434 | – | | | | | FLASHLIGHT | 2B-5 |
+| FLASHLIGHT | 379–434 | – | | | | | Drawing, eDrawings | Phase 3 |
+| BATTERY drawing | 435–480 | – | | | | | | 4-3 |
+| FLASHLIGHT drawing | 435–480 | – | | | | | | 4-4 |
+| O-RING design table drawing | 435–480 | – | | | | | | 4-5 |
+| Homework (per exercise rows) | | | | | | | | 5-1 |
+| CSWA examples (per question rows) | 481–520 | | | | | | | 6-1 |
 
 ## Earlier boundary gap and remaining coverage
 
