@@ -11,6 +11,7 @@ var host = null,
   canvas = null,
   stateEl = null,
   resetBtn = null,
+  roofBtn = null,
   renderer = null,
   camera = null,
   overlayScene = null,
@@ -59,6 +60,17 @@ function ensureElements() {
   stateEl = document.getElementById("inspectorPreviewState");
   resetBtn = document.getElementById("inspectorPreviewReset");
   if (!host || !canvas) return false;
+  roofBtn = document.getElementById("inspectorPreviewRoof");
+  function syncRoof() {
+    if (roofBtn) roofBtn.setAttribute("aria-pressed", String(!!S.invisibleRoof));
+    scheduleRender();
+  }
+  syncRoof();
+  window.addEventListener("planner-navigation-restored", syncRoof);
+  if (roofBtn) roofBtn.addEventListener("click", function () {
+    var cb = document.getElementById("cb_invisible_roof");
+    if (cb) { cb.checked = !S.invisibleRoof; cb.dispatchEvent(new Event("change")); }
+  });
 
   host.addEventListener("pointerdown", onPointerDown);
   host.addEventListener("pointermove", onPointerMove);
@@ -70,7 +82,7 @@ function ensureElements() {
     event.preventDefault();
   }, { passive: false });
   host.addEventListener("dblclick", function (event) {
-    if (event.target === resetBtn) return;
+    if (event.target.closest("button")) return;
     resetView();
   });
   if (resetBtn) resetBtn.addEventListener("click", function (event) {
@@ -213,6 +225,7 @@ function paint() {
     width = Math.max(2, Math.round(rect.width)),
     height = Math.max(2, Math.round(rect.height));
   if (width <= 2 || height <= 2) return;
+  renderer.shadowMap.enabled = !!S.invisibleRoof;
   renderer.setSize(width, height, false);
   updateCamera(width, height);
   scene.updateMatrixWorld(true);
@@ -234,7 +247,8 @@ function paint() {
   if (overlayDirty) rebuildSelectionOverlay();
   try {
     renderGPU(renderer, scene, camera);
-    renderSelectionOverlay();
+    // The selection overlay has studio lights; omit it when reviewing roof shadows.
+    if (!S.invisibleRoof) renderSelectionOverlay();
   } finally {
     scene.environment = environment;
     occluders.forEach(function (object) { object.visible = true; });
@@ -333,6 +347,7 @@ function previewOccluders() {
     raycaster.intersectObject(dyn, true).forEach(function (hit) {
       var object = hit.object;
       if (!object || !object.isMesh || !object.visible || belongsToSelection(object)) return;
+      if (S.invisibleRoof && object.userData.role === "ceilingHidden") return;
       blocked.add(object);
     });
   });
@@ -345,7 +360,7 @@ function resetView() {
 }
 
 function onPointerDown(event) {
-  if (!visible || event.button !== 0 || event.target === resetBtn) return;
+  if (!visible || event.button !== 0 || event.target.closest("button")) return;
   pointerId = event.pointerId;
   pointerX = event.clientX;
   pointerY = event.clientY;

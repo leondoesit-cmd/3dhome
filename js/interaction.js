@@ -682,10 +682,12 @@ function alignItem(nx, nz, it) {
    the wall in an elevation, and what makes a piece seated on it face the room.
    `raw` may already carry a wall from snapPoint's edge snap. */
 function planPickSurface(p, cx, cz) {
-  var spec = { x: p.x, y: 0, z: p.z, surface: "floor", wall: null, nx: 0, nz: 0 };
+  var surfaceHit = inputIs3D() ? plannerInputView()?.hit : null;
+  var spec = { x: p.x, y: fin(surfaceHit?.point?.y) ? surfaceHit.point.y : 0, z: p.z, surface: "floor", wall: null, nx: 0, nz: 0 };
   var best = null,
     bd = tolCm(10);
   S.walls.forEach(function (w) {
+    if (surfaceHit && (surfaceHit.kind !== "wall" || surfaceHit.ref.id !== w.id)) return;
     var g = wallGeom(w), projected = wallProject(w, p.x, p.z);
     var d = projected ? projected.distance : Infinity;
     if (d < (w.thickness || 0) / 2 + bd && (best === null || d < best.d)) {
@@ -1848,8 +1850,9 @@ export function arcWallPoint(p) {
   if (!draft) {
     p = resolveLanding(p, true);
     if (p.blockedOpening != null) { flash(t("wall_opening_blocked"), "error"); return null; }
-    pushHistory();
-    S.arcDraft = { startNode: getOrMakeNode(p), through: null };
+    // Keep the first point detached until a complete arc can be committed.
+    // Cancelling or switching views must not leave a node or split a host.
+    S.arcDraft = { startNode: p.node ?? null, startPoint: { x: p.x, z: p.z }, through: null };
     S.previewPt = { x: p.x, z: p.z };
     render2D();
     return null;
@@ -1862,13 +1865,14 @@ export function arcWallPoint(p) {
   }
   p = resolveLanding(p, true);
   if (p.blockedOpening != null) { flash(t("wall_opening_blocked"), "error"); return null; }
-  var start = S.nodes[draft.startNode], arc = makeArcFromThreePoints(start, draft.through, p);
+  var start = S.nodes[draft.startNode] || draft.startPoint, arc = makeArcFromThreePoints(start, draft.through, p);
   if (!arc) { flash(t("f_placeFail"), "error"); return null; }
   pushHistory();
-  var endNode = getOrMakeNode(p), made = null;
-  if (endNode !== draft.startNode) {
+  var startNode = draft.startNode ?? getOrMakeNode(resolveLanding(start, true));
+  var endNode = getOrMakeNode(resolveLanding({ x: p.x, z: p.z }, true)), made = null;
+  if (endNode !== startNode) {
     made = applyWallDrawDefaults({
-      id: uid(), a: draft.startNode, b: endNode, thickness: WALL_T, height: WALL_H,
+      id: uid(), a: startNode, b: endNode, thickness: WALL_T, height: WALL_H,
       geometry: { type: "arc", bulge: arc.bulge },
     });
     S.walls.push(made);
@@ -4771,9 +4775,8 @@ export function initInteraction() {
         return;
       }
       pushHistory();
-      // A point dropped from above is a floor point at y=0; landing it ON a
-      // wall records that wall (and which way is into the room) so it can be
-      // raised up that wall from an elevation without re-picking it.
+      // Plan points start at floor height; 3D picks retain the measured
+      // surface height. Wall points also retain their host and facing side.
       var nm = addMarker(planPickSurface(mp, px, pz));
       if (!nm) return;
       S.markerPreview = null;
@@ -5495,7 +5498,7 @@ export function initInteraction() {
     // fills S.snapGuides, so the alignment run to a corner is visible too)
     if (S.tool === "point") {
       var pp = snapPoint(px, pz, null);
-      S.markerPreview = fin(pp.x) && fin(pp.z) ? { x: pp.x, z: pp.z } : null;
+      S.markerPreview = fin(pp.x) && fin(pp.z) ? planPickSurface(pp, px, pz) : null;
       render2D();
       return;
     }

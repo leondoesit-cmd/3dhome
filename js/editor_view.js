@@ -585,8 +585,13 @@ export function createViewportSwap(o) {
   var anchor = o.wrap.nextSibling,
     home = o.panelHost || o.wrap.parentElement;
   return function setBig(big, view) {
+    if (!home && o.wrap.parentElement !== o.bigHost) {
+      home = o.wrap.parentElement;
+      anchor = o.wrap.nextSibling;
+    }
     if (big) o.bigHost.appendChild(o.wrap);
-    else home.insertBefore(o.wrap, anchor && anchor.parentElement === home ? anchor : null);
+    else if (home) home.insertBefore(o.wrap, anchor && anchor.parentElement === home ? anchor : null);
+    else o.wrap.remove();
     if (view) view.setBig(big);
   };
 }

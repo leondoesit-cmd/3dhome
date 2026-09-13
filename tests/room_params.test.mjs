@@ -160,3 +160,16 @@ test("a duplicate parameter name is refused", () => {
   assert.equal(addPlanVar("w", "400"), null);
   assert.equal(planVars().length, 1);
 });
+
+test('minimum room width is invariant under straight boundary subdivisions',()=>{
+ roomPlan();S.nodes.push({x:100,z:0},{x:250,z:0});
+ S.walls[0].b=4;S.walls.push({id:5,a:4,b:5,thickness:10,height:270},{id:6,a:5,b:1,thickness:10,height:270});
+ const before=JSON.stringify([S.nodes,S.walls]),room=detectRooms()[0];
+ assert.equal(roomMinDim(room.key),300);assert.equal(roomAreaM2(room.key),12);assert.equal(JSON.stringify([S.nodes,S.walls]),before);
+});
+
+test('minimum room width retains an irregular room pinch after removing straight junctions',()=>{
+ roomPlan();S.nodes=[{x:0,z:0},{x:50,z:0},{x:400,z:0},{x:400,z:100},{x:100,z:100},{x:100,z:300},{x:0,z:300}];
+ S.walls=S.nodes.map((_,i)=>({id:i+1,a:i,b:(i+1)%S.nodes.length,height:270,thickness:10}));
+ const before=JSON.stringify(S.nodes);assert.equal(roomMinDim(detectRooms()[0].key),100);assert.equal(JSON.stringify(S.nodes),before);
+});

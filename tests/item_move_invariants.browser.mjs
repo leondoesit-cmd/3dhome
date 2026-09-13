@@ -49,7 +49,9 @@ test("omitted rotation preserves rotation provenance and final support is resolv
       const item = { id: state.S.idc++, type: "plant", x: 450, z: 450, w: 20, d: 20, h: 30, rot: 37, rotUser: 1 };
       const child = { id: state.S.idc++, type: "plant", x: 450, z: 450, w: 10, d: 10, h: 10,
         rot: 37, on: item.id, elev: 30 };
-      state.S.items.push(host, item, child);
+      // This test owns the support candidates; seeded preview furniture must
+      // not become a higher competing support for the same drop.
+      state.S.items = [host, item, child];
       const proposal = interaction.previewPlannerCommand("item.move", { itemId: item.id, x: 600, z: 600 });
       const rotationSpecified = proposal.plan.params.rotationSpecified;
       const applied = interaction.executePlannerProposal(proposal);
@@ -129,15 +131,16 @@ test("an identical resolved pose has the same 3D-drop and agent-command domain e
   const run = async (page, mode) => page.eval(async (mode) => {
     const state = await import("/js/state.js");
     const interaction = await import("/js/interaction.js");
-    const base = state.S.nodes.length, wallId = 900001, parentId = 900002, childId = 900003, markerId = 900004;
-    state.S.nodes.push({ x: 5000, z: 5000 }, { x: 5400, z: 5000 });
-    state.S.walls.push({ id: wallId, a: base, b: base + 1, thickness: 10, height: 280 });
-    const parent = { id: parentId, type: "base", x: 5100, z: 5100, w: 80, d: 60, h: 90, elev: 0, rot: 0 };
-    const child = { id: childId, type: "plant", x: 5110, z: 5100, w: 20, d: 20, h: 30,
-      elev: 90, rot: 0, on: parentId };
-    const marker = { id: markerId, x: 5100, y: 0, z: 5100, surface: "floor", wall: null,
-      nx: 0, nz: 0, itemId: parentId };
-    state.S.items.push(parent, child); state.S.markers.push(marker);
+    const {applyData} = await import("/js/ui.js");
+    const wallId = 900001, parentId = 900002, childId = 900003, markerId = 900004;
+    // Both paths begin with the same normalized document, independent of the
+    // asynchronously loaded welcome/demo scene in each browser.
+    await applyData({nodes:[{x:5000,z:5000},{x:5400,z:5000}],
+      walls:[{id:wallId,a:0,b:1,thickness:10,height:280,lock:false}],openings:[],roomMeta:{},
+      items:[{id:parentId,type:"base",x:5100,z:5100,w:80,d:60,h:90,elev:0,rot:0},
+        {id:childId,type:"plant",x:5110,z:5100,w:20,d:20,h:30,elev:90,rot:0,on:parentId}],
+      markers:[{id:markerId,x:5100,y:0,z:5100,surface:"floor",wall:null,nx:0,nz:0,itemId:parentId}],idc:900010});
+    const parent=state.S.items.find(item=>item.id===parentId),child=state.S.items.find(item=>item.id===childId),marker=state.S.markers.find(item=>item.id===markerId);
     let pose;
     if (mode === "drag") {
       interaction.begin3DItemDrag(parent);

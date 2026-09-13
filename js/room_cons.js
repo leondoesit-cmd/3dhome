@@ -126,7 +126,19 @@ export function roomAreaM2(key) {
 export function roomMinDim(key) {
   var r = roomByKeyLive(key);
   if (!r || r.pts.length < 3) return null;
-  var pts = r.pts, n = pts.length, best = Infinity;
+  // A wall split adds graph junctions, not new room corners. Ignore only
+  // numerically collinear points in this measurement; retain the model ring.
+  var pts = r.pts.slice(), changed = true;
+  while (changed && pts.length > 3) {
+    var reduced = pts.filter(function (p, i) {
+      var a = pts[(i + pts.length - 1) % pts.length], b = pts[(i + 1) % pts.length];
+      var ux = p.x - a.x, uz = p.z - a.z, vx = b.x - p.x, vz = b.z - p.z;
+      return ux * vx + uz * vz < 0 || Math.abs(ux * vz - uz * vx) > 1e-8 * (Math.hypot(ux, uz) + Math.hypot(vx, vz));
+    });
+    changed = reduced.length >= 3 && reduced.length < pts.length;
+    if (changed) pts = reduced;
+  }
+  var n = pts.length, best = Infinity;
   for (var i = 0; i < n; i++) {
     for (var j = 0; j < n; j++) {
       // skip the two edges this corner is an endpoint of

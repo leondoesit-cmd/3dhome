@@ -73,6 +73,20 @@ test("stacking: attach, carry, turn, re-seat, orphan and heal", () => {
       assert.equal(findSupport(machine, box.x, box.z), null);
     }
 
+    // --- refreshed references cannot bypass cycle protection --------------
+    {
+      const { machine, dryer, box } = fixture();
+      attach(dryer, machine); attach(box, dryer);
+      S.items = S.items.map(it => ({ ...it }));
+      assert.ok(wouldCycle(machine, S.items[2]), "refreshed parent references still identify their descendants");
+      assert.equal(findSupport(machine, box.x, box.z), null);
+      assert.equal(findSupport(machine, machine.x, machine.z), null, "a refreshed self is not a support");
+      attach(machine, S.items[2]);
+      assert.equal(machine.on, undefined, "direct attachment cannot introduce a cycle either");
+      S.items[1].on = 3; S.items[2].on = 2;
+      assert.ok(wouldCycle(machine, S.items[1]), "an existing corrupt cycle cannot accept a new member");
+    }
+
     // --- moving a host carries its whole stack, exactly once ---------------
     {
       const { machine, dryer, box } = fixture();

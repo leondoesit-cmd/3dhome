@@ -18,6 +18,7 @@ import { wallGeom, detectRooms } from './geometry.js';
 import { t, onLangChange } from './i18n.js';
 
 let pane, canvas, hud, modeButton, lookButton, personButton, dragId=null, lastInput=null, look=false, constraintHits=[];
+let roofButton;
 let vertexHits=[],vertexDrag=null;
 function cancelVertex(){vertexDrag=null;requestRender();}
 function vertexInput(phase,e){
@@ -65,6 +66,7 @@ function send(phase,e) {
   requestRender(); paintPlanner3D(); return sent;
 }
 function labels() {
+  if(roofButton){roofButton.textContent=t('invisible_roof');roofButton.title=t('invisible_roof_hint');roofButton.setAttribute('aria-pressed',String(!!S.invisibleRoof));}
   modeButton.textContent=t(isWalk()?'planner_orbit':'planner_walk');
   if(personButton)personButton.textContent=t('planner_person');
   modeButton.setAttribute('aria-pressed',String(isWalk()));
@@ -93,18 +95,20 @@ export function initPlanner3D() {
   modeButton.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();toggleWalk();labels();requestRender();};
   lookButton=document.createElement('button');lookButton.type='button';lookButton.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();look=!look;labels();};
   const person=document.createElement('button');personButton=person;person.type='button';person.textContent=t('planner_person');person.onclick=()=>{cancelVertex();cancelPlannerGesture();activate();if(!isWalk())toggleWalk(true);toggleWalkView();labels();};
-  bar.append(modeButton,lookButton,person);pane.append(bar);labels();onLangChange(labels);window.addEventListener('planner-navigation-restored',labels);
+  roofButton=document.createElement('button');roofButton.type='button';roofButton.id='planner-invisible-roof';
+  roofButton.onclick=()=>{S.invisibleRoof=!S.invisibleRoof;S.dirty3D=true;const cb=document.getElementById('cb_invisible_roof');if(cb)cb.checked=S.invisibleRoof;window.dispatchEvent(new Event('planner-navigation-restored'));labels();requestRender();};
+  bar.append(modeButton,lookButton,person,roofButton);pane.append(bar);labels();onLangChange(labels);window.addEventListener('planner-navigation-restored',labels);
   document.getElementById('plan')?.addEventListener('pointerdown',()=>{
     cancelVertex();
     movePlanToolsTo('view-2d');setPlannerInputView(null);document.documentElement.dataset.plannerViewport='plan';
   },true);
   canvas.addEventListener('pointerdown',e=>{
-    if(!has3D()||gameActive()||e.button!==0||look||e.shiftKey)return;
+    if(!has3D()||gameActive()||e.button!==0||look)return;
     activate();
     if(send('down',e)){dragId=e.pointerId;canvas.setPointerCapture(e.pointerId);e.preventDefault();e.stopImmediatePropagation();}
   },true);
   canvas.addEventListener('pointermove',e=>{
-    if(!has3D()||gameActive()||look||e.shiftKey)return;
+    if(!has3D()||gameActive()||look)return;
     if(dragId===e.pointerId||(!e.buttons&&document.documentElement.dataset.plannerViewport==='3d'))send('move',e);
   });
   for(const type of ['pointerup','pointercancel'])canvas.addEventListener(type,e=>{
@@ -114,9 +118,9 @@ export function initPlanner3D() {
     e.preventDefault();e.stopImmediatePropagation();
   },true);
   // Suppress legacy mouse/touch edit listeners; navigation gestures continue
-  // to their existing handlers when Look, right button or Shift is used.
+  // to their existing handlers when Look or the right button is used.
   for(const type of ['mousedown','touchstart','touchmove','touchend'])canvas.addEventListener(type,e=>{
-    if(!gameActive()&&!look&&(type.startsWith('touch')||e.button===0)&&!e.shiftKey){e.preventDefault();e.stopImmediatePropagation();}
+    if(!gameActive()&&!look&&(type.startsWith('touch')||e.button===0)){e.preventDefault();e.stopImmediatePropagation();}
   },{capture:true,passive:false});
   canvas.addEventListener('dblclick',e=>{if(!look&&!gameActive()){send('double',e);e.preventDefault();e.stopImmediatePropagation();}},true);
   onAfterRender(()=>{paintPlanner3D();requestRender();});
@@ -138,7 +142,7 @@ export function paintPlanner3D() {
   if(start&&end&&S.drawing){path([start,end]);path([{...start,y:270},{...end,y:270}]);path([end,{...end,y:270}]);label({x:(start.x+end.x)/2,z:(start.z+end.z)/2},`${Math.hypot(end.x-start.x,end.z-start.z).toFixed(1)} ${t('cm')}`);}
   if(S.rectDraft&&end)path([S.rectDraft,{x:end.x,z:S.rectDraft.z},end,{x:S.rectDraft.x,z:end.z}],undefined,true);
   if(S.roomGhost){const r=S.roomGhost.rect;path([{x:r.x0,z:r.z0},{x:r.x1,z:r.z0},{x:r.x1,z:r.z1},{x:r.x0,z:r.z1}],S.roomGhost.blocked?'#ed705a':'#26b99a',true);}
-  if(S.arcDraft&&end){const a=S.nodes[S.arcDraft.startNode],arc=a&&S.arcDraft.through?makeArcFromThreePoints(a,S.arcDraft.through,end):null;if(arc){const n=Math.max(12,Math.ceil(arc.L/20));path(Array.from({length:n+1},(_,i)=>pointAtWall(arc,arc.L*i/n)));}else if(a)path([a,end]);}
+  if(S.arcDraft&&end){const a=S.nodes[S.arcDraft.startNode]||S.arcDraft.startPoint,arc=a&&S.arcDraft.through?makeArcFromThreePoints(a,S.arcDraft.through,end):null;if(arc){const n=Math.max(12,Math.ceil(arc.L/20));path(Array.from({length:n+1},(_,i)=>pointAtWall(arc,arc.L*i/n)));}else if(a)path([a,end]);}
   if(S.offsetDraft){const w=S.walls.find(w=>w.id===S.offsetDraft.hostId),g=w&&offsetGhost(w,S.offsetDraft.dist,S.offsetDraft.side||1);if(g){path([g.a,g.b],'#faac38');label(g.b,g.dist.toFixed(1)+' '+t('cm'));}}
   if(S.placeType&&end&&FURN[S.placeType])path(footprint({...FURN[S.placeType],...end,rot:0}),'#26b99a',true);
   if(S.markerPreview)label(S.markerPreview,'+');

@@ -3,6 +3,7 @@ import { switchFloorAndWait } from './floors.js';
 import { buildSurveyGeometry } from './survey_mesh.js';
 import { moveSurveyWalker, navigationPosition, navigationFloorTransition } from './navigation_geometry.js';
 import { navigationProfile, cameraRetraction } from "./navigation_profile.js";
+import { createCameraSweep } from './camera_sweep.js';
 // 3D scene: renderer/camera/lights, builds walls + items, sun-by-time-of-day, orbit controls.
 // three is LATE-BOUND (js/three_lazy.js): the renderer is 3.5 MB and must not
 // sit on the synchronous boot module graph. `THREE`, `TSL` and `ADDONS` are
@@ -75,6 +76,7 @@ import {
   normalizeWallKind,
   normalizeWallProfile,
   wallProfileHeight,
+  projectToWall,
   verticalSegments,
   HALF_WALL_HEIGHT,
 } from "./wall_curves.js";
@@ -128,6 +130,24 @@ export function plannerPointer3D(cx,cy) {
         point={x:h.point.x,z:h.point.z};break;
       }
       if(hit)break;
+    }
+  }
+  // A wall mesh is picked on its face, but planner hosts are measured along
+  // their centreline. Preserve the physical hit separately for elevations.
+  if(hit?.kind==='wall' && S.tool!=='point') {
+    const projected=projectToWall(hit.ref,point.x,point.z,S.nodes);
+    if(projected)point={x:projected.x,z:projected.z};
+    if(S.tool==='select') {
+      let nearest=12;
+      for(const index of [hit.ref.a,hit.ref.b]) {
+        const node=S.nodes[index];if(!node)continue;
+        for(const height of [0,hit.point.y]) {
+          const q=new THREE.Vector3(node.x,height,node.z).project(camera);
+          if(q.z < -1 || q.z > 1)continue;
+          const pixels=Math.hypot(r.left+(q.x+1)*r.width/2-cx,r.top+(1-q.y)*r.height/2-cy);
+          if(pixels<nearest){nearest=pixels;point={x:node.x,z:node.z};}
+        }
+      }
     }
   }
   if(!point)return null;
@@ -274,6 +294,7 @@ function plannerCompact() {
     && document.body.classList.contains("compact-nav");
 }
 
+var plannerShadowsEnabled = true;
 function applyPlannerQuality() {
   var effective = qualityPreset;
   var compact = plannerCompact();
@@ -288,7 +309,8 @@ function applyPlannerQuality() {
   var ratio = effective === "performance" ? 1 : effective === "quality" ? 2 : 1.5;
   if (compact && ratio > 1.5) ratio = 1.5;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, ratio));
-  renderer.shadowMap.enabled = effective !== "performance";
+  plannerShadowsEnabled = effective !== "performance";
+  renderer.shadowMap.enabled = plannerShadowsEnabled || !!S.invisibleRoof;
   if (sun) sun.shadow.mapSize.set(effective === "quality" ? 4096 : 2048, effective === "quality" ? 4096 : 2048);
   usePost = effective !== "performance" && !!post;
   // GTAO at half resolution is nearly indistinguishable at "balanced" and roughly
@@ -378,6 +400,7 @@ function buildAvatar() {
 }
 
 let cameraBoom = 230, cameraAt = 0;
+let cameraSweep = null;
 function walkLook() {
   const profile=navigationProfile(S);
   EYE_H=profile.eyeHeight;
@@ -416,13 +439,8 @@ function walkLook() {
     direction.normalize();
     let allowed=desiredDistance;
     if(!freeMove&&dyn){
-      const side=new THREE.Vector3().crossVectors(direction,new THREE.Vector3(0,1,0)).normalize();
-      for(const offset of [new THREE.Vector3(),side.clone().multiplyScalar(profile.cameraRadius),side.clone().multiplyScalar(-profile.cameraRadius),new THREE.Vector3(0,profile.cameraRadius,0),new THREE.Vector3(0,-profile.cameraRadius,0)]){
-        const ray=new THREE.Raycaster(pivot.clone().add(offset),direction,0,desiredDistance);
-        const hits=ray.intersectObjects(layerRoots().map(e=>e.root).filter(Boolean),true);
-        const obstacle=hits.find(h=>!h.object.userData?.cameraIgnore&&h.object.type!=='Sprite');
-        if(obstacle)allowed=Math.min(allowed,Math.max(2,obstacle.distance-profile.cameraRadius));
-      }
+      cameraSweep ||= createCameraSweep(THREE);
+      allowed=cameraSweep.distance(layerRoots().map(e=>e.root),pivot,direction,desiredDistance,profile.cameraRadius);
     }
     const now=performance.now();
     cameraBoom=cameraRetraction(cameraBoom,allowed,desiredDistance,Math.min(.1,(now-cameraAt)/1000));cameraAt=now;
@@ -1875,9 +1893,21 @@ function applyItemOps() {
   if (escalate || isPhysicsEnabled()) S.dirty3D = true;
 }
 
+// Zero opacity keeps the camera and AO pass clear. The renderer's shadow
+// override uses opaque depth for these untextured, double-sided surfaces.
+function plannerCeilingMaterial(xray) {
+  return new THREE.MeshStandardMaterial({
+    color: 0xf3efe6, roughness: 0.96, side: THREE.DoubleSide,
+    transparent: !S.showCeiling || xray,
+    opacity: xray ? 0.18 : S.showCeiling ? 1 : 0,
+    depthWrite: !!S.showCeiling && !xray,
+  });
+}
+
 export function rebuild3D() {
   if (!ready3D) return;
   refreshRuntimePlacements(S);
+  if (!gameRendererLock) renderer.shadowMap.enabled = plannerShadowsEnabled || !!S.invisibleRoof;
   // geometry is changing — the shadow map and the frame both need a redraw
   shadowsDirty = true;
   needsRender = true;
@@ -2161,51 +2191,28 @@ export function rebuild3D() {
         jm.userData.role = "jamb";
         structureRoot.add(jm);
       });
-      // and the ceiling strip, when ceilings are shown
-      if (S.showCeiling || xrayCeiling) {
-        var cMat = new THREE.MeshStandardMaterial({ color: 0xf3efe6, roughness: 0.96, side: THREE.DoubleSide });
-        if (xrayCeiling) {
-          cMat.transparent = true;
-          cMat.opacity = 0.18;
-          cMat.depthWrite = false;
-        }
+      // Cover passage bridges as well as the enclosed rooms.
+      if (S.showCeiling || xrayCeiling || S.invisibleRoof) {
+        var cMat = plannerCeilingMaterial(xrayCeiling);
         var cm = polyMesh(pts, jH, 160, cMat);
         if (cm) {
           cm.receiveShadow = S.showCeiling && !xrayCeiling;
-          cm.castShadow = S.showCeiling && !xrayCeiling;
-          cm.userData.role = "ceiling";
+          cm.castShadow = !!S.invisibleRoof || (S.showCeiling && !xrayCeiling);
+          cm.userData.role = S.showCeiling || xrayCeiling ? "ceiling" : "ceilingHidden";
           structureRoot.add(cm);
         }
       }
     });
     rooms.forEach(function (r) {
       if (roomHidden(r.key)) return;
-      var rmat;
-      if (S.showCeiling || xrayCeiling) {
-        rmat = new THREE.MeshStandardMaterial({
-          color: 0xf3efe6,
-          roughness: 0.96,
-          side: THREE.DoubleSide,
-        });
-        if (xrayCeiling) {
-          rmat.transparent = true;
-          rmat.opacity = 0.18;
-          rmat.depthWrite = false;
-        }
-      } else {
-        rmat = new THREE.MeshStandardMaterial({
-          transparent: true,
-          opacity: 0,
-          depthWrite: false,
-        });
-      }
+      var rmat = plannerCeilingMaterial(xrayCeiling);
       /* A void cuts the FLOOR SLAB it sits on, not the ceiling above it. Only
          the active storey renders, so punching the ceiling too opened the room
          to empty sky instead of to the floor above. Floor-only is the honest
          cut until stacked storeys render together. */
       var m = polyMesh(r.pts, r.ceilH, 160, rmat);
       if (m) {
-        m.castShadow = S.showCeiling && !xrayCeiling;
+        m.castShadow = !!S.invisibleRoof || (S.showCeiling && !xrayCeiling);
         m.receiveShadow = S.showCeiling && !xrayCeiling;
         /* With ceilings switched off this slab is still built, at opacity 0, so
            the room keeps a surface for rays and physics. Say so, rather than

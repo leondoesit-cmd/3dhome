@@ -329,6 +329,7 @@ export const S = {
      where attaching a 10 cm wall to each end of a 300 cm wall left 290 cm. */
   interiorDims: true,
   showCeiling: false,
+  invisibleRoof: false,
   floorTex: "wood",
   wallColor: 0xefe9dd,
   hour: 13,

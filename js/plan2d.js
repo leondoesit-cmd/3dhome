@@ -1005,8 +1005,8 @@ function renderHUD() {
   }
   // Three-point arc-wall rubber band. First choose a through-point; the next
   // move shows the exact circular wall, including its true centre-line length.
-  if (S.tool === "arcwall" && S.arcDraft && S.nodes[S.arcDraft.startNode] && S.previewPt) {
-    var arcStart = S.nodes[S.arcDraft.startNode], draftArc = S.arcDraft.through
+  if (S.tool === "arcwall" && S.arcDraft && (S.nodes[S.arcDraft.startNode] || S.arcDraft.startPoint) && S.previewPt) {
+    var arcStart = S.nodes[S.arcDraft.startNode] || S.arcDraft.startPoint, draftArc = S.arcDraft.through
       ? makeArcFromThreePoints(arcStart, S.arcDraft.through, S.previewPt)
       : null;
     pc.save(); pc.strokeStyle = "#3f6b78"; pc.lineWidth = 2; pc.setLineDash([6, 5]); pc.beginPath();
@@ -1522,8 +1522,8 @@ function touchDrawReadout() {
         : "\u2220" + Math.round((m.absAng * 180) / Math.PI) + "\u00b0",
     };
   }
-  if (S.tool === "arcwall" && S.arcDraft && S.nodes[S.arcDraft.startNode] && S.previewPt) {
-    var a0 = S.nodes[S.arcDraft.startNode];
+  if (S.tool === "arcwall" && S.arcDraft && (S.nodes[S.arcDraft.startNode] || S.arcDraft.startPoint) && S.previewPt) {
+    var a0 = S.nodes[S.arcDraft.startNode] || S.arcDraft.startPoint;
     var arc = S.arcDraft.through ? makeArcFromThreePoints(a0, S.arcDraft.through, S.previewPt) : null;
     if (arc) return { main: Math.round(arc.L) + " " + t("cm"), sub: "R" + Math.round(arc.radius) };
     return { main: Math.round(Math.hypot(S.previewPt.x - a0.x, S.previewPt.z - a0.z)) + " " + t("cm"), sub: "" };
@@ -3473,17 +3473,7 @@ var GLYPH = {
       });
       pc.closePath();
       pc.stroke();
-      // the swing of the diagonal door
-      var a = P.poly[2],
-        b = P.poly[3],
-        r = Math.hypot((b.x - a.x) * sc, (b.z - a.z) * zc2);
-      pc.save();
-      pc.strokeStyle = "rgba(70,80,95,0.6)";
-      pc.setLineDash([4, 3]);
-      pc.beginPath();
-      pc.arc(a.x * sc, a.z * zc2, r, Math.atan2((b.z - a.z) * zc2, (b.x - a.x) * sc), Math.atan2(-1, 0), true);
-      pc.stroke();
-      pc.restore();
+      drawCabinetPlanSwings(pc,P,sc,zc2);
       pc.restore();
       return;
     }
@@ -3521,7 +3511,7 @@ var GLYPH = {
         pc.stroke();
         pc.strokeStyle = "#8d8674";
       }
-      if (col.door === "none" || col.door === "drawer") return;
+      if (col.door === "none" || col.door === "drawer" || col.door === "lift") return;
       if (col.door === "sliding") {
         pc.save();
         pc.strokeStyle = "#5b7a86";
@@ -3533,32 +3523,26 @@ var GLYPH = {
         pc.restore();
         return;
       }
-      // hinged leaves: the classic quarter-circle swing
-      var n = Math.max(1, col.leaves),
-        lw = cw / n;
-      for (var i = 0; i < n; i++) {
-        var lx0 = x0 + i * lw,
-          hingeLeft = n > 1 ? i === 0 : col.hinge === "L",
-          hx2 = hingeLeft ? lx0 : lx0 + lw;
-        pc.save();
-        pc.strokeStyle = "rgba(91,122,134,.85)";
-        // the leaf stood open at 90°, drawn out in front of the cabinet
-        pc.beginPath();
-        pc.moveTo(hx2, front);
-        pc.lineTo(hx2, front + lw);
-        pc.stroke();
-        // and the arc it sweeps, from closed (along the face) to there
-        pc.setLineDash([3, 3]);
-        pc.beginPath();
-        if (hingeLeft) pc.arc(hx2, front, lw, 0, Math.PI / 2, false);
-        else pc.arc(hx2, front, lw, Math.PI, Math.PI / 2, true);
-        pc.stroke();
-        pc.restore();
-      }
+
     });
+    drawCabinetPlanSwings(pc,P,sc,d/P.d);
     pc.restore();
   },
 };
+export function drawCabinetPlanSwings(context,P,sx,sz) {
+  var seen=new Set();
+  (P.swings||[]).forEach(function(sw){
+    var key=[sw.pivot.x,sw.pivot.z,sw.start,sw.sweep,sw.reach].join("|");if(seen.has(key))return;seen.add(key);
+    context.save();context.strokeStyle="rgba(91,122,134,.85)";context.setLineDash([3,3]);context.beginPath();
+    // Polyline sampling retains the actual quarter-turn under different X/Z scales.
+    for(var i=0;i<=24;i++){var angle=sw.start+sw.sweep*i/24,x=(sw.pivot.x+sw.reach*Math.cos(angle))*sx,z=(sw.pivot.z+sw.reach*Math.sin(angle))*sz;
+      if(i===0)context.moveTo(x,z);else context.lineTo(x,z);}
+    context.stroke();context.setLineDash([]);context.beginPath();context.moveTo(sw.pivot.x*sx,sw.pivot.z*sz);
+    context.lineTo((sw.pivot.x+sw.reach*Math.cos(sw.start+sw.sweep))*sx,(sw.pivot.z+sw.reach*Math.sin(sw.start+sw.sweep))*sz);
+    context.stroke();context.restore();
+  });
+}
+
 function drawItem(it) {
   var f = FURN[it.type],
     isSelL = (chromeOn && S.sel && S.sel.kind === "item" && S.sel.ref === it) ||

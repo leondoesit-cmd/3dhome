@@ -276,6 +276,7 @@ export function sceneObject(includeWorkspace) {
     floorTex: S.floorTex,
     wallColor: S.wallColor,
     showCeiling: S.showCeiling,
+    invisibleRoof: S.invisibleRoof,
     showDims: S.showDims,
     interiorDims: S.interiorDims,
     // acknowledged constraint warnings (js/constraint_engine.js) — an
@@ -593,6 +594,10 @@ function applyDataRequest(d, requestGeneration) {
     var wallcol = document.getElementById("wallcol");
     if (wallcol) wallcol.value = hexStr(S.wallColor);
   }
+  S.invisibleRoof = d.invisibleRoof === true;
+  var cbRoof = document.getElementById("cb_invisible_roof");
+  if (cbRoof) cbRoof.checked = S.invisibleRoof;
+  window.dispatchEvent(new Event("planner-navigation-restored"));
   if (d.showCeiling != null) {
     S.showCeiling = d.showCeiling;
     var cbCeil = document.getElementById("cb_ceil");
@@ -2456,6 +2461,11 @@ export function initUI() {
     });
   });
   syncRotStepUI();
+  document.getElementById("cb_invisible_roof").addEventListener("change", function () {
+    S.invisibleRoof = this.checked;
+    S.dirty3D = true;
+    window.dispatchEvent(new Event("planner-navigation-restored"));
+  });
   document.getElementById("cb_ceil").addEventListener("change", function () {
     S.showCeiling = this.checked;
     S.dirty3D = true;

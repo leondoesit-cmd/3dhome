@@ -243,6 +243,10 @@ test("the arrangement survives a reload, and the phone rail takes the panels bac
   assert.deepEqual(await page.eval(() => [window.__dock.zoneOf("tools"), window.__dock.zoneOf("layers")]),
     ["right", "bottom"], "both drags commit before testing reload persistence");
   await page.goto("/");
+  // The saved customization host loads dynamically after main.js has booted.
+  // Read persistence only once that host has adopted its saved document.
+  await page.waitUntil(async () => !!(await import('/js/uikit_host/index.js')).activeUIKit(),
+    { what: "saved customization to mount after reload" });
   const kept = await page.eval(() => ({
     tools: document.querySelector('.pt-panel[data-panel="tools"]').closest(".pt-zone").getAttribute("data-zone"),
     layers: document.querySelector('.pt-panel[data-panel="layers"]').closest(".pt-zone").getAttribute("data-zone"),
@@ -254,6 +258,8 @@ test("the arrangement survives a reload, and the phone rail takes the panels bac
   // queries; the dock has to dismantle itself rather than fight them.
   await page.resize(390, 844, { touch: true, mobile: true });
   await page.goto("/");
+  await page.waitUntil(async () => !!(await import('/js/uikit_host/index.js')).activeUIKit(),
+    { what: "saved customization to mount on the phone" });
   const phone = await page.eval(() => {
     const layer = document.getElementById("plan-tools");
     return {

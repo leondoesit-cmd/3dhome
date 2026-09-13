@@ -57,14 +57,17 @@ export function childrenOf(it) {
   });
 }
 
-/* Would `it` become its own ancestor? Walks up from the proposed host; the step
-   cap is a belt-and-braces guard so a corrupted file with a pre-existing cycle
-   cannot hang the drag loop. */
+/* References can be refreshed during an edit; ancestry follows stable IDs.
+   Remember visited IDs so an already-corrupt pile cannot loop forever or
+   accept another piece into its cycle. */
 export function wouldCycle(it, host) {
-  var p = host,
-    n = 0;
-  while (p && n++ < 64) {
-    if (p === it) return true;
+  var p = host;
+  const seen = new Set();
+  while (p) {
+    if (p === it || (it?.id != null && p.id === it.id)) return true;
+    const key = p.id ?? p;
+    if (seen.has(key)) return true;
+    seen.add(key);
     p = hostOf(p);
   }
   return false;
@@ -123,6 +126,7 @@ export function attach(it, host) {
     detach(it);
     return;
   }
+  if (wouldCycle(it, host)) return;
   it.on = host.id;
   it.elev = topOf(host);
 }

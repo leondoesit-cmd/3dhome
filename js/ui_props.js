@@ -1625,7 +1625,8 @@ function fillJointPair(nodes) {
   var canAngle = pair && !!picked(nodes[0]) && !!picked(nodes[1]);
   if (equal) equal.disabled = !canAngle;
   if (compare) compare.disabled = !canAngle;
-  document.getElementById("nd_square_btn").disabled = true;
+  var squareButton = document.getElementById("nd_square_btn");
+  if (squareButton) squareButton.disabled = true;
   var setAngle = document.getElementById("nd_set_angle_btn");
   if (setAngle) setAngle.disabled = true;
   syncPinBtn(nodes);
@@ -1739,7 +1740,7 @@ function fillWallMulti(walls) {
 export { squarableArm };
 
 export function fillProps() {
-  document.getElementById("lightProps").classList.remove("on");
+  document.getElementById("lightProps")?.classList.remove("on");
   var shCtl = document.getElementById("smartItemControls");
   if (shCtl) { shCtl.style.display = "none"; shCtl.innerHTML = ""; }
   S.segPreview = null;
