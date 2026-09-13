@@ -38,20 +38,26 @@ export function offsetFaceBoundary(brep, reference, frame, distance = 0) {
         try {
           while(edges.More()) {
             const edge=edges.Current(), curve=new oc.BRepAdaptor_Curve_2(edge);
+            const reversed=edge.Orientation_1()===oc.TopAbs_Orientation.TopAbs_REVERSED;
             let a,b,m,circle,center;
             try {
               const first=curve.FirstParameter(),last=curve.LastParameter();
               a=curve.Value(first);b=curve.Value(last);m=curve.Value((first+last)/2);
-              const from=local(a),to=local(b),mid=local(m),kind=curve.GetType();
-              if(kind===oc.GeomAbs_CurveType.GeomAbs_Line) segments.push({type:'line',from,to});
+              let from=local(a),to=local(b);const mid=local(m),kind=curve.GetType();
+              if(reversed) { const swap=from; from=to; to=swap; }
+              if(kind===oc.GeomAbs_CurveType.GeomAbs_Line) segments.push({type:'line',from,to,reversed});
               else if(kind===oc.GeomAbs_CurveType.GeomAbs_Circle) {
                 circle=curve.Circle();center=circle.Location();
-                segments.push({type:Math.hypot(from.u-to.u,from.v-to.v)<1e-7?'circle':'arc',from,to,mid,center:local(center),radius:circle.Radius()});
+                segments.push({type:Math.hypot(from.u-to.u,from.v-to.v)<1e-7?'circle':'arc',from,to,mid,center:local(center),radius:circle.Radius(),reversed});
               } else {
                 const direction=d=>({u:d.X()*frame.xAxis.x+d.Y()*frame.xAxis.y+d.Z()*frame.xAxis.z,v:d.X()*frame.yAxis.x+d.Y()*frame.yAxis.y+d.Z()*frame.yAxis.z,w:d.X()*frame.normal.x+d.Y()*frame.normal.y+d.Z()*frame.normal.z});
                 const curveData=serializeProfileCurve(oc,curve,local,direction),samples=[];
                 for(let i=0;i<=64;i++){const p=curve.Value(first+(last-first)*i/64);try{samples.push(local(p));}finally{p.delete();}}
-                segments.push({type:'kernelCurve',from,to,curveData,first,last,samples});
+                if(reversed) samples.reverse();
+                const closed=Math.hypot(from.u-to.u,from.v-to.v)<1e-7;
+                const segment={type:curveData.kind==='ellipse'&&closed?'ellipse':'kernelCurve',from,to,mid,center:curveData.center,rx:curveData.major,ry:curveData.minor,rot:curveData.x?Math.atan2(curveData.x.v,curveData.x.u):0,curveData,first,last,samples,reversed};
+                if(segment.type==='kernelCurve' && closed) segments.push(...splitClosedKernelCurve(segment));
+                else segments.push(segment);
               }
             } finally { center?.delete();circle?.delete();a?.delete();b?.delete();m?.delete();curve.delete();edge.delete(); }
             edges.Next();
@@ -66,6 +72,17 @@ export function offsetFaceBoundary(brep, reference, frame, distance = 0) {
   } finally { if(distance)shape?.delete();maker?.delete(); }
 }
 
+function splitClosedKernelCurve(segment) {
+  const samples=segment.samples || [];
+  const mid=Math.max(1, Math.floor(samples.length/2));
+  if(samples.length<4) return [segment];
+  const midParam=segment.first+(segment.last-segment.first)*mid/(samples.length-1);
+  return [
+    { ...segment, from:samples[0], to:samples[mid], samples:samples.slice(0,mid+1), last:midParam },
+    { ...segment, from:samples[mid], to:samples[samples.length-1], samples:samples.slice(mid), first:midParam },
+  ];
+}
+
 export function appendBoundarySketch(sketch, loops, id) {
   const points=[],entities=[];
   const point = q => {
@@ -75,7 +92,13 @@ export function appendBoundarySketch(sketch, loops, id) {
   };
   for(const segments of loops)for(const segment of segments){
     const entity={id:id(),type:segment.type,name:'Face boundary',construction:false};
-    if(segment.type==='line'||segment.type==='kernelCurve'){entity.type='line';entity.a=point(segment.from);entity.b=point(segment.to);if(segment.type==='kernelCurve'){entity.projectedCurve=structuredClone(segment);entity.name='Linked boundary curve';}}
+    if(segment.type==='ellipse'){
+      entity.type='ellipse';entity.c=point(segment.center || segment.curveData?.center);
+      entity.rx=Number(segment.rx || segment.curveData?.major)||0;
+      entity.ry=Number(segment.ry || segment.curveData?.minor)||0;
+      entity.rot=Number(segment.rot)||0;entity.fixed=true;
+    }
+    else if(segment.type==='line'||segment.type==='kernelCurve'){entity.type='line';entity.a=point(segment.from);entity.b=point(segment.to);if(segment.type==='kernelCurve'){entity.projectedCurve=structuredClone(segment);entity.name='Linked boundary curve';}}
     else if(segment.type==='circle'){entity.c=point(segment.center);entity.r=segment.radius;entity.fixed=true;}
     else if(segment.type==='arc'){
       const angle=q=>Math.atan2(q.v-segment.center.v,q.u-segment.center.u);

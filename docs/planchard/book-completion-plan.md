@@ -58,9 +58,9 @@ Out of scope unless the book needs it: surfacing, weldments, simulation, CAM, PD
 ### 3.1 Bugs (existing code is wrong)
 | ID | Defect | Where | Fix hint | Test |
 |---|---|---|---|---|
-| B1 | Face-boundary edges ignore edge orientation. At offset 0 on a box top, all 4 edges came back reversed against wire order, so profile ordering can zig-zag or lose corners. | `js/cad_face_offset.js:40-55` | If `edge.Orientation_1() === TopAbs_REVERSED`, swap `from`/`to`, set `reversed:true`, reverse `samples` | Box top and filleted battery top at offset 0 and inset; assert `seg[i].to ≈ seg[i+1].from` |
-| B2 | A linked boundary rejects any face with inner loops, with the misleading message "split into multiple regions" | `js/cad_associative_boundary.js:15` | Support outer loop plus holes: keep loop identity per wire, and only reject when the loop count changes between rebuilds | Plate with a through hole, linked inset; edit the source and rebuild |
-| B3 | A closed ellipse or B-spline edge becomes a zero-length `line` entity (from and to merge into one point) | `js/cad_face_offset.js:78` | Emit an `ellipse`/`spline` entity, or split the closed curve into two segments | Elliptical boss top face |
+| B1 | Face-boundary edges ignore edge orientation. At offset 0 on a box top, all 4 edges came back reversed against wire order, so profile ordering can zig-zag or lose corners. | `js/cad_face_offset.js` | **Fixed.** Reversed OC edges swap `from`/`to`, reverse samples, and set `reversed` | `tests/planchard_face_offset.test.mjs` |
+| B2 | A linked boundary rejects any face with inner loops, with the misleading message "split into multiple regions" | `js/cad_associative_boundary.js` | **Fixed.** Outer + holes; reject only when loop count changes | `tests/cad_linked_boundary.test.mjs` |
+| B3 | A closed ellipse or B-spline edge becomes a zero-length `line` entity (from and to merge into one point) | `js/cad_face_offset.js` | **Fixed.** Closed ellipse → `ellipse` entity; other closed kernel curves split in two | `tests/planchard_face_offset.test.mjs` |
 | B4 | Mass properties always use 7.85 g/cm³, whatever material is assigned | `js/cad_mass_properties.js` | **Fixed.** Per-body stock density, mass rows, mm/g toggle | `tests/cad_mass_materials.test.mjs` |
 | B5 | A revolve profile that crosses its axis is silently mirrored (`Math.abs(u)`) instead of rejected | `js/core/revolve_geometry.js` | **Fixed.** Rejects crossing; points on the axis allowed | `tests/cad_mass_materials.test.mjs` |
 | B6 | Up-to-face and up-to-next cuts behave as through-all | `js/modeler.js`; `js/core/extrude_extent.js` | **Fixed.** Planar/cylinder/cone ray hit; persistent `endFace`; through-all spans the host | `tests/cad_extrude_extent.test.mjs`, `tests/cad_up_to_face.test.mjs` |
@@ -116,7 +116,7 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | Task | Work | Done when |
 |---|---|---|
 | 2A-1 | **Real Up To Surface / Face / Next** (G1/B6) for extrude cut and boss: terminate the tool at a selected face (planar, then cylindrical/conical), or at the next face along the direction. Store the face as a persistent topology reference that re-resolves on rebuild | **Done.** Shelled-box cut stops at the inner wall (volume 32 vs 48 when thickness 2→3); up-to-next matches |
-| 2A-2 | Fix B1, B2, B3 (Convert/offset of housing faces) | Tests in §3.1 |
+| 2A-2 | Fix B1, B2, B3 (Convert/offset of housing faces) | **Done.** Offset-0 box/fillet wires chain; hole faces keep inner loops; closed ellipse is not a zero-length line |
 | 2A-3 | Sketch Fillet (G2): trims two connected lines, inserts a tangent arc, keeps relations | Book steps 459–462 reproduce; stays fully defined |
 | 2A-4 | Intersection relation (G3) in the solver plus the Add Relations UI | Point stays on both edges after the housing edges move |
 | 2A-5 | Tangent Arc tool (G4) | Book step 633 reproduces |
@@ -194,7 +194,7 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | O-RING | 311–314 | Planchard O-RING | | 2.748212 cm³ | ✅ bounds | | CAPANDLENS, design table | 4-5 |
 | SWITCH | 315–320 | Planchard SWITCH | | 1.754454 cm³ (after edit) | | | FLASHLIGHT | |
 | LENSCAP | 323–332 | Planchard LENSCAP | 11 | | ❌ ritual pending | | CAPANDLENS, STL | 1-3 |
-| HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | 2A-2…2A-7 |
+| HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | 2A-3…2A-7 |
 | LENSANDBULB | 379–434 | – | | | | | CAPANDLENS | 2B-4 |
 | BATTERYANDPLATE | 379–434 | – | | | | | FLASHLIGHT | 2B-4 |
 | CAPANDLENS | 379–434 | – | | | | | FLASHLIGHT | 2B-5 |

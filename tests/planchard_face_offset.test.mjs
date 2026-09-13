@@ -16,6 +16,64 @@ test('rim face selection excludes edges on a shallow pocket floor',()=>{
  assert.equal(edgeLiesOnFace(edge(9.906),face),false);
 });
 
+function assertWired(segments) {
+  for (let i = 0; i < segments.length; i++) {
+    const a = segments[i], b = segments[(i + 1) % segments.length];
+    assert.ok(Math.hypot(a.to.u - b.from.u, a.to.v - b.from.v) < 1e-6, JSON.stringify({ i, from: a.to, next: b.from, types: [a.type, b.type] }));
+  }
+}
+
+test('a box top at offset 0 keeps wire order on every edge', async () => {
+  const box = await makeBrepExtrusion({ points: [{ u: 0, v: 0 }, { u: 10, v: 0 }, { u: 10, v: 8 }, { u: 0, v: 8 }], from: 0, to: 4, axis: 'y' });
+  try {
+    extractBrepTopology(box);
+    const face = box.topology.find((item) => item.kind === 'face' && item.descriptor.surface === 'plane' && item.descriptor.origin.y > 3);
+    const frame = frameFromPlane({ x: 5, y: 4, z: 4 }, { x: 0, y: 1, z: 0 });
+    const loops = offsetFaceBoundary(box, face, frame, 0);
+    assert.equal(loops.length, 1);
+    assert.equal(loops[0].length, 4);
+    assertWired(loops[0]);
+  } finally { disposeBrep(box); }
+});
+
+test('a filleted battery top at offset 0 still chains lines and arcs', async () => {
+  let base, rounded;
+  try {
+    base = await makeBrepExtrusion({ points: [{ u: -3.429, v: -3.429 }, { u: 3.429, v: -3.429 }, { u: 3.429, v: 3.429 }, { u: -3.429, v: 3.429 }], from: 0, to: 10.414, axis: 'y' });
+    extractBrepTopology(base);
+    const edges = base.topology.filter((e) => e.kind === 'edge' && Math.abs(e.descriptor.axis.y) > 0.99).map((e) => e.persistentId);
+    rounded = await filletBrep(base, 1.27, { edgePersistentIds: edges });
+    extractBrepTopology(rounded);
+    const face = rounded.topology.find((e) => e.kind === 'face' && e.descriptor.surface === 'plane' && e.descriptor.origin.y > 10);
+    const frame = frameFromPlane({ x: 0, y: 10.414, z: 0 }, { x: 0, y: 1, z: 0 });
+    const loops = offsetFaceBoundary(rounded, face, frame, 0);
+    assert.equal(loops.length, 1);
+    assertWired(loops[0]);
+  } finally { disposeBrep(rounded); disposeBrep(base); }
+});
+
+test('a closed ellipse face becomes an ellipse entity, not a zero-length line', async () => {
+  const boss = await makeBrepExtrusion({
+    points: [{ u: 5, v: 0 }, { u: 0, v: 2 }, { u: -5, v: 0 }, { u: 0, v: -2 }],
+    segments: [{ type: 'ellipse', center: { u: 0, v: 0 }, rx: 5, ry: 2, rot: 0 }],
+    from: 0, to: 3, axis: 'y',
+  });
+  try {
+    extractBrepTopology(boss);
+    const face = boss.topology.find((item) => item.kind === 'face' && item.descriptor.surface === 'plane' && item.descriptor.origin.y > 2);
+    const frame = frameFromPlane({ x: 0, y: 3, z: 0 }, { x: 0, y: 1, z: 0 });
+    const loops = offsetFaceBoundary(boss, face, frame, 0);
+    assert.equal(loops.length, 1);
+    assert.ok(loops[0].some((segment) => segment.type === 'ellipse'), JSON.stringify(loops[0].map((s) => s.type)));
+    assert.equal(loops[0].some((segment) => segment.type === 'line' && Math.hypot(segment.from.u - segment.to.u, segment.from.v - segment.to.v) < 1e-7), false);
+    let n = 0;
+    const sketch = { points: [], entities: [], constraints: [] };
+    appendBoundarySketch(sketch, loops, () => `e${++n}`);
+    assert.ok(sketch.entities.some((entity) => entity.type === 'ellipse' && entity.rx > 4 && entity.ry > 1));
+    assert.equal(sketch.entities.some((entity) => entity.type === 'line' && entity.a === entity.b), false);
+  } finally { disposeBrep(boss); }
+});
+
 test('a frozen arc with unequal endpoint radii remains invalid',()=>{
  const sketch={points:[{id:'c',x:0,y:0,fixed:true},{id:'a',x:1,y:0,fixed:true},{id:'b',x:0,y:2,fixed:true}],entities:[{id:'arc',type:'arc',c:'c',a:'a',b:'b'}],constraints:[]};
  assert.equal(solveSketch(sketch).status,'conflicting');

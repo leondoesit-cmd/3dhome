@@ -6,6 +6,31 @@ import {resolveAssociativeBoundary} from '../js/cad_associative_boundary.js';
 import {frameFromPlane} from '../js/core/frame.js';
 import {segmentProfilePoints} from '../js/core/profile_curves.js';
 
+test('a plate with a through hole keeps outer and inner loops on a linked inset',async()=>{
+ const plate=await makeBrepExtrusion({
+  points:[{u:-6,v:-5},{u:6,v:-5},{u:6,v:5},{u:-6,v:5}],
+  holes:[[{u:-2,v:-1.5},{u:2,v:-1.5},{u:2,v:1.5},{u:-2,v:1.5}]],
+  from:0,to:1,axis:'y',
+ });
+ try{
+  extractBrepTopology(plate);
+  const face=plate.topology.find(t=>t.kind==='face'&&t.descriptor.surface==='plane'&&t.descriptor.origin.y>0.5);
+  const frame=frameFromPlane({x:0,y:1,z:0},{x:0,y:1,z:0});
+  const source={...face,ownerFeatureId:'plate'};
+  const loops=offsetFaceBoundary(plate,source,frame,-0.3);
+  assert.equal(loops.length,2,JSON.stringify(loops.map(loop=>loop.length)));
+  const sketch={id:'inset',frame,points:[],entities:[],constraints:[]};let id=0;
+  appendBoundarySketch(sketch,loops,()=>String(++id));
+  const entityIds=sketch.entities.map(e=>e.id);
+  sketch.boundaryCopies=[{source,distance:-0.3,entityIds,associative:true,loopCount:2}];
+  const resolved=resolveAssociativeBoundary(sketch,{profileEntityIds:entityIds,axis:'frame',frame,from:0,to:-0.4},new Map([['plate',plate]]));
+  assert.ok(resolved);
+  assert.equal(resolved.params.holes.length,1);
+  assert.ok(resolved.params.points.length>=4);
+  assert.equal(resolved.sketch.boundaryCopies[0].loopCount,2);
+ }finally{disposeBrep(plate);}
+});
+
 test('linked inset preserves exact offset curves after draft and permits the plate full round',async()=>{
  const shapes=[],keep=shape=>(shapes.push(shape),shape);
  try{
