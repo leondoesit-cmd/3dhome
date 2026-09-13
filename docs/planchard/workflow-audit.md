@@ -245,9 +245,14 @@ Book steps 275–276 (Smart Dimension on a circle, type 4.375in) exposed three g
 
 Tests: `tests/planchard_dimension_entry.test.mjs` plus the three existing suites that touch dimensions, 61/61. `npm run check` is green.
 
-Browser-verified (Browser pane, real clicks): Front-plane circle → Dimension tool → the editor opened on a diameter (`42.4004716955`, no noise tail) → typed `4.375in` → Apply → canvas label **Ø 11.113 cm**. Pressing Enter in the field did not apply in this run, while the Apply button did; recheck on the next dimension. The circle centre did not snap to the origin (2 DOF left), which the book needs for step 274.
+Browser-verified (Browser pane, real clicks): Front-plane circle → Dimension tool → the editor opened on a diameter (`42.4004716955`, no noise tail) → typed `4.375in` → Apply → canvas label **Ø 11.113 cm**. Enter applies too. An earlier run looked broken only because the automation's `Return` keysym arrives with an empty `event.key`. The circle centre did not snap to the origin (2 DOF left), which the book needs for step 274.
 
 **Origin relation on two-point tools (fixed).** The origin snap moved the click to 0,0, but `addSketchCircle` always created a new free point, so the circle only *looked* centred. SOLIDWORKS adds Coincident-to-origin. The press now remembers its snap (`E.drag.snap`). `snappedSketchPoint` fixes the first point at 0,0 on an origin snap and reuses an existing point on a point snap. This covers the circle centre, the polygon centre and the rectangle's first corner. Browser-verified after reload: Front plane → Circle from the origin → Dimension → the sketch reports **Fully defined**, with no manual Fix. Test: `tests/planchard_origin_snap.test.mjs`.
+
+**Base Extrude (steps 277–280) accepted.** Depth `1.300in` → Mass properties (exact solid) **X 111.125 · Y 111.125 · Z 33.02 mm, 320.2510 cm³**, analytic πr²h = 320.25100 cm³. The book prints [111.13]; 4.375 in is exactly 111.125 mm. Renamed Base Extrude, model named HOUSING, saved.
+- Fixed: the centre-of-mass row printed quadrature noise (`X -2.6624468270138713e-16`), and inertia products printed ±1e-19. Values below 1e-9 (relative for inertia) now show 0.
+- Gap G10 confirmed: there is no Description property on a part (step 269, "HOUSING FOR 6VOLT FLASHLIGHT"). Settings holds only name and price.
+- UI defect: in Settings ▸ Guidance, the "Interface density" label wraps one letter per line in the left panel.
 
 ### Review follow-up (2026-09-13)
 

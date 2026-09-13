@@ -21002,9 +21002,11 @@ async function showMassProperties() {
     evalRow(body, t("massVolume"), mmg ? (mass.volumeCm3*1000).toPrecision(7)+" mm³" : mass.volumeCm3.toPrecision(7)+" cm³");
     evalRow(body, t("massMass"), mmg ? mass.massG.toPrecision(7)+" g" : mass.massKg.toPrecision(7)+" kg");
     evalRow(body, t("massDensity"), mass.density == null ? t("massMixedDensity") : mass.density+" g/cm³");
+    // -2.66e-16 is a symmetric body's centre at 0 plus quadrature noise; show 0
+    var massCoord=function(value,scale){var v=value*scale;return String(Math.abs(v)<1e-9?0:Number(v.toPrecision(7)));};
     evalRow(body, t("massCentre"), mmg
-      ? "X "+(mass.centerOfMass.x*10)+"   Y "+(mass.centerOfMass.y*10)+"   Z "+(mass.centerOfMass.z*10)+" mm"
-      : "X "+mass.centerOfMass.x+"   Y "+mass.centerOfMass.y+"   Z "+mass.centerOfMass.z+" cm");
+      ? "X "+massCoord(mass.centerOfMass.x,10)+"   Y "+massCoord(mass.centerOfMass.y,10)+"   Z "+massCoord(mass.centerOfMass.z,10)+" mm"
+      : "X "+massCoord(mass.centerOfMass.x,1)+"   Y "+massCoord(mass.centerOfMass.y,1)+"   Z "+massCoord(mass.centerOfMass.z,1)+" cm");
     (mass.bodies || []).forEach(function(row,index){
       var label=(row.materialName || t("massNoMaterial"));
       var volume=mmg ? (row.volume*1000).toPrecision(6)+" mm³" : row.volume.toPrecision(6)+" cm³";
@@ -21013,7 +21015,9 @@ async function showMassProperties() {
     });
     if(mass.inertiaKgM2){
       evalRow(body,t("massInertia"),"kg·m²");
-      mass.inertiaKgM2.forEach(function(row,i){evalRow(body,"XYZ"[i],row.map(function(v){return v.toPrecision(6);}).join("   "));});
+      // products of inertia of a symmetric body come back as ±1e-19 noise
+      var inertiaScale=Math.max.apply(null,mass.inertiaKgM2.map(function(row){return Math.max.apply(null,row.map(Math.abs));}));
+      mass.inertiaKgM2.forEach(function(row,i){evalRow(body,"XYZ"[i],row.map(function(v){return Math.abs(v)<=inertiaScale*1e-9?"0":v.toPrecision(6);}).join("   "));});
     }
     if (mass.unmeasured) body.appendChild(el("div", "md-note", mass.unmeasured + " " + t("massUnmeasured")));
   }
