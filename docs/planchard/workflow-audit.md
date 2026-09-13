@@ -247,6 +247,8 @@ Tests: `tests/planchard_dimension_entry.test.mjs` plus the three existing suites
 
 Browser-verified (Browser pane, real clicks): Front-plane circle → Dimension tool → the editor opened on a diameter (`42.4004716955`, no noise tail) → typed `4.375in` → Apply → canvas label **Ø 11.113 cm**. Pressing Enter in the field did not apply in this run, while the Apply button did; recheck on the next dimension. The circle centre did not snap to the origin (2 DOF left), which the book needs for step 274.
 
+**Origin relation on two-point tools (fixed).** The origin snap moved the click to 0,0, but `addSketchCircle` always created a new free point, so the circle only *looked* centred. SOLIDWORKS adds Coincident-to-origin. The press now remembers its snap (`E.drag.snap`). `snappedSketchPoint` fixes the first point at 0,0 on an origin snap and reuses an existing point on a point snap. This covers the circle centre, the polygon centre and the rectangle's first corner. Browser-verified after reload: Front plane → Circle from the origin → Dimension → the sketch reports **Fully defined**, with no manual Fix. Test: `tests/planchard_origin_snap.test.mjs`.
+
 ### Review follow-up (2026-09-13)
 
 2A-1…2A-6 are **kernel-verified**, not ritual-Done. Up To Surface now trims the extrude tool with the selected face (SwitchHole inner cylinder test). Closed reversed spline `kernelCurve` splits on the sample walk. Through-vertex planes resolve from live edges and no longer mutate saved plane origin during rebuild. Library JSON export/import is on the Library pane. Geometry pattern checkbox removed. Sketch fillet driving lengths stay on the original corner. Revolve crossing is checked in sketch-plane space. Toolbox/custom/rubber/polycarbonate densities are no longer silent steel.

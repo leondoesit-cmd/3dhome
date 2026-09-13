@@ -11510,6 +11510,16 @@ function newSketchPoint(sketch, p) {
   return id;
 }
 
+/* The first point of a two-point tool, related to what the press snapped to:
+   an existing sketch point is reused (coincident), and the origin fixes it at
+   0,0 — as SOLIDWORKS adds Coincident when a circle is started on the origin.
+   Without this the centre only LOOKED centred and kept two free DOF. */
+function snappedSketchPoint(sketch, at, snap) {
+  var id = newSketchPoint(sketch, snap && snap.pointId ? { u: at.u, v: at.v, pointId: snap.pointId } : at);
+  if (snap && snap.k === "o" && !snap.pointId) sketch.constraints.push({ id: uid(), type: "fixed", point: id, x: 0, y: 0 });
+  return id;
+}
+
 /* ================= parametric sketcher =================
    Sketch geometry is not the model. Lines, circles and arcs live in
    E.def.sketch with their constraints; solid parts only appear when a feature
@@ -11904,13 +11914,13 @@ function angleInArc(a, s, e) {
 }
 
 /* ---- sketch entity creation ---- */
-function addSketchCircle(centre, rim) {
+function addSketchCircle(centre, rim, snap) {
   var sketch = sketchForView();
   var r = Math.hypot(rim.u - centre.u, rim.v - centre.v);
   if (r < 1e-6) return null;
   var circle = {
     id: uid(), type: "circle", name: "Circle",
-    c: newSketchPoint(sketch, centre), r: r, construction: false,
+    c: snappedSketchPoint(sketch, centre, snap), r: r, construction: false,
   };
   sketch.entities.push(circle);
   resolveSketch(false);
@@ -12084,11 +12094,11 @@ function openCenterRectangle() {
     },
   });
 }
-function addSketchRectangle(a, b) {
+function addSketchRectangle(a, b, snap) {
   if (Math.abs(b.u-a.u) < 0.1 || Math.abs(b.v-a.v) < 0.1) return null;
   var sketch = sketchForView();
   var ids = [
-    newSketchPoint(sketch, {u:a.u,v:a.v}), newSketchPoint(sketch, {u:b.u,v:a.v}),
+    snappedSketchPoint(sketch, {u:a.u,v:a.v}, snap), newSketchPoint(sketch, {u:b.u,v:a.v}),
     newSketchPoint(sketch, {u:b.u,v:b.v}), newSketchPoint(sketch, {u:a.u,v:b.v}),
   ];
   var lines = ids.map(function (id, i) {
@@ -12171,7 +12181,7 @@ function addSketchSlot(a, b, halfWidth) {
    the circle and every side is held equal to the next. That leaves centre,
    size and rotation free — four freedoms, which is what a polygon actually has.
    Dimension the construction circle and the whole polygon resizes. */
-function addSketchPolygon(centre, rim, sides) {
+function addSketchPolygon(centre, rim, sides, snap) {
   var n = Math.max(3, Math.min(24, Math.round(sides) || 6));
   var r = Math.hypot(rim.u - centre.u, rim.v - centre.v);
   if (r < 1e-6) return null;
@@ -12179,7 +12189,7 @@ function addSketchPolygon(centre, rim, sides) {
   var start = Math.atan2(rim.v - centre.v, rim.u - centre.u);
   var circle = {
     id: uid(), type: "circle", name: n + "-gon guide",
-    c: newSketchPoint(sketch, centre), r: r, construction: true,
+    c: snappedSketchPoint(sketch, centre, snap), r: r, construction: true,
   };
   sketch.entities.push(circle);
 
@@ -13300,7 +13310,8 @@ function wireSketch() {
     if (E.tool === "srect" || E.tool === "scirc" || E.tool === "spoly") {
       var mode = E.tool;
       if (E.drag && E.drag.mode === mode && E.drag.sticky) { finishTwoPointTool({ u: su, v: sv }); return; }
-      E.drag = { mode: mode, u: su, v: sv, px: e.clientX, py: e.clientY };
+      // what the press landed on decides the first point's relation (origin, existing point)
+      E.drag = { mode: mode, u: su, v: sv, px: e.clientX, py: e.clientY, snap: E._osnap ? { k: E._osnap.k, pointId: E._osnap.pointId || null } : null };
       E._mouse = { u: su, v: sv };
       drawSketch();
       return;
@@ -13896,9 +13907,9 @@ function finishTwoPointTool(to) {
   E.drag = null;
   E.dynInput = null;
   pushUndo(t("opSketch"));
-  var made = drag.mode === "srect" ? addSketchRectangle(from, to)
-    : drag.mode === "scirc" ? addSketchCircle(from, to)
-    : addSketchPolygon(from, to, E.polySides);
+  var made = drag.mode === "srect" ? addSketchRectangle(from, to, drag.snap)
+    : drag.mode === "scirc" ? addSketchCircle(from, to, drag.snap)
+    : addSketchPolygon(from, to, E.polySides, drag.snap);
   if (!made) { H.discard(); refreshAll(); return; }
   markDrawnSelection(made);
   E.sel = E.ssel[E.ssel.length - 1];
