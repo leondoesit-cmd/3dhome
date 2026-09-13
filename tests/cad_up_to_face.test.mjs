@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { addFeature, regenerateFeatures, releaseRegeneration } from "../js/cad_feature_tree.js";
 import { createTopologyReference, topologyForFeature } from "../js/core/topology.js";
-import { shapeMassProperties } from "../js/cad_kernel.js";
+import { brepContainsPoint, shapeMassProperties } from "../js/cad_kernel.js";
 
 function boxFeature() {
   return { id: "body", type: "box", params: { x: 0, y: 0, z: 0, w: 40, h: 30, d: 20 } };
@@ -102,4 +102,55 @@ test("up-to-next on a shelled box matches the first inner face", async () => {
       assert.ok(Math.abs(removed - 32) < 1, "removed " + removed);
     } finally { releaseRegeneration(cutRun); }
   } finally { releaseRegeneration(run); }
+});
+
+function circlePoints(u, v, radius, count = 24) {
+  return Array.from({ length: count }, (_, index) => {
+    const a = (index / count) * Math.PI * 2;
+    return { u: u + Math.cos(a) * radius, v: v + Math.sin(a) * radius };
+  });
+}
+
+test("SwitchHole up-to-surface trims to the inner cylinder, not a flat sliver", async () => {
+  // Book mm → kernel cm: Ø111.13 × 33.02, shell 3.81, hole Ø12.95 at 11.43 from origin.
+  const outerR = 5.5565, height = 3.302, shell = 0.381, holeR = 0.6475, holeY = 1.143, holeZ = height / 2;
+  const body = { id: "housing", type: "cylinder", params: { x: 0, y: 0, z: 0, r: outerR, h: height, axis: "z" } };
+  const top = topologyForFeature(body, body.params).find((item) => item.persistentId === "housing:face:top");
+  const definition = { features: [] };
+  addFeature(definition, body);
+  addFeature(definition, {
+    id: "hollow", type: "shell", inputs: ["housing"],
+    params: { thickness: shell, targets: [createTopologyReference(top.ownerFeatureId, top.kind, top.persistentId, top.descriptor)] },
+  });
+  const first = await regenerateFeatures(definition);
+  try {
+    assert.equal(first.ok, true, JSON.stringify(first.issues));
+    const inner = (first.finalShape.topology || [])
+      .filter((item) => item.kind === "face" && item.descriptor?.surface === "cylinder")
+      .sort((a, b) => (a.descriptor.radius || 0) - (b.descriptor.radius || 0))[0];
+    assert.ok(inner, "inner cylindrical wall");
+    assert.ok(Math.abs((inner.descriptor.radius || 0) - (outerR - shell)) < 0.05, "inner R " + inner.descriptor.radius);
+    addFeature(definition, {
+      id: "switch:tool", type: "extrude", inputs: ["hollow"],
+      params: {
+        axis: "x", from: 8, to: 0, depth: 8, direction: "reverse",
+        endCondition: "up-to-face",
+        targetFeatureId: "hollow",
+        endFace: createTopologyReference(inner.ownerFeatureId, inner.kind, inner.persistentId, inner.descriptor),
+        points: circlePoints(holeZ, holeY, holeR),
+      },
+    });
+    addFeature(definition, { id: "switch", type: "subtract", inputs: ["hollow", "switch:tool"], params: {} });
+    const cutRun = await regenerateFeatures(definition);
+    try {
+      assert.equal(cutRun.ok, true, JSON.stringify(cutRun.issues));
+      const solid = cutRun.results.get("switch");
+      const nearWall = { x: 5.366, y: holeY, z: holeZ };
+      const sliver = { x: 4.98, y: holeY + 0.5, z: holeZ };
+      const farWall = { x: -5.366, y: holeY, z: holeZ };
+      assert.equal(brepContainsPoint(solid, nearWall), false, "hole opens the near wall");
+      assert.equal(brepContainsPoint(solid, sliver), false, "no uncut sliver on the inner cylinder");
+      assert.equal(brepContainsPoint(solid, farWall), true, "opposite wall stays");
+    } finally { releaseRegeneration(cutRun); }
+  } finally { releaseRegeneration(first); }
 });

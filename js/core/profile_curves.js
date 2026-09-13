@@ -76,7 +76,16 @@ function orderChain(entities, points, tolerance, open=false) {
 
 function segmentFor(step, points) {
   const { entity, forward } = step;
-  if(entity.projectedCurve)return {...structuredClone(entity.projectedCurve),reversed:!forward,from:forward?entity.projectedCurve.from:entity.projectedCurve.to,to:forward?entity.projectedCurve.to:entity.projectedCurve.from};
+  if(entity.projectedCurve){
+    const curve={...structuredClone(entity.projectedCurve)};
+    if(!forward){
+      curve.from=entity.projectedCurve.to;
+      curve.to=entity.projectedCurve.from;
+      curve.reversed=!curve.reversed;
+      if(Array.isArray(curve.samples)) curve.samples=[...curve.samples].reverse();
+    }
+    return curve;
+  }
   if (entity.type === "line") {
     const a = points.get(entity.a), b = points.get(entity.b);
     if (!a || !b) return null;
@@ -145,7 +154,7 @@ export function segmentProfilePoints(segments) {
   for (const segment of segments) {
     if (segment.type === "line") { push(segment.from); continue; }
     if(segment.type==="bezier"){sampleBezier(segment.controls.map(p=>({x:p.u,y:p.v}))).slice(0,-1).map(at).forEach(push);continue;}
-    if (segment.type === "kernelCurve") { (segment.reversed ? [...segment.samples].reverse() : segment.samples).forEach(push); continue; }
+    if (segment.type === "kernelCurve") { (segment.samples || []).forEach(push); continue; }
     if (segment.type === "spline") { (segment.points || []).forEach(push); continue; }
     if (segment.type === "circle" || segment.type === "ellipse") {
       const rx = segment.type === "circle" ? segment.radius : segment.rx;

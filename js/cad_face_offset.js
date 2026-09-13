@@ -72,14 +72,32 @@ export function offsetFaceBoundary(brep, reference, frame, distance = 0) {
   } finally { if(distance)shape?.delete();maker?.delete(); }
 }
 
-function splitClosedKernelCurve(segment) {
-  const samples=segment.samples || [];
-  const mid=Math.max(1, Math.floor(samples.length/2));
-  if(samples.length<4) return [segment];
-  const midParam=segment.first+(segment.last-segment.first)*mid/(samples.length-1);
+export function splitClosedKernelCurve(segment) {
+  const samples = segment.samples || [];
+  const n = samples.length - 1;
+  const mid = Math.max(1, Math.floor(samples.length / 2));
+  if (samples.length < 4 || n < 1) return [segment];
+  // Samples already run from→to. After a reversed OC edge that walk is
+  // last→first in the curve's own parameter, so each half's first/last must
+  // follow the walk instead of the original forward range.
+  const param = (index) => {
+    const originIndex = segment.reversed ? n - index : index;
+    return segment.first + (segment.last - segment.first) * originIndex / n;
+  };
+  const half = (i0, i1, slice) => {
+    const a = param(i0), b = param(i1);
+    return {
+      ...segment,
+      from: slice[0],
+      to: slice[slice.length - 1],
+      samples: slice,
+      first: Math.min(a, b),
+      last: Math.max(a, b),
+    };
+  };
   return [
-    { ...segment, from:samples[0], to:samples[mid], samples:samples.slice(0,mid+1), last:midParam },
-    { ...segment, from:samples[mid], to:samples[samples.length-1], samples:samples.slice(mid), first:midParam },
+    half(0, mid, samples.slice(0, mid + 1)),
+    half(mid, n, samples.slice(mid)),
   ];
 }
 

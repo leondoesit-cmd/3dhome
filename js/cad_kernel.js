@@ -3,7 +3,7 @@ import {restoreProfileCurve} from './cad_profile_serialization.js';
 import {circularPatternPivot} from "./core/pattern_geometry.js";
 import { holeToolPlacements } from "./core/hole_geometry.js";
 import { cylinderAxis } from "./core/cylinder_axis.js";
-import { revolveInterval, revolvePoint, assertRevolveProfile } from "./core/revolve_geometry.js";
+import { revolveInterval, revolvePoint, assertRevolveProfileFrame } from "./core/revolve_geometry.js";
 // OpenCascade BREP backend. Loaded lazily because the WASM module is large;
 // ordinary sketch editing must remain instant and does not need a solid kernel.
 
@@ -16,6 +16,7 @@ import {
 import { framePoint } from "./core/frame.js";
 import { isSegmentProfile, pathFrames, segmentProfilePoints } from "./core/profile_curves.js";
 import { ribDraftedLoop, ribLoop } from "./core/rib_profile.js";
+import { extrusionAxisVector, UP_TO_FACE_MISSED } from "./core/extrude_extent.js";
 
 let kernelPromise = null;
 
@@ -439,11 +440,134 @@ function draftPrismWalls(oc, shape, { angle, axis, at, outward }) {
   } finally { disposeAll(owned); }
 }
 
+function isOnOrIn(oc, state) {
+  return state === oc.TopAbs_State.TopAbs_IN || state === oc.TopAbs_State.TopAbs_ON;
+}
+
+export function brepContainsPoint(brep, point, tol = 1e-5) {
+  if (!brep?.shape) return false;
+  return solidContainsPoint(brep.oc, brep.shape, point, tol);
+}
+
+function solidContainsPoint(oc, solid, point, tol = 1e-5) {
+  const p = new oc.gp_Pnt_3(point.x || 0, point.y || 0, point.z || 0);
+  const classifier = new oc.BRepClass3d_SolidClassifier_3(solid, p, tol);
+  try { return isOnOrIn(oc, classifier.State()); }
+  finally { classifier.delete(); p.delete(); }
+}
+
+export function rayHitsBrepFace(oc, origin, direction, face, skipNear = 1e-4) {
+  if (!oc || !face) return null;
+  const p = new oc.gp_Pnt_3(origin.x || 0, origin.y || 0, origin.z || 0);
+  const d = new oc.gp_Dir_4(direction.x || 0, direction.y || 0, direction.z || 0);
+  const line = new oc.gp_Lin_3(p, d);
+  const inter = new oc.BRepIntCurveSurface_Inter();
+  try {
+    inter.Init_2(face, line, 1e-4);
+    let best = null;
+    while (inter.More()) {
+      const w = inter.W();
+      if (w > skipNear && isOnOrIn(oc, inter.State()) && (best == null || w < best)) best = w;
+      inter.Next();
+    }
+    return best;
+  } finally { inter.delete(); line.delete(); d.delete(); p.delete(); }
+}
+
+function enlargeFaceForSplit(oc, owned, face, reach) {
+  const adaptor = new oc.BRepAdaptor_Surface_2(face, true); owned.push(adaptor);
+  const kind = surfaceName(oc, adaptor.GetType());
+  const pad = Math.max(Number(reach) || 0, 10);
+  const vmin = adaptor.FirstVParameter(), vmax = adaptor.LastVParameter();
+  const umin = adaptor.FirstUParameter(), umax = adaptor.LastUParameter();
+  let maker;
+  if (kind === "plane") {
+    const plane = adaptor.Plane(); owned.push(plane);
+    maker = new oc.BRepBuilderAPI_MakeFace_9(plane, -pad, pad, -pad, pad);
+  } else if (kind === "cylinder") {
+    const cylinder = adaptor.Cylinder(); owned.push(cylinder);
+    maker = new oc.BRepBuilderAPI_MakeFace_10(cylinder, 0, Math.PI * 2, vmin - pad, vmax + pad);
+  } else if (kind === "cone") {
+    const cone = adaptor.Cone(); owned.push(cone);
+    maker = new oc.BRepBuilderAPI_MakeFace_11(cone, 0, Math.PI * 2, vmin - pad, vmax + pad);
+  } else {
+    const surface = oc.BRep_Tool.Surface_2(face); owned.push(surface);
+    maker = new oc.BRepBuilderAPI_MakeFace_14(surface, umin - pad, umax + pad, vmin - pad, vmax + pad, 1e-6);
+  }
+  owned.push(maker);
+  if (!maker.IsDone?.()) return face;
+  return maker.Face();
+}
+
+function joinSolidPieces(oc, pieces) {
+  if (pieces.length === 1) return pieces[0].shape;
+  const builder = new oc.TopoDS_Builder(), compound = new oc.TopoDS_Compound();
+  builder.MakeCompound(compound);
+  pieces.forEach((piece) => builder.Add(compound, piece.shape));
+  builder.delete();
+  return compound;
+}
+
+function extrusionSeedPoint(spec, mapPoint, depth) {
+  const points = spec.points || [];
+  const centroid = points.reduce((sum, point) => ({
+    u: sum.u + (Number(point.u ?? point.x) || 0),
+    v: sum.v + (Number(point.v ?? point.y) || 0),
+  }), { u: 0, v: 0 });
+  if (points.length) { centroid.u /= points.length; centroid.v /= points.length; }
+  const from = Number(spec.from) || 0;
+  const step = Math.sign(depth || 1) * 1e-3;
+  return mapPoint(centroid.u, centroid.v, from + step);
+}
+
+function keepSketchSidePieces(oc, pieces, spec, mapPoint, depth) {
+  if (!pieces.length) return [];
+  const seed = extrusionSeedPoint(spec, mapPoint, depth);
+  const inside = pieces.filter((piece) => solidContainsPoint(oc, piece.shape, seed));
+  if (inside.length) return inside;
+  const axis = extrusionAxisVector(spec);
+  const reverse = spec.direction === "reverse" || depth < 0 ? -1 : 1;
+  const pull = { x: axis.x * reverse, y: axis.y * reverse, z: axis.z * reverse };
+  const origin = mapPoint(0, 0, Number(spec.from) || 0);
+  const along = (point) => (point.x - origin.x) * pull.x + (point.y - origin.y) * pull.y + (point.z - origin.z) * pull.z;
+  const positive = pieces.filter((piece) => along(piece.centre) > -1e-4).sort((a, b) => along(a.centre) - along(b.centre));
+  return positive[0] ? [positive[0]] : [];
+}
+
+function trimExtrusionUntilFace(oc, shape, spec, mapPoint, depth) {
+  const owned = [];
+  try {
+    const bounds = shapeBounds(oc, shape);
+    const reach = bounds
+      ? Math.hypot(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y, bounds.max.z - bounds.min.z) + 1
+      : 10;
+    const cutter = enlargeFaceForSplit(oc, owned, spec.untilFace, reach);
+    const splitter = new oc.BRepAlgoAPI_Splitter_1(); owned.push(splitter);
+    const args = new oc.TopTools_ListOfShape_1(), tools = new oc.TopTools_ListOfShape_1(); owned.push(args, tools);
+    args.Append_1(shape); tools.Append_1(cutter);
+    splitter.SetArguments(args); splitter.SetTools(tools);
+    splitter.SetNonDestructive?.(true);
+    const progress = new oc.Message_ProgressRange_1(); owned.push(progress);
+    splitter.Build(progress);
+    if (splitter.HasErrors?.()) throw new Error(UP_TO_FACE_MISSED);
+    const pieces = solidPieces(oc, splitter.Shape());
+    const keep = keepSketchSidePieces(oc, pieces, spec, mapPoint, depth);
+    pieces.filter((piece) => !keep.includes(piece)).forEach((piece) => piece.shape.delete?.());
+    if (!keep.length) throw new Error(UP_TO_FACE_MISSED);
+    return joinSolidPieces(oc, keep);
+  } finally { disposeAll(owned); }
+}
+
 export async function makeBrepExtrusion(spec) {
   const oc = await loadCadKernel(), owned = [];
   try {
     if (!Array.isArray(spec.points) || spec.points.length < 3) throw new Error("Extrusion needs a closed profile");
-    const depth = Number(spec.to || 0) - Number(spec.from || 0);
+    let depth = Number(spec.to || 0) - Number(spec.from || 0);
+    if (spec.untilFace) {
+      const untilDepth = Number(spec.untilDepth);
+      if (Number.isFinite(untilDepth) && Math.abs(untilDepth) >= 1e-9) depth = untilDepth;
+      else depth = depth + Math.sign(depth || 1) * Math.max(1, Math.abs(depth) * 0.25);
+    }
     // Fitting a circle to the samples is a guess; typed segments are a fact, so
     // they win — a 40-chord ellipse fits a circle rather well.
     const circle = spec.segments ? null : fitProfileCircle(spec.points);
@@ -467,17 +591,21 @@ export async function makeBrepExtrusion(spec) {
        plane is the sketch plane, and the pull follows the material. */
     const draftAngle = ((Number(spec.draftAngle) || 0) * Math.PI) / 180;
     const finish = (shape) => {
-      if (!Math.abs(draftAngle) || Math.abs(depth) < 1e-9) return shape;
-      const run = depth >= 0 ? 1 : -1;
-      // `draftBase` names the plane the profile was drawn on when the run has
-      // since been stretched past it (a through-all cut); otherwise it IS `from`.
-      const base = mapPoint(0, 0, Number.isFinite(Number(spec.draftBase)) ? Number(spec.draftBase) : (spec.from || 0));
-      return draftPrismWalls(oc, shape, {
-        angle: draftAngle,
-        axis: { x: (axis.x || 0) * run, y: (axis.y || 0) * run, z: (axis.z || 0) * run },
-        at: base,
-        outward: Number(spec.draftAngle) < 0 ? !spec.draftOutward : !!spec.draftOutward,
-      });
+      let built = shape;
+      if (Math.abs(draftAngle) && Math.abs(depth) >= 1e-9) {
+        const run = depth >= 0 ? 1 : -1;
+        // `draftBase` names the plane the profile was drawn on when the run has
+        // since been stretched past it (a through-all cut); otherwise it IS `from`.
+        const base = mapPoint(0, 0, Number.isFinite(Number(spec.draftBase)) ? Number(spec.draftBase) : (spec.from || 0));
+        built = draftPrismWalls(oc, built, {
+          angle: draftAngle,
+          axis: { x: (axis.x || 0) * run, y: (axis.y || 0) * run, z: (axis.z || 0) * run },
+          at: base,
+          outward: Number(spec.draftAngle) < 0 ? !spec.draftOutward : !!spec.draftOutward,
+        });
+      }
+      if (spec.untilFace) built = trimExtrusionUntilFace(oc, built, spec, mapPoint, depth);
+      return built;
     };
     if (circle && !holeLoops.length) {
       const sign = depth >= 0 ? 1 : -1;
@@ -518,7 +646,7 @@ export async function makeBrepRevolve(spec) {
   try {
     const points = spec.points || spec.pts;
     if (!Array.isArray(points) || points.length < 3) throw new Error("Revolve requires a closed profile");
-    if (spec.radialProfile && !spec.profileFrame) assertRevolveProfile(points);
+    if (spec.radialProfile || spec.profileFrame) assertRevolveProfileFrame(points, spec);
     const loop = spec.segments ? { points, segments: spec.segments } : points;
     const interval=revolveInterval(spec);
     const axisName=spec.axis || "y", radial=!!spec.radialProfile;

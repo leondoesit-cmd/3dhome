@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {resolveOffsetPlanes, offsetPlaneOwners, throughVertexBinding, throughVertexPoint} from '../js/core/offset_planes.js';
+import {resolveOffsetPlanes, resolveOffsetSketch, offsetPlaneOwners, throughVertexBinding, throughVertexPoint} from '../js/core/offset_planes.js';
 import {topologyForFeature} from '../js/core/topology.js';
 
 function fixture(){return {references:[{id:'top',type:'plane',origin:{x:0,y:0,z:0},normal:{x:0,y:1,z:0}},{id:'p1',type:'plane',baseReferenceId:'top',offset:1.27},{id:'p2',type:'plane',baseReferenceId:'p1',offset:1.27}],sketches:[{id:'middle',referenceId:'p1'},{id:'upper',referenceId:'p2'}]};}
@@ -70,4 +70,34 @@ test('through-vertex binding stores the two edges that meet at a box corner',()=
  assert.deepEqual(offsetPlaneOwners('longrib',[
   {id:'longrib',type:'plane',baseReferenceId:'plane:right',throughEdges:binding.throughEdges},
  ]),['box']);
+});
+
+test('a through-vertex plane follows live rebuilt edges when a resolver is passed',()=>{
+ const doc={
+  references:[
+   {id:'right',type:'plane',origin:{x:0,y:0,z:0},normal:{x:1,y:0,z:0}},
+   {id:'longrib',type:'plane',baseReferenceId:'right',refType:'through-vertex-parallel',
+    throughVertex:{ownerFeatureId:'box',descriptor:{point:{x:5,y:1,z:2}}},
+    throughEdges:[
+     {ownerFeatureId:'box',persistentId:'e1',kind:'edge'},
+     {ownerFeatureId:'box',persistentId:'e2',kind:'edge'},
+    ]},
+  ],
+  sketches:[{id:'s',referenceId:'longrib'}],
+ };
+ const live={
+  e1:{kind:'edge',descriptor:{endpoints:[{x:12,y:0,z:0},{x:12,y:4,z:0}]}},
+  e2:{kind:'edge',descriptor:{endpoints:[{x:12,y:4,z:0},{x:12,y:4,z:6}]}},
+ };
+ assert.equal(resolveOffsetPlanes(doc,(ref)=>live[ref.persistentId]).ok,true);
+ assert.ok(Math.abs(doc.sketches[0].frame.origin.x-12)<1e-9);
+});
+
+test('resolveOffsetSketch does not rewrite the saved plane origin',()=>{
+ const support={ownerFeatureId:'shell',persistentId:'rear',descriptor:{surface:'plane',origin:{x:0,y:0,z:-4.3815},normal:{x:0,y:0,z:-1}}};
+ const plane={id:'thread',type:'plane',support,offset:-1.143,origin:{x:0,y:0,z:-3.2385},normal:{x:0,y:0,z:-1}};
+ const before=JSON.stringify(plane);
+ const moved=resolveOffsetSketch({id:'profile',referenceId:'thread'},[plane],()=>({descriptor:{...support.descriptor,origin:{x:0,y:0,z:-5}}}));
+ assert.equal(moved.frame.origin.z,-3.857);
+ assert.equal(JSON.stringify(plane),before);
 });

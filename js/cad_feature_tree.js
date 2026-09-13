@@ -1,19 +1,19 @@
 import {pierceSketchToHelix} from './core/sketch_pierce.js';
 import {helixFromSketch} from './core/sketch_helix.js';
-import {resolveOffsetSketch} from './core/offset_planes.js';
+import {isThroughVertexPlane,resolveOffsetSketch} from './core/offset_planes.js';
 import {updateSilhouetteSketch} from './core/cone_silhouette.js';
 import {bindIntersectionTargets} from './sketch_intersection.js';
 import {thinSketchProfile} from './core/thin_profile.js';
 import {resolveAssociativeBoundary} from './cad_associative_boundary.js';
 import {resolveSketchSources,sketchWorldPoint} from "./core/swept_sources.js";
 import { buildDependencyGraph, featureDependencies, datumReferenceIds } from "./core/dependency_graph.js";
-import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepHoleTool, makeBrepExtrusion, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, placeBrep, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
+import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepHoleTool, makeBrepExtrusion, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, placeBrep, rayHitsBrepFace, resolveBrepSubshape, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
 import {resolveProfilePoints, solveSketch} from "./sketch_solver.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { createTopologyRegistry, resolveFeatureTopologyReferences, topologyForFeature } from "./core/topology.js";
 import { vertexEntriesFrom } from "./core/topology_selection.js";
 import { realignFrame } from "./core/frame.js";
-import { aabbFromTopology, resolveExtrudeExtent, resolvedEndFace } from "./core/extrude_extent.js";
+import { aabbFromTopology, extrusionAxisVector, extrusionMapPoint, isUpToFace, resolveExtrudeExtent, resolvedEndFace, UP_TO_FACE_MISSING, UP_TO_NEXT_MISSED } from "./core/extrude_extent.js";
 import { resolveParameters, sketchDiagnostics } from "./core/rebuild.js";
 import { decodeBinaryPayload } from "./core/binary_payload.js";
 import { resolveAttachmentPayload } from "./core/attachment_store.js";
@@ -168,7 +168,9 @@ export async function regenerateFeatures(def, options = {}) {
         if(boundary){effectiveParams=boundary.params;boundaryUpdates.set(boundary.sketch.id,boundary);}
         effectiveParams = alignExtrusionEndCondition(feature, effectiveParams, topologyRun.resolutions, results);
         result = await makeBrepExtrusion(effectiveParams);
-        resolvedExtrusions.set(feature.id,effectiveParams);
+        const stored = { ...effectiveParams };
+        delete stored.untilFace;
+        resolvedExtrusions.set(feature.id, stored);
       }
       else if (feature.type === "holeTool") {
         let params=effectiveParams.centres ? effectiveParams : alignExtrusionToSupport(effectiveParams,topologyRun.resolutions);
@@ -386,7 +388,27 @@ export async function regenerateFeatures(def, options = {}) {
     }
   }
   const last = Array.from(results.values()).reverse().find((r) => r?.shape) || null;
-  return { ok: !issues.some((issue) => issue.severity === "error" || issue.code === "regeneration-failed"), results, finalShape: last, topology: topology.list, topologyBindings, resolvedExtrusions, boundaryUpdates, referenceUpdates:executionDef.referenceGeometry.filter(r=>r.featureId&&results.has(r.featureId)), issues };
+  const lookup = (ref) => {
+    if (!ref) return null;
+    const topology = results.get(ref.ownerFeatureId)?.topology || [];
+    return topology.find((item) => item.persistentId === ref.persistentId)
+      || (ref.semantic ? topology.find((item) => item.kind === (ref.kind || "edge") && item.semantic === ref.semantic) : null)
+      || vertexEntriesFrom(topology).find((item) => item.persistentId === ref.persistentId);
+  };
+  const helixUpdates = (executionDef.referenceGeometry || []).filter((r) => r.featureId && results.has(r.featureId));
+  const planeDisplays = [];
+  for (const plane of executionDef.references || []) {
+    if (!plane?.id || (!plane.baseReferenceId && !plane.support && !isThroughVertexPlane(plane))) continue;
+    try {
+      const moved = resolveOffsetSketch({ id: "_display", referenceId: plane.id }, executionDef.references, lookup);
+      if (!moved?.frame) continue;
+      const display = { id: plane.id, origin: moved.frame.origin, normal: moved.frame.normal };
+      planeDisplays.push(display);
+      const geometry = (executionDef.referenceGeometry || []).find((item) => item.id === plane.id);
+      if (geometry) Object.assign(geometry, display);
+    } catch (_) {}
+  }
+  return { ok: !issues.some((issue) => issue.severity === "error" || issue.code === "regeneration-failed"), results, finalShape: last, topology: topology.list, topologyBindings, resolvedExtrusions, boundaryUpdates, referenceUpdates: helixUpdates.concat(planeDisplays), issues };
 }
 
 export function releaseRegeneration(run) {
@@ -472,14 +494,84 @@ export function alignExtrusionToSupport(params, resolutions = []) {
   return { ...params, from: symmetric ? center-direction*depth/2 : center, to: symmetric ? center+direction*depth/2 : center+direction*depth };
 }
 
+function extrusionProfileSamples(params) {
+  const points = (params.points || []).map((point) => ({ u: Number(point.u ?? point.x) || 0, v: Number(point.v ?? point.y) || 0 }));
+  if (!points.length) return [{ u: 0, v: 0 }];
+  const centroid = points.reduce((sum, point) => ({ u: sum.u + point.u, v: sum.v + point.v }), { u: 0, v: 0 });
+  centroid.u /= points.length;
+  centroid.v /= points.length;
+  return [centroid, ...points];
+}
+
+function hostFaceShape(host, face) {
+  if (!host || !face) return null;
+  const id = face.persistentId;
+  if (id) {
+    const direct = resolveBrepSubshape(host, id, "face");
+    if (direct) return direct;
+  }
+  if (!host.subshapes) return null;
+  for (const [persistentId, entry] of host.subshapes) {
+    if (entry.kind !== "face") continue;
+    if (id && persistentId === id) return entry.shape;
+    if (face.semantic && entry.descriptor?.semantic === face.semantic) return entry.shape;
+  }
+  return null;
+}
+
+function pickNextHostFace(host, params) {
+  if (!host?.subshapes) return null;
+  const reverse = params.direction === "reverse" ? -1 : 1;
+  const from = Number.isFinite(Number(params.from)) ? Number(params.from) : (Number(params.offset) || 0);
+  const axis = extrusionAxisVector(params);
+  const pull = { x: axis.x * reverse, y: axis.y * reverse, z: axis.z * reverse };
+  let best = null;
+  for (const sample of extrusionProfileSamples(params)) {
+    const origin = extrusionMapPoint(params, sample.u, sample.v, from);
+    for (const [persistentId, entry] of host.subshapes) {
+      if (entry.kind !== "face" || !entry.shape) continue;
+      const hit = rayHitsBrepFace(host.oc, origin, pull, entry.shape);
+      if (!(hit > 1e-4)) continue;
+      if (!best || hit < best.distance) best = { shape: entry.shape, persistentId, distance: hit };
+    }
+  }
+  return best;
+}
+
 function alignExtrusionEndCondition(feature, params, resolutions, results) {
   const hostId = params.targetFeatureId || feature.inputs?.[0];
   const host = hostId && hostId !== feature.id ? results.get(hostId) : null;
   const hostFaces = host?.topology || [];
-  return resolveExtrudeExtent(params, {
+  const hostBounds = aabbFromTopology(hostFaces);
+  const options = {
     endFace: resolvedEndFace(params, resolutions),
     hostFaces,
-    hostBounds: aabbFromTopology(hostFaces),
+    hostBounds,
     resolutions,
-  });
+  };
+  const condition = params.endCondition || "blind";
+  if (!isUpToFace(condition) && condition !== "up-to-next") {
+    return resolveExtrudeExtent(params, options);
+  }
+  const through = resolveExtrudeExtent({ ...params, endCondition: "through-all" }, options);
+  const untilDepth = Number(through.to) - Number(through.from);
+  let display;
+  try {
+    display = resolveExtrudeExtent(params, options);
+  } catch (error) {
+    if (!host?.shape) throw error;
+    display = { ...through, endCondition: condition, endFace: params.endFace };
+  }
+  let untilFace = null;
+  if (isUpToFace(condition)) {
+    const face = options.endFace;
+    if (!face) throw new Error(UP_TO_FACE_MISSING);
+    untilFace = hostFaceShape(host, face);
+    if (!untilFace) throw new Error(UP_TO_FACE_MISSING);
+  } else {
+    const picked = pickNextHostFace(host, display);
+    if (!picked) throw new Error(UP_TO_NEXT_MISSED);
+    untilFace = picked.shape;
+  }
+  return { ...display, untilFace, untilDepth: Number.isFinite(untilDepth) ? untilDepth : undefined };
 }

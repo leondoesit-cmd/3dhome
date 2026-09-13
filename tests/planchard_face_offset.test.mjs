@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {makeBrepExtrusion,extractBrepTopology,filletBrep,disposeBrep} from '../js/cad_kernel.js';
-import {offsetFaceBoundary,appendBoundarySketch} from '../js/cad_face_offset.js';
+import {offsetFaceBoundary,appendBoundarySketch,splitClosedKernelCurve} from '../js/cad_face_offset.js';
 import {analyzeSketchProfiles} from '../js/sketch_profiles.js';
 import {frameFromPlane} from '../js/core/frame.js';
 import {solveSketch} from '../js/sketch_solver.js';
-import {sketchProfileSegments} from '../js/core/profile_curves.js';
+import {segmentProfilePoints, sketchProfileSegments} from '../js/core/profile_curves.js';
 import {toolFeatureRecipe,translateToolRecord} from '../js/core/tool_recipe.js';
 import {edgeLiesOnFace} from '../js/core/topology.js';
 
@@ -113,4 +113,59 @@ test('battery face inset retains four true lines and four true arcs',async()=>{
   assert.equal(record.segments[0].from.v,original[0].from.v+4);
   assert.equal(record.from,12.906);
  }finally{disposeBrep(rounded);disposeBrep(base);}
+});
+
+test('a reversed closed kernelCurve splits on the sample walk, not the forward parameter range', () => {
+  const samples = Array.from({ length: 9 }, (_, i) => {
+    const a = (i / 8) * Math.PI * 2;
+    return { u: Math.cos(a), v: Math.sin(a) };
+  });
+  const segment = { type: 'kernelCurve', from: samples[0], to: samples[8], samples, first: 2, last: 8, reversed: true };
+  const [a, b] = splitClosedKernelCurve(segment);
+  assert.equal(a.samples[0].u, samples[0].u);
+  assert.equal(a.samples[0].v, samples[0].v);
+  assert.equal(a.to.u, samples[4].u);
+  assert.ok(Math.abs(a.first - 5) < 1e-9, 'first ' + a.first);
+  assert.ok(Math.abs(a.last - 8) < 1e-9, 'last ' + a.last);
+  assert.ok(Math.abs(b.first - 2) < 1e-9, 'b.first ' + b.first);
+  assert.ok(Math.abs(b.last - 5) < 1e-9, 'b.last ' + b.last);
+  const tess = segmentProfilePoints([a]);
+  assert.equal(tess[0].u, a.samples[0].u);
+  assert.equal(tess[0].v, a.samples[0].v);
+});
+
+test('a backwards closed spline edge still tessellates from from toward to', async () => {
+  const points = [
+    { u: 2, v: 0 }, { u: 1.5, v: 1.2 }, { u: 0, v: 2 }, { u: -1.6, v: 1 },
+    { u: -2, v: 0 }, { u: -1, v: -1.4 }, { u: 0, v: -2 }, { u: 1.4, v: -1.1 },
+  ];
+  const blob = await makeBrepExtrusion({
+    points,
+    segments: [{ type: 'spline', points: points.concat([points[0]]) }],
+    from: 0, to: 3, axis: 'y',
+  });
+  try {
+    extractBrepTopology(blob);
+    const face = blob.topology.find((item) => item.kind === 'face' && item.descriptor.surface === 'plane' && item.descriptor.origin.y > 2);
+    const frame = frameFromPlane({ x: 0, y: 3, z: 0 }, { x: 0, y: 1, z: 0 });
+    const loops = offsetFaceBoundary(blob, face, frame, 0);
+    const curves = loops.flat().filter((segment) => segment.type === 'kernelCurve');
+    assert.ok(curves.length >= 1, 'expected a closed spline as kernelCurve halves');
+    const reversed = curves.filter((segment) => segment.reversed);
+    assert.ok(reversed.length >= 1, 'the closed spline edge is reversed on the wire');
+    for (const segment of reversed) {
+      assert.ok(Math.hypot(segment.samples[0].u - segment.from.u, segment.samples[0].v - segment.from.v) < 1e-6);
+      const tess = segmentProfilePoints([segment]);
+      assert.ok(Math.hypot(tess[0].u - segment.from.u, tess[0].v - segment.from.v) < 1e-6);
+    }
+    const rebuilt = await makeBrepExtrusion({
+      points: loops[0].flatMap((segment) => segment.samples || [segment.from]),
+      segments: loops[0],
+      from: 3, to: 4, axis: 'y',
+    });
+    try {
+      extractBrepTopology(rebuilt);
+      assert.ok(rebuilt.topology.some((item) => item.kind === 'face'));
+    } finally { disposeBrep(rebuilt); }
+  } finally { disposeBrep(blob); }
 });

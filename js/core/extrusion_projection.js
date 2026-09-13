@@ -37,6 +37,12 @@ export function synchronizeExtrusionProjections(document, compiled, run) {
       }
     }
   }
-  if(run.ok)for(const update of run.referenceUpdates || []){const reference=(document.referenceGeometry || []).find(r=>r.id===update.id);if(reference)Object.assign(reference,structuredClone(update));}
+  if(run.ok)for(const update of run.referenceUpdates || []){
+    const patch=structuredClone(update);
+    const geometry=(document.referenceGeometry || []).find(r=>r.id===update.id);
+    if(geometry)Object.assign(geometry,patch);
+    const reference=(document.references || []).find(r=>r.id===update.id);
+    if(reference && patch.origin) Object.assign(reference,{origin:patch.origin,normal:patch.normal,offset:patch.offset});
+  }
   return dirty;
 }

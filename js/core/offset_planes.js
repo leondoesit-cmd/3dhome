@@ -83,7 +83,7 @@ function placeOffsetPlane(plane, parent, resolveRef) {
 
 // Resolve parent planes before their children, then move attached sketch frames.
 // No document changes are made until the whole plane graph is valid.
-export function resolveOffsetPlanes(document){
+export function resolveOffsetPlanes(document, resolveRef){
  const planes=new Map((document.references || []).filter(r=>r.type==='plane').map(r=>[r.id,r]));
  const resolved=new Map(),visiting=new Set();
  function visit(id){
@@ -94,7 +94,7 @@ export function resolveOffsetPlanes(document){
   let result={...plane};
   if(plane.baseReferenceId || plane.support){
    const parent=plane.support?plane.support.descriptor:visit(plane.baseReferenceId);
-   Object.assign(result, placeOffsetPlane(plane, parent, null));
+   Object.assign(result, placeOffsetPlane(plane, parent, resolveRef));
   }
   visiting.delete(id);resolved.set(id,result);return result;
  }
@@ -122,7 +122,6 @@ export function resolveOffsetSketch(sketch,references,resolveFace){
    return {normal:plane.normal,origin:plane.origin||{x:0,y:0,z:0}};
   }
   const placed=placeOffsetPlane(plane, base, resolveFace);
-  Object.assign(plane, {origin:placed.origin,normal:placed.normal,offset:placed.offset});
   visiting.delete(id);return placed;
  }
  const plane=planes.get(sketch.referenceId);if(!plane || (!plane.support&&!plane.baseReferenceId) || sketch.support)return sketch;

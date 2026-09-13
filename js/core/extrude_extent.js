@@ -2,6 +2,10 @@
 // Through-all, up-to-next and up-to-face (the book's Up To Surface) replace
 // that depth with a measured interval along the pull, re-resolved each rebuild
 // so a shell that moves still terminates on the same face.
+//
+// The `to` value here is the measured first hit, used for the property manager
+// and for planar walls. The kernel still builds a long prism and trims it with
+// the face itself — a scalar prism on a cylinder leaves a flat sliver.
 import { frameDot, frameNormalize, framePoint, frameVector } from "./frame.js";
 
 export const UP_TO_FACE_CONDITIONS = new Set(["up-to-face", "up-to-surface"]);
@@ -73,6 +77,41 @@ export function aabbFromTopology(entries = []) {
   return found ? { min, max } : null;
 }
 
+export function hitPoint(origin, direction, t) {
+  return {
+    x: (origin.x || 0) + (direction.x || 0) * t,
+    y: (origin.y || 0) + (direction.y || 0) * t,
+    z: (origin.z || 0) + (direction.z || 0) * t,
+  };
+}
+
+export function pointInAabb(point, box, pad = 1e-4) {
+  const aabb = aabbFromBox(box);
+  if (!aabb) return true;
+  return point.x >= aabb.min.x - pad && point.x <= aabb.max.x + pad
+    && point.y >= aabb.min.y - pad && point.y <= aabb.max.y + pad
+    && point.z >= aabb.min.z - pad && point.z <= aabb.max.z + pad;
+}
+
+export function hitLiesOnFace(origin, direction, t, face) {
+  if (!Number.isFinite(t)) return false;
+  const point = hitPoint(origin, direction, t);
+  if (typeof face?.onFace === "function") return !!face.onFace(point, t);
+  const bounds = face?.descriptor?.bounds || face?.bounds;
+  if (bounds && !pointInAabb(point, bounds)) return false;
+  const range = face?.descriptor?.axisRange;
+  const axis = face?.descriptor?.axis;
+  const originOnAxis = face?.descriptor?.origin;
+  if (Array.isArray(range) && range.length === 2 && axis && originOnAxis) {
+    const along = (point.x - (originOnAxis.x || 0)) * (axis.x || 0)
+      + (point.y - (originOnAxis.y || 0)) * (axis.y || 0)
+      + (point.z - (originOnAxis.z || 0)) * (axis.z || 0);
+    const lo = Math.min(range[0], range[1]) - 1e-4, hi = Math.max(range[0], range[1]) + 1e-4;
+    if (along < lo || along > hi) return false;
+  }
+  return true;
+}
+
 export function farBoundAlongAxis(bounds, origin, direction) {
   const box = aabbFromBox(bounds);
   if (!box) return null;
@@ -130,11 +169,11 @@ export function resolveExtrudeExtent(params, options = {}) {
   if (isUpToFace(condition)) {
     const face = options.endFace || resolvedEndFace(params, options.resolutions);
     if (!faceSurface(face)) throw new Error(UP_TO_FACE_MISSING);
-    distance = firstHit(samples, from, params, pull, [face], { skipNear: true });
+    distance = firstHit(samples, from, params, pull, [face], { skipNear: true, onFace: options.onFace });
     if (!(distance > NEAR)) throw new Error(UP_TO_FACE_MISSED);
   } else if (condition === "up-to-next") {
     const faces = (options.hostFaces || []).filter((entry) => (entry?.kind || "face") === "face");
-    distance = firstHit(samples, from, params, pull, faces, { skipNear: true });
+    distance = firstHit(samples, from, params, pull, faces, { skipNear: true, onFace: options.onFace });
     if (!(distance > NEAR)) throw new Error(UP_TO_NEXT_MISSED);
   } else if (condition === "through-all") {
     const bounds = aabbFromBox(options.hostBounds) || aabbFromTopology(options.hostFaces);
@@ -166,6 +205,10 @@ function firstHit(samples, from, params, pull, faces, options = {}) {
       const hit = raySurfaceHit(origin, pull, face);
       if (!Number.isFinite(hit)) continue;
       if (options.skipNear && hit < NEAR) continue;
+      const onFace = options.onFace
+        ? options.onFace(origin, pull, hit, face)
+        : hitLiesOnFace(origin, pull, hit, face);
+      if (!onFace) continue;
       if (hit > NEAR && hit < best) best = hit;
     }
   }
