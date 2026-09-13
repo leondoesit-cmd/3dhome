@@ -61,8 +61,8 @@ Out of scope unless the book needs it: surfacing, weldments, simulation, CAM, PD
 | B1 | Face-boundary edges ignore edge orientation. At offset 0 on a box top, all 4 edges came back reversed against wire order, so profile ordering can zig-zag or lose corners. | `js/cad_face_offset.js:40-55` | If `edge.Orientation_1() === TopAbs_REVERSED`, swap `from`/`to`, set `reversed:true`, reverse `samples` | Box top and filleted battery top at offset 0 and inset; assert `seg[i].to ≈ seg[i+1].from` |
 | B2 | A linked boundary rejects any face with inner loops, with the misleading message "split into multiple regions" | `js/cad_associative_boundary.js:15` | Support outer loop plus holes: keep loop identity per wire, and only reject when the loop count changes between rebuilds | Plate with a through hole, linked inset; edit the source and rebuild |
 | B3 | A closed ellipse or B-spline edge becomes a zero-length `line` entity (from and to merge into one point) | `js/cad_face_offset.js:78` | Emit an `ellipse`/`spline` entity, or split the closed curve into two segments | Elliptical boss top face |
-| B4 | Mass properties always use 7.85 g/cm³, whatever material is assigned | `js/modeler.js:20560` (no `density` passed), `js/cad_mass_properties.js:8` | Per-body density from the part's material; show the material per row; mm/g output option | Two bodies, different materials; CSWA-style gram answer |
-| B5 | A revolve profile that crosses its axis is silently mirrored (`Math.abs(u)`) instead of rejected | `js/core/revolve_geometry.js:17,27` | Reject if the profile has points on both sides of the axis; allow points exactly on the axis | Unit test for the error message |
+| B4 | Mass properties always use 7.85 g/cm³, whatever material is assigned | `js/cad_mass_properties.js` | **Fixed.** Per-body stock density, mass rows, mm/g toggle | `tests/cad_mass_materials.test.mjs` |
+| B5 | A revolve profile that crosses its axis is silently mirrored (`Math.abs(u)`) instead of rejected | `js/core/revolve_geometry.js` | **Fixed.** Rejects crossing; points on the axis allowed | `tests/cad_mass_materials.test.mjs` |
 | B6 | Up-to-face and up-to-next cuts behave as through-all | `js/modeler.js:2369`; offered in `js/core/feature_catalog.js:157,179` | See task 2A-1 | See 2A-1 |
 
 ### 3.2 Missing capabilities the book requires
@@ -106,11 +106,11 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | 1-1 | Commit the current work in reviewable chunks on a `planchard` branch (R1) | Clean tree; `npm test` and `npm run check` green |
 | 1-2 | Replace the audit's coverage table with the matrix in §6; keep the narrative as the log | The matrix matches §2 |
 | 1-3 | Accept LENSCAP dimensionally: Ø124.46, 43.815 depth, 5° draft, 3.81 shell, thread pitch 0.250 in, 2.5 turns, 5° taper, section height 0.125 in | Ritual passes; values recorded |
-| 1-4 | Fix the BATTERYPLATE holder centre displacement (~0.67 mm); decide on one multi-contour cut vs two features | Edge descriptors centred within ±0.01 mm |
-| 1-5 | Fix B4 (per-body material density) plus a material-assignment UI | Mass matches hand calculation for two materials |
-| 1-6 | Fix B5 (revolve axis crossing) | Unit test |
-| 1-7 | **Decide document units and templates now** (G9 design only). Retrofitting 8 saved parts later is a migration. Write the design: document unit, drafting standard, precision, template = saved document defaults | Design note approved; implementation can follow in Phase 4 |
-| 1-8 | Storage and queue hardening (R2, R3) | Load all 7 saved parts at once, reload, no storage warning, no topology flash |
+| 1-4 | Fix the BATTERYPLATE holder centre displacement (~0.67 mm); decide on one multi-contour cut vs two features | Kernel drafted concentric holder stays on axis. Saved plate still needs a library rebuild: **one multi-contour cut** for the two holes. Holder sketch must be recentred on origin |
+| 1-5 | Fix B4 (per-body material density) plus a material-assignment UI | **Done.** Per-body stock density; mm/g toggle; mass rows show material |
+| 1-6 | Fix B5 (revolve axis crossing) | **Done.** Rejects with "The revolve profile crosses the axis" |
+| 1-7 | **Decide document units and templates now** (G9 design only). Retrofitting 8 saved parts later is a migration. Write the design: document unit, drafting standard, precision, template = saved document defaults | **Done.** [document-units.md](document-units.md) |
+| 1-8 | Storage and queue hardening (R2, R3) | **Code landed.** Assemblies and drafts in IndexedDB; autosave JSON not in localStorage; missing-topology hidden until first exact regen. Browser load of 7 parts still needs the user's library |
 
 ### Phase 2A — HOUSING tools, then HOUSING (p.335–364)
 | Task | Work | Done when |
@@ -193,7 +193,7 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | BULB | 286–298 | Planchard BULB | 10 | | | | LENSANDBULB | |
 | O-RING | 311–314 | Planchard O-RING | | 2.748212 cm³ | ✅ bounds | | CAPANDLENS, design table | 4-5 |
 | SWITCH | 315–320 | Planchard SWITCH | | 1.754454 cm³ (after edit) | | | FLASHLIGHT | |
-| LENSCAP | 323–332 | Planchard LENSCAP | 11 | | ❌ | | CAPANDLENS, STL | 1-3 |
+| LENSCAP | 323–332 | Planchard LENSCAP | 11 | | ❌ ritual pending | | CAPANDLENS, STL | 1-3 |
 | HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | Phase 2A |
 | LENSANDBULB | 379–434 | – | | | | | CAPANDLENS | 2B-4 |
 | BATTERYANDPLATE | 379–434 | – | | | | | FLASHLIGHT | 2B-4 |

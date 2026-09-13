@@ -72,7 +72,7 @@ The working to-do list and coverage matrix live in [book-completion-plan.md](boo
 | BULB | 286–298 | Planchard BULB | 10 | | | | LENSANDBULB | |
 | O-RING | 311–314 | Planchard O-RING | | 2.748212 cm³ | ✅ bounds | | CAPANDLENS, design table | 4-5 |
 | SWITCH | 315–320 | Planchard SWITCH | | 1.754454 cm³ (after edit) | | | FLASHLIGHT | |
-| LENSCAP | 323–332 | Planchard LENSCAP | 11 | | ❌ | | CAPANDLENS, STL | 1-3 |
+| LENSCAP | 323–332 | Planchard LENSCAP | 11 | | ❌ ritual pending | | CAPANDLENS, STL | 1-3 |
 | HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | Phase 2A |
 | LENSANDBULB | 379–434 | – | | | | | CAPANDLENS | 2B-4 |
 | BATTERYANDPLATE | 379–434 | – | | | | | FLASHLIGHT | 2B-4 |
