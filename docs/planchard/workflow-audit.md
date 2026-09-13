@@ -232,5 +232,9 @@ The authoring model now includes helix-aware sweep plumbing in the parametric re
 
 ### HOUSING tools 2A-6 (2026-09-13)
 
-Reference planes can be **through a vertex, parallel** to a parent plane (LongRibPlane). The plane stores the two edges that meet at the vertex and follows that corner after the body is edited. Linear Pattern **Pattern seed only** copies a rib's added web on a two-direction grid (XYZ toggles or two picked edges) without re-running Up To Body per copy; **Geometry pattern** is stored on the feature. Feature Mirror with Keep original was re-verified on a test body. Rib up-to-body was already kernel-tested. HOUSING itself is still 2A-7.
+Reference planes can be **through a vertex, parallel** to a parent plane (LongRibPlane). The plane stores the two edges that meet at the vertex and follows that corner after the body is edited. Linear Pattern **Pattern seed only** copies a rib's added web on a two-direction grid (XYZ toggles or two picked edges) without re-running Up To Body per copy. Feature Mirror with Keep original was re-verified on a test body. Rib up-to-body was already kernel-tested. HOUSING itself is still 2A-7.
+
+### Review follow-up (2026-09-13)
+
+2A-1…2A-6 are **kernel-verified**, not ritual-Done. Up To Surface now trims the extrude tool with the selected face (SwitchHole inner cylinder test). Closed reversed spline `kernelCurve` splits on the sample walk. Through-vertex planes resolve from live edges and no longer mutate saved plane origin during rebuild. Library JSON export/import is on the Library pane. Geometry pattern checkbox removed. Sketch fillet driving lengths stay on the original corner. Revolve crossing is checked in sketch-plane space. Toolbox/custom/rubber/polycarbonate densities are no longer silent steel.
 

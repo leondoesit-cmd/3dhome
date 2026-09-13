@@ -112,3 +112,26 @@ export async function clearModelerDraftRecord() {
 }
 
 export function clearMemoryModelLibrary() { modelMemory=[]; assemblyMemory=[]; draftMemory=null; }
+
+export const LIBRARY_BUNDLE_FORMAT = "modelforge-library";
+
+export function libraryBundle(models = [], assemblies = []) {
+  return { format: LIBRARY_BUNDLE_FORMAT, v: 1, models: clone(models) || [], assemblies: clone(assemblies) || [] };
+}
+
+export function parseLibraryBundle(raw) {
+  const data = typeof raw === "string" ? JSON.parse(raw) : raw;
+  if (!data || data.format !== LIBRARY_BUNDLE_FORMAT) throw new Error("Not a ModelForge library file");
+  return {
+    models: Array.isArray(data.models) ? data.models.filter((item) => item && item.key) : [],
+    assemblies: Array.isArray(data.assemblies) ? data.assemblies.filter((item) => item && item.key) : [],
+  };
+}
+
+export function mergeLibraryRecords(current = [], incoming = []) {
+  const byKey = new Map((current || []).filter((item) => item && item.key).map((item) => [item.key, clone(item)]));
+  for (const item of incoming || []) {
+    if (item && item.key) byKey.set(item.key, clone(item));
+  }
+  return Array.from(byKey.values());
+}

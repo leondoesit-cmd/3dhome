@@ -63,12 +63,12 @@ Out of scope unless the book needs it: surfacing, weldments, simulation, CAM, PD
 | B3 | A closed ellipse or B-spline edge becomes a zero-length `line` entity (from and to merge into one point) | `js/cad_face_offset.js` | **Fixed.** Closed ellipse → `ellipse` entity; other closed kernel curves split in two | `tests/planchard_face_offset.test.mjs` |
 | B4 | Mass properties always use 7.85 g/cm³, whatever material is assigned | `js/cad_mass_properties.js` | **Fixed.** Per-body stock density, mass rows, mm/g toggle | `tests/cad_mass_materials.test.mjs` |
 | B5 | A revolve profile that crosses its axis is silently mirrored (`Math.abs(u)`) instead of rejected | `js/core/revolve_geometry.js` | **Fixed.** Rejects crossing; points on the axis allowed | `tests/cad_mass_materials.test.mjs` |
-| B6 | Up-to-face and up-to-next cuts behave as through-all | `js/modeler.js`; `js/core/extrude_extent.js` | **Fixed.** Planar/cylinder/cone ray hit; persistent `endFace`; through-all spans the host | `tests/cad_extrude_extent.test.mjs`, `tests/cad_up_to_face.test.mjs` |
+| B6 | Up-to-face and up-to-next cuts behave as through-all | `js/modeler.js`; `js/core/extrude_extent.js`; `js/cad_kernel.js` | **Kernel-verified.** Scalar `to` is the measured hit for the property manager. The solid is a long prism split by the face itself, so a cylindrical SwitchHole does not leave a flat sliver. | `tests/cad_extrude_extent.test.mjs`, `tests/cad_up_to_face.test.mjs` |
 
 ### 3.2 Missing capabilities the book requires
 | ID | Capability | Book use | Code state |
 |---|---|---|---|
-| G1 | Up To Surface / Up To Face / Up To Next end condition | HOUSING SwitchHole, steps 563–566 (p.356); CSWA advanced parts | **Done (2A-1).** Terminates at a selected face (or the next face); rebuild re-resolves |
+| G1 | Up To Surface / Up To Face / Up To Next end condition | HOUSING SwitchHole, steps 563–566 (p.356); CSWA advanced parts | **Kernel-verified (2A-1).** The tool is a long prism trimmed by the selected face (plane/cylinder/cone/spline). Up-to-next rejects hits that miss the bounded face. Planar shelled-box and book SwitchHole cylinder tests pass. Not ritual-Done until HOUSING. |
 | G2 | Sketch Fillet | HOUSING HandlePath, steps 459–462 (p.350) | **Done (2A-3).** Trims two lines that share a vertex, inserts a tangent arc, keeps H/V, driving radius |
 | G3 | Intersection relation (point at the intersection of two edges) | HandlePath, step 475 (p.351) | **Done (2A-4).** Point + two sketch lines or two model edges; rebuild rebinds projected corners |
 | G4 | Tangent Arc sketch tool | LongRib sketch, step 633 (p.362) | **Done (2A-5).** Two clicks: existing line/arc endpoint, then the other end; adds a tangent relation |
@@ -107,20 +107,20 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | 1-2 | Replace the audit's coverage table with the matrix in §6; keep the narrative as the log | The matrix matches §2 |
 | 1-3 | Accept LENSCAP dimensionally: Ø124.46, 43.815 depth, 5° draft, 3.81 shell, thread pitch 0.250 in, 2.5 turns, 5° taper, section height 0.125 in | Ritual passes; values recorded |
 | 1-4 | Fix the BATTERYPLATE holder centre displacement (~0.67 mm); decide on one multi-contour cut vs two features | Kernel drafted concentric holder stays on axis. Saved plate still needs a library rebuild: **one multi-contour cut** for the two holes. Holder sketch must be recentred on origin |
-| 1-5 | Fix B4 (per-body material density) plus a material-assignment UI | **Done.** Per-body stock density; mm/g toggle; mass rows show material |
+| 1-5 | Fix B4 (per-body material density) plus a material-assignment UI | **Partial.** Per-body stock density, toolbox catalog densities, custom density, rubber and polycarbonate. mm/g toggle; mass rows show material. Not ritual-Done for O-RING/LENS. |
 | 1-6 | Fix B5 (revolve axis crossing) | **Done.** Rejects with "The revolve profile crosses the axis" |
 | 1-7 | **Decide document units and templates now** (G9 design only). Retrofitting 8 saved parts later is a migration. Write the design: document unit, drafting standard, precision, template = saved document defaults | **Done.** [document-units.md](document-units.md) |
-| 1-8 | Storage and queue hardening (R2, R3) | **Code landed.** Assemblies and drafts in IndexedDB; autosave JSON not in localStorage; missing-topology hidden until first exact regen. Browser load of 7 parts still needs the user's library |
+| 1-8 | Storage and queue hardening (R2, R3) | **Code landed.** Assemblies and drafts in IndexedDB; **library JSON export/import** so HOUSING / 1-3 / 1-4 can leave the Cursor profile. Autosave JSON not in localStorage; missing-topology hidden until first exact regen. Browser load of 7 parts still needs the user's library |
 
 ### Phase 2A — HOUSING tools, then HOUSING (p.335–364)
 | Task | Work | Done when |
 |---|---|---|
-| 2A-1 | **Real Up To Surface / Face / Next** (G1/B6) for extrude cut and boss: terminate the tool at a selected face (planar, then cylindrical/conical), or at the next face along the direction. Store the face as a persistent topology reference that re-resolves on rebuild | **Done.** Shelled-box cut stops at the inner wall (volume 32 vs 48 when thickness 2→3); up-to-next matches |
-| 2A-2 | Fix B1, B2, B3 (Convert/offset of housing faces) | **Done.** Offset-0 box/fillet wires chain; hole faces keep inner loops; closed ellipse is not a zero-length line |
-| 2A-3 | Sketch Fillet (G2): trims two connected lines, inserts a tangent arc, keeps relations | **Done.** Vertex or two-line pick; 0.5 in HandlePath L stays fully defined; radius dimension rebuilds |
-| 2A-4 | Intersection relation (G3) in the solver plus the Add Relations UI | **Done.** Point stays on both edges after the housing edges move |
-| 2A-5 | Tangent Arc tool (G4) | **Done.** Book step 633: click the line endpoint, then the other end; the arc stays tangent |
-| 2A-6 | Browser-verify on a test body: rib up-to-body, two-direction linear pattern with "pattern seed only", plane through a vertex parallel to a plane, feature Mirror | **Done.** Through-vertex-parallel planes follow the two edges at the picked vertex; Pattern seed only copies a rib's web on a 3×3 grid (including picked-edge directions); Geometry pattern is stored; Mirror keep-original doubles volume |
+| 2A-1 | **Real Up To Surface / Face / Next** (G1/B6) for extrude cut and boss: terminate the tool at a selected face (planar, then cylindrical/conical), or at the next face along the direction. Store the face as a persistent topology reference that re-resolves on rebuild | **Kernel-verified.** Shelled-box cut stops at the inner wall (volume 32 vs 48 when thickness 2→3); up-to-next is face-bounded; SwitchHole Ø12.95 mm at 11.43 mm opens the inner Ø of a Ø111.13 × 33.02 mm shell with no sliver and the opposite wall intact. Not ritual-Done. |
+| 2A-2 | Fix B1, B2, B3 (Convert/offset of housing faces) | **Kernel-verified.** Offset-0 box/fillet wires chain; hole faces keep inner loops; closed ellipse is not a zero-length line; reversed closed spline splits on the sample walk |
+| 2A-3 | Sketch Fillet (G2): trims two connected lines, inserts a tangent arc, keeps relations | **Kernel-verified.** Vertex or two-line pick; 0.5 in HandlePath L stays fully defined; radius dimension rebuilds; driving lengths stay measured to the original corner |
+| 2A-4 | Intersection relation (G3) in the solver plus the Add Relations UI | **Kernel-verified.** Point stays on both edges after the housing edges move |
+| 2A-5 | Tangent Arc tool (G4) | **Kernel-verified.** Book step 633: click the line endpoint, then the other end; the arc stays tangent |
+| 2A-6 | Browser-verify on a test body: rib up-to-body, two-direction linear pattern with "pattern seed only", plane through a vertex parallel to a plane, feature Mirror | **Kernel-verified.** Through-vertex-parallel planes follow rebuilt edges without rewriting saved bindings; Pattern seed only copies a rib's web on a 3×3 grid; Geometry pattern checkbox removed; Mirror keep-original doubles volume |
 | 2A-7 | **Build HOUSING end to end from the book**: Base Extrude, BatteryLoftPlane, loft with guide curves, Boss-Stop, Shell, ThreadPlane/ThreadPath/ThreadSection/Thread, HandlePath/HandleProfile/Handle sweep, SwitchHole (Up To Surface), Rib1 plus linear pattern, LongRibPlane, Rib2, Mirror | Ritual passes; record time and clicks vs book steps 267–655 |
 
 ### Phase 2B — Nested assemblies (parallel with 2A)

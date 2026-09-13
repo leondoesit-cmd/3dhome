@@ -130,7 +130,7 @@ import { createImportedDefinition, detectStepLengthUnit, stepUnitCorrection } fr
 import { encodeBinaryPayload } from "./core/binary_payload.js";
 import { externalizeAttachments } from "./core/attachment_store.js";
 import { garbageCollectAttachments } from "./core/attachment_gc.js";
-import { loadModelLibrary, saveModelLibrary, loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord } from "./core/model_library_store.js";
+import { loadModelLibrary, saveModelLibrary, loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord, libraryBundle, parseLibraryBundle, mergeLibraryRecords } from "./core/model_library_store.js";
 import { rebuildDefinition } from "./core/rebuild.js";
 import { buildTreeModel, findTreeNode } from "./core/tree_model.js";
 import { renderTreeModel } from "./modeler_tree.js";
@@ -20359,11 +20359,44 @@ function drawInRoom(view) {
 }
 
 /* ================= saved-model library panel ================= */
+function exportLibraryJson() {
+  var text = JSON.stringify(libraryBundle(loadLib(), loadAssemblies()), null, 2);
+  downloadBytes(text, "modelforge-library.json", "application/json");
+  flash("✓ " + t("libraryExported"));
+}
+
+function importLibraryJson() {
+  var input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.addEventListener("change", async function () {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    try {
+      var bundle = parseLibraryBundle(await file.text());
+      var models = mergeLibraryRecords(loadLib(), bundle.models);
+      var assemblies = mergeLibraryRecords(loadAssemblies(), bundle.assemblies);
+      if (!await saveLib(models)) { report(t("reportKickerSave"), t("saveLibraryFailed"), t("saveStorageFull")); return; }
+      if (!await saveAssemblies(assemblies)) { flash(t("saveStorageFull")); return; }
+      models.forEach(registerCustomModel);
+      refreshLib();
+      flash("✓ " + t("libraryImported"));
+    } catch (error) { flash(t("libraryImportFailed")); }
+  });
+  input.click();
+}
+
+function libraryTransferButtons(host) {
+  host.appendChild(btn('<i class="ph ph-export"></i> ' + t("exportLibrary"), exportLibraryJson, "md-wide"));
+  host.appendChild(btn('<i class="ph ph-download-simple"></i> ' + t("importLibrary"), importLibraryJson, "md-wide"));
+}
+
 function refreshLib() {
   var host = root.querySelector("#mdLib");
   host.innerHTML = "";
   if (E.docType === "assembly") {
     host.appendChild(btn('<i class="ph ph-file-plus"></i> ' + t("newAssembly"), newModel, "md-wide md-dashed"));
+    libraryTransferButtons(host);
     var assemblies = loadAssemblies();
     if (!assemblies.length) { emptyState(host, "ph-stack", t("assemblies"), t("noComponentsHint")); return; }
     assemblies.forEach(function (assembly) {
@@ -20400,6 +20433,7 @@ function refreshLib() {
     return;
   }
   host.appendChild(btn('<i class="ph ph-file-plus"></i> ' + t("newModel"), newModel, "md-wide md-dashed"));
+  libraryTransferButtons(host);
   var lib = loadLib();
   if (!lib.length) { emptyState(host, "ph-folder-open", t("noLib"), t("noLibHint")); return; }
   lib.forEach(function (m) {
@@ -20803,7 +20837,12 @@ function openOffsetPlaneForm(existing) {
       if(!existing){trial.references.push(plane);trial.referenceGeometry.push({...cloneData(plane),type:"reference_plane"});}
       parent=plane.id;last=plane;
     }
-    var run=resolveOffsetPlanes(trial);if(!run.ok){flash(run.issues[0].message);return false;}
+    var run=resolveOffsetPlanes(trial, function(ref){
+      if(!ref)return null;
+      return (topologyEntriesForPart(selectedSolid()) || []).find(function(item){
+        return item.persistentId===ref.persistentId || (ref.semantic && item.semantic===ref.semantic && item.kind===(ref.kind||item.kind));
+      });
+    });if(!run.ok){flash(run.issues[0].message);return false;}
     pushUndo(existing?"Edit reference plane":"Reference planes");E.def.references=trial.references;E.def.referenceGeometry=trial.referenceGeometry;E.def.sketches=trial.sketches;E.selectedReferenceId=last.id;
     syncSketchDrivenParts();if(activeParts(E.def).length)regenerateExactModel();refreshAll();return true;
   }});
