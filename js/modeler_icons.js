@@ -640,6 +640,17 @@ export const CAD_ICONS = {
     );
   },
 
+  // Sketch Fillet: two lines meeting at a vertex, replaced by a tangent arc
+  sketchfillet: function () {
+    return (
+      l("M3 17 L3 10") +
+      l("M10 3 L17 3") +
+      colorPath("M3 10 C 3 5, 5 3, 10 3", "none", "#2684c7", 1.85) +
+      colorPath("M5 5 L8 8", "none", "#2684c7", 1.2) +
+      '<circle cx="8" cy="8" r="0.9" fill="#2684c7"/>'
+    );
+  },
+
   // Trim Entities: scissors cutting across a sketch curve with trim dash
   trim: function () {
     return (

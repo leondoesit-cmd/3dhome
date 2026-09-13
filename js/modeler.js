@@ -7,6 +7,7 @@ import { synchronizeExtrusionProjections } from "./core/extrusion_projection.js"
 import { threePointArc } from "./sketch_three_point_arc.js";
 import {createMaterialValidationUI} from "./modeler_material_validation.js";
 import { addCenterRectangle } from "./sketch_center_rectangle.js";
+import { filletSketchCorner } from "./sketch_fillet.js";
 import { offsetFaceBoundary, appendBoundarySketch } from "./cad_face_offset.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { captureExactTopology } from './core/exact_topology_cache.js';
@@ -3412,6 +3413,7 @@ function buildDOM() {
         commandButton("dim", t("cap_dim"), "D", "primary", t("tool_dim")),
         commandButton("trim", t("tool_trim"), "T", "primary"),
         commandButton("extend", t("tool_extend"), "E"),
+        commandButton("sketchfillet", t("sketchFillet"), ""),
       ]) +
       /* Relations belong to the tab that owns sketching. They used to live only
          in the right-hand inspector, which on a phone is a bottom sheet — so
@@ -5704,7 +5706,7 @@ function updateTourProgress() {
   renderTour();
 }
 
-var SKETCH_TOOLS = ["wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "offset", "constr"];
+var SKETCH_TOOLS = ["wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "sketchfillet", "offset", "constr"];
 
 /* The tools that DRAW, as opposed to the ones that edit what is already drawn.
    Only these may open a sketch from model mode: "start drawing and I will make
@@ -5787,6 +5789,9 @@ function cadSketchSnapshot() {
     } : null,
     pointCount: pts.length,
     screenPoints: pts.map(function (q) { var p=toPx(q.x,q.y);return {x:p.x,y:p.y}; }),
+    entityTypes: ((sketch && sketch.entities) || []).map(function (entity) { return entity.type; }),
+    constraintTypes: ((sketch && sketch.constraints) || []).map(function (constraint) { return constraint.type; }),
+    status: E.solveInfo && E.solveInfo.status,
     previewRect: previewRect,
     width: xs.length ? Math.max.apply(null, xs) - Math.min.apply(null, xs) : 0,
     height: ys.length ? Math.max.apply(null, ys) - Math.min.apply(null, ys) : 0,
@@ -6558,6 +6563,7 @@ function runCommand(id) {
   else if(id==="arc3point") { E.arcThreePoint=true; E.arcPts=null; setTool("sarc"); }
   else if(id==="sketchrepair")openSketchRepairs();
   else if(id==="centerrectangle")openCenterRectangle();
+  else if(id==="sketchfillet")openSketchFillet();
   else if(id==="faceboundary")openFaceBoundary();
   else if (id === "newsketch") beginSketchWorkflow(null, { forceNew: true });
   else if (id === "finishsketch") finishSketchWorkflow();
@@ -9144,7 +9150,7 @@ function chromeCommandLabel(id) {
     holefeature: "holeWizard", helixfeature: "opHelix", threadfeature: "opThread",
     knurlfeature: "opKnurl", insertfeature: "opInsert", shellfeature: "shellOp", filletfeature: "quickFillet",
     chamferfeature: "quickChamfer", patternfeature: "quickPattern", finishsketch: "finishSketch",
-    dim: "tool_dim", trim: "tool_trim", select: "tool_select", wall: "cap_wall",
+    dim: "tool_dim", trim: "tool_trim", sketchfillet: "sketchFillet", select: "tool_select", wall: "cap_wall",
     srect: "cap_srect", scirc: "cap_scirc", editfeature: "ctxEditFeature",
     rollbackhere: "ctxRollbackHere", mates: "mate", isolate: "isolate",
     components: "components", explode: "explodeView", interference: "interferenceCheck",
@@ -9791,6 +9797,7 @@ function syncHint() {
     E.tool === "sarc" ? (E.arcThreePoint ? "Click the start, end, then a point on the arc" : t("arcHint")) :
     E.tool === "trim" ? t("trimHint") :
     E.tool === "extend" ? t("extendHint") :
+    E.tool === "sketchfillet" ? t("sketchFilletHint") :
     E.tool === "offset" ? t("offsetHint") :
     E.tool === "dim" ? t("dimHint2") :
     t("dimHint") + " · " + t("vertexHint");
@@ -11908,6 +11915,82 @@ function openFaceBoundary() {
     },
   });
 }
+function liveSketchFilletValues() {
+  return {
+    radius: E.sketchFilletRadius,
+    dimension: E.sketchFilletDimension !== false,
+    keepCorners: E.sketchFilletKeepCorners !== false,
+  };
+}
+
+function sketchFilletSelectionReady() {
+  if (selPoints().length) return true;
+  return selLines().length >= 2;
+}
+
+function applySketchFilletFromSelection(values) {
+  var sketch = ensureSketch(E.def);
+  var spec = {
+    radius: Number(values && values.radius),
+    dimension: !values || values.dimension !== false,
+    keepConstrainedCorners: !values || values.keepCorners !== false,
+    vertexId: selPoints().length ? selPoints()[selPoints().length - 1].id : null,
+    entityIds: selLines().map(function (line) { return line.id; }),
+  };
+  if (!Number.isFinite(spec.radius) || spec.radius <= 0) { flash(t("sketchFilletNeedRadius")); return false; }
+  if (!spec.vertexId && spec.entityIds.length < 2) { flash(t("sketchFilletNeed")); return false; }
+  var before = cloneData(sketch);
+  pushUndo(t("sketchFillet"));
+  try {
+    var made = filletSketchCorner(sketch, spec, uid);
+    if (!resolveSketch(true)) {
+      Object.assign(sketch, before);
+      resolveSketch(false);
+      H.discard();
+      flash(t("overDefined"));
+      return false;
+    }
+    E.ssel = made.arc ? [made.arc] : [];
+    E.sel = made.arc || null;
+    return true;
+  } catch (error) {
+    Object.assign(sketch, before);
+    H.discard();
+    flash(String(error.message || error));
+    return false;
+  }
+}
+
+function openSketchFillet() {
+  if (E.docType !== "part") { flash(t("needSketchForTool")); return; }
+  if (isCanonicalAuthoring() && (!E.authoring || E.authoring.phase !== "sketch")) { flash(t("needSketchForTool")); return; }
+  if (E.sketchFilletRadius == null) E.sketchFilletRadius = 1.27;
+  if (E.sketchFilletDimension == null) E.sketchFilletDimension = true;
+  if (E.sketchFilletKeepCorners == null) E.sketchFilletKeepCorners = true;
+  setTool("sketchfillet");
+  openQuickForm({
+    action: "sketchfillet", icon: "ph-corners-out", title: t("sketchFillet"), hint: t("sketchFilletHint"),
+    fields: [
+      { key: "radius", label: t("sketchFilletRadius"), type: "number", value: E.sketchFilletRadius, min: 0.000001, unit: "length" },
+      { key: "dimension", label: t("sketchFilletDimension"), type: "boolean", value: E.sketchFilletDimension !== false },
+      { key: "keepCorners", label: t("sketchFilletKeepCorners"), type: "boolean", value: E.sketchFilletKeepCorners !== false },
+    ],
+    onLive: function (values) {
+      if (fin(values.radius)) E.sketchFilletRadius = values.radius;
+      E.sketchFilletDimension = values.dimension !== false;
+      E.sketchFilletKeepCorners = values.keepCorners !== false;
+    },
+    onApply: function (values) {
+      if (fin(values.radius)) E.sketchFilletRadius = values.radius;
+      E.sketchFilletDimension = values.dimension !== false;
+      E.sketchFilletKeepCorners = values.keepCorners !== false;
+      if (sketchFilletSelectionReady()) return applySketchFilletFromSelection(values);
+      return true;
+    },
+    onCancel: function () { if (E.tool === "sketchfillet") setTool("select"); },
+  });
+}
+
 function openCenterRectangle() {
   if (!E.authoring || E.authoring.phase !== "sketch") startSketchOnDefaultPlane("srect");
   setTool("select");
@@ -13173,6 +13256,16 @@ function wireSketch() {
         refreshAll();
       }
       drawSketch();
+      return;
+    }
+    if (E.tool === "sketchfillet") {
+      var filletHit = hitSketch(uv, e.pointerType);
+      if (!filletHit) { drawSketch(); return; }
+      if (!filletHit.type) selectSketch(filletHit, false);
+      else if (filletHit.type === "line") selectSketch(filletHit, selLines().length === 1);
+      else { flash(t("sketchFilletTwoLines")); refreshAll(); return; }
+      if (sketchFilletSelectionReady()) applySketchFilletFromSelection(liveSketchFilletValues());
+      refreshAll();
       return;
     }
     if (E.tool === "trim" || E.tool === "extend" || E.tool === "offset" || E.tool === "constr") {

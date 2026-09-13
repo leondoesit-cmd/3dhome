@@ -86,7 +86,7 @@ test("the drawing command is offered on an assembly that has components", () => 
    document rendered the whole Sketch tab live over a hidden 2D canvas. */
 const SKETCH_COMMANDS = [
   "wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "dim", "trim",
-  "extend", "offset", "constr", "mirror", "pattern", "circpattern", "project", "newsketch",
+  "extend", "sketchfillet", "offset", "constr", "mirror", "pattern", "circpattern", "project", "newsketch",
 ];
 const FINISH_FEATURES = [
   "revolvefeature", "sweepfeature", "loftfeature", "filletfeature", "chamferfeature",

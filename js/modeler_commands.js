@@ -110,6 +110,7 @@ export function buildCommandCatalog(ctx) {
     { id:"dim", icon:"ph-ruler", label:t("tool_dim"), group:t("cmdSketch"), shortcut:"D", terms:"measure smart dimension", available:function(){ return partDoc(); }, reason:needPart },
     { id:"trim", icon:"ph-scissors", label:t("tool_trim"), group:t("cmdSketch"), shortcut:"T", terms:"remove segment", available:function(){ return partDoc(); }, reason:needPart },
     { id:"extend", icon:"ph-arrows-out-line-horizontal", label:t("tool_extend"), group:t("cmdSketch"), shortcut:"E", available:function(){ return partDoc(); }, reason:needPart },
+    { id:"sketchfillet", icon:"ph-corners-out", label:t("sketchFillet"), group:t("cmdSketch"), terms:"sketch fillet round corner tangent arc radius", available:function(){ return partDoc(); }, reason:needPart },
     { id:"offset", icon:"ph-copy-simple", label:t("tool_offset"), group:t("cmdSketch"), available:function(){ return partDoc(); }, reason:needPart },
     { id:"constr", icon:"ph-line-segments", label:t("tool_constr"), group:t("cmdSketch"), terms:"construction geometry", available:function(){ return partDoc(); }, reason:needPart },
     { id:"mirror", icon:"ph-flip-horizontal", label:t("sketchMirror"), group:t("cmdSketch"), available:function(){ return partDoc(); }, reason:needPart },

@@ -1404,6 +1404,7 @@ export default {
   tool_dim: "Smart dimension",
   tool_trim: "Trim",
   tool_extend: "Extend",
+  sketchFillet: "Sketch Fillet",
   cCoincident: "Coincident",
   cHorizontal: "Horizontal",
   cVertical: "Vertical",

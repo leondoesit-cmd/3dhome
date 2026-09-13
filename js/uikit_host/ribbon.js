@@ -112,6 +112,7 @@ export const RIBBON_BUTTONS = {
     { id: "dim", textKey: "tool_dim", fallback: "Dimension", icon: "dim" },
     { id: "trim", textKey: "tool_trim", fallback: "Trim", icon: "trim" },
     { id: "extend", textKey: "tool_extend", fallback: "Extend", icon: "extend" },
+    { id: "sketchfillet", textKey: "sketchFillet", fallback: "Sketch Fillet", icon: "sketchfillet" },
   ],
   grpRelations: [
     { id: "coincident", textKey: "cCoincident", fallback: "Coincident", icon: "ph-dot-outline" },

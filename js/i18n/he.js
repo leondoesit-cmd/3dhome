@@ -1943,6 +1943,7 @@ export default {
   tool_dim: "מידה חכמה",
   tool_trim: "גזירה",
   tool_extend: "הארכה",
+  sketchFillet: "עיגול פינת סקיצה",
   cCoincident: "מתלכדות",
   cHorizontal: "אופקי",
   cVertical: "אנכי",
