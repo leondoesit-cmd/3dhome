@@ -6,6 +6,9 @@ const DRIVING = "#4f46e5";
 const DRIVEN = "#718096";
 const CONFLICT = "#d0342c";
 
+// Millimetre work needs three decimals of a centimetre; trailing zeros go.
+const dimText = (value) => `${Number(Number(value).toFixed(3))} cm`;
+
 /* A smart dimension is just a driving constraint with a value the solver has to
    satisfy — the same object the constraint list shows, so editing a dimension
    and editing a constraint are one code path. */
@@ -15,7 +18,11 @@ export function addSmartDimension(sketch, target, value) {
 
   if (target.type === "line") {
     sketch.constraints.push({ id, type: "distance", entity: target.id, value: Number(value), driven: false });
-  } else if (target.type === "circle" || target.type === "arc") {
+  } else if (target.type === "circle") {
+    // A full circle is dimensioned by its diameter, as on an engineering
+    // drawing; `value` is the measured radius, the same as for an arc.
+    sketch.constraints.push({ id, type: "diameter", entity: target.id, value: Number(value) * 2, driven: false });
+  } else if (target.type === "arc") {
     sketch.constraints.push({ id, type: "radius", entity: target.id, value: Number(value), driven: false });
   } else if (target.type === "ellipse") {
     // one semi-axis per dimension: `axis` is what tells the solver which
@@ -157,7 +164,7 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
       ctx.moveTo(layout.p2.x, layout.p2.y); ctx.lineTo(layout.b.x, layout.b.y);
       ctx.moveTo(layout.a.x, layout.a.y); ctx.lineTo(layout.b.x, layout.b.y);
       ctx.stroke();
-      const label = `${Math.round(c.value * 10) / 10} cm`;
+      const label = dimText(c.value);
       if (selected) {
         const width = ctx.measureText(label).width + 10;
         ctx.save();
@@ -182,7 +189,7 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
         ctx.moveTo(cp.x, cp.y);
         ctx.lineTo(rim.x, rim.y);
         ctx.stroke();
-        const label = (c.type === "radius" ? "R " : "Ø ") + `${Math.round(c.value * 10) / 10} cm`;
+        const label = (c.type === "radius" ? "R " : "Ø ") + dimText(c.value);
         ctx.fillText(label, rim.x + 4, rim.y - 4);
         continue;
       }
@@ -198,7 +205,7 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
       ctx.beginPath();
       ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y);
       ctx.stroke();
-      ctx.fillText(`${minor ? "b" : "a"} ${Math.round(c.value * 10) / 10} cm`, to.x + 4, to.y - 4);
+      ctx.fillText(`${minor ? "b" : "a"} ${dimText(c.value)}`, to.x + 4, to.y - 4);
     } else if (c.type === "angle") {
       const base = c.entity ? entities.get(c.entity) : entities.get(c.a);
       const l = lineData(base, points);

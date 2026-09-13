@@ -159,7 +159,7 @@ import {
 } from "./modeler_commands.js";
 import { MODELER_DRAFT_KEY, clearModelerDraft, parseModelerDraft, readModelerDraft, serializeModelerDraft, writeModelerDraft } from "./modeler_draft.js";
 import {
-  featureField as featureFieldCore, featureControlValue, validateFeatureInputs, readFeatureParameterForm, renderFeatureParameterForm as renderFeatureParameterFormCore,
+  featureField as featureFieldCore, featureControlValue, evaluateFeatureNumber, validateFeatureInputs, readFeatureParameterForm, renderFeatureParameterForm as renderFeatureParameterFormCore,
 } from "./modeler_feature_form.js";
 import {
   resolveAssemblyWorkflow, defaultSketchPlane, featuresForClosedProfile,
@@ -3524,7 +3524,7 @@ function buildDOM() {
     '<canvas id="mdCanvas"></canvas>' +
     '<form id="mdDimEditor" class="md-dimension-editor" hidden autocomplete="off">' +
       '<div class="md-dimension-editor-head"><span><i class="ph ph-ruler"></i> ' + t("dimEditorTitle") + '</span><button type="button" data-dim-cancel aria-label="' + t("m_cancel") + '"><i class="ph ph-x"></i></button></div>' +
-      '<label class="md-dimension-value"><span>' + t("dimValue") + '</span><span class="md-dimension-input"><input id="mdDimValue" type="number" min="0.001" step="any" inputmode="decimal" required><b id="mdDimUnit">cm</b></span></label>' +
+      '<label class="md-dimension-value"><span>' + t("dimValue") + '</span><span class="md-dimension-input"><input id="mdDimValue" type="text" spellcheck="false" autocapitalize="off" required><b id="mdDimUnit">cm</b></span></label>' +
       '<div class="md-dimension-quick"><label><span>' + t("dimMode") + '</span><select id="mdDimMode"><option value="driving">' + t("dimDriving") + '</option><option value="reference">' + t("dimReference") + '</option></select></label><label><span>' + t("dimNameOptional") + '</span><input id="mdDimName" type="text" spellcheck="false"></label></div>' +
       '<div class="md-dimension-actions"><button type="button" class="danger" data-dim-delete title="' + t("dimDelete") + '"><i class="ph ph-trash"></i></button><span></span><button type="button" data-dim-cancel>' + t("m_cancel") + '</button><button type="submit" class="accept" title="' + t("dimApply") + '"><i class="ph ph-check"></i><span>' + t("dimApply") + '</span></button></div>' +
     '</form>' +
@@ -12568,7 +12568,10 @@ function showDimensionEditor(sketch, constraint, options) {
   };
   E.dimSel = constraint.id;
   var value = root.querySelector("#mdDimValue");
-  value.value = String(Number(constraint.value) || 0);
+  /* Twelve significant digits hide solver noise (22.29999999999997) without
+     rounding a real value; accepting the shown text keeps the stored float. */
+  value.value = String(Number((Number(constraint.value) || 0).toPrecision(12)));
+  E.dimEditor.before.text = value.value;
   root.querySelector("#mdDimUnit").textContent = dimensionEditorUnit(constraint);
   root.querySelector("#mdDimMode").value = constraint.driven ? "reference" : "driving";
   root.querySelector("#mdDimName").value = constraint.name || "";
@@ -12580,7 +12583,14 @@ function showDimensionEditor(sketch, constraint, options) {
 function applyDimensionEditor() {
   var state = E.dimEditor;
   if (!state) return false;
-  var value = parseFloat(root.querySelector("#mdDimValue").value);
+  /* Typed like a feature field: 4.375in, 111.13mm, 2*3.1 — a bare number is
+     the editor unit. parseFloat read "111.13mm" as 111.13 cm. */
+  var raw = String(root.querySelector("#mdDimValue").value).trim(), value;
+  if (raw === state.before.text) value = state.before.value;
+  else {
+    try { value = evaluateFeatureNumber(raw, { key:"dimension", unit:state.constraint.type === "angle" ? "angle" : "length" }); }
+    catch (error) { value = NaN; }
+  }
   if (!fin(value) || value <= 0) {
     root.querySelector("#mdDimValue").focus();
     return false;
@@ -12692,7 +12702,8 @@ function matchingSmartDimension(sketch, target) {
   return (sketch.constraints || []).find(function (constraint) {
     if (constraint.suppressed) return false;
     if (target.type === "line") return constraint.type === "distance" && constraint.entity === target.id;
-    if (target.type === "circle" || target.type === "arc") return constraint.type === "radius" && constraint.entity === target.id;
+    if (target.type === "circle") return (constraint.type === "diameter" || constraint.type === "radius") && constraint.entity === target.id;
+    if (target.type === "arc") return constraint.type === "radius" && constraint.entity === target.id;
     if (target.type === "ellipse") return constraint.type === "radius" && constraint.entity === target.id && (constraint.axis || "major") === (target.axis || "major");
     if (target.type === "points") return constraint.type === "distance" && !constraint.entity
       && (constraint.a === target.a && constraint.b === target.b || constraint.a === target.b && constraint.b === target.a);

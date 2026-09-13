@@ -234,6 +234,19 @@ The authoring model now includes helix-aware sweep plumbing in the parametric re
 
 Reference planes can be **through a vertex, parallel** to a parent plane (LongRibPlane). The plane stores the two edges that meet at the vertex and follows that corner after the body is edited. Linear Pattern **Pattern seed only** copies a rib's added web on a two-direction grid (XYZ toggles or two picked edges) without re-running Up To Body per copy. Feature Mirror with Keep original was re-verified on a test body. Rib up-to-body was already kernel-tested. HOUSING itself is still 2A-7.
 
+### HOUSING restart: dimension entry gaps (2026-09-14)
+
+The saved library from earlier sessions is not in the in-app Browser pane profile, and no library export exists on disk. HOUSING is being rebuilt from book step 265 in that profile.
+
+Book steps 275–276 (Smart Dimension on a circle, type 4.375in) exposed three gaps:
+- **Circle dimensioned as a radius.** SOLIDWORKS dimensions a full circle by its diameter. `addSmartDimension` now writes a `diameter` constraint for a circle and keeps `radius` for an arc. Existing radius dimensions on circles are still matched, so clicking one edits it instead of adding a duplicate.
+- **Unit suffixes were misread.** The canvas dimension editor used `parseFloat`, so `111.13mm` became 111.13 cm and `4.375in` became 4.375 cm, without an error. It now uses the feature-form parser (`evaluateFeatureNumber`): mm/cm/m/in/ft, deg/rad for angles, arithmetic, and a wrong-unit rejection. The input is `type="text"` so letters can be typed.
+- **Float noise in the editor** (22.29999999999997). The field shows 12 significant digits. Accepting the text unchanged keeps the stored float, which the 0.635 regression still checks. Canvas labels show three decimals of a centimetre instead of one.
+
+Tests: `tests/planchard_dimension_entry.test.mjs` plus the three existing suites that touch dimensions, 61/61. `npm run check` is green.
+
+Browser-verified (Browser pane, real clicks): Front-plane circle → Dimension tool → the editor opened on a diameter (`42.4004716955`, no noise tail) → typed `4.375in` → Apply → canvas label **Ø 11.113 cm**. Pressing Enter in the field did not apply in this run, while the Apply button did; recheck on the next dimension. The circle centre did not snap to the origin (2 DOF left), which the book needs for step 274.
+
 ### Review follow-up (2026-09-13)
 
 2A-1…2A-6 are **kernel-verified**, not ritual-Done. Up To Surface now trims the extrude tool with the selected face (SwitchHole inner cylinder test). Closed reversed spline `kernelCurve` splits on the sample walk. Through-vertex planes resolve from live edges and no longer mutate saved plane origin during rebuild. Library JSON export/import is on the Library pane. Geometry pattern checkbox removed. Sketch fillet driving lengths stay on the original corner. Revolve crossing is checked in sketch-plane space. Toolbox/custom/rubber/polycarbonate densities are no longer silent steel.
