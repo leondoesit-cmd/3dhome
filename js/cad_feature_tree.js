@@ -28,6 +28,20 @@ export function ensureFeatureTree(def) {
   return def.features;
 }
 
+function featureReferenceSlots(feature) {
+  const params = feature?.params || {};
+  const raw = feature?.references;
+  const references = raw && !Array.isArray(raw)
+    ? structuredClone(raw)
+    : { sketches: [], features: [], topology: [], references: [] };
+  references.sketches ||= [];
+  references.features ||= [];
+  references.topology ||= [];
+  references.references ||= [];
+  if (params.sketchId && !references.sketches.length) references.sketches = [params.sketchId];
+  return references;
+}
+
 export function addFeature(def, feature) {
   const features = ensureFeatureTree(def);
   const normalized = {
@@ -36,7 +50,7 @@ export function addFeature(def, feature) {
     type: feature.type,
     params: structuredClone(feature.params || {}),
     inputs: (feature.inputs || []).slice(),
-    references: structuredClone(feature.references || []),
+    references: featureReferenceSlots(feature),
     suppressed: !!feature.suppressed,
   };
   features.push(normalized);

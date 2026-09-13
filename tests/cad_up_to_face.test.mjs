@@ -154,3 +154,10 @@ test("SwitchHole up-to-surface trims to the inner cylinder, not a flat sliver", 
     } finally { releaseRegeneration(cutRun); }
   } finally { releaseRegeneration(first); }
 });
+
+test("addFeature records a sketchId as a sketch selection, not an empty array", () => {
+  const definition = { features: [] };
+  const feature = addFeature(definition, { id: "ex", type: "extrude", params: { sketchId: "sk1", from: 0, to: 3.302, axis: "z" } });
+  assert.equal(Array.isArray(feature.references), false);
+  assert.deepEqual(feature.references.sketches, ["sk1"]);
+});

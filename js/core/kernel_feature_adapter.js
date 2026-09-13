@@ -83,8 +83,11 @@ function lowerExtrudeParams(feature, document) {
   const offset = Number(feature.params?.offset) || 0;
   const reverse = feature.params?.direction === "reverse" ? -1 : 1;
   const symmetric = !!feature.params?.symmetric || feature.params?.endCondition === "mid-plane";
-  const from = symmetric ? offset - depth / 2 : offset;
-  const to = symmetric ? offset + depth / 2 : offset + reverse * depth;
+  const storedFrom = Number(feature.params?.from);
+  const storedTo = Number(feature.params?.to);
+  const hasStoredSpan = Number.isFinite(storedFrom) && Number.isFinite(storedTo) && Math.abs(storedTo - storedFrom) > 1e-9;
+  const from = hasStoredSpan ? storedFrom : (symmetric ? offset - depth / 2 : offset);
+  const to = hasStoredSpan ? storedTo : (symmetric ? offset + depth / 2 : offset + reverse * depth);
   const target = feature.inputs?.[0] || idOf(feature.references?.features?.[0]);
   const params = {
     ...cloneDomain(feature.params),
@@ -96,7 +99,7 @@ function lowerExtrudeParams(feature, document) {
   };
   if (target) params.targetFeatureId = target;
   if (sketch?.frame) { params.axis = "frame"; params.frame = cloneDomain(sketch.frame); }
-  if (sketch?.support) { params.support = cloneDomain(sketch.support); params.baseOffset = offset; params.depth = depth; }
+  if (sketch?.support) { params.support = cloneDomain(sketch.support); params.baseOffset = offset; params.depth = depth || Math.abs(to - from); }
   return params;
 }
 

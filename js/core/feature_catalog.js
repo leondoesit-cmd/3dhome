@@ -932,8 +932,15 @@ export function featureEditorGroups(type) {
   return localizeGroups(clone(featureSpec(type)?.editor?.groups || []));
 }
 
-function selectionCount(references, role) {
+function selectionCount(references, role, feature) {
   if (role === "features") return Array.isArray(references?.features) ? references.features.length : 0;
+  if (role === "sketches") {
+    const listed = Array.isArray(references?.sketches) ? references.sketches.filter(Boolean).length : 0;
+    if (listed) return listed;
+    /* Migrated and viewport-rebuilt extrudes store the profile on
+       params.sketchId. That is the same selection the tree already reads. */
+    return feature?.params?.sketchId ? 1 : 0;
+  }
   return Array.isArray(references?.[role]) ? references[role].length : 0;
 }
 
@@ -954,7 +961,7 @@ export function validateFeatureDefinition(feature) {
       feature.params?.helixId ||
       feature.params?.helix
     ))rule={...rule,min:1,max:1};
-    const count = selectionCount(references, role);
+    const count = selectionCount(references, role, feature);
     if (Number.isFinite(rule.min) && count < rule.min) issues.push({
       severity: "error", code: "missing-feature-input", featureId: feature.id, role,
       message: spec.label + " requires " + rule.min + " " + role + " selection" + (rule.min === 1 ? "" : "s"),

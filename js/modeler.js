@@ -1315,13 +1315,12 @@ if (typeof window !== "undefined") {
     });
   };
   /* The rows the exact tree is built from — what STEP/IGES, mass properties and
-     interference see, as opposed to what the viewport draws. It REBUILDS the
-     tree, the way opening a legacy document does, because the question is what
-     the emission produces for the document as it now stands. Reported by type
-     and input: the defect this guards is a missing row, not a wrong number in
-     one. */
+     interference see, as opposed to what the viewport draws. Legacy documents
+     rebuild from parts here; a parametric-v1 history already owns its features,
+     and projecting them again drops sketch selections. */
   window.cadFeatureTreeSnapshot = function () {
-    rebuildFeatureTreeFromDocument();
+    var hasAuthoredTree = Array.isArray(E.def.features) && E.def.features.length > 0;
+    if (!isCanonicalAuthoring() || !hasAuthoredTree) rebuildFeatureTreeFromDocument();
     return (E.def.features || []).map(function (feature) {
       return { id:feature.id, type:feature.type, inputs:(feature.inputs || []).slice(), params:cloneData(feature.params || {}) };
     });
@@ -20556,6 +20555,12 @@ function emitPartPatternTurn(target, part, feature) {
 
 function rebuildFeatureTreeFromDocument(target) {
   target=target || E.def;
+  /* Canonical documents already own their feature history. Re-emitting from
+     preview parts drops references.sketches and turns a valid extrude into
+     "requires 1 sketches selection". Same predicate as saveModel(). */
+  if (target.metadata && target.metadata.authoringSystem === "parametric-v1" && Array.isArray(target.features) && target.features.length) {
+    return target.features;
+  }
   var previousFeatures=new Map((target.features || []).map(function(feature){return [feature.id,feature];}));
   target.features = [];
   var combined = null, emittedToolbox=new Set();
@@ -20593,7 +20598,12 @@ function rebuildFeatureTreeFromDocument(target) {
     } else if (part.kind === "sph") {
       feature = addFeature(target, { id:part.featureId, type:"sphere", name:part.name || "Sphere", params:{x:part.x,y:part.y,z:part.z,r:part.r} });
     } else if (part.kind === "ext") {
-      feature = addFeature(target, { id:part.featureId, type:"extrude", name:part.name || "Extrude", params:{axis:part.axis,...(part.frame ? {frame:cloneData(part.frame)} : {}),from:part.from,to:part.to,points:cloneData(part.pts),...(part.profileEntityIds ? {profileEntityIds:cloneData(part.profileEntityIds), sketchId:part.sketchId} : {}),...(part.support ? {support:cloneData(part.support),baseOffset:Number(part.supportBaseOffset)||0,depth:Number(part.supportDepth)||Math.abs(part.to-part.from)} : {})}, inputs:part.support ? [part.support.ownerFeatureId] : [] });
+      var previousExtrude=previousFeatures.get(part.featureId);
+      var extrudeRefs=previousExtrude && previousExtrude.references && !Array.isArray(previousExtrude.references)
+        ? cloneData(previousExtrude.references)
+        : { sketches: part.sketchId ? [part.sketchId] : [], features: [], topology: [], references: [] };
+      var extrudeDepth=Number(part.supportDepth)||Math.abs(Number(part.to)-Number(part.from));
+      feature = addFeature(target, { id:part.featureId, type:"extrude", name:part.name || "Extrude", params:{axis:part.axis,...(part.frame ? {frame:cloneData(part.frame)} : {}),from:part.from,to:part.to,depth:extrudeDepth,points:cloneData(part.pts),...(part.profileEntityIds ? {profileEntityIds:cloneData(part.profileEntityIds), sketchId:part.sketchId} : {}),...(part.sketchId ? {sketchId:part.sketchId} : {}),...(part.support ? {support:cloneData(part.support),baseOffset:Number(part.supportBaseOffset)||0,depth:extrudeDepth} : {})}, inputs:part.support ? [part.support.ownerFeatureId] : [], references: extrudeRefs });
       (part.holes || []).forEach(function (hole, holeIndex) {
         var loop = holeLoop(hole, true);
         if (hole && hole.suppressed) return;

@@ -14,7 +14,7 @@ import {
 import { compileKernelFeatureTree } from "../js/core/kernel_feature_adapter.js";
 import { createTopologyReference } from "../js/core/topology.js";
 import { publishRebuildStatus, rebuildParametricDocument } from "../js/core/parametric_rebuild.js";
-import { featureDefaults, featureEditorGroups } from "../js/core/feature_catalog.js";
+import { featureDefaults, featureEditorGroups, validateFeatureDefinition } from "../js/core/feature_catalog.js";
 
 function constrainedRectangle(document) {
   return createSketchDefinition(document, {
@@ -325,4 +325,21 @@ test("a fillet can be authored from a selected face, not only from edges", () =>
   });
   assert.equal(fillet.references.topology[0].kind, "face");
   assert.equal(fillet.params.radius, 4);
+});
+
+test("an extrude stored as params.sketchId plus from/to still compiles", () => {
+  const document = createPartDocument({ id: "part:housing-base" });
+  const sketch = constrainedRectangle(document);
+  const feature = createFeatureDefinition(document, "extrude", {
+    id: "feature:base",
+    references: { sketches: [], features: [], topology: [], references: [] },
+    params: { axis: "z", from: 0, to: 3.302, sketchId: sketch.id, profileEntityIds: ["e0", "e1", "e2", "e3"] },
+  });
+  assert.equal(validateFeatureDefinition(feature).filter((issue) => issue.severity === "error").length, 0);
+  const compiled = compileKernelFeatureTree(document);
+  assert.equal(compiled.ok, true, JSON.stringify(compiled.issues));
+  const lowered = compiled.features.find((item) => item.type === "extrude");
+  assert.equal(lowered.params.from, 0);
+  assert.equal(lowered.params.to, 3.302);
+  assert.equal(lowered.params.sketchId, sketch.id);
 });
