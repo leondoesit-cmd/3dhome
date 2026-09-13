@@ -140,8 +140,8 @@ export function sizeFrom(start, handle, dx, dy, constraints, options) {
 
   const both = opts.aspect || opts.free;
   const out = {};
-  if (grows.w || both) out.w = clamp(Math.round(start.w + (grows.w || 1) * mx), c.minW, c.maxW);
-  if (grows.h || both) out.h = clamp(Math.round(start.h + (grows.h || 1) * my), c.minH, c.maxH);
+  if (grows.w || both) out.w = clamp(Math.round(start.w + (grows.w || 1) * mx), c.minW ?? 1, c.maxW);
+  if (grows.h || both) out.h = clamp(Math.round(start.h + (grows.h || 1) * my), c.minH ?? 1, c.maxH);
   return Object.keys(out).length ? out : null;
 }
 

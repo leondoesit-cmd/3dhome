@@ -95,9 +95,8 @@ export function applyTextOverrides(doc, overrides, lang) {
  * checking the app-wide overrides first means clearing a per-node rename
  * uncovers an everywhere-rename rather than deleting it.
  *
- * An element with no data-i18n* attribute of its own has no host words to
- * change: a .dropdown wrapper, a pill, a panel section. apply() does nothing
- * there, which is the honest answer rather than a guessed one.
+ * Untagged commands may expose one direct text label. Containers and controls
+ * with ambiguous labels are left alone so renaming a region cannot erase it.
  */
 export function createLabelContract(doc, overridesOf) {
   const root = doc || (typeof document !== "undefined" ? document : null);
@@ -125,12 +124,42 @@ export function createLabelContract(doc, overridesOf) {
     if (inner.length === 1) fn(inner[0], KINDS[0]);
   }
 
+  const fallbackLabels = new Map();
+  function fallback(el, text) {
+    const control = el.matches?.("button, [role=button], [role^=menuitem]")
+      ? el : el.querySelector?.(":scope > .dropdown-trigger");
+    if (!control) return;
+    let saved = fallbackLabels.get(el);
+    if (!saved) {
+      let nodes = [...control.childNodes].filter(node => node.nodeType === 3 && node.textContent.trim());
+      if (!nodes.length) {
+        const spans = [...control.children].filter(child => child.tagName === "SPAN" && child.children.length === 0 && child.textContent.trim());
+        if (spans.length === 1) nodes = [...spans[0].childNodes].filter(node => node.nodeType === 3);
+      }
+      if (nodes.length > 1) return;
+      const target = nodes[0] || null;
+      saved = { control, target, text: target?.textContent, aria: control.getAttribute("aria-label") };
+      fallbackLabels.set(el, saved);
+    }
+    if (saved.target) saved.target.textContent = text;
+    saved.control.setAttribute("aria-label", text);
+  }
+
   return {
     apply(el, text) {
       if (text == null) return;
-      each(el, (target, kind) => kind.apply(target, String(text)));
+      let found = false;
+      each(el, (target, kind) => { found = true; kind.apply(target, String(text)); });
+      if (!found) fallback(el, String(text));
     },
     restore(el) {
+      const saved = fallbackLabels.get(el);
+      if (saved) {
+        if (saved.target) saved.target.textContent = saved.text;
+        if (saved.aria == null) saved.control.removeAttribute("aria-label");
+        else saved.control.setAttribute("aria-label", saved.aria);
+        fallbackLabels.delete(el);
+      }
       const overrides = typeof overridesOf === "function" ? overridesOf() : null;
       each(el, (target, kind) => {
         const key = target.getAttribute(kind.attr);

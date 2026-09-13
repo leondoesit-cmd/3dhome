@@ -54,6 +54,7 @@ export function insertionIndex(rects, point, axis) {
    leading edge of an empty container. Returned in viewport coordinates,
    because that is the space the overlay draws in. */
 export function dropIndicator(containerRect, rects, index, axis) {
+  if (!containerRect) return null;
   const thickness = 2;
   if (!rects || !rects.length) {
     return axis === "col"
@@ -62,11 +63,14 @@ export function dropIndicator(containerRect, rects, index, axis) {
   }
   const before = rects[Math.min(index, rects.length - 1)];
   const after = index >= rects.length;
+  const descending = rects.length > 1 && (axis === "col"
+    ? rects.at(-1).y + rects.at(-1).h / 2 < rects[0].y + rects[0].h / 2
+    : rects.at(-1).x + rects.at(-1).w / 2 < rects[0].x + rects[0].w / 2);
   if (axis === "col") {
-    const y = after ? before.y + before.h : before.y;
+    const y = (after !== descending) ? before.y + before.h : before.y;
     return { x: containerRect.x, y: y - thickness / 2, w: containerRect.w, h: thickness };
   }
-  const x = after ? before.x + before.w : before.x;
+  const x = (after !== descending) ? before.x + before.w : before.x;
   return { x: x - thickness / 2, y: containerRect.y, w: thickness, h: containerRect.h };
 }
 
@@ -91,12 +95,15 @@ export function dropPlaceholder(containerRect, rects, index, axis, size = { w: 3
       : { x: containerRect.x + 2, y: containerRect.y + 2, w: thickness, h: containerRect.h - 4 };
   }
   const after = index >= rects.length;
+  const descending = rects.length > 1 && (axis === "col"
+    ? rects.at(-1).y + rects.at(-1).h / 2 < rects[0].y + rects[0].h / 2
+    : rects.at(-1).x + rects.at(-1).w / 2 < rects[0].x + rects[0].w / 2);
   const ref = rects[Math.min(index, rects.length - 1)];
   if (axis === "col") {
-    const y = after ? ref.y + ref.h : ref.y;
+    const y = ((after !== descending) ? ref.y + ref.h : ref.y) - (descending ? thickness : 0);
     return { x: containerRect.x + 2, y, w: containerRect.w - 4, h: thickness };
   }
-  const x = after ? ref.x + ref.w : ref.x;
+  const x = ((after !== descending) ? ref.x + ref.w : ref.x) - (descending ? thickness : 0);
   return { x, y: containerRect.y + 2, w: thickness, h: containerRect.h - 4 };
 }
 

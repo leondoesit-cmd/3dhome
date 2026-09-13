@@ -161,7 +161,7 @@ export function insert(doc, args) {
   const target = doc.nodes[parent];
   if (!target || !isContainer(target.type)) return doc;
   const nodes = cloneNodes(doc);
-  nodes[id] = node && node.type ? node : makeNode("item", { ref: id });
+  nodes[id] = node && node.type ? makeNode(node.type, JSON.parse(JSON.stringify(node))) : makeNode("item", { ref: id });
   const kids = childrenOf(doc, parent).slice();
   kids.splice(clampIndex(index, kids.length), 0, id);
   nodes[parent] = Object.assign({}, nodes[parent], { children: kids });
@@ -222,7 +222,7 @@ export function ungroup(doc, args) {
 
   /* A variant patch for a node that no longer exists would be resurrected by
      an undo of something unrelated. Drop the patches with the node. */
-  let variants = doc.variants;
+  let variants = doc.variants || {};
   for (const name of Object.keys(variants)) {
     const v = variants[name];
     if (!v.patch || !v.patch[id]) continue;
@@ -243,7 +243,7 @@ export function clampSize(size, min, max) {
     if (size[axis] == null) continue;
     let value = Number(size[axis]);
     if (!Number.isFinite(value)) continue;
-    const lo = min && min[axis] != null ? Number(min[axis]) : null;
+    const lo = min && min[axis] != null ? Number(min[axis]) : 1;
     const hi = max && max[axis] != null ? Number(max[axis]) : null;
     if (lo != null && value < lo) value = lo;
     if (hi != null && value > hi) value = hi;
@@ -335,14 +335,14 @@ export function setToken(doc, args) {
     return setField(doc, id, "tokens", Object.keys(next).length ? next : null, variant);
   }
   if (variant && variant !== "base") {
-    const screen = doc.variants[variant];
+    const screen = doc.variants?.[variant];
     if (!screen) return doc;
-    const tokens = { ...(screen.tokens || doc.overrides.tokens || {}) };
+    const tokens = { ...(screen.tokens || doc.overrides?.tokens || {}) };
     if (value == null) delete tokens[name];
     else tokens[name] = value;
     return { ...doc, variants: { ...doc.variants, [variant]: { ...screen, tokens } } };
   }
-  const current = doc.overrides.tokens || {};
+  const current = doc.overrides?.tokens || {};
   if (current[name] === value) return doc;
   const tokens = Object.assign({}, current);
   if (value == null) delete tokens[name];
@@ -359,7 +359,7 @@ export function setText(doc, args) {
   const { key, lang, value } = args || {};
   if (!key) return doc;
   const bucket = lang || "*";
-  const text = doc.overrides.text || {};
+  const text = doc.overrides?.text || {};
   const current = text[bucket] || {};
   if (current[key] === value) return doc;
   if (value == null && !Object.prototype.hasOwnProperty.call(current, key)) return doc;
@@ -387,7 +387,7 @@ export function setText(doc, args) {
  * one should not undo the rest, so this is resetNode narrowed to a single key
  * — same two cases, base and variant patch, same emptied-patch cleanup. */
 export function resetField(doc, args) {
-  const { id, field, variant } = args || {};
+  const { id, field, variant, defaults } = args || {};
   if (!isPatchable(field)) throw new Error("uikit: " + field + " is not a patchable field");
   const name = variant || BASE;
   if (name !== BASE) {
@@ -403,7 +403,13 @@ export function resetField(doc, args) {
     return Object.assign({}, doc, { variants });
   }
   const node = doc.nodes[id];
-  if (!node || !Object.prototype.hasOwnProperty.call(node, field)) return doc;
+  if (!node) return doc;
+  const original = defaults?.nodes?.[id];
+  if (original && Object.prototype.hasOwnProperty.call(original, field)) {
+    if (JSON.stringify(node[field]) === JSON.stringify(original[field])) return doc;
+    return withNode(doc, id, next => { next[field] = JSON.parse(JSON.stringify(original[field])); });
+  }
+  if (!Object.prototype.hasOwnProperty.call(node, field)) return doc;
   return withNode(doc, id, (next) => { delete next[field]; });
 }
 
@@ -447,23 +453,10 @@ export function resetText(doc, args) {
 }
 
 export function resetNode(doc, args) {
-  const { id, variant } = args || {};
-  const name = variant || BASE;
-  if (name !== BASE) {
-    const v = variantOf(doc, name);
-    if (!v || !v.patch || !v.patch[id]) return doc;
-    const patch = Object.assign({}, v.patch);
-    delete patch[id];
-    const variants = Object.assign({}, doc.variants, { [name]: Object.assign({}, v, { patch }) });
-    return Object.assign({}, doc, { variants });
-  }
-  const node = doc.nodes[id];
-  if (!node) return doc;
-  const touched = PATCHABLE.filter((field) => Object.prototype.hasOwnProperty.call(node, field));
-  if (!touched.length) return doc;
-  return withNode(doc, id, (next) => {
-    for (const field of touched) delete next[field];
-  });
+  const { id, variant, defaults } = args || {};
+  let next = doc;
+  for (const field of PATCHABLE) next = resetField(next, { id, field, variant, defaults });
+  return next;
 }
 
 /* Drop every presentation override for one responsive variant while leaving

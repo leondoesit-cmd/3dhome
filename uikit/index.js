@@ -243,6 +243,16 @@ export function createUIKit(options) {
        that can put the problem back is not a way out. */
     resetAll() {
       storage.clear(storageKey);
+      storage.clear(storageKey + ":saved");
+      if (typeof storage.clearPrefix === "function") storage.clearPrefix(storageKey + ":saved:");
+      else {
+        const known = storage.load(storageKey + ":saved-scopes");
+        const scopes = Array.isArray(known) ? known.filter(name => typeof name === "string") : [];
+        for (const name of new Set([...scopes, ...Object.keys(doc?.variants || {}), ...Object.keys(defaults?.variants || {})])) {
+          if (name !== "base") storage.clear(storageKey + ":saved:" + name);
+        }
+      }
+      storage.clear(storageKey + ":saved-scopes");
       adopt(defaults || emptyDoc(), { label: "Reset" });
       /* Rendered now, not on the next frame. Every other change can wait for
          the coalescing pass, but this one is what someone types when the UI is
@@ -433,8 +443,19 @@ export function createUIKit(options) {
       const key = storageKey + ":saved" + (api.variant === "base" ? "" : ":" + api.variant);
       const loaded = storage.load(key);
       const saved = Array.isArray(loaded) ? loaded.filter((item) => item && item.doc && typeof item.id === "string" && typeof item.name === "string") : [];
-      saved.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name: title, scope: api.variant, doc });
+      const known = storage.load(storageKey + ":saved-scopes");
+      const scopes = new Set(Array.isArray(known) ? known.filter(name => typeof name === "string") : []);
+      scopes.add(api.variant);
+      if (!storage.save(storageKey + ":saved-scopes", [...scopes])) return false;
+      saved.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name: title, scope: api.variant, doc: JSON.parse(JSON.stringify(doc)) });
       return storage.save(key, saved);
+    },
+
+    deleteNamedLayout(id) {
+      const key = storageKey + ":saved" + (api.variant === "base" ? "" : ":" + api.variant);
+      const saved = storage.load(key);
+      if (!Array.isArray(saved) || !saved.some(item => item?.id === id)) return false;
+      return storage.save(key, saved.filter(item => item?.id !== id));
     },
 
     loadNamedLayout(id) {
@@ -497,6 +518,11 @@ export function createUIKit(options) {
           return { ok: false, problems: [{ code: "not-json", id: null }] };
         }
       }
+      try {
+        if (typeof opts.migrateDocument === "function") raw = opts.migrateDocument(raw) || raw;
+      } catch (_) {
+        return { ok: false, problems: [{ code: "migration-failed", id: null }] };
+      }
       const report = normalizeDoc(raw);
       history.apply("Import layout", report.doc);
       doc = history.doc;
@@ -522,7 +548,7 @@ export function createUIKit(options) {
       return api._editor || null;
     },
     slotFor: (name) => slotsView.get(name),
-    wrapperFor: (id) => renderer.wrapperFor(id),
+    wrapperFor: (id) => renderer.elementFor(id),
     adoptedFor: (id) => renderer.adoptedFor(id),
     adopter,
   };

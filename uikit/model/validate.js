@@ -94,9 +94,9 @@ function breakCycles(nodes, parent, problems) {
 }
 
 function normalizeVariants(doc, problems) {
-  const variants = doc.variants && typeof doc.variants === "object" ? doc.variants : {};
+  const variants = doc.variants && typeof doc.variants === "object" && !Array.isArray(doc.variants) ? doc.variants : {};
   const names = Object.keys(variants);
-  if (!variants.base) {
+  if (!variants.base || typeof variants.base !== "object" || Array.isArray(variants.base)) {
     /* Every variant is an overlay on base, so a document without one has no
        floor to fall through to. Promote the first variant rather than invent
        an empty root that would render nothing. */
@@ -109,12 +109,12 @@ function normalizeVariants(doc, problems) {
   }
   for (const name of Object.keys(variants)) {
     const variant = variants[name];
-    if (!variant || typeof variant !== "object") {
+    if (!variant || typeof variant !== "object" || Array.isArray(variant)) {
       variants[name] = { root: variants.base.root, patch: {} };
       problem(problems, "bad-variant", name);
       continue;
     }
-    if (!variant.patch || typeof variant.patch !== "object") variant.patch = {};
+    if (!variant.patch || typeof variant.patch !== "object" || Array.isArray(variant.patch)) variant.patch = {};
     if (typeof variant.root !== "string" || !variant.root) variant.root = variants.base.root;
   }
   doc.variants = variants;
@@ -201,6 +201,7 @@ export function normalizeDoc(raw) {
    document, so every node has at most one parent by construction. */
 export function parentIndex(doc) {
   const parent = new Map();
+  if (!doc || !doc.nodes || typeof doc.nodes !== "object" || Array.isArray(doc.nodes)) return parent;
   for (const id of Object.keys(doc.nodes)) {
     const node = doc.nodes[id];
     if (!node || !isContainer(node.type) || !Array.isArray(node.children)) continue;

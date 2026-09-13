@@ -25,10 +25,12 @@ export function accel(e) {
   return !!(e && (e.metaKey || e.ctrlKey));
 }
 
-/* Does this event mean that letter? `letter` is a single a-z character. */
+/* Latin shortcuts follow the active keyboard layout; Option composition and
+   non-Latin layouts retain the physical-key fallback. */
 export function matchesLetter(e, letter) {
   if (!e) return false;
   const want = String(letter).toLowerCase();
+  if (!e.altKey && /^[a-z]$/i.test(e.key || "")) return e.key.toLowerCase() === want;
   if (e.code && /^Key[A-Z]$/.test(e.code)) return e.code.slice(3).toLowerCase() === want;
   return String(e.key || "").toLowerCase() === want;
 }

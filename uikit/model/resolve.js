@@ -117,6 +117,7 @@ export function resolve(doc, options) {
          the user typed against this one node belongs on its element. */
       customLabel: node.label == null ? null : String(node.label),
       icon: node.icon != null ? node.icon : entry ? entry.icon : null,
+      customIcon: node.icon == null ? null : String(node.icon),
       hidden: !!node.hidden,
       collapsed: !!node.collapsed,
       slot: node.slot || null,
@@ -127,7 +128,8 @@ export function resolve(doc, options) {
       tokens: node.tokens || null,
       /* Containers do not have registry entries, so a host may declare their
          resize/hide guardrails directly in its shipped layout document. */
-      constraints: node.constraints || (entry && entry.constraints) || null,
+      constraints: node.constraints || entry?.constraints
+        ? { ...entry?.constraints, ...node.constraints } : null,
       escapes: !!(node.escapes || (entry && entry.escapes)),
       children: [],
     };

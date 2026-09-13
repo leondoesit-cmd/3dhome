@@ -151,6 +151,7 @@ export function createRenderer(options) {
      knew nothing about. So the host applies and the host restores, and this
      file only remembers which elements are currently carrying a rename. */
   const labels = opts.labels || null;
+  const iconized = new Set();
   const labelled = new Set(); // adopted elements the host has renamed for us
   const onRun = typeof opts.onRun === "function" ? opts.onRun : null;
   /* Variables the host has declared as user-editable, on top of uikit's own. */
@@ -254,7 +255,8 @@ export function createRenderer(options) {
      of its own. The root container is the mount: giving it a box would put an
      extra div between the host's element and the whole layout, for no gain. */
   function wantedSlot(node, isRoot) {
-    if (!isContainer(node)) return null;
+    // Floating panels live inside an overlay slot; they must never become it.
+    if (!isContainer(node) || node.type === "float") return null;
     if (node.slot) return slots.get(node.slot) || null;
     return isRoot ? mount : null;
   }
@@ -387,10 +389,10 @@ export function createRenderer(options) {
       if (name.startsWith("--uikit-")) style.removeProperty(name);
     }
     if (!el.getAttribute("style")) el.removeAttribute("style");
-    el.hidden = false;
   }
 
   function dropElement(id) {
+    restoreIcon(elements.get(id));
     const held = content.get(id);
     const el = elements.get(id);
     if (el && hiddenByUs.has(id)) {
@@ -424,6 +426,12 @@ export function createRenderer(options) {
     clearTarget(id);
   }
 
+  function restoreIcon(el) {
+    if (!el || !iconized.has(el)) return;
+    iconized.delete(el);
+    if (typeof icons?.restore === "function") icons.restore(el);
+  }
+
   function restoreLabel(el) {
     if (!el || !labelled.has(el)) return;
     labelled.delete(el);
@@ -453,6 +461,10 @@ export function createRenderer(options) {
 
     setAttr(el, "data-uikit-id", node.id);
     syncLabel(node, el);
+    if (!created.has(el) && typeof icons?.apply === "function") {
+      if (node.customIcon != null) { icons.apply(el, node.customIcon); iconized.add(el); }
+      else restoreIcon(el);
+    }
     if (isCreated || bound.has(node.id)) {
       setAttr(el, "data-uikit-type", node.type);
       setAttr(el, "data-uikit-orient", node.orient);
@@ -476,8 +488,8 @@ export function createRenderer(options) {
        is limited to the nodes this module is responsible for. */
     const wantHidden = !editing && !!node.hidden;
     if (wantHidden) {
+      if (!el.hidden) hiddenByUs.add(node.id);
       el.hidden = true;
-      hiddenByUs.add(node.id);
     } else if (hiddenByUs.has(node.id)) {
       el.hidden = false;
       hiddenByUs.delete(node.id);

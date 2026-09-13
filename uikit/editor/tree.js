@@ -41,6 +41,7 @@ export function createTreeBrowser(context) {
   let lastSelection = [];
   let focusedId = null;
   let editingNodeId = null;
+  let rendering = false;
   let treeDrag = null;
   let dwellTimer = null;
   let dropLineEl = null;
@@ -269,6 +270,7 @@ export function createTreeBrowser(context) {
   doc.addEventListener("pointerup", onTreePointerUp);
 
   function destroy() {
+    editingNodeId = null;
     if (iconPicker) iconPicker.__cleanup(false);
     iconPicker = null;
     doc.removeEventListener("pointermove", onTreePointerMove);
@@ -375,13 +377,16 @@ export function createTreeBrowser(context) {
       input.value = title(node);
       input.addEventListener("keydown", (e) => {
         e.stopPropagation();
-        if (e.key === "Enter") {
+        if (e.key === "Enter" && !e.isComposing) {
+          e.preventDefault();
           commitRename(node.id, input.value);
         } else if (e.key === "Escape") {
+          e.preventDefault();
           cancelRename();
         }
       });
       input.addEventListener("blur", () => {
+        if (rendering) return;
         commitRename(node.id, input.value);
       });
       rowEl.appendChild(input);
@@ -529,25 +534,13 @@ export function createTreeBrowser(context) {
       }
     });
 
-    rowEl.addEventListener("dblclick", (e) => {
-      if (e.target.closest(".uikit-ins-tree-mark") ||
-          e.target.closest(".uikit-ins-tree-icon-btn") ||
-          e.target.closest(".uikit-ins-tree-action") ||
-          editingNodeId === node.id) {
-        return;
-      }
-      const drill = drillTarget(node);
-      if (drill) {
-        if (typeof ctx.setFocus === "function") ctx.setFocus(drill);
-        if (typeof ctx.select === "function") ctx.select(drill);
-        collapsed.delete(drill);
-        renderCurrent();
-      }
-    });
-
     rowEl.append(pencilBtn, resetBtn);
     itemWrap.appendChild(rowEl);
     list.appendChild(itemWrap);
+    if (treeDrag?.active && treeDrag.id === node.id) {
+      treeDrag.rowEl = rowEl;
+      rowEl.classList.add("is-dragging");
+    }
 
     if (hasChildren && (!isCollapsed || query)) {
       const children = node.children || [];
@@ -561,11 +554,17 @@ export function createTreeBrowser(context) {
   function renderCurrent() {
     if (!root.open) return;
     const hadFocus = list.contains(doc.activeElement);
+    const oldInput = list.querySelector(".uikit-ins-tree-inline-input");
+    const draft = oldInput?.value;
+    const caret = oldInput?.selectionStart;
+    rendering = true;
     list.replaceChildren();
-    if (!lastTree) return;
+    if (!lastTree) { rendering = false; return; }
 
     const selected = new Set(lastSelection);
     row(lastTree, 0, selected, 0, 1, null);
+    const input = list.querySelector(".uikit-ins-tree-inline-input");
+    if (input && draft != null) input.value = draft;
 
     if (!list.querySelector(".uikit-ins-tree-row")) {
       const empty = doc.createElement("div");
@@ -581,6 +580,11 @@ export function createTreeBrowser(context) {
       active.tabIndex = 0;
       if (hadFocus && editingNodeId == null) active.focus();
     }
+    if (hadFocus && input) {
+      input.focus();
+      if (caret != null) input.setSelectionRange(caret, caret);
+    }
+    rendering = false;
   }
 
   list.addEventListener("focusin", (e) => {
@@ -600,6 +604,8 @@ export function createTreeBrowser(context) {
 
     const currentButton = (e.target && e.target.closest(".uikit-ins-tree-row")) ||
       (doc.activeElement && doc.activeElement.closest(".uikit-ins-tree-row"));
+    const control = e.target && e.target.closest("button, input, select, textarea, [contenteditable=true]");
+    if (control && control !== currentButton && currentButton?.contains(control)) return;
     const currentIndex = currentButton ? rows.indexOf(currentButton) : -1;
 
     switch (e.key) {
@@ -684,7 +690,7 @@ export function createTreeBrowser(context) {
       iconPicker.__cleanup(false);
       iconPicker = null;
     }
-    if (newKey && newKey !== prevSelectionKey) {
+    if (newKey !== prevSelectionKey) {
       prevSelectionKey = newKey;
       for (const selId of lastSelection) {
         const ancestors = findPathTo(lastTree, selId);
@@ -715,5 +721,21 @@ export function createTreeBrowser(context) {
       renderCurrent();
     },
     isCollapsed: (id) => collapsed.has(id),
+    saveView() {
+      return { collapsed: [...collapsed], focusedId, editingNodeId, query, prevSelectionKey,
+        draft: list.querySelector(".uikit-ins-tree-inline-input")?.value };
+    },
+    restoreView(state) {
+      collapsed.clear();
+      for (const id of state.collapsed) collapsed.add(id);
+      focusedId = state.focusedId;
+      editingNodeId = state.editingNodeId;
+      query = state.query;
+      prevSelectionKey = state.prevSelectionKey;
+      search.value = query;
+      renderCurrent();
+      const input = list.querySelector(".uikit-ins-tree-inline-input");
+      if (input && state.draft != null) input.value = state.draft;
+    },
   };
 }

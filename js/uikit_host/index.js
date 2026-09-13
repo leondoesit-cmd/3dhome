@@ -21,6 +21,7 @@
 import { createUIKit, createLocalStorage } from "../../uikit/index.js";
 import { getLang, onLangChange, t } from "../i18n.js";
 import { ICON_SEMANTIC_NAMES } from "../icon_theme_assets.js";
+import { createIconContract } from "./icon_overrides.js";
 import { resolveIconName } from "../icon_settings.js";
 import { curatedOnlyCommands, scanCommands, titleFor, applySource } from "./commands.js";
 import * as dock from "./dock.js";
@@ -247,6 +248,7 @@ export function initUIKit(options) {
        the ten icon sets the user has chosen, and the icon picker offers the
        app's real vocabulary rather than a list uikit invented. */
     icons: {
+      ...createIconContract(),
       list: () => ICON_SEMANTIC_NAMES.slice(),
       resolve: resolveIconName,
       render: (name, host) => {
@@ -335,12 +337,9 @@ export function initUIKit(options) {
     langHooked = true;
     onLangChange(() => {
       if (!instance) return;
-      if (instance.editing && instance.editor) {
-        instance.editor.setActive(false);
-        instance.editor.setActive(true);
-      }
-      instance.refresh();
-      applyOverrides(instance, doc);
+      instance.refreshNow();
+      if (instance.editing && instance.editor) instance.editor.refreshLanguage();
+      applyOverrides(instance, instance.mountDocument);
     });
   }
 

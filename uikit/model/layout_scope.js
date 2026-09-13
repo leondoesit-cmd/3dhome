@@ -20,6 +20,8 @@ export function presentation(doc, scope = "base") {
 export function applyScopedLayout(current, source, scope = "base", sourceScope = "base") {
   if (scope === "base") {
     const next = JSON.parse(JSON.stringify(source));
+    next.variants = { ...next.variants };
+    next.overrides = { ...next.overrides, text: JSON.parse(JSON.stringify(current.overrides?.text || {})) };
     for (const name of Object.keys(current.variants || {})) {
       if (name === "base") continue;
       next.variants[name] = { ...current.variants[name], patch: presentation(current, name),
@@ -28,7 +30,7 @@ export function applyScopedLayout(current, source, scope = "base", sourceScope =
     return next;
   }
   return { ...current, variants: { ...current.variants, [scope]: {
-    ...current.variants[scope], root: current.variants[scope]?.root || current.variants.base.root,
+    ...current.variants?.[scope], root: current.variants?.[scope]?.root || current.variants?.base?.root || current.root || Object.keys(current.nodes || {})[0],
     patch: presentation(source, sourceScope), tokens: { ...scopeTokens(source, sourceScope) },
   } } };
 }

@@ -162,6 +162,7 @@ export function snapshot(el, rect, options) {
   const clone = el.cloneNode(true);
   sterilize(clone);
   copyStyle(el, clone, view);
+  carryValue(el, clone);
   /* The overlay, not the host's layout, decides where this sits and how big it
      is. Everything above described the look; these five lines take back the
      placement the copied `display`/flex values would otherwise argue about. */

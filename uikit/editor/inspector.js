@@ -6,6 +6,7 @@
  * editing or its button clicks.
  */
 
+import { resolveText } from "../model/resolve.js";
 import { scopeTokens } from "../model/layout_scope.js";
 import { handlesFor } from "./resize.js";
 import { createPalette } from "./palette.js";
@@ -215,7 +216,11 @@ export function createInspector(context) {
     els.textReset = resetter(everywhereRow, t("uikit_ins_reset_this", "Reset this"), () => {
       const node = nodeOf(selected());
       const key = node && node.entry ? node.entry.textKey || node.entry.id : null;
-      if (key) ctx.command("resetText", { key, lang: ctx.lang() });
+      if (key) {
+        const lang = ctx.lang();
+        const bucket = uikit.doc.overrides?.text?.[lang];
+        ctx.command("resetText", { key, lang: bucket && Object.prototype.hasOwnProperty.call(bucket, key) ? lang : "*" });
+      }
     });
 
     const iconRow = row(els.body, t("uikit_ins_icon", "Icon"));
@@ -234,7 +239,13 @@ export function createInspector(context) {
     els.w.inputMode = "decimal";
     els.w.setAttribute("aria-label", t("uikit_ins_width_px", "Width in pixels"));
     els.sizeReset = resetter(els.wRow, t("uikit_ins_reset_this", "Reset this"),
-      () => ctx.command("resetField", { id: selected(), field: "size" }));
+      () => {
+        const id = selected();
+        if (!id) return;
+        let next = ops.resetField(uikit.doc, { id, field: "size", variant: uikit.variant, defaults: uikit.defaults });
+        next = ops.resetField(next, { id, field: "rect", variant: uikit.variant, defaults: uikit.defaults });
+        apply("Reset size", next);
+      });
 
     els.hRow = row(els.body, t("uikit_ins_height", "Height"));
     els.h = el("input", "uikit-ins-num", els.hRow);
@@ -404,7 +415,17 @@ export function createInspector(context) {
       el("span", "uikit-ins-note", els.savedList).textContent = t("uikit_ins_no_saved", "Save your manual edits here to reuse them later.");
     }
     for (const layout of layouts) {
-      const load = button(els.savedList, layout.name, "uikit-ins-saved-layout");
+      const savedRow = el("div", "uikit-ins-saved-row", els.savedList);
+      const load = button(savedRow, layout.name, "uikit-ins-saved-layout");
+      const remove = button(savedRow, t("uikit_ins_delete_layout", "Delete saved layout"), "uikit-ins-delete-layout");
+      remove.title = remove.textContent;
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", t("uikit_ins_delete_layout", "Delete saved layout") + ": " + layout.name);
+      remove.addEventListener("click", () => {
+        const ok = uikit.deleteNamedLayout(layout.id);
+        els.savedStatus.textContent = ok ? t("uikit_ins_layout_deleted", "Saved layout deleted.") : t("uikit_ins_delete_failed", "Could not delete the saved layout.");
+        if (ok) paintSavedLayouts();
+      });
       load.title = t("uikit_ins_load_layout", "Load saved layout");
       load.addEventListener("click", () => {
         const ok = uikit.loadNamedLayout(layout.id);
@@ -460,7 +481,8 @@ export function createInspector(context) {
   }
 
   function darkenHex(value, factor) {
-    const match = String(value || "").match(/^#([0-9a-f]{6})$/i);
+    const expanded = String(value || "").replace(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i, "#$1$1$2$2$3$3");
+    const match = expanded.match(/^#([0-9a-f]{6})$/i);
     if (!match) return value;
     const number = Number.parseInt(match[1], 16);
     const part = (shift) => Math.max(
@@ -508,7 +530,7 @@ export function createInspector(context) {
     doc.body.appendChild(link);
     link.click();
     link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
 
   function closeConfirm(focusTrigger) {
@@ -531,7 +553,9 @@ export function createInspector(context) {
         const node = nodeOf(id);
         const key = node && node.entry ? node.entry.textKey || node.entry.id : null;
         if (!key) return;
-        apply("Rename", ops.setText(uikit.doc, {
+        // Null explicitly inherits app text, even over a base label in a variant.
+        const next = ops.retitle(uikit.doc, { id, label: null, variant: uikit.variant });
+        apply("Rename", ops.setText(next, {
           key, lang: ctx.lang(), value,
         }), FIELD_TAG + ":text:" + key);
       } else {
@@ -560,11 +584,13 @@ export function createInspector(context) {
       const size = w == null && h == null ? null : {};
       if (size && w != null) size.w = w;
       if (size && h != null) size.h = h;
-      apply("Resize", ops.resize(uikit.doc, {
-        id, size, variant: uikit.variant,
-        min: { w: constraints.minW, h: constraints.minH },
-        max: { w: constraints.maxW, h: constraints.maxH },
-      }), FIELD_TAG + ":size:" + id);
+      const min = { w: constraints.minW ?? 1, h: constraints.minH ?? 1 };
+      const max = { w: constraints.maxW, h: constraints.maxH };
+      const next = node?.rect
+        ? ops.setRect(uikit.doc, { id, variant: uikit.variant,
+          rect: { ...node.rect, ...ops.clampSize(size, min, max) } })
+        : ops.resize(uikit.doc, { id, size, variant: uikit.variant, min, max });
+      apply("Resize", next, FIELD_TAG + ":size:" + id);
     };
     els.w.addEventListener("input", sizeChanged);
     els.h.addEventListener("input", sizeChanged);
@@ -610,7 +636,8 @@ export function createInspector(context) {
           : t("uikit_ins_import_failed", "That file is not a layout."));
         ctx.onChanged();
       };
-      reader.readAsText(file);
+      reader.onerror = reader.onabort = () => note(t("uikit_ins_read_failed", "Could not read file."));
+      try { reader.readAsText(file); } catch (_) { reader.onerror(); }
       els.file.value = "";
     });
 
@@ -643,7 +670,7 @@ export function createInspector(context) {
       const patch = v && v.patch && v.patch[id];
       return !!(patch && Object.prototype.hasOwnProperty.call(patch, field));
     }
-    return Object.prototype.hasOwnProperty.call(node, field);
+    return JSON.stringify(node[field]) !== JSON.stringify(uikit.defaults?.nodes?.[id]?.[field]);
   }
 
   /* Has this item been moved out of the place the shipped layout put it?
@@ -806,9 +833,7 @@ export function createInspector(context) {
 
     if (els.label !== focused) {
       els.label.value = els.everywhere.checked
-        ? node.label == null
-          ? node.entry && node.entry.title ? node.entry.title : ""
-          : node.label
+        ? resolveText(uikit.doc, textOverrideKey(node), ctx.lang()) ?? node.entry?.title ?? ""
         : node.label == null ? "" : node.label;
       els.label.placeholder = (node.entry && node.entry.title) || node.ref || "";
     }
@@ -842,8 +867,10 @@ export function createInspector(context) {
     const showH = handles.includes("n") || handles.includes("s");
     els.wRow.hidden = !showW;
     els.hRow.hidden = !showH;
-    if (els.w !== focused) els.w.value = node.size && node.size.w != null ? node.size.w : "";
-    if (els.h !== focused) els.h.value = node.size && node.size.h != null ? node.size.h : "";
+    (showW ? els.wRow : els.hRow).appendChild(els.sizeReset);
+    const dimensions = node.rect || node.size;
+    if (els.w !== focused) els.w.value = dimensions?.w ?? "";
+    if (els.h !== focused) els.h.value = dimensions?.h ?? "";
 
     els.hidden.checked = !!node.hidden;
     els.hidden.disabled = !!(node.constraints && node.constraints.hide === false);
@@ -955,6 +982,45 @@ export function createInspector(context) {
       root = null;
       els = {};
       current = null;
+    },
+    retranslate() {
+      if (!root) return;
+      const view = els.treeBrowser?.saveView();
+      const open = [...root.querySelectorAll("details")].map(el => el.open);
+      const focus = doc.activeElement;
+      const controls = [...root.querySelectorAll("input, select, button")];
+      const focusIndex = controls.indexOf(focus);
+      const draft = focus?.tagName === "INPUT" && !["checkbox", "file"].includes(focus.type) ? focus.value : null;
+      const caret = focus?.selectionStart;
+      const everywhere = els.everywhere.checked;
+      const saveName = els.saveName.value;
+      const scrollTop = els.scroll.scrollTop;
+      const confirm = !els.confirm.hidden;
+      if (iconPicker) iconPicker.__cleanup(false);
+      iconPicker = null;
+      els.treeBrowser?.destroy();
+      root.remove(); root = null; els = {}; current = null; presetScope = null;
+      build();
+      els.everywhere.checked = everywhere;
+      els.saveName.value = saveName;
+      paint();
+      [...root.querySelectorAll("details")].forEach((el, i) => { el.open = !!open[i]; });
+      if (view) els.treeBrowser.restoreView(view);
+      els.confirm.hidden = !confirm;
+      els.resetAll.setAttribute("aria-expanded", String(confirm));
+      els.scroll.scrollTop = scrollTop;
+      const nextFocus = view?.editingNodeId ? root.querySelector(".uikit-ins-tree-inline-input")
+        : [...root.querySelectorAll("input, select, button")][focusIndex];
+      if (nextFocus) {
+        if (draft != null && nextFocus.tagName === "INPUT") nextFocus.value = draft;
+        nextFocus.focus();
+        if (caret != null && typeof nextFocus.setSelectionRange === "function" && nextFocus.type === "text") nextFocus.setSelectionRange(caret, caret);
+      }
+    },
+    dismissConfirmation() {
+      if (!els.confirm || els.confirm.hidden) return false;
+      closeConfirm(true);
+      return true;
     },
     sync: paint,
     note,

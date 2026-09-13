@@ -25,10 +25,10 @@ test("a synthetic event carrying only a key still matches", () => {
   assert.equal(matchesLetter(null, "e"), false);
 });
 
-test("the physical key wins when both are present, so layout cannot break it", () => {
+test("letter shortcuts follow the typed Latin letter across keyboard layouts", () => {
   // Dvorak: the key engraved E sits where QWERTY has D
-  assert.ok(matchesLetter({ key: "d", code: "KeyE" }, "e"));
-  assert.equal(matchesLetter({ key: "d", code: "KeyE" }, "d"), false);
+  assert.ok(matchesLetter({ key: "d", code: "KeyE" }, "d"));
+  assert.equal(matchesLetter({ key: "d", code: "KeyE" }, "e"), false);
 });
 
 test("accel is Ctrl or Cmd, never one chosen by sniffing the machine", () => {

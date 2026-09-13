@@ -136,8 +136,13 @@ export function openIconPicker(options) {
     popover.style.top = Math.max(8, top) + "px";
   }
 
+  if (!anchor) {
+    const box = popover.getBoundingClientRect();
+    popover.style.left = Math.max(8, (doc.documentElement.clientWidth - box.width) / 2) + "px";
+    popover.style.top = Math.max(8, (doc.documentElement.clientHeight - box.height) / 2) + "px";
+  }
+
   function onKeyDown(e) {
-    if (!popover.contains(e.target)) return;
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();

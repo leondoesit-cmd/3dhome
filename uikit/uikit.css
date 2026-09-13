@@ -424,6 +424,11 @@
 }
 .uikit-ins-num { width: 100%; }
 .uikit-ins-check { display: flex; align-items: center; gap: 6px; }
+/* Host-wide `transition: all` must not interpolate accessibility sizes when
+   pointer posture changes. Keep only visual feedback animated. */
+.uikit-ins :is(button, input, select, textarea) {
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
 .uikit-ins-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .uikit-ins-actions button {
   flex: 1 1 auto;
@@ -969,7 +974,8 @@
 
 @media (pointer: coarse) {
   .uikit-ins input,
-  .uikit-ins select { font-size: 16px; }
+  .uikit-ins select,
+  .uikit-ins textarea { font-size: 16px; }
   .uikit-ins-actions button,
   .uikit-ins-head-actions button { min-height: 44px; }
   .uikit-ins-check { min-height: 44px; }
@@ -977,3 +983,7 @@
   .uikit-ins-tree-icon-btn { width: 32px; height: 32px; }
   .uikit-ins-tree-action { opacity: 0.7; width: 32px; height: 32px; }
 }
+
+.uikit-ins-saved-row { display: flex; gap: 6px; align-items: center; }
+.uikit-ins-saved-row .uikit-ins-saved-layout { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.uikit-ins-delete-layout { flex: 0 0 32px; min-height: 32px; }

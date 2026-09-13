@@ -48,7 +48,7 @@ export function createPalette(context) {
   root.appendChild(availableList);
 
   function title(item) {
-    return ctx.titleFor ? ctx.titleFor(item) : item.title || item.label || item.id;
+    return (ctx.titleFor && ctx.titleFor(item)) || item.label || item.title || item.entry?.title || item.id;
   }
 
   function matches(item) {

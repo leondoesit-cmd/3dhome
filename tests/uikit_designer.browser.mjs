@@ -734,8 +734,8 @@ test("rename this one, or rename it everywhere, are different edits", opts, asyn
   assert.equal(result.textsAfterNode, "{}", "and no string override was written");
   assert.deepEqual(result.texts[result.lang], { uikit_p_tree: "Everywhere" },
     "the everywhere rename is stored against the language on screen");
-  assert.equal(result.stillNodeLabel, "Just here",
-    "the two are independent: the node override still stands");
+  assert.equal(result.stillNodeLabel, null,
+    "switching to everywhere clears this placement's conflicting name so the edit is visible");
 });
 
 test("Done exits for pointer users and the More menu reflects the session", opts, async () => {
@@ -860,26 +860,30 @@ test("restoring defaults requires confirmation and offers a backup", opts, async
 
 test("the item browser recovers hidden panels and places an unused command safely", opts, async () => {
   const page = await designing();
-  const result = await page.eval(() => {
+  const result = await page.eval(async () => {
     const ed = window.__ed;
-    const palette = document.querySelector(".uikit-ins-palette");
+    let palette = document.querySelector(".uikit-ins-palette");
+    const refreshPalette = async () => { await new Promise(requestAnimationFrame); palette = document.querySelector(".uikit-ins-palette"); };
     const initiallyOpen = palette.open;
 
     // Hiding a node via command auto-opens the palette
     ed.command("select", { id: "panel:tree" });
     ed.command("hide");
+    await refreshPalette();
     const openAfterHide = palette.open;
 
     // Show panel:tree back
     const hiddenRow = [...palette.querySelectorAll(".uikit-ins-item-row")]
       .find((row) => row.textContent.includes("Tree") && row.textContent.includes("Show"));
+    if (!hiddenRow) throw new Error("Hidden panel row missing: " + palette.innerText);
     hiddenRow.querySelector("button").click();
+    await refreshPalette();
 
     // Centralized acceptance policy: programmatic placement to n:topbar or n:left is refused
     const topbarRejected = ed.command("place", { entry: { id: "act:walk", kind: "command" }, parent: "n:topbar" });
     const leftRejected = ed.command("place", { entry: { id: "act:walk", kind: "command" }, parent: "n:left" });
 
-    const search = palette.querySelector('[type="search"]');
+    let search = palette.querySelector('[type="search"]');
     search.value = "act:walk";
     search.dispatchEvent(new Event("input", { bubbles: true }));
     const placeRow = palette.querySelector(".uikit-ins-place-row");
@@ -891,6 +895,8 @@ test("the item browser recovers hidden panels and places an unused command safel
     ed.command("select", { id: "panel:mep", additive: true });
     ed.command("group");
     const groupId = ed.selection()[0];
+    await refreshPalette();
+    search = palette.querySelector('[type="search"]');
 
     // Re-query palette destination options
     palette.dispatchEvent(new Event("toggle"));
@@ -905,6 +911,7 @@ test("the item browser recovers hidden panels and places an unused command safel
     const groupChildren = (window.__ui.doc.nodes[groupId] && window.__ui.doc.nodes[groupId].children) || [];
 
     // Summary badge reports total items with title
+    await refreshPalette();
     const countEl = palette.querySelector(".uikit-ins-summary-count");
     const countValue = countEl ? Number(countEl.textContent.trim()) : 0;
     const countTitle = countEl ? countEl.getAttribute("title") : "";
@@ -1224,7 +1231,7 @@ test("moving an escaping node out of its parent warns in the inspector note", op
   assert.equal(result.movedBack, true, "moving more:walk back to More is allowed");
   assert.equal(result.noteAfterReturn, "", "moving back does not re-warn");
   assert.equal(result.movedOutAgain, true, "moving more:walk out a second time is allowed");
-  assert.equal(result.noteAfterSecondMove, "", "warnedEscapes prevents duplicate warning on subsequent moves");
+  assert.equal(result.noteAfterSecondMove, result.noteText, "returning home allows a fresh warning when leaving again");
 });
 
 /* The hierarchy the tree is supposed to show. Menu items used to be parked at

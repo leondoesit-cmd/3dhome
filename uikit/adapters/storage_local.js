@@ -42,6 +42,21 @@ export function createLocalStorage(options) {
       }
     },
 
+    clearPrefix(key) {
+      if (!store) return false;
+      try {
+        const keys = [];
+        for (let i = 0; i < store.length; i++) {
+          const name = store.key(i);
+          if (name && name.startsWith(prefix + key)) keys.push(name);
+        }
+        for (const name of keys) store.removeItem(name);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    },
+
     clear(key) {
       if (!store) return false;
       try {

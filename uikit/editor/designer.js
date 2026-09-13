@@ -29,6 +29,7 @@
  * an edit did rather than what a sequence of coordinates did.
  */
 
+import { isContainer } from "../model/schema.js";
 import { accel } from "../runtime/keys.js";
 import { commandForKey, swallows } from "./a11y.js";
 import {
@@ -71,7 +72,7 @@ export function createDesigner(context) {
   let lastUp = null;
   let touchTimer = null;
   let heldNodeId = null;
-  const warnedEscapes = new Set();
+  const warnedEscapes = new Map();
 
   function updateHoldOpen(nextId) {
     if (typeof ctx.holdOpen !== "function") return;
@@ -210,7 +211,7 @@ export function createDesigner(context) {
 
   function slotOrigin(id) {
     const el = elementOf(id);
-    const slot = el && el.closest ? el.closest(".uikit-slot") : null;
+    const slot = el && el.closest ? el.closest("[data-uikit-slot]") : null;
     if (!slot) return { x: 0, y: 0 };
     const r = slot.getBoundingClientRect();
     return { x: r.left, y: r.top };
@@ -290,7 +291,12 @@ export function createDesigner(context) {
 
   /* Repaint the whole overlay. It holds at most a handful of boxes, so
      rebuilding is cheaper than diffing and cannot go stale. */
+  const observedElements = new Set();
+
   function sync() {
+    for (const [id, home] of warnedEscapes) {
+      if (!nodeFor(id) || parentFor(id)?.id === home) warnedEscapes.delete(id);
+    }
     if (!active) return;
     if(drag?.live){
       // A host repaint can strip transient attributes when it re-adopts a
@@ -354,10 +360,18 @@ export function createDesigner(context) {
       }
     }
     if (resizeObserver) {
-      resizeObserver.observe(mount);
+      const nextObserved = new Set([mount]);
       for (const item of flat()) {
         const element = elementOf(item.node.id);
-        if (element) resizeObserver.observe(element);
+        if (element) nextObserved.add(element);
+      }
+      for (const element of observedElements) if (!nextObserved.has(element)) {
+        resizeObserver.unobserve(element);
+        observedElements.delete(element);
+      }
+      for (const element of nextObserved) if (!observedElements.has(element)) {
+        resizeObserver.observe(element);
+        observedElements.add(element);
       }
     }
     if (inspector) inspector.sync();
@@ -409,6 +423,7 @@ export function createDesigner(context) {
     syncFrame = 0;
     if (resizeObserver) resizeObserver.disconnect();
     resizeObserver = null;
+    observedElements.clear();
   }
 
   /* ---- selection --------------------------------------------------------- */
@@ -470,7 +485,7 @@ export function createDesigner(context) {
     const found = entryFor(id);
     const grand = flat().find((e) => e.node.id === found.parent.id);
     if (!grand || !grand.parent) return false;
-    const uncles = grand.parent.children.filter((c) => (c.children || []).length || c.id !== id);
+    const uncles = grand.parent.children.filter((c) => isContainer(c.type) && c.id !== id);
     const at = uncles.findIndex((c) => c.id === found.parent.id);
     const target = uncles[at + (dir < 0 ? -1 : 1)];
     if (!target || target.id === id) return false;
@@ -501,7 +516,20 @@ export function createDesigner(context) {
   function hide() {
     const id = firstSelected();
     const found = id ? entryFor(id) : null;
-    return found ? setHidden(id, !found.node.hidden) : false;
+    if (!found) return false;
+    const hidden = !found.node.hidden;
+    let next = uikit.doc;
+    let protectedItem = false;
+    for (const selectedId of selection) {
+      const node = nodeFor(selectedId);
+      if (!node) continue;
+      if (hidden && node.constraints?.hide === false) { protectedItem = true; continue; }
+      next = ops().hide(next, { id: selectedId, hidden, variant: uikit.variant });
+    }
+    const done = apply(hidden ? "Hide selected" : "Show selected", next);
+    if (done && hidden && inspector && typeof inspector.openPalette === "function") inspector.openPalette();
+    if (protectedItem && inspector) inspector.note(ctx.t ? ctx.t("uikit_ins_cannot_hide", "This item must remain available.") : "This item must remain available.");
+    return done;
   }
 
   function place(entry, parent) {
@@ -664,11 +692,12 @@ export function createDesigner(context) {
     const moving = nodeFor(id);
     if (!targetContainer || !moving || !containerAccepts(targetContainer, moving, uikit.registry)) return false;
     const currentParent = parentFor(id);
+    const alreadyWarned = warnedEscapes.has(id);
     const done = apply("Move " + labelFor(id), ops().move(uikit.doc, { id, parent, index }));
     if (done) {
       select(id, false);
-      if (moving.escapes && currentParent && currentParent.id !== parent && !warnedEscapes.has(id)) {
-        warnedEscapes.add(id);
+      if (moving.escapes && currentParent && currentParent.id !== parent && !alreadyWarned) {
+        warnedEscapes.set(id, currentParent.id);
         note("escapes");
       }
     }
@@ -682,7 +711,8 @@ export function createDesigner(context) {
     if (everywhere) {
       const key = node && node.entry ? node.entry.textKey || node.entry.id : null;
       if (!key) return false;
-      return apply("Rename", ops().setText(uikit.doc, {
+      const next = ops().retitle(uikit.doc, { id, label: null, variant: uikit.variant });
+      return apply("Rename", ops().setText(next, {
         key, lang: ctx.lang ? ctx.lang() : null, value: label,
       }));
     }
@@ -707,7 +737,7 @@ export function createDesigner(context) {
     if (!id || !field) return false;
     return apply(
       "Reset " + field + " on " + labelFor(id),
-      ctx.ops.resetField(uikit.doc, { id, field, variant: uikit.variant })
+      ctx.ops.resetField(uikit.doc, { id, field, variant: uikit.variant, defaults: uikit.defaults })
     );
   }
 
@@ -748,7 +778,7 @@ export function createDesigner(context) {
     if (!ids.length) return false;
     let next = uikit.doc;
     for (const each of ids) {
-      next = ctx.ops.resetNode(next, { id: each, variant: uikit.variant });
+      next = ctx.ops.resetNode(next, { id: each, variant: uikit.variant, defaults: uikit.defaults });
       if (uikit.defaults && uikit.variant === "base") {
         next = ctx.ops.resetPosition(next, { id: each, defaults: uikit.defaults });
       }
@@ -759,9 +789,16 @@ export function createDesigner(context) {
   function insertParentId() {
     const id = firstSelected();
     const node = nodeFor(id);
-    if (node && node.children) return id;
+    if (node && isContainer(node.type)) return id;
     const parent = id ? parentFor(id) : null;
     return parent ? parent.id : null;
+  }
+
+  function insertIndex(parent, index) {
+    if (index != null) return index;
+    const node = nodeFor(parent);
+    const at = node?.children?.findIndex(child => child.id === firstSelected()) ?? -1;
+    return at >= 0 ? at + 1 : node?.children?.length;
   }
 
   function command(name, args) {
@@ -779,8 +816,8 @@ export function createDesigner(context) {
       case "hide": return hide();
       case "setHidden": return setHidden(a.id, a.hidden);
       case "place": return place(a.entry, a.parent);
-      case "insertSeparator": return insertSeparator(a.parent || insertParentId(), a.index);
-      case "insertMenu": return insertMenu(a.parent || insertParentId(), a.index);
+      case "insertSeparator": { const parent = a.parent || insertParentId(); return insertSeparator(parent, insertIndex(parent, a.index)); }
+      case "insertMenu": { const parent = a.parent || insertParentId(); return insertMenu(parent, insertIndex(parent, a.index)); }
       case "createSubmenu": return group();
       case "group": return group();
       case "ungroup": return ungroup();
@@ -1008,6 +1045,7 @@ export function createDesigner(context) {
         const node = nodeFor(targetId);
         const drill = node ? drillTarget(node) : null;
         if (drill) {
+          drag = null; // A long press drills; a fresh press starts the child drag.
           focusId = drill;
           const chain = chainFor(hit);
           const child = candidateAt(chain, focusId, rootId());
@@ -1234,6 +1272,12 @@ export function createDesigner(context) {
     e.stopPropagation();
   }
 
+  function onContextMenu(e) {
+    if (!active || isOwnUITarget(e.target) || nativeHandle(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
   function onKeyDown(e) {
     if (!active || (e.key!=="Escape"&&nativeHandle(e.target))) return;
     /* Accel+Alt is reserved: Ctrl/Cmd+Alt+U is createUIKit's escape hatch and
@@ -1242,7 +1286,14 @@ export function createDesigner(context) {
        situation it exists for. Tested on accel rather than ctrlKey alone,
        because on a Mac the combination arrives with Cmd. */
     if (accel(e) && e.altKey) return;
+    if (e.key === "Escape" && inspector?.dismissConfirmation()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (e.target?.closest?.(".uikit-ins-tree-inline-input")) return;
     // The picker owns Escape until its dialog has closed.
+    if (e.key === "Escape" && doc.querySelector(".uikit-ins-icon-picker")) return;
     if (e.target && e.target.closest && e.target.closest(".uikit-ins-icon-picker")) return;
     /* Inputs, selects and buttons in the inspector own their normal keys.
        Escape is the one intentional exception: it is the universal way to
@@ -1301,6 +1352,7 @@ export function createDesigner(context) {
     ["pointerup", onPointerUp],
     ["pointercancel", onPointerCancel],
     ["click", onClick],
+    ["contextmenu", onContextMenu],
     ["keydown", onKeyDown],
   ];
 
@@ -1375,6 +1427,7 @@ export function createDesigner(context) {
   return {
     implemented: true,
     isActive: () => active,
+    refreshLanguage() { if (active) inspector?.retranslate(); },
     setActive,
     sync,
     command,

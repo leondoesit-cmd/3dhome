@@ -86,8 +86,8 @@ export function containerAccepts(container, nodeOrEntry, registry) {
   }
   if (kind === "panel") {
     // panels stack; dropping one into a command bar makes a toolbar of panels
-    return container.type === "stack" || container.type === "dock" || container.type === "group";
+    return container.type === "stack" || container.type === "dock" || container.type === "group" || container.type === "float";
   }
   // containers and anything the host has not classified
-  return container.type === "stack" || container.type === "dock" || container.type === "group";
+  return container.type === "stack" || container.type === "dock" || container.type === "group" || container.type === "float";
 }
