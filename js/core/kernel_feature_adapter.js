@@ -83,6 +83,7 @@ function lowerExtrudeParams(feature, document) {
   const symmetric = !!feature.params?.symmetric || feature.params?.endCondition === "mid-plane";
   const from = symmetric ? offset - depth / 2 : offset;
   const to = symmetric ? offset + depth / 2 : offset + reverse * depth;
+  const target = feature.inputs?.[0] || idOf(feature.references?.features?.[0]);
   const params = {
     ...cloneDomain(feature.params),
     sketchId,
@@ -91,6 +92,7 @@ function lowerExtrudeParams(feature, document) {
     from,
     to,
   };
+  if (target) params.targetFeatureId = target;
   if (sketch?.frame) { params.axis = "frame"; params.frame = cloneDomain(sketch.frame); }
   if (sketch?.support) { params.support = cloneDomain(sketch.support); params.baseOffset = offset; params.depth = depth; }
   return params;
@@ -124,7 +126,7 @@ function loweredFeature(feature, document) {
     const holeParams = lowerExtrudeParams(feature, document);
     const toolId = feature.id + ":tool";
     return [
-      { id: toolId, name: feature.name + " tool", type: "extrude", params: holeParams, inputs: [], references: topologyReferences(feature), suppressed: !!feature.suppressed },
+      { id: toolId, name: feature.name + " tool", type: "extrude", params: holeParams, inputs: target ? [target] : [], references: topologyReferences(feature), suppressed: !!feature.suppressed },
       { ...base, type: "subtract", params: {}, inputs: [target, toolId].filter(Boolean) },
     ];
   }

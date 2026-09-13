@@ -6,6 +6,7 @@ export function featureDependencies(feature) {
   const deps = new Set(feature?.inputs || []);
   if(typeof feature?.sketch === "string")deps.add(feature.sketch);
   if(feature?.params?.sketchId)deps.add(feature.params.sketchId);
+  if(feature?.params?.targetFeatureId)deps.add(feature.params.targetFeatureId);
   for(const id of feature?.references?.sketches || [])deps.add(id);
   const sources=feature?.params?.sketchSources;
   if(sources?.helixFeatureId)deps.add(sources.helixFeatureId);

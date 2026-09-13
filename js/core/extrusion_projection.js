@@ -14,7 +14,7 @@ export function synchronizeExtrusionProjections(document, compiled, run) {
       if(run.resolvedExtrusions?.has(feature.id)){next.loop=params.points;if(params.segments)next.segments=params.segments;if(params.holes)next.holes=params.holes;}
       // Through-all recipes already span the body. Move their interval with
       // the frame so that the same world-space extent remains covered.
-      if(params.endCondition==='through-all' && record.frame && params.frame) {
+      if (params.endCondition === "through-all" && record.frame && params.frame) {
         const normal=params.frame.normal,old=record.frame.origin,now=params.frame.origin;
         const shift=(old.x-now.x)*normal.x+(old.y-now.y)*normal.y+(old.z-now.z)*normal.z;
         next.from=record.from+shift;next.to=record.to+shift;

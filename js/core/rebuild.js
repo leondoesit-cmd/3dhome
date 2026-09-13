@@ -5,6 +5,7 @@ import { resolveProfilePoints, solveSketch } from "../sketch_solver.js";
 import { buildDependencyGraph, featureDependencies, stableStringify } from "./dependency_graph.js";
 import { validateDefinition } from "./schema.js";
 import { realignFrame } from "./frame.js";
+import { aabbFromBox, aabbFromTopology, resolveExtrudeExtent, resolvedEndFace } from "./extrude_extent.js";
 import { supportsSurfaceUV } from "./surface_uv.js";
 import {
   createTopologyRegistry,
@@ -148,6 +149,19 @@ function alignExtrusionToResolvedSupport(params, resolutions = []) {
   return { ...params, from: symmetric ? center-direction*depth/2 : center, to: symmetric ? center+direction*depth/2 : center+direction*depth };
 }
 
+function alignRebuildExtrudeExtent(feature, params, topologyResolutions, previous) {
+  const hostId = params.targetFeatureId || feature.inputs?.[0];
+  const host = hostId ? previous.get(hostId) : null;
+  const hostFaces = host?.topology || [];
+  const hostBounds = host?.params ? primitiveBounds(host.type, host.params) : null;
+  return resolveExtrudeExtent(params, {
+    endFace: resolvedEndFace(params, topologyResolutions),
+    hostFaces,
+    hostBounds: aabbFromBox(hostBounds) || aabbFromTopology(hostFaces),
+    resolutions: topologyResolutions,
+  });
+}
+
 /* A sketch-driven feature stores which entities it was built from, not their
    coordinates — the whole point of a parametric profile. Topology naming needs
    the coordinates, though, so a feature whose points were never resolved named
@@ -171,7 +185,10 @@ function featureResult(feature, parameters, previous, topologyResolutions, sketc
     const sketchId=params.sketchId || feature.sketch || (feature.inputs || []).find(id=>(sketches || []).some(s=>s.id===id));
     params = resolveProfileParams({...params,sketchId}, sketches);
   }
-  if (feature.type === "extrude") params = alignExtrusionToResolvedSupport(params, topologyResolutions);
+  if (feature.type === "extrude") {
+    params = alignExtrusionToResolvedSupport(params, topologyResolutions);
+    params = alignRebuildExtrudeExtent(feature, params, topologyResolutions, previous);
+  }
   const inputs = (feature.inputs || []).map((id) => previous.get(id)).filter(Boolean);
   const result = {
     kind: "feature",

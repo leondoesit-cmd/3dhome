@@ -11,6 +11,7 @@ import { resolveProfilePoints } from "./sketch_solver.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { createTopologyRegistry, resolveFeatureTopologyReferences, topologyForFeature } from "./core/topology.js";
 import { realignFrame } from "./core/frame.js";
+import { aabbFromTopology, resolveExtrudeExtent, resolvedEndFace } from "./core/extrude_extent.js";
 import { resolveParameters, sketchDiagnostics } from "./core/rebuild.js";
 import { decodeBinaryPayload } from "./core/binary_payload.js";
 import { resolveAttachmentPayload } from "./core/attachment_store.js";
@@ -142,6 +143,7 @@ export async function regenerateFeatures(def, options = {}) {
         effectiveParams = alignExtrusionToSupport(effectiveParams, topologyRun.resolutions);
         const boundary=resolveAssociativeBoundary(executionDef.sketches.find(sketch=>sketch.id===effectiveParams.sketchId),effectiveParams,results);
         if(boundary){effectiveParams=boundary.params;boundaryUpdates.set(boundary.sketch.id,boundary);}
+        effectiveParams = alignExtrusionEndCondition(feature, effectiveParams, topologyRun.resolutions, results);
         result = await makeBrepExtrusion(effectiveParams);
         resolvedExtrusions.set(feature.id,effectiveParams);
       }
@@ -445,4 +447,16 @@ export function alignExtrusionToSupport(params, resolutions = []) {
   const depth = Math.max(1e-6, Math.abs(Number(params.depth) || Math.abs(Number(params.to) - Number(params.from))));
   const center = coordinate + direction * baseOffset;
   return { ...params, from: symmetric ? center-direction*depth/2 : center, to: symmetric ? center+direction*depth/2 : center+direction*depth };
+}
+
+function alignExtrusionEndCondition(feature, params, resolutions, results) {
+  const hostId = params.targetFeatureId || feature.inputs?.[0];
+  const host = hostId && hostId !== feature.id ? results.get(hostId) : null;
+  const hostFaces = host?.topology || [];
+  return resolveExtrudeExtent(params, {
+    endFace: resolvedEndFace(params, resolutions),
+    hostFaces,
+    hostBounds: aabbFromTopology(hostFaces),
+    resolutions,
+  });
 }

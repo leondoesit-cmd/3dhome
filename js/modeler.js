@@ -19,6 +19,7 @@ import { MANUFACTURING_TABLES, validateManufacturingTables } from "./manufacturi
 import { evaluateMassProperties } from "./cad_mass_properties.js";
 import { holeToolPlacements, holeCutRecords, holePreviewParts } from "./core/hole_geometry.js";
 import { revolveRecipe } from "./core/revolve_geometry.js";
+import { aabbFromBox, isUpToFace, resolveExtrudeExtent } from "./core/extrude_extent.js";
 import { toolFeatureRecipe } from "./core/tool_recipe.js";
 import { askModelerDecision, dismissModelerDecision, modelerDecisionOpen } from "./modeler_decision.js";
 // Custom model editor ("CAD-lite"): sketch profiles, extrude, add primitives,
@@ -2387,7 +2388,7 @@ async function applyCutChecked(loop, featureId, hint, cutSpec) {
   var sketch=ensureSketch(E.def),frame=sketch && sketch.frameSpace==="local" ? sketch.frame : null;
   var ax=frame ? "frame" : planeAxis(sketch && sketch.plane || E.view),changed=0;
   cutSpec=cutSpec || {};
-  var bounded=!["through-all","up-to-next","up-to-face"].includes(cutSpec.endCondition || "through-all")
+  var bounded=(cutSpec.endCondition || "through-all") !== "through-all"
     && fin(cutSpec.from) && fin(cutSpec.to);
   var c = hint && fin(hint.u) && fin(hint.v) ? hint : loopInteriorPoint(loop);
   /* The cut's own draft. `draftBase` pins the neutral plane to where the loop
@@ -7776,6 +7777,17 @@ function extrudePreviewParts(type,params) {
   var axis=planeAxis(sketch.plane),normal=sketch.frame && sketch.frame.normal,principalDirection=normal?(axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)):1;
   var direction=(params.direction==="reverse"?-1:1)*(principalDirection || 1),depth=Math.max(.1,Number(params.depth)||.1),offset=Number(params.offset)||0,symmetric=!!params.symmetric||params.endCondition==="mid-plane";
   var center=(sketch.frameSpace==="local"?0:Number(sketch.offset)||0)+direction*offset,from=symmetric?center-direction*depth/2:center,to=symmetric?center+direction*depth/2:center+direction*depth;
+  var extent={...params,axis:sketch.frameSpace==="local"?"frame":axis,frame:sketch.frameSpace==="local"?cloneData(sketch.frame):undefined,from:from,to:to,points:areas[0]&&areas[0].points};
+  try {
+    var host=type==="extrudeCut"?(selectedSolid()||activeParts(E.def)[activeParts(E.def).length-1]):null;
+    var hostFaces=host?(authoritativeFinishTopology(host)||[]).filter(function(entry){return entry.kind==="face";}):[];
+    extent=resolveExtrudeExtent(extent,{
+      endFace:isUpToFace(params.endCondition)?(E.topologySelection||[]).find(function(item){return item.kind==="face";}):null,
+      hostFaces:hostFaces,
+      hostBounds:host?aabbFromBox(partBounds(host)):null,
+    });
+    from=extent.from;to=extent.to;
+  } catch (error) {}
   return areas.map(function(area,index){
     return {id:"preview:"+type+":"+index,featureId:"preview:"+type,previewOnly:true,kind:"ext",axis:sketch.frameSpace==="local"?"frame":axis,frame:sketch.frameSpace==="local"?cloneData(sketch.frame):undefined,from:from,to:to,pts:area.points,holes:area.holes.slice(),color:type==="extrudeCut"?"#d75a4a":"#6f8de8",opacity:type==="extrudeCut"?.42:.62,metal:.04,rough:.68,name:"Live "+featureTypeLabel(type)};
   });
@@ -8636,15 +8648,17 @@ function syncActiveFeatureSelectionFeedback() {
   var note=root.querySelector("#mdQuickSettings [data-live-selection]");
   if(!note)return;
   var type=note.getAttribute("data-live-selection");
-  note.textContent=FINISH_FEATURES.includes(type)?finishSelectionMessage(type):["extrude","extrudeCut","revolve","revolveCut","sweep","sweepCut","loft","hole"].includes(type)?selectedSketchIds().length+" "+t("sketchesSelected"):selectedFeatureIds().length+" "+t("featuresSelected")+" · "+(E.topologySelection || []).length+" "+t("topologyRefs");
+  note.textContent=FINISH_FEATURES.includes(type)?finishSelectionMessage(type)
+    :collectingEndFace()?(((E.topologySelection||[]).some(function(item){return item.kind==="face";})?"✓ ":"")+t("upToFacePick"))
+    :["extrude","extrudeCut","revolve","revolveCut","sweep","sweepCut","loft","hole"].includes(type)?selectedSketchIds().length+" "+t("sketchesSelected"):selectedFeatureIds().length+" "+t("featuresSelected")+" · "+(E.topologySelection || []).length+" "+t("topologyRefs");
   note.classList.toggle("ready",note.textContent.indexOf("✓")===0);
   /* Shell has no edge list to render, but it is just as much a collector — and
      the one whose picks were being silently dropped, since an edge clicked
      during Shell lands in the selection and finishFeatureTargets() then keeps
      only faces. commandSelectionPrefer() now stops the edge being acquired at
      all; this says which kind the command is waiting for. */
-  note.classList.toggle("is-collecting",FINISH_FEATURES.includes(type));
-  note.setAttribute("data-collector-kind",FACE_DRIVEN_OPERATIONS.has(type)?"face":"edge");
+  note.classList.toggle("is-collecting",FINISH_FEATURES.includes(type)||collectingEndFace());
+  note.setAttribute("data-collector-kind",(FACE_DRIVEN_OPERATIONS.has(type)||collectingEndFace())?"face":"edge");
   renderFinishEdgeList();
   if(type==="pattern"){
     var selected=selectedSolid(),selectionId=selected && selected.id || null;
@@ -8727,13 +8741,16 @@ function openParametricFeature(type, repeatedParams) {
     host.appendChild(edgeBox);
     renderFinishEdgeList();
   }
-  if (["fillet","chamfer","shell","dome","draft","thicken"].includes(type)) {
+  if (["fillet","chamfer","shell","dome","draft","thicken"].includes(type) || type==="extrude" || type==="extrudeCut") {
     var collect = btn(t("selectForFeature"), function () {
       E.collectingFeature = true;
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
       closeModelerSheet(); syncContextActions();
     }, "md-collect-geometry");
+    collect.hidden = !(["fillet","chamfer","shell","dome","draft","thicken"].includes(type) || collectingEndFace());
     host.appendChild(collect);
+    var endControl=(controls||[]).find(function(item){return item.field.key==="endCondition";});
+    if(endControl)endControl.input.addEventListener("change",function(){collect.hidden=!collectingEndFace();syncActiveFeatureSelectionFeedback();});
   }
   var actions=el("div","md-feature-actions");
     actions.appendChild(namedButton(btn('<i class="ph ph-x"></i> '+t("m_cancel"),function(){E.authoring.featureType=null;E.authoring.workflowFocus="history";clearFeaturePreview(true);closeFeaturePanel();syncAuthoringWorkflow();},"md-quick-cancel"), t("cancelCommand")));
@@ -9074,6 +9091,12 @@ function selectionFilterLabel(id) {
    and prefer:"edge" would additionally make edges hidden behind the solid
    pickable. Their widened pick band is handled by the `finish` flag in
    topologyPickPixelRadius() instead. */
+function collectingEndFace() {
+  var type = E.authoring && !E.authoring.featureEdit ? E.authoring.featureType : null;
+  var params = E.authoring && E.authoring.featurePreviewState && E.authoring.featurePreviewState.params;
+  return (type === "extrude" || type === "extrudeCut") && isUpToFace(params && params.endCondition);
+}
+
 function commandSelectionPrefer() {
   if (E.facePick) return "face";
   if (fullRoundActive()) return "face";
@@ -9081,6 +9104,7 @@ function commandSelectionPrefer() {
   // Shell and draft consume faces only; an edge picked here lands in the
   // selection and is then silently dropped by finishFeatureTargets().
   if (FACE_DRIVEN_OPERATIONS.has(type)) return "face";
+  if (collectingEndFace()) return "face";
   if (E.collectingFeature && ["fillet", "chamfer"].includes(type)) return "all";
   return E.selectionFilter;
 }
@@ -11309,13 +11333,8 @@ async function extrudeClosedSketch(options) {
   var target=featureType==="extrudeCut" ? (selectedSolid() || activeParts(E.def)[activeParts(E.def).length-1]) : null;
   var targetFeatureId=target ? cutTargetFeatureId(target) : null;
   if(featureType==="extrudeCut"&&!target){flash(t("extrudeCutNeed"));return false;}
-  pushUndo(featureType==="extrudeCut" ? t("extrudeCut") : t("opExtrude"));
-  var usedIds = [];
-  areas.forEach(function (area) {
-    if (area.entityIds) usedIds = usedIds.concat(area.entityIds);
-    (area.holeEntityIds || []).forEach(function (ids) { usedIds = usedIds.concat(ids); });
-  });
-  var healed = usedIds.length ? healSketchEndpoints(sketch, usedIds, analysis.tolerance) : 0;
+  var endFace=isUpToFace(params.endCondition)?(E.topologySelection||[]).find(function(item){return item.kind==="face";}):null;
+  if(isUpToFace(params.endCondition)&&!endFace){flash(t("upToFaceNeed"));return false;}
   var axis = planeAxis(sketch.plane);
   var normal=sketch.frame && sketch.frame.normal;
   var direction=normal ? (axis==="x" ? Math.sign(normal.x || 1) : axis==="y" ? Math.sign(normal.y || 1) : Math.sign(normal.z || 1)) : 1;
@@ -11325,6 +11344,27 @@ async function extrudeClosedSketch(options) {
   var featureDirection=params.direction==="reverse"?-direction:direction,symmetric=!!params.symmetric||params.endCondition==="mid-plane";
   var center=(localFrame?0:sketch.offset)+featureDirection*offset;
   var start=symmetric?center-featureDirection*depth/2:center,end=symmetric?center+featureDirection*depth/2:center+featureDirection*depth;
+  var extentHost=target;
+  if(!extentHost && endFace && endFace.ownerFeatureId)extentHost=(activeParts(E.def)||[]).find(function(part){return part.featureId===endFace.ownerFeatureId || part.id===endFace.ownerFeatureId;}) || null;
+  try {
+    var extent=resolveExtrudeExtent({
+      ...params, axis:localFrame?"frame":axis, frame:localFrame?cloneData(sketch.frame):undefined,
+      from:start, to:end, points:areas[0]&&areas[0].points,
+    }, {
+      endFace:endFace,
+      hostFaces:extentHost?(authoritativeFinishTopology(extentHost)||[]).filter(function(entry){return entry.kind==="face";}):[],
+      hostBounds:extentHost?aabbFromBox(partBounds(extentHost)):null,
+    });
+    start=extent.from;end=extent.to;
+  } catch (error) { flash(String(error.message||error)); return false; }
+  if(endFace)params.endFace=cloneData(endFace);
+  pushUndo(featureType==="extrudeCut" ? t("extrudeCut") : t("opExtrude"));
+  var usedIds = [];
+  areas.forEach(function (area) {
+    if (area.entityIds) usedIds = usedIds.concat(area.entityIds);
+    (area.holeEntityIds || []).forEach(function (ids) { usedIds = usedIds.concat(ids); });
+  });
+  var healed = usedIds.length ? healSketchEndpoints(sketch, usedIds, analysis.tolerance) : 0;
   recordSketchInHistory(E.def,sketch);
   /* An area with a chain behind it stays parametric; one that exists only
      because curves cross has no chain to name, so the feature carries the
@@ -11336,8 +11376,8 @@ async function extrudeClosedSketch(options) {
       : { points:area.points.map(function (q) { return { u:q.u, v:q.v }; }) };
     return createFeatureDefinition(E.def,featureType,{
       inputs:inputId ? [inputId] : [],
-      references:{sketches:[sketch.id],features:inputId ? [inputId] : [],topology:[],references:[],...(area.entityIds ? {profileEntityIds:area.entityIds} : {})},
-      params:{...params,depth:depth,offset:offset,axis:localFrame?"frame":axis,...profileParams,sketchId:sketch.id,operation:featureType==="extrudeCut"?"subtract":params.operation || "add"},
+      references:{sketches:[sketch.id],features:inputId ? [inputId] : [],topology:endFace?[cloneData(endFace)]:[],references:[],...(area.entityIds ? {profileEntityIds:area.entityIds} : {})},
+      params:{...params,depth:depth,offset:offset,axis:localFrame?"frame":axis,...profileParams,sketchId:sketch.id,operation:featureType==="extrudeCut"?"subtract":params.operation || "add",from:start,to:end,...(endFace?{endFace:cloneData(endFace)}:{})},
     });
   };
   if(featureType==="extrudeCut"){

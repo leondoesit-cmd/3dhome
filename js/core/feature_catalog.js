@@ -14,6 +14,7 @@
 
 import { TOOLBOX_FAMILIES } from "../toolbox/catalog.js";
 import { TOOLBOX_FINISHES, TOOLBOX_MATERIALS } from "../toolbox/schema.js";
+import { isUpToFace } from "./extrude_extent.js";
 
 const LENGTH = { type: "number", unit: "document-length", min: 1e-6 };
 const SIGNED_LENGTH = { type: "number", unit: "document-length" };
@@ -29,7 +30,7 @@ const EXTENTS = [
   { value: "blind", label: "Blind", labelKey: "fcOptBlind" },
   { value: "through-all", label: "Through all", labelKey: "fcOptThroughAll" },
   { value: "up-to-next", label: "Up to next", labelKey: "fcOptUpToNext" },
-  { value: "up-to-face", label: "Up to face", labelKey: "fcOptUpToFace" },
+  { value: "up-to-face", label: "Up to surface", labelKey: "fcOptUpToFace" },
   { value: "mid-plane", label: "Mid-plane", labelKey: "fcOptMidPlane" },
 ];
 const DIRECTIONS = [
@@ -154,7 +155,7 @@ export const FEATURE_CATALOG = Object.freeze({
     icon: "ph-cube",
     selection: { sketches: { min: 1, max: 1 }, topology: { kinds: ["face"], max: 1 } },
     defaults: { operation: "add", endCondition: "blind", depth: 10, offset: 0, direction: "forward", symmetric: false, draftAngle: 0, draftOutward: false, mergeResult: true },
-    parameters: { operation: ENUM("add", "new-body"), endCondition: ENUM("blind", "through-all", "up-to-next", "up-to-face", "mid-plane"), depth: LENGTH, offset: SIGNED_LENGTH, direction: ENUM("forward", "reverse"), symmetric: BOOLEAN, draftAngle: { ...ANGLE, min: -89, max: 89 }, draftOutward: BOOLEAN, mergeResult: BOOLEAN },
+    parameters: { operation: ENUM("add", "new-body"), endCondition: ENUM("blind", "through-all", "up-to-next", "up-to-face", "up-to-surface", "mid-plane"), depth: LENGTH, offset: SIGNED_LENGTH, direction: ENUM("forward", "reverse"), symmetric: BOOLEAN, draftAngle: { ...ANGLE, min: -89, max: 89 }, draftOutward: BOOLEAN, mergeResult: BOOLEAN },
     editor: { groups: [
       { id: "extent", label: "Extent", labelKey: "fcGrpExtent", icon: "ph-arrows-out-line-vertical", fields: [
         { key: "endCondition", label: "End condition", labelKey: "fcFldEndCondition", type: "select", choices: EXTENTS },
@@ -176,7 +177,7 @@ export const FEATURE_CATALOG = Object.freeze({
     icon: "ph-scissors",
     selection: { sketches: { min: 1, max: 1 }, features: { min: 1, max: 1 } },
     defaults: { operation: "subtract", endCondition: "through-all", depth: 10, offset: 0, direction: "forward", symmetric: false, draftAngle: 0, draftOutward: false, keepTool: false },
-    parameters: { operation: ENUM("subtract"), endCondition: ENUM("blind", "through-all", "up-to-next", "up-to-face", "mid-plane"), depth: LENGTH, offset: SIGNED_LENGTH, direction: ENUM("forward", "reverse"), symmetric: BOOLEAN, draftAngle: { ...ANGLE, min: -89, max: 89 }, draftOutward: BOOLEAN, keepTool: BOOLEAN },
+    parameters: { operation: ENUM("subtract"), endCondition: ENUM("blind", "through-all", "up-to-next", "up-to-face", "up-to-surface", "mid-plane"), depth: LENGTH, offset: SIGNED_LENGTH, direction: ENUM("forward", "reverse"), symmetric: BOOLEAN, draftAngle: { ...ANGLE, min: -89, max: 89 }, draftOutward: BOOLEAN, keepTool: BOOLEAN },
     editor: { groups: [
       { id: "extent", label: "Cut extent", labelKey: "fcGrpCutExtent", icon: "ph-arrows-out-line-vertical", fields: [
         { key: "endCondition", label: "End condition", labelKey: "fcFldEndCondition", type: "select", choices: EXTENTS },
@@ -1000,11 +1001,18 @@ export function validateFeatureDefinition(feature) {
     });
   });
   if (["extrude", "extrudeCut"].includes(feature.type)) {
-    const allowed = ["blind", "through-all", "up-to-face", "up-to-next", "mid-plane"];
+    const allowed = ["blind", "through-all", "up-to-face", "up-to-surface", "up-to-next", "mid-plane"];
     if (!allowed.includes(feature.params?.endCondition)) issues.push({
       severity: "error", code: "invalid-end-condition", featureId: feature.id,
       message: spec.label + " has an invalid end condition",
     });
+    if (isUpToFace(feature.params?.endCondition)) {
+      const face = feature.params?.endFace || (feature.references?.topology || []).find((item) => item?.kind === "face" || item?.persistentId);
+      if (!face) issues.push({
+        severity: "error", code: "missing-end-face", featureId: feature.id,
+        message: spec.label + " Up to surface requires a selected face",
+      });
+    }
   }
   if (feature.type === "boolean" && !["union", "subtract", "intersect"].includes(feature.params?.operation)) issues.push({
     severity: "error", code: "invalid-boolean-operation", featureId: feature.id, message: "Boolean operation must be union, subtract or intersect",

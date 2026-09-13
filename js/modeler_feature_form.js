@@ -3,6 +3,7 @@ import { evaluateExpression } from "./sketch_equations.js";
 // The editor supplies DOM helpers, document units, and reference options.
 
 import { featureEditorGroups } from "./core/feature_catalog.js";
+import { endConditionHidesDepth, isUpToFace } from "./core/extrude_extent.js";
 import { linearPatternAxisDefinitions, linearPatternDirection, patternAxisEnabled } from "./core/pattern_geometry.js";
 import { holeTableRow } from "./cad_hole_wizard.js";
 import { toolboxFamily } from "./cad_toolbox.js";
@@ -255,6 +256,14 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         var control = controls.find(function (item) { return item.field.key === key; }), wrap = control && control.input.closest(".md-quick-field");
         if (wrap) wrap.classList.toggle("parameter-hidden", !active[key]);
       });
+    }
+    if (type === "extrude" || type === "extrudeCut") {
+      var end = controls.find(function (item) { return item.field.key === "endCondition"; });
+      var hideDepth = endConditionHidesDepth(end && end.input.value);
+      var depthControl = controls.find(function (item) { return item.field.key === "depth"; });
+      var depthWrap = depthControl && depthControl.input.closest(".md-quick-field");
+      if (depthWrap) depthWrap.classList.toggle("parameter-hidden", hideDepth);
+      host.classList.toggle("md-up-to-face", isUpToFace(end && end.input.value));
     }
     if (type === "hole") {
       var size = controls.find(function (item) { return item.field.key === "standardSize"; });

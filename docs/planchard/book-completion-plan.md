@@ -63,12 +63,12 @@ Out of scope unless the book needs it: surfacing, weldments, simulation, CAM, PD
 | B3 | A closed ellipse or B-spline edge becomes a zero-length `line` entity (from and to merge into one point) | `js/cad_face_offset.js:78` | Emit an `ellipse`/`spline` entity, or split the closed curve into two segments | Elliptical boss top face |
 | B4 | Mass properties always use 7.85 g/cm³, whatever material is assigned | `js/cad_mass_properties.js` | **Fixed.** Per-body stock density, mass rows, mm/g toggle | `tests/cad_mass_materials.test.mjs` |
 | B5 | A revolve profile that crosses its axis is silently mirrored (`Math.abs(u)`) instead of rejected | `js/core/revolve_geometry.js` | **Fixed.** Rejects crossing; points on the axis allowed | `tests/cad_mass_materials.test.mjs` |
-| B6 | Up-to-face and up-to-next cuts behave as through-all | `js/modeler.js:2369`; offered in `js/core/feature_catalog.js:157,179` | See task 2A-1 | See 2A-1 |
+| B6 | Up-to-face and up-to-next cuts behave as through-all | `js/modeler.js`; `js/core/extrude_extent.js` | **Fixed.** Planar/cylinder/cone ray hit; persistent `endFace`; through-all spans the host | `tests/cad_extrude_extent.test.mjs`, `tests/cad_up_to_face.test.mjs` |
 
 ### 3.2 Missing capabilities the book requires
 | ID | Capability | Book use | Code state |
 |---|---|---|---|
-| G1 | Up To Surface / Up To Face / Up To Next end condition | HOUSING SwitchHole, steps 563–566 (p.356); CSWA advanced parts | Aliased to through-all (B6) |
+| G1 | Up To Surface / Up To Face / Up To Next end condition | HOUSING SwitchHole, steps 563–566 (p.356); CSWA advanced parts | **Done (2A-1).** Terminates at a selected face (or the next face); rebuild re-resolves |
 | G2 | Sketch Fillet | HOUSING HandlePath, steps 459–462 (p.350) | Not found |
 | G3 | Intersection relation (point at the intersection of two edges) | HandlePath, step 475 (p.351) | Not in the solver |
 | G4 | Tangent Arc sketch tool | LongRib sketch, step 633 (p.362) | Only three-point arc exists |
@@ -115,7 +115,7 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 ### Phase 2A — HOUSING tools, then HOUSING (p.335–364)
 | Task | Work | Done when |
 |---|---|---|
-| 2A-1 | **Real Up To Surface / Face / Next** (G1/B6) for extrude cut and boss: terminate the tool at a selected face (planar, then cylindrical/conical), or at the next face along the direction. Store the face as a persistent topology reference that re-resolves on rebuild | Shelled box: cut up to the inner face stops there (volume check); editing shell thickness keeps it terminating correctly |
+| 2A-1 | **Real Up To Surface / Face / Next** (G1/B6) for extrude cut and boss: terminate the tool at a selected face (planar, then cylindrical/conical), or at the next face along the direction. Store the face as a persistent topology reference that re-resolves on rebuild | **Done.** Shelled-box cut stops at the inner wall (volume 32 vs 48 when thickness 2→3); up-to-next matches |
 | 2A-2 | Fix B1, B2, B3 (Convert/offset of housing faces) | Tests in §3.1 |
 | 2A-3 | Sketch Fillet (G2): trims two connected lines, inserts a tangent arc, keeps relations | Book steps 459–462 reproduce; stays fully defined |
 | 2A-4 | Intersection relation (G3) in the solver plus the Add Relations UI | Point stays on both edges after the housing edges move |
@@ -194,7 +194,7 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | O-RING | 311–314 | Planchard O-RING | | 2.748212 cm³ | ✅ bounds | | CAPANDLENS, design table | 4-5 |
 | SWITCH | 315–320 | Planchard SWITCH | | 1.754454 cm³ (after edit) | | | FLASHLIGHT | |
 | LENSCAP | 323–332 | Planchard LENSCAP | 11 | | ❌ ritual pending | | CAPANDLENS, STL | 1-3 |
-| HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | Phase 2A |
+| HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | 2A-2…2A-7 |
 | LENSANDBULB | 379–434 | – | | | | | CAPANDLENS | 2B-4 |
 | BATTERYANDPLATE | 379–434 | – | | | | | FLASHLIGHT | 2B-4 |
 | CAPANDLENS | 379–434 | – | | | | | FLASHLIGHT | 2B-5 |
