@@ -3,7 +3,7 @@ import {TOOLBOX_MATERIALS} from './toolbox/schema.js';
 
 // Catalog identity is scoped: stock aluminum is 6061, toolbox aluminum is 6063.
 // Appearance/density records deliberately supply no strength allowables.
-const polymers=new Set(['plastic','pvc-u','cpvc','pex','pex-blue','nylon']);
+const polymers=new Set(['plastic','pvc-u','cpvc','pex','pex-blue','nylon','rubber','polycarbonate']);
 const finishes=new Set(['chrome','nickel-brushed','matte-black']);
 export const ENGINEERING_MATERIALS=Object.freeze([
   ...Object.entries(STOCK_MATERIALS).map(([id,row])=>({...row,id:'stock:'+id,catalog:'stock',family:polymers.has(id)?'polymer':'metal'})),

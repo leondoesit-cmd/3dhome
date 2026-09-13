@@ -1,5 +1,6 @@
 import { cylinderAxis } from "./core/cylinder_axis.js";
 import { frameFromPlane } from "./core/frame.js";
+import { TOOLBOX_MATERIALS } from "./toolbox/schema.js";
 // Per-face / per-body appearances and press-fit inserts. An appearance override
 // stores a topology reference plus a material; it never mutates the solid, so
 // a brass bushing lining and a painted housing can share one body tree.
@@ -10,6 +11,8 @@ export const STOCK_MATERIALS = Object.freeze({
   brass: { name: "Brass C360", color: "#c4a35a", metal: 0.65, rough: 0.28, density: 8.50 },
   plastic: { name: "ABS", color: "#3d6ea8", metal: 0.04, rough: 0.55, density: 1.04 },
   titanium: { name: "Titanium Grade 5", color: "#9aa3ad", metal: 0.7, rough: 0.35, density: 4.43 },
+  rubber: { name: "Nitrile rubber", color: "#2a2a2c", metal: 0.02, rough: 0.72, density: 1.30 },
+  polycarbonate: { name: "Polycarbonate", color: "#c5d4dc", metal: 0.04, rough: 0.22, density: 1.20 },
 });
 
 export const DEFAULT_MASS_DENSITY = 7.85;
@@ -35,6 +38,16 @@ export function partMaterialDensity(part, fallback = DEFAULT_MASS_DENSITY) {
   if (authored > 0) return authored;
   const stock = stockMaterialForPart(part);
   if (stock?.density > 0) return stock.density;
+  const catalog = String(part?.materialCatalogId || "");
+  if (catalog.startsWith("toolbox:")) {
+    const row = TOOLBOX_MATERIALS[catalog.slice(8)];
+    if (row?.density > 0) return row.density;
+  }
+  if (part?.materialId && TOOLBOX_MATERIALS[part.materialId]?.density > 0) {
+    return TOOLBOX_MATERIALS[part.materialId].density;
+  }
+  const custom = Number(part?.customDensity);
+  if (catalog === "custom" && custom > 0) return custom;
   return Number(fallback) > 0 ? Number(fallback) : DEFAULT_MASS_DENSITY;
 }
 

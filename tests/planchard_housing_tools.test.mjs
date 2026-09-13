@@ -23,7 +23,6 @@ test("pattern seed only includes a rib and the plane form offers through-vertex"
   assert.match(modeler, /throughVertexBinding/);
   assert.match(modeler, /patternParamsFromSelectedEdges/);
   assert.match(catalog, /Pattern seed only/);
-  assert.match(catalog, /geometryPattern/);
 });
 
 test("a through-vertex plane follows the box corner it was bound to", async () => {
@@ -72,7 +71,7 @@ test("pattern seed only of a rib is a 3x3 geometry copy, not nine up-to-body reb
         id: "p1", type: "pattern", name: "Rib pattern", inputs: ["r1"],
         references: { features: ["r1"] },
         params: {
-          scope: "feature", seedFeatureId: "r1", seedOnly: true, geometryPattern: true, mode: "linear",
+          scope: "feature", seedFeatureId: "r1", seedOnly: true, mode: "linear",
           axisX: true, axisY: false, axisZ: true, countX: 3, spacingX: 6, countZ: 3, spacingZ: 6,
         },
       },

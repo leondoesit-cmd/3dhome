@@ -7,7 +7,7 @@ test('all material choices save qualification data through the editor and surviv
  try{
   await page.eval(async()=>{const {openModeler}=await import('/js/modeler.js');openModeler(null,{key:'material_check',name:'Materials',parts:[{id:'plate',name:'Plate',kind:'box',x0:0,x1:10,y0:0,y1:1,z0:0,z1:6}]},null);[...document.querySelectorAll('#mdParts [data-node-id]')].find(e=>e.textContent.includes('Plate')).click();document.querySelector('[data-tab="look"]').click();document.querySelector('[data-engineering-action="title"]').click();});
   const choices=await page.eval(()=>[...document.querySelectorAll('#mdQuickSettings [data-parameter="catalogId"] option')].map(o=>o.value));
-  assert.equal(choices.length,28);assert.ok(choices.includes('stock:aluminum'));assert.ok(choices.includes('toolbox:aluminum'));assert.ok(choices.includes('custom'));
+  assert.equal(choices.length,30);assert.ok(choices.includes('stock:aluminum'));assert.ok(choices.includes('toolbox:aluminum'));assert.ok(choices.includes('custom'));assert.ok(choices.includes('stock:rubber'));assert.ok(choices.includes('stock:polycarbonate'));
   await page.eval(()=>{const set=(key,value)=>{const e=document.querySelector('#mdQuickSettings [data-parameter="'+key+'"] input,#mdQuickSettings [data-parameter="'+key+'"] select');e.value=value;e.dispatchEvent(new Event('input',{bubbles:true}));};set('catalogId','toolbox:beech');set('source','Synthetic browser fixture');set('condition','Longitudinal');document.querySelector('#mdQuickSettings .md-quick-apply').click();});
   await page.waitUntil(()=>JSON.parse(localStorage.getItem('home3d_modeler_draft')||'null')?.def?.engineeringMaterials?.length===1);
   const saved=await page.eval(()=>JSON.parse(localStorage.getItem('home3d_modeler_draft')).def);

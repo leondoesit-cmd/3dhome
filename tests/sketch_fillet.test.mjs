@@ -68,6 +68,23 @@ test("a HandlePath fillet with pinned ends stays fully defined", () => {
   assert.equal(report.status, "fully-constrained");
 });
 
+test("a driving length to the original corner survives the fillet trim", () => {
+  const sketch = L();
+  sketch.constraints.push({ id: "len", type: "distance", entity: "horiz", value: 10, driven: false });
+  filletSketchCorner(sketch, { vertexId: "v", radius: 1.27, keepConstrainedCorners: false });
+  const dim = sketch.constraints.find((c) => c.id === "len");
+  assert.ok(dim);
+  assert.equal(dim.entity, undefined);
+  assert.equal(dim.a, "c");
+  assert.equal(dim.b, "v");
+  const report = solveSketch(sketch);
+  assert.equal(report.converged, true);
+  const map = points(sketch);
+  const corner = map.get("v"), far = map.get("c");
+  assert.ok(corner && far);
+  assert.ok(Math.abs(Math.hypot(far.x - corner.x, far.y - corner.y) - 10) < 1e-3);
+});
+
 test("a radius larger than the shorter leg is refused", () => {
   const sketch = L();
   assert.throws(() => filletSketchCorner(sketch, { vertexId: "v", radius: 12 }), /too large/);

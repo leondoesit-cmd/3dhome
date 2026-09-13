@@ -87,10 +87,30 @@ export function filletSketchCorner(sketch, options = {}, id = uid) {
   };
   const keep = options.keepConstrainedCorners !== false
     && (sketch.constraints || []).some((constraint) => constraintRefs(constraint, corner.vertexId));
-  const savedPoint = keep ? { ...vertex } : null;
+  const farAId = otherEnd(lineA, corner.vertexId);
+  const farBId = otherEnd(lineB, corner.vertexId);
+  const lengthDims = (sketch.constraints || []).filter((constraint) => (
+    constraint.type === "distance" && constraint.driven !== true && (constraint.entity === lineA.id || constraint.entity === lineB.id)
+  ));
+  const savedCorner = [];
+  for (const constraint of lengthDims) {
+    const far = constraint.entity === lineA.id ? farAId : farBId;
+    delete constraint.entity;
+    constraint.a = far;
+    constraint.b = corner.vertexId;
+  }
+  if (lengthDims.length) {
+    for (const line of [lineA, lineB]) {
+      const extra = { id: id(), type: "pointOnLine", point: corner.vertexId, entity: line.id };
+      sketch.constraints.push(extra);
+      savedCorner.push(extra);
+    }
+  }
+  const savedPoint = (keep || lengthDims.length) ? { ...vertex } : null;
   const savedConstraints = keep
     ? (sketch.constraints || []).filter((constraint) => constraintRefs(constraint, corner.vertexId))
     : [];
+  const savedLength = lengthDims.map((constraint) => ({ ...constraint }));
 
   const p1 = addPoint(sketch, t1.x, t1.y, id);
   const p2 = addPoint(sketch, t2.x, t2.y, id);
@@ -118,7 +138,7 @@ export function filletSketchCorner(sketch, options = {}, id = uid) {
   pruneOrphanPoints(sketch);
   if (savedPoint && !(sketch.points || []).some((point) => point.id === savedPoint.id)) {
     sketch.points.push(savedPoint);
-    for (const constraint of savedConstraints) {
+    for (const constraint of savedConstraints.concat(savedLength, savedCorner)) {
       if (!(sketch.constraints || []).some((item) => item.id === constraint.id)) sketch.constraints.push(constraint);
     }
   }

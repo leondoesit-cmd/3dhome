@@ -37,7 +37,7 @@ test("Reference plane offers through-vertex parallel, and Pattern seed only is i
     });
     assert.equal(pattern.visible, true, "pattern form opened");
     assert.ok(pattern.labels.some((label) => /pattern seed only/i.test(label)), JSON.stringify(pattern.labels));
-    assert.ok(pattern.labels.some((label) => /geometry pattern/i.test(label)), JSON.stringify(pattern.labels));
+    assert.equal(pattern.labels.some((label) => /geometry pattern/i.test(label)), false, JSON.stringify(pattern.labels));
   } finally {
     await page.close();
   }

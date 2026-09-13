@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateMassProperties } from '../js/cad_mass_properties.js';
 import { partMaterialDensity, STOCK_MATERIALS } from '../js/cad_appearances.js';
-import { assertRevolveProfile, REVOLVE_AXIS_CROSSING, revolveRecipe } from '../js/core/revolve_geometry.js';
-import { loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord, clearMemoryModelLibrary } from '../js/core/model_library_store.js';
+import { assertRevolveProfile, assertRevolveProfileFrame, REVOLVE_AXIS_CROSSING, revolveRecipe } from '../js/core/revolve_geometry.js';
+import { loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord, clearMemoryModelLibrary, libraryBundle, parseLibraryBundle, mergeLibraryRecords } from '../js/core/model_library_store.js';
 
 const box = (id, x0) => ({id, kind:'box', x0, x1:x0+2, y0:0, y1:2, z0:0, z1:2});
 
@@ -29,6 +29,32 @@ test('a revolve profile that crosses the axis is rejected', () => {
   assert.throws(()=>revolveRecipe({pts:points}), {message:REVOLVE_AXIS_CROSSING});
   assert.equal(assertRevolveProfile([{u:0,v:0},{u:2,v:0},{u:2,v:1}]), 1);
   assert.equal(assertRevolveProfile([{u:0,v:0},{u:-2,v:0},{u:-2,v:1}]), -1);
+});
+
+test('toolbox, custom, rubber and polycarbonate densities are not silent steel', () => {
+  assert.equal(partMaterialDensity({ materialCatalogId: 'toolbox:nylon' }), 1.14);
+  assert.equal(partMaterialDensity({ materialCatalogId: 'custom', customDensity: 0.95 }), 0.95);
+  assert.equal(partMaterialDensity({ materialCatalogId: 'stock:rubber' }), 1.30);
+  assert.equal(partMaterialDensity({ materialCatalogId: 'stock:polycarbonate' }), 1.20);
+});
+
+test('a sketch-plane revolve that crosses the axis is rejected', () => {
+  const frame = { origin: { x: 0, y: 0, z: 0 }, xAxis: { x: 1, y: 0, z: 0 }, yAxis: { x: 0, y: 1, z: 0 }, normal: { x: 0, y: 0, z: 1 } };
+  assert.throws(() => assertRevolveProfileFrame([{ u: -1, v: 0 }, { u: 1, v: 0 }, { u: 1, v: 2 }], { axis: 'y', profileFrame: frame }), { message: REVOLVE_AXIS_CROSSING });
+  assert.equal(assertRevolveProfileFrame([{ u: 1, v: 0 }, { u: 2, v: 0 }, { u: 2, v: 2 }], { axis: 'y', profileFrame: frame }), 1);
+});
+
+test('a library JSON bundle round-trips models and assemblies', () => {
+  const models = [{ key: 'LENSCAP', name: 'LENSCAP', parts: [{ id: 'p1' }] }];
+  const assemblies = [{ key: 'CAPANDLENS', name: 'CAPANDLENS', components: [{ id: 'c1' }] }];
+  const raw = JSON.stringify(libraryBundle(models, assemblies));
+  const parsed = parseLibraryBundle(raw);
+  assert.equal(parsed.models[0].name, 'LENSCAP');
+  assert.equal(parsed.assemblies[0].name, 'CAPANDLENS');
+  const merged = mergeLibraryRecords([{ key: 'LENSCAP', name: 'old' }], parsed.models);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].name, 'LENSCAP');
+  assert.throws(() => parseLibraryBundle({ format: 'nope' }), /Not a ModelForge library file/);
 });
 
 test('assembly library and drafts persist in the in-memory store', async () => {
