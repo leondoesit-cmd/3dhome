@@ -197,6 +197,23 @@ function residuals(sketch, tags) {
         if (p && l) push(p.x - (l.a.x + l.b.x) / 2, p.y - (l.a.y + l.b.y) / 2);
         break;
       }
+      case "intersection": {
+        const p = pt(c.point);
+        if (!p) break;
+        if (c.edgeA) {
+          if (c.x != null && c.y != null) push(p.x - Number(c.x), p.y - Number(c.y));
+          break;
+        }
+        const la = line(c.a), lb = line(c.b);
+        if (la && lb && la.length > EPS && lb.length > EPS) {
+          const denom = la.dx * lb.dy - la.dy * lb.dx;
+          if (Math.abs(denom) > EPS) {
+            const t = ((lb.a.x - la.a.x) * lb.dy - (lb.a.y - la.a.y) * lb.dx) / denom;
+            push(p.x - (la.a.x + t * la.dx), p.y - (la.a.y + t * la.dy));
+          }
+        }
+        break;
+      }
       case "pointOnLine": {
         const p = pt(c.point), l = line(c.entity);
         if (p && l && l.length > EPS) push(((p.x - l.a.x) * l.dy - (p.y - l.a.y) * l.dx) / l.length);

@@ -1,4 +1,5 @@
 import {offsetPlaneOwners} from './offset_planes.js';
+import {sketchIntersectionOwners} from '../sketch_intersection.js';
 // Stable dependency ordering for feature histories.  The history order is the
 // tie-breaker, so an identical document always rebuilds identically.
 
@@ -57,7 +58,7 @@ export function buildDependencyGraph(definition) {
     if (!feature?.id) return;
     featureDependencies(feature).flatMap(dependency=>{
       if(!sketches.has(dependency)||byId.has(dependency))return [dependency];
-      const sketch=sketches.get(dependency);return [sketch.pierce?.featureId,sketch.support?.ownerFeatureId,...offsetPlaneOwners(sketch.referenceId,definition.references),...[...(sketch.silhouetteCopies || []),...(sketch.circleCopies || [])].map(copy=>copy.source.ownerFeatureId)].filter(Boolean);
+      const sketch=sketches.get(dependency);return [sketch.pierce?.featureId,sketch.support?.ownerFeatureId,...offsetPlaneOwners(sketch.referenceId,definition.references),...[...(sketch.silhouetteCopies || []),...(sketch.circleCopies || [])].map(copy=>copy.source.ownerFeatureId),...sketchIntersectionOwners(sketch)].filter(Boolean);
     }).forEach((dependency) => {
       if (!byId.has(dependency) && datums.has(dependency)) return;
       if (!byId.has(dependency)) {

@@ -623,6 +623,7 @@ export var TXT = {
   cSymmetric: ["סימטרי", "Symmetric"],
   cFixed: ["קיבוע", "Fix"],
   cPointOnLine: ["נקודה על ישות", "Point on entity"],
+  cIntersection: ["חיתוך", "Intersection"],
   needSel: ["הבחירה אינה מתאימה לאילוץ הזה", "That selection does not fit this constraint"],
   overDefined: ["האילוץ סותר את הקיימים — בוטל", "That constraint fights the existing ones — undone"],
   constraintList: ["אילוצים בסקיצה", "Sketch constraints"],

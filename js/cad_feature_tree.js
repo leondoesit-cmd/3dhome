@@ -2,12 +2,13 @@ import {pierceSketchToHelix} from './core/sketch_pierce.js';
 import {helixFromSketch} from './core/sketch_helix.js';
 import {resolveOffsetSketch} from './core/offset_planes.js';
 import {updateSilhouetteSketch} from './core/cone_silhouette.js';
+import {bindIntersectionTargets} from './sketch_intersection.js';
 import {thinSketchProfile} from './core/thin_profile.js';
 import {resolveAssociativeBoundary} from './cad_associative_boundary.js';
 import {resolveSketchSources,sketchWorldPoint} from "./core/swept_sources.js";
 import { buildDependencyGraph, featureDependencies, datumReferenceIds } from "./core/dependency_graph.js";
 import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepHoleTool, makeBrepExtrusion, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, placeBrep, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
-import { resolveProfilePoints } from "./sketch_solver.js";
+import {resolveProfilePoints, solveSketch} from "./sketch_solver.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { createTopologyRegistry, resolveFeatureTopologyReferences, topologyForFeature } from "./core/topology.js";
 import { realignFrame } from "./core/frame.js";
@@ -128,6 +129,19 @@ export async function regenerateFeatures(def, options = {}) {
         const updated=updateSilhouetteSketch(linkedSketch,ref=>results.get(ref.ownerFeatureId)?.topology?.find(t=>t.persistentId===ref.persistentId));
         executionDef.sketches[sketchIndex]=updated;
         const ids=[...(updated.silhouetteCopies || []),...(updated.circleCopies || [])].map(c=>c.entityId);boundaryUpdates.set(updated.id,{sketch:updated,oldEntityIds:ids,newEntityIds:ids});
+        linkedSketch=updated;
+      }
+      if(linkedSketch?.constraints?.some(constraint=>constraint.type==="intersection"&&constraint.edgeA)){
+        const updated=structuredClone(linkedSketch);
+        bindIntersectionTargets(updated,ref=>{
+          const topology=results.get(ref.ownerFeatureId)?.topology || [];
+          return topology.find(item=>item.persistentId===ref.persistentId)
+            || (ref.semantic ? topology.find(item=>item.kind==="edge"&&item.semantic===ref.semantic) : null);
+        });
+        const report=solveSketch(updated);
+        if(!report.converged)throw new Error("Intersection relation could not follow the source edges");
+        executionDef.sketches[sketchIndex]=updated;
+        boundaryUpdates.set(updated.id,{sketch:updated,oldEntityIds:[],newEntityIds:[]});
       }
       if (feature.type === "box") result = await makeBrepPrimitive({ type: "box", ...effectiveParams });
       else if (feature.type === "cylinder") result = await makeBrepPrimitive({ type: "cylinder", ...effectiveParams });

@@ -8,6 +8,7 @@ import { threePointArc } from "./sketch_three_point_arc.js";
 import {createMaterialValidationUI} from "./modeler_material_validation.js";
 import { addCenterRectangle } from "./sketch_center_rectangle.js";
 import { filletSketchCorner } from "./sketch_fillet.js";
+import { bindIntersectionTargets, hitProjectedModelEdge } from "./sketch_intersection.js";
 import { offsetFaceBoundary, appendBoundarySketch } from "./cad_face_offset.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { captureExactTopology } from './core/exact_topology_cache.js';
@@ -5791,6 +5792,7 @@ function cadSketchSnapshot() {
     screenPoints: pts.map(function (q) { var p=toPx(q.x,q.y);return {x:p.x,y:p.y}; }),
     entityTypes: ((sketch && sketch.entities) || []).map(function (entity) { return entity.type; }),
     constraintTypes: ((sketch && sketch.constraints) || []).map(function (constraint) { return constraint.type; }),
+    points: pts.map(function (q) { return { id: q.id, x: q.x, y: q.y }; }),
     status: E.solveInfo && E.solveInfo.status,
     previewRect: previewRect,
     width: xs.length ? Math.max.apply(null, xs) - Math.min.apply(null, xs) : 0,
@@ -11556,6 +11558,7 @@ function resolveSketch(rollbackOnConflict, fast) {
   // Equations decide what the dimensions are, so they resolve first — solving
   // against last cycle's numbers would show geometry one edit behind.
   E.eqErrors = resolveEquations(E.def).errors;
+  try { bindIntersectionTargets(sketch, resolveIntersectionEdge); } catch (error) { /* Keep last intersection targets if a source body is mid-rebuild. */ }
   var report = solveSketch(sketch, quick ? { diagnostics: false } : {});
   // a quick pass keeps the previous status and conflict list on screen rather
   // than blanking the badge for the duration of a drag
@@ -11720,6 +11723,30 @@ function selectSketch(obj, additive) {
   } else E.ssel = [obj];
   E.sel = E.ssel.length ? E.ssel[E.ssel.length - 1] : null;
 }
+function selectedModelEdges() {
+  return (E.topologySelection || []).filter(function (reference) { return reference.kind === "edge"; });
+}
+
+function sketchVisibleModelEdges() {
+  var out = [];
+  (E.def.parts || []).forEach(function (part) {
+    topologyEntriesForPart(part).forEach(function (entry) {
+      if (entry.kind === "edge") out.push(entry);
+    });
+  });
+  return out;
+}
+
+function resolveIntersectionEdge(reference) {
+  if (!reference) return null;
+  var parts = E.def.parts || [];
+  for (var i = 0; i < parts.length; i++) {
+    var hit = topologyEntriesForPart(parts[i]).find(function (entry) { return entry.persistentId === reference.persistentId; });
+    if (hit) return hit;
+  }
+  return null;
+}
+
 function selEntities() { return E.ssel.filter(function (o) { return SKETCH_ENTITY_TYPES.indexOf(o.type) >= 0; }); }
 function selPoints() { return E.ssel.filter(function (o) { return o.type === undefined && "x" in o; }); }
 function selLines() { return E.ssel.filter(function (o) { return o.type === "line"; }); }
@@ -12160,6 +12187,7 @@ var CONSTRAINT_DEFS = [
   { id: "concentric", label: "cConcentric", icon: "ph-circles-three", need: "2 circles" },
   { id: "midpoint", label: "cMidpoint", icon: "ph-align-center-horizontal", need: "point + line" },
   { id: "pointOnLine", label: "cPointOnLine", icon: "ph-map-pin-simple", need: "point + entity" },
+  { id: "intersection", label: "cIntersection", icon: "ph-plus", need: "point + two lines or two model edges" },
   { id: "symmetric", label: "cSymmetric", icon: "ph-flip-horizontal", need: "2 points + line" },
   { id: "fixed", label: "cFixed", icon: "ph-lock-simple", need: "point(s)" },
 ];
@@ -12177,6 +12205,7 @@ function constraintFits(type) {
     case "concentric": return selConics().length === 2;
     case "midpoint": return points.length === 1 && lines.length === 1;
     case "pointOnLine": return points.length === 1 && ents.length === 1 && ["line","circle","arc","ellipse"].includes(ents[0].type);
+    case "intersection": return points.length === 1 && (lines.length >= 2 || selectedModelEdges().length >= 2);
     case "symmetric": return points.length === 2 && lines.length === 1;
     case "fixed": return points.length >= 1 || ents.length >= 1;
     default: return false;
@@ -12219,6 +12248,17 @@ function applyConstraint(type) {
       add({ type: "midpoint", point: points[0].id, entity: lines[0].id }); break;
     case "pointOnLine":
       add({ type: ents[0].type === "line" ? "pointOnLine" : "pointOnCircle", point: points[0].id, entity: ents[0].id }); break;
+    case "intersection":
+      if (lines.length >= 2) add({ type: "intersection", point: points[0].id, a: lines[0].id, b: lines[1].id });
+      else {
+        var edges = selectedModelEdges();
+        add({
+          type: "intersection", point: points[0].id,
+          edgeA: topologyReferenceFromEntry(edges[0]) || createTopologyReference(edges[0].ownerFeatureId, "edge", edges[0].persistentId, edges[0].descriptor || {}),
+          edgeB: topologyReferenceFromEntry(edges[1]) || createTopologyReference(edges[1].ownerFeatureId, "edge", edges[1].persistentId, edges[1].descriptor || {}),
+        });
+      }
+      break;
     case "symmetric":
       add({ type: "symmetric", a: points[0].id, b: points[1].id, entity: lines[0].id }); break;
     case "fixed":
@@ -13322,6 +13362,17 @@ function wireSketch() {
     // In canonical sketch mode solids are context geometry only. Their design
     // parameters are edited through history, never by dragging the projection.
     if (isCanonicalAuthoring() && E.authoring && E.authoring.phase === "sketch") {
+      var modelEdge = hitProjectedModelEdge(ensureSketch(E.def), { x: uv.u, y: uv.v }, sketchVisibleModelEdges(), (e.pointerType === "touch" ? 14 : 7) / E.scl);
+      if (modelEdge) {
+        var reference = topologyReferenceFromEntry(modelEdge) || cloneData(modelEdge);
+        var additive = e.ctrlKey || e.metaKey || E.mobileAddSelection || selPoints().length > 0;
+        if (!additive) E.topologySelection = [];
+        var already = (E.topologySelection || []).findIndex(function (item) { return item.persistentId === reference.persistentId; });
+        if (already >= 0) E.topologySelection.splice(already, 1);
+        else { E.topologySelection = E.topologySelection || []; E.topologySelection.push(reference); }
+        refreshAll();
+        return;
+      }
       E.ssel = [];
       E.sel = null;
       refreshAll();

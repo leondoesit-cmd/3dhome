@@ -130,9 +130,9 @@ test("a collecting command says which kind it is waiting for", () => {
   assert.match(body("renderFinishEdgeList"), /host\.classList\.add\("is-collecting"\)/);
   assert.match(body("renderFinishEdgeList"), /t\("collectorArmedEdges"\)/);
   // Shell has no edge list but is collecting faces just as much.
-  assert.match(body("syncActiveFeatureSelectionFeedback"), /note\.classList\.toggle\("is-collecting",FINISH_FEATURES\.includes\(type\)\)/);
+  assert.match(body("syncActiveFeatureSelectionFeedback"), /note\.classList\.toggle\("is-collecting",FINISH_FEATURES\.includes\(type\)\|\|collectingEndFace\(\)\)/);
   // Shell, draft and thicken want a face; fillet and chamfer want an edge.
-  assert.match(body("syncActiveFeatureSelectionFeedback"), /data-collector-kind",FACE_DRIVEN_OPERATIONS\.has\(type\)\?"face":"edge"/);
+  assert.match(body("syncActiveFeatureSelectionFeedback"), /data-collector-kind",\(FACE_DRIVEN_OPERATIONS\.has\(type\)\|\|collectingEndFace\(\)\)\?"face":"edge"/);
   assert.match(partGeometry, /var FACE_DRIVEN_OPERATIONS = new Set\(\["shell", "dome", "draft", "thicken"\]\);/);
   assert.match(styles, /\.md-feature-selection-note\.is-collecting/);
 });

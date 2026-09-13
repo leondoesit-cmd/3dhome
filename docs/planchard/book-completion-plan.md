@@ -70,7 +70,7 @@ Out of scope unless the book needs it: surfacing, weldments, simulation, CAM, PD
 |---|---|---|---|
 | G1 | Up To Surface / Up To Face / Up To Next end condition | HOUSING SwitchHole, steps 563–566 (p.356); CSWA advanced parts | **Done (2A-1).** Terminates at a selected face (or the next face); rebuild re-resolves |
 | G2 | Sketch Fillet | HOUSING HandlePath, steps 459–462 (p.350) | **Done (2A-3).** Trims two lines that share a vertex, inserts a tangent arc, keeps H/V, driving radius |
-| G3 | Intersection relation (point at the intersection of two edges) | HandlePath, step 475 (p.351) | Not in the solver |
+| G3 | Intersection relation (point at the intersection of two edges) | HandlePath, step 475 (p.351) | **Done (2A-4).** Point + two sketch lines or two model edges; rebuild rebinds projected corners |
 | G4 | Tangent Arc sketch tool | LongRib sketch, step 633 (p.362) | Only three-point arc exists |
 | G5 | Nested assemblies (assembly as a component) | CAPANDLENS contains LENSANDBULB; FLASHLIGHT (p.379–434) | `insertAssemblyComponent` (`js/modeler.js:13892`) inserts library parts only |
 | G6 | STL export (binary, Fine) | HOUSING, LENSCAP, BATTERYPLATE, steps 297–300 (p.409) | Not in the modeler |
@@ -118,7 +118,7 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | 2A-1 | **Real Up To Surface / Face / Next** (G1/B6) for extrude cut and boss: terminate the tool at a selected face (planar, then cylindrical/conical), or at the next face along the direction. Store the face as a persistent topology reference that re-resolves on rebuild | **Done.** Shelled-box cut stops at the inner wall (volume 32 vs 48 when thickness 2→3); up-to-next matches |
 | 2A-2 | Fix B1, B2, B3 (Convert/offset of housing faces) | **Done.** Offset-0 box/fillet wires chain; hole faces keep inner loops; closed ellipse is not a zero-length line |
 | 2A-3 | Sketch Fillet (G2): trims two connected lines, inserts a tangent arc, keeps relations | **Done.** Vertex or two-line pick; 0.5 in HandlePath L stays fully defined; radius dimension rebuilds |
-| 2A-4 | Intersection relation (G3) in the solver plus the Add Relations UI | Point stays on both edges after the housing edges move |
+| 2A-4 | Intersection relation (G3) in the solver plus the Add Relations UI | **Done.** Point stays on both edges after the housing edges move |
 | 2A-5 | Tangent Arc tool (G4) | Book step 633 reproduces |
 | 2A-6 | Browser-verify on a test body: rib up-to-body, two-direction linear pattern with "pattern seed only", plane through a vertex parallel to a plane, feature Mirror | Each committed and rebuilt |
 | 2A-7 | **Build HOUSING end to end from the book**: Base Extrude, BatteryLoftPlane, loft with guide curves, Boss-Stop, Shell, ThreadPlane/ThreadPath/ThreadSection/Thread, HandlePath/HandleProfile/Handle sweep, SwitchHole (Up To Surface), Rib1 plus linear pattern, LongRibPlane, Rib2, Mirror | Ritual passes; record time and clicks vs book steps 267–655 |
@@ -194,7 +194,7 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | O-RING | 311–314 | Planchard O-RING | | 2.748212 cm³ | ✅ bounds | | CAPANDLENS, design table | 4-5 |
 | SWITCH | 315–320 | Planchard SWITCH | | 1.754454 cm³ (after edit) | | | FLASHLIGHT | |
 | LENSCAP | 323–332 | Planchard LENSCAP | 11 | | ❌ ritual pending | | CAPANDLENS, STL | 1-3 |
-| HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | 2A-4…2A-7 |
+| HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | 2A-5…2A-7 |
 | LENSANDBULB | 379–434 | – | | | | | CAPANDLENS | 2B-4 |
 | BATTERYANDPLATE | 379–434 | – | | | | | FLASHLIGHT | 2B-4 |
 | CAPANDLENS | 379–434 | – | | | | | FLASHLIGHT | 2B-5 |
