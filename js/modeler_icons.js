@@ -569,7 +569,26 @@ export const CAD_ICONS = {
     );
   },
 
-  // 3-Point Arc: curved arc with 3 control points (start, center, end)
+  // 3-Point Arc: start, through, end — no centre mark, so it is not the centerpoint arc
+  arc3point: function () {
+    return (
+      colorPath("M3 16 Q 10 3 17 16", "none", "currentColor", 1.6) +
+      '<circle cx="3" cy="16" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>' +
+      '<circle cx="10" cy="7.2" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>' +
+      '<circle cx="17" cy="16" r="1.9" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>'
+    );
+  },
+
+  // Tangent Arc: a line, then an arc that leaves its endpoint
+  tangentarc: function () {
+    return (
+      l("M2 15 L11 15", 1.5) +
+      colorPath("M11 15 C 11 7, 18 7, 18 15", "none", "#2684c7", 1.6) +
+      '<circle cx="11" cy="15" r="1.8" fill="#2684c7" stroke="currentColor" stroke-width="1.1"/>'
+    );
+  },
+
+  // Centerpoint Arc: centre, start and end
   sarc: function () {
     return (
       colorPath("M3 15 C 3 6, 17 6, 17 15", "none", "currentColor", 1.6) +
@@ -1270,7 +1289,6 @@ export const ICON_ALIASES = {
   "ph-line-segment": "wall",
   "ph-rectangle": "srect",
   "ph-bezier-curve": "sarc",
-  arc3point: "sarc",
   "ph-pill": "sslot",
   "ph-hexagon": "spoly",
   "ph-circle": "sell",

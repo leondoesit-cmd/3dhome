@@ -10,6 +10,10 @@ import { getLang } from "./i18n.js";
 export var TXT = {
   domeOp: ["כיפה", "Dome"],
   arcThreePoint: ["קשת בשלוש נקודות", "3-point arc"],
+  arcThreePointHint: ["קליק: התחלה · קליק: סוף · קליק: נקודה על הקשת", "Click the start, end, then a point on the arc"],
+  tangentArc: ["קשת משיקה", "Tangent Arc"],
+  tangentArcHint: ["קליק בקצה קו או קשת, ואז בקצה השני", "Click a line or arc endpoint, then the other end"],
+  tangentArcNeedEnd: ["קשת משיקה מתחילה בקצה קיים של קו או קשת", "Tangent Arc starts at an existing line or arc endpoint"],
   dynamicMirror: ["שיקוף דינמי", "Dynamic mirror"],
 
   faceBoundary:["העתקת גבול פאה","Copy face boundary"],

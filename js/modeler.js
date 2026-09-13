@@ -5,6 +5,7 @@ import {resolveOffsetPlanes} from './core/offset_planes.js';
 import {thinSketchProfile} from './core/thin_profile.js';
 import { synchronizeExtrusionProjections } from "./core/extrusion_projection.js";
 import { threePointArc } from "./sketch_three_point_arc.js";
+import { tangentArc, entityOutgoingTangent } from "./sketch_tangent_arc.js";
 import {createMaterialValidationUI} from "./modeler_material_validation.js";
 import { addCenterRectangle } from "./sketch_center_rectangle.js";
 import { filletSketchCorner } from "./sketch_fillet.js";
@@ -3406,6 +3407,7 @@ function buildDOM() {
         commandButton("scirc", t("cap_scirc"), "G", "primary", t("tool_scirc")),
         commandButton("sarc", t("cap_sarc"), "A", "", t("tool_sarc")),
         commandButton("arc3point", t("arcThreePoint"), ""),
+        commandButton("tangentarc", t("tangentArc"), ""),
         commandButton("sslot", t("tool_sslot"), "J"),
         commandButton("spoly", t("cap_spoly"), "N", "", t("tool_spoly")),
         commandButton("sell", t("tool_sell"), "Y"),
@@ -5780,6 +5782,7 @@ function cadSketchSnapshot() {
   return {
     plane: sketch && sketch.plane,
     tool: E.tool,
+    arcMode: E.arcTangent ? "tangent" : E.arcThreePoint ? "three" : (E.tool === "sarc" ? "center" : null),
     phase: E.authoring && E.authoring.phase,
     autoOrient: !!E.sketchNormalTo,
     hasFixedFrame: !!(E.pv && E.pv.fixedFrame),
@@ -6561,8 +6564,9 @@ function runCommand(id) {
   if (blocked) { flash(blocked); closeCommandSearch(); return; }
   if (DIRECT_COMMAND_TOOLS[id]) { setTool(DIRECT_COMMAND_TOOLS[id]); closeCommandSearch(); syncCommandManager(); return; }
   var tools = ["select", "rect", "circle", "sph", "poly", "rev", "cut", "cutc", "wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "offset", "constr"];
-  if (tools.indexOf(id) >= 0) { if(id==="sarc")E.arcThreePoint=false; setTool(id); }
-  else if(id==="arc3point") { E.arcThreePoint=true; E.arcPts=null; setTool("sarc"); }
+  if (tools.indexOf(id) >= 0) { if(id==="sarc"){ E.arcThreePoint=false; E.arcTangent=false; } setTool(id); }
+  else if(id==="arc3point") { E.arcThreePoint=true; E.arcTangent=false; E.arcPts=null; setTool("sarc"); }
+  else if(id==="tangentarc") { E.arcTangent=true; E.arcThreePoint=false; E.arcPts=null; setTool("sarc"); }
   else if(id==="sketchrepair")openSketchRepairs();
   else if(id==="centerrectangle")openCenterRectangle();
   else if(id==="sketchfillet")openSketchFillet();
@@ -8957,8 +8961,10 @@ function syncCommandManager() {
     // a ribbon button is lit while its tool is picked *or* its feature form is open
     var feature = E.authoring && E.authoring.featureType;
     var why = (def && def.available && !def.available()) ? ((def.reason && def.reason()) || t("cmdUnavailable")) : "";
-    b.classList.toggle("on", id === E.tool || (feature && id === FEATURE_COMMAND[feature]) ||
-      (id === "measure" && !!E.measure) || (id === "model3d" && E.mode === "3d"));
+    b.classList.toggle("on", (id === "sarc" ? (E.tool === "sarc" && !E.arcThreePoint && !E.arcTangent) : id === E.tool) ||
+      (id === "arc3point" && E.tool === "sarc" && !!E.arcThreePoint) ||
+      (id === "tangentarc" && E.tool === "sarc" && !!E.arcTangent) ||
+      (feature && id === FEATURE_COMMAND[feature]) || (id === "measure" && !!E.measure) || (id === "model3d" && E.mode === "3d"));
     b.classList.toggle("unavailable", !!why);
     b.setAttribute("aria-disabled", why ? "true" : "false");
     if (why) b.title = why;
@@ -9796,7 +9802,7 @@ function syncHint() {
     E.tool === "rev" ? t("revHint") :
     E.tool === "cut" ? t("cutHint") :
     E.tool === "cutc" ? t("cutcHint") :
-    E.tool === "sarc" ? (E.arcThreePoint ? "Click the start, end, then a point on the arc" : t("arcHint")) :
+    E.tool === "sarc" ? (E.arcTangent ? t("tangentArcHint") : E.arcThreePoint ? t("arcThreePointHint") : t("arcHint")) :
     E.tool === "trim" ? t("trimHint") :
     E.tool === "extend" ? t("extendHint") :
     E.tool === "sketchfillet" ? t("sketchFilletHint") :
@@ -10650,7 +10656,19 @@ function drawSketch() {
 
   // in-progress arc: centre→start fixes the radius; the third point selects
   // the same positive UV sweep that addSketchArc commits.
-  if (E.arcThreePoint && E.arcPts && E.arcPts.length && E._mouse) {
+  if (E.arcTangent && E.arcPts && E.arcPts.length === 1 && E._mouse) {
+    c.save(); c.strokeStyle="#2684c7"; c.setLineDash([5,4]); c.beginPath();
+    var tangentPreview=tangentArc(E.arcPts[0], E.arcPts[0].tangent, E._mouse);
+    if(tangentPreview) {
+      var taStart=Math.atan2(tangentPreview.start.v-tangentPreview.centre.v,tangentPreview.start.u-tangentPreview.centre.u);
+      var taEnd=Math.atan2(tangentPreview.end.v-tangentPreview.centre.v,tangentPreview.end.u-tangentPreview.centre.u);
+      pathUvCircleArc(c,{x:tangentPreview.centre.u,y:tangentPreview.centre.v},tangentPreview.radius,taStart,positiveArcSweep(taStart,taEnd),false);
+    } else {
+      var taA=toPx(E.arcPts[0].u,E.arcPts[0].v),taB=toPx(E._mouse.u,E._mouse.v);
+      c.moveTo(taA.x,taA.y);c.lineTo(taB.x,taB.y);
+    }
+    c.stroke();c.restore();
+  } else if (E.arcThreePoint && E.arcPts && E.arcPts.length && E._mouse) {
     c.save(); c.strokeStyle="#2684c7"; c.setLineDash([5,4]); c.beginPath();
     var previewArc=E.arcPts.length===2 ? threePointArc(E.arcPts[0],E.arcPts[1],E._mouse) : null;
     if(previewArc) {
@@ -13282,7 +13300,33 @@ function wireSketch() {
       drawSketch();
       return;
     }
-    if (E.tool === "sarc") {            // sketch arc: centre, start, end
+    if (E.tool === "sarc") {            // sketch arc: centre, start, end — or tangent / 3-point variants
+      if (E.arcTangent) {
+        var tangentHit = hitSketch(uv, e.pointerType);
+        if (!E.arcPts || !E.arcPts.length) {
+          var startPoint = tangentHit && !tangentHit.type ? tangentHit : (sp.pointId ? sketchPoint(ensureSketch(E.def), sp.pointId) : null);
+          var source = startPoint && entityOutgoingTangent(ensureSketch(E.def), startPoint.id);
+          if (!source) { flash(t("tangentArcNeedEnd")); drawSketch(); return; }
+          E.arcPts = [{ u: source.point.x, v: source.point.y, pointId: source.point.id, tangent: source.tangent, entityId: source.entity.id }];
+          drawSketch();
+          return;
+        }
+        pushUndo(t("opSketch"));
+        var tangentDef = tangentArc(E.arcPts[0], E.arcPts[0].tangent, { u: su, v: sv, pointId: sp.pointId });
+        var tangentMade = tangentDef && addSketchArc(tangentDef.centre, tangentDef.start, tangentDef.end, true);
+        if (tangentMade) {
+          var liveSketch = ensureSketch(E.def);
+          liveSketch.constraints.push({ id: uid(), type: "tangent", a: E.arcPts[0].entityId, b: tangentMade.id });
+          if (!resolveSketch(true)) {
+            liveSketch.constraints = liveSketch.constraints.filter(function (constraint) { return constraint.a !== E.arcPts[0].entityId || constraint.b !== tangentMade.id; });
+            resolveSketch(false);
+          }
+          selectSketch(tangentMade, false);
+        } else { H.discard(); flash(t("tangentArcNeedEnd")); }
+        E.arcPts = null;
+        refreshAll();
+        return;
+      }
       if (!E.arcPts) E.arcPts = [];
       E.arcPts.push({ u: su, v: sv, pointId:sp.pointId });
       if (E.arcPts.length === 3) {
