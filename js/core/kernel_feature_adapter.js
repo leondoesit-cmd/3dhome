@@ -6,6 +6,7 @@ import { revolveRecipe } from "./revolve_geometry.js";
 // them into the small operation vocabulary the kernel already understands.
 
 import { cloneDomain } from "./schema.js";
+import { endConditionHidesDepth } from "./extrude_extent.js";
 import { analyzeParametricHistory, ensureParametricDocument, historyEntryRolled } from "./parametric_document.js";
 import { circularPatternStepDegrees, curvePatternPlacements, linearPatternOffsets, parseSkippedPatternInstances } from "./pattern_geometry.js";
 import { holeWizardSolids } from "../cad_hole_wizard.js";
@@ -85,9 +86,15 @@ function lowerExtrudeParams(feature, document) {
   const symmetric = !!feature.params?.symmetric || feature.params?.endCondition === "mid-plane";
   const storedFrom = Number(feature.params?.from);
   const storedTo = Number(feature.params?.to);
+  const hasTypedDepth = Number.isFinite(Number(feature.params?.depth)) && Math.abs(Number(feature.params.depth)) > 1e-9;
   const hasStoredSpan = Number.isFinite(storedFrom) && Number.isFinite(storedTo) && Math.abs(storedTo - storedFrom) > 1e-9;
-  const from = hasStoredSpan ? storedFrom : (symmetric ? offset - depth / 2 : offset);
-  const to = hasStoredSpan ? storedTo : (symmetric ? offset + depth / 2 : offset + reverse * depth);
+  // Blind and mid-plane are driven by depth. Committed extrudes also store the
+  // last compiled from/to; if that snapshot wins, editing Depth is a no-op.
+  // Keep a stored span only for measured extents, or for old features that
+  // never recorded a depth.
+  const useStoredSpan = hasStoredSpan && (endConditionHidesDepth(feature.params?.endCondition) || !hasTypedDepth);
+  const from = useStoredSpan ? storedFrom : (symmetric ? offset - depth / 2 : offset);
+  const to = useStoredSpan ? storedTo : (symmetric ? offset + depth / 2 : offset + reverse * depth);
   const target = feature.inputs?.[0] || idOf(feature.references?.features?.[0]);
   const params = {
     ...cloneDomain(feature.params),

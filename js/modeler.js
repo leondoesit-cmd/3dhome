@@ -130,7 +130,7 @@ import { createImportedDefinition, detectStepLengthUnit, stepUnitCorrection } fr
 import { encodeBinaryPayload } from "./core/binary_payload.js";
 import { externalizeAttachments } from "./core/attachment_store.js";
 import { garbageCollectAttachments } from "./core/attachment_gc.js";
-import { loadModelLibrary, saveModelLibrary, loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord, libraryBundle, parseLibraryBundle, mergeLibraryRecords } from "./core/model_library_store.js";
+import { loadModelLibrary, saveModelLibrary, loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord, libraryBundle, parseLibraryBundle, mergeLibraryRecords, collidingLibraryKeys } from "./core/model_library_store.js";
 import { rebuildDefinition } from "./core/rebuild.js";
 import { buildTreeModel, findTreeNode } from "./core/tree_model.js";
 import { renderTreeModel } from "./modeler_tree.js";
@@ -20373,13 +20373,26 @@ function importLibraryJson() {
     if (!file) return;
     try {
       var bundle = parseLibraryBundle(await file.text());
-      var models = mergeLibraryRecords(loadLib(), bundle.models);
-      var assemblies = mergeLibraryRecords(loadAssemblies(), bundle.assemblies);
+      var collisions = collidingLibraryKeys(loadLib(), bundle.models).concat(collidingLibraryKeys(loadAssemblies(), bundle.assemblies));
+      var conflict = "replace";
+      if (collisions.length) {
+        var unique = collisions.filter(function (key, index) { return collisions.indexOf(key) === index; });
+        var choice = await askModelerDecision(root, {
+          title: t("importLibrary"),
+          message: tf("libraryImportReplace", { keys: unique.join(", ") }),
+          accept: t("libraryImportOverwrite"),
+          cancel: t("libraryImportKeepBoth"),
+        });
+        if (choice == null) return;
+        conflict = choice ? "replace" : "keep-both";
+      }
+      var models = mergeLibraryRecords(loadLib(), bundle.models, { conflict: conflict });
+      var assemblies = mergeLibraryRecords(loadAssemblies(), bundle.assemblies, { conflict: conflict });
       if (!await saveLib(models)) { report(t("reportKickerSave"), t("saveLibraryFailed"), t("saveStorageFull")); return; }
       if (!await saveAssemblies(assemblies)) { flash(t("saveStorageFull")); return; }
       models.forEach(registerCustomModel);
       refreshLib();
-      flash("✓ " + t("libraryImported"));
+      flash("✓ " + t(conflict === "keep-both" && collisions.length ? "libraryImportedKept" : "libraryImported"));
     } catch (error) { flash(t("libraryImportFailed")); }
   });
   input.click();

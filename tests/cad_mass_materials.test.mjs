@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { evaluateMassProperties } from '../js/cad_mass_properties.js';
 import { partMaterialDensity, STOCK_MATERIALS } from '../js/cad_appearances.js';
 import { assertRevolveProfile, assertRevolveProfileFrame, REVOLVE_AXIS_CROSSING, revolveRecipe } from '../js/core/revolve_geometry.js';
-import { loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord, clearMemoryModelLibrary, libraryBundle, parseLibraryBundle, mergeLibraryRecords } from '../js/core/model_library_store.js';
+import { loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord, clearMemoryModelLibrary, libraryBundle, parseLibraryBundle, mergeLibraryRecords, collidingLibraryKeys } from '../js/core/model_library_store.js';
 
 const box = (id, x0) => ({id, kind:'box', x0, x1:x0+2, y0:0, y1:2, z0:0, z1:2});
 
@@ -44,6 +44,16 @@ test('a sketch-plane revolve that crosses the axis is rejected', () => {
   assert.equal(assertRevolveProfileFrame([{ u: 1, v: 0 }, { u: 2, v: 0 }, { u: 2, v: 2 }], { axis: 'y', profileFrame: frame }), 1);
 });
 
+test('a revolve profile is measured from the world axis, not the sketch origin', () => {
+  const frame = { origin: { x: 5, y: 0, z: 0 }, xAxis: { x: 1, y: 0, z: 0 }, yAxis: { x: 0, y: 1, z: 0 }, normal: { x: 0, y: 0, z: 1 } };
+  const spec = { axis: 'y', profileFrame: frame };
+  assert.equal(assertRevolveProfileFrame([{ u: -1, v: 0 }, { u: 1, v: 0 }, { u: 1, v: 2 }, { u: -1, v: 2 }], spec), 1);
+  assert.throws(
+    () => assertRevolveProfileFrame([{ u: -6, v: 0 }, { u: -1, v: 0 }, { u: -1, v: 2 }, { u: -6, v: 2 }], spec),
+    { message: REVOLVE_AXIS_CROSSING },
+  );
+});
+
 test('a library JSON bundle round-trips models and assemblies', () => {
   const models = [{ key: 'LENSCAP', name: 'LENSCAP', parts: [{ id: 'p1' }] }];
   const assemblies = [{ key: 'CAPANDLENS', name: 'CAPANDLENS', components: [{ id: 'c1' }] }];
@@ -54,6 +64,11 @@ test('a library JSON bundle round-trips models and assemblies', () => {
   const merged = mergeLibraryRecords([{ key: 'LENSCAP', name: 'old' }], parsed.models);
   assert.equal(merged.length, 1);
   assert.equal(merged[0].name, 'LENSCAP');
+  assert.deepEqual(collidingLibraryKeys([{ key: 'LENSCAP' }], parsed.models), ['LENSCAP']);
+  const kept = mergeLibraryRecords([{ key: 'LENSCAP', name: 'old' }], parsed.models, { conflict: 'keep-both' });
+  assert.equal(kept.length, 2);
+  assert.equal(kept.find((item) => item.key === 'LENSCAP').name, 'old');
+  assert.equal(kept.find((item) => item.key === 'LENSCAP-2').key, 'LENSCAP-2');
   assert.throws(() => parseLibraryBundle({ format: 'nope' }), /Not a ModelForge library file/);
 });
 

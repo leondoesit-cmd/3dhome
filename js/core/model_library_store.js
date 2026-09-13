@@ -128,10 +128,36 @@ export function parseLibraryBundle(raw) {
   };
 }
 
-export function mergeLibraryRecords(current = [], incoming = []) {
+export function collidingLibraryKeys(current = [], incoming = []) {
+  const have = new Set((current || []).filter((item) => item && item.key).map((item) => item.key));
+  return [...new Set((incoming || []).filter((item) => item && have.has(item.key)).map((item) => item.key))];
+}
+
+export function uniqueLibraryKey(base, taken) {
+  const root = String(base || "model");
+  if (!taken.has(root)) return root;
+  let n = 2;
+  while (taken.has(root + "-" + n)) n++;
+  return root + "-" + n;
+}
+
+export function mergeLibraryRecords(current = [], incoming = [], options = {}) {
+  const conflict = options.conflict === "keep-both" || options.conflict === "skip" ? options.conflict : "replace";
   const byKey = new Map((current || []).filter((item) => item && item.key).map((item) => [item.key, clone(item)]));
+  const taken = new Set(byKey.keys());
   for (const item of incoming || []) {
-    if (item && item.key) byKey.set(item.key, clone(item));
+    if (!item || !item.key) continue;
+    if (byKey.has(item.key) && conflict !== "replace") {
+      if (conflict === "skip") continue;
+      const copy = clone(item);
+      copy.key = uniqueLibraryKey(item.key, taken);
+      if (!copy.name || copy.name === item.key) copy.name = copy.key;
+      byKey.set(copy.key, copy);
+      taken.add(copy.key);
+      continue;
+    }
+    byKey.set(item.key, clone(item));
+    taken.add(item.key);
   }
   return Array.from(byKey.values());
 }

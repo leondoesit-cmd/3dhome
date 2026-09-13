@@ -169,11 +169,19 @@ export function resolveExtrudeExtent(params, options = {}) {
   if (isUpToFace(condition)) {
     const face = options.endFace || resolvedEndFace(params, options.resolutions);
     if (!faceSurface(face)) throw new Error(UP_TO_FACE_MISSING);
-    distance = firstHit(samples, from, params, pull, [face], { skipNear: true, onFace: options.onFace });
+    // A selected plane is the infinite plane of that face, matching SolidWorks.
+    distance = firstHit(samples, from, params, pull, [face], {
+      skipNear: true,
+      onFace: options.onFace || ((origin, direction, hit, target) => {
+        const geom = faceSurface(target);
+        if (geom?.surface === "plane" || (geom?.normal && !geom?.axis)) return Number.isFinite(hit);
+        return hitLiesOnFace(origin, direction, hit, target);
+      }),
+    });
     if (!(distance > NEAR)) throw new Error(UP_TO_FACE_MISSED);
   } else if (condition === "up-to-next") {
     const faces = (options.hostFaces || []).filter((entry) => (entry?.kind || "face") === "face");
-    distance = firstHit(samples, from, params, pull, faces, { skipNear: true, onFace: options.onFace });
+    distance = coveringHit(profileBoundarySamples(params), from, params, pull, faces, { skipNear: true, onFace: options.onFace });
     if (!(distance > NEAR)) throw new Error(UP_TO_NEXT_MISSED);
   } else if (condition === "through-all") {
     const bounds = aabbFromBox(options.hostBounds) || aabbFromTopology(options.hostFaces);
@@ -188,13 +196,31 @@ export function resolveExtrudeExtent(params, options = {}) {
   return { ...params, from, to: from + reverse * distance };
 }
 
-function profileSamples(params) {
+export function profileBoundarySamples(params) {
   const points = (params.points || []).map((point) => ({ u: Number(point.u ?? point.x) || 0, v: Number(point.v ?? point.y) || 0 }));
-  if (!points.length) return [{ u: 0, v: 0 }];
+  (params.regions || []).forEach((entry) => {
+    const loop = Array.isArray(entry) ? entry : entry?.points || [];
+    loop.forEach((point) => points.push({ u: Number(point.u ?? point.x) || 0, v: Number(point.v ?? point.y) || 0 }));
+  });
+  return points.length ? points : [{ u: 0, v: 0 }];
+}
+
+function profileSamples(params) {
+  const points = profileBoundarySamples(params);
   const centroid = points.reduce((sum, point) => ({ u: sum.u + point.u, v: sum.v + point.v }), { u: 0, v: 0 });
   centroid.u /= points.length;
   centroid.v /= points.length;
   return [centroid, ...points];
+}
+
+function sampleHitsFace(origin, pull, face, options = {}) {
+  const hit = raySurfaceHit(origin, pull, face);
+  if (!Number.isFinite(hit)) return null;
+  if (options.skipNear && hit < NEAR) return null;
+  const onFace = options.onFace
+    ? options.onFace(origin, pull, hit, face)
+    : hitLiesOnFace(origin, pull, hit, face);
+  return onFace ? hit : null;
 }
 
 function firstHit(samples, from, params, pull, faces, options = {}) {
@@ -202,15 +228,25 @@ function firstHit(samples, from, params, pull, faces, options = {}) {
   for (const sample of samples) {
     const origin = extrusionMapPoint(params, sample.u, sample.v, from);
     for (const face of faces || []) {
-      const hit = raySurfaceHit(origin, pull, face);
-      if (!Number.isFinite(hit)) continue;
-      if (options.skipNear && hit < NEAR) continue;
-      const onFace = options.onFace
-        ? options.onFace(origin, pull, hit, face)
-        : hitLiesOnFace(origin, pull, hit, face);
-      if (!onFace) continue;
+      const hit = sampleHitsFace(origin, pull, face, options);
       if (hit > NEAR && hit < best) best = hit;
     }
+  }
+  return Number.isFinite(best) ? best : null;
+}
+
+function coveringHit(samples, from, params, pull, faces, options = {}) {
+  let best = Infinity;
+  for (const face of faces || []) {
+    let nearest = Infinity;
+    let missed = false;
+    for (const sample of samples) {
+      const origin = extrusionMapPoint(params, sample.u, sample.v, from);
+      const hit = sampleHitsFace(origin, pull, face, options);
+      if (!(hit > NEAR)) { missed = true; break; }
+      if (hit < nearest) nearest = hit;
+    }
+    if (!missed && nearest < best) best = nearest;
   }
   return Number.isFinite(best) ? best : null;
 }

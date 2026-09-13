@@ -44,7 +44,7 @@ Out of scope unless the book needs it: surfacing, weldments, simulation, CAM, PD
 | O-RING | 311–314 | Saved | Configurations (Ch 9), material |
 | SWITCH | 315–320 | Saved | – |
 | LENSCAP | 323–332 | Book's last step (262, rename `Thread`) reached, 11 steps | Dimensional and mass acceptance not done |
-| HOUSING | 335–364 | **Not started** | Blocked by Phase 2A-7 |
+| HOUSING | 335–364 | **In progress (UI)** | Base Extrude Ø111.13 × 33.02 mm, End sketch (Convert), BatteryLoftPlane from the end face at 3.302 cm. Sketchsquare started: converted circle on that plane. Not ritual-Done. |
 | LENSANDBULB, BATTERYANDPLATE, CAPANDLENS, FLASHLIGHT | 379–434 | **Not started** | Blocked by Phase 2B |
 | BATTERY, FLASHLIGHT, O-RING drawings | 435–480 | **Not started** | Phase 4 |
 | Homework Ch 5–9 (~63 exercises) | various | **Not inventoried** | Phase 5 |
@@ -68,7 +68,7 @@ Out of scope unless the book needs it: surfacing, weldments, simulation, CAM, PD
 ### 3.2 Missing capabilities the book requires
 | ID | Capability | Book use | Code state |
 |---|---|---|---|
-| G1 | Up To Surface / Up To Face / Up To Next end condition | HOUSING SwitchHole, steps 563–566 (p.356); CSWA advanced parts | **Kernel-verified (2A-1).** The tool is a long prism trimmed by the selected face (plane/cylinder/cone/spline). Up-to-next rejects hits that miss the bounded face. Planar shelled-box and book SwitchHole cylinder tests pass. Not ritual-Done until HOUSING. |
+| G1 | Up To Surface / Up To Face / Up To Next end condition | HOUSING SwitchHole, steps 563–566 (p.356); CSWA advanced parts | **Kernel-verified (2A-1), plane and cylinder.** The tool is a long prism trimmed by the selected face. Planes extend like SolidWorks (a face off to the side still stops the cut). A face the pull never reaches errors (parallel, behind, spline-side). Up-to-next requires the next face to cover the whole profile. Two-region cuts keep both islands. Cone success and a spline the pull *does* meet are untested. Not ritual-Done until HOUSING. |
 | G2 | Sketch Fillet | HOUSING HandlePath, steps 459–462 (p.350) | **Done (2A-3).** Trims two lines that share a vertex, inserts a tangent arc, keeps H/V, driving radius |
 | G3 | Intersection relation (point at the intersection of two edges) | HandlePath, step 475 (p.351) | **Done (2A-4).** Point + two sketch lines or two model edges; rebuild rebinds projected corners |
 | G4 | Tangent Arc sketch tool | LongRib sketch, step 633 (p.362) | **Done (2A-5).** Two clicks: existing line/arc endpoint, then the other end; adds a tangent relation |
@@ -115,13 +115,13 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 ### Phase 2A — HOUSING tools, then HOUSING (p.335–364)
 | Task | Work | Done when |
 |---|---|---|
-| 2A-1 | **Real Up To Surface / Face / Next** (G1/B6) for extrude cut and boss: terminate the tool at a selected face (planar, then cylindrical/conical), or at the next face along the direction. Store the face as a persistent topology reference that re-resolves on rebuild | **Kernel-verified.** Shelled-box cut stops at the inner wall (volume 32 vs 48 when thickness 2→3); up-to-next is face-bounded; SwitchHole Ø12.95 mm at 11.43 mm opens the inner Ø of a Ø111.13 × 33.02 mm shell with no sliver and the opposite wall intact. Not ritual-Done. |
+| 2A-1 | **Real Up To Surface / Face / Next** (G1/B6) for extrude cut and boss: terminate the tool at a selected face (planar, then cylindrical/conical), or at the next face along the direction. Store the face as a persistent topology reference that re-resolves on rebuild | **Kernel-verified (plane + cylinder).** Shelled-box cut stops at the inner wall (volume 32 vs 48 when thickness 2→3); planes extend off-profile; a miss errors (parallel / behind / spline-side); two regions stay two islands; up-to-next skips a partial-coverage step; SwitchHole Ø12.95 mm at 11.43 mm opens the inner Ø of a Ø111.13 × 33.02 mm shell with no sliver and the opposite wall intact. Cone/spline *success* untested. Not ritual-Done. |
 | 2A-2 | Fix B1, B2, B3 (Convert/offset of housing faces) | **Kernel-verified.** Offset-0 box/fillet wires chain; hole faces keep inner loops; closed ellipse is not a zero-length line; reversed closed spline splits on the sample walk |
 | 2A-3 | Sketch Fillet (G2): trims two connected lines, inserts a tangent arc, keeps relations | **Kernel-verified.** Vertex or two-line pick; 0.5 in HandlePath L stays fully defined; radius dimension rebuilds; driving lengths stay measured to the original corner |
 | 2A-4 | Intersection relation (G3) in the solver plus the Add Relations UI | **Kernel-verified.** Point stays on both edges after the housing edges move |
 | 2A-5 | Tangent Arc tool (G4) | **Kernel-verified.** Book step 633: click the line endpoint, then the other end; the arc stays tangent |
 | 2A-6 | Browser-verify on a test body: rib up-to-body, two-direction linear pattern with "pattern seed only", plane through a vertex parallel to a plane, feature Mirror | **Kernel-verified.** Through-vertex-parallel planes follow rebuilt edges without rewriting saved bindings; Pattern seed only copies a rib's web on a 3×3 grid; Geometry pattern checkbox removed; Mirror keep-original doubles volume |
-| 2A-7 | **Build HOUSING end to end from the book**: Base Extrude, BatteryLoftPlane, loft with guide curves, Boss-Stop, Shell, ThreadPlane/ThreadPath/ThreadSection/Thread, HandlePath/HandleProfile/Handle sweep, SwitchHole (Up To Surface), Rib1 plus linear pattern, LongRibPlane, Rib2, Mirror | Ritual passes; record time and clicks vs book steps 267–655 |
+| 2A-7 | **Build HOUSING end to end from the book**: Base Extrude, BatteryLoftPlane, loft with guide curves, Boss-Stop, Shell, ThreadPlane/ThreadPath/ThreadSection/Thread, HandlePath/HandleProfile/Handle sweep, SwitchHole (Up To Surface), Rib1 plus linear pattern, LongRibPlane, Rib2, Mirror | **In progress.** Base Extrude + Convert End sketch + BatteryLoftPlane (end face, 3.302 cm) + Sketchsquare convert of Ø111.13 mm. Remaining: Sketchsquare profile, Boss-Loft1, Boss-Battery, Shell, Boss-Stop, Draft, Thread, Handle, SwitchHole, ribs, Mirror. Ritual not started. |
 
 ### Phase 2B — Nested assemblies (parallel with 2A)
 | Task | Work | Done when |
@@ -194,7 +194,7 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | O-RING | 311–314 | Planchard O-RING | | 2.748212 cm³ | ✅ bounds | | CAPANDLENS, design table | 4-5 |
 | SWITCH | 315–320 | Planchard SWITCH | | 1.754454 cm³ (after edit) | | | FLASHLIGHT | |
 | LENSCAP | 323–332 | Planchard LENSCAP | 11 | | ❌ ritual pending | | CAPANDLENS, STL | 1-3 |
-| HOUSING | 335–364 | – | – | | | | FLASHLIGHT, STL | 2A-7 |
+| HOUSING | 335–364 | HOUSING (draft) | 5+ | | in progress | | FLASHLIGHT, STL | 2A-7 |
 | LENSANDBULB | 379–434 | – | | | | | CAPANDLENS | 2B-4 |
 | BATTERYANDPLATE | 379–434 | – | | | | | FLASHLIGHT | 2B-4 |
 | CAPANDLENS | 379–434 | – | | | | | FLASHLIGHT | 2B-5 |

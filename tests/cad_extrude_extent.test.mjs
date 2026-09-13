@@ -75,6 +75,34 @@ test("up-to-next takes the nearest host face in the pull, skipping the sketch pl
   assert.ok(Math.abs(resolved.to - 2) < 1e-9);
 });
 
+test("up-to-next skips a face that does not cover the whole profile", () => {
+  const faces = [
+    { kind: "face", descriptor: { surface: "plane", origin: { x: 20, y: 5, z: 10 }, normal: { x: 0, y: 1, z: 0 }, bounds: { min: { x: 19, y: 5, z: 9 }, max: { x: 21, y: 5, z: 11 } } } },
+    { kind: "face", descriptor: { surface: "plane", origin: { x: 20, y: 12, z: 10 }, normal: { x: 0, y: 1, z: 0 }, bounds: { min: { x: 15, y: 12, z: 5 }, max: { x: 25, y: 12, z: 15 } } } },
+  ];
+  const resolved = resolveExtrudeExtent({
+    axis: "y", endCondition: "up-to-next", direction: "forward", from: 0, to: 30, depth: 30,
+    points: [{ u: 20, v: 10 }, { u: 24, v: 10 }, { u: 24, v: 14 }, { u: 20, v: 14 }],
+  }, { hostFaces: faces });
+  assert.ok(Math.abs(resolved.to - 12) < 1e-9, "to " + resolved.to);
+});
+
+test("a planar up-to-face cut uses the infinite plane even when the bounded face sits aside", () => {
+  const resolved = resolveExtrudeExtent({
+    axis: "y", endCondition: "up-to-face", direction: "forward", from: 0, to: 30, depth: 30,
+    points: [{ u: 20, v: 10 }, { u: 24, v: 10 }, { u: 24, v: 14 }, { u: 20, v: 14 }],
+  }, {
+    endFace: {
+      kind: "face",
+      descriptor: {
+        surface: "plane", origin: { x: 0, y: 8, z: 0 }, normal: { x: 0, y: 1, z: 0 },
+        bounds: { min: { x: 0, y: 8, z: 0 }, max: { x: 5, y: 8, z: 5 } },
+      },
+    },
+  });
+  assert.ok(Math.abs(resolved.to - 8) < 1e-9, "to " + resolved.to);
+});
+
 test("a cylinder hit is the first intersection along the pull", () => {
   const hit = raySurfaceHit(
     { x: 0, y: 0, z: 0 },

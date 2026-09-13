@@ -19,16 +19,23 @@ export function assertRevolveProfileFrame(points, spec) {
   if (!spec?.profileFrame) return assertRevolveProfile(points);
   const axisName = spec.axis || "y";
   const axis = axisName === "x" ? { x: 1, y: 0, z: 0 } : axisName === "z" ? { x: 0, y: 0, z: 1 } : { x: 0, y: 1, z: 0 };
-  const origin = spec.profileFrame.origin || { x: 0, y: 0, z: 0 };
   const dropAxis = (vector) => {
     const along = (vector.x || 0) * axis.x + (vector.y || 0) * axis.y + (vector.z || 0) * axis.z;
     return { x: (vector.x || 0) - axis.x * along, y: (vector.y || 0) - axis.y * along, z: (vector.z || 0) - axis.z * along };
   };
   let radial = dropAxis(spec.profileFrame.xAxis || { x: 1, y: 0, z: 0 });
   if (Math.hypot(radial.x, radial.y, radial.z) < 1e-9) radial = dropAxis(spec.profileFrame.yAxis || { x: 0, y: 0, z: 1 });
+  const radialLength = Math.hypot(radial.x, radial.y, radial.z) || 1;
+  radial = { x: radial.x / radialLength, y: radial.y / radialLength, z: radial.z / radialLength };
+  // The kernel revolves around the world axis through the origin. Sign of the
+  // radius is the projection of that world perpendicular onto the sketch
+  // radial — not the distance from the sketch origin, which is often off-axis.
   const mapped = (points || []).map((point) => {
     const world = framePoint(spec.profileFrame, Number(point.u ?? point.x) || 0, Number(point.v ?? point.y) || 0, 0);
-    const u = (world.x - origin.x) * radial.x + (world.y - origin.y) * radial.y + (world.z - origin.z) * radial.z;
+    const along = (world.x || 0) * axis.x + (world.y || 0) * axis.y + (world.z || 0) * axis.z;
+    const u = ((world.x || 0) - axis.x * along) * radial.x
+      + ((world.y || 0) - axis.y * along) * radial.y
+      + ((world.z || 0) - axis.z * along) * radial.z;
     return { u, v: 0 };
   });
   return assertRevolveProfile(mapped);

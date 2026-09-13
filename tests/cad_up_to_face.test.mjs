@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { addFeature, regenerateFeatures, releaseRegeneration } from "../js/cad_feature_tree.js";
 import { createTopologyReference, topologyForFeature } from "../js/core/topology.js";
+import { UP_TO_FACE_MISSED, UP_TO_NEXT_MISSED } from "../js/core/extrude_extent.js";
 import { brepContainsPoint, shapeMassProperties } from "../js/cad_kernel.js";
 
 function boxFeature() {
@@ -15,18 +16,40 @@ function innerLeftFace(run) {
     .sort((a, b) => Math.abs((a.descriptor.origin?.x || 0) - 2) - Math.abs((b.descriptor.origin?.x || 0) - 2))[0];
 }
 
-function addUpToCut(definition, face, endCondition) {
+function addUpToCut(definition, face, endCondition, extras = {}) {
+  const targetId = extras.targetId || "hollow";
+  const toolId = extras.toolId || "cut:tool";
+  const cutId = extras.cutId || "cut";
   addFeature(definition, {
-    id: "cut:tool", type: "extrude", inputs: ["hollow"],
+    id: toolId, type: "extrude", inputs: [targetId],
     params: {
-      axis: "x", from: 0, to: 40, depth: 40, direction: "forward",
+      axis: extras.axis || "x",
+      from: extras.from ?? 0,
+      to: extras.to ?? 40,
+      depth: extras.depth ?? 40,
+      direction: extras.direction || "forward",
       endCondition,
-      targetFeatureId: "hollow",
+      targetFeatureId: targetId,
       ...(face ? { endFace: createTopologyReference(face.ownerFeatureId, face.kind, face.persistentId, face.descriptor) } : {}),
-      points: [{ u: 15, v: 10 }, { u: 15, v: 14 }, { u: 19, v: 14 }, { u: 19, v: 10 }],
+      points: extras.points || [{ u: 15, v: 10 }, { u: 15, v: 14 }, { u: 19, v: 14 }, { u: 19, v: 10 }],
+      ...(extras.regions ? { regions: extras.regions } : {}),
     },
   });
-  addFeature(definition, { id: "cut", type: "subtract", inputs: ["hollow", "cut:tool"], params: {} });
+  addFeature(definition, { id: cutId, type: "subtract", inputs: [targetId, toolId], params: {} });
+}
+
+function planarFaces(run) {
+  return (run.finalShape.topology || []).filter((item) => item.kind === "face" && item.descriptor?.surface === "plane");
+}
+
+async function assertUpToFaceMisses(definition, face, extras = {}) {
+  addUpToCut(definition, face, "up-to-face", extras);
+  const cutRun = await regenerateFeatures(definition);
+  try {
+    assert.equal(cutRun.ok, false, JSON.stringify(cutRun.issues));
+    const message = (cutRun.issues || []).map((issue) => issue.message).join("\n");
+    assert.match(message, new RegExp(UP_TO_FACE_MISSED));
+  } finally { releaseRegeneration(cutRun); }
 }
 
 async function shelledOpenFront(thickness) {
@@ -104,6 +127,27 @@ test("up-to-next on a shelled box matches the first inner face", async () => {
   } finally { releaseRegeneration(run); }
 });
 
+test("up-to-next does not stop the whole cut at a step that covers only part of the profile", async () => {
+  const definition = { features: [] };
+  addFeature(definition, { id: "base", type: "box", params: { x: 0, y: 0, z: 0, w: 40, h: 20, d: 20 } });
+  addFeature(definition, { id: "step", type: "box", params: { x: 0, y: 20, z: 0, w: 10, h: 10, d: 20 } });
+  addFeature(definition, { id: "body", type: "union", inputs: ["base", "step"], params: {} });
+  const run = await regenerateFeatures(definition);
+  try {
+    assert.equal(run.ok, true, JSON.stringify(run.issues));
+    addUpToCut(definition, null, "up-to-next", {
+      targetId: "body",
+      points: [{ u: 8, v: 16 }, { u: 12, v: 16 }, { u: 12, v: 24 }, { u: 8, v: 24 }],
+    });
+    const cutRun = await regenerateFeatures(definition);
+    try {
+      assert.equal(cutRun.ok, false, JSON.stringify(cutRun.issues));
+      const message = (cutRun.issues || []).map((issue) => issue.message).join("\n");
+      assert.match(message, new RegExp(UP_TO_NEXT_MISSED));
+    } finally { releaseRegeneration(cutRun); }
+  } finally { releaseRegeneration(run); }
+});
+
 function circlePoints(u, v, radius, count = 24) {
   return Array.from({ length: count }, (_, index) => {
     const a = (index / count) * Math.PI * 2;
@@ -155,9 +199,110 @@ test("SwitchHole up-to-surface trims to the inner cylinder, not a flat sliver", 
   } finally { releaseRegeneration(first); }
 });
 
+test("up-to-face on a wall parallel to the pull does not silently cut through-all", async () => {
+  const definition = { features: [] };
+  addFeature(definition, boxFeature());
+  const run = await regenerateFeatures(definition);
+  try {
+    assert.equal(run.ok, true, JSON.stringify(run.issues));
+    const top = planarFaces(run).find((face) => Math.abs((face.descriptor.normal?.y || 0) - 1) < 1e-6);
+    assert.ok(top, "top face");
+    await assertUpToFaceMisses(definition, top, { targetId: "body" });
+  } finally { releaseRegeneration(run); }
+});
+
+test("up-to-face on a wall behind the sketch does not silently cut through-all", async () => {
+  const definition = { features: [] };
+  addFeature(definition, boxFeature());
+  const run = await regenerateFeatures(definition);
+  try {
+    assert.equal(run.ok, true, JSON.stringify(run.issues));
+    const left = planarFaces(run).find((face) => Math.abs((face.descriptor.normal?.x || 0) + 1) < 1e-6);
+    assert.ok(left, "left face");
+    await assertUpToFaceMisses(definition, left, { targetId: "body", from: 10, to: 40 });
+  } finally { releaseRegeneration(run); }
+});
+
+test("up-to-face on a plane that sits off to the side still stops at the extended surface", async () => {
+  const definition = { features: [] };
+  addFeature(definition, { id: "body", type: "box", params: { x: 0, y: 10, z: 10, w: 40, h: 20, d: 10 } });
+  addFeature(definition, { id: "baffle", type: "box", params: { x: 15, y: 0, z: 0, w: 1, h: 8, d: 8 } });
+  addFeature(definition, { id: "joined", type: "union", inputs: ["body", "baffle"], params: {} });
+  const run = await regenerateFeatures(definition);
+  try {
+    assert.equal(run.ok, true, JSON.stringify(run.issues));
+    const before = await shapeMassProperties(run.finalShape);
+    const wall = planarFaces(run)
+      .filter((face) => Math.abs(Math.abs(face.descriptor.normal?.x || 0) - 1) < 1e-6)
+      .filter((face) => (face.descriptor.origin?.x || 0) > 14.4 && (face.descriptor.origin?.x || 0) < 16.6)
+      .sort((a, b) => (a.descriptor.origin?.x || 0) - (b.descriptor.origin?.x || 0))[0];
+    assert.ok(wall, "baffle plane");
+    addUpToCut(definition, wall, "up-to-face", {
+      targetId: "joined",
+      points: [{ u: 12, v: 12 }, { u: 12, v: 16 }, { u: 16, v: 16 }, { u: 16, v: 12 }],
+    });
+    const cutRun = await regenerateFeatures(definition);
+    try {
+      assert.equal(cutRun.ok, true, JSON.stringify(cutRun.issues));
+      const after = await shapeMassProperties(cutRun.finalShape);
+      const removed = before.volume - after.volume;
+      const depth = wall.descriptor.origin.x;
+      assert.ok(Math.abs(removed - 4 * 4 * depth) < 2, "removed " + removed + " at x=" + depth);
+      assert.ok(removed < 500, "must not cut through-all, removed " + removed);
+    } finally { releaseRegeneration(cutRun); }
+  } finally { releaseRegeneration(run); }
+});
+
+test("up-to-face on a spline wall the pull never meets does not silently cut through-all", async () => {
+  const square = (y, half) => [{ x: -half, y, z: -half }, { x: half, y, z: -half }, { x: half, y, z: half }, { x: -half, y, z: half }];
+  const oval = (y, rx, rz, count = 24) => Array.from({ length: count }, (_, index) => {
+    const a = (index / count) * Math.PI * 2;
+    return { x: rx * Math.cos(a), y, z: rz * Math.sin(a) };
+  });
+  const definition = { features: [] };
+  addFeature(definition, {
+    id: "body", type: "loft",
+    params: { sections: [square(0, 4), oval(20, 6, 3)], solid: true },
+  });
+  const run = await regenerateFeatures(definition);
+  try {
+    assert.equal(run.ok, true, JSON.stringify(run.issues));
+    const side = (run.finalShape.topology || []).find((item) => item.kind === "face" && item.descriptor?.surface !== "plane");
+    assert.ok(side, "spline side face");
+    await assertUpToFaceMisses(definition, side, {
+      targetId: "body",
+      axis: "y",
+      from: 0,
+      to: 20,
+      points: [{ u: -1, v: -1 }, { u: 1, v: -1 }, { u: 1, v: 1 }, { u: -1, v: 1 }],
+    });
+  } finally { releaseRegeneration(run); }
+});
+
 test("addFeature records a sketchId as a sketch selection, not an empty array", () => {
   const definition = { features: [] };
   const feature = addFeature(definition, { id: "ex", type: "extrude", params: { sketchId: "sk1", from: 0, to: 3.302, axis: "z" } });
   assert.equal(Array.isArray(feature.references), false);
   assert.deepEqual(feature.references.sketches, ["sk1"]);
+});
+
+test("an up-to-face cut with two separate regions keeps both islands", async () => {
+  const first = await shelledOpenFront(2);
+  try {
+    assert.equal(first.run.ok, true, JSON.stringify(first.run.issues));
+    const before = await shapeMassProperties(first.run.finalShape);
+    const face = innerLeftFace(first.run);
+    assert.ok(face, "inner left face");
+    addUpToCut(first.definition, face, "up-to-face", {
+      points: [{ u: 5, v: 10 }, { u: 5, v: 13 }, { u: 8, v: 13 }, { u: 8, v: 10 }],
+      regions: [[{ u: 16, v: 10 }, { u: 16, v: 13 }, { u: 19, v: 13 }, { u: 19, v: 10 }]],
+    });
+    const cutRun = await regenerateFeatures(first.definition);
+    try {
+      assert.equal(cutRun.ok, true, JSON.stringify(cutRun.issues));
+      const after = await shapeMassProperties(cutRun.finalShape);
+      const removed = before.volume - after.volume;
+      assert.ok(Math.abs(removed - 36) < 2, "removed " + removed);
+    } finally { releaseRegeneration(cutRun); }
+  } finally { releaseRegeneration(first.run); }
 });

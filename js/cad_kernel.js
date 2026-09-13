@@ -474,6 +474,17 @@ export function rayHitsBrepFace(oc, origin, direction, face, skipNear = 1e-4) {
   } finally { inter.delete(); line.delete(); d.delete(); p.delete(); }
 }
 
+export function rayHitsExtendedBrepFace(oc, origin, direction, face, skipNear = 1e-4) {
+  const bounded = rayHitsBrepFace(oc, origin, direction, face, skipNear);
+  if (bounded != null) return bounded;
+  const owned = [];
+  try {
+    const extended = enlargeFaceForSplit(oc, owned, face, 1e4);
+    if (!extended || extended === face) return null;
+    return rayHitsBrepFace(oc, origin, direction, extended, skipNear);
+  } finally { disposeAll(owned); }
+}
+
 function enlargeFaceForSplit(oc, owned, face, reach) {
   const adaptor = new oc.BRepAdaptor_Surface_2(face, true); owned.push(adaptor);
   const kind = surfaceName(oc, adaptor.GetType());
@@ -508,22 +519,30 @@ function joinSolidPieces(oc, pieces) {
   return compound;
 }
 
-function extrusionSeedPoint(spec, mapPoint, depth) {
-  const points = spec.points || [];
-  const centroid = points.reduce((sum, point) => ({
+function loopCentroid(points) {
+  const centroid = (points || []).reduce((sum, point) => ({
     u: sum.u + (Number(point.u ?? point.x) || 0),
     v: sum.v + (Number(point.v ?? point.y) || 0),
   }), { u: 0, v: 0 });
-  if (points.length) { centroid.u /= points.length; centroid.v /= points.length; }
+  if (points?.length) { centroid.u /= points.length; centroid.v /= points.length; }
+  return centroid;
+}
+
+function extrusionSeedPoints(spec, mapPoint, depth) {
   const from = Number(spec.from) || 0;
   const step = Math.sign(depth || 1) * 1e-3;
-  return mapPoint(centroid.u, centroid.v, from + step);
+  const loops = [spec.points || []];
+  (spec.regions || []).forEach((entry) => loops.push(Array.isArray(entry) ? entry : entry?.points || []));
+  return loops.filter((loop) => loop.length).map((loop) => {
+    const centroid = loopCentroid(loop);
+    return mapPoint(centroid.u, centroid.v, from + step);
+  });
 }
 
 function keepSketchSidePieces(oc, pieces, spec, mapPoint, depth) {
   if (!pieces.length) return [];
-  const seed = extrusionSeedPoint(spec, mapPoint, depth);
-  const inside = pieces.filter((piece) => solidContainsPoint(oc, piece.shape, seed));
+  const seeds = extrusionSeedPoints(spec, mapPoint, depth);
+  const inside = pieces.filter((piece) => seeds.some((seed) => solidContainsPoint(oc, piece.shape, seed)));
   if (inside.length) return inside;
   const axis = extrusionAxisVector(spec);
   const reverse = spec.direction === "reverse" || depth < 0 ? -1 : 1;
@@ -550,7 +569,11 @@ function trimExtrusionUntilFace(oc, shape, spec, mapPoint, depth) {
     const progress = new oc.Message_ProgressRange_1(); owned.push(progress);
     splitter.Build(progress);
     if (splitter.HasErrors?.()) throw new Error(UP_TO_FACE_MISSED);
+    const before = solidPieces(oc, shape);
     const pieces = solidPieces(oc, splitter.Shape());
+    // Unchanged piece count means the face never parted the tool — including a
+    // two-region compound that would otherwise survive as a silent through-all.
+    if (pieces.length <= before.length) throw new Error(UP_TO_FACE_MISSED);
     const keep = keepSketchSidePieces(oc, pieces, spec, mapPoint, depth);
     pieces.filter((piece) => !keep.includes(piece)).forEach((piece) => piece.shape.delete?.());
     if (!keep.length) throw new Error(UP_TO_FACE_MISSED);
@@ -574,6 +597,10 @@ export async function makeBrepExtrusion(spec) {
     const holeLoops = (spec.holes || []).map((entry) => Array.isArray(entry)
       ? { points: entry }
       : { points: entry?.points || entry?.loop || [], segments: entry?.segments })
+      .filter((loop) => loopSegments(loop) || loop.points.length >= 3);
+    const islandLoops = (spec.regions || []).map((entry) => Array.isArray(entry)
+      ? { points: entry }
+      : { points: entry?.points || [], segments: entry?.segments })
       .filter((loop) => loopSegments(loop) || loop.points.length >= 3);
     const mapPoint = (u, v, w) => spec.frame
       ? framePoint(spec.frame, u, v, w)
@@ -607,7 +634,7 @@ export async function makeBrepExtrusion(spec) {
       if (spec.untilFace) built = trimExtrusionUntilFace(oc, built, spec, mapPoint, depth);
       return built;
     };
-    if (circle && !holeLoops.length) {
+    if (circle && !holeLoops.length && !islandLoops.length) {
       const sign = depth >= 0 ? 1 : -1;
       const start = mapPoint(circle.u, circle.v, spec.from || 0);
       const p = new oc.gp_Pnt_3(start.x, start.y, start.z); owned.push(p);
@@ -637,7 +664,13 @@ export async function makeBrepExtrusion(spec) {
       ? new oc.gp_Vec_4(spec.frame.normal.x * depth, spec.frame.normal.y * depth, spec.frame.normal.z * depth)
       : spec.axis === "z" ? new oc.gp_Vec_4(0, 0, depth) : spec.axis === "x" ? new oc.gp_Vec_4(depth, 0, 0) : new oc.gp_Vec_4(0, depth, 0); owned.push(vec);
     const prism = new oc.BRepPrimAPI_MakePrism_1(faceMaker.Face(), vec, true, true); owned.push(prism);
-    return { oc, shape: finish(prism.Shape()), kind: "solid" };
+    const solids = [{ shape: prism.Shape() }];
+    islandLoops.forEach((loop) => {
+      const maker = new oc.BRepBuilderAPI_MakeFace_15(wireFor(loop), true); owned.push(maker);
+      const extra = new oc.BRepPrimAPI_MakePrism_1(maker.Face(), vec, true, true); owned.push(extra);
+      solids.push({ shape: extra.Shape() });
+    });
+    return { oc, shape: finish(solids.length === 1 ? solids[0].shape : joinSolidPieces(oc, solids)), kind: "solid" };
   } finally { disposeAll(owned); }
 }
 

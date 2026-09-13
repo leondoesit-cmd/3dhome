@@ -333,7 +333,7 @@ test("an extrude stored as params.sketchId plus from/to still compiles", () => {
   const feature = createFeatureDefinition(document, "extrude", {
     id: "feature:base",
     references: { sketches: [], features: [], topology: [], references: [] },
-    params: { axis: "z", from: 0, to: 3.302, sketchId: sketch.id, profileEntityIds: ["e0", "e1", "e2", "e3"] },
+    params: { axis: "z", from: 0, to: 3.302, depth: 3.302, sketchId: sketch.id, profileEntityIds: ["e0", "e1", "e2", "e3"] },
   });
   assert.equal(validateFeatureDefinition(feature).filter((issue) => issue.severity === "error").length, 0);
   const compiled = compileKernelFeatureTree(document);
@@ -342,4 +342,74 @@ test("an extrude stored as params.sketchId plus from/to still compiles", () => {
   assert.equal(lowered.params.from, 0);
   assert.equal(lowered.params.to, 3.302);
   assert.equal(lowered.params.sketchId, sketch.id);
+});
+
+test("a legacy extrude with only from/to and no depth still compiles the stored span", () => {
+  const document = createPartDocument({ id: "part:legacy-span" });
+  const sketch = constrainedRectangle(document);
+  document.features.push({
+    id: "feature:legacy",
+    type: "extrude",
+    name: "Legacy Extrude",
+    params: { axis: "z", from: 0, to: 3.302, sketchId: sketch.id, profileEntityIds: ["e0", "e1", "e2", "e3"] },
+    references: { sketches: [], features: [], topology: [], references: [] },
+    inputs: [],
+    suppressed: false,
+  });
+  const compiled = compileKernelFeatureTree(document);
+  assert.equal(compiled.ok, true, JSON.stringify(compiled.issues));
+  const lowered = compiled.features.find((item) => item.type === "extrude");
+  assert.equal(lowered.params.from, 0);
+  assert.equal(lowered.params.to, 3.302);
+});
+
+test("editing a blind extrude Depth recompiles from/to from the new depth", () => {
+  const document = createPartDocument({ id: "part:depth-edit" });
+  const sketch = constrainedRectangle(document);
+  const feature = createFeatureDefinition(document, "extrude", {
+    id: "feature:base",
+    references: { sketches: [sketch.id], features: [], topology: [], references: [] },
+    params: {
+      axis: "z", from: 0, to: 3.302, depth: 3.302, endCondition: "blind",
+      sketchId: sketch.id, profileEntityIds: ["e0", "e1", "e2", "e3"],
+    },
+  });
+  updateFeatureDefinition(document, feature.id, { params: { depth: 5 } });
+  assert.equal(feature.params.depth, 5);
+  assert.equal(feature.params.to, 3.302);
+  const compiled = compileKernelFeatureTree(document);
+  assert.equal(compiled.ok, true, JSON.stringify(compiled.issues));
+  const lowered = compiled.features.find((item) => item.type === "extrude");
+  assert.equal(lowered.params.from, 0);
+  assert.equal(lowered.params.to, 5);
+});
+
+test("mid-plane and reverse extrudes also recompute span from Depth", () => {
+  const document = createPartDocument({ id: "part:span-edit" });
+  const sketch = constrainedRectangle(document);
+  const mid = createFeatureDefinition(document, "extrude", {
+    id: "feature:mid",
+    references: { sketches: [sketch.id], features: [], topology: [], references: [] },
+    params: {
+      axis: "z", from: -5, to: 5, depth: 10, endCondition: "mid-plane", symmetric: true,
+      sketchId: sketch.id, profileEntityIds: ["e0", "e1", "e2", "e3"],
+    },
+  });
+  updateFeatureDefinition(document, mid.id, { params: { depth: 20 } });
+  const midLowered = compileKernelFeatureTree(document).features.find((item) => item.id === mid.id);
+  assert.equal(midLowered.params.from, -10);
+  assert.equal(midLowered.params.to, 10);
+
+  const reverse = createFeatureDefinition(document, "extrude", {
+    id: "feature:rev",
+    references: { sketches: [sketch.id], features: [], topology: [], references: [] },
+    params: {
+      axis: "z", from: 0, to: -3.302, depth: 3.302, direction: "reverse", endCondition: "blind",
+      sketchId: sketch.id, profileEntityIds: ["e0", "e1", "e2", "e3"],
+    },
+  });
+  updateFeatureDefinition(document, reverse.id, { params: { depth: 5 } });
+  const revLowered = compileKernelFeatureTree(document).features.find((item) => item.id === reverse.id);
+  assert.equal(revLowered.params.from, 0);
+  assert.equal(revLowered.params.to, -5);
 });

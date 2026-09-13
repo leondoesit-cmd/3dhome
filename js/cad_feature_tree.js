@@ -7,13 +7,13 @@ import {thinSketchProfile} from './core/thin_profile.js';
 import {resolveAssociativeBoundary} from './cad_associative_boundary.js';
 import {resolveSketchSources,sketchWorldPoint} from "./core/swept_sources.js";
 import { buildDependencyGraph, featureDependencies, datumReferenceIds } from "./core/dependency_graph.js";
-import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepHoleTool, makeBrepExtrusion, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, placeBrep, rayHitsBrepFace, resolveBrepSubshape, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
+import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepHoleTool, makeBrepExtrusion, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, placeBrep, rayHitsBrepFace, rayHitsExtendedBrepFace, resolveBrepSubshape, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
 import {resolveProfilePoints, solveSketch} from "./sketch_solver.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { createTopologyRegistry, resolveFeatureTopologyReferences, topologyForFeature } from "./core/topology.js";
 import { vertexEntriesFrom } from "./core/topology_selection.js";
 import { realignFrame } from "./core/frame.js";
-import { aabbFromTopology, extrusionAxisVector, extrusionMapPoint, isUpToFace, resolveExtrudeExtent, resolvedEndFace, UP_TO_FACE_MISSING, UP_TO_NEXT_MISSED } from "./core/extrude_extent.js";
+import { aabbFromTopology, extrusionAxisVector, extrusionMapPoint, isUpToFace, profileBoundarySamples, resolveExtrudeExtent, resolvedEndFace, UP_TO_FACE_MISSING, UP_TO_FACE_MISSED, UP_TO_NEXT_MISSED } from "./core/extrude_extent.js";
 import { resolveParameters, sketchDiagnostics } from "./core/rebuild.js";
 import { decodeBinaryPayload } from "./core/binary_payload.js";
 import { resolveAttachmentPayload } from "./core/attachment_store.js";
@@ -508,15 +508,6 @@ export function alignExtrusionToSupport(params, resolutions = []) {
   return { ...params, from: symmetric ? center-direction*depth/2 : center, to: symmetric ? center+direction*depth/2 : center+direction*depth };
 }
 
-function extrusionProfileSamples(params) {
-  const points = (params.points || []).map((point) => ({ u: Number(point.u ?? point.x) || 0, v: Number(point.v ?? point.y) || 0 }));
-  if (!points.length) return [{ u: 0, v: 0 }];
-  const centroid = points.reduce((sum, point) => ({ u: sum.u + point.u, v: sum.v + point.v }), { u: 0, v: 0 });
-  centroid.u /= points.length;
-  centroid.v /= points.length;
-  return [centroid, ...points];
-}
-
 function hostFaceShape(host, face) {
   if (!host || !face) return null;
   const id = face.persistentId;
@@ -539,17 +530,37 @@ function pickNextHostFace(host, params) {
   const from = Number.isFinite(Number(params.from)) ? Number(params.from) : (Number(params.offset) || 0);
   const axis = extrusionAxisVector(params);
   const pull = { x: axis.x * reverse, y: axis.y * reverse, z: axis.z * reverse };
+  const samples = profileBoundarySamples(params);
   let best = null;
-  for (const sample of extrusionProfileSamples(params)) {
-    const origin = extrusionMapPoint(params, sample.u, sample.v, from);
-    for (const [persistentId, entry] of host.subshapes) {
-      if (entry.kind !== "face" || !entry.shape) continue;
+  for (const [persistentId, entry] of host.subshapes) {
+    if (entry.kind !== "face" || !entry.shape) continue;
+    let nearest = Infinity;
+    let missed = false;
+    for (const sample of samples) {
+      const origin = extrusionMapPoint(params, sample.u, sample.v, from);
       const hit = rayHitsBrepFace(host.oc, origin, pull, entry.shape);
-      if (!(hit > 1e-4)) continue;
-      if (!best || hit < best.distance) best = { shape: entry.shape, persistentId, distance: hit };
+      if (!(hit > 1e-4)) { missed = true; break; }
+      if (hit < nearest) nearest = hit;
     }
+    if (missed) continue;
+    if (!best || nearest < best.distance) best = { shape: entry.shape, persistentId, distance: nearest };
   }
   return best;
+}
+
+function firstBrepFaceHit(host, params, faceShape) {
+  if (!host?.oc || !faceShape) return null;
+  const reverse = params.direction === "reverse" ? -1 : 1;
+  const from = Number.isFinite(Number(params.from)) ? Number(params.from) : (Number(params.offset) || 0);
+  const axis = extrusionAxisVector(params);
+  const pull = { x: axis.x * reverse, y: axis.y * reverse, z: axis.z * reverse };
+  let best = Infinity;
+  for (const sample of profileBoundarySamples(params)) {
+    const origin = extrusionMapPoint(params, sample.u, sample.v, from);
+    const hit = rayHitsExtendedBrepFace(host.oc, origin, pull, faceShape);
+    if (hit > 1e-4 && hit < best) best = hit;
+  }
+  return Number.isFinite(best) ? best : null;
 }
 
 function alignExtrusionEndCondition(feature, params, resolutions, results) {
@@ -569,20 +580,25 @@ function alignExtrusionEndCondition(feature, params, resolutions, results) {
   }
   const through = resolveExtrudeExtent({ ...params, endCondition: "through-all" }, options);
   const untilDepth = Number(through.to) - Number(through.from);
-  let display;
-  try {
-    display = resolveExtrudeExtent(params, options);
-  } catch (error) {
-    if (!host?.shape) throw error;
-    display = { ...through, endCondition: condition, endFace: params.endFace };
-  }
+  const reverse = params.direction === "reverse" ? -1 : 1;
+  const from = Number.isFinite(Number(params.from)) ? Number(params.from) : (Number(params.offset) || 0);
   let untilFace = null;
+  let display;
   if (isUpToFace(condition)) {
     const face = options.endFace;
     if (!face) throw new Error(UP_TO_FACE_MISSING);
     untilFace = hostFaceShape(host, face);
     if (!untilFace) throw new Error(UP_TO_FACE_MISSING);
+    const distance = firstBrepFaceHit(host, params, untilFace);
+    if (!(distance > 1e-4)) throw new Error(UP_TO_FACE_MISSED);
+    display = { ...params, from, to: from + reverse * distance, endCondition: condition, endFace: params.endFace };
   } else {
+    try {
+      display = resolveExtrudeExtent(params, options);
+    } catch (error) {
+      if (!host?.shape) throw error;
+      display = { ...through, endCondition: condition };
+    }
     const picked = pickNextHostFace(host, display);
     if (!picked) throw new Error(UP_TO_NEXT_MISSED);
     untilFace = picked.shape;
