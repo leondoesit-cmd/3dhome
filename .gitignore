@@ -11,3 +11,4 @@ server/.relay-identities.json
 server/.prodsize-cache.json
 .vscode/
 .idea/
+scratch/
