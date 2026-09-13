@@ -9,7 +9,7 @@ const PLAN_CREATION_TOOLS = new Set([
 const PLAN_LENS_TOOLS = new Set(["door", "window", "passage"]);
 const MODELER_CREATION_TOOLS = new Set([
   "wall", "poly", "cut", "rev", "rect", "circle", "sph", "cutc",
-  "srect", "scirc", "spoly", "sslot", "sell", "sarc",
+  "srect", "scirc", "spoly", "sslot", "sell", "sarc", "sspline",
 ]);
 
 export function planTouchPrecisionKind(tool, placeType) {

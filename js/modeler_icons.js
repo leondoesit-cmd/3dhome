@@ -230,6 +230,8 @@ export const CAD_ICONS = {
 
   /* Draft: a wall leaning off vertical, with the neutral plane it pivots on
      drawn as the dashed line at the top and the pull direction as the arrow. */
+  domefeature: function () { return p("M3 13 A7 9 0 0 1 17 13 L17 15 Q10 19 3 15 Z",.2)+l("M3 13 Q10 17 17 13 M10 4 Q14 8 13 14",1); },
+  dynamicmirror: function () { return l("M10 2 V18",1,' stroke-dasharray="2 2"')+p("M3 5 L7 9 L3 13 Z",.15)+p("M17 5 L13 9 L17 13 Z",.35)+l("M5 16 H15 M13 14 L15 16 L13 18"); },
   draftfeature: function () {
     return (
       // Tapered block: the right wall leans in going down, the left stays square
@@ -538,6 +540,14 @@ export const CAD_ICONS = {
   },
 
   // Corner Rectangle: rectangle with diagonal corner vertices 1 and 2
+  centerrectangle: function () {
+    return p("M3 5 L17 5 L17 15 L3 15 Z", 0.18, 1.35) +
+      '<path d="M3 5L17 15M3 15L17 5" fill="none" stroke="currentColor" stroke-width=".8" stroke-dasharray="2 1"/>' +
+      '<circle cx="10" cy="10" r="2" fill="#2684c7" stroke="currentColor" stroke-width="1.2"/>';
+  },
+  faceboundary: function () {
+    return p("M2 3H18V17H2Z",0.1,1) + '<rect x="5" y="6" width="10" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 10H5M15 10H18" stroke="#2684c7" stroke-width="1.5"/>';
+  },
   srect: function () {
     return (
       p("M3 5 L17 5 L17 15 L3 15 Z", 0.18, 1.35) +
@@ -1185,6 +1195,7 @@ export const ICON_ALIASES = {
   fillet: "filletfeature",
   chamfer: "chamferfeature",
   shell: "shellfeature",
+  dome: "domefeature",
   draft: "draftfeature",
   thicken: "thickenfeature",
   rib: "ribfeature",
@@ -1248,6 +1259,7 @@ export const ICON_ALIASES = {
   "ph-line-segment": "wall",
   "ph-rectangle": "srect",
   "ph-bezier-curve": "sarc",
+  arc3point: "sarc",
   "ph-pill": "sslot",
   "ph-hexagon": "spoly",
   "ph-circle": "sell",

@@ -16,7 +16,7 @@ import {
 } from "./cad_sheet.js";
 import { tessellateParts } from "./core/part_tessellate.js";
 import { projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
-import { calloutText, calloutTextById, holeCallouts } from "./core/hole_callout.js";
+import { calloutText, calloutTextById, holeCallouts, holeLeaderForViews } from "./core/hole_callout.js";
 
 /* Kept as the name this module has always exported; the walk itself is shared
    with the interactive sheet (see core/hole_callout.js) so both engines spell a
@@ -101,13 +101,13 @@ function autoOverallDims(doc, project) {
   });
 }
 
-/* Hole callouts become leader notes on the primary view — the same place a
-   draughtsman would put them, rather than a list beside the drawing. */
+/* Hole callouts attach to a face-on view of the entry axis. A drawing without
+   such a view receives the callout text without a misleading leader. */
 function calloutNotes(doc, callouts) {
   const primary = doc.views.find((view) => view.primary) || doc.views[0];
   if (!primary) return;
   callouts.forEach((row, index) => {
-    const point = row.points[0] || { u: 0, v: 0 };
+    const leader=holeLeaderForViews(row,doc.views);
     doc.notes.push({
       id: uid("n"),
       x: 30 + index * 4, y: 34 + index * 8,
@@ -115,7 +115,7 @@ function calloutNotes(doc, callouts) {
          reading, re-derived from the feature on every build. */
       feature: row.id,
       text: calloutText(row),
-      leader: { viewId: primary.id, u: point.u, v: point.v },
+      leader,
     });
   });
 }

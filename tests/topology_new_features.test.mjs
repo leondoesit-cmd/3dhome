@@ -100,10 +100,11 @@ test("moving a body moves the names with it instead of leaving them behind", () 
   assert.notEqual(moved.signature, source.signature, "and the signature says where it is now");
 });
 
-test("a rotated move still inherits unchanged, because the turn is about a mass it cannot see", () => {
+test("a rotated move retains face identity but waits for the actual pivot before describing its plane", () => {
   const before = plate();
   const list = topologyForFeature({ id: "mv1", type: "moveBody" }, { dx: 5, dy: 0, dz: 0, axis: "y", angle: 30 }, [before]);
   const source = facesOf(before.topology)[0];
   const same = list.find((item) => item.persistentId === source.persistentId);
-  assert.equal(same.signature, source.signature);
+  assert.equal(same.descriptor.pendingTransform, true);
+  assert.notEqual(same.signature, source.signature, "an unresolved rotation must not advertise the original plane");
 });

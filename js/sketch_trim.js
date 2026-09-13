@@ -1,3 +1,6 @@
+import {recordSketchEdit} from "./sketch_edit_repair.js";
+import {trimSplineAtLines,splineControls,bezierLineHits} from "./sketch_spline.js";
+import {editRoundEntity,pointOnArc} from "./sketch_round_trim.js";
 // Sketch trimming, extending, offset, construction toggle, and edge projection tools.
 
 import { sketchPoint, sketchEntity, circleData, pruneOrphanPoints } from "./sketch_solver.js";
@@ -57,18 +60,23 @@ function crossings(sketch, entity, points) {
       if (!oa || !ob) continue;
       const hit = intersectLines(self, { a: oa, b: ob });
       if (hit && hit.onSegment2) out.push({ t: hit.t, x: hit.x, y: hit.y });
+    } else if(other.type==="spline"){
+      const controls=splineControls(other,points);if(controls)bezierLineHits(controls,pa,pb).forEach(hit=>out.push({...hit,t:hit.u}));
     } else if (other.type === "circle" || other.type === "arc") {
       const circ = circleData(other, points);
       if (!circ) continue;
-      intersectLineCircle(self, circ, false).forEach((hit) => out.push(hit));
+      intersectLineCircle(self, circ, false).filter(hit=>pointOnArc(hit,circ)).forEach((hit) => out.push(hit));
     }
   }
   return out.sort((m, n) => m.t - n.t);
 }
 
 // Trim entity at pick point
-export function trimEntity(sketch, entityId, pickPt) {
+export function trimEntity(sketch,entityId,pickPt){return recordSketchEdit(sketch,"trim",entityId,()=>trimEntityRaw(sketch,entityId,pickPt));}
+function trimEntityRaw(sketch, entityId, pickPt) {
   const entity = sketchEntity(sketch, entityId);
+  if(entity?.type==="spline"){const ok=trimSplineAtLines(sketch,entity,pickPt);if(ok)pruneOrphanPoints(sketch);return ok;}
+  if(entity && ["arc","circle"].includes(entity.type))return editRoundEntity(sketch,entity,pickPt,false,intersectLineCircle);
   if (!entity || entity.type !== "line") return false;
 
   const points = new Map(sketch.points.map((p) => [p.id, p]));
@@ -123,8 +131,10 @@ export function trimEntity(sketch, entityId, pickPt) {
 /* Extend the end nearest the pick out to the first piece of geometry it meets.
    Nothing in the way means nothing happens — silently stretching to an
    arbitrary length is worse than refusing. */
-export function extendEntity(sketch, entityId, pickPt) {
+export function extendEntity(sketch,entityId,pickPt){return recordSketchEdit(sketch,"extend",entityId,()=>extendEntityRaw(sketch,entityId,pickPt));}
+function extendEntityRaw(sketch, entityId, pickPt) {
   const entity = sketchEntity(sketch, entityId);
+  if(entity && ["arc","circle"].includes(entity.type))return editRoundEntity(sketch,entity,pickPt,true,intersectLineCircle);
   if (!entity || entity.type !== "line") return false;
   const points = new Map(sketch.points.map((p) => [p.id, p]));
   const pa = points.get(entity.a), pb = points.get(entity.b);
@@ -151,7 +161,7 @@ export function extendEntity(sketch, entityId, pickPt) {
 // Offset line or circle
 export function offsetEntity(sketch, entityId, distance) {
   const entity = sketchEntity(sketch, entityId);
-  if (!entity) return null;
+  if (!entity || entity.projectedCurve || !Number.isFinite(distance)) return null;
   const points = new Map(sketch.points.map((p) => [p.id, p]));
 
   if (entity.type === "line") {
@@ -171,17 +181,20 @@ export function offsetEntity(sketch, entityId, distance) {
     // the offset copy stays parallel to its parent, the way it would in a
     // sketch you keep editing
     sketch.constraints.push({ id: uid("c"), type: "parallel", a: entity.id, b: newLine.id });
+    sketch.constraints.push({id:uid("c"),type:"offset",a:entity.id,b:newLine.id,value:distance});
     return newLine;
   }
   if (entity.type === "circle") {
     const c = points.get(entity.c ?? entity.center);
     if (!c) return null;
-    const newR = Math.max(0.1, (Number(entity.r) || 0) + distance);
+    const newR = (Number(entity.r) || 0) + distance;
+    if(!(newR>1e-6))return null;
     const newC = { id: uid("pt"), x: c.x, y: c.y };
     sketch.points.push(newC);
     const newCircle = { id: uid("circle"), type: "circle", name: "Circle", c: newC.id, r: newR, construction: entity.construction };
     sketch.entities.push(newCircle);
     sketch.constraints.push({ id: uid("c"), type: "concentric", a: entity.id, b: newCircle.id });
+    sketch.constraints.push({id:uid("c"),type:"offset",a:entity.id,b:newCircle.id,value:distance});
     return newCircle;
   }
   return null;

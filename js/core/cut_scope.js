@@ -1,3 +1,4 @@
+import { cylinderAxis } from "./cylinder_axis.js";
 // Which bodies a cut passes through — decided in the cut's own space.
 //
 // A cut loop is authored in the (u, v) of the plane or face it was drawn on.
@@ -9,7 +10,7 @@
 // the origin matches by luck; a boss anywhere else is judged "not under the
 // cut" and silently keeps its shape.
 
-import { framePoint, frameProjectPoint } from "./frame.js";
+import { framePoint, frameProjectPoint, frameFromPlane } from "./frame.js";
 
 const LOOP_EPSILON = 1e-8;
 
@@ -142,6 +143,17 @@ export function convexHull(points) {
 }
 
 export function cutFootprint(part, bounds, frame, axisName, holeLoop = (hole) => hole) {
+  if(part?.kind==="cyl"){
+    const axis=cylinderAxis(part.axis),origin={x:Number(part.x)||0,y:Number(part.y)||0,z:Number(part.z)||0};
+    const ownFrame=frameFromPlane(origin,axis),points=[],count=96;
+    for(const [height,radius] of [[0,part.r],[Number(part.h)||0,part.r2 ?? part.r]])for(let i=0;i<count;i++){
+      // Circumscribed rings conservatively contain the true circular caps.
+      const angle=2*Math.PI*i/count,r=Math.abs(Number(radius)||0)/Math.cos(Math.PI/count);
+      const p=framePoint(ownFrame,r*Math.cos(angle),r*Math.sin(angle),height);
+      const q=frame?frameProjectPoint(frame,p):axisName==="z"?{u:p.x,v:p.y}:axisName==="x"?{u:p.z,v:p.y}:{u:p.x,v:p.z};points.push({u:q.u,v:q.v});
+    }
+    const hull=convexHull(points);if(hull.length>=3)return {type:"poly",pts:hull,holes:[]};
+  }
   const profile = (project) => {
     const outline = project(part?.pts);
     if (!outline || outline.length < 3) return null;
@@ -204,4 +216,11 @@ export function bodyDepthRange(bounds, frame, axisName) {
   if (axisName === "x") return { from: bounds.x0, to: bounds.x1 };
   if (axisName === "z") return { from: bounds.z0, to: bounds.z1 };
   return { from: bounds.y0, to: bounds.y1 };
+}
+
+// Broad phase includes boundary crossings even if neither polygon contains a
+// vertex of the other (two thin crossing strips are a common slot case).
+export function cutFootprintsMayOverlap(loop,footprint){
+  const outer=footprint?.type==='poly'?footprint.pts:footprint?[{u:footprint.u0,v:footprint.v0},{u:footprint.u1,v:footprint.v0},{u:footprint.u1,v:footprint.v1},{u:footprint.u0,v:footprint.v1}]:null;
+  return !outer||loopsOverlapOrTouch(loop,outer);
 }

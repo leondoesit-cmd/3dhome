@@ -90,7 +90,7 @@ test("ISO 286 H7/g6 is clearance, H7/h6 is locational clearance, H7/p6 is interf
   assert.equal(classifyFit(20, "H7/s6"), "interference");
   assert.equal(classifyFit(20, "H7/k6"), "transition");
   assert.match(fitCallout(8, "H7/h6"), /Ø8/);
-  assert.throws(() => evaluateFit(150, "H7/g6"), /120/);
+  assert.equal(evaluateFit(150, "H7/g6").shaft.es,-14);
 });
 
 test("toolbox SHCS, hex screw, nut and brass bushing carry ISO declarations", () => {
@@ -326,14 +326,14 @@ test("an angle mate reports its residual in the same degrees it was asked for", 
 test("standard hole sizes survive the millimetre/centimetre round trip", () => {
   // What the form's setNum() writes into the centimetre field.
   const toCm = (mm) => Math.round(mm * 1000) / 10000;
-  for (const [size, expected] of [["M3", 3.6], ["M4", 4.8], ["M5", 5.8], ["M12", 14]]) {
+  for (const [size, expected] of [["M3", 3.4], ["M4", 4.5], ["M5", 5.5], ["M12", 13.5]]) {
     const hole = normalizeHoleWizard({ standardSize: size, fit: "normal", diameter: toCm(expected) });
     assert.ok(Math.abs(hole.diameterMm - expected) < 1e-9, `${size} normal fit should stay ${expected} mm, got ${hole.diameterMm}`);
   }
   // The three fits of one size must stay three distinct values: rounding to
-  // whole millimetres collapsed M3 normal (3.6) and loose (3.8) onto 4.
+  // whole millimetres collapsed M3 normal (3.4) and loose (3.6) onto 4.
   const fits = ["close", "normal", "loose"].map((fit) => normalizeHoleWizard({ standardSize: "M3", fit }).diameterMm);
-  assert.deepEqual(fits, [3.4, 3.6, 3.8]);
+  assert.deepEqual(fits, [3.2, 3.4, 3.6]);
   assert.equal(new Set(fits.map(toCm)).size, 3);
 });
 

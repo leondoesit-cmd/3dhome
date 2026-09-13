@@ -13,6 +13,7 @@
 // walked out of the half-edge graph. The outlines that come back are the areas
 // a feature should operate on — all of them, not just the biggest loop.
 
+import {sampleBezier,splineControls} from "./sketch_spline.js";
 import { curveSegments } from "./sketch_profiles.js";
 
 const TAU = Math.PI * 2;
@@ -29,6 +30,7 @@ function entityPolyline(entity, points) {
     const a = points.get(entity.a), b = points.get(entity.b);
     return a && b ? { points:[{x:a.x,y:a.y},{x:b.x,y:b.y}], closed:false } : null;
   }
+  if(entity.type === "spline"){const controls=splineControls(entity,points);return controls?{points:sampleBezier(controls),closed:false}:null;}
   if (entity.type === "arc") {
     const center = points.get(entity.c ?? entity.center), a = points.get(entity.a), b = points.get(entity.b);
     if (!center || !a || !b) return null;

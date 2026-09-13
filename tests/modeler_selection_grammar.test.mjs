@@ -133,7 +133,7 @@ test("a collecting command says which kind it is waiting for", () => {
   assert.match(body("syncActiveFeatureSelectionFeedback"), /note\.classList\.toggle\("is-collecting",FINISH_FEATURES\.includes\(type\)\)/);
   // Shell, draft and thicken want a face; fillet and chamfer want an edge.
   assert.match(body("syncActiveFeatureSelectionFeedback"), /data-collector-kind",FACE_DRIVEN_OPERATIONS\.has\(type\)\?"face":"edge"/);
-  assert.match(partGeometry, /var FACE_DRIVEN_OPERATIONS = new Set\(\["shell", "draft", "thicken"\]\);/);
+  assert.match(partGeometry, /var FACE_DRIVEN_OPERATIONS = new Set\(\["shell", "dome", "draft", "thicken"\]\);/);
   assert.match(styles, /\.md-feature-selection-note\.is-collecting/);
 });
 

@@ -124,7 +124,7 @@ test("kernel compilation lowers a hole wizard feature into a subtract tool", () 
   const compiled = compileKernelFeatureTree(document);
   assert.equal(compiled.ok, true);
   const tool = compiled.features.find((feature) => feature.id === "feature:bore:tool");
-  assert.equal(tool && tool.type, "extrude");
+  assert.equal(tool && tool.type, "holeTool");
   assert.equal(tool.params.diameter, 4);
   assert.equal(tool.params.endCondition, "through-all");
   assert.ok(compiled.features.some((feature) => feature.id === "feature:bore" && feature.type === "subtract"));

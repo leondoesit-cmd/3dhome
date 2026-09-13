@@ -24,6 +24,7 @@ export function addExplodeStep(explodedView, componentIds, direction = { x: 0, y
 export function applyExplodedView(assembly, explodedViewId, factor = 1.0) {
   if (!assembly || !assembly.components) return;
   const ev = (assembly.explodedViews || []).find((v) => v.id === explodedViewId);
+  if (explodedViewId == null) { for (const comp of assembly.components) comp.explodedOffset = null; return; }
   if (!ev) return;
 
   const offsets = new Map();

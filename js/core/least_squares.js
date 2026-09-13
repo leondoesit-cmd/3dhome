@@ -54,20 +54,21 @@ export function numericJacobian(evaluate, x, base, options = {}) {
    variable simply gets no step, which is the right answer for it. */
 export function solveLinear(A, b) {
   const n = b.length, M = A.map((row, i) => row.slice().concat(b[i]));
-  for (let k = 0; k < n; k++) {
-    let pivot = k;
-    for (let i = k + 1; i < n; i++) if (Math.abs(M[i][k]) > Math.abs(M[pivot][k])) pivot = i;
-    if (Math.abs(M[pivot][k]) < 1e-12) continue;
-    [M[k], M[pivot]] = [M[pivot], M[k]];
-    const d = M[k][k];
-    for (let j = k; j <= n; j++) M[k][j] /= d;
-    for (let i = 0; i < n; i++) {
-      if (i === k) continue;
-      const f = M[i][k];
-      for (let j = k; j <= n; j++) M[i][j] -= f * M[k][j];
-    }
+  const pivots=[];
+  // Row rank and variable column are independent in a singular system.
+  // A skipped column must not discard a row that constrains a later variable.
+  for (let col=0,row=0;col<n&&row<n;col++) {
+    let pivot=row;
+    for(let i=row+1;i<n;i++)if(Math.abs(M[i][col])>Math.abs(M[pivot][col]))pivot=i;
+    if(Math.abs(M[pivot][col])<1e-12)continue;
+    [M[row],M[pivot]]=[M[pivot],M[row]];
+    const d=M[row][col];for(let j=col;j<=n;j++)M[row][j]/=d;
+    for(let i=0;i<n;i++){if(i===row)continue;const f=M[i][col];for(let j=col;j<=n;j++)M[i][j]-=f*M[row][j];}
+    pivots.push(col);row++;
   }
-  return M.map((row) => Number.isFinite(row[n]) ? row[n] : 0);
+  const solution=Array(n).fill(0);
+  pivots.forEach((col,row)=>{solution[col]=Number.isFinite(M[row][n])?M[row][n]:0;});
+  return solution;
 }
 
 /* Rank of a Jacobian, which is what turns into the degrees-of-freedom count.

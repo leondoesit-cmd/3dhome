@@ -40,6 +40,7 @@ function copyEntities(sketch, entities, place) {
   entities.forEach((entity) => {
     const copy = { ...entity, id: uid(entity.type) };
     if (entity.type === "line") { copy.a = map.get(entity.a).id; copy.b = map.get(entity.b).id; }
+    else if (entity.type === "spline") { for(const key of ["a","h1","h2","b"])copy[key]=map.get(entity[key]).id; }
     else if (entity.type === "circle") { copy.c = map.get(entity.c ?? entity.center).id; copy.r = entity.r; }
     else if (entity.type === "ellipse") {
       copy.c = map.get(entity.c ?? entity.center).id;
@@ -148,9 +149,9 @@ export function circularPatternEntities(sketch, entityIds, options = {}) {
   return { copies: made, dimensions, center: centre.id, pitch };
 }
 
-/* Linear pattern along U or V. Each copy is tied to the original by two
-   constraints per point: a horizontal/vertical alignment that fixes the
-   direction, and a distance that fixes how far along it sits. The distance is
+/* Linear pattern along U or V. Each copy is tied to the original by one
+   distance constraint carrying every point pair and the translation direction.
+   The distance is
    an ordinary driving dimension, so it can be named and driven by an equation —
    which is how "six shelves at Pitch centres" becomes one number to edit.
 
@@ -173,41 +174,11 @@ export function linearPatternEntities(sketch, entityIds, options = {}) {
       y: p.y + (direction === "u" ? 0 : step),
     });
     const copy = copyEntities(sketch, sources, offset);
-    const align = direction === "u" ? "horizontal" : "vertical";
-    const pinned = new Set();
-
-    /* Anchor one point of each copy to its source with an alignment plus a
-       distance, then hold the rest of the copy's shape with entity-level
-       relations. Constraining every point pair would work too, but it produces
-       one pitch dimension per point — four numbers to edit for a four-row
-       array, all of which have to agree. One per copy is the number the user
-       actually thinks in. */
-    copy.pairs.forEach(({ source, copy: entity }) => {
-      const anchorFrom = source.type === "line" ? source.a : (source.c ?? source.center);
-      const anchorTo = copy.points.get(anchorFrom);
-      if (anchorTo && !pinned.has(anchorFrom)) {
-        pinned.add(anchorFrom);
-        sketch.constraints.push({ id: uid("c"), type: align, a: anchorFrom, b: anchorTo.id });
-        const dim = { id: uid("dim"), type: "distance", a: anchorFrom, b: anchorTo.id, value: Math.abs(step) };
-        sketch.constraints.push(dim);
-        dimensions.push(dim);
-      }
-      if (entity.type === "line") {
-        sketch.constraints.push({ id: uid("c"), type: "parallel", a: source.id, b: entity.id });
-        sketch.constraints.push({ id: uid("c"), type: "equal", a: source.id, b: entity.id });
-      } else if (entity.type === "circle") {
-        sketch.constraints.push({ id: uid("c"), type: "equal", a: source.id, b: entity.id });
-      } else {
-        // an arc's rim points are not implied by its centre, so they are tied
-        // individually
-        [source.a, source.b].forEach((id) => {
-          const to = copy.points.get(id);
-          if (!to || pinned.has(id)) return;
-          pinned.add(id);
-          sketch.constraints.push({ id: uid("c"), type: align, a: id, b: to.id });
-          sketch.constraints.push({ id: uid("dim"), type: "distance", a: id, b: to.id, value: Math.abs(step) });
-        });
-      }
+    const pairs=Array.from(copy.points,([id,point])=>[id,point.id]);
+    const dim={id:uid("dim"),type:"distance",patternTranslation:true,shapes:copy.pairs.map(({source,copy:entity})=>[source.id,entity.id]),a:pairs[0][0],b:pairs[0][1],pairs,direction,value:step};
+    sketch.constraints.push(dim);dimensions.push(dim);
+    copy.pairs.forEach(({source,copy:entity})=>{
+      if(entity.type==="circle")sketch.constraints.push({id:uid("c"),type:"equal",a:source.id,b:entity.id});
     });
     made.push(copy);
   }

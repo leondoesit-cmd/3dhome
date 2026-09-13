@@ -256,6 +256,8 @@ test("Shift and a digit switch the filter, and a held one snaps back", opts, asy
 
 test("Select does not open the sketch sheet, and the keyboard stays itself", opts, async () => {
   const page = await editor([MODEL]);
+  await page.waitUntil(() => window.cadPreviewView?.grp?.children?.length > 0,
+    { what: "the loaded model scene before keyboard editing" });
   assert.equal((await page.eval(() => window.cadSelectionSnapshot())).modelPlane, false);
 
   // V used to lay #mdCanvas over the viewport and kill face picking.
@@ -265,10 +267,10 @@ test("Select does not open the sketch sheet, and the keyboard stays itself", opt
   assert.equal(afterV.modelPlane, false, "Select must not open the sketch sheet");
   assert.equal(await page.eval(() => document.getElementById("modeler").classList.contains("md-model-sketching")), false);
 
-  /* And because the Paint chord is gated on !modelPlaneActive, an overlay
-     armed by Select used to make B mean "rectangle" instead of Paint. */
-  await page.eval(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "b", bubbles: true })));
-  assert.equal((await page.eval(() => window.cadSelectionSnapshot())).tool, "paint", "B must still reach Paint after Select");
+  // The advertised Paint shortcut must still work after Select; an armed
+  // sketch overlay would intercept it because Paint requires !modelPlaneActive.
+  await page.eval(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "p", bubbles: true })));
+  assert.equal((await page.eval(() => window.cadSelectionSnapshot())).tool, "paint", "P must still reach Paint after Select");
 
   // Leaving Paint with Escape must not arm it either.
   await page.eval(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));

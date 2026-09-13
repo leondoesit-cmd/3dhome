@@ -5,6 +5,15 @@
 // what keeps t() synchronous. Keep the key set identical across locales —
 // a key present in one and missing in the other now renders as the raw key.
 export default {
+  centerRectangle: "Center rectangle",
+  faceBoundary: "Copy face boundary",
+  tool_sspline: "Cubic spline",
+  sketchRepair: "Repair sketch relationships",
+  fitCheck: "Fit check",
+  domeOp: "Dome",
+  arcThreePoint: "3-point arc",
+  dynamicMirror: "Dynamic mirror",
+
   planner_person: 'First / third person',
   planner_orbit: 'Orbit',
   planner_walk: 'Walk',
@@ -2051,6 +2060,8 @@ export default {
   cost_empty: "Add furniture to see a cost estimate",
   cost_units: "u",
   cb_dims: "Dimensions",
+  invisible_roof: "Invisible roof",
+  invisible_roof_hint: "Block direct light from above while keeping the roof invisible. Applies to enclosed rooms.",
   cb_ceil: "Ceiling",
   cb_interior: "Interior dimensions",
   wallSide: "Measured along",
@@ -3007,4 +3018,15 @@ export default {
   guide_edit: "Update project guide",
   guide_failed: "Could not update this entry. Select an available room on its floor and try again.",
   guide_unscaled: "Reference uncalibrated — set scale from one known distance.",
+  uikit_ins_read_failed: "Could not read file.",
+  uikit_ins_delete_layout: "Delete saved layout",
+  uikit_ins_layout_deleted: "Saved layout deleted.",
+  uikit_ins_delete_failed: "Could not delete the saved layout.",
+  opRevolveCut: "Revolve Cut",
+  opSweepCut: "Sweep Cut",
+  draftOp: "Draft",
+  thickenOp: "Thicken",
+  ribOp: "Rib",
+  splitBodyOp: "Split Body",
+  moveBodyOp: "Move / Copy Body",
 };

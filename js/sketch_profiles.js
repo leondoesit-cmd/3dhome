@@ -1,3 +1,4 @@
+import {splineControls,sampleBezier} from "./sketch_spline.js";
 // Closed-profile discovery and repair for parametric sketches.
 //
 // A profile is topology, not a picture: its edges have to form a graph whose
@@ -63,7 +64,7 @@ function sampleClosedCurve(entity, points) {
 }
 
 function endpointIds(entity) {
-  return entity && (entity.type === "line" || entity.type === "arc") ? [entity.a, entity.b] : [];
+  return entity && (entity.type === "line" || entity.type === "arc" || (entity.type === "spline" && entity.degree===3)) ? [entity.a, entity.b] : [];
 }
 
 function area(points) {
@@ -119,6 +120,8 @@ function canonicalEndpoints(sketch, entities, tolerance) {
 }
 
 function sampleEdge(entity, forward, points) {
+  if(entity.projectedCurve?.samples)return (forward?entity.projectedCurve.samples:[...entity.projectedCurve.samples].reverse()).slice(0,-1);
+  if(entity.type==="spline"){const controls=splineControls(entity,points);if(!controls)return [];const samples=sampleBezier(forward?controls:controls.slice().reverse());return samples.slice(0,-1).map(p=>({u:p.x,v:p.y}));}
   if (entity.type === "line") {
     const id = forward ? entity.a : entity.b, p = points.get(id);
     return p ? [{ u:p.x, v:p.y }] : [];
@@ -196,7 +199,7 @@ export function profileCentroid(points) {
 export function analyzeSketchProfiles(sketch, options = {}) {
   const tolerance = Math.max(1e-6, Number(options.tolerance) || 0.05);
   const selected = new Set(options.selectedIds || []);
-  const eligible = (sketch?.entities || []).filter((e) => !e.construction && (e.type === "line" || e.type === "arc"));
+  const eligible = (sketch?.entities || []).filter((e) => !e.construction && (e.type === "line" || e.type === "arc" || (e.type === "spline" && e.degree===3)));
   // curves that are a closed loop all by themselves, so they never take part in
   // the endpoint graph the chains are built from
   const closed = (sketch?.entities || []).filter((e) => !e.construction && (e.type === "circle" || e.type === "ellipse"));
@@ -213,7 +216,7 @@ export function analyzeSketchProfiles(sketch, options = {}) {
     const ordered = closed ? orderClosedComponent(component, canonical, points) : null;
     if (!ordered) { component.forEach((e) => openEntityIds.push(e.id)); return; }
     const entityIds = ordered.ordered.map((step) => step.entity.id);
-    profiles.push({ kind:"chain", entityIds, points:ordered.points, area:area(ordered.points), selected:entityIds.some((id) => selected.has(id)) });
+    profiles.push({ kind:"chain", entityIds, ordered:ordered.ordered, points:ordered.points, area:area(ordered.points), selected:entityIds.some((id) => selected.has(id)) });
   });
 
   closed.forEach((entity) => {
@@ -240,7 +243,7 @@ export function analyzeSketchProfiles(sketch, options = {}) {
 export function analyzeSketchChains(sketch, options = {}) {
   const tolerance = Math.max(1e-6, Number(options.tolerance) || 0.05);
   const selected = new Set(options.selectedIds || []);
-  const eligible = (sketch?.entities || []).filter((e) => !e.construction && (e.type === "line" || e.type === "arc"));
+  const eligible = (sketch?.entities || []).filter((e) => !e.construction && (e.type === "line" || e.type === "arc" || (e.type === "spline" && e.degree===3)));
   const { points, canonical } = canonicalEndpoints(sketch || {}, eligible, tolerance);
   const { components, adjacency } = connectedComponents(eligible, canonical);
   const chains = [];
@@ -253,7 +256,7 @@ export function analyzeSketchChains(sketch, options = {}) {
     const ordered = orderOpenComponent(component, canonical, points, ends[0].id);
     if (!ordered) return;
     const entityIds = ordered.ordered.map((step) => step.entity.id);
-    chains.push({ entityIds, points:ordered.points, length:chainLength(ordered.points), selected:entityIds.some((id) => selected.has(id)) });
+    chains.push({ entityIds, ordered:ordered.ordered, points:ordered.points, length:chainLength(ordered.points), selected:entityIds.some((id) => selected.has(id)) });
   });
   chains.sort((a, b) => Number(b.selected) - Number(a.selected) || b.length - a.length);
   return { chains, status: chains.length ? "ready" : "none" };
@@ -287,7 +290,7 @@ function orderOpenComponent(edges, canonical, points, startId) {
 export function healSketchEndpoints(sketch, entityIds, tolerance = 0.05) {
   if (!sketch || !Array.isArray(entityIds) || !entityIds.length) return 0;
   const wanted = new Set(entityIds);
-  const entities = (sketch.entities || []).filter((e) => wanted.has(e.id) && (e.type === "line" || e.type === "arc"));
+  const entities = (sketch.entities || []).filter((e) => wanted.has(e.id) && (e.type === "line" || e.type === "arc" || (e.type === "spline" && e.degree===3)));
   const { canonical } = canonicalEndpoints(sketch, entities, Math.max(1e-6, tolerance));
   const replacements = new Map();
   canonical.forEach((root, id) => { if (root !== id) replacements.set(id, root); });
@@ -297,9 +300,21 @@ export function healSketchEndpoints(sketch, entityIds, tolerance = 0.05) {
     ["a", "b", "c", "center"].forEach((key) => { if (replacements.has(e[key])) e[key] = replacements.get(e[key]); });
   });
   (sketch.constraints || []).forEach((c) => {
-    ["a", "b", "point"].forEach((key) => { if (replacements.has(c[key])) c[key] = replacements.get(c[key]); });
+    ["a", "b", "point", "center"].forEach((key) => { if (replacements.has(c[key])) c[key] = replacements.get(c[key]); });
   });
+    (sketch.constraints || []).forEach(c=>{if(Array.isArray(c.pairs))c.pairs=c.pairs.map(pair=>pair.map(id=>replacements.get(id) || id));});
   const dropped = new Set(replacements.keys());
   sketch.points = (sketch.points || []).filter((p) => !dropped.has(p.id));
+  const fixed = new Set();
+  sketch.constraints = (sketch.constraints || []).filter((constraint) => {
+    // Merging two anchored endpoints can turn their independent anchors into
+    // the same rule. Keep conflicting positions for diagnostics, but remove
+    // identical active anchors so healing does not over-constrain the sketch.
+    if (constraint.type !== "fixed" || constraint.suppressed) return true;
+    const point=sketch.points.find(p=>p.id===constraint.point);
+    const key=JSON.stringify([constraint.point,constraint.x ?? point?.x,constraint.y ?? point?.y]);
+    if (fixed.has(key)) return false;
+    fixed.add(key);return true;
+  });
   return replacements.size;
 }

@@ -60,6 +60,8 @@ export function kernelBodySpec(type, params) {
       params: {
         profile: points(source.profile),
         path: points(source.path),
+        ...(source.pathSegments?{pathSegments:structuredClone(source.pathSegments)}:{}),
+        ...(source.profileSegments?{profileSegments:structuredClone(source.profileSegments)}:{}),
         // spread, not `helix: undefined` — a key set to undefined disappears on
         // JSON.stringify, and the recipe has to compare equal after a save
         ...(source.helix ? { helix: { ...source.helix } } : {}),

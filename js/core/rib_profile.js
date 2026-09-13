@@ -1,3 +1,4 @@
+import { analyzeSectionBoundaries } from "./section_boundaries.js";
 /* The closed loop a rib's open sketch line becomes.
  *
  * A rib is drawn as a LINE, not as a shape: the user traces where the web runs
@@ -8,14 +9,14 @@
  * Corners are mitred: each interior vertex moves along the bisector of its two
  * segment normals, scaled by 1/cos(half-angle) so the offset walls actually
  * meet there instead of leaving a notch. A very sharp corner would send that
- * scale to infinity, so it is capped and the corner is bevelled instead —
- * visibly wrong beats numerically unbounded.
+ * scale to infinity. Reject corners that exceed the mitre limit or consume
+ * an adjacent segment; silently clipping them would change the web thickness.
  *
  * Pure 2D arithmetic on {u,v}: no kernel, no sketch objects, so it is testable
  * on its own and the kernel module stays about OpenCascade.
  */
 
-const MITRE_LIMIT = 4;   // a corner sharper than ~29 degrees is bevelled
+const MITRE_LIMIT = 4;   // reject excessively sharp corners
 
 function unit(dx, dy) {
   const size = Math.hypot(dx, dy);
@@ -72,7 +73,11 @@ function ribLoopFromOffsets(points, { left, right }) {
     // A reversal (the line doubles back) has no bisector at all.
     if (!bisector) return { u: after.u, v: after.v, scale: 1 };
     const cos = bisector.x * after.u + bisector.y * after.v;
-    return { u: bisector.x, v: bisector.y, scale: Math.min(MITRE_LIMIT, 1 / Math.max(1e-6, cos)) };
+    const scale=1 / Math.max(1e-6,cos);
+    const along=Math.abs(bisector.x*before.v-bisector.y*before.u)*scale*Math.max(left,right);
+    const available=Math.min(Math.hypot(line[index].u-line[index-1].u,line[index].v-line[index-1].v),Math.hypot(line[index+1].u-line[index].u,line[index+1].v-line[index].v));
+    if(scale>MITRE_LIMIT || along>=available-1e-9)throw new Error("Rib thickness creates an overlapping corner; reduce thickness or lengthen the path segments");
+    return { u: bisector.x, v: bisector.y, scale };
   });
 
   const along = (distance) => line.map((point, index) => ({
@@ -80,7 +85,10 @@ function ribLoopFromOffsets(points, { left, right }) {
     v: point.v + offsets[index].v * offsets[index].scale * distance,
   }));
   // left side forward, right side back: one closed ring around the line
-  return along(left).concat(along(-right).reverse());
+  const loop=along(left).concat(along(-right).reverse());
+  const boundary=analyzeSectionBoundaries(loop.map((a,i)=>({a,b:loop[(i+1)%loop.length]})),1e-7);
+  if(!boundary.ok || boundary.loops.length!==1)throw new Error("Rib thickness creates an overlapping corner; reduce thickness or lengthen the path segments");
+  return loop;
 }
 
 /* The same loop narrowed by a draft angle after `depth` of run.

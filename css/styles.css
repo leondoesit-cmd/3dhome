@@ -2244,6 +2244,8 @@ label span:first-child {
   -webkit-backdrop-filter: blur(7px);
   cursor: pointer;
 }
+.inspector-preview-roof {inset-inline-end:auto;inset-inline-start:8px;width:auto;padding:0 8px;font-size:11px;}
+.inspector-preview-roof[aria-pressed="true"] {outline:2px solid #26b99a;}
 .inspector-preview-reset:hover { background: rgba(15,138,106,.88); }
 @keyframes slideInProps {
   from {
@@ -11075,6 +11077,10 @@ body.fold-span #zHud #zIntermission {
 }
 #modeler .md-sketch-metrics b { color: var(--text-main); font-size: 12px; font-variant-numeric: tabular-nums; }
 #modeler .md-sketch-metrics small { max-width: 100%; color: var(--text-muted); font-size: 8.5px; overflow: hidden; text-overflow: ellipsis; }
+#modeler .md-sketch-geometry { min-width: 0; padding: 8px; border: 1px solid var(--btn-border); border-radius: 7px; }
+#modeler .md-sketch-geometry summary { cursor: pointer; font-weight: 600; }
+#modeler .md-sketch-geometry .md-geometry-pick { display: block; height: auto; min-height: 30px; margin-top: 4px; text-align: start; white-space: normal; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+#modeler .md-sketch-geometry .md-geometry-pick[aria-pressed="true"] { border-color: var(--accent); background: var(--btn-bg-hover); }
 
 #modeler .md-profile-state {
   display: flex; flex-direction: column; gap: 6px; padding: 8px;
@@ -19279,7 +19285,7 @@ body.compact-nav #plan-room-palette .rp-turn { min-height: 40px; }
 #planner-3d-hud {position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4}
 #view-3d > #plan-tools {max-width:calc(100% - 16px);max-height:100%;z-index:12}
 #edit3dBtn[hidden] {display:none !important}
-.planner-navigation {position:absolute;bottom:34px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:15;max-width:95%;padding:4px;border-radius:8px;background:var(--panel,#172635)}
+.planner-navigation {flex-wrap:wrap;justify-content:center;width:max-content;position:absolute;bottom:34px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:15;max-width:95%;padding:4px;border-radius:8px;background:var(--panel,#172635)}
 .planner-navigation button {min-height:36px;white-space:nowrap;padding:5px 10px;border:1px solid #7a899766;border-radius:6px;background:var(--bg,#223340);color:var(--text,#f4f6f8)}
 .planner-navigation button[aria-pressed="true"] {outline:2px solid #26b99a}
 body.zombies-on .planner-navigation,body.lava-on .planner-navigation,body.rc-on .planner-navigation {display:none}
@@ -19304,3 +19310,22 @@ body.zombies-on .planner-navigation,body.lava-on .planner-navigation,body.rc-on 
 #view-3d .plan-gizmo,#view-3d [data-max-view="view-2d"]{display:none!important}
 @media(max-width:760px){.survey-panel{top:auto;bottom:65px;inset-inline:8px;width:auto;max-height:49vh;border-radius:14px}.survey-launch{font-size:11px;max-width:100px;white-space:normal}.survey-field{grid-template-columns:1fr 1.4fr}.survey-body{padding-bottom:12px}}
 @media print{.survey-panel,.planner-navigation{display:none!important}}
+
+/* Cabinet shop profiles: constrain technical controls to the cut-plan panel. */
+.nz-cnc label { display: grid; gap: 4px; margin: 8px 0; }
+.nz-cnc input, .nz-cnc select, .nz-cnc textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+.nz-cnc textarea { font: 11px/1.5 ui-monospace, monospace; resize: vertical; }
+.nz-cnc p { overflow-wrap: anywhere; }
+.nz-cnc summary { cursor: pointer; font-weight: 600; }
+.nz-cnc .nz-cnc-tool { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 8px 0; padding: 8px; }
+.nz-cnc .nz-cnc-tool label { margin: 0; font-size: 11px; }
+.nz-cnc label[hidden] { display: none; }
+
+.md-fillet-endpoint { position:absolute; z-index:12; pointer-events:none; transform:translate(8px,-50%); padding:3px 6px; border:1px solid currentColor; border-radius:4px; background:var(--panel,#fff); color:var(--text,#172131); font-size:11px; white-space:nowrap; }
+.md-fillet-endpoint[data-endpoint="end"] { transform:translate(8px,30%); border-style:dashed; }
+.md-fillet-endpoint[hidden] { display:none; }
+
+/* Text actions must not inherit the square icon-button width. */
+#modeler #mdReturnParameters { width: auto; flex: 0 0 auto; padding: 0 8px; }
+#modeler #mdReturnParameters[hidden] { display: none; }
+#modeler .md-context-actions > button { flex-shrink: 0; }

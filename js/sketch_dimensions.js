@@ -65,11 +65,15 @@ export function currentMeasure(sketch, target) {
    `offset` is stored in screen pixels because annotations should keep a useful
    hand-sized clearance from the drawing at every zoom level. */
 export function distanceDimensionLayout(sketch, constraint, toPx) {
-  if (!sketch || !constraint || constraint.type !== "distance") return null;
+  if (!sketch || !constraint || !["distance","offset"].includes(constraint.type)) return null;
   const points = new Map((sketch.points || []).map((p) => [p.id, p]));
   const entities = new Map((sketch.entities || []).map((e) => [e.id, e]));
   let a = null, b = null;
-  if (constraint.entity) {
+  if(constraint.type==="offset"){
+    const source=lineData(entities.get(constraint.a),points),target=lineData(entities.get(constraint.b),points);
+    if(source&&target){const t=((target.a.x-source.a.x)*source.dx+(target.a.y-source.a.y)*source.dy)/(source.length*source.length);a={x:source.a.x+t*source.dx,y:source.a.y+t*source.dy};b=target.a;}
+    else{const source=circleData(entities.get(constraint.a),points),target=circleData(entities.get(constraint.b),points);if(source&&target){a={x:source.center.x+source.radius,y:source.center.y};b={x:target.center.x+target.radius,y:target.center.y};}}
+  } else if (constraint.entity) {
     const line = lineData(entities.get(constraint.entity), points);
     if (line) { a = line.a; b = line.b; }
   } else {
@@ -105,7 +109,7 @@ function pointSegmentDistance(x, y, a, b) {
 export function hitSketchDimensionHit(sketch, x, y, toPx, tolerance = 9) {
   let best = null, bestDistance = Infinity, bestKind = "line";
   for (const constraint of sketch && sketch.constraints || []) {
-    if (constraint.suppressed || constraint.type !== "distance") continue;
+    if (constraint.suppressed || !["distance","offset"].includes(constraint.type)) continue;
     const layout = distanceDimensionLayout(sketch, constraint, toPx);
     if (!layout) continue;
     const text = `${Math.round(Number(constraint.value) * 10) / 10} cm`;
@@ -144,7 +148,7 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
     ctx.fillStyle = color;
     ctx.lineWidth = 1;
 
-    if (c.type === "distance") {
+    if (["distance","offset"].includes(c.type)) {
       const layout = distanceDimensionLayout(sketch, c, toPx);
       if (!layout) continue;
 

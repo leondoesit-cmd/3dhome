@@ -500,7 +500,10 @@ export async function openPage({ width = 375, height = 812, lang = "en", mobile 
     /* Resolves once main.js has finished initialising and the UI has painted
        once. Throws rather than continuing silently if boot never completes —
        a timeout here is a real failure, not something to test through. */
-    async waitForBoot(ms = 20000) {
+    // Concurrent full-suite browsers occasionally need more than 20 seconds
+    // for the complete module graph. Keep boot bounded, independently of the
+    // much shorter deadlines for individual user actions.
+    async waitForBoot(ms = 60000) {
       const deadline = Date.now() + ms;
       for (;;) {
         if (await page.eval(() => !!window.__home3dBooted)) break;

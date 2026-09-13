@@ -109,6 +109,7 @@ export function entityPoints(sketch, entity) {
   const ids = entity.type === "line" ? [entity.a, entity.b]
     : entity.type === "circle" || entity.type === "ellipse" ? [entity.c ?? entity.center]
     : entity.type === "arc" ? [entity.c ?? entity.center, entity.a, entity.b]
+    : entity.type === "spline" ? [entity.a, entity.h1, entity.h2, entity.b]
     : [];
   return ids.map((id) => sketchPoint(sketch, id)).filter(Boolean);
 }
@@ -117,6 +118,8 @@ export function entityPoints(sketch, entity) {
 
 // One constraint can produce several residuals; `push` tags each with the
 // constraint that owns it so conflicts can be reported per constraint.
+const tangencyModes = new WeakMap();
+
 function residuals(sketch, tags) {
   const points = pointMap(sketch), entities = entityMap(sketch), out = [];
   const line = (id) => lineData(entities.get(id), points);
@@ -149,6 +152,11 @@ function residuals(sketch, tags) {
         break;
       }
       case "distance": {
+        if(c.patternTranslation){
+          for(const pair of c.shapes || []){const a=ell(pair[0]),b=ell(pair[1]);if(a&&b)push(b.rx-a.rx,b.ry-a.ry,wrapAngle(b.rot-a.rot));}
+          for(const pair of c.pairs || []){const a=pt(pair[0]),b=pt(pair[1]);if(a&&b)push(b.x-a.x-(c.direction==="v"?0:value),b.y-a.y-(c.direction==="v"?value:0));}
+          break;
+        }
         if (c.entity) {
           const l = line(c.entity);
           if (l) push(l.length - value);
@@ -224,6 +232,11 @@ function residuals(sketch, tags) {
         break;
       }
       case "tangent": {
+        if(c.splineEnd){
+          const e=entities.get(c.a),l=line(c.b),endpoint=pt(e?.[c.splineEnd]),handle=pt(e?.[c.splineEnd==='a'?'h1':'h2']),join=pt(entities.get(c.b)?.[c.lineEnd]);
+          if(endpoint&&handle&&join&&l){const dx=handle.x-endpoint.x,dy=handle.y-endpoint.y;push(endpoint.x-join.x,endpoint.y-join.y,(dx*l.dy-dy*l.dx)/Math.max(EPS,l.length));}
+          break;
+        }
         const la = line(c.a) || line(c.b);
         const ca = circ(c.a), cb = circ(c.b);
         if (la && (ca || cb)) {
@@ -237,7 +250,7 @@ function residuals(sketch, tags) {
           // circle-circle: external tangency, or internal when one encloses the other
           const d = Math.hypot(cb.center.x - ca.center.x, cb.center.y - ca.center.y);
           const ext = d - (ca.radius + cb.radius), int_ = d - Math.abs(ca.radius - cb.radius);
-          push(Math.abs(ext) < Math.abs(int_) ? ext : int_);
+          push(tangencyModes.get(c)==="internal" ? int_ : ext);
         }
         break;
       }
@@ -260,6 +273,12 @@ function residuals(sketch, tags) {
 
          This is what a circular sketch pattern is made of: a whole copy is one
          editable angular pitch, not one dimension per corner. */
+      case "offset": {
+        const a=line(c.a),b=line(c.b);
+        if(a&&b&&a.length>EPS)push(((b.a.x-a.a.x)*(-a.dy)+(b.a.y-a.a.y)*a.dx)/a.length-value);
+        else {const ca=circ(c.a),cb=circ(c.b);if(ca&&cb)push(cb.radius-ca.radius-value);}
+        break;
+      }
       case "rotation": {
         const centre = pt(c.center);
         if (!centre) break;
@@ -291,7 +310,12 @@ function residuals(sketch, tags) {
     if (e.type !== "arc") continue;
     owner = { id: e.id + "_arc", type: "arcRadius", implicit: true, entity: e.id };
     const arc = circleData(e, points);
-    if (arc) push(Math.hypot(arc.b.x - arc.center.x, arc.b.y - arc.center.y) - arc.radius);
+    if (arc) {
+      const error = Math.hypot(arc.b.x - arc.center.x, arc.b.y - arc.center.y) - arc.radius;
+      // A valid frozen arc has no variables for this identity to constrain.
+      // Keep invalid frozen arcs in the residuals so they still fail validation.
+      if (!(arc.a.fixed && arc.b.fixed && arc.center.fixed && Math.abs(error) < 1e-9)) push(error);
+    }
   }
   return out;
 }
@@ -339,6 +363,20 @@ export function rankOf(J, tolerance = 1e-9) {
 }
 
 export function solveSketch(sketch, options = {}) {
+  const entities = entityMap(sketch), points = pointMap(sketch);
+  for (const constraint of sketch.constraints || []) {
+    if (constraint.type !== "tangent") continue;
+    const a = circleData(entities.get(constraint.a), points);
+    const b = circleData(entities.get(constraint.b), points);
+    if (!a || !b) continue;
+    const difference = Math.abs(a.radius - b.radius);
+    const distance = Math.hypot(a.center.x - b.center.x, a.center.y - b.center.y);
+    // Pick the nearest valid branch once, not again for each Jacobian sample.
+    // Equal circles have no non-degenerate internal tangency.
+    const internal = difference > 1e-8 && (constraint.tangency === "internal"
+      || (!constraint.tangency && Math.abs(distance - difference) <= Math.abs(distance - a.radius - b.radius)));
+    tangencyModes.set(constraint, internal ? "internal" : "external");
+  }
   const vars = variables(sketch);
   const tolerance = options.tolerance || 1e-5;
   const maxIterations = options.maxIterations || 60;
@@ -544,12 +582,14 @@ export function pruneOrphanPoints(sketch) {
   /* A pattern rotation names many pairs at once, so losing one copied corner
      should shrink it rather than delete the whole array's angular pitch. */
   sketch.constraints.forEach((c) => {
-    if (c.type !== "rotation") return;
+    if (c.type !== "rotation" && !c.patternTranslation) return;
     if (Array.isArray(c.pairs)) c.pairs = c.pairs.filter((pair) => alive.has(pair[0]) && alive.has(pair[1]));
+    if (Array.isArray(c.shapes)) c.shapes=c.shapes.filter(pair=>live.has(pair[0])&&live.has(pair[1]));
     if (Array.isArray(c.spins)) c.spins = c.spins.filter((pair) => live.has(pair[0]) && live.has(pair[1]));
   });
 
   sketch.constraints = sketch.constraints.filter((c) => {
+    if(c.patternTranslation){if(!c.pairs?.length)return false;[c.a,c.b]=c.pairs[0];return true;}
     if (c.type === "rotation") {
       return alive.has(c.center) && ((c.pairs || []).length > 0 || (c.spins || []).length > 0);
     }

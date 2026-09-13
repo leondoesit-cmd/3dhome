@@ -60,7 +60,7 @@ test("a swept body follows the sketch that drives it", () => {
   const sources = sweepSourceRecord(profile, idsOf(profile), path);
   const before = resolveSketchSources(def, sources, resolveProfilePoints);
   assert.equal(before.profile.length, 4);
-  assert.equal(before.path.length, 4);
+  assert.equal(before.path.length, 5); // closed path repeats its start
   assert.ok(before.path.every((q) => Math.abs(q.y) < 1e-9), "the path is on its own (top) plane");
 
   // drive the profile sketch, exactly as a dimension edit would

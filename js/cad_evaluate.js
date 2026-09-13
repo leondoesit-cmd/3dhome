@@ -25,7 +25,8 @@ export function evaluateDraftAngle(normal, pullDirection = { x: 0, y: 1, z: 0 })
   const draftDeg = 90 - angleDeg;
   return {
     draftDeg: Math.round(draftDeg * 10) / 10,
-    isSufficient: Math.abs(draftDeg) >= 1.5, // Standard 1.5 deg minimum draft
+    isSufficient: draftDeg >= 1.5, // Configured pull direction; opposite-facing surfaces are undercuts.
+    classification: draftDeg < 0 ? "undercut" : draftDeg >= 1.5 ? "sufficient" : "insufficient",
   };
 }
 

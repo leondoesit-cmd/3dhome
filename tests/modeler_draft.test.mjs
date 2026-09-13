@@ -43,3 +43,12 @@ test("modeler drafts reject stale or incomplete payloads", () => {
   assert.equal(parsed.docType, "assembly");
   assert.equal(parsed.assembly.key, "a1");
 });
+
+test('draft backup omits regenerable topology cache without losing authored references or mesh imports',()=>{
+  const def={id:'part',features:[{id:'round',references:{topology:[{kind:'face',persistentId:'wall:top'}]}}],parts:[{id:'import',kind:'mesh',meshData:{positions:[0,0,0,1,0,0,0,1,0]}}],exactTopologyCache:{wall:{signature:'x'.repeat(1000000),topology:[]}}};
+  const raw=serializeModelerDraft({docType:'part',def});
+  assert.ok(raw.length<1000);
+  const restored=parseModelerDraft(raw).def;
+  assert.deepEqual(restored.features,def.features);assert.deepEqual(restored.parts,def.parts);
+  assert.equal(restored.exactTopologyCache,undefined);assert.ok(def.exactTopologyCache);
+});

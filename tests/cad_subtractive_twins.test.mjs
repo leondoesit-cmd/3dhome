@@ -154,8 +154,8 @@ test("the editor records each cut as a tool on the body, built by the additive m
   assert.match(modeler, /commandButton\("sweepcutfeature", t\("opSweepCut"\)\)/);
   // one cutter builder, and it calls the same two makers the bodies use
   const cutter = modeler.slice(modeler.indexOf("async function toolSolidBrep"), modeler.indexOf("var exactBuildTimers"));
-  assert.match(partGeometry, /cut\.kind === "revolve"\) return makeBrepRevolve/);
-  assert.match(partGeometry, /cut\.kind === "sweep"\) return makeBrepSweep/);
+  assert.match(partGeometry, /recipe\.type==="revolve"\)return makeBrepRevolve\(recipe\.params\)/);
+  assert.match(partGeometry, /recipe\.type==="sweep"\)return makeBrepSweep\(recipe\.params\)/);
   assert.match(modeler, /cuts3d\.push\(\{kind:"revolve"/);
   assert.match(modeler, /cuts3d\.push\(\{kind:"sweep"/);
 });

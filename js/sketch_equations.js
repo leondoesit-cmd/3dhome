@@ -155,7 +155,7 @@ export function collectSymbols(def) {
   });
   (def.sketches || []).forEach((sketch) => {
     (sketch.constraints || []).forEach((c) => {
-      if (c.value != null && isValidName(c.name)) symbols.set(c.name, { kind: "dimension", node: c, sketch });
+      if ((c.value != null || String(c.expr || "").trim()) && isValidName(c.name)) symbols.set(c.name, { kind: "dimension", node: c, sketch });
     });
   });
   return symbols;

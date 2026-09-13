@@ -65,6 +65,7 @@ test("a feature's sketch references are read from references.sketches and params
 test("storage ids and duplicated generated suffixes are cleaned up for display", () => {
   assert.equal(friendlyTreeName("feature_mtehoax9_1", "Extrude / Boss"), "Extrude / Boss");
   assert.equal(friendlyTreeName("end sketch", "Sketch"), "End sketch");
+  assert.equal(friendlyTreeName("Sketch-path", "Sketch"), "Sketch-path");
   assert.equal(friendlyTreeName("Extrude / Boss 2 2", "Feature"), "Extrude / Boss 2");
   const doc = canonicalDoc();
   doc.sketches[0].name = "sketch_raw_123";
@@ -243,7 +244,8 @@ test("a sketch-driven legacy document converts, and keeps its build order", () =
   assert.equal(conversion.ok, true);
   assert.deepEqual(conversion.document.features.map((feature) => feature.type), ["extrude", "revolve"]);
   assert.equal(conversion.document.features[0].params.depth, 12);
-  assert.deepEqual(conversion.document.history.map((entry) => entry.kind), ["sketch", "feature", "feature"]);
+  assert.deepEqual(conversion.document.features[1].params.points,[{u:0,v:0},{u:3,v:0},{u:3,v:5}]);
+  assert.deepEqual(conversion.document.history.map((entry) => entry.kind), ["sketch", "feature", "sketch", "feature"]);
   assert.equal(conversion.document.metadata.authoringSystem, "parametric-v1");
   // The source is never mutated by the trial conversion.
   assert.equal(doc.metadata.authoringSystem, "legacy-adapter");
@@ -345,7 +347,7 @@ test("the complete legacy document survives save/reload and restores exactly", (
   assert.equal(restored.legacySource, undefined);
 });
 
-test("migration blocks modifiers and revolve placements it cannot preserve", () => {
+test("migration blocks modifiers and invalid revolve placements", () => {
   const modified = structuredClone(legacyFixture);
   modified.parts[0].exactOperations = [{ id:"finish", type:"fillet", amount:1, suppressed:false }];
   assert.ok(analyzeLegacyMigration(modified).blockers.some((blocker) => blocker.code === "unsupported-legacy-modifier"));
@@ -353,6 +355,8 @@ test("migration blocks modifiers and revolve placements it cannot preserve", () 
     metadata:{authoringSystem:"legacy-adapter"},
     parts:[{id:"rev",kind:"rev",x:5,z:0,angle:360,pts:[{u:0,v:0},{u:2,v:0},{u:2,v:4}]}],
   };
+  assert.equal(analyzeLegacyMigration(offsetRevolve).blockers.length,0);
+  offsetRevolve.parts[0].angle=400;
   assert.ok(analyzeLegacyMigration(offsetRevolve).blockers.some((blocker) => blocker.code === "unsupported-revolve-placement"));
 });
 

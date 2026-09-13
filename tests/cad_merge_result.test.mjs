@@ -121,9 +121,7 @@ test("a merged sweep reaches the exact tree too, not only the viewport", async (
 
 test("every merge kind has an exact-tree recipe, and every part kind emits them", () => {
   assert.match(modeler, /function mergeFeatureRecipe\(merge\) \{/);
-  ["revolve", "sweep", "loft"].forEach((kind) => {
-    assert.match(modeler, new RegExp('merge\\.kind === "' + kind + '"'), kind + " merges are emitted, not skipped");
-  });
+  assert.match(modeler, /return toolFeatureRecipe\(merge\);/);
   // emitted from the shared branch, so a boss merged onto a box is not dropped
   assert.match(modeler, /feature = emitPartMerges\(target, part, feature\);/);
   assert.doesNotMatch(modeler, /no analytic extrusion to emit/);
@@ -141,4 +139,43 @@ test("sweep no longer offers a body choice it cannot make good on", () => {
   const sweep = featureSpec("sweep");
   assert.ok(sweep.parameters.operation.values.includes("new-body"), "\"new body\" is the un-merged answer");
   assert.ok(sweep.parameters.operation.values.includes("add"));
+});
+
+test("canonical successive bosses fuse through the current body history", async () => {
+  const { createFeatureDefinition, createSketchDefinition, ensureParametricDocument } = await import("../js/core/parametric_document.js");
+  const { compileKernelFeatureTree } = await import("../js/core/kernel_feature_adapter.js");
+  const doc = ensureParametricDocument({ id: "merged-history" });
+  const sketch = createSketchDefinition(doc, { referenceId: "plane:top" });
+  const base = createFeatureDefinition(doc, "box", { params: { x:-10,y:0,z:-10,w:20,h:2,d:20 } });
+  let head = base.id;
+  for (const u of [-5, 5]) {
+    const boss = createFeatureDefinition(doc, "extrude", {
+      inputs:[head], references:{sketches:[sketch.id],features:[head]},
+      params:{...featureDefaults("extrude"),axis:"y",offset:2,depth:5,points:square(1).map(p=>({u:p.u+u,v:p.v}))},
+    });
+    head=boss.id;
+  }
+  const compiled=compileKernelFeatureTree(doc);
+  assert.deepEqual(compiled.issues,[]);
+  assert.equal(compiled.features.filter(f=>f.type==="union").length,2);
+  const run=await regenerateFeatures({...compiled.document,features:compiled.features});
+  try {
+    assert.deepEqual(run.issues,[]);
+    assert.equal(await solidCount(run.finalShape),1);
+    assert.ok(Math.abs(await volume(run.finalShape)-840)<1e-6);
+  } finally { releaseRegeneration(run); }
+});
+
+test("explicit separate-body extrusions never lower to a union", async () => {
+  const { createFeatureDefinition, createSketchDefinition, ensureParametricDocument } = await import("../js/core/parametric_document.js");
+  const { compileKernelFeatureTree } = await import("../js/core/kernel_feature_adapter.js");
+  for (const options of [{mergeResult:false},{operation:"new-body"}]) {
+    const doc=ensureParametricDocument({id:"separate"});
+    const sketch=createSketchDefinition(doc,{referenceId:"plane:top"});
+    const base=createFeatureDefinition(doc,"box",{params:{w:10,h:2,d:10}});
+    const boss=createFeatureDefinition(doc,"extrude",{inputs:[base.id],references:{sketches:[sketch.id],features:[base.id]},params:{...featureDefaults("extrude"),...options,depth:5,points:square(1)}});
+    const compiled=compileKernelFeatureTree(doc);
+    assert.equal(compiled.features.find(f=>f.id===boss.id).type,"extrude");
+    assert.equal(compiled.features.some(f=>f.type==="union"),false);
+  }
 });

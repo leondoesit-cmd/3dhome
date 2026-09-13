@@ -113,7 +113,7 @@ export function convertCadToWalls(source = {}, options = {}) {
   const nodeTol = options.nodeTolerance || 1;
   splitAtJunctions(segments, Math.max(1.5, nodeTol));
 
-  const nodes = [], walls = [], openings = [];
+  const nodes = [], walls = [], openings = [], rejectedOpenings = [];
   const node = (p) => {
     let found = nodes.findIndex((n) => dist(n, p) <= nodeTol);
     if (found < 0) { found = nodes.length; nodes.push({ x: p.x, z: p.z }); }
@@ -145,6 +145,7 @@ export function convertCadToWalls(source = {}, options = {}) {
     });
     if (!best || best.hit.d > (options.openingTolerance || Math.max(30, best.w.thickness))) return;
     const width = +(o.width || (o.type === "window" ? 120 : 90));
+    if(!Number.isFinite(width)||width<=0||width>dist(nodes[best.w.a],nodes[best.w.b])){rejectedOpenings.push({id:o.id,type:o.type,reason:"opening-wider-than-wall",wall:best.w.id});return;}
     openings.push({
       id: id++, type: o.type, wall: best.w.id,
       s: Math.max(width / 2, Math.min(best.hit.s, dist(nodes[best.w.a], nodes[best.w.b]) - width / 2)),
@@ -169,5 +170,5 @@ export function convertCadToWalls(source = {}, options = {}) {
       sourceLayer: arc.layer || "walls",
     });
   });
-  return { nodes, walls, openings, nextId: id, diagnostics: { pairedLines: consumed.size, unpairedLines: lines.length - consumed.size } };
+  return { nodes, walls, openings, nextId: id, diagnostics: { rejectedOpenings, pairedLines: consumed.size, unpairedLines: lines.length - consumed.size } };
 }

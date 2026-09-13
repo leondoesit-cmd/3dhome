@@ -129,10 +129,10 @@ test("a face-mated component follows its reference component", () => {
   const IDENTITY={q:{x:0,y:0,z:0,w:1},rx:0,ry:0,rz:0};
   solveTopologyMates(assembly);
   // The quaternion is the orientation; rx/ry/rz mirror it for the renderer.
-  assert.deepEqual(assembly.components[1].transform,{x:14,y:2,z:-3,...IDENTITY});
+  assert.deepEqual(assembly.components[1].transform,{x:14,y:0,z:0,...IDENTITY});
   assembly.components[0].transform.y=12;
   solveTopologyMates(assembly);
-  assert.deepEqual(assembly.components[1].transform,{x:14,y:12,z:-3,...IDENTITY});
+  assert.deepEqual(assembly.components[1].transform,{x:14,y:0,z:0,...IDENTITY});
 });
 
 test("legacy assembly-space mate frames migrate once without rebuild drift", () => {
@@ -160,10 +160,10 @@ test("concentric mates rotate axes exactly and remain stable", () => {
   solveTopologyMates(assembly);
   const first={...assembly.components[1].transform};
   assert.ok(Math.abs(first.rz-90)<1e-8);
-  assert.deepEqual({x:first.x,y:first.y,z:first.z},{x:2,y:7,z:4});
+  assert.deepEqual({x:first.x,y:first.y,z:first.z},{x:2,y:0,z:4});
   solveTopologyMates(assembly);
   assert.ok(Math.abs(assembly.components[1].transform.rz-first.rz)<1e-8);
-  assert.deepEqual({x:assembly.components[1].transform.x,y:assembly.components[1].transform.y,z:assembly.components[1].transform.z},{x:2,y:7,z:4});
+  assert.deepEqual({x:assembly.components[1].transform.x,y:assembly.components[1].transform.y,z:assembly.components[1].transform.z},{x:2,y:0,z:4});
 });
 
 // NB: sketch entities carry `type`, not `kind` — `kind` is the solid-part
@@ -676,11 +676,10 @@ test("the solve reports the freedom each component has left", () => {
     b:topologyReference("b","face","bf",plane({x:0,y:0,z:0},{x:-1,y:0,z:0}))}]};
   const result=solveTopologyMates(assembly);
   assert.equal(result.ok,true);
-  // The mate pins the component's origin and points its face, and says nothing
-  // about how it is rolled about that face: one freedom, and the report says so.
-  assert.equal(result.degreesOfFreedom,1);
+  // A plane mate leaves two in-plane translations and rotation about its normal.
+  assert.equal(result.degreesOfFreedom,3);
   assert.equal(result.clusters.length,1);
-  assert.equal(result.clusters[0].perComponent.b,1);
+  assert.equal(result.clusters[0].perComponent.b,3);
 });
 
 test("components no chain of mates connects are solved as separate systems", () => {

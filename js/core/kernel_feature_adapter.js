@@ -1,3 +1,5 @@
+import {resolveOffsetPlanes} from './offset_planes.js';
+import { revolveRecipe } from "./revolve_geometry.js";
 // Integration boundary between authoring intent and the existing exact kernel
 // feature executor.  No UI module should translate gestures directly into
 // OpenCascade calls; it produces canonical features and this adapter lowers
@@ -33,7 +35,7 @@ function toolboxPrimitive(part, id, name) {
     return { ...base, type: "cylinder", params: { x:part.x, y:part.y, z:part.z, r:part.r, h:part.h } };
   }
   if (part.kind === "ext") return { ...base, type: "extrude", params: { axis:part.axis || "y", from:part.from, to:part.to, points:cloneDomain(part.pts || []), holes:cloneDomain(part.holes || []) } };
-  if (part.kind === "rev") return { ...base, type: "revolve", params: { angle:Number(part.angle) || 360, points:cloneDomain(part.pts || []) } };
+  if (part.kind === "rev") return { ...base, type: "revolve", params: revolveRecipe(part) };
   if (part.kind === "box") return { ...base, type: "box", params: { x:Math.min(part.x0,part.x1), y:Math.min(part.y0,part.y1), z:Math.min(part.z0,part.z1), w:Math.abs(part.x1-part.x0), h:Math.abs(part.y1-part.y0), d:Math.abs(part.z1-part.z0) } };
   return null;
 }
@@ -104,7 +106,18 @@ function revolveToolParams(feature) {
 
 function loweredFeature(feature, document) {
   const base = { id: feature.id, name: feature.name, suppressed: !!feature.suppressed, inputs: cloneDomain(feature.inputs || []), references: topologyReferences(feature) };
-  if (feature.type === "extrude") return [{ ...base, type: "extrude", params: lowerExtrudeParams(feature, document) }];
+  if (feature.type === "extrude") {
+    const params = lowerExtrudeParams(feature, document);
+    const target = feature.inputs?.[0];
+    if (target && params.mergeResult !== false && params.operation !== "new-body") {
+      const toolId = feature.id + ":tool";
+      return [
+        { ...base, id: toolId, type: "extrude", inputs: [], params },
+        { ...base, type: "union", inputs: [target, toolId], params: {} },
+      ];
+    }
+    return [{ ...base, type: "extrude", params }];
+  }
   if (feature.type === "extrudeCut" || feature.type === "hole") {
     const target = feature.inputs?.[0] || idOf(feature.references?.features?.[0]);
     if (feature.type === "hole") return lowerHoleFeature(feature, document, base, target);
@@ -115,8 +128,22 @@ function loweredFeature(feature, document) {
       { ...base, type: "subtract", params: {}, inputs: [target, toolId].filter(Boolean) },
     ];
   }
-  if (feature.type === "revolve") return [{ ...base, type: "revolve", params: revolveToolParams(feature) }];
-  if (feature.type === "sweep" || feature.type === "loft") return [{ ...base, type: feature.type, params: cloneDomain(feature.params) }];
+  if (feature.type === "revolve") {
+    const params=revolveToolParams(feature),target=feature.inputs?.[0];
+    if(target && params.mergeResult!==false && params.operation!=="new-body"){
+      const toolId=feature.id+":tool";
+      return [{...base,id:toolId,type:"revolve",inputs:[],params},{...base,type:"union",inputs:[target,toolId],params:{}}];
+    }
+    return [{...base,type:"revolve",params}];
+  }
+  if (feature.type === "sweep" || feature.type === "loft") {
+    const params=cloneDomain(feature.params);
+    if(feature.type==="loft" && !params.sketchSources && feature.references?.sketches?.length>=2)params.sketchSources={kind:"loft",sections:feature.references.sketches.map(sketchId=>({sketchId,entityIds:(document.sketches.find(s=>s.id===sketchId)?.entities || []).filter(e=>!e.construction).map(e=>e.id)}))};
+    if(feature.inputs?.[0] && params.mergeResult!==false && params.operation!=="new-body"){
+      const toolId=feature.id+":tool";return [{...base,id:toolId,type:feature.type,inputs:[],params},{...base,type:"union",inputs:[feature.inputs[0],toolId],params:{}}];
+    }
+    return [{ ...base, type: feature.type, params }];
+  }
   /* The subtractive twins. One revolve implementation and one sweep
      implementation, each followed by a subtract — the shape of extrudeCut
      above, which is why neither re-states how a profile becomes a solid. */
@@ -129,8 +156,16 @@ function loweredFeature(feature, document) {
       { ...base, type: "subtract", params: {}, inputs: [target, toolId].filter(Boolean) },
     ];
   }
-  if (["fillet", "chamfer", "shell", "draft"].includes(feature.type)) return [{ ...base, type: feature.type, params: cloneDomain(feature.params) }];
+  if (["fillet", "chamfer", "shell", "dome", "draft"].includes(feature.type)) return [{ ...base, type: feature.type, params: cloneDomain(feature.params) }];
   if (feature.type === "pattern") {
+    if(feature.params?.scope==="feature"){
+      const seed=document.features.find(item=>item.id===feature.params.seedFeatureId);
+      const subtractive=["extrudeCut","revolveCut","sweepCut","hole"].includes(seed?.type);
+      if(!seed?.inputs?.[0] || (!subtractive && !["extrude","revolve"].includes(seed.type)))throw new Error("Select an additive or cutting feature with a source body");
+      const delta=feature.id+":delta",copies=feature.id+":instances";
+      const layout=loweredFeature({...feature,id:copies,inputs:[delta],params:{...feature.params,scope:"body"}},document);
+      return [{...base,id:delta,type:"subtract",inputs:subtractive?[seed.inputs[0],seed.id]:[seed.id,seed.inputs[0]],params:{}},...layout,{...base,type:subtractive?"subtract":"union",inputs:[feature.inputs[0],copies],params:{}}];
+    }
     /* The curve layout lowers to its own kernel op: its copies are turned as
        well as moved, and the grid op only carries offsets. */
     if (feature.params?.mode === "curve") {
@@ -139,11 +174,11 @@ function loweredFeature(feature, document) {
     }
     const mode = feature.params?.mode === "circular" ? "circularPattern" : "linearPattern";
     const count = Math.max(2, Math.round(Number(feature.params?.count) || 2));
-    if (mode === "circularPattern") return [{ ...base, type:mode, params:{ count, angle:circularPatternStepDegrees(feature.params, count), axis:feature.params.axis || "y", radialDistance:Number(feature.params?.radialDistance)||0, skipIndices:[...parseSkippedPatternInstances(feature.params?.skipInstances)] } }];
+    if (mode === "circularPattern") return [{ ...base, type:mode, params:{ count, angle:circularPatternStepDegrees(feature.params, count), axis:feature.params.axis || "y", radialDistance:Number(feature.params?.radialDistance)||0, pivot:cloneDomain(feature.params.pivot??feature.params.origin), skipIndices:[...parseSkippedPatternInstances(feature.params?.skipInstances)] } }];
     const offsets=linearPatternOffsets(feature.params,count).map(({x,y,z})=>({x,y,z}));
     return [{...base,type:"linearGridPattern",params:{offsets}}];
   }
-  if (feature.type === "mirror") return [{ ...base, type: "mirror", params: { ...cloneDomain(feature.params), plane: cloneDomain(feature.references?.references?.[0]) } }];
+  if (feature.type === "mirror") return [{ ...base, type: "mirror", params: { ...cloneDomain(feature.params), plane: cloneDomain(feature.params?.plane ?? feature.params?.planeReference ?? feature.references?.plane ?? feature.references?.references?.[0]) } }];
   if (feature.type === "boolean") return [{ ...base, type: feature.params?.operation || "union", params: { keepTools: !!feature.params?.keepTools, tolerance: feature.params?.tolerance } }];
   if (feature.type === "toolbox") return lowerToolboxFeature(feature);
   if (["helix", "thread", "knurl", "insert"].includes(feature.type)) {
@@ -155,64 +190,27 @@ function loweredFeature(feature, document) {
 }
 
 function lowerHoleFeature(feature, document, base, target) {
-  const sketchParams = lowerExtrudeParams(feature, document);
-  const wizard = holeWizardSolids(feature.params || {});
-  const holeParams = {
-    ...sketchParams,
-    diameter: wizard.hole.diameter,
-    endCondition: wizard.hole.endCondition || feature.params?.endCondition || "blind",
-    holeType: wizard.hole.holeType,
-    callout: feature.params?.callout,
-  };
-  if (wizard.solids.length <= 1) {
-    const toolId = feature.id + ":tool";
-    return [
-      { id: toolId, name: feature.name + " tool", type: "extrude", params: holeParams, inputs: [], references: topologyReferences(feature), suppressed: !!feature.suppressed },
-      { ...base, type: "subtract", params: {}, inputs: [target, toolId].filter(Boolean) },
-    ];
-  }
-  const compiled = [];
-  let lastId = target;
-  wizard.solids.forEach((solid, index) => {
-    const toolId = feature.id + ":tool:" + solid.role;
-    const isLast = index === wizard.solids.length - 1;
-    compiled.push({
-      id: toolId,
-      name: feature.name + " " + solid.role,
-      type: solid.kind === "cone" ? "cone" : "extrude",
-      params: {
-        ...holeParams,
-        diameter: solid.diameter || solid.diameter1,
-        diameter2: solid.diameter2,
-        depth: solid.depth,
-        endCondition: solid.endCondition,
-        from: sketchParams.from,
-        to: (sketchParams.from || 0) + (solid.depth || holeParams.depth || 0) * (feature.params?.direction === "reverse" ? -1 : 1),
-      },
-      inputs: [],
-      references: topologyReferences(feature),
-      suppressed: !!feature.suppressed,
-    });
-    compiled.push({
-      id: isLast ? feature.id : feature.id + ":cut:" + solid.role,
-      name: isLast ? feature.name : feature.name + " " + solid.role + " cut",
-      type: "subtract",
-      params: {},
-      inputs: [lastId, toolId].filter(Boolean),
-      references: topologyReferences(feature),
-      suppressed: !!feature.suppressed,
-    });
-    lastId = isLast ? feature.id : feature.id + ":cut:" + solid.role;
+  if(!target)throw new Error("Hole requires a target body");
+  const sketchParams=lowerExtrudeParams(feature,document),wizard=holeWizardSolids(feature.params||{});
+  const compiled=[];let lastId=target;
+  wizard.solids.forEach((solid,index)=>{
+    const suffix=wizard.solids.length===1?"":":"+solid.role;
+    const toolId=feature.id+":tool"+suffix,last=index===wizard.solids.length-1;
+    compiled.push({id:toolId,name:(feature.name||"Hole")+" "+solid.role,type:"holeTool",inputs:[target],references:topologyReferences(feature),suppressed:!!feature.suppressed,
+      params:{...sketchParams,...solid,diameter:solid.diameter||solid.diameter1,targetFeatureId:target,requireIntersection:true}});
+    const id=last?feature.id:feature.id+":cut:"+solid.role;
+    compiled.push({...base,id,type:"subtract",params:{},inputs:[lastId,toolId]});lastId=id;
   });
   return compiled;
 }
 
 export function compileKernelFeatureTree(source) {
   const document = ensureParametricDocument(cloneDomain(source));
+  const planeRun=resolveOffsetPlanes(document);
   const analysis = analyzeParametricHistory(document);
   const featuresById = new Map((document.features || []).map((feature) => [feature.id, feature]));
   const sketchesById = new Map((document.sketches || []).map((sketch) => [sketch.id, sketch]));
-  const compiled = [], issues = [...analysis.issues];
+  const compiled = [], issues = [...planeRun.issues,...analysis.issues];
   (document.history || []).forEach((entry, index) => {
     if (entry.suppressed || historyEntryRolled(document, index)) return;
     if (entry.kind === "sketch") {

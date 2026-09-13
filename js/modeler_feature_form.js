@@ -19,7 +19,17 @@ export function featureControlValue(control) {
 // Arithmetic is evaluated once on entry, in the field's displayed units.
 // It does not create a persistent equation or execute JavaScript.
 export function evaluateFeatureNumber(raw, field) {
-  const text = String(raw).trim();
+  let text = String(raw).trim();
+  // Geometry uses centimeters internally. Explicit unit literals avoid manual
+  // conversion when working from metric or inch engineering drawings.
+  if (field.unit === "length" || field.unit === "angle") {
+    const factors = field.unit === "length" ? {mm:0.1,cm:1,m:100,in:2.54,ft:30.48} : {deg:1,rad:180/Math.PI};
+    text = text.replace(/(\d+(?:\.\d*)?|\.\d+)\s*(mm|cm|in|ft|m|deg|rad)\b/gi, (_, number, unit) => {
+      const factor = factors[unit.toLowerCase()];
+      if (factor == null) throw new Error("Incorrect unit for this field");
+      return "(" + number + "*" + factor + ")";
+    });
+  }
   // Preserve numeric scientific notation emitted by small geometry values.
   const value = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(text) ? Number(text) : evaluateExpression(text);
   if (!Number.isFinite(value)) throw new Error("Enter a finite number");
@@ -158,6 +168,12 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     });
   }
   function syncConditionalFields(changedKey) {
+    if (type === "thread") {
+      var enabled=controls.find(function(item){return item.field.key==="useFitLimits";});
+      controls.filter(function(item){return ["fitSource","majorMinMm","majorMaxMm","pitchMinMm","pitchMaxMm","minorMinMm","minorMaxMm"].includes(item.field.key);}).forEach(function(item){
+        item.input.closest(".md-quick-field").classList.toggle("parameter-hidden",!enabled?.input.checked);
+      });
+    }
     if (type === "toolbox") {
       var familyControl = controls.find(function (item) { return item.field.key === "kind"; });
       var sizeControl = controls.find(function (item) { return item.field.key === "sizeKey"; });
@@ -227,6 +243,11 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       var endRadius = controls.find(function (item) { return item.field.key === "endRadius"; });
       var endWrap = endRadius && endRadius.input.closest(".md-quick-field");
       if (endWrap) endWrap.classList.toggle("parameter-hidden", !(variable && variable.input.checked));
+      var fullRound=controls.find(function(item){return item.field.key==="fullRound";});
+      ["radius","variableRadius","multipleRadius","endRadius","propagation","continuity"].forEach(function(key){
+        var control=controls.find(function(item){return item.field.key===key;}),wrap=control?.input.closest(".md-quick-field");
+        if(wrap)wrap.classList.toggle("parameter-hidden",!!fullRound?.input.checked || (key==="endRadius" && !variable?.input.checked));
+      });
     }
     if (type === "chamfer" && mode) {
       var active = { secondDistance: mode.input.value === "two-distance", angle: mode.input.value === "distance-angle", flip: mode.input.value !== "equal-distance" };
@@ -245,7 +266,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         /* Millimetres from the standards table become the centimetre field the
            form edits. Rounding the MILLIMETRE value first quantised the whole
            table to whole millimetres: M3 normal clearance (3.6) came out as 4,
-           and the normal and loose fits (3.6 / 3.8) collapsed onto one value.
+           and the normal and loose fits (3.4 / 3.6) collapsed onto one value.
            Convert first, then trim only the noise from the division. */
         var setNum = function (key, mm) {
           var control = controls.find(function (item) { return item.field.key === key; });
@@ -288,6 +309,15 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         : field.key === "$planeReference" ? featureReferenceValue(state, "plane-reference")
         : ["axisX", "axisY", "axisZ"].includes(field.key) ? patternAxisEnabled(state.params, field.key.slice(-1).toLowerCase())
         : state.params && state.params[field.key];
+      if(type==="thread" && value==null && state.params?.fitLimits){
+        var limits=state.params.fitLimits;
+        if(field.key==="useFitLimits")value=true;
+        else if(field.key==="fitSource")value=limits.source;
+        else {
+          var match=/^(major|pitch|minor)(Min|Max)Mm$/.exec(field.key);
+          if(match)value=limits[match[1]+"Diameter"]?.[match[2].toLowerCase()];
+        }
+      }
       var input = featureField(body, field, value, options);
       var control = { field: field, input: input };
       controls.push(control);

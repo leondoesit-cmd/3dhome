@@ -17,6 +17,10 @@ export function serializeModelerDraft(payload, now) {
     docType: payload.docType === "assembly" ? "assembly" : "part",
     def: payload.def || null,
     assembly: payload.assembly || null,
+  }, function(key,value) {
+    // This verified cache is derived from the authored history, and can dwarf
+    // the editable document. Reopening regenerates it before exact operations.
+    return key === "exactTopologyCache" ? undefined : value;
   });
 }
 

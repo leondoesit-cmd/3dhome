@@ -1,3 +1,4 @@
+import { revolveRecipe, revolveBounds } from "./revolve_geometry.js";
 // Can this legacy document become a canonical one — and did it survive?
 //
 // Converting a legacy document to parametric-v1 is not a display change:
@@ -25,10 +26,10 @@
 
 import { featureSpec, isPrimitiveFeatureType } from "./feature_catalog.js";
 import { stableStringify } from "./dependency_graph.js";
-import { cloneDomain, domainId } from "./schema.js";
+import { cloneDomain, domainId, mainReferences } from "./schema.js";
 import { normalizeHistory } from "./parametric_document.js";
 
-export const MIGRATION_EQUIVALENCE_VERSION = 2;
+export const MIGRATION_EQUIVALENCE_VERSION = 3;
 
 /* Legacy part kind -> canonical feature type. A kind that is absent here has no
    canonical equivalent and blocks the whole document.
@@ -154,9 +155,9 @@ export function analyzeLegacyMigration(def) {
       { partId: part.id || null, index, modifiers: unsupportedModifiers }));
     if (part.kind === "rev") {
       const axis = part.axis || "y", angle = Number(part.angle == null ? 360 : part.angle);
-      if (axis !== "y" || Math.abs(angle - 360) > 1e-6 || Math.abs(Number(part.x) || 0) > 1e-6 || Math.abs(Number(part.z) || 0) > 1e-6)
+      if (!["x","y","z"].includes(axis) || !Number.isFinite(angle) || angle<=0 || angle>360)
         blockers.push(issue("error", "unsupported-revolve-placement",
-          (part.name || "Feature " + (index + 1)) + " uses a partial, offset, or non-Y revolve that cannot be converted without moving geometry",
+          (part.name || "Feature " + (index + 1)) + " has an invalid revolve axis or angle",
           { partId: part.id || null, index, axis, angle }));
     }
     if (part.kind === "loft" && (!Array.isArray(part.pts1) || part.pts1.length < 3))
@@ -195,6 +196,12 @@ export function convertLegacyDocument(def) {
   const analysis = analyzeLegacyMigration(def);
   if (!analysis.ok) return { ok: false, document: null, analysis };
   const converted = cloneDomain(def);
+  // Generated sketches and revolution axes must have persistent references,
+  // including when an older document stored only its origin.
+  converted.references = Array.isArray(converted.references) ? converted.references : [];
+  for (const reference of mainReferences()) {
+    if (!converted.references.some(existing => existing.id === reference.id)) converted.references.push(reference);
+  }
   converted.features = [];
   converted.history = [];
   converted.metadata = { ...(converted.metadata || {}), authoringSystem: "parametric-v1", migratedFrom: "legacy-adapter" };
@@ -216,8 +223,7 @@ export function convertLegacyDocument(def) {
       if (part.frame) params.frame = cloneDomain(part.frame);
       if ((part.holes || []).length) params.holes = cloneDomain(part.holes);
     } else if (type === "revolve") {
-      params.angle = Number(part.angle) || 360;
-      params.axis = part.axis || "y";
+      Object.assign(params,revolveRecipe(part));
     } else if (type === "loft") {
       params.sections = [
         (part.pts0 || []).map((point) => loftPoint(part.axis || "y", point, part.from)),
@@ -226,7 +232,7 @@ export function convertLegacyDocument(def) {
       params.solid = true;
       params.ruled = part.ruled !== false;
     }
-    if (points) params.points = points;
+    if (points && type!=="revolve") params.points = points;
     if (part.sketchId) params.sketchId = part.sketchId;
     if ((part.profileEntityIds || []).length) params.profileEntityIds = cloneDomain(part.profileEntityIds);
     const feature = {
@@ -244,6 +250,18 @@ export function convertLegacyDocument(def) {
       },
       suppressed: !!part.suppressed,
     };
+    if(type==="revolve") {
+      feature.references.references=["axis:"+params.axis];
+      if(!feature.references.sketches.length) {
+        const sketchId="sketch:migrated:"+id;
+        const points=params.points.map((p,i)=>({id:sketchId+":p"+i,x:p.u,y:p.v}));
+        const entities=points.map((p,i)=>({id:sketchId+":e"+i,type:"line",a:p.id,b:points[(i+1)%points.length].id}));
+        converted.sketches=converted.sketches || [];
+        converted.sketches.push({id:sketchId,name:feature.name+" profile",plane:"front",points,entities,constraints:[]});
+        feature.references.sketches=[sketchId];params.sketchId=sketchId;
+        params.profileEntityIds=entities.map(e=>e.id);feature.references.profileEntityIds=params.profileEntityIds.slice();
+      }
+    }
     converted.features.push(feature);
     converted.history.push({
       id: "history:feature:" + id,
@@ -349,10 +367,7 @@ function legacyDescriptors(def) {
       type:"extrude", axis:part.axis || "y", frame:frameShape(part.frame),
       from:rounded(part.from), to:rounded(part.to), points:(part.pts || []).map(point2), holes:holeShapes(part.holes),
     };
-    if (part.kind === "rev") return {
-      type:"revolve", axis:part.axis || "y", angle:rounded(part.angle == null ? 360 : part.angle),
-      points:(part.pts || []).map(point2),
-    };
+    if (part.kind === "rev") return revolveDescriptor(revolveRecipe(part));
     if (part.kind === "loft") return {
       type:"loft", sections:[
         (part.pts0 || []).map((point) => point3(loftPoint(part.axis || "y", point, part.from))),
@@ -361,6 +376,13 @@ function legacyDescriptors(def) {
     };
     return { type:part.kind || "unknown" };
   });
+}
+
+function revolveDescriptor(params) {
+  return {type:"revolve",axis:params.axis || "y",angle:rounded(params.angle ?? 360),
+    radialProfile:!!params.radialProfile, direction:params.direction || "forward",symmetric:!!params.symmetric,
+    x:rounded(params.x || 0),y:rounded(params.y || 0),z:rounded(params.z || 0),
+    points:(params.points || params.pts || []).map(point2)};
 }
 
 function canonicalDescriptors(run) {
@@ -372,10 +394,7 @@ function canonicalDescriptors(run) {
       type:"extrude", axis:params.axis || "y", frame:frameShape(params.frame),
       from:rounded(params.from), to:rounded(params.to), points:(params.points || params.pts || []).map(point2), holes:holeShapes(params.holes),
     };
-    if (result.type === "revolve") return {
-      type:"revolve", axis:params.axis || "y", angle:rounded(params.angle == null ? 360 : params.angle),
-      points:(params.points || params.pts || []).map(point2),
-    };
+    if (result.type === "revolve") return revolveDescriptor(params);
     return { type:"loft", sections:(params.sections || []).map((section) => section.map(point3)) };
   });
 }
@@ -464,9 +483,8 @@ function descriptorPoints(descriptor) {
   }
   if (descriptor.type === "extrude") return descriptor.points.flatMap((point) => [worldExtrudePoint(descriptor, point, descriptor.from), worldExtrudePoint(descriptor, point, descriptor.to)]);
   if (descriptor.type === "revolve") {
-    const radius = Math.max(0, ...descriptor.points.map((point) => Math.abs(point.u)));
-    const vs = descriptor.points.map((point) => point.v);
-    return [{x:-radius,y:Math.min(...vs),z:-radius},{x:radius,y:Math.max(...vs),z:radius}];
+    const b=revolveBounds({...descriptor,pts:descriptor.points});
+    return [{x:b.x0,y:b.y0,z:b.z0},{x:b.x1,y:b.y1,z:b.z1}];
   }
   if (descriptor.type === "loft") return descriptor.sections.flat();
   return [];

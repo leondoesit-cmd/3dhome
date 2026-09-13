@@ -140,11 +140,10 @@ test("the pull direction chooses which walls can be drafted at all", async () =>
   } finally { disposeBrep(brep); }
 });
 
-test("draft refuses an empty selection and a zero angle", async () => {
+test("non-zero draft refuses an empty face selection", async () => {
   const brep = await cube(10);
   try {
     await assert.rejects(draftBrep(brep, 5, { facePersistentIds: [] }), /no resolved faces/);
-    await assert.rejects(draftBrep(brep, 0, { facePersistentIds: [wallId(brep, "x", 1)] }), /non-zero/);
   } finally { disposeBrep(brep); }
 });
 

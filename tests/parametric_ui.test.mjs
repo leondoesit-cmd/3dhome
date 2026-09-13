@@ -130,7 +130,7 @@ test("linear pattern exposes independent X Y Z controls and skipped copies", () 
   assert.match(source,/parseSkippedPatternInstances\(params\.skipInstances\)/);
   assert.match(source,/rememberPatternSettings\(patternMode\);\s*restorePatternSettings\(input\.value\)/);
   assert.match(featureCatalogSource,/key: "radialDistance", label: "Distance from axis"/);
-  assert.match(source,/rotatePatternPart\(copy,params\.axis,circularStep\*placement\.circularIndex,params\.radialDistance\)/);
+  assert.match(source,/rotatePatternPart\(copy,params\.axis,circularStep\*placement\.circularIndex,params\.radialDistance,params\.pivot\?\?params\.origin\)/);
 });
 
 test("topology selection is visible and finish operations preview exact geometry", () => {
@@ -190,7 +190,16 @@ test("model display starts solid with black edges, and can hide them", () => {
   assert.match(source, /setModelDisplay\("solid", false\)/);
   assert.match(source, /setShowModelEdges\(true, false\)/);
   assert.match(source, /function setShowModelEdges/);
-  assert.match(source, /material\.opacity = style === "transparent" \? 0\.3 : 1/);
+  const displaySource = source.slice(source.indexOf("function applyViewportDisplayStyle("), source.indexOf("var decoGroups ="));
+  const applyDisplay = new Function(displaySource + "; return applyViewportDisplayStyle;")();
+  const mesh = {material:{opacity:.25,transparent:true}};
+  applyDisplay(mesh,"solid",false);
+  assert.equal(mesh.material.opacity,.25,"solid view preserves the saved finish");
+  applyDisplay(mesh,"transparent",false);
+  assert.equal(mesh.material.opacity,.25,"X-ray never makes a transparent finish more opaque");
+  const opaque = {material:{opacity:1}};
+  applyDisplay(opaque,"transparent",false);
+  assert.equal(opaque.material.opacity,.3);
   assert.match(source, /function overlayEntriesForPart/);
   assert.match(source, /meshFeatureEdges\(/);
   assert.match(source, /function holeAndCutEdges/);

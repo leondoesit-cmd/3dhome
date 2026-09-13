@@ -5,6 +5,15 @@
 // what keeps t() synchronous. Keep the key set identical across locales —
 // a key present in one and missing in the other now renders as the raw key.
 export default {
+  centerRectangle: "מלבן מרכזי",
+  faceBoundary: "העתקת גבול פאה",
+  tool_sspline: "ספליין קובי",
+  sketchRepair: "תיקון קשרי סקיצה",
+  fitCheck: "בדיקת התאמה ISO",
+  domeOp: "כיפה",
+  arcThreePoint: "קשת בשלוש נקודות",
+  dynamicMirror: "שיקוף דינמי",
+
   planner_person: 'גוף ראשון / שלישי',
   planner_orbit: 'מבט מסביב',
   planner_walk: 'הליכה',
@@ -2051,6 +2060,8 @@ export default {
   cost_empty: "הוסף ריהוט לתוכנית כדי לראות אומדן עלות",
   cost_units: "יח׳",
   cb_dims: "מידות",
+  invisible_roof: "גג בלתי נראה",
+  invisible_roof_hint: "חסימת אור ישיר מלמעלה בלי להסתיר את פנים הבית. חל על חדרים סגורים.",
   cb_ceil: "תקרה",
   cb_interior: "מידות פנים",
   wallSide: "מודדים לאורך",
@@ -3010,4 +3021,15 @@ export default {
   guide_edit: "עדכון הנחיית הפרויקט",
   guide_failed: "לא ניתן לעדכן פריט זה. בחרו חדר פנוי בקומה המתאימה ונסו שוב.",
   guide_unscaled: "תוכנית הייחוס לא מכוילת — קבעו קנה מידה לפי מרחק ידוע אחד.",
+  uikit_ins_read_failed: "לא ניתן לקרוא את הקובץ.",
+  uikit_ins_delete_layout: "מחיקת פריסה שמורה",
+  uikit_ins_layout_deleted: "הפריסה השמורה נמחקה.",
+  uikit_ins_delete_failed: "לא ניתן למחוק את הפריסה השמורה.",
+  opRevolveCut: "חיתוך סיבוב",
+  opSweepCut: "חיתוך Sweep",
+  draftOp: "שיפוע (Draft)",
+  thickenOp: "עיבוי (Thicken)",
+  ribOp: "צלע חיזוק (Rib)",
+  splitBodyOp: "פיצול גוף (Split)",
+  moveBodyOp: "הזזה/העתקה של גוף",
 };

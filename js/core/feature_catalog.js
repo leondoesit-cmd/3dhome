@@ -197,11 +197,15 @@ export const FEATURE_CATALOG = Object.freeze({
     labelKey: "fcFeatRevolve",
     icon: "ph-arrow-counter-clockwise",
     selection: { sketches: { min: 1, max: 1 }, references: { kinds: ["axis"], min: 1, max: 1 } },
-    defaults: { operation: "add", angle: 360, direction: "forward", symmetric: false, mergeResult: true },
-    parameters: { operation: ENUM("add", "new-body"), angle: { ...ANGLE, min: 1e-6, max: 360 }, direction: ENUM("forward", "reverse"), symmetric: BOOLEAN, mergeResult: BOOLEAN },
+    defaults: { operation: "add", angle: 360, direction: "forward", symmetric: false, thinFeature: false, thickness: .1, thinMode: "mid-plane", mergeResult: true },
+    parameters: { operation: ENUM("add", "new-body"), angle: { ...ANGLE, min: 1e-6, max: 360 }, direction: ENUM("forward", "reverse"), symmetric: BOOLEAN, mergeResult: BOOLEAN, useSketchPlane: BOOLEAN, thinFeature: BOOLEAN, thickness: LENGTH, thinMode: ENUM("mid-plane", "forward", "reverse") },
     editor: { groups: [
       { id: "axis", label: "Axis and extent", labelKey: "fcGrpAxisExtent", icon: "ph-axis-arrow", fields: [
         { key: "$axisReference", label: "Axis", labelKey: "fcFldAxis", type: "axis-reference" },
+        { key: "useSketchPlane", label: "Use sketch plane coordinates", type: "boolean" },
+        { key: "thinFeature", label: "Thin feature", type: "boolean" },
+        { key: "thickness", label: "Wall thickness", type: "number", unit: "length", min: 0.0001, step: .01 },
+        { key: "thinMode", label: "Thickness direction", type: "select", choices: [{value:"mid-plane",label:"Mid-plane"},{value:"forward",label:"Outward"},{value:"reverse",label:"Inward"}] },
         { key: "angle", label: "Angle", labelKey: "fcFldAngle", type: "number", unit: "angle", min: 1e-6, max: 360, step: 1 },
         { key: "direction", label: "Direction", labelKey: "fcFldDirection", type: "select", choices: DIRECTIONS },
         { key: "symmetric", label: "Symmetric", labelKey: "fcFldSymmetric", type: "boolean" },
@@ -221,11 +225,15 @@ export const FEATURE_CATALOG = Object.freeze({
     labelKey: "fcFeatRevolveCut",
     icon: "ph-arrow-counter-clockwise",
     selection: { sketches: { min: 1, max: 1 }, features: { min: 1, max: 1 }, references: { kinds: ["axis"], max: 1 } },
-    defaults: { operation: "subtract", angle: 360, direction: "forward", symmetric: false, keepTool: false },
-    parameters: { operation: ENUM("subtract"), angle: { ...ANGLE, min: 1e-6, max: 360 }, direction: ENUM("forward", "reverse"), symmetric: BOOLEAN, keepTool: BOOLEAN },
+    defaults: { operation: "subtract", angle: 360, direction: "forward", symmetric: false, thinFeature: false, thickness: .1, thinMode: "mid-plane", keepTool: false },
+    parameters: { operation: ENUM("subtract"), angle: { ...ANGLE, min: 1e-6, max: 360 }, direction: ENUM("forward", "reverse"), symmetric: BOOLEAN, keepTool: BOOLEAN, useSketchPlane: BOOLEAN, thinFeature: BOOLEAN, thickness: LENGTH, thinMode: ENUM("mid-plane", "forward", "reverse") },
     editor: { groups: [
       { id: "axis", label: "Axis and extent", labelKey: "fcGrpAxisExtent", icon: "ph-axis-arrow", fields: [
         { key: "$axisReference", label: "Axis", labelKey: "fcFldAxis", type: "axis-reference" },
+        { key: "useSketchPlane", label: "Use sketch plane coordinates", type: "boolean" },
+        { key: "thinFeature", label: "Thin feature", type: "boolean" },
+        { key: "thickness", label: "Wall thickness", type: "number", unit: "length", min: 0.0001, step: .01 },
+        { key: "thinMode", label: "Thickness direction", type: "select", choices: [{value:"mid-plane",label:"Mid-plane"},{value:"forward",label:"Outward"},{value:"reverse",label:"Inward"}] },
         { key: "angle", label: "Angle", labelKey: "fcFldAngle", type: "number", unit: "angle", min: 1e-6, max: 360, step: 1 },
         { key: "direction", label: "Direction", labelKey: "fcFldDirection", type: "select", choices: DIRECTIONS },
         { key: "symmetric", label: "Symmetric", labelKey: "fcFldSymmetric", type: "boolean" },
@@ -238,9 +246,10 @@ export const FEATURE_CATALOG = Object.freeze({
     labelKey: "fcFeatSweep",
     icon: "ph-path",
     selection: { sketches: { min: 2, max: 2 } },
-    defaults: { operation: "add", orientation: "follow-path", twistAngle: 0, scale: 1, solid: true, mergeResult: true },
-    parameters: { operation: ENUM("add", "new-body"), orientation: ENUM("follow-path", "minimum-twist", "fixed"), twistAngle: ANGLE, scale: { type: "number", min: 1e-6 }, solid: BOOLEAN, mergeResult: BOOLEAN },
+    defaults: { profileMode:"sketch", profileDiameter:.3175, operation: "add", orientation: "follow-path", twistAngle: 0, scale: 1, solid: true, mergeResult: true },
+    parameters: { profileMode:ENUM("sketch","circular"), profileDiameter:LENGTH, operation: ENUM("add", "new-body"), orientation: ENUM("follow-path", "minimum-twist", "fixed"), twistAngle: ANGLE, scale: { type: "number", min: 1e-6 }, solid: BOOLEAN, mergeResult: BOOLEAN },
     editor: { groups: [
+      {id:"profile",label:"Sweep profile",fields:[{key:"profileMode",label:"Profile type",type:"select",choices:[{value:"sketch",label:"Sketch profile"},{value:"circular",label:"Circular profile"}]},{key:"profileDiameter",label:"Profile diameter",type:"number",unit:"length",min:1e-6,step:.01}]},
       { id: "path", label: "Path behavior", labelKey: "fcGrpPathBehavior", icon: "ph-path", fields: [
         { key: "orientation", label: "Profile orientation", labelKey: "fcFldProfileOrientation", type: "select", choices: [
           {value:"follow-path",label:"Follow path",labelKey:"fcOptFollowPath"},
@@ -320,9 +329,11 @@ export const FEATURE_CATALOG = Object.freeze({
        so it is deliberately not in `parameters`: the validator there speaks
        numbers, enums and booleans, and normalising the list belongs to the one
        place that reads it (filletEdgeRadius in js/cad_kernel.js). */
-    defaults: { radius: 1, variableRadius: false, endRadius: 1, edgeRadii: [], propagation: "tangent", section: "rational", continuity: "tangent" },
-    parameters: { radius: LENGTH, variableRadius: BOOLEAN, endRadius: LENGTH, propagation: ENUM("tangent", "feature"), section: ENUM("rational", "quasi-angular", "polynomial"), continuity: ENUM("tangent", "curvature") },
+    defaults: { radius: 1, fullRound: false, multipleRadius: false, variableRadius: false, endRadius: 1, edgeRadii: [], propagation: "tangent", section: "rational", continuity: "tangent" },
+    parameters: { radius: LENGTH, fullRound: BOOLEAN, multipleRadius: BOOLEAN, variableRadius: BOOLEAN, endRadius: LENGTH, propagation: ENUM("tangent", "feature"), section: ENUM("rational", "quasi-angular", "polynomial"), continuity: ENUM("tangent", "curvature") },
     editor: { groups: [{ id: "shape", label: "Fillet definition", labelKey: "fcGrpFilletDefinition", icon: "ph-corners-out", fields: [
+      { key: "fullRound", label: "Full round — side, center, side", type: "boolean" },
+      { key: "multipleRadius", label: "Multiple radius", type: "boolean" },
       { key: "radius", label: "Radius", labelKey: "fcFldRadius", type: "number", unit: "length", min: 1e-6, step: 0.1 },
       { key: "variableRadius", label: "Variable radius", labelKey: "fcFldVariableRadius", type: "boolean" },
       { key: "endRadius", label: "End radius", labelKey: "fcFldEndRadius", type: "number", unit: "length", min: 1e-6, step: 0.1 },
@@ -380,6 +391,12 @@ export const FEATURE_CATALOG = Object.freeze({
       { key: "tolerance", label: "Tolerance", labelKey: "fcFldTolerance", type: "number", unit: "length", min: 1e-6, step: 0.001 },
       { key: "removeOpenings", label: "Remove selected faces", labelKey: "fcFldRemoveFaces", type: "boolean" },
     ]}]},
+  },
+  dome: {
+    label: "Dome", icon: "ph-sphere",
+    selection: {features:{min:1,max:1},topology:{kinds:["face"],min:1,max:1}},
+    defaults:{height:0.254},parameters:{height:LENGTH},
+    editor:{groups:[{id:"dome",label:"Dome",icon:"ph-sphere",fields:[{key:"height",label:"Height",type:"number",unit:"length",min:1e-6,step:0.01}]}]},
   },
   draft: {
     /* Draft has lived only as a sub-parameter of extrude and cut, which can
@@ -537,10 +554,11 @@ export const FEATURE_CATALOG = Object.freeze({
     /* `sketches` is optional and capped at one: only the curve layout uses it,
        and a linear or circular pattern must keep validating with none. */
     selection: { features: { min: 1, max: 1 }, sketches: { max: 1 }, references: { kinds: ["axis", "direction"], max: 1 } },
-    defaults: { mode: "linear", count: 2, spacing: 10, countX: 2, spacingX: 10, spacingIncrementX: 0, countY: 2, spacingY: 10, spacingIncrementY: 0, countZ: 2, spacingZ: 10, spacingIncrementZ: 0, skipInstances: "", angle: 360, radialDistance: 0, equalSpacing: true, axis: "y", directionAxis: "x", direction: { x: 1, y: 0, z: 0 }, curveCount: 4, curveSpacingMode: "fit", curveSpacing: 0, curveAlign: "tangent", mergeResult: false },
-    parameters: { mode: ENUM("linear", "circular", "curve"), count: { type: "number", integer: true, min: 2, max: 100 }, spacing: SIGNED_LENGTH, countX: { type: "number", integer: true, min: 2, max: 100 }, spacingX: SIGNED_LENGTH, spacingIncrementX: SIGNED_LENGTH, countY: { type: "number", integer: true, min: 2, max: 100 }, spacingY: SIGNED_LENGTH, spacingIncrementY: SIGNED_LENGTH, countZ: { type: "number", integer: true, min: 2, max: 100 }, spacingZ: SIGNED_LENGTH, spacingIncrementZ: SIGNED_LENGTH, skipInstances: { type: "string" }, angle: { ...ANGLE, min: 1e-6, max: 360 }, radialDistance: SIGNED_LENGTH, equalSpacing: BOOLEAN, axis: ENUM("x", "y", "z"), axisX: BOOLEAN, axisY: BOOLEAN, axisZ: BOOLEAN, directionAxis: ENUM("x", "y", "z"), curveCount: { type: "number", integer: true, min: 2, max: 128 }, curveSpacingMode: ENUM("fit", "spacing"), curveSpacing: { type: "number", min: 0 }, curveAlign: ENUM("tangent", "none"), mergeResult: BOOLEAN },
+    defaults: { scope: "body", seedFeatureId: "", mode: "linear", count: 2, spacing: 10, countX: 2, spacingX: 10, spacingIncrementX: 0, countY: 2, spacingY: 10, spacingIncrementY: 0, countZ: 2, spacingZ: 10, spacingIncrementZ: 0, skipInstances: "", angle: 360, radialDistance: 0, equalSpacing: true, axis: "y", directionAxis: "x", direction: { x: 1, y: 0, z: 0 }, curveCount: 4, curveSpacingMode: "fit", curveSpacing: 0, curveAlign: "tangent", mergeResult: false },
+    parameters: { scope: ENUM("body", "feature"), seedFeatureId: {type:"string"}, mode: ENUM("linear", "circular", "curve"), count: { type: "number", integer: true, min: 2, max: 100 }, spacing: SIGNED_LENGTH, countX: { type: "number", integer: true, min: 2, max: 100 }, spacingX: SIGNED_LENGTH, spacingIncrementX: SIGNED_LENGTH, countY: { type: "number", integer: true, min: 2, max: 100 }, spacingY: SIGNED_LENGTH, spacingIncrementY: SIGNED_LENGTH, countZ: { type: "number", integer: true, min: 2, max: 100 }, spacingZ: SIGNED_LENGTH, spacingIncrementZ: SIGNED_LENGTH, skipInstances: { type: "string" }, angle: { ...ANGLE, min: 1e-6, max: 360 }, radialDistance: SIGNED_LENGTH, equalSpacing: BOOLEAN, axis: ENUM("x", "y", "z"), axisX: BOOLEAN, axisY: BOOLEAN, axisZ: BOOLEAN, directionAxis: ENUM("x", "y", "z"), curveCount: { type: "number", integer: true, min: 2, max: 128 }, curveSpacingMode: ENUM("fit", "spacing"), curveSpacing: { type: "number", min: 0 }, curveAlign: ENUM("tangent", "none"), mergeResult: BOOLEAN },
     editor: { groups: [
       { id: "layout", label: "Pattern layout", labelKey: "fcGrpPatternLayout", icon: "ph-dots-nine", fields: [
+        { key:"scope", label:"Pattern scope", type:"select", choices:[{value:"body",label:"Entire body"},{value:"feature",label:"Selected feature"}] },
         { key: "mode", label: "Pattern type", labelKey: "fcFldPatternType", type: "select", choices: [
           {value:"linear",label:"Linear",labelKey:"fcOptLinear"},
           {value:"circular",label:"Circular",labelKey:"fcOptCircular"},
@@ -630,10 +648,10 @@ export const FEATURE_CATALOG = Object.freeze({
     icon: "ph-circle-dashed",
     selection: { sketches: { max: 1 }, topology: { kinds: ["face"], max: 1 }, features: { min: 1, max: 1 } },
     defaults: {
-      holeType: "simple", standardSize: "M6", fit: "normal", diameter: 0.7, depth: 10,
+      holeType: "simple", standardSize: "M6", fit: "normal", diameter: 0.66, depth: 10,
       endCondition: "through-all", countersink: false, countersinkDiameter: 1.2,
       counterbore: false, cboreDiameter: 1.1, cboreDepth: 0.66, csinkAngle: 90,
-      threadMode: "cosmetic", handedness: "rh", toleranceClass: "6H",
+      threadDepth: 0, threadMode: "cosmetic", handedness: "rh", toleranceClass: "6H",
       layout: "sketch", countX: 2, countY: 2, spacingX: 4, spacingY: 4, count: 4, radius: 3,
       direction: "forward",
     },
@@ -644,6 +662,7 @@ export const FEATURE_CATALOG = Object.freeze({
       diameter: LENGTH, depth: LENGTH, endCondition: ENUM("blind", "through-all"),
       countersink: BOOLEAN, countersinkDiameter: LENGTH, counterbore: BOOLEAN,
       cboreDiameter: LENGTH, cboreDepth: LENGTH, csinkAngle: { ...ANGLE, min: 60, max: 120 },
+      threadDepth: { ...LENGTH, min: 0 },
       threadMode: ENUM("cosmetic", "modeled"), handedness: ENUM("rh", "lh"),
       layout: ENUM("sketch", "linear", "circular"),
       countX: { type: "number", integer: true, min: 1, max: 32 },
@@ -689,6 +708,7 @@ export const FEATURE_CATALOG = Object.freeze({
         { key: "csinkAngle", label: "C'sink angle", labelKey: "fcFldCsinkAngle", type: "number", unit: "angle", min: 60, max: 120, step: 1 },
       ]},
       { id: "thread", label: "Thread", labelKey: "fcGrpThread", icon: "ph-spiral", fields: [
+        { key: "threadDepth", label: "Thread engagement (0 = automatic)", labelKey: "fcFldThreadEngagement", type: "number", unit: "length", min: 0, step: 0.1 },
         { key: "threadMode", label: "Thread display", labelKey: "fcFldThreadDisplay", type: "select", choices: COSMETIC_MODES },
         { key: "handedness", label: "Hand", labelKey: "fcFldHand", type: "select", choices: HANDEDNESS },
       ]},
@@ -712,10 +732,15 @@ export const FEATURE_CATALOG = Object.freeze({
     labelKey: "fcFeatHelix",
     icon: "helixfeature",
     selection: { topology: { kinds: ["axis", "edge", "face"], max: 1 } },
-    defaults: { radius: 1, pitch: 0.125, turns: 8, height: 1, handedness: "rh", startAngle: 0, taper: 0 },
+    defaults: { radius: 1, pitch: 0.125, turns: 8, height: 1, handedness: "rh", startAngle: 0, taper: 0, definition:"pitch-turns", reverse:false, taperMode:"angle", taperAngle:0, taperOutward:false },
     parameters: { radius: LENGTH, pitch: LENGTH, turns: { type: "number", min: 0.01, max: 200 }, height: LENGTH, handedness: ENUM("rh", "lh"), startAngle: ANGLE, taper: SIGNED_LENGTH },
     editor: { groups: [{ id: "helix", label: "Helix definition", labelKey: "fcGrpHelixDefinition", icon: "ph-spiral", fields: [
+      {key:"definition",label:"Defined by",type:"select",choices:[{value:"pitch-turns",label:"Pitch and turns"},{value:"height-turns",label:"Height and turns"}]},
       { key: "radius", label: "Radius", labelKey: "fcFldRadius", type: "number", unit: "length", min: 0, step: 0.05 },
+      {key:"reverse",label:"Reverse direction",type:"boolean"},
+      {key:"taperMode",label:"Taper definition",type:"select",choices:[{value:"angle",label:"Angle"},{value:"delta",label:"End radius delta"}]},
+      {key:"taperAngle",label:"Taper angle",type:"number",unit:"angle",value:0},
+      {key:"taperOutward",label:"Taper outward",type:"boolean"},
       { key: "pitch", label: "Pitch", labelKey: "fcFldPitch", type: "number", unit: "length", min: 1e-6, step: 0.01 },
       { key: "turns", label: "Turns", labelKey: "fcFldTurns", type: "number", min: 0.01, max: 200, step: 0.25 },
       { key: "height", label: "Height", labelKey: "fcFldHeight", type: "number", unit: "length", min: 1e-6, step: 0.1 },
@@ -729,10 +754,11 @@ export const FEATURE_CATALOG = Object.freeze({
     labelKey: "fcFeatThread",
     icon: "threadfeature",
     selection: { topology: { kinds: ["face"], max: 1 }, features: { max: 1 } },
-    defaults: { side: "external", mode: "cosmetic", diameterMm: 8, pitchMm: 1.25, length: 1.5, handedness: "rh", toleranceClass: "6g", series: "coarse" },
+    defaults: { side: "external", mode: "cosmetic", diameterMm: 8, pitchMm: 1.25, length: 1.5, handedness: "rh", toleranceClass: "", series: "coarse", runoutStartMm:0, runoutEndMm:0, useFitLimits:false },
     parameters: {
       side: ENUM("external", "internal"), mode: ENUM("cosmetic", "modeled"),
       diameterMm: { type: "number", min: 1, max: 64 }, pitchMm: { type: "number", min: 0.2, max: 8 },
+      runoutStartMm: {type:"number",min:0}, runoutEndMm: {type:"number",min:0},
       length: LENGTH, handedness: ENUM("rh", "lh"), series: ENUM("coarse", "fine"),
     },
     editor: { groups: [
@@ -745,11 +771,24 @@ export const FEATURE_CATALOG = Object.freeze({
         { key: "diameterMm", label: "Major Ø (mm)", labelKey: "fcFldMajorDiameterMm", type: "number", min: 1, max: 64, step: 0.1 },
         { key: "pitchMm", label: "Pitch (mm)", labelKey: "fcFldPitchMm", type: "number", min: 0.2, max: 8, step: 0.05 },
         { key: "length", label: "Length", labelKey: "fcFldLength", type: "number", unit: "length", min: 1e-6, step: 0.1 },
+        { key:"toleranceClass",label:"Tolerance class (blank: 6g / 6H)",labelKey:"mfgThreadClass",type:"text" },
+        { key:"runoutStartMm",label:"Lead-in runout (mm)",labelKey:"mfgRunoutStart",type:"number",min:0,step:.1 },
+        { key:"runoutEndMm",label:"Lead-out runout (mm)",labelKey:"mfgRunoutEnd",type:"number",min:0,step:.1 },
         { key: "handedness", label: "Hand", labelKey: "fcFldHand", type: "select", choices: HANDEDNESS },
         { key: "series", label: "Series", labelKey: "fcFldSeries", type: "select", choices: [
           {value:"coarse",label:"Coarse",labelKey:"fcOptCoarse"},
           {value:"fine",label:"Fine",labelKey:"fcOptFine"},
         ] },
+      ]},
+      {id:"fit",label:"Measured thread limits (mm)",labelKey:"mfgFitLimits",fields:[
+        {key:"useFitLimits",label:"Use supplied limits",labelKey:"mfgUseLimits",type:"boolean"},
+        {key:"fitSource",label:"Limits source / inspection record",labelKey:"mfgFitSource",type:"text"},
+        {key:"majorMinMm",label:"Major diameter minimum",labelKey:"mfgMajorMin",type:"number",min:0,step:.001},
+        {key:"majorMaxMm",label:"Major diameter maximum",labelKey:"mfgMajorMax",type:"number",min:0,step:.001},
+        {key:"pitchMinMm",label:"Pitch diameter minimum",labelKey:"mfgPitchMin",type:"number",min:0,step:.001},
+        {key:"pitchMaxMm",label:"Pitch diameter maximum",labelKey:"mfgPitchMax",type:"number",min:0,step:.001},
+        {key:"minorMinMm",label:"Minor diameter minimum",labelKey:"mfgMinorMin",type:"number",min:0,step:.001},
+        {key:"minorMaxMm",label:"Minor diameter maximum",labelKey:"mfgMinorMax",type:"number",min:0,step:.001},
       ]},
     ]},
   },
@@ -904,6 +943,16 @@ export function validateFeatureDefinition(feature) {
   if (!spec) return issues.concat({ severity: "error", code: "feature-type", message: "Unsupported feature type: " + (feature?.type || "missing") });
   const references = feature.references || {};
   Object.entries(spec.selection || {}).forEach(([role, rule]) => {
+    /* A SolidWorks-style sweep can use one profile sketch plus a reference
+       helix/spiral.  The helix is carried as a reference in the feature
+       parameters, so the sketch selection count is one even though the
+       ordinary sketch-path sweep still requires two sketches. */
+    if(feature.type==="sweep" && role==="sketches" && (
+      feature.params?.profileMode==="circular" ||
+      feature.params?.sweepPathMode==="helix" ||
+      feature.params?.helixId ||
+      feature.params?.helix
+    ))rule={...rule,min:1,max:1};
     const count = selectionCount(references, role);
     if (Number.isFinite(rule.min) && count < rule.min) issues.push({
       severity: "error", code: "missing-feature-input", featureId: feature.id, role,

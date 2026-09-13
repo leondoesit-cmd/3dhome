@@ -19,7 +19,9 @@ export function linearPatternDirection(params = {}) {
   }
   const explicit = params.direction;
   if (explicit && (Number(explicit.x) || Number(explicit.y) || Number(explicit.z))) {
-    return { x:Number(explicit.x) || 0, y:Number(explicit.y) || 0, z:Number(explicit.z) || 0 };
+    const vector={x:Number(explicit.x)||0,y:Number(explicit.y)||0,z:Number(explicit.z)||0},length=Math.hypot(vector.x,vector.y,vector.z);
+    if(!Number.isFinite(length))throw new Error("Pattern direction must be finite");
+    return {x:vector.x/length,y:vector.y/length,z:vector.z/length};
   }
   const axis = AXES.includes(params.directionAxis) ? params.directionAxis : "x";
   return { x:axis === "x" ? 1 : 0, y:axis === "y" ? 1 : 0, z:axis === "z" ? 1 : 0 };
@@ -107,6 +109,8 @@ export function circularPatternStepDegrees(params = {}, countValue) {
 }
 
 export function circularPatternPivot(params = {}) {
+  const pivot=params.pivot??params.origin;
+  if(pivot){if(!AXES.every(axis=>Number.isFinite(pivot[axis])))throw new Error("Pattern pivot requires three finite coordinates");return {x:pivot.x,y:pivot.y,z:pivot.z};}
   const axis=["x","y","z"].includes(params.axis)?params.axis:"y",distance=Number(params.radialDistance)||0;
   if(axis==="x")return {x:0,y:-distance,z:0};
   return {x:-distance,y:0,z:0};
@@ -217,7 +221,7 @@ export function patternPlacementTransform(params = {}, placement = {}, circularS
   if (params.mode === "circular") {
     const axis = ["x", "y", "z"].includes(params.axis) ? params.axis : "y";
     const angle = Number(circularStep) * (Number(placement.circularIndex) || 0);
-    const pivot = circularPatternPivot({ axis, radialDistance: params.radialDistance });
+    const pivot = circularPatternPivot(params);
     return rigidTransformAboutPivot(axisRotationMatrix(axis, angle), pivot);
   }
   if (Array.isArray(placement.matrix) && placement.matrix.length === 9) {

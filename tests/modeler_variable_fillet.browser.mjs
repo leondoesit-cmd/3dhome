@@ -111,11 +111,14 @@ test("the fillet form hides its end radius until the fillet is asked to vary", o
     perEdge: document.querySelectorAll("#mdQuickSettings [data-edge-radius]").length,
     rows: document.querySelectorAll("#mdQuickSettings .md-finish-edge-row").length,
     params: window.cadFinishPreviewSnapshot().params,
+    anchors: [...document.querySelectorAll(".md-fillet-endpoint")].map(node=>node.dataset.endpoint),
   }));
   assert.equal(after.endHidden, false, "the end radius appears with the law");
   assert.equal(after.params.variableRadius, true, "and the form actually collected the switch");
   assert.equal(after.rows, 1, "the one selected edge grew a row");
   assert.equal(after.perEdge, 2, "with a start and an end field");
+  assert.ok(after.params.edgeRadii[0].startPoint, "physical start anchor is saved");
+  assert.ok(after.anchors.includes("start") && after.anchors.includes("end"), "viewport labels name both endpoints");
 });
 
 test("a per-edge radius typed into the edge list reaches the feature parameters", opts, async () => {

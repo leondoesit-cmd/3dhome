@@ -29,7 +29,8 @@ function orthonormal(axis) {
 }
 
 export function normalizeHelixSpec(spec = {}) {
-  const pitch = Math.max(1e-6, Number(spec.pitch) || 0);
+  const derivedPitch = spec.pitch == null && Number(spec.turns)>0 && Number.isFinite(Number(spec.height)) ? Number(spec.height)/Number(spec.turns) : Number(spec.pitch);
+  const pitch = Math.max(1e-6, derivedPitch || 0);
   const turns = Number.isFinite(Number(spec.turns)) ? Number(spec.turns) : (Number(spec.height) || pitch) / pitch;
   const height = Number.isFinite(Number(spec.height)) ? Number(spec.height) : pitch * turns;
   const radiusStart = Math.max(0, Number(spec.radius ?? spec.radiusStart) || 0);
@@ -87,9 +88,13 @@ export function sampleHelix(spec, options = {}) {
 
 export function helixLength(spec) {
   const h = normalizeHelixSpec(spec);
-  const r = (h.radiusStart + h.radiusEnd) / 2;
-  const oneTurn = Math.hypot(TAU * r, h.pitch);
-  return oneTurn * h.turns;
+  const dr=h.radiusEnd-h.radiusStart, omega=TAU*h.turns;
+  if(Math.abs(dr)<1e-12)return Math.hypot(omega*h.radiusStart,h.height);
+  // Simpson integration of |dP/dt| includes radial travel for tapered helices.
+  const speed=t=>Math.hypot(omega*(h.radiusStart+dr*t),dr,h.height);
+  const n=128;let sum=speed(0)+speed(1);
+  for(let i=1;i<n;i++)sum+=(i%2?4:2)*speed(i/n);
+  return sum/(3*n);
 }
 
 export function helixFrameAt(spec, t) {
@@ -98,11 +103,8 @@ export function helixFrameAt(spec, t) {
   const b = helixPoint(h, Math.min(1, t + 1e-4));
   const tangent = normalizeVec({ x: b.x - a.x, y: b.y - a.y, z: b.z - a.z });
   const point = helixPoint(h, t);
-  const radial = normalizeVec({
-    x: point.x - (h.origin.x + h.axis.x * h.height * t),
-    y: point.y - (h.origin.y + h.axis.y * h.height * t),
-    z: point.z - (h.origin.z + h.axis.z * h.height * t),
-  });
+  const basis=orthonormal(h.axis),angle=point.angle;
+  const radial={x:basis.u.x*Math.cos(angle)+basis.v.x*Math.sin(angle),y:basis.u.y*Math.cos(angle)+basis.v.y*Math.sin(angle),z:basis.u.z*Math.cos(angle)+basis.v.z*Math.sin(angle)};
   return { origin: point, tangent, radial, axis: h.axis };
 }
 

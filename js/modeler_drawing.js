@@ -1,3 +1,4 @@
+import { holeLeaderForViews } from "./core/hole_callout.js";
 /* Drawing mode: the sheet you can work on.
  *
  * cad_sheet.js decides what a sheet contains and core/hidden_line.js decides
@@ -81,7 +82,7 @@ export function createDrawingController(host) {
 
   function sceneKey(doc) {
     let hash = 2166136261;
-    for (const value of [doc.size, doc.orientation, doc.projection, doc.units, doc.scale,
+    for (const value of [doc.size, doc.orientation, doc.projection, doc.units, doc.precision, doc.trailingZeros, doc.scale,
       doc.showHidden, doc.showCenters, doc.showZones, doc.title,
       host.bodiesToken(), state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
@@ -196,14 +197,14 @@ export function createDrawingController(host) {
       if (item.rotate) c.rotate(item.rotate * Math.PI / 180);
       c.font = (item.weight ? item.weight + " " : "") + size.toFixed(1) + "px " + FONT;
       c.textAlign = item.anchor === "middle" ? "center" : item.anchor === "end" ? "right" : "left";
-      c.textBaseline = item.baseline === "bottom" ? "bottom" : "alphabetic";
+      c.textBaseline = item.baseline === "top" ? "top" : item.baseline === "bottom" ? "bottom" : "alphabetic";
       if (item.box) {
         /* A dimension value has to stay readable where it crosses the model,
            so it is set on a chip of paper the way a plotter would mask it. */
         const width = c.measureText(item.text).width;
         const left = c.textAlign === "center" ? -width / 2 : c.textAlign === "right" ? -width : 0;
         c.fillStyle = "rgba(255,255,255,.92)";
-        c.fillRect(left - size * 0.18, -size * (c.textBaseline === "bottom" ? 1 : 0.82), width + size * 0.36, size * 1.02);
+        c.fillRect(left - size * 0.18, -size * (c.textBaseline === "top" ? 0 : c.textBaseline === "bottom" ? 1 : 0.82), width + size * 0.36, size * 1.02);
       }
       c.fillStyle = item.color || "#101418";
       c.fillText(item.text, 0, 0);
@@ -1072,15 +1073,17 @@ export function createDrawingController(host) {
     host.pushUndo(host.t("opAddCallout"));
     let unbound = 0;
     fresh.forEach((row, index) => {
-      const anchor = holeAnchor(built.topologyIndex, basis, row.id);
+      const projected=holeLeaderForViews(row,built.views);
+      const chosen=projected ? built.views.find(v=>v.id===projected.viewId) : place;
+      const anchor = holeAnchor(built.topologyIndex, chosen.projection?.basis || basis, row.id);
       if (!anchor) unbound++;
-      const from = anchor ? place.toSheet(anchor) : { x: place.box.x, y: place.box.y };
+      const from = anchor ? chosen.toSheet(anchor) : { x: chosen.box.x, y: chosen.box.y };
       doc.notes.push({
         id: "n" + Math.random().toString(36).slice(2, 9),
         x: from.x + 14, y: from.y - 10 - index * 6,
         feature: row.id,
         text: row.text,
-        leader: anchor ? { viewId: place.id, u: anchor.u, v: anchor.v, pid: anchor.pid, kind: anchor.kind, at: anchor.at } : null,
+        leader: anchor ? { viewId: chosen.id, u: anchor.u, v: anchor.v, pid: anchor.pid, kind: anchor.kind, at: anchor.at } : null,
       });
     });
     state.selection = { kind: "note", id: doc.notes[doc.notes.length - 1].id };
@@ -1126,6 +1129,8 @@ export function createDrawingController(host) {
     else if (key === "orientation") doc.orientation = value === "portrait" ? "portrait" : "landscape";
     else if (key === "projection") doc.projection = value === "first" ? "first" : "third";
     else if (key === "units") doc.units = value;
+    else if(key === "precision"){if(value==="auto")delete doc.precision;else if(Number.isInteger(Number(value))&&Number(value)>=0&&Number(value)<=8)doc.precision=Number(value);}
+    else if(key === "trailingZeros")doc.trailingZeros=!!value;
     else if (key === "scale") doc.scale = value;
     else if (key === "showHidden") doc.showHidden = !!value;
     else if (key === "showCenters") doc.showCenters = !!value;
@@ -1168,6 +1173,7 @@ export function createDrawingController(host) {
       return false;
     }
     if (key === "Delete" || key === "Backspace") return deleteSelection() ? (host.refresh(), true) : false;
+    if (event.ctrlKey || event.metaKey || event.altKey) return false;
     const lower = String(key).toLowerCase();
     if (lower === "f") { fit(); host.refresh(); return true; }
     if (lower === "d") { setTool("dim"); return true; }

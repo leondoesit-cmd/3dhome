@@ -1,3 +1,6 @@
+import { viewBasis } from "./hidden_line.js";
+import { sketchWorldPoint } from "./swept_sources.js";
+import { cylinderAxis } from "./cylinder_axis.js";
 /* One spelling of "M6×1 6H ↓12".
  *
  * A hole callout is written in two places — the sheet you draft on
@@ -25,13 +28,21 @@ export function holeCallouts(def) {
   const rows = [];
   features.forEach((feature) => {
     if (!feature || feature.type !== "hole" || feature.suppressed) return;
-    const points = holeLayoutPoints(feature.params);
+    const params=feature.params || {}, sketchId=params.sketchId || params.sketch || feature.sketch;
+    const sketch=(def.sketches || []).find(s=>s.id===sketchId) || (!sketchId ? def.sketch : null);
+    if(sketchId && !sketch && (!params.layout || params.layout==="sketch"))return;
+    const points = holeLayoutPoints(params,sketch);
+    const plane=sketch?.plane || (params.axis==="x"?"side":params.axis==="z"?"front":"top");
+    const placement={...sketch,plane,offset:Number(params.offset ?? sketch?.offset)||0};
+    if(params.frame){placement.frameSpace="local";placement.frame=params.frame;}
+    const axis=cylinderAxis(placement.frame?.normal || (plane==="side"?"x":plane==="front"?"z":"y"));
+    const worldPoints=points.map(p=>{const q=sketchWorldPoint(placement,p.u,p.v);if(placement.frame)for(const key of ["x","y","z"])q[key]+=axis[key]*(Number(params.offset)||0);return q;});
     rows.push({
       id: feature.id,
       item: rows.length + 1,
       callout: holeCallout(feature.params || {}),
       quantity: points.length,
-      points,
+      points,worldPoints,axis,
     });
   });
   return rows;
@@ -50,4 +61,13 @@ export function calloutTextById(def) {
   const out = new Map();
   for (const row of holeCallouts(def)) out.set(row.id, calloutText(row));
   return out;
+}
+
+// Pick a face-on view and project the current entry point into its basis.
+export function holeLeaderForViews(row, views) {
+  const world=row.worldPoints?.[0];if(!world||!row.axis)return null;
+  const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+  const candidates=views.map(view=>({view,basis:viewBasis(view.dir || view.view?.dir)}));
+  const chosen=candidates.find(item=>dot(item.basis.forward,row.axis)>.95) || candidates.find(item=>Math.abs(dot(item.basis.forward,row.axis))>.95);
+  return chosen?{viewId:chosen.view.id,u:dot(world,chosen.basis.right),v:dot(world,chosen.basis.up)}:null;
 }

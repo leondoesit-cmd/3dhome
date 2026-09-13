@@ -16,7 +16,7 @@ export const FEATURE_COMMAND = {
   extrude: "extrude", extrudeCut: "extrudecut", revolve: "revolvefeature", sweep: "sweepfeature",
   loft: "loftfeature", fillet: "filletfeature", chamfer: "chamferfeature", shell: "shellfeature",
   pattern: "patternfeature", mirror: "mirrorfeature", boolean: "booleanfeature", hole: "holefeature",
-  draft: "draftfeature", thicken: "thickenfeature", rib: "ribfeature",
+  dome: "domefeature", draft: "draftfeature", thicken: "thickenfeature", rib: "ribfeature",
   splitBody: "splitbodyfeature", moveBody: "movebodyfeature", revolveCut: "revolvecutfeature", sweepCut: "sweepcutfeature",
   helix: "helixfeature", thread: "threadfeature", knurl: "knurlfeature", insert: "insertfeature",
 };
@@ -82,6 +82,7 @@ export function buildCommandCatalog(ctx) {
   var assemblyDoc = function () { return E.docType === "assembly"; };
   var solids = function () { return !!(E.def && activeParts(E.def).length); };
   var closed = function () { return !!closedSketchProfile(); };
+  var revolvable = function () { return closed() || !!ctx.openSketchChain?.(); };
   var needPart = function () { return t("cmdNeedPartDoc"); };
   var needSketch = function () { return partDoc() ? t("cmdNeedClosedSketch") : t("cmdNeedPartDoc"); };
   var needSolid = function () { return partDoc() ? t("cmdNeedSolid") : t("cmdNeedPartDoc"); };
@@ -99,6 +100,8 @@ export function buildCommandCatalog(ctx) {
     { id:"select", icon:"ph-cursor", label:t("tool_select"), group:t("cmdSketch"), shortcut:"V", terms:"cursor move" },
     { id:"wall", icon:"ph-line-segment", label:t("tool_wall"), group:t("cmdSketch"), shortcut:"L", terms:"line chain profile", available:function(){ return partDoc(); }, reason:needPart },
     { id:"srect", icon:"ph-rectangle", label:t("tool_srect"), group:t("cmdSketch"), shortcut:"Q", terms:"rectangle profile", available:function(){ return partDoc(); }, reason:needPart },
+    { id:"centerrectangle", icon:"ph-rectangle", label:t("centerRectangle"), group:t("cmdSketch"), terms:"center rectangle symmetric origin dimensions precise", available:partDoc, reason:needPart },
+    { id:"faceboundary", icon:"ph-copy-simple", label:t("faceBoundary"), group:t("cmdSketch"), terms:"convert entities offset face boundary copy inset", available:function(){return partDoc() && solids();}, reason:needSolid },
     { id:"scirc", icon:"ph-circle-dashed", label:t("tool_scirc"), group:t("cmdSketch"), shortcut:"G", terms:"circle", available:function(){ return partDoc(); }, reason:needPart },
     { id:"sarc", icon:"ph-bezier-curve", label:t("tool_sarc"), group:t("cmdSketch"), shortcut:"A", terms:"arc", available:function(){ return partDoc(); }, reason:needPart },
     { id:"sslot", icon:"ph-pill", label:t("tool_sslot"), group:t("cmdSketch"), shortcut:"J", terms:"slot oblong straight", available:function(){ return partDoc(); }, reason:needPart },
@@ -119,18 +122,20 @@ export function buildCommandCatalog(ctx) {
     { id:"directpoly", icon:"ph-polygon", label:t("tool_poly"), group:t("grpDirect"), shortcut:"P", terms:"polygon extrude direct", available:directOk, reason:needDirect },
     { id:"directrev", icon:"ph-spiral", label:t("tool_rev"), group:t("grpDirect"), terms:"revolve profile sketch direct", available:directOk, reason:needDirect },
     { id:"newsketch", icon:"ph-pencil-line", label:t("createSketch"), group:t("cmdFeatures"), terms:"reference plane face profile", available:function(){ return partDoc(); }, reason:needPart },
+    { id:"dynamicmirror", icon:"ph-flip-horizontal", label:"Dynamic mirror", group:t("cmdSketch"), terms:"live symmetric line centerline", available:function(){return partDoc() && E.authoring?.phase==="sketch";}, reason:needPart },
     { id:"finishsketch", icon:"ph-check", label:t("finishSketch"), group:t("cmdSketch"), terms:"exit plane done finish", available:function(){ return partDoc() && E.authoring && E.authoring.phase==="sketch"; }, reason:function(){ return t("cmdNeedOpenSketch"); } },
     { id:"extrude", icon:"ph-cube", label:t("opExtrude"), group:t("cmdFeatures"), available:function(){ return partDoc() && closed(); }, reason:function(){ return closed() ? needPart() : needSketch(); } },
     { id:"extrudecut", icon:"ph-scissors", label:t("extrudeCut"), group:t("cmdFeatures"), available:function(){return partDoc()&&closed()&&solids();}, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : !closed() ? t("cmdNeedClosedSketch") : t("cmdNeedSolid"); } },
-    { id:"revolvefeature", icon:"ph-arrow-counter-clockwise", label:t("opRevolve"), group:t("cmdFeatures"), shortcut:"R", available:function(){ return partDoc() && closed(); }, reason:needSketch },
-    { id:"revolvecutfeature", icon:"revolvecutfeature", label:t("opRevolveCut"), group:t("cmdFeatures"), terms:"revolve cut lathe groove subtract", available:function(){ return partDoc() && closed() && solids(); }, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : !closed() ? t("cmdNeedClosedSketch") : t("cmdNeedSolid"); } },
-    { id:"sweepfeature", icon:"ph-path", label:t("opSweep"), group:t("cmdFeatures"), available:function(){ return partDoc() && sketchCount() >= 2; }, reason:needSketches },
+    { id:"revolvefeature", icon:"ph-arrow-counter-clockwise", label:t("opRevolve"), group:t("cmdFeatures"), shortcut:"R", available:function(){ return partDoc() && revolvable(); }, reason:needSketch },
+    { id:"revolvecutfeature", icon:"revolvecutfeature", label:t("opRevolveCut"), group:t("cmdFeatures"), terms:"revolve cut lathe groove subtract", available:function(){ return partDoc() && revolvable() && solids(); }, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : !closed() ? t("cmdNeedClosedSketch") : t("cmdNeedSolid"); } },
+    { id:"sweepfeature", icon:"ph-path", label:t("opSweep"), group:t("cmdFeatures"), available:function(){ return partDoc() && sketchCount() >= 1; }, reason:needSketches },
     { id:"sweepcutfeature", icon:"sweepcutfeature", label:t("opSweepCut"), group:t("cmdFeatures"), terms:"sweep cut channel slot subtract path", available:function(){ return partDoc() && sketchCount() >= 2 && solids(); }, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : sketchCount() < 2 ? t("cmdNeedTwoSketches") : t("cmdNeedSolid"); } },
     { id:"loftfeature", icon:"ph-stack", label:t("loftOp"), group:t("cmdFeatures"), available:function(){ return partDoc() && sketchCount() >= 2; }, reason:needSketches },
     { id:"repeatlast", icon:"ph-arrow-clockwise", label:t("repeatOperation"), group:t("cmdFeatures"), terms:"repeat last again", available:function(){ return partDoc() && !!E.lastOperation; }, reason:function(){ return t("repeatUnavailable"); } },
     { id:"filletfeature", icon:"ph-corners-out", label:t("quickFillet"), group:t("cmdFeatures"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"chamferfeature", icon:"ph-corners-in", label:t("quickChamfer"), group:t("cmdFeatures"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"shellfeature", icon:"ph-bowl-food", label:t("shellOp"), group:t("cmdFeatures"), available:function(){ return partDoc() && solids(); }, reason:needSolid },
+    { id:"domefeature", icon:"ph-sphere", label:"Dome", group:t("cmdFeatures"), terms:"dome rounded spherical cap face", available:function(){return partDoc() && solids();}, reason:needSolid },
     { id:"draftfeature", icon:"ph-angle", label:t("draftOp"), group:t("cmdFeatures"), terms:"draft taper mould mold release parting neutral plane", available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"thickenfeature", icon:"ph-stack-simple", label:t("thickenOp"), group:t("cmdFeatures"), terms:"thicken surface sheet offset boss solidify", available:function(){ return partDoc() && solids(); }, reason:needSolid },
     { id:"ribfeature", icon:"ph-triangle", label:t("ribOp"), group:t("cmdFeatures"), terms:"rib web brace gusset stiffener support", available:function(){ return partDoc() && solids() && sketchCount() >= 1; }, reason:function(){ return !partDoc() ? t("cmdNeedPartDoc") : !solids() ? t("cmdNeedSolid") : t("cmdNeedOpenLine"); } },

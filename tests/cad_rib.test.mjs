@@ -215,7 +215,9 @@ test("rib demands both a sketch and a body", () => {
 });
 
 test("a rib step in a feature tree rebuilds on top of the body before it", async () => {
-  const def = { features: [
+  const def = { sketches: [{id:"s1",referenceId:"plane:top",
+    points:[{id:"a",x:2,y:10,fixed:true},{id:"b",x:18,y:10,fixed:true}],
+    entities:[{id:"line",type:"line",a:"a",b:"b"}],constraints:[]}], features: [
     { id: "b1", type: "box", name: "Plate", inputs: [], references: {}, params: { x:0, y:0, z:0, w:20, h:2, d:20 } },
     { id: "r1", type: "rib", name: "Rib", inputs: ["b1"], references: { features: ["b1"], sketches: ["s1"] },
       params: { ...featureDefaults("rib"), thickness: 2, extent: "blind", depth: 5, axis: "y", from: 2,
@@ -223,7 +225,7 @@ test("a rib step in a feature tree rebuilds on top of the body before it", async
   ] };
   const run = await regenerateFeatures(def);
   try {
-    assert.ok(!run.issues.some((issue) => issue.code === "regeneration-failed"), JSON.stringify(run.issues));
+    assert.equal(run.ok, true, JSON.stringify(run.issues));
     const ribbed = run.results.get("r1");
     assert.ok(ribbed?.shape);
     assert.ok(Math.abs(await volume(ribbed) - 960) < 1e-2, "the same web the kernel test measured");

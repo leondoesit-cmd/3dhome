@@ -5,11 +5,11 @@ export function cylinderAxis(value) {
   return { x: (axis.x || 0) / length, y: (axis.y || 0) / length, z: (axis.z || 0) / length };
 }
 export function cylinderBounds(part) {
-  const axis = cylinderAxis(part.axis), radius = Math.max(part.r, part.r2 ?? part.r), bounds = {};
+  const axis = cylinderAxis(part.axis), radius = Math.max(Math.abs(Number(part.r)||0), Math.abs(Number(part.r2 ?? part.r)||0)), bounds = {};
   for (const key of ["x", "y", "z"]) {
-    const end = part[key] + axis[key] * part.h, extent = radius * Math.sqrt(Math.max(0, 1 - axis[key] ** 2));
-    bounds[key + "0"] = Math.min(part[key], end) - extent;
-    bounds[key + "1"] = Math.max(part[key], end) + extent;
+    const base=Number(part[key])||0, end = base + axis[key] * (Number(part.h)||0), extent = radius * Math.sqrt(Math.max(0, 1 - axis[key] ** 2));
+    bounds[key + "0"] = Math.min(base, end) - extent;
+    bounds[key + "1"] = Math.max(base, end) + extent;
   }
   return bounds;
 }

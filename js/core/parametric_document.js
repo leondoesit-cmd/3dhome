@@ -111,6 +111,9 @@ export function ensureParametricDocument(source, options = {}) {
   document.references = Array.isArray(document.references) && document.references.length ? document.references : mainReferences();
   document.sketches ||= [];
   document.features ||= [];
+  for (const feature of document.features) {
+    if (["extrude", "extrudeCut"].includes(feature.type) && feature.params?.endCondition == null) feature.params.endCondition = "blind";
+  }
   normalizeHistory(document);
   return document;
 }
@@ -353,8 +356,27 @@ export function removeHistoryNode(document, historyId) {
   document.history = document.history.filter((item) => item !== entry);
   if (entry.kind === "feature") document.features = document.features.filter((item) => item.id !== entry.targetId);
   else document.sketches = document.sketches.filter((item) => item.id !== entry.targetId);
+  const dirtyPartIds = [];
+  // Finish/cut features also live on their source preview body. Deleting only
+  // the history entry leaves that body rounded or cut after save and reopen.
+  for (const part of document.parts || []) {
+    let changed = false;
+    for (const key of ["exactOperations", "cuts3d", "merges3d", "holes"]) {
+      if (!Array.isArray(part[key])) continue;
+      const remaining = part[key].filter(item => !item || Array.isArray(item) ||
+        (key === "exactOperations" ? item.id : item.featureId) !== entry.targetId);
+      if (remaining.length !== part[key].length) { part[key] = remaining; changed = true; }
+    }
+    if (changed) {
+      delete part.meshData;
+      part.exactBuildToken = (part.exactBuildToken || 0) + 1;
+      part.exactPending = false;
+      part.exactError = null;
+      dirtyPartIds.push(part.id);
+    }
+  }
   document.revision = (Number(document.revision) || 0) + 1;
-  return { ok: true, issues: [] };
+  return { ok: true, issues: [], dirtyPartIds };
 }
 
 export function parametricHistoryIds(document) {

@@ -153,9 +153,10 @@ test("fillet needs no pre-existing edge selection", () => {
   assert.equal(catalog.find((command) => command.id === "chamferfeature").available(), true);
 });
 
-test("sweep and loft open once two sketches exist", () => {
+test("circular sweep opens with one sketch and loft still requires two", () => {
   const editor = { docType: "part", def: { parts: [], sketches: [{ id: "s1" }] }, assembly: null };
-  assert.equal(commandUnavailableReason("sweepfeature", catalogFor(editor), "fallback"), "cmdNeedTwoSketches");
+  assert.equal(commandUnavailableReason("sweepfeature", catalogFor(editor), "fallback"), "");
+  assert.equal(commandUnavailableReason("loftfeature", catalogFor(editor), "fallback"), "cmdNeedTwoSketches");
   editor.def.sketches.push({ id: "s2" });
   const two = catalogFor(editor);
   assert.equal(commandUnavailableReason("sweepfeature", two, "fallback"), "");

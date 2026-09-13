@@ -187,9 +187,9 @@ test("an approximate preview does not claim the views are synced", () => {
   assert.match(modeler, /t\("liveApproxPreview"\)/);
   // liveViewsSynced remains the claim only the exact-and-synced path makes
   const synced = modeler.slice(modeler.indexOf("function queueNewFeaturePreview"));
-  assert.match(synced.slice(0, 600), /!FINISH_FEATURES\.includes\(type\)/);
+  assert.match(synced.slice(0, synced.indexOf("\n}")), /!FINISH_FEATURES\.includes\(type\)/);
   // and that list is the finish features themselves, draft and thicken included
-  assert.match(modeler, /var FINISH_FEATURES = \["fillet", "chamfer", "shell", "draft", "thicken"\];/);
+  assert.match(modeler, /var FINISH_FEATURES = \["fillet", "chamfer", "shell", "dome", "draft", "thicken"\];/);
   assert.match(modeler, /liveBadge\.setAttribute\("data-preview-state","exact"\)/);
 });
 

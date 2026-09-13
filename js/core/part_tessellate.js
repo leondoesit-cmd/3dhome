@@ -1,3 +1,4 @@
+import { revolveInterval, revolvePoint } from "./revolve_geometry.js";
 import { cylinderAxis } from "./cylinder_axis.js";
 /* Triangles for a document's bodies, without a renderer.
  *
@@ -133,6 +134,7 @@ function cylinderTriangles(part, steps = 48) {
     pushTriangle(out, { x: cx, y: cy, z: cz }, bottom[i], bottom[next]);
     pushTriangle(out, { x: cx, y: cy + height, z: cz }, top[next], top[i]);
   }
+  if(height<0)for(let i=0;i<out.length;i+=9)for(let k=0;k<3;k++){const t=out[i+3+k];out[i+3+k]=out[i+6+k];out[i+6+k]=t;}
   if (part.axis) {
     const axis = cylinderAxis(part.axis);
     const tangent = Math.abs(axis.y) < .9 ? { x: axis.z, y: 0, z: -axis.x } : { x: axis.y, y: -axis.x, z: 0 };
@@ -242,21 +244,20 @@ function extrusionTriangles(part) {
 function revolveTriangles(part, steps = 48) {
   const profile = (part.pts || []).map((point) => ({ u: num(point.u), v: num(point.v) }));
   if (profile.length < 2) return [];
-  const axis = part.axis === "x" ? "x" : part.axis === "z" ? "z" : "y";
-  const centre = { x: num(part.x), y: num(part.y), z: num(part.z) };
-  const at = (point, angle) => {
-    const radius = Math.abs(point.u), height = point.v;
-    const cos = Math.cos(angle), sin = Math.sin(angle);
-    if (axis === "y") return { x: centre.x + radius * cos, y: centre.y + height, z: centre.z + radius * sin };
-    if (axis === "x") return { x: centre.x + height, y: centre.y + radius * cos, z: centre.z + radius * sin };
-    return { x: centre.x + radius * cos, y: centre.y + radius * sin, z: centre.z + height };
-  };
-  const out = [];
-  for (let step = 0; step < steps; step++) {
-    const a0 = (step / steps) * Math.PI * 2, a1 = ((step + 1) / steps) * Math.PI * 2;
-    for (let i = 0; i + 1 < profile.length; i++) {
-      pushQuad(out, at(profile[i], a0), at(profile[i + 1], a0), at(profile[i + 1], a1), at(profile[i], a1));
+  if(Math.hypot(profile[0].u-profile.at(-1).u,profile[0].v-profile.at(-1).v)<1e-10)profile.pop();
+  if(polygonArea(profile)<0)profile.reverse();
+  const {start,span,end}=revolveInterval(part),out=[];
+  const at=(p,a)=>revolvePoint(part,p,a);
+  const triangle=(a,b,c)=>part.axis==="x"||part.axis==="z"?pushTriangle(out,a,c,b):pushTriangle(out,a,b,c);
+  for(let step=0;step<steps;step++){
+    const a0=start+span*step/steps,a1=start+span*(step+1)/steps;
+    for(let i=0;i<profile.length;i++){
+      const p=profile[i],q=profile[(i+1)%profile.length];
+      triangle(at(p,a0),at(p,a1),at(q,a1));triangle(at(p,a0),at(q,a1),at(q,a0));
     }
+  }
+  if(span<2*Math.PI-1e-9)for(const [a,b,c] of triangulatePolygon(profile)){
+    triangle(at(a,start),at(b,start),at(c,start));triangle(at(a,end),at(c,end),at(b,end));
   }
   return out;
 }

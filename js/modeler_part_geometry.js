@@ -1,3 +1,7 @@
+import { cylinderAxis } from "./core/cylinder_axis.js";
+import { revolveBounds, revolveRecipe } from "./core/revolve_geometry.js";
+import { tessellatePart } from "./core/part_tessellate.js";
+import { toolFeatureRecipe, toolRangeForAxis, translateToolRecord } from "./core/tool_recipe.js";
 import { cylinderBounds } from "./core/cylinder_axis.js";
 /* Part geometry for the model editor: bounds, moves, pattern placement and the
    exact-kernel recipe a single part is rebuilt from.
@@ -16,10 +20,10 @@ import { cutFootprint as cutScopeFootprint, profileLoopIsSeparateHole } from "./
 import { createTopologyRegistry, resolveFinishTargetIds, topologyForFeature } from "./core/topology.js";
 import { clearMeshProjectionCache } from "./core/mesh_projection.js";
 import { pointInPoly } from "./modeler_finish_preview.js";
-import { clearTopologyCache, hexNum, holeLoop } from "./modeler_mesh_geometry.js";
+import { clearTopologyCache, hexNum, holeLoop, smoothTessellationNormals } from "./modeler_mesh_geometry.js";
 import {
-  booleanBrep, chamferBrep, disposeBrep, draftBrep, extractBrepTopology, filletBrep,
-  makeBrepExtrusion, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep,
+  booleanBrep, brepMaterialIntersection, chamferBrep, disposeBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep,
+  makeBrepCone, makeBrepExtrusion, makeBrepHoleTool, makeBrepLoft, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep,
   moveBodyBrep, placeBrep, ribBrep, shellBrep, splitBrep, thickenBrep, translateBrep, unifyBrepFaces,
 } from "./cad_kernel.js";
 
@@ -46,24 +50,22 @@ export function basePartBounds(p) {
      camera fit and every snap instead of parking a phantom at the origin. */
   if (isKernelBody(p)) return kernelBodyBounds(p) || { x0: 0, x1: 0, y0: 0, y1: 0, z0: 0, z1: 0 };
   if ((p.kind === "direct" || p.kind === "mesh") && p.bounds) return { ...p.bounds };
-  if ((p.kind === "direct" || p.kind === "mesh") && p.meshData) {
+  if ((p.kind === "direct" || p.kind === "mesh" || (p.merges3d || []).some(function(merge){return !merge.suppressed;})) && p.meshData) {
     var mp=p.meshData.positions || [], mb={x0:Infinity,x1:-Infinity,y0:Infinity,y1:-Infinity,z0:Infinity,z1:-Infinity};
     for (var mbi=0;mbi+2<mp.length;mbi+=3) {
+      if (![mp[mbi],mp[mbi+1],mp[mbi+2]].every(Number.isFinite)) continue;
       mb.x0=Math.min(mb.x0,mp[mbi]);mb.x1=Math.max(mb.x1,mp[mbi]);
       mb.y0=Math.min(mb.y0,mp[mbi+1]);mb.y1=Math.max(mb.y1,mp[mbi+1]);
       mb.z0=Math.min(mb.z0,mp[mbi+2]);mb.z1=Math.max(mb.z1,mp[mbi+2]);
     }
     if (isFinite(mb.x0)) return mb;
   }
+  if (p.kind === "direct" || p.kind === "mesh") return {x0:0,x1:0,y0:0,y1:0,z0:0,z1:0};
   if (p.kind === "box") return { x0: Math.min(p.x0, p.x1), x1: Math.max(p.x0, p.x1), y0: Math.min(p.y0, p.y1), y1: Math.max(p.y0, p.y1), z0: Math.min(p.z0, p.z1), z1: Math.max(p.z0, p.z1) };
-  if (p.kind === "cyl" && p.axis) return cylinderBounds(p);
+  if (p.kind === "cyl") return cylinderBounds(p);
   if (p.kind === "cyl") { var R = Math.max(p.r, p.r2 != null ? p.r2 : p.r); return { x0: p.x - R, x1: p.x + R, y0: p.y, y1: p.y + p.h, z0: p.z - R, z1: p.z + R }; }
   if (p.kind === "sph") return { x0: p.x - p.r, x1: p.x + p.r, y0: p.y - p.r, y1: p.y + p.r, z0: p.z - p.r, z1: p.z + p.r };
-  if (p.kind === "rev") {
-    var RR = 0, ry0 = 1e9, ry1 = -1e9;
-    p.pts.forEach(function (q) { RR = Math.max(RR, Math.abs(q.u)); ry0 = Math.min(ry0, q.v); ry1 = Math.max(ry1, q.v); });
-    return { x0: p.x - RR, x1: p.x + RR, y0: ry0, y1: ry1, z0: p.z - RR, z1: p.z + RR };
-  }
+  if (p.kind === "rev") return revolveBounds(p);
   if (p.kind === "loft") {
     var lu0 = 1e9, lu1 = -1e9, lv0 = 1e9, lv1 = -1e9;
     (p.pts0 || []).concat(p.pts1 || []).forEach(function (q) { lu0 = Math.min(lu0, q.u); lu1 = Math.max(lu1, q.u); lv0 = Math.min(lv0, q.v); lv1 = Math.max(lv1, q.v); });
@@ -72,6 +74,8 @@ export function basePartBounds(p) {
     if (p.axis === "z") return { x0: lu0, x1: lu1, y0: lv0, y1: lv1, z0: llo, z1: lhi };
     return { z0: lu0, z1: lu1, y0: lv0, y1: lv1, x0: llo, x1: lhi };
   }
+  // Unknown or incomplete profiles have no geometry to measure.
+  if (!Array.isArray(p.pts) || !p.pts.length) return {x0:0,x1:0,y0:0,y1:0,z0:0,z1:0};
   // ext
   if (p.frame) {
     var framed=(p.pts || []).flatMap(function(q){return [framePoint(p.frame,q.u,q.v,p.from),framePoint(p.frame,q.u,q.v,p.to)];});
@@ -108,9 +112,8 @@ export function partSupportsExactMesh(p) {
   if (p.kind === "box" || p.kind === "ext") return true;
   if (p.kind === "cyl") return fin(p.r) && fin(p.h);
   if (p.kind === "loft") return (p.pts0 || []).length >= 3 && (p.pts1 || []).length === (p.pts0 || []).length;
-  // a partial revolve would have to agree with the preview's start angle, which
-  // the kernel revolve does not take; a full turn has no start to disagree about
-  if (p.kind === "rev") return (p.pts || []).length >= 3 && Math.abs(Number(p.angle) || 360) >= 359.5;
+  // The shared radial recipe now includes start angle and end caps.
+  if (p.kind === "rev") return (p.pts || []).length >= 3 && Number(p.angle ?? 360)>0 && Number(p.angle ?? 360)<=360;
   return false;
 }
 
@@ -245,12 +248,6 @@ export function movePart(p, dx, dy, dz) {
     [p.pts].concat((p.holes || []).map(function (hl) { return holeLoop(hl, true); })).forEach(function (lp) {
       lp.forEach(function (q) { q.u += du; q.v += dv; });
     });
-    (p.cuts3d || []).concat(p.merges3d || []).forEach(function (cut) {
-      if (cut.frame) return;
-      var cu = cut.axis === "y" || cut.axis === "z" ? dx : dz;
-      var cv = cut.axis === "y" ? dz : dy;
-      (cut.loop || []).forEach(function (q) { q.u += cu; q.v += cv; });
-    });
     if (p.sketch && p.sketch.kind === "wall" && p.axis === "y") {
       p.sketch.a.u += du; p.sketch.a.v += dv;
       p.sketch.b.u += du; p.sketch.b.v += dv;
@@ -258,8 +255,7 @@ export function movePart(p, dx, dy, dz) {
     p.from += dw; p.to += dw;
   }
   (p.cuts3d || []).concat(p.merges3d || []).forEach(function (cut) {
-    if (!cut.frame || !cut.frame.origin) return;
-    cut.frame.origin.x += dx; cut.frame.origin.y += dy; cut.frame.origin.z += dz;
+    translateToolRecord(cut,dx,dy,dz);
   });
   /* A fused pattern instance is placed by a rigid transform, not by a loop in
      the host's profile plane, so it travels in the shift. The shift is carried
@@ -279,7 +275,7 @@ export function movePart(p, dx, dy, dz) {
       });
     });
   }
-  if (p.meshData && Array.isArray(p.meshData.positions)) {
+  if (p.meshData && (Array.isArray(p.meshData.positions) || ArrayBuffer.isView(p.meshData.positions))) {
     for (var mi=0;mi<p.meshData.positions.length;mi+=3) {
       p.meshData.positions[mi]+=dx;
       p.meshData.positions[mi+1]+=dy;
@@ -322,15 +318,12 @@ export function boxToExt(p, ax) {
 }
 
 export function cutRangeForAxis(bounds, axis) {
-  var lo = axis === "x" ? bounds.x0 : axis === "y" ? bounds.y0 : bounds.z0;
-  var hi = axis === "x" ? bounds.x1 : axis === "y" ? bounds.y1 : bounds.z1;
-  var pad = Math.max(2, (hi - lo) * 0.08);
-  return { from: lo - pad, to: hi + pad };
+  return toolRangeForAxis(bounds,axis);
 }
 
 /* Operations whose selection is faces, not edges. Fillet and chamfer widen a
    face pick into that face's edges; shell and draft act on the face itself. */
-export var FACE_DRIVEN_OPERATIONS = new Set(["shell", "draft", "thicken"]);
+export var FACE_DRIVEN_OPERATIONS = new Set(["shell", "dome", "draft", "thicken"]);
 
 /* A recorded tool is a solid, and which solid is a property of the record, not
    of the caller. Revolve Cut and Sweep Cut record the same profile the additive
@@ -338,24 +331,15 @@ export var FACE_DRIVEN_OPERATIONS = new Set(["shell", "draft", "thicken"]);
    kernel maker — there is one revolve and one sweep in this file. A MERGED
    feature records exactly the same shape and is fused instead of subtracted, so
    both lists are built here. */
-export async function toolSolidBrep(cut, bodyBounds) {
-  if (cut.kind === "placed") return placedBodyBrep(cut);
-  if (cut.kind === "loft") return makeBrepLoft({
-    sections:cut.sections, solid:cut.solid !== false, ruled:!!cut.ruled,
-    matchProfiles:cut.matchProfiles !== false, continuity:cut.continuity, tolerance:cut.tolerance,
-  });
-  if (cut.kind === "revolve") return makeBrepRevolve({
-    axis:cut.axis || "y", angle:Number(cut.angle) || 360, direction:cut.direction, points:cut.loop,
-  });
-  if (cut.kind === "sweep") return makeBrepSweep({
-    profile:cut.profile, path:cut.path, orientation:cut.orientation,
-    twistAngle:cut.twistAngle, scale:cut.scale, solid:true,
-  });
-  var range = fin(cut.from) && fin(cut.to) ? {from:cut.from,to:cut.to} : cutRangeForAxis(bodyBounds, cut.axis);
-  /* A drafted cut is drafted about the plane it was SKETCHED on, which is not
-     `range.from` once a through-all cut has been stretched to the body. */
-  return makeBrepExtrusion({axis:cut.axis,frame:cut.frame,from:range.from,to:range.to,points:cut.loop,
-    draftAngle:Number(cut.draftAngle)||0,draftOutward:!!cut.draftOutward,draftBase:fin(cut.draftBase)?cut.draftBase:undefined});
+export async function toolSolidBrep(cut, bodyBounds, target) {
+  var recipe=toolFeatureRecipe(cut,bodyBounds);
+  if(!recipe)throw new Error("Unsupported tool kind: " + cut.kind);
+  if(recipe.type==="holeTool")return makeBrepHoleTool(recipe.params,target);
+  if(recipe.type==="placedBody")return placedBodyBrep(cut);
+  if(recipe.type==="loft")return makeBrepLoft(recipe.params);
+  if(recipe.type==="revolve")return makeBrepRevolve(recipe.params);
+  if(recipe.type==="sweep")return makeBrepSweep(recipe.params);
+  return makeBrepExtrusion(recipe.params);
 }
 
 /* A body that is another body's shape, put down somewhere else.
@@ -440,13 +424,9 @@ export async function exactBrepForPart(p) {
     solid=await makeBrepPrimitive({type:"cylinder",...cylParams});
     expectedTopology=topologyForFeature({id:ownerFeatureId,type:"cylinder"},cylParams);
   } else if (p.kind==="cyl") {
-    // a cone or a taper: revolve the meridian the preview lathes
-    var base=Math.max(1e-4,Math.abs(Number(p.r)||0)), top=Math.max(1e-4,Math.abs(Number(p.r2!=null?p.r2:p.r)||0)), tall=Math.abs(Number(p.h)||0);
-    solid=await makeBrepRevolve({axis:"y",angle:360,points:[{u:0,v:0},{u:base,v:0},{u:top,v:tall},{u:0,v:tall}]});
-    solid=await moveTo(solid,{x:p.x,y:p.y,z:p.z});
+    solid=await makeBrepCone({r1:Math.abs(p.r),r2:Math.abs(p.r2),h:p.h,axis:p.axis,origin:{x:p.x||0,y:p.y||0,z:p.z||0}});
   } else if (p.kind==="rev") {
-    solid=await makeBrepRevolve({axis:"y",angle:360,points:(p.pts||[]).map(function(q){return {u:Math.abs(Number(q.u)||0),v:Number(q.v)||0};})});
-    solid=await moveTo(solid,{x:p.x||0,y:0,z:p.z||0});
+    solid=await makeBrepRevolve(revolveRecipe(p));
   } else if (p.kind==="loft") {
     var section=function(points,w){return points.map(function(q){var xyz=loftXYZ(p.axis,q.u,q.v,w);return {x:xyz[0],y:xyz[1],z:xyz[2]};});};
     solid=await makeBrepLoft({sections:[section(p.pts0,p.from),section(p.pts1,p.to)],solid:true,ruled:true});
@@ -462,9 +442,13 @@ export async function exactBrepForPart(p) {
   (p.cuts3d || []).forEach(function (cut) { if (!cut.suppressed) cuts.push(cut); });
   for (var i = 0; i < cuts.length; i++) {
     var cut = cuts[i];
-    var cutter = await toolSolidBrep(cut, b);
-    var next = await booleanBrep("subtract", solid, cutter);
-    disposeBrep(solid); disposeBrep(cutter); solid = next;
+    var cutter=null;
+    try {
+      cutter = await toolSolidBrep(cut, b, solid);
+      var next = await booleanBrep("subtract", solid, cutter);
+      disposeBrep(solid); solid = next;
+    } catch(error) {disposeBrep(solid);throw error;}
+    finally {if(cutter)disposeBrep(cutter);}
   }
   /* "Merge result": the feature's solid became part of THIS body instead of a
      body of its own, so it is fused here rather than drawn beside it. Merges
@@ -514,12 +498,16 @@ export async function exactBrepForPart(p) {
       } else if (operation.type==="moveBody") {
         opParams={...opParams,...cloneData(operation.params || {})};
         next=await moveBodyBrep(solid, operation.params || {});
+        opParams.placement=next.placement;
       } else if (operation.type==="rib") {
         opParams={...opParams,...cloneData(operation.params || {}),thickness:operation.amount};
         next=await ribBrep(solid, {...(operation.params || {}),thickness:operation.amount});
       } else if (operation.type==="thicken") {
         opParams={...opParams,...cloneData(operation.params || {}),thickness:operation.amount};
         next=await thickenBrep(solid, operation.amount, {facePersistentIds:persistentIds,direction:operation.params && operation.params.direction});
+      } else if (operation.type==="dome") {
+        opParams={...opParams,...cloneData(operation.params || {}),height:operation.amount};
+        next=await domeBrep(solid,operation.amount,{facePersistentIds:persistentIds});
       } else if (operation.type==="draft") {
         opParams={...opParams,...cloneData(operation.params || {}),angle:operation.amount};
         next=await draftBrep(solid, operation.amount, {...(operation.params || {}),facePersistentIds:persistentIds});
@@ -615,17 +603,11 @@ export function revMaxR(p) {
 
 export function buildRev(parent, p) {
   if (!p.pts || p.pts.length < 2) return null;
-  var prof = p.pts.map(function (q) { return new THREE.Vector2(Math.max(0.01, Math.abs(q.u)), q.v); });
-  prof.push(prof[0].clone()); // close the loop so the solid has no missing wall
-  var g;
-  try {
-    var angle=Math.max(.001,Math.min(360,Number(p.angle)||360))*Math.PI/180;
-    var start=p.symmetric ? -angle/2 : p.direction==="reverse" ? -angle : 0;
-    g = new THREE.LatheGeometry(prof, p.seg || 32, start, angle);
-  } catch (e) {
-    return null;
-  }
-  g.translate(p.x || 0, 0, p.z || 0);
+  var data=tessellatePart({...p,meshData:null});
+  if(!data)return null;
+  var g=new THREE.BufferGeometry();
+  g.setAttribute("position",new THREE.Float32BufferAttribute(data.positions,3));
+  g.computeVertexNormals();smoothTessellationNormals(g);
   var me = new THREE.Mesh(g, stdMat(p));
   me.castShadow = true;
   me.receiveShadow = true;
@@ -684,11 +666,11 @@ export function partPatternTransform(p) {
 // Circular pattern copies keep an explicit model-space transform. Applying it
 // to a render group supports every part kind and all three axes, including
 // imported meshes and boxes that previously stayed coincident with the seed.
-export function rotatePatternPart(p, axis, angle, radialDistance) {
+export function rotatePatternPart(p, axis, angle, radialDistance, pivot) {
   if(!p)return null;
   p.patternRotations=partPatternRotations(p);
   var normalizedAxis=["x","y","z"].includes(axis)?axis:"y";
-  p.patternRotations.push({axis:normalizedAxis,angle:Number(angle)||0,pivot:circularPatternPivot({axis:normalizedAxis,radialDistance:radialDistance})});
+  p.patternRotations.push({axis:normalizedAxis,angle:Number(angle)||0,pivot:circularPatternPivot({axis:normalizedAxis,radialDistance:radialDistance,pivot})});
   delete p.patternRotation;
   return p;
 }
@@ -700,13 +682,37 @@ export function rotPartY(p, ang) { return rotatePatternPart(p,"y",ang); }
    rotations go on after movePart rather than before it. */
 export function placePatternCopy(copy, params, placement, circularStep) {
   if(!copy || !placement)return copy;
-  if(params && params.mode==="circular")return rotatePatternPart(copy,params.axis,circularStep*placement.circularIndex,params.radialDistance);
+  if(params && params.mode==="circular")return rotatePatternPart(copy,params.axis,circularStep*placement.circularIndex,params.radialDistance,params.pivot??params.origin);
   movePart(copy,placement.x,placement.y,placement.z);
   if((placement.rotations || []).length){
     copy.patternRotations=partPatternRotations(copy).concat(cloneData(placement.rotations));
     delete copy.patternRotation;
   }
   return copy;
+}
+
+/* Projection meshes are triangle soup. Reflection flips orientation, so swap
+   vertices 1 and 2 in every triangle, including their normals and colors. */
+function reflectProjectionMesh(part,axis) {
+  var data=part.meshData, component={x:0,y:1,z:2}[axis];
+  [data.positions,data.normals].forEach(function(values){
+    if(!values)return;
+    for(var i=component;i<values.length;i+=3)values[i]=-values[i];
+  });
+  if(data.indices){for(var i=0;i+2<data.indices.length;i+=3){var index=data.indices[i+1];data.indices[i+1]=data.indices[i+2];data.indices[i+2]=index;}}
+  (data.indices ? [] : [data.positions,data.normals,data.colors]).forEach(function(values){
+    if(!values)return;
+    for(var i=0;i+8<values.length;i+=9)for(var j=0;j<3;j++){
+      var value=values[i+3+j];values[i+3+j]=values[i+6+j];values[i+6+j]=value;
+    }
+  });
+  if(part.bounds){var low=part.bounds[axis+"0"];part.bounds[axis+"0"]=-part.bounds[axis+"1"];part.bounds[axis+"1"]=-low;}
+  (data.topology || []).forEach(function(entry){
+    var d=entry.descriptor;if(!d)return;
+    [d.origin,d.center,d.normal,d.axis].concat(d.endpoints || []).forEach(function(v){if(v)v[axis]=-v[axis];});
+    if(d.bounds){var low=d.bounds.min[axis];d.bounds.min[axis]=-d.bounds.max[axis];d.bounds.max[axis]=-low;}
+  });
+  clearMeshProjectionCache(data);clearTopologyCache(part);
 }
 
 export function mirrorProjectionPart(q,planeId) {
@@ -717,6 +723,38 @@ export function mirrorProjectionPart(q,planeId) {
      original, which is the quiet wrong answer. Refuse instead; the caller says
      so out loud, the way a cut through an unrebuildable body already does. */
   if(isKernelBody(q))return null;
+  var mirrorAxis=planeId==="plane:top"?"y":planeId==="plane:front"?"z":"x";
+  // Compound and finish recipes need reflection of placements and references.
+  if((q.cuts3d || []).length || (q.merges3d || []).length || (q.patternRotations || []).length || q.patternRotation || (q.exactOperations || []).length || q.exactFillet)return null;
+  if(q.frame){
+    [q.frame.origin,q.frame.xAxis,q.frame.yAxis,q.frame.normal].forEach(function(v){v[mirrorAxis]=-v[mirrorAxis];});
+    // Reflection reverses handedness. Negating normal AND local depth keeps
+    // the frame right-handed while placing every point at its reflection.
+    ["x","y","z"].forEach(function(axis){q.frame.normal[axis]=-q.frame.normal[axis];});
+    q.from=-q.from;q.to=-q.to;
+    // The mirrored copy has its own placement, not the seed's face attachment.
+    delete q.support;delete q.supportBaseOffset;delete q.supportDepth;
+    delete q.profileEntityIds;delete q.sketchId;
+    if(q.meshData)reflectProjectionMesh(q,mirrorAxis);
+    return q;
+  }
+  if(q.kind==="direct" || q.kind==="mesh"){
+    if(!q.meshData || !q.meshData.positions || q.meshData.positions.length<9)return null;
+    if(!q.mirrorImportSeed)q.mirrorImportSeed={bounds:basePartBounds(q),topology:cloneData(q.meshData.topology || [])};
+    q.mirrorImportAxes=(q.mirrorImportAxes || []).concat(mirrorAxis);
+    reflectProjectionMesh(q,mirrorAxis);
+    return q;
+  }
+  if(q.meshData)reflectProjectionMesh(q,mirrorAxis);
+  if(q.kind==="cyl"){
+    const axis=cylinderAxis(q.axis);
+    q[mirrorAxis]=-Number(q[mirrorAxis] || 0);
+    if(Math.abs(axis[mirrorAxis])>1e-9){
+      // Reflect the directed axis, preserving which end owns each cone radius.
+      axis[mirrorAxis]=-axis[mirrorAxis];q.axis=axis;
+    }
+    return q;
+  }
   var plane=planeId || "plane:right",loops=function(part){return part.kind==="loft"?[part.pts0,part.pts1]:[part.pts].concat((part.holes || []).map(function (hl) { return holeLoop(hl, true); }));};
   if(plane==="plane:top"){
     if(q.kind==="box"){var y0=q.y0;q.y0=-q.y1;q.y1=-y0;}
@@ -730,4 +768,11 @@ export function mirrorProjectionPart(q,planeId) {
     else if(q.axis==="x"){var fx=q.from;q.from=-q.to;q.to=-fx;}else loops(q).forEach(function(loop){(loop || []).forEach(function(v){v.u=-v.u;});loop && loop.reverse();});
   }
   return q;
+}
+
+// Narrow-phase cut scope. No document mutation and no sampled geometry verdict.
+export async function exactCutIntersection(part,cut,sourceBrep=null){
+  let target,tool;
+  try{target=sourceBrep || await exactBrepForPart(part);tool=await toolSolidBrep(cut,partBounds(part),target);return await brepMaterialIntersection(target,tool);}
+  finally{if(tool)disposeBrep(tool);if(target && !sourceBrep)disposeBrep(target);}
 }

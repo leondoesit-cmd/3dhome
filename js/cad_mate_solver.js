@@ -382,12 +382,24 @@ function seedCluster(cluster, resolvedFrame) {
   const targetFor = (entry) => mateTarget(entry.mate,
     resolvedFrame(entry.mate.a, entry.a, entry.id, false),
     resolvedFrame(entry.mate.b, entry.b, entry.id, false), entry.b);
+  const movable=new Set(cluster.components.map(c=>c.id));
   for (const entry of cluster.mates) {
-    if (entry.legacy) continue;
+    if (entry.legacy || !movable.has(entry.b.id)) continue;
     const target = targetFor(entry);
     if (!target || !target.direction) continue;
     const swing = rotationFromTo(target.actualDirection, target.direction);
     turn(entry.b, swing.axis, swing.angle);
+    if(entry.mate.type==="tangent" && !target.tangentPlane){
+      const fa=resolvedFrame(entry.mate.a,entry.a,entry.id,false), fb=resolvedFrame(entry.mate.b,entry.b,entry.id,false);
+      const axis=target.direction, delta={x:fb.origin.x-fa.origin.x,y:fb.origin.y-fa.origin.y,z:fb.origin.z-fa.origin.z};
+      const along=delta.x*axis.x+delta.y*axis.y+delta.z*axis.z;
+      if(Math.hypot(delta.x-axis.x*along,delta.y-axis.y*along,delta.z-axis.z*along)<1e-8){
+        // At coincident axes radial distance has no derivative. Seed only this
+        // singular pose; a valid tangent contact keeps its azimuth and height.
+        const seeded=targetFor(entry);
+        for(const key of ["x","y","z"])entry.b.transform[key]+=seeded.origin[key]-fb.origin[key];
+      }
+    }
     // The roll is measured about the mate axis, so it is only meaningful once
     // the component is on that axis — hence a second reading after the swing.
     if (target.roll === undefined) continue;
@@ -520,6 +532,8 @@ export function solveAssemblyMates(assembly, options = {}) {
 
   const accepted = acceptMates(assembly, orderedMates(assembly), byId, resolvedFrame, sink.issues);
   const clusters = decompose(accepted);
+  const prescribed=new Set(options.fixedComponentIds||[]);
+  for(const cluster of clusters)cluster.components=cluster.components.filter(c=>!prescribed.has(c.id));
   const unsatisfied = [], reports = [];
   let settled = true, passes = 1;
 

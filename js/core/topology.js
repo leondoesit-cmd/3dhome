@@ -383,7 +383,7 @@ export function edgeLiesOnFace(edge, face) {
   const fd = face?.descriptor || {}, ed = edge?.descriptor || {};
   const origin = fd.origin || fd.center;
   const faceSpan = Math.sqrt(Math.abs(Number(fd.measure) || Number(ed.measure) || 1));
-  const tol = Math.max(0.6, faceSpan * 0.08, Math.abs(Number(ed.measure) || 0) * 0.03);
+  const tol = Math.max(1e-5, faceSpan * 1e-6, Math.abs(Number(ed.measure) || 0) * 1e-6);
   if (fd.surface === "plane" && origin && fd.normal) {
     const n = normalized(fd.normal);
     if (ed.curve === "circle") {
@@ -557,7 +557,9 @@ function mergeCircleEdges(edges) {
     else merged.push(mergedTopologyItem(group[0], group, "edge", {
       curve: "circle", semantic: group[0].semantic, origin: group[0].descriptor.origin,
       axis: group[0].descriptor.axis, radius: group[0].descriptor.radius,
-      measure: group.reduce((sum, item) => sum + (Number(item.descriptor.measure) || 0), 0),
+      // Kernel and mesh aliases can both describe the same complete rim.
+      // Their combined coverage cannot exceed one circumference.
+      measure: Math.min(2 * Math.PI * Math.abs(Number(group[0].descriptor.radius)), group.reduce((sum, item) => sum + (Number(item.descriptor.measure) || 0), 0)),
     }));
   });
   return merged.concat(leftover);
@@ -1324,24 +1326,37 @@ function ribTopology(feature, params = {}) {
   return extrusionTopology(feature, { axis: params.axis, frame: params.frame, from, to: from + run * depth, points: loop });
 }
 
-function movedTopology(feature, params = {}, inherited = []) {
-  /* moveBody creates no face at all — it carries the same ones somewhere else,
-     and inheriting them unchanged left every descriptor pointing at where the
-     body USED to be. Only the offset is applied here: the rotation turns about
-     the body's centre of mass, which is a property of the solid and not of this
-     list, so a rotated move still inherits stale directions. */
-  const dx = Number(params.dx) || 0, dy = Number(params.dy) || 0, dz = Number(params.dz) || 0;
-  if (Number(params.angle) || (!dx && !dy && !dz)) return inherited;
-  const shift = (q) => (q ? point((Number(q.x) || 0) + dx, (Number(q.y) || 0) + dy, (Number(q.z) || 0) + dz) : q);
-  return inherited.map((item) => {
-    const descriptor = item.descriptor;
-    if (!descriptor || (!descriptor.origin && !descriptor.center && !descriptor.endpoints)) return item;
-    const next = { ...descriptor };
-    if (descriptor.origin) next.origin = shift(descriptor.origin);
-    if (descriptor.center) next.center = shift(descriptor.center);
-    if (Array.isArray(descriptor.endpoints)) next.endpoints = descriptor.endpoints.map(shift);
-    return { ...item, descriptor: next, signature: topologyDescriptorSignature(next) };
+function movedTopology(feature, params = {}, inherited = [], inputs = []) {
+  const dx=Number(params.dx)||0,dy=Number(params.dy)||0,dz=Number(params.dz)||0,angle=(Number(params.angle)||0)*Math.PI/180;
+  let placement=params.placement;
+  if(!placement){
+    let pivot=params.pivot;
+    const source=inputs[0],p=source?.params || {};
+    if(!pivot && source?.type==='box')pivot={x:p.x0!=null?(p.x0+p.x1)/2:(Number(p.x)||0)+(Number(p.w ?? p.width)||0)/2,y:p.y0!=null?(p.y0+p.y1)/2:(Number(p.y)||0)+(Number(p.h ?? p.height)||0)/2,z:p.z0!=null?(p.z0+p.z1)/2:(Number(p.z)||0)+(Number(p.d ?? p.depth)||0)/2};
+    // A complex body's pivot is a native volume property. Preserve identity,
+    // but publish no stale geometry while waiting for native regeneration.
+    if (angle && !pivot) {
+      const pending = inherited.map(item => ({...item,
+        persistentId: params.copy ? item.persistentId + ':copy:' + feature.id : item.persistentId,
+        descriptor:{pendingTransform:true},signature:"pending-transform:"+item.persistentId}));
+      return params.copy ? inherited.concat(pending) : pending;
+    }
+    pivot=pivot || {x:0,y:0,z:0};
+    const c=Math.cos(angle),s=Math.sin(angle),m=params.axis==='x'?[1,0,0,0,c,-s,0,s,c]:params.axis==='z'?[c,-s,0,s,c,0,0,0,1]:[c,0,s,0,1,0,-s,0,c];
+    placement={matrix:m,translation:{x:pivot.x+dx-(m[0]*pivot.x+m[1]*pivot.y+m[2]*pivot.z),y:pivot.y+dy-(m[3]*pivot.x+m[4]*pivot.y+m[5]*pivot.z),z:pivot.z+dz-(m[6]*pivot.x+m[7]*pivot.y+m[8]*pivot.z)}};
+  }
+  const m=placement.matrix,t=placement.translation;
+  const rotate=p=>({x:m[0]*p.x+m[1]*p.y+m[2]*p.z,y:m[3]*p.x+m[4]*p.y+m[5]*p.z,z:m[6]*p.x+m[7]*p.y+m[8]*p.z});
+  const move=p=>{const q=rotate(p);return{x:q.x+t.x,y:q.y+t.y,z:q.z+t.z};};
+  const moved=inherited.map(item=>{
+    const d=clone(item.descriptor || {});
+    for(const key of ['origin','center'])if(d[key])d[key]=move(d[key]);
+    for(const key of ['normal','axis','xAxis','yAxis','direction','tangent'])if(d[key])d[key]=rotate(d[key]);
+    if(d.endpoints)d.endpoints=d.endpoints.map(move);
+    if(d.bounds?.min && d.bounds?.max){const corners=[];for(const x of [d.bounds.min.x,d.bounds.max.x])for(const y of [d.bounds.min.y,d.bounds.max.y])for(const z of [d.bounds.min.z,d.bounds.max.z])corners.push(move({x,y,z}));d.bounds={min:Object.fromEntries(['x','y','z'].map(k=>[k,Math.min(...corners.map(p=>p[k]))])),max:Object.fromEntries(['x','y','z'].map(k=>[k,Math.max(...corners.map(p=>p[k]))]))};}
+    return {...item,descriptor:d,signature:topologyDescriptorSignature(d)};
   });
+  return params.copy ? inherited.concat(moved.map(item=>({...item,persistentId:item.persistentId+':copy:'+feature.id}))) : moved;
 }
 
 export function topologyForFeature(feature, params = {}, inputs = []) {
@@ -1356,10 +1371,10 @@ export function topologyForFeature(feature, params = {}, inputs = []) {
   if (feature.type === "procedural" && finite(Number(params.width)) && finite(Number(params.depth)) && finite(Number(params.height))) {
     return boxTopology(feature, { x0: -Number(params.width) / 2, x1: Number(params.width) / 2, y0: 0, y1: Number(params.height), z0: -Number(params.depth) / 2, z1: Number(params.depth) / 2 });
   }
-  if (["cut", "fillet", "chamfer", "shell", "draft", "thicken", "rib", "splitBody", "moveBody", "union", "subtract", "intersect", "mirror", "linearPattern", "linearGridPattern", "circularPattern", "curvePattern", "pattern"].includes(feature.type)) {
+  if (["cut", "fillet", "chamfer", "shell", "dome", "draft", "thicken", "rib", "splitBody", "moveBody", "union", "subtract", "intersect", "mirror", "linearPattern", "linearGridPattern", "circularPattern", "curvePattern", "pattern"].includes(feature.type)) {
     const inherited = inheritedTopology(feature, inputs), consumed = consumedTopologyIds(feature, params, inherited);
     const kept = consumed.size ? inherited.filter((item) => !consumed.has(item.persistentId)) : inherited;
-    if (feature.type === "moveBody") return movedTopology(feature, params, kept);
+    if (feature.type === "moveBody") return movedTopology(feature, params, kept, inputs);
     if (feature.type === "splitBody") return kept.concat(splitTopology(feature, params, kept));
     if (feature.type === "thicken") return kept.concat(thickenTopology(feature, params));
     if (feature.type === "rib") return kept.concat(ribTopology(feature, params));

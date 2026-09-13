@@ -1,3 +1,9 @@
+import {shellMeridian} from './core/shell_meridian.js';
+import {restoreProfileCurve} from './cad_profile_serialization.js';
+import {circularPatternPivot} from "./core/pattern_geometry.js";
+import { holeToolPlacements } from "./core/hole_geometry.js";
+import { cylinderAxis } from "./core/cylinder_axis.js";
+import { revolveInterval, revolvePoint } from "./core/revolve_geometry.js";
 // OpenCascade BREP backend. Loaded lazily because the WASM module is large;
 // ordinary sketch editing must remain instant and does not need a solid kernel.
 
@@ -107,6 +113,7 @@ function faceDescriptor(oc, face) {
         const along = (center.x - base.x) * dir.x + (center.y - base.y) * dir.y + (center.z - base.z) * dir.z;
         descriptor.axis = dir;
         descriptor.radius = cylinder.Radius();
+        descriptor.referenceOrigin=base;descriptor.axisRange=[adaptor.FirstVParameter(),adaptor.LastVParameter()];
         descriptor.centroid = center;
         descriptor.origin = { x: base.x + dir.x * along, y: base.y + dir.y * along, z: base.z + dir.z * along };
       } finally { location.delete(); direction.delete(); axis.delete(); cylinder.delete(); }
@@ -122,6 +129,7 @@ function faceDescriptor(oc, face) {
         descriptor.axis = dir;
         descriptor.radius = cone.RefRadius();
         descriptor.angle = cone.SemiAngle();
+        descriptor.referenceOrigin=base;descriptor.axisRange=[adaptor.FirstVParameter()*Math.cos(descriptor.angle),adaptor.LastVParameter()*Math.cos(descriptor.angle)];
         descriptor.centroid = center;
         descriptor.origin = { x: base.x + dir.x * along, y: base.y + dir.y * along, z: base.z + dir.z * along };
       } finally { location.delete(); direction.delete(); axis.delete(); cone.delete(); }
@@ -296,6 +304,17 @@ function wireFromSegments(oc, owned, segments, place, normal) {
       const axes = new oc.gp_Ax2_2(at(segment.center), dir, planeDirection(segment.center, rx >= ry ? rot : rot + Math.PI / 2)); owned.push(axes);
       const ellipse = new oc.gp_Elips_2(axes, Math.max(1e-6, major), Math.max(1e-7, minor)); owned.push(ellipse);
       maker = new oc.BRepBuilderAPI_MakeEdge_12(ellipse);
+    } else if(segment.type === "bezier" && segment.controls?.length===4){
+      const array=new oc.TColgp_Array1OfPnt_2(1,4);owned.push(array);
+      segment.controls.forEach((p,i)=>array.SetValue(i+1,at(p)));
+      const curve=new oc.Geom_BezierCurve_1(array);owned.push(curve);
+      const handle=new oc.Handle_Geom_Curve_2(curve);owned.push(handle);
+      maker=new oc.BRepBuilderAPI_MakeEdge_24(handle);
+    } else if(segment.type==="kernelCurve"){
+      const origin=place({u:0,v:0}),unitU=place({u:1,v:0}),unitV=place({u:0,v:1});
+      const direction=q=>{const d=new oc.gp_Dir_4((unitU.x-origin.x)*q.u+(unitV.x-origin.x)*q.v+normal.x*q.w,(unitU.y-origin.y)*q.u+(unitV.y-origin.y)*q.v+normal.y*q.w,(unitU.z-origin.z)*q.u+(unitV.z-origin.z)*q.v+normal.z*q.w);owned.push(d);return d;};
+      const handle=restoreProfileCurve(oc,segment.curveData,owned,at,direction);
+      maker=new oc.BRepBuilderAPI_MakeEdge_25(handle,segment.first,segment.last);
     } else if (segment.type === "spline" && (segment.points || []).length > 2) {
       const points = segment.points, array = new oc.TColgp_Array1OfPnt_2(1, points.length); owned.push(array);
       points.forEach((value, index) => array.SetValue(index + 1, at(value)));
@@ -308,7 +327,9 @@ function wireFromSegments(oc, owned, segments, place, normal) {
     }
     owned.push(maker);
     if (!maker.IsDone()) throw new Error("Profile segment could not be built: " + segment.type);
-    wire.Add_1(maker.Edge());
+    const madeEdge=maker.Edge();owned.push(madeEdge);
+    if(segment.type==="kernelCurve" && segment.reversed){const reversed=oc.TopoDS.Edge_1(madeEdge.Reversed());owned.push(reversed);wire.Add_1(reversed);}
+    else wire.Add_1(madeEdge);
   }
   if (!wire.IsDone()) throw new Error("Profile segments do not form a wire");
   const built = wire.Wire(); owned.push(built);
@@ -350,10 +371,10 @@ export async function makeBrepPrimitive(spec) {
     }
     if (spec.type === "cylinder") {
       const p = new oc.gp_Pnt_3(spec.x || 0, spec.y || 0, spec.z || 0);
-      const axis = spec.axis || { x: 0, y: 1, z: 0 };
-      const dir = new oc.gp_Dir_4(axis.x || 0, axis.y || 0, axis.z || 0); owned.push(p, dir);
+      const axis = cylinderAxis(spec.axis),sign=Number(spec.h)<0?-1:1;
+      const dir = new oc.gp_Dir_4(axis.x*sign, axis.y*sign, axis.z*sign); owned.push(p, dir);
       const axes = new oc.gp_Ax2_3(p, dir); owned.push(axes);
-      const maker = new oc.BRepPrimAPI_MakeCylinder_3(axes, Math.max(1e-6, spec.r), Math.max(1e-6, spec.h)); owned.push(maker);
+      const maker = new oc.BRepPrimAPI_MakeCylinder_3(axes, Math.max(1e-6, spec.r), Math.max(1e-6, Math.abs(spec.h))); owned.push(maker);
       return { oc, shape: maker.Shape(), kind: "solid" };
     }
     if (spec.type === "sphere") {
@@ -498,12 +519,29 @@ export async function makeBrepRevolve(spec) {
     const points = spec.points || spec.pts;
     if (!Array.isArray(points) || points.length < 3) throw new Error("Revolve requires a closed profile");
     const loop = spec.segments ? { points, segments: spec.segments } : points;
-    const wire = profileWire(oc, owned, loop, (q) => ({ x: q.u, y: q.v, z: 0 }), { x: 0, y: 0, z: 1 });
-    const face = new oc.BRepBuilderAPI_MakeFace_15(wire, true); owned.push(face);
-    const axisName=spec.axis || "y", sign=spec.direction === "reverse" ? -1 : 1;
-    const origin = new oc.gp_Pnt_3(0, 0, 0), direction = new oc.gp_Dir_4(axisName==="x"?sign:0, axisName==="y"?sign:0, axisName==="z"?sign:0); owned.push(origin, direction);
-    const axis = new oc.gp_Ax1_2(origin, direction); owned.push(axis);
-    const maker = new oc.BRepPrimAPI_MakeRevol_1(face.Face(), axis, (Number(spec.angle || 360) * Math.PI) / 180, true); owned.push(maker);
+    const interval=revolveInterval(spec);
+    const axisName=spec.axis || "y", radial=!!spec.radialProfile;
+    const coordinateSpec={...spec,x:0,y:0,z:0};
+    const place=spec.profileFrame?q=>{
+      const p=framePoint(spec.profileFrame,q.u,q.v,0),c=Math.cos(interval.start),s=Math.sin(interval.start);
+      if(axisName==='x')return {x:p.x,y:p.y*c-p.z*s,z:p.y*s+p.z*c};
+      if(axisName==='z')return {x:p.x*c-p.y*s,y:p.x*s+p.y*c,z:p.z};
+      return {x:p.x*c+p.z*s,y:p.y,z:-p.x*s+p.z*c};
+    }:radial?q=>revolvePoint(coordinateSpec,q,interval.start):q=>({x:q.u,y:q.v,z:0});
+    const zero=place({u:0,v:0}),up=place({u:1,v:0}),vp=place({u:0,v:1});
+    const u={x:up.x-zero.x,y:up.y-zero.y,z:up.z-zero.z},v={x:vp.x-zero.x,y:vp.y-zero.y,z:vp.z-zero.z};
+    const normal={x:u.y*v.z-u.z*v.y,y:u.z*v.x-u.x*v.z,z:u.x*v.y-u.y*v.x};
+    const wire=profileWire(oc,owned,loop,place,normal);
+    const face=new oc.BRepBuilderAPI_MakeFace_15(wire,true);owned.push(face);
+    const sign=spec.profileFrame?1:radial?(axisName==="y"?1:-1):spec.direction==="reverse"?-1:1;
+    const origin=new oc.gp_Pnt_3(0,0,0),direction=new oc.gp_Dir_4(axisName==="x"?sign:0,axisName==="y"?sign:0,axisName==="z"?sign:0);owned.push(origin,direction);
+    const axis=new oc.gp_Ax1_2(origin,direction);owned.push(axis);
+    const maker=new oc.BRepPrimAPI_MakeRevol_1(face.Face(),axis,interval.span,true);owned.push(maker);
+    if(radial && (spec.x || spec.y || spec.z)){
+      const shift=new oc.gp_Trsf_1(),vector=new oc.gp_Vec_4(spec.x||0,spec.y||0,spec.z||0);owned.push(shift,vector);shift.SetTranslation_1(vector);
+      const moved=new oc.BRepBuilderAPI_Transform_2(maker.Shape(),shift,true);owned.push(moved);
+      return {oc,shape:moved.Shape(),kind:"solid"};
+    }
     return { oc, shape: maker.Shape(), kind: "solid" };
   } finally { disposeAll(owned); }
 }
@@ -642,7 +680,7 @@ function loftConeSpec(spec) {
 }
 
 export async function makeBrepLoft(spec) {
-  const oc = await loadCadKernel(), owned = [], sections = spec.sections || [];
+  const oc = await loadCadKernel(), owned = [], sections = (spec.sections || []).map((section,index)=>spec.sectionSegments?.[index]?.length ? {points:loopPoints(section),segments:spec.sectionSegments[index]} : section);
   try {
     if (sections.length < 2) throw new Error("Loft requires at least two profiles");
     const cone = loftConeSpec(spec);
@@ -660,6 +698,11 @@ export async function makeBrepLoft(spec) {
     const maker = new oc.BRepOffsetAPI_ThruSections(spec.solid !== false, !!spec.ruled, Math.max(1e-7,Number(spec.tolerance)||1e-6)); owned.push(maker);
     for (const section of sections) {
       const points = loopPoints(section).map(world);
+      if (points.length === 1 && (section === sections[0] || section === sections[sections.length-1])) {
+        const point=new oc.gp_Pnt_3(points[0].x,points[0].y,points[0].z);owned.push(point);
+        const vertex=new oc.BRepBuilderAPI_MakeVertex(point);owned.push(vertex);
+        const shape=vertex.Vertex();owned.push(shape);maker.AddVertex(shape);continue;
+      }
       if (points.length < 2 && !loopSegments(section)) throw new Error("Loft section needs a closed profile");
       // Sections stack along their own run, so the plane a conic sits on is the
       // step to the next section (the last one borrows the step before it).
@@ -673,7 +716,8 @@ export async function makeBrepLoft(spec) {
        neighbours by construction, and asking for tangency there does nothing. */
     const continuity = { position: "GeomAbs_C0", tangent: "GeomAbs_G1", curvature: "GeomAbs_G2" }[spec.continuity || "position"];
     if (!spec.ruled && continuity && oc.GeomAbs_Shape?.[continuity]) maker.SetContinuity(oc.GeomAbs_Shape[continuity]);
-    maker.CheckCompatibility(spec.matchProfiles !== false); maker.Build(new oc.Message_ProgressRange_1());
+    const progress=new oc.Message_ProgressRange_1();owned.push(progress);
+    maker.CheckCompatibility(spec.matchProfiles !== false); maker.Build(progress);
     return { oc, shape: maker.Shape(), kind: "solid" };
   } finally { disposeAll(owned); }
 }
@@ -683,17 +727,56 @@ export async function makeBrepCone(spec) {
   try {
     const r1 = Math.max(1e-6, Number(spec.r1 ?? (Number(spec.diameter1) || Number(spec.diameter) || 0) / 2) || 1e-6);
     const r2 = Math.max(0, Number(spec.r2 ?? (Number(spec.diameter2) || 0) / 2) || 0);
-    const height = Math.max(1e-6, Number(spec.h ?? spec.depth ?? Math.abs((Number(spec.to) || 0) - (Number(spec.from) || 0))) || 1e-6);
+    const height = Math.max(1e-6, Math.abs(Number(spec.h ?? spec.depth ?? ((Number(spec.to) || 0) - (Number(spec.from) || 0)))) || 1e-6);
     const origin = spec.origin || { x: spec.x || 0, y: (spec.y || 0) + (Number(spec.from) || 0), z: spec.z || 0 };
-    const axis = spec.axis || { x: 0, y: 1, z: 0 };
+    const axis = cylinderAxis(spec.axis),sign=Number(spec.h)<0?-1:1;
     const p = new oc.gp_Pnt_3(origin.x, origin.y, origin.z);
-    const dir = new oc.gp_Dir_4(axis.x || 0, axis.y || 0, axis.z || 0); owned.push(p, dir);
+    const dir = new oc.gp_Dir_4(axis.x*sign, axis.y*sign, axis.z*sign); owned.push(p, dir);
     const axes = new oc.gp_Ax2_3(p, dir); owned.push(axes);
     // _2 is (R1, R2, H, angle) and takes no axes; _3 is the placed one. Passing
     // a gp_Ax2 where a radius belongs built a shape of no volume at all.
     const maker = new oc.BRepPrimAPI_MakeCone_3(axes, r1, Math.max(1e-7, r2), height); owned.push(maker);
     return { oc, shape: maker.Shape(), kind: "solid" };
   } finally { disposeAll(owned); }
+}
+
+// Unit-density volume inertia about the centroid, in cm^5. Density scaling
+// belongs to the mass report; the kernel must not assume a material.
+export async function shapeMassProperties(brep) {
+  if (!brep?.shape) throw new Error("Mass properties require an exact solid");
+  const oc = brep.oc || await loadCadKernel(), owned = [];
+  try {
+    const props = new oc.GProp_GProps_1(); owned.push(props);
+    oc.BRepGProp.VolumeProperties_1(brep.shape, props, true, false, false);
+    const volume = props.Mass(), centre = props.CentreOfMass(), matrix = props.MatrixOfInertia();
+    owned.push(centre, matrix);
+    const centerOfMass = {x:centre.X(), y:centre.Y(), z:centre.Z()};
+    const inertia = Array.from({length:3}, (_,i) => Array.from({length:3}, (_,j) => matrix.Value(i+1,j+1)));
+    if (!(volume > 0) || ![volume,...Object.values(centerOfMass),...inertia.flat()].every(Number.isFinite)) throw new Error("Body has no measurable closed solid volume");
+    return {volume, centerOfMass, inertia, bounds:shapeBounds(oc, brep.shape)};
+  } finally { disposeAll(owned); }
+}
+
+export async function makeBrepHoleTool(spec, target) {
+  if(!target?.shape)throw new Error("Hole target is unavailable");
+  const oc=target.oc||await loadCadKernel(),bounds=shapeBounds(oc,target.shape),tools=[];
+  try{
+    for(const placement of holeToolPlacements(spec,bounds)){
+      const diameter=Number(spec.diameter||spec.diameter1);
+      if(!Number.isFinite(diameter)||diameter<=0)throw new Error("Hole diameter must be positive");
+      const tool=spec.kind==="cone"
+        ? await makeBrepCone({origin:placement.origin,axis:placement.axis,r1:diameter/2,r2:Number(spec.diameter2)/2,h:placement.depth})
+        : await makeBrepPrimitive({type:"cylinder",...placement.origin,axis:placement.axis,r:diameter/2,h:placement.depth});
+      tools.push(tool);
+      if (spec.requireIntersection) {
+        const common = await booleanBrep("intersect", target, tool);
+        try {
+          if (!(shapeVolume(oc, common.shape) > 1e-10)) throw new Error("Hole cutter misses the target material");
+        } finally { disposeBrep(common); }
+      }
+    }
+    return await compoundBrep(tools);
+  }finally{tools.forEach(disposeBrep);}
 }
 
 export async function makeBrepHelicalPipe(spec) {
@@ -737,6 +820,7 @@ function filletRadiusOverrides(brep, options = {}) {
     if (!shape) return;
     resolved.push({
       shape,
+      startPoint: entry.startPoint,
       radius: Number(entry.radius) > 0 ? Number(entry.radius) : null,
       endRadius: Number(entry.endRadius) > 0 ? Number(entry.endRadius) : null,
     });
@@ -756,7 +840,40 @@ function filletEdgeRadius(edge, overrides, base, options = {}) {
 // round only the 2D profile that happened to be facing the camera; that cannot
 // reproduce a CAD workflow where outside and bore edges on several faces are
 // selected together.  OpenCascade owns that topology operation here.
+// Three-face full round for a constant-width planar land. The two rolling
+// fillets meet within the kernel's linear tolerance; the sub-tolerance retreat
+// avoids OCCT rejecting two contours at an exactly coincident seam.
+export function fullRoundFilletDefinition(brep, faceIds) {
+  if(!Array.isArray(faceIds) || faceIds.length!==3 || new Set(faceIds).size!==3)throw new Error("Full round needs three faces: side 1, center, side 2 (received "+(faceIds?.length || 0)+")");
+  const entries=faceIds.map(id=>brep.subshapes?.get(id));
+  if(entries.some(entry=>entry?.kind!=="face" || entry.descriptor?.surface!=="plane"))throw new Error("Full round currently needs a planar center and two planar side faces");
+  const [side1,center,side2]=entries,oc=brep.oc;
+  const common=side=>Array.from(brep.subshapes).filter(([,entry])=>entry.kind==='edge'&&edgeOnAnyFace(oc,entry.shape,[center.shape])&&edgeOnAnyFace(oc,entry.shape,[side.shape]));
+  const first=common(side1),second=common(side2);
+  if(!first.length||!second.length)throw new Error("Both side faces must border the center face");
+  const normal=center.descriptor.normal;
+  const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+  const tangent=side=>Math.tan(Math.acos(Math.max(-1,Math.min(1,dot(normal,side.descriptor.normal))))/2);
+  const denominator=tangent(side1)+tangent(side2);
+  const pairs=[];
+  for(const a of first)for(const b of second){
+    const x=a[1].descriptor,y=b[1].descriptor;
+    if(x.curve!=='line'||y.curve!=='line'||!x.axis||!y.axis||Math.abs(dot(x.axis,y.axis))<.999999)continue;
+    const delta={x:y.origin.x-x.origin.x,y:y.origin.y-x.origin.y,z:y.origin.z-x.origin.z};
+    const along=dot(delta,x.axis);
+    const width=Math.sqrt(Math.max(0,dot(delta,delta)-along*along));
+    if(width>1e-6)pairs.push({ids:[a[0],b[0]],width});
+  }
+  if(pairs.length!==1||!(denominator>1e-6))throw new Error("Full round needs one pair of parallel boundaries on the selected center face");
+  const radius=pairs[0].width/denominator;
+  return {radius:radius-1e-8,nominalRadius:radius,edgePersistentIds:pairs[0].ids};
+}
+
 export async function filletBrep(brep, radius, options = {}) {
+  if(options.fullRound){
+    const definition=fullRoundFilletDefinition(brep,options.facePersistentIds || options.faces);
+    return filletBrep(brep,definition.radius,{...options,fullRound:false,variableRadius:false,edgeRadii:[],facePersistentIds:[],faces:[],edgePersistentIds:definition.edgePersistentIds,propagation:"tangent"});
+  }
   if (!brep?.shape) throw new Error("Fillet needs a BREP shape");
   const oc = brep.oc || await loadCadKernel();
   const section = {
@@ -800,13 +917,35 @@ export async function filletBrep(brep, radius, options = {}) {
       const selectedById = edgeIsFinishTarget(brep, edge, finish);
       if (selectedById && (!options.filter || options.filter(count, explorer.Current()))) {
         /* Add_3(R1, R2, E) is the variable-radius overload: R1 lands on the
-           edge's first vertex, R2 on its last, and OCCT interpolates a linear
+           contour's first vertex, R2 on its last, and OCCT interpolates a linear
            law between them along the contour the edge grows into. Equal ends
            would be that law with zero slope — Add_2 is the cheaper, and the
            only one whose round comes back as an analytic cylinder or torus
            rather than as a fitted surface. */
         const { start, end } = filletEdgeRadius(edge, overrides, baseRadius, options);
-        if (Math.abs(start - end) > 1e-9) maker.Add_3(start, end, edge);
+        if (Math.abs(start - end) > 1e-9) {
+          maker.Add_3(start, end, edge);
+          const anchor = overrides.find(entry => entry.shape.IsSame(edge))?.startPoint;
+          if (anchor) {
+            if (![anchor.x,anchor.y,anchor.z].every(Number.isFinite)) throw new Error("Fillet start anchor is invalid");
+            const contour = maker.Contour(edge), first = maker.FirstVertex(contour), last = maker.LastVertex(contour);
+            const a = oc.BRep_Tool.Pnt(first), b = oc.BRep_Tool.Pnt(last);
+            try {
+              const da = Math.hypot(a.X()-anchor.x,a.Y()-anchor.y,a.Z()-anchor.z);
+              const db = Math.hypot(b.X()-anchor.x,b.Y()-anchor.y,b.Z()-anchor.z);
+              if (Math.min(da,db)>1e-4 || Math.abs(da-db)<1e-7) throw new Error("Fillet start anchor no longer resolves to a contour endpoint; reselect the edge");
+              if (db<da) {
+                let edgeIndex=0;
+                for(let index=1;index<=maker.NbEdges(contour);index++) {
+                  const candidate=maker.Edge(contour,index);
+                  try {if(candidate.IsSame(edge)){edgeIndex=index;break;}} finally {candidate.delete();}
+                }
+                if(!edgeIndex)throw new Error("Fillet edge no longer belongs to its contour");
+                maker.SetRadius_2(end,start,contour,edgeIndex);
+              }
+            } finally {a.delete();b.delete();first.delete();last.delete();}
+          }
+        }
         else maker.Add_2(start, edge);
         added++;
       }
@@ -883,6 +1022,7 @@ function edgeIsFinishTarget(brep, edge, selection) {
 export async function chamferBrep(brep, distance, options = {}) {
   if (!brep?.shape) throw new Error("Chamfer needs a BREP shape");
   const oc = brep.oc || await loadCadKernel();
+  if(options.mode && options.mode!=="equal-distance" && !brep.subshapes?.size)extractBrepTopology(brep);
   const maker = new oc.BRepFilletAPI_MakeChamfer(brep.shape);
   const progress = new oc.Message_ProgressRange_1();
   const finish = finishEdgeSelection(brep, options);
@@ -982,11 +1122,52 @@ export async function shellBrep(brep, thickness, options = {}) {
       false,
       progress,
     );
-    if (maker.HasErrors?.() || !maker.IsDone?.()) throw new Error("OpenCascade shell failed");
+    if (maker.HasErrors?.() || !maker.IsDone?.()) return await rotationalShell(brep,faces,thickness,options);
     return { oc, shape: maker.Shape(), kind: "solid", operation: "shell" };
   } finally {
     closingFaces.delete(); progress.delete(); maker.delete();
   }
+}
+
+// OpenCascade's surface offset can fail on a recessed conical shell. For an
+// entirely coaxial line meridian, offset that exact section and revolve it.
+async function rotationalShell(brep,removed,thickness,options){
+ const oc=brep.oc,owned=[],rings=[],skin=[];let axis,origin;
+ const close=(a,b)=>Math.hypot(a.u-b.u,a.v-b.v)<1e-6;
+ const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+ try{
+  const explorer=new oc.TopExp_Explorer_2(brep.shape,oc.TopAbs_ShapeEnum.TopAbs_FACE,oc.TopAbs_ShapeEnum.TopAbs_SHAPE);owned.push(explorer);
+  while(explorer.More()){
+   const face=oc.TopoDS.Face_1(explorer.Current());owned.push(face);const descriptor=faceDescriptor(oc,face),discard=removed.some(f=>f.IsSame(face));
+   if(!['plane','cone','cylinder'].includes(descriptor.surface))throw new Error('Shell offset failed on this surface');
+   const edges=new oc.TopExp_Explorer_2(face,oc.TopAbs_ShapeEnum.TopAbs_EDGE,oc.TopAbs_ShapeEnum.TopAbs_SHAPE);owned.push(edges);const points=[];
+   while(edges.More()){
+    const edge=oc.TopoDS.Edge_1(edges.Current());owned.push(edge);const d=edgeDescriptor(oc,edge);
+    if(d.curve==='circle'){
+     if(!axis){axis={...d.axis};const key=['x','y','z'].sort((a,b)=>Math.abs(axis[b])-Math.abs(axis[a]))[0];if(axis[key]<0)axis={x:-axis.x,y:-axis.y,z:-axis.z};origin=d.origin;}
+     const delta={x:d.origin.x-origin.x,y:d.origin.y-origin.y,z:d.origin.z-origin.z},v=dot(delta,axis);
+     if(Math.abs(Math.abs(dot(d.axis,axis))-1)>1e-6 || Math.hypot(delta.x-axis.x*v,delta.y-axis.y*v,delta.z-axis.z*v)>1e-6)throw new Error('Shell surfaces are not coaxial');
+     const p={u:d.radius,v};if(!points.some(q=>close(p,q)))points.push(p);
+    }else if(d.curve!=='line')throw new Error('Shell meridian is not linear');
+    edges.Next();
+   }
+   if(discard){if(descriptor.surface!=='plane'||points.length!==1)throw new Error('Shell requires two disk openings');rings.push(points[0]);}
+   else {if(points.length!==2)throw new Error('Shell meridian is not a single open chain');skin.push(points);}
+   explorer.Next();
+  }
+  if(rings.length!==2)throw new Error('Shell requires two disk openings');
+  let points=[rings[0]],remaining=skin.slice();
+  while(remaining.length){const index=remaining.findIndex(pair=>pair.some(p=>close(p,points.at(-1))));if(index<0)throw new Error('Shell meridian is disconnected');const pair=remaining.splice(index,1)[0];points.push(close(pair[0],points.at(-1))?pair[1]:pair[0]);}
+  if(!close(points.at(-1),rings[1]))throw new Error('Shell openings do not bound the meridian');
+  const polygon=points.concat([{u:0,v:points.at(-1).v},{u:0,v:points[0].v}]);let area=0;polygon.forEach((a,i)=>{const b=polygon[(i+1)%polygon.length];area+=a.u*b.v-b.u*a.v;});if(area<0)points.reverse();
+  const segments=shellMeridian(points,(options.direction==='outside'?-1:1)*thickness,options.join || 'round');
+  const local=await makeBrepRevolve({points:segments.map(s=>s.from),segments,axis:'y',angle:360,radialProfile:true});
+  try{
+   const seed=Math.abs(axis.y)<.9?{x:0,y:1,z:0}:{x:1,y:0,z:0},x=normalizedVector({x:seed.y*axis.z-seed.z*axis.y,y:seed.z*axis.x-seed.x*axis.z,z:seed.x*axis.y-seed.y*axis.x}),z={x:x.y*axis.z-x.z*axis.y,y:x.z*axis.x-x.x*axis.z,z:x.x*axis.y-x.y*axis.x};
+   const result=await placeBrep(local,{matrix:[x.x,axis.x,z.x,x.y,axis.y,z.y,x.z,axis.z,z.z],translation:origin});
+   try{await validateBrepForExport(result);return result;}catch(error){disposeBrep(result);throw error;}
+  }finally{disposeBrep(local);}
+ }finally{disposeAll(owned);}
 }
 
 function shapeHasSolid(oc, shape) {
@@ -1169,13 +1350,14 @@ export async function moveBodyBrep(brep, options = {}) {
     shift.SetTranslation_1(vector);
     const combined = shift.Multiplied(rotation); owned.push(combined);
     const maker = new oc.BRepBuilderAPI_Transform_2(brep.shape, combined, true); owned.push(maker);
-    moved = { oc, shape: maker.Shape(), kind: brep.kind || "solid", operation: "moveBody" };
+    const placement={matrix:Array.from({length:9},(_,i)=>combined.Value(Math.floor(i/3)+1,i%3+1)),translation:{x:combined.Value(1,4),y:combined.Value(2,4),z:combined.Value(3,4)}};
+    moved = { oc, shape: maker.Shape(), kind: brep.kind || "solid", operation: "moveBody",placement };
     if (!options.copy) return moved;
     const both = await compoundBrep([{ oc, shape: brep.shape }, moved]);
-    both.operation = "moveBody";
-    moved = null;
+    both.operation = "moveBody";both.placement=placement;
+    disposeBrep(moved);moved = null;
     return both;
-  } finally { disposeAll(owned); }
+  } finally { if (options.copy && moved) disposeBrep(moved); disposeAll(owned); }
 }
 
 /* Rib: a drawn line braced into a web.
@@ -1290,9 +1472,46 @@ function mapSketchPoint(axisName, u, v, w) {
    pull direction keeps its size. The neutral plane is perpendicular to the pull
    direction and sits at one extreme of the body along it (`neutral`), which is
    where a parting line actually falls, plus an explicit offset. */
+// A circular planar face defines the base of an exact spherical cap.
+export async function domeBrep(brep, height, options = {}) {
+  if (!brep?.shape) throw new Error("Dome needs a solid body");
+  height=Number(height);
+  if (!(height>0) || !Number.isFinite(height)) throw new Error("Dome height must be positive");
+  const oc=brep.oc || await loadCadKernel();
+  const faces=selectedBrepSubshapes(brep,"face",options.facePersistentIds || []);
+  if(faces.length!==1)throw new Error("Select one circular planar face for Dome");
+  const descriptor=faceDescriptor(oc,faces[0]);
+  if(descriptor.surface!=="plane")throw new Error("Dome requires a circular planar face");
+  const edges=[],samples=[], explorer=new oc.TopExp_Explorer_2(faces[0],oc.TopAbs_ShapeEnum.TopAbs_EDGE,oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+  try{while(explorer.More()){const edge=oc.TopoDS.Edge_1(explorer.Current());try{edges.push(edgeDescriptor(oc,edge));const curve=new oc.BRepAdaptor_Curve_2(edge);try{const first=curve.FirstParameter(),last=curve.LastParameter();for(let i=0;i<=32;i++){const point=curve.Value(first+(last-first)*i/32);try{samples.push(pointOf(point));}finally{point.delete();}}}finally{curve.delete();}}finally{edge.delete();}explorer.Next();}}finally{explorer.delete();}
+  const edge=edges[0];let radius=edge?.radius,center=edge?.origin;
+  // Loft interpolation may represent a circular rim with rational splines.
+  // Require the entire boundary, area and perimeter to agree with a disk.
+  if(edges.length && edges.every(e=>e.curve==="bspline" || e.curve==="circle") && edges.some(e=>e.curve!=="circle")){
+    center=descriptor.origin;radius=Math.sqrt(descriptor.measure/Math.PI);
+    const tolerance=Math.max(1e-7,radius*1e-6),perimeter=edges.reduce((sum,e)=>sum+e.measure,0);
+    if(samples.some(p=>Math.abs(Math.hypot(p.x-center.x,p.y-center.y,p.z-center.z)-radius)>tolerance) || Math.abs(perimeter-2*Math.PI*radius)>tolerance*10)throw new Error("Dome requires a full circular face without holes");
+    for(const e of edges){e.curve="circle";e.radius=radius;e.origin=center;}
+  }
+  if(!edge || edges.some(e=>e.curve!=="circle" || Math.abs(e.radius-radius)>1e-6 || Math.hypot(e.origin.x-center.x,e.origin.y-center.y,e.origin.z-center.z)>1e-6) || Math.abs(descriptor.measure-Math.PI*radius*radius)>Math.max(1e-7,descriptor.measure*1e-5))throw new Error("Dome requires a full circular face without holes");
+  const sphereRadius=(radius*radius+height*height)/(2*height),axisPoint={u:0,v:0},rim={u:radius,v:0},tip={u:0,v:height};
+  const midpointAngle=(Math.atan2(sphereRadius-height,radius)+Math.PI/2)/2;
+  const segments=[{type:"line",from:axisPoint,to:rim},{type:"arc",from:rim,to:tip,mid:{u:sphereRadius*Math.cos(midpointAngle),v:height-sphereRadius+sphereRadius*Math.sin(midpointAngle)},center:{u:0,v:height-sphereRadius},radius:sphereRadius,clockwise:false},{type:"line",from:tip,to:axisPoint}];
+  const n=descriptor.normal,seed=Math.abs(n.y)<.9?{x:0,y:1,z:0}:{x:1,y:0,z:0};
+  const x=normalizedVector({x:seed.y*n.z-seed.z*n.y,y:seed.z*n.x-seed.x*n.z,z:seed.x*n.y-seed.y*n.x});
+  const z={x:x.y*n.z-x.z*n.y,y:x.z*n.x-x.x*n.z,z:x.x*n.y-x.y*n.x};
+  let cap,placed;
+  try{
+    cap=await makeBrepRevolve({points:[axisPoint,rim,tip],segments,axis:"y",angle:360,radialProfile:true});
+    placed=await placeBrep(cap,{matrix:[x.x,n.x,z.x,x.y,n.y,z.y,x.z,n.z,z.z],translation:center});
+    return await booleanBrep("union",brep,placed);
+  }finally{if(placed)disposeBrep(placed);if(cap)disposeBrep(cap);}
+}
+
 export async function draftBrep(brep, angleDegrees, options = {}) {
   if (!brep?.shape) throw new Error("Draft needs a BREP shape");
   const oc = brep.oc || await loadCadKernel();
+  if(Number(angleDegrees)===0)return translateBrep(brep,{x:0,y:0,z:0});
   const faces = selectedBrepSubshapes(brep, "face", options.facePersistentIds || options.faces || []);
   if (!faces.length) throw new Error("Draft has no resolved faces");
   const angle = ((Number(angleDegrees) || 0) * Math.PI) / 180;
@@ -1515,6 +1734,15 @@ export async function unifyBrepFaces(brep) {
    rule the option states, and a measure-zero contact is not one. A boolean that
    fails answers "apart": leaving two bodies standing is the recoverable
    mistake, fusing them on a failed test is not. */
+// Unlike the pattern convenience predicate, manufacturing scope must propagate
+// kernel failures: a failed intersection is unknown, never a proven miss.
+export async function brepMaterialIntersection(left,right,tolerance=1e-10){
+  if(!left?.shape||!right?.shape)throw new Error("Exact intersection requires two solids");
+  let common;
+  try{common=await booleanBrep("intersect",left,right);const volume=shapeHasSolid(common.oc,common.shape)?Math.abs(shapeVolume(common.oc,common.shape)):0;return {intersects:volume>tolerance,volume};}
+  finally{if(common)disposeBrep(common);}
+}
+
 export async function brepsOverlap(left, right, tolerance = 1e-9) {
   if (!left?.shape || !right?.shape) return false;
   let common = null;
@@ -1576,8 +1804,10 @@ export async function compoundBrep(inputs=[]) {
 
 export async function linearPatternBrep(source,params={}) {
   if(!source?.shape)throw new Error("Pattern seed is unavailable");const count=Math.max(1,Math.round(Number(params.count)||1)),vector=params.vector || {x:0,y:0,z:0},copies=[source];
+  try {
   for(let index=1;index<count;index++)copies.push(await transformBrep(source,{origin:{x:-Number(vector.x||0)*index,y:-Number(vector.y||0)*index,z:-Number(vector.z||0)*index}}));
-  const result=await compoundBrep(copies);copies.slice(1).forEach((copy)=>disposeBrep(copy));return result;
+  return await compoundBrep(copies);
+  } finally {copies.slice(1).forEach(disposeBrep);}
 }
 
 export async function linearGridPatternBrep(source,params={}) {
@@ -1590,9 +1820,11 @@ export async function linearGridPatternBrep(source,params={}) {
 }
 
 export async function circularPatternBrep(source,params={}) {
-  if(!source?.shape)throw new Error("Pattern seed is unavailable");const oc=source.oc || await loadCadKernel(),count=Math.max(1,Math.min(256,Math.round(Number(params.count)||1))),step=(Number(params.angle)||360/count)*Math.PI/180,copies=[source],skipped=new Set((params.skipIndices || []).map((value)=>Math.round(Number(value)))),distance=Number(params.radialDistance)||0;
-  for(let index=1;index<count;index++){if(skipped.has(index))continue;const origin=new oc.gp_Pnt_3(params.axis==="x"?0:-distance,params.axis==="x"?-distance:0,0),direction=new oc.gp_Dir_4(params.axis==="x"?1:0,params.axis==="y"||!params.axis?1:0,params.axis==="z"?1:0),axis=new oc.gp_Ax1_2(origin,direction),trsf=new oc.gp_Trsf_1();let maker;try{trsf.SetRotation_1(axis,step*index);maker=new oc.BRepBuilderAPI_Transform_2(source.shape,trsf,true);copies.push({oc,shape:maker.Shape(),kind:"pattern-copy"});}finally{maker?.delete?.();trsf.delete();axis.delete();direction.delete();origin.delete();}}
-  const result=await compoundBrep(copies);copies.slice(1).forEach((copy)=>disposeBrep(copy));return result;
+  if(!source?.shape)throw new Error("Pattern seed is unavailable");const oc=source.oc || await loadCadKernel(),count=Math.max(1,Math.min(256,Math.round(Number(params.count)||1))),step=(Number(params.angle)||360/count)*Math.PI/180,copies=[source],skipped=new Set((params.skipIndices || []).map((value)=>Math.round(Number(value)))),pivot=circularPatternPivot(params);
+  try {
+  for(let index=1;index<count;index++){if(skipped.has(index))continue;const origin=new oc.gp_Pnt_3(pivot.x,pivot.y,pivot.z),direction=new oc.gp_Dir_4(params.axis==="x"?1:0,params.axis==="y"||!params.axis?1:0,params.axis==="z"?1:0),axis=new oc.gp_Ax1_2(origin,direction),trsf=new oc.gp_Trsf_1();let maker;try{trsf.SetRotation_1(axis,step*index);maker=new oc.BRepBuilderAPI_Transform_2(source.shape,trsf,true);copies.push({oc,shape:maker.Shape(),kind:"pattern-copy"});}finally{maker?.delete?.();trsf.delete();axis.delete();direction.delete();origin.delete();}}
+  return await compoundBrep(copies);
+  } finally {copies.slice(1).forEach(disposeBrep);}
 }
 
 /* A pattern along a curve. Each copy is one rigid transform — the rotation the
@@ -1683,9 +1915,43 @@ export async function deserializeBrep(data, fileName = "shape.brep") {
   }
 }
 
+// Manufacturing exchange defaults to solids. Surface exchange is deliberate:
+// callers may set allowSurfaces, but invalid topology is never transferable.
+export async function validateBrepForExport(brep, options = {}) {
+  if (!brep?.shape || brep.shape.IsNull()) throw new Error("Export requires a nonempty BREP shape");
+  const oc = brep.oc || await loadCadKernel();
+  const maximumTolerance = Number(options.maxToleranceCm ?? 0.001);
+  if (!Number.isFinite(maximumTolerance) || maximumTolerance <= 0) throw new Error("Export tolerance must be positive and finite");
+  const analyzer = new oc.BRepCheck_Analyzer(brep.shape, true, false);
+  const tolerance = new oc.ShapeAnalysis_ShapeTolerance();
+  const pieces = [];
+  try {
+    if (!analyzer.IsValid_2()) throw new Error("Export blocked: invalid BREP topology or geometry; repair the body first");
+    const actualTolerance = tolerance.Tolerance(brep.shape, 1, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+    if (!Number.isFinite(actualTolerance) || actualTolerance > maximumTolerance) throw new Error("Export blocked: body tolerance exceeds " + maximumTolerance + " cm");
+    pieces.push(...solidPieces(oc, brep.shape));
+    if (!pieces.length && !options.allowSurfaces) throw new Error("Export blocked: no closed solid; use surface exchange for an intentional sheet body");
+    for (const piece of pieces) {
+      if (!Number.isFinite(piece.volume) || piece.volume <= 0) throw new Error("Export blocked: solid has zero, negative or nonfinite volume");
+    }
+    // Detect loose faces inside a compound containing otherwise valid solids.
+    const loose = new oc.TopExp_Explorer_2(brep.shape, oc.TopAbs_ShapeEnum.TopAbs_FACE, oc.TopAbs_ShapeEnum.TopAbs_SOLID);
+    try {
+      if (!pieces.length && !loose.More()) throw new Error("Export blocked: no solid or surface geometry");
+      if (loose.More() && !options.allowSurfaces) throw new Error("Export blocked: body contains faces outside closed solids");
+    }
+    finally { loose.delete(); }
+    return { valid:true, solidCount:pieces.length, volumeCm3:pieces.reduce((sum,piece)=>sum+piece.volume,0), maxToleranceCm:actualTolerance };
+  } finally {
+    for (const piece of pieces) piece.shape.delete();
+    tolerance.delete(); analyzer.delete();
+  }
+}
+
 export async function exportStep(brep, fileName = "model.step", options = {}) {
   if (!brep?.shape) throw new Error("No BREP shape to export");
   const oc = brep.oc || await loadCadKernel();
+  await validateBrepForExport(brep, options);
   // The first writer registers the STEP resource parameters in this WASM
   // build.  A writer snapshots the cascade/output units at construction, so
   // the real writer must be created only after both values are configured.
@@ -1696,8 +1962,9 @@ export async function exportStep(brep, fileName = "model.step", options = {}) {
   const writer = new oc.STEPControl_Writer_1(), progress = new oc.Message_ProgressRange_1();
   const path = "/" + fileName.replace(/[^a-z0-9_.-]/gi, "_");
   try {
-    writer.Transfer(brep.shape, oc.STEPControl_StepModelType.STEPControl_AsIs, true, progress);
-    writer.Write(path);
+    const transferred = writer.Transfer(brep.shape, oc.STEPControl_StepModelType.STEPControl_AsIs, true, progress);
+    if (transferred.value !== oc.IFSelect_ReturnStatus.IFSelect_RetDone.value) throw new Error("STEP transfer failed");
+    if (writer.Write(path).value !== oc.IFSelect_ReturnStatus.IFSelect_RetDone.value) throw new Error("STEP writer failed");
     const bytes = oc.FS.readFile(path);
     return new Uint8Array(bytes);
   } finally {
@@ -1706,14 +1973,25 @@ export async function exportStep(brep, fileName = "model.step", options = {}) {
   }
 }
 
-export async function exportIges(brep, fileName = "model.igs") {
+export async function exportIges(brep, fileName = "model.igs", options = {}) {
   if (!brep?.shape) throw new Error("No BREP shape to export");
-  const oc = brep.oc || await loadCadKernel(), writer = new oc.IGESControl_Writer_1();
+  await validateBrepForExport(brep, options);
+  const oc = brep.oc || await loadCadKernel();
+  const bootstrapWriter = new oc.IGESControl_Writer_1();
+  oc.Interface_Static.SetCVal("xstep.cascade.unit", "CM");
+  bootstrapWriter.delete();
+  const writer = new oc.IGESControl_Writer_2("CM", 1);
+  const modelHandle=writer.Model(),model=modelHandle.get(),header=model.GlobalSection();
+  try { header.SetCascadeUnit(CAD_WORKING_UNIT.millimetersPerUnit);model.SetGlobalSection(header); }
+  finally { header.delete();modelHandle.delete(); }
+  const progress = new oc.Message_ProgressRange_1();
   const path = "/" + fileName.replace(/[^a-z0-9_.-]/gi, "_");
   try {
-    writer.AddShape(brep.shape); writer.ComputeModel(); writer.Write(path);
+    if (!writer.AddShape(brep.shape, progress)) throw new Error("IGES transfer failed");
+    writer.ComputeModel();
+    if (!writer.Write_2(path, false)) throw new Error("IGES writer failed");
     return new Uint8Array(oc.FS.readFile(path));
-  } finally { try { oc.FS.unlink(path); } catch (_) {} writer.delete(); }
+  } finally { try { oc.FS.unlink(path); } catch (_) {} writer.delete(); progress.delete(); }
 }
 
 export async function importStep(data, fileName = "import.step", options = {}) {

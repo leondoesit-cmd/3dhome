@@ -170,3 +170,27 @@ test("a reusable model survives edit, instances, undo/redo, reload, and project 
     await page.close();
   }
 });
+
+for (const existingRadius of [false, true]) test(`legacy cylinder saves with ${existingRadius ? 'its existing' : 'a derived'} radius parameter`, opts, async () => {
+  const page = await openPage({width:1280,height:800,lang:'en'});
+  try {
+    await page.eval(async (existingRadius) => {
+      const {openModeler} = await import('/js/modeler.js');
+      const parameters = Object.fromEntries([['width',100],['depth',100],['height',80]].map(([name,value])=>[name,{id:name,name,value,exposure:'planner'}]));
+      if(existingRadius)parameters.radius={id:'custom-radius',name:'radius',value:50,expression:'width / 2',exposure:'internal'};
+      openModeler(null,{id:'definition:cylinder',definitionId:'definition:cylinder',key:'cm_cylinder_qa',name:'Cylinder QA',w:100,d:100,h:80,metadata:{authoringSystem:'legacy-adapter'},parameters,parts:[{id:'cylinder-body',featureId:'cylinder-feature',kind:'cyl',x:0,y:0,z:0,r:50,r2:50,h:80,parametricEnvelope:'cylinder'}]},null);
+      document.querySelector('#mdWelcome [data-welcome-start="continue"]')?.click();
+      document.querySelector('.md-welcome-close')?.click();document.getElementById('mdSave').click();
+    },existingRadius);
+    await waitUntil(page,async()=>!!(await import('/js/state.js')).S.parametric.definitions['definition:cylinder'],'the cylinder did not save');
+    const result=await page.eval(async()=>{
+      const definition=(await import('/js/state.js')).S.parametric.definitions['definition:cylinder'];
+      const {resolveParameters}=await import('/js/core/rebuild.js');
+      return {parameter:definition.parameters.radius,resolved:resolveParameters(definition,{width:160,height:100})};
+    });
+    assert.equal(result.resolved.values.radius,80);
+    assert.equal(result.resolved.issues.some(issue=>issue.severity==='error'),false);
+    assert.equal(result.parameter.expression,existingRadius?'width / 2':'width/2');
+    if(existingRadius)assert.equal(result.parameter.id,'custom-radius');
+  } finally {await page.close();}
+});

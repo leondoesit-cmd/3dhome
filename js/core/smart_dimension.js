@@ -95,20 +95,19 @@ export function evaluateDimensionRequest(definition, instance, dimension, reques
     };
   }
   if (Array.isArray(allowed) && allowed.length) value = nearest(value, allowed);
-  const linked = (definition.rules?.linkedDimensions || []).find((link) => link.source === dimension);
-  if (linked && linked.relation === "equal") {
-    const currentTarget = Number(instance?.parameterOverrides?.[linked.target] ?? definition.parameters?.[linked.target]?.value);
-    if (!finite(currentTarget) || Math.abs(currentTarget - value) > 1e-6) {
-      const parameters = { [dimension]: value, [linked.target]: value };
-      if (linked.prompt !== false) return {
-        status: "proposal",
-        code: "linked-dimension-change",
-        requested: value,
-        message: dimension + " and " + linked.target + " are linked by the product configuration",
-        alternatives: [alternative("Keep " + dimension + " and " + linked.target + " equal", parameters, instance?.configuration || {}, "Preserves the authored product relationship", dimension + ":linked:" + linked.target + ":" + value)],
-      };
-      return { status: "applied", parameters, configuration: instance?.configuration || {}, message: "Rebuilt from linked parameters" };
-    }
+  const links=definition.rules?.linkedDimensions||[],seen=new Set([dimension]),queue=[dimension],parameters={[dimension]:value};
+  let prompt=false;
+  for(let index=0;index<queue.length;index++)for(const link of links.filter(link=>link.source===queue[index]&&link.relation==='equal')){
+    if(seen.has(link.target))continue;seen.add(link.target);queue.push(link.target);
+    const check=evaluateDimensionRequest({...definition,rules:{...definition.rules,linkedDimensions:[]}},instance,link.target,value);
+    if(check.status!=='applied'||check.parameters[link.target]!==value)return {status:'rejected',code:'linked-dimension-unavailable',message:'Linked dimension '+link.target+' cannot accept this size'};
+    parameters[link.target]=value;
+    const current=Number(instance?.parameterOverrides?.[link.target]??definition.parameters?.[link.target]?.value);
+    if((!finite(current)||Math.abs(current-value)>1e-6)&&link.prompt!==false)prompt=true;
+  }
+  if(queue.length>1){
+    if(prompt)return {status:'proposal',code:'linked-dimension-change',requested:value,message:queue.join(', ')+' are linked by the product configuration',alternatives:[alternative('Keep linked dimensions equal',parameters,instance?.configuration||{},'Preserves every linked relationship')]};
+    return {status:'applied',parameters,configuration:instance?.configuration||{},message:'Rebuilt from linked parameters'};
   }
   const module = definition.rules?.module;
   if (module && module.dimension === dimension) {
@@ -117,6 +116,8 @@ export function evaluateDimensionRequest(definition, instance, dimension, reques
     if (span < module.minSpan || span > module.maxSpan) {
       const ideal = clamp(Math.ceil(value / module.maxSpan), module.minCount || 1, module.maxCount || 99);
       const candidates = new Set([ideal, clamp(Math.round(value / ((module.minSpan + module.maxSpan) / 2)), module.minCount || 1, module.maxCount || 99)]);
+      for(const count of candidates)if(value/count<module.minSpan || value/count>module.maxSpan)candidates.delete(count);
+      if(!candidates.size)return {status:"rejected",code:"module-span-unavailable",requested:value,message:"No supported module count can accommodate this size",alternatives:[]};
       const coupled = definition.rules?.coupledCounts || [];
       return {
         status: "proposal",

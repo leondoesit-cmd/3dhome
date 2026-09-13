@@ -23,7 +23,12 @@ export function surfacePoint(descriptor,u,v) {
 
 export function surfaceNormal(descriptor,u,v) {
   const point=surfacePoint(descriptor,u,v),center=descriptor.surface==="sphere"?(descriptor.center || descriptor.origin):add(descriptor.origin || {x:0,y:0,z:0},mul(unit(descriptor.axis || {x:0,y:1,z:0}),v));
-  return unit({x:point.x-center.x,y:point.y-center.y,z:point.z-center.z});
+  const radial=unit({x:point.x-center.x,y:point.y-center.y,z:point.z-center.z});
+  if(descriptor.surface==='cone'){
+    const axis=unit(descriptor.axis || {x:0,y:1,z:0}),angle=Number(descriptor.angle)||0;
+    return unit(add(mul(radial,Math.cos(angle)),mul(axis,-Math.sin(angle))));
+  }
+  return radial;
 }
 
 export function createSurfaceSketch(reference,options={}) {

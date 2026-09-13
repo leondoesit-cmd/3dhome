@@ -40,7 +40,7 @@ test("only a tool that draws opens the sketch sheet over the model", () => {
 });
 
 test("sketch tools that edit refuse an empty new sketch instead of opening one", () => {
-  assert.match(source, /var SKETCH_DRAW_TOOLS = \["wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell"\]/);
+  assert.match(source, /var SKETCH_DRAW_TOOLS = \["wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline"\]/);
   const setTool = body("setTool");
   assert.match(setTool, /if\(!SKETCH_DRAW_TOOLS\.includes\(id\)\) \{ flash\(t\("needSketchForTool"\)\); return; \}/);
   assert.match(strings, /needSketchForTool: \["[^"]+", "[^"]+"\]/);

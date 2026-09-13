@@ -1,3 +1,5 @@
+import { cylinderAxis } from "./core/cylinder_axis.js";
+import { frameFromPlane } from "./core/frame.js";
 // Per-face / per-body appearances and press-fit inserts. An appearance override
 // stores a topology reference plus a material; it never mutates the solid, so
 // a brass bushing lining and a painted housing can share one body tree.
@@ -17,6 +19,7 @@ export function createAppearanceOverride(options = {}) {
     persistentId: options.persistentId || null,
     kind: options.kind || "face",
     material: options.material || null,
+    opacity: Number.isFinite(Number(options.opacity)) ? Math.max(0, Math.min(1, Number(options.opacity))) : 1,
     name: options.name || stock?.name || "Custom",
     color: options.color || stock?.color || "#888888",
     metal: Number.isFinite(Number(options.metal)) ? Number(options.metal) : (stock?.metal ?? 0.1),
@@ -68,7 +71,7 @@ export function normalizeInsertFeature(params = {}) {
     color: params.color || stock.color, metal: stock.metal, rough: stock.rough,
     mergeResult: false,
     origin: params.origin || { x: 0, y: 0, z: 0 },
-    axis: params.axis || { x: 0, y: 1, z: 0 },
+    axis: cylinderAxis(params.axis),
   };
 }
 
@@ -86,11 +89,11 @@ export function insertBody(params) {
   return {
     kind: "ext",
     name: insert.materialName + " insert",
-    axis: "y",
-    from: insert.origin.y, to: insert.origin.y + insert.length,
+    axis: insert.axis,
+    frame: frameFromPlane(insert.origin,insert.axis),
+    from: 0, to: insert.length,
     pts: outer,
     holes: [hole],
-    x: insert.origin.x, z: insert.origin.z,
     color: insert.color, metal: insert.metal, rough: insert.rough,
     materialName: insert.materialName,
     manufacturingRole: "insert",

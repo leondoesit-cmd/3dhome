@@ -53,7 +53,7 @@ test("a cached exact solid is exported only for the document and revision it cam
   assert.match(current, /E\.brepStamp\.node === now\.node/);
 
   // A failed regeneration leaves no stamp behind for the next export to trust.
-  assert.match(body("regenerateExactModel"), /E\.brepStamp = null/);
+  assert.match(body("regenerateExactModelNow"), /E\.brepStamp = null/);
 });
 
 test("the exact run is released by every path that stops using it", () => {
@@ -113,8 +113,8 @@ test("every path that replaces the open document asks about unsaved work first",
   assert.match(body("newModel"), /confirmDiscardDocument\("unsavedNew"\)[\s\S]{0,400}?discardModelerDraft\(\)/);
   assert.match(body("requestCloseModeler"), /confirmDiscardDocument\("unsavedClose"\)/);
   const lib = body("refreshLib");
-  assert.equal((lib.match(/confirmDiscardDocument\("unsavedOpen"\)/g) || []).length, 2,
-    "the assembly card and the part card each need the guard");
+  assert.equal((lib.match(/confirmDiscardDocument\("unsavedOpen"\)/g) || []).length, 3,
+    "assembly open, part open, and save-copy-and-open each need the guard");
   // The prompt exists in both languages.
   assert.match(strings, /unsavedOpen: \["[^"]+", "[^"]+"\]/);
 

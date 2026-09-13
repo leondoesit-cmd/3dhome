@@ -1,6 +1,10 @@
+import { cylinderAxis, cylinderBounds } from "./core/cylinder_axis.js";
+import { revolveInterval, revolvePlacement, revolveBounds } from "./core/revolve_geometry.js";
 // Interference Detection, Mass Properties & Bill of Materials (BOM).
 
-import { booleanBrep } from "./cad_kernel.js";
+import {rotationOf} from "./cad_mate_model.js";
+import {applyRigidMatrix,rotatedPatternBounds} from "./core/pattern_geometry.js";
+import { brepsOverlap } from "./cad_kernel.js";
 import { framePoint } from "./core/frame.js";
 import { bomIdentity } from "./toolbox/schema.js";
 
@@ -15,8 +19,7 @@ export async function detectInterference(assemblyComponents) {
       const overlap = a && b ? intersectionBounds(a, b) : null;
       if (c1.brep?.shape && c2.brep?.shape) {
         try {
-          const res = await booleanBrep("intersect", c1.brep, c2.brep);
-          if (res?.shape) {
+          if (await brepsOverlap(c1.brep, c2.brep)) {
             interferences.push({
               a: c1.id,
               b: c2.id,
@@ -51,11 +54,21 @@ export function componentBounds(component) {
   for (const p of parts) {
     let b=null;
     if(p.kind==="box") b={x0:Math.min(p.x0,p.x1),x1:Math.max(p.x0,p.x1),y0:Math.min(p.y0,p.y1),y1:Math.max(p.y0,p.y1),z0:Math.min(p.z0,p.z1),z1:Math.max(p.z0,p.z1)};
-    else if(p.kind==="cyl"||p.kind==="sph"){const r=p.r||0,h=p.kind==="cyl"?p.h:r*2;b={x0:p.x-r,x1:p.x+r,y0:p.kind==="cyl"?p.y:p.y-r,y1:p.kind==="cyl"?p.y+h:p.y+r,z0:p.z-r,z1:p.z+r};}
+    else if(p.kind==="cyl")b=cylinderBounds(p);
+    else if(p.kind==="rev")b=revolveBounds(p);
+    else if(p.kind==="sph"){const r=p.r||0,h=p.kind==="cyl"?p.h:r*2;b={x0:p.x-r,x1:p.x+r,y0:p.kind==="cyl"?p.y:p.y-r,y1:p.kind==="cyl"?p.y+h:p.y+r,z0:p.z-r,z1:p.z+r};}
+    else if(p.kind==="ext"&&Array.isArray(p.pts)&&p.pts.length){
+      const points=p.pts.flatMap(q=>[extrusionPoint(p,q.u,q.v,p.from),extrusionPoint(p,q.u,q.v,p.to)]);
+      b={};for(const axis of ['x','y','z']){b[axis+'0']=Math.min(...points.map(q=>q[axis]));b[axis+'1']=Math.max(...points.map(q=>q[axis]));}
+    }
+    if(p.suppressed||p.visible===false)continue;
+    if(b)b=rotatedPatternBounds(b,p.patternRotations||[]);
     if(!b) continue; for(const k of Object.keys(out)) out[k]=k.endsWith("0")?Math.min(out[k],b[k]):Math.max(out[k],b[k]);
   }
   if(!Number.isFinite(out.x0)) return null;
-  const t=component.transform||{}; out.x0+=t.x||0;out.x1+=t.x||0;out.y0+=t.y||0;out.y1+=t.y||0;out.z0+=t.z||0;out.z1+=t.z||0; return out;
+  const t=component.transform||{},rotation=rotationOf(t).flat(),points=[];
+  for(const x of [out.x0,out.x1])for(const y of [out.y0,out.y1])for(const z of [out.z0,out.z1])points.push(applyRigidMatrix(rotation,{x,y,z}));
+  for(const axis of ['x','y','z']){out[axis+'0']=Math.min(...points.map(p=>p[axis]))+(t[axis]||0);out[axis+'1']=Math.max(...points.map(p=>p[axis]))+(t[axis]||0);}return out;
 }
 
 export function intersectionBounds(a, b) {
@@ -81,6 +94,7 @@ function componentStandardPart(component) {
 export function generateBOM(assembly) {
   const map = new Map();
   for (const comp of assembly.components || []) {
+    if (!comp || comp.suppressed) continue;
     const meta = componentStandardPart(comp);
     const key = (meta && bomIdentity(meta)) || (meta && meta.designation) || comp.modelKey || comp.name || "Unknown";
     const existing = map.get(key) || {
@@ -163,7 +177,8 @@ function partMass(part) {
     const volume = (Math.PI * h * (r0 * r0 + r0 * r1 + r1 * r1)) / 3;
     const denom = r0 * r0 + r0 * r1 + r1 * r1;
     const offset = denom > 1e-9 ? (h * (r0 * r0 + 2 * r0 * r1 + 3 * r1 * r1)) / (4 * denom) : h / 2;
-    return { volume, x: part.x || 0, y: (part.y || 0) + offset, z: part.z || 0 };
+    const axis=cylinderAxis(part.axis),sign=Math.sign(part.h)||1;
+    return {volume,x:(part.x||0)+axis.x*offset*sign,y:(part.y||0)+axis.y*offset*sign,z:(part.z||0)+axis.z*offset*sign};
   }
   if (part.kind === "sph") {
     return { volume: (4 / 3) * Math.PI * Math.pow(Math.abs(part.r) || 0, 3), x: part.x || 0, y: part.y || 0, z: part.z || 0 };
@@ -176,15 +191,18 @@ function partMass(part) {
     return { volume, ...extrusionPoint(part, profile.u, profile.v, (from + to) / 2) };
   }
   if (part.kind === "rev" && Array.isArray(part.pts) && part.pts.length > 2) {
-    // Pappus: revolving the profile about the vertical axis at (x, z).
-    const profile = loopMoments(part.pts);
-    const area = Math.abs(profile.area);
-    const volume = 2 * Math.PI * Math.abs(profile.u) * area;
-    if (volume <= 0) return none;
-    const firstMoment = profile.area * profile.u; // ∫∫ u dA, signed like the loop
-    const product = loopProductMoment(part.pts);  // ∫∫ u·v dA, signed the same way
-    const y = Math.abs(firstMoment) > 1e-9 ? product / firstMoment : profile.v;
-    return { volume, x: part.x || 0, y, z: part.z || 0 };
+    const points=part.pts.map(p=>({u:Math.abs(p.u),v:p.v}));
+    const profile=loopMoments(points),firstMoment=profile.area*profile.u;
+    const {start,end,span}=revolveInterval(part);
+    const volume=span*Math.abs(firstMoment);
+    if(volume<=0)return none;
+    let secondMoment=0;
+    for(let i=0,j=points.length-1;i<points.length;j=i++){
+      const a=points[j],b=points[i],cross=a.u*b.v-b.u*a.v;
+      secondMoment+=cross*(a.u*a.u+a.u*b.u+b.u*b.u)/12;
+    }
+    const radius=secondMoment/firstMoment,height=loopProductMoment(points)/firstMoment;
+    return {volume,...revolvePlacement(part,radius*(Math.cos(start)-Math.cos(end))/span,height,radius*(Math.sin(end)-Math.sin(start))/span)};
   }
   if (part.kind === "loft" && Array.isArray(part.pts0) && Array.isArray(part.pts1)) {
     // Prismatoid rule — exact for a linear loft between two rings.
@@ -223,11 +241,6 @@ function partMass(part) {
     if (Math.abs(volume) < 1e-9) return none;
     return { volume: Math.abs(volume), x: x / volume, y: y / volume, z: z / volume };
   }
-  const bounds = part.bounds;
-  if (bounds && Number.isFinite(bounds.x0) && Number.isFinite(bounds.x1)) {
-    const volume = Math.abs((bounds.x1 - bounds.x0) * (bounds.y1 - bounds.y0) * (bounds.z1 - bounds.z0));
-    return { volume, x: (bounds.x0 + bounds.x1) / 2, y: (bounds.y0 + bounds.y1) / 2, z: (bounds.z0 + bounds.z1) / 2 };
-  }
   return none;
 }
 
@@ -235,6 +248,7 @@ export function computeMassProperties(def, options) {
   const density = Number(options && options.density) > 0 ? Number(options.density) : 7.85; // g/cm³, steel default
   let totalVolume = 0, sx = 0, sy = 0, sz = 0, unmeasured = 0;
   for (const part of def.parts || []) {
+    if (!part || part.suppressed) continue;
     const m = partMass(part);
     if (m.volume <= 0) { unmeasured++; continue; }
     totalVolume += m.volume; sx += m.volume * m.x; sy += m.volume * m.y; sz += m.volume * m.z;

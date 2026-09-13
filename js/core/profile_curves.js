@@ -1,3 +1,4 @@
+import {splineControls,sampleBezier} from "../sketch_spline.js";
 // Typed profile segments: what the sketch actually drew, kept intact on the
 // way to the exact kernel.
 //
@@ -50,7 +51,7 @@ function arcData(entity, points) {
 /* Walk an already-chosen profile into traversal order. The analyzer in
    sketch_profiles.js does the same thing to produce points; it cannot hand us
    the ordering because a profile is stored as a bare point array. */
-function orderChain(entities, points, tolerance) {
+function orderChain(entities, points, tolerance, open=false) {
   const remaining = entities.slice(), first = remaining.shift();
   const ends = (entity) => {
     const a = points.get(entity.a), b = points.get(entity.b);
@@ -70,16 +71,18 @@ function orderChain(entities, points, tolerance) {
     steps.push({ entity: next, forward });
     tail = forward ? p.b : p.a;
   }
-  return near(tail, head.a, tolerance) ? steps : null;
+  return open || near(tail, head.a, tolerance) ? steps : null;
 }
 
 function segmentFor(step, points) {
   const { entity, forward } = step;
+  if(entity.projectedCurve)return {...structuredClone(entity.projectedCurve),reversed:!forward,from:forward?entity.projectedCurve.from:entity.projectedCurve.to,to:forward?entity.projectedCurve.to:entity.projectedCurve.from};
   if (entity.type === "line") {
     const a = points.get(entity.a), b = points.get(entity.b);
     if (!a || !b) return null;
     return forward ? { type: "line", from: at(a), to: at(b) } : { type: "line", from: at(b), to: at(a) };
   }
+  if(entity.type==="spline"){const controls=splineControls(entity,points);if(!controls)return null;const c=(forward?controls:controls.slice().reverse()).map(at);return {type:"bezier",controls:c,from:c[0],to:c[3]};}
   if (entity.type !== "arc") return null;
   const arc = arcData(entity, points);
   if (!arc) return null;
@@ -96,7 +99,7 @@ function segmentFor(step, points) {
 function weld(segments) {
   for (let i = 0; i < segments.length; i++) {
     const next = segments[(i + 1) % segments.length];
-    if (next.from && segments[i].to) next.from = segments[i].to;
+    if (next.from && segments[i].to) {next.from = segments[i].to;if(next.type==="bezier")next.controls[0]=next.from;}
   }
   return segments;
 }
@@ -104,7 +107,7 @@ function weld(segments) {
 // The typed form of a stored profile, or null when the selection is not one we
 // can describe exactly (an unknown entity kind, a broken chain, a deleted
 // point). Null is not an error: the caller still has the sampled points.
-export function sketchProfileSegments(sketch, entityIds, tolerance = 0.05) {
+export function sketchProfileSegments(sketch, entityIds, tolerance = 0.05, options = {}) {
   if (!sketch || !Array.isArray(entityIds) || !entityIds.length) return null;
   const byId = new Map((sketch.entities || []).map((e) => [e.id, e]));
   const entities = entityIds.map((id) => byId.get(id));
@@ -122,11 +125,11 @@ export function sketchProfileSegments(sketch, entityIds, tolerance = 0.05) {
         ? [{ type: "ellipse", center: at(center), rx, ry, rot: Number(entity.rot) || 0 }] : null;
     }
   }
-  if (entities.some((e) => e.type !== "line" && e.type !== "arc")) return null;
-  const ordered = orderChain(entities, points, Math.max(1e-6, tolerance));
+  if (entities.some((e) => e.type !== "line" && e.type !== "arc" && e.type!=="spline")) return null;
+  const ordered = orderChain(entities, points, Math.max(1e-6, tolerance), options.open);
   if (!ordered) return null;
   const segments = ordered.map((step) => segmentFor(step, points));
-  return segments.every(Boolean) && segments.length ? weld(segments) : null;
+  return segments.every(Boolean) && segments.length ? (options.open ? segments : weld(segments)) : null;
 }
 
 // Sample typed segments back into the polyline the mesh side speaks. Used to
@@ -141,6 +144,8 @@ export function segmentProfilePoints(segments) {
   };
   for (const segment of segments) {
     if (segment.type === "line") { push(segment.from); continue; }
+    if(segment.type==="bezier"){sampleBezier(segment.controls.map(p=>({x:p.u,y:p.v}))).slice(0,-1).map(at).forEach(push);continue;}
+    if (segment.type === "kernelCurve") { (segment.reversed ? [...segment.samples].reverse() : segment.samples).forEach(push); continue; }
     if (segment.type === "spline") { (segment.points || []).forEach(push); continue; }
     if (segment.type === "circle" || segment.type === "ellipse") {
       const rx = segment.type === "circle" ? segment.radius : segment.rx;

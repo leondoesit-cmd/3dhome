@@ -1,3 +1,5 @@
+import {evaluateGearService} from "./cad_gear_validation.js";
+import {generatedRackGear,validateGearPair} from "./cad_gear_geometry.js";
 // Standards compliance engine. Standard dimensions are stored in millimetres,
 // independently of the editor's display units. A part is never certified from
 // its name or appearance: it must carry a standard declaration and pass every
@@ -29,7 +31,7 @@ export const STANDARD_CATALOG = Object.freeze({
 // Commercial coarse-pitch series used by ISO metric fasteners. Fine pitches
 // must be declared explicitly and are rejected unless a licensed table pack is
 // installed; guessing a pitch is never treated as compliance.
-const COARSE_PITCH = new Map([[1,0.25],[1.2,0.25],[1.4,0.3],[1.6,0.35],[2,0.4],[2.5,0.45],[3,0.5],[4,0.7],[5,0.8],[6,1],[8,1.25],[10,1.5],[12,1.75],[14,2],[16,2],[18,2.5],[20,2.5],[22,2.5],[24,3],[27,3],[30,3.5],[33,3.5],[36,4],[39,4],[42,4.5],[45,4.5],[48,5],[52,5],[56,5.5],[60,5.5],[64,6]]);
+const COARSE_PITCH = new Map([[1,0.25],[1.2,0.25],[1.4,0.3],[1.6,0.35],[2,0.4],[2.5,0.45],[3,0.5],[3.5,0.6],[4,0.7],[5,0.8],[6,1],[7,1],[8,1.25],[10,1.5],[12,1.75],[14,2],[16,2],[18,2.5],[20,2.5],[22,2.5],[24,3],[27,3],[30,3.5],[33,3.5],[36,4],[39,4],[42,4.5],[45,4.5],[48,5],[52,5],[56,5.5],[60,5.5],[64,6]]);
 const ISO54_MODULES = new Set([0.05,0.06,0.08,0.1,0.12,0.15,0.2,0.25,0.3,0.4,0.5,0.6,0.8,1,1.25,1.5,2,2.5,3,4,5,6,8,10,12,16,20,25,32,40,50]);
 // Installed, versioned dimensional pack used by the tutorial generator.  A
 // size absent from this pack is rejected rather than interpolated.
@@ -114,28 +116,45 @@ function validateHexScrewGeometry(part,def,spec) {
 }
 
 export function involuteGearOutline(spec) {
+  if(spec.rootGeometry==="rack-generated")return generatedRackGear(spec).points;
   const m=Number(spec.moduleMm),z=Number(spec.teeth),alpha=Number(spec.pressureAngleDeg??20)*Math.PI/180;
   if(!(m>0)||!Number.isInteger(z)||z<5)return [];
   const rp=m*z/2,rb=rp*Math.cos(alpha),ra=rp+m,rf=Math.max(0.05,rp-1.25*m),invA=Math.tan(alpha)-alpha,half=Math.PI/(2*z),pts=[];
   const inv=r=>{const rr=Math.max(r,rb);return Math.sqrt((rr/ rb)**2-1)-Math.acos(rb/rr);};
   const polar=(r,a)=>({u:r*Math.cos(a)/10,v:r*Math.sin(a)/10});
   for(let tooth=0;tooth<z;tooth++){
-    const c=tooth*Math.PI*2/z,rootOffset=half+invA;
+    const c=tooth*Math.PI*2/z,rootOffset=half+invA-inv(Math.max(rb,rf));
     pts.push(polar(rf,c-rootOffset));
-    for(let s=0;s<=6;s++){const r=rb+(ra-rb)*s/6;pts.push(polar(r,c-(half+invA-inv(r))));}
+    for(let s=0;s<=6;s++){const r=Math.max(rb,rf)+(ra-Math.max(rb,rf))*s/6;pts.push(polar(r,c-(half+invA-inv(r))));}
     const tip=half+invA-inv(ra);
     for(let s=1;s<=3;s++)pts.push(polar(ra,c-tip+2*tip*s/3));
-    for(let s=6;s>=0;s--){const r=rb+(ra-rb)*s/6;pts.push(polar(r,c+(half+invA-inv(r))));}
+    for(let s=6;s>=0;s--){const r=Math.max(rb,rf)+(ra-Math.max(rb,rf))*s/6;pts.push(polar(r,c+(half+invA-inv(r))));}
     pts.push(polar(rf,c+rootOffset));
   }
-  return pts;
+  return cleanGearLoop(pts);
 }
 
-function validateGearGeometry(part,spec) {
-  const expected=involuteGearOutline(spec),actual=part&&part.pts||[],issues=[];
+function cleanGearLoop(points) {
+  const out=[];
+  for(const p of points){const last=out[out.length-1];if(!last||Math.hypot(p.u-last.u,p.v-last.v)>1e-10)out.push(p);}
+  if(out.length>1&&Math.hypot(out[0].u-out.at(-1).u,out[0].v-out.at(-1).v)<1e-10)out.pop();
+  return out;
+}
+
+function validateGearGeometry(part,spec,service) {
+  let expected;try{expected=involuteGearOutline(spec);}catch(error){return [issue("gear-generation",error.message,"cutter")];}
+  const actual=cleanGearLoop(part&&part.pts||[]),issues=[];
   if(part.kind!=="ext"||part.axis!=="y")issues.push(issue("gear-solid","Gear must be an extruded involute profile","kind"));
   if(actual.length!==expected.length)issues.push(issue("profile-samples","Involute profile sample count differs from the verified generator","pts"));
   else for(let i=0;i<expected.length;i++)if(!near(actual[i].u,expected[i].u,1e-6)||!near(actual[i].v,expected[i].v,1e-6)){issues.push(issue("profile-deviation",`Gear profile deviates at sample ${i+1}`,"pts"));break;}
+  if(spec.rootGeometry!=="rack-generated")issues.push(issue("unverified-gear-root","Reference involute outline uses a radial root transition; cutter-generated root geometry and mating clearance are not verified","rootGeometry"));
+  if(spec.rootGeometry==="rack-generated"){
+    if(!spec.mate)issues.push(issue("missing-mating-gear","Specify a mating gear before checking pair geometry","mate"));
+    else {const pair=validateGearPair(spec,spec.mate);for(const message of pair.issues)issues.push(issue("gear-meshing",message,"mate"));}
+    // Sampled generated geometry still needs production tolerance and load approval.
+    if(service)issues.push(...service.issues);
+    issues.push(issue("production-validation",service?.screeningPassed?"Material/load screening is within supplied limits; full production rating and process approval remain required":"Complete the material qualification, service load and tolerance checks; full production approval remains separate","manufacturing"));
+  }
   return issues;
 }
 
@@ -157,7 +176,7 @@ export function validateStandardPart(part,def={parts:[part]}) {
   if(declaration.family==="hex-screw" && String(declaration.standard||"").indexOf("ISO 4017")===0) {
     const r=validateHexBolt(declaration);r.issues.push(...validateHexScrewGeometry(part,def,declaration));r.ok=r.issues.every(i=>i.severity!=="error");r.status=r.ok?"compliant":"noncompliant";return r;
   }
-  if(declaration.family==="involute-gear") { const r=validateInvoluteGear(declaration);r.issues.push(...validateGearGeometry(part,declaration));r.ok=r.issues.every(i=>i.severity!=="error");r.status=r.ok?"compliant":"noncompliant";return r; }
+  if(declaration.family==="involute-gear") { const r=validateInvoluteGear(declaration);r.serviceAssessment=evaluateGearService(part,def);r.issues.push(...validateGearGeometry(part,declaration,r.serviceAssessment));r.ok=r.issues.every(i=>i.severity!=="error");r.status=r.ok?"compliant":"noncompliant";return r; }
   if(isToolboxFamily(declaration.family)) return validateToolboxSpec(declaration);
   return report(declaration.standard,[issue("unsupported-standard","No verified validator is installed for this standard","standard")], {status:"unsupported"});
 }
@@ -173,8 +192,8 @@ export function auditStandardParts(def) {
   const results=[];
   const seen=new Set();
   for(const part of def.parts||[]){
-    const looksStandard=/(bolt|screw|nut|thread|gear|בורג|אום|גלגל שיניים)/i.test(`${part.name||""} ${part.kind||""}`);
-    if(!(looksStandard||part.standardCompliance||part.standardPart)) continue;
+    // A name is not a declaration of conformance. Audit explicit metadata only.
+    if(!(part.standardCompliance||part.standardPart)) continue;
     const group=part.standardGroupId;
     if(group){
       if(seen.has(group)) continue;
@@ -190,3 +209,5 @@ function report(standard,issues,computed={}) {
   const status=computed.status || (issues.some(i=>i.severity==="error")?"noncompliant":"compliant");
   return {ok:issues.every(i=>i.severity!=="error"),standard,edition:standard?.split(":")[1]||null,issues,computed,status};
 }
+
+export const STANDARD_DIMENSION_TABLES = Object.freeze({coarsePitch:Object.freeze(Object.fromEntries(COARSE_PITCH)),gearModules:Object.freeze(Array.from(ISO54_MODULES)),hexScrews:ISO4017_PACK});

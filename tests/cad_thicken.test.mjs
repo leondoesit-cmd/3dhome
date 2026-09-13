@@ -225,7 +225,7 @@ test("thicken reaches the ribbon, the command handler and the apply path", () =>
   assert.match(partGeometry, /next=await thickenBrep\(solid, operation\.amount/);
   assert.match(modeler, /type:"thicken",amount:thickness,targets:targets/);
   // face-driven, like shell and draft — the selection collector must say "face"
-  assert.match(partGeometry, /var FACE_DRIVEN_OPERATIONS = new Set\(\["shell", "draft", "thicken"\]\);/);
+  assert.match(partGeometry, /var FACE_DRIVEN_OPERATIONS = new Set\(\["shell", "dome", "draft", "thicken"\]\);/);
   assert.match(modeler, /FINISH_AMOUNT_KEY = \{[^}]*thicken:"thickness"/);
 });
 

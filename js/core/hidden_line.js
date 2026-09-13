@@ -476,13 +476,18 @@ export function sectionBodies(bodies, plane) {
       }
       if (corners.some((point) => !Number.isFinite(point.x + point.y + point.z))) continue;
       const distance = corners.map((point) => dot(normal, point) - offset);
+      // An edge on the plane belongs to the retained side once; coplanar
+      // triangles do not contribute their internal triangulation as cuts.
+      const onPlane = corners.filter((point, k) => Math.abs(distance[k]) <= 1e-9);
+      if (onPlane.length === 2 && distance.some(d => d < -1e-9)) cuts.push({a:onPlane[0],b:onPlane[1]});
       if (distance.every((d) => d <= 1e-9)) { pushTriangle(out, corners); continue; }
       if (distance.every((d) => d >= -1e-9)) continue;
       const inside = [], crossings = [];
       for (let k = 0; k < 3; k++) {
         const a = corners[k], b = corners[(k + 1) % 3], da = distance[k], db = distance[(k + 1) % 3];
-        if (da <= 0) inside.push(a);
-        if ((da < 0 && db > 0) || (da > 0 && db < 0)) {
+        if (da <= 1e-9) inside.push(a);
+        if(Math.abs(da)<=1e-9 && !crossings.some(p=>Math.hypot(p.x-a.x,p.y-a.y,p.z-a.z)<1e-9))crossings.push(a);
+        if ((da < -1e-9 && db > 1e-9) || (da > 1e-9 && db < -1e-9)) {
           const t = da / (da - db);
           const point = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t };
           inside.push(point);

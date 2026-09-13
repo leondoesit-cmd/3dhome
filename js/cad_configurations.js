@@ -68,7 +68,7 @@ export function applyConfiguration(document, configuration) {
     if (!entry || entry.kind !== "feature") return;
     entry.suppressed = suppressed.has(entry.targetId);
   });
-  if (document.assembly && cfg.explodedViewId) document.assembly.activeExplodedView = cfg.explodedViewId;
+  if (document.assembly) document.assembly.activeExplodedView = cfg.explodedViewId || null;
   return document;
 }
 

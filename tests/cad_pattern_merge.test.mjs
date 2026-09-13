@@ -1,3 +1,4 @@
+import { toolFeatureRecipe } from "../js/core/tool_recipe.js";
 /* Pattern "Merge instances" — the seventh and last declared-but-ignored control.
  *
  * quickPatternPart() called addPart() once per copy and never read mergeResult,
@@ -263,8 +264,9 @@ test("a merged pattern is fused by the kernel, not guessed from boxes", () => {
 
 test("the fused instances reach the viewport, the exact tree and a rebuild", () => {
   // one builder, two callers — the viewport's merge loop and the exact tree
-  assert.match(partGeometry, /if \(cut\.kind === "placed"\) return placedBodyBrep\(cut\);/);
-  assert.match(modeler, /if \(merge\.kind === "placed"\) return \{ type:"placedBody"/);
+  assert.match(partGeometry, /if\(recipe\.type==="placedBody"\)return placedBodyBrep\(cut\);/);
+  assert.equal(toolFeatureRecipe({kind:"placed",part:{},placements:[]}).type,"placedBody");
+  assert.match(modeler, /return toolFeatureRecipe\(merge\);/);
   const tree = readFileSync(new URL("../js/cad_feature_tree.js", import.meta.url), "utf8");
   assert.match(tree, /else if \(feature\.type === "placedBody"\) \{/);
   assert.match(tree, /result = await placedBodyBrep\(effectiveParams\);/);

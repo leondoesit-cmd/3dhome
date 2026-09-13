@@ -24,9 +24,9 @@ test("involute gear validation enforces ISO module and pitch diameter",()=>{
   assert.equal(validateInvoluteGear({...gear,moduleMm:1.1}).ok,false);
 });
 
-test("standard-looking parts without declarations block document compliance",()=>{
+test("names alone do not declare standards compliance",()=>{
   const audit=auditStandardParts({parts:[{id:"g1",name:"gear",kind:"ext"}]});
-  assert.equal(audit.ok,false); assert.equal(audit.blocking[0].code,"missing-declaration");
+  assert.equal(audit.ok,true); assert.deepEqual(audit.blocking,[]);
 });
 
 test("audit measures linked ISO 4017 screw geometry instead of trusting its label",()=>{
@@ -41,7 +41,7 @@ test("audit measures linked ISO 4017 screw geometry instead of trusting its labe
 test("audit compares every involute gear profile sample",()=>{
   const spec={standard:"ISO 21771-1:2024",family:"involute-gear",moduleMm:2,teeth:20,pressureAngleDeg:20,profile:"involute",pitchDiameterMm:40};
   const gear={id:"g",kind:"ext",axis:"y",from:0,to:.8,name:"gear",standardCompliance:spec,pts:involuteGearOutline(spec)};
-  assert.equal(auditStandardParts({parts:[gear]}).ok,true);
+  assert.equal(auditStandardParts({parts:[gear]}).ok,false, "Reference root geometry is not a verified manufacturing profile");
   gear.pts[12].u+=.001;
-  assert.equal(auditStandardParts({parts:[gear]}).ok,false);
+  assert.ok(auditStandardParts({parts:[gear]}).blocking.some(issue=>issue.code==="profile-deviation"));
 });

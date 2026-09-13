@@ -44,7 +44,7 @@ export const TOOLBOX_FINISHES = Object.freeze({
 
 export function materialAppearance(id) {
   const row = TOOLBOX_MATERIALS[id] || TOOLBOX_MATERIALS["steel-8.8-zinc"];
-  return { color: row.color, metal: row.metal, rough: row.rough, materialName: row.name, materialId: row.id };
+  return { color: row.color, metal: row.metal, rough: row.rough, materialName: row.name, materialId: row.id, materialCatalogId:"toolbox:"+row.id };
 }
 
 export function paint(part, materialId) {
@@ -72,7 +72,7 @@ export function fastenerAxisPorts(diameterMm, lengthMm, pitchMm) {
   const h = mmToCm(lengthMm);
   return [
     matePort({ id: "tip", type: "axis", origin: { x: 0, y: 0, z: 0 }, axis: { x: 0, y: 1, z: 0 }, diameterMm, insertionDepthMm: lengthMm, gender: "male", thread: "ISO-metric", pitchMm }),
-    matePort({ id: "head-seat", type: "plane", origin: { x: 0, y: h, z: 0 }, axis: { x: 0, y: 1, z: 0 }, diameterMm }),
+    matePort({ id: "head-seat", type: "plane", origin: { x: 0, y: h, z: 0 }, axis: { x: 0, y: -1, z: 0 }, diameterMm }),
   ];
 }
 

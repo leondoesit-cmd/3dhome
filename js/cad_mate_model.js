@@ -27,7 +27,7 @@ export const add = (a,b) => ({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z});
 export const transpose = (m) => [[m[0][0],m[1][0],m[2][0]],[m[0][1],m[1][1],m[2][1]],[m[0][2],m[1][2],m[2][2]]];
 
 // Each requirement keeps reporting under the code its own branch always used.
-export const FRAME_ISSUE = { planar: "invalid-face-frame", axis: "invalid-axis-frame", round: "invalid-tangent-frame" };
+export const FRAME_ISSUE = { planar: "invalid-face-frame", axis: "invalid-axis-frame", round: "invalid-tangent-frame", tangent: "invalid-tangent-frame" };
 
 const finitePoint = (point) => !!point && [point.x, point.y, point.z]
   .every((value) => Number.isFinite(Number(value)));
@@ -41,7 +41,7 @@ const finiteDirection = (direction) => finitePoint(direction) && len(direction) 
 export const MATE_REQUIREMENT = {
   coincident: "planar", distance: "planar", limit: "planar", angle: "planar",
   concentric: "axis", screw: "axis",
-  tangent: "round",
+  tangent: "tangent",
 };
 
 export function mateRequirementFor(type) {
@@ -62,6 +62,7 @@ export function planarDirection(frame) {
 export function mateFrameSupports(requirement, frame) {
   if (!frame || !finitePoint(frame.origin)) return false;
   if (requirement === "axis") return finiteDirection(frame.axis);
+  if (requirement === "tangent") return frame.surface==="plane"?!!planarDirection(frame):mateFrameSupports("round",frame);
   if (requirement === "round") {
     return finiteDirection(frame.axis)
       && Number.isFinite(Number(frame.radius)) && Number(frame.radius) > 0;
@@ -373,17 +374,25 @@ export function mateOffset(mate) {
 }
 
 /* Where a tangent mate wants the moving axis to sit: one radius-sum out from
-   the fixed axis, along a direction picked the same way every time. The moving
+   the fixed axis, preserving its current azimuth and axial position. Coincident
+   axes use a deterministic radial seed. The moving
    radius is passed in rather than stashed on the mate — both callers already
    hold the frame it comes from, and a solver scratch field written onto the
    mate is serialised into every save and every undo snapshot, and shows up in
    the History panel as an edit nobody made. */
-export function tangentTarget(mate, fa, movingRadius) {
+export function tangentTarget(mate, fa, movingRadius, movingOrigin = fa.origin) {
+  if(fa.surface==='plane'){
+    const normal=norm(fa.normal),side=mate.aligned?-1:1;
+    const d=dot({x:movingOrigin.x-fa.origin.x,y:movingOrigin.y-fa.origin.y,z:movingOrigin.z-fa.origin.z},normal)-side*movingRadius;
+    return {x:movingOrigin.x-normal.x*d,y:movingOrigin.y-normal.y*d,z:movingOrigin.z-normal.z*d};
+  }
   const axisA = norm(fa.axis || fa.normal);
   const radiusA = Number(fa.radius) || 0, radiusB = Number(movingRadius) || 0;
   const gap = mate.aligned ? Math.abs(radiusA - radiusB) : radiusA + radiusB;
-  const radial = perpendicular(axisA);
-  return { x: fa.origin.x + radial.x * gap, y: fa.origin.y + radial.y * gap, z: fa.origin.z + radial.z * gap };
+  const delta={x:movingOrigin.x-fa.origin.x,y:movingOrigin.y-fa.origin.y,z:movingOrigin.z-fa.origin.z};
+  const along=dot(delta,axisA), projected={x:delta.x-axisA.x*along,y:delta.y-axisA.y*along,z:delta.z-axisA.z*along};
+  const radial=len(projected)>1e-9?norm(projected):perpendicular(axisA);
+  return { x: fa.origin.x + axisA.x*along + radial.x * gap, y: fa.origin.y + axisA.y*along + radial.y * gap, z: fa.origin.z + axisA.z*along + radial.z * gap };
 }
 
 /* How far a screw has been rolled about its own axis, measured from a zero
@@ -422,12 +431,13 @@ export function mateTarget(mate, fa, fb, moving) {
   if (mate.type === "coincident" || mate.type === "distance" || mate.type === "limit") {
     const na = planarDirection(fa), nb = planarDirection(fb);
     if (!fa.origin || !fb.origin || !na || !nb) return null;
-    const offset = mateOffset(mate);
+    const normal=norm(na), delta={x:fb.origin.x-fa.origin.x,y:fb.origin.y-fa.origin.y,z:fb.origin.z-fa.origin.z};
+    const offset = mateOffset(mate), error=dot(delta,normal)-offset;
     return {
       origin: {
-        x: fa.origin.x + na.x * offset,
-        y: fa.origin.y + na.y * offset,
-        z: fa.origin.z + na.z * offset,
+        x: fb.origin.x - normal.x * error,
+        y: fb.origin.y - normal.y * error,
+        z: fb.origin.z - normal.z * error,
       },
       direction: mate.aligned ? norm(na) : {x:-na.x,y:-na.y,z:-na.z},
       actualDirection: norm(nb),
@@ -437,7 +447,7 @@ export function mateTarget(mate, fa, fb, moving) {
     const axisA = fa.axis || fa.normal, axisB = fb.axis || fb.normal;
     if (!fa.origin || !fb.origin || !axisA || !axisB) return null;
     const axis = norm(axisA);
-    const along = mate.type === "screw" ? screwAdvance(mate).along : 0;
+    const along = mate.type === "screw" ? screwAdvance(mate).along : dot({x:fb.origin.x-fa.origin.x,y:fb.origin.y-fa.origin.y,z:fb.origin.z-fa.origin.z},axis);
     const out = {
       origin: { x: fa.origin.x + axis.x*along, y: fa.origin.y + axis.y*along, z: fa.origin.z + axis.z*along },
       direction: axis,
@@ -452,10 +462,22 @@ export function mateTarget(mate, fa, fb, moving) {
     return out;
   }
   if (mate.type === "tangent") {
+    if(fa.surface==='plane' || fb.surface==='plane'){
+      if(fa.surface==='plane' && fb.surface==='plane')return null;
+      const fixedPlane=fa.surface==='plane',plane=fixedPlane?fa:fb,round=fixedPlane?fb:fa;
+      if(!mateFrameSupports('round',round))return null;
+      const normal=norm(plane.normal),axis=norm(round.axis),actualDirection=fixedPlane?axis:normal,reference=fixedPlane?normal:axis;
+      const projection=dot(actualDirection,reference),candidate={x:actualDirection.x-reference.x*projection,y:actualDirection.y-reference.y*projection,z:actualDirection.z-reference.z*projection};
+      const direction=len(candidate)>1e-9?norm(candidate):perpendicular(reference);
+      const delta={x:round.origin.x-plane.origin.x,y:round.origin.y-plane.origin.y,z:round.origin.z-plane.origin.z};
+      const error=dot(delta,normal)-(mate.aligned?-1:1)*round.radius,sign=fixedPlane?-1:1;
+      return {tangentPlane:true,offsetResidual:error,orientationResidual:dot(axis,normal),actualDirection,direction,
+        origin:{x:fb.origin.x+sign*normal.x*error,y:fb.origin.y+sign*normal.y*error,z:fb.origin.z+sign*normal.z*error}};
+    }
     const axisA = fa.axis || fa.normal, axisB = fb.axis || fb.normal;
     if (!fa.origin || !fb.origin || !axisA || !axisB) return null;
     return {
-      origin: tangentTarget(mate, fa, fb.radius),
+      origin: tangentTarget(mate, fa, fb.radius, fb.origin),
       direction: norm(axisA),
       actualDirection: norm(axisB),
     };
@@ -518,6 +540,7 @@ const ANGULAR_SCALE = 10;
 export function mateResidualVector(mate, fa, fb, moving) {
   const target = mateTarget(mate, fa, fb, moving);
   if (!target) return null;
+  if(target.tangentPlane)return [target.offsetResidual,target.orientationResidual*ANGULAR_SCALE];
   if (target.angle !== undefined) {
     /* At 0° and 180° an angle mate becomes a parallel/anti-parallel
        relation. The scalar unsigned angle has a cusp there, so a central

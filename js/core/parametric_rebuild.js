@@ -4,6 +4,7 @@ import { bodiesFromResults, rebuildDefinition, resolveParameters } from "./rebui
 import { cloneDomain } from "./schema.js";
 import { analyzeParametricHistory, ensureParametricDocument } from "./parametric_document.js";
 import { compileKernelFeatureTree } from "./kernel_feature_adapter.js";
+import { verifiedExactTopology } from './exact_topology_cache.js';
 
 function issueTargets(issue) {
   return [issue.featureId, issue.sketchId, issue.reference].filter(Boolean);
@@ -26,10 +27,11 @@ export function rebuildParametricDocument(source, overrides = {}, options = {}) 
      failed steps are dropped from the executable tree and the run goes ahead.
      Whatever consumed them reports its own unavailable input in turn. */
   const dropped = new Set(issues.filter((issue) => issue.severity === "error").flatMap(issueTargets));
-  const executable = { ...snapshot, sketches: (snapshot.sketches || []).map((s) => ({ ...s })) };
+  const executable = { ...compiled.document, sketches: (compiled.document.sketches || []).map((s) => ({ ...s })) };
   executable.features = compiled.features.filter((feature) =>
     ![...dropped].some((id) => feature.id === id || feature.id.startsWith(id + ":")));
-  const core = rebuildDefinition(executable, overrides, options);
+  const exactTopology=Object.keys(overrides).length ? new Map() : verifiedExactTopology(source,compiled.features);
+  const core = rebuildDefinition(executable, overrides, {...options,exactTopology});
   issues.push(...core.issues);
   // Bodies are reported against the *authoring* features, not the lowered ones:
   // a hole compiles into a tool plus a subtract, and only the subtract keeps the

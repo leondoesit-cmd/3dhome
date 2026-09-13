@@ -1,3 +1,4 @@
+import { analyzeSectionBoundaries } from "./core/section_boundaries.js";
 /* The drawing sheet: a real drafting document, not a picture of the model.
  *
  * One builder, two backends. Everything a sheet contains — border and zone
@@ -113,6 +114,8 @@ export function createSheetDoc(options = {}) {
     orientation: options.orientation === "portrait" ? "portrait" : "landscape",
     projection: options.projection === "first" ? "first" : "third",
     units: UNIT_FACTORS[options.units] ? options.units : "mm",
+    ...(Number.isInteger(options.precision)?{precision:clamp(options.precision,0,8)}:{}),
+    ...(typeof options.trailingZeros==="boolean"?{trailingZeros:options.trailingZeros}:{}),
     scale: options.scale || "fit",
     showHidden: options.showHidden !== false,
     showCenters: options.showCenters !== false,
@@ -646,7 +649,8 @@ export function hatchLoops(loops, options = {}) {
     for (const edge of edges) {
       const da = (edge.a.x * normal.x + edge.a.y * normal.y) - offset;
       const db = (edge.b.x * normal.x + edge.b.y * normal.y) - offset;
-      if ((da > 0 && db > 0) || (da < 0 && db < 0)) continue;
+      // Half-open crossings count a shared vertex once; tangencies cancel.
+      if ((da > 0) === (db > 0)) continue;
       if (Math.abs(da - db) < 1e-9) continue;
       const t = da / (da - db);
       const point = { x: edge.a.x + (edge.b.x - edge.a.x) * t, y: edge.a.y + (edge.b.y - edge.a.y) * t };
@@ -670,38 +674,7 @@ export function hatchLoops(loops, options = {}) {
    arrives as unordered chords — one per triangle it sliced — and a hatch needs
    boundaries. */
 export function chainLoops(segments, tolerance) {
-  const tol = tolerance > 0 ? tolerance : 1e-3;
-  const key = (point) => Math.round(point.u / tol) + ":" + Math.round(point.v / tol);
-  const ends = new Map();
-  segments.forEach((segment, index) => {
-    for (const end of [segment.a, segment.b]) {
-      const id = key(end);
-      if (!ends.has(id)) ends.set(id, []);
-      ends.get(id).push(index);
-    }
-  });
-  const used = new Set(), loops = [];
-  segments.forEach((segment, index) => {
-    if (used.has(index)) return;
-    used.add(index);
-    const points = [segment.a, segment.b];
-    let grew = true;
-    while (grew) {
-      grew = false;
-      const tail = points[points.length - 1];
-      for (const candidate of ends.get(key(tail)) || []) {
-        if (used.has(candidate)) continue;
-        const next = segments[candidate];
-        const far = key(next.a) === key(tail) ? next.b : next.a;
-        used.add(candidate);
-        points.push(far);
-        grew = true;
-        break;
-      }
-    }
-    if (points.length >= 3) loops.push(points);
-  });
-  return loops;
+  return analyzeSectionBoundaries(segments, tolerance).loops;
 }
 
 /* ---- dimensions --------------------------------------------------------- */
@@ -709,9 +682,11 @@ export function chainLoops(segments, tolerance) {
 export function formatLength(modelValue, doc) {
   const units = doc?.units || "mm";
   const factor = UNIT_FACTORS[units] || 10;
-  const decimals = UNIT_DECIMALS[units] ?? 1;
-  const value = Math.abs(num(modelValue)) * factor;
-  const fixed = value.toFixed(decimals).replace(/\.?0+$/, "");
+  const decimals = Number.isInteger(doc?.precision) ? clamp(doc.precision,0,8) : UNIT_DECIMALS[units] ?? 1;
+  const value = num(modelValue) * factor;
+  const rounded = Math.abs(value) < .5 * 10 ** -decimals ? 0 : value;
+  const digits=rounded.toFixed(decimals);
+  const fixed = (doc?.trailingZeros ?? Number.isInteger(doc?.precision)) || !digits.includes(".") ? digits : digits.replace(/\.?0+$/, "");
   return fixed || "0";
 }
 
@@ -1049,8 +1024,10 @@ function dimensionItems(dim, place, doc, options = {}) {
     const arm = (point) => Math.atan2(point.y - vertex.y, point.x - vertex.x);
     const first = arm(toSheet(dim.refs[0])), second = arm(toSheet(dim.refs[2]));
     const radius = Math.max(offset, 8);
-    items.push({ type: "arc", cx: vertex.x, cy: vertex.y, r: radius, a0: Math.min(first, second), a1: Math.max(first, second), style });
-    const mid = (first + second) / 2;
+    let a0=Math.min(first,second), a1=Math.max(first,second);
+    if(a1-a0>Math.PI){a0=Math.max(first,second);a1=Math.min(first,second)+2*Math.PI;}
+    items.push({ type: "arc", cx: vertex.x, cy: vertex.y, r: radius, a0, a1, style });
+    const mid = (a0 + a1) / 2;
     items.push(text(vertex.x + Math.cos(mid) * (radius + 3), vertex.y + Math.sin(mid) * (radius + 3), label, {
       size, anchor: "middle", color: LINE_STYLES[style].color, box: true,
     }));
@@ -1103,7 +1080,7 @@ function dimensionItems(dim, place, doc, options = {}) {
   const upright = Math.abs(along) > Math.PI / 2 ? along + Math.PI : along;
   items.push(text(mid.x + normal.x * 1.6, mid.y + normal.y * 1.6, label, {
     size, anchor: "middle", rotate: upright * 180 / Math.PI, color: LINE_STYLES[style].color, box: true,
-    baseline: "bottom",
+    baseline: -Math.sin(upright)*normal.x+Math.cos(upright)*normal.y>0 ? "top" : "bottom",
   }));
   return items;
 }
@@ -1117,7 +1094,7 @@ function dimensionItems(dim, place, doc, options = {}) {
  * @returns { paper, items, views, scale } — millimetres, ready to paint.
  */
 export function buildSheetScene(doc, provider, options = {}) {
-  const items = [];
+  const items = [], diagnostics = [];
   const frame = sheetFrame(doc), paper = frame.paper;
   /* null, not an empty index: "no topology was offered" and "this id is gone"
      must not look the same to a bound dimension. */
@@ -1170,8 +1147,10 @@ export function buildSheetScene(doc, provider, options = {}) {
     const showCenters = view.centers === null ? doc.showCenters !== false : !!view.centers;
 
     if (projection.cuts?.length) {
-      const loops = chainLoops(projection.cuts, Math.max(1e-4, (extent.w + extent.h) * 1e-3))
-        .map((loop) => loop.map((point) => toSheet(point)));
+      const boundary = analyzeSectionBoundaries(projection.cuts, Math.max(1e-4, (extent.w + extent.h) * 1e-3));
+      diagnostics.push(...boundary.issues.map(issue => ({...issue,viewId:view.id})));
+      if (!boundary.ok) items.push(text(record.box.x, record.box.y - 3, "Section boundary needs repair — hatching omitted", {size:2.5,anchor:"start",viewId:view.id}));
+      const loops = boundary.loops.map((loop) => loop.map((point) => toSheet(point)));
       for (const segment of hatchLoops(loops, { spacing: 2.2, angle: 45 })) {
         items.push(line(segment.x1, segment.y1, segment.x2, segment.y2, "hatch", { viewId: view.id }));
       }
@@ -1217,7 +1196,7 @@ export function buildSheetScene(doc, provider, options = {}) {
      told where the cut was taken, not just shown the result. */
   for (const view of doc.views) {
     if (view.section && view.parent) items.push(...sectionMarker(view, placements, doc));
-    if (view.detail && view.parent) items.push(...detailMarker(view, placements));
+    if (view.detail && (view.parent || view.detail.from)) items.push(...detailMarker({...view,parent:view.parent || view.detail.from}, placements));
   }
 
   const byId = new Map(placements.map((place) => [place.id, place]));
@@ -1267,6 +1246,7 @@ export function buildSheetScene(doc, provider, options = {}) {
     if (provider?.bom?.length) items.push(...bomTableItems(doc, provider.bom));
   }
   return {
+    diagnostics,
     paper, frame, items, views: placements, scale: layout.sheetScale,
     projections, primaryId: layout.primaryId, dims, notes, topologyIndex,
   };
@@ -1343,7 +1323,7 @@ function sectionMarker(view, placements, doc) {
   } else {
     items.push(line(box.x - reach, point.y, box.x + box.w + reach, point.y, "cutline", { viewId: parent.id }));
     for (const x of [box.x - reach, box.x + box.w + reach]) {
-      const towards = view.section.flip ? -1 : 1;
+      const towards = view.section.flip ? 1 : -1;
       items.push(arrowHead(x, point.y + towards * 7, 0, towards));
       items.push(line(x, point.y, x, point.y + towards * 7, "cutline"));
       items.push(text(x, point.y - towards * 3, tag, { size: TEXT_SIZES.view, anchor: "middle", weight: "bold" }));
@@ -1510,7 +1490,7 @@ function bomTableItems(doc, rows) {
   rows.forEach((row, index) => {
     const rowY = y + header + (index + 1) * rowHeight - 1.6;
     let cell = x;
-    [String(row.item ?? index + 1), String(row.qty ?? 1), row.name || "", row.material || ""].forEach((value, column) => {
+    [String(row.item ?? index + 1), String(row.qty ?? row.quantity ?? 1), row.name || "", row.material || ""].forEach((value, column) => {
       items.push(text(cell + 1.5, rowY, value, { size: TEXT_SIZES.small }));
       cell = edges[column];
     });
@@ -1565,6 +1545,7 @@ export function sceneToSvg(scene, options = {}) {
       const transform = item.rotate ? ' transform="rotate(' + round3(item.rotate) + " " + round3(item.x) + " " + round3(item.y) + ')"' : "";
       parts.push('<text x="' + round3(item.x) + '" y="' + round3(item.y) + '" font-size="' + round3(item.size) +
         '" text-anchor="' + (ANCHORS[item.anchor] || "start") + '" fill="' + (item.color || "#101418") + '"' +
+        (item.baseline==="top"?' dominant-baseline="text-before-edge"':item.baseline==="bottom"?' dominant-baseline="text-after-edge"':"") +
         (item.weight ? ' font-weight="' + item.weight + '"' : "") + transform + ">" + esc(item.text) + "</text>");
     }
   }

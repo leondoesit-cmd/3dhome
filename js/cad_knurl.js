@@ -3,6 +3,7 @@
 // displaced by a diamond or axial groove lattice. Modeled knurls also emit
 // the helical V-groove paths a kernel boolean can subtract.
 
+import { cylinderAxis } from "./core/cylinder_axis.js";
 import { sampleHelix } from "./cad_helix.js";
 
 export const KNURL_TYPES = Object.freeze(["diamond", "straight", "left", "right"]);
@@ -13,18 +14,19 @@ export const KNURL_FORMS = Object.freeze({
   right: "RBR",
 });
 
-const STANDARD_PITCH_MM = Object.freeze([0.5, 0.6, 0.8, 1.0, 1.2, 1.6, 2.0]);
+export const STANDARD_PITCH_MM = Object.freeze([0.5, 0.6, 0.8, 1.0, 1.2, 1.6, 2.0]);
 
 export function normalizeKnurlSpec(spec = {}) {
   const type = KNURL_TYPES.includes(spec.type) ? spec.type : "diamond";
   const pitchMm = Number(spec.pitchMm) || 1;
   const diameterMm = Number(spec.diameterMm) || (Number(spec.diameter) || 0) * 10;
   const lengthMm = Number(spec.lengthMm) || (Number(spec.length) || Number(spec.height) || 0) * 10;
-  const helixAngle = Number.isFinite(Number(spec.helixAngle)) ? Number(spec.helixAngle) : (type === "straight" ? 0 : 30);
+  const helixAngle = type === "straight" ? 0 : spec.helixAngle == null ? 30 : Number(spec.helixAngle);
+  const raised=type === "diamond" ? spec.form!=="RGV"&&spec.raised!==false : false;
   const depthMm = Number(spec.depthMm) || pitchMm * 0.3;
   return {
     type,
-    form: KNURL_FORMS[type],
+    form: type === "diamond"&&!raised ? "RGV" : KNURL_FORMS[type],
     pitchMm,
     pitch: pitchMm / 10,
     diameterMm,
@@ -36,14 +38,15 @@ export function normalizeKnurlSpec(spec = {}) {
     depthMm,
     depth: depthMm / 10,
     origin: spec.origin || { x: 0, y: 0, z: 0 },
-    axis: spec.axis || { x: 0, y: 1, z: 0 },
-    raised: spec.raised !== false && type === "diamond" ? spec.form !== "RGV" : !!spec.raised,
+    axis: cylinderAxis(spec.axis),
+    raised,
   };
 }
 
 export function validateKnurl(spec) {
   const knurl = normalizeKnurlSpec(spec);
   const issues = [];
+  if(!Number.isFinite(knurl.helixAngle)||Math.abs(knurl.helixAngle)>=90)issues.push({code:"knurl-angle",message:"Helix angle must be finite and less than 90 degrees",field:"helixAngle",severity:"error"});
   if (!(knurl.diameterMm > 0)) issues.push({ code: "knurl-diameter", message: "Knurl diameter must be positive", field: "diameterMm", severity: "error" });
   if (!(knurl.lengthMm > 0)) issues.push({ code: "knurl-length", message: "Knurl length must be positive", field: "lengthMm", severity: "error" });
   if (!(knurl.pitchMm > 0)) issues.push({ code: "knurl-pitch", message: "Knurl pitch must be positive", field: "pitchMm", severity: "error" });
@@ -59,7 +62,9 @@ export function validateKnurl(spec) {
 export function knurlStarts(spec) {
   const knurl = normalizeKnurlSpec(spec);
   const circumference = Math.PI * knurl.diameterMm;
-  return Math.max(3, Math.round(circumference / knurl.pitchMm));
+  const transversePitch=knurl.pitchMm/Math.cos(knurl.helixAngle*Math.PI/180);
+  if(!(transversePitch>0)||!Number.isFinite(transversePitch))throw new Error("Invalid knurl pitch or helix angle");
+  return Math.max(3, Math.round(circumference / transversePitch));
 }
 
 export function knurlGrooveHelices(spec) {
@@ -69,11 +74,12 @@ export function knurlGrooveHelices(spec) {
     : knurl.type === "left" ? ["left"]
     : knurl.type === "right" ? ["right"]
     : ["left", "right"];
-  const pitchAxial = knurl.pitch / Math.cos((knurl.helixAngle * Math.PI) / 180 || 1e-6);
+  const tangent=Math.abs(Math.tan(knurl.helixAngle*Math.PI/180));
+  const lead=tangent>1e-12?2*Math.PI*knurl.radius/tangent:0;
   const grooves = [];
   families.forEach((family) => {
     const handed = family === "left" ? "lh" : "rh";
-    const helixPitch = family === "straight" ? 1e6 : pitchAxial * starts;
+    const helixPitch = family === "straight" || !lead ? 1 : lead;
     for (let i = 0; i < starts; i++) {
       grooves.push({
         family,
@@ -81,7 +87,7 @@ export function knurlGrooveHelices(spec) {
         axis: knurl.axis,
         radius: knurl.radius,
         pitch: helixPitch,
-        turns: family === "straight" ? 0.001 : knurl.length / helixPitch,
+        turns: family === "straight" || !lead ? 0 : knurl.length / helixPitch,
         height: knurl.length,
         handedness: family === "straight" ? "rh" : handed,
         startAngle: (i / starts) * Math.PI * 2,
@@ -104,11 +110,11 @@ export function knurlDisplacement(spec, angle, height) {
     return knurl.depth * Math.max(0, 1 - t * 4);
   }
   const helix = Math.tan((knurl.helixAngle * Math.PI) / 180) * v / knurl.radius;
-  const a = ((u + helix) * knurl.radius) / pitch;
-  const b = ((u - helix) * knurl.radius) / pitch;
+  const a = (u + helix) * knurlStarts(knurl) / (2*Math.PI);
+  const b = (u - helix) * knurlStarts(knurl) / (2*Math.PI);
   const da = Math.abs(a - Math.round(a));
   const db = Math.abs(b - Math.round(b));
-  const diamond = Math.min(da, db);
+  const diamond = knurl.type==="left"?da:knurl.type==="right"?db:Math.min(da, db);
   return knurl.depth * Math.max(0, 1 - diamond * 4);
 }
 
@@ -128,7 +134,9 @@ export function knurlBandMesh(spec, options = {}) {
     for (let i = 0; i <= nu; i++) {
       const ang = (i / nu) * Math.PI * 2;
       const dip = knurlDisplacement(knurl, ang, h);
-      const r = knurl.radius - dip;
+      // Diameter denotes the finished outer envelope. RGE has raised lands;
+      // RGV inverts the lattice to indent the diamond points.
+      const r = knurl.type==="diamond"&&!knurl.raised ? knurl.radius-knurl.depth+dip : knurl.radius-dip;
       const cu = Math.cos(ang), sv = Math.sin(ang);
       positions.push(
         knurl.origin.x + axis.x * h + (ux.x * cu + vx.x * sv) * r,
@@ -143,7 +151,7 @@ export function knurlBandMesh(spec, options = {}) {
   for (let j = 0; j < nv; j++) {
     for (let i = 0; i < nu; i++) {
       const a = j * row + i, b = a + 1, c = a + row, d = c + 1;
-      indices.push(a, c, b, b, c, d);
+      indices.push(a, b, c, b, d, c);
     }
   }
   return { positions: Float32Array.from(positions), indices: Uint32Array.from(indices), uvs: Float32Array.from(uvs), spec: knurl };

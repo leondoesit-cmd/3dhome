@@ -194,7 +194,7 @@ function node(fields) {
 export function friendlyTreeName(value, fallback = "Item") {
   let name = String(value || "").trim();
   if (!name) return fallback;
-  if (/^(?:feature|sketch|part|ref)[_:-][a-z0-9_.:-]+$/i.test(name)) return fallback;
+  if (/^(?:feature|sketch|part|ref)[_:][a-z0-9_.:-]+$/i.test(name)) return fallback;
   name = name.replace(/^(.*\b(\d+))\s+\2$/, "$1");
   return name.charAt(0).toUpperCase() + name.slice(1);
 }

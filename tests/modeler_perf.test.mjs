@@ -313,7 +313,7 @@ test("editor_view guards resize layout reads with sizeDirty", async () => {
 
 test("parametric_rebuild avoids deep cloning snapshot and features", async () => {
   const rebuildSource = await readFile(new URL("../js/core/parametric_rebuild.js", import.meta.url), "utf8");
-  assert.match(rebuildSource, /const executable\s*=\s*\{\s*\.\.\.snapshot,\s*sketches:\s*\(snapshot\.sketches\s*\|\|\s*\[\]\)\.map/);
+  assert.match(rebuildSource, /const executable\s*=\s*\{\s*\.\.\.compiled\.document,\s*sketches:\s*\(compiled\.document\.sketches\s*\|\|\s*\[\]\)\.map/);
   assert.doesNotMatch(rebuildSource, /const executable\s*=\s*cloneDomain\(snapshot\);/);
 });
 

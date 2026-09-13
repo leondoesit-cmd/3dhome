@@ -318,8 +318,10 @@ function generateCsinkSocket(row, options, group) {
   const spec = threadSpec(row, lengthMm, options, "csink-socket", standard);
   spec.headDiaMm = row.headDiaMm;
   spec.headHeightMm = row.headHeightMm;
-  const h = mmToCm(lengthMm);
-  const parts = [shankCylinder(row, lengthMm, group, options, row.size + "×" + lengthMm + " csink")];
+  const shankMm=lengthMm-row.headHeightMm;
+  if (!(shankMm>0)) throw new Error("Countersunk screw length must exceed head height");
+  const h = mmToCm(shankMm);
+  const parts = [shankCylinder(row, shankMm, group, options, row.size + "×" + lengthMm + " csink")];
   parts[0].standardCompliance = spec;
   parts.push({
     id: options.headId, kind: "cyl", name: row.size + " countersunk head",
@@ -330,7 +332,7 @@ function generateCsinkSocket(row, options, group) {
   return pack("csink-socket", "csink-socket", row, options, parts, {
     group, lengthMm, standard, spec,
     callout: row.size + "×" + lengthMm + " ISO 10642 " + row.angle + "°",
-    matePorts: fastenerAxisPorts(row.diameterMm, lengthMm, row.pitchMm),
+    matePorts: fastenerAxisPorts(row.diameterMm, shankMm, row.pitchMm),
     dimensionsMm: { pitch: row.pitchMm, headDia: row.headDiaMm, headHeight: row.headHeightMm, angle: row.angle, acrossFlats: row.hexAfMm, diameter: row.diameterMm, length: lengthMm },
   });
 }
@@ -379,8 +381,10 @@ function generateMachineCsink(row, options, group) {
   const lengthMm = Number(options.lengthMm) || preferredLengthFor(row.size, row.diameterMm);
   const standard = "ISO 7046:2011";
   const spec = threadSpec(row, lengthMm, options, "csink-machine", standard);
-  const h = mmToCm(lengthMm);
-  const parts = [shankCylinder(row, lengthMm, group, options, row.size + "×" + lengthMm + " csink")];
+  const shankMm=lengthMm-row.headHeightMm;
+  if (!(shankMm>0)) throw new Error("Countersunk screw length must exceed head height");
+  const h = mmToCm(shankMm);
+  const parts = [shankCylinder(row, shankMm, group, options, row.size + "×" + lengthMm + " csink")];
   parts[0].standardCompliance = spec;
   parts.push({
     id: options.headId, kind: "cyl", name: row.size + " csink head",
@@ -390,7 +394,7 @@ function generateMachineCsink(row, options, group) {
   return pack("csink-machine", "csink-machine", row, options, parts, {
     group, lengthMm, standard, spec,
     callout: row.size + "×" + lengthMm + " ISO 7046",
-    matePorts: fastenerAxisPorts(row.diameterMm, lengthMm, row.pitchMm),
+    matePorts: fastenerAxisPorts(row.diameterMm, shankMm, row.pitchMm),
     dimensionsMm: { diameter: row.diameterMm, pitch: row.pitchMm, headDia: row.headDiaMm, headHeight: row.headHeightMm, length: lengthMm },
   });
 }
@@ -398,7 +402,9 @@ function generateMachineCsink(row, options, group) {
 function generateWoodScrew(row, options, group) {
   const lengthMm = Number(options.lengthMm) || 40;
   const standard = "DIN 7997";
-  const h = mmToCm(lengthMm);
+  const shankMm=lengthMm-row.headHeightMm;
+  if (!(shankMm>0)) throw new Error("Countersunk screw length must exceed head height");
+  const h = mmToCm(shankMm);
   const parts = [
     { kind: "cyl", name: row.size + "×" + lengthMm + " wood screw", x: 0, y: 0, z: 0, r: mmToCm(row.coreMm) / 2, r2: mmToCm(row.diameterMm) / 2, h, standardRole: "thread" },
     { kind: "cyl", name: "csink head", x: 0, y: h, z: 0, r: mmToCm(row.diameterMm) / 2, r2: mmToCm(row.headDiaMm) / 2, h: mmToCm(row.headHeightMm), standardRole: "head" },
@@ -406,7 +412,7 @@ function generateWoodScrew(row, options, group) {
   return pack("wood-screw", "wood-screw", row, options, parts, {
     group, lengthMm, standard, material: options.material || "steel-zinc",
     callout: "DIN 7997 " + row.size + "×" + lengthMm,
-    matePorts: fastenerAxisPorts(row.diameterMm, lengthMm, row.pitchMm),
+    matePorts: fastenerAxisPorts(row.diameterMm, shankMm, row.pitchMm),
     dimensionsMm: { pitch: row.pitchMm, coreDia: row.coreMm, headDia: row.headDiaMm, diameter: row.diameterMm, length: lengthMm },
   });
 }

@@ -141,7 +141,7 @@ function emitPointer(canvas, type, point, pointerId) {
 }
 
 export function dispatchPrecisionMove(canvas, point) {
-  emitPointer(canvas, "pointermove", point, 987320);
+  emitPointer(canvas, "pointermove", point, 987321);
 }
 
 export function dispatchPrecisionDown(canvas, point) {
@@ -294,7 +294,7 @@ export function startTouchPrecisionTrial(options) {
       if(distances){portalBadge(ctx,w/2,16,"↑ "+formatTouchDistance(distances.up,options.unitLabel),w);portalBadge(ctx,w/2,h-16,"↓ "+formatTouchDistance(distances.down,options.unitLabel),w);portalBadge(ctx,32,h/2,"← "+formatTouchDistance(distances.left,options.unitLabel),w);portalBadge(ctx,w-32,h/2,"→ "+formatTouchDistance(distances.right,options.unitLabel),w);}
     });
   }
-  function keydown(e){if(e.key==="Escape"){e.preventDefault();finish(false);}else if(e.key==="Enter"&&!/INPUT/.test(e.target.tagName)){e.preventDefault();finish(true);}}
+  function keydown(e){if(e.key==="Escape"){e.preventDefault();finish(false);}else if(e.key==="Enter"&&!e.isComposing){e.preventDefault();if(e.target===inputA||e.target===inputB)applyInputs();finish(true);}}
   function finish(ok){
     if(activeSession!==state)return;activeSession=null;if(state.raf)cancelAnimationFrame(state.raf);window.removeEventListener("keydown",keydown,true);
     root.remove();document.body.classList.remove("touch-precision-active");if(state.xray&&options.onXray)options.onXray(false);

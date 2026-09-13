@@ -28,6 +28,7 @@ var bar = null,
   entry = null,
   inLen = null,
   inAng = null,
+  entryAngleBase = null,
   inOff = null,
   labOff = null,
   targetSelect = null,
@@ -628,6 +629,7 @@ export function openEntry(seed) {
   if (labOff) labOff.hidden = !(metrics && metrics.parallel);
   var angLab = inAng.previousElementSibling;
   if (angLab) angLab.textContent = (metrics && metrics.hasPrev ? t("cad_turn") : t("cad_ang")) + " (°)";
+  entryAngleBase = metrics && metrics.hasPrev ? previousRunAngle() : null;
   if (metrics && metrics.hasPrev)
     inAng.value = String(Math.round((metrics.turn * 180) / Math.PI));
   else
@@ -667,9 +669,7 @@ function positionEntry() {
 function absAngleFromEntry() {
   var A = parseFloat(inAng.value);
   if (!fin(A)) A = 0;
-  var prev = previousRunAngle();
-  if (fin(prev) && S.drawWalls && S.drawWalls.length)
-    return (prev * 180) / Math.PI + A;
+  if (fin(entryAngleBase)) return (entryAngleBase * 180) / Math.PI + A;
   return A;
 }
 

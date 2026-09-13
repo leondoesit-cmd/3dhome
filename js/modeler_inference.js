@@ -59,7 +59,12 @@ export function pickSnap(uv, targets, options) {
   var thr = options.threshold != null ? options.threshold : 4 / scale;
   var hits = (targets || []).map(function (t) {
     return Object.assign({}, t, { d: hypot(uv.u - t.u, uv.v - t.v) });
-  }).filter(function (t) { return t.d < thr; }).sort(function (a, b) { return a.d - b.d; });
+  }).filter(function (t) { return t.d < thr; }).sort(function (a, b) {
+    // At the same location, prefer a real sketch point to a coordinate-only
+    // target (notably the origin), so newly drawn geometry stays connected.
+    if (Math.abs(a.d - b.d) < 1e-9) return Number(!!b.pointId) - Number(!!a.pointId);
+    return a.d - b.d;
+  });
   if (!hits.length) return { snap: null, candidates: [] };
   var index = ((options.cycleIndex || 0) % hits.length + hits.length) % hits.length;
   return { snap: hits[index], candidates: hits };
@@ -108,7 +113,7 @@ export function inferLineRelations(line, from, to, snap, options) {
   else if (Math.abs(dx) < 1e-4 && Math.abs(dy) > 1e-4) out.push({ type: "vertical", entity: line.id });
   if (snap && snap.k === "m" && snap.entityId) out.push({ type: "midpoint", point: line.b, entity: snap.entityId });
   if (snap && snap.k === "o") out.push({ type: "fixed", point: line.b, x: 0, y: 0 });
-  if (snap && snap.k === "c" && snap.pointId) out.push({ type: "coincident", a: line.b, b: snap.pointId });
+  if (snap && snap.k === "c" && snap.pointId && line.b !== snap.pointId) out.push({ type: "coincident", a: line.b, b: snap.pointId });
   if (options.tangentCircleId) out.push({ type: "tangent", a: line.id, b: options.tangentCircleId });
   return out;
 }

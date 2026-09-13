@@ -2,7 +2,7 @@ import { cylinderBounds } from "./cylinder_axis.js";
 import { materializeCabinetDefinition } from "./cabinet_definition.js";
 import { evaluateExpression, resolveEquations } from "../sketch_equations.js";
 import { resolveProfilePoints, solveSketch } from "../sketch_solver.js";
-import { buildDependencyGraph, stableStringify } from "./dependency_graph.js";
+import { buildDependencyGraph, featureDependencies, stableStringify } from "./dependency_graph.js";
 import { validateDefinition } from "./schema.js";
 import { realignFrame } from "./frame.js";
 import { supportsSurfaceUV } from "./surface_uv.js";
@@ -15,9 +15,9 @@ import {
 
 const SUPPORTED_FEATURES = new Set([
   "sketch", "box", "cylinder", "sphere", "extrude", "cut", "revolve", "sweep", "loft",
-  "fillet", "chamfer", "shell", "draft", "thicken", "rib", "splitBody", "moveBody", "mirror", "linearPattern", "linearGridPattern", "circularPattern", "curvePattern", "pattern", "extrudeCut", "revolveCut", "sweepCut", "boolean",
+  "fillet", "chamfer", "shell", "dome", "draft", "thicken", "rib", "splitBody", "moveBody", "mirror", "linearPattern", "linearGridPattern", "circularPattern", "curvePattern", "pattern", "extrudeCut", "revolveCut", "sweepCut", "boolean",
   "union", "subtract", "intersect", "procedural", "direct", "import", "component", "assembly",
-  "hole", "helix", "thread", "knurl", "insert", "cone", "toolbox",
+  "hole", "holeTool", "helix", "thread", "knurl", "insert", "cone", "toolbox",
 ]);
 
 function parameterValue(parameter) {
@@ -36,6 +36,7 @@ export function resolveParameters(definition, overrides = {}) {
     if (!parameter) return undefined;
     if (visiting.has(name)) throw new Error("Circular parameter expression: " + name);
     visiting.add(name);
+    try {
     let value = Object.prototype.hasOwnProperty.call(overrides, name) ? overrides[name] : parameterValue(parameter);
     const expression = parameter && typeof parameter === "object" ? parameter.expression : null;
     if (!Object.prototype.hasOwnProperty.call(overrides, name) && expression) value = evaluateExpression(expression, valueOf);
@@ -47,10 +48,11 @@ export function resolveParameters(definition, overrides = {}) {
         issues.push({ severity: "error", code: "parameter-above-maximum", parameter: name, value, limit: parameter.max, message: name + " is above its maximum" });
       }
     }
+    if (issues.some(issue => issue.severity === "error" && issue.parameter === name)) throw new Error("Invalid parameter: " + name);
     values[name] = value;
-    visiting.delete(name);
     resolved.add(name);
     return value;
+    } finally { visiting.delete(name); }
   };
   Object.keys(parameters).forEach((name) => {
     try { valueOf(name); }
@@ -66,7 +68,7 @@ export function resolveParameters(definition, overrides = {}) {
 function replaceParameters(value, parameters) {
   if (Array.isArray(value)) return value.map((item) => replaceParameters(item, parameters));
   if (!value || typeof value !== "object") {
-    if (typeof value === "string" && value[0] === "$") return parameters[value.slice(1)];
+    if (typeof value === "string" && value[0] === "$") {if(parameters[value.slice(1)]===undefined)throw new Error("Unavailable parameter: "+value.slice(1));return parameters[value.slice(1)];}
     return value;
   }
   const output = {};
@@ -74,7 +76,7 @@ function replaceParameters(value, parameters) {
   return output;
 }
 
-function sketchDiagnostics(definition, parameters) {
+export function sketchDiagnostics(definition, parameters) {
   const issues = [];
   const document = typeof structuredClone === "function" ? structuredClone(definition) : JSON.parse(JSON.stringify(definition));
   (document.sketches || []).forEach((sketch) => (sketch.constraints || []).forEach((constraint) => {
@@ -87,7 +89,10 @@ function sketchDiagnostics(definition, parameters) {
   }));
   try {
     const equations = resolveEquations(document);
-    equations.errors.forEach((error) => issues.push({ severity: "error", code: "sketch-equation", reference: error.name, message: error.message }));
+    equations.errors.forEach((error) => {
+      const sketch=(document.sketches || []).find(s=>(s.constraints || []).some(c=>c.name===error.name || c.id===error.name));
+      issues.push({severity:"error",code:"sketch-equation",sketchId:sketch?.id,reference:error.name,message:error.message});
+    });
   } catch (error) {
     issues.push({ severity: "error", code: "sketch-equation", message: String(error.message || error) });
   }
@@ -162,7 +167,10 @@ function featureResult(feature, parameters, previous, topologyResolutions, sketc
   if (!SUPPORTED_FEATURES.has(feature.type)) throw new Error("Unsupported feature type: " + feature.type);
   if (feature.type === "sketch") return { kind: "sketch", sketchId: feature.params?.sketchId || feature.sketchId };
   let params = replaceParameters(feature.params || {}, parameters);
-  if (["extrude", "revolve"].includes(feature.type)) params = resolveProfileParams(params, sketches);
+  if (["extrude", "revolve"].includes(feature.type)) {
+    const sketchId=params.sketchId || feature.sketch || (feature.inputs || []).find(id=>(sketches || []).some(s=>s.id===id));
+    params = resolveProfileParams({...params,sketchId}, sketches);
+  }
   if (feature.type === "extrude") params = alignExtrusionToResolvedSupport(params, topologyResolutions);
   const inputs = (feature.inputs || []).map((id) => previous.get(id)).filter(Boolean);
   const result = {
@@ -289,14 +297,22 @@ export function rebuildDefinition(definition, overrides = {}, options = {}) {
   const topology = createTopologyRegistry();
   const topologyBindings = [];
   const hardFailure = () => issues.some((issue) => issue.severity === "error");
-  if (!hardFailure()) {
+  const sketchIds=new Set((definition.sketches || []).map(s=>s.id));
+  const badSketches=new Set(issues.filter(i=>i.severity==='error' && i.sketchId).map(i=>i.sketchId));
+  const invalidFeatures=new Set(issues.filter(i=>i.severity==='error' && i.featureId).map(i=>i.featureId));
+  if (!issues.some(i=>i.severity==='error' && ['missing-definition','missing-id','missing-origin','missing-history','missing-parameters','duplicate-feature-id'].includes(i.code))) {
     for (const feature of graph.order) {
-      if (feature.suppressed) continue;
+      if (feature.suppressed || invalidFeatures.has(feature.id)) continue;
+      const profiles=[feature.sketch,feature.params?.sketchId,...(feature.references?.sketches || []),...(feature.inputs || []).filter(id=>sketchIds.has(id))].filter(Boolean);
+      if(profiles.some(id=>badSketches.has(id))){issues.push({severity:"error",code:"unavailable-sketch-input",featureId:feature.id,message:"Driving sketch could not rebuild"});continue;}
+
       /* A failure stops THIS feature, not the regeneration: the loop is in
          build order, so anything downstream reports its own unavailable input
          when it is reached, and independent branches still build. Breaking here
          threw away every body after the first bad step. */
-      const missingInput = (feature.inputs || []).find((id) => !results.has(id));
+      const dependencies = featureDependencies(feature).map(id => sketchIds.has(id) && !graph.byId.has(id)
+        ? (definition.sketches || []).find(sketch => sketch.id === id)?.support?.ownerFeatureId : id).filter(Boolean);
+      const missingInput = dependencies.find(id => !results.has(id));
       if (missingInput) {
         issues.push({ severity: "error", code: "unavailable-feature-input", featureId: feature.id, reference: missingInput, message: (feature.name || feature.id) + " cannot rebuild because " + missingInput + " is unavailable" });
         continue;
@@ -307,6 +323,7 @@ export function rebuildDefinition(definition, overrides = {}, options = {}) {
       if (topologyRun.issues.some((issue) => issue.severity === "error")) continue;
       try {
         const result = featureResult(feature, parameterRun.values, results, topologyRun.resolutions, sketchRun.sketches);
+        if(options.exactTopology?.has(feature.id))result.topology=options.exactTopology.get(feature.id);
         results.set(feature.id, result);
         (result.topology || []).forEach((item) => {
           if (!topology.byPersistentId.has(item.persistentId)) topology.list.push(item);
