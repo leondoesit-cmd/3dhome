@@ -19130,10 +19130,17 @@ body.compact-nav #md-sheet .m-icon-grid .m-grid-btn span { display: block; font-
 body.compact-nav #modeler .md-command span { white-space: normal; overflow-wrap: anywhere; }
 body.compact-nav #md-sheet #mdLeftPanel { overflow-y: auto; }
 
-body.compact-nav #modeler #mdCons .md-row:has(select) { flex-direction: column; align-items: stretch; gap: 6px; }
-body.compact-nav #modeler #mdCons .md-row select { width: 100%; min-width: 0; min-height: 44px; }
+/* The Settings column is ~200px wide on desktop too, and a select there is
+   ~186px: side by side, the flex:1/min-width:0 label collapsed to 0px and
+   printed "Interface density" one letter per line. Stack label over select
+   at every width, not only on the compact phone shell. */
+#modeler #mdCons .md-row:has(select) { flex-direction: column; align-items: stretch; gap: 6px; }
+#modeler #mdCons .md-row:has(select) select { width: 100%; min-width: 0; }
+body.compact-nav #modeler #mdCons .md-row select { min-height: 44px; }
 
-#modeler #mdCons .md-row .t { white-space: normal; overflow-wrap: anywhere; }
+/* break-word, not anywhere: `anywhere` lets a squeezed label break after any
+   character instead of between words. */
+#modeler #mdCons .md-row .t { white-space: normal; overflow-wrap: break-word; }
 #modeler #mdCommandSearchClose { flex: none; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 
 body.dock-rail #cabdes.cb-compact:not(.cb-is3d) .cb-right .cb-prev-wrap { display: none; }
