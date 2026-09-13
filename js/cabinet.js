@@ -210,7 +210,7 @@ const MAT_PRICE = { carcass: 95, front: 210, top: 480, lacquer: 480, glass: 620,
 /* Fittings priced per unit. The appliance and the television themselves are
    deliberately absent: a joiner builds the niche, the customer buys the machine,
    and putting a fridge on the joinery quote would be wrong. */
-const EXTRA_PRICE = { led: 130, mirrorInside: 220, safe: 620, hamper: 180, trouser: 160, basket: 95, slidingKit: 380, lock: 90, bracket: 34, tvBracket: 240, grommet: 22 };
+const EXTRA_PRICE = { led: 130, mirrorInside: 220, safe: 620, hamper: 180, trouser: 160, basket: 95, slidingKit: 380, lock: 90, bracket: 34, tvBracket: 240, grommet: 22, leg: 18 };
 
 /* ========================= corner units =========================
 
@@ -366,9 +366,9 @@ export function cabRun(it, items) {
    and depth are set by the cabinet and cannot be fixed by choosing. */
 
 export const SEC_FIT = {
-  hang: { w: 40, h: 150, d: 55 },
-  hangS: { w: 40, h: 85, d: 55 },
-  hang2: { w: 40, h: 190, d: 55 },
+  hang: { w: 40, h: 150, d: 50 },
+  hangS: { w: 40, h: 85, d: 50 },
+  hang2: { w: 40, h: 190, d: 50 },
   shelves: { w: 20, h: 25, d: 15 },
   drawers: { w: 25, h: 15, d: 30, wMax: 120 },
   box: { w: 20, h: 20, d: 15 },
@@ -468,7 +468,7 @@ export function doorFit(t, ctx) {
     if (w + 0.5 < 45) return no("אקורדיון צריך " + cm(45) + " רוחב לשתי חציי-כנף", "a bi-fold needs " + cm(45) + " for its two halves");
     if (w - 0.5 > 120) return no("אקורדיון רחב מדי — עד " + cm(120), "bi-fold too wide — up to " + cm(120));
   }
-  if (t === "lift" && ctx.colH - 0.5 > 100)
+  if (t === "lift" && (ctx.doorH ?? ctx.colH) - 0.5 > 100)
     return no("דלת מתרוממת עד " + cm(100) + " גובה", "a lift-up door works up to " + cm(100) + " tall");
   if (t === "drawer" && !ctx.drawers)
     return no("אין מגירות בעמודה — הוסיפו תא מגירות", "no drawers in this column — add a drawer compartment first");
@@ -511,9 +511,19 @@ export function fitCtx(L, col) {
     var lv = c.doorLeaves || 1;
     minLeaf = Math.min(minLeaf, c.w / Math.max(1, lv));
   });
+  var doorH=colH;
+  if(col && col.secs.length && !isCorner(sp)) {
+    doorH=0;
+    doorRuns({...col.ref,door:{t:"hinged"}}).forEach(function(run){
+      var bottom=run.i0===0?L.yb-L.t:col.secs[run.i0].y0-L.t/2;
+      var top=run.i1===col.secs.length-1?L.yt+L.t:col.secs[run.i1].y1+L.t/2;
+      doorH=Math.max(doorH,top-bottom);
+    });
+  }
   return {
     w: col ? col.w : L.w,
     colH: colH,
+    doorH: doorH,
     d: innerD,
     top: !!sp.top,
     cols: L.cols.length,
@@ -557,17 +567,18 @@ function door(t, leaves, hinge) {
   return { t: t, leaves: leaves || null, hinge: hinge || "L" };
 }
 
-/* The top box ("תא עליון"): anything over ~205 cm of clear height gets one,
-   because the shelf above 200 is out of reach anyway — but never at the cost
-   of the 150 cm a long hang needs. */
-function topBox(H) {
-  return H > 205 ? Math.min(50, H - STD.hangLong - 5) : 0;
+/* Reserve a top box only once the space ABOVE the 205 cm main zone fits
+   its shelf and a useful compartment. Extra height fills that space gradually
+   instead of taking a fixed 50 cm from the main zone at the threshold. */
+function topBox(H, panel) {
+  var available = H - 205 - (panel || STD.panel);
+  return available >= STD.minSec ? Math.min(50, available) : 0;
 }
 
 // A hanging column: main hang (single or double), plus a top box on tall units.
 function fillHang(H, panel) {
   var out = [],
-    top = topBox(H),
+    top = topBox(H, panel),
     rest = H - (top ? top + panel : 0);
   if (rest >= SEC.hang2.min) out.push(sec("hang2", rest));
   else if (rest >= STD.hangLong) out.push(sec("hang", rest));
@@ -579,7 +590,7 @@ function fillHang(H, panel) {
 // The "service" column of a wardrobe: drawers low, folded shelves above.
 function fillShelfDrawer(H, panel, nDraw) {
   var out = [],
-    top = topBox(H),
+    top = topBox(H, panel),
     rest = H - (top ? top + panel : 0);
   var nd = nDraw == null ? (rest > 170 ? 3 : 2) : nDraw,
     dh = nd * STD.drawerH;
@@ -590,7 +601,7 @@ function fillShelfDrawer(H, panel, nDraw) {
 }
 function fillShelves(H, panel, space) {
   var out = [],
-    top = topBox(H),
+    top = topBox(H, panel),
     rest = H - (top ? top + panel : 0);
   out.push(sec("shelves", rest, { space: space }));
   if (top) out.push(sec("box", top));
@@ -603,7 +614,7 @@ export function columnFill(mode, H, panel) {
   if (mode === "mix") return fillShelfDrawer(H, panel);
   if (mode === "shelf") return fillShelves(H, panel);
   if (mode === "draw") {
-    var top = topBox(H),
+    var top = topBox(H, panel),
       rest = H - (top ? top + panel : 0),
       out = [sec("drawers", rest, { n: Math.max(2, Math.round(rest / 24)) })];
     if (top) out.push(sec("box", top));
@@ -758,7 +769,7 @@ export const PRESETS = [
       return ws.map(function (cw, i) {
         return {
           w: cw,
-          secs: [sec("shelves", H - STD.drawerH - sp.panel, { n: 1 }), sec("drawers", STD.drawerH, { n: 1 })],
+          secs: [sec("shelves", H - STD.drawerH - sp.panel, { n: 1 }), sec("drawers", STD.drawerH, { n: 1, nodoor: 1 })],
           door: door("hinged", null, i % 2 === 0 ? "L" : "R"),
         };
       });
@@ -1101,7 +1112,7 @@ function distribute(list, total, getMin) {
       o.__size = Math.max(getMin(o), o.__size * k2);
     });
   }
-  // rounding drift lands on the largest member so the sum is exact
+  // Absorb rounding drift without forcing any member below its minimum.
   var sum = 0;
   list.forEach(function (o) {
     sum += o.__size;
@@ -1110,7 +1121,16 @@ function distribute(list, total, getMin) {
   list.forEach(function (o) {
     if (o.__size > big.__size) big = o;
   });
-  big.__size += total - sum;
+  if (sum <= total) big.__size += total - sum;
+  else {
+    // Preserve minimum sizes when possible; impossible envelopes remain
+    // visibly overfull so construction validation can reject them.
+    var capacity = list.reduce(function (n, o) { return n + Math.max(0, o.__size - getMin(o)); }, 0);
+    var deficit = Math.min(sum - total, capacity);
+    if (capacity > 0) list.forEach(function (o) {
+      o.__size -= deficit * Math.max(0, o.__size - getMin(o)) / capacity;
+    });
+  }
 }
 
 /* The clear box the division has to fit inside. Floating shelves have no
@@ -1375,18 +1395,22 @@ export function layoutCab(it, run, options) {
        rail is continuous, so the returns exist only at the two ends that are
        actually visible; the joints in the middle have nothing to close. */
     var inset = sp.plinthType === "flush" ? 0 : STD.toeInset,
-      pz = zc - inset;
+      pz = sp.plinthType === "flush" ? zc + STD.doorT : zc - inset;
     part({ k: "box", role: "plinth", x0: -hw, x1: hw, y0: 0, y1: ph, z0: pz - t, z1: pz, mat: "carcass" });
     [-1, 1].forEach(function (sx) {
       if (sx < 0 ? !R.first : !R.last) return;
       var x0 = sx < 0 ? -hw : hw - t;
       part({ k: "box", role: "plinth", x0: x0, x1: x0 + t, y0: 0, y1: ph, z0: zb, z1: pz - t, mat: "carcass" });
     });
-  } else if (sp.plinthType === "legs") {
-    [-1, 1].forEach(function (sx) {
-      [-1, 1].forEach(function (sz) {
-        part({ k: "cyl", role: "leg", x: sx * (hw - 6), y: ph / 2, z: sz * (hd - 8), r: 1.8, hgt: ph, mat: "metal" });
-      });
+  } else if (sp.plinthType === "legs" && ph > 0) {
+    var legXs = [-hw + Math.min(6, w / 4), hw - Math.min(6, w / 4)], dividerX = -hw + t;
+    sp.cols.slice(0,-1).forEach(function(c){dividerX += c.w;legXs.push(dividerX + t / 2);dividerX += t;});
+    legXs.sort(function(a,b){return a-b;});
+    // Include intermediate supports across a very wide single bay too.
+    var supports = [];
+    legXs.forEach(function(x,i){if(i){var prev=legXs[i-1],n=Math.ceil((x-prev)/STD.maxSpan);for(var j=1;j<n;j++)supports.push(prev+(x-prev)*j/n);}supports.push(x);});
+    supports.forEach(function(x,i){if(i && Math.abs(x-supports[i-1])<0.1)return;
+      [-1,1].forEach(function(sz){part({k:"cyl",role:"leg",x:x,y:ph/2,z:sz*(hd-Math.min(8,d/4)),r:1.8,hgt:ph,mat:"metal"});});
     });
   }
   part({ k: "box", role: "side", x0: -hw, x1: -hw + t, y0: ph, y1: h - topT, z0: zb - sp.back, z1: zc, mat: "carcass" });
@@ -1447,7 +1471,7 @@ export function layoutCab(it, run, options) {
       pw = runW / nTop,
       tx = -hw - 1.5;
     for (var ti = 0; ti < nTop; ti++) {
-      part({ k: "box", role: "worktop", x0: tx, x1: tx + pw, y0: h - topT, y1: h, z0: -hd - 1.5, z1: hd + 1.5, mat: "top", run: 1 });
+      part({ k: "box", role: "worktop", x0: tx, x1: tx + pw, y0: h - topT, y1: h, z0: -hd - 1.5, z1: hd + 1.5, mat: "top", run: 1, exposedReturns: (ti === 0 ? 1 : 0) + (ti === nTop - 1 ? 1 : 0) });
       tx += pw;
     }
   }
@@ -1549,6 +1573,13 @@ function layoutCorner(L, part) {
     part({ k: "box", role: "plinth", x0: hw - STD.toeInset - t, x1: hw - STD.toeInset, y0: 0, y1: ph, z0: -hd, z1: hd - c * 0.7, mat: "carcass" });
   }
 
+  if(ph>0 && sp.plinthType==="legs") {
+    cornerPoly(sp,w,d).forEach(function(p){
+      var len=Math.hypot(p.x,p.z),scale=len>0?Math.max(0,(len-8)/len):0;
+      part({k:"cyl",role:"leg",x:p.x*scale,z:p.z*scale,y:ph/2,r:1.8,hgt:ph,mat:"metal"});
+    });
+  }
+
   // one column, one compartment, pentagon shelves in it
   var col = { i: 0, x0: -hw + t, x1: hw - t, w: w - 2 * t, ref: sp.cols[0], secs: [], kind: "normal" };
   L.cols.push(col);
@@ -1570,7 +1601,7 @@ function layoutCorner(L, part) {
      it rotates about the hinge in the plane of the diagonal. */
   var dr = sp.cols[0].door || { t: "hinged" };
   if (dr.t !== "none") {
-    var open = sp.open || 0,
+    var open = getDoorOpen(sp.open || 0),
       mx = (hw + hw - c) / 2, // the diagonal's midpoint
       mz = (hd - c + hd) / 2,
       hingeLeft = dr.hinge === "L",
@@ -1588,7 +1619,7 @@ function layoutCorner(L, part) {
     var lx0 = hingeLeft ? px : px - front,
       lx1 = lx0 + front;
     frontLeaf(L, u, lx0, lx1, ph + sp.gap, h - sp.gap, pz - STD.doorT, pz, "front", "door");
-    addHandle(L, hingeLeft ? lx1 - 5 : lx0 + 5, (ph + h) / 2, pz, 5, h - ph, "v", u);
+    addHandle(L, ["edge", "gola"].includes(sp.hw.handle) ? (lx0 + lx1) / 2 : hingeLeft ? lx1 - 5 : lx0 + 5, (ph + h) / 2, pz, front, h - ph, "v", u);
     col.doorLeaves = 1;
     col.doorH = h - ph;
     col.hinges = hingeCount(h - ph);
@@ -1731,9 +1762,9 @@ function fillSection(L, col, cell, s) {
       var trouserOpen = getInteriorOpen(sp.open || 0, hasDoor);
       var uTrouser = L.unit({ type: "drawer", tx: 0, ty: 0, tz: (zc - zb) * 0.65 * trouserOpen, px: 0, py: 0, pz: 0 });
       for (var i = 0; i < 5; i++) {
-        var ty = y1 - 6 - i * 6;
+        var ty = y1 - 6;
         if (ty < y0 + 4) break;
-        L.part({ k: "cyl", role: "rail", x: (x0 + x1) / 2, y: ty, z: (zb + zc) / 2, r: 0.7, hgt: x1 - x0 - 2, rz: Math.PI / 2, mat: "rail", unit: uTrouser });
+        L.part({ k: "cyl", role: "rail", x: (x0 + x1) / 2, y: ty, z: zb + 3 + i * Math.max(0, zc - zb - 6) / 4, r: 0.7, hgt: x1 - x0 - 2, rz: Math.PI / 2, mat: "rail", unit: uTrouser });
       }
       cell.trouser = 1;
       break;
@@ -1769,9 +1800,9 @@ function fillSection(L, col, cell, s) {
       cell.grommet = 1;
       // the screen: 16:9, held off the board on its bracket, with a margin all
       // round so it reads as a set in a niche rather than a panel filling it
-      var sw = Math.max(20, nW - 8),
+      var sw = Math.max(0, nW - 8),
         shh = Math.min(nH - 6, (sw * 9) / 16);
-      if (shh > 12) {
+      if (sw >= 20 && shh > 12 && nH >= 18 && zc - pz1 >= 5.5) {
         var scx = (x0 + x1) / 2,
           scy = y0 + nH * 0.52,
           sz0 = pz1 + 4;
@@ -1858,6 +1889,11 @@ function drawerStack(L, col, cell, s, behindDoor) {
   if (hs.length === 0 || col.w <= 0.001 || H <= 0.001) return;
   var drawerOpen = getInteriorOpen(sp.open || 0, behindDoor);
   hs.forEach(function (dh, i) {
+    if (dh <= 4 || col.w-gap <= 2 + 2*sp.panel || fz0 <= L.zb + 3 + sp.panel) {
+      cell.invalidDrawers = (cell.invalidDrawers || 0) + 1;
+      y += dh + gap;
+      return;
+    }
     var slide = (L.zc - L.zb) * 0.72 * drawerOpen,
       u = L.unit({ type: "drawer", tx: 0, ty: 0, tz: slide, px: 0, py: 0, pz: 0 });
     var dx0 = col.x0 + gap / 2,
@@ -1870,10 +1906,10 @@ function drawerStack(L, col, cell, s, behindDoor) {
     // the box behind the front, so an open drawer is not a floating panel
     var bz1 = fz0,
       bz0 = L.zb + 3,
-      bh = Math.min(dh - 3, 16);
-    L.part({ k: "box", role: "drawerBox", x0: dx0 + 1, x1: dx0 + 2.5, y0: dy0 + 1.5, y1: dy0 + 1.5 + bh, z0: bz0, z1: bz1, mat: "carcass", unit: u });
-    L.part({ k: "box", role: "drawerBox", x0: dx1 - 2.5, x1: dx1 - 1, y0: dy0 + 1.5, y1: dy0 + 1.5 + bh, z0: bz0, z1: bz1, mat: "carcass", unit: u });
-    L.part({ k: "box", role: "drawerBox", x0: dx0 + 1, x1: dx1 - 1, y0: dy0 + 1.5, y1: dy0 + 1.5 + bh, z0: bz0, z1: bz0 + 1.5, mat: "carcass", unit: u });
+      bh = Math.min(dh - 3, 16), bt = sp.panel;
+    L.part({ k: "box", role: "drawerBox", x0: dx0 + 1, x1: dx0 + 1 + bt, y0: dy0 + 1.5, y1: dy0 + 1.5 + bh, z0: bz0, z1: bz1, mat: "carcass", unit: u });
+    L.part({ k: "box", role: "drawerBox", x0: dx1 - 1 - bt, x1: dx1 - 1, y0: dy0 + 1.5, y1: dy0 + 1.5 + bh, z0: bz0, z1: bz1, mat: "carcass", unit: u });
+    L.part({ k: "box", role: "drawerBox", x0: dx0 + 1, x1: dx1 - 1, y0: dy0 + 1.5, y1: dy0 + 1.5 + bh, z0: bz0, z1: bz0 + bt, mat: "carcass", unit: u });
     L.part({ k: "box", role: "drawerBottom", x0: dx0 + 1, x1: dx1 - 1, y0: dy0 + 1.5, y1: dy0 + 2.3, z0: bz0, z1: bz1, mat: "back", unit: u });
     if (!behindDoor) addHandle(L, (dx0 + dx1) / 2, dy1 - Math.min(dh / 2, 6), fz1, dx1 - dx0, dh, "h", u);
     cell.drawers.push({ y0: dy0, y1: dy1 });
@@ -1913,6 +1949,10 @@ function frontLeaf(L, u, x0, x1, y0, y1, z0, z1, mat, role) {
     h = y1 - y0,
     t = z1 - z0;
   if (w <= 0.01 || h <= 0.01 || t <= 0.001 || !fin(w) || !fin(h) || !fin(t)) return;
+  if (role === "door" || role === "drawerFront") {
+    L.fronts ||= [];
+    L.fronts.push({ unit: u, x0, x1, y0, y1, z0, z1, style: st, role });
+  }
   function p(a, b, c, d, e, f, m, r) {
     L.part({ k: "box", role: r || role, x0: a, x1: b, y0: c, y1: d, z0: e, z1: f, mat: m, unit: u });
   }
@@ -1973,8 +2013,11 @@ function buildDoor(L, col, c) {
       u = L.unit({ type: "slide", tx: slide, ty: 0, tz: 0, px: 0, py: 0, pz: 0 });
     frontLeaf(L, u, col.x0 - gap, col.x1 + gap, y0 + 2, y1 - 2, z0, z1, mat, "door");
     addHandle(L, col.i % 2 ? col.x0 + 5 : col.x1 - 5, (y0 + y1) / 2, z1, 4, y1 - y0, "v", u);
-    L.part({ k: "box", role: "track", x0: -L.w / 2, x1: L.w / 2, y0: y1 - 2, y1: y1, z0: hd - 6, z1: hd, mat: "metal" });
-    L.part({ k: "box", role: "track", x0: -L.w / 2, x1: L.w / 2, y0: y0, y1: y0 + 2, z0: hd - 6, z1: hd, mat: "metal" });
+    if (!L._hasSlidingTracks) {
+      L.part({ k: "box", role: "track", x0: -L.w / 2, x1: L.w / 2, y0: y1 - 2, y1: y1, z0: hd - 6, z1: hd, mat: "metal" });
+      L.part({ k: "box", role: "track", x0: -L.w / 2, x1: L.w / 2, y0: y0, y1: y0 + 2, z0: hd - 6, z1: hd, mat: "metal" });
+      L._hasSlidingTracks = true;
+    }
     col.doorLeaves = 1;
     return;
   }
@@ -2052,7 +2095,7 @@ function foldingLeaf(L, lx0, lx1, y0, y1, z0d, z1d, mat, hingeLeft, open, gap) {
     a = open * 1.55 * (hingeLeft ? -1 : 1), // same sign rule as a hinged leaf
     jointX = hingeX + s * half;
 
-  var uOut = L.unit({ type: "fold", px: hingeX, py: 0, pz: z0d, rot: "y", ang: a });
+  var uOut = L.unit({ type: "fold", outer: true, px: hingeX, py: 0, pz: z0d, rot: "y", ang: a });
   frontLeaf(L, uOut, hingeLeft ? lx0 : lx1 - half, hingeLeft ? lx0 + half : lx1, y0, y1, z0d, z1d, mat, "door");
 
   // where the knuckle has travelled to, once the outer half has swung
@@ -2090,13 +2133,19 @@ export function leafWeight(L, col) {
     leaves = col.doorLeaves || 1,
     h = col.doorH || L.yt - L.yb;
   if (!leaves) return 0;
-  return boardWeight(((col.w / leaves) * h) / 10000, sheet);
+  return boardWeight((((isCorner(sp) ? L.cornerFront || col.w : col.w) / leaves) * h) / 10000, sheet);
 }
 
 /* --- handles (פרזול) --- */
 function addHandle(L, cx, cy, zFace, availW, availH, dir, unit) {
   var t = L.sp.hw.handle;
   L.hw.handles = (L.hw.handles || 0) + 1;
+  if (!["push","edge","gola"].includes(t)) {
+    L.handleMounts ||= [];
+    (t === "knob" || t === "leather" ? [0] : [-4.8,4.8]).forEach(function(offset){
+      L.handleMounts.push({unit:unit,x:cx+(dir==="h"?offset:0),y:cy+(dir==="v"?offset:0)});
+    });
+  }
   if (t === "push") return;
   if (t === "knob") {
     L.part({ k: "cyl", role: "handle", x: cx, y: cy, z: zFace + 1.1, r: 1.6, hgt: 2.2, rx: Math.PI / 2, mat: "handle", unit: unit });
@@ -2126,12 +2175,12 @@ function addHandle(L, cx, cy, zFace, availW, availH, dir, unit) {
   if (dir === "v") {
     L.part({ k: "cyl", role: "handle", x: cx, y: cy, z: zFace + off, r: r, hgt: len, mat: "handle", unit: unit });
     [-1, 1].forEach(function (s) {
-      L.part({ k: "cyl", role: "handle", x: cx, y: cy + (s * len) / 2.6, z: zFace + off / 2, r: r * 0.85, hgt: off, rx: Math.PI / 2, mat: "handle", unit: unit });
+      L.part({ k: "cyl", role: "handle", x: cx, y: cy + s * 4.8, z: zFace + off / 2, r: r * 0.85, hgt: off, rx: Math.PI / 2, mat: "handle", unit: unit });
     });
   } else {
     L.part({ k: "cyl", role: "handle", x: cx, y: cy, z: zFace + off, r: r, hgt: len, rz: Math.PI / 2, mat: "handle", unit: unit });
     [-1, 1].forEach(function (s) {
-      L.part({ k: "cyl", role: "handle", x: cx + (s * len) / 2.6, y: cy, z: zFace + off / 2, r: r * 0.85, hgt: off, rx: Math.PI / 2, mat: "handle", unit: unit });
+      L.part({ k: "cyl", role: "handle", x: cx + s * 4.8, y: cy, z: zFace + off / 2, r: r * 0.85, hgt: off, rx: Math.PI / 2, mat: "handle", unit: unit });
     });
   }
 }
@@ -2139,6 +2188,7 @@ function addHandle(L, cx, cy, zFace, availW, availH, dir, unit) {
 /* --- hardware tally, for the price and the ironmongery list --- */
 function countHardware(L) {
   var hwc = L.hw;
+  hwc.legs = L.parts.filter(function(p){return p.role === "leg";}).length;
   hwc.hinges = 0;
   hwc.slides = 0;
   hwc.rails = 0;
@@ -2258,7 +2308,8 @@ export function bandLen(p) {
     }),
     face = dims[1] + dims[2]; // half the perimeter of the board's face
   if (FRONT_ROLES.indexOf(p.role) >= 0) return (2 * face) / 100; // seen all round
-  if (p.role === "worktop") return (dx + 2 * dz) / 100; // front edge + both returns
+  if (p.role === "worktop") return (dx + (p.exposedReturns ?? 2) * dz) / 100; // front edge and exposed slab returns
+  if (p.role === "plinth") return Math.max(dx, dz) / 100;
   if (p.role === "drawerBox") return dims[2] / 100; // the top edge only
   if (dz <= dx && dz <= dy) return (2 * face) / 100; // face-on board, no rule
   if (dy <= dx) return dx / 100; // shelf / top / bottom — its front edge
@@ -2311,16 +2362,10 @@ export function cutList(it, pre) {
 
 /* ========================= drilling (System 32) =========================
 
-   The 32 mm system is the grid every piece of European cabinet hardware is made
-   to: holes on a 32 mm pitch in a line 37 mm back from the front edge, 5 mm for
-   shelf pins and hinge plates and runner screws, 35 mm for a hinge cup 22.5 mm
-   in from the door's hinge edge. Get those four numbers right and any hinge,
-   runner or shelf support on the market bolts straight on.
-
-   The labour model already counted these holes; this is where they acquire
-   positions, which is the difference between a drawing of a cabinet and a file
-   a CNC can run. Coordinates are millimetres in the panel's own frame, with the
-   datum named per panel — a machinist has to know which corner zero is. */
+   Generic review patterns use a 32 mm pitch, 37 mm setback and example
+   hinge/runner dimensions. Hardware-specific drilling must be checked against
+   the selected manufacturer's template; these defaults do not qualify a cut.
+   Coordinates are millimetres in each panel's named datum. */
 export const S32 = {
   pitch: 32, // the grid
   setback: 37, // holes sit this far in from the panel's front edge
@@ -2347,18 +2392,23 @@ export function drillPlan(it, pre) {
     out = [];
 
   function panel(role, l, w, datum) {
-    var e = { role: role, l: Math.round(l * 10), w: Math.round(w * 10), datum: datum, holes: [] };
+    var e = { id: "panel:" + out.length, role: role, l: Math.round(l * 10), w: Math.round(w * 10), thickness: t * 10, datum: datum, holes: [], rejectedHoles: [] };
     out.push(e);
     return e;
   }
   /* Positions arrive in the app's centimetres and leave in the millimetres a
      machine is programmed in — `e.l`/`e.w` are already mm, so the edge guard has
      to be applied after the conversion, not before it. */
-  function hole(e, xCm, yCm, dia, depth, kind) {
+  function hole(e, xCm, yCm, dia, depth, kind, face = "B") {
     var mx = Math.round(xCm * 100) / 10,
       my = Math.round(yCm * 100) / 10;
-    if (mx < dia / 2 || my < dia / 2 || mx > e.l - dia / 2 || my > e.w - dia / 2) return;
-    e.holes.push({ x: mx, y: my, d: dia, depth: depth, kind: kind });
+    var operation = { id: e.id + ":hole:" + (e.holes.length + e.rejectedHoles.length), x: mx, y: my, d: dia, depth: depth, kind: kind, face: face, through: depth === 0, templateId: "generic-system32-v1" };
+    if (![mx, my, dia, depth].every(Number.isFinite) || dia <= 0 || depth < 0 || mx < dia / 2 || my < dia / 2 || mx > e.l - dia / 2 || my > e.w - dia / 2) {
+      e.rejectedHoles.push({ ...operation, reason: "Hole is outside the panel or has invalid dimensions" });
+      return;
+    }
+    // Preserve opposite-face operations, but never drill the same hole twice.
+    if (!e.holes.some(function (h) { return h.x === mx && h.y === my && h.d === dia && h.depth === depth && h.face === face; })) e.holes.push(operation);
   }
 
   var innerD = L.zc - L.zb,
@@ -2368,9 +2418,19 @@ export function drillPlan(it, pre) {
   /* One entry per physical vertical board, not per column face. A divider
      between two columns is a single board drilled on both of its faces — emit
      it twice and the shop drills two of them and has a spare. */
+  if (isFloat(sp)) return out;
   var boards = [];
-  for (var bi = 0; bi <= L.cols.length; bi++)
-    boards.push(panel(bi === 0 || bi === L.cols.length ? "side" : "divider", L.yt - L.yb + 2 * t, innerD, datum));
+  var physical = L.parts.filter(function (p) { return p.k === "box" && ["side", "divider"].includes(p.role); });
+  if (!isCorner(sp)) physical.sort(function (a, b) { return a.x0 - b.x0; });
+  physical.forEach(function (p) {
+    var board = panel(p.role, p.y1 - p.y0, Math.max(p.x1 - p.x0, p.z1 - p.z0), datum);
+    board.base = p.y0;
+    board.partIndex = L.parts.indexOf(p);
+    board.thickness = Math.min(p.x1 - p.x0, p.z1 - p.z0) * 10;
+    board.faceAxis = p.x1 - p.x0 < p.z1 - p.z0 ? "x" : "z";
+    board.datumCode = "bottom-front";
+    boards.push(board);
+  });
 
   L.cols.forEach(function (col, ci) {
     if (col.kind && col.kind !== "normal") return;
@@ -2381,55 +2441,61 @@ export function drillPlan(it, pre) {
       // adjustable shelves: a pair of rows, front and back, on the grid
       if (cell.shelves) {
         for (var i = 1; i <= cell.shelves; i++) {
-          var sy = snap32(((cell.y1 - cell.y0) * i) / (cell.shelves + 1) + cell.y0 - base, 0);
-          [sideL, sideR].forEach(function (e) {
-            hole(e, sy, S32.setback / 10, S32.pin, S32.pinDepth, "pin");
-            hole(e, sy, innerD - S32.setback / 10, S32.pin, S32.pinDepth, "pin");
+          var sy = snap32((((cell.y1 - cell.y0) * i) / (cell.shelves + 1) + cell.y0 - base) * 10, 0) / 10;
+          [sideL, sideR].forEach(function (e, side) {
+            if (!e) return;
+            var face = isCorner(sp) ? "B" : side === 0 ? "A" : "B";
+            hole(e, sy + base - (e.base ?? base), S32.setback / 10, S32.pin, S32.pinDepth, "pin", face);
+            hole(e, sy + base - (e.base ?? base), e.w / 10 - S32.setback / 10, S32.pin, S32.pinDepth, "pin", face);
           });
         }
       }
       // drawer runners: two screws per side per drawer, on the grid
       if (cell.drawers)
         cell.drawers.forEach(function (dr) {
-          var ry = snap32(dr.y0 + 3 - base, 0);
-          [sideL, sideR].forEach(function (e) {
-            hole(e, ry, S32.setback / 10, S32.pin, S32.pinDepth, "runner");
-            hole(e, ry + S32.pitch / 10, S32.setback / 10, S32.pin, S32.pinDepth, "runner");
+          var ry = snap32((dr.y0 + 3 - base) * 10, 0) / 10;
+          [sideL, sideR].forEach(function (e, side) {
+            if (!e) return;
+            var face = isCorner(sp) ? "B" : side === 0 ? "A" : "B";
+            hole(e, ry + base - (e.base ?? base), S32.setback / 10, S32.pin, S32.pinDepth, "runner", face);
+            hole(e, ry + base - (e.base ?? base), (S32.setback + Math.floor((e.w - 2*S32.setback) / S32.pitch)*S32.pitch) / 10, S32.pin, S32.pinDepth, "runner", face);
           });
         });
     });
 
-    /* Hinge plates on the carcass and cups in the door, at the same heights —
-       buildDoor already placed the hinges, so the pattern is read off them
-       rather than recomputed and allowed to disagree. */
-    var cups = L.parts.filter(function (p) {
-      return p.role === "hinge" && p.x >= col.x0 - 1 && p.x <= col.x1 + 1;
-    });
-    if (cups.length) {
-      var dr2 = col.ref.door || {},
-        leafH = col.doorH || L.yt - L.yb,
-        door = panel("door", Math.max(leafH, col.w), Math.min(leafH, col.w), he("מהתחתית ומקצה הציר", "from the bottom, from the hinge edge"));
-      cups.forEach(function (p) {
-        // the plate on the carcass side
-        var hy = p.y - base,
-          e2 = p.x < (col.x0 + col.x1) / 2 ? sideL : sideR;
-        hole(e2, hy - S32.plateSpread / 20, S32.setback / 10, S32.pin, S32.pinDepth, "plate");
-        hole(e2, hy + S32.plateSpread / 20, S32.setback / 10, S32.pin, S32.pinDepth, "plate");
-        // and the 35 mm cup in the leaf
-        hole(door, p.y - (L.yb - L.t), S32.cupSetback / 10, S32.cup, S32.cupDepth, "cup");
-      });
-      if (sp.hw.handle !== "push" && sp.hw.handle !== "edge" && sp.hw.handle !== "gola") {
-        // the handle's own fixing centres, 96 mm apart on a bar handle
-        var hc = sp.hw.handle === "knob" ? [0] : [-4.8, 4.8];
-        hc.forEach(function (o) {
-          hole(door, leafH / 2 + o, (dr2.hinge === "L" ? col.w - 4 : 4), S32.pin, 0, "handle");
-        });
+  });
+
+  // A motion unit identifies one physical leaf, including separate covered
+  // runs and corner fronts. Its local coordinates remain stable while open.
+  (L.fronts || []).forEach(function (front) {
+    var cups = L.parts.filter(function (p) { return p.role === "hinge" && p.unit === front.unit; });
+    if (!cups.length && !(L.handleMounts || []).some(function(m){return m.unit===front.unit;})) return;
+    var leafH = front.y1 - front.y0, leafW = front.x1 - front.x0;
+    var door = panel(front.role || "door", leafH, leafW, he("מהתחתית ומקצה הציר", "from the bottom, from the hinge edge"));
+    door.unit = front.unit;
+    door.thickness = (front.z1 - front.z0) * 10;
+    door.datumCode = "bottom-hinge";
+    door.faceAxis = "local-z";
+    door.front = { ...front };
+    var left = !cups.length || cups[0].x < (front.x0 + front.x1) / 2;
+    door.hingeLeft = left;
+    cups.forEach(function (p) {
+      hole(door, p.y - front.y0, S32.cupSetback / 10, S32.cup, S32.cupDepth, "cup");
+      var ci = L.cols.findIndex(function (col) { return p.x >= col.x0 - 1 && p.x <= col.x1 + 1; });
+      var board = isCorner(sp) ? boards[left ? 1 : 0] : boards[Math.max(0, ci) + (left ? 0 : 1)];
+      if (board) {
+        var hy = p.y - (board.base ?? base);
+        hole(board, hy - S32.plateSpread / 20, S32.setback / 10, S32.pin, S32.pinDepth, "plate", isCorner(sp) ? "B" : left ? "A" : "B");
+        hole(board, hy + S32.plateSpread / 20, S32.setback / 10, S32.pin, S32.pinDepth, "plate", isCorner(sp) ? "B" : left ? "A" : "B");
       }
-    }
+    });
+    (L.handleMounts || []).filter(function(m){return m.unit===front.unit;}).forEach(function(m){
+      hole(door, m.y-front.y0, left ? m.x-front.x0 : front.x1-m.x, S32.pin, 0, "handle");
+    });
   });
 
   return out.filter(function (e) {
-    return e.holes.length;
+    return e.holes.length || e.rejectedHoles.length;
   });
 }
 
@@ -2441,6 +2507,7 @@ export function profileMeters(it, pre) {
   var L = pre || layoutCab(it),
     sp = L.sp;
   if (!sp.top) return 0;
+  if (isCorner(sp)) { var top=L.parts.find(function(p){return p.role==="worktop"&&p.k==="poly";});return top ? Math.hypot(top.pts[3].x-top.pts[2].x,top.pts[3].z-top.pts[2].z)/100 : 0; }
   return (it.w + (L.run.first ? it.d : 0) + (L.run.last ? it.d : 0)) / 100;
 }
 
@@ -2476,6 +2543,7 @@ export function hardwareList(it, pre) {
     sl = HW.slide[sp.hw.slide] || HW.slide.softFull,
     rl = HW.rail[sp.hw.rail] || HW.rail.oval,
     hd = HW.handle[sp.hw.handle] || HW.handle.bar;
+  row(he("רגל מתכווננת", "Adjustable cabinet leg"), c.legs, EXTRA_PRICE.leg);
   row(he(hg.he, hg.en), c.hinges, hg.price);
   row(he(sl.he, sl.en) + he(" (זוג)", " (pair)"), c.slides, sl.price);
   row(he(rl.he, rl.en) + he(" · מ'", " · m"), Math.max(0, c.railLen), rl.price);
@@ -2613,33 +2681,44 @@ function segHitsItem(a, b, other) {
       toWorld(other, -hw, -hd), toWorld(other, hw, -hd),
       toWorld(other, hw, hd), toWorld(other, -hw, hd),
     ];
+  var axis=axisOf(other);
+  function inside(q){var dx=q.x-other.x,dz=q.z-other.z;return Math.abs(dx*axis.c+dz*axis.s)<hw && Math.abs(-dx*axis.s+dz*axis.c)<hd;}
+  if(inside(a)||inside(b))return true;
   for (var i = 0; i < 4; i++) if (segHit(a, b, p[i], p[(i + 1) % 4])) return true;
   return false;
 }
 
-/* Each hinged leaf as {pivot, tip} in world coordinates, at 90° open. */
-export function doorSweeps(it, pre) {
-  var L = pre || layoutCab(it),
-    sp = L.sp,
-    out = [];
-  if (isFloat(sp)) return out;
-  L.cols.forEach(function (col) {
-    var dr = col.ref.door || { t: "none" };
-    if (["hinged", "glass", "mirror", "folding"].indexOf(dr.t) < 0) return;
-    var leaves = col.doorLeaves || 1,
-      lw = col.w / leaves,
-      // a bi-fold only reaches half as far, which is the point of one
-      reach = dr.t === "folding" ? lw / 2 : lw;
-    for (var i = 0; i < leaves; i++) {
-      var lx0 = col.x0 + i * lw,
-        hingeLeft = leaves > 1 ? i === 0 : dr.hinge === "L",
-        px = hingeLeft ? lx0 : lx0 + lw,
-        pivot = toWorld(it, px, L.zc),
-        tip = toWorld(it, px, L.zc + reach);
-      out.push({ pivot: pivot, tip: tip, reach: reach, col: col.i, type: dr.t });
-    }
+/* Local opening arcs are shared by plan symbols and clearance checks. Each
+   arc carries the vertical interval of its actual leaf, not the full cabinet. */
+export function cabinetDoorSwings(it, pre) {
+  var L=pre||layoutCab(it),out=[],elev=L.sp.elev||0;
+  if(isFloat(L.sp))return out;
+  if(isCorner(L.sp)) {
+    var dr=L.sp.cols[0].door||{},front=(L.fronts||[]).find(function(f){return f.role==="door";});
+    if(!front || !["hinged","glass","mirror","folding"].includes(dr.t))return out;
+    var poly=cornerPoly(L.sp,L.w,L.d),left=dr.hinge==="L",pivot=poly[left?3:2],closed=poly[left?2:3];
+    var start=Math.atan2(closed.z-pivot.z,closed.x-pivot.x),sweep=left?Math.PI/2:-Math.PI/2;
+    out.push({pivot:{...pivot},start:start,sweep:sweep,reach:L.cornerFront,col:0,type:dr.t,y0:front.y0+elev,y1:front.y1+elev});
+    return out;
+  }
+  (L.fronts||[]).forEach(function(front){
+    var u=L.units[front.unit];
+    if(front.role!=="door" || !u || !(u.type==="door" || u.type==="fold" && u.outer))return;
+    var left=Math.abs(u.px-front.x0)<0.01;
+    var col=L.cols.find(function(c){return (front.x0+front.x1)/2>=c.x0 && (front.x0+front.x1)/2<=c.x1;});
+    out.push({pivot:{x:u.px,z:u.pz},start:left?0:Math.PI,sweep:left?Math.PI/2:-Math.PI/2,
+      reach:front.x1-front.x0,col:col?.i||0,type:u.type==="fold"?"folding":col?.ref.door?.t||"hinged",y0:front.y0+elev,y1:front.y1+elev});
   });
   return out;
+}
+
+/* Each hinged leaf at 90 degrees open, in room coordinates. */
+export function doorSweeps(it, pre) {
+  return cabinetDoorSwings(it,pre).map(function(sw){
+    var angle=sw.start+sw.sweep;
+    return {...sw,pivot:toWorld(it,sw.pivot.x,sw.pivot.z),
+      tip:toWorld(it,sw.pivot.x+Math.cos(angle)*sw.reach,sw.pivot.z+Math.sin(angle)*sw.reach)};
+  });
 }
 
 /* ========================= checks ========================= */
@@ -2678,6 +2757,16 @@ export function checkCab(it, ceilH) {
     if (sp.top && !L.run.first)
       addMsg("info", he("המשטח נמדד על היחידה הראשונה ברצף", "The worktop is costed on the run's first unit"));
   }
+
+  var envelope = innerOf(sp, it.w, it.h);
+  var usedW = sp.cols.reduce(function (sum, c) { return sum + c.w; }, 0) + (isFloat(sp) ? 0 : sp.cols.length - 1) * sp.panel;
+  if (usedW > envelope.w + 0.1 * sp.cols.length)
+    add("err", "החלוקה חורגת מרוחב הארון", "Columns exceed the cabinet's available width");
+  sp.cols.forEach(function (c, ci) {
+    var usedH = c.secs.reduce(function (sum, section) { return sum + section.h; }, 0) + (c.secs.length - 1 + envelope.boardPerSec) * (sp.shelf || sp.panel);
+    if (usedH > envelope.h + 0.1 * c.secs.length)
+      add("err", "התאים חורגים מגובה הארון", "Compartments exceed the cabinet's available height", ci);
+  });
 
   // the two cabinet-wide choices, against the same fit table
   var cfc = fitCtx(L, null),
@@ -2727,7 +2816,7 @@ export function checkCab(it, ceilH) {
     var dfit = doorFit(dr.t, fc);
     if (!dfit.ok) addMsg("err", doorLabel(dr.t) + " — " + dfit.why + where, ci);
 
-    if (col.w > STD.maxSpan)
+    if (!isCorner(sp) && col.w > STD.maxSpan)
       add("warn", "מפתח מדף " + Math.round(col.w) + ' ס"מ — מעל ' + STD.maxSpan + " המדף ישקע (עמודה " + n + ")",
         "Shelf span " + Math.round(col.w) + " cm — over " + STD.maxSpan + " it will sag (column " + n + ")", ci);
     // a corner unit's leaf is the diagonal, not the column it spans
@@ -2756,8 +2845,8 @@ export function checkCab(it, ceilH) {
       if (s.t === "hang" || s.t === "hangS" || s.t === "hang2") {
         // deep enough to hang in at all is covered above; this is the "you will
         // be pressing shirts against the back" margin
-        if (innerD >= 52 && innerD < 55)
-          add("warn", 'עומק ' + Math.round(innerD) + ' ס"מ — קולבים ישתפשפו בגב', "Only " + Math.round(innerD) + " cm deep — hangers will rub the back", ci);
+        if (innerD >= 49.5 && innerD < 55)
+          add("warn", 'עומק ' + Math.round(innerD) + ' ס"מ — קולבים ישתפשפו בגב', "Only " + Math.round(innerD) + " cm deep — verify hanger and clothing clearance", ci);
       }
       if (s.t === "hang" && H < STD.hangLong)
         add("warn", "תלייה ארוכה עם " + Math.round(H) + ' ס"מ פנוי — מעילים צריכים ' + STD.hangLong,
@@ -2765,6 +2854,7 @@ export function checkCab(it, ceilH) {
       if (s.t === "hang2" && H < SEC.hang2.min)
         add("warn", "תלייה כפולה צריכה " + SEC.hang2.min + ' ס"מ (יש ' + Math.round(H) + ")",
           "Double hang needs " + SEC.hang2.min + " cm (has " + Math.round(H) + ")", ci);
+      if(cell.invalidDrawers)add("err", "אין מקום לתיבת מגירה תקינה", "Drawer dimensions leave no room for a valid drawer box", ci);
       if (cell.drawers) {
         if (col.w > 120) add("warn", "מגירה ברוחב " + Math.round(col.w) + ' ס"מ — מעבר לטווח מסילות רגילות',
           "Drawer " + Math.round(col.w) + " cm wide — beyond standard runners", ci);
@@ -2800,8 +2890,8 @@ export function checkCab(it, ceilH) {
     });
     (S.items || []).forEach(function (other) {
       if (other === it || !other.w || !other.d) return;
-      // only things tall enough to be in the way of a door
-      if ((other.h || 0) < 30) return;
+      var otherBottom = other.cab?.elev ?? other.elev ?? 0;
+      if (otherBottom + (other.h || 0) <= sw.y0 || otherBottom >= sw.y1) return;
       if (segHitsItem(sw.pivot, sw.tip, other))
         add("warn", "דלת עמודה " + n + " נפתחת לתוך פריט אחר", "The door on column " + n + " opens into another piece", sw.col);
     });
@@ -2874,6 +2964,7 @@ function planCabFresh(it) {
     // a corner unit is not a rectangle, so the plan draws its footprint instead
     poly: isCorner(L.sp) ? cornerPoly(L.sp, L.w, L.d) : null,
     cornerFront: L.cornerFront || 0,
+    swings: cabinetDoorSwings(it,L),
     cols: L.cols.map(function (c) {
       var dr = c.ref.door || { t: "none" };
       return {

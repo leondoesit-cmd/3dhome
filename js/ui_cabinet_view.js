@@ -5,7 +5,7 @@ import { buildItem } from "./furniture.js";
 import { loadThree, threeLoaded } from "./three_lazy.js";
 import { createEditorView, createViewportSwap } from "./editor_view.js";
 import {
-  layoutCab,
+  layoutCab, isFloat, isCorner,
   secLabel,
   famLabel,
   frontLabel,
@@ -161,8 +161,8 @@ function dot3(a, b) {
 function partBox(p) {
   if (p.k === "box") return [p.x0, p.y0, p.z0, p.x1, p.y1, p.z1];
   if (p.k === "poly") {
-    var xs = p.pts.map(function (q) { return q[0]; }),
-      zs = p.pts.map(function (q) { return q[1]; });
+    var xs = p.pts.map(function (q) { return q.x; }),
+      zs = p.pts.map(function (q) { return q.z; });
     return [Math.min.apply(null, xs), p.y0, Math.min.apply(null, zs), Math.max.apply(null, xs), p.y1, Math.max.apply(null, zs)];
   }
   var r = p.r || 1,
@@ -713,7 +713,7 @@ export function draw() {
         c.fillText(secLabel(cell.ref.t), x + w / 2, y + h / 2 - 7);
         c.fillStyle = muted;
         c.font = "500 10px Inter, Rubik, sans-serif";
-        c.fillText(Math.round(cell.ref.h) + " " + (isEn() ? "cm" : 'ס"מ'), x + w / 2, y + h / 2 + 7);
+        c.fillText(Math.round(cell.y1 - cell.y0) + " " + (isEn() ? "cm" : 'ס"מ'), x + w / 2, y + h / 2 + 7);
         c.font = "600 11px Inter, Rubik, sans-serif";
       }
     });
@@ -742,7 +742,7 @@ export function draw() {
     // of the drawing itself
     var dx = X(it.w / 2) + 20;
     selCol2.secs.forEach(function (cell) {
-      dimTickV(c, Y(cell.y1), Y(cell.y0), dx, Math.round(cell.ref.h), accent);
+      dimTickV(c, Y(cell.y1), Y(cell.y0), dx, Math.round(cell.y1 - cell.y0), accent);
     });
   }
 
@@ -868,8 +868,8 @@ function drawSecDetail(c, cell, x, y, w, h, k, line) {
       var sy = y + h - (h * i) / (cell.shelves + 1);
       c.beginPath();
       if (t === "shoe") {
-        c.moveTo(x + 2, sy + 4);
-        c.lineTo(x + w - 2, sy - 4);
+        c.moveTo(x + 2, sy);
+        c.lineTo(x + w - 2, sy);
       } else {
         c.moveTo(x + 2, sy);
         c.lineTo(x + w - 2, sy);
@@ -1305,13 +1305,13 @@ function roundCands(from, lo, hi, why) {
 
 function ghostAt(p) {
   var L = E.view && E.view.L;
-  if (!L) return null;
+  if (!L || isCorner(sp())) return null;
   var tol = 8 / E.view.k; // a comfortable 8 px, in centimetres
   if (E.tool === "vwall") {
     for (var i = 0; i < L.cols.length; i++) {
       var c = L.cols[i];
       if (p.x < c.x0 || p.x > c.x1) continue;
-      var t = L.t || sp().panel,
+      var t = isFloat(sp()) ? 0 : L.t || sp().panel,
         cands = [{ v: (c.x0 + c.x1) / 2, why: "mid" }];
       // a bay that repeats a neighbour's width, measured from either edge
       L.cols.forEach(function (o) {
@@ -1334,7 +1334,7 @@ function ghostAt(p) {
       for (var sj = 0; sj < c2.secs.length; sj++) {
         var s = c2.secs[sj];
         if (p.y < s.y0 || p.y > s.y1) continue;
-        var t2 = sp().panel,
+        var t2 = sp().shelf || sp().panel,
           hc = [];
         // a shelf that lines up with one in another column reads as one line
         // across the piece — that is worth more than any round number
@@ -1385,7 +1385,7 @@ function drawHWall(g, all) {
   if (!all && !g.ok) return api.flashHint(T("tooSmall"));
   var y = g.y,
     L = E.view.L,
-    t = sp().panel,
+    t = sp().shelf || sp().panel,
     targets = all ? L.cols.map(function (_, i) { return i; }) : [g.col],
     done = 0;
   api.touch();
@@ -1431,7 +1431,7 @@ function eraseAt(p) {
     var a = cols[h.i - 1],
       b = cols[h.i],
       keep = b.secs.length > a.secs.length ? b : a;
-    keep.w = a.w + b.w + sp().panel;
+    keep.w = a.w + b.w + (isFloat(sp()) ? 0 : sp().panel);
     delete keep.fixed;
     cols.splice(h.i - 1, 2, keep);
     E.sel = { col: h.i - 1, sec: 0 };
@@ -1443,7 +1443,7 @@ function eraseAt(p) {
     var sa = col2.secs[h.i - 1],
       sb = col2.secs[h.i],
       keepS = sb.h > sa.h ? sb : sa;
-    keepS.h = sa.h + sb.h + sp().panel;
+    keepS.h = sa.h + sb.h + (sp().shelf || sp().panel);
     delete keepS.fixed;
     col2.secs.splice(h.i - 1, 2, keepS);
     E.sel = { col: h.col, sec: h.i - 1 };

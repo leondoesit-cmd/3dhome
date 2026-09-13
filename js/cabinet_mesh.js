@@ -58,13 +58,13 @@ function matOf(p, sp) {
 function polyBoard(parent, p, o, dy, m, opt) {
   var shape = new THREE.Shape();
   p.pts.forEach(function (q, i) {
-    if (i === 0) shape.moveTo(q.x, q.z);
-    else shape.lineTo(q.x, q.z);
+    if (i === 0) shape.moveTo(q.x, -q.z);
+    else shape.lineTo(q.x, -q.z);
   });
   shape.closePath();
   var geo = new THREE.ExtrudeGeometry(shape, { depth: Math.abs(p.y1 - p.y0), bevelEnabled: false });
   geo.rotateX(-Math.PI / 2); // the profile is drawn in plan, so stand it up
-  geo.translate(-o.x, p.y1 - o.y + dy, -o.z);
+  geo.translate(-o.x, p.y0 - o.y + dy, -o.z);
   var mat = new THREE.MeshStandardMaterial({
     color: m.col,
     metalness: opt.metal != null ? opt.metal : 0.08,
@@ -72,7 +72,7 @@ function polyBoard(parent, p, o, dy, m, opt) {
     transparent: !!opt.trans,
     opacity: opt.opacity != null ? opt.opacity : 1,
   });
-  applyTextureToMaterial(mat, opt, p.x1 - p.x0, p.y1 - p.y0, p.z1 - p.z0);
+  applyTextureToMaterial(mat, opt, p.bw, p.y1 - p.y0, p.bd);
   var mesh = new THREE.Mesh(geo, mat);
   mesh.castShadow = mesh.receiveShadow = true;
   parent.add(mesh);

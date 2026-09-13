@@ -1,3 +1,5 @@
+import { mountCabinetShopSetup } from "./ui_cabinet_manufacturing.js";
+import { cabinetManufacturingReport, cabinetManufacturingJSON } from "./cabinet_manufacturing.js";
 // Cut plan & quote — the overlay on top of nest.js.
 //
 // Left: what the job is made of (which sheet per material role, which banding,
@@ -100,8 +102,8 @@ var TXT = {
   waste: ["פחת", "Waste"],
   exports: ["ייצוא", "Export"],
   csv: ["רשימת ניסור CSV", "Cut list CSV"],
-  drill: ["תוכנית קידוח CSV", "Drilling CSV"],
-  dxf: ["ניסור + קידוח DXF", "Nesting + drilling DXF"],
+  drill: ["תוכנית קידוח CSV", "Drilling review CSV"],
+  dxf: ["ניסור + קידוח DXF", "Nesting + drilling review DXF"],
   po: ["הזמנות רכש לפי ספק", "Purchase orders by supplier"],
   quoteDoc: ["הצעת מחיר ללקוח", "Quote for the client"],
   poDone: ["הזמנות רכש הורדו", "purchase orders downloaded"],
@@ -257,16 +259,23 @@ function buildDOM() {
     '<button id="nzCsv" class="nz-wide"><i class="ph ph-file-csv"></i> ' + T("csv") + "</button>" +
     '<button id="nzDrill" class="nz-wide"><i class="ph ph-circles-three"></i> ' + T("drill") + "</button>" +
     '<button id="nzDxf" class="nz-wide"><i class="ph ph-file-dashed"></i> ' + T("dxf") + "</button>" +
+    '<div id="nzShopSetup"></div>' +
+    '<div id="nzManufacturing" class="nz-note" role="status"></div>' +
+    '<button id="nzManufacturingJson" class="nz-wide">' + (isEn() ? "Manufacturing review JSON" : "דוח בדיקת ייצור JSON") + "</button>" +
     '<button id="nzPo" class="nz-wide"><i class="ph ph-shopping-cart"></i> ' + T("po") + "</button>" +
     '<button id="nzQuoteDoc" class="nz-wide btn-accent"><i class="ph ph-file-text"></i> ' + T("quoteDoc") + "</button>" +
     '<button id="nzPng" class="nz-wide"><i class="ph ph-image"></i> ' + T("png") + "</button>" +
     "</div></div></div>";
   document.body.appendChild(root);
+  root._cabinetShopSetup = mountCabinetShopSetup(root.querySelector("#nzShopSetup"), function () { return E.q?.items || []; }, downloadText);
 
   root.querySelector("#nzClose").addEventListener("click", closeNest);
   root.querySelector("#nzCsv").addEventListener("click", exportCSV);
   root.querySelector("#nzDrill").addEventListener("click", exportDrill);
   root.querySelector("#nzDxf").addEventListener("click", exportDXF);
+  root.querySelector("#nzManufacturingJson").addEventListener("click", function () {
+    if (E.q) downloadText("manufacturing-review.json", cabinetManufacturingJSON(E.q.items), "application/json");
+  });
   root.querySelector("#nzPo").addEventListener("click", exportPOs);
   root.querySelector("#nzQuoteDoc").addEventListener("click", exportQuoteDoc);
   root.querySelector("#nzPng").addEventListener("click", exportPNG);
@@ -901,6 +910,20 @@ function fillSuppliers() {
 }
 
 function fillWarnings() {
+  root._cabinetShopSetup?.invalidate();
+  var manufacturing = root.querySelector("#nzManufacturing");
+  if (manufacturing && E.q) {
+    var report = cabinetManufacturingReport(E.q.items);
+    manufacturing.replaceChildren();
+    manufacturing.appendChild(el("strong", "", isEn() ? "Manufacturing review required" : "נדרשת בדיקת ייצור"));
+    manufacturing.appendChild(el("p", "", isEn() ? "Exports are review drawings and data, not machine programs. Select and qualify the hardware, tooling and machine before production." : "הייצוא הוא שרטוט ונתונים לבדיקה, לא תוכנית מכונה. יש להתאים ולאמת פרזול, כלים ומכונה לפני ייצור."));
+    manufacturing.appendChild(el("p", "", report.panelCount + (isEn() ? " panels · " : " לוחות · ") + report.operationCount + (isEn() ? " drilling operations" : " פעולות קידוח")));
+    var details = document.createElement("details"), summary = document.createElement("summary");
+    summary.textContent = isEn() ? "Review findings (" + report.issues.length + ")" : "ממצאי בדיקה (" + report.issues.length + ")";
+    details.appendChild(summary);
+    report.issues.forEach(function (issue) { details.appendChild(el("p", "", (issue.itemId ? issue.itemId + ": " : "") + issue.message)); });
+    manufacturing.appendChild(details);
+  }
   var sec = root.querySelector("#nzWarnSec"),
     host = root.querySelector("#nzWarn");
   host.innerHTML = "";
@@ -942,11 +965,11 @@ function exportCSV() {
 }
 function exportDrill() {
   if (!E.q) return;
-  downloadText("drilling.csv", drillCSV(E.q.items, isEn()), "text/csv");
+  downloadText("drilling-review.csv", drillCSV(E.q.items, isEn()), "text/csv");
 }
 function exportDXF() {
   if (!E.q) return;
-  downloadText("nesting.dxf", nestDXF(E.q), "application/dxf");
+  downloadText("nesting-review.dxf", nestDXF(E.q), "application/dxf");
 }
 
 /* One file per supplier — a shop sends the boards to the board merchant and the

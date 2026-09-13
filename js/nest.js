@@ -1,3 +1,4 @@
+import { cabinetManufacturingReport } from "./cabinet_manufacturing.js";
 import { S } from "./state.js";
 // Cut plan and quote — turns cabinets into panels, panels into sheets, and
 // sheets into a price.
@@ -19,7 +20,7 @@ import { S } from "./state.js";
 
 import {
   layoutCab, hardwareList, cabPrice, cabQuote, boxCount, profileMeters, BOARD_ROLES,
-  stockRole, sheetFor, bandLen, isFloat, roleLabelHe, drillPlan,
+  stockRole, sheetFor, bandLen, isFloat, roleLabelHe,
   cabSummary, famLabel, frontLabel, finishLabel,
 } from "./cabinet.js";
 import {
@@ -862,41 +863,26 @@ export function purchaseOrders(q, en) {
   });
 }
 
-/* Every hole in the job, one row each: the format a CNC operator or a boring
-   machine's setup sheet actually wants. Positions are millimetres in the
-   panel's own frame and the datum is stated per panel, because "37 mm in" means
-   nothing until you know from which corner. */
+/* Review data, not machine instructions. Each operation identifies a physical
+   panel, an explicit face, and the fixed board datum used by both setups. */
 export function drillCSV(items, en) {
-  var rows = [
-    en
-      ? ["Item", "Panel", "Datum", "Panel L (mm)", "Panel W (mm)", "X (mm)", "Y (mm)", "Dia (mm)", "Depth (mm)", "Purpose"]
-      : ["פריט", "לוח", "נקודת אפס", 'אורך (מ"מ)', 'רוחב (מ"מ)', 'X (מ"מ)', 'Y (מ"מ)', 'קוטר (מ"מ)', 'עומק (מ"מ)', "ייעוד"],
-  ];
-  var KIND = {
-    pin: ["פין למדף", "shelf pin"], plate: ["פלטת ציר", "hinge plate"],
-    cup: ["קדח ציר", "hinge cup"], runner: ["מסילה", "runner"], handle: ["ידית", "handle"],
-  };
-  (items || []).forEach(function (it, ii) {
-    if (!it || !it.cab) return;
-    drillPlan(it).forEach(function (e) {
-      e.holes.forEach(function (h) {
-        var k = KIND[h.kind] || [h.kind, h.kind];
-        rows.push([
-          ii + 1, en ? e.role : roleLabelHe(e.role), e.datum, e.l, e.w,
-          h.x, h.y, h.d, h.depth || "", en ? k[1] : k[0],
-        ]);
+  var report = cabinetManufacturingReport(items);
+  var rows = [[en ? "REVIEW REQUIRED — NOT MACHINE CODE" : "נדרשת בדיקה — אינו קוד מכונה"],
+    ["Units", "mm"], ["Coordinate convention", report.coordinateConvention],
+    ...report.issues.map(function (issue) { return ["REVIEW", issue.code, issue.itemId || "", issue.panelId || "", issue.message]; }),
+    ["Item", "Panel ID", "Role", "Part ID", "Datum", "Face", "Face direction", "Panel L (mm)", "Panel W (mm)", "Thickness (mm)", "Operation ID", "X (mm)", "Y (mm)", "Dia (mm)", "Depth (mm)", "Through", "Purpose", "Template"]];
+  report.items.forEach(function (item) {
+    item.panels.forEach(function (panel) {
+      panel.holes.forEach(function (h) {
+        rows.push([item.id, panel.id, en ? panel.role : roleLabelHe(panel.role), panel.partId, panel.datumCode,
+          h.face, panel.faces[h.face], panel.l, panel.w, panel.thickness, h.id, h.x, h.y, h.d,
+          h.through ? "THROUGH" : h.depth, h.through ? "yes" : "no", h.kind, h.templateId]);
       });
     });
   });
-  return rows
-    .map(function (r) {
-      return r
-        .map(function (c) {
-          return '"' + String(c == null ? "" : c).replace(/"/g, '""') + '"';
-        })
-        .join(",");
-    })
-    .join("\r\n");
+  return rows.map(function (row) {
+    return row.map(function (value) { return '"' + String(value == null ? "" : value).replace(/"/g, '""') + '"'; }).join(",");
+  }).join("\r\n");
 }
 
 /* The nesting as DXF, in mm, for a CNC nesting table or just to hand to
@@ -952,21 +938,27 @@ export function nestDXF(q) {
     });
   });
 
-  /* The drilling details, in a row below the sheets: each distinct panel pattern
-     drawn flat with its holes, its datum corner marked and its sizes on it. */
-  var dy = -1200,
-    dx = 0;
-  (q.items || []).forEach(function (it, ii) {
-    drillPlan(it).forEach(function (e) {
-      rect(dx, dy - e.w, e.l, e.w, "DRILL");
-      // the datum corner, so nobody drills the pattern mirrored
-      line(dx, dy - e.w, dx + 120, dy - e.w, "DRILL_DATUM");
-      line(dx, dy - e.w, dx, dy - e.w + 120, "DRILL_DATUM");
-      text(dx, dy + 60, 44, (ii + 1) + "· " + e.role + "  " + e.l + "x" + e.w + "  (" + e.datum + ")", "DRILL_TEXT");
-      e.holes.forEach(function (h) {
-        circle(dx + h.x, dy - e.w + h.y, h.d / 2, "DRILL");
+  // Separate face setups share the same labelled board datum. These are
+  // review drawings; their sheet placement is not a machining transform.
+  var report = cabinetManufacturingReport(q.items || []);
+  text(0, -200, 50, "REVIEW REQUIRED - NOT MACHINE CODE", "REVIEW");
+  report.issues.forEach(function (issue, i) { text(0, -300 - i * 60, 30, issue.code + ": " + issue.message, "REVIEW"); });
+  var dy = -600 - report.issues.length * 60, dx = 0;
+  report.items.forEach(function (item) {
+    item.panels.forEach(function (panel) {
+      ["A", "B"].forEach(function (face) {
+        var holes = panel.holes.filter(function (h) { return h.face === face; });
+        if (!holes.length) return;
+        rect(dx, dy - panel.w, panel.l, panel.w, "DRILL_" + face);
+        line(dx, dy - panel.w, dx + 120, dy - panel.w, "DRILL_DATUM");
+        line(dx, dy - panel.w, dx, dy - panel.w + 120, "DRILL_DATUM");
+        text(dx, dy + 60, 30, panel.id + " FACE " + face + " " + panel.datumCode + " (fixed datum, not mirrored)", "DRILL_TEXT");
+        holes.forEach(function (h) {
+          circle(dx + h.x, dy - panel.w + h.y, h.d / 2, "DRILL_" + face);
+          text(dx + h.x + h.d, dy - panel.w + h.y, 12, h.through ? "THROUGH" : "DEPTH " + h.depth, "DRILL_DEPTH");
+        });
+        dx += panel.l + 300;
       });
-      dx += e.l + 300;
     });
   });
 

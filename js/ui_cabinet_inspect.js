@@ -6,7 +6,7 @@ import {
   cutList, hardwareList, cabPrice, bandMeters, famOf, secLabel, doorLabel, famLabel, presetLabel, presetNote, hwLabel,
   famShort, FRONTS, FINISH, COLKIND, CARCASS, frontLabel, finishLabel, kindLabel, carcassLabel,
   checkCab, presetById, roleLabelHe, secFit, doorFit, kindFit, carcassFit, frontFit, fitCtx,
-  secRelevant, doorRelevant,
+  secRelevant, doorRelevant, isCorner, isFloat,
 } from "./cabinet.js";
 import { ceilingHeight } from "./elevation.js";
 import { BANDING, PROFILES, sheetsFor, sheetById, sheetPrice, bandById, bandPPM, profilePPM, sheetLabel, bandLabel, profileLabel } from "./stock.js";
@@ -100,7 +100,7 @@ export function fillFamilies() {
   /* Fourteen named chips were five rows of the panel. They are icons now, and
      the one in force is spelled out on the section title instead. */
   if (title)
-    title.childNodes[0].nodeValue = T("family") + (sp() ? " · " + famShort(sp().fam) : "");
+    title.textContent = T("family") + (sp() ? " · " + famShort(sp().fam) : "");
   Object.keys(FAM).forEach(function (k) {
     if (!matches(famLabel(k) + " " + famShort(k))) return;
     var f = FAM[k],
@@ -112,7 +112,7 @@ export function fillFamilies() {
         // a blank stays blank when the family changes — only its proportions
         // and its carcass follow the new family; and the free-form "family"
         // has no preset to fall back on, so it is always a blank
-        api.act(T("opFamily") + " · " + famLabel(f));
+        api.act(T("opFamily") + " · " + famLabel(k));
         it.cab = k === "free" || (sp() && sp().preset === "blank")
           ? makeBlankSpec(k, it.w, it.h, it.d, it.cab)
           : makeSpec(f.preset, it.w, it.h, it.d, it.cab);
@@ -402,6 +402,7 @@ export function fillInspector() {
     var br = el("div", "cb-btnrow");
     br.appendChild(btn('<i class="ph ph-rows-plus-bottom"></i> ' + T("splitSec"), splitSection));
     br.appendChild(btn('<i class="ph ph-trash"></i> ' + T("delSec"), delSection, "btn-danger"));
+    if (isCorner(sp())) br.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
     wrap.appendChild(br);
   } else {
     title.textContent = T("column") + " " + (E.sel.col + 1);
@@ -491,6 +492,7 @@ export function fillInspector() {
   br2.appendChild(btn('<i class="ph ph-columns-plus-right"></i> ' + T("splitCol"), splitColumn, "cb-sm"));
   br2.appendChild(btn('<i class="ph ph-copy"></i> ' + T("dupCol"), dupColumn, "cb-sm"));
   br2.appendChild(btn('<i class="ph ph-trash"></i> ' + T("delCol"), delColumn, "cb-sm btn-danger"));
+  if (isCorner(sp())) br2.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
   wrap.appendChild(br2);
 
   /* carcass block */
@@ -551,13 +553,14 @@ export function refillColumn(col, mode) {
   api.changed();
 }
 export function splitSection() {
-  api.act(T("splitSec"));
-  api.touch();
+  if (!sp() || isCorner(sp())) return;
   var col = sp().cols[E.sel.col],
     i = E.sel.sec,
     s = col.secs[i],
-    half = (s.h - sp().panel) / 2;
+    half = (s.h - (sp().shelf || sp().panel)) / 2;
   if (half < 10) return;
+  api.act(T("splitSec"));
+  api.touch();
   s.h = half;
   delete s.fixed;
   col.secs.splice(i + 1, 0, { t: "shelves", h: half });
@@ -573,13 +576,14 @@ export function delSection() {
   api.changed();
 }
 export function splitColumn() {
-  api.act(T("splitCol"));
-  api.touch();
+  if (!sp() || isCorner(sp())) return;
   var cols = sp().cols,
     i = E.sel.col,
     c = cols[i],
-    half = (c.w - sp().panel) / 2;
+    half = (c.w - (isFloat(sp()) ? 0 : sp().panel)) / 2;
   if (half < 15) return;
+  api.act(T("splitCol"));
+  api.touch();
   c.w = half;
   delete c.fixed;
   var copy = JSON.parse(JSON.stringify(c));
@@ -588,6 +592,7 @@ export function splitColumn() {
   api.changed();
 }
 export function dupColumn() {
+  if (!sp() || isCorner(sp())) return;
   api.act(T("dupCol"));
   api.touch();
   var cols = sp().cols,

@@ -24,7 +24,7 @@ import {
   sizeCanvas, setMode, setAxis, syncHint, syncViewPreferences, draw, wireCanvas,
   setTool, exportPNG, initPreview, updatePreview, renderPreview,
 } from "./ui_cabinet_view.js";
-import { initCabinetMobile, refreshCabinetMobile, showCabinetPropertiesMobile } from "./ui_cabinet_mobile.js";
+import { initCabinetMobile, disposeCabinetMobile, refreshCabinetMobile, showCabinetPropertiesMobile } from "./ui_cabinet_mobile.js";
 import {
   fillHits, applySearch, fillFamilies, fillPresets, startBlank, fillInspector,
   splitSection, delSection, splitColumn, dupColumn, delColumn, fillLook, fillTechnical,
@@ -617,6 +617,7 @@ export function openCabinet(it) {
 export function closeCabinet() {
   if (!E.open) return;
   dismissSizeDlg();
+  disposeCabinetMobile();
   E.open = false;
   E.host.style.display = "none";
   E.it = null;
@@ -831,10 +832,8 @@ function copyColumn() {
   flashHint(T("copyCol") + " ✓");
 }
 function pasteColumn() {
-  if (!E.clip || !sp()) return;
+  if (!E.clip || !sp() || sp().corner === "diag") return;
   var v = JSON.parse(E.clip.json);
-  act(T("pasteCol"));
-  touch();
   if (E.clip.kind === "sec") {
     var col = sp().cols[E.sel.col];
     if (!col) return;
@@ -843,13 +842,18 @@ function pasteColumn() {
     var at = E.sel.sec == null ? col.secs.length - 1 : E.sel.sec,
       host = col.secs[at];
     if (host) {
-      var half = host.h / 2;
-      host.h = half;
-      v.h = Math.min(v.h || half, half);
-    }
+      var available = host.h - (sp().shelf || sp().panel);
+      if (available < 20) return;
+      act(T("pasteCol"));
+      touch();
+      v.h = Math.max(10, Math.min(v.h || available / 2, available - 10));
+      host.h = available - v.h;
+    } else return;
     col.secs.splice(at + 1, 0, v);
     E.sel = { col: E.sel.col, sec: at + 1 };
   } else {
+    act(T("pasteCol"));
+    touch();
     delete v.fixed;
     sp().cols.splice(E.sel.col + 1, 0, v);
     E.sel = { col: E.sel.col + 1, sec: 0 };

@@ -654,9 +654,19 @@ function applyCompact() {
   sync(true);
 }
 
-/* Called from openCabinet once the overlay DOM exists. The overlay is rebuilt
-   on every open, so everything here is per-session and dies with it. */
+/* The overlay can remain mounted while closed. Release session resources
+   explicitly so a hidden designer does not keep polling or handling resize. */
+export function disposeCabinetMobile() {
+  window.removeEventListener("resize", applyCompact);
+  window.removeEventListener("mf-posture", applyCompact);
+  if (timer) clearInterval(timer);
+  timer = null;
+  closeSheet();
+  host = null;
+}
+
 export function initCabinetMobile() {
+  disposeCabinetMobile();
   host = E.host;
   if (!host) return;
   applyCompact();

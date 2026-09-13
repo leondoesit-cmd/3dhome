@@ -174,7 +174,7 @@ export function cabinetDefinitionFromItem(item, previous) {
 
 // Resolve the semantic rule before the ordinary CAD feature graph is evaluated.
 // This returns a new document: invalid requests never partially mutate a model.
-export function materializeCabinetDefinition(definition, parameters) {
+export function materializeCabinetDefinition(definition, parameters = {}) {
   if (definition?.metadata?.adapter !== "cabinet" || !definition.metadata.cabSpec) return definition;
   const spec = definition.metadata.cabSpec;
   const baseline = definition.metadata.generatedParameters || {
@@ -187,7 +187,7 @@ export function materializeCabinetDefinition(definition, parameters) {
   const oldItem = { id: definition.id, definitionId: definition.id, type: "cabsys", w: baseline.width, d: baseline.depth, h: baseline.height, cab: cloneDomain(spec) };
   const source = cloneDomain(definition);
   source.metadata.advancedEdits = captureCabinetAdvancedEdits(source, oldItem);
-  const item = { ...oldItem, w: parameters.width, d: parameters.depth, h: parameters.height, cab: cloneDomain(spec) };
+  const item = { ...oldItem, w: parameters.width ?? baseline.width, d: parameters.depth ?? baseline.depth, h: parameters.height ?? baseline.height, cab: cloneDomain(spec) };
   const fields = { panelThickness: "panel", shelfThickness: "shelf", backThickness: "back", plinthHeight: "plinth", frontGap: "gap" };
   for (const [parameter, field] of Object.entries(fields)) if (parameters[parameter] != null) item.cab[field] = parameters[parameter];
   item.cab.auto = false;
@@ -195,7 +195,7 @@ export function materializeCabinetDefinition(definition, parameters) {
   const rebuilt = cabinetDefinitionFromItem(item, source);
   // Preserve user parameter expressions and the identity of the document.
   rebuilt.parameters = cloneDomain(definition.parameters);
-  rebuilt.metadata.generatedParameters = { ...baseline, ...parameters };
+  rebuilt.metadata.generatedParameters = Object.fromEntries(Object.keys(baseline).map((key) => [key, parameters[key] ?? baseline[key]]));
   rebuilt.revision = definition.revision;
   rebuilt.metadata.parameterIssues = checkCab(item).filter((issue) => issue.level === "err").map((issue) => ({ severity: "error", code: "cabinet-construction", message: issue.msg }));
   return { ...cloneDomain(definition), ...rebuilt, history: cloneDomain(definition.history) };

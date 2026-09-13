@@ -3,7 +3,7 @@
 // result as an ordinary canonical parametric definition.
 
 import {
-  STD, makeSpec, normalizeSpec, checkCab,
+  STD, makeSpec, presetById, normalizeSpec, checkCab,
 } from "./cabinet.js";
 import { cloneDomain } from "./core/schema.js";
 import { ensureParametricProject, rebuildItem } from "./core/project.js";
@@ -39,6 +39,7 @@ export function syncCabinetDefinition(state, item, options = {}) {
       var open = other.cab && other.cab.open;
       other.cab = cloneDomain(item.cab);
       other.cab.open = open || 0;
+      other.cab.dim = { w: other.w, h: other.h, d: other.d };
       normalizeSpec(other.cab, other.w, other.h, other.d);
       other.parameterOverrides ||= {};
       other.parameterOverrides.width = other.w;
@@ -84,7 +85,7 @@ export function requestCabinetDimension(item, dimension, requested, ceilingHeigh
   const current = configSummary(item.cab, item.w);
   const dims = { w: item.w, d: item.d, h: item.h, [limit.field]: value };
   const kept = dimensionProbe(item, dimension, value, item.cab, ceilingHeight);
-  const recommended = dimensionProbe(item, dimension, value, makeSpec(item.cab.preset, dims.w, dims.h, dims.d, item.cab), ceilingHeight);
+  const recommended = dimensionProbe(item, dimension, value, presetById(item.cab.preset) ? makeSpec(item.cab.preset, dims.w, dims.h, dims.d, item.cab) : item.cab, ceilingHeight);
   const next = configSummary(recommended.probe.cab, dims.w);
   const configurationChanged = current.modules !== next.modules || current.doors !== next.doors;
   const common = { dimension, value, ceilingHeight };
