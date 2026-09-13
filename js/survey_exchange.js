@@ -83,7 +83,10 @@ export function parseSurveyExchange(raw) {
 // Rigid alignment preserves measured lengths. A scale change is a separate,
 // explicit calibration operation, never a side effect of room placement.
 export function alignScanPoints(points,sourcePair,targetPair,tolerance=2) {
-  if(sourcePair?.length!==2||targetPair?.length!==2)throw new Error('SURVEY_ALIGNMENT_POINTS');
+  const finitePoint=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.z);
+  if(!Array.isArray(points)||!Array.isArray(sourcePair)||!Array.isArray(targetPair)||sourcePair.length!==2||targetPair.length!==2||
+    ![...sourcePair,...targetPair,...points].every(finitePoint))throw new Error('SURVEY_ALIGNMENT_POINTS');
+  if(!Number.isFinite(tolerance)||tolerance<0)throw new Error('SURVEY_ALIGNMENT_SCALE');
   const [a,b]=sourcePair,[c,d]=targetPair,ls=Math.hypot(b.x-a.x,b.z-a.z),lt=Math.hypot(d.x-c.x,d.z-c.z);
   if(ls<1||lt<1||Math.abs(ls-lt)>tolerance)throw new Error('SURVEY_ALIGNMENT_SCALE');
   const angle=Math.atan2(d.z-c.z,d.x-c.x)-Math.atan2(b.z-a.z,b.x-a.x),cos=Math.cos(angle),sin=Math.sin(angle);

@@ -96,10 +96,10 @@ test('room ceilings constrain headroom even when ceiling presentation is hidden'
  assert.equal(navigationPosition(s,{x:200,z:150},{height:140},rooms).clear,true);
 });
 
-test('partial shared walls stop scan application for explicit reconciliation',async()=>{
+test('partial shared walls respect the existing wall lock',async()=>{
  const {scanReconciliation}=await import('../js/survey_alignment.js');const s=fixture();
  const incoming={nodes:[{x:100,z:0},{x:300,z:0}],walls:[{id:77,a:0,b:1,height:270,thickness:10}],openings:[]};
- assert.equal(scanReconciliation(incoming,s).conflicts[0].reason,'partial-wall');
+ assert.equal(scanReconciliation(incoming,s).conflicts[0].reason,'split-locked');
 });
 
 test('every floor service layout follows exchange units and alignment',()=>{

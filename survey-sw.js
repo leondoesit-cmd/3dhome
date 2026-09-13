@@ -6,6 +6,22 @@ async function activeCache(){
   const record=await (await caches.open(META)).match('/active-survey-cache');
   return record?await record.text():LEGACY;
 }
+async function cacheAsset(cache,path){
+  let response,body;
+  for(let attempt=0;attempt<2;attempt++){
+    try{response=await fetch(path,{cache:'reload'});if(response.ok&&response.status!==206)body=await response.arrayBuffer();}
+    catch(error){if(!attempt)continue;throw new Error('Could not download '+path+': '+error.message);}
+    if(response.ok&&response.status!==206)break;
+    if(!attempt&&[502,503,504].includes(response.status))continue;
+    throw new Error('Could not download '+path+' (HTTP '+response.status+')');
+  }
+  // Storage errors are not network retries. Publish only after every write
+  // finishes, so failure cleanup cannot race another write in this batch.
+  const headers=new Headers(response.headers);
+  headers.delete('content-encoding');headers.delete('content-length');
+  try{await cache.put(path,new Response(body,{status:response.status,statusText:response.statusText,headers}));}
+  catch(error){throw new Error('Could not store '+path+': '+error.message);}
+}
 async function prepare(){
   const name=PREFIX+'assets-'+Date.now()+'-'+Math.random().toString(36).slice(2);
   try{
@@ -14,7 +30,10 @@ async function prepare(){
     const {assets}=await response.json();
     if(!Array.isArray(assets)||!assets.length||assets.some(path=>typeof path!=='string'||!path.startsWith('/')||path.startsWith('//')||path.startsWith('/api/')||/[?#]/.test(path)))throw new Error('Invalid asset list');
     const cache=await caches.open(name);
-    for(let i=0;i<assets.length;i+=8)await cache.addAll(assets.slice(i,i+8));
+    for(let i=0;i<assets.length;i+=8){
+      const batch=await Promise.allSettled(assets.slice(i,i+8).map(path=>cacheAsset(cache,path)));
+      const failed=batch.find(result=>result.status==='rejected');if(failed)throw failed.reason;
+    }
     const previous=await activeCache();
     await (await caches.open(META)).put('/active-survey-cache',new Response(name));
     // Keep the previous complete generation for requests already in flight.

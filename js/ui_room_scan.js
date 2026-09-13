@@ -1,10 +1,11 @@
+import {splitReviewSignature,surveyHeldFootprint} from './survey_wall_split.js';
 /* Mobile LiDAR / AR room-scan flow.
 
    - WebXR devices: aim at each floor/wall corner and capture a measured loop.
    - iPhone/iPad RoomPlan: import a CapturedRoom JSON export. Safari does not
      expose RoomPlan/LiDAR to web pages, so that bridge is explicit in the UI.
  */
-import { alignRoomScan, scanReconciliation } from "./survey_alignment.js";
+import { alignRoomScan, scanReconciliation, appendReconciledScan } from "./survey_alignment.js";
 import { st } from "./survey_strings.js";
 import { StableScanPoint } from "./survey_exchange.js";
 import { normalizeSurvey } from "./survey.js";
@@ -41,8 +42,15 @@ function formatCm(value) {
   return value >= 100 ? (value / 100).toFixed(value >= 1000 ? 1 : 2) + " m" : Math.round(value) + " cm";
 }
 
-function drawPreview(canvas, result, pickedIndex) {
+function drawPreview(canvas, result, pickedIndex, review) {
   const lines = result.cad.lines, bounds = scanBounds(result);
+  const heldWalls=new Set([...(review?.splits||[]).map(s=>s.wall),...(review?.conflicts||[]).map(c=>c.existing)]);
+  const heldFootprints=(S.items||[]).filter(item=>heldWalls.has(item.hold?.wall)).map(surveyHeldFootprint).filter(points=>points.length);
+  if(review){
+    for(const p of heldFootprints.flat()){bounds.minX=Math.min(bounds.minX,p.x);bounds.maxX=Math.max(bounds.maxX,p.x);bounds.minZ=Math.min(bounds.minZ,p.z);bounds.maxZ=Math.max(bounds.maxZ,p.z);}
+    for(const wall of S.walls)for(const index of [wall.a,wall.b]){const p=S.nodes[index];if(!p)continue;bounds.minX=Math.min(bounds.minX,p.x);bounds.maxX=Math.max(bounds.maxX,p.x);bounds.minZ=Math.min(bounds.minZ,p.z);bounds.maxZ=Math.max(bounds.maxZ,p.z);}
+    bounds.width=bounds.maxX-bounds.minX;bounds.depth=bounds.maxZ-bounds.minZ;
+  }
   const W = Math.min(520, Math.max(300, window.innerWidth - 64)), H = 310, pad = 38;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.width = W * dpr; canvas.height = H * dpr;
@@ -57,6 +65,32 @@ function drawPreview(canvas, result, pickedIndex) {
   // hit-testing the click that picks the measured wall needs this mapping
   canvas._scanView = { ox, oz, scale };
 
+  if(review){
+    const shared=new Set(review.shared.map(x=>x.existing)),conflicts=new Set(review.conflicts.map(x=>S.openings.find(o=>o.id===x.existing)?.wall??x.existing));
+    const splitIds=new Set((review.splits||[]).map(split=>split.wall));
+    for(const split of review.splits||[])if(split.fragments.some(f=>conflicts.has(f.id)))conflicts.add(split.wall);
+    for(const wall of S.walls){
+      const a=pt(S.nodes[wall.a]),b=pt(S.nodes[wall.b]);
+      ctx.strokeStyle=conflicts.has(wall.id)?'#dc2626':shared.has(wall.id)&&!splitIds.has(wall.id)?'#059669':'#64748b';
+      ctx.lineWidth=(shared.has(wall.id)&&!splitIds.has(wall.id))||conflicts.has(wall.id)?12:7;
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    }
+    for(const split of review.splits||[]){
+      const [a,b]=split.endpoints,length=Math.hypot(b.x-a.x,b.z-a.z);
+      for(const fragment of split.fragments){
+        if(!shared.has(fragment.id)||conflicts.has(split.wall))continue;
+        const at=s=>pt({x:a.x+(b.x-a.x)*s/length,z:a.z+(b.z-a.z)*s/length});
+        const p=at(fragment.lo),q=at(fragment.hi);ctx.strokeStyle='#059669';ctx.lineWidth=12;
+        ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();
+      }
+    }
+    for(const opening of S.openings){
+      const wall=S.walls.find(w=>String(w.id)===String(opening.wall));if(!wall)continue;
+      const a=S.nodes[wall.a],b=S.nodes[wall.b],length=Math.hypot(b.x-a.x,b.z-a.z);if(!length)continue;
+      const p=pt({x:a.x+(b.x-a.x)*opening.s/length,z:a.z+(b.z-a.z)*opening.s/length});
+      ctx.strokeStyle='#92400e';ctx.lineWidth=2;ctx.strokeRect(p.x-7,p.y-7,14,14);
+    }
+  }
   ctx.fillStyle = "rgba(79, 70, 229, .08)";
   ctx.beginPath();
   lines.forEach((line, i) => {
@@ -67,18 +101,27 @@ function drawPreview(canvas, result, pickedIndex) {
   lines.forEach((line, i) => {
     const a = pt(line.a), b = pt(line.b), len = Math.hypot(line.b.x - line.a.x, line.b.z - line.a.z);
     const picked = i === pickedIndex;
-    ctx.strokeStyle = picked ? "#e11d48" : "#4f46e5";
+    ctx.strokeStyle = picked ? "#7c3aed" : "#4f46e5";
     ctx.lineWidth = Math.max(picked ? 5 : 3, Math.min(9, line.thickness * scale));
     ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(a.x, a.y, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = picked ? "#e11d48" : "#4f46e5"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = picked ? "#7c3aed" : "#4f46e5"; ctx.lineWidth = 2; ctx.stroke();
     const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
     ctx.font = "600 11px Inter, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     const label = formatCm(len), tw = ctx.measureText(label).width + 10;
-    ctx.fillStyle = picked ? "rgba(255,228,232,.96)" : "rgba(255,255,255,.92)";
+    ctx.fillStyle = picked ? "rgba(237,233,254,.96)" : "rgba(255,255,255,.92)";
     ctx.fillRect(mx - tw / 2, my - 9, tw, 18);
-    ctx.fillStyle = picked ? "#9f1239" : "#34314b"; ctx.fillText(label, mx, my);
+    ctx.fillStyle = picked ? "#5b21b6" : "#34314b"; ctx.fillText(label, mx, my);
   });
+  for(const footprint of heldFootprints){
+    ctx.save();ctx.setLineDash([4,3]);ctx.strokeStyle='#0f766e';ctx.fillStyle='rgba(15,118,110,.12)';ctx.lineWidth=2;ctx.beginPath();
+    footprint.forEach((point,i)=>{const p=pt(point);if(i)ctx.lineTo(p.x,p.y);else ctx.moveTo(p.x,p.y);});
+    ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+  }
+  for(const split of review?.splits||[])for(const point of split.points){
+    const p=pt(point);ctx.fillStyle='#f59e0b';ctx.strokeStyle='#78350f';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill();ctx.stroke();
+  }
   result.cad.doors.concat(result.cad.windows).forEach((op) => {
     const p = pt(op.center);
     ctx.fillStyle = op.type === "window" ? "#0ea5e9" : "#f59e0b";
@@ -405,7 +448,10 @@ export function openRoomScanModal(initialResult = null, exchange = null) {
     '<label class="roomscan-mode"><input type="radio" name="rs_mode" value="replace"><span>' + t("rs_replace") + "</span></label>" +
     '<label class="roomscan-mode"><input type="radio" name="rs_mode" value="merge"><span>' + t("rs_merge") + "</span></label>" +
     "</fieldset>";
-  previewWrap.append(summary, preview, warnings, cal);
+  const reconciliationNote=el('div','roomscan-reconciliation');
+  reconciliationNote.setAttribute('role','status');reconciliationNote.hidden=true;
+  previewWrap.append(summary, preview, reconciliationNote, warnings, cal);
+  cal.querySelectorAll('input[name="rs_mode"]').forEach(input=>input.addEventListener('change',()=>{if(result)repaint();}));
 
   const foot = el("div", "bp-btnrow roomscan-actions");
   const cancel = el("button", null, t("cancel")); cancel.type = "button";
@@ -512,10 +558,24 @@ export function openRoomScanModal(initialResult = null, exchange = null) {
       }) + "</span>";
   }
 
+  function convertPreview(next){
+    const height=next.cad.lines.reduce((sum,line)=>sum+(line.height||270),0)/next.cad.lines.length;
+    return convertCadToWalls(next.cad,{singleLineWalls:true,defaultThickness:10,height,nodeTolerance:18,openingTolerance:45,firstId:S.idc});
+  }
+
   function repaint() {
     let shown = result;
     try { shown = previewCopy(); } catch (e) { shown = result; }
-    drawPreview(preview, shown, calIndex);
+    const merging=cal.querySelector('input[name="rs_mode"]:checked')?.value==='merge';
+    const review=alignment&&merging&&S.walls.length?scanReconciliation(convertPreview(shown),S):null;
+    reconciliationNote.hidden=!review;
+    reconciliationNote.replaceChildren();
+    if(review){
+      reconciliationNote.append(el('p','',st('alignment_legend')),el('p','',st('alignment_shared')+' '+review.shared.length));
+      if(review.splits.length)reconciliationNote.append(el('p','',st('alignment_splits')+' '+review.splits.length));
+      for(const reason of new Set(review.conflicts.map(c=>c.reason)))reconciliationNote.append(el('p','',st('alignment_reason_'+reason)));
+    }
+    drawPreview(preview, shown, calIndex, review);
     renderSummary(shown);
     showWarnings(shown);
     const note = cal.querySelector("#rs_edge_note");
@@ -920,27 +980,22 @@ export function openRoomScanModal(initialResult = null, exchange = null) {
     }
     /* Each scanned wall carries its own measured height; cad_to_walls keeps it
        and falls back to this only for a line that never had one. */
-    const fallbackHeight = next.cad.lines.reduce((sum, line) => sum + (line.height || 270), 0) / next.cad.lines.length;
-    let converted = convertCadToWalls(next.cad, {
-      singleLineWalls: true, defaultThickness: 10, height: fallbackHeight,
-      nodeTolerance: 18, openingTolerance: 45, firstId: S.idc,
-    });
+    let converted = convertPreview(next);
     if (converted.walls.length < 3) { status.textContent = t("rs_no_walls"); return; }
-    if(alignment&&addBeside){const review=scanReconciliation(converted,S);if(review.conflicts.length){status.textContent=st('alignment_conflict');return;}if(review.shared.length&&!window.confirm(st('alignment_shared')+' '+review.shared.length))return;converted=review.converted;}
+    if(alignment&&addBeside){const review=scanReconciliation(converted,S);if(review.conflicts.length){status.textContent=st('alignment_conflict');return;}if(review.shared.length&&!window.confirm(st('alignment_shared')+' '+review.shared.length+(review.splits.length?'\n'+st('alignment_splits')+' '+review.splits.length:'')))return;converted=review.converted;}
+    const reviewedState=splitReviewSignature(S);
     if(exchange){try{for(const photo of exchange.attachments||[])await surveyStore('put',photo.id,photo);}catch(_){status.textContent=st('SURVEY_PHOTO_MISSING');return;}}
+    if(reviewedState!==splitReviewSignature(S)){status.textContent=st('alignment_changed');repaint();return;}
     pushHistory();
     if (addBeside) {
-      const nodeOff = S.nodes.length;
-      converted.nodes.forEach((n) => S.nodes.push(n));
-      converted.walls.forEach((w) => { w.a += nodeOff; w.b += nodeOff; S.walls.push(w); });
-      converted.openings.forEach((o) => S.openings.push(o));
+      appendReconciledScan(S,converted);
     } else {
       S.nodes = converted.nodes; S.walls = converted.walls; S.openings = converted.openings;
       S.items = []; S.markers = []; S.slabOpenings = []; S.roomMeta = {};
     }
     const survey = normalizeSurvey(S.workspace.survey);
     if(exchange?.survey){const incoming=normalizeSurvey(exchange.survey);for(const key of ['observations','missions','captures','photos']){const existing=new Set(survey[key].map(x=>x.id));survey[key].push(...incoming[key].filter(x=>!existing.has(x.id)));}survey.enabled=true;}
-    survey.captures.push({id:crypto.randomUUID(),source:result.source,units:'cm',createdAt:Date.now(),original:JSON.parse(JSON.stringify(result)),applied:JSON.parse(JSON.stringify(next)),exchange:exchange?{format:exchange.format,version:exchange.version}:null});
+    survey.captures.push({id:crypto.randomUUID(),source:result.source,units:'cm',createdAt:Date.now(),original:JSON.parse(JSON.stringify(result)),applied:JSON.parse(JSON.stringify(next)),wallSplits:JSON.parse(JSON.stringify(converted.existingPatch?.splits||[])),exchange:exchange?{format:exchange.format,version:exchange.version}:null});
     S.workspace.survey=survey;
     surveyStore('delete','capture-draft').catch(()=>{});
     S.idc = converted.nextId; S.sel = null;

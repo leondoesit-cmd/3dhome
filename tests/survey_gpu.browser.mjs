@@ -76,3 +76,27 @@ test('walking speed uses profile centimetres per second',opts,async()=>{
  const result=await page.eval(async()=>({time:performance.now(),z:(await import('/js/view3d.js')).getNavigationView().position.z}));
  const speed=result.z/((result.time-before)/1000);assert.ok(speed>80&&speed<160,`Measured ${speed} cm/s for a 120 cm/s profile`);
 });
+
+test('camera volume catches a measured face between rays and respects clearance radius',opts,async()=>{
+ await page.resize(1280,900,{mobile:false,touch:false});
+ const before=await page.eval(async()=>{
+  const {S}=await import('/js/state.js'),{THREE}=await import('/js/three_lazy.js'),v=await import('/js/view3d.js');
+  const pivot=new THREE.Vector3(0,95,0),direction=new THREE.Vector3(0,45,-230).normalize(),right=new THREE.Vector3(1,0,0),up=new THREE.Vector3().crossVectors(direction,right).normalize();
+  const p=pivot.clone().addScaledVector(direction,70).addScaledVector(right,6).addScaledVector(up,6);
+  const points=[p,p.clone().add(right),p.clone().add(up)].map(q=>({x:q.x,y:q.y,z:q.z}));
+  await (await import('/js/ui.js')).applyData({nodes:[],walls:[],openings:[],items:[],surveyFeatures:[{id:'thin-camera-obstacle',kind:'face',points}]});
+  S.workspace.navigationProfile={cameraDistance:230,cameraRadius:10};window.__setViewMode('3d');S.dirty3D=true;
+  v.restoreNavigationView({walk:true,walkView:'tpv',position:{x:0,y:0,z:0},yaw:0,pitch:0});v.requestRender();
+  return JSON.stringify(S.surveyFeatures);
+ });
+ await page.waitUntil(async()=>{
+  const {S}=await import('/js/state.js'),v=await import('/js/view3d.js'),p=v.getMainCamera().position;
+  return S.cameraObstructed&&Math.hypot(p.x,p.y-95,p.z)<67;
+ },{what:'camera volume retracts before the thin face'});
+ await page.eval(async()=>{const {S}=await import('/js/state.js');S.workspace.navigationProfile.cameraRadius=4;(await import('/js/view3d.js')).requestRender();});
+ await page.waitUntil(async()=>{
+  const {S}=await import('/js/state.js'),v=await import('/js/view3d.js'),p=v.getMainCamera().position;
+  return !S.cameraObstructed&&Math.hypot(p.x,p.y-95,p.z)>220;
+ },{what:'smaller camera volume clears the same face and recovers'});
+ assert.equal(await page.eval(async()=>JSON.stringify((await import('/js/state.js')).S.surveyFeatures)),before);
+});

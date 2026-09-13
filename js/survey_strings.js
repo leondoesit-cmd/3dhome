@@ -1,5 +1,9 @@
 import {getLang} from './i18n.js';
 const strings={
+ report_missing_floor:['This floor has no saved geometry yet. Its survey remains incomplete.','לקומה זו עדיין אין גאומטריה שמורה. המדידה שלה טרם הושלמה.'],
+ report_plan:['Survey plan','תוכנית מדידה'],report_floor:['Floor','קומה'],
+ report_xy:['X / height elevation','חזית X / גובה'],report_zy:['Z / height elevation','חזית Z / גובה'],
+ report_coordinates:['Model vertex coordinates in centimetres; Y is height in the floor model. Recorded observations are listed separately.','קואורדינטות קודקודי המודל בסנטימטרים; Y הוא הגובה במודל הקומה. התצפיות שנרשמו מופיעות בנפרד.'],
  vertex_help:['In 3D Select, drag the yellow points along their measured surface. Use Edit for exact coordinates and elevations.','בבחירה בתלת־ממד, גררו את הנקודות הצהובות לאורך המשטח המדוד. השתמשו בעריכה להזנת מיקום וגובה מדויקים.'],
  capture_records:['Saved capture sessions','סריקות שמורות'],review_capture:['Review and align this capture','בדיקה ויישור של הסריקה'],
 
@@ -11,6 +15,20 @@ const strings={
 
  align:['Align using reference points','יישור לפי נקודות ייחוס'],align_help:['Enter four lines in centimetres: two scan reference points (x z), then their two corresponding property points. Lengths must agree within 2 cm.','הזינו ארבע שורות בסנטימטרים: שתי נקודות סריקה (x z) ואחריהן שתי נקודות תואמות בנכס. הפרש האורך המרבי הוא 2 ס״מ.'],
  SURVEY_ALIGNMENT_SCALE:['The reference lengths disagree. Check the point pairs or explicitly recalibrate the scan.','אורכי הייחוס אינם תואמים. בדקו את זוגות הנקודות או כיילו מחדש את הסריקה.'],
+ alignment_splits:['Existing walls to split at the amber points (affected readings will need rechecking):','קירות קיימים לפיצול בנקודות הכתומות (המדידות המושפעות ידרשו בדיקה מחדש):'],
+ 'alignment_reason_split-held':['Held furniture crosses a proposed cut, lacks footprint measurements, or is locked. Review its attachment before splitting.','רהיט המחובר לקיר חוצה חיתוך מוצע, חסרות לו מידות או שהוא נעול. בדקו את החיבור לפני הפיצול.'],
+ 'alignment_reason_split-locked':['Unlock the wall and its structure layer before splitting it.','בטלו את נעילת הקיר ושכבת המבנה לפני הפיצול.'],
+ 'alignment_reason_split-constraints':['A constraint depends on the wall span or opening position. Review it before splitting.','אילוץ תלוי במקטע הקיר או במיקום פתח. בדקו אותו לפני הפיצול.'],
+ 'alignment_reason_split-services':['A hosted service has no measured wall position. Record its position before splitting.','למתקן המחובר לקיר חסר מיקום מדוד. הזינו את מיקומו לפני הפיצול.'],
+ alignment_legend:['Existing walls: grey. Reused walls: green. Conflicts: red. Scan: purple. Existing openings: outlined squares. Held furniture: dashed outlines.','קירות קיימים: אפור. קירות לשימוש חוזר: ירוק. סתירות: אדום. סריקה: סגול. פתחים קיימים: ריבועים חלולים. ריהוט המחובר לקיר: קווים מקווקווים.'],
+ alignment_changed:['The plan changed during import. Review the updated alignment and apply again.','התוכנית השתנתה במהלך הייבוא. בדקו את היישור המעודכן והחילו שוב.'],
+ 'alignment_reason_partial-wall':['This overlap requires splitting an existing wall. Review its endpoints before merging.','חפיפה זו דורשת פיצול של קיר קיים. בדקו את נקודות הקצה לפני המיזוג.'],
+ 'alignment_reason_wall-shape':['A curved wall needs a separate alignment review.','קיר מעוגל דורש בדיקת יישור נפרדת.'],
+ 'alignment_reason_dimensions':['Wall thickness or height differs. Check the recorded dimensions.','עובי הקיר או גובהו שונים. בדקו את המידות שנרשמו.'],
+ 'alignment_reason_ambiguous-wall':['Existing walls overlap or have disconnected junctions. Resolve their connections first.','קירות קיימים חופפים או שהחיבורים ביניהם מנותקים. תקנו את החיבורים תחילה.'],
+ 'alignment_reason_opening-boundary':['An opening crosses a wall junction. Check its host wall before merging.','פתח חוצה חיבור בין קירות. בדקו את הקיר המארח לפני המיזוג.'],
+ 'alignment_reason_opening-operation':['The recorded door operations disagree. Check the hinge and swing direction.','פעולות הדלת שנרשמו אינן תואמות. בדקו את הציר וכיוון הפתיחה.'],
+ alignment_reason_openings:['Openings overlap with different recorded dimensions. Measure them again.','פתחים חופפים עם מידות שונות שנרשמו. מדדו אותם שוב.'],
  alignment_conflict:['Shared walls or openings disagree. Retain the scan and obtain another reference measurement before merging.','הקירות המשותפים או הפתחים אינם תואמים. שמרו את הסריקה והוסיפו מדידת ייחוס לפני המיזוג.'],alignment_shared:['Matching shared walls will be reused:','קירות משותפים תואמים שישמשו שוב:'],recover_capture:['Review interrupted capture','בדיקת סריקה שנקטעה'],
 
  title:['As-Built Survey','מדידת מצב קיים'],property:['Survey my property','מדידת הנכס שלי'],practice:['Practice surveying','תרגול מדידה'],

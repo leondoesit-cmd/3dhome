@@ -29,6 +29,8 @@ export function currentSurveyDimension(target,field,state=S) {
 export function prepareSurveyCorrection(state,observation) {
   if(state.workspace?.role==='viewer')return {ok:false,reason:'READ_ONLY'};
   const target=observation.target,original=surveyTarget(state,target);
+  // A pre-split reading describes the full former span, not its first fragment.
+  if(target?.splitWallIds?.length)return {ok:false,reason:'SURVEY_MORE_MEASUREMENTS'};
   if(!target||target.floorId!==state.workspace.activeFloor||!original)return {ok:false,reason:'SURVEY_TARGET_MISSING'};
   const field=observation.field,value=surveyValueCm(observation.value,observation.unit);
   if(!Number.isFinite(value)||(value<0&&!['x','y','z','elevation'].includes(field)))return {ok:false,reason:'SURVEY_VALUE_INVALID'};

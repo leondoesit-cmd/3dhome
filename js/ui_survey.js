@@ -1,6 +1,6 @@
 import { S, uid } from './state.js';
 import { st } from './survey_strings.js';
-import { onLangChange } from './i18n.js';
+import { onLangChange, getLang } from './i18n.js';
 import { normalizeSurvey, startSurvey, surveyProgress, recordObservation, markSurveyMission, createSurveyMissions, surveyTarget, surveyFingerprint, normalizeSurveyFeatures } from './survey.js';
 import { prepareSurveyCorrection, applySurveyCorrection, currentSurveyDimension } from './survey_correction.js';
 import { surveyStore, storeSurveyPhoto, surveyPhotoAttachments } from './survey_store.js';
@@ -174,7 +174,7 @@ function importSurvey(){const picker=input('file');picker.accept='.json,.mfsurve
     dialog.close();dialog.remove();S.dirty3D=true;fitView();render2D();renderSurvey(true);
   }catch(e){restoreHistorySession(before);throw e;}}),button('close',()=>{dialog.close();dialog.remove();}));document.body.append(dialog);dialog.showModal();
 });picker.click();}
-async function reportSurvey(){const reportWindow=window.open('','_blank');if(reportWindow)reportWindow.opener=null;try{sceneObject(true);const photos=await surveyPhotoAttachments(normalizeSurvey(S.workspace.survey),{allowMissing:true});const report=buildSurveyReport(S,photos,st);if(!reportWindow){download(report,'property-survey.html','text/html');return;}const url=URL.createObjectURL(new Blob([report],{type:'text/html'}));reportWindow.location.href=url;setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(error){reportWindow?.close();throw error;}}
+async function reportSurvey(){const reportWindow=window.open('','_blank');if(reportWindow)reportWindow.opener=null;try{sceneObject(true);const photos=await surveyPhotoAttachments(normalizeSurvey(S.workspace.survey),{allowMissing:true});const report=buildSurveyReport(S,photos,st,{language:getLang()});if(!reportWindow){download(report,'property-survey.html','text/html');return;}const url=URL.createObjectURL(new Blob([report],{type:'text/html'}));reportWindow.location.href=url;setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(error){reportWindow?.close();throw error;}}
 function saveBaseline(){transact('baseline',()=>{const p=redesignCommand.prepare({action:'start',id:'survey-baseline-'+uid(),name:st('title'),createdAt:Date.now()},{state:S,services:{sceneObject}});if(!p.ok)throw new Error(p.reason);redesignCommand.apply(p.plan,{state:S});S.workspace.survey.completedAt=Date.now();});}
 function featureForm(existing=null){
   if(existing?.locked)throw new Error('SURVEY_LOCKED');

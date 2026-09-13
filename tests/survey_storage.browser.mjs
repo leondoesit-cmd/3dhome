@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {stat} from 'node:fs/promises';
 import {openPage,findChrome} from '../tools/browser_harness.mjs';
 const opts=await findChrome()?{}:{skip:'Chrome unavailable'};let page;
 test.after(async()=>page?.close());
@@ -20,11 +21,18 @@ test('photo quota failure preserves stored evidence and allows a clean transfer 
  assert.deepEqual(result,{failed:true,retained:'data:image/png;base64,YQ==',missing:true,retried:true,stored:'data:image/png;base64,Yg=='});
 });
 test('prepared application reloads offline with saved survey evidence',opts,async()=>{
+ const kernelSize=(await stat(new URL('../assets/opencascade.full.wasm.gz',import.meta.url))).size;
  await page.eval(async()=>{await (await import('/js/survey_offline.js')).prepareSurveyOffline();});
  await page.send('Network.enable',{});await page.send('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:0,uploadThroughput:0});
  try{
   await page.goto('/');
   const state=await page.eval(async()=>({boot:!!window.__home3dBooted,photo:(await (await import('/js/survey_store.js')).surveyStore('get','retained')).data,worker:!!navigator.serviceWorker.controller}));
   assert.deepEqual(state,{boot:true,photo:'data:image/png;base64,YQ==',worker:true});
+  const kernel=await page.eval(async()=>{const bytes=new Uint8Array(await (await fetch('/assets/opencascade.full.wasm.gz')).arrayBuffer());return {size:bytes.length,magic:[...bytes.slice(0,2)]};});
+  assert.deepEqual(kernel,{size:kernelSize,magic:[31,139]},'the complete compressed CAD engine is available offline');
+  if(process.env.MF_BROWSER_GPU==='1'){
+   await page.eval(()=>window.__setViewMode('3d'));
+   await page.waitUntil(async()=>(await import('/js/view3d.js')).has3D(),{ms:30000,what:'offline GPU renderer'});
+  }
  }finally{await page.send('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});}
 });
