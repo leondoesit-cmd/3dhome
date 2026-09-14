@@ -52,6 +52,41 @@ export function sketchSnapTargets(sketch, extras) {
   return ts;
 }
 
+/* Nearest point ON each sketch circle, for the pointer at uv. Quadrants and
+   centres are fixed spots; "down to the circumference" (HOUSING step 303)
+   lands anywhere on the curve and still has to become Coincident-to-edge.
+   Recomputed per pointer position, so it is not part of sketchSnapTargets. */
+export function onCurveTargets(uv, sketch, origin, pxPerCm) {
+  var out = [];
+  if (!uv) return out;
+  /* While a line is being drawn nearly vertical or horizontal, the spot on the
+     curve is where THAT line meets it, not the radial projection of the
+     cursor — otherwise "vertical line down to the circumference" lands a few
+     millimetres sideways and loses its Vertical relation. */
+  var ortho = origin ? inferOrthoSnap(uv, origin, pxPerCm, false).kind : null;
+  (sketch && sketch.entities || []).forEach(function (entity) {
+    if (!entity || entity.type !== "circle") return;
+    var c = sketchPoint(sketch, entity.c || entity.center);
+    var r = Math.abs(Number(entity.r) || 0);
+    if (!c || !(r > 0)) return;
+    if (ortho === "v" || ortho === "h") {
+      var across = ortho === "v" ? origin.u - c.x : origin.v - c.y;
+      if (Math.abs(across) > r) return;
+      var half = Math.sqrt(r * r - across * across);
+      var along = ortho === "v" ? uv.v - c.y : uv.u - c.x;
+      var pick = Math.abs(along - half) <= Math.abs(along + half) ? half : -half;
+      out.push(ortho === "v"
+        ? { u: origin.u, v: c.y + pick, k: "on", entityId: entity.id }
+        : { u: c.x + pick, v: origin.v, k: "on", entityId: entity.id });
+      return;
+    }
+    var dx = uv.u - c.x, dy = uv.v - c.y, d = hypot(dx, dy);
+    if (d < 1e-9) return;
+    out.push({ u: c.x + (dx / d) * r, v: c.y + (dy / d) * r, k: "on", entityId: entity.id });
+  });
+  return out;
+}
+
 export function pickSnap(uv, targets, options) {
   options = options || {};
   if (options.suppress) return { snap: null, candidates: [] };
@@ -67,7 +102,8 @@ export function pickSnap(uv, targets, options) {
        points. A footprint vertex of an extruded circle is a tessellation point
        of a 48-gon, not design intent: when it sat beside the circle's quadrant
        it won by a pixel and the line end got no relation (HOUSING step 300). */
-    var rank = function (t) { return t.pointId || t.entityId || t.k === "o" ? 0 : 1; };
+    // point-like sketch snaps, then a spot on a sketch curve, then footprint points
+    var rank = function (t) { return t.k === "on" ? 1 : t.pointId || t.entityId || t.k === "o" ? 0 : 2; };
     if (rank(a) !== rank(b)) return rank(a) - rank(b);
     // At the same location, prefer a real sketch point to a coordinate-only
     // target (notably the origin), so newly drawn geometry stays connected.
@@ -107,6 +143,11 @@ export function inferTangentCircle(line, circles) {
   var best = null, bestErr = 0.45;
   (circles || []).forEach(function (circle) {
     if (!circle || !(circle.r > 0) || !circle.center) return;
+    /* A line that starts or ends ON the circle is not a tangent request: the
+       HOUSING top line leaves the quadrant and is later dimensioned below it
+       (step 330), which an inferred tangent would refuse. */
+    var onCircle = function (p) { return Math.abs(hypot(p.u - circle.center.u, p.v - circle.center.v) - circle.r) < 1e-4 * Math.max(1, circle.r); };
+    if (onCircle(line.a) || onCircle(line.b)) return;
     var err = Math.abs(pointToLineDistance(circle.center, line.a, line.b) - circle.r);
     if (err < bestErr) { bestErr = err; best = circle; }
   });
@@ -125,7 +166,7 @@ export function inferLineRelations(line, from, to, snap, options) {
   if (snap && snap.k === "c" && snap.pointId && line.b !== snap.pointId) out.push({ type: "coincident", a: line.b, b: snap.pointId });
   // a quadrant is ON the circle: ending there is Coincident-to-edge, as in SOLIDWORKS
   // (HOUSING step 300: centerline to the top edge of the converted circle)
-  if (snap && snap.k === "q" && snap.entityId) out.push({ type: "pointOnCircle", point: line.b, entity: snap.entityId });
+  if (snap && (snap.k === "q" || snap.k === "on") && snap.entityId) out.push({ type: "pointOnCircle", point: line.b, entity: snap.entityId });
   if (options.tangentCircleId) out.push({ type: "tangent", a: line.id, b: options.tangentCircleId });
   return out;
 }

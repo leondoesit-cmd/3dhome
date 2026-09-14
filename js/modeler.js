@@ -169,7 +169,7 @@ import {
 } from "./modeler_workflow.js";
 import {
   constraintAlreadyPresent, entityStatuses, inferLineRelations, inferOrthoSnap,
-  inferTangentCircle, nextInferenceIndex, pickSnap, sketchSnapTargets, sketchStatusColor,
+  inferTangentCircle, nextInferenceIndex, onCurveTargets, pickSnap, sketchSnapTargets, sketchStatusColor,
 } from "./modeler_inference.js";
 import {
   boxSelectMode, boundsHitBox, confirmationCornerState, contextMenuItems,
@@ -2190,7 +2190,8 @@ function snapPt(uv, excludePart, origin) {
   E._osnap = null;
   var raw = { u: snapV(uv.u), v: snapV(uv.v) };
   if (E.osnap) {
-    var picked = pickSnap(uv, snapTargets(excludePart), {
+    // fixed spots plus the nearest point on each sketch circle under the pointer
+    var picked = pickSnap(uv, snapTargets(excludePart).concat(onCurveTargets(uv, ensureSketch(E.def), origin, E.scl)), {
       scale: E.scl, cycleIndex: E.inferenceIndex, suppress: E._suppressInference,
     });
     E.inferenceCandidates = picked.candidates || [];
