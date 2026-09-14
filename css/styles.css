@@ -5444,13 +5444,18 @@ body.compact-nav #modeler .md-sketch-plane-chip { min-height: 36px; }
 #modeler.md-isdrawing #mdCanvas { cursor: default; }
 /* The paper gives up the left rail for tools, the top strip for Model/Sketch/
    Drawing, and (when there is room) the right strip for sheet properties. */
+/* Explicit sizes, never width/height:auto. A canvas is a replaced element, so
+   `auto` does not stretch it between its insets: it takes its intrinsic size —
+   the backing-store width attribute — and sizeSketch() then multiplies that by
+   the device pixel ratio. The resize observer doubled the sheet every pass,
+   to 33,554,432 px, and Drawing mode showed a blank page. */
 #modeler.md-isdrawing #mdCanvas {
   inset-block-start: 50px;
   inset-inline-start: 52px;
-  width: auto; height: auto;
+  width: calc(100% - 52px); height: calc(100% - 50px);
 }
 @media (min-width: 1100px) {
-  #modeler.md-isdrawing:not(.md-sheet-collapsed) #mdCanvas { inset-inline-end: 268px; }
+  #modeler.md-isdrawing:not(.md-sheet-collapsed) #mdCanvas { inset-inline-end: 268px; width: calc(100% - 52px - 268px); }
 }
 #modeler.md-isdrawing.md-sheet-collapsed .md-sheet-panel { display: none; }
 @media (max-width: 760px) {

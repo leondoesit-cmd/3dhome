@@ -6,6 +6,10 @@
 export const AUTHORING_MODES = new Set(["fully-parametric", "hybrid", "direct-only"]);
 
 const DIRECT_FEATURES = new Set(["direct", "import"]);
+/* Part kinds rebuilt from their own recipe. Exact regeneration caches its
+   triangles on them as meshData; that cache is not direct geometry, and
+   counting it labelled a two-feature extrude "hybrid" after its first save. */
+const RECIPE_PART_KINDS = new Set(["ext", "rev", "loft", "box", "cyl", "sph", "kernel"]);
 const EDITABLE_FEATURES = new Set([
   "box", "cylinder", "sphere", "extrude", "cut", "revolve", "sweep", "loft",
   "fillet", "chamfer", "shell", "mirror", "linearPattern", "circularPattern",
@@ -18,7 +22,7 @@ export function inferAuthoringMode(source = {}) {
   const parts = Array.isArray(source.parts) ? source.parts : [];
   const sketches = Array.isArray(source.sketches) ? source.sketches : [];
   const hasDirect = features.some((feature) => DIRECT_FEATURES.has(feature?.type)) ||
-    parts.some((part) => part?.kind === "direct" || part?.kind === "mesh" || !!part?.meshData);
+    parts.some((part) => part?.kind === "direct" || part?.kind === "mesh" || (!!part?.meshData && !RECIPE_PART_KINDS.has(part?.kind)));
   const hasEditable = features.some((feature) => EDITABLE_FEATURES.has(feature?.type));
   const imported = !!(source.metadata?.import || source.metadata?.imports?.length || source.importedStep);
 
