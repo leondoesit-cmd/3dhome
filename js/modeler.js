@@ -10677,8 +10677,8 @@ function drawSketch() {
   });
 
   var spts = new Map((sketch.points || []).map(function (q) { return [q.id, q]; }));
-  // a refused dimension paints what it fought while its editor is still open
-  var refused = E.dimEditor && E.dimEditor.sketch === sketch && E.dimEditor.hint;
+  // a refused dimension or relation paints what it fought
+  var refused = refusalHint(sketch);
   var conflicts = refused || (E.solveInfo && E.solveInfo.conflicts) || [];
   var statuses = entityStatuses(sketch, refused ? Object.assign({}, E.solveInfo, { conflicts: refused, status: "conflicting" }) : E.solveInfo);
   var fully = E.solveInfo && E.solveInfo.status === "fully-constrained";
@@ -11209,14 +11209,18 @@ function reportOpen() {
    same tick it was written. syncHint honours FLASH_MS, which is why callers no
    longer have to flash after the refresh. */
 var FLASH_MS = 1800;
-function flash(msg) {
+// `holdMs` keeps a sentence up long enough to read; a one-word hint needs less
+function flash(msg, holdMs) {
   var hint = root && root.querySelector("#mdHint");
   if (!hint) return;
+  var hold = holdMs || FLASH_MS;
   hint.textContent = msg;
   hint.classList.add("live", "flash");
-  E.flashUntil = Date.now() + FLASH_MS;
+  E.flashUntil = Date.now() + hold;
+  // a held message is a sentence (a refusal naming relations): let it wrap
+  hint.classList.toggle("wrap", !!holdMs);
   clearTimeout(E._flashT);
-  E._flashT = setTimeout(function () { E.flashUntil = 0; hint.classList.remove("flash"); syncTools(); }, FLASH_MS);
+  E._flashT = setTimeout(function () { E.flashUntil = 0; hint.classList.remove("flash", "wrap"); syncTools(); }, hold);
 }
 
 // Whether a flashed message is still within its display window.
@@ -12439,11 +12443,13 @@ function applyConstraint(type) {
 
   if (!resolveSketch(true)) {
     var ids = added.map(function (c) { return c.id; });
+    // explained with the new relations still in, against the restored geometry
+    var why = explainSketchConflict(sketch, { keep: ids });
     sketch.constraints = sketch.constraints.filter(function (c) { return ids.indexOf(c.id) < 0; });
     resolveSketch(false);
     H.discard();
-    flash(t("overDefined"));
-  }
+    showRelationRefusal(sketch, added, why);
+  } else E.relationRefusal = null;
   refreshAll();
 }
 
@@ -12675,13 +12681,40 @@ function constraintCaption(constraint) {
    tried again. "That constraint fights the existing ones" was true but left
    the user to guess which ones out of the fourteen the least-squares fit had
    turned red. */
+function refusalMessage(sketch, subject, subjectIds, why) {
+  var list = (why.ids || []).filter(function (id) { return subjectIds.indexOf(id) < 0; })
+    .map(function (id) { return (sketch.constraints || []).find(function (c) { return c.id === id; }); })
+    .filter(Boolean).map(constraintCaption).join(", ");
+  return !list ? t("overDefined")
+    : t(why.kind === "over-constrained" ? "dimRepeats" : "dimNoSolution").replace("{value}", subject).replace("{list}", list);
+}
+
+/* The relations a refusal named, for the canvas and the constraint list: the
+   open dimension editor's, or a refused relation's for a few seconds after. */
+function refusalHint(sketch) {
+  if (E.dimEditor && E.dimEditor.sketch === sketch && E.dimEditor.hint) return E.dimEditor.hint;
+  var recent = E.relationRefusal;
+  return recent && recent.sketch === sketch && Date.now() < recent.until ? recent.ids : null;
+}
+
+var RELATION_REFUSAL_MS = 6000;
+
+/* A relation from the toolbar or the inspector palette that the sketch cannot
+   take. It is already removed again; say which relations it fought and paint
+   them red for a moment, instead of the bare "fights the existing ones". */
+function showRelationRefusal(sketch, added, why) {
+  var names = [];
+  added.forEach(function (c) { var name = constraintCaption(c); if (names.indexOf(name) < 0) names.push(name); });
+  var addedIds = added.map(function (c) { return c.id; });
+  var hint = (why.ids || []).filter(function (id) { return addedIds.indexOf(id) < 0; });
+  E.relationRefusal = hint.length ? { sketch: sketch, ids: hint, until: Date.now() + RELATION_REFUSAL_MS } : null;
+  flash(refusalMessage(sketch, names.join(", "), addedIds, why), RELATION_REFUSAL_MS);
+  clearTimeout(E._relationRefusalT);
+  if (hint.length) E._relationRefusalT = setTimeout(function () { E.relationRefusal = null; refreshAll(); }, RELATION_REFUSAL_MS);
+}
+
 function showDimensionRefusal(state, typed, why) {
-  var others = (why.ids || []).filter(function (id) { return id !== state.constraint.id; })
-    .map(function (id) { return (state.sketch.constraints || []).find(function (c) { return c.id === id; }); })
-    .filter(Boolean);
-  var list = others.map(constraintCaption).join(", ");
-  var msg = !list ? t("overDefined")
-    : t(why.kind === "over-constrained" ? "dimRepeats" : "dimNoSolution").replace("{value}", typed).replace("{list}", list);
+  var msg = refusalMessage(state.sketch, typed, [state.constraint.id], why);
   state.hint = why.ids && why.ids.length ? why.ids.slice() : null;
   var box = root.querySelector("#mdDimError");
   if (box) { box.textContent = msg; box.hidden = false; }
@@ -16891,7 +16924,7 @@ function fillSketchPane() {
   host.appendChild(el("h5", "md-h5", t("constraintList")));
   var list = el("div", "md-cons-list");
   (sketch.constraints || []).forEach(function (con) {
-    var refusedHint = E.dimEditor && E.dimEditor.sketch === sketch && E.dimEditor.hint;
+    var refusedHint = refusalHint(sketch);
     var row = el("div", "md-cons-row" + (si.conflicts.indexOf(con.id) >= 0 || (refusedHint && refusedHint.indexOf(con.id) >= 0) ? " bad" : "") + (con.suppressed ? " off" : ""));
     if (con.exprError) { row.classList.add("bad"); row.title = con.exprError; }
     // The value field holds the expression once a dimension is driven by one,

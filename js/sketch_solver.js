@@ -550,8 +550,28 @@ export function solveSketch(sketch, options = {}) {
     }
     return { error, steps };
   };
-  const run = descend(), iteration = run.steps;
-  let error = run.error;
+  const run = descend();
+  let iteration = run.steps, error = run.error;
+  /* A solve can stall where a relation's residual is not zero but its slope is:
+     two exactly parallel lines asked to be perpendicular sit at the extremum of
+     their cosine, so no step turns them and the relation reads as impossible —
+     which also told the conflict explanation that Perpendicular fought nothing
+     but itself. On failure, nudge every free coordinate by a small fixed
+     pattern (deterministic, so the same sketch always solves the same way) and
+     try once more; keep that only if it converges. */
+  if (error >= tolerance && vars.length && options.nudge !== false) {
+    const failed = vars.map((v) => v.obj[v.k]);
+    const span = Math.max(1, ...(sketch.points || []).map((p) => Math.max(Math.abs(Number(p.x) || 0), Math.abs(Number(p.y) || 0))));
+    let seed = 7;
+    vars.forEach((v) => {
+      seed = (seed * 16807) % 2147483647;
+      v.obj[v.k] = (Number(v.obj[v.k]) || 0) + (seed / 2147483647 - 0.5) * 2e-3 * span;
+    });
+    const retry = descend();
+    iteration += retry.steps;
+    if (retry.error < tolerance) error = retry.error;
+    else vars.forEach((v, i) => { v.obj[v.k] = failed[i]; });
+  }
   let converged = error < tolerance;
   // circles and ellipses must not solve themselves inside out
   (sketch.entities || []).forEach((e) => {
@@ -651,26 +671,52 @@ export function solveSketch(sketch, options = {}) {
 
    `keep` pins relations that must be named — the dimension the user just typed
    is always part of the answer. Relations are tried oldest first, so when more
-   than one minimal set exists the newer relations are the ones blamed. */
+   than one minimal set exists the newer relations are the ones blamed.
+
+   A probe only counts as solved if the geometry survived it. With relations
+   removed, a solve can "succeed" by shrinking an entity to nothing: HOUSING's
+   mirror centerline collapsed to 1e-4 cm, where its direction means nothing
+   and every symmetric relation is met for free. That made those symmetric
+   relations look essential and padded the list from five names to eight. */
+function entitySizes(sketch) {
+  const points = pointMap(sketch), sizes = new Map();
+  for (const e of sketch.entities || []) {
+    const a = points.get(e.a), b = points.get(e.b), c = points.get(e.c ?? e.center);
+    let size = null;
+    if (e.type === "line" && a && b) size = Math.hypot(b.x - a.x, b.y - a.y);
+    else if (e.type === "arc" && a && c) size = Math.hypot(a.x - c.x, a.y - c.y);
+    else if (e.type === "circle") size = Math.abs(Number(e.r) || 0);
+    if (size != null) sizes.set(e.id, size);
+  }
+  return sizes;
+}
+
 export function explainSketchConflict(sketch, options = {}) {
   const keep = new Set(options.keep || []);
   const maxSolves = options.maxSolves ?? 80;
+  const drawn = entitySizes(sketch);
+  const intact = (trial) => {
+    const now = entitySizes(trial);
+    for (const [id, size] of drawn) if (size > 1e-6 && (now.get(id) ?? size) < size * 1e-2) return false;
+    return true;
+  };
   const probe = (removed, withDiagnostics) => {
     const trial = structuredClone(sketch);
     trial.constraints.forEach((c) => { if (removed.has(c.id)) c.suppressed = true; });
-    return solveSketch(trial, withDiagnostics ? {} : { diagnostics: false });
+    const result = solveSketch(trial, withDiagnostics ? {} : { diagnostics: false });
+    return { result, solved: result.converged && intact(trial) };
   };
   const first = probe(new Set(), true);
-  const kind = !first.converged ? "conflicting" : first.redundant ? "over-constrained" : null;
+  const kind = !first.solved ? "conflicting" : first.result.redundant ? "over-constrained" : null;
   if (!kind) return { kind: null, ids: [], complete: true };
   const failing = kind === "conflicting"
-    ? (removed) => !probe(removed, false).converged
-    : (removed) => !!probe(removed, true).redundant;
+    ? (removed) => !probe(removed, false).solved
+    : (removed) => !!probe(removed, true).result.redundant;
   let candidates = (sketch.constraints || []).filter((c) => !c.suppressed && !c.driven && !keep.has(c.id));
   // a big sketch cannot afford a solve per relation; the ones carrying error are
   // where the failure lives, and anything outside them simply stays in force
-  if (candidates.length + 1 > maxSolves && first.conflicts.length) {
-    const carrying = new Set(first.conflicts);
+  if (candidates.length + 1 > maxSolves && first.result.conflicts.length) {
+    const carrying = new Set(first.result.conflicts);
     candidates = candidates.filter((c) => carrying.has(c.id));
   }
   const removed = new Set();

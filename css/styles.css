@@ -5705,6 +5705,7 @@ body.compact-nav #modeler .md-quick-field select {
   box-shadow: 0 5px 18px rgba(0,0,0,.2), inset 0 0 0 1px rgba(255,122,0,.22);
 }
 #modeler .md-hint.flash { background: var(--accent); color: var(--on-accent); }
+#modeler .md-hint.flash.wrap { white-space: normal; text-overflow: clip; max-width: min(560px, calc(100% - 32px)); text-align: center; line-height: 1.35; }
 
 /* Waiting for a face click. Non-modal — the model underneath is the picker,
    so only the bar itself takes pointer events. */

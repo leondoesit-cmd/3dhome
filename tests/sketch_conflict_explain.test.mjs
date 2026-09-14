@@ -33,6 +33,22 @@ function sketchsquare() {
   };
 }
 
+// solved the way the explanation judges it: converged, and no line, arc or
+// circle shrunk to a sliver of its drawn size to get there
+const sizes = (sketch) => {
+  const P = new Map(sketch.points.map((p) => [p.id, p]));
+  return new Map(sketch.entities.map((e) => {
+    const a = P.get(e.a), b = P.get(e.b), c = P.get(e.c);
+    return [e.id, e.type === 'line' ? Math.hypot(b.x - a.x, b.y - a.y) : e.type === 'arc' ? Math.hypot(a.x - c.x, a.y - c.y) : Math.abs(e.r)];
+  }));
+};
+const solves = (sketch) => {
+  const drawn = sizes(sketch), trial = structuredClone(sketch);
+  if (!solveSketch(trial).converged) return false;
+  const now = sizes(trial);
+  return [...drawn].every(([id, size]) => !(size > 1e-6 && now.get(id) < size * 1e-2));
+};
+
 const suppress = (sketch, ids) => {
   const copy = structuredClone(sketch);
   copy.constraints.forEach((c) => { if (ids.includes(c.id)) c.suppressed = true; });
@@ -67,12 +83,12 @@ test('Sketchsquare wider than its circle: a short list with the new width, and e
   assert.ok(why.ids.includes(99), 'names the width just typed');
   assert.ok(why.ids.includes(2), 'names the circle size it runs into');
   assert.ok(why.ids.length <= 6 && why.ids.length < failed.conflicts.length + 1, JSON.stringify({ why, residual: failed.conflicts }));
-  assert.equal(solveSketch(suppress(s, why.ids)).converged, true, 'without the named relations it solves');
+  assert.equal(solves(suppress(s, why.ids)), true, 'without the named relations it solves');
   // minimal: the named set on its own still fails, and loses that with any one member gone
   const others = s.constraints.map((c) => c.id).filter((id) => !why.ids.includes(id));
-  assert.equal(solveSketch(suppress(s, others)).converged, false, 'the named set alone is still impossible');
+  assert.equal(solves(suppress(s, others)), false, 'the named set alone is still impossible');
   for (const id of why.ids) {
-    assert.equal(solveSketch(suppress(s, [...others, id])).converged, true, 'the set without ' + id + ' solves');
+    assert.equal(solves(suppress(s, [...others, id])), true, 'the set without ' + id + ' solves');
   }
 });
 
@@ -108,4 +124,60 @@ test('the dimension editor explains a refused value and names the dimension', ()
   const apply = src.slice(src.indexOf('function applyDimensionEditor()'), src.indexOf('function deleteDimensionEditor()'));
   assert.match(apply, /explainSketchConflict\(state\.sketch, \{ keep: \[constraint\.id\] \}\)/);
   assert.match(apply, /mdDimError/);
+});
+
+test('a relation added in several copies at once keeps every copy in the explanation', () => {
+  const s = {
+    points: [{ id: 'p', x: 0, y: 0, fixed: true }, { id: 'q', x: 10, y: 0 }, { id: 'r', x: 0, y: 8, fixed: true }, { id: 's', x: 10, y: 8 }],
+    entities: [{ id: 'l1', type: 'line', a: 'p', b: 'q' }, { id: 'l2', type: 'line', a: 'r', b: 's' }],
+    constraints: [
+      { id: 'len1', type: 'distance', entity: 'l1', value: 10 }, { id: 'len2', type: 'distance', entity: 'l2', value: 10 },
+      { id: 'v1', type: 'vertical', a: 'q', b: 's' },
+      { id: 'h1', type: 'horizontal', entity: 'l1' }, { id: 'h2', type: 'horizontal', entity: 'l2' },
+      { id: 'perp', type: 'perpendicular', a: 'l1', b: 'l2' },
+    ],
+  };
+  const why = explainSketchConflict(s, { keep: ['perp'] });
+  assert.equal(why.kind, 'conflicting');
+  assert.ok(why.ids.includes('perp'));
+  const both = explainSketchConflict(s, { keep: ['h1', 'h2'] });
+  assert.ok(both.ids.includes('h1') && both.ids.includes('h2'), JSON.stringify(both));
+});
+
+test('the relations toolbar explains a refused relation and paints what it fought', () => {
+  const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+  const apply = src.slice(src.indexOf('function applyConstraint(type)'), src.indexOf('/* ---- mirror & pattern'));
+  assert.match(apply, /explainSketchConflict\(sketch, \{ keep: ids \}\)/);
+  assert.match(apply, /showRelationRefusal\(sketch, added, why\)/);
+  assert.doesNotMatch(apply, /flash\(t\("overDefined"\)\)/);
+  const draw = src.slice(src.indexOf('function drawSketch()'), src.indexOf('function drawSketch()') + 20000);
+  assert.match(draw, /var refused = refusalHint\(sketch\);/);
+  assert.match(src, /var refusedHint = refusalHint\(sketch\);/);
+});
+
+/* Two exactly parallel lines sit at the extremum of their cosine, so the
+   perpendicular residual has no slope there and the solve could not turn them:
+   Perpendicular read as impossible on its own, and the toolbar's explanation
+   named nothing but the relation just added. */
+test('parallel lines asked to be perpendicular turn, and a real conflict names what holds them parallel', () => {
+  const lines = () => ({
+    points: [{ id: 'a', x: 0, y: 0, fixed: true }, { id: 'b', x: 10, y: 0 }, { id: 'c', x: 0, y: 5 }, { id: 'd', x: 10, y: 5 }],
+    entities: [{ id: 'l1', type: 'line', a: 'a', b: 'b' }, { id: 'l2', type: 'line', a: 'c', b: 'd' }],
+    constraints: [{ id: 'perp', type: 'perpendicular', a: 'l1', b: 'l2' }],
+  });
+  const free = lines();
+  assert.equal(solveSketch(free).converged, true, 'a free pair turns to 90°');
+  const held = lines();
+  held.constraints.unshift({ id: 'h1', type: 'horizontal', entity: 'l1' }, { id: 'h2', type: 'horizontal', entity: 'l2' });
+  const why = explainSketchConflict(held, { keep: ['perp'] });
+  assert.equal(why.kind, 'conflicting');
+  assert.deepEqual(why.ids, ['h1', 'h2', 'perp']);
+});
+
+test('a refusal from the toolbar holds the hint long enough to read, and lets it wrap', () => {
+  const src = readFileSync(new URL('../js/modeler.js', import.meta.url), 'utf8');
+  assert.match(src, /flash\(refusalMessage\(sketch, names\.join\(", "\), addedIds, why\), RELATION_REFUSAL_MS\)/);
+  assert.match(src, /hint\.classList\.toggle\("wrap", !!holdMs\)/);
+  const css = readFileSync(new URL('../css/styles.css', import.meta.url), 'utf8');
+  assert.match(css, /#modeler \.md-hint\.flash\.wrap \{ white-space: normal;/);
 });

@@ -147,7 +147,8 @@ test("mass properties and the BOM are non-modal cards, not #mdReport", () => {
    read that as the command having done nothing. */
 test("a flashed message survives the refresh that follows it", () => {
   const code = stripComments(modeler);
-  assert.match(code, /E\.flashUntil = Date\.now\(\) \+ FLASH_MS/);
+  // a caller may hold a long sentence longer; the default is still FLASH_MS
+  assert.match(code, /var hold = holdMs \|\| FLASH_MS;[\s\S]{0,120}E\.flashUntil = Date\.now\(\) \+ hold/);
   assert.match(code, /function flashHolding\(\) \{\s*return !!\(E\.flashUntil && Date\.now\(\) < E\.flashUntil\);/);
   const hint = code.slice(code.indexOf("function syncHint("));
   assert.match(hint.slice(0, 260), /if \(flashHolding\(\)\) return;/);
