@@ -262,7 +262,11 @@ Browser-verified (Browser pane, real clicks): Front-plane circle → Dimension t
 - **HOUSING labelled "hybrid" after its first save (fixed).** The exact-regeneration mesh cache on an `ext` part counted as direct geometry. After a re-save HOUSING reads "fully parametric".
 - **BatteryLoftPlane (steps 286–293).** Selected the Base Extrude end face → Reference plane → name BatteryLoftPlane, offset `1.300in` (shown as 3.302 cm) → Apply. Saved. Gaps fixed: user reference planes were never drawn in the 3D view (now a translucent square at the resolved origin and normal), and a sketch on one said "Sketching on Front (X·Y)" (it now names the plane).
 - **Sketchsquare (steps 294–298).** Create sketch → Datum planes → BatteryLoftPlane → Copy face boundary offers Convert circular edge → the Ø11.113 cm circle is fully defined on the plane.
-- **Line to a circle quadrant.** Ending a line on a quadrant added no relation; it now adds `pointOnCircle`, as SOLIDWORKS adds Coincident. Test: `tests/planchard_quadrant_snap.test.mjs`. UI recheck pending.
+- **Line to a circle quadrant (step 300, fixed and browser-verified).** The centerline stayed at 1 DOF for three reasons.
+  - A quadrant snap added no relation. It now adds `pointOnCircle`, as SOLIDWORKS adds Coincident.
+  - A vertex of the Base Extrude's tessellated footprint could outrank the quadrant. Sketch geometry now wins inside the capture radius.
+  - The 4 px capture radius missed a click about 6 px away, so the end took the grid value 5.3 instead of 5.55625. The IndexedDB draft showed this. The radius is now 8 px.
+  After a reload: redraw from the centre to the top of the circle → **Fully defined**, 4 constraints (fixed, diameter, vertical, point-on-circle). Test: `tests/planchard_quadrant_snap.test.mjs`.
 - **Open: RangeError "Maximum call stack size exceeded"** in the render path (`editor_view.js:470` → `gpu.js:147` → three.webgpu). Repro observed once: sketch open on BatteryLoftPlane → Escape twice (leaves the sketch surface while the sketch stays active) → Select click lands on the model end face → Delete → Line tool click starts a new sketch on that face → draw. A plain reopen of HOUSING does not throw. Also noted: a second Escape leaves the sketch surface without finishing the sketch. SOLIDWORKS Escape only clears the selection or tool.
 
 ### Review follow-up (2026-09-13)
