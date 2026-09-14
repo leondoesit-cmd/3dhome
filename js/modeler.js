@@ -10704,7 +10704,7 @@ function drawSketch() {
       if (selected) {
         c.fillStyle = "#e08030";
         c.font = "11px sans-serif";
-        c.fillText("R " + Math.round(o.radius * 10) / 10, sc.x + 4, sc.y - 4);
+        c.fillText("R " + Number(Number(o.radius).toFixed(3)), sc.x + 4, sc.y - 4);
       }
     }
     c.restore();
@@ -11903,14 +11903,15 @@ function sketchSelectionSummary() {
     }
     if (entity.type === "ellipse") {
       var one = ellipseData(entity, points);
-      return one ? "Ø " + Math.round(one.rx * 20) / 10 + " × " + Math.round(one.ry * 20) / 10 + " cm · "
+      return one ? "Ø " + Number((one.rx * 2).toFixed(3)) + " × " + Number((one.ry * 2).toFixed(3)) + " cm · "
         + Math.round((one.rot * 1800) / Math.PI) / 10 + "° · A "
         + Math.round(Math.PI * one.rx * one.ry * 10) / 10 + " cm²" : "";
     }
     var circle = circleData(entity, points);
-    return circle ? "R " + Math.round(circle.radius * 10) / 10 + " cm" + (entity.type === "circle" ? " · A " + Math.round(Math.PI * circle.radius * circle.radius * 10) / 10 + " cm²" : "") : "";
+    // three decimals of a cm: a 0.1 in (2.54 mm) sketch fillet read "R 0.3 cm"
+    return circle ? "R " + Number(circle.radius.toFixed(3)) + " cm" + (entity.type === "circle" ? " · A " + Number((Math.PI * circle.radius * circle.radius).toFixed(3)) + " cm²" : "") : "";
   }
-  if (pickedPoints.length === 1) return "X " + Math.round(pickedPoints[0].x * 10) / 10 + " · Y " + Math.round(pickedPoints[0].y * 10) / 10 + " cm";
+  if (pickedPoints.length === 1) return "X " + Number(pickedPoints[0].x.toFixed(3)) + " · Y " + Number(pickedPoints[0].y.toFixed(3)) + " cm";
   return E.ssel.length + " " + t("selectedLabel");
 }
 
