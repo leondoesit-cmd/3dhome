@@ -137,17 +137,55 @@ function pointSegmentDistance(x, y, a, b) {
 /* Returns the nearest placed distance annotation. The generous label box is
    deliberate: dimensions are grabbed with a mouse or a finger, not selected
    as one-pixel drafting strokes. */
+/* Where a dimension can be picked, in the same places drawSketchDimensions
+   puts it. SOLIDWORKS opens Modify on a double-click of ANY dimension; only
+   linear ones answered here, so HOUSING step 331 ("double-click the .100
+   fillet dimension") did nothing. An angle's "line" is its 12 px ring, not the
+   line midpoint, so double-clicking a line to set its length still works. */
+function dimensionHitShape(sketch, c, toPx, points, entities) {
+  const labelBox = (lx, ly, text) => ({ x0: lx - 6, x1: lx + Math.max(42, text.length * 7 + 12), y0: ly - 17, y1: ly + 7 });
+  if (["distance","offset","pointLineDistance"].includes(c.type)) {
+    const layout = distanceDimensionLayout(sketch, c, toPx);
+    if (!layout) return null;
+    return { box: labelBox(layout.label.x, layout.label.y, `${Math.round(Number(c.value) * 10) / 10} cm`), a: layout.a, b: layout.b };
+  }
+  if (c.type === "radius" || c.type === "diameter") {
+    const circ = circleData(entities.get(c.entity), points);
+    if (circ) {
+      const direction = -Math.PI / 4;
+      const centre = toPx(circ.center.x, circ.center.y);
+      const rim = toPx(circ.center.x + Math.cos(direction) * circ.radius, circ.center.y + Math.sin(direction) * circ.radius);
+      return { box: labelBox(rim.x + 4, rim.y - 4, (c.type === "radius" ? "R " : "Ø ") + dimText(c.value)), a: centre, b: rim };
+    }
+    const ell = ellipseData(entities.get(c.entity), points);
+    if (!ell) return null;
+    const minor = c.axis === "minor", along = minor ? ell.rot + Math.PI / 2 : ell.rot, reach = minor ? ell.ry : ell.rx;
+    const from = toPx(ell.center.x, ell.center.y);
+    const to = toPx(ell.center.x + Math.cos(along) * reach, ell.center.y + Math.sin(along) * reach);
+    return { box: labelBox(to.x + 4, to.y - 4, `${minor ? "b" : "a"} ${dimText(c.value)}`), a: from, b: to };
+  }
+  if (c.type === "angle") {
+    const l = lineData(c.entity ? entities.get(c.entity) : entities.get(c.a), points);
+    if (!l) return null;
+    const mid = toPx((l.a.x + l.b.x) / 2, (l.a.y + l.b.y) / 2);
+    return { box: labelBox(mid.x + 15, mid.y - 6, `${Math.round(c.value * 10) / 10}°`), ring: { x: mid.x, y: mid.y, r: 12 } };
+  }
+  return null;
+}
+
 export function hitSketchDimensionHit(sketch, x, y, toPx, tolerance = 9) {
   let best = null, bestDistance = Infinity, bestKind = "line";
+  const points = new Map((sketch && sketch.points || []).map((p) => [p.id, p]));
+  const entities = new Map((sketch && sketch.entities || []).map((e) => [e.id, e]));
   for (const constraint of sketch && sketch.constraints || []) {
-    if (constraint.suppressed || !["distance","offset","pointLineDistance"].includes(constraint.type)) continue;
-    const layout = distanceDimensionLayout(sketch, constraint, toPx);
-    if (!layout) continue;
-    const text = `${Math.round(Number(constraint.value) * 10) / 10} cm`;
-    const labelWidth = Math.max(42, text.length * 7 + 12);
-    const inLabel = x >= layout.label.x - 6 && x <= layout.label.x + labelWidth
-      && y >= layout.label.y - 17 && y <= layout.label.y + 7;
-    const distance = inLabel ? 0 : pointSegmentDistance(x, y, layout.a, layout.b);
+    if (constraint.suppressed || constraint.value == null) continue;
+    const shape = dimensionHitShape(sketch, constraint, toPx, points, entities);
+    if (!shape) continue;
+    const box = shape.box;
+    const inLabel = x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1;
+    const distance = inLabel ? 0
+      : shape.ring ? Math.abs(Math.hypot(x - shape.ring.x, y - shape.ring.y) - shape.ring.r)
+      : pointSegmentDistance(x, y, shape.a, shape.b);
     if (distance <= tolerance && distance < bestDistance) {
       best = constraint;
       bestDistance = distance;
