@@ -320,5 +320,20 @@ export function healSketchEndpoints(sketch, entityIds, tolerance = 0.05) {
     if (fixed.has(key)) return false;
     fixed.add(key);return true;
   });
+  /* Merging can also make two relations name the same things: re-mirroring a
+     side of HOUSING's Sketchsquare after deleting it left Symmetric(44, P) on
+     the surviving corner and added Symmetric(44, P') on the new one, and the
+     merge turned P' into P. Two identical rules are one rule said twice, which
+     the solver reads as over-defined. Pair relations match in either order. */
+  const UNORDERED = new Set(["symmetric", "equal", "coincident", "parallel", "perpendicular", "tangent", "concentric"]);
+  const seen = new Set();
+  sketch.constraints = (sketch.constraints || []).filter((c) => {
+    if (c.suppressed || c.value != null || c.type === "fixed") return true;
+    const pair = [c.a, c.b].map((id) => String(id ?? ""));
+    if (UNORDERED.has(c.type)) pair.sort();
+    const key = JSON.stringify([c.type, pair, c.entity ?? null, c.point ?? null, c.center ?? null, c.axis ?? null]);
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
   return replacements.size;
 }
