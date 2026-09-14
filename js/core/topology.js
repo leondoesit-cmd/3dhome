@@ -1529,3 +1529,26 @@ export function applyTopologyRebindings(resolutions = []) {
   });
   return applied;
 }
+
+/* May an expected face NAME be given to this exact face?
+ *
+ * Naming an exact result matches the names a feature expects against the faces
+ * the kernel produced, by descriptor score. Area dominated that score, so after
+ * HOUSING's Boss-Loft1 merged into the Base Extrude, the extrude's old start cap
+ * (z = 0, facing -Z; gone from the merged solid) took the +3.302 cap facing +Z,
+ * which had the same area, and "end" fell to the loft's own -3.302 cap. Every
+ * pick on the back of Boss-Loft1 then bound to the Base Extrude. A plane keeps
+ * its name only on a face that faces the same way and lies in the same plane;
+ * a name whose face no longer exists stays unassigned. */
+export function planarFaceNameAgrees(expected, candidate, tolerance = 1e-3) {
+  const want = expected?.descriptor || expected, got = candidate?.descriptor || candidate;
+  if (!want || !got || want.surface !== "plane" || got.surface !== "plane") return true;
+  const a = want.normal, b = got.normal, p = want.origin, q = got.origin;
+  if (![a, b, p, q].every((v) => v && [v.x, v.y, v.z].every((n) => Number.isFinite(Number(n))))) return true;
+  const la = Math.hypot(a.x, a.y, a.z), lb = Math.hypot(b.x, b.y, b.z);
+  if (!(la > 0) || !(lb > 0)) return true;
+  const dot = (a.x * b.x + a.y * b.y + a.z * b.z) / (la * lb);
+  if (dot < 1 - 1e-6) return false;
+  const gap = ((q.x - p.x) * a.x + (q.y - p.y) * a.y + (q.z - p.z) * a.z) / la;
+  return Math.abs(gap) <= tolerance;
+}

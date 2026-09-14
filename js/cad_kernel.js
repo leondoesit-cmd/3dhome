@@ -12,6 +12,7 @@ import {
   resolveTopologyReference,
   topologyDescriptorSignature,
   fitProfileCircle,
+  planarFaceNameAgrees,
 } from "./core/topology.js";
 import { framePoint } from "./core/frame.js";
 import { isSegmentProfile, pathFrames, segmentProfilePoints } from "./core/profile_curves.js";
@@ -215,7 +216,8 @@ export function extractBrepTopology(brep, options = {}) {
   const unmatched = new Set(raw);
   const expected = Array.isArray(options.expectedTopology) ? options.expectedTopology : [];
   expected.forEach((reference) => {
-    const candidates = Array.from(unmatched).filter((item) => item.kind === reference.kind);
+    // a plane name binds only to a face in the same plane facing the same way
+    const candidates = Array.from(unmatched).filter((item) => item.kind === reference.kind && (item.kind !== "face" || planarFaceNameAgrees(reference, item)));
     const resolved = resolveTopologyReference(reference, createTopologyRegistry(candidates), { threshold: options.threshold || 0.8, ambiguityTolerance: 0.01 });
     if (resolved.status === "missing" || resolved.status === "ambiguous" || !resolved.topology) return;
     const item = resolved.topology;
