@@ -9585,6 +9585,7 @@ function cancelActiveCommand() {
   E.arcPts = null;
   E.slotPts = null;
   E.ellPts = null;
+  E.splinePts = null;
   E.dynInput = null;
   E.drag = null;
   E._osnap = null;
@@ -14392,6 +14393,8 @@ function onKey(e) {
     if (E.arcPts) { E.arcPts = null; drawSketch(); return; }
     if (E.slotPts) { E.slotPts = null; drawSketch(); syncContextActions(); return; }
     if (E.ellPts) { E.ellPts = null; drawSketch(); syncContextActions(); return; }
+    // a half-picked spline: Escape abandons its picks, as for every other multi-click tool
+    if (E.splinePts && E.splinePts.length) { E.splinePts = null; drawSketch(); syncContextActions(); return; }
     if (E.drag && E.drag.sticky) { E.drag = null; drawSketch(); syncContextActions(); return; }
     if (E.dimPick.length || E.dimSel) {
       E.dimPick = []; E.dimSel = null; E.ssel = []; E.sel = null; drawSketch(); syncStatus(); return;
