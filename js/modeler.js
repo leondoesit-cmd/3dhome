@@ -65,7 +65,7 @@ import { getMainScene, getRigLights, has3D } from "./view3d.js";
 import { validCustomModelKey, sanitizeDisplayName } from "./safe.js";
 import {
   ensureSketch, ensureSketchDoc, sketchById, addSketch, removeSketch, planeLabel,
-  sketchPoint, sketchEntity, solveSketch, resolveProfilePoints,
+  sketchPoint, sketchEntity, solveSketch, explainSketchConflict, resolveProfilePoints,
   lineData, circleData, ellipseData, entityPoints, removeSketchEntity,
 } from "./sketch_solver.js";
 import {
@@ -3570,6 +3570,7 @@ function buildDOM() {
       '<div class="md-dimension-editor-head"><span><i class="ph ph-ruler"></i> ' + t("dimEditorTitle") + '</span><button type="button" data-dim-cancel aria-label="' + t("m_cancel") + '"><i class="ph ph-x"></i></button></div>' +
       '<label class="md-dimension-value"><span>' + t("dimValue") + '</span><span class="md-dimension-input"><input id="mdDimValue" type="text" spellcheck="false" autocapitalize="off" required><b id="mdDimUnit">cm</b></span></label>' +
       '<div class="md-dimension-quick"><label><span>' + t("dimMode") + '</span><select id="mdDimMode"><option value="driving">' + t("dimDriving") + '</option><option value="reference">' + t("dimReference") + '</option></select></label><label><span>' + t("dimNameOptional") + '</span><input id="mdDimName" type="text" spellcheck="false"></label></div>' +
+      '<div id="mdDimError" class="md-dimension-error" role="alert" hidden></div>' +
       '<div class="md-dimension-actions"><button type="button" class="danger" data-dim-delete title="' + t("dimDelete") + '"><i class="ph ph-trash"></i></button><span></span><button type="button" data-dim-cancel>' + t("m_cancel") + '</button><button type="submit" class="accept" title="' + t("dimApply") + '"><i class="ph ph-check"></i><span>' + t("dimApply") + '</span></button></div>' +
     '</form>' +
     '<div id="md3dHost" class="md-3dhost"></div>' +
@@ -10676,8 +10677,10 @@ function drawSketch() {
   });
 
   var spts = new Map((sketch.points || []).map(function (q) { return [q.id, q]; }));
-  var conflicts = (E.solveInfo && E.solveInfo.conflicts) || [];
-  var statuses = entityStatuses(sketch, E.solveInfo);
+  // a refused dimension paints what it fought while its editor is still open
+  var refused = E.dimEditor && E.dimEditor.sketch === sketch && E.dimEditor.hint;
+  var conflicts = refused || (E.solveInfo && E.solveInfo.conflicts) || [];
+  var statuses = entityStatuses(sketch, refused ? Object.assign({}, E.solveInfo, { conflicts: refused, status: "conflicting" }) : E.solveInfo);
   var fully = E.solveInfo && E.solveInfo.status === "fully-constrained";
   // Under-defined entities stay blue, fully defined black, conflicts red.
   var live = sketch.frameSpace==="local" ? !!(E.modelPlaneActive || E.mode==="2d") : sketch.plane === E.view;
@@ -11711,6 +11714,13 @@ function resolveSketch(rollbackOnConflict, fast) {
   E.eqErrors = resolveEquations(E.def).errors;
   try { bindIntersectionTargets(sketch, resolveIntersectionEdge); } catch (error) { /* Keep last intersection targets if a source body is mid-rebuild. */ }
   var report = solveSketch(sketch, quick ? { diagnostics: false } : {});
+  /* A failing sketch leaves error on every relation near the failure; narrow
+     that to a minimal set before painting it red. A rollback caller undoes the
+     edit instead, and explains its own refusal against what it just added. */
+  if (!quick && !rollbackOnConflict && (report.status === "conflicting" || report.status === "over-constrained")) {
+    var why = explainSketchConflict(sketch);
+    if (why.kind && why.ids.length) { report.residualConflicts = report.conflicts; report.conflicts = why.ids; }
+  }
   // a quick pass keeps the previous status and conflict list on screen rather
   // than blanking the badge for the duration of a drag
   E.solveInfo = report.diagnostics === false
@@ -12635,7 +12645,49 @@ function placeDimensionAtPointer(sketch, constraint, px, py) {
 function hideDimensionEditor() {
   var editor = root && root.querySelector("#mdDimEditor");
   if (editor) editor.hidden = true;
+  clearDimensionRefusal();
   E.dimEditor = null;
+}
+
+function clearDimensionRefusal() {
+  var box = root && root.querySelector("#mdDimError");
+  if (box) { box.hidden = true; box.textContent = ""; }
+  if (E.dimEditor) E.dimEditor.hint = null;
+}
+
+/* A relation as a person reads it in a sentence: its name, its value, or its
+   kind — never an internal id. */
+function constraintCaption(constraint) {
+  if (constraint.name) return constraint.name;
+  if (constraint.value != null) {
+    var n = Number(Number(constraint.value).toFixed(3));
+    return constraint.type === "angle" ? n + "°"
+      : constraint.type === "radius" ? "R " + n + " cm"
+      : constraint.type === "diameter" ? "Ø " + n + " cm" : n + " cm";
+  }
+  if (constraint.type === "pointOnCircle") return t("cPointOnLine");
+  var def = CONSTRAINT_DEFS.find(function (d) { return d.id === constraint.type; });
+  return def ? t(def.label) : constraint.type;
+}
+
+/* Say why a typed value was refused, in the editor where it was typed, and
+   paint the relations it fights red until the editor closes or the value is
+   tried again. "That constraint fights the existing ones" was true but left
+   the user to guess which ones out of the fourteen the least-squares fit had
+   turned red. */
+function showDimensionRefusal(state, typed, why) {
+  var others = (why.ids || []).filter(function (id) { return id !== state.constraint.id; })
+    .map(function (id) { return (state.sketch.constraints || []).find(function (c) { return c.id === id; }); })
+    .filter(Boolean);
+  var list = others.map(constraintCaption).join(", ");
+  var msg = !list ? t("overDefined")
+    : t(why.kind === "over-constrained" ? "dimRepeats" : "dimNoSolution").replace("{value}", typed).replace("{list}", list);
+  state.hint = why.ids && why.ids.length ? why.ids.slice() : null;
+  var box = root.querySelector("#mdDimError");
+  if (box) { box.textContent = msg; box.hidden = false; }
+  flash(msg);
+  refreshAll();
+  root.querySelector("#mdDimValue").focus();
 }
 
 function cancelDimensionEditor() {
@@ -12696,6 +12748,8 @@ function applyDimensionEditor() {
   /* Typed like a feature field: 4.375in, 111.13mm, 2*3.1 — a bare number is
      the editor unit. parseFloat read "111.13mm" as 111.13 cm. */
   var raw = String(root.querySelector("#mdDimValue").value).trim(), value;
+  var refusalBox = root.querySelector("#mdDimError");
+  if (refusalBox && refusalBox.hidden === false) clearDimensionRefusal();
   if (raw === state.before.text) value = state.before.value;
   else {
     try { value = evaluateFeatureNumber(raw, { key:"dimension", unit:state.constraint.type === "angle" ? "angle" : "length" }); }
@@ -12716,12 +12770,15 @@ function applyDimensionEditor() {
   if (name) constraint.name = name; else delete constraint.name;
   activateDrawingSketch(state.sketch);
   if (!resolveSketch(true)) {
+    // explained against the geometry the rollback just restored, with the new
+    // value still in force and always named
+    var why = explainSketchConflict(state.sketch, { keep: [constraint.id] });
     constraint.value = state.before.value;
     constraint.driven = state.before.driven;
     if (state.before.name) constraint.name = state.before.name; else delete constraint.name;
     resolveSketch(false);
     if (changed && !state.historyAlreadyOpen) H.discard();
-    flash(t("overDefined"));
+    showDimensionRefusal(state, raw, why);
     return false;
   }
   hideDimensionEditor();
@@ -16631,12 +16688,20 @@ function fillSketchPane() {
   sketchMetrics.appendChild(el("span", "", '<b>' + sketch.constraints.filter(function (c) { return c.value != null && !c.suppressed; }).length + '</b><small>' + t("dimensionsLabel") + '</small>'));
   host.appendChild(sketchMetrics);
   if (si.conflicts.length) {
-    host.appendChild(btn('<i class="ph ph-warning"></i> ' + t("removeConflicts"), function () {
-      pushUndo(t("removeConflicts"));
-      var bad = new Set(si.conflicts);
-      sketch.constraints = sketch.constraints.filter(function (constraint) { return !bad.has(constraint.id); });
-      resolveSketch(false); refreshAll();
-    }, "md-wide btn-danger"));
+    /* The list is a minimal failing set, so removing any one member lets the
+       rest solve. Remove the newest — usually the relation just added — rather
+       than deleting every relation that happened to be carrying error. */
+    var conflicted = sketch.constraints.filter(function (constraint) { return si.conflicts.indexOf(constraint.id) >= 0; });
+    var newest = conflicted[conflicted.length - 1];
+    if (newest) {
+      var removeNewest = btn('<i class="ph ph-warning"></i> ' + t("removeNewestConflict") + ": " + constraintCaption(newest), function () {
+        pushUndo(t("removeConflicts"));
+        sketch.constraints = sketch.constraints.filter(function (constraint) { return constraint !== newest; });
+        resolveSketch(false); refreshAll();
+      }, "md-wide btn-danger");
+      removeNewest.title = t("conflictSet") + ": " + conflicted.map(constraintCaption).join(", ");
+      host.appendChild(removeNewest);
+    }
   }
 
   // Crossing geometry encloses area without ever closing a chain; the pane
@@ -16826,7 +16891,8 @@ function fillSketchPane() {
   host.appendChild(el("h5", "md-h5", t("constraintList")));
   var list = el("div", "md-cons-list");
   (sketch.constraints || []).forEach(function (con) {
-    var row = el("div", "md-cons-row" + (si.conflicts.indexOf(con.id) >= 0 ? " bad" : "") + (con.suppressed ? " off" : ""));
+    var refusedHint = E.dimEditor && E.dimEditor.sketch === sketch && E.dimEditor.hint;
+    var row = el("div", "md-cons-row" + (si.conflicts.indexOf(con.id) >= 0 || (refusedHint && refusedHint.indexOf(con.id) >= 0) ? " bad" : "") + (con.suppressed ? " off" : ""));
     if (con.exprError) { row.classList.add("bad"); row.title = con.exprError; }
     // The value field holds the expression once a dimension is driven by one,
     // so the resolved number gets its own readout at the end of the row rather

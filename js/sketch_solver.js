@@ -635,6 +635,58 @@ export function solveSketch(sketch, options = {}) {
   };
 }
 
+/* ---- why a sketch will not solve ----
+   A sketch that cannot be satisfied is fitted in the least-squares sense, and
+   that fit spreads the leftover error over every relation near the failure. So
+   the residual list named everything in reach: HOUSING's Sketchsquare, asked for
+   a height its fillet could not reach, turned fourteen relations red when three
+   or four were actually in contention.
+
+   This is a deletion filter. Take the relations one at a time, drop each, and
+   re-solve from the same starting geometry: if the sketch still fails without
+   it, it was not part of the problem and stays dropped; if dropping it lets the
+   sketch solve, it is essential and goes back. What survives is a minimal
+   failing set: remove any one member and the rest solves. The same test works
+   for redundancy ("over-constrained" rather than "conflicting").
+
+   `keep` pins relations that must be named — the dimension the user just typed
+   is always part of the answer. Relations are tried oldest first, so when more
+   than one minimal set exists the newer relations are the ones blamed. */
+export function explainSketchConflict(sketch, options = {}) {
+  const keep = new Set(options.keep || []);
+  const maxSolves = options.maxSolves ?? 80;
+  const probe = (removed, withDiagnostics) => {
+    const trial = structuredClone(sketch);
+    trial.constraints.forEach((c) => { if (removed.has(c.id)) c.suppressed = true; });
+    return solveSketch(trial, withDiagnostics ? {} : { diagnostics: false });
+  };
+  const first = probe(new Set(), true);
+  const kind = !first.converged ? "conflicting" : first.redundant ? "over-constrained" : null;
+  if (!kind) return { kind: null, ids: [], complete: true };
+  const failing = kind === "conflicting"
+    ? (removed) => !probe(removed, false).converged
+    : (removed) => !!probe(removed, true).redundant;
+  let candidates = (sketch.constraints || []).filter((c) => !c.suppressed && !c.driven && !keep.has(c.id));
+  // a big sketch cannot afford a solve per relation; the ones carrying error are
+  // where the failure lives, and anything outside them simply stays in force
+  if (candidates.length + 1 > maxSolves && first.conflicts.length) {
+    const carrying = new Set(first.conflicts);
+    candidates = candidates.filter((c) => carrying.has(c.id));
+  }
+  const removed = new Set();
+  let solves = 1, complete = true;
+  for (const c of candidates) {
+    if (solves >= maxSolves) { complete = false; break; }
+    removed.add(c.id);
+    solves++;
+    if (!failing(removed)) removed.delete(c.id);
+  }
+  const ids = (sketch.constraints || [])
+    .filter((c) => !c.suppressed && !c.driven && !removed.has(c.id) && (keep.has(c.id) || candidates.includes(c)))
+    .map((c) => c.id);
+  return { kind, ids, complete };
+}
+
 /* ---- sketch documents ----
    A sketch belongs to a plane, the way it does in any CAD package. Without
    that, the same geometry renders in whichever view you happen to be looking

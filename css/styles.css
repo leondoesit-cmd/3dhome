@@ -5535,6 +5535,12 @@ body:not(.compact-nav) #modeler.md-isdrawing:not(.md-sheet-collapsed) .md-panel-
   display: grid; place-items: center; border: 1px solid var(--input-border); border-inline-start: 0;
   border-radius: 0 7px 7px 0; background: var(--btn-bg); color: var(--accent); font-size: 11px;
 }
+#modeler .md-dimension-error {
+  margin-top: 7px; padding: 6px 8px; border-radius: 6px; overflow-wrap: anywhere;
+  background: color-mix(in srgb, #dc2626 12%, transparent); color: #b91c1c;
+  font: 600 10.5px/1.35 "Inter", "Rubik", sans-serif;
+}
+#modeler .md-dimension-error[hidden] { display: none; }
 #modeler .md-dimension-quick { display: grid; grid-template-columns: 105px minmax(0,1fr); gap: 7px; margin-top: 7px; }
 #modeler .md-dimension-actions { display: grid; grid-template-columns: 28px 1fr auto auto; gap: 5px; margin-top: 8px; }
 #modeler .md-dimension-actions button {
