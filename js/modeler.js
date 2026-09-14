@@ -15835,6 +15835,21 @@ function renderCreateSketchAction(host, legacy) {
   host.appendChild(action);
 }
 
+/* The model size above the tree. A merged or finished body's real size only
+   exists once its exact mesh lands, which happens after refreshParts() has
+   run: rolling HOUSING back and forward left "11×3×11 cm", the size of the
+   analytic Base Extrude stand-in, above a 7 cm and then an 18 cm body. So the
+   readout is also refreshed where each exact mesh lands. */
+function syncSizeReadout(sketchCount) {
+  var sizeEl = root && root.querySelector("#mdSize");
+  if (!sizeEl || E.docType === "assembly") return;
+  if (sketchCount == null) sketchCount = ensureSketchDoc(E.def).reduce(function (a, s2) { return a + s2.entities.length; }, 0);
+  var b = defBounds(E.def);
+  sizeEl.textContent = renderedParts(E.def).length
+    ? Math.round(b.x1 - b.x0) + "×" + Math.round(b.z1 - b.z0) + "×" + Math.round(b.y1 - b.y0) + " cm"
+    : sketchCount ? sketchCount + " sketch" : "";
+}
+
 function refreshParts() {
   if (E.docType === "assembly") { refreshComponents(); return; }
   var host = root.querySelector("#mdParts");
@@ -15854,13 +15869,7 @@ function refreshParts() {
     badge.classList.toggle("md-badge-error", hasErrors);
     badge.classList.toggle("md-badge-warn", !!(issueList.length && !hasErrors));
   }
-  var sizeEl = root.querySelector("#mdSize");
-  if (sizeEl) {
-    var b = defBounds(E.def);
-    sizeEl.textContent = renderedParts(E.def).length
-      ? Math.round(b.x1 - b.x0) + "×" + Math.round(b.z1 - b.z0) + "×" + Math.round(b.y1 - b.y0) + " cm"
-      : sketchCount ? sketchCount + " sketch" : "";
-  }
+  syncSizeReadout(sketchCount);
   syncDiagnosticJump();
   if (!n) {
     emptyState(host, "ph-pencil-line", t("noParts"), t("noPartsHint")).classList.add("md-empty-brief");
@@ -20585,6 +20594,7 @@ function refreshChangedPart(part) {
   /* The one place a body's exact mesh is known to have landed or failed, so
      it is where the live downstream badge stops saying "calculating". */
   syncLiveDownstreamBadge();
+  if (part && E.def) syncSizeReadout();
   if (!part || !E.pv) return;
   if (E.docType === "assembly" || E.pv.inRoom || !E.pv.grp) {
     updatePreview();
