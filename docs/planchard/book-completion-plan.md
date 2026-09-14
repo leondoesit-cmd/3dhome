@@ -44,7 +44,7 @@ Out of scope unless the book needs it: surfacing, weldments, simulation, CAM, PD
 | O-RING | 311–314 | Saved | Configurations (Ch 9), material |
 | SWITCH | 315–320 | Saved | – |
 | LENSCAP | 323–332 | Book's last step (262, rename `Thread`) reached, 11 steps | Dimensional and mass acceptance not done |
-| HOUSING | 335–364 | **In progress (UI), restarted 2026-09-14 in the Browser-pane profile** | Saved: Base Extrude (accepted: 111.125 × 33.02 mm, 320.2510 cm³ = analytic), Sketchcircle, Description property, BatteryLoftPlane (1.300 in), Sketchsquare complete through step 341 (lower-crossing side lines, mirror, trim, 3.100 in × 1.600 in, R .5 in top and bottom fillets; fully defined, 0 DOF, no redundant relation; one extra Vertical from a draft repair). Next: Boss-Loft1 (steps 342–348). Not ritual-Done. |
+| HOUSING | 335–364 | **In progress (UI), restarted 2026-09-14 in the Browser-pane profile** | Saved: Base Extrude (accepted: 111.125 × 33.02 mm, 320.2510 cm³ = analytic), Sketchcircle, Description property, BatteryLoftPlane (1.300 in), Sketchsquare complete through step 341 (lower-crossing side lines, mirror, trim, 3.100 in × 1.600 in, R .5 in top and bottom fillets; fully defined, 0 DOF, no redundant relation; one extra Vertical from a draft repair). Boss-Loft1 (steps 342–348) accepted on exact bounds 111.125 × 111.125 × 66.04 mm, 596.3463 cm³. Next: Boss-Battery (steps 349+). Not ritual-Done. |
 | LENSANDBULB, BATTERYANDPLATE, CAPANDLENS, FLASHLIGHT | 379–434 | **Not started** | Blocked by Phase 2B |
 | BATTERY, FLASHLIGHT, O-RING drawings | 435–480 | **Not started** | Phase 4 |
 | Homework Ch 5–9 (~63 exercises) | various | **Not inventoried** | Phase 5 |
