@@ -85,6 +85,16 @@ function placeOffsetPlane(plane, parent, resolveRef) {
 // No document changes are made until the whole plane graph is valid.
 export function resolveOffsetPlanes(document, resolveRef){
  const planes=new Map((document.references || []).filter(r=>r.type==='plane').map(r=>[r.id,r]));
+ /* A plane's reference entry and its reference-geometry twin can drift apart.
+    HOUSING's BatteryLoftPlane reference lost its offset while the geometry
+    still held 1.300 in, so this resolver read 0, placed the plane ON its face,
+    and Boss-Loft1 lofted two coplanar sections into nothing. An offset plane
+    with no finite offset takes it back from its twin instead of collapsing. */
+ for(const plane of planes.values()){
+  if(isThroughVertexPlane(plane) || !(plane.support || plane.baseReferenceId) || Number.isFinite(Number(plane.offset)) && plane.offset!=null)continue;
+  const twin=(document.referenceGeometry || []).find(r=>r.id===plane.id);
+  if(twin && Number.isFinite(Number(twin.offset)) && twin.offset!=null)plane.offset=Number(twin.offset);
+ }
  const resolved=new Map(),visiting=new Set();
  function visit(id){
   if(resolved.has(id))return resolved.get(id);

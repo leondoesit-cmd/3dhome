@@ -417,6 +417,7 @@ export async function regenerateFeatures(def, options = {}) {
       const moved = resolveOffsetSketch({ id: "_display", referenceId: plane.id }, executionDef.references, lookup);
       if (!moved?.frame) continue;
       const display = { id: plane.id, origin: moved.frame.origin, normal: moved.frame.normal };
+      if (plane.offset != null && Number.isFinite(Number(plane.offset))) display.offset = Number(plane.offset);
       planeDisplays.push(display);
       const geometry = (executionDef.referenceGeometry || []).find((item) => item.id === plane.id);
       if (geometry) Object.assign(geometry, display);

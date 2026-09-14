@@ -42,7 +42,15 @@ export function synchronizeExtrusionProjections(document, compiled, run) {
     const geometry=(document.referenceGeometry || []).find(r=>r.id===update.id);
     if(geometry)Object.assign(geometry,patch);
     const reference=(document.references || []).find(r=>r.id===update.id);
-    if(reference && patch.origin) Object.assign(reference,{origin:patch.origin,normal:patch.normal,offset:patch.offset});
+    /* A plane display patch carries where the plane landed, not how far it
+       sits from its parent. Copying `offset: undefined` over the reference
+       dropped HOUSING BatteryLoftPlane's 1.300 in on the next save; the next
+       rebuild then read 0 and put the plane on its face. Keep the offset
+       unless the patch really has one. */
+    if(reference && patch.origin){
+      Object.assign(reference,{origin:patch.origin,normal:patch.normal});
+      if(patch.offset!=null && Number.isFinite(Number(patch.offset)))reference.offset=Number(patch.offset);
+    }
   }
   return dirty;
 }
