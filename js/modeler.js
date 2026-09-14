@@ -6621,6 +6621,22 @@ function runCommand(id) {
   if (blocked) { flash(blocked); closeCommandSearch(); return; }
   if (DIRECT_COMMAND_TOOLS[id]) { setTool(DIRECT_COMMAND_TOOLS[id]); closeCommandSearch(); syncCommandManager(); return; }
   var tools = ["select", "rect", "circle", "sph", "poly", "rev", "cut", "cutc", "wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "offset", "constr"];
+  /* "For construction" acts on what is selected, as in SOLIDWORKS. It used to
+     only arm a click-to-toggle tool, so selecting HOUSING's centerline and
+     pressing Construction left it solid (the selection highlight looked like
+     construction) and the profile branched. With nothing selected it still
+     arms the tool. */
+  if (id === "constr" && E.mode !== "drawing") {
+    var constrTargets = selEntities();
+    if (constrTargets.length) {
+      var constrSketch = ensureSketch(E.def);
+      pushUndo(t("tool_constr"));
+      constrTargets.forEach(function (entity) { toggleConstruction(constrSketch, entity.id); });
+      resolveSketch(false);
+      closeCommandSearch(); refreshAll(); syncCommandManager();
+      return;
+    }
+  }
   if (tools.indexOf(id) >= 0) { if(id==="sarc"){ E.arcThreePoint=false; E.arcTangent=false; } setTool(id); }
   else if(id==="arc3point") { E.arcThreePoint=true; E.arcTangent=false; E.arcPts=null; setTool("sarc"); }
   else if(id==="tangentarc") { E.arcTangent=true; E.arcThreePoint=false; E.arcPts=null; setTool("sarc"); }
@@ -11666,6 +11682,7 @@ function constraintMeasure(sketch, constraint) {
     var line = lineData(entity,new Map((sketch.points || []).map(function (p) { return [p.id,p]; })));
     return line ? line.angle*180/Math.PI : constraint.value;
   } else if (constraint.type === "angle") target = {type:"angle",a:constraint.a,b:constraint.b};
+  else if (constraint.type === "offset" && sketchEntity(sketch, constraint.a) && sketchEntity(sketch, constraint.a).type === "line") target = {type:"lines",a:constraint.a,b:constraint.b};
   if (!target) return constraint.value;
   var measured = currentMeasure(sketch,target);
   return constraint.type === "diameter" ? measured*2 : measured;
@@ -12792,6 +12809,8 @@ function matchingSmartDimension(sketch, target) {
     if (target.type === "circle") return (constraint.type === "diameter" || constraint.type === "radius") && constraint.entity === target.id;
     if (target.type === "arc") return constraint.type === "radius" && constraint.entity === target.id;
     if (target.type === "ellipse") return constraint.type === "radius" && constraint.entity === target.id && (constraint.axis || "major") === (target.axis || "major");
+    if (target.type === "lines") return constraint.type === "offset"
+      && (constraint.a === target.a && constraint.b === target.b || constraint.a === target.b && constraint.b === target.a);
     if (target.type === "points") return constraint.type === "distance" && !constraint.entity
       && (constraint.a === target.a && constraint.b === target.b || constraint.a === target.b && constraint.b === target.a);
     if (target.type === "angle") return constraint.type === "angle"
@@ -13509,6 +13528,37 @@ function wireSketch() {
     }
     if (E.tool === "dim") {
       var dhit = hitSketch(uv, e.pointerType);
+      /* SOLIDWORKS Smart Dimension: a line is not dimensioned on the first
+         click. A second line gives the distance between them when parallel
+         (HOUSING step 326: 3.100 in between the two side lines) or the angle
+         when not; clicking empty space places the first line's own length.
+         The old single click dimensioned the length at once and swallowed
+         the second pick. */
+      var pendingLine = E.dimPick.length === 1 && E.dimPick[0].kind === "line" ? E.dimPick[0] : null;
+      if (pendingLine) {
+        E.dimPick = [];
+        var pts0 = new Map((ensureSketch(E.def).points || []).map(function (q) { return [q.id, q]; }));
+        if (dhit && dhit.type === "line" && dhit.id !== pendingLine.id) {
+          var la = lineData(sketchEntity(ensureSketch(E.def), pendingLine.id), pts0), lb = lineData(dhit, pts0);
+          var parallel = la && lb && la.length > 1e-9 && lb.length > 1e-9
+            && Math.abs((la.dx * lb.dy - la.dy * lb.dx) / (la.length * lb.length)) < 1e-3;
+          smartDimension(parallel ? { type: "lines", a: pendingLine.id, b: dhit.id } : { type: "angle", a: pendingLine.id, b: dhit.id }, e.clientX, e.clientY);
+          E.ssel = []; E.sel = null;
+          return;
+        }
+        if (!dhit) {
+          smartDimension({ type: "line", id: pendingLine.id }, e.clientX, e.clientY);
+          E.ssel = []; E.sel = null;
+          return;
+        }
+      }
+      if (dhit && dhit.type === "line") {
+        E.dimPick = [{ kind: "line", id: dhit.id }];
+        selectSketch(dhit, false);
+        flash(t("dimSecondPick"));
+        refreshAll();
+        return;
+      }
       var dtarget = dimensionTarget(dhit, uv);
       if (!dtarget) { selectSketch(dhit, false); refreshAll(); return; }
       smartDimension(dtarget, e.clientX, e.clientY);

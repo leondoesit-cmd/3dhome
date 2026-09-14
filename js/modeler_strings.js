@@ -93,6 +93,7 @@ export var TXT = {
   saveCopyOpen: ["שמור עותק ופתח", "Save copy and open"],
   name: ["שם המודל", "Model name"],
   description: ["תיאור", "Description"],
+  dimSecondPick: ["בחרו קו שני למרחק או לזווית, או לחצו במקום ריק לאורך הקו", "Pick a second line for the distance or angle, or click empty space for this line's length"],
   descriptionHint: ["מופיע בכותרת השרטוט ובעמודת התיאור ברשימת החלקים", "Shown in the drawing title block and the BOM Description column"],
   editDescription: ["עריכת תיאור", "Edit description"],
   price: ["מחיר ₪", "Price ₪"],

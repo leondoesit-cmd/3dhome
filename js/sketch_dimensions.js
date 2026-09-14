@@ -27,6 +27,9 @@ export function addSmartDimension(sketch, target, value) {
   } else if (target.type === "ellipse") {
     // one semi-axis per dimension: `axis` is what tells the solver which
     sketch.constraints.push({ id, type: "radius", entity: target.id, axis: target.axis === "minor" ? "minor" : "major", value: Number(value), driven: false });
+  } else if (target.type === "lines" && target.a && target.b) {
+    // distance between two parallel lines, signed the way the solver's offset residual reads it
+    sketch.constraints.push({ id, type: "offset", a: target.a, b: target.b, value: Number(value), driven: false });
   } else if (target.type === "points" && target.a && target.b) {
     sketch.constraints.push({ id, type: "distance", a: target.a, b: target.b, value: Number(value), driven: false });
   } else if (target.type === "angle" && target.a && target.b) {
@@ -54,6 +57,13 @@ export function currentMeasure(sketch, target) {
   if (target.type === "points") {
     const a = sketchPoint(sketch, target.a), b = sketchPoint(sketch, target.b);
     return a && b ? Math.hypot(b.x - a.x, b.y - a.y) : 0;
+  }
+  if (target.type === "lines") {
+    const la = lineData(sketchEntity(sketch, target.a), points);
+    const lb = lineData(sketchEntity(sketch, target.b), points);
+    if (!la || !lb || la.length < 1e-9) return 0;
+    // same expression as the solver's offset residual, so a new dimension starts satisfied
+    return ((lb.a.x - la.a.x) * -la.dy + (lb.a.y - la.a.y) * la.dx) / la.length;
   }
   if (target.type === "angle") {
     const la = lineData(sketchEntity(sketch, target.a), points);
