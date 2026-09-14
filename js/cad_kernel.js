@@ -67,10 +67,14 @@ function curveName(oc, type) {
   return names[Number(type?.value)] || "other";
 }
 
-function shapeBounds(oc, shape) {
+/* `useShapeTolerance` pads the box by every face/edge/vertex tolerance. Geometry
+   decisions (flush-plane cuts, tool sizing) want that margin; a reported overall
+   dimension does not — after HOUSING's Shell1 the offset faces carried ~0.01 mm
+   tolerances and Mass properties read 111.145 mm for a Ø111.125 mm body. */
+function shapeBounds(oc, shape, useShapeTolerance = true) {
   const box = new oc.Bnd_Box_1();
   try {
-    oc.BRepBndLib.AddOptimal(shape, box, false, true);
+    oc.BRepBndLib.AddOptimal(shape, box, false, useShapeTolerance);
     if (box.IsVoid()) return null;
     const min = box.CornerMin(), max = box.CornerMax();
     try { return { min: pointOf(min), max: pointOf(max) }; }
@@ -917,7 +921,7 @@ export async function shapeMassProperties(brep) {
     const centerOfMass = {x:centre.X(), y:centre.Y(), z:centre.Z()};
     const inertia = Array.from({length:3}, (_,i) => Array.from({length:3}, (_,j) => matrix.Value(i+1,j+1)));
     if (!(volume > 0) || ![volume,...Object.values(centerOfMass),...inertia.flat()].every(Number.isFinite)) throw new Error("Body has no measurable closed solid volume");
-    return {volume, centerOfMass, inertia, bounds:shapeBounds(oc, brep.shape)};
+    return {volume, centerOfMass, inertia, bounds:shapeBounds(oc, brep.shape, false)};
   } finally { disposeAll(owned); }
 }
 
