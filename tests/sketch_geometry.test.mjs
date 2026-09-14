@@ -1,7 +1,7 @@
 // Slots, regular polygons, ellipses and the circular pattern.
 //
 // Each of these is only worth having if it is *held* — the point of building a
-// slot out of tangency and equal radius rather than out of four frozen points
+// slot out of parallel sides and tangency rather than out of four frozen points
 // is that dragging one end keeps it a slot. So every test here checks the
 // relationship survives a move, not just that the first draw looked right.
 
@@ -14,7 +14,7 @@ import { analyzeSketchProfiles } from "../js/sketch_profiles.js";
 const points = (sketch) => new Map(sketch.points.map((p) => [p.id, p]));
 const pt = (sketch, id) => sketch.points.find((p) => p.id === id);
 
-/* ---- slot: two sides, two caps, tangency and equal radius ---- */
+/* ---- slot: two sides, two caps, parallel sides tangent at all four joints ---- */
 
 // centreline (0,0)→(40,0), half width 5 — the same construction the editor's
 // addSketchSlot lays down
@@ -34,11 +34,12 @@ function slotDoc(length = 40, w = 5) {
       { id: "CL", type: "line", a: "ca", b: "cb", construction: true },
     ],
     constraints: [
-      { id: "eq", type: "equal", a: "CA", b: "CB" },
       { id: "p0", type: "parallel", a: "S0", b: "CL" },
       { id: "t0", type: "tangent", a: "S0", b: "CA" },
       { id: "p1", type: "parallel", a: "S1", b: "CL" },
       { id: "t1", type: "tangent", a: "S1", b: "CA" },
+      { id: "t2", type: "tangent", a: "S0", b: "CB" },
+      { id: "t3", type: "tangent", a: "S1", b: "CB" },
     ],
   };
 }
@@ -49,6 +50,23 @@ test("a slot has exactly the five freedoms a slot has", () => {
   assert.equal(result.status, "under-constrained");
   // centre x, centre y, angle, length, width
   assert.equal(result.degreesOfFreedom, 5);
+});
+
+/* The old slot — equal radius, tangency at the near cap only — also read 5, but
+   only because a forward-difference Jacobian filled a row whose exact slope is
+   zero. Its far rim points meet the cap at a double root, so to first order they
+   slide: with exact slopes it kept two freedoms after every dimension. */
+test("a slot with its position, angle, length and width dimensioned is fully defined", () => {
+  const s = slotDoc();
+  s.constraints.push(
+    { id: "f", type: "fixed", point: "ca", x: 0, y: 0 }, { id: "h", type: "horizontal", entity: "CL" },
+    { id: "L", type: "distance", entity: "CL", value: 40 }, { id: "w", type: "radius", entity: "CA", value: 5 });
+  const result = solveSketch(s);
+  assert.equal(result.status, "fully-constrained", JSON.stringify(result));
+  const nearOnly = slotDoc();
+  nearOnly.constraints = nearOnly.constraints.filter((c) => c.id !== "t2" && c.id !== "t3");
+  nearOnly.constraints.push({ id: "eq", type: "equal", a: "CA", b: "CB" }, ...s.constraints.slice(-4));
+  assert.equal(solveSketch(nearOnly).degreesOfFreedom, 2, "near-cap tangency alone leaves the far rim sliding");
 });
 
 /* The same shape has the same freedoms whatever it is drawn at. It did not:
@@ -99,8 +117,8 @@ test("dragging one end of a slot keeps it a slot", () => {
 
 test("a dimensioned slot width survives the drag exactly", () => {
   const s = slotDoc();
-  // the width dimension the editor writes: a radius on one cap, which equal
-  // radius then carries to the other
+  // the width dimension the editor writes: a radius on one cap, which the
+  // tangent sides then carry to the other
   s.constraints.push({ id: "w", type: "radius", entity: "CA", value: 5 });
   const end = pt(s, "cb");
   end.x = 55; end.y = 30; end.fixed = true;

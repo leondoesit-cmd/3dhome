@@ -12255,18 +12255,23 @@ function addSketchSlot(a, b, halfWidth) {
 
   var made = [side1, capB, side0, capA, centreline];
   sketch.entities.push.apply(sketch.entities, made);
-  /* Seven residuals against twelve point freedoms. Both sides are held parallel
-     to the centreline and tangent to the near cap; equal radius carries that
-     width to the far cap, whose own rim points are already tied to its centre.
+  /* Both sides are held parallel to the centreline and tangent to BOTH caps at
+     the joints, as SOLIDWORKS does. That already makes the caps equal: each side
+     sits one near-cap radius off the centreline and touches the far cap.
 
-     Tangency to all four ends would count the same but is not equivalent: the
-     tangent residual is |distance| − radius, which an internal tangent
-     satisfies just as well, so a big drag could fold the slot into a bowtie
-     and stay "solved". Parallel is a signed residual and cannot flip. */
-  sketch.constraints.push({ id: uid(), type: "equal", a: capA.id, b: capB.id });
+     The old construction — equal radius, tangency at the near cap only — looked
+     sufficient, since a side parallel to the centreline at one radius can only
+     meet the far cap at its tangent point. But that meeting is a double root, so
+     the far rim points were free to first order, and the exact Jacobian counts
+     that: a slot with its length, width and position dimensioned still read two
+     freedoms. Equal radius on top of four tangents is redundant, and measured it
+     also stalled a drag that swings the far cap 30 cm in one solve. The
+     parallels stay because a tangent alone is also met by the internal
+     (crossing) tangent, and parallel keeps a big drag from folding a bowtie. */
   [side0, side1].forEach(function (side) {
     sketch.constraints.push({ id: uid(), type: "parallel", a: side.id, b: centreline.id });
     sketch.constraints.push({ id: uid(), type: "tangent", a: side.id, b: capA.id });
+    sketch.constraints.push({ id: uid(), type: "tangent", a: side.id, b: capB.id });
   });
   resolveSketch(false);
   return made;

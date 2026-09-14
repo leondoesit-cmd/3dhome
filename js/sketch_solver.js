@@ -23,13 +23,15 @@
 // and pattern keeps working on them, and dragging one corner still behaves —
 // which a bespoke "slot" record with its own solve path never quite does.
 //
-// The solver uses damped Gauss-Newton with a numerical Jacobian. That is slower
-// than a specialised symbolic solver, but it is stable for interactive sketches,
-// supports mixed geometric constraints, and gives us one residual/rank model for
-// under-, fully- and over-constrained diagnostics.
+// The solver uses damped Gauss-Newton with an exact Jacobian: the residuals are
+// written once over dual numbers (core/dual.js), so their slopes are derived
+// from the same expressions that are solved. That gives one residual/rank model
+// for under-, fully- and over-constrained diagnostics that does not depend on a
+// finite-difference step size.
 
 import { analyzeSketchProfiles } from "./sketch_profiles.js";
-import { gaussNewtonStep, normOf, numericJacobian, rankOf as matrixRank } from "./core/least_squares.js";
+import { gaussNewtonStep, normOf, rankOf as matrixRank } from "./core/least_squares.js";
+import { abs, add, atan2, atLeast, cos, div, gradientRows, hypot, mul, neg, scale, sin, sub, valueOf, variable, wrapTurn } from "./core/dual.js";
 
 const EPS = 1e-6;
 const DEG = Math.PI / 180;
@@ -120,15 +122,97 @@ export function entityPoints(sketch, entity) {
 // constraint that owns it so conflicts can be reported per constraint.
 const tangencyModes = new WeakMap();
 
-function residuals(sketch, tags) {
+/* Points each curve passes through by definition or by a relation: an arc's
+   own ends, a point-on-curve relation, and anything coincident with those.
+   Tangency needs this — see the tangent case. */
+function curveContacts(sketch) {
+  const on = new Map();
+  const add = (curve, point) => {
+    if (curve == null || point == null) return;
+    if (!on.has(curve)) on.set(curve, new Set());
+    on.get(curve).add(point);
+  };
+  for (const e of sketch.entities || []) if (e.type === "arc") { add(e.id, e.a); add(e.id, e.b); }
+  const live = (sketch.constraints || []).filter((c) => !c.suppressed && !c.driven);
+  live.forEach((c) => { if (c.type === "pointOnCircle") add(c.entity, c.point); });
+  const coincident = live.filter((c) => c.type === "coincident");
+  for (let pass = 0; pass < 2 && coincident.length; pass++) {
+    on.forEach((set) => coincident.forEach((c) => {
+      if (set.has(c.a)) set.add(c.b);
+      if (set.has(c.b)) set.add(c.a);
+    }));
+  }
+  return on;
+}
+
+/* Residuals, differentiable. With `index` (variable record → {key: column})
+   every free coordinate enters as a dual number and each residual carries its
+   exact gradient; without it everything is a plain number. It is one body of
+   code for both, so the Jacobian is always the derivative of exactly the
+   equations being solved. */
+function residualTerms(sketch, tags, index) {
   const points = pointMap(sketch), entities = entityMap(sketch), out = [];
-  const line = (id) => lineData(entities.get(id), points);
-  const circ = (id) => circleData(entities.get(id), points);
-  const ell = (id) => ellipseData(entities.get(id), points);
-  const pt = (id) => points.get(id) || null;
+  const read = (obj, key) => {
+    const n = Number(obj[key]) || 0;
+    const column = index && index.get(obj)?.[key];
+    return column == null ? n : variable(n, column);
+  };
+  const pointCache = new Map();
+  const pt = (id) => {
+    if (id == null) return null;
+    if (pointCache.has(id)) return pointCache.get(id);
+    const p = points.get(id);
+    const value = p ? { id, rec: p, x: read(p, "x"), y: read(p, "y") } : null;
+    pointCache.set(id, value);
+    return value;
+  };
+  const line = (id) => {
+    const e = entities.get(id);
+    if (!e || e.type !== "line") return null;
+    const a = pt(e.a), b = pt(e.b);
+    if (!a || !b) return null;
+    const dx = sub(b.x, a.x), dy = sub(b.y, a.y);
+    return { e, a, b, dx, dy, length: hypot(dx, dy) };
+  };
+  const circ = (id) => {
+    const e = entities.get(id);
+    if (!e) return null;
+    if (e.type === "circle") {
+      const center = pt(e.c ?? e.center);
+      return center ? { e, center, radius: abs(read(e, "r")) } : null;
+    }
+    if (e.type === "arc") {
+      const center = pt(e.c ?? e.center), a = pt(e.a), b = pt(e.b);
+      if (!center || !a || !b) return null;
+      return { e, center, a, b, radius: hypot(sub(a.x, center.x), sub(a.y, center.y)) };
+    }
+    return null;
+  };
+  const ell = (id) => {
+    const e = entities.get(id);
+    if (!e || e.type !== "ellipse") return null;
+    const center = pt(e.c ?? e.center);
+    return center ? { e, center, rx: abs(read(e, "rx")), ry: abs(read(e, "ry")), rot: read(e, "rot") } : null;
+  };
+  const centre = (id) => (circ(id) || ell(id))?.center || null;
+  // perpendicular offset of (x, y) from line l, signed by the line's direction
+  const across = (x, y, l) => div(sub(mul(sub(x, l.a.x), l.dy), mul(sub(y, l.a.y), l.dx)), l.length);
+  let contacts = null;
+  const onCurve = (curveId, pointId) => {
+    contacts ||= curveContacts(sketch);
+    return !!contacts.get(curveId)?.has(pointId);
+  };
   let owner = null;
   const push = (...vals) => {
     for (const v of vals) { out.push(v); if (tags) tags.push(owner); }
+  };
+  /* A row that steers the solve but is not an equation of its own: excluded
+     from the rank, the redundancy test and the conflict list. */
+  const steer = (v) => {
+    const main = owner;
+    owner = { id: main.id + "_steer", type: main.type + "Steer", implicit: true, auxiliary: true, of: main.id };
+    push(v);
+    owner = main;
   };
 
   for (const c of sketch.constraints || []) {
@@ -138,7 +222,7 @@ function residuals(sketch, tags) {
     switch (c.type) {
       case "coincident": {
         const a = pt(c.a), b = pt(c.b);
-        if (a && b) push(a.x - b.x, a.y - b.y);
+        if (a && b) push(sub(a.x, b.x), sub(a.y, b.y));
         break;
       }
       case "horizontal": case "vertical": {
@@ -147,137 +231,190 @@ function residuals(sketch, tags) {
           if (l) push(c.type === "horizontal" ? l.dy : l.dx);
         } else {
           const a = pt(c.a), b = pt(c.b);
-          if (a && b) push(c.type === "horizontal" ? a.y - b.y : a.x - b.x);
+          if (a && b) push(c.type === "horizontal" ? sub(a.y, b.y) : sub(a.x, b.x));
         }
         break;
       }
       case "distance": {
-        if(c.patternTranslation){
-          for(const pair of c.shapes || []){const a=ell(pair[0]),b=ell(pair[1]);if(a&&b)push(b.rx-a.rx,b.ry-a.ry,wrapAngle(b.rot-a.rot));}
-          for(const pair of c.pairs || []){const a=pt(pair[0]),b=pt(pair[1]);if(a&&b)push(b.x-a.x-(c.direction==="v"?0:value),b.y-a.y-(c.direction==="v"?value:0));}
+        if (c.patternTranslation) {
+          for (const pair of c.shapes || []) {
+            const a = ell(pair[0]), b = ell(pair[1]);
+            if (a && b) push(sub(b.rx, a.rx), sub(b.ry, a.ry), wrapTurn(sub(b.rot, a.rot)));
+          }
+          for (const pair of c.pairs || []) {
+            const a = pt(pair[0]), b = pt(pair[1]);
+            if (a && b) push(sub(sub(b.x, a.x), c.direction === "v" ? 0 : value), sub(sub(b.y, a.y), c.direction === "v" ? value : 0));
+          }
           break;
         }
         if (c.entity) {
           const l = line(c.entity);
-          if (l) push(l.length - value);
+          if (l) push(sub(l.length, value));
         } else {
           const a = pt(c.a), b = pt(c.b);
-          if (a && b) push(Math.hypot(b.x - a.x, b.y - a.y) - value);
+          if (a && b) push(sub(hypot(sub(b.x, a.x), sub(b.y, a.y)), value));
         }
         break;
       }
       case "angle": {
         const l = line(c.entity);
-        if (l) { push(wrapAngle(l.angle - value * DEG) * Math.max(1, l.length)); break; }
+        if (l) { push(mul(wrapTurn(sub(atan2(l.dy, l.dx), value * DEG)), atLeast(l.length, 1))); break; }
         // two-line angle: the included angle between a and b
         const la = line(c.a), lb = line(c.b);
-        if (la && lb) push(wrapAngle(lb.angle - la.angle - value * DEG) * Math.max(1, la.length));
+        if (la && lb) push(mul(wrapTurn(sub(sub(atan2(lb.dy, lb.dx), atan2(la.dy, la.dx)), value * DEG)), atLeast(la.length, 1)));
         break;
       }
       case "parallel": case "perpendicular": {
         const a = line(c.a), b = line(c.b);
-        if (a && b && a.length > EPS && b.length > EPS) {
-          const cross = (a.dx * b.dy - a.dy * b.dx) / (a.length * b.length);
-          const dot = (a.dx * b.dx + a.dy * b.dy) / (a.length * b.length);
-          push(c.type === "parallel" ? cross : dot);
+        if (a && b && valueOf(a.length) > EPS && valueOf(b.length) > EPS) {
+          const span = mul(a.length, b.length);
+          push(c.type === "parallel"
+            ? div(sub(mul(a.dx, b.dy), mul(a.dy, b.dx)), span)
+            : div(add(mul(a.dx, b.dx), mul(a.dy, b.dy)), span));
         }
         break;
       }
       case "equal": {
         const a = line(c.a), b = line(c.b);
-        if (a && b) { push(a.length - b.length); break; }
+        if (a && b) { push(sub(a.length, b.length)); break; }
         const ea = ell(c.a), eb = ell(c.b);
-        if (ea && eb) { push(ea.rx - eb.rx, ea.ry - eb.ry); break; }
+        if (ea && eb) { push(sub(ea.rx, eb.rx), sub(ea.ry, eb.ry)); break; }
         const ca = circ(c.a), cb = circ(c.b);
-        if (ca && cb) push(ca.radius - cb.radius);
+        if (ca && cb) push(sub(ca.radius, cb.radius));
         break;
       }
       case "midpoint": {
         const p = pt(c.point), l = line(c.entity);
-        if (p && l) push(p.x - (l.a.x + l.b.x) / 2, p.y - (l.a.y + l.b.y) / 2);
+        if (p && l) push(sub(p.x, scale(add(l.a.x, l.b.x), 0.5)), sub(p.y, scale(add(l.a.y, l.b.y), 0.5)));
         break;
       }
       case "intersection": {
         const p = pt(c.point);
         if (!p) break;
         if (c.edgeA) {
-          if (c.x != null && c.y != null) push(p.x - Number(c.x), p.y - Number(c.y));
+          if (c.x != null && c.y != null) push(sub(p.x, Number(c.x)), sub(p.y, Number(c.y)));
           break;
         }
         const la = line(c.a), lb = line(c.b);
-        if (la && lb && la.length > EPS && lb.length > EPS) {
-          const denom = la.dx * lb.dy - la.dy * lb.dx;
-          if (Math.abs(denom) > EPS) {
-            const t = ((lb.a.x - la.a.x) * lb.dy - (lb.a.y - la.a.y) * lb.dx) / denom;
-            push(p.x - (la.a.x + t * la.dx), p.y - (la.a.y + t * la.dy));
+        if (la && lb && valueOf(la.length) > EPS && valueOf(lb.length) > EPS) {
+          const denom = sub(mul(la.dx, lb.dy), mul(la.dy, lb.dx));
+          if (Math.abs(valueOf(denom)) > EPS) {
+            const t = div(sub(mul(sub(lb.a.x, la.a.x), lb.dy), mul(sub(lb.a.y, la.a.y), lb.dx)), denom);
+            push(sub(p.x, add(la.a.x, mul(t, la.dx))), sub(p.y, add(la.a.y, mul(t, la.dy))));
           }
         }
         break;
       }
       case "pointOnLine": {
         const p = pt(c.point), l = line(c.entity);
-        if (p && l && l.length > EPS) push(((p.x - l.a.x) * l.dy - (p.y - l.a.y) * l.dx) / l.length);
+        if (p && l && valueOf(l.length) > EPS) push(across(p.x, p.y, l));
         break;
       }
       case "pointOnCircle": {
         const p = pt(c.point), o = circ(c.entity);
-        if (p && o) { push(Math.hypot(p.x - o.center.x, p.y - o.center.y) - o.radius); break; }
+        if (p && o) { push(sub(hypot(sub(p.x, o.center.x), sub(p.y, o.center.y)), o.radius)); break; }
         const e = ell(c.entity);
-        if (p && e && e.rx > EPS && e.ry > EPS) {
+        if (p && e && valueOf(e.rx) > EPS && valueOf(e.ry) > EPS) {
           // implicit ellipse equation in the curve's own frame, scaled back to a
           // length so it sits on the same footing as every other residual
-          const dx = p.x - e.center.x, dy = p.y - e.center.y;
-          const cos = Math.cos(e.rot), sin = Math.sin(e.rot);
-          const u = (dx * cos + dy * sin) / e.rx, v = (-dx * sin + dy * cos) / e.ry;
-          push((Math.hypot(u, v) - 1) * (e.rx + e.ry) / 2);
+          const dx = sub(p.x, e.center.x), dy = sub(p.y, e.center.y);
+          const cs = cos(e.rot), sn = sin(e.rot);
+          const u = div(add(mul(dx, cs), mul(dy, sn)), e.rx), v = div(sub(mul(dy, cs), mul(dx, sn)), e.ry);
+          push(mul(sub(hypot(u, v), 1), scale(add(e.rx, e.ry), 0.5)));
         }
         break;
       }
       case "radius": case "diameter": {
         const o = circ(c.entity);
         const half = c.type === "diameter" ? value / 2 : value;
-        if (o) { push(o.radius - half); break; }
+        if (o) { push(sub(o.radius, half)); break; }
         // On an ellipse a radius dimension names one semi-axis: `axis:"minor"`
         // drives ry, anything else drives rx.
         const e = ell(c.entity);
-        if (e) push((c.axis === "minor" ? e.ry : e.rx) - half);
+        if (e) push(sub(c.axis === "minor" ? e.ry : e.rx, half));
         break;
       }
       case "concentric": {
-        const a = centreOf(entities.get(c.a), points), b = centreOf(entities.get(c.b), points);
-        if (a && b) push(a.x - b.x, a.y - b.y);
+        const a = centre(c.a), b = centre(c.b);
+        if (a && b) push(sub(a.x, b.x), sub(a.y, b.y));
         break;
       }
       case "tangent": {
-        if(c.splineEnd){
-          const e=entities.get(c.a),l=line(c.b),endpoint=pt(e?.[c.splineEnd]),handle=pt(e?.[c.splineEnd==='a'?'h1':'h2']),join=pt(entities.get(c.b)?.[c.lineEnd]);
-          if(endpoint&&handle&&join&&l){const dx=handle.x-endpoint.x,dy=handle.y-endpoint.y;push(endpoint.x-join.x,endpoint.y-join.y,(dx*l.dy-dy*l.dx)/Math.max(EPS,l.length));}
+        if (c.splineEnd) {
+          const e = entities.get(c.a), l = line(c.b), endpoint = pt(e?.[c.splineEnd]), handle = pt(e?.[c.splineEnd === "a" ? "h1" : "h2"]), join = pt(entities.get(c.b)?.[c.lineEnd]);
+          if (endpoint && handle && join && l) {
+            const dx = sub(handle.x, endpoint.x), dy = sub(handle.y, endpoint.y);
+            push(sub(endpoint.x, join.x), sub(endpoint.y, join.y), div(sub(mul(dx, l.dy), mul(dy, l.dx)), atLeast(l.length, EPS)));
+          }
           break;
         }
+        /* Where the two curves already share a point, "centre distance equals
+           the radius" is the wrong equation. With that point on both, the
+           distance can never exceed the radius, so tangency is the equation's
+           maximum and its slope there is zero: the relation vanished from the
+           Jacobian and a second one duplicated the arc's own radius rule. A
+           slot read 5 freedoms only because finite-difference noise filled the
+           empty row, and a mirrored profile read fully defined with two sizes
+           still free. At a shared point tangency is first-order: the radius is
+           perpendicular to the line there, or both centres line up with it.
+
+           That form alone solves worse from far away. When a moved line drags
+           the rim point across the arc's centre, its linearisation pushes the
+           centre off to infinity, where the old distance form kept it home. So
+           the distance form stays in as a steering row: the two agree at every
+           solution, and only the first-order row is counted. */
         const la = line(c.a) || line(c.b);
         const ca = circ(c.a), cb = circ(c.b);
         if (la && (ca || cb)) {
           // line tangent to circle: centre-to-line distance equals the radius
-          const o = ca && ca.entity.id !== la.id ? ca : cb;
-          if (o && la.length > EPS) {
-            const d = ((o.center.x - la.a.x) * la.dy - (o.center.y - la.a.y) * la.dx) / la.length;
-            push(Math.abs(d) - o.radius);
+          const o = ca && ca.e.id !== la.e.id ? ca : cb;
+          if (o && valueOf(la.length) > EPS) {
+            const touch = onCurve(o.e.id, la.e.a) ? la.a : onCurve(o.e.id, la.e.b) ? la.b : null;
+            const reach = sub(abs(across(o.center.x, o.center.y, la)), o.radius);
+            if (touch) {
+              push(div(add(mul(sub(touch.x, o.center.x), la.dx), mul(sub(touch.y, o.center.y), la.dy)), la.length));
+              steer(reach);
+            } else push(reach);
           }
         } else if (ca && cb) {
+          const shared = [...(contacts ||= curveContacts(sketch)).get(ca.e.id) || []].find((id) => onCurve(cb.e.id, id));
+          const touch = shared != null ? pt(shared) : null;
           // circle-circle: external tangency, or internal when one encloses the other
-          const d = Math.hypot(cb.center.x - ca.center.x, cb.center.y - ca.center.y);
-          const ext = d - (ca.radius + cb.radius), int_ = d - Math.abs(ca.radius - cb.radius);
-          push(tangencyModes.get(c)==="internal" ? int_ : ext);
+          const d = hypot(sub(cb.center.x, ca.center.x), sub(cb.center.y, ca.center.y));
+          const reach = tangencyModes.get(c) === "internal"
+            ? sub(d, abs(sub(ca.radius, cb.radius)))
+            : sub(d, add(ca.radius, cb.radius));
+          if (touch) {
+            // both centres on one line through the shared point
+            const ax = sub(ca.center.x, touch.x), ay = sub(ca.center.y, touch.y);
+            const bx = sub(cb.center.x, touch.x), by = sub(cb.center.y, touch.y);
+            push(div(sub(mul(ax, by), mul(ay, bx)), atLeast(hypot(ax, ay), EPS)));
+            steer(reach);
+          } else push(reach);
         }
         break;
       }
       case "symmetric": {
         const a = pt(c.a), b = pt(c.b), l = line(c.entity);
-        if (a && b && l && l.length > EPS) {
-          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        if (a && b && l && valueOf(l.length) > EPS) {
           // midpoint on the mirror line, and a→b perpendicular to it
-          push(((mx - l.a.x) * l.dy - (my - l.a.y) * l.dx) / l.length);
-          push(((b.x - a.x) * l.dx + (b.y - a.y) * l.dy) / l.length);
+          push(across(scale(add(a.x, b.x), 0.5), scale(add(a.y, b.y), 0.5), l));
+          push(div(add(mul(sub(b.x, a.x), l.dx), mul(sub(b.y, a.y), l.dy)), l.length));
+        }
+        break;
+      }
+      case "pointLineDistance": {
+        // perpendicular distance from a point to a line (HOUSING step 330: Origin → top line)
+        const p = pt(c.point), l = line(c.a);
+        if (p && l && valueOf(l.length) > EPS) push(sub(abs(across(p.x, p.y, l)), value));
+        break;
+      }
+      case "offset": {
+        const a = line(c.a), b = line(c.b);
+        if (a && b && valueOf(a.length) > EPS) push(sub(div(add(mul(sub(b.a.x, a.a.x), neg(a.dy)), mul(sub(b.a.y, a.a.y), a.dx)), a.length), value));
+        else {
+          const ca = circ(c.a), cb = circ(c.b);
+          if (ca && cb) push(sub(sub(cb.radius, ca.radius), value));
         }
         break;
       }
@@ -290,38 +427,26 @@ function residuals(sketch, tags) {
 
          This is what a circular sketch pattern is made of: a whole copy is one
          editable angular pitch, not one dimension per corner. */
-      case "pointLineDistance": {
-        // perpendicular distance from a point to a line (HOUSING step 330: Origin → top line)
-        const p = pt(c.point), l = line(c.a);
-        if (p && l && l.length > EPS) push(Math.abs((p.x - l.a.x) * l.dy - (p.y - l.a.y) * l.dx) / l.length - value);
-        break;
-      }
-      case "offset": {
-        const a=line(c.a),b=line(c.b);
-        if(a&&b&&a.length>EPS)push(((b.a.x-a.a.x)*(-a.dy)+(b.a.y-a.a.y)*a.dx)/a.length-value);
-        else {const ca=circ(c.a),cb=circ(c.b);if(ca&&cb)push(cb.radius-ca.radius-value);}
-        break;
-      }
       case "rotation": {
-        const centre = pt(c.center);
-        if (!centre) break;
-        const ang = value * DEG, cos = Math.cos(ang), sin = Math.sin(ang);
+        const o = pt(c.center);
+        if (!o) break;
+        const ang = value * DEG, cs = Math.cos(ang), sn = Math.sin(ang);
         for (const pair of c.pairs || []) {
           const a = pt(pair[0]), b = pt(pair[1]);
           if (!a || !b) continue;
-          const ax = a.x - centre.x, ay = a.y - centre.y;
-          push(b.x - centre.x - (ax * cos - ay * sin), b.y - centre.y - (ax * sin + ay * cos));
+          const ax = sub(a.x, o.x), ay = sub(a.y, o.y);
+          push(sub(sub(b.x, o.x), sub(scale(ax, cs), scale(ay, sn))), sub(sub(b.y, o.y), add(scale(ax, sn), scale(ay, cs))));
         }
         // an ellipse's tilt is not implied by its centre, so it turns explicitly
         for (const pair of c.spins || []) {
           const a = ell(pair[0]), b = ell(pair[1]);
-          if (a && b) push(wrapAngle(b.rot - a.rot - ang) * Math.max(1, (a.rx + a.ry) / 2));
+          if (a && b) push(mul(wrapTurn(sub(sub(b.rot, a.rot), ang)), atLeast(scale(add(a.rx, a.ry), 0.5), 1)));
         }
         break;
       }
       case "fixed": {
         const p = pt(c.point);
-        if (p) push(p.x - Number(c.x ?? p.x), p.y - Number(c.y ?? p.y));
+        if (p) push(c.x == null ? 0 : sub(p.x, Number(c.x)), c.y == null ? 0 : sub(p.y, Number(c.y)));
         break;
       }
       default: break;
@@ -332,15 +457,19 @@ function residuals(sketch, tags) {
   for (const e of sketch.entities || []) {
     if (e.type !== "arc") continue;
     owner = { id: e.id + "_arc", type: "arcRadius", implicit: true, entity: e.id };
-    const arc = circleData(e, points);
+    const arc = circ(e.id);
     if (arc) {
-      const error = Math.hypot(arc.b.x - arc.center.x, arc.b.y - arc.center.y) - arc.radius;
+      const error = sub(hypot(sub(arc.b.x, arc.center.x), sub(arc.b.y, arc.center.y)), arc.radius);
       // A valid frozen arc has no variables for this identity to constrain.
       // Keep invalid frozen arcs in the residuals so they still fail validation.
-      if (!(arc.a.fixed && arc.b.fixed && arc.center.fixed && Math.abs(error) < 1e-9)) push(error);
+      if (!(arc.a.rec.fixed && arc.b.rec.fixed && arc.center.rec.fixed && Math.abs(valueOf(error)) < 1e-9)) push(error);
     }
   }
   return out;
+}
+
+function residuals(sketch, tags) {
+  return residualTerms(sketch, tags, null);
 }
 
 /* ---- variables: free point coordinates plus free circle radii ---- */
@@ -357,24 +486,28 @@ function variables(sketch) {
   return vars;
 }
 
-/* The sketch's variables live on the point and entity records themselves, so
-   the shared differencer is handed a writer that puts a probe vector back onto
-   them. Forward differences, as before: a drag re-solves sixty times a second
-   and the extra accuracy of a central difference is not worth doubling the
-   residual evaluations here. */
-function readVariables(vars) {
-  return vars.map((v) => Number(v.obj[v.k]) || 0);
+/* Exact Jacobian at the current state, one row per residual and one column
+   per variable. Replaces a forward-difference Jacobian: that cost a residual
+   evaluation per variable and was off by ~1e-5, which is enough to count two
+   copies of one equation as independent. */
+function jacobian(sketch, vars) {
+  const index = new Map();
+  vars.forEach((v, column) => {
+    let slot = index.get(v.obj);
+    if (!slot) index.set(v.obj, (slot = {}));
+    slot[v.k] = column;
+  });
+  return gradientRows(residualTerms(sketch, null, index), vars.length);
 }
 
-function writeVariables(vars, vector) {
-  vars.forEach((v, i) => { v.obj[v.k] = vector[i]; });
-}
-
-function jacobian(sketch, vars, base, options) {
-  return numericJacobian((vector) => {
-    writeVariables(vars, vector);
-    return residuals(sketch);
-  }, readVariables(vars), base, options);
+/* The Jacobian with each row's owner, for diagnostics and tests. */
+export function sketchJacobian(sketch) {
+  const vars = variables(sketch), tags = [];
+  const values = residuals(sketch, tags);
+  return {
+    J: jacobian(sketch, vars), residuals: values, owners: tags,
+    variables: vars.map((v) => ({ id: v.obj.id, key: v.k })),
+  };
 }
 
 /* Re-exported rather than moved out of reach: wall_dof.js builds its own
@@ -403,19 +536,23 @@ export function solveSketch(sketch, options = {}) {
   const vars = variables(sketch);
   const tolerance = options.tolerance || 1e-5;
   const maxIterations = options.maxIterations || 60;
-  let damping = options.damping || 1e-4, converged = false, iteration = 0;
-  let r = residuals(sketch);
-  let error = normOf(r);
-  for (; iteration < maxIterations && vars.length && r.length; iteration++) {
-    if (error < tolerance) { converged = true; break; }
-    const J = jacobian(sketch, vars, r);
-    const delta = gaussNewtonStep(J, r, damping), before = vars.map((v) => v.obj[v.k]);
-    vars.forEach((v, i) => { v.obj[v.k] = (Number(v.obj[v.k]) || 0) + delta[i]; });
-    const next = residuals(sketch), nextError = normOf(next);
-    if (nextError <= error) { r = next; error = nextError; damping = Math.max(1e-9, damping * 0.35); }
-    else { vars.forEach((v, i) => { v.obj[v.k] = before[i]; }); damping *= 10; }
-  }
-  if (error < tolerance) converged = true;
+  const descend = () => {
+    let damping = options.damping || 1e-4, steps = 0;
+    let r = residuals(sketch), error = normOf(r);
+    for (; steps < maxIterations && vars.length && r.length; steps++) {
+      if (error < tolerance) break;
+      const J = jacobian(sketch, vars);
+      const delta = gaussNewtonStep(J, r, damping), before = vars.map((v) => v.obj[v.k]);
+      vars.forEach((v, i) => { v.obj[v.k] = (Number(v.obj[v.k]) || 0) + delta[i]; });
+      const next = residuals(sketch), nextError = normOf(next);
+      if (nextError <= error) { r = next; error = nextError; damping = Math.max(1e-9, damping * 0.35); }
+      else { vars.forEach((v, i) => { v.obj[v.k] = before[i]; }); damping *= 10; }
+    }
+    return { error, steps };
+  };
+  const run = descend(), iteration = run.steps;
+  let error = run.error;
+  let converged = error < tolerance;
   // circles and ellipses must not solve themselves inside out
   (sketch.entities || []).forEach((e) => {
     if (e.type === "circle") e.r = Math.abs(Number(e.r) || 0);
@@ -450,7 +587,7 @@ export function solveSketch(sketch, options = {}) {
   if (converged && vars.length) {
     let polish = residuals(sketch), polishError = normOf(polish), polishDamping = 1e-9;
     for (let i = 0; i < 8 && polishError > 1e-11; i++) {
-      const Jp = jacobian(sketch, vars, polish);
+      const Jp = jacobian(sketch, vars);
       const step = gaussNewtonStep(Jp, polish, polishDamping), keep = vars.map((v) => v.obj[v.k]);
       vars.forEach((v, k) => { v.obj[v.k] = (Number(v.obj[v.k]) || 0) + step[k]; });
       const after = residuals(sketch), afterError = normOf(after);
@@ -460,31 +597,13 @@ export function solveSketch(sketch, options = {}) {
     error = polishError;
   }
 
-  /* The rank needs accurate derivatives. The forward-difference Jacobian the
-     Newton loop uses has ~1e-5 truncation error on distance and tangent rows,
-     so rows that are exactly dependent (a mirrored arc's end-radius rule) came
-     out 1e-5 apart and passed a 1e-9 pivot test as independent. Central
-     differences fix smooth rows, but several residuals are written with |…|
-     and a symmetric stencil across that kink reads a zero slope (a slot then
-     reported 9 freedoms instead of 5). So take the central value where it
-     agrees with the forward one, and keep the forward slope at a kink. */
   const tags = [], final = residuals(sketch, tags);
-  /* Forward stays the default. Measured on HOUSING's mirrored Sketchsquare and
-     the editor's slot: forward reads the slot's 5 freedoms right but hides the
-     mirror's exact dependency (the Sketchsquare reports 0 freedoms, truly 2);
-     "central"/"blend" see that dependency but misread the slot (8–9). No
-     tolerance fixed both, so the choice is exposed for diagnosis only. The
-     book-blocking half — a consistent sketch called over-defined — is handled
-     below by judging redundancy on the user's relations alone. */
-  const rankMode = options.rankJacobian || "forward", rankTolerance = options.rankTolerance ?? 1e-9;
-  const forwardJ = jacobian(sketch, vars, final);
-  const centralJ = rankMode === "forward" ? forwardJ : jacobian(sketch, vars, final, { central: true });
-  const J = rankMode === "central" ? centralJ : forwardJ.map((row, i) => row.map((forward, j) => {
-    const central = centralJ[i][j];
-    // relative agreement: a far point's slope on a |cross| row can be ~3e-4, and an
-    // absolute threshold let the kink's central 0 through (slot: 9 freedoms)
-    return Math.abs(forward - central) <= 1e-2 * Math.max(Math.abs(forward), Math.abs(central)) ? central : forward;
-  }));
+  const rankTolerance = options.rankTolerance ?? 1e-9;
+  // steering rows restate an equation already counted; they do not count again
+  const countedRows = [];
+  final.forEach((_, i) => { if (!(tags[i] && tags[i].auxiliary)) countedRows.push(i); });
+  const allRows = jacobian(sketch, vars);
+  const J = countedRows.map((i) => allRows[i]);
   const rank = rankOf(J, rankTolerance);
   const conflicts = [];
   final.forEach((v, i) => {
@@ -497,16 +616,20 @@ export function solveSketch(sketch, options = {}) {
      Only the user's relations can be redundant in that sense — an arc's own
      end-radius rule duplicated by a mirror is geometry, not a relation anyone
      added, and must not turn a fully defined sketch "over-defined". */
+  /* `redundant` is reported whatever the freedoms are, so the conflict
+     explanation can find the relations a new one repeats in a sketch that is
+     not finished yet; the status only turns "over-constrained" once nothing is
+     left free, as before. */
   let redundant = false;
-  if (final.length > 0 && rank < final.length && converged && dof === 0) {
+  if (countedRows.length > 0 && rank < countedRows.length && converged) {
     const explicitRows = [];
-    final.forEach((_, i) => { if (!(tags[i] && tags[i].implicit)) explicitRows.push(J[i]); });
-    redundant = explicitRows.length > 0 && rankOf(explicitRows) < explicitRows.length;
+    countedRows.forEach((i, row) => { if (!(tags[i] && tags[i].implicit)) explicitRows.push(J[row]); });
+    redundant = explicitRows.length > 0 && rankOf(explicitRows, rankTolerance) < explicitRows.length;
   }
   return {
     converged, iterations: iteration, error,
-    rank, residualCount: final.length, variableCount: vars.length,
-    degreesOfFreedom: dof, conflicts,
+    rank, residualCount: countedRows.length, variableCount: vars.length,
+    degreesOfFreedom: dof, conflicts, redundant,
     status: !converged ? "conflicting" : dof > 0 ? "under-constrained"
       : redundant ? "over-constrained" : "fully-constrained",
   };

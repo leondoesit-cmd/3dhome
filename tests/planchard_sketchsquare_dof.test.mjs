@@ -46,9 +46,11 @@ test('before its dimensions the mirrored, trimmed Sketchsquare solves with no co
   assert.ok(Math.abs(pt(s, 43).x - 3.80863) > 0.05, 'did not spring back to the drawn width');
 });
 
-test('the Sketchsquare DOF count before dimensioning is 2', {
-  todo: 'forward-difference rank hides the mirror-implied arc dependency (reports 0); central/blend fix it but misread the slot',
-}, () => {
+/* Width and height are still free here. A forward-difference Jacobian reported
+   0: the fillet's tangent rows had an exact slope of zero (a line ending on the
+   arc can only reach tangency as a maximum of |distance| − radius) and the
+   mirrored arc's radius rule duplicated them, and ~1e-5 noise counted both. */
+test('the Sketchsquare DOF count before dimensioning is 2', () => {
   const r = solveSketch(sketchsquare());
   assert.equal(r.degreesOfFreedom, 2, JSON.stringify(r));
 });
