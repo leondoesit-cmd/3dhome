@@ -13761,8 +13761,13 @@ function wireSketch() {
         refreshAll();
         return;
       }
-      E.ssel = [];
-      E.sel = null;
+      // Ctrl/Cmd-click that misses keeps the selection, as in SOLIDWORKS: one
+      // slightly-off pick must not throw away a Mirror selection built up of
+      // several entities.
+      if (!(e.ctrlKey || e.metaKey || E.mobileAddSelection)) {
+        E.ssel = [];
+        E.sel = null;
+      }
       refreshAll();
       return;
     }
