@@ -46,12 +46,24 @@ export function findFilletCorner(sketch, { vertexId, entityIds } = {}) {
     const at = lines.filter((line) => line.a === vertexId || line.b === vertexId);
     const picked = wanted.size ? at.filter((line) => wanted.has(line.id)) : at;
     if (picked.length >= 2) return { vertexId, lines: picked.slice(0, 2) };
+    /* A line meeting an arc end — HOUSING Sketchsquare's lower corners, where
+       each side line lands on the trimmed Ø4.375 in arc (steps 335–336). */
+    const arcs = (sketch.entities || []).filter((entity) => entity.type === "arc" && !entity.construction
+      && (entity.a === vertexId || entity.b === vertexId) && (!wanted.size || wanted.has(entity.id)));
+    if (picked.length === 1 && arcs.length === 1) return { vertexId, kind: "line-arc", line: picked[0], arc: arcs[0] };
     if (!wanted.size && at.length > 2) throw new Error("Select two entities to fillet");
     throw new Error("Select a sketch vertex or two entities to fillet");
   }
   if ((entityIds || []).length >= 2) {
     const a = sketchEntity(sketch, entityIds[0]), b = sketchEntity(sketch, entityIds[1]);
-    if (a?.type !== "line" || b?.type !== "line") throw new Error("Sketch Fillet currently supports two lines that share a vertex");
+    const pair = [a, b];
+    const pl = pair.find((e) => e?.type === "line"), pa = pair.find((e) => e?.type === "arc");
+    if (pl && pa) {
+      const shared = [pl.a, pl.b].find((id) => id === pa.a || id === pa.b);
+      if (!shared) throw new Error("The line and arc must share an end point");
+      return { vertexId: shared, kind: "line-arc", line: pl, arc: pa };
+    }
+    if (a?.type !== "line" || b?.type !== "line") throw new Error("Sketch Fillet supports two lines, or a line and an arc, that share a vertex");
     const shared = [a.a, a.b].find((id) => id === b.a || id === b.b);
     if (!shared) throw new Error("The lines must share a vertex");
     return { vertexId: shared, lines: [a, b] };
@@ -59,10 +71,98 @@ export function findFilletCorner(sketch, { vertexId, entityIds } = {}) {
   throw new Error("Select a sketch vertex or two entities to fillet");
 }
 
+/* Fillet where a line meets an arc end. The fillet circle's centre is `radius`
+   off the line and R − radius (inside the arc) or R + radius (outside) from the
+   arc centre. Of the candidates whose tangent points land on the line segment
+   and on the arc next to the corner, the one that trims least is the corner
+   fillet. The corner point survives only when a dimension measures to it; its
+   geometric relations (HOUSING's Symmetric pair between the two lower corners)
+   are implied by the fillets and would otherwise over-define the sketch. */
+function filletLineArcCorner(sketch, corner, radius, options, id) {
+  const vertex = sketchPoint(sketch, corner.vertexId);
+  const { line, arc } = corner;
+  const centre = sketchPoint(sketch, arc.c);
+  const far = sketchPoint(sketch, otherEnd(line, corner.vertexId));
+  const aEnd = sketchPoint(sketch, arc.a), bEnd = sketchPoint(sketch, arc.b);
+  if (!vertex || !centre || !far || !aEnd || !bEnd) throw new Error("Select a sketch vertex or two entities to fillet");
+  const dir = unitFrom(vertex, far);
+  const R = Math.hypot(vertex.x - centre.x, vertex.y - centre.y);
+  if (!dir || R <= EPS) throw new Error("The radius is too large for this line and arc");
+  const angA = Math.atan2(aEnd.y - centre.y, aEnd.x - centre.x);
+  const angB = Math.atan2(bEnd.y - centre.y, bEnd.x - centre.x);
+  const sweep = ccwSpan(angA, angB) || TAU;
+  const atStart = arc.a === corner.vertexId;
+  const normal = { x: -dir.y, y: dir.x };
+  let best = null;
+  for (const side of [1, -1]) {
+    for (const internal of [true, false]) {
+      const reach = internal ? R - radius : R + radius;
+      if (reach <= EPS) continue;
+      const ox = vertex.x + normal.x * side * radius - centre.x;
+      const oy = vertex.y + normal.y * side * radius - centre.y;
+      const half = ox * dir.x + oy * dir.y, rest = ox * ox + oy * oy - reach * reach;
+      const disc = half * half - rest;
+      if (disc < 0) continue;
+      for (const s of [-half - Math.sqrt(disc), -half + Math.sqrt(disc)]) {
+        if (!(s > 1e-6 && s < dir.length - 1e-6)) continue;
+        const P = { x: centre.x + ox + dir.x * s, y: centre.y + oy + dir.y * s };
+        const u = unitFrom(centre, P);
+        if (!u) continue;
+        const t2 = { x: centre.x + u.x * R, y: centre.y + u.y * R };
+        const ang = Math.atan2(t2.y - centre.y, t2.x - centre.x);
+        const along = atStart ? ccwSpan(angA, ang) : ccwSpan(ang, angB);
+        if (!(along > 1e-6 && along < sweep - 1e-6)) continue;
+        const trim = s + along * R;
+        if (!best || trim < best.trim) best = { P, t1: { x: vertex.x + dir.x * s, y: vertex.y + dir.y * s }, t2, trim };
+      }
+    }
+  }
+  if (!best) throw new Error("The radius is too large for this line and arc");
+
+  const dimensioned = (sketch.constraints || []).filter((constraint) => constraint.value != null && constraintRefs(constraint, corner.vertexId));
+  const keep = options.keepConstrainedCorners !== false && dimensioned.length > 0;
+  const savedPoint = keep ? { ...vertex } : null;
+  const p1 = addPoint(sketch, best.t1.x, best.t1.y, id);
+  const p2 = addPoint(sketch, best.t2.x, best.t2.y, id);
+  const pc = addPoint(sketch, best.P.x, best.P.y, id);
+  setEnd(line, corner.vertexId, p1.id);
+  if (atStart) arc.a = p2.id; else arc.b = p2.id;
+  const s1 = Math.atan2(p1.y - pc.y, p1.x - pc.x), s2 = Math.atan2(p2.y - pc.y, p2.x - pc.x);
+  const minorFromP1 = ccwSpan(s1, s2) <= Math.PI;
+  const fillet = {
+    id: id(), type: "arc", name: "Sketch fillet",
+    c: pc.id, a: minorFromP1 ? p1.id : p2.id, b: minorFromP1 ? p2.id : p1.id,
+    construction: false,
+  };
+  sketch.entities.push(fillet);
+  sketch.constraints = sketch.constraints || [];
+  sketch.constraints.push(
+    { id: id(), type: "tangent", a: line.id, b: fillet.id },
+    { id: id(), type: "tangent", a: arc.id, b: fillet.id },
+  );
+  if (options.dimension !== false) {
+    sketch.constraints.push({ id: id(), type: "radius", entity: fillet.id, value: radius, driven: false });
+  }
+  pruneOrphanPoints(sketch);
+  if (savedPoint && !(sketch.points || []).some((point) => point.id === savedPoint.id)) {
+    // a virtual sharp: still the intersection of the line and the arc's circle
+    sketch.points.push(savedPoint);
+    sketch.constraints.push(
+      { id: id(), type: "pointOnLine", point: savedPoint.id, entity: line.id },
+      { id: id(), type: "pointOnCircle", point: savedPoint.id, entity: arc.id },
+    );
+    for (const constraint of dimensioned) {
+      if (!sketch.constraints.some((item) => item.id === constraint.id)) sketch.constraints.push(constraint);
+    }
+  }
+  return { arc: fillet, lines: [line], arcs: [arc], radius };
+}
+
 export function filletSketchCorner(sketch, options = {}, id = uid) {
   const radius = Number(options.radius);
   if (!Number.isFinite(radius) || radius <= EPS) throw new Error("Fillet radius must be a positive finite length");
   const corner = findFilletCorner(sketch, options);
+  if (corner.kind === "line-arc") return filletLineArcCorner(sketch, corner, radius, options, id);
   const vertex = sketchPoint(sketch, corner.vertexId);
   if (!vertex) throw new Error("Select a sketch vertex or two entities to fillet");
   const lineA = corner.lines[0], lineB = corner.lines[1];
