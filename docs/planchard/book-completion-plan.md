@@ -44,7 +44,7 @@ Out of scope unless the book needs it: surfacing, weldments, simulation, CAM, PD
 | O-RING | 311–314 | Saved | Configurations (Ch 9), material |
 | SWITCH | 315–320 | Saved | – |
 | LENSCAP | 323–332 | Book's last step (262, rename `Thread`) reached, 11 steps | Dimensional and mass acceptance not done |
-| HOUSING | 335–364 | **In progress (UI), restarted 2026-09-14 in the Browser-pane profile** | Saved: Base Extrude (accepted: 111.125 × 33.02 mm, 320.2510 cm³ = analytic), Sketchcircle (face-boundary copy, fully defined); save → reload → reopen verified. Next: BatteryLoftPlane (1.300 in), Sketchsquare, Boss-Loft1. Not ritual-Done. |
+| HOUSING | 335–364 | **In progress (UI), restarted 2026-09-14 in the Browser-pane profile** | Saved: Base Extrude (accepted: 111.125 × 33.02 mm, 320.2510 cm³ = analytic), Sketchcircle, Description property, BatteryLoftPlane (1.300 in), Sketchsquare through step 310 (converted circle, centerline, top and side lines, R .1 in fillet; DOF 1). Next: steps 311–330 (mirror, trim, dimensions), then Boss-Loft1. Not ritual-Done. |
 | LENSANDBULB, BATTERYANDPLATE, CAPANDLENS, FLASHLIGHT | 379–434 | **Not started** | Blocked by Phase 2B |
 | BATTERY, FLASHLIGHT, O-RING drawings | 435–480 | **Not started** | Phase 4 |
 | Homework Ch 5–9 (~63 exercises) | various | **Not inventoried** | Phase 5 |
@@ -194,7 +194,7 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | O-RING | 311–314 | Planchard O-RING | | 2.748212 cm³ | ✅ bounds | | CAPANDLENS, design table | 4-5 |
 | SWITCH | 315–320 | Planchard SWITCH | | 1.754454 cm³ (after edit) | | | FLASHLIGHT | |
 | LENSCAP | 323–332 | Planchard LENSCAP | 11 | | ❌ ritual pending | | CAPANDLENS, STL | 1-3 |
-| HOUSING | 335–364 | HOUSING | 3 (of ~25) | Base Extrude 320.2510 cm³ | Base Extrude ✅ | | FLASHLIGHT, STL | 2A-7; G10 Description missing |
+| HOUSING | 335–364 | HOUSING | 4 (of ~25), step 310 reached | Base Extrude 320.2510 cm³ | Base Extrude ✅ | | FLASHLIGHT, STL | 2A-7; G10 Description ✅ (parts/assemblies) |
 | LENSANDBULB | 379–434 | – | | | | | CAPANDLENS | 2B-4 |
 | BATTERYANDPLATE | 379–434 | – | | | | | FLASHLIGHT | 2B-4 |
 | CAPANDLENS | 379–434 | – | | | | | FLASHLIGHT | 2B-5 |
