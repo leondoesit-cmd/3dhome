@@ -65,5 +65,9 @@ export function editRoundEntity(sketch,entity,pick,extend,lineCircle){
   }
   sketch.constraints=(sketch.constraints||[]).filter(c=>!(c.entity===entity.id&&['distance','angle'].includes(c.type)));
   (sketch.entities||[]).filter(e=>e.type==='arc'&&(e===entity||e.c===centreId)).forEach(dropImplicitOnCurve);
+  /* A kept piece that starts and ends on the same point is a zero-length sliver
+     between two cuts that resolved to one point (both top lines of HOUSING's
+     Sketchsquare leave the circle at the quadrant). It branched the profile. */
+  sketch.entities=(sketch.entities||[]).filter(e=>!(e.type==='arc'&&(e===entity||String(e.id).startsWith('trim_round_'))&&e.a!=null&&e.a===e.b));
   pruneOrphanPoints(sketch);return true;
 }

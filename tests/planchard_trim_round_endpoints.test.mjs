@@ -55,6 +55,22 @@ test('trimming a circle between two line ends reuses those endpoints and drops t
   assert.ok(sketch.points.every((p) => Math.hypot(p.x, p.y) > 0 || p.id === 'c'));
 });
 
+test('the book two-click trim with top lines leaving the quadrant keeps one arc and no zero-length sliver', () => {
+  const sketch = sketchsquare();
+  // Sketchsquare's top lines start ON the circle at the quadrant and run out to the side-line tops
+  sketch.entities.push({ id: 'TR', type: 'line', a: 'ct', b: 'rt' }, { id: 'TL', type: 'line', a: 'ct', b: 'lt' });
+  const onCircle = (deg) => ({ x: 5 * Math.cos(deg * Math.PI / 180), y: 5 * Math.sin(deg * Math.PI / 180) });
+  assert.equal(trimEntity(sketch, 'C', onCircle(115)), true, 'left of the quadrant');
+  const arcs = () => sketch.entities.filter((e) => e.type === 'arc');
+  const firstPiece = arcs().find((e) => e.id === 'C');
+  assert.equal(trimEntity(sketch, firstPiece.id, onCircle(65)), true, 'right of the quadrant');
+  assert.ok(!arcs().some((e) => e.a === e.b), JSON.stringify(arcs()));
+  assert.equal(arcs().length, 1, JSON.stringify(arcs()));
+  assert.deepEqual([arcs()[0].a, arcs()[0].b].sort(), ['lb', 'rb']);
+  // point ct is used only by the two top lines and the construction axis — no branch
+  assert.equal(sketch.entities.filter((e) => !e.construction && (e.a === 'ct' || e.b === 'ct')).length, 2);
+});
+
 test('healing an arc end onto a line end that was on the circle does not over-define the sketch', () => {
   const sketch = sketchsquare();
   // an older trim: the arc got its own points on top of the line ends
