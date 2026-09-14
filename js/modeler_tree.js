@@ -316,7 +316,9 @@ export function renderTreeModel(host, model, deps, handlers, state = {}) {
       // The rollback bar belongs *between* history rows, so it is emitted from
       // the same walk rather than appended after it — a folder or a nested
       // sketch must not push it out of place.
-      if (node.index != null && node.index === model.rollbackAt && depth <= 1) emitRollback();
+      // before the first history row at or past the rollback index: the exact
+      // index can belong to a sketch drawn inside its feature, which has no row
+      if (node.index != null && node.index >= model.rollbackAt) emitRollback();
       container.appendChild(buildRow(node, depth, deps, handlers, state));
       if (!node.collapsed && node.children.length) emit(node.children, depth + 1);
     });

@@ -407,7 +407,12 @@ function canonicalHistory(def, options) {
       children,
     }));
   });
-  return { rows, rollbackAt: Math.min(rollbackAt, rows.length) === rollbackAt ? rollbackAt : rows.length };
+  /* rollbackAt is a HISTORY index, and stays one. It used to be clamped to the
+     row count, but a sketch its feature owns is drawn inside that feature and
+     has no row, so history outruns rows: rolling back to Boss-Loft1 at history
+     5 of a 3-row tree came back as 3, and the bar was drawn above the feature
+     before it while the rebuild — correctly — only rolled back Boss-Loft1. */
+  return { rows, rollbackAt: Math.max(0, Math.min(rollbackAt, history.length)), historyCount: history.length };
 }
 
 /* ---- legacy adapter: def.parts is the tree ---- */
@@ -490,7 +495,8 @@ export function buildTreeModel(def, options = {}) {
     const sketchSection = legacySketchSection(def, options);
     if (sketchSection) sections.push(sketchSection);
   }
-  const { rows, rollbackAt } = mode === CANONICAL ? canonicalHistory(def, options) : legacyHistory(def, options);
+  const history = mode === CANONICAL ? canonicalHistory(def, options) : legacyHistory(def, options);
+  const { rows, rollbackAt } = history;
   const grouped = applyFolders(rows, options.folders, options.collapsed, options.labels);
   // The header counts every step, nested sketches included — otherwise it
   // contradicts the rebuild summary sitting directly above it, which counts the
@@ -510,7 +516,8 @@ export function buildTreeModel(def, options = {}) {
     collapsed: collapsedFor(options.collapsed, "section:history", false),
     children: grouped,
   }));
-  return { mode, nodes: sections, rollbackAt, historyCount: rows.length };
+  // the count the rollback bar is compared with is in the same unit as rollbackAt
+  return { mode, nodes: sections, rollbackAt, historyCount: history.historyCount ?? rows.length };
 }
 
 /* Folders are a presentation grouping over history rows. A folder appears at

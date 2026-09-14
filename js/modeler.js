@@ -7844,8 +7844,17 @@ function cutTargetFeatureId(target, document = E.def) {
   if (!target) return null;
   var head = target.derivedFeatureId || target.featureId;
   var modifiers = new Set(["fillet", "chamfer", "shell", "dome", "draft", "thicken", "extrudeCut", "revolveCut", "sweepCut", "hole", "moveBody"]);
+  /* A step below the rollback bar (or suppressed in history) is not built, so it
+     cannot be the body's head. Walking past it made the displayed body ask the
+     regeneration for Shell1 after rolling HOUSING back to Boss-Battery; the run
+     had no Shell1, the exact rebuild failed, and the viewport fell back to the
+     bare Base Extrude cylinder — Boss-Loft1, above the bar, vanished with it. */
+  var inactive = new Set();
+  (document.history || []).forEach(function (entry, index) {
+    if (entry && entry.targetId && (entry.suppressed || historyEntryRolled(document, index))) inactive.add(entry.targetId);
+  });
   (document.features || []).forEach(function (feature) {
-    if (!feature.suppressed && (modifiers.has(feature.type) || (feature.type==="pattern" && feature.params?.scope==="feature") || (["extrude","revolve","sweep","loft"].includes(feature.type) && feature.params?.mergeResult !== false && feature.params?.operation !== "new-body")) && (feature.inputs || []).includes(head)) head = feature.id;
+    if (!feature.suppressed && !inactive.has(feature.id) && (modifiers.has(feature.type) || (feature.type==="pattern" && feature.params?.scope==="feature") || (["extrude","revolve","sweep","loft"].includes(feature.type) && feature.params?.mergeResult !== false && feature.params?.operation !== "new-body")) && (feature.inputs || []).includes(head)) head = feature.id;
   });
   return head || null;
 }
@@ -16519,6 +16528,20 @@ function fillInspectorTab(id) {
   else if (id === "sketch") fillSketchPane();
 }
 
+/* The feature a face or edge selection belongs to. A pick on a merged body
+   selects the body's part, which carries the FIRST feature's id — so a Boss-Loft1
+   face read "Base Extrude" in the selection name and the Shape panel while the
+   face reference itself named Boss-Loft1 correctly. When every picked reference
+   has one owner, that owner is the feature the selection is about. */
+function topologySelectionFeature() {
+  var owners = (E.topologySelection || []).map(function (ref) { return ref && ref.ownerFeatureId; });
+  if (!owners.length || owners.some(function (id) { return !id || id !== owners[0]; })) return null;
+  var id = String(owners[0]);
+  return (E.def && E.def.features || []).find(function (feature) {
+    return feature.id === id || id.indexOf(feature.id + ":") === 0;
+  }) || null;
+}
+
 function fillInspector() {
   if (E.docType === "assembly") {
     assemblyTransformInspector();
@@ -16531,7 +16554,8 @@ function fillInspector() {
     return;
   }
   var nm = root.querySelector("#mdSelName"), topologyCount = (E.topologySelection || []).length;
-  if (nm) nm.textContent = E.sel ? (E.sel.name || E.sel.kind || E.sel.type || t("sketch")) + (topologyCount ? " · " + topologyCount + " " + (E.topologySelection[0].kind || "reference") + (topologyCount === 1 ? "" : "s") + " selected" : "") : "";
+  var ownerFeature = topologyCount ? topologySelectionFeature() : null;
+  if (nm) nm.textContent = E.sel ? ((ownerFeature && (ownerFeature.name || ownerFeature.type)) || E.sel.name || E.sel.kind || E.sel.type || t("sketch")) + (topologyCount ? " · " + topologyCount + " " + (E.topologySelection[0].kind || "reference") + (topologyCount === 1 ? "" : "s") + " selected" : "") : "";
 
   inspectorDirty.sketch = true;
   inspectorDirty.shape = true;
@@ -16579,7 +16603,8 @@ function fillShape() {
   // Generated solids are read-only projections in a canonical document. The
   // editable source of truth is the feature definition in design history.
   if (isCanonicalAuthoring() && p.kind && !p.type) {
-    var featureId=p.derivedFeatureId || p.featureId;
+    var pickedFeature=topologySelectionFeature();
+    var featureId=pickedFeature ? pickedFeature.id : (p.derivedFeatureId || p.featureId);
     var feature=(E.def.features || []).find(function(item){return item.id===featureId;});
     if(feature){
       var spec=featureSpec(feature.type);
