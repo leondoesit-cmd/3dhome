@@ -810,11 +810,18 @@ function generateFlushPull(row, options, group) {
 
 function generateCamLock(row, options, group) {
   const boltMm = Number(options.lengthMm) || row.boltLengthsMm[1];
+  const camR = mmToCm(row.camDiaMm) / 2;
+  /* The bolt has to start INSIDE the cam. Starting on the cylinder (from = camR)
+     is a line-tangent meet, and the kernel union of those two quietly drops
+     most of the cam (2.209 ∪ 1.308 → 0.900). A millimetre of engagement is how
+     a Minifix bolt actually sits, and it gives a clean fuse. Exposed length
+     stays the catalogued boltMm. */
+  const engage = Math.min(mmToCm(1), camR * 0.2);
   const parts = [
-    { kind: "cyl", name: row.size + " cam", x: 0, y: 0, z: 0, r: mmToCm(row.camDiaMm) / 2, h: mmToCm(row.camH), standardRole: "cam" },
+    { kind: "cyl", name: row.size + " cam", x: 0, y: 0, z: 0, r: camR, h: mmToCm(row.camH), standardRole: "cam" },
     {
       kind: "ext", name: "connecting bolt", axis: "x",
-      from: mmToCm(row.camDiaMm) / 2, to: mmToCm(row.camDiaMm) / 2 + mmToCm(boltMm),
+      from: camR - engage, to: camR + mmToCm(boltMm),
       pts: circleLoop(0, 0, mmToCm(row.boltDiaMm) / 2, 12), standardRole: "bolt",
     },
   ];

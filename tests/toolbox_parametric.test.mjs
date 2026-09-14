@@ -86,6 +86,15 @@ test("invalid Toolbox catalog edits become rebuild diagnostics instead of throws
   assert.ok(rebuilt.issues.some((issue) => issue.featureId === feature.id));
 });
 
+test("a cam-lock bolt starts inside the cam so the kernel union keeps both solids", () => {
+  const generated = generateToolboxPart({ kind: "cam-lock", sizeKey: "minifix", lengthMm: 34 });
+  const cam = generated.parts.find((part) => part.standardRole === "cam");
+  const bolt = generated.parts.find((part) => part.standardRole === "bolt");
+  assert.ok(cam && bolt, "cam and bolt parts");
+  assert.ok(bolt.from < cam.r - 1e-6, `bolt.from ${bolt.from} must sit inside cam r ${cam.r}`);
+  assert.ok(Math.abs(bolt.to - (cam.r + 3.4)) < 1e-9, "exposed bolt length stays 34 mm");
+});
+
 test("every Toolbox family executes through the exact BREP kernel", { timeout:30000 }, async () => {
   const failures = [];
   for (const family of TOOLBOX_FAMILIES) {
