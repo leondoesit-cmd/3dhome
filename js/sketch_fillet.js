@@ -1,4 +1,4 @@
-import { lineData, pruneOrphanPoints, sketchEntity, sketchPoint } from "./sketch_solver.js";
+import { lineData, pruneOrphanPoints, sketchEntity, sketchPoint, solveSketch } from "./sketch_solver.js";
 
 const EPS = 1e-7;
 const TAU = Math.PI * 2;
@@ -119,9 +119,9 @@ function filletLineArcCorner(sketch, corner, radius, options, id) {
   }
   if (!best) throw new Error("The radius is too large for this line and arc");
 
-  const dimensioned = (sketch.constraints || []).filter((constraint) => constraint.value != null && constraintRefs(constraint, corner.vertexId));
-  const keep = options.keepConstrainedCorners !== false && dimensioned.length > 0;
-  const savedPoint = keep ? { ...vertex } : null;
+  const related = (sketch.constraints || []).filter((constraint) => constraintRefs(constraint, corner.vertexId));
+  const keep = options.keepConstrainedCorners !== false && related.length > 0;
+  const savedPoint = keep ? { ...vertex, virtualSharp: true } : null;
   const p1 = addPoint(sketch, best.t1.x, best.t1.y, id);
   const p2 = addPoint(sketch, best.t2.x, best.t2.y, id);
   const pc = addPoint(sketch, best.P.x, best.P.y, id);
@@ -145,14 +145,29 @@ function filletLineArcCorner(sketch, corner, radius, options, id) {
   }
   pruneOrphanPoints(sketch);
   if (savedPoint && !(sketch.points || []).some((point) => point.id === savedPoint.id)) {
-    // a virtual sharp: still the intersection of the line and the arc's circle
+    /* A virtual sharp: the corner stays as a point on the line, carrying the
+       relations it had. Dropping them lost information — the Symmetric pair
+       between HOUSING's lower corners is what held the mirrored side line
+       vertical, and filleting one corner left that line free to tilt. Whether
+       the corner also needs to sit on the arc's circle depends on what else
+       places it (after the mirror partner is filleted too, it does), so both
+       forms are solved and the one that repeats no rule and leaves the least
+       freedom is kept. */
     sketch.points.push(savedPoint);
-    sketch.constraints.push(
-      { id: id(), type: "pointOnLine", point: savedPoint.id, entity: line.id },
-      { id: id(), type: "pointOnCircle", point: savedPoint.id, entity: arc.id },
-    );
-    for (const constraint of dimensioned) {
+    for (const constraint of related) {
       if (!sketch.constraints.some((item) => item.id === constraint.id)) sketch.constraints.push(constraint);
+    }
+    sketch.constraints.push({ id: id(), type: "pointOnLine", point: savedPoint.id, entity: line.id });
+    const onCircle = { id: id(), type: "pointOnCircle", point: savedPoint.id, entity: arc.id };
+    const trial = (extra) => {
+      const copy = JSON.parse(JSON.stringify(sketch));
+      if (extra) copy.constraints.push(extra);
+      const report = solveSketch(copy);
+      return { converged: !!report.converged, redundant: !!report.redundant, dof: Number(report.degreesOfFreedom) || 0 };
+    };
+    const without = trial(null), withCircle = trial(onCircle);
+    if (withCircle.converged && !withCircle.redundant && (without.redundant || withCircle.dof < without.dof)) {
+      sketch.constraints.push(onCircle);
     }
   }
   return { arc: fillet, lines: [line], arcs: [arc], radius };

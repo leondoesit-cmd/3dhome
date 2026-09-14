@@ -867,6 +867,17 @@ export function pruneOrphanPoints(sketch) {
      is the axis the whole array is hung from. Pruning it takes the array's
      angular pitch with it and silently detaches every copy. */
   sketch.constraints.forEach((c) => { if (c.type === "rotation" && c.center) used.add(c.center); });
+  /* A fillet's virtual sharp is not drawn either, but it is still held on the
+     curves it rounded. Pruning it on the NEXT fillet silently dropped its
+     relations: HOUSING's mirrored lower corners lost their Symmetric pair and
+     a side line came loose. It goes once no live curve holds it. */
+  const sharps = new Set((sketch.points || []).filter((p) => p.virtualSharp).map((p) => p.id));
+  if (sharps.size) {
+    const curves = new Set(sketch.entities.map((e) => e.id));
+    sketch.constraints.forEach((c) => {
+      if ((c.type === "pointOnLine" || c.type === "pointOnCircle") && sharps.has(c.point) && curves.has(c.entity)) used.add(c.point);
+    });
+  }
   const dropped = new Set(sketch.points.filter((p) => !used.has(p.id)).map((p) => p.id));
   sketch.points = sketch.points.filter((p) => used.has(p.id));
   const live = new Set(sketch.entities.map((e) => e.id));

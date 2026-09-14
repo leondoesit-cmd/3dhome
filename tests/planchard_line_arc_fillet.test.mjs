@@ -74,19 +74,76 @@ function ccw(circle) {
   return d * 180 / Math.PI;
 }
 
-test('a relation-only corner is dropped, a dimensioned corner is kept on both curves', () => {
-  const plain = corner();
-  plain.constraints.push({ id: 'sym', type: 'symmetric', a: 'V', b: 'L', entity: 'nope' });
-  filletSketchCorner(plain, { vertexId: 'V', radius: r }, ids);
-  assert.equal(plain.constraints.some((c) => c.id === 'sym'), false);
+// Both lower corners of a mirrored profile: the left side line has no Vertical
+// of its own, only its Symmetric corners hold it upright.
+function mirrored() {
+  return {
+    points: [
+      { id: 'o', x: 0, y: 0 }, { id: 'up', x: 0, y: 5 },
+      { id: 'V', x: X, y: Y }, { id: 'T', x: X, y: 2.794 },
+      { id: 'VL', x: -X, y: Y }, { id: 'TL', x: -X, y: 2.794 },
+    ],
+    entities: [
+      { id: 'AX', type: 'line', a: 'o', b: 'up', construction: true },
+      { id: 'ARC', type: 'arc', c: 'o', a: 'VL', b: 'V' },
+      { id: 'RIGHT', type: 'line', a: 'V', b: 'T' },
+      { id: 'LEFT', type: 'line', a: 'VL', b: 'TL' },
+    ],
+    constraints: [
+      { id: 'fo', type: 'fixed', point: 'o', x: 0, y: 0 },
+      { id: 'fu', type: 'fixed', point: 'up', x: 0, y: 5 },
+      { id: 'ft', type: 'fixed', point: 'T', x: X, y: 2.794 },
+      { id: 'rad', type: 'radius', entity: 'ARC', value: R },
+      { id: 'vr', type: 'vertical', entity: 'RIGHT' },
+      { id: 'st', type: 'symmetric', a: 'T', b: 'TL', entity: 'AX' },
+      { id: 'sv', type: 'symmetric', a: 'V', b: 'VL', entity: 'AX' },
+    ],
+  };
+}
 
+test('filleting mirrored lower corners keeps the profile fully defined, one corner at a time', () => {
+  const s = mirrored();
+  const start = solveSketch(JSON.parse(JSON.stringify(s)));
+  assert.equal(start.degreesOfFreedom, 0, 'fixture starts fully defined');
+  filletSketchCorner(s, { vertexId: 'VL', radius: r }, ids);
+  let report = solveSketch(JSON.parse(JSON.stringify(s)));
+  assert.equal(report.converged, true);
+  assert.equal(report.redundant, false, 'no repeated rule after the first fillet');
+  assert.equal(report.degreesOfFreedom, 0, 'the left side line did not come loose');
+  assert.ok(s.points.some((p) => p.id === 'VL'), 'corner kept as a virtual sharp');
+  assert.ok(s.constraints.some((c) => c.id === 'sv'), 'its Symmetric relation kept');
+  filletSketchCorner(s, { vertexId: 'V', radius: r }, ids);
+  assert.ok(s.points.some((p) => p.id === 'VL' && p.virtualSharp), 'the first virtual sharp survives the second fillet');
+  assert.ok(s.constraints.some((c) => c.type === 'pointOnLine' && c.point === 'VL' && c.entity === 'LEFT'), '... still held on its line');
+  report = solveSketch(JSON.parse(JSON.stringify(s)));
+  assert.equal(report.converged, true);
+  assert.equal(report.redundant, false, 'no repeated rule after the second fillet');
+  assert.equal(report.degreesOfFreedom, 0, 'both fillets placed, nothing free');
+  assert.equal(s.entities.filter((e) => e.type === 'arc').length, 3);
+});
+
+test('a corner with no relations is simply removed', () => {
+  const s = corner();
+  filletSketchCorner(s, { vertexId: 'V', radius: r }, ids);
+  assert.equal(s.points.some((p) => p.id === 'V'), false);
+});
+
+test('a dimensioned corner is kept on the line with its dimension', () => {
   const measured = corner();
+  // the fixed arc end already sets the radius; a radius dimension on top would
+  // make the fixture itself over-defined before any fillet
+  measured.constraints = measured.constraints.filter((c) => c.id !== 'rad');
   measured.constraints.push({ id: 'd', type: 'distance', a: 'V', b: 'T', value: 2.794 - Y });
+  assert.equal(solveSketch(JSON.parse(JSON.stringify(measured))).redundant, false, 'fixture is not over-defined');
   filletSketchCorner(measured, { vertexId: 'V', radius: r }, ids);
   assert.ok(measured.points.some((p) => p.id === 'V'), 'virtual sharp kept');
   assert.ok(measured.constraints.some((c) => c.type === 'pointOnLine' && c.point === 'V'));
-  assert.ok(measured.constraints.some((c) => c.type === 'pointOnCircle' && c.point === 'V'));
   assert.ok(measured.constraints.some((c) => c.id === 'd'));
+  // the length along the fixed line already places the corner, so an
+  // on-circle row would repeat that rule and must not be added
+  assert.equal(measured.constraints.some((c) => c.type === 'pointOnCircle' && c.point === 'V'), false);
+  const report = solveSketch(JSON.parse(JSON.stringify(measured)));
+  assert.equal(report.redundant, false);
 });
 
 test('a radius that cannot fit between the corner and the line end is refused', () => {
