@@ -267,6 +267,11 @@ Browser-verified (Browser pane, real clicks): Front-plane circle → Dimension t
   - A vertex of the Base Extrude's tessellated footprint could outrank the quadrant. Sketch geometry now wins inside the capture radius.
   - The 4 px capture radius missed a click about 6 px away, so the end took the grid value 5.3 instead of 5.55625. The IndexedDB draft showed this. The radius is now 8 px.
   After a reload: redraw from the centre to the top of the circle → **Fully defined**, 4 constraints (fixed, diameter, vertical, point-on-circle). Test: `tests/planchard_quadrant_snap.test.mjs`.
+- **Steps 301–303: top line and vertical line down to the circumference (fixed, browser-verified).** Three more inference gaps showed up in the draft's constraints.
+  - There was no on-curve snap, so the vertical line's end stayed free. `onCurveTargets` now offers the nearest point on each sketch circle, ranked below point snaps.
+  - A radial on-curve point landed at (3.93, 3.93) under a start at (3.81, 5.56), so Vertical was lost. While the line is inferred vertical or horizontal, the target is that line's intersection with the circle.
+  - The top line leaving the quadrant got an inferred tangent to the circle. That would refuse step 330's 1.600 in height below the top. A circle that one of the line's endpoints lies on is no longer a tangent candidate.
+  Result: 4 entities, 7 constraints, **DOF 1**, the width that step 326 dimensions. Saved.
 - **Open: RangeError "Maximum call stack size exceeded"** in the render path (`editor_view.js:470` → `gpu.js:147` → three.webgpu). Repro observed once: sketch open on BatteryLoftPlane → Escape twice (leaves the sketch surface while the sketch stays active) → Select click lands on the model end face → Delete → Line tool click starts a new sketch on that face → draw. A plain reopen of HOUSING does not throw. Also noted: a second Escape leaves the sketch surface without finishing the sketch. SOLIDWORKS Escape only clears the selection or tool.
 
 ### Review follow-up (2026-09-13)
