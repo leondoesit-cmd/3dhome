@@ -11683,6 +11683,7 @@ function constraintMeasure(sketch, constraint) {
     return line ? line.angle*180/Math.PI : constraint.value;
   } else if (constraint.type === "angle") target = {type:"angle",a:constraint.a,b:constraint.b};
   else if (constraint.type === "offset" && sketchEntity(sketch, constraint.a) && sketchEntity(sketch, constraint.a).type === "line") target = {type:"lines",a:constraint.a,b:constraint.b};
+  else if (constraint.type === "pointLineDistance") target = {type:"pointLine",point:constraint.point,line:constraint.a};
   if (!target) return constraint.value;
   var measured = currentMeasure(sketch,target);
   return constraint.type === "diameter" ? measured*2 : measured;
@@ -12809,6 +12810,7 @@ function matchingSmartDimension(sketch, target) {
     if (target.type === "circle") return (constraint.type === "diameter" || constraint.type === "radius") && constraint.entity === target.id;
     if (target.type === "arc") return constraint.type === "radius" && constraint.entity === target.id;
     if (target.type === "ellipse") return constraint.type === "radius" && constraint.entity === target.id && (constraint.axis || "major") === (target.axis || "major");
+    if (target.type === "pointLine") return constraint.type === "pointLineDistance" && constraint.point === target.point && constraint.a === target.line;
     if (target.type === "lines") return constraint.type === "offset"
       && (constraint.a === target.a && constraint.b === target.b || constraint.a === target.b && constraint.b === target.a);
     if (target.type === "points") return constraint.type === "distance" && !constraint.entity
@@ -13551,6 +13553,18 @@ function wireSketch() {
           E.ssel = []; E.sel = null;
           return;
         }
+        if (dhit.type === undefined && "x" in dhit) {
+          smartDimension({ type: "pointLine", point: dhit.id, line: pendingLine.id }, e.clientX, e.clientY);
+          E.ssel = []; E.sel = null;
+          return;
+        }
+      }
+      // a point picked first, then a line: perpendicular distance (step 330: Origin → top line)
+      var pickedPoint = selPoints().length === 1 ? selPoints()[0] : null;
+      if (dhit && dhit.type === "line" && pickedPoint && dhit.a !== pickedPoint.id && dhit.b !== pickedPoint.id) {
+        smartDimension({ type: "pointLine", point: pickedPoint.id, line: dhit.id }, e.clientX, e.clientY);
+        E.ssel = []; E.sel = null;
+        return;
       }
       if (dhit && dhit.type === "line") {
         E.dimPick = [{ kind: "line", id: dhit.id }];

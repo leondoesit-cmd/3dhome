@@ -27,6 +27,8 @@ export function addSmartDimension(sketch, target, value) {
   } else if (target.type === "ellipse") {
     // one semi-axis per dimension: `axis` is what tells the solver which
     sketch.constraints.push({ id, type: "radius", entity: target.id, axis: target.axis === "minor" ? "minor" : "major", value: Number(value), driven: false });
+  } else if (target.type === "pointLine" && target.point && target.line) {
+    sketch.constraints.push({ id, type: "pointLineDistance", point: target.point, a: target.line, value: Number(value), driven: false });
   } else if (target.type === "lines" && target.a && target.b) {
     // distance between two parallel lines, signed the way the solver's offset residual reads it
     sketch.constraints.push({ id, type: "offset", a: target.a, b: target.b, value: Number(value), driven: false });
@@ -58,6 +60,11 @@ export function currentMeasure(sketch, target) {
     const a = sketchPoint(sketch, target.a), b = sketchPoint(sketch, target.b);
     return a && b ? Math.hypot(b.x - a.x, b.y - a.y) : 0;
   }
+  if (target.type === "pointLine") {
+    const p = sketchPoint(sketch, target.point), l = lineData(sketchEntity(sketch, target.line), points);
+    if (!p || !l || l.length < 1e-9) return 0;
+    return Math.abs((p.x - l.a.x) * l.dy - (p.y - l.a.y) * l.dx) / l.length;
+  }
   if (target.type === "lines") {
     const la = lineData(sketchEntity(sketch, target.a), points);
     const lb = lineData(sketchEntity(sketch, target.b), points);
@@ -82,11 +89,18 @@ export function currentMeasure(sketch, target) {
    `offset` is stored in screen pixels because annotations should keep a useful
    hand-sized clearance from the drawing at every zoom level. */
 export function distanceDimensionLayout(sketch, constraint, toPx) {
-  if (!sketch || !constraint || !["distance","offset"].includes(constraint.type)) return null;
+  if (!sketch || !constraint || !["distance","offset","pointLineDistance"].includes(constraint.type)) return null;
   const points = new Map((sketch.points || []).map((p) => [p.id, p]));
   const entities = new Map((sketch.entities || []).map((e) => [e.id, e]));
   let a = null, b = null;
-  if(constraint.type==="offset"){
+  if (constraint.type === "pointLineDistance") {
+    // drawn from the point to its foot on the line, so it reads as a perpendicular distance
+    const p = points.get(constraint.point), l = lineData(entities.get(constraint.a), points);
+    if (p && l && l.length > 1e-9) {
+      const t = ((p.x - l.a.x) * l.dx + (p.y - l.a.y) * l.dy) / (l.length * l.length);
+      a = p; b = { x: l.a.x + t * l.dx, y: l.a.y + t * l.dy };
+    }
+  } else if(constraint.type==="offset"){
     const source=lineData(entities.get(constraint.a),points),target=lineData(entities.get(constraint.b),points);
     if(source&&target){const t=((target.a.x-source.a.x)*source.dx+(target.a.y-source.a.y)*source.dy)/(source.length*source.length);a={x:source.a.x+t*source.dx,y:source.a.y+t*source.dy};b=target.a;}
     else{const source=circleData(entities.get(constraint.a),points),target=circleData(entities.get(constraint.b),points);if(source&&target){a={x:source.center.x+source.radius,y:source.center.y};b={x:target.center.x+target.radius,y:target.center.y};}}
@@ -126,7 +140,7 @@ function pointSegmentDistance(x, y, a, b) {
 export function hitSketchDimensionHit(sketch, x, y, toPx, tolerance = 9) {
   let best = null, bestDistance = Infinity, bestKind = "line";
   for (const constraint of sketch && sketch.constraints || []) {
-    if (constraint.suppressed || !["distance","offset"].includes(constraint.type)) continue;
+    if (constraint.suppressed || !["distance","offset","pointLineDistance"].includes(constraint.type)) continue;
     const layout = distanceDimensionLayout(sketch, constraint, toPx);
     if (!layout) continue;
     const text = `${Math.round(Number(constraint.value) * 10) / 10} cm`;
@@ -165,7 +179,7 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
     ctx.fillStyle = color;
     ctx.lineWidth = 1;
 
-    if (["distance","offset"].includes(c.type)) {
+    if (["distance","offset","pointLineDistance"].includes(c.type)) {
       const layout = distanceDimensionLayout(sketch, c, toPx);
       if (!layout) continue;
 

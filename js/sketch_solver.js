@@ -290,6 +290,12 @@ function residuals(sketch, tags) {
 
          This is what a circular sketch pattern is made of: a whole copy is one
          editable angular pitch, not one dimension per corner. */
+      case "pointLineDistance": {
+        // perpendicular distance from a point to a line (HOUSING step 330: Origin → top line)
+        const p = pt(c.point), l = line(c.a);
+        if (p && l && l.length > EPS) push(Math.abs((p.x - l.a.x) * l.dy - (p.y - l.a.y) * l.dx) / l.length - value);
+        break;
+      }
       case "offset": {
         const a=line(c.a),b=line(c.b);
         if(a&&b&&a.length>EPS)push(((b.a.x-a.a.x)*(-a.dy)+(b.a.y-a.a.y)*a.dx)/a.length-value);
