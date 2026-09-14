@@ -31,8 +31,19 @@ export function editRoundEntity(sketch,entity,pick,extend,lineCircle){
   }
   hits.sort((a,b)=>a-b);
   const picked=positive(Math.atan2(pick.y-round.center.y,pick.x-round.center.x)-start);
-  const pointAt=t=>({id:uid(),x:round.center.x+round.radius*Math.cos(start+t),y:round.center.y+round.radius*Math.sin(start+t)});
-  const setArc=(target,a,b)=>{const pa=pointAt(a),pb=pointAt(b);sketch.points.push(pa,pb);target.type='arc';target.a=round.a&&Math.abs(a)<EPS?round.a.id:pa.id;target.b=round.b&&Math.abs(b-span)<EPS?round.b.id:pb.id;target.c=entity.c??entity.center;delete target.r;};
+  /* A cut lands where another entity meets the curve — usually a line END
+     (HOUSING Sketchsquare side lines). Reuse that point, as SOLIDWORKS trims to
+     a coincident endpoint; a fresh point on top of it left the profile
+     branched and two extra degrees of freedom sliding along the arc. */
+  const centreId=entity.c??entity.center,snapTol=1e-5*Math.max(1,round.radius);
+  const pointAt=t=>{
+    const x=round.center.x+round.radius*Math.cos(start+t),y=round.center.y+round.radius*Math.sin(start+t);
+    const existing=(sketch.points||[]).find(p=>p.id!==centreId&&Math.hypot(p.x-x,p.y-y)<=snapTol);
+    return existing?{id:existing.id,reused:true}:{id:uid(),x,y};
+  };
+  const setArc=(target,a,b)=>{const pa=pointAt(a),pb=pointAt(b);[pa,pb].forEach(p=>{if(!p.reused&&!sketch.points.some(q=>q.id===p.id))sketch.points.push({id:p.id,x:p.x,y:p.y});});target.type='arc';target.a=round.a&&Math.abs(a)<EPS?round.a.id:pa.id;target.b=round.b&&Math.abs(b-span)<EPS?round.b.id:pb.id;target.c=centreId;delete target.r;};
+  // an arc endpoint is on the arc by definition; an explicit relation to the same curve is redundant
+  const dropImplicitOnCurve=target=>{sketch.constraints=(sketch.constraints||[]).filter(c=>!(c.type==='pointOnCircle'&&c.entity===target.id&&(c.point===target.a||c.point===target.b)));};
   if(extend){
     const outside=hits.filter(t=>t>span+EPS&&t<TAU-EPS);if(!outside.length)return false;
     const nearStart=Math.hypot(pick.x-round.a.x,pick.y-round.a.y)<=Math.hypot(pick.x-round.b.x,pick.y-round.b.y);
@@ -53,5 +64,6 @@ export function editRoundEntity(sketch,entity,pick,extend,lineCircle){
     }
   }
   sketch.constraints=(sketch.constraints||[]).filter(c=>!(c.entity===entity.id&&['distance','angle'].includes(c.type)));
+  (sketch.entities||[]).filter(e=>e.type==='arc'&&(e===entity||e.c===centreId)).forEach(dropImplicitOnCurve);
   pruneOrphanPoints(sketch);return true;
 }

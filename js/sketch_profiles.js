@@ -305,6 +305,10 @@ export function healSketchEndpoints(sketch, entityIds, tolerance = 0.05) {
     (sketch.constraints || []).forEach(c=>{if(Array.isArray(c.pairs))c.pairs=c.pairs.map(pair=>pair.map(id=>replacements.get(id) || id));});
   const dropped = new Set(replacements.keys());
   sketch.points = (sketch.points || []).filter((p) => !dropped.has(p.id));
+  // A point merged onto an arc's end is on that arc by definition; its old
+  // on-circle relation would now be redundant and read as over-defined.
+  const arcEnds = new Map((sketch.entities || []).filter((e) => e.type === "arc").map((e) => [e.id, new Set([e.a, e.b])]));
+  sketch.constraints = (sketch.constraints || []).filter((c) => !(c.type === "pointOnCircle" && arcEnds.has(c.entity) && arcEnds.get(c.entity).has(c.point)));
   const fixed = new Set();
   sketch.constraints = (sketch.constraints || []).filter((constraint) => {
     // Merging two anchored endpoints can turn their independent anchors into
