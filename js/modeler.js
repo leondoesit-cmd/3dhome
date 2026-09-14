@@ -6384,7 +6384,11 @@ function setTool(id, keepPlaneState) {
   }
   var opensSketchPlane = MODEL_PLANE_TOOLS.includes(id);
   var openingModelPlane = E.mode === "3d" && !E.modelPlaneActive && !keepPlaneState && opensSketchPlane;
-  var attachedToFace = openingModelPlane ? attachSketchToSelectedFace() : false;
+  /* With a sketch session already open, re-arming the surface resumes THAT
+     sketch. Attaching to whatever face was still picked started a stray face
+     sketch every time a drawing tool was chosen after leaving the surface. */
+  var sessionOpen = E.authoring && E.authoring.phase === "sketch";
+  var attachedToFace = openingModelPlane && !sessionOpen ? attachSketchToSelectedFace() : false;
   if (E.wallPts && id !== "wall") finishWallChain(false);
   if (id !== E.tool) E.dynInput = null;
   if (id !== E.tool) { E.dimPick = []; E.dimSel = null; }
@@ -11606,6 +11610,11 @@ function sketchesOnPlane(plane) {
 function sketchForView() {
   var current = ensureSketch(E.def);
   if (current.plane === E.view) return current;
+  /* An open sketch session owns its sketch. A face or datum sketch is
+     local-frame, so with its surface off its plane never matched E.view and
+     every line segment used to add a new principal sketch — 11 stray sketches
+     after a few clicks, and a render stack overflow. */
+  if (isCanonicalAuthoring() && E.authoring && E.authoring.phase === "sketch" && current.frameSpace === "local") return current;
   var existing = sketchesOnPlane(E.view);
   var target = existing.length ? existing[existing.length - 1] : addSketch(E.def, E.view, 0);
   E.def.activeSketch = target.id;
@@ -14165,6 +14174,20 @@ function onKey(e) {
     if (E.drag && E.drag.sticky) { E.drag = null; drawSketch(); syncContextActions(); return; }
     if (E.dimPick.length || E.dimSel) {
       E.dimPick = []; E.dimSel = null; E.ssel = []; E.sel = null; drawSketch(); syncStatus(); return;
+    }
+    /* While a sketch is being edited, Escape never leaves its surface — as in
+       SOLIDWORKS it drops the tool, then the selection. Leaving the surface on
+       a second Escape kept the sketch open behind the 3D view, so the next
+       click picked a model face and every drawing click attached yet another
+       face sketch (11 of them), which is how the render stack overflowed.
+       Finish plane editing / Finish sketch are the explicit ways out. */
+    if (E.mode === "3d" && E.modelPlaneActive && E.authoring && E.authoring.phase === "sketch") {
+      e.preventDefault();
+      if (E.tool !== "select") { setTool("select", true); syncTools(); syncHint(); return; }
+      if (E.sel || (E.ssel && E.ssel.length) || (E.topologySelection && E.topologySelection.length)) {
+        E.sel = null; E.ssel = []; E.topologySelection = []; refreshAll();
+      }
+      return;
     }
     if (E.mode === "3d" && E.modelPlaneActive) { finishModelPlane(); return; }
     if (E.docType === "assembly" && E.componentSel.length) { E.componentSel = []; E.sel = null; refreshAll(); return; }
