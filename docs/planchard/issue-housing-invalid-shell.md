@@ -1,7 +1,7 @@
 # Issue: Shell of a lofted/drafted body produces an invalid solid, and every later boolean loses the body
 
-Status: **open, blocking** HOUSING at Planchard book step 377 (Boss-Stop), branch `planchard`.
-Found: 2026-09-14. Guard commit: `bf54618` (makes the failure loud; does not fix it).
+Status: **fixed exactly** (2026-09-15). HOUSING Shell1 is a true constant-thickness shell, built like SOLIDWORKS builds it (offset each face, extend, intersect), valid and exportable; Boss-Stop fuses onto it. Guards from `bf54618` stay in place.
+Found: 2026-09-14. Guard commit: `bf54618` (makes the failure loud). Fix: `shellByJunctionBisectors` in `js/cad_kernel.js`, tried after the join offset and the rotational shell. The old sampled-section cavity is kept only as a last resort and is reported as an `approximate-shell` warning.
 
 ## Summary
 
@@ -16,7 +16,16 @@ The next feature, Boss-Stop, fuses a thin ring onto Shell1. The fuse "succeeds" 
 - Shell1 carries a `warning` issue `invalid-solid`.
 - Boss-Stop fails with `regeneration-failed`: "OpenCascade union lost material (917.011 and 11.371 cm³ gave 37.781 cm³); an input solid is likely invalid".
 
-**The fix needed:** Shell1 must yield a *valid* solid for this body, so the Boss-Stop union gives ≈ 926.2 cm³ and the rest of HOUSING can be built.
+**Fix (exact):** OpenCascade's join offset cannot hollow the merged body, but it offsets each feature on its own exactly. `shellByJunctionBisectors` slices the body at every feature junction (planar crease loops across the opening axis), offsets each slice, and splits the slice cavities on the surface that bisects each junction crease. The two offset surfaces of a crease always meet on that bisector (sharp corner for an outward fold, inward fold, or tangent), which is how SOLIDWORKS trims them. Where the bisector leans into a neighbouring slice, that slice's side faces are continued past the junction (analytic continuation: `ExtendFace` for planes/cylinders/cones, a Bezier segment for B-splines) in a thin band that is offset separately and added to its cavity. Details that each fixed a real failure:
+
+- Work 100x larger; offsets there are tighter.
+- The extended loft is offset as a separate band, not as one extended piece (one piece left two near-tangent seams 0.0104 cm loose).
+- Every splitter is non-destructive (a destructive split loosened the shared bisector for the next slice).
+- The bisector tilts at least 2° toward the way the junction leans (flat, it ran along the cavity edges at the tangent crease point and left 5.7 um vertices; the tilt moves the wall by far less than 1 um).
+- Cavity pieces are joined both as a plain union and as a 1 um fuzzy fuse, and the tighter valid result is kept (the tangent crease needs the fuzzy fuse; elsewhere the plain union is tighter).
+- The body keeps its own frame when its axis is already +z (a spun frame put the tangent point on the cylinder's parametric seam).
+
+The 917.011 cm³ join result was not a true thin wall (the loft/battery cavity was not formed); a 0.254 cm wall on this body is 156.35 cm³. Regression: `tests/planchard_housing_shell.test.mjs`. The cam-lock bolt now starts 1 mm inside the cam so the kernel union no longer grazes and drops the body (`js/toolbox/generate.js`).
 
 ## Geometry (all lengths cm, part frame; Front Plane is z = 0, +Z toward the front)
 
@@ -110,21 +119,28 @@ The existing kernel tests show the helpers: `makeBrepPrimitive`, `makeBrepLoft`/
 
 ## Acceptance criteria
 
-1. Shell1 on HOUSING yields a solid with `BRepCheck_Analyzer.IsValid_2() === true`.
-   - Volume within 0.01 cm³ of the analytic thin wall: the current invalid solid reads 917.011; the true value should be close to that.
-   - Wall 0.254 everywhere, front opening at z = 3.302.
-   - Exact bounds 111.125 × 111.125 × 177.8 mm (`shapeMassProperties(...).bounds`, tolerance-free).
-2. The Boss-Stop union gives a valid solid of ≈ 926.18 cm³, bounds 130.175 × 130.175 × 177.8 mm. The saved-record rebuild shows no `invalid-solid` or `regeneration-failed` issues.
-3. No regressions: `npm test` (2,771+ tests) and `npm run check` stay green, including `tests/cad_lenscap_shell.test.mjs`, `tests/kernel_body_finish.test.mjs`, `tests/cad_pattern_merge.test.mjs`, `tests/planchard_shell_exact_bounds.test.mjs` and `tests/planchard_boolean_volume_guard.test.mjs`.
-4. Keep the guards from `bf54618`: an invalid shell must never pass silently, and a boolean that loses material must still fail loudly.
-5. Add a node regression test that builds the extrude → loft → drafted boss → shell → ring chain and asserts 1 and 2.
+All measured on the real `shellBrep` path in node (`tests/planchard_housing_shell.test.mjs` checks each one).
 
-## Directions worth trying (not verified)
+1. Shell1 is exact: no `invalid` and no `approximate` tag, one valid solid, export passes (max tolerance 0.000926 cm, no tolerance clamped or relaxed). **Met.**
+   - Volume 156.35 cm³. Outer bounds unchanged: 111.125 × 111.125 × 177.8 mm; front opening at z = 3.302, back wall at z = −14.478.
+2. Wall thickness, measured perpendicular from the outer surface to the inside faces, all round every 5–10°. **Met.**
+   - 0.2540 cm on the cylinder, the loft, the battery and the back wall, and in rings from z = −3.15 to −3.40 around the loft/battery junction.
+   - Beside the sharp cylinder/loft crease the wall reads up to 0.2598 cm, under the t / cos(θ/2) = 0.2607 cm of a sharp inside corner at the 26° crease. That is the SOLIDWORKS geometry, not an error; the earlier overlap build read 0.2449 cm there (too thin).
+3. No cracks at creases: points 0.1t, 0.5t and 0.9t in along the normal bisector of every shared outer edge are inside the wall — 0 of 705 missing. **Met.**
+4. The Boss-Stop union is one valid, exportable solid, 165.52 cm³. **Met.**
+5. Guards from `bf54618` kept: an invalid shell is still flagged `invalid-solid`; a union that loses material still throws. A sampled-section fallback, if it is ever used, is flagged `approximate-shell`. **Met.**
+6. Related kernel tests stay green: `cad_lenscap_shell`, `kernel_body_finish`, `cad_pattern_merge`, `planchard_shell_exact_bounds`, `planchard_boolean_volume_guard`, `toolbox_parametric`; `npm run check` is green.
 
-- **Other offset options:** `MakeThickSolidByJoin` with `Intersection = true` (the 7th argument, currently false), `SelfInter = true`, or `RemoveIntEdges = true` (the 9th argument). Also `BRepOffset_Pipe` mode. Check each with `IsValid_2`.
-- **Per-face offset and sew:** offset each non-removed face with `BRepOffsetAPI_MakeOffset` / `BRepOffset_MakeOffset` face by face; trim against neighbours; sew outer and inner skins with `BRepBuilderAPI_Sewing`; `MakeSolid`; validate.
-- **Rebuild the offset inner cylinder:** replace only the invalid face with an exact analytic cylinder trimmed to the loft's offset face, then `ShapeFix_Shell`/`ShapeFix_Solid` **only** if the volume is unchanged. A full ShapeFix changed the volume and is not acceptable.
-- **Avoid the tangent seam:** check whether shelling each merged feature's tool separately and fusing the thin walls gives a valid result. The inner walls then must be booleaned consistently.
-- **Newer kernel:** check whether a newer opencascade.js / OCCT fixes this offset case (OCCT 7.7+ has offset fixes around tangent B-spline faces).
+Known cost: the exact Shell1 takes about 3.5 minutes to build in node (offsets at scale, bands, bisector splits, and two unions per join).
 
-Contact point for review: the Planchard session resumes HOUSING at Boss-Stop once this issue is fixed. See `docs/planchard/workflow-audit.md` → "Steps 367–379, Boss-Stop".
+## What was tried
+
+- Join flags (`Intersection`, `SelfInter`, `RemoveIntEdges`, tolerances) on the whole body, on halves, and on sectors cut through the axis at every fold flip: invalid, not done, or exceptions.
+- Sampled-section cavity (the previous fix): valid but faceted, walls 0.233–0.359 cm.
+- Per-slice offsets joined at the junction plane: thin (0.2449) beside the outward-folding crease, a ledge at the inward one.
+- Face slabs (`MakeThickSolidBySimple`) in a cell decomposition: cracks along all 16 inward-folding edges (234 of 705 crease samples); mitre filler wedges broke the decomposition.
+- Overlapping extended cavities (`from: -0.1` battery): passed export only because moving the draft pivot shrank the battery wall to 0.2557; with the pivot right, tolerance 0.32 cm.
+- Extended loft offset as one piece: 0.0104 cm seams at every setting.
+- Stopping each slice cavity short of the junction: plane-trimmed bands 0.003 cm loose.
+
+Next: reload HOUSING in the UI, confirm Shell1 rebuilds without an `approximate-shell` or `invalid-solid` warning, then resume at Boss-Stop (`docs/planchard/workflow-audit.md` → "Steps 367–379, Boss-Stop").

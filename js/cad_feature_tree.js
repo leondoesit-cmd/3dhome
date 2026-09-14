@@ -393,6 +393,7 @@ export async function regenerateFeatures(def, options = {}) {
       });
       results.set(feature.id, result);
       if (result.invalid) issues.push({ feature: feature.id, severity: "warning", code: "invalid-solid", message: String(result.invalid) });
+      if (result.approximate) issues.push({ feature: feature.id, severity: "warning", code: "approximate-shell", message: String(result.approximate) });
       feature.error = null;
       feature.regeneratedAt = Date.now();
     } catch (error) {
