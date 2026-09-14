@@ -252,7 +252,18 @@ Browser-verified (Browser pane, real clicks): Front-plane circle → Dimension t
 **Base Extrude (steps 277–280) accepted.** Depth `1.300in` → Mass properties (exact solid) **X 111.125 · Y 111.125 · Z 33.02 mm, 320.2510 cm³**, analytic πr²h = 320.25100 cm³. The book prints [111.13]; 4.375 in is exactly 111.125 mm. Renamed Base Extrude, model named HOUSING, saved.
 - Fixed: the centre-of-mass row printed quadrature noise (`X -2.6624468270138713e-16`), and inertia products printed ±1e-19. Values below 1e-9 (relative for inertia) now show 0.
 - Gap G10 confirmed: there is no Description property on a part (step 269, "HOUSING FOR 6VOLT FLASHLIGHT"). Settings holds only name and price.
-- UI defect: in Settings ▸ Guidance, the "Interface density" label wraps one letter per line in the left panel.
+- UI defect: in Settings ▸ Guidance, the "Interface density" label wraps one letter per line in the left panel. (Fixed.)
+
+### HOUSING continuation: Description, BatteryLoftPlane, Sketchsquare start (2026-09-14)
+
+- **Description property (G10 closed for parts and assemblies).** `def.customProperties.Description` is edited under the model name in Settings. It saves, reloads, and links into the drawing title block: TITLE shows it while the stored title is empty or still the model name, and a typed title overrides it. The BOM Description column reads the same property. Browser-verified: HOUSING FOR 6VOLT FLASHLIGHT survives reload and appears in the title block.
+- **Drawing sheet was blank (fixed).** In Drawing mode `#mdCanvas` had `width/height:auto`. A canvas is a replaced element, so each resize doubled it to 33,554,432 px.
+- **Empty red bar in the Sheet panel (fixed).** `display:flex` beat `[hidden]` on the dangling-dimension box.
+- **HOUSING labelled "hybrid" after its first save (fixed).** The exact-regeneration mesh cache on an `ext` part counted as direct geometry. After a re-save HOUSING reads "fully parametric".
+- **BatteryLoftPlane (steps 286–293).** Selected the Base Extrude end face → Reference plane → name BatteryLoftPlane, offset `1.300in` (shown as 3.302 cm) → Apply. Saved. Gaps fixed: user reference planes were never drawn in the 3D view (now a translucent square at the resolved origin and normal), and a sketch on one said "Sketching on Front (X·Y)" (it now names the plane).
+- **Sketchsquare (steps 294–298).** Create sketch → Datum planes → BatteryLoftPlane → Copy face boundary offers Convert circular edge → the Ø11.113 cm circle is fully defined on the plane.
+- **Line to a circle quadrant.** Ending a line on a quadrant added no relation; it now adds `pointOnCircle`, as SOLIDWORKS adds Coincident. Test: `tests/planchard_quadrant_snap.test.mjs`. UI recheck pending.
+- **Open: RangeError "Maximum call stack size exceeded"** in the render path (`editor_view.js:470` → `gpu.js:147` → three.webgpu). Repro observed once: sketch open on BatteryLoftPlane → Escape twice (leaves the sketch surface while the sketch stays active) → Select click lands on the model end face → Delete → Line tool click starts a new sketch on that face → draw. A plain reopen of HOUSING does not throw. Also noted: a second Escape leaves the sketch surface without finishing the sketch. SOLIDWORKS Escape only clears the selection or tool.
 
 ### Review follow-up (2026-09-13)
 

@@ -1743,7 +1743,10 @@ function documentPlaneOverlays(def) {
   if (!planes.length) return [];
   var span = 40;
   (def.parts || []).forEach(function (part) {
-    try { var b = partBounds(part); span = Math.max(span, (b.x1 - b.x0) * 1.2, (b.y1 - b.y0) * 1.2, (b.z1 - b.z0) * 1.2); } catch (error) { /* unsized part */ }
+    try {
+      var b = partBounds(part);
+      [(b.x1 - b.x0), (b.y1 - b.y0), (b.z1 - b.z0)].forEach(function (extent) { if (fin(extent)) span = Math.max(span, extent * 1.2); });
+    } catch (error) { /* unsized part */ }
   });
   var out = [], zAxis = new THREE.Vector3(0, 0, 1);
   planes.forEach(function (ref) {
