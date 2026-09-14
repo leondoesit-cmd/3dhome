@@ -1729,6 +1729,43 @@ function addPartFeatureOverlays(parent, part) {
   }
 }
 
+/* User reference planes (BatteryLoftPlane, ThreadPlane…) were resolved and
+   listed in the tree but never drawn, so an offset plane was invisible in the
+   model it was placed against. Each gets a translucent square sized to the
+   model at its resolved origin/normal, brighter while selected. Not pickable:
+   a sheet in front of the body must not swallow face picks — select a plane
+   from the tree or the datum picker. */
+function documentPlaneOverlays(def) {
+  if (!def || E.docType !== "part" || E.mode !== "3d") return [];
+  var planes = (def.references || []).filter(function (ref) {
+    return ref && ref.type === "plane" && ref.origin && ref.normal && !/^plane:(top|front|right)$/.test(ref.id || "") && !ref.hidden;
+  });
+  if (!planes.length) return [];
+  var span = 40;
+  (def.parts || []).forEach(function (part) {
+    try { var b = partBounds(part); span = Math.max(span, (b.x1 - b.x0) * 1.2, (b.y1 - b.y0) * 1.2, (b.z1 - b.z0) * 1.2); } catch (error) { /* unsized part */ }
+  });
+  var out = [], zAxis = new THREE.Vector3(0, 0, 1);
+  planes.forEach(function (ref) {
+    var normal = new THREE.Vector3(ref.normal.x, ref.normal.y, ref.normal.z);
+    if (normal.lengthSq() < 1e-12) return;
+    normal.normalize();
+    var selected = ref.id === E.selectedReferenceId, color = selected ? 0xffb020 : 0x7f8ea3;
+    var mesh = new THREE.Mesh(new THREE.PlaneGeometry(span, span), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: selected ? 0.22 : 0.1, side: THREE.DoubleSide, depthWrite: false }));
+    var edge = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: color }));
+    [mesh, edge].forEach(function (object) {
+      object.quaternion.setFromUnitVectors(zAxis, normal);
+      object.position.set(ref.origin.x, ref.origin.y, ref.origin.z);
+      object.userData.cadOverlay = true;
+      object.userData.cadPlaneOverlay = ref.id;
+      object.raycast = function () {};
+      object.renderOrder = 17;
+      out.push(object);
+    });
+  });
+  return out;
+}
+
 function addDocumentOverlays(parent, def) {
   if (!def) return;
   if(E.docType==="part" && E.mode==="3d" && !(def.parts || []).length && !(ensureSketch(def).entities || []).length && E.authoring.phase==="model") {
@@ -1742,6 +1779,7 @@ function addDocumentOverlays(parent, def) {
       edge.rotation.copy(mesh.rotation); edge.userData.cadReferenceId=mesh.userData.cadReferenceId; parent.add(edge);
     });
   }
+  documentPlaneOverlays(def).forEach(function (overlay) { parent.add(overlay); });
   var repair=E.authoring && E.authoring.repairMarker;
   if(repair) {
     var radius=Math.max(1,decorationWorldPerPixel()*14), at=repair.origin;
@@ -9769,6 +9807,10 @@ function syncExtrudeButton() {
 function sketchPlaneCaption() {
   var sketch=ensureSketch(E.def);
   if (activeSketchFrame() && sketch.support) return t("facePrefix") + " · " + (sketch.support.semantic || sketch.support.persistentId);
+  // a sketch on a user plane names the plane, not the principal view it is parallel to
+  var plane = sketch.referenceId && !/^plane:(top|front|right)$/.test(sketch.referenceId)
+    && (E.def.references || []).find(function (ref) { return ref.id === sketch.referenceId; });
+  if (plane) return referenceLabel(plane);
   return t(E.view === "top" ? "view_top" : E.view === "front" ? "view_front" : "view_right");
 }
 /* "Face", "Edge 42 cm", "Vertex" — the kind, and the one number that makes an
