@@ -364,11 +364,11 @@ function writeVariables(vars, vector) {
   vars.forEach((v, i) => { v.obj[v.k] = vector[i]; });
 }
 
-function jacobian(sketch, vars, base) {
+function jacobian(sketch, vars, base, options) {
   return numericJacobian((vector) => {
     writeVariables(vars, vector);
     return residuals(sketch);
-  }, readVariables(vars), base);
+  }, readVariables(vars), base, options);
 }
 
 /* Re-exported rather than moved out of reach: wall_dof.js builds its own
@@ -434,17 +434,69 @@ export function solveSketch(sketch, options = {}) {
     };
   }
 
+  /* Rank is only meaningful at a precise solution. A dependency that holds ON
+     the constraint manifold (a mirrored arc's own end-radius rule, implied by
+     the symmetric pairs) is broken by the leftover residual, so at 1e-5 it
+     showed up as a ~1e-6 singular value and counted as an independent row:
+     HOUSING's Sketchsquare reported "fully constrained" with its width and
+     height still free, then "over-constrained" for the book's two dimensions
+     even though both solve exactly. Polish a converged sketch first. */
+  if (converged && vars.length) {
+    let polish = residuals(sketch), polishError = normOf(polish), polishDamping = 1e-9;
+    for (let i = 0; i < 8 && polishError > 1e-11; i++) {
+      const Jp = jacobian(sketch, vars, polish);
+      const step = gaussNewtonStep(Jp, polish, polishDamping), keep = vars.map((v) => v.obj[v.k]);
+      vars.forEach((v, k) => { v.obj[v.k] = (Number(v.obj[v.k]) || 0) + step[k]; });
+      const after = residuals(sketch), afterError = normOf(after);
+      if (afterError <= polishError) { polish = after; polishError = afterError; }
+      else { vars.forEach((v, k) => { v.obj[v.k] = keep[k]; }); break; }
+    }
+    error = polishError;
+  }
+
+  /* The rank needs accurate derivatives. The forward-difference Jacobian the
+     Newton loop uses has ~1e-5 truncation error on distance and tangent rows,
+     so rows that are exactly dependent (a mirrored arc's end-radius rule) came
+     out 1e-5 apart and passed a 1e-9 pivot test as independent. Central
+     differences fix smooth rows, but several residuals are written with |…|
+     and a symmetric stencil across that kink reads a zero slope (a slot then
+     reported 9 freedoms instead of 5). So take the central value where it
+     agrees with the forward one, and keep the forward slope at a kink. */
   const tags = [], final = residuals(sketch, tags);
-  const J = jacobian(sketch, vars, final), rank = rankOf(J);
+  /* Forward stays the default. Measured on HOUSING's mirrored Sketchsquare and
+     the editor's slot: forward reads the slot's 5 freedoms right but hides the
+     mirror's exact dependency (the Sketchsquare reports 0 freedoms, truly 2);
+     "central"/"blend" see that dependency but misread the slot (8–9). No
+     tolerance fixed both, so the choice is exposed for diagnosis only. The
+     book-blocking half — a consistent sketch called over-defined — is handled
+     below by judging redundancy on the user's relations alone. */
+  const rankMode = options.rankJacobian || "forward", rankTolerance = options.rankTolerance ?? 1e-9;
+  const forwardJ = jacobian(sketch, vars, final);
+  const centralJ = rankMode === "forward" ? forwardJ : jacobian(sketch, vars, final, { central: true });
+  const J = rankMode === "central" ? centralJ : forwardJ.map((row, i) => row.map((forward, j) => {
+    const central = centralJ[i][j];
+    // relative agreement: a far point's slope on a |cross| row can be ~3e-4, and an
+    // absolute threshold let the kink's central 0 through (slot: 9 freedoms)
+    return Math.abs(forward - central) <= 1e-2 * Math.max(Math.abs(forward), Math.abs(central)) ? central : forward;
+  }));
+  const rank = rankOf(J, rankTolerance);
   const conflicts = [];
   final.forEach((v, i) => {
     const c = tags[i];
     if (c && !c.implicit && Math.abs(v) > Math.max(1e-3, tolerance * 100) && !conflicts.includes(c.id)) conflicts.push(c.id);
   });
   const dof = Math.max(0, vars.length - rank);
-  // More independent equations than the geometry has freedoms: even a solved
-  // sketch is over-defined and the next dimension will fight an existing one.
-  const redundant = final.length > 0 && rank < final.length && converged && dof === 0;
+  /* More independent equations than the geometry has freedoms: even a solved
+     sketch is over-defined and the next dimension will fight an existing one.
+     Only the user's relations can be redundant in that sense — an arc's own
+     end-radius rule duplicated by a mirror is geometry, not a relation anyone
+     added, and must not turn a fully defined sketch "over-defined". */
+  let redundant = false;
+  if (final.length > 0 && rank < final.length && converged && dof === 0) {
+    const explicitRows = [];
+    final.forEach((_, i) => { if (!(tags[i] && tags[i].implicit)) explicitRows.push(J[i]); });
+    redundant = explicitRows.length > 0 && rankOf(explicitRows) < explicitRows.length;
+  }
   return {
     converged, iterations: iteration, error,
     rank, residualCount: final.length, variableCount: vars.length,

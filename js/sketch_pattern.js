@@ -31,6 +31,8 @@ function copyEntities(sketch, entities, place) {
     entityPoints(sketch, entity).forEach((p) => {
       if (map.has(p.id)) return;
       const at = place(p);
+      // a point the transform leaves where it is (on a mirror axis) IS its copy
+      if (at && at.same) { map.set(p.id, p); return; }
       const copy = { id: uid("pt"), x: at.x, y: at.y };
       sketch.points.push(copy);
       map.set(p.id, copy);
@@ -38,6 +40,8 @@ function copyEntities(sketch, entities, place) {
   });
 
   entities.forEach((entity) => {
+    // an entity every one of whose points maps to itself would be a duplicate lying on top of it
+    if (entityPoints(sketch, entity).every((p) => map.get(p.id) === p)) return;
     const copy = { ...entity, id: uid(entity.type) };
     if (entity.type === "line") { copy.a = map.get(entity.a).id; copy.b = map.get(entity.b).id; }
     else if (entity.type === "spline") { for(const key of ["a","h1","h2","b"])copy[key]=map.get(entity[key]).id; }
@@ -75,14 +79,20 @@ export function mirrorEntities(sketch, entityIds, axisEntityId) {
     .filter((e) => e.id !== axisEntityId);
   if (!sources.length) return null;
 
+  /* A point ON the axis is its own reflection. Copying it left the mirrored
+     top line of HOUSING's Sketchsquare starting at a duplicate of the
+     centerline end — two open endpoints and a branched profile. */
+  const onAxisTol = 1e-6 * Math.max(1, Math.sqrt(len2));
   const reflect = (p) => {
     const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
     const fx = a.x + dx * t, fy = a.y + dy * t;      // foot of the perpendicular
+    if (Math.hypot(p.x - fx, p.y - fy) <= onAxisTol) return { same: true };
     return { x: 2 * fx - p.x, y: 2 * fy - p.y };
   };
 
   const made = copyEntities(sketch, sources, reflect);
   made.points.forEach((copy, sourceId) => {
+    if (copy.id === sourceId) return;               // on the axis: no pair to hold
     sketch.constraints.push({ id: uid("c"), type: "symmetric", a: sourceId, b: copy.id, entity: axisEntityId });
   });
   // a mirrored circle keeps its parent's radius; an ellipse keeps both semi-axes
