@@ -157,6 +157,7 @@ import {
   FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
   bomCsv, bomTableRows, buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
 } from "./modeler_commands.js";
+import { documentDescription, setDocumentDescription, sheetTitleText } from "./core/custom_properties.js";
 import { MODELER_DRAFT_KEY, clearModelerDraft, parseModelerDraft, readModelerDraft, serializeModelerDraft, writeModelerDraft } from "./modeler_draft.js";
 import {
   featureField as featureFieldCore, featureControlValue, evaluateFeatureNumber, validateFeatureInputs, readFeatureParameterForm, renderFeatureParameterForm as renderFeatureParameterFormCore,
@@ -3293,6 +3294,7 @@ function buildDOM() {
     '</div>' +
     '<div class="md-head-inputs">' +
     '<label class="md-field"><span>' + t("name") + '</span><input id="mdName" type="text" autocomplete="off"></label>' +
+    '<label class="md-field"><span>' + t("description") + '</span><input id="mdDescription" type="text" autocomplete="off" title="' + t("descriptionHint") + '"></label>' +
     '<label class="md-field md-field-sm"><span>' + t("price") + '</span><input id="mdPrice" type="number" min="0"></label>' +
     "</div>" +
     /* Regenerate / STEP / drawing all have a labelled home in the Evaluate tab
@@ -4199,6 +4201,16 @@ function buildDOM() {
     pushUndo(t("renameDocument"));
     if (assembly) E.assembly.name = this.value;
     else E.def.name = this.value;
+    syncUndoButtons();
+  });
+  /* Description is a named custom property (SOLIDWORKS $PRP:"Description"),
+     not a second name: drawings put it in the title block and the BOM's
+     Description column, while the name stays the file / part number. */
+  root.querySelector("#mdDescription").addEventListener("change", function () {
+    var doc = E.docType === "assembly" ? E.assembly : E.def;
+    if (!doc || documentDescription(doc) === this.value.trim()) return;
+    pushUndo(t("editDescription"));
+    setDocumentDescription(doc, this.value);
     syncUndoButtons();
   });
   root.querySelector("#mdPrice").addEventListener("change", function () {
@@ -9671,6 +9683,7 @@ function setDocumentType(type) {
 async function saveAssemblyDocument() {
   if (!E.assembly) E.assembly = newAssembly();
   E.assembly.name = root.querySelector("#mdName").value || E.assembly.name;
+  setDocumentDescription(E.assembly, root.querySelector("#mdDescription").value);
   applyAssemblyMates(E.assembly);
   var saved = cloneData(E.assembly);
   var list = loadAssemblies().filter(function (a) { return a.key !== saved.key; });
@@ -10385,7 +10398,7 @@ function drawingSheet() {
       bodiesToken: function () { return E.sheetToken; },
       meta: function () {
         var doc = ensureSheetDoc(E.def);
-        return { title: doc.title.title || E.def.name || "", material: doc.title.material || E.def.material || "" };
+        return { title: sheetTitleText(doc, E.def), material: doc.title.material || E.def.material || "" };
       },
       bom: function () {
         if (E.docType !== "assembly" || !E.assembly) return null;
@@ -20531,6 +20544,8 @@ function refreshLib() {
 
 function syncHead() {
   var name = root.querySelector("#mdName"), price = root.querySelector("#mdPrice");
+  var description = root.querySelector("#mdDescription");
+  if (description) description.value = documentDescription(E.docType === "assembly" ? E.assembly : E.def);
   if (E.docType === "assembly") {
     name.value = E.assembly ? E.assembly.name || "" : "";
     price.closest(".md-field").style.display = "none";
@@ -21514,6 +21529,7 @@ async function saveModel() {
      of this function. See the guard before markDocumentClean(). */
   var savingDoc = E.def, savingItem = E.srcItem, savingNode = currentHistoryNode();
   E.def.name = root.querySelector("#mdName").value || E.def.name;
+  setDocumentDescription(E.def, root.querySelector("#mdDescription").value);
   E.def.price = +root.querySelector("#mdPrice").value || 0;
   // Canonical documents already own their feature history.  Reconstructing it
   // from render parts here would discard design intent; only legacy-adapter

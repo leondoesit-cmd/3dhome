@@ -1,6 +1,8 @@
 // Command catalog and keyboard map for the model editor. Kept out of
 // modeler.js so the ribbon, search, and key handler share one vocabulary.
 
+import { documentDescription } from "./core/custom_properties.js";
+
 export const KEY_VIEW = { 4: "top", 5: "front", 6: "side" };
 
 // Letter keys pick a sketch or direct tool. R is reserved for parametric
@@ -51,8 +53,10 @@ export function bomTableRows(rows, components) {
     var component = byKey.get(row.key);
     // A material may be recorded on the instance or on the model it came off.
     var material = (component && (component.material || (component.def && component.def.material))) || row.material || "";
+    // the model's Description property, as a SOLIDWORKS BOM's Description column
+    var description = (component && (documentDescription(component) || documentDescription(component.def))) || "";
     return {
-      item: index + 1, key: row.key, name: row.name,
+      item: index + 1, key: row.key, name: row.name, description: description,
       quantity: row.quantity, material: String(material),
     };
   });

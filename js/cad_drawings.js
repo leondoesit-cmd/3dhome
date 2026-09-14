@@ -17,6 +17,11 @@ import {
 import { tessellateParts } from "./core/part_tessellate.js";
 import { projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
 import { calloutText, calloutTextById, holeCallouts, holeLeaderForViews } from "./core/hole_callout.js";
+import { sheetTitleText } from "./core/custom_properties.js";
+
+/* The title block's TITLE is the Description property, as a SOLIDWORKS sheet
+   format links it; the model name is only the fallback. */
+const sheetTitle = (def, doc) => sheetTitleText(doc, def) || "Untitled part";
 
 /* Kept as the name this module has always exported; the walk itself is shared
    with the interactive sheet (see core/hole_callout.js) so both engines spell a
@@ -60,7 +65,7 @@ function standardSheet(def, options, bodies) {
     projection: options.projection,
     views: options.views || ["front", "top", "right", "iso"],
     title: {
-      title: options.title || def?.name || "Untitled part",
+      title: options.title || sheetTitle(def),
       number: options.number || def?.partNumber || "",
       revision: options.revision || def?.revision || "A",
       author: options.author || "",
@@ -132,7 +137,7 @@ export function buildDrawingScene(def, options = {}) {
   return buildSheetScene(doc, {
     projection: project,
     callouts: calloutTextById(def),
-    meta: { title: options.title || doc.title.title || def?.name || "Untitled part" },
+    meta: { title: options.title || sheetTitle(def, doc) },
     bom: balloons.map((row) => ({ item: row.item, qty: row.qty, name: row.name, material: row.material })),
   });
 }

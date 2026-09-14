@@ -157,6 +157,7 @@ export function createView(dir, options = {}) {
 export function ensureSheetDoc(def, options = {}) {
   if (!def) return createSheetDoc(options);
   if (!def.drawing || typeof def.drawing !== "object" || !Array.isArray(def.drawing.views) || !def.drawing.views.length) {
+    // the stored name is the link to Description (see sheetTitleText)
     def.drawing = createSheetDoc(Object.assign({ title: { title: def.name || "" } }, options));
   }
   const doc = def.drawing;
@@ -1490,7 +1491,7 @@ function bomTableItems(doc, rows) {
   rows.forEach((row, index) => {
     const rowY = y + header + (index + 1) * rowHeight - 1.6;
     let cell = x;
-    [String(row.item ?? index + 1), String(row.qty ?? row.quantity ?? 1), row.name || "", row.material || ""].forEach((value, column) => {
+    [String(row.item ?? index + 1), String(row.qty ?? row.quantity ?? 1), row.description || row.name || "", row.material || ""].forEach((value, column) => {
       items.push(text(cell + 1.5, rowY, value, { size: TEXT_SIZES.small }));
       cell = edges[column];
     });
