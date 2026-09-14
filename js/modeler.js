@@ -9257,9 +9257,17 @@ function chromeCommandLabel(id) {
 function fillActionHost(host, items, close) {
   if (!host) return;
   host.innerHTML = "";
+  var showLabels = host.id === "mdContextToolbar" || (host.classList && host.classList.contains("md-context-toolbar"));
   items.forEach(function (item) {
     var label = chromeCommandLabel(item.id);
-    var button = el("button", "", cadIcon(item.id || item.icon) + (item.shortcut ? "<kbd>" + item.shortcut + "</kbd>" : ""));
+    var content = cadIcon(item.id || item.icon);
+    if (showLabels && label) {
+      content += "<span class=\"md-action-label\">" + label + "</span>";
+    }
+    if (item.shortcut) {
+      content += "<kbd>" + item.shortcut + "</kbd>";
+    }
+    var button = el("button", "", content);
     button.type = "button";
     button.title = label;
     button.setAttribute("aria-label", label);
@@ -9336,8 +9344,8 @@ function syncSelectionChrome() {
   var items = contextToolbarItems(input);
   var picked = input.face || input.edge || input.sketchEntity || input.featureSelected || input.oneComponent;
   if (toolbar) {
-    toolbar.hidden = !picked || !items.length || E.overlays.menu || E.overlays.shortcut || E.mode === "drawing";
-    if (!toolbar.hidden) fillActionHost(toolbar, items, null);
+    // Floating context toolbar disabled for now per user request
+    toolbar.hidden = true;
   }
   var crumbs = selectionBreadcrumb({
     reference: (E.topologySelection || [])[0],

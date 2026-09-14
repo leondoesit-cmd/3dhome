@@ -20,6 +20,15 @@ export function initDropdownMenus(doc, options) {
   const opts = options || {};
   instance = createMenuController(doc, opts);
   instance.wireAll();
+  const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
+  if (isMac && doc && doc.querySelectorAll) {
+    doc.querySelectorAll(".menu-kbd").forEach(function (k) {
+      k.textContent = k.textContent
+        .replace(/Ctrl\+Shift\+/g, "⌘⇧")
+        .replace(/Ctrl\+/g, "⌘")
+        .replace(/Alt\+/g, "⌥");
+    });
+  }
   return instance;
 }
 

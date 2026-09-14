@@ -418,7 +418,8 @@ export function buildIconSettingsPane(closeSettings) {
       button.appendChild(staticIcon(resolveIconName(item.name)));
       var copy = make("span");
       copy.appendChild(make("strong", null, labelFor(item.name)));
-      copy.appendChild(make("small", null, t("icons_places_count", { count: item.count })));
+      var countKey = item.count === 1 ? "icons_places_count_one" : "icons_places_count";
+      copy.appendChild(make("small", null, t(countKey, { count: item.count })));
       button.appendChild(copy);
       if (state.overrides[item.name]) button.appendChild(make("b", "icon-custom-dot", ""));
       button.onclick = function () { selected = item.name; pickerOpen = false; renderUsed(); renderDetail(); };

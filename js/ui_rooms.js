@@ -9,17 +9,24 @@
  * The size fields are the point of the panel, not decoration. A preset's
  * numbers are a starting guess — "bedroom, but 3.8 by 3.2" is the normal case,
  * not the exception — and typing it BEFORE placing is far cheaper than
- * stamping a 3.5 and then dragging two walls. They clamp to the preset's own
- * minimum, so the panel cannot arm something unbuildable.
+ * stamping a 3.5 and then dragging two walls. Values are exact interior
+ * sizes in the project's display unit (2.74m, 9'-6"), with a 20 cm hard
+ * minimum so the panel cannot arm something unbuildable.
  */
 
 import { S } from "./state.js";
 import { t, onLangChange } from "./i18n.js";
 import { ROOM_CATEGORIES, ROOM_PRESETS, roomPreset, presetsByCategory, CONNECTION_MODES } from "./room_presets.js";
-import { armRoomStamp, rotateRoomStamp, resizeRoomStamp, setRoomStampConnMode } from "./interaction.js";
+import { armRoomStamp, rotateRoomStamp, setRoomStampSize, setRoomStampConnMode } from "./interaction.js";
+import { planningGuide } from "./planning_guide.js";
+import { formatLength, parseLength } from "./planning_units.js";
 
 var host = null;
 var activeCat = ROOM_CATEGORIES[0].id;
+
+function displayUnit() {
+  return planningGuide(S).details.displayUnit || "cm";
+}
 
 function label(preset) {
   var s = t(preset.i18n);
@@ -70,7 +77,10 @@ function build() {
     name.textContent = label(preset);
     var size = document.createElement("span");
     size.className = "rp-size";
-    size.textContent = (preset.w / 100).toFixed(1) + " × " + (preset.d / 100).toFixed(1);
+    var unit = displayUnit();
+    var shownW = S.roomStamp && S.roomStamp.id === preset.id ? S.roomStamp.w : preset.w;
+    var shownD = S.roomStamp && S.roomStamp.id === preset.id ? S.roomStamp.d : preset.d;
+    size.textContent = formatLength(shownW, unit, { suffix: false }) + " × " + formatLength(shownD, unit, { suffix: false });
     b.append(name, size);
     b.addEventListener("click", function () { armRoomStamp(preset.id); });
     grid.appendChild(b);
@@ -83,7 +93,7 @@ function build() {
     sec.className = "wd-sec rp-size-sec";
     var lab = document.createElement("span");
     lab.className = "wd-lab";
-    lab.textContent = t("rp_clearSize");
+    lab.textContent = t("rp_clearSize") + " (" + t("guide_unit_" + displayUnit()) + ")";
     sec.appendChild(lab);
     var row = document.createElement("div");
     row.className = "rp-fields";
@@ -128,6 +138,11 @@ function build() {
       connSec.appendChild(hint);
     }
     host.appendChild(connSec);
+
+    var sizeHint = document.createElement("div");
+    sizeHint.className = "rp-open-note";
+    sizeHint.textContent = t("rp_size_hint");
+    host.appendChild(sizeHint);
   }
 }
 
@@ -137,14 +152,27 @@ function sizeField(axis, preset) {
   var cap = document.createElement("span");
   cap.textContent = axis === "w" ? t("rp_width") : t("rp_depth");
   var input = document.createElement("input");
-  input.type = "number";
-  input.min = String(preset.min[axis]);
-  input.step = "5";
-  input.value = String(Math.round(S.roomStamp[axis]));
-  input.addEventListener("change", function () {
-    var next = Math.max(preset.min[axis], Number(input.value) || preset[axis]);
-    resizeRoomStamp(axis === "w" ? next - S.roomStamp.w : 0, axis === "d" ? next - S.roomStamp.d : 0);
-    input.value = String(Math.round(S.roomStamp[axis]));
+  input.type = "text";
+  input.inputMode = "decimal";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.dataset.axis = axis;
+  var unit = displayUnit();
+  input.value = formatLength(S.roomStamp[axis], unit, { suffix: false });
+  input.setAttribute("aria-label", (axis === "w" ? t("rp_width") : t("rp_depth")) + " (" + t("guide_unit_" + unit) + ")");
+  function commit() {
+    var next = parseLength(input.value, unit);
+    if (!Number.isFinite(next)) {
+      input.value = formatLength(S.roomStamp[axis], unit, { suffix: false });
+      return;
+    }
+    if (axis === "w") setRoomStampSize(next, S.roomStamp.d);
+    else setRoomStampSize(S.roomStamp.w, next);
+    input.value = formatLength(S.roomStamp[axis], unit, { suffix: false });
+  }
+  input.addEventListener("change", commit);
+  input.addEventListener("keydown", function (event) {
+    if (event.key === "Enter") { event.preventDefault(); commit(); }
   });
   wrap.append(cap, input);
   return wrap;
@@ -171,6 +199,7 @@ export function initRoomPalette(root) {
   // the armed preset changes from the keyboard too (R, and the 0 shortcut),
   // so the panel listens rather than being told by every call site
   window.addEventListener("planner-room-stamp", refreshRoomPalette);
+  window.addEventListener("planner-units", refreshRoomPalette);
   onLangChange(build);
   return host;
 }

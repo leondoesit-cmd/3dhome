@@ -4,6 +4,8 @@
    Kept free of the canvas, THREE, and the furniture catalog so the mapping
    can be unit-tested in Node. plan2d.js is the drawing layer on top. */
 import { S } from "./state.js";
+import { displayUnit } from "./display_units.js";
+import { PLANNING_UNITS } from "./planning_units.js";
 
 export function planRotRad() {
   return ((S.planRot || 0) * Math.PI) / 180;
@@ -88,6 +90,74 @@ export function isOnScreen(x, z, margin) {
   return scr.x > m && scr.y > m && scr.x < S.CW - m && scr.y < S.CH - m;
 }
 
+/* Keep a typed rubber-band (or any small set of world points) inside the plan
+   pane. Auto-pan follows the mouse, so a length typed while the cursor stays
+   put can run hundreds of centimetres off-screen; this pans, and zooms out
+   only when the span is wider than the current view. It never zooms in. */
+export function ensurePointsVisible(points, margin) {
+  if (!(S.SC > 0) || !(S.CW > 0) || !(S.CH > 0)) return false;
+  var m = margin == null ? 56 : Math.max(16, Number(margin) || 56);
+  var pts = [];
+  (points || []).forEach(function (p) {
+    if (p && isFinite(p.x) && isFinite(p.z)) pts.push(p);
+  });
+  if (!pts.length) return false;
+
+  function screenBox() {
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    pts.forEach(function (p) {
+      var scr = rotatePx(sx(p.x), sz(p.z));
+      minX = Math.min(minX, scr.x);
+      maxX = Math.max(maxX, scr.x);
+      minY = Math.min(minY, scr.y);
+      maxY = Math.max(maxY, scr.y);
+    });
+    return { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+  }
+
+  var box = screenBox();
+  if (box.minX >= m && box.minY >= m && box.maxX <= S.CW - m && box.maxY <= S.CH - m)
+    return false;
+
+  var minx = Infinity, maxx = -Infinity, minz = Infinity, maxz = -Infinity;
+  pts.forEach(function (p) {
+    minx = Math.min(minx, p.x);
+    maxx = Math.max(maxx, p.x);
+    minz = Math.min(minz, p.z);
+    maxz = Math.max(maxz, p.z);
+  });
+  var worldW = Math.max(maxx - minx, 1e-6),
+    worldD = Math.max(maxz - minz, 1e-6),
+    availW = Math.max(1, S.CW - m * 2),
+    availH = Math.max(1, S.CH - m * 2),
+    fitSc = Math.min(availW / worldW, availH / worldD),
+    cx = (minx + maxx) / 2,
+    cz = (minz + maxz) / 2,
+    changed = false;
+
+  if (fitSc < S.SC) {
+    S.SC = fitSc;
+    S.OX = S.CW / 2 - cx * S.SC;
+    S.OY = S.CH / 2 - cz * S.SC;
+    return true;
+  }
+
+  box = screenBox();
+  var dx = 0, dy = 0;
+  if (box.minX < m && box.maxX > S.CW - m) dx = S.CW / 2 - (box.minX + box.maxX) / 2;
+  else if (box.minX < m) dx = m - box.minX;
+  else if (box.maxX > S.CW - m) dx = S.CW - m - box.maxX;
+  if (box.minY < m && box.maxY > S.CH - m) dy = S.CH / 2 - (box.minY + box.maxY) / 2;
+  else if (box.minY < m) dy = m - box.minY;
+  else if (box.maxY > S.CH - m) dy = S.CH - m - box.maxY;
+  if (!dx && !dy) return changed;
+
+  var pa = -planRotRad();
+  S.OX += dx * Math.cos(pa) - dy * Math.sin(pa);
+  S.OY += dx * Math.sin(pa) + dy * Math.cos(pa);
+  return true;
+}
+
 /* Where a newly created room/item should land, in world cm.
 
    The natural answer is "the middle of what the user is looking at", i.e. the
@@ -122,8 +192,14 @@ export function dropPoint() {
 }
 
 export function niceScaleCm(sc) {
-  var nice = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000];
-  if (!(sc > 0) || !isFinite(sc)) return nice[2];
+  var unit = displayUnit();
+  var nice;
+  if (unit === "ft") nice = [30.48, 60.96, 152.4, 304.8, 609.6, 1524, 3048, 6096, 15240];
+  else if (unit === "in") nice = [2.54, 5.08, 12.7, 25.4, 30.48, 60.96, 152.4, 304.8, 609.6];
+  else if (unit === "m") nice = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+  else if (unit === "mm") nice = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
+  else nice = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+  if (!(sc > 0) || !isFinite(sc)) return nice[2] || PLANNING_UNITS[unit] || 10;
   var best = nice[0],
     bestDiff = Infinity;
   for (var i = 0; i < nice.length; i++) {

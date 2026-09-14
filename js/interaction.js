@@ -29,7 +29,7 @@ import {
 import {
   applyWallDrawDefaults, drawFaceBack, isWallDrawTool, extendToHit, throughCrossings,
   offsetGhost, offsetSideFromCursor, joinProposal, paintWallWithDefaults,
-  reverseWallStyle, resolveWallDrawDefaults,
+  reverseWallStyle, resolveWallDrawDefaults, applyDrawDirLock, resetDrawDirLock,
 } from "./wall_draw.js";
 import { makeArcFromThreePoints, normalizeWallKind } from "./wall_curves.js";
 import { canonicalPlacementItem, canonicalPlacementWall, placementBatchFitsScene, placementWallFingerprint } from "./placement_resolver.js";
@@ -41,6 +41,7 @@ import { FURN, isLamp, itemVSpan, mkItem } from "./furniture.js";
 import { holdToWall, reseatHeldItems } from "./item_align.js";
 import { applyAutoFace, markManualRot, rotStep } from "./item_orient.js";
 import { t, tTouch } from "./i18n.js";
+import { fmtLen, unitLabel } from "./display_units.js";
 import { plan, render2D, fitView, dropPoint, pickCon as flatPickCon, touchLensDistanceMap, setDragProxy, clearDragProxy } from "./plan2d.js";
 import { select, fillProps, refreshTree, flash, setLockStruct, placeFurnAt } from "./ui.js";
 import { syncWallEnd } from "./ui_props.js";
@@ -856,6 +857,7 @@ export function finishDraw() {
   S.previewPt = null;
   S.snapGuides = [];
   S.snapInfo = null;
+  resetDrawDirLock();
   onDrawEnded();
   render2D();
   // Drawing walls can create, split or merge rooms — the tree has to resync,
@@ -886,6 +888,7 @@ export function wallPoint(p) {
   if (!S.drawing) {
     // Landing mid-span SPLITS that wall (getOrMakeNode), which is a change of
     // topology, not of somebody's stated interior dimension — see below.
+    resetDrawDirLock();
     S.drawFromSplit = !!p.wall || !!(p.walls && p.walls.length);
     S.drawWalls = [];
     S.drawFrom = getOrMakeNode(p);
@@ -961,6 +964,7 @@ export function wallPoint(p) {
   S.drawFrom = nb;
   S.drawFromSplit = !!p.wall || !!(p.walls && p.walls.length);
   S.drawing = true;
+  resetDrawDirLock();
   S.previewPt = { x: S.nodes[nb].x, z: S.nodes[nb].z };
   S.freshWall = null;
   render2D();
@@ -1300,6 +1304,16 @@ export function resizeRoomStamp(dw, dd) {
   if (!preset) return;
   st.w = Math.max(20, st.w + (dw || 0));
   st.d = Math.max(20, st.d + (dd || 0));
+  if (S.previewPt) updateRoomGhost(S.previewPt.x, S.previewPt.z);
+  render2D();
+  window.dispatchEvent(new CustomEvent("planner-room-stamp"));
+}
+
+export function setRoomStampSize(w, d) {
+  var st = S.roomStamp;
+  if (!st) return;
+  if (fin(w)) st.w = Math.max(20, w);
+  if (fin(d)) st.d = Math.max(20, d);
   if (S.previewPt) updateRoomGhost(S.previewPt.x, S.previewPt.z);
   render2D();
   window.dispatchEvent(new CustomEvent("planner-room-stamp"));
@@ -2545,6 +2559,7 @@ function snapWallPoint(px, pz, fromIdx) {
   if (!(S.tool === "wall" && S.drawing && fromIdx != null)) return p;
   var origin = S.nodes[fromIdx];
   if (!origin) return p;
+  p = applyDrawDirLock(origin, p);
   if (p.node != null || p.wall || (p.walls && p.walls.length)) return p;
   var hit = extendToHit(origin, p, wallJoinTolerance());
   if (!hit) return p;
@@ -4206,7 +4221,7 @@ export function initInteraction() {
       x: ox,
       y: oy,
       axes: ["X", "Z"],
-      unitLabel: t("cm"),
+      unitLabel: unitLabel(),
       sourceCanvases: function () { return [plan]; },
       screenToModel: function (point) { return { x: wx(point.x, point.y), y: wz(point.x, point.y) }; },
       modelToScreen: function (point) {
@@ -4219,9 +4234,9 @@ export function initInteraction() {
         if (S.drawing && S.drawFrom != null && S.nodes[S.drawFrom]) {
           var from = S.nodes[S.drawFrom], length = Math.hypot(world.x - from.x, world.z - from.z);
           var angle = Math.atan2(world.z - from.z, world.x - from.x) * 180 / Math.PI;
-          secondary = "L " + Math.round(length * 10) / 10 + " " + t("cm") + " · ∠ " + Math.round(angle * 10) / 10 + "°";
+          secondary = "L " + fmtLen(length) + " · ∠ " + Math.round(angle * 10) / 10 + "°";
         }
-        return { primary:"X " + Math.round(world.x * 10) / 10 + " · Z " + Math.round(world.z * 10) / 10, secondary:secondary };
+        return { primary:"X " + fmtLen(world.x, { suffix: false }) + " · Z " + fmtLen(world.z, { suffix: false }), secondary:secondary };
       },
       getDistances: function (point) { return touchLensDistanceMap(point.x, point.y, true); },
       onMove: function (point) { dispatchPrecisionMove(plan, point); },

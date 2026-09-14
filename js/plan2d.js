@@ -34,6 +34,8 @@ import { FURN, flabel, isLamp, lampColor, fcolor, itemVSpan } from "./furniture.
 import { isSmartType, devicePowered } from "./smarthome.js";
 import { planCab } from "./cabinet.js";
 import { t } from "./i18n.js";
+import { planningDisplayUnit } from "./planning_guide.js";
+import { formatLength } from "./planning_units.js";
 import { SITE, llToLocalCm } from "./site.js";
 import { drawMEP, mepAliveCount } from "./mep.js";
 import { isElevation, drawElevation, ceilingHeight } from "./elevation.js";
@@ -57,7 +59,8 @@ import { cursors, pruneCursors } from "./plan_sync.js";
 import { isLayerVisible, isLayerGhosted, isLayerHidden, layerRank } from "./layers.js";
 
 export {
-  sx, sz, wx, wz, planRotRad, toBasePx, rotatePx, dropPoint, centerOn, isOnScreen, niceScaleCm,
+  sx, sz, wx, wz, planRotRad, toBasePx, rotatePx, dropPoint, centerOn, isOnScreen,
+  ensurePointsVisible, niceScaleCm,
 } from "./plan_view.js";
 
 export const plan = typeof document !== "undefined" ? document.getElementById("plan") : null;
@@ -1025,7 +1028,7 @@ function renderHUD() {
       pc.arc(sx(S.arcDraft.through.x), sz(S.arcDraft.through.z), 4, 0, Math.PI * 2); pc.fill(); pc.restore();
     }
     if (draftArc && !touchDrawing()) label(S.previewPt.x, S.previewPt.z - 12 / S.SC,
-      Math.round(draftArc.L) + " " + t("cm") + "  R" + Math.round(draftArc.radius), "#3f6b78");
+      planLen(draftArc.L) + "  R" + Math.round(draftArc.radius), "#3f6b78");
   }
   if (S.tool === "rect" || S.tool === "slabvoid") {
     if (S.rectDraft && S.previewPt) {
@@ -1041,7 +1044,7 @@ function renderHUD() {
       label(
         (rx0 + rx1) / 2,
         (rz0 + rz1) / 2,
-        Math.round(rx1 - rx0) + " × " + Math.round(rz1 - rz0) + " " + t("cm"),
+        planSize(rx1 - rx0, rz1 - rz0),
         S.tool === "slabvoid" ? "#c45c4a" : "#3f6b78",
       );
     }
@@ -1083,9 +1086,8 @@ function renderHUD() {
     }
     pc.restore();
     if (!touchDrawing()) {
-      var dcW = Math.round(Math.min(dc.x1 - dc.x0, dc.z1 - dc.z0));
       label((dc.x0 + dc.x1) / 2, (dc.z0 + dc.z1) / 2,
-        t("rp_corridor") + " " + dcW + " " + t("cm"), "#e0813a");
+        t("rp_corridor") + " " + planLen(Math.min(dc.x1 - dc.x0, dc.z1 - dc.z0)), "#e0813a");
     }
   }
   /* Room resize handles. A room you have just placed is a rectangle with a
@@ -1126,7 +1128,7 @@ function renderHUD() {
         });
         var th = Number(S.wallDrag.wall.thickness) || 10;
         label((bx0 + bx1) / 2, (bz0 + bz1) / 2,
-          Math.round(bx1 - bx0 - th) + " × " + Math.round(bz1 - bz0 - th) + " " + t("cm"),
+          planSize(bx1 - bx0 - th, bz1 - bz0 - th),
           "#e0813a");
       }
     }
@@ -1198,7 +1200,7 @@ function renderHUD() {
       }
       label((rr.x0 + rr.x1) / 2, (rr.z0 + rr.z1) / 2,
         rmG.blocked ? t("rp_overlapShort")
-          : Math.round(rmG.size.w) + " × " + Math.round(rmG.size.d) + " " + t("cm") + modeSuffix, rmCol);
+          : planSize(rmG.size.w, rmG.size.d) + modeSuffix, rmCol);
     }
   }
   /* The span about to be bitten out of a wall, drawn over the wall itself in
@@ -1223,7 +1225,7 @@ function renderHUD() {
       pc.restore();
       if (!touchDrawing())
         label((pA.x + pB.x) / 2, (pA.z + pB.z) / 2,
-          Math.round(bhi - blo) + " " + t("cm"), "#c45c4a");
+          planLen(bhi - blo), "#c45c4a");
     }
   }
   if (S.tool === "walloffset" && S.offsetDraft && S.offsetDraft.hostId != null) {
@@ -1233,7 +1235,7 @@ function renderHUD() {
       if (og) {
         drawGhostWall(og.a.x, og.a.z, og.b.x, og.b.z);
         label((og.a.x + og.b.x) / 2, (og.a.z + og.b.z) / 2,
-          Math.round(og.dist) + " " + t("cm"), "#e0813a");
+          planLen(og.dist), "#e0813a");
       }
     }
   }
@@ -1305,6 +1307,14 @@ export function segBearing(a, b) {
   return Math.round((Math.atan2(b.z - a.z, b.x - a.x) * 180) / Math.PI);
 }
 
+function planLen(cm, options) {
+  return formatLength(cm, planningDisplayUnit(S), options);
+}
+
+function planSize(w, d) {
+  return planLen(w, { suffix: false }) + " × " + planLen(d);
+}
+
 function fillPoly(pts, fill, stroke) {
   if (!pts || pts.length < 3) return;
   pc.beginPath();
@@ -1369,8 +1379,8 @@ function drawGhostWall(ax, az, bx, bz) {
 function drawPreviewDims(from, preview) {
   var metrics = previewMetrics(S.drawFrom, preview);
   if (!metrics) return;
-  var d = Math.round(Math.max(0, metrics.length -
-    (S.interiorDims !== false ? pendingCuts(S.drawFrom, preview) : 0)));
+  var d = Math.max(0, metrics.length -
+    (S.interiorDims !== false ? pendingCuts(S.drawFrom, preview) : 0));
   var turnDeg = Math.round((metrics.turn * 180) / Math.PI);
   var angTxt = metrics.hasPrev
     ? (turnDeg > 0 ? "+" : "") + turnDeg + "°"
@@ -1379,7 +1389,7 @@ function drawPreviewDims(from, preview) {
      midpoint copy would sit under the hand AND collide with the parallel and
      close-loop labels below. */
   if (!touchDrawing())
-    label((from.x + preview.x) / 2, (from.z + preview.z) / 2, d + " " + t("cm") + "  " + angTxt, "#3f6b78");
+    label((from.x + preview.x) / 2, (from.z + preview.z) / 2, planLen(d) + "  " + angTxt, "#3f6b78");
   if (metrics.parallel) {
     var par = metrics.parallel, mx = (from.x + preview.x) / 2, mz = (from.z + preview.z) / 2;
     var ox = mx - par.nx * par.dist, oz = mz - par.nz * par.dist;
@@ -1394,7 +1404,7 @@ function drawPreviewDims(from, preview) {
     pc.setLineDash([]);
     pc.restore();
     if (!touchDrawing())
-      label((mx + ox) / 2, (mz + oz) / 2, Math.round(par.abs) + " " + t("cm"), "#e0813a");
+      label((mx + ox) / 2, (mz + oz) / 2, planLen(par.abs), "#e0813a");
   }
   if (metrics.close && metrics.close.dist > 8) {
     pc.save();
@@ -1409,7 +1419,7 @@ function drawPreviewDims(from, preview) {
     pc.restore();
     if (!touchDrawing())
       label((preview.x + metrics.close.x) / 2, (preview.z + metrics.close.z) / 2,
-        Math.round(metrics.close.dist) + " " + t("cm"), "#6b8a92");
+        planLen(metrics.close.dist), "#6b8a92");
   }
 }
 
@@ -1512,11 +1522,11 @@ function touchDrawReadout() {
   if (S.tool === "wall" && S.drawing && S.drawFrom != null && S.nodes[S.drawFrom] && S.previewPt) {
     var m = previewMetrics(S.drawFrom, S.previewPt);
     if (!m) return null;
-    var len = Math.round(Math.max(0, m.length -
-      (S.interiorDims !== false ? pendingCuts(S.drawFrom, S.previewPt) : 0)));
+    var len = Math.max(0, m.length -
+      (S.interiorDims !== false ? pendingCuts(S.drawFrom, S.previewPt) : 0));
     var turnDeg = Math.round((m.turn * 180) / Math.PI);
     return {
-      main: len + " " + t("cm"),
+      main: planLen(len),
       sub: m.hasPrev
         ? (turnDeg > 0 ? "+" : "") + turnDeg + "\u00b0"
         : "\u2220" + Math.round((m.absAng * 180) / Math.PI) + "\u00b0",
@@ -1525,14 +1535,13 @@ function touchDrawReadout() {
   if (S.tool === "arcwall" && S.arcDraft && (S.nodes[S.arcDraft.startNode] || S.arcDraft.startPoint) && S.previewPt) {
     var a0 = S.nodes[S.arcDraft.startNode] || S.arcDraft.startPoint;
     var arc = S.arcDraft.through ? makeArcFromThreePoints(a0, S.arcDraft.through, S.previewPt) : null;
-    if (arc) return { main: Math.round(arc.L) + " " + t("cm"), sub: "R" + Math.round(arc.radius) };
-    return { main: Math.round(Math.hypot(S.previewPt.x - a0.x, S.previewPt.z - a0.z)) + " " + t("cm"), sub: "" };
+    if (arc) return { main: planLen(arc.L), sub: "R" + Math.round(arc.radius) };
+    return { main: planLen(Math.hypot(S.previewPt.x - a0.x, S.previewPt.z - a0.z)), sub: "" };
   }
   if ((S.tool === "rect" || S.tool === "slabvoid") && S.rectDraft && S.previewPt) {
     return {
-      main: Math.round(Math.abs(S.previewPt.x - S.rectDraft.x)) + " \u00d7 " +
-        Math.round(Math.abs(S.previewPt.z - S.rectDraft.z)),
-      sub: t("cm"),
+      main: planSize(Math.abs(S.previewPt.x - S.rectDraft.x), Math.abs(S.previewPt.z - S.rectDraft.z)),
+      sub: "",
     };
   }
   return null;
@@ -1621,7 +1630,7 @@ function drawTouchGuide() {
     color: "#4f46e5",
     crosshair: "#e05a46",
     distances: touchLensDistances(tc),
-    unitLabel: t("cm"),
+    unitLabel: t("guide_unit_" + planningDisplayUnit(S)),
     handedness: getTouchPrecisionPrefs().handedness,
   });
   pc.save();
@@ -1645,7 +1654,7 @@ function drawOverallDims(bb) {
   var yT = sz(bb.minz) - off,
     xA = sx(bb.minx),
     xB = sx(bb.maxx);
-  dimLine(xA, yT, xB, yT, 0, ext, Math.round(bb.w) + "");
+  dimLine(xA, yT, xB, yT, 0, ext, planLen(bb.w, { suffix: false }));
   pc.beginPath();
   pc.moveTo(xA, sz(bb.minz));
   pc.lineTo(xA, yT - ext);
@@ -1655,7 +1664,7 @@ function drawOverallDims(bb) {
   var xL = sx(bb.minx) - off,
     zA = sz(bb.minz),
     zB = sz(bb.maxz);
-  dimLine(xL, zA, xL, zB, ext, 0, Math.round(bb.d) + "");
+  dimLine(xL, zA, xL, zB, ext, 0, planLen(bb.d, { suffix: false }));
   pc.beginPath();
   pc.moveTo(sx(bb.minx), zA);
   pc.lineTo(xL - ext, zA);
@@ -1924,35 +1933,34 @@ function drawPlanCursors() {
    next to the glyph so a point can be checked without selecting it. */
 function markerCard(m) {
   var info = markerInfo(m, ceilingHeight()),
-    held = info.held,
-    cm = t("cm");
+    held = info.held;
   var lines = [];
   lines.push({ txt: markerLabel(m) + (held ? " · " + flabel(held.type) : ""), head: true });
   lines.push({
     txt:
-      Math.round(m.x) + ", " + Math.round(m.z) +
-      (info.y > 0.5 ? "  ↑" + Math.round(info.y) : "") +
+      planLen(m.x, { suffix: false }) + ", " + planLen(m.z, { suffix: false }) +
+      (info.y > 0.5 ? "  ↑" + planLen(info.y, { suffix: false }) : "") +
       "  " + t("mk_sf_" + (m.surface || "floor")),
   });
   var room = info.room ? info.roomName || t("room") : t("mk_outside");
   if (info.near)
-    room += "  ·  " + flabel(info.near.item.type) + " " + Math.round(info.near.dist) + cm;
+    room += "  ·  " + flabel(info.near.item.type) + " " + planLen(info.near.dist);
   lines.push({ txt: room });
   function g(k) {
-    return info.dm[k] == null ? "—" : Math.round(info.dm[k]);
+    return info.dm[k] == null ? "—" : planLen(info.dm[k], { suffix: false });
   }
   lines.push({
-    txt: "↑" + g("n") + "  ↓" + g("s") + "  ←" + g("w") + "  →" + g("e") + "  " + cm,
+    txt: "↑" + g("n") + "  ↓" + g("s") + "  ←" + g("w") + "  →" + g("e") + "  " + t("guide_unit_" + planningDisplayUnit(S)),
   });
   if (info.tight.length)
     lines.push({
       txt: t("mk_tight", {
-        req: Math.round(m.req),
+        req: planLen(m.req, { suffix: false }),
         sides: info.tight.map(function (k) { return t("mk_dir_" + k); }).join(", "),
       }),
       warn: true,
     });
-  else if (m.req != null) lines.push({ txt: t("mk_req") + ": " + Math.round(m.req) + cm });
+  else if (m.req != null) lines.push({ txt: t("mk_req") + ": " + planLen(m.req) });
   if (m.note) lines.push({ txt: m.note });
 
   infoCard(m.x, m.z, lines);
@@ -1965,10 +1973,9 @@ function markerCard(m) {
 function nodeCard(ni) {
   var info = jointInfo(ni);
   if (!info) return;
-  var cm = t("cm"),
-    lines = [];
+  var lines = [];
   lines.push({
-    txt: t("nd_title") + " · " + Math.round(info.x) + ", " + Math.round(info.z),
+    txt: t("nd_title") + " · " + planLen(info.x, { suffix: false }) + ", " + planLen(info.z, { suffix: false }),
     head: true,
   });
   lines.push({
@@ -1978,7 +1985,7 @@ function nodeCard(ni) {
   info.arms.forEach(function (arm) {
     lines.push({
       txt:
-        t("wall") + " " + arm.wall.id + "  " + Math.round(arm.len) + cm +
+        t("wall") + " " + arm.wall.id + "  " + planLen(arm.len) +
         "  " + Math.round(arm.ang) + "°",
     });
   });
@@ -2130,11 +2137,7 @@ function drawScale() {
   pc.font = "10px Arial";
   pc.textAlign = "left";
   pc.textBaseline = "middle";
-  pc.fillText(
-    cm >= 100 ? cm / 100 + " " + t("m_unit") : cm + " " + t("cm"),
-    x0,
-    y0 + 8,
-  );
+  pc.fillText(planLen(cm), x0, y0 + 8);
   pc.restore();
 }
 function drawRank(it) {
@@ -2287,7 +2290,7 @@ function drawWall(w) {
     label(
       midP.x + midN.x * off,
       midP.z + midN.z * off,
-      Math.round(wallClearLength(w)) + "",
+      planLen(wallClearLength(w), { suffix: false }),
       isSel ? "#2c5560" : "#6b6356",
     );
   }

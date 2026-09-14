@@ -3,6 +3,7 @@ import { S, hexStr, TILE } from "./state.js";
 import { wallById, roomByKey, roomFloor, roomName, wallGeom, itemsInRoom, wallClearLength, wallDimSide, wallSideNormal, jointInfo, nodeDegree } from "./geometry.js";
 import { flabel, isLamp, lampColor, variantList, variantOf, vlabel, itemVSpan } from "./furniture.js";
 import { t } from "./i18n.js";
+import { displayUnit, fmtLen, writeLen, parseLen, unitLabel, fmtAreaM2 } from "./display_units.js";
 import { refreshTree } from "./ui_tree.js";
 import { fillMEP } from "./ui_mep.js";
 import { fillItemSmart } from "./ui_smarthome.js";
@@ -43,6 +44,18 @@ import {
   verticalSegments,
 } from "./wall_curves.js";
 
+function inspectorUnit() {
+  return displayUnit();
+}
+
+function inspectorLen(cm, options) {
+  return fmtLen(cm, options);
+}
+
+function writeInspectorLen(id, cm) {
+  writeLen(document.getElementById(id), cm);
+}
+
 /* The stacking link, in the inspector: which piece this one stands on, and a
    way out of it that does not require dragging (a piece buried under a pile is
    awkward to grab in the plan). Read-only otherwise — the link itself is made
@@ -65,7 +78,7 @@ function fillStackRow(it) {
   name.textContent = t("stack_lbl") + ": " + flabel(host.type);
   var hgt = document.createElement("span");
   hgt.className = "ps-spec-dims";
-  hgt.textContent = Math.round(it.elev || 0) + " " + t("cm");
+  hgt.textContent = fmtLen(it.elev || 0);
   var off = document.createElement("button");
   off.className = "ps-spec-clear";
   off.innerHTML = '<i class="ph ph-arrow-line-down"></i>';
@@ -151,7 +164,7 @@ function fillWallTypeSelect(id, selected) {
   S.wallTypes.forEach(function (type) {
     var option = document.createElement("option");
     option.value = type.id;
-    option.textContent = type.name + " · " + Math.round(type.thickness * 10) / 10 + " " + t("cm");
+    option.textContent = type.name + " · " + fmtLen(type.thickness);
     el.appendChild(option);
   });
   el.value = wanted;
@@ -244,9 +257,7 @@ function fillWallLock(w) {
   // quote the FACE length, the same basis as #w_len and the plan label
   state.textContent = on
     ? t("cw_holding", {
-        L: Math.round(
-          w.lockClearL != null ? w.lockClearL : wallClearLength(w),
-        ),
+        L: inspectorLen(w.lockClearL != null ? w.lockClearL : wallClearLength(w)),
         a: Math.round(
           w.lockAng != null ? w.lockAng : (wallGeom(w).ang * 180) / Math.PI,
         ),
@@ -427,10 +438,6 @@ function m2(v) {
   return (Math.round(v / 100) / 100).toFixed(2) + " " + t("sqm");
 }
 
-function meters(cm) {
-  return (Math.round(cm) / 100).toFixed(2) + " " + t("m");
-}
-
 /* The architectural summary line, as chips: the three dimensions plus the one
    number that is always asked for next and never shown — the surface actually
    left to build, plaster and paint once the openings are cut out. */
@@ -444,9 +451,9 @@ function fillWallStats(w) {
     nOpen = wallOpeningsOf(w).length,
     net = Math.max(0, L * H - wallOpeningArea(w, L, H));
   var chips = [
-    { k: t("len"), v: meters(L), sub: Math.abs(Lraw - L) > 0.6 ? t("wi_axis", { v: meters(Lraw) }) : "" },
-    { k: t("height"), v: meters(H), sub: "" },
-    { k: t("th"), v: Math.round(T * 10) / 10 + " " + t("cm"), sub: "" },
+    { k: t("len"), v: inspectorLen(L), sub: Math.abs(Lraw - L) > 0.6 ? t("wi_axis", { v: inspectorLen(Lraw) }) : "" },
+    { k: t("height"), v: inspectorLen(H), sub: "" },
+    { k: t("th"), v: fmtLen(T), sub: "" },
     { k: t("wi_netArea"), v: m2(net), sub: nOpen ? t(nOpen === 1 ? "wi_netOf1" : "wi_netOf", { n: nOpen }) : "" },
   ];
   host.innerHTML = "";
@@ -607,7 +614,7 @@ function fillWallOpenings(w) {
 
     var nm = document.createElement("span");
     nm.className = "nm";
-    nm.textContent = t(openingTypeKey(o.type)) + " · " + Math.round(o.width) + "×" + Math.round(o.height) + " " + t("cm");
+    nm.textContent = t(openingTypeKey(o.type)) + " · " + fmtLen(o.width, { suffix: false }) + "×" + fmtLen(o.height);
 
     var sub = document.createElement("span");
     sub.className = "sub";
@@ -672,7 +679,7 @@ function fillWallOpenings(w) {
    draw is re-read from the model, so a diagram can never disagree with it. */
 
 function fmtCm(v) {
-  return Math.round(v * 10) / 10 + " " + t("cm");
+  return fmtLen(v);
 }
 
 /* Layer materials are authored as slugs ("concrete-block"). Translate the ones
@@ -905,7 +912,7 @@ function fillWallElevation(w) {
       oy = Y((o.sill || 0) + o.height);
     var sel = openingFocused(o);
     var label =
-      t(openingTypeKey(o.type)) + " " + Math.round(o.width) + "×" + Math.round(o.height) + " · " + Math.round(o.s) + " " + t("cm") +
+      t(openingTypeKey(o.type)) + " " + fmtLen(o.width, { suffix: false }) + "×" + fmtLen(o.height) + " · " + fmtLen(o.s) +
       " · " + t("wi_openDblHint");
     parts.push(
       '<g class="w-open-hit w-open-' + (o.type === "door" ? "d" : o.type === "window" ? "w" : "p") + (sel ? " sel" : "") + '" data-oid="' + o.id + '">' +
@@ -930,16 +937,16 @@ function fillWallElevation(w) {
       '<line class="w-elev-tick" x1="0" y1="' + (H + 5) + '" x2="0" y2="' + Y(0) + '"/>' +
         '<line class="w-elev-tick" x1="' + ox + '" y1="' + oy + '" x2="' + ox + '" y2="' + (H + 5) + '"/>' +
         '<line class="w-elev-tick" x1="' + right + '" y1="' + oy + '" x2="' + right + '" y2="' + (H + 5) + '"/>' +
-        '<text class="w-elev-tag" x="' + (ox + o.width / 2) + '" y="' + tagY + '">' + Math.round(o.width) + " × " + Math.round(o.height) + "</text>" +
-        '<text class="w-elev-tag" x="' + ox / 2 + '" y="' + (H + 4 + TFS) + '">A ' + Math.round(Math.max(0, ox)) + "</text>" +
-        '<text class="w-elev-tag" x="' + ((right + L) / 2) + '" y="' + (H + 4 + TFS) + '">B ' + Math.round(Math.max(0, L - right)) + "</text>",
+        '<text class="w-elev-tag" x="' + (ox + o.width / 2) + '" y="' + tagY + '">' + inspectorLen(o.width, { suffix: false }) + " × " + inspectorLen(o.height, { suffix: false }) + "</text>" +
+        '<text class="w-elev-tag" x="' + ox / 2 + '" y="' + (H + 4 + TFS) + '">A ' + inspectorLen(Math.max(0, ox), { suffix: false }) + "</text>" +
+        '<text class="w-elev-tag" x="' + ((right + L) / 2) + '" y="' + (H + 4 + TFS) + '">B ' + inspectorLen(Math.max(0, L - right), { suffix: false }) + "</text>",
     );
   });
   parts = parts.concat(tags);
   var dimY = H + 8 + FS * (tags.length ? 1.9 : 0.9);
-  parts.push('<text class="w-elev-dim" x="' + L / 2 + '" y="' + dimY + '">' + Math.round(L) + "</text>");
+  parts.push('<text class="w-elev-dim" x="' + L / 2 + '" y="' + dimY + '">' + inspectorLen(L, { suffix: false }) + "</text>");
   parts.push(
-    '<text class="w-elev-dim" transform="translate(' + -FS * 0.7 + " " + H / 2 + ') rotate(-90)" text-anchor="middle">' + Math.round(H) + "</text>",
+    '<text class="w-elev-dim" transform="translate(' + -FS * 0.7 + " " + H / 2 + ') rotate(-90)" text-anchor="middle">' + inspectorLen(H, { suffix: false }) + "</text>",
   );
   host.innerHTML =
     '<svg style="--elev-fs:' + FS + "px;--elev-tag-fs:" + TFS + "px;--elev-sw:" + 1 / scale +
@@ -1162,13 +1169,16 @@ function conRow(c) {
 
     if (conHasValue(c)) {
       var inp = document.createElement("input");
-      inp.type = "number";
+      inp.type = "text";
+      inp.inputMode = "decimal";
       inp.className = "con-val";
-      inp.value = String(Math.round(c.value * 10) / 10);
+      inp.value = c.type === "angle"
+        ? String(Math.round(c.value * 10) / 10)
+        : fmtLen(c.value, { suffix: false });
       inp.title = t(c.type === "angle" ? "cad_ang" : "cad_len");
       inp.disabled = !!c.off;
       inp.addEventListener("change", function () {
-        var v = parseFloat(inp.value);
+        var v = c.type === "angle" ? parseFloat(inp.value) : parseLen(inp.value);
         if (!isFinite(v)) return;
         pushHistory();
         setConValue(c.id, v);
@@ -1183,7 +1193,7 @@ function conRow(c) {
       row.appendChild(inp);
       var unit = document.createElement("span");
       unit.className = "con-unit";
-      unit.textContent = c.type === "angle" ? "°" : t("cm");
+      unit.textContent = c.type === "angle" ? "°" : unitLabel();
       row.appendChild(unit);
     }
 
@@ -1404,29 +1414,28 @@ function fillMarkerInfo(info) {
     d.appendChild(b);
     box.appendChild(d);
   }
-  var cm = " " + t("cm");
   row("polygon", t("room"), info.room ? info.roomName || t("room") : t("mk_outside"));
   if (info.wall)
     row(
       "wall",
       t("mk_sf_wall"),
-      "#" + info.wall.id + (info.wallIsMount ? " · " + Math.round(info.wallDist) + cm : ""),
+      "#" + info.wall.id + (info.wallIsMount ? " · " + fmtLen(info.wallDist) : ""),
     );
   else if (info.wallDist != null)
-    row("wall", t("mk_nearWall"), Math.round(info.wallDist) + cm);
+    row("wall", t("mk_nearWall"), fmtLen(info.wallDist));
   if (info.near)
-    row("cube", t("mk_nearObj"), flabel(info.near.item.type) + " · " + Math.round(info.near.dist) + cm);
+    row("cube", t("mk_nearObj"), flabel(info.near.item.type) + " · " + fmtLen(info.near.dist));
   var h = info.held;
   if (h) {
     row(
       "ruler",
       t("mk_size"),
-      Math.round(h.w) + "×" + Math.round(h.d) + "×" + Math.round(h.h) + cm,
+      fmtLen(h.w, { suffix: false }) + "×" + fmtLen(h.d, { suffix: false }) + "×" + fmtLen(h.h),
     );
     // where the piece actually ends up in the room's height, which is the whole
     // question a wall or ceiling point is asked
     var sp = itemVSpan(h);
-    row("arrows-vertical", t("mk_span"), Math.round(sp.lo) + " → " + Math.round(sp.hi) + cm);
+    row("arrows-vertical", t("mk_span"), fmtLen(sp.lo, { suffix: false }) + " → " + fmtLen(sp.hi));
   }
 }
 
@@ -1443,7 +1452,7 @@ export function refreshMarkerReadout() {
   var dm = info.dm;
   ["n", "s", "e", "w"].forEach(function (k) {
     document.getElementById("mk_d_" + k).textContent =
-      dm[k] == null ? "—" : Math.round(dm[k]);
+      dm[k] == null ? "—" : fmtLen(dm[k], { suffix: false });
     // a side that falls short of the point's own required clearance is called
     // out here rather than silently printed — the number alone reads fine
     document
@@ -1454,7 +1463,7 @@ export function refreshMarkerReadout() {
   tightEl.style.display = info.tight.length ? "" : "none";
   tightEl.textContent = info.tight.length
     ? t("mk_tight", {
-        req: Math.round(m.req),
+        req: fmtLen(m.req),
         sides: info.tight
           .map(function (k) {
             return t("mk_dir_" + k);
@@ -1462,9 +1471,9 @@ export function refreshMarkerReadout() {
           .join(", "),
       })
     : "";
-  document.getElementById("mk_d_up").textContent = Math.round(info.y);
+  document.getElementById("mk_d_up").textContent = fmtLen(info.y, { suffix: false });
   document.getElementById("mk_d_ceil").textContent =
-    info.toCeil == null ? "—" : Math.round(info.toCeil);
+    info.toCeil == null ? "—" : fmtLen(info.toCeil, { suffix: false });
   fillMarkerInfo(info);
   document.getElementById("mk_surface").value = m.surface || "floor";
   document.getElementById("selname_mk").textContent = markerLabel(m);
@@ -1479,10 +1488,10 @@ export function refreshMarkerReadout() {
 function fillMarker(m) {
   showPanel("marker");
   document.getElementById("mk_name").value = m.name || "";
-  document.getElementById("mk_x").value = Math.round(m.x);
-  document.getElementById("mk_y").value = Math.round(m.y || 0);
-  document.getElementById("mk_z").value = Math.round(m.z);
-  document.getElementById("mk_req").value = m.req != null ? Math.round(m.req) : "";
+  writeInspectorLen("mk_x", m.x);
+  writeInspectorLen("mk_y", m.y || 0);
+  writeInspectorLen("mk_z", m.z);
+  document.getElementById("mk_req").value = m.req != null ? fmtLen(m.req, { suffix: false }) : "";
   document.getElementById("mk_note").value = m.note || "";
   refreshMarkerReadout();
 }
@@ -1491,10 +1500,10 @@ function fillSlabVoid(o) {
   showPanel("slabvoid");
   document.getElementById("selname_sv").textContent = o.name || t("sv_title");
   document.getElementById("sv_name").value = o.name || "";
-  document.getElementById("sv_x").value = Math.round(o.x);
-  document.getElementById("sv_z").value = Math.round(o.z);
-  document.getElementById("sv_w").value = Math.round(o.w);
-  document.getElementById("sv_d").value = Math.round(o.d);
+  writeInspectorLen("sv_x", o.x);
+  writeInspectorLen("sv_z", o.z);
+  writeInspectorLen("sv_w", o.w);
+  writeInspectorLen("sv_d", o.d);
   document.getElementById("sv_rot").value = Math.round(o.rot || 0);
 }
 
@@ -1507,8 +1516,8 @@ export function fillJoint(ni) {
   showPanel("node");
   var info = jointInfo(ni);
   if (!info) return;
-  document.getElementById("nd_x").value = Math.round(info.x);
-  document.getElementById("nd_z").value = Math.round(info.z);
+  document.getElementById("nd_x").value = fmtLen(info.x, { suffix: false });
+  document.getElementById("nd_z").value = fmtLen(info.z, { suffix: false });
   document.getElementById("selname_nd").textContent =
     t("nd_title") + (info.open ? " · " + t("nd_open") : "");
   document.getElementById("nd_state").textContent = t("nd_walls", {
@@ -1516,7 +1525,6 @@ export function fillJoint(ni) {
   });
   var box = document.getElementById("nd_arms");
   box.innerHTML = "";
-  var cm = " " + t("cm");
   info.arms.forEach(function (arm) {
     var row = document.createElement("div");
     row.className = "mk-info-row nd-arm";
@@ -1525,7 +1533,7 @@ export function fillJoint(ni) {
     nm.className = "mk-info-lbl";
     nm.textContent = t("wall") + " " + arm.wall.id;
     var v = document.createElement("b");
-    v.textContent = Math.round(arm.len) + cm + " · " + Math.round(arm.ang) + "°";
+    v.textContent = fmtLen(arm.len) + " · " + Math.round(arm.ang) + "°";
     row.appendChild(nm);
     row.appendChild(v);
     row.onclick = function () {
@@ -1671,10 +1679,12 @@ function fillCon(c) {
     input = document.getElementById("con_value");
   var typeable = conDrivable(c);
   row.hidden = !typeable;
-  if (typeable) {
-    input.value = Math.round((Number(c.value) || 0) * 10) / 10;
+    if (typeable) {
+    input.value = unit === "deg"
+      ? String(Math.round((Number(c.value) || 0) * 10) / 10)
+      : fmtLen(Number(c.value) || 0, { suffix: false });
     document.getElementById("con_value_lbl").textContent =
-      unit === "deg" ? t("cad_ang") : t("cm");
+      unit === "deg" ? t("cad_ang") : unitLabel();
   }
   document.getElementById("con_report").checked = !!c.report;
   document.getElementById("con_off").checked = !!c.off;
@@ -1685,8 +1695,8 @@ function fillCon(c) {
 }
 function fmtVal(v, unit) {
   if (v == null) return "?";
-  var n = Math.round(v * 10) / 10;
-  return unit === "deg" ? n + "°" : unit === "cm" ? n + " " + t("cm") : String(n);
+  if (unit === "deg") return (Math.round(v * 10) / 10) + "°";
+  return fmtLen(v);
 }
 
 /* The position dimensions on one opening, listed the same way a wall's are.
@@ -1719,7 +1729,7 @@ function fillOpeningCons(o) {
 function fillWallMulti(walls) {
   showPanel("walls");
   document.getElementById("wm_state").textContent = walls.map(function (w, i) {
-    return (i + 1) + ". W" + w.id + " · " + Math.round(wallGeom(w).L) + " " + t("cm");
+    return (i + 1) + ". W" + w.id + " · " + fmtLen(wallGeom(w).L);
   }).join("   ");
   ["wmParallel", "wmPerpendicular", "wmCollinear", "wmEqualLength", "wmOffset"].forEach(function (act) {
     var b = document.querySelector('[data-act="' + act + '"]');
@@ -1788,10 +1798,10 @@ export function fillProps() {
     var w = S.sel.ref, gm = wallGeom(w);
     normalizeWall(w, S);
     showPanel("wall");
-    document.getElementById("w_len").value = Math.round(wallClearLength(w));
+    writeInspectorLen("w_len", wallClearLength(w));
     document.getElementById("w_ang").value = Math.round((Math.atan2(gm.dz, gm.dx) * 180) / Math.PI);
-    document.getElementById("w_th").value = Math.round(wallThickness(w, S) * 10) / 10;
-    document.getElementById("w_h").value = Math.round(w.height);
+    writeInspectorLen("w_th", wallThickness(w, S));
+    writeInspectorLen("w_h", w.height);
     fillWallHead(w);
 
     fillWallTypeSelect("w_type", w.wallTypeId);
@@ -1815,27 +1825,27 @@ export function fillProps() {
     var pony = document.getElementById("w_pony_options");
     if (pony) pony.hidden = kind !== "pony";
     var split = document.getElementById("w_split_h");
-    if (split) split.value = Math.round(Number(w.splitHeight) || Math.min(w.height, 110));
+    if (split) writeLen(split, Number(w.splitHeight) || Math.min(w.height, 110));
 
     var curve = normalizeWallGeometry(w, S.nodes);
     var bulge = document.getElementById("w_bulge");
-    if (bulge) bulge.value = curve && curve.kind === "arc" ? Math.round(curve.bulge * 10000) / 10000 : 0;
+    if (bulge) bulge.value = curve && curve.kind === "arc" ? fmtLen(curve.bulge, { suffix: false }) : 0;
     var cornerEditor = document.getElementById("w_corner_editor");
     if (cornerEditor) cornerEditor.hidden = !w.cornerTreatment;
     if (w.cornerTreatment) {
       var cornerType = document.getElementById("w_corner_type");
       var cornerValue = document.getElementById("w_corner_value");
       if (cornerType) cornerType.value = w.cornerTreatment.type || "fillet";
-      if (cornerValue) cornerValue.value = Math.round((Number(w.cornerTreatment.value) || 0) * 100) / 100;
+      if (cornerValue) writeLen(cornerValue, Number(w.cornerTreatment.value) || 0);
     }
     var topControls = normalizeWallProfile(w);
     var topA = topControls.length ? wallProfileHeight(w, 0, w.height) : w.height;
     var topB = topControls.length ? wallProfileHeight(w, gm.L, w.height) : w.height;
     var bases = baseProfileEnds(w, gm.L);
-    document.getElementById("w_top_a").value = Math.round(topA * 10) / 10;
-    document.getElementById("w_top_b").value = Math.round(topB * 10) / 10;
-    document.getElementById("w_base_a").value = Math.round(bases[0] * 10) / 10;
-    document.getElementById("w_base_b").value = Math.round(bases[1] * 10) / 10;
+    writeLen(document.getElementById("w_top_a"), topA);
+    writeLen(document.getElementById("w_top_b"), topB);
+    writeLen(document.getElementById("w_base_a"), bases[0]);
+    writeLen(document.getElementById("w_base_b"), bases[1]);
     syncWallEnd();
     syncWallSide(w);
     fillWallLock(w);
@@ -1866,16 +1876,16 @@ export function fillProps() {
     var posEl = document.getElementById("ow_pos");
     posEl.max = Ls;
     posEl.value = op;
-    document.getElementById("ow_posval").textContent = op + " " + t("cm");
-    document.getElementById("ow_w").value = ow;
-    document.getElementById("ow_h").value = oh;
+    document.getElementById("ow_posval").textContent = fmtLen(op);
+    writeLen(document.getElementById("ow_w"), ow);
+    writeLen(document.getElementById("ow_h"), oh);
     S.segPreview = { s: op, width: ow, height: oh };
   } else if (S.sel.kind === "item") {
     var it = S.sel.ref;
     showPanel("item");
-    document.getElementById("i_w").value = Math.round(it.w);
-    document.getElementById("i_d").value = Math.round(it.d);
-    document.getElementById("i_h").value = Math.round(it.h);
+    writeInspectorLen("i_w", it.w);
+    writeInspectorLen("i_d", it.d);
+    writeInspectorLen("i_h", it.h);
     document.getElementById("i_rot").value = Math.round(it.rot);
     document.getElementById("i_rot_range").value = Math.round(it.rot);
     document.getElementById("selname2").textContent = flabel(it.type) + (it.locked ? " 🔒" : "");
@@ -1913,9 +1923,11 @@ export function fillProps() {
   } else if (S.sel.kind === "opening") {
     var o = S.sel.ref;
     showPanel("opening");
-    document.getElementById("o_w").value = Math.round(o.width);
-    document.getElementById("o_h").value = Math.round(o.height);
-    document.getElementById("o_sill").value = Math.round(o.sill);
+    writeInspectorLen("o_w", o.width);
+    writeInspectorLen("o_h", o.height);
+    var oUnit = document.getElementById("o_unit");
+    if (oUnit) oUnit.textContent = t("guide_unit_" + inspectorUnit());
+    document.getElementById("o_sill").value = fmtLen(o.sill, { suffix: false });
     document.getElementById("o_sill_l").style.display = o.type === "window" ? "flex" : "none";
     fillOpeningCons(o);
       
@@ -2009,12 +2021,12 @@ export function fillProps() {
       document.getElementById("o_margins_box").style.display = "flex";
       var currentLeft = Math.round((o.s - o.width/2) - (o.overlapCenter - o.overlapL/2));
       var currentRight = Math.round((o.overlapCenter + o.overlapL/2) - (o.s + o.width/2));
-      document.getElementById("o_m_l").value = currentLeft;
-      document.getElementById("o_m_r").value = currentRight;
-      document.getElementById("o_m_b").value = Math.round(o.sill);
+      writeLen(document.getElementById("o_m_l"), currentLeft);
+      writeLen(document.getElementById("o_m_r"), currentRight);
+      writeLen(document.getElementById("o_m_b"), o.sill);
       var wWall = S.walls.find(function(wa) { return wa.id === o.wall; });
-      var topM = wWall ? Math.round(wWall.height - o.sill - o.height) : 0;
-      document.getElementById("o_m_t").value = topM;
+      var topM = wWall ? (wWall.height - o.sill - o.height) : 0;
+      writeLen(document.getElementById("o_m_t"), topM);
       
       var isSeamless = Math.abs(o.width - o.overlapL) < 2 && Math.abs(topM) < 2 && o.sill <= 1;
       document.getElementById("o_seamless_btn").style.display = isSeamless ? "none" : "block";
@@ -2062,7 +2074,7 @@ export function fillProps() {
       var bumpBox = document.getElementById("r_floor_bump_box");
       if (bumpBox) bumpBox.style.display = "block";
     }
-    document.getElementById("r_area").textContent = (r.area / 10000).toFixed(2) + " " + t("sqm");
+    document.getElementById("r_area").textContent = fmtAreaM2(r.area / 10000);
     document.getElementById("r_wall").value = hexStr(
       S.roomMeta[r.key] && S.roomMeta[r.key].wall != null ? S.roomMeta[r.key].wall : S.wallColor
     );

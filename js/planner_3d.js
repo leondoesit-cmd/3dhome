@@ -16,6 +16,7 @@ import { onAfterRender, render2D } from './plan2d.js';
 import { movePlanToolsTo } from './plan_tools_dock.js';
 import { wallGeom, detectRooms } from './geometry.js';
 import { t, onLangChange } from './i18n.js';
+import { fmtLen } from './display_units.js';
 
 let pane, canvas, hud, modeButton, lookButton, personButton, dragId=null, lastInput=null, look=false, constraintHits=[];
 let roofButton;
@@ -139,15 +140,15 @@ export function paintPlanner3D() {
   const end=S.previewPt;
   if(end){const p=project(end);if(p){c.strokeStyle='#26b99a';c.beginPath();c.arc(p.x,p.y,5,0,Math.PI*2);c.stroke();}}
   const start=S.nodes[S.drawFrom];
-  if(start&&end&&S.drawing){path([start,end]);path([{...start,y:270},{...end,y:270}]);path([end,{...end,y:270}]);label({x:(start.x+end.x)/2,z:(start.z+end.z)/2},`${Math.hypot(end.x-start.x,end.z-start.z).toFixed(1)} ${t('cm')}`);}
+  if(start&&end&&S.drawing){path([start,end]);path([{...start,y:270},{...end,y:270}]);path([end,{...end,y:270}]);label({x:(start.x+end.x)/2,z:(start.z+end.z)/2},fmtLen(Math.hypot(end.x-start.x,end.z-start.z)));}
   if(S.rectDraft&&end)path([S.rectDraft,{x:end.x,z:S.rectDraft.z},end,{x:S.rectDraft.x,z:end.z}],undefined,true);
   if(S.roomGhost){const r=S.roomGhost.rect;path([{x:r.x0,z:r.z0},{x:r.x1,z:r.z0},{x:r.x1,z:r.z1},{x:r.x0,z:r.z1}],S.roomGhost.blocked?'#ed705a':'#26b99a',true);}
   if(S.arcDraft&&end){const a=S.nodes[S.arcDraft.startNode]||S.arcDraft.startPoint,arc=a&&S.arcDraft.through?makeArcFromThreePoints(a,S.arcDraft.through,end):null;if(arc){const n=Math.max(12,Math.ceil(arc.L/20));path(Array.from({length:n+1},(_,i)=>pointAtWall(arc,arc.L*i/n)));}else if(a)path([a,end]);}
-  if(S.offsetDraft){const w=S.walls.find(w=>w.id===S.offsetDraft.hostId),g=w&&offsetGhost(w,S.offsetDraft.dist,S.offsetDraft.side||1);if(g){path([g.a,g.b],'#faac38');label(g.b,g.dist.toFixed(1)+' '+t('cm'));}}
+  if(S.offsetDraft){const w=S.walls.find(w=>w.id===S.offsetDraft.hostId),g=w&&offsetGhost(w,S.offsetDraft.dist,S.offsetDraft.side||1);if(g){path([g.a,g.b],'#faac38');label(g.b,fmtLen(g.dist));}}
   if(S.placeType&&end&&FURN[S.placeType])path(footprint({...FURN[S.placeType],...end,rot:0}),'#26b99a',true);
   if(S.markerPreview)label(S.markerPreview,'+');
   if(S.mep?.route){const r=S.mep.route;path([...r.pts,...(r.preview?[r.preview]:[])],'#faac38');}
-  if(S.sel?.kind==='wall'){const g=wallGeom(S.sel.ref);if(g){path([g.a,g.b],'#f8be49');label({x:(g.a.x+g.b.x)/2,z:(g.a.z+g.b.z)/2,y:30},`${g.L.toFixed(1)} ${t('cm')}`);}}
+  if(S.sel?.kind==='wall'){const g=wallGeom(S.sel.ref);if(g){path([g.a,g.b],'#f8be49');label({x:(g.a.x+g.b.x)/2,z:(g.a.z+g.b.z)/2,y:30},fmtLen(g.L));}}
   if(S.sel?.kind==='room'){const r=detectRooms().find(r=>r.key===S.sel.ref);if(r)path(r.pts,'#f8be49',true);}
   for(const con of Number.isFinite(layerRank('annotations'))?S.wallCons||[]:[]){
     if(con.off&&S.sel?.ref?.id!==con.id)continue;
@@ -167,7 +168,7 @@ export function paintPlanner3D() {
       const q=project(f.points[index]);if(!q)continue;
       c.fillStyle='#f8be49';c.fillRect(q.x-5,q.y-5,10,10);vertexHits.push({...q,id:f.id,index});
     }
-    if(vertexDrag?.id===f.id){const p=f.points[vertexDrag.index];label(p,`${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)} ${t('cm')}`);}
+    if(vertexDrag?.id===f.id){const p=f.points[vertexDrag.index];label(p,`${fmtLen(p.x, { suffix: false })}, ${fmtLen(p.y, { suffix: false })}, ${fmtLen(p.z)}`);}
   }
   window.dispatchEvent(new CustomEvent('planner-overlay-3d',{detail:{context:c,project,path,label,width:w,height:h}}));
 }

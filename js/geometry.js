@@ -132,8 +132,8 @@ export function wallOffsetVec(w) {
    recursion: wallOffset() needs dimSide, and Auto's dimSide needs a geometry. */
 export function wallNodeGeom(w) {
   var curve = wallCurveGeom(w, S.nodes),
-    a = curve ? curve.a : S.nodes[w.a],
-    b = curve ? curve.b : S.nodes[w.b],
+    a = (curve ? curve.a : (S.nodes && w.a != null ? S.nodes[w.a] : null)) || w.p1 || { x: 0, z: 0 },
+    b = (curve ? curve.b : (S.nodes && w.b != null ? S.nodes[w.b] : null)) || w.p2 || { x: 0, z: 0 },
     dx = b.x - a.x,
     dz = b.z - a.z,
     chord = Math.hypot(dx, dz) || 0.0001,

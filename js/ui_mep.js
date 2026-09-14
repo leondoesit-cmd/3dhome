@@ -16,6 +16,7 @@ import { select } from "./ui_props.js";
 import { refreshTree } from "./ui_tree.js";
 import { pushHistory } from "./history.js";
 import { t, getLang, onLangChange } from "./i18n.js";
+import { fmtLen, parseLen } from "./display_units.js";
 import { S } from "./state.js";
 
 // generate a full MEP rough-in from the current rooms + fixtures (replaces MEP)
@@ -449,7 +450,7 @@ export function fillMEP() {
     var lenrow = labeledRow(t("mep_len"));
     var lenv = document.createElement("span");
     lenv.className = "mep-readout";
-    lenv.textContent = Math.round(runLength(e)) + " " + t("cm") + " · " + e.pts.length + " " + t("mep_pts");
+    lenv.textContent = fmtLen(runLength(e)) + " · " + e.pts.length + " " + t("mep_pts");
     lenrow.appendChild(lenv);
     host.appendChild(lenrow);
     // gravity fall — only meaningful on a run that drains rather than pumps
@@ -495,12 +496,12 @@ function labeledRow(label) {
 }
 function numInput(val, onChange) {
   var i = document.createElement("input");
-  i.type = "number";
-  i.inputMode = "numeric";
-  i.value = Math.round(val);
+  i.type = "text";
+  i.inputMode = "decimal";
+  i.value = fmtLen(val, { suffix: false });
   i.onchange = function () {
-    var v = parseFloat(i.value);
-    if (!isNaN(v)) onChange(v);
+    var v = parseLen(i.value);
+    if (Number.isFinite(v)) onChange(v);
   };
   return i;
 }

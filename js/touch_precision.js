@@ -2,6 +2,8 @@
    Scene coordinates always stay 1:1 with the finger. Creation tools add a
    visual loupe, but it never moves the point being authored. */
 
+import { fmtLen } from "./display_units.js";
+
 const PLAN_CREATION_TOOLS = new Set([
   "wall", "arcwall", "rect", "slabvoid", "roomDivider",
   "point", "mepNode", "mepRoute",

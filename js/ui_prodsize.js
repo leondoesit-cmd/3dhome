@@ -20,6 +20,7 @@ import { updateCost } from "./ui_tree.js";
 import {
   applyDims, fmtDims, hostOf, toCm, unitFactor, normalizeText, labeledDims, compactDims, foldAxes,
 } from "./prodsize.js";
+import { fmtLen, unitLabel } from "./display_units.js";
 
 var CACHE_KEY = "home3d_prodsize";
 var CACHE_TTL = 30 * 24 * 3600e3;
@@ -44,6 +45,11 @@ function cachePut(key, data) {
         .forEach(function (k) { delete all[k]; });
     localStorage.setItem(CACHE_KEY, JSON.stringify(all));
   } catch (e) {} // quota: the lookup still worked, it just won't be remembered
+}
+
+function shownDims(d) {
+  function n(v) { return v == null ? "—" : fmtLen(v, { suffix: false }); }
+  return n(d.w) + " × " + n(d.d) + " × " + n(d.h);
 }
 
 function el(tag, cls, txt) {

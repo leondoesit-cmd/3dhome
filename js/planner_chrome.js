@@ -153,7 +153,10 @@ export function renderFloorTabs() {
   floors.forEach(function (floor, i) {
     var b = document.createElement("button");
     b.type = "button";
-    b.textContent = floor.name || t("floor_ground") + " " + (i + 1);
+    var name = (floor.id === "floor-1" && (!floor.name || floor.name === "Ground floor" || floor.name === "קומת קרקע"))
+      ? t("floor_ground_name")
+      : (floor.name || t("floor_ground") + " " + (i + 1));
+    b.textContent = name;
     b.classList.toggle("active", floor.id === S.workspace.activeFloor);
     b.addEventListener("click", function () {
       switchFloor(floor.id);

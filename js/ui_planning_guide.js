@@ -86,6 +86,10 @@ export function editPlanningGuide(params) {
   else {
     withoutRoomPrompts(refreshTree);
     render2D();
+    if (params.displayUnit !== undefined) {
+      fillProps();
+      window.dispatchEvent(new CustomEvent("planner-units"));
+    }
   }
   signature = "";
   renderPlanningGuide();
@@ -179,6 +183,12 @@ export function renderPlanningGuide() {
   });
   details.append(field("guide_area_target", area), el("p", t("guide_area_advisory"), "guide-note"));
   details.append(field('guide_display_unit',choices(['cm','mm','m','in','ft'].map(unit=>[unit,'guide_unit_'+unit]),guide.details.displayUnit||'cm',displayUnit=>editPlanningGuide({action:'settings',displayUnit}))));
+  const advUnitsBtn = el('button', 'btn-secondary', '');
+  advUnitsBtn.type = 'button';
+  advUnitsBtn.innerHTML = '<i class="ph ph-sliders-horizontal"></i> ' + t('unit_preset_custom');
+  advUnitsBtn.style.cssText = 'font-size:11px; padding:3px 8px; margin:4px 0 8px; cursor:pointer; display:inline-flex; align-items:center; gap:5px;';
+  advUnitsBtn.onclick = () => { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('unit-open-settings')); };
+  details.append(advUnitsBtn);
   details.append(el('p',t('guide_unit_scope'),'guide-note'),el('p',t('guide_floor_count').replace('{n}',(S.workspace.floors||[]).length||1),'guide-note'));
   const areaReport = el("div", "", "guide-note");
   areaReport.dataset.guideArea = "floor";

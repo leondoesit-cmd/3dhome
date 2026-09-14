@@ -920,6 +920,9 @@ export function showPlannerTutorial(startTopic) {
       b.tabIndex = on ? 0 : -1;
     });
     panel.setAttribute("aria-label", t(topic.title));
+    panel.scrollTop = 0;
+    var modalEl = panel.closest(".bp-modal");
+    if (modalEl) modalEl.scrollTop = 0;
     panel.innerHTML = "";
     var visual = document.createElement("div");
     visual.className = "planner-guide-visual is-all";
@@ -1688,4 +1691,14 @@ onLangChange(function () {
 export function showPlannerTutorialHub() { showPlannerHub(); }
 
 var launch = typeof document !== "undefined" && document.getElementById("plannerTutorialBtn");
-if (launch) launch.addEventListener("click", function () { showPlannerHub(); });
+if (launch) {
+  if (launch.dataset) {
+    if (!launch.dataset.tourBound) {
+      launch.dataset.tourBound = "1";
+      if (launch.addEventListener) launch.addEventListener("click", function () { showPlannerHub(); });
+    }
+  } else if (launch.addEventListener && !launch._tourBound) {
+    launch._tourBound = true;
+    launch.addEventListener("click", function () { showPlannerHub(); });
+  }
+}

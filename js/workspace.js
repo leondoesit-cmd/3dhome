@@ -318,7 +318,8 @@ export async function openWorkspace() {
     status.textContent = NET.connected ? t("collab_on", { n: currentPlanRev() }) : t("collab_off");
     const blurb = document.createElement("p");
     blurb.className = "ws-note";
-    blurb.textContent = t("collab_live_t");
+    const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
+    blurb.textContent = isMac ? t("collab_live_t").replace(/Ctrl\+Z/g, "⌘Z") : t("collab_live_t");
     live.append(status, blurb);
     content.append(live);
 

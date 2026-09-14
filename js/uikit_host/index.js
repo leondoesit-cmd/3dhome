@@ -382,6 +382,7 @@ export function toggleCustomize(on) {
   if (!instance) return false;
   const want = on == null ? !instance.editing : !!on;
   instance.edit(want);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("resize"));
   return want;
 }
 

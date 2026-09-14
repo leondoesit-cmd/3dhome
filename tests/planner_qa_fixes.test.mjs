@@ -52,7 +52,7 @@ test("older plans without a captured face length get one from syncLocks", () => 
 
 test("the lock read-out and the length field quote the same measurement", () => {
   assert.match(uiProps, /lockClearL != null \? w\.lockClearL : wallClearLength\(w\)/);
-  assert.match(uiProps, /document\.getElementById\("w_len"\)\.value = Math\.round\(wallClearLength\(w\)\)/);
+  assert.match(uiProps, /writeInspectorLen\("w_len", wallClearLength\(w\)\)/);
 });
 
 test("the captured face length survives save and undo like the rest of the lock", () => {

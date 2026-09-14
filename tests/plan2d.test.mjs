@@ -15,6 +15,7 @@ import {
   rotatePx,
   isOnScreen,
   centerOn,
+  ensurePointsVisible,
   niceScaleCm,
 } from "../js/plan_view.js";
 
@@ -178,6 +179,20 @@ test("isOnScreen tests the pixel after plan rotation, not the unrotated AABB", (
   const scr = rotatePx(sx(0), sz(100));
   assert.ok(scr.x > 60 && scr.x < S.CW - 60);
   assert.ok(scr.y > 60 && scr.y < S.CH - 60);
+});
+
+test("ensurePointsVisible frames an 884 cm typed run without changing heading", () => {
+  resetView();
+  S.SC = 1;
+  S.CW = 400;
+  S.CH = 300;
+  S.OX = 40;
+  S.OY = 20;
+  assert.equal(isOnScreen(884, 0, 56), false);
+  assert.equal(ensurePointsVisible([{ x: 0, z: 0 }, { x: 884, z: 0 }], 56), true);
+  assert.equal(isOnScreen(0, 0, 40), true);
+  assert.equal(isOnScreen(884, 0, 40), true);
+  assert.ok(S.SC < 1, "must zoom out to keep both ends on screen");
 });
 
 function closedRoom() {

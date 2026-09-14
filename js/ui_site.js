@@ -10,6 +10,7 @@ import { flash, openModal } from "./ui.js";
 import { buildIconSettingsPane, initIconSettings } from "./icon_settings.js";
 import { buildTouchPrecisionSettings } from "./touch_precision_ui.js";
 import { buildAgentSettingsPane } from "./ui_agent.js";
+import { buildUnitSettingsPane } from "./unit_settings.js";
 import { updateCost } from "./ui_tree.js";
 import { applySite, setStreetViewCube } from "./view3d.js";
 import {
@@ -227,7 +228,7 @@ function importFootprintWalls() {
 // Both settings that touch the user's Google key live here, opened from the
 // topbar gear. The key drives search, Street View, and the aerial overlay; the
 // map-source select controls the interactive picker's base imagery.
-function openSettings(initialPane) {
+export function openSettings(initialPane) {
   initialPane = typeof initialPane === "string" ? initialPane : "general";
   var m = openModal(t("settings_title"));
   m.modal.classList.add("settings-modal");
@@ -240,6 +241,11 @@ function openSettings(initialPane) {
   generalTab.setAttribute("role", "tab");
   generalTab.setAttribute("aria-selected", "true");
   generalTab.innerHTML = '<i class="ph ph-sliders-horizontal"></i><span>' + t("settings_general_tab") + "</span>";
+  var unitsTab = el("button");
+  unitsTab.type = "button";
+  unitsTab.setAttribute("role", "tab");
+  unitsTab.setAttribute("aria-selected", "false");
+  unitsTab.innerHTML = '<i class="ph ph-ruler"></i><span>' + t("settings_units_tab") + "</span>";
   var iconsTab = el("button");
   iconsTab.type = "button";
   iconsTab.setAttribute("role", "tab");
@@ -256,6 +262,7 @@ function openSettings(initialPane) {
   agentTab.setAttribute("aria-selected", "false");
   agentTab.innerHTML = '<i class="ph ph-robot"></i><span>' + t("settings_agent_tab") + "</span>";
   tabs.appendChild(generalTab);
+  tabs.appendChild(unitsTab);
   tabs.appendChild(agentTab);
   tabs.appendChild(touchTab);
   tabs.appendChild(iconsTab);
@@ -263,6 +270,10 @@ function openSettings(initialPane) {
   var panes = el("div", "settings-panes");
   var generalPane = el("section", "settings-pane settings-general-pane");
   generalPane.setAttribute("role", "tabpanel");
+  var unitsPane = el("section", "settings-pane settings-units-pane");
+  unitsPane.setAttribute("role", "tabpanel");
+  unitsPane.hidden = true;
+  unitsPane.appendChild(buildUnitSettingsPane(m.close));
   var iconsPane = el("section", "settings-pane settings-icons-pane");
   iconsPane.setAttribute("role", "tabpanel");
   iconsPane.hidden = true;
@@ -276,6 +287,7 @@ function openSettings(initialPane) {
   agentPane.hidden = true;
   agentPane.appendChild(buildAgentSettingsPane());
   panes.appendChild(generalPane);
+  panes.appendChild(unitsPane);
   panes.appendChild(agentPane);
   panes.appendChild(touchPane);
   panes.appendChild(iconsPane);
@@ -286,21 +298,30 @@ function openSettings(initialPane) {
     var showIcons = which === "icons";
     var showTouch = which === "touch";
     var showAgent = which === "agent";
-    generalPane.hidden = showIcons || showTouch || showAgent;
+    var showUnits = which === "units";
+    generalPane.hidden = showIcons || showTouch || showAgent || showUnits;
+    unitsPane.hidden = !showUnits;
     agentPane.hidden = !showAgent;
     touchPane.hidden = !showTouch;
     iconsPane.hidden = !showIcons;
-    generalTab.classList.toggle("active", !showIcons && !showTouch && !showAgent);
+    generalTab.classList.toggle("active", !showIcons && !showTouch && !showAgent && !showUnits);
+    unitsTab.classList.toggle("active", showUnits);
     agentTab.classList.toggle("active", showAgent);
     touchTab.classList.toggle("active", showTouch);
     iconsTab.classList.toggle("active", showIcons);
-    generalTab.setAttribute("aria-selected", showIcons || showTouch || showAgent ? "false" : "true");
+    generalTab.setAttribute("aria-selected", showIcons || showTouch || showAgent || showUnits ? "false" : "true");
+    unitsTab.setAttribute("aria-selected", showUnits ? "true" : "false");
     agentTab.setAttribute("aria-selected", showAgent ? "true" : "false");
     touchTab.setAttribute("aria-selected", showTouch ? "true" : "false");
     iconsTab.setAttribute("aria-selected", showIcons ? "true" : "false");
     m.modal.classList.toggle("showing-icon-settings", showIcons);
+    var activeTab = showUnits ? unitsTab : (showAgent ? agentTab : (showTouch ? touchTab : (showIcons ? iconsTab : generalTab)));
+    if (activeTab && typeof activeTab.scrollIntoView === "function") {
+      activeTab.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    }
   }
   generalTab.onclick = function () { showPane("general"); };
+  unitsTab.onclick = function () { showPane("units"); };
   agentTab.onclick = function () { showPane("agent"); };
   touchTab.onclick = function () { showPane("touch"); };
   iconsTab.onclick = function () { showPane("icons"); };
@@ -315,6 +336,8 @@ function openSettings(initialPane) {
   keyIn.placeholder = t("site_gkey_ph");
   keyIn.autocomplete = "off";
   keyIn.style.flex = "1";
+  keyIn.style.minWidth = "0";
+  keyIn.style.fontSize = "13px";
   keyIn.value = gkey();
   var eye = el("button");
   eye.type = "button";
@@ -761,6 +784,7 @@ export function initSite() {
   // Google key + map-source now live in the Settings modal (topbar gear).
   if ($("btn_settings")) $("btn_settings").onclick = openSettings;
   window.addEventListener("agent-open-settings", function () { openSettings("agent"); });
+  window.addEventListener("unit-open-settings", function () { openSettings("units"); });
 
   // a plan load (ui.js applyData) fires this after replacing S.site
   window.addEventListener("site:reload", function () {

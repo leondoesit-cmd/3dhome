@@ -44,6 +44,11 @@ export function planningGuide(state) {
   return normalizePlanningGuide(state.workspace && state.workspace.guidance);
 }
 
+export function planningDisplayUnit(state) {
+  const unit = planningGuide(state).details.displayUnit;
+  return PLANNING_UNITS[unit] ? unit : "cm";
+}
+
 export function checklistStatus(state, faces) {
   const floorId = state.workspace && state.workspace.activeFloor || "floor-1";
   const meta = state.roomMeta || {};

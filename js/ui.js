@@ -3,7 +3,10 @@ import { normalizeNavigationProfile } from "./navigation_profile.js";
 import { roomMeasurements } from "./room_summary.js";
 import { resizeSelectedRoom } from "./ui_planning_guide.js";
 import { newDocumentKey, normalizeBaselines, normalizeRedesign, mergeBaselineArchives } from "./redesign.js";
-import { normalizePlanningGuide } from "./planning_guide.js";
+import { normalizePlanningGuide, planningDisplayUnit } from "./planning_guide.js";
+import { formatLength, parseLength } from "./planning_units.js";
+import { displayUnit, fmtLen, writeLen, parseLen, unitLabel, fmtAreaM2, syncDisplayUnitLabels } from "./display_units.js";
+import { inferDomainFromElementId } from "./unit_settings.js";
 // UI controller: property panels, control wiring, ownership tree, save/load.
 import { S, uid, fin, hexStr, touchItem3D } from "./state.js";
 import {
@@ -91,7 +94,7 @@ import {
 import {
   solveWallCons, addWallRelation, addOffset, addEqualSpacing,
   removeCon, flipConDirection, repin, setConReport, setConSuppressed,
-  setConValue, addEqualLengthSet, addWallAngle, conLabelText,
+  setConValue, addEqualLengthSet, addWallAngle, conLabelText, conUnit,
   addOpeningCentre, addOpeningFromCorner, addOpeningSpacing, pinnedNodes,
   angleSectorAtNode, sectorAngle, setJointAngleTarget, jointAngleLengthImpact,
 } from "./wall_constraints.js";
@@ -260,6 +263,39 @@ function bindNum(id, fn, mode, eventName) {
     // matters for wall lengths, whose safety bounds used to leave (say) "2"
     // in the box while the model had already been clamped to 5 cm.
     if (fin(normalized)) this.value = normalized;
+    if (mode && S.sel && S.sel.kind === "item") touchItem3D(S.sel.ref, mode);
+    else S.dirty3D = true;
+    render2D();
+  });
+}
+
+function lengthUnit(idOrEl) {
+  var id = typeof idOrEl === "string" ? idOrEl : (idOrEl && idOrEl.id);
+  var dom = inferDomainFromElementId(id);
+  return dom ? displayUnit(dom) : (planningDisplayUnit(S) || displayUnit());
+}
+
+function parseFieldLength(text, idOrEl) {
+  var id = typeof idOrEl === "string" ? idOrEl : (idOrEl && idOrEl.id);
+  var dom = inferDomainFromElementId(id);
+  var cm = parseLen(text, dom || lengthUnit(idOrEl));
+  return Number.isFinite(cm) ? cm : NaN;
+}
+
+function writeFieldLength(input, cm) {
+  if (!input) return;
+  writeLen(input, cm);
+}
+
+function bindLength(id, fn, mode, eventName) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener(eventName || "change", function () {
+    var v = parseFieldLength(this.value, id);
+    if (!Number.isFinite(v)) return;
+    commitPending();
+    var normalized = fn(v);
+    if (fin(normalized)) writeFieldLength(this, normalized);
     if (mode && S.sel && S.sel.kind === "item") touchItem3D(S.sel.ref, mode);
     else S.dirty3D = true;
     render2D();
@@ -655,6 +691,7 @@ function applyDataRequest(d, requestGeneration) {
   frameView();
   applyEnv();
   window.__plannerChrome?.renderFloorTabs();
+  window.dispatchEvent(new CustomEvent("planner-units"));
   // Already applied — resolved, so `await applyData(...)` costs a microtask and
   // nothing else. Only the builder-fetch path above is genuinely asynchronous.
   return Promise.resolve(true);
@@ -752,6 +789,9 @@ export function flash(msg, kind) {
 // Minimal shared modal on the .bp-overlay/.bp-modal theme classes.
 // Returns {overlay, modal, body, actions, close, onClose}; Escape / backdrop click close it.
 export function openModal(titleText) {
+  document.querySelectorAll(".bp-overlay").forEach(function (o) {
+    if (o.parentNode) o.parentNode.removeChild(o);
+  });
   var overlay = document.createElement("div");
   overlay.className = "bp-overlay";
   var modal = document.createElement("div");
@@ -759,15 +799,25 @@ export function openModal(titleText) {
   modal.setAttribute("role", "dialog");
   modal.setAttribute("aria-modal", "true");
   if (titleText) modal.setAttribute("aria-label", titleText);
+  var head = document.createElement("div");
+  head.className = "modal-head-row";
   var h = document.createElement("h3");
   h.textContent = titleText;
+  head.appendChild(h);
+  var closeX = document.createElement("button");
+  closeX.type = "button";
+  closeX.className = "modal-close-x";
+  closeX.setAttribute("aria-label", "Close");
+  closeX.textContent = "×";
+  closeX.addEventListener("click", function () { close(); });
+  head.appendChild(closeX);
   var body = document.createElement("div");
   body.style.display = "flex";
   body.style.flexDirection = "column";
   body.style.gap = "12px";
   var actions = document.createElement("div");
   actions.className = "bp-btnrow";
-  modal.appendChild(h);
+  modal.appendChild(head);
   modal.appendChild(body);
   modal.appendChild(actions);
   overlay.appendChild(modal);
@@ -1502,7 +1552,7 @@ export function initUI() {
     flash(e.detail ? t("f_freeOn") : t("f_freeOff"));
   });
   // numeric property inputs
-  bindNum("w_len", function (v) {
+  bindLength("w_len", function (v) {
     var w = S.sel.ref;
     if (S.sel.kind !== "wall") return;
     v = Math.max(5, Math.min(3000, v));
@@ -1700,14 +1750,14 @@ export function initUI() {
     });
   });
 
-  bindNum("w_split_h", function (v) {
+  bindLength("w_split_h", function (v) {
     if (!S.sel || S.sel.kind !== "wall") return;
     S.sel.ref.splitHeight = Math.max(1, Math.min(S.sel.ref.height - 1, v));
     fillProps();
     return S.sel.ref.splitHeight;
   }, null, "change");
 
-  bindNum("w_bulge", function (v) {
+  bindLength("w_bulge", function (v) {
     if (!S.sel || S.sel.kind !== "wall") return;
     var w = S.sel.ref;
     v = Math.max(-5, Math.min(5, v));
@@ -1728,7 +1778,7 @@ export function initUI() {
     if (!S.sel || S.sel.kind !== "wall") return;
     var w = S.sel.ref, length = wallGeom(w).L;
     function val(id, fallback) {
-      var n = parseFloat(document.getElementById(id).value);
+      var n = parseLen(document.getElementById(id).value);
       return Number.isFinite(n) ? Math.max(0, Math.min(600, n)) : fallback;
     }
     var topA = val("w_top_a", w.height), topB = val("w_top_b", w.height);
@@ -1757,7 +1807,7 @@ export function initUI() {
     bindNum(id, function () { updateWallProfile(); }, null, "change");
   });
 
-  bindNum("w_th", function (v) {
+  bindLength("w_th", function (v) {
     if (S.sel.kind !== "wall") return;
     v = Math.max(2, Math.min(60, v));
     var w = S.sel.ref;
@@ -1779,10 +1829,11 @@ export function initUI() {
       flash(t("f_jointReleased", { n: result.released }));
     return v;
   }, null, "change");
-  bindNum("w_h", function (v) {
+  bindLength("w_h", function (v) {
     if (S.sel.kind === "wall")
       S.sel.ref.height = Math.max(20, Math.min(600, v));
-  });
+    return S.sel.kind === "wall" ? S.sel.ref.height : v;
+  }, null, "change");
   /* Planner sizing is a parameter/configuration request, never a mesh scale.
      Continuous valid edits rebuild immediately; family/module changes wait for
      an explicit choice in this compact proposal dialog. */
@@ -1832,7 +1883,7 @@ export function initUI() {
     cancel.textContent = t("cfg_keep_size");
     cancel.addEventListener("click", function () {
       cancelPending();
-      input.value = Math.round(it[{ width: "w", depth: "d", height: "h" }[dimension]] * 10) / 10;
+      writeFieldLength(input, it[{ width: "w", depth: "d", height: "h" }[dimension]]);
       dlg.close();
     });
     dlg.actions.appendChild(cancel);
@@ -1847,7 +1898,7 @@ export function initUI() {
     function validateDimension(event) {
       if (!S.sel || S.sel.kind !== "item") return;
       var live = !!event && event.type === "mf-scrub";
-      var it = S.sel.ref, value = Number(this.value);
+      var it = S.sel.ref, value = parseFieldLength(this.value);
       var field = { width: "w", depth: "d", height: "h" }[dimension];
       if (!Number.isFinite(value) || Math.abs(value - it[field]) < 0.0001) return;
       var result = it.cab
@@ -1858,7 +1909,7 @@ export function initUI() {
       else if (result.status === "proposal") showSmartProposal(it, dimension, result, this);
       else {
         cancelPending();
-        this.value = Math.round(it[{ width: "w", depth: "d", height: "h" }[dimension]] * 10) / 10;
+        writeFieldLength(this, it[{ width: "w", depth: "d", height: "h" }[dimension]]);
         flash(result.message || "That dimension cannot be changed", "error");
       }
     }
@@ -1915,19 +1966,21 @@ export function initUI() {
     });
   }
 
-  bindNum("o_w", function (v) {
+  bindLength("o_w", function (v) {
     if (S.sel.kind === "opening") {
       S.sel.ref.width = Math.max(20, Math.min(600, v));
       syncPaired(S.sel.ref);
+      return S.sel.ref.width;
     }
   });
-  bindNum("o_h", function (v) {
+  bindLength("o_h", function (v) {
     if (S.sel.kind === "opening") {
       S.sel.ref.height = Math.max(20, Math.min(400, v));
       syncPaired(S.sel.ref);
+      return S.sel.ref.height;
     }
   });
-  bindNum("o_sill", function (v) {
+  bindLength("o_sill", function (v) {
     if (S.sel.kind === "opening") {
       S.sel.ref.sill = Math.max(0, Math.min(300, v));
       syncPaired(S.sel.ref);
@@ -1937,7 +1990,7 @@ export function initUI() {
      opening; frameSpec() in view3d.js supplies the default when it is absent,
      so a scene saved before this existed still builds the old frame. */
   function bindFrame(id, prop, lo, hi, round) {
-    bindNum(id, function (v) {
+    bindLength(id, function (v) {
       if (!S.sel || S.sel.kind !== "opening") return;
       var o = S.sel.ref;
       v = Math.max(lo, Math.min(hi, round ? Math.round(v) : v));
@@ -1958,7 +2011,7 @@ export function initUI() {
   bindFrame("o_fr_mullv", "frMullV", 0, 12, true);
   bindFrame("o_fr_mullh", "frMullH", 0, 12, true);
 
-  bindNum("o_m_l", function(v) {
+  bindLength("o_m_l", function(v) {
     if (S.sel.kind === "opening" && S.sel.ref.overlapL != null) {
       var o = S.sel.ref;
       var currentRight = (o.overlapCenter + o.overlapL/2) - (o.s + o.width/2);
@@ -1972,7 +2025,7 @@ export function initUI() {
       fillProps();
     }
   });
-  bindNum("o_m_r", function(v) {
+  bindLength("o_m_r", function(v) {
     if (S.sel.kind === "opening" && S.sel.ref.overlapL != null) {
       var o = S.sel.ref;
       var currentLeft = (o.s - o.width/2) - (o.overlapCenter - o.overlapL/2);
@@ -1986,7 +2039,7 @@ export function initUI() {
       fillProps();
     }
   });
-  bindNum("o_m_b", function(v) {
+  bindLength("o_m_b", function(v) {
     if (S.sel.kind === "opening") {
       S.sel.ref.sill = Math.max(0, v);
       syncPaired(S.sel.ref);
@@ -1995,7 +2048,7 @@ export function initUI() {
       fillProps();
     }
   });
-  bindNum("o_m_t", function(v) {
+  bindLength("o_m_t", function(v) {
     if (S.sel.kind === "opening") {
       var w = S.walls.find(function(wa) { return wa.id === S.sel.ref.wall; });
       if (w) {
@@ -2281,10 +2334,9 @@ export function initUI() {
       return;
     }
     var pos = parseFloat(document.getElementById("ow_pos").value) || 0,
-      w = parseFloat(document.getElementById("ow_w").value) || 0,
-      h = parseFloat(document.getElementById("ow_h").value) || 0;
-    document.getElementById("ow_posval").textContent =
-      Math.round(pos) + " " + t("cm");
+      w = parseLen(document.getElementById("ow_w").value) || 0,
+      h = parseLen(document.getElementById("ow_h").value) || 0;
+    document.getElementById("ow_posval").textContent = fmtLen(pos);
     S.segPreview = { s: pos, width: w, height: h };
     render2D();
   }
@@ -2491,17 +2543,17 @@ export function initUI() {
 
   // placeholder-point inspector: position (carries the object standing on it)
   // and a free-text name for the plan label
-  bindNum("mk_x", function (v) {
+  bindLength("mk_x", function (v) {
     if (!S.sel || S.sel.kind !== "marker") return;
     moveMarker(S.sel.ref, v, S.sel.ref.y, S.sel.ref.z);
     refreshMarkerReadout();
   });
-  bindNum("mk_y", function (v) {
+  bindLength("mk_y", function (v) {
     if (!S.sel || S.sel.kind !== "marker") return;
     moveMarker(S.sel.ref, S.sel.ref.x, Math.max(0, v), S.sel.ref.z);
     refreshMarkerReadout();
   });
-  bindNum("mk_z", function (v) {
+  bindLength("mk_z", function (v) {
     if (!S.sel || S.sel.kind !== "marker") return;
     moveMarker(S.sel.ref, S.sel.ref.x, S.sel.ref.y, v);
     refreshMarkerReadout();
@@ -2521,8 +2573,11 @@ export function initUI() {
      the geometry fields: every keystroke here re-solves the whole constraint
      set and moves corners, so typing "240" would drag the plan to 2 cm and
      then to 24 cm on the way. */
-  bindNum("con_value", function (v) {
+  document.getElementById("con_value").addEventListener("change", function () {
     if (!S.sel || S.sel.kind !== "con") return;
+    var unit = conUnit(S.sel.ref);
+    var v = unit === "deg" ? parseFloat(this.value) : parseLen(this.value);
+    if (!Number.isFinite(v)) return;
     pushHistory();
     setConValue(S.sel.ref.id, v);
     var r = solveWallCons();
@@ -2530,7 +2585,7 @@ export function initUI() {
     fillProps();
     refreshTree();
     renderWarnPanel(true);
-  }, null, "change");
+  });
 
   /* Report and suppress are the two ways to stop a dimension driving, and they
      are different: a suppressed dimension is switched off, a reference one is
@@ -2572,10 +2627,10 @@ export function initUI() {
     S.dirty3D = true;
     fillProps();
   }
-  bindNum("nd_x", function (v) {
+  bindLength("nd_x", function (v) {
     moveJoint(v, null);
   });
-  bindNum("nd_z", function (v) {
+  bindLength("nd_z", function (v) {
     moveJoint(null, v);
   });
 
@@ -2589,8 +2644,8 @@ export function initUI() {
     mkReq.addEventListener("input", function () {
       if (!S.sel || S.sel.kind !== "marker") return;
       commitPending();
-      var v = parseFloat(this.value);
-      S.sel.ref.req = this.value === "" || isNaN(v) ? null : Math.max(0, v);
+      var v = parseLen(this.value);
+      S.sel.ref.req = this.value === "" || !Number.isFinite(v) ? null : Math.max(0, v);
       refreshMarkerReadout();
       render2D();
     });
@@ -2613,22 +2668,22 @@ export function initUI() {
       render2D();
     });
 
-  bindNum("sv_x", function (v) {
+  bindLength("sv_x", function (v) {
     if (!S.sel || S.sel.kind !== "slabvoid") return;
     S.sel.ref.x = v;
     broadcastPlanOp({ type: "slabMove", id: S.sel.ref.id, x: S.sel.ref.x, z: S.sel.ref.z, rot: S.sel.ref.rot });
   });
-  bindNum("sv_z", function (v) {
+  bindLength("sv_z", function (v) {
     if (!S.sel || S.sel.kind !== "slabvoid") return;
     S.sel.ref.z = v;
     broadcastPlanOp({ type: "slabMove", id: S.sel.ref.id, x: S.sel.ref.x, z: S.sel.ref.z, rot: S.sel.ref.rot });
   });
-  bindNum("sv_w", function (v) {
+  bindLength("sv_w", function (v) {
     if (!S.sel || S.sel.kind !== "slabvoid") return;
     S.sel.ref.w = Math.max(40, v);
     return S.sel.ref.w;
   });
-  bindNum("sv_d", function (v) {
+  bindLength("sv_d", function (v) {
     if (!S.sel || S.sel.kind !== "slabvoid") return;
     S.sel.ref.d = Math.max(40, v);
     return S.sel.ref.d;
@@ -3607,7 +3662,7 @@ export function initUI() {
     } else if (act === "updateCornerTreatment" && S.sel && S.sel.kind === "wall") {
       var oldCornerType = S.sel.ref.cornerTreatment && S.sel.ref.cornerTreatment.type;
       var newCornerType = document.getElementById("w_corner_type").value;
-      var newCornerValue = Number(document.getElementById("w_corner_value").value);
+      var newCornerValue = parseLen(document.getElementById("w_corner_value").value);
       var cornerUpdateResult = updateSelectedCornerTreatment(newCornerType, newCornerValue);
       if (cornerUpdateResult.ok)
         flash(t(oldCornerType === newCornerType ? "wallCornerUpdated" : "wallCornerConverted"), "success");

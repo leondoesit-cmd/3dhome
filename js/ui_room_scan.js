@@ -378,6 +378,9 @@ export function openRoomScanModal(initialResult = null, exchange = null) {
   // AR corners are tapped on the INSIDE face; RoomPlan fits a plane to the
   // visible face too, so both may need pushing out to a centre-line.
   let faceMode = "centre";
+  document.querySelectorAll(".bp-overlay").forEach(function (o) {
+    if (o.parentNode) o.parentNode.removeChild(o);
+  });
   const overlay = el("div", "bp-overlay roomscan-overlay");
   const modal = el("div", "bp-modal roomscan-modal");
   modal.setAttribute("role", "dialog");
@@ -391,7 +394,11 @@ export function openRoomScanModal(initialResult = null, exchange = null) {
   const title = el("h3", null, t("rs_title")); title.id = "roomscan-title";
   headCopy.appendChild(title);
   headCopy.appendChild(el("p", null, t("rs_intro")));
-  head.append(icon, headCopy);
+  const closeX = el("button", "modal-close-x", "×");
+  closeX.type = "button";
+  closeX.setAttribute("aria-label", "Close");
+  closeX.onclick = () => close();
+  head.append(icon, headCopy, closeX);
 
   const capability = el("div", "roomscan-capability pending");
   capability.innerHTML = '<i class="ph ph-circle-notch"></i><span>' + t("rs_checking") + "</span>";

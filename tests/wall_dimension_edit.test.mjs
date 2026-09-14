@@ -38,9 +38,9 @@ test("a direct dimension reconciliation cannot resize another free wall", () => 
 
 test("wall inspector commits length and angle atomically", async () => {
   const source = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
-  assert.match(source, /bindNum\("w_len",[\s\S]*?null, "change"\);/);
+  assert.match(source, /bindLength\("w_len",[\s\S]*?null, "change"\);/);
   assert.match(source, /bindNum\("w_ang",[\s\S]*?null, "change"\);/);
-  assert.match(source, /bindNum\("w_th",[\s\S]*?null, "change"\);/);
+  assert.match(source, /bindLength\("w_th",[\s\S]*?null, "change"\);/);
 });
 
 test("thickness grows away from the measured face and preserves every room length", () => {

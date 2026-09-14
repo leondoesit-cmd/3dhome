@@ -395,3 +395,12 @@ test("viewport chrome docks to a rail instead of pinning itself to a corner", ()
   // The view stack is a fixed list of buttons in a viewport of no fixed height.
   assert.match(styles, /body:not\(\.compact-nav\) #modeler \.md-views \{[^}]*max-height: calc\(100% - 132px\)[^}]*overflow-y: auto/s);
 });
+
+test("desktop model editor: context toolbar is horizontal, high-contrast, and displays action labels", () => {
+  assert.match(styles, /#modeler \.md-context-toolbar \{[^}]*display:\s*flex/s);
+  assert.match(styles, /#modeler \.md-context-toolbar \{[^}]*flex-direction:\s*row/s);
+  assert.match(styles, /#modeler \.md-context-toolbar \{[^}]*background:\s*var\(--bg-panel\)/s);
+  assert.match(styles, /#modeler \.md-context-toolbar button \.md-action-label/);
+  assert.match(modelerSource, /showLabels = host\.id === "mdContextToolbar"/);
+  assert.match(modelerSource, /md-action-label/);
+});

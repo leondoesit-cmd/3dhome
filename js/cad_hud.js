@@ -16,7 +16,23 @@ import { wallPointPolar } from "./interaction.js";
 import { wallClearLength, pendingCuts, roomName } from "./geometry.js";
 import { flabel } from "./furniture_meta.js";
 import { t, tTouch } from "./i18n.js";
-import { previousRunAngle, resolveWallDrawDefaults, previewMetrics, touchDrawing } from "./wall_draw.js";
+import { previousRunAngle, resolveWallDrawDefaults, previewMetrics, touchDrawing, currentDrawDirLock } from "./wall_draw.js";
+import { planningDisplayUnit } from "./planning_guide.js";
+import { parseLength, formatLength } from "./planning_units.js";
+import { ensurePointsVisible } from "./plan_view.js";
+
+function hudUnit() {
+  return planningDisplayUnit(S);
+}
+
+function hudLength(text) {
+  var parsed = parseLength(text, hudUnit());
+  return Number.isFinite(parsed) ? parsed : parseFloat(text);
+}
+
+function hudFmt(cm, options) {
+  return formatLength(cm, hudUnit(), options);
+}
 
 var bar = null,
   elCoord = null,
@@ -215,6 +231,7 @@ export function initCadHud() {
   onAfterRender(updateCadHud);
   window.addEventListener("planner-selection", updateCadHud);
   window.addEventListener("planner-place", updateCadHud);
+  window.addEventListener("planner-units", applyLangLabels);
 
   window.addEventListener("keydown", function (e) {
     var k = e.key;
@@ -390,9 +407,6 @@ export function toggleAid(key) {
 }
 
 /* ---- readout ---- */
-function fmt(v) {
-  return (v < 0 ? "−" : "") + Math.abs(Math.round(v));
-}
 // last written strings — this runs once per rendered frame during a drag, and
 // a needless textContent write there costs a layout on every one of them
 var lastCoord = null,
@@ -408,12 +422,14 @@ function setText(el, s, prev) {
 
 export function updateCadHud() {
   if (!bar) return;
-  var unit = t("cm");
+  var unit = hudUnit();
+  var unitLabel = t("guide_unit_" + unit);
   lastCoord = setText(
     elCoord,
     curX == null || !fin(curX)
       ? "—"
-      : "X " + fmt(curX) + "   Y " + fmt(-curZ) + "  " + unit,
+      : "X " + hudFmt(curX, { suffix: false }) + "   Y " + hudFmt(-curZ, { suffix: false }) +
+        (unit === "ft" ? "" : "  " + unitLabel),
     lastCoord,
   );
 
@@ -428,12 +444,10 @@ export function updateCadHud() {
     var a = S.nodes[S.drawFrom];
     if (a) {
       // interior span, matching the rubber-band label in the plan
-      var len = Math.round(
-        Math.max(
-          0,
-          Math.hypot(S.previewPt.x - a.x, S.previewPt.z - a.z) -
-            (S.interiorDims !== false ? pendingCuts(S.drawFrom, S.previewPt) : 0),
-        ),
+      var len = Math.max(
+        0,
+        Math.hypot(S.previewPt.x - a.x, S.previewPt.z - a.z) -
+          (S.interiorDims !== false ? pendingCuts(S.drawFrom, S.previewPt) : 0),
       );
       var metrics = previewMetrics(S.drawFrom, S.previewPt);
       var turn = metrics && metrics.hasPrev
@@ -442,13 +456,13 @@ export function updateCadHud() {
       var turnTxt = metrics && metrics.hasPrev
         ? t("cad_turn") + " " + (turn > 0 ? "+" : "") + Math.round(turn) + "°"
         : "∠ " + Math.round(turn) + "°";
-      main = t("cad_len") + " " + len + " " + unit + "   " + turnTxt;
+      main = t("cad_len") + " " + hudFmt(len) + "   " + turnTxt;
       if (metrics && metrics.parallel)
-        main += "   " + t("cad_off") + " " + Math.round(metrics.parallel.abs) + " " + unit;
+        main += "   " + t("cad_off") + " " + hudFmt(metrics.parallel.abs);
     }
   } else if (S.tool === "walloffset") {
     var od = S.offsetDraft;
-    main = tTouch("hint_tool_offset") + (od ? " · " + Math.round(od.dist) + " " + unit : "");
+    main = tTouch("hint_tool_offset") + (od ? " · " + hudFmt(od.dist) : "");
   } else if (S.tool === "wall") {
     main = tTouch("hint_tool_wall");
   } else if (S.tool === "rect") {
@@ -468,7 +482,7 @@ export function updateCadHud() {
   } else if (S.tool === "wallbite") {
     var bd = S.biteDraft;
     main = bd
-      ? t("cad_len") + " " + Math.round(Math.abs(bd.s1 - bd.s0)) + " " + unit
+      ? t("cad_len") + " " + hudFmt(Math.abs(bd.s1 - bd.s0))
       : tTouch("hint_tool_wallbite");
   } else if (S.tool === "wallbreak") {
     main = tTouch("hint_tool_break");
@@ -482,17 +496,17 @@ export function updateCadHud() {
     main = tTouch("hint_tool_erase");
   } else if (S.sel && S.sel.kind === "slabvoid" && S.sel.ref) {
     selectionName = S.sel.ref.name || t("sv_title");
-    selectionDetail = Math.round(S.sel.ref.w) + " × " + Math.round(S.sel.ref.d) + " " + unit;
+    selectionDetail = hudFmt(S.sel.ref.w) + " × " + hudFmt(S.sel.ref.d);
   } else if (S.sel && S.sel.kind === "wall") {
     selectionName = t("wallId", { id: S.sel.ref.id });
-    selectionDetail = Math.round(wallLen(S.sel.ref)) + " " + unit;
+    selectionDetail = hudFmt(wallLen(S.sel.ref));
   } else if (S.sel && S.sel.kind === "item" && S.sel.ref) {
     selectionName = S.sel.ref.name || flabel(S.sel.ref.type);
-    selectionDetail = Math.round(S.sel.ref.w) + " × " + Math.round(S.sel.ref.d) + " " + unit;
+    selectionDetail = hudFmt(S.sel.ref.w) + " × " + hudFmt(S.sel.ref.d);
   } else if (S.sel && S.sel.kind === "opening" && S.sel.ref) {
     selectionName = S.sel.ref.name || t(S.sel.ref.type === "door" ? "door" : S.sel.ref.type === "passage" ? "passage" : "window");
-    selectionDetail = Math.round(S.sel.ref.w || S.sel.ref.width || 0) + " × " +
-      Math.round(S.sel.ref.h || S.sel.ref.height || 0) + " " + unit;
+    selectionDetail = hudFmt(S.sel.ref.w || S.sel.ref.width || 0) + " × " +
+      hudFmt(S.sel.ref.h || S.sel.ref.height || 0);
   } else if (S.sel && S.sel.kind === "room") {
     selectionName = roomName(S.sel.ref) || t("room");
   } else if (S.sel && S.sel.kind === "marker" && S.sel.ref) {
@@ -592,10 +606,23 @@ export function applyLangLabels() {
   opts[3].textContent = t("cad_target_manual");
   targetSelect.title = t("cad_target_hint");
   var labs = entry.querySelectorAll(".cad-e-lab");
-  labs[0].textContent = t("cad_len") + " (" + t("cm") + ")";
+  var unitLabel = t("guide_unit_" + hudUnit());
+  labs[0].textContent = t("cad_len") + " (" + unitLabel + ")";
   labs[1].textContent = t("cad_ang") + " (°)";
-  if (labs[2]) labs[2].textContent = t("cad_off") + " (" + t("cm") + ")";
+  if (labs[2]) labs[2].textContent = t("cad_off") + " (" + unitLabel + ")";
   entry.querySelector(".cad-e-hint").textContent = t("cad_entry_hint");
+  /* Rewrite a bare number from the live rubber-band, not by re-parsing the
+     box: "884" typed in centimetres must not become 884 feet when Project
+     units change mid-entry. */
+  if (!entry.hidden && inLen && S.drawing && S.drawFrom != null && S.previewPt) {
+    var origin = S.nodes[S.drawFrom];
+    if (origin) {
+      var run = Math.hypot(S.previewPt.x - origin.x, S.previewPt.z - origin.z);
+      var cuts = S.interiorDims !== false ? pendingCuts(S.drawFrom, null) : 0;
+      var shown = Math.max(0, run - cuts);
+      if (shown > 0) inLen.value = hudFmt(shown, { suffix: false });
+    }
+  }
   lastCoord = lastMain = lastSnap = lastAids = null;
   updateCadHud();
 }
@@ -613,7 +640,7 @@ export function openEntry(seed) {
     inLen.parentElement.hidden = true;
     inAng.parentElement.hidden = true;
     if (labOff) labOff.hidden = false;
-    inOff.value = seed || String(Math.round((S.offsetDraft && S.offsetDraft.dist) || resolveWallDrawDefaults().offsetDist));
+    inOff.value = seed || hudFmt((S.offsetDraft && S.offsetDraft.dist) || resolveWallDrawDefaults().offsetDist, { suffix: false });
     positionEntry();
     inOff.focus();
     inOff.setSelectionRange(0, inOff.value.length);
@@ -628,14 +655,26 @@ export function openEntry(seed) {
   var metrics = S.previewPt ? previewMetrics(S.drawFrom, S.previewPt) : null;
   if (labOff) labOff.hidden = !(metrics && metrics.parallel);
   var angLab = inAng.previousElementSibling;
-  if (angLab) angLab.textContent = (metrics && metrics.hasPrev ? t("cad_turn") : t("cad_ang")) + " (°)";
-  entryAngleBase = metrics && metrics.hasPrev ? previousRunAngle() : null;
-  if (metrics && metrics.hasPrev)
+  var hasPrev = !!(metrics && metrics.hasPrev);
+  if (angLab) angLab.textContent = (hasPrev ? t("cad_turn") : t("cad_ang")) + " (°)";
+  entryAngleBase = hasPrev ? previousRunAngle() : null;
+  var lock = currentDrawDirLock();
+  if (fin(lock)) {
+    if (fin(entryAngleBase)) {
+      var d = lock - entryAngleBase;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      inAng.value = String(Math.round((d * 180) / Math.PI));
+    } else {
+      inAng.value = String(Math.round((lock * 180) / Math.PI));
+    }
+  } else if (hasPrev) {
     inAng.value = String(Math.round((metrics.turn * 180) / Math.PI));
-  else
+  } else {
     inAng.value = S.previewPt ? String(segBearing(a, S.previewPt)) : "0";
+  }
   inLen.value = seed || "";
-  inOff.value = metrics && metrics.parallel ? String(Math.round(metrics.parallel.abs)) : "";
+  inOff.value = metrics && metrics.parallel ? hudFmt(metrics.parallel.abs, { suffix: false }) : "";
   positionEntry();
   inLen.focus();
   inLen.setSelectionRange(inLen.value.length, inLen.value.length);
@@ -673,9 +712,16 @@ function absAngleFromEntry() {
   return A;
 }
 
+function frameDrawPreview() {
+  if (!S.drawing || S.drawFrom == null || !S.previewPt) return;
+  var origin = S.nodes[S.drawFrom];
+  if (!origin) return;
+  ensurePointsVisible([origin, S.previewPt], 56);
+}
+
 function previewFromEntry() {
   if (S.tool === "walloffset") {
-    var off = parseFloat(inOff.value);
+    var off = hudLength(inOff.value);
     if (fin(off) && off > 0) {
       S.wallDrawDefaults = Object.assign({}, S.wallDrawDefaults || {}, { offsetDist: off });
       if (S.offsetDraft) S.offsetDraft.dist = off;
@@ -685,13 +731,14 @@ function previewFromEntry() {
   }
   if (!S.drawing || S.drawFrom == null) return;
   var a = S.nodes[S.drawFrom];
-  var L = parseFloat(inLen.value),
+  var L = hudLength(inLen.value),
     A = absAngleFromEntry();
   if (!a || !fin(L) || L <= 0) return;
   var r = (A * Math.PI) / 180;
   var run = L + (S.interiorDims !== false ? pendingCuts(S.drawFrom, null) : 0);
   S.previewPt = { x: a.x + Math.cos(r) * run, z: a.z + Math.sin(r) * run };
   S.snapInfo = { type: "free", x: S.previewPt.x, z: S.previewPt.z };
+  frameDrawPreview();
   render2D();
 }
 
@@ -699,7 +746,7 @@ function entryKey(e) {
   if (e.key === "Enter") {
     e.preventDefault();
     if (S.tool === "walloffset") {
-      var off = parseFloat(inOff.value);
+      var off = hudLength(inOff.value);
       if (fin(off) && off > 0) {
         S.wallDrawDefaults = Object.assign({}, S.wallDrawDefaults || {}, { offsetDist: off });
         if (S.offsetDraft) S.offsetDraft.dist = off;
@@ -708,7 +755,8 @@ function entryKey(e) {
       render2D();
       return;
     }
-    var L = parseFloat(inLen.value),
+    previewFromEntry();
+    var L = hudLength(inLen.value),
       A = absAngleFromEntry();
     if (!fin(L) || L <= 0) return;
     closeEntry();

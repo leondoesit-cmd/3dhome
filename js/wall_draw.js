@@ -228,10 +228,46 @@ export function previousRunAngle() {
 export function signedTurn(from, to, prevAng) {
   var abs = Math.atan2(to.z - from.z, to.x - from.x);
   if (!fin(prevAng)) return abs;
-  var d = abs - prevAng;
+  return wrapPi(abs - prevAng);
+}
+
+function wrapPi(d) {
   while (d > Math.PI) d -= 2 * Math.PI;
   while (d < -Math.PI) d += 2 * Math.PI;
   return d;
+}
+
+/* Once a rubber band has a clear bearing, keep that quadrant while the cursor
+   drifts back toward the last corner (reaching for the keyboard) or nicks the
+   previous wall's continuation. Object snaps still win. */
+var drawDirLock = null;
+var DIR_LOCK_MIN = 24;
+var DIR_LOCK_HOLD = Math.PI / 2;
+
+export function resetDrawDirLock() {
+  drawDirLock = null;
+}
+
+export function currentDrawDirLock() {
+  return drawDirLock;
+}
+
+export function applyDrawDirLock(from, point) {
+  if (!from || !point || !fin(point.x) || !fin(point.z)) return point;
+  if (point.node != null || point.wall || (point.walls && point.walls.length)) return point;
+  var dx = point.x - from.x, dz = point.z - from.z, len = Math.hypot(dx, dz);
+  if (!(len > 0) || !fin(len)) return point;
+  var ang = Math.atan2(dz, dx);
+  if (!fin(ang)) return point;
+  if (drawDirLock != null && (len < DIR_LOCK_MIN || Math.abs(wrapPi(ang - drawDirLock)) <= DIR_LOCK_HOLD)) {
+    var next = {};
+    for (var k in point) if (Object.prototype.hasOwnProperty.call(point, k)) next[k] = point[k];
+    next.x = from.x + Math.cos(drawDirLock) * len;
+    next.z = from.z + Math.sin(drawDirLock) * len;
+    return next;
+  }
+  if (len >= DIR_LOCK_MIN) drawDirLock = ang;
+  return point;
 }
 
 export function nearestParallelInfo(ax, az, bx, bz, skipIds) {

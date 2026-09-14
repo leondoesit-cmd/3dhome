@@ -18,6 +18,7 @@ import {
 import { planDof } from "./wall_dof.js";
 import { select, flash, squareJoint, squaredMsg } from "./ui.js";
 import { pushHistory } from "./history.js";
+import { fmtLen } from "./display_units.js";
 
 var listEl = null,
   countEl = null,
@@ -45,7 +46,7 @@ function detailText(wr) {
       if (!w) return null;
       return t("cw_wallLen", {
         id: id,
-        L: Math.round(wallGeom(w).L),
+        L: fmtLen(wallGeom(w).L),
       });
     })
     .filter(Boolean);
@@ -237,8 +238,8 @@ function conRows() {
   });
 }
 function fmtErr(v, unit) {
-  var n = Math.round((Number(v) || 0) * 100) / 100;
-  return unit === "deg" ? n + "°" : n + " " + t("cm");
+  var n = Number(v) || 0;
+  return unit === "deg" ? (Math.round(n * 100) / 100) + "°" : fmtLen(n);
 }
 /* Somewhere on the plan to scroll to when the row is picked. Any corner the
    constraint touches will do — it is a "show me where" target, not a layout. */

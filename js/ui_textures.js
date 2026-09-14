@@ -112,6 +112,7 @@ export function openTextureGallery(targetHint, onSelectCallback) {
   renderTexturesGrid();
 
   modalEl.classList.add("open");
+  modalEl.setAttribute("aria-hidden", "false");
   var searchInput = document.getElementById("texGallerySearch");
   if (searchInput) {
     searchInput.value = "";
@@ -123,7 +124,10 @@ export function openTextureGallery(targetHint, onSelectCallback) {
 }
 
 export function closeTextureGallery() {
-  if (modalEl) modalEl.classList.remove("open");
+  if (modalEl) {
+    modalEl.classList.remove("open");
+    modalEl.setAttribute("aria-hidden", "true");
+  }
   hideHoverPreview();
 }
 
@@ -131,6 +135,7 @@ function createTextureGalleryModal() {
   modalEl = document.createElement("div");
   modalEl.id = "textureGalleryModal";
   modalEl.className = "tex-modal-backdrop";
+  modalEl.setAttribute("aria-hidden", "true");
 
   var lang = getLang();
   var isHe = lang === "he";
@@ -211,7 +216,7 @@ function createTextureGalleryModal() {
           <div class="tex-control-group">
             <label>${isHe ? "גודל טקסטורה (ס\"מ):" : "Tile Size (cm):"}</label>
             <input type="range" id="texScaleRange" min="50" max="600" step="10" value="${currentScale}" />
-            <span id="texScaleVal">${currentScale} ס"מ</span>
+            <span id="texScaleVal">${currentScale} ${isHe ? 'ס"מ' : 'cm'}</span>
           </div>
 
           <div class="tex-control-group">
@@ -409,7 +414,7 @@ function createTextureCard(tex, index, isOnline) {
   
   card.innerHTML =
     '<div class="tex-preview" style="background-image:url(\'' + previewUrl + '\')">' + badgeHtml + '<span class="tex-selected-mark"><i class="ph ph-check"></i></span></div>' +
-    '<div class="tex-card-copy"><div class="tex-card-title">' + texName + '</div><div class="tex-card-meta">' + (tex.scale || 200) + ' cm</div></div>';
+    '<div class="tex-card-copy"><div class="tex-card-title" title="' + texName.replace(/"/g, '&quot;') + '">' + texName + '</div><div class="tex-card-meta">' + (tex.scale || 200) + ' cm</div></div>';
   
   var fav = isFavorite(tex.id);
   var starBtn = document.createElement("button");

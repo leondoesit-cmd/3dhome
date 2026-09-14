@@ -307,6 +307,7 @@
                 aria-expanded="false"
                 autocomplete="off"
                 spellcheck="false"
+                dir="auto"
               />
               <kbd class="tool-search-shortcut"></kbd>
               <button type="button" class="tool-search-clear" hidden>
@@ -975,7 +976,7 @@
                   <div class="dim-row wall-size-row">
                     <label
                       ><span data-i18n="len">אורך</span
-                      ><input id="w_len" type="number" inputmode="numeric"
+                      ><input id="w_len" type="text" inputmode="decimal" autocomplete="off"
                     /></label>
                     <label
                       ><span data-i18n="ang">זווית</span
@@ -1322,15 +1323,15 @@
               <div class="dim-row dim-row-3">
                 <label
                   ><span data-i18n="width">רוחב</span
-                  ><input id="i_w" type="number" inputmode="numeric"
+                  ><input id="i_w" type="text" inputmode="decimal" autocomplete="off"
                 /></label>
                 <label
                   ><span data-i18n="depth">עומק</span
-                  ><input id="i_d" type="number" inputmode="numeric"
+                  ><input id="i_d" type="text" inputmode="decimal" autocomplete="off"
                 /></label>
                 <label
                   ><span data-i18n="height">גובה</span
-                  ><input id="i_h" type="number" inputmode="numeric"
+                  ><input id="i_h" type="text" inputmode="decimal" autocomplete="off"
                 /></label>
               </div>
               <label id="i_variant_box" style="display:none;"
@@ -1404,7 +1405,6 @@
                   <span id="lockItemSpan">נעל</span>
                 </button>
               </div>
-              <span class="t" data-i18n="cm_deg">ס"מ / °</span>
             </div>
 
             <div class="grp props" id="itemsProps">
@@ -1532,18 +1532,18 @@
               <div class="dim-row dim-row-3">
                 <label
                   ><span data-i18n="width">רוחב</span
-                  ><input id="o_w" type="number" inputmode="numeric"
+                  ><input id="o_w" type="text" inputmode="decimal" autocomplete="off"
                 /></label>
                 <label
                   ><span data-i18n="height">גובה</span
-                  ><input id="o_h" type="number" inputmode="numeric"
+                  ><input id="o_h" type="text" inputmode="decimal" autocomplete="off"
                 /></label>
                 <label id="o_sill_l"
                   ><span data-i18n="sill">סף</span
                   ><input id="o_sill" type="number" inputmode="numeric"
                 /></label>
               </div>
-              <span class="t" data-i18n="cm">ס"מ</span>
+              <span class="t" id="o_unit" data-i18n="cm">ס"מ</span>
               <!-- Where the opening SITS, stated rather than dragged. Until
                    these existed an opening's position was a raw slider, so
                    "centred" or "900 from the corner" was something you set once
@@ -2218,8 +2218,8 @@
         }
       }
     </script>
-    <script type="module" src="js/main.js?v=inspector-preview-3"></script>
-    <script type="module" src="js/planner_tutorial.js?v=wall-guide-6"></script>
-    <script type="module" src="js/planner_chrome.js?v=planner-chrome-1"></script>
+    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/planner_tutorial.js"></script>
+    <script type="module" src="js/planner_chrome.js"></script>
   </body>
 </html>

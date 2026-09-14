@@ -25,6 +25,9 @@
  */
 
 import { t, onLangChange } from "./i18n.js";
+import { S } from "./state.js";
+import { planningDisplayUnit } from "./planning_guide.js";
+import { parseLength, toDisplayLength, fromDisplayLength, formatLength } from "./planning_units.js";
 import {
   createDimScrub,
   baseStepFor,
@@ -119,12 +122,29 @@ function labelFor(input) {
 function unitFor(input) {
   var explicit = input.getAttribute("data-knob-unit");
   if (explicit) return explicit;
-  return /rot|ang|azim|pitch|north|cone|deg/i.test(input.id || "") ? "°" : t("cm");
+  if (/rot|ang|azim|pitch|north|cone|deg/i.test(input.id || "")) return "°";
+  return t("guide_unit_" + planningDisplayUnit(S));
 }
 
 function fieldValue(input) {
+  if (/rot|ang|azim|pitch|north|cone|deg/i.test(input.id || "")) {
+    var ang = parseFloat(input.value);
+    return isFinite(ang) ? ang : 0;
+  }
+  var unit = planningDisplayUnit(S);
+  var cm = parseLength(input.value, unit);
+  if (Number.isFinite(cm)) return toDisplayLength(cm, unit);
   var v = parseFloat(input.value);
   return isFinite(v) ? v : 0;
+}
+
+function writeKnobValue(input, displayValue) {
+  if (/rot|ang|azim|pitch|north|cone|deg/i.test(input.id || "")) {
+    input.value = String(displayValue);
+    return;
+  }
+  var unit = planningDisplayUnit(S);
+  input.value = formatLength(fromDisplayLength(displayValue, unit), unit, { suffix: false });
 }
 
 /* ---- the panel ---------------------------------------------------------- */
@@ -342,7 +362,7 @@ function close(commit) {
 
   if (commit && scrub) {
     writing = true;
-    input.value = String(scrub.value);
+    writeKnobValue(input, scrub.value);
     emit(input, "input");
     emit(input, "change");
     writing = false;
@@ -414,7 +434,7 @@ function pullFromField() {
 function push() {
   if (!target || !scrub) return;
   writing = true;
-  target.value = String(scrub.value);
+  writeKnobValue(target, scrub.value);
   emit(target, "input");
   emit(target, "change");
   target.dispatchEvent(new CustomEvent("mf-scrub", { bubbles: true }));

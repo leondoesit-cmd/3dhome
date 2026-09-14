@@ -84,9 +84,10 @@ body:not(.compact-nav) #modeler .md-views {
 }
 /* Selection tools sit centered under Model/Sketch/Drawing, sized to content. */
 body:not(.compact-nav) #modeler .md-context-toolbar {
+  display: flex;
   top: 52px; left: 50%; right: auto; transform: translateX(-50%);
   width: max-content; max-width: calc(100% - 24px);
-  justify-content: center; flex-wrap: wrap; z-index: 10;
+  justify-content: center; flex-wrap: wrap; z-index: 42;
 }
 /* Accept/Cancel in the confirmation corner shared that same top-end slot with
    the inspector toggle. */
@@ -1483,6 +1484,11 @@ html[data-tool="erase"] #plan { cursor: crosshair; }
 #view-2d.plan-narrow #plan-toolbar.show-titles[data-axis="h"] .tool-name {
   display: none;
 }
+@media (max-width: 1366px) {
+  #plan-toolbar.show-titles[data-axis="h"] .tool-name {
+    display: none;
+  }
+}
 
 #plan-wall-palette {
   pointer-events: auto;
@@ -2480,6 +2486,15 @@ body.used-2d #view-2d > .hint {
 /* the 2D hint sits above the CAD status bar, not on top of it */
 #view-2d > .hint {
   bottom: 44px;
+}
+/* the 3D hint sits above the floating planner navigation toolbar */
+#view-3d > .hint {
+  bottom: 84px;
+}
+@media (max-width: 600px) {
+  #view-3d > .hint {
+    bottom: 110px;
+  }
 }
 
 /* ---- CAD status bar (js/cad_hud.js) ----------------------------------
@@ -3899,7 +3914,7 @@ body.used-2d #view-2d > .hint {
 .ws-section { display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; }
 .ws-section h4 { margin: 0 0 4px; }
 .ws-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.ws-row > input { flex: 1 1 150px; min-width: 100px; }
+.ws-row > input { flex: 1 1 190px; min-width: 175px; }
 .ws-card { display: flex; flex-direction: column; gap: 7px; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; }
 .ws-card small, .ws-row small { opacity: .72; }
 .ws-version { text-align: start; font-size: 12px; }
@@ -4617,6 +4632,12 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
   #modeler .md-welcome { padding: 12px; }
   #modeler .md-welcome-head, #modeler .md-welcome-scroll { padding-inline: 18px; }
   #modeler .md-welcome-foot { padding-inline: 18px; }
+}
+@media (max-width: 380px) {
+  #modeler .md-welcome-meta b {
+    white-space: normal;
+    line-height: 1.3;
+  }
 }
 /* Bottom-sheet, not a full-height dialog: stretched to the viewport the card
    left ~350px of empty panel under four tiles, and pushed the tiles that are
@@ -5795,27 +5816,33 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
    a static top/left, so `fixed` measured it against the window and parked it in
    the app's top chrome instead of over the model. */
 #modeler .md-context-toolbar {
+  display: flex; flex-direction: row; align-items: center; gap: 5px; padding: 4px 6px;
   position: absolute; z-index: 42; pointer-events: auto;
   top: 52px; left: 50%; transform: translateX(-50%);
   width: max-content; max-width: calc(100% - 24px);
   max-height: calc(50% - 60px); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 9px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28); backdrop-filter: blur(10px);
 }
 #modeler.md-isdrawing .md-context-toolbar { display: none; }
 #modeler .md-shortcut-bar {
   top: 50%; left: 50%; transform: translate(-50%, -50%);
   flex-direction: column; align-items: stretch; padding: 10px 10px 8px;
+  background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); backdrop-filter: blur(10px);
 }
 #modeler .md-shortcut-row { display: flex; gap: 4px; }
 #modeler .md-view-selector {
   top: 50%; left: 50%; transform: translate(-50%, -50%);
   flex-direction: column; min-width: 196px; padding: 10px;
+  background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); backdrop-filter: blur(10px);
 }
 #modeler .md-overlay-caption {
   padding: 2px 8px 6px; color: var(--text-muted);
   font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
 }
 #modeler .md-context-menu { flex-direction: column; min-width: 176px; padding: 6px; }
-#modeler .md-context-toolbar button,
 #modeler .md-shortcut-bar button,
 #modeler .md-view-selector button,
 #modeler .md-context-menu button {
@@ -5823,9 +5850,32 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
   border: 1px solid transparent; border-radius: 7px; background: transparent;
   color: var(--text-main); cursor: pointer; font-size: 12px; flex: none;
 }
+#modeler .md-context-toolbar button {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--btn-bg, #2a2e39) 70%, transparent);
+  color: var(--text-main);
+  font-size: 11.5px; font-weight: 600; cursor: pointer;
+  white-space: nowrap; flex: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+#modeler .md-context-toolbar button .md-action-label {
+  font-size: 11.5px; font-weight: 600; color: inherit; white-space: nowrap;
+}
+#modeler .md-context-toolbar button kbd {
+  font-size: 9px; padding: 1px 4px; border-radius: 4px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  opacity: 0.8; margin-inline-start: 2px;
+}
+#modeler .md-shortcut-bar button .md-action-label { display: none; }
 #modeler .md-shortcut-bar button { width: 44px; height: 44px; justify-content: center; padding: 0; position: relative; }
 #modeler .md-shortcut-bar kbd { position: absolute; bottom: 2px; inset-inline-end: 3px; font-size: 8px; opacity: .7; }
-#modeler .md-context-toolbar button:hover,
+#modeler .md-context-toolbar button:hover {
+  background: var(--btn-bg-hover);
+  border-color: var(--btn-border);
+  color: var(--text-bright, #fff);
+}
 #modeler .md-shortcut-bar button:hover,
 #modeler .md-view-selector button:hover,
 #modeler .md-context-menu button:hover { background: var(--btn-bg-hover); border-color: var(--btn-border); }
@@ -6247,6 +6297,38 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
   display: flex; flex-direction: column; gap: 12px;
 }
 .bp-modal h3 { margin: 0; color: var(--text-main); }
+.modal-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+.modal-close-x {
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  font-size: 24px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.modal-close-x:hover {
+  background: var(--btn-bg-hover);
+  color: var(--text-main);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.planner-guide-visual {
+  max-width: 100%;
+  box-sizing: border-box;
+}
 /* library browser inside a modal (ui_libpick.js) — reuses the side library's
    .furn-* tiles, only wider and with its own scroll box */
 .bp-modal:has(.lib-pick-body) { width: 620px; }
@@ -6807,6 +6889,7 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 .video-studio-modal {
   width: min(1120px, 96vw);
   max-height: 92vh;
+  overflow-x: hidden;
 }
 .video-studio-desc {
   margin: 0 0 12px;
@@ -6896,8 +6979,9 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 }
 .video-studio-reels-bar {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
+  min-width: 0;
 }
 .video-studio-reel-chip {
   display: flex;
@@ -6912,6 +6996,9 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
   font-weight: 600;
   cursor: pointer;
   text-align: start;
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.25;
   transition: all 0.15s ease;
 }
 .video-studio-reel-chip:hover {
@@ -6921,13 +7008,18 @@ body.compact-nav #modeler .md-face-prompt small { display: none; }
 .video-studio-reel-chip i {
   color: var(--accent);
   font-size: 14px;
+  flex-shrink: 0;
 }
 .video-studio-presets {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+  min-width: 0;
 }
 .video-studio-presets button {
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.25;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -7512,6 +7604,9 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 /* 2D plan gizmo: top-end (bottom-end holds the scale bar) */
 .plan-gizmo { top: 54px; inset-inline-end: 14px; inset-inline-start: auto; bottom: auto; width: 76px; height: 76px; }
 
+/* 3D view gizmo: lifted above bottom snapping toggles & status area */
+#view-3d .view-gizmo:not(.plan-gizmo) { bottom: 44px; }
+
 /* MEP auto-generate button */
 .mep-auto-btn {
   width: 100%; padding: 8px; border-radius: 9px; cursor: pointer; font-weight: 600;
@@ -7615,6 +7710,11 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
   box-shadow: 0 18px 48px rgba(0,0,0,.38); backdrop-filter: blur(16px);
 }
 .agent-dock.on { display: flex; }
+@media (min-width: 900px) {
+  body:not(.compact-nav) .agent-dock {
+    inset-inline-end: 334px;
+  }
+}
 .agent-dock > header { display:flex;align-items:center;gap:5px;padding:9px;border-bottom:1px solid var(--border-color); }
 .agent-dock > header > div { flex:1;min-width:0;display:grid;grid-template-columns:auto 1fr;column-gap:7px;align-items:center; }
 .agent-dock > header > div > i { grid-row:1/3;font-size:22px;color:var(--accent); }
@@ -7674,6 +7774,7 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .agent-model-note { color:var(--text-muted);font-size:10px;line-height:1.45; }
 .agent-settings-advanced { border:1px solid var(--border-color);border-radius:11px;background:color-mix(in srgb,var(--bg-panel) 90%,transparent); }
 .agent-settings-advanced > summary { cursor:pointer;padding:11px 13px;font-size:11px;font-weight:750; }
+.agent-settings-advanced:not([open]) > .agent-settings-advanced-body { display: none !important; }
 .agent-settings-advanced-body { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;padding:0 13px 13px; }
 .agent-field { display:grid;gap:5px;font-size:11px;font-weight:700; }.agent-field input,.agent-field select { width:100%;box-sizing:border-box; }
 .agent-context-checks { grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px;border:1px solid var(--border-color);border-radius:10px; }
@@ -9719,9 +9820,10 @@ body.fold-stack #view-resizer {
   position: fixed; inset: 0; z-index: 9999;
   background: rgba(2, 4, 10, 0.6); backdrop-filter: blur(16px) saturate(1.2);
   display: flex; align-items: center; justify-content: center;
-  opacity: 0; pointer-events: none; transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0; pointer-events: none; visibility: hidden;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.4s;
 }
-.tex-modal-backdrop.open { opacity: 1; pointer-events: auto; }
+.tex-modal-backdrop.open { opacity: 1; pointer-events: auto; visibility: visible; }
 
 /* Container - Premium Glassmorphism */
 .tex-modal-container {
@@ -11702,9 +11804,7 @@ path.w-sec-datum {
 html:not([data-ui="legacy"]) .legacy-chrome {
   display: none !important;
 }
-html[data-ui="legacy"] .modern-chrome {
-  display: none !important;
-}
+html[data-ui="legacy"] .modern-chrome,
 html[data-ui="legacy"] #viewModePill,
 html[data-ui="legacy"] #leftTabs,
 html[data-ui="legacy"] .empty-next,
@@ -11712,6 +11812,22 @@ html[data-ui="legacy"] #costChip,
 html[data-ui="legacy"] #floor-tabs,
 html[data-ui="legacy"] #plan-hint {
   display: none !important;
+}
+html[data-ui="legacy"] #topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+html[data-ui="legacy"] #topbar .tb-start { flex: 0 1 auto; min-width: 0; }
+html[data-ui="legacy"] #topbar .tb-center { flex: 0 1 auto; min-width: 0; gap: 8px; }
+html[data-ui="legacy"] #topbar .tb-end { flex: 0 0 auto; min-width: 0; gap: 6px; }
+@media (max-width: 1400px) {
+  html[data-ui="legacy"] #topbar .tb-end #texGalleryBtn span,
+  html[data-ui="legacy"] #topbar .tb-end #autoGenerateBtn span {
+    display: none;
+  }
 }
 
 .tb-center { gap: 8px; }
@@ -13076,6 +13192,17 @@ body.compact-nav #right-inspector {
   bottom: var(--mobile-nav-block);
   max-height: calc(100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block));
 }
+body.compact-nav #chat-dock,
+body.compact-nav .agent-dock {
+  bottom: calc(var(--mobile-nav-block) + var(--m-ctx-reserve, 0px) + 8px);
+  max-height: calc(100dvh - var(--mobile-topbar-block) - var(--mobile-nav-block) - var(--m-ctx-reserve, 0px) - 16px);
+  inset-inline-end: 8px;
+  width: calc(100vw - 16px);
+  max-width: 360px;
+}
+body.compact-nav #inspectorPreviewRoof {
+  display: none !important;
+}
 
 /* Phone portrait and cover displays: preserve most of the plan for drawing.
    The drawer is still wide enough for form labels, with a sliver of backdrop
@@ -13359,6 +13486,12 @@ body.compact-nav #mobile-nav button span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+body.compact-nav #mobile-nav button[data-mnav="view"] span::after {
+  content: " ▾";
+  font-size: 8.5px;
+  opacity: 0.65;
+  margin-inline-start: 2px;
 }
 @media (max-width: 360px) {
   #cabdes.cb-compact .cb-m-nav button span {
@@ -13673,7 +13806,7 @@ body.compact-nav .view-gizmo {
 /* Pull the 3D gizmo out of the thumb arc it used to sit in. */
 body.compact-nav #view-3d .view-gizmo {
   bottom: auto;
-  top: 10px;
+  top: 154px;
   inset-inline-end: 10px;
 }
 /* Edit is already present in the mobile contextual row; a duplicate here
@@ -14250,6 +14383,13 @@ body.compact-nav #topbar .tb-end > #langBtn {
 }
 body.compact-nav #cad-status.cad-quiet {
   opacity: 0;
+  pointer-events: none;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  overflow: hidden;
 }
 
 /* ==========================================================================
@@ -15055,6 +15195,10 @@ body.compact-nav #md-sheet.tall:has(.md-sheet-host > *) {
   text-align: start;
 }
 #modeler .md-commandmanager.md-borrowed .md-command-tabs {
+  align-items: stretch;
+  min-height: 44px;
+  height: auto;
+  padding-top: 0;
   overflow-x: auto;
   scrollbar-width: none;
   width: 100%;
@@ -16128,6 +16272,20 @@ body.dock-rail #cabdes.cb-compact:not(.cb-is3d) .cb-right .cb-prev-wrap {
   .roomscan-choice { min-height: 92px; }
   .roomscan-steps { grid-template-columns: 1fr; }
   .roomscan-summary { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .roomscan-modal .bp-btnrow,
+  .roomscan-modal .bp-actions,
+  .roomscan-modal .roomscan-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+  .roomscan-modal .bp-btnrow button,
+  .roomscan-modal .bp-actions button,
+  .roomscan-modal .roomscan-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
 }
 
 @media (max-height: 620px) {
@@ -17298,10 +17456,13 @@ body.compact-nav #right-inspector > .site-section {
   overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none;
   border: 1px solid var(--border-color); border-radius: 10px;
   background: var(--bg-panel);
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
 }
 .settings-tabs::-webkit-scrollbar { display: none; }
 .settings-tabs button {
   flex-shrink: 0;
+  scroll-snap-align: start;
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   min-height: 36px; padding: 7px 14px; border: 0; border-radius: 7px;
   background: transparent; color: var(--text-muted); font: inherit; font-weight: 700; cursor: pointer;
@@ -17318,6 +17479,86 @@ body.compact-nav #right-inspector > .site-section {
 }
 .settings-icons-pane { overflow: hidden; }
 .settings-modal.showing-icon-settings .bp-btnrow { padding-top: 0; }
+
+/* Units settings pane -------------------------------------------------------- */
+.settings-units-pane { box-sizing: border-box; height: 100%; overflow-y: auto; padding: 14px 2px; }
+.unit-settings-pane-content { display: grid; gap: 14px; max-width: 820px; color: var(--text-main); }
+.unit-settings-intro {
+  display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border-color)); border-radius: 11px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-panel));
+}
+.unit-settings-intro > i { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border-radius: 9px; background: var(--accent); color: var(--on-accent); font-size: 19px; }
+.unit-settings-intro strong { font-size: 14px; }
+.unit-settings-intro p { margin: 3px 0 0; color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+
+.unit-location-banner {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  border: 1px solid var(--border-color); border-radius: 9px; background: var(--bg-panel);
+}
+.unit-loc-pill {
+  display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 6px;
+  font-size: 11px; font-weight: 700; background: color-mix(in srgb, var(--accent) 18%, var(--bg-panel));
+  color: var(--accent);
+}
+.unit-loc-pill.imperial {
+  background: color-mix(in srgb, #f59e0b 20%, var(--bg-panel));
+  color: #d97706;
+}
+.unit-loc-text { font-size: 12px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 5px; }
+
+.unit-section { display: grid; gap: 8px; }
+.unit-section-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--text-main); }
+.unit-section-desc { margin: 0; font-size: 11px; color: var(--text-muted); }
+
+.unit-presets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.unit-preset-card {
+  position: relative; display: grid; grid-template-columns: 36px 1fr; align-items: center; gap: 8px;
+  padding: 9px 10px; border: 1px solid var(--border-color); border-radius: 10px;
+  background: var(--bg-panel); cursor: pointer; transition: border-color .15s, background .15s;
+}
+.unit-preset-card:hover { border-color: var(--accent); }
+.unit-preset-card.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg-panel)); box-shadow: 0 0 0 1px var(--accent); }
+.unit-preset-card > input { position: absolute; inset-inline-end: 8px; top: 8px; accent-color: var(--accent); }
+.unit-preset-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 12%, var(--input-bg)); color: var(--accent); font-size: 17px; }
+.unit-preset-copy strong { display: block; font-size: 11.5px; padding-inline-end: 18px; }
+.unit-preset-copy small { display: block; margin-top: 2px; color: var(--text-muted); font-size: 10px; line-height: 1.3; }
+
+.unit-table-wrap {
+  border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; background: var(--bg-panel);
+}
+.unit-domain-table { display: grid; width: 100%; }
+.unit-table-row {
+  display: grid; grid-template-columns: 2.2fr 1.1fr 1.1fr 1.6fr; align-items: center; gap: 10px;
+  padding: 8px 12px; border-bottom: 1px solid var(--border-color);
+}
+.unit-table-row:last-child { border-bottom: 0; }
+.unit-table-row.header {
+  background: color-mix(in srgb, var(--text-muted) 6%, var(--bg-panel));
+  font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em;
+  padding: 6px 12px;
+}
+.unit-table-row .col-part { display: flex; align-items: center; gap: 9px; }
+.unit-table-row .col-part i { font-size: 16px; color: var(--accent); flex-shrink: 0; }
+.unit-table-row .col-part strong { display: block; font-size: 12px; }
+.unit-table-row .col-part small { display: block; color: var(--text-muted); font-size: 10px; }
+.unit-select {
+  width: 100%; height: 30px; padding: 2px 6px; border: 1px solid var(--border-color); border-radius: 6px;
+  background: var(--input-bg); color: var(--text-main); font-size: 12px; font-family: inherit;
+}
+.unit-select:focus { border-color: var(--accent); outline: none; }
+.unit-preview-badge {
+  display: inline-block; padding: 3px 8px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 12%, var(--input-bg));
+  color: var(--text-main); font-size: 11.5px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.unit-options-section { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+.unit-checkbox-label {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; color: var(--text-main);
+}
+.unit-checkbox-label input { accent-color: var(--accent); }
+
+.unit-actions-row { display: flex; justify-content: flex-start; padding-top: 4px; }
 
 /* Touch precision experiments ------------------------------------------------ */
 .settings-touch-pane { box-sizing: border-box; height: 100%; overflow-y: auto; padding: 14px 2px; }
@@ -17586,15 +17827,32 @@ i.ph > svg { display: block; width: 1em; height: 1em; overflow: visible; pointer
 
 @media (max-width: 760px) {
   .settings-modal { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 12px; }
-  .settings-tabs button { flex: 1; }
+  .settings-tabs button { flex: 0 0 auto; }
   .icon-settings-intro { display: none; }
   .icon-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .icon-theme-card small { min-height: 0; }
+  .icon-theme-card small { min-height: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 9.5px; line-height: 1.3; }
   .icon-custom-layout { grid-template-columns: 1fr; overflow-y: auto; }
+  .icon-custom-layout > * { min-width: 0; }
+  .icon-detail-actions { flex-wrap: wrap; gap: 6px; }
   .icon-usage-browser { min-height: 300px; overflow: visible; }
   .icon-used-grid { max-height: 280px; }
   .icon-detail { min-height: 330px; overflow: visible; }
   .icon-picker-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 480px) {
+  .settings-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .settings-tabs button {
+    padding: 6px 10px;
+    font-size: 11px;
+    gap: 5px;
+  }
+  .icon-picker-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 /* Top-toolbar tool search and contextual guidance. */
@@ -17639,6 +17897,7 @@ i.ph > svg { display: block; width: 1em; height: 1em; overflow: visible; pointer
   box-shadow: none;
   color: var(--text-main);
   font: 500 12px/1.2 inherit;
+  unicode-bidi: plaintext;
 }
 .tool-search-field input[type="search"]::-webkit-search-cancel-button { display: none; }
 .tool-search-field input[type="search"]:focus { border: 0; background: transparent; box-shadow: none; }
@@ -17683,10 +17942,8 @@ i.ph > svg { display: block; width: 1em; height: 1em; overflow: visible; pointer
   transform: translateX(-50%);
   border: 1px solid var(--border-color);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--bg-panel) 96%, transparent);
-  box-shadow: 0 18px 54px rgba(0,0,0,.25);
-  backdrop-filter: blur(18px) saturate(1.1);
-  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  background: var(--bg-panel);
+  box-shadow: 0 18px 54px rgba(0,0,0,.35), 0 0 0 1px var(--border-color);
 }
 .tool-search-panel[hidden] { display: none; }
 .tool-search-heading {
@@ -17801,6 +18058,18 @@ i.ph > svg { display: block; width: 1em; height: 1em; overflow: visible; pointer
     width: auto;
     max-height: none;
     transform: none;
+  }
+  body.compact-nav #toolSearch.open::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  body.compact-nav .tool-search-foot {
+    display: none !important;
   }
 }
 
@@ -18720,10 +18989,12 @@ body.compact-nav #plan-wall-palette {
   display: none !important;
 }
 body.compact-nav #plan-tools {
-  /* out of the thumb arc and clear of #cad-status, which sits at the top here */
+  /* out of the thumb arc and clear of #cad-status, which sits at the top here;
+     clears the 64px 3D orientation gizmo pinned to the top-end corner. */
   top: 48px;
   bottom: auto;
   height: auto;
+  max-width: calc(100% - 80px);
   background: none;
   box-shadow: none;
 }
@@ -19344,3 +19615,15 @@ body.zombies-on .planner-navigation,body.lava-on .planner-navigation,body.rc-on 
 #modeler #mdReturnParameters { width: auto; flex: 0 0 auto; padding: 0 8px; }
 #modeler #mdReturnParameters[hidden] { display: none; }
 #modeler .md-context-actions > button { flex-shrink: 0; }
+
+/* Hebrew (RTL) Typography & Punctuation Directionality */
+html[lang="he"] .sidebar-pane,
+html[lang="he"] .panel-section p,
+html[lang="he"] .panel-section .hint,
+html[lang="he"] .panel-section .prop-hint,
+html[lang="he"] .bp-modal-content,
+html[lang="he"] .tool-search-guide,
+html[lang="he"] .survey-body p {
+  direction: rtl;
+  text-align: start;
+}

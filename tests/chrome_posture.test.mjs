@@ -54,6 +54,11 @@ const CASES = [
     compact: true, roomy: true, phone: false, classes: "compact-nav dock-rail split-row",
   },
   {
+    name: "Galaxy Fold unfolded landscape",
+    w: 1104, h: 884, touch: true,
+    compact: true, roomy: true, phone: false, classes: "compact-nav dock-rail split-row",
+  },
+  {
     name: "narrow desktop window (no touch)",
     w: 700, h: 800, touch: false,
     compact: false, roomy: false, phone: false, classes: "",

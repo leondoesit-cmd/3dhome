@@ -109,14 +109,31 @@ function run(act) {
 function viewMode() {
   var cc = $("center-canvas");
   if (!cc) return "split";
+  if (S.viewAxis && S.viewAxis !== "top") return S.viewAxis;
   return cc.classList.contains("max-view-2d")
     ? "plan"
     : cc.classList.contains("max-view-3d")
       ? "3d"
       : "split";
 }
-var VIEW_ICONS = { plan: "ph-blueprint", "3d": "ph-cube", split: "ph-rows" };
-var VIEW_LABELS = { plan: "nav_plan", "3d": "nav_3d", split: "nav_split" };
+var VIEW_ICONS = {
+  plan: "ph-blueprint",
+  "3d": "ph-cube",
+  split: "ph-rows",
+  front: "ph-arrow-up",
+  back: "ph-arrow-down",
+  left: "ph-arrow-left",
+  right: "ph-arrow-right",
+};
+var VIEW_LABELS = {
+  plan: "nav_plan",
+  "3d": "nav_3d",
+  split: "nav_split",
+  front: "elev_front",
+  back: "elev_back",
+  left: "elev_left",
+  right: "elev_right",
+};
 
 /* Plan means the top-down plan. An elevation can remain selected while the 3D
    pane is showing, so merely switching panes would otherwise bring the user
@@ -817,14 +834,18 @@ function buildMoreSheet() {
   find.querySelector("small").textContent = t("m_more_find_desc");
   find.addEventListener("click", function () {
     closeSheet();
-    var input = $("toolSearchInput");
-    if (!input) return;
-    // The sheet is still collapsing; focusing inside that frame lets the
-    // backdrop's own click steal the focus straight back.
     setTimeout(function () {
-      input.focus();
-      input.select();
-    }, 0);
+      var root = $("toolSearch");
+      if (root) {
+        var field = root.querySelector(".tool-search-field");
+        if (field) field.click();
+      }
+      var input = $("toolSearchInput");
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 80);
   });
   sheetBody.appendChild(find);
 
@@ -833,7 +854,7 @@ function buildMoreSheet() {
   quickTitle.textContent = t("m_more_settings");
   sheetBody.appendChild(quickTitle);
   var quick = document.createElement("div");
-  quick.className = "m-grid m-grid-4 m-icon-grid";
+  quick.className = "m-grid m-grid-5 m-icon-grid";
   ["btn_settings", "themeToggle", "langBtn", "friendsBtn", "agentBtn"].forEach(function (id) {
     var b = quickAction(id);
     if (b) quick.appendChild(b);

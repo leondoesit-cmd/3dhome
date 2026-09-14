@@ -18,6 +18,8 @@ import {
   paintWallWithDefaults,
   reverseWallStyle,
   extendToHit,
+  applyDrawDirLock,
+  resetDrawDirLock,
 } from "../js/wall_draw.js";
 
 function resetPlan() {
@@ -165,6 +167,26 @@ test("offset ghost is a parallel copy at the typed distance", () => {
   assert.equal(Math.round(ghost.a.x), 0);
   assert.equal(offsetSideFromCursor(host, 50, -10), -1);
   assert.equal(offsetSideFromCursor(host, 50, 10), 1);
+});
+
+test("a locked turn keeps +90 when the cursor drifts into the opposite quadrant", () => {
+  resetPlan();
+  resetDrawDirLock();
+  const from = { x: 0, z: 0 };
+  const north = applyDrawDirLock(from, { x: 0, z: 80 });
+  assert.ok(Math.abs(Math.atan2(north.z, north.x) - Math.PI / 2) < 1e-9);
+  const drifted = applyDrawDirLock(from, { x: 4, z: -3 });
+  const ang = Math.atan2(drifted.z, drifted.x);
+  assert.ok(Math.abs(ang - Math.PI / 2) < 0.2, "kept +90°, got " + ((ang * 180) / Math.PI));
+});
+
+test("a locked turn yields when the cursor clearly enters the opposite half-plane", () => {
+  resetPlan();
+  resetDrawDirLock();
+  const from = { x: 0, z: 0 };
+  applyDrawDirLock(from, { x: 0, z: 80 });
+  const south = applyDrawDirLock(from, { x: 0, z: -80 });
+  assert.ok(Math.abs(Math.atan2(south.z, south.x) + Math.PI / 2) < 1e-6);
 });
 
 test("extend-to-hit snaps a ray that has already crossed a host wall", () => {

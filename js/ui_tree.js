@@ -13,6 +13,7 @@ import { weldCoincidentNodes } from "./interaction.js";
 import { deleteRoom } from "./interaction.js";
 import { PRICE, itemPrice, flabel } from "./furniture.js";
 import { t } from "./i18n.js";
+import { fmtLen, fmtAreaM2 } from "./display_units.js";
 import { render2D, frameBounds } from "./plan2d.js";
 import { select, fillProps } from "./ui_props.js";
 import { pushHistory } from "./history.js";
@@ -282,7 +283,7 @@ function offerNewRooms(list) {
 
   var m = openModal(t("room_new_title"));
   var p = document.createElement("p");
-  p.textContent = t("room_new_body", { area: (r.area / 10000).toFixed(2) });
+  p.textContent = t("room_new_body", { area: fmtAreaM2(r.area / 10000) });
   m.body.appendChild(p);
 
   var input = document.createElement("input");
@@ -723,7 +724,7 @@ function appendSystemsGroup(body) {
     runs.forEach(function (r) {
       body.appendChild(
         mepRow(
-          runLabel(r.sys, r.k) + (r.layer !== "wall" ? " · " + t("mep_" + r.layer) : "") + " · " + Math.round(runLength(r)) + t("cm"),
+          runLabel(r.sys, r.k) + (r.layer !== "wall" ? " · " + t("mep_" + r.layer) : "") + " · " + fmtLen(runLength(r)),
           MEP_SYS[sys].color,
           status.run[r.id],
           S.sel && S.sel.kind === "mepRun" && S.sel.ref === r,

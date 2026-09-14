@@ -20,6 +20,11 @@ var LOADERS = {
   en: function () { return import("./i18n/en.js"); },
 };
 var STR = {};
+var unitVars = { u: "cm", au: "m²" };
+
+export function setDisplayUnitVars(vars) {
+  unitVars = vars && typeof vars === "object" ? vars : unitVars;
+}
 
 var lang = "en";
 try {
@@ -49,10 +54,12 @@ export function t(key, vars) {
   var d = STR[lang] || {};
   var f = STR.he || {};
   var v = d[key] != null ? d[key] : f[key] != null ? f[key] : key;
-  if (vars && typeof v === "string")
+  if (typeof v === "string" && v.indexOf("{") >= 0) {
+    var all = Object.assign({}, unitVars, vars || {});
     v = v.replace(/\{(\w+)\}/g, function (m, k) {
-      return vars[k] != null ? vars[k] : m;
+      return all[k] != null ? all[k] : m;
     });
+  }
   return v;
 }
 

@@ -67,6 +67,13 @@ function buildPanel() {
     t("fr_add") + "</button>" +
     '<span class="t fr-hint">' + t("fr_share_hint") + "</span>";
 
+  const h = sec.querySelector("h3");
+  if (h) {
+    h.addEventListener("click", function () {
+      sec.classList.toggle("collapsed");
+    });
+  }
+
   listEl = $("fr_list");
   statusDot = $("fr_dot");
   visitBanner = $("fr_banner");

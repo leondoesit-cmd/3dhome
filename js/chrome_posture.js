@@ -14,9 +14,12 @@ export function chromePosture(w, h, opts) {
   var shortEdge = Math.min(w, h);
   var longEdge = Math.max(w, h);
   /* Height ≤ 500 is a phone on its side (iPhone 14 landscape is 844×390).
-     Mouse-driven split-screen windows keep their desktop menus. */
+     Mouse-driven split-screen windows keep their desktop menus.
+     Unfolded foldables and tablets in landscape (e.g. Galaxy Z Fold 1104×884)
+     need touch chrome rather than tiny desktop menus. */
   var shortPhone = w <= 1024 && h <= 500;
-  var compact = w <= 500 || (touch && (w <= 1024 || shortPhone));
+  var tabletTouch = touch && shortEdge >= 520 && longEdge <= 1280;
+  var compact = w <= 500 || (touch && (w <= 1024 || shortPhone)) || tabletTouch;
   /* Both axes tablet-sized. Pixel Fold inner (673×841) is roomy even though
      its CSS width sits under 700; a 390px-tall phone never is. */
   var roomy = compact && shortEdge >= 520 && longEdge >= 700;
