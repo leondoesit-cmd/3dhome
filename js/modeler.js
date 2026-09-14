@@ -12132,9 +12132,11 @@ function liveSketchFilletValues() {
   };
 }
 
+function selFilletCurves() { return E.ssel.filter(function (o) { return o.type === "line" || o.type === "arc"; }); }
 function sketchFilletSelectionReady() {
   if (selPoints().length) return true;
-  return selLines().length >= 2;
+  var curves = selFilletCurves();
+  return selLines().length >= 2 || (curves.length === 2 && curves.some(function (o) { return o.type === "line"; }));
 }
 
 function applySketchFilletFromSelection(values) {
@@ -12144,7 +12146,7 @@ function applySketchFilletFromSelection(values) {
     dimension: !values || values.dimension !== false,
     keepConstrainedCorners: !values || values.keepCorners !== false,
     vertexId: selPoints().length ? selPoints()[selPoints().length - 1].id : null,
-    entityIds: selLines().map(function (line) { return line.id; }),
+    entityIds: selFilletCurves().map(function (curve) { return curve.id; }),
   };
   if (!Number.isFinite(spec.radius) || spec.radius <= 0) { flash(t("sketchFilletNeedRadius")); return false; }
   if (!spec.vertexId && spec.entityIds.length < 2) { flash(t("sketchFilletNeed")); return false; }
@@ -13648,7 +13650,8 @@ function wireSketch() {
       var filletHit = hitSketch(uv, e.pointerType);
       if (!filletHit) { drawSketch(); return; }
       if (!filletHit.type) selectSketch(filletHit, false);
-      else if (filletHit.type === "line") selectSketch(filletHit, selLines().length === 1);
+      // a line meeting an arc fillets too (HOUSING's lower corners), so an arc is a valid second pick
+      else if (filletHit.type === "line" || filletHit.type === "arc") selectSketch(filletHit, selFilletCurves().length === 1);
       else { flash(t("sketchFilletTwoLines")); refreshAll(); return; }
       if (sketchFilletSelectionReady()) applySketchFilletFromSelection(liveSketchFilletValues());
       refreshAll();

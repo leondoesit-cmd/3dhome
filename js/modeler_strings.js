@@ -596,7 +596,7 @@ export var TXT = {
   sketchFilletKeepCorners: ["שמירת קודקודים מאויצים", "Keep constrained corners"],
   sketchFilletNeed: ["בחרו קודקוד סקיצה או שתי ישויות לעיגול", "Select a sketch vertex or two entities to fillet"],
   sketchFilletNeedRadius: ["הזינו רדיוס חיובי", "Enter a positive fillet radius"],
-  sketchFilletTwoLines: ["עיגול פינה תומך כרגע בשני קווים שחולקים קודקוד", "Sketch Fillet currently supports two lines that share a vertex"],
+  sketchFilletTwoLines: ["עיגול פינה תומך בשני קווים, או בקו וקשת, שחולקים קודקוד", "Sketch Fillet takes two lines, or a line and an arc, that share a vertex"],
   tool_offset: ["היסט", "Offset"],
   tool_dim: ["מידה חכמה", "Smart dimension"],
   tool_constr: ["קו עזר", "Construction toggle"],
