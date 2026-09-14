@@ -102,6 +102,12 @@ export function mirrorEntities(sketch, entityIds, axisEntityId) {
   // report that honestly in the DOF count than to pretend it is held.
   const axisAngle = Math.atan2(dy, dx);
   made.pairs.forEach(({ source, copy }) => {
+    /* An arc runs counter-clockwise from a to b. A reflection reverses that
+       sense, so the reflected ends must swap or the copy sweeps the other way
+       round the circle: HOUSING's mirrored R .5 in fillet came out as a 270°
+       loop bulging into the Sketchsquare profile. Patterns keep a/b — a
+       translation or rotation preserves orientation. */
+    if (copy.type === "arc") { const end = copy.a; copy.a = copy.b; copy.b = end; }
     if (copy.type === "circle" || copy.type === "ellipse") {
       sketch.constraints.push({ id: uid("c"), type: "equal", a: source.id, b: copy.id });
     }
