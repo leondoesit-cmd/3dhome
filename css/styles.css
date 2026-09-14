@@ -5335,6 +5335,9 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
   padding: 7px; border: 1px solid #c0392b; border-radius: 7px;
   background: color-mix(in srgb, #c0392b 12%, transparent);
 }
+/* display:flex above beats the UA [hidden] rule, so a sheet with no dangling
+   dimensions still showed an empty red bar at the top of the panel. */
+#modeler .md-sheet-dangling[hidden] { display: none; }
 #modeler .md-sheet-dangling-head { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #c0392b; }
 #modeler .md-sheet-dangling-note { font-size: 10px; color: var(--text-muted); line-height: 1.35; }
 #modeler .md-sheet-dangling-item {
