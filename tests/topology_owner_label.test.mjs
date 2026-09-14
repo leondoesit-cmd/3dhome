@@ -29,6 +29,14 @@ test('a face owned by a later feature names that feature, not the body part', ()
   assert.equal(owner().name, 'Boss-Battery', 'a sub-id owner resolves to its feature');
 });
 
+test('a loft cap owned by the loft tool body names the loft', () => {
+  const E = { def: { features }, topologySelection: [{ kind: 'face', ownerFeatureId: 'f_loft:tool', persistentId: 'f_loft:tool:face:generated:plane:1' }] };
+  const owner = load('topologySelectionFeature', { E, String });
+  assert.equal(owner().id, 'f_loft', 'the :tool suffix maps back to the feature id');
+  E.topologySelection = [{ kind: 'face', ownerFeatureId: 'f_loftx:tool' }];
+  assert.equal(owner(), null, 'an id that only shares a prefix is not the loft');
+});
+
 test('mixed owners, or none, fall back to the selected part', () => {
   const E = { def: { features }, topologySelection: [{ ownerFeatureId: 'f_loft' }, { ownerFeatureId: 'f_base' }] };
   const owner = load('topologySelectionFeature', { E, String });
