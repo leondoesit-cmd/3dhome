@@ -2166,6 +2166,13 @@ function newDef() {
 // a reference, not a magnet.
 function snapV(v) { return Math.round(v * 10) / 10; }
 
+/* Sketch zoom, in screen px per cm. The old ceiling of 20 (1000%) left the
+   book's R .1 in sketch fillet about 5 px across, so its endpoints always won
+   the pick and the arc itself could not be selected for Mirror. CAD zoom is
+   effectively unbounded; 2000 px/cm shows a 0.01 mm feature as 2 px. Fit
+   still stops at 20 so a small sketch does not open absurdly close. */
+var SKETCH_MIN_SCALE = 0.3, SKETCH_MAX_SCALE = 2000;
+
 /* ---- object snapping: endpoints, midpoints, centres, origin, then H/V inference ---- */
 function snapTargets(excludePart) {
   var ts = sketchSnapTargets(ensureSketch(E.def), { poly: E.poly, excludeEntity: excludePart });
@@ -6468,7 +6475,7 @@ function zoomBy(dir) {
   if (dir === "fit") { fitSketch(); return; }
   var k = dir === "in" ? 1.25 : 1 / 1.25;
   var W = E.cw / 2, Hh = E.ch / 2;
-  var ns = clamp(E.scl * k, 0.3, 20);
+  var ns = clamp(E.scl * k, SKETCH_MIN_SCALE, SKETCH_MAX_SCALE);
   E.ox = W - ((W - E.ox) / E.scl) * ns;
   E.oy = Hh - ((Hh - E.oy) / E.scl) * ns;
   E.scl = ns;
@@ -14054,7 +14061,7 @@ function wireSketch() {
       return;
     }
     var r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
-    var k = e.deltaY < 0 ? 1.12 : 1 / 1.12, ns = clamp(E.scl * k, 0.3, 20);
+    var k = e.deltaY < 0 ? 1.12 : 1 / 1.12, ns = clamp(E.scl * k, SKETCH_MIN_SCALE, SKETCH_MAX_SCALE);
     E.ox = mx - ((mx - E.ox) / E.scl) * ns;
     E.oy = my - ((my - E.oy) / E.scl) * ns;
     E.scl = ns;
@@ -14100,7 +14107,7 @@ function wireSketch() {
         syncStatus();
         return;
       }
-      var ns = clamp(E.scl * k, 0.3, 20);
+      var ns = clamp(E.scl * k, SKETCH_MIN_SCALE, SKETCH_MAX_SCALE);
       E.ox = mx - ((mx - E.ox) / E.scl) * ns;
       E.oy = my - ((my - E.oy) / E.scl) * ns;
       E.scl = ns;
