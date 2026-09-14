@@ -68,6 +68,7 @@ import {
   sketchPoint, sketchEntity, solveSketch, explainSketchConflict, resolveProfilePoints,
   lineData, circleData, ellipseData, entityPoints, removeSketchEntity,
 } from "./sketch_solver.js";
+import { drawNameTags, relationSubjects, relationTargets, sketchInstanceNames } from "./sketch_names.js";
 import {
   addSmartDimension, currentMeasure, distanceDimensionLayout,
   hitSketchDimensionHit, drawSketchDimensions, drawConstraintGlyphs,
@@ -10771,6 +10772,13 @@ function drawSketch() {
     });
     drawSketchDimensions(c, sketch, E.scl, toPx, conflicts, { selectedId: E.dimSel });
     drawConstraintGlyphs(c, sketch, toPx, conflicts);
+    if (refused) {
+      var tagged = [];
+      (sketch.constraints || []).forEach(function (constraint) {
+        if (refused.indexOf(constraint.id) >= 0) tagged.push.apply(tagged, relationTargets(sketch, constraint));
+      });
+      drawNameTags(c, sketch, toPx, tagged, sketchInstanceNames(sketch, instanceLabels()));
+    }
   }
 
   // in-progress arc: centre→start fixes the radius; the third point selects
@@ -12137,10 +12145,12 @@ function applySketchFilletFromSelection(values) {
   try {
     var made = filletSketchCorner(sketch, spec, uid);
     if (!resolveSketch(true)) {
+      var filletIds = addedConstraintIds(sketch, before.constraints);
+      var filletWhy = explainSketchConflict(sketch, { keep: filletIds });
       Object.assign(sketch, before);
       resolveSketch(false);
       H.discard();
-      flash(t("overDefined"));
+      showSketchRefusal(sketch, t("sketchFillet") + " R " + Number(spec.radius.toFixed(3)) + " cm", filletIds, filletWhy);
       return false;
     }
     E.ssel = made.arc ? [made.arc] : [];
@@ -12471,12 +12481,14 @@ function appendToSketch(label, run) {
   var made = run(sketch);
   if (!made) { H.discard(); return null; }
   if (!resolveSketch(true)) {
+    var appendedIds = addedConstraintIds(sketch, before.constraints);
+    var appendWhy = explainSketchConflict(sketch, { keep: appendedIds });
     sketch.points = before.points;
     sketch.entities = before.entities;
     sketch.constraints = before.constraints;
     resolveSketch(false);
     H.discard();
-    flash(t("overDefined"));
+    showSketchRefusal(sketch, label, appendedIds, appendWhy);
     return null;
   }
   return made;
@@ -12663,7 +12675,7 @@ function clearDimensionRefusal() {
 
 /* A relation as a person reads it in a sentence: its name, its value, or its
    kind — never an internal id. */
-function constraintCaption(constraint) {
+function constraintKindCaption(constraint) {
   if (constraint.name) return constraint.name;
   if (constraint.value != null) {
     var n = Number(Number(constraint.value).toFixed(3));
@@ -12676,6 +12688,23 @@ function constraintCaption(constraint) {
   return def ? t(def.label) : constraint.type;
 }
 
+// the value sits in the row's own field, so a dimension row names only its kind
+var DIMENSION_SYMBOLS = { diameter: "Ø", radius: "R", angle: "∠" };
+
+function instanceLabels() {
+  return { line: t("nameLine"), arc: t("nameArc"), circle: t("nameCircle"), ellipse: t("nameEllipse"), spline: t("nameSpline"), point: t("namePoint"), entity: t("nameEntity") };
+}
+
+/* "Tangent (Line3, Arc1)": the kind or value, then the geometry it ties by
+   instance name — the way SOLIDWORKS lists relations — so four tangents in
+   one message can be told apart. */
+function constraintCaption(constraint, sketch) {
+  var kind = constraintKindCaption(constraint);
+  if (!sketch) return kind;
+  var subjects = relationSubjects(sketch, constraint, sketchInstanceNames(sketch, instanceLabels()));
+  return subjects.length ? kind + " (" + subjects.join(", ") + ")" : kind;
+}
+
 /* Say why a typed value was refused, in the editor where it was typed, and
    paint the relations it fights red until the editor closes or the value is
    tried again. "That constraint fights the existing ones" was true but left
@@ -12684,7 +12713,7 @@ function constraintCaption(constraint) {
 function refusalMessage(sketch, subject, subjectIds, why) {
   var list = (why.ids || []).filter(function (id) { return subjectIds.indexOf(id) < 0; })
     .map(function (id) { return (sketch.constraints || []).find(function (c) { return c.id === id; }); })
-    .filter(Boolean).map(constraintCaption).join(", ");
+    .filter(Boolean).map(function (c) { return constraintCaption(c, sketch); }).join(", ");
   return !list ? t("overDefined")
     : t(why.kind === "over-constrained" ? "dimRepeats" : "dimNoSolution").replace("{value}", subject).replace("{list}", list);
 }
@@ -12704,13 +12733,27 @@ var RELATION_REFUSAL_MS = 6000;
    them red for a moment, instead of the bare "fights the existing ones". */
 function showRelationRefusal(sketch, added, why) {
   var names = [];
-  added.forEach(function (c) { var name = constraintCaption(c); if (names.indexOf(name) < 0) names.push(name); });
-  var addedIds = added.map(function (c) { return c.id; });
-  var hint = (why.ids || []).filter(function (id) { return addedIds.indexOf(id) < 0; });
+  added.forEach(function (c) { var name = constraintCaption(c, sketch); if (names.indexOf(name) < 0) names.push(name); });
+  showSketchRefusal(sketch, names.join(", "), added.map(function (c) { return c.id; }), why);
+}
+
+/* Any edit the sketch refused and has already undone — a fillet, a mirror, a
+   typed value, a fixed point: say what it fought, hold the sentence long enough
+   to read, and paint and name-tag those relations for as long. `keepIds` are
+   the edit's own relations, which the explanation always contains and the
+   message does not list back. */
+function showSketchRefusal(sketch, subject, keepIds, why) {
+  var hint = (why.ids || []).filter(function (id) { return keepIds.indexOf(id) < 0; });
   E.relationRefusal = hint.length ? { sketch: sketch, ids: hint, until: Date.now() + RELATION_REFUSAL_MS } : null;
-  flash(refusalMessage(sketch, names.join(", "), addedIds, why), RELATION_REFUSAL_MS);
+  flash(refusalMessage(sketch, subject, keepIds, why), RELATION_REFUSAL_MS);
   clearTimeout(E._relationRefusalT);
   if (hint.length) E._relationRefusalT = setTimeout(function () { E.relationRefusal = null; refreshAll(); }, RELATION_REFUSAL_MS);
+}
+
+// the relations an edit added: whatever is in the sketch now that was not before
+function addedConstraintIds(sketch, beforeConstraints) {
+  var had = new Set((beforeConstraints || []).map(function (c) { return c.id; }));
+  return (sketch.constraints || []).filter(function (c) { return !had.has(c.id); }).map(function (c) { return c.id; });
 }
 
 function showDimensionRefusal(state, typed, why) {
@@ -12926,10 +12969,12 @@ function smartDimension(target, clientX, clientY) {
     constraint = (sketch.constraints || []).find(function (candidate) { return candidate.id === id; });
   }
   if (!constraint || !resolveSketch(true)) {
+    var dimWhy = constraint ? explainSketchConflict(sketch, { keep: [constraint.id] }) : { kind: null, ids: [] };
+    var dimSubject = constraint ? constraintCaption(constraint, sketch) : t("opDim");
     if (constraint && !existing) sketch.constraints = sketch.constraints.filter(function (c) { return c !== constraint; });
     resolveSketch(false);
     H.discard();
-    flash(t("overDefined"));
+    showSketchRefusal(sketch, dimSubject, constraint ? [constraint.id] : [], dimWhy);
     refreshAll();
     return false;
   }
@@ -13560,10 +13605,15 @@ function wireSketch() {
         var tangentMade = tangentDef && addSketchArc(tangentDef.centre, tangentDef.start, tangentDef.end, true);
         if (tangentMade) {
           var liveSketch = ensureSketch(E.def);
-          liveSketch.constraints.push({ id: uid(), type: "tangent", a: E.arcPts[0].entityId, b: tangentMade.id });
+          var tangentRule = { id: uid(), type: "tangent", a: E.arcPts[0].entityId, b: tangentMade.id };
+          liveSketch.constraints.push(tangentRule);
           if (!resolveSketch(true)) {
-            liveSketch.constraints = liveSketch.constraints.filter(function (constraint) { return constraint.a !== E.arcPts[0].entityId || constraint.b !== tangentMade.id; });
+            // the arc stays; only its tangency is refused, and now says why
+            var tangentWhy = explainSketchConflict(liveSketch, { keep: [tangentRule.id] });
+            var tangentSubject = constraintCaption(tangentRule, liveSketch);
+            liveSketch.constraints = liveSketch.constraints.filter(function (constraint) { return constraint !== tangentRule; });
             resolveSketch(false);
+            showSketchRefusal(liveSketch, tangentSubject, [tangentRule.id], tangentWhy);
           }
           selectSketch(tangentMade, false);
         } else { H.discard(); flash(t("tangentArcNeedEnd")); }
@@ -16727,12 +16777,12 @@ function fillSketchPane() {
     var conflicted = sketch.constraints.filter(function (constraint) { return si.conflicts.indexOf(constraint.id) >= 0; });
     var newest = conflicted[conflicted.length - 1];
     if (newest) {
-      var removeNewest = btn('<i class="ph ph-warning"></i> ' + t("removeNewestConflict") + ": " + constraintCaption(newest), function () {
+      var removeNewest = btn('<i class="ph ph-warning"></i> ' + t("removeNewestConflict") + ": " + constraintCaption(newest, sketch), function () {
         pushUndo(t("removeConflicts"));
         sketch.constraints = sketch.constraints.filter(function (constraint) { return constraint !== newest; });
         resolveSketch(false); refreshAll();
       }, "md-wide btn-danger");
-      removeNewest.title = t("conflictSet") + ": " + conflicted.map(constraintCaption).join(", ");
+      removeNewest.title = t("conflictSet") + ": " + conflicted.map(function (c) { return constraintCaption(c, sketch); }).join(", ");
       host.appendChild(removeNewest);
     }
   }
@@ -16786,7 +16836,7 @@ function fillSketchPane() {
           pushUndo("Point coordinates");var previous=cloneData(sketch.constraints),oldPoint={x:point.x,y:point.y,fixed:point.fixed};
           sketch.constraints=sketch.constraints.filter(function(c){return !(c.type==='fixed'&&c.point===point.id);});
           point.fixed=false;sketch.constraints.push({id:uid(),type:"fixed",point:point.id,x:x,y:y});
-          if(!resolveSketch(true)){sketch.constraints=previous;Object.assign(point,oldPoint);resolveSketch(false);H.discard();flash(t("overDefined"));return false;}
+          if(!resolveSketch(true)){var fixIds=addedConstraintIds(sketch,previous),fixWhy=explainSketchConflict(sketch,{keep:fixIds}),fixSubject=constraintCaption(sketch.constraints[sketch.constraints.length-1],sketch);sketch.constraints=previous;Object.assign(point,oldPoint);resolveSketch(false);H.discard();showSketchRefusal(sketch,fixSubject,fixIds,fixWhy);return false;}
           refreshAll();return true;
         }});
       },"md-wide"));
@@ -16810,12 +16860,15 @@ function fillSketchPane() {
         sketch.constraints = sketch.constraints.filter(function (c) {
           return !(c.type === "fixed" && c.point === point.id);
         });
-        sketch.constraints.push({ id:uid(), type:"fixed", point:point.id, x:0, y:0 });
+        var originRule = { id:uid(), type:"fixed", point:point.id, x:0, y:0 };
+        sketch.constraints.push(originRule);
         if (!resolveSketch(true)) {
+          var originWhy = explainSketchConflict(sketch, { keep: [originRule.id] });
+          var originSubject = constraintCaption(originRule, sketch);
           sketch.constraints = previous;
           resolveSketch(false);
           H.discard();
-          flash(t("overDefined"));
+          showSketchRefusal(sketch, originSubject, [originRule.id], originWhy);
         }
         refreshAll();
       }, "md-wide"));
@@ -16930,7 +16983,13 @@ function fillSketchPane() {
     // The value field holds the expression once a dimension is driven by one,
     // so the resolved number gets its own readout at the end of the row rather
     // than being crammed into a label that then truncates.
-    row.appendChild(el("span", "n", con.type));
+    // "Tangent (Line2, Arc1)", the way SOLIDWORKS lists relations; the raw type stays in the tooltip
+    var rowLabel = el("span", "n", "");
+    rowLabel.textContent = con.value != null
+      ? [DIMENSION_SYMBOLS[con.type] || "↔"].concat(relationSubjects(sketch, con, sketchInstanceNames(sketch, instanceLabels()))).join(" · ")
+      : constraintCaption(con, sketch);
+    rowLabel.title = con.type;
+    row.appendChild(rowLabel);
 
     // A driving dimension is editable in place; geometric rules have no value.
     // The field takes a number or an expression — typing `Width / 2` here is
@@ -16976,9 +17035,11 @@ function fillSketchPane() {
         con.value = value;
         if (isPlainNumber) delete con.expr; else con.expr = text;
         if (!resolveSketch(true)) {
+          var valueWhy = explainSketchConflict(sketch, { keep: [con.id] });
           con.value = oldValue;
           if (oldExpr == null) delete con.expr; else con.expr = oldExpr;
-          resolveSketch(false); H.discard(); flash(t("overDefined"));
+          resolveSketch(false); H.discard();
+          showSketchRefusal(sketch, text + " (" + relationSubjects(sketch, con, sketchInstanceNames(sketch, instanceLabels())).join(", ") + ")", [con.id], valueWhy);
         }
         refreshAll();
       });
@@ -16992,9 +17053,12 @@ function fillSketchPane() {
           con.value = constraintMeasure(sketch,con);
           resolveSketch(false);
         } else if (!resolveSketch(true)) {
+          var drivingWhy = explainSketchConflict(sketch, { keep: [con.id] });
+          var drivingSubject = constraintCaption(con, sketch);
           con.driven = true;
           con.value = constraintMeasure(sketch,con);
-          resolveSketch(false); H.discard(); flash(t("overDefined")); return;
+          resolveSketch(false); H.discard();
+          showSketchRefusal(sketch, drivingSubject, [con.id], drivingWhy); return;
         }
         refreshAll();
       }, "md-mini" + (con.driven ? " on" : ""));
@@ -17369,10 +17433,12 @@ function fillOps() {
         var added = { id: uid(), type: type, entity: p.id };
         sketch.constraints.push(added);
         if (!resolveSketch(true)) {
+          var ruleWhy = explainSketchConflict(sketch, { keep: [added.id] });
+          var ruleSubject = constraintCaption(added, sketch);
           sketch.constraints = sketch.constraints.filter(function (c) { return c !== added; });
           resolveSketch(false);
           H.discard();
-          flash(t("overDefined"));
+          showSketchRefusal(sketch, ruleSubject, [added.id], ruleWhy);
         }
         refreshAll();
       }
