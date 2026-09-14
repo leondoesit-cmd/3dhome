@@ -392,6 +392,7 @@ export async function regenerateFeatures(def, options = {}) {
         topology.byPersistentId.set(item.persistentId, item);
       });
       results.set(feature.id, result);
+      if (result.invalid) issues.push({ feature: feature.id, severity: "warning", code: "invalid-solid", message: String(result.invalid) });
       feature.error = null;
       feature.regeneratedAt = Date.now();
     } catch (error) {

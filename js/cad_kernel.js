@@ -964,10 +964,35 @@ export async function booleanBrep(operation, left, right) {
     algorithm.SetNonDestructive(true);
     algorithm.Build(progress);
     if (algorithm.HasErrors?.()) throw new Error("OpenCascade boolean failed");
-    return { oc, shape: algorithm.Shape(), kind: "solid", operation };
+    const shape = algorithm.Shape();
+    const vl = Math.abs(shapeVolume(oc, left.shape)), vr = Math.abs(shapeVolume(oc, right.shape)), vs = Math.abs(shapeVolume(oc, shape));
+    if (vl > 1e-9 && vr > 1e-9 && !booleanVolumePlausible(operation, vl, vr, vs)) {
+      throw new Error("OpenCascade " + operation + " lost material (" + vl.toFixed(3) + " and " + vr.toFixed(3) + " cm³ gave " + vs.toFixed(3) + " cm³); an input solid is likely invalid");
+    }
+    return { oc, shape, kind: "solid", operation };
   } finally {
     algorithm?.delete?.(); progress.delete();
   }
+}
+
+/* A boolean on an invalid operand can "succeed" and silently drop most of a
+   body: HOUSING's Boss-Stop ring (11.4 cm³) fused onto Shell1 (917 cm³, one
+   invalid offset face) came back as a 38 cm³ tube and rebuilt without an issue.
+   A union is never smaller than its larger operand nor larger than both; a cut
+   never grows what it cuts nor removes more than the tool; a common is never
+   larger than the smaller operand. */
+export function booleanVolumePlausible(operation, left, right, result, tolerance = 1e-3) {
+  if (![left, right, result].every(Number.isFinite)) return true;
+  const slack = tolerance * Math.max(1, left, right);
+  if (operation === "union") return result >= Math.max(left, right) - slack && result <= left + right + slack;
+  if (operation === "subtract") return result <= left + slack && result >= left - right - slack;
+  if (operation === "intersect") return result <= Math.min(left, right) + slack;
+  return true;
+}
+
+function shapeIsValid(oc, shape) {
+  const analyzer = new oc.BRepCheck_Analyzer(shape, true, false);
+  try { return analyzer.IsValid_2(); } finally { analyzer.delete(); }
 }
 
 /* Per-edge radii, normalised once.
@@ -1291,7 +1316,17 @@ export async function shellBrep(brep, thickness, options = {}) {
       progress,
     );
     if (maker.HasErrors?.() || !maker.IsDone?.()) return await rotationalShell(brep,faces,thickness,options);
-    return { oc, shape: maker.Shape(), kind: "solid", operation: "shell" };
+    const shelled = maker.Shape();
+    /* OpenCascade's join offset can return a solid that fails its own check —
+       HOUSING Shell1 on the loft/battery body has one inner cylinder face that
+       stops 0.59 mm short of the loft. Every boolean after it then misbehaves.
+       Try the exact rotational construction; otherwise keep the result but say
+       so, so the rebuild reports it instead of passing it on silently. */
+    if (!shapeIsValid(oc, shelled)) {
+      try { return await rotationalShell(brep, faces, thickness, options); }
+      catch (_) { return { oc, shape: shelled, kind: "solid", operation: "shell", invalid: "Shell produced an invalid solid (OpenCascade offset); features after it may fail" }; }
+    }
+    return { oc, shape: shelled, kind: "solid", operation: "shell" };
   } finally {
     closingFaces.delete(); progress.delete(); maker.delete();
   }
