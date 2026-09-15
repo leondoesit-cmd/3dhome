@@ -273,7 +273,14 @@ test("the saved HOUSING record rebuilds Shell1 as the exact shell without touchi
     assert.ok(bodyTolerance < 1e-6, `the body before the shell is untouched (tolerance ${bodyTolerance})`);
 
     const mass = await shapeMassProperties(shelled);
-    assert.ok(Math.abs(mass.volume - 156.40) < 0.05, `shell volume ${mass.volume}`);
+    /* 156.40 while the loft seams were 0.0082 cm loose; with them tight the
+       saved record agrees with the rebuilt body above (156.35). */
+    assert.ok(Math.abs(mass.volume - 156.35) < 0.02, `shell volume ${mass.volume}`);
+    /* Boss-Loft1's seams crease up to 2° and fade to tangent; the join offset
+       left them 0.0082 cm loose and export blocked. They are recomputed as the
+       true intersection of the two offset faces. */
+    assert.equal(shelled.looseTolerance, undefined, `Shell1 seams are export-tight (${shelled.looseTolerance} cm)`);
+    assert.ok(!run.issues.some((issue) => issue.code === "loose-shell-tolerance"), "no loose-shell-tolerance warning");
     assert.ok(Math.abs((mass.bounds.max.x - mass.bounds.min.x) - 2 * R) < 1e-4 && Math.abs((mass.bounds.max.y - mass.bounds.min.y) - 2 * R) < 1e-4, "outer width and height unchanged");
     assert.ok(Math.abs((mass.bounds.max.z - mass.bounds.min.z) - (H + H + BATTERY)) < 1e-4, "outer length unchanged");
 

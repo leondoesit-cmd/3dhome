@@ -1470,6 +1470,96 @@ async function shellFallbacks(brep, faces, thickness, options) {
 const JUNCTION_SCALE = 100;
 const JUNCTION_FUZZY_CM = 1e-4;
 
+/* Boss-Loft1's faces meet at creases of up to 2° that fade to tangent at both
+   ends. The join offset leaves those seams as loose as the gap between the two
+   offset boundaries (thickness × crease, 0.0075 cm), which blocks export. Each
+   loose seam between two curved faces is recomputed as the true intersection of
+   the two offset surfaces — Newton on both tangent planes and the plane across
+   the seam, the midpoint where the surfaces are tangent — refitted, given fresh
+   pcurves and vertices, and its tolerance measured again. Works in place on a
+   shape the caller owns; `scale` is the model-to-shape factor. */
+function tightenOffsetSeams(oc, shape, scale) {
+  const owned = [], keep = (value) => { owned.push(value); return value; };
+  const each = (s, type, fn) => { const ex = new oc.TopExp_Explorer_2(s, type, oc.TopAbs_ShapeEnum.TopAbs_SHAPE); try { for (; ex.More(); ex.Next()) fn(ex.Current()); } finally { ex.delete(); } };
+  const TIGHT = 1e-7 * scale, LOOSE = 1e-5 * scale, SAMPLES = 40;
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const det3 = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+  try {
+    const faces = []; each(shape, oc.TopAbs_ShapeEnum.TopAbs_FACE, (fs) => faces.push(oc.TopoDS.Face_1(fs)));
+    const curved = (face) => keep(new oc.BRepAdaptor_Surface_2(face, true)).GetType() !== oc.GeomAbs_SurfaceType.GeomAbs_Plane;
+    const facesOf = (edge) => faces.filter((face) => { let hit = false; each(face, oc.TopAbs_ShapeEnum.TopAbs_EDGE, (x) => { if (x.IsSame(edge)) hit = true; }); return hit; });
+    const project = (p, surface) => {
+      const pr = keep(new oc.GeomAPI_ProjectPointOnSurf_2(keep(new oc.gp_Pnt_3(p[0], p[1], p[2])), surface, oc.Extrema_ExtAlgo.Extrema_ExtAlgo_Grad));
+      if (!pr.NbPoints()) return null;
+      const U = { current: 0 }, V = { current: 0 }; pr.LowerDistanceParameters(U, V);
+      const q = pr.NearestPoint(), at = keep(new oc.gp_Pnt_1()), du = keep(new oc.gp_Vec_1()), dv = keep(new oc.gp_Vec_1());
+      surface.get().D1(U.current, V.current, at, du, dv);
+      const n = keep(du.Crossed(dv)); n.Normalize();
+      return { q: [q.X(), q.Y(), q.Z()], n: [n.X(), n.Y(), n.Z()] };
+    };
+    const onBoth = (start, along, s1, s2) => {
+      let x = start;
+      for (let iteration = 0; iteration < 12; iteration++) {
+        const a = project(x, s1), b = project(x, s2);
+        if (!a || !b) return null;
+        const mid = [(a.q[0] + b.q[0]) / 2, (a.q[1] + b.q[1]) / 2, (a.q[2] + b.q[2]) / 2];
+        const cross = Math.hypot(a.n[1] * b.n[2] - a.n[2] * b.n[1], a.n[2] * b.n[0] - a.n[0] * b.n[2], a.n[0] * b.n[1] - a.n[1] * b.n[0]);
+        let next = mid;
+        if (cross > 1e-4) {
+          const m = [a.n, b.n, along], rhs = [dot(a.n, a.q), dot(b.n, b.q), dot(along, start)], d = det3(m);
+          if (Math.abs(d) > 1e-12) next = [0, 1, 2].map((k) => det3(m.map((row, i) => row.map((value, j) => (j === k ? rhs[i] : value)))) / d);
+        }
+        const moved = Math.hypot(next[0] - x[0], next[1] - x[1], next[2] - x[2]);
+        x = next;
+        if (moved < TIGHT * 1e-2) break;
+      }
+      return x;
+    };
+    const builder = keep(new oc.BRep_Builder()), setter = keep(new oc.ShapeFix_ShapeTolerance());
+    const seams = [], vertices = [];
+    each(shape, oc.TopAbs_ShapeEnum.TopAbs_EDGE, (es) => {
+      const edge = oc.TopoDS.Edge_1(es);
+      if (oc.BRep_Tool.Tolerance_2(edge) <= LOOSE || seams.some((x) => x.IsSame(edge))) return;
+      const adjacent = facesOf(edge);
+      if (adjacent.length !== 2 || !adjacent.every(curved)) return;
+      const curve = keep(new oc.BRepAdaptor_Curve_2(edge)), t0 = curve.FirstParameter(), t1 = curve.LastParameter();
+      const s1 = keep(oc.BRep_Tool.Surface_2(adjacent[0])), s2 = keep(oc.BRep_Tool.Surface_2(adjacent[1]));
+      const points = [];
+      for (let i = 0; i <= SAMPLES; i++) {
+        const t = t0 + (t1 - t0) * i / SAMPLES, p = keep(curve.Value(t)), d = keep(curve.DN(t, 1)), length = Math.hypot(d.X(), d.Y(), d.Z());
+        if (length < 1e-12) return;
+        const x = onBoth([p.X(), p.Y(), p.Z()], [d.X() / length, d.Y() / length, d.Z() / length], s1, s2);
+        if (!x) return;
+        points.push(x);
+      }
+      const array = keep(new oc.TColgp_Array1OfPnt_2(1, points.length));
+      points.forEach((p, i) => array.SetValue(i + 1, keep(new oc.gp_Pnt_3(p[0], p[1], p[2]))));
+      const fit = keep(new oc.GeomAPI_PointsToBSpline_2(array, 3, 8, oc.GeomAbs_Shape.GeomAbs_C2, TIGHT));
+      if (!fit.IsDone()) return;
+      const fitted = keep(new oc.Handle_Geom_Curve_2(fit.Curve().get())), f0 = fitted.get().FirstParameter(), f1 = fitted.get().LastParameter();
+      builder.UpdateEdge_1(edge, fitted, TIGHT);
+      builder.Range_1(edge, f0, f1, false);
+      for (const face of adjacent) builder.UpdateEdge_3(edge, keep(oc.GeomProjLib.Curve2d_2(fitted, f0, f1, keep(oc.BRep_Tool.Surface_2(face)), TIGHT)), face, TIGHT);
+      each(edge, oc.TopAbs_ShapeEnum.TopAbs_VERTEX, (vs) => {
+        const vertex = oc.TopoDS.Vertex_1(vs), q = oc.BRep_Tool.Pnt(vertex);
+        const end = [points[0], points[points.length - 1]].reduce((best, p) => (Math.hypot(p[0] - q.X(), p[1] - q.Y(), p[2] - q.Z()) < Math.hypot(best[0] - q.X(), best[1] - q.Y(), best[2] - q.Z()) ? p : best));
+        q.delete();
+        builder.UpdateVertex_1(vertex, keep(new oc.gp_Pnt_3(end[0], end[1], end[2])), TIGHT);
+        vertices.push(vertex);
+      });
+      setter.SetTolerance(edge, TIGHT, oc.TopAbs_ShapeEnum.TopAbs_EDGE);
+      builder.SameParameter(edge, false);
+      oc.BRepLib.SameParameter_1(edge, TIGHT);
+      seams.push(edge);
+    });
+    for (const vertex of vertices) setter.SetTolerance(vertex, TIGHT, oc.TopAbs_ShapeEnum.TopAbs_VERTEX);
+    if (seams.length) oc.BRepLib.UpdateTolerances_1(shape, false);
+    return seams.length;
+  } finally {
+    disposeAll(owned);
+  }
+}
+
 async function shellByJunctionBisectors(brep, removed, thickness, options = {}) {
   if (options.direction === "outside") throw new Error("A junction shell hollows inward only");
   const oc = brep.oc, F = JUNCTION_SCALE, owned = [], breps = [];
@@ -1580,8 +1670,13 @@ async function shellByJunctionBisectors(brep, removed, thickness, options = {}) 
         try { maker.MakeThickSolidByJoin(solid, open, -T, 1e-6, oc.BRepOffset_Mode.BRepOffset_Skin, false, false, join, false, keep(new oc.Message_ProgressRange_1())); }
         catch { continue; }
         if (maker.HasErrors?.() || !maker.IsDone?.()) continue;
-        const wall = keep(maker.Shape());
+        let wall = keep(maker.Shape());
         if (!shapeIsValid(oc, wall)) continue;
+        // near-tangent seams: keep the recomputed wall only if it is valid and really tighter
+        if (shapeMaxTolerance(oc, wall) > 1e-3) {
+          const tight = keep(new oc.BRepBuilderAPI_Copy_2(wall, true, false)).Shape();
+          if (tightenOffsetSeams(oc, tight, F) && shapeIsValid(oc, tight) && shapeMaxTolerance(oc, tight) < shapeMaxTolerance(oc, wall)) wall = tight;
+        }
         const cavity = track(await booleanBrep("subtract", { oc, shape: solid, kind: "solid" }, { oc, shape: wall, kind: "solid" }));
         return cavity.shape;
       }
