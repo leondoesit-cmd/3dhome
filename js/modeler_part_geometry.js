@@ -510,7 +510,11 @@ export async function exactBrepForPart(p) {
         next=await domeBrep(solid,operation.amount,{facePersistentIds:persistentIds});
       } else if (operation.type==="draft") {
         opParams={...opParams,...cloneData(operation.params || {}),angle:operation.amount};
-        next=await draftBrep(solid, operation.amount, {...(operation.params || {}),facePersistentIds:persistentIds});
+        /* The picked neutral face rebinds against this solid like the targets do,
+           and never counts as a face to draft. */
+        var neutralRef=operation.params && operation.params.neutralFace,neutralFaceId=neutralRef?(resolveFinishTargetIds([neutralRef], registry, "face")[0] || null):null;
+        if(neutralRef && !neutralFaceId)throw new Error("Draft neutral plane face is unavailable");
+        next=await draftBrep(solid, operation.amount, {...(operation.params || {}),neutralFaceId:neutralFaceId,facePersistentIds:persistentIds.filter(function(id){return id!==neutralFaceId;})});
       } else throw new Error("Unsupported exact operation: " + operation.type);
       var expectedAfter=topologyForFeature({id:opId,type:operation.type},opParams,[{topology:priorTopology}]);
       disposeBrep(solid); solid=next;

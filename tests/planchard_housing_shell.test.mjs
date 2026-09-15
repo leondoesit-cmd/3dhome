@@ -13,6 +13,7 @@ import {
   shapeMassProperties,
   shellBrep,
   validateBrepForExport,
+  draftBrep,
 } from "../js/cad_kernel.js";
 import { regenerateFeatures, releaseRegeneration } from "../js/cad_feature_tree.js";
 import { compileKernelFeatureTree } from "../js/core/kernel_feature_adapter.js";
@@ -251,7 +252,7 @@ test("HOUSING Shell1 is an exact constant-thickness shell and Boss-Stop fuses on
    edge tolerances (so the exact shell used to be rejected for the 330.8 cm³
    sampled fallback), and the first join offset loosened the caller's body in
    place. */
-test("the saved HOUSING record rebuilds Shell1 as the exact shell without touching the body before it, and Boss-Stop follows its moved inner edge", { timeout: 900000 }, async () => {
+test("the saved HOUSING record rebuilds Shell1 as the exact shell without touching the body before it, Boss-Stop follows its moved inner edge, and Draft1 pivots on the picked rim", { timeout: 900000 }, async () => {
   const record = JSON.parse(readFileSync(new URL("./fixtures/planchard_housing_record.json", import.meta.url), "utf8"));
   const compiled = compileKernelFeatureTree(record);
   const shellIndex = compiled.features.findIndex((feature) => feature.type === "shell");
@@ -303,6 +304,38 @@ test("the saved HOUSING record rebuilds Shell1 as the exact shell without touchi
     const stopMass = await shapeMassProperties(stop);
     assert.ok(Math.abs(stopMass.volume - (mass.volume + ring - overlap)) < 0.01, `Boss-Stop ${stopMass.volume}, expected ${mass.volume + ring - overlap}`);
     assert.ok(Math.abs((stopMass.bounds.max.x - stopMass.bounds.min.x) - 2 * RING_OUTER) < 1e-4, "Boss-Stop ring is 5.125 in across");
+
+    /* Draft1 (steps 383–391) on the Boss-Stop body: neutral plane = Shell1's
+       thin front rim, face to draft = the outer cylinder, 5°. Found by
+       geometry, the way the pick lands in the editor. */
+    const stopFaces = (stop.topology || []).filter((item) => item.kind === "face");
+    const rim = stopFaces.filter((item) => item.descriptor?.surface === "plane" && Math.abs((item.descriptor.origin?.z ?? 0) - H) < 1e-4 && (item.descriptor.normal?.z ?? 0) > 0.9);
+    const wall = stopFaces.filter((item) => item.descriptor?.surface === "cylinder" && Math.abs((item.descriptor.radius ?? 0) - R) < 1e-4);
+    assert.equal(rim.length, 1, "one front rim on Boss-Stop");
+    assert.equal(wall.length, 1, "one outer front wall on Boss-Stop");
+    const drafted = await draftBrep(stop, 5, { neutralFaceId: rim[0].persistentId, facePersistentIds: [wall[0].persistentId] });
+    const tan5 = Math.tan((5 * Math.PI) / 180), length = H - THICK;
+    const added = Math.PI * (R * tan5 * length ** 2 + tan5 ** 2 * length ** 3 / 3);
+    const draftMass = await shapeMassProperties(drafted);
+    assert.ok(Math.abs(draftMass.volume - (stopMass.volume + added)) < 0.01, `Draft1 ${draftMass.volume}, expected ${stopMass.volume + added}`);
+    const outerRadiusAt = (z) => {
+      const oc = drafted.oc, owned = [];
+      try {
+        const pln = new oc.gp_Pln_3(new oc.gp_Pnt_3(0, 0, z), new oc.gp_Dir_4(0, 0, 1)); owned.push(pln);
+        const maker = new oc.BRepBuilderAPI_MakeFace_9(pln, -20, 20, -20, 20); owned.push(maker);
+        const progress = new oc.Message_ProgressRange_1(); owned.push(progress);
+        const section = new oc.BRepAlgoAPI_Section_3(drafted.shape, maker.Face(), progress); owned.push(section);
+        let max = 0;
+        const explorer = new oc.TopExp_Explorer_2(section.Shape(), oc.TopAbs_ShapeEnum.TopAbs_VERTEX, oc.TopAbs_ShapeEnum.TopAbs_SHAPE); owned.push(explorer);
+        for (; explorer.More(); explorer.Next()) { const point = oc.BRep_Tool.Pnt(oc.TopoDS.Vertex_1(explorer.Current())); max = Math.max(max, Math.hypot(point.X(), point.Y())); point.delete(); }
+        return max;
+      } finally { owned.forEach((item) => item.delete?.()); }
+    };
+    try {
+    // Pivots on the rim (z = H keeps R) and widens toward the flange; the inside stays straight.
+    assert.ok(Math.abs(outerRadiusAt(H - 0.1) - (R + 0.1 * tan5)) < 1e-4, `outer radius beside the rim ${outerRadiusAt(H - 0.1)}`);
+    assert.ok(Math.abs(outerRadiusAt(THICK + 0.05) - (R + (length - 0.05) * tan5)) < 1e-4, `outer radius beside the flange ${outerRadiusAt(THICK + 0.05)}`);
+    } finally { disposeBrep(drafted); }
   } finally {
     releaseRegeneration(run);
   }

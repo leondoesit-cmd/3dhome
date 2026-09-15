@@ -5636,6 +5636,10 @@ body.compact-nav #modeler .md-quick-field select {
 #modeler .md-feature-form-title small { margin-top: 3px; color: var(--text-muted); font-size: 8.5px; }
 #modeler .md-feature-selection-note { padding: 7px; border-radius: 7px; background: color-mix(in srgb,var(--accent) 7%,var(--input-bg)); color: var(--text-muted); font-size: 9px; line-height: 1.45; }
 #modeler .md-feature-selection-note.ready { border: 1px solid rgba(15,138,106,.35); background: rgba(15,138,106,.09); color: #0f8a6a; font-weight: 650; }
+/* Draft's Neutral Plane box: the label says what the next face click fills. */
+#modeler .md-draft-neutral { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 7px; border-radius: 7px; background: color-mix(in srgb,var(--accent) 7%,var(--input-bg)); color: var(--text-muted); font-size: 10px; line-height: 1.4; }
+#modeler .md-draft-neutral-label { flex: 1 1 100%; min-width: 0; }
+#modeler .md-draft-neutral.is-picking { outline: 1px solid color-mix(in srgb,var(--accent) 55%,transparent); color: var(--text); font-weight: 650; }
 #modeler .md-finish-edges { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--separator); border-radius: 8px; background: var(--input-bg); }
 /* An armed collector reads as a well waiting for picks, not as a read-out of
    what happens to be selected. Same treatment for the Shell note, which has no

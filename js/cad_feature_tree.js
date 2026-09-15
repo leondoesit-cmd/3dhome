@@ -365,8 +365,15 @@ export async function regenerateFeatures(def, options = {}) {
       else if (feature.type === "draft") {
         const source = results.get(feature.inputs[0]);
         if (!source?.shape) throw new Error("Draft input is unavailable");
+        /* The neutral face is a topology reference in params, so the resolver
+           rebinds it with the rest; it is split back out here so it pivots the
+           draft instead of being drafted. */
+        const neutralRef = effectiveParams.neutralFace, neutralHit = neutralRef ? topologyRun.resolutions.find((entry) => entry.reference === neutralRef || (neutralRef.persistentId && entry.reference?.persistentId === neutralRef.persistentId)) : null;
+        if (neutralRef && !neutralHit?.topology) throw new Error("Draft neutral plane face is unavailable");
+        const neutralFaceId = neutralHit?.topology?.persistentId || null;
         result = await draftBrep(source, effectiveParams.angle, {
-          facePersistentIds: resolvedSubshapeIds(topologyRun.resolutions, "face"),
+          neutralFaceId,
+          facePersistentIds: resolvedSubshapeIds(topologyRun.resolutions.filter((entry) => entry !== neutralHit), "face"),
           pullAxis: effectiveParams.pullAxis,
           pullDirection: effectiveParams.pullDirection,
           neutral: effectiveParams.neutral,

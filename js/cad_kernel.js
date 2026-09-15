@@ -2429,17 +2429,34 @@ export async function draftBrep(brep, angleDegrees, options = {}) {
   if (!bounds) throw new Error("Draft body has no measurable bounds");
   const owned = [];
   try {
-    const at = (options.neutral === "start" ? bounds.min[axis] : bounds.max[axis]) + (Number(options.neutralOffset) || 0);
-    const centre = {
-      x: (bounds.min.x + bounds.max.x) / 2,
-      y: (bounds.min.y + bounds.max.y) / 2,
-      z: (bounds.min.z + bounds.max.z) / 2,
-    };
-    centre[axis] = at;
-    const point = new oc.gp_Pnt_3(centre.x, centre.y, centre.z); owned.push(point);
-    const normal = new oc.gp_Dir_4(axis === "x" ? 1 : 0, axis === "y" ? 1 : 0, axis === "z" ? 1 : 0); owned.push(normal);
-    const plane = new oc.gp_Pln_3(point, normal); owned.push(plane);
-    const pull = new oc.gp_Dir_4(axis === "x" ? sign : 0, axis === "y" ? sign : 0, axis === "z" ? sign : 0); owned.push(pull);
+    let plane, pull;
+    if (options.neutralFaceId) {
+      /* SOLIDWORKS' Neutral Plane box: a picked planar face is the plane the
+         drafted faces pivot on and keep their size at, and its outward normal is
+         the direction of pull (Reverse flips the pull, not the pivot). */
+      const neutral = resolveBrepSubshape(brep, options.neutralFaceId, "face");
+      if (!neutral) throw new Error("Draft neutral plane face is unavailable");
+      const neutralFace = oc.TopoDS.Face_1(neutral);
+      if (faces.some((face) => face.IsSame(neutralFace))) throw new Error("Draft neutral face cannot also be drafted");
+      const adaptor = new oc.BRepAdaptor_Surface_2(neutralFace, true); owned.push(adaptor);
+      if (adaptor.GetType() !== oc.GeomAbs_SurfaceType.GeomAbs_Plane) throw new Error("Draft neutral plane must be a planar face");
+      plane = adaptor.Plane(); owned.push(plane);
+      const axisDir = plane.Axis().Direction(); owned.push(axisDir);
+      const outward = neutralFace.Orientation_1() === oc.TopAbs_Orientation.TopAbs_REVERSED ? -sign : sign;
+      pull = new oc.gp_Dir_4(axisDir.X() * outward, axisDir.Y() * outward, axisDir.Z() * outward); owned.push(pull);
+    } else {
+      const at = (options.neutral === "start" ? bounds.min[axis] : bounds.max[axis]) + (Number(options.neutralOffset) || 0);
+      const centre = {
+        x: (bounds.min.x + bounds.max.x) / 2,
+        y: (bounds.min.y + bounds.max.y) / 2,
+        z: (bounds.min.z + bounds.max.z) / 2,
+      };
+      centre[axis] = at;
+      const point = new oc.gp_Pnt_3(centre.x, centre.y, centre.z); owned.push(point);
+      const normal = new oc.gp_Dir_4(axis === "x" ? 1 : 0, axis === "y" ? 1 : 0, axis === "z" ? 1 : 0); owned.push(normal);
+      plane = new oc.gp_Pln_3(point, normal); owned.push(plane);
+      pull = new oc.gp_Dir_4(axis === "x" ? sign : 0, axis === "y" ? sign : 0, axis === "z" ? sign : 0); owned.push(pull);
+    }
     const maker = new oc.BRepOffsetAPI_DraftAngle_2(brep.shape); owned.push(maker);
     const progress = new oc.Message_ProgressRange_1(); owned.push(progress);
     // A face square to the pull direction has no line to tilt about. OCCT

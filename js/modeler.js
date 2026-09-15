@@ -6886,11 +6886,16 @@ function quickDraftPart(options) {
   if (!p) { flash(t("quickNeedPart")); return false; }
   if (!partSupportsExactMesh(p)) { flash(t("draftFail")); return false; }
   if (!Number.isFinite(angle) || angle===0) { flash(t("draftFail")); return false; }
-  var targets=finishFeatureTargets("draft");
+  var neutralFace=params.neutralFace || null;
+  var targets=finishFeatureTargets("draft").filter(function(reference){return !neutralFace || reference.persistentId!==neutralFace.persistentId;});
   if (!targets.length) { flash(t("needFace")); return false; }
   pushUndo(t("draftOp"));
+  /* The body's head, as Shell and Dome use: on a merged body p.featureId is the
+     first feature (HOUSING's Base Extrude), and drafting that started a second
+     body next to Boss-Stop instead of drafting the part as it stands. */
+  var source=cutTargetFeatureId(p);
   var feature;
-  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"draft",{inputs:[p.featureId],references:{sketches:[],features:[p.featureId],topology:targets,references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
+  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"draft",{inputs:[source],references:{sketches:[],features:[source],topology:targets,references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
   p.exactOperations=p.exactOperations || [];
   p.exactOperations.push({
     id:feature ? feature.id : (p.featureId || "feature:part:"+p.id)+":draft:"+(p.exactOperations.length+1),
@@ -8453,21 +8458,28 @@ function approximateFinishPreviewParts(type,state,source) {
    queue a kernel build for every pointer event.  The source body remains
    untouched and the latest token alone is allowed to replace the preview. */
 async function exactFinishPreviewBody(preview,type) {
-  if(!isCanonicalAuthoring() || !["fillet","chamfer","shell","dome"].includes(type))return exactBrepForPart(preview);
+  /* Draft belongs here too: on a merged body its faces (HOUSING's Shell1 rim
+     and wall) exist only on the rebuilt display body, never on the analytic
+     part exactBrepForPart would rebuild, so the preview stayed "unavailable"
+     and OK stayed disabled. */
+  if(!isCanonicalAuthoring() || !["fillet","chamfer","shell","dome","draft"].includes(type))return exactBrepForPart(preview);
   var operation=preview.exactOperations[preview.exactOperations.length-1];
   var display=await exactDisplayBody(preview);
   try{
     var registry=createTopologyRegistry(display.brep.topology || []);
-    var targets=operation.targets.map(function(reference){
+    var rebind=function(reference){
       var descriptor=cloneData(reference.descriptor || {});delete descriptor.semantic;
       var resolution=resolveTopologyReference({persistentId:reference.persistentId,kind:reference.kind,descriptor:descriptor},registry,{threshold:.05});
       if(!resolution.topology || ['missing','ambiguous'].includes(resolution.status)){
         throw new Error("The selected geometry could not be matched to the rebuilt body");
       }
       return resolution.topology;
-    });
-    var options={...operation.params,edgePersistentIds:targets.filter(function(item){return item.kind==='edge';}).map(function(item){return item.persistentId;}),facePersistentIds:targets.filter(function(item){return item.kind==='face';}).map(function(item){return item.persistentId;})};
-    var finishOperation=type==='dome'?domeBrep:type==='fillet'?filletBrep:type==='shell'?shellBrep:chamferBrep;
+    };
+    var targets=operation.targets.map(rebind);
+    var neutral=type==='draft' && operation.params && operation.params.neutralFace ? rebind(operation.params.neutralFace) : null;
+    var options={...operation.params,edgePersistentIds:targets.filter(function(item){return item.kind==='edge';}).map(function(item){return item.persistentId;}),facePersistentIds:targets.filter(function(item){return item.kind==='face' && (!neutral || item.persistentId!==neutral.persistentId);}).map(function(item){return item.persistentId;})};
+    if(neutral)options.neutralFaceId=neutral.persistentId;
+    var finishOperation=type==='draft'?draftBrep:type==='dome'?domeBrep:type==='fillet'?filletBrep:type==='shell'?shellBrep:chamferBrep;
     return await finishOperation(display.brep,operation.amount,options);
   }finally{display.release();}
 }
@@ -8884,6 +8896,29 @@ function openParametricFeature(type, repeatedParams) {
     host.appendChild(collect);
     var endControl=(controls||[]).find(function(item){return item.field.key==="endCondition";});
     if(endControl)endControl.input.addEventListener("change",function(){collect.hidden=!collectingEndFace();syncActiveFeatureSelectionFeedback();});
+  }
+  if (type === "draft") {
+    /* SOLIDWORKS' Neutral Plane box: the next face click fills it instead of
+       Faces to draft. A picked face replaces the axis/end fields, which only
+       stand in for it when nothing is picked. */
+    var neutralRow = el("div", "md-draft-neutral");
+    neutralRow.setAttribute("data-draft-neutral", "");
+    var neutralLabel = el("span", "md-draft-neutral-label");
+    var syncNeutral = function () {
+      var face = state.params && state.params.neutralFace;
+      neutralLabel.textContent = t("fcFldNeutralPlane") + ": " + (state.neutralPick ? t("draftNeutralPick") : face ? t("draftNeutralFace") : t("fcOptNeutralEnd"));
+      neutralRow.classList.toggle("is-picking", !!state.neutralPick);
+      (controls || []).forEach(function (control) {
+        if (!["pullAxis", "neutral", "neutralOffset"].includes(control.field.key)) return;
+        var wrap = control.input.closest(".md-quick-field"); if (wrap) wrap.classList.toggle("parameter-inactive", !!face);
+      });
+    };
+    neutralRow.appendChild(neutralLabel);
+    neutralRow.appendChild(btn(t("draftNeutralPickButton"), function () { state.neutralPick = true; E.collectingFeature = true; syncNeutral(); flash(t("draftNeutralPick")); }, "md-draft-neutral-pick"));
+    neutralRow.appendChild(btn(t("draftNeutralClear"), function () { state.neutralPick = false; if (state.params) delete state.params.neutralFace; syncNeutral(); queueNewFeaturePreview(type, state, liveBadge); }, "md-draft-neutral-clear"));
+    state.syncNeutral = syncNeutral;
+    host.appendChild(neutralRow);
+    syncNeutral();
   }
   var actions=el("div","md-feature-actions");
     actions.appendChild(namedButton(btn('<i class="ph ph-x"></i> '+t("m_cancel"),function(){E.authoring.featureType=null;E.authoring.workflowFocus="history";clearFeaturePreview(true);closeFeaturePanel();syncAuthoringWorkflow();},"md-quick-cancel"), t("cancelCommand")));
@@ -18964,6 +18999,17 @@ function pickAssemblyComponent(event, view) {
     offerPickCycle(overlappingCandidates, topologyReferencePicked, event);
     E.sel = part;
     E.ssel = [];
+    var draftState = E.authoring && E.authoring.featureType === "draft" && !E.authoring.featureEdit ? E.authoring.featurePreviewState : null;
+    if (draftState && draftState.neutralPick && topologyReferencePicked) {
+      if (topologyReferencePicked.kind !== "face" || (topologyReferencePicked.descriptor && topologyReferencePicked.descriptor.surface !== "plane")) { flash(t("draftNeutralNeedPlane")); return; }
+      draftState.params = { ...(draftState.params || {}), neutralFace: cloneData(topologyReferencePicked) };
+      draftState.neutralPick = false;
+      E.topologySelection = (E.topologySelection || []).filter(function (reference) { return reference.persistentId !== topologyReferencePicked.persistentId; });
+      if (draftState.syncNeutral) draftState.syncNeutral();
+      syncNewFeaturePreview("draft", draftState, E.authoring.featurePreviewBadge);
+      refreshSelection();
+      return;
+    }
     if (finishCommandActive() && topologyReferencePicked) {
       if (fullRoundActive() && topologyReferencePicked.kind === "face") toggleFullRoundFace(topologyReferencePicked);
       else if (topologyReferencePicked.kind === "face") toggleFinishEdges(edgeRefsForFaces([topologyReferencePicked], part || selectedSolid()));
@@ -18972,7 +19018,7 @@ function pickAssemblyComponent(event, view) {
     }
     if (finishCommandActive() && !topologyReferencePicked) { refreshSelection(); return; }
     if (!part || !topologyReferencePicked) E.topologySelection = topologyReferencePicked ? [topologyReferencePicked] : [];
-    else if (event.ctrlKey || event.metaKey || E.mobileAddSelection || (E.collectingFeature && ["shell","thicken"].includes(E.authoring?.featureType))) {
+    else if (event.ctrlKey || event.metaKey || E.mobileAddSelection || (E.collectingFeature && ["shell","thicken","draft"].includes(E.authoring?.featureType))) {
       var selectedAt = E.topologySelection.findIndex(function (reference) { return reference.persistentId === topologyReferencePicked.persistentId; });
       if (selectedAt === -1) E.topologySelection.push(topologyReferencePicked); else E.topologySelection.splice(selectedAt,1);
     } else if (event.shiftKey) {

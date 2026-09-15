@@ -140,6 +140,51 @@ test("the pull direction chooses which walls can be drafted at all", async () =>
   } finally { disposeBrep(brep); }
 });
 
+/* SOLIDWORKS picks the neutral plane: a planar face (or plane) whose normal is
+   the pull direction and which keeps its size. HOUSING's Draft1 uses the thin
+   front rim face of the shell, not "one end of the body along an axis". */
+test("a picked neutral face sets both the pivot plane and the pull direction", async () => {
+  const brep = await cube(10);
+  let drafted = null, reversed = null;
+  // Which way the drafted +X wall leans. Drafting shears the wall rather than
+  // making it a trapezoid, so its centroid stays at y=5 either way; the normal
+  // tilts toward -Y when the wall widens toward +Y, and toward +Y otherwise.
+  const wallTiltY = (body) => {
+    extractBrepTopology(body, { ownerFeatureId: "drafted" });
+    const wall = body.topology.find((item) => item.kind === "face" && item.descriptor.surface === "plane" && item.descriptor.normal.x > 0.9);
+    assert.ok(wall, "the drafted body still has its +X wall");
+    return wall.descriptor.normal.y;
+  };
+  try {
+    // The BOTTOM face (y=0, normal -Y) as neutral: pivot at y=0 and pull -Y, so
+    // the wall keeps x=10 at the bottom and widens toward y=10. The default
+    // (pull +Y, neutral at the top end) widens toward y=0 instead, so this
+    // cannot pass by falling back to the old axis fields.
+    drafted = await draftBrep(brep, 5, { facePersistentIds: [wallId(brep, "x", 1)], neutralFaceId: wallId(brep, "y", -1) });
+    assert.ok(Math.abs((await volume(drafted) - 1000) - WEDGE_5DEG) < 1e-3, "the wall flares away from the neutral face");
+    assert.ok(wallTiltY(drafted) < -0.05, "the wide end is the one far from the neutral face (y=10), which the default pull would put at y=0");
+    const box = await bounds(drafted);
+    assert.ok(Math.abs(box.x1 - (10 + 10 * Math.tan((5 * Math.PI) / 180))) < 1e-6, "the far end is one tangent wider");
+    // Reverse flips the pull about the same pivot: the bottom still measures 10, the wall leans in.
+    reversed = await draftBrep(brep, 5, { facePersistentIds: [wallId(brep, "x", 1)], neutralFaceId: wallId(brep, "y", -1), pullDirection: "reverse" });
+    assert.ok(Math.abs((1000 - await volume(reversed)) - WEDGE_5DEG) < 1e-3, "reversed, the same wedge is removed");
+    assert.ok(Math.abs((await bounds(reversed)).x1 - 10) < 1e-6, "nothing grows past the neutral face's edge");
+  } finally { disposeBrep(brep); if (drafted) disposeBrep(drafted); if (reversed) disposeBrep(reversed); }
+});
+
+test("a neutral face must be planar and cannot also be drafted", async () => {
+  const cylinder = await makeBrepPrimitive({ type: "cylinder", x: 0, y: 0, z: 0, r: 5, h: 10 });
+  extractBrepTopology(cylinder, { ownerFeatureId: "cyl" });
+  const brep = await cube(10);
+  try {
+    const side = cylinder.topology.find((item) => item.kind === "face" && item.descriptor.surface === "cylinder");
+    const cap = cylinder.topology.find((item) => item.kind === "face" && item.descriptor.surface === "plane");
+    await assert.rejects(draftBrep(cylinder, 5, { facePersistentIds: [cap.persistentId], neutralFaceId: side.persistentId }), /neutral plane must be a planar face/i);
+    await assert.rejects(draftBrep(brep, 5, { facePersistentIds: [wallId(brep, "y", 1)], neutralFaceId: wallId(brep, "y", 1) }), /neutral face cannot also be drafted/i);
+    await assert.rejects(draftBrep(brep, 5, { facePersistentIds: [wallId(brep, "x", 1)], neutralFaceId: "cube:face:missing" }), /neutral plane face is unavailable/i);
+  } finally { disposeBrep(cylinder); disposeBrep(brep); }
+});
+
 test("non-zero draft refuses an empty face selection", async () => {
   const brep = await cube(10);
   try {
@@ -166,6 +211,28 @@ test("a draft step in a feature tree rebuilds against the face it names", async 
     const after = await volume(drafted);
     assert.ok(Math.abs((after - 1000) - WEDGE_5DEG) < 1e-3, "and it is the same wedge the kernel test measured");
     assert.equal(drafted.topology.filter((item) => item.kind === "face").length, 6, "a drafted box is still six faces");
+  } finally { releaseRegeneration(run); }
+});
+
+test("a draft step keeps its neutral face out of the faces it drafts", async () => {
+  const neutral = { type: "topology-reference", kind: "face", persistentId: "b1:face:bottom", ownerFeatureId: "b1", semantic: "bottom" };
+  const def = { features: [
+    { id: "b1", type: "box", name: "Box", inputs: [], references: {}, params: { x:0, y:0, z:0, w:10, h:10, d:10 } },
+    { id: "d1", type: "draft", name: "Draft", inputs: ["b1"], params: { ...featureDefaults("draft"), angle: 5, neutralFace: neutral },
+      references: { features: ["b1"], topology: [
+        { type: "topology-reference", kind: "face", persistentId: "b1:face:right", ownerFeatureId: "b1", semantic: "right" },
+      ] } },
+  ] };
+  assert.deepEqual(validateFeatureDefinition(def.features[1]).filter((issue) => issue.severity === "error"), [], "one face to draft plus a neutral face is a complete draft");
+  const run = await regenerateFeatures(def);
+  try {
+    assert.deepEqual(run.issues, [], JSON.stringify(run.issues));
+    const drafted = run.results.get("d1");
+    assert.ok(Math.abs((await volume(drafted) - 1000) - WEDGE_5DEG) < 1e-3, "only the right wall is drafted, not the neutral face");
+    const box = await bounds(drafted);
+    assert.ok(Math.abs(box.y0) < 1e-6 && Math.abs(box.y1 - 10) < 1e-6, "the neutral face stays where it was");
+    const wall = drafted.topology.find((item) => item.kind === "face" && item.descriptor.surface === "plane" && item.descriptor.normal.x > 0.9);
+    assert.ok(wall && wall.descriptor.normal.y < -0.05, "the wall pivots on the bottom face, widening toward the top");
   } finally { releaseRegeneration(run); }
 });
 
@@ -203,9 +270,24 @@ test("draft reaches the ribbon, the command handler and the apply path", () => {
   assert.match(modeler, /type:"draft",amount:angle,targets:targets/);
 });
 
+test("the draft panel has a Neutral Plane box whose face pick never becomes a face to draft", () => {
+  assert.match(modeler, /if \(type === "draft"\) \{[\s\S]*data-draft-neutral[\s\S]*state\.neutralPick = true/, "the panel offers the neutral plane pick");
+  assert.match(modeler, /draftState\.neutralPick && topologyReferencePicked[\s\S]*neutralFace: cloneData\(topologyReferencePicked\)/, "the next face click fills the neutral plane");
+  assert.match(modeler, /E\.collectingFeature && \["shell","thicken","draft"\]/, "faces to draft are picked additively");
+  assert.match(modeler, /finishFeatureTargets\("draft"\)\.filter\(function\(reference\)\{return !neutralFace/, "the neutral face is not drafted");
+  // A merged body's first feature is not the body: HOUSING's Draft1 must follow Boss-Stop.
+  assert.match(modeler, /var source=cutTargetFeatureId\(p\);\s*var feature;\s*if\(isCanonicalAuthoring\(\)\)try\{feature=createFeatureDefinition\(E\.def,"draft",\{inputs:\[source\]/, "a draft takes the body's head as its input");
+  assert.match(partGeometry, /neutralFaceId:neutralFaceId,facePersistentIds:persistentIds\.filter/, "the display rebuild resolves the neutral face too");
+  // The live preview drafts the rebuilt display body, so a merged body's faces
+  // (HOUSING's Shell1 rim and wall) exist there and OK is not stuck disabled.
+  assert.match(modeler, /\["fillet","chamfer","shell","dome","draft"\]\.includes\(type\)\)return exactBrepForPart\(preview\)/, "draft previews on the rebuilt display body");
+  assert.match(modeler, /if\(neutral\)options\.neutralFaceId=neutral\.persistentId;[\s\S]{0,80}type==='draft'\?draftBrep/, "the preview pivots on the rebound neutral face");
+});
+
 test("every draft string the form can show exists in both languages", () => {
   const keys = ["draftOp", "draftFail", "selectFaceDraft", "fcFeatDraft", "fcGrpDraftDefinition",
-    "fcFldPullDirection", "fcFldNeutralPlane", "fcFldNeutralOffset", "fcOptNeutralStart", "fcOptNeutralEnd"];
+    "fcFldPullDirection", "fcFldNeutralPlane", "fcFldNeutralOffset", "fcOptNeutralStart", "fcOptNeutralEnd",
+    "draftNeutralPick", "draftNeutralPickButton", "draftNeutralClear", "draftNeutralFace", "draftNeutralNeedPlane"];
   keys.forEach((key) => {
     const match = modelerStrings.match(new RegExp("\\n  " + key + ': \\["([^"]+)", "([^"]+)"\\]'));
     assert.ok(match, key + " has a [he, en] pair in TXT");
