@@ -11,6 +11,7 @@ import { addCenterRectangle } from "./sketch_center_rectangle.js";
 import { filletSketchCorner } from "./sketch_fillet.js";
 import { bindIntersectionTargets, bindModelEdgeTargets, bindPierceTargets, hitProjectedModelEdge } from "./sketch_intersection.js";
 import { copySketchForClipboard, pasteSketchGeometry, readSketchClipboard, writeSketchClipboard } from "./core/sketch_clipboard.js";
+import { ensureSketchOriginPoint, pickIsOrigin, sketchOriginPoint } from "./core/sketch_origin.js";
 import { offsetFaceBoundary, appendBoundarySketch } from "./cad_face_offset.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { captureExactTopology } from './core/exact_topology_cache.js';
@@ -12984,10 +12985,10 @@ function deleteDimensionEditor() {
   refreshAll();
 }
 
-function editPlacedDimension(sketch, constraint, historyAlreadyOpen, clientX, clientY, discardOnCancel) {
+function editPlacedDimension(sketch, constraint, historyAlreadyOpen, clientX, clientY, discardOnCancel, created) {
   return showDimensionEditor(sketch, constraint, {
     historyAlreadyOpen:historyAlreadyOpen, clientX:clientX, clientY:clientY,
-    discardOnCancel:discardOnCancel,
+    discardOnCancel:discardOnCancel, created:!!created,
   });
 }
 
@@ -12998,7 +12999,9 @@ function finishDimensionDrag(clientX, clientY) {
   if (!drag.editOnRelease && !drag.moved) H.discard();
   if (drag.instant2d && drag.moved) resolveSketch(true);
   if (drag.editOnRelease) {
-    editPlacedDimension(drag.sketch, drag.constraint, true, clientX, clientY, !drag.created && !drag.moved);
+    /* A dimension this pick just made is removed again by Cancel; the editor
+       only knew that when told, so Cancel used to keep it. */
+    editPlacedDimension(drag.sketch, drag.constraint, true, clientX, clientY, !drag.created && !drag.moved, drag.created);
   }
   refreshAll();
   return true;
@@ -13786,6 +13789,13 @@ function wireSketch() {
     }
     if (E.tool === "dim") {
       var dhit = hitSketch(uv, e.pointerType);
+      /* The sketch Origin is always pickable (G21): HOUSING HandlePath dimensions
+         the Origin to its horizontal line and has no point of its own there. A
+         fixed point at (0, 0) is found or made once, then flows on as a point. */
+      if (!dhit && pickIsOrigin(uv, (e.pointerType === "touch" ? 14 : 7) / E.scl)) {
+        if (!sketchOriginPoint(ensureSketch(E.def))) pushUndo(t("opDim"));
+        dhit = ensureSketchOriginPoint(ensureSketch(E.def), uid).point;
+      }
       /* SOLIDWORKS Smart Dimension: a line is not dimensioned on the first
          click. A second line gives the distance between them when parallel
          (HOUSING step 326: 3.100 in between the two side lines) or the angle
