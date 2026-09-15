@@ -68,7 +68,7 @@ import { validCustomModelKey, sanitizeDisplayName } from "./safe.js";
 import {
   ensureSketch, ensureSketchDoc, sketchById, addSketch, removeSketch, planeLabel,
   sketchPoint, sketchEntity, solveSketch, explainSketchConflict, resolveProfilePoints,
-  lineData, circleData, ellipseData, entityPoints, removeSketchEntity,
+  lineData, circleData, ellipseData, entityPoints, removeSketchEntity, refusesAsRepeat,
 } from "./sketch_solver.js";
 import { drawNameTags, relationSubjects, relationTargets, sketchInstanceNames } from "./sketch_names.js";
 import {
@@ -11823,6 +11823,9 @@ function resolveSketch(rollbackOnConflict, fast) {
   try { bindIntersectionTargets(sketch, resolveIntersectionEdge); } catch (error) { /* Keep last intersection targets if a source body is mid-rebuild. */ }
   try { bindModelEdgeTargets(sketch, resolveIntersectionEdge); } catch (error) { /* Same: keep the last bound edge line. */ }
   try { bindPierceTargets(sketch, E.def.sketches || [], sketchWorldPoint); } catch (error) { /* Same: keep the last pierce point while the path sketch is being edited. */ }
+  // the last full report for this sketch, so a rollback can tell an edit that
+  // repeats a relation from one that meets redundancy already in the sketch
+  var previousReport = E._solveSketchId === sketch.id && E.solveInfo && E.solveInfo.degreesOfFreedom != null ? E.solveInfo : null;
   var report = solveSketch(sketch, quick ? { diagnostics: false } : {});
   /* A failing sketch leaves error on every relation near the failure; narrow
      that to a minimal set before painting it red. A rollback caller undoes the
@@ -11840,7 +11843,7 @@ function resolveSketch(rollbackOnConflict, fast) {
   sketch.constraints.forEach(function (constraint) {
     if (constraint.driven && constraint.value != null) constraint.value = constraintMeasure(sketch,constraint);
   });
-  if (before && (E.solveInfo.status === "conflicting" || E.solveInfo.status === "over-constrained")) {
+  if (before && (E.solveInfo.status === "conflicting" || refusesAsRepeat(E.solveInfo, previousReport))) {
     sketch.points.forEach(function (p) {
       var q = before.pts[p.id];
       if (q) { p.x = q.x; p.y = q.y; }

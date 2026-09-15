@@ -608,7 +608,7 @@ export function solveSketch(sketch, options = {}) {
   if (options.diagnostics === false) {
     return {
       converged, iterations: iteration, error, diagnostics: false,
-      conflicts: [], rank: null, residualCount: null,
+      conflicts: [], rank: null, residualCount: null, redundancy: null,
       variableCount: vars.length, degreesOfFreedom: null, status: null,
     };
   }
@@ -656,19 +656,39 @@ export function solveSketch(sketch, options = {}) {
      explanation can find the relations a new one repeats in a sketch that is
      not finished yet; the status only turns "over-constrained" once nothing is
      left free, as before. */
-  let redundant = false;
+  /* `redundancy` counts the dependent explicit rows, so an edit can be judged
+     by what it adds rather than by what the sketch already carried. */
+  let redundant = false, redundancy = 0;
   if (countedRows.length > 0 && rank < countedRows.length && converged) {
     const explicitRows = [];
     countedRows.forEach((i, row) => { if (!(tags[i] && tags[i].implicit)) explicitRows.push(J[row]); });
-    redundant = explicitRows.length > 0 && rankOf(explicitRows, rankTolerance) < explicitRows.length;
+    redundancy = explicitRows.length - rankOf(explicitRows, rankTolerance);
+    redundant = explicitRows.length > 0 && redundancy > 0;
   }
   return {
     converged, iterations: iteration, error,
     rank, residualCount: countedRows.length, variableCount: vars.length,
-    degreesOfFreedom: dof, conflicts, redundant,
+    degreesOfFreedom: dof, conflicts, redundant, redundancy,
     status: !converged ? "conflicting" : dof > 0 ? "under-constrained"
       : redundant ? "over-constrained" : "fully-constrained",
   };
+}
+
+/* Whether an edit that left the sketch "over-constrained" repeats what was
+   already set. The status turns over-constrained as soon as nothing is free
+   while any relation is stated twice — also when that duplication was already
+   in the sketch and the edit itself took the last freedom. HOUSING
+   HandleProfile's mirror relations carried such duplicates, so the Vertical
+   (or Coincident) that pinned the last construction end was refused as a
+   repeat of Symmetric and Midpoint (G23). An edit is a repeat only if it
+   removed no freedom and added a dependent row. Without a full report of the
+   sketch before the edit there is nothing to compare, so it is refused as
+   before. */
+export function refusesAsRepeat(report, previous) {
+  if (!report || report.status !== "over-constrained") return false;
+  if (!previous || previous.degreesOfFreedom == null || previous.redundancy == null || report.redundancy == null) return true;
+  if (report.degreesOfFreedom < previous.degreesOfFreedom) return false;
+  return report.redundancy > previous.redundancy;
 }
 
 /* ---- why a sketch will not solve ----
