@@ -233,7 +233,7 @@ test("splitting into two bodies makes two PARTS, each carrying one side", () => 
   const split = modeler.match(/function quickSplitBodyPart\(options\)[\s\S]*?\n\}\n/)[0];
   assert.match(split, /resetClonedPartIdentity\(cloneData\(p\)\)/, "the other half is a part of its own");
   assert.match(split, /record\(p,"positive"\);\s*\n\s*record\(other,"negative"\);/, "complementary sides, one per part");
-  assert.match(split, /var sourceFeatureId=p\.featureId;/, "both rows name the body they were cut from, not the clone's empty id");
+  assert.match(split, /var sourceFeatureId=cutTargetFeatureId\(p\);/, "both rows name the body they were cut from (its head), not the clone's empty id");
   assert.match(split, /delete other\.meshData; delete other\.bounds;/, "the clone does not draw the whole body until it rebuilds");
   assert.match(split, /if \(!partSupportsExactMesh\(p\)\) \{ flash\(t\("splitBodyFail"\)\); return false; \}/);
 });

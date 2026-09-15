@@ -6747,7 +6747,8 @@ function quickMirrorPart(options) {
   if(!q){H.discard();flash(t("kernelBodyNoMirror"));return false;}
   var feature;
   delete params.planeReference;
-  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"mirror",{inputs:[p.featureId],references:{sketches:[],features:[p.featureId],topology:[],references:[planeId]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
+  var source=cutTargetFeatureId(p);
+  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"mirror",{inputs:[source],references:{sketches:[],features:[source],topology:[],references:[planeId]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
   if(feature){q.derivedFeatureId=feature.id;q.sourceFeatureId=p.featureId;}
   if(params.keepOriginal!==false)addPart(q);else{var index=E.def.parts.indexOf(p);if(index>=0)E.def.parts.splice(index,1,q);else addPart(q);} E.sel = q; refreshAll(); return true;
 }
@@ -6928,8 +6929,9 @@ function quickSplitBodyPart(options) {
   pushUndo(t("splitBodyOp"));
   /* Both halves are cut from the SAME body, so both history rows take the
      original part's feature as their input — the clone's own feature id names
-     nothing in the tree yet and would dangle. */
-  var sourceFeatureId=p.featureId;
+     nothing in the tree yet and would dangle. It is the body's head, not its
+     first feature, so a merged body is split as it stands. */
+  var sourceFeatureId=cutTargetFeatureId(p);
   var record=function(part,keep){
     var half={...params,keep:keep};
     var feature;
@@ -6980,7 +6982,7 @@ function quickMoveBodyPart(options) {
   var kernelParams={...params,copy:false};
   var feature;
   // a copy is cut from the original body too, so its row names that body
-  var sourceFeatureId=p.featureId;
+  var sourceFeatureId=cutTargetFeatureId(p);
   if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"moveBody",{inputs:[sourceFeatureId],references:{sketches:[],features:[sourceFeatureId],topology:[],references:[]},params:kernelParams});}catch(error){H.discard();flash(String(error.message||error));return false;}
   target.exactOperations=target.exactOperations || [];
   target.exactOperations.push({
@@ -7023,7 +7025,8 @@ function createRibFeature(options) {
   pushUndo(t("ribOp"));
   recordSketchInHistory(E.def,sketch);
   var feature;
-  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"rib",{inputs:[p.featureId],references:{sketches:[sketch.id],features:[p.featureId],topology:[],references:[]},params:ribParams});}catch(error){H.discard();flash(String(error.message||error));return false;}
+  var source=cutTargetFeatureId(p);
+  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"rib",{inputs:[source],references:{sketches:[sketch.id],features:[source],topology:[],references:[]},params:ribParams});}catch(error){H.discard();flash(String(error.message||error));return false;}
   p.exactOperations=p.exactOperations || [];
   p.exactOperations.push({
     id:feature ? feature.id : (p.featureId || "feature:part:"+p.id)+":rib:"+(p.exactOperations.length+1),
@@ -7050,7 +7053,10 @@ function quickThickenPart(options) {
   if (!targets.length) { flash(t("needFace")); return false; }
   pushUndo(t("thickenOp"));
   var feature;
-  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"thicken",{inputs:[p.featureId],references:{sketches:[],features:[p.featureId],topology:targets,references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
+  /* The body as it stands, not its first feature: on a merged body the first
+     feature is only the base, and thickening that starts a second body. */
+  var source=cutTargetFeatureId(p);
+  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"thicken",{inputs:[source],references:{sketches:[],features:[source],topology:targets,references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
   p.exactOperations=p.exactOperations || [];
   p.exactOperations.push({
     id:feature ? feature.id : (p.featureId || "feature:part:"+p.id)+":thicken:"+(p.exactOperations.length+1),
@@ -7232,7 +7238,8 @@ function quickPatternPart(count, pitch) {
   }
   pushUndo(t("quickPattern"));
   var feature;
-  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"pattern",{inputs:[p.featureId],references:{sketches:curveSketch?[curveSketch.id]:[],features:[p.featureId],topology:[],references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
+  var source=cutTargetFeatureId(p);
+  if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"pattern",{inputs:[source],references:{sketches:curveSketch?[curveSketch.id]:[],features:[source],topology:[],references:[]},params:params});}catch(error){H.discard();flash(String(error.message||error));return false;}
   var circularStep=circularPatternStepDegrees(params,count)*Math.PI/180,placements=patternPlacements(params);
   if(!placements.length){H.discard();flash(t("patternNeedCurve"));return false;}
   layPatternCopies(p,params,feature,placements,circularStep,addPart);
@@ -7848,7 +7855,7 @@ function mergeTargetBody(box, params) {
 function cutTargetFeatureId(target, document = E.def) {
   if (!target) return null;
   var head = target.derivedFeatureId || target.featureId;
-  var modifiers = new Set(["fillet", "chamfer", "shell", "dome", "draft", "thicken", "extrudeCut", "revolveCut", "sweepCut", "hole", "moveBody"]);
+  var modifiers = new Set(["fillet", "chamfer", "shell", "dome", "draft", "thicken", "rib", "extrudeCut", "revolveCut", "sweepCut", "hole", "moveBody"]);
   /* A step below the rollback bar (or suppressed in history) is not built, so it
      cannot be the body's head. Walking past it made the displayed body ask the
      regeneration for Shell1 after rolling HOUSING back to Boss-Battery; the run
@@ -15034,14 +15041,15 @@ function syncProjectionFromFeature(feature) {
     var patternHost=selectedPatternBody(feature.params.seedFeatureId);if(patternHost){markLiveDirtyPart(patternHost);queueExactMesh(patternHost);}
   }
   if(feature.type==="pattern" && feature.params?.scope!=="feature"){
-    var seed=(E.def.parts || []).find(function(item){return item.featureId===feature.inputs[0];});
+    // the input names the body's head, which on a merged body is not its featureId
+    var seed=(E.def.parts || []).find(function(item){return item.featureId===feature.inputs[0] || cutTargetFeatureId(item)===feature.inputs[0];});
     E.def.parts=(E.def.parts || []).filter(function(item){return item.derivedFeatureId!==feature.id;});
     /* A rebuild starts from the un-merged run: the fusions the previous run
        left on their hosts describe placements that no longer exist. */
     clearPatternMerges(feature.id);
     if(seed){markLiveDirtyPart(seed);var count=Math.max(2,Math.min(100,Math.round(Number(feature.params.count)||2))),circularStep=circularPatternStepDegrees(feature.params,count)*Math.PI/180,placements=patternPlacements(feature.params);layPatternCopies(seed,feature.params,feature,placements,circularStep,function(copy){markLiveDirtyPart(copy);E.def.parts.push(copy);});}
   } else if(feature.type==="mirror"){
-    var mirrorSeed=(E.def.parts || []).find(function(item){return item.featureId===feature.inputs[0];}),planeReference=(feature.references.references || ["plane:right"])[0];
+    var mirrorSeed=(E.def.parts || []).find(function(item){return item.featureId===feature.inputs[0] || cutTargetFeatureId(item)===feature.inputs[0];}),planeReference=(feature.references.references || ["plane:right"])[0];
     E.def.parts=(E.def.parts || []).filter(function(item){return item.derivedFeatureId!==feature.id;});
     if(mirrorSeed){var mirrored=mirrorProjectionPart(resetClonedPartIdentity(cloneData(mirrorSeed)),typeof planeReference==="string"?planeReference:planeReference.id);if(mirrored){mirrored.derivedFeatureId=feature.id;mirrored.sourceFeatureId=mirrorSeed.featureId;markLiveDirtyPart(mirrored);E.def.parts.push(mirrored);}}
   }
