@@ -29,3 +29,19 @@ test('a converted rear circle projects onto an offset plane and follows its radi
  assert.throws(()=>projectCircularEdge({plane:'right'},edge),/parallel/);
  assert.throws(()=>projectCircularEdge(sketch,{descriptor:{...edge.descriptor,measure:1}}),/complete/);
 });
+
+test('a converted circle whose source edge id moved follows the one matching complete circle, never a guess',async()=>{
+ const {linkedEdgeLookup}=await import('../js/core/cone_silhouette.js');
+ const circle=(id,radius,z,extra={})=>({persistentId:id,kind:'edge',semantic:id.split(':').pop(),descriptor:{curve:'circle',radius,measure:2*Math.PI*radius,origin:{x:0,y:0,z},axis:{x:0,y:0,z:1},...extra}});
+ const ref={ownerFeatureId:'shell',kind:'edge',persistentId:'shell:edge:generated:circle:11',semantic:'generated-11',descriptor:circle('x',5.30225,3.302).descriptor};
+ const inner=circle('shell:edge:generated:circle:4',5.30225,3.302),outer=circle('shell:edge:generated:circle:11',5.55625,3.302);
+ assert.equal(linkedEdgeLookup([inner,{...outer,persistentId:'shell:edge:generated:circle:7'}],ref),inner);
+ assert.equal(linkedEdgeLookup([inner,outer],ref),outer,'an id that still names a complete circle is followed, whatever its radius');
+ const reused={...outer,descriptor:{...outer.descriptor,curve:'line',radius:undefined}};
+ assert.equal(linkedEdgeLookup([inner,reused],ref),inner,'an id now naming another kind of edge falls back to the matching circle');
+ assert.equal(linkedEdgeLookup([circle('a',5.30225,3.302,{axis:{x:0,y:0,z:-1}}),circle('b',5.30225,3.302)],ref),undefined,'two matching circles are ambiguous');
+ const half={...inner,descriptor:{...inner.descriptor,measure:Math.PI*5.30225}};
+ assert.equal(linkedEdgeLookup([half],ref),undefined,'a split half circle is not the complete edge');
+ assert.equal(linkedEdgeLookup([circle('c',5.30225,3.2)],ref),undefined,'a circle on another plane is not the source');
+ assert.equal(linkedEdgeLookup([{...inner,kind:'face'}],{...ref,kind:'face'}),undefined,'faces keep the exact lookup');
+});

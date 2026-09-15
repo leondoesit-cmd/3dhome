@@ -251,20 +251,20 @@ test("HOUSING Shell1 is an exact constant-thickness shell and Boss-Stop fuses on
    edge tolerances (so the exact shell used to be rejected for the 330.8 cm³
    sampled fallback), and the first join offset loosened the caller's body in
    place. */
-test("the saved HOUSING record rebuilds Shell1 as the exact shell without touching the body before it", { timeout: 900000 }, async () => {
+test("the saved HOUSING record rebuilds Shell1 as the exact shell without touching the body before it, and Boss-Stop follows its moved inner edge", { timeout: 900000 }, async () => {
   const record = JSON.parse(readFileSync(new URL("./fixtures/planchard_housing_record.json", import.meta.url), "utf8"));
   const compiled = compileKernelFeatureTree(record);
   const shellIndex = compiled.features.findIndex((feature) => feature.type === "shell");
   assert.ok(shellIndex > 0, "the record has Shell1");
   const shellFeature = compiled.features[shellIndex];
-  const run = await regenerateFeatures({ ...compiled.document, features: compiled.features.slice(0, shellIndex + 1) });
+  const run = await regenerateFeatures({ ...compiled.document, features: compiled.features });
   try {
     const body = run.results.get(shellFeature.inputs[0]), shelled = run.results.get(shellFeature.id);
     assert.ok(body?.shape && shelled?.shape, "body and shell rebuilt");
     const oc = body.oc;
     assert.equal(shelled.approximate, undefined, `Shell1 is exact: ${shelled.approximate}`);
     assert.equal(shelled.invalid, undefined, `Shell1 is valid: ${shelled.invalid}`);
-    assert.ok(!run.issues.some((issue) => ["approximate-shell", "invalid-solid", "regeneration-failed"].includes(issue.code)), JSON.stringify(run.issues));
+    assert.ok(run.ok && !run.issues.some((issue) => ["approximate-shell", "invalid-solid", "regeneration-failed"].includes(issue.code)), JSON.stringify(run.issues));
 
     const analysis = new oc.ShapeAnalysis_ShapeTolerance();
     const bodyTolerance = analysis.Tolerance(body.shape, 1, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
@@ -292,6 +292,17 @@ test("the saved HOUSING record rebuilds Shell1 as the exact shell without touchi
       const { min, max } = gauge(z);
       assert.ok(min > THICK - 5e-4 && max < MITRE_LIMIT + 5e-4, `wall beside the cylinder junction at z = ${z}: ${min}..${max}`);
     }
+
+    /* Boss-Stop's hole is converted from Shell1's inner opening edge. The exact
+       shell numbers that edge differently from the shell it was picked on, so
+       the link follows the one complete circle with the same centre and radius. */
+    const stopFeature = compiled.features.at(-1), stop = run.results.get(stopFeature?.id);
+    assert.equal(stopFeature?.name, "Extrude / Boss 3", "the record ends with Boss-Stop");
+    assert.ok(stop?.shape, "Boss-Stop rebuilt");
+    const ring = Math.PI * (RING_OUTER ** 2 - (R - THICK) ** 2) * THICK, overlap = Math.PI * (R ** 2 - (R - THICK) ** 2) * THICK;
+    const stopMass = await shapeMassProperties(stop);
+    assert.ok(Math.abs(stopMass.volume - (mass.volume + ring - overlap)) < 0.01, `Boss-Stop ${stopMass.volume}, expected ${mass.volume + ring - overlap}`);
+    assert.ok(Math.abs((stopMass.bounds.max.x - stopMass.bounds.min.x) - 2 * RING_OUTER) < 1e-4, "Boss-Stop ring is 5.125 in across");
   } finally {
     releaseRegeneration(run);
   }

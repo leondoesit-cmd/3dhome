@@ -1,7 +1,7 @@
 import {pierceSketchToHelix} from './core/sketch_pierce.js';
 import {helixFromSketch} from './core/sketch_helix.js';
 import {isThroughVertexPlane,resolveOffsetSketch} from './core/offset_planes.js';
-import {updateSilhouetteSketch} from './core/cone_silhouette.js';
+import {linkedEdgeLookup,updateSilhouetteSketch} from './core/cone_silhouette.js';
 import {bindIntersectionTargets} from './sketch_intersection.js';
 import {thinSketchProfile} from './core/thin_profile.js';
 import {resolveAssociativeBoundary} from './cad_associative_boundary.js';
@@ -149,7 +149,7 @@ export async function regenerateFeatures(def, options = {}) {
         boundaryUpdates.set(linkedSketch.id,{sketch:linkedSketch,oldEntityIds:[],newEntityIds:[]});
       }
       if(linkedSketch?.silhouetteCopies?.length || linkedSketch?.circleCopies?.length){
-        const updated=updateSilhouetteSketch(linkedSketch,ref=>results.get(ref.ownerFeatureId)?.topology?.find(t=>t.persistentId===ref.persistentId));
+        const updated=updateSilhouetteSketch(linkedSketch,ref=>linkedEdgeLookup(results.get(ref.ownerFeatureId)?.topology,ref));
         executionDef.sketches[sketchIndex]=updated;
         const ids=[...(updated.silhouetteCopies || []),...(updated.circleCopies || [])].map(c=>c.entityId);boundaryUpdates.set(updated.id,{sketch:updated,oldEntityIds:ids,newEntityIds:ids});
         linkedSketch=updated;

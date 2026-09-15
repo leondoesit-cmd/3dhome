@@ -29,6 +29,23 @@ export function updateSilhouetteSketch(sketch,resolveFace){
  return updated;
 }
 
+/* A converted circle follows its source edge by persistent id first. Edge ids
+   carry an ordinal ("generated:circle:11") that moves whenever the source
+   feature's kernel result is built differently (HOUSING's exact shell), so an
+   id that is gone or now names something other than a complete circle falls
+   back to geometry: the one complete circle on the same axis,
+   centre and radius. Two such circles, or none, still fail; the semantic role
+   is not trusted because it is the same ordinal. Faces keep the exact lookup. */
+export function linkedEdgeLookup(topology,ref,tolerance=1e-4){
+ const list=topology || [],exact=list.find(t=>t.persistentId===ref.persistentId),want=ref.descriptor;
+ const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z,full=d=>d?.curve==='circle'&&Math.abs(d.measure-2*Math.PI*d.radius)<=1e-6;
+ if(ref.kind!=='edge'||!full(want)||!want.origin||!want.axis)return exact;
+ if(exact&&full(exact.descriptor))return exact;
+ const same=list.filter(t=>{const d=t.descriptor;return t.kind==='edge'&&full(d)&&d.origin&&d.axis&&Math.abs(d.radius-want.radius)<=tolerance
+  &&Math.abs(Math.abs(dot(d.axis,want.axis))-1)<=1e-6&&Math.hypot(d.origin.x-want.origin.x,d.origin.y-want.origin.y,d.origin.z-want.origin.z)<=tolerance;});
+ return same.length===1?same[0]:undefined;
+}
+
 export function projectCircularEdge(sketch,edge){
  const d=edge.descriptor || edge;
  if(d.curve!=='circle'||Math.abs(d.measure-2*Math.PI*d.radius)>1e-6)throw new Error('Select a complete circular edge');

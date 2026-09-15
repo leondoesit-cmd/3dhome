@@ -21115,6 +21115,14 @@ function exactRunIsCurrent() {
   return E.brepStamp.doc === now.doc && E.brepStamp.node === now.node;
 }
 
+/* A failed run names its failure, not its first issue: a warning on an
+   earlier step (a loose shell) used to be reported as the reason a later step
+   failed. */
+function rebuildFailureMessage(issues, fallback) {
+  var list = issues || [];
+  var failure = list.find(function (issue) { return issue.code === "regeneration-failed"; }) || list.find(function (issue) { return issue.severity === "error"; }) || list[0];
+  return failure ? failure.message : fallback;
+}
 var exactModelRebuild = null;
 function scheduleExactRestore() {
   if (!(isCanonicalAuthoring() && E.def && activeParts(E.def).length)) {
@@ -21163,7 +21171,7 @@ async function regenerateExactModelNow(rebuild) {
       E.coreRun=rebuildParametricDocument(E.def,modelParameterOverrides());publishRebuildStatus(E.def,E.coreRun);
     }
     refreshParts(); // Publish healthy branches even when another branch needs repair.
-    if (!E.brepRun.ok || !E.brepRun.finalShape) throw new Error(E.brepRun.issues[0] ? E.brepRun.issues[0].message : "No supported solid features");
+    if (!E.brepRun.ok || !E.brepRun.finalShape) throw new Error(rebuildFailureMessage(E.brepRun.issues, "No supported solid features"));
     if(isCanonicalAuthoring())for(var part of activeParts(E.def)){
       var body=E.brepRun.results.get(cutTargetFeatureId(part));
       if(!body?.shape)continue;
@@ -21863,7 +21871,7 @@ function importStepDocument() {
       }
       disposeBrep(canonicalShape); canonicalShape=null;
       E.brepRun=await regenerateFeatures(E.def);
-      if (!E.brepRun.ok || !E.brepRun.finalShape) throw new Error(E.brepRun.issues[0] ? E.brepRun.issues[0].message : "Imported exact body could not rebuild");
+      if (!E.brepRun.ok || !E.brepRun.finalShape) throw new Error(rebuildFailureMessage(E.brepRun.issues, "Imported exact body could not rebuild"));
       E.def.importedStep = cloneData(imported.metadata.import);
       E.sel=E.def.parts[E.def.parts.length-1]; E.ssel=[]; E.topologySelection=[];
       H.clear().seed(); syncHead(); refreshAll(); setMode("3d"); fitPreview();

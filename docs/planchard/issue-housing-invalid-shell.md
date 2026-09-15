@@ -127,7 +127,9 @@ The first version passed on a body rebuilt in the test and then fell back to the
 
 Measured on the saved record, through `regenerateFeatures`: Shell1 exact, 156.4035 cm³, outer 111.125 × 111.125 × 177.8 mm, body before it still 1e-7, 0 crease samples missing, wall 0.2540 cm in rings at z = 0.08 to −9 and the back wall, 0.2539–0.2598 cm beside the cylinder junction (limit 0.2607). Regression: the second test in `tests/planchard_housing_shell.test.mjs`, using `tests/fixtures/planchard_housing_record.json`.
 
-Boss-Stop's sketch converts Shell1's inner edge, and that edge's reference no longer resolves after the shell changed ("Select a complete circular edge"). It has to be re-picked in the editor.
+Boss-Stop's hole is converted from Shell1's inner opening edge. Edge ids carry an ordinal (`feature_mu13ehhf_2:edge:generated:circle:11`), and the exact shell numbers its edges differently from the join offset it was picked on: the saved id now named a partial edge, so the sketch failed with "Select a complete circular edge" and the editor reported the shell's loose-tolerance warning as the reason. A converted circle now keeps its id while that id is a complete circle, and otherwise follows the one complete circle with the same centre, axis and radius (1e-4 cm); none or two still fail (`linkedEdgeLookup`, `js/core/cone_silhouette.js`). The editor's failure message names the failing step, not the first issue. The saved-record test rebuilds through Boss-Stop and checks it against Shell1 + ring − overlap (9.1703 cm³).
+
+
 
 ## Acceptance criteria
 
