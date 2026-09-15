@@ -305,6 +305,22 @@ function residualTerms(sketch, tags, index) {
         }
         break;
       }
+      case "onModelEdge": {
+        /* Coincident with a model edge: the edge's line on this plane is bound
+           from the rebuilt body into ax..by, so it is a constant here. */
+        const p = pt(c.point);
+        if (!p || c.ax == null || c.bx == null) break;
+        const dx = Number(c.bx) - Number(c.ax), dy = Number(c.by) - Number(c.ay), length = Math.hypot(dx, dy);
+        if (length > EPS) push(across(p.x, p.y, { a: { x: Number(c.ax), y: Number(c.ay) }, dx, dy, length }));
+        break;
+      }
+      case "pierce": {
+        /* Pierce: the point where another sketch's curve crosses this plane,
+           bound into x/y before the solve, like an intersection with edges. */
+        const p = pt(c.point);
+        if (p && c.x != null && c.y != null) push(sub(p.x, Number(c.x)), sub(p.y, Number(c.y)));
+        break;
+      }
       case "pointOnLine": {
         const p = pt(c.point), l = line(c.entity);
         if (p && l && valueOf(l.length) > EPS) push(across(p.x, p.y, l));

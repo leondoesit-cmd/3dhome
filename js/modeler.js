@@ -9,7 +9,8 @@ import { tangentArc, entityOutgoingTangent } from "./sketch_tangent_arc.js";
 import {createMaterialValidationUI} from "./modeler_material_validation.js";
 import { addCenterRectangle } from "./sketch_center_rectangle.js";
 import { filletSketchCorner } from "./sketch_fillet.js";
-import { bindIntersectionTargets, hitProjectedModelEdge } from "./sketch_intersection.js";
+import { bindIntersectionTargets, bindModelEdgeTargets, bindPierceTargets, hitProjectedModelEdge } from "./sketch_intersection.js";
+import { copySketchForClipboard, pasteSketchGeometry, readSketchClipboard, writeSketchClipboard } from "./core/sketch_clipboard.js";
 import { offsetFaceBoundary, appendBoundarySketch } from "./cad_face_offset.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { captureExactTopology } from './core/exact_topology_cache.js';
@@ -11819,6 +11820,8 @@ function resolveSketch(rollbackOnConflict, fast) {
   // against last cycle's numbers would show geometry one edit behind.
   E.eqErrors = resolveEquations(E.def).errors;
   try { bindIntersectionTargets(sketch, resolveIntersectionEdge); } catch (error) { /* Keep last intersection targets if a source body is mid-rebuild. */ }
+  try { bindModelEdgeTargets(sketch, resolveIntersectionEdge); } catch (error) { /* Same: keep the last bound edge line. */ }
+  try { bindPierceTargets(sketch, E.def.sketches || [], sketchWorldPoint); } catch (error) { /* Same: keep the last pierce point while the path sketch is being edited. */ }
   var report = solveSketch(sketch, quick ? { diagnostics: false } : {});
   /* A failing sketch leaves error on every relation near the failure; narrow
      that to a minimal set before painting it red. A rollback caller undoes the
@@ -12474,7 +12477,7 @@ var CONSTRAINT_DEFS = [
 function constraintFits(type) {
   var lines = selLines(), circles = selCircles(), points = selPoints(), ents = selEntities();
   switch (type) {
-    case "coincident": return points.length === 2;
+    case "coincident": return points.length === 2 || (points.length === 1 && !ents.length && selectedModelEdges().length === 1);
     case "horizontal": case "vertical": return lines.length >= 1 || points.length === 2;
     case "parallel": case "perpendicular": return lines.length === 2;
     case "tangent": return (lines.length===1&&ents.some(e=>e.type==="spline")) || (lines.length === 1 && circles.length === 1) || circles.length === 2;
@@ -12506,7 +12509,16 @@ function applyConstraint(type) {
 
   pushUndo(t("opConstraint"));
   switch (type) {
-    case "coincident": add({ type: "coincident", a: points[0].id, b: points[1].id }); break;
+    case "coincident":
+      /* A point and one model edge: SOLIDWORKS' Coincident to an edge (HOUSING
+         HandlePath's end on Boss-Stop's rim). The edge line is re-read from the
+         rebuilt body on every solve. */
+      if (points.length === 1) {
+        var edge = selectedModelEdges()[0];
+        add({ type: "onModelEdge", point: points[0].id, edge: topologyReferenceFromEntry(edge) || createTopologyReference(edge.ownerFeatureId, "edge", edge.persistentId, edge.descriptor || {}) });
+        try { bindModelEdgeTargets(sketch, resolveIntersectionEdge); } catch (error) { H.discard(); flash(error.message); return; }
+      } else add({ type: "coincident", a: points[0].id, b: points[1].id });
+      break;
     case "horizontal": case "vertical":
       if (lines.length) lines.forEach(function (l) { add({ type: type, entity: l.id }); });
       else add({ type: type, a: points[0].id, b: points[1].id });
@@ -12780,6 +12792,8 @@ function constraintKindCaption(constraint) {
       : constraint.type === "diameter" ? "Ø " + n + " cm" : n + " cm";
   }
   if (constraint.type === "pointOnCircle") return t("cPointOnLine");
+  if (constraint.type === "onModelEdge") return t("cCoincident");
+  if (constraint.type === "pierce") return t("cPierce");
   var def = CONSTRAINT_DEFS.find(function (d) { return d.id === constraint.type; });
   return def ? t(def.label) : constraint.type;
 }
@@ -14385,6 +14399,10 @@ function onKey(e) {
   if (e.ctrlKey || e.metaKey) {
     var chord = e.key.toLowerCase();
     if (chord === "s") { e.preventDefault(); saveCurrentDocument(); return; }
+    /* Edit ▸ Copy / Paste for sketches: a sketch chosen in the tree copies; a
+       plane chosen in the tree (or a planar face in the model) takes the paste. */
+    if (!editingField && chord === "c" && E.docType === "part" && treeSelectedSketch()) { e.preventDefault(); copySketchToClipboard(treeSelectedSketch()); return; }
+    if (!editingField && chord === "v" && E.docType === "part" && readClipboardSketch() && pasteReferenceTarget()) { e.preventDefault(); pasteSketchOntoReference(pasteReferenceTarget()); return; }
     if (editingField && (chord === "z" || chord === "y" || chord === "a")) return;
     if (chord === "z" && e.shiftKey) { e.preventDefault(); doRedo(); return; }
     if (chord === "z") { e.preventDefault(); doUndo(); return; }
@@ -15382,6 +15400,52 @@ function currentTreeModel() {
 function treeTargetFeature(node) {
   return (E.def.features || []).find(function (item) { return item.id === node.targetId; }) || null;
 }
+/* ---- Copy / Paste a sketch between parts (G18) ----------------------------
+   The clipboard lives in localStorage so it survives closing one part and
+   opening another; see js/core/sketch_clipboard.js for what travels. */
+function clipboardStorage() {
+  try { return typeof localStorage !== "undefined" ? localStorage : null; } catch (error) { return null; }
+}
+function readClipboardSketch() { return readSketchClipboard(clipboardStorage()); }
+function treeSelectedSketch() {
+  var ids = (E.authoring && E.authoring.sketchSelection) || [];
+  return (E.def.sketches || []).find(function (sketch) { return ids.indexOf(sketch.id) >= 0 && (sketch.entities || []).length; }) || null;
+}
+function pasteReferenceTarget() {
+  var plane = (E.def.references || []).find(function (item) { return item.id === E.selectedReferenceId && item.type === "plane"; });
+  if (plane) return plane;
+  return (E.topologySelection || []).find(function (item) { return item.kind === "face" && item.descriptor && item.descriptor.surface === "plane"; }) || null;
+}
+function copySketchToClipboard(sketch) {
+  try {
+    var clip = copySketchForClipboard(sketch, { documentName: E.def && E.def.name, copiedAt: new Date().toISOString() });
+    if (!clipboardStorage()) { flash(t("sketchClipboardUnavailable")); return false; }
+    writeSketchClipboard(clipboardStorage(), clip);
+    flash("✓ " + tf("sketchCopied", { name: clip.name }) + (clip.droppedRelations.length || clip.droppedLinks.length ? " · " + t("sketchCopyDroppedLinks") : ""));
+    return true;
+  } catch (error) { flash(String(error.message || error)); return false; }
+}
+function pasteSketchOntoReference(reference) {
+  var clip = readClipboardSketch();
+  if (!clip) { flash(t("sketchClipboardEmpty")); return false; }
+  if (!reference) { flash(t("sketchPasteNeedPlane")); return false; }
+  chooseSketchReference(reference);
+  var sketch = ensureSketch(E.def);
+  var pasted = pasteSketchGeometry(clip, uid);
+  pushUndo(t("sketchPaste"));
+  sketch.points = (sketch.points || []).concat(pasted.points);
+  sketch.entities = (sketch.entities || []).concat(pasted.entities);
+  sketch.constraints = (sketch.constraints || []).concat(pasted.constraints);
+  if (pasted.dimensions.length) sketch.dimensions = (sketch.dimensions || []).concat(pasted.dimensions);
+  sketch.name = pasted.name;
+  var entry = (E.def.history || []).find(function (item) { return item.targetId === sketch.id; });
+  if (entry) entry.name = pasted.name;
+  resolveSketch(false);
+  refreshAll();
+  flash("✓ " + tf("sketchPasted", { name: pasted.name }));
+  return true;
+}
+
 function treeTargetSketch(node) {
   return (E.def.sketches || []).find(function (item) { return item.id === node.targetId; }) || null;
 }
@@ -15667,6 +15731,11 @@ function showTreeMenu(node, model, event, api) {
     refreshAll(); scheduleModelerDraft();
   } });
   if (node.can.rename) items.push({ label: t("treeRename") + " · F2", icon: "ph-textbox", run: function () { api.rename(); } });
+  if (node.kind === "sketch") items.push({ label: t("sketchCopy") + " · Ctrl+C", icon: "ph-copy", run: function () { copySketchToClipboard(treeTargetSketch(node)); } });
+  if (node.kind === "reference" && readClipboardSketch()) {
+    var pasteTarget = (E.def.references || []).find(function (item) { return item.id === node.targetId && item.type === "plane"; });
+    if (pasteTarget) items.push({ label: t("sketchPaste") + " · Ctrl+V", icon: "ph-clipboard-text", run: function () { pasteSketchOntoReference(pasteTarget); } });
+  }
   if (node.can.suppress) items.push({
     label: node.suppressed ? t("unsuppress") : t("suppress"),
     icon: node.suppressed ? "ph-eye" : "ph-eye-slash",
@@ -16971,11 +17040,25 @@ function fillSketchPane() {
         }});
       },"md-wide"));
       host.appendChild(btn("Pierce curve",function(){
-        var anchor=selPoints()[0],curves=(E.def.referenceGeometry || []).filter(function(r){return r.type==="reference_helix";});if(!anchor || !curves.length){flash("Select a point and create a helix first");return;}
-        openQuickForm({action:"piercecurve",title:"Pierce curve",hint:"Attach the selected point to a curve intersection. The sketch moves with the curve.",fields:[
-          {key:"curve",label:"Curve",type:"select",value:curves[0].id,choices:curves.map(function(r){return {value:r.id,label:r.name};})},
-          {key:"position",label:"Curve position",type:"select",value:"0",choices:[{value:"0",label:"Start"},{value:"1",label:"End"}]}
+        /* Pierce to a helix snaps the sketch onto its start or end; pierce to a
+           line or arc of another sketch is a relation (HOUSING HandleProfile on
+           HandlePath), re-found where that curve crosses this plane. */
+        var anchor=selPoints()[0],curves=(E.def.referenceGeometry || []).filter(function(r){return r.type==="reference_helix";});
+        var sketchCurves=[];(E.def.sketches || []).forEach(function(other){if(other.id===sketch.id)return;(other.entities || []).forEach(function(entity){if(entity.construction||!["line","arc"].includes(entity.type))return;try{bindPierceTargets({...sketch,constraints:[{type:"pierce",sketchId:other.id,entityId:entity.id}]},E.def.sketches,sketchWorldPoint);sketchCurves.push({value:"sketch:"+other.id+":"+entity.id,label:(other.name || other.id)+" · "+entity.type+" "+entity.id,sketchId:other.id,entityId:entity.id});}catch(error){/* only curves that cross this plane */}});});
+        if(!anchor || (!curves.length && !sketchCurves.length)){flash(t("pierceNeed"));return;}
+        var choices=sketchCurves.concat(curves.map(function(r){return {value:r.id,label:r.name};}));
+        openQuickForm({action:"piercecurve",title:t("cPierce"),hint:"Attach the selected point to where a curve crosses this sketch plane.",fields:[
+          {key:"curve",label:"Curve",type:"select",value:choices[0].value,choices:choices.map(function(c){return {value:c.value,label:c.label};})},
+          {key:"position",label:"Helix position",type:"select",value:"0",choices:[{value:"0",label:"Start"},{value:"1",label:"End"}]}
         ],onApply:function(values){try{
+          var sketchCurve=sketchCurves.find(function(c){return c.value===values.curve;});
+          if(sketchCurve){
+            pushUndo(t("cPierce"));
+            sketch.constraints=(sketch.constraints || []).filter(function(c){return !(c.type==="pierce"&&c.point===anchor.id);});
+            sketch.constraints.push({id:uid(),type:"pierce",point:anchor.id,sketchId:sketchCurve.sketchId,entityId:sketchCurve.entityId});
+            if(!resolveSketch(true)){flash(t("pierceConflict"));return false;}
+            refreshAll();return true;
+          }
           var curve=curves.find(function(r){return r.id===values.curve;}),next=pierceSketchToHelix(sketch,anchor.id,curve,Number(values.position));
           next.pierce={anchorId:anchor.id,helixId:curve.id,featureId:curve.featureId,position:Number(values.position)};
           if(!next.constraints.some(function(c){return c.type==="fixed"&&c.point===anchor.id;})){var point=next.points.find(function(p){return p.id===anchor.id;});next.constraints.push({id:uid(),type:"fixed",point:anchor.id,x:point.x,y:point.y});}
