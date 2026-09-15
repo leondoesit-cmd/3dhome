@@ -21298,7 +21298,12 @@ function openOffsetPlaneForm(existing) {
       {value:"through-vertex",label:t("refPlaneThroughVertex")}
     ]},
     {key:"parent",label:"Parent plane",type:"select",value:support?"selected-face":existing?.baseReferenceId || E.selectedReferenceId || "plane:top",choices:[...(support?[{value:"selected-face",label:"Selected planar face"}]:[]),...planes.map(function(r){return {value:r.id,label:r.name || r.id};})]},
-    {key:"offset",label:"Offset distance",type:"number",unit:"length",value:existing?.offset ?? 1.27,step:.01},
+    /* SOLIDWORKS states an offset plane as a positive distance plus Flip offset
+       (HOUSING's ThreadPlane: .125 in, flipped into the part). The stored offset
+       stays signed along the parent's normal, so an existing plane shows its
+       size here and Flip carries the sign. */
+    {key:"offset",label:"Offset distance",type:"number",unit:"length",value:Math.abs(existing?.offset ?? 1.27),step:.01},
+    {key:"flip",label:t("refPlaneFlipOffset"),type:"boolean",value:Number(existing?.offset)<0},
     {key:"count",label:"Planes to create",type:"number",value:1,min:1,max:20,step:1}
   ],onLive:function(values){
     var offsetWrap=inputs && inputs.offset && inputs.offset.closest(".md-quick-field");
@@ -21319,7 +21324,8 @@ function openOffsetPlaneForm(existing) {
         if(binding){plane.throughVertex=cloneData(binding.throughVertex);if(binding.throughEdges.length>=2)plane.throughEdges=cloneData(binding.throughEdges);}
         else {plane.throughVertex=cloneData(throughVertex);if(throughEdges)plane.throughEdges=cloneData(throughEdges);}
       }else{
-        plane.offset=values.offset;plane.refType="offset";
+        var flipped=values.flip===true||values.flip==="true"||values.flip==="on";
+        plane.offset=(flipped?-1:1)*Math.abs(Number(values.offset));plane.refType="offset";
       }
       if(!existing){trial.references.push(plane);trial.referenceGeometry.push({...cloneData(plane),type:"reference_plane"});}
       parent=plane.id;last=plane;

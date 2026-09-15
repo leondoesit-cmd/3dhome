@@ -825,6 +825,7 @@ export var TXT = {
   refPlaneHint: ["היסט ממישור אב, או דרך קודקוד נבחר במקביל לאותו מישור. סקיצות תלויות מתעדכנות.", "Offset from a parent plane, or through a selected vertex parallel to that plane. Dependent sketches follow edits."],
   refPlaneMode: ["הגדרה", "Definition"],
   refPlaneOffset: ["היסט ממישור", "Offset from plane"],
+  refPlaneFlipOffset: ["הפוך כיוון היסט", "Flip offset"],
   refPlaneThroughVertex: ["דרך קודקוד, מקביל", "Through vertex, parallel"],
   needVertex: ["בחרו קודקוד", "Select a vertex"],
   fcFldPatternScope: ["היקף התבנית", "Pattern scope"],
