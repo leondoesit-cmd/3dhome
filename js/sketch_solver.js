@@ -863,6 +863,25 @@ export function removeSketch(def, id) {
   return true;
 }
 
+/* A plane sketch nobody drew in, renamed, recorded in history or referred to.
+   Switching to Top while a face sketch is active opens one (a face sketch
+   cannot follow the view the way an untouched plane sketch does), and with no
+   history row the tree never shows it, so it could not be deleted either:
+   LENSCAP carried an invisible empty "X·Z sketch" that way. */
+export function sketchIsAbandoned(def, sketch) {
+  if (!sketch || sketch.id === def.activeSketch || sketch.support || sketch.frameSpace === "local") return false;
+  if ((sketch.points || []).length || (sketch.entities || []).length || (sketch.constraints || []).length) return false;
+  if (String(sketch.name || "") !== planeLabel(sketch.plane) + " sketch") return false;
+  const rest = { ...def, sketches: (def.sketches || []).filter((s) => s !== sketch), activeSketch: undefined, exactTopologyCache: undefined };
+  // any mention keeps it, "history:sketch:<id>" or "<id>:entity:5" included
+  return !JSON.stringify(rest).includes(String(sketch.id));
+}
+
+export function pruneAbandonedSketches(def) {
+  const dropped = ensureSketchDoc(def).filter((sketch) => sketchIsAbandoned(def, sketch)).map((sketch) => sketch.id);
+  return dropped.filter((id) => removeSketch(def, id));
+}
+
 /* Walk a set of entity ids into an ordered closed loop of {u,v}.
    This is the one place a stored profile is turned back into geometry, shared
    by the live mesh rebuild and the BREP regeneration — two answers to "what

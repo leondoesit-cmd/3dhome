@@ -66,7 +66,7 @@ import {
 import { getMainScene, getRigLights, has3D } from "./view3d.js";
 import { validCustomModelKey, sanitizeDisplayName } from "./safe.js";
 import {
-  ensureSketch, ensureSketchDoc, sketchById, addSketch, removeSketch, planeLabel,
+  ensureSketch, ensureSketchDoc, sketchById, addSketch, removeSketch, pruneAbandonedSketches, planeLabel,
   sketchPoint, sketchEntity, solveSketch, explainSketchConflict, resolveProfilePoints,
   lineData, circleData, ellipseData, entityPoints, removeSketchEntity, refusesAsRepeat,
 } from "./sketch_solver.js";
@@ -6470,6 +6470,7 @@ function setView(id) {
   // Changing plane changes which sketch is editable, which every panel shows —
   // redrawing the canvas alone would leave the lists describing the old plane.
   var swapped = E.mode === "drawing" ? false : adoptSketchForView();
+  if (swapped) pruneAbandonedSketches(E.def);
   if (E.mode === "3d") orientModelToView(true);
   syncTools();
   if (swapped) refreshAll(); else drawSketch();
@@ -22109,6 +22110,7 @@ async function saveModel() {
   var recognizedHistory=E.def.metadata && E.def.metadata.import && E.def.metadata.import.recognition && E.def.metadata.import.recognition!=="none";
   var canonical=isCanonicalAuthoring();
   if (!canonical && !(E.def.metadata && E.def.metadata.adapter === "cabinet") && !recognizedHistory) rebuildFeatureTreeFromDocument();
+  pruneAbandonedSketches(E.def);
   var def = JSON.parse(JSON.stringify(E.def));
   // Canonical sketches and face references own their coordinate system.
   // Recentring a rendered bounding box on save invalidates those references.
