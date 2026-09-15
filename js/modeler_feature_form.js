@@ -1,4 +1,4 @@
-import { evaluateExpression } from "./sketch_equations.js";
+import { evaluateExpression, expandUnitLiterals } from "./sketch_equations.js";
 // Feature property manager: grouped parameter forms with live callbacks.
 // The editor supplies DOM helpers, document units, and reference options.
 
@@ -23,14 +23,7 @@ export function evaluateFeatureNumber(raw, field) {
   let text = String(raw).trim();
   // Geometry uses centimeters internally. Explicit unit literals avoid manual
   // conversion when working from metric or inch engineering drawings.
-  if (field.unit === "length" || field.unit === "angle") {
-    const factors = field.unit === "length" ? {mm:0.1,cm:1,m:100,in:2.54,ft:30.48} : {deg:1,rad:180/Math.PI};
-    text = text.replace(/(\d+(?:\.\d*)?|\.\d+)\s*(mm|cm|in|ft|m|deg|rad)\b/gi, (_, number, unit) => {
-      const factor = factors[unit.toLowerCase()];
-      if (factor == null) throw new Error("Incorrect unit for this field");
-      return "(" + number + "*" + factor + ")";
-    });
-  }
+  if (field.unit === "length" || field.unit === "angle") text = expandUnitLiterals(text, field.unit);
   // Preserve numeric scientific notation emitted by small geometry values.
   const value = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(text) ? Number(text) : evaluateExpression(text);
   if (!Number.isFinite(value)) throw new Error("Enter a finite number");

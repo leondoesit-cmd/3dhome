@@ -63,6 +63,30 @@ const FUNCS = {
 };
 const CONSTS = { pi: Math.PI, e: Math.E };
 
+/* ---- unit literals ----
+   Geometry is stored in centimetres and degrees. `4.900in` or `111.13mm` is
+   rewritten to plain arithmetic before parsing, so a dimension typed from an
+   inch drawing keeps its unit in the saved expression and still rebuilds. */
+const UNIT_FACTORS = {
+  length: { mm: 0.1, cm: 1, m: 100, in: 2.54, ft: 30.48 },
+  angle: { deg: 1, rad: 180 / Math.PI },
+};
+
+export function expandUnitLiterals(src, unit) {
+  const factors = UNIT_FACTORS[unit];
+  const text = String(src == null ? "" : src);
+  if (!factors) return text;
+  return text.replace(/(\d+(?:\.\d*)?|\.\d+)\s*(mm|cm|in|ft|m|deg|rad)\b/gi, (_, number, name) => {
+    const factor = factors[name.toLowerCase()];
+    if (factor == null) throw new Error("Incorrect unit for this field");
+    return "(" + number + "*" + factor + ")";
+  });
+}
+
+export function dimensionUnit(constraint) {
+  return constraint && constraint.type === "angle" ? "angle" : "length";
+}
+
 /* ---- recursive-descent parser + evaluator ---- */
 function parse(tokens, lookup) {
   let pos = 0;
@@ -188,7 +212,8 @@ export function resolveEquations(def) {
       if (expr == null || String(expr).trim() === "") {
         value = Number(entry.kind === "variable" ? entry.node.value : entry.node.value) || 0;
       } else {
-        value = evaluateExpression(expr, (ref) => valueOf(ref, depth + 1));
+        const source = entry.kind === "dimension" ? expandUnitLiterals(expr, dimensionUnit(entry.node)) : expr;
+        value = evaluateExpression(source, (ref) => valueOf(ref, depth + 1));
       }
       cache.set(name, value);
       return value;
@@ -215,7 +240,7 @@ export function resolveEquations(def) {
       if (isValidName(c.name)) return;                 // already handled above
       if (c.expr == null || String(c.expr).trim() === "") { c.exprError = null; return; }
       try {
-        c.value = evaluateExpression(c.expr, (ref) => valueOf(ref, 0));
+        c.value = evaluateExpression(expandUnitLiterals(c.expr, dimensionUnit(c)), (ref) => valueOf(ref, 0));
         c.exprError = null;
       } catch (error) {
         c.exprError = String(error.message || error);

@@ -76,7 +76,7 @@ import {
   hitSketchDimensionHit, dimensionHitYieldsToPoint, drawSketchDimensions, drawConstraintGlyphs,
 } from "./sketch_dimensions.js";
 import {
-  resolveEquations, evaluateExpression, collectSymbols,
+  resolveEquations, evaluateExpression, expandUnitLiterals, dimensionUnit, collectSymbols,
   isValidName, nameAvailable, addVariable, removeVariable,
 } from "./sketch_equations.js";
 import { trimEntity, extendEntity, offsetEntity, toggleConstruction, projectLoop } from "./sketch_trim.js";
@@ -17257,7 +17257,7 @@ function fillSketchPane() {
         else {
           // an expression has to make sense before it is allowed into the model
           try {
-            value = evaluateExpression(text, function (ref) {
+            value = evaluateExpression(expandUnitLiterals(text, dimensionUnit(con)), function (ref) {
               var entry = collectSymbols(E.def).get(ref);
               return entry ? Number(entry.node.value) : undefined;
             });
