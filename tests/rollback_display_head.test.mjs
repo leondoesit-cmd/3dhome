@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { historyEntryRolled, setHistoryRollback } from '../js/core/parametric_document.js';
+import { leavesInputStanding } from '../js/core/rebuild.js';
 
 /* Rolling HOUSING back to Boss-Battery left Boss-Loft1 above the bar, yet the
    viewport showed only the Base Extrude cylinder: the displayed body's head was
@@ -15,7 +16,7 @@ for (let i = end; i < src.length; i++) {
   if (src[i] === '{') depth++;
   else if (src[i] === '}' && --depth === 0) { end = i + 1; break; }
 }
-const headOf = vm.runInNewContext('(' + src.slice(start, end).replace('document = E.def', 'document') + ')', { historyEntryRolled, Set });
+const headOf = vm.runInNewContext('(' + src.slice(start, end).replace('document = E.def', 'document') + ')', { historyEntryRolled, leavesInputStanding, Set });
 
 const housing = () => ({
   features: [

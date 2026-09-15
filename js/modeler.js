@@ -124,7 +124,7 @@ import {
   updateFeatureDefinition, setHistoryRollback, historyEntryRolled, applyHistoryToPreviewParts,
 } from "./core/parametric_document.js";
 import { compileKernelFeatureTree, FEATURE_PATTERN_SEED_TYPES } from "./core/kernel_feature_adapter.js";
-import { publishRebuildStatus, rebuildParametricDocument } from "./core/parametric_rebuild.js";
+import { publishRebuildStatus, rebuildParametricDocument, withKernelFailures } from "./core/parametric_rebuild.js";
 import { featureDefaults, featureLabel, featureSpec, setFeatureLabelResolver } from "./core/feature_catalog.js";
 import { inferAuthoringMode } from "./core/authoring_mode.js";
 import { createImportedDefinition, detectStepLengthUnit, stepUnitCorrection } from "./core/import_normalization.js";
@@ -7855,8 +7855,10 @@ function mergeTargetBody(box, params) {
   return candidates.includes(selected) ? selected : candidates[candidates.length - 1];
 }
 
-function cutTargetFeatureId(target, document = E.def) {
+function cutTargetFeatureId(target, document = E.def, built = null) {
   if (!target) return null;
+  /* `built(id)`, when given, also stops the chain at a step the run did not
+     build, so a failed last step leaves the body at the step before it. */
   var head = target.derivedFeatureId || target.featureId;
   var modifiers = new Set(["fillet", "chamfer", "shell", "dome", "draft", "thicken", "rib", "extrudeCut", "revolveCut", "sweepCut", "hole", "moveBody"]);
   /* A step below the rollback bar (or suppressed in history) is not built, so it
@@ -7871,9 +7873,37 @@ function cutTargetFeatureId(target, document = E.def) {
   (document.features || []).forEach(function (feature) {
     if (!feature.suppressed && !inactive.has(feature.id) && (modifiers.has(feature.type) || (feature.type==="pattern" && feature.params?.scope==="feature") || (["extrude","revolve","sweep","loft"].includes(feature.type) && feature.params?.mergeResult !== false && feature.params?.operation !== "new-body")) && (feature.inputs || []).includes(head)
       // a Move with Copy made a second body; the original does not move with it
-      && (feature.type !== "moveBody" || !leavesInputStanding(document, feature))) head = feature.id;
+      && (feature.type !== "moveBody" || !leavesInputStanding(document, feature))
+      && (!built || built(feature.id))) head = feature.id;
   });
-  return head || null;
+  return head && (!built || built(head)) ? head : null;
+}
+
+/* Bodies come only from steps that built. A failed run used to throw before
+   any part was given its mesh, so the saved meshData stayed on screen — on
+   HOUSING a stale ring from an old broken union, under a green status. Each
+   part now shows the last step of its chain that did build, flagged with the
+   failure; a part none of whose steps built loses its mesh. Returns the parts
+   whose display changed. */
+async function publishExactBodies(parts, run, document, meshOf) {
+  var failed = (run.issues || []).find(function (issue) { return issue.code === "regeneration-failed"; });
+  var failure = run.ok ? null : failed ? failed.message : "The body could not be rebuilt";
+  var built = function (id) { var result = run.results.get(id); return !!(result && result.shape); };
+  var changed = [];
+  for (var part of parts) {
+    var head = cutTargetFeatureId(part, document);
+    if (!head) continue;
+    var shown = run.ok ? head : cutTargetFeatureId(part, document, built);
+    var body = shown ? run.results.get(shown) : null;
+    if (body && body.shape) {
+      part.meshData = await meshOf(body);
+      part.exactError = shown === head ? null : failure;
+    } else if (run.ok) continue;
+    else { delete part.meshData; part.exactError = failure; }
+    part.exactPending = false;
+    changed.push(part);
+  }
+  return changed;
 }
 
 /* Revolve Cut. The profile, the axis and the extent are the ones Revolve would
@@ -21227,22 +21257,23 @@ async function regenerateExactModelNow(rebuild) {
       var projectionDirty=synchronizeExtrusionProjections(E.def,executionDocument.features,E.brepRun);
       projectionDirty.forEach(function(id){var part=E.def.parts.find(function(item){return item.id===id;});if(part)invalidatePartMeshAfterEdit(part);});
       E.def.exactTopologyCache=captureExactTopology(E.def,executionDocument.features,E.brepRun);
-      E.coreRun=rebuildParametricDocument(E.def,modelParameterOverrides());publishRebuildStatus(E.def,E.coreRun);
+      E.coreRun=withKernelFailures(rebuildParametricDocument(E.def,modelParameterOverrides()),E.brepRun);publishRebuildStatus(E.def,E.coreRun);
+      /* Before the failure throws below: a failed run still replaces every
+         saved mesh with what actually built (see publishExactBodies). */
+      (await publishExactBodies(activeParts(E.def),E.brepRun,E.def,async function(body){
+        var mesh=await shapeToMeshData(body,{deflection:.28,angle:.18});
+        mesh.topology=cloneData(body.topology || []);
+        delete mesh.normals;delete mesh.colors;
+        return mesh;
+      })).forEach(function(part){
+        part.exactBuildToken=(part.exactBuildToken || 0)+1;
+        var scheduled=exactBuildTimers.get(part);if(scheduled){clearTimeout(scheduled);exactBuildTimers.delete(part);}
+        if(!part.meshData && isKernelBody(part))delete part.bounds;
+        clearTopologyCache(part);refreshChangedPart(part);
+      });
     }
     refreshParts(); // Publish healthy branches even when another branch needs repair.
     if (!E.brepRun.ok || !E.brepRun.finalShape) throw new Error(rebuildFailureMessage(E.brepRun.issues, "No supported solid features"));
-    if(isCanonicalAuthoring())for(var part of activeParts(E.def)){
-      var body=E.brepRun.results.get(cutTargetFeatureId(part));
-      if(!body?.shape)continue;
-      var mesh=await shapeToMeshData(body,{deflection:.28,angle:.18});
-      mesh.topology=cloneData(body.topology || []);
-      delete mesh.normals;delete mesh.colors;
-      part.exactBuildToken=(part.exactBuildToken || 0)+1;
-      var scheduled=exactBuildTimers.get(part);if(scheduled){clearTimeout(scheduled);exactBuildTimers.delete(part);}
-      part.meshData=mesh;part.exactPending=false;part.exactError=null;
-      clearTopologyCache(part);refreshChangedPart(part);
-    }
-    refreshParts();
     /* Stamped after refreshParts(), so the run is only ever marked current
        once the document it belongs to has settled. */
     E.brepStamp = exactRunStamp();

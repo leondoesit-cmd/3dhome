@@ -69,6 +69,25 @@ export function rebuildParametricDocument(source, overrides = {}, options = {}) 
   };
 }
 
+/* The core run cannot see a step the exact kernel failed to build. HOUSING's
+   Extrude / Boss 3 failed in OpenCascade while the status bar, reading only the
+   core run, said "Rebuild succeeded" over a stale mesh. Kernel failures become
+   error issues on their authoring feature (a lowered `id:tool` step reports on
+   `id`), so the tree row, the status bar and `lastRebuild` all say so. */
+export function withKernelFailures(run, kernelRun) {
+  const failures = (kernelRun?.issues || []).filter((issue) => issue.code === "regeneration-failed" && issue.feature)
+    .map((issue) => ({ featureId: String(issue.feature).split(":")[0], severity: "error", code: "regeneration-failed", message: issue.message, source: "kernel" }))
+    .filter((issue, index, list) => list.findIndex((other) => other.featureId === issue.featureId) === index);
+  if (!run || !failures.length) return run;
+  const failed = new Set(failures.map((issue) => issue.featureId));
+  return {
+    ...run,
+    ok: false,
+    issues: [...(run.issues || []), ...failures],
+    status: (run.status || []).map((entry) => entry.state !== "suppressed" && failed.has(entry.targetId) ? { ...entry, state: "failed" } : entry),
+  };
+}
+
 export function publishRebuildStatus(document, run) {
   if (!document || !run) return document;
   if (run.ok && document.metadata?.adapter === "cabinet" && run.document?.metadata?.generatedParameters && JSON.stringify(document.metadata.generatedParameters) !== JSON.stringify(run.document.metadata.generatedParameters)) {
