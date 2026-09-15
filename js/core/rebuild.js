@@ -265,6 +265,24 @@ function boundsFromResults(results, parameters) {
    helix is a path, a knurl is a decoration on a face that already exists. */
 const NON_BODY_RESULTS = new Set(["sketch", "helix", "knurl"]);
 
+/* A Move/Copy Body row that left a copy behind is a second body BESIDE its
+   input, not a step on it: the original is still standing, and nothing later
+   on the original may follow that row. The copy's part names the row as its
+   derivedFeatureId. A document saved before copies were marked is read the same
+   way when the part the row was cut from — the one whose featureId starts the
+   row's input chain — does not record the row. */
+export function leavesInputStanding(definition, feature) {
+  if (feature?.type !== "moveBody") return false;
+  const parts = Array.isArray(definition?.parts) ? definition.parts : [];
+  if (parts.some((part) => part?.derivedFeatureId === feature.id)) return true;
+  const records = (part) => (part?.exactOperations || []).some((operation) => operation?.id === feature.id);
+  if (!parts.some(records)) return false;
+  const byId = new Map((definition.features || []).map((item) => [item.id, item]));
+  const chain = new Set();
+  for (let id = feature.inputs?.[0]; id && !chain.has(id); id = byId.get(id)?.inputs?.[0]) chain.add(id);
+  return parts.some((part) => part && chain.has(part.featureId) && !records(part));
+}
+
 /* The bodies a rebuild leaves standing.
    A feature history answers "how was this built"; a body list answers "what
    exists now, and what can I select or hide". Those are different questions, so
@@ -282,7 +300,7 @@ export function bodiesFromResults(definition, results) {
      by a cut that no longer runs and the model left the body list entirely. */
   const features = (definition?.features || []).filter((feature) => !feature.suppressed && results.has(feature.id));
   const consumed = new Set();
-  features.forEach((feature) => (feature.inputs || []).forEach((id) => consumed.add(id)));
+  features.forEach((feature) => { if (!leavesInputStanding(definition, feature)) (feature.inputs || []).forEach((id) => consumed.add(id)); });
   const bodies = [];
   features.forEach((feature) => {
     if (consumed.has(feature.id)) return;

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { bodiesFromResults, leavesInputStanding } from '../js/core/rebuild.js';
 
 /* A merged body is ONE part whose later features (a boss, a shell) are recorded
    on it, so its featureId still names the first feature. A creator that feeds
@@ -48,8 +49,9 @@ const bench = () => {
     isCanonicalAuthoring: () => true,
     createFeatureDefinition: (doc, type, spec) => { const feature = { id: type + ++n, type, ...spec }; doc.features.push(feature); return feature; },
     historyEntryRolled: () => false,
+    leavesInputStanding,
     cloneData: (value) => structuredClone(value),
-    resetClonedPartIdentity: (part) => ({ ...part, id: 'p' + ++n, featureId: 'clone' + n }),
+    resetClonedPartIdentity: (part) => ({ ...structuredClone(part), id: 'p' + ++n, featureId: 'clone' + n }),
     mirrorProjectionPart: (part) => part,
     addPart: (part) => def.parts.push(part),
     partBounds: () => ({ x0: 0, x1: 10, y0: 0, y1: 10, z0: 0, z1: 10 }),
@@ -95,6 +97,27 @@ test('Move Body and Split Body take the merged body head', () => {
   const rows = split.def.features.filter((feature) => feature.type === 'splitBody');
   assert.equal(rows.length, 2);
   rows.forEach((row) => assert.deepEqual([...row.inputs], ['boss'], 'both halves are cut from the whole body'));
+});
+
+test('Move Body with Copy leaves the original standing: its head stays put and both bodies are published', () => {
+  const built = (def) => new Map(def.features.map((feature) => [feature.id, { kind: 'feature', type: feature.type }]));
+  const copied = bench();
+  assert.equal(copied.api.quickMoveBodyPart({ dx: 5, copy: true }), true);
+  const row = copied.created(), copy = copied.def.parts[1];
+  assert.equal(copy.derivedFeatureId, row.id, 'the copy is the move row\'s body');
+  assert.equal(copied.head(copied.body), 'boss', 'the original does not walk onto the copy\'s move');
+  assert.equal(copied.head(copy), row.id, 'the copy starts at its move');
+  assert.deepEqual(bodiesFromResults(copied.def, built(copied.def)).map((body) => body.featureId), ['boss', row.id]);
+  // a document saved before copies were marked reads the same
+  delete copy.derivedFeatureId;
+  assert.equal(copied.head(copied.body), 'boss');
+  assert.deepEqual(bodiesFromResults(copied.def, built(copied.def)).map((body) => body.featureId), ['boss', row.id]);
+
+  const moved = bench();
+  moved.api.quickMoveBodyPart({ dx: 5 });
+  const step = moved.created();
+  assert.equal(moved.head(moved.body), step.id, 'a plain move is still a step on the body');
+  assert.deepEqual(bodiesFromResults(moved.def, built(moved.def)).map((body) => body.featureId), [step.id]);
 });
 
 test('Mirror copies the merged body as it stands', () => {

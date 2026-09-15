@@ -132,7 +132,7 @@ import { encodeBinaryPayload } from "./core/binary_payload.js";
 import { externalizeAttachments } from "./core/attachment_store.js";
 import { garbageCollectAttachments } from "./core/attachment_gc.js";
 import { loadModelLibrary, saveModelLibrary, loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord, libraryBundle, parseLibraryBundle, mergeLibraryRecords, collidingLibraryKeys } from "./core/model_library_store.js";
-import { rebuildDefinition } from "./core/rebuild.js";
+import { leavesInputStanding, rebuildDefinition } from "./core/rebuild.js";
 import { buildTreeModel, findTreeNode } from "./core/tree_model.js";
 import { renderTreeModel } from "./modeler_tree.js";
 import { analyzeLegacyMigration, convertLegacyDocument, evaluateMigration, retainLegacySource, restoreLegacyDocument } from "./core/migration_check.js";
@@ -6984,6 +6984,9 @@ function quickMoveBodyPart(options) {
   // a copy is cut from the original body too, so its row names that body
   var sourceFeatureId=cutTargetFeatureId(p);
   if(isCanonicalAuthoring())try{feature=createFeatureDefinition(E.def,"moveBody",{inputs:[sourceFeatureId],references:{sketches:[],features:[sourceFeatureId],topology:[],references:[]},params:kernelParams});}catch(error){H.discard();flash(String(error.message||error));return false;}
+  /* The copy is the row's body, the way a mirror or pattern copy is: its head
+     starts at the move, and the original's head does not walk onto it. */
+  if(copy && feature){target.derivedFeatureId=feature.id;target.sourceFeatureId=p.featureId;}
   target.exactOperations=target.exactOperations || [];
   target.exactOperations.push({
     id:feature ? feature.id : (target.featureId || "feature:part:"+target.id)+":movebody:"+(target.exactOperations.length+1),
@@ -7866,7 +7869,9 @@ function cutTargetFeatureId(target, document = E.def) {
     if (entry && entry.targetId && (entry.suppressed || historyEntryRolled(document, index))) inactive.add(entry.targetId);
   });
   (document.features || []).forEach(function (feature) {
-    if (!feature.suppressed && !inactive.has(feature.id) && (modifiers.has(feature.type) || (feature.type==="pattern" && feature.params?.scope==="feature") || (["extrude","revolve","sweep","loft"].includes(feature.type) && feature.params?.mergeResult !== false && feature.params?.operation !== "new-body")) && (feature.inputs || []).includes(head)) head = feature.id;
+    if (!feature.suppressed && !inactive.has(feature.id) && (modifiers.has(feature.type) || (feature.type==="pattern" && feature.params?.scope==="feature") || (["extrude","revolve","sweep","loft"].includes(feature.type) && feature.params?.mergeResult !== false && feature.params?.operation !== "new-body")) && (feature.inputs || []).includes(head)
+      // a Move with Copy made a second body; the original does not move with it
+      && (feature.type !== "moveBody" || !leavesInputStanding(document, feature))) head = feature.id;
   });
   return head || null;
 }
