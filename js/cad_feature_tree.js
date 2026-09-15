@@ -394,6 +394,7 @@ export async function regenerateFeatures(def, options = {}) {
       results.set(feature.id, result);
       if (result.invalid) issues.push({ feature: feature.id, severity: "warning", code: "invalid-solid", message: String(result.invalid) });
       if (result.approximate) issues.push({ feature: feature.id, severity: "warning", code: "approximate-shell", message: String(result.approximate) });
+      if (result.looseTolerance) issues.push({ feature: feature.id, severity: "warning", code: "loose-shell-tolerance", message: "Shell is exact but its edges are " + Number(result.looseTolerance).toFixed(4) + " cm loose; export checks will block it until that is under 0.001 cm" });
       feature.error = null;
       feature.regeneratedAt = Date.now();
     } catch (error) {

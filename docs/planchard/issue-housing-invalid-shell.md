@@ -1,6 +1,6 @@
 # Issue: Shell of a lofted/drafted body produces an invalid solid, and every later boolean loses the body
 
-Status: **fixed exactly** (2026-09-15). HOUSING Shell1 is a true constant-thickness shell, built like SOLIDWORKS builds it (offset each face, extend, intersect), valid and exportable; Boss-Stop fuses onto it. Guards from `bf54618` stay in place.
+Status: **exact on the saved record** (2026-09-15), with a `loose-shell-tolerance` warning that still blocks export. HOUSING Shell1 is a true constant-thickness shell, built like SOLIDWORKS builds it (offset each face, extend, intersect), valid; Boss-Stop fuses onto it. It passed the export check on a body rebuilt in the test, but not on the saved record (see "On the saved record"). Guards from `bf54618` stay in place.
 Found: 2026-09-14. Guard commit: `bf54618` (makes the failure loud). Fix: `shellByJunctionBisectors` in `js/cad_kernel.js`, tried after the join offset and the rotational shell. The old sampled-section cavity is kept only as a last resort and is reported as an `approximate-shell` warning.
 
 ## Summary
@@ -116,6 +116,18 @@ Build the same history without the UI, using the numbers in the table:
 5. Fuse a ring (R 5.3023 → 6.50875, z 0 → 0.254).
 
 The existing kernel tests show the helpers: `makeBrepPrimitive`, `makeBrepLoft`/`makeBrepExtrude`, `booleanBrep`, `shellBrep`, `extractBrepTopology`, `shapeMassProperties`. See `tests/cad_kernel_topology.test.mjs` and `tests/cad_lenscap_shell.test.mjs`. The Sketchsquare outline as typed segments is in the saved record: `features[Boss-Loft1].params.sectionSegments[0]`.
+
+## On the saved record (2026-09-15)
+
+The first version passed on a body rebuilt in the test and then fell back to the sampled-section cavity on the HOUSING record saved from the model editor. That fallback came out at 330.8 cm³ with walls down to 0.005 cm, flagged only by an `approximate-shell` warning. The saved Boss-Loft1 is split differently: Sketchcircle at 0° and 180°, Sketchsquare's top line at 90°. That exposed three faults the rebuilt body never did:
+
+- **The bisector's disc wire lost half its edges.** Crease edges come out of the explorer in no particular order, and `BRepBuilderAPI_MakeWire.Add` one edge at a time rejects an edge that does not touch the wire so far, together with everything chained after it, while still reporting done. The disc covered 0° to 180° only, and the loft's extension band survived above the bisector (the cylinder wall read 0.2466 cm at z = 0.02). The wire is now built from all floor edges at once (`Add_3`), and the exact shell refuses a bisector whose sewn surface has more open edges than crease edges.
+- **The loft's offset seams are 0.0082 cm loose.** OpenCascade's offset of this loft keeps its surfaces exact, but the seam curves where they meet the caps carry 0.005–0.008 cm edge tolerances (pcurve reparametrisation near the tangent seam ends). Tolerance repairs, pcurve re-projection, 3D-curve rebuilds, scale and join settings did not lower it. The exact shell is no longer rejected for the export gate; it is kept, and the rebuild reports a `loose-shell-tolerance` warning. Exporting HOUSING still checks the tolerance and stays blocked until this is solved.
+- **The first join offset loosened the caller's body in place** (1e-7 to 1e-3), which also made the features before Shell1 read 0.001 cm. Every shell attempt now works on a deep copy.
+
+Measured on the saved record, through `regenerateFeatures`: Shell1 exact, 156.4035 cm³, outer 111.125 × 111.125 × 177.8 mm, body before it still 1e-7, 0 crease samples missing, wall 0.2540 cm in rings at z = 0.08 to −9 and the back wall, 0.2539–0.2598 cm beside the cylinder junction (limit 0.2607). Regression: the second test in `tests/planchard_housing_shell.test.mjs`, using `tests/fixtures/planchard_housing_record.json`.
+
+Boss-Stop's sketch converts Shell1's inner edge, and that edge's reference no longer resolves after the shell changed ("Select a complete circular edge"). It has to be re-picked in the editor.
 
 ## Acceptance criteria
 

@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { readFileSync } from "node:fs";
+
 import {
   booleanBrep,
   disposeBrep,
@@ -12,6 +14,8 @@ import {
   shellBrep,
   validateBrepForExport,
 } from "../js/cad_kernel.js";
+import { regenerateFeatures, releaseRegeneration } from "../js/cad_feature_tree.js";
+import { compileKernelFeatureTree } from "../js/core/kernel_feature_adapter.js";
 
 /* HOUSING Shell1 (Planchard 361–379): Base Extrude ∪ Boss-Loft1 ∪ Boss-Battery,
    then a 0.100 in inside shell removing the front cap, then Boss-Stop's ring.
@@ -236,5 +240,59 @@ test("HOUSING Shell1 is an exact constant-thickness shell and Boss-Stop fuses on
     assert.ok(Math.abs(stop.volumeCm3 - 165.52) < 0.05, `Boss-Stop ${stop.volumeCm3}`);
   } finally {
     [fused, ring, shelled, body].filter(Boolean).forEach(disposeBrep);
+  }
+});
+
+/* The same shell on the HOUSING record saved from the model editor, not a
+   rebuilt body. Its Boss-Loft1 is split differently (Sketchcircle at 0° and
+   180°, Sketchsquare's top line at 90°), and that exposed three faults the
+   rebuilt body never did: the bisector's disc wire dropped half its edges when
+   the crease edges came out of order, the loft's offset seams carry 0.008 cm
+   edge tolerances (so the exact shell used to be rejected for the 330.8 cm³
+   sampled fallback), and the first join offset loosened the caller's body in
+   place. */
+test("the saved HOUSING record rebuilds Shell1 as the exact shell without touching the body before it", { timeout: 900000 }, async () => {
+  const record = JSON.parse(readFileSync(new URL("./fixtures/planchard_housing_record.json", import.meta.url), "utf8"));
+  const compiled = compileKernelFeatureTree(record);
+  const shellIndex = compiled.features.findIndex((feature) => feature.type === "shell");
+  assert.ok(shellIndex > 0, "the record has Shell1");
+  const shellFeature = compiled.features[shellIndex];
+  const run = await regenerateFeatures({ ...compiled.document, features: compiled.features.slice(0, shellIndex + 1) });
+  try {
+    const body = run.results.get(shellFeature.inputs[0]), shelled = run.results.get(shellFeature.id);
+    assert.ok(body?.shape && shelled?.shape, "body and shell rebuilt");
+    const oc = body.oc;
+    assert.equal(shelled.approximate, undefined, `Shell1 is exact: ${shelled.approximate}`);
+    assert.equal(shelled.invalid, undefined, `Shell1 is valid: ${shelled.invalid}`);
+    assert.ok(!run.issues.some((issue) => ["approximate-shell", "invalid-solid", "regeneration-failed"].includes(issue.code)), JSON.stringify(run.issues));
+
+    const analysis = new oc.ShapeAnalysis_ShapeTolerance();
+    const bodyTolerance = analysis.Tolerance(body.shape, 1, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+    analysis.delete();
+    assert.ok(bodyTolerance < 1e-6, `the body before the shell is untouched (tolerance ${bodyTolerance})`);
+
+    const mass = await shapeMassProperties(shelled);
+    assert.ok(Math.abs(mass.volume - 156.40) < 0.05, `shell volume ${mass.volume}`);
+    assert.ok(Math.abs((mass.bounds.max.x - mass.bounds.min.x) - 2 * R) < 1e-4 && Math.abs((mass.bounds.max.y - mass.bounds.min.y) - 2 * R) < 1e-4, "outer width and height unchanged");
+    assert.ok(Math.abs((mass.bounds.max.z - mass.bounds.min.z) - (H + H + BATTERY)) < 1e-4, "outer length unchanged");
+
+    extractBrepTopology(body, { ownerFeatureId: "housing-record" });
+    const opening = body.topology.find((item) => item.kind === "face" && item.descriptor.surface === "plane"
+      && Math.abs((item.descriptor.origin?.z || 0) - H) < 1e-4 && (item.descriptor.normal?.z || 0) > 0.9);
+    assert.ok(opening, "front cap at z = 3.302");
+    const seams = seamFailures(body, shelled, opening.persistentId);
+    assert.equal(seams.failures, 0, `${seams.failures} of ${seams.samples} crease samples are missing wall material`);
+
+    const gauge = wallGauge(body, shelled);
+    for (const z of [1.65, -1.65, -3.31, -9]) {
+      const { min, max } = gauge(z);
+      assert.ok(min > THICK - 5e-4 && max < THICK + 5e-4, `wall at z = ${z}: ${min}..${max}`);
+    }
+    for (const z of [0.02, 0.005, -0.005]) {
+      const { min, max } = gauge(z);
+      assert.ok(min > THICK - 5e-4 && max < MITRE_LIMIT + 5e-4, `wall beside the cylinder junction at z = ${z}: ${min}..${max}`);
+    }
+  } finally {
+    releaseRegeneration(run);
   }
 });

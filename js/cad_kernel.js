@@ -1332,8 +1332,18 @@ export async function shellBrep(brep, thickness, options = {}) {
   if (!brep?.shape) throw new Error("Shell needs a BREP shape");
   const oc = brep.oc || await loadCadKernel();
   const faceIds = options.facePersistentIds || options.faces || [];
-  const faces = selectedBrepSubshapes(brep, "face", faceIds);
-  if (!faces.length) throw new Error("Shell needs at least one resolved face to remove");
+  const selected = selectedBrepSubshapes(brep, "face", faceIds);
+  if (!selected.length) throw new Error("Shell needs at least one resolved face to remove");
+  /* Every attempt works on a deep copy. OpenCascade's join offset edits its
+     input's tolerances in place (HOUSING's body went from 1e-7 to 1e-3), and
+     booleans share untouched faces with their operands, so shelling the
+     caller's body directly loosened the features before the shell and every
+     later attempt. */
+  const copier = new oc.BRepBuilderAPI_Copy_2(brep.shape, true, false);
+  const source = { ...brep, shape: copier.Shape() };
+  const faces = selected.map((face) => oc.TopoDS.Face_1(copier.ModifiedShape(face)));
+  copier.delete();
+  brep = source;
 
   const closingFaces = new oc.TopTools_ListOfShape_1();
   const maker = new oc.BRepOffsetAPI_MakeThickSolid();
@@ -1602,22 +1612,36 @@ async function shellByJunctionBisectors(brep, removed, thickness, options = {}) 
         crease.push({ edge, adj, t0, t1 });
       });
       if (!crease.length) throw new Error("A junction shell found no crease at a junction");
-      const key = (p) => p.map((v) => Math.round(v * 1e4 / F)).join(",");
-      const ends = new Map();
+      /* Sample positions come from the edge's own 3D curve and its ends are
+         its vertices, so neighbouring bands meet exactly. Positions evaluated
+         through a face's 2D curve were up to 75 um off on HOUSING's real loft,
+         the bands failed to sew shut, and the split kept the wrong side. */
+      const ends = [];
       let maxUp = 0, maxDown = 0;
       for (const e of crease) {
+        const curve3d = keep(new oc.BRepAdaptor_Curve_2(e.edge));
+        const vertices = []; each(e.edge, oc.TopAbs_ShapeEnum.TopAbs_VERTEX, (vs) => vertices.push(oc.TopoDS.Vertex_1(vs)));
+        const at = (t) => pointOf(curve3d.Value(t));
+        const nearestVertex = (p) => vertices.reduce((best, v) => { const q = pointOf(oc.BRep_Tool.Pnt(v)); const d = Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z); return !best || d < best.d ? { v, q, d } : best; }, null);
         e.samples = [];
         for (let i = 0; i <= N; i++) {
           const t = e.t0 + (e.t1 - e.t0) * i / N, A = normalInfo(e.edge, e.adj[0], t), B = normalInfo(e.edge, e.adj[1], t);
           const s = add(A.n, B.n), len = Math.hypot(...s);
           if (len < 1e-9) throw new Error("A junction crease folds back on itself");
           const u = s.map((v) => -v / len);
-          e.samples.push({ q: A.q, u });
-          if (i === 0 || i === N) { const k = key(A.q); if (!ends.has(k)) ends.set(k, []); ends.get(k).push(u); }
+          let q = at(t);
+          if (i === 0 || i === N) {
+            const hit = nearestVertex(q);
+            q = hit.q;
+            let group = ends.find((g) => g.vertex.IsSame(hit.v));
+            if (!group) { group = { vertex: hit.v, directions: [] }; ends.push(group); }
+            group.directions.push(u);
+            e.samples.push({ q: [q.x, q.y, q.z], u, group });
+          } else e.samples.push({ q: [q.x, q.y, q.z], u });
         }
       }
       for (const e of crease) for (const i of [0, N]) {
-        const list = ends.get(key(e.samples[i].q)), sum = list.reduce((acc, u) => add(acc, u), [0, 0, 0]), len = Math.hypot(...sum);
+        const sum = e.samples[i].group.directions.reduce((acc, u) => add(acc, u), [0, 0, 0]), len = Math.hypot(...sum);
         e.samples[i].u = sum.map((v) => v / len);
       }
       /* Where the crease is tangent its bisector lies flat in the junction
@@ -1638,20 +1662,27 @@ async function shellByJunctionBisectors(brep, removed, thickness, options = {}) 
         const scale = Math.sqrt(1 - MIN_TILT * MIN_TILT) / flat;
         sm.u = [sm.u[0] * scale, sm.u[1] * scale, side * MIN_TILT];
       }
-      const sew = keep(new oc.BRepBuilderAPI_Sewing(1e-4, true, true, true, false)), rim = keep(new oc.BRepBuilderAPI_MakeWire_1());
+      const sew = keep(new oc.BRepBuilderAPI_Sewing(1e-4, true, true, true, false)), rim = keep(new oc.BRepBuilderAPI_MakeWire_1()), floors = keep(new oc.TopTools_ListOfShape_1());
       for (const e of crease) {
         e.samples.forEach((sm) => { maxUp = Math.max(maxUp, sm.u[2]); maxDown = Math.max(maxDown, -sm.u[2]); });
         const outer = curveEdge(e.samples.map((sm) => add(sm.q, sm.u, -OUT)));
         const inner = curveEdge(e.samples.map((sm) => add(sm.q, sm.u, REACH)));
         const floor = curveEdge(e.samples.map((sm) => { const p = add(sm.q, sm.u, REACH); return [p[0], p[1], zc]; }));
         sew.Add(keep(oc.BRepFill.Face(outer, inner))); sew.Add(keep(oc.BRepFill.Face(inner, floor)));
-        rim.Add_1(floor);
+        floors.Append_1(floor);
       }
-      if (!rim.IsDone()) throw new Error("A junction bisector does not close");
+      /* Crease edges come in whatever order the explorer lists them, and one
+         edge at a time MakeWire rejects an edge that does not touch the wire so
+         far, along with everything chained after it, while still reporting
+         done. Given all the edges at once it orders them itself. */
+      rim.Add_3(floors);
+      if (!rim.IsDone() || !oc.BRep_Tool.IsClosed_1(rim.Wire())) throw new Error("A junction bisector does not close");
       const disc = keep(new oc.BRepBuilderAPI_MakeFace_15(rim.Wire(), true));
       if (!disc.IsDone()) throw new Error("A junction bisector does not close");
       sew.Add(disc.Face());
       sew.Perform(keep(new oc.Message_ProgressRange_1()));
+      // closed except its outer rim, one edge per crease edge; anything more is a gap the split would leak through
+      if (sew.NbFreeEdges() !== crease.length) throw new Error("A junction bisector did not close (" + sew.NbFreeEdges() + " open edges for " + crease.length + " crease edges)");
       return { zc, surface: sew.SewedShape(), up: REACH * maxUp, down: REACH * maxDown };
     });
 
@@ -1752,7 +1783,16 @@ async function shellByJunctionBisectors(brep, removed, thickness, options = {}) 
     const before = shapeBounds(oc, brep.shape, false), after = shapeBounds(oc, shape, false);
     const grown = !before || !after || ["x", "y", "z"].some((k) => after.min[k] < before.min[k] - 1e-4 || after.max[k] > before.max[k] + 1e-4);
     if (grown || !shapeIsValid(oc, shape) || !(volumeOf(shape) > 1e-9)) throw new Error("A junction shell produced an invalid solid");
-    await validateBrepForExport(result);
+    let solids = 0; each(shape, oc.TopAbs_ShapeEnum.TopAbs_SOLID, () => solids++);
+    if (solids !== 1) throw new Error("A junction shell produced " + solids + " solids");
+    /* The export gate is not applied here. On HOUSING's real Boss-Loft1 the
+       offset of its nearly tangent seams is exact in position but carries
+       0.008 cm edge tolerances where the seams meet the caps; rejecting that
+       fell back to the sampled-section cavity, which came out at 330.8 cm³
+       instead of 156.35. The exact shell is kept and its looseness reported,
+       and exporting still checks the tolerance. */
+    const looseness = shapeMaxTolerance(oc, shape);
+    if (looseness > 1e-3) result.looseTolerance = looseness;
     return result;
   } finally {
     breps.forEach((b) => { try { disposeBrep(b); } catch (_) {} });
