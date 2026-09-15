@@ -116,6 +116,8 @@ export var TXT = {
   view_front: ["מבט חזית (X·Y)", "Front (X·Y)"],
   view_side: ["מבט צד (Z·Y)", "Side (Z·Y)"],
   view_right: ["מבט ימין (Z·Y)", "Right (Z·Y)"],
+  view_back: ["מבט אחורי (X·Y)", "Back (X·Y)"],
+  view_left: ["מבט שמאל (Z·Y)", "Left (Z·Y)"],
   depth: ["עומק אקסטרוד", "Extrude depth"],
   base: ["גובה בסיס", "Base offset"],
   parts: ["חלקים", "Parts"],

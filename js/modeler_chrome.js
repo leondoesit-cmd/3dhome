@@ -8,6 +8,10 @@ export const VIEW_PRESETS = [
   { id: "front", az: 0, el: 0.05, shortcut: "5" },
   { id: "top", az: 0, el: 1.5, shortcut: "4" },
   { id: "right", az: Math.PI / 2, el: 0.05, shortcut: "6" },
+  // The far sides of Front and Right: a part's back or left face (LENSCAP's
+  // ThreadPlane face) is otherwise reachable only by hand orbit.
+  { id: "back", az: Math.PI, el: 0.05, shortcut: "" },
+  { id: "left", az: -Math.PI / 2, el: 0.05, shortcut: "" },
   { id: "iso", az: 0.8, el: 0.5, shortcut: "" },
   { id: "normalTo", az: null, el: null, shortcut: "Ctrl+8" },
 ];

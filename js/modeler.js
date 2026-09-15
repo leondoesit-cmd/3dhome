@@ -3615,6 +3615,8 @@ function buildDOM() {
     '<button data-view="top" data-tip="' + kt(t("view_top"), "4") + '">' + cadIcon("view_top") + '<span>' + (getLang()==="en"?"Top":"על") + ' · X·Z</span></button>' +
     '<button data-view="front" data-tip="' + kt(t("view_front"), "5") + '">' + cadIcon("view_front") + '<span>' + (getLang()==="en"?"Front":"חזית") + ' · X·Y</span></button>' +
     '<button data-view="side" data-tip="' + kt(t("view_right"), "6") + '">' + cadIcon("view_right") + '<span>' + (getLang()==="en"?"Right":"ימין") + ' · Z·Y</span></button>' +
+    '<button data-view="back" data-tip="' + t("view_back") + '">' + cadIcon("view_front") + '<span>' + (getLang()==="en"?"Back":"אחור") + ' · X·Y</span></button>' +
+    '<button data-view="left" data-tip="' + t("view_left") + '">' + cadIcon("view_right") + '<span>' + (getLang()==="en"?"Left":"שמאל") + ' · Z·Y</span></button>' +
     '<button type="button" id="mdNormalToView" data-tip="' + kt(t("normalTo"), "Ctrl+8") + '">' + cadIcon("normalTo") + "<span>" + t("normalTo") + "</span></button>" +
     "</div>" +
     '<div class="md-vgroup md-zoom">' +
@@ -6446,11 +6448,16 @@ function setTool(id, keepPlaneState) {
   if (openingModelPlane) requestAnimationFrame(fitSketch);
   updateTourProgress();
 }
+/* Views that only turn the camera. Isometric, Back and Left have no sketch
+   plane of their own, so they must not touch E.view: that swaps the active
+   sketch, and an Extrude Cut taken right after would cut from the wrong one. */
+var CAMERA_ONLY_VIEWS = ["iso", "back", "left"];
 function setView(id) {
-  if (id === "iso") {
-    if (E.pv) {
+  if (CAMERA_ONLY_VIEWS.indexOf(id) >= 0) {
+    var cameraPreset = VIEW_PRESETS.find(function (preset) { return preset.id === id; });
+    if (E.pv && cameraPreset) {
       if (E.pv.clearFixedFrame) E.pv.clearFixedFrame(false);
-      E.pv.orbitTo(0.8, 0.5);
+      E.pv.orbitTo(cameraPreset.az, cameraPreset.el);
     }
     drawSketch();
     return;
@@ -9561,7 +9568,7 @@ function showViewSelector() {
   host.hidden = false;
   host.innerHTML = "";
   host.appendChild(el("div", "md-overlay-caption", t("viewSelector")));
-  var labels = { front: t("view_front"), top: t("view_top"), right: t("view_right"), iso: t("isoView"), normalTo: t("normalTo") };
+  var labels = { front: t("view_front"), top: t("view_top"), right: t("view_right"), back: t("view_back"), left: t("view_left"), iso: t("isoView"), normalTo: t("normalTo") };
   VIEW_PRESETS.forEach(function (preset) {
     var button = el("button", "", (labels[preset.id] || preset.id) + (preset.shortcut ? " · " + preset.shortcut : ""));
     button.type = "button";
