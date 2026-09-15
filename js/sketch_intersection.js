@@ -69,13 +69,18 @@ function edgeOnCircleEnds(sketch, descriptor) {
 }
 
 export function modelEdgeSketchLine(sketch, edge) {
-  let ends = edgeEndpoints(edge);
-  if (ends.length < 2) ends = edgeOnCircleEnds(sketch, edge?.descriptor || edge);
-  if (ends.length < 2) return null;
-  const a = projectWorldToSketch(sketch, ends[0]);
-  const b = projectWorldToSketch(sketch, ends[ends.length - 1]);
-  if (Math.hypot(b.x - a.x, b.y - a.y) < EPS) return null;
-  return { a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y } };
+  const project = (ends) => {
+    if (ends.length < 2) return null;
+    const a = projectWorldToSketch(sketch, ends[0]);
+    const b = projectWorldToSketch(sketch, ends[ends.length - 1]);
+    return Math.hypot(b.x - a.x, b.y - a.y) < EPS ? null : { a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y } };
+  };
+  /* A complete circle from the kernel carries its seam vertex as both end
+     points, so projecting them gives nothing; seen edge-on it is still its
+     diameter. That is the rebuilt Boss-Stop rim HOUSING HandlePath is
+     coincident with (the editor's pick had no end points, so only the rebuild
+     failed and the save never went through). */
+  return project(edgeEndpoints(edge)) || project(edgeOnCircleEnds(sketch, edge?.descriptor || edge));
 }
 
 export function intersectionOfModelEdges(sketch, edgeA, edgeB) {

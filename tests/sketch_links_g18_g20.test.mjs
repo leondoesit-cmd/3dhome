@@ -197,3 +197,23 @@ test("a feature-tree rebuild re-finds a pierce point when the path sketch change
     assert.ok(m && near(m.y, 9), "follows the changed path: " + JSON.stringify(m));
   } finally { releaseRegeneration(second); }
 });
+
+test("a rebuilt full circle with its seam vertex as both end points still shows edge-on as a line", () => {
+  // Boss-Stop's rim exactly as the kernel topology records it after a rebuild.
+  const rim = { kind: "edge", persistentId: "feature_mu153lwk_1:tool:edge:profile:74:start", descriptor: {
+    curve: "circle", radius: 6.50875, origin: { x: 0, y: 0, z: 0 }, axis: { x: 0, y: 0, z: 1 },
+    endpoints: [{ x: 6.50875, y: -1.594183970790067e-15, z: 0 }, { x: 6.50875, y: 0, z: 0 }],
+  } };
+  const line = modelEdgeSketchLine({ plane: "side", offset: 0 }, rim);
+  assert.ok(line, "the seam end points no longer hide the edge-on diameter");
+  assert.ok(near(line.a.x, 0) && near(line.b.x, 0) && near(Math.abs(line.a.y - line.b.y), 2 * 6.50875));
+  const sketch = {
+    plane: "side", offset: 0,
+    points: [{ id: "a", x: -0.6, y: 6.9 }, { id: "b", x: -13.2, y: 6.9 }],
+    entities: [{ id: "h", type: "line", a: "a", b: "b" }],
+    constraints: [{ id: "hz", type: "horizontal", entity: "h" }, { id: "on", type: "onModelEdge", point: "a", edge: { persistentId: rim.persistentId } }],
+  };
+  bindModelEdgeTargets(sketch, () => rim);
+  assert.equal(solveSketch(sketch).converged, true);
+  assert.ok(near(sketch.points[0].x, 0), JSON.stringify(sketch.points[0]));
+});
