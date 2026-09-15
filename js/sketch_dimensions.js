@@ -195,6 +195,15 @@ export function hitSketchDimensionHit(sketch, x, y, toPx, tolerance = 9) {
   return best ? { constraint: best, kind: bestKind } : null;
 }
 
+/* A sketch point under the cursor wins over a dimension's leader line, as in
+   SOLIDWORKS: HOUSING HandleProfile's R .100 leader runs out of an arc centre
+   and hid that centre from Smart Dimension. The label itself still wins. */
+export function dimensionHitYieldsToPoint(hit, underPointer) {
+  if (!hit) return null;
+  const isPoint = underPointer && !underPointer.type && "x" in underPointer;
+  return hit.kind !== "label" && isPoint ? null : hit;
+}
+
 export function hitSketchDimension(sketch, x, y, toPx, tolerance = 9) {
   const hit = hitSketchDimensionHit(sketch, x, y, toPx, tolerance);
   return hit ? hit.constraint : null;

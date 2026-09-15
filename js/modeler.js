@@ -73,7 +73,7 @@ import {
 import { drawNameTags, relationSubjects, relationTargets, sketchInstanceNames } from "./sketch_names.js";
 import {
   addSmartDimension, currentMeasure, distanceDimensionLayout,
-  hitSketchDimensionHit, drawSketchDimensions, drawConstraintGlyphs,
+  hitSketchDimensionHit, dimensionHitYieldsToPoint, drawSketchDimensions, drawConstraintGlyphs,
 } from "./sketch_dimensions.js";
 import {
   resolveEquations, evaluateExpression, collectSymbols,
@@ -13602,7 +13602,7 @@ function wireSketch() {
     }
     if (E.tool === "select" || E.tool === "dim") {
       var dimLocalX = e.clientX - r.left, dimLocalY = e.clientY - r.top;
-      var sketchDim = placedDimensionHit(ensureSketch(E.def), dimLocalX, dimLocalY);
+      var sketchDim = dimensionHitYieldsToPoint(placedDimensionHit(ensureSketch(E.def), dimLocalX, dimLocalY), hitSketch(uv, e.pointerType));
       if (sketchDim) {
         pushUndo(t("opMoveDim"));
         E.dimPick = [];
