@@ -21,6 +21,7 @@ import { sampleHelix } from "./cad_helix.js";
 import { helixSpecForThread, modeledThreadSolid, normalizeThreadSpec } from "./cad_thread.js";
 import { knurlBandMesh, normalizeKnurlSpec } from "./cad_knurl.js";
 import { insertBody, normalizeInsertFeature } from "./cad_appearances.js";
+import { cachedExactTopology } from "./core/exact_topology_cache.js";
 
 export function ensureFeatureTree(def) {
   def.features ||= [];
@@ -79,6 +80,7 @@ function resolvedSubshapeIds(resolutions, kind) {
 export async function regenerateFeatures(def, options = {}) {
   const features = ensureFeatureTree(def);
   const results = new Map(), issues = [], topology = createTopologyRegistry(), topologyBindings = [], resolvedExtrusions = new Map(), boundaryUpdates = new Map();
+  const topologyHints=cachedExactTopology(def);
   const parameterRun = resolveParameters(def, options.parameterOverrides || {});
   issues.push(...parameterRun.issues);
   const sketchRun = sketchDiagnostics({
@@ -396,7 +398,13 @@ export async function regenerateFeatures(def, options = {}) {
       }
       const inputResults = (feature.inputs || []).map((id) => results.get(id)).filter(Boolean);
       result.topology = topologyForFeature(feature, effectiveParams, inputResults) || [];
-      if (result.shape) result.topology = extractBrepTopology(result, { ownerFeatureId: feature.id, expectedTopology: result.topology }).topology || [];
+      if (result.shape) result.topology = extractBrepTopology(result, {
+        ownerFeatureId: feature.id,
+        // Preserve the last verified exact names before assigning lightweight
+        // analytic names.  Generated fillet/offset edges do not exist in the
+        // lightweight topology and must get first choice of the raw subshapes.
+        expectedTopology: (topologyHints.get(feature.id) || []).concat(result.topology),
+      }).topology || [];
       (result.topology || []).forEach((item) => {
         if (!topology.byPersistentId.has(item.persistentId)) topology.list.push(item);
         topology.byPersistentId.set(item.persistentId, item);

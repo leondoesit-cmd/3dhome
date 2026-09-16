@@ -177,7 +177,7 @@ test("CSS theme system tokens meet WCAG 2.1 AA contrast requirements across all 
     return tokens;
   }
 
-  const themes = ["light", "dark", "soft", "mid"];
+  const themes = ["light", "dark", "soft", "mid", "chrome"];
 
   for (const theme of themes) {
     const tokens = extractThemeTokens(theme);

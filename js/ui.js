@@ -1,10 +1,11 @@
+import { saveLocalProject, loadLocalProject } from "./core/project_store.js";
+import { deliverExport } from "./export_delivery.js";
 import { normalizeSurvey, normalizeSurveyFeatures } from "./survey.js";
 import { normalizeNavigationProfile } from "./navigation_profile.js";
 import { roomMeasurements } from "./room_summary.js";
 import { resizeSelectedRoom } from "./ui_planning_guide.js";
 import { newDocumentKey, normalizeBaselines, normalizeRedesign, mergeBaselineArchives } from "./redesign.js";
-import { normalizePlanningGuide, planningDisplayUnit } from "./planning_guide.js";
-import { formatLength, parseLength } from "./planning_units.js";
+import { normalizePlanningGuide } from "./planning_guide.js";
 import { displayUnit, fmtLen, writeLen, parseLen, unitLabel, fmtAreaM2, syncDisplayUnitLabels } from "./display_units.js";
 import { inferDomainFromElementId } from "./unit_settings.js";
 // UI controller: property panels, control wiring, ownership tree, save/load.
@@ -123,7 +124,7 @@ import {
   refreshTree,
   withoutRoomPrompts,
 } from "./ui_tree.js";
-import { markSaved } from "./persist.js";
+import { markSaved, getDirtyRevision } from "./persist.js";
 import {
   reseat,
   rotateWith,
@@ -272,7 +273,7 @@ function bindNum(id, fn, mode, eventName) {
 function lengthUnit(idOrEl) {
   var id = typeof idOrEl === "string" ? idOrEl : (idOrEl && idOrEl.id);
   var dom = inferDomainFromElementId(id);
-  return dom ? displayUnit(dom) : (planningDisplayUnit(S) || displayUnit());
+  return displayUnit(dom || "plan");
 }
 
 function parseFieldLength(text, idOrEl) {
@@ -375,7 +376,7 @@ export function applyData(d) {
   if (!d || typeof d !== "object" || Array.isArray(d)) {
     throw new Error("Invalid scene data");
   }
-  if(d.spatial)d={...d,nodes:d.spatial.nodes,walls:d.spatial.walls,wallTypes:d.spatial.wallTypes,openings:d.spatial.openings,items:d.spatial.instances,markers:d.spatial.markers,slabOpenings:d.spatial.slabOpenings,surveyFeatures:d.spatial.surveyFeatures,roomMeta:d.spatial.rooms,cabinetPresets:d.spatial.cabinetPresets};
+  if(d.spatial)d={...d,nodes:d.spatial.nodes,walls:d.spatial.walls,wallTypes:d.spatial.wallTypes,openings:d.spatial.openings,items:d.spatial.instances,markers:d.spatial.markers,slabOpenings:d.spatial.slabOpenings,surveyFeatures:d.spatial.surveyFeatures,roomMeta:d.spatial.rooms,cabinetPresets:d.spatial.cabinetPresets,wallCons:d.spatial.wallCons,roomCons:d.spatial.roomCons,planVars:d.spatial.planVars};
   return applyDataRequest(d, ++applyRequestGeneration);
 }
 
@@ -450,6 +451,7 @@ function applyDataRequest(d, requestGeneration) {
         thickness: fin(w.thickness) ? w.thickness : 10,
         height: fin(w.height) ? w.height : 270,
         wallTypeId: typeof w.wallTypeId === "string" ? w.wallTypeId : undefined,
+        layers: Array.isArray(w.layers) ? JSON.parse(JSON.stringify(w.layers)) : undefined,
         flip: !!w.flip,
         layersReversed: !!(w.layersReversed || w.reverseLayers || w.flip),
         datum: ({
@@ -651,6 +653,9 @@ function applyDataRequest(d, requestGeneration) {
   }
   S.roomStamp=null;S.placeType=null;S.drawing=false;S.drawFrom=null;S.arcDraft=null;S.rectDraft=null;S.biteDraft=null;S.offsetDraft=null;S.joinPick=null;S.previewPt=null;S.action=null;S.drag=null;
   S.roomMeta = d.roomMeta || {};
+  S.wallCons = Array.isArray(d.wallCons) ? JSON.parse(JSON.stringify(d.wallCons)) : [];
+  S.roomCons = Array.isArray(d.roomCons) ? JSON.parse(JSON.stringify(d.roomCons)) : [];
+  S.planVars = Array.isArray(d.planVars) ? JSON.parse(JSON.stringify(d.planVars)) : [];
   S.ignoredWarnings =
     d.ignoredWarnings && typeof d.ignoredWarnings === "object"
       ? d.ignoredWarnings
@@ -1968,7 +1973,13 @@ export function initUI() {
 
   bindLength("o_w", function (v) {
     if (S.sel.kind === "opening") {
+      var oldWidth = S.sel.ref.width || 1;
       S.sel.ref.width = Math.max(20, Math.min(600, v));
+      if (S.sel.ref.isDouble) {
+        var share = Math.max(0.15, Math.min(0.85, (Number(S.sel.ref.leafA) || oldWidth / 2) / oldWidth));
+        S.sel.ref.leafA = S.sel.ref.width * share;
+        S.sel.ref.leafB = S.sel.ref.width - S.sel.ref.leafA;
+      }
       syncPaired(S.sel.ref);
       return S.sel.ref.width;
     }
@@ -2074,7 +2085,7 @@ export function initUI() {
       if (!S.sel || S.sel.kind !== "room") return;
       const size = roomMeasurements(S, roomByKey(S.sel.ref))?.interior;
       if (!size) return;
-      const value = this.value.trim() === "" ? NaN : Number(this.value);
+      const value = this.value.trim() === "" ? NaN : parseFieldLength(this.value, id);
       resizeInspectorRoom(axis === "width" ? value : size.width,
         axis === "depth" ? value : size.depth);
     });
@@ -2198,6 +2209,11 @@ export function initUI() {
     pushHistory();
     S.sel.ref.isSliding = this.value === "sliding";
     S.sel.ref.isPocket = this.value === "pocket";
+    S.sel.ref.isDouble = this.value === "double";
+    if (S.sel.ref.isDouble) {
+      S.sel.ref.leafA = Number(S.sel.ref.leafA) || S.sel.ref.width / 2;
+      S.sel.ref.leafB = S.sel.ref.width - S.sel.ref.leafA;
+    }
     fillProps();
     S.dirty3D = true;
     render2D();
@@ -2223,6 +2239,26 @@ export function initUI() {
     S.dirty3D = true;
     render2D();
   });
+  document.querySelectorAll("#o_swing_grid [data-swing]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      if (!S.sel || S.sel.kind !== "opening") return;
+      pushHistory();
+      S.sel.ref.swingDir = button.dataset.swing;
+      fillProps();
+      S.dirty3D = true;
+      render2D();
+    });
+  });
+  function setDoorLeaf(which, value) {
+    if (!S.sel || S.sel.kind !== "opening" || !S.sel.ref.isDouble) return;
+    var o = S.sel.ref, minLeaf = Math.min(20, o.width / 2);
+    value = Math.max(minLeaf, Math.min(o.width - minLeaf, value));
+    o.leafA = which === "a" ? value : o.width - value;
+    o.leafB = o.width - o.leafA;
+    return which === "a" ? o.leafA : o.leafB;
+  }
+  bindLength("o_leaf_a", function (v) { return setDoorLeaf("a", v); });
+  bindLength("o_leaf_b", function (v) { return setDoorLeaf("b", v); });
   document.getElementById("o_slide_dir").addEventListener("change", function () {
     if (!S.sel || S.sel.kind !== "opening") return;
     pushHistory();
@@ -2292,6 +2328,8 @@ export function initUI() {
     "o_w",
     "o_h",
     "o_sill",
+    "o_leaf_a",
+    "o_leaf_b",
     "o_fr_jamb",
     "o_fr_head",
     "o_fr_sillw",
@@ -2576,7 +2614,7 @@ export function initUI() {
   document.getElementById("con_value").addEventListener("change", function () {
     if (!S.sel || S.sel.kind !== "con") return;
     var unit = conUnit(S.sel.ref);
-    var v = unit === "deg" ? parseFloat(this.value) : parseLen(this.value);
+    var v = unit === "deg" ? parseFloat(this.value) : parseLen(this.value, "plan");
     if (!Number.isFinite(v)) return;
     pushHistory();
     setConValue(S.sel.ref.id, v);
@@ -2713,7 +2751,7 @@ export function initUI() {
     });
   }
 
-  const themes = ["light", "soft", "mid", "dark"];
+  const themes = ["light", "soft", "mid", "dark", "chrome"];
   var curTheme = localStorage.getItem("home3d_theme") || "light";
   if (!themes.includes(curTheme)) curTheme = "light";
 
@@ -2722,7 +2760,7 @@ export function initUI() {
     if (!btn) return;
     const icon = btn.querySelector("i");
     if (icon) {
-      icon.className = theme === "dark" ? "ph ph-moon" : (theme === "mid" ? "ph ph-cloud-sun" : (theme === "soft" ? "ph ph-cloud" : "ph ph-sun"));
+      icon.className = theme === "chrome" ? "ph ph-google-chrome-logo" : (theme === "dark" ? "ph ph-moon" : (theme === "mid" ? "ph ph-cloud-sun" : (theme === "soft" ? "ph ph-cloud" : "ph ph-sun")));
     }
     var label = t("theme_" + theme) + " · " + t("theme_click");
     btn.title = label;
@@ -3840,13 +3878,12 @@ export function initUI() {
       applyEnv();
     } else if (act === "save") {
       try {
-        localStorage.setItem("home3d", serialize());
-        markSaved();
+        var savingRevision = getDirtyRevision();
+        await saveLocalProject(serialize());
+        markSaved(savingRevision);
         flash(t("f_saved"), "success");
       } catch (err) {
-        // Blowing the ~5 MB browser-storage quota is by far the likeliest
-        // failure here (embedded base64 textures), and it needs a different
-        // answer from the user than a generic error: export to a file.
+        // Storage may still be exhausted; offer a file export in that case.
         var quota =
           err &&
           (err.name === "QuotaExceededError" ||
@@ -3856,7 +3893,7 @@ export function initUI() {
       }
     } else if (act === "load") {
       try {
-        var raw = localStorage.getItem("home3d");
+        var raw = await loadLocalProject();
         if (!raw) {
           flash(t("f_noSave"), "error");
           return;
@@ -3875,13 +3912,8 @@ export function initUI() {
     } else if (act === "exportjson") {
       try {
         var blob = new Blob([serialize()], { type: "application/json" });
-        var url = URL.createObjectURL(blob);
-        download("home-plan.json", url);
-        setTimeout(function () {
-          URL.revokeObjectURL(url);
-        }, 2000);
-        markSaved(); // the work now exists outside the browser
-        flash(t("f_downloaded"), "success");
+        var delivery = await deliverExport("home-plan.json", blob);
+        if (delivery.saved) flash(t("f_downloaded"), "success");
       } catch (err) {
         flash(t("f_exportFail"), "error");
       }
@@ -3946,8 +3978,10 @@ export function initUI() {
         // A screen-resolution raster has no physical size, so it has no scale.
         // Stamping "1:20" on it invites someone to measure off the print.
         ctx.fillText("NTS", bw * 0.47, by + bh * 0.72);
-        download("home-plan-2d.png", out.toDataURL("image/png"));
-        flash(t("f_planPng"));
+        var pngBlob = await new Promise(resolve => out.toBlob(resolve, "image/png"));
+        if (!pngBlob) throw new Error("PNG encoding failed");
+        var pngDelivery = await deliverExport("home-plan-2d.png", pngBlob);
+        if (pngDelivery.saved) flash(t("f_planPng"));
       } catch (err) {
         flash(t("f_pngFail"), "error");
       }

@@ -26,7 +26,12 @@ export const CAB_LIMITS = {
 
 export function syncCabinetDefinition(state, item, options = {}) {
   const project = ensureParametricProject(state);
-  const previous = item.definitionId ? project.definitions[item.definitionId] : null;
+  let previous = item.definitionId ? project.definitions[item.definitionId] : null;
+  if (options.scope === "instance" && (state.items || []).some(other => other !== item && other.definitionId === item.definitionId)) {
+    previous = cloneDomain(previous);
+    item.definitionId = "cabinet:" + item.id + ":" + Date.now().toString(36);
+    if (previous) { previous.id = item.definitionId; previous.key = "cm_" + item.definitionId.replace(/[^a-z0-9_]/gi, "_"); }
+  }
   const definition = cabinetDefinitionFromItem(item, previous);
   item.definitionId = definition.id;
   item.parameterOverrides = { width: item.w, depth: item.d, height: item.h };
@@ -105,7 +110,7 @@ export function requestCabinetDimension(item, dimension, requested, ceilingHeigh
       : he("בדקו את החלוקה והאזהרות לפני שינוי המידה", "Review the layout and warnings before resizing") };
 }
 
-export function applyCabinetDimension(state, item, result, alternativeId) {
+export function applyCabinetDimension(state, item, result, alternativeId, options = {}) {
   const choice = result.status === "applied" ? result : (result.alternatives || []).find((candidate) => candidate.id === alternativeId);
   const limit = choice && CAB_LIMITS[choice.dimension];
   if (!limit || !Number.isFinite(choice.value) || choice.value < limit.min || choice.value > limit.max) return null;
@@ -115,5 +120,5 @@ export function applyCabinetDimension(state, item, result, alternativeId) {
   item.cab = verified.probe.cab;
   // Dimensions belong to the instance. Shared composition still propagates,
   // refitted to each linked cabinet's own envelope, just like normal edits.
-  return syncCabinetDefinition(state, item, { propagate: true });
+  return syncCabinetDefinition(state, item, { propagate: options.scope !== "instance", scope: options.scope });
 }

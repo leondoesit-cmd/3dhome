@@ -1,3 +1,4 @@
+import { openingDrawDefaults } from "./opening_draw_defaults.js";
 import { sx, sz, wx, wz, rotatePx, toBasePx, planRotRad, inputScale, inputBounds, inputIs3D, plannerInputView, setPlannerInputView, registerPlannerController } from "./planner_input.js";
 import { generatedChangePermission, captureProtectedStructure, validateProtectedStructure } from "./redesign.js";
 // Pointer/keyboard interaction: hit-testing, tools, drag/draw, and structural edit operations.
@@ -104,7 +105,7 @@ import {
   angleSectorAtNode, addWallRelation, addPointWallDistance, addAxisDistance,
   addFixed, addCoincident, addSymmetric, addMidpoint, addPointOnLine,
   addWallAngle, addEqualLengthSet, pinnedNodes, wallCons, anchorNode, removeCon,
-  addOpeningAlign,
+  addOpeningAlign, stabilizeOpeningCornerRefs,
 } from "./wall_constraints.js";
 import {
   syncWarnHighlight, setConstraintHover, renderWarnPanel,
@@ -711,11 +712,21 @@ function planPickSurface(p, cx, cz) {
 }
 
 /* ---- tools ---- */
+const STRUCTURE_AUTHOR_TOOLS = Object.freeze({
+  wall: 1, arcwall: 1, rect: 1, roomstamp: 1, door: 1, window: 1,
+  passage: 1, slabvoid: 1, walloffset: 1, walljoin: 1, wallbreak: 1,
+  wallbite: 1, wallreverse: 1, wallpaint: 1,
+});
+
 export function setTool(toolName) {
   cancelTouchPrecisionTrial();
   if (!toolName) toolName = "select";
   if (isElevation() && isWallDrawTool(toolName)) {
     flash(t("tool_plan_only"));
+    toolName = "select";
+  }
+  if (STRUCTURE_AUTHOR_TOOLS[toolName] && isLayerLocked("structure")) {
+    flash(t("tool_structure_locked"), "error");
     toolName = "select";
   }
   S.tool = toolName;
@@ -759,6 +770,8 @@ export function setTool(toolName) {
 
 if (typeof window !== "undefined")
   window.addEventListener("blueprint:trace-walls", function () { setTool("wall"); });
+if (typeof window !== "undefined")
+  window.addEventListener("layers:changed", syncElevationTools);
 
 export function syncElevationTools() {
   var elev = isElevation();
@@ -770,10 +783,13 @@ export function syncElevationTools() {
   document.querySelectorAll(".tool[data-tool]").forEach(function (b) {
     var tool = b.getAttribute("data-tool");
     var blocked = elev && isWallDrawTool(tool);
-    b.disabled = !!blocked;
+    var locked = !!STRUCTURE_AUTHOR_TOOLS[tool] && isLayerLocked("structure");
+    b.disabled = !!blocked || locked;
     b.classList.toggle("elev-blocked", blocked);
+    b.classList.toggle("layer-blocked", locked);
     b.classList.toggle("active", b.getAttribute("data-tool") === S.tool);
     if (blocked) b.title = t("tool_plan_only");
+    else if (locked) b.title = t("tool_structure_locked");
     else if (b.getAttribute("data-i18n-title")) b.title = t(b.getAttribute("data-i18n-title"));
   });
 }
@@ -1182,8 +1198,10 @@ function handleReverseClick(px, pz) {
 function commitRectFromTo(a, b) {
   var defaults = resolveWallDrawDefaults();
   var result = executeCommand(roomCreateCommand, {
-    from: a,
-    to: b,
+    // Snap candidates also carry optional UI metadata. Commands take points,
+    // not that metadata (which may contain undefined values at shared corners).
+    from: { x: a.x, z: a.z },
+    to: { x: b.x, z: b.z },
     type: defaults.typeId,
     kind: defaults.kind,
     loc: defaults.loc,
@@ -1316,7 +1334,7 @@ export function setRoomStampSize(w, d) {
   if (fin(d)) st.d = Math.max(20, d);
   if (S.previewPt) updateRoomGhost(S.previewPt.x, S.previewPt.z);
   render2D();
-  window.dispatchEvent(new CustomEvent("planner-room-stamp"));
+  window.dispatchEvent(new CustomEvent("planner-room-stamp", { detail: { reason: "size" } }));
 }
 
 function roomStampSpec() {
@@ -1362,6 +1380,7 @@ export function updateRoomGhost(px, pz) {
       rect: prep.rect, dock: null, preset: st.id, corridor: null,
       size: rectInterior(prep.rect, roomStampSpec().thickness),
       blocked: prep.room != null ? prep.room : true,
+      blockedReason: prep.reason || "ROOM_STAMP_FAILED",
       connMode: st.connMode || "auto", doorWallIndex: st.doorWallIndex || 0,
     };
   } else {
@@ -1401,7 +1420,9 @@ export function commitRoomStamp() {
   var ghost = S.roomGhost, st = S.roomStamp, prepared = S.roomPrepared;
   if (!ghost || !st) return null;
   if (!prepared || !prepared.ok) {
-    flash(prepared && prepared.reason === "ROOM_OVERLAPS" ? t("rp_overlap") : t("rp_failed"), "error");
+    var prepareReason = prepared && prepared.reason;
+    flash(prepareReason === "ROOM_OVERLAPS" ? t("rp_overlap")
+      : t("rp_failed_reason", { reason: prepareReason || "ROOM_STAMP_FAILED" }), "error");
     return null;
   }
   /* Apply the plan the ghost was drawn from, rather than re-deriving it. The
@@ -1409,7 +1430,12 @@ export function commitRoomStamp() {
      the guarantee worth having here: what is committed is what was shown. */
   var result = executePrepared(prepared, roomCommandEnvironment(), { label: t("rp_placed") });
   if (!result.ok) {
-    flash(result.reason === "ROOM_OVERLAPS" ? t("rp_overlap") : t("rp_failed"), "error");
+    ghost.blocked = ghost.blocked || true;
+    ghost.blockedReason = result.reason || "ROOM_STAMP_FAILED";
+    S.roomPrepared = null;
+    flash(result.reason === "ROOM_OVERLAPS" ? t("rp_overlap")
+      : t("rp_failed_reason", { reason: result.reason || "ROOM_STAMP_FAILED" }), "error");
+    render2D();
     return null;
   }
   var madeWallIds = result.created
@@ -2760,6 +2786,7 @@ export function wallHalfAt(w, px, pz) {
    devices do the same (they resolve through `wall`+`s`, so leaving them on the
    shortened wall would slide them along it). */
 function splitWallAt(w, s) {
+  stabilizeOpeningCornerRefs(w);
   prepareStableAnchors();
   var g = wallGeom(w), splitPoint = wallPointAt(w, s), original = JSON.parse(JSON.stringify(w));
   var ni = S.nodes.push({ x: splitPoint.x, z: splitPoint.z }) - 1;
@@ -4256,7 +4283,12 @@ export function initInteraction() {
     spacePan = !!on;
     if (plan) plan.classList.toggle("space-pan", spacePan);
   }
+  function modelerKeyboardOwnsInput() {
+    var modeler = document.getElementById("modeler");
+    return !!(modeler && modeler.style.display !== "none");
+  }
   window.addEventListener("keydown", function (e) {
+    if (modelerKeyboardOwnsInput()) return;
     var ae = document.activeElement;
     if (e.code !== "Space" || e.ctrlKey || e.metaKey || e.altKey ||
         (ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName)) || isWalk()) return;
@@ -4316,6 +4348,7 @@ export function initInteraction() {
       wallId: wall.id,
       type: tool,
       s: projected.s,
+      ...openingDrawDefaults(tool),
     }, agentCommandEnvironment(), {
       label: t("f_openingPlaced", { name: t(tool) }),
       presentation: { selectCreated: true, switchToolTo: "select" },
@@ -4537,12 +4570,7 @@ export function initInteraction() {
       if (S.tool === "door" || S.tool === "window" || S.tool === "passage") {
         var ewh = elevWallAt(ox, oy, true);
         if (!ewh) return;
-        var edefs = {
-          door: { width: 90, height: 205, sill: 0 },
-          window: { width: 120, height: 120, sill: 90 },
-          passage: { width: 120, height: 210, sill: 0 },
-        };
-        var elevationTool = S.tool, edd = edefs[elevationTool], sill = edd.sill;
+        var elevationTool = S.tool, edd = openingDrawDefaults(elevationTool), sill = edd.sill;
         if (S.tool === "window" && isFinite(ewh.v))
           sill = Math.max(0, Math.round(ewh.v - edd.height / 2));
         sill = clamp(sill, 0, Math.max(0, (ewh.w.height || WALL_H) - edd.height));
@@ -5206,8 +5234,11 @@ export function initInteraction() {
         /* An attached room is broken off its neighbours first, so what travels
            is the room and nothing else. detachRoomSeam returns the corners the
            room now owns; a free-standing room has no seam and keeps its own. */
-        var carry = detachRoomSeam(S, hk, detectRooms()) || rm.nidx;
+        // Selection alone must never detach shared walls. Wait for a real drag.
+        var carry = rm.nidx;
         S.dragRoom = {
+          key: hk,
+          started: false,
           sx: px,
           sz: pz,
           orig: carry.map(function (i) {
@@ -5879,6 +5910,15 @@ export function initInteraction() {
       return;
     }
     if (S.action === "room" && S.dragRoom) {
+      if (!S.dragRoom.started) {
+        if (Math.hypot(px - S.dragRoom.sx, pz - S.dragRoom.sz) * inputScale() < 3) return;
+        commitPending();
+        var carry = detachRoomSeam(S, S.dragRoom.key, detectRooms());
+        if (carry) S.dragRoom.orig = carry.map(function (i) {
+          return { i: i, x: S.nodes[i].x, z: S.nodes[i].z };
+        });
+        S.dragRoom.started = true;
+      }
       commitPending();
       var dx = Math.round((px - S.dragRoom.sx) / SNAP_GRID) * SNAP_GRID,
         dz = Math.round((pz - S.dragRoom.sz) / SNAP_GRID) * SNAP_GRID,
@@ -6072,6 +6112,10 @@ export function initInteraction() {
        the pre-drop pair of overlapping walls and cut a passage through each of
        them. Re-homing runs here too, so the corridor pass looks the room up by
        a key that still exists. */
+    if (S.action === "room" && S.dragRoom && !S.dragRoom.started) {
+      cancelPending(); S.action = null; S.dragRoom = null;
+      render2D(); return;
+    }
     if (S.action === "room" && S.dragRoom) {
       S.dragRoom.items.forEach(function (o) { releaseIfMoved(o.it); });
       var draggedKey = S.sel && S.sel.kind === "room" ? S.sel.ref : null;
@@ -6431,6 +6475,12 @@ export function initInteraction() {
   );
 
   window.addEventListener("keydown", function (e) {
+    // The modeler is a modal editor layered over the plan. Its shortcuts share
+    // letters with planner commands (notably L: sketch Line vs structure
+    // Lock), and the planner listener is registered first, so stopping the
+    // event inside the modeler is already too late. Leave every key to the
+    // visible modeler before the planner mutates hidden state behind it.
+    if (modelerKeyboardOwnsInput()) return;
     if (S.workspace && S.workspace.role === "viewer") return;
     if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
       e.preventDefault();

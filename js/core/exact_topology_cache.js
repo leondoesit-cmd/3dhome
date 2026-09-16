@@ -33,3 +33,16 @@ export function verifiedExactTopology(document, features) {
   }
   return topology;
 }
+
+/* A parameter edit invalidates a cached result as geometry, but its topology
+   names are still valuable as one-run naming hints.  The exact kernel uses
+   these records only to match old subshape identities onto newly-built
+   subshapes; it never reuses the cached shape or treats an old signature as a
+   successful rebuild. */
+export function cachedExactTopology(document) {
+  const topology=new Map();
+  for(const [id,entry] of Object.entries(document?.exactTopologyCache || {})){
+    if(Array.isArray(entry?.topology))topology.set(id,structuredClone(entry.topology));
+  }
+  return topology;
+}

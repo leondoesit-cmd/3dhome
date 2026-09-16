@@ -10,8 +10,7 @@ import { ROOM_PRESETS } from './room_presets.js';
 import { roomTypeOf } from './room_types.js';
 import { select } from './ui_props.js';
 import { disarmRoomStamp, setTool } from './interaction.js';
-import {planningGuide} from './planning_guide.js';
-import {toDisplayLength,fromDisplayLength} from './planning_units.js';
+import {fmtLen,parseLen,unitLabel} from './display_units.js';
 
 export function selectedRoomSection(room, helpers, edit, resize, area) {
   const {el,field,button,choices,section}=helpers;
@@ -25,8 +24,8 @@ export function selectedRoomSection(room, helpers, edit, resize, area) {
   const type=choices(types,roomTypeOf(meta)||'',value=>{if(value)edit({roomKey:key,roomType:value});});
   type.options[0].disabled=true;
   node.append(field('guide_name',name),field('guide_type',type));
-  const unit=planningGuide(S).details.displayUnit||'cm',label=t('guide_unit_'+unit),unitText=key=>t(key).replace(t('guide_cm'),label);
-  const measurement=roomMeasurements(S,room),fmt=n=>Number(toDisplayLength(n,unit).toFixed(4));
+  const label=unitLabel('rooms'),unitText=key=>t(key).replace(t('guide_cm'),label);
+  const measurement=roomMeasurements(S,room),fmt=n=>fmtLen(n,{domain:'rooms',suffix:false});
   if(measurement?.interior)node.append(el('p',unitText('guide_inner_dimensions').replace('{w}',fmt(measurement.interior.width)).replace('{d}',fmt(measurement.interior.depth))));
   else node.append(el('p',t('guide_inner_unavailable'),'guide-note'));
   if(measurement)node.append(el('p',unitText('guide_reference_dimensions').replace('{w}',fmt(measurement.referenceWidth)).replace('{d}',fmt(measurement.referenceDepth)),'guide-note'));
@@ -36,12 +35,13 @@ export function selectedRoomSection(room, helpers, edit, resize, area) {
     const form=el('div','','guide-actions');
     const width=el('input'),depth=el('input');
     for(const [input,value] of [[width,measurement.interior.width],[depth,measurement.interior.depth]]){
-      input.type='number';input.min=String(toDisplayLength(20,unit));input.step='any';input.value=String(toDisplayLength(value,unit));
+      input.type='text';input.inputMode='decimal';input.value=fmtLen(value,{domain:'rooms',suffix:false});
     }
     form.append(field('guide_resize_width',width),field('guide_resize_depth',depth));
     width.parentElement.firstChild.textContent=unitText('guide_resize_width');depth.parentElement.firstChild.textContent=unitText('guide_resize_depth');
     const apply=button('guide_resize_apply',()=>{
-      if(width.reportValidity()&&depth.reportValidity())resize({roomKey:key,width:fromDisplayLength(Number(width.value),unit),depth:fromDisplayLength(Number(depth.value),unit)});
+      const w=parseLen(width.value,'rooms'),d=parseLen(depth.value,'rooms');
+      if(Number.isFinite(w)&&Number.isFinite(d))resize({roomKey:key,width:w,depth:d});
     });
     node.append(form,apply,el('p',t('guide_resize_hint'),'guide-note'));
   }
@@ -63,7 +63,7 @@ export function selectedRoomSection(room, helpers, edit, resize, area) {
   }
   openings.forEach(o=>{
     const control=button('guide_edit_opening',()=>inspect({kind:'opening',ref:o}));
-    control.textContent=t(o.type==='passage'?'passage':o.type==='window'?'window':'door')+' · '+fmt(o.width)+' '+label;
+    control.textContent=t(o.type==='passage'?'passage':o.type==='window'?'window':'door')+' · '+fmtLen(o.width,{domain:'openings'});
     control.dataset.openingId=String(o.id);details.append(control);
   });
   const actions=el('div','','guide-actions');

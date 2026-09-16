@@ -67,3 +67,38 @@ test('linked inset preserves exact offset curves after draft and permits the pla
   assert.ok(segmentProfilePoints(loops[0]).length>100);
  }finally{shapes.reverse().forEach(disposeBrep);}
 });
+
+test('linked inset rebases a stale face owner onto the filleted body head',async()=>{
+ const shapes=[],keep=shape=>(shapes.push(shape),shape);
+ try{
+  const points=[{u:-3.429,v:-3.429},{u:3.429,v:-3.429},{u:3.429,v:3.429},{u:-3.429,v:3.429}];
+  const base=keep(await makeBrepExtrusion({points,axis:'y',from:0,to:1.016}));
+  extractBrepTopology(base,{ownerFeatureId:'base'});
+  const baseFace=base.topology.find(t=>t.kind==='face'&&t.descriptor.normal?.y>.99);
+  const vertical=base.topology.filter(t=>t.kind==='edge'&&Math.abs(t.descriptor.axis?.y)>.99).map(t=>t.persistentId);
+  const rounded=keep(await filletBrep(base,1.27,{edgePersistentIds:vertical}));
+  extractBrepTopology(rounded,{ownerFeatureId:'fillet',expectedTopology:base.topology});
+  const roundedFace=rounded.topology.find(t=>t.kind==='face'&&t.descriptor.normal?.y>.99&&t.descriptor.origin.y>1);
+  const frame=frameFromPlane({x:0,y:1.016,z:0},{x:0,y:1,z:0});
+  const currentSource={...roundedFace,ownerFeatureId:'fillet'};
+  const loops=offsetFaceBoundary(rounded,currentSource,frame,-.381);
+  assert.equal(loops[0].filter(segment=>segment.type==='arc').length,4);
+  assert.ok(loops[0].filter(segment=>segment.type==='arc').every(segment=>Math.abs(segment.radius-.889)<1e-6));
+
+  const sketch={id:'inset',frame,points:[],entities:[],constraints:[]};let id=0;
+  appendBoundarySketch(sketch,loops,()=>String(++id));
+  const entityIds=sketch.entities.map(entity=>entity.id);
+  // This is the metadata written by older releases: the face descriptor is
+  // post-fillet, but its owner still names the pre-fillet base extrusion.
+  const staleSource={...baseFace,descriptor:structuredClone(roundedFace.descriptor),ownerFeatureId:'base'};
+  sketch.boundaryCopies=[{source:staleSource,distance:-.381,entityIds,associative:true}];
+  const resolved=resolveAssociativeBoundary(sketch,{
+   profileEntityIds:entityIds,axis:'frame',frame,from:0,to:-.508,targetFeatureId:'fillet',
+  },new Map([['base',base],['fillet',rounded]]));
+
+  assert.ok(resolved);
+  assert.equal(resolved.params.segments.filter(segment=>segment.type==='arc').length,4);
+  assert.ok(resolved.params.segments.filter(segment=>segment.type==='arc').every(segment=>Math.abs(segment.radius-.889)<1e-6));
+  assert.equal(resolved.sketch.boundaryCopies[0].source.ownerFeatureId,'fillet');
+ }finally{shapes.reverse().forEach(disposeBrep);}
+});

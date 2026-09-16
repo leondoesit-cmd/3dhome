@@ -93,8 +93,10 @@ function lowerExtrudeParams(feature, document) {
   // Keep a stored span only for measured extents, or for old features that
   // never recorded a depth.
   const useStoredSpan = hasStoredSpan && (endConditionHidesDepth(feature.params?.endCondition) || !hasTypedDepth);
-  const from = useStoredSpan ? storedFrom : (symmetric ? offset - depth / 2 : offset);
-  const to = useStoredSpan ? storedTo : (symmetric ? offset + depth / 2 : offset + reverse * depth);
+  const planeOffset = sketch?.frame ? 0 : Number(sketch?.offset) || 0;
+  const start = planeOffset + offset;
+  const from = useStoredSpan ? storedFrom : (symmetric ? start - depth / 2 : start);
+  const to = useStoredSpan ? storedTo : (symmetric ? start + depth / 2 : start + reverse * depth);
   const target = feature.inputs?.[0] || idOf(feature.references?.features?.[0]);
   const params = {
     ...cloneDomain(feature.params),

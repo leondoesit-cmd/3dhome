@@ -20,6 +20,7 @@ const openingCommand = await readFile(new URL("../js/commands/opening_place.js",
 const chrome = await readFile(new URL("../js/planner_chrome.js", import.meta.url), "utf8");
 const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
 const view3d = await readFile(new URL("../js/view3d.js", import.meta.url), "utf8");
+const uiRooms = await readFile(new URL("../js/ui_rooms.js", import.meta.url), "utf8");
 
 test("mobile shells reserve only one 48px nav and one 44px context row", () => {
   assert.match(css, /--mobile-nav-block:\s*calc\(48px \+ env\(safe-area-inset-bottom\)\)/);
@@ -163,11 +164,30 @@ test("mobile More promotes guidance and groups project work before collapsed ext
   assert.match(planner, /className = "m-guide-card"/);
   assert.match(planner, /run\("plannerTutorial"\)/);
   assert.match(planner, /appendMenuGroup\(t\("m_more_project"\)/);
+  assert.match(planner, /exclude: \["reset", "save"\]/);
   assert.match(planner, /appendMenuGroup\(t\("m_more_extras"\)[\s\S]*?collapsed: true/);
   assert.match(planner, /exclude: \["rc", "zombies", "lava", "openModeler", "uikitCustomize", "friends", "agent"\]/);
   assert.doesNotMatch(planner, /"shortcutsBtn"/);
   assert.match(css, /body\.compact-nav #openModelerTop\.legacy-chrome\s*\{\s*display:\s*none !important/);
   assert.match(css, /body\.compact-nav #topbar \.tb-end\s*\{\s*display:\s*none !important/);
+});
+
+test("dismissed Planner sheets leave focus navigation and the accessibility tree", () => {
+  assert.match(planner, /sheet\.setAttribute\("aria-hidden", "true"\)/);
+  assert.match(planner, /sheet\.inert = true/);
+  assert.match(planner, /sheet\.setAttribute\("aria-hidden", "false"\)/);
+  assert.match(planner, /sheet\.inert = false/);
+  assert.match(planner, /sheetReturnFocus\.focus\(\{ preventScroll: true \}\)/);
+});
+
+test("mobile room presets preserve input focus and collapse for placement", () => {
+  assert.match(uiRooms, /roomPaletteToggle/);
+  assert.match(uiRooms, /event\.detail && event\.detail\.reason === "size"/);
+  assert.match(uiRooms, /syncRoomSizeControls\(\)/);
+  assert.match(uiRooms, /planner-room-created[\s\S]*?compact-nav[\s\S]*?auto-collapsed/);
+  assert.match(interaction, /planner-room-stamp", \{ detail: \{ reason: "size" \} \}/);
+  assert.match(css, /#plan-room-palette\.auto-collapsed[\s\S]*?width:\s*42px/);
+  assert.match(i18n, /rp_collapse:\s*"Collapse room options"/);
 });
 
 test("phone planner chrome keeps readable nav labels and hides the 2D view cube", () => {
@@ -191,11 +211,16 @@ test("destructive reset confirms and beginner coaching follows completed milesto
   assert.match(interaction, /planner-room-created/);
   assert.match(openingCommand, /planner-opening-created/);
   assert.match(ui, /planner-item-created/);
-  assert.match(chrome, /if \(intention\)[\s\S]*?openPlanningGuide\(\)/);
+  assert.match(chrome, /if \(intention && intention !== "explore"\)[\s\S]*?openPlanningGuide\(\)/);
   assert.match(planner, /if \(S\.workspace\?\.guidance\?\.enabled\) return/);
   ["mcoach_room_done", "mcoach_opening_done", "mcoach_item_done", "mcoach_preview"].forEach((key) => {
     assert.match(planner, new RegExp(key));
   });
+});
+
+test("Just explore keeps its promise of an unguided blank canvas", () => {
+  assert.match(chrome, /guidedStart = !!intention && intention !== "explore"/);
+  assert.match(chrome, /setTool\(intention === "explore" \? "select" : "rect"\)/);
 });
 
 test("dismissing the coach ends it for good and only the first room arms it", () => {

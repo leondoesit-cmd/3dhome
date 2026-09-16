@@ -10,17 +10,36 @@
   margin-bottom: 6px;
   font-weight: 600;
 }
-.dof-fully-constrained { background: rgba(60, 120, 220, 0.12); color: #2f5fae; }
-.dof-under-constrained { background: rgba(120, 128, 140, 0.14); color: #5a626e; }
-.dof-over-constrained  { background: rgba(214, 158, 46, 0.16); color: #8a6316; }
-.dof-conflicting       { background: rgba(225, 70, 70, 0.14); color: #b13636; }
+.dof-fully-constrained { background: rgba(60, 120, 220, 0.12); color: #1d4ed8; }
+.dof-under-constrained { background: rgba(120, 128, 140, 0.14); color: #475569; }
+.dof-over-constrained  { background: rgba(214, 158, 46, 0.16); color: #9a3412; }
+.dof-conflicting       { background: rgba(225, 70, 70, 0.14); color: #b91c1c; }
+
+[data-theme="dark"] .dof-fully-constrained,
+[data-theme="mid"] .dof-fully-constrained,
+[data-theme="chrome"] .dof-fully-constrained  { background: rgba(56, 189, 248, 0.18); color: #7dd3fc; }
+[data-theme="dark"] .dof-under-constrained,
+[data-theme="mid"] .dof-under-constrained,
+[data-theme="chrome"] .dof-under-constrained  { background: rgba(148, 163, 184, 0.16); color: #cbd5e1; }
+[data-theme="dark"] .dof-over-constrained,
+[data-theme="mid"] .dof-over-constrained,
+[data-theme="chrome"] .dof-over-constrained   { background: rgba(251, 191, 36, 0.18); color: #fde047; }
+[data-theme="dark"] .dof-conflicting,
+[data-theme="mid"] .dof-conflicting,
+[data-theme="chrome"] .dof-conflicting        { background: rgba(248, 113, 113, 0.18); color: #fca5a5; }
 
 /* A dimension row in the message list reads like a joint warning, but its
    marker is the ruler icon and it has no ignore button — see ui_warn.js. */
-.warnRow.warn-con i { color: #2f5fae; }
+.warnRow.warn-con i { color: #1d4ed8; }
+[data-theme="dark"] .warnRow.warn-con i,
+[data-theme="mid"] .warnRow.warn-con i,
+[data-theme="chrome"] .warnRow.warn-con i { color: #7dd3fc; }
 
 /* The single-dimension inspector's live readout. */
-#con_state.con-bad { color: #b13636; font-weight: 600; }
+#con_state.con-bad { color: #b91c1c; font-weight: 600; }
+[data-theme="dark"] #con_state.con-bad,
+[data-theme="mid"] #con_state.con-bad,
+[data-theme="chrome"] #con_state.con-bad { color: #fca5a5; }
 
 /* Every-dimension list, under the message list in the constraint panel. */
 .con-all summary {

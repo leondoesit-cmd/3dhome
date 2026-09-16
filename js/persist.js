@@ -20,6 +20,7 @@ const RECOVERY_STORE = "snapshots";
 
 var api = null; // { serialize, applyData, flash, openModal }
 var dirty = false; // model changed since the last explicit save/export
+var dirtyRevision = 0;
 var timer = null;
 var lastWritten = null; // avoid rewriting an identical payload
 var quotaWarned = false;
@@ -82,13 +83,16 @@ async function clearAutoDB() {
    Called from the app's existing mutation choke points, so autosave does not
    need its own notion of what counts as an edit. */
 export function markDirty() {
+  dirtyRevision++;
   dirty = true;
   syncSaveStatus();
   if (!api) return;
   if (timer) clearTimeout(timer);
   timer = setTimeout(writeAuto, DEBOUNCE_MS);
 }
-export function markSaved() {
+export function getDirtyRevision() { return dirtyRevision; }
+export function markSaved(expectedRevision) {
+  if (expectedRevision !== undefined && expectedRevision !== dirtyRevision) return;
   dirty = false;
   syncSaveStatus();
 }

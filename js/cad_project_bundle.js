@@ -9,7 +9,7 @@ export async function createProjectBundle(def, assemblies = [], drawings = []) {
     ...content,
     metadata: {
       generator: "ModelForge CAD SolidWorks-Class",
-      units: "cm",
+      units: def?.context?.units?.length || "mm",
       attachmentStorage:"content-addressed",
     },
   };

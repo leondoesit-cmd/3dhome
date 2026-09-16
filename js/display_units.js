@@ -9,7 +9,9 @@ import { getDomainUnit, getDomainDigits, inferDomainFromElementId } from "./unit
 
 export function displayUnit(domain) {
   if (domain) return getDomainUnit(domain);
-  return planningDisplayUnit(S);
+  var gUnit = S && S.workspace && S.workspace.guidance && S.workspace.guidance.details && S.workspace.guidance.details.displayUnit;
+  if (gUnit && gUnit !== "cm") return gUnit;
+  return getDomainUnit("plan");
 }
 
 export function unitLabel(domain) {
@@ -60,7 +62,7 @@ export function asLengthInput(input, cm, domain) {
   input.spellcheck = false;
   var dom = domain || inferDomainFromElementId(input.id) || null;
   if (cm === "" || cm == null) input.value = "";
-  else input.value = fmtLen(cm, { suffix: false, domain: dom });
+  else writeLen(input, cm, { domain: dom });
   return input;
 }
 
@@ -96,7 +98,8 @@ export function writeLen(el, cm, options) {
   var opts = typeof options === "string" ? { domain: options } : (options || {});
   var dom = opts.domain || opts.part || inferDomainFromElementId(el.id) || null;
   var unit = opts.unit || (dom ? displayUnit(dom) : displayUnit());
-  var digits = opts.digits != null ? opts.digits : (dom ? getDomainDigits(dom) : (unit === "cm" ? 6 : undefined));
+  // Editable values retain precision independently of rounded drawing labels.
+  var digits = opts.digits != null ? opts.digits : 6;
   el.value = formatLength(cm, unit, {
     suffix: false,
     digits: digits,

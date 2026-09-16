@@ -11,6 +11,7 @@ import {roomTypeOf} from './room_types.js';
 import {watchPlanningActivity} from './planning_activity.js';
 import {checklistStatus} from './planning_guide.js';
 import {detectRooms} from './geometry.js';
+import {parseXYList} from './display_units.js';
 let worker=null,preview=null,size='small',replace=false,activeStamp=null,boundaryText='';
 const cancel=()=>{worker?.terminate();worker=null;preview=null;activeStamp=null;clearAgentPreview();};
 const env=()=>({state:S,history:{begin:beginHistoryTransaction,commit:commitHistoryTransaction,abort:abortHistoryTransaction,current:currentHistoryId},version:{current:currentHistoryId}});
@@ -26,7 +27,7 @@ export function draftToolsSection(helpers,guide){
   worker?.terminate();preview=null;clearAgentPreview();if(S.structLocked||S.layers?.structure?.locked||(replace&&(S.walls.some(w=>w.locked)||S.items.some(i=>i.locked)||S.wallCons?.length||S.roomCons?.length))){flash(t('draft_refused'),'error');return;}
   const requirements=checklistStatus(S,detectRooms()).filter(room=>!room.skipped&&(room.status==='unplaced'||replace&&room.status==='placed')).map(({id,type,name,width,depth})=>({id,type,name,...(width!=null?{width}:{}),...(depth!=null?{depth}:{})}));
   if(guide.rooms.some(room=>!room.skipped)&&!requirements.length){flash(t('draft_no_unplaced'),'error');return;}
-  const boundary=boundaryText.trim()?boundaryText.trim().split('\n').map(line=>{const [x,z]=line.split(',').map(Number);return {x,z};}):null;
+  const boundary=boundaryText.trim()?parseXYList(boundaryText,'plan'):null;
   if(boundary&&!requirements.length){flash(t('draft_boundary_needs_rooms'),'error');return;}
   const params={size,replace,seed:1,furnish:false,openings:false,requirements,boundary};
   const prepared=prepareCommand(apartmentGenerateCommand,params,env());

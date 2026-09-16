@@ -12,3 +12,4 @@ server/.prodsize-cache.json
 .vscode/
 .idea/
 scratch/
+tmp/

@@ -1,4 +1,6 @@
+import { fillRoomBoundaries } from "./ui_room_boundaries.js";
 import { roomMeasurements } from "./room_summary.js";
+import { roomClearArea } from "./room_area.js";
 import { S, hexStr, TILE } from "./state.js";
 import { wallById, roomByKey, roomFloor, roomName, wallGeom, itemsInRoom, wallClearLength, wallDimSide, wallSideNormal, jointInfo, nodeDegree } from "./geometry.js";
 import { flabel, isLamp, lampColor, variantList, variantOf, vlabel, itemVSpan } from "./furniture.js";
@@ -16,7 +18,7 @@ import { renderRoomCons } from "./ui_params.js";
 import { pushHistory, refreshHistoryPanel } from "./history.js";
 import { render2D } from "./plan2d.js";
 import { flash } from "./ui.js";
-import { isLocked } from "./constraint_engine.js";
+import { isLocked, jointWarnings, ignoreWarning, unignoreWarning } from "./constraint_engine.js";
 import { squarableArm } from "./joint_square.js";
 import {
   consForWall, conCurrent, conError, conSatisfied, anchorLabel, removeCon,
@@ -43,6 +45,18 @@ import {
   wallProfileHeight,
   verticalSegments,
 } from "./wall_curves.js";
+
+function fillWallEndActions(wall) {
+  let host = document.getElementById("wallEndActions");
+  if (!host) { host = document.createElement("div"); host.id = "wallEndActions"; document.getElementById("w_len").closest(".dim-row").after(host); }
+  host.replaceChildren();
+  for (const warning of jointWarnings().filter(w => w.kind === "openEnd" && w.walls.includes(wall.id))) {
+    const button = document.createElement("button");
+    button.textContent = t(warning.ignored ? "cw_restoreFreeEnd" : "cw_markFreeEnd") + " · " + warning.key.split(":").pop().toUpperCase();
+    button.onclick = () => { pushHistory(); if(warning.ignored) unignoreWarning(warning.key); else ignoreWarning(warning.key); fillWallEndActions(wall); renderWarnPanel(true); render2D(); };
+    host.append(button);
+  }
+}
 
 function inspectorUnit() {
   return displayUnit();
@@ -78,7 +92,7 @@ function fillStackRow(it) {
   name.textContent = t("stack_lbl") + ": " + flabel(host.type);
   var hgt = document.createElement("span");
   hgt.className = "ps-spec-dims";
-  hgt.textContent = fmtLen(it.elev || 0);
+  hgt.textContent = fmtLen(it.elev || 0, { domain: "furniture" });
   var off = document.createElement("button");
   off.className = "ps-spec-clear";
   off.innerHTML = '<i class="ph ph-arrow-line-down"></i>';
@@ -164,7 +178,7 @@ function fillWallTypeSelect(id, selected) {
   S.wallTypes.forEach(function (type) {
     var option = document.createElement("option");
     option.value = type.id;
-    option.textContent = type.name + " · " + fmtLen(type.thickness);
+    option.textContent = type.name + " · " + fmtLen(type.thickness, { domain: "details" });
     el.appendChild(option);
   });
   el.value = wanted;
@@ -453,7 +467,7 @@ function fillWallStats(w) {
   var chips = [
     { k: t("len"), v: inspectorLen(L), sub: Math.abs(Lraw - L) > 0.6 ? t("wi_axis", { v: inspectorLen(Lraw) }) : "" },
     { k: t("height"), v: inspectorLen(H), sub: "" },
-    { k: t("th"), v: fmtLen(T), sub: "" },
+    { k: t("th"), v: fmtLen(T, { domain: "details" }), sub: "" },
     { k: t("wi_netArea"), v: m2(net), sub: nOpen ? t(nOpen === 1 ? "wi_netOf1" : "wi_netOf", { n: nOpen }) : "" },
   ];
   host.innerHTML = "";
@@ -614,7 +628,7 @@ function fillWallOpenings(w) {
 
     var nm = document.createElement("span");
     nm.className = "nm";
-    nm.textContent = t(openingTypeKey(o.type)) + " · " + fmtLen(o.width, { suffix: false }) + "×" + fmtLen(o.height);
+    nm.textContent = t(openingTypeKey(o.type)) + " · " + fmtLen(o.width, { domain: "openings", suffix: false }) + "×" + fmtLen(o.height, { domain: "openings" });
 
     var sub = document.createElement("span");
     sub.className = "sub";
@@ -912,7 +926,7 @@ function fillWallElevation(w) {
       oy = Y((o.sill || 0) + o.height);
     var sel = openingFocused(o);
     var label =
-      t(openingTypeKey(o.type)) + " " + fmtLen(o.width, { suffix: false }) + "×" + fmtLen(o.height) + " · " + fmtLen(o.s) +
+      t(openingTypeKey(o.type)) + " " + fmtLen(o.width, { domain: "openings", suffix: false }) + "×" + fmtLen(o.height, { domain: "openings" }) + " · " + fmtLen(o.s, { domain: "rooms" }) +
       " · " + t("wi_openDblHint");
     parts.push(
       '<g class="w-open-hit w-open-' + (o.type === "door" ? "d" : o.type === "window" ? "w" : "p") + (sel ? " sel" : "") + '" data-oid="' + o.id + '">' +
@@ -1174,11 +1188,11 @@ function conRow(c) {
       inp.className = "con-val";
       inp.value = c.type === "angle"
         ? String(Math.round(c.value * 10) / 10)
-        : fmtLen(c.value, { suffix: false });
+        : fmtLen(c.value, { suffix: false, domain: "plan" });
       inp.title = t(c.type === "angle" ? "cad_ang" : "cad_len");
       inp.disabled = !!c.off;
       inp.addEventListener("change", function () {
-        var v = c.type === "angle" ? parseFloat(inp.value) : parseLen(inp.value);
+        var v = c.type === "angle" ? parseFloat(inp.value) : parseLen(inp.value, "plan");
         if (!isFinite(v)) return;
         pushHistory();
         setConValue(c.id, v);
@@ -1193,7 +1207,7 @@ function conRow(c) {
       row.appendChild(inp);
       var unit = document.createElement("span");
       unit.className = "con-unit";
-      unit.textContent = c.type === "angle" ? "°" : unitLabel();
+      unit.textContent = c.type === "angle" ? "°" : unitLabel("plan");
       row.appendChild(unit);
     }
 
@@ -1516,8 +1530,8 @@ export function fillJoint(ni) {
   showPanel("node");
   var info = jointInfo(ni);
   if (!info) return;
-  document.getElementById("nd_x").value = fmtLen(info.x, { suffix: false });
-  document.getElementById("nd_z").value = fmtLen(info.z, { suffix: false });
+  writeLen(document.getElementById("nd_x"), info.x);
+  writeLen(document.getElementById("nd_z"), info.z);
   document.getElementById("selname_nd").textContent =
     t("nd_title") + (info.open ? " · " + t("nd_open") : "");
   document.getElementById("nd_state").textContent = t("nd_walls", {
@@ -1682,9 +1696,9 @@ function fillCon(c) {
     if (typeable) {
     input.value = unit === "deg"
       ? String(Math.round((Number(c.value) || 0) * 10) / 10)
-      : fmtLen(Number(c.value) || 0, { suffix: false });
+      : fmtLen(Number(c.value) || 0, { suffix: false, domain: "plan" });
     document.getElementById("con_value_lbl").textContent =
-      unit === "deg" ? t("cad_ang") : unitLabel();
+      unit === "deg" ? t("cad_ang") : unitLabel("plan");
   }
   document.getElementById("con_report").checked = !!c.report;
   document.getElementById("con_off").checked = !!c.off;
@@ -1696,7 +1710,7 @@ function fillCon(c) {
 function fmtVal(v, unit) {
   if (v == null) return "?";
   if (unit === "deg") return (Math.round(v * 10) / 10) + "°";
-  return fmtLen(v);
+  return fmtLen(v, { domain: "plan" });
 }
 
 /* The position dimensions on one opening, listed the same way a wall's are.
@@ -1803,6 +1817,7 @@ export function fillProps() {
     writeInspectorLen("w_th", wallThickness(w, S));
     writeInspectorLen("w_h", w.height);
     fillWallHead(w);
+    fillWallEndActions(w);
 
     fillWallTypeSelect("w_type", w.wallTypeId);
     fillWallTypeSelect("w_upper_type", w.upperWallTypeId || w.wallTypeId);
@@ -1883,6 +1898,8 @@ export function fillProps() {
   } else if (S.sel.kind === "item") {
     var it = S.sel.ref;
     showPanel("item");
+    var stairVoidAction = document.querySelector('[data-act="slabFromStairs"]');
+    if (stairVoidAction) stairVoidAction.hidden = it.type !== "stairs";
     writeInspectorLen("i_w", it.w);
     writeInspectorLen("i_d", it.d);
     writeInspectorLen("i_h", it.h);
@@ -1926,14 +1943,14 @@ export function fillProps() {
     writeInspectorLen("o_w", o.width);
     writeInspectorLen("o_h", o.height);
     var oUnit = document.getElementById("o_unit");
-    if (oUnit) oUnit.textContent = t("guide_unit_" + inspectorUnit());
-    document.getElementById("o_sill").value = fmtLen(o.sill, { suffix: false });
+    if (oUnit) oUnit.textContent = unitLabel("openings");
+    writeInspectorLen("o_sill", o.sill);
     document.getElementById("o_sill_l").style.display = o.type === "window" ? "flex" : "none";
     fillOpeningCons(o);
       
     if (o.type === "door") {
       document.getElementById("doorSpecific").style.display = "flex";
-      document.getElementById("o_type_sel").value = o.isPocket ? "pocket" : (o.isSliding ? "sliding" : "standard");
+      document.getElementById("o_type_sel").value = o.isPocket ? "pocket" : (o.isSliding ? "sliding" : (o.isDouble ? "double" : "standard"));
       if (o.isSliding || o.isPocket) {
         document.getElementById("o_mat").value = o.mat || "wood";
         document.getElementById("o_col").value = o.color || "#ffffff";
@@ -1993,6 +2010,20 @@ export function fillProps() {
         document.getElementById("o_swing_dir_l").style.display = "flex";
         document.getElementById("o_swing_dir").value = o.swingDir || "R_IN";
       }
+      var pairBox = document.getElementById("o_pair_box");
+      if (pairBox) pairBox.style.display = o.isDouble ? "grid" : "none";
+      if (o.isDouble) {
+        var leftLeaf = Number(o.leafA) || o.width / 2;
+        writeLen(document.getElementById("o_leaf_a"), leftLeaf, { domain: "openings" });
+        writeLen(document.getElementById("o_leaf_b"), o.width - leftLeaf, { domain: "openings" });
+      }
+      var swingGrid = document.getElementById("o_swing_grid");
+      if (swingGrid) {
+        swingGrid.style.display = o.isSliding || o.isPocket ? "none" : "grid";
+        swingGrid.querySelectorAll("[data-swing]").forEach(function (button) {
+          button.classList.toggle("active", button.dataset.swing === (o.swingDir || "R_IN"));
+        });
+      }
     } else {
       document.getElementById("doorSpecific").style.display = "none";
     }
@@ -2049,6 +2080,7 @@ export function fillProps() {
     var roomTitle = document.getElementById("selname4");
     if (roomTitle) roomTitle.textContent = roomName(r.key) || t("room");
     renderRoomCons(r.key);
+    fillRoomBoundaries(r, select);
     document.getElementById("r_name").value = roomName(r.key);
     var size = roomMeasurements(S, r)?.interior;
     var sizeRow = document.getElementById("r_size_row");
@@ -2056,8 +2088,8 @@ export function fillProps() {
     if (sizeRow) sizeRow.style.display = size ? "" : "none";
     if (lHint) lHint.style.display = size ? "none" : "";
     if (size) {
-      document.getElementById("r_w").value = Number(size.width.toFixed(6));
-      document.getElementById("r_d").value = Number(size.depth.toFixed(6));
+      writeInspectorLen("r_w", size.width);
+      writeInspectorLen("r_d", size.depth);
     }
     document.getElementById("r_floor").value = roomFloor(r.key);
     var tScale = S.roomMeta[r.key] && S.roomMeta[r.key].floorScale;
@@ -2074,7 +2106,10 @@ export function fillProps() {
       var bumpBox = document.getElementById("r_floor_bump_box");
       if (bumpBox) bumpBox.style.display = "block";
     }
-    document.getElementById("r_area").textContent = fmtAreaM2(r.area / 10000);
+    var clearArea = roomClearArea(S, r);
+    document.getElementById("r_area").textContent = clearArea.area == null
+      ? t("room_area_reference", { area: fmtAreaM2(r.area / 10000) })
+      : t("room_area_usable", { area: fmtAreaM2(clearArea.area) });
     document.getElementById("r_wall").value = hexStr(
       S.roomMeta[r.key] && S.roomMeta[r.key].wall != null ? S.roomMeta[r.key].wall : S.wallColor
     );

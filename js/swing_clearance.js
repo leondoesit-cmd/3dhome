@@ -133,6 +133,19 @@ export function doorSwingPoly(o, walls, nodes) {
   var tangent = wallTangentAt(wall, s);
   if (!centre || !tangent) return null;
   var hw = o.width / 2;
+  if (o.isDouble) {
+    var inward = String(o.swingDir || "R_IN").slice(-2) === "IN",
+      side = inward ? -1 : 1,
+      leftWidth = Math.max(1, Math.min(o.width - 1, Number(o.leafA) || hw)),
+      rightWidth = o.width - leftWidth,
+      leftHinge = { x: centre.x - tangent.x * hw, z: centre.z - tangent.z * hw },
+      rightHinge = { x: centre.x + tangent.x * hw, z: centre.z + tangent.z * hw },
+      normal = side < 0 ? { x: tangent.z, z: -tangent.x } : { x: -tangent.z, z: tangent.x };
+    return [
+      ...sectorPoly(leftHinge, tangent, normal, leftWidth, 8),
+      ...sectorPoly(rightHinge, { x: -tangent.x, z: -tangent.z }, normal, rightWidth, 8),
+    ];
+  }
   var swingDir = o.swingDir || "R_IN";
   var isLeftHinge = swingDir.charAt(0) === "L";
   var isInward = swingDir.slice(-2) === "IN";

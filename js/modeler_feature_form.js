@@ -84,8 +84,8 @@ export function featureField(host, field, value, options) {
   wrap.dataset.parameter = field.key;
   var caption = el("span", "md-feature-field-label", field.label);
   if (field.unit) {
-    var units = options.units || { length: "cm", angle: "deg" };
-    caption.appendChild(el("small", "md-feature-unit", field.unit === "angle" ? (units.angle || "deg") : (units.length || "cm")));
+    var units = options.units || { length: "mm", angle: "deg" };
+    caption.appendChild(el("small", "md-feature-unit", field.unit === "angle" ? (units.angle || "deg") : (units.length || "mm")));
   }
   wrap.appendChild(caption);
   var input;

@@ -122,7 +122,9 @@ function rowFor(wr) {
 
   var btn = document.createElement("button");
   btn.className = "warnAck";
-  btn.title = wr.ignored ? t("cw_restoreOne") : t("cw_ignoreT");
+  btn.title = wr.kind === "openEnd"
+    ? t(wr.ignored ? "cw_restoreFreeEnd" : "cw_markFreeEnd")
+    : t(wr.ignored ? "cw_restoreOne" : "cw_ignoreT");
   btn.innerHTML =
     '<i class="ph ' + (wr.ignored ? "ph-eye" : "ph-eye-slash") + '"></i>';
   btn.onclick = function (e) {
@@ -134,7 +136,7 @@ function rowFor(wr) {
       ignoreWarning(wr.key);
       if (S.warnSel === wr.key) S.warnSel = null;
       if (S.warnHover === wr.key) S.warnHover = null;
-      flash(t("f_warnIgnored"));
+      flash(t(wr.kind === "openEnd" ? "f_freeEndMarked" : "f_warnIgnored"));
     }
     renderWarnPanel(true);
     render2D();

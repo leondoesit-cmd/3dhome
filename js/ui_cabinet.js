@@ -19,7 +19,8 @@ import { openNest, isNestOpen } from "./ui_nest.js";
 import {
   CAB_LIMITS, syncCabinetDefinition, requestCabinetDimension, applyCabinetDimension,
 } from "./parametric_cabinet.js";
-import { api, E, T, el, btn, sp, ico, grp, formatCm, AXES } from "./ui_cabinet_ctx.js";
+import { displayUnit, toDisp, fromDisp } from "./display_units.js";
+import { api, E, T, el, btn, sp, ico, grp, formatCm, formatCmInput, AXES } from "./ui_cabinet_ctx.js";
 import {
   sizeCanvas, setMode, setAxis, syncHint, syncViewPreferences, draw, wireCanvas,
   setTool, exportPNG, initPreview, updatePreview, renderPreview,
@@ -67,10 +68,10 @@ function buildDOM() {
     "</div></div>" +
     '<div class="cb-context-bar">' +
     '<div class="cb-control-group cb-size-group"><span class="cb-group-title">' + T("cabinetSize") + '</span>' +
-    '<span class="cb-scope-note">' + T("scopeNote") + '</span><div class="cb-dims">' +
-    '<label><span>' + T("width") + '</span><span class="cb-number"><input id="cbW" type="number" inputmode="decimal"><em>cm</em></span></label>' +
-    '<label><span>' + T("depth") + '</span><span class="cb-number"><input id="cbD" type="number" inputmode="decimal"><em>cm</em></span></label>' +
-    '<label><span>' + T("height") + '</span><span class="cb-number"><input id="cbH" type="number" inputmode="decimal"><em>cm</em></span></label>' +
+    '<label class="cb-scope-note">' + T("editScope") + '<select id="cbEditScope"><option value="instance">' + T("scopeInstance") + '</option><option value="linked">' + T("scopeLinked") + '</option></select></label><div class="cb-dims">' +
+    '<label><span>' + T("width") + '</span><span class="cb-number"><input id="cbW" type="number" inputmode="decimal"><em>' + displayUnit("furniture") + '</em></span></label>' +
+    '<label><span>' + T("depth") + '</span><span class="cb-number"><input id="cbD" type="number" inputmode="decimal"><em>' + displayUnit("furniture") + '</em></span></label>' +
+    '<label><span>' + T("height") + '</span><span class="cb-number"><input id="cbH" type="number" inputmode="decimal"><em>' + displayUnit("furniture") + '</em></span></label>' +
     '</div></div>' +
     '<div class="cb-context-sep"></div>' +
     '<div class="cb-control-group cb-preview-group"><span class="cb-group-title">' + T("preview") + '</span><div class="cb-preview-controls">' +
@@ -195,13 +196,14 @@ function buildDOM() {
     onPick: specPick,
   });
   E.host.querySelector("#cbHist").appendChild(E.histPanel.el);
+  var u = displayUnit("furniture");
   ["W", "D", "H"].forEach(function (k) {
     var dim = E.host.querySelector("#cb" + k);
     var limit = CAB_LIMITS[k === "W" ? "width" : k === "D" ? "depth" : "height"];
-    dim.min = limit.min;
-    dim.max = limit.max;
-    dim.step = 0.1;
-    dim.title = T(k === "W" ? "width" : k === "D" ? "depth" : "height") + " (cm)";
+    dim.min = toDisp(limit.min, "furniture");
+    dim.max = toDisp(limit.max, "furniture");
+    dim.step = u === "mm" ? "1" : "0.1";
+    dim.title = T(k === "W" ? "width" : k === "D" ? "depth" : "height") + " (" + u + ")";
     dim.addEventListener("change", function () {
       applyOverallSize(k === "W" ? "width" : k === "D" ? "depth" : "height", this);
     });
@@ -389,16 +391,18 @@ function buildDOM() {
 }
 function syncDimInputs() {
   if (!E.host || !E.it) return;
-  E.host.querySelector("#cbW").value = formatCm(E.it.w);
-  E.host.querySelector("#cbD").value = formatCm(E.it.d);
-  E.host.querySelector("#cbH").value = formatCm(E.it.h);
+  var u = displayUnit("furniture");
+  E.host.querySelectorAll(".cb-dims em").forEach(function (em) { em.textContent = u; });
+  E.host.querySelector("#cbW").value = toDisp(E.it.w, "furniture");
+  E.host.querySelector("#cbD").value = toDisp(E.it.d, "furniture");
+  E.host.querySelector("#cbH").value = toDisp(E.it.h, "furniture");
 }
 
 function setLevel(level) {
   if (!E.host) return;
   if (level === "advanced") {
     var item = E.it;
-    syncCabinetDefinition(S, item, { propagate: true });
+    syncCabinetDefinition(S, item, { propagate: editScope() === "linked", scope: editScope() });
     closeCabinet();
     import("./modeler.js").then(function (modeler) { modeler.openModelerForItem(item); });
     return;
@@ -480,7 +484,7 @@ function showSizeProposal(dimension, result, input) {
 
 function commitSizeChoice(result, alternativeId) {
   if (!E.it) return;
-  var applied = applyCabinetDimension(S, E.it, result, alternativeId);
+  var applied = applyCabinetDimension(S, E.it, result, alternativeId, { scope: editScope() });
   dismissSizeDlg();
   if (!applied) {
     flashHint(T("sizeRejected"));
@@ -494,7 +498,8 @@ function commitSizeChoice(result, alternativeId) {
 function applyOverallSize(dimension, input) {
   if (!E.it) return;
   var limit = CAB_LIMITS[dimension];
-  var value = input.value.trim() === "" ? NaN : Number(input.value);
+  var raw = input.value.trim() === "" ? NaN : Number(input.value);
+  var value = Number.isFinite(raw) ? fromDisp(raw, "furniture") : NaN;
   if (!limit || !Number.isFinite(value) || Math.abs(value - E.it[limit.field]) < 0.0001) {
     syncDimInputs();
     return;
@@ -561,6 +566,7 @@ export function openCabinet(it) {
     if (it.type !== "cabsys") it.type = "cabsys";
   } else pushHistory();
   E.it = it;
+  E.host.querySelector("#cbEditScope").value = "instance";
   /* A Done/open round trip is only a change of workspace visibility. Preserve
      the CAD timeline when it is the same item and the model still matches the
      timeline marker. If the inspector, an import, or another editor changed
@@ -603,7 +609,7 @@ export function openCabinet(it) {
   // tool/axis/mode above have settled into their opening state.
   initCabinetMobile();
   syncSessionStatus();
-  changed();
+  changed(true, false);
   E.base = stateOf();
   syncSessionStatus();
   if (!resumeHistory) {
@@ -687,8 +693,8 @@ function stateOf() {
 function stateKey(json) {
   if (!json) return "";
   var o = JSON.parse(json);
-  delete o.cab.open;
-  (o.linked || []).forEach(function (other) { delete other.cab.open; });
+  if (o.cab) delete o.cab.open;
+  (o.linked || []).forEach(function (other) { if (other.cab) delete other.cab.open; });
   return JSON.stringify(o);
 }
 /* ---- what is inside a design -------------------------------------------
@@ -874,10 +880,14 @@ function flashHint(msg) {
 /* Everything that has to happen after any edit: re-fit the spec to the size
    (or re-plan it, while it is still the preset's own layout — see specOf),
    repaint the elevation and the preview, and let the app know. */
+function editScope() {
+  return E.host?.querySelector("#cbEditScope")?.value || "instance";
+}
+
 function changed(refit, propagate) {
   if (!E.it) return;
   specOf(E.it);
-  syncCabinetDefinition(S, E.it, { propagate:propagate !== false });
+  syncCabinetDefinition(S, E.it, { propagate:propagate !== false && editScope() === "linked", scope: propagate === false ? undefined : editScope() });
   clearVSpanCache();
   S.dirty3D = true;
   draw();

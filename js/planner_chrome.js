@@ -1,4 +1,5 @@
 import { newDocumentKey } from "./redesign.js";
+import { initPlannerWorkflow } from "./planner_workflow.js";
 import { normalizePlanningGuide } from "./planning_guide.js";
 import { initPlanningGuide, openPlanningGuide } from "./ui_planning_guide.js";
 // Planner main-page chrome: modern layout by default, classic layout from the
@@ -17,6 +18,7 @@ import {
 import { defaultScene, emptyScene, FURN } from "./furniture.js";
 import { rebuildProject } from "./core/project.js";
 import { setTool } from "./interaction.js";
+import { resetLayers, saveLayers } from "./layers.js";
 import { render2D, fitView, wx, wz, dropPoint } from "./plan2d.js";
 import { loadMEP } from "./mep.js";
 import { renderPanel as refreshMEPPanel } from "./ui_mep.js";
@@ -256,14 +258,20 @@ function applyStart(kind) {
   // undo snapshot. Save before either scene helper replaces the model.
   if (kind === "blank" || kind === "demo") pushHistory();
   if (kind === "blank" || kind === "demo") S.workspace = { ...S.workspace, documentKey: newDocumentKey(), baselines: Object.freeze([]), redesign: {} };
+  if (kind === "blank" || kind === "demo") {
+    resetLayers();
+    saveLayers();
+    window.dispatchEvent(new CustomEvent("layers:changed"));
+  }
   if (kind === "blank") {
     emptyScene();
     S.roomMeta = {};
-    S.workspace.guidance = normalizePlanningGuide({ enabled: !!intention, intention: intention || "explore" });
+    var guidedStart = !!intention && intention !== "explore";
+    S.workspace.guidance = normalizePlanningGuide({ enabled: guidedStart, intention: intention || "explore" });
     S.hour = 13;
     S.northAngle = 0;
     loadMEP(null);
-    setTool("rect");
+    setTool(intention === "explore" ? "select" : "rect");
   } else if (kind === "demo") {
     defaultScene();
     S.workspace.guidance = normalizePlanningGuide(null);
@@ -287,7 +295,7 @@ function applyStart(kind) {
   }
   closeStartScreen(true);
   refreshAfterScene();
-  if (intention) {
+  if (intention && intention !== "explore") {
     if (typeof window.__setViewMode === "function") window.__setViewMode("plan");
     openPlanningGuide();
   }
@@ -426,6 +434,7 @@ function initPlannerChrome() {
   }
 
   bindLibraryDrag();
+  initPlannerWorkflow();
   initPlanningGuide();
   onLangChange(function () {
     applyPlannerChrome();

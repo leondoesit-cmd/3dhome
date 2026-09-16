@@ -29,6 +29,8 @@ import { fillProps, select } from "./ui_props.js";
 import { refreshTree, flash, sceneObject } from "./ui.js";
 import { withoutRoomPrompts } from "./ui_tree.js";
 import { switchFloor } from "./floors.js";
+import { displayUnit } from "./display_units.js";
+import { loadUnitSettings, saveUnitSettings, detectLocationUnitSystem } from "./unit_settings.js";
 
 let signature = "", scheduled = false, lastSelectedRoom = null;
 const expanded = new Set();
@@ -163,6 +165,54 @@ export function renderPlanningGuide() {
   host.append(el("h3", t("guide_title")), el("p", t("guide_optional"), "guide-note"));
   host.append(field("guide_intention", choices(PROJECT_INTENTIONS.map((id) => [id, "guide_" + id]), guide.intention,
     (intention) => editPlanningGuide({ action: "settings", intention, enabled: true }))));
+  const curSettings = loadUnitSettings();
+  const currentChoice = curSettings.preset === 'auto' ? 'auto' :
+    curSettings.preset === 'metric_arch' ? 'm' :
+    curSettings.preset === 'metric_mm' ? 'mm' :
+    curSettings.preset === 'metric_cm' ? 'cm' :
+    curSettings.preset === 'imperial' ? 'ft' :
+    displayUnit('plan');
+  const unitChoices = [
+    ['auto', 'unit_preset_auto'],
+    ['m', 'guide_unit_m'],
+    ['mm', 'guide_unit_mm'],
+    ['cm', 'guide_unit_cm'],
+    ['ft', 'guide_unit_ft'],
+    ['in', 'guide_unit_in'],
+  ];
+  host.append(field('guide_display_unit', choices(unitChoices.map(([unit, labelKey]) => [unit, labelKey]), currentChoice, unit => {
+    const current = loadUnitSettings();
+    const emptyOverrides = {
+      rooms: { unit: 'auto', digits: 'auto' },
+      openings: { unit: 'auto', digits: 'auto' },
+      furniture: { unit: 'auto', digits: 'auto' },
+      mep: { unit: 'auto', digits: 'auto' },
+      details: { unit: 'auto', digits: 'auto' },
+      site: { unit: 'auto', digits: 'auto' },
+      plan: { unit: 'auto', digits: 'auto' },
+      area: { unit: 'auto', digits: 'auto' },
+    };
+    let effectiveUnit = unit;
+    if (unit === 'auto') {
+      effectiveUnit = detectLocationUnitSystem().system === 'imperial' ? 'ft' : 'm';
+      saveUnitSettings({ ...current, preset: 'auto', overrides: emptyOverrides });
+    } else if (unit === 'm') {
+      saveUnitSettings({ ...current, preset: 'metric_arch', overrides: emptyOverrides });
+    } else if (unit === 'mm') {
+      saveUnitSettings({ ...current, preset: 'metric_mm', overrides: emptyOverrides });
+    } else if (unit === 'cm') {
+      saveUnitSettings({ ...current, preset: 'metric_cm', overrides: emptyOverrides });
+    } else if (unit === 'ft') {
+      saveUnitSettings({ ...current, preset: 'imperial', overrides: emptyOverrides });
+    } else if (unit === 'in') {
+      saveUnitSettings({
+        ...current,
+        preset: 'custom',
+        overrides: { ...emptyOverrides, plan: { unit: 'in', digits: 1 }, rooms: { unit: 'in', digits: 1 } },
+      });
+    }
+    editPlanningGuide({ action: 'settings', displayUnit: effectiveUnit });
+  })));
   if (guide.intention === "recreate") {
     host.append(button("guide_reference", () => window.__runAction?.("importBlueprintTrace")));
     host.append(el("p", t(referenceStatus), "guide-note"));
@@ -182,7 +232,6 @@ export function renderPlanningGuide() {
     if (area.reportValidity()) editPlanningGuide({ action: "settings", usableAreaTarget: area.value ? Number(area.value) : null });
   });
   details.append(field("guide_area_target", area), el("p", t("guide_area_advisory"), "guide-note"));
-  details.append(field('guide_display_unit',choices(['cm','mm','m','in','ft'].map(unit=>[unit,'guide_unit_'+unit]),guide.details.displayUnit||'cm',displayUnit=>editPlanningGuide({action:'settings',displayUnit}))));
   const advUnitsBtn = el('button', 'btn-secondary', '');
   advUnitsBtn.type = 'button';
   advUnitsBtn.innerHTML = '<i class="ph ph-sliders-horizontal"></i> ' + t('unit_preset_custom');

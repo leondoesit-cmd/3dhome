@@ -1,6 +1,8 @@
+import { markDirty as markPlannerDirty } from "./persist.js";
 import {pierceSketchToHelix} from './core/sketch_pierce.js';
-import {helixFromSketch} from './core/sketch_helix.js';
-import {coneSilhouette,projectCircularEdge} from './core/cone_silhouette.js';
+import {helixFromSketch,synchronizeSketchHelices} from './core/sketch_helix.js';
+import {appendCircularEdgeOffset,coneSilhouette,detachDrivenSketchDimension,projectCircularEdge} from './core/cone_silhouette.js';
+import {dimensionTargetFromSelection} from './core/sketch_dimension_selection.js';
 import {resolveOffsetPlanes, throughVertexBinding} from './core/offset_planes.js';
 import {thinSketchProfile} from './core/thin_profile.js';
 import { synchronizeExtrusionProjections } from "./core/extrusion_projection.js";
@@ -14,7 +16,7 @@ import { copySketchForClipboard, pasteSketchGeometry, readSketchClipboard, write
 import { ensureSketchOriginPoint, pickIsOrigin, sketchOriginPoint } from "./core/sketch_origin.js";
 import { offsetFaceBoundary, appendBoundarySketch } from "./cad_face_offset.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
-import { captureExactTopology } from './core/exact_topology_cache.js';
+import { captureExactTopology, verifiedExactTopology } from './core/exact_topology_cache.js';
 import { parallelStraightEdges } from "./core/edge_selection.js";
 import { modelDimensions, formatModelLength } from "./core/model_dimensions.js";
 import {generatedRackGear,validateGearPair} from "./cad_gear_geometry.js";
@@ -127,6 +129,8 @@ import {
 } from "./core/parametric_document.js";
 import { compileKernelFeatureTree, FEATURE_PATTERN_SEED_TYPES } from "./core/kernel_feature_adapter.js";
 import { publishRebuildStatus, rebuildParametricDocument, withKernelFailures } from "./core/parametric_rebuild.js";
+import { displayUnit, toDisp, fromDisp, fmtLen, parseLen } from "./display_units.js";
+import { getDomainUnit } from "./unit_settings.js";
 import { featureDefaults, featureLabel, featureSpec, setFeatureLabelResolver } from "./core/feature_catalog.js";
 import { inferAuthoringMode } from "./core/authoring_mode.js";
 import { createImportedDefinition, detectStepLengthUnit, stepUnitCorrection } from "./core/import_normalization.js";
@@ -137,8 +141,8 @@ import { loadModelLibrary, saveModelLibrary, loadAssemblyLibrary, saveAssemblyLi
 import { leavesInputStanding, rebuildDefinition } from "./core/rebuild.js";
 import { buildTreeModel, findTreeNode } from "./core/tree_model.js";
 import { renderTreeModel } from "./modeler_tree.js";
-import { analyzeLegacyMigration, convertLegacyDocument, evaluateMigration, retainLegacySource, restoreLegacyDocument } from "./core/migration_check.js";
-import { applyTopologyRebindings, createTopologyReference, cutWallTopology, createTopologyRegistry, resolveTopologyReference, topologyForFeature, mergeSmoothTopology, isCylinderTessellationSeam, pointWithinCylinderArc, resolveFinishTargetIds, resolveMergedTopology, topologyDescriptorSignature, topologyMemberIds, edgeLiesOnFace, edgesBoundingFace, fitProfileCircle } from "./core/topology.js";
+import { analyzeLegacyMigration, convertLegacyDocument, evaluateMigration, migrationGeometrySummary, retainLegacySource, restoreLegacyDocument } from "./core/migration_check.js";
+import { applyDocumentTopologyRebindings, applyTopologyRebindings, createTopologyReference, cutWallTopology, createTopologyRegistry, resolveTopologyReference, topologyForFeature, mergeSmoothTopology, isCylinderTessellationSeam, pointWithinCylinderArc, resolveFinishTargetIds, resolveMergedTopology, topologyDescriptorSignature, topologyMemberIds, edgeLiesOnFace, edgesBoundingFace, fitProfileCircle } from "./core/topology.js";
 import {
   edgeEndpoints, growSelection, invertSelection, selectConnected, selectLoop,
   selectTangentChain, shrinkSelection, vertexEntriesFrom,
@@ -1858,6 +1862,12 @@ export function registerCustomModel(def) {
   } catch (_) {
     return false;
   }
+  // Canonical models keep their datum coordinates, but still need a measured
+  // catalogue footprint before the planner can validate a placement.
+  var catalogBounds=defBounds(def);
+  def.w=catalogBounds.x1-catalogBounds.x0;
+  def.d=catalogBounds.z1-catalogBounds.z0;
+  def.h=catalogBounds.y1-catalogBounds.y0;
   FURN[def.key] = {
     label: def.name || def.key,
     w: def.w, d: def.d, h: def.h,
@@ -2585,6 +2595,10 @@ const H = createHistory({
     E.topologySelection = [];
     E.facePick = null;
     E.componentSel = [];
+    // Solver state is derived from the restored sketch, not part of the undo
+    // snapshot. Reusing the report from the state we just left made the tab
+    // badge disagree with the restored geometry until another edit happened.
+    if (E.docType === "part" && E.def) resolveSketch(false);
     refreshAll();
   },
   scan: scanDoc,
@@ -3578,7 +3592,7 @@ function buildDOM() {
     '<canvas id="mdCanvas"></canvas>' +
     '<form id="mdDimEditor" class="md-dimension-editor" hidden autocomplete="off">' +
       '<div class="md-dimension-editor-head"><span><i class="ph ph-ruler"></i> ' + t("dimEditorTitle") + '</span><button type="button" data-dim-cancel aria-label="' + t("m_cancel") + '"><i class="ph ph-x"></i></button></div>' +
-      '<label class="md-dimension-value"><span>' + t("dimValue") + '</span><span class="md-dimension-input"><input id="mdDimValue" type="text" spellcheck="false" autocapitalize="off" required><b id="mdDimUnit">cm</b></span></label>' +
+      '<label class="md-dimension-value"><span>' + t("dimValue") + '</span><span class="md-dimension-input"><input id="mdDimValue" type="text" spellcheck="false" autocapitalize="off" required><b id="mdDimUnit">mm</b></span></label>' +
       '<div class="md-dimension-quick"><label><span>' + t("dimMode") + '</span><select id="mdDimMode"><option value="driving">' + t("dimDriving") + '</option><option value="reference">' + t("dimReference") + '</option></select></label><label><span>' + t("dimNameOptional") + '</span><input id="mdDimName" type="text" spellcheck="false"></label></div>' +
       '<div id="mdDimError" class="md-dimension-error" role="alert" hidden></div>' +
       '<div class="md-dimension-actions"><button type="button" class="danger" data-dim-delete title="' + t("dimDelete") + '"><i class="ph ph-trash"></i></button><span></span><button type="button" data-dim-cancel>' + t("m_cancel") + '</button><button type="submit" class="accept" title="' + t("dimApply") + '"><i class="ph ph-check"></i><span>' + t("dimApply") + '</span></button></div>' +
@@ -4066,8 +4080,9 @@ function buildDOM() {
 
   // sketch settings live in their own pane now, so they never crowd the tools
   var cons = root.querySelector("#mdCons");
+  var dUnit = getDomainUnit("details");
   cons.innerHTML =
-    '<label class="md-row"><span class="t">' + t("gridSize") + '</span><input id="mdGrid" type="number" value="5" min="1"><span class="u">cm</span></label>' +
+    '<label class="md-row"><span class="t">' + t("gridSize") + '</span><input id="mdGrid" type="number" value="' + toDisp(5, "details") + '" min="1"><span class="u">' + dUnit + '</span></label>' +
     '<label class="md-check"><input type="checkbox" id="mdOsnap" checked><span>' + t("osnap") + "</span></label>" +
     '<label class="md-check"><input type="checkbox" id="mdNormalTo"><span>' + t("prefNormalTo") + "</span></label>" +
     '<label class="md-check"><input type="checkbox" id="mdAutoDim"><span>' + t("prefAutoDim") + "</span></label>" +
@@ -4077,9 +4092,9 @@ function buildDOM() {
     '<label class="md-check"><input type="checkbox" id="mdPrefCoach"><span>' + t("prefCoach") + "</span></label>" +
     '<button type="button" id="mdGuideReplay" class="md-settings-btn"><i class="ph ph-graduation-cap"></i>' + t("guideRelaunch") + "</button>" +
     '<div class="md-sep"></div>' +
-    '<label class="md-row"><span class="t">' + t("depth") + '</span><input id="mdDepth" type="number" value="60" min="1"><span class="u">cm</span></label>' +
-    '<label class="md-row"><span class="t">' + t("base") + '</span><input id="mdBase" type="number" value="0"><span class="u">cm</span></label>' +
-    '<label class="md-row"><span class="t">' + t("wallWidth") + '</span><input id="mdWallWidth" type="number" value="10" min="0.5"><span class="u">cm</span></label>' +
+    '<label class="md-row"><span class="t">' + t("depth") + '</span><input id="mdDepth" type="number" value="' + toDisp(60, "details") + '" min="1"><span class="u">' + dUnit + '</span></label>' +
+    '<label class="md-row"><span class="t">' + t("base") + '</span><input id="mdBase" type="number" value="' + toDisp(0, "details") + '"><span class="u">' + dUnit + '</span></label>' +
+    '<label class="md-row"><span class="t">' + t("wallWidth") + '</span><input id="mdWallWidth" type="number" value="' + toDisp(10, "details") + '" min="0.5"><span class="u">' + dUnit + '</span></label>' +
     '<div class="md-note">' + t("ortho") + "</div>" +
     '<h5 class="md-h5">' + t("keysTitle") + "</h5>" +
     '<div class="md-keys">' +
@@ -4131,10 +4146,10 @@ function buildDOM() {
   coachBox.checked = !!E.coachEnabled;
   coachBox.addEventListener("change", function () { E.coachEnabled = this.checked; E.coachDismissed = false; saveModelerPrefs(); syncCoach(); });
   cons.querySelector("#mdGuideReplay").addEventListener("click", function () { setTab("parts"); startTour(); });
-  cons.querySelector("#mdGrid").addEventListener("change", function () { E.grid = Math.max(1, +this.value || 5); drawSketch(); syncStatus(); });
-  cons.querySelector("#mdDepth").addEventListener("change", function () { E.depth = Math.max(1, +this.value || 60); });
-  cons.querySelector("#mdBase").addEventListener("change", function () { E.baseOff = +this.value || 0; });
-  cons.querySelector("#mdWallWidth").addEventListener("change", function () { E.wallWidth = Math.max(0.5, +this.value || 10); });
+  cons.querySelector("#mdGrid").addEventListener("change", function () { E.grid = Math.max(0.1, fromDisp(+this.value || 5, "details")); drawSketch(); syncStatus(); });
+  cons.querySelector("#mdDepth").addEventListener("change", function () { E.depth = Math.max(0.1, fromDisp(+this.value || 60, "details")); });
+  cons.querySelector("#mdBase").addEventListener("change", function () { E.baseOff = fromDisp(+this.value || 0, "details"); });
+  cons.querySelector("#mdWallWidth").addEventListener("change", function () { E.wallWidth = Math.max(0.05, fromDisp(+this.value || 10, "details")); });
 
   root.querySelector("#mdSave").addEventListener("click", saveCurrentDocument);
   root.querySelector("#mdSheetAutoDim").addEventListener("click", function () { drawingSheet().autoDimension(); drawSketch(); syncStatus(); });
@@ -5803,7 +5818,7 @@ function sketchCameraFrame() {
 /* Snap the camera square to the sketch plane (SolidWorks Normal To). Mid-sketch
    we do not steal the view unless asked — tool changes and chrome sync must
    not fight an orbit. Opening a sketch (when the preference is on), picking a
-   face, Top/Front/Right, Ctrl+8 and the toolbar command pass force=true. */
+   face, Ctrl+8 and the toolbar command pass force=true. */
 function orientModelToView(force) {
   if (!E.pv || E.mode !== "3d") return;
   if (!force && E.modelPlaneActive) return;
@@ -5813,6 +5828,17 @@ function orientModelToView(force) {
   if (E.view === "top") E.pv.orbitTo(0, 1.5);
   else if (E.view === "front") E.pv.orbitTo(0, 0.05);
   else E.pv.orbitTo(Math.PI / 2, 0.05);
+}
+/* Top / Front / Right are world views, never aliases for Normal To.  The
+   latter deliberately follows a selected planar face; sharing that path made
+   Front keep looking down at a selected pocket floor while its button and
+   measurement axes said X/Y. */
+function orientStandardView(view) {
+  if (!E.pv || E.mode !== "3d") return;
+  var presetId=view==="side" ? "right" : view;
+  var preset=VIEW_PRESETS.find(function(item){return item.id===presetId;});
+  if (!preset || preset.az==null) return;
+  E.pv.orbitTo(preset.az,preset.el);
 }
 function captureSketchCameraPose() {
   if (!E.pv || E.sketchCameraReturnPose) return;
@@ -6305,7 +6331,7 @@ function syncAuthoringWorkflow() {
     if(index===active)button.setAttribute("aria-current","step");
     else button.removeAttribute("aria-current");
   });
-  var units=E.def.context && E.def.context.units || {length:"cm"};
+  var units=E.def.context && E.def.context.units || {length:getDomainUnit("details")};
   var context=root.querySelector("#mdWorkflowContext");if(context)context.textContent=units.length+" · "+(E.def.context && E.def.context.activeCoordinateSystemId || "origin");
   var sketch=ensureSketch(E.def),hasRecordedSketch=(E.def.history || []).some(function(entry){return entry.kind==="sketch"&&entry.targetId===sketch.id;}),reference=root.querySelector("#mdWorkflowReference");
   if(reference)reference.textContent=(hasRecordedSketch || sketch.referenceId || sketch.support) && phase!=="reference" ? sketchPlaneCaption() : t("wfChoosePlane");
@@ -6444,6 +6470,10 @@ function setTool(id, keepPlaneState) {
     captureSketchCameraPose();
     orientModelToView(true);
   }
+  /* Professional selection-first workflow: geometry picked precisely in the
+     tree or inspector is already a complete Smart Dimension request. Do not
+     make the user find and pick the same entity again on a crowded canvas. */
+  if (id === "dim" && openSelectedSmartDimension()) { updateTourProgress(); return; }
   if (attachedToFace) refreshAll(); else drawSketch();
   if (openingModelPlane) requestAnimationFrame(fitSketch);
   updateTourProgress();
@@ -6471,7 +6501,7 @@ function setView(id) {
   // redrawing the canvas alone would leave the lists describing the old plane.
   var swapped = E.mode === "drawing" ? false : adoptSketchForView();
   if (swapped) pruneAbandonedSketches(E.def);
-  if (E.mode === "3d") orientModelToView(true);
+  if (E.mode === "3d") orientStandardView(id);
   syncTools();
   if (swapped) refreshAll(); else drawSketch();
   if (E.mode === "3d" && E.modelPlaneActive) fitSketch();
@@ -6697,7 +6727,7 @@ function runCommand(id) {
   else if (id === "pattern") patternSelection();
   else if (id === "circpattern") patternCircularSelection();
   else if (id === "project") projectPartEdges();
-  else if (id === "regen") regenerateExactModel();
+  else if (id === "regen") regenerateExactModel("force");
   else if (id === "stepin") importStepDocument();
   else if (id === "stepout") exportStepDocument();
   else if (id === "igesout") exportIgesDocument();
@@ -7268,7 +7298,7 @@ function featureReferenceOptions(type) {
 function renderFeatureParameterForm(host,type,state,onLive) {
   return renderFeatureParameterFormCore(host,type,state,onLive,{
     el:el,
-    units:E.def && E.def.context && E.def.context.units || {length:"cm",angle:"deg"},
+    units:E.def && E.def.context && E.def.context.units || {length:getDomainUnit("details"),angle:"deg"},
     referenceOptions:featureReferenceOptions,
   });
 }
@@ -7276,7 +7306,7 @@ function renderFeatureParameterForm(host,type,state,onLive) {
 function featureField(host,field,value) {
   return featureFieldCore(host,field,value,{
     el:el,
-    units:E.def && E.def.context && E.def.context.units || {length:"cm",angle:"deg"},
+    units:E.def && E.def.context && E.def.context.units || {length:getDomainUnit("details"),angle:"deg"},
     referenceOptions:featureReferenceOptions,
   });
 }
@@ -9875,6 +9905,64 @@ async function saveAssemblyDocument() {
   updateTourProgress();
 }
 
+// A room object is a reusable snapshot; the complete editable assembly is kept
+// alongside it so publication never discards the component feature histories.
+async function publishAssemblyModel() {
+  if (!E.assembly?.components?.length) { flash(t("needParts")); return; }
+  applyAssemblyMates(E.assembly);
+  var source=cloneData(E.assembly), parts=[];
+  try {
+    for (var component of source.components) {
+      if(component.visible===false)continue;
+      var def=componentDef(component), run=null;
+      if(!def)throw new Error("A component is missing from the library");
+      try {
+        if(def.metadata?.authoringSystem==="parametric-v1") {
+          var compiled=compileKernelFeatureTree(def);
+          if(!compiled.ok)throw new Error("A component feature history needs repair");
+          run=await regenerateFeatures({...compiled.document,features:compiled.features});
+          if(!run.ok)throw new Error("A component could not rebuild");
+        }
+        var tr=normalizeTransform(component), matrix=new THREE.Matrix4().compose(
+          new THREE.Vector3(tr.x,tr.y,tr.z),
+          new THREE.Quaternion().setFromEuler(new THREE.Euler(tr.rx*Math.PI/180,tr.ry*Math.PI/180,tr.rz*Math.PI/180)),
+          new THREE.Vector3(1,1,1));
+        for(var part of activeParts(def)) {
+          var body=run?.results.get(cutTargetFeatureId(part,def));
+          var mesh=body?.shape ? await shapeToMeshData(body,{deflection:.28,angle:.18}) :
+            {positions:tessellateParts([part])[0]?.positions};
+          if(!mesh.positions?.length)throw new Error("A component has no usable solid geometry");
+          var positions=Array.from(mesh.positions), point=new THREE.Vector3();
+          for(var at=0;at<positions.length;at+=3){point.fromArray(positions,at).applyMatrix4(matrix);point.toArray(positions,at);}
+          parts.push({id:uid(),kind:"mesh",name:(component.name || def.name)+" · "+(part.name || "body"),
+            color:part.color || "#999999",metal:part.metal,rough:part.rough,
+            meshData:{positions,indices:mesh.indices ? Array.from(mesh.indices):undefined}});
+        }
+      } finally {if(run)releaseRegeneration(run);}
+    }
+    // Rebuildable preview caches can dwarf the authored history and would be
+    // copied into every room undo entry. Preserve inputs, not derived caches.
+    source.components.forEach(function(component){
+      var definition=component.def;
+      if(definition?.metadata?.authoringSystem!=="parametric-v1")return;
+      function stripDerived(value) {
+        if(!value || typeof value!=="object")return;
+        delete value.exactTopologyCache;delete value.meshData;delete value.exactBuildToken;
+        Object.values(value).forEach(stripDerived);
+      }
+      stripDerived(definition);
+    });
+    var model={key:"cm_"+source.key,name:source.components.map(c=>c.name || componentDef(c)?.name || "Component").join(" + "),
+      parts,metadata:{sourceAssembly:source},col:"#999999"};
+    normalizeDef(model);
+    if(!await saveLib(loadLib().filter(m=>m.key!==model.key).concat([model])))throw new Error(t("saveStorageFull"));
+    registerCustomModel(model);refreshCatalogSelect();
+    var committed=commitDefinition(S,model);
+    if(committed.affected.length){markPlannerDirty();S.dirty3D=true;render2D();}
+    flash(getLang()==="en"?"✓ Combined model saved to room library":"✓ המודל המשולב נשמר בספרייה");
+  } catch(error) {report(t("reportKickerSave"),t("saveRebuildFailed"),String(error.message || error));}
+}
+
 function saveCurrentDocument() {
   if (E.docType === "assembly") saveAssemblyDocument();
   else saveModel();
@@ -10992,6 +11080,12 @@ function drawSketch() {
     c.restore();
   }
 
+  if(E.quickAction==="modeledgeoffset" && E.offsetPreview){
+    c.save();c.strokeStyle="#2684c7";c.lineWidth=2;c.setLineDash([6,4]);
+    E.offsetPreview.radii.forEach(function(radius){if(fin(radius)&&radius>1e-6){c.beginPath();strokeUvCircle(c,E.offsetPreview.x,E.offsetPreview.y,radius);c.stroke();}});
+    c.restore();
+  }
+
   // in-progress polygon: the n-gon the release will actually build
   if (E.tool === "spoly" && E.drag && E.drag.mode === "spoly" && E._mouse) {
     var pc = { u: E.drag.u, v: E.drag.v };
@@ -11085,7 +11179,7 @@ function drawModelerTouchPrecision(c) {
   if (!tc || !E.cv) return;
   drawTouchPrecisionLens(c, E.cv, tc, {
     color: "#2684c7", crosshair: "#e05a46", background: "rgba(246,249,252,.98)",
-    distances: modelerTouchDistances(tc), unitLabel: "cm", handedness:getTouchPrecisionPrefs().handedness,
+    distances: modelerTouchDistances(tc), unitLabel: getDomainUnit("details"), handedness:getTouchPrecisionPrefs().handedness,
   });
   c.save();
   c.strokeStyle = "rgba(38,132,199,.68)";
@@ -11873,6 +11967,7 @@ function resolveSketch(rollbackOnConflict, fast) {
    solid is a far worse answer than showing a stale one with a warning. */
 function syncSketchDrivenParts() {
   var changed = false;
+  if (synchronizeSketchHelices(E.def).length) changed = true;
   (E.def.parts || []).forEach(function (p) {
     if (!p.sketchDriven || !p.profileEntityIds || !p.profileEntityIds.length) return;
     var sketch = p.sketchId ? sketchById(E.def, p.sketchId) : ensureSketch(E.def);
@@ -12088,8 +12183,12 @@ function hitSketch(uv, pointerType) {
   // acquisition band used by the 3D topology picker so a tap near thin sketch
   // geometry selects it reliably without changing mouse precision.
   var sketch = ensureSketch(E.def), tol = (pointerType === "touch" ? 14 : 7) / E.scl;
+  // Points are only six pixels wide but carry the relations users most often
+  // need at crowded intersections. Give them a slightly larger acquisition
+  // band than curves; the nearest point still wins when two bands overlap.
+  var pointTol = (pointerType === "touch" ? 18 : 10) / E.scl;
   if (sketch.frameSpace!=="local" && sketch.plane !== E.view) return null;
-  var best = null, bd = tol;
+  var best = null, bd = pointTol;
   (sketch.points || []).forEach(function (p) {
     var d = Math.hypot(uv.u - p.x, uv.v - p.y);
     if (d < bd) { bd = d; best = p; }
@@ -12216,7 +12315,9 @@ function openFaceBoundary() {
           var made=appendToSketch(t("faceBoundary"),function(target){return appendBoundarySketch(target,loops,uid);});
           if(!made)return;
           sketch.boundaryCopies=sketch.boundaryCopies || [];
-          sketch.boundaryCopies.push({source:cloneData(reference),distance:values.distance,entityIds:made.map(function(e){return e.id;}),associative:true});
+          var sourceReference=cloneData(reference),bodyHead=cutTargetFeatureId(part);
+          if(bodyHead)sourceReference.ownerFeatureId=bodyHead;
+          sketch.boundaryCopies.push({source:sourceReference,distance:values.distance,entityIds:made.map(function(e){return e.id;}),associative:true});
           markDrawnSelection(made);E.sel=E.ssel[E.ssel.length-1];
           E.quickAction=null;closeFeaturePanel();refreshAll();flash(t("faceBoundaryDone"));
         }finally{display.release();busy=false;}
@@ -12676,6 +12777,36 @@ function patternSelection() {
 /* Offset's distance panel. The undo entry belongs to apply, not to the click
    that picked the entity: the panel is asynchronous, so pushing undo up front
    would leave a stray history step behind every cancel. */
+function openModelEdgeOffsetForm(edge) {
+  var sketch=ensureSketch(E.def),circle;
+  try { circle=projectCircularEdge(sketch,edge); }
+  catch(error){flash(error.message);return;}
+  var preview=function(values){
+    E.offsetPreview={x:circle.x,y:circle.y,radii:[circle.radius+values.dist]};
+    if(values.bidirectional)E.offsetPreview.radii.push(circle.radius-values.dist);
+    drawSketch();
+  };
+  openQuickForm({
+    action:"modeledgeoffset",icon:"ph-path",title:"Offset circular edge",
+    hint:"Linked to the model edge. Positive distance offsets outward; negative offsets inward.",
+    fields:[{key:"dist",label:t("offsetAsk"),type:"number",value:5,step:.5,unit:"length"},
+      {key:"bidirectional",label:"Bidirectional",type:"boolean",value:false}],
+    onLive:preview,
+    onCancel:function(){E.offsetPreview=null;},
+    onApply:function(values){
+      // Build on a detached sketch: invalid distances and Cancel never change history.
+      var candidate=cloneData(sketch);
+      try {
+        appendCircularEdgeOffset(candidate,edge,values.dist,uid);
+        if(values.bidirectional)appendCircularEdgeOffset(candidate,edge,-values.dist,uid);
+      }catch(error){flash(error.message);return false;}
+      pushUndo(t("tool_offset"));Object.assign(sketch,candidate);
+      E.offsetPreview=null;E.ssel=[];E.sel=null;resolveSketch(false);return true;
+    }
+  });
+  preview({dist:5,bidirectional:false});
+}
+
 function openSketchOffsetForm(entityId) {
   openQuickForm({
     action: "offset", icon: "ph-path", title: t("tool_offset"), hint: t("offsetHint"),
@@ -12901,7 +13032,11 @@ function cancelDimensionEditor() {
 }
 
 function dimensionEditorUnit(constraint) {
-  return constraint && constraint.type === "angle" ? "°" : "cm";
+  if (constraint && constraint.type === "angle") return "°";
+  var docUnit = typeof E !== "undefined" && E.def && E.def.context && E.def.context.units && E.def.context.units.length;
+  if (docUnit) return docUnit;
+  if (typeof getDomainUnit === "function") return getDomainUnit("details");
+  return "mm";
 }
 
 function positionDimensionEditor(clientX, clientY) {
@@ -12928,11 +13063,17 @@ function showDimensionEditor(sketch, constraint, options) {
   };
   E.dimSel = constraint.id;
   var value = root.querySelector("#mdDimValue");
+  var unit = dimensionEditorUnit(constraint);
+  root.querySelector("#mdDimUnit").textContent = unit;
+  var dispVal = Number(constraint.value) || 0;
+  if (unit === "mm") dispVal *= 10;
+  else if (unit === "in") dispVal /= 2.54;
+  else if (unit === "m") dispVal /= 100;
+  else if (unit === "ft") dispVal /= 30.48;
   /* Twelve significant digits hide solver noise (22.29999999999997) without
      rounding a real value; accepting the shown text keeps the stored float. */
-  value.value = String(Number((Number(constraint.value) || 0).toPrecision(12)));
+  value.value = String(Number(dispVal.toPrecision(12)));
   E.dimEditor.before.text = value.value;
-  root.querySelector("#mdDimUnit").textContent = dimensionEditorUnit(constraint);
   root.querySelector("#mdDimMode").value = constraint.driven ? "reference" : "driving";
   root.querySelector("#mdDimName").value = constraint.name || "";
   positionDimensionEditor(options.clientX, options.clientY);
@@ -12950,7 +13091,16 @@ function applyDimensionEditor() {
   if (refusalBox && refusalBox.hidden === false) clearDimensionRefusal();
   if (raw === state.before.text) value = state.before.value;
   else {
-    try { value = evaluateFeatureNumber(raw, { key:"dimension", unit:state.constraint.type === "angle" ? "angle" : "length" }); }
+    try {
+      value = evaluateFeatureNumber(raw, { key:"dimension", unit:state.constraint.type === "angle" ? "angle" : "length" });
+      if (state.constraint.type !== "angle" && !/(\d+(?:\.\d*)?|\.\d+)\s*(mm|cm|in|ft|m)\b/i.test(raw)) {
+        var u = dimensionEditorUnit(state.constraint);
+        if (u === "mm") value /= 10;
+        else if (u === "in") value *= 2.54;
+        else if (u === "m") value *= 100;
+        else if (u === "ft") value *= 30.48;
+      }
+    }
     catch (error) { value = NaN; }
   }
   if (!fin(value) || value <= 0) {
@@ -12979,6 +13129,7 @@ function applyDimensionEditor() {
     showDimensionRefusal(state, raw, why);
     return false;
   }
+  if (typeof detachDrivenSketchDimension !== "undefined") detachDrivenSketchDimension(state.sketch,constraint);
   hideDimensionEditor();
   refreshAll();
   return true;
@@ -13008,7 +13159,7 @@ function finishDimensionDrag(clientX, clientY) {
   if (!drag || drag.mode !== "dimension") return false;
   E.drag = null;
   if (!drag.editOnRelease && !drag.moved) H.discard();
-  if (drag.instant2d && drag.moved) resolveSketch(true);
+  if (drag.instant2d && drag.moved && resolveSketch(true)) detachDrivenSketchDimension(drag.sketch,drag.constraint);
   if (drag.editOnRelease) {
     /* A dimension this pick just made is removed again by Cancel; the editor
        only knew that when told, so Cancel used to keep it. */
@@ -13111,6 +13262,15 @@ function smartDimension(target, clientX, clientY) {
   return true;
 }
 
+function openSelectedSmartDimension() {
+  var sketch=ensureSketch(E.def),target=dimensionTargetFromSelection(sketch,E.ssel);
+  if(!target)return false;
+  var started=smartDimension(target);
+  E.ssel=[];E.sel=null;
+  if(started)finishDimensionDrag();
+  return true;
+}
+
 // What the smart-dimension tool measures for a given pick, given what was
 // already selected: two picked points measure the gap between them.
 function dimensionTarget(hit, uv) {
@@ -13176,10 +13336,12 @@ function setLineConstraint(line, type, value) {
 function setEntityDimension(entity, type, value) {
   if (!entity || !entity.id) return;
   var sketch = ensureSketch(E.def);
-  var c = sketch.constraints.find(function (q) { return q.entity === entity.id && q.type === type; });
+  var radial=type === "radius" || type === "diameter";
+  var c = sketch.constraints.find(function (q) { return q.entity === entity.id && (q.type === type || radial && (q.type === "radius" || q.type === "diameter")); });
+  if(c && radial && c.type!==type)value=c.type==="diameter"?value*2:value/2;
   if (!c) { c = { id: uid(), entity: entity.id, type: type, value: value }; sketch.constraints.push(c); }
   else c.value = value;
-  resolveSketch(false);
+  if(resolveSketch(false))detachDrivenSketchDimension(sketch,c);
 }
 
 function makeWallSegment(a, b, options) {
@@ -13526,7 +13688,7 @@ function wireSketch() {
     var directDragTool = E.tool === "rect" || E.tool === "circle" || E.tool === "sph" || E.tool === "cutc";
     var finishingDirectDrag = directDragTool && E.drag && E.drag.mode === "draw";
     startTouchPrecisionTrial({
-      mode:mode, pointerId:e.pointerId, canvas:cv, x:x, y:y, axes:["U","V"], unitLabel:"cm",
+      mode:mode, pointerId:e.pointerId, canvas:cv, x:x, y:y, axes:["U","V"], unitLabel:getDomainUnit("details"),
       sourceCanvases:function(){
         var sources=[];
         if(E.pv&&E.pv.rr&&E.pv.rr.domElement)sources.push(E.pv.rr.domElement);
@@ -13773,7 +13935,14 @@ function wireSketch() {
     }
     if (E.tool === "trim" || E.tool === "extend" || E.tool === "offset" || E.tool === "constr") {
       var target = hitSketch(uv, e.pointerType);
-      if (!target || !target.type) { drawSketch(); return; }
+      if (!target || !target.type) {
+        if(E.tool==="offset"){
+          var edgePick=E.pv && resolveTopologyPick(e,E.pv,{prefer:"edge"});
+          if(edgePick && edgePick.reference && edgePick.reference.kind==="edge")openModelEdgeOffsetForm(edgePick.reference);
+          else flash("Select a sketch curve or a complete circular model edge");
+        }
+        drawSketch();return;
+      }
       /* Offset asks for a distance, and the panel that asks is asynchronous —
          so unlike its three neighbours it cannot push an undo entry here. The
          apply handler pushes it, and cancelling leaves the history alone. */
@@ -14429,7 +14598,7 @@ function onKey(e) {
     if (chord === "z") { e.preventDefault(); doUndo(); return; }
     if (chord === "y") { e.preventDefault(); doRedo(); return; }
     if (chord === "k") { e.preventDefault(); openCommandSearch(); return; }
-    if (chord === "b") { e.preventDefault(); regenerateExactModel(); return; }
+    if (chord === "b") { e.preventDefault(); regenerateExactModel("force"); return; }
     // Normal To, on request only — SolidWorks' Ctrl+8, same job. This chord
     // used to sit after a `ctrlKey` early-return, so the shortcut never fired.
     if (e.key === "8" && !editingField) { e.preventDefault(); orientModelToView(true); drawSketch(); return; }
@@ -15630,7 +15799,7 @@ function removeTreeNode(node, model) {
   }
   if (model.mode === "canonical" && node.historyId) {
     pushUndo(t("del"));
-    var result = removeHistoryNode(E.def, node.historyId);
+    var result = removeHistoryNode(E.def, node.historyId, {verifiedTopology:verifiedExactTopology(E.def,compileKernelFeatureTree(E.def))});
     if (!result.ok) { H.discard(); flash(result.issues[0].message); return; }
     E.def.parts = (E.def.parts || []).filter(function (item) {
       return item.featureId !== node.targetId && item.derivedFeatureId !== node.targetId;
@@ -15902,6 +16071,13 @@ function runVerifiedMigration() {
   try {
     var overrides = modelParameterOverrides();
     legacyRun = rebuildDefinition(cloneData(E.def), overrides);
+    // The legacy renderer reads direct parts; the history rebuild has no
+    // features for those parts and reports an empty parameter envelope.
+    // Compare their measured geometry, which the migration gate also checks
+    // independently for body count, volume and shape equivalence.
+    if (E.def.parts && E.def.parts.length && !(E.def.features || []).length) {
+      legacyRun.bounds = migrationGeometrySummary(E.def, "legacy").bounds;
+    }
     canonicalRun = rebuildParametricDocument(conversion.document, overrides);
   } catch (error) { flash(String(error.message || error)); return; }
   var verdict = evaluateMigration({
@@ -16747,7 +16923,11 @@ function fillInspector() {
 }
 
 function modelParameterOverrides() {
-  return E.def && E.def.metadata && E.def.metadata.adapter === "cabinet" ? {} : E.srcItem && E.srcItem.parameterOverrides || {};
+  if (E.def && E.def.metadata && E.def.metadata.adapter === "cabinet") return {};
+  var source = E.srcItem && E.srcItem.parameterOverrides || {};
+  return Object.fromEntries(Object.entries(source).filter(function (entry) {
+    return E.def && Object.prototype.hasOwnProperty.call(E.def.parameters || {}, entry[0]);
+  }));
 }
 
 function fillCabinetParameters(host) {
@@ -16877,7 +17057,7 @@ function fillShape() {
       numRow(grid, "Y", function () { return oc.center.y; }, function (v) { oc.center.y = v; resolveSketch(false); }, 0.1);
       // an arc's radius is carried by its rim points, so the driver is the
       // radius dimension rather than a stored scalar
-      if (p.type === "circle") numRow(grid, "R", function () { return p.r; }, function (v) { p.r = Math.max(1e-6, v); resolveSketch(false); }, 0.1);
+      if (p.type === "circle") numRow(grid, "R", function () { return p.r; }, function (v) { setEntityDimension(p,"radius",Math.max(1e-6,v)); }, 0.1);
       else numRow(grid, "R", function () { return oc.radius; }, function (v) { setEntityDimension(p, "radius", Math.max(1e-6, v)); }, 0.1);
     }
   } else if (p.type === "ellipse") {
@@ -16942,8 +17122,21 @@ function appendSketchGeometryList(host, sketch) {
   var hint=el("div","md-note");hint.textContent=t("sketchGeometryHint");details.appendChild(hint);
   function pick(object,label) {
     var button=el("button","md-wide md-geometry-pick");button.type="button";button.textContent=label;
+    button.dataset.sketchObjectId=String(object.id);
+    button.dataset.sketchObjectKind=object.type || "point";
     button.setAttribute("aria-pressed",String(E.ssel.includes(object)));
-    button.addEventListener("click",function(event){selectSketch(object,event.ctrlKey||event.metaKey);refreshAll();});
+    button.addEventListener("click",function(event){
+      event.preventDefault();
+      event.stopPropagation();
+      var pane=button.closest(".md-pane"),scrollTop=pane ? pane.scrollTop : 0;
+      selectSketch(object,event.ctrlKey||event.metaKey||event.shiftKey||E.mobileAddSelection);
+      // This is selection-only: keep the exact solver run and keep the
+      // inspector at the row the user is working through while its enabled
+      // relation buttons are rebuilt around the new selection.
+      refreshSelection();
+      var nextPane=root && root.querySelector('#mdRightPanel .md-pane[data-pane="sketch"]');
+      if(nextPane)nextPane.scrollTop=scrollTop;
+    });
     details.appendChild(button);
   }
   var coord=function(point){return "("+Number(point.x.toFixed(6))+", "+Number(point.y.toFixed(6))+") cm";};
@@ -17274,7 +17467,7 @@ function fillSketchPane() {
           if (oldExpr == null) delete con.expr; else con.expr = oldExpr;
           resolveSketch(false); H.discard();
           showSketchRefusal(sketch, text + " (" + relationSubjects(sketch, con, sketchInstanceNames(sketch, instanceLabels())).join(", ") + ")", [con.id], valueWhy);
-        }
+        } else detachDrivenSketchDimension(sketch,con);
         refreshAll();
       });
       row.appendChild(inp);
@@ -17293,7 +17486,7 @@ function fillSketchPane() {
           con.value = constraintMeasure(sketch,con);
           resolveSketch(false); H.discard();
           showSketchRefusal(sketch, drivingSubject, [con.id], drivingWhy); return;
-        }
+        } else detachDrivenSketchDimension(sketch,con);
         refreshAll();
       }, "md-mini" + (con.driven ? " on" : ""));
       drive.title = con.driven ? t("drivenDimension") : t("drivingDimension");
@@ -17303,6 +17496,7 @@ function fillSketchPane() {
       pushUndo(t("suppress"));
       con.suppressed = !con.suppressed;
       resolveSketch(false);
+      if(!con.suppressed)detachDrivenSketchDimension(sketch,con);
       refreshAll();
     }, "md-mini");
     sup.title = t("suppress");
@@ -19693,7 +19887,7 @@ function syncInstant3dValue(view) {
     .addScaledVector(dir.normalize(), (pose.hitLength || pose.length || 0) * 0.6)
     .project(view.cam);
   if (anchor.z > 1) { chip.hidden = true; return; }
-  var units = E.def && E.def.context && E.def.context.units && E.def.context.units.length || "cm";
+  var units = E.def && E.def.context && E.def.context.units && E.def.context.units.length || getDomainUnit("details");
   var control=instant3dFormControl(pose.key);
   if(document.activeElement!==chip)chip.value=String(Math.round((pose.value || 0)*100)/100);
   chip.min=control && control.min || ""; chip.max=control && control.max || "";
@@ -21001,6 +21195,7 @@ function refreshLib() {
   host.innerHTML = "";
   if (E.docType === "assembly") {
     host.appendChild(btn('<i class="ph ph-file-plus"></i> ' + t("newAssembly"), newModel, "md-wide md-dashed"));
+    host.appendChild(btn(getLang()==="en" ? "Save combined model to room library" : "שמירת מודל משולב לספריית החדר", publishAssemblyModel, "md-wide"));
     libraryTransferButtons(host);
     var assemblies = loadAssemblies();
     if (!assemblies.length) { emptyState(host, "ph-stack", t("assemblies"), t("noComponentsHint")); return; }
@@ -21329,9 +21524,48 @@ function scheduleExactRestore() {
   });
 }
 async function regenerateExactModel(rebuild) {
+  if(rebuild==="force")return forceRebuildDocument();
   var pending=(exactModelRebuild || Promise.resolve()).then(function(){return regenerateExactModelNow(rebuild);});
   exactModelRebuild=pending;
   try{return await pending;}finally{if(exactModelRebuild===pending)exactModelRebuild=null;}
+}
+
+/* Ctrl+B is an authoring command, not merely an export-kernel warm-up.  A
+   sketch edit can leave the lightweight body projection (especially Sweep
+   and Loft) holding geometry sampled by an earlier commit even though the
+   feature tree itself already points at the edited sketch.  Re-resolve every
+   sketch-backed recipe, cancel builds that could publish the old recipe, and
+   discard derived display caches before compiling the complete history.
+
+   regenerateExactModel() deliberately remains the narrower primitive used by
+   STEP/IGES export and automatic exact restore; those callers must not blank
+   the viewport or turn a read operation into a document-wide refresh. */
+async function forceRebuildDocument() {
+  if (E.docType !== "part" || !E.def) { flash(t("cmdNeedPartDoc")); return null; }
+  if (!activeParts(E.def).length) { flash(t("needParts")); return null; }
+
+  syncSketchDrivenParts();
+  (E.def.parts || []).forEach(function (part) {
+    var scheduled=exactBuildTimers.get(part);
+    if(scheduled){clearTimeout(scheduled);exactBuildTimers.delete(part);}
+    part.exactBuildToken=(part.exactBuildToken || 0)+1;
+    part.exactPending=false;
+    part.exactError=null;
+    /* Imported/frozen mesh bodies are source data, not derived output. */
+    if (isCanonicalAuthoring() || part.sketchDriven || isKernelBody(part)) {
+      delete part.meshData;
+      if (isKernelBody(part)) delete part.bounds;
+      clearTopologyCache(part);
+      refreshChangedPart(part);
+    }
+  });
+  releaseExactRun();
+  E.coreRun=null;
+  coreRunFresh=false;
+  refreshAll();
+  var run=await regenerateExactModel(true);
+  if(run){refreshAll();flash("✓ "+t("forceRebuildReady"));}
+  return run;
 }
 async function regenerateExactModelNow(rebuild) {
   if (E.docType !== "part" || !activeParts(E.def).length) { flash(t("needParts")); return null; }
@@ -22127,6 +22361,16 @@ async function saveModel() {
       saveRun=await regenerateFeatures({...saveCompiled.document,features:saveCompiled.features});
       if(!saveRun.ok)throw new Error(saveRun.issues.find(function(issue){return issue.code==='regeneration-failed' || issue.severity==='error';})?.message || "The model could not rebuild");
       def.exactTopologyCache=captureExactTopology(def,saveCompiled.features,saveRun);
+      var savedReferenceRepairs=applyDocumentTopologyRebindings(def,saveRun.topologyBindings);
+      if(savedReferenceRepairs.length){
+        def.topologyBindings=(def.topologyBindings || []).concat(savedReferenceRepairs.map(function(entry){return Object.assign({savedAt:Date.now()},entry);}));
+        releaseRegeneration(saveRun); saveRun=null;
+        saveCompiled=compileKernelFeatureTree(def);
+        if(!saveCompiled.ok)throw new Error(saveCompiled.issues[0]?.message || "Invalid repaired feature history");
+        saveRun=await regenerateFeatures({...saveCompiled.document,features:saveCompiled.features});
+        if(!saveRun.ok)throw new Error(saveRun.issues.find(function(issue){return issue.severity==='error';})?.message || "Repaired model could not rebuild");
+        def.exactTopologyCache=captureExactTopology(def,saveCompiled.features,saveRun);
+      }
     }catch(error){report(t("reportKickerSave"),t("saveRebuildFailed"),String(error.message || error));return;}
     finally{if(saveRun)releaseRegeneration(saveRun);}
   }
@@ -22162,6 +22406,7 @@ async function saveModel() {
     savingItem.parameterOverrides = Object.assign({}, savingItem.parameterOverrides, { width: def.w, depth: def.d, height: def.h });
   }
   var committed = commitDefinition(S, def);
+  if (savingItem || committed.affected.length) markPlannerDirty();
   refreshCatalogSelect();
   refreshLib();
   var sel = document.getElementById("furnsel");
@@ -22195,6 +22440,24 @@ async function saveModel() {
     flash("✓ " + tf("savedNamed", { name: def.name || def.key }));
     return;
   }
+  /* Save runs its own authoritative rebuild. Publish that same result back to
+     the open document before declaring it clean, otherwise the status footer
+     can say success while the tree keeps red diagnostics from an earlier
+     failed Force Rebuild. */
+  if(canonical){
+    // The first pass repaired references on the saved clone; mirror those
+    // accepted references into the still-open document after the write.
+    if(savedReferenceRepairs?.length){
+      E.def.features=cloneDomain(def.features);
+      E.def.sketches=cloneDomain(def.sketches);
+      E.def.topologyBindings=cloneDomain(def.topologyBindings);
+    }
+    E.def.exactTopologyCache=cloneDomain(def.exactTopologyCache);
+  }
+  publishRebuildStatus(E.def,E.coreRun);
+  refreshModelHistoryPane();
+  refreshParts();
+  syncCoach();
   flash("✓ " + t("saved"));
   markDocumentClean();
   discardModelerDraft();
@@ -22514,6 +22777,13 @@ export function openModelerForItem(it) {
     return;
   }
   if (!it || !FURN[it.type]) { openModeler(); return; }
+  // A catalogue envelope is not the editable appliance: decompose the actual
+  // displayed geometry into a new document before entering CAD. This also
+  // prevents saving a custom copy from replacing the shared builtin definition.
+  if (!it.cab && !FURN[it.type].custom) {
+    var editable = defFromBuiltin(it.type, it);
+    if (editable) { openModeler(null, editable, it); return; }
+  }
   var canonical = it.cab
     ? syncCabinetDefinition(S, it)
     : ensureItemDefinition(S, it, FURN[it.type]);

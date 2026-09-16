@@ -161,7 +161,7 @@ export function buildCommandCatalog(ctx) {
     { id:"refplane", icon:"ph-square-half", label:t("refPlane"), group:t("cmdFeatures"), available:function(){ return partDoc(); }, reason:needPart },
     { id:"refaxis", icon:"ph-axis-arrow", label:t("refAxis"), group:t("cmdFeatures"), available:function(){ return partDoc(); }, reason:needPart },
     { id:"coordsys", icon:"ph-crosshair", label:t("refCoord"), group:t("cmdFeatures"), available:function(){ return partDoc(); }, reason:needPart },
-    { id:"regen", icon:"ph-arrows-clockwise", label:t("regenerate"), group:t("cmdEvaluate"), shortcut:"Ctrl+B", available:function(){ return partDoc() && !E.kernelBusy && solids(); }, reason:needSolid },
+    { id:"regen", icon:"ph-arrows-clockwise", label:t("regenerate"), group:t("cmdEvaluate"), terms:"force rebuild regenerate refresh update all features", shortcut:"Ctrl+B", available:function(){ return partDoc() && !E.kernelBusy; }, reason:needPart },
     { id:"fit", icon:"ph-crosshair-simple", label:t("zoomFit"), group:t("cmdEvaluate"), shortcut:"F" },
     /* cad_drawings.js has drawn assembly sheets with BOM balloons all along;
        only this gate kept them out of reach. */

@@ -9,6 +9,9 @@ export const api = {};
 /* ================= local i18n ================= */
 export var TXT = {
   manufacturingReview: ["נדרשת בדיקת ייצור לשינויי CAD · אומדן חלקי בלבד", "CAD edits need manufacturing review · partial estimate only"],
+  editScope: ["תחולת העריכה", "Apply layout edits to"],
+  scopeInstance: ["הארון הזה בלבד", "This cabinet only"],
+  scopeLinked: ["כל הארונות המקושרים", "All linked cabinets"],
   scopeNote: ["מידות לארון זה · חלוקה משותפת לעותקים מקושרים", "Size: this cabinet · Layout: linked cabinets"],
   title: ["מעצב ארונות", "Cabinet designer"],
   presets: ["פריסטים", "Presets"],
@@ -33,7 +36,7 @@ export var TXT = {
   mTools: ["כלים", "Tools"],
   mDesign: ["עיצוב", "Design"],
   mProps: ["מאפיינים", "Properties"],
-  mMore: ["עוד", "More"],
+  mMore: ["מידות", "Size"],
   mSheetView: ["בחירת תצוגה", "Choose view"],
   mSheetTools: ["כלי שרטוט", "Drawing tools"],
   mSheetMore: ["מידות ותפריט", "Size & menu"],
@@ -324,6 +327,10 @@ export function formatCm(v) {
   return String(Math.round(Number(v) * 10) / 10);
 }
 
+export function formatCmInput(v) {
+  return String(Number(Number(v).toFixed(6)));
+}
+
 export function row(label, node) {
   var r = el("label", "cb-row", "<span>" + label + "</span>");
   r.appendChild(node);
@@ -336,7 +343,7 @@ export function numInput(val, cb, min, max) {
   i.step = "0.1";
   if (min != null) i.min = min;
   if (max != null) i.max = max;
-  i.value = formatCm(val);
+  i.value = formatCmInput(val);
   function commit() {
     var v = +i.value;
     if (!fin(v)) return;

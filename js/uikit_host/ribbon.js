@@ -139,7 +139,7 @@ export const RIBBON_BUTTONS = {
   ],
   // ---- evaluate pane ----
   grpAnalyze: [
-    { id: "regen", textKey: "regenerate", fallback: "Regenerate", icon: "regen" },
+    { id: "regen", textKey: "regenerate", fallback: "Force Rebuild", icon: "regen" },
     { id: "mass", textKey: "massProps", fallback: "Mass Properties", icon: "mass" },
     { id: "measure", textKey: "measureTool", fallback: "Measure", icon: "measure" },
     { id: "section", textKey: "sectionView", fallback: "Section View", icon: "section" },

@@ -27,6 +27,7 @@ import { slabOpenings, removeSlabOpening } from "./slab_openings.js";
 import { broadcastPlanOp } from "./plan_sync.js";
 import { syncLocks, syncClears, pruneIgnored } from "./constraint_engine.js";
 import { renderWarnPanel } from "./ui_warn.js";
+import { roomClearArea } from "./room_area.js";
 
 function treeRow(label, locked, isSel, onSel, onLock, onDelete, onFrame) {
   var row = document.createElement("div");
@@ -283,7 +284,8 @@ function offerNewRooms(list) {
 
   var m = openModal(t("room_new_title"));
   var p = document.createElement("p");
-  p.textContent = t("room_new_body", { area: fmtAreaM2(r.area / 10000) });
+  var clear = roomClearArea(S, r);
+  p.textContent = t("room_new_body", { area: fmtAreaM2(clear.area == null ? r.area / 10000 : clear.area) });
   m.body.appendChild(p);
 
   var input = document.createElement("input");
@@ -471,8 +473,10 @@ export function refreshTree() {
     head.appendChild(nm);
     var meta = document.createElement("span");
     meta.className = "trMeta";
-    meta.textContent =
-      (r.area / 10000).toFixed(1) + " " + t("sqm") + " · " + inR.length;
+    var displayArea = roomClearArea(S, r);
+    meta.textContent = (displayArea.area == null
+      ? t("room_area_reference_short", { area: fmtAreaM2(r.area / 10000) })
+      : t("room_area_usable_short", { area: fmtAreaM2(displayArea.area) })) + " · " + inR.length;
     meta.title = inR.length + " " + t("tr_items");
     head.appendChild(meta);
     // hide: drop the room out of both views (its own walls, floor, contents)

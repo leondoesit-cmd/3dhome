@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {coneSilhouette,updateSilhouetteSketch} from '../js/core/cone_silhouette.js';
+import {coneSilhouette,detachDrivenSketchDimension,detachLinkedSketchEntity,updateSilhouetteSketch} from '../js/core/cone_silhouette.js';
 import {makeBrepExtrusion,extractBrepTopology,disposeBrep} from '../js/cad_kernel.js';
 test('converted draft silhouette keeps its exact slope and follows a changed source',async()=>{
  const body=await makeBrepExtrusion({points:[{u:6.223,v:0},{u:0,v:6.223},{u:-6.223,v:0},{u:0,v:-6.223}],segments:[{type:'circle',center:{u:0,v:0},radius:6.223}],from:0,to:-4.3815,axis:'z',draftAngle:5,draftOutward:true});
@@ -28,6 +28,38 @@ test('a converted rear circle projects onto an offset plane and follows its radi
  const updated=updateSilhouetteSketch(sketch,()=>edge);assert.equal(updated.entities[0].r,6.2);assert.equal(updated.constraints[0].value,12.4);
  assert.throws(()=>projectCircularEdge({plane:'right'},edge),/parallel/);
  assert.throws(()=>projectCircularEdge(sketch,{descriptor:{...edge.descriptor,measure:1}}),/complete/);
+});
+
+test('driving a converted circle detaches only that entity from source refresh',()=>{
+ const sketch={
+  plane:'front',offset:0,
+  points:[{id:'centre',x:0,y:0},{id:'other-centre',x:0,y:0}],entities:[{id:'thread-circle',type:'circle',c:'centre',r:6.1239},{id:'other-circle',type:'circle',c:'other-centre',r:1}],constraints:[{id:'diameter',type:'diameter',entity:'thread-circle',value:12.2478}],
+  circleCopies:[{entityId:'thread-circle',source:{persistentId:'rear-rim'}},{entityId:'other-circle',source:{persistentId:'front-rim'}}],
+  silhouetteCopies:[{entityId:'side-line',source:{persistentId:'cone-face'}}],
+ };
+ assert.equal(detachLinkedSketchEntity(sketch,'thread-circle'),true);
+ assert.deepEqual(sketch.circleCopies.map(copy=>copy.entityId),['other-circle']);
+ assert.deepEqual(sketch.silhouetteCopies.map(copy=>copy.entityId),['side-line']);
+ const rebuilt=updateSilhouetteSketch({...sketch,silhouetteCopies:[]},()=>({descriptor:{curve:'circle',radius:6.223876,measure:2*Math.PI*6.223876,origin:{x:0,y:0,z:0},axis:{x:0,y:0,z:1}}}));
+ assert.equal(rebuilt.entities[0].r,6.1239,'exact rebuild must not restore the converted edge radius');
+ assert.equal(rebuilt.constraints[0].value,12.2478,'the edited diameter remains authoritative');
+ assert.equal(detachLinkedSketchEntity(sketch,'thread-circle'),false);
+});
+
+test('only an active driving radial dimension breaks a converted-edge link',()=>{
+ const make=()=>({circleCopies:[{entityId:'circle'}],silhouetteCopies:[]});
+ for(const constraint of [
+  {type:'diameter',entity:'circle',driven:true},
+  {type:'radius',entity:'circle',suppressed:true},
+  {type:'distance',entity:'circle'},
+ ]){
+  const sketch=make();
+  assert.equal(detachDrivenSketchDimension(sketch,constraint),false);
+  assert.equal(sketch.circleCopies.length,1);
+ }
+ const sketch=make();
+ assert.equal(detachDrivenSketchDimension(sketch,{type:'diameter',entity:'circle'}),true);
+ assert.deepEqual(sketch.circleCopies,[]);
 });
 
 test('a converted circle whose source edge id moved follows the one matching complete circle, never a guess',async()=>{

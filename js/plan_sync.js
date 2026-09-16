@@ -37,7 +37,7 @@ var lastHello = 0;
    opening's prototype. Copying whatever arrives is never worth it. */
 const OPENING_FIELDS = {
   s: 1, width: 1, height: 1, sill: 1, swingDir: 1,
-  isSliding: 1, isPocket: 1, slideDir: 1, type: 1,
+  isSliding: 1, isPocket: 1, isDouble: 1, leafA: 1, leafB: 1, slideDir: 1, type: 1,
 };
 
 /* Rebuild a value from scratch, dropping any `__proto__` key at every level.

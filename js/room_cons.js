@@ -119,10 +119,12 @@ export function roomAreaM2(key) {
   return r ? Math.abs(r.area) / 10000 : null; // cm² -> m²
 }
 
-/* The room's narrowest span. Measured as the smallest distance from any corner
-   to any non-adjacent EDGE, which is what "how narrow does it get" means for
-   an L-shaped room — a bounding box would report the overall width and miss
-   the pinch entirely. */
+/* The room's narrowest span is measured ACROSS its interior, never along a
+   boundary segment. A short wall return is therefore not mistaken for an
+   85 cm-wide room. For every real edge we cast from its midpoint along the
+   inward normal and take the first opposite boundary hit. Concave rooms still
+   expose their pinches (the inner leg of an L casts across the narrow arm),
+   while subdividing a straight wall adds no new, shorter candidate. */
 export function roomMinDim(key) {
   var r = roomByKeyLive(key);
   if (!r || r.pts.length < 3) return null;
@@ -138,18 +140,24 @@ export function roomMinDim(key) {
     changed = reduced.length >= 3 && reduced.length < pts.length;
     if (changed) pts = reduced;
   }
-  var n = pts.length, best = Infinity;
+  var n = pts.length, best = Infinity, signedArea = 0;
+  for (var ai = 0; ai < n; ai++) signedArea += pts[ai].x * pts[(ai + 1) % n].z - pts[(ai + 1) % n].x * pts[ai].z;
+  var ccw = signedArea > 0;
   for (var i = 0; i < n; i++) {
+    var ea = pts[i], eb = pts[(i + 1) % n], ex = eb.x - ea.x, ez = eb.z - ea.z,
+      edgeLen = Math.hypot(ex, ez);
+    if (edgeLen < 1e-9) continue;
+    var ox = (ea.x + eb.x) / 2, oz = (ea.z + eb.z) / 2,
+      nx = (ccw ? -ez : ez) / edgeLen, nz = (ccw ? ex : -ex) / edgeLen;
     for (var j = 0; j < n; j++) {
-      // skip the two edges this corner is an endpoint of
-      if (j === i || (j + 1) % n === i) continue;
-      var a = pts[j], b = pts[(j + 1) % n], p = pts[i];
-      var dx = b.x - a.x, dz = b.z - a.z, L2 = dx * dx + dz * dz;
-      if (L2 < 1e-9) continue;
-      var tt = ((p.x - a.x) * dx + (p.z - a.z) * dz) / L2;
-      tt = Math.max(0, Math.min(1, tt));
-      var d = Math.hypot(p.x - (a.x + dx * tt), p.z - (a.z + dz * tt));
-      if (d > 0.5 && d < best) best = d; // ignore a corner touching its own edge
+      if (j === i) continue;
+      var a = pts[j], b = pts[(j + 1) % n], sx = b.x - a.x, sz = b.z - a.z,
+        den = nx * sz - nz * sx;
+      if (Math.abs(den) < 1e-9) continue;
+      var qx = a.x - ox, qz = a.z - oz,
+        ray = (qx * sz - qz * sx) / den,
+        seg = (qx * nz - qz * nx) / den;
+      if (ray > 0.5 && seg >= -1e-8 && seg <= 1 + 1e-8 && ray < best) best = ray;
     }
   }
   return isFinite(best) ? best : null;

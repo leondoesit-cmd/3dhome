@@ -23,7 +23,7 @@
           }
           document.documentElement.dir = "ltr";
           var theme = localStorage.getItem("home3d_theme");
-          if (["light", "soft", "mid", "dark"].indexOf(theme) < 0) theme = "light";
+          if (["light", "soft", "mid", "dark", "chrome"].indexOf(theme) < 0) theme = "light";
           document.documentElement.setAttribute("data-theme", theme);
           var iconTheme = localStorage.getItem("home3d_icon_theme") || "lucide";
           var oldIconThemes = {
@@ -1498,6 +1498,7 @@
                 <label><span data-i18n="door_type">סוג דלת</span>
                   <select id="o_type_sel">
                     <option value="standard" data-i18n="d_standard">רגילה</option>
+                    <option value="double" data-i18n="d_double">דלת כפולה</option>
                     <option value="sliding" data-i18n="d_sliding">הזזה</option>
                     <option value="pocket" data-i18n="d_pocket">כיס</option>
                   </select>
@@ -1517,6 +1518,16 @@
                     <option value="L_OUT" data-i18n="d_l_out">שמאל, החוצה</option>
                   </select>
                 </label>
+                <div id="o_swing_grid" class="door-swing-grid" role="group" data-i18n-aria="d_swing_graphic" aria-label="Graphical swing selection">
+                  <button type="button" data-swing="L_IN">↳ L</button>
+                  <button type="button" data-swing="R_IN">R ↲</button>
+                  <button type="button" data-swing="L_OUT">↱ L</button>
+                  <button type="button" data-swing="R_OUT">R ↰</button>
+                </div>
+                <div id="o_pair_box" class="dim-row dim-row-2" style="display:none">
+                  <label><span data-i18n="d_leaf_a">Left leaf</span><input id="o_leaf_a" type="text" inputmode="decimal" autocomplete="off" /></label>
+                  <label><span data-i18n="d_leaf_b">Right leaf</span><input id="o_leaf_b" type="text" inputmode="decimal" autocomplete="off" /></label>
+                </div>
                 <label id="o_mat_l" style="display:none"><span data-i18n="material">חומר</span>
                   <select id="o_mat">
                     <option value="wood" data-i18n="m_wood">עץ</option>
@@ -1626,14 +1637,14 @@
                   ><span data-i18n="guide_resize_width">רוחב</span>
                   <div class="dim-input-stepper">
                     <button type="button" class="dim-step-btn" id="r_w_down" title="-10 cm">−</button>
-                    <input id="r_w" type="number" inputmode="decimal" min="20" step="any" />
+                    <input id="r_w" type="text" inputmode="decimal" autocomplete="off" />
                     <button type="button" class="dim-step-btn" id="r_w_up" title="+10 cm">+</button>
                   </div></label>
                 <label
                   ><span data-i18n="guide_resize_depth">עומק</span>
                   <div class="dim-input-stepper">
                     <button type="button" class="dim-step-btn" id="r_d_down" title="-10 cm">−</button>
-                    <input id="r_d" type="number" inputmode="decimal" min="20" step="any" />
+                    <input id="r_d" type="text" inputmode="decimal" autocomplete="off" />
                     <button type="button" class="dim-step-btn" id="r_d_up" title="+10 cm">+</button>
                   </div></label>
               </div>

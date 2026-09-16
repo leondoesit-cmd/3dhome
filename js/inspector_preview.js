@@ -1,3 +1,4 @@
+import { t, onLangChange } from "./i18n.js";
 // Quarter-screen, selection-fitted 3D preview for the Properties inspector.
 // It deliberately shares the live planner scene (so nearby walls, floors and
 // furniture remain visible) but owns a small renderer and an orbit-only camera.
@@ -61,6 +62,13 @@ function ensureElements() {
   resetBtn = document.getElementById("inspectorPreviewReset");
   if (!host || !canvas) return false;
   roofBtn = document.getElementById("inspectorPreviewRoof");
+  const toggle = document.createElement("button");
+  toggle.className = "inspector-preview-toggle";
+  toggle.setAttribute("aria-expanded", "false");
+  const label = () => { toggle.textContent = t(host.classList.contains("preview-expanded") ? "workflow_preview_hide" : "workflow_preview_show"); };
+  toggle.onclick = () => { const expanded = host.classList.toggle("preview-expanded"); toggle.setAttribute("aria-expanded", String(expanded)); label(); scheduleRender(); };
+  host.prepend(toggle); label(); onLangChange(label);
+
   function syncRoof() {
     if (roofBtn) roofBtn.setAttribute("aria-pressed", String(!!S.invisibleRoof));
     scheduleRender();
@@ -140,6 +148,8 @@ function ensureRenderer() {
 }
 
 function fitSelection(resetAngles) {
+  // A scene rebuild can arrive before the first lazy preview initialization.
+  if (!selectionBox || !center) return false;
   var box = getSelectionBox3D();
   if (!box || box.isEmpty()) return false;
   var sphere = box.getBoundingSphere(new THREE.Sphere());

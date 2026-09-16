@@ -25,12 +25,16 @@ test("Planner mobile destinations stay labelled and switch sheets in one tap", o
       toolsActive: document.querySelector('[data-mnav="tools"]').classList.contains("active"),
       libraryOpen: document.body.classList.contains("show-left"),
       generatedSheetOpen: document.getElementById("m-sheet").classList.contains("on"),
+      generatedSheetHidden: document.getElementById("m-sheet").getAttribute("aria-hidden"),
+      generatedSheetInert: document.getElementById("m-sheet").inert,
     }));
     assert.ok(switched.labels.every((label) => label.text && label.display !== "none"), "all five destinations have visible names");
     assert.equal(switched.addActive, true, "Add becomes active on the first tap");
     assert.equal(switched.toolsActive, false, "Tools clears immediately");
     assert.equal(switched.libraryOpen, true, "the Add library opens immediately");
     assert.equal(switched.generatedSheetOpen, false, "the previous generated sheet closes");
+    assert.equal(switched.generatedSheetHidden, "true", "the dismissed generated sheet leaves the accessibility tree");
+    assert.equal(switched.generatedSheetInert, true, "dismissed sheet controls cannot intercept later input");
 
     await page.eval(() => document.querySelector('[data-mnav="more"]').click());
     await page.eval(() => new Promise((resolve) => setTimeout(resolve, 120)));
@@ -42,6 +46,10 @@ test("Planner mobile destinations stay labelled and switch sheets in one tap", o
       paged: !!document.querySelector("#m-sheet .mobile-page-shell"),
       topModeler: getComputedStyle(document.getElementById("openModelerTop")).display,
       topMoreRects: document.getElementById("moreMenu").getClientRects().length,
+      sheetHidden: document.getElementById("m-sheet").getAttribute("aria-hidden"),
+      sheetInert: document.getElementById("m-sheet").inert,
+      saveCount: [...document.querySelectorAll("#m-sheet-body button")]
+        .filter((button) => button.textContent.trim() === "Save").length,
     }));
     assert.equal(more.guide, true, "Guide is promoted at the top of More");
     assert.ok(more.groups.includes("Project") && more.groups.includes("Export"), "More has named task groups");
@@ -49,6 +57,9 @@ test("Planner mobile destinations stay labelled and switch sheets in one tap", o
     assert.equal(more.paged, false, "More scrolls instead of hiding groups behind anonymous pages");
     assert.equal(more.topModeler, "none", "Model Editor is demoted from the permanent topbar");
     assert.equal(more.topMoreRects, 0, "there is only one mobile More destination");
+    assert.equal(more.sheetHidden, "false", "the open sheet is exposed to assistive technology");
+    assert.equal(more.sheetInert, false, "the open sheet accepts interaction");
+    assert.equal(more.saveCount, 1, "More contains one unambiguous Save action");
 
     // The View slot is a switcher: one tap flips Plan <-> 3D rather than
     // spending a tap opening a list to say which pane you want.

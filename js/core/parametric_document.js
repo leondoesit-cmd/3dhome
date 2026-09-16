@@ -1,3 +1,4 @@
+import {planFinishRemoval} from "./finish_removal.js";
 import { cloneDomain, createDefinition, domainId, mainReferences, migrateDefinition } from "./schema.js";
 import { featureDefaults, featureSpec, validateFeatureDefinition } from "./feature_catalog.js";
 
@@ -345,14 +346,19 @@ export function reorderHistoryNode(document, historyId, targetIndex) {
   return analysis;
 }
 
-export function removeHistoryNode(document, historyId) {
+export function removeHistoryNode(document, historyId, options = {}) {
   const entry = historyNode(document, historyId);
   if (!entry) return { ok: false, issues: [{ severity: "error", code: "missing-history-node", message: "History node does not exist" }] };
   const dependants = (document.features || []).filter((feature) => {
     if (entry.kind === "feature") return featureDependencyIds(feature).has(entry.targetId);
     return (feature.references?.sketches || []).map(referenceId).includes(entry.targetId);
   });
-  if (dependants.length) return { ok: false, issues: [{ severity: "error", code: "history-node-has-dependants", reference: entry.targetId, dependants: dependants.map((item) => item.id), message: entry.name + " is used by " + dependants.map((item) => item.name).join(", ") }] };
+  const finishPlan=entry.kind==='feature' ? planFinishRemoval(document,(document.features||[]).find(feature=>feature.id===entry.targetId),options.verifiedTopology) : null;
+  if(finishPlan?.issues.length)return {ok:false,issues:finishPlan.issues};
+  if (dependants.length && !finishPlan) return { ok: false, issues: [{ severity: "error", code: "history-node-has-dependants", reference: entry.targetId, dependants: dependants.map((item) => item.id), message: entry.name + " is used by " + dependants.map((item) => item.name).join(", ") }] };
+  if(finishPlan)finishPlan.apply();
+  const removedIndex=document.history.indexOf(entry);
+  if(document.rollbackIndex!=null&&removedIndex<document.rollbackIndex)document.rollbackIndex--;
   document.history = document.history.filter((item) => item !== entry);
   if (entry.kind === "feature") document.features = document.features.filter((item) => item.id !== entry.targetId);
   else document.sketches = document.sketches.filter((item) => item.id !== entry.targetId);

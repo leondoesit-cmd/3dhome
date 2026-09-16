@@ -20,10 +20,11 @@
       itself in the inspector and stays visibly out — same bargain the rest of
       the constraint engine strikes with the user. */
 import { S, fin, uid } from "./state.js";
-import { wallById, wallGeom, wallClearLength, openFaceDist, openNodeDist } from "./geometry.js";
+import { wallById, wallGeom, wallClearLength, wallCuts, openFaceDist, openNodeDist } from "./geometry.js";
 import {
   snapshotNodes, enforceLocks, relaxLocks, wouldReleaseJoint, settleWallDim, syncClears, syncLocks,
 } from "./constraint_engine.js";
+import { getDomainUnit } from "./unit_settings.js";
 
 /* Satisfied to within this and the constraint is green. Well under what anyone
    draws by hand, well over what rounding a corner through a rotation costs. */
@@ -563,10 +564,56 @@ export function addOpeningFromCorner(openingId, end, value) {
   if (!w) return null;
   var L = wallClearLength(w), e = end === "b" ? "b" : "a",
     s = openFaceDist(w, o.s);
+  var cornerNode = e === "a" ? w.a : w.b,
+    corner = S.nodes[cornerNode], pos = openingPos(o),
+    centreDistance = corner && pos ? Math.hypot(pos.x - corner.x, pos.z - corner.z) : (e === "a" ? o.s : wallGeom(w).L - o.s),
+    dir = corner && pos && centreDistance > 1e-9
+      ? { x: (pos.x - corner.x) / centreDistance, z: (pos.z - corner.z) / centreDistance }
+      : { x: e === "a" ? wallGeom(w).ux : -wallGeom(w).ux, z: e === "a" ? wallGeom(w).uz : -wallGeom(w).uz };
   return addUnique({
     id: uid(), type: "openDist", opening: o.id, end: e,
     value: fin(value) ? value : (e === "a" ? s : L - s),
+    cornerNode: cornerNode, cornerDir: dir,
+    cornerOffset: (e === "a" ? s : L - s) - centreDistance,
   });
+}
+
+export function stabilizeOpeningCornerRefs(wall) {
+  if (!wall) return 0;
+  var count = 0;
+  wallCons().forEach(function (c) {
+    if (c.type !== "openDist" || c.cornerNode != null) return;
+    var o = openingById(c.opening);
+    if (!o || o.wall !== wall.id) return;
+    var cornerNode = c.end === "b" ? wall.b : wall.a,
+      corner = S.nodes[cornerNode], pos = openingPos(o);
+    if (!corner || !pos) return;
+    var distance = Math.hypot(pos.x - corner.x, pos.z - corner.z);
+    if (!(distance > 1e-9)) return;
+    c.cornerNode = cornerNode;
+    c.cornerDir = { x: (pos.x - corner.x) / distance, z: (pos.z - corner.z) / distance };
+    c.cornerOffset = (fin(c.value) ? c.value : distance) - distance;
+    count++;
+  });
+  return count;
+}
+
+/* The named corner's finished-face setback changes when a return is moved or
+   its angle/thickness changes. Resolve that cut from the live segment leaving
+   the named node toward the opening, even when the original host was split. */
+function openingCornerCut(c) {
+  if (!c || c.cornerNode == null || !c.cornerDir) return null;
+  var best = null, bestDot = -Infinity;
+  (S.walls || []).forEach(function (w) {
+    var atA = w.a === c.cornerNode, atB = w.b === c.cornerNode;
+    if (!atA && !atB) return;
+    var g = wallGeom(w), dx = atA ? g.ux : -g.ux, dz = atA ? g.uz : -g.uz,
+      dot = dx * c.cornerDir.x + dz * c.cornerDir.z;
+    if (dot > bestDot) { bestDot = dot; best = { wall: w, end: atA ? "a" : "b" }; }
+  });
+  if (!best || bestDot < 0.5) return null;
+  var cuts = wallCuts(best.wall);
+  return cuts && fin(cuts[best.end]) ? cuts[best.end] : null;
 }
 
 /* Two openings lined up across DIFFERENT walls, on one world axis. The window
@@ -611,6 +658,14 @@ function solveOpenCentre(c) {
 function solveOpenDist(c) {
   var o = openingById(c.opening), w = o && wallById(o.wall);
   if (!o || !w || !fin(c.value)) return 0;
+  if (c.cornerNode != null && c.cornerDir) {
+    var corner = S.nodes[c.cornerNode], g = wallGeom(w), liveCut = openingCornerCut(c),
+      d = c.value + (liveCut == null ? -(Number(c.cornerOffset) || 0) : liveCut);
+    if (corner && g && fin(d)) {
+      var tx = corner.x + c.cornerDir.x * d, tz = corner.z + c.cornerDir.z * d;
+      return moveOpening(o, (tx - g.a.x) * g.ux + (tz - g.a.z) * g.uz);
+    }
+  }
   var L = wallClearLength(w);
   return moveOpening(o, openNodeDist(w, c.end === "b" ? L - c.value : c.value));
 }
@@ -1020,6 +1075,14 @@ export function conCurrent(c) {
   if (c.type === "openDist") {
     var od = openingById(c.opening), odw = od && wallById(od.wall);
     if (!odw) return null;
+    if (c.cornerNode != null) {
+      var corner = S.nodes[c.cornerNode], odp = openingPos(od);
+      if (corner && odp) {
+        var liveCut = openingCornerCut(c);
+        return Math.hypot(odp.x - corner.x, odp.z - corner.z) -
+          (liveCut == null ? -(Number(c.cornerOffset) || 0) : liveCut);
+      }
+    }
     var ods = openFaceDist(odw, od.s);
     return c.end === "b" ? wallClearLength(odw) - ods : ods;
   }
@@ -1162,7 +1225,7 @@ export function conUnit(c) {
   if (["angle", "wallAngle", "equalAngle", "parallel", "perpendicular",
     "horizontal", "vertical"].indexOf(c.type) !== -1) return "deg";
   if (["dist", "offset", "axisDistX", "axisDistZ", "pointWallDist",
-    "openDist"].indexOf(c.type) !== -1) return "cm";
+    "openDist"].indexOf(c.type) !== -1) return getDomainUnit("plan");
   return null; // a pure relation: satisfied or not, with nothing to type
 }
 export function conDrivable(c) {

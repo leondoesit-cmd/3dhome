@@ -5,6 +5,7 @@ import {splineControls} from "../sketch_spline.js";
 import { framePoint } from "./frame.js";
 import { analyzeSketchChains, analyzeSketchProfiles } from "../sketch_profiles.js";
 import { sampleHelix } from "../cad_helix.js";
+import { helixFromSketch } from "./sketch_helix.js";
 
 function planeAxis(plane) { return plane === "top" ? "y" : plane === "front" ? "z" : "x"; }
 
@@ -112,10 +113,14 @@ export function resolveSketchSources(def, sources, resolveProfilePoints) {
   var profile = loop(sources.profile);
   if (!profile) return null;
   if (sources.helixId) {
-    // A helix path is reference geometry, not a sketch, so it is re-sampled
-    // from its own record rather than re-read from points.
+    // The reference record is the selectable/display projection.  Prefer the
+    // owning feature so an edited driving circle cannot be masked by a stale
+    // creation-time helix snapshot.
     var helix = (def.referenceGeometry || []).find(function (item) { return item && item.id === sources.helixId; });
     if (!helix) return null;
+    var featureId=sources.helixFeatureId || helix.featureId;
+    var feature=(def.features || []).find(function(item){return item && item.id===featureId && item.type==="helix";});
+    if(feature)try{helix={...helix,...helixFromSketch(def,feature.params || {})};}catch(error){return null;}
     return { profile:profile, path:sampleHelix(helix).points };
   }
   var pathSketch = sketchById(def, sources.path && sources.path.sketchId);

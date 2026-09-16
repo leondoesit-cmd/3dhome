@@ -779,6 +779,9 @@ function buildStraightWall(w, col, tex) {
         type: o.type,
         overlapL: o.overlapL,
         isSliding: !!o.isSliding,
+        isDouble: !!o.isDouble,
+        leafA: o.leafA,
+        leafB: o.leafB,
         mat: o.mat,
         color: o.color,
         slideDir: o.slideDir,
@@ -1091,6 +1094,28 @@ function buildStraightWall(w, col, tex) {
               box(doorPivot, r - 9, r - 6, o.height * 0.5 - 10, o.height * 0.5 + 10, fF + 1.8, fF + 3, HANDLE, { metal: 0.7 });
             }
           }
+        } else if (o.isDouble) {
+          doorPivot.userData.type = "double";
+          var pairDir = o.swingDir || "R_IN";
+          var pairInward = pairDir.endsWith("IN");
+          var pairSign = pairInward ? 1 : -1;
+          var pairWidth = r - l - 2 * jamb;
+          var leafA = Math.max(1, Math.min(pairWidth - 1, +(o.leafA || pairWidth / 2)));
+          var leafB = pairWidth - leafA;
+          var pairZ0 = pairInward ? -2 : 0;
+          var pairZ1 = pairInward ? 0 : 2;
+          var leftLeaf = new THREE.Group();
+          leftLeaf.position.set(l + jamb, 0, 0);
+          leftLeaf.userData.maxOpen = pairSign * Math.PI / 2;
+          box(leftLeaf, 0, leafA, 1, o.height - head, pairZ0, pairZ1, WOOD, { rough: 0.6 });
+          box(leftLeaf, leafA - 4, leafA - 1, o.height * 0.5 - 6, o.height * 0.5 + 6, pairZ1, pairZ1 + 0.4, HANDLE, { metal: 0.7, rough: 0.3 });
+          var rightLeaf = new THREE.Group();
+          rightLeaf.position.set(r - jamb, 0, 0);
+          rightLeaf.userData.maxOpen = -pairSign * Math.PI / 2;
+          box(rightLeaf, -leafB, 0, 1, o.height - head, pairZ0, pairZ1, WOOD, { rough: 0.6 });
+          box(rightLeaf, -leafB + 1, -leafB + 4, o.height * 0.5 - 6, o.height * 0.5 + 6, pairZ1, pairZ1 + 0.4, HANDLE, { metal: 0.7, rough: 0.3 });
+          doorPivot.add(leftLeaf, rightLeaf);
+          doorPivot.userData.leaves = [leftLeaf, rightLeaf];
         } else {
           var swingDir = o.swingDir || "R_IN";
           var isLeftHinge = swingDir.startsWith("L");
@@ -1400,9 +1425,26 @@ function addSampledOpening(group, w, o) {
   } else if (o.type === "door") {
     var pivot = new THREE.Group();
     var left = String(o.swingDir || "R_IN").startsWith("L");
-    pivot.position.x = left ? -half + jamb : half - jamb;
-    pivot.userData = { opening:o, isDoor: true, open: o.open===true, type: "swing", width: o.width, maxOpen: left ? Math.PI / 2 : -Math.PI / 2 };
-    localBox(pivot, left ? 0 : -o.width + 2 * jamb, left ? o.width - 2 * jamb : 0, 1, Math.max(2, top - FR.head), 2, o.color ? parseInt(o.color.slice(1), 16) : WOOD, { rough: 0.6 });
+    pivot.userData = { opening:o, isDoor: true, open: o.open===true, type: o.isDouble ? "double" : "swing", width: o.width, maxOpen: left ? Math.PI / 2 : -Math.PI / 2 };
+    if (o.isDouble) {
+      var usable = o.width - 2 * jamb;
+      var aWidth = Math.max(1, Math.min(usable - 1, +(o.leafA || usable / 2)));
+      var bWidth = usable - aWidth;
+      var inward = String(o.swingDir || "R_IN").endsWith("IN");
+      var sign = inward ? 1 : -1;
+      var lp = new THREE.Group(), rp = new THREE.Group();
+      lp.position.x = -half + jamb;
+      rp.position.x = half - jamb;
+      lp.userData.maxOpen = sign * Math.PI / 2;
+      rp.userData.maxOpen = -sign * Math.PI / 2;
+      localBox(lp, 0, aWidth, 1, Math.max(2, top - FR.head), 2, o.color ? parseInt(o.color.slice(1), 16) : WOOD, { rough: 0.6 });
+      localBox(rp, -bWidth, 0, 1, Math.max(2, top - FR.head), 2, o.color ? parseInt(o.color.slice(1), 16) : WOOD, { rough: 0.6 });
+      pivot.add(lp, rp);
+      pivot.userData.leaves = [lp, rp];
+    } else {
+      pivot.position.x = left ? -half + jamb : half - jamb;
+      localBox(pivot, left ? 0 : -o.width + 2 * jamb, left ? o.width - 2 * jamb : 0, 1, Math.max(2, top - FR.head), 2, o.color ? parseInt(o.color.slice(1), 16) : WOOD, { rough: 0.6 });
+    }
     holder.add(pivot);
     if (scene && scene.doors) scene.doors.push(pivot);
   }
@@ -4381,6 +4423,15 @@ function build3D() {
           d.rotation.y += delta * 0.1;
           moving = true;
         } else d.rotation.y = targetRot;
+      } else if (d.userData.type === "double") {
+        (d.userData.leaves || []).forEach(function(leaf) {
+          var leafTarget = d.userData.open ? leaf.userData.maxOpen : 0;
+          var leafDelta = leafTarget - leaf.rotation.y;
+          if (Math.abs(leafDelta) > 1e-4) {
+            leaf.rotation.y += leafDelta * 0.1;
+            moving = true;
+          } else leaf.rotation.y = leafTarget;
+        });
       } else if (d.userData.type === "slide") {
         var maxSlide = d.userData.width * 0.9;
         var targetX = d.userData.open ? d.userData.slideDir * maxSlide : 0;

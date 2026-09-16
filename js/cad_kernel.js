@@ -20,6 +20,7 @@ import { ribDraftedLoop, ribLoop } from "./core/rib_profile.js";
 import { extrusionAxisVector, UP_TO_FACE_MISSED } from "./core/extrude_extent.js";
 
 let kernelPromise = null;
+let kernelLoadAttempt = 0;
 
 // The product domain uses centimetres. OpenCascade expresses its transfer
 // system unit as millimetres per application unit, so one model unit is 10 mm.
@@ -36,10 +37,17 @@ async function compressedBrowserKernel(factory) {
 
 export function loadCadKernel() {
   if (!kernelPromise) {
+    const attempt = kernelLoadAttempt++;
+    const browserModule = new URL("../node_modules/opencascade.js/dist/opencascade.full.js", import.meta.url);
+    if (attempt) browserModule.searchParams.set("retry", String(attempt));
     kernelPromise = typeof window === "undefined"
       ? import("opencascade.js/dist/node.js").then(({ default: factory }) => factory())
-      : import("../node_modules/opencascade.js/dist/opencascade.full.js").then(({default:factory})=>
+      : import(browserModule.href).then(({default:factory})=>
         compressedBrowserKernel(factory).catch(()=>factory({locateFile(path){if(path.endsWith(".wasm"))return new URL("../node_modules/opencascade.js/dist/opencascade.full.wasm",import.meta.url).href;return path;}})));
+    kernelPromise = kernelPromise.catch((error) => {
+      kernelPromise = null;
+      throw error;
+    });
   }
   return kernelPromise;
 }
@@ -191,6 +199,87 @@ function clearBrepTopology(brep) {
   brep.subshapes.clear();
 }
 
+function descriptorPoint(descriptor = {}) {
+  const bounds=descriptor.bounds;
+  if(bounds?.min&&bounds?.max)return {
+    x:(Number(bounds.min.x)+Number(bounds.max.x))/2,
+    y:(Number(bounds.min.y)+Number(bounds.max.y))/2,
+    z:(Number(bounds.min.z)+Number(bounds.max.z))/2,
+  };
+  return descriptor.origin || descriptor.center || null;
+}
+
+function descriptorGroupBounds(items) {
+  const points=[];
+  for(const item of items){
+    const bounds=item?.descriptor?.bounds;
+    if(bounds?.min&&bounds?.max)points.push(bounds.min,bounds.max);
+    else {const point=descriptorPoint(item?.descriptor);if(point)points.push(point);}
+  }
+  if(!points.length)return null;
+  return {
+    min:{x:Math.min(...points.map(p=>Number(p.x)||0)),y:Math.min(...points.map(p=>Number(p.y)||0)),z:Math.min(...points.map(p=>Number(p.z)||0))},
+    max:{x:Math.max(...points.map(p=>Number(p.x)||0)),y:Math.max(...points.map(p=>Number(p.y)||0)),z:Math.max(...points.map(p=>Number(p.z)||0))},
+  };
+}
+
+function relativeDescriptorPoint(descriptor,bounds) {
+  const point=descriptorPoint(descriptor);
+  if(!point||!bounds)return null;
+  const at=axis=>{const span=bounds.max[axis]-bounds.min[axis];return Math.abs(span)>1e-8?(point[axis]-bounds.min[axis])/span:.5;};
+  return {x:at('x'),y:at('y'),z:at('z')};
+}
+
+function nonlinearCurve(descriptor={}) {return !!descriptor.curve && descriptor.curve!=='line';}
+
+function edgeCurveClassAgrees(reference,item) {
+  return reference.kind!=='edge' || nonlinearCurve(reference.descriptor)===nonlinearCurve(item.descriptor);
+}
+
+/* Fillet and offset edges can legitimately change analytic type when an
+   upstream wall gains draft: a circular rim becomes an ellipse and an inner
+   circle becomes an offset curve.  Absolute descriptor matching cannot follow
+   a 104.14 mm body becoming a 10.16 mm plate.  Compare each generated edge's
+   relative position inside its producing feature instead, with one-to-one and
+   score guards, so the old persistent name survives the parametric edit. */
+function resolveHistoricalKernelReference(reference,expected,raw,unmatched) {
+  if(!reference?.ownerFeatureId||!['edge','face'].includes(reference.kind))return null;
+  const generated=String(reference.persistentId || '').includes(':generated:');
+  const sourceGroup=expected.filter(item=>item.kind===reference.kind&&item.ownerFeatureId===reference.ownerFeatureId
+    && (!generated||String(item.persistentId || '').includes(':generated:')));
+  const currentGroup=raw.filter(item=>item.kind===reference.kind&&item.ownerFeatureId===reference.ownerFeatureId);
+  const candidates=currentGroup.filter(item=>unmatched.has(item));
+  if(!sourceGroup.length||!candidates.length)return null;
+  const oldBounds=descriptorGroupBounds(sourceGroup),newBounds=descriptorGroupBounds(currentGroup);
+  const wanted=relativeDescriptorPoint(reference.descriptor,oldBounds);
+  if(!wanted)return null;
+  const wantedDirection=reference.descriptor?.axis||reference.descriptor?.normal;
+  const wantedMeasure=Number(reference.descriptor?.measure)||0;
+  const ranked=candidates.map(item=>{
+    const point=relativeDescriptorPoint(item.descriptor,newBounds);
+    if(!point)return {item,score:Infinity};
+    let score=Math.hypot(point.x-wanted.x,point.y-wanted.y,point.z-wanted.z);
+    if(reference.kind==='edge'&&nonlinearCurve(reference.descriptor)!==nonlinearCurve(item.descriptor))score+=1;
+    if(reference.kind==='face'&&reference.descriptor?.surface&&item.descriptor?.surface!==reference.descriptor.surface)score+=1;
+    const direction=item.descriptor?.axis||item.descriptor?.normal;
+    if(wantedDirection&&direction){
+      const a=Math.hypot(wantedDirection.x||0,wantedDirection.y||0,wantedDirection.z||0)||1;
+      const b=Math.hypot(direction.x||0,direction.y||0,direction.z||0)||1;
+      const alignment=((wantedDirection.x||0)*(direction.x||0)+(wantedDirection.y||0)*(direction.y||0)+(wantedDirection.z||0)*(direction.z||0))/(a*b);
+      score+=(1-(reference.kind==='face'?alignment:Math.abs(alignment)))*.25;
+    }
+    const measure=Number(item.descriptor?.measure)||0;
+    if(wantedMeasure&&measure)score+=Math.abs(measure-wantedMeasure)/Math.max(wantedMeasure,measure)*.15;
+    return {item,score};
+  }).sort((a,b)=>a.score-b.score||a.item.signature.localeCompare(b.item.signature));
+  if(!ranked.length||ranked[0].score>.6)return null;
+  /* A drafted kernel edge may split a formerly single circular arc into two
+     offset-curve pieces.  Both are legitimate descendants, so proximity and
+     the stable signature tie-break above choose the canonical continuation
+     instead of discarding the old name as ambiguous. */
+  return ranked[0].item;
+}
+
 // Extract exact kernel subshapes and bind them to the canonical semantic names
 // produced by the lightweight rebuild.  Unmatched boolean/import faces receive
 // deterministic generated names sorted by their geometric descriptor.
@@ -221,22 +310,31 @@ export function extractBrepTopology(brep, options = {}) {
   const expected = Array.isArray(options.expectedTopology) ? options.expectedTopology : [];
   expected.forEach((reference) => {
     // a plane name binds only to a face in the same plane facing the same way
-    const candidates = Array.from(unmatched).filter((item) => item.kind === reference.kind && (item.kind !== "face" || planarFaceNameAgrees(reference, item)));
+    const candidates = Array.from(unmatched).filter((item) => item.kind === reference.kind
+      && (item.kind !== "face" || planarFaceNameAgrees(reference, item))
+      // A drafted rounded profile turns circles into offset curves, but never
+      // into straight lines.  Keeping those two classes separate prevents an
+      // earlier saved profile-line name from consuming the offset edge that a
+      // later historical circle reference needs.
+      && edgeCurveClassAgrees(reference,item));
     const resolved = resolveTopologyReference(reference, createTopologyRegistry(candidates), { threshold: options.threshold || 0.8, ambiguityTolerance: 0.01 });
-    if (resolved.status === "missing" || resolved.status === "ambiguous" || !resolved.topology) return;
-    const item = resolved.topology;
+    const item = resolved.status === "missing" || resolved.status === "ambiguous" || !resolved.topology
+      ? resolveHistoricalKernelReference(reference,expected,raw,unmatched)
+      : resolved.topology;
+    if(!item)return;
     item.persistentId = reference.persistentId;
     item.semantic = reference.semantic;
     item.ownerFeatureId = reference.ownerFeatureId || featureId;
     item.signature = topologyDescriptorSignature({ ...item.descriptor, semantic: item.semantic });
     unmatched.delete(item);
   });
-  const groups = new Map();
+  const groups = new Map(),usedIds=new Set(raw.filter(item=>!unmatched.has(item)).map(item=>item.persistentId));
   Array.from(unmatched).sort((a, b) => a.kind.localeCompare(b.kind) || a.signature.localeCompare(b.signature)).forEach((item) => {
     const key = item.kind + ":" + (item.descriptor.surface || item.descriptor.curve || "other");
-    const ordinal = (groups.get(key) || 0) + 1;
+    let ordinal = (groups.get(key) || 0) + 1,persistentId=stableKernelId(featureId,item.kind,item.descriptor,ordinal);
+    while(usedIds.has(persistentId)){ordinal++;persistentId=stableKernelId(featureId,item.kind,item.descriptor,ordinal);}
     groups.set(key, ordinal);
-    item.persistentId = stableKernelId(featureId, item.kind, item.descriptor, ordinal);
+    item.persistentId = persistentId;usedIds.add(persistentId);
     item.semantic = "generated-" + ordinal;
   });
   brep.topology = raw.map(({ shape, ...item }) => item);

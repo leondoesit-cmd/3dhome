@@ -101,6 +101,7 @@ test("canonical save and exact regeneration compile history instead of reconstru
   assert.match(source, /compileKernelFeatureTree\(E\.def\)/);
   assert.match(source, /var canonical=isCanonicalAuthoring\(\)/);
   assert.match(source, /if \(!canonical[^\n]+rebuildFeatureTreeFromDocument/);
+  assert.match(source, /publishRebuildStatus\(E\.def,E\.coreRun\);\s*refreshModelHistoryPane\(\);\s*refreshParts\(\);\s*syncCoach\(\);\s*flash\("✓ " \+ t\("saved"\)\)/);
 });
 
 test("feature parameters are grouped and drive every visual projection live", () => {
@@ -343,7 +344,7 @@ test("sketches open Normal To the plane and the live preview is the UV shape", (
   assert.doesNotMatch(modelerSource, /if \(active\) orientModelToView\(\)/);
   assert.match(modelerSource, /if\(stayIn3D && \(E\.sketchNormalTo \|\| topology\)\)\{\s*captureSketchCameraPose\(\);\s*orientModelToView\(true\);\s*\}/);
   assert.match(modelerSource, /if\(E\.sketchNormalTo\)\{captureSketchCameraPose\(\);orientModelToView\(true\);\}/);
-  assert.match(modelerSource, /if \(E\.mode === "3d"\) orientModelToView\(true\)/);
+  assert.match(modelerSource, /if \(E\.mode === "3d"\) orientStandardView\(id\)/);
   assert.match(modelerSource, /id="mdNormalToView"/);
   assert.match(modelerSource, /function setSketchNormalTo\(on\)/);
   assert.doesNotMatch(modelerSource, /id="mdNormalToView"[^>]*aria-pressed/);

@@ -1,4 +1,5 @@
 import {framePoint} from './frame.js';
+import {normalizeHelixSpec} from '../cad_helix.js';
 export function helixFromSketch(document,params){
  let origin=params.origin || {x:0,y:0,z:0},axis=params.axis || {x:0,y:1,z:0},radius=Number(params.radius);
  if(params.sketchId){
@@ -14,4 +15,28 @@ export function helixFromSketch(document,params){
  const delta=params.taperMode==='angle'?height*Math.tan(Number(params.taperAngle)*Math.PI/180)*(params.taperOutward?1:-1):Number(params.taper || 0);
  if(!(radius>0)||!(height>0)||!(radius+delta>0))throw new Error('Helix radius and height must stay positive');
  return {...params,origin,axis,radius,radiusEnd:radius+delta,height,pitch:params.definition==='height-turns'?height/Number(params.turns):Number(params.pitch),startAngle:Number(params.startAngle || 0)*Math.PI/180};
+}
+
+/* Reference geometry is a display/selection projection of the Helix feature,
+   not an independent source of truth.  Older rebuild paths left that record at
+   its creation-time radius, so Pierce and Sweep kept reading the old curve
+   after the driving circle changed.  Refresh it before any dependent preview
+   recipe is resolved; the exact feature-tree rebuild performs the same
+   derivation on its execution copy. */
+export function synchronizeSketchHelices(document){
+ const changed=[];
+ for(const feature of document?.features || []){
+  if(feature?.type!=='helix' || feature.suppressed)continue;
+  let spec;
+  try{spec=normalizeHelixSpec(helixFromSketch(document,feature.params || {}));}catch(_){continue;}
+  for(const collection of [document.referenceGeometry || [],document.references || []])for(const reference of collection){
+   if(reference?.featureId!==feature.id)continue;
+   let dirty=false;
+   for(const [key,value] of Object.entries(spec))if(JSON.stringify(reference[key])!==JSON.stringify(value)){
+    reference[key]=structuredClone(value);dirty=true;
+   }
+   if(dirty && !changed.includes(reference.id))changed.push(reference.id);
+  }
+ }
+ return changed;
 }

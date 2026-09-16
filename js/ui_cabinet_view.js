@@ -17,6 +17,7 @@ import {
   STD,
 } from "./cabinet.js";
 import { api, E, T, isEn, AXES, sp, formatCm } from "./ui_cabinet_ctx.js";
+import { displayUnit, toDisp, fromDisp } from "./display_units.js";
 
 /* Persistent pan & zoom state for the 2D elevation. The base scale `k` auto-
    fits the cabinet to the viewport; these overlay it so a pinch gesture can
@@ -713,7 +714,7 @@ export function draw() {
         c.fillText(secLabel(cell.ref.t), x + w / 2, y + h / 2 - 7);
         c.fillStyle = muted;
         c.font = "500 10px Inter, Rubik, sans-serif";
-        c.fillText(Math.round(cell.y1 - cell.y0) + " " + (isEn() ? "cm" : 'ס"מ'), x + w / 2, y + h / 2 + 7);
+        c.fillText(Math.round(toDisp(cell.y1 - cell.y0, "furniture")) + " " + displayUnit("furniture"), x + w / 2, y + h / 2 + 7);
         c.font = "600 11px Inter, Rubik, sans-serif";
       }
     });
@@ -1196,23 +1197,31 @@ export function wireCanvas() {
     var h = hit(toModel(e));
     if (!h) return;
     if (h.kind === "cell") {
+      var u = displayUnit("furniture");
       var s = sp().cols[h.col].secs[h.sec],
-        v = prompt(T("secH") + ' (' + (isEn() ? "cm" : 'ס"מ') + ")", Math.round(s.h));
-      if (v != null && fin(+v) && +v > 5) {
-        s.h = +v;
-        s.fixed = true;
-        api.touch();
-        api.changed();
+        v = prompt(T("secH") + ' (' + u + ')', Math.round(toDisp(s.h, "furniture")));
+      if (v != null && fin(+v)) {
+        var parsedH = fromDisp(+v, "furniture");
+        if (parsedH > 5) {
+          s.h = parsedH;
+          s.fixed = true;
+          api.touch();
+          api.changed();
+        }
       }
     } else if (h.kind === "col" || h.kind === "colDiv") {
+      var u = displayUnit("furniture");
       var ci = h.col != null ? h.col : h.i,
         c2 = sp().cols[ci],
-        v2 = prompt(T("colW") + ' (' + (isEn() ? "cm" : 'ס"מ') + ")", Math.round(c2.w));
-      if (v2 != null && fin(+v2) && +v2 > 10) {
-        c2.w = +v2;
-        c2.fixed = true;
-        api.touch();
-        api.changed();
+        v2 = prompt(T("colW") + ' (' + u + ')', Math.round(toDisp(c2.w, "furniture")));
+      if (v2 != null && fin(+v2)) {
+        var parsedW = fromDisp(+v2, "furniture");
+        if (parsedW > 10) {
+          c2.w = parsedW;
+          c2.fixed = true;
+          api.touch();
+          api.changed();
+        }
       }
     }
   });

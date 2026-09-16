@@ -15,6 +15,17 @@ export function coneSilhouette(sketch,face,options={}){
 }
 export function updateSilhouetteSketch(sketch,resolveFace){
  const updated=structuredClone(sketch);
+ const linkedOffset=(copy,seen=new Set())=>{
+  const relation=updated.constraints.find(c=>c.type==='offset'&&c.b===copy.entityId&&!c.suppressed&&updated.circleCopies.some(parent=>parent.entityId===c.a));
+  const parentId=copy.offsetFrom || relation?.a;
+  if(!parentId)return copy.offset || 0;
+  if(seen.has(copy.entityId))throw new Error('Circular offset dependency is cyclic');
+  seen.add(copy.entityId);
+  const parent=updated.circleCopies.find(item=>item.entityId===parentId);
+  const dimension=updated.constraints.find(c=>c.type==='offset'&&c.a===parentId&&c.b===copy.entityId&&!c.suppressed);
+  if(!parent||!dimension)throw new Error('Linked circular offset source or distance is unavailable');
+  return linkedOffset(parent,seen)+dimension.value;
+ };
  for(const copy of updated.silhouetteCopies || []){
   const face=resolveFace(copy.source);if(!face)throw new Error('Linked silhouette source face is unavailable');
   const line=coneSilhouette(updated,face,copy),entity=updated.entities.find(e=>e.id===copy.entityId);if(!entity)throw new Error('Linked silhouette line is missing');
@@ -23,10 +34,37 @@ export function updateSilhouetteSketch(sketch,resolveFace){
  for(const copy of updated.circleCopies || []){
   const edge=resolveFace(copy.source);if(!edge)throw new Error('Linked circular edge is unavailable');
   const circle=projectCircularEdge(updated,edge),entity=updated.entities.find(e=>e.id===copy.entityId);if(!entity)throw new Error('Linked circle is missing');
-  const point=updated.points.find(p=>p.id===entity.c);Object.assign(point,{x:circle.x,y:circle.y});entity.r=circle.radius;
-  for(const constraint of updated.constraints || []){if(constraint.type==='fixed'&&constraint.point===point.id)Object.assign(constraint,{x:circle.x,y:circle.y});if(constraint.type==='diameter'&&constraint.entity===entity.id)constraint.value=2*circle.radius;}
+  const point=updated.points.find(p=>p.id===entity.c);Object.assign(point,{x:circle.x,y:circle.y});entity.r=circle.radius+linkedOffset(copy);
+  if(!Number.isFinite(entity.r)||entity.r<=1e-6)throw new Error('Circular offset collapses the source circle');
+  for(const constraint of updated.constraints || []){if(constraint.type==='fixed'&&constraint.point===point.id)Object.assign(constraint,{x:circle.x,y:circle.y});if(constraint.type==='diameter'&&constraint.entity===entity.id)constraint.value=2*entity.r;}
  }
  return updated;
+}
+
+/* Convert Entities is associative until the user explicitly drives the copied
+   geometry.  Once a radius/diameter is edited, keeping the hidden source link
+   would let the next exact rebuild silently restore the source edge's old
+   size.  Detaching only the edited entity preserves every other converted
+   boundary and makes the dimension the new source of truth. */
+export function detachLinkedSketchEntity(sketch,entityId){
+ if(!sketch || entityId==null)return false;
+ let changed=false;
+ for(const key of ['circleCopies','silhouetteCopies']){
+  if(!Array.isArray(sketch[key]))continue;
+  const retained=sketch[key].filter(copy=>copy?.entityId!==entityId);
+  if(retained.length!==sketch[key].length){sketch[key]=retained;changed=true;}
+ }
+ return changed;
+}
+
+/* All dimension-editing surfaces use this policy function. Keeping the policy
+   beside the external-reference data avoids a UI path accidentally forgetting
+   to break the link. Reference and suppressed dimensions remain associative;
+   an active driving radial dimension becomes the authority. */
+export function detachDrivenSketchDimension(sketch,constraint){
+ if(!constraint || constraint.driven || constraint.suppressed)return false;
+ if(constraint.type!=='radius' && constraint.type!=='diameter')return false;
+ return detachLinkedSketchEntity(sketch,constraint.entity);
 }
 
 /* A converted circle follows its source edge by persistent id first. Edge ids
@@ -52,4 +90,16 @@ export function projectCircularEdge(sketch,edge){
  const o=sketchWorldPoint(sketch,0,0),u=sketchWorldPoint(sketch,1,0),v=sketchWorldPoint(sketch,0,1),x={x:u.x-o.x,y:u.y-o.y,z:u.z-o.z},y={x:v.x-o.x,y:v.y-o.y,z:v.z-o.z},dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
  if(Math.abs(dot(d.axis,x))>1e-6||Math.abs(dot(d.axis,y))>1e-6)throw new Error('The circular edge must be parallel to the sketch plane');
  const q={x:d.origin.x-o.x,y:d.origin.y-o.y,z:d.origin.z-o.z};return {x:dot(q,x),y:dot(q,y),radius:d.radius};
+}
+
+// The offset stores its signed distance, not a frozen copy of the source radius.
+export function appendCircularEdgeOffset(sketch,edge,distance,makeId){
+ const circle=projectCircularEdge(sketch,edge),radius=circle.radius+distance;
+ if(!Number.isFinite(distance)||!distance||!Number.isFinite(radius)||radius<=1e-6)throw new Error('Offset must leave a positive circle radius');
+ const point={id:makeId(),x:circle.x,y:circle.y},entity={id:makeId(),type:'circle',c:point.id,r:radius,construction:false};
+ sketch.points.push(point);sketch.entities.push(entity);
+ sketch.constraints.push({id:makeId(),type:'fixed',point:point.id,x:point.x,y:point.y},{id:makeId(),type:'diameter',entity:entity.id,value:2*radius});
+ sketch.circleCopies=sketch.circleCopies || [];
+ sketch.circleCopies.push({source:structuredClone(edge),entityId:entity.id,offset:distance});
+ return entity;
 }

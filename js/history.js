@@ -1,3 +1,4 @@
+import { createHistoryValuePool } from "./core/history_value_pool.js";
 import { mergeBaselineArchives } from "./redesign.js";
 // Undo/redo via JSON snapshots of the model (walls/rooms/openings/furniture/MEP).
 // Display/environment settings (time, north, floor, wall color) are intentionally NOT tracked.
@@ -30,6 +31,7 @@ import { normalizeBlueprintReference, syncBlueprintTraceControls } from "./bluep
 import { captureFloor } from "./floors.js";
 
 const CAP = 80;
+const definitionPool = createHistoryValuePool();
 
 /* ---- texture interning ---------------------------------------------------
    Uploaded wall/floor textures are stored on the model as base64 data URLs
@@ -44,6 +46,7 @@ const CAP = 80;
 const TEX_TOKEN = "@tex:";
 var texById = new Map(), texKeyFor = new Map(), texSeq = 0;
 function texPack(key, value) {
+  if(key === "parametric" && value && typeof value === "object") return definitionPool.pack(value);
   if (typeof value !== "string" || value.lastIndexOf("data:", 0) !== 0) return value;
   var k = texKeyFor.get(value);
   if (!k) {
@@ -54,6 +57,7 @@ function texPack(key, value) {
   return k;
 }
 function texUnpack(key, value) {
+  if(key === "parametric") return definitionPool.unpack(value);
   // only swap back tokens we actually issued, so an unrelated string that
   // happens to look like one passes through untouched
   if (typeof value === "string" && texById.has(value)) return texById.get(value);

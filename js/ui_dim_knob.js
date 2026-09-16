@@ -25,9 +25,8 @@
  */
 
 import { t, onLangChange } from "./i18n.js";
-import { S } from "./state.js";
-import { planningDisplayUnit } from "./planning_guide.js";
-import { parseLength, toDisplayLength, fromDisplayLength, formatLength } from "./planning_units.js";
+import { parseLen, toDisp, fromDisp, fmtLen, unitLabel } from "./display_units.js";
+import { inferDomainFromElementId } from "./unit_settings.js";
 import {
   createDimScrub,
   baseStepFor,
@@ -123,7 +122,7 @@ function unitFor(input) {
   var explicit = input.getAttribute("data-knob-unit");
   if (explicit) return explicit;
   if (/rot|ang|azim|pitch|north|cone|deg/i.test(input.id || "")) return "°";
-  return t("guide_unit_" + planningDisplayUnit(S));
+  return unitLabel(inferDomainFromElementId(input.id) || "plan");
 }
 
 function fieldValue(input) {
@@ -131,9 +130,9 @@ function fieldValue(input) {
     var ang = parseFloat(input.value);
     return isFinite(ang) ? ang : 0;
   }
-  var unit = planningDisplayUnit(S);
-  var cm = parseLength(input.value, unit);
-  if (Number.isFinite(cm)) return toDisplayLength(cm, unit);
+  var domain = inferDomainFromElementId(input.id) || "plan";
+  var cm = parseLen(input.value, domain);
+  if (Number.isFinite(cm)) return toDisp(cm, domain);
   var v = parseFloat(input.value);
   return isFinite(v) ? v : 0;
 }
@@ -143,8 +142,8 @@ function writeKnobValue(input, displayValue) {
     input.value = String(displayValue);
     return;
   }
-  var unit = planningDisplayUnit(S);
-  input.value = formatLength(fromDisplayLength(displayValue, unit), unit, { suffix: false });
+  var domain = inferDomainFromElementId(input.id) || "plan";
+  input.value = fmtLen(fromDisp(displayValue, domain), { domain: domain, suffix: false });
 }
 
 /* ---- the panel ---------------------------------------------------------- */

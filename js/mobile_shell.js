@@ -41,6 +41,7 @@ var ctxBar = null,
   coachCopy = null,
   coachAction = null;
 var openSheet = null; // key of the sheet currently up, or null
+var sheetReturnFocus = null;
 var lastSig = ""; // context-bar signature; a rebuild only happens when it changes
 var libraryPageHost = null;
 var transientPageHosts = [];
@@ -57,10 +58,12 @@ function pageInspector() {
   document.querySelectorAll("#right-inspector .grp.props.mobile-paged-menu").forEach(function (panel) {
     if (panel !== active) releasePagedMenu(panel);
   });
-  /* Wall already owns five semantic tabs; nesting another pager would make
-     both controls compete for the same swipe. Every other inspector is still
-     a linear form and benefits from automatic cards. */
-  if (active.id === "wallProps") return;
+  /* Walls already own semantic tabs. Room and furniture dimensions need one
+     predictable scrolling form, without another pager hiding essential fields. */
+  if (active.id === "wallProps" || active.id === "roomProps" || active.id === "itemProps") {
+    releasePagedMenu(active);
+    return;
+  }
   mountPagedMenu(active, {
     pinSelector: "#selname2, #selname_items, #selname3, #selname4, #selname_sv, #selname_mk, #selname_con, #selname_nd, #selname_walls",
     namedTabs: true,
@@ -462,7 +465,12 @@ function ensureSheet() {
   sheet = document.createElement("div");
   sheet.id = "m-sheet";
   sheet.setAttribute("role", "dialog");
-  sheet.setAttribute("aria-modal", "true");
+  // The sheet lives in the DOM for its slide animation. Keep the dismissed
+  // surface out of focus navigation and the accessibility tree; merely moving
+  // it off-screen leaves every stale command reachable to switch controls.
+  sheet.setAttribute("aria-modal", "false");
+  sheet.setAttribute("aria-hidden", "true");
+  sheet.inert = true;
   sheet.innerHTML =
     '<div class="m-sheet-grip" aria-hidden="true"></div>' +
     '<div class="m-sheet-head"><h4 id="m-sheet-title"></h4>' +
@@ -516,9 +524,15 @@ function closeSheet() {
   var closingKey = openSheet;
   releasePages();
   openSheet = null;
+  // Move focus before making the dialog inert so Chrome never has to retain a
+  // focused descendant inside an aria-hidden subtree.
+  if (sheetReturnFocus && sheetReturnFocus.isConnected) sheetReturnFocus.focus({ preventScroll: true });
+  sheetReturnFocus = null;
   if (sheet) {
     sheet.classList.remove("on", "tall");
     sheet.setAttribute("aria-modal", "false");
+    sheet.setAttribute("aria-hidden", "true");
+    sheet.inert = true;
   }
   if (backdrop) backdrop.classList.remove("on");
   document.body.classList.remove("m-sheet-open");
@@ -552,6 +566,9 @@ function showSheet(key) {
   // The two panel keys reuse the existing drawers, restyled as sheets by CSS.
   if (key === "add" || key === "props") {
     sheet.classList.remove("on", "tall");
+    sheet.setAttribute("aria-modal", "false");
+    sheet.setAttribute("aria-hidden", "true");
+    sheet.inert = true;
     backdrop.classList.add("on");
     document.body.classList.add("m-sheet-open");
     document.body.classList.toggle("show-left", key === "add");
@@ -577,6 +594,7 @@ function showSheet(key) {
     return;
   }
   document.body.classList.remove("show-left", "show-right");
+  sheetReturnFocus = document.activeElement;
   sheetBody.innerHTML = "";
   if (key === "tools") buildToolsSheet();
   else if (key === "view") buildViewSheet();
@@ -587,6 +605,8 @@ function showSheet(key) {
   openSheet = key;
   sheet.classList.add("on");
   sheet.setAttribute("aria-modal", "true");
+  sheet.setAttribute("aria-hidden", "false");
+  sheet.inert = false;
   backdrop.classList.add("on");
   document.body.classList.add("m-sheet-open");
   syncNav();
@@ -863,7 +883,10 @@ function buildMoreSheet() {
 
   var fileMenu = menuByKey("menu_file");
   var reset = fileMenu && fileMenu.querySelector('[data-act="reset"]');
-  appendMenuGroup(t("m_more_project"), fileMenu, { exclude: ["reset"], append: [reset] });
+  // Save is already promoted in the two-column shortcut group. Listing the
+  // same action again a few rows later makes the project section look like it
+  // has two save scopes when both buttons run the identical command.
+  appendMenuGroup(t("m_more_project"), fileMenu, { exclude: ["reset", "save"], append: [reset] });
   appendMenuGroup(t("menu_edit"), menuByKey("menu_edit"));
   appendMenuGroup(t("menu_export"), menuByKey("menu_export"));
   /* RC / Night Shift / lava are games. The planner More sheet keeps Walk

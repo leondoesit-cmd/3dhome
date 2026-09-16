@@ -18,15 +18,10 @@ import { S } from "./state.js";
 import { t, onLangChange } from "./i18n.js";
 import { ROOM_CATEGORIES, ROOM_PRESETS, roomPreset, presetsByCategory, CONNECTION_MODES } from "./room_presets.js";
 import { armRoomStamp, rotateRoomStamp, setRoomStampSize, setRoomStampConnMode } from "./interaction.js";
-import { planningGuide } from "./planning_guide.js";
-import { formatLength, parseLength } from "./planning_units.js";
+import { fmtLen, parseLen, unitLabel } from "./display_units.js";
 
 var host = null;
 var activeCat = ROOM_CATEGORIES[0].id;
-
-function displayUnit() {
-  return planningGuide(S).details.displayUnit || "cm";
-}
 
 function label(preset) {
   var s = t(preset.i18n);
@@ -48,6 +43,20 @@ function build() {
   title.className = "wd-title";
   title.textContent = t("rp_title");
   head.appendChild(title);
+  var collapse = document.createElement("button");
+  collapse.type = "button";
+  collapse.id = "roomPaletteToggle";
+  collapse.className = "wd-collapse";
+  var expanded = !host.classList.contains("auto-collapsed");
+  collapse.setAttribute("aria-expanded", expanded ? "true" : "false");
+  collapse.title = t(expanded ? "rp_collapse" : "rp_expand");
+  collapse.setAttribute("aria-label", collapse.title);
+  collapse.innerHTML = '<i class="ph ' + (expanded ? "ph-caret-left" : "ph-sliders-horizontal") + '"></i>';
+  collapse.addEventListener("click", function () {
+    host.classList.toggle("auto-collapsed");
+    build();
+  });
+  head.appendChild(collapse);
   host.appendChild(head);
 
   var tabs = document.createElement("div");
@@ -77,10 +86,10 @@ function build() {
     name.textContent = label(preset);
     var size = document.createElement("span");
     size.className = "rp-size";
-    var unit = displayUnit();
     var shownW = S.roomStamp && S.roomStamp.id === preset.id ? S.roomStamp.w : preset.w;
     var shownD = S.roomStamp && S.roomStamp.id === preset.id ? S.roomStamp.d : preset.d;
-    size.textContent = formatLength(shownW, unit, { suffix: false }) + " × " + formatLength(shownD, unit, { suffix: false });
+    size.textContent = fmtLen(shownW, { domain: "rooms", suffix: false }) + " × " +
+      fmtLen(shownD, { domain: "rooms", suffix: false });
     b.append(name, size);
     b.addEventListener("click", function () { armRoomStamp(preset.id); });
     grid.appendChild(b);
@@ -93,7 +102,7 @@ function build() {
     sec.className = "wd-sec rp-size-sec";
     var lab = document.createElement("span");
     lab.className = "wd-lab";
-    lab.textContent = t("rp_clearSize") + " (" + t("guide_unit_" + displayUnit()) + ")";
+    lab.textContent = t("rp_clearSize") + " (" + unitLabel("rooms") + ")";
     sec.appendChild(lab);
     var row = document.createElement("div");
     row.className = "rp-fields";
@@ -157,18 +166,17 @@ function sizeField(axis, preset) {
   input.autocomplete = "off";
   input.spellcheck = false;
   input.dataset.axis = axis;
-  var unit = displayUnit();
-  input.value = formatLength(S.roomStamp[axis], unit, { suffix: false });
-  input.setAttribute("aria-label", (axis === "w" ? t("rp_width") : t("rp_depth")) + " (" + t("guide_unit_" + unit) + ")");
+  input.value = fmtLen(S.roomStamp[axis], { domain: "rooms", suffix: false });
+  input.setAttribute("aria-label", (axis === "w" ? t("rp_width") : t("rp_depth")) + " (" + unitLabel("rooms") + ")");
   function commit() {
-    var next = parseLength(input.value, unit);
+    var next = parseLen(input.value, "rooms");
     if (!Number.isFinite(next)) {
-      input.value = formatLength(S.roomStamp[axis], unit, { suffix: false });
+      input.value = fmtLen(S.roomStamp[axis], { domain: "rooms", suffix: false });
       return;
     }
     if (axis === "w") setRoomStampSize(next, S.roomStamp.d);
     else setRoomStampSize(S.roomStamp.w, next);
-    input.value = formatLength(S.roomStamp[axis], unit, { suffix: false });
+    input.value = fmtLen(S.roomStamp[axis], { domain: "rooms", suffix: false });
   }
   input.addEventListener("change", commit);
   input.addEventListener("keydown", function (event) {
@@ -180,12 +188,24 @@ function sizeField(axis, preset) {
 
 function syncVisibility() {
   if (!host) return;
+  var wasHidden = host.hidden;
   host.hidden = S.tool !== "roomstamp";
+  if (wasHidden && !host.hidden) host.classList.remove("auto-collapsed");
 }
 
 export function refreshRoomPalette() {
-  build();
   syncVisibility();
+  build();
+}
+
+function syncRoomSizeControls() {
+  if (!host || !S.roomStamp) return;
+  host.querySelectorAll(".rp-field input[data-axis]").forEach(function (input) {
+    input.value = fmtLen(S.roomStamp[input.dataset.axis], { domain: "rooms", suffix: false });
+  });
+  var chipSize = host.querySelector('.rp-chip[data-preset="' + S.roomStamp.id + '"] .rp-size');
+  if (chipSize) chipSize.textContent = fmtLen(S.roomStamp.w, { domain: "rooms", suffix: false }) + " × " +
+    fmtLen(S.roomStamp.d, { domain: "rooms", suffix: false });
 }
 
 export function initRoomPalette(root) {
@@ -198,7 +218,19 @@ export function initRoomPalette(root) {
   window.addEventListener("planner-tool", refreshRoomPalette);
   // the armed preset changes from the keyboard too (R, and the 0 shortcut),
   // so the panel listens rather than being told by every call site
-  window.addEventListener("planner-room-stamp", refreshRoomPalette);
+  window.addEventListener("planner-room-stamp", function (event) {
+    /* A size commit used to rebuild the card synchronously. On touch, the
+       resulting blur removed the second input before its tap could focus it;
+       screen-reader references became stale for the same reason. Keep the
+       stable controls and update only their values. */
+    if (event.detail && event.detail.reason === "size") syncRoomSizeControls();
+    else refreshRoomPalette();
+  });
+  window.addEventListener("planner-room-created", function () {
+    if (!host || !document.body.classList.contains("compact-nav") || host.hidden) return;
+    host.classList.add("auto-collapsed");
+    build();
+  });
   window.addEventListener("planner-units", refreshRoomPalette);
   onLangChange(build);
   return host;

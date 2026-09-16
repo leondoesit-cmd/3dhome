@@ -1493,7 +1493,12 @@ export function featureTopologyReferences(feature) {
 }
 
 export function resolveFeatureTopologyReferences(feature, registry, options = {}) {
-  const resolutions = featureTopologyReferences(feature).map((reference) => resolveTopologyReference(reference, registry, options));
+  const resolutions = featureTopologyReferences(feature).map((reference) => {
+    const resolved = resolveTopologyReference(reference, registry, options);
+    const support = feature.params?.support;
+    if (support?.persistentId !== reference.persistentId || support?.ownerFeatureId !== reference.ownerFeatureId) return resolved;
+    return recoverPlanarSupport(reference, registry, resolved);
+  });
   const issues = [];
   resolutions.forEach((resolution) => {
     if (resolution.status === "rebound") issues.push({
@@ -1509,6 +1514,37 @@ export function resolveFeatureTopologyReferences(feature, registry, options = {}
     });
   });
   return { resolutions, issues };
+}
+
+// Older saves could reuse a generated face ID for an unrelated side wall.
+// For a sketch support, the retained planar descriptor is evidence that the
+// exact-name match is invalid. Recover only an unambiguous, parallel face of
+// comparable area, allowing translation along its normal (a depth edit).
+export function recoverPlanarSupport(reference, registry, resolved) {
+  const wanted = reference?.descriptor, actual = resolved?.topology?.descriptor;
+  if (wanted?.surface !== "plane" || !wanted.normal || !wanted.origin || !actual) return resolved;
+  const normal = wanted.normal, length = Math.hypot(normal.x, normal.y, normal.z);
+  if (!length) return resolved;
+  const aligned = descriptor => {
+    const n = descriptor?.normal, size = n && Math.hypot(n.x, n.y, n.z);
+    return descriptor?.surface === "plane" && size > 0 && dotRaw(normal, n) / (length * size) > 1 - 1e-6;
+  };
+  if (aligned(actual)) return resolved;
+  const source = registry?.byPersistentId ? registry : createTopologyRegistry(registry || []);
+  const candidates = source.list.filter(item => item.kind === "face" && item.ownerFeatureId === reference.ownerFeatureId && aligned(item.descriptor));
+  const ranked = candidates.map(item => {
+    // Remove only normal translation from the score; preserve in-plane
+    // position and area so a small rim cannot substitute for the floor.
+    const descriptor = item.descriptor, delta = vector(descriptor.origin.x-wanted.origin.x, descriptor.origin.y-wanted.origin.y, descriptor.origin.z-wanted.origin.z);
+    const shift = dotRaw(delta, normal) / (length * length);
+    const tangential = Math.hypot(delta.x-shift*normal.x, delta.y-shift*normal.y, delta.z-shift*normal.z);
+    const area = Math.abs(Number(wanted.measure) || 0);
+    const score = area > 0 ? Math.abs(area-Number(descriptor.measure))/area + tangential/Math.max(1,Math.sqrt(area)) : Infinity;
+    return {item, score};
+  }).sort((a,b) => a.score-b.score);
+  if (!ranked.length || ranked[0].score > .2) return {status:"missing",reference,topology:null,reason:"support-orientation-mismatch"};
+  if (ranked[1] && ranked[1].score-ranked[0].score < .025) return {status:"ambiguous",reference,topology:null,candidates:ranked.slice(0,3).map(entry=>entry.item),reason:"support-orientation-mismatch"};
+  return {status:"rebound",reference,topology:ranked[0].item,score:ranked[0].score,reason:"saved-support-orientation-recovery"};
 }
 
 // Rebinding is kept separate from resolution so previews and failed rebuilds
@@ -1528,6 +1564,22 @@ export function applyTopologyRebindings(resolutions = []) {
     applied.push({ from: previous, to: reference.persistentId, reason: resolution.reason || "rebound" });
   });
   return applied;
+}
+
+// Kernel compilation clones references. Commit successful repairs to the
+// authored document too, including the sketch shared by multiple features.
+export function applyDocumentTopologyRebindings(document, resolutions = []) {
+  const repairs = new Map(resolutions.filter(entry => entry.status === "rebound" && entry.topology).map(entry => [entry.reference.ownerFeatureId + "|" + entry.reference.persistentId, entry]));
+  const visited = new Set(), bindings = [];
+  const visit = value => {
+    if (!value || typeof value !== "object" || visited.has(value)) return;
+    visited.add(value);
+    const repair = repairs.get(value.ownerFeatureId + "|" + value.persistentId);
+    if (repair && value.kind === repair.reference.kind) bindings.push({...repair, reference:value});
+    else Object.values(value).forEach(visit);
+  };
+  [document.features, document.sketches, document.references, document.referenceGeometry].forEach(visit);
+  return applyTopologyRebindings(bindings);
 }
 
 /* May an expected face NAME be given to this exact face?

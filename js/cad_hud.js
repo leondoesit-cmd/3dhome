@@ -17,21 +17,24 @@ import { wallClearLength, pendingCuts, roomName } from "./geometry.js";
 import { flabel } from "./furniture_meta.js";
 import { t, tTouch } from "./i18n.js";
 import { previousRunAngle, resolveWallDrawDefaults, previewMetrics, touchDrawing, currentDrawDirLock } from "./wall_draw.js";
-import { planningDisplayUnit } from "./planning_guide.js";
-import { parseLength, formatLength } from "./planning_units.js";
+import { displayUnit, fmtLen, parseLen } from "./display_units.js";
+import { inferDomainFromTool } from "./unit_settings.js";
 import { ensurePointsVisible } from "./plan_view.js";
 
-function hudUnit() {
-  return planningDisplayUnit(S);
+function hudUnit(domain) {
+  return displayUnit(domain || (S.tool ? inferDomainFromTool(S.tool) : "plan"));
 }
 
-function hudLength(text) {
-  var parsed = parseLength(text, hudUnit());
+function hudLength(text, domain) {
+  var dom = domain || (S.tool ? inferDomainFromTool(S.tool) : "plan");
+  var parsed = parseLen(text, dom);
   return Number.isFinite(parsed) ? parsed : parseFloat(text);
 }
 
 function hudFmt(cm, options) {
-  return formatLength(cm, hudUnit(), options);
+  var opts = typeof options === "string" ? { domain: options } : (options || {});
+  var dom = opts.domain || (S.tool ? inferDomainFromTool(S.tool) : "plan");
+  return fmtLen(cm, Object.assign({ domain: dom }, opts));
 }
 
 var bar = null,
@@ -422,13 +425,13 @@ function setText(el, s, prev) {
 
 export function updateCadHud() {
   if (!bar) return;
-  var unit = hudUnit();
+  var unit = hudUnit("plan");
   var unitLabel = t("guide_unit_" + unit);
   lastCoord = setText(
     elCoord,
     curX == null || !fin(curX)
       ? "—"
-      : "X " + hudFmt(curX, { suffix: false }) + "   Y " + hudFmt(-curZ, { suffix: false }) +
+      : "X " + hudFmt(curX, { suffix: false, domain: "plan" }) + "   Y " + hudFmt(-curZ, { suffix: false, domain: "plan" }) +
         (unit === "ft" ? "" : "  " + unitLabel),
     lastCoord,
   );
@@ -496,17 +499,17 @@ export function updateCadHud() {
     main = tTouch("hint_tool_erase");
   } else if (S.sel && S.sel.kind === "slabvoid" && S.sel.ref) {
     selectionName = S.sel.ref.name || t("sv_title");
-    selectionDetail = hudFmt(S.sel.ref.w) + " × " + hudFmt(S.sel.ref.d);
+    selectionDetail = hudFmt(S.sel.ref.w, { domain: "rooms" }) + " × " + hudFmt(S.sel.ref.d, { domain: "rooms" });
   } else if (S.sel && S.sel.kind === "wall") {
     selectionName = t("wallId", { id: S.sel.ref.id });
-    selectionDetail = hudFmt(wallLen(S.sel.ref));
+    selectionDetail = hudFmt(wallLen(S.sel.ref), { domain: "rooms" });
   } else if (S.sel && S.sel.kind === "item" && S.sel.ref) {
     selectionName = S.sel.ref.name || flabel(S.sel.ref.type);
-    selectionDetail = hudFmt(S.sel.ref.w) + " × " + hudFmt(S.sel.ref.d);
+    selectionDetail = hudFmt(S.sel.ref.w, { domain: "furniture" }) + " × " + hudFmt(S.sel.ref.d, { domain: "furniture" });
   } else if (S.sel && S.sel.kind === "opening" && S.sel.ref) {
     selectionName = S.sel.ref.name || t(S.sel.ref.type === "door" ? "door" : S.sel.ref.type === "passage" ? "passage" : "window");
-    selectionDetail = hudFmt(S.sel.ref.w || S.sel.ref.width || 0) + " × " +
-      hudFmt(S.sel.ref.h || S.sel.ref.height || 0);
+    selectionDetail = hudFmt(S.sel.ref.w || S.sel.ref.width || 0, { domain: "openings" }) + " × " +
+      hudFmt(S.sel.ref.h || S.sel.ref.height || 0, { domain: "openings" });
   } else if (S.sel && S.sel.kind === "room") {
     selectionName = roomName(S.sel.ref) || t("room");
   } else if (S.sel && S.sel.kind === "marker" && S.sel.ref) {

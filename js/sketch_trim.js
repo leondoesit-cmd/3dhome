@@ -193,6 +193,8 @@ export function offsetEntity(sketch, entityId, distance) {
     sketch.points.push(newC);
     const newCircle = { id: uid("circle"), type: "circle", name: "Circle", c: newC.id, r: newR, construction: entity.construction };
     sketch.entities.push(newCircle);
+    const linked=(sketch.circleCopies || []).find(copy=>copy.entityId===entity.id);
+    if(linked)sketch.circleCopies.push({...structuredClone(linked),entityId:newCircle.id,offsetFrom:entity.id,offset:(linked.offset || 0)+distance});
     sketch.constraints.push({ id: uid("c"), type: "concentric", a: entity.id, b: newCircle.id });
     sketch.constraints.push({id:uid("c"),type:"offset",a:entity.id,b:newCircle.id,value:distance});
     return newCircle;

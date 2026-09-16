@@ -40,7 +40,7 @@ test("overall size edits go through the parametric cabinet dimension request", (
   assert.match(chrome, /import \{\s*CAB_LIMITS, syncCabinetDefinition, requestCabinetDimension, applyCabinetDimension,/);
   assert.match(chrome, /function applyOverallSize\(dimension, input\)/);
   assert.match(chrome, /requestCabinetDimension\(E\.it, dimension, value, ceilingHeight\(\)\)/);
-  assert.match(chrome, /applyCabinetDimension\(S, E\.it, result, alternativeId\)/);
+  assert.match(chrome, /applyCabinetDimension\(S, E\.it, result, alternativeId(?:, [^)]+)?\)/);
   assert.match(chrome, /function showSizeProposal\(/);
   assert.match(chrome, /id="cbSizeDlg"/);
   assert.doesNotMatch(ui, /dim\.min = 20/);

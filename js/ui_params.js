@@ -20,6 +20,8 @@ import {
   setRoomConValue, setRoomConMode, roomConError, roomConSatisfied,
   roomAreaM2, roomMinDim, solveRoomCons,
 } from "./room_cons.js";
+import { roomClearArea } from "./room_area.js";
+import { fmtLen, fmtAreaM2 } from "./display_units.js";
 
 /* ---- parameters --------------------------------------------------------- */
 
@@ -132,11 +134,13 @@ export function renderRoomCons(key) {
   host.innerHTML = "";
   if (!key) return;
 
-  var area = roomAreaM2(key), narrow = roomMinDim(key);
+  var room = detectRooms().find(function (entry) { return entry.key === key; }),
+    clear = room && roomClearArea(S, room),
+    area = clear && clear.area != null ? clear.area : roomAreaM2(key), narrow = roomMinDim(key);
   if (measure)
-    measure.textContent = t("rc_measure", {
-      a: area == null ? "?" : Math.round(area * 100) / 100,
-      d: narrow == null ? "?" : Math.round(narrow),
+    measure.textContent = t(clear && clear.area != null ? "rc_measure_usable" : "rc_measure_reference", {
+      a: area == null ? "?" : fmtAreaM2(area),
+      d: narrow == null ? "?" : fmtLen(narrow, { domain: "rooms" }),
     });
   if (rectBtn) rectBtn.disabled = !canSquare(key);
 

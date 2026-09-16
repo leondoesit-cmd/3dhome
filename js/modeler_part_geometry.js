@@ -325,6 +325,38 @@ export function cutRangeForAxis(bounds, axis) {
    face pick into that face's edges; shell and draft act on the face itself. */
 export var FACE_DRIVEN_OPERATIONS = new Set(["shell", "dome", "draft", "thicken"]);
 
+/* Projection bodies keep cuts, merges and finish operations in separate
+   compatibility arrays.  Replaying those arrays by category changes history:
+   Fillet -> Cut used to become Cut -> Fillet, so a pocket copied from the
+   filleted face was displayed with square corners.  Canonical feature ids
+   carry their creation timestamp and sequence; use that when the projection
+   record has not yet been given an explicit history index. */
+function projectionStepOrder(record) {
+  if (Number.isFinite(Number(record && record.historyIndex))) return {historyIndex:Number(record.historyIndex)};
+  var id=String(record && (record.featureId || record.id) || "");
+  var match=/^feature_([0-9a-z]+)_([0-9a-z]+)$/i.exec(id);
+  if (!match) return null;
+  var time=parseInt(match[1],36),sequence=parseInt(match[2],36);
+  return Number.isFinite(time) && Number.isFinite(sequence) ? {time:time,sequence:sequence} : null;
+}
+
+export function orderedProjectionSteps(cuts, merges, operations) {
+  var serial=0,steps=[];
+  (cuts || []).forEach(function(record){steps.push({kind:"cut",record:record,legacy:serial++});});
+  (merges || []).forEach(function(record){steps.push({kind:"merge",record:record,legacy:serial++});});
+  (operations || []).forEach(function(record){steps.push({kind:"operation",record:record,legacy:serial++});});
+  steps.forEach(function(step){step.order=projectionStepOrder(step.record);});
+  if(steps.every(function(step){return step.order && step.order.historyIndex!=null;})){
+    steps.sort(function(a,b){return a.order.historyIndex-b.order.historyIndex || a.legacy-b.legacy;});
+  }else if(steps.every(function(step){return step.order && (step.order.time!=null || step.order.historyIndex<0);})){
+    steps.sort(function(a,b){
+      if(a.order.historyIndex<0 || b.order.historyIndex<0)return (a.order.historyIndex<0?-1:1)-(b.order.historyIndex<0?-1:1) || a.legacy-b.legacy;
+      return a.order.time-b.order.time || a.order.sequence-b.order.sequence || a.legacy-b.legacy;
+    });
+  }
+  return steps;
+}
+
 /* A recorded tool is a solid, and which solid is a property of the record, not
    of the caller. Revolve Cut and Sweep Cut record the same profile the additive
    feature would have used, so the tool they remove is built by the very same
@@ -437,47 +469,42 @@ export async function exactBrepForPart(p) {
   var b = partBounds(p), cuts = [];
   (p.holes || []).forEach(function (entry) {
     var loop = holeLoop(entry);
-    if (loop.length >= 3) cuts.push({axis:p.axis,frame:p.frame,from:p.from,to:p.to,loop:loop});
+    if (loop.length >= 3) cuts.push({axis:p.axis,frame:p.frame,from:p.from,to:p.to,loop:loop,historyIndex:-1});
   });
   (p.cuts3d || []).forEach(function (cut) { if (!cut.suppressed) cuts.push(cut); });
-  for (var i = 0; i < cuts.length; i++) {
-    var cut = cuts[i];
-    var cutter=null;
-    try {
-      cutter = await toolSolidBrep(cut, b, solid);
-      var next = await booleanBrep("subtract", solid, cutter);
-      disposeBrep(solid); solid = next;
-    } catch(error) {disposeBrep(solid);throw error;}
-    finally {if(cutter)disposeBrep(cutter);}
-  }
-  /* "Merge result": the feature's solid became part of THIS body instead of a
-     body of its own, so it is fused here rather than drawn beside it. Merges
-     run after the cuts so a boss added onto a bored plate is not itself bored
-     by the hole that was made before it existed. */
   var merges = (p.merges3d || []).filter(function (entry) { return !entry.suppressed; });
-  for (var mi = 0; mi < merges.length; mi++) {
-    var addition = await toolSolidBrep(merges[mi], b);
-    var fused = await booleanBrep("union", solid, addition);
-    disposeBrep(solid); disposeBrep(addition); solid = fused;
-  }
-  /* The fuse leaves the seam between the two bodies standing as a pair of
-     coplanar faces, so picking the top of a merged body picked half of it.
-     Welding same-domain faces is what makes a merged body behave like a body
-     that was always one shape. */
-  if (merges.length) {
-    var welded = await unifyBrepFaces(solid);
-    disposeBrep(solid); solid = welded;
-  }
-  extractBrepTopology(solid, { ownerFeatureId:ownerFeatureId, expectedTopology:expectedTopology });
   var operations = Array.isArray(p.exactOperations) && p.exactOperations.length ? p.exactOperations.filter(function(operation){return !operation.suppressed;}) : [];
   if (!operations.length && fin(p.exactFillet) && p.exactFillet > 0) operations.push({
     id:ownerFeatureId + ":fillet", type:"fillet", amount:p.exactFillet,
     targets:cloneData(p.exactFilletTargets || []), persistentIds:(p.exactFilletEdges || []).slice(),
   });
+  extractBrepTopology(solid, { ownerFeatureId:ownerFeatureId, expectedTopology:expectedTopology });
   try {
-    for (var oi=0;oi<operations.length;oi++) {
-      var operation=operations[oi], priorTopology=cloneData(solid.topology || []), next;
-      var opId=operation.id || ownerFeatureId + ":" + operation.type + ":" + (oi+1);
+    var steps=orderedProjectionSteps(cuts,merges,operations),operationNumber=0;
+    for (var si=0;si<steps.length;si++) {
+      var step=steps[si],record=step.record,next;
+      if(step.kind==="cut"){
+        var cutter=null;
+        try{cutter=await toolSolidBrep(record,b,solid);next = await booleanBrep("subtract", solid, cutter);}
+        finally{if(cutter)disposeBrep(cutter);}
+        disposeBrep(solid);solid=next;
+        extractBrepTopology(solid,{ownerFeatureId:record.featureId || ownerFeatureId});
+        continue;
+      }
+      if(step.kind==="merge"){
+        var addition=await toolSolidBrep(record,b),fused;
+        try{fused = await booleanBrep("union", solid, addition);}
+        finally{disposeBrep(addition);}
+        disposeBrep(solid);solid=fused;
+        /* A union leaves a same-domain seam; remove it at the history step so
+           later face and edge references see the body the viewport displays. */
+        var welded=await unifyBrepFaces(solid);disposeBrep(solid);solid=welded;
+        extractBrepTopology(solid,{ownerFeatureId:record.featureId || ownerFeatureId});
+        continue;
+      }
+      var operation=record,priorTopology=cloneData(solid.topology || []);
+      operationNumber++;
+      var opId=operation.id || ownerFeatureId + ":" + operation.type + ":" + operationNumber;
       var opParams={targets:cloneData(operation.targets || [])};
       var registry=createTopologyRegistry(solid.topology || []);
       var persistentIds=resolveFinishTargetIds(operation.targets, registry, FACE_DRIVEN_OPERATIONS.has(operation.type)?"face":"edge");

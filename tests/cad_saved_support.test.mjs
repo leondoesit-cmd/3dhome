@@ -1,0 +1,27 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {applyDocumentTopologyRebindings,createTopologyRegistry,resolveFeatureTopologyReferences} from '../js/core/topology.js';
+const face=(id,y,normal,measure=35)=>({kind:'face',ownerFeatureId:'pocket',persistentId:id,descriptor:{surface:'plane',origin:{x:0,y,z:0},normal,measure}});
+test('saved support ID collision recovers translated floor, not side wall or rim',()=>{
+ const support={...face('old-floor',9.906,{x:0,y:1,z:0}),type:'topology-reference'};
+ const wall=face('old-floor',.7,{x:0,y:0,z:1});
+ const floor=face('new-floor',.508,{x:0,y:1,z:0});
+ const rim=face('rim',1.016,{x:0,y:1,z:0},8);
+ const feature={id:'cut',params:{support},references:{topology:[support]}};
+ const run=resolveFeatureTopologyReferences(feature,createTopologyRegistry([wall,floor,rim]));
+ assert.equal(run.resolutions[0].topology.persistentId,'new-floor');
+ assert.equal(run.resolutions[0].reason,'saved-support-orientation-recovery');
+ assert.equal(support.persistentId,'old-floor','preview must not mutate the saved reference');
+ const saved={features:[structuredClone(feature)],sketches:[{id:'terminals',support:structuredClone(support)}]};
+ assert.ok(applyDocumentTopologyRebindings(saved,run.resolutions).length>=2);
+ const reopened=JSON.parse(JSON.stringify(saved));
+ assert.equal(reopened.sketches[0].support.persistentId,'new-floor');
+ assert.deepEqual(reopened.sketches[0].support.previousPersistentIds,['old-floor']);
+ assert.equal(resolveFeatureTopologyReferences(reopened.features[0],createTopologyRegistry([wall,floor,rim])).resolutions[0].status,'exact');
+ const ordinary=resolveFeatureTopologyReferences({id:'ordinary',references:{topology:[support]}},createTopologyRegistry([wall,floor,rim]));
+ assert.equal(ordinary.resolutions[0].status,'exact','ordinary named references retain existing resolution behavior');
+ const ambiguous=resolveFeatureTopologyReferences(feature,createTopologyRegistry([wall,floor,face('other-floor',.6,{x:0,y:1,z:0})]));
+ assert.equal(ambiguous.resolutions[0].status,'ambiguous');
+ const missing=resolveFeatureTopologyReferences(feature,createTopologyRegistry([wall,rim]));
+ assert.equal(missing.resolutions[0].status,'missing');
+});

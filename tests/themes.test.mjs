@@ -7,7 +7,7 @@ const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8"
 const i18n = await readI18nSource();
 const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
 
-const THEMES = ["light", "soft", "mid", "dark"];
+const THEMES = ["light", "soft", "mid", "dark", "chrome"];
 const TOKENS = [
   "--bg-app",
   "--bg-panel",
@@ -23,6 +23,9 @@ const TOKENS = [
   "--accent-glow",
   "--accent-alpha",
   "--on-accent",
+  "--on-warn",
+  "--on-success",
+  "--on-danger",
   "--btn-bg",
   "--btn-bg-hover",
   "--btn-border",
@@ -86,12 +89,12 @@ test("chrome uses shared tokens instead of leftover per-theme colour overrides",
   assert.doesNotMatch(css, /\[data-theme="light"\] #nestplan/);
 });
 
-test("theme switching dispatches a change event and covers all four palettes", () => {
-  assert.match(ui, /const themes = \["light", "soft", "mid", "dark"\]/);
+test("theme switching dispatches a change event and covers all palettes", () => {
+  assert.match(ui, /const themes = \["light", "soft", "mid", "dark", "chrome"\]/);
   assert.match(ui, /function applyTheme\(theme, persist\)/);
   assert.match(ui, /new CustomEvent\("themechange"/);
   assert.match(ui, /t\("theme_" \+ theme\)/);
-  for (const key of ["theme_light", "theme_soft", "theme_mid", "theme_dark", "theme_click"]) {
+  for (const key of ["theme_light", "theme_soft", "theme_mid", "theme_dark", "theme_chrome", "theme_click"]) {
     assert.equal((i18n.match(new RegExp(`${key}:`, "g")) || []).length, 2, `${key} in he and en`);
   }
 });

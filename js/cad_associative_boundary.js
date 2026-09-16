@@ -1,6 +1,7 @@
 import {offsetFaceBoundary,appendBoundarySketch} from './cad_face_offset.js';
 import {realignFrame} from './core/frame.js';
 import {segmentProfilePoints} from './core/profile_curves.js';
+import {createTopologyRegistry,resolveTopologyReference} from './core/topology.js';
 
 function loopArea(segments) {
   const points=segmentProfilePoints(segments) || [];
@@ -12,16 +13,37 @@ function loopArea(segments) {
   return area/2;
 }
 
+function sourceFace(result, reference) {
+ if(!result?.shape)return null;
+ const resolved=resolveTopologyReference(reference,createTopologyRegistry(result.topology || []));
+ return resolved.status==='missing'||resolved.status==='ambiguous' ? null : resolved.topology;
+}
+
 export function resolveAssociativeBoundary(sketch, params, results) {
  const ids=params.profileEntityIds || [];
  const copy=(sketch?.boundaryCopies || []).find(copy=>copy.associative && copy.entityIds?.length===ids.length && ids.every(id=>copy.entityIds.includes(id)));
  if(!copy)return null;
- const source=results.get(copy.source.ownerFeatureId);
+ /* The boundary belongs to the body state immediately before this extrusion.
+    Older documents recorded the feature that originally named the support
+    face instead.  A fillet can preserve that persistent face id while changing
+    its wire, so rebuilding from the old owner silently restores square corners.
+    Prefer the consuming feature's target and retain the old owner only as a
+    compatibility fallback for boundaries that reference another body. */
+ const targetId=params.targetFeatureId;
+ let sourceId=targetId,source=targetId ? results.get(targetId) : null;
+ let face=sourceFace(source,copy.source);
+ if(!face){sourceId=copy.source.ownerFeatureId;source=results.get(sourceId);face=sourceFace(source,copy.source);}
  if(!source?.shape)throw new Error('Linked boundary source is unavailable');
- const face=source.topology?.find(face=>face.persistentId===copy.source.persistentId);
  if(!face?.descriptor?.origin||!face.descriptor.normal)throw new Error('Linked boundary source face is unavailable');
+ const sourceReference={
+  ...structuredClone(copy.source),
+  ownerFeatureId:sourceId,
+  persistentId:face.persistentId,
+  semantic:face.semantic ?? copy.source.semantic,
+  descriptor:structuredClone(face.descriptor),
+ };
  const frame=realignFrame(sketch.frame,face.descriptor.origin,face.descriptor.normal);
- const loops=offsetFaceBoundary(source,copy.source,frame,Number(copy.distance));
+ const loops=offsetFaceBoundary(source,sourceReference,frame,Number(copy.distance));
  if(!loops.length)throw new Error('The linked offset leaves no closed boundary');
  if(copy.loopCount!=null && copy.loopCount!==loops.length)throw new Error('The linked offset changed its number of regions; edit its source offset');
  const ranked=loops.map((segments)=>({segments,area:Math.abs(loopArea(segments))})).sort((a,b)=>b.area-a.area);
@@ -37,7 +59,7 @@ export function resolveAssociativeBoundary(sketch, params, results) {
  const retained=new Set(updated.entities.flatMap(e=>[e.a,e.b,e.c].filter(Boolean)));
  updated.points=updated.points.filter(p=>!oldPoints.has(p.id)||retained.has(p.id)).concat(temp.points);
  const nextCopy=updated.boundaryCopies.find(item=>item.entityIds[0]===copy.entityIds[0]);
- nextCopy.id=prefix;nextCopy.entityIds=entities.map(e=>e.id);nextCopy.loopCount=loops.length;
+ nextCopy.id=prefix;nextCopy.source=sourceReference;nextCopy.entityIds=entities.map(e=>e.id);nextCopy.loopCount=loops.length;
  updated.frame=frame;
  return {
   params:{

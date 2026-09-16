@@ -25,6 +25,7 @@ import { openPage, findChrome, sweepOrphanedHarnessChromes } from "./browser_har
 const AUDIT_CONFIGS = [
   { id: "desk-1920-light", name: "Desktop 1920x1080 (Light Theme)", theme: "light", width: 1920, height: 1080, lang: "en", mobile: false, touch: false },
   { id: "desk-1920-dark", name: "Desktop 1920x1080 (Dark Theme)", theme: "dark", width: 1920, height: 1080, lang: "en", mobile: false, touch: false },
+  { id: "desk-1920-chrome", name: "Desktop 1920x1080 (Chrome Dark Theme)", theme: "chrome", width: 1920, height: 1080, lang: "en", mobile: false, touch: false },
   { id: "desk-1440-soft", name: "Desktop 1440x900 (Soft Linen Theme)", theme: "soft", width: 1440, height: 900, lang: "en", mobile: false, touch: false },
   { id: "desk-1280-mid", name: "Desktop 1280x800 (Dusk Mid Theme)", theme: "mid", width: 1280, height: 800, lang: "en", mobile: false, touch: false },
   { id: "tab-768-light", name: "Tablet iPad 768x1024 (Light Theme)", theme: "light", width: 768, height: 1024, lang: "en", mobile: true, touch: true },

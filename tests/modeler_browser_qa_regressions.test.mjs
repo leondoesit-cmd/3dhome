@@ -45,6 +45,23 @@ test('explicit new sketch on the same face preserves the earlier profile and own
  assert.equal(old.entities[0].id,'boundary');
  assert.equal(undos,0);
 });
+test('Front uses its world camera preset even while a top face remains selected',()=>{
+ const calls=[];
+ const E={
+  view:'top',mode:'3d',poly:null,arcPts:null,dimPick:[],dimSel:null,
+  pv:{orbitTo:(az,el)=>calls.push({az,el})},def:{},
+ };
+ const setView=load('setView',{
+  E,CAMERA_ONLY_VIEWS:['iso','back','left'],VIEW_PRESETS:[
+   {id:'front',az:0,el:.05},{id:'top',az:0,el:1.5},{id:'right',az:Math.PI/2,el:.05},
+  ],adoptSketchForView:()=>false,orientStandardView:load('orientStandardView',{E,VIEW_PRESETS:[
+   {id:'front',az:0,el:.05},{id:'top',az:0,el:1.5},{id:'right',az:Math.PI/2,el:.05},
+  ]}),syncTools(){},drawSketch(){},fitSketch(){},pruneAbandonedSketches(){},
+ });
+ setView('front');
+ assert.equal(E.view,'front');
+ assert.deepEqual(calls,[{az:0,el:.05}]);
+});
 test('body modifiers consume the latest result without crossing to another body',()=>{
  const E={def:{features:[
   {id:'base',type:'extrude'}, {id:'round',type:'fillet',inputs:['base']},

@@ -34,8 +34,6 @@ import { FURN, flabel, isLamp, lampColor, fcolor, itemVSpan } from "./furniture.
 import { isSmartType, devicePowered } from "./smarthome.js";
 import { planCab } from "./cabinet.js";
 import { t } from "./i18n.js";
-import { planningDisplayUnit } from "./planning_guide.js";
-import { formatLength } from "./planning_units.js";
 import { SITE, llToLocalCm } from "./site.js";
 import { drawMEP, mepAliveCount } from "./mep.js";
 import { isElevation, drawElevation, ceilingHeight } from "./elevation.js";
@@ -57,6 +55,8 @@ import { openingCorners, slabOpenings } from "./slab_openings.js";
 import { openingHasSwingConflict } from "./swing_clearance.js";
 import { cursors, pruneCursors } from "./plan_sync.js";
 import { isLayerVisible, isLayerGhosted, isLayerHidden, layerRank } from "./layers.js";
+import { roomClearArea } from "./room_area.js";
+import { fmtAreaM2, fmtLen, unitLabel } from "./display_units.js";
 
 export {
   sx, sz, wx, wz, planRotRad, toBasePx, rotatePx, dropPoint, centerOn, isOnScreen,
@@ -745,14 +745,17 @@ function renderModel() {
     // room name + area labels
     roomPass.rooms.forEach(function (r) {
       var nm = roomName(r.key),
-        m2 = (r.area / 10000).toFixed(2),
+        clearArea = roomClearArea(S, r),
+        areaText = clearArea.area == null
+          ? t("room_area_reference_short", { area: fmtAreaM2(r.area / 10000) })
+          : t("room_area_usable_short", { area: fmtAreaM2(clearArea.area) }),
         isHid = roomHidden(r.key);
       if (nm) label(r.cx, r.cz - 9, nm, isHid ? "#9a9289" : "#33312c", true);
       if (S.showDims)
         label(
           r.cx,
           r.cz + (nm ? 9 : 0),
-          m2 + " " + t("sqm"),
+          areaText,
           isHid ? "#a49c93" : "#46504f",
           !nm,
         );
@@ -1199,7 +1202,7 @@ function renderHUD() {
         modeSuffix = " · " + (t(modeKey) || rmG.connMode);
       }
       label((rr.x0 + rr.x1) / 2, (rr.z0 + rr.z1) / 2,
-        rmG.blocked ? t("rp_overlapShort")
+        rmG.blocked ? (rmG.blockedReason ? t("rp_failed_short", { reason: rmG.blockedReason }) : t("rp_overlapShort"))
           : planSize(rmG.size.w, rmG.size.d) + modeSuffix, rmCol);
     }
   }
@@ -1308,7 +1311,7 @@ export function segBearing(a, b) {
 }
 
 function planLen(cm, options) {
-  return formatLength(cm, planningDisplayUnit(S), options);
+  return fmtLen(cm, Object.assign({ domain: "plan" }, options || {}));
 }
 
 function planSize(w, d) {
@@ -1630,7 +1633,7 @@ function drawTouchGuide() {
     color: "#4f46e5",
     crosshair: "#e05a46",
     distances: touchLensDistances(tc),
-    unitLabel: t("guide_unit_" + planningDisplayUnit(S)),
+    unitLabel: unitLabel("plan"),
     handedness: getTouchPrecisionPrefs().handedness,
   });
   pc.save();
@@ -1950,7 +1953,7 @@ function markerCard(m) {
     return info.dm[k] == null ? "—" : planLen(info.dm[k], { suffix: false });
   }
   lines.push({
-    txt: "↑" + g("n") + "  ↓" + g("s") + "  ←" + g("w") + "  →" + g("e") + "  " + t("guide_unit_" + planningDisplayUnit(S)),
+    txt: "↑" + g("n") + "  ↓" + g("s") + "  ←" + g("w") + "  →" + g("e") + "  " + unitLabel("plan"),
   });
   if (info.tight.length)
     lines.push({
@@ -2749,6 +2752,20 @@ function drawOpening(o) {
         pc.textAlign = "center";
         pc.fillText("!", 0, -10);
       }
+    } else if (o.isDouble) {
+      var pairInward = String(o.swingDir || "R_IN").slice(-2) === "IN",
+        pairSide = pairInward ? -1 : 1,
+        leftLeaf = Math.max(1, Math.min(o.width - 1, Number(o.leafA) || o.width / 2)) * S.SC,
+        rightLeaf = hw * 2 - leftLeaf,
+        pairConflict = openingHasSwingConflict(o);
+      pc.strokeStyle = pairConflict ? "#c0392b" : (isSel ? "#3f6b78" : "#5b7a86");
+      pc.lineWidth = isSel ? 3 : 2;
+      [[-hw, leftLeaf, 1], [hw, rightLeaf, -1]].forEach(function (leaf) {
+        pc.beginPath(); pc.moveTo(leaf[0], 0); pc.lineTo(leaf[0], pairSide * leaf[1]); pc.stroke();
+        pc.beginPath();
+        var closed = leaf[2] > 0 ? 0 : Math.PI, opened = pairSide > 0 ? Math.PI / 2 : -Math.PI / 2;
+        pc.arc(leaf[0], 0, leaf[1], closed, opened, (leaf[2] > 0) === pairInward); pc.stroke();
+      });
     } else {
       // Reflect chosen swing: hinge side (L/R) + opening face (IN/OUT).
       var swingDir = o.swingDir || "R_IN";
@@ -2949,7 +2966,7 @@ function drawWarnGlow() {
 /* One short line naming a warning — shared by the canvas label and the list. */
 export function warnLabel(wr) {
   if (wr.kind === "openEnd")
-    return wr.near ? t("cw_openEndNear") : t("cw_openEnd");
+    return wr.ignored ? t("cw_intentionalEnd") : (wr.near ? t("cw_openEndNear") : t("cw_openEnd"));
   var a = wr && wr.angle;
   return t("cw_angle", { a: Number.isFinite(a) ? Number(a).toFixed(1) : "?" });
 }
@@ -3405,10 +3422,11 @@ var GLYPH = {
       pc.stroke();
     }
   },
-  stairs: function (w, d) {
+  stairs: function (w, d, it) {
     gStroke();
-    for (var i = 1; i < 10; i++) {
-      var y = -d / 2 + (i * d) / 10;
+    var steps = Math.max(2, Math.min(100, Math.round(it.configuration?.stepCount || it.steps || 10)));
+    for (var i = 1; i < steps; i++) {
+      var y = -d / 2 + (i * d) / steps;
       pc.beginPath();
       pc.moveTo(-w / 2 + 2, y);
       pc.lineTo(w / 2 - 2, y);

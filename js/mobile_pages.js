@@ -41,7 +41,7 @@ function pageLabel(group, index) {
     for (var i = 0; i < group.length; i++) {
       var node = group[i];
       var found = node.matches && node.matches(selectors[s]) ? node : node.querySelector && node.querySelector(selectors[s]);
-      if (!found) continue;
+      if (!found || !visibleHeight(node) || !visibleHeight(found)) continue;
       var explicit = found.getAttribute && found.getAttribute("data-mobile-page-title");
       var label = cleanLabel(explicit || found.textContent);
       if (label) return label.slice(0, 28);

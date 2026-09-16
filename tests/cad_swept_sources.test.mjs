@@ -14,6 +14,7 @@ import { resolveProfilePoints, solveSketch } from "../js/sketch_solver.js";
 import { loftSourceRecord, resolveSketchSources, sketchWorldPoint, sweepSourceRecord } from "../js/core/swept_sources.js";
 import { disposeBrep, loadCadKernel, makeBrepSweep } from "../js/cad_kernel.js";
 import { sampleHelix } from "../js/cad_helix.js";
+import { synchronizeSketchHelices } from "../js/core/sketch_helix.js";
 
 const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
 
@@ -104,6 +105,34 @@ test("a helix-driven sweep re-samples the helix rather than a sketch", () => {
   assert.equal(resolved.path.length, sampleHelix(helix).points.length);
   helix.turns = 4;
   assert.ok(resolveSketchSources(def, sources, resolveProfilePoints).path.length > resolved.path.length, "more turns, longer path");
+});
+
+test("a driving-circle edit refreshes both the helix reference and its sweep path", () => {
+  const profile = rect("p", "top", 1, 1);
+  const pathSketch = {
+    id:"path-sketch", plane:"top", offset:0,
+    points:[{id:"centre",x:0,y:0}],
+    entities:[{id:"circle",type:"circle",c:"centre",r:6.223876}], constraints:[],
+  };
+  const feature={id:"thread-path",type:"helix",params:{sketchId:pathSketch.id,circleId:"circle",definition:"pitch-turns",pitch:.2,turns:5,taper:0}};
+  const reference={id:"helix-ref",type:"reference_helix",featureId:feature.id,origin:{x:0,y:0,z:0},axis:{x:0,y:1,z:0},radius:6.223876,radiusEnd:6.223876,pitch:.2,turns:5,height:1};
+  const def={sketches:[profile,pathSketch],features:[feature],referenceGeometry:[reference]};
+  const sources={kind:"sweep",profile:{sketchId:profile.id,entityIds:idsOf(profile)},helixId:reference.id,helixFeatureId:feature.id};
+
+  pathSketch.entities[0].r=6.1239;
+  assert.deepEqual(synchronizeSketchHelices(def),[reference.id]);
+  assert.equal(reference.radius,6.1239);
+  const resolved=resolveSketchSources(def,sources,resolveProfilePoints);
+  assert.ok(Math.abs(Math.hypot(resolved.path[0].x,resolved.path[0].z)-6.1239)<1e-9,JSON.stringify(resolved.path[0]));
+});
+
+test("a helix sweep ignores a stale reference snapshot when its feature is available", () => {
+  const profile=rect("p","top",1,1),pathSketch={id:"path",plane:"top",points:[{id:"c",x:0,y:0}],entities:[{id:"circle",type:"circle",c:"c",r:4}],constraints:[]};
+  const feature={id:"h-feature",type:"helix",params:{sketchId:"path",circleId:"circle",definition:"pitch-turns",pitch:1,turns:2,taper:0}};
+  const stale={id:"h-ref",type:"reference_helix",featureId:feature.id,origin:{x:0,y:0,z:0},axis:{x:0,y:1,z:0},radius:9,radiusEnd:9,pitch:1,turns:2,height:2};
+  const def={sketches:[profile,pathSketch],features:[feature],referenceGeometry:[stale]};
+  const resolved=resolveSketchSources(def,{kind:"sweep",profile:{sketchId:"p",entityIds:idsOf(profile)},helixId:"h-ref",helixFeatureId:feature.id},resolveProfilePoints);
+  assert.ok(Math.abs(Math.hypot(resolved.path[0].x,resolved.path[0].z)-4)<1e-9,JSON.stringify(resolved.path[0]));
 });
 
 /* --- and the geometry it produces ---------------------------------------- */
