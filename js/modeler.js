@@ -9914,6 +9914,20 @@ async function newModel() {
   discardModelerDraft();
   E.lastOperation = null;
   E.sketchCameraReturnPose = null;
+  /* Selection outlives the document unless it is cleared here. Every topology
+     reference names the feature it came from, so a face left selected from the
+     discarded model pointed at a feature id the new document has never heard
+     of — and the "Create sketch on reference" button went on offering it.
+     Taking that offer attached a sketch to a missing feature, so a brand-new
+     part opened already carrying rebuild errors, with the broken reference
+     naming a feature that no longer appeared anywhere in its tree. */
+  E.topologySelection = [];
+  E.hoverTopology = null;
+  E.ssel = [];
+  E.facePick = null;
+  E.collectingFeature = false;
+  E.selectedReferenceId = null;
+  E.mobileAddSelection = false;
   if (E.docType === "assembly") {
     E.assembly = newAssembly();
     invalidateInterference();
