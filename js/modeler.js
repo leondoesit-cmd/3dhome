@@ -9057,6 +9057,17 @@ function openParametricFeature(type, repeatedParams) {
     var endControl=(controls||[]).find(function(item){return item.field.key==="endCondition";});
     if(endControl)endControl.input.addEventListener("change",function(){collect.hidden=!collectingEndFace();syncActiveFeatureSelectionFeedback();});
   }
+  /* SOLIDWORKS opens the PropertyManager on "Items To Fillet" because that is
+     the one input the feature cannot be completed without. Appending the
+     collector after the parameter fields instead put it, and its Select
+     geometry button, roughly 400px below the fold of an 812px phone: the form
+     opened on a radius box with Finish greyed out and nothing on screen naming
+     what was missing. Anything that collects geometry leads with what it wants
+     and lets the numbers follow. */
+  var selectionAnchor = liveBadge.nextSibling;
+  if (selectionNote) host.insertBefore(selectionNote, selectionAnchor);
+  if (typeof edgeBox !== "undefined" && edgeBox) host.insertBefore(edgeBox, selectionAnchor);
+  if (typeof collect !== "undefined" && collect) host.insertBefore(collect, selectionAnchor);
   if (type === "draft") {
     /* SOLIDWORKS' Neutral Plane box: the next face click fills it instead of
        Faces to draft. A picked face replaces the axis/end fields, which only
