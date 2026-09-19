@@ -5,7 +5,7 @@ import {resolveFinishFace} from './core/finish_face_reference.js';
 import {createTopologyRegistry,resolveTopologyReference} from './core/topology.js';
 import {captureExactTopology} from './core/exact_topology_cache.js';
 
-const bodyTypes=new Set(['extrude','revolve','sweep','loft','extrudeCut','revolveCut','sweepCut','hole','fillet','chamfer','shell','draft','dome','rib','thicken']);
+const bodyTypes=new Set(['extrude','revolve','sweep','loft','extrudeCut','revolveCut','sweepCut','hole','fillet','chamfer','shell','draft','dome','rib','thicken','moveBody','split','mirror']);
 const consumesBody=f=>bodyTypes.has(f.type)&&f.params?.mergeResult!==false&&f.params?.operation!=='new-body';
 function reconnect(feature,from,to){
  feature.inputs=feature.inputs.map(id=>id===from?to:id);

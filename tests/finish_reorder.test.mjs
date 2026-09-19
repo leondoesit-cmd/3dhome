@@ -14,7 +14,7 @@ test('moving a finish after a cut preserves exact geometry and reconnects its su
  createFeatureDefinition(doc,'fillet',{id:'round',inputs:['base'],references:{features:['base'],topology:[edge]},params:{radius:.2}});
  const sk=createSketchDefinition(doc,{id:'hole',referenceId:'plane:top',offset:2,points:[{id:'c',x:0,y:0,fixed:true}],entities:[{id:'circle',type:'circle',c:'c',r:.4,fixed:true}]});
  createFeatureDefinition(doc,'extrudeCut',{id:'cut',inputs:['round'],references:{features:['round'],sketches:[sk.id]},params:{depth:4,direction:'reverse',profileEntityIds:['circle']}});
- createFeatureDefinition(doc,'moveBody',{id:'move',inputs:['cut'],references:{features:['cut']},params:{x:0,y:0,z:0}});
+ createFeatureDefinition(doc,'moveBody',{id:'move',inputs:['cut'],references:{features:['cut']},params:{dx:1,dy:0,dz:0}});
  r=await run(doc);const before=(await shapeMassProperties(r.finalShape)).volume;releaseRegeneration(r);
  const original=JSON.stringify(doc),to=doc.history.findIndex(h=>h.targetId==='move')-1;
  const moved=await reorderFinishFeature(doc,'history:feature:round',to);
