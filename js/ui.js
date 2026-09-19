@@ -2752,7 +2752,13 @@ export function initUI() {
   }
 
   const themes = ["light", "soft", "mid", "dark", "chrome"];
-  var curTheme = localStorage.getItem("home3d_theme") || "light";
+  /* The inline bootstrap in index.html has already resolved and applied the
+     starting theme, and with nothing stored that answer comes from the
+     browser's prefers-color-scheme. Re-deriving it from localStorage alone
+     here would overwrite that with light on every dark-mode boot, so an
+     explicit stored choice wins first and the bootstrap's answer second. */
+  var curTheme = localStorage.getItem("home3d_theme");
+  if (!themes.includes(curTheme)) curTheme = document.documentElement.getAttribute("data-theme");
   if (!themes.includes(curTheme)) curTheme = "light";
 
   const updateThemeIcon = (theme) => {

@@ -1778,6 +1778,55 @@ function documentPlaneOverlays(def) {
   return out;
 }
 
+/* Sketch ids a feature has already absorbed. SOLIDWORKS hides a sketch once a
+   feature consumes it — it lives under that feature in the tree instead — and
+   showing them all would bury the model in its own history. */
+function consumedSketchIds(def) {
+  var used = new Set();
+  (def && def.features || []).forEach(function (feature) {
+    if (!feature) return;
+    var direct = feature.params && feature.params.sketchId;
+    if (direct) used.add(direct);
+    var refs = feature.references && feature.references.sketches;
+    if (Array.isArray(refs)) refs.forEach(function (id) { if (id) used.add(id); });
+  });
+  return used;
+}
+
+/* Sketches drawn into the 3D scene, the way SOLIDWORKS shows an unconsumed one.
+   The sketch canvas is a 2D overlay that CSS hides outside sketch mode
+   (#modeler.md-is3d:not(.md-model-sketching) #mdCanvas { display:none }), so a
+   finished-but-unused sketch simply vanished: the tree still listed it and the
+   toolbar still offered Extrude, with nothing on screen to extrude. Drawing it
+   as real scene geometry keeps it aligned through orbit for free and leaves
+   picking alone, which an interactive canvas over the viewport would not. */
+function documentSketchOverlays(def) {
+  if (!def || E.docType !== "part" || E.mode !== "3d") return [];
+  var editing = E.modelPlaneActive ? ensureSketch(def) : null;
+  var consumed = consumedSketchIds(def);
+  var out = [];
+  ensureSketchDoc(def).forEach(function (sketch) {
+    if (!sketch || sketch === editing) return;   // the live one is on the canvas
+    if (sketch.id && consumed.has(sketch.id)) return;
+    var frame = sketch.frameSpace === "local" && sketch.frame
+      ? sketch.frame
+      : standardPlaneFrame(sketch.plane, sketch.offset);
+    if (!frame) return;
+    function toWorld(q) { return framePoint(frame, q.u, q.v, 0); }
+    try {
+      analyzeSketchProfiles(sketch).profiles.forEach(function (profile) {
+        var pts = (profile.points || []).map(toWorld);
+        if (pts.length > 1) { pts.push(pts[0]); out.push(pts); }
+      });
+      analyzeSketchChains(sketch).chains.forEach(function (chain) {
+        var pts = (chain.points || []).map(toWorld);
+        if (pts.length > 1) out.push(pts);
+      });
+    } catch (error) { /* a malformed sketch must not take the whole scene down */ }
+  });
+  return out;
+}
+
 function addDocumentOverlays(parent, def) {
   if (!def) return;
   if(E.docType==="part" && E.mode==="3d" && !(def.parts || []).length && !(ensureSketch(def).entities || []).length && E.authoring.phase==="model") {
@@ -1799,6 +1848,9 @@ function addDocumentOverlays(parent, def) {
     marker.position.set(at.x,at.y,at.z);marker.renderOrder=90;
     marker.userData.cadRepairReference=repair.reference;parent.add(marker);
   }
+  documentSketchOverlays(def).forEach(function (points) {
+    addOverlayPolyline(parent, points, 0x8fa6c4, 22);
+  });
   documentHelixOverlays(def).forEach(function (curve) {
     var selected = curve.id && curve.id === E.selectedReferenceId;
     addOverlayPolyline(parent, curve.points, selected ? 0xffd060 : 0xf0b429, selected ? 28 : 23, { cadReferenceId: curve.id });
@@ -20807,6 +20859,54 @@ function layout3DHost() {
 
 /* Frame whatever is modelled so it fills the view it has just been given —
    the thumbnail's distance is wrong for a pane ten times the size. */
+/* The extent of the sketch being drawn right now, in world space. fitPreview()
+   needs it because a part is all sketch and no solid right up until the first
+   extrude: with nothing rendered, defBounds() falls back to a fixed 60-unit box
+   and framed that instead, which left a 6.9cm profile as a speck in the middle
+   of the screen — and Zoom to fit, the one control meant to rescue it, a no-op.
+   Only the sketch the user is actually on counts; other sketches on the plane
+   are dimmed references and should not drag the frame out to meet them. */
+function activeSketchWorldBounds() {
+  if (!E.def) return null;
+  var current = ensureSketch(E.def);
+  var u0, u1, v0, v1, frame = null;
+  ensureSketchDoc(E.def).forEach(function (sketch) {
+    if (!sameSketchContext(sketch, current)) return;
+    if (!frame) frame = activeSketchFrame() || standardPlaneFrame(E.view, sketch.offset);
+    var pointsById = new Map((sketch.points || []).map(function (q) { return [q.id, q]; }));
+    function span(x, y, reach) {
+      if (!fin(x) || !fin(y)) return;
+      u0 = u0 === undefined ? x - reach : Math.min(u0, x - reach);
+      u1 = u1 === undefined ? x + reach : Math.max(u1, x + reach);
+      v0 = v0 === undefined ? y - reach : Math.min(v0, y - reach);
+      v1 = v1 === undefined ? y + reach : Math.max(v1, y + reach);
+    }
+    (sketch.points || []).forEach(function (q) { span(q.x, q.y, 0); });
+    /* A circle or ellipse reaches past its centre, which is the only point of
+       it the loop above saw. */
+    (sketch.entities || []).forEach(function (e) {
+      var centre = null, reach = 0;
+      if (e.type === "circle") {
+        var o = circleData(e, pointsById);
+        if (o) { centre = o.center; reach = o.radius; }
+      } else if (e.type === "ellipse") {
+        var el = ellipseData(e, pointsById);
+        if (el) { centre = el.center; reach = Math.max(el.rx, el.ry); }
+      }
+      if (centre) span(centre.x, centre.y, reach);
+    });
+  });
+  if (u0 === undefined || !frame) return null;
+  var b = { x0: 1e9, x1: -1e9, y0: 1e9, y1: -1e9, z0: 1e9, z1: -1e9 };
+  [[u0, v0], [u0, v1], [u1, v0], [u1, v1]].forEach(function (uv) {
+    var w = framePoint(frame, uv[0], uv[1], 0);
+    b.x0 = Math.min(b.x0, w.x); b.x1 = Math.max(b.x1, w.x);
+    b.y0 = Math.min(b.y0, w.y); b.y1 = Math.max(b.y1, w.y);
+    b.z0 = Math.min(b.z0, w.z); b.z1 = Math.max(b.z1, w.z);
+  });
+  return b;
+}
+
 function fitPreview() {
   if (!E.pv || !E.def) return;
   if (E.docType === "assembly") {
@@ -20820,8 +20920,17 @@ function fitPreview() {
     E.pv.render();
     return;
   }
-  var b = defBounds(E.def),
-    dx = b.x1 - b.x0, dy = b.y1 - b.y0, dz = b.z1 - b.z0,
+  /* Frame the solids and the live sketch together, the way Zoom to Fit does:
+     either one alone can be the larger of the two. */
+  var sketchBox = activeSketchWorldBounds();
+  var b = renderedParts(E.def).length ? defBounds(E.def) : sketchBox;
+  if (b && sketchBox && b !== sketchBox) b = {
+    x0: Math.min(b.x0, sketchBox.x0), x1: Math.max(b.x1, sketchBox.x1),
+    y0: Math.min(b.y0, sketchBox.y0), y1: Math.max(b.y1, sketchBox.y1),
+    z0: Math.min(b.z0, sketchBox.z0), z1: Math.max(b.z1, sketchBox.z1),
+  };
+  if (!b) b = defBounds(E.def);
+  var dx = b.x1 - b.x0, dy = b.y1 - b.y0, dz = b.z1 - b.z0,
     r = Math.max(1, Math.hypot(dx, dy, dz));
   E.pv.frame(r * 1.5);
   E.pv.render();
