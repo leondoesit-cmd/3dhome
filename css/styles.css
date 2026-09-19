@@ -14900,6 +14900,13 @@ body.compact-nav #md-selection-bar:not([hidden]) {
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
+/* A sheet covers the viewport, so there is nothing left on screen to pick —
+   and this bar is fixed at z-index 303, above the sheet (80), landing squarely
+   on its sticky action row. That put an invisible button over Apply/Cancel on
+   every parametric sketch form: the taps registered on the bar and the form
+   simply never applied. Stand down while a sheet is up; the sheet carries its
+   own actions, and the bar comes back the moment the sheet closes. */
+body.compact-nav.m-sheet-open #md-selection-bar:not([hidden]) { display: none; }
 body.compact-nav #md-selection-bar::-webkit-scrollbar {
   display: none;
 }
