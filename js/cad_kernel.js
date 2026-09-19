@@ -308,7 +308,11 @@ export function extractBrepTopology(brep, options = {}) {
 
   const unmatched = new Set(raw);
   const expected = Array.isArray(options.expectedTopology) ? options.expectedTopology : [];
+  const boundNames = new Set();
   expected.forEach((reference) => {
+    // Exact history hints precede analytic names. A repeated name must not
+    // consume another subshape and overwrite the first binding in the map.
+    if (boundNames.has(reference.persistentId)) return;
     // a plane name binds only to a face in the same plane facing the same way
     const candidates = Array.from(unmatched).filter((item) => item.kind === reference.kind
       && (item.kind !== "face" || planarFaceNameAgrees(reference, item))
@@ -322,6 +326,7 @@ export function extractBrepTopology(brep, options = {}) {
       ? resolveHistoricalKernelReference(reference,expected,raw,unmatched)
       : resolved.topology;
     if(!item)return;
+    boundNames.add(reference.persistentId);
     item.persistentId = reference.persistentId;
     item.semantic = reference.semantic;
     item.ownerFeatureId = reference.ownerFeatureId || featureId;

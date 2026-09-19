@@ -1,3 +1,5 @@
+import {reorderFinishFeature} from "./cad_finish_reorder.js";
+import {resolveFinishFace} from "./core/finish_face_reference.js";
 import { markDirty as markPlannerDirty } from "./persist.js";
 import {pierceSketchToHelix} from './core/sketch_pierce.js';
 import {helixFromSketch,synchronizeSketchHelices} from './core/sketch_helix.js';
@@ -7910,7 +7912,10 @@ function cutTargetFeatureId(target, document = E.def, built = null) {
   (document.history || []).forEach(function (entry, index) {
     if (entry && entry.targetId && (entry.suppressed || historyEntryRolled(document, index))) inactive.add(entry.targetId);
   });
-  (document.features || []).forEach(function (feature) {
+  var featureOrder=new Map((document.features || []).map(function(feature){return [feature.id,feature];}));
+  var orderedFeatures=(document.history || []).filter(function(entry){return entry.kind==='feature' && featureOrder.has(entry.targetId);}).map(function(entry){var feature=featureOrder.get(entry.targetId);featureOrder.delete(entry.targetId);return feature;});
+  orderedFeatures.push(...featureOrder.values());
+  orderedFeatures.forEach(function (feature) {
     if (!feature.suppressed && !inactive.has(feature.id) && (modifiers.has(feature.type) || (feature.type==="pattern" && feature.params?.scope==="feature") || (["extrude","revolve","sweep","loft"].includes(feature.type) && feature.params?.mergeResult !== false && feature.params?.operation !== "new-body")) && (feature.inputs || []).includes(head)
       // a Move with Copy made a second body; the original does not move with it
       && (feature.type !== "moveBody" || !leavesInputStanding(document, feature))
@@ -8371,8 +8376,28 @@ function renderFinishEdgeList() {
   if(filletParams?.fullRound){
     host.dataset.edgeSignature="";host.innerHTML="";
     host.appendChild(el("p","md-finish-edges-hint","Select side face 1, the center face, then side face 2. The sides must have parallel straight boundaries on a planar center face."));
-    (E.topologySelection || []).filter(function(reference){return reference.kind==="face";}).forEach(function(reference,index){
-      host.appendChild(btn(["Side face 1","Center face","Side face 2"][index]+" ×",function(){toggleFullRoundFace(reference);},"md-wide"));
+    if(!part){var bodies=activeParts(E.def).filter(partSupportsExactMesh);if(bodies.length===1)part=bodies[0];}
+    var selectedFaces=(E.topologySelection || []).filter(function(reference){return reference.kind==="face";});
+    var availableFaces=part ? topologyEntriesForPart(part).filter(function(reference){return reference.kind==='face'&&reference.descriptor?.surface==='plane';}) : [];
+    ["Side face 1","Center face","Side face 2"].forEach(function(role,index){
+      var label=el("label","md-feature-field"),select=document.createElement('select');
+      label.appendChild(document.createTextNode(role));select.setAttribute('aria-label',role);
+      var empty=document.createElement('option');empty.value='';empty.textContent='Pick in viewport or choose a face';select.appendChild(empty);
+      availableFaces.forEach(function(reference){
+        var option=document.createElement('option'),d=reference.descriptor,o=d.origin||{},n=d.normal||{};
+        option.value=reference.persistentId;
+        option.textContent='Center ('+[o.x,o.y,o.z].map(function(v){return Number(v||0).toFixed(3);}).join(', ')+') cm · normal ('+[n.x,n.y,n.z].map(function(v){return Number(v||0).toFixed(2);}).join(', ')+')';
+        option.disabled=selectedFaces.some(function(face,other){return other!==index&&face.persistentId===reference.persistentId;});
+        select.appendChild(option);
+      });
+      select.value=selectedFaces[index]?.persistentId || '';
+      select.disabled=index>selectedFaces.length;
+      select.addEventListener('change',function(){
+        var faces=selectedFaces.slice(),chosen=availableFaces.find(function(face){return face.persistentId===select.value;});
+        if(chosen)faces[index]=topologyReferenceFromEntry(chosen);else faces.splice(index,1);
+        E.sel=part;setFinishEdges(faces);
+      });
+      label.appendChild(select);host.appendChild(label);
     });
     return;
   }
@@ -8557,7 +8582,7 @@ async function exactFinishPreviewBody(preview,type) {
       }
       return resolution.topology;
     };
-    var targets=operation.targets.map(rebind);
+    var targets=operation.targets.map(function(reference){return operation.params?.fullRound ? resolveFinishFace(reference,display.brep.topology) : rebind(reference);});
     var neutral=type==='draft' && operation.params && operation.params.neutralFace ? rebind(operation.params.neutralFace) : null;
     var options={...operation.params,edgePersistentIds:targets.filter(function(item){return item.kind==='edge';}).map(function(item){return item.persistentId;}),facePersistentIds:targets.filter(function(item){return item.kind==='face' && (!neutral || item.persistentId!==neutral.persistentId);}).map(function(item){return item.persistentId;})};
     if(neutral)options.neutralFaceId=neutral.persistentId;
@@ -8604,6 +8629,7 @@ function queueExactFeaturePreview(preview,type,liveBadge) {
         var caption=/no resolved edges/i.test(message)?t("previewNoResolvedEdges"):/fillet failed/i.test(message)?t("previewFilletConflict"):/chamfer failed/i.test(message)?t("previewRadiusTooLarge"):type==="shell"?"Shell could not be built · check thickness and opening faces":t("previewUnavailable");
         liveBadge.classList.remove("approx");liveBadge.setAttribute("data-preview-state","error");
         liveBadge.innerHTML='<i class="ph ph-warning"></i> '+caption;
+        if(type==='fillet' && activeFilletParams()?.fullRound)liveBadge.appendChild(document.createTextNode(' · '+message));
         liveBadge.title=message;   // the caption is a guess; keep the real reason reachable
       }
     }finally{if(brep)disposeBrep(brep);}
@@ -15799,7 +15825,7 @@ function removeTreeNode(node, model) {
   }
   if (model.mode === "canonical" && node.historyId) {
     pushUndo(t("del"));
-    var result = removeHistoryNode(E.def, node.historyId, {verifiedTopology:verifiedExactTopology(E.def,compileKernelFeatureTree(E.def))});
+    var result = removeHistoryNode(E.def, node.historyId, {verifiedTopology:verifiedExactTopology(E.def,compileKernelFeatureTree(E.def).features)});
     if (!result.ok) { H.discard(); flash(result.issues[0].message); return; }
     E.def.parts = (E.def.parts || []).filter(function (item) {
       return item.featureId !== node.targetId && item.derivedFeatureId !== node.targetId;
@@ -15833,13 +15859,23 @@ function removeTreeNode(node, model) {
 
 /* Drag-reorder is validated by the same rule the arrow buttons use, so an
    illegal drop is refused with the reason rather than silently reverted. */
-function reorderTreeNode(dragId, target, after, model) {
+async function reorderTreeNode(dragId, target, after, model) {
   var drag = findTreeNode(model.nodes, dragId);
   if (!drag || drag.index == null || target.index == null) return;
   if (!drag.can.reorder || !target.can.reorder) return;
   var to = target.index + (after ? 1 : 0);
   if (drag.index < to) to -= 1;
   if (to === drag.index) return;
+  if(model.mode === "canonical" && ['fillet','chamfer'].includes((E.def.features || []).find(function(feature){return feature.id===drag.targetId;})?.type) && to>drag.index){
+    var prior=E.def,signature=JSON.stringify(prior);
+    flash('Validating reordered finish…');
+    try{
+      var reordered=await reorderFinishFeature(prior,drag.historyId,to);
+      if(E.def!==prior || JSON.stringify(E.def)!==signature){flash('The model changed during validation. Try the move again.');return;}
+      pushUndo(t("reorder"));Object.assign(E.def,reordered);E.sel=null;E.topologySelection=[];refreshAll();flash('Finish moved · exact rebuild succeeded');
+    }catch(error){flash(String(error.message || error));}
+    return;
+  }
   pushUndo(t("reorder"));
   if (model.mode === "canonical") {
     var result = reorderHistoryNode(E.def, drag.historyId, to);
@@ -15931,6 +15967,10 @@ function showTreeMenu(node, model, event, api) {
     icon: node.suppressed ? "ph-eye" : "ph-eye-slash",
     run: function () { suppressTreeNode(node, model); },
   });
+  if(model.mode==='canonical' && node.can.reorder && ['fillet','chamfer'].includes((E.def.features || []).find(function(feature){return feature.id===node.targetId;})?.type))items.push({label:'Move before…',icon:'ph-arrows-down-up',run:function(){
+    var destinations=[];walkTreeNodes(model.nodes,function(candidate){if(candidate.kind==='feature'&&candidate.can.reorder&&candidate.index>node.index+1)destinations.push({label:'Move before '+candidate.name,icon:'ph-arrow-down',run:function(){reorderTreeNode(node.id,candidate,false,model);}});});
+    if(destinations.length)openTreeMenu(destinations,event);else flash('No later feature to move before');
+  }});
   if (node.can.rollback) items.push({ label: t("ctxRollbackHere"), icon: "ph-arrow-line-down", run: function () { rollbackToTreeNode(node, model); } });
   if (node.kind === "feature" || node.kind === "sketch") items.push({ label: t("treeNewFolder"), icon: "ph-folder-plus", run: function () { groupIntoFolder(node, model); } });
   if (node.kind === "folder") items.push({ label: t("treeUngroup"), icon: "ph-folder-minus", run: function () { ungroupFolder(node); } });

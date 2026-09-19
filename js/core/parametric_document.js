@@ -184,8 +184,30 @@ export function createFeatureDefinition(document, type, options = {}) {
     error.issues = issues;
     throw error;
   }
+  const insertion = ["fillet", "chamfer"].includes(type) && document.rollbackIndex != null
+    ? Math.max(0, Math.min(document.history.length, document.rollbackIndex)) : document.history.length;
+  if (insertion < document.history.length) {
+    const sourceId = feature.inputs[0];
+    if (!document.history.slice(0, insertion).some(entry => entry.kind === "feature" && entry.targetId === sourceId)) {
+      throw new Error("A finish inserted at rollback needs an active source body");
+    }
+    const laterIds = new Set(document.history.slice(insertion).filter(entry => entry.kind === "feature").map(entry => entry.targetId));
+    // Only reconnect body consumers. Sketch supports and pattern seeds retain
+    // their explicit references to the geometry that originally defined them.
+    const bodyConsumers = new Set(["extrude", "revolve", "sweep", "loft", "extrudeCut", "revolveCut", "sweepCut", "hole", "fillet", "chamfer", "shell", "draft", "dome", "rib", "thicken", "moveBody", "splitBody"]);
+    for (const consumer of document.features) {
+      if (!laterIds.has(consumer.id) || !bodyConsumers.has(consumer.type) || consumer.inputs?.[0] !== sourceId) continue;
+      if (["extrude", "revolve", "sweep", "loft"].includes(consumer.type) && (consumer.params?.mergeResult === false || consumer.params?.operation === "new-body")) continue;
+      consumer.inputs[0] = feature.id;
+      consumer.references ||= {};
+      consumer.references.features = (consumer.references.features || []).map(ref => referenceId(ref) !== sourceId ? ref
+        : typeof ref === "string" ? feature.id : { ...ref, ...(ref.id ? {id:feature.id} : {persistentId:feature.id}) });
+      if (consumer.params?.targetFeatureId === sourceId) consumer.params.targetFeatureId = feature.id;
+    }
+    document.rollbackIndex = insertion + 1;
+  }
   document.features.push(feature);
-  document.history.push(historyEntry("feature", feature));
+  document.history.splice(insertion, 0, historyEntry("feature", feature));
   document.revision = (Number(document.revision) || 0) + 1;
   return feature;
 }

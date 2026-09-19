@@ -52,3 +52,13 @@ test('rolled back to Shell1 the head is Boss-Battery; a suppressed step is skipp
   suppressed.history[6].suppressed = true;
   assert.equal(headOf(body, suppressed), 'loft', 'a suppressed Boss-Battery breaks the chain there');
 });
+
+test('an inserted finish follows history order even when its storage entry was appended',()=>{
+ const doc=housing();
+ doc.features.push({id:'rim',type:'fillet',params:{},inputs:['base']});
+ doc.features.find(f=>f.id==='loft').inputs=['rim'];
+ doc.history.splice(2,0,{id:'hr',kind:'feature',targetId:'rim'});
+ assert.equal(headOf(body,doc),'shell');
+ setHistoryRollback(doc,3);assert.equal(headOf(body,doc),'rim');
+ setHistoryRollback(doc,null);assert.equal(headOf(body,doc),'shell');
+});
