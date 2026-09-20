@@ -7354,6 +7354,7 @@ function renderFeatureParameterForm(host,type,state,onLive) {
     el:el,
     units:E.def && E.def.context && E.def.context.units || {length:getDomainUnit("details"),angle:"deg"},
     referenceOptions:featureReferenceOptions,
+    advancedLabel:t("featureMoreOptions"),
   });
 }
 
@@ -20006,7 +20007,18 @@ function syncInstant3dValue(view) {
   if (anchor.z > 1) { chip.hidden = true; return; }
   var units = E.def && E.def.context && E.def.context.units && E.def.context.units.length || getDomainUnit("details");
   var control=instant3dFormControl(pose.key);
-  if(document.activeElement!==chip)chip.value=String(Math.round((pose.value || 0)*100)/100);
+  /* Display rounding must not become model rounding. This chip is rewritten
+     from pose.value on every repaint, so a typed 10.414 was replaced by 10.41
+     a frame later and the shorter number is what got committed — an engineering
+     drawing's 4.100in quietly became 4.098in. Two decimals of a centimetre is
+     a tenth of a millimetre, which is coarser than the drawings this editor is
+     meant to reproduce. Keep four, and leave the field alone entirely while it
+     already shows the same number so an exact entry is never churned. */
+  if (document.activeElement !== chip) {
+    var shownValue = Number(chip.value);
+    if (!Number.isFinite(shownValue) || Math.abs(shownValue - (pose.value || 0)) > 1e-6)
+      chip.value = String(Math.round((pose.value || 0) * 1e4) / 1e4);
+  }
   chip.min=control && control.min || ""; chip.max=control && control.max || "";
   chip.setAttribute("aria-label",featureTypeLabel(authoring.type)+" · "+(control && control.closest("label") && control.closest("label").querySelector(".md-feature-field-label")?.textContent || pose.key)+" ("+(pose.key==="angle"?"°":units)+")");
   chip.title=chip.getAttribute("aria-label");
