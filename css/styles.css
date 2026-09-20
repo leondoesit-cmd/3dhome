@@ -5714,6 +5714,12 @@ body.compact-nav #modeler .md-quick-field select {
 #modeler .md-feature-group summary > i { color: var(--accent); font-size: 14px; }
 #modeler .md-feature-group summary > small { display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: color-mix(in srgb,var(--accent) 12%,transparent); color: var(--accent); font-size: 8px; }
 #modeler .md-feature-group-body { display: grid; gap: 5px; padding: 2px 8px 9px; }
+/* The rule above carries ID specificity, so it beats the UA stylesheet's
+   `details:not([open]) > *:not(summary) { display: none }` and a closed group
+   stayed fully expanded. Every group was born open, so nothing revealed it
+   until one of them needed to start collapsed. */
+#modeler .md-feature-group:not([open]) > .md-feature-group-body { display: none; }
+#modeler .md-feature-advanced { margin-top: 5px; background: color-mix(in srgb,var(--input-bg) 55%,transparent); }
 #modeler .md-feature-live { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border: 1px solid color-mix(in srgb,var(--accent) 22%,var(--separator)); border-radius: 8px; background: color-mix(in srgb,var(--accent) 7%,var(--input-bg)); color: var(--text-muted); font-size: 9px; line-height: 1.35; }
 #modeler .md-feature-live i { color: var(--accent); font-size: 13px; }
 #modeler .md-feature-live.on { color: var(--text-main); }
@@ -12443,7 +12449,6 @@ html:not([data-ui="legacy"])[data-tool="walloffset"] #cadTuneBtn {
 
 #legacyUiBtn.active-legacy { color: var(--accent); }
 
-
 /* ==========================================================================
    Wall inspector chrome — header, metric chips, tabs, segmented controls,
    swatches, take-off. The panel used to be one long stack of accordions; the
@@ -16677,6 +16682,13 @@ body.compact-nav #md-sheet {
   padding-bottom: 4px;
   border-radius: 14px 14px 0 0;
 }
+/* 46dvh suits a menu, whose rows you skim. A feature form is a task: Fillet
+   alone wants ~530px of collector, prompt and fields and was being handed 277,
+   so the one control that matters sat two screens down and the whole editor
+   read like a desktop panel squeezed onto a phone. A form gets the room it
+   needs; the model behind it is secondary while the form is up, and picking
+   geometry closes the sheet anyway. */
+
 .m-sheet-grip {
   display: none;
 }

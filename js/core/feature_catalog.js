@@ -338,16 +338,16 @@ export const FEATURE_CATALOG = Object.freeze({
       { key: "radius", label: "Radius", labelKey: "fcFldRadius", type: "number", unit: "length", min: 1e-6, step: 0.1 },
       { key: "variableRadius", label: "Variable radius", labelKey: "fcFldVariableRadius", type: "boolean" },
       { key: "endRadius", label: "End radius", labelKey: "fcFldEndRadius", type: "number", unit: "length", min: 1e-6, step: 0.1 },
-      { key: "propagation", label: "Edge scope", labelKey: "fcFldEdgeScope", type: "select", choices: [
+      { key: "propagation", advanced: true, label: "Edge scope", labelKey: "fcFldEdgeScope", type: "select", choices: [
         {value:"tangent",label:"Selected tangent chain",labelKey:"fcOptTangentChain"},
         {value:"feature",label:"Whole feature",labelKey:"fcOptWholeFeature"},
       ] },
-      { key: "section", label: "Section representation", labelKey: "fcFldSectionRepresentation", type: "select", choices: [
+      { key: "section", advanced: true, label: "Section representation", labelKey: "fcFldSectionRepresentation", type: "select", choices: [
         {value:"rational",label:"Rational",labelKey:"fcOptRational"},
         {value:"quasi-angular",label:"Quasi-angular",labelKey:"fcOptQuasiAngular"},
         {value:"polynomial",label:"Polynomial",labelKey:"fcOptPolynomial"},
       ] },
-      { key: "continuity", label: "Surface continuity", labelKey: "fcFldSurfaceContinuity", type: "select", choices: [
+      { key: "continuity", advanced: true, label: "Surface continuity", labelKey: "fcFldSurfaceContinuity", type: "select", choices: [
         {value:"tangent",label:"Tangent (C1)",labelKey:"fcOptTangentC1"},
         {value:"curvature",label:"Curvature (C2)",labelKey:"fcOptCurvatureC2"},
       ] },

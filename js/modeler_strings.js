@@ -436,6 +436,7 @@ export var TXT = {
   zoomIn: ["התקרב", "Zoom in"],
   zoomOut: ["התרחק", "Zoom out"],
   zoomFit: ["התאם לתצוגה", "Zoom to fit"],
+  featureMoreOptions: ["אפשרויות נוספות", "More options"],
   sectionView: ["מבט חתך", "Section view"],
   sectionAxis: ["ציר חיתוך", "Section axis"],
   sectionOffset: ["מיקום החתך", "Section position"],

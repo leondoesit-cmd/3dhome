@@ -487,6 +487,13 @@ function showSheet(key, toggle) {
   sheetTitle.textContent = title;
   openKey = key;
   featureSheetOpen = key === "tree" && !!api.root.querySelector("#mdQuickSettings:not([hidden])");
+  /* A menu is a list you skim at 56% of the editor; a feature form is the task
+     itself. Fillet alone wants ~530px of collector, prompt and fields and was
+     handed 277, so the control that mattered sat a screen and a half down and
+     the whole thing read like a desktop panel squeezed onto a phone. Forms
+     open at the tall height the sheet already knows how to take — the expand
+     button still collapses it, and closeSheet() drops the class again. */
+  if (featureSheetOpen) setSheetTall(true);
   sheet.classList.add("on");
   sheet.setAttribute("aria-modal", "true");
   sheet.removeAttribute("aria-hidden");

@@ -258,6 +258,24 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       if (depthWrap) depthWrap.classList.toggle("parameter-hidden", hideDepth);
       host.classList.toggle("md-up-to-face", isUpToFace(end && end.input.value));
     }
+    /* A field the current mode ignores is a field the user has to scroll past
+       and wonder about. End radius means nothing until the fillet is variable,
+       and a chamfer uses either a second distance or an angle, never both. */
+    if (type === "fillet") {
+      var variable = controls.find(function (item) { return item.field.key === "variableRadius"; });
+      var endWrap = (controls.find(function (item) { return item.field.key === "endRadius"; }) || {}).input;
+      endWrap = endWrap && endWrap.closest(".md-quick-field");
+      if (endWrap) endWrap.classList.toggle("parameter-hidden", !(variable && variable.input.checked));
+    }
+    if (type === "chamfer") {
+      var chamferMode = controls.find(function (item) { return item.field.key === "mode"; });
+      var mode = chamferMode && chamferMode.input.value;
+      [["secondDistance", "two-distance"], ["angle", "distance-angle"]].forEach(function (pair) {
+        var control = controls.find(function (item) { return item.field.key === pair[0]; });
+        var wrap = control && control.input.closest(".md-quick-field");
+        if (wrap) wrap.classList.toggle("parameter-hidden", mode !== pair[1]);
+      });
+    }
     if (type === "hole") {
       var size = controls.find(function (item) { return item.field.key === "standardSize"; });
       var holeType = controls.find(function (item) { return item.field.key === "holeType"; });
@@ -299,8 +317,25 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
   groups.forEach(function (group) {
     var section = el("details", "md-feature-group");
     section.open = true;
-    section.appendChild(el("summary", "", '<i class="ph ' + (group.icon || "ph-sliders-horizontal") + '"></i><span>' + group.label + "</span><small>" + group.fields.length + "</small>"));
+    var primaryFields = group.fields.filter(function (item) { return !item.advanced; });
+    section.appendChild(el("summary", "", '<i class="ph ' + (group.icon || "ph-sliders-horizontal") + '"></i><span>' + group.label + "</span><small>" + primaryFields.length + "</small>"));
     var body = el("div", "md-feature-group-body");
+    /* SOLIDWORKS keeps the settings you touch once a year — conic section,
+       surface continuity, edge scope — folded away under Fillet Options.
+       Inlining them here cost a phone 2.2 screens of scrolling to reach a
+       radius box, so anything marked advanced goes in a collapsed group of
+       its own and the common path stays one screen. */
+    var advancedSection = null, advancedBody = null;
+    function hostForField(field) {
+      if (!field.advanced) return body;
+      if (!advancedBody) {
+        advancedSection = el("details", "md-feature-group md-feature-advanced");
+        advancedSection.appendChild(el("summary", "", '<i class="ph ph-sliders-horizontal"></i><span>' + (options.advancedLabel || "More options") + "</span>"));
+        advancedBody = el("div", "md-feature-group-body");
+        advancedSection.appendChild(advancedBody);
+      }
+      return advancedBody;
+    }
     group.fields.forEach(function (sourceField) {
       var field = { ...sourceField };
       if (type === "toolbox" && field.dynamicChoices === "toolbox-size") {
@@ -320,7 +355,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
           if(match)value=limits[match[1]+"Diameter"]?.[match[2].toLowerCase()];
         }
       }
-      var input = featureField(body, field, value, options);
+      var input = featureField(hostForField(field), field, value, options);
       var control = { field: field, input: input };
       controls.push(control);
       var live = function () {
@@ -338,6 +373,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       input.addEventListener("change", live);
     });
     section.appendChild(body);
+    if (advancedSection) section.appendChild(advancedSection);
     host.appendChild(section);
   });
   if (type === "pattern") { rememberPatternSettings("linear"); rememberPatternSettings("circular"); rememberPatternSettings("curve"); }
