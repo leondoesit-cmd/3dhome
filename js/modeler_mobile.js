@@ -487,13 +487,17 @@ function showSheet(key, toggle) {
   sheetTitle.textContent = title;
   openKey = key;
   featureSheetOpen = key === "tree" && !!api.root.querySelector("#mdQuickSettings:not([hidden])");
-  /* A menu is a list you skim at 56% of the editor; a feature form is the task
-     itself. Fillet alone wants ~530px of collector, prompt and fields and was
+  /* The built sheets (View, More) are short grids that size themselves. The
+     three BORROWED panels — the feature tree, the CommandManager and the
+     inspector — are long lists, and at 56% of the editor their rows simply ran
+     off the bottom: the tree's own features could not be reached to edit them.
+     A feature form is worse still, being the task itself rather than a list to
+     skim. Fillet alone wants ~530px of collector, prompt and fields and was
      handed 277, so the control that mattered sat a screen and a half down and
      the whole thing read like a desktop panel squeezed onto a phone. Forms
      open at the tall height the sheet already knows how to take — the expand
      button still collapses it, and closeSheet() drops the class again. */
-  if (featureSheetOpen) setSheetTall(true);
+  if (featureSheetOpen || key === "tree" || key === "cmd" || key === "props") setSheetTall(true);
   sheet.classList.add("on");
   sheet.setAttribute("aria-modal", "true");
   sheet.removeAttribute("aria-hidden");
