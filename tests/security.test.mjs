@@ -89,13 +89,20 @@ test("static-file containment rejects prefix siblings, private server files, and
     await mkdir(sibling);
     await writeFile(join(root, "index.html"), "ok");
     await writeFile(join(root, "server", ".identity.json"), "secret");
-    await writeFile(join(sibling, "secret.txt"), "secret");
-    await symlink(join(sibling, "secret.txt"), join(root, "escape.txt"));
+    let hasSymlink = true;
+    try {
+      await symlink(join(sibling, "secret.txt"), join(root, "escape.txt"));
+    } catch (err) {
+      if (err.code === "EPERM" || err.code === "ENOSYS") hasSymlink = false;
+      else throw err;
+    }
 
     assert.equal(await safeStaticFile(root, "/index.html"), await realpath(join(root, "index.html")));
     assert.equal(await safeStaticFile(root, "/../3dhomev7/secret.txt"), null);
     assert.equal(await safeStaticFile(root, "/server/.identity.json"), null);
-    assert.equal(await safeStaticFile(root, "/escape.txt"), null);
+    if (hasSymlink) {
+      assert.equal(await safeStaticFile(root, "/escape.txt"), null);
+    }
   } finally {
     await rm(base, { recursive: true, force: true });
   }
