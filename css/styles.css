@@ -15284,6 +15284,25 @@ body.compact-nav #md-sheet.tall:has(.md-sheet-host > *) {
 #modeler .md-left.md-borrowed:has(#mdQuickSettings:not([hidden])) .md-strip-meta {
   display: none !important;
 }
+/* ---- reach: a sheet's own tabs belong under the thumb --------------------
+   The sheet now runs nearly the full height, which put its tab strip — the
+   most-tapped control it owns — at roughly y=93 on an 812px phone: the far
+   top corner, the one place a thumb cannot go without regripping. The nav the
+   thumb already rests on is at ~760. On compact screens the strip moves to the
+   bottom of its panel and reads as a bar; the panel's content keeps the space
+   above it. Desktop is untouched — there the strip stays on top, where a
+   pointer costs nothing to travel. */
+body.compact-nav #md-sheet .md-panel.md-borrowed,
+body.compact-nav #md-sheet .md-commandmanager.md-borrowed { flex-direction: column; }
+body.compact-nav #md-sheet .md-panel.md-borrowed > .md-strip,
+body.compact-nav #md-sheet .md-commandmanager.md-borrowed > .md-command-tabs {
+  order: 9;
+  flex: none;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-color);
+  border-bottom: none;
+  background: var(--bg-panel);
+}
 #modeler .md-left.md-borrowed #mdQuickTools {
   box-sizing: border-box;
   width: 100%;
