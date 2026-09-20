@@ -15284,6 +15284,69 @@ body.compact-nav #md-sheet.tall:has(.md-sheet-host > *) {
 #modeler .md-left.md-borrowed:has(#mdQuickSettings:not([hidden])) .md-strip-meta {
   display: none !important;
 }
+/* ---- phone density: the feature form spends its height on the task --------
+   Measured on a 375x812 phone, Fillet's form was 532px tall and 93 of those
+   went to chrome that said nothing the sheet had not already said: a title row
+   repeating the sheet header directly above it, a badge announcing that live
+   preview — which has never not worked — is available, and a selection prompt
+   in its own padded card sitting on top of the collector that repeats it. What
+   the form is FOR, the edge collector and the parameters, started below that.
+   Desktop keeps all of it: there the panel is a tall column with room to
+   spare, and there is no sheet header for the title to duplicate. */
+
+/* The nominal state of the live badge is "ready", and a state that is almost
+   always true does not earn a permanent row. The badge still appears the
+   moment it has something only it can say — the kernel refusing a radius, a
+   selection that cannot be filleted — which is the message that actually
+   changes what the user does next. It is hidden, not removed: the element,
+   its text and its data-preview-state attribute stay in the DOM, so anything
+   reading the badge (cadFinishPreviewSnapshot included) sees what it always
+   saw. */
+body.compact-nav #modeler .md-feature-live { display: none; }
+body.compact-nav #modeler .md-feature-live[data-preview-state="error"],
+body.compact-nav #modeler .md-feature-live[data-preview-state="approximate"] { display: flex; }
+
+/* The sheet header names the feature already, in larger type and in a bar that
+   cannot scroll away, so the form's own title is a second copy of it. Only the
+   BORROWED panel is under that header — on an unfolded tablet the tree is a
+   docked column with no sheet above it, and there the title row is the form's
+   only heading and stays. modeler_mobile.js keeps the header in step with
+   whatever form is on screen. */
+body.compact-nav #modeler .md-left.md-borrowed .md-feature-form-title { display: none; }
+
+/* A prompt sitting immediately above a collector is that collector's caption,
+   not a card of its own. Joined to it — shared corner, no gap-sized band of
+   background between two tinted boxes — it reads as one control and costs a
+   line instead of a row. A prompt with nothing under it (a pattern's "3
+   features selected") keeps the card: there is nothing for it to belong to. */
+body.compact-nav #modeler .md-feature-selection-note:has(+ .md-finish-edges) {
+  padding: 4px 8px 5px;
+  border-radius: 8px 8px 0 0;
+  box-shadow: none;
+  line-height: 1.3;
+}
+body.compact-nav #modeler .md-feature-selection-note:has(+ .md-finish-edges) + .md-finish-edges {
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+
+/* What is left is air, and the air was sized for a desktop column. Every gap
+   below surrounds labels, cards and static text; nothing here touches a tap
+   target. The inputs and selects keep the 44px minimum they are given further
+   up, the command tiles keep their 46px, and the buttons inside the form keep
+   the 44px the borrowed-panel rule gives them. */
+body.compact-nav #modeler .md-quick-settings { gap: 5px; }
+body.compact-nav #modeler .md-feature-group-body { gap: 4px; padding: 2px 7px 7px; }
+body.compact-nav #modeler .md-feature-scrubber { gap: 4px; padding: 6px 8px; }
+body.compact-nav #modeler .md-finish-edges { gap: 5px; padding: 7px; }
+/* Four edge rows before the list starts scrolling instead of five and a half.
+   The list is a scroller either way; the question is only how much of the form
+   below it a long selection is allowed to push off the screen. */
+body.compact-nav #modeler .md-finish-edges-list { max-height: 116px; }
+/* The ribbon in the sheet: same reasoning, one screen of commands instead of
+   two thirds of one. The tiles themselves do not move. */
+body.compact-nav #modeler .md-commandmanager.md-borrowed .md-command-group { margin-bottom: 6px; }
+body.compact-nav #modeler .md-commandmanager.md-borrowed .md-command-items { gap: 5px; }
 /* ---- reach: a sheet's own tabs belong under the thumb --------------------
    The sheet now runs nearly the full height, which put its tab strip — the
    most-tapped control it owns — at roughly y=93 on an 812px phone: the far
