@@ -52,6 +52,36 @@ for (const [width, height, lang] of [[344, 812, "en"], [390, 844, "he"], [717, 8
     }
     await closedProfile();
     assert.equal(await page.eval(() => document.getElementById("mdProfileOffer").textContent.includes("revolvefeature")), false);
+    /* The card offers Extrude / Extrude cut / Revolve / Hole — exactly what
+       #md-ctx now docks above the bottom nav. On a phone that is the same four
+       choices twice, and the second copy floats over the model the user is
+       choosing FOR, so compact suppresses it. The desktop keeps it: labelled,
+       and the click still arms the feature. */
+    const compact = await page.eval(() => document.body.classList.contains("compact-nav"));
+    const offer = await page.eval(() => {
+      const host = document.getElementById("mdProfileOffer");
+      const r = host.getBoundingClientRect();
+      return { display: getComputedStyle(host).display, width: r.width, height: r.height,
+        labels: [...host.querySelectorAll("button")].map((b) => b.textContent.trim()) };
+    });
+    if (compact) {
+      assert.equal(offer.display, "none", "the phone docks these verbs in #md-ctx: " + JSON.stringify(offer));
+      assert.equal(offer.width * offer.height, 0, JSON.stringify(offer));
+      // ...and the docked row is where they live instead.
+      assert.equal(await page.eval(() => !!document.querySelector('#md-ctx [data-md-action="extrude"]')), true,
+        "suppressing the card is only sound because the verb row carries the same verbs");
+    } else {
+      assert.notEqual(offer.display, "none", JSON.stringify(offer));
+      assert.ok(offer.width > 0 && offer.height > 0, JSON.stringify(offer));
+      assert.ok(offer.labels.length >= 4,
+        "the desktop card still offers every feature that can consume the profile: " + JSON.stringify(offer.labels));
+      await page.eval(() => document.querySelector("#mdProfileOffer button").click());
+      await page.waitUntil(() => window.cadLoopSnapshot?.().authoring === "extrude");
+      assert.equal(await page.eval(() => document.getElementById("mdProfileOffer").hidden), true,
+        "picking from the card must retire it");
+      await page.eval(() => document.getElementById("mdCancelCommand").click());
+      await page.waitUntil(() => window.cadLoopSnapshot?.().authoring === null);
+    }
     // Use a different entry point from the offer: every launcher must retire it.
     await page.eval(() => {
       const thumb = document.querySelector('#md-ctx [data-md-action="extrude"]');

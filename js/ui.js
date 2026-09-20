@@ -840,6 +840,9 @@ export function openModal(titleText) {
   overlay.addEventListener("mousedown", function (e) {
     if (e.target === overlay) close();
   });
+  overlay.addEventListener("pointerdown", function (e) {
+    if (e.target === overlay) close();
+  });
   document.addEventListener("keydown", onKey);
   document.body.appendChild(overlay);
   return {
@@ -2900,12 +2903,38 @@ export function initUI() {
   try {
     coarse = window.matchMedia("(pointer: coarse)");
   } catch (_) {}
+  /* A posture change RETARGETS the closed panels' resting transform — the side
+     drawer parks at translateX(±100%), the phone sheet at translateY(100%) —
+     and `transition: transform` on #left-sidebar/#right-inspector happily
+     animates between the two. Until this first pass runs, the markup is still
+     in the side-drawer posture, so on every phone load both closed panels flew
+     in across the canvas at negative x. The transition belongs to opening and
+     closing a panel, not to deciding which shape it has, so posture settles
+     with `.posture-ready` off and CSS holds the transition until the new
+     resting place has been painted. */
+  var posturePrev = "";
+  function settlePosture() {
+    /* Two frames: one for the new posture's resting transform to be computed
+       and painted, one to be sure it was, before the transition comes back. A
+       single frame still hands the animation the old position to start from. */
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        document.body.classList.add("posture-ready");
+      });
+    });
+  }
   function applyCompactNav() {
     /* Posture is a pure function of CSS pixels + touch (js/chrome_posture.js).
        An unfolded Fold's inner display reports one segment, so hinge media
        queries never match there — roomy is both-axes tablet-sized instead. */
     var p = windowChromePosture();
     var flipped = document.body.classList.contains("compact-nav") !== p.compact;
+    var key = [p.compact, p.dockRail, p.sheetDrawers, p.splitRow].join("|");
+    var settled = key !== posturePrev;
+    if (settled) {
+      posturePrev = key;
+      document.body.classList.remove("posture-ready");
+    }
     document.body.classList.toggle("compact-nav", p.compact);
     // The floor strip hides itself on a compact layout while there is only one
     // floor; crossing the threshold has to re-ask it, or it stays hidden on a
@@ -2914,6 +2943,7 @@ export function initUI() {
     document.body.classList.toggle("dock-rail", p.dockRail);
     document.body.classList.toggle("sheet-drawers", p.sheetDrawers);
     document.body.classList.toggle("split-row", p.splitRow);
+    if (settled) settlePosture();
     window.dispatchEvent(new CustomEvent("mf-posture"));
   }
   coarse &&

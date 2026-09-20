@@ -87,3 +87,44 @@ test('healing an arc end onto a line end that was on the circle does not over-de
   assert.equal(result.conflicts.length, 0, JSON.stringify(result));
   assert.notEqual(result.status, 'over-constrained', JSON.stringify(result));
 });
+
+/* The other half of the same corner. Drawn the book's way the side line ends
+   ON the circle, so the circle trim reuses it (above). Drawn past the circle —
+   which is what makes the trim find a crossing at all when the line falls
+   short — the circle trim mints its own arc end, and the stub trim has to land
+   on that point instead of a second one stacked on it. The sketch still reads
+   as closed either way, because analyzeSketchProfiles merges endpoints within
+   half a millimetre; only Sketch Fillet notices, because findFilletCorner
+   pairs a line with an arc by point id (steps 335-336). */
+function sideLinePastTheCircle() {
+  return {
+    points: [
+      { id: 'c', x: 0, y: 0 },
+      { id: 'top', x: 3, y: 6 }, { id: 'low', x: 3, y: -6 },
+      { id: 'aL', x: -3, y: -4 }, { id: 'aR', x: 3, y: -4 },
+    ],
+    entities: [
+      { id: 'A', type: 'arc', c: 'c', a: 'aL', b: 'aR' },
+      { id: 'R', type: 'line', a: 'top', b: 'low' },
+    ],
+    constraints: [],
+  };
+}
+
+test('trimming a side line stub at an arc end reuses that end rather than stacking a point on it', () => {
+  const sketch = sideLinePastTheCircle();
+  const before = sketch.points.length;
+  assert.equal(trimEntity(sketch, 'R', { x: 3, y: -5 }), true, 'the stub below the arc is trimmed away');
+  const line = sketch.entities.find((e) => e.id === 'R');
+  assert.equal(line.b, 'aR', 'the line now ends on the arc end itself');
+  assert.equal(sketch.points.length, before - 1, 'no new point; the orphaned stub end is pruned');
+});
+
+test('the reused corner is what lets Sketch Fillet pair the line with the arc', async () => {
+  const { findFilletCorner } = await import('../js/sketch_fillet.js');
+  const sketch = sideLinePastTheCircle();
+  trimEntity(sketch, 'R', { x: 3, y: -5 });
+  const corner = findFilletCorner(sketch, { entityIds: ['R', 'A'] });
+  assert.equal(corner.kind, 'line-arc');
+  assert.equal(corner.vertexId, 'aR');
+});

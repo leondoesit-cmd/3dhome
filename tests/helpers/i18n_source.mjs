@@ -14,8 +14,18 @@ import { readFile } from "node:fs/promises";
 
 const root = new URL("../../", import.meta.url);
 
+/* Every assertion downstream — and the two anchors below — is written with \n.
+   A Windows checkout under `git config core.autocrlf true` hands us CRLF, so
+   "export default {\n" matched nothing and this helper threw
+   "not an object-literal default export" for BOTH locales, failing every test
+   that reads the string table on that platform alone. Normalize on the way in;
+   the line ending is not what any of these tests are about. */
+async function readText(url) {
+  return (await readFile(url, "utf8")).replace(/\r\n/g, "\n");
+}
+
 async function tableBody(lang) {
-  const src = await readFile(new URL(`js/i18n/${lang}.js`, root), "utf8");
+  const src = await readText(new URL(`js/i18n/${lang}.js`, root));
   const start = src.indexOf("export default {\n");
   const end = src.lastIndexOf("\n};");
   if (start < 0 || end < 0) throw new Error(`js/i18n/${lang}.js is not an object-literal default export`);
@@ -28,7 +38,7 @@ async function tableBody(lang) {
 
 export async function readI18nSource() {
   const [runtime, he, en] = await Promise.all([
-    readFile(new URL("js/i18n.js", root), "utf8"),
+    readText(new URL("js/i18n.js", root)),
     tableBody("he"),
     tableBody("en"),
   ]);

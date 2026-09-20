@@ -112,6 +112,10 @@ export var TXT = {
   view_front_short: ["חזית", "Front"],
   view_right_short: ["ימין", "Right"],
   view_iso_short: ["איזומטרי", "Iso"],
+  /* Short forms for the phone's view grid. "אחור" matches the wording the
+     desktop View toolbar already uses for the same button. */
+  view_back_short: ["אחור", "Back"],
+  view_left_short: ["שמאל", "Left"],
   view_top: ["מבט על (X·Z)", "Top (X·Z)"],
   view_front: ["מבט חזית (X·Y)", "Front (X·Y)"],
   view_side: ["מבט צד (Z·Y)", "Side (Z·Y)"],

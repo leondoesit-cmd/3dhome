@@ -21,9 +21,32 @@ export function planTouchPrecisionKind(tool, placeType) {
   return null;
 }
 
-export function modelerTouchPrecisionKind(tool, mode) {
+/* Picking, as opposed to navigating. Creating a point commits a coordinate, so
+   it always earned the loupe; selection was left direct because a wrong pick is
+   retryable. That holds in the 3D view, where a pick is one tap among orbits —
+   but not inside a sketch, where what you are aiming at is a 2px vertex, an arc
+   centre under its own radius leader, or the Origin, and a fingertip covers
+   about 44px of the thing it is trying to hit. Those picks are the sketch: a
+   dimension attaches to the wrong entity rather than failing visibly. */
+const MODELER_PICK_TOOLS = new Set(["select", "dim", "trim", "extend", "offset", "sketchfillet"]);
+
+/* Whether the experimental rough/portal modes may take over this gesture. Only
+   for creation: those modes replace a tap with place-lift-refine-commit, which
+   is worth it when the tap commits a coordinate and intolerable when it is a
+   plain selection. Picking keeps the loupe, which is visual only. The settings
+   card promises exactly this ("experimental modes apply only to creation
+   tools"), so the promise and the gate are written from the same list. */
+export function modelerPrecisionTrialAllowed(tool) {
+  return MODELER_CREATION_TOOLS.has(tool);
+}
+
+export function modelerTouchPrecisionKind(tool, mode, sketchActive) {
   if (mode === "drawing") return tool === "dim" ? "lens" : null;
-  return MODELER_CREATION_TOOLS.has(tool) ? "lens" : null;
+  if (MODELER_CREATION_TOOLS.has(tool)) return "lens";
+  /* Only while a sketch plane is live. In the 3D view a one-finger drag is an
+     orbit, and hanging a loupe off every orbit would trade a rare mis-pick for
+     constant visual noise. */
+  return sketchActive && MODELER_PICK_TOOLS.has(tool) ? "lens" : null;
 }
 
 function clamp(value, lo, hi) {

@@ -47,6 +47,13 @@ test("settings expose three mutually exclusive touch precision systems", () => {
   assert.match(i18n, /touch_mode_portal:[\s\S]*?פורטל דיוק/);
 });
 
+test("touch precision settings adapt to narrow sidebars without crushing cards", () => {
+  assert.match(css, /#modeler #mdCons \.touch-mode-grid\s*\{\s*grid-template-columns:\s*1fr;/);
+  assert.match(css, /#modeler #mdCons \.touch-mode-card/);
+  assert.match(css, /@container \(max-width:\s*580px\)/);
+  assert.match(css, /\.touch-mode-copy small\s*\{[\s\S]*?overflow-wrap:\s*break-word/);
+});
+
 test("rough/refine has relative motion, exact fields, locks, snaps, confirm and cancel", () => {
   assert.match(ui, /dragRelative\(surface,state\.ratio\)/);
   assert.match(ui, /input\.type = "number"/);
@@ -68,7 +75,7 @@ test("portal composites model and sketch canvases and supports micro-drag and X-
 test("both editors intercept only touch creation and leave lens mode on the old direct path", () => {
   assert.match(interaction, /e\.pointerType === "touch" && planTouchPrecisionKind\(S\.tool, S\.placeType\)/);
   assert.match(interaction, /if \(mode === "lens"\) return false/);
-  assert.match(modeler, /e\.pointerType === "touch" && precisionKind && trialMode !== "lens"/);
+  assert.match(modeler, /e\.pointerType === "touch" && precisionKind[\s\S]*?trialMode !== "lens"/);
   assert.match(interaction, /touchPrecisionTrialOwns\(e\.pointerId\)/);
   assert.match(modeler, /touchPrecisionTrialOwns\(e\.pointerId\)/);
 });

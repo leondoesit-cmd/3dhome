@@ -5,18 +5,49 @@ import {
   beginTouchPrecision,
   directionalSegmentDistances,
   formatTouchDistance,
+  modelerPrecisionTrialAllowed,
   modelerTouchPrecisionKind,
   planTouchPrecisionKind,
   touchLensCenter,
   touchPrecisionPoint,
 } from "../js/touch_precision.js";
 
-test("precision policy: selection/navigation stay direct without a loupe", () => {
+test("precision policy: navigation stays direct without a loupe", () => {
   assert.equal(planTouchPrecisionKind("select", null), null);
   assert.equal(planTouchPrecisionKind("erase", null), null);
   assert.equal(planTouchPrecisionKind("walloffset", null), null);
-  assert.equal(modelerTouchPrecisionKind("select", "2d"), null);
-  assert.equal(modelerTouchPrecisionKind("select", "3d"), null);
+  // The free 3D view: a one-finger drag is an orbit, so picking stays direct.
+  assert.equal(modelerTouchPrecisionKind("select", "3d", false), null);
+  assert.equal(modelerTouchPrecisionKind("select", "2d", false), null);
+});
+
+test("precision policy: picking inside a live sketch gets the loupe", () => {
+  /* A sketch pick aims at a 2px vertex, an arc centre under its own radius
+     leader, or the Origin, and the fingertip covering it is ~44px wide. Unlike
+     a mis-pick in the 3D view this one is silent: the dimension attaches to the
+     wrong entity instead of failing. */
+  ["select", "dim", "trim", "extend", "offset", "sketchfillet"].forEach((tool) => {
+    assert.equal(modelerTouchPrecisionKind(tool, "2d", true), "lens", tool);
+  });
+  // A sketch projected onto a face inside the 3D view counts as live too.
+  assert.equal(modelerTouchPrecisionKind("select", "3d", true), "lens");
+  // Navigation-only verbs stay direct even with a sketch open.
+  assert.equal(modelerTouchPrecisionKind("pan", "2d", true), null);
+});
+
+test("precision policy: experimental modes stay on creation, picking keeps the loupe", () => {
+  /* rough/portal replace a tap with place-lift-refine-commit. That is worth it
+     when the tap commits a coordinate, and intolerable when it is a plain
+     selection — so a pick carrying the loupe must not also inherit them. The
+     settings card states this promise to the user; this is the promise. */
+  ["scirc", "srect", "sarc", "wall", "poly"].forEach((tool) => {
+    assert.equal(modelerPrecisionTrialAllowed(tool), true, tool);
+  });
+  ["select", "dim", "trim", "extend", "offset", "sketchfillet"].forEach((tool) => {
+    assert.equal(modelerPrecisionTrialAllowed(tool), false, tool);
+    // ...but they still get the visual loupe inside a sketch.
+    assert.equal(modelerTouchPrecisionKind(tool, "2d", true), "lens", tool);
+  });
 });
 
 test("precision policy: all plan creation tools use a visual-only loupe", () => {

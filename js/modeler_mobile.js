@@ -13,11 +13,13 @@
 
    Same cure, same two rows:
 
-     #md-ctx   contextual: Undo/Redo pinned to the leading edge in every state,
-               then the NEXT STEP (the coach's suggestion, which used to own a
-               whole row) and the selection's own commands — the ones
+     #md-ctx   contextual: the NEXT STEP (the coach's suggestion, which used to
+               own a whole row) and the selection's own commands — the ones
                modeler_chrome.contextToolbarItems already computes for the
-               floating context toolbar.
+               floating context toolbar. Modelling verbs only: Undo and Redo
+               are not verbs, they act on whatever just happened, so they sit
+               at the trailing edge of the .md-head strip instead — the
+               editor's own #mdUndo/#mdRedo, surfaced rather than duplicated.
      #md-nav   five fixed slots: View / Tree / Commands (primary) / Properties
                / More. Each opens a bottom sheet, so the model stays visible.
 
@@ -26,6 +28,23 @@
    so the tree, the inspector and the ribbon have exactly one implementation. */
 
 import { mountPagedMenu, releasePagedMenu } from "./mobile_pages.js";
+
+/* The rest of the verbs that consume a closed profile, in the order a part is
+   usually built. Extrude is NOT here: it is pushed by name in ctxActions so the
+   pin stays explicit, because the guided tour rings [data-md-action="extrude"]
+   and a verb conjured out of a list is a verb nobody can point at.
+
+   The cut follows Extrude because "add or remove" is the one decision a closed
+   profile really poses. Sweep and Loft trail — they need a second sketch, so
+   they are the rarer pick and the ones that land on the row below. */
+var CLOSED_SKETCH_VERBS = ["extrudecut", "revolvefeature", "revolvecutfeature", "sweepfeature", "loftfeature"];
+
+/* How many verbs the docked row may carry. The row wraps to a second and third
+   line rather than scrolling, so this is a limit on clutter rather than on
+   width: past about six the row stops being a set of next actions and becomes
+   the Commands sheet with extra steps — and starts eating the model it is
+   asking about. */
+var CTX_MAX_ACTIONS = 6;
 
 var api = null,
   ctxBar = null,
@@ -41,9 +60,12 @@ var lastSig = "";
 var openCommandGroups = {};
 var statusBanner = null;
 var selectionBar = null;
+var lastCtxHeight = 0;
+var ctxResize = null; // watches the wrapped row so the reserve follows its rows
 var pageHost = null;
 var pageState = null;
 var featureSheetOpen = false;
+var hintHome = null; // { parent, next } — where #mdHint goes back to on teardown
 
 function releasePages() {
   if (pageHost) releasePagedMenu(pageHost);
@@ -156,9 +178,29 @@ function ctxActions() {
     seen[key] = true;
     out.push(item);
   }
+  function pushCommand(id, primary) {
+    push({
+      icon: id,
+      action: id,
+      label: api.chromeLabel(id),
+      primary: !!primary,
+      run: function () {
+        api.runChrome(id);
+        sync(true);
+      },
+    });
+  }
   /* Closed profile: Extrude is the next modelling verb even with nothing
      picked. The tour rings [data-md-action="extrude"]; without this pin the
-     button never exists unless a sketch entity is still selected. */
+     button never exists unless a sketch entity is still selected.
+
+     The rest of the profile-consuming verbs ride with it. On the phone they
+     otherwise existed ONLY inside the Commands sheet, which covers the model
+     it is asking about — so choosing between Extrude cut and Revolve meant
+     opening a sheet, losing sight of the profile, and closing it again. Here
+     they are a docked row above the bottom nav: the model stays visible, and
+     the row wraps when the verbs outrun the width, so none of them is hidden
+     past an edge. */
   if (st.closedSketch) {
     push({
       icon: "extrude",
@@ -169,6 +211,9 @@ function ctxActions() {
         api.runChrome("extrude");
         sync(true);
       },
+    });
+    CLOSED_SKETCH_VERBS.forEach(function (id) {
+      pushCommand(id, false);
     });
   }
   var sug = selected || st.closedSketch ? null : api.coach();
@@ -188,7 +233,7 @@ function ctxActions() {
   // The selection's own verbs, which otherwise live in a floating toolbar that
   // a finger covers the moment it makes the selection.
   api.contextItems().forEach(function (item) {
-    if (out.length >= 3) return;
+    if (out.length >= CTX_MAX_ACTIONS) return;
     push({
       icon: item.id || item.icon,
       action: item.id,
@@ -199,7 +244,7 @@ function ctxActions() {
       },
     });
   });
-  return out.slice(0, 3);
+  return out.slice(0, CTX_MAX_ACTIONS);
 }
 
 function renderSelectionBar() {
@@ -257,20 +302,43 @@ function btn(spec) {
 function renderCtx() {
   if (!ctxBar) return;
   ctxBar.innerHTML = "";
-  var u = document.createElement("div");
-  u.className = "mctx-undo";
-  u.appendChild(
-    btn({ ph: "ph-arrow-u-up-left", label: t("undo"), iconOnly: true, disabled: !api.canUndo(), run: api.undo }),
-  );
-  u.appendChild(
-    btn({ ph: "ph-arrow-u-up-right", label: t("redo"), iconOnly: true, disabled: !api.canRedo(), run: api.redo }),
-  );
-  ctxBar.appendChild(u);
+  /* No Undo/Redo here. They are not modelling verbs, and the editor already
+     owns a pair (#mdUndo/#mdRedo in .md-head-actions) that the compact head
+     keeps on screen at its trailing edge — surfacing those beats building a
+     second pair that has to be kept in sync with the same history. */
   var actions = ctxActions();
   actions.forEach(function (a) {
     ctxBar.appendChild(btn(a));
   });
   ctxBar.classList.toggle("mctx-empty", actions.length === 0);
+  measureCtx();
+}
+
+/* The row wraps, so its height is a fact about the rendered buttons and the
+   width they were handed — one row of verbs on a foldable, three on a 320px
+   phone. CSS cannot name that number, so it is measured here and published as
+   --md-ctx-h; css/styles.css feeds it into --m-ctx-block, which is what
+   #modeler's bottom, #md-selection-bar, the sheets and the status banner all
+   reserve against. Without this a wrapped row simply grows up over the model.
+
+   min-height is the only thing the measured value feeds back into, so this
+   cannot oscillate: a taller bar never makes itself shorter. */
+function measureCtx() {
+  if (!ctxBar) return;
+  var h = Math.round(ctxBar.getBoundingClientRect().height);
+  if (!h) return;
+  if (h !== lastCtxHeight) {
+    lastCtxHeight = h;
+    document.body.style.setProperty("--md-ctx-h", h + "px");
+  }
+  if (!ctxResize && typeof ResizeObserver === "function") {
+    /* Rotation, a fold opening and the keyboard all change how many rows the
+       same buttons need, and none of them re-render the row. */
+    ctxResize = new ResizeObserver(function () {
+      measureCtx();
+    });
+    ctxResize.observe(ctxBar);
+  }
 }
 
 /* ---- bottom sheets ------------------------------------------------------ */
@@ -618,6 +686,13 @@ function buildViewSheet() {
     ["top", "view_top", "view_top_short"],
     ["front", "view_front", "view_front_short"],
     ["side", "view_right", "view_right_short"],
+    /* Back and Left exist on the desktop View toolbar because a face on the far
+       side is otherwise reachable only by a hand orbit. The phone is where that
+       orbit is hardest, and it was the one place they were missing — HOUSING's
+       Sketchcircle sits on the back face of the base. Same icon reuse the
+       desktop button makes: the label carries the difference. */
+    ["back", "view_front", "view_back_short"],
+    ["left", "view_right", "view_left_short"],
     ["iso", "mode3d", "view_iso_short"],
   ].forEach(function (row) {
     g2.appendChild(
@@ -860,6 +935,37 @@ function sync(force) {
   }
 }
 
+/* The gesture hint lives in #mdRailBottom, the bottom-centre shelf it shares
+   with the face prompt and the profile offer. That shelf is `width:max-content`
+   and centred with a transform, and the compact rule turns the hint into a
+   full-width strip at the TOP with `position:absolute; inset-inline:0`.
+
+   Those two cancel each other out. An absolutely-positioned child contributes
+   nothing to max-content, so the shelf measured 0 wide; `inset-inline:0`
+   against a 0-wide containing block then resolved the hint itself to width 0,
+   and the gesture sentence spilled out of a 21px sliver parked over the middle
+   of the model — on top of whatever panel was open there. The transform also
+   rules out `position:fixed` as a fix: it would anchor to the shelf too.
+
+   So on the phone the hint moves up to .md-mid, which is position:relative and
+   as wide as the viewport — the containing block the compact rule was written
+   against. It goes home on teardown, because the desktop shelf still wants it. */
+function adoptHint() {
+  if (!api || !api.root || hintHome) return;
+  var hint = api.root.querySelector("#mdHint");
+  var host = api.root.querySelector(".md-mid");
+  if (!hint || !host || hint.parentNode === host) return;
+  hintHome = { parent: hint.parentNode, next: hint.nextSibling };
+  host.appendChild(hint);
+}
+
+function restoreHint() {
+  if (!hintHome) return;
+  var hint = api && api.root && api.root.querySelector("#mdHint");
+  if (hint && hintHome.parent) hintHome.parent.insertBefore(hint, hintHome.next);
+  hintHome = null;
+}
+
 export function initModelerMobile(bridge) {
   api = bridge;
   if (!ctxBar) {
@@ -883,6 +989,7 @@ export function initModelerMobile(bridge) {
     document.body.appendChild(selectionBar);
     document.body.classList.add("md-open");
   }
+  adoptHint();
   applyTreeDock();
   sync(true);
 }
@@ -892,8 +999,13 @@ export function initModelerMobile(bridge) {
 export function teardownModelerMobile() {
   release();
   closeSheet();
+  restoreHint();
   if (api && api.root) api.root.classList.remove("md-tree-on");
   document.body.classList.remove("md-open");
+  if (ctxResize) ctxResize.disconnect();
+  ctxResize = null;
+  lastCtxHeight = 0;
+  document.body.style.removeProperty("--md-ctx-h");
   if (ctxBar) ctxBar.remove();
   if (nav) nav.remove();
   if (sheet) sheet.remove();

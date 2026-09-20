@@ -121,7 +121,11 @@ test("modeler: icon-only contextual actions retain accessible names", () => {
   // still named for assistive technology and the DOM-accessible tool surface.
   assert.match(mdMobile, /b\.setAttribute\("aria-label", spec\.label\)/);
   assert.match(cbMobile, /b\.setAttribute\("aria-label", spec\.label\)/);
-  assert.match(mdMobile, /iconOnly: true, disabled: !api\.canUndo\(\)/);
+  // The modeler's contextual row no longer builds its own Undo/Redo pair: the
+  // compact head keeps the editor's real #mdUndo/#mdRedo on screen instead, so
+  // there is exactly one of each and one history to name.
+  assert.doesNotMatch(mdMobile, /className = "mctx-undo"/);
+  assert.match(css, /body\.compact-nav #modeler \.md-head-actions > button:not\(#mdClose\):not\(#mdUndo\):not\(#mdRedo\),/);
   assert.match(cbMobile.length ? css : css, /#m-ctx \.mctx-btn\.mctx-icon-only/);
   assert.match(css, /#md-ctx\.mctx-empty/);
 });

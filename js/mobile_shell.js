@@ -58,9 +58,9 @@ function pageInspector() {
   document.querySelectorAll("#right-inspector .grp.props.mobile-paged-menu").forEach(function (panel) {
     if (panel !== active) releasePagedMenu(panel);
   });
-  /* Walls already own semantic tabs. Room and furniture dimensions need one
+  /* Walls already own semantic tabs. Room, opening and furniture dimensions need one
      predictable scrolling form, without another pager hiding essential fields. */
-  if (active.id === "wallProps" || active.id === "roomProps" || active.id === "itemProps") {
+  if (active.id === "wallProps" || active.id === "roomProps" || active.id === "itemProps" || active.id === "openingProps") {
     releasePagedMenu(active);
     return;
   }
@@ -269,6 +269,7 @@ function selActions() {
   if (kind === "wall") {
     return [
       { icon: "ph-door", label: t("m_a_adddoor"), run: function () { run("addWallDoor"); } },
+      { icon: "ph-frame-corners", label: t("m_a_addwindow"), run: function () { run("addWallWindow"); } },
       { icon: "ph-flip-horizontal", label: t("m_a_flipwall"), run: function () { run("reverseWallLayers"); } },
       propsBtn,
       delBtn,
@@ -337,7 +338,12 @@ function ctxActions() {
     ];
   }
   if (selKind()) return selActions();
-  return [];
+  return [
+    { icon: "ph-corners-out", label: t("frame"), run: function () { run("frame"); } },
+    aidChip("osnap", "cad_osnap"),
+    aidChip("ortho", "cad_ortho"),
+    aidChip("gsnap", "cad_grid"),
+  ];
 }
 
 function btn(spec) {
@@ -660,6 +666,36 @@ function buildToolsSheet() {
     grid.appendChild(b);
   });
   sheetBody.appendChild(grid);
+
+  var palette = $("plan-wall-palette");
+  if (palette) {
+    var wallSecTitle = document.createElement("h5");
+    wallSecTitle.className = "m-sheet-sec";
+    wallSecTitle.textContent = t("wd_types");
+    sheetBody.appendChild(wallSecTitle);
+    var wallPresets = document.createElement("div");
+    wallPresets.className = "m-grid m-icon-grid";
+    palette.querySelectorAll(".wd-types button[data-wall-preset]").forEach(function (src) {
+      var preset = src.getAttribute("data-wall-preset");
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "m-grid-btn" + (src.classList.contains("on") ? " on" : "");
+      var ico = src.querySelector("i");
+      var titleKey = src.getAttribute("data-i18n-title");
+      var label = titleKey ? t(titleKey) : src.title || preset;
+      b.setAttribute("aria-label", label);
+      b.title = label;
+      b.innerHTML = '<i class="' + (ico ? ico.className : "ph ph-wall") + '"></i><span>' + label + "</span>";
+      b.addEventListener("click", function () {
+        src.click();
+        setTool("wall");
+        if (window.__setViewMode) window.__setViewMode("plan");
+        closeSheet();
+      });
+      wallPresets.appendChild(b);
+    });
+    sheetBody.appendChild(wallPresets);
+  }
 }
 
 function buildViewSheet() {

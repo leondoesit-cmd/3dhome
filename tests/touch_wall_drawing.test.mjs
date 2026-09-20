@@ -21,8 +21,30 @@ test("modeler: sheet.tall expands to full height when hosting panels", () => {
   assert.match(css, /body\.compact-nav #md-sheet\.tall\s*\{\s*height:\s*calc\(100% - 48px\) !important;/);
 });
 
-test("modeler: context bar and selection bar scroll horizontally on narrow screens", () => {
-  assert.match(css, /body\.compact-nav #md-ctx\s*\{[\s\S]*?overflow-x:\s*auto;/);
+test("modeler: the context bar wraps instead of scrolling, and reserves its real height", () => {
+  // It used to scroll sideways, which hid Sweep and Loft past the right edge
+  // of a 375px phone. It now wraps to a second and third row.
+  const ctxRule = css.match(/body\.compact-nav #md-ctx \{[^}]*\}/)[0];
+  assert.match(ctxRule, /flex-wrap:\s*wrap;/);
+  assert.doesNotMatch(ctxRule, /overflow-x:\s*auto;/);
+  // Stacked like an #md-nav slot.
+  assert.match(css, /#md-ctx \.mctx-btn \{[\s\S]*?flex-direction:\s*column;/);
+  // One fixed width, never grown. Sharing the row's spare width left the last,
+  // half-empty row wider than the full row above it, so the rows stopped
+  // reading as one grid. 0 0 is what keeps every verb identical on every row.
+  const verbRule = css.match(/body\.compact-nav #md-ctx > \.mctx-btn:not\(\.mctx-icon-only\) \{[^}]*\}/)[0];
+  assert.match(verbRule, /flex:\s*0 0 56px;/);
+  assert.doesNotMatch(verbRule, /flex:\s*1 1/);
+  // Undo/Redo are not modelling verbs. They used to take a full-width line of
+  // this row; they now live at the trailing edge of the editor's .md-head, so
+  // #md-ctx carries modelling verbs and nothing else.
+  assert.doesNotMatch(css, /#md-ctx \.mctx-undo/);
+  assert.match(css, /body\.compact-nav #modeler \.md-head-actions #mdUndo \{ order: 1; \}/);
+  assert.match(css, /body\.compact-nav #modeler \.md-head-actions #mdClose \{ order: -1; \}/);
+  // A wrapped row is taller than one line, so the height everything else
+  // reserves against is measured in js/modeler_mobile.js, not assumed.
+  assert.match(css, /body\.compact-nav\.md-open \{[\s\S]*?--m-ctx-block:\s*var\(--md-ctx-h, var\(--md-ctx-base\)\);/);
+  // The selection bar is a single floating strip and still scrolls.
   assert.match(css, /body\.compact-nav #md-selection-bar:not\(\[hidden\]\)\s*\{[\s\S]*?overflow-x:\s*auto;/);
 });
 

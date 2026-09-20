@@ -215,3 +215,155 @@ Dependencies: **1 → (2A ∥ 2B) → 3 → 4 → 5 → 6 → 7**. Phases 2A and
 | O-RING design table drawing | 435–480 | – | | | | | | 4-5 |
 | Homework (per exercise rows) | | | | | | | | 5-1 |
 | CSWA examples (per question rows) | 481–520 | | | | | | | 6-1 |
+
+---
+
+## 7. Remaining HOUSING steps — extracted parameters
+
+Working spec for task 2A-7, pulled from the book on 2026-09-20 so the UI session
+is spent clicking rather than hunting. Values are the book's inch figure with the
+bracketed metric beside it; the app works in cm.
+
+**Order note.** In the book SwitchHole follows Thread. Thread is still blocked on
+G18 (LENSCAP is not in this profile), and SwitchHole has no geometric dependency
+on it — it is sketched on the Handle and terminates on Shell1. Building it first
+is a deliberate deviation; Thread must still be inserted ahead of it in the tree
+before HOUSING can be called ritual-Done.
+
+### SwitchHole (steps 546–568, p.355–356)
+| Item | Value |
+|---|---|
+| Sketch plane | top face of Handle |
+| View | Top |
+| Profile | one circle, near the front of the Handle |
+| Relation | Vertical, Origin to circle centre |
+| Diameter | .510 in [12.95 mm] = 1.295 cm |
+| Distance from Origin | .450 in [11.43 mm] = 1.143 cm |
+| Feature | Extruded Cut, **Up To Surface** (G1) |
+| End face | top inside face of Shell1 |
+| Rename | SwitchHole |
+
+### Rib1 + LPattern1 (steps 569–605, p.357–359)
+| Item | Value |
+|---|---|
+| Sketch plane | Top Plane; Top view; Hidden Lines Visible |
+| Profile | one horizontal line, endpoints either side of the Handle |
+| Dimension | inner back edge → line, .175 in [4.45 mm] |
+| Rib | Both Sides; thickness .100 in [2.54 mm]; **Parallel to Sketch**; material points to the back (flip if not) |
+| Draft | on, 1° |
+| LPattern1 D1 | hidden **upper** back vertical edge of Shell1; .500 in [12.7 mm]; 3 instances |
+| LPattern1 D2 | hidden **lower** back vertical edge of Shell1; .500 in [12.7 mm]; 3 instances |
+| Options | **Pattern seed only**; book also checks Geometry pattern — that checkbox was removed from the app in 2A-6, so record it as a deviation |
+
+### LongRibPlane + Rib2 (steps 606–631+, p.360–362)
+| Item | Value |
+|---|---|
+| Plane | parallel to Right Plane, through the vertex at the back right of the Handle |
+| Rename | LongRibPlane |
+| Sketch plane | LongRibPlane; Right view |
+| Profile | horizontal line (must not snap to Shell1 edges), plus an arc |
+| Relation | Coincident, line's left end point → BatteryLoftPlane (G19-class) |
+| Dimension | line → Origin, 1.300 in [33.02 mm] |
+
+Then Mirror, and the Rib2 33.02 → 34.29 mm interference edit in Phase 3 (3-2).
+
+### Open question before authoring
+`regenerateFeatures()` on `scratch/planchard/HOUSING-checkpoint.json` fails in a
+bare Node harness (2026-09-20), even through `ensureParametricDocument`: sketches
+`sk_1lw92` and `sk_1yps9` (HandleProfile) report
+`missing-sketch-support-feature` against `<featureId>:tool:face:generated:plane:1`,
+and Boss-Battery and Handle report `missing-feature-reference` against
+`<featureId>:tool`. Only Base Extrude survives, in 4.8s against the ~3 minutes the
+app takes. Either the harness skips a step the editor does on open, or the saved
+record does not carry the `:tool` outputs its face-sketches bind to — which would
+be a ritual step 4 failure (save, reload, reopen, rebuild still succeeds).
+**Resolve this in the UI before building SwitchHole**; do not assume either way.
+
+### HOUSING_v2 — rebuild from step 265 (started 2026-09-20)
+
+The saved `HOUSING` record would not reopen (see the open question above), so the
+part is being rebuilt from the book's first step under the name **HOUSING_v2**.
+Authored through the real UI on a 375x812 phone viewport, dark theme.
+
+| Step | Book | Result |
+|---|---|---|
+| 265–270 | New part, name, description | `HOUSING_v2`, description `HOUSING FOR 6VOLT FLASHLIGHT` |
+| 271–274 | Circle on the Front Plane, centred on the Origin | Sketch **fully defined**, profile closed |
+| 275–276 | Ø4.375in [111.13] | Typed as the inch literal `4.375in` → Ø 11.1125 cm. G24 (unit suffixes) confirmed working in the Smart dimension field |
+| 277–278 | Extruded Boss/Base, depth 1.300in [33.02] | Typed `1.300in` → stored 3.302 cm. G24 confirmed in a feature field too |
+| 280 | Rename to `Base Extrude` | Renamed; tree reads `Base Extrude / Extrude / Boss` |
+
+**Accepted.** Exact solid geometry, before save and again after a full browser
+reload and reopen from the library, both reading:
+`X 111.125 · Y 111.125 · Z 33.02 mm`, volume `320.2510 cm³`.
+That is the analytic value (π·5.55625²·3.302 = 320.251) and matches the figure
+the previous HOUSING recorded for the same feature.
+
+**Ritual step 4 passes for HOUSING_v2**: saved, browser reloaded, reopened from
+the library — `fully parametric`, `Rebuild succeeded`, 1 part, no unsaved
+changes, 2 editable steps. So the reopen failure is specific to the old HOUSING
+record and is **not** a systemic fault in the save path. The old record is kept
+in the library (`cm_mu0uonq1`) for diagnosis; do not delete it.
+
+Next: steps 281+ (Sketch-Circle on the back face via Convert Entities, then
+BatteryLoftPlane and Sketch-Square for Boss-Loft1).
+
+#### HOUSING_v2 — extracted parameters for the lofted boss (steps 281–348)
+
+| Step | Feature | Parameters |
+|---|---|---|
+| 281–285 | `Sketchcircle` | Sketch on the **back face** of Base Extrude; Convert Entities to extract the face; exit; rename |
+| 286–293 | `BatteryLoftPlane` | Offset plane from that back face, distance **1.300in [33.02]** = 3.302 cm; rename; rebuild; save |
+| 294–298 | `Sketchsquare` begins | Sketch on BatteryLoftPlane, Back view; Convert Entities on the circle's circumference |
+| 299–303 | | Vertical **centerline** coincident to the Origin and the circle's top edge; a horizontal line right of it; a vertical line down to the circumference |
+| 304–310 | | Sketch Fillet between the horizontal and vertical lines, R **.100in** initially |
+| 311–315 | | Mirror the horizontal line + fillet + vertical line about the centerline |
+| 316–321 | | PowerTrim the circle away on both sides |
+| 322–326 | | Horizontal dimension, left vertical line → right vertical line: **3.100in [78.74]** |
+| 327–330 | | Vertical dimension, Origin → top horizontal line: **1.600in [40.64]** |
+| 331–332 | | Change the fillet dimension .100 → **.500in [12.7]** |
+| 333–338 | | Sketch Fillet R **.500in [12.7]** on the lower-left and lower-right corner points |
+| 339–341 | | Exit, rename `Sketchsquare`, save |
+| 342–348 | `Boss-Loft1` | Lofted Boss/Base over Sketchcircle + Sketchsquare; rename; save |
+
+Target from the previous attempt (same feature, for cross-check): Boss-Loft1 exact
+bounds 111.125 x 111.125 x 66.04 mm, 596.3463 cm3.
+
+Next after that: Boss-Battery (349+), Convert Entities on the loft's back face,
+depth **4.400in [111.76]**, 1 deg draft — previously accepted at
+111.125 x 111.125 x 177.8 mm, 1355.676 cm3.
+
+**Mobile gap found 2026-09-20 (HOUSING_v2, step 285):** a sketch cannot be
+renamed from the phone shell. Double-clicking a sketch row in the tree re-enters
+sketch edit (a feature row opens its editor with a "Feature name" field, so
+features rename fine); right-click falls through to the canvas and selects a
+face instead of opening a tree context menu; and the Properties ▸ Sketch panel
+shows plane, support face and constraint counts but carries no name field.
+Book steps that rename a sketch (285 `Sketchcircle`, 340 `Sketchsquare`, and the
+same pattern for ThreadPath/HandleProfile) therefore cannot be completed on a
+phone. Not blocking geometry — the loft references the sketch by id — so
+HOUSING_v2 carries the default names until this is built or the rename is done
+on a desktop viewport.
+
+### Storage warning (2026-09-20) — the browser library is not durable
+
+`HOUSING_v2` was lost once mid-session. The Browser pane closed and reopened,
+and every IndexedDB store came back empty (`models: []`, `drafts: []`,
+`snapshots: []`) while `localStorage` survived and the origin was unchanged.
+Nothing deleted the records; the pane was recreated with fresh IndexedDB. The
+library moved to IndexedDB in task 1-8, so that is where all model work lives.
+
+Consequences for this plan:
+- Treat the in-browser library as scratch space, not as the record. Anything
+  worth keeping must leave the browser.
+- **Export after every accepted feature** (Library pane ▸ Export library) and
+  keep the JSON beside `HOUSING-checkpoint.json` in `scratch/planchard/`. That
+  export/import path exists precisely for this and is the only thing that made
+  the older HOUSING survivable.
+- The acceptance ritual's step 4 (save, reload, reopen) checks that a record
+  *rebuilds*; it does not check that the record still exists after the host
+  restarts. Those are different risks and only the export covers the second.
+
+Re-authoring cost, measured: Base Extrude took about twelve UI operations at a
+desktop viewport, so a loss is recoverable but not free. The per-step parameters
+in this section are what made the rebuild quick — keep them current.

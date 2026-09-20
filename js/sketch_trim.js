@@ -101,22 +101,34 @@ function trimEntityRaw(sketch, entityId, pickPt) {
     if (hit.t >= clickT) rightT = Math.min(rightT, hit.t);
   }
 
+  /* The cut lands on the end of the curve that made it — the other half of a
+     corner that was trimmed first. editRoundEntity reuses that point; a line
+     that mints its own leaves the corner split by id while it still reads as
+     closed by position, because analyzeSketchProfiles merges endpoints within
+     half a millimetre. Sketch Fillet matches a corner by id, so the split is
+     invisible until it refuses HOUSING Sketchsquare lower corners (steps
+     335-336). Same snap rule as the round trim, scaled by the line instead. */
+  const origA = entity.a, origB = entity.b;
+  const snapTol = 1e-5 * Math.max(1, Math.sqrt(len2));
+  const cutAt = (t) => {
+    const x = pa.x + t * dx, y = pa.y + t * dy;
+    const existing = (sketch.points || []).find((point) => point.id !== origA && point.id !== origB
+      && Math.hypot(point.x - x, point.y - y) <= snapTol);
+    if (existing) return existing.id;
+    const made = { id: uid("pt"), x, y };
+    sketch.points.push(made);
+    return made.id;
+  };
+
   if (leftT > 0 && rightT < 1) {
     // the pick was on a middle piece: keep both outer stubs
-    const newP1 = { id: uid("pt"), x: pa.x + leftT * dx, y: pa.y + leftT * dy };
-    const newP2 = { id: uid("pt"), x: pa.x + rightT * dx, y: pa.y + rightT * dy };
-    sketch.points.push(newP1, newP2);
-    const oldB = entity.b;
-    entity.b = newP1.id;
-    sketch.entities.push({ id: uid("line"), type: "line", name: "Line", a: newP2.id, b: oldB, construction: entity.construction });
+    const leftId = cutAt(leftT), rightId = cutAt(rightT);
+    entity.b = leftId;
+    sketch.entities.push({ id: uid("line"), type: "line", name: "Line", a: rightId, b: origB, construction: entity.construction });
   } else if (leftT > 0) {
-    const newP = { id: uid("pt"), x: pa.x + leftT * dx, y: pa.y + leftT * dy };
-    sketch.points.push(newP);
-    entity.b = newP.id;
+    entity.b = cutAt(leftT);
   } else if (rightT < 1) {
-    const newP = { id: uid("pt"), x: pa.x + rightT * dx, y: pa.y + rightT * dy };
-    sketch.points.push(newP);
-    entity.a = newP.id;
+    entity.a = cutAt(rightT);
   } else {
     sketch.entities = sketch.entities.filter((e) => e.id !== entityId);
   }

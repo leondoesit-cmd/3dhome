@@ -139,7 +139,18 @@ body.compact-nav #modeler .md-panel-toggle { display: none; }
   width: max-content; max-width: min(320px, calc(50% - 44px));
   flex-direction: column; align-items: flex-end; gap: 8px;
 }
-body.compact-nav #modeler .md-rail-end { top: 8px; inset-inline-end: 8px; }
+/* The half-width cap above keeps a wide card clear of the top-centre lane the
+   floating context toolbar sits in. On a phone that toolbar is disabled and the
+   gesture hint has moved to .md-mid, so there is no lane left to protect — and
+   the cap resolved to calc(50% - 44px) = 143px on a 375px screen. The eval card
+   asks for 320px, so its content overflowed its own box and carried the Close
+   button out past the viewport: mass properties could be opened and then not
+   shut. Give the rail the width it actually has. */
+body.compact-nav #modeler .md-rail-end {
+  top: 8px;
+  inset-inline-end: 8px;
+  max-width: calc(100% - 16px);
+}
 /* Above the selection row, which is itself above the status line. */
 #modeler .md-rail-bottom {
   z-index: 60; bottom: 64px; left: 50%; transform: translateX(-50%);
@@ -14473,6 +14484,18 @@ body.sheet-drawers.show-left #left-sidebar,
 body.sheet-drawers.show-right #right-inspector {
   transform: none;
 }
+/* The closed panels park in a different place in each posture — translateX off
+   the side as a drawer, translateY below the nav as a sheet — and the markup
+   starts in the side-drawer posture, so the first pass of applyCompactNav()
+   (js/ui.js) hands `transition: transform` a cross-viewport move to animate.
+   That is what put both closed panels at negative x on a phone for the first
+   fifth of a second of every load. The transition is for opening and closing;
+   a posture change is a reshape, so it gets no animation at all. js/ui.js
+   re-adds .posture-ready once the new resting transform has been painted. */
+body:not(.posture-ready) #left-sidebar,
+body:not(.posture-ready) #right-inspector {
+  transition: none !important;
+}
 /* The sheet backdrop (z 61) already sits under these; the drawer backdrop
    would double it up at a different opacity. */
 body.sheet-drawers #drawer-backdrop {
@@ -14647,20 +14670,54 @@ body.compact-nav #modeler .md-head {
   box-sizing: border-box;
   height: var(--md-head-block);
   min-height: var(--md-head-block);
-  padding: 0 8px 0 12px;
-  gap: 8px;
+  /* Logical, not left/right: the Hebrew locale mirrors this strip, and "the
+     exit is at the leading edge" has to mirror with it. */
+  padding-block: 0;
+  padding-inline: 4px;
+  gap: 4px;
   flex-wrap: nowrap;
   overflow: hidden;
 }
+/* Exit at the leading edge, Undo/Redo at the trailing one, the title between.
+   .md-head-actions is a desktop grouping — on the phone only three of its
+   children survive and they belong at opposite ends of the strip, so the
+   wrapper stops being a box (display: contents) and its children become items
+   of .md-head itself. `order` is a flex order, so it follows the writing
+   direction: -1 is the leading edge in Hebrew too. */
+body.compact-nav #modeler .md-head-actions {
+  display: contents;
+}
+body.compact-nav #modeler .md-head-actions #mdClose { order: -1; }
+body.compact-nav #modeler .md-head-logo { order: 0; flex: 1 1 auto; min-width: 0; overflow: hidden; }
+body.compact-nav #modeler .md-head-actions #mdUndo { order: 1; }
+body.compact-nav #modeler .md-head-actions #mdRedo { order: 2; }
+/* Undo and Redo used to own a full-width line of #md-ctx, which cost the
+   modelling verbs a whole row of a 812px screen for two buttons that are not
+   modelling verbs. They are the editor's own pair, kept rather than copied. */
+body.compact-nav #modeler .md-head-actions #mdUndo,
+body.compact-nav #modeler .md-head-actions #mdRedo {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  flex: 0 0 auto;
+  justify-content: center;
+  font-size: 0;
+}
+body.compact-nav #modeler .md-head-actions #mdUndo i,
+body.compact-nav #modeler .md-head-actions #mdRedo i {
+  font-size: 19px;
+}
 /* Name and price are set once and held a full-width row for it; the doc-mode
    toggle, Guide and Save are a tap away in More. Close stays: a full-screen
-   editor must always show its way out. */
+   editor must always show its way out. Undo/Redo stay too — they used to cost
+   #md-ctx a whole line of its own. */
 /* :not(.md-borrowed) throughout — the sheet lives INSIDE #modeler, so a panel
    it is holding still matches these selectors and would be hidden in the very
    place it was brought to be shown. */
 body.compact-nav #modeler .md-head-inputs:not(.md-borrowed),
 body.compact-nav #modeler .md-docmodes,
-body.compact-nav #modeler .md-head-actions > button:not(#mdClose),
+body.compact-nav #modeler .md-head-actions > button:not(#mdClose):not(#mdUndo):not(#mdRedo),
 body.compact-nav #modeler .md-head-actions > .md-separator,
 body.compact-nav #modeler .md-sub,
 /* The workflow crumb truncated four of its five steps to "Sketch Cr…"; the
@@ -14673,6 +14730,13 @@ body.compact-nav #modeler .md-commandmanager:not(.md-borrowed),
 body.compact-nav #modeler .md-status,
 body.compact-nav #modeler .md-empty-start,
 body.compact-nav #modeler .md-breadcrumb,
+/* The "Closed profile — build what?" card offers Extrude / Extrude cut /
+   Revolve / Hole — the very verbs #md-ctx now docks above the bottom nav. On a
+   phone it is therefore the same four choices twice, and the copy that floats
+   over the model the user is deciding about. The docked row wins: it is always
+   in the same place and it does not cover anything. Desktop keeps the card,
+   where it sits beside the sketch's accept button rather than on top of it. */
+body.compact-nav #modeler .md-profile-offer,
 /* Three stacks of viewport controls → the View sheet. */
 body.compact-nav #modeler .md-modes,
 body.compact-nav #modeler .md-views,
@@ -14800,32 +14864,56 @@ body.compact-nav #modeler .md-hint:empty {
 #md-nav {
   display: none;
 }
+/* While the model editor's chrome is mounted, the bar's block size is whatever
+   its wrapped rows measure — js/modeler_mobile.js writes --md-ctx-h after every
+   render and on every resize. Feeding it through --m-ctx-block (rather than
+   overwriting --m-ctx-reserve directly) keeps the existing reserve rules in
+   charge of WHETHER the row is reserved: short landscape still overlays it,
+   and #modeler, #md-selection-bar, the sheets and the status banner all follow
+   the real height without knowing anything new. */
+body.compact-nav.md-open {
+  /* --md-ctx-base is the ONE row floor and is what the bar itself is sized
+     against; --m-ctx-block is what everyone else reserves. Sizing the bar
+     against the measured value instead would latch: a bar that had grown to
+     three rows would keep a three-row min-height on a screen that needs one. */
+  --md-ctx-base: 44px;
+  --m-ctx-block: var(--md-ctx-h, var(--md-ctx-base));
+}
+
+/* The row WRAPS; it does not scroll. A sideways scroller hid Sweep and Loft
+   past the right edge of a 375px phone, and a verb you cannot see is a verb
+   that does not exist — the Commands sheet was the only way to reach it. So
+   the actions flow into a second (and, when six verbs meet a 320px screen, a
+   third) row, each button stacked icon-over-label like the bottom nav beneath
+   it. The bar's height is therefore variable, and --md-ctx-h (measured in
+   js/modeler_mobile.js) feeds --m-ctx-block so everything that reserves space
+   against this bar grows with it. */
 body.compact-nav #md-ctx {
   display: flex;
+  flex-wrap: wrap;
   position: fixed;
   inset-inline: 0;
   bottom: calc(var(--mobile-nav-block) + var(--kb, 0px));
   z-index: 302; /* over #modeler (300) */
   box-sizing: border-box;
-  height: var(--m-ctx-block);
+  min-height: var(--md-ctx-base, 44px);
+  height: auto;
   align-items: center;
-  gap: 6px;
+  align-content: center;
+  gap: 4px;
   padding: 4px max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left));
   background: var(--bg-panel);
   border-top: 1px solid var(--border-color);
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
   scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
 }
 body.compact-nav #md-ctx::-webkit-scrollbar {
   display: none;
 }
-#md-ctx .mctx-undo {
-  display: flex;
-  gap: 4px;
-  flex: 0 0 auto;
-}
+/* No .mctx-undo here any more. Undo and Redo are not modelling verbs — they
+   act on whatever just happened — and a full-width line of their own cost the
+   verbs a whole row of the screen. They live at the trailing edge of the
+   editor's own .md-head strip now; this row holds modelling verbs only. */
 #md-ctx .mctx-btn.mctx-icon-only,
 #m-ctx .mctx-btn.mctx-icon-only {
   /* Dropping the label buys the row width; it must not also cost the target.
@@ -14839,10 +14927,9 @@ body.compact-nav #md-ctx::-webkit-scrollbar {
   flex: 0 0 auto;
   justify-content: center;
 }
-/* Nothing selected, nothing to suggest: the row has no actions to hold, so it
-   collapses to the Undo/Redo pair instead of leaving a divider pointing at an
-   empty stretch of bar. */
-#md-ctx.mctx-empty .mctx-undo,
+/* Nothing selected, nothing to suggest: the planner's row has no actions to
+   hold, so it collapses to the Undo/Redo pair instead of leaving a divider
+   pointing at an empty stretch of bar. */
 #m-ctx.mctx-empty .mctx-undo {
   border-inline-end: none;
   padding-inline-end: 0;
@@ -14852,29 +14939,59 @@ body.compact-nav #md-ctx::-webkit-scrollbar {
   justify-content: flex-start;
 }
 #md-ctx .mctx-btn {
-  flex: 0 1 auto;
-  min-width: 44px;
-  max-width: 160px;
+  /* Stacked like an #md-nav slot: glyph on top, short label under it. Side by
+     side, six verbs needed 650px of a 375px row. Stacked and allowed to share
+     the width evenly they fit three or four to a row and wrap. */
+  /* One fixed width, never grown. Sharing the row's spare width made the last,
+     half-empty row hand two verbs 104px each while the four above them sat at
+     65 — so the rows stopped reading as one grid. A fixed basis is the only
+     thing that keeps every verb identical no matter which row it lands on.
+     56px is what lets all six sit on one 375px row beside a 4px gap. */
+  flex: 0 0 56px;
+  width: 56px;
+  min-width: 56px;
+  max-width: 56px;
   min-height: 44px; /* match Undo/Redo — a 38px verb is the one a thumb misses */
-  padding: 4px 8px;
+  padding: 3px 4px;
   border: 1px solid var(--border-color);
   border-radius: 9px;
   background: var(--btn-bg);
   color: var(--text-main);
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 600;
+  line-height: 1.1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 1px;
   cursor: pointer;
   white-space: nowrap;
 }
 #md-ctx .mctx-btn span {
+  /* Wrap, do not ellipsise. At a fixed 56px "Revolve Cut" does not fit on one
+     line, and "Revolve C…" names nothing — two short lines do. */
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
   min-width: 0;
+  max-width: 100%;
+}
+/* Undo/Redo keep their square: they carry no label, so a column layout would
+   only add padding around the same glyph. */
+#md-ctx .mctx-btn.mctx-icon-only {
+  flex-direction: row;
+}
+/* Stacked glyphs are read at a glance above their word, so they can give back
+   a couple of pixels to the label and to the row count. */
+#md-ctx .mctx-btn:not(.mctx-icon-only) svg {
+  width: 17px;
+  height: 17px;
+}
+#md-ctx .mctx-btn:not(.mctx-icon-only) i {
+  font-size: 17px;
+  line-height: 1;
 }
 #md-ctx .mctx-btn.danger {
   color: var(--danger);
@@ -14912,6 +15029,10 @@ body.compact-nav #md-selection-bar:not([hidden]) {
    simply never applied. Stand down while a sheet is up; the sheet carries its
    own actions, and the bar comes back the moment the sheet closes. */
 body.compact-nav.m-sheet-open #md-selection-bar:not([hidden]) { display: none; }
+/* Same bargain for the gesture hint: it describes orbiting and pinching the
+   model, and a sheet is covering the model. Leaving it up only put a sentence
+   across the top of whatever panel the sheet had opened. */
+body.compact-nav.m-sheet-open #modeler .md-hint { display: none; }
 body.compact-nav #md-selection-bar::-webkit-scrollbar {
   display: none;
 }
@@ -16684,14 +16805,19 @@ body.compact-nav #md-nav .mnav-primary i {
 
 /* Context rows are already self-explanatory icon actions. CAD state chips keep
    their short OSNAP/GRID/W-D-H text. */
-body.compact-nav #m-ctx,
-body.compact-nav #md-ctx {
+body.compact-nav #m-ctx {
   height: var(--m-ctx-block);
   gap: 4px;
   padding: 0 max(4px, env(safe-area-inset-right)) 0 max(4px, env(safe-area-inset-left));
 }
-#m-ctx .mctx-undo,
-#md-ctx .mctx-undo {
+/* The modeler row wraps, so its height is whatever its rows add up to. */
+body.compact-nav #md-ctx {
+  min-height: var(--md-ctx-base, 44px);
+  height: auto;
+  gap: 4px;
+  padding: 3px max(4px, env(safe-area-inset-right)) 3px max(4px, env(safe-area-inset-left));
+}
+#m-ctx .mctx-undo {
   gap: 0;
   padding-inline-end: 4px;
 }
@@ -16714,13 +16840,23 @@ body.compact-nav #md-ctx {
 /* These verbs change with the modelling state. Their labels are needed to
    distinguish Start sketch, Extrude, Finish and Cancel on a touch screen. */
 body.compact-nav #md-ctx > .mctx-btn:not(.mctx-icon-only) {
-  flex: 0 1 auto;
-  width: auto;
-  max-width: 160px;
-  padding-inline: 8px;
+  /* Fixed, not shared: see #md-ctx .mctx-btn above. Every verb is the same
+     width on every row, and a label too long for it wraps to a second line
+     rather than growing the button past its neighbours. */
+  flex: 0 0 56px;
+  width: 56px;
+  min-width: 56px;
+  max-width: 56px;
+  height: auto;
+  padding-inline: 3px;
 }
 body.compact-nav #md-ctx > .mctx-btn:not(.mctx-icon-only) span {
   display: block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 #m-ctx .mctx-chip,
 #md-ctx .mctx-chip {
@@ -16738,8 +16874,7 @@ body.compact-nav #md-ctx > .mctx-btn:not(.mctx-icon-only) span {
   body.compact-nav #md-ctx {
     gap: 3px;
   }
-  #m-ctx .mctx-undo,
-  #md-ctx .mctx-undo {
+  #m-ctx .mctx-undo {
     padding-inline-end: 0;
   }
   #m-ctx .mctx-chip,
@@ -17906,7 +18041,7 @@ body.compact-nav #right-inspector > .site-section {
 
 /* Touch precision experiments ------------------------------------------------ */
 .settings-touch-pane { box-sizing: border-box; height: 100%; overflow-y: auto; padding: 14px 2px; }
-.touch-precision-settings { display: grid; gap: 12px; max-width: 760px; color: var(--text-main); }
+.touch-precision-settings { display: grid; gap: 12px; max-width: 760px; color: var(--text-main); container-type: inline-size; }
 .touch-settings-intro, .touch-settings-note {
   display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px;
   border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border-color)); border-radius: 11px;
@@ -17930,13 +18065,20 @@ body.compact-nav #right-inspector > .site-section {
 .touch-mode-reticle { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; transform: translate(-50%,-50%); border: 1px solid #e05a46; border-radius: 50%; }
 .touch-mode-reticle::before,.touch-mode-reticle::after { content:""; position:absolute; background:#e05a46; }
 .touch-mode-reticle::before { left:6px;top:-5px;width:1px;height:24px; }.touch-mode-reticle::after { top:6px;left:-5px;width:24px;height:1px; }
-.touch-mode-copy { min-width: 0; }.touch-mode-copy strong { display:block; padding-inline-end: 16px; font-size:12px; }.touch-mode-copy small { display:block; margin-top:4px; color:var(--text-muted); font-size:10px; line-height:1.35; white-space:normal; overflow-wrap:anywhere; }
+.touch-mode-copy { min-width: 0; }.touch-mode-copy strong { display:block; padding-inline-end: 16px; font-size:12px; white-space:normal; overflow-wrap:break-word; }.touch-mode-copy small { display:block; margin-top:4px; color:var(--text-muted); font-size:10px; line-height:1.35; white-space:normal; overflow-wrap:break-word; word-break:normal; }
 .touch-tuning { display:grid; gap:8px; padding:10px 12px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-panel); }
 .touch-tuning[hidden] { display:none; }.touch-tuning-head { display:flex; justify-content:space-between; gap:12px; }.touch-tuning output { color:var(--accent); font-weight:800; }
 .touch-tuning small { color:var(--text-muted); font-size:10px; }.touch-tuning input[type="range"] { width:100%; accent-color:var(--accent); }
 .touch-segments { display:flex; gap:5px; }.touch-segments button { min-width:58px; min-height:32px; border:1px solid var(--border-color); border-radius:8px; background:var(--btn-bg); color:var(--text-main); font-weight:800; cursor:pointer; }
 .touch-segments button.active { border-color:var(--accent); background:var(--accent); color:var(--on-accent); }
 .touch-settings-note { align-items:center; color:var(--text-muted); font-size:10px; }.touch-settings-note i { color:var(--accent); font-size:16px; }
+
+@container (max-width: 580px) {
+  .touch-mode-grid { grid-template-columns: 1fr; }
+  .touch-mode-card { min-height: 72px; grid-template-columns: 46px 1fr; padding: 8px 10px; }
+  .touch-mode-art { width: 44px; height: 44px; font-size: 20px; }
+  .touch-segments button { min-width: 0; flex: 1; }
+}
 
 .touch-precision-session { position:fixed; inset:0; z-index:12000; pointer-events:none; color:#f8fafc; direction:ltr; }
 .touch-refine-surface { position:fixed; z-index:1; pointer-events:auto; touch-action:none; cursor:crosshair; background:transparent; }
@@ -18203,8 +18345,8 @@ i.ph > svg { display: block; width: 1em; height: 1em; overflow: visible; pointer
 .tb-center { gap: 8px; }
 .tool-search {
   position: relative;
-  flex: 0 1 270px;
-  width: clamp(210px, 20vw, 300px);
+  flex: 0 1 240px;
+  width: clamp(170px, 15vw, 240px);
   color: var(--text-main);
   text-align: start;
 }
@@ -18356,8 +18498,8 @@ i.ph > svg { display: block; width: 1em; height: 1em; overflow: visible; pointer
 }
 .tool-search-located { position: relative; z-index: 10000; animation: tool-search-locate .75s ease 3; }
 
-@media (max-width: 1380px) and (min-width: 1025px) {
-  .tool-search { width: 210px; flex-basis: 210px; }
+@media (max-width: 1480px) and (min-width: 1025px) {
+  .tool-search { width: 190px; flex-basis: 190px; }
   .tool-search-shortcut { display: none; }
   #viewModePill span { display: none; }
 }
@@ -19784,6 +19926,29 @@ body.compact-nav #modeler #mdCons .md-row select { min-height: 44px; }
 /* break-word, not anywhere: `anywhere` lets a squeezed label break after any
    character instead of between words. */
 #modeler #mdCons .md-row .t { white-space: normal; overflow-wrap: break-word; }
+
+/* Touch precision settings in the ~200px Settings column: stack mode cards
+   vertically into a single column so titles, descriptions, and radio controls
+   do not collapse into single-letter vertical slivers. */
+#modeler #mdCons .touch-precision-settings { gap: 10px; width: 100%; box-sizing: border-box; }
+#modeler #mdCons .touch-settings-intro { padding: 9px 10px; gap: 8px; border-radius: 9px; }
+#modeler #mdCons .touch-settings-intro > i { width: 28px; height: 28px; font-size: 16px; border-radius: 7px; flex: 0 0 28px; }
+#modeler #mdCons .touch-settings-intro strong { font-size: 12px; }
+#modeler #mdCons .touch-settings-intro p { font-size: 10px; line-height: 1.35; }
+#modeler #mdCons .touch-mode-grid { grid-template-columns: 1fr; gap: 8px; }
+#modeler #mdCons .touch-mode-card {
+  min-height: 64px; grid-template-columns: 42px 1fr; padding: 8px 10px; gap: 8px; border-radius: 10px;
+}
+#modeler #mdCons .touch-mode-art { width: 40px; height: 40px; font-size: 18px; }
+#modeler #mdCons .touch-mode-copy strong { font-size: 12px; padding-inline-end: 18px; }
+#modeler #mdCons .touch-mode-copy small { font-size: 10px; line-height: 1.35; margin-top: 3px; overflow-wrap: break-word; }
+#modeler #mdCons .touch-tuning { padding: 8px 10px; gap: 6px; border-radius: 9px; }
+#modeler #mdCons .touch-tuning strong { font-size: 11px; }
+#modeler #mdCons .touch-segments { gap: 4px; }
+#modeler #mdCons .touch-segments button { min-width: 0; flex: 1; min-height: 28px; font-size: 11px; padding: 2px 4px; }
+#modeler #mdCons .touch-tuning small { font-size: 9.5px; line-height: 1.3; }
+#modeler #mdCons .touch-settings-note { padding: 8px 10px; gap: 8px; border-radius: 9px; font-size: 10px; line-height: 1.35; }
+
 #modeler #mdCommandSearchClose { flex: none; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 
 body.dock-rail #cabdes.cb-compact:not(.cb-is3d) .cb-right .cb-prev-wrap { display: none; }
@@ -19940,7 +20105,12 @@ body.compact-nav #plan-room-palette .rp-turn { min-height: 40px; }
 .planner-navigation button:hover {background:var(--btn-bg-hover);border-color:var(--accent);}
 .planner-navigation button[aria-pressed="true"] {outline:2px solid var(--accent);background:var(--accent-alpha);color:var(--accent);}
 body.zombies-on .planner-navigation,body.lava-on .planner-navigation,body.rc-on .planner-navigation {display:none}
-@media(max-width:600px){.planner-navigation{bottom:62px}.planner-navigation button{font-size:11px;padding:4px 7px}}
+body.compact-nav .planner-navigation { bottom: calc(var(--mobile-nav-block, 48px) + var(--m-ctx-reserve, 44px) + 8px); }
+@media(max-width:600px){
+  .planner-navigation{bottom:62px}
+  body.compact-nav .planner-navigation { bottom: calc(var(--mobile-nav-block, 48px) + var(--m-ctx-reserve, 44px) + 8px); }
+  .planner-navigation button{font-size:11px;padding:4px 7px}
+}
 
 /* Survey is a modeless work panel: the plan remains interactive. */
 .survey-launch{white-space:nowrap;min-height:32px;padding:4px 10px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;}
@@ -20014,7 +20184,8 @@ body.workflow-more-space #inspectorPreview { display: none !important; }
 #app:not(.uikit-editing) #plan-tools.pt-dock .pt-zone[data-zone="top"] #plan-wall-palette {
   flex-wrap: wrap;
 }
-body.legacy-ui #planner-workflow { display: none; }
+body.legacy-ui #planner-workflow,
+body.compact-nav #planner-workflow { display: none !important; }
 @media (max-width: 900px) {
   #planner-workflow .workflow-hint { display: none; }
   #planner-workflow { padding: 4px 6px; gap: 4px; }

@@ -59,10 +59,11 @@ import { createHistory } from "./edit_history.js";
 import { createHistoryPanel } from "./ui_history.js";
 import { bindThreeFingerPan, createEditorView, createViewportSwap } from "./editor_view.js";
 import {
-  beginTouchPrecision, directionalSegmentDistances, drawTouchPrecisionLens, modelerTouchPrecisionKind,
-  touchPrecisionPoint, updateTouchPrecision,
+  beginTouchPrecision, directionalSegmentDistances, drawTouchPrecisionLens, modelerPrecisionTrialAllowed,
+  modelerTouchPrecisionKind, touchPrecisionPoint, updateTouchPrecision,
 } from "./touch_precision.js";
 import {
+  buildTouchPrecisionSettings,
   dispatchPrecisionCommit, dispatchPrecisionDown, dispatchPrecisionMove, dispatchPrecisionUp, getTouchPrecisionMode, getTouchPrecisionPrefs,
   releaseTouchPrecisionTrial, startTouchPrecisionTrial, touchPrecisionTrialOwns,
   updateTouchPrecisionTrial,
@@ -4190,6 +4191,15 @@ function buildDOM() {
   var autoDimBox = cons.querySelector("#mdAutoDim");
   autoDimBox.checked = !!E.autoDimTyped;
   autoDimBox.addEventListener("change", function () { E.autoDimTyped = this.checked; saveModelerPrefs(); });
+  /* Precise editing on a touch screen — the same lens / rough / portal chooser
+     the planner offers, built by touch_precision_ui and reading the one shared
+     preference, so switching here switches there too. It sits beside Object
+     snap because they answer the same question: how the app helps a fingertip
+     land on the entity it was aimed at rather than the one next to it. The
+     editor already obeyed these prefs; it just never offered the switch. */
+  var touchPrecisionGap = el("div", "md-sep");
+  autoDimBox.closest("label").after(touchPrecisionGap);
+  touchPrecisionGap.after(buildTouchPrecisionSettings());
   /* Guidance prefs — the "don't show again" on the welcome screen and the
      coach bar's eye-slash both land here, so nothing the user hides is gone
      for good. */
@@ -9483,6 +9493,11 @@ function hideOverlay(id) {
 function chromeCommandLabel(id) {
   var keys = {
     newsketch: "createSketch", extrude: "opExtrude", extrudecut: "extrudeCut", revolvefeature: "opRevolve",
+    /* The cut/sweep/loft verbs reach the phone's docked action row, which asks
+       for a label by command id. Without these the row printed the raw id
+       ("sweepfeature") — t() returns its argument when the key is unknown. */
+    revolvecutfeature: "opRevolveCut", sweepfeature: "opSweep", sweepcutfeature: "opSweepCut",
+    loftfeature: "cap_loft", draftfeature: "draftOp",
     holefeature: "holeWizard", helixfeature: "opHelix", threadfeature: "opThread",
     knurlfeature: "opKnurl", insertfeature: "opInsert", shellfeature: "shellOp", filletfeature: "quickFillet",
     chamferfeature: "quickChamfer", patternfeature: "quickPattern", finishsketch: "finishSketch",
@@ -13861,9 +13876,17 @@ function wireSketch() {
       E.drag = { mode: "orbit", px: e.clientX, py: e.clientY };
       return;
     }
-    var precisionKind = modelerTouchPrecisionKind(E.tool, E.mode);
+    /* A sketch plane is live when the editor is not in the free 3D view, or
+       when a sketch is projected onto a face inside it. That is the condition
+       under which a one-finger drag is not an orbit, so a pick can carry the
+       loupe without fighting navigation. */
+    var precisionKind = modelerTouchPrecisionKind(E.tool, E.mode, E.mode !== "3d" || !!E.modelPlaneActive);
     var trialMode = getTouchPrecisionMode();
-    if (e.pointerType === "touch" && precisionKind && trialMode !== "lens" && beginModelerPrecisionTrial(e, localX, localY, trialMode))
+    /* Creation only: rough/portal replace a tap with place-lift-refine, which
+       a plain selection must not inherit just because picking now carries the
+       loupe. A pick keeps the loupe, which never moves the point. */
+    if (e.pointerType === "touch" && precisionKind && modelerPrecisionTrialAllowed(E.tool)
+      && trialMode !== "lens" && beginModelerPrecisionTrial(e, localX, localY, trialMode))
       return;
     E.touchPrecision = beginTouchPrecision(e, localX, localY, r, precisionKind);
     var downPoint = touchPrecisionPoint(E.touchPrecision, localX, localY);

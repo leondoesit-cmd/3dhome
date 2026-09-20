@@ -154,6 +154,10 @@ export async function serveApp() {
 
 /* ---- chrome ------------------------------------------------------------- */
 
+/* Windows entries use the real install paths rather than a PATH lookup: the
+   Chrome installer does not put chrome.exe on PATH, so without these the audit
+   reports "Headless Chrome not found" on a machine that has Chrome. LOCALAPPDATA
+   covers a per-user install, which is what a non-admin install produces. */
 const CHROME_CANDIDATES = [
   process.env.CHROME_PATH,
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -161,6 +165,11 @@ const CHROME_CANDIDATES = [
   "/usr/bin/google-chrome",
   "/usr/bin/chromium",
   "/usr/bin/chromium-browser",
+  process.env.PROGRAMFILES && `${process.env.PROGRAMFILES}\\Google\\Chrome\\Application\\chrome.exe`,
+  process.env["PROGRAMFILES(X86)"] && `${process.env["PROGRAMFILES(X86)"]}\\Google\\Chrome\\Application\\chrome.exe`,
+  process.env.LOCALAPPDATA && `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`,
+  process.env.PROGRAMFILES && `${process.env.PROGRAMFILES}\\Microsoft\\Edge\\Application\\msedge.exe`,
+  process.env["PROGRAMFILES(X86)"] && `${process.env["PROGRAMFILES(X86)"]}\\Microsoft\\Edge\\Application\\msedge.exe`,
 ].filter(Boolean);
 
 export async function findChrome() {
