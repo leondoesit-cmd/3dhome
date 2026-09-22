@@ -140,9 +140,10 @@ import { featureDefaults, featureLabel, featureSpec, setFeatureLabelResolver } f
 import { inferAuthoringMode } from "./core/authoring_mode.js";
 import { createImportedDefinition, detectStepLengthUnit, stepUnitCorrection } from "./core/import_normalization.js";
 import { encodeBinaryPayload } from "./core/binary_payload.js";
-import { externalizeAttachments } from "./core/attachment_store.js";
+import { externalizeAttachments, collectAttachmentReferences, exportAttachmentRecords, installAttachmentRecords } from "./core/attachment_store.js";
 import { garbageCollectAttachments } from "./core/attachment_gc.js";
 import { loadModelLibrary, saveModelLibrary, loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord, libraryBundle, parseLibraryBundle, mergeLibraryRecords, collidingLibraryKeys } from "./core/model_library_store.js";
+import { queueModelBackup, listDiskBackups, fetchDiskBackup, missingFromLibrary, modelBackupStatus } from "./core/model_backup_client.js";
 import { leavesInputStanding, rebuildDefinition } from "./core/rebuild.js";
 import { buildTreeModel, findTreeNode } from "./core/tree_model.js";
 import { renderTreeModel } from "./modeler_tree.js";
@@ -285,6 +286,8 @@ async function initializeModelLibrary() {
   } catch(e) { modelerDraftCache=readModelerDraft(modelerDraftStorage()); }
   writeLibraryIndex(modelLibraryCache);
   writeAssemblyIndex(assemblyLibraryCache);
+  // Give models that predate the disk mirror a copy now, not at their next save.
+  mirrorLibraryToDisk(modelLibraryCache);
 }
 function writeLibraryIndex(lib) {
   try {
@@ -302,11 +305,25 @@ function writeAssemblyIndex(list) {
     return true;
   } catch (e) { return false; }
 }
+/* Every library write is mirrored to disk through the relay
+   (server/model_backup.mjs). IndexedDB can be cleared by the browser, and that
+   has taken finished models with it. Best-effort and deferred: the mirror must
+   never slow down or fail the save itself. The cache is handed over because it
+   is only ever reassigned, never mutated, so the deferred copy stays exact. */
+function diskBackupAttachments(model) {
+  return collectAttachmentReferences(model).size ? exportAttachmentRecords(model) : [];
+}
+function mirrorLibraryToDisk(models) {
+  setTimeout(function () {
+    try { queueModelBackup(models, { attachmentsFor:diskBackupAttachments }); } catch (e) { /* the save already landed */ }
+  }, 0);
+}
 async function saveLib(lib) {
   try {
     await saveModelLibrary(lib);
     modelLibraryCache=cloneData(lib);
     writeLibraryIndex(lib);
+    mirrorLibraryToDisk(modelLibraryCache);
     return true;
   } catch (e) { return false; }
 }
@@ -21526,6 +21543,47 @@ function importLibraryJson() {
   input.click();
 }
 
+/* What a cleared browser lost, offered back from the disk mirror. Restoring
+   only adds models whose key is missing, so it can never overwrite live work. */
+async function restoreDiskBackups(missing) {
+  var names = missing.map(function (backup) { return backup.name || backup.key; }).join(", ");
+  if (!await askModelerDecision(root, { title:t("diskBackupRestore"), message:tf("diskBackupRestoreAsk", { names:names }), accept:t("diskBackupRestore"), cancel:t("m_cancel") })) return;
+  var records = [];
+  for (var i = 0; i < missing.length; i++) {
+    var backup = await fetchDiskBackup(missing[i].key);
+    if (!backup) continue;
+    // Payloads first: a record whose exact-CAD attachment is missing will not rebuild.
+    try { if (backup.attachments.length) await installAttachmentRecords(backup.attachments); }
+    catch (e) { continue; }
+    records.push(backup.model);
+  }
+  if (!records.length) { flash(t("diskBackupRestoreFailed")); return; }
+  var models = mergeLibraryRecords(loadLib(), records, { conflict:"skip" });
+  if (!await saveLib(models)) { report(t("reportKickerSave"), t("saveLibraryFailed"), t("saveStorageFull")); return; }
+  models.forEach(registerCustomModel);
+  refreshCatalogSelect();
+  refreshLib();
+  flash("✓ " + tf("diskBackupRestored", { n:records.length }));
+}
+
+function appendDiskBackupNote(host) {
+  var note = el("div", "md-backup-note");
+  note.hidden = true;
+  host.appendChild(note);
+  listDiskBackups().then(function (backups) {
+    if (!note.isConnected) return; // the panel re-rendered meanwhile
+    var missing = missingFromLibrary(backups, loadLib());
+    if (missing.length) {
+      note.appendChild(el("div", "md-card-note", tf("diskBackupMissing", { n:missing.length })));
+      note.appendChild(btn('<i class="ph ph-clock-counter-clockwise"></i> ' + t("diskBackupRestore"), function () { restoreDiskBackups(missing); }, "md-wide"));
+      note.hidden = false;
+    } else if (modelBackupStatus() === "off") {
+      note.appendChild(el("div", "md-card-note", t("diskBackupOff")));
+      note.hidden = false;
+    }
+  });
+}
+
 function libraryTransferButtons(host) {
   host.appendChild(btn('<i class="ph ph-export"></i> ' + t("exportLibrary"), exportLibraryJson, "md-wide"));
   host.appendChild(btn('<i class="ph ph-download-simple"></i> ' + t("importLibrary"), importLibraryJson, "md-wide"));
@@ -21575,6 +21633,7 @@ function refreshLib() {
   }
   host.appendChild(btn('<i class="ph ph-file-plus"></i> ' + t("newModel"), newModel, "md-wide md-dashed"));
   libraryTransferButtons(host);
+  appendDiskBackupNote(host);
   var lib = loadLib();
   if (!lib.length) { emptyState(host, "ph-folder-open", t("noLib"), t("noLibHint")); return; }
   lib.forEach(function (m) {
