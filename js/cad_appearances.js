@@ -6,8 +6,24 @@ import { TOOLBOX_MATERIALS } from "./toolbox/schema.js";
 // a brass bushing lining and a painted housing can share one body tree.
 
 export const STOCK_MATERIALS = Object.freeze({
+  aluminum1060: { name: "Aluminum 1060", color: "#b7c7cf", metal: 0.72, rough: 0.32,
+    density: 0.0975 * 453.59237 / (2.54 ** 3),
+    densitySource: "Hydro Alloy 1xxx, revision 2019/01, p. 1: 0.0975 lb/in³ (nominal)",
+    densitySourceUrl: "https://www.hydro.com/globalassets/01-products--services/extruded-profiles/americas/ena-resources/alloy-data-sheets/hydro_2019_data_sheet_1xxx.pdf" },
+  aluminum2014: { name: "Aluminum 2014", color: "#b7c7cf", metal: 0.72, rough: 0.32, density: 2.80,
+    densitySource: "Worthwill Aluminum, Density of Aluminum, p. 1: 2014, 2.8 g/cm³",
+    densitySourceUrl: "https://www.worthwillaluminium.com/weight-calculator/density-table/density-dataset-en.pdf" },
   aluminum: { name: "Aluminum 6061", color: "#8fb8c4", metal: 0.72, rough: 0.32, density: 2.70 },
   steel: { name: "Steel 304", color: "#aeb7c2", metal: 0.78, rough: 0.28, density: 8.00 },
+  castAlloySteel: { name: "Cast Alloy Steel (SOLIDWORKS reference)", color: "#a6adb4", metal: 0.78, rough: 0.42, density: 7.30,
+    densitySource: "SDC Publications, Beginner's Guide to SolidWorks 2011, p. 66: Cast Alloy Steel library density 7300 kg/m³; reference material, grade unspecified",
+    densitySourceUrl: "https://static.sdcpublications.com/pdfsample/978-1-58503-626-4-2.pdf" },
+  ferriticStainless: { name: "Ferritic stainless steel (grade unspecified)", color: "#aeb7c2", metal: 0.78, rough: 0.28, density: 7.70,
+    densitySource: "ISSF, The Ferritic Solution, p. 28: typical ferritic-family density 7.7 g/cm³; grade unspecified",
+    densitySourceUrl: "https://www.worldstainless.org/Files/issf/non-image-files/PDF/ISSF_The_Ferritic_Solution_English.pdf" },
+  copper: { name: "Copper (grade unspecified)", color: "#b87333", metal: 0.80, rough: 0.30,
+    density: 0.321 * 453.59237 / (2.54 ** 3),
+    densitySource: "Planchard, Engineering Graphics with SOLIDWORKS 2021, exercise 5.11: 0.321 lb/in³; grade unspecified" },
   brass: { name: "Brass C360", color: "#c4a35a", metal: 0.65, rough: 0.28, density: 8.50 },
   plastic: { name: "ABS", color: "#3d6ea8", metal: 0.04, rough: 0.55, density: 1.04 },
   titanium: { name: "Titanium Grade 5", color: "#9aa3ad", metal: 0.7, rough: 0.35, density: 4.43 },
@@ -35,7 +51,7 @@ export function stockMaterialForPart(part) {
 
 export function partMaterialDensity(part, fallback = DEFAULT_MASS_DENSITY) {
   const authored = Number(part?.density);
-  if (authored > 0) return authored;
+  if (Number.isFinite(authored) && authored > 0) return authored;
   const stock = stockMaterialForPart(part);
   if (stock?.density > 0) return stock.density;
   const catalog = String(part?.materialCatalogId || "");

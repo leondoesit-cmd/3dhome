@@ -68,6 +68,7 @@ import {
   isWalk,
   setQualityPreset,
   toggleEdit3D,
+  toggleDrawing3D,
 } from "./view3d.js";
 import { loadPhysics, togglePhysics, isPhysicsEnabled, clearDebris, setStrength, toggleHitMode } from "./physics_facade.js";
 import {
@@ -3035,7 +3036,7 @@ export function initUI() {
   window.__runAction = runAction;
   async function runAction(act, ev) {
     if (S.workspace && S.workspace.role === "viewer") {
-      var readOnlyActions = ["workspace", "frame", "walk", "walkview", "freemove", "photo", "png2d", "png3d", "exportjson", "exportgltf", "exportCost", "tree", "shortcuts", "plannerTutorial", "viewPlan", "view3d", "viewSplit", "openModeler", "friends", "toggleLegacy", "newPlan", "toggleToolNames"];
+      var readOnlyActions = ["workspace", "frame", "drawing3d", "walk", "walkview", "freemove", "photo", "png2d", "png3d", "exportjson", "exportgltf", "exportCost", "tree", "shortcuts", "plannerTutorial", "viewPlan", "view3d", "viewSplit", "openModeler", "friends", "toggleLegacy", "newPlan", "toggleToolNames"];
       if (readOnlyActions.indexOf(act) < 0) {
         flash("Viewer access is read-only", "error");
         return;
@@ -3050,6 +3051,12 @@ export function initUI() {
     else if (act === "lockStruct") setLockStruct(!S.lockStruct);
     else if (act === "toggleToolNames") toggleToolNames();
     else if (act === "edit3d") setEdit3D(!S.edit3D);
+    else if (act === "drawing3d") {
+      const on = toggleDrawing3D();
+      const button = document.getElementById("drawing3dBtn");
+      button.classList.toggle("active", on);
+      button.setAttribute("aria-pressed", String(on));
+    }
     else if (act === "workspace") (await import("./workspace.js")).openWorkspace();
     else if (act === "openModeler") (await import("./modeler.js")).openModeler();
     else if (act === "uikitCustomize") (await import("./uikit_host/index.js")).openCustomize();

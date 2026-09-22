@@ -1,8 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {threePointArc} from '../js/sketch_three_point_arc.js';
+import {threePointArc, radialArcEndpoint} from '../js/sketch_three_point_arc.js';
 import {healSketchEndpoints} from '../js/sketch_profiles.js';
 import {solveSketch} from '../js/sketch_solver.js';
+
+test('centre-point arc keeps a coincident snapped endpoint without adopting an off-circle vertex',()=>{
+  const centre={u:0,v:0},start={u:1.5,v:0};
+  const snapped={u:-1.5,v:0,pointId:'existing-end'};
+  assert.equal(radialArcEndpoint(centre,start,snapped),snapped);
+  const offCircle=radialArcEndpoint(centre,start,{u:-3,v:0,pointId:'off-circle'});
+  assert.equal(offCircle.pointId,undefined);
+  assert.ok(Math.abs(Math.hypot(offCircle.u,offCircle.v)-1.5)<1e-12);
+});
 
 test('three-point arc preserves snapped endpoints and selects the requested side',()=>{
   const start={u:-1,v:0,pointId:'left'},end={u:1,v:0,pointId:'right'};

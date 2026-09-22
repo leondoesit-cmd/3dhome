@@ -658,7 +658,7 @@ export const FEATURE_CATALOG = Object.freeze({
     },
     parameters: {
       holeType: ENUM("simple", "counterbore", "countersink", "spotface", "tapped", "tap-counterbore", "tap-countersink"),
-      standardSize: ENUM("M3", "M4", "M5", "M6", "M8", "M10", "M12", "M16", "M20"),
+      standardSize: ENUM("custom", "M3", "M4", "M5", "M6", "M8", "M10", "M12", "M16", "M20"),
       fit: ENUM("close", "normal", "loose"),
       diameter: LENGTH, depth: LENGTH, endCondition: ENUM("blind", "through-all"),
       countersink: BOOLEAN, countersinkDiameter: LENGTH, counterbore: BOOLEAN,
@@ -684,7 +684,7 @@ export const FEATURE_CATALOG = Object.freeze({
           {value:"tap-countersink",label:"Tapped countersink",labelKey:"fcOptTappedCountersink"},
         ]},
         // Metric designations: the same in every language, so no labelKey.
-        { key: "standardSize", label: "Size", labelKey: "fcFldSize", type: "select", choices: ["M3","M4","M5","M6","M8","M10","M12","M16","M20"].map((value)=>({value,label:value})) },
+        { key: "standardSize", label: "Size", labelKey: "fcFldSize", type: "select", choices: [{value:"custom",label:"Custom · enter mm or in"}].concat(["M3","M4","M5","M6","M8","M10","M12","M16","M20"].map((value)=>({value,label:value}))) },
         { key: "fit", label: "Through fit", labelKey: "fcFldThroughFit", type: "select", choices: [
           {value:"close",label:"Close",labelKey:"fcOptFitClose"},
           {value:"normal",label:"Normal",labelKey:"fcOptFitNormal"},
@@ -755,15 +755,17 @@ export const FEATURE_CATALOG = Object.freeze({
     labelKey: "fcFeatThread",
     icon: "threadfeature",
     selection: { topology: { kinds: ["face"], max: 1 }, features: { max: 1 } },
-    defaults: { side: "external", mode: "cosmetic", diameterMm: 8, pitchMm: 1.25, length: 1.5, handedness: "rh", toleranceClass: "", series: "coarse", runoutStartMm:0, runoutEndMm:0, useFitLimits:false },
+    defaults: { threadPreset:"iso-metric", side: "external", mode: "cosmetic", diameterMm: 8, pitchMm: 1.25, length: 1.5, handedness: "rh", toleranceClass: "", series: "coarse", runoutStartMm:0, runoutEndMm:0, useFitLimits:false },
     parameters: {
       side: ENUM("external", "internal"), mode: ENUM("cosmetic", "modeled"),
+      threadPreset: ENUM("iso-metric", "unc-quarter-20"),
       diameterMm: { type: "number", min: 1, max: 64 }, pitchMm: { type: "number", min: 0.2, max: 8 },
       runoutStartMm: {type:"number",min:0}, runoutEndMm: {type:"number",min:0},
       length: LENGTH, handedness: ENUM("rh", "lh"), series: ENUM("coarse", "fine"),
     },
     editor: { groups: [
-      { id: "spec", label: "ISO metric thread", labelKey: "fcGrpIsoThread", icon: "ph-seal-check", fields: [
+      { id: "spec", label: "Thread specification", icon: "ph-seal-check", fields: [
+        {key:"threadPreset",label:"Thread specification",type:"select",choices:[{value:"iso-metric",label:"ISO metric"},{value:"unc-quarter-20",label:"1/4-20 UNC · cosmetic"}]},
         { key: "side", label: "Side", labelKey: "fcFldSide", type: "select", choices: [
           {value:"external",label:"External",labelKey:"fcOptExternal"},
           {value:"internal",label:"Internal",labelKey:"fcOptInternal"},
@@ -772,7 +774,7 @@ export const FEATURE_CATALOG = Object.freeze({
         { key: "diameterMm", label: "Major Ø (mm)", labelKey: "fcFldMajorDiameterMm", type: "number", min: 1, max: 64, step: 0.1 },
         { key: "pitchMm", label: "Pitch (mm)", labelKey: "fcFldPitchMm", type: "number", min: 0.2, max: 8, step: 0.05 },
         { key: "length", label: "Length", labelKey: "fcFldLength", type: "number", unit: "length", min: 1e-6, step: 0.1 },
-        { key:"toleranceClass",label:"Tolerance class (blank: 6g / 6H)",labelKey:"mfgThreadClass",type:"text" },
+        { key:"toleranceClass",label:"Tolerance class",labelKey:"mfgThreadClass",type:"text" },
         { key:"runoutStartMm",label:"Lead-in runout (mm)",labelKey:"mfgRunoutStart",type:"number",min:0,step:.1 },
         { key:"runoutEndMm",label:"Lead-out runout (mm)",labelKey:"mfgRunoutEnd",type:"number",min:0,step:.1 },
         { key: "handedness", label: "Hand", labelKey: "fcFldHand", type: "select", choices: HANDEDNESS },

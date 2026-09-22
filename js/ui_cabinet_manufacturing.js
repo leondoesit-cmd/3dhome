@@ -33,6 +33,8 @@ export function mountCabinetShopSetup(host,getItems,download) {
     [label('Available Z travel (mm)','מהלך Z זמין (מ״מ)'),['travel','z']],
     [label('Clearance above stock (mm)','גובה בטוח מעל הלוח (מ״מ)'),['safeZ']],
     [label('Through-hole allowance (mm)','תוספת לקדח עובר (מ״מ)'),['breakthrough']],
+    [label('Initial tool position X (mm)','מיקום כלי התחלתי X (מ״מ)'),['startPosition','x']],
+    [label('Initial tool position Y (mm)','מיקום כלי התחלתי Y (מ״מ)'),['startPosition','y']],
   ]){
     const input=field(title,node('input'));input.type='number';input.min='0';input.step='0.1';input.value=path.length===2?(profile[path[0]]?.[path[1]]??''):(profile[path[0]]??'');
     inputs.push({input,path});input.addEventListener('change',()=>{const value=input.value===''?null:Number(input.value);if(path.length===2){if(!profile[path[0]]||typeof profile[path[0]]!=='object'||Array.isArray(profile[path[0]]))profile[path[0]]={};profile[path[0]][path[1]]=value;}else profile[path[0]]=value;syncEditor();invalidate();});
@@ -77,8 +79,9 @@ export function mountCabinetShopSetup(host,getItems,download) {
     toolRows.replaceChildren();
     (Array.isArray(profile.tools)?profile.tools:[]).forEach((tool,i)=>{
       const row=node('fieldset');row.appendChild(node('legend',label('Drill ','מקדח ')+(i+1)));row.className='nz-cnc-tool';
-      for(const [key,title] of [['number','Tool number'],['diameter','Diameter (mm)'],['feed','Feed (mm/min)'],['rpm','Spindle RPM'],['maxDepth','Reach (mm)'],['holderDiameter','Holder envelope (mm)'],['spinupSeconds','Spin-up (s)']]){
+      for(const [key,title] of [['number','Tool number'],['diameter','Diameter (mm)'],['feed','Feed (mm/min)'],['rpm','Spindle RPM'],['maxDepth','Reach (mm)'],['holderDiameter','Holder envelope (mm)'],['holderBottomOffset','Holder bottom above tip (mm, signed)'],['spinupSeconds','Spin-up (s)']]){
         const l=node('label',title),input=node('input');input.type='number';input.step=key==='number'?'1':'0.1';input.min='0';input.value=tool?.[key]??'';input.setAttribute('data-tool-field',key);l.appendChild(input);row.appendChild(l);
+        if(key==='holderBottomOffset') input.removeAttribute('min');
         input.addEventListener('change',()=>{if(!profile.tools[i]||typeof profile.tools[i]!=='object'||Array.isArray(profile.tools[i]))profile.tools[i]={};profile.tools[i][key]=input.value===''?null:Number(input.value);editor.value=JSON.stringify(profile,null,2);tools.value=JSON.stringify(profile.tools,null,2);invalidate();});
       }
       const nativeLabel=node('label','Biesse tool database name'),nativeInput=node('input');nativeInput.value=tool?.nativeName||'';nativeInput.maxLength=64;nativeLabel.appendChild(nativeInput);row.appendChild(nativeLabel);nativeLabel.hidden=profile.controller!=='biesse-bsolid';
@@ -123,5 +126,9 @@ export function mountCabinetShopSetup(host,getItems,download) {
   downloadProgram.addEventListener('click',()=>{const selected=Number(files.value),fresh=build();const file=fresh?.files[selected];if(file)download(file.name,file.content,'text/plain');});
   downloadBundle.addEventListener('click',()=>{const fresh=build();if(fresh?.files.length)download('cabinet-simulation-bundle.json',JSON.stringify(fresh,null,2),'application/json');});
   exportProfile.addEventListener('click',()=>download('cabinet-shop-profile.json',JSON.stringify(profile,null,2),'application/json'));
-  syncFields();invalidate();return {invalidate};
+  function getRecipes(){
+    if(profileDirty) throw new Error('Apply the edited shop profile before exporting part drawings.');
+    return JSON.parse(JSON.stringify(profile.completeRecipes||[]));
+  }
+  syncFields();invalidate();return {invalidate,getRecipes};
 }

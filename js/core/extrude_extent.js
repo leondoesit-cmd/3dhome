@@ -188,6 +188,10 @@ export function resolveExtrudeExtent(params, options = {}) {
     if (!bounds) return params;
     const start = extrusionMapPoint(params, samples[0]?.u || 0, samples[0]?.v || 0, from);
     const far = farBoundAlongAxis(bounds, start, pull);
+    if (params.symmetric) {
+      const back = farBoundAlongAxis(bounds, start, { x: -pull.x, y: -pull.y, z: -pull.z });
+      return { ...params, from: from - reverse * (back + PAD), to: from + reverse * (far + PAD) };
+    }
     if (!(far > NEAR)) return params;
     distance = far + PAD;
   } else {

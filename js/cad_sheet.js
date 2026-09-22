@@ -110,6 +110,9 @@ export function defaultViewLabel(dir) {
 export function createSheetDoc(options = {}) {
   const doc = {
     version: 1,
+    draftingStandard: ["ANSI", "ISO"].includes(options.draftingStandard) ? options.draftingStandard : "custom",
+    secondaryUnits: UNIT_FACTORS[options.secondaryUnits] ? options.secondaryUnits : "",
+    secondaryPrecision: Number.isInteger(options.secondaryPrecision) ? clamp(options.secondaryPrecision,0,8) : 2,
     size: SHEET_SIZES[options.size] ? options.size : "A3",
     orientation: options.orientation === "portrait" ? "portrait" : "landscape",
     projection: options.projection === "first" ? "first" : "third",
@@ -126,7 +129,7 @@ export function createSheetDoc(options = {}) {
     title: Object.assign({
       title: "", number: "", revision: "A", author: "", company: "", material: "",
       finish: "", mass: "", date: "", sheet: 1, sheets: 1,
-      tolerance: "ISO 2768-m",
+      tolerance: "",
     }, options.title || {}),
   };
   const set = Array.isArray(options.views) && options.views.length ? options.views : ["front", "top", "right", "iso"];
@@ -698,12 +701,15 @@ export function formatLength(modelValue, doc) {
    writes "2×⌀5" over the measured number has not withdrawn the fit beside
    it. */
 export function dimensionText(dim, doc) {
+  if(dim.reference)return "("+dimensionText({...dim,reference:false},doc)+")";
   const suffix = dim.tolerance ? " " + dim.tolerance : "";
   if (dim.text) return dim.text + suffix;
   const value = formatLength(dim.measure, doc);
   const prefix = dim.type === "diameter" ? "⌀" : dim.type === "radius" ? "R" : "";
   if (dim.type === "angle") return trimNumber(Math.round(num(dim.measure) * 10) / 10) + "°" + suffix;
-  return prefix + value + suffix;
+  const secondary = UNIT_FACTORS[doc?.secondaryUnits] && doc.secondaryUnits !== doc.units
+    ? " [" + formatLength(dim.measure, {units:doc.secondaryUnits,precision:doc.secondaryPrecision ?? 2,trailingZeros:true}) + "]" : "";
+  return prefix + value + secondary + suffix;
 }
 
 /* The measured value of a dimension, from the points it holds. Stored
@@ -895,9 +901,27 @@ const boundsRefs = (type, bounds) => (type === "vertical"
  * frozen, with no complaint. Only a ref that names an id and cannot find it is
  * dangling. With no topology source at all (an exporter handed only triangles)
  * nothing is flagged — absent information is not a lost reference. */
+export function edgeAngleRefs(points) {
+  if (!points || points.length !== 4) return null;
+  const [a,b,c,d]=points, x=b.u-a.u,y=b.v-a.v,p=d.u-c.u,q=d.v-c.v;
+  const det=x*q-y*p;
+  if (Math.abs(det)<1e-10*Math.max(1,Math.hypot(x,y)*Math.hypot(p,q))) return null;
+  const t=((c.u-a.u)*q-(c.v-a.v)*p)/det;
+  const vertex={u:a.u+t*x,v:a.v+t*y};
+  const far=(m,n)=>Math.hypot(m.u-vertex.u,m.v-vertex.v)>Math.hypot(n.u-vertex.u,n.v-vertex.v)?m:n;
+  return [far(a,b),vertex,far(c,d)];
+}
+
 export function resolveDim(dim, index, basis, projection) {
   const result = { dim, dangling: false, missing: [] };
   if (!dim) return result;
+  if (dim.type === "angle" && dim.edgeRefs?.length === 4) {
+    const points=dim.edgeRefs.map(ref=>resolveDimAnchor(ref,index,basis));
+    const refs=points.every(Boolean)?edgeAngleRefs(points):null;
+    if(refs) result.dim={...dim,refs};
+    else {result.dangling=!!index;result.missing=dim.edgeRefs.filter((ref,i)=>!points[i]).map(ref=>ref.pid);}
+    return result;
+  }
   if (dim.auto === "extent") {
     const bounds = projection ? projectionBounds(projection) : null;
     if (!bounds) { result.dangling = true; return result; }
@@ -969,7 +993,15 @@ export function resolveNote(note, callouts, index, basis) {
   const leader = note.leader;
   if (leader?.pid) {
     const at = resolveDimAnchor(leader, index, basis);
-    if (at) patch.leader = Object.assign({}, leader, at);
+    if (at) {
+      patch.leader = Object.assign({}, leader, at);
+      const descriptor = index?.get(leader.pid)?.descriptor;
+      const axis = descriptor?.axis, forward = basis?.forward;
+      const alignment = axis && forward ? Math.abs(axis.x * forward.x + axis.y * forward.y + axis.z * forward.z) / Math.hypot(axis.x, axis.y, axis.z) : 0;
+      if (note.feature && leader.at === "centre" && descriptor?.radius > 0 && alignment > 1 - 1e-6) {
+        patch.leader.rimRadius = descriptor.radius;
+      }
+    }
     else if (index) { result.dangling = true; result.missing.push(leader.pid); }
   }
   if (Object.keys(patch).length) result.note = Object.assign({}, note, patch);
@@ -1028,6 +1060,8 @@ function dimensionItems(dim, place, doc, options = {}) {
     let a0=Math.min(first,second), a1=Math.max(first,second);
     if(a1-a0>Math.PI){a0=Math.max(first,second);a1=Math.min(first,second)+2*Math.PI;}
     items.push({ type: "arc", cx: vertex.x, cy: vertex.y, r: radius, a0, a1, style });
+    items.push(arrowHead(vertex.x+Math.cos(a0)*radius,vertex.y+Math.sin(a0)*radius,Math.sin(a0),-Math.cos(a0)));
+    items.push(arrowHead(vertex.x+Math.cos(a1)*radius,vertex.y+Math.sin(a1)*radius,-Math.sin(a1),Math.cos(a1)));
     const mid = (a0 + a1) / 2;
     items.push(text(vertex.x + Math.cos(mid) * (radius + 3), vertex.y + Math.sin(mid) * (radius + 3), label, {
       size, anchor: "middle", color: LINE_STYLES[style].color, box: true,
@@ -1094,6 +1128,30 @@ function dimensionItems(dim, place, doc, options = {}) {
  *                    meta, bom }
  * @returns { paper, items, views, scale } — millimetres, ready to paint.
  */
+function exactArcStroke(segment, topologyIndex, basis, toSheet, k, style, viewId) {
+  if (!topologyIndex || !basis) return null;
+  const project = p => ({u:p.x*basis.right.x+p.y*basis.right.y+p.z*basis.right.z,v:p.x*basis.up.x+p.y*basis.up.y+p.z*basis.up.z});
+  const turn = a => (a + Math.PI * 4) % (Math.PI * 2);
+  for (const entry of topologyIndex.values()) {
+    const d = entry.descriptor || {}, r = Number(d.radius);
+    if (entry.kind !== "edge" || d.curve !== "circle" || !d.arcMidpoint || !d.origin || !d.axis || d.endpoints?.length !== 2 || !(r > 0)) continue;
+    if (Math.abs(d.axis.x*basis.forward.x+d.axis.y*basis.forward.y+d.axis.z*basis.forward.z) < .999999) continue;
+    const centre = project(d.origin), tolerance = Math.max(1e-7, r * 1e-5);
+    if ([segment.a,segment.b].some(p => Math.abs(Math.hypot(p.u-centre.u,p.v-centre.v)-r) > tolerance)) continue;
+    const angle = p => Math.atan2(p.v-centre.v,p.u-centre.u);
+    let a0 = angle(segment.a), sweep = turn(angle(segment.b)-a0);
+    if (sweep > Math.PI) { a0 = angle(segment.b); sweep = Math.PI*2-sweep; }
+    if (!(sweep > 1e-9 && sweep < Math.PI/2)) continue;
+    const start = angle(project(d.endpoints[0])), span = turn(angle(project(d.endpoints[1]))-start);
+    const positive = turn(angle(project(d.arcMidpoint))-start) <= span;
+    const middle = turn(a0+sweep/2-start);
+    if (positive ? middle > span+1e-6 : middle < span-1e-6) continue;
+    const screen = toSheet(centre);
+    return {type:"arc",cx:screen.x,cy:screen.y,r:r*k,a0:-(a0+sweep),a1:-a0,style,viewId};
+  }
+  return null;
+}
+
 export function buildSheetScene(doc, provider, options = {}) {
   const items = [], diagnostics = [];
   const frame = sheetFrame(doc), paper = frame.paper;
@@ -1164,12 +1222,12 @@ export function buildSheetScene(doc, provider, options = {}) {
     }
     for (const segment of projection.visible || []) {
       const a = toSheet(segment.a), b = toSheet(segment.b);
-      items.push(line(a.x, a.y, b.x, b.y, "outline", { viewId: view.id }));
+      items.push(exactArcStroke(segment, topologyIndex, projection.basis, toSheet, k, "outline", view.id) || line(a.x, a.y, b.x, b.y, "outline", { viewId: view.id }));
     }
     if (showHidden) {
       for (const segment of projection.hidden || []) {
         const a = toSheet(segment.a), b = toSheet(segment.b);
-        items.push(line(a.x, a.y, b.x, b.y, "hidden", { viewId: view.id }));
+        items.push(exactArcStroke(segment, topologyIndex, projection.basis, toSheet, k, "hidden", view.id) || line(a.x, a.y, b.x, b.y, "hidden", { viewId: view.id }));
       }
     }
     for (const round of projection.circles || []) {
@@ -1364,6 +1422,15 @@ function noteItems(note, byId, doc, options = {}) {
     if (place) {
       const target = place.toSheet(note.leader);
       const elbow = { x: x - 3, y: y + 1 };
+      if (note.leader.rimRadius > 0) {
+        const rim = place.toSheet({ u: note.leader.u + note.leader.rimRadius, v: note.leader.v });
+        const radius = Math.hypot(rim.x - target.x, rim.y - target.y);
+        const dx = elbow.x - target.x, dy = elbow.y - target.y, distance = Math.hypot(dx, dy);
+        if (distance > radius) {
+          target.x += dx * radius / distance;
+          target.y += dy * radius / distance;
+        }
+      }
       items.push(line(elbow.x, elbow.y, x + 1, elbow.y, style, { noteId: note.id }));
       items.push(line(target.x, target.y, elbow.x, elbow.y, style, { noteId: note.id }));
       items.push(arrowHead(target.x, target.y, target.x - elbow.x, target.y - elbow.y));
@@ -1454,7 +1521,7 @@ function titleBlockItems(doc, provider, sheetScale) {
   field(colX + 3, rowY[0] + 3.4, "MASS", meta.mass);
   field(box.x + 3, rowY[1] + 3.4, "DRAWN", meta.author);
   field(midX + 3, rowY[1] + 3.4, "DWG NO.", meta.number);
-  field(colX + 3, rowY[1] + 3.4, "SCALE", scaleLabel(sheetScale) + " · " + (doc.units || "mm"));
+  field(colX + 3, rowY[1] + 3.4, "SCALE", scaleLabel(sheetScale) + " · " + (doc.units || "mm") + (doc.secondaryUnits ? " ["+doc.secondaryUnits+"]" : ""));
   field(thirdX + 3, rowY[1] + 3.4, "SHEET", (meta.sheet || 1) + " / " + (meta.sheets || 1));
   items.push(text(box.x + box.w - 3, rowY[0] - 2.4, "REV " + (meta.revision || "A"), { size: TEXT_SIZES.view, anchor: "end", weight: "bold" }));
 

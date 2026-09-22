@@ -119,6 +119,9 @@ export function partSupportsExactMesh(p) {
 
 export function partNeedsExactMesh(p) {
   if (!p) return false;
+  // Revolved mesh groups do not identify the exact caps and curved faces.
+  // Expose kernel topology before downstream face-based features are selected.
+  if (p.kind === "rev") return true;
   /* A drafted extrusion is not a prism, and the lightweight preview can only
      draw prisms — so a non-zero draft angle is what makes the kernel the only
      honest renderer of this body. */
@@ -203,7 +206,7 @@ export function resetClonedPartIdentity(part) {
 
 export function translateDescriptor(descriptor,dx,dy,dz) {
   if (!descriptor || typeof descriptor!=="object") return;
-  [descriptor.origin,descriptor.center].forEach(function(point){if(point){point.x+=dx;point.y+=dy;point.z+=dz;}});
+  [descriptor.origin,descriptor.center,descriptor.arcMidpoint].forEach(function(point){if(point){point.x+=dx;point.y+=dy;point.z+=dz;}});
   (descriptor.endpoints || []).forEach(function(point){point.x+=dx;point.y+=dy;point.z+=dz;});
   if (descriptor.bounds) [descriptor.bounds.min,descriptor.bounds.max].forEach(function(point){if(point){point.x+=dx;point.y+=dy;point.z+=dz;}});
 }
@@ -276,6 +279,7 @@ export function movePart(p, dx, dy, dz) {
     });
   }
   if (p.meshData && (Array.isArray(p.meshData.positions) || ArrayBuffer.isView(p.meshData.positions))) {
+    if(p.meshData.exactBounds) [p.meshData.exactBounds.min,p.meshData.exactBounds.max].forEach(function(point){point.x+=dx;point.y+=dy;point.z+=dz;});
     for (var mi=0;mi<p.meshData.positions.length;mi+=3) {
       p.meshData.positions[mi]+=dx;
       p.meshData.positions[mi+1]+=dy;
@@ -286,7 +290,7 @@ export function movePart(p, dx, dy, dz) {
     (p.meshData.topology || []).forEach(function (entry) {
       var descriptor = entry && entry.descriptor;
       if (!descriptor) return;
-      [descriptor.origin, descriptor.center].forEach(function (point) {
+      [descriptor.origin, descriptor.center, descriptor.arcMidpoint].forEach(function (point) {
         if (!point) return;
         point.x += dx; point.y += dy; point.z += dz;
       });
@@ -726,6 +730,7 @@ export function placePatternCopy(copy, params, placement, circularStep) {
    vertices 1 and 2 in every triangle, including their normals and colors. */
 function reflectProjectionMesh(part,axis) {
   var data=part.meshData, component={x:0,y:1,z:2}[axis];
+  if(data.exactBounds){var oldMin=data.exactBounds.min[axis];data.exactBounds.min[axis]=-data.exactBounds.max[axis];data.exactBounds.max[axis]=-oldMin;}
   [data.positions,data.normals].forEach(function(values){
     if(!values)return;
     for(var i=component;i<values.length;i+=3)values[i]=-values[i];
@@ -740,7 +745,7 @@ function reflectProjectionMesh(part,axis) {
   if(part.bounds){var low=part.bounds[axis+"0"];part.bounds[axis+"0"]=-part.bounds[axis+"1"];part.bounds[axis+"1"]=-low;}
   (data.topology || []).forEach(function(entry){
     var d=entry.descriptor;if(!d)return;
-    [d.origin,d.center,d.normal,d.axis].concat(d.endpoints || []).forEach(function(v){if(v)v[axis]=-v[axis];});
+    [d.origin,d.center,d.arcMidpoint,d.normal,d.axis].concat(d.endpoints || []).forEach(function(v){if(v)v[axis]=-v[axis];});
     if(d.bounds){var low=d.bounds.min[axis];d.bounds.min[axis]=-d.bounds.max[axis];d.bounds.max[axis]=-low;}
   });
   clearMeshProjectionCache(data);clearTopologyCache(part);

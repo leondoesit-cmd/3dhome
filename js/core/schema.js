@@ -142,9 +142,12 @@ export function migrateDefinition(source, options = {}) {
   });
   const parameters = raw.parameters || {};
   if (!Object.keys(parameters).length) {
-    if (Number.isFinite(raw.w)) parameters.width = createParameter("width", raw.w, { exposure: "planner", min: 1 });
-    if (Number.isFinite(raw.d)) parameters.depth = createParameter("depth", raw.d, { exposure: "planner", min: 1 });
-    if (Number.isFinite(raw.h)) parameters.height = createParameter("height", raw.h, { exposure: "planner", min: 1 });
+    // These are inferred extents, not a furniture design rule. A copied CAD
+    // part may be thinner than one centimetre; preserve any explicit authored
+    // limits above, but do not invent a limit that rejects its existing size.
+    if (Number.isFinite(raw.w)) parameters.width = createParameter("width", raw.w, { exposure: "planner", min: 1e-6 });
+    if (Number.isFinite(raw.d)) parameters.depth = createParameter("depth", raw.d, { exposure: "planner", min: 1e-6 });
+    if (Number.isFinite(raw.h)) parameters.height = createParameter("height", raw.h, { exposure: "planner", min: 1e-6 });
   }
   const def = createDefinition({
     ...raw,

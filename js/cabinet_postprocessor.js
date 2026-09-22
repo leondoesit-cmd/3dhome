@@ -17,6 +17,44 @@ export function cabinetSetupPoint(panel, hole, profile) {
   return {x:x+profile.origin.x,y:y+profile.origin.y,width:w,height:h};
 }
 
+// Conservative swept XY envelope at the emitted retract height. A square
+// expanded clamp contains the circular holder envelope, so grazing paths block.
+function segmentHitsBox(a,b,box,radius) {
+  let low=0,high=1;
+  for(const axis of ['x','y']) {
+    const min=box[axis]-radius,max=box[axis]+(axis==='x'?box.w:box.h)+radius;
+    const delta=b[axis]-a[axis];
+    if(Math.abs(delta)<1e-12){if(a[axis]<min||a[axis]>max)return false;continue;}
+    const first=(min-a[axis])/delta,last=(max-a[axis])/delta;
+    low=Math.max(low,Math.min(first,last));high=Math.min(high,Math.max(first,last));
+    if(low>high)return false;
+  }
+  return true;
+}
+export function checkCabinetRapidClearance(operations,tool,profile) {
+  const result={issues:[],warnings:[]};
+  const add=(code,message)=>result.issues.push({code,message});
+  const start=profile.startPosition;
+  // Signed millimetres from the tool tip: positive means above the tip.
+  const holderKnown=Number.isFinite(tool.holderBottomOffset);
+  if(tool.holderBottomOffset!==undefined&&!holderKnown)add('holder-clearance-invalid','Holder bottom offset must be finite millimetres relative to the tool tip.');
+  if(!holderKnown)result.warnings.push({code:'holder-clearance-unknown',message:'Holder vertical extent is unspecified; rapid holder clearance is not verified.'});
+  if(start!==undefined&&(!start||!['x','y'].every(axis=>Number.isFinite(start[axis])&&start[axis]>=0&&start[axis]<=profile.travel[axis])))add('start-position-invalid','Initial XY position must lie inside the work envelope.');
+  if(!start)result.warnings.push({code:'initial-rapid-unverified',message:'Initial XY position is unspecified; the first rapid approach is not verified.'});
+  if(result.issues.length)return result;
+  const safeZ=Number(profile.safeZ.toFixed(3));
+  const points=[...(start?[start]:[]),...operations.map(op=>({x:Number(op.x.toFixed(3)),y:Number(op.y.toFixed(3))}))];
+  for(const clamp of profile.clamps){
+    if(!Number.isFinite(clamp.height)){result.warnings.push({code:'clamp-height-unknown',message:'A clamp has no measured height; rapid clearance is not verified.'});continue;}
+    const radius=holderKnown&&safeZ+tool.holderBottomOffset<=clamp.height?tool.holderDiameter/2:safeZ<=clamp.height?tool.diameter/2:null;
+    if(radius===null)continue;
+    for(let index=1;index<points.length;index++)if(segmentHitsBox(points[index-1],points[index],clamp,radius)){
+      add('rapid-clamp-intersection','The emitted XY rapid crosses a clamp within the modeled tool or holder envelope.');break;
+    }
+  }
+  return result;
+}
+
 // Only declarative offset templates are accepted. Offsets are relative to each
 // existing operation in the physical board's fixed datum, BEFORE face flipping.
 export function applyCabinetHardwareTemplates(panel, templates) {
@@ -38,7 +76,7 @@ export function cabinetCNCBundle(items, profile) {
   if(bundle.issues.length)return bundle;
   const report=cabinetManufacturingReport(items,profile.completeRecipes||[]);
   bundle.report=report;
-  for(const r of profile.completeRecipes||[])if(!report.items.some(i=>i.id===r.itemId && i.index===r.itemIndex))bundle.issues.push({code:'recipe-target',message:'A complete recipe targets a cabinet that is absent from the job.'});
+  for(const r of profile.completeRecipes||[])if(!report.items.some(i=>i.id===r.itemId))bundle.issues.push({code:'recipe-target',message:'A complete recipe targets a cabinet that is absent from the job.'});
   bundle.warnings=report.issues.filter(i=>['machine-profile-missing','hardware-unverified'].includes(i.code));
   // Existing geometric problems cannot be dismissed merely by choosing a tool.
   bundle.issues.push(...report.issues.filter(i=>!['machine-profile-missing','hardware-unverified'].includes(i.code)));
@@ -72,6 +110,11 @@ export function cabinetCNCBundle(items, profile) {
         groups.get(tool.number).operations.push({id:hole.id,x:point.x,y:point.y,depth,diameter:hole.d,through:hole.through});
       }
       for(const {tool,operations} of groups.values()){
+        if(!['mpr','cix','xxl'].includes(controller.dialect)){
+          const clearance=checkCabinetRapidClearance(operations,tool,profile);
+          bundle.issues.push(...clearance.issues.map(issue=>({...issue,panelId:panel.id})));
+          bundle.warnings.push(...clearance.warnings.map(issue=>({...issue,panelId:panel.id})));
+        }
         const filename='panel-'+String(++fileIndex).padStart(4,'0')+'-face-'+face+'-tool-'+tool.number+'.'+controller.extension;
         const setup={filename,itemId:item.id,panelId:panel.id,face,toolNumber:tool.number,toolDiameter:tool.diameter,
           origin:clone(profile.origin),rotation:profile.rotation,flip:face==='B'?profile.flip:'none',stockTopZ:0,

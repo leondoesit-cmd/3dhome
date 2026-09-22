@@ -140,3 +140,14 @@ test("far-bound projection uses the AABB corner in the pull direction", () => {
   const far = farBoundAlongAxis({ min: { x: 0, y: 0, z: 0 }, max: { x: 10, y: 4, z: 8 } }, { x: 0, y: 4, z: 0 }, { x: 0, y: -1, z: 0 });
   assert.equal(far, 4);
 });
+
+test('symmetric through-all spans both sides independently of stored depth', () => {
+  for (const width of [6, 10]) for (const direction of ['forward', 'reverse']) {
+    const extent = resolveExtrudeExtent({axis:'z',endCondition:'through-all',symmetric:true,direction,from:0,to:1,depth:1,points:[{u:3.2,v:1.4}]}, {
+      hostBounds:{x0:0,x1:16,y0:0,y1:5,z0:-width/2,z1:width/2},
+    });
+    assert.ok(Math.min(extent.from,extent.to) < -width/2);
+    assert.ok(Math.max(extent.from,extent.to) > width/2);
+    assert.equal(Math.sign(extent.to-extent.from),direction==='reverse'?-1:1);
+  }
+});

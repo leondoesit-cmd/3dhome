@@ -2544,6 +2544,34 @@ label span:first-child {
   background: var(--btn-bg-hover);
   transform: translateX(2px);
 }
+.trItem:focus-within .trDel,
+.trRoom:focus-within .trDel,
+.trDel:focus-visible {
+  opacity: 0.9;
+}
+button.trName,
+button.trDel {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+}
+button.trName {
+  text-align: start;
+  padding: 0;
+  cursor: pointer;
+  min-width: 0;
+}
+button.trName:focus-visible,
+button.trDel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .trItem, .trRoom { transition: none; }
+  .trItem:hover, .trRoom:hover { transform: none; }
+}
 .trItem.sel {
   color: var(--on-accent);
 }
@@ -3100,6 +3128,16 @@ body.used-2d #view-2d > .hint {
   border-color: var(--accent);
   box-shadow: 0 4px 12px var(--accent-glow);
 }
+.view-drawing-btn {
+  inset-inline-end: 88px;
+  width: auto;
+  max-width: calc(100% - 170px);
+  padding: 0 9px;
+  gap: 6px;
+  font-size: 12px;
+}
+.view-drawing-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-drawing-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 /* divider between the drawing tools and the lock toggle under them */
 #plan-toolbar .tb-sep {
   height: 1px;
@@ -4369,6 +4407,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-docmodes button.on { background: var(--accent); color: var(--on-accent); }
 #modeler .md-sub { color: var(--text-muted); font-size: 0.78rem; font-weight: 500; }
 #modeler .md-head-inputs { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
+#modeler .md-ops.md-material-options button { white-space: normal; height: auto; min-height: 36px; line-height: 1.3; overflow-wrap: anywhere; padding-block: 7px; }
 /* label above field: the caption used to be a placeholder that vanished the
    moment there was a name, leaving two unexplained boxes in the header */
 #modeler .md-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 auto; }
@@ -5806,6 +5845,8 @@ body.compact-nav #modeler .md-quick-field select {
 #modeler.md-isdrawing .md-left,
 #modeler.md-isdrawing .md-right,
 #modeler.md-isdrawing .md-commandmanager { display: none; }
+#modeler.md-isdrawing.md-sheet-form .md-left { display: flex; }
+#modeler.md-isdrawing.md-sheet-form .md-left > :not(#mdQuickTools) { display: none; }
 /* The hint belongs under the paper, not across it: a sheet fills the pane and
    a floating caption over the top view hides the geometry it is describing. */
 #modeler.md-isdrawing .md-hint { top: auto; bottom: 12px; }
@@ -7668,43 +7709,71 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .site-nudge button { padding: 4px 8px; }
 
 /* ---- MEP infrastructure panel ---- */
-#mepPanel { display: flex; flex-direction: column; gap: 10px; }
-.mep-master { display: flex; align-items: center; gap: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; }
+#mepPanel { display: flex; flex-direction: column; gap: 10px; container-type: inline-size; }
+.mep-master { display: flex; align-items: center; gap: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; min-height: 32px; }
 .mep-health {
   display: flex; align-items: center; justify-content: space-between; gap: 7px;
   padding: 7px 9px; border-radius: 8px; font-size: 0.75em; font-weight: 650;
 }
+.mep-health-copy { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+.mep-health-copy i { flex: none; margin-top: 1px; }
 .mep-health.ok { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); border: 1px solid color-mix(in srgb, var(--success) 28%, transparent); }
 .mep-health.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); border: 1px solid color-mix(in srgb, var(--warn) 28%, transparent); }
-.mep-health button { flex: none; padding: 4px 7px; font-size: 0.92em; border: 1px solid currentColor; border-radius: 6px; color: inherit; background: transparent; cursor: pointer; }
+.mep-health button { flex: none; min-height: 36px; padding: 6px 8px; font-size: 0.92em; border: 1px solid currentColor; border-radius: 6px; color: inherit; background: transparent; cursor: pointer; font: inherit; font-weight: 650; }
+.mep-clashes {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 7px 9px; border-radius: 8px; font-size: 0.75em; font-weight: 650;
+  color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 28%, transparent);
+}
+.mep-clashes[hidden] { display: none !important; }
+.mep-clashes i { flex: none; margin-top: 1px; }
+.mep-status.clash { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
 .mep-policy { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--separator); border-radius: 9px; background: color-mix(in srgb, var(--btn-bg) 78%, transparent); }
 .mep-policy-head { display: flex; flex-direction: column; gap: 2px; }
 .mep-policy-head b { font-size: 0.78em; }
 .mep-policy-head span { font-size: 0.68em; line-height: 1.35; color: var(--text-muted); }
-.mep-policy-row { display: grid; grid-template-columns: minmax(82px, 1fr) 82px 96px; gap: 5px; align-items: center; }
-.mep-policy-row > span { font-size: 0.71em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mep-policy-row select { min-width: 0; padding: 4px 3px; font-size: 0.69em; }
+.mep-policy-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 6px; align-items: center;
+}
+.mep-policy-row > span {
+  grid-column: 1 / -1; font-size: 0.75em; font-weight: 650;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mep-policy-row select { width: 100%; min-width: 0; min-height: 32px; padding: 4px 6px; font-size: 0.75em; }
 .mep-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .mep-chip {
-  display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  display: flex; align-items: stretch; min-height: 44px; padding: 0;
   border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg);
-  cursor: pointer; transition: all 0.15s ease; user-select: none;
+  transition: border-color 0.15s ease, background 0.15s ease; user-select: none;
 }
-.mep-chip:hover { background: var(--btn-bg-hover); }
 .mep-chip.active { border-color: var(--sys); box-shadow: inset 0 0 0 1px var(--sys); }
-.mep-chip.off { opacity: 0.45; }
+.mep-chip.is-hidden { border-style: dashed; }
+.mep-chip.is-hidden .mep-dot { opacity: 0.4; }
+.mep-chip-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
+  padding: 6px 6px 6px 8px; border: 0; background: transparent; color: inherit;
+  font: inherit; text-align: start; cursor: pointer; border-radius: 8px 0 0 8px;
+}
+.mep-chip-main:hover { background: var(--btn-bg-hover); }
 .mep-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--sys); flex: none; }
 .mep-chip-lbl { flex: 1; font-size: 0.82em; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mep-eye { font-size: 0.8em; opacity: 0.7; cursor: pointer; }
-.mep-eye:hover { opacity: 1; }
+.mep-eye {
+  flex: none; width: 36px; border: 0; border-inline-start: 1px solid var(--btn-border);
+  background: transparent; color: var(--text-muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 1em;
+  border-radius: 0 8px 8px 0;
+}
+.mep-eye:hover { color: var(--text); background: var(--btn-bg-hover); }
+.mep-eye[aria-pressed="false"] { color: var(--warn); }
 .mep-sub { font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 4px 0 2px; font-weight: 700; }
 .mep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .mep-btn {
-  display: flex; align-items: center; gap: 7px; padding: 6px 8px; text-align: start;
+  display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 6px 8px; text-align: start;
   border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg);
-  cursor: pointer; transition: all 0.15s ease;
+  color: inherit; font: inherit; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;
 }
-.mep-btn:hover { background: var(--btn-bg-hover); transform: translateY(-1px); }
+.mep-btn:hover { background: var(--btn-bg-hover); }
 .mep-btn.armed { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(99,102,241,0.25); }
 .mep-glyph {
   width: 20px; height: 20px; flex: none; border-radius: 50%; color: #fff;
@@ -7753,8 +7822,9 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .mep-info { font-size: 0.78em; color: var(--text-muted); font-style: italic; }
 .mep-readout { font-weight: 600; }
 .mep-del-btn {
-  margin-top: 4px; width: 100%; padding: 7px; border-radius: 8px; cursor: pointer;
-  border: 1px solid var(--danger); color: var(--danger); background: transparent; font-weight: 600; transition: all 0.15s ease;
+  margin-top: 4px; width: 100%; min-height: 44px; padding: 8px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--danger); color: var(--danger); background: transparent; font: inherit; font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 .mep-del-btn:hover { background: var(--danger); color: var(--on-danger); }
 
@@ -7787,13 +7857,13 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .mep-layers { display: flex; gap: 4px; }
 .mep-layer-title { font-size: 0.76em; font-weight: 750; color: var(--text); margin-bottom: -5px; }
 .mep-layer-btn {
-  flex: 1; padding: 5px 4px; font-size: 0.78em; font-weight: 600;
+  flex: 1; min-height: 40px; padding: 6px 4px; font-size: 0.78em; font-weight: 600;
   border: 1px solid var(--btn-border); border-radius: 7px; background: var(--btn-bg);
-  cursor: pointer; transition: all 0.15s ease;
+  color: inherit; font-family: inherit; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;
 }
 .mep-layer-btn:hover { background: var(--btn-bg-hover); }
 .mep-layer-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-.mep-layer-btn:disabled { opacity: 0.45; cursor: not-allowed; text-decoration: line-through; }
+.mep-layer-btn:disabled { opacity: 0.55; cursor: not-allowed; text-decoration: line-through; }
 .mep-layer-help {
   display: flex; flex-direction: column; gap: 2px; padding: 7px 9px; margin-top: -5px;
   border-radius: 8px; border-inline-start: 3px solid var(--accent);
@@ -7838,7 +7908,7 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 
 /* MEP auto-generate button */
 .mep-auto-btn {
-  width: 100%; padding: 8px; border-radius: 9px; cursor: pointer; font-weight: 600;
+  width: 100%; min-height: 44px; padding: 8px; border-radius: 9px; cursor: pointer; font: inherit; font-weight: 600;
   display: flex; align-items: center; justify-content: center; gap: 7px;
   border: 1px solid var(--accent); color: var(--on-accent);
   background: linear-gradient(135deg, var(--accent), var(--accent-hover));
@@ -7846,6 +7916,28 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 }
 .mep-auto-btn:hover { filter: brightness(1.08); }
 .mep-auto-btn i { font-size: 1.05em; }
+.mep-chip-main:focus-visible,
+.mep-eye:focus-visible,
+.mep-btn:focus-visible,
+.mep-layer-btn:focus-visible,
+.mep-auto-btn:focus-visible,
+.mep-del-btn:focus-visible,
+.mep-health button:focus-visible,
+.mep-policy-row select:focus-visible,
+.mep-row input:focus-visible,
+.mep-row select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@container (max-width: 220px) {
+  .mep-chips, .mep-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mep-btn, .mep-chip, .mep-layer-btn, .mep-auto-btn, .mep-del-btn, .mep-eye, .mep-chip-main {
+    transition: none;
+  }
+  .mep-auto-btn:hover { filter: none; }
+}
 
 /* ================= Friends & multiplayer ================= */
 .tb-badge {

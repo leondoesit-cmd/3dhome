@@ -268,7 +268,14 @@ function bodyNodes(def, options) {
 
 function metadataNodes(def, options) {
   const rows = [];
-  const material = def?.material || def?.metadata?.material || options.material;
+  const partMaterials = (def?.parts || []).filter(part => !part.suppressed)
+    .map(part => part.materialName || "");
+  const assignedMaterials = [...new Set(partMaterials.filter(Boolean))];
+  const unspecifiedMaterial = options.labels?.noMaterial || "Material <not specified>";
+  const partMaterial = assignedMaterials.length === 1 && partMaterials.every(Boolean)
+    ? assignedMaterials[0]
+    : assignedMaterials.length ? assignedMaterials.join(" / ") + (partMaterials.some(name => !name) ? " / " + unspecifiedMaterial : "") : null;
+  const material = def?.material || def?.metadata?.material || options.material || partMaterial;
   rows.push(node({
     id: "meta:material",
     kind: "material",

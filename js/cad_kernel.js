@@ -181,7 +181,7 @@ function edgeDescriptor(oc, edge) {
     const descriptor = { curve, origin: center, axis: normalizedVector(vectorOf(tangent)), measure: props.Mass(), bounds: shapeBounds(oc, edge), endpoints };
     if (curve === "circle") {
       const circle = adaptor.Circle(), location = circle.Location(), axis = circle.Axis(), direction = axis.Direction();
-      try { descriptor.origin = pointOf(location); descriptor.axis = vectorOf(direction); descriptor.radius = circle.Radius(); }
+      try { descriptor.origin = pointOf(location); descriptor.axis = vectorOf(direction); descriptor.radius = circle.Radius(); descriptor.arcMidpoint = pointOf(p); }
       finally { direction.delete(); axis.delete(); location.delete(); circle.delete(); }
     }
     return descriptor;
@@ -2775,7 +2775,7 @@ export async function shapeToMeshData(brep, options = {}) {
       }
     }
   }
-  return { positions, normals, colors, faceRanges, subshapeMap };
+  return { positions, normals, colors, faceRanges, subshapeMap, exactBounds: shapeBounds(oc, brep.shape, false) };
 }
 
 export async function transformBrep(brep, transform = {}) {

@@ -1,4 +1,5 @@
 import { mountCabinetShopSetup } from "./ui_cabinet_manufacturing.js";
+import { mountCabinetProduction } from "./ui_cabinet_production.js";
 import { cabinetManufacturingReport, cabinetManufacturingJSON } from "./cabinet_manufacturing.js";
 // Cut plan & quote — the overlay on top of nest.js.
 //
@@ -151,7 +152,7 @@ var root = null,
     it: null,
     q: null,
     lang: null,
-    opt: { kerf: NEST.kerf, trim: NEST.trim, grainLock: NEST.grainLock, minOffcut: NEST.minOffcut },
+    opt: { algorithm: "guillotine", kerf: NEST.kerf, trim: NEST.trim, grainLock: NEST.grainLock, minOffcut: NEST.minOffcut },
   };
 
 function el(tag, cls, html) {
@@ -259,7 +260,7 @@ function buildDOM() {
     '<button id="nzCsv" class="nz-wide"><i class="ph ph-file-csv"></i> ' + T("csv") + "</button>" +
     '<button id="nzDrill" class="nz-wide"><i class="ph ph-circles-three"></i> ' + T("drill") + "</button>" +
     '<button id="nzDxf" class="nz-wide"><i class="ph ph-file-dashed"></i> ' + T("dxf") + "</button>" +
-    '<div id="nzShopSetup"></div>' +
+    '<div id="nzProductionHost"></div><div id="nzShopSetup"></div>' +
     '<div id="nzManufacturing" class="nz-note" role="status"></div>' +
     '<button id="nzManufacturingJson" class="nz-wide">' + (isEn() ? "Manufacturing review JSON" : "דוח בדיקת ייצור JSON") + "</button>" +
     '<button id="nzPo" class="nz-wide"><i class="ph ph-shopping-cart"></i> ' + T("po") + "</button>" +
@@ -268,6 +269,9 @@ function buildDOM() {
     "</div></div></div>";
   document.body.appendChild(root);
   root._cabinetShopSetup = mountCabinetShopSetup(root.querySelector("#nzShopSetup"), function () { return E.q?.items || []; }, downloadText);
+  root._cabinetProduction = mountCabinetProduction(root.querySelector("#nzProductionHost"), cabItems, downloadText, function (change) {
+    pushHistory(); change(); S.dirty3D = true; recompute();
+  }, function () { return root._cabinetShopSetup.getRecipes(); });
 
   root.querySelector("#nzClose").addEventListener("click", closeNest);
   root.querySelector("#nzCsv").addEventListener("click", exportCSV);
@@ -537,6 +541,11 @@ function fillRack() {
 function fillSaw() {
   var host = root.querySelector("#nzSaw");
   host.innerHTML = "";
+  var algorithm=el("select");algorithm.id="nzNestingAlgorithm";
+  [["guillotine",isEn()?"Guillotine panel saw":"מסור לוחות — חיתוך גליוטינה"],["router-rectangular",isEn()?"Router — rectangular blanks":"כרסום — מלבנים בלבד"]].forEach(function(entry){var option=el("option","",entry[1]);option.value=entry[0];algorithm.appendChild(option);});
+  algorithm.value=E.opt.algorithm||"guillotine";algorithm.addEventListener("change",function(){E.opt.algorithm=this.value;recompute();});
+  host.appendChild(row(isEn()?"Nesting method":"שיטת פריסה",algorithm));
+  host.appendChild(el("p","",isEn()?"Rectangular blanks only. Router spacing uses the kerf field as tool clearance. No true-shape nesting, lead-ins, hold-down or CAM paths. Router labour is a perimeter estimate using the saw rate.":"פריסת מלבנים בלבד. במצב כרסום עובי המסור משמש כמרווח כלי. ללא פריסת צורות, כניסות כלי, אחיזה או מסלולי CAM. עלות הכרסום היא אומדן היקף לפי תעריף ניסור."));
   host.appendChild(row(T("kerf"), numIn(mm(E.opt.kerf), function (v) {
     E.opt.kerf = Math.max(0, Math.min(12, v)) / 10;
     recompute();
@@ -711,7 +720,7 @@ function drawSheet(cv, g, sh) {
   var host = cv.parentElement;
   if (!host) return;
   var availW = Math.max(120, host.clientWidth - 2),
-    sheet = g.sheet,
+    sheet = sh.sheet,
     k = availW / sheet.l,
     dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.style.width = availW + "px";
@@ -729,7 +738,7 @@ function drawSheet(cv, g, sh) {
   c.strokeStyle = line;
   c.lineWidth = 1;
   c.strokeRect(0.5, 0.5, sheet.l * k - 1, sheet.w * k - 1);
-  var tr = E.opt.trim;
+  var tr = sh.stock ? 0 : E.opt.trim;
   if (tr > 0) {
     c.save();
     c.setLineDash([3, 3]);
@@ -911,6 +920,7 @@ function fillSuppliers() {
 
 function fillWarnings() {
   root._cabinetShopSetup?.invalidate();
+  root._cabinetProduction?.refresh();
   var manufacturing = root.querySelector("#nzManufacturing");
   if (manufacturing && E.q) {
     var report = cabinetManufacturingReport(E.q.items);

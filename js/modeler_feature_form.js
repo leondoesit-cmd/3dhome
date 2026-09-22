@@ -308,9 +308,22 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         var control = controls.find(function (item) { return item.field.key === key; }), wrap = control && control.input.closest(".md-quick-field");
         if (wrap) wrap.classList.toggle("parameter-hidden", !csink);
       });
-      ["threadMode","handedness"].forEach(function (key) {
+      ["threadMode","handedness","threadDepth"].forEach(function (key) {
         var control = controls.find(function (item) { return item.field.key === key; }), wrap = control && control.input.closest(".md-quick-field");
         if (wrap) wrap.classList.toggle("parameter-hidden", !tapped);
+      });
+      var holeEnd = controls.find(function (item) { return item.field.key === "endCondition"; });
+      var holeLayout = controls.find(function (item) { return item.field.key === "layout"; });
+      var layoutValue = holeLayout && holeLayout.input.value;
+      controls.forEach(function (control) {
+        var key = control.field.key, hidden;
+        if (key === "depth") hidden = holeEnd && holeEnd.input.value === "through-all";
+        else if (key === "fit") hidden = size && size.input.value === "custom";
+        else if (["countX","countY","spacingX","spacingY"].includes(key)) hidden = layoutValue !== "linear";
+        else if (["count","radius"].includes(key)) hidden = layoutValue !== "circular";
+        else return;
+        var wrap = control.input.closest(".md-quick-field");
+        if (wrap) wrap.classList.toggle("parameter-hidden", !!hidden);
       });
     }
   }

@@ -73,7 +73,7 @@ export function normalizeHoleWizard(params = {}) {
   return {
     holeType: type,
     standardSize: row?.size || params.standardSize || null,
-    standard: params.standard || (threaded ? "ISO 262:2023" : "ISO 273"),
+    standard: params.standardSize === "custom" ? "Custom" : params.standard || (threaded ? "ISO 262:2023" : "ISO 273"),
     fit,
     diameterMm,
     diameter: mmToCm(diameterMm),

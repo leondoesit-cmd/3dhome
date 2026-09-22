@@ -1,0 +1,25 @@
+import { getLang } from './i18n.js';
+import { cabinetProductionParts } from './cabinet_production_parts.js';
+import { cabinetAllowanceBatchCandidates, previewCabinetAllowanceBatch, applyCabinetAllowanceBatch } from './cabinet_allowance_batch.js';
+const t=(en,he)=>getLang()==='he'?he:en;
+const node=(tag,text)=>{const n=document.createElement(tag);if(text)n.textContent=text;return n;};
+export function mountCabinetAllowanceBatch(host,getItems,onChange){
+ const root=node('details');root.id='nzAllowanceBatch';root.appendChild(node('summary',t('Copy allowances to matching parts','העתקת תוספות לחלקים תואמים')));host.appendChild(root);
+ root.appendChild(node('p',t('Select a valid source, then explicitly choose targets with identical role, material, stock, grain, datum and finished dimensions. Review changes before applying. Machining datum approvals are never copied.','בחרו מקור תקין ויעדים זהים בתפקיד, חומר, מלאי, סיב, צירים ומידות גמר. בדקו את השינויים לפני החלה. אישורי צירי עיבוד אינם מועתקים.')));
+ const label=node('label',t('Source part','חלק מקור'));label.className='nz-production-field';const source=node('select');source.id='nzAllowanceBatchSource';label.appendChild(source);root.appendChild(label);
+ const targets=node('div');targets.id='nzAllowanceBatchTargets';root.appendChild(targets);
+ const status=node('p');status.id='nzAllowanceBatchStatus';status.setAttribute('role','status');root.appendChild(status);
+ const table=node('div');table.id='nzAllowanceBatchPreview';root.appendChild(table);
+ const review=node('button',t('Preview selected changes','תצוגה מקדימה לשינויים'));review.type='button';review.id='nzAllowanceBatchReview';root.appendChild(review);
+ const apply=node('button',t('Apply reviewed allowances','החלת התוספות שנבדקו'));apply.type='button';apply.id='nzAllowanceBatchApply';apply.disabled=true;root.appendChild(apply);
+ let preview=null;
+ function invalidate(){preview=null;apply.disabled=true;table.replaceChildren();}
+ function selected(){return [...targets.querySelectorAll('input:checked')].map(input=>input.value);}
+ function listTargets(keep=[]){targets.replaceChildren();const result=cabinetAllowanceBatchCandidates(getItems(),source.value);status.textContent=result.issues.map(i=>i.message).join(' ')||t('Choose each target below; none is selected automatically.','בחרו כל יעד ברשימה; לא נבחר יעד אוטומטית.');for(const part of result.candidates){const row=node('label'),check=node('input');check.type='checkbox';check.value=part.id;check.checked=keep.includes(part.id);check.addEventListener('change',invalidate);row.append(check,node('span',part.id+' · '+part.role+' · '+[part.finished.length,part.finished.width,part.finished.thickness].join(' × ')+' mm'));targets.appendChild(row);}if(result.valid&&!result.candidates.length)status.textContent=t('No exact matching targets in this scope.','אין יעדים תואמים בדיוק בהיקף זה.');}
+ function summary(value){if(!value.edges)return t('Unspecified','לא הוגדר');const edges=Object.entries(value.edges).map(([key,v])=>key+': '+v.thicknessMm+' mm'+(v.stockId?' / '+v.stockId:''));return edges.join('; ')+' | '+t('Rough extra: ','תוספת גלם: ')+(value.roughAllowance?value.roughAllowance.lengthMm+' × '+value.roughAllowance.widthMm+' mm':t('unspecified','לא הוגדר'));}
+ review.addEventListener('click',()=>{try{preview=previewCabinetAllowanceBatch(getItems(),source.value,selected());table.replaceChildren();status.textContent=preview.issues.map(i=>i.message).join(' ')||preview.changes.length+' '+t('parts will change. Existing target machining datum approvals will be cleared.','חלקים ישתנו. אישורי צירי העיבוד הקיימים ביעדים יימחקו.');if(preview.valid){const grid=node('table'),head=node('tr');for(const title of [t('Target','יעד'),t('Before','לפני'),t('After','אחרי')])head.appendChild(node('th',title));grid.appendChild(head);for(const c of preview.changes){const row=node('tr');for(const value of [c.partId,summary(c.before),summary(c.after)])row.appendChild(node('td',value));grid.appendChild(row);}table.appendChild(grid);}apply.disabled=!preview.valid;}catch(error){invalidate();status.textContent=error.message;}});
+ apply.addEventListener('click',()=>{try{const pending=preview;let result;onChange(()=>{result=applyCabinetAllowanceBatch(getItems(),pending);});refresh();status.textContent=result.applied+' '+t('parts updated.','חלקים עודכנו.');}catch(error){invalidate();status.textContent=error.message;}});
+ source.addEventListener('change',()=>{invalidate();listTargets();});
+ function refresh(){try{const old=source.value,keep=selected();source.replaceChildren();const placeholder=node('option',t('Select a source with current allowances','בחרו מקור עם תוספות עדכניות'));placeholder.value='';source.appendChild(placeholder);for(const part of cabinetProductionParts(getItems()).parts){if(!part.substrate||!part.edges)continue;const option=node('option',part.id+' · '+part.role);option.value=part.id;source.appendChild(option);}source.value=[...source.options].some(o=>o.value===old)?old:'';invalidate();listTargets(keep);}catch(error){invalidate();status.textContent=error.message;}}
+ refresh();return {refresh};
+}

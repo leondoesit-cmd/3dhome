@@ -1,4 +1,5 @@
 import { buildBlueprintUnderlay3D } from './blueprint_3d.js';
+import { createPlannerDrawing } from './planner_drawing.js';
 import { switchFloorAndWait } from './floors.js';
 import { buildSurveyGeometry } from './survey_mesh.js';
 import { moveSurveyWalker, navigationPosition, navigationFloorTransition } from './navigation_geometry.js';
@@ -270,6 +271,16 @@ var shadowsDirty = true; // rebuild the sun shadow map next paint (geometry/sun 
 var shadowThrottleT = 0;  // timestamp of last shadow pass (for extLive throttle)
 var qualityPreset = "auto";
 var gameRendererLock = false;
+var drawingOverlay = null, drawingEnabled = false;
+export function toggleDrawing3D() {
+  drawingEnabled = !drawingEnabled;
+  if (!drawingEnabled && drawingOverlay) {
+    drawingOverlay.dispose();
+    drawingOverlay = null;
+  }
+  requestRender();
+  return drawingEnabled;
+}
 var gameEffectFactory = null, gameEffect = null;
 export function setGameRenderEffect(factory) {
   if (factory === gameEffectFactory) return;
@@ -3111,6 +3122,7 @@ function lerpC(a, b, t) {
 // Sun by time-of-day + house north bearing; updates sky, ambient and lamp brightness.
 // Prefilter a 3-stop equirect gradient (zenith→horizon→ground) into scene.environment.
 // Called from applyEnv whenever the sky colors change (not per-frame — PMREM is costly).
+var lastSkyKey = null;
 var lastEnvKey = null; // skip the costly PMREM re-prefilter when the sky palette is unchanged
 function updateEnvMap(zenC, horC, groundHex) {
   if (!pmrem || !envSrcCanvas) return;
@@ -3209,12 +3221,15 @@ export function applyEnv() {
     ground: [0.3, 0.34, 0.24],
     night: on ? 0 : 1,
   };
-  if (skyCanvas) {
+  var skyGround = hor.clone().multiplyScalar(0.75).getHexString();
+  var skyKey = zen.getHexString() + hor.getHexString() + skyGround;
+  if (skyCanvas && skyKey !== lastSkyKey) {
+    lastSkyKey = skyKey;
     var sx = skyCanvas.getContext("2d"),
       grd = sx.createLinearGradient(0, 0, 0, skyCanvas.height);
     grd.addColorStop(0, "#" + zen.getHexString()); // canvas top = zenith
     grd.addColorStop(0.62, "#" + hor.getHexString()); // horizon band
-    grd.addColorStop(1, "#" + hor.clone().multiplyScalar(0.75).getHexString()); // below horizon, slightly darker
+    grd.addColorStop(1, "#" + skyGround); // below horizon, slightly darker
     sx.fillStyle = grd;
     sx.fillRect(0, 0, skyCanvas.width, skyCanvas.height);
     skyTex.needsUpdate = true;
@@ -3449,8 +3464,14 @@ export function setStreetViewCube(faces) {
   applySite();
 }
 
+var lastViewWidth = 0, lastViewHeight = 0, lastViewRatio = 0;
 export function setSize(w, h) {
   if (!ready3D || w === 0 || h === 0) return;
+  var ratio = renderer.getPixelRatio();
+  // ResizeObserver can repeat the same size while chrome settles. Keep the
+  // existing render targets and temporal history until size or DPR changes.
+  if (w === lastViewWidth && h === lastViewHeight && ratio === lastViewRatio) return;
+  lastViewWidth = w; lastViewHeight = h; lastViewRatio = ratio;
   needsRender = true;
   renderer.setSize(w, h);
   camera.aspect = w / h;
@@ -3466,6 +3487,14 @@ export function setSize(w, h) {
 // respect renderer.initialized (the animate loop and snapshot3D both do).
 function renderScene() {
   if (!renderer || !renderer.initialized) return;
+  if (drawingEnabled && !drawingOverlay) {
+    drawingOverlay = createPlannerDrawing(THREE);
+    scene.add(drawingOverlay.group);
+  }
+  if (drawingOverlay) {
+    drawingOverlay.group.visible = !gameRendererLock && !extTick;
+    if (drawingOverlay.group.visible) drawingOverlay.sync([structureRoot, itemsRoot]);
+  }
   if (gameEffectFactory) {
     try {
       if (!gameEffect) gameEffect = gameEffectFactory(renderer, scene, camera);
@@ -4570,7 +4599,7 @@ function build3D() {
           renderer.shadowMap.needsUpdate = true;
           shadowThrottleT = time;
         }
-      } else if (shadowsDirty || physicsLive) {
+      } else if (shadowsDirty || physicsLive || doorsMoving) {
         renderer.shadowMap.needsUpdate = true;
         shadowsDirty = false;
         shadowThrottleT = time;

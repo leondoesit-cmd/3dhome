@@ -62,6 +62,18 @@ test('Front uses its world camera preset even while a top face remains selected'
  assert.equal(E.view,'front');
  assert.deepEqual(calls,[{az:0,el:.05}]);
 });
+test('standard views preserve a feature profile while choosing its terminating face',()=>{
+ const calls=[];
+ const E={view:'side',mode:'3d',def:{activeSketch:'rib'},authoring:{featureType:'extrude'},
+  pv:{clearFixedFrame:()=>calls.push('clear'),orbitTo:(az,el)=>calls.push([az,el])}};
+ const setView=load('setView',{E,CAMERA_ONLY_VIEWS:['iso','back','left'],
+  VIEW_PRESETS:[{id:'front',az:0,el:.05},{id:'top',az:0,el:1.5}],
+  adoptSketchForView(){throw new Error('Feature profile must remain active');},drawSketch(){}});
+ setView('front');setView('top');
+ assert.equal(E.def.activeSketch,'rib');
+ assert.equal(E.view,'side');
+ assert.deepEqual(calls,['clear',[0,.05],'clear',[0,1.5]]);
+});
 test('body modifiers consume the latest result without crossing to another body',()=>{
  const E={def:{features:[
   {id:'base',type:'extrude'}, {id:'round',type:'fillet',inputs:['base']},
@@ -126,4 +138,27 @@ test('cut rim references depend on the authoring cut and failed preflight leaves
  assert.equal(part.exactOperations,undefined);
  assert.equal(undoCount,0);
  assert.equal(message,'Invalid finish');
+});
+
+test('Zoom to fit centers an off-origin sketch in its plane camera',()=>{
+ let target;
+ const E={def:{},pv:{fixedFrame:{origin:{x:7,y:8,z:9}},target:{set(...v){target=v;}},frame(){},render(){}}};
+ const fit=load('fitPreview',{E,activeSketchWorldBounds:()=>({x0:7,x1:7,y0:8,y1:13.08,z0:9,z1:14.08}),renderedParts:()=>[]});
+ fit();
+ assert.ok(Math.abs(target[1]-2.54)<1e-12);assert.ok(Math.abs(target[2]-2.54)<1e-12);assert.equal(target[0],0);
+});
+
+test('view indicators follow the camera without changing the sketch plane',()=>{
+ const buttons=['top','front','side','back','left'].map(id=>({id,on:false,attrs:{},getAttribute(){return id;},classList:{toggle(_name,on){buttons.find(b=>b.id===id).on=on;}},setAttribute(key,value){this.attrs[key]=value;}}));
+ const E={view:'front',mode:'3d',pv:{az:Math.PI,el:.05}};
+ const sync=load('syncViewButtons',{E,root:{querySelectorAll:()=>buttons},VIEW_PRESETS:[{id:'back',az:Math.PI,el:.05},{id:'right',az:Math.PI/2,el:.05}]});
+ sync();
+ assert.deepEqual(buttons.filter(b=>b.on).map(b=>b.id),['back']);
+ assert.equal(buttons.find(b=>b.id==='back').attrs['aria-pressed'],'true');
+ assert.equal(E.view,'front');
+ E.pv.az=Math.PI/2+2*Math.PI;sync();
+ assert.deepEqual(buttons.filter(b=>b.on).map(b=>b.id),['side']);
+ E.pv.az=.7;sync();assert.equal(buttons.some(b=>b.on),false);
+ E.pv.az=Math.PI;E.pv.fixedFrame={};sync();assert.equal(buttons.some(b=>b.on),false);
+ E.mode='2d';sync();assert.deepEqual(buttons.filter(b=>b.on).map(b=>b.id),['front']);
 });

@@ -14,7 +14,7 @@ export function engineeringMaterial(id){return ENGINEERING_MATERIALS.find(row=>r
 export function materialProfileFor(def,id){return (def?.engineeringMaterials||[]).find(row=>row.id===id)||null;}
 export function initialMaterialProfile(catalogId,id){
   const material=engineeringMaterial(catalogId);if(!material)throw new Error('Unknown material catalog identity');
-  return {id,catalogId,grade:material.family==='finish'?'':material.name,condition:'',source:'',model:'qualified-rating',
+  return {id,catalogId,grade:material.family==='finish'?'':material.name,condition:'',source:'',density:material.density||0,densitySource:material.densitySource||'',model:'qualified-rating',
     youngModulusMPa:0,poissonRatio:0,allowableBendingMPa:0,allowableContactMPa:0,
     minTemperatureC:0,maxTemperatureC:0,maxCycles:0,maxHours:0,maxRpm:0,environment:'',lubrication:''};
 }
@@ -42,4 +42,20 @@ export function upsertMaterialProfile(def,profile){
   // Cached reports never survive a material qualification change.
   for(const part of def.parts||[])if(part.materialQualificationId===copy.id||part.gearVerification?.mateMaterialProfileId===copy.id)delete part.gearVerificationReport;
   delete def.lastStandardsAudit;return copy;
+}
+
+// Keep mass properties and the assigned material identity in the same transaction.
+export function assignMaterialProfile(def, part, profile) {
+  if (!Number.isFinite(profile.density) || profile.density <= 0) throw new Error('Density must be positive and finite (g/cm³)');
+  if (!String(profile.grade || '').trim()) throw new Error('Enter a material name or grade');
+  const record = upsertMaterialProfile(def, profile);
+  for (const body of new Set([part, ...(def.parts || []).filter(p => p.materialQualificationId === record.id)])) {
+    body.materialQualificationId = record.id;
+    body.materialCatalogId = record.catalogId;
+    body.materialName = record.grade;
+    body.density = record.density;
+    body.densitySource = record.densitySource || '';
+    delete body.gearVerificationReport;
+  }
+  return record;
 }

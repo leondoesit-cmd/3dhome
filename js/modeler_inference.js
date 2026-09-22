@@ -13,6 +13,14 @@ function sketchPoint(sketch, id) {
 
 export function sketchStatusColor(status, flags) {
   flags = flags || {};
+  if (flags.isDark) {
+    if (flags.selected) return "#fb923c";
+    if (flags.construction) return "#94a3b8";
+    if (flags.drawing) return "#e2e8f0";
+    if (status === "conflicting" || status === "over-defined") return "#fca5a5";
+    if (status === "fully-defined") return "#f1f5f9";
+    return "#38bdf8";
+  }
   if (flags.selected) return "#e08030";
   if (flags.construction) return "#8394a6";
   if (flags.drawing) return "#18212b";

@@ -25,7 +25,7 @@ import { S, clamp } from "./state.js";
 import { wallGeom, detectRooms, pointInPoly, roomName, wallById } from "./geometry.js";
 import {
   ensureMEP, addNode, addRun, nodePos, autoConnectAll,
-  connectMissingMEP, applyRoutingPolicies,
+  connectMissingMEP, applyRoutingPolicies, generationLayer, roomIsBedroom,
 } from "./mep.js";
 import { makeRouter, concatPath, pathLength, splitTail } from "./mep_route.js";
 
@@ -70,6 +70,8 @@ var WET = {
 };
 // Appliances that get their own circuit rather than sharing the ring.
 var DEDICATED = { oven: 1, cooktop: 1, washer: 1 };
+// Appliances that take a gas point and a shutoff. A bedroom never gets the meter.
+var GAS_APPLIANCE = { cooktop: 1, oven: 1, boiler: 1, waterheater: 1 };
 // Appliances fed from the kitchen circuit at appliance height.
 var APPLIANCE = { dishwasher: H.socketAppliance, fridge: H.socketHigh };
 var MAX_LIGHTS_PER_CIRCUIT = 10;
@@ -243,7 +245,7 @@ function classify(r, items) {
   var f = {
     bath: !!(has.toilet || has.shower || has.bathtub || /bath|wc|toilet|shower|אמבט|שירות|מקלח/.test(nm)),
     kitchen: !!(has.cooktop || has.oven || has.fridge || /kitchen|מטבח/.test(nm)),
-    bed: !!(has.bed || /bed|שינה/.test(nm)),
+    bed: roomIsBedroom(r) || !!(has.bed || /bed|שינה/.test(nm)),
     hall: /corridor|hall|entry|מסדרון|פרוזדור|כניסה/.test(nm) || (r.area < 50000 && !items.length),
   };
   f.living = !f.bath && !f.bed && !f.hall;
@@ -664,6 +666,72 @@ function placeHVAC(plan, ctx, out) {
   }
 }
 
+/* ---- gas ------------------------------------------------------------------ */
+// Meter on an exterior wall that is not a bedroom, then a shutoff at each
+// appliance. The pipe itself is laid later, in the screed, so it can pass
+// under a door without entering the room.
+function placeGas(plan, ctx, out) {
+  var apps = [];
+  plan.rooms.forEach(function (ri) {
+    if (ri.flags.bed) return;
+    ri.items.forEach(function (it) {
+      if (GAS_APPLIANCE[it.type]) apps.push({ it: it, ri: ri });
+    });
+  });
+  if (!apps.length) return;
+  var anchor = apps[0].it;
+  var walls = [];
+  plan.rooms.forEach(function (ri) {
+    if (ri.flags.bed) return;
+    ri.walls.forEach(function (rw) {
+      if (plan.exterior(rw.w.id) && rw.g.L >= 50) walls.push(rw);
+    });
+  });
+  walls.sort(function (a, b) {
+    var ma = { x: (a.g.a.x + a.g.b.x) / 2, z: (a.g.a.z + a.g.b.z) / 2 };
+    var mb = { x: (b.g.a.x + b.g.b.x) / 2, z: (b.g.a.z + b.g.b.z) / 2 };
+    return dist(ma, anchor) - dist(mb, anchor);
+  });
+  function putInSpan(sys, k, wallId, sp, elev) {
+    for (var i = 0; i < 8; i++) {
+      var s = sp.a + (sp.b - sp.a) * (i + 0.5) / 8;
+      var n = ctx.put(sys, k, wallPointAt(wallId, s), "wall", elev, 16);
+      if (n) return n;
+    }
+    return null;
+  }
+  for (var w = 0; w < walls.length && !out.meter; w++) {
+    var pref = projectOnWall(walls[w].w, anchor).s;
+    var spans = relaxedSpans(walls[w].w.id, null);
+    var at = pickSpot(spans, pref);
+    if (at != null) out.meter = ctx.put("gas", "meter", wallPointAt(walls[w].w.id, at), "wall", 40, 16);
+    if (!out.meter) {
+      spans.slice().sort(function (a, b) {
+        return Math.abs((a.a + a.b) / 2 - pref) - Math.abs((b.a + b.b) / 2 - pref);
+      }).forEach(function (sp) {
+        if (!out.meter) out.meter = putInSpan("gas", "meter", walls[w].w.id, sp, 40);
+      });
+    }
+  }
+  out.gasPoints = [];
+  apps.forEach(function (a) {
+    var wall = nearestWallTo(a.ri, a.it);
+    if (!wall) return;
+    var spans = relaxedSpans(wall.w.id, null);
+    var at = pickSpot(spans, wall.s);
+    var valve = at == null ? null : ctx.put("gas", "valve", wallPointAt(wall.w.id, at), "wall", 50, 16);
+    if (!valve) {
+      spans.slice().sort(function (p, q) {
+        return Math.abs((p.a + p.b) / 2 - wall.s) - Math.abs((q.a + q.b) / 2 - wall.s);
+      }).forEach(function (sp) {
+        if (Math.abs((sp.a + sp.b) / 2 - wall.s) > 120) return;
+        if (!valve) valve = putInSpan("gas", "valve", wall.w.id, sp, 50);
+      });
+    }
+    if (valve) out.gasPoints.push(valve);
+  });
+}
+
 /* ---- wiring: turn the placed devices into routed runs -------------------- */
 function tapNode(net, n) {
   var p = nodePos(n);
@@ -685,11 +753,15 @@ function chainOrder(start, devs) {
   return seq;
 }
 // One run threading `devs` in order, routed wall-by-wall from `startTap`.
+function layRun(sys, kind, pts, layer) {
+  if (!pts || pts.length < 2) return null;
+  return addRun(sys, kind, pts, null, null, generationLayer(sys, kind, layer, pts));
+}
 function chainRun(net, sys, kind, layer, startTap, devs, taps, fallback) {
   var pts = [], prev = startTap;
   var fallbackPrev = fallback && fallback.startTap;
   function flush() {
-    if (pts.length >= 2) addRun(sys, kind, pts, null, null, layer);
+    if (pts.length >= 2) layRun(sys, kind, pts, layer);
     pts = [];
   }
   devs.forEach(function (n) {
@@ -699,7 +771,7 @@ function chainRun(net, sys, kind, layer, startTap, devs, taps, fallback) {
     if (res.blocked && fallback && fallbackPrev != null && fallback.taps[n.id] != null) {
       flush();
       var fr = fallback.net.path(fallbackPrev, fallback.taps[n.id]);
-      if (fr.pts.length >= 2) addRun(sys, kind, fr.pts, null, null, fallback.layer);
+      if (fr.pts.length >= 2) layRun(sys, kind, fr.pts, fallback.layer);
     } else if (res.pts.length) {
       pts = concatPath(pts, res.pts);
     }
@@ -760,10 +832,10 @@ function wire(plan, out) {
         { net: voidNet, layer: "ceiling", taps: vt, startTap: vt[out.panel.id] });
       if (out.cond) {
         var leg = wallNet.path(wt[out.condSpur.id], wt[out.cond.id]).pts;
-        if (leg.length >= 2) addRun("power", "circuit", leg, null, null, "wall");
+        if (leg.length >= 2) layRun("power", "circuit", leg, "wall");
         else {
           var ceilLeg = voidNet.path(vt[out.condSpur.id], vt[out.cond.id]).pts;
-          if (ceilLeg.length >= 2) addRun("power", "circuit", ceilLeg, null, null, "ceiling");
+          if (ceilLeg.length >= 2) layRun("power", "circuit", ceilLeg, "ceiling");
         }
       }
     }
@@ -775,7 +847,7 @@ function wire(plan, out) {
       var pts = wallNet.path(wt[out.rack.id], wt[p.id]).pts;
       var layer = "wall";
       if (pts.length < 2) { pts = voidNet.path(vt[out.rack.id], vt[p.id]).pts; layer = "ceiling"; }
-      if (pts.length >= 2) addRun("comms", p === out.tvPort ? "coax" : "cat6", pts, null, null, layer);
+      if (pts.length >= 2) layRun("comms", p === out.tvPort ? "coax" : "cat6", pts, layer);
     });
   }
 
@@ -785,8 +857,8 @@ function wire(plan, out) {
     out.fixtures.forEach(function (f) {
       var pts = voidNet.path(vt[out.manifold.id], vt[f.n.id]).pts;
       if (pts.length < 2) return;
-      addRun("water", "cold", pts, null, null, "floor");
-      if (f.def.hot) addRun("water", "hot", offsetPath(pts, 5), null, null, "floor");
+      layRun("water", "cold", pts, "floor");
+      if (f.def.hot) layRun("water", "hot", offsetPath(pts, 5), "floor");
     });
   }
 
@@ -802,13 +874,13 @@ function wire(plan, out) {
       var res = voidNet.pathToSet(vt[n.id], tree);
       if (!res || res.pts.length < 2) return;
       var pts = res.pts.slice().reverse(); // upstream first, so it falls to the stack
-      var run = addRun("drain", "waste", pts, null, null, "floor");
+      var run = layRun("drain", "waste", pts, "floor");
       run.fall = Math.min(14, pathLength(pts) * WASTE_FALL);
       res.vis.forEach(function (v) { if (tree.indexOf(v) < 0) tree.push(v); });
     });
     if (out.vent) {
       var vp = voidNet.path(vt[out.stack.id], vt[out.vent.id]).pts;
-      if (vp.length >= 2) addRun("drain", "vent", vp, null, null, "ceiling");
+      if (vp.length >= 2) layRun("drain", "vent", vp, "ceiling");
     }
   }
 
@@ -817,7 +889,7 @@ function wire(plan, out) {
   if (out.unit) {
     if (out.ret) {
       var rp = voidNet.path(vt[out.ret.id], vt[out.unit.id]).pts;
-      if (rp.length >= 2) addRun("hvac", "branch", rp, null, null, "ceiling");
+      if (rp.length >= 2) layRun("hvac", "return", rp, "ceiling");
     }
     var duct = [vt[out.unit.id]], first = true;
     var order = out.supplies.slice().sort(function (a, b) {
@@ -827,24 +899,49 @@ function wire(plan, out) {
       var res = voidNet.pathToSet(vt[n.id], duct);
       if (!res || res.pts.length < 2) return;
       var cut = splitTail(res.pts, 70);
-      if (cut.head.length >= 2) addRun("hvac", first ? "duct" : "branch", cut.head, null, null, "ceiling");
-      if (cut.tail && cut.tail.length >= 2) addRun("hvac", "flex", cut.tail, null, null, "ceiling");
-      else if (cut.head.length < 2) addRun("hvac", "flex", res.pts, null, null, "ceiling");
+      if (cut.head.length >= 2) layRun("hvac", first ? "duct" : "branch", cut.head, "ceiling");
+      if (cut.tail && cut.tail.length >= 2) layRun("hvac", "flex", cut.tail, "ceiling");
+      else if (cut.head.length < 2) layRun("hvac", "flex", res.pts, "ceiling");
       res.vis.forEach(function (v) { if (duct.indexOf(v) < 0) duct.push(v); });
       first = false;
     });
     if (out.cond) {
       var lp = voidNet.path(vt[out.unit.id], vt[out.cond.id]).pts;
-      if (lp.length >= 2) {
-        addRun("hvac", "refrig", lp, null, null, "ceiling");
-        var cd = addRun("hvac", "condensate", offsetPath(lp, 6), null, null, "ceiling");
-        cd.fall = Math.min(20, pathLength(lp) * COND_FALL);
+      if (lp.length >= 2) layRun("hvac", "refrig", lp, "ceiling");
+    }
+    var drains = [];
+    if (out.stack) drains.push(out.stack);
+    (out.floorDrains || []).forEach(function (n) { drains.push(n); });
+    var drainNode = null;
+    drains.forEach(function (n) {
+      if (!vt[n.id]) return;
+      if (!drainNode || dist(nodePos(n), nodePos(out.unit)) < dist(nodePos(drainNode), nodePos(out.unit)))
+        drainNode = n;
+    });
+    var cdest = drainNode || out.cond;
+    if (cdest && vt[cdest.id] != null) {
+      var cp = voidNet.path(vt[out.unit.id], vt[cdest.id]).pts;
+      if (cp.length >= 2) {
+        var cd = layRun("hvac", "condensate", cp, drainNode ? "floor" : "ceiling");
+        if (cd) cd.fall = Math.min(20, pathLength(cp) * COND_FALL);
       }
     }
     if (out.stat) {
       var sp2 = voidNet.path(vt[out.stat.id], vt[out.unit.id]).pts;
-      if (sp2.length >= 2) addRun("hvac", "control", sp2, null, null, "ceiling");
+      if (sp2.length >= 2) layRun("hvac", "control", sp2, "ceiling");
     }
+  }
+
+  // Gas is pressurized from the meter. It runs in the screed, under doors,
+  // and does not need a fall. Each appliance keeps its own shutoff.
+  if (out.meter && out.gasPoints) {
+    out.gasPoints.forEach(function (n) {
+      var pts = voidNet.path(vt[out.meter.id], vt[n.id]).pts;
+      var layer = "floor";
+      if (pts.length < 2) { pts = wallNet.path(wt[out.meter.id], wt[n.id]).pts; layer = "wall"; }
+      // Stay off the cold-water chase. Hot is already 5cm to one side.
+      if (pts.length >= 2) layRun("gas", "pipe", offsetPath(pts, 12), layer);
+    });
   }
 }
 
@@ -871,7 +968,7 @@ export function autoInfrastructure() {
   var ctx = new Ctx();
   var out = {
     lights: [], switches: [], sockets: [], counter: [], dedicated: [], ports: [],
-    fixtures: [], traps: [], floorDrains: [], supplies: [], tvPort: null,
+    fixtures: [], traps: [], floorDrains: [], supplies: [], tvPort: null, gasPoints: [],
   };
   var head = placeHeadEnd(plan, ctx);
   out.panel = head.panel;
@@ -882,6 +979,7 @@ export function autoInfrastructure() {
   });
   placePlumbing(plan, ctx, out);
   placeHVAC(plan, ctx, out);
+  placeGas(plan, ctx, out);
   wire(plan, out);
   autoConnectAll();
   // Random layouts can create a short wall island between openings. Repair any

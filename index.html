@@ -100,6 +100,7 @@
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
     <script defer src="vendor/leaflet/leaflet.js"></script>
     <link rel="stylesheet" href="css/styles.css?v=mobile-bottom-sheet-1" />
+    <link rel="stylesheet" href="css/cabinet_production.css" />
   </head>
   <body>
     <div id="app">
@@ -675,6 +676,12 @@
           <div id="view-3d">
             <canvas id="v3d"></canvas>
             <div class="lbl" data-i18n="lbl_3d">תצוגת 3D</div>
+            <button type="button" class="view-edit-btn view-drawing-btn" id="drawing3dBtn"
+              data-act="drawing3d" data-i18n-title="drawing3d" data-i18n-aria="drawing3d"
+              title="Drawing overlay" aria-label="Drawing overlay" aria-pressed="false">
+              <i class="ph ph-pencil-line" aria-hidden="true"></i>
+              <span data-i18n="drawing3d">Drawing overlay</span>
+            </button>
             <div id="floor-tabs" class="modern-chrome" hidden></div>
             <!-- 3D edit mode: left-drag moves the piece under the cursor -->
             <button

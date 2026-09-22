@@ -431,7 +431,7 @@ function absorbCircleChords(circles, segments, tolerance) {
     if (circle.kind !== "round") continue;
     const radius = circle.radius, tol = Math.max(tolerance, radius * 0.02);
     const matched = [];
-    let sweep = 0;
+    const angularSpans = [];
     segments.forEach((segment, index) => {
       if (!keep[index]) return;
       const da = Math.hypot(segment.a.u - circle.u, segment.a.v - circle.v);
@@ -442,8 +442,20 @@ function absorbCircleChords(circles, segments, tolerance) {
       const mid = { u: (segment.a.u + segment.b.u) / 2, v: (segment.a.v + segment.b.v) / 2 };
       if (Math.hypot(mid.u - circle.u, mid.v - circle.v) < radius * 0.7) return;
       matched.push(index);
-      sweep += 2 * Math.asin(Math.min(1, length / (2 * radius)));
+      let start = Math.atan2(segment.a.v-circle.v, segment.a.u-circle.u);
+      let end = Math.atan2(segment.b.v-circle.v, segment.b.u-circle.u);
+      let delta = end-start;
+      if(delta>Math.PI) delta-=2*Math.PI;
+      if(delta<-Math.PI) delta+=2*Math.PI;
+      if(delta<0) { start=end; delta=-delta; }
+      start=(start+2*Math.PI)%(2*Math.PI);
+      end=start+delta;
+      angularSpans.push([start,Math.min(end,2*Math.PI)]);
+      if(end>2*Math.PI) angularSpans.push([0,end-2*Math.PI]);
     });
+    // Front/back rims and shared mesh edges can overlap in projection. Count
+    // their union so duplicate partial rims cannot masquerade as a full circle.
+    const sweep = mergeSpans(angularSpans, 1e-6).reduce((sum,span)=>sum+span[1]-span[0],0);
     if (sweep < Math.PI * 2 * 0.96) continue;
     circle.absorbed = true;
     matched.forEach((index) => { keep[index] = false; });
@@ -544,12 +556,17 @@ export function projectSolid(bodies, view = "front", options = {}) {
       /* Silhouette: the faces disagree about which way they face the viewer, so
          the body turns away from the reader here even though the surface is
          smooth. This is the outline of every cylinder and fillet on the sheet. */
-      let front = false, back = false;
+      let front = false, back = false, tangent = false;
       for (const normal of faces) {
         const facing = dot(normal, basis.forward);
-        if (facing > 1e-6) front = true; else if (facing < -1e-6) back = true;
+        if (facing > 1e-6) front = true;
+        else if (facing < -1e-6) back = true;
+        else tangent = true;
       }
-      candidate = front && back;
+      // A tessellation facet can lie exactly edge-on. Its neighbouring faces
+      // need not share an edge with each other, but the facet's boundary still
+      // forms the silhouette. Coplanar edge-on diagonals remain excluded.
+      candidate = (front && back) || (tangent && (front || back));
     }
     if (!candidate) continue;
     const a = {
@@ -567,22 +584,36 @@ export function projectSolid(bodies, view = "front", options = {}) {
       (run.visible ? visible : hidden).push({ a: lerpPoint(a, b, run.t0), b: lerpPoint(a, b, run.t1) });
     }
   }
-  const merged = consolidateSegments(visible, hidden, span2d * 1.5e-3);
+  // Recognize complete rims before line simplification drops their short
+  // tessellation chords. Small holes on long parts otherwise lose their ink
+  // while retaining centre marks from the independently fitted circles.
+  let inkVisible = visible, inkHidden = hidden;
   const circles = options.circles === false ? [] : projectCircles(bodies, basis, grid, slack);
   const round = circles.filter((circle) => circle.kind === "round");
   if (round.length) {
     const visibleRound = round.filter((circle) => circle.visible);
     const hiddenRound = round.filter((circle) => !circle.visible);
-    merged.visible = absorbCircleChords(visibleRound, merged.visible, span2d * 2e-3);
+    inkVisible = absorbCircleChords(visibleRound, inkVisible, span2d * 2e-3);
     visibleRound.forEach((circle) => { if (circle.absorbed) circle.drawn = "visible"; });
-    merged.hidden = absorbCircleChords(hiddenRound, merged.hidden, span2d * 2e-3);
+    inkHidden = absorbCircleChords(hiddenRound, inkHidden, span2d * 2e-3);
     hiddenRound.forEach((circle) => { if (circle.absorbed) circle.drawn = "hidden"; });
   }
+  const merged = consolidateSegments(inkVisible, inkHidden, span2d * 1.5e-3);
   const cuts = (options.cuts || []).map((cut) => ({
     a: { u: dot(cut.a, basis.right), v: dot(cut.a, basis.up) },
     b: { u: dot(cut.b, basis.right), v: dot(cut.b, basis.up) },
   }));
-  return { visible: merged.visible, hidden: merged.hidden, circles, cuts, bounds: grid.bounds, basis, view };
+  const list = Array.isArray(bodies) ? bodies : [bodies];
+  let exactBounds = null;
+  if (isOrthoView(view) && list.length && list.every(body=>body.exactBounds?.min && body.exactBounds?.max)) {
+    exactBounds={u0:Infinity,u1:-Infinity,v0:Infinity,v1:-Infinity};
+    for(const body of list) for(const x of [body.exactBounds.min.x,body.exactBounds.max.x]) for(const y of [body.exactBounds.min.y,body.exactBounds.max.y]) for(const z of [body.exactBounds.min.z,body.exactBounds.max.z]) {
+      const point={x,y,z},u=dot(point,basis.right),v=dot(point,basis.up);
+      exactBounds.u0=Math.min(exactBounds.u0,u);exactBounds.u1=Math.max(exactBounds.u1,u);
+      exactBounds.v0=Math.min(exactBounds.v0,v);exactBounds.v1=Math.max(exactBounds.v1,v);
+    }
+  }
+  return { visible: merged.visible, hidden: merged.hidden, circles, cuts, bounds: grid.bounds, exactBounds, basis, view };
 }
 
 /* Which standard view looks along a given direction of sight. A section is
@@ -649,6 +680,7 @@ function clipSegmentToCircle(a, b, cu, cv, radius) {
    the view before it decides how to draw it. */
 export function projectionBounds(projection) {
   if (!projection) return null;
+  if (projection.exactBounds) return { ...projection.exactBounds };
   const bounds = projection.bounds ? { ...projection.bounds } : null;
   const grow = (u, v) => {
     if (!bounds) return;

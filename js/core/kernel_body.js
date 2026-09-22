@@ -146,6 +146,7 @@ export async function kernelBodyMeshData(spec, options = {}) {
       subshapeMap: mesh.subshapeMap,
       topology: JSON.parse(JSON.stringify(brep.topology || [])),
       bounds: meshDataBounds(positions),
+      exactBounds: mesh.exactBounds,
     };
   } finally { disposeBrep(brep); }
 }

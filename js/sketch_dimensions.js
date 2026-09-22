@@ -2,9 +2,46 @@
 
 import { lineData, circleData, ellipseData, sketchPoint, sketchEntity } from "./sketch_solver.js";
 
-const DRIVING = "#4f46e5";
-const DRIVEN = "#718096";
-const CONFLICT = "#d0342c";
+export function isDarkSketchCanvas(options = {}) {
+  if (typeof options.isDark === "boolean") return options.isDark;
+  if (typeof document !== "undefined") {
+    const modeler = document.getElementById("modeler");
+    if (modeler && modeler.classList.contains("md-is3d")) return true;
+    const theme = document.documentElement?.getAttribute("data-theme") || document.body?.getAttribute("data-theme");
+    if (theme === "dark" || theme === "mid" || theme === "chrome") return true;
+    if (theme === "light" || theme === "soft") return false;
+    if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) return true;
+  }
+  return false;
+}
+
+export function getDimensionPalette(options = {}) {
+  const dark = isDarkSketchCanvas(options);
+  if (dark) {
+    return {
+      driving: "#7dd3fc",
+      driven: "#cbd5e1",
+      conflict: "#fca5a5",
+      selected: "#fb923c",
+      textBg: "rgba(15, 23, 42, 0.86)",
+      glyphOk: "#34d399",
+      glyphConflict: "#fca5a5",
+    };
+  }
+  return {
+    driving: "#1d4ed8",
+    driven: "#475569",
+    conflict: "#b91c1c",
+    selected: "#c2410c",
+    textBg: "rgba(255, 255, 255, 0.90)",
+    glyphOk: "#047857",
+    glyphConflict: "#b91c1c",
+  };
+}
+
+const DRIVING = "#1d4ed8";
+const DRIVEN = "#64748b";
+const CONFLICT = "#dc2626";
 
 // Millimetre work needs three decimals of a centimetre; trailing zeros go.
 const dimText = (value) => `${Number(Number(value).toFixed(3))} cm`;
@@ -213,6 +250,7 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
   if (!sketch || !sketch.constraints) return;
   const points = new Map((sketch.points || []).map((p) => [p.id, p]));
   const entities = new Map((sketch.entities || []).map((e) => [e.id, e]));
+  const palette = getDimensionPalette(options);
 
   ctx.save();
   ctx.font = "12px sans-serif";
@@ -221,7 +259,7 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
     if (c.suppressed) continue;
     const bad = conflicts.indexOf(c.id) >= 0;
     const selected = c.id === options.selectedId;
-    const color = bad ? CONFLICT : selected ? "#e08030" : c.driven ? DRIVEN : DRIVING;
+    const color = bad ? palette.conflict : selected ? palette.selected : c.driven ? palette.driven : palette.driving;
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
     ctx.lineWidth = 1;
@@ -236,13 +274,21 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
       ctx.moveTo(layout.a.x, layout.a.y); ctx.lineTo(layout.b.x, layout.b.y);
       ctx.stroke();
       const label = dimText(c.value);
-      if (selected) {
-        const width = ctx.measureText(label).width + 10;
+      const textWidth = ctx.measureText ? ctx.measureText(label).width : (label.length * 7);
+      const pad = 4;
+      const boxW = textWidth + pad * 2;
+      const boxH = 16;
+      const boxX = layout.label.x - pad;
+      const boxY = layout.label.y - 12;
+
+      if (ctx.fillRect) {
         ctx.save();
-        ctx.fillStyle = "rgba(255,255,255,.94)";
-        ctx.fillRect(layout.label.x - 4, layout.label.y - 13, width, 17);
-        ctx.strokeStyle = color;
-        ctx.strokeRect(layout.label.x - 4.5, layout.label.y - 13.5, width + 1, 18);
+        ctx.fillStyle = palette.textBg;
+        ctx.fillRect(boxX, boxY, boxW, boxH);
+        if (selected && ctx.strokeRect) {
+          ctx.strokeStyle = color;
+          ctx.strokeRect(boxX - 0.5, boxY - 0.5, boxW + 1, boxH + 1);
+        }
         ctx.restore();
       }
       ctx.fillStyle = color;
@@ -261,7 +307,21 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
         ctx.lineTo(rim.x, rim.y);
         ctx.stroke();
         const label = (c.type === "radius" ? "R " : "Ø ") + dimText(c.value);
-        ctx.fillText(label, rim.x + 4, rim.y - 4);
+        const textWidth = ctx.measureText ? ctx.measureText(label).width : (label.length * 7);
+        const pad = 4;
+        const lx = rim.x + 4, ly = rim.y - 4;
+        if (ctx.fillRect) {
+          ctx.save();
+          ctx.fillStyle = palette.textBg;
+          ctx.fillRect(lx - pad, ly - 12, textWidth + pad * 2, 16);
+          if (selected && ctx.strokeRect) {
+            ctx.strokeStyle = color;
+            ctx.strokeRect(lx - pad - 0.5, ly - 12.5, textWidth + pad * 2 + 1, 17);
+          }
+          ctx.restore();
+        }
+        ctx.fillStyle = color;
+        ctx.fillText(label, lx, ly);
         continue;
       }
       // an ellipse's dimension points along the semi-axis it actually drives,
@@ -276,7 +336,22 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
       ctx.beginPath();
       ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y);
       ctx.stroke();
-      ctx.fillText(`${minor ? "b" : "a"} ${dimText(c.value)}`, to.x + 4, to.y - 4);
+      const label = `${minor ? "b" : "a"} ${dimText(c.value)}`;
+      const textWidth = ctx.measureText ? ctx.measureText(label).width : (label.length * 7);
+      const pad = 4;
+      const lx = to.x + 4, ly = to.y - 4;
+      if (ctx.fillRect) {
+        ctx.save();
+        ctx.fillStyle = palette.textBg;
+        ctx.fillRect(lx - pad, ly - 12, textWidth + pad * 2, 16);
+        if (selected && ctx.strokeRect) {
+          ctx.strokeStyle = color;
+          ctx.strokeRect(lx - pad - 0.5, ly - 12.5, textWidth + pad * 2 + 1, 17);
+        }
+        ctx.restore();
+      }
+      ctx.fillStyle = color;
+      ctx.fillText(label, lx, ly);
     } else if (c.type === "angle") {
       const base = c.entity ? entities.get(c.entity) : entities.get(c.a);
       const l = lineData(base, points);
@@ -285,7 +360,22 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
       ctx.beginPath();
       ctx.arc(mid.x, mid.y, 12, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.fillText(`${Math.round(c.value * 10) / 10}°`, mid.x + 15, mid.y - 6);
+      const label = `${Math.round(c.value * 10) / 10}°`;
+      const textWidth = ctx.measureText ? ctx.measureText(label).width : (label.length * 7);
+      const pad = 4;
+      const lx = mid.x + 15, ly = mid.y - 6;
+      if (ctx.fillRect) {
+        ctx.save();
+        ctx.fillStyle = palette.textBg;
+        ctx.fillRect(lx - pad, ly - 12, textWidth + pad * 2, 16);
+        if (selected && ctx.strokeRect) {
+          ctx.strokeStyle = color;
+          ctx.strokeRect(lx - pad - 0.5, ly - 12.5, textWidth + pad * 2 + 1, 17);
+        }
+        ctx.restore();
+      }
+      ctx.fillStyle = color;
+      ctx.fillText(label, lx, ly);
     }
   }
   ctx.restore();
@@ -300,11 +390,12 @@ const GLYPH = {
   coincident: "●", symmetric: "⇔", fixed: "▣", pointOnLine: "•", pointOnCircle: "•",
 };
 
-export function drawConstraintGlyphs(ctx, sketch, toPx, conflicts = []) {
+export function drawConstraintGlyphs(ctx, sketch, toPx, conflicts = [], options = {}) {
   if (!sketch || !sketch.constraints) return;
   const points = new Map((sketch.points || []).map((p) => [p.id, p]));
   const entities = new Map((sketch.entities || []).map((e) => [e.id, e]));
   const used = new Map();   // stack glyphs that land on the same spot
+  const palette = getDimensionPalette(options);
 
   ctx.save();
   ctx.font = "11px sans-serif";
@@ -327,13 +418,23 @@ export function drawConstraintGlyphs(ctx, sketch, toPx, conflicts = []) {
     if (p) anchors.push(p);
     if (!anchors.length) continue;
 
-    ctx.fillStyle = conflicts.indexOf(c.id) >= 0 ? CONFLICT : "#0f8a6a";
+    const glyphColor = conflicts.indexOf(c.id) >= 0 ? palette.glyphConflict : palette.glyphOk;
+    ctx.fillStyle = glyphColor;
     anchors.forEach((anchor) => {
       const s = toPx(anchor.x, anchor.y);
       const key = Math.round(s.x / 12) + ":" + Math.round(s.y / 12);
       const n = used.get(key) || 0;
       used.set(key, n + 1);
-      ctx.fillText(glyph, s.x + 6, s.y - 6 - n * 11);
+      const gx = s.x + 6;
+      const gy = s.y - 6 - n * 11;
+      if (ctx.fillRect) {
+        ctx.save();
+        ctx.fillStyle = palette.textBg;
+        ctx.fillRect(gx - 2, gy - 9, 11, 11);
+        ctx.restore();
+      }
+      ctx.fillStyle = glyphColor;
+      ctx.fillText(glyph, gx, gy);
     });
   }
   ctx.restore();

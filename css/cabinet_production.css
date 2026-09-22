@@ -1,0 +1,16 @@
+#nestplan .nz-production { margin-block: 12px; border: 1px solid var(--border, #596171); border-radius: 8px; padding: 10px; overflow-wrap: anywhere; }
+#nestplan .nz-production summary { cursor: pointer; font-weight: 600; padding-block: 7px; }
+#nestplan .nz-production details details { border-top: 1px solid var(--border, #596171); margin-top: 8px; }
+#nestplan .nz-production p { line-height: 1.5; margin-block: 8px; }
+#nestplan .nz-production .nz-production-field { display: flex; flex-direction: column; gap: 5px; margin-block: 9px; }
+#nestplan .nz-production input:not([type=checkbox]), #nestplan .nz-production select, #nestplan .nz-production textarea { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; padding: 7px; border: 1px solid var(--border, #596171); border-radius: 5px; background: var(--bg, #1d2430); color: var(--text, #f0f2f6); }
+#nestplan .nz-production input[type=checkbox] { align-self: flex-start; width: 18px; height: 18px; }
+#nestplan .nz-production fieldset { min-width: 0; border: 1px solid var(--border, #596171); margin-block: 8px; border-radius: 5px; }
+#nestplan .nz-production legend { font-size: 12px; }
+#nestplan .nz-production textarea { font: 12px/1.4 monospace; resize: vertical; direction: ltr; }
+#nestplan .nz-production button { white-space: normal; min-height: 34px; margin-block: 4px; }
+#nestplan .nz-production a { color: var(--accent, #86baff); }
+#nestplan .nz-production table { width: 100%; border-collapse: collapse; font-size: 11px; }
+#nestplan .nz-production td, #nestplan .nz-production th { border: 1px solid var(--border, #596171); padding: 4px; overflow-wrap: anywhere; }
+#nestplan #nzAllowanceBatchTargets label { display: flex; align-items: flex-start; gap: 8px; margin-block: 8px; overflow-wrap: anywhere; }
+#nestplan #nzAllowanceBatchTargets input { flex: 0 0 auto; }

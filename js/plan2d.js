@@ -97,11 +97,19 @@ let mepFlowPhase = 0;
 let mepAnimOn = false;
 let mepLastFrame = 0;
 const FLOW_SPEED = 0.027; // dash units per millisecond
+function prefersReducedMotion() {
+  try {
+    return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch (e) {
+    return false;
+  }
+}
 function mepShouldAnimate() {
   return (
     S.mep &&
     S.mep.show &&
     S.mep.animate !== false &&
+    !prefersReducedMotion() && // WCAG 2.3.3 — a static arrow still shows direction
     !isElevation() && // MEP flow only animates in the top-down plan
     mepAliveCount() > 0 &&
     plan.offsetParent !== null // plan pane actually visible (not maximized away)
@@ -188,16 +196,18 @@ export function sizeCanvas() {
 
   S.CW = W;
   S.CH = H;
-  plan.width = W * dpr;
-  plan.height = H * dpr;
+  // Assigning even the same canvas size clears pixels and reallocates storage.
+  var pixelW = Math.round(W * dpr), pixelH = Math.round(H * dpr);
+  if (plan.width !== pixelW) plan.width = pixelW;
+  if (plan.height !== pixelH) plan.height = pixelH;
   mc.setTransform(dpr, 0, 0, dpr, 0, 0);
   /* The HUD canvas must be sized and transformed by exactly the same numbers,
      including the dpr clamp above and the 0x0 hidden-pane guard before it:
      the two images are stacked pixel for pixel, so a HUD that disagreed about
      either would draw the selection outline off the object it belongs to. */
   if (planHud && hc) {
-    planHud.width = W * dpr;
-    planHud.height = H * dpr;
+    if (planHud.width !== pixelW) planHud.width = pixelW;
+    if (planHud.height !== pixelH) planHud.height = pixelH;
     hc.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
@@ -2204,11 +2214,13 @@ function drawWall(w) {
       pc.closePath(); pc.fill();
       pc.strokeStyle = "rgba(80,73,64,.35)"; pc.lineWidth = .65; pc.stroke();
     });
-    if (isSel || isErase || phase === "demolition" || phase === "demolish") {
+    {
+      // A stronger perimeter distinguishes the wall from its internal layers.
       var outline = wallOutline(w);
       pc.save();
-      pc.strokeStyle = isSel ? "#3f6b78" : isErase ? ERASE_COL : "#b43d35";
-      pc.lineWidth = isSel || isErase ? 2.3 : 1.7;
+      pc.strokeStyle = isSel ? "#3f6b78" : isErase ? ERASE_COL :
+        phase === "demolition" || phase === "demolish" ? "#b43d35" : "#635b50";
+      pc.lineWidth = isSel || isErase ? 2.3 : 1.1;
       if (phase === "demolition" || phase === "demolish") pc.setLineDash([8, 5]);
       pc.beginPath();
       outline.forEach(function (p, i) { if (i) pc.lineTo(sx(p.x), sz(p.z)); else pc.moveTo(sx(p.x), sz(p.z)); });
@@ -2367,7 +2379,7 @@ function paintRooms(ctx, rooms) {
    chrome now, and the key no longer mentions the selection. */
 function drawCachedRooms() {
   var rooms = detectRooms();
-  var hid = hiddenSets(rooms);
+  var pixelW = plan ? plan.width : S.CW, pixelH = plan ? plan.height : S.CH;
   var key =
     roomsTopologyKey() +
     "|" +
@@ -2389,26 +2401,27 @@ function drawCachedRooms() {
   if (
     roomLayer.key === key &&
     roomLayer.canvas &&
-    roomLayer.canvas.width === S.CW &&
-    roomLayer.canvas.height === S.CH
+    roomLayer.canvas.width === pixelW &&
+    roomLayer.canvas.height === pixelH
   ) {
-    pc.drawImage(roomLayer.canvas, 0, 0);
+    pc.drawImage(roomLayer.canvas, 0, 0, S.CW, S.CH);
     return { rooms: roomLayer.rooms, hid: roomLayer.hid };
   }
+  var hid = hiddenSets(rooms);
   if (typeof document === "undefined") {
     paintRooms(pc, rooms);
     return { rooms: rooms, hid: hid };
   }
   var c = roomLayer.canvas || document.createElement("canvas");
-  if (c.width !== S.CW || c.height !== S.CH) {
-    c.width = Math.max(1, S.CW || 1);
-    c.height = Math.max(1, S.CH || 1);
-  }
+  if (c.width !== pixelW) c.width = Math.max(1, pixelW);
+  if (c.height !== pixelH) c.height = Math.max(1, pixelH);
   var ctx = c.getContext("2d");
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, c.width, c.height);
+  ctx.setTransform(pixelW / S.CW, 0, 0, pixelH / S.CH, 0, 0);
   paintRooms(ctx, rooms);
   roomLayer = { key: key, canvas: c, rooms: rooms, hid: hid };
-  pc.drawImage(c, 0, 0);
+  pc.drawImage(c, 0, 0, S.CW, S.CH);
   return { rooms: rooms, hid: hid };
 }
 

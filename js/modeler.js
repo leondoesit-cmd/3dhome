@@ -1,3 +1,4 @@
+import { massDisplaySystem } from "./mass_display_units.js";
 import {reorderFinishFeature} from "./cad_finish_reorder.js";
 import {resolveFinishFace} from "./core/finish_face_reference.js";
 import { markDirty as markPlannerDirty } from "./persist.js";
@@ -8,10 +9,11 @@ import {dimensionTargetFromSelection} from './core/sketch_dimension_selection.js
 import {resolveOffsetPlanes, throughVertexBinding} from './core/offset_planes.js';
 import {thinSketchProfile} from './core/thin_profile.js';
 import { synchronizeExtrusionProjections } from "./core/extrusion_projection.js";
-import { threePointArc } from "./sketch_three_point_arc.js";
+import { threePointArc, radialArcEndpoint } from "./sketch_three_point_arc.js";
 import { tangentArc, entityOutgoingTangent } from "./sketch_tangent_arc.js";
 import {createMaterialValidationUI} from "./modeler_material_validation.js";
 import { addCenterRectangle } from "./sketch_center_rectangle.js";
+import { addCenterSlot } from "./sketch_center_slot.js";
 import { filletSketchCorner } from "./sketch_fillet.js";
 import { bindIntersectionTargets, bindModelEdgeTargets, bindPierceTargets, hitProjectedModelEdge } from "./sketch_intersection.js";
 import { copySketchForClipboard, pasteSketchGeometry, readSketchClipboard, writeSketchClipboard } from "./core/sketch_clipboard.js";
@@ -3531,6 +3533,7 @@ function buildDOM() {
         commandButton("arc3point", t("arcThreePoint"), ""),
         commandButton("tangentarc", t("tangentArc"), ""),
         commandButton("sslot", t("tool_sslot"), "J"),
+        commandButton("centerslot", t("centerSlot"), ""),
         commandButton("spoly", t("cap_spoly"), "N", "", t("tool_spoly")),
         commandButton("sell", t("tool_sell"), "Y"),
         commandButton("sspline",t("tool_sspline"),""),
@@ -3933,6 +3936,12 @@ function buildDOM() {
   });
   root.querySelectorAll("[data-drawing-tool]").forEach(function (b) {
     b.addEventListener("click", function () { setTool(b.getAttribute("data-drawing-tool")); });
+  });
+  root.querySelectorAll("#mdDrawingTools button").forEach(function (b) {
+    var label = b.querySelector("span"), shortcut = b.querySelector("kbd");
+    if (!label) return;
+    b.setAttribute("aria-label", label.textContent);
+    b.title = label.textContent + (shortcut ? " · " + shortcut.textContent : "");
   });
   root.querySelectorAll("[data-cmdtab]").forEach(function (b) {
     b.addEventListener("click", function () { setCommandTab(b.getAttribute("data-cmdtab")); });
@@ -6399,7 +6408,7 @@ function syncAuthoringWorkflow() {
   var context=root.querySelector("#mdWorkflowContext");if(context)context.textContent=units.length+" · "+(E.def.context && E.def.context.activeCoordinateSystemId || "origin");
   var sketch=ensureSketch(E.def),hasRecordedSketch=(E.def.history || []).some(function(entry){return entry.kind==="sketch"&&entry.targetId===sketch.id;}),reference=root.querySelector("#mdWorkflowReference");
   if(reference)reference.textContent=(hasRecordedSketch || sketch.referenceId || sketch.support) && phase!=="reference" ? sketchPlaneCaption() : t("wfChoosePlane");
-  var sketchText=root.querySelector("#mdWorkflowSketch");if(sketchText){var info=E._solveSketchId===sketch.id&&E.solveInfo ? E.solveInfo : solveSketch(sketch);if(E._solveSketchId!==sketch.id){E.solveInfo=info;E._solveSketchId=sketch.id;}sketchText.textContent=(sketch.entities || []).length ? (info.status==="fully-constrained"?t("wfFullyDefined"):((sketch.constraints || []).length?t("wfPartialDefined")+" · ":t("wfUnderDefined")+" · ")+info.degreesOfFreedom+" "+t("wfDof")) : t("wfCreateProfile");}
+  var sketchText=root.querySelector("#mdWorkflowSketch");if(sketchText){var info=E._solveSketchId===sketch.id&&E.solveInfo ? E.solveInfo : solveSketch(sketch);if(E._solveSketchId!==sketch.id){E.solveInfo=info;E._solveSketchId=sketch.id;}sketchText.textContent=(sketch.entities || []).length ? (info.status==="fully-constrained"?t("wfFullyDefined"):info.status==="conflicting"?t("dofConflict"):info.status==="over-constrained"?t("dofOver"):((sketch.constraints || []).length?t("wfPartialDefined")+" · ":t("wfUnderDefined")+" · ")+info.degreesOfFreedom+" "+t("wfDof")) : t("wfCreateProfile");}
   var feature=root.querySelector("#mdWorkflowFeature");if(feature)feature.textContent=E.authoring && E.authoring.featureType ? featureTypeLabel(E.authoring.featureType) : (closedSketchProfile() ? t("wfReadyExtrude") : t("wfTurnIntent"));
   var history=root.querySelector("#mdWorkflowHistory");if(history)history.textContent=(E.def.history || []).length+" "+t("wfEditableSteps");
   root.classList.toggle("md-authoring-sketch",phase==="sketch");
@@ -6547,7 +6556,9 @@ function setTool(id, keepPlaneState) {
    sketch, and an Extrude Cut taken right after would cut from the wrong one. */
 var CAMERA_ONLY_VIEWS = ["iso", "back", "left"];
 function setView(id) {
-  if (CAMERA_ONLY_VIEWS.indexOf(id) >= 0) {
+  // A feature owns its profile while the user turns the model to pick limits.
+  // Adopting another plane's sketch here changes both preview and commit inputs.
+  if (CAMERA_ONLY_VIEWS.indexOf(id) >= 0 || (E.authoring && E.authoring.featureType)) {
     var cameraPreset = VIEW_PRESETS.find(function (preset) { return preset.id === id; });
     if (E.pv && cameraPreset) {
       if (E.pv.clearFixedFrame) E.pv.clearFixedFrame(false);
@@ -6755,6 +6766,7 @@ function runCommand(id) {
   else if(id==="tangentarc") { E.arcTangent=true; E.arcThreePoint=false; E.arcPts=null; setTool("sarc"); }
   else if(id==="sketchrepair")openSketchRepairs();
   else if(id==="centerrectangle")openCenterRectangle();
+  else if(id==="centerslot")openCenterSlot();
   else if(id==="sketchfillet")openSketchFillet();
   else if(id==="faceboundary")openFaceBoundary();
   else if (id === "newsketch") beginSketchWorkflow(null, { forceNew: true });
@@ -7360,12 +7372,32 @@ function featureReferenceOptions(type) {
 }
 
 function renderFeatureParameterForm(host,type,state,onLive) {
-  return renderFeatureParameterFormCore(host,type,state,onLive,{
+  var controls=renderFeatureParameterFormCore(host,type,state,onLive,{
     el:el,
     units:E.def && E.def.context && E.def.context.units || {length:getDomainUnit("details"),angle:"deg"},
     referenceOptions:featureReferenceOptions,
     advancedLabel:t("featureMoreOptions"),
   });
+  if(type==="thread"){
+    var preset=controls.find(function(control){return control.field.key==="threadPreset";});
+    var syncPreset=function(changed){
+      var unified=preset && preset.input.value==="unc-quarter-20";
+      controls.forEach(function(control){
+        var key=control.field.key,fixed={diameterMm:6.35,pitchMm:1.27,mode:"cosmetic",series:"coarse",useFitLimits:false};
+        if(Object.prototype.hasOwnProperty.call(fixed,key)){
+          control.input.disabled=!!unified;
+          if(unified){state.params[key]=fixed[key];if(control.input.type==="checkbox")control.input.checked=false;else control.input.value=String(fixed[key]);}
+        }
+        if(key==="toleranceClass"){
+          control.input.placeholder=unified?"2A / 2B":"6g / 6H";
+          if(changed){control.input.value="";state.params[key]="";}
+        }
+      });
+    };
+    syncPreset(false);
+    if(preset)preset.input.addEventListener("change",function(){syncPreset(true);});
+  }
+  return controls;
 }
 
 function featureField(host,field,value) {
@@ -8835,6 +8867,7 @@ function clonedPartMeshData(mesh) {
     topology: cloneData(mesh.topology || []),
     faceRanges: cloneData(mesh.faceRanges || []),
     bounds: mesh.bounds ? Object.assign({}, mesh.bounds) : mesh.bounds,
+    exactBounds: mesh.exactBounds ? cloneData(mesh.exactBounds) : mesh.exactBounds,
   });
 }
 
@@ -10087,13 +10120,26 @@ function saveCurrentDocument() {
   else saveModel();
 }
 
+function syncViewButtons() {
+  var active = E.view;
+  if (E.mode === "3d" && E.pv) {
+    var preset = !E.pv.fixedFrame && VIEW_PRESETS.find(function (item) {
+      return item.az != null && Math.abs(Math.atan2(Math.sin(E.pv.az-item.az), Math.cos(E.pv.az-item.az))) < 0.001 && Math.abs(E.pv.el-item.el) < 0.001;
+    });
+    active = preset ? (preset.id === "right" ? "side" : preset.id) : null;
+  }
+  root.querySelectorAll("[data-view]").forEach(function (button) {
+    var selected = button.getAttribute("data-view") === active;
+    button.classList.toggle("on", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+}
+
 function syncTools() {
   root.querySelectorAll("[data-tool]").forEach(function (b) {
     b.classList.toggle("on", b.getAttribute("data-tool") === E.tool);
   });
-  root.querySelectorAll("[data-view]").forEach(function (b) {
-    b.classList.toggle("on", b.getAttribute("data-view") === E.view);
-  });
+  syncViewButtons();
   syncNormalToControls();
   var sheetTool = E.mode === "drawing" && E.sheet ? E.sheet.getTool() : null;
   var hiddenButton = root.querySelector("#mdSheetHidden");
@@ -10312,7 +10358,7 @@ function syncStatus() {
     return;
   }
   if (E.mode === "3d" && !E.modelPlaneActive) {
-    var mode=(E.def && E.def.authoringMode) || "fully-parametric";
+    var mode=inferAuthoringMode(Object.assign({}, E.def, {authoringMode:null}));
     var recognition=E.def && E.def.metadata && E.def.metadata.import && E.def.metadata.import.recognition;
     var solids = E.coreRun && Array.isArray(E.coreRun.bodies) ? E.coreRun.bodies.length : E.def ? activeParts(E.def).length : 0;
     st.innerHTML='<b>'+mode.replace(/-/g," ")+'</b>'+
@@ -10441,7 +10487,23 @@ function drawingBodies() {
     group.traverse(function (object) {
       if (!object.isMesh || object.userData.cadOverlay || object.userData.cadInterference != null) return;
       var positions = meshWorldTriangles(object);
-      if (positions.length >= 9) bodies.push({ id: object.userData.cadPart || object.uuid, positions: positions });
+      if (positions.length >= 9) {
+        var body = { id: object.userData.cadPart || object.uuid, positions: positions };
+        var part = renderedParts(E.def).find(function(candidate){return candidate.id===object.userData.cadPart;});
+        var exactBounds = part && part.meshData && part.meshData.exactBounds;
+        var matrix = object.matrixWorld.elements;
+        // An axis-aligned (including quarter-turn) transform preserves exact
+        // AABB extrema. General rotations need directional kernel bounds.
+        var aligned = [0,1,2].every(function(row){return [0,1,2].filter(function(col){return Math.abs(matrix[col*4+row])>1e-9;}).length===1;});
+        if (exactBounds && aligned && E.docType !== "assembly") {
+          body.exactBounds={min:{x:Infinity,y:Infinity,z:Infinity},max:{x:-Infinity,y:-Infinity,z:-Infinity}};
+          [0,1].forEach(function(x){[0,1].forEach(function(y){[0,1].forEach(function(z){
+            var corner=new THREE.Vector3(x?exactBounds.max.x:exactBounds.min.x,y?exactBounds.max.y:exactBounds.min.y,z?exactBounds.max.z:exactBounds.min.z).applyMatrix4(object.matrixWorld);
+            ["x","y","z"].forEach(function(axis){body.exactBounds.min[axis]=Math.min(body.exactBounds.min[axis],corner[axis]);body.exactBounds.max[axis]=Math.max(body.exactBounds.max[axis],corner[axis]);});
+          });});});
+        }
+        bodies.push(body);
+      }
     });
   } catch (error) {
     bodies = [];
@@ -10493,11 +10555,11 @@ function sheetForm(title, fields, hint) {
       title: title,
       hint: hint || fields.map(function (field) { return field.hint; }).filter(Boolean)[0] || t("drawNoteHint"),
       fields: fields.map(function (field) {
-        return { key: field.key, label: field.label || title, type: "text", value: field.value || "" };
+        return { key: field.key, label: field.label || title, type: field.type === "boolean" ? "boolean" : "text", value: field.value ?? "" };
       }),
       onApply: function (values) {
         var answer = {};
-        fields.forEach(function (field) { answer[field.key] = String(values[field.key] || "").trim(); });
+        fields.forEach(function (field) { answer[field.key] = field.type === "boolean" ? !!values[field.key] : String(values[field.key] || "").trim(); });
         finish(answer);
       },
       onCancel: function () { finish(null); },
@@ -10609,6 +10671,9 @@ function buildSheetPanel(host) {
   sheetRow(setup, t("sheetUnits"), sheetSelect([
     { value: "mm", label: "mm" }, { value: "cm", label: "cm" }, { value: "m", label: "m" }, { value: "in", label: "in" },
   ], doc.units, function (value) { sheet.setSheetOption("units", value); drawSketch(); })).id = "mdSheetUnits";
+  sheetRow(setup,t("sheetDraftingStandard"),sheetSelect([{value:"custom",label:t("sheetCustomStandard")},{value:"ANSI",label:"ANSI · inch / third angle"},{value:"ISO",label:"ISO · mm / first angle"}],doc.draftingStandard||"custom",function(value){sheet.setSheetOption("draftingStandard",value);drawSketch();})).id="mdSheetStandard";
+  sheetRow(setup,t("sheetSecondaryUnits"),sheetSelect([{value:"",label:t("sheetNoSecondary")},...["mm","cm","m","in"].map(value=>({value,label:value}))],doc.secondaryUnits||"",function(value){sheet.setSheetOption("secondaryUnits",value);drawSketch();})).id="mdSheetSecondaryUnits";
+  sheetRow(setup,t("sheetSecondaryPrecision"),sheetSelect([0,1,2,3,4,5,6].map(value=>({value:String(value),label:String(value)})),String(doc.secondaryPrecision??2),function(value){sheet.setSheetOption("secondaryPrecision",value);drawSketch();})).id="mdSheetSecondaryPrecision";
   sheetRow(setup,t("sheetPrecision"),sheetSelect([{value:"auto",label:t("sheetPrecisionAuto")},...[0,1,2,3,4,5,6].map(value=>({value:String(value),label:String(value)}))],Number.isInteger(doc.precision)?String(doc.precision):"auto",function(value){sheet.setSheetOption("precision",value);drawSketch();})).id="mdSheetPrecision";
   sheetToggle(setup,t("sheetTrailingZeros"),doc.trailingZeros??Number.isInteger(doc.precision),function(on){sheet.setSheetOption("trailingZeros",on);drawSketch();}).id="mdSheetTrailingZeros";
   sheetRow(setup, t("sheetProjection"), sheetSelect([
@@ -10628,7 +10693,7 @@ function buildSheetPanel(host) {
     var selection = sheet.selection();
     var row = el("div", "md-sheet-view" + (selection && selection.kind === "view" && selection.id === view.id ? " on" : ""));
     var name = btn('<i class="ph ph-frame-corners"></i><span>' + (view.label || view.dir) + "</span><small>" +
-      scaleLabel(view.scale || sheet.scene().scale) + "</small>", function () {
+      scaleLabel(sheet.scene().views.find(function (placed) { return placed.id === view.id; })?.scale || view.scale || sheet.scene().scale) + "</small>", function () {
       sheet.select({ kind: "view", id: view.id });
     }, "md-sheet-view-name");
     row.appendChild(name);
@@ -10738,6 +10803,9 @@ function syncSheetPanel() {
   set("#mdSheetOrientation", doc.orientation);
   set("#mdSheetScale", doc.scale === "fit" ? "fit" : scaleLabel(doc.scale));
   set("#mdSheetUnits", doc.units);
+  set("#mdSheetStandard",doc.draftingStandard||"custom");
+  set("#mdSheetSecondaryUnits",doc.secondaryUnits||"");
+  set("#mdSheetSecondaryPrecision",String(doc.secondaryPrecision??2));
   set("#mdSheetPrecision", Number.isInteger(doc.precision)?String(doc.precision):"auto");
   var trailingZeros=root.querySelector("#mdSheetTrailingZeros");if(trailingZeros)trailingZeros.checked=doc.trailingZeros??Number.isInteger(doc.precision);
   set("#mdSheetProjection", doc.projection);
@@ -10837,6 +10905,7 @@ function drawSketch() {
   syncContextActions();
   if (!E.cw || !E.ch) sizeSketch();
   var c = E.cx, W = E.cw, H = E.ch;
+  var isDark = E.mode === "3d" || (typeof document !== "undefined" && !["light", "soft"].includes(document.documentElement.getAttribute("data-theme")));
   c.clearRect(0, 0, W, H);
   /* Drawing mode is a drafting table, not the sketch canvas with a border
      drawn round it: modeler_drawing.js owns the paper, the projected views and
@@ -10927,21 +10996,21 @@ function drawSketch() {
     if(f.type!=="segments")c.fill("evenodd"); c.stroke();
     // vertex handles + edge lengths for a selected sketched polygon
     if (on && f.type === "poly") {
-      c.fillStyle = "#e08030";
+      c.fillStyle = isDark ? "#fb923c" : "#e08030";
       f.pts.forEach(function (q, i) {
         var s = toPx(q.u, q.v);
         c.fillRect(s.x - 3, s.y - 3, 6, 6);
         var q2 = f.pts[(i + 1) % f.pts.length], s2 = toPx(q2.u, q2.v);
         var L = Math.hypot(q2.u - q.u, q2.v - q.v);
-        c.fillStyle = "#7a5a30";
+        c.fillStyle = isDark ? "#fed7aa" : "#7a5a30";
         c.fillText(Math.round(L) + "", (s.x + s2.x) / 2 + 3, (s.y + s2.y) / 2 - 3);
-        c.fillStyle = "#e08030";
+        c.fillStyle = isDark ? "#fb923c" : "#e08030";
       });
     }
     // dimensions for selected rect
     if (on && f.type === "rect") {
       var a2 = toPx(f.u0, f.v0), b2 = toPx(f.u1, f.v1);
-      c.fillStyle = "#7a5a30";
+      c.fillStyle = isDark ? "#fed7aa" : "#7a5a30";
       c.fillText(Math.round(Math.abs(f.u1 - f.u0)) + "", (a2.x + b2.x) / 2 - 8, Math.min(a2.y, b2.y) - 5);
       c.fillText(Math.round(Math.abs(f.v1 - f.v0)) + "", Math.max(a2.x, b2.x) + 5, (a2.y + b2.y) / 2);
     }
@@ -11001,7 +11070,7 @@ function drawSketch() {
     var selected = E.ssel.indexOf(entity) >= 0;
     var status = statuses.entityStatus[entity.id] || (fully ? "fully-defined" : "under-defined");
     c.save();
-    c.strokeStyle = sketchStatusColor(status, { selected: selected, construction: entity.construction });
+    c.strokeStyle = sketchStatusColor(status, { selected: selected, construction: entity.construction, isDark: isDark });
     c.lineWidth = selected ? 2.3 : Math.max(1.2, entity.weight || 1.2);
     if (entity.construction) c.setLineDash([7, 4]);
     c.beginPath();
@@ -11020,9 +11089,18 @@ function drawSketch() {
       if (selected) {
         var len = Math.hypot(b.x - a.x, b.y - a.y);
         var ang = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
-        c.fillStyle = "#e08030";
+        var infoText = Math.round(len * 10) / 10 + " cm · " + Math.round(ang * 10) / 10 + "°";
+        var tx = (sa.x + sb.x) / 2 + 5, ty = (sa.y + sb.y) / 2 - 7;
+        if (c.fillRect) {
+          c.save();
+          c.fillStyle = isDark ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.85)";
+          var tw = (c.measureText ? c.measureText(infoText).width : infoText.length * 6.5) + 6;
+          c.fillRect(tx - 3, ty - 10, tw, 13);
+          c.restore();
+        }
+        c.fillStyle = isDark ? "#fb923c" : "#e08030";
         c.font = "11px sans-serif";
-        c.fillText(Math.round(len * 10) / 10 + " cm · " + Math.round(ang * 10) / 10 + "°", (sa.x + sb.x) / 2 + 5, (sa.y + sb.y) / 2 - 7);
+        c.fillText(infoText, tx, ty);
       }
     } else if(entity.type==="spline"){pathSketchSpline(c,entity,spts);c.stroke();
     } else if (entity.type === "ellipse") {
@@ -11032,9 +11110,17 @@ function drawSketch() {
       c.setLineDash([]);
       if (selected) {
         var ec = toPx(el2.center.x, el2.center.y);
-        c.fillStyle = "#e08030";
+        var infoText = Math.round(el2.rx * 10) / 10 + " × " + Math.round(el2.ry * 10) / 10;
+        if (c.fillRect) {
+          c.save();
+          c.fillStyle = isDark ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.85)";
+          var tw = (c.measureText ? c.measureText(infoText).width : infoText.length * 6.5) + 6;
+          c.fillRect(ec.x + 1, ec.y - 12, tw, 13);
+          c.restore();
+        }
+        c.fillStyle = isDark ? "#fb923c" : "#e08030";
         c.font = "11px sans-serif";
-        c.fillText(Math.round(el2.rx * 10) / 10 + " × " + Math.round(el2.ry * 10) / 10, ec.x + 4, ec.y - 4);
+        c.fillText(infoText, ec.x + 4, ec.y - 4);
       }
     } else {
       var o = circleData(entity, spts);
@@ -11045,9 +11131,17 @@ function drawSketch() {
       c.stroke();
       c.setLineDash([]);
       if (selected) {
-        c.fillStyle = "#e08030";
+        var infoText = "R " + Number(Number(o.radius).toFixed(3));
+        if (c.fillRect) {
+          c.save();
+          c.fillStyle = isDark ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.85)";
+          var tw = (c.measureText ? c.measureText(infoText).width : infoText.length * 6.5) + 6;
+          c.fillRect(sc.x + 1, sc.y - 12, tw, 13);
+          c.restore();
+        }
+        c.fillStyle = isDark ? "#fb923c" : "#e08030";
         c.font = "11px sans-serif";
-        c.fillText("R " + Number(Number(o.radius).toFixed(3)), sc.x + 4, sc.y - 4);
+        c.fillText(infoText, sc.x + 4, sc.y - 4);
       }
     }
     c.restore();
@@ -11056,9 +11150,9 @@ function drawSketch() {
   // sketch points, drawn over the entities so they stay grabbable
   (live ? sketch.points || [] : []).forEach(function (q) {
     var s = toPx(q.x, q.y), on = E.ssel.indexOf(q) >= 0;
-    c.fillStyle = on ? "#e08030" : q.fixed ? "#0f8a6a" : sketchStatusColor(statuses.pointStatus[q.id] || (fully ? "fully-defined" : "under-defined"));
+    c.fillStyle = on ? (isDark ? "#fb923c" : "#e08030") : q.fixed ? (isDark ? "#34d399" : "#0f8a6a") : sketchStatusColor(statuses.pointStatus[q.id] || (fully ? "fully-defined" : "under-defined"), { isDark: isDark });
     c.fillRect(s.x - 3, s.y - 3, 6, 6);
-    if (q.fixed) { c.strokeStyle = "#0f8a6a"; c.lineWidth = 1; c.strokeRect(s.x - 5, s.y - 5, 10, 10); }
+    if (q.fixed) { c.strokeStyle = isDark ? "#34d399" : "#0f8a6a"; c.lineWidth = 1; c.strokeRect(s.x - 5, s.y - 5, 10, 10); }
   });
 
   if (live) {
@@ -11068,21 +11162,21 @@ function drawSketch() {
     profileInfo.profiles.forEach(function (profile) {
       if (!profile.points.length) return;
       c.save(); c.globalAlpha = profile.selected ? 0.14 : 0.065;
-      c.fillStyle = profile.selected ? "#e08030" : "#2684c7";
+      c.fillStyle = profile.selected ? (isDark ? "#fb923c" : "#e08030") : (isDark ? "#38bdf8" : "#2684c7");
       c.beginPath();
       profile.points.forEach(function (p, index) { var sp = toPx(p.u, p.v); if (!index) c.moveTo(sp.x, sp.y); else c.lineTo(sp.x, sp.y); });
       c.closePath(); c.fill(); c.restore();
     });
     profileInfo.openEnds.forEach(function (p) {
       var sp = toPx(p.x, p.y);
-      c.save(); c.strokeStyle = "#d0342c"; c.lineWidth = 2; c.beginPath(); c.arc(sp.x, sp.y, 7, 0, Math.PI * 2); c.stroke(); c.restore();
+      c.save(); c.strokeStyle = isDark ? "#fca5a5" : "#d0342c"; c.lineWidth = 2; c.beginPath(); c.arc(sp.x, sp.y, 7, 0, Math.PI * 2); c.stroke(); c.restore();
     });
     profileInfo.branchPoints.forEach(function (p) {
       var sp = toPx(p.x, p.y);
-      c.save(); c.fillStyle = "#d0342c"; c.translate(sp.x, sp.y); c.rotate(Math.PI / 4); c.fillRect(-5, -5, 10, 10); c.restore();
+      c.save(); c.fillStyle = isDark ? "#fca5a5" : "#d0342c"; c.translate(sp.x, sp.y); c.rotate(Math.PI / 4); c.fillRect(-5, -5, 10, 10); c.restore();
     });
-    drawSketchDimensions(c, sketch, E.scl, toPx, conflicts, { selectedId: E.dimSel });
-    drawConstraintGlyphs(c, sketch, toPx, conflicts);
+    drawSketchDimensions(c, sketch, E.scl, toPx, conflicts, { selectedId: E.dimSel, isDark: isDark });
+    drawConstraintGlyphs(c, sketch, toPx, conflicts, { isDark: isDark });
     if (refused) {
       var tagged = [];
       (sketch.constraints || []).forEach(function (constraint) {
@@ -12544,6 +12638,25 @@ function openCenterRectangle() {
     },
   });
 }
+function openCenterSlot() {
+  if (!E.authoring || E.authoring.phase !== "sketch") startSketchOnDefaultPlane("sslot");
+  setTool("select");
+  openQuickForm({
+    action:"centerslot", icon:"ph-selection", title:t("centerSlot"), hint:t("centerSlotHint"),
+    fields:[
+      {key:"length",label:t("slotCenterSpacing"),type:"number",value:2.54,min:0.000001,unit:"length"},
+      {key:"width",label:t("fcFldWidth"),type:"number",value:1.27,min:0.000001,unit:"length"},
+      {key:"x",label:t("rectangleCenterX"),type:"number",value:0,unit:"length"},
+      {key:"y",label:t("rectangleCenterY"),type:"number",value:0,unit:"length"},
+    ],
+    onApply:function(values) {
+      var made = appendToSketch(t("centerSlot"), function(sketch) { return addCenterSlot(sketch,values,uid); });
+      if (!made) return false;
+      markDrawnSelection(made); E.sel=E.ssel[E.ssel.length-1];
+      return true;
+    },
+  });
+}
 function addSketchRectangle(a, b, snap) {
   if (Math.abs(b.u-a.u) < 0.1 || Math.abs(b.v-a.v) < 0.1) return null;
   var sketch = sketchForView();
@@ -12674,12 +12787,11 @@ function addSketchArc(centre, start, end, exactEnd) {
   var r = Math.hypot(start.u - centre.u, start.v - centre.v);
   if (r < 1e-6) return null;
   // the third click only picks a direction; the radius comes from the first two
-  var ang = Math.atan2(end.v - centre.v, end.u - centre.u);
   var arc = {
     id: uid(), type: "arc", name: "Arc",
-    c: newSketchPoint(sketch, centre),
+    c: snappedSketchPoint(sketch, centre, centre),
     a: newSketchPoint(sketch, start),
-    b: newSketchPoint(sketch, exactEnd ? end : { u: centre.u + Math.cos(ang) * r, v: centre.v + Math.sin(ang) * r }),
+    b: newSketchPoint(sketch, exactEnd ? end : radialArcEndpoint(centre, start, end)),
     construction: false,
   };
   sketch.entities.push(arc);
@@ -13469,6 +13581,7 @@ function makeWallSegment(a, b, options) {
   // (Extrude/Revolve/etc.) consumes a closed profile.
   if (!a || !b || Math.hypot(b.u - a.u, b.v - a.v) < 1e-6) return null;
   var sketch = sketchForView();
+  var existingPointIds = new Set(sketch.points.map(function (p) { return p.id; }));
   var aid = newSketchPoint(sketch, a), bid = newSketchPoint(sketch, b);
   var line = {
     id: uid(), type: "line", name: "Line", a: aid, b: bid,
@@ -13484,7 +13597,8 @@ function makeWallSegment(a, b, options) {
   }).filter(Boolean);
   var tangent = inferTangentCircle({ a: a, b: b }, circles);
   inferLineRelations(line, a, { u: b.u, v: b.v }, snap, {
-    suppress: E._suppressInference, tangentCircleId: tangent && tangent.id,
+    // Closing an already determined chain needs no extra orientation relation.
+    suppress: E._suppressInference || (existingPointIds.has(aid) && existingPointIds.has(bid) && solveSketch(sketch).status === "fully-constrained"), tangentCircleId: tangent && tangent.id,
   }).forEach(function (constraint) {
     if (constraintAlreadyPresent(sketch, constraint)) return;
     constraint.id = uid();
@@ -14035,7 +14149,7 @@ function wireSketch() {
         return;
       }
       if (!E.arcPts) E.arcPts = [];
-      E.arcPts.push({ u: su, v: sv, pointId:sp.pointId });
+      E.arcPts.push({ u: su, v: sv, pointId:sp.pointId, k:sp.k });
       if (E.arcPts.length === 3) {
         pushUndo(t("opSketch"));
         var definition=E.arcThreePoint ? threePointArc(E.arcPts[0],E.arcPts[1],E.arcPts[2]) : null;
@@ -16331,7 +16445,7 @@ function syncSizeReadout(sketchCount) {
   if (sketchCount == null) sketchCount = ensureSketchDoc(E.def).reduce(function (a, s2) { return a + s2.entities.length; }, 0);
   var b = defBounds(E.def);
   sizeEl.textContent = renderedParts(E.def).length
-    ? Math.round(b.x1 - b.x0) + "×" + Math.round(b.z1 - b.z0) + "×" + Math.round(b.y1 - b.y0) + " cm"
+    ? [b.x1 - b.x0, b.z1 - b.z0, b.y1 - b.y0].map(formatModelLength).join("×") + " cm"
     : sketchCount ? sketchCount + " sketch" : "";
 }
 
@@ -17883,7 +17997,10 @@ function fillLook() {
   });
   faceRow.appendChild(faceColor); host.appendChild(faceRow);
   if (!selectedFace) host.appendChild(el("div", "md-note", t("selectFaceForColor")));
-  var stock=el("div","md-ops");
+  host.appendChild(el("div", "md-note", selectedFace
+    ? (getLang() === "he" ? "מראה לפנים שנבחרו · צפיפות הגוף לא משתנה" : "Selected face appearance · body density stays unchanged")
+    : (getLang() === "he" ? "חומר הגוף · קובע את המראה והצפיפות" : "Body material · sets appearance and density")));
+  var stock=el("div","md-ops md-material-options");
   Object.keys(STOCK_MATERIALS).forEach(function(key){
     var mat=STOCK_MATERIALS[key];
     stock.appendChild(btn(mat.name, function(){
@@ -17893,11 +18010,11 @@ function fillLook() {
       if(face){
         E.def.appearances=upsertAppearanceOverride(E.def.appearances, createAppearanceOverride({persistentId:face.persistentId,kind:"face",material:key,color:mat.color,metal:mat.metal,rough:mat.rough,name:mat.name}));
       } else {
-        p.color=mat.color; p.metal=mat.metal; p.rough=mat.rough; p.materialName=mat.name; p.density=mat.density;
+        p.color=mat.color; p.metal=mat.metal; p.rough=mat.rough; p.materialName=mat.name; p.density=mat.density; p.densitySource=mat.densitySource||"";
         if(p.materialCatalogId!=="stock:"+key){delete p.materialQualificationId;delete p.gearVerificationReport;delete E.def.lastStandardsAudit;}p.materialCatalogId="stock:"+key;
         E.def.appearances=upsertAppearanceOverride(E.def.appearances, createAppearanceOverride({persistentId:p.id,kind:"body",material:key,color:mat.color,metal:mat.metal,rough:mat.rough,name:mat.name}));
       }
-      updatePreview(); refreshParts();
+      updatePreview(); refreshParts(); fillLook();
     }));
   });
   host.appendChild(stock);
@@ -17905,7 +18022,9 @@ function fillLook() {
   var assigned=stockMaterialForPart(p);
   densityNote.textContent=t("massDensity")+": "+partMaterialDensity(p).toFixed(2)+" g/cm³"+(assigned?" · "+assigned.name:"");
   host.appendChild(densityNote);
-  var materialTools=materialValidationTools(),engineering=el("div","md-ops");
+  if(p.densitySource||assigned?.densitySource)host.appendChild(el("div","md-note",p.densitySource||assigned.densitySource));
+  if(assigned?.densitySourceUrl){const sourceLink=el("a","md-note",getLang()==="he"?"מקור צפיפות":"Density source");sourceLink.href=assigned.densitySourceUrl;sourceLink.target="_blank";sourceLink.rel="noopener noreferrer";host.appendChild(sourceLink);}
+  var materialTools=materialValidationTools(),engineering=el("div","md-ops md-material-options");
   const engineeringButton=(key,action)=>{const button=btn(materialTools.label(key),action);button.dataset.engineeringAction=key;engineering.appendChild(button);};
   engineeringButton("title",()=>materialTools.profile(p));
   if((p.standardCompliance||p.standardPart)?.family==="involute-gear"){
@@ -20627,6 +20746,7 @@ function initPreview() {
     longPress: showSelectThrough,
     doubleClick: function () { growSelectionFromDoubleClick(); },
     afterRender: function (view) {
+      syncViewButtons();
       syncInstant3dValue(view);
       syncNotesAndMarkups(view);
       refreshDecorationScale();
@@ -20993,6 +21113,12 @@ function fitPreview() {
   var dx = b.x1 - b.x0, dy = b.y1 - b.y0, dz = b.z1 - b.z0,
     r = Math.max(1, Math.hypot(dx, dy, dz));
   E.pv.frame(r * 1.5);
+  // Plane-aligned sketch cameras use the frame origin plus the pan target.
+  // Fitting the size alone leaves off-origin geometry behind the view controls.
+  if (E.pv.fixedFrame) {
+    var origin = E.pv.fixedFrame.origin;
+    E.pv.target.set((b.x0+b.x1)/2-origin.x,(b.y0+b.y1)/2-origin.y,(b.z0+b.z1)/2-origin.z);
+  }
   E.pv.render();
 }
 
@@ -21186,6 +21312,12 @@ function rebuildCommittedPartsById(ids) {
 /* One body changed (exact mesh landed, hover edge, kernel blanked). Do not
    dispose the rest of the viewport. */
 function refreshChangedPart(part) {
+  // A late exact mesh replaces the lightweight body used by the sheet too.
+  // Partial viewport refreshes must invalidate that projection cache.
+  if (part) {
+    invalidateDrawing();
+    if (E.mode === "drawing") { drawSketch(); syncSheetPanel(); }
+  }
   if (typeof window !== "undefined") window.cadRefreshChangedPart = refreshChangedPart;
   /* The one place a body's exact mesh is known to have landed or failed, so
      it is where the live downstream badge stops saying "calculating". */
@@ -22020,35 +22152,31 @@ async function showMassProperties() {
   if(E.def!==documentAtStart || E.evalCard!=="mass" || !body.isConnected)return;
   function paintMass() {
     body.textContent="";
-    var mmg=massDisplayUnits==="mmg";
+    var system=massDisplaySystem(massDisplayUnits);
+    var quantity=function(value,kind,precision){return (value*system[kind]).toPrecision(precision||7)+" "+system[kind+"Unit"];};
     var units=el("div","md-ops");
-    [["si",t("massUnitsSi")],["mmg",t("massUnitsMmG")]].forEach(function(pair){
+    [["si",t("massUnitsSi")],["mmg",t("massUnitsMmG")],["ips",t("massUnitsIps")]].forEach(function(pair){
       var button=btn(pair[1], function(){ massDisplayUnits=pair[0]; paintMass(); });
       if(pair[0]===massDisplayUnits) button.setAttribute("aria-pressed","true");
       units.appendChild(button);
     });
     body.appendChild(units);
     evalRow(body,t("massAccuracy"),t("massAccuracy_"+mass.accuracy));
-    if (mass.bounds) evalRow(body,t("massOverallSize"),["x","y","z"].map(function(axis){return axis.toUpperCase()+" "+Number(((mass.bounds.max[axis]-mass.bounds.min[axis])*10).toFixed(4));}).join(" · ")+" mm");
-    evalRow(body, t("massVolume"), mmg ? (mass.volumeCm3*1000).toPrecision(7)+" mm³" : mass.volumeCm3.toPrecision(7)+" cm³");
-    evalRow(body, t("massMass"), mmg ? mass.massG.toPrecision(7)+" g" : mass.massKg.toPrecision(7)+" kg");
-    evalRow(body, t("massDensity"), mass.density == null ? t("massMixedDensity") : mass.density+" g/cm³");
-    // -2.66e-16 is a symmetric body's centre at 0 plus quadrature noise; show 0
-    var massCoord=function(value,scale){var v=value*scale;return String(Math.abs(v)<1e-9?0:Number(v.toPrecision(7)));};
-    evalRow(body, t("massCentre"), mmg
-      ? "X "+massCoord(mass.centerOfMass.x,10)+"   Y "+massCoord(mass.centerOfMass.y,10)+"   Z "+massCoord(mass.centerOfMass.z,10)+" mm"
-      : "X "+massCoord(mass.centerOfMass.x,1)+"   Y "+massCoord(mass.centerOfMass.y,1)+"   Z "+massCoord(mass.centerOfMass.z,1)+" cm");
+    if (mass.bounds) evalRow(body,t("massOverallSize"),["x","y","z"].map(function(axis){return axis.toUpperCase()+" "+Number(((mass.bounds.max[axis]-mass.bounds.min[axis])*system.length).toFixed(4));}).join(" · ")+" "+system.lengthUnit);
+    evalRow(body, t("massVolume"), quantity(mass.volumeCm3,"volume"));
+    evalRow(body, t("massMass"), quantity(mass.massKg,"mass"));
+    evalRow(body, t("massDensity"), mass.density == null ? t("massMixedDensity") : quantity(mass.density,"density",6));
+    // Suppress quadrature noise at a symmetric body's zero coordinate.
+    var massCoord=function(value){var v=value*system.length;return String(Math.abs(v)<1e-9?0:Number(v.toPrecision(7)));};
+    evalRow(body, t("massCentre"), "X "+massCoord(mass.centerOfMass.x)+"   Y "+massCoord(mass.centerOfMass.y)+"   Z "+massCoord(mass.centerOfMass.z)+" "+system.lengthUnit);
     (mass.bodies || []).forEach(function(row,index){
       var label=(row.materialName || t("massNoMaterial"));
-      var volume=mmg ? (row.volume*1000).toPrecision(6)+" mm³" : row.volume.toPrecision(6)+" cm³";
-      var massText=mmg ? ((row.massKg||0)*1000).toPrecision(6)+" g" : (row.massKg||0).toPrecision(6)+" kg";
-      evalRow(body, t("massBodyRow")+" "+(index+1)+" · "+label, volume+" · "+massText+" · "+row.density+" g/cm³");
+      evalRow(body, t("massBodyRow")+" "+(index+1)+" · "+label, quantity(row.volume,"volume",6)+" · "+quantity(row.massKg||0,"mass",6)+" · "+quantity(row.density,"density",6));
     });
     if(mass.inertiaKgM2){
-      evalRow(body,t("massInertia"),"kg·m²");
-      // products of inertia of a symmetric body come back as ±1e-19 noise
+      evalRow(body,t("massInertia"),system.inertiaUnit);
       var inertiaScale=Math.max.apply(null,mass.inertiaKgM2.map(function(row){return Math.max.apply(null,row.map(Math.abs));}));
-      mass.inertiaKgM2.forEach(function(row,i){evalRow(body,"XYZ"[i],row.map(function(v){return Math.abs(v)<=inertiaScale*1e-9?"0":v.toPrecision(6);}).join("   "));});
+      mass.inertiaKgM2.forEach(function(row,i){evalRow(body,"XYZ"[i],row.map(function(v){return Math.abs(v)<=inertiaScale*1e-9?"0":(v*system.inertia).toPrecision(6);}).join("   "));});
     }
     if (mass.unmeasured) body.appendChild(el("div", "md-note", mass.unmeasured + " " + t("massUnmeasured")));
   }
@@ -22926,7 +23054,9 @@ export function openModeler(editKey, def, srcItem) {
   E.arcPts = null;
   E.wallPts = null;
   E.componentSel = [];
-  E.authoring={phase:"model",referenceId:null,sketchId:E.def.activeSketch || null,featureType:null,sketchSelection:E.def.activeSketch?[E.def.activeSketch]:[],featureSelection:[],workflowFocus:"context"};
+  // Let the existing history determine the opening stage; an explicit Part
+  // focus would incorrectly offer the blank-document tutorial on saved solids.
+  E.authoring={phase:"model",referenceId:null,sketchId:E.def.activeSketch || null,featureType:null,sketchSelection:E.def.activeSketch?[E.def.activeSketch]:[],featureSelection:[],workflowFocus:null};
   E._mouse = null;
   E.solveInfo = solveSketch(ensureSketch(E.def));
   E._solveSketchId = ensureSketch(E.def).id;

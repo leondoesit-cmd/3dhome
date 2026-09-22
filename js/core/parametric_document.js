@@ -1,3 +1,4 @@
+import { cosmeticThread } from "../cad_thread.js";
 import {planFinishRemoval} from "./finish_removal.js";
 import { cloneDomain, createDefinition, domainId, mainReferences, migrateDefinition } from "./schema.js";
 import { featureDefaults, featureSpec, validateFeatureDefinition } from "./feature_catalog.js";
@@ -449,6 +450,8 @@ export function applyHistoryToPreviewParts(document) {
   const active = activeHistoryTargetIds(document);
   const known = new Set((document.history || []).map((entry) => entry.targetId).filter(Boolean));
   const dirty = new Set();
+  const features = document.features || [];
+  const byId = new Map(features.map(feature => [feature.id, feature]));
   const setFlag = (object, key, next, partId) => {
     if (!object || !!object[key] === !!next) return;
     object[key] = !!next;
@@ -456,6 +459,26 @@ export function applyHistoryToPreviewParts(document) {
   };
   (document.parts || []).forEach((part) => {
     if (!part) return;
+    // Cosmetic annotations are projections of their history feature, just like
+    // solid geometry. Never retain the overlay sampled when the tool was created.
+    const belongsToPart = (id, seen = new Set()) => {
+      if (!id || seen.has(id)) return false;
+      if (id === part.featureId || id === part.derivedFeatureId) return true;
+      seen.add(id);
+      return (byId.get(id)?.inputs || []).some(input => belongsToPart(input, seen));
+    };
+    const threads = features.filter(feature => feature.type === "thread" && (feature.inputs || []).some(id => belongsToPart(id)));
+    if (threads.length) {
+      const feature = threads.filter(item => !item.suppressed && (!known.has(item.id) || active.has(item.id))).at(-1);
+      if (feature) {
+        const annotation = cosmeticThread(feature.params);
+        part.cosmeticThread = annotation;
+        part.threadGeometry = annotation.threadGeometry;
+      } else {
+        delete part.cosmeticThread;
+        delete part.threadGeometry;
+      }
+    }
     if (part.featureId && known.has(part.featureId)) setFlag(part, "suppressed", !active.has(part.featureId), part.id);
     if (part.derivedFeatureId && known.has(part.derivedFeatureId)) setFlag(part, "suppressed", !active.has(part.derivedFeatureId), part.id);
     (part.exactOperations || []).forEach((operation) => {
