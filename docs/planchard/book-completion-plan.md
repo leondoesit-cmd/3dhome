@@ -351,6 +351,15 @@ on a desktop viewport.
 
 ### Storage warning (2026-09-20) — the browser library is not durable
 
+**Resolved by the disk mirror (2026-09-23, `6e5d290` + `829f3b0`).** Every
+library save is now mirrored through the relay to `.model-backups/` (20
+versions per model, atomic writes), and the Library pane offers "Restore from
+disk backup" for anything the browser lost. It has already paid off twice: on
+2026-09-23 the pane came back with an empty library again, and all 24
+models (LENSCAP at the post-fix rev 13, HOUSING rev 24) came back through that
+button. Manual exports are no longer the only safety net. The history below is
+kept for context.
+
 `HOUSING_v2` was lost once mid-session. The Browser pane closed and reopened,
 and every IndexedDB store came back empty (`models: []`, `drafts: []`,
 `snapshots: []`) while `localStorage` survived and the origin was unchanged.
