@@ -78,6 +78,7 @@ import {
   ensureSketch, ensureSketchDoc, sketchById, addSketch, removeSketch, pruneAbandonedSketches, planeLabel,
   sketchPoint, sketchEntity, solveSketch, explainSketchConflict, resolveProfilePoints,
   lineData, circleData, ellipseData, entityPoints, removeSketchEntity, refusesAsRepeat,
+  collapsedEntityIds, pruneImpliedRelations, sketchEntitySizes,
 } from "./sketch_solver.js";
 import { drawNameTags, relationSubjects, relationTargets, sketchInstanceNames } from "./sketch_names.js";
 import {
@@ -7441,6 +7442,10 @@ function quickPatternPart(count, pitch) {
 }
 
 function featureReferenceOptions(type) {
+  if(type==="helix-reference")return [{value:"",label:t("sweepPathSketch")}].concat(documentHelixRecords().map(function(record){
+    var owner=(E.def.features || []).find(function(feature){return feature.id===record.featureId;});
+    return {value:record.id,label:(owner && owner.name) || record.name || record.id};
+  }));
   var expected=type==="axis-reference"?"axis":"plane";
   return (E.def.references || []).filter(function(reference){return reference.type===expected;}).map(function(reference){return {value:reference.id,label:reference.name || reference.id};});
 }
@@ -7499,14 +7504,35 @@ function selectedSketchIds() {
   var active=ensureSketch(E.def);if(active&&!selected.includes(active.id))selected.push(active.id);return selected;
 }
 
-function sweepHelixRecord(inputParams) {
-  inputParams=inputParams || {};
-  var all=(E.def.referenceGeometry || []).concat(E.def.references || []),id=inputParams.helixId,seen=new Set(),records=[];
+// every helix a sweep can follow, once each
+function documentHelixRecords() {
+  var all=(E.def.referenceGeometry || []).concat(E.def.references || []),seen=new Set(),records=[];
   all.forEach(function(item){
     if(!item || seen.has(item.id))return;
     var helical=item.type==="reference_helix" || item.type==="helix" || /helix/i.test(String(item.id || ""));
     if(helical){seen.add(item.id);records.push(item);}
   });
+  return records;
+}
+
+/* A sweep edited to follow another helix: its rebuild reads sketchSources, its
+   ordering reads references, and the part's merge carries its own copy — all
+   three move to the chosen helix, or the Path row would change nothing. */
+function retargetSweepHelix(feature) {
+  var params=feature && feature.type==="sweep" ? feature.params || {} : null,sources=params && params.sketchSources;
+  if(!params || !params.helixId || !sources || !sources.helixId || sources.helixId===params.helixId)return;
+  var helix=documentHelixRecords().find(function(record){return record.id===params.helixId;});
+  if(!helix)return;
+  var previous=sources.helixId,moved=function(value){return {...value,helixId:helix.id,helixFeatureId:helix.featureId};};
+  params.sketchSources=moved(sources);
+  feature.references ||= {};
+  feature.references.references=(feature.references.references || []).map(function(reference){var id=typeof reference==="string"?reference:reference && reference.id;return id===previous?helix.id:reference;});
+  (E.def.parts || []).forEach(function(part){(part.merges3d || []).concat(part.cuts3d || []).forEach(function(entry){if(entry.featureId===feature.id && entry.sketchSources)entry.sketchSources=moved(entry.sketchSources);});});
+}
+
+function sweepHelixRecord(inputParams) {
+  inputParams=inputParams || {};
+  var id=inputParams.helixId,records=documentHelixRecords();
   if(id){var selected=records.find(function(item){return item.id===id;});if(selected)return selected;}
   if(records.length===1)return records[0];
   var feature=(E.def.features || []).find(function(item){return item && (item.type==="helix" || /helix|threadpath/i.test(String(item.name || ""))) && (!id || item.id===id);});
@@ -7518,24 +7544,27 @@ function sweepHelixRecord(inputParams) {
 }
 
 function createMultiSketchFeature(type, values) {
-  var ids=selectedSketchIds(),inputParams=(values && values.params) || values || {},helix=type==="sweep"?sweepHelixRecord(inputParams):selectedHelixRecord();
+  var ids=selectedSketchIds(),inputParams=(values && values.params) || values || {};
+  // the form's Path row said "second selected sketch": no helix, whatever exists
+  var sketchPath=type==="sweep" && inputParams.helixId==="";
+  var helix=sketchPath?null:type==="sweep"?sweepHelixRecord(inputParams):selectedHelixRecord();
   /* The confirmation corner can clear the transient datum focus while it
      reads the form. Keep the SolidWorks-style one-sketch sweep bound to the
      helix captured when the command opened, then resolve that stable id from
      the document at commit time. */
-  if(type==="sweep" && !helix && inputParams.helixId){
+  if(type==="sweep" && !sketchPath && !helix && inputParams.helixId){
     helix=(E.def.referenceGeometry || []).concat(E.def.references || []).find(function(item){return item && item.id===inputParams.helixId;}) || null;
     if(!helix){
       var helixFeature=(E.def.features || []).find(function(item){return item && item.id===inputParams.helixId && item.type==="helix";});
       if(helixFeature){var hparams=helixFeature.params || {};try{helix={...helixFromSketch(E.def,hparams),id:helixFeature.id,type:"reference_helix",featureId:helixFeature.id};}catch(error){helix={...hparams,id:helixFeature.id,type:"reference_helix",featureId:helixFeature.id};}}
     }
   }
-  if(type==="sweep" && ids.length===1 && !helix){
+  if(type==="sweep" && !sketchPath && ids.length===1 && !helix){
     var fallbackFeature=(E.def.features || []).find(function(item){return item && (item.type==="helix" || /helix|threadpath/i.test(String(item.name||"")));});
     if(fallbackFeature){var fp=fallbackFeature.params || {};helix={...fp,id:fallbackFeature.id,type:"reference_helix",featureId:fallbackFeature.id};}
   }
-  if(type==="sweep" && inputParams.sweepPathMode==="helix" && !helix){flash(t("sweepNeed"));return false;}
-  if(type==="sweep" && (inputParams.sweepPathMode==="helix" || sweepUsesHelixPath(ids.length, helix))){
+  if(type==="sweep" && !sketchPath && inputParams.sweepPathMode==="helix" && !helix){flash(t("sweepNeed"));return false;}
+  if(type==="sweep" && !sketchPath && (inputParams.sweepPathMode==="helix" || sweepUsesHelixPath(ids.length, helix))){
     var profileSketch=(E.def.sketches || []).find(function(sketch){return sketch.id===ids[0];});
     var profileRun=analyzeSketchProfiles(profileSketch),profileLoop=profileRun.profiles[0];
     if(!profileLoop){flash(t("sweepNeed"));return false;}
@@ -9127,10 +9156,13 @@ function openParametricFeature(type, repeatedParams) {
   if(type==="helix"){
     var helixCircle=(ensureSketch(E.def).entities || []).find(function(e){return e.type==="circle"&&!e.construction;});if(helixCircle)state.params.radius=helixCircle.r;
   }
-  if(type==="sweep" && selectedSketchIds().length===1){
-    var sweepHelix=selectedHelixRecord();
-    state.params.profileMode=sweepHelix?"sketch":"circular";
-    if(sweepHelix){state.params.helixId=sweepHelix.id;state.params.sweepPathMode="helix";}
+  if(type==="sweep"){
+    // the Path row shows what the sweep will follow before it is committed:
+    // the selected helix, else the document's only one; two sketches, the second
+    var sweepHelix=selectedSketchIds().length===1 ? (selectedHelixRecord() || (documentHelixRecords().length===1 ? documentHelixRecords()[0] : null)) : null;
+    if(selectedSketchIds().length===1)state.params.profileMode=sweepHelix?"sketch":"circular";
+    state.params.helixId=sweepHelix ? sweepHelix.id : "";
+    if(sweepHelix)state.params.sweepPathMode="helix";
   }
   if(type==="pattern"){
     var patternSeed=(E.def.features || []).find(function(feature){return (E.authoring.featureSelection || []).includes(feature.id) && FEATURE_PATTERN_SEED_TYPES.includes(feature.type) && feature.inputs?.length;});
@@ -12232,6 +12264,7 @@ function resolveSketch(rollbackOnConflict, fast) {
     before = { pts: {}, r: {} };
     sketch.points.forEach(function (p) { before.pts[p.id] = { x: p.x, y: p.y }; });
     sketch.entities.forEach(function (e) { if (e.type === "circle") before.r[e.id] = e.r; });
+    before.sizes = sketchEntitySizes(sketch);
   }
   // Equations decide what the dimensions are, so they resolve first — solving
   // against last cycle's numbers would show geometry one edit behind.
@@ -12259,7 +12292,8 @@ function resolveSketch(rollbackOnConflict, fast) {
   sketch.constraints.forEach(function (constraint) {
     if (constraint.driven && constraint.value != null) constraint.value = constraintMeasure(sketch,constraint);
   });
-  if (before && (E.solveInfo.status === "conflicting" || refusesAsRepeat(E.solveInfo, previousReport))) {
+  // an edit that "solves" by crushing a drawn entity to nothing fought it (G30)
+  if (before && (E.solveInfo.status === "conflicting" || refusesAsRepeat(E.solveInfo, previousReport) || collapsedEntityIds(sketch, before.sizes).length)) {
     sketch.points.forEach(function (p) {
       var q = before.pts[p.id];
       if (q) { p.x = q.x; p.y = q.y; }
@@ -13034,6 +13068,9 @@ function appendToSketch(label, run) {
   pushUndo(label);
   var made = run(sketch);
   if (!made) { H.discard(); return null; }
+  // the operation's own relations that the sketch already implies are left out
+  // rather than refusing the whole mirror or pattern as a repeat (G27)
+  pruneImpliedRelations(sketch, addedConstraintIds(sketch, before.constraints));
   if (!resolveSketch(true)) {
     var appendedIds = addedConstraintIds(sketch, before.constraints);
     var appendWhy = explainSketchConflict(sketch, { keep: appendedIds });
@@ -13697,7 +13734,7 @@ function makeWallSegment(a, b, options) {
     var r = e.type === "circle" ? Number(e.r) : Math.hypot((sketchPoint(sketch, e.a) || c).x - c.x, (sketchPoint(sketch, e.a) || c).y - c.y);
     return { id: e.id, r: r, center: { u: c.x, v: c.y } };
   }).filter(Boolean);
-  var tangent = inferTangentCircle({ a: a, b: b }, circles);
+  var tangent = inferTangentCircle({ a: a, b: b }, circles), inferred = [];
   inferLineRelations(line, a, { u: b.u, v: b.v }, snap, {
     // Closing an already determined chain needs no extra orientation relation.
     suppress: E._suppressInference || (existingPointIds.has(aid) && existingPointIds.has(bid) && solveSketch(sketch).status === "fully-constrained"), tangentCircleId: tangent && tangent.id,
@@ -13705,8 +13742,12 @@ function makeWallSegment(a, b, options) {
     if (constraintAlreadyPresent(sketch, constraint)) return;
     constraint.id = uid();
     sketch.constraints.push(constraint);
+    inferred.push(constraint.id);
   });
-  if(E.dynamicMirror && E.dynamicMirror.sketchId===sketch.id && sketch.entities.some(function(e){return e.id===E.dynamicMirror.axisId;})) mirrorEntities(sketch,[line.id],E.dynamicMirror.axisId);
+  // only what the sketch does not already say (G27): a line drawn between two
+  // vertical centerlines is vertical already, and a second Vertical is a repeat
+  pruneImpliedRelations(sketch, inferred);
+  if(E.dynamicMirror && E.dynamicMirror.sketchId===sketch.id && sketch.entities.some(function(e){return e.id===E.dynamicMirror.axisId;})){var unmirrored=sketch.constraints.slice();mirrorEntities(sketch,[line.id],E.dynamicMirror.axisId);pruneImpliedRelations(sketch,addedConstraintIds(sketch,unmirrored));}
   resolveSketch(false);
   E.sel = line;
   return line;
@@ -15796,7 +15837,7 @@ function openFeatureEditor(feature) {
   if(E.authoring.repairMarker)host.appendChild(el("div","md-note",t("repairLastLocation")));
   var name=featureField(host,{key:"$name",label:t("fldFeatureName"),type:"text"},feature.name),liveBadge=el("div","md-feature-live on",'<i class="ph ph-broadcast"></i> '+t("featureLiveAllViews"));host.appendChild(liveBadge);
   var pendingFrame=0,controls=renderFeatureParameterForm(host,feature.type,feature,function(next){
-    feature.params={...feature.params,...next.params};setFeatureReferencesFromForm(feature,next.references);feature.name=name.value || feature.name;
+    feature.params={...feature.params,...next.params};setFeatureReferencesFromForm(feature,next.references);retargetSweepHelix(feature);feature.name=name.value || feature.name;
     if(pendingFrame)cancelAnimationFrame(pendingFrame);pendingFrame=requestAnimationFrame(function(){pendingFrame=0;syncLiveFeatureEdit(feature);if(feature.type==="toolbox"&&name.value!==feature.name)name.value=feature.name;liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);});
   });
   name.addEventListener("input",function(){feature.name=name.value || feature.name;var entry=(E.def.history || []).find(function(item){return item.targetId===feature.id;});if(entry)entry.name=feature.name;refreshParts();fillInspector();});
@@ -15806,7 +15847,7 @@ function openFeatureEditor(feature) {
   actions.appendChild(btn('<i class="ph ph-check"></i> '+t("updateFeature"),function(){
     if (!validateFeatureInputs(host)) return;
     var values=readFeatureParameterForm(controls,feature.params);
-    try{updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});setFeatureReferencesFromForm(feature,values.references);syncProjectionFromFeature(feature);E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();refreshAll();flash("✓ "+t("featureRebuiltFromHistory"));}
+    try{updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});setFeatureReferencesFromForm(feature,values.references);retargetSweepHelix(feature);syncProjectionFromFeature(feature);E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();refreshAll();flash("✓ "+t("featureRebuiltFromHistory"));}
     catch(error){flash(String(error.message||error));}
   },"md-quick-apply"));host.appendChild(actions);syncAuthoringWorkflow();syncCommandManager();
   if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();

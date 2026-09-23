@@ -688,12 +688,73 @@ export function solveSketch(sketch, options = {}) {
    repeat of Symmetric and Midpoint (G23). An edit is a repeat only if it
    removed no freedom and added a dependent row. Without a full report of the
    sketch before the edit there is nothing to compare, so it is refused as
-   before. */
+   before.
+   That holds whatever freedom is left (G27): LENSCAP's ThreadSection took a
+   second Equal that its own Midpoint/Equal symmetry already implied at 3 DOF,
+   was accepted silently, and turned the sketch "over-defined" only when the
+   Pierce later took the last freedoms — far from the edit that caused it.
+   SOLIDWORKS refuses the repeat when it is added. */
 export function refusesAsRepeat(report, previous) {
-  if (!report || report.status !== "over-constrained") return false;
-  if (!previous || previous.degreesOfFreedom == null || previous.redundancy == null || report.redundancy == null) return true;
+  if (!report || !report.converged || !report.redundant) return false;
+  if (!previous || previous.degreesOfFreedom == null || previous.redundancy == null || report.redundancy == null) return report.status === "over-constrained";
   if (report.degreesOfFreedom < previous.degreesOfFreedom) return false;
   return report.redundancy > previous.redundancy;
+}
+
+/* Relations an operation adds on its own — a line's inferred Vertical, a
+   mirror's Symmetric pairs — that the sketch already implies. Drawing the left
+   edge of LENSCAP's ThreadSection between two vertical centerlines got an
+   inferred Vertical, and the right edge, drawn over the vertical centerline,
+   another: two of the three redundancies that later read "over-defined" at
+   0 DOF. SOLIDWORKS adds no automatic relation the sketch already implies.
+   Each candidate, in order, is kept only if it removes a freedom or adds no
+   dependent row against the sketch with the relations kept so far; the rest
+   are removed from `sketch.constraints` and their ids returned. A sketch that
+   does not solve is left alone — redundancy means nothing there. */
+export function pruneImpliedRelations(sketch, ids) {
+  const candidates = new Set(ids || []);
+  if (!candidates.size) return [];
+  const probe = (constraints) => {
+    const trial = structuredClone(sketch);
+    trial.constraints = constraints;
+    return solveSketch(trial);
+  };
+  let kept = (sketch.constraints || []).filter((c) => !candidates.has(c.id));
+  let base = probe(kept);
+  if (!base.converged) return [];
+  const dropped = [];
+  for (const c of (sketch.constraints || []).filter((item) => candidates.has(item.id))) {
+    if (c.suppressed || c.driven) { kept = kept.concat(c); continue; }
+    const trial = probe(kept.concat(c));
+    if (trial.converged && trial.degreesOfFreedom >= base.degreesOfFreedom && trial.redundancy > base.redundancy) { dropped.push(c.id); continue; }
+    kept = kept.concat(c);
+    base = trial;
+  }
+  if (dropped.length) sketch.constraints = sketch.constraints.filter((c) => !dropped.includes(c.id));
+  return dropped;
+}
+
+/* The drawn size of every line, arc and circle, so an edit can be checked for
+   having crushed one (see collapsedEntityIds). */
+export function sketchEntitySizes(sketch) {
+  return entitySizes(sketch);
+}
+
+/* Entities an edit collapsed to nothing. A contradictory relation can be
+   "satisfied" by shrinking what it is on: Horizontal on a line that was
+   already Vertical put both ends of LENSCAP's ThreadSection edge on one point
+   and dragged the whole closed profile after it, and the solve reported
+   success (G30). A line, arc or circle that was drawn with a size and now has
+   none — under 1e-3 cm and under 1% of what it was — is a refusal, not a
+   solution. */
+export function collapsedEntityIds(sketch, sizesBefore) {
+  const now = entitySizes(sketch), ids = [];
+  for (const [id, size] of sizesBefore || []) {
+    const after = now.get(id);
+    if (after == null || !(size > 1e-6)) continue;
+    if (after < 1e-3 && after < size * 1e-2) ids.push(id);
+  }
+  return ids;
 }
 
 /* ---- why a sketch will not solve ----

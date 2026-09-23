@@ -102,6 +102,7 @@ const modeler = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8
 test("resolveSketch rolls back an over-constrained edit only when it is a repeat of what was already set", () => {
   const body = modeler.slice(modeler.indexOf("function resolveSketch("), modeler.indexOf("function syncSketchDrivenParts("));
   assert.match(body, /var previousReport = E\._solveSketchId === sketch\.id && E\.solveInfo && E\.solveInfo\.degreesOfFreedom != null \? E\.solveInfo : null;/, "the last full report for this sketch is kept before the solve");
-  assert.match(body, /if \(before && \(E\.solveInfo\.status === "conflicting" \|\| refusesAsRepeat\(E\.solveInfo, previousReport\)\)\) \{/, "the rollback asks refusesAsRepeat");
+  assert.match(body, /if \(before && \(E\.solveInfo\.status === "conflicting" \|\| refusesAsRepeat\(E\.solveInfo, previousReport\)/, "the rollback asks refusesAsRepeat");
+  assert.match(body, /collapsedEntityIds\(sketch, before\.sizes\)\.length/, "an edit that crushes a drawn entity is rolled back too (G30)");
   assert.doesNotMatch(body, /if \(before && \(E\.solveInfo\.status === "conflicting" \|\| E\.solveInfo\.status === "over-constrained"\)\)/, "no blanket over-constrained rollback");
 });

@@ -92,7 +92,7 @@ export function featureField(host, field, value, options) {
   if (field.type === "boolean") {
     input = el("input"); input.type = "checkbox"; input.checked = !!value;
     wrap.appendChild(input); wrap.appendChild(el("span", "md-feature-switch", "<i></i>"));
-  } else if (field.type === "select" || field.type === "axis-reference" || field.type === "plane-reference") {
+  } else if (field.type === "select" || field.type === "axis-reference" || field.type === "plane-reference" || field.type === "helix-reference") {
     input = el("select");
     var choices = field.choices || (options.referenceOptions && options.referenceOptions(field.type)) || [];
     choices.forEach(function (choice) {

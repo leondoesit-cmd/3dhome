@@ -252,6 +252,9 @@ export const FEATURE_CATALOG = Object.freeze({
     editor: { groups: [
       {id:"profile",label:"Sweep profile",fields:[{key:"profileMode",label:"Profile type",type:"select",choices:[{value:"sketch",label:"Sketch profile"},{value:"circular",label:"Circular profile"}]},{key:"profileDiameter",label:"Profile diameter",type:"number",unit:"length",min:1e-6,step:.01}]},
       { id: "path", label: "Path behavior", labelKey: "fcGrpPathBehavior", icon: "ph-path", fields: [
+        // which curve the profile follows: a helix in the document, or the
+        // second selected sketch (G31 — the form used to bind silently)
+        { key: "helixId", label: "Path", labelKey: "fcFldSweepPath", type: "helix-reference" },
         { key: "orientation", label: "Profile orientation", labelKey: "fcFldProfileOrientation", type: "select", choices: [
           {value:"follow-path",label:"Follow path",labelKey:"fcOptFollowPath"},
           {value:"minimum-twist",label:"Minimum twist",labelKey:"fcOptMinimumTwist"},

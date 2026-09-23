@@ -1666,6 +1666,8 @@ export var TXT = {
   fcFldAxis: ["ציר", "Axis"],
   fcFldAngle: ["זווית", "Angle"],
   fcFldProfileOrientation: ["כיוון הפרופיל", "Profile orientation"],
+  fcFldSweepPath: ["מסלול", "Path"],
+  sweepPathSketch: ["הסקיצה השנייה שנבחרה", "Second selected sketch"],
   fcFldTwist: ["פיתול", "Twist"],
   fcFldEndScale: ["קנה־מידה בסוף", "End scale"],
   fcFldCreateSolid: ["יצירת גוף מוצק", "Create solid"],
