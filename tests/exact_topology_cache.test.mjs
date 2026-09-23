@@ -17,4 +17,7 @@ test('verified topology survives appended features but expires when its inputs c
  document.sketches[0].points[0].x=0;
  features[0].params.depth=20;
  assert.equal(verifiedExactTopology(document,features).size,0);
+ features[0].params.depth=10;
+ document.sketches[0].constraints.push({id:'driving',type:'distance',value:2});
+ assert.equal(verifiedExactTopology(document,features).size,0);
 });

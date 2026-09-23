@@ -765,6 +765,17 @@ function applyTexTo(mesh, p, wCm, hCm) {
 
 
 
+/* A saved canonical body can have verified exact topology before its display
+   mesh finishes rebuilding. The signature check covers the feature prefix and
+   every supporting sketch; an edited body must wait for fresh topology. */
+function savedExactTopologyForPart(part) {
+  if (!part || E.docType !== "part" || !E.def?.exactTopologyCache || !isCanonicalAuthoring()) return null;
+  var compiled = compileKernelFeatureTree(E.def);
+  if (!compiled.ok) return null;
+  var head = cutTargetFeatureId(part, E.def);
+  return verifiedExactTopology(E.def, compiled.features).get(head) || null;
+}
+
 function topologyEntriesForPart(part) {
   if (!part) return [];
   var featureId = part.featureId || "feature:part:" + part.id;
@@ -774,6 +785,8 @@ function topologyEntriesForPart(part) {
     var cached = topologyMergeCache.get(part.meshData);
     if (cached) return cached;
   } else {
+    var savedExact = savedExactTopologyForPart(part);
+    if (savedExact?.length) return mergeSmoothTopology(savedExact);
     /* Kernel runs belong to the part document on E.def. A component carries its
        own document, so borrowing them in an assembly scored a component's faces
        against another document's topology — and could hand one of those foreign
@@ -880,7 +893,10 @@ function overlayEntriesForPart(part, mesh) {
   /* Never synthesize pick lines from the pre-cut primitive while its exact
      post-cut topology is rebuilding. Those lines may cross empty space and
      become selectable even though the corresponding material is gone. */
-  if (partNeedsExactMesh(part) && !(part.meshData && Array.isArray(part.meshData.topology) && part.meshData.topology.length)) return [];
+  if (partNeedsExactMesh(part) && !(part.meshData && Array.isArray(part.meshData.topology) && part.meshData.topology.length)) {
+    var savedExact = savedExactTopologyForPart(part);
+    return savedExact?.length ? mergeSmoothTopology(savedExact).filter(function (entry) { return entry.kind === "edge"; }) : [];
+  }
   /* Cache key. An exact body keys on its meshData, which survives rebuilds;
      a primitive has none, so it keys on the tessellated geometry — and
      buildPart makes a NEW geometry every rebuild, so primitives never hit.
@@ -8307,7 +8323,7 @@ function overlayEdgesOnFace(part, face, mesh) {
    candidates is safer than offering a circular rim through a removed slot. */
 function authoritativeFinishTopology(part) {
   if (!part) return null;
-  if (partNeedsExactMesh(part) && !(part.meshData && Array.isArray(part.meshData.topology) && part.meshData.topology.length)) return null;
+  if (partNeedsExactMesh(part) && !(part.meshData && Array.isArray(part.meshData.topology) && part.meshData.topology.length)) return savedExactTopologyForPart(part);
   if(part.meshData?.topology?.length)return part.meshData.topology;
   return topologyEntriesForPart(part);
 }
@@ -8619,7 +8635,8 @@ function filletReferenceEndpoints(reference) {
 
 function finishEdgeDescription(reference) {
   var d=reference.descriptor || {},center=d.origin || d.center;
-  return (d.curve || "Edge")+(Number.isFinite(d.radius)?" · radius "+Number(d.radius.toFixed(4))+" cm":"")+(center?" · center ("+[center.x,center.y,center.z].map(function(value){return Number(value.toFixed(4));}).join(", ")+") cm":"");
+  var unit=modelLengthUnit();
+  return (d.curve || "Edge")+(Number.isFinite(d.radius)?" · radius "+modelLengthText(d.radius,8)+" "+unit:"")+(center?" · center ("+[center.x,center.y,center.z].map(function(value){return modelLengthText(value,8);}).join(", ")+") "+unit:"");
 }
 
 function renderFinishEdgeList() {
@@ -8668,7 +8685,12 @@ function renderFinishEdgeList() {
   /* refreshAll() re-runs this on every preview tick, and rebuilding the list
      under a half-typed radius steals the caret. Only redraw when the list is
      actually different. */
-  var signature = (variable ? "v|" : filletParams?.multipleRadius ? "m|" : "c|") + edges.map(function (reference) { return reference.persistentId; }).join("|");
+  var candidates = part ? allCandidateFinishEdges(part) : [];
+  /* A body selected after the command opens (or a late exact mesh) changes the
+     choices even when the selected-edge well is still empty. */
+  var signature = (variable ? "v|" : filletParams?.multipleRadius ? "m|" : "c|")
+    + (part?.id || "") + "|" + candidates.map(function(reference){return reference.persistentId;}).join(",")
+    + "|" + edges.map(function (reference) { return reference.persistentId; }).join("|");
   if (host.dataset.edgeSignature === signature) return;
   host.dataset.edgeSignature = signature;
   host.innerHTML = "";
@@ -8700,7 +8722,7 @@ function renderFinishEdgeList() {
     var browser=el("details","md-edge-browser"),summary=el("summary","","Browse body edges");
     browser.appendChild(summary);
     var choices=el("div","md-edge-browser-choices");
-    allCandidateFinishEdges(part).forEach(function(reference,index){
+    candidates.forEach(function(reference,index){
       var selected=edges.some(function(edge){return sameFinishEdge(edge,reference);});
       var choice=btn((selected?"✓ ":"")+(index+1)+" · "+finishEdgeDescription(reference),function(){toggleFinishEdges([reference]);},"md-wide");
       choice.addEventListener("mouseenter",function(){E.hoverTopology=reference;refreshChangedPart(part);});
@@ -10635,15 +10657,25 @@ function meshWorldTriangles(mesh) {
   return out;
 }
 
-/* The whole document as triangle soups, one per body. Built into a DETACHED
-   group and disposed straight after: the sheet must never depend on the
-   preview scene existing, because Drawing mode is reachable with the viewport
-   swapped out. Built SHARP (sheetSharpSolids) — the one place the sheet's
-   geometry is deliberately not the viewport's. Falls back to the
-   dependency-free tessellator when three.js has not loaded — which is also the
-   path the exporter and the tests take. */
+/* The whole document as triangle soups, one per body. Ordinary parts use the
+   same dependency-free tessellator as export, including exact meshData when
+   present. Assemblies and transformed instances still build a detached Three
+   group so their placed triangles can be read in world coordinates. */
 function drawingBodies() {
-  if (!threeLoaded() || typeof THREE === "undefined" || !THREE.Group) return tessellateParts(renderedParts(E.def));
+  var parts = renderedParts(E.def);
+  /* Most part drawings need only the body's triangle soup. Rebuilding an
+     entire Three scene here also creates edge-pick and appearance overlays,
+     then disposes them while the WebGPU viewport is swapping away. Exact
+     meshData already is the authoritative solid, so take it directly. Keep
+     the scene path for assemblies and transformed part instances. */
+  if (E.docType === "part" && parts.every(function(part){return !partPatternRotations(part).length;})) {
+    var direct = tessellateParts(parts);
+    if (direct.length === parts.length) return direct.map(function(body,index){
+      var exactBounds=parts[index].meshData?.exactBounds;
+      return exactBounds ? {...body,exactBounds} : body;
+    });
+  }
+  if (!threeLoaded() || typeof THREE === "undefined" || !THREE.Group) return tessellateParts(parts);
   var group = new THREE.Group(), bodies = [];
   sheetSharpSolids = true;
   try {

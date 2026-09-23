@@ -56,11 +56,25 @@ test("modeler dedupes the finish edge selection on geometry, not only on id", ()
   assert.match(modelerSource, /overlapping = dedupeFinishRefs\(overlapping\)/);
 });
 
-test("finish tools never fall back to pre-cut analytic edges while exact topology rebuilds", () => {
+test("finish tools use only signature-verified saved edges while an exact display mesh rebuilds", () => {
   assert.match(modelerSource, /function authoritativeFinishTopology\(part\)/);
-  assert.match(modelerSource, /partNeedsExactMesh\(part\)[\s\S]{0,180}return null/);
+  assert.match(modelerSource, /function savedExactTopologyForPart\(part\)[\s\S]*?verifiedExactTopology\(E\.def, compiled\.features\)\.get\(head\) \|\| null/);
+  assert.match(modelerSource, /partNeedsExactMesh\(part\)[\s\S]{0,180}return savedExactTopologyForPart\(part\)/);
+  assert.match(modelerSource, /return savedExact\?\.length \? mergeSmoothTopology\(savedExact\)\.filter/);
   assert.match(modelerSource, /canonicalFinishEdges\(edges,part\)/);
   assert.doesNotMatch(modelerSource, /measure < 2 \* Math\.PI \* radius \* 0\.92/);
+});
+
+test("finish edge browser refreshes on body and topology changes and labels document units", () => {
+  assert.match(modelerSource, /var candidates = part \? allCandidateFinishEdges\(part\) : \[\]/);
+  assert.match(modelerSource, /\(part\?\.id \|\| ""\) \+ "\|" \+ candidates\.map/);
+  assert.match(modelerSource, /candidates\.forEach\(function\(reference,index\)/);
+  assert.match(modelerSource, /function finishEdgeDescription\(reference\)[\s\S]{0,280}modelLengthText\(d\.radius,8\)/);
+});
+
+test("ordinary part drawings use exact triangle data without constructing a GPU scene", () => {
+  assert.match(modelerSource, /function drawingBodies\(\)[\s\S]{0,800}E\.docType === "part"[\s\S]{0,350}tessellateParts\(parts\)/);
+  assert.match(modelerSource, /direct\.length === parts\.length/);
 });
 
 test("saved rim-breaking holes migrate before the editor exposes topology", () => {
