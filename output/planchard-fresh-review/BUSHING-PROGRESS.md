@@ -10,4 +10,6 @@ Browser-authored from ebook PDF page 302 on 2026-09-23.
 - ANSI inch / third-angle drawing preset selected.
 - Saved as **BUSHING - exercise 6.1**. Visual inspection matches the stepped hollow bushing.
 
-Outstanding: model workspace still displays cm; drawing preset alone is not a complete document-wide IPS system. Save/reopen and independent dimensional measurement remain to be checked. No claim of complete textbook exercise verification yet.
+2026-09-24 browser retest: the saved library model reopens and exact-rebuilds as one solid. Part units persist as inches; the model size reads 0.4 × 0.4 × 0.15 in, the six profile points show the expected 0.094/0.1415/0.2 in radii and 0.05/0.15 in heights, and the sketch remains fully defined. Canvas dimension labels and inspector dimension values now agree in inches, including 0.05 and 0.1 in steps. The feature editor presents length parameters in inches, while the drawing keeps ANSI/inch and third-angle settings. Core authoring, sketch, size, and Measure readouts now use document units without rescaling stored geometry. The browser copy was saved again after verification.
+
+Outstanding: independent BREP face-to-face measurement in the browser and wider textbook workflow coverage. No claim of complete exercise verification yet.

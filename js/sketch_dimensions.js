@@ -1,6 +1,7 @@
 // Interactive sketch dimensions & annotations rendering and manipulation.
 
 import { lineData, circleData, ellipseData, sketchPoint, sketchEntity } from "./sketch_solver.js";
+import {documentLengthUnit,formatDocumentLength} from './core/document_length_units.js';
 
 export function isDarkSketchCanvas(options = {}) {
   if (typeof options.isDark === "boolean") return options.isDark;
@@ -43,8 +44,7 @@ const DRIVING = "#1d4ed8";
 const DRIVEN = "#64748b";
 const CONFLICT = "#dc2626";
 
-// Millimetre work needs three decimals of a centimetre; trailing zeros go.
-const dimText = (value) => `${Number(Number(value).toFixed(3))} cm`;
+const dimText = (value, unit = 'cm') => `${formatDocumentLength(value, unit, 10)} ${documentLengthUnit(unit)}`;
 
 /* A smart dimension is just a driving constraint with a value the solver has to
    satisfy — the same object the constraint list shows, so editing a dimension
@@ -179,12 +179,12 @@ function pointSegmentDistance(x, y, a, b) {
    linear ones answered here, so HOUSING step 331 ("double-click the .100
    fillet dimension") did nothing. An angle's "line" is its 12 px ring, not the
    line midpoint, so double-clicking a line to set its length still works. */
-function dimensionHitShape(sketch, c, toPx, points, entities) {
+function dimensionHitShape(sketch, c, toPx, points, entities, unit) {
   const labelBox = (lx, ly, text) => ({ x0: lx - 6, x1: lx + Math.max(42, text.length * 7 + 12), y0: ly - 17, y1: ly + 7 });
   if (["distance","offset","pointLineDistance"].includes(c.type)) {
     const layout = distanceDimensionLayout(sketch, c, toPx);
     if (!layout) return null;
-    return { box: labelBox(layout.label.x, layout.label.y, `${Math.round(Number(c.value) * 10) / 10} cm`), a: layout.a, b: layout.b };
+    return { box: labelBox(layout.label.x, layout.label.y, dimText(c.value, unit)), a: layout.a, b: layout.b };
   }
   if (c.type === "radius" || c.type === "diameter") {
     const circ = circleData(entities.get(c.entity), points);
@@ -192,14 +192,14 @@ function dimensionHitShape(sketch, c, toPx, points, entities) {
       const direction = -Math.PI / 4;
       const centre = toPx(circ.center.x, circ.center.y);
       const rim = toPx(circ.center.x + Math.cos(direction) * circ.radius, circ.center.y + Math.sin(direction) * circ.radius);
-      return { box: labelBox(rim.x + 4, rim.y - 4, (c.type === "radius" ? "R " : "Ø ") + dimText(c.value)), a: centre, b: rim };
+      return { box: labelBox(rim.x + 4, rim.y - 4, (c.type === "radius" ? "R " : "Ø ") + dimText(c.value, unit)), a: centre, b: rim };
     }
     const ell = ellipseData(entities.get(c.entity), points);
     if (!ell) return null;
     const minor = c.axis === "minor", along = minor ? ell.rot + Math.PI / 2 : ell.rot, reach = minor ? ell.ry : ell.rx;
     const from = toPx(ell.center.x, ell.center.y);
     const to = toPx(ell.center.x + Math.cos(along) * reach, ell.center.y + Math.sin(along) * reach);
-    return { box: labelBox(to.x + 4, to.y - 4, `${minor ? "b" : "a"} ${dimText(c.value)}`), a: from, b: to };
+    return { box: labelBox(to.x + 4, to.y - 4, `${minor ? "b" : "a"} ${dimText(c.value, unit)}`), a: from, b: to };
   }
   if (c.type === "angle") {
     const l = lineData(c.entity ? entities.get(c.entity) : entities.get(c.a), points);
@@ -210,13 +210,13 @@ function dimensionHitShape(sketch, c, toPx, points, entities) {
   return null;
 }
 
-export function hitSketchDimensionHit(sketch, x, y, toPx, tolerance = 9) {
+export function hitSketchDimensionHit(sketch, x, y, toPx, tolerance = 9, unit = 'cm') {
   let best = null, bestDistance = Infinity, bestKind = "line";
   const points = new Map((sketch && sketch.points || []).map((p) => [p.id, p]));
   const entities = new Map((sketch && sketch.entities || []).map((e) => [e.id, e]));
   for (const constraint of sketch && sketch.constraints || []) {
     if (constraint.suppressed || constraint.value == null) continue;
-    const shape = dimensionHitShape(sketch, constraint, toPx, points, entities);
+    const shape = dimensionHitShape(sketch, constraint, toPx, points, entities, unit);
     if (!shape) continue;
     const box = shape.box;
     const inLabel = x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1;
@@ -241,8 +241,8 @@ export function dimensionHitYieldsToPoint(hit, underPointer) {
   return hit.kind !== "label" && isPoint ? null : hit;
 }
 
-export function hitSketchDimension(sketch, x, y, toPx, tolerance = 9) {
-  const hit = hitSketchDimensionHit(sketch, x, y, toPx, tolerance);
+export function hitSketchDimension(sketch, x, y, toPx, tolerance = 9, unit = 'cm') {
+  const hit = hitSketchDimensionHit(sketch, x, y, toPx, tolerance, unit);
   return hit ? hit.constraint : null;
 }
 
@@ -251,6 +251,7 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
   const points = new Map((sketch.points || []).map((p) => [p.id, p]));
   const entities = new Map((sketch.entities || []).map((e) => [e.id, e]));
   const palette = getDimensionPalette(options);
+  const unit = documentLengthUnit(options.unit);
 
   ctx.save();
   ctx.font = "12px sans-serif";
@@ -273,7 +274,7 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
       ctx.moveTo(layout.p2.x, layout.p2.y); ctx.lineTo(layout.b.x, layout.b.y);
       ctx.moveTo(layout.a.x, layout.a.y); ctx.lineTo(layout.b.x, layout.b.y);
       ctx.stroke();
-      const label = dimText(c.value);
+      const label = dimText(c.value, unit);
       const textWidth = ctx.measureText ? ctx.measureText(label).width : (label.length * 7);
       const pad = 4;
       const boxW = textWidth + pad * 2;
@@ -306,7 +307,7 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
         ctx.moveTo(cp.x, cp.y);
         ctx.lineTo(rim.x, rim.y);
         ctx.stroke();
-        const label = (c.type === "radius" ? "R " : "Ø ") + dimText(c.value);
+        const label = (c.type === "radius" ? "R " : "Ø ") + dimText(c.value, unit);
         const textWidth = ctx.measureText ? ctx.measureText(label).width : (label.length * 7);
         const pad = 4;
         const lx = rim.x + 4, ly = rim.y - 4;
@@ -336,7 +337,7 @@ export function drawSketchDimensions(ctx, sketch, scale, toPx, conflicts = [], o
       ctx.beginPath();
       ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y);
       ctx.stroke();
-      const label = `${minor ? "b" : "a"} ${dimText(c.value)}`;
+      const label = `${minor ? "b" : "a"} ${dimText(c.value, unit)}`;
       const textWidth = ctx.measureText ? ctx.measureText(label).width : (label.length * 7);
       const pad = 4;
       const lx = to.x + 4, ly = to.y - 4;

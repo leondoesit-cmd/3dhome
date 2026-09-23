@@ -25,6 +25,7 @@ import { sketchProfileSegments } from "./core/profile_curves.js";
 import { captureExactTopology, verifiedExactTopology } from './core/exact_topology_cache.js';
 import { parallelStraightEdges } from "./core/edge_selection.js";
 import { modelDimensions, formatModelLength } from "./core/model_dimensions.js";
+import {documentLengthUnit,formatDocumentLength,lengthFromDocument,lengthToDocument} from './core/document_length_units.js';
 import {generatedRackGear,validateGearPair} from "./cad_gear_geometry.js";
 import {addCubicSpline,splineControls,sampleBezier} from "./sketch_spline.js";
 import {repairReferences,restoreSketchConstraint} from "./sketch_edit_repair.js";
@@ -4232,6 +4233,7 @@ function buildDOM() {
   var cons = root.querySelector("#mdCons");
   var dUnit = getDomainUnit("details");
   cons.innerHTML =
+    '<label class="md-row"><span class="t">' + t("partUnits") + '</span><select id="mdDocumentLengthUnit" aria-label="' + t("partUnits") + '"><option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option><option value="in">in</option><option value="ft">ft</option></select></label>' +
     '<label class="md-row"><span class="t">' + t("gridSize") + '</span><input id="mdGrid" type="number" value="' + toDisp(5, "details") + '" min="1"><span class="u">' + dUnit + '</span></label>' +
     '<label class="md-check"><input type="checkbox" id="mdOsnap" checked><span>' + t("osnap") + "</span></label>" +
     '<label class="md-check"><input type="checkbox" id="mdNormalTo"><span>' + t("prefNormalTo") + "</span></label>" +
@@ -4322,6 +4324,14 @@ function buildDOM() {
   coachBox.checked = !!E.coachEnabled;
   coachBox.addEventListener("change", function () { E.coachEnabled = this.checked; E.coachDismissed = false; saveModelerPrefs(); syncCoach(); });
   cons.querySelector("#mdGuideReplay").addEventListener("click", function () { setTab("parts"); startTour(); });
+  cons.querySelector("#mdDocumentLengthUnit").addEventListener("change", function () {
+    var unit=documentLengthUnit(this.value);
+    if(unit===modelLengthUnit())return;
+    pushUndo(t("partUnits"));
+    E.def.context ||= {};E.def.context.units ||= {};
+    E.def.context.units.length=unit;
+    refreshAll();
+  });
   cons.querySelector("#mdGrid").addEventListener("change", function () { E.grid = Math.max(0.1, fromDisp(+this.value || 5, "details")); drawSketch(); syncStatus(); });
   cons.querySelector("#mdDepth").addEventListener("change", function () { E.depth = Math.max(0.1, fromDisp(+this.value || 60, "details")); });
   cons.querySelector("#mdBase").addEventListener("change", function () { E.baseOff = fromDisp(+this.value || 0, "details"); });
@@ -6521,6 +6531,16 @@ function syncAuthoringWorkflow() {
   var history=root.querySelector("#mdWorkflowHistory");if(history)history.textContent=(E.def.history || []).length+" "+t("wfEditableSteps");
   root.classList.toggle("md-authoring-sketch",phase==="sketch");
   syncCoach();
+}
+function modelLengthUnit() {
+  return documentLengthUnit(E.def?.context?.units?.length);
+}
+function modelLengthText(cm, digits=10) {
+  return formatDocumentLength(cm, modelLengthUnit(), digits);
+}
+function modelAreaText(cm2) {
+  var value=cm2*Math.pow(lengthToDocument(1,modelLengthUnit()),2);
+  return String(Number(value.toPrecision(10)))+' '+modelLengthUnit()+'²';
 }
 function faceSketchAttachment() {
   var support=(E.topologySelection || []).find(function(reference){return reference.kind==="face";});
@@ -9392,13 +9412,14 @@ function openQuickForm(spec) {
   section.appendChild(el("summary", "", '<i class="ph ph-sliders-horizontal"></i><span>' + spec.title + "</span><small>" + spec.fields.length + "</small>"));
   var body = el("div", "md-feature-group-body");
   var inputs = {};
-  spec.fields.forEach(function (field) { inputs[field.key] = featureField(body, field, field.value); });
+  var fields=spec.fields.map(function(field){return field.unit==='length' ? {...field,inputUnit:modelLengthUnit()} : field;});
+  fields.forEach(function (field) { inputs[field.key] = featureField(body, field, field.value); });
   section.appendChild(body);
   host.appendChild(section);
 
   var read = function () {
     var values = {};
-    spec.fields.forEach(function (field) {
+    fields.forEach(function (field) {
       var raw = inputs[field.key].value;
       values[field.key] = field.type === "boolean" ? inputs[field.key].checked : field.type === "number" ? featureControlValue({field:field,input:inputs[field.key]}) : String(raw);
     });
@@ -10359,8 +10380,7 @@ function hoverReadout(reference) {
     : t("selKindMixed");
   var measure = Number(reference.descriptor && reference.descriptor.measure);
   if (reference.kind !== "edge" || !fin(measure) || measure <= 0) return kind;
-  // "cm" reads the same in both languages, as it does on the library cards.
-  return kind + " · " + (Math.round(measure * 10) / 10) + " cm";
+  return kind + " · " + modelLengthText(measure,7) + " " + modelLengthUnit();
 }
 
 /* The distance an armed Measure would report if you clicked here. Nothing when
@@ -10372,7 +10392,7 @@ function liveMeasureReadout() {
   if (E.measure.picks.length >= 2) return null;
   if (!first) return measureCoordinates(E.hoverPoint);
   var span = measureDistance(first, E.hoverPoint);
-  return t("measureLength") + " " + span.distance + " cm";
+  return t("measureLength") + " " + modelLengthText(span.distance,8) + " " + modelLengthUnit();
 }
 
 function syncHint() {
@@ -10534,9 +10554,9 @@ function syncStatus() {
   st.innerHTML =
     '<b>' + sketchPlaneCaption() + "</b>" +
     '<span class="md-st-sep"></span>' +
-    (m ? lbl[0] + " " + (Math.round(m.u * 10) / 10) + " · " + lbl[1] + " " + (Math.round(m.v * 10) / 10) + " cm" : "—") +
+    (m ? lbl[0] + " " + modelLengthText(m.u,6) + " · " + lbl[1] + " " + modelLengthText(m.v,6) + " " + modelLengthUnit() : "—") +
     '<span class="md-st-sep"></span>' +
-    '<i class="ph ph-grid-four"></i> ' + E.grid + " cm" +
+    '<i class="ph ph-grid-four"></i> ' + modelLengthText(E.grid,6) + " " + modelLengthUnit() +
     (E.osnap ? '<span class="md-st-sep"></span><i class="ph ph-magnet"></i>' : "") +
     '<span class="md-st-sep"></span>' + Math.round(E.scl * 50) + "%" +
     (E.docType === "part" && E.solveInfo && ensureSketch(E.def).entities.length
@@ -10817,7 +10837,16 @@ function buildSheetPanel(host) {
   sheetRow(setup, t("sheetUnits"), sheetSelect([
     { value: "mm", label: "mm" }, { value: "cm", label: "cm" }, { value: "m", label: "m" }, { value: "in", label: "in" },
   ], doc.units, function (value) { sheet.setSheetOption("units", value); drawSketch(); })).id = "mdSheetUnits";
-  sheetRow(setup,t("sheetDraftingStandard"),sheetSelect([{value:"custom",label:t("sheetCustomStandard")},{value:"ANSI",label:"ANSI · inch / third angle"},{value:"ISO",label:"ISO · mm / first angle"}],doc.draftingStandard||"custom",function(value){sheet.setSheetOption("draftingStandard",value);drawSketch();})).id="mdSheetStandard";
+  sheetRow(setup,t("sheetDraftingStandard"),sheetSelect([{value:"custom",label:t("sheetCustomStandard")},{value:"ANSI",label:"ANSI · inch / third angle"},{value:"ISO",label:"ISO · mm / first angle"}],doc.draftingStandard||"custom",function(value){
+    sheet.setSheetOption("draftingStandard",value);
+    if(value==="ANSI"||value==="ISO"){
+      E.def.context ||= {};E.def.context.units ||= {};
+      E.def.context.units.length=value==="ANSI"?"in":"mm";
+      var unitControl=root.querySelector("#mdDocumentLengthUnit");if(unitControl)unitControl.value=E.def.context.units.length;
+      syncSizeReadout();syncAuthoringWorkflow();syncStatus();
+    }
+    drawSketch();
+  })).id="mdSheetStandard";
   sheetRow(setup,t("sheetSecondaryUnits"),sheetSelect([{value:"",label:t("sheetNoSecondary")},...["mm","cm","m","in"].map(value=>({value,label:value}))],doc.secondaryUnits||"",function(value){sheet.setSheetOption("secondaryUnits",value);drawSketch();})).id="mdSheetSecondaryUnits";
   sheetRow(setup,t("sheetSecondaryPrecision"),sheetSelect([0,1,2,3,4,5,6].map(value=>({value:String(value),label:String(value)})),String(doc.secondaryPrecision??2),function(value){sheet.setSheetOption("secondaryPrecision",value);drawSketch();})).id="mdSheetSecondaryPrecision";
   sheetRow(setup,t("sheetPrecision"),sheetSelect([{value:"auto",label:t("sheetPrecisionAuto")},...[0,1,2,3,4,5,6].map(value=>({value:String(value),label:String(value)}))],Number.isInteger(doc.precision)?String(doc.precision):"auto",function(value){sheet.setSheetOption("precision",value);drawSketch();})).id="mdSheetPrecision";
@@ -11341,7 +11370,7 @@ function drawSketch() {
     });
     c.save();
     if (projected) { c.shadowColor = "rgba(2,8,23,.9)"; c.shadowBlur = 3; }
-    drawSketchDimensions(c, sketch, E.scl, toPx, conflicts, { selectedId: E.dimSel, isDark: isDark });
+    drawSketchDimensions(c, sketch, E.scl, toPx, conflicts, { selectedId: E.dimSel, isDark: isDark, unit:modelLengthUnit() });
     drawConstraintGlyphs(c, sketch, toPx, conflicts, { isDark: isDark });
     c.restore();
     if (refused) {
@@ -12537,25 +12566,24 @@ function sketchSelectionSummary() {
       var span = (circle.end - circle.start + Math.PI * 2) % (Math.PI * 2);
       return sum + span * circle.radius;
     }, 0);
-    return entities.length + " " + t("selectedLabel") + " · Σ " + Math.round(total * 10) / 10 + " cm";
+    return entities.length + " " + t("selectedLabel") + " · Σ " + modelLengthText(total,8) + " " + modelLengthUnit();
   }
   if (entities.length === 1) {
     var entity = entities[0];
     if (entity.type === "line") {
       var line = lineData(entity, points);
-      return line ? "L " + Math.round(line.length * 10) / 10 + " cm · " + Math.round(line.angle * 1800 / Math.PI) / 10 + "°" : "";
+      return line ? "L " + modelLengthText(line.length,8) + " " + modelLengthUnit() + " · " + Math.round(line.angle * 1800 / Math.PI) / 10 + "°" : "";
     }
     if (entity.type === "ellipse") {
       var one = ellipseData(entity, points);
-      return one ? "Ø " + Number((one.rx * 2).toFixed(3)) + " × " + Number((one.ry * 2).toFixed(3)) + " cm · "
+      return one ? "Ø " + modelLengthText(one.rx * 2,8) + " × " + modelLengthText(one.ry * 2,8) + " " + modelLengthUnit() + " · "
         + Math.round((one.rot * 1800) / Math.PI) / 10 + "° · A "
-        + Math.round(Math.PI * one.rx * one.ry * 10) / 10 + " cm²" : "";
+        + modelAreaText(Math.PI * one.rx * one.ry) : "";
     }
     var circle = circleData(entity, points);
-    // three decimals of a cm: a 0.1 in (2.54 mm) sketch fillet read "R 0.3 cm"
-    return circle ? "R " + Number(circle.radius.toFixed(3)) + " cm" + (entity.type === "circle" ? " · A " + Number((Math.PI * circle.radius * circle.radius).toFixed(3)) + " cm²" : "") : "";
+    return circle ? "R " + modelLengthText(circle.radius,8) + " " + modelLengthUnit() + (entity.type === "circle" ? " · A " + modelAreaText(Math.PI * circle.radius * circle.radius) : "") : "";
   }
-  if (pickedPoints.length === 1) return "X " + Number(pickedPoints[0].x.toFixed(3)) + " · Y " + Number(pickedPoints[0].y.toFixed(3)) + " cm";
+  if (pickedPoints.length === 1) return "X " + modelLengthText(pickedPoints[0].x,8) + " · Y " + modelLengthText(pickedPoints[0].y,8) + " " + modelLengthUnit();
   return E.ssel.length + " " + t("selectedLabel");
 }
 
@@ -13302,12 +13330,12 @@ function activateDrawingSketch(sketch) {
 }
 
 function placedDimensionAt(sketch, px, py) {
-  var hit = sketch ? hitSketchDimensionHit(sketch, px, py, toPx, 10) : null;
+  var hit = sketch ? hitSketchDimensionHit(sketch, px, py, toPx, 10, modelLengthUnit()) : null;
   return hit ? hit.constraint : null;
 }
 
 function placedDimensionHit(sketch, px, py) {
-  return sketch ? hitSketchDimensionHit(sketch, px, py, toPx, 10) : null;
+  return sketch ? hitSketchDimensionHit(sketch, px, py, toPx, 10, modelLengthUnit()) : null;
 }
 
 function placeDimensionAtPointer(sketch, constraint, px, py) {
@@ -13335,10 +13363,10 @@ function clearDimensionRefusal() {
 function constraintKindCaption(constraint) {
   if (constraint.name) return constraint.name;
   if (constraint.value != null) {
-    var n = Number(Number(constraint.value).toFixed(3));
+    var n = constraint.type === "angle" ? Number(Number(constraint.value).toFixed(3)) : modelLengthText(Number(constraint.value),6);
     return constraint.type === "angle" ? n + "°"
-      : constraint.type === "radius" ? "R " + n + " cm"
-      : constraint.type === "diameter" ? "Ø " + n + " cm" : n + " cm";
+      : constraint.type === "radius" ? "R " + n + " " + modelLengthUnit()
+      : constraint.type === "diameter" ? "Ø " + n + " " + modelLengthUnit() : n + " " + modelLengthUnit();
   }
   if (constraint.type === "pointOnCircle") return t("cPointOnLine");
   if (constraint.type === "onModelEdge") return t("cCoincident");
@@ -16715,7 +16743,7 @@ function syncSizeReadout(sketchCount) {
   if (sketchCount == null) sketchCount = ensureSketchDoc(E.def).reduce(function (a, s2) { return a + s2.entities.length; }, 0);
   var b = defBounds(E.def);
   sizeEl.textContent = renderedParts(E.def).length
-    ? [b.x1 - b.x0, b.z1 - b.z0, b.y1 - b.y0].map(formatModelLength).join("×") + " cm"
+    ? [b.x1 - b.x0, b.z1 - b.z0, b.y1 - b.y0].map(value=>modelLengthText(value)).join("×") + " " + modelLengthUnit()
     : sketchCount ? sketchCount + " sketch" : "";
 }
 
@@ -17688,7 +17716,7 @@ function appendSketchGeometryList(host, sketch) {
     });
     details.appendChild(button);
   }
-  var coord=function(point){return "("+Number(point.x.toFixed(6))+", "+Number(point.y.toFixed(6))+") cm";};
+  var coord=function(point){return "("+modelLengthText(point.x,9)+", "+modelLengthText(point.y,9)+") "+modelLengthUnit();};
   sketch.entities.forEach(function(entity,index){
     pick(entity,(entity.name||entity.type)+" "+(index+1)+(entity.construction?" · "+t("tool_constr"):""));
     entityPoints(sketch,entity).forEach(function(point,pointIndex){
@@ -17989,14 +18017,15 @@ function fillSketchPane() {
       var inp = el("input", "md-dim-value");
       inp.type = "text";
       inp.disabled = !!con.driven;
-      inp.value = con.expr != null && String(con.expr).trim() ? String(con.expr) : String(con.value);
+      inp.value = con.expr != null && String(con.expr).trim() ? String(con.expr)
+        : con.type === 'angle' ? String(con.value) : modelLengthText(Number(con.value),12);
       inp.title = t("eqHelp");
       inp.addEventListener("change", function () {
         var text = inp.value.trim();
         var numeric = parseFloat(text);
         var isPlainNumber = String(numeric) === text && fin(numeric);
         var value;
-        if (isPlainNumber) value = numeric;
+        if (isPlainNumber) value = con.type === 'angle' ? numeric : lengthFromDocument(numeric,modelLengthUnit());
         else {
           // an expression has to make sense before it is allowed into the model
           try {
@@ -18004,7 +18033,7 @@ function fillSketchPane() {
               var entry = collectSymbols(E.def).get(ref);
               return entry ? Number(entry.node.value) : undefined;
             });
-          } catch (error) { flash(String(error.message || error)); inp.value = con.expr || con.value; return; }
+          } catch (error) { flash(String(error.message || error)); inp.value = con.expr || (con.type==='angle' ? String(con.value) : modelLengthText(Number(con.value),12)); return; }
         }
         pushUndo(t("opDim"));
         var oldValue = con.value, oldExpr = con.expr;
@@ -18060,7 +18089,9 @@ function fillSketchPane() {
     row.appendChild(del);
     if (con.value != null) {
       row.appendChild(el("span", "md-var-val",
-        con.exprError ? "—" : (Math.round(con.value * 10) / 10) + (con.type === "angle" ? "°" : "")));
+        con.exprError ? "—" : con.type === "angle"
+          ? String(Number(Number(con.value).toPrecision(8))) + "°"
+          : modelLengthText(Number(con.value),10) + " " + modelLengthUnit()));
     }
     list.appendChild(row);
   });
@@ -22037,6 +22068,8 @@ function refreshLib() {
 function syncHead() {
   var name = root.querySelector("#mdName"), price = root.querySelector("#mdPrice");
   var description = root.querySelector("#mdDescription");
+  var unitControl=root.querySelector("#mdDocumentLengthUnit");
+  if(unitControl && E.docType==="part")unitControl.value=modelLengthUnit();
   if (description) description.value = documentDescription(E.docType === "assembly" ? E.assembly : E.def);
   if (E.docType === "assembly") {
     name.value = E.assembly ? E.assembly.name || "" : "";
@@ -22604,7 +22637,7 @@ function endMeasure() {
 }
 
 function measureCoordinates(pick) {
-  return "X " + pick.x.toFixed(2) + "   Y " + pick.y.toFixed(2) + "   Z " + pick.z.toFixed(2);
+  return "X " + modelLengthText(pick.x,8) + "   Y " + modelLengthText(pick.y,8) + "   Z " + modelLengthText(pick.z,8) + " " + modelLengthUnit();
 }
 
 function renderMeasureCard() {
@@ -22626,8 +22659,8 @@ function renderMeasureCard() {
       evalRow(body, t("measureAngle"), measureAngleBetweenNormals(measure.picks[0].normal, measure.picks[1].normal) + "°");
     } else {
       var span = measureDistance(measure.picks[0], measure.picks[1]);
-      evalRow(body, t("measureLength"), span.distance + " cm");
-      evalRow(body, "ΔX / ΔY / ΔZ", span.dx + " / " + span.dy + " / " + span.dz + " cm");
+      evalRow(body, t("measureLength"), modelLengthText(span.distance,10) + " " + modelLengthUnit());
+      evalRow(body, "ΔX / ΔY / ΔZ", [span.dx,span.dy,span.dz].map(value=>modelLengthText(value,10)).join(" / ") + " " + modelLengthUnit());
     }
   }
   var actions = evalCardActions();

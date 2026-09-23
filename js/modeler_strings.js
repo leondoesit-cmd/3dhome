@@ -322,6 +322,7 @@ export var TXT = {
   sheetTrailingZeros: ["הצגת אפסים בסוף", "Show trailing zeros"],
   sheetPrecisionAuto: ["לפי יחידות", "From units"],
   sheetUnits: ["יחידות", "Units"],
+  partUnits: ["יחידות חלק", "Part units"],
   sheetProjection: ["זווית היטל", "Projection"],
   sheetThirdAngle: ["זווית שלישית", "Third angle"],
   sheetFirstAngle: ["זווית ראשונה", "First angle"],
