@@ -30,7 +30,7 @@ import {
 } from "./wall_draw.js";
 import { normalizeWallKind, curvedWallOutline, pointAtWall, tangentAtWall, makeArcFromThreePoints } from "./wall_curves.js";
 import { referenceFloorScene } from "./floors.js";
-import { FURN, flabel, isLamp, lampColor, fcolor, itemVSpan } from "./furniture.js";
+import { FURN, flabel, isLamp, lampColor, fcolor, itemVSpan, vspec } from "./furniture.js";
 import { isSmartType, devicePowered } from "./smarthome.js";
 import { planCab } from "./cabinet.js";
 import { t } from "./i18n.js";
@@ -57,6 +57,15 @@ import { cursors, pruneCursors } from "./plan_sync.js";
 import { isLayerVisible, isLayerGhosted, isLayerHidden, layerRank } from "./layers.js";
 import { roomClearArea } from "./room_area.js";
 import { fmtAreaM2, fmtLen, unitLabel } from "./display_units.js";
+import { isPresentation, planStyle, planTheme } from "./plan_style.js";
+import { patternFill } from "./plan_patterns.js";
+import { floorPaintCanvas, floorMeanColor, groundPaintCanvas } from "./primitives.js";
+import { itemSprite } from "./plan_sprites.js";
+import { spriteMode } from "./plan_sprite_key.js";
+import { roomLabelLines, roomLabelFont } from "./plan_labels.js";
+import { symbolPrims, stairShape } from "./plan_symbols.js";
+import { roomMeasurements } from "./room_summary.js";
+import { TILE } from "./state.js";
 
 export {
   sx, sz, wx, wz, planRotRad, toBasePx, rotatePx, dropPoint, centerOn, isOnScreen,
@@ -704,7 +713,8 @@ function renderModel() {
     drawSiteUnderlay(bb);
     drawBlueprintUnderlay(pc, sx, sz);
   });
-  drawGrid(ext);
+  // a presentation plan is a picture of the house, not a drafting surface
+  if (!isPresentation()) drawGrid(ext);
   band("underlay", drawReferenceFloor);
   /* The room polygons and the hidden-set maps are needed by every band below,
      hidden structure included — an item is hidden because its ROOM is, so the
@@ -736,13 +746,17 @@ function renderModel() {
       .forEach(function (it) { drawItem(it); });
   });
   band("structure", function () {
+    if (isPresentation())
+      drawPresentationWalls(S.walls.filter(function (w) {
+        return !hid.walls[w.id] && !proxied("wall", w);
+      }));
     S.walls.forEach(function (w) {
       if (!hid.walls[w.id] && !proxied("wall", w)) drawWall(w);
     });
     S.openings.forEach(function (o) {
       if (!hid.walls[o.wall] && !proxied("opening", o)) drawOpening(o);
     });
-    drawNodes(hid);
+    if (!isPresentation()) drawNodes(hid);
   });
   if (!mepOnHud())
     band("mep", function () {
@@ -753,7 +767,8 @@ function renderModel() {
     drawMarkers();
     drawWallCons();
     // room name + area labels
-    roomPass.rooms.forEach(function (r) {
+    if (isPresentation()) drawPresentationRoomLabels(roomPass.rooms);
+    else roomPass.rooms.forEach(function (r) {
       var nm = roomName(r.key),
         clearArea = roomClearArea(S, r),
         areaText = clearArea.area == null
@@ -1306,6 +1321,11 @@ if (typeof window !== "undefined")
    having them poll is what keeps the numbers on the bar and the numbers on the
    rubber band identical: interaction's pointermove is throttled, so anything
    reading S from its own listener is a frame behind. */
+// a slice of furniture pictures finished baking (js/plan_sprites.js)
+if (typeof window !== "undefined")
+  window.addEventListener("planSpritesReady", function () {
+    if (isPresentation()) render2D();
+  });
 var afterRender = [];
 export function onAfterRender(fn) {
   if (typeof fn === "function") afterRender.push(fn);
@@ -2132,8 +2152,11 @@ function drawScale() {
   var cm = niceScaleCm(S.SC);
   var w = cm * S.SC,
     x0 = S.CW - w - 16,
-    // clear of the CAD status bar pinned along the bottom edge (js/cad_hud.js)
-    y0 = S.CH - 18 - 30,
+    /* The CAD strip is user-movable/resizable and its wrapper is taller than
+       the inner status row. Reserving a hard-coded 30px drew the scale card
+       underneath the wrapper. Measure the live bottom obstruction and leave
+       an 8px visual gutter above it. */
+    y0 = S.CH - bottomReservedPx() - 21,
     seg = 4,
     sw = w / seg;
   pc.save();
@@ -2152,6 +2175,17 @@ function drawScale() {
   pc.textBaseline = "middle";
   pc.fillText(planLen(cm), x0, y0 + 8);
   pc.restore();
+}
+
+function bottomReservedPx() {
+  if (typeof document === "undefined" || !plan) return 0;
+  var el = document.getElementById("cad-status");
+  if (!el || el.hidden || !el.offsetParent) return 0;
+  var host = el.closest && el.closest('.pt-panel[data-panel="cad"]');
+  if (!host) host = el;
+  var pr = plan.getBoundingClientRect(), er = host.getBoundingClientRect();
+  if (!er.height || er.top >= pr.bottom || er.bottom < pr.bottom - 10) return 0;
+  return Math.max(0, Math.min(pr.height, pr.bottom - er.top));
 }
 function drawRank(it) {
   return isLamp(it) ? 3 : it.type === "rug" ? 0 : it.type === "island" ? 1 : 2;
@@ -2193,7 +2227,27 @@ function drawWall(w) {
     pc.restore();
     return;
   }
-  if (th * S.SC < 3) {
+  var demolish = phase === "demolition" || phase === "demolish";
+  if (isPresentation() && !demolish) {
+    /* The model pass filled every wall at once, shadow and all
+       (drawPresentationWalls). The HUD redraws a selected wall on top of that
+       image, so it paints its own fill — with its openings left open — and
+       then the selection outline. */
+    if (chromeOn) {
+      pc.save();
+      clipOutsideOpenings([w]);
+      pc.fillStyle = planTheme().wallFill;
+      pc.fill(wallPath(w));
+      pc.restore();
+    }
+    if (isSel || isErase) {
+      pc.save();
+      pc.strokeStyle = isSel ? "#3f6b78" : ERASE_COL;
+      pc.lineWidth = 2.3;
+      pc.stroke(wallPath(w));
+      pc.restore();
+    }
+  } else if (th * S.SC < 3) {
     pc.lineCap = "butt";
     pc.lineWidth = 3;
     pc.strokeStyle = col;
@@ -2253,7 +2307,9 @@ function drawWall(w) {
      wallDimSide), with a witness tick at each measured end. Which face a
      number belongs to is a real 10 cm question at every corner, so it is shown
      rather than left to be assumed. */
-  if (S.showDims && S.SC > 0.32) {
+  // a presentation plan is annotated per room, not per wall: the wall's own
+  // dimension appears only while it is selected
+  if (S.showDims && S.SC > 0.32 && (!isPresentation() || isSel)) {
     var side = wallDimSide(w),
       c = wallCuts(w),
       face = side ? w.thickness / 2 : 0, // centreline dims sit on the wall
@@ -2311,6 +2367,88 @@ function drawWall(w) {
   }
 }
 
+/* ---- presentation walls ----
+   One dark mass with a soft drop shadow, the way a marketing plan draws the
+   structure: every visible wall's outline goes into one path and is filled
+   once, so the shadow does not stack darker where two walls overlap at a
+   corner. Openings are CLIPPED out rather than painted over afterwards, so the
+   floor (and the lawn, at an outside door) shows through them — the technical
+   style's knockout rectangle is a flat colour that would sit on top of a
+   textured floor like a sticker. Canvas shadows ignore the transform, so the
+   light stays in the same screen corner however the plan is rotated. */
+function wallPath(w) {
+  var path = new Path2D(),
+    out = wallOutline(w);
+  if (!out || out.length < 3) return path;
+  out.forEach(function (p, i) {
+    if (i) path.lineTo(sx(p.x), sz(p.z)); else path.moveTo(sx(p.x), sz(p.z));
+  });
+  path.closePath();
+  return path;
+}
+function openingRectPts(o) {
+  var w = wallById(o.wall);
+  if (!w) return null;
+  var gm = wallGeom(w),
+    s0 = clamp(o.s, o.width / 2, gm.L - o.width / 2),
+    c = wallPointAt(w, s0), tg = wallTangentAt(w, s0);
+  if (!c || !tg) return null;
+  var hw = o.width / 2, ht = (w.thickness || 0) / 2 + 1, nx = -tg.z, nz = tg.x;
+  return [
+    { x: c.x - tg.x * hw - nx * ht, z: c.z - tg.z * hw - nz * ht },
+    { x: c.x + tg.x * hw - nx * ht, z: c.z + tg.z * hw - nz * ht },
+    { x: c.x + tg.x * hw + nx * ht, z: c.z + tg.z * hw + nz * ht },
+    { x: c.x - tg.x * hw + nx * ht, z: c.z - tg.z * hw + nz * ht },
+  ];
+}
+function clipOutsideOpenings(walls) {
+  var ids = {};
+  walls.forEach(function (w) { ids[w.id] = true; });
+  var clip = new Path2D(), any = false;
+  clip.rect(-1e5, -1e5, 2e5, 2e5);
+  S.openings.forEach(function (o) {
+    if (!ids[o.wall]) return;
+    var pts = openingRectPts(o);
+    if (!pts) return;
+    any = true;
+    pts.forEach(function (p, i) {
+      if (i) clip.lineTo(sx(p.x), sz(p.z)); else clip.moveTo(sx(p.x), sz(p.z));
+    });
+    clip.closePath();
+  });
+  if (any) pc.clip(clip, "evenodd");
+}
+function canvasDpr() {
+  return plan && S.CW ? plan.width / S.CW : 1;
+}
+function drawPresentationWalls(walls) {
+  var list = walls.filter(function (w) {
+    if (!w || !S.nodes[w.a] || !S.nodes[w.b]) return false;
+    var ph = w.phase || "new";
+    return normalizeWallKind(w) !== "roomDivider" && ph !== "demolition" && ph !== "demolish";
+  });
+  if (!list.length) return;
+  var th = planTheme(), dpr = canvasDpr(), mass = new Path2D();
+  list.forEach(function (w) {
+    ensureWallTypes(S);
+    normalizeWall(w, S);
+    mass.addPath(wallPath(w));
+  });
+  pc.save();
+  clipOutsideOpenings(list);
+  pc.shadowColor = th.wallShadow;
+  pc.shadowBlur = 9 * dpr;
+  pc.shadowOffsetX = 3.5 * dpr;
+  pc.shadowOffsetY = 3.5 * dpr;
+  pc.fillStyle = th.wallFill;
+  pc.fill(mass, "nonzero");
+  pc.shadowColor = "transparent";
+  pc.strokeStyle = th.wallStroke;
+  pc.lineWidth = 0.8;
+  pc.stroke(mass);
+  pc.restore();
+}
+
 function traceWallCentre(w) {
   var g = wallGeom(w), steps = g.kind === "arc" ? Math.max(12, Math.ceil(g.L / 25)) : 1;
   pc.beginPath();
@@ -2349,7 +2487,10 @@ function wallBandPolygon(w, from, to) {
    layer keyed by that state and blit it, so an idle animated overlay does not
    re-tessellate every enclosure sixty times a second. */
 var roomLayer = { key: "", canvas: null, rooms: null, hid: null };
-function paintRooms(ctx, rooms) {
+function paintRooms(ctx, rooms, dpr) {
+  var pres = isPresentation(),
+    view = { OX: S.OX, OY: S.OY, SC: S.SC, dpr: dpr || 1 };
+  if (pres) paintPresentationSite(ctx, rooms, view);
   rooms.forEach(function (r) {
     ctx.beginPath();
     r.pts.forEach(function (p, i) {
@@ -2367,11 +2508,67 @@ function paintRooms(ctx, rooms) {
       ctx.setLineDash([4, 4]);
       ctx.stroke();
       ctx.setLineDash([]);
+    } else if (pres) {
+      var ft = roomFloor(r.key) || "wood";
+      ctx.fillStyle = patternFill(ctx, ft, function (level) {
+        return floorPaintCanvas(ft, level);
+      }, floorMeanColor(ft), TILE[ft] || 200, view);
+      ctx.fill();
     } else {
       ctx.fillStyle = FILL2D[roomFloor(r.key)] || "#efe7d6";
       ctx.fill();
     }
   });
+}
+
+/* Lawn round the house and a paving ring hugging its outside, for the
+   presentation plan. Painted into the cached room layer, before the rooms, so
+   it costs nothing on an ordinary repaint. The ring needs no polygon offset:
+   every room outline is stroked wide with round joins, and the rooms painted
+   next cover the inside half of that stroke. Skipped under a site aerial, which
+   is the real ground. */
+var LAWN_MARGIN = 600, PAVE_CM = 110;
+function paintPresentationSite(ctx, rooms, view) {
+  if (!rooms.length) return;
+  if (S.site && S.site.enabled && S.site.show2D) return;
+  var x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  rooms.forEach(function (r) {
+    r.pts.forEach(function (p) {
+      if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x;
+      if (p.z < z0) z0 = p.z; if (p.z > z1) z1 = p.z;
+    });
+  });
+  if (!isFinite(x0)) return;
+  var th = planTheme();
+  ctx.save();
+  ctx.fillStyle = patternFill(ctx, "__lawn", function (level) {
+    return groundPaintCanvas(level);
+  }, th.lawn, 260, view);
+  var lx = sx(x0 - LAWN_MARGIN), lz = sz(z0 - LAWN_MARGIN),
+    lw = (x1 - x0 + 2 * LAWN_MARGIN) * S.SC, lh = (z1 - z0 + 2 * LAWN_MARGIN) * S.SC;
+  ctx.beginPath();
+  if (typeof ctx.roundRect === "function") ctx.roundRect(lx, lz, lw, lh, 120 * S.SC);
+  else ctx.rect(lx, lz, lw, lh);
+  ctx.fill();
+  // soft edge between lawn and paving
+  ctx.beginPath();
+  rooms.forEach(function (r) {
+    r.pts.forEach(function (p, i) {
+      if (i) ctx.lineTo(sx(p.x), sz(p.z)); else ctx.moveTo(sx(p.x), sz(p.z));
+    });
+    ctx.closePath();
+  });
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(70,60,45,.22)";
+  ctx.lineWidth = 2 * PAVE_CM * S.SC + 3;
+  ctx.stroke();
+  ctx.strokeStyle = patternFill(ctx, "pavers", function (level) {
+    return floorPaintCanvas("pavers", level);
+  }, floorMeanColor("pavers"), TILE.pavers || 180, view);
+  ctx.lineWidth = 2 * PAVE_CM * S.SC;
+  ctx.stroke();
+  ctx.restore();
 }
 /* The room fills are cached as a whole bitmap keyed on topology + transform.
    The selected room's dashed outline used to be part of that bitmap and part of
@@ -2397,7 +2594,9 @@ function drawCachedRooms() {
       .map(function (r) {
         return r.key + (roomHidden(r.key) ? "h" : "") + (roomFloor(r.key) || "");
       })
-      .join(";");
+      .join(";") +
+    "|" + planStyle() + "|" + (pixelW / (S.CW || 1)) +
+    (S.site && S.site.enabled && S.site.show2D ? "|site" : "");
   if (
     roomLayer.key === key &&
     roomLayer.canvas &&
@@ -2409,7 +2608,7 @@ function drawCachedRooms() {
   }
   var hid = hiddenSets(rooms);
   if (typeof document === "undefined") {
-    paintRooms(pc, rooms);
+    paintRooms(pc, rooms, 1);
     return { rooms: rooms, hid: hid };
   }
   var c = roomLayer.canvas || document.createElement("canvas");
@@ -2419,7 +2618,7 @@ function drawCachedRooms() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, c.width, c.height);
   ctx.setTransform(pixelW / S.CW, 0, 0, pixelH / S.CH, 0, 0);
-  paintRooms(ctx, rooms);
+  paintRooms(ctx, rooms, pixelW / (S.CW || 1));
   roomLayer = { key: key, canvas: c, rooms: rooms, hid: hid };
   pc.drawImage(c, 0, 0, S.CW, S.CH);
   return { rooms: rooms, hid: hid };
@@ -2706,8 +2905,16 @@ function drawOpening(o) {
   pc.rotate(Math.atan2(tangent.z, tangent.x));
   var hw = (o.width / 2) * S.SC,
     ht = (w.thickness / 2 + 1) * S.SC;
-  pc.fillStyle = "#efe7d6";
-  pc.fillRect(-hw, -ht, hw * 2, ht * 2);
+  if (isPresentation()) {
+    /* The wall is already open here (clipOutsideOpenings); a door gets a
+       pale stone threshold and a window a white sill under its glass. */
+    var pth = planTheme(), wt = (w.thickness / 2) * S.SC;
+    pc.fillStyle = o.type === "door" ? pth.threshold : pth.sill;
+    pc.fillRect(-hw, -wt, hw * 2, wt * 2);
+  } else {
+    pc.fillStyle = "#efe7d6";
+    pc.fillRect(-hw, -ht, hw * 2, ht * 2);
+  }
   if (o.type === "door") {
     if (o.isSliding || o.isPocket) {
       var isPocket = !!o.isPocket;
@@ -2771,7 +2978,7 @@ function drawOpening(o) {
         leftLeaf = Math.max(1, Math.min(o.width - 1, Number(o.leafA) || o.width / 2)) * S.SC,
         rightLeaf = hw * 2 - leftLeaf,
         pairConflict = openingHasSwingConflict(o);
-      pc.strokeStyle = pairConflict ? "#c0392b" : (isSel ? "#3f6b78" : "#5b7a86");
+      pc.strokeStyle = pairConflict ? "#c0392b" : (isSel ? "#3f6b78" : isPresentation() ? "#4a443c" : "#5b7a86");
       pc.lineWidth = isSel ? 3 : 2;
       [[-hw, leftLeaf, 1], [hw, rightLeaf, -1]].forEach(function (leaf) {
         pc.beginPath(); pc.moveTo(leaf[0], 0); pc.lineTo(leaf[0], pairSide * leaf[1]); pc.stroke();
@@ -2789,7 +2996,7 @@ function drawOpening(o) {
       var sy = isInward ? -1 : 1; // wall face the leaf sweeps toward
       var dw = hw * 2; // door leaf length
       var swingConflict = openingHasSwingConflict(o);
-      pc.strokeStyle = swingConflict ? "#c0392b" : (isSel ? "#3f6b78" : "#5b7a86");
+      pc.strokeStyle = swingConflict ? "#c0392b" : (isSel ? "#3f6b78" : isPresentation() ? "#4a443c" : "#5b7a86");
       pc.lineWidth = isSel ? 3 : 2;
       // Open leaf: perpendicular into the room, on the swing face.
       pc.beginPath();
@@ -3437,6 +3644,13 @@ var GLYPH = {
   },
   stairs: function (w, d, it) {
     gStroke();
+    // L-shaped and curved flights: the drafting symbol, the same line-work
+    // the construction sheet prints (js/plan_symbols.js)
+    var sit = { steps: it.steps, configuration: it.configuration, shape: vspec(it).shape };
+    if (stairShape(sit) !== "straight") {
+      drawSymbolPrims(symbolPrims("stairs", it.w, it.d, sit), S.SC, it);
+      return;
+    }
     var steps = Math.max(2, Math.min(100, Math.round(it.configuration?.stepCount || it.steps || 10)));
     for (var i = 1; i < steps; i++) {
       var y = -d / 2 + (i * d) / steps;
@@ -3452,6 +3666,7 @@ var GLYPH = {
     pc.moveTo(0, -d / 2 + 6);
     pc.lineTo(4, -d / 2 + 12);
     pc.stroke();
+    drawStairsUp(it, w, d);
   },
   fireplace: function (w, d) {
     gStroke();
@@ -3583,6 +3798,23 @@ function drawItem(it) {
       (chromeOn && S.sel && S.sel.kind === "items" && S.sel.refs.indexOf(it) !== -1) ||
       eraseHover("item", it);
   if (isLamp(it)) {
+    /* Presentation: a ceiling fitting is not furniture you would draw on a
+       plan of the floor, so it shows only while selected; floor and table
+       lamps are pictured like any other piece. */
+    if (isPresentation() && it.w > 0 && it.d > 0) {
+      var lv = null;
+      try { lv = itemVSpan(it); } catch (e) { lv = null; }
+      if (lv && lv.lo >= 150) {
+        if (isSelL) drawLamp(it, f, isSelL);
+        return;
+      }
+      pc.save();
+      pc.translate(sx(it.x), sz(it.z));
+      pc.rotate(((it.rot || 0) * Math.PI) / 180);
+      var drawn = drawItemPresentation(it, it.w * S.SC, it.d * S.SC, isSelL);
+      pc.restore();
+      if (drawn) return;
+    }
     drawLamp(it, f, isSelL);
     return;
   }
@@ -3594,6 +3826,13 @@ function drawItem(it) {
   var w = it.w * S.SC,
     d = it.d * S.SC,
     isSel = isSelL;
+  if (isPresentation() && drawItemPresentation(it, w, d, isSel)) {
+    pc.restore();
+    if (it.type === "motionSensor") drawMotionCone(it);
+    if (isSmartType(it.type) && !isLamp(it)) drawSmartPip(it);
+    if (it.locked) drawLock(it);
+    return;
+  }
   rr(-w / 2, -d / 2, w, d, 5);
   pc.fillStyle = fcolor(it);
   pc.globalAlpha = it.type === "rug" ? 0.85 : 1;
@@ -3631,6 +3870,169 @@ function drawItem(it) {
   if (isSmartType(it.type) && !isLamp(it)) drawSmartPip(it);
   if (it.locked) drawLock(it);
 }
+/* Presentation furniture, drawn in the item's rotated frame (origin at its
+   centre, +y toward its front). Returns false to let drawItem fall back to the
+   technical glyph — while the picture is still being baked, or for the pieces
+   (sensors, small smart devices) whose symbol says more than a render. */
+function drawItemPresentation(it, w, d, isSel) {
+  var vspan = null;
+  try { vspan = itemVSpan(it); } catch (e) { vspan = null; }
+  // lamps reach here only when they stand on the floor (see drawItem)
+  var mode = spriteMode(it, { lamp: false, vspan: vspan });
+  if (mode === "glyph") return false;
+  if (mode === "overhead") {
+    // hung above the plan cut: outline only, dashed, like a drafted upper
+    pc.save();
+    pc.setLineDash([6, 4]);
+    pc.strokeStyle = isSel ? "#3f6b78" : "rgba(55,50,44,.7)";
+    pc.lineWidth = isSel ? 2.2 : 1;
+    pc.strokeRect(-w / 2, -d / 2, w, d);
+    pc.beginPath();
+    pc.moveTo(-w / 2, -d / 2); pc.lineTo(w / 2, d / 2);
+    pc.moveTo(w / 2, -d / 2); pc.lineTo(-w / 2, d / 2);
+    pc.globalAlpha = 0.35;
+    pc.stroke();
+    pc.restore();
+    return true;
+  }
+  var dpr = canvasDpr(),
+    sp = itemSprite(it, S.SC, dpr);
+  if (!sp) return false;
+  var kx = sp.w > 0 ? it.w / sp.w : 1, kz = sp.d > 0 ? it.d / sp.d : 1, r = sp.rect;
+  pc.save();
+  if (it.type !== "rug") {
+    pc.shadowColor = planTheme().itemShadow;
+    pc.shadowBlur = 7 * dpr;
+    pc.shadowOffsetX = 2.5 * dpr;
+    pc.shadowOffsetY = 2.5 * dpr;
+  }
+  pc.imageSmoothingEnabled = true;
+  pc.drawImage(sp.img, r.x0 * kx * S.SC, r.z0 * kz * S.SC, (r.x1 - r.x0) * kx * S.SC, (r.z1 - r.z0) * kz * S.SC);
+  pc.restore();
+  if (it.type === "stairs") {
+    // the walking line and UP over the render, following the flight's plan
+    var sit = { steps: it.steps, configuration: it.configuration, shape: vspec(it).shape };
+    pc.save();
+    pc.strokeStyle = "rgba(38,35,31,.85)";
+    drawSymbolPrims(symbolPrims("stairs", it.w, it.d, sit).filter(function (p) {
+      return p.k === "text" || (p.k === "line" && p.weight === "heavy");
+    }), S.SC, it);
+    pc.restore();
+  }
+  if (isSel) {
+    rr(-w / 2, -d / 2, w, d, 5);
+    pc.lineWidth = 2.4;
+    pc.strokeStyle = eraseHover("item", it) ? ERASE_COL : "#3f6b78";
+    pc.stroke();
+  }
+  return true;
+}
+
+/* Draft symbol primitives (js/plan_symbols.js) on the canvas, in an item's
+   rotated frame, cm scaled by k. "UP" labels go through drawStairsUp-style
+   upright text. */
+function drawSymbolPrims(prims, k, it) {
+  var A = ((it.rot || 0) * Math.PI) / 180;
+  prims.forEach(function (p) {
+    pc.lineWidth = p.weight === "heavy" ? 1.6 : 1;
+    pc.beginPath();
+    if (p.k === "line") { pc.moveTo(p.x1 * k, p.z1 * k); pc.lineTo(p.x2 * k, p.z2 * k); pc.stroke(); }
+    else if (p.k === "rect") { pc.strokeRect(p.x * k, p.z * k, p.w * k, p.d * k); }
+    else if (p.k === "circle") { pc.arc(p.x * k, p.z * k, p.r * k, 0, Math.PI * 2); pc.stroke(); }
+    else if (p.k === "poly") {
+      p.pts.forEach(function (q, i) { if (i) pc.lineTo(q.x * k, q.z * k); else pc.moveTo(q.x * k, q.z * k); });
+      if (p.closed) pc.closePath();
+      pc.stroke();
+    } else if (p.k === "text") {
+      pc.save();
+      pc.translate(p.x * k, p.z * k);
+      pc.rotate(-A - planRotRad());
+      pc.font = "bold " + Math.max(9, Math.min(13, Math.round(p.size * k))) + "px Arial";
+      pc.textAlign = "center";
+      pc.textBaseline = "middle";
+      var txt = p.upLabel ? t("plan_stairs_up") : p.s, tw = pc.measureText(txt).width;
+      pc.fillStyle = "rgba(255,255,255,.8)";
+      pc.fillRect(-tw / 2 - 3, -8, tw + 6, 16);
+      pc.fillStyle = "#26231f";
+      pc.fillText(txt, 0, 0);
+      pc.restore();
+    }
+  });
+}
+
+/* "UP" at the foot of a flight, upright whatever the flight's and the plan's
+   rotation. The arrow (GLYPH.stairs) runs from the +y end to the -y end. */
+function drawStairsUp(it, w, d) {
+  if (w < 22 || d < 30) return;
+  var A = ((it.rot || 0) * Math.PI) / 180;
+  pc.save();
+  pc.translate(0, d / 2 - Math.min(16, d * 0.12));
+  pc.rotate(-A - planRotRad());
+  pc.font = "bold " + Math.max(9, Math.min(13, Math.round(w * 0.14))) + "px Arial";
+  pc.textAlign = "center";
+  pc.textBaseline = "middle";
+  var txt = t("plan_stairs_up"), tw = pc.measureText(txt).width;
+  pc.fillStyle = "rgba(255,255,255,.8)";
+  pc.fillRect(-tw / 2 - 3, -8, tw + 6, 16);
+  pc.fillStyle = "#26231f";
+  pc.fillText(txt, 0, 0);
+  pc.restore();
+}
+
+/* Presentation room labels: the name in bold capitals with its size under
+   it, haloed so they read over any floor texture. Sizes go through the plan's
+   length formatter, so a feet project reads 21'-6" X 16'-0". */
+var labelMeasCache = { key: "", byRoom: {} };
+function roomMeasFor(r) {
+  var k = roomsTopologyKey();
+  if (labelMeasCache.key !== k) labelMeasCache = { key: k, byRoom: {} };
+  if (!(r.key in labelMeasCache.byRoom)) {
+    var m = null;
+    try { m = roomMeasurements(S, r); } catch (e) { m = null; }
+    labelMeasCache.byRoom[r.key] = m;
+  }
+  return labelMeasCache.byRoom[r.key];
+}
+function drawPresentationRoomLabels(rooms) {
+  var th = planTheme(), a = planRotRad(),
+    fTitle = roomLabelFont(S.SC, true), fSize = roomLabelFont(S.SC, false);
+  rooms.forEach(function (r) {
+    if (roomHidden(r.key)) return;
+    var nm = roomName(r.key);
+    var lines = roomLabelLines({
+      name: nm,
+      meas: S.showDims ? roomMeasFor(r) : null,
+      fmt: function (cm) { return planLen(cm, { suffix: false }); },
+      fmtLast: function (cm) { return planLen(cm); },
+    });
+    if (!lines.title && !lines.size) return;
+    var x = sx(r.cx), y = sz(r.cz);
+    pc.save();
+    if (a) { pc.translate(x, y); pc.rotate(-a); pc.translate(-x, -y); }
+    pc.textAlign = "center";
+    pc.textBaseline = "middle";
+    pc.lineJoin = "round";
+    pc.strokeStyle = th.halo;
+    var ty = lines.size ? y - fTitle * 0.55 : y;
+    if (lines.title) {
+      pc.font = "700 " + fTitle + "px 'Inter', 'Helvetica Neue', Arial, sans-serif";
+      pc.lineWidth = Math.max(3, fTitle * 0.28);
+      pc.strokeText(lines.title, x, ty);
+      pc.fillStyle = th.roomTitle;
+      pc.fillText(lines.title, x, ty);
+    }
+    if (lines.size) {
+      var sy = lines.title ? ty + fTitle * 0.62 + fSize * 0.55 : y;
+      pc.font = "500 " + fSize + "px 'Inter', 'Helvetica Neue', Arial, sans-serif";
+      pc.lineWidth = Math.max(3, fSize * 0.3);
+      pc.strokeText(lines.size, x, sy);
+      pc.fillStyle = th.roomSub;
+      pc.fillText(lines.size, x, sy);
+    }
+    pc.restore();
+  });
+}
+
 function drawMotionCone(it) {
   var A = ((it.rot || 0) * Math.PI) / 180;
   var range = 180 * S.SC;

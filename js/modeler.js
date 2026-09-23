@@ -12819,6 +12819,7 @@ function openCenterSlot() {
       {key:"width",label:t("fcFldWidth"),type:"number",value:1.27,min:0.000001,unit:"length"},
       {key:"x",label:t("rectangleCenterX"),type:"number",value:0,unit:"length"},
       {key:"y",label:t("rectangleCenterY"),type:"number",value:0,unit:"length"},
+      {key:"fixCenter",label:t("rectangleFixCenter"),type:"boolean",value:false},
     ],
     onApply:function(values) {
       var made = appendToSketch(t("centerSlot"), function(sketch) { return addCenterSlot(sketch,values,uid); });

@@ -386,7 +386,7 @@ test("shapeToMeshData generates Float32Array normals, colors, and subshapeMap", 
   assert.match(kernelSource, /const normals\s*=\s*new Float32Array\(positions\.length\);/);
   assert.match(kernelSource, /const colors\s*=\s*new Float32Array\(positions\.length\);/);
   assert.match(kernelSource, /const subshapeMap\s*=\s*Object\.create\(null\);/);
-  assert.match(kernelSource, /return\s*\{\s*positions,\s*normals,\s*colors,\s*faceRanges,\s*subshapeMap\s*\};/);
+  assert.match(kernelSource, /return\s*\{\s*positions,\s*normals,\s*colors,\s*faceRanges,\s*subshapeMap\s*[,}]/);
 });
 
 test("2D canvas pointermove uses requestAnimationFrame coalescing", () => {

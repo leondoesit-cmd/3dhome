@@ -199,7 +199,7 @@ test("highlights are sized in pixels and re-baked only when the zoom moves", () 
   // Re-baked on a real zoom step, not every frame.
   assert.match(body("decorationScaleStale"), /ratio > 1\.34 \|\| ratio < 0\.75/);
   const scale = body("refreshDecorationScale");
-  assert.match(scale, /if \(!\(E\.topologySelection \|\| \[\]\)\.length && !E\.hoverTopology && !finishCommandActive\(\)\) return/);
+  assert.match(scale, /if \(!\(E\.topologySelection \|\| \[\]\)\.length && !E\.hoverTopology && !finishCommandActive\(\)( && !E\.showTemporaryAxes)?\) return/);
   assert.match(scale, /if \(!decorationScaleStale\(\)\) return/);
   assert.match(source, /afterRender: function \(view\) \{[\s\S]{0,200}?refreshDecorationScale\(\)/);
   /* The scale is stamped where the width is baked into geometry, not in

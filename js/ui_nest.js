@@ -940,7 +940,14 @@ function fillWarnings() {
   var un = E.q ? E.q.nest.unplaced : [];
   var review = E.q && E.q.manufacturingReviewRequired;
   sec.style.display = un.length || review ? "" : "none";
-  if (review) host.appendChild(el("div", "nz-warn", isEn() ? "Partial estimate — advanced model edits require manufacturing review." : "אומדן חלקי — שינויי מודל מתקדמים דורשים בדיקת ייצור."));
+  if (review) {
+    var stockIssues = (E.q.productionIssues || []).filter(function (issue) { return issue.code === "missing-stock" || issue.code === "stock-thickness-mismatch"; });
+    host.appendChild(el("div", "nz-warn", stockIssues.length
+      ? isEn() ? "Partial estimate — " + stockIssues.length + " parts have no matching sheet stock and are excluded from the cut plan. Review the stock catalog or design before purchasing."
+        : "אומדן חלקי — ל־" + stockIssues.length + " חלקים אין לוח תואם והם אינם נכללים בתוכנית הניסור. בדקו את קטלוג הלוחות או התכנון לפני רכש."
+      : isEn() ? "Partial estimate — production findings require review before purchasing or cutting."
+        : "אומדן חלקי — ממצאי הייצור דורשים בדיקה לפני רכש או ניסור."));
+  }
   if (!un.length) return;
   host.appendChild(el("div", "nz-note", T("unplacedNote")));
   un.forEach(function (p) {

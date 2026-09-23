@@ -7,6 +7,7 @@ import { box, cyl, sph } from "./primitives.js";
 import { HumanFactory } from "./human.js";
 import {
   handleBar, upholstered, legsUnder, slabWithHoles, basin, gooseneck,
+  pull, front, toeKick, slab, leg, glassPanel, slats, METAL,
 } from "./furniture_helpers.js";
 import { FURN, vspec, smartOn } from "./furniture_models.js";
 
@@ -19,9 +20,15 @@ Object.assign(FURN, {
     h: 45,
     col: "#1a1c1e",
     build: function (g, it) {
-      box(g, -it.w / 2, it.w / 2, 0, it.h, -it.d / 2, it.d / 2, 0x1a1c1e, { rough: 0.4 });
-      box(g, -it.w / 2 + 1, it.w / 2 - 1, 2, it.h - 2, it.d / 2, it.d / 2 + 1, 0x2a2c2e, { rough: 0.5 });
-      box(g, -it.w / 2 + 4, it.w / 2 - 4, it.h - 10, it.h - 6, it.d / 2 + 1, it.d / 2 + 1.2, 0x111111);
+      /* Tower PC: a steel case with a smoked-glass side panel, a mesh front
+         with a lit power button, and feet. */
+      var hw = it.w / 2, hd = it.d / 2;
+      box(g, -hw, hw, 2, it.h, -hd, hd, 0x1a1c1e, { rough: 0.4, radius: 0.8 });
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) { box(g, p[0] * (hw - 3) - 1.5, p[0] * (hw - 3) + 1.5, 0, 2, p[1] * (hd - 4) - 3, p[1] * (hd - 4) + 3, 0x111111, { rough: 0.7, radius: 0.5 }); });
+      box(g, -hw + 1.5, hw - 1.5, 4, it.h - 2, hd, hd + 0.8, 0x2a2c2e, { rough: 0.7, radius: 0.4 }); // mesh front
+      for (var r = 0; r < 12; r++) box(g, -hw + 3, hw - 3, 6 + r * ((it.h - 16) / 12), 6.4 + r * ((it.h - 16) / 12), hd + 0.8, hd + 1, 0x111111, { sharp: true, cast: false });
+      cyl(g, 0, it.h - 5, hd + 1.1, 1.2, 0.5, 0x0b1216, { emis: 0x4fb3e0, rx: Math.PI / 2, seg: 16, cast: false });
+      box(g, hw, hw + 0.4, 6, it.h - 4, -hd + 4, hd - 4, 0x111111, { metal: 0.3, rough: 0.05, trans: true, opacity: 0.55 });
     }
   },
   laptop: {
@@ -45,10 +52,13 @@ Object.assign(FURN, {
     h: 40,
     col: "#1a1c1e",
     build: function (g, it) {
-      box(g, -10, 10, 0, 1, -6, 6, 0x2a2c2e, { rough: 0.4 });
-      box(g, -2, 2, 1, 12, -2, 0, 0x2a2c2e, { rough: 0.4 });
-      box(g, -it.w / 2, it.w / 2, 10, it.h, -it.d / 2 + 5, it.d / 2, 0x1a1c1e, { rough: 0.5 });
-      box(g, -it.w / 2 + 1, it.w / 2 - 1, 11, it.h - 1, it.d / 2, it.d / 2 + 0.5, 0x111111, { metal: 0.2, rough: 0.2 });
+      /* Monitor: a thin panel with a narrow bezel on a height-adjustable column
+         and a flat round-cornered foot. */
+      var hw = it.w / 2, hd = it.d / 2, y0 = 11;
+      box(g, -11, 11, 0, 1.2, -hd + 1, hd - 3, 0x2a2c2e, { metal: 0.4, rough: 0.35, radius: 0.5 });
+      box(g, -2.5, 2.5, 1.2, y0 + (it.h - y0) * 0.4, -hd + 3, -hd + 6, 0x2a2c2e, { metal: 0.4, rough: 0.35, radius: 0.8 });
+      box(g, -hw, hw, y0, it.h, -hd + 5.5, -hd + 8, 0x1a1c1e, { rough: 0.45, radius: 0.5 });
+      box(g, -hw + 0.8, hw - 0.8, y0 + 2, it.h - 0.8, -hd + 8, -hd + 8.2, 0x111111, { metal: 0.2, rough: 0.08, sharp: true });
     }
   }
 });
@@ -74,23 +84,19 @@ Object.assign(FURN, {
     h: 80,
     col: "#c8b896",
     build: function (g, it) {
-      var hw = it.w / 2,
-        hd = it.d / 2,
-        legH = 12;
-      legsUnder(g, it, "taper", legH, 7, WOOD);
-      box(g, -hw, hw, legH, it.h - 3, -hd, hd, CAB, { rough: 0.7 });
-      box(g, -hw - 1, hw + 1, it.h - 3, it.h, -hd - 1, hd + 1, WOOD, { rough: 0.5 });
-      // three doors, split by shadow lines, with slim bar handles
-      for (var i = 1; i < 3; i++) {
-        var x = -hw + (i * it.w) / 3;
-        box(g, x - 0.6, x + 0.6, legH + 3, it.h - 6, hd - 0.6, hd + 0.3, 0x9a8c72);
-      }
-      for (var k = 0; k < 3; k++) {
-        var cx = -hw + ((k + 0.5) * it.w) / 3;
-        box(g, cx - 9, cx + 9, it.h * 0.55, it.h * 0.55 + 2, hd, hd + 1.6, HANDLE, {
-          metal: 0.8, rough: 0.3,
-        });
-      }
+      /* Sideboard on tapered legs: three doors on shadow reveals (drawers over
+         the middle door), an overhanging solid-wood top. */
+      var V = vspec(it), hw = it.w / 2, hd = it.d / 2, legH = 14, top = it.h - 3, zf = hd - 2, hs = V.handle || "bar";
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) {
+        leg(g, p[0] * (hw - 7), p[1] * (hd - 6), 0, legH + 1, WOOD, "taper");
+      });
+      box(g, -hw + 1, hw - 1, legH, top, -hd + 1, zf, CAB, { rough: 0.7, sharp: true });
+      var cw = (it.w - 2) / 3;
+      front(g, -hw + 1, -hw + 1 + cw, legH, top, zf, CAB, { kind: "door", hinge: -1, handle: hs });
+      front(g, -hw + 1 + cw, -hw + 1 + 2 * cw, top - 16, top, zf, CAB, { kind: "drawer", handle: hs });
+      front(g, -hw + 1 + cw, -hw + 1 + 2 * cw, legH, top - 16, zf, CAB, { kind: "door", hinge: -1, handle: hs, handleAt: "top" });
+      front(g, -hw + 1 + 2 * cw, hw - 1, legH, top, zf, CAB, { kind: "door", hinge: 1, handle: hs });
+      slab(g, -hw - 1, hw + 1, top, it.h, -hd - 0.5, hd + 1, WOOD, { rough: 0.5, radius: 0.8 });
     },
   },
   console: {
@@ -100,11 +106,17 @@ Object.assign(FURN, {
     h: 78,
     col: "#9c7a4e",
     build: function (g, it) {
-      var hw = it.w / 2,
-        hd = it.d / 2;
-      box(g, -hw, hw, it.h - 4, it.h, -hd, hd, WOOD, { rough: 0.5 });
-      box(g, -hw + 6, hw - 6, it.h * 0.32, it.h * 0.32 + 3, -hd + 4, hd - 4, WOOD, { rough: 0.55 });
-      legsUnder(g, it, "square", it.h - 4, 5, 0x6f5535);
+      /* Hall console: a solid top on square legs tied by an apron and a low
+         shelf, with a slim drawer in the apron. */
+      var V = vspec(it), hw = it.w / 2, hd = it.d / 2, ty = it.h - 3;
+      slab(g, -hw, hw, ty, it.h, -hd, hd, WOOD, { rough: 0.5, radius: 0.8 });
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) {
+        box(g, p[0] * (hw - 4) - 2, p[0] * (hw - 4) + 2, 0, ty, p[1] * (hd - 4) - 2, p[1] * (hd - 4) + 2, 0x6f5535, { rough: 0.55, radius: 0.5 });
+      });
+      box(g, -hw + 6, hw - 6, ty - 10, ty, -hd + 3, -hd + 5, 0x6f5535, { rough: 0.55, sharp: true });
+      box(g, -hw + 6, hw - 6, ty - 10, ty, hd - 5, hd - 3, 0x6f5535, { rough: 0.55, sharp: true });
+      front(g, -hw * 0.45, hw * 0.45, ty - 10, ty, hd - 3.6, WOOD, { kind: "drawer", handle: V.handle || "knob", t: 1.4 });
+      slab(g, -hw + 4, hw - 4, it.h * 0.2, it.h * 0.2 + 2.5, -hd + 4, hd - 4, WOOD, { rough: 0.55, radius: 0.5 });
     },
   },
   stool: {
@@ -114,15 +126,16 @@ Object.assign(FURN, {
     h: 46,
     col: "#b98a55",
     build: function (g, it) {
-      var hw = it.w / 2;
-      cyl(g, 0, it.h - 2, 0, hw, 4, WOOD, { rough: 0.55, seg: 24 });
-      legsUnder(g, it, "taper", it.h - 4, 5, 0x6f5535);
-      // stretcher ring so it doesn't read as a floating disc
-      [-1, 1].forEach(function (s) {
-        box(g, -hw + 5, hw - 5, it.h * 0.35, it.h * 0.35 + 2.5, s * (hw - 6) - 1.2, s * (hw - 6) + 1.2, 0x6f5535, {
-          rough: 0.6,
-        });
-      });
+      /* Wooden stool: a dished round seat on four splayed tapered legs tied by
+         a stretcher ring. */
+      var hw = it.w / 2, ty = it.h - 3;
+      cyl(g, 0, it.h - 1.5, 0, hw, 3, WOOD, { rough: 0.5, seg: 40, r2: hw - 0.6 });
+      for (var k = 0; k < 4; k++) {
+        var a = (k * Math.PI) / 2 + Math.PI / 4, lx = Math.cos(a) * (hw - 6), lz = Math.sin(a) * (hw - 6);
+        var l = cyl(g, lx * 1.1, ty / 2, lz * 1.1, 1.3, ty, 0x6f5535, { rough: 0.55, seg: 12, r2: 1.8 });
+        if (l) { l.rotation.z = -Math.cos(a) * 0.08; l.rotation.x = Math.sin(a) * 0.08; }
+      }
+      cyl(g, 0, it.h * 0.34, 0, hw - 5, 1.6, 0x6f5535, { rough: 0.6, seg: 36, open: true });
     },
   },
   recliner: {
@@ -132,27 +145,23 @@ Object.assign(FURN, {
     h: 105,
     col: "#8d949a",
     build: function (g, it) {
-      var hw = it.w / 2,
-        hd = it.d / 2,
-        soft = { rough: 0.95 },
-        legH = 8;
-      box(g, -hw + 6, hw - 6, 0, legH, -hd + 8, hd - 4, 0x4b4540, { rough: 0.8 });
-      box(g, -hw, hw, legH, 40, -hd, hd - 24, FABRIC, soft); // seat block
-      box(g, -hw + 2, hw - 2, 40, 46, -hd + 6, hd - 26, 0xb4bdbd, soft); // cushion
-      // back, tipped back a little — recliners never sit bolt upright
-      var bk = box(g, -hw, hw, 40, it.h, -hd, -hd + 16, FABRIC, soft);
-      if (bk) {
-        bk.rotation.x = -0.14;
-        bk.position.z += 4;
-        bk.position.y -= 2;
-      }
-      [-1, 1].forEach(function (s) {
-        box(g, s < 0 ? -hw : hw - 14, s < 0 ? -hw + 14 : hw, legH, 60, -hd, hd - 20, FABRIC, soft);
+      /* Recliner: a plush pillow-top seat and a split back cushion leaning into
+         the frame, padded arms, the footrest raised and a side lever. */
+      var hw = it.w / 2, hd = it.d / 2, legH = 8;
+      box(g, -hw + 6, hw - 6, 0, legH, -hd + 8, hd - 26, 0x4b4540, { rough: 0.8, radius: 0.5 });
+      box(g, -hw, hw, legH, 40, -hd, hd - 24, FABRIC, { rough: 0.95, radius: 4 });
+      box(g, -hw + 13, hw - 13, 39, 49, -hd + 14, hd - 25, 0xb4bdbd, { rough: 0.95, radius: 5, crown: 2 });
+      var bk = box(g, -hw + 2, hw - 2, 40, it.h, -hd, -hd + 16, FABRIC, { rough: 0.95, radius: 5, crown: 1.5, crownAxis: "z" });
+      if (bk) { bk.rotation.x = -0.18; bk.position.z += 3; bk.position.y -= 2; }
+      [[48, 72], [72, it.h - 6]].forEach(function (b) {
+        var c = box(g, -hw + 14, hw - 14, b[0], b[1], -hd + 13, -hd + 24, 0xb4bdbd, { rough: 0.95, radius: 5, crown: 2.5, crownAxis: "z" });
+        if (c) { c.rotation.x = -0.18; c.position.z -= (b[0] - 40) * 0.12; }
       });
-      // extended footrest
-      box(g, -hw + 8, hw - 8, 26, 38, hd - 26, hd, FABRIC, soft);
-      box(g, -hw + 10, hw - 10, 38, 42, hd - 24, hd - 2, 0xb4bdbd, soft);
-      // side lever
+      [-1, 1].forEach(function (s) {
+        box(g, s < 0 ? -hw : hw - 13, s < 0 ? -hw + 13 : hw, legH, 62, -hd, hd - 20, FABRIC, { rough: 0.95, radius: 5, crown: 1.5 });
+      });
+      box(g, -hw + 10, hw - 10, 24, 38, hd - 22, hd, FABRIC, { rough: 0.95, radius: 4, crown: 1 });
+      box(g, -hw + 13, hw - 13, 37, 41, hd - 21, hd - 1.5, 0xb4bdbd, { rough: 0.95, radius: 2, crown: 1 });
       cyl(g, hw + 1.5, 34, -6, 1, 12, HANDLE, { metal: 0.8, rough: 0.3, seg: 10, rz: Math.PI / 2 });
     },
   },
@@ -163,21 +172,17 @@ Object.assign(FURN, {
     h: 220,
     col: "#d7c4a3",
     build: function (g, it) {
-      var hw = it.w / 2,
-        hd = it.d / 2;
-      box(g, -hw + 4, hw - 4, 0, 8, -hd + 5, hd - 3, 0x8c8781, { rough: 0.8 });
-      box(g, -hw, hw, 8, it.h, -hd, hd, CAB, { rough: 0.7 });
-      box(g, -0.7, 0.7, 12, it.h - 6, hd - 0.7, hd + 0.3, 0x9a8c72);
-      // two long handles, upper and lower door
-      [0.34, 0.72].forEach(function (f) {
-        [-1, 1].forEach(function (s) {
-          var x = s < 0 ? -7 : 4;
-          box(g, x, x + 3, it.h * f, it.h * f + 34, hd, hd + 1.6, HANDLE, {
-            metal: 0.8, rough: 0.3,
-          });
-        });
+      /* Larder cupboard: pairs of doors split at worktop height, a recessed
+         plinth and a cornice. */
+      var V = vspec(it), hw = it.w / 2, hd = it.d / 2, toe = 8, zf = hd - 2, split = Math.min(it.h - 40, 92), hs = V.handle || "bar";
+      toeKick(g, -hw, hw, toe, -hd, hd);
+      box(g, -hw, hw, toe, it.h, -hd, zf, CAB, { rough: 0.7, sharp: true });
+      [-1, 1].forEach(function (s) {
+        var x0 = s < 0 ? -hw : 0, x1 = s < 0 ? 0 : hw;
+        front(g, x0, x1, toe, split, zf, CAB, { kind: "door", hinge: s < 0 ? -1 : 1, handle: hs, handleAt: "top", shaker: V.shaker });
+        front(g, x0, x1, split, it.h, zf, CAB, { kind: "door", hinge: s < 0 ? -1 : 1, handle: hs, handleAt: "bottom", shaker: V.shaker });
       });
-      box(g, -hw, hw, it.h, it.h + 4, -hd, hd, CAB, { rough: 0.75 }); // cornice
+      box(g, -hw - 0.5, hw + 0.5, it.h, it.h + 4, -hd, hd + 1, CAB, { rough: 0.75, radius: 0.5 }); // cornice
     },
   },
   filingCab: {
@@ -187,16 +192,17 @@ Object.assign(FURN, {
     h: 100,
     col: "#b9bcbe",
     build: function (g, it) {
-      var hw = it.w / 2,
-        hd = it.d / 2;
-      box(g, -hw, hw, 0, it.h, -hd, hd, CAB, { rough: 0.6 });
+      /* Filing cabinet: three suspension drawers with label holders and
+         recessed pulls, on a plinth. */
+      var hw = it.w / 2, hd = it.d / 2, zf = hd - 2;
+      box(g, -hw + 1, hw - 1, 0, 4, -hd + 2, hd - 4, 0x3b3936, { rough: 0.8, sharp: true });
+      box(g, -hw, hw, 4, it.h, -hd, zf, CAB, { rough: 0.6, radius: 0.5 });
+      var H = (it.h - 4) / 3;
       for (var i = 0; i < 3; i++) {
-        var y0 = 4 + (i * (it.h - 8)) / 3,
-          y1 = y0 + (it.h - 8) / 3 - 2;
-        box(g, -hw + 1.5, hw - 1.5, y0, y1, hd, hd + 1.4, CAB, { rough: 0.55 });
-        box(g, -8, 8, (y0 + y1) / 2 - 1.2, (y0 + y1) / 2 + 1.2, hd + 1.4, hd + 2.6, HANDLE, {
-          metal: 0.8, rough: 0.3,
-        });
+        var y0 = 4 + i * H, y1 = y0 + H;
+        front(g, -hw, hw, y0, y1, zf, CAB, { kind: "drawer", handle: "cup", rough: 0.55 });
+        box(g, -5, 5, y1 - 9, y1 - 6, zf + 1.8, zf + 2.1, 0xc9ced1, { metal: 0.7, rough: 0.3, sharp: true });
+        box(g, -4.2, 4.2, y1 - 8.5, y1 - 6.5, zf + 2.1, zf + 2.15, 0xf4f2ec, { rough: 0.9, sharp: true, cast: false });
       }
     },
   },
@@ -207,19 +213,21 @@ Object.assign(FURN, {
     h: 5,
     col: "#9c7a4e",
     build: function (g, it) {
-      var y0 = 150,
-        hw = it.w / 2,
-        hd = it.d / 2;
-      box(g, -hw, hw, y0, y0 + 4, -hd, hd, WOOD, { rough: 0.55 });
-      // a few objects so an empty shelf doesn't read as a floating plank
-      var bc = [0x7a4a3a, 0x4a6a7a, 0x8a8a4a, 0x5a4a7a];
-      for (var b = 0; b < 4; b++) {
-        var bx = -hw + 8 + b * 9;
-        box(g, bx, bx + 6, y0 + 4, y0 + 22 + ((b * 7) % 8), -hd + 4, hd - 5, bc[b % 4], {
-          rough: 0.85,
-        });
+      /* Floating shelf (hidden bracket) styled with books, a stack, a vase and a
+         small plant, so it reads as a shelf in use. */
+      var y0 = 150, hw = it.w / 2, hd = it.d / 2;
+      box(g, -hw, hw, y0, y0 + 4, -hd, hd, WOOD, { rough: 0.55, radius: 0.6 });
+      var bc = [0x7a4a3a, 0x4a6a7a, 0xd8cfbf, 0x2f3b45, 0x8a8a4a];
+      var x = -hw + 5;
+      for (var b = 0; b < 6 && x < -hw + it.w * 0.45; b++) {
+        var bw = 2.4 + (b * 7) % 3, bh = 17 + ((b * 5) % 7);
+        box(g, x, x + bw, y0 + 4, y0 + 4 + bh, -hd + 3, hd - 4, bc[b % bc.length], { rough: 0.85, radius: 0.25 });
+        x += bw + 0.3;
       }
-      cyl(g, hw - 14, y0 + 12, 0, 6, 16, 0x6f8f5a, { rough: 0.8, seg: 16, r2: 7 });
+      for (var st = 0; st < 3; st++) box(g, -4 - st, 12 - st, y0 + 4 + st * 2.6, y0 + 6.4 + st * 2.6, -hd + 4, hd - 5, bc[(st + 2) % bc.length], { rough: 0.85, radius: 0.3 });
+      cyl(g, hw - 22, y0 + 13, 0, 4.5, 18, 0xe9e4da, { rough: 0.3, seg: 20, r2: 2.6 });
+      cyl(g, hw - 9, y0 + 9, 0, 4.2, 10, 0xb58a66, { rough: 0.8, seg: 16, r2: 5 });
+      sph(g, hw - 9, y0 + 18, 0, 6, GREEN, { rough: 0.95 });
     },
   },
   floorMirror: {
@@ -484,18 +492,18 @@ Object.assign(FURN, {
     h: 42,
     col: "#eef0f2",
     build: function (g, it) {
-      var hw = it.w / 2,
-        hd = it.d / 2,
-        cer = { rough: 0.32 };
-      cyl(g, 0, it.h / 2 - 4, 4, Math.min(hw, hd) - 6, it.h - 8, 0xf2f4f6, {
-        rough: 0.32, seg: 20, r2: Math.min(hw, hd) - 11, metal: 0.02,
-      });
-      slabWithHoles(g, -hw + 3, hw - 3, it.h - 8, it.h - 3, -hd + 6, hd - 4,
-        [{ x0: -hw + 6, x1: hw - 6, z0: -hd + 9, z1: hd - 7 }], 0xf0f2f4, cer);
-      basin(g, -hw + 6, hw - 6, -hd + 9, hd - 7, it.h - 3, 12, 0xf6f8fa, {
-        metal: 0.02, rough: 0.28,
-      });
-      gooseneck(g, 0, it.h - 3, -hd + 5, 14, 8, 0xc6cccf, 1.3);
+      /* Bidet: the WC's companion — an egg bowl on a tapering foot with a
+         rolled rim and a deck mixer at the back. */
+      var hw = it.w / 2, hd = it.d / 2, top = it.h, bcz = 2, brx = hw - 1.5, brz = hd - 4;
+      var foot = cyl(g, 0, (top - 14) / 2, bcz, 1, top - 14, 0xf2f4f6, { rough: 0.3, seg: 32, r2: 1.25 });
+      if (foot) foot.scale.set(brx * 0.62, 1, brz * 0.6);
+      var shell = cyl(g, 0, top - 7, bcz, 1, 14, 0xf0f2f4, { rough: 0.3, seg: 48, open: true, r2: 0.85 });
+      if (shell) shell.scale.set(brx, 1, brz);
+      var rim = cyl(g, 0, top - 0.8, bcz, 1, 1.6, 0xf6f8fa, { rough: 0.25, seg: 48, open: true });
+      if (rim) rim.scale.set(brx, 1, brz);
+      var bowl = sph(g, 0, top - 1, bcz, 1, 0xf6f8fa, { rough: 0.24, seg: 40, segV: 12, thetaLen: Math.PI / 2 });
+      if (bowl) { bowl.rotation.x = Math.PI; bowl.scale.set(brx - 2.5, 12, brz - 2.5); }
+      gooseneck(g, 0, top, -hd + 6, 12, 8, 0xc6cccf, 1.3);
     },
   },
   pedestalSink: {
@@ -505,21 +513,21 @@ Object.assign(FURN, {
     h: 85,
     col: "#eef0f2",
     build: function (g, it) {
-      var hw = it.w / 2,
-        hd = it.d / 2,
-        cer = 0xf2f4f6;
-      // pedestal column, flaring to the floor
-      cyl(g, 0, (it.h - 16) / 2, 0, 9, it.h - 16, cer, {
-        rough: 0.32, seg: 22, r2: 12, metal: 0.02,
-      });
-      cyl(g, 0, 2, 0, 15, 4, cer, { rough: 0.32, seg: 24 });
-      // basin body + rim, with a real bowl sunk into it (rim punched, not solid)
-      slabWithHoles(g, -hw, hw, it.h - 16, it.h, -hd, hd,
-        [{ x0: -hw + 6, x1: hw - 6, z0: -hd + 7, z1: hd - 5 }], cer, { rough: 0.32 });
-      basin(g, -hw + 6, hw - 6, -hd + 7, hd - 5, it.h, 15, 0xf6f8fa, {
-        metal: 0.02, rough: 0.26,
-      });
-      gooseneck(g, 0, it.h, -hd + 5, Math.max(12, hd - 4), 14, 0xc6cccf, 1.4);
+      /* Pedestal basin: an oval vitreous-china basin — a thin shell round a
+         sunken bowl with a rolled rim and a chrome waste — on a waisted column. */
+      var hw = it.w / 2, hd = it.d / 2, cer = 0xf2f4f6, top = it.h, bh = 17;
+      cyl(g, 0, (top - bh) / 2, -2, 8.5, top - bh, cer, { rough: 0.3, seg: 28, r2: 11.5, metal: 0.02 });
+      var foot = cyl(g, 0, 1.5, -2, 1, 3, cer, { rough: 0.3, seg: 32 });
+      if (foot) foot.scale.set(14, 1, 11);
+      [
+        cyl(g, 0, top - bh / 2, 0, 1, bh, cer, { rough: 0.3, seg: 48, open: true, r2: 0.9 }),
+        cyl(g, 0, top - bh + 1, 0, 0.9, 2, cer, { rough: 0.3, seg: 48 }),
+        cyl(g, 0, top - 0.8, 0, 1, 1.6, 0xf6f8fa, { rough: 0.25, seg: 48, open: true }),
+      ].forEach(function (m) { if (m) m.scale.set(hw, 1, hd); });
+      var bowl = sph(g, 0, top - 1, 1, 1, 0xf6f8fa, { rough: 0.24, seg: 40, segV: 12, thetaLen: Math.PI / 2 });
+      if (bowl) { bowl.rotation.x = Math.PI; bowl.scale.set(hw - 3.5, 13, hd - 5); }
+      cyl(g, 0, top - 13.6, 1, 1.8, 0.4, 0xc6cccf, { metal: 0.9, rough: 0.2, seg: 16 });
+      gooseneck(g, 0, top, -hd + 4, Math.max(12, hd - 4), 14, 0xc6cccf, 1.3);
     },
   },
   towelRail: {
@@ -586,10 +594,11 @@ Object.assign(FURN, {
         var an = (i / arms) * Math.PI * 2,
           ax = Math.cos(an) * r,
           az = Math.sin(an) * r;
-        // arm sloping up and out from the hub
-        cyl(g, ax / 2, top - 32, az / 2, 1.1, r, 0xb08d4a, {
+        // an arm from the hub out to its cup: the cylinder's axis laid flat
+        // (rz) and swung round to the arm's bearing (ry)
+        cyl(g, ax / 2, top - 30, az / 2, 1.1, r, 0xb08d4a, {
           metal: 0.85, rough: 0.28, seg: 10,
-          rx: Math.sin(an) * 1.35, rz: -Math.cos(an) * 1.35,
+          rz: Math.PI / 2, ry: Math.PI - an,
         });
         cyl(g, ax, top - 30, az, 2.6, 6, 0xb08d4a, gold); // candle cup
         cyl(g, ax, top - 24, az, 1.6, 7, 0xf6f0e2, { rough: 0.5, seg: 12 }); // candle
@@ -1033,3 +1042,117 @@ Object.assign(FURN, {
   },
 });
 
+
+// ================= OUTDOOR =================
+// The pieces a presentation plan dresses the site with: a car on the drive,
+// garden trees and hedges, a patio set. Same conventions as above (front +z).
+var CAR_BODY = 0x2f3b45, TYRE = 0x1c1e20, FOLIAGE = GREEN, BARK = 0x5a4432;
+Object.assign(FURN, {
+  car: {
+    label: "רכב",
+    w: 185,
+    d: 460,
+    h: 145,
+    col: "#2f3b45",
+    build: function (g, it) {
+      /* Saloon car, nose toward +z. The lower body is split round the wheels —
+         a waist-high shell over sills and bumpers — so the tyres and alloy rims
+         sit visibly in their arches; a tapering glasshouse under a
+         body-coloured roof; lamps front and rear; mirrors. */
+      var hw = it.w / 2, hd = it.d / 2, wr = Math.min(33, it.h * 0.23), wz = hd - Math.min(78, it.d * 0.18),
+        paint = { metal: 0.6, rough: 0.22 }, beltY = it.h * 0.55, shellY = wr * 1.25;
+      box(g, -hw, hw, shellY, beltY, -hd, hd, CAR_BODY, Object.assign({ radius: 11 }, paint)); // shell
+      box(g, -hw + 1, hw - 1, 16, shellY + 4, -wz + wr + 5, wz - wr - 5, CAR_BODY, Object.assign({ radius: 5 }, paint)); // sills
+      box(g, -hw + 2, hw - 2, 16, shellY + 4, wz + wr + 4, hd, CAR_BODY, Object.assign({ radius: 8 }, paint)); // front bumper
+      box(g, -hw + 2, hw - 2, 16, shellY + 4, -hd, -wz - wr - 4, CAR_BODY, Object.assign({ radius: 8 }, paint)); // rear bumper
+      box(g, -hw + 24, hw - 24, 14, shellY, -hd + 20, hd - 20, 0x15181a, { rough: 0.9, sharp: true }); // floor pan
+      var c0 = -hd + it.d * 0.2, c1 = hd - it.d * 0.34, gy1 = it.h - 4;
+      box(g, -hw + 8, hw - 8, beltY - 1, gy1, c0, c1, 0x1c2a33, { metal: 0.6, rough: 0.05, taper: { x: 0.86, z: 0.62 } });
+      box(g, -(hw - 8) * 0.84, (hw - 8) * 0.84, gy1, it.h, c0 + (c1 - c0) * 0.2, c1 - (c1 - c0) * 0.2, CAR_BODY, Object.assign({ radius: 2.5 }, paint)); // roof
+      [-1, 1].forEach(function (sx) {
+        [-1, 1].forEach(function (sz) {
+          var x = sx * (hw - 12), z = sz * wz;
+          cyl(g, x, wr, z, wr, 21, TYRE, { rough: 0.85, seg: 28, rz: Math.PI / 2 });
+          cyl(g, x + sx * 10.7, wr, z, wr * 0.64, 0.8, 0xc0c6ca, { metal: 0.9, rough: 0.2, seg: 24, rz: Math.PI / 2 });
+          cyl(g, x + sx * 11.2, wr, z, wr * 0.16, 0.8, 0x8a9296, { metal: 0.9, rough: 0.2, seg: 16, rz: Math.PI / 2 });
+          for (var k = 0; k < 5; k++) {
+            var sp = box(g, x + sx * 11 - 0.4, x + sx * 11 + 0.4, wr - 1.2, wr + 1.2, z - wr * 0.6, z + wr * 0.6, 0xd6dbde, { metal: 0.9, rough: 0.2, sharp: true });
+            if (sp) sp.rotation.x = (k * Math.PI) / 5;
+          }
+        });
+        box(g, sx * (hw - 18) - 11, sx * (hw - 18) + 11, it.h * 0.4, it.h * 0.47, hd - 1.5, hd + 0.5, 0xeef4f8, { emis: 0xdfefff, cast: false, radius: 1 }); // headlamp
+        box(g, sx * (hw - 16) - 13, sx * (hw - 16) + 13, it.h * 0.42, it.h * 0.49, -hd - 0.5, -hd + 1.5, 0x8a1b1b, { emis: 0x6a1010, cast: false, radius: 1 }); // tail lamp
+        box(g, sx * (hw + 2) - 4, sx * (hw + 2) + 4, beltY + 2, beltY + 9, c1 - 18, c1 - 8, CAR_BODY, Object.assign({ radius: 1.5 }, paint)); // mirror
+        box(g, sx * hw - 0.4, sx * hw + 0.4, shellY + 4, beltY - 3, 5, 6, 0x15181a, { sharp: true }); // door shut line
+        box(g, sx * hw - 0.8, sx * hw + 0.8, beltY - 12, beltY - 10, 14, 26, 0x9aa2a8, { metal: 0.85, rough: 0.25, sharp: true }); // handle
+      });
+      box(g, -32, 32, it.h * 0.26, it.h * 0.37, hd - 1, hd + 0.8, 0x15181a, { rough: 0.5, radius: 1.2 }); // grille
+      box(g, -26, 26, it.h * 0.24, it.h * 0.31, -hd - 0.8, -hd + 0.5, 0xf2f2ee, { rough: 0.5, sharp: true }); // plate
+    },
+  },
+  tree: {
+    label: "עץ",
+    w: 320,
+    d: 320,
+    h: 520,
+    col: "#5b7a3c",
+    build: function (g, it) {
+      /* Garden tree: a tapering trunk forking into three limbs under a crown
+         of overlapping leaf masses (foliage texture), lighter at the top. */
+      var R = Math.min(it.w, it.d) / 2, trunkH = it.h * 0.42;
+      cyl(g, 0, trunkH / 2, 0, 9, trunkH, BARK, { rough: 0.95, seg: 14, r2: 7 });
+      [[0.9, 0.3], [-0.7, 0.5], [0.1, -0.8]].forEach(function (d) {
+        var b = cyl(g, d[0] * 22, trunkH + 30, d[1] * 22, 4.5, 80, BARK, { rough: 0.95, seg: 10, r2: 3 });
+        if (b) { b.rotation.z = -d[0] * 0.5; b.rotation.x = d[1] * 0.5; }
+      });
+      [[0, 0.78, 0, 0.62], [0.42, 0.66, 0.2, 0.46], [-0.45, 0.68, 0.1, 0.44], [0.1, 0.7, -0.45, 0.46],
+        [-0.15, 0.62, 0.42, 0.4], [0.3, 0.86, -0.1, 0.38], [-0.28, 0.9, -0.2, 0.34], [0.05, 0.98, 0.1, 0.3]].forEach(function (c) {
+        sph(g, c[0] * R, c[1] * it.h, c[2] * R, c[3] * R, FOLIAGE, { rough: 0.95, seg: 20, segV: 14 });
+      });
+    },
+  },
+  hedge: {
+    label: "גדר חיה",
+    w: 200,
+    d: 60,
+    h: 110,
+    col: "#4d6b33",
+    build: function (g, it) {
+      /* Clipped hedge: a squared mass with softly rounded shoulders and a
+         lumpy, leafy top. */
+      var hw = it.w / 2, hd = it.d / 2;
+      box(g, -hw, hw, 0, it.h - 8, -hd, hd, FOLIAGE, { rough: 0.95, radius: 8, crown: 3 });
+      var n = Math.max(2, Math.round(it.w / 30));
+      for (var i = 0; i < n; i++) {
+        var x = -hw + ((i + 0.5) * it.w) / n;
+        sph(g, x, it.h - 14, (i % 2 ? 1 : -1) * hd * 0.2, Math.min(hd, it.w / n) * 0.75, FOLIAGE, { rough: 0.95, seg: 14, segV: 10 });
+      }
+    },
+  },
+  patioSet: {
+    label: "פינת ישיבה בחצר",
+    w: 220,
+    d: 220,
+    h: 240,
+    col: "#8a857c",
+    build: function (g, it) {
+      /* Patio set: a round slatted table under a parasol, four chairs. */
+      var r = 50, frame = { metal: 0.7, rough: 0.35, seg: 12 };
+      cyl(g, 0, 73, 0, r, 3, WOOD, { rough: 0.6, seg: 40 });
+      cyl(g, 0, 36, 0, 2.2, 72, 0x2e3134, frame);
+      cyl(g, 0, 1.5, 0, 26, 3, 0x2e3134, { metal: 0.7, rough: 0.35, seg: 32 });
+      cyl(g, 0, it.h / 2, 0, 1.6, it.h - 10, 0xeae4d8, { rough: 0.5, seg: 10 }); // parasol pole
+      var can = cyl(g, 0, it.h - 18, 0, Math.min(it.w, it.d) / 2 - 8, 22, 0xeae4d8, { rough: 0.9, seg: 8, r2: 3 });
+      for (var k = 0; k < 4; k++) {
+        var a = (k * Math.PI) / 2, cx = Math.sin(a) * (r + 30), cz = Math.cos(a) * (r + 30), ch = new g.constructor();
+        ch.position.set(cx, 0, cz);
+        ch.rotation.y = a + Math.PI;
+        g.add(ch);
+        box(ch, -22, 22, 42, 46, -20, 20, 0x2e3134, { metal: 0.6, rough: 0.4, radius: 1 });
+        box(ch, -20, 20, 46, 51, -18, 18, FABRIC, { rough: 0.95, radius: 2.5, crown: 1 });
+        box(ch, -22, 22, 46, 88, -22, -19, 0x2e3134, { metal: 0.6, rough: 0.4, radius: 1 });
+        [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) { cyl(ch, p[0] * 19, 21, p[1] * 17, 1.2, 42, 0x2e3134, frame); });
+      }
+    },
+  },
+});

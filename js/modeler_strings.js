@@ -27,7 +27,7 @@ export var TXT = {
   selectParallelEdgesHint:["הוספת קצוות ישרים המקבילים לקצה הנבחר הראשון בגוף הפעיל","Add straight edges parallel to the first selected edge on the active body"],
   centerRectangle:["מלבן מרכזי","Center rectangle"],
   centerSlot:["חריץ מרכזי ישר","Centerpoint straight slot"],
-  centerSlotHint:["חריץ אופקי עם מרכז קבוע ומידות מניעות. האורך נמדד בין מרכזי הקשתות. ניתן להזין mm, cm או in.","Horizontal slot with a fixed midpoint and driving dimensions. Length is measured between the arc centres. Accepts mm, cm or in."],
+  centerSlotHint:["חריץ אופקי סימטרי עם מידות מניעות; גררו את המרכז כדי להזיז. האורך נמדד בין מרכזי הקשתות. ניתן להזין mm, cm או in.","Symmetric horizontal slot with driving dimensions; drag the midpoint to move it. Length is measured between the arc centres. Accepts mm, cm or in."],
   slotCenterSpacing:["מרחק בין מרכזי הקשתות","Arc centre spacing"],
   centerRectangleHint:["מידות מניעות ומרכז סימטרי; גררו את המרכז כדי להזיז. ניתן להזין mm, cm או in.","Driving dimensions around a symmetric center; drag the center to move it. Lengths accept mm, cm or in."],
   rectangleFixCenter:["קיבוע המרכז","Fix center"],

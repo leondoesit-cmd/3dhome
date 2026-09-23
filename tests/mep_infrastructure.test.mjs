@@ -121,34 +121,69 @@ test("preferred and required routing policies control generated run planes", () 
   assert.equal(crossing.policyViolation, true);
 });
 
-test("different systems clash when they share a chase, not when they only cross planes", () => {
+test("different systems clash only when their 3D routes actually share space", () => {
   plan();
-  addRun("power", "circuit", [{ x: 0, z: 0 }, { x: 200, z: 0 }], null, null, "wall");
+  addRun("power", "circuit", [{ x: 0, z: 0 }, { x: 200, z: 0 }], null, null, "floor");
   addRun("water", "cold", [{ x: 0, z: 0 }, { x: 200, z: 0 }], null, null, "floor");
   let clashes = computeMEPClashes();
-  assert.equal(clashes.length, 1, "a floor pipe traced along a wall chase is a clash");
+  assert.equal(clashes.length, 1, "overlapping under-floor services conflict");
+  assert.equal(clashes[0].separationCm, 0);
+  assert.equal(clashes[0].clearanceCm, 4);
 
   S.mep.runs[1].pts = [{ x: 0, z: 5 }, { x: 200, z: 5 }];
   clashes = computeMEPClashes();
-  assert.equal(clashes.length, 0, "the hot-water offset of 5cm stays clear of a 4cm gap");
+  assert.equal(clashes.length, 0, "a 5cm lateral offset stays clear of a 4cm gap");
 
-  S.mep.runs[1].layer = "wall";
   S.mep.runs[1].pts = [{ x: 100, z: -40 }, { x: 100, z: 40 }];
   clashes = computeMEPClashes();
   assert.equal(clashes.length, 1, "two services crossing in the same plane clash");
 
-  S.mep.runs[1].layer = "ceiling";
+  S.mep.runs[1].layer = "wall";
   clashes = computeMEPClashes();
-  assert.equal(clashes.length, 0, "a right-angle crossing of different planes is not a clash");
+  assert.equal(clashes.length, 0, "projected crossings at different heights do not clash");
 
   addRun("power", "circuit", [{ x: 0, z: 40 }, { x: 80, z: 40 }], null, null, "wall");
   clashes = computeMEPClashes();
   assert.equal(clashes.filter((c) => c.sysA === "power" && c.sysB === "power").length, 0);
 
   S.mep.runs = [];
-  addRun("power", "circuit", [{ x: 0, z: 0 }, { x: 100, z: 0 }], null, null, "wall");
-  addRun("water", "cold", [{ x: 0, z: 3 }, { x: 100, z: 30 }], null, null, "floor");
-  assert.equal(computeMEPClashes().length, 0, "diverging runs are not a shared chase");
+  addRun("power", "circuit", [{ x: 0, z: 0 }, { x: 100, z: 0 }], null, null, "floor");
+  addRun("water", "cold", [{ x: 0, z: 5 }, { x: 100, z: 30 }], null, null, "floor");
+  assert.equal(computeMEPClashes().length, 0, "diverging runs with a clear start do not clash");
+});
+
+test("run centre height resolves a clash and survives project normalization", () => {
+  plan();
+  addRun("water", "cold", [{ x: 0, z: 30 }, { x: 200, z: 30 }], null, null, "floor");
+  const waste = addRun("drain", "waste", [{ x: 0, z: 30 }, { x: 200, z: 30 }], null, null, "floor");
+  assert.equal(getMEPState().clashes.length, 1);
+  waste.elev = -20;
+  assert.deepEqual(runPointY(waste), [-20, -20]);
+  assert.equal(getMEPState().clashes.length, 0, "elevation changes invalidate cached clash results");
+  const saved = structuredClone(S.mep);
+  loadMEP(saved);
+  assert.equal(S.mep.runs.find((r) => r.id === waste.id).elev, -20);
+  assert.equal(getMEPState().clashes.length, 0);
+});
+
+test("ceiling height changes invalidate cached clash geometry", () => {
+  plan();
+  const duct = addRun("hvac", "flex", [{ x: 20, z: 50 }, { x: 180, z: 50 }], null, null, "ceiling");
+  addRun("power", "circuit", [{ x: 20, z: 50 }, { x: 180, z: 50 }], null, null, "ceiling");
+  duct.elev = 256.5;
+  assert.equal(getMEPState().clashes.length, 1);
+  S.walls.forEach((wall) => { wall.height = 300; });
+  assert.equal(getMEPState().clashes.length, 0);
+});
+
+test("exposed ceiling routing invalidates cached clearances", () => {
+  plan();
+  const flex = addRun("hvac", "flex", [{ x: 20, z: 50 }, { x: 180, z: 50 }], null, null, "ceiling");
+  const cable = addRun("power", "circuit", [{ x: 20, z: 50 }, { x: 180, z: 50 }], null, null, "ceiling");
+  cable.elev = 250;
+  assert.equal(getMEPState().clashes.length, 1);
+  flex.exposed = false;
+  assert.equal(getMEPState().clashes.length, 0);
 });
 
 test("a required wall cannot be applied through a door, and a required ceiling is revealed", () => {

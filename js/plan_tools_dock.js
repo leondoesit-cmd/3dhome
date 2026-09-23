@@ -194,7 +194,21 @@ function axisOf(key) {
 }
 function chosenSize(key) {
   var f = panelState(key).free;
-  if (f && f.w > 0 && f.h > 0) return { w: f.w, h: f.h };
+  if (f && f.w > 0 && f.h > 0) {
+    var spec = specOf(key);
+    /* Old customize-layout builds could persist a wrapper after flex had
+       squeezed it to only a couple of pixels. Restoring that literal box made
+       a complete toolbar disappear while its content overflowed somewhere
+       else in the plan. Treat impossible stored boxes as unsized and let the
+       panel recover its natural dimensions. Horizontal panels legitimately
+       have a short single-row height, so their vertical floor is deliberately
+       lower than the column-oriented minimum. */
+    var axis = f.axis === "h" || f.axis === "v" ? f.axis : axisOf(key);
+    var minW = spec.minW || 48;
+    var minH = axis === "h" ? Math.min(spec.minH || 28, 32) : (spec.minH || 28);
+    if (f.w < minW || f.h < minH) return null;
+    return { w: f.w, h: f.h };
+  }
   return null;
 }
 function applyChosenSize(w, key) {
@@ -338,6 +352,19 @@ function syncPosture() {
   var p = posture();
   pane.classList.toggle("plan-narrow", p !== "full");
   pane.classList.toggle("plan-tiny", p === "tiny");
+  /* The window can be wide while the actual drawing pane is not (library and
+     inspector consume more than 600px). Responsive toolbar density therefore
+     follows the pane, not `window.innerWidth`; otherwise the labelled ribbon
+     looks roomy to the media query while its final actions are crowded against
+     the floor controls. */
+  pane.classList.toggle("plan-tools-compact", pane.clientWidth < 1280);
+  /* Below this width, independently saved free panels cannot share the same
+     top edge without squeezing context controls into unreadable slivers. */
+  pane.classList.toggle("plan-tools-tight", pane.clientWidth < 760);
+  /* Context palettes contain more labelled controls than the primary ribbon.
+     Give them their own threshold so a 1480px canvas can keep ribbon labels
+     while Room presets use the no-horizontal-scroll command-panel layout. */
+  pane.classList.toggle("plan-context-compact", pane.clientWidth < 1500);
   return p;
 }
 // The compact touch shell and very small panes use the phone rail.
@@ -568,11 +595,22 @@ function place() {
   /* Free overlays (the CAD bar at the bottom) have to be sitting where they
      will actually be before docked zones measure the leftover room. */
   var bottom = ph - statusH();
+  /* A free primary ribbon is visually the first row. Context palettes docked
+     to the top edge belong on the next row, not underneath it. This is derived
+     from the rendered box (not the saved x/y) because the pane may have just
+     compacted or centred the toolbar for presentation. */
+  var topOffset = 0;
+  if (wraps.tools && isFree("tools") && shown("tools") && !wraps.tools.hidden) {
+    var pr = pane.getBoundingClientRect();
+    var rr = wraps.tools.getBoundingClientRect();
+    var ry = rr.top - pr.top;
+    if (ry <= 24) topOffset = Math.round(Math.min(bottom, ry + rr.height + 12));
+  }
 
   // 2. natural sizes, capped only by the pane
   var nat = {};
   ZONES.forEach(function (id) {
-    cap(zoneEls[id], pw, bottom);
+    cap(zoneEls[id], pw, Math.max(0, bottom - (FLUSH[id].indexOf("top") >= 0 ? topOffset : 0)));
     nat[id] = { w: zoneEls[id].offsetWidth, h: zoneEls[id].offsetHeight };
   });
 
@@ -580,16 +618,33 @@ function place() {
         edge with — capped there, two zones that grow towards each other end up
         flush instead of overlapping, which is the whole promise of docking. */
   var trFree = members("top-right", true).length === 0 ? GIZMO_W : 0;
+  /* Free rails still own horizontal lanes. Centre labelled context palettes
+     in the genuinely open canvas between Layers and Floors instead of under
+     either card. This matters most in short windows where there is no spare
+     vertical room to repair an avoidable horizontal collision. */
+  function freeBox(key) {
+    var w = wraps[key];
+    if (!w || w.hidden || !isFree(key) || !shown(key)) return null;
+    var paneRect = pane.getBoundingClientRect(), r = w.getBoundingClientRect();
+    return { x: r.left - paneRect.left, y: r.top - paneRect.top, w: r.width, h: r.height, r: r.right - paneRect.left };
+  }
+  var leftRail = freeBox("layers");
+  var rightRail = freeBox("floors");
+  var topLaneLeft = leftRail && leftRail.x < pw / 3 ? leftRail.r + 12 : 0;
+  var topLaneRight = rightRail && rightRail.x > pw / 2 ? rightRail.x - 12 : pw;
   var span = {
-    top: { l: nat["top-left"].w, r: pw - Math.max(nat["top-right"].w, trFree) },
+    top: {
+      l: Math.max(nat["top-left"].w, topLaneLeft),
+      r: Math.min(pw - Math.max(nat["top-right"].w, trFree), topLaneRight),
+    },
     bottom: { l: nat["bottom-left"].w, r: pw - nat["bottom-right"].w },
-    left: { t: Math.max(nat["top-left"].h, nat.top.h), b: bottom - nat["bottom-left"].h },
-    right: { t: Math.max(nat["top-right"].h, nat.top.h), b: bottom - nat["bottom-right"].h },
+    left: { t: topOffset + Math.max(nat["top-left"].h, nat.top.h), b: bottom - nat["bottom-left"].h },
+    right: { t: topOffset + Math.max(nat["top-right"].h, nat.top.h), b: bottom - nat["bottom-right"].h },
   };
-  cap(zoneEls.top, Math.max(120, span.top.r - span.top.l), bottom);
+  cap(zoneEls.top, Math.max(120, span.top.r - span.top.l), Math.max(0, bottom - topOffset));
   // Capping the top can add a wrapped row; measure before placing side palettes.
-  span.left.t = Math.max(span.left.t, zoneEls.top.offsetHeight);
-  span.right.t = Math.max(span.right.t, zoneEls.top.offsetHeight);
+  span.left.t = Math.max(span.left.t, topOffset + zoneEls.top.offsetHeight);
+  span.right.t = Math.max(span.right.t, topOffset + zoneEls.top.offsetHeight);
   cap(zoneEls.bottom, Math.max(120, span.bottom.r - span.bottom.l), bottom);
   cap(zoneEls.left, pw, Math.max(80, span.left.b - span.left.t));
   cap(zoneEls.right, pw, Math.max(80, span.right.b - span.right.t));
@@ -606,7 +661,7 @@ function place() {
       var sx = span[id === "top" ? "top" : "bottom"];
       x = clamp(sx.l, sx.l + (sx.r - sx.l - w) / 2, Math.max(sx.l, sx.r - w));
     }
-    if (f.indexOf("top") >= 0) y = 0;
+    if (f.indexOf("top") >= 0) y = topOffset;
     else if (f.indexOf("bottom") >= 0) y = bottom - h;
     else {
       var sy = span[id];
@@ -617,6 +672,26 @@ function place() {
     boxes[id] = { x: x, y: y, w: w, h: h };
   });
 
+  /* The dock now has final coordinates. Run the free-panel presentation pass
+     once more with those zones reserved; this is what keeps Layers, Floors,
+     Maximise and the view gizmo clear when a labelled context palette opens. */
+  placeFree(pw, ph, Object.keys(boxes).map(function (id) { return boxes[id]; }));
+  /* A shallow desktop pane cannot stack the right-side navigation by trial
+     and error: clamping the last card back into the pane can recreate the
+     collision the solver just removed. Give the three controls a deterministic
+     compact rail beside (never over) the context palette. */
+  if (ph < 500) {
+    var railY = topOffset + 1;
+    ["floors", "max", "gizmo"].forEach(function (key) {
+      var w = wraps[key];
+      if (!w || w.hidden || !isFree(key) || !shown(key)) return;
+      var rw = w.offsetWidth, rh = w.offsetHeight;
+      w.style.left = Math.round(Math.max(0, pw - rw)) + "px";
+      w.style.top = Math.round(Math.min(Math.max(0, ph - rh), railY)) + "px";
+      railY += rh + 12;
+    });
+  }
+
   /* 5. the two floating controls that were here first. The gizmo and the
         maximize button sit in the top-trailing corner; when a panel takes that
         corner they move below it rather than under it. The active-tool hint
@@ -625,7 +700,7 @@ function place() {
   ["top-right", "top", "top-left"].forEach(function (id) {
     var b = boxes[id];
     if (b && (id === "top-right" || b.x + b.w > pw - 120)) {
-      trh = Math.max(trh, b.h);
+      trh = Math.max(trh, b.y + b.h);
     }
   });
   pane.style.setProperty(
@@ -637,10 +712,6 @@ function place() {
     if (boxes[id]) lift = Math.max(lift, boxes[id].h);
   });
   pane.style.setProperty("--plan-hint-lift", Math.round(lift + (lift ? 8 : 0)) + "px");
-  // Position anchored floor navigation below the final wrapped toolbar.
-  if (wraps.floors && isFree("floors") && freeState("floors").stick === "floors") {
-    wraps.floors.style.top = Math.round((boxes.top ? boxes.top.h : 0) + 8) + "px";
-  }
   lastSig = sig();
 }
 
@@ -649,8 +720,22 @@ function place() {
    sit where they were left. The clamp is not decoration: the pane is resizable
    and a stored position outlives the size it was chosen at, so a panel parked
    at the right edge of a wide pane has to still be reachable in a narrow one. */
-function placeFree(pw, ph) {
-  PANELS.forEach(function (panel) {
+function placeFree(pw, ph, reserved) {
+  /* Docked zones and floating panels share the same pixels. The first layout
+     pass establishes natural sizes; the final pass receives the positioned
+     dock zones as reserved rectangles so a free Layers/Floors/Gizmo card can
+     never sit over an expanded Wall or Room palette. */
+  var placed = (reserved || []).map(function (b) {
+    return { x: b.x, y: b.y, w: b.w, h: b.h };
+  });
+  /* Bottom CAD status is an anchored frame edge, not a card that should move
+     out of the way of Floors/Gizmo. Place it first so every later free panel
+     yields to it; the previous registry order could push the full-width bar
+     upward across a Room palette in a short window. */
+  var priority = { cad: 0, tools: 1, layers: 2, floors: 3, max: 4, gizmo: 5 };
+  PANELS.slice().sort(function (a, b) {
+    return (priority[a.key] == null ? 20 : priority[a.key]) - (priority[b.key] == null ? 20 : priority[b.key]);
+  }).forEach(function (panel) {
     var key = panel.key, w = wraps[key];
     if (!w) return;
     if (!isFree(key) || (drag && drag.key === key) || (sizing && sizing.key === key)) {
@@ -692,22 +777,76 @@ function placeFree(pw, ph) {
        top, so a visible top edge is exactly that guarantee.
        Display only, never written back: a pane that is briefly narrow — a split
        mid-drag — must not quietly consume the position the user chose. */
-    var sized = typeof f.w === "number" && typeof f.h === "number";
+    var storedSize = chosenSize(key);
+    var sized = !!storedSize;
     w.classList.toggle("pt-sized", sized);
     w.style.maxWidth = Math.round(pw) + "px";
     w.style.maxHeight = Math.round(ph) + "px";
     if (sized) {
-      w.style.width = Math.round(Math.min(f.w, pw)) + "px";
-      w.style.height = Math.round(Math.min(f.h, ph)) + "px";
+      w.style.width = Math.round(Math.min(storedSize.w, pw)) + "px";
+      w.style.height = Math.round(Math.min(storedSize.h, ph)) + "px";
     } else {
       w.style.removeProperty("width");
       w.style.removeProperty("height");
     }
     var r = w.getBoundingClientRect();
     var keep = 64;
-    w.style.left = Math.round(clamp(keep - Math.round(r.width), f.x, Math.max(0, pw - keep))) + "px";
+    var arranging = editingLayout();
+    /* While arranging, a card may hang partly outside the pane as long as its
+       grip remains reachable. In the normal product view every control must
+       be visible: a floor switcher with only its last 64px on-screen is not a
+       useful menu, even though it is technically draggable in Customize UI. */
+    var minX = arranging ? keep - Math.round(r.width) : 0;
+    var maxX = arranging ? Math.max(0, pw - keep) : Math.max(0, pw - Math.round(r.width));
+    w.style.left = Math.round(clamp(minX, f.x, maxX)) + "px";
     var keepTop = Math.min(32, Math.max(16, Math.round(r.height)));
-    w.style.top = Math.round(clamp(0, f.y, Math.max(0, ph - keepTop))) + "px";
+    var maxY = arranging ? Math.max(0, ph - keepTop) : Math.max(0, ph - Math.round(r.height));
+    w.style.top = Math.round(clamp(0, f.y, maxY)) + "px";
+
+    if (!arranging && !w.hidden) {
+      /* A saved free layout can be restored into a smaller pane. Keeping each
+         card in bounds is necessary but not sufficient: two individually
+         valid boxes may now cover each other's controls. Resolve collisions
+         for presentation only (the stored coordinates remain untouched), in
+         panel priority order, preferring the open space below a blocker. */
+      var box = {
+        x: parseFloat(w.style.left) || 0,
+        y: parseFloat(w.style.top) || 0,
+        w: Math.round(r.width),
+        h: Math.round(r.height),
+      };
+      /* A ribbon parked along the top edge reads as primary application
+         chrome, so keep it optically centred in normal mode. Customize UI
+         still exposes the exact stored position and remains the only place
+         that writes it. This also prevents a valid-but-lopsided saved x value
+         from crowding Delete against the floor controls after sidebars resize. */
+      if (key === "tools" && f.y <= 24 && box.w < pw) {
+        box.x = Math.round((pw - box.w) / 2);
+      }
+      function hits(a, b) {
+        var gap = 12;
+        return a.x < b.x + b.w + gap && a.x + a.w + gap > b.x &&
+          a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
+      }
+      for (var pass = 0; pass < placed.length * 2 + 2; pass++) {
+        var blocker = placed.find(function (other) { return hits(box, other); });
+        if (!blocker) break;
+        var down = blocker.y + blocker.h + 12;
+        var right = blocker.x + blocker.w + 12;
+        var left = blocker.x - box.w - 12;
+        var up = blocker.y - box.h - 12;
+        if (down + box.h <= ph) box.y = down;
+        else if (right + box.w <= pw) box.x = right;
+        else if (left >= 0) box.x = left;
+        else if (up >= 0) box.y = up;
+        else break;
+      }
+      box.x = clamp(0, box.x, Math.max(0, pw - box.w));
+      box.y = clamp(0, box.y, Math.max(0, ph - box.h));
+      w.style.left = Math.round(box.x) + "px";
+      w.style.top = Math.round(box.y) + "px";
+      placed.push(box);
+    }
   });
 }
 

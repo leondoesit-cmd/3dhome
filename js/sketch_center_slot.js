@@ -1,6 +1,8 @@
-// A dimensioned straight slot whose midpoint stays fixed while its length
-// changes. The perimeter remains ordinary editable lines and tangent arcs.
-export function addCenterSlot(sketch, { length, width, x = 0, y = 0 }, id) {
+// A dimensioned straight slot that stays symmetric about its midpoint while its
+// length changes. The perimeter remains ordinary editable lines and tangent arcs.
+// The midpoint is pinned only on request, as for the center rectangle: pinned,
+// the slot is fully defined and a drag fights the pin instead of moving it.
+export function addCenterSlot(sketch, { length, width, x = 0, y = 0, fixCenter = false }, id) {
   if (![length, width, x, y].every(Number.isFinite) || length <= 0 || width <= 0) {
     throw new Error("Slot dimensions must be positive finite lengths");
   }
@@ -25,7 +27,7 @@ export function addCenterSlot(sketch, { length, width, x = 0, y = 0 }, id) {
   }
   sketch.constraints.push(
     { id: id(), type: "horizontal", entity: axis.id },
-    { id: id(), type: "fixed", point: center.id, x, y },
+    ...(fixCenter ? [{ id: id(), type: "fixed", point: center.id, x, y }] : []),
     { id: id(), type: "midpoint", point: center.id, entity: axis.id },
     { id: id(), type: "distance", entity: axis.id, value: length, driven: false },
     { id: id(), type: "radius", entity: capA.id, value: width / 2, driven: false },

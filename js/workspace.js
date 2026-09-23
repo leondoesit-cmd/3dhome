@@ -17,7 +17,7 @@ import {
 import { addConstraint, removeConstraint, applyConstraints } from "./constraints.js";
 import { validateDesign, validationSummary } from "./validator.js";
 import { generateLayouts, applyLayout } from "./layouts.js";
-import { downloadText, toSVG, toDXF, toIFC, toScheduleCSV } from "./exports_pro.js";
+import { downloadText, toSVG, toDXF, toIFC, toScheduleCSV, toConstructionSVG } from "./exports_pro.js";
 import { setQualityPreset } from "./view3d.js";
 import { wallCons, conSatisfied, removeCon, setConSuppressed, solveWallCons } from "./wall_constraints.js";
 import { initCollaboration, addComment, toggleResolved, presentScene, setRole } from "./collaboration.js";
@@ -297,17 +297,37 @@ export async function openWorkspace() {
     }); content.append(box);
   }
 
+  /* Print one sheet on its own paper size: the SVG goes into a hidden frame
+     whose page is exactly that sheet, so the app chrome never prints. */
+  function printSheet(svg) {
+    const frame = document.createElement("iframe");
+    frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+    document.body.appendChild(frame);
+    const doc = frame.contentDocument;
+    const m = /width="([\d.]+)mm" height="([\d.]+)mm"/.exec(svg);
+    const page = m ? m[1] + "mm " + m[2] + "mm" : "landscape";
+    doc.open();
+    doc.write('<!doctype html><title>' + t("sheet_floor_plan") + '</title><style>@page{size:' + page + ';margin:0}html,body{margin:0}svg{display:block;width:100%;height:auto}</style>' + svg);
+    doc.close();
+    setTimeout(() => {
+      try { frame.contentWindow.focus(); frame.contentWindow.print(); } finally { setTimeout(() => frame.remove(), 1000); }
+    }, 60);
+  }
+
   function drawExport() {
-    const box = section("Professional handoff");
+    const box = section(t("handoff_title"));
     box.append(row(
-      button("SVG plan", () => downloadText("home3d-plan.svg", toSVG(), "image/svg+xml")),
-      button("DXF plan", () => downloadText("home3d-plan.dxf", toDXF(), "application/dxf")),
-      button("IFC model", () => downloadText("home3d-model.ifc", toIFC(), "application/x-step")),
-      button("CSV schedules", () => downloadText("home3d-schedules.csv", toScheduleCSV(), "text/csv")),
+      // the one detailed drawing: dimension strings, fixtures, area line
+      button(t("sheet_export_svg"), () => downloadText("home3d-construction-plan.svg", toConstructionSVG(), "image/svg+xml")),
+      button(t("sheet_print"), () => printSheet(toConstructionSVG())),
+      button(t("handoff_svg"), () => downloadText("home3d-plan.svg", toSVG(), "image/svg+xml")),
+      button(t("handoff_dxf"), () => downloadText("home3d-plan.dxf", toDXF(), "application/dxf")),
+      button(t("handoff_ifc"), () => downloadText("home3d-model.ifc", toIFC(), "application/x-step")),
+      button(t("handoff_csv"), () => downloadText("home3d-schedules.csv", toScheduleCSV(), "text/csv")),
       /* The 3D handoff belongs on the same shelf as the 2D ones. Loaded on
          click because it pulls in three's glTF exporter (js/blender_export.js). */
-      button("GLB for Blender", async () => (await import("./ui_blender.js")).openBlenderExport()),
-      button("Print report", () => window.print())
+      button(t("handoff_glb"), async () => (await import("./ui_blender.js")).openBlenderExport()),
+      button(t("handoff_print"), () => window.print())
     )); content.append(box);
   }
 

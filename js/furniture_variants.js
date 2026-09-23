@@ -269,8 +269,23 @@ var VARIANTS = {
     V("white", "לבן", "White", woodFin(0xeeeae2, 0.6)),
     V("black", "שחור", "Black", woodFin(0x2b2e31, 0.45)),
   ],
+  car: [
+    V("graphite", "גרפיט", "Graphite"),
+    V("white", "לבן", "White", smap(0x2f3b45, { col: 0xf2f2f0, rough: 0.2, metal: 0.4 })),
+    V("black", "שחור", "Black", smap(0x2f3b45, { col: 0x16181a, rough: 0.15, metal: 0.6 })),
+    V("red", "אדום", "Red", smap(0x2f3b45, { col: 0x8f1d22, rough: 0.2, metal: 0.55 })),
+    V("blue", "כחול", "Blue", smap(0x2f3b45, { col: 0x2b4f7a, rough: 0.2, metal: 0.55 })),
+    V("silver", "כסוף", "Silver", smap(0x2f3b45, { col: 0xb9c0c4, rough: 0.2, metal: 0.8 })),
+  ],
+  tree: [
+    V("green", "ירוק", "Green"),
+    V("autumn", "סתווי", "Autumn", smap(GREEN, { col: 0xb8742e, rough: 0.95 })),
+    V("blossom", "פריחה", "Blossom", smap(GREEN, { col: 0xd9a4b4, rough: 0.95 })),
+  ],
   stairs: [
     V("wood", "עץ", "Wood"),
+    V("lShape", "מדרגות L", "L-shaped", null, { shape: "L" }),
+    V("curved", "מדרגות מעוגלות", "Curved", null, { shape: "curved" }),
     V("dark", "עץ כהה", "Dark wood", smap(0xb09a76, { col: 0x6a4a30, rough: 0.6 })),
     V("white", "לבן", "White", smap(0xb09a76, { col: 0xeeeae2, rough: 0.6 })),
     V("concrete", "בטון", "Concrete", smap(0xb09a76, { col: 0xa8a6a1, rough: 0.85 })),

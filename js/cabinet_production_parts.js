@@ -89,6 +89,10 @@ export function cabinetProductionParts(items = []) {
         const valid = d && [d.t,d.gl,d.gw].every(v => Number.isFinite(v) && v > 0);
         const srole = stockRole(source.mat);
         const sheet = valid ? sheetFor(layout.sp, srole, d.t) : null;
+        // resolveSheet deliberately tolerates approximate thickness for visual
+        // quotes. A cut blank cannot inherit that tolerance: nominal 3/4 in
+        // stock is not an 18 mm board, nor is a 1/4 in back an 8 mm sheet.
+        const stockMatches = !!sheet && (['top','glass','mirror'].includes(srole) || Math.abs(sheet.t - d.t) <= 0.01);
         const finished = valid ? { length: mm(Math.max(d.gl,d.gw)), width: mm(Math.min(d.gl,d.gw)), thickness: mm(d.t), alongGrain: mm(d.gl), acrossGrain: mm(d.gw) } : null;
         const geometry = !valid ? 'unsupported' : source.k === 'poly' ? 'polygon' : 'rectangle';
         const datum = geometry === 'rectangle' ? 'length:' + (d.gl >= d.gw ? d.alongAxis : d.acrossAxis) + ';width:' + (d.gl >= d.gw ? d.acrossAxis : d.alongAxis) + ';thickness:' + d.thicknessAxis : null;
@@ -98,7 +102,9 @@ export function cabinetProductionParts(items = []) {
         const byStock = {};
         if (sizes.edges) for (const [name,edge] of Object.entries(sizes.edges)) { if (edge.thicknessMm > 0) byStock[edge.stockId] = (byStock[edge.stockId] || 0) + (name.startsWith('length') ? finished.width : finished.length); }
         const productionPart = { id, itemId: identity.id, partId, itemIndex: index, role: source.role, material: source.mat,
-          stockRole: srole, sheetId: sheet?.id || null, grain: !!sheet?.grain,
+          stockRole: srole, sheetId: stockMatches ? sheet.id : null,
+          stockCandidateId: !stockMatches ? sheet?.id || null : null,
+          grain: stockMatches ? !!sheet.grain : null,
           geometry, datum, topologyBinding, finished, ...sizes,
           banding: sizes.edges ? {stockId:null,byStock,lengthMm:Object.values(byStock).reduce((sum,value)=>sum+value,0),basis:'explicit-edges'} : { stockId: layout.sp.band, lengthMm: Number((bandLen(source) * 1000).toFixed(9)), basis: 'aggregate-layout-estimate' } };
         productionPart.stockSignature = cabinetStockSignature(productionPart);
@@ -107,6 +113,8 @@ export function cabinetProductionParts(items = []) {
         if (!valid) add('unsupported-geometry', 'This board has no supported rectangular design envelope.', identity.id, id);
         if (geometry === 'polygon') add('polygon-machining-required', 'Nesting represents the bounding blank; its contour requires separate machining.', identity.id, id);
         if (!sheet) add('missing-stock', 'No sheet SKU matches this board.', identity.id, id);
+        else if (!stockMatches) add('stock-thickness-mismatch',
+          `Board is ${mm(d.t)} mm thick, but the proposed ${sheet.id} sheet is ${mm(sheet.t)} mm. Select exact nominal stock or revise the design; this part is excluded from the cut plan.`, identity.id, id);
       });
       for (const partId of Object.keys(item.cab.productionOverrides || {})) {
         if (!report.parts.some(part => part.itemId === identity.id && part.partId === partId)) add('stale-part-override','A part allowance refers to a board no longer present in this design.',identity.id,identity.prefix+partId);

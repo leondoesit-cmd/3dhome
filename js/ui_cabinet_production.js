@@ -10,6 +10,10 @@ import { compareCabinetProductionJobs, cabinetRevisionDiffHTML, cabinetRevisionD
 import { mountCabinetInspection } from './ui_cabinet_inspection.js';
 import { createCabinetStandardsContext, evaluateCabinetStandards } from './cabinet_standards.js';
 import {
+  CABINET_PRODUCTION_PRESETS, previewCabinetProductionPreset, applyCabinetProductionPreset,
+  standardsContextForCabinetPreset, cabinetDesignToProductionReadiness,
+} from './cabinet_production_presets.js';
+import {
   createCabinetProductionJob, cabinetProductionStaleness, transitionCabinetProductionJob,
   recordCabinetStation, cabinetProductionCSV, cabinetProductionHTML, CABINET_STATIONS,
   importCabinetProductionJob,
@@ -49,6 +53,71 @@ export function mountCabinetProduction(host, getItems, download, onChange, getRe
       syncContext();
     }
     return session;
+  }
+
+  const setupSection = node('details'); setupSection.className = 'nz-production-setup'; setupSection.open = true;
+  setupSection.appendChild(node('summary', label('Design-to-production setup', 'הגדרה מתכנון לייצור'))); root.appendChild(setupSection);
+  setupSection.appendChild(node('p', label('Start from a documented regional convention, preview the exact model changes, then complete each handoff gate. Presets are editable starting points—not code compliance or machine approval.', 'התחילו ממוסכמה אזורית מתועדת, צפו בשינויים המדויקים במודל והשלימו כל שער מסירה. התבניות הן נקודת פתיחה ולא אישור תקינה או מכונה.')));
+  const presetSelect = field(setupSection,label('Convention & standards preset','תבנית מוסכמה ותקינה'),options(node('select'),CABINET_PRODUCTION_PRESETS.map(profile=>[profile.id,getLang()==='he'?profile.labelHe:profile.label])),'nzProductionPreset');
+  const presetSummary=node('div');presetSummary.id='nzProductionPresetSummary';presetSummary.className='nz-preset-summary';setupSection.appendChild(presetSummary);
+  const presetChanges=node('div');presetChanges.id='nzProductionPresetChanges';presetChanges.className='nz-preset-changes';setupSection.appendChild(presetChanges);
+  const presetActions=node('div');presetActions.className='nz-production-actions';setupSection.appendChild(presetActions);
+  const readiness=node('div');readiness.id='nzProductionReadiness';readiness.className='nz-readiness';setupSection.appendChild(readiness);
+  let shownSession=null;
+  function showPresetPreview(){
+    const value=previewCabinetProductionPreset(getItems(),presetSelect.value),profile=value.preset,c=profile.construction;
+    presetSummary.replaceChildren();presetChanges.replaceChildren();
+    presetSummary.appendChild(node('strong',(getLang()==='he'?profile.labelHe:profile.label)+' · '+(getLang()==='he'?profile.regionHe:profile.region)));
+    presetSummary.appendChild(node('p',label('Construction: ','מבנה: ')+c.system+' · '+label('units ','יחידות ')+profile.units+' · '+label('panel ','לוח ')+(c.panelMm??label('shop-defined','לפי הסדנה'))+' mm · '+label('back ','גב ')+(c.backMm??label('shop-defined','לפי הסדנה'))+' mm · '+label('reveal ','מרווח ')+(c.revealMm??label('shop-defined','לפי הסדנה'))+' mm'));
+    presetSummary.appendChild(node('p',label('Standards focus: ','מוקד תקינה: ')+profile.standards.focus.join(', ')+' · '+label('market ','שוק ')+profile.standards.market));
+    for(const note of profile.notes)presetSummary.appendChild(node('p',note));
+    for(const reference of profile.references){const p=node('p'),a=node('a',reference.label);a.href=reference.url;a.target='_blank';a.rel='noopener noreferrer';p.appendChild(a);presetSummary.appendChild(p);}
+    const changed=value.changes.filter(change=>change.fields.length);
+    const heading=node('p',changed.length?changed.length+label(' cabinets would change.',' ארונות ישתנו.'):label('No model changes in this scope.','אין שינויי מודל בהיקף זה.'));heading.className='nz-preset-count';presetChanges.appendChild(heading);
+    for(const change of changed){
+      const row=node('details');row.appendChild(node('summary',change.itemId+' · '+change.family+' · '+change.fields.length+label(' changes',' שינויים')));
+      for(const field of change.fields)row.appendChild(node('p',field.field+': '+String(field.before??label('not recorded','לא תועד'))+' → '+String(field.after)+(field.units?' '+field.units:'')));
+      presetChanges.appendChild(row);
+    }
+    for(const skipped of value.skipped)presetChanges.appendChild(node('p',skipped.itemId+' · '+skipped.reason));
+    if(value.stockIssues.length){
+      const stock=node('details');stock.className='nz-preset-stock';stock.open=true;
+      stock.appendChild(node('summary',value.stockIssues.length+label(' parts would lack matching sheet stock',' חלקים יהיו ללא לוח תואם')));
+      stock.appendChild(node('p',label('The cut plan will exclude these parts until the design or stock catalog is corrected.','תוכנית הניסור לא תכלול חלקים אלה עד לתיקון המידות או קטלוג הלוחות.')));
+      for(const issue of value.stockIssues.slice(0,12))stock.appendChild(node('p',issue.partId+' · '+issue.message));
+      if(value.stockIssues.length>12)stock.appendChild(node('p','+'+(value.stockIssues.length-12)+label(' more parts',' חלקים נוספים')));
+      presetChanges.appendChild(stock);
+    }
+  }
+  presetSelect.addEventListener('change',showPresetPreview);
+  button(presetActions,label('Apply construction + standards scope','החל מבנה + תחום תקינה'),()=>{
+    currentSession();if(!getItems().length)throw new Error('No cabinets are in scope.');
+    const id=presetSelect.value;
+    onChange(()=>applyCabinetProductionPreset(getItems(),id));
+    session.context=standardsContextForCabinetPreset(id,getItems(),session.context);
+    syncContext();refresh();
+  },'nzProductionApplyPreset');
+  button(presetActions,label('Use standards scope only','החל תחום תקינה בלבד'),()=>{
+    currentSession();session.context=standardsContextForCabinetPreset(presetSelect.value,getItems(),session.context);syncContext();assess();showReadiness();
+  },'nzProductionApplyPresetScope');
+  function showReadiness(){
+    if(!session)return;readiness.replaceChildren();
+    let recipes=[],recipeMessage='';
+    try{recipes=getRecipes();}catch(error){recipeMessage=error.message;}
+    const report=cabinetDesignToProductionReadiness(getItems(),{recipes,standardsContext:session.context,job:session.job});
+    const head=node('div');head.className='nz-readiness-head '+report.status;
+    head.appendChild(node('strong',label('Handoff readiness','מוכנות למסירה')+' · '+report.summary.complete+'/'+report.stages.length));
+    head.appendChild(node('span',report.summary.blocked+label(' blocked · ',' חסומים · ')+report.summary.review+label(' review',' לבדיקה')));readiness.appendChild(head);
+    for(const value of report.stages){
+      const row=node('details');row.className='nz-readiness-stage '+value.status;
+      const summary=node('summary');summary.appendChild(node('span',value.label));summary.appendChild(node('b',value.status==='complete'?label('Complete','הושלם'):value.status==='review'?label('Review','בדיקה'):label('Blocked','חסום')));row.appendChild(summary);
+      row.appendChild(node('p',value.summary));
+      for(const issue of value.issues.slice(0,20))row.appendChild(node('p',issue.message||issue.reason||String(issue)));
+      if(value.issues.length>20)row.appendChild(node('p','+'+(value.issues.length-20)+label(' more findings',' ממצאים נוספים')));
+      readiness.appendChild(row);
+    }
+    if(recipeMessage)readiness.appendChild(node('p',recipeMessage));
+    readiness.appendChild(node('p',report.notice));
   }
 
   const partsSection = node('details'); partsSection.appendChild(node('summary', label('Part sizes & edge banding', 'מידות חלקים וקנטים'))); root.appendChild(partsSection);
@@ -176,13 +245,13 @@ export function mountCabinetProduction(host, getItems, download, onChange, getRe
     currentSession();
     if(input.value==='') delete session.context.facts[name];
     else session.context.facts[name]=type==='boolean'?input.value==='true':type==='number'?Number(input.value):input.value;
-    syncContext(); assess();
+    syncContext(); assess(); showReadiness();
   });
-  for (const control of [market, product]) control.addEventListener('change', () => { currentSession(); session.context = createCabinetStandardsContext({...session.context,market:market.value,productType:product.value}); syncContext(); assess(); });
+  for (const control of [market, product]) control.addEventListener('change', () => { currentSession(); session.context = createCabinetStandardsContext({...session.context,market:market.value,productType:product.value}); syncContext(); assess(); showReadiness(); });
   button(contextDetails, label('Apply assessment facts', 'החל נתוני בדיקה'), () => {
     const value = JSON.parse(contextEditor.value);
     if (!value || typeof value !== 'object' || Array.isArray(value) || (value.evidence != null && !Array.isArray(value.evidence)) || (value.facts != null && (typeof value.facts !== 'object' || Array.isArray(value.facts)))) throw new Error('Use an assessment object with facts and an evidence array.');
-    session.context = createCabinetStandardsContext(value); syncContext(); assess();
+    session.context = createCabinetStandardsContext(value); syncContext(); assess(); showReadiness();
   }, 'nzProductionApplyContext');
   function assess() {
     if (!session) return;
@@ -292,10 +361,11 @@ export function mountCabinetProduction(host, getItems, download, onChange, getRe
     const selectedArchive=archiveSelect.value; archiveSelect.replaceChildren();
     options(archiveSelect,(session?.archives||[]).map((previous,index)=>[String(index),previous.jobId+' · '+previous.revision+' · '+previous.status]));
     if(session?.archives[Number(selectedArchive)]) archiveSelect.value=selectedArchive;
-    if (!job) { jobStatus.textContent = label('No revision snapshot yet.','טרם נוצרה גרסה.'); return; }
+    if (!job) { jobStatus.textContent = label('No revision snapshot yet.','טרם נוצרה גרסה.'); showReadiness(); return; }
     for(const issue of job.manifest.issues) issueList.appendChild(node('p',issue.message));
     const stale = cabinetProductionStaleness(job,getItems()).stale;
     jobStatus.textContent = job.jobId + ' · ' + job.revision + ' · ' + (stale ? label('STALE — design changed','לא עדכני — התכנון השתנה') : job.status) + ' · ' + job.stationRecords.length + label(' station records',' רשומות תחנה');
+    showReadiness();
   }
   function refresh() {
     currentSession();
@@ -304,7 +374,12 @@ export function mountCabinetProduction(host, getItems, download, onChange, getRe
     options(partSelect,manifest.parts.map(p=>[p.id,p.itemId+' · '+p.partId+' · '+sizeText(p.finished)]));
     if (manifest.parts.some(p=>p.id===selected)) partSelect.value = selected;
     status.textContent = manifest.parts.length + label(' physical parts · ',' חלקים · ') + manifest.issues.length + label(' review findings',' ממצאי בדיקה');
-    showPart(); assess(); showJob(); joinery.refresh(); batchAllowances.refresh(); if(coverageSection.open)showCoverage();
+    if(shownSession!==session){
+      const recorded=[...new Set(getItems().map(item=>item?.cab?.productionConvention?.presetId).filter(Boolean))];
+      presetSelect.value=recorded.length===1&&CABINET_PRODUCTION_PRESETS.some(profile=>profile.id===recorded[0])?recorded[0]:'manual';
+      shownSession=session;
+    }
+    showPresetPreview();showPart(); assess(); showJob(); joinery.refresh(); batchAllowances.refresh(); if(coverageSection.open)showCoverage();
   }
   return {refresh};
 }

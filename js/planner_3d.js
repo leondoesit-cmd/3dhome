@@ -21,6 +21,26 @@ import { fmtLen } from './display_units.js';
 let pane, canvas, hud, modeButton, lookButton, personButton, dragId=null, lastInput=null, look=false, constraintHits=[];
 let roofButton;
 let vertexHits=[],vertexDrag=null;
+let planLayersWereHidden=null;
+function set3DChrome(active){
+  const body=document.body;
+  if(active){
+    /* Layers are still available from the always-visible workflow button, but
+       3D starts with the model unobscured.  Remember the independent 2D
+       preference and do not re-hide the card on every canvas pointerdown. */
+    if(!body.classList.contains('planner-3d-active')){
+      planLayersWereHidden=body.classList.contains('workflow-hide-layers');
+      body.classList.add('planner-3d-active','workflow-hide-layers');
+      window.dispatchEvent(new Event('planner-viewport'));
+    }
+    return;
+  }
+  if(!body.classList.contains('planner-3d-active'))return;
+  body.classList.remove('planner-3d-active');
+  body.classList.toggle('workflow-hide-layers',!!planLayersWereHidden);
+  planLayersWereHidden=null;
+  window.dispatchEvent(new Event('planner-viewport'));
+}
 function cancelVertex(){vertexDrag=null;requestRender();}
 function vertexInput(phase,e){
   if(phase==='down'){
@@ -47,6 +67,7 @@ function vertexInput(phase,e){
 function gameActive() { return !!document.querySelector('body.zombies-on,body.lava-on,body.rc-on'); }
 function activate() {
   if(gameActive()) return;
+  set3DChrome(true);
   document.documentElement.dataset.plannerViewport='3d';
   movePlanToolsTo('view-3d');
   S.edit3D=true;
@@ -78,7 +99,7 @@ export function syncPlannerViewport(mode) {
   if(!pane)return;
   cancelVertex();cancelPlannerGesture(); dragId=null;
   if(mode==='3d') activate();
-  else { movePlanToolsTo('view-2d'); setPlannerInputView(null); document.documentElement.dataset.plannerViewport='plan'; }
+  else { set3DChrome(false); movePlanToolsTo('view-2d'); setPlannerInputView(null); document.documentElement.dataset.plannerViewport='plan'; }
   labels(); requestRender();
 }
 export function initPlanner3D() {
@@ -101,6 +122,7 @@ export function initPlanner3D() {
   bar.append(modeButton,lookButton,person,roofButton);pane.append(bar);labels();onLangChange(labels);window.addEventListener('planner-navigation-restored',labels);
   document.getElementById('plan')?.addEventListener('pointerdown',()=>{
     cancelVertex();
+    set3DChrome(false);
     movePlanToolsTo('view-2d');setPlannerInputView(null);document.documentElement.dataset.plannerViewport='plan';
   },true);
   canvas.addEventListener('pointerdown',e=>{

@@ -142,6 +142,7 @@ export function wrapPlanSVG(planInner, bounds, meta) {
   const oy = marginU + Math.max(0, (fieldH - dCm) / 2);
   const block = titleBlockSVG({
     name: o.name,
+    note: o.note,
     scale: L.label,
     paper: L.paperName,
     sheet: o.sheet,

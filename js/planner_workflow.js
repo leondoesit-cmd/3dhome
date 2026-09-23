@@ -132,6 +132,6 @@ export function initPlannerWorkflow() {
   workspace.before(bar);
   onAfterRender(update);
   onLangChange(update);
-  ['planner-tool', 'planner-place', 'planner-units'].forEach(name => window.addEventListener(name, update));
+  ['planner-tool', 'planner-place', 'planner-units', 'planner-viewport'].forEach(name => window.addEventListener(name, update));
   update();
 }

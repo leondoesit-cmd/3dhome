@@ -30,6 +30,11 @@ test("automatic apartments keep essential furniture, clear openings, and collisi
     }
     function audit(size) {
       generateApartment(size, true);
+      for (const item of S.items.filter(it => ["ceilingLight", "pendant"].includes(it.type))) {
+        const node = S.mep.nodes.find(n => n.itemId === item.id);
+        assert.ok(node && node.switchId && node.circuitId, "generated fixture needs a switched circuit: " + item.id);
+        assert.ok(S.mep.runs.some(r => r.explicit && r.b === node.id), "fixture needs an actual wire");
+      }
       detectRooms().forEach(room => {
         const name = S.roomMeta[room.key] && S.roomMeta[room.key].name;
         const roomItems = S.items.filter(it => pointInPoly(it.x, it.z, room.pts));

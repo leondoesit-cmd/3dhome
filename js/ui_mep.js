@@ -5,14 +5,14 @@
 import {
   ensureMEP, MEP_SYS, MEP_SYS_ORDER, MEP_NODE_KINDS, MEP_RUN_KINDS, MEP_LAYERS,
   sysLabel, nodeLabel, runLabel,
-  deleteMEP, runLength, mepVisible, getMEPState, connectMissingMEP, onMEPChange,
+  deleteMEP, runLength, mepVisible, getMEPState, connectMissingMEP, onMEPChange, nodePos, runPointY,
   allowedLayersFor, defaultLayerFor, runCrossesOpening,
   routingPolicy, setRoutingPolicy, policyLayerFor, effectiveRunLayers,
   setNodeKind, setRunKind, setMEPLayer, decideAutoGenerate,
 } from "./mep.js";
 import { autoInfrastructure } from "./mep_auto.js";
 import { setTool } from "./interaction.js";
-import { render2D } from "./plan2d.js";
+import { render2D, frameBounds } from "./plan2d.js";
 import { select } from "./ui_props.js";
 import { refreshTree } from "./ui_tree.js";
 import { pushHistory } from "./history.js";
@@ -20,6 +20,9 @@ import { t, getLang, onLangChange } from "./i18n.js";
 import { fmtLen, parseLen } from "./display_units.js";
 import { detectRooms } from "./geometry.js";
 import { S } from "./state.js";
+import { saveLayers } from "./layers.js";
+import { validateMEPModel } from "./mep_validate.js";
+import { mepProfile } from "./mep_profile.js";
 
 function notify(msg, kind) {
   import("./ui.js").then(function (ui) { ui.flash(msg, kind); });
@@ -43,6 +46,7 @@ export function autoGenerateMEP() {
   m = ensureMEP();
   m.show = true;
   if (m.runs.some(function (r) { return r.layer === "floor"; })) m.xray.floor = true;
+  revealMEPPlan();
   S.dirty3D = true;
   select(null);
   render2D();
@@ -61,6 +65,123 @@ var healthIconEl = null;
 var healthRepairEl = null;
 var clashEl = null;
 var clashTextEl = null;
+var reviewEl = null;
+var reviewOpen = false;
+
+function focusMEPReview(entityId, point, systems, layers, preferredKind) {
+  var m = ensureMEP();
+  (systems || []).forEach(function(sys) { m.vis[sys] = true; });
+  (layers || []).forEach(function(layer) {
+    m.layerVis[layer] = true;
+    if (layer === "floor") m.xray.floor = true;
+    if (layer === "ceiling") m.xray.ceiling = true;
+  });
+  m.show = true;
+  var node = m.nodes.find(function(n) { return String(n.id) === String(entityId); });
+  var run = m.runs.find(function(r) { return String(r.id) === String(entityId); });
+  var circuit = m.circuits.find(function(c) { return String(c.id) === String(entityId); });
+  var branch = m.branches.find(function(b) { return String(b.id) === String(entityId); });
+  if (!node && circuit) node = m.nodes.find(function(n) { return String(n.id) === String(circuit.deviceIds && circuit.deviceIds[0]); });
+  if (!node && branch) node = m.nodes.find(function(n) { return String(n.id) === String(branch.deviceIds && branch.deviceIds[0]); });
+  var item = S.items.find(function(it) { return String(it.id) === String(entityId); });
+  if (preferredKind === "item" && item) { node = null; run = null; }
+  if (!point && node) point = nodePos(node);
+  if (!point && run && run.pts.length) point = run.pts[Math.floor(run.pts.length / 2)];
+  if (!point && item) point = { x: item.x, z: item.z };
+  revealMEPPlan();
+  select(node ? { kind: "mepNode", ref: node } : run ? { kind: "mepRun", ref: run } : item ? { kind: "item", ref: item } : null);
+  if (point && Number.isFinite(point.x) && Number.isFinite(point.z))
+    frameBounds({ minx: point.x - 80, maxx: point.x + 80, minz: point.z - 80, maxz: point.z + 80 });
+  S.dirty3D = true;
+  renderPanel();
+  render2D();
+}
+
+function issueName(code) {
+  var names = {
+    MISSING_PANEL: "Circuit has no panel", INVALID_PANEL: "Circuit source is not a panel",
+    MISSING_CIRCUIT_DEVICE: "Circuit device is missing", INVALID_CIRCUIT_DEVICE: "Invalid circuit device",
+    TOO_MANY_CIRCUIT_OUTLETS: "Too many outlets on circuit", TOO_MANY_CIRCUIT_LIGHTS: "Too many lights on circuit",
+    BROKEN_CIRCUIT_PATH: "Broken path to panel", INVALID_CIRCUIT_LOAD: "Circuit load is invalid",
+    CIRCUIT_OVERLOAD: "Circuit overload", UNSOURCED_ELECTRICAL_DEVICE: "Electrical device has no source",
+    INVALID_ELECTRICAL_SOURCE: "Invalid electrical source", MISSING_DEVICE_CIRCUIT: "Device circuit is missing",
+    UNBOUND_LIGHT_FIXTURE: "Light fixture is not connected", MISSING_LIGHT_SWITCH: "Light has no switch",
+    SWITCH_NOT_ON_LIGHT_CIRCUIT: "Switch is on another circuit", MISSING_BRANCH_SOURCE: "Service source is missing",
+    INVALID_BRANCH_SOURCE: "Invalid service source", MISSING_BRANCH_DEVICE: "Service device is missing",
+    INVALID_BRANCH_DEVICE: "Invalid service device", UNBOUND_WET_FIXTURE: "Wet fixture is not connected",
+    INVALID_RUN_ENDPOINT: "Run endpoint is disconnected", INVALID_GRAVITY_FALL: "Gravity run has no fall",
+    INSUFFICIENT_GRAVITY_FALL: "Drainage slope is too shallow",
+  };
+  var hebrew = {
+    MISSING_PANEL: "למעגל אין לוח חשמל", INVALID_PANEL: "מקור המעגל אינו לוח חשמל",
+    MISSING_CIRCUIT_DEVICE: "התקן המעגל חסר", INVALID_CIRCUIT_DEVICE: "התקן מעגל לא תקין",
+    TOO_MANY_CIRCUIT_OUTLETS: "יותר מדי שקעים במעגל", TOO_MANY_CIRCUIT_LIGHTS: "יותר מדי גופי תאורה במעגל",
+    BROKEN_CIRCUIT_PATH: "החיבור ללוח החשמל נותק", INVALID_CIRCUIT_LOAD: "עומס המעגל אינו תקין",
+    CIRCUIT_OVERLOAD: "עומס יתר במעגל", UNSOURCED_ELECTRICAL_DEVICE: "להתקן החשמלי אין מקור",
+    INVALID_ELECTRICAL_SOURCE: "מקור החשמל אינו תקין", MISSING_DEVICE_CIRCUIT: "מעגל ההתקן חסר",
+    UNBOUND_LIGHT_FIXTURE: "גוף התאורה אינו מחובר", MISSING_LIGHT_SWITCH: "לגוף התאורה אין מתג",
+    SWITCH_NOT_ON_LIGHT_CIRCUIT: "המתג נמצא במעגל אחר", MISSING_BRANCH_SOURCE: "מקור השירות חסר",
+    INVALID_BRANCH_SOURCE: "מקור השירות אינו תקין", MISSING_BRANCH_DEVICE: "התקן השירות חסר",
+    INVALID_BRANCH_DEVICE: "התקן השירות אינו תקין", UNBOUND_WET_FIXTURE: "המתקן הרטוב אינו מחובר",
+    INVALID_RUN_ENDPOINT: "קצה הקו אינו מחובר", INVALID_GRAVITY_FALL: "לקו הניקוז אין שיפוע",
+    INSUFFICIENT_GRAVITY_FALL: "שיפוע הניקוז קטן מדי",
+  };
+  return (getLang() === "he" ? hebrew[code] : names[code]) || names[code] || String(code).replaceAll("_", " ").toLowerCase();
+}
+
+function syncReview(designIssues, clashes, connectionIssues) {
+  if (!reviewEl || !reviewEl.isConnected) {
+    reviewEl = document.createElement("details");
+    reviewEl.className = "mep-review";
+    reviewEl.ontoggle = function() { reviewOpen = reviewEl.open; };
+    clashEl.insertAdjacentElement("afterend", reviewEl);
+  }
+  reviewEl.open = reviewOpen;
+  reviewEl.replaceChildren();
+  var summary = document.createElement("summary");
+  var count = designIssues.length + clashes.length + connectionIssues.length;
+  summary.textContent = t("mep_reviewSummary", { n: count });
+  reviewEl.appendChild(summary);
+  var list = document.createElement("div");
+  list.className = "mep-review-list";
+  designIssues.slice(0, 40).forEach(function(issue) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = issueName(issue.code) + " · " + issue.entityId;
+    button.onclick = function() {
+      focusMEPReview(issue.entityId, null, null, null,
+        /^(UNBOUND_|MISSING_LIGHT_SWITCH|SWITCH_NOT_ON_LIGHT_CIRCUIT)/.test(issue.code) ? "item" : null);
+    };
+    list.appendChild(button);
+  });
+  connectionIssues.slice(0, Math.max(0, 40 - designIssues.length)).forEach(function(issue) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = t(issue.code === "orphan" ? "mep_orphan" : "mep_unsupplied") + " · " + issue.entityId;
+    button.onclick = function() { focusMEPReview(issue.entityId); };
+    list.appendChild(button);
+  });
+  clashes.slice(0, Math.max(0, 40 - designIssues.length - connectionIssues.length)).forEach(function(c) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = sysLabel(c.sysA) + " / " + sysLabel(c.sysB) +
+      " · " + t("mep_" + c.layerA) + " / " + t("mep_" + c.layerB) + " · " + t("mep_reviewApart", { n: c.separationCm.toFixed(1) });
+    button.title = c.a + " ↔ " + c.b + " · " + t("mep_reviewClearance", { n: c.clearanceCm.toFixed(1) });
+    button.onclick = function() { focusMEPReview(c.a, { x: c.x, z: c.z }, [c.sysA, c.sysB], [c.layerA, c.layerB]); };
+    list.appendChild(button);
+  });
+  if (count > 40) {
+    var more = document.createElement("span");
+    more.textContent = t("mep_reviewMore", { n: count - 40 });
+    list.appendChild(more);
+  }
+  if (!count) {
+    var clear = document.createElement("span");
+    clear.textContent = t("mep_reviewClear");
+    list.appendChild(clear);
+  }
+  reviewEl.appendChild(list);
+}
 
 function ensureHealth() {
   if (healthEl && healthEl.isConnected) return;
@@ -83,12 +204,15 @@ function ensureHealth() {
 
 function syncHealth() {
   var issueCount = getMEPState().status.deviceIssues;
+  var model = ensureMEP();
+  var designCount = validateMEPModel(model, S.items, mepProfile(model.profile && model.profile.id)).issues.length;
   var text = issueCount
     ? t("mep_disconnectedCount", { n: issueCount })
     : t("mep_allConnected");
-  healthEl.classList.toggle("warn", !!issueCount);
-  healthEl.classList.toggle("ok", !issueCount);
-  var icon = issueCount ? "ph ph-warning" : "ph ph-check-circle";
+  if (designCount) text += " · " + t("mep_designWarnings", { n: designCount });
+  healthEl.classList.toggle("warn", !!issueCount || !!designCount);
+  healthEl.classList.toggle("ok", !issueCount && !designCount);
+  var icon = issueCount || designCount ? "ph ph-warning" : "ph ph-check-circle";
   if (healthIconEl.className !== icon) healthIconEl.className = icon;
   if (healthTextEl.textContent !== text) healthTextEl.textContent = text;
   if (issueCount) {
@@ -132,7 +256,17 @@ function ensureClash() {
 }
 
 function syncClashes() {
-  var n = (getMEPState().clashes || []).length;
+  var m = ensureMEP();
+  var visible = (getMEPState().clashes || []).filter(function (c) {
+    return m.vis[c.sysA] !== false && m.vis[c.sysB] !== false &&
+      m.layerVis[c.layerA] !== false && m.layerVis[c.layerB] !== false;
+  });
+  var n = visible.length;
+  var status = getMEPState().status;
+  var connections = Object.entries(status.node).concat(Object.entries(status.run)).map(function(entry) {
+    return { entityId: entry[0], code: entry[1] };
+  });
+  syncReview(validateMEPModel(m, S.items, mepProfile(m.profile && m.profile.id)).issues, visible, connections);
   var text = n ? t("mep_clashCount", { n: n }) : "";
   if (!n) {
     if (!clashEl.hidden) clashEl.hidden = true;
@@ -184,6 +318,24 @@ function setRoutingLayer(m, lay) {
   S.dirty3D = true;
 }
 
+function revealMEPPlan() {
+  S.workSet = "mep";
+  S.workSetPinned = true;
+  if (S.layers) {
+    if (S.layers.mep) { S.layers.mep.vis = "show"; S.layers.mep.locked = false; }
+    ["structure", "furniture", "annotations", "underlay"].forEach(function (id) {
+      if (S.layers[id]) S.layers[id].vis = "ghost";
+    });
+  }
+  saveLayers();
+  window.dispatchEvent(new CustomEvent("layers:changed"));
+  S.viewAxis = "top";
+  if (typeof window.__setViewMode === "function") window.__setViewMode("plan");
+  if (window.__plannerChrome) window.__plannerChrome.setLeftTab("structure");
+  var section = document.querySelector(".mep-section");
+  if (section) section.classList.remove("collapsed");
+}
+
 function setActive(sys) {
   var m = ensureMEP();
   m.active = sys;
@@ -198,7 +350,7 @@ export function renderPanel() {
   ensureHealth();
   ensureClash();
   Array.from(panelEl.children).forEach(function (el) {
-    if (el !== healthEl && el !== clashEl) el.remove();
+    if (el !== healthEl && el !== clashEl && el !== reviewEl) el.remove();
   });
   var m = ensureMEP();
 
@@ -214,6 +366,31 @@ export function renderPanel() {
   auto.title = t("mep_autoHint");
   auto.onclick = function () { autoGenerateMEP(); };
   panelEl.insertBefore(auto, healthEl);
+  var floorRuns = m.runs.filter(function (r) { return r.layer === "floor" && r.pts && r.pts.length > 1; }).length;
+  var floorOnly = m.layerVis.floor !== false && m.layerVis.wall === false && m.layerVis.ceiling === false;
+  var inspect = document.createElement("button");
+  inspect.type = "button";
+  inspect.className = "mep-inspect-floor";
+  inspect.disabled = !floorRuns;
+  inspect.setAttribute("aria-pressed", floorOnly ? "true" : "false");
+  var inspectIcon = document.createElement("i");
+  inspectIcon.className = "ph ph-stack";
+  inspectIcon.setAttribute("aria-hidden", "true");
+  inspect.appendChild(inspectIcon);
+  inspect.appendChild(document.createTextNode(floorOnly ? t("mep_showAllRoutes") : t("mep_inspectFloor", { n: floorRuns })));
+  inspect.onclick = function () {
+    m.show = true;
+    m.show3D = true;
+    m.xray.floor = true;
+    m.layerVis = floorOnly
+      ? { wall: true, ceiling: true, floor: true }
+      : { wall: false, ceiling: false, floor: true };
+    revealMEPPlan();
+    S.dirty3D = true;
+    renderPanel();
+    render2D();
+  };
+  panelEl.insertBefore(inspect, healthEl);
   if (clashEl.previousElementSibling !== healthEl) healthEl.insertAdjacentElement("afterend", clashEl);
   syncHealth();
   syncClashes();
@@ -409,6 +586,24 @@ export function renderPanel() {
   opts.appendChild(optCheck(t("mep_snap"), m.snapAngle, function (v) { m.snapAngle = v; }));
   opts.appendChild(optCheck(t("mep_animate"), m.animate !== false, function (v) { m.animate = v; }));
   opts.appendChild(optCheck(t("mep_3d"), m.show3D, function (v) { m.show3D = v; S.dirty3D = true; }));
+
+  var planeGrp = document.createElement("div");
+  planeGrp.className = "mep-xray-group mep-plane-filters";
+  var planeLbl = document.createElement("div");
+  planeLbl.className = "mep-xray-title";
+  planeLbl.textContent = t("mep_layer");
+  planeGrp.appendChild(planeLbl);
+  var planeBoxes = document.createElement("div");
+  planeBoxes.className = "mep-xray-boxes";
+  ["wall", "ceiling", "floor"].forEach(function(layer) {
+    planeBoxes.appendChild(optCheck(t("mep_" + layer), m.layerVis[layer] !== false, function(v) {
+      m.layerVis[layer] = v;
+      S.dirty3D = true;
+      render2D();
+    }));
+  });
+  planeGrp.appendChild(planeBoxes);
+  opts.appendChild(planeGrp);
 
   var xrayGrp = document.createElement("div");
   xrayGrp.className = "mep-xray-group";
@@ -615,6 +810,15 @@ export function fillMEP() {
     var din = numInput(e.dia, function (v) { pushHistory(); e.dia = Math.max(0.5, v); S.dirty3D = true; render2D(); });
     drow.appendChild(din);
     host.appendChild(drow);
+    // Centreline height is measured from finished floor; negative values are
+    // below it. A per-run override is saved and used by 3D and clash checks.
+    var erow = labeledRow(t("mep_runElev"));
+    var elevation = runPointY(e);
+    var ein = numInput(e.elev == null ? elevation[elevation.length - 1] : e.elev, function (v) {
+      pushHistory(); e.elev = v; S.dirty3D = true; fillMEP(); renderPanel(); render2D();
+    }, "cm");
+    erow.appendChild(ein);
+    host.appendChild(erow);
     // total length (read-only)
     var lenrow = labeledRow(t("mep_len"));
     var lenv = document.createElement("span");
@@ -665,16 +869,16 @@ function labeledRow(label) {
   row.appendChild(s);
   return row;
 }
-function numInput(val, onChange) {
+function numInput(val, onChange, unit) {
   var i = document.createElement("input");
   i.type = "text";
   i.inputMode = "decimal";
   i.autocomplete = "off";
-  i.value = fmtLen(val, { suffix: false });
+  i.value = fmtLen(val, { suffix: false, unit: unit });
   i.onchange = function () {
-    var v = parseLen(i.value);
+    var v = parseLen(i.value, unit);
     if (Number.isFinite(v)) onChange(v);
-    else i.value = fmtLen(val, { suffix: false });
+    else i.value = fmtLen(val, { suffix: false, unit: unit });
   };
   return i;
 }

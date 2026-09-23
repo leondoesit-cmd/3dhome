@@ -1,4 +1,5 @@
 import { newDocumentKey } from "./redesign.js";
+import { showcaseHouse } from "./demo_house.js";
 import { initPlannerWorkflow } from "./planner_workflow.js";
 import { normalizePlanningGuide } from "./planning_guide.js";
 import { initPlanningGuide, openPlanningGuide } from "./ui_planning_guide.js";
@@ -14,6 +15,8 @@ import {
   refreshTree,
   placeFurnAt,
   sceneObject,
+  syncPlanStyleUI,
+  syncCutawayUI,
 } from "./ui.js";
 import { defaultScene, emptyScene, FURN } from "./furniture.js";
 import { rebuildProject } from "./core/project.js";
@@ -256,9 +259,10 @@ function applyStart(kind) {
   if (intention) kind = "blank";
   // Reopening the start screen must not discard the current edit without an
   // undo snapshot. Save before either scene helper replaces the model.
-  if (kind === "blank" || kind === "demo") pushHistory();
-  if (kind === "blank" || kind === "demo") S.workspace = { ...S.workspace, documentKey: newDocumentKey(), baselines: Object.freeze([]), redesign: {} };
-  if (kind === "blank" || kind === "demo") {
+  var fresh = kind === "blank" || kind === "demo" || kind === "showcase";
+  if (fresh) pushHistory();
+  if (fresh) S.workspace = { ...S.workspace, documentKey: newDocumentKey(), baselines: Object.freeze([]), redesign: {} };
+  if (fresh) {
     resetLayers();
     saveLayers();
     window.dispatchEvent(new CustomEvent("layers:changed"));
@@ -277,6 +281,13 @@ function applyStart(kind) {
     S.workspace.guidance = normalizePlanningGuide(null);
     loadMEP(null);
     setTool("select");
+  } else if (kind === "showcase") {
+    loadMEP(null);
+    showcaseHouse();
+    S.workspace.guidance = normalizePlanningGuide(null);
+    setTool("select");
+    syncPlanStyleUI();
+    syncCutawayUI();
   } else if (kind === "generate") {
     closeStartScreen(true);
     var btn = $("autoGenerateBtn") || document.querySelector("[data-act='autoGenerate']");

@@ -50,10 +50,11 @@ test("infrastructure panel is operable and stays inside a narrow column", opts, 
         && healthText === panel.querySelector("[data-mep-health-text]")
         && healthText.textContent === healthWords;
       const eye2 = panel.querySelector("button.mep-eye");
+      const hiddenClassBefore = !!panel.querySelector(".mep-chip.is-hidden");
       const wide = measure(280);
       const narrow = measure(220);
       const { S } = await import("/js/state.js");
-      const { addNode } = await import("/js/mep.js");
+      const { addNode, addRun } = await import("/js/mep.js");
       const { select } = await import("/js/ui_props.js");
       S.nodes = [{ x: 0, z: 0 }, { x: 400, z: 0 }];
       S.walls = [{ id: 1, a: 0, b: 1, thickness: 10, height: 270 }];
@@ -71,6 +72,41 @@ test("infrastructure panel is operable and stays inside a narrow column", opts, 
       const main = panel.querySelector("button.mep-chip-main");
       const health = panel.querySelector(".mep-health");
       const layer = panel.querySelector("button.mep-layer-btn");
+      addRun("water", "cold", [{ x: 40, z: 40 }, { x: 200, z: 40 }], null, null, "floor");
+      addRun("hvac", "flex", [{ x: 40, z: 40 }, { x: 200, z: 40 }], null, null, "ceiling");
+      addRun("power", "circuit", [{ x: 40, z: 40 }, { x: 200, z: 40 }], null, null, "ceiling");
+      S.mep.vis.power = true;
+      const { renderPanel } = await import("/js/ui_mep.js");
+      renderPanel();
+      const allClashText = panel.querySelector("[data-mep-clash-text]")?.textContent;
+      const review = panel.querySelector(".mep-review");
+      if (review) review.open = true;
+      const clashFinding = [...(review?.querySelectorAll("button") || [])].find((b) => b.textContent.includes("Air conditioning") && b.textContent.includes("Electrical"));
+      const reviewFinding = clashFinding?.textContent || "";
+      if (clashFinding) clashFinding.click();
+      const reviewedRun = S.sel?.kind === "mepRun" && S.sel.ref.sys === "hvac";
+      const heightRow = [...(document.querySelectorAll("#mepProps .mep-row") || [])].find((row) => row.textContent.includes("Run centre height"));
+      const heightInput = heightRow?.querySelector("input");
+      if (heightInput) {
+        heightInput.value = "220";
+        heightInput.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      const { getMEPState } = await import("/js/mep.js");
+      const adjustedHeight = S.sel?.ref.elev;
+      const adjustedClashes = getMEPState().clashes.length;
+      const inspect = panel.querySelector(".mep-inspect-floor");
+      if (inspect) inspect.click();
+      const floorFocus = {
+        count: inspect ? inspect.textContent : "",
+        plane: { ...S.mep.layerVis },
+        xray: !!S.mep.xray.floor,
+        view: document.getElementById("center-canvas")?.classList.contains("max-view-2d"),
+        workSet: S.workSet,
+        buttonPressed: panel.querySelector(".mep-inspect-floor")?.getAttribute("aria-pressed"),
+        clashHidden: panel.querySelector(".mep-clashes")?.hidden,
+      };
+      panel.querySelector(".mep-inspect-floor")?.click();
+      const allPlanes = { ...S.mep.layerVis };
       return {
         auto: !!(auto && auto.type === "button" && auto.querySelector("[aria-hidden='true']")),
         chip: main && main.tagName === "BUTTON" ? main.getAttribute("aria-pressed") : null,
@@ -78,11 +114,18 @@ test("infrastructure panel is operable and stays inside a narrow column", opts, 
         eyeAfter: eye2 ? eye2.getAttribute("aria-pressed") : null,
         eyeText: eye2 ? eye2.textContent : "",
         eyeLabel: eye2 ? eye2.getAttribute("aria-label") : "",
-        hiddenClass: !!panel.querySelector(".mep-chip.is-hidden"),
+        hiddenClass: hiddenClassBefore,
         health: health ? health.getAttribute("aria-live") : null,
         healthStable,
         healthWords,
         layer: layer ? layer.getAttribute("aria-pressed") : null,
+        floorFocus,
+        allClashText,
+        reviewFinding,
+        reviewedRun,
+        adjustedHeight,
+        adjustedClashes,
+        allPlanes,
         wide,
         narrow,
         inspector: {
@@ -106,6 +149,19 @@ test("infrastructure panel is operable and stays inside a narrow column", opts, 
     assert.equal(report.healthStable, true, "hiding a system must not rebuild the health line");
     assert.ok(report.healthWords.length > 0);
     assert.equal(report.layer, "true");
+    assert.match(report.floorFocus.count, /1/);
+    assert.deepEqual(report.floorFocus.plane, { wall: false, ceiling: false, floor: true });
+    assert.equal(report.floorFocus.xray, true);
+    assert.equal(report.floorFocus.view, true);
+    assert.equal(report.floorFocus.workSet, "mep");
+    assert.equal(report.floorFocus.buttonPressed, "true");
+    assert.match(report.allClashText, /1/);
+    assert.match(report.reviewFinding, /ceiling/);
+    assert.equal(report.reviewedRun, true);
+    assert.equal(report.adjustedHeight, 220);
+    assert.equal(report.adjustedClashes, 0);
+    assert.equal(report.floorFocus.clashHidden, true, "hidden wall clashes must not clutter floor-only inspection");
+    assert.deepEqual(report.allPlanes, { wall: true, ceiling: true, floor: true });
     assert.equal(report.wide.fits, true, "policy row overflows at 280px: " + JSON.stringify(report.wide));
     assert.equal(report.narrow.fits, true, "policy row overflows at 220px: " + JSON.stringify(report.narrow));
     assert.ok(report.wide.chipH >= 40, "system chip is smaller than a comfortable target: " + report.wide.chipH);

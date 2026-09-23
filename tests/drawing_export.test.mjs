@@ -14,3 +14,9 @@ test('sheet bounds include outward door swings so the title block cannot cover t
  const bounds=drawingBounds({...scene,swings:[polygon.map(p=>({x:p.x,z:p.z-90}))]});
  assert.equal(bounds.minz,-92);assert.equal(bounds.maxz,102);assert.equal(bounds.d,194);
 });
+test('DXF carries the chained exterior dimensions on their own layer',()=>{
+ const dxf=drawingDXF(scene,{fmt:cm=>Math.round(cm)+' cm'});
+ assert.ok(/0\nLINE\n100\nAcDbEntity\n8\nDIMENSIONS/.test(dxf));
+ assert.ok(dxf.includes('\n1\n100 cm\n'),'the overall 100 cm string');
+ assert.ok(!drawingDXF(scene,{dimensions:false}).includes('AcDbLine'));
+});

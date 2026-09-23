@@ -73,7 +73,7 @@ export function validateCabinetProductionJob(job, items) {
     if (!job.manifest.parts.some(part => part.id === entry.partId)) issues.push(`Hardware evidence references unknown part ${entry.partId}.`);
   }
   for (const issue of job.manifest.issues || []) {
-    if (['missing-item-id', 'duplicate-item-id', 'unsupported-geometry', 'layout-failed', 'invalid-edge-allowance', 'edge-datum-mismatch', 'edge-topology-mismatch', 'stale-part-override', 'unsupported-edge-allowance', 'invalid-substrate', 'invalid-rough-allowance', 'stock-datum-stale', 'stock-datum-source', 'stock-datum-offset', 'saved-joinery-stale', 'saved-joinery-invalid'].includes(issue.code)) issues.push(issue.message);
+    if (['missing-item-id', 'duplicate-item-id', 'unsupported-geometry', 'layout-failed', 'missing-stock', 'stock-thickness-mismatch', 'invalid-edge-allowance', 'edge-datum-mismatch', 'edge-topology-mismatch', 'stale-part-override', 'unsupported-edge-allowance', 'invalid-substrate', 'invalid-rough-allowance', 'stock-datum-stale', 'stock-datum-source', 'stock-datum-offset', 'saved-joinery-stale', 'saved-joinery-invalid'].includes(issue.code)) issues.push(issue.message);
   }
   const ids = new Set();
   for (const part of job.manifest.parts) {

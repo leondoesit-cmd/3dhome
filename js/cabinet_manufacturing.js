@@ -138,7 +138,7 @@ export function cabinetManufacturingReport(items = [], recipes = []) {
   if (!items.length) report.issues.push({ code: 'empty-job', message: 'No cabinets are included.' });
   const used = new Set();
   const production = cabinetProductionParts(items);
-  const allowanceCodes = new Set(['stock-datum-stale','stock-datum-source','stock-datum-offset','invalid-edge-allowance','invalid-substrate','invalid-rough-allowance','edge-datum-mismatch','edge-topology-mismatch','unsupported-edge-allowance']);
+  const allowanceCodes = new Set(['missing-stock','stock-thickness-mismatch','stock-datum-stale','stock-datum-source','stock-datum-offset','invalid-edge-allowance','invalid-substrate','invalid-rough-allowance','edge-datum-mismatch','edge-topology-mismatch','unsupported-edge-allowance']);
   items.forEach((source, index) => {
     if (!source?.cab) return;
     const identity = cabinetItemIdentity(source,index,items);

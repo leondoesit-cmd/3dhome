@@ -7,7 +7,7 @@ import { analyzeSketchProfiles } from "../js/sketch_profiles.js";
 test("centrepoint slot remains centred, tangent and fully defined through length and width edits", () => {
   let sequence = 0;
   const sketch = { points: [], entities: [], constraints: [] };
-  addCenterSlot(sketch, { length: 2.54, width: 1.27, x: 2, y: 3 }, () => "slot" + ++sequence);
+  addCenterSlot(sketch, { length: 2.54, width: 1.27, x: 2, y: 3, fixCenter: true }, () => "slot" + ++sequence);
   assert.equal(solveSketch(sketch).status, "fully-constrained");
   const restored = JSON.parse(JSON.stringify(sketch));
   restored.constraints.find((c) => c.type === "distance").value = 10.16;
@@ -20,6 +20,21 @@ test("centrepoint slot remains centred, tangent and fully defined through length
   assert.ok(Math.abs(b.x - a.x - 10.16) < 1e-8);
   const profiles = analyzeSketchProfiles(restored);
   assert.equal(profiles.profiles.length, 1);
+});
+
+test("an unpinned centrepoint slot drags as a whole and keeps its size", () => {
+  let sequence = 0;
+  const sketch = { points: [], entities: [], constraints: [] };
+  addCenterSlot(sketch, { length: 2.54, width: 1.27 }, () => "drag" + ++sequence);
+  assert.equal(solveSketch(sketch).degreesOfFreedom, 2);
+  // the editor pins the held point for the length of a drag
+  const midpoint = sketch.points[2];
+  midpoint.x = 3; midpoint.y = -2; midpoint.fixed = true;
+  assert.ok(solveSketch(sketch).converged);
+  midpoint.fixed = false;
+  const [a, b] = sketch.points;
+  assert.ok(Math.abs(midpoint.x - 3) < 1e-6 && Math.abs(midpoint.y + 2) < 1e-6);
+  assert.ok(Math.abs(b.x - a.x - 2.54) < 1e-6 && Math.abs(a.y + 2) < 1e-6 && Math.abs(b.y + 2) < 1e-6);
 });
 
 test("invalid centrepoint slot dimensions leave the sketch untouched", () => {

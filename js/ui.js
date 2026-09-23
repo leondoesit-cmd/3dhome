@@ -69,7 +69,10 @@ import {
   setQualityPreset,
   toggleEdit3D,
   toggleDrawing3D,
+  setDrawingOptions,
+  frameDollhouse,
 } from "./view3d.js";
+import { normalizeCutaway } from "./wall_cut.js";
 import { loadPhysics, togglePhysics, isPhysicsEnabled, clearDebris, setStrength, toggleHitMode } from "./physics_facade.js";
 import {
   setTool,
@@ -182,6 +185,7 @@ import { convertGeoJsonToWalls } from "./geojson_to_walls.js";
 import { normalizeBlueprintReference, syncBlueprintTraceControls } from "./blueprint_trace.js";
 import { windowChromePosture } from "./chrome_posture.js";
 import { initDropdownMenus } from "./dropdown_menus.js";
+import { normalizePlanStyle, planStyle } from "./plan_style.js";
 
 export { select, fillProps, updateCost, exportCostCSV, refreshTree };
 
@@ -304,6 +308,57 @@ function bindLength(id, fn, mode, eventName) {
   });
 }
 
+/* ---- plan drawing style (js/plan_style.js) ----
+   Switching style repaints the plan only: nothing in the model or the 3D scene
+   depends on it. */
+export function syncPlanStyleUI() {
+  if (typeof document === "undefined") return;
+  var cur = planStyle();
+  document.querySelectorAll("[data-plan-style]").forEach(function (b) {
+    var on = b.getAttribute("data-plan-style") === cur;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-checked", on ? "true" : "false");
+  });
+  document.body.classList.toggle("plan-presentation", cur === "presentation");
+  var chip = document.querySelector(".plan-style-btn");
+  if (chip) chip.setAttribute("aria-pressed", cur === "presentation" ? "true" : "false");
+}
+export function setPlanStyle(style) {
+  var next = normalizePlanStyle(style);
+  if (next === planStyle()) return;
+  S.planStyle = next;
+  syncPlanStyleUI();
+  render2D();
+}
+
+/* ---- dollhouse cutaway (js/wall_cut.js) ----
+   A view setting that saves with the scene, like the plan style. Every change
+   rebuilds the walls, since the cut is geometry. */
+export function syncCutawayUI() {
+  if (typeof document === "undefined") return;
+  var c = normalizeCutaway(S.cutaway);
+  var cb = document.getElementById("cb_cutaway");
+  if (cb) cb.checked = c.on;
+  var opts = document.getElementById("cutawayOpts");
+  if (opts) opts.hidden = !c.on;
+  var h = document.getElementById("cutawayH");
+  if (h && document.activeElement !== h) h.value = String(c.height);
+  var out = document.getElementById("cutawayHOut");
+  if (out) out.textContent = fmtLen(c.height);
+  document.querySelectorAll("[data-cut-cap]").forEach(function (b) {
+    var on = b.getAttribute("data-cut-cap") === c.cap;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-checked", on ? "true" : "false");
+  });
+  var chip = document.getElementById("dollhouseBtn");
+  if (chip) chip.setAttribute("aria-pressed", c.on ? "true" : "false");
+}
+export function setCutaway(patch) {
+  S.cutaway = normalizeCutaway(Object.assign({}, S.cutaway, patch || {}));
+  syncCutawayUI();
+  S.dirty3D = true;
+}
+
 /* ---- persistence: one serializer shared by localStorage save and file export ---- */
 // exported: the multiplayer visit flow (js/visit.js) snapshots/restores scenes
 export function sceneObject(includeWorkspace) {
@@ -317,6 +372,8 @@ export function sceneObject(includeWorkspace) {
     invisibleRoof: S.invisibleRoof,
     showDims: S.showDims,
     interiorDims: S.interiorDims,
+    planStyle: S.planStyle,
+    cutaway: S.cutaway,
     // acknowledged constraint warnings (js/constraint_engine.js) — an
     // "ignore this one" is a decision about the design, so it travels with it
     ignoredWarnings: S.ignoredWarnings,
@@ -333,6 +390,9 @@ export function sceneObject(includeWorkspace) {
       ? {
           nodes: S.mep.nodes,
           runs: S.mep.runs,
+          circuits: S.mep.circuits,
+          branches: S.mep.branches,
+          profile: S.mep.profile,
           show: S.mep.show,
           show3D: S.mep.show3D,
           xray: typeof S.mep.xray === "object" ? S.mep.xray : { walls: !!S.mep.xray, floor: false, ceiling: false },
@@ -342,6 +402,7 @@ export function sceneObject(includeWorkspace) {
           layer: S.mep.layer,
           routePolicy: S.mep.routePolicy,
           vis: S.mep.vis,
+          layerVis: S.mep.layerVis,
         }
       : undefined,
     smarthome: snapshotSmart(ensureSmartHome()),
@@ -652,6 +713,11 @@ function applyDataRequest(d, requestGeneration) {
     var cbIn = document.getElementById("cb_interior");
     if (cbIn) cbIn.checked = S.interiorDims;
   }
+  // a file saved before plan styles existed opens as the technical plan
+  S.planStyle = normalizePlanStyle(d.planStyle);
+  syncPlanStyleUI();
+  S.cutaway = normalizeCutaway(d.cutaway);
+  syncCutawayUI();
   S.roomStamp=null;S.placeType=null;S.drawing=false;S.drawFrom=null;S.arcDraft=null;S.rectDraft=null;S.biteDraft=null;S.offsetDraft=null;S.joinPick=null;S.previewPt=null;S.action=null;S.drag=null;
   S.roomMeta = d.roomMeta || {};
   S.wallCons = Array.isArray(d.wallCons) ? JSON.parse(JSON.stringify(d.wallCons)) : [];
@@ -2519,6 +2585,28 @@ export function initUI() {
   syncWallDrawPalette();
 
   // display controls
+  document.querySelectorAll("[data-plan-style]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      setPlanStyle(b.getAttribute("data-plan-style"));
+    });
+  });
+  syncPlanStyleUI();
+  var cbCut = document.getElementById("cb_cutaway");
+  if (cbCut)
+    cbCut.addEventListener("change", function () {
+      setCutaway({ on: this.checked });
+    });
+  var cutHIn = document.getElementById("cutawayH");
+  if (cutHIn)
+    cutHIn.addEventListener("input", function () {
+      setCutaway({ height: Number(this.value) });
+    });
+  document.querySelectorAll("[data-cut-cap]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      setCutaway({ cap: b.getAttribute("data-cut-cap") });
+    });
+  });
+  syncCutawayUI();
   document.getElementById("cb_dims").addEventListener("change", function () {
     S.showDims = this.checked;
     render2D();
@@ -3036,7 +3124,7 @@ export function initUI() {
   window.__runAction = runAction;
   async function runAction(act, ev) {
     if (S.workspace && S.workspace.role === "viewer") {
-      var readOnlyActions = ["workspace", "frame", "drawing3d", "walk", "walkview", "freemove", "photo", "png2d", "png3d", "exportjson", "exportgltf", "exportCost", "tree", "shortcuts", "plannerTutorial", "viewPlan", "view3d", "viewSplit", "openModeler", "friends", "toggleLegacy", "newPlan", "toggleToolNames"];
+      var readOnlyActions = ["workspace", "frame", "togglePlanStyle", "dollhouse", "drawing3d", "walk", "walkview", "freemove", "photo", "png2d", "png3d", "exportjson", "exportgltf", "exportCost", "tree", "shortcuts", "plannerTutorial", "viewPlan", "view3d", "viewSplit", "openModeler", "friends", "toggleLegacy", "newPlan", "toggleToolNames"];
       if (readOnlyActions.indexOf(act) < 0) {
         flash("Viewer access is read-only", "error");
         return;
@@ -3051,11 +3139,20 @@ export function initUI() {
     else if (act === "lockStruct") setLockStruct(!S.lockStruct);
     else if (act === "toggleToolNames") toggleToolNames();
     else if (act === "edit3d") setEdit3D(!S.edit3D);
-    else if (act === "drawing3d") {
+    else if (act === "dollhouse") {
+      var cutOn = !(S.cutaway && S.cutaway.on);
+      setCutaway({ on: cutOn });
+      if (cutOn) frameDollhouse();
+      else frameView();
+    } else if (act === "togglePlanStyle") {
+      setPlanStyle(planStyle() === "presentation" ? "technical" : "presentation");
+    } else if (act === "drawing3d") {
       const on = toggleDrawing3D();
       const button = document.getElementById("drawing3dBtn");
       button.classList.toggle("active", on);
       button.setAttribute("aria-pressed", String(on));
+      initDrawingPanel();
+      document.getElementById("drawing3dPanel").hidden = !on;
     }
     else if (act === "workspace") (await import("./workspace.js")).openWorkspace();
     else if (act === "openModeler") (await import("./modeler.js")).openModeler();
@@ -3325,13 +3422,12 @@ export function initUI() {
         var sz = sizeSel.value;
         var rep = repSel.value === "replace";
         dlg.close();
-        var loaded = await Promise.all([
-          import("./generator.js"),
-          import("./mep_auto.js"),
-        ]);
+        var loaded = await Promise.all([import("./generator.js")]);
         var generated = executeCommand(loaded[0].apartmentGenerateCommand, {
           size: sz,
           replace: rep,
+          replaceInfrastructure: rep,
+          infrastructure: true,
           seed: sz === "random" ? Math.floor(Math.random() * 0xffffffff) : 1,
         }, {
           domain: "planner",
@@ -3343,8 +3439,31 @@ export function initUI() {
           flash(t(generated.reason === "PROTECTED_STRUCTURE" ? "redesign_protected" : "f_placeFail"), "error");
           return;
         }
-        loaded[1].autoInfrastructure(); // rough-in electrical/water/drain/comms for the new rooms
         refreshMEPPanel();
+        // A generated infrastructure drawing should be immediately legible:
+        // make MEP the work set and ghost the architectural context.
+        S.workSet = "mep";
+        S.workSetPinned = true;
+        ["structure", "furniture", "annotations", "underlay"].forEach(function(id) {
+          if (S.layers[id]) S.layers[id].vis = "ghost";
+        });
+        if (S.layers.mep) { S.layers.mep.vis = "show"; S.layers.mep.locked = false; }
+        if (S.mep) {
+          S.mep.show = true;
+          S.mep.show3D = true;
+          S.mep.vis = { power: true, water: true, drain: true, comms: true, hvac: true, gas: true };
+          S.mep.layerVis = { wall: true, ceiling: true, floor: true };
+          if (S.mep.runs.some(function (r) { return r.layer === "floor"; })) S.mep.xray.floor = true;
+        }
+        saveLayers();
+        window.dispatchEvent(new CustomEvent("layers:changed"));
+        // The drawing is a plan first. A persisted 3D/elevation layout could
+        // otherwise leave the freshly generated under-floor routes offscreen.
+        S.viewAxis = "top";
+        if (typeof window.__setViewMode === "function") window.__setViewMode("plan");
+        if (window.__plannerChrome) window.__plannerChrome.setLeftTab("structure");
+        var mepSection = document.querySelector(".mep-section");
+        if (mepSection) mepSection.classList.remove("collapsed");
         S.dirty3D = true;
         render2D();
         // the generator names its own rooms — don't prompt for each one
@@ -3974,6 +4093,14 @@ export function initUI() {
            is the model half and exporting it would lose selection chrome,
            guides and cursors. planImageCanvas() renders both synchronously and
            returns a composited offscreen copy. */
+        if (planStyle() === "presentation") {
+          /* A presentation export must not ship a line-glyph stand-in for a
+             piece whose picture is still baking: wait for every sprite at
+             this zoom (bounded, so a model that will not render cannot hang
+             the export). */
+          var dprNow = Math.min(window.devicePixelRatio || 1, 2);
+          await (await import("./plan_sprites.js")).spritesSettled(S.items, S.SC, dprNow, 6000);
+        }
         var src = planImageCanvas();
         /* …but that copy is offscreen, so its `clientWidth` is 0 and the dpr
            below would silently collapse to 1, halving every label and rule on a
@@ -4439,4 +4566,39 @@ export function initUI() {
     };
     rd.readAsText(f);
   });
+}
+
+/* The Drawing overlay's on-screen settings. Per-viewer preferences, so they
+   live in localStorage (guarded: private windows throw) rather than the plan. */
+var drawingPanelReady = false;
+function initDrawingPanel() {
+  if (drawingPanelReady) return;
+  var panel = document.getElementById("drawing3dPanel");
+  if (!panel) return;
+  drawingPanelReady = true;
+  var hiddenIn = document.getElementById("drawing3dHidden"),
+    hoverIn = document.getElementById("drawing3dHover"),
+    inkIn = document.getElementById("drawing3dHoverInk");
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem("home3d_drawing3d") || "{}") || {}; } catch (e) { saved = {}; }
+  if (Number.isFinite(saved.hiddenOpacity)) hiddenIn.value = Math.round(saved.hiddenOpacity * 100);
+  if (typeof saved.hover === "boolean") hoverIn.checked = saved.hover;
+  if (Number.isFinite(saved.hoverOpacity)) inkIn.value = Math.round(saved.hoverOpacity * 100);
+  function apply() {
+    var prefs = setDrawingOptions({
+      hiddenOpacity: Number(hiddenIn.value) / 100,
+      hover: hoverIn.checked,
+      hoverOpacity: Number(inkIn.value) / 100,
+    });
+    document.getElementById("drawing3dHiddenOut").textContent = hiddenIn.value + "%";
+    document.getElementById("drawing3dHoverInkOut").textContent = inkIn.value + "%";
+    inkIn.disabled = !hoverIn.checked;
+    panel.classList.toggle("hover-off", !hoverIn.checked);
+    try { localStorage.setItem("home3d_drawing3d", JSON.stringify(prefs)); } catch (e) {}
+  }
+  [hiddenIn, hoverIn, inkIn].forEach(function (input) {
+    input.addEventListener("input", apply);
+    input.addEventListener("change", apply);
+  });
+  apply();
 }

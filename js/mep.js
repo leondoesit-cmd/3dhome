@@ -16,6 +16,8 @@ import { layerRank } from "./layers.js";
 import { getLang, t } from "./i18n.js";
 import { roomTypeOf } from "./room_types.js";
 import { roomPreset } from "./room_presets.js";
+import { GENERIC_RESIDENTIAL_PROFILE, mepProfileRef } from "./mep_profile.js";
+import { validateMEPModel } from "./mep_validate.js";
 
 /* ---- bilingual labels (kept here so all MEP naming lives in one place) --- */
 const MEP_L = {
@@ -143,6 +145,7 @@ export function runPointY(r) {
     base = ceilingY() - (kd.rect
       ? Math.max(14, r.dia * (kd.hRatio || 0.6) / 2 + 10)
       : Math.max(10, r.dia / 2 + 6));
+  if (fin(r.elev)) base = r.elev;
   var cum = [0], L = 0;
   for (var i = 1; i < r.pts.length; i++) {
     L += Math.hypot(r.pts[i].x - r.pts[i - 1].x, r.pts[i].z - r.pts[i - 1].z);
@@ -291,6 +294,9 @@ export function ensureMEP() {
     S.mep = {
       nodes: [],
       runs: [],
+      circuits: [],
+      branches: [],
+      profile: mepProfileRef(GENERIC_RESIDENTIAL_PROFILE),
       show: true,
       show3D: true,
       xray: { walls: false, floor: false, ceiling: false }, // 3D see-through surfaces to reveal embedded conduits
@@ -299,6 +305,7 @@ export function ensureMEP() {
       animate: true, // animate directional flow on live runs
       layer: "wall", // active routing plane: wall | ceiling | floor
       vis: mepVisDefault(),
+      layerVis: { wall: true, ceiling: true, floor: true },
       active: "power",
       routePolicy: {}, // "system.kind" -> { mode:auto|prefer|require, layer }
       place: null, // { sys, k, mode:'node'|'run' } — armed palette entry
@@ -319,16 +326,25 @@ export function ensureMEP() {
   // transient fields are never persisted; make sure they exist after a load
   if (!S.mep.vis) S.mep.vis = mepVisDefault();
   else S.mep.vis = Object.assign(mepVisDefault(), S.mep.vis);
+  if (!S.mep.layerVis) S.mep.layerVis = { wall: true, ceiling: true, floor: true };
+  else S.mep.layerVis = Object.assign({ wall: true, ceiling: true, floor: true }, S.mep.layerVis);
   if (!S.mep.active) S.mep.active = "power";
   if (!S.mep.routePolicy || typeof S.mep.routePolicy !== "object") S.mep.routePolicy = {};
   if (S.mep.place === undefined) S.mep.place = null;
   if (S.mep.route === undefined) S.mep.route = null;
+  if (!Array.isArray(S.mep.circuits)) S.mep.circuits = [];
+  if (!Array.isArray(S.mep.branches)) S.mep.branches = [];
+  if (!S.mep.profile) S.mep.profile = mepProfileRef(GENERIC_RESIDENTIAL_PROFILE);
   return S.mep;
 }
 
 export function mepVisible(sys) {
   var m = ensureMEP();
   return m.show && m.vis[sys] !== false;
+}
+export function mepLayerVisible(layer) {
+  var m = ensureMEP();
+  return m.show && m.layerVis[layer || "wall"] !== false;
 }
 
 // What the auto-generate button should do. No rooms: say so and do not touch
@@ -369,6 +385,14 @@ export function loadMEP(d) {
         s: onWall ? n.s : null,
         elev: fin(n.elev) ? n.elev : def.elev != null ? def.elev : 100,
         label: typeof n.label === "string" ? n.label.slice(0, 80) : "",
+        sourceId: n.sourceId ?? null,
+        circuitId: n.circuitId ?? null,
+        branchId: n.branchId ?? null,
+        branchIds: Array.isArray(n.branchIds) ? n.branchIds.filter(function(id) { return id != null; }) : n.branchId != null ? [n.branchId] : [],
+        itemId: n.itemId ?? null,
+        switchId: n.switchId ?? null,
+        roomKey: n.roomKey ?? null,
+        generated: !!n.generated,
       };
     });
   m.runs = ((d && d.runs) || [])
@@ -385,19 +409,28 @@ export function loadMEP(d) {
         pts: r.pts.filter(function (p) { return p && fin(p.x) && fin(p.z); })
           .map(function (p) { return { x: p.x, z: p.z }; }),
         dia: fin(r.dia) && r.dia > 0 ? r.dia : (kind.dia || 2),
+        elev: fin(r.elev) ? r.elev : null,
         color: r.color || null,
         fall: fin(r.fall) && r.fall > 0 ? r.fall : 0, // gravity fall along the run (cm)
         exposed: r.exposed != null ? !!r.exposed : !!kind.exposed,
-        a: r.a || null,
-        b: r.b || null,
+        a: r.a ?? null,
+        b: r.b ?? null,
+        circuitId: r.circuitId ?? null,
+        explicit: !!r.explicit,
+        branchId: r.branchId ?? null,
+        generated: !!r.generated,
       };
     })
     .filter(function (r) { return r.pts.length >= 2; });
+  m.circuits = d && Array.isArray(d.circuits) ? d.circuits : [];
+  m.branches = d && Array.isArray(d.branches) ? d.branches : [];
+  m.profile = d && d.profile && typeof d.profile.id === "string" ? d.profile : mepProfileRef(GENERIC_RESIDENTIAL_PROFILE);
   if (d) {
     if (d.show != null) m.show = !!d.show;
     if (d.show3D != null) m.show3D = !!d.show3D;
     if (d.snapAngle != null) m.snapAngle = !!d.snapAngle;
     if (d.vis) m.vis = Object.assign(mepVisDefault(), d.vis);
+    if (d.layerVis) m.layerVis = Object.assign({ wall: true, ceiling: true, floor: true }, d.layerVis);
     if (d.xray != null) {
       if (typeof d.xray === "object") {
         m.xray = {
@@ -417,7 +450,56 @@ export function loadMEP(d) {
   m.route = null;
   m.place = null;
   autoConnectAll();
+  migrateMEPTopology(m);
   emitMEP();
+}
+
+// Legacy scenes represented connectivity only by geometric contact. Convert
+// each source-connected component into an explicit circuit/service branch on
+// load, preserving every original node and run even when inference is partial.
+export function migrateMEPTopology(model = ensureMEP()) {
+  var nodes = model.nodes || [], runs = model.runs || [];
+  model.circuits = model.circuits || [];
+  model.branches = model.branches || [];
+  nodes.forEach(function(source) {
+    var def = nodeKindDef(source.sys, source.k);
+    if (!def || !def.hub) return;
+    var reachedNodes = new Set([source.id]), reachedRuns = new Set(), changed = true;
+    while (changed) {
+      changed = false;
+      runs.forEach(function(run) {
+        if (run.sys !== source.sys || reachedRuns.has(run.id)) return;
+        var touches = nodes.some(function(n) {
+          return reachedNodes.has(n.id) && nodeTouchesRun(n, run, nodePos(n));
+        }) || runs.some(function(other) { return reachedRuns.has(other.id) && runsTouch(other, run, MEP_TOUCH); });
+        if (touches) { reachedRuns.add(run.id); changed = true; }
+      });
+      nodes.forEach(function(n) {
+        if (n.sys !== source.sys || reachedNodes.has(n.id)) return;
+        if (runs.some(function(run) { return reachedRuns.has(run.id) && nodeTouchesRun(n, run, nodePos(n)); })) {
+          reachedNodes.add(n.id); changed = true;
+        }
+      });
+    }
+    var devices = nodes.filter(function(n) { return n !== source && reachedNodes.has(n.id) && n.sourceId == null; });
+    if (!devices.length) return;
+    if (source.sys === "power") {
+      var cid = "legacy-circuit-" + source.id;
+      while (model.circuits.some(function(c) { return c.id === cid; })) cid += "-more";
+      model.circuits.push({ id: cid, number: model.circuits.length + 1, kind: "legacy", panelId: source.id,
+        deviceIds: devices.map(function(n) { return n.id; }), estimatedLoadW: 0, inferred: true });
+      devices.forEach(function(n) { n.sourceId = source.id; n.circuitId = cid; });
+      runs.forEach(function(r) { if (reachedRuns.has(r.id) && r.circuitId == null) r.circuitId = cid; });
+    } else {
+      var bid = "legacy-branch-" + source.id;
+      while (model.branches.some(function(b) { return b.id === bid; })) bid += "-more";
+      model.branches.push({ id: bid, sys: source.sys, kind: "legacy", sourceId: source.id,
+        deviceIds: devices.map(function(n) { return n.id; }), inferred: true });
+      devices.forEach(function(n) { n.sourceId = source.id; n.branchId = bid; n.branchIds = [bid]; });
+      runs.forEach(function(r) { if (reachedRuns.has(r.id) && r.branchId == null) r.branchId = bid; });
+    }
+  });
+  return model;
 }
 
 /* ---- CRUD ---------------------------------------------------------------- */
@@ -458,6 +540,10 @@ export function addNode(sys, k, x, z, wall, s, layer) {
     s: onWall && s != null ? s : null,
     elev: d.elev != null ? d.elev : 100,
     label: "",
+    sourceId: null,
+    circuitId: null,
+    branchId: null,
+    itemId: null,
   };
   ensureMEP().nodes.push(n);
   emitMEP();
@@ -482,12 +568,15 @@ export function addRun(sys, k, pts, a, b, layer) {
     layer: layer,
     pts: pts.map(function (p) { return { x: p.x, z: p.z }; }),
     dia: d.dia || 2,
+    elev: null,
     color: null,
     fall: 0,
     exposed: !!d.exposed,
-    a: a || null,
-    b: b || null,
+    a: a ?? null,
+    b: b ?? null,
     policyViolation: !!requireBlocked,
+    circuitId: null,
+    branchId: null,
   };
   ensureMEP().runs.push(run);
   emitMEP();
@@ -673,6 +762,7 @@ function touchTol(r) {
 function nodeTouchesRun(n, r, p) {
   if (!r || r.sys !== n.sys || !r.pts || r.pts.length < 2) return false;
   if (r.a === n.id || r.b === n.id) return true;
+  if (r.explicit) return false;
   return runTouchesPoint(r, p || nodePos(n), touchTol(r));
 }
 // Is a device touched by any same-system run? True if a run endpoint id or
@@ -693,6 +783,7 @@ export function unconnectedNodes() {
 }
 // Link a run's endpoints (a/b) to the nearest same-system device at each end.
 export function linkRunEndpoints(run) {
+  if (run.explicit) return;
   var m = ensureMEP();
   if (run.pts.length < 2) return;
   var ends = [{ p: run.pts[0], set: "a" }, { p: run.pts[run.pts.length - 1], set: "b" }];
@@ -894,6 +985,8 @@ function runTouchesPoint(r, p, tol) {
 // do two runs physically join (an endpoint of one lands on the other)?
 function runsTouch(A, B, tol) {
   if (!A || !B || !A.pts || !B.pts || A.pts.length < 2 || B.pts.length < 2) return false;
+  if (A.explicit || B.explicit) return A.circuitId === B.circuitId &&
+    [A.a, A.b].some(function(id) { return id != null && (id === B.a || id === B.b); });
   var ea = [A.pts[0], A.pts[A.pts.length - 1]];
   if (ea.some(function (p) { return runTouchesPoint(B, p, tol); })) return true;
   var eb = [B.pts[0], B.pts[B.pts.length - 1]];
@@ -945,6 +1038,9 @@ export function computeMEPStatus() {
   });
   m.runs.forEach(function (r) {
     if (!hubComp[find("r" + r.id)]) run[r.id] = "unsupplied";
+  });
+  validateMEPModel(m, []).issues.forEach(function(issue) {
+    if (issue.code === "BROKEN_CIRCUIT_PATH" && !node[issue.entityId]) { node[issue.entityId] = "unsupplied"; deviceIssues++; }
   });
   return { node: node, run: run, deviceIssues: deviceIssues };
 }
@@ -1121,6 +1217,19 @@ function mepSignature(m) {
   var h = 2166136261;
   h = mixNum(h, m.nodes.length);
   h = mixNum(h, m.runs.length);
+  h = mixStr(h, JSON.stringify(m.circuits || []));
+  // Host geometry changes the world position of wall-attached devices and
+  // the height of ceiling routes, even when the MEP objects are untouched.
+  (S.nodes || []).forEach(function (p) {
+    h = mixNum(h, Math.round((p.x || 0) * 10));
+    h = mixNum(h, Math.round((p.z || 0) * 10));
+  });
+  (S.walls || []).forEach(function (wall) {
+    h = mixStr(h, wall.id);
+    h = mixNum(h, wall.a);
+    h = mixNum(h, wall.b);
+    h = mixNum(h, Math.round((wall.height || 0) * 10));
+  });
   // Gas-through-bedroom depends on the rooms and where the beds are, not only
   // on the pipe. Hashing them keeps the warning current when a bed moves.
   detectRooms().forEach(function (room) {
@@ -1155,7 +1264,11 @@ function mepSignature(m) {
     h = mixStr(h, r.layer);
     h = mixStr(h, r.a);
     h = mixStr(h, r.b);
+    h = mixStr(h, r.circuitId);
+    h = mixNum(h, r.explicit ? 1 : 0);
     h = mixNum(h, Math.round((r.dia || 0) * 10));
+    h = mixNum(h, r.elev == null ? 2147483647 : Math.round(r.elev * 10));
+    h = mixNum(h, r.exposed ? 1 : 0);
     h = mixNum(h, Math.round((r.fall || 0) * 10));
     h = mixNum(h, r.pts ? r.pts.length : 0);
     if (!r.pts) return;
@@ -1166,68 +1279,48 @@ function mepSignature(m) {
   });
   return h;
 }
-// Closest approach of two plan segments, plus the midpoint of that approach.
-function segSegApproach(ax, az, bx, bz, cx, cz, dx, dz) {
-  var ux = bx - ax, uz = bz - az, vx = dx - cx, vz = dz - cz;
-  var wx = ax - cx, wz = az - cz;
-  var a = ux * ux + uz * uz, b = ux * vx + uz * vz, c = vx * vx + vz * vz;
-  var d = ux * wx + uz * wz, e = vx * wx + vz * wz;
-  var D = a * c - b * b, sN, sD = D, tN, tD = D, eps = 1e-9;
-  if (D < eps) { sN = 0; sD = 1; tN = e; tD = c; }
+// Closest points on two finite 3D segments. Plane labels and overlapping plan
+// projections are not enough to establish that two services occupy one space.
+function segSegApproach3D(a0, a1, b0, b1) {
+  var u = [a1.x - a0.x, a1.y - a0.y, a1.z - a0.z];
+  var v = [b1.x - b0.x, b1.y - b0.y, b1.z - b0.z];
+  var w = [a0.x - b0.x, a0.y - b0.y, a0.z - b0.z];
+  var dot = function(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; };
+  var aa = dot(u, u), bb = dot(u, v), cc = dot(v, v), dd = dot(u, w), ee = dot(v, w);
+  if (aa < 1e-9 || cc < 1e-9) return null;
+  var D = aa * cc - bb * bb, sn, sd = D, tn, td = D;
+  if (D < 1e-9) { sn = 0; sd = 1; tn = ee; td = cc; }
   else {
-    sN = b * e - c * d; tN = a * e - b * d;
-    if (sN < 0) { sN = 0; tN = e; tD = c; }
-    else if (sN > sD) { sN = sD; tN = e + b; tD = c; }
+    sn = bb * ee - cc * dd; tn = aa * ee - bb * dd;
+    if (sn < 0) { sn = 0; tn = ee; td = cc; }
+    else if (sn > sd) { sn = sd; tn = ee + bb; td = cc; }
   }
-  if (tN < 0) {
-    tN = 0;
-    if (-d < 0) sN = 0;
-    else if (-d > a) sN = sD;
-    else { sN = -d; sD = a; }
-  } else if (tN > tD) {
-    tN = tD;
-    if (-d + b < 0) sN = 0;
-    else if (-d + b > a) sN = sD;
-    else { sN = -d + b; sD = a; }
+  if (tn < 0) {
+    tn = 0;
+    if (-dd < 0) sn = 0;
+    else if (-dd > aa) sn = sd;
+    else { sn = -dd; sd = aa; }
+  } else if (tn > td) {
+    tn = td;
+    if (-dd + bb < 0) sn = 0;
+    else if (-dd + bb > aa) sn = sd;
+    else { sn = -dd + bb; sd = aa; }
   }
-  var sc = Math.abs(sN) < eps ? 0 : sN / sD;
-  var tc = Math.abs(tN) < eps ? 0 : tN / tD;
-  var px = ax + sc * ux, pz = az + sc * uz, qx = cx + tc * vx, qz = cz + tc * vz;
-  return { d: Math.hypot(px - qx, pz - qz), x: (px + qx) / 2, z: (pz + qz) / 2 };
+  var s = Math.abs(sn) < 1e-9 ? 0 : sn / sd;
+  var t = Math.abs(tn) < 1e-9 ? 0 : tn / td;
+  var p = { x: a0.x + s * u[0], y: a0.y + s * u[1], z: a0.z + s * u[2] };
+  var q = { x: b0.x + t * v[0], y: b0.y + t * v[1], z: b0.z + t * v[2] };
+  return { d: Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z), x: (p.x + q.x) / 2,
+    y: (p.y + q.y) / 2, yA: p.y, yB: q.y, z: (p.z + q.z) / 2 };
 }
-function segDir(a, b) {
-  var dx = b.x - a.x, dz = b.z - a.z, L = Math.hypot(dx, dz) || 1;
-  return { x: dx / L, z: dz / L };
-}
-// Length of the host segment that actually stays inside `gap` of the other.
-function parallelOverlap(a0, a1, b0, b1, gap) {
-  var la = Math.hypot(a1.x - a0.x, a1.z - a0.z);
-  var lb = Math.hypot(b1.x - b0.x, b1.z - b0.z);
-  var host0 = la >= lb ? a0 : b0, host1 = la >= lb ? a1 : b1;
-  var other0 = la >= lb ? b0 : a0, other1 = la >= lb ? b1 : a1;
-  var L = Math.max(la, lb);
-  if (L < 1) return 0;
-  var n = Math.max(1, Math.ceil(L / 2));
-  var run = 0, best = 0, step = L / n;
-  for (var i = 0; i <= n; i++) {
-    var t = i / n;
-    var x = host0.x + (host1.x - host0.x) * t;
-    var z = host0.z + (host1.z - host0.z) * t;
-    if (distSeg(x, z, other0.x, other0.z, other1.x, other1.z) < gap) {
-      run += step;
-      if (run > best) best = run;
-    } else run = 0;
-  }
-  return best;
-}
-// Different systems that want the same space. Same plane: any approach inside
-// the clearance, including a crossing. Different planes: only a shared run
-// (nearly parallel for a real length). A duct crossing a cable at a right
-// angle is normal; a floor pipe traced along a wall chase is not.
 export function computeMEPClashes() {
   var m = ensureMEP(), out = [];
   function clearance(a, b) {
     return Math.max(4, ((fin(a.dia) ? a.dia : 2) + (fin(b.dia) ? b.dia : 2)) / 2);
+  }
+  function halfHeight(r) {
+    var kind = runKindDef(r.sys, r.k);
+    return kind && kind.rect ? r.dia * (kind.hRatio || 0.6) / 2 : r.dia / 2;
   }
   for (var i = 0; i < m.runs.length; i++) {
     var A = m.runs[i];
@@ -1235,30 +1328,32 @@ export function computeMEPClashes() {
     for (var j = i + 1; j < m.runs.length; j++) {
       var B = m.runs[j];
       if (A.sys === B.sys || !B.pts || B.pts.length < 2) continue;
-      var gap = clearance(A, B), best = null, parallel = 0;
+      var gap = clearance(A, B), best = null;
+      var ay = runPointY(A), by = runPointY(B);
       for (var ia = 1; ia < A.pts.length; ia++) {
         for (var ib = 1; ib < B.pts.length; ib++) {
-          var hit = segSegApproach(
-            A.pts[ia - 1].x, A.pts[ia - 1].z, A.pts[ia].x, A.pts[ia].z,
-            B.pts[ib - 1].x, B.pts[ib - 1].z, B.pts[ib].x, B.pts[ib].z,
-          );
-          if (hit.d >= gap) continue;
-          var da = segDir(A.pts[ia - 1], A.pts[ia]);
-          var db = segDir(B.pts[ib - 1], B.pts[ib]);
-          var aligned = Math.abs(da.x * db.x + da.z * db.z) > 0.94;
-          var along = A.layer === B.layer ? 0 : parallelOverlap(A.pts[ia - 1], A.pts[ia], B.pts[ib - 1], B.pts[ib], gap);
-          if (A.layer !== B.layer) {
-            if (!aligned || along < 15) continue;
-          }
-          if (aligned) parallel += along;
-          if (!best || hit.d < best.d) best = hit;
+          var a0 = { x: A.pts[ia - 1].x, y: ay[ia - 1], z: A.pts[ia - 1].z };
+          var a1 = { x: A.pts[ia].x, y: ay[ia], z: A.pts[ia].z };
+          var b0 = { x: B.pts[ib - 1].x, y: by[ib - 1], z: B.pts[ib - 1].z };
+          var b1 = { x: B.pts[ib].x, y: by[ib], z: B.pts[ib].z };
+          var hit = segSegApproach3D(a0, a1, b0, b1);
+          // Ducts are rectangular. Their plan width is not their vertical
+          // radius; a cable above a duct can clear its top even when the
+          // centre distance is less than half the duct width.
+          var kindA = runKindDef(A.sys, A.k), kindB = runKindDef(B.sys, B.k);
+          var verticalGap = Math.max(0,
+            Math.min(a0.y, a1.y) - Math.max(b0.y, b1.y),
+            Math.min(b0.y, b1.y) - Math.max(a0.y, a1.y));
+          if (hit && ((kindA && kindA.rect) || (kindB && kindB.rect)) &&
+            verticalGap >= halfHeight(A) + halfHeight(B) + 2) continue;
+          if (hit && hit.d < gap && (!best || hit.d < best.d)) best = hit;
         }
       }
       if (!best) continue;
-      if (A.layer !== B.layer && parallel < 15) continue;
       out.push({
         a: A.id, b: B.id, sysA: A.sys, kA: A.k, sysB: B.sys, kB: B.k,
-        layerA: A.layer, layerB: B.layer, x: best.x, z: best.z,
+        layerA: A.layer, layerB: B.layer, x: best.x, y: best.y, z: best.z,
+        separationCm: best.d, clearanceCm: gap,
       });
     }
   }
@@ -1410,7 +1505,7 @@ export function hitMEP(px, pz, scale=S.SC) {
   // nodes (visible systems only), nearest first
   var bn = null, bd = tolN;
   m.nodes.forEach(function (n) {
-    if (!mepVisible(n.sys)) return;
+    if (!mepVisible(n.sys) || !mepLayerVisible(n.layer)) return;
     var p = nodePos(n), d = Math.hypot(px - p.x, pz - p.z);
     if (d < bd) { bd = d; bn = n; }
   });
@@ -1421,7 +1516,7 @@ export function hitMEP(px, pz, scale=S.SC) {
   var bv = null, bvd = tolV;
   var br = null, brd = tolR;
   m.runs.forEach(function (r) {
-    if (!mepVisible(r.sys) || !r.pts) return;
+    if (!mepVisible(r.sys) || !mepLayerVisible(r.layer) || !r.pts) return;
     for (var i = 0; i < r.pts.length; i++) {
       var d = Math.hypot(px - r.pts[i].x, pz - r.pts[i].z);
       if (d < bvd) { bvd = d; bv = { r: r, vi: i }; }
@@ -1455,19 +1550,22 @@ export function drawMEP(pc, sx, sz, label, phase, rot) {
   var alive = 0;
   // runs first, devices on top
   m.runs.forEach(function (r) {
-    if (!mepVisible(r.sys)) return;
+    if (!mepVisible(r.sys) || !mepLayerVisible(r.layer)) return;
     var f = flow[r.id];
     if (f && f.alive && f.flow !== "signal" && f.flow !== "vent") alive++;
     drawRun(pc, sx, sz, r, status.run[r.id], f, animate ? phase || 0 : null);
   });
   _aliveCount = alive;
   m.nodes.forEach(function (n) {
-    if (!mepVisible(n.sys)) return;
+    if (!mepVisible(n.sys) || !mepLayerVisible(n.layer)) return;
     drawNode(pc, sx, sz, n, status.node[n.id]);
   });
   var clashSeen = {};
   (state.clashes || []).forEach(function (c) {
     if (!mepVisible(c.sysA) || !mepVisible(c.sysB)) return;
+    // A floor-only drawing must not retain warnings for hidden wall/ceiling
+    // routes; those markers otherwise look like unexplained defects on pipes.
+    if (!mepLayerVisible(c.layerA) || !mepLayerVisible(c.layerB)) return;
     var key = Math.round(c.x) + ":" + Math.round(c.z);
     if (clashSeen[key]) return;
     clashSeen[key] = 1;
@@ -1570,7 +1668,7 @@ function drawRun(pc, sx, sz, r, issue, flowInfo, phase) {
   var col = runColor(r);
   var d = runKindDef(r.sys, r.k) || {};
   var selected = S.sel && S.sel.kind === "mepRun" && S.sel.ref === r;
-  var lw = clamp(r.dia * 1.1, 1.6, 6);
+  var lw = clamp(r.dia * 1.1, r.layer === "floor" ? 3.2 : 1.6, 6);
   var dead = flowInfo && !flowInfo.alive; // routed but not traced to a source
   pc.save();
   pc.lineJoin = "round";
@@ -1585,16 +1683,16 @@ function drawRun(pc, sx, sz, r, issue, flowInfo, phase) {
     pc.setLineDash([]);
     pc.stroke();
   }
-  // Under-floor services get a broad dotted bed in plan view. The actual line
-  // remains in the system colour, but now reads immediately as concealed below
-  // the finish rather than as another wall cable.
+  // A bright dashed casing keeps the route legible over both dark tile and
+  // light timber while the solid core retains its system colour. The former
+  // low-opacity coloured dots disappeared against busy floor textures.
   if (r.layer === "floor") {
     pc.beginPath();
     traceRun(pc, sx, sz, r);
-    pc.strokeStyle = col;
-    pc.globalAlpha = dead ? 0.12 : 0.2;
-    pc.lineWidth = lw + 7;
-    pc.setLineDash([2, 6]);
+    pc.strokeStyle = "#ffffff";
+    pc.globalAlpha = dead ? 0.45 : 0.9;
+    pc.lineWidth = lw + 5;
+    pc.setLineDash([7, 5]);
     pc.stroke();
     pc.globalAlpha = dead ? 0.4 : 1;
   }
@@ -1676,9 +1774,9 @@ function drawNode(pc, sx, sz, n, issue) {
     pc.fillStyle = "rgba(63,107,120,.30)";
     pc.fill();
   }
-  pc.fillStyle = col;
-  pc.strokeStyle = "#fff";
-  pc.lineWidth = 1.6;
+  pc.fillStyle = "#fff";
+  pc.strokeStyle = col;
+  pc.lineWidth = 2.2;
   if (def.hub) {
     roundRect(pc, X - R, Y - R, R * 2, R * 2, 3);
     pc.fill();
@@ -1689,14 +1787,25 @@ function drawNode(pc, sx, sz, n, issue) {
     pc.fill();
     pc.stroke();
   }
-  // glyph (kept upright when the plan view is rotated)
+  // Conventional high-contrast plan symbols. Text remains the fallback for
+  // specialist equipment, while the everyday electrical/plumbing devices no
+  // longer depend on knowing an internal one-letter code.
   pc.save();
   if (_mepRot) { pc.translate(X, Y); pc.rotate(-_mepRot); pc.translate(-X, -Y); }
-  pc.fillStyle = "#fff";
-  pc.font = "700 " + (def.hub ? 11 : 9) + "px system-ui, sans-serif";
-  pc.textAlign = "center";
-  pc.textBaseline = "middle";
-  pc.fillText(def.code || "?", X, Y + 0.5);
+  pc.strokeStyle = col; pc.fillStyle = col; pc.lineWidth = 1.8;
+  if (n.sys === "power" && n.k === "outlet") {
+    pc.beginPath(); pc.arc(X - 2.2, Y, 1.5, 0, 7); pc.moveTo(X + 3.7, Y); pc.arc(X + 2.2, Y, 1.5, 0, 7); pc.stroke();
+  } else if (n.sys === "power" && n.k === "switch") {
+    pc.beginPath(); pc.arc(X - 2.5, Y + 2, 1.2, 0, 7); pc.moveTo(X - 1.5, Y + 1); pc.lineTo(X + 3.5, Y - 3.5); pc.stroke();
+  } else if (n.sys === "power" && n.k === "light") {
+    pc.beginPath(); pc.moveTo(X - 4, Y - 4); pc.lineTo(X + 4, Y + 4); pc.moveTo(X + 4, Y - 4); pc.lineTo(X - 4, Y + 4); pc.stroke();
+  } else if (n.sys === "drain" && n.k === "floor") {
+    pc.strokeRect(X - 3.5, Y - 3.5, 7, 7); pc.beginPath(); pc.moveTo(X - 3, Y); pc.lineTo(X + 3, Y); pc.moveTo(X, Y - 3); pc.lineTo(X, Y + 3); pc.stroke();
+  } else {
+    pc.font = "700 " + (def.hub ? 10 : 8) + "px system-ui, sans-serif";
+    pc.textAlign = "center"; pc.textBaseline = "middle";
+    pc.fillText(def.code || "?", X, Y + 0.5);
+  }
   pc.restore();
   // connection flag: orphan (touches no run) = red; unsupplied (no hub upstream) = amber
   if (issue) {
@@ -1782,16 +1891,20 @@ export function buildMEP3D(group, THREE) {
   var m = ensureMEP();
   if (!m.show || !m.show3D) return;
   var matCache = {};
-  function matFor(hex) {
-    if (!matCache[hex]) {
-      matCache[hex] = new THREE.MeshStandardMaterial({
-        color: hex,
-        roughness: 0.5,
-        metalness: 0.2,
-        emissive: new THREE.Color(hex).multiplyScalar(0.12),
-      });
+  function matFor(hex, underFloor) {
+    var key = hex + (underFloor ? ":under-floor" : "");
+    if (!matCache[key]) {
+      matCache[key] = underFloor && m.xray.floor
+        ? new THREE.MeshBasicMaterial({
+          color: hex, transparent: true, opacity: 0.96,
+          depthTest: false, depthWrite: false,
+        })
+        : new THREE.MeshStandardMaterial({
+          color: hex, roughness: 0.5, metalness: 0.2,
+          emissive: new THREE.Color(hex).multiplyScalar(0.12),
+        });
     }
-    return matCache[hex];
+    return matCache[key];
   }
   var exposedDuctMat = new THREE.MeshStandardMaterial({
     color: 0xa8b3ba,
@@ -1803,17 +1916,25 @@ export function buildMEP3D(group, THREE) {
   // runs → cylinders between consecutive points at the layer's conduit height
   // (rectangular sections for ductwork, which is what `rect` kinds are for)
   m.runs.forEach(function (r) {
-    if (!mepVisible(r.sys)) return;
+    if (!mepVisible(r.sys) || !mepLayerVisible(r.layer)) return;
     var ys = runPointY(r);
     var hex = new THREE.Color(runColor(r)).getHex();
-    var rad = Math.max(0.8, r.dia / 2);
+    // A 20 mm supply line is sub-pixel at an apartment-wide camera distance.
+    // Give concealed lines a minimum *display* radius in 3D; model diameter
+    // and exported design properties remain unchanged.
+    var rad = Math.max(r.layer === "floor" ? 2.4 : 0.8, r.dia / 2);
     var kd = runKindDef(r.sys, r.k);
     for (var i = 1; i < r.pts.length; i++) {
       var A = r.pts[i - 1], B = r.pts[i];
       var seg = kd && kd.rect
-        ? segBox(THREE, r.exposed ? exposedDuctMat : matFor(hex), A.x, ys[i - 1], A.z, B.x, ys[i], B.z, r.dia, kd.hRatio || 0.6)
-        : segCylinder(THREE, matFor(hex), A.x, ys[i - 1], A.z, B.x, ys[i], B.z, rad);
-      if (seg) group.add(seg);
+        ? segBox(THREE, r.exposed ? exposedDuctMat : matFor(hex, r.layer === "floor"), A.x, ys[i - 1], A.z, B.x, ys[i], B.z, r.dia, kd.hRatio || 0.6)
+        : segCylinder(THREE, matFor(hex, r.layer === "floor"), A.x, ys[i - 1], A.z, B.x, ys[i], B.z, rad);
+      if (seg) {
+        // Transparent slab and furniture render before these inspection
+        // guides, so an under-floor route cannot disappear into the finish.
+        if (r.layer === "floor" && m.xray.floor) seg.renderOrder = 20;
+        group.add(seg);
+      }
       if (seg && r.exposed && kd && kd.rect) {
         // Visible sheet-metal collars make every bend/join legible, and a slim
         // hanger connects each exposed segment back to the ceiling slab.
@@ -1839,29 +1960,37 @@ export function buildMEP3D(group, THREE) {
   });
   // devices → small boxes (hubs bigger) at their layer height
   m.nodes.forEach(function (n) {
-    if (!mepVisible(n.sys)) return;
+    if (!mepVisible(n.sys) || !mepLayerVisible(n.layer)) return;
     var def = nodeKindDef(n.sys, n.k) || {};
     var p = nodePos(n);
     var hex = new THREE.Color(MEP_SYS[n.sys].color).getHex();
-    var s = def.hub ? 12 : 7;
-    var box = new THREE.Mesh(
-      new THREE.BoxGeometry(s, s, Math.max(3, s * 0.4)),
-      matFor(hex),
-    );
-    box.position.set(p.x, layerNodeY(n), p.z);
-    group.add(box);
+    var s = def.hub ? 12 : 7, marker;
+    if (n.sys === "power" && n.k === "light") {
+      marker = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 2.5, 20), matFor(hex));
+    } else {
+      var w = n.sys === "power" && n.k === "outlet" ? 9 : n.sys === "power" && n.k === "switch" ? 7 : s;
+      var h = n.sys === "power" && (n.k === "outlet" || n.k === "switch") ? 12 : s;
+      marker = new THREE.Mesh(new THREE.BoxGeometry(w, h, Math.max(2.2, s * 0.3)), matFor(hex));
+      if (n.wall != null) {
+        var host = S.walls.find(function(wall) { return wall.id === n.wall; });
+        if (host) { var wg = wallGeom(host); marker.rotation.y = -Math.atan2(wg.uz, wg.ux); }
+      }
+    }
+    var surface = deviceSurfacePosition(n);
+    marker.position.set(surface.x, layerNodeY(n), surface.z);
+    group.add(marker);
   });
   // vertical risers: connect same-system entities that meet in plan (x,z) but
   // sit on different planes — e.g. a ceiling run dropping to a wall switch, or
   // an under-floor pipe rising into a wall.
   var anchors = [];
   m.nodes.forEach(function (n) {
-    if (!mepVisible(n.sys)) return;
+    if (!mepVisible(n.sys) || !mepLayerVisible(n.layer)) return;
     var p = nodePos(n);
     anchors.push({ x: p.x, z: p.z, y: layerNodeY(n), sys: n.sys });
   });
   m.runs.forEach(function (r) {
-    if (!mepVisible(r.sys)) return;
+    if (!mepVisible(r.sys) || !mepLayerVisible(r.layer)) return;
     var ys = runPointY(r);
     // Every routed vertex is an anchor, not only the two polyline endpoints.
     // Chained socket circuits visit most outlets at interior vertices; limiting
@@ -1886,6 +2015,17 @@ export function buildMEP3D(group, THREE) {
       var rr = segCylinder(THREE, matFor(hex2), x, A2.y, z, x, B2.y, z, 1.4);
       if (rr) group.add(rr);
     }
+}
+// Mount plates on the interior finish instead of burying them at the datum.
+export function deviceSurfacePosition(n) {
+  var p = nodePos(n), host = S.walls.find(function(w) { return w.id === n.wall; });
+  if (!host || n.layer !== "wall") return p;
+  var g = wallGeom(host), nx = -g.uz, nz = g.ux;
+  var room = detectRooms().find(function(r) { return r.key === n.roomKey; }) ||
+    detectRooms().find(function(r) { return pointInPoly(p.x + nx * 20, p.z + nz * 20, r.pts) || pointInPoly(p.x - nx * 20, p.z - nz * 20, r.pts); });
+  if (room && !pointInPoly(p.x + nx * 20, p.z + nz * 20, room.pts)) { nx = -nx; nz = -nz; }
+  var offset = (host.thickness || 10) / 2 + 1.6;
+  return { x: p.x + nx * offset, z: p.z + nz * offset };
 }
 // a rectangular duct section spanning two 3D points. Width is the run's `dia`
 // and height a fraction of it, so a 25cm duct reads as the flat sheet-metal

@@ -7,6 +7,8 @@ import { S, uid, WALL_T, WALL_H } from "./state.js";
 import { detectRooms, wallGeom, pointInPoly } from "./geometry.js";
 import { FURN } from "./furniture.js";
 import { wallDrawCommand, openingPlaceCommand, itemPlaceCommand, executeCommand } from "./commands/index.js";
+import { autoInfrastructure } from "./mep_auto.js";
+import { registeredMEPProfile } from "./mep_profile.js";
 
 function generatedEnv(extra = {}) {
   return Object.assign({ domain: "planner", state: S, itemCatalog: FURN }, extra);
@@ -38,17 +40,19 @@ function clearScene() {
 }
 
 // Replacement cannot leave document objects referring to discarded geometry.
-function replacementBlocked(state) {
+function replacementBlocked(state, replaceInfrastructure) {
+  var mepEntries = [].concat(state.mep?.nodes || [], state.mep?.runs || [], state.mep?.edges || []);
+  var protectedMEP = mepEntries.some(function(entry) { return !entry.generated; });
   return !!(state.structLocked || state.layers?.structure?.locked ||
     state.walls.some(w => w.locked) || state.items.some(i => i.locked) ||
     state.wallCons?.length || state.roomCons?.length || state.slabOpenings?.length ||
-    state.markers?.length || state.mep?.nodes?.length || state.mep?.runs?.length || state.mep?.edges?.length);
+    state.markers?.length || (!replaceInfrastructure && protectedMEP));
 }
 
-export function buildLayout(layout, replace) {
+export function buildLayout(layout, replace, replaceInfrastructure) {
   const permission = generatedChangePermission(S, "document.generate_apartment", { replace });
   if (!permission.ok) throw new Error(permission.reason);
-  if (replace && replacementBlocked(S)) throw new Error('PROTECTED_STRUCTURE');
+  if (replace && replacementBlocked(S, replaceInfrastructure)) throw new Error('PROTECTED_STRUCTURE');
   if (replace) {
     clearScene();
   }
@@ -774,6 +778,20 @@ function furnishRoom(roomMeta, dr) {
   } else if (type === "living") {
     furnishLiving(dr, false);
     placeDiningSet(dr);
+  } else if (type === "dining") {
+    placeItem("rug", dr, { center: true });
+    placeDiningSet(dr);
+    placeItem("sideboard", dr, { wall: true, preferredSides: ["north", "south", "east", "west"], clearance: 30, avoidWindows: true, doorDepth: 90 });
+    placeItem("plant", dr, { wall: true, preferredSides: ["east", "west"], clearance: 10 });
+  } else if (type === "office") {
+    let desk = placeItem("desk", dr, { wall: true, preferredSides: ["north", "east", "south"], clearance: 32, doorDepth: 95 });
+    if (desk) {
+      placeItem("officeChair", dr, { frontOf: "desk", faceTarget: true, dist: 18, clearance: 12 });
+      placeItem("laptop", dr, { onTopOf: "desk" });
+    }
+    placeItem("bookshelf", dr, { wall: true, preferredSides: ["east", "west", "south"], clearance: 20, avoidWindows: true });
+    placeItem("armchair", dr, { wall: true, preferredSides: ["south", "west"], clearance: 20, doorDepth: 90 });
+    placeItem("plant", dr, { wall: true, preferredSides: ["west", "south"], clearance: 10 });
   } else if (type === "kitchen") {
     placeKitchenRun(dr, ["west", "north", "south", "east"]);
     let b = roomBounds(dr.pts);
@@ -836,9 +854,9 @@ function furnishRoom(roomMeta, dr) {
   }
 }
 
-function applyApartmentLayout(layout, replace, furnish = true) {
+function applyApartmentLayout(layout, replace, furnish = true, replaceInfrastructure = false) {
 
-  buildLayout(layout, replace);
+  buildLayout(layout, replace, replaceInfrastructure);
   if (!furnish) return;
 
   let detected = detectRooms();
@@ -856,15 +874,18 @@ function applyApartmentLayout(layout, replace, furnish = true) {
 
 export const apartmentGenerateCommand = Object.freeze({
   id: "document.generate_apartment",
-  failureCodes: Object.freeze(["INVALID_GENERATOR_SIZE", "INVALID_GENERATOR_ENVIRONMENT", "PROTECTED_STRUCTURE"]),
+  failureCodes: Object.freeze(["INVALID_GENERATOR_SIZE", "INVALID_GENERATOR_ENVIRONMENT", "PROTECTED_STRUCTURE", "UNKNOWN_MEP_PROFILE"]),
   prepare: function(params, env) {
     params = params || {};
     var size = params.size == null ? "small" : String(params.size);
-    if (["small", "large", "random"].indexOf(size) === -1)
+    if (["small", "large", "random", "showcase"].indexOf(size) === -1)
       return { ok: false, reason: "INVALID_GENERATOR_SIZE" };
     if (!env || env.state !== S) return { ok: false, reason: "INVALID_GENERATOR_ENVIRONMENT" };
+    var requestedProfile = params.profileId == null ? "generic-residential" : params.profileId;
+    if (params.infrastructure !== false && !registeredMEPProfile(requestedProfile))
+      return { ok: false, reason: "UNKNOWN_MEP_PROFILE" };
     var replace = params.replace !== false;
-    if (replace && replacementBlocked(S)) return { ok: false, reason: 'PROTECTED_STRUCTURE' };
+    if (replace && replacementBlocked(S, !!params.replaceInfrastructure)) return { ok: false, reason: 'PROTECTED_STRUCTURE' };
     var permission = generatedChangePermission(S, "document.generate_apartment", { replace });
     if (!permission.ok) return permission;
     var seed = params.seed == null ? 1 : Number(params.seed);
@@ -877,7 +898,9 @@ export const apartmentGenerateCommand = Object.freeze({
     return { ok: true, plan: {
       command: "document.generate_apartment",
       expectedVersion: version,
-      params: { size: size, replace: replace, seed: seed, furnish: params.furnish !== false, exactRooms:!!params.requirements?.length,
+      params: { size: size, replace: replace, replaceInfrastructure: !!params.replaceInfrastructure,
+        infrastructure: params.infrastructure !== false, profileId: requestedProfile,
+        seed: seed, furnish: params.furnish !== false, exactRooms:!!params.requirements?.length,
         layout: layout },
     } };
   },
@@ -892,13 +915,28 @@ export const apartmentGenerateCommand = Object.freeze({
     const permission = generatedChangePermission(S, "document.generate_apartment", plan.params);
     if (!permission.ok) return permission;
     if (!env || env.state !== S) return { ok: false, reason: "INVALID_GENERATOR_ENVIRONMENT" };
-    if (plan.params.replace && replacementBlocked(S)) return { ok: false, reason: 'PROTECTED_STRUCTURE' };
+    if (plan.params.infrastructure && !registeredMEPProfile(plan.params.profileId))
+      return { ok: false, reason: "UNKNOWN_MEP_PROFILE" };
+    if (plan.params.replace && replacementBlocked(S, plan.params.replaceInfrastructure)) return { ok: false, reason: 'PROTECTED_STRUCTURE' };
     var before = {
       walls: new Set(S.walls.map(function(w) { return String(w.id); })),
       openings: new Set(S.openings.map(function(o) { return String(o.id); })),
       items: new Set(S.items.map(function(item) { return String(item.id); })),
+      mepNodes: new Set((S.mep?.nodes || []).map(function(n) { return String(n.id); })),
+      mepRuns: new Set((S.mep?.runs || []).map(function(r) { return String(r.id); })),
     };
-    applyApartmentLayout(plan.params.layout, plan.params.replace, plan.params.furnish);
+    applyApartmentLayout(plan.params.layout, plan.params.replace, plan.params.furnish, plan.params.replaceInfrastructure);
+    var mepResult = null;
+    if (plan.params.infrastructure) {
+      var generatedRooms = detectRooms().filter(function(room) {
+        return plan.params.layout.rooms.some(function(requested) {
+          return pointInPoly((requested.x0 + requested.x1) / 2, (requested.z0 + requested.z1) / 2, room.pts);
+        });
+      });
+      mepResult = autoInfrastructure({ rooms: generatedRooms, replace: plan.params.replace,
+        profileId: plan.params.profileId });
+      if (!mepResult.ok) return { ok: false, reason: "INFRASTRUCTURE_GENERATION_FAILED" };
+    }
     if(plan.params.exactRooms){
       const rooms=detectRooms();
       for(const requested of plan.params.layout.rooms){
@@ -911,16 +949,18 @@ export const apartmentGenerateCommand = Object.freeze({
     S.walls.forEach(function(w) { if (!before.walls.has(String(w.id))) created.push({ kind: "wall", id: w.id }); });
     S.openings.forEach(function(o) { if (!before.openings.has(String(o.id))) created.push({ kind: "opening", id: o.id }); });
     S.items.forEach(function(item) { if (!before.items.has(String(item.id))) created.push({ kind: "item", id: item.id }); });
+    (S.mep?.nodes || []).forEach(function(n) { if (!before.mepNodes.has(String(n.id))) created.push({ kind: "mepNode", id: n.id }); });
+    (S.mep?.runs || []).forEach(function(r) { if (!before.mepRuns.has(String(r.id))) created.push({ kind: "mepRun", id: r.id }); });
     return { ok: true, created: created, changed: [], effects: {
       dirty3D: true, refreshTree: true, refreshInspector: true,
-      events: [{ type: "planner-apartment-generated" }],
-    } };
+      events: [{ type: "planner-apartment-generated", mep: mepResult }],
+    }, diagnostics: mepResult };
   },
 });
 
-export function generateApartment(size = "small", replace = true) {
+export function generateApartment(size = "small", replace = true, opts = {}) {
   return executeCommand(apartmentGenerateCommand, {
-    size: size, replace: replace,
+    size: size, replace: replace, replaceInfrastructure: replace, infrastructure: opts.infrastructure !== false,
     seed: size === "random" ? Math.floor(Math.random() * 0xffffffff) : 1,
   }, generatedEnv(), { history: false });
 }
