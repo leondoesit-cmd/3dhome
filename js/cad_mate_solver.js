@@ -44,6 +44,7 @@ import {
   rotationFromTo, rotationOf, rotationVectorMatrix, setRotation, FRAME_ISSUE,
 } from "./cad_mate_model.js";
 import { gaussNewtonStep, normOf, rankOf } from "./core/least_squares.js";
+import { ASSEMBLY_ORIGIN_ID, assemblyOriginComponent } from "./core/assembly_structure.js";
 
 const POSE_KEYS = ["x", "y", "z", "rx", "ry", "rz"];
 const LEGACY_AXIS = { alignX: "x", alignY: "y", alignZ: "z", distanceX: "x" };
@@ -523,6 +524,12 @@ export function solveAssemblyMates(assembly, options = {}) {
   const resolvedFrame = createFrameResolver(sink);
   const components = assembly.components || [];
   const byId = new Map(components.map((component) => [component.id, component]));
+  /* The assembly's own Front, Top and Right planes (book steps 162–166): a
+     grounded frame at the origin, added only when a mate names it, and always
+     the side a mate reads rather than the side it moves. */
+  if ((assembly.topologyMates || []).some((mate) => mate?.a?.componentId === ASSEMBLY_ORIGIN_ID || mate?.b?.componentId === ASSEMBLY_ORIGIN_ID)) {
+    byId.set(ASSEMBLY_ORIGIN_ID, assemblyOriginComponent());
+  }
   components.forEach(normalizeTransform);
   /* Kept for callers that place components of their own before a solve. It
      used to run at the head of every pass because the old align/distance mates

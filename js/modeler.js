@@ -104,6 +104,7 @@ import { tessellateParts } from "./core/part_tessellate.js";
 import { KERNEL_BODY_KIND, buildKernelBrep, featureBuildsKernelBody, isKernelBody, kernelBodyBounds, kernelBodyMeshData, kernelBodySpec, meshDataBounds, offsetKernelBody } from "./core/kernel_body.js";
 import { addEdgeFlange, createSheetMetalPart, flatPattern, flatPatternSvg } from "./cad_sheet_metal.js";
 import { mateFrameSupports, mateRequirementFor, solveTopologyMates, topologyReference } from "./cad_mates.js";
+import { ASSEMBLY_ORIGIN_ID, containsAssembly, descriptorToParent, flattenAssembly, isSubassembly, standardPlaneEntries, subassemblyComponent } from "./core/assembly_structure.js";
 import { eulerMatrix, normalizePose, setRotation } from "./cad_mate_model.js";
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
 import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
@@ -370,6 +371,21 @@ function componentDef(component) {
    the turned box of its extents. `blown` folds in the exploded offset when the
    caller wants where the part is being drawn rather than where it is mated. */
 function componentWorldBounds(component, options) {
+  /* A sub-assembly is as big as everything visible inside it, carried through
+     its own pose the same way a part's box is. */
+  if (isSubassembly(component)) {
+    var inner = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
+    component.asm.components.forEach(function (child) {
+      if (child.visible === false) return;
+      var cb = componentWorldBounds(child, { exploded: false });
+      if (!cb) return;
+      inner.x0 = Math.min(inner.x0, cb.x0); inner.x1 = Math.max(inner.x1, cb.x1);
+      inner.y0 = Math.min(inner.y0, cb.y0); inner.y1 = Math.max(inner.y1, cb.y1);
+      inner.z0 = Math.min(inner.z0, cb.z0); inner.z1 = Math.max(inner.z1, cb.z1);
+    });
+    if (!Number.isFinite(inner.x0)) return null;
+    return placedBounds(inner, component, options);
+  }
   var def = componentDef(component);
   /* Measured against what defBounds will actually walk. Asking `def.parts`
      instead let a component whose every body is suppressed through, and
@@ -377,7 +393,11 @@ function componentWorldBounds(component, options) {
      that renders as nothing, clashes with its neighbours and prints on the
      drawing. */
   if (!def || !activeParts(def).length) return null;
-  var b = defBounds(def), tr = normalizeTransform(component);
+  return placedBounds(defBounds(def), component, options);
+}
+
+function placedBounds(b, component, options) {
+  var tr = normalizeTransform(component);
   var blown = ((!options || options.exploded !== false) && component.explodedOffset) || { x: 0, y: 0, z: 0 };
   var matrix = new THREE.Matrix4().makeRotationFromEuler(
     new THREE.Euler((tr.rx * Math.PI) / 180, (tr.ry * Math.PI) / 180, (tr.rz * Math.PI) / 180));
@@ -806,21 +826,35 @@ function topologyRefInBuiltComponent(reference) {
   if (!building) return true;
   return !reference || !reference.componentId || reference.componentId === building.id;
 }
+/* A part built inside a sub-assembly answers under the path of child ids that
+   leads to it, which is how its faces are named on the sub-assembly. */
+function builtTopologyId(persistentId) {
+  var prefix = E.buildComponent && E.buildComponent.prefix || "";
+  return prefix ? prefix + persistentId : persistentId;
+}
+function builtMemberIds(entry) {
+  var prefix = E.buildComponent && E.buildComponent.prefix || "";
+  var ids = (entry && entry.memberPersistentIds) || [];
+  return prefix ? ids.map(function (id) { return prefix + id; }) : ids;
+}
 function topologySelected(persistentId, entry) {
+  var rawId = persistentId;
+  persistentId = builtTopologyId(rawId);
   var sel = (E.topologySelection || []).filter(topologyRefInBuiltComponent);
   if (sel.some(function (ref) {
     if (ref.persistentId === persistentId) return true;
     if ((ref.memberPersistentIds || []).includes(persistentId)) return true;
-    if (entry && (entry.memberPersistentIds || []).includes(ref.persistentId)) return true;
-    return !!(entry && edgesGeometricallyMatch(ref, entry));
+    if (entry && builtMemberIds(entry).includes(ref.persistentId)) return true;
+    return !!(entry && !E.buildComponent?.prefix && edgesGeometricallyMatch(ref, entry));
   })) return true;
-  return finishImpliedEdge(persistentId);
+  return finishImpliedEdge(rawId);
 }
 function topologyHovered(persistentId, entry) {
   if (!E.hoverTopology || !topologyRefInBuiltComponent(E.hoverTopology)) return false;
+  persistentId = builtTopologyId(persistentId);
   if (E.hoverTopology.persistentId === persistentId) return true;
   if ((E.hoverTopology.memberPersistentIds || []).includes(persistentId)) return true;
-  return !!(entry && edgesGeometricallyMatch(E.hoverTopology, entry));
+  return !!(entry && !E.buildComponent?.prefix && edgesGeometricallyMatch(E.hoverTopology, entry));
 }
 
 function finishImpliedEdge(persistentId) {
@@ -10175,8 +10209,9 @@ async function publishAssemblyModel() {
   applyAssemblyMates(E.assembly);
   var source=cloneData(E.assembly), parts=[];
   try {
-    for (var component of source.components) {
-      if(component.visible===false)continue;
+    // every part occurrence, sub-assemblies included, at its composed pose
+    for (var occurrence of flattenAssembly(source,{visibleOnly:true})) {
+      var component=occurrence.component;
       var def=componentDef(component), run=null;
       if(!def)throw new Error("A component is missing from the library");
       try {
@@ -10186,10 +10221,9 @@ async function publishAssemblyModel() {
           run=await regenerateFeatures({...compiled.document,features:compiled.features});
           if(!run.ok)throw new Error("A component could not rebuild");
         }
-        var tr=normalizeTransform(component), matrix=new THREE.Matrix4().compose(
-          new THREE.Vector3(tr.x,tr.y,tr.z),
-          new THREE.Quaternion().setFromEuler(new THREE.Euler(tr.rx*Math.PI/180,tr.ry*Math.PI/180,tr.rz*Math.PI/180)),
-          new THREE.Vector3(1,1,1));
+        var place=occurrence.placement, matrix=new THREE.Matrix4().makeBasis(
+          new THREE.Vector3(place.x.x,place.x.y,place.x.z),new THREE.Vector3(place.y.x,place.y.y,place.y.z),new THREE.Vector3(place.z.x,place.z.y,place.z.z))
+          .setPosition(place.origin.x,place.origin.y,place.origin.z);
         for(var part of activeParts(def)) {
           var body=run?.results.get(cutTargetFeatureId(part,def));
           var mesh=body?.shape ? await shapeToMeshData(body,{deflection:.28,angle:.18}) :
@@ -10205,8 +10239,8 @@ async function publishAssemblyModel() {
     }
     // Rebuildable preview caches can dwarf the authored history and would be
     // copied into every room undo entry. Preserve inputs, not derived caches.
-    source.components.forEach(function(component){
-      var definition=component.def;
+    flattenAssembly(source).forEach(function(occurrence){
+      var definition=occurrence.component.def;
       if(definition?.metadata?.authoringSystem!=="parametric-v1")return;
       function stripDerived(value) {
         if(!value || typeof value!=="object")return;
@@ -15208,15 +15242,27 @@ function applyFeatureFilter(host) {
 
 function insertAssemblyComponent(modelKey) {
   if (!E.assembly) E.assembly = newAssembly();
-  var def = loadLib().find(function (m) { return m.key === modelKey; });
-  if (!def) return;
-  pushUndo(t("addComponent"));
-  var i = E.assembly.components.length;
-  var component = {
-    id: uid(), modelKey: def.key, name: def.name || def.key,
-    def: cloneData(def), visible: true, grounded: i === 0,
-    transform: { x: i * 25, y: 0, z: 0, rx: 0, ry: 0, rz: 0 },
-  };
+  var i = E.assembly.components.length, component;
+  /* A saved assembly goes in as ONE component that carries its own document
+     (book p.387–402: LENSANDBULB into CAPANDLENS into FLASHLIGHT). Its mates are
+     settled once here; the parent then moves it as a rigid body. */
+  if (String(modelKey).indexOf("asm:") === 0) {
+    var record = loadAssemblies().find(function (a) { return a.key === modelKey.slice(4); });
+    if (!record) return;
+    if (containsAssembly(record, E.assembly.key)) { flash(t("subassemblyContainsThis")); return; }
+    pushUndo(t("addComponent"));
+    component = subassemblyComponent(record, { id: uid(), grounded: i === 0, transform: { x: i * 25, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } });
+    solveTopologyMates(component.asm);
+  } else {
+    var def = loadLib().find(function (m) { return m.key === modelKey; });
+    if (!def) return;
+    pushUndo(t("addComponent"));
+    component = {
+      id: uid(), modelKey: def.key, name: def.name || def.key,
+      def: cloneData(def), visible: true, grounded: i === 0,
+      transform: { x: i * 25, y: 0, z: 0, rx: 0, ry: 0, rz: 0 },
+    };
+  }
   E.assembly.components.push(component);
   invalidateInterference();
   E.componentSel = [component];
@@ -15275,6 +15321,31 @@ function topologyMateLabel(type) {
   return key ? t(key) : t("mate");
 }
 
+/* The three standard planes of a component or of the assembly, as tree rows a
+   mate can be built from. */
+function planeTreeRows(holderId, parentId) {
+  return standardPlaneEntries().map(function (entry) {
+    var selected = (E.topologySelection || []).some(function (reference) { return reference.componentId === holderId && reference.persistentId === entry.persistentId; });
+    return assemblyTreeNode({
+      id: parentId + "|plane|" + holderId + "|" + entry.persistentId, kind: "plane", targetId: holderId,
+      name: t(PLANE_NAME_KEYS[entry.persistentId]), icon: "ph-square", selected: selected, can: { select: true },
+    });
+  });
+}
+
+function subassemblyTreeRows(top, components, parentId) {
+  return components.map(function (child) {
+    var nested = isSubassembly(child) ? subassemblyTreeRows(top, child.asm.components, parentId + "/" + child.id) : [];
+    return assemblyTreeNode({
+      id: parentId + "/" + child.id, kind: "subcomponent", targetId: top.id,
+      name: child.name || child.modelKey || t("component"),
+      icon: isSubassembly(child) ? "ph-stack" : "components",
+      suppressed: child.visible === false, collapsed: assemblyCollapsed(parentId + "/" + child.id, true),
+      can: { select: true }, children: nested,
+    });
+  });
+}
+
 function assemblyTreeModel() {
   var components = (E.assembly && E.assembly.components) || [];
   var legacy = Array.isArray(E.assembly && E.assembly.mates) ? E.assembly.mates : [];
@@ -15292,7 +15363,7 @@ function assemblyTreeModel() {
   });
 
   var componentRows = components.map(function (component, index) {
-    var def = componentDef(component);
+    var def = componentDef(component), sub = isSubassembly(component);
     var solids = def ? activeParts(def).length : 0;
     var label = componentLabelOf(component);
     if (labelCounts.get(label) > 1) {
@@ -15309,22 +15380,27 @@ function assemblyTreeModel() {
         icon: "components", can: { select: true },
       });
     }) : [];
+    /* A sub-assembly lists what it contains; its components are part of one
+       rigid body here, so a row selects the sub-assembly itself. */
+    if (isSubassembly(component)) children = subassemblyTreeRows(component, component.asm.components, "sub:" + component.id);
+    children = planeTreeRows(component.id, "comp:" + component.id).concat(children);
     return assemblyTreeNode({
       id: "comp:" + component.id, kind: "component", targetId: component.id, index: index,
       name: label,
       detail: [component.grounded ? t("treeGrounded") : "",
+        sub ? tf("subassemblyParts", { n: component.asm.components.length }) : "",
         solids ? countLabel(solids, "treeComponentPartOne", "treeComponentParts") : "",
         /* What its mates have left free. Only for components a mate actually
            moves: an ungrounded component nothing is mated to is not "six
            degrees free", it is simply not being solved for. */
         freedomLabel(componentFreedom(component.id))]
         .filter(Boolean).join(" · "),
-      icon: component.grounded ? "stdscrew" : "components",
+      icon: sub ? "ph-stack" : component.grounded ? "stdscrew" : "components",
       // the eye on a component row hides it, the way it does on a body row
       suppressed: component.visible === false,
       selected: E.componentSel.indexOf(component) !== -1,
       collapsed: assemblyCollapsed("comp:" + component.id, true),
-      error: def ? null : t("mateIssueMissingComponent"),
+      error: def || sub ? null : t("mateIssueMissingComponent"),
       can: { select: true, rename: true, remove: true, suppress: true },
       children: children,
     });
@@ -15354,7 +15430,12 @@ function assemblyTreeModel() {
     });
   }));
 
+  // the assembly's own Front, Top and Right planes come first, as in SOLIDWORKS
   var sections = [assemblyTreeNode({
+    id: "section:planes", kind: "section", name: t("assemblyPlanes"), icon: "ph-square",
+    collapsed: assemblyCollapsed("section:planes", true),
+    children: planeTreeRows(ASSEMBLY_ORIGIN_ID, "section:planes"),
+  }), assemblyTreeNode({
     id: "section:components", kind: "section", name: t("treeComponents"),
     icon: "components", detail: String(components.length),
     collapsed: assemblyCollapsed("section:components", false),
@@ -15426,6 +15507,16 @@ function assemblyTreeHandlers(model) {
   var handlers;
   handlers = {
     onSelect: function (node, event) {
+      if (node.kind === "plane") {
+        var parts = String(node.id).split("|"), reference = planeMateReference(parts[2], parts[3]);
+        if (!reference) return;
+        var additive = event && (event.ctrlKey || event.metaKey || E.mobileAddSelection);
+        E.topologySelection = additive ? (E.topologySelection || []).concat(reference) : [reference];
+        var holder = assemblyComponentById(parts[2]);
+        if (holder) { E.componentSel = additive ? E.componentSel.filter(function (c) { return c !== holder; }).concat(holder) : [holder]; E.sel = holder; }
+        refreshAll();
+        return;
+      }
       if (node.kind === "mate") {
         // selecting a mate selects what it holds, which is what you want to see
         var pair = assemblyMatePair(node.id);
@@ -15542,10 +15633,24 @@ function refreshComponents() {
     o.value = m.key; o.textContent = m.name || m.key;
     select.appendChild(o);
   });
+  /* Saved assemblies insert as sub-assemblies — every one but this assembly
+     and any that already contain it, which would nest it inside itself. */
+  var currentKey = E.assembly && E.assembly.key;
+  var subassemblies = loadAssemblies().filter(function (a) { return a.key !== currentKey && !containsAssembly(a, currentKey); });
+  if (subassemblies.length) {
+    var group = document.createElement("optgroup");
+    group.label = t("subassembliesGroup");
+    subassemblies.forEach(function (a) {
+      var o = document.createElement("option");
+      o.value = "asm:" + a.key; o.textContent = a.name || a.key;
+      group.appendChild(o);
+    });
+    select.appendChild(group);
+  }
   var add = btn('<i class="ph ph-plus"></i> ' + t("addComponent"), function () {
     if (select.value) insertAssemblyComponent(select.value);
   }, "btn-accent");
-  add.disabled = !models.length;
+  add.disabled = !models.length && !subassemblies.length;
   insert.appendChild(select); insert.appendChild(add); host.appendChild(insert);
   /* An empty library used to leave Assembly as a dead end: an empty dropdown, a
      disabled Insert button, and no hint that the tutorial can seed components.
@@ -17067,8 +17172,8 @@ function addTopologyMate(type, value) {
   /* The solver only ever moves B. Pick order is not a promise about which
      part is grounded — people click the moving hole, then the grounded one
      they want it on. Swap rather than refuse, or the button does nothing. */
-  var componentA = assemblyComponentById(a.componentId);
-  var componentB = assemblyComponentById(b.componentId);
+  var componentA = mateHolderById(a.componentId);
+  var componentB = mateHolderById(b.componentId);
   if (componentB && componentB.grounded && componentA && !componentA.grounded) {
     var swap = a; a = b; b = swap;
     componentB = componentA;
@@ -17078,6 +17183,8 @@ function addTopologyMate(type, value) {
   E.assembly.topologyMates ||= [];
   E.assembly.topologyMates.push({
     id:uid(), type:type, a:a, b:b,
+    // two reference planes mate Aligned, the SOLIDWORKS default for planes
+    aligned: !!(picked.a.referencePlane && picked.b.referencePlane) || undefined,
     value: type === "angle" ? clampMateAngle(value) : 0,
     pitch: type === "screw" ? 0.125 : undefined,
     turns: type === "screw" ? 0 : undefined,
@@ -17160,8 +17267,30 @@ function openMatePropertyManager() {
 }
 
 function componentLabel(id) {
+  if (id === ASSEMBLY_ORIGIN_ID) return (E.assembly && E.assembly.name) || t("assemblyPlanes");
   var component = assemblyComponentById(id);
   return component ? (component.name || component.modelKey || t("component")) : "—";
+}
+
+/* What a mate reference sits on: a component, or the assembly's own grounded
+   planes. The origin answers as grounded, so the mate command's swap puts it on
+   the side the solver reads and never on the side it moves. */
+function mateHolderById(id) {
+  if (id === ASSEMBLY_ORIGIN_ID) return { id: ASSEMBLY_ORIGIN_ID, grounded: true, virtual: true };
+  return assemblyComponentById(id);
+}
+
+var PLANE_NAME_KEYS = { "plane:front": "planeFrontName", "plane:top": "planeTopName", "plane:right": "planeRightName" };
+
+/* A Front, Top or Right plane as a mate reference — a component's own, or the
+   assembly's (book steps 148–166 pick them from the fly-out tree). */
+function planeMateReference(holderId, planeId) {
+  var entry = standardPlaneEntries().find(function (item) { return item.persistentId === planeId; });
+  if (!entry) return null;
+  var reference = topologyReference(holderId, "face", planeId, entry.descriptor);
+  reference.semantic = t(PLANE_NAME_KEYS[planeId]);
+  reference.referencePlane = true;
+  return reference;
 }
 
 /* One row per mate: what it is, which two components it holds, and — when the
@@ -18586,15 +18715,50 @@ function assemblyComponentById(id) {
   return (E.assembly && E.assembly.components || []).find(function (candidate) { return candidate.id === id; }) || null;
 }
 
+/* `component` is the top-level component a hit belongs to — what a mate
+   names. Inside a sub-assembly the hit is scored against the part that was
+   actually struck (`leaf`), in that part's own space (`group`), and `path`
+   is the chain of child ids that leads to it. */
 function pickOwnerChain(object, grp) {
-  var partId = null, component = null, group = null;
+  var partId = null, component = null, group = null, leafGroup = null, path = [];
   while (object && object !== grp) {
     var data = object.userData || {};
     if (!partId && data.cadPart) partId = data.cadPart;
+    if (data.cadSubComponent) { path.unshift(data.cadSubComponent); if (!leafGroup) leafGroup = object; }
     if (!component && data.cadComponent) { component = assemblyComponentById(data.cadComponent); group = object; }
     object = object.parent;
   }
-  return { partId: partId, component: component, group: group };
+  var leaf = component;
+  path.forEach(function (id) {
+    leaf = leaf && isSubassembly(leaf) ? leaf.asm.components.find(function (child) { return child.id === id; }) || null : null;
+  });
+  return { partId: partId, component: component, group: leafGroup || group, leaf: leaf || component, path: path };
+}
+
+/* A reference picked on a part inside a sub-assembly, restated on the
+   sub-assembly itself: its id prefixed with the path, its frames carried out
+   through each child's pose. That is exactly the form the sub-assembly's
+   composed topology (core/assembly_structure.js) resolves. */
+function liftToTopComponent(reference, component, path) {
+  if (!reference || !component || !path || !path.length) return reference;
+  var chain = [], node = component;
+  for (var i = 0; i < path.length; i++) {
+    node = node && isSubassembly(node) ? node.asm.components.find(function (child) { return child.id === path[i]; }) : null;
+    if (!node) return reference;
+    chain.push(node);
+  }
+  var lift = function (frame) {
+    if (!frame) return frame;
+    for (var k = chain.length - 1; k >= 0; k--) frame = descriptorToParent(frame, chain[k]);
+    return frame;
+  };
+  var prefix = path.join("/") + "/";
+  var out = Object.assign({}, reference, {
+    componentId: component.id, persistentId: prefix + reference.persistentId,
+    descriptor: lift(reference.descriptor), frame: lift(reference.frame), pickFrame: lift(reference.pickFrame),
+  });
+  if (reference.memberPersistentIds) out.memberPersistentIds = reference.memberPersistentIds.map(function (id) { return prefix + id; });
+  return out;
 }
 
 function pickPartsFor(component) {
@@ -18629,13 +18793,13 @@ function rawTopologyPickCandidate(hit, view) {
   if (!hit || !hit.object) return null;
   var chain = pickOwnerChain(hit.object, view.grp);
   var part = chain.partId
-    ? pickPartsFor(chain.component).find(function (candidate) { return candidate.id === chain.partId; }) || null
+    ? pickPartsFor(chain.leaf).find(function (candidate) { return candidate.id === chain.partId; }) || null
     : null;
   var entries = part ? topologyEntriesForPart(part) : [];
   var edge = hit.object.userData && hit.object.userData.cadTopology;
   if (edge) {
     var promoted = promotePickedEdge(edge, entries.length ? entries : [edge]);
-    return { part: part, reference: topologyReferenceFromEntry(promoted) };
+    return { part: part, reference: liftToTopComponent(topologyReferenceFromEntry(promoted), chain.component, chain.path) };
   }
   if (!(hit.face && hit.face.normal) || !part) return null;
   var ranges = hit.object.userData && hit.object.userData.cadFaceRanges;
@@ -18646,7 +18810,7 @@ function rawTopologyPickCandidate(hit, view) {
     }) : null;
   var face = range && resolveMergedTopology(entries, range.persistentId);
   if (!face || face.kind !== "face") return null;
-  return { part: part, reference: topologyReferenceFromEntry(face) };
+  return { part: part, reference: liftToTopComponent(topologyReferenceFromEntry(face), chain.component, chain.path) };
 }
 
 
@@ -18735,9 +18899,9 @@ function resolveTopologyPick(event, view, options) {
       var partObject = chosenHit.object;
       var owner = partObject;
       var chosenChain = pickOwnerChain(partObject, view.grp);
-      var pickComponent = chosenChain.component;
+      var pickComponent = chosenChain.component, pickLeaf = chosenChain.leaf, pickPath = chosenChain.path;
       if (chosenChain.partId) {
-        part = pickPartsFor(pickComponent).find(function (candidate) { return candidate.id === chosenChain.partId; }) || part;
+        part = pickPartsFor(pickLeaf).find(function (candidate) { return candidate.id === chosenChain.partId; }) || part;
       }
       var entries = part ? topologyEntriesForPart(part) : [];
       var edgeTopology = null;
@@ -18782,8 +18946,8 @@ function resolveTopologyPick(event, view, options) {
           if (!featureId && owner.userData && owner.userData.cadFeatureId) featureId = owner.userData.cadFeatureId;
           owner = owner.parent;
         }
-        if (!pickComponent) pickComponent = meshChain.component;
-        if (!part && meshChain.partId) part = pickPartsFor(pickComponent).find(function (candidate) { return candidate.id === meshChain.partId; }) || null;
+        if (!pickComponent) { pickComponent = meshChain.component; pickLeaf = meshChain.leaf; pickPath = meshChain.path; }
+        if (!part && meshChain.partId) part = pickPartsFor(pickLeaf).find(function (candidate) { return candidate.id === meshChain.partId; }) || null;
         if (part) entries = topologyEntriesForPart(part);
         if (partObject.userData && partObject.userData.cadTopology) {
           edgeTopology = promotePickedEdge(partObject.userData.cadTopology, entries.length ? entries : [partObject.userData.cadTopology]);
@@ -18932,7 +19096,7 @@ function resolveTopologyPick(event, view, options) {
       }
       while (partObject && partObject !== view.grp) {
         if (partObject.userData && partObject.userData.cadPart) {
-          part = pickPartsFor(pickComponent).find(function (candidate) { return candidate.id === partObject.userData.cadPart; }) || null;
+          part = pickPartsFor(pickLeaf).find(function (candidate) { return candidate.id === partObject.userData.cadPart; }) || null;
           break;
         }
         partObject = partObject.parent;
@@ -18945,6 +19109,13 @@ function resolveTopologyPick(event, view, options) {
        rules the rest of the editor is built on do not shift underfoot. */
     if (prefer === "vertex") {
       topologyReferencePicked = nearestVertexReference(part, event, view, pickPixels) || null;
+    }
+    /* Everything above was measured in the struck part's own space. A part
+       inside a sub-assembly is restated on the sub-assembly here, once. */
+    if (pickPath && pickPath.length) {
+      topologyReferencePicked = liftToTopComponent(topologyReferencePicked, pickComponent, pickPath);
+      var liftedPick = pickPoint && pickNormalOut ? liftToTopComponent({ persistentId: "", descriptor: { origin: pickPoint, normal: pickNormalOut } }, pickComponent, pickPath).descriptor : null;
+      if (liftedPick) { pickPoint = liftedPick.origin; pickNormalOut = liftedPick.normal; }
     }
     return {
       hits: hits, part: part, component: pickComponent || null, reference: topologyReferencePicked,
@@ -20054,7 +20225,7 @@ function assemblyPickedRefs() {
     if (refs[i].componentId !== b.componentId) { a = refs[i]; break; }
   }
   if (!a) return null;
-  if (!assemblyComponentById(a.componentId) || !assemblyComponentById(b.componentId)) return null;
+  if (!mateHolderById(a.componentId) || !mateHolderById(b.componentId)) return null;
   return { a: a, b: b };
 }
 
@@ -21290,30 +21461,8 @@ function buildAssembly(parent) {
   applyAssemblyMates(E.assembly);
   E.assembly.components.forEach(function (component) {
     if (component.visible === false) return;
-    var def = componentDef(component);
-    if (!def || !Array.isArray(def.parts)) return;
-    var group = new THREE.Group(), tr = normalizeTransform(component);
-    group.name = component.name || component.modelKey;
-    group.userData.cadComponent = component.id;
-    /* Face highlights and pick edges are built per part and have no other way
-       to know which instance they belong to. Two components off the same
-       library model share every persistent id, so without this the selected
-       face lights up on both. */
-    E.buildComponent = component;
-    /* Cleared even if a part throws. Leaving it set would filter every later
-       selection and hover against a component that is no longer being built,
-       so face highlights stop appearing anywhere until the editor is reopened. */
-    try {
-      activeParts(def).forEach(function (part) { buildPart(group, part, E.displayStyle); });
-    } finally {
-      E.buildComponent = null;
-    }
-    /* An exploded view is a viewing offset, not a change to the model: it is
-       added to the pose here and never written back to the transform, so
-       collapsing the view restores the mated position exactly. */
-    var blown = component.explodedOffset || null;
-    group.position.set(tr.x + (blown && blown.x || 0), tr.y + (blown && blown.y || 0), tr.z + (blown && blown.z || 0));
-    group.rotation.set((tr.rx * Math.PI) / 180, (tr.ry * Math.PI) / 180, (tr.rz * Math.PI) / 180);
+    var group = buildComponentGroup(component, null, "");
+    if (!group) return;
     if (E.componentSel.indexOf(component) !== -1) {
       group.traverse(function (object) {
         if (!object.isMesh || !object.material) return;
@@ -21324,6 +21473,48 @@ function buildAssembly(parent) {
     parent.add(group);
   });
   addInterferenceVisuals(parent);
+}
+
+/* One component's group. A top-level component carries `cadComponent` — it is
+   what gets picked, selected, dragged and mated. The children of a sub-assembly
+   carry `cadSubComponent` instead, sit at their own poses inside it, and build
+   their parts under the path prefix their faces are named by on the
+   sub-assembly (see builtTopologyId). */
+function buildComponentGroup(component, top, prefix) {
+  var group = new THREE.Group(), tr = normalizeTransform(component);
+  group.name = component.name || component.modelKey || component.assemblyKey || "";
+  if (top) group.userData.cadSubComponent = component.id;
+  else group.userData.cadComponent = component.id;
+  if (isSubassembly(component)) {
+    component.asm.components.forEach(function (child) {
+      if (child.visible === false) return;
+      var inner = buildComponentGroup(child, top || component, prefix + child.id + "/");
+      if (inner) group.add(inner);
+    });
+  } else {
+    var def = componentDef(component);
+    if (!def || !Array.isArray(def.parts)) return null;
+    /* Face highlights and pick edges are built per part and have no other way
+       to know which instance they belong to. Two components off the same
+       library model share every persistent id, so without this the selected
+       face lights up on both. */
+    E.buildComponent = top ? { id: top.id, prefix: prefix } : component;
+    /* Cleared even if a part throws. Leaving it set would filter every later
+       selection and hover against a component that is no longer being built,
+       so face highlights stop appearing anywhere until the editor is reopened. */
+    try {
+      activeParts(def).forEach(function (part) { buildPart(group, part, E.displayStyle); });
+    } finally {
+      E.buildComponent = null;
+    }
+  }
+  /* An exploded view is a viewing offset, not a change to the model: it is
+     added to the pose here and never written back to the transform, so
+     collapsing the view restores the mated position exactly. */
+  var blown = !top && component.explodedOffset || null;
+  group.position.set(tr.x + (blown && blown.x || 0), tr.y + (blown && blown.y || 0), tr.z + (blown && blown.z || 0));
+  group.rotation.set((tr.rx * Math.PI) / 180, (tr.ry * Math.PI) / 180, (tr.rz * Math.PI) / 180);
+  return group;
 }
 
 function addInterferenceVisuals(parent) {

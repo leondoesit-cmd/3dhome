@@ -96,7 +96,8 @@ export function generateBOM(assembly) {
   for (const comp of assembly.components || []) {
     if (!comp || comp.suppressed) continue;
     const meta = componentStandardPart(comp);
-    const key = (meta && bomIdentity(meta)) || (meta && meta.designation) || comp.modelKey || comp.name || "Unknown";
+    // a sub-assembly is one line, as in a top-level-only BOM
+    const key = (meta && bomIdentity(meta)) || (meta && meta.designation) || comp.modelKey || comp.assemblyKey || comp.name || "Unknown";
     const existing = map.get(key) || {
       key, name: (meta && meta.designation) || comp.name || key, quantity: 0,
       standard: meta && meta.standard || "", material: meta && meta.material || "",

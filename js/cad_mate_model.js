@@ -8,6 +8,7 @@
 // solver.
 
 import { createTopologyRegistry, resolveTopologyReference } from "./core/topology.js";
+import { componentTopology, isStandardPlaneId, isSubassembly, standardPlaneEntries } from "./core/assembly_structure.js";
 
 export const rad = (d) => d * Math.PI / 180;
 export const deg = (r) => r * 180 / Math.PI;
@@ -597,8 +598,22 @@ export function createFrameResolver(sink) {
     registries.set(component, { entries, registry });
     return registry;
   };
+  /* A sub-assembly's topology is composed from everything inside it. Its
+     children do not move while the parent is solved, so compose once per solve. */
+  const composed = new WeakMap();
+  const partTopology = (part) => part?.topology || part?.def?.lastRebuild?.topology || [];
+  const entriesOf = (component) => {
+    if (!isSubassembly(component)) return partTopology(component);
+    if (!composed.has(component)) composed.set(component, componentTopology(component, partTopology));
+    return composed.get(component);
+  };
   return function resolvedFrame(reference, component, mateId, collect) {
-    const entries = component?.topology || component?.def?.lastRebuild?.topology || [];
+    // Every component answers for its own Front, Top and Right planes, at its origin.
+    if (isStandardPlaneId(reference?.persistentId)) {
+      const plane = standardPlaneEntries().find((entry) => entry.persistentId === reference.persistentId);
+      return worldFrame(plane.descriptor, component, "component");
+    }
+    const entries = entriesOf(component);
     if (!entries.length) {
       // One-time migration for assemblies saved by the old editor, whose
       // fallback frames were captured in assembly coordinates. Converting the
