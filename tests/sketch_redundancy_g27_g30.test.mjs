@@ -75,3 +75,24 @@ test("a relation that collapses a line is caught, not reported as solved (G30)",
   solveSketch(s);
   assert.ok(collapsedEntityIds(s, sizes).includes("L8"), "Horizontal on a Vertical line crushed it");
 });
+
+test("the Line tool drops its inferred Vertical when the line joins two vertical centerlines' ends (G27)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { inferLineRelations, constraintAlreadyPresent } = await import("../js/modeler_inference.js");
+  const source = readFileSync(new URL("../js/modeler.js", import.meta.url), "utf8");
+  const start = source.indexOf("function makeWallSegment("), end = source.indexOf("\nfunction finishWallChain(", start);
+  const s = threadSection();
+  s.entities = s.entities.filter((e) => e.id !== "L8");
+  let next = 0;
+  const uid = () => "n" + (++next);
+  // snapping onto an existing point returns that point, as the editor does
+  const point = (doc, p) => p.pointId || (() => { const id = uid(); doc.points.push({ id, x: p.u, y: p.v }); return id; })();
+  const make = new Function("E", "sketchForView", "newSketchPoint", "uid", "sketchPoint", "inferTangentCircle", "inferLineRelations", "constraintAlreadyPresent", "resolveSketch", "pruneImpliedRelations", "solveSketch",
+    source.slice(start, end) + ";return makeWallSegment;")(
+    { wallWidth: 5, _osnap: null }, () => s, point, uid, (doc, id) => doc.points.find((p) => p.id === id), () => null,
+    inferLineRelations, constraintAlreadyPresent, () => {}, pruneImpliedRelations, solveSketch);
+  const line = make({ u: 6, v: 6.8, pointId: "p167" }, { u: 6, v: 3, pointId: "p164" });
+  assert.ok(line);
+  assert.equal(s.constraints.some((c) => c.type === "vertical" && c.entity === line.id), false, "the edge is vertical already");
+  assert.equal(solveSketch(s).redundant, false);
+});
