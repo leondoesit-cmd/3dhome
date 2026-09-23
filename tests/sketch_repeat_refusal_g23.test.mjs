@@ -80,15 +80,26 @@ test("a relation that only repeats what is already set is still refused", () => 
   const s = structuredClone(defined);
   s.constraints.push({ id: "again", type: "horizontal", a: "p1", b: "p2" }); // L1 is already horizontal
   const r = solveSketch(s);
-  assert.equal(r.status, "over-constrained");
+  // a repeated RELATION is named, not turned red (G27); adding one is refused
+  assert.equal(r.status, "fully-constrained");
+  assert.ok(r.repeated.includes("again"), JSON.stringify(r.repeated));
   assert.ok(r.redundancy > previous.redundancy, "one more dependent row");
   assert.equal(refusesAsRepeat(r, previous), true);
 });
 
 test("without a previous report an over-constrained result is refused as before", () => {
-  const s = handleProfile();
-  s.constraints.push({ id: "new", type: "vertical", a: "p8", b: "p3" });
+  // the relation that takes the last freedom leaves HandleProfile Fully Defined,
+  // as in the book (p.7-45), so there is nothing to refuse
+  const defined = handleProfile();
+  defined.constraints.push({ id: "new", type: "vertical", a: "p8", b: "p3" });
+  const fine = solveSketch(defined);
+  assert.equal(fine.status, "fully-constrained", JSON.stringify(fine));
+  assert.equal(refusesAsRepeat(fine, null), false);
+  // a dimension that says nothing new is over-defined, and refused without a report
+  const s = structuredClone(defined);
+  s.constraints.push({ id: "dup", type: "radius", entity: "A1", value: 0.254 });
   const r = solveSketch(s);
+  assert.equal(r.status, "over-constrained", JSON.stringify(r));
   assert.equal(refusesAsRepeat(r, null), true);
   assert.equal(refusesAsRepeat(r, { diagnostics: false, degreesOfFreedom: null, redundancy: null }), true);
   assert.equal(refusesAsRepeat({ ...r, status: "under-constrained" }, null), false, "only an over-constrained result is a repeat");

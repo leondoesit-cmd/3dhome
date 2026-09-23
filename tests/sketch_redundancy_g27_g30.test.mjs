@@ -96,3 +96,18 @@ test("the Line tool drops its inferred Vertical when the line joins two vertical
   assert.equal(s.constraints.some((c) => c.type === "vertical" && c.entity === line.id), false, "the edge is vertical already");
   assert.equal(solveSketch(s).redundant, false);
 });
+
+// HOUSING HandleProfile as saved (rev 24), its Pierce held as the fixed point it resolves to.
+test("HOUSING HandleProfile reads Fully Defined with the book's last relation, its overlaps named (G27)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const hp = JSON.parse(readFileSync(new URL("./fixtures/housing-handleprofile.json", import.meta.url), "utf8"));
+  const s = structuredClone(hp);
+  s.constraints.push({ id: "g23", type: "vertical", a: 119, b: 107 });
+  const r = solveSketch(s);
+  assert.equal(r.degreesOfFreedom, 0);
+  assert.equal(r.status, "fully-constrained", JSON.stringify(r));
+  assert.ok(r.redundancy > 0 && r.repeated.length > 0, "the overlap is still reported");
+  const d = structuredClone(s);
+  d.constraints.push({ id: "again", type: "radius", entity: 106, value: 0.254 });
+  assert.equal(solveSketch(d).status, "over-constrained", "a dimension that says nothing new is over-defined");
+});

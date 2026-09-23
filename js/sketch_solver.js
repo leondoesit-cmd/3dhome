@@ -670,12 +670,40 @@ export function solveSketch(sketch, options = {}) {
     redundancy = explicitRows.length - rankOf(explicitRows, rankTolerance);
     redundant = explicitRows.length > 0 && redundancy > 0;
   }
+  /* Consistent redundancy among RELATIONS is not over-definition. The book's
+     HandleProfile (p.7-45) is a vertical centerline Coincident with the Origin
+     whose top point is then Pierced: the Pierce's x equation repeats the
+     Vertical, and SOLIDWORKS reports the sketch "Fully Defined". HOUSING's
+     HandleProfile read "Over-defined" here for that kind of overlap (G27).
+     What SOLIDWORKS refuses is a DIMENSION that says nothing new — it asks to
+     make it driven — so the status turns over-constrained only when a
+     dimension is wholly redundant (dropping its row leaves the rank where it
+     was). The overlap stays reported: `redundancy` counts it and `repeated`
+     names every relation that adds nothing, and a new relation that adds
+     nothing is still refused (refusesAsRepeat). */
+  const repeated = [];
+  let repeatedDimension = false;
+  if (dof === 0 && redundant) {
+    const byConstraint = new Map();
+    countedRows.forEach((i, row) => {
+      const c = tags[i];
+      if (!c || c.implicit || c.id == null) return;
+      if (!byConstraint.has(c)) byConstraint.set(c, []);
+      byConstraint.get(c).push(row);
+    });
+    for (const [c, rows] of byConstraint) {
+      const drop = new Set(rows);
+      if (rankOf(J.filter((_, row) => !drop.has(row)), rankTolerance) !== rank) continue;
+      repeated.push(c.id);
+      if (c.value != null && !c.driven) repeatedDimension = true;
+    }
+  }
   return {
     converged, iterations: iteration, error,
     rank, residualCount: countedRows.length, variableCount: vars.length,
-    degreesOfFreedom: dof, conflicts, redundant, redundancy,
+    degreesOfFreedom: dof, conflicts, redundant, redundancy, repeated,
     status: !converged ? "conflicting" : dof > 0 ? "under-constrained"
-      : redundant ? "over-constrained" : "fully-constrained",
+      : repeatedDimension ? "over-constrained" : "fully-constrained",
   };
 }
 
