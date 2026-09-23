@@ -107,7 +107,7 @@ import { eulerMatrix, normalizePose, setRotation } from "./cad_mate_model.js";
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
 import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
 import { createReferencePlane, createReferenceAxis, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
-import { sampleHelix, documentHelixOverlays, sweepUsesHelixPath } from "./cad_helix.js";
+import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath } from "./cad_helix.js";
 import { circularSweepProfile, loftSourceRecord, resolveSketchSources as resolveSweptSources, sampleSketchPath, sketchPathSegments, sketchWorldPoint, sweepSourceRecord } from "./core/swept_sources.js";
 import { createExplodedView, addExplodeStep, applyExplodedView } from "./cad_exploded_view.js";
 import { createMotionStudy, addRotaryMotor, addGearRelation, evaluateMotionStudy } from "./cad_motion_study.js";
@@ -7541,7 +7541,7 @@ function createMultiSketchFeature(type, values) {
     if(!profileLoop){flash(t("sweepNeed"));return false;}
     var params={...featureDefaults(type),...((values && values.params) || values || {})};
     params.profile=profileLoop.points.map(function(point){return sketchWorldPoint(profileSketch,point.u,point.v);});
-    params.path=sampleHelix(helix).points;
+    Object.assign(params,helixSweepPath(helix));
     var helixSources={kind:"sweep",profile:{sketchId:profileSketch.id,entityIds:(profileLoop.entityIds || []).slice()},helixId:helix.id,helixFeatureId:helix.featureId};
     params.sketchSources=cloneData(helixSources);
     params.helix={origin:helix.origin,axis:helix.axis,radius:helix.radius,radiusEnd:helix.radiusEnd,pitch:helix.pitch,turns:helix.turns,height:helix.height,handedness:helix.handedness,startAngle:helix.startAngle};

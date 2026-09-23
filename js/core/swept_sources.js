@@ -4,7 +4,7 @@ import {splineControls} from "../sketch_spline.js";
    question without loading the browser. */
 import { framePoint } from "./frame.js";
 import { analyzeSketchChains, analyzeSketchProfiles } from "../sketch_profiles.js";
-import { sampleHelix } from "../cad_helix.js";
+import { helixSweepPath } from "../cad_helix.js";
 import { helixFromSketch } from "./sketch_helix.js";
 
 function planeAxis(plane) { return plane === "top" ? "y" : plane === "front" ? "z" : "x"; }
@@ -121,7 +121,7 @@ export function resolveSketchSources(def, sources, resolveProfilePoints) {
     var featureId=sources.helixFeatureId || helix.featureId;
     var feature=(def.features || []).find(function(item){return item && item.id===featureId && item.type==="helix";});
     if(feature)try{helix={...helix,...helixFromSketch(def,feature.params || {})};}catch(error){return null;}
-    return { profile:profile, path:sampleHelix(helix).points };
+    return { profile:profile, ...helixSweepPath(helix) };
   }
   var pathSketch = sketchById(def, sources.path && sources.path.sketchId);
   var path=sampleSketchPath(pathSketch,sources.path && sources.path.entityIds);

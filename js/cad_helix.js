@@ -86,6 +86,21 @@ export function sampleHelix(spec, options = {}) {
   return { spec: h, points, length: helixLength(h) };
 }
 
+/* THE SPINE OF A SWEEP ALONG A HELIX IS ONE SMOOTH CURVE, NOT ITS SAMPLES.
+   Handed to MakePipeShell as bare points, the path became a polyline of
+   straight edges. A straight edge has no curvature, so no orientation mode can
+   turn the section: Follow path, Minimum twist and Fixed all built the same
+   body, the profile merely translated round the axis. On LENSCAP the thread's
+   tip, pointing at the axis where it was pierced, pointed straight out half a
+   turn later and broke through the cap wall (r 6.5035 for a 6.2239 anchor).
+   One C2 B-spline through the samples — which is also how SOLIDWORKS stores a
+   helix — gives the pipe a real Frenet frame whose normal faces the axis, so
+   the section keeps its attitude to the axis all the way along. */
+export function helixSweepPath(spec, options = {}) {
+  const points = sampleHelix(spec, options).points;
+  return { path: points, pathSegments: [{ type: "spline", from: points[0], to: points[points.length - 1], points }] };
+}
+
 export function helixLength(spec) {
   const h = normalizeHelixSpec(spec);
   const dr=h.radiusEnd-h.radiusStart, omega=TAU*h.turns;

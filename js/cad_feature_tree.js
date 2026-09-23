@@ -17,7 +17,7 @@ import { aabbFromTopology, extrusionAxisVector, extrusionMapPoint, isUpToFace, p
 import { resolveParameters, sketchDiagnostics } from "./core/rebuild.js";
 import { decodeBinaryPayload } from "./core/binary_payload.js";
 import { resolveAttachmentPayload } from "./core/attachment_store.js";
-import { sampleHelix } from "./cad_helix.js";
+import { helixSweepPath, sampleHelix } from "./cad_helix.js";
 import { helixSpecForThread, modeledThreadSolid, normalizeThreadSpec } from "./cad_thread.js";
 import { knurlBandMesh, normalizeKnurlSpec } from "./cad_knurl.js";
 import { insertBody, normalizeInsertFeature } from "./cad_appearances.js";
@@ -216,10 +216,13 @@ export async function regenerateFeatures(def, options = {}) {
       }
       else if (feature.type === "sweep") {
         if(effectiveParams.sketchSources){const resolved=resolveSketchSources(executionDef,effectiveParams.profileMode==="circular"?{...effectiveParams.sketchSources,diameter:effectiveParams.profileDiameter}:effectiveParams.sketchSources,resolveProfilePoints);if(!resolved)throw new Error("Sweep source sketch is missing or invalid");effectiveParams={...effectiveParams,...resolved};}
-        const helixPath = effectiveParams.helix && (!effectiveParams.path || effectiveParams.path.length < 2)
-          ? sampleHelix(effectiveParams.helix).points
+        // A helix path without its smooth segments is the old polyline spine,
+        // which cannot turn the section (see helixSweepPath); rebuild it from
+        // the helix so documents saved that way repair themselves.
+        const helixPath = effectiveParams.helix && !effectiveParams.pathSegments
+          ? helixSweepPath(effectiveParams.helix)
           : null;
-        result = await makeBrepSweep(helixPath ? { ...effectiveParams, path: helixPath } : effectiveParams);
+        result = await makeBrepSweep(helixPath ? { ...effectiveParams, ...helixPath } : effectiveParams);
       }
       else if (feature.type === "loft") {
         if(effectiveParams.sketchSources){const resolved=resolveSketchSources(executionDef,effectiveParams.sketchSources,resolveProfilePoints);if(!resolved)throw new Error("Loft source sketch is missing or invalid");effectiveParams={...effectiveParams,...resolved};}

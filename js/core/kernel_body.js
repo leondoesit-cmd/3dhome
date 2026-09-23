@@ -26,7 +26,7 @@
  */
 
 import { disposeBrep, extractBrepTopology, makeBrepLoft, makeBrepSweep, shapeToMeshData, translateBrep } from "../cad_kernel.js";
-import { sampleHelix } from "../cad_helix.js";
+import { helixSweepPath } from "../cad_helix.js";
 
 export const KERNEL_BODY_KIND = "kernel";
 
@@ -97,10 +97,10 @@ export async function buildKernelBrep(spec, options = {}) {
   if (spec.type === "sweep") {
     // A sweep along a helix stores the helix, not its samples, so an edited
     // pitch or turn count rebuilds the same way the feature tree rebuilds it.
-    const path = (params.path || []).length >= 2
-      ? params.path
-      : params.helix ? sampleHelix(params.helix).points : [];
-    brep = await makeBrepSweep({ ...params, path });
+    // Its spine is the smooth curve, never the samples (see helixSweepPath).
+    const spine = params.helix && !params.pathSegments ? helixSweepPath(params.helix)
+      : { path: (params.path || []).length >= 2 ? params.path : [] };
+    brep = await makeBrepSweep({ ...params, ...spine });
   } else if (spec.type === "loft") {
     brep = await makeBrepLoft(params);
   } else throw new Error("Unsupported kernel body: " + spec.type);
