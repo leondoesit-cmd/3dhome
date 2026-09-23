@@ -72,7 +72,7 @@ Out of scope unless the book needs it: surfacing, weldments, simulation, CAM, PD
 | G2 | Sketch Fillet | HOUSING HandlePath, steps 459–462 (p.350) | **Done (2A-3), extended 2026-09-14.** Trims two lines that share a vertex, inserts a tangent arc, keeps H/V, driving radius. Also a line meeting an arc (vertex pick or line-then-arc), keeping a related corner as a virtual sharp; mirrored arcs keep their sweep |
 | G3 | Intersection relation (point at the intersection of two edges) | HandlePath, step 475 (p.351) | **Done (2A-4).** Point + two sketch lines or two model edges; rebuild rebinds projected corners |
 | G4 | Tangent Arc sketch tool | LongRib sketch, step 633 (p.362) | **Done (2A-5).** Two clicks: existing line/arc endpoint, then the other end; adds a tangent relation |
-| G5 | Nested assemblies (assembly as a component) | CAPANDLENS contains LENSANDBULB; FLASHLIGHT (p.379–434) | `insertAssemblyComponent` (`js/modeler.js:13892`) inserts library parts only |
+| G5 | Nested assemblies (assembly as a component) | CAPANDLENS contains LENSANDBULB; FLASHLIGHT (p.379–434) | **Built and landed on planchard (`b3decf5`, 2026-09-23); editor check pending (LENSANDBULB → CAPANDLENS).** A saved assembly inserts as one rigid sub-assembly component carrying its own document; it presents everything inside it as its own topology (ids namespaced by child path), so the unchanged mate solver moves it onto faces inside it. Every component answers for its Front/Top/Right planes and the assembly's own planes are a virtual grounded frame (book steps 148–166, 202); plane-to-plane mates default to Aligned. Tree shows sub-assembly contents and plane rows; publish and BOM see through sub-assemblies. Test: `tests/nested_assemblies_g5.test.mjs`. |
 | G6 | STL export (binary, Fine) | HOUSING, LENSCAP, BATTERYPLATE, steps 297–300 (p.409) | Not in the modeler |
 | G7 | Symmetric mate | Ex 8.7 | Missing (mates today: coincident, concentric, distance, angle, tangent, limit, screw) |
 | G8 | Gear mate in the assembly solver | Ex 8.8 | Only a motion-study relation (`js/cad_gear_motion.js`) |
@@ -99,6 +99,7 @@ Out of scope unless the book needs it: surfacing, weldments, simulation, CAM, PD
 | G29 | A sweep along a helix did not turn its section — the thread broke out through the part | LENSCAP Thread (steps 257–262): tool r 5.8053 → 6.5035 for a 6.2239 anchor; the user's "thread goes through the lens cap" | **Fixed and landed on planchard (`2bf26f6`, 2026-09-23).** The helix reached MakePipeShell as a polyline, on which no orientation mode can rotate the section. `helixSweepPath` hands it one C2 B-spline; old saved sweeps rebuild on it. Verified on the saved LENSCAP (tool 5.7775 → 6.2239, body 17 faces). |
 | G30 | A contradictory relation collapses geometry instead of being refused | LENSCAP ThreadSection: Horizontal applied to an already-Vertical line shrank it to zero length and collapsed the whole profile to one point, no refusal | **Fixed and landed on planchard (`15ea1b5`, 2026-09-23).** The rollback gate refuses an edit that crushes a drawn entity (`collapsedEntityIds`). Checked in the editor on ThreadSection with its length dimension suppressed: "Horizontal (Line8) has no solution in this sketch. It fights: Vertical (Line4), Equal (Line2, Line3)", geometry untouched. |
 | G31 | The Sweep form does not show which path it will follow | LENSCAP Thread: with one sketch selected the sweep silently binds to the only helix; no Path row names ThreadPath | **Fixed and landed on planchard (`15ea1b5`, 2026-09-23).** Sweep form Path row (helices by tree name, or the second selected sketch); an explicit sketch path is honoured; editing the path moves the sweep's sources, references and merge. Checked in the editor: new Sweep on ThreadSection and Edit Thread both read Path = ThreadPath. |
+| G32 | New sketches and features ignore the rollback bar | HOUSING Thread (steps 420–451): with the bar above Handle, the pasted ThreadSection was appended after Handle | **Fixed and landed on planchard (`132dd25`, 2026-09-23).** Every new history entry goes in at the bar and the bar moves past it; a body feature inserted there becomes what later steps build on (`reconnectLaterBodyConsumers`). Test: `tests/rollback_insertion_all.test.mjs`. |
 
 **Not a gap (a reviewer thought it was):** mirroring existing sketch entities already exists (`mirrorSelection`, `js/modeler.js:12122`). Only Dynamic Mirror is limited to new lines.
 
@@ -272,6 +273,12 @@ before HOUSING can be called ritual-Done.
 Then Mirror, and the Rib2 33.02 → 34.29 mm interference edit in Phase 3 (3-2).
 
 ### Open question before authoring
+
+**Answered 2026-09-23: the saved record rebuilds.** HOUSING rev 24 (restored
+from the disk mirror) regenerates with no errors under the current kernel —
+all eight features including Handle — in 11 min in Node and 5.7 min in the
+page. HOUSING continues from rev 24; HOUSING_v2 (lost in a wipe before the
+disk mirror existed) is not needed. The original note is kept below.
 `regenerateFeatures()` on `scratch/planchard/HOUSING-checkpoint.json` fails in a
 bare Node harness (2026-09-20), even through `ensureParametricDocument`: sketches
 `sk_1lw92` and `sk_1yps9` (HandleProfile) report
