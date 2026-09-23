@@ -475,6 +475,11 @@ function residualTerms(sketch, tags, index) {
     owner = { id: e.id + "_arc", type: "arcRadius", implicit: true, entity: e.id };
     const arc = circ(e.id);
     if (arc) {
+      // Trimming a fixed converted circle frees endpoint angles, not its radius.
+      if (Number.isFinite(e.fixedRadius)) {
+        const radiusError = sub(arc.radius, e.fixedRadius);
+        if (!(arc.a.rec.fixed && arc.center.rec.fixed && Math.abs(valueOf(radiusError)) < 1e-9)) push(radiusError);
+      }
       const error = sub(hypot(sub(arc.b.x, arc.center.x), sub(arc.b.y, arc.center.y)), arc.radius);
       // A valid frozen arc has no variables for this identity to constrain.
       // Keep invalid frozen arcs in the residuals so they still fail validation.

@@ -1,0 +1,247 @@
+{
+  "id": "sk_1b68o",
+  "name": "Face sketch",
+  "plane": "front",
+  "offset": 0,
+  "referenceId": "feature_mud6zu7h_1:face:generated:plane:2",
+  "support": {
+    "type": "topology-reference",
+    "ownerFeatureId": "feature_mud8ai3h_1",
+    "kind": "face",
+    "persistentId": "feature_mud6zu7h_1:face:generated:plane:2",
+    "descriptor": {
+      "surface": "plane",
+      "origin": {
+        "x": 7.147333241399827e-17,
+        "y": -3.33066907387547e-16,
+        "z": -8.753376966812816e-15
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "measure": 0.9531167681834447,
+      "bounds": {
+        "min": {
+          "x": -0.7493001000002234,
+          "y": -0.7493001000002234,
+          "z": -1.0000000906828944e-7
+        },
+        "max": {
+          "x": 0.7493001000002234,
+          "y": 0.7493001000002234,
+          "z": 9.999999124662306e-8
+        }
+      }
+    },
+    "signature": "plane:0:0:0:0:0:-1:0.953:"
+  },
+  "points": [
+    {
+      "id": 417,
+      "x": 7.147333241399827e-17,
+      "y": 3.33066907387547e-16,
+      "fixed": true
+    },
+    {
+      "id": 419,
+      "x": 8.476893574633676e-17,
+      "y": 0.7493000000002238
+    },
+    {
+      "id": 420,
+      "x": 1.1220584613143663e-16,
+      "y": 0.5080000000000003
+    },
+    {
+      "id": 426,
+      "x": 9.975663356949668e-17,
+      "y": 0.6286500000001122
+    },
+    {
+      "id": 427,
+      "x": 0.11220171589840772,
+      "y": 0.7408517158985255
+    },
+    {
+      "id": "pt_0p954x",
+      "x": -0.11220171589840748,
+      "y": 0.7408517158985249
+    }
+  ],
+  "entities": [
+    {
+      "id": 416,
+      "type": "circle",
+      "name": "Face boundary",
+      "construction": false,
+      "c": 417,
+      "r": 0.7493000000002235,
+      "fixed": true
+    },
+    {
+      "id": 418,
+      "type": "circle",
+      "name": "Face boundary",
+      "construction": true,
+      "c": 417,
+      "r": 0.508,
+      "fixed": true
+    },
+    {
+      "id": 421,
+      "type": "line",
+      "name": "Line",
+      "a": 419,
+      "b": 420,
+      "construction": true,
+      "weight": 2
+    },
+    {
+      "id": 428,
+      "type": "line",
+      "name": "Line",
+      "a": 426,
+      "b": 427,
+      "construction": false,
+      "weight": 2
+    },
+    {
+      "id": "line_196lyt",
+      "type": "line",
+      "name": "Line",
+      "a": 426,
+      "b": "pt_0p954x",
+      "construction": false,
+      "weight": 2
+    }
+  ],
+  "constraints": [
+    {
+      "type": "vertical",
+      "entity": 421,
+      "id": 422,
+      "exprError": null
+    },
+    {
+      "type": "pointOnCircle",
+      "point": 420,
+      "entity": 418,
+      "id": 423,
+      "exprError": null
+    },
+    {
+      "type": "pointOnCircle",
+      "point": 419,
+      "entity": 416,
+      "id": 424,
+      "exprError": null
+    },
+    {
+      "type": "vertical",
+      "a": 419,
+      "b": 417,
+      "id": 425,
+      "exprError": null
+    },
+    {
+      "type": "pointOnCircle",
+      "point": 427,
+      "entity": 416,
+      "id": 429,
+      "exprError": null
+    },
+    {
+      "id": "c_2fg8pn",
+      "type": "symmetric",
+      "a": 427,
+      "b": "pt_0p954x",
+      "entity": 421,
+      "exprError": null
+    },
+    {
+      "type": "midpoint",
+      "point": 426,
+      "entity": 421,
+      "id": 431,
+      "exprError": null
+    },
+    {
+      "type": "perpendicular",
+      "a": 428,
+      "b": "line_196lyt",
+      "id": 432,
+      "exprError": null
+    }
+  ],
+  "frame": {
+    "origin": {
+      "x": 7.147333241399827e-17,
+      "y": -3.33066907387547e-16,
+      "z": -8.753376966812816e-15
+    },
+    "xAxis": {
+      "x": -1,
+      "y": 0,
+      "z": 0
+    },
+    "yAxis": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": -1
+    }
+  },
+  "frameSpace": "local",
+  "supportOffset": 0,
+  "diagnostics": [],
+  "status": "fully-defined",
+  "boundaryCopies": [
+    {
+      "source": {
+        "type": "topology-reference",
+        "ownerFeatureId": "feature_mud8ai3h_1",
+        "kind": "face",
+        "persistentId": "feature_mud6zu7h_1:face:generated:plane:2",
+        "descriptor": {
+          "surface": "plane",
+          "origin": {
+            "x": 7.147333241399827e-17,
+            "y": -3.33066907387547e-16,
+            "z": -8.753376966812816e-15
+          },
+          "normal": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "measure": 0.9531167681834447,
+          "bounds": {
+            "min": {
+              "x": -0.7493001000002234,
+              "y": -0.7493001000002234,
+              "z": -1.0000000906828944e-7
+            },
+            "max": {
+              "x": 0.7493001000002234,
+              "y": 0.7493001000002234,
+              "z": 9.999999124662306e-8
+            }
+          }
+        },
+        "signature": "plane:0:0:0:0:0:-1:0.953:"
+      },
+      "distance": 0,
+      "entityIds": [
+        416,
+        418
+      ],
+      "associative": true
+    }
+  ]
+}

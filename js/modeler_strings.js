@@ -29,7 +29,8 @@ export var TXT = {
   centerSlot:["חריץ מרכזי ישר","Centerpoint straight slot"],
   centerSlotHint:["חריץ אופקי עם מרכז קבוע ומידות מניעות. האורך נמדד בין מרכזי הקשתות. ניתן להזין mm, cm או in.","Horizontal slot with a fixed midpoint and driving dimensions. Length is measured between the arc centres. Accepts mm, cm or in."],
   slotCenterSpacing:["מרחק בין מרכזי הקשתות","Arc centre spacing"],
-  centerRectangleHint:["מידות מניעות ומרכז קבוע במישור השרטוט. ניתן להזין mm, cm או in.","Driving dimensions and a fixed center on the sketch plane. Lengths accept mm, cm or in."],
+  centerRectangleHint:["מידות מניעות ומרכז סימטרי; גררו את המרכז כדי להזיז. ניתן להזין mm, cm או in.","Driving dimensions around a symmetric center; drag the center to move it. Lengths accept mm, cm or in."],
+  rectangleFixCenter:["קיבוע המרכז","Fix center"],
   rectangleCenterX:["מרכז U","Center U"],
   rectangleCenterY:["מרכז V","Center V"],
   mfgBendReport: ["דוח כיפופים", "Bend report"],
@@ -74,6 +75,8 @@ export var TXT = {
   returnToParameters: ["חזרה לפרמטרים", "Parameters"],
 
   title: ["עורך מודלים", "Model Editor"],
+  sketchShow3d: ["הצגה בתלת־ממד", "Show in 3D"],
+  sketchHide3d: ["הסתרה בתלת־ממד", "Hide in 3D"],
   /* phone shell (js/modeler_mobile.js) */
   view_iso: ["איזומטרי", "Isometric"],
   m_accept: ["סיום", "Finish"],

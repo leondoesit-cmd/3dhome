@@ -13,7 +13,7 @@ Saved library checkpoint: **Planchard BATTERY - base and side fillets** (origina
 ## Browser-tested sequence
 
 1. Open Model Editor, start a Top-plane rectangle, type both dimensions. The corner rectangle had two remaining degrees of freedom despite its exact size.
-2. After adding Center rectangle, enter `2.7in` for width and `68.58mm` for height, with center U/V zero. The UI reported **Fully defined**.
+2. After adding Center rectangle, enter `2.7in` for width and `68.58mm` for height, with center U/V zero and **Fix center** ticked. The UI reported **Fully defined**. (Unticked, the center stays free so the rectangle can be dragged.)
 3. Extrude with depth `4.1in` (10.414 cm). The UI reported a successful one-body rebuild.
 4. Select four vertical edges in the viewport and apply radius `.5in` (1.27 cm). The exact preview showed four rounded vertical corners and the committed model rebuilt successfully.
 5. Select the top face and open a face-attached sketch. Compare the Project and Offset commands with the book's face-boundary offset. The equivalent operation is missing; do not substitute a silhouette and claim equivalence.
@@ -47,7 +47,7 @@ The additive history gap is fixed: hosted extrudes lower to an extrusion tool pl
 
 | Gap | Change | Verification |
 | --- | --- | --- |
-| Centered design intent requires manual constraints | Center rectangle in Sketch ribbon and command search; four perimeter lines, a construction diagonal, fixed center, midpoint relation, driving width/height | UI fully defined; solver resize and serialization test preserves center |
+| Centered design intent requires manual constraints | Center rectangle in Sketch ribbon and command search; four perimeter lines, a construction diagonal, optional fixed center, midpoint relation, driving width/height | UI fully defined; solver resize and serialization test preserves center |
 | Inch/mm conversion burden | Feature numeric length fields accept explicit mm, cm, m, in, ft; angle fields accept deg/rad; safe arithmetic parser retained | UI `2.7in`, `68.58mm`, `4.1in`, `.5in`; mixed-unit arithmetic and wrong-unit tests |
 | Four upright edges require repeated orbit/select actions | Parallel edges collects straight edges parallel to first selected edge within the current candidate body/face scope | UI one selected edge → four; tests reject arcs and degenerate directions |
 | Catalog clamps and rounds small components | Persist actual positive extents; format display separately | UI library extents; small-part tests |

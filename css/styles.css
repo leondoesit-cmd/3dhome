@@ -5629,7 +5629,11 @@ body.compact-nav #modeler .md-sketch-plane-chip { min-height: 36px; }
    face, and you have to be able to see the face. The canvas above it is fully
    transparent; it only carries the sketch. */
 #modeler.md-model-sketching #md3dHost { z-index: 0; opacity: 1; pointer-events: none; }
-#modeler.md-model-sketching #mdCanvas { z-index: 3; background: transparent; }
+#modeler.md-model-sketching #mdCanvas {
+  z-index: 3; background: transparent;
+  /* Geometry remains crisp over light metal, dark paint and selection glow. */
+  filter: drop-shadow(0 1px 1px rgba(2,8,23,.28));
+}
 #modeler.md-isdrawing .md-mid { background: var(--bg-canvas-2d); }
 #modeler.md-isdrawing #mdCanvas { cursor: default; }
 /* The paper gives up the left rail for tools, the top strip for Model/Sketch/
@@ -5757,7 +5761,8 @@ body.compact-nav #modeler .md-quick-field select {
 #modeler .md-quick-field.type-boolean input:checked + .md-feature-switch { background: var(--accent); }
 #modeler .md-quick-field.type-boolean input:checked + .md-feature-switch i { transform: translateX(14px); }
 #modeler .md-quick-field.parameter-inactive { opacity: .42; pointer-events: none; }
-#modeler .md-quick-field.parameter-hidden { display: none; }
+#modeler .md-quick-field.parameter-hidden,
+#modeler .md-feature-group.parameter-hidden { display: none; }
 #modeler .md-feature-group { overflow: clip; border: 1px solid var(--separator); border-radius: 9px; background: color-mix(in srgb,var(--input-bg) 78%,transparent); }
 #modeler .md-feature-group summary { display: grid; grid-template-columns: 18px minmax(0,1fr) auto; align-items: center; gap: 6px; padding: 8px; color: var(--text-main); font-size: 10px; font-weight: 720; cursor: pointer; list-style: none; }
 #modeler .md-feature-group summary::-webkit-details-marker { display: none; }

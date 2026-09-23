@@ -3,7 +3,12 @@ import {solveSketch} from './sketch_solver.js';
 export function recordSketchEdit(sketch,operation,entityId,edit){
   const before=structuredClone(sketch),ok=edit();if(!ok)return false;
   const live=new Map(sketch.constraints.map(c=>[c.id,JSON.stringify(c)]));
-  const removed=before.constraints.filter(c=>!live.has(c.id)||live.get(c.id)!==JSON.stringify(c));
+  const implicitEndpoint=c=>{
+    if(c.type!=="pointOnCircle")return false;
+    const arc=sketch.entities.find(e=>e.id===c.entity&&e.type==="arc");
+    return arc&&(arc.a===c.point||arc.b===c.point);
+  };
+  const removed=before.constraints.filter(c=>(!live.has(c.id)||live.get(c.id)!==JSON.stringify(c))&&!implicitEndpoint(c));
   if(removed.length){
     sketch.repairs=sketch.repairs||[];
     for(const constraint of removed)sketch.repairs.push({id:`repair_${constraint.id}_${sketch.repairs.length}`,operation,entityId,constraint,points:before.points,entities:before.entities,status:'pending'});

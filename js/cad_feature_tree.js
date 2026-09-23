@@ -3,8 +3,8 @@ import {helixFromSketch} from './core/sketch_helix.js';
 import {isThroughVertexPlane,resolveOffsetSketch} from './core/offset_planes.js';
 import {linkedEdgeLookup,updateSilhouetteSketch} from './core/cone_silhouette.js';
 import {bindIntersectionTargets,bindModelEdgeTargets,bindPierceTargets} from './sketch_intersection.js';
-import {thinSketchProfile} from './core/thin_profile.js';
-import {resolveAssociativeBoundary} from './cad_associative_boundary.js';
+import {revolveThinProfile} from './core/thin_profile.js';
+import {resolveAssociativeBoundary,updateCircularBoundarySketch} from './cad_associative_boundary.js';
 import {resolveSketchSources,sketchWorldPoint} from "./core/swept_sources.js";
 import { buildDependencyGraph, featureDependencies, datumReferenceIds } from "./core/dependency_graph.js";
 import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepHoleTool, makeBrepExtrusion, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, placeBrep, rayHitsBrepFace, rayHitsExtendedBrepFace, resolveBrepSubshape, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
@@ -144,6 +144,14 @@ export async function regenerateFeatures(def, options = {}) {
       if(linkedSketch){const moved=resolveOffsetSketch(linkedSketch,executionDef.references,topologyLookup);
         if(moved!==linkedSketch){linkedSketch=moved;executionDef.sketches[sketchIndex]=moved;boundaryUpdates.set(moved.id,{sketch:moved,oldEntityIds:[],newEntityIds:[]});}
         if(feature.type==="rib" && moved.frame)effectiveParams={...effectiveParams,frame:moved.frame,axis:"frame"};}
+
+      const circularBoundary=updateCircularBoundarySketch(linkedSketch,results);
+      if(circularBoundary){
+        const report=solveSketch(circularBoundary);
+        if(!report.converged)throw new Error("Converted circular boundary relations could not follow the source");
+        linkedSketch=circularBoundary;executionDef.sketches[sketchIndex]=circularBoundary;
+        boundaryUpdates.set(circularBoundary.id,{sketch:circularBoundary,oldEntityIds:[],newEntityIds:[]});
+      }
 
       if(linkedSketch?.pierce){
         const link=linkedSketch.pierce,curve=results.get(link.featureId)?.spec;if(!curve)throw new Error('Pierce curve is unavailable');
@@ -497,7 +505,7 @@ export function resolveSketchProfile(def,params) {
   if (!params?.profileEntityIds?.length) return params;
   const sketches=Array.isArray(def.sketches)?def.sketches:[],sketch=(params.sketchId&&sketches.find((item)=>item.id===params.sketchId))||def.sketch||sketches[0];
   if(!sketch)throw new Error("Feature profile is missing its sketch");
-  const thin=params.thinFeature ? thinSketchProfile(sketch,params.profileEntityIds,params.thickness,params.thinMode) : null;
+  const thin=params.thinFeature ? revolveThinProfile(sketch,params.profileEntityIds,params.thickness,params.thinMode,params.axis) : null;
   const points=thin?.points || resolveProfilePoints(sketch,params.profileEntityIds);
   if(!points)throw new Error("Feature profile is missing, open or unsupported");
   if(params.useSketchPlane){

@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import {frameFromPlane,framePoint} from '../js/core/frame.js';
+import {alignExtrusionToSupport} from '../js/cad_feature_tree.js';
 const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 function load(name, context) {
   let start=source.indexOf(`function ${name}(`);
@@ -9,6 +11,26 @@ function load(name, context) {
   const end=source.indexOf('\n}',start)+2;
   return vm.runInNewContext(`(${source.slice(start,end)})`,context);
 }
+test('face-local extrusion previews agree with exact support direction on reversed and oblique faces',()=>{
+ for(const normal of [{x:0,y:0,z:-1},{x:0,y:-1,z:0},{x:-1,y:0,z:0},{x:0,y:0,z:1},{x:-.6,y:0,z:-.8}]) {
+  const frame=frameFromPlane({x:2,y:3,z:4},normal);
+  const support={persistentId:'rim',ownerFeatureId:'shell'};
+  const sketch={plane:'front',frameSpace:'local',frame,support};
+  const preview=load('extrudePreviewParts',{
+   E:{def:{}},ensureSketch:()=>sketch,planeAxis:()=> 'z',cloneData:structuredClone,
+   sketchFeatureAreas:()=>[{points:[{u:0,v:0},{u:1,v:0},{u:0,v:1}],holes:[]}],
+   resolveExtrudeExtent:params=>params,isUpToFace:()=>false,featureTypeLabel:type=>type,
+  });
+  for(const direction of ['forward','reverse']) {
+   const params={direction,depth:.635,endCondition:'blind'};
+   const actual=preview('extrude',params)[0];
+   const exact=alignExtrusionToSupport({...params,frame,support},[{reference:support,topology:{descriptor:{origin:frame.origin,normal}}}]);
+   assert.deepEqual(framePoint(actual.frame,0,0,actual.to),framePoint(exact.frame,0,0,exact.to));
+   const end=framePoint(actual.frame,0,0,actual.to),sign=direction==='reverse'?-1:1;
+   assert.ok(Math.abs((end.x-2)*normal.x+(end.y-3)*normal.y+(end.z-4)*normal.z-sign*.635)<1e-9);
+  }
+ }
+});
 test('opening and accepting a fractional-millimeter dimension preserves its exact value',()=>{
  const controls=new Map();
  const root={querySelector:key=>{
@@ -67,12 +89,12 @@ test('standard views preserve a feature profile while choosing its terminating f
  const E={view:'side',mode:'3d',def:{activeSketch:'rib'},authoring:{featureType:'extrude'},
   pv:{clearFixedFrame:()=>calls.push('clear'),orbitTo:(az,el)=>calls.push([az,el])}};
  const setView=load('setView',{E,CAMERA_ONLY_VIEWS:['iso','back','left'],
-  VIEW_PRESETS:[{id:'front',az:0,el:.05},{id:'top',az:0,el:1.5}],
+  VIEW_PRESETS:[{id:'front',az:0,el:.05},{id:'top',az:0,el:1.5},{id:'right',az:Math.PI/2,el:.05}],
   adoptSketchForView(){throw new Error('Feature profile must remain active');},drawSketch(){}});
- setView('front');setView('top');
+ setView('front');setView('top');setView('side');
  assert.equal(E.def.activeSketch,'rib');
  assert.equal(E.view,'side');
- assert.deepEqual(calls,['clear',[0,.05],'clear',[0,1.5]]);
+ assert.deepEqual(calls,['clear',[0,.05],'clear',[0,1.5],'clear',[Math.PI/2,.05]]);
 });
 test('body modifiers consume the latest result without crossing to another body',()=>{
  const E={def:{features:[

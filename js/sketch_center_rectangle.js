@@ -1,6 +1,8 @@
 // A center rectangle uses ordinary solver entities, so resizing preserves
 // symmetry and downstream profiles can consume its four perimeter lines.
-export function addCenterRectangle(sketch, { width, height, x = 0, y = 0 }, id) {
+// The center is pinned only on request: a pinned center leaves the rectangle
+// fully defined, and a drag then fights the pin instead of moving the shape.
+export function addCenterRectangle(sketch, { width, height, x = 0, y = 0, fixCenter = false }, id) {
   if (![width, height, x, y].every(Number.isFinite) || width <= 0 || height <= 0) {
     throw new Error("Rectangle dimensions must be positive finite lengths");
   }
@@ -16,7 +18,7 @@ export function addCenterRectangle(sketch, { width, height, x = 0, y = 0 }, id) 
   sketch.entities.push(...lines, diagonal);
   sketch.constraints.push(
     ...lines.map((line,i) => ({id:id(), type:i%2 ? "vertical" : "horizontal", entity:line.id})),
-    {id:id(), type:"fixed", point:center.id, x, y},
+    ...(fixCenter ? [{id:id(), type:"fixed", point:center.id, x, y}] : []),
     {id:id(), type:"midpoint", point:center.id, entity:diagonal.id},
     {id:id(), type:"distance", entity:lines[0].id, value:width, driven:false},
     {id:id(), type:"distance", entity:lines[1].id, value:height, driven:false},

@@ -1,3 +1,5 @@
+import {shortcutConflict,validShortcutBindings} from './core/command_shortcuts.js';
+import {temporaryAxes} from './core/temporary_axes.js';
 import { massDisplaySystem } from "./mass_display_units.js";
 import {reorderFinishFeature} from "./cad_finish_reorder.js";
 import {resolveFinishFace} from "./core/finish_face_reference.js";
@@ -7,7 +9,7 @@ import {helixFromSketch,synchronizeSketchHelices} from './core/sketch_helix.js';
 import {appendCircularEdgeOffset,coneSilhouette,detachDrivenSketchDimension,projectCircularEdge} from './core/cone_silhouette.js';
 import {dimensionTargetFromSelection} from './core/sketch_dimension_selection.js';
 import {resolveOffsetPlanes, throughVertexBinding} from './core/offset_planes.js';
-import {thinSketchProfile} from './core/thin_profile.js';
+import {revolveThinProfile} from './core/thin_profile.js';
 import { synchronizeExtrusionProjections } from "./core/extrusion_projection.js";
 import { threePointArc, radialArcEndpoint } from "./sketch_three_point_arc.js";
 import { tangentArc, entityOutgoingTangent } from "./sketch_tangent_arc.js";
@@ -1056,6 +1058,21 @@ function addTopologyPickEdges(parent, part, explicitMesh) {
 
 
 
+function addTemporaryAxes(parent,part) {
+  if(!E.showTemporaryAxes)return;
+  temporaryAxes(part.meshData?.topology || topologyEntriesForPart(part)).forEach(function(axis){
+    var from=new THREE.Vector3(axis.from.x,axis.from.y,axis.from.z),to=new THREE.Vector3(axis.to.x,axis.to.y,axis.to.z);
+    var perPixel=decorationWorldPerPixel();if(perPixel>0)decoratedWorldPerPixel=perPixel;
+    var span=from.distanceTo(to),radius=Math.max(span*.0015,perPixel*.8);
+    for(var i=0;i<24;i++){
+      var start=from.clone().lerp(to,i/24),end=from.clone().lerp(to,(i+.65)/24);
+      var dash=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,start.distanceTo(end),6),new THREE.MeshBasicMaterial({color:0x63d8ff,transparent:true,depthTest:false,depthWrite:false}));
+      dash.position.copy(start).add(end).multiplyScalar(.5);dash.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),end.clone().sub(start).normalize());
+      dash.renderOrder=30;dash.raycast=function(){};parent.add(dash);
+    }
+  });
+}
+
 function addFaceHighlights(parent, part, mesh) {
   if (!part || !mesh || (E.docType !== "part" && E.docType !== "assembly")) return;
   var entries = topologyEntriesForPart(part).filter(function (entry) { return entry.kind === "face"; });
@@ -1605,6 +1622,7 @@ function refreshDecorations() {
     try {
       addTopologyPickEdges(entry.group, entry.part, entry.mesh);
       addFaceHighlights(entry.group, entry.part, entry.mesh);
+      addTemporaryAxes(entry.group,entry.part);
     } finally {
       E.buildComponent = null;
     }
@@ -1621,7 +1639,7 @@ function refreshDecorations() {
    most of the time, and then this costs one comparison. */
 function refreshDecorationScale() {
   if (!E.pv) return;
-  if (!(E.topologySelection || []).length && !E.hoverTopology && !finishCommandActive()) return;
+  if (!(E.topologySelection || []).length && !E.hoverTopology && !finishCommandActive() && !E.showTemporaryAxes) return;
   if (!decorationScaleStale()) return;
   decoGroups.forEach(function (entry) { entry.dirty = true; });
   refreshDecorations();
@@ -1719,15 +1737,16 @@ function buildPart(g, p, displayStyle) {
     addTopologyPickEdges(deco, p, me);
     addFaceAppearances(g, p, me);
     addFaceHighlights(deco, p, me);
+    addTemporaryAxes(deco,p);
     addPartFeatureOverlays(g, p);
   }
   return me;
 }
 
-function addOverlayPolyline(parent, points, color, renderOrder, userData) {
+function addOverlayPolyline(parent, points, color, renderOrder, userData, depthTest) {
   if (!points || points.length < 2) return;
   var geometry = new THREE.BufferGeometry().setFromPoints(points.map(function (p) { return new THREE.Vector3(p.x, p.y, p.z); }));
-  var material = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.95, depthTest: true, depthWrite: false });
+  var material = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.95, depthTest: depthTest !== false, depthWrite: false });
   var line = new THREE.Line(geometry, material);
   line.renderOrder = renderOrder || 24;
   line.userData.cadOverlay = true;
@@ -1827,7 +1846,8 @@ function documentSketchOverlays(def) {
   var out = [];
   ensureSketchDoc(def).forEach(function (sketch) {
     if (!sketch || sketch === editing) return;   // the live one is on the canvas
-    if (sketch.id && consumed.has(sketch.id)) return;
+    if (sketch.show3d === false) return;
+    if (sketch.id && consumed.has(sketch.id) && sketch.show3d !== true) return;
     var frame = sketch.frameSpace === "local" && sketch.frame
       ? sketch.frame
       : standardPlaneFrame(sketch.plane, sketch.offset);
@@ -1869,7 +1889,11 @@ function addDocumentOverlays(parent, def) {
     marker.userData.cadRepairReference=repair.reference;parent.add(marker);
   }
   documentSketchOverlays(def).forEach(function (points) {
-    addOverlayPolyline(parent, points, 0x8fa6c4, 22);
+    /* Sketches commonly lie exactly on a solid face. A depth-tested line then
+       loses the z-buffer fight (or disappears behind the face altogether),
+       defeating an explicit Show in 3D request. These are reference graphics,
+       so draw them over the model like CAD sketch overlays. */
+    addOverlayPolyline(parent, points, 0x8fa6c4, 22, null, false);
   });
   documentHelixOverlays(def).forEach(function (curve) {
     var selected = curve.id && curve.id === E.selectedReferenceId;
@@ -2211,6 +2235,7 @@ function syncDensity() {
 function loadModelerPrefs() {
   try {
     var stored = JSON.parse(localStorage.getItem(LS_MODELER_PREFS)) || {};
+    E.commandShortcuts=validShortcutBindings(stored.commandShortcuts);
     MODELER_PREFS.forEach(function (key) { if (typeof stored[key] === "boolean") E[key] = stored[key]; });
     MODELER_VIEW_PREFS.forEach(function (key) {
       if (typeof stored[key] === typeof E[key]) E[key] = stored[key];
@@ -2226,7 +2251,7 @@ function loadModelerPrefs() {
 }
 function saveModelerPrefs() {
   try {
-    var out = { prefsVersion: MODELER_PREFS_VERSION };
+    var out = { prefsVersion: MODELER_PREFS_VERSION,commandShortcuts:E.commandShortcuts || {} };
     MODELER_PREFS.forEach(function (key) { out[key] = !!E[key]; });
     MODELER_VIEW_PREFS.forEach(function (key) { out[key] = E[key]; });
     localStorage.setItem(LS_MODELER_PREFS, JSON.stringify(out));
@@ -2255,8 +2280,8 @@ function snapV(v) { return Math.round(v * 10) / 10; }
 /* Sketch zoom, in screen px per cm. The old ceiling of 20 (1000%) left the
    book's R .1 in sketch fillet about 5 px across, so its endpoints always won
    the pick and the arc itself could not be selected for Mirror. CAD zoom is
-   effectively unbounded; 2000 px/cm shows a 0.01 mm feature as 2 px. Fit
-   still stops at 20 so a small sketch does not open absurdly close. */
+   effectively unbounded; 2000 px/cm shows a 0.01 mm feature as 2 px.
+   Fit uses the same range so small parts remain editable. */
 var SKETCH_MIN_SCALE = 0.3, SKETCH_MAX_SCALE = 2000;
 
 /* ---- object snapping: endpoints, midpoints, centres, origin, then H/V inference ---- */
@@ -2378,7 +2403,7 @@ function queueExactMesh(p) {
     if (slowTimer) clearTimeout(slowTimer);
     p.exactPending = false;
     p.exactError = String(error && error.message || error);
-    console.warn("Exact CAD mesh build failed:", p.exactError);
+    console.warn("Exact CAD mesh build failed:", error);
     refreshChangedPart(p);
     if (isKernelBody(p) && root) refreshParts();
   });
@@ -3717,6 +3742,7 @@ function buildDOM() {
     '<button type="button" data-display="solid" class="on" aria-pressed="true">' + cadIcon("solidView") + '<span>' + t("solidView") + '</span></button>' +
     '<button type="button" data-display="transparent" aria-pressed="false">' + cadIcon("transparentView") + '<span>' + t("transparentView") + '</span></button>' +
     '<button type="button" id="mdShowEdges" class="on" aria-pressed="true" title="' + t("modelEdgesTip") + '">' + cadIcon("modelEdges") + '<span>' + t("modelEdges") + '</span></button>' +
+    '<button type="button" id="mdTemporaryAxes" aria-pressed="false" title="Temporary axes"><span>Temporary axes</span></button>' +
     '<button type="button" id="mdToggleNotesView" class="on" aria-pressed="true" title="' + t("toggleNotes") + '"><i class="ph ph-chat-circle-text"></i><span>' + t("notesAnnotations") + '</span></button>' +
     '</div><button type="button" id="mdFinishPlane" class="md-finish-plane">' + cadIcon("check") + '<span>' + t("exitPlane") + '</span></button></div>' +
     '<button type="button" id="mdSketchOnFace" class="md-sketch-on-face" hidden><i class="ph ph-pencil-line"></i><span>' + t("createSketchOnRef") + '</span></button>' +
@@ -3987,6 +4013,13 @@ function buildDOM() {
     b.addEventListener("click", function () { setModelDisplay(b.getAttribute("data-display")); });
   });
   root.querySelector("#mdShowEdges").addEventListener("click", function () { setShowModelEdges(!(E.showModelEdges !== false)); });
+  root.querySelector("#mdTemporaryAxes").addEventListener("click",function(){
+    E.showTemporaryAxes=!E.showTemporaryAxes;
+    this.setAttribute("aria-pressed",String(E.showTemporaryAxes));this.classList.toggle("on",E.showTemporaryAxes);
+    updatePreview();
+    var axisCount=decoGroups.reduce(function(total,entry){return total+temporaryAxes(entry.part.meshData?.topology || topologyEntriesForPart(entry.part)).length;},0);
+    flash(E.showTemporaryAxes ? "Temporary axes shown: "+axisCount : "Temporary axes hidden");
+  });
   var toggleNotesView = root.querySelector("#mdToggleNotesView");
   if (toggleNotesView) {
     toggleNotesView.addEventListener("click", function () {
@@ -4192,6 +4225,23 @@ function buildDOM() {
       [t("undo") + " / " + t("redo"), "Ctrl+Z / Y · Shift+Z"], [t("del"), "Del"], [t("cancelCommand"), "Esc"],
     ]).map(function (k) { return '<div class="md-key"><span>' + k[0] + "</span><kbd>" + k[1] + "</kbd></div>"; }).join("") +
     "</div>";
+  var shortcuts=el("details","md-feature-group"),shortcutBody=el("div","md-feature-group-body");
+  shortcuts.appendChild(el("summary","","Custom command shortcuts"));
+  var commandSelect=el("select"),keyInput=el("input"),message=el("div","md-note");
+  commandSelect.setAttribute("aria-label","Shortcut command");keyInput.setAttribute("aria-label","Shortcut key");keyInput.placeholder="Unused letter, e.g. U";keyInput.maxLength=1;
+  commandCatalog().forEach(function(command){var option=el("option","",command.label);option.value=command.id;commandSelect.appendChild(option);});
+  var syncShortcut=function(){keyInput.value=(E.commandShortcuts || {})[commandSelect.value] || "";message.textContent="Single-letter shortcuts apply in model and sketch views. Built-in keys are reserved.";};
+  commandSelect.addEventListener("change",syncShortcut);
+  shortcutBody.append(commandSelect,keyInput,message);
+  shortcutBody.appendChild(btn("Assign shortcut",function(){
+    var key=keyInput.value.trim().toLowerCase(),id=commandSelect.value,error=shortcutConflict(key,id,E.commandShortcuts);
+    if(error){message.textContent=error;return;}
+    E.commandShortcuts=E.commandShortcuts || {};
+    if(key)E.commandShortcuts[id]=key;else delete E.commandShortcuts[id];
+    saveModelerPrefs();message.textContent=key ? "Shortcut saved: "+key.toUpperCase() : "Custom shortcut removed";
+  }));
+  shortcutBody.appendChild(btn("Remove shortcut",function(){keyInput.value="";if(E.commandShortcuts)delete E.commandShortcuts[commandSelect.value];saveModelerPrefs();message.textContent="Custom shortcut removed";}));
+  shortcuts.appendChild(shortcutBody);cons.appendChild(shortcuts);syncShortcut();
   cons.prepend(root.querySelector(".md-head-inputs"));
   var statusRow=el("div", "md-status-row");
   var workflow=root.querySelector("#mdWorkflow");
@@ -6248,15 +6298,20 @@ function finishSketchWorkflow() {
   } else if(run.status==="over-constrained"){
     flash(t("sketchRedundantWarn"));
   }
+  var consumed=consumedSketchIds(E.def).has(sketch.id);
   recordSketchInHistory(E.def,sketch);
   E.authoring.phase="model";E.authoring.sketchId=sketch.id;E.authoring.referenceId=sketch.referenceId;E.authoring.sketchSelection=[sketch.id];
-  E.authoring.featureType=null;E.authoring.workflowFocus="feature";E.authoring.resumePhase=null;
+  E.authoring.featureType=null;E.authoring.workflowFocus=consumed ? null : "feature";E.authoring.resumePhase=null;
   E.modelPlaneActive=false;setMode("3d");restoreSketchCameraPose();setCommandTab("features");setTab("parts");
   if(run.status!=="conflicting" && run.status!=="over-constrained"){
     flash(run.degreesOfFreedom ? t("sketchSavedDof") + " · " + run.degreesOfFreedom + " " + t("wfDof") : "✓ " + t("sketchFullySaved"));
   }
   refreshAll();
-  offerProfileFeatures();
+  if(consumed && isCanonicalAuthoring()){
+    // Exact generated face names cannot be checked by the preliminary rebuild.
+    // Publish the full dependent history when an existing sketch is finished.
+    void regenerateExactModel("force");
+  } else if(!consumed) offerProfileFeatures();
   syncAuthoringWorkflow();
 }
 
@@ -6576,7 +6631,8 @@ function setView(id) {
   // A feature owns its profile while the user turns the model to pick limits.
   // Adopting another plane's sketch here changes both preview and commit inputs.
   if (CAMERA_ONLY_VIEWS.indexOf(id) >= 0 || (E.authoring && E.authoring.featureType)) {
-    var cameraPreset = VIEW_PRESETS.find(function (preset) { return preset.id === id; });
+    var cameraId = id === "side" ? "right" : id;
+    var cameraPreset = VIEW_PRESETS.find(function (preset) { return preset.id === cameraId; });
     if (E.pv && cameraPreset) {
       if (E.pv.clearFixedFrame) E.pv.clearFixedFrame(false);
       E.pv.orbitTo(cameraPreset.az, cameraPreset.el);
@@ -6671,8 +6727,8 @@ function fitSketch() {
     });
   });
   if (u0 === undefined) { u0 = -30; u1 = 30; v0 = -30; v1 = 30; }
-  var du = Math.max(20, u1 - u0), dv = Math.max(20, v1 - v0);
-  E.scl = clamp(Math.min((W - 80) / du, (Hh - 80) / dv), 0.3, 20);
+  var du = Math.max(0.01, u1 - u0), dv = Math.max(0.01, v1 - v0);
+  E.scl = clamp(Math.min((W - 80) / du, (Hh - 80) / dv), SKETCH_MIN_SCALE, SKETCH_MAX_SCALE);
   var cu = (u0 + u1) / 2, cv = (v0 + v1) / 2;
   E.ox = W / 2 - cu * E.scl;
   E.oy = Hh / 2 - (!activeSketchFrame() && E.view === "top" ? cv : -cv) * E.scl;
@@ -6750,6 +6806,7 @@ function closeFeaturePanel() {
 
 function runCommand(id) {
   if (!id) return;
+  if(id==="temporaryaxes"){root.querySelector("#mdTemporaryAxes").click();closeCommandSearch();return;}
   if (id === "repeatlast") {
     var last = E.lastOperation;
     if (!last) { flash(t("repeatUnavailable")); return; }
@@ -7946,7 +8003,7 @@ function revolveSketchProfile(params) {
   if(!params.thinFeature)return profile;
   var sketch=ensureSketch(E.def),chain=analyzeSketchChains(sketch,{selectedIds:selEntities().map(function(e){return e.id;})}).chains[0];
   if(!chain)return null;
-  return {...thinSketchProfile(sketch,chain.entityIds,params.thickness,params.thinMode),entityIds:chain.entityIds};
+  return {...revolveThinProfile(sketch,chain.entityIds,params.thickness,params.thinMode,params.axis || String(params.axisReference || 'axis:y').split(':')[1]),entityIds:chain.entityIds};
 }
 function revolvePreviewPoints(sketch,points,params) {
   if(!params.useSketchPlane)return points;
@@ -8111,7 +8168,9 @@ function clearFeaturePreview(refresh) {
 function extrudePreviewParts(type,params) {
   var areas=sketchFeatureAreas();if(!areas.length)return [];
   var sketch=ensureSketch(E.def);
-  var axis=planeAxis(sketch.plane),normal=sketch.frame && sketch.frame.normal,principalDirection=normal?(axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)):1;
+  // Local distances already follow the frame normal. Multiplying by its world
+  // sign again reverses previews on back-facing supports.
+  var axis=planeAxis(sketch.plane),normal=sketch.frame && sketch.frame.normal,principalDirection=sketch.frameSpace==="local"?1:normal?(axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)):1;
   var direction=(params.direction==="reverse"?-1:1)*(principalDirection || 1),depth=Math.max(.1,Number(params.depth)||.1),offset=Number(params.offset)||0,symmetric=!!params.symmetric||params.endCondition==="mid-plane";
   var center=(sketch.frameSpace==="local"?0:Number(sketch.offset)||0)+direction*offset,from=symmetric?center-direction*depth/2:center,to=symmetric?center+direction*depth/2:center+direction*depth;
   var extent={...params,axis:sketch.frameSpace==="local"?"frame":axis,frame:sketch.frameSpace==="local"?cloneData(sketch.frame):undefined,from:from,to:to,points:areas[0]&&areas[0].points};
@@ -8927,7 +8986,7 @@ function syncNewFeaturePreview(type,state,liveBadge) {
     /* The cut shows the tool it will remove, in the cut colour, the way
        extrudePreviewParts draws a red prism for Extrude Cut. */
     var revCut=type==="revolveCut";
-    var profile;try{profile=revolveSketchProfile(state.params);}catch(error){if(liveBadge)liveBadge.textContent=String(error.message||error);}if(profile)previews.push({id:"preview:revolve",featureId:"preview:revolve",previewOnly:true,kind:"rev",x:0,z:0,seg:48,pts:revolvePreviewPoints(ensureSketch(E.def),profile.points,state.params),axis:state.params.axis || String(state.params.axisReference || "axis:y").split(":")[1],angle:state.params.angle,direction:state.params.direction,symmetric:state.params.symmetric,color:revCut?"#d75a4a":"#6f8de8",opacity:revCut?.42:.62,metal:.04,rough:.68,name:"Live "+featureTypeLabel(type)});
+    var profile;try{profile=revolveSketchProfile({...state.params,axisReference:state.references.axis});}catch(error){if(liveBadge)liveBadge.textContent=String(error.message||error);}if(profile)previews.push({id:"preview:revolve",featureId:"preview:revolve",previewOnly:true,kind:"rev",x:0,z:0,seg:48,pts:revolvePreviewPoints(ensureSketch(E.def),profile.points,state.params),axis:state.params.axis || String(state.references.axis || "axis:y").split(":")[1],angle:state.params.angle,direction:state.params.direction,symmetric:state.params.symmetric,color:revCut?"#d75a4a":"#6f8de8",opacity:revCut?.42:.62,metal:.04,rough:.68,name:"Live "+featureTypeLabel(type)});
   } else if(type==="pattern"){
     var seed=selectedSolid(),count=Math.max(2,Math.min(100,Math.round(Number(state.params.count)||2))),circularStep=circularPatternStepDegrees(state.params,count)*Math.PI/180,placements=patternPlacements(state.params),patternInstances=[];
     if(seed && state.params.scope!=="feature")placements.forEach(function(placement,index){var copy=clonePartForLivePreview(seed);copy.previewOnly=true;copy.id="preview:pattern:"+(index+1);copy.featureId=copy.id;copy.opacity=.52;placePatternCopy(copy,state.params,placement,circularStep);copy.patternGridIndex=placement.indices;previews.push(copy);patternInstances.push({part:copy,transform:patternPlacementTransform(state.params,placement,circularStep)});});
@@ -9252,6 +9311,7 @@ function segmentLengthForm(from, to) {
 function openQuickForm(spec) {
   var host = root && root.querySelector("#mdQuickSettings");
   if (!host) return null;
+  if (E.leftCollapsed) setPanelCollapsed("left", false);
   if (E.authoring && E.authoring.featureEdit) cancelFeatureParameterEdit(true);
   if (E.authoring && E.authoring.featureType) { clearFeaturePreview(false); E.authoring.featureType = null; }
   E.quickAction = spec.action || "quickform";
@@ -9304,7 +9364,9 @@ function openQuickForm(spec) {
 }
 
 function commandCatalog() {
-  return buildCommandCatalog({ t: t, editor: E, closedSketchProfile: closedSketchProfile, openSketchChain: function(){return analyzeSketchChains(ensureSketch(E.def)).chains.length>0;}, activeParts: activeParts, canonicalAuthoring: isCanonicalAuthoring });
+  var catalog=buildCommandCatalog({ t: t, editor: E, closedSketchProfile: closedSketchProfile, openSketchChain: function(){return analyzeSketchChains(ensureSketch(E.def)).chains.length>0;}, activeParts: activeParts, canonicalAuthoring: isCanonicalAuthoring });
+  catalog.push({id:"temporaryaxes",label:"Temporary axes",group:"View",terms:"axis cylindrical conical centerline"});
+  return catalog.map(function(command){var key=(E.commandShortcuts || {})[command.id];return key ? {...command,shortcut:key.toUpperCase()} : command;});
 }
 
 function commandUnavailableReason(id) {
@@ -10939,6 +11001,17 @@ function drawSketch() {
   var projected = sketchProjection();
   if (projected) {
     var reach = E.grid * 20, spacing = E.grid * (E.scl < 1.2 ? 4 : 1);
+    /* A quiet sheet tint separates the aligned sketch plane from the shaded
+       solid without hiding either one. It is projected through the same camera
+       as the geometry, so orbiting reads as a real drawing plane rather than a
+       screen-space HUD. */
+    var planeCorners = [toPx(-reach,-reach),toPx(reach,-reach),toPx(reach,reach),toPx(-reach,reach)];
+    c.save();
+    c.fillStyle = isDark ? "rgba(15,35,62,.12)" : "rgba(226,241,255,.13)";
+    c.strokeStyle = isDark ? "rgba(125,211,252,.34)" : "rgba(38,132,199,.28)";
+    c.lineWidth = 1; c.setLineDash([7,5]); c.beginPath();
+    planeCorners.forEach(function(point,index){if(index)c.lineTo(point.x,point.y);else c.moveTo(point.x,point.y);});
+    c.closePath(); c.fill(); c.stroke(); c.restore();
     c.beginPath();
     for (var g = -reach; g <= reach + 1e-6; g += spacing) {
       var lineStart = toPx(-reach, g), lineEnd = toPx(reach, g);
@@ -11087,6 +11160,10 @@ function drawSketch() {
     var selected = E.ssel.indexOf(entity) >= 0;
     var status = statuses.entityStatus[entity.id] || (fully ? "fully-defined" : "under-defined");
     c.save();
+    if (projected) {
+      c.shadowColor = isDark ? "rgba(2,8,23,.95)" : "rgba(255,255,255,.92)";
+      c.shadowBlur = 3;
+    }
     c.strokeStyle = sketchStatusColor(status, { selected: selected, construction: entity.construction, isDark: isDark });
     c.lineWidth = selected ? 2.3 : Math.max(1.2, entity.weight || 1.2);
     if (entity.construction) c.setLineDash([7, 4]);
@@ -11167,9 +11244,12 @@ function drawSketch() {
   // sketch points, drawn over the entities so they stay grabbable
   (live ? sketch.points || [] : []).forEach(function (q) {
     var s = toPx(q.x, q.y), on = E.ssel.indexOf(q) >= 0;
+    c.save();
+    if (projected) { c.shadowColor = "rgba(2,8,23,.9)"; c.shadowBlur = 3; }
     c.fillStyle = on ? (isDark ? "#fb923c" : "#e08030") : q.fixed ? (isDark ? "#34d399" : "#0f8a6a") : sketchStatusColor(statuses.pointStatus[q.id] || (fully ? "fully-defined" : "under-defined"), { isDark: isDark });
     c.fillRect(s.x - 3, s.y - 3, 6, 6);
     if (q.fixed) { c.strokeStyle = isDark ? "#34d399" : "#0f8a6a"; c.lineWidth = 1; c.strokeRect(s.x - 5, s.y - 5, 10, 10); }
+    c.restore();
   });
 
   if (live) {
@@ -11192,8 +11272,11 @@ function drawSketch() {
       var sp = toPx(p.x, p.y);
       c.save(); c.fillStyle = isDark ? "#fca5a5" : "#d0342c"; c.translate(sp.x, sp.y); c.rotate(Math.PI / 4); c.fillRect(-5, -5, 10, 10); c.restore();
     });
+    c.save();
+    if (projected) { c.shadowColor = "rgba(2,8,23,.9)"; c.shadowBlur = 3; }
     drawSketchDimensions(c, sketch, E.scl, toPx, conflicts, { selectedId: E.dimSel, isDark: isDark });
     drawConstraintGlyphs(c, sketch, toPx, conflicts, { isDark: isDark });
+    c.restore();
     if (refused) {
       var tagged = [];
       (sketch.constraints || []).forEach(function (constraint) {
@@ -11926,6 +12009,7 @@ async function extrudeClosedSketch(options) {
   var direction=normal ? (axis==="x" ? Math.sign(normal.x || 1) : axis==="y" ? Math.sign(normal.y || 1) : Math.sign(normal.z || 1)) : 1;
   if (!direction) direction=1;
   var localFrame=sketch.frameSpace==="local" && sketch.frame;
+  if (localFrame) direction=1;
   var depth=Math.max(.1,Number(params.depth)||E.depth),offset=Number.isFinite(Number(params.offset))?Number(params.offset):E.baseOff;
   var featureDirection=params.direction==="reverse"?-direction:direction,symmetric=!!params.symmetric||params.endCondition==="mid-plane";
   var center=(localFrame?0:sketch.offset)+featureDirection*offset;
@@ -12204,7 +12288,7 @@ function syncSketchDrivenParts() {
     var revolveFeature=p.kind==='rev' && (E.def.features || []).find(function(feature){return feature.id===p.featureId;});
     var revolveParams=revolveFeature?.params;
     var pts;
-    try{pts=sketch && revolveParams?.thinFeature ? thinSketchProfile(sketch,p.profileEntityIds,revolveParams.thickness,revolveParams.thinMode).points : sketch ? resolveProfilePoints(sketch,p.profileEntityIds) : null;}catch(error){pts=null;}
+    try{pts=sketch && revolveParams?.thinFeature ? revolveThinProfile(sketch,p.profileEntityIds,revolveParams.thickness,revolveParams.thinMode,revolveParams.axis).points : sketch ? resolveProfilePoints(sketch,p.profileEntityIds) : null;}catch(error){pts=null;}
     if(pts && revolveParams)pts=revolvePreviewPoints(sketch,pts,revolveParams);
     var holePts = sketch && Array.isArray(p.holeProfileEntityIds)
       ? p.holeProfileEntityIds.map(function (ids) { return resolveProfilePoints(sketch, ids); }) : [];
@@ -12646,6 +12730,7 @@ function openCenterRectangle() {
       {key:"height",label:t("fcFldHeight"),type:"number",value:10,min:0.000001,unit:"length"},
       {key:"x",label:t("rectangleCenterX"),type:"number",value:0,unit:"length"},
       {key:"y",label:t("rectangleCenterY"),type:"number",value:0,unit:"length"},
+      {key:"fixCenter",label:t("rectangleFixCenter"),type:"boolean",value:false},
     ],
     onApply:function(values) {
       var made = appendToSketch(t("centerRectangle"), function(sketch) { return addCenterRectangle(sketch,values,uid); });
@@ -15004,6 +15089,10 @@ function onKey(e) {
     return;
   }
   var k = e.key.toLowerCase();
+  if(!e.shiftKey){
+    var custom=Object.entries(E.commandShortcuts || {}).find(function(entry){return entry[1]===k;});
+    if(custom && commandCatalog().some(function(command){return command.id===custom[0];})){e.preventDefault();runCommand(custom[0]);return;}
+  }
   if (e.key === "2") setMode("2d");
   else if (e.key === "3") setMode("3d");
   else if (e.key === "7") setMode("drawing");
@@ -16190,6 +16279,22 @@ function showTreeMenu(node, model, event, api) {
   } });
   if (node.can.rename) items.push({ label: t("treeRename") + " · F2", icon: "ph-textbox", run: function () { api.rename(); } });
   if (node.kind === "sketch") items.push({ label: t("sketchCopy") + " · Ctrl+C", icon: "ph-copy", run: function () { copySketchToClipboard(treeTargetSketch(node)); } });
+  if (node.kind === "sketch") {
+    var visibilitySketch = treeTargetSketch(node);
+    var consumed = consumedSketchIds(E.def).has(node.targetId);
+    var shown = visibilitySketch && visibilitySketch.show3d !== false && (!consumed || visibilitySketch.show3d === true);
+    items.push({
+      label: t(shown ? "sketchHide3d" : "sketchShow3d"),
+      icon: shown ? "ph-eye-slash" : "ph-eye",
+      run: function () {
+        var sketch = treeTargetSketch(node);
+        if (!sketch) return;
+        pushUndo(t(shown ? "sketchHide3d" : "sketchShow3d"));
+        sketch.show3d = !shown;
+        refreshAll();
+      },
+    });
+  }
   if (node.kind === "reference" && readClipboardSketch()) {
     var pasteTarget = (E.def.references || []).find(function (item) { return item.id === node.targetId && item.type === "plane"; });
     if (pasteTarget) items.push({ label: t("sketchPaste") + " · Ctrl+V", icon: "ph-clipboard-text", run: function () { pasteSketchOntoReference(pasteTarget); } });
@@ -20767,13 +20872,17 @@ function initPreview() {
       syncInstant3dValue(view);
       syncNotesAndMarkups(view);
       refreshDecorationScale();
+      /* The sketch is a 2D canvas projected through this camera. Repaint after
+         every orbit/zoom render or the solid moves while its drawing stays in
+         the old screen position. Both layers remain visible and aligned. */
+      if (E.mode === "3d" && E.modelPlaneActive && E.cv) drawSketch();
     },
     lighting: editorLightingSettings,
     gesturePreview: previewMouseGesture,
     gesture: function (event, view, dx, dy) { applyMouseGesture(dx, dy); },
   });
   // second copy of the parts, placed into the real scene for context rendering
-  if (E.pv) E.pv.roomGrp = new THREE.Group();
+  if (E.pv) { E.pv.roomGrp = new THREE.ClippingGroup(); E.pv.roomGrp.enabled = false; }
   // same debugging handle the preview rebuild already exposes
   if (typeof window !== "undefined") window.cadPreviewView = E.pv;
   /* Pre-highlight whatever the cursor is over. Throttled to one resolve per
@@ -20989,16 +21098,12 @@ function sectionPlane() {
 function applySectionClipping(group) {
   if (!group || !E.pv) return;
   var enabled = !!(E.section && E.section.enabled), plane = enabled ? sectionPlane() : null;
-  E.pv.rr.localClippingEnabled = enabled;
-  group.traverse(function (object) {
-    if (!object.isMesh || !object.material) return;
-    var materials = Array.isArray(object.material) ? object.material : [object.material];
-    materials.forEach(function (material) {
-      material.clippingPlanes = plane ? [plane] : null;
-      material.clipShadows = enabled;
-      material.needsUpdate = true;
-    });
-  });
+  // Live previews are ordinary child groups and inherit these planes. Keeping
+  // clipping on the root also covers edges and meshes added asynchronously.
+  if (!group.isClippingGroup) return;
+  group.enabled = enabled;
+  group.clippingPlanes = plane ? [plane] : [];
+  group.clipShadows = enabled;
 }
 
 function syncSectionHelper() {

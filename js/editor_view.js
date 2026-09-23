@@ -162,7 +162,9 @@ export function createEditorView(opts) {
       });
       sc.add(grid);
     }
-    var grp = new THREE.Group();
+    // The node renderer reads section planes from the scene graph, not materials.
+    var grp = new THREE.ClippingGroup();
+    grp.enabled = false;
     sc.add(grp);
 
     view = {

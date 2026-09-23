@@ -417,7 +417,9 @@ function wireFromSegments(oc, owned, segments, place, normal) {
     } else if(segment.type === "bezier" && segment.controls?.length===4){
       const array=new oc.TColgp_Array1OfPnt_2(1,4);owned.push(array);
       segment.controls.forEach((p,i)=>array.SetValue(i+1,at(p)));
-      const curve=new oc.Geom_BezierCurve_1(array);owned.push(curve);
+      // The handle owns this reference-counted curve. Deleting the raw curve
+      // as well leaves the edge (and later rebuilds) pointing at freed memory.
+      const curve=new oc.Geom_BezierCurve_1(array);
       const handle=new oc.Handle_Geom_Curve_2(curve);owned.push(handle);
       maker=new oc.BRepBuilderAPI_MakeEdge_24(handle);
     } else if(segment.type==="kernelCurve"){

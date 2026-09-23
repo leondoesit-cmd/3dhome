@@ -196,6 +196,17 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     }
     var mode = controls.find(function (item) { return item.field.key === "mode"; });
     if (type === "pattern" && mode) {
+      Object.entries(patternModeKeys).forEach(function (entry) {
+        entry[1].forEach(function (key) {
+          var control = controls.find(function (item) { return item.field.key === key; });
+          var wrap = control && control.input.closest(".md-quick-field");
+          if (wrap) wrap.classList.toggle("parameter-hidden", entry[0] !== mode.input.value);
+        });
+      });
+      host.querySelectorAll(".md-feature-group").forEach(function (section) {
+        var fields = Array.from(section.querySelectorAll(".md-quick-field"));
+        section.classList.toggle("parameter-hidden", fields.length > 0 && fields.every(function (field) { return field.classList.contains("parameter-hidden"); }));
+      });
       var linear = mode.input.value === "linear";
       ["axisX", "axisY", "axisZ"].forEach(function (axisKey) {
         var axisControl = controls.find(function (item) { return item.field.key === axisKey; }), enabled = linear && axisControl && axisControl.input.checked, suffix = axisKey.slice(-1);

@@ -1,0 +1,874 @@
+{
+  "features": [
+    {
+      "id": "feature_mud6zu7h_1",
+      "type": "revolve",
+      "name": "Revolve 1",
+      "params": {
+        "operation": "add",
+        "angle": 360,
+        "direction": "forward",
+        "symmetric": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "useSketchPlane": true,
+        "radialProfile": true,
+        "axis": "z",
+        "profileEntityIds": [
+          377,
+          380,
+          383,
+          386,
+          389,
+          391
+        ],
+        "sketchId": "sk_0k78g"
+      },
+      "references": {
+        "sketches": [
+          "sk_0k78g"
+        ],
+        "features": [],
+        "topology": [],
+        "references": [
+          "axis:z"
+        ],
+        "profileEntityIds": [
+          377,
+          380,
+          383,
+          386,
+          389,
+          391
+        ]
+      },
+      "inputs": [],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mud78dvl_2",
+      "type": "revolve",
+      "name": "Revolve 2",
+      "params": {
+        "operation": "add",
+        "angle": 360,
+        "direction": "forward",
+        "symmetric": false,
+        "thinFeature": false,
+        "thickness": 0.1,
+        "thinMode": "mid-plane",
+        "mergeResult": true,
+        "useSketchPlane": true,
+        "radialProfile": true,
+        "axis": "z",
+        "profileEntityIds": [
+          "spline_mud738ts_4",
+          398,
+          401
+        ],
+        "sketchId": "sk_1w40x"
+      },
+      "references": {
+        "sketches": [
+          "sk_1w40x"
+        ],
+        "features": [
+          "feature_mud6zu7h_1"
+        ],
+        "topology": [],
+        "references": [
+          "axis:z"
+        ],
+        "profileEntityIds": [
+          "spline_mud738ts_4",
+          398,
+          401
+        ]
+      },
+      "inputs": [
+        "feature_mud6zu7h_1"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mud7kqx7_1",
+      "type": "revolveCut",
+      "name": "Revolve Cut 1",
+      "params": {
+        "operation": "subtract",
+        "angle": 360,
+        "direction": "forward",
+        "symmetric": false,
+        "thinFeature": true,
+        "thickness": 0.381,
+        "thinMode": "forward",
+        "keepTool": false,
+        "useSketchPlane": true,
+        "axis": "z",
+        "profileEntityIds": [
+          410,
+          412
+        ],
+        "sketchId": "sk_1necy"
+      },
+      "references": {
+        "sketches": [
+          "sk_1necy"
+        ],
+        "features": [
+          "feature_mud78dvl_2"
+        ],
+        "topology": [],
+        "references": [
+          "axis:z"
+        ],
+        "profileEntityIds": [
+          410,
+          412
+        ]
+      },
+      "inputs": [
+        "feature_mud78dvl_2"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    },
+    {
+      "id": "feature_mud8ai3h_1",
+      "type": "dome",
+      "name": "Dome 1",
+      "params": {
+        "height": 0.254
+      },
+      "references": {
+        "sketches": [],
+        "features": [
+          "feature_mud7kqx7_1"
+        ],
+        "topology": [
+          {
+            "type": "topology-reference",
+            "ownerFeatureId": "feature_mud6zu7h_1",
+            "kind": "face",
+            "persistentId": "feature_mud6zu7h_1:face:generated:plane:1",
+            "descriptor": {
+              "surface": "plane",
+              "origin": {
+                "x": 1.6283113270603884e-17,
+                "y": 5.551115123125783e-17,
+                "z": -1.270000000000017
+              },
+              "normal": {
+                "x": 0,
+                "y": 0,
+                "z": -1
+              },
+              "measure": 0.34253425586990843,
+              "bounds": {
+                "min": {
+                  "x": -0.33020010000001687,
+                  "y": -0.33020010000001687,
+                  "z": -1.270000100000017
+                },
+                "max": {
+                  "x": 0.33020010000001687,
+                  "y": 0.33020010000001687,
+                  "z": -1.269999899999983
+                }
+              }
+            },
+            "signature": "plane:0:0:-1.27:0:0:-1:0.343:"
+          }
+        ],
+        "references": []
+      },
+      "inputs": [
+        "feature_mud7kqx7_1"
+      ],
+      "suppressed": false,
+      "state": "rebuilt",
+      "diagnostics": []
+    }
+  ],
+  "sketches": [
+    {
+      "id": "sk_0k78g",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": 0,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 375,
+          "x": 0.2539999999999963,
+          "y": 6.689186717285778e-15,
+          "fixed": false
+        },
+        {
+          "id": 376,
+          "x": 0.2539999999999932,
+          "y": 0.7493000000002201
+        },
+        {
+          "id": 379,
+          "x": -8.753376966812816e-15,
+          "y": 0.7493000000002235
+        },
+        {
+          "id": 382,
+          "x": -9.068289417041861e-15,
+          "y": 0.508,
+          "fixed": false
+        },
+        {
+          "id": 385,
+          "x": -1.270000000000017,
+          "y": 0.508
+        },
+        {
+          "id": 388,
+          "x": -1.2700000000000211,
+          "y": 6.688952681989394e-15
+        }
+      ],
+      "entities": [
+        {
+          "id": 377,
+          "type": "line",
+          "name": "Line",
+          "a": 375,
+          "b": 376,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 380,
+          "type": "line",
+          "name": "Line",
+          "a": 376,
+          "b": 379,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 383,
+          "type": "line",
+          "name": "Line",
+          "a": 379,
+          "b": 382,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 386,
+          "type": "line",
+          "name": "Line",
+          "a": 382,
+          "b": 385,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 389,
+          "type": "line",
+          "name": "Line",
+          "a": 385,
+          "b": 388,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 391,
+          "type": "line",
+          "name": "Line",
+          "a": 388,
+          "b": 375,
+          "construction": false,
+          "weight": 2
+        }
+      ],
+      "constraints": [
+        {
+          "type": "vertical",
+          "entity": 377,
+          "id": 378,
+          "exprError": null
+        },
+        {
+          "type": "horizontal",
+          "entity": 380,
+          "id": 381,
+          "exprError": null
+        },
+        {
+          "type": "vertical",
+          "entity": 383,
+          "id": 384,
+          "exprError": null
+        },
+        {
+          "type": "horizontal",
+          "entity": 386,
+          "id": 387,
+          "exprError": null
+        },
+        {
+          "type": "vertical",
+          "entity": 389,
+          "id": 390,
+          "exprError": null
+        },
+        {
+          "type": "horizontal",
+          "entity": 391,
+          "id": 392,
+          "exprError": null
+        },
+        {
+          "id": 393,
+          "type": "fixed",
+          "point": 375,
+          "x": 0.254,
+          "y": 0,
+          "exprError": null
+        },
+        {
+          "id": "dim_1dqkie0",
+          "type": "distance",
+          "entity": 377,
+          "value": 0.7493,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": "dim_v9m2d0w",
+          "type": "distance",
+          "entity": 380,
+          "value": 0.254,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": "dim_o3x4vlq",
+          "type": "distance",
+          "entity": 386,
+          "value": 1.27,
+          "driven": false,
+          "exprError": null
+        },
+        {
+          "id": "dim_luddqjv",
+          "type": "distance",
+          "entity": 383,
+          "value": 0.24130000000000001,
+          "driven": false,
+          "exprError": null,
+          "name": "ShoulderDrop"
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_1w40x",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": 0,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": "spline_mud738ts_0",
+          "x": 0.254,
+          "y": 0.7493,
+          "fixed": false
+        },
+        {
+          "id": "spline_mud738ts_1",
+          "x": 0.5,
+          "y": 0.7493,
+          "fixed": false
+        },
+        {
+          "id": "spline_mud738ts_2",
+          "x": 1.4,
+          "y": 0.35,
+          "fixed": false
+        },
+        {
+          "id": "spline_mud738ts_3",
+          "x": 1.754,
+          "y": -1.3780427486494229e-17
+        },
+        {
+          "id": 397,
+          "x": 0.254,
+          "y": -1.3704621191341054e-17,
+          "fixed": false
+        }
+      ],
+      "entities": [
+        {
+          "id": "spline_mud738ts_4",
+          "name": "Cubic spline",
+          "type": "spline",
+          "degree": 3,
+          "a": "spline_mud738ts_0",
+          "h1": "spline_mud738ts_1",
+          "h2": "spline_mud738ts_2",
+          "b": "spline_mud738ts_3"
+        },
+        {
+          "id": 398,
+          "type": "line",
+          "name": "Line",
+          "a": "spline_mud738ts_3",
+          "b": 397,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 401,
+          "type": "line",
+          "name": "Line",
+          "a": 397,
+          "b": "spline_mud738ts_0",
+          "construction": false,
+          "weight": 2
+        }
+      ],
+      "constraints": [
+        {
+          "type": "horizontal",
+          "entity": 398,
+          "id": 399,
+          "exprError": null
+        },
+        {
+          "type": "vertical",
+          "entity": 401,
+          "id": 402,
+          "exprError": null
+        },
+        {
+          "id": 403,
+          "type": "fixed",
+          "point": "spline_mud738ts_0",
+          "x": 0.254,
+          "y": 0.7493,
+          "exprError": null
+        },
+        {
+          "id": "dim_fm6cnvy",
+          "type": "distance",
+          "entity": 401,
+          "value": 0.7493,
+          "driven": false,
+          "exprError": null,
+          "name": "FlangeRadius"
+        },
+        {
+          "id": 405,
+          "type": "fixed",
+          "point": "spline_mud738ts_1",
+          "x": 0.5,
+          "y": 0.7493,
+          "exprError": null
+        },
+        {
+          "id": 407,
+          "type": "fixed",
+          "point": "spline_mud738ts_2",
+          "x": 1.4,
+          "y": 0.35,
+          "exprError": null
+        },
+        {
+          "id": "dim_t5e3hzl",
+          "type": "distance",
+          "entity": 398,
+          "value": 1.5,
+          "driven": false,
+          "exprError": null,
+          "name": "CapDepth"
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    },
+    {
+      "id": "sk_1necy",
+      "name": "Right Plane sketch",
+      "plane": "side",
+      "offset": 0,
+      "referenceId": "plane:right",
+      "points": [
+        {
+          "id": 408,
+          "x": -0.635,
+          "y": 0.508,
+          "fixed": false
+        },
+        {
+          "id": 409,
+          "x": -1.0922,
+          "y": 0.3302
+        },
+        {
+          "id": 411,
+          "x": -1.27,
+          "y": 0.3302,
+          "fixed": false
+        }
+      ],
+      "entities": [
+        {
+          "id": 410,
+          "type": "line",
+          "name": "Line",
+          "a": 408,
+          "b": 409,
+          "construction": false,
+          "weight": 2
+        },
+        {
+          "id": 412,
+          "type": "line",
+          "name": "Line",
+          "a": 409,
+          "b": 411,
+          "construction": false,
+          "weight": 2
+        }
+      ],
+      "constraints": [
+        {
+          "type": "horizontal",
+          "entity": 412,
+          "id": 413,
+          "exprError": null
+        },
+        {
+          "id": 414,
+          "type": "fixed",
+          "point": 408,
+          "x": -0.635,
+          "y": 0.508,
+          "exprError": null
+        },
+        {
+          "id": 415,
+          "type": "fixed",
+          "point": 411,
+          "x": -1.27,
+          "y": 0.3302,
+          "exprError": null
+        },
+        {
+          "id": "dim_swge6t6",
+          "type": "distance",
+          "entity": 412,
+          "value": 0.1778,
+          "driven": false,
+          "exprError": null,
+          "name": "ConnectorLand"
+        }
+      ],
+      "diagnostics": [],
+      "status": "fully-defined"
+    }
+  ],
+  "history": [
+    {
+      "id": "history:sketch:sk_0k78g",
+      "kind": "sketch",
+      "targetId": "sk_0k78g",
+      "name": "Right Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mud6zu7h_1",
+      "kind": "feature",
+      "targetId": "feature_mud6zu7h_1",
+      "name": "Revolve 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_1w40x",
+      "kind": "sketch",
+      "targetId": "sk_1w40x",
+      "name": "Right Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mud78dvl_2",
+      "kind": "feature",
+      "targetId": "feature_mud78dvl_2",
+      "name": "Revolve 2",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:sketch:sk_1necy",
+      "kind": "sketch",
+      "targetId": "sk_1necy",
+      "name": "Right Plane sketch",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mud7kqx7_1",
+      "kind": "feature",
+      "targetId": "feature_mud7kqx7_1",
+      "name": "Revolve Cut 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    },
+    {
+      "id": "history:feature:feature_mud8ai3h_1",
+      "kind": "feature",
+      "targetId": "feature_mud8ai3h_1",
+      "name": "Dome 1",
+      "suppressed": false,
+      "status": "rebuilt"
+    }
+  ],
+  "metadata": {
+    "authoringSystem": "parametric-v1"
+  },
+  "parameters": {},
+  "variables": [],
+  "referenceGeometry": [
+    {
+      "id": "plane:top",
+      "type": "reference_plane",
+      "name": "Top Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:front",
+      "type": "reference_plane",
+      "name": "Front Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:right",
+      "type": "reference_plane",
+      "name": "Right Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "axis:x",
+      "type": "reference_axis",
+      "name": "X Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:y",
+      "type": "reference_axis",
+      "name": "Y Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:z",
+      "type": "reference_axis",
+      "name": "Z Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    }
+  ],
+  "references": [
+    {
+      "id": "origin",
+      "type": "origin",
+      "name": "Origin",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:top",
+      "type": "plane",
+      "name": "Top Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:front",
+      "type": "plane",
+      "name": "Front Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "xAxis": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "plane:right",
+      "type": "plane",
+      "name": "Right Plane",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "xAxis": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    },
+    {
+      "id": "axis:x",
+      "type": "axis",
+      "name": "X Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:y",
+      "type": "axis",
+      "name": "Y Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      }
+    },
+    {
+      "id": "axis:z",
+      "type": "axis",
+      "name": "Z Axis",
+      "origin": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "direction": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      }
+    }
+  ]
+}
