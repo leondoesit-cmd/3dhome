@@ -135,6 +135,7 @@ import {
   analyzeParametricHistory, createFeatureDefinition, ensureParametricDocument,
   recordSketchInHistory, removeHistoryNode, reorderHistoryNode, suppressHistoryNode,
   updateFeatureDefinition, setHistoryRollback, historyEntryRolled, applyHistoryToPreviewParts,
+  reconnectLaterBodyConsumers,
 } from "./core/parametric_document.js";
 import { compileKernelFeatureTree, FEATURE_PATTERN_SEED_TYPES } from "./core/kernel_feature_adapter.js";
 import { publishRebuildStatus, rebuildParametricDocument, withKernelFailures } from "./core/parametric_rebuild.js";
@@ -7614,7 +7615,7 @@ function createMultiSketchFeature(type, values) {
     catch(error){H.discard();flash(String(error.message||error));return false;}
     var helixHost=mergeTargetBody(kernelRecipeBounds(type,params),params);
     if(helixHost){
-      var parentId=cutTargetFeatureId(helixHost);helixFeature.inputs=[parentId];helixFeature.references.features=[parentId];
+      var parentId=cutTargetFeatureId(helixHost);helixFeature.inputs=[parentId];helixFeature.references.features=[parentId];reconnectLaterBodyConsumers(E.def,helixFeature);
       helixHost.merges3d=helixHost.merges3d || [];
       helixHost.merges3d.push({kind:"sweep",profile:cloneData(params.profile),path:cloneData(params.path),pathSegments:cloneData(params.pathSegments),profileSegments:cloneData(params.profileSegments),orientation:params.orientation,twistAngle:params.twistAngle,scale:params.scale,sketchSources:helixSources,featureId:helixFeature && helixFeature.id || undefined});
       invalidatePartMeshAfterEdit(helixHost);
@@ -7666,7 +7667,7 @@ function createMultiSketchFeature(type, values) {
      visible geometry — sweep and loft added a step and drew nothing. */
   var mergeHost=cutTarget?null:mergeTargetBody(kernelRecipeBounds(type,params),params);
   if(mergeHost){
-    var mergeParent=cutTargetFeatureId(mergeHost);created.inputs=[mergeParent];created.references.features=[mergeParent];
+    var mergeParent=cutTargetFeatureId(mergeHost);created.inputs=[mergeParent];created.references.features=[mergeParent];reconnectLaterBodyConsumers(E.def,created);
     mergeHost.merges3d=mergeHost.merges3d || [];
     mergeHost.merges3d.push(type==="loft"
       ? {kind:"loft",sections:cloneData(params.sections),solid:params.solid!==false,ruled:!!params.ruled,matchProfiles:params.matchProfiles!==false,continuity:params.continuity,tolerance:params.tolerance,sketchSources:sources,featureId:created && created.id || undefined}
@@ -8085,7 +8086,7 @@ function createRevolveFeature(options) {
   var revolveHost=mergeTargetBody(partBounds(revolved),params);
   if(revolveHost){
     var revolveTarget=cutTargetFeatureId(revolveHost);
-    feature.inputs=[revolveTarget];feature.references.features=[revolveTarget];
+    feature.inputs=[revolveTarget];feature.references.features=[revolveTarget];reconnectLaterBodyConsumers(E.def,feature);
     revolveHost.merges3d=revolveHost.merges3d || [];
     revolveHost.merges3d.push({kind:"revolve",radialProfile:true,symmetric:params.symmetric,axis:String(axisReference).split(":")[1] || "y",angle:Number(params.angle)||360,direction:params.direction,loop:profile.points.map(function(q){return {u:q.u,v:q.v};}),featureId:feature.id});
     invalidatePartMeshAfterEdit(revolveHost);
