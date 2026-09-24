@@ -49,6 +49,12 @@ export function basePartBounds(p) {
      failed — it has none, and an empty box keeps it out of defBounds(), the
      camera fit and every snap instead of parking a phantom at the origin. */
   if (isKernelBody(p)) return kernelBodyBounds(p) || { x0: 0, x1: 0, y0: 0, y1: 0, z0: 0, z1: 0 };
+  // A drafted extrusion, shell, or cut has a different envelope from its
+  // original sketch prism. Use the kernel's analytic bounds as soon as its
+  // exact mesh is available, including before any merge is added to the part.
+  var exact=p.meshData && p.meshData.exactBounds;
+  if (exact && exact.min && exact.max && ["x","y","z"].every(function(axis){return Number.isFinite(exact.min[axis]) && Number.isFinite(exact.max[axis]) && exact.max[axis]>=exact.min[axis];}))
+    return {x0:exact.min.x,x1:exact.max.x,y0:exact.min.y,y1:exact.max.y,z0:exact.min.z,z1:exact.max.z};
   if ((p.kind === "direct" || p.kind === "mesh") && p.bounds) return { ...p.bounds };
   if ((p.kind === "direct" || p.kind === "mesh" || (p.merges3d || []).some(function(merge){return !merge.suppressed;})) && p.meshData) {
     var mp=p.meshData.positions || [], mb={x0:Infinity,x1:-Infinity,y0:Infinity,y1:-Infinity,z0:Infinity,z1:-Infinity};

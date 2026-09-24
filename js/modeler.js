@@ -12720,11 +12720,30 @@ function addSketchCircle(centre, rim, snap) {
   resolveSketch(false);
   return circle;
 }
-function openCircularConversion(sketch) {
+function openCircularConversion(sketch, selectedEdge) {
   var candidates=[];
   (E.def.parts || []).forEach(function(part){topologyEntriesForPart(part).forEach(function(edge){if(edge.kind!=="edge")return;try{projectCircularEdge(sketch,edge);candidates.push(edge);}catch(error){/* Parallel complete circles only. */}});});
+  // A picked edge expresses the user's intent more precisely than the order
+  // in which topology enumeration happens to return the body's circles.
+  var partialSelection=false;
+  if(selectedEdge){
+    try{projectCircularEdge(sketch,selectedEdge);if(!candidates.some(function(edge){return edge.persistentId===selectedEdge.persistentId;}))candidates.unshift(selectedEdge);
+      else candidates.sort(function(a,b){return Number(b.persistentId===selectedEdge.persistentId)-Number(a.persistentId===selectedEdge.persistentId);});
+    }catch(error){
+      // A seam or a split arc can win the viewport pick even when the user
+      // clicks the nearby full rim. Keep the command open so they can choose
+      // an unambiguous complete edge by its radius and axial position.
+      partialSelection=true;
+      var radius=selectedEdge.descriptor?.radius, z=selectedEdge.descriptor?.origin?.z;
+      if(Number.isFinite(radius))candidates.sort(function(a,b){
+        var da=Math.abs(a.descriptor.radius-radius)+(!Number.isFinite(z)?0:Math.abs(a.descriptor.origin.z-z));
+        var db=Math.abs(b.descriptor.radius-radius)+(!Number.isFinite(z)?0:Math.abs(b.descriptor.origin.z-z));
+        return da-db || a.persistentId.localeCompare(b.persistentId);
+      });
+    }
+  }
   if(!candidates.length){flash("No parallel circular edges are available");return;}
-  openQuickForm({action:"faceboundary",icon:"ph-copy-simple",title:"Convert circular edge",hint:"Project an exact circle onto this sketch plane. It follows changes to the source edge.",fields:[
+  openQuickForm({action:"faceboundary",icon:"ph-copy-simple",title:"Convert circular edge",hint:partialSelection?"The picked edge is a partial arc. Choose a complete circular edge by radius and Z position.":"Project an exact circle onto this sketch plane. It follows changes to the source edge.",fields:[
     {key:"source",label:"Source edge",type:"select",value:candidates[0].persistentId,choices:candidates.map(function(edge,index){return {value:edge.persistentId,label:(index+1)+" · radius "+edge.descriptor.radius.toFixed(4)+" cm · Z "+edge.descriptor.origin.z.toFixed(4)+" cm"};})}
   ],onApply:function(values){
     var source=candidates.find(function(edge){return edge.persistentId===values.source;});
@@ -12765,6 +12784,8 @@ function openSilhouetteConversion(sketch) {
 }
 function openFaceBoundary() {
   var sketch=ensureSketch(E.def),reference=E.authoring?.phase==="sketch" ? sketch.support || selectedSketchableFace() : selectedSketchableFace() || sketch.support;
+  var selectedEdge=(E.topologySelection || []).find(function(item){return item.kind==="edge" && item.descriptor?.curve==="circle";});
+  if(E.authoring?.phase==="sketch" && selectedEdge){openCircularConversion(sketch,selectedEdge);return;}
   if (!reference || reference.descriptor?.surface!=="plane") { if(E.authoring?.phase==="sketch")openSilhouetteConversion(sketch);else flash(t("faceBoundaryNeed")); return; }
   var part=selectedSolid() || (E.def.parts || []).find(function(p){return topologyEntriesForPart(p).some(function(e){return e.persistentId===reference.persistentId;});});
   if(!part){flash(t("faceBoundaryNeed"));return;}

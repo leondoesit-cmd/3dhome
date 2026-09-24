@@ -100,6 +100,38 @@ test('editing an offset plane keeps its parent despite a retained face selection
  open();
  assert.equal(field('parent').value,'selected-face');
 });
+test('Copy face boundary prefers the selected circular edge over a planar face',()=>{
+ const edge={kind:'edge',persistentId:'rear-inner-circle',descriptor:{curve:'circle'}};
+ const sketch={support:{kind:'face',descriptor:{surface:'plane'}}};
+ let chosen;
+ const convert=load('openFaceBoundary',{
+  E:{def:{},authoring:{phase:'sketch'},topologySelection:[edge]},
+  ensureSketch:()=>sketch,selectedSketchableFace:()=>sketch.support,
+  openCircularConversion:(actualSketch,actualEdge)=>{chosen={actualSketch,actualEdge};},
+ });
+ convert();
+ assert.equal(chosen.actualSketch,sketch);
+ assert.equal(chosen.actualEdge,edge);
+ const other={kind:'edge',persistentId:'front-circle',descriptor:{curve:'circle',radius:1,origin:{z:0}}};
+ let form;
+ const open=load('openCircularConversion',{
+  E:{def:{parts:[{}]}},topologyEntriesForPart:()=>[other,edge],
+  projectCircularEdge:()=>({x:0,y:0,radius:1}),openQuickForm:config=>{form=config;},
+ });
+ edge.descriptor.radius=1;edge.descriptor.origin={z:0};
+ open(sketch,edge);
+ assert.equal(form.fields[0].value,edge.persistentId);
+ const partial={kind:'edge',persistentId:'split-arc',descriptor:{curve:'circle',radius:1.05,origin:{z:0}}};
+ const complete={kind:'edge',persistentId:'near-full-rim',descriptor:{curve:'circle',radius:1.08,origin:{z:0}}};
+ const fallback=load('openCircularConversion',{
+  E:{def:{parts:[{}]}},topologyEntriesForPart:()=>[other,complete],
+  projectCircularEdge:(_sketch,item)=>{if(item===partial)throw Error('Select a complete circular edge');return {x:0,y:0,radius:item.descriptor.radius};},
+  openQuickForm:config=>{form=config;},
+ });
+ fallback(sketch,partial);
+ assert.match(form.hint,/partial arc/);
+ assert.equal(form.fields[0].value,complete.persistentId);
+});
 test('standard views preserve a feature profile while choosing its terminating face',()=>{
  const calls=[];
  const E={view:'side',mode:'3d',def:{activeSketch:'rib'},authoring:{featureType:'extrude'},
