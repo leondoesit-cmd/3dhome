@@ -17985,10 +17985,19 @@ function fillSketchPane() {
   var planeRow = el("label", "md-row md-row-wide");
   planeRow.appendChild(el("span", "t", t("sketchPlane")));
   var planeSel = el("select");
+  var attachedPlane = sketch.referenceId && !/^plane:(top|front|right)$/.test(sketch.referenceId)
+    ? (E.def.references || []).find(function (reference) { return reference.id === sketch.referenceId; })
+    : null;
+  if (attachedPlane) {
+    var attachedOption = el("option", "", referenceLabel(attachedPlane));
+    attachedOption.value = attachedPlane.id;
+    attachedOption.selected = true;
+    planeSel.appendChild(attachedOption);
+  }
   [["top", t("view_top")], ["front", t("view_front")], ["side", t("view_side")]].forEach(function (o) {
     var opt = el("option", "", o[1]);
     opt.value = o[0];
-    if (sketch.plane === o[0]) opt.selected = true;
+    if (!attachedPlane && sketch.plane === o[0]) opt.selected = true;
     planeSel.appendChild(opt);
   });
   planeSel.addEventListener("change", function () {
@@ -22551,8 +22560,11 @@ function downloadBytes(bytes, name, type) {
 function openOffsetPlaneForm(existing) {
   var selectedFace=(E.topologySelection || []).find(function(face){return face.kind==="face" && face.descriptor?.surface==="plane";});
   var selectedVertex=(E.topologySelection || []).find(function(item){return item.kind==="vertex";});
-  var support=existing?.support || selectedFace;
-  var throughVertex=existing?.throughVertex || selectedVertex;
+  // A retained viewport selection is a suggestion for a new plane only. When
+  // editing, keep the plane's own parent instead of silently reattaching it to
+  // whichever face happens to be selected (and moving all dependent sketches).
+  var support=existing ? existing.support : selectedFace;
+  var throughVertex=existing ? existing.throughVertex : selectedVertex;
   var throughEdges=existing?.throughEdges;
   var planes=(E.def.references || []).filter(function(r){return r.type==="plane" && r.id!==existing?.id;});
   var initialMode=existing?.refType==="through-vertex-parallel" || throughVertex ? "through-vertex" : "offset";

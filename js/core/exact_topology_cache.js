@@ -9,7 +9,12 @@ function signatures(document, features) {
     if(feature.params?.sketchId)sketchIds.add(feature.params.sketchId);
     for(const id of feature.references?.sketches || [])sketchIds.add(id);
     const sketches=(document.sketches || []).filter(sketch=>sketchIds.has(sketch.id)).map(sketch=>({
-      id:sketch.id,points:sketch.points,entities:sketch.entities,constraints:sketch.constraints,
+      id:sketch.id,points:sketch.points,entities:sketch.entities,
+      // A dimension label is an address for equations, not geometry. Renaming
+      // it must not hide a verified loft face from the lightweight rebuild
+      // while the exact kernel catches up. The resolved value and expression
+      // remain in the stamp, so changes that move geometry still expire it.
+      constraints:(sketch.constraints || []).map(({name,exprError,...constraint})=>constraint),
       plane:sketch.plane,offset:sketch.offset,frame:sketch.frame,frameSpace:sketch.frameSpace,
       support:sketch.support,supportOffset:sketch.supportOffset,
     }));

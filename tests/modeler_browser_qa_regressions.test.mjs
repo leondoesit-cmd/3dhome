@@ -84,6 +84,22 @@ test('Front uses its world camera preset even while a top face remains selected'
  assert.equal(E.view,'front');
  assert.deepEqual(calls,[{az:0,el:.05}]);
 });
+test('editing an offset plane keeps its parent despite a retained face selection',()=>{
+ const selectedFace={kind:'face',persistentId:'unrelated-top',descriptor:{surface:'plane'}};
+ const E={topologySelection:[selectedFace,{kind:'vertex',persistentId:'corner'}],def:{references:[
+  {id:'plane:top',type:'plane',name:'Top Plane'},
+  {id:'plane:front',type:'plane',name:'Front Plane'},
+ ]}};
+ let form;
+ const open=load('openOffsetPlaneForm',{E,t:key=>key,openQuickForm:config=>{form=config;return null;}});
+ const field=key=>form.fields.find(item=>item.key===key);
+ open({id:'plane1',type:'plane',name:'Plane1',refType:'offset',baseReferenceId:'plane:top',offset:1.27});
+ assert.equal(field('parent').value,'plane:top');
+ assert.equal(field('mode').value,'offset');
+ assert.ok(!field('parent').choices.some(choice=>choice.value==='selected-face'));
+ open();
+ assert.equal(field('parent').value,'selected-face');
+});
 test('standard views preserve a feature profile while choosing its terminating face',()=>{
  const calls=[];
  const E={view:'side',mode:'3d',def:{activeSketch:'rib'},authoring:{featureType:'extrude'},
