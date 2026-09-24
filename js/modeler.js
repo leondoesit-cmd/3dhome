@@ -22805,6 +22805,12 @@ function mobileBridge() {
         addSelection: !!E.mobileAddSelection,
         topologyCount: (E.topologySelection || []).length,
         componentCount: (E.componentSel || []).length,
+        /* Sketch geometry is picked into E.ssel, not the topology list, so the
+           phone selection bar never saw it — and with no Ctrl key its Add to
+           selection toggle was the only way to hold two sketch entities, which
+           every two-pick relation (Symmetric, Point on entity, Coincident…)
+           and Mirror need. */
+        sketchCount: (E.authoring && E.authoring.phase === "sketch") || E.mode === "2d" ? (E.ssel || []).length : 0,
         selectionKind: (E.topologySelection[0] && E.topologySelection[0].kind) || (E.componentSel.length ? "body" : ""),
         rebuildErrors: E.coreRun && E.coreRun.issues ? E.coreRun.issues.filter(function (issue) { return issue.severity === "error"; }).length : 0,
         rebuildWarnings: E.coreRun && E.coreRun.issues ? E.coreRun.issues.filter(function (issue) { return issue.severity === "warning"; }).length : 0,

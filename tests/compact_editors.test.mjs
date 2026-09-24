@@ -240,3 +240,22 @@ test("planner: mobile tour card preserves responsive CSS docking above mobile bo
   assert.match(md, /document\.body\.classList\.contains\("compact-nav"\) && !E\.tour\.moved/);
   assert.match(css, /body\.compact-nav \.planner-tour-card/);
 });
+
+/* A phone has no Ctrl key, so the selection bar's Add to selection toggle is
+   the only way to hold two sketch entities — and every two-pick relation
+   (Symmetric, Point on entity, Coincident…) and Mirror needs two. The bar
+   used to count only faces, edges and bodies, so in a sketch it never
+   appeared and HOUSING Sketchsquare could not be fully defined by touch. */
+test("modeler: a phone can build a multi-entity sketch selection", () => {
+  // the shell is told how many sketch entities are picked, only while a sketch is open
+  assert.match(md, /sketchCount: \(E\.authoring && E\.authoring\.phase === "sketch"\) \|\| E\.mode === "2d" \? \(E\.ssel \|\| \[\]\)\.length : 0,/);
+  // the bar counts them, so it shows with its Add to selection toggle
+  assert.match(mdMobile, /var selected = modelPicks \+ \(st\.sketchCount \|\| 0\);/);
+  // the face/edge/body filter is only offered when something it filters is picked
+  assert.match(mdMobile, /if \(modelPicks\) selectionBar\.appendChild\(btn\(\{\s*ph: "ph-funnel"/);
+  // a change in the sketch selection re-renders the shell
+  assert.match(mdMobile, /st\.componentCount \|\| 0,\s*st\.sketchCount \|\| 0,/);
+  // both pick paths already honour the toggle — canvas taps and the geometry list
+  assert.match(md, /selectSketch\(p, e\.ctrlKey \|\| e\.metaKey \|\| E\.mobileAddSelection\)/);
+  assert.match(md, /selectSketch\(object,event\.ctrlKey\|\|event\.metaKey\|\|event\.shiftKey\|\|E\.mobileAddSelection\)/);
+});

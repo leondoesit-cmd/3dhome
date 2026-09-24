@@ -250,7 +250,8 @@ function ctxActions() {
 function renderSelectionBar() {
   if (!selectionBar) return;
   var st = api.state();
-  var selected = (st.topologyCount || 0) + (st.componentCount || 0);
+  var modelPicks = (st.topologyCount || 0) + (st.componentCount || 0);
+  var selected = modelPicks + (st.sketchCount || 0);
   selectionBar.hidden = !selected;
   if (!selected) { selectionBar.innerHTML = ""; return; }
   var filters = ["all", "face", "edge", "body"];
@@ -263,7 +264,8 @@ function renderSelectionBar() {
     on: st.addSelection,
     run: function () { api.setAddSelection(!api.state().addSelection); },
   }));
-  selectionBar.appendChild(btn({
+  // The filter narrows face/edge/body picks; sketch geometry has none of those.
+  if (modelPicks) selectionBar.appendChild(btn({
     ph: "ph-funnel",
     label: t(labels[st.selFilter] || "selFilterAll"),
     run: function () { api.setSelFilter(filters[(at + 1) % filters.length]); },
@@ -901,6 +903,7 @@ function sig() {
     st.addSelection ? 1 : 0,
     st.topologyCount || 0,
     st.componentCount || 0,
+    st.sketchCount || 0,
     st.rebuildErrors || 0,
     st.rebuildWarnings || 0,
     st.contextRoom ? 1 : 0,
