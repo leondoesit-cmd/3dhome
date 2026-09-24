@@ -6610,6 +6610,13 @@ function attachSketchToSelectedFace(forceNew) {
 function setTool(id, keepPlaneState) {
   if (E.dimEditor && !applyDimensionEditor()) return;
   E.touchPrecision = null;
+  if (E.mode === "drawing" && id === "note") {
+    E.tool = id;
+    drawingSheet().setTool(id);
+    syncTools();
+    syncHint();
+    return;
+  }
   if (id === "paint" || id === "note") {
     E.tool = id;
     if (E.mode !== "3d") setMode("3d");
@@ -10350,7 +10357,7 @@ function syncTools() {
   }
   var notesBar = root.querySelector("#mdNotesToolbar");
   if (notesBar) {
-    var showNotes = E.tool === "note";
+    var showNotes = E.tool === "note" && E.mode !== "drawing";
     notesBar.hidden = !showNotes;
     if (showNotes) syncNotesToolbar();
   }
@@ -10427,7 +10434,7 @@ function syncHint() {
     hint.classList.remove("on");
     return;
   }
-  if (E.tool === "note") {
+  if (E.tool === "note" && E.mode !== "drawing") {
     hint.textContent = E.noteMode === "markup" ? t("markupHint") : t("noteHint");
     hint.classList.remove("on");
     return;

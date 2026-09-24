@@ -8,7 +8,7 @@ import { revolveRecipe } from "./revolve_geometry.js";
 import { cloneDomain } from "./schema.js";
 import { endConditionHidesDepth } from "./extrude_extent.js";
 import { analyzeParametricHistory, ensureParametricDocument, historyEntryRolled } from "./parametric_document.js";
-import { circularPatternStepDegrees, curvePatternPlacements, linearPatternOffsets, parseSkippedPatternInstances } from "./pattern_geometry.js";
+import { circularPatternStepDegrees, curvePatternPlacements, linearPatternOffsets, parseSkippedPatternInstances, patternPlacementTransform } from "./pattern_geometry.js";
 import { holeWizardSolids } from "../cad_hole_wizard.js";
 import { generateToolboxPart } from "../toolbox/generate.js";
 
@@ -186,6 +186,29 @@ function loweredFeature(feature, document) {
       const subtractive=["extrudeCut","revolveCut","sweepCut","hole"].includes(seed?.type);
       if(!seed?.inputs?.[0] || (!subtractive && !FEATURE_PATTERN_SEED_TYPES.includes(seed.type)))throw new Error("Select an additive or cutting feature with a source body");
       const delta=feature.id+":delta",copies=feature.id+":instances";
+      if (subtractive) {
+        /* A single Boolean cut with a compound of intersecting cutters can
+           silently leave copies behind. Cut each placed seed from the current
+           result instead; the original seed is already in feature.inputs[0]. */
+        const params=feature.params || {},count=Math.max(2,Math.min(256,Math.round(Number(params.count)||2)));
+        const circularStep=circularPatternStepDegrees(params,count)*Math.PI/180;
+        const skipped=parseSkippedPatternInstances(params.skipInstances);
+        const placements=params.mode==="circular"
+          ? Array.from({length:count-1},(_,index)=>({circularIndex:index+1,instance:index+1})).filter(item=>!skipped.has(item.instance))
+          : params.mode==="curve" ? curvePatternPlacements(params) : linearPatternOffsets(params,count);
+        const rows=[{...base,id:delta,type:"subtract",inputs:[seed.inputs[0],seed.id],params:{}}];
+        let previous=feature.inputs[0];
+        placements.forEach((placement,index)=>{
+          const copyId=feature.id+":copy:"+(index+1);
+          rows.push({...base,id:copyId,type:"transformBody",inputs:[delta],params:patternPlacementTransform(params,placement,circularStep)});
+          const last=index===placements.length-1;
+          const cutId=last?feature.id:feature.id+":cut:"+(index+1);
+          rows.push({...base,id:cutId,type:"subtract",inputs:[previous,copyId],params:{}});
+          previous=cutId;
+        });
+        if(!placements.length)rows.push({...base,type:"transformBody",inputs:[previous],params:{}});
+        return rows;
+      }
       const layout=loweredFeature({...feature,id:copies,inputs:[delta],params:{...feature.params,scope:"body",seedOnly:false}},document);
       return [{...base,id:delta,type:"subtract",inputs:subtractive?[seed.inputs[0],seed.id]:[seed.id,seed.inputs[0]],params:{}},...layout,{...base,type:subtractive?"subtract":"union",inputs:[feature.inputs[0],copies],params:{}}];
     }

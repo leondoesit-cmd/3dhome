@@ -17,7 +17,7 @@ import {
 const SUPPORTED_FEATURES = new Set([
   "sketch", "box", "cylinder", "sphere", "extrude", "cut", "revolve", "sweep", "loft",
   "fillet", "chamfer", "shell", "dome", "draft", "thicken", "rib", "splitBody", "moveBody", "mirror", "linearPattern", "linearGridPattern", "circularPattern", "curvePattern", "pattern", "extrudeCut", "revolveCut", "sweepCut", "boolean",
-  "union", "subtract", "intersect", "procedural", "direct", "import", "component", "assembly",
+  "union", "subtract", "intersect", "transformBody", "procedural", "direct", "import", "component", "assembly",
   "hole", "holeTool", "helix", "thread", "knurl", "insert", "cone", "toolbox",
 ]);
 
