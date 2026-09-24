@@ -42,6 +42,23 @@ function pointMap(sketch) {
   return map;
 }
 
+// Move a sketch in its own plane without changing its constrained shape.
+// Fixed-point targets are absolute coordinates, so they must move with the
+// points; ordinary dimensions and geometric relations remain relative.
+export function translateSketchGeometry(sketch, dx, dy) {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) throw new RangeError("Sketch translation must be finite");
+  for (const point of sketch.points || []) {
+    point.x += dx;
+    point.y += dy;
+  }
+  for (const constraint of sketch.constraints || []) {
+    if (constraint.type !== "fixed") continue;
+    if (constraint.x != null) constraint.x = Number(constraint.x) + dx;
+    if (constraint.y != null) constraint.y = Number(constraint.y) + dy;
+  }
+  return sketch;
+}
+
 function entityMap(sketch) {
   const map = new Map();
   (sketch.entities || []).forEach((e) => map.set(e.id, e));

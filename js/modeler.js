@@ -79,7 +79,7 @@ import {
   ensureSketch, ensureSketchDoc, sketchById, addSketch, removeSketch, pruneAbandonedSketches, planeLabel,
   sketchPoint, sketchEntity, solveSketch, explainSketchConflict, resolveProfilePoints,
   lineData, circleData, ellipseData, entityPoints, removeSketchEntity, refusesAsRepeat,
-  collapsedEntityIds, pruneImpliedRelations, sketchEntitySizes,
+  collapsedEntityIds, pruneImpliedRelations, sketchEntitySizes, translateSketchGeometry,
 } from "./sketch_solver.js";
 import { drawNameTags, relationSubjects, relationTargets, sketchInstanceNames } from "./sketch_names.js";
 import {
@@ -123,7 +123,7 @@ import { calloutText, calloutTextById, holeCallouts } from "./core/hole_callout.
 import { cosmeticThread, modeledThreadSolid, normalizeThreadSpec, threadCallout, validateThreadFeature, validateThreadFit, documentThreadOverlays } from "./cad_thread.js";
 import { knurlBandMesh, knurlCallout, knurlGroovePolylines, normalizeKnurlSpec, validateKnurl } from "./cad_knurl.js";
 import { toolboxFastener, listToolboxLibrary, toolboxFamily, lengthOptionsForSize, FASTENER_LENGTHS_MM, reducingBranchRows, PVC_D1785, searchToolbox, TOOLBOX_CATEGORY_LABELS } from "./cad_toolbox.js";
-import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides, partMaterialDensity, stockMaterialForPart, drawingMaterialName, pruneSketchTargetedBodyAppearances } from "./cad_appearances.js";
+import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides, partMaterialDensity, stockMaterialForPart, drawingMaterialName, pruneSketchTargetedBodyAppearances, pruneSketchMaterialFields } from "./cad_appearances.js";
 import { appearanceGroups } from "./core/appearance_groups.js";
 import { captureConfiguration, ensureConfigurations, setActiveConfiguration } from "./cad_configurations.js";
 import { evaluateFit, fitCallout, fitLimitSource } from "./cad_fits.js";
@@ -17865,6 +17865,27 @@ function fillSketchPane() {
     }, "md-profile-heal"));
   }
   host.appendChild(profileCard);
+  if (sketch.points.length) host.appendChild(btn("Translate sketch geometry", function () {
+    openQuickForm({action:"translatesketch",title:"Translate sketch geometry",hint:"Move every sketch point and its fixed anchors together. Dimensions and shape stay the same.",fields:[
+      {key:"dx",label:"Horizontal shift",type:"number",value:0,unit:"length"},
+      {key:"dy",label:"Vertical shift",type:"number",value:0,unit:"length"}
+    ],onApply:function(values){
+      var dx=Number(values.dx),dy=Number(values.dy);
+      if(!Number.isFinite(dx)||!Number.isFinite(dy)||(!dx&&!dy))return false;
+      if(sketch.constraints.some(function(c){return !c.suppressed&&["onModelEdge","pierce","intersection"].includes(c.type);})){
+        flash("Detach external sketch relations before translating the sketch.");return false;
+      }
+      pushUndo("Translate sketch geometry");
+      var previousPoints=cloneData(sketch.points),previousConstraints=cloneData(sketch.constraints);
+      translateSketchGeometry(sketch,dx,dy);
+      if(!resolveSketch(true)){
+        sketch.points=previousPoints;sketch.constraints=previousConstraints;
+        E.ssel=[];resolveSketch(false);H.discard();
+        flash("Sketch translation conflicts with its constraints.");refreshAll();return false;
+      }
+      E.ssel=[];refreshAll();return true;
+    }});
+  },"md-wide"));
   appendSketchGeometryList(host, sketch);
   if (E.ssel.length) {
     var selectionCard = el("div", "md-selection-info");
@@ -23183,6 +23204,7 @@ async function saveModel() {
   pruneAbandonedSketches(E.def);
   var def = JSON.parse(JSON.stringify(E.def));
   pruneSketchTargetedBodyAppearances(def);
+  pruneSketchMaterialFields(def);
   // Canonical sketches and face references own their coordinate system.
   // Recentring a rendered bounding box on save invalidates those references.
   if (!canonical) normalizeDef(def);

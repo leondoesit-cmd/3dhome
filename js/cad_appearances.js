@@ -123,6 +123,22 @@ export function pruneSketchTargetedBodyAppearances(def) {
   return before - def.appearances.length;
 }
 
+// The same legacy selection path also copied body-material fields onto sketch
+// points. Keep intentional point styling alone; remove only points that carry
+// unmistakable material metadata, along with the finish fields copied with it.
+export function pruneSketchMaterialFields(def) {
+  let cleaned = 0;
+  const fields = ["materialCatalogId", "materialQualificationId", "materialName", "density", "densitySource", "color", "metal", "rough"];
+  for (const sketch of def?.sketches || []) {
+    for (const point of sketch.points || []) {
+      if (point.materialCatalogId == null && point.materialQualificationId == null && point.materialName == null && point.density == null) continue;
+      for (const field of fields) delete point[field];
+      cleaned++;
+    }
+  }
+  return cleaned;
+}
+
 export function faceAppearanceOverrides(overrides = []) {
   return (overrides || []).filter((item) => item.kind === "face" && item.persistentId);
 }
