@@ -12,7 +12,7 @@ import {resolveProfilePoints, solveSketch} from "./sketch_solver.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { createTopologyRegistry, resolveFeatureTopologyReferences, topologyForFeature } from "./core/topology.js";
 import { vertexEntriesFrom } from "./core/topology_selection.js";
-import { realignFrame } from "./core/frame.js";
+import { faceFrameOrigin, realignFrame } from "./core/frame.js";
 import { aabbFromTopology, extrusionAxisVector, extrusionMapPoint, isUpToFace, profileBoundarySamples, resolveExtrudeExtent, resolvedEndFace, UP_TO_FACE_MISSING, UP_TO_FACE_MISSED, UP_TO_NEXT_MISSED } from "./core/extrude_extent.js";
 import { resolveParameters, sketchDiagnostics } from "./core/rebuild.js";
 import { decodeBinaryPayload } from "./core/binary_payload.js";
@@ -530,7 +530,7 @@ export function alignExtrusionToSupport(params, resolutions = []) {
   if (params.frame) {
     const baseOffset = Number(params.baseOffset) || 0;
     const depth = Math.max(1e-6, Math.abs(Number(params.depth) || Math.abs(Number(params.to) - Number(params.from))));
-    return { ...params, frame: realignFrame(params.frame, descriptor.origin, descriptor.normal), from: symmetric ? baseOffset-depth/2 : baseOffset, to: symmetric ? baseOffset+depth/2 : baseOffset+reversed*depth };
+    return { ...params, frame: realignFrame(params.frame, faceFrameOrigin(descriptor,params.frameAnchor), descriptor.normal), from: symmetric ? baseOffset-depth/2 : baseOffset, to: symmetric ? baseOffset+depth/2 : baseOffset+reversed*depth };
   }
   const axis = params.axis || "y";
   const coordinate = Number(descriptor.origin[axis]) || 0;

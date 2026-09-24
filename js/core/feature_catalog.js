@@ -661,7 +661,7 @@ export const FEATURE_CATALOG = Object.freeze({
     },
     parameters: {
       holeType: ENUM("simple", "counterbore", "countersink", "spotface", "tapped", "tap-counterbore", "tap-countersink"),
-      standardSize: ENUM("custom", "M3", "M4", "M5", "M6", "M8", "M10", "M12", "M16", "M20"),
+      standardSize: ENUM("custom", "M3", "M4", "M5", "M6", "M8", "M10", "M12", "M16", "M20", "1/4-20"),
       fit: ENUM("close", "normal", "loose"),
       diameter: LENGTH, depth: LENGTH, endCondition: ENUM("blind", "through-all"),
       countersink: BOOLEAN, countersinkDiameter: LENGTH, counterbore: BOOLEAN,
@@ -686,8 +686,8 @@ export const FEATURE_CATALOG = Object.freeze({
           {value:"tap-counterbore",label:"Tapped counterbore",labelKey:"fcOptTappedCounterbore"},
           {value:"tap-countersink",label:"Tapped countersink",labelKey:"fcOptTappedCountersink"},
         ]},
-        // Metric designations: the same in every language, so no labelKey.
-        { key: "standardSize", label: "Size", labelKey: "fcFldSize", type: "select", choices: [{value:"custom",label:"Custom · enter mm or in"}].concat(["M3","M4","M5","M6","M8","M10","M12","M16","M20"].map((value)=>({value,label:value}))) },
+        // Standard designations are the same in every language, so no labelKey.
+        { key: "standardSize", label: "Size", labelKey: "fcFldSize", type: "select", choices: [{value:"custom",label:"Custom · enter mm or in"}].concat(["M3","M4","M5","M6","M8","M10","M12","M16","M20"].map((value)=>({value,label:value})),[{value:"1/4-20",label:"1/4-20 UNC · #7 tap drill"}]) },
         { key: "fit", label: "Through fit", labelKey: "fcFldThroughFit", type: "select", choices: [
           {value:"close",label:"Close",labelKey:"fcOptFitClose"},
           {value:"normal",label:"Normal",labelKey:"fcOptFitNormal"},

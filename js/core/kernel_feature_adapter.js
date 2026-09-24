@@ -107,7 +107,7 @@ function lowerExtrudeParams(feature, document) {
     to,
   };
   if (target) params.targetFeatureId = target;
-  if (sketch?.frame) { params.axis = "frame"; params.frame = cloneDomain(sketch.frame); }
+  if (sketch?.frame) { params.axis = "frame"; params.frame = cloneDomain(sketch.frame); if (sketch.frameAnchor) params.frameAnchor = sketch.frameAnchor; }
   if (sketch?.support) { params.support = cloneDomain(sketch.support); params.baseOffset = offset; params.depth = depth || Math.abs(to - from); }
   return params;
 }

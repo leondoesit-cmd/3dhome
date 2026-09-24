@@ -32,16 +32,27 @@ export const METRIC_HOLE_TABLE = Object.freeze({
   M24: { size: "M24", diameterMm: 24, pitchMm: 3.0,  tapDrillMm: 21.0, closeMm: 25, normalMm: 26, looseMm: 28, cboreDiaMm: 40.0, cboreDepthMm: 25.5, csinkDiaMm: 45.0, hexAfMm: 19,  headDiaMm: 36.0, headHeightMm: 24 },
 });
 
+// Unified 1/4-20 placement used by the inch Hole Wizard. The #7 tap drill is
+// 0.201 in; retaining its exact conversion avoids silently changing thread
+// engagement when the part is reopened in a metric document.
+export const UNIFIED_HOLE_TABLE = Object.freeze({
+  "1/4-20": { size:"1/4-20", imperial:true, diameterMm:6.35, pitchMm:1.27,
+    tapDrillMm:5.1054, closeMm:6.74624, normalMm:7.14375, looseMm:7.9375,
+    cboreDiaMm:11.1125, cboreDepthMm:6.35, csinkDiaMm:12.8778 },
+});
+
 const FIT_COLUMN = { close: "closeMm", normal: "normalMm", loose: "looseMm" };
 
 export function holeTableRow(size) {
   const key = String(size || "").toUpperCase().replace(/\s+/g, "");
+  const unified = key.replace(/UNC$/, "");
+  if (UNIFIED_HOLE_TABLE[unified]) return UNIFIED_HOLE_TABLE[unified];
   const tagged = key.startsWith("M") ? key : "M" + key;
   return METRIC_HOLE_TABLE[tagged] || null;
 }
 
 export function listHoleSizes() {
-  return Object.keys(METRIC_HOLE_TABLE);
+  return Object.keys(METRIC_HOLE_TABLE).concat(Object.keys(UNIFIED_HOLE_TABLE));
 }
 
 export function normalizeHoleWizard(params = {}) {
@@ -73,7 +84,7 @@ export function normalizeHoleWizard(params = {}) {
   return {
     holeType: type,
     standardSize: row?.size || params.standardSize || null,
-    standard: params.standardSize === "custom" ? "Custom" : params.standard || (threaded ? "ISO 262:2023" : "ISO 273"),
+    standard: params.standardSize === "custom" ? "Custom" : params.standard || (row?.imperial ? "ASME B1.1 UNC" : threaded ? "ISO 262:2023" : "ISO 273"),
     fit,
     diameterMm,
     diameter: mmToCm(diameterMm),
@@ -98,7 +109,8 @@ export function normalizeHoleWizard(params = {}) {
     spotfaceDepth: mmToCm(spotfaceDepthMm),
     direction: params.direction === "reverse" ? "reverse" : "forward",
     handedness: params.handedness === "lh" ? "lh" : "rh",
-    toleranceClass: params.toleranceClass || (threaded ? "6H" : null),
+    toleranceClass: row?.imperial && (!params.toleranceClass || params.toleranceClass === "6H") ? "2B" : params.toleranceClass || (threaded ? "6H" : null),
+    threadPreset: row?.imperial ? "unc-quarter-20" : "iso-metric",
     threadMode: params.threadMode === "modeled" ? "modeled" : "cosmetic",
     origin: params.origin || { u: 0, v: 0 },
     axis: params.axis || { x: 0, y: 1, z: 0 },
@@ -177,6 +189,7 @@ export function holeWizardThread(params, placement = {}) {
   if(recessMm>0){const axis=cylinderAxis(placement.axis || hole.axis);threadOrigin={x:threadOrigin.x+axis.x*recessMm/10,y:threadOrigin.y+axis.y*recessMm/10,z:threadOrigin.z+axis.z*recessMm/10};}
   const pendingDepth=!(lengthMm>0);
   const annotation=threadAnnotation({
+    threadPreset:hole.threadPreset,
     diameterMm: hole.threadDiameterMm,
     pitchMm: hole.pitchMm,
     lengthMm,
@@ -201,18 +214,21 @@ export function holeWizardThread(params, placement = {}) {
 export function holeCallout(params) {
   const hole = normalizeHoleWizard(params);
   const thru = hole.endCondition === "through-all";
-  const depth = thru ? " THRU" : " \u2193" + round1(hole.depthMm);
-  if (hole.holeType === "simple") return "Ø" + round1(hole.diameterMm) + depth;
+  const inch = params.displayUnit === "in" || (!params.displayUnit && hole.threadPreset === "unc-quarter-20");
+  const dimension = mm => inch ? Number((mm / 25.4).toPrecision(10)) + " in" : round1(mm);
+  const depth = thru ? " THRU" : " \u2193" + dimension(hole.depthMm);
+  if (hole.holeType === "simple") return "Ø" + dimension(hole.diameterMm) + depth;
   if (hole.holeType === "counterbore") {
-    return "Ø" + round1(hole.diameterMm) + depth + " \u232D Ø" + round1(hole.cboreDiameterMm) + "\u2193" + round1(hole.cboreDepthMm);
+    return "Ø" + dimension(hole.diameterMm) + depth + " \u232D Ø" + dimension(hole.cboreDiameterMm) + "\u2193" + dimension(hole.cboreDepthMm);
   }
   if (hole.holeType === "spotface") {
-    return "Ø" + round1(hole.diameterMm) + depth + " SF Ø" + round1(hole.cboreDiameterMm);
+    return "Ø" + dimension(hole.diameterMm) + depth + " SF Ø" + dimension(hole.cboreDiameterMm);
   }
   if (hole.holeType === "countersink") {
-    return "Ø" + round1(hole.diameterMm) + depth + " \u2334 Ø" + round1(hole.csinkDiameterMm) + " " + hole.csinkAngle + "°";
+    return "Ø" + dimension(hole.diameterMm) + depth + " \u2334 Ø" + dimension(hole.csinkDiameterMm) + " " + hole.csinkAngle + "°";
   }
   const thread = threadCallout({
+    threadPreset: hole.threadPreset,
     diameterMm: hole.threadDiameterMm,
     pitchMm: hole.pitchMm,
     lengthMm: hole.threadDepthMm || hole.depthMm,
@@ -222,10 +238,10 @@ export function holeCallout(params) {
     handedness: hole.handedness,
   });
   if (hole.holeType === "tap-counterbore") {
-    return thread + " \u232D Ø" + round1(hole.cboreDiameterMm) + "\u2193" + round1(hole.cboreDepthMm);
+    return thread + " \u232D Ø" + dimension(hole.cboreDiameterMm) + "\u2193" + dimension(hole.cboreDepthMm);
   }
   if (hole.holeType === "tap-countersink") {
-    return thread + " \u2334 Ø" + round1(hole.csinkDiameterMm) + " " + hole.csinkAngle + "°";
+    return thread + " \u2334 Ø" + dimension(hole.csinkDiameterMm) + " " + hole.csinkAngle + "°";
   }
   return thread;
 }

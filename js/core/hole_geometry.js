@@ -19,6 +19,27 @@ export function holeCutRecords(params, sketch, entityIds) {
     support:sketch?.support,from:Number(params.offset)||0,requireIntersection:true}}));
 }
 
+// The feature tree is authoritative, but the viewport also keeps lightweight
+// cut records for compatibility rendering. Re-anchor those records whenever a
+// driving placement sketch or its support frame changes.
+export function syncHoleCutPlacement(part, feature, sketch) {
+  if (!part?.cuts3d?.length || feature?.type !== 'hole' || !sketch) return false;
+  const existing=part.cuts3d.filter(record=>record?.featureId===feature.id);
+  if (!existing.length) return false;
+  const refreshed=holeCutRecords(feature.params || {},sketch,feature.params?.profileEntityIds);
+  if (existing.length!==refreshed.length) return false;
+  let changed=false;
+  existing.forEach((record,index)=>{
+    for(const key of ['centres','frame','support']){
+      const next=refreshed[index].params[key];
+      if(JSON.stringify(record.params?.[key])===JSON.stringify(next))continue;
+      record.params[key]=next===undefined?undefined:structuredClone(next);
+      changed=true;
+    }
+  });
+  return changed;
+}
+
 export function holePreviewParts(records, bounds) {
   return records.flatMap(record=>holeToolPlacements(record.params,bounds).map(placement=>({
     kind:'cyl',...placement.origin,axis:placement.axis,h:placement.depth,

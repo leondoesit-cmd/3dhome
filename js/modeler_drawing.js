@@ -1,4 +1,4 @@
-import { holeLeaderForViews } from "./core/hole_callout.js";
+import { holeLeaderForViews, holeTopologyAnchor } from "./core/hole_callout.js";
 /* Drawing mode: the sheet you can work on.
  *
  * cad_sheet.js decides what a sheet contains and core/hidden_line.js decides
@@ -1091,23 +1091,6 @@ export function createDrawingController(host) {
     host.markDirty();
   }
 
-  /* The hole this feature cut, in the view's own coordinates. A hole is named
-     by its WALL faces (cutWallTopology), not by an edge, so this is an exact-id
-     lookup under the feature's own prefix rather than a search of the snap set
-     — the same contract every bound reference on this sheet keeps. Ids are
-     walked in sorted order so two runs pick the same wall. */
-  function holeAnchor(index, basis, featureId) {
-    if (!index || !basis || !featureId) return null;
-    const prefix = featureId + ":";
-    for (const pid of Array.from(index.keys()).sort()) {
-      if (!pid.startsWith(prefix)) continue;
-      const entry = index.get(pid);
-      const at = resolveDimAnchor({ pid, kind: entry?.kind, at: "centre" }, index, basis);
-      if (at) return { pid, kind: entry.kind, at: "centre", u: at.u, v: at.v };
-    }
-    return null;
-  }
-
   /* Hole callouts, read off the FEATURE TREE rather than typed. Each note names
      the hole it came from, so its text is re-derived on every build (see
      resolveNote) — a leader that still says M6 after the wizard was changed to
@@ -1126,22 +1109,35 @@ export function createDrawingController(host) {
     const place = built.views.find((entry) => entry.id === built.primaryId) || built.views[0];
     if (!place) { host.flash(host.t("drawNoGeometry")); return; }
     const basis = place.projection?.basis || null;
-    const fresh = rows.filter((row) => !(doc.notes || []).some((note) => note.feature === row.id));
-    if (!fresh.length) { host.flash(host.t("drawCalloutsDone")); return; }
-    host.pushUndo(host.t("opAddCallout"));
-    let unbound = 0;
-    fresh.forEach((row, index) => {
+    const plans=rows.map((row,index)=>{
+      const existing=(doc.notes || []).find(note=>note.feature===row.id);
       const projected=holeLeaderForViews(row,built.views);
       const chosen=projected ? built.views.find(v=>v.id===projected.viewId) : place;
-      const anchor = holeAnchor(built.topologyIndex, chosen.projection?.basis || basis, row.id);
-      if (!anchor) unbound++;
+      const anchor = holeTopologyAnchor(built.topologyIndex, chosen.projection?.basis || basis, row.id, projected);
       const from = anchor ? chosen.toSheet(anchor) : { x: chosen.box.x, y: chosen.box.y };
+      const leader=anchor ? { viewId: chosen.id, u: anchor.u, v: anchor.v, pid: anchor.pid, kind: anchor.kind, at: anchor.at } : null;
+      return {row,index,existing,chosen,from,leader,changed:!existing || JSON.stringify(existing.leader)!==JSON.stringify(leader)};
+    });
+    const pending=plans.filter(plan=>plan.changed);
+    if (!pending.length) { host.flash(host.t("drawCalloutsDone")); return; }
+    host.pushUndo(host.t("opAddCallout"));
+    let unbound = 0;
+    pending.forEach(({row,index,existing,chosen,from,leader})=>{
+      if (!leader) unbound++;
+      if(existing){
+        const old=existing.leader,oldView=built.views.find(view=>view.id===old?.viewId);
+        const oldFrom=oldView && old ? oldView.toSheet(old) : null;
+        const autoPlaced=oldFrom && Math.abs(existing.x-(oldFrom.x+14))<.1 && Math.abs(existing.y-(oldFrom.y-10-index*6))<.1;
+        if(autoPlaced && leader && Math.hypot((old?.u||0)-leader.u,(old?.v||0)-leader.v)>.1){existing.x=from.x+14;existing.y=from.y-10-index*6;}
+        existing.leader=leader;
+        return;
+      }
       doc.notes.push({
         id: "n" + Math.random().toString(36).slice(2, 9),
         x: from.x + 14, y: from.y - 10 - index * 6,
         feature: row.id,
         text: row.text,
-        leader: anchor ? { viewId: chosen.id, u: anchor.u, v: anchor.v, pid: anchor.pid, kind: anchor.kind, at: anchor.at } : null,
+        leader,
       });
     });
     state.selection = { kind: "note", id: doc.notes[doc.notes.length - 1].id };

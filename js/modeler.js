@@ -31,7 +31,7 @@ import {addCubicSpline,splineControls,sampleBezier} from "./sketch_spline.js";
 import {repairReferences,restoreSketchConstraint} from "./sketch_edit_repair.js";
 import { MANUFACTURING_TABLES, validateManufacturingTables } from "./manufacturing_tables.js";
 import { evaluateMassProperties } from "./cad_mass_properties.js";
-import { holeToolPlacements, holeCutRecords, holePreviewParts } from "./core/hole_geometry.js";
+import { holeToolPlacements, holeCutRecords, holePreviewParts, syncHoleCutPlacement } from "./core/hole_geometry.js";
 import { revolveRecipe } from "./core/revolve_geometry.js";
 import { aabbFromBox, isUpToFace, resolveExtrudeExtent } from "./core/extrude_extent.js";
 import { toolFeatureRecipe } from "./core/tool_recipe.js";
@@ -159,7 +159,7 @@ import {
   edgeEndpoints, growSelection, invertSelection, selectConnected, selectLoop,
   selectTangentChain, shrinkSelection, vertexEntriesFrom,
 } from "./core/topology_selection.js";
-import { frameDirection, frameFromPlane, framePoint, frameProjectPoint, realignFrame } from "./core/frame.js";
+import { faceFrameOrigin, frameDirection, frameFromPlane, framePoint, frameProjectPoint, realignFrame } from "./core/frame.js";
 import {
   bodyDepthRange, cutFootprintsMayOverlap,
   cutFootprint as cutScopeFootprint,
@@ -6580,8 +6580,8 @@ function faceSketchAttachment() {
   var ax=Math.abs(normal.x || 0), ay=Math.abs(normal.y || 0), az=Math.abs(normal.z || 0), dominant=Math.max(ax,ay,az);
   if (dominant<.5) return null;
   var plane=ay>=ax && ay>=az ? "top" : az>=ax ? "front" : "side";
-  var origin=descriptor.origin || {x:0,y:0,z:0};
-  return {support:cloneData(support),plane:plane,offset:0,frame:frameFromPlane(origin,normal)};
+  var origin=faceFrameOrigin(descriptor,"bounds-center");
+  return {support:cloneData(support),plane:plane,offset:0,frame:frameFromPlane(origin,normal),frameAnchor:"bounds-center"};
 }
 function attachSketchToSelectedFace(forceNew) {
   var attachment=faceSketchAttachment();
@@ -6601,6 +6601,7 @@ function attachSketchToSelectedFace(forceNew) {
   }
   sketch.frame=attachment.frame;
   sketch.frameSpace="local";
+  sketch.frameAnchor=attachment.frameAnchor;
   sketch.supportOffset=0;
   E.def.activeSketch=sketch.id;
   E.view=attachment.plane;
@@ -7759,7 +7760,7 @@ function selectedHelixRecord() {
 
 async function createHoleFeature(options) {
   if(E._holeBuildPending)return false;
-  var params={...featureDefaults("hole"),...(options || {})};
+  var params={...featureDefaults("hole"),...(options || {}),displayUnit:modelLengthUnit()};
   var target=selectedSolid() || (E.def && activeParts(E.def)[activeParts(E.def).length-1]);
   if(!target){flash(t("cmdNeedSolid"));return false;}
   var face=(E.topologySelection || []).find(function(reference){return reference.kind==="face";});
@@ -12426,7 +12427,14 @@ function resolveSketch(rollbackOnConflict, fast) {
 function syncSketchDrivenParts() {
   var changed = false;
   if (synchronizeSketchHelices(E.def).length) changed = true;
+  var holes=(E.def.features || []).filter(function(feature){return feature.type==="hole" && !feature.suppressed;});
   (E.def.parts || []).forEach(function (p) {
+    holes.forEach(function(feature){
+      var sketch=feature.params?.sketchId && sketchById(E.def,feature.params.sketchId);
+      if(!sketch)return;
+      try{if(syncHoleCutPlacement(p,feature,sketch)){changed=true;delete p.meshData;}}
+      catch(error){/* A broken placement is diagnosed by the feature rebuild. */}
+    });
     if (!p.sketchDriven || !p.profileEntityIds || !p.profileEntityIds.length) return;
     var sketch = p.sketchId ? sketchById(E.def, p.sketchId) : ensureSketch(E.def);
     var revolveFeature=p.kind==='rev' && (E.def.features || []).find(function(feature){return feature.id===p.featureId;});
@@ -12517,10 +12525,10 @@ function syncFaceSupportedSketchFrames() {
     var match=topology.find(function(entry){return entry.persistentId===sketch.support.persistentId;});
     if (!match && sketch.support.semantic) match=topology.find(function(entry){return entry.kind==="face" && entry.ownerFeatureId===sketch.support.ownerFeatureId && entry.semantic===sketch.support.semantic;});
     if (!match || !match.descriptor || !match.descriptor.origin || !match.descriptor.normal) return;
-    var offset=Number(sketch.supportOffset)||0, origin={
-      x:match.descriptor.origin.x+match.descriptor.normal.x*offset,
-      y:match.descriptor.origin.y+match.descriptor.normal.y*offset,
-      z:match.descriptor.origin.z+match.descriptor.normal.z*offset,
+    var offset=Number(sketch.supportOffset)||0, base=faceFrameOrigin(match.descriptor,sketch.frameAnchor), origin={
+      x:base.x+match.descriptor.normal.x*offset,
+      y:base.y+match.descriptor.normal.y*offset,
+      z:base.z+match.descriptor.normal.z*offset,
     };
     var aligned=realignFrame(sketch.frame,origin,match.descriptor.normal);
     if (JSON.stringify(aligned)!==JSON.stringify(sketch.frame)) {sketch.frame=aligned;changed=true;}
@@ -13879,12 +13887,12 @@ function finishWallChain(cancel) {
    forty and the sketch should carry that as an editable dimension afterwards,
    while a shape you eyeballed stays free to be dragged. */
 var DYN_TOOLS = {
-  wall:  [{ k:"length", u:" cm" }, { k:"angle", u:"°", signed:true }],
-  srect: [{ k:"width",  u:" cm" }, { k:"height", u:" cm" }],
-  scirc: [{ k:"diameter", u:" cm" }],
-  sell:  [{ k:"major",  u:" cm" }, { k:"minor", u:" cm" }],
-  sslot: [{ k:"length", u:" cm" }, { k:"width", u:" cm" }],
-  spoly: [{ k:"diameter", u:" cm" }, { k:"sides", u:"", whole:true }],
+  wall:  [{ k:"length", unit:"length" }, { k:"angle", u:"°", signed:true }],
+  srect: [{ k:"width", unit:"length" }, { k:"height", unit:"length" }],
+  scirc: [{ k:"diameter", unit:"length" }],
+  sell:  [{ k:"major", unit:"length" }, { k:"minor", unit:"length" }],
+  sslot: [{ k:"length", unit:"length" }, { k:"width", unit:"length" }],
+  spoly: [{ k:"diameter", unit:"length" }, { k:"sides", u:"", whole:true }],
 };
 
 // A typed number only means something once the tool has an anchor on the sheet.
@@ -13935,7 +13943,9 @@ function pointToLineDistance(p, a, b) {
 function dynTyped(key) {
   var raw = E.dynInput && E.dynInput.values ? E.dynInput.values[key] : "";
   var value = parseFloat(raw);
-  return fin(value) ? value : null;
+  if (!fin(value)) return null;
+  var field = (DYN_TOOLS[E.tool] || []).find(function (item) { return item.k === key; });
+  return field && field.unit === "length" ? lengthFromDocument(value, modelLengthUnit()) : value;
 }
 // typed if given, measured otherwise
 function dynValue(key, live) { var typed = dynTyped(key); return typed == null ? live[key] : typed; }
@@ -14120,9 +14130,10 @@ function dynDrawHud(c, px, py) {
   var boxes = fields.map(function (f) {
     var typed = input ? input.values[f.k] : null;
     var hasTyped = typed !== "" && typed != null;
+    var measured = f.unit === "length" ? lengthToDocument(live[f.k] || 0, modelLengthUnit()) : (live[f.k] || 0);
     var shown = hasTyped ? typed
-      : (f.whole ? String(Math.round(live[f.k] || 0)) : String(Math.round((live[f.k] || 0) * 10) / 10));
-    var label = t("dyn_" + f.k) + " " + shown + f.u;
+      : (f.whole ? String(Math.round(measured)) : String(Math.round(measured * 1000) / 1000));
+    var label = t("dyn_" + f.k) + " " + shown + (f.unit === "length" ? " " + modelLengthUnit() : f.u);
     return { on: !!input && f.k === input.field, typed: hasTyped, text: label, w: c.measureText(label).width + 16 };
   });
   var total = boxes.reduce(function (s, b) { return s + b.w + 4; }, 0);
@@ -17995,9 +18006,17 @@ function fillSketchPane() {
     supportCard.appendChild(btn("Detach to principal plane",function(){
       pushUndo(t("sketchPlane"));
       sketch.referenceId=sketch.plane==="side" ? "plane:right" : "plane:"+sketch.plane;
-      delete sketch.support; delete sketch.frame; delete sketch.frameSpace; delete sketch.supportOffset;
+      delete sketch.support; delete sketch.frame; delete sketch.frameSpace; delete sketch.frameAnchor; delete sketch.supportOffset;
       refreshAll();
     },"md-wide"));
+    if(sketch.frameSpace==="local" && sketch.frameAnchor!=="bounds-center" && sketch.support.descriptor?.bounds){
+      supportCard.appendChild(btn("Anchor sketch origin to face bounds",function(){
+        pushUndo("Anchor face sketch origin");
+        sketch.frameAnchor="bounds-center";
+        sketch.frame=realignFrame(sketch.frame,faceFrameOrigin(sketch.support.descriptor,"bounds-center"),sketch.support.descriptor.normal);
+        refreshAll();flash("✓ Sketch origin anchored to face bounds");
+      },"md-wide"));
+    }
     host.appendChild(supportCard);
   }
 
@@ -18027,7 +18046,7 @@ function fillSketchPane() {
     if(consumerIndex>=0 && ownerIndex>=consumerIndex){flash("Select a face from before this sketch in the history");return;}
     pushUndo("Attach sketch to face");
     sketch.support=attachment.support;sketch.referenceId=attachment.support.persistentId;
-    sketch.plane=attachment.plane;sketch.frame=attachment.frame;sketch.frameSpace="local";sketch.supportOffset=0;
+    sketch.plane=attachment.plane;sketch.frame=attachment.frame;sketch.frameSpace="local";sketch.frameAnchor=attachment.frameAnchor;sketch.supportOffset=0;
     refreshAll();flash("✓ Sketch attached to selected face");
   },"md-wide");
   host.appendChild(attachFace);

@@ -4,7 +4,7 @@ import { evaluateExpression, resolveEquations } from "../sketch_equations.js";
 import { resolveProfilePoints, solveSketch } from "../sketch_solver.js";
 import { buildDependencyGraph, featureDependencies, stableStringify } from "./dependency_graph.js";
 import { validateDefinition } from "./schema.js";
-import { realignFrame } from "./frame.js";
+import { faceFrameOrigin, realignFrame } from "./frame.js";
 import { aabbFromBox, aabbFromTopology, resolveExtrudeExtent, resolvedEndFace } from "./extrude_extent.js";
 import { supportsSurfaceUV } from "./surface_uv.js";
 import {
@@ -138,7 +138,7 @@ function alignExtrusionToResolvedSupport(params, resolutions = []) {
   if (params.frame) {
     const baseOffset = Number(params.baseOffset) || 0;
     const depth = Math.max(1e-6, Math.abs(Number(params.depth) || Math.abs(Number(params.to) - Number(params.from))));
-    return { ...params, frame: realignFrame(params.frame, descriptor.origin, descriptor.normal), from: symmetric ? baseOffset-depth/2 : baseOffset, to: symmetric ? baseOffset+depth/2 : baseOffset+reversed*depth };
+    return { ...params, frame: realignFrame(params.frame, faceFrameOrigin(descriptor,params.frameAnchor), descriptor.normal), from: symmetric ? baseOffset-depth/2 : baseOffset, to: symmetric ? baseOffset+depth/2 : baseOffset+reversed*depth };
   }
   const axis = params.axis || "y";
   const coordinate = Number(descriptor.origin[axis]) || 0;
@@ -383,7 +383,8 @@ export function rebuildDefinition(definition, overrides = {}, options = {}) {
         const descriptor=resolution.topology?.descriptor, solved=sketchRun.sketches.find((item) => item.id===sketch.id);
         if (descriptor?.origin && descriptor?.normal && solved) {
           const offset=Number(sketch.supportOffset)||0;
-          const origin={x:descriptor.origin.x+descriptor.normal.x*offset,y:descriptor.origin.y+descriptor.normal.y*offset,z:descriptor.origin.z+descriptor.normal.z*offset};
+          const base=faceFrameOrigin(descriptor,sketch.frameAnchor);
+          const origin={x:base.x+descriptor.normal.x*offset,y:base.y+descriptor.normal.y*offset,z:base.z+descriptor.normal.z*offset};
           solved.frame=realignFrame(solved.frame,origin,descriptor.normal);
         }
       }
