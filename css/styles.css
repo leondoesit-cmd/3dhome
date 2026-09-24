@@ -5310,10 +5310,15 @@ body.compact-nav #modeler .md-welcome-extra[open] summary { margin-bottom: 8px; 
 #modeler .md-pane.on { display: flex; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
 /* every pane holds one refresh target; it is the column, not a block inside it */
 #modeler .md-pane > div { display: flex; flex-direction: column; gap: 7px; min-height: 0; }
+/* Sticky, so the tree scrolls under it: --input-bg and --bg-panel are both
+   translucent in the dark themes and the rows read through. The input tint
+   over the panel over --bg-app is the field as it looks, made opaque — the
+   same base .md-feature-actions uses for its sticky footer. */
 #modeler .md-feature-filter {
   position: sticky; top: -10px; z-index: 4; display: flex; align-items: center; gap: 6px;
   margin: -2px -2px 2px; padding: 4px 5px; border: 1px solid var(--input-border);
-  border-radius: 8px; background: var(--input-bg); color: var(--text-muted);
+  border-radius: 8px; color: var(--text-muted);
+  background: linear-gradient(var(--input-bg), var(--input-bg)), linear-gradient(var(--bg-panel), var(--bg-panel)) var(--bg-app);
 }
 #modeler .md-feature-filter:focus-within { border-color: var(--accent); color: var(--accent); }
 #modeler .md-feature-filter > i { font-size: 13px; }

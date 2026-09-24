@@ -259,3 +259,10 @@ test("modeler: a phone can build a multi-entity sketch selection", () => {
   assert.match(md, /selectSketch\(p, e\.ctrlKey \|\| e\.metaKey \|\| E\.mobileAddSelection\)/);
   assert.match(md, /selectSketch\(object,event\.ctrlKey\|\|event\.metaKey\|\|event\.shiftKey\|\|E\.mobileAddSelection\)/);
 });
+
+/* The feature-tree filter is sticky, so the tree scrolls under it. --input-bg
+   and --bg-panel are translucent in the dark themes; without an opaque base
+   the rows read through the field on the phone sheet and on desktop alike. */
+test("modeler: the sticky feature-tree filter paints an opaque base", () => {
+  assert.match(css, /#modeler \.md-feature-filter \{[^}]*position: sticky;[^}]*background: linear-gradient\(var\(--input-bg\), var\(--input-bg\)\), linear-gradient\(var\(--bg-panel\), var\(--bg-panel\)\) var\(--bg-app\);/);
+});
