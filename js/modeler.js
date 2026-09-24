@@ -6805,7 +6805,10 @@ function fitSketch() {
       v0 = Math.min(v0, centre.y - reach); v1 = Math.max(v1, centre.y + reach);
     });
   });
-  if (u0 === undefined) { u0 = -30; u1 = 30; v0 = -30; v1 = 30; }
+  /* An empty part sketch is usually a small component, not a room. The old
+     60 cm opening span made a 4 mm slot only a few pixels wide before the
+     first entity existed, precisely when the user has no geometry to fit. */
+  if (u0 === undefined) { u0 = -5; u1 = 5; v0 = -5; v1 = 5; }
   var du = Math.max(0.01, u1 - u0), dv = Math.max(0.01, v1 - v0);
   E.scl = clamp(Math.min((W - 80) / du, (Hh - 80) / dv), SKETCH_MIN_SCALE, SKETCH_MAX_SCALE);
   var cu = (u0 + u1) / 2, cv = (v0 + v1) / 2;
@@ -10878,12 +10881,9 @@ function buildSheetPanel(host) {
   ], doc.units, function (value) { sheet.setSheetOption("units", value); drawSketch(); })).id = "mdSheetUnits";
   sheetRow(setup,t("sheetDraftingStandard"),sheetSelect([{value:"custom",label:t("sheetCustomStandard")},{value:"ANSI",label:"ANSI · inch / third angle"},{value:"ISO",label:"ISO · mm / first angle"}],doc.draftingStandard||"custom",function(value){
     sheet.setSheetOption("draftingStandard",value);
-    if(value==="ANSI"||value==="ISO"){
-      E.def.context ||= {};E.def.context.units ||= {};
-      E.def.context.units.length=value==="ANSI"?"in":"mm";
-      var unitControl=root.querySelector("#mdDocumentLengthUnit");if(unitControl)unitControl.value=E.def.context.units.length;
-      syncSizeReadout();syncAuthoringWorkflow();syncStatus();
-    }
+    /* A drawing's drafting convention and display units are independent of
+       the part's modelling units. ANSI style is also used for MMGS parts; do
+       not silently turn their sketches into inches when the sheet is styled. */
     drawSketch();
   })).id="mdSheetStandard";
   sheetRow(setup,t("sheetSecondaryUnits"),sheetSelect([{value:"",label:t("sheetNoSecondary")},...["mm","cm","m","in"].map(value=>({value,label:value}))],doc.secondaryUnits||"",function(value){sheet.setSheetOption("secondaryUnits",value);drawSketch();})).id="mdSheetSecondaryUnits";
@@ -21284,6 +21284,7 @@ function editorLightingSettings(view) {
 function setMode(m) {
   if (E.dimEditor && !applyDimensionEditor()) return;
   m = m === "3d" ? "3d" : m === "drawing" ? "drawing" : "2d";
+  var previousMode = E.mode;
   E.mode = m;
   E.modelPlaneActive = false;
   E.touchPrecision = null;
@@ -21339,6 +21340,11 @@ function setMode(m) {
   syncCoach();
   syncSheetPanel();
   drawSketch();
+  /* A sketch opened over the 3D model inherits the model camera. Switching to
+     the dedicated 2D editor must frame its plane rather than keep that camera's
+     room-scale projection, which makes millimetre work nearly impossible. */
+  if (m === "2d" && previousMode === "3d" && E.authoring?.phase === "sketch")
+    requestAnimationFrame(fitSketch);
 }
 
 function setModelDisplay(style, refresh) {
