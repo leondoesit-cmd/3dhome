@@ -794,6 +794,28 @@ export function createDrawingController(host) {
     const reach = 6 / state.zoom;
     for (const place of built.views) {
       if (!pointNearBox(sheetPoint, place.box, 6)) continue;
+      const basis=place.projection?.basis;
+      // A mesh can fit a complete circle to a visible semicircular notch.
+      // Prefer the exact trimmed edge so its callout is a bound radius.
+      if (basis && built.topologyIndex) {
+        const project=(p)=>({u:p.x*basis.right.x+p.y*basis.right.y+p.z*basis.right.z,v:p.x*basis.up.x+p.y*basis.up.y+p.z*basis.up.z});
+        const turn=(a)=>(a+Math.PI*4)%(Math.PI*2);
+        for(const [pid,entry] of built.topologyIndex) {
+          const d=entry.descriptor || {},r=Number(d.radius),axis=d.axis;
+          if(entry.kind!=="edge" || d.curve!=="circle" || !(r>0) || !d.origin || !d.arcMidpoint || d.endpoints?.length!==2) continue;
+          if(!(d.measure>0 && d.measure<2*Math.PI*r-r*1e-5)) continue;
+          if(!axis || Math.abs(axis.x*basis.forward.x+axis.y*basis.forward.y+axis.z*basis.forward.z)<.999) continue;
+          const centre=project(d.origin),screen=place.toSheet(centre);
+          const du=(sheetPoint.x-screen.x)/place.k,dv=-(sheetPoint.y-screen.y)/place.k;
+          if(Math.abs(Math.hypot(du,dv)-r)*place.k>=reach) continue;
+          const angle=(p)=>Math.atan2(p.v-centre.v,p.u-centre.u);
+          const start=angle(project(d.endpoints[0])),end=angle(project(d.endpoints[1])),mid=angle(project(d.arcMidpoint));
+          const span=turn(end-start),offset=turn(Math.atan2(dv,du)-start);
+          const containsMid=turn(mid-start)<=span;
+          if(containsMid ? offset>span+1e-6 : offset<span-1e-6) continue;
+          return {viewId:place.id,place,circle:{...centre,radius:r,kind:"arc"},anchor:{pid,kind:"edge",at:"centre",...centre}};
+        }
+      }
       for (const round of place.projection?.circles || []) {
         if (round.kind !== "round") continue;
         const centre = place.toSheet(round);
@@ -802,25 +824,6 @@ export function createDrawingController(host) {
         if (Math.abs(distance - radius) < reach || distance < Math.min(radius, reach * 2)) {
           return { viewId: place.id, circle: round, place };
         }
-      }
-      const basis=place.projection?.basis;
-      if(!basis || !built.topologyIndex) continue;
-      const project=(p)=>({u:p.x*basis.right.x+p.y*basis.right.y+p.z*basis.right.z,v:p.x*basis.up.x+p.y*basis.up.y+p.z*basis.up.z});
-      const turn=(a)=>(a+Math.PI*4)%(Math.PI*2);
-      for(const [pid,entry] of built.topologyIndex) {
-        const d=entry.descriptor || {},r=Number(d.radius),axis=d.axis;
-        if(entry.kind!=="edge" || d.curve!=="circle" || !(r>0) || !d.origin || !d.arcMidpoint || d.endpoints?.length!==2) continue;
-        if(!(d.measure>0 && d.measure<2*Math.PI*r-r*1e-5)) continue;
-        if(!axis || Math.abs(axis.x*basis.forward.x+axis.y*basis.forward.y+axis.z*basis.forward.z)<.999) continue;
-        const centre=project(d.origin),screen=place.toSheet(centre);
-        const du=(sheetPoint.x-screen.x)/place.k,dv=-(sheetPoint.y-screen.y)/place.k;
-        if(Math.abs(Math.hypot(du,dv)-r)*place.k>=reach) continue;
-        const angle=(p)=>Math.atan2(p.v-centre.v,p.u-centre.u);
-        const start=angle(project(d.endpoints[0])),end=angle(project(d.endpoints[1])),mid=angle(project(d.arcMidpoint));
-        const span=turn(end-start),offset=turn(Math.atan2(dv,du)-start);
-        const containsMid=turn(mid-start)<=span;
-        if(containsMid ? offset>span+1e-6 : offset<span-1e-6) continue;
-        return {viewId:place.id,place,circle:{...centre,radius:r,kind:"arc"},anchor:{pid,kind:"edge",at:"centre",...centre}};
       }
     }
     return null;

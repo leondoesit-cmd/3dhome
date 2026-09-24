@@ -566,6 +566,9 @@ test("exact semicircular edges support associative radius dimensions", () => {
   c.setTool("diam");
   c.pointerDown({button:0},...at(2,0));
   assert.equal(rig.document.drawing.dims.length,0,"the absent half of the circle cannot be picked");
+  // The mesh fitter can report the same semicircle as a complete circle.
+  // The exact trimmed edge must win so the drawing calls out R, not Ø.
+  c.scene().views.find((place)=>place.view.dir==="front").projection.circles.push({kind:"round",u:0,v:0,radius:2,visible:true});
   c.pointerDown({button:0},...at(-2,0));
   const dim=rig.document.drawing.dims[0];
   assert.equal(dim.type,"radius");assert.equal(dim.refs[0].pid,"slot:end");

@@ -1,0 +1,12 @@
+# BRACKET — exercise 6.7
+
+Browser-authored from the user's *Engineering Graphics with SOLIDWORKS 2021* PDF, physical page 306 (printed 6-38), on 2026-09-24. Saved in the ModelForge library as **BRACKET - exercise 6.7 - 6061 Alloy**; its local disk backup is `.model-backups/cm_muexll5e/latest.json`.
+
+- A fully defined six-segment L profile on the Right plane is symmetrically boss-extruded to a 4 in width. The solid is 2 in deep and 2.5 in high, with a 0.5 in base and 0.5 in upright. The model origin is at the middle of the front lower base edge, aligned with the notch centre.
+- A face-attached circle cuts the front base into a semicircular R1 in notch through the 0.5 in base. A second face-attached circle cuts the upright through at Ø1 in, centered across the width and 1 in above the base top. Both cuts are through-all. Two upper outside corner edges are filleted R0.5 in. The tree has the book's four solid operations (Boss, Cut, Cut, Fillet) and three fully defined sketches.
+- The part uses the Aluminum 6061 catalog material with the exercise's stated density, 0.0975 lb/in³ (2.698790709 g/cm³). The browser's mass-properties panel measured 6.768252 in³ and 0.6599046 lb; the drawing title block reports 0.6599 lb.
+- The saved A3 ANSI inch third-angle sheet has Front, Top, Right, and Isometric views, centre marks and hidden lines, two-decimal dimensions, three non-redundant overall dimensions, and bound Ø1.00, R1.00, and R0.50 feature dimensions. Its title block records EX-6.7, 6061 Alloy, mass, and date.
+
+The drawing workflow exposed a radius-picking gap: mesh fitting offered the notch's visible semicircle as a complete circle, so the Diameter / radius tool placed an Ø2.00 callout. The picker now checks exact trimmed circular edges first. The bracket's callout was replaced with an associative R1.00 dimension bound to the cut's persistent edge. The focused drawing regression includes a projected complete-circle proxy over an exact semicircular edge.
+
+Verification: after a hard browser reload and library reopen, the one-part model rebuilt with seven valid history steps, all three sketches remained fully defined, and the corrected sheet showed all six dimensions without a warning. Browser console errors: none. The saved backup reports `lastRebuild.ok: true` with no issues and the notch callout bound to `feature_muextod7_2:tool:edge:profile:700:end`. The 58 focused drawing tests passed; `npm run check` passed with 546 linked modules and 1,470 source assertions; `git diff --check` passed.
