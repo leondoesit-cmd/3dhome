@@ -18,6 +18,7 @@ import { tessellateParts } from "./core/part_tessellate.js";
 import { projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
 import { calloutText, calloutTextById, holeCallouts, holeLeaderForViews } from "./core/hole_callout.js";
 import { sheetTitleText } from "./core/custom_properties.js";
+import { drawingMaterialName } from "./cad_appearances.js";
 
 /* The title block's TITLE is the Description property, as a SOLIDWORKS sheet
    format links it; the model name is only the fallback. */
@@ -70,7 +71,7 @@ function standardSheet(def, options, bodies) {
       revision: options.revision || def?.revision || "A",
       author: options.author || "",
       company: options.company || "",
-      material: options.material || def?.material || "",
+      material: options.material || drawingMaterialName(def),
       date: options.date || "",
     },
   });

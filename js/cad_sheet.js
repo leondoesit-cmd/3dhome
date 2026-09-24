@@ -1495,6 +1495,34 @@ function projectionSymbol(x, y, height, first) {
   return items;
 }
 
+function sheetTextWidth(value, size) {
+  return [...String(value || "")].reduce((width, char) => width + (/[MW@]/.test(char) ? .9 : /[ilI1.,:;!|]/.test(char) ? .3 : .58) * size, 0);
+}
+
+function sheetTitleLines(value, maxWidth, size) {
+  const words = String(value || "").trim().split(/\s+/).filter(Boolean);
+  const lines = ["", ""];
+  for (const word of words) {
+    const index = lines[0] && sheetTextWidth(lines[0] + " " + word, size) > maxWidth ? 1 : 0;
+    const candidate = lines[index] ? lines[index] + " " + word : word;
+    if (sheetTextWidth(candidate, size) <= maxWidth) { lines[index] = candidate; continue; }
+    let clipped = candidate;
+    while (clipped && sheetTextWidth(clipped + "…", size) > maxWidth) clipped = clipped.slice(0, -1);
+    lines[index] = clipped + "…";
+    break;
+  }
+  return lines.filter(Boolean);
+}
+
+function sheetFieldText(value, maxWidth) {
+  let label = String(value || "—");
+  for (let size = TEXT_SIZES.meta; size >= 1.8; size -= .1) {
+    if (sheetTextWidth(label, size) <= maxWidth) return { label, size };
+  }
+  while (label && sheetTextWidth(label + "…", 1.8) > maxWidth) label = label.slice(0, -1);
+  return { label: label + "…", size: 1.8 };
+}
+
 function titleBlockItems(doc, provider, sheetScale) {
   const box = titleBlockBox(doc);
   const meta = Object.assign({}, doc.title, provider?.meta || {});
@@ -1508,21 +1536,30 @@ function titleBlockItems(doc, provider, sheetScale) {
   items.push(line(midX, rowY[1], midX, box.y + box.h, "frame"));
   items.push(line(thirdX, rowY[1], thirdX, box.y + box.h, "frame"));
 
-  const field = (x, y, caption, value, options = {}) => {
+  const field = (x, y, caption, value, maxWidth, options = {}) => {
+    const fitted = sheetFieldText(value, maxWidth);
     items.push(text(x, y, caption, { size: TEXT_SIZES.small, color: "#6b7280" }));
-    items.push(text(x, y + 4.6, value || "—", Object.assign({ size: TEXT_SIZES.meta, weight: "600" }, options)));
+    items.push(text(x, y + 4.6, fitted.label, Object.assign({ size: fitted.size, weight: "600" }, options)));
   };
   items.push(text(box.x + 3, box.y + 6.4, meta.company || meta.author || "", { size: TEXT_SIZES.meta, weight: "600", color: "#334155" }));
   items.push(text(box.x + box.w - 3, box.y + 6.4, meta.date || "", { size: TEXT_SIZES.small, anchor: "end", color: "#6b7280" }));
-  items.push(text(box.x + 3, rowY[0] - 2.4, meta.title || "", { size: TEXT_SIZES.title, weight: "bold" }));
+  const title = String(meta.title || "");
+  const titleWidth = box.w - 31; // leave the revision and frame clear
+  const single = sheetTitleLines(title, titleWidth, TEXT_SIZES.title);
+  if (single.length === 1 && !single[0].endsWith("…")) {
+    items.push(text(box.x + 3, rowY[0] - 2.4, single[0], { size: TEXT_SIZES.title, weight: "bold" }));
+  } else {
+    const lines = sheetTitleLines(title, titleWidth, 3.2);
+    lines.forEach((line, index) => items.push(text(box.x + 3, box.y + 11.2 + index * 4.2, line, { size: 3.2, weight: "bold" })));
+  }
 
-  field(box.x + 3, rowY[0] + 3.4, "MATERIAL", meta.material);
-  field(box.x + box.w * 0.3, rowY[0] + 3.4, "FINISH", meta.finish);
-  field(colX + 3, rowY[0] + 3.4, "MASS", meta.mass);
-  field(box.x + 3, rowY[1] + 3.4, "DRAWN", meta.author);
-  field(midX + 3, rowY[1] + 3.4, "DWG NO.", meta.number);
-  field(colX + 3, rowY[1] + 3.4, "SCALE", scaleLabel(sheetScale) + " · " + (doc.units || "mm") + (doc.secondaryUnits ? " ["+doc.secondaryUnits+"]" : ""));
-  field(thirdX + 3, rowY[1] + 3.4, "SHEET", (meta.sheet || 1) + " / " + (meta.sheets || 1));
+  field(box.x + 3, rowY[0] + 3.4, "MATERIAL", meta.material, box.w * .3 - 6);
+  field(box.x + box.w * 0.3, rowY[0] + 3.4, "FINISH", meta.finish, box.w * .28 - 6);
+  field(colX + 3, rowY[0] + 3.4, "MASS", meta.mass, box.w * .42 - 6);
+  field(box.x + 3, rowY[1] + 3.4, "DRAWN", meta.author, box.w * .29 - 6);
+  field(midX + 3, rowY[1] + 3.4, "DWG NO.", meta.number, box.w * .29 - 6);
+  field(colX + 3, rowY[1] + 3.4, "SCALE", scaleLabel(sheetScale) + " · " + (doc.units || "mm") + (doc.secondaryUnits ? " ["+doc.secondaryUnits+"]" : ""), box.w * .21 - 6);
+  field(thirdX + 3, rowY[1] + 3.4, "SHEET", (meta.sheet || 1) + " / " + (meta.sheets || 1), box.w * .21 - 6);
   items.push(text(box.x + box.w - 3, rowY[0] - 2.4, "REV " + (meta.revision || "A"), { size: TEXT_SIZES.view, anchor: "end", weight: "bold" }));
 
   /* The angle symbol and the general tolerance note sit above the block, where

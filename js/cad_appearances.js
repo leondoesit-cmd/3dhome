@@ -15,6 +15,9 @@ export const STOCK_MATERIALS = Object.freeze({
     densitySourceUrl: "https://www.worthwillaluminium.com/weight-calculator/density-table/density-dataset-en.pdf" },
   aluminum: { name: "Aluminum 6061", color: "#8fb8c4", metal: 0.72, rough: 0.32, density: 2.70 },
   steel: { name: "Steel 304", color: "#aeb7c2", metal: 0.78, rough: 0.28, density: 8.00 },
+  plainCarbonSteel: { name: "Plain Carbon Steel (grade unspecified)", color: "#a7adb2", metal: 0.76, rough: 0.40, density: 7.85,
+    densitySource: "Alleima 20C carbon steel material datasheet: 7.85 g/cm³; representative reference density, not a certified grade",
+    densitySourceUrl: "https://www.alleima.com/en/technical-center/material-datasheets/strip-steel/alleima-20c/" },
   castAlloySteel: { name: "Cast Alloy Steel (SOLIDWORKS reference)", color: "#a6adb4", metal: 0.78, rough: 0.42, density: 7.30,
     densitySource: "SDC Publications, Beginner's Guide to SolidWorks 2011, p. 66: Cast Alloy Steel library density 7300 kg/m³; reference material, grade unspecified",
     densitySourceUrl: "https://static.sdcpublications.com/pdfsample/978-1-58503-626-4-2.pdf" },
@@ -47,6 +50,13 @@ export function stockMaterialKey(part) {
 export function stockMaterialForPart(part) {
   const key = stockMaterialKey(part);
   return key ? STOCK_MATERIALS[key] : null;
+}
+
+export function drawingMaterialName(def) {
+  if (def?.material) return def.material;
+  if (def?.kind === "assembly" || def?.parts?.length !== 1) return "";
+  const part = def.parts[0];
+  return stockMaterialForPart(part)?.name || part.materialName || "";
 }
 
 export function partMaterialDensity(part, fallback = DEFAULT_MASS_DENSITY) {

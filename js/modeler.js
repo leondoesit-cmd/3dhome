@@ -123,7 +123,7 @@ import { calloutText, calloutTextById, holeCallouts } from "./core/hole_callout.
 import { cosmeticThread, modeledThreadSolid, normalizeThreadSpec, threadCallout, validateThreadFeature, validateThreadFit, documentThreadOverlays } from "./cad_thread.js";
 import { knurlBandMesh, knurlCallout, knurlGroovePolylines, normalizeKnurlSpec, validateKnurl } from "./cad_knurl.js";
 import { toolboxFastener, listToolboxLibrary, toolboxFamily, lengthOptionsForSize, FASTENER_LENGTHS_MM, reducingBranchRows, PVC_D1785, searchToolbox, TOOLBOX_CATEGORY_LABELS } from "./cad_toolbox.js";
-import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides, partMaterialDensity, stockMaterialForPart } from "./cad_appearances.js";
+import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides, partMaterialDensity, stockMaterialForPart, drawingMaterialName } from "./cad_appearances.js";
 import { appearanceGroups } from "./core/appearance_groups.js";
 import { captureConfiguration, ensureConfigurations, setActiveConfiguration } from "./cad_configurations.js";
 import { evaluateFit, fitCallout, fitLimitSource } from "./cad_fits.js";
@@ -11060,7 +11060,7 @@ function drawingSheet() {
       bodiesToken: function () { return E.sheetToken; },
       meta: function () {
         var doc = ensureSheetDoc(E.def);
-        return { title: sheetTitleText(doc, E.def), material: doc.title.material || E.def.material || "" };
+        return { title: sheetTitleText(doc, E.def), material: doc.title.material || drawingMaterialName(E.def) };
       },
       bom: function () {
         if (E.docType !== "assembly" || !E.assembly) return null;
@@ -16220,14 +16220,16 @@ function selectTreeNode(node, model, event) {
     else {
       E.authoring.featureSelection = [node.targetId];
       E.sel = (E.def.parts || []).find(function (item) {
-        return item.featureId === node.targetId || item.derivedFeatureId === node.targetId;
+        return item.featureId === node.targetId || item.derivedFeatureId === node.targetId
+          || cutTargetFeatureId(item) === node.targetId;
       }) || null;
     }
     refreshAll(); return;
   }
   if (node.kind === "body") {
     E.sel = (E.def.parts || []).find(function (item) {
-      return item.featureId === node.targetId || item.id === node.targetId;
+      return item.featureId === node.targetId || item.id === node.targetId
+        || cutTargetFeatureId(item) === node.targetId;
     }) || null;
     refreshAll(); return;
   }
@@ -17110,6 +17112,15 @@ function numRow(host, label, get, set, step, tourKey) {
   w.appendChild(inp);
   host.appendChild(w);
 }
+function numLengthRow(host, label, get, set, step, tourKey) {
+  var unit=modelLengthUnit();
+  numRow(host, label+" ("+unit+")", function () {
+    var value=lengthToDocument(get(),unit);
+    return Math.abs(value)<1e-9 ? 0 : Number(value.toPrecision(12));
+  }, function (value) {
+    set(lengthFromDocument(value,unit));
+  }, lengthToDocument(step || 0.1,unit), tourKey);
+}
 
 /* The inspector was one long column: six dimension cells, four material rows, a
    texture picker and ten operation buttons, all competing for the same scroll.
@@ -17652,63 +17663,63 @@ function fillShape() {
   if(importRecognition && importRecognition!=="none" && E.def.parameters){host.appendChild(el("h5","md-h5","Recognized feature parameters"));Object.values(E.def.parameters).filter(function(parameter){return parameter && parameter.adjustable!==false && parameter.exposure!=="internal" && typeof parameter.value==="number";}).forEach(function(parameter){numRow(grid,parameter.label || parameter.name,function(){return parameter.value;},function(value){parameter.value=parameter.step===1?Math.round(value):value;regenerateExactModel(false);},parameter.step || .1);});}
   if (p.type === "line") {
     var linePts = sketchLinePoints(p), pa = linePts.a, pb = linePts.b;
-    numRow(grid, "X1", function () { return pa.x; }, function (v) { pa.x = v; resolveSketch(false); }, 0.1);
-    numRow(grid, "Y1", function () { return pa.y; }, function (v) { pa.y = v; resolveSketch(false); }, 0.1);
-    numRow(grid, "X2", function () { return pb.x; }, function (v) { pb.x = v; resolveSketch(false); }, 0.1);
-    numRow(grid, "Y2", function () { return pb.y; }, function (v) { pb.y = v; resolveSketch(false); }, 0.1);
-    numRow(grid, t("constraintLength"), function () { return Math.hypot(pb.x - pa.x, pb.y - pa.y); }, function (v) { setLineConstraint(p, "distance", Math.max(1e-6, v)); }, 0.1, "length");
+    numLengthRow(grid, "X1", function () { return pa.x; }, function (v) { pa.x = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, "Y1", function () { return pa.y; }, function (v) { pa.y = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, "X2", function () { return pb.x; }, function (v) { pb.x = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, "Y2", function () { return pb.y; }, function (v) { pb.y = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, t("constraintLength"), function () { return Math.hypot(pb.x - pa.x, pb.y - pa.y); }, function (v) { setLineConstraint(p, "distance", Math.max(1e-6, v)); }, 0.1, "length");
     numRow(grid, t("constraintAngle"), function () { return (Math.atan2(pb.y - pa.y, pb.x - pa.x) * 180) / Math.PI; }, function (v) { setLineConstraint(p, "angle", v); }, 0.1);
     numRow(grid, t("wallWidth"), function () { return p.weight || 1; }, function (v) { p.weight = clamp(v, 1, 6); }, 0.1);
   } else if (p.type === "circle" || p.type === "arc") {
     var oc = circleData(p, new Map((ensureSketch(E.def).points || []).map(function (q) { return [q.id, q]; })));
     if (oc) {
-      numRow(grid, "X", function () { return oc.center.x; }, function (v) { oc.center.x = v; resolveSketch(false); }, 0.1);
-      numRow(grid, "Y", function () { return oc.center.y; }, function (v) { oc.center.y = v; resolveSketch(false); }, 0.1);
+      numLengthRow(grid, "X", function () { return oc.center.x; }, function (v) { oc.center.x = v; resolveSketch(false); }, 0.1);
+      numLengthRow(grid, "Y", function () { return oc.center.y; }, function (v) { oc.center.y = v; resolveSketch(false); }, 0.1);
       // an arc's radius is carried by its rim points, so the driver is the
       // radius dimension rather than a stored scalar
-      if (p.type === "circle") numRow(grid, "R", function () { return p.r; }, function (v) { setEntityDimension(p,"radius",Math.max(1e-6,v)); }, 0.1);
-      else numRow(grid, "R", function () { return oc.radius; }, function (v) { setEntityDimension(p, "radius", Math.max(1e-6, v)); }, 0.1);
+      if (p.type === "circle") numLengthRow(grid, "R", function () { return p.r; }, function (v) { setEntityDimension(p,"radius",Math.max(1e-6,v)); }, 0.1);
+      else numLengthRow(grid, "R", function () { return oc.radius; }, function (v) { setEntityDimension(p, "radius", Math.max(1e-6, v)); }, 0.1);
     }
   } else if (p.type === "ellipse") {
     var oe = ellipseData(p, new Map((ensureSketch(E.def).points || []).map(function (q) { return [q.id, q]; })));
     if (oe) {
-      numRow(grid, "X", function () { return oe.center.x; }, function (v) { oe.center.x = v; resolveSketch(false); }, 0.1);
-      numRow(grid, "Y", function () { return oe.center.y; }, function (v) { oe.center.y = v; resolveSketch(false); }, 0.1);
+      numLengthRow(grid, "X", function () { return oe.center.x; }, function (v) { oe.center.x = v; resolveSketch(false); }, 0.1);
+      numLengthRow(grid, "Y", function () { return oe.center.y; }, function (v) { oe.center.y = v; resolveSketch(false); }, 0.1);
       // the three scalars the solver drives, edited directly
-      numRow(grid, t("dyn_major"), function () { return p.rx; }, function (v) { p.rx = Math.max(1e-6, v); resolveSketch(false); }, 0.1);
-      numRow(grid, t("dyn_minor"), function () { return p.ry; }, function (v) { p.ry = Math.max(1e-6, v); resolveSketch(false); }, 0.1);
+      numLengthRow(grid, t("dyn_major"), function () { return p.rx; }, function (v) { p.rx = Math.max(1e-6, v); resolveSketch(false); }, 0.1);
+      numLengthRow(grid, t("dyn_minor"), function () { return p.ry; }, function (v) { p.ry = Math.max(1e-6, v); resolveSketch(false); }, 0.1);
       numRow(grid, t("constraintAngle"), function () { return ((Number(p.rot) || 0) * 180) / Math.PI; },
         function (v) { p.rot = (v * Math.PI) / 180; resolveSketch(false); }, 0.5);
     }
   } else if (p.type === undefined && "x" in p && "y" in p && p.id) {
-    numRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; resolveSketch(false); }, 0.1);
-    numRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; resolveSketch(false); }, 0.1);
   } else if (p.kind === "box") {
-    numRow(grid, "X", function () { return (p.x0 + p.x1) / 2; }, function (v) { var w = p.x1 - p.x0; p.x0 = v - w / 2; p.x1 = v + w / 2; });
-    numRow(grid, "Y", function () { return p.y0; }, function (v) { var h = p.y1 - p.y0; p.y0 = v; p.y1 = v + h; });
-    numRow(grid, "Z", function () { return (p.z0 + p.z1) / 2; }, function (v) { var d = p.z1 - p.z0; p.z0 = v - d / 2; p.z1 = v + d / 2; });
-    numRow(grid, "W", function () { return p.x1 - p.x0; }, function (v) { var c = (p.x0 + p.x1) / 2; p.x0 = c - v / 2; p.x1 = c + v / 2; });
-    numRow(grid, "H", function () { return p.y1 - p.y0; }, function (v) { p.y1 = p.y0 + v; });
-    numRow(grid, "D", function () { return p.z1 - p.z0; }, function (v) { var c = (p.z0 + p.z1) / 2; p.z0 = c - v / 2; p.z1 = c + v / 2; });
+    numLengthRow(grid, "X", function () { return (p.x0 + p.x1) / 2; }, function (v) { var w = p.x1 - p.x0; p.x0 = v - w / 2; p.x1 = v + w / 2; });
+    numLengthRow(grid, "Y", function () { return p.y0; }, function (v) { var h = p.y1 - p.y0; p.y0 = v; p.y1 = v + h; });
+    numLengthRow(grid, "Z", function () { return (p.z0 + p.z1) / 2; }, function (v) { var d = p.z1 - p.z0; p.z0 = v - d / 2; p.z1 = v + d / 2; });
+    numLengthRow(grid, "W", function () { return p.x1 - p.x0; }, function (v) { var c = (p.x0 + p.x1) / 2; p.x0 = c - v / 2; p.x1 = c + v / 2; });
+    numLengthRow(grid, "H", function () { return p.y1 - p.y0; }, function (v) { p.y1 = p.y0 + v; });
+    numLengthRow(grid, "D", function () { return p.z1 - p.z0; }, function (v) { var c = (p.z0 + p.z1) / 2; p.z0 = c - v / 2; p.z1 = c + v / 2; });
   } else if (p.kind === "cyl") {
-    numRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; });
-    numRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; });
-    numRow(grid, "Z", function () { return p.z; }, function (v) { p.z = v; });
-    numRow(grid, "R", function () { return p.r; }, function (v) { p.r = Math.max(0.5, v); });
-    numRow(grid, "R2", function () { return p.r2 != null ? p.r2 : p.r; }, function (v) { p.r2 = Math.max(0, v); });
-    numRow(grid, "H", function () { return p.h; }, function (v) { p.h = Math.max(0.5, v); });
+    numLengthRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; });
+    numLengthRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; });
+    numLengthRow(grid, "Z", function () { return p.z; }, function (v) { p.z = v; });
+    numLengthRow(grid, "R", function () { return p.r; }, function (v) { p.r = Math.max(0.5, v); });
+    numLengthRow(grid, "R2", function () { return p.r2 != null ? p.r2 : p.r; }, function (v) { p.r2 = Math.max(0, v); });
+    numLengthRow(grid, "H", function () { return p.h; }, function (v) { p.h = Math.max(0.5, v); });
   } else if (p.kind === "sph") {
-    numRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; });
-    numRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; });
-    numRow(grid, "Z", function () { return p.z; }, function (v) { p.z = v; });
-    numRow(grid, "R", function () { return p.r; }, function (v) { p.r = Math.max(0.5, v); });
+    numLengthRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; });
+    numLengthRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; });
+    numLengthRow(grid, "Z", function () { return p.z; }, function (v) { p.z = v; });
+    numLengthRow(grid, "R", function () { return p.r; }, function (v) { p.r = Math.max(0.5, v); });
   } else if (p.kind === "rev") {
-    numRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; });
-    numRow(grid, "Z", function () { return p.z; }, function (v) { p.z = v; });
+    numLengthRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; });
+    numLengthRow(grid, "Z", function () { return p.z; }, function (v) { p.z = v; });
     numRow(grid, "Seg", function () { return p.seg || 32; }, function (v) { p.seg = clamp(Math.round(v), 6, 96); });
   } else {
-    numRow(grid, t("base"), function () { return Math.min(p.from, p.to); }, function (v) { var d = Math.abs(p.to - p.from); p.from = v; p.to = v + d; });
-    numRow(grid, t("depth"), function () { return Math.abs(p.to - p.from); }, function (v) { p.to = p.from + Math.max(0.5, v); });
+    numLengthRow(grid, t("base"), function () { return Math.min(p.from, p.to); }, function (v) { var d = Math.abs(p.to - p.from); p.from = v; p.to = v + d; });
+    numLengthRow(grid, t("depth"), function () { return Math.abs(p.to - p.from); }, function (v) { p.to = p.from + Math.max(0.5, v); });
   }
   host.appendChild(grid);
   if (isSketchObject(p)) {
@@ -17987,7 +17998,7 @@ function fillSketchPane() {
   host.appendChild(attachFace);
 
   var grid = el("div", "md-prop-grid");
-  numRow(grid, t("sketchOffset"), function () { return sketch.frameSpace==="local" ? Number(sketch.supportOffset)||0 : Number(sketch.offset)||0; }, function (v) {
+  numLengthRow(grid, t("sketchOffset"), function () { return sketch.frameSpace==="local" ? Number(sketch.supportOffset)||0 : Number(sketch.offset)||0; }, function (v) {
     if (sketch.frameSpace==="local") sketch.supportOffset=v;
     else sketch.offset = v;
   }, 0.5);
