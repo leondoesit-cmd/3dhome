@@ -102,6 +102,27 @@ export function applyAppearanceOverrides(parts, overrides = []) {
   });
 }
 
+/* An older material-pane path could attach a body override to a selected
+   sketch point. Such an override cannot paint a solid and should not survive
+   the next save. Keep every real body/feature target, including suppressed
+   feature targets, and leave face/edge appearances untouched. */
+export function pruneSketchTargetedBodyAppearances(def) {
+  if (!Array.isArray(def?.appearances) || !def.appearances.length) return 0;
+  const sketchIds = new Set((def.sketches || []).flatMap((sketch) => [
+    ...(sketch.points || []).map((point) => point.id),
+    ...(sketch.entities || []).map((entity) => entity.id),
+  ]));
+  if (!sketchIds.size) return 0;
+  const bodyIds = new Set([
+    ...(def.parts || []).flatMap((part) => [part.id, part.featureId, part.derivedFeatureId]),
+    ...(def.features || []).map((feature) => feature.id),
+  ]);
+  const before = def.appearances.length;
+  def.appearances = def.appearances.filter((item) =>
+    !((item.kind === "body" || item.kind === "part") && sketchIds.has(item.persistentId) && !bodyIds.has(item.persistentId)));
+  return before - def.appearances.length;
+}
+
 export function faceAppearanceOverrides(overrides = []) {
   return (overrides || []).filter((item) => item.kind === "face" && item.persistentId);
 }

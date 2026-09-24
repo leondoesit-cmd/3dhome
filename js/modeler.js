@@ -123,7 +123,7 @@ import { calloutText, calloutTextById, holeCallouts } from "./core/hole_callout.
 import { cosmeticThread, modeledThreadSolid, normalizeThreadSpec, threadCallout, validateThreadFeature, validateThreadFit, documentThreadOverlays } from "./cad_thread.js";
 import { knurlBandMesh, knurlCallout, knurlGroovePolylines, normalizeKnurlSpec, validateKnurl } from "./cad_knurl.js";
 import { toolboxFastener, listToolboxLibrary, toolboxFamily, lengthOptionsForSize, FASTENER_LENGTHS_MM, reducingBranchRows, PVC_D1785, searchToolbox, TOOLBOX_CATEGORY_LABELS } from "./cad_toolbox.js";
-import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides, partMaterialDensity, stockMaterialForPart, drawingMaterialName } from "./cad_appearances.js";
+import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides, partMaterialDensity, stockMaterialForPart, drawingMaterialName, pruneSketchTargetedBodyAppearances } from "./cad_appearances.js";
 import { appearanceGroups } from "./core/appearance_groups.js";
 import { captureConfiguration, ensureConfigurations, setActiveConfiguration } from "./cad_configurations.js";
 import { evaluateFit, fitCallout, fitLimitSource } from "./cad_fits.js";
@@ -12203,6 +12203,13 @@ async function extrudeClosedSketch(options) {
     }
     E.lastCutSkipped=[...new Set(cutSkipped)];
     if(!cutCount){H.discard();flash(t("cutNone")+cutSkipNote());return false;}
+    // applyCut replaces the parts array with rebuilt copies. Keep selection on
+    // the affected body, not on the sketch point that was selected before the
+    // feature. Otherwise the material pane can edit that point as if it were
+    // a solid, and the change disappears on save/rebuild.
+    E.sel=E.def.parts.find(function(part){return part.id===target.id;}) || null;
+    E.ssel=[];
+    E.topologySelection=[];
     E.authoring.featureType=null;E.authoring.phase="model";refreshAll();
     flash("✓ "+t("extrudeCut")+" · "+(params.endCondition || "through-all")+(cutCount>1?" · "+cutCount+" "+t("profileRegions"):"")+cutSkipNote());
     return true;
@@ -18313,6 +18320,11 @@ function fillLook() {
     host.appendChild(el("div", "md-note", "Sketch entities carry rules and metadata only. They do not create a solid until consumed by a feature."));
     return;
   }
+  // A selected sketch vertex has no `type`, and viewport appearance overlays
+  // may return a copy of a body. Only the document's actual solid may receive
+  // density and material edits; resolve copies by their stable body ID.
+  p=(E.def.parts || []).find(function(part){return part.id===p.id;}) || null;
+  if(!p){emptyState(host,"ph-paint-brush",t("noSel"),t("noSelHint"));return;}
 
   host.appendChild(el("h5", "md-h5", t("material")));
 
@@ -23170,6 +23182,7 @@ async function saveModel() {
   if (!canonical && !(E.def.metadata && E.def.metadata.adapter === "cabinet") && !recognizedHistory) rebuildFeatureTreeFromDocument();
   pruneAbandonedSketches(E.def);
   var def = JSON.parse(JSON.stringify(E.def));
+  pruneSketchTargetedBodyAppearances(def);
   // Canonical sketches and face references own their coordinate system.
   // Recentring a rendered bounding box on save invalidates those references.
   if (!canonical) normalizeDef(def);
