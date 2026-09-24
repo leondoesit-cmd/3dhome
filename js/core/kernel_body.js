@@ -164,6 +164,11 @@ export function offsetKernelBody(part, dx, dy, dz) {
     part.bounds.y0 += dy; part.bounds.y1 += dy;
     part.bounds.z0 += dz; part.bounds.z1 += dz;
   }
+  if (part.meshData?.exactBounds) {
+    for (const point of [part.meshData.exactBounds.min, part.meshData.exactBounds.max]) {
+      point.x += dx; point.y += dy; point.z += dz;
+    }
+  }
   return part;
 }
 
@@ -173,6 +178,10 @@ export function offsetKernelBody(part, dx, dy, dz) {
    nothing yet". */
 export function kernelBodyBounds(part) {
   if (!isKernelBody(part)) return null;
+  const exact = part.meshData?.exactBounds;
+  if (exact && [exact.min?.x, exact.min?.y, exact.min?.z, exact.max?.x, exact.max?.y, exact.max?.z].every(Number.isFinite)) {
+    return { x0:exact.min.x, x1:exact.max.x, y0:exact.min.y, y1:exact.max.y, z0:exact.min.z, z1:exact.max.z };
+  }
   if (part.bounds && Number.isFinite(part.bounds.x0)) return { ...part.bounds };
   return meshDataBounds(part.meshData && part.meshData.positions);
 }

@@ -279,7 +279,7 @@ export function movePart(p, dx, dy, dz) {
     });
   }
   if (p.meshData && (Array.isArray(p.meshData.positions) || ArrayBuffer.isView(p.meshData.positions))) {
-    if(p.meshData.exactBounds) [p.meshData.exactBounds.min,p.meshData.exactBounds.max].forEach(function(point){point.x+=dx;point.y+=dy;point.z+=dz;});
+    if(p.meshData.exactBounds && !isKernelBody(p)) [p.meshData.exactBounds.min,p.meshData.exactBounds.max].forEach(function(point){point.x+=dx;point.y+=dy;point.z+=dz;});
     for (var mi=0;mi<p.meshData.positions.length;mi+=3) {
       p.meshData.positions[mi]+=dx;
       p.meshData.positions[mi+1]+=dy;

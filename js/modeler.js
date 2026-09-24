@@ -7524,10 +7524,14 @@ function quickPatternPart(count, pitch) {
 }
 
 function featureReferenceOptions(type) {
-  if(type==="helix-reference")return [{value:"",label:t("sweepPathSketch")}].concat(documentHelixRecords().map(function(record){
-    var owner=(E.def.features || []).find(function(feature){return feature.id===record.featureId;});
-    return {value:record.id,label:(owner && owner.name) || record.name || record.id};
-  }));
+  if(type==="helix-reference"){
+    var selectedPaths=selectedSketchIds(),pathId=selectedPaths[selectedPaths.length>1?1:0];
+    var pathSketch=(E.def.sketches || []).find(function(sketch){return sketch.id===pathId;});
+    return [{value:"",label:pathSketch?.name || t("sweepPathSketch")}].concat(documentHelixRecords().map(function(record){
+      var owner=(E.def.features || []).find(function(feature){return feature.id===record.featureId;});
+      return {value:record.id,label:(owner && owner.name) || record.name || record.id};
+    }));
+  }
   var expected=type==="axis-reference"?"axis":"plane";
   return (E.def.references || []).filter(function(reference){return reference.type===expected;}).map(function(reference){return {value:reference.id,label:reference.name || reference.id};});
 }
@@ -16296,10 +16300,17 @@ function editTreeNode(node, model) {
 function renameTreeNode(node, model, name) {
   pushUndo(t("treeRename"));
   if (node.kind === "feature" && model.mode === "canonical") {
+    var renamedFeature = (E.def.features || []).find(function (item) { return item.id === node.targetId; });
+    var previousName = renamedFeature && renamedFeature.name;
     try { updateFeatureDefinition(E.def, node.targetId, { name: name }); }
     catch (error) { H.discard(); flash(String(error.message || error)); return; }
     var entry = (E.def.history || []).find(function (item) { return item.targetId === node.targetId; });
     if (entry) entry.name = name;
+    // A standalone solid initially inherits its creating feature's name.
+    // Keep that default body label and the selected-body breadcrumb in sync,
+    // while preserving an intentionally custom body name.
+    (E.def.parts || []).filter(function (part) { return part.featureId === node.targetId && (!part.name || part.name === previousName); })
+      .forEach(function (part) { part.name = name; });
     (E.def.referenceGeometry || []).filter(function(r){return r.featureId===node.targetId;}).forEach(function(r){r.name=name;});
   } else if (node.kind === "feature") {
     var part = treeTargetPart(node);
@@ -16802,7 +16813,7 @@ function syncSizeReadout(sketchCount) {
   if (sketchCount == null) sketchCount = ensureSketchDoc(E.def).reduce(function (a, s2) { return a + s2.entities.length; }, 0);
   var b = defBounds(E.def);
   sizeEl.textContent = renderedParts(E.def).length
-    ? [b.x1 - b.x0, b.z1 - b.z0, b.y1 - b.y0].map(value=>modelLengthText(value)).join("×") + " " + modelLengthUnit()
+    ? [b.x1 - b.x0, b.z1 - b.z0, b.y1 - b.y0].map(value=>modelLengthText(Math.round(value*1e6)/1e6,7)).join("×") + " " + modelLengthUnit()
     : sketchCount ? sketchCount + " sketch" : "";
 }
 
