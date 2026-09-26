@@ -175,7 +175,7 @@ test("the shell mounts in all three editors and Share opens the Collaborate tab"
   assert.match(ribbon, /commandBarHTML\("plan"\)/);
   assert.match(ribbon, /openWorkspace\("collaborate"\)/);
   const modeler = src("modeler.js");
-  for (const piece of [/projectChipHTML\(\) \+\s*editorSwitchHTML\("model"/, /shellActionsHTML\(\) \+\s*'<button id="mdUndo"/, /commandBarHTML\("model"\)/, /aiStatusHTML\(\)/, /wireShell\(root, "model"\)/]) assert.match(modeler, piece);
+  for (const piece of [/projectChipHTML\(\) \+\s*editorSwitchHTML\("model"/, /shellActionsHTML\(\) \+\s*'<button id="mdUndo"/, /commandBarHTML\("model"\)/, /st\.insertAdjacentHTML\("beforeend", aiStatusHTML\(\)\)/, /wireShell\(root, "model"\)/]) assert.match(modeler, piece);
   const cabinet = src("ui_cabinet.js");
   for (const piece of [/projectChipHTML\(\)/, /shellActionsHTML\(\)/, /commandBarHTML\("cab"\)/, /wireShell\(E\.host, "cab"\)/]) assert.match(cabinet, piece);
   const ws = src("workspace.js");

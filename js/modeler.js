@@ -3950,7 +3950,6 @@ function buildDOM() {
     '</div>' +
     commandBarHTML("model") +
     '<div class="md-status" id="mdStatus" role="status"></div>' +
-    aiStatusHTML() +
     "</div>" +
 
     /* ---- right: the model as it will look, and the selected part ---- */
@@ -10745,7 +10744,15 @@ function topologyStatusCaption() {
   return Object.keys(kinds).map(function (kind) { return kinds[kind] + " " + kind; }).join(" · ");
 }
 
+/* The status line is rewritten whole on every sync, so the shell's AI chip
+   (js/pro_shell.js) is added back at its end each time — inside the line, not
+   floated over it, so the two can never overlap. */
 function syncStatus() {
+  syncStatusLine();
+  var st = root && root.querySelector("#mdStatus");
+  if (st && !st.querySelector(".ps-ai-status")) st.insertAdjacentHTML("beforeend", aiStatusHTML());
+}
+function syncStatusLine() {
   var st = root && root.querySelector("#mdStatus");
   if (!st) return;
   if (E.docType === "assembly") {

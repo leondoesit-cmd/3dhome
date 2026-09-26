@@ -191,8 +191,12 @@ export function shellActionsHTML() {
     "</span>";
 }
 
+/* Rendered in its current state: a host that rebuilds its status line (the
+   model editor does, on every sync) re-adds it without waiting for a sync. */
 export function aiStatusHTML() {
-  return '<span class="ps-ai-status" data-ps="status"><i class="ph ph-sparkle" aria-hidden="true"></i><span></span></span>';
+  var on = aiOn();
+  return '<span class="ps-ai-status' + (on ? "" : " off") + '" data-ps="status"><i class="ph ph-sparkle" aria-hidden="true"></i><span>' +
+    M(on ? "statusOn" : "statusOff") + "</span></span>";
 }
 
 /** The floating "AI | › Cmd" bar for `editor` ("plan" | "model" | "cab"). */

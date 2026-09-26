@@ -522,7 +522,7 @@ body.zombies-on .ps-cmdbar, body.lava-on .ps-cmdbar { display: none !important; 
    status line on the end side. */
 #modeler .md-mid > .ps-cmdbar { bottom: 70px; z-index: 61; }
 body:not(.compact-nav) #modeler .md-rail-bottom { bottom: 122px; max-height: calc(50% - 124px); }
-#modeler .md-mid > .ps-ai-status { position: absolute; z-index: 9; bottom: 8px; inset-inline-end: 12px; pointer-events: none; }
+#modeler .md-status .ps-ai-status { margin-inline-start: auto; }
 /* Cabinet designer: the bar takes the hint's place, the hint sits above it. */
 #cabdes .cb-mid > .ps-cmdbar { bottom: 14px; }
 #cabdes:not(.cb-compact) .cb-hint { bottom: 66px; }
