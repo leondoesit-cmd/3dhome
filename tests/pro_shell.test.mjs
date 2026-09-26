@@ -187,3 +187,33 @@ test("typing in the bar or the project name never fires editor shortcuts", () =>
   const shellSrc = src("pro_shell.js");
   assert.equal((shellSrc.match(/e\.stopPropagation\(\); \/\/ typing/g) || []).length, 2);
 });
+
+/* ---- fold rail: tabs beside the plan, the tab's tools above the inspector ---- */
+test("the fold rail lists every planner tab and docks its tools above the inspector", async () => {
+  const shell = src("mobile_shell.js");
+  // A column of #workspace before the canvas, so the plan narrows instead of being covered.
+  assert.match(shell, /ws\.insertBefore\(foldRail, canvas\)/);
+  // The panel heads the docked inspector column and is opened through the props dock.
+  assert.match(shell, /host\.insertBefore\(foldPanel, host\.firstChild\)/);
+  assert.match(shell, /if \(openSheet !== "props"\) showSheet\("props"\);/);
+  // Closing the dock retires the panel; the state class is not the panel's class.
+  assert.match(shell, /if \(closingKey === "props" && foldTab != null\)/);
+  assert.doesNotMatch(shell, /body\.classList\.(add|remove)\("m-fold-tools"\)/);
+  const css = readFileSync(new URL("../css/pro_ribbon.css", import.meta.url), "utf8");
+  assert.match(css, /body\.compact-nav\.dock-rail \.m-fold-rail \{/);
+  assert.match(css, /body\.dock-rail\.m-fold-open #m-fold-tools \{/);
+  // The grid is the pro catalog's own tab, so the rail can never disagree with the ribbon.
+  const ribbon = src("pro_ribbon.js");
+  assert.match(ribbon, /window\.__proToolTabs = \{ tabs: proToolTabs, render: renderToolTab \};/);
+  const { PRO_CATALOG } = await import("../js/pro_catalog.js");
+  const icons = (ribbon.match(/var TAB_ICON = \{([\s\S]*?)\};/) || ["", ""])[1];
+  for (const [name] of PRO_CATALOG.plan.tabs) assert.ok(icons.includes('"' + name + '"'), "rail icon for " + name);
+  const phosphor = readFileSync(new URL("../vendor/phosphor/style.css", import.meta.url), "utf8");
+  for (const m of icons.matchAll(/"(ph-[a-z-]+)"/g)) assert.ok(phosphor.includes("." + m[1] + ":before"), m[1]);
+  for (const f of ["en", "he"]) for (const key of ["m_fold_rail", "m_fold_all"]) assert.match(src("i18n/" + f + ".js"), new RegExp("\n  " + key + ": "), f + " " + key);
+});
+
+test("a tool run through the hidden rail is a command, not a tap that closes the dock", () => {
+  for (const f of ["ui.js", "mobile_shell.js"])
+    assert.match(src(f), /if \(e\.target && e\.target\.closest && e\.target\.closest\("#plan-toolbar"\)\) return;/, f);
+});

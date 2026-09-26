@@ -361,6 +361,8 @@ export default {
   m_view_hold: "הקשה מחליפה תוכנית/תלת־ממד · לחיצה ארוכה לפיצול ולחתכים",
   m_strip_aria: "עורכים ותצוגות",
   m_panes_aria: "תצוגה",
+  m_fold_rail: "לשוניות כלים",
+  m_fold_all: "{tab} · כל הכלים · {n}",
   m_more_find: "חיפוש כלי",
   m_more_find_desc: "מצאו כל פקודה לפי שם, בלי לחפש בתפריטים.",
   m_t_select: "בחירה",

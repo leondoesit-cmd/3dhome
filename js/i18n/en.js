@@ -360,6 +360,8 @@ export default {
   m_view_hold: "Tap to switch Plan / 3D · hold for Split and elevations",
   m_strip_aria: "Editors and panes",
   m_panes_aria: "Pane",
+  m_fold_rail: "Tool tabs",
+  m_fold_all: "{tab} · all tools · {n}",
   m_more_find: "Find a tool",
   m_more_find_desc: "Search every command by name instead of hunting menus.",
   m_t_select: "Select",

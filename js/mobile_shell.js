@@ -213,6 +213,93 @@ function syncStrip() {
   });
 }
 
+/* ---- fold rail ---------------------------------------------------------- */
+
+/* Unfolded foldables (the dock-rail posture) get the Round-6 fold layout: a
+   rail of the catalog's tabs beside the plan, and the picked tab's tools
+   docked above the inspector in the end column — tools and properties side by
+   side with the drawing, where a phone has to stack them in sheets. The rail
+   is a column of #workspace, so the plan narrows rather than being covered;
+   css shows it only under body.dock-rail. The grid comes from the pro catalog
+   (js/pro_ribbon.js, window.__proToolTabs), so every tool here is the same
+   binding the desktop ribbon runs. */
+var foldRail = null, foldPanel = null, foldTab = null;
+function foldTabs() { return window.__proToolTabs ? window.__proToolTabs.tabs("plan") : []; }
+function buildFoldRail() {
+  var ws = $("workspace"), canvas = $("center-canvas");
+  if (!ws || !canvas || !window.__proToolTabs) return;
+  if (!foldRail) {
+    foldRail = document.createElement("nav");
+    foldRail.id = "m-fold-rail";
+    foldRail.className = "m-fold-rail";
+    ws.insertBefore(foldRail, canvas);
+    foldRail.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-fold-tab]");
+      if (!b) return;
+      var index = Number(b.dataset.foldTab);
+      if (foldTab === index) closeFoldTools();
+      else openFoldTab(index);
+    });
+  }
+  foldRail.setAttribute("aria-label", t("m_fold_rail"));
+  foldRail.innerHTML = foldTabs().map(function (tab) {
+    return '<button type="button" data-fold-tab="' + tab.index + '" aria-pressed="false" title="' + escapeAttr(tab.full) + '">' +
+      '<i class="ph ' + tab.icon + '" aria-hidden="true"></i><span>' + escapeAttr(tab.label) + "</span></button>";
+  }).join("");
+  syncFoldRail();
+  if (foldTab != null) renderFoldPanel();
+}
+function escapeAttr(v) {
+  return String(v).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+}
+function syncFoldRail() {
+  if (!foldRail) return;
+  foldRail.querySelectorAll("[data-fold-tab]").forEach(function (b) {
+    var on = Number(b.dataset.foldTab) === foldTab;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+}
+function renderFoldPanel() {
+  var host = $("right-inspector");
+  if (!host) return;
+  if (!foldPanel) {
+    foldPanel = document.createElement("section");
+    foldPanel.id = "m-fold-tools";
+    foldPanel.className = "m-fold-tools";
+    foldPanel.innerHTML = '<header><strong></strong><button type="button" class="m-fold-x"><i class="ph ph-x" aria-hidden="true"></i></button></header><div class="m-fold-body"></div>';
+    foldPanel.querySelector(".m-fold-x").addEventListener("click", closeFoldTools);
+  }
+  if (foldPanel.parentNode !== host) host.insertBefore(foldPanel, host.firstChild);
+  var tab = foldTabs()[foldTab];
+  if (!tab) return;
+  foldPanel.querySelector("strong").textContent = t("m_fold_all", { tab: tab.full, n: tab.count });
+  foldPanel.querySelector(".m-fold-x").setAttribute("aria-label", t("close"));
+  foldPanel.setAttribute("aria-label", tab.full);
+  // A tool that arms a drawing tool keeps the panel: the plan is beside it.
+  window.__proToolTabs.render(foldPanel.querySelector(".m-fold-body"), "plan", foldTab, function () { sync(true); });
+}
+function openFoldTab(index) {
+  foldTab = index;
+  document.body.classList.add("m-fold-open");
+  renderFoldPanel();
+  syncFoldRail();
+  // The panel lives at the head of the docked inspector column.
+  if (openSheet !== "props") showSheet("props");
+  foldPanel.scrollTop = 0;
+  window.dispatchEvent(new Event("resize"));
+}
+function closeFoldTools() {
+  if (foldTab == null) return;
+  var hadSelection = !!selKind();
+  foldTab = null;
+  document.body.classList.remove("m-fold-open");
+  syncFoldRail();
+  // Opened only to hold the tools: close the column with them.
+  if (openSheet === "props" && !hadSelection) closeSheet();
+  window.dispatchEvent(new Event("resize"));
+}
+
 /* ---- selection ---------------------------------------------------------- */
 
 function selKind() {
@@ -587,6 +674,11 @@ function ensureSheet() {
 
 function closeSheet() {
   var closingKey = openSheet;
+  if (closingKey === "props" && foldTab != null) {
+    foldTab = null;
+    document.body.classList.remove("m-fold-open");
+    syncFoldRail();
+  }
   releasePages();
   openSheet = null;
   // Move focus before making the dialog inert so Chrome never has to retain a
@@ -1191,6 +1283,7 @@ export function initMobileShell() {
 
   initNav();
   buildStrip();
+  buildFoldRail();
   ensureSheet();
   // ui.js owns the legacy swipe/backdrop handlers. Observe the shared drawer
   // classes so their dismissals also retire our backdrop and expanded state.
@@ -1215,9 +1308,11 @@ export function initMobileShell() {
     if (openSheet === "add") setTimeout(pageLibrary, 0);
   });
   var canvas = $("center-canvas");
-  if (canvas) canvas.addEventListener("click", function () {
+  if (canvas) canvas.addEventListener("click", function (e) {
     /* ui.js closes borrowed drawers on a canvas tap. Keep this module's sheet
-       state in lockstep so Add/Edit cannot remain falsely highlighted. */
+       state in lockstep so Add/Edit cannot remain falsely highlighted. A tool
+       run through the hidden rail (fold rail, pro catalog) is not a tap. */
+    if (e.target && e.target.closest && e.target.closest("#plan-toolbar")) return;
     if (openSheet === "add" || openSheet === "props") closeSheet();
   });
   /* Picking a library item arms placement; keeping the borrowed library panel
@@ -1297,6 +1392,7 @@ export function initMobileShell() {
   syncKeyboard();
   onLangChange(function () {
     buildStrip();
+    buildFoldRail();
     sync(true);
     var closeLabel = t("close");
     if (sheet) {

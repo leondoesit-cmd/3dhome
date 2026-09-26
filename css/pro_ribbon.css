@@ -560,3 +560,72 @@ body:not(.compact-nav) #modeler .md-rail-bottom { bottom: 122px; max-height: cal
   .pr-bar .pr-editors .pr-ed-full { display: none; }
   .pr-bar .pr-editors .pr-ed-short { display: inline; }
 }
+
+/* ================================================================ fold rail
+   Unfolded foldables (body.dock-rail): a rail of the catalog's tabs beside the
+   plan (js/mobile_shell.js), and the picked tab's tools docked above the
+   inspector in the end column — the Round-6 Fold7 / wide-fold screens. */
+.m-fold-rail { display: none; }
+body.compact-nav.dock-rail .m-fold-rail {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  gap: 2px;
+  width: 64px;
+  box-sizing: border-box;
+  padding: 6px 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: color-mix(in srgb, var(--bg-topbar) 92%, transparent);
+  border-inline-end: 1px solid var(--border-color);
+  scrollbar-width: none;
+}
+.m-fold-rail button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: 52px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  cursor: pointer;
+}
+.m-fold-rail button i { font-size: 20px; }
+.m-fold-rail button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.m-fold-rail button.on { background: var(--accent); color: var(--on-accent, #fff); }
+.m-fold-rail button:not(.on):hover { background: var(--accent-soft); color: var(--text-main); }
+.m-fold-rail button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* The tools sit at the head of the docked inspector, which widens toward half
+   the screen while they show; the inspector keeps the rest and scrolls. */
+/* body.m-fold-open is the state; .m-fold-tools is only ever the panel */
+#m-fold-tools { display: none; }
+body.dock-rail.m-fold-open #right-inspector { width: clamp(320px, 46vw, 460px); }
+body.dock-rail.m-fold-open #m-fold-tools {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  max-height: 52%;
+  min-height: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.m-fold-tools > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px 4px; }
+.m-fold-tools > header strong { font-size: 14px; }
+.m-fold-x { width: 36px; height: 36px; border: 0; border-radius: 18px; background: transparent; color: var(--text-muted); font-size: 16px; cursor: pointer; }
+.m-fold-x:hover { background: var(--accent-soft); color: var(--text-main); }
+.m-fold-body { overflow-y: auto; overscroll-behavior: contain; padding: 0 12px 10px; }
+.m-fold-body .pro-rail-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+.m-fold-body .m-grid-btn.on { background: var(--accent); color: var(--on-accent, #fff); }
+/* Wide folds are short (890×626): all nine tabs still fit without scrolling. */
+@media (max-height: 700px) {
+  .m-fold-rail button { min-height: 44px; padding: 4px 2px; gap: 2px; font-size: 10px; }
+  .m-fold-rail button i { font-size: 18px; }
+}

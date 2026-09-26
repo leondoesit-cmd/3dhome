@@ -291,10 +291,11 @@ function renderGroups(tabIndex) {
 
 /* The floating rail stays the source of truth for the active tool. */
 function syncActive() {
-  if (!ribbon) return;
   var on = document.querySelector("#plan-toolbar [data-tool].active, #plan-toolbar [data-tool].on");
   var active = on ? "tool:" + on.getAttribute("data-tool") : "";
-  ribbon.querySelectorAll(".pr-tool").forEach(function (b) { b.classList.toggle("on", !!active && b.dataset.proBind === active); });
+  if (ribbon) ribbon.querySelectorAll(".pr-tool").forEach(function (b) { b.classList.toggle("on", !!active && b.dataset.proBind === active); });
+  // the fold rail's docked grid (renderToolTab) shows the armed tool too
+  document.querySelectorAll(".pro-rail-grid [data-pro-bind]").forEach(function (b) { b.classList.toggle("on", !!active && b.dataset.proBind === active); });
 }
 
 function setCollapsed(c) {
@@ -425,6 +426,62 @@ function appendToolsSheet(body, close) {
 }
 
 window.__proAppendToolsSheet = appendToolsSheet;
+
+/* ---------------------------------------------------------------- fold rail */
+
+/* The unfolded-foldable rail (js/mobile_shell.js draws it): one entry per
+   catalog tab, and the tab's tools as the grid that docks above the inspector
+   — the Round-6 Fold7 / wide-fold screens. Same catalog, same bindings. */
+var TAB_ICON = {
+  "Build": "ph-cursor", "Constrain": "ph-ruler", "Interior": "ph-squares-four", "MEP": "ph-lightning",
+  "Site & scan": "ph-map-pin", "Annotate": "ph-pencil-ruler", "Analyze": "ph-chart-bar",
+  "View & render": "ph-eye", "Output": "ph-floppy-disk",
+};
+var TAB_SHORT = { "Site & scan": "Site", "View & render": "View" };
+function proToolTabs(editor) {
+  return PRO_CATALOG[editor].tabs.map(function (t, i) {
+    var count = t[1].reduce(function (n, g) { return n + g[1].length; }, 0);
+    return {
+      index: i, name: t[0], label: L(TAB_SHORT[t[0]] || t[0]), full: L(t[0]), count: count,
+      icon: TAB_ICON[t[0]] || t[1][0][1][0].icon,
+    };
+  });
+}
+/* One tab's tools, grouped "WALLS · 9" like the mockup; onRun(tool) after a
+   tool runs, so the host can keep or close its panel. */
+function renderToolTab(container, editor, index, onRun) {
+  var tab = PRO_CATALOG[editor].tabs[index];
+  if (!tab) return;
+  container.innerHTML = "";
+  tab[1].forEach(function (group) {
+    var gh = document.createElement("h5");
+    gh.className = "m-sheet-sec";
+    gh.textContent = L(group[0]) + " · " + group[1].length;
+    container.appendChild(gh);
+    var grid = document.createElement("div");
+    grid.className = "m-grid m-icon-grid pro-rail-grid";
+    group[1].forEach(function (tool) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "m-grid-btn";
+      b.disabled = !tool.bind;
+      b.dataset.proBind = tool.bind || "";
+      var name = L(tool.label);
+      b.setAttribute("aria-label", name);
+      b.title = name + (tool.key ? " (" + tool.key + ")" : "");
+      b.innerHTML = '<i class="ph ' + tool.icon + '" aria-hidden="true"></i><span></span>';
+      b.querySelector("span").textContent = name;
+      b.addEventListener("click", function () {
+        runProBinding(tool.bind, tool.label);
+        syncActive();
+        if (onRun) onRun(tool);
+      });
+      grid.appendChild(b);
+    });
+    container.appendChild(grid);
+  });
+}
+window.__proToolTabs = { tabs: proToolTabs, render: renderToolTab };
 
 /* ---------------------------------------------------------------- ⌘K search */
 

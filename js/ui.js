@@ -2990,6 +2990,10 @@ export function initUI() {
     document
       .getElementById("center-canvas")
       .addEventListener("click", function (e) {
+        /* The hidden tool rail lives inside the canvas, and the fold rail and
+           the pro catalog run tools by clicking its buttons: that is a command,
+           not a tap on the plan, so it must not close the docked panels. */
+        if (e.target && e.target.closest && e.target.closest("#plan-toolbar")) return;
         document.body.classList.remove("show-left");
         document.body.classList.remove("show-right");
         syncNavPanels();
