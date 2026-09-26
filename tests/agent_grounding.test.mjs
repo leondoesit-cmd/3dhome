@@ -165,3 +165,18 @@ test("the AI may move furniture on a layer that is only auto-locked, never past 
   assert.doesNotMatch(src("ui_layout_tools.js"), /ai: true/);
   assert.match(src("interaction.js"), /\(ai \? aiCanMove : canDrag\)\(\{ kind: "item", ref: item \}\)/);
 });
+
+test("the candidates and their tags are drawn in 3D too, on the overlay, never in the scene", () => {
+  const preview = src("agent_preview.js");
+  // Painted on the planner's 3D overlay after every frame, with its projector.
+  assert.match(preview, /window\.addEventListener\("planner-overlay-3d", paint3D\);/);
+  assert.match(src("planner_3d.js"), /new CustomEvent\('planner-overlay-3d',\{detail:\{context:c,project,path,label/);
+  // Same set as the plan, repainted when it changes and cleared with it.
+  assert.match(preview, /shown3D = list && list\.length \? lastSet : null;\s*requestRender\(\);/);
+  assert.match(preview, /if \(shown3D\) \{ shown3D = null; requestRender\(\); \}/);
+  // Boxes at the item's real height; openings in the plane of their wall.
+  assert.match(preview, /var lo = itemElev\(spec\), hi = lo \+ itemHeight\(spec\);/);
+  assert.match(preview, /tx = \(g\.b\.x - g\.a\.x\) \/ g\.L; tz = \(g\.b\.z - g\.a\.z\) \/ g\.L;/);
+  // Nothing is added to the THREE scene.
+  assert.doesNotMatch(preview, /getMainScene|scene\.add\(/);
+});

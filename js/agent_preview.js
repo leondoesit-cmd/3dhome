@@ -1,4 +1,8 @@
 import { sx, sz, rotatePx, onAfterRender } from "./plan2d.js";
+import { S } from "./state.js";
+import { requestRender } from "./view3d.js";
+import { footprint } from "./layout_analysis.js";
+import { wallGeom } from "./geometry.js";
 
 var active = null;
 
@@ -34,6 +38,7 @@ function appendItemPreview(svg, spec, extraClass) {
 export function clearAgentPreview() {
   if (active && active.parentNode) active.parentNode.removeChild(active);
   active = null;
+  if (shown3D) { shown3D = null; requestRender(); }
 }
 onAfterRender(function () { refreshAgentPreview(); });
 
@@ -99,6 +104,10 @@ var lastSet = null;
 export function renderAgentCandidates(list, focus) {
   clearAgentPreview();
   lastSet = { list: list, focus: focus };
+  // The same set is drawn in the 3D view (paint3D below), which works with or
+  // without the plan pane on screen.
+  shown3D = list && list.length ? lastSet : null;
+  requestRender();
   var host = document.getElementById("view-2d"), plan = document.getElementById("plan");
   if (!host || !plan || !list || !list.length) return { dispose: clearAgentPreview };
   var svg = svgEl("svg", {
@@ -123,3 +132,110 @@ export function refreshAgentPreview() {
   var set = lastSet;
   renderAgentCandidates(set.list, set.focus);
 }
+
+/* ---- 3D ----------------------------------------------------------------
+
+   The same candidates and tags in the 3D view, so a proposal can be judged in
+   3D as well as on the plan: each piece as a box at its real height (walls as
+   a ghost wall, openings as a frame, rooms as a floor outline), the focused
+   candidate solid and the others faint, the same "A · Sofa #8" tag on top.
+   Drawn on the planner's 3D overlay canvas (js/planner_3d.js fires
+   planner-overlay-3d after every 3D frame with its projector), so nothing is
+   added to the scene and nothing can be picked, saved or exported by mistake. */
+var shown3D = null;
+var WALL_H = 270;
+function cssVar(name, fallback) {
+  try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback; }
+  catch (_) { return fallback; }
+}
+function itemHeight(spec) {
+  if (spec.height > 0) return Number(spec.height);
+  var id = spec.itemId != null ? spec.itemId : spec.sourceId;
+  var it = id != null && (S.items || []).find(function (entry) { return String(entry.id) === String(id); });
+  return it && it.h > 0 ? Number(it.h) : 80;
+}
+function itemElev(spec) {
+  var id = spec.itemId != null ? spec.itemId : spec.sourceId;
+  var it = id != null && (S.items || []).find(function (entry) { return String(entry.id) === String(id); });
+  return it && it.elev > 0 ? Number(it.elev) : 0;
+}
+function box3D(o, spec, center, color, dashed) {
+  var base = footprint({ x: Number(center.x), z: Number(center.z), w: Number(spec.width) || 0, d: Number(spec.depth) || 0, rot: Number(spec.rotation) || 0 });
+  var lo = itemElev(spec), hi = lo + itemHeight(spec);
+  var bottom = base.map(function (p) { return { x: p.x, y: lo + 1, z: p.z }; });
+  var top = base.map(function (p) { return { x: p.x, y: hi, z: p.z }; });
+  var c = o.context;
+  c.save();
+  if (dashed) c.setLineDash([6, 5]);
+  o.path(bottom, color, true);
+  o.path(top, color, true);
+  for (var i = 0; i < 4; i++) o.path([bottom[i], top[i]], color);
+  // a faint lid so the box reads as a volume, not a wire cage
+  var ps = top.map(o.project);
+  if (!dashed && ps.every(Boolean)) {
+    c.globalAlpha *= 0.18;
+    c.fillStyle = color;
+    c.beginPath();
+    ps.forEach(function (q, j) { if (j) c.lineTo(q.x, q.y); else c.moveTo(q.x, q.y); });
+    c.closePath();
+    c.fill();
+  }
+  c.restore();
+  return hi;
+}
+function spec3D(o, spec, color) {
+  if (!spec) return;
+  if (spec.kind === "batch" && Array.isArray(spec.previews)) spec.previews.forEach(function (entry) { spec3D(o, entry, color); });
+  else if (spec.kind === "item" && spec.center) box3D(o, spec, spec.center, color);
+  else if (spec.kind === "item-move" && spec.center) {
+    if (spec.from) {
+      box3D(o, spec, spec.from, color, true);
+      o.path([{ x: spec.from.x, y: 2, z: spec.from.z }, { x: spec.center.x, y: 2, z: spec.center.z }], color);
+    }
+    box3D(o, spec, spec.center, color);
+  } else if (spec.kind === "items" && Array.isArray(spec.items)) spec.items.forEach(function (item) { if (item && item.center) box3D(o, item, item.center, color); });
+  else if (spec.kind === "wall" && spec.from && spec.to) {
+    var h = Number(spec.height) > 0 ? Number(spec.height) : WALL_H;
+    var a = spec.from, b = spec.to;
+    o.path([{ x: a.x, y: 2, z: a.z }, { x: b.x, y: 2, z: b.z }, { x: b.x, y: h, z: b.z }, { x: a.x, y: h, z: a.z }], color, true);
+  } else if (spec.kind === "opening" && spec.center) {
+    // An upright frame in the plane of its host wall.
+    var half = (Number(spec.width) || 90) / 2, oh = Number(spec.height) || 210, sill = Number(spec.sill) || 0;
+    var wall = (S.walls || []).find(function (w) { return String(w.id) === String(spec.wallId); });
+    var g = wall && wallGeom(wall), tx = 1, tz = 0;
+    if (g && g.L > 0) { tx = (g.b.x - g.a.x) / g.L; tz = (g.b.z - g.a.z) / g.L; }
+    var cx = Number(spec.center.x), cz = Number(spec.center.z);
+    var l = { x: cx - tx * half, z: cz - tz * half }, r = { x: cx + tx * half, z: cz + tz * half };
+    o.path([{ x: l.x, y: sill + 2, z: l.z }, { x: r.x, y: sill + 2, z: r.z }, { x: r.x, y: sill + oh, z: r.z }, { x: l.x, y: sill + oh, z: l.z }], color, true);
+  } else if (spec.kind === "room" && Array.isArray(spec.outline)) {
+    o.path(spec.outline.map(function (p) { return { x: p.x, y: 2, z: p.z }; }), color, true);
+  }
+}
+function tagHeight(entry) {
+  var spec = entry.spec || {};
+  if (spec.kind === "item" || spec.kind === "item-move") return itemElev(spec) + itemHeight(spec) + 12;
+  if (spec.kind === "items" && spec.items && spec.items[0]) return itemElev(spec.items[0]) + itemHeight(spec.items[0]) + 12;
+  if (spec.kind === "wall") return (Number(spec.height) || WALL_H) + 12;
+  if (spec.kind === "opening") return (Number(spec.height) || 210) + 12;
+  return 20;
+}
+function paint3D(e) {
+  var o = e && e.detail;
+  if (!shown3D || !o || !o.context || !o.project) return;
+  var accent = cssVar("--accent", "#5b8cff"), warn = cssVar("--warn", "#e0a030");
+  var list = shown3D.list, focus = shown3D.focus, c = o.context;
+  // faint candidates first, so the focused one draws on top
+  list.map(function (entry, i) { return i; }).sort(function (a, b) { return (a === focus) - (b === focus); }).forEach(function (i) {
+    var entry = list[i], dim = list.length > 1 && i !== focus;
+    var warned = (entry.tags || []).some(function (tag) { return tag.tone === "warn"; });
+    c.save();
+    c.globalAlpha = dim ? 0.35 : 1;
+    spec3D(o, entry.spec, warned && !dim ? warn : accent);
+    var y = tagHeight(entry);
+    (entry.tags || []).forEach(function (tag) {
+      if (tag.at && tag.text) o.label({ x: tag.at.x, y: y, z: tag.at.z }, tag.text);
+    });
+    c.restore();
+  });
+}
+if (typeof window !== "undefined") window.addEventListener("planner-overlay-3d", paint3D);
