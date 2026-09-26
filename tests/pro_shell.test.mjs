@@ -337,3 +337,30 @@ test("the cabinet designer's split view keeps the drawing editable beside the li
   assert.match(src("ui_cabinet.js"), /<button data-mode="split" title="' \+ T\("vSplitTip"\)/);
   for (const k of ["vSplit", "vSplitTip"]) assert.ok(src("ui_cabinet_ctx.js").includes(String.fromCharCode(10) + "  " + k + ": ["), k);
 });
+
+test("the model editor's split view: the sketch beside a model that draws the sketches too", () => {
+  const md = src("modeler.js");
+  // A fourth mode button, and Split starts a sketch the way Sketch does.
+  assert.match(md, /<button data-mode="split" id="mdModeSplit" role="tab"/);
+  assert.match(md, /if\(mode==="split"\)\{if\(isCanonicalAuthoring\(\)&&E\.authoring\.phase!=="sketch"\)beginSketchWorkflow\(\);setMode\("split"\);\}/);
+  // E.mode stays 2D; leaving for the model, the sheet, an assembly or a phone drops it.
+  assert.match(md, /if \(m !== "2d" \|\| E\.docType !== "part" \|\| document\.body\.classList\.contains\("compact-nav"\)\) E\.split = false;/);
+  assert.match(md, /swapView\(m === "3d" \|\| split, E\.pv\);/);
+  assert.match(md, /if \(E\.split && document\.body\.classList\.contains\("compact-nav"\)\) \{ setMode\("2d"\); return; \}/);
+  // The model half draws every sketch on its own plane, rebuilt only when it changed.
+  assert.match(md, /function drawSketch\(\) \{\s*if \(!E\.open\) return;\s*syncSplitSketch3D\(\);/);
+  assert.match(md, /framePoint\(frame, q\.u, q\.v, 0\)/);
+  assert.match(md, /if \(old && old\.parent === host && key === E\._splitSketchKey\) return;/);
+  // With no solid yet the model half frames the sketches, not the stock box.
+  assert.match(md, /E\.pv\.target\.set\(c\.x, c\.y - \(db\.y0 \+ db\.y1\) \/ 2, c\.z\);/);
+  // Halving the sketch pane keeps the user's zoom and centre.
+  assert.match(md, /E\.ox \+= \(E\.cw - oldW\) \/ 2;/);
+  const css = src("../css/pro_ribbon.css");
+  assert.match(css, /#modeler\.md-split #mdCanvas \{ left: 0; right: 50%; width: 50%; \}/);
+  assert.match(css, /#modeler\.md-assembly #mdModeSplit, body\.compact-nav #modeler #mdModeSplit \{ display: none; \}/);
+  for (const k of ["modeSplit", "modeSplitTip"]) assert.ok(src("modeler_strings.js").includes(String.fromCharCode(10) + "  " + k + ": ["), k);
+  // Both editors' splits are in the catalog, so the command bar and the fold rails reach them.
+  const cat = src("pro_catalog.js");
+  assert.match(cat, /T\("Split", "ph-columns", "mclick:#mdModeSplit"\)/);
+  assert.match(cat, /T\("Split", "ph-columns", "cab:mode:split"\)/);
+});

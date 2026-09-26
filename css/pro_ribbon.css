@@ -782,3 +782,13 @@ body.pro-ribbon-on #center-canvas.max-view-3d #view-3d > .hint { bottom: var(--p
   color: var(--text-main); background: var(--btn-bg); border: 1px solid var(--border-color); text-transform: none;
 }
 .pc-insp-code[hidden], body.compact-nav .pc-insp-code { display: none; }
+
+/* Model editor split view: the sketch on the left half, the model on the
+   right (physical halves, like the cabinet designer's). The sketch canvas
+   measures itself, so halving it is all the sketch needs. */
+#modeler.md-split #mdCanvas { left: 0; right: 50%; width: 50%; }
+#modeler.md-split .md-3dhost { display: flex; left: 50%; border-left: 1px solid var(--border-color); background: color-mix(in srgb, var(--bg-canvas-3d) 88%, #111827); }
+#modeler.md-split .md-3dhost .md-prev-wrap { flex: 1; min-width: 0; max-width: none; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; }
+#modeler.md-split .md-3dhost .md-context-toggle { top: auto; bottom: 12px; inset-inline-end: 12px; }
+#modeler.md-split .md-3dhost #mdPrev { width: 100%; height: 100%; max-width: 100%; border-radius: 0; background: transparent; }
+#modeler.md-assembly #mdModeSplit, body.compact-nav #modeler #mdModeSplit { display: none; }

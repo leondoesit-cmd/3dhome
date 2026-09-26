@@ -3769,6 +3769,7 @@ function buildDOM() {
     '<button data-mode="3d" class="on" role="tab" aria-selected="true" data-tip="3">' + cadIcon("mode3d") + ' ' + t("mode3d") + "</button>" +
     '<button data-mode="2d" role="tab" aria-selected="false" data-tip="2">' + cadIcon("mode2d") + ' ' + t("mode2d") + "</button>" +
     '<button data-mode="drawing" role="tab" aria-selected="false" data-tip="7">' + cadIcon("drawing") + ' ' + t("modeDrawing") + "</button>" +
+    '<button data-mode="split" id="mdModeSplit" role="tab" aria-selected="false" title="' + t("modeSplitTip") + '"><i class="ph ph-columns"></i> ' + t("modeSplit") + "</button>" +
     "</div>" +
     '<div class="md-drawing-tools" id="mdDrawingTools" role="toolbar" aria-label="Drawing tools">' +
     '<button type="button" data-drawing-tool="select" class="on">' + cadIcon("select") + '<span>' + t("drawToolSelect") + '</span><kbd>V</kbd></button>' +
@@ -4462,7 +4463,10 @@ function buildDOM() {
   root.querySelectorAll("#mdModes button").forEach(function (b) {
     b.addEventListener("click", function () {
       var mode=b.getAttribute("data-mode");
-      if(mode==="2d"&&isCanonicalAuthoring()&&E.authoring.phase!=="sketch")beginSketchWorkflow();
+      // Sketch is a choice against Split, not a sketch that happens to be split
+      if(mode==="2d")E.split=false;
+      if(mode==="split"){if(isCanonicalAuthoring()&&E.authoring.phase!=="sketch")beginSketchWorkflow();setMode("split");}
+      else if(mode==="2d"&&isCanonicalAuthoring()&&E.authoring.phase!=="sketch")beginSketchWorkflow();
       else if(mode==="3d"&&E.authoring.phase==="sketch")finishSketchWorkflow();
       else setMode(mode);
     });
@@ -10851,6 +10855,8 @@ function watchSketchSize() {
   if (E._sizeObserver || typeof ResizeObserver === "undefined") return;
   E._sizeObserver = new ResizeObserver(function () {
     if (!E.open) return;
+    // the window became a phone: no room for Split, the sketch keeps the pane
+    if (E.split && document.body.classList.contains("compact-nav")) { setMode("2d"); return; }
     var was = E.cw;
     if (!sizeSketch()) return;
     // the first real measurement is also the first chance to frame the model
@@ -11331,8 +11337,102 @@ function pathEllipse(c, o) {
   return pathUvEllipse(c, o, 0, Math.PI * 2, true);
 }
 
+/* Split view: the sketches, drawn in the model half as well. The 3D view
+   never draws a sketch itself — in Model mode the sketch canvas is laid over
+   it — so beside the sketch pane it would show nothing until the first
+   extrude. Each sketch is sampled on its own plane (framePoint) into a group
+   of its own, rebuilt from drawSketch() only when the geometry changed, and
+   gone the moment Split is left. The sketch being edited is bright, the rest
+   dim. */
+function sketchUvPolylines(sketch) {
+  var pts = new Map((sketch.points || []).map(function (q) { return [q.id, q]; })), out = [];
+  function ring(center, rx, ry, rot, start, sweep) {
+    var n = Math.max(8, Math.ceil(48 * Math.abs(sweep) / (Math.PI * 2))), cr = Math.cos(rot || 0), sr = Math.sin(rot || 0), line = [];
+    for (var i = 0; i <= n; i++) {
+      var a = start + sweep * i / n, x = Math.cos(a) * rx, y = Math.sin(a) * ry;
+      line.push({ u: center.x + x * cr - y * sr, v: center.y + x * sr + y * cr });
+    }
+    return line;
+  }
+  (sketch.entities || []).forEach(function (e) {
+    try {
+      if (e.projectedCurve && e.projectedCurve.samples) out.push(e.projectedCurve.samples.map(function (q) { return { u: q.u, v: q.v }; }));
+      else if (e.type === "line") {
+        var a = pts.get(e.a), b = pts.get(e.b);
+        if (a && b) out.push([{ u: a.x, v: a.y }, { u: b.x, v: b.y }]);
+      } else if (e.type === "spline") {
+        var k = splineControls(e, pts);
+        if (!k) return;
+        var line = [];
+        for (var i = 0; i <= 24; i++) {
+          var t1 = i / 24, m = 1 - t1;
+          line.push({
+            u: m * m * m * k[0].x + 3 * m * m * t1 * k[1].x + 3 * m * t1 * t1 * k[2].x + t1 * t1 * t1 * k[3].x,
+            v: m * m * m * k[0].y + 3 * m * m * t1 * k[1].y + 3 * m * t1 * t1 * k[2].y + t1 * t1 * t1 * k[3].y,
+          });
+        }
+        out.push(line);
+      } else if (e.type === "ellipse") {
+        var el = ellipseData(e, pts);
+        if (el) out.push(ring(el.center, el.rx, el.ry, el.rot, 0, Math.PI * 2));
+      } else if (e.type === "circle" || e.type === "arc") {
+        var o = circleData(e, pts);
+        if (o) out.push(e.type === "arc" ? ring(o.center, o.radius, o.radius, 0, o.start, positiveArcSweep(o.start, o.end)) : ring(o.center, o.radius, o.radius, 0, 0, Math.PI * 2));
+      }
+    } catch (error) { /* a half-built entity draws nothing this frame */ }
+  });
+  return out;
+}
+function sketchWorldFrame(sketch) {
+  return sketch.frameSpace === "local" && sketch.frame ? sketch.frame : standardPlaneFrame(sketch.plane || E.view, sketch.offset);
+}
+function syncSplitSketch3D() {
+  var host = E.pv && E.pv.liveGrp && E.pv.liveGrp.parent;
+  var sketches = E.split && E.def && E.docType === "part" ? ensureSketchDoc(E.def) : [];
+  var current = sketches.length ? ensureSketch(E.def) : null;
+  var lines = sketches.map(function (sketch) { return { sketch: sketch, uv: sketchUvPolylines(sketch) }; });
+  var key = host ? JSON.stringify(lines.map(function (l) { return [l.sketch === current, sketchWorldFrame(l.sketch), l.uv]; })) : "";
+  var old = E._splitSketchGrp;
+  if (old && old.parent === host && key === E._splitSketchKey) return;
+  if (old) { if (old.parent) old.parent.remove(old); clearGroup(old); }
+  E._splitSketchGrp = null;
+  E._splitSketchKey = key;
+  if (host && lines.length) {
+    var grp = new THREE.Group();
+    grp.userData.cadSplitSketch = true;
+    lines.forEach(function (l) {
+      var frame = sketchWorldFrame(l.sketch), on = l.sketch === current;
+      l.uv.forEach(function (uv) {
+        addOverlayPolyline(grp, uv.map(function (q) { return framePoint(frame, q.u, q.v, 0); }), on ? 0x3aa0ff : 0x7d8b99, on ? 27 : 23, null, false);
+      });
+    });
+    host.add(grp);
+    E._splitSketchGrp = grp;
+    // the first sketch geometry in an empty part is worth framing once
+    if (!E._splitFitted && !renderedParts(E.def).length) { fitSplitPreview(); return; }
+  }
+  if (E.pv && (old || E._splitSketchGrp)) E.pv.render();
+}
+/* fitPreview() frames the solids, or the sketch being edited — but a part with
+   no solid yet is framed as a stock 60-unit box whose middle floats above the
+   sketch plane. In Split, with nothing solid, frame the sketches themselves. */
+function fitSplitPreview() {
+  fitPreview();
+  var g = E._splitSketchGrp;
+  if (!E.pv || !E.pv.target || !g || renderedParts(E.def).length) return;
+  var box = new THREE.Box3().setFromObject(g);
+  if (box.isEmpty()) return;
+  E._splitFitted = true;
+  var c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()), db = defBounds(E.def);
+  E.pv.frame(Math.max(1, size.length()) * 1.5);
+  // the camera orbits center() plus target; center() is that stock box's middle
+  E.pv.target.set(c.x, c.y - (db.y0 + db.y1) / 2, c.z);
+  E.pv.render();
+}
+
 function drawSketch() {
   if (!E.open) return;
+  syncSplitSketch3D();
   invalidateSketchProjection();   // the camera or the pane may have moved since
   syncContextActions();
   if (!E.cw || !E.ch) sizeSketch();
@@ -21593,9 +21693,16 @@ function editorLightingSettings(view) {
 
 /* Sketch or model, in the same middle pane. The preview canvas is MOVED there
    rather than a second WebGL context being created — see editor_view.js. The
-   thumbnail in the right panel and the big view are one renderer. */
+   thumbnail in the right panel and the big view are one renderer.
+   Split is the sketch with the model beside it: E.mode stays "2d" — every
+   sketch tool, relation and dimension works as in Sketch — and the renderer
+   sits in the right half, where it orbits and zooms and shows each rebuild.
+   Anything that needs the full model (finishing the sketch, picking a face,
+   the drawing sheet) leaves Split; a workflow that asks for "2d" keeps it.
+   Parts only, and not on phones: there is no room for two views. */
 function setMode(m) {
   if (E.dimEditor && !applyDimensionEditor()) return;
+  var askedSplit = m === "split";
   m = m === "3d" ? "3d" : m === "drawing" ? "drawing" : "2d";
   var previousMode = E.mode;
   E.mode = m;
@@ -21607,6 +21714,9 @@ function setMode(m) {
   hidePickCycle();
   dismissProfileOffer();
   syncSelectionFilters();
+  if (askedSplit) E.split = true;
+  if (m !== "2d" || E.docType !== "part" || document.body.classList.contains("compact-nav")) E.split = false;
+  var split = !!E.split, wasSplit = root.classList.contains("md-split");
   if (E.pv) E.pv.clearFixedFrame(false);
   if (m === "3d" || m === "drawing") E.tool = "select";
   E.dimPick = [];
@@ -21618,13 +21728,25 @@ function setMode(m) {
       panelHost: root.querySelector("#mdRightPanel"),
     });
   }
-  swapView(m === "3d", E.pv);
+  root.classList.toggle("md-split", split);
+  swapView(m === "3d" || split, E.pv);
   root.classList.toggle("md-is3d", m === "3d");
   root.classList.toggle("md-isdrawing", m === "drawing");
   syncModelPlane();
   layout3DHost();
   if (m === "3d") fitPreview();
-  else if (m === "drawing") {
+  else if (split !== wasSplit) {
+    /* The sketch pane changes width under the user's zoom: keep the zoom and
+       the point in the middle, frame the model half for what it now shows. */
+    var oldW = E.cw;
+    E._splitFitted = false;
+    requestAnimationFrame(function () {
+      if (sizeSketch() && oldW) { E.ox += (E.cw - oldW) / 2; drawSketch(); }
+      layout3DHost();
+      if (split) fitSplitPreview();
+    });
+  }
+  if (m === "drawing") {
     E.ssel=[]; E.sel=null; E.poly=null; E.arcPts=null; E.wallPts=null;
     /* Entering the sheet re-projects: the model may have changed since the last
        visit, and a stale projection is a drawing that lies. */
@@ -21645,7 +21767,7 @@ function setMode(m) {
     }
   }
   root.querySelectorAll("#mdModes button").forEach(function (b) {
-    var active = b.getAttribute("data-mode") === m;
+    var active = b.getAttribute("data-mode") === (split ? "split" : m);
     b.classList.toggle("on", active);
     b.setAttribute("aria-selected", active ? "true" : "false");
   });

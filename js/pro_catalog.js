@@ -104,7 +104,7 @@ const MODEL = [
     ["Study", [T("Exploded view", "ph-arrows-out", "mcmd:explode"), T("Motion study", "ph-play", "mcmd:motion"), T("Interference", "ph-warning", "mcmd:interference"), T("Isolate", "ph-eye", "mcmd:isolate")]],
   ]],
   ["Evaluate", [
-    ["Measure", [T("Measure", "ph-ruler", "mcmd:measure"), T("Mass props", "ph-scales", "mcmd:mass"), T("Section view", "ph-knife", "mcmd:section"), T("Fit check", "ph-arrows-in", "mcmd:fitcheck"), T("Fit view", "ph-frame-corners", "mcmd:fit")]],
+    ["Measure", [T("Measure", "ph-ruler", "mcmd:measure"), T("Mass props", "ph-scales", "mcmd:mass"), T("Section view", "ph-knife", "mcmd:section"), T("Fit check", "ph-arrows-in", "mcmd:fitcheck"), T("Fit view", "ph-frame-corners", "mcmd:fit"), T("Split", "ph-columns", "mclick:#mdModeSplit")]],
     ["Check", [T("Material check", "ph-seal-check", "meng:check"), T("Rebuild errors", "ph-warning", "mclick:#mdDiagJump")]],
   ]],
   ["Toolbox", [
@@ -132,7 +132,7 @@ const CAB = [
     ["My presets", [T("Save preset", "ph-floppy-disk", "cab:act:save"), T("Load preset", "ph-folder-open", "cab:tab:mine")]],
   ]],
   ["View", [
-    ["Mode", [T("2D", "ph-square", "cab:mode:2d"), T("3D", "ph-cube", "cab:mode:3d")]],
+    ["Mode", [T("2D", "ph-square", "cab:mode:2d"), T("3D", "ph-cube", "cab:mode:3d"), T("Split", "ph-columns", "cab:mode:split")]],
   ]],
   ["Review", [
     ["Check", [T("Checks", "ph-seal-check", "cab:tab:checks"), T("Summary", "ph-list-numbers", "cab:tab:bom")]],
