@@ -7,6 +7,7 @@ import { endConditionHidesDepth, isUpToFace } from "./core/extrude_extent.js";
 import { linearPatternAxisDefinitions, linearPatternDirection, patternAxisEnabled } from "./core/pattern_geometry.js";
 import { holeTableRow } from "./cad_hole_wizard.js";
 import { toolboxFamily } from "./cad_toolbox.js";
+import {formatDocumentLength,lengthFromDocument,documentLengthUnit} from './core/document_length_units.js';
 
 export function featureControlValue(control) {
   if (control.field.type === "boolean") return !!control.input.checked;
@@ -21,11 +22,14 @@ export function featureControlValue(control) {
 // It does not create a persistent equation or execute JavaScript.
 export function evaluateFeatureNumber(raw, field) {
   let text = String(raw).trim();
+  const explicitLength = field.unit === 'length' && /(?:\d|\.)\s*(?:mm|cm|in|ft|m)\b/i.test(text);
   // Geometry uses centimeters internally. Explicit unit literals avoid manual
   // conversion when working from metric or inch engineering drawings.
   if (field.unit === "length" || field.unit === "angle") text = expandUnitLiterals(text, field.unit);
   // Preserve numeric scientific notation emitted by small geometry values.
-  const value = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(text) ? Number(text) : evaluateExpression(text);
+  let value = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(text) ? Number(text) : evaluateExpression(text);
+  if (field.unit === 'length' && field.inputUnit && !explicitLength)
+    value = lengthFromDocument(value, field.inputUnit);
   if (!Number.isFinite(value)) throw new Error("Enter a finite number");
   if (field.min != null && value < Number(field.min)) throw new Error("Minimum: " + field.min);
   if (field.max != null && value > Number(field.max)) throw new Error("Maximum: " + field.max);
@@ -85,14 +89,14 @@ export function featureField(host, field, value, options) {
   var caption = el("span", "md-feature-field-label", field.label);
   if (field.unit) {
     var units = options.units || { length: "mm", angle: "deg" };
-    caption.appendChild(el("small", "md-feature-unit", field.unit === "angle" ? (units.angle || "deg") : (units.length || "mm")));
+    caption.appendChild(el("small", "md-feature-unit", field.unit === "angle" ? (units.angle || "deg") : documentLengthUnit(units.length)));
   }
   wrap.appendChild(caption);
   var input;
   if (field.type === "boolean") {
     input = el("input"); input.type = "checkbox"; input.checked = !!value;
     wrap.appendChild(input); wrap.appendChild(el("span", "md-feature-switch", "<i></i>"));
-  } else if (field.type === "select" || field.type === "axis-reference" || field.type === "plane-reference") {
+  } else if (field.type === "select" || field.type === "axis-reference" || field.type === "plane-reference" || field.type === "helix-reference") {
     input = el("select");
     var choices = field.choices || (options.referenceOptions && options.referenceOptions(field.type)) || [];
     choices.forEach(function (choice) {
@@ -103,7 +107,9 @@ export function featureField(host, field, value, options) {
     });
     wrap.appendChild(input);
   } else {
-    input = el("input"); input.type = "text"; input.value = value ?? "";
+    input = el("input"); input.type = "text";
+    input.value = field.unit === 'length' && Number.isFinite(Number(value)) && value != null
+      ? formatDocumentLength(Number(value), options.units?.length) : value ?? "";
     if (field.min != null) input.min = field.min;
     if (field.max != null) input.max = field.max;
     input.step = field.step || ".1";
@@ -120,7 +126,9 @@ export function featureField(host, field, value, options) {
       try {
         var number = evaluateFeatureNumber(input.value, field);
         input.setCustomValidity(""); input.removeAttribute("aria-invalid");
-        result.textContent = String(input.value).trim() === String(number) ? "" : "= " + Number(number.toPrecision(12));
+        var shown = field.unit === 'length' && field.inputUnit
+          ? formatDocumentLength(number, field.inputUnit, 12) : String(Number(number.toPrecision(12)));
+        result.textContent = String(input.value).trim() === shown ? "" : "= " + shown + (field.unit === 'length' && field.inputUnit ? ' ' + field.inputUnit : '');
         result.classList.remove("invalid");
       } catch (error) {
         input.setCustomValidity(error.message); input.setAttribute("aria-invalid", "true");
@@ -158,7 +166,8 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
       var control = controls.find(function (item) { return item.field.key === entry[0]; });
       if (!control) return;
       if (control.field.type === "boolean") control.input.checked = !!entry[1];
-      else control.input.value = entry[1];
+      else control.input.value = control.field.unit === 'length' && Number.isFinite(Number(entry[1]))
+        ? formatDocumentLength(Number(entry[1]),control.field.inputUnit) : entry[1];
     });
   }
   function syncConditionalFields(changedKey) {
@@ -196,6 +205,17 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
     }
     var mode = controls.find(function (item) { return item.field.key === "mode"; });
     if (type === "pattern" && mode) {
+      Object.entries(patternModeKeys).forEach(function (entry) {
+        entry[1].forEach(function (key) {
+          var control = controls.find(function (item) { return item.field.key === key; });
+          var wrap = control && control.input.closest(".md-quick-field");
+          if (wrap) wrap.classList.toggle("parameter-hidden", entry[0] !== mode.input.value);
+        });
+      });
+      host.querySelectorAll(".md-feature-group").forEach(function (section) {
+        var fields = Array.from(section.querySelectorAll(".md-quick-field"));
+        section.classList.toggle("parameter-hidden", fields.length > 0 && fields.every(function (field) { return field.classList.contains("parameter-hidden"); }));
+      });
       var linear = mode.input.value === "linear";
       ["axisX", "axisY", "axisZ"].forEach(function (axisKey) {
         var axisControl = controls.find(function (item) { return item.field.key === axisKey; }), enabled = linear && axisControl && axisControl.input.checked, suffix = axisKey.slice(-1);
@@ -290,7 +310,8 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
            Convert first, then trim only the noise from the division. */
         var setNum = function (key, mm) {
           var control = controls.find(function (item) { return item.field.key === key; });
-          if (control && Number.isFinite(mm)) control.input.value = String(Math.round(mm * 1000) / 10000);
+          if (control && Number.isFinite(mm))
+            control.input.value = formatDocumentLength(mm / 10, control.field.inputUnit);
         };
         setNum("diameter", row[fitKey] || row.diameterMm);
         setNum("cboreDiameter", row.cboreDiaMm);
@@ -308,9 +329,22 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
         var control = controls.find(function (item) { return item.field.key === key; }), wrap = control && control.input.closest(".md-quick-field");
         if (wrap) wrap.classList.toggle("parameter-hidden", !csink);
       });
-      ["threadMode","handedness"].forEach(function (key) {
+      ["threadMode","handedness","threadDepth"].forEach(function (key) {
         var control = controls.find(function (item) { return item.field.key === key; }), wrap = control && control.input.closest(".md-quick-field");
         if (wrap) wrap.classList.toggle("parameter-hidden", !tapped);
+      });
+      var holeEnd = controls.find(function (item) { return item.field.key === "endCondition"; });
+      var holeLayout = controls.find(function (item) { return item.field.key === "layout"; });
+      var layoutValue = holeLayout && holeLayout.input.value;
+      controls.forEach(function (control) {
+        var key = control.field.key, hidden;
+        if (key === "depth") hidden = holeEnd && holeEnd.input.value === "through-all";
+        else if (key === "fit") hidden = size && size.input.value === "custom";
+        else if (["countX","countY","spacingX","spacingY"].includes(key)) hidden = layoutValue !== "linear";
+        else if (["count","radius"].includes(key)) hidden = layoutValue !== "circular";
+        else return;
+        var wrap = control.input.closest(".md-quick-field");
+        if (wrap) wrap.classList.toggle("parameter-hidden", !!hidden);
       });
     }
   }
@@ -355,6 +389,7 @@ export function renderFeatureParameterForm(host, type, state, onLive, options) {
           if(match)value=limits[match[1]+"Diameter"]?.[match[2].toLowerCase()];
         }
       }
+      if (field.unit === 'length') field = {...field, inputUnit:documentLengthUnit(options.units?.length)};
       var input = featureField(hostForField(field), field, value, options);
       var control = { field: field, input: input };
       controls.push(control);

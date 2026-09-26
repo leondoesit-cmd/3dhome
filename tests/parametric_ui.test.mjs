@@ -336,7 +336,7 @@ test("sketches open Normal To the plane and the live preview is the UV shape", (
   assert.match(modelerSource, /sketchNormalTo: true/);
   assert.match(modelerSource, /MODELER_PREFS_VERSION = 2/);
   assert.match(modelerSource, /if \(ver < 2\) \{\s*E\.sketchNormalTo = true/);
-  assert.match(modelerSource, /out = \{ prefsVersion: MODELER_PREFS_VERSION \}/);
+  assert.match(modelerSource, /out = \{ prefsVersion: MODELER_PREFS_VERSION\s*[,}]/);
   assert.match(modelerSource, /function sketchCameraFrame\(\)/);
   assert.match(modelerSource, /return standardPlaneFrame\(E\.view, sketch && sketch\.offset\)/);
   assert.match(modelerSource, /if \(frame && E\.pv\.lookAtFrame\) \{ E\.pv\.lookAtFrame\(frame\); return; \}/);

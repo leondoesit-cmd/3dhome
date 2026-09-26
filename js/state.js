@@ -14,11 +14,13 @@ export const SNAP_GRID = 5; // grid snapping interval in cm
 // texture tile size (cm) — how much floor one 256px texture tile covers.
 // Keyed by the same names as the PAINT table in primitives.js.
 export const TILE = {
-  wood: 240,
-  laminate: 320,
-  darkwood: 240,
-  parquet: 180,
-  deck: 260,
+  // plank floors: wood/darkwood paint 10 boards per tile (20 cm wide, 2 m
+  // long), laminate 8 (22.5 cm), deck 9 (17 cm)
+  wood: 200,
+  laminate: 180,
+  darkwood: 200,
+  parquet: 120,
+  deck: 150,
   tiles: 120,
   porcelain: 120,
   mosaic: 80,
@@ -37,6 +39,7 @@ export const TILE = {
   epoxy: 400,
   balcony: 200,
   concrete: 320,
+  pavers: 180,
 };
 
 export const FILL2D = {
@@ -63,6 +66,7 @@ export const FILL2D = {
   epoxy: "#ccd4d9",
   balcony: "#9a9c9e",
   concrete: "#d0cec9",
+  pavers: "#bdb7ac",
 }; // 2D floor tints
 
 // 3D material colors
@@ -193,6 +197,7 @@ export const S = {
      the floor (and ceiling) of the storey it lives on — typically the floor
      above a flight of stairs stored as ordinary furniture on the storey below. */
   slabOpenings: [],
+  annotations: [],
   /* Explicit user-authored dimensions BETWEEN pieces of geometry — distances
      from another corner or reference point, joint angles, parallel offsets.
      See js/wall_constraints.js; anchors are wall-id + end, never node indices. */
@@ -328,8 +333,14 @@ export const S = {
      keep that span. Turning this off restores the old centreline behaviour,
      where attaching a 10 cm wall to each end of a 300 cm wall left 290 cm. */
   interiorDims: true,
+  // plan drawing style (js/plan_style.js): "technical" | "presentation"
+  planStyle: "technical",
+  /* 3D dollhouse cutaway (js/wall_cut.js): walls built to `height` cm with a
+     cap along their tops, so a view from above looks into the rooms. */
+  cutaway: { on: false, height: 160, cap: "white" },
   showCeiling: false,
   invisibleRoof: false,
+  roof: null,
   floorTex: "wood",
   wallColor: 0xefe9dd,
   hour: 13,

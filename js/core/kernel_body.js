@@ -26,7 +26,7 @@
  */
 
 import { disposeBrep, extractBrepTopology, makeBrepLoft, makeBrepSweep, shapeToMeshData, translateBrep } from "../cad_kernel.js";
-import { sampleHelix } from "../cad_helix.js";
+import { helixSweepPath } from "../cad_helix.js";
 
 export const KERNEL_BODY_KIND = "kernel";
 
@@ -97,10 +97,10 @@ export async function buildKernelBrep(spec, options = {}) {
   if (spec.type === "sweep") {
     // A sweep along a helix stores the helix, not its samples, so an edited
     // pitch or turn count rebuilds the same way the feature tree rebuilds it.
-    const path = (params.path || []).length >= 2
-      ? params.path
-      : params.helix ? sampleHelix(params.helix).points : [];
-    brep = await makeBrepSweep({ ...params, path });
+    // Its spine is the smooth curve, never the samples (see helixSweepPath).
+    const spine = params.helix && !params.pathSegments ? helixSweepPath(params.helix)
+      : { path: (params.path || []).length >= 2 ? params.path : [] };
+    brep = await makeBrepSweep({ ...params, ...spine });
   } else if (spec.type === "loft") {
     brep = await makeBrepLoft(params);
   } else throw new Error("Unsupported kernel body: " + spec.type);
@@ -146,6 +146,7 @@ export async function kernelBodyMeshData(spec, options = {}) {
       subshapeMap: mesh.subshapeMap,
       topology: JSON.parse(JSON.stringify(brep.topology || [])),
       bounds: meshDataBounds(positions),
+      exactBounds: mesh.exactBounds,
     };
   } finally { disposeBrep(brep); }
 }
@@ -163,6 +164,11 @@ export function offsetKernelBody(part, dx, dy, dz) {
     part.bounds.y0 += dy; part.bounds.y1 += dy;
     part.bounds.z0 += dz; part.bounds.z1 += dz;
   }
+  if (part.meshData?.exactBounds) {
+    for (const point of [part.meshData.exactBounds.min, part.meshData.exactBounds.max]) {
+      point.x += dx; point.y += dy; point.z += dz;
+    }
+  }
   return part;
 }
 
@@ -172,6 +178,10 @@ export function offsetKernelBody(part, dx, dy, dz) {
    nothing yet". */
 export function kernelBodyBounds(part) {
   if (!isKernelBody(part)) return null;
+  const exact = part.meshData?.exactBounds;
+  if (exact && [exact.min?.x, exact.min?.y, exact.min?.z, exact.max?.x, exact.max?.y, exact.max?.z].every(Number.isFinite)) {
+    return { x0:exact.min.x, x1:exact.max.x, y0:exact.min.y, y1:exact.max.y, z0:exact.min.z, z1:exact.max.z };
+  }
   if (part.bounds && Number.isFinite(part.bounds.x0)) return { ...part.bounds };
   return meshDataBounds(part.meshData && part.meshData.positions);
 }

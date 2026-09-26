@@ -67,11 +67,13 @@ test('the book width 3.100 in and height 1.600 in fully define it, not over-defi
   assert.ok(Math.abs(Math.hypot(pt(s, 43).x, pt(s, 43).y) - 5.55625) < 1e-6, 'side line still ends on the arc');
 });
 
-test('a relation the user adds that the others already imply is still reported over-constrained', () => {
+test('a relation the user adds that the others already imply is named as a repeat, not a failure (G27)', () => {
   const s = sketchsquare();
   s.constraints.push({ id: 98, type: 'distance', a: 29, b: 36, value: 4.064 }, { id: 99, type: 'distance', a: 48, b: 'm3', value: 7.874 });
   s.constraints.push({ id: 97, type: 'horizontal', entity: 'L58' }); // implied by horizontal 41 + symmetry
-  assert.equal(solveSketch(s).status, 'over-constrained');
+  const r = solveSketch(s);
+  assert.equal(r.status, 'fully-constrained');
+  assert.ok(r.repeated.includes(97), JSON.stringify(r.repeated));
 });
 
 test('mirroring a line that starts on the axis reuses that point and pairs only the off-axis ones', () => {

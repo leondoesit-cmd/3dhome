@@ -366,6 +366,19 @@ export function createMenuController(doc, options) {
     if (pinned.size) return;
     closeAll({ refocus: true, preservePinned: false });
   });
+  /* Menus are portalled to <body> and therefore do not follow their trigger
+     when the window is resized, zoomed or rotated. Re-anchor every open level
+     so a menu cannot be left clipped against an obsolete viewport edge. */
+  const view = doc.defaultView || (typeof window !== "undefined" ? window : null);
+  if (view) {
+    view.addEventListener("resize", function () {
+      path.forEach(function (dd) {
+        const menu = panelOf(dd);
+        const trigger = triggerOf(dd);
+        if (menu && trigger && menu.classList.contains("open")) positionMenu(dd, menu, trigger);
+      });
+    });
+  }
 
   return {
     open,

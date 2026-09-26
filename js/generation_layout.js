@@ -21,6 +21,44 @@ const LAYOUTS = {
       { room: "Bathroom", width: 60, height: 60, sill: 140 }
     ]
   },
+  /* The presentation showcase: a single-storey family house, about
+     55' x 33', with an open living / dining / kitchen wing and a sleeping
+     wing off a central hall (js/demo_house.js). */
+  showcase: {
+    w: 1680, d: 1000,
+    rooms: [
+      { name: "Living Room", roomType: "living", x0: 0, z0: 0, x1: 620, z1: 520, floor: "wood" },
+      { name: "Dining", roomType: "dining", x0: 620, z0: 0, x1: 1040, z1: 520, floor: "wood" },
+      { name: "Kitchen", roomType: "kitchen", x0: 1040, z0: 0, x1: 1680, z1: 520, floor: "porcelain" },
+      { name: "Master Bedroom", roomType: "masterBedroom", x0: 0, z0: 520, x1: 560, z1: 1000, floor: "laminate" },
+      { name: "Hall", roomType: "corridor", x0: 560, z0: 520, x1: 1040, z1: 720, floor: "wood" },
+      { name: "Bathroom", roomType: "bathroom", x0: 560, z0: 720, x1: 800, z1: 1000, floor: "tiles" },
+      { name: "Ensuite", roomType: "ensuite", x0: 800, z0: 720, x1: 1040, z1: 1000, floor: "mosaic" },
+      { name: "Bedroom 2", roomType: "bedroom", x0: 1040, z0: 520, x1: 1400, z1: 1000, floor: "laminate" },
+      { name: "Study", roomType: "office", x0: 1400, z0: 520, x1: 1680, z1: 1000, floor: "parquet" }
+    ],
+    doors: [
+      { from: "Hall", to: "Living Room", width: 120, s: 60, isPassage: true },
+      { from: "Living Room", to: "Dining", width: 200, s: 160, isPassage: true },
+      { from: "Dining", to: "Kitchen", width: 220, s: 150, isPassage: true },
+      { from: "Hall", to: "Master Bedroom", width: 90, s: 40 },
+      { from: "Hall", to: "Bathroom", width: 80, s: 40 },
+      { from: "Hall", to: "Ensuite", width: 80, s: 40 },
+      { from: "Hall", to: "Bedroom 2", width: 90, s: 40 },
+      { from: "Kitchen", to: "Study", width: 85, s: 60 },
+      { from: "Outside", to: "Living Room", width: 110, s: 260, wall: "top" }
+    ],
+    windows: [
+      { room: "Living Room", width: 260, height: 210, sill: 10 },
+      { room: "Dining", width: 200, height: 160, sill: 60 },
+      { room: "Kitchen", width: 180, height: 110, sill: 100 },
+      { room: "Master Bedroom", width: 180, height: 140, sill: 80 },
+      { room: "Bedroom 2", width: 150, height: 140, sill: 80 },
+      { room: "Study", width: 130, height: 140, sill: 80 },
+      { room: "Bathroom", width: 70, height: 60, sill: 150 },
+      { room: "Ensuite", width: 70, height: 60, sill: 150 }
+    ]
+  },
   large: {
     w: 1000, d: 900,
     rooms: [

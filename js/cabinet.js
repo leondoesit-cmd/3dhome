@@ -1471,7 +1471,10 @@ export function layoutCab(it, run, options) {
       pw = runW / nTop,
       tx = -hw - 1.5;
     for (var ti = 0; ti < nTop; ti++) {
-      part({ k: "box", role: "worktop", x0: tx, x1: tx + pw, y0: h - topT, y1: h, z0: -hd - 1.5, z1: hd + 1.5, mat: "top", run: 1, exposedReturns: (ti === 0 ? 1 : 0) + (ti === nTop - 1 ? 1 : 0) });
+      var cutouts = (sp.worktopCutouts || []).map(function(hole) {
+        return { kind: hole.kind, x0: -hw + hole.x0, x1: -hw + hole.x1, z0: hole.z0, z1: hole.z1 };
+      }).filter(function(hole) { return hole.x1 > tx && hole.x0 < tx + pw; });
+      part({ k: "box", role: "worktop", x0: tx, x1: tx + pw, y0: h - topT, y1: h, z0: -hd - 1.5, z1: hd + 1.5, mat: "top", run: 1, cutouts: cutouts, exposedReturns: (ti === 0 ? 1 : 0) + (ti === nTop - 1 ? 1 : 0) });
       tx += pw;
     }
   }
@@ -2328,15 +2331,15 @@ export function cutList(it, pre) {
     if (p.k !== "box" && p.k !== "poly") return;
     if (BOARD_ROLES.indexOf(p.role) < 0) return;
     var D = partDims(p),
-      key = p.role + "|" + p.mat + "|" + Math.round(D.l) + "x" + Math.round(D.w) + "x" + D.t.toFixed(1) + "|" + Math.round(D.cut);
+      key = p.role + "|" + p.mat + "|" + +D.l.toFixed(10) + "x" + +D.w.toFixed(10) + "x" + D.t.toFixed(10) + "|" + +D.cut.toFixed(10);
     if (!rows[key]) {
       var srole = stockRole(p.mat),
         sheet = sheetFor(sp, srole, D.t);
       rows[key] = {
         role: p.role, mat: p.mat, srole: srole,
-        l: Math.round(D.l), w: Math.round(D.w), t: +D.t.toFixed(1),
+        l: +D.l.toFixed(10), w: +D.w.toFixed(10), t: +D.t.toFixed(10),
         // the corner that comes off a pentagon board, so the shop knows to cut it
-        cut: D.cut ? Math.round(D.cut) : 0,
+        cut: D.cut ? +D.cut.toFixed(10) : 0,
         qty: 0, area: 0, band: 0, bandEach: Math.round(bandLen(p) * 100) / 100,
         sheet: sheet ? sheet.id : null,
         // a grained board may not be turned 90° on the saw, and neither may a

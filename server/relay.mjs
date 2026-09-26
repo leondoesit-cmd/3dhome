@@ -30,14 +30,18 @@ import { createServer as createSecureServer } from "node:https";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { readFile, writeFile, stat } from "node:fs/promises";
 import { brotliCompress, gzip, constants as ZLIB } from "node:zlib";
-import { join, extname, normalize, dirname } from "node:path";
+import { join, extname, normalize, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { lookupProduct } from "../js/prodsize.js";
 import { resolvePublicUrl, safeHttpGet, safeLanRequest, safeStaticFile } from "./security.mjs";
+import { listModelBackups, readModelBackup, readModelBackupAttachments, validBackupKey, writeModelBackup } from "./model_backup.mjs";
 
 const PORT = parseInt(process.argv[2], 10) || parseInt(process.env.PORT, 10) || 8765;
 const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), ".."));
+// Disk copies of saved models (see model_backup.mjs). Dot-folder: never served.
+const MODEL_BACKUP_DIR = process.env.HOME3D_MODEL_BACKUP_DIR
+  ? resolve(process.env.HOME3D_MODEL_BACKUP_DIR) : join(ROOT, ".model-backups");
 const IDENTITIES_FILE =
   process.env.HOME3D_IDENTITIES_FILE || join(ROOT, "server", ".relay-identities.json");
 const WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -498,6 +502,43 @@ async function agentChat(req, res) {
   }
 }
 
+// ---- model disk backups ------------------------------------------------------
+// GET  /api/model-backup            → { models: [meta…] }  newest first
+// GET  /api/model-backup?key=<key>  → { model }            the latest record
+// POST /api/model-backup  { models: [record…], attachments?: { <key>: [{ reference, payload }] } }
+//                         → { results: [{ key, written | error }] }
+// Local-only: these read and write this machine's disk, so a remote relay
+// client (multiplayer) is refused, and so is a page from another origin.
+function loopbackRequest(req) {
+  const remote = String(req.socket && req.socket.remoteAddress || "");
+  return remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1";
+}
+async function modelBackup(req, u, res) {
+  if (!loopbackRequest(req)) return json(res, 403, { error: "model backups are local-only" });
+  if (req.headers.origin && !allowedOrigin(req)) return json(res, 403, { error: "origin" });
+  if (req.method === "GET") {
+    const key = u.searchParams.get("key");
+    if (key == null) return json(res, 200, { models: await listModelBackups(MODEL_BACKUP_DIR) });
+    if (!validBackupKey(key)) return json(res, 400, { error: "invalid model key" });
+    const model = await readModelBackup(MODEL_BACKUP_DIR, key);
+    if (!model) return json(res, 404, { error: "no backup for that key" });
+    return json(res, 200, { model, attachments: await readModelBackupAttachments(MODEL_BACKUP_DIR, key) });
+  }
+  if (req.method !== "POST") return json(res, 405, { error: "GET or POST only" });
+  let payload;
+  try { payload = await readJsonBody(req, 96 * 1024 * 1024); }
+  catch (error) { return json(res, 400, { error: String(error.message || error) }); }
+  const models = Array.isArray(payload.models) ? payload.models : [];
+  if (!models.length || models.length > 500) return json(res, 400, { error: "models[] required" });
+  const results = [];
+  for (const record of models) {
+    const attachments = payload.attachments && record && typeof record.key === "string" ? payload.attachments[record.key] : null;
+    try { results.push(await writeModelBackup(MODEL_BACKUP_DIR, record, { attachments: Array.isArray(attachments) ? attachments : [] })); }
+    catch (error) { results.push({ key: record && typeof record.key === "string" ? record.key : null, error: String(error.message || error) }); }
+  }
+  return json(res, 200, { results });
+}
+
 // ---- static app ------------------------------------------------------------
 const tlsCert = process.env.HOME3D_TLS_CERT, tlsKey = process.env.HOME3D_TLS_KEY;
 if (!!tlsCert !== !!tlsKey) throw new Error("Set both HOME3D_TLS_CERT and HOME3D_TLS_KEY");
@@ -511,6 +552,7 @@ const serve = async (req, res) => {
   if (u.pathname === "/api/agent-bridge/call") return agentBridgeCall(req, res);
   if (u.pathname === "/api/agent-bridge/poll") return agentBridgePoll(req, res);
   if (u.pathname === "/api/agent-bridge/reply") return agentBridgeReply(req, res);
+  if (u.pathname === "/api/model-backup") return modelBackup(req, u, res);
   if (u.pathname === "/api/ping") return json(res, 200, { ok: true, api: ["prodsize", "smarthome"] });
   try {
     const file = await safeStaticFile(ROOT, u.pathname);

@@ -1,4 +1,5 @@
 import { buildBlueprintUnderlay3D } from './blueprint_3d.js';
+import { createPlannerDrawing } from './planner_drawing.js';
 import { switchFloorAndWait } from './floors.js';
 import { buildSurveyGeometry } from './survey_mesh.js';
 import { moveSurveyWalker, navigationPosition, navigationFloorTransition } from './navigation_geometry.js';
@@ -37,7 +38,7 @@ import {
   floorTexture,
   groundTexture,
 } from "./primitives.js";
-import { FURN, lampColor, buildItem as buildFurn, elevOffset } from "./furniture.js";
+import { FURN, lampColor, buildItem as buildFurn, elevOffset, itemVSpan } from "./furniture.js";
 import { refreshRuntimePlacements } from "./core/runtime.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
 import { HumanFactory } from "./human.js";
@@ -66,6 +67,7 @@ import {
   distSeg,
 } from "./geometry.js";
 import { holesForRoom, hitSlabOpening, openingCorners, slabOpenings } from "./slab_openings.js";
+import { roofMeshTriangles } from "./roof.js";
 import {
   normalizeWall,
   wallLayerBands,
@@ -96,7 +98,11 @@ import { resolvePhysicsRole } from "./physics/math.js";
 import { buildMEP3D } from "./mep.js";
 import { layerRank, layerOf, isLayerVisible, isLayerGhosted } from "./layers.js";
 import { wallFraming } from "./wall_framing.js";
+import { fmtLen } from "./display_units.js";
 import { ceilingHeight } from "./elevation.js";
+import { classifyOpeningCut, clipTrianglesBelowY, topFaceTriangles, cutHeightFor } from "./wall_cut.js";
+import { siteLayout } from "./site_dressing.js";
+import { skyPixels } from "./sky_model.js";
 
 /* "Is there a live 3D scene?" — a QUESTION now, not a load-time constant.
    It used to be `typeof THREE !== "undefined"`, i.e. always true, evaluated the
@@ -270,6 +276,76 @@ var shadowsDirty = true; // rebuild the sun shadow map next paint (geometry/sun 
 var shadowThrottleT = 0;  // timestamp of last shadow pass (for extLive throttle)
 var qualityPreset = "auto";
 var gameRendererLock = false;
+var drawingOverlay = null, drawingEnabled = false, drawingCanvas = null;
+// The drawing reads as a floor-plan sheet: structure and its dimensions. The
+// furniture layer is opt-in (setDrawingFurniture) so the default stays clean.
+var drawingFurniture = false, drawingWalls = [];
+export function setDrawingFurniture(on) {
+  drawingFurniture = !!on;
+  requestRender();
+  return drawingFurniture;
+}
+/* Overlay preferences the on-screen panel edits: how strongly dimension ink
+   that stands behind a wall still shows (0 hides it), whether hovering a
+   piece, opening or wall sketches it with its own dimensions, and how strong
+   that hover sketch is. */
+var drawingPrefs = { hiddenOpacity: 0.25, hover: true, hoverOpacity: 0.9 };
+var drawingHoverObj = null, drawingHoverXY = null, drawingHoverQueued = false;
+export function setDrawingOptions(next) {
+  if (!next) return getDrawingOptions();
+  if (Number.isFinite(next.hiddenOpacity)) drawingPrefs.hiddenOpacity = Math.min(1, Math.max(0, next.hiddenOpacity));
+  if (Number.isFinite(next.hoverOpacity)) drawingPrefs.hoverOpacity = Math.min(1, Math.max(0, next.hoverOpacity));
+  if (typeof next.hover === "boolean") drawingPrefs.hover = next.hover;
+  if (!drawingPrefs.hover) drawingHoverObj = null;
+  requestRender();
+  return getDrawingOptions();
+}
+export function getDrawingOptions() {
+  return Object.assign({}, drawingPrefs);
+}
+// The tagged ancestor a hover names: a piece, an opening, or a wall.
+function drawingHoverTarget(cx, cy) {
+  if (!dyn) return null;
+  var ray = pointerRay(cx, cy);
+  var roots = [itemsRoot, structureRoot].filter(function (r) { return r && r.visible; });
+  var hits = ray.intersectObjects(roots, true);
+  for (var i = 0; i < hits.length; i++) {
+    var o = hits[i].object;
+    if (!o.visible || o.type === "Sprite" || !o.isMesh) continue;
+    var hiddenAncestor = false;
+    for (var a = o; a; a = a.parent) if (!a.visible) { hiddenAncestor = true; break; }
+    if (hiddenAncestor) continue;
+    var mats = Array.isArray(o.material) ? o.material : [o.material];
+    if (!mats.some(function (m) { return m && m.visible && (!m.transparent || m.opacity >= 0.5); })) continue;
+    for (var t = o; t; t = t.parent) {
+      if (t.userData && (t.userData.item || t.userData.opening || t.userData.wall)) return t;
+    }
+    return null; // a floor, roof or slab: nothing to measure, and it hides what is behind
+  }
+  return null;
+}
+function drawingHoverAt(cx, cy) {
+  drawingHoverXY = cx == null ? null : { x: cx, y: cy };
+  if (drawingHoverQueued) return;
+  drawingHoverQueued = true;
+  requestAnimationFrame(function () {
+    drawingHoverQueued = false;
+    var next = drawingEnabled && drawingPrefs.hover && drawingHoverXY && !walk && !extTick
+      ? drawingHoverTarget(drawingHoverXY.x, drawingHoverXY.y) : null;
+    if (next !== drawingHoverObj) { drawingHoverObj = next; requestRender(); }
+  });
+}
+export function toggleDrawing3D() {
+  drawingEnabled = !drawingEnabled;
+  drawingHoverObj = null;
+  if (!drawingEnabled && drawingOverlay) {
+    drawingOverlay.dispose();
+    drawingOverlay = null;
+    if (drawingCanvas) { drawingCanvas.remove(); drawingCanvas = null; }
+  }
+  requestRender();
+  return drawingEnabled;
+}
 var gameEffectFactory = null, gameEffect = null;
 export function setGameRenderEffect(factory) {
   if (factory === gameEffectFactory) return;
@@ -563,6 +639,8 @@ export function toggleWalkView() {
 export function toggleWalk(on) {
   if (!ready3D) return false;
   walk = on == null ? !walk : !!on;
+  // walking needs full-height walls; leaving walk puts the dollhouse cut back
+  if (S.cutaway && S.cutaway.on) S.dirty3D = true;
   keys = {}; // drop any keys held from before (prevents "stuck" movement)
   touchMove.x = touchMove.z = 0;
   if (walkControls) walkControls.hidden = !walk;
@@ -591,6 +669,188 @@ export function toggleWalk(on) {
     upd();
   }
   return walk;
+}
+
+/* MEP X-ray (see-through walls/floor/ceiling) exists to show the services
+   buried in them, so it applies only while the services layer is shown: with
+   the layer hidden it would just leave the floors glass over the lawn. */
+function mepXray(part) {
+  var x = S.mep && S.mep.xray;
+  if (!x || !(isLayerVisible("mep") || isLayerGhosted("mep"))) return false;
+  if (part === "walls") return typeof x === "object" ? !!x.walls : !!x;
+  return typeof x === "object" && !!x[part];
+}
+
+/* ---- garden round a dollhouse (js/site_dressing.js) ----
+   Paving apron, clipped hedges with gaps at the outside doors, a tree at each
+   lawn corner. Only for the dollhouse view, and never over real site imagery:
+   the aerial and street view ARE the surroundings. Tagged role "site" so the
+   exporters can leave it out. */
+var siteDressRef = null;
+function houseBounds() {
+  var b = null;
+  S.walls.forEach(function (w) {
+    var a = S.nodes[w.a], c = S.nodes[w.b], h = (w.thickness || 10) / 2;
+    if (!a || !c) return;
+    [a, c].forEach(function (p) {
+      if (!b) b = { minx: p.x, maxx: p.x, minz: p.z, maxz: p.z };
+      b.minx = Math.min(b.minx, p.x - h); b.maxx = Math.max(b.maxx, p.x + h);
+      b.minz = Math.min(b.minz, p.z - h); b.maxz = Math.max(b.maxz, p.z + h);
+    });
+  });
+  return b;
+}
+function buildSiteDressing(streetView) {
+  siteDressRef = null;
+  // applySite() hides it again under an aerial photo
+  if (!isFinite(cutH()) || streetView) return;
+  var hb = houseBounds();
+  if (!hb) return;
+  var doors = [];
+  S.openings.forEach(function (o) {
+    if (o.type !== "door" && o.type !== "passage") return;
+    var w = wallById(o.wall), p = w && wallPointAt(w, o.s);
+    if (p) doors.push({ x: p.x, z: p.z });
+  });
+  var lay = siteLayout(hb, doors), g = new THREE.Group();
+  g.userData.role = "site";
+  var pv = lay.paving,
+    pm = polyMesh([{ x: pv.x0, z: pv.z0 }, { x: pv.x1, z: pv.z0 }, { x: pv.x1, z: pv.z1 }, { x: pv.x0, z: pv.z1 }],
+      -1.2, 180, new THREE.MeshStandardMaterial({ map: floorTexture("pavers"), roughness: 0.88, metalness: 0 }));
+  if (pm) {
+    pm.receiveShadow = true;
+    pm.castShadow = false;
+    pm.userData.role = "site";
+    g.add(pm);
+  }
+  var HEDGE_C = 0x4d6b33, LEAF_C = 0x5b7a3c;
+  lay.hedges.forEach(function (h) {
+    var m = box(g, h.x0, h.x1, -2.5, 70, h.z0, h.z1, HEDGE_C, { rough: 0.95 });
+    if (m) m.userData.role = "site";
+    // a clipped hedge is not a slab: lumps along its top
+    var along = h.x1 - h.x0 >= h.z1 - h.z0, len = along ? h.x1 - h.x0 : h.z1 - h.z0,
+      n = Math.max(1, Math.round(len / 40)), r = Math.min(h.x1 - h.x0, h.z1 - h.z0) * 0.5;
+    for (var i = 0; i < n; i++) {
+      var f = (i + 0.5) / n,
+        x = along ? h.x0 + len * f : (h.x0 + h.x1) / 2,
+        z = along ? (h.z0 + h.z1) / 2 : h.z0 + len * f;
+      var sp = sph(g, x, 64, z, r, i % 2 ? HEDGE_C : LEAF_C, { rough: 0.95 });
+      if (sp) sp.userData.role = "site";
+    }
+  });
+  var L = lay.lawn;
+  [[L.x0 + 150, L.z0 + 150], [L.x1 - 150, L.z0 + 150], [L.x0 + 150, L.z1 - 150], [L.x1 - 150, L.z1 - 150]].forEach(function (c, i) {
+    var t = cyl(g, c[0], 95, c[1], 12, 190, 0x5a4432, { rough: 0.9 });
+    if (t) t.userData.role = "site";
+    [[0, 230, 0, 95], [-45, 200, 30, 70], [40, 205, -25, 72], [10, 285, 15, 62]].forEach(function (b) {
+      var s = sph(g, c[0] + b[0], b[1], c[1] + b[2], b[3] * (0.9 + 0.1 * (i % 2)), i % 2 ? 0x587a3a : 0x4e7033, { rough: 0.95 });
+      if (s) s.userData.role = "site";
+    });
+  });
+  structureRoot.add(g);
+  siteDressRef = g;
+}
+
+/* ---- dollhouse cutaway (js/wall_cut.js) ----
+   The effective wall cut: Infinity unless the cutaway is on. First person and
+   the game modes that play inside the model need their full-height walls. */
+function cutH() {
+  var game = typeof document !== "undefined" && document.body &&
+    /(^| )(lava-on|zombies-on|rc-playing)( |$)/.test(document.body.className);
+  return cutHeightFor(S.cutaway, { walk: walk, game: game });
+}
+function relMatrix(obj, root) {
+  var m = new THREE.Matrix4();
+  for (var o = obj; o && o !== root; o = o.parent) {
+    o.updateMatrix();
+    m.premultiply(o.matrix);
+  }
+  return m;
+}
+/* Clip every mesh under `root` (door leaves, frames, glass, mullions) to
+   y <= yMax in root space. Geometry is re-expressed in root space, clipped,
+   and mapped back, so a mesh under a rotated pivot cuts on the level. A mesh
+   wholly above is hidden rather than emptied, so its group keeps its tags. */
+function clipBelow(root, yMax) {
+  var meshes = [];
+  root.traverse(function (o) { if (o.isMesh && o.geometry && !o.userData.wallCap) meshes.push(o); });
+  meshes.forEach(function (mesh) {
+    var src = mesh.geometry, geo = src.index ? src.toNonIndexed() : src;
+    var pa = geo.attributes.position;
+    if (!pa) return;
+    var M = relMatrix(mesh, root), inv = new THREE.Matrix4().copy(M).invert(),
+      nM = new THREE.Matrix3().getNormalMatrix(M), nInv = new THREE.Matrix3().getNormalMatrix(inv);
+    var v = new THREE.Vector3(), n = new THREE.Vector3(), maxY = -Infinity;
+    var pos = new Float32Array(pa.count * 3), na = geo.attributes.normal,
+      nrm = na ? new Float32Array(pa.count * 3) : null, ua = geo.attributes.uv;
+    for (var i = 0; i < pa.count; i++) {
+      v.fromBufferAttribute(pa, i).applyMatrix4(M);
+      pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
+      if (v.y > maxY) maxY = v.y;
+      if (nrm) {
+        n.fromBufferAttribute(na, i).applyMatrix3(nM).normalize();
+        nrm[i * 3] = n.x; nrm[i * 3 + 1] = n.y; nrm[i * 3 + 2] = n.z;
+      }
+    }
+    if (maxY <= yMax + 0.01) {
+      if (geo !== src) geo.dispose();
+      return;
+    }
+    var c = clipTrianglesBelowY(pos, nrm, ua ? ua.array : null, yMax);
+    if (geo !== src) geo.dispose();
+    if (!c.pos.length) {
+      mesh.visible = false;
+      return;
+    }
+    for (var j = 0; j < c.pos.length; j += 3) {
+      v.set(c.pos[j], c.pos[j + 1], c.pos[j + 2]).applyMatrix4(inv);
+      c.pos[j] = v.x; c.pos[j + 1] = v.y; c.pos[j + 2] = v.z;
+      if (c.nrm) {
+        n.set(c.nrm[j], c.nrm[j + 1], c.nrm[j + 2]).applyMatrix3(nInv).normalize();
+        c.nrm[j] = n.x; c.nrm[j + 1] = n.y; c.nrm[j + 2] = n.z;
+      }
+    }
+    var out = new THREE.BufferGeometry();
+    out.setAttribute("position", new THREE.Float32BufferAttribute(c.pos, 3));
+    if (c.nrm) out.setAttribute("normal", new THREE.Float32BufferAttribute(c.nrm, 3));
+    else out.computeVertexNormals();
+    if (c.uv) out.setAttribute("uv", new THREE.Float32BufferAttribute(c.uv, 2));
+    src.dispose();
+    mesh.geometry = out;
+  });
+}
+/* The wall tops at the cut, as their own mesh in the cap colour: the crisp
+   white (or black) band a presentation cutaway draws along every wall. Taken
+   from the wall's OWN top faces, so mitres and opening gaps are exact. */
+var CAP_COLORS = { white: 0xf6f4ef, dark: 0x2a2826 };
+function addWallCaps(g, yCut) {
+  var tri = [];
+  g.children.forEach(function (m) {
+    if (!m.isMesh || !m.userData.wallLayer || !m.geometry) return;
+    var geo = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry,
+      M = relMatrix(m, g), pa = geo.attributes.position, v = new THREE.Vector3(),
+      pos = new Float32Array(pa.count * 3);
+    for (var i = 0; i < pa.count; i++) {
+      v.fromBufferAttribute(pa, i).applyMatrix4(M);
+      pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
+    }
+    if (geo !== m.geometry) geo.dispose();
+    topFaceTriangles(pos, yCut).forEach(function (t) {
+      for (var k = 0; k < 9; k++) tri.push(pos[t * 9 + k] + (k % 3 === 1 ? 0.08 : 0));
+    });
+  });
+  if (!tri.length) return;
+  var cg = new THREE.BufferGeometry();
+  cg.setAttribute("position", new THREE.Float32BufferAttribute(tri, 3));
+  cg.computeVertexNormals();
+  var cap = (S.cutaway && S.cutaway.cap) === "dark" ? "dark" : "white";
+  var mat = new THREE.MeshStandardMaterial({ color: CAP_COLORS[cap], roughness: 0.85, metalness: 0 });
+  var mesh = new THREE.Mesh(cg, mat);
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
+  mesh.userData.role = "wallCap";
+  mesh.userData.wallCap = true;
+  g.add(mesh);
 }
 
 /* Per-opening frame profile. Every field is optional on the opening object —
@@ -635,8 +895,13 @@ function buildStraightWall(w, col, tex) {
   g.userData.physicsRole = "static";
   structureRoot.add(g);
   var T = wallThickness(w, S),
-    H = w.height,
+    Hfull = w.height,
+    // the dollhouse cut, when it is lower than the wall (see cutH)
+    H = Math.min(Hfull, cutH()),
     L = gm.L;
+  // what the drawing overlay's hover measures: the wall's own run and
+  // height, not the mesh box, which carries the mitred corner overlaps
+  g.userData.drawExtent = { x0: 0, x1: L, y0: 0, y1: H };
 
   function getCursor(isStart) {
     // Match joining walls by Node ID (topology) instead of coordinate proximity.
@@ -816,7 +1081,7 @@ function buildStraightWall(w, col, tex) {
   // left/right shapes: a hole covering the outer contour's full vertical
   // extent disconnects it, which the triangulator can't represent — it left
   // stray wall faces and an uncut baseboard band across the opening.
-  var wallCuts = [], wallHoles = [], skirtCuts = [], skirtHoles = [];
+  var wallCuts = [], wallHoles = [], wallSills = [], skirtCuts = [], skirtHoles = [];
   ops.forEach(function (o) {
     var widthOffset = frameSpec(o).jamb;
     var l = Math.max(startCursor, Math.min(endCursor, o.s - o.width / 2 - widthOffset)),
@@ -827,8 +1092,13 @@ function buildStraightWall(w, col, tex) {
     var y1 = y0 + o.height;
     var cutY0 = y0 <= 0 ? -2.5 : y0; // Cut all the way through the base
     if (y1 > H) y1 = H;
-    if (cutY0 <= -2.5 && y1 >= H - 0.01) wallCuts.push({ l: l, r: r });
-    else wallHoles.push({ l: l, r: r, y0: cutY0, y1: y1 });
+    var how = classifyOpeningCut(cutY0, y1, H, -2.5);
+    if (how === "cut") wallCuts.push({ l: l, r: r });
+    else if (how === "notch") {
+      // a window reaching the cut: split the wall, keep the block under it
+      wallCuts.push({ l: l, r: r });
+      wallSills.push({ l: l, r: r, y1: cutY0 });
+    } else if (how === "hole") wallHoles.push({ l: l, r: r, y0: cutY0, y1: y1 });
 
     // baseboard: any opening reaching the floor removes the skirt entirely
     if (y0 < 7) {
@@ -864,7 +1134,11 @@ function buildStraightWall(w, col, tex) {
 
   function makeWallShapes(x0, x1) {
     if (!(x1 - x0 > 0.2)) return [];
-    return splitSegs(x0, x1, wallCuts).map(function (sg) {
+    var sills = wallSills.map(function (sl) {
+      var a = Math.max(sl.l, x0), b = Math.min(sl.r, x1);
+      return b - a > 0.2 ? rectShape(a, b, -2.5, sl.y1) : null;
+    }).filter(Boolean);
+    return sills.concat(splitSegs(x0, x1, wallCuts).map(function (sg) {
       var sh = rectShape(sg[0], sg[1], -2.5, H);
       wallHoles.forEach(function (h) {
         var hl = Math.max(h.l, sg[0]),
@@ -879,7 +1153,7 @@ function buildStraightWall(w, col, tex) {
         sh.holes.push(hole);
       });
       return sh;
-    });
+    }));
   }
 
   // wall shapes: start at -2.5 so the wall meets the ground plane (y=-2.5)
@@ -906,7 +1180,7 @@ function buildStraightWall(w, col, tex) {
 
   if (hasWall && wallShapes.length) {
     // X-ray mode: dim, see-through walls so embedded MEP conduits show through
-    var xray = !!(S.mep && S.mep.xray && (typeof S.mep.xray === "object" ? S.mep.xray.walls : S.mep.xray));
+    var xray = mepXray("walls");
     var layerBands = wallLayerBands(w, S);
     function addLayerGeom(band, shapes, z0, z1, applyMitre) {
       var depth = z1 - z0;
@@ -1175,6 +1449,11 @@ function buildStraightWall(w, col, tex) {
     for (var ci = childrenBefore; ci < g.children.length; ci++)
       g.children[ci].userData.opening = o.src;
   });
+  if (H < Hfull) {
+    clipBelow(g, H);
+    addWallCaps(g, H);
+    g.userData.drawExtent.y1 = H;
+  }
 }
 
 /* Curves and vertically-special walls cannot be represented by the old single
@@ -1497,16 +1776,22 @@ function buildSampledWall(w, col) {
   group.userData.physicsRole = "static";
   structureRoot.add(group);
   var renderWall = Object.assign({}, w);
+  var Hc = cutH(), cutting = Hc < renderWall.height;
+  if (cutting) renderWall.height = Hc;
   if (kind === "half" && renderWall.halfHeight == null && renderWall.capHeight == null) renderWall.halfHeight = Math.min(renderWall.height, HALF_WALL_HEIGHT);
   if (kind === "railing" && renderWall.railingHeight == null && renderWall.railHeight == null) renderWall.railingHeight = Math.min(renderWall.height, 100);
   var segments = splitVerticalForJoins(renderWall, verticalSegments(renderWall, function (id) { return wallTypeById(S, id); }));
-  var xray = !!(S.mep && S.mep.xray && (typeof S.mep.xray === "object" ? S.mep.xray.walls : S.mep.xray));
+  var xray = mepXray("walls");
   segments.forEach(function (vertical) {
     if (vertical.solid) addSampledSolid(group, renderWall, gm, vertical, col, xray);
     else addSampledRailing(group, renderWall, gm, vertical, col, xray);
   });
   addWallFraming(group, renderWall, xray);
   S.openings.filter(function (o) { return o.wall === w.id; }).forEach(function (o) { addSampledOpening(group, renderWall, o); });
+  if (cutting) {
+    clipBelow(group, Hc);
+    addWallCaps(group, Hc); // curved and profiled walls get their cut tops too
+  }
 }
 
 function buildWall(w, col, tex) {
@@ -1529,6 +1814,25 @@ function placeItem(g, it) {
   g.userData.item = it;
   g.position.set(it.x, elevOffset(it), it.z);
   g.rotation.y = (-it.rot * Math.PI) / 180;
+  /* Ceiling fittings would float in the sky over a cut house, and wall-hung
+     pieces (art, mirrors, upper cabinets, a hood) would stick up out of the
+     cut wall they hang on: both hide while the cutaway is on. Anything that
+     stands on the floor stays whole, however tall — a wardrobe rising past
+     the cut is how a dollhouse render shows it. */
+  var hc = cutH(), hideForCut = false;
+  if (isFinite(hc)) {
+    var vs = null;
+    try { vs = itemVSpan(it); } catch (e) { vs = null; }
+    hideForCut = !!(vs && (vs.lo >= hc - 1 || (vs.lo > 60 && vs.hi > hc + 2)));
+  }
+  // only ever undo a hide this rule made; other code owns other hides
+  if (hideForCut) {
+    g.visible = false;
+    g.userData.cutHid = true;
+  } else if (g.userData.cutHid) {
+    g.visible = true;
+    g.userData.cutHid = false;
+  }
 }
 
 function buildItem(it) {
@@ -1747,7 +2051,11 @@ export function applyLayers3D() {
    scene built later picks the state up from rebuild3D's own call. */
 if (typeof window !== "undefined")
   window.addEventListener("layers:changed", function () {
-    if (ready3D) applyLayers3D();
+    if (!ready3D) return;
+    applyLayers3D();
+    // X-ray follows the services layer (mepXray), and it is baked into the
+    // wall and floor materials, so a layer switch has to rebuild them
+    if (S.mep && S.mep.xray) S.dirty3D = true;
   });
 
 /* Split view should describe one shared model, not two unrelated pictures.
@@ -1992,11 +2300,14 @@ export function rebuild3D() {
   gp.receiveShadow = true;
   var st = typeof S !== "undefined" && S.site ? S.site : {};
   var showSV = st.enabled && st.streetView && svBox;
-  gp.visible = !showSV;
+  // Under-floor runs sit below this plane. A transparent room slab alone is
+  // insufficient: the opaque site ground would still depth-occlude every pipe.
+  gp.visible = !showSV && !mepXray("floor");
   
   gp.userData.role = "ground";
   groundPlaneRef = gp; // Save reference for toggling in applySite
   dyn.add(gp);
+  buildSiteDressing(showSV);
   var rooms = detectRooms(),
     hid = hiddenSets(rooms),
     matCache = {};
@@ -2006,20 +2317,24 @@ export function rebuild3D() {
       // per-material sheen so polished floors reflect the environment (IBL) like a showroom
       var FLOOR_ROUGH = {
         epoxy: 0.12,
-        marble: 0.22,
+        marble: 0.18,
         marbleDark: 0.2,
         porcelain: 0.28,
         granite: 0.3,
-        wood: 0.4,
-        parquet: 0.35,
+        // oiled/matte boards: a lacquer-bright sky reflection seen from above
+        // bleaches the grain out of a wood floor
+        wood: 0.62,
+        laminate: 0.6,
+        darkwood: 0.58,
+        parquet: 0.55,
         tiles: 0.25,
-        marble: 0.15,
         terrazzo: 0.25,
         slate: 0.62,
         pebble: 0.7,
         brick: 0.8,
         deck: 0.8,
         concrete: 0.75,
+        pavers: 0.85,
         balcony: 0.7,
         carpet: 0.95,
         carpetGrey: 0.95,
@@ -2027,7 +2342,7 @@ export function rebuild3D() {
       var mat = new THREE.MeshStandardMaterial({
         roughness: customTex ? 0.55 : FLOOR_ROUGH[t] != null ? FLOOR_ROUGH[t] : 0.65,
         metalness: 0.04,
-        envMapIntensity: 1.0,
+        envMapIntensity: 0.7,
         side: THREE.DoubleSide,
       });
       var bumpScale = customBump != null ? customBump : 0.20;
@@ -2083,9 +2398,9 @@ export function rebuild3D() {
     }
     return matCache[key];
   }
-  var xrayFloor = !!(S.mep && S.mep.xray && typeof S.mep.xray === "object" && S.mep.xray.floor);
-  var xrayCeiling = !!(S.mep && S.mep.xray && typeof S.mep.xray === "object" && S.mep.xray.ceiling);
-  var xrayWalls = !!(S.mep && S.mep.xray && (typeof S.mep.xray === "object" ? S.mep.xray.walls : S.mep.xray));
+  var xrayFloor = mepXray("floor");
+  var xrayCeiling = mepXray("ceiling");
+  var xrayWalls = mepXray("walls");
   if (rooms.length) {
     rooms.forEach(function (r) {
       if (roomHidden(r.key)) return;
@@ -2337,10 +2652,26 @@ export function rebuild3D() {
         wallColorMap[id] = c;
       });
   });
+  drawingWalls = S.walls.filter(function (w) { return !hid.walls[w.id]; });
+  drawingHoverObj = null; // its meshes were just disposed
   S.walls.forEach(function (w) {
     if (hid.walls[w.id]) return;
     buildWall(w, wallColorMap[w.id] != null ? wallColorMap[w.id] : S.wallColor, w.tex);
   });
+  if (S.roof && !S.invisibleRoof) {
+    var roofTriangles = roofMeshTriangles(S.roof), roofPositions = [];
+    roofTriangles.forEach(function (triangle) { triangle.forEach(function (p) { roofPositions.push(p.x, p.y, p.z); }); });
+    if (roofPositions.length) {
+      var roofGeo = new THREE.BufferGeometry();
+      roofGeo.setAttribute("position", new THREE.Float32BufferAttribute(roofPositions, 3));
+      roofGeo.computeVertexNormals();
+      var roofMesh = new THREE.Mesh(roofGeo, new THREE.MeshStandardMaterial({ color: 0x725b50, roughness: 0.82, side: THREE.DoubleSide }));
+      roofMesh.castShadow = true;
+      roofMesh.receiveShadow = true;
+      roofMesh.userData.role = "roof";
+      structureRoot.add(roofMesh);
+    }
+  }
   // daylight through each WINDOW (soft sky light at the opening, scaled by daylight)
   S.openings.forEach(function (o) {
     if (o.type !== "window") return;
@@ -2380,6 +2711,11 @@ export function rebuild3D() {
     initPhysicsForScene();
   }
   applySite(); // reposition the aerial overlay for the new content bounds
+  // a cut house has no ceiling to look down through
+  if (isFinite(cutH()))
+    structureRoot.traverse(function (o) {
+      if (o.userData && (o.userData.role === "ceiling" || o.userData.role === "roof")) o.visible = false;
+    });
   // external modes (RC race) rebuild their collision snapshot off this event
   updateSeeThrough(); // the wall groups are brand new: re-apply the dollhouse cut
   applyLayers3D(); // the roots are brand new too: re-apply hide/ghost to them
@@ -2482,7 +2818,9 @@ function upd() {
    rebuild is triggered — so this is safe to run on every camera move. */
 function updateSeeThrough() {
   if (!dyn || !camera || !tgt) return;
-  var on = (!!S.edit3D || framedInterior) && !walk && !extTick;
+  // the dollhouse cut already opens every room; hiding whole walls on top of
+  // it would take their caps away too
+  var on = (!!S.edit3D || framedInterior) && !walk && !extTick && !isFinite(cutH());
   var changed = false;
   /* Wall groups are children of structureRoot, not of `dyn` — a one-level scan
      aimed at `dyn` would match nothing at all and the dollhouse cut would
@@ -2531,6 +2869,24 @@ function updateSeeThrough() {
      calls this directly, outside upd(), so without this wake-up the cutaway
      did not appear until the next orbit or Frame action. */
   if (changed) needsRender = true;
+}
+
+/* The presentation cutaway camera: three-quarter azimuth, steep from above,
+   the whole house in frame — the view a dollhouse render is shot from. */
+export function frameDollhouse() {
+  if (!ready3D) return;
+  var bb = contentBounds();
+  framedInterior = false;
+  tgt.set(bb.cx, 0, bb.cz);
+  sun.target.position.set(bb.cx, 0, bb.cz);
+  // a tall, narrow pane fits the house by its width: pull back to suit
+  var aspect = camera && camera.aspect > 0 ? camera.aspect : 1.6;
+  radius = clamp((Math.hypot(bb.w, bb.d) * 1.08 + 160) * Math.max(1, Math.pow(1.5 / aspect, 0.85)), 300, 4000);
+  theta = 0.78;
+  phi = 0.62;
+  userMoved = true;
+  tgtTween = null;
+  upd();
 }
 
 export function frameView() {
@@ -3111,8 +3467,40 @@ function lerpC(a, b, t) {
 // Sun by time-of-day + house north bearing; updates sky, ambient and lamp brightness.
 // Prefilter a 3-stop equirect gradient (zenith→horizon→ground) into scene.environment.
 // Called from applyEnv whenever the sky colors change (not per-frame — PMREM is costly).
+var lastSkyKey = null;
 var lastEnvKey = null; // skip the costly PMREM re-prefilter when the sky palette is unchanged
-function updateEnvMap(zenC, horC, groundHex) {
+/* The environment as a half-float procedural sky (js/sky_model.js): linear
+   radiance with the sun's glow and disc above 1, so glossy surfaces show a
+   real highlight and the prefiltered fill is brighter on the sun's side.
+   Returns null (and the caller paints the old gradient) if the backend
+   cannot take the texture. */
+function hdrSkyTexture(zenC, horC, groundHex, sunDir, sunCol, day) {
+  try {
+    if (!THREE.DataUtils || !THREE.HalfFloatType) return null;
+    var W = 256, H = 128, g = new THREE.Color("#" + groundHex);
+    var p = {
+      // an ambient FILL, not a second sun: the direct light is the sun lamp
+      zenith: [zenC.r * 0.55, zenC.g * 0.55, zenC.b * 0.55],
+      horizon: [horC.r * 0.6, horC.g * 0.6, horC.b * 0.6],
+      ground: [g.r * 0.9, g.g * 1.0, g.b * 0.8],
+      sunColor: [sunCol.r, sunCol.g, sunCol.b],
+      sunI: 30 * day,
+      glowI: 0.9 * day,
+    };
+    var f = skyPixels(W, H, [sunDir.x, sunDir.y, sunDir.z], p), half = new Uint16Array(f.length);
+    for (var i = 0; i < f.length; i++) half[i] = THREE.DataUtils.toHalfFloat(f[i]);
+    var tex = new THREE.DataTexture(half, W, H, THREE.RGBAFormat, THREE.HalfFloatType);
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    tex.colorSpace = THREE.LinearSRGBColorSpace;
+    tex.minFilter = tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = false;
+    tex.needsUpdate = true;
+    return tex;
+  } catch (e) {
+    return null;
+  }
+}
+function updateEnvMap(zenC, horC, groundHex, sunDir, sunCol, day) {
   if (!pmrem || !envSrcCanvas) return;
   // PMREM prefiltering is real GPU work and throws outright on a renderer whose
   // backend has not come up yet — which is the state applyEnv() runs in during
@@ -3122,7 +3510,8 @@ function updateEnvMap(zenC, horC, groundHex) {
     envDeferred = true;
     return;
   }
-  var key = zenC.getHexString() + horC.getHexString() + groundHex;
+  var key = zenC.getHexString() + horC.getHexString() + groundHex +
+    (sunDir ? "|" + [sunDir.x, sunDir.y, sunDir.z].map(function (v) { return Math.round(v * 50); }).join(",") : "");
   /* The cache is about not re-prefiltering the same sky, NOT about whether the
      scene is still using it: a game mode that nulls scene.environment for its
      own grade got the daylight sky back on exit but no image-based fill at
@@ -3133,6 +3522,18 @@ function updateEnvMap(zenC, horC, groundHex) {
     return;
   }
   lastEnvKey = key;
+  var hdr = sunDir ? hdrSkyTexture(zenC, horC, groundHex, sunDir, sunCol || new THREE.Color(0xffffff), day || 0) : null;
+  if (hdr) {
+    var hrt = null;
+    try { hrt = pmrem.fromEquirectangular(hdr); } catch (e) { hrt = null; }
+    hdr.dispose();
+    if (hrt) {
+      if (envRT) envRT.dispose();
+      envRT = hrt;
+      scene.environment = hrt.texture;
+      return;
+    }
+  }
   var ex = envSrcCanvas.getContext("2d"),
     H = envSrcCanvas.height,
     grd = ex.createLinearGradient(0, 0, 0, H);
@@ -3209,12 +3610,15 @@ export function applyEnv() {
     ground: [0.3, 0.34, 0.24],
     night: on ? 0 : 1,
   };
-  if (skyCanvas) {
+  var skyGround = hor.clone().multiplyScalar(0.75).getHexString();
+  var skyKey = zen.getHexString() + hor.getHexString() + skyGround;
+  if (skyCanvas && skyKey !== lastSkyKey) {
+    lastSkyKey = skyKey;
     var sx = skyCanvas.getContext("2d"),
       grd = sx.createLinearGradient(0, 0, 0, skyCanvas.height);
     grd.addColorStop(0, "#" + zen.getHexString()); // canvas top = zenith
     grd.addColorStop(0.62, "#" + hor.getHexString()); // horizon band
-    grd.addColorStop(1, "#" + hor.clone().multiplyScalar(0.75).getHexString()); // below horizon, slightly darker
+    grd.addColorStop(1, "#" + skyGround); // below horizon, slightly darker
     sx.fillStyle = grd;
     sx.fillRect(0, 0, skyCanvas.width, skyCanvas.height);
     skyTex.needsUpdate = true;
@@ -3225,8 +3629,11 @@ export function applyEnv() {
   else scene.fog.color.copy(hor);
   if (stars) stars.visible = !on;
   // refresh image-based lighting to match the new sky (ground tone darkens at night)
-  updateEnvMap(zen, hor, on ? "3a3d30" : "0a0d14");
-  renderer.toneMappingExposure = on ? 1.12 : 0.95;
+  updateEnvMap(zen, hor, on ? "3a3d30" : "0a0d14",
+    new THREE.Vector3(dx, dy, dz).normalize(), sun.color, on ? dk : 0);
+  // a dollhouse view looks straight down at sunlit floors, with no ceiling
+  // shading them: expose for that rather than for a room seen from inside
+  renderer.toneMappingExposure = on ? (isFinite(cutH()) ? 0.9 : 1.12) : 0.95;
   S.artK = on ? 0.12 + 0.55 * (1 - dk) : 1.0;
   dyn.traverse(function (o) {
     if ((o.isPointLight || o.isSpotLight) && o.userData.baseI != null) {
@@ -3323,7 +3730,9 @@ export function applySite() {
     siteAerialMesh.material.opacity = st.opacity != null ? st.opacity : 0.85;
     siteGroup.position.set(bb.cx + (st.offX || 0), -2.4 - floorCm, bb.cz + (st.offZ || 0));
     siteGroup.rotation.y = ((st.groundRot || 0) * Math.PI) / 180;
-    siteGroup.visible = true;
+    // Satellite imagery is another ground surface above the service plane.
+    // Keep it out of the way during under-floor inspection as well.
+    siteGroup.visible = !mepXray("floor");
   } else if (siteGroup) {
     siteGroup.visible = false;
   }
@@ -3363,7 +3772,8 @@ export function applySite() {
   // and when the apartment is on an upper floor with the aerial lowered —
   // otherwise the procedural ground at y=0 hides the real surroundings below.
   if (groundPlaneRef) {
-    groundPlaneRef.visible = !showSV && !(showAerial && floorCm > 0);
+    groundPlaneRef.visible = !showSV && !mepXray("floor") && !(showAerial && floorCm > 0);
+    if (siteDressRef) siteDressRef.visible = groundPlaneRef.visible && !showAerial;
   }
 
   if (skyDome) skyDome.visible = !showSV;
@@ -3449,8 +3859,14 @@ export function setStreetViewCube(faces) {
   applySite();
 }
 
+var lastViewWidth = 0, lastViewHeight = 0, lastViewRatio = 0;
 export function setSize(w, h) {
   if (!ready3D || w === 0 || h === 0) return;
+  var ratio = renderer.getPixelRatio();
+  // ResizeObserver can repeat the same size while chrome settles. Keep the
+  // existing render targets and temporal history until size or DPR changes.
+  if (w === lastViewWidth && h === lastViewHeight && ratio === lastViewRatio) return;
+  lastViewWidth = w; lastViewHeight = h; lastViewRatio = ratio;
   needsRender = true;
   renderer.setSize(w, h);
   camera.aspect = w / h;
@@ -3466,6 +3882,30 @@ export function setSize(w, h) {
 // respect renderer.initialized (the animate loop and snapshot3D both do).
 function renderScene() {
   if (!renderer || !renderer.initialized) return;
+  if (drawingEnabled && !drawingOverlay) {
+    drawingOverlay = createPlannerDrawing(THREE);
+    drawingCanvas = document.createElement('canvas');
+    drawingCanvas.className = 'planner-drawing-overlay';
+    drawingCanvas.setAttribute('aria-hidden', 'true');
+    renderer.domElement.parentElement.appendChild(drawingCanvas);
+  }
+  if (drawingOverlay) {
+    drawingOverlay.group.visible = !gameRendererLock && !extTick;
+    drawingCanvas.hidden = !drawingOverlay.group.visible;
+    if (drawingOverlay.group.visible) {
+      drawingOverlay.sync(drawingFurniture ? [structureRoot, itemsRoot] : [structureRoot]);
+      var segs = [];
+      drawingWalls.forEach(function (w) {
+        var a = S.nodes[w.a], b = S.nodes[w.b];
+        if (a && b) segs.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z });
+      });
+      drawingOverlay.setPlan(segs, function (cm) { return fmtLen(cm); });
+      drawingOverlay.setOccluders([structureRoot]);
+      drawingOverlay.setOptions(drawingPrefs);
+      if (drawingHoverObj && !drawingHoverObj.parent) drawingHoverObj = null;
+      drawingOverlay.setHover(drawingPrefs.hover ? drawingHoverObj : null);
+    }
+  }
   if (gameEffectFactory) {
     try {
       if (!gameEffect) gameEffect = gameEffectFactory(renderer, scene, camera);
@@ -3478,6 +3918,9 @@ function renderScene() {
   }
   if (usePost && post) post.render();
   else renderer.render(scene, camera);
+  if (drawingOverlay && drawingOverlay.group.visible) {
+    drawingOverlay.draw(drawingCanvas, camera, renderer.domElement.clientWidth, renderer.domElement.clientHeight, Math.min(window.devicePixelRatio || 1, 2));
+  }
   if (plannerRenderHook) plannerRenderHook();
 }
 
@@ -4063,7 +4506,13 @@ function build3D() {
   el.addEventListener("mouseenter", function () {
     navHover = true;
   });
+  el.addEventListener("pointermove", function (e) {
+    if (!drawingEnabled || !drawingPrefs.hover) return;
+    // no hover sketch while orbiting, panning or dragging a piece
+    drawingHoverAt(down || editDrag || e.buttons ? null : e.clientX, e.clientY);
+  });
   el.addEventListener("mouseleave", function () {
+    if (drawingHoverObj || drawingHoverXY) drawingHoverAt(null);
     navHover = false;
     if (!navFocus) navKeys = {};
   });
@@ -4570,7 +5019,7 @@ function build3D() {
           renderer.shadowMap.needsUpdate = true;
           shadowThrottleT = time;
         }
-      } else if (shadowsDirty || physicsLive) {
+      } else if (shadowsDirty || physicsLive || doorsMoving) {
         renderer.shadowMap.needsUpdate = true;
         shadowsDirty = false;
         shadowThrottleT = time;

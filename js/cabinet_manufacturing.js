@@ -1,8 +1,10 @@
+import { applyCabinetStockMapping } from './cabinet_stock_datum.js';
 // Machine-neutral cabinet manufacturing review. No machine code is emitted:
 // geometry validation is distinct from hardware and machine qualification.
 import { S } from './state.js';
 import { layoutCab, cabRun, drillPlan, checkCab, S32 } from './cabinet.js';
 import { semanticCabinetParts } from './core/cabinet_parts.js';
+import { cabinetItemIdentity, cabinetProductionParts } from './cabinet_production_parts.js';
 
 export const CABINET_HARDWARE_TEMPLATES = Object.freeze({
   pin: Object.freeze({ id: 'generic-shelf-pin-v1', diameter: S32.pin, depth: S32.pinDepth, setback: S32.setback }),
@@ -93,6 +95,14 @@ function recipeInventory(layout, parts) {
   });
 }
 
+// Closed-state geometry and machining inputs bind recipes; review metadata and
+// saved joinery do not alter the finished drilling definition.
+export function cabinetRecipeSourceSignature(item, layout) {
+  const cab=clone(item.cab);
+  delete cab.open;delete cab.joineryPlans;delete cab.productionOverrides;
+  return JSON.stringify({cab,w:item.w,h:item.h,d:item.d,parts:layout.parts});
+}
+
 function recipePanels(recipe, draft, prefix, add) {
   if(recipe.sourceSignature!==draft.sourceSignature){add('recipe-stale','The complete drilling recipe no longer matches the cabinet. Export a fresh draft.');return null;}
   if(!recipe.partNumber?.trim() || !recipe.sourceDrawing?.trim()){add('recipe-source','A complete recipe needs exact hardware part numbers and a drawing reference.');return null;}
@@ -127,19 +137,31 @@ export function cabinetManufacturingReport(items = [], recipes = []) {
   report.issues.push({ code: 'hardware-unverified', message: 'Generic layout templates are not manufacturer-verified hardware instructions.' });
   if (!items.length) report.issues.push({ code: 'empty-job', message: 'No cabinets are included.' });
   const used = new Set();
+  const production = cabinetProductionParts(items);
+  const allowanceCodes = new Set(['missing-stock','stock-thickness-mismatch','stock-datum-stale','stock-datum-source','stock-datum-offset','invalid-edge-allowance','invalid-substrate','invalid-rough-allowance','edge-datum-mismatch','edge-topology-mismatch','unsupported-edge-allowance']);
   items.forEach((source, index) => {
     if (!source?.cab) return;
-    const item = clone(source), id = String(source.id ?? index + 1), prefix = 'item:' + index + ':' + id + ':';
+    const identity = cabinetItemIdentity(source,index,items);
+    const item = clone(source), id = identity.id, prefix = identity.prefix;
+    item.cab.open=0;
+    if(item.runtimeState)item.runtimeState.cabinetOpen=0;
     const entry = { id, index: index + 1, panels: [], issues: [] };
     const add = (code, message, panelId) => entry.issues.push({ code, message, itemId: id, panelId });
+    if (identity.issue) add(identity.issue, 'Manufacturing requires a unique persistent cabinet ID.');
     report.items.push(entry);
+    const productionParts = production.parts.filter(part => part.itemIndex === index);
+    for (const issue of production.issues.filter(issue => issue.itemId === id && allowanceCodes.has(issue.code))) add(issue.code, issue.message, issue.partId);
+    for (const partId of Object.keys(source.cab.productionOverrides || {})) {
+      if (!productionParts.some(part => part.partId === partId)) add('unknown-production-part', 'A stock allowance targets a missing physical part: ' + partId);
+    }
     if (S.parametric?.definitions?.[source.definitionId]?.metadata?.manufacturingReviewRequired)
       add('advanced-edits', 'Advanced edits require a manufacturing review; semantic drilling may not match the edited solid.');
     try {
       const layout = layoutCab(item, cabRun(source, items)), parts = semanticCabinetParts(layout);
-      entry.recipeDraft={itemId:id,itemIndex:index+1,sourceSignature:JSON.stringify({cab:item.cab,w:item.w,h:item.h,d:item.d,parts:layout.parts},(key,value)=>key==='hid'?undefined:value),
+      for (const part of parts) if (part.source?.authoredPartId) part.id = part.source.authoredPartId;
+      entry.recipeDraft={itemId:id,itemIndex:index+1,sourceSignature:cabinetRecipeSourceSignature(item,layout),
         partNumber:'',sourceDrawing:'',panels:recipeInventory(layout,parts)};
-      const matching=recipes.filter(r=>r?.itemId===id && r.itemIndex===index+1);
+      const matching=recipes.filter(r=>r?.itemId===id);
       if(matching.length>1)add('recipe-duplicate','Only one complete recipe may target a cabinet.');
       const custom=matching.length===1?recipePanels(matching[0],entry.recipeDraft,prefix,add):null;
       for (const issue of checkCab(item).filter(i => i.level === 'err')) add('construction', issue.msg);
@@ -162,6 +184,15 @@ export function cabinetManufacturingReport(items = [], recipes = []) {
         }
       }
       if (!custom && layout.parts.some(p => p.role === 'drawerFront')) add('drawer-front-template', 'Drawer front fixing holes are not included in the generic patterns.');
+      // Generic bottom-front/hinge datums have no verified physical-axis map.
+      // Only complete recipes declare the positive model axes needed here.
+      for (const part of productionParts) {
+        const differs=dimensions=>dimensions&&part.finished&&['length','width','thickness'].some(axis=>Math.abs(dimensions[axis]-part.finished[axis])>1e-9);
+        if (!differs(part.substrate)&&!differs(part.rough)) continue;
+        const panel=entry.panels.find(panel=>panel.partId===part.partId);
+        if (panel && part.stockMapping) entry.issues.push(...validateDrillingPanel(panel).map(issue=>({...issue,itemId:id})));
+        if (!panel || !applyCabinetStockMapping(panel,part)) add('machining-stock-datum','Changed cut stock requires a current reviewed stock datum and a complete drilling recipe with matching positive model axes; generic drilling remains in finished coordinates.',part.id);
+      }
       for (const panel of entry.panels) {
         panel.faces = { A: 'positive-' + panel.faceAxis, B: 'negative-' + panel.faceAxis };
         for (const h of panel.holes) {

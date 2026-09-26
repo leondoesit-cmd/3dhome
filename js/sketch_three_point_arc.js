@@ -1,5 +1,14 @@
 // Endpoints first, then a point on the desired sweep. Return the endpoint
 // order used by the sketch solver: counter-clockwise around the centre.
+export function radialArcEndpoint(centre, start, end) {
+  const radius = Math.hypot(start.u - centre.u, start.v - centre.v);
+  const angle = Math.atan2(end.v - centre.v, end.u - centre.u);
+  const projected = {u: centre.u + Math.cos(angle) * radius, v: centre.v + Math.sin(angle) * radius};
+  // Reuse a snapped vertex only when it actually lies on this circle.
+  if (end.pointId && Math.hypot(projected.u - end.u, projected.v - end.v) <= 1e-8) return end;
+  return projected;
+}
+
 export function threePointArc(start, end, through) {
   const bx=end.u-start.u, by=end.v-start.v;
   const cx=through.u-start.u, cy=through.v-start.v;

@@ -142,6 +142,7 @@ export function wrapPlanSVG(planInner, bounds, meta) {
   const oy = marginU + Math.max(0, (fieldH - dCm) / 2);
   const block = titleBlockSVG({
     name: o.name,
+    note: o.note,
     scale: L.label,
     paper: L.paperName,
     sheet: o.sheet,
@@ -158,4 +159,22 @@ export function wrapPlanSVG(planInner, bounds, meta) {
   <g transform="translate(${ox.toFixed(2)} ${oy.toFixed(2)})">${planInner}</g>
   ${block}
 </svg>`;
+}
+
+/* Print one sheet on its own paper size: the SVG goes into a hidden frame
+   whose page is exactly that sheet, so the app chrome never prints.
+   (The Workspace dialog keeps an identical local copy for now.) */
+export function printSheetSVG(svg, title) {
+  const frame = document.createElement("iframe");
+  frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  document.body.appendChild(frame);
+  const doc = frame.contentDocument;
+  const m = /width="([\d.]+)mm" height="([\d.]+)mm"/.exec(svg);
+  const page = m ? m[1] + "mm " + m[2] + "mm" : "landscape";
+  doc.open();
+  doc.write('<!doctype html><title>' + String(title || "Sheet").replace(/</g, "&lt;") + '</title><style>@page{size:' + page + ';margin:0}html,body{margin:0}svg{display:block;width:100%;height:auto}</style>' + svg);
+  doc.close();
+  setTimeout(() => {
+    try { frame.contentWindow.focus(); frame.contentWindow.print(); } finally { setTimeout(() => frame.remove(), 1000); }
+  }, 60);
 }

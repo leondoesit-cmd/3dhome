@@ -13,3 +13,5 @@ server/.prodsize-cache.json
 .idea/
 scratch/
 tmp/
+# disk copies of saved models (server/model_backup.mjs)
+.model-backups/

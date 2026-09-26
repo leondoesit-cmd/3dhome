@@ -41,7 +41,7 @@ export function editRoundEntity(sketch,entity,pick,extend,lineCircle){
     const existing=(sketch.points||[]).find(p=>p.id!==centreId&&Math.hypot(p.x-x,p.y-y)<=snapTol);
     return existing?{id:existing.id,reused:true}:{id:uid(),x,y};
   };
-  const setArc=(target,a,b)=>{const pa=pointAt(a),pb=pointAt(b);[pa,pb].forEach(p=>{if(!p.reused&&!sketch.points.some(q=>q.id===p.id))sketch.points.push({id:p.id,x:p.x,y:p.y});});target.type='arc';target.a=round.a&&Math.abs(a)<EPS?round.a.id:pa.id;target.b=round.b&&Math.abs(b-span)<EPS?round.b.id:pb.id;target.c=centreId;delete target.r;};
+  const setArc=(target,a,b)=>{const pa=pointAt(a),pb=pointAt(b);[pa,pb].forEach(p=>{if(!p.reused&&!sketch.points.some(q=>q.id===p.id))sketch.points.push({id:p.id,x:p.x,y:p.y});});if(target.type==='circle'&&target.fixed)target.fixedRadius=round.radius;target.type='arc';target.a=round.a&&Math.abs(a)<EPS?round.a.id:pa.id;target.b=round.b&&Math.abs(b-span)<EPS?round.b.id:pb.id;target.c=centreId;delete target.r;};
   // an arc endpoint is on the arc by definition; an explicit relation to the same curve is redundant
   const dropImplicitOnCurve=target=>{sketch.constraints=(sketch.constraints||[]).filter(c=>!(c.type==='pointOnCircle'&&c.entity===target.id&&(c.point===target.a||c.point===target.b)));};
   if(extend){

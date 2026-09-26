@@ -10,6 +10,19 @@ import {
 import { refreshRuntimePlacement, runtimeCollisionRects } from "../js/core/runtime.js";
 import { assignCabinetManufacturing, cabinetPartFeatureHistory, captureCabinetAdvancedDelta, mergeCabinetAdvanced } from "../js/core/cabinet_advanced.js";
 
+test("copy migration accepts sub-centimetre CAD extents without weakening authored limits", () => {
+  const migrated = migrateDefinition({ key: "thin-cad-copy", w: 3.81, d: .1524, h: 1.27, parts: [], features: [], sketches: [] });
+  assert.equal(migrated.parameters.depth.value, .1524);
+  assert.ok(migrated.parameters.depth.min <= .1524);
+  const run = rebuildDefinition(migrated);
+  assert.equal(run.issues.some((issue) => issue.code === "parameter-below-minimum"), false);
+  const constrained = migrateDefinition({ w: 3.81, d: .1524, h: 1.27, parameters: {
+    depth: createParameter("depth", .1524, { min: 1 }),
+  } });
+  assert.equal(constrained.parameters.depth.min, 1);
+  assert.ok(rebuildDefinition(constrained).issues.some((issue) => issue.code === "parameter-below-minimum"));
+});
+
 function boxDefinition() {
   return createDefinition({
     id: "definition:test-box",

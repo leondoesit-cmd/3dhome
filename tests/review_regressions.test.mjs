@@ -53,6 +53,13 @@ test('invalid imported positions never fall through to a profile', () => {
   }
   assert.deepEqual(bounds({kind:'mesh',meshData:{positions:[NaN,0,0,1,2,3,4,5,6]}}),{x0:1,x1:4,y0:2,y1:5,z0:3,z1:6});
 });
+test('drafted and cut part size uses exact kernel bounds before any merge', () => {
+  const bounds=extract('modeler_part_geometry','basePartBounds',{isKernelBody:()=>false});
+  const part={kind:'ext',axis:'z',from:0,to:-4.3815,pts:[{u:-6.2239,v:-6.2239},{u:6.2239,v:-6.2239},{u:6.2239,v:6.2239},{u:-6.2239,v:6.2239}],
+    draftAngle:5,cuts3d:[{kind:'revolveCut'}],meshData:{exactBounds:{min:{x:-6.551,y:-6.551,z:-4.3815},max:{x:6.551,y:6.551,z:0}}}};
+  assert.deepEqual(bounds(part),{x0:-6.551,x1:6.551,y0:-6.551,y1:6.551,z0:-4.3815,z1:0});
+  assert.notEqual(bounds({...part,meshData:null}).x1,bounds(part).x1);
+});
 test('unsupported mirror representations are refused without mutation', () => {
   const mirror=extract('modeler_part_geometry','mirrorProjectionPart',{isKernelBody:q=>q.kind==='kernel'});
   for(const q of [{kind:'mesh'},{kind:'direct',meshData:{}},{kind:'kernel'},{kind:'ext',cuts3d:[{}]}]) {

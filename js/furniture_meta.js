@@ -115,7 +115,11 @@ var FURN_EN = {
   smokeDetector: "Smoke detector",
   smartLock: "Smart lock",
   vacuum: "Robot vacuum",
-  smartPlug: "Smart plug"
+  smartPlug: "Smart plug",
+  car: "Car",
+  tree: "Tree",
+  hedge: "Hedge",
+  patioSet: "Patio set"
 };
 
 export function flabel(type) {
@@ -131,6 +135,7 @@ var CATALOG_EN = {
   "office": "Office",
   "decor": "Decor",
   "misc": "Miscellaneous",
+  "outdoor": "Outdoor & garden",
   "appliances": "Appliances",
   "kitchen_apps": "Kitchen",
   "laundry": "Laundry & Cleaning",
@@ -170,7 +175,7 @@ export const PRICE = {
   sideTable: 450, tvunit: 1500, roundTable: 1400, barstool: 500, officeChair: 1200,
   piano: 15000, crib: 1500, bunk: 3200, mirror: 500, wallMirror: 650, art: 600, ac: 3500,
   shoeCab: 700, coatRack: 300, dryer: 2500, microwave: 700, hood: 1800,
-  aquarium: 2000, bench: 800, stairs: 6000, fireplace: 4000, pouf: 400,
+  aquarium: 2000, bench: 800, car: 0, tree: 900, hedge: 350, patioSet: 3200, stairs: 6000, fireplace: 4000, pouf: 400,
   dressTable: 1300, radiator: 1200, ceilingLight: 400, floorLamp: 600, wallLamp: 250, tableLamp: 180,
   trackLight: 800, pendant: 600, lightStrip: 250, nft_pipe_75: 50, nft_pipe_110: 80, nft_pipe_160: 120, nft_square_12x12: 100,
   dwc_bucket: 70, rdwc_header: 150, ebb_flow_tray: 800, tower_commercial: 1500, tower_diy_pvc: 300,
@@ -204,7 +209,8 @@ export const CATALOG = [
     { id: "bedroom", label: "חדר שינה", icon: "ph-bed", items: ["cabsys", "bed", "bunk", "crib", "wardrobe", "dresser", "nightstand", "dressTable"] },
     { id: "office", label: "משרד", icon: "ph-office-chair", items: ["desk", "officeChair", "chair", "bookshelf", "filingCab", "whiteboard"] },
     { id: "decor", label: "עיצוב משלים", icon: "ph-image-square", items: ["rug", "plant", "mirror", "wallMirror", "floorMirror", "art", "clock", "curtain", "wallShelf", "piano", "aquarium", "fireplace", "shoeCab", "coatRack"] },
-    { id: "misc", label: "שונות", icon: "ph-stairs", items: ["stairs", "laundryBasket"] }
+    { id: "misc", label: "שונות", icon: "ph-stairs", items: ["stairs", "laundryBasket"] },
+    { id: "outdoor", label: "חוץ וגינה", icon: "ph-tree", items: ["car", "tree", "hedge", "patioSet"] }
   ]},
   { id: "appliances", label: "מכשירי חשמל", icon: "ph-plug-charging", sub: [
     { id: "kitchen_apps", label: "מטבח", icon: "ph-oven", items: ["fridge", "oven", "cooktop", "microwave", "dishwasher", "hood", "wineFridge", "coffeeMachine", "toaster", "kettle"] },

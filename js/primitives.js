@@ -1,6 +1,7 @@
 // Low-level THREE mesh helpers + procedural floor textures + flat polygon geometry.
 import { THREE, ADDONS } from "./three_lazy.js";
-import { S, fin, PHYSICS_MATS, MAT_PROPS } from "./state.js";
+import { S, fin, PHYSICS_MATS, MAT_PROPS, FABRIC, WOOD, TOP, BEDC, RUGC, STEEL, ISL, GREEN, CAB } from "./state.js";
+import { pbrPixels } from "./pbr_textures.js";
 import { getTexturePresetBumpUrl } from "./textures.js";
 
 // Classify a part's physical material from how it is actually rendered:
@@ -134,6 +135,109 @@ export function applyTextureToMaterial(m, opt, width, height, depth) {
   m.needsUpdate = true;
 }
 
+/* ---- surface detail (js/pbr_textures.js) ----
+   Every part painted with one of the shared source colours gets that
+   material's detail: weave on upholstery, grain on wood, flecks on a quartz
+   top. Keyed on the SOURCE colour (before a variant re-tints it), like the
+   physics table, so a variant keeps its material and changes only its tint —
+   the detail map is near-white and multiplies the colour. Textures are shared
+   and never disposed (clearGroup disposes materials, not their maps). */
+var COLOR_PBR = {};
+COLOR_PBR[FABRIC] = "linen";
+COLOR_PBR[BEDC] = "cotton";
+COLOR_PBR[RUGC] = "boucle";
+COLOR_PBR[WOOD] = "oak";
+COLOR_PBR[ISL] = "oak";
+COLOR_PBR[CAB] = "oak";
+COLOR_PBR[TOP] = "quartz";
+COLOR_PBR[STEEL] = "brushed";
+COLOR_PBR[GREEN] = "foliage";
+var pbrCache = {};
+function pbrTex(name) {
+  if (name in pbrCache) return pbrCache[name];
+  pbrCache[name] = null;
+  if (typeof document === "undefined" || !THREE.CanvasTexture) return null;
+  var px = pbrPixels(name, 256);
+  if (!px) return null;
+  function tex(bytes, srgb) {
+    var c = document.createElement("canvas");
+    c.width = c.height = px.size;
+    var x = c.getContext("2d");
+    if (!x) return null;
+    x.putImageData(new ImageData(bytes, px.size, px.size), 0, 0);
+    var t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = 4;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+  pbrCache[name] = { map: tex(px.albedo, true), normalMap: px.normal ? tex(px.normal, false) : null, tileCm: px.tileCm };
+  return pbrCache[name];
+}
+/* Box-project UVs in centimetres (u,v = the two coordinates across the
+   dominant normal axis, over tileCm), so a tiled detail keeps its real size
+   on a 2 m sofa and on a 20 cm cushion alike. */
+export function worldUVs(geo, tileCm) {
+  var p = geo.attributes.position, n = geo.attributes.normal;
+  if (!p || !n) return;
+  var uv = new Float32Array(p.count * 2), k = 1 / (tileCm || 50);
+  for (var i = 0; i < p.count; i++) {
+    var ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i));
+    var u, v;
+    // on upright faces the texture's v axis runs horizontally, so grain and
+    // brushing (which run along u) stand vertical on doors, sides and legs
+    if (ay >= ax && ay >= az) { u = p.getX(i); v = p.getZ(i); }
+    else if (ax >= az) { u = p.getY(i); v = p.getZ(i); }
+    else { u = p.getY(i); v = p.getX(i); }
+    uv[i * 2] = u * k;
+    uv[i * 2 + 1] = v * k;
+  }
+  geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+}
+/* A wood family on a finish a variant has painted (white gloss, graphite,
+   navy…) is lacquer, not timber: grain showing through it would read as a
+   mistake. Low-saturation finishes get the fine painted texture instead. */
+function paintedFinish(hex) {
+  var r = ((hex >> 16) & 255) / 255, g = ((hex >> 8) & 255) / 255, b = (hex & 255) / 255;
+  var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+  return mx - mn < 0.1 || (mx - mn) / (mx || 1) < 0.16;
+}
+function applyDetail(m, geo, srcColor, opt, finalColor) {
+  if (!m || m.map || opt.tex || opt.trans || opt.transmission != null || opt.emis != null || opt.noDetail) return;
+  var fam = opt.pbr || COLOR_PBR[srcColor];
+  if (!fam) return;
+  if (fam === "oak" && finalColor != null && finalColor !== srcColor && paintedFinish(finalColor)) fam = "plaster";
+  var t = pbrTex(fam);
+  if (!t || !t.map) return;
+  worldUVs(geo, t.tileCm);
+  m.map = t.map;
+  if (t.normalMap) {
+    m.normalMap = t.normalMap;
+    m.normalScale = new THREE.Vector2(0.7, 0.7);
+  }
+}
+
+/* Dome one face of a box outward by up to `amt` cm, falling off to zero at
+   its edges — the fill of a cushion pushing its cover out. axis "y" crowns
+   the top, "z" the front. */
+function crownGeometry(g, bw, bh, bd, amt, axis) {
+  var p = g.attributes.position, hw = bw / 2, hh = bh / 2, hd = bd / 2;
+  for (var i = 0; i < p.count; i++) {
+    var x = p.getX(i), y = p.getY(i), z = p.getZ(i), f;
+    if (axis === "z") {
+      if (z <= 0) continue;
+      f = Math.max(0, 1 - (x / hw) * (x / hw)) * Math.max(0, 1 - (y / hh) * (y / hh)) * (z / hd);
+      p.setZ(i, z + amt * f);
+    } else {
+      if (y <= 0) continue;
+      f = Math.max(0, 1 - (x / hw) * (x / hw)) * Math.max(0, 1 - (z / hd) * (z / hd)) * (y / hh);
+      p.setY(i, y + amt * f);
+    }
+  }
+  p.needsUpdate = true;
+  g.computeVertexNormals();
+}
+
 export function box(parent, x0, x1, y0, y1, z0, z1, color, opt) {
   opt = opt || {};
   if (!(fin(x0) && fin(x1) && fin(y0) && fin(y1) && fin(z0) && fin(z1)))
@@ -149,7 +253,28 @@ export function box(parent, x0, x1, y0, y1, z0, z1, color, opt) {
   // Radius is adaptive & capped so flush-stacked parts don't gap; skip on thin panels.
   var g,
     br = Math.min(1.3, Math.min(bw, bh, bd) * 0.28);
-  if (opt.sharp || br < 0.35 || !ADDONS.RoundedBoxGeometry) {
+  if (opt.taper) {
+    /* A frustum: the top face scaled toward the centre by taper.x / taper.z
+       (a hood canopy, a lampshade, a tapered plinth). */
+    g = new THREE.BoxGeometry(bw, bh, bd);
+    var tp = g.attributes.position;
+    for (var ti = 0; ti < tp.count; ti++)
+      if (tp.getY(ti) > 0) {
+        tp.setX(ti, tp.getX(ti) * (opt.taper.x != null ? opt.taper.x : 1));
+        tp.setZ(ti, tp.getZ(ti) * (opt.taper.z != null ? opt.taper.z : 1));
+      }
+    tp.needsUpdate = true;
+    g.computeVertexNormals();
+  } else if (opt.radius != null && ADDONS.RoundedBoxGeometry) {
+    /* Upholstery: a real soft radius (a cushion is not a crate with its
+       edges sanded), with enough segments that the curve reads, and an
+       optional crown so a seat cushion domes instead of sitting flat. */
+    var rr = Math.max(0.4, Math.min(opt.radius, Math.min(bw, bh, bd) / 2 - 0.05));
+    // segments by need: a crowned cushion needs a face grid to dome; a
+    // softened edge needs only enough to catch a highlight
+    g = new ADDONS.RoundedBoxGeometry(bw, bh, bd, opt.crown ? 4 : rr < 1.5 ? 2 : 3, rr);
+    if (opt.crown) crownGeometry(g, bw, bh, bd, opt.crown, opt.crownAxis || "y");
+  } else if (opt.sharp || br < 0.35 || !ADDONS.RoundedBoxGeometry) {
     g = new THREE.BoxGeometry(bw, bh, bd);
   } else {
     g = new ADDONS.RoundedBoxGeometry(bw, bh, bd, 2, br);
@@ -176,6 +301,7 @@ export function box(parent, x0, x1, y0, y1, z0, z1, color, opt) {
     });
   }
   applyTextureToMaterial(m, opt, Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0));
+  applyDetail(m, g, srcColor, opt, color);
   if (opt.depthBias) {
     m.polygonOffset = true;
     m.polygonOffsetFactor = 1;
@@ -210,10 +336,13 @@ export function cyl(parent, x, y, z, r, h, color, opt) {
     color: color,
     metalness: opt.metal != null ? opt.metal : 0.3,
     roughness: opt.rough != null ? opt.rough : 0.55,
+    transparent: !!opt.trans,
+    opacity: opt.opacity != null ? opt.opacity : 1,
     // an open tube is seen from the inside too, so it must not be back-culled
     side: opt.open ? THREE.DoubleSide : THREE.FrontSide,
   });
   applyTextureToMaterial(m, opt, r * 2, h, r * 2);
+  applyDetail(m, g, srcColor, opt, color);
   emis(m, opt);
   tuneEnv(m);
   var me = new THREE.Mesh(g, m);
@@ -222,7 +351,7 @@ export function cyl(parent, x, y, z, r, h, color, opt) {
   if (opt.rx) me.rotation.x = opt.rx;
   if (opt.ry) me.rotation.y = opt.ry;
   if (opt.rz) me.rotation.z = opt.rz;
-  me.castShadow = true;
+  me.castShadow = opt.cast !== false;
   me.receiveShadow = true;
   parent.add(me);
   return me;
@@ -234,23 +363,130 @@ export function sph(parent, x, y, z, r, color, opt) {
     sk = reskin(color, opt);
   color = sk.col;
   opt = withSkinTexture(sk.opt);
-  var g = new THREE.SphereGeometry(r, 16, 12);
+  // thetaLen < PI opens the sphere into a dome (a bowl, a lampshade); an
+  // open dome is seen from inside too, so it is drawn double-sided
+  var g = new THREE.SphereGeometry(r, opt.seg || 16, opt.segV || 12, 0, Math.PI * 2, 0, opt.thetaLen || Math.PI);
   var m = new THREE.MeshStandardMaterial({
     color: color,
     roughness: opt.rough != null ? opt.rough : 0.8,
     metalness: opt.metal != null ? opt.metal : 0.05,
+    transparent: !!opt.trans,
+    opacity: opt.opacity != null ? opt.opacity : 1,
+    side: opt.thetaLen ? THREE.DoubleSide : THREE.FrontSide,
   });
   applyTextureToMaterial(m, opt, r * 2, r * 2, r * 2);
+  applyDetail(m, g, srcColor, opt, color);
   emis(m, opt);
   tuneEnv(m);
   var me = new THREE.Mesh(g, m);
   me.userData.physicsProps = physProps(srcColor, opt);
   me.position.set(x, y, z);
-  me.castShadow = true;
+  me.castShadow = opt.cast !== false;
   me.receiveShadow = true;
   parent.add(me);
   return me;
 }
+/* ---- turned, bent and draped parts ----
+   What boxes and plain cylinders cannot say: a turned lamp base or kettle
+   (lathe), a bent tube (an arc lamp, a chandelier arm, a towel-rail bow), a
+   ring (a speaker surround, a clock bezel) and a pleated curtain. They share
+   one finishing path with box/cyl/sph — variant skins, item textures, PBR
+   detail, glow, physics class — so a model built from them behaves exactly
+   like one built from boxes. */
+function solid(parent, g, color, opt, x, y, z, dims, open) {
+  var srcColor = color,
+    sk = reskin(color, opt || {});
+  color = sk.col;
+  opt = withSkinTexture(sk.opt);
+  var m = new THREE.MeshStandardMaterial({
+    color: color,
+    metalness: opt.metal != null ? opt.metal : 0.1,
+    roughness: opt.rough != null ? opt.rough : 0.6,
+    transparent: !!opt.trans,
+    opacity: opt.opacity != null ? opt.opacity : 1,
+    side: open ? THREE.DoubleSide : THREE.FrontSide,
+  });
+  applyTextureToMaterial(m, opt, dims[0], dims[1], dims[2]);
+  applyDetail(m, g, srcColor, opt, color);
+  emis(m, opt);
+  tuneEnv(m);
+  var me = new THREE.Mesh(g, m);
+  me.userData.physicsProps = physProps(srcColor, opt);
+  me.position.set(x, y, z);
+  if (opt.rx) me.rotation.x = opt.rx;
+  if (opt.ry) me.rotation.y = opt.ry;
+  if (opt.rz) me.rotation.z = opt.rz;
+  me.castShadow = opt.cast !== false;
+  me.receiveShadow = true;
+  parent.add(me);
+  return me;
+}
+
+/* A turned part: `prof` is [[radius, height], …] from the bottom up,
+   revolved round the vertical axis through (x, y, z). Radii of 0 at the ends
+   close it; otherwise it is an open shell, drawn double-sided. */
+export function lathe(parent, x, y, z, prof, color, opt) {
+  opt = opt || {};
+  if (!(fin(x) && fin(y) && fin(z)) || !prof || prof.length < 2) return null;
+  var pts = [], rMax = 0, h0 = Infinity, h1 = -Infinity;
+  for (var i = 0; i < prof.length; i++) {
+    var r = Math.max(0, prof[i][0]), h = prof[i][1];
+    if (!(fin(r) && fin(h))) return null;
+    pts.push(new THREE.Vector2(r, h));
+    rMax = Math.max(rMax, r);
+    h0 = Math.min(h0, h);
+    h1 = Math.max(h1, h);
+  }
+  var open = prof[0][0] > 0.01 || prof[prof.length - 1][0] > 0.01;
+  var g = new THREE.LatheGeometry(pts, opt.seg || 32);
+  return solid(parent, g, color, opt, x, y, z, [rMax * 2, h1 - h0, rMax * 2], open || opt.open);
+}
+
+/* A round bar bent along a smooth path through `pts` ([[x,y,z], …], model
+   cm). Ends are left open — cap them with a sph or cyl where they show. */
+export function tube(parent, pts, r, color, opt) {
+  opt = opt || {};
+  if (!pts || pts.length < 2 || !fin(r)) return null;
+  var v = [];
+  for (var i = 0; i < pts.length; i++) {
+    if (!(fin(pts[i][0]) && fin(pts[i][1]) && fin(pts[i][2]))) return null;
+    v.push(new THREE.Vector3(pts[i][0], pts[i][1], pts[i][2]));
+  }
+  var curve = v.length === 2 ? new THREE.LineCurve3(v[0], v[1]) : new THREE.CatmullRomCurve3(v, false, "centripetal");
+  var g = new THREE.TubeGeometry(curve, opt.steps || Math.max(8, v.length * 6), r, opt.seg || 10, false);
+  var bb = new THREE.Box3().setFromPoints(v);
+  return solid(parent, g, color, opt, 0, 0, 0, [bb.max.x - bb.min.x + 2 * r, bb.max.y - bb.min.y + 2 * r, bb.max.z - bb.min.z + 2 * r]);
+}
+
+/* A ring of round section: major radius R, section radius r, lying flat
+   (in XZ) unless rotated with rx/ry/rz. `arc` < 2π opens it. */
+export function torus(parent, x, y, z, R, r, color, opt) {
+  opt = opt || {};
+  if (!(fin(x) && fin(y) && fin(z) && fin(R) && fin(r))) return null;
+  var g = new THREE.TorusGeometry(R, r, opt.segR || 8, opt.seg || 32, opt.arc || Math.PI * 2);
+  g.rotateX(Math.PI / 2);
+  return solid(parent, g, color, opt, x, y, z, [2 * (R + r), 2 * r, 2 * (R + r)]);
+}
+
+/* A hanging pleated panel: fabric from (x0,y0) to (x1,y1) in the plane z,
+   gathered into `folds` soft pleats `depth` cm deep. The pleats settle
+   slightly deeper toward the hem, as a real curtain falls. Double-sided. */
+export function drape(parent, x0, x1, y0, y1, z, folds, depth, color, opt) {
+  opt = opt || {};
+  if (!(fin(x0) && fin(x1) && fin(y0) && fin(y1) && fin(z)) || x1 - x0 < 0.5 || y1 - y0 < 0.5) return null;
+  var nx = Math.max(8, Math.round(folds) * 8), ny = 6;
+  var g = new THREE.PlaneGeometry(x1 - x0, y1 - y0, nx, ny);
+  var p = g.attributes.position, k = (Math.PI * 2 * Math.max(1, folds)) / (x1 - x0);
+  for (var i = 0; i < p.count; i++) {
+    var lx = p.getX(i) + (x1 - x0) / 2, ly = p.getY(i) + (y1 - y0) / 2,
+      fall = 1 + 0.35 * (1 - ly / (y1 - y0));
+    p.setZ(i, (depth / 2) * Math.sin(lx * k) * fall);
+  }
+  p.needsUpdate = true;
+  g.computeVertexNormals();
+  return solid(parent, g, color, opt, (x0 + x1) / 2, (y0 + y1) / 2, z, [x1 - x0, y1 - y0, depth], true);
+}
+
 export function clearGroup(g) {
   if (!g) return;
   for (var i = g.children.length - 1; i >= 0; i--) {
@@ -406,15 +642,15 @@ function tileGrid(x, n, grout, groutW, faces, seed) {
 
 var PAINT = {
   wood: function (x) {
-    planks(x, 5, ["#b98e5a", "#c2975f", "#ad8252", "#bd9059", "#b5894f"], 2, 11);
+    planks(x, 10, ["#b98e5a", "#c2975f", "#ad8252", "#bd9059", "#b5894f", "#c49a63", "#b08654"], 1.6, 11);
   },
   // wide, pale oak boards — the modern laminate look
   laminate: function (x) {
-    planks(x, 3, ["#d8c3a0", "#e0cdac", "#d0b894", "#dcc7a6"], 1.5, 23, 0.1);
+    planks(x, 8, ["#d8c3a0", "#e0cdac", "#d0b894", "#dcc7a6", "#d4bd99"], 1.3, 23, 0.1);
   },
   // dark walnut / smoked oak
   darkwood: function (x) {
-    planks(x, 5, ["#6d5033", "#795839", "#63482e", "#735236", "#684c31"], 2, 37, 0.22);
+    planks(x, 10, ["#6d5033", "#795839", "#63482e", "#735236", "#684c31", "#70512f", "#5f452b"], 1.6, 37, 0.22);
   },
   // herringbone parquet: two interlocking block orientations
   parquet: function (x) {
@@ -445,13 +681,13 @@ var PAINT = {
   deck: function (x) {
     x.fillStyle = "#3b3229";
     x.fillRect(0, 0, 256, 256);
-    var boards = 5,
+    var boards = 9,
       bh = 256 / boards;
     for (var r = 0; r < boards; r++) {
       var py = r * bh;
       x.fillStyle = ["#9c7b52", "#a68557", "#93724b", "#a07e54", "#997750"][r % 5];
-      x.fillRect(0, py + 3, 256, bh - 6);
-      grain(x, 0, py + 3, 256, bh - 6, 61 + r * 9, 0.2);
+      x.fillRect(0, py + 2, 256, bh - 4);
+      grain(x, 0, py + 2, 256, bh - 4, 61 + r * 9, 0.2);
       // screw heads at both ends of each board
       [40, 216].forEach(function (sx) {
         x.fillStyle = "rgba(70,52,32,.55)";
@@ -736,6 +972,28 @@ var PAINT = {
       x.fillRect(gx, gy, 2, 2);
     }
   },
+  // running-bond concrete pavers for porches, patios and the paving ring
+  // round the house in the presentation plan
+  pavers: function (x) {
+    var rnd = mkRnd(71);
+    x.fillStyle = "#9b958b";
+    x.fillRect(0, 0, 256, 256);
+    var rows = 4, ph = 256 / rows, pw = 128;
+    for (var r = 0; r < rows; r++) {
+      var off = r % 2 ? pw / 2 : 0;
+      for (var c = -1; c < 3; c++) {
+        var px = c * pw + off, py = r * ph;
+        var k = rnd() * 0.16 - 0.08;
+        x.fillStyle = shade("#b4ac9f", k);
+        x.fillRect(px + 2, py + 2, pw - 4, ph - 4);
+        x.fillStyle = "rgba(255,255,255,.10)";
+        x.fillRect(px + 2, py + 2, pw - 4, 3);
+        x.fillStyle = "rgba(60,50,40,.10)";
+        x.fillRect(px + 2, py + ph - 5, pw - 4, 3);
+      }
+    }
+    speckle(x, 1400, 72, 30, 2);
+  },
 };
 
 // every floor type the UI can offer (order = order in the pickers)
@@ -765,6 +1023,43 @@ export function floorSwatch(type, size) {
   return url;
 }
 
+/* One painted tile of a floor material at `px` pixels, cached. The plan's
+   presentation style fills rooms with these as canvas patterns and the 3D
+   floor wraps the 256px one, so both views show the same planks. Painters
+   are vector, so a 512px tile is crisp rather than an upscaled 256. */
+var paintCache = {};
+export function floorPaintCanvas(type, px) {
+  if (typeof document === "undefined") return null;
+  var size = Math.max(16, Math.min(512, Math.round(px || 256)));
+  var key = (PAINT[type] ? type : "concrete") + "@" + size;
+  if (paintCache[key]) return paintCache[key];
+  var c = document.createElement("canvas");
+  c.width = c.height = size;
+  var x = c.getContext("2d");
+  if (!x) return null;
+  x.scale(size / 256, size / 256);
+  (PAINT[type] || PAINT.concrete)(x);
+  paintCache[key] = c;
+  return c;
+}
+
+/* The average colour of a floor tile — what the pattern reads as from far
+   enough away that its detail would only shimmer. */
+var meanCache = {};
+export function floorMeanColor(type) {
+  if (meanCache[type]) return meanCache[type];
+  var c = floorPaintCanvas(type, 16);
+  var col = "#d0cec9";
+  try {
+    var d = c.getContext("2d").getImageData(0, 0, 16, 16).data,
+      r = 0, g = 0, b = 0, n = d.length / 4;
+    for (var i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+    col = "rgb(" + Math.round(r / n) + "," + Math.round(g / n) + "," + Math.round(b / n) + ")";
+  } catch (e) { /* no canvas readback (tests): keep the neutral fallback */ }
+  meanCache[type] = col;
+  return col;
+}
+
 export function floorTexture(type) {
   if (texCache[type]) return texCache[type];
   var c = document.createElement("canvas");
@@ -784,31 +1079,58 @@ export function groundTexture() {
   if (texCache.__ground) return texCache.__ground;
   var c = document.createElement("canvas");
   c.width = c.height = 256;
-  var x = c.getContext("2d");
-  x.fillStyle = "#93a56e";
-  x.fillRect(0, 0, 256, 256);
-  for (var n = 0; n < 4200; n++) {
-    var gx = (n * 131) % 256,
-      gy = (n * 89) % 256,
-      sh = ((n * 37) % 44) - 22;
-    x.fillStyle =
-      "rgba(" + (122 + sh) + "," + (152 + sh) + "," + (88 + sh) + ",.5)";
-    x.fillRect(gx, gy, 2, 3);
-  }
-  for (var b = 0; b < 40; b++) {
-    var bx = (b * 167) % 256,
-      by = (b * 211) % 256;
-    x.fillStyle = "rgba(110,132,78,.25)";
-    x.beginPath();
-    x.arc(bx, by, 6 + ((b * 13) % 14), 0, 7);
-    x.fill();
-  }
+  paintGround(c.getContext("2d"));
   var tx = new THREE.CanvasTexture(c);
   tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
   tx.anisotropy = 4;
   tx.colorSpace = THREE.SRGBColorSpace;
   texCache.__ground = tx;
   return tx;
+}
+/* The lawn tile as a plain canvas (no three), for the presentation plan. */
+export function groundPaintCanvas(px) {
+  if (typeof document === "undefined") return null;
+  var size = Math.max(16, Math.min(512, Math.round(px || 256)));
+  var key = "__lawn@" + size;
+  if (paintCache[key]) return paintCache[key];
+  var c = document.createElement("canvas");
+  c.width = c.height = size;
+  var x = c.getContext("2d");
+  x.scale(size / 256, size / 256);
+  paintGround(x);
+  paintCache[key] = c;
+  return c;
+}
+/* Lawn: a mottled base of soft, wrapped clumps in several greens, then
+   thousands of short blades. Seeded and edge-wrapped like every floor painter,
+   so it tiles without the diagonal rows a fixed-stride stipple gives. */
+function paintGround(x) {
+  var rnd = mkRnd(97);
+  x.fillStyle = "#86a05a";
+  x.fillRect(0, 0, 256, 256);
+  var clumps = ["rgba(118,148,74,.35)", "rgba(96,126,60,.30)", "rgba(142,166,90,.28)", "rgba(104,134,66,.32)"];
+  for (var c = 0; c < 70; c++) {
+    var cx = rnd() * 256, cy = rnd() * 256, r = 10 + rnd() * 26,
+      ry = r * (0.6 + rnd() * 0.5), rot = rnd() * 3;
+    x.fillStyle = clumps[c % clumps.length];
+    for (var ox = -256; ox <= 256; ox += 256)
+      for (var oy = -256; oy <= 256; oy += 256) {
+        if (cx + ox + r < 0 || cx + ox - r > 256 || cy + oy + r < 0 || cy + oy - r > 256) continue;
+        x.beginPath();
+        x.ellipse(cx + ox, cy + oy, r, ry, rot, 0, 7);
+        x.fill();
+      }
+  }
+  for (var n = 0; n < 5200; n++) {
+    var gx = rnd() * 256, gy = rnd() * 256, sh = Math.round((rnd() * 2 - 1) * 26),
+      len = 1.5 + rnd() * 3, ang = -1.9 + rnd() * 0.8;
+    x.strokeStyle = "rgba(" + (112 + sh) + "," + (150 + sh) + "," + (78 + sh) + "," + (0.35 + rnd() * 0.3) + ")";
+    x.lineWidth = 0.8 + rnd() * 0.6;
+    x.beginPath();
+    x.moveTo(gx, gy);
+    x.lineTo(gx + Math.cos(ang) * len, gy + Math.sin(ang) * len);
+    x.stroke();
+  }
 }
 
 /* ---- flat polygon geometry for floors / ceilings (in the XZ plane) ---- */

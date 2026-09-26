@@ -42,6 +42,23 @@ function pointMap(sketch) {
   return map;
 }
 
+// Move a sketch in its own plane without changing its constrained shape.
+// Fixed-point targets are absolute coordinates, so they must move with the
+// points; ordinary dimensions and geometric relations remain relative.
+export function translateSketchGeometry(sketch, dx, dy) {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) throw new RangeError("Sketch translation must be finite");
+  for (const point of sketch.points || []) {
+    point.x += dx;
+    point.y += dy;
+  }
+  for (const constraint of sketch.constraints || []) {
+    if (constraint.type !== "fixed") continue;
+    if (constraint.x != null) constraint.x = Number(constraint.x) + dx;
+    if (constraint.y != null) constraint.y = Number(constraint.y) + dy;
+  }
+  return sketch;
+}
+
 function entityMap(sketch) {
   const map = new Map();
   (sketch.entities || []).forEach((e) => map.set(e.id, e));
@@ -108,7 +125,8 @@ export function centreOf(entity, points) {
 /* Every point an entity owns — used for hit-testing, dragging and deletion. */
 export function entityPoints(sketch, entity) {
   if (!entity) return [];
-  const ids = entity.type === "line" ? [entity.a, entity.b]
+  const ids = entity.type === "point" ? [entity.p]
+    : entity.type === "line" ? [entity.a, entity.b]
     : entity.type === "circle" || entity.type === "ellipse" ? [entity.c ?? entity.center]
     : entity.type === "arc" ? [entity.c ?? entity.center, entity.a, entity.b]
     : entity.type === "spline" ? [entity.a, entity.h1, entity.h2, entity.b]
@@ -475,6 +493,11 @@ function residualTerms(sketch, tags, index) {
     owner = { id: e.id + "_arc", type: "arcRadius", implicit: true, entity: e.id };
     const arc = circ(e.id);
     if (arc) {
+      // Trimming a fixed converted circle frees endpoint angles, not its radius.
+      if (Number.isFinite(e.fixedRadius)) {
+        const radiusError = sub(arc.radius, e.fixedRadius);
+        if (!(arc.a.rec.fixed && arc.center.rec.fixed && Math.abs(valueOf(radiusError)) < 1e-9)) push(radiusError);
+      }
       const error = sub(hypot(sub(arc.b.x, arc.center.x), sub(arc.b.y, arc.center.y)), arc.radius);
       // A valid frozen arc has no variables for this identity to constrain.
       // Keep invalid frozen arcs in the residuals so they still fail validation.
@@ -665,12 +688,40 @@ export function solveSketch(sketch, options = {}) {
     redundancy = explicitRows.length - rankOf(explicitRows, rankTolerance);
     redundant = explicitRows.length > 0 && redundancy > 0;
   }
+  /* Consistent redundancy among RELATIONS is not over-definition. The book's
+     HandleProfile (p.7-45) is a vertical centerline Coincident with the Origin
+     whose top point is then Pierced: the Pierce's x equation repeats the
+     Vertical, and SOLIDWORKS reports the sketch "Fully Defined". HOUSING's
+     HandleProfile read "Over-defined" here for that kind of overlap (G27).
+     What SOLIDWORKS refuses is a DIMENSION that says nothing new — it asks to
+     make it driven — so the status turns over-constrained only when a
+     dimension is wholly redundant (dropping its row leaves the rank where it
+     was). The overlap stays reported: `redundancy` counts it and `repeated`
+     names every relation that adds nothing, and a new relation that adds
+     nothing is still refused (refusesAsRepeat). */
+  const repeated = [];
+  let repeatedDimension = false;
+  if (dof === 0 && redundant) {
+    const byConstraint = new Map();
+    countedRows.forEach((i, row) => {
+      const c = tags[i];
+      if (!c || c.implicit || c.id == null) return;
+      if (!byConstraint.has(c)) byConstraint.set(c, []);
+      byConstraint.get(c).push(row);
+    });
+    for (const [c, rows] of byConstraint) {
+      const drop = new Set(rows);
+      if (rankOf(J.filter((_, row) => !drop.has(row)), rankTolerance) !== rank) continue;
+      repeated.push(c.id);
+      if (c.value != null && !c.driven) repeatedDimension = true;
+    }
+  }
   return {
     converged, iterations: iteration, error,
     rank, residualCount: countedRows.length, variableCount: vars.length,
-    degreesOfFreedom: dof, conflicts, redundant, redundancy,
+    degreesOfFreedom: dof, conflicts, redundant, redundancy, repeated,
     status: !converged ? "conflicting" : dof > 0 ? "under-constrained"
-      : redundant ? "over-constrained" : "fully-constrained",
+      : repeatedDimension ? "over-constrained" : "fully-constrained",
   };
 }
 
@@ -683,12 +734,73 @@ export function solveSketch(sketch, options = {}) {
    repeat of Symmetric and Midpoint (G23). An edit is a repeat only if it
    removed no freedom and added a dependent row. Without a full report of the
    sketch before the edit there is nothing to compare, so it is refused as
-   before. */
+   before.
+   That holds whatever freedom is left (G27): LENSCAP's ThreadSection took a
+   second Equal that its own Midpoint/Equal symmetry already implied at 3 DOF,
+   was accepted silently, and turned the sketch "over-defined" only when the
+   Pierce later took the last freedoms — far from the edit that caused it.
+   SOLIDWORKS refuses the repeat when it is added. */
 export function refusesAsRepeat(report, previous) {
-  if (!report || report.status !== "over-constrained") return false;
-  if (!previous || previous.degreesOfFreedom == null || previous.redundancy == null || report.redundancy == null) return true;
+  if (!report || !report.converged || !report.redundant) return false;
+  if (!previous || previous.degreesOfFreedom == null || previous.redundancy == null || report.redundancy == null) return report.status === "over-constrained";
   if (report.degreesOfFreedom < previous.degreesOfFreedom) return false;
   return report.redundancy > previous.redundancy;
+}
+
+/* Relations an operation adds on its own — a line's inferred Vertical, a
+   mirror's Symmetric pairs — that the sketch already implies. Drawing the left
+   edge of LENSCAP's ThreadSection between two vertical centerlines got an
+   inferred Vertical, and the right edge, drawn over the vertical centerline,
+   another: two of the three redundancies that later read "over-defined" at
+   0 DOF. SOLIDWORKS adds no automatic relation the sketch already implies.
+   Each candidate, in order, is kept only if it removes a freedom or adds no
+   dependent row against the sketch with the relations kept so far; the rest
+   are removed from `sketch.constraints` and their ids returned. A sketch that
+   does not solve is left alone — redundancy means nothing there. */
+export function pruneImpliedRelations(sketch, ids) {
+  const candidates = new Set(ids || []);
+  if (!candidates.size) return [];
+  const probe = (constraints) => {
+    const trial = structuredClone(sketch);
+    trial.constraints = constraints;
+    return solveSketch(trial);
+  };
+  let kept = (sketch.constraints || []).filter((c) => !candidates.has(c.id));
+  let base = probe(kept);
+  if (!base.converged) return [];
+  const dropped = [];
+  for (const c of (sketch.constraints || []).filter((item) => candidates.has(item.id))) {
+    if (c.suppressed || c.driven) { kept = kept.concat(c); continue; }
+    const trial = probe(kept.concat(c));
+    if (trial.converged && trial.degreesOfFreedom >= base.degreesOfFreedom && trial.redundancy > base.redundancy) { dropped.push(c.id); continue; }
+    kept = kept.concat(c);
+    base = trial;
+  }
+  if (dropped.length) sketch.constraints = sketch.constraints.filter((c) => !dropped.includes(c.id));
+  return dropped;
+}
+
+/* The drawn size of every line, arc and circle, so an edit can be checked for
+   having crushed one (see collapsedEntityIds). */
+export function sketchEntitySizes(sketch) {
+  return entitySizes(sketch);
+}
+
+/* Entities an edit collapsed to nothing. A contradictory relation can be
+   "satisfied" by shrinking what it is on: Horizontal on a line that was
+   already Vertical put both ends of LENSCAP's ThreadSection edge on one point
+   and dragged the whole closed profile after it, and the solve reported
+   success (G30). A line, arc or circle that was drawn with a size and now has
+   none — under 1e-3 cm and under 1% of what it was — is a refusal, not a
+   solution. */
+export function collapsedEntityIds(sketch, sizesBefore) {
+  const now = entitySizes(sketch), ids = [];
+  for (const [id, size] of sizesBefore || []) {
+    const after = now.get(id);
+    if (after == null || !(size > 1e-6)) continue;
+    if (after < 1e-3 && after < size * 1e-2) ids.push(id);
+  }
+  return ids;
 }
 
 /* ---- why a sketch will not solve ----

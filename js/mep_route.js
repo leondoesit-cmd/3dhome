@@ -50,8 +50,10 @@ function Router(avoidOpenings) {
       ia: self._v(g.a.x, g.a.z, "n" + w.a), // shared corners merge by node id
       ib: self._v(g.b.x, g.b.z, "n" + w.b),
       taps: [],
-      opens: S.openings
-        .filter(function (o) { return o.wall === w.id && o.type !== "window"; })
+      opens: (S.openings || [])
+        .filter(function (o) {
+          return o && o.wall === w.id && o.type !== "window" && isFinite(o.width) && o.width > 0 && isFinite(o.s);
+        })
         .map(function (o) { return { a: o.s - o.width / 2, b: o.s + o.width / 2 }; }),
     };
     self.wallIds.push(w.id);
@@ -191,7 +193,18 @@ Router.prototype.pathToSet = function (a, srcs) {
   this.build();
   if (!srcs || !srcs.length) return null;
   var r = this._dij(srcs);
-  if (!isFinite(r.dist[a])) return null;
+  if (!isFinite(r.dist[a])) {
+    // Same rule as path(): a wall chase fails closed, a ceiling or floor
+    // route may bridge a disconnected graph with a direct drop.
+    if (this.avoid) return null;
+    var best = srcs[0], bd = Infinity, va = this.V[a];
+    for (var i = 0; i < srcs.length; i++) {
+      var s = this.V[srcs[i]];
+      var d = Math.hypot(s.x - va.x, s.z - va.z);
+      if (d < bd) { bd = d; best = srcs[i]; }
+    }
+    return { pts: [pt(this.V[best]), pt(va)], vis: [best, a] };
+  }
   var vis = this._walk(r.prev, a); // source → a
   return { pts: simplify(vis.map(function (i) { return pt(this.V[i]); }, this)), vis: vis };
 };

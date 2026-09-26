@@ -1,4 +1,4 @@
-import { holeLeaderForViews } from "./core/hole_callout.js";
+import { holeLeaderForViews, holeTopologyAnchor } from "./core/hole_callout.js";
 /* Drawing mode: the sheet you can work on.
  *
  * cad_sheet.js decides what a sheet contains and core/hidden_line.js decides
@@ -16,7 +16,7 @@ import { holeLeaderForViews } from "./core/hole_callout.js";
 import {
   LINE_STYLES, SHEET_SIZES, STANDARD_SCALES,
   addViewToSheet, availableViewDirs, buildSheetScene, createProjector, defaultViewLabel,
-  dimensionText, measureDim, nextSectionTag, removeViewFromSheet, resolveDimAnchor,
+  dimensionText, edgeAngleRefs, measureDim, nextSectionTag, removeViewFromSheet, resolveDimAnchor,
   scaleLabel, scaleValue, sceneToSvg, sheetDimIssues, sheetPaper, topologyAnchors, topologyCrossings,
 } from "./cad_sheet.js";
 import { isOrthoView, projectionBounds, viewBasis, viewForSight } from "./core/hidden_line.js";
@@ -82,7 +82,7 @@ export function createDrawingController(host) {
 
   function sceneKey(doc) {
     let hash = 2166136261;
-    for (const value of [doc.size, doc.orientation, doc.projection, doc.units, doc.precision, doc.trailingZeros, doc.scale,
+    for (const value of [doc.size, doc.orientation, doc.projection, doc.units, doc.draftingStandard, doc.secondaryUnits, doc.secondaryPrecision, doc.precision, doc.trailingZeros, doc.scale,
       doc.showHidden, doc.showCenters, doc.showZones, doc.title,
       host.bodiesToken(), state.selection?.kind, state.selection?.id]) hash = fold(hash, value);
     for (const view of doc.views || []) {
@@ -421,6 +421,9 @@ export function createDrawingController(host) {
     const tolerance = Math.max(1e-6, (place.box.w + place.box.h) / place.k * 2e-3);
     let best = null, distance = Infinity;
     for (const anchor of place._anchors) {
+      // Concentric rims share a centre but are different features. A circular
+      // pick must retain its radius when resolving an associative reference.
+      if (point.radius > 0 && (anchor.at !== "centre" || Math.abs(anchor.radius - point.radius) > tolerance)) continue;
       const gap = Math.hypot(anchor.u - point.u, anchor.v - point.v);
       if (gap < distance && gap <= tolerance) { best = anchor; distance = gap; }
     }
@@ -475,8 +478,10 @@ export function createDrawingController(host) {
       else if (item.type === "text") {
         const width = item.text.length * item.size * 0.62, height = item.size * 1.2;
         const left = item.anchor === "middle" ? item.x - width / 2 : item.anchor === "end" ? item.x - width : item.x;
-        hit = sheetPoint.x >= left - 1 && sheetPoint.x <= left + width + 1 &&
-          sheetPoint.y >= item.y - height && sheetPoint.y <= item.y + height * 0.35;
+        const angle=(item.rotate || 0)*Math.PI/180,dx=sheetPoint.x-item.x,dy=sheetPoint.y-item.y;
+        const pickX=item.x+dx*Math.cos(angle)+dy*Math.sin(angle),pickY=item.y-dx*Math.sin(angle)+dy*Math.cos(angle);
+        hit = pickX >= left - 1 && pickX <= left + width + 1 &&
+          pickY >= item.y - height && pickY <= item.y + height * 0.35;
       } else if (item.type === "circle" || item.type === "arc") {
         hit = Math.abs(Math.hypot(sheetPoint.x - item.cx, sheetPoint.y - item.cy) - item.r) < reach;
       }
@@ -632,6 +637,19 @@ export function createDrawingController(host) {
     if (state.tool === "dim" || state.tool === "diam" || state.tool === "angle") {
       const snap = snapAt(sheetPoint);
       if (state.tool === "angle") {
+        const edge=straightEdgeAt(sheetPoint);
+        if (edge && (!snap || snap.kind === "mid" || state.draft?.kind === "edge-angle")) {
+          if(state.draft?.kind!=="edge-angle" || state.draft.viewId!==edge.viewId) {
+            state.draft={kind:"edge-angle",viewId:edge.viewId,edgeRefs:edge.refs};
+            host.flash("Select a second straight edge for the angle");
+          } else {
+            const edgeRefs=state.draft.edgeRefs.concat(edge.refs),refs=edgeAngleRefs(edgeRefs);
+            if(!refs){host.flash("Choose two non-parallel straight edges");return true;}
+            const nearest=Math.min(...edgeRefs.map(p=>Math.hypot(p.u-refs[1].u,p.v-refs[1].v)))*edge.k;
+            commitDim({type:"angle",viewId:edge.viewId,refs,edgeRefs,offset:Math.max(12,nearest+8)});
+          }
+          host.refresh();return true;
+        }
         if (!snap) { host.flash(host.t("drawSnapNone")); return true; }
         /* Arm, corner, arm — three picks, each bound on its own, in the order
            an angle is read (∠ABC). The corner is refs[1] because that is where
@@ -657,7 +675,7 @@ export function createDrawingController(host) {
         if (round) {
           /* A hole's size is the one number on a drawing most likely to be
              edited later, so it binds to the rim's own id when there is one. */
-          const bound = bindAnchor(round.place, round.circle);
+          const bound = round.anchor || bindAnchor(round.place, round.circle);
           commitDim({
             type: round.circle.kind === "round" ? "diameter" : "radius",
             viewId: round.viewId,
@@ -752,11 +770,52 @@ export function createDrawingController(host) {
     return true;
   }
 
+  function straightEdgeAt(sheetPoint) {
+    const built=scene();let best=null;
+    for(const place of built.views) {
+      if(!pointNearBox(sheetPoint,place.box,6))continue;
+      for(const [pid,entry] of built.topologyIndex || []) {
+        if(entry.kind!=="edge" || entry.descriptor?.curve!=="line")continue;
+        const refs=["a","b"].map(at=>({pid,kind:"edge",at,...resolveDimAnchor({pid,kind:"edge",at},built.topologyIndex,place.projection?.basis)}));
+        if(!refs.every(p=>Number.isFinite(p.u)&&Number.isFinite(p.v)))continue;
+        const a=place.toSheet(refs[0]),b=place.toSheet(refs[1]),dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy;
+        if(l<1e-10)continue;
+        const t=Math.max(0,Math.min(1,((sheetPoint.x-a.x)*dx+(sheetPoint.y-a.y)*dy)/l));
+        if(t<.04||t>.96)continue;
+        const distance=Math.hypot(sheetPoint.x-a.x-t*dx,sheetPoint.y-a.y-t*dy);
+        if(distance<6/state.zoom&&(!best||distance<best.distance))best={viewId:place.id,k:place.k,refs,distance};
+      }
+    }
+    return best;
+  }
+
   function circleAt(sheetPoint) {
     const built = scene();
     const reach = 6 / state.zoom;
     for (const place of built.views) {
       if (!pointNearBox(sheetPoint, place.box, 6)) continue;
+      const basis=place.projection?.basis;
+      // A mesh can fit a complete circle to a visible semicircular notch.
+      // Prefer the exact trimmed edge so its callout is a bound radius.
+      if (basis && built.topologyIndex) {
+        const project=(p)=>({u:p.x*basis.right.x+p.y*basis.right.y+p.z*basis.right.z,v:p.x*basis.up.x+p.y*basis.up.y+p.z*basis.up.z});
+        const turn=(a)=>(a+Math.PI*4)%(Math.PI*2);
+        for(const [pid,entry] of built.topologyIndex) {
+          const d=entry.descriptor || {},r=Number(d.radius),axis=d.axis;
+          if(entry.kind!=="edge" || d.curve!=="circle" || !(r>0) || !d.origin || !d.arcMidpoint || d.endpoints?.length!==2) continue;
+          if(!(d.measure>0 && d.measure<2*Math.PI*r-r*1e-5)) continue;
+          if(!axis || Math.abs(axis.x*basis.forward.x+axis.y*basis.forward.y+axis.z*basis.forward.z)<.999) continue;
+          const centre=project(d.origin),screen=place.toSheet(centre);
+          const du=(sheetPoint.x-screen.x)/place.k,dv=-(sheetPoint.y-screen.y)/place.k;
+          if(Math.abs(Math.hypot(du,dv)-r)*place.k>=reach) continue;
+          const angle=(p)=>Math.atan2(p.v-centre.v,p.u-centre.u);
+          const start=angle(project(d.endpoints[0])),end=angle(project(d.endpoints[1])),mid=angle(project(d.arcMidpoint));
+          const span=turn(end-start),offset=turn(Math.atan2(dv,du)-start);
+          const containsMid=turn(mid-start)<=span;
+          if(containsMid ? offset>span+1e-6 : offset<span-1e-6) continue;
+          return {viewId:place.id,place,circle:{...centre,radius:r,kind:"arc"},anchor:{pid,kind:"edge",at:"centre",...centre}};
+        }
+      }
       for (const round of place.projection?.circles || []) {
         if (round.kind !== "round") continue;
         const centre = place.toSheet(round);
@@ -971,11 +1030,12 @@ export function createDrawingController(host) {
     /* What the sheet would say with nothing overridden: the yardstick a typed
        value is compared against, so retyping the measured number clears the
        override instead of freezing it. */
-    const measured = dimensionText(Object.assign({}, shown, { measure: measureDim(shown), text: "", tolerance: "" }), doc);
+    const measured = dimensionText(Object.assign({}, shown, { measure: measureDim(shown), text: "", tolerance: "", reference:false }), doc);
     const current = dim.text || measured;
     const answer = host.promptFields
       ? await host.promptFields(host.t("drawDimTextTitle"), [
         { key: "text", label: host.t("drawDimTextLabel"), value: current },
+        { key: "reference", label: host.t("drawDimReference"), type:"boolean", value: !!dim.reference },
         { key: "tolerance", label: host.t("drawDimTolLabel"), value: dim.tolerance || "", hint: host.t("drawDimTolHint") },
       ])
       : await host.prompt(host.t("drawDimTextTitle"), current).then((text) => (text === null ? null : { text, tolerance: dim.tolerance || "" }));
@@ -984,6 +1044,7 @@ export function createDrawingController(host) {
     const next = String(answer.text ?? "").trim();
     dim.text = next && next !== measured ? next : "";
     dim.tolerance = String(answer.tolerance ?? "").trim();
+    if(answer.reference !== undefined)dim.reference=!!answer.reference;
     host.markDirty();
   }
 
@@ -1033,23 +1094,6 @@ export function createDrawingController(host) {
     host.markDirty();
   }
 
-  /* The hole this feature cut, in the view's own coordinates. A hole is named
-     by its WALL faces (cutWallTopology), not by an edge, so this is an exact-id
-     lookup under the feature's own prefix rather than a search of the snap set
-     — the same contract every bound reference on this sheet keeps. Ids are
-     walked in sorted order so two runs pick the same wall. */
-  function holeAnchor(index, basis, featureId) {
-    if (!index || !basis || !featureId) return null;
-    const prefix = featureId + ":";
-    for (const pid of Array.from(index.keys()).sort()) {
-      if (!pid.startsWith(prefix)) continue;
-      const entry = index.get(pid);
-      const at = resolveDimAnchor({ pid, kind: entry?.kind, at: "centre" }, index, basis);
-      if (at) return { pid, kind: entry.kind, at: "centre", u: at.u, v: at.v };
-    }
-    return null;
-  }
-
   /* Hole callouts, read off the FEATURE TREE rather than typed. Each note names
      the hole it came from, so its text is re-derived on every build (see
      resolveNote) — a leader that still says M6 after the wizard was changed to
@@ -1068,22 +1112,35 @@ export function createDrawingController(host) {
     const place = built.views.find((entry) => entry.id === built.primaryId) || built.views[0];
     if (!place) { host.flash(host.t("drawNoGeometry")); return; }
     const basis = place.projection?.basis || null;
-    const fresh = rows.filter((row) => !(doc.notes || []).some((note) => note.feature === row.id));
-    if (!fresh.length) { host.flash(host.t("drawCalloutsDone")); return; }
-    host.pushUndo(host.t("opAddCallout"));
-    let unbound = 0;
-    fresh.forEach((row, index) => {
+    const plans=rows.map((row,index)=>{
+      const existing=(doc.notes || []).find(note=>note.feature===row.id);
       const projected=holeLeaderForViews(row,built.views);
       const chosen=projected ? built.views.find(v=>v.id===projected.viewId) : place;
-      const anchor = holeAnchor(built.topologyIndex, chosen.projection?.basis || basis, row.id);
-      if (!anchor) unbound++;
+      const anchor = holeTopologyAnchor(built.topologyIndex, chosen.projection?.basis || basis, row.id, projected);
       const from = anchor ? chosen.toSheet(anchor) : { x: chosen.box.x, y: chosen.box.y };
+      const leader=anchor ? { viewId: chosen.id, u: anchor.u, v: anchor.v, pid: anchor.pid, kind: anchor.kind, at: anchor.at } : null;
+      return {row,index,existing,chosen,from,leader,changed:!existing || JSON.stringify(existing.leader)!==JSON.stringify(leader)};
+    });
+    const pending=plans.filter(plan=>plan.changed);
+    if (!pending.length) { host.flash(host.t("drawCalloutsDone")); return; }
+    host.pushUndo(host.t("opAddCallout"));
+    let unbound = 0;
+    pending.forEach(({row,index,existing,chosen,from,leader})=>{
+      if (!leader) unbound++;
+      if(existing){
+        const old=existing.leader,oldView=built.views.find(view=>view.id===old?.viewId);
+        const oldFrom=oldView && old ? oldView.toSheet(old) : null;
+        const autoPlaced=oldFrom && Math.abs(existing.x-(oldFrom.x+14))<.1 && Math.abs(existing.y-(oldFrom.y-10-index*6))<.1;
+        if(autoPlaced && leader && Math.hypot((old?.u||0)-leader.u,(old?.v||0)-leader.v)>.1){existing.x=from.x+14;existing.y=from.y-10-index*6;}
+        existing.leader=leader;
+        return;
+      }
       doc.notes.push({
         id: "n" + Math.random().toString(36).slice(2, 9),
         x: from.x + 14, y: from.y - 10 - index * 6,
         feature: row.id,
         text: row.text,
-        leader: anchor ? { viewId: chosen.id, u: anchor.u, v: anchor.v, pid: anchor.pid, kind: anchor.kind, at: anchor.at } : null,
+        leader,
       });
     });
     state.selection = { kind: "note", id: doc.notes[doc.notes.length - 1].id };
@@ -1097,7 +1154,8 @@ export function createDrawingController(host) {
   function autoDimension(seeding) {
     const doc = host.doc();
     const built = scene();
-    const place = built.views.find((entry) => entry.id === built.primaryId);
+    const targetId = !seeding && state.selection?.kind === "view" ? state.selection.id : built.primaryId;
+    const place = built.views.find((entry) => entry.id === targetId);
     if (!place?.projection?.bounds) {
       if (!seeding) host.flash(host.t("drawNoGeometry"));
       return;
@@ -1128,6 +1186,13 @@ export function createDrawingController(host) {
     if (key === "size" && SHEET_SIZES[value]) doc.size = value;
     else if (key === "orientation") doc.orientation = value === "portrait" ? "portrait" : "landscape";
     else if (key === "projection") doc.projection = value === "first" ? "first" : "third";
+    else if (key === "draftingStandard") {
+      doc.draftingStandard=["ANSI","ISO"].includes(value)?value:"custom";
+      if(value==="ANSI"){doc.units="in";doc.precision=3;doc.trailingZeros=true;doc.projection="third";}
+      if(value==="ISO"){doc.units="mm";doc.precision=2;doc.trailingZeros=true;doc.projection="first";}
+    }
+    else if(key === "secondaryUnits")doc.secondaryUnits=["mm","cm","m","in"].includes(value)?value:"";
+    else if(key === "secondaryPrecision" && Number.isInteger(Number(value)))doc.secondaryPrecision=Math.max(0,Math.min(8,Number(value)));
     else if (key === "units") doc.units = value;
     else if(key === "precision"){if(value==="auto")delete doc.precision;else if(Number.isInteger(Number(value))&&Number(value)>=0&&Number(value)<=8)doc.precision=Number(value);}
     else if(key === "trailingZeros")doc.trailingZeros=!!value;

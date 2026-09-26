@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateMassProperties } from '../js/cad_mass_properties.js';
-import { partMaterialDensity, STOCK_MATERIALS } from '../js/cad_appearances.js';
+import { drawingMaterialName, partMaterialDensity, STOCK_MATERIALS } from '../js/cad_appearances.js';
 import { assertRevolveProfile, assertRevolveProfileFrame, REVOLVE_AXIS_CROSSING, revolveRecipe } from '../js/core/revolve_geometry.js';
 import { loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord, clearMemoryModelLibrary, libraryBundle, parseLibraryBundle, mergeLibraryRecords, collidingLibraryKeys } from '../js/core/model_library_store.js';
 
@@ -36,6 +36,14 @@ test('toolbox, custom, rubber and polycarbonate densities are not silent steel',
   assert.equal(partMaterialDensity({ materialCatalogId: 'custom', customDensity: 0.95 }), 0.95);
   assert.equal(partMaterialDensity({ materialCatalogId: 'stock:rubber' }), 1.30);
   assert.equal(partMaterialDensity({ materialCatalogId: 'stock:polycarbonate' }), 1.20);
+});
+
+test('a one-body drawing uses its assigned material, while mixed bodies need an explicit title', () => {
+  const part = { ...box('nut', 0), materialCatalogId: 'stock:plainCarbonSteel' };
+  assert.equal(partMaterialDensity(part), 7.85);
+  assert.equal(drawingMaterialName({ parts: [part] }), 'Plain Carbon Steel (grade unspecified)');
+  assert.equal(drawingMaterialName({ parts: [part, box('other', 3)] }), '');
+  assert.equal(drawingMaterialName({ parts: [part, box('other', 3)], material: 'Mixed materials' }), 'Mixed materials');
 });
 
 test('a sketch-plane revolve that crosses the axis is rejected', () => {

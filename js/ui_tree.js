@@ -20,7 +20,7 @@ import { pushHistory } from "./history.js";
 import { orphanChildren } from "./stack.js";
 import {
   ensureMEP, MEP_SYS, MEP_SYS_ORDER, sysLabel, nodeLabel, runLabel,
-  nodeKindDef, computeMEPStatus, mepBOM, runLength, deleteMEP,
+  getMEPState, mepBOM, runLength, deleteMEP,
 } from "./mep.js";
 import { markers, markerDesc, deleteMarker } from "./markers.js";
 import { slabOpenings, removeSlabOpening } from "./slab_openings.js";
@@ -684,7 +684,7 @@ function appendSystemsGroup(body) {
   var m = ensureMEP();
   var total = m.nodes.length + m.runs.length;
   if (!total) return 0;
-  var status = computeMEPStatus();
+  var status = getMEPState().status;
 
   var head = document.createElement("div");
   head.className = "trRoom trSystems";
@@ -749,25 +749,33 @@ function mepRow(label, color, issue, isSel, onSel, onDelete) {
   var dot = document.createElement("span");
   dot.className = "trSysDot";
   dot.style.background = color;
+  dot.setAttribute("aria-hidden", "true");
   row.appendChild(dot);
-  var nm = document.createElement("span");
+  var nm = document.createElement("button");
+  nm.type = "button";
   nm.className = "trName";
   nm.textContent = label;
+  nm.setAttribute("aria-pressed", isSel ? "true" : "false");
+  nm.onclick = onSel;
   row.appendChild(nm);
   if (issue) {
     var w = document.createElement("span");
     w.className = "trWarn" + (issue === "unsupplied" ? " amber" : "");
+    w.setAttribute("role", "img");
+    var issueText = t(issue === "unsupplied" ? "mep_unsupplied" : issue === "invalid" ? "mep_runDoorConflict" : "mep_orphan");
     w.textContent = "⚠";
-    w.title = t(issue === "unsupplied" ? "mep_unsupplied" : "mep_orphan");
+    w.title = issueText;
+    w.setAttribute("aria-label", issueText);
     row.appendChild(w);
   }
-  var del = document.createElement("span");
+  var del = document.createElement("button");
+  del.type = "button";
   del.className = "trDel";
   del.textContent = "✕";
   del.title = t("tr_del");
+  del.setAttribute("aria-label", t("mep_delete") + " " + label);
   del.onclick = function (ev) { ev.stopPropagation(); onDelete(); };
   row.appendChild(del);
-  row.onclick = onSel;
   return row;
 }
 

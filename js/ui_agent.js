@@ -338,6 +338,16 @@ export function openAgent() {
   inputEl.focus();
 }
 export function closeAgent() { if (dock) dock.classList.remove("on"); }
+/* Send a request typed or spoken somewhere else (the ribbon's Ask box) through
+   the same path as the dock's own input, so it gets the same context, preview
+   and confirmation. */
+export function askAgent(text) {
+  if (!dock || !text || !String(text).trim()) return false;
+  openAgent();
+  inputEl.value = String(text).trim();
+  sendCurrent();
+  return true;
+}
 export function toggleAgent() { dock && dock.classList.contains("on") ? closeAgent() : openAgent(); }
 
 export function buildAgentSettingsPane() {

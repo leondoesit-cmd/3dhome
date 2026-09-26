@@ -1,0 +1,263 @@
+/* Pro ribbon: every planner tool on tabs, under the top bar (desktop only). */
+.pro-ribbon {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 90; /* under the top bar's menus and search popover (100) */
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-color);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  color: var(--text-main);
+}
+.pr-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 34px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+.pr-editors {
+  display: flex;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+}
+.pr-editors button {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pr-editors button.on {
+  background: var(--bg-panel);
+  color: var(--text-main);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+}
+.pr-tabs {
+  display: flex;
+  align-self: stretch;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pr-tab {
+  flex-shrink: 0;
+  padding: 0 11px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pr-tab:hover { color: var(--text-main); }
+.pr-tab.on {
+  border-bottom-color: var(--accent);
+  color: var(--text-main);
+  font-weight: 700;
+}
+.pr-count {
+  margin-inline-start: auto;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.pr-collapse {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.pr-collapse:hover { background: var(--accent-soft); color: var(--text-main); }
+.pr-groups {
+  display: flex;
+  align-items: stretch;
+  height: 76px;
+  padding: 2px 6px 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.pro-ribbon.collapsed .pr-groups { display: none; }
+.pr-group {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 6px;
+  border-inline-end: 1px solid var(--border-color);
+}
+.pr-items { display: flex; }
+.pr-glabel {
+  height: 15px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+.pr-tool {
+  position: relative;
+  width: 60px;
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  cursor: pointer;
+}
+.pr-tool i { font-size: 20px; }
+.pr-tool span {
+  max-width: 100%;
+  font-size: 10.5px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pr-tool kbd {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 4px;
+  font-family: inherit;
+  font-size: 8.5px;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.pr-tool:hover { background: var(--accent-soft); }
+.pr-tool:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pr-tool.on { background: var(--accent); color: #fff; }
+.pr-tool.on kbd { color: rgba(255, 255, 255, 0.75); }
+.pr-tool:disabled { opacity: 0.4; cursor: default; }
+
+/* Phones, foldables in compact posture and narrow windows use the Tools sheet. */
+@media (max-width: 1023px) {
+  .pro-ribbon { display: none; }
+}
+body.compact-nav .pro-ribbon { display: none; }
+
+/* Phone Tools sheet: the full catalog under the drawing tools. */
+.pro-sheet { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.pro-sheet-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.pro-chip {
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pro-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.pro-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 10000;
+  transform: translate(-50%, 20px);
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.pro-toast.on { opacity: 1; transform: translate(-50%, 0); }
+body.compact-nav .pro-toast { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); max-width: calc(100vw - 32px); }
+
+/* Ask: type or speak a request (AI helper) or a tool's name. */
+.pr-ask {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: clamp(200px, 20vw, 340px);
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 2px 0 9px;
+  border-radius: 13px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.pr-ask input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+.pr-ask input::placeholder { color: var(--text-muted); }
+.pr-ask:focus-within { box-shadow: 0 0 0 2px var(--accent); }
+.pr-mic {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 11px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+.pr-ask.listening .pr-mic { animation: pr-pulse 1s ease-in-out infinite; }
+@keyframes pr-pulse { 50% { box-shadow: 0 0 0 5px var(--accent-soft); } }
+@media (max-width: 1600px) { .pr-count { display: none; } }
+.pr-tabs { flex: 1 1 auto; }
+.pro-sheet-ask { width: auto; height: 44px; border-radius: 22px; padding: 0 5px 0 14px; }
+.pro-sheet-ask input { font-size: 15px; }
+.pro-sheet-ask .pr-mic { width: 36px; height: 36px; border-radius: 18px; }
+
+/* Planned tools: part of the final layout, visibly not built yet. */
+.pr-tool.planned, .m-grid-btn.planned { opacity: 0.55; }
+.pr-tool.planned i, .m-grid-btn.planned i { opacity: 0.8; }
+.pr-tool.planned::after, .m-grid-btn.planned::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  inset-inline-start: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  border: 1.5px dashed var(--text-muted);
+}
+.m-grid-btn.planned { position: relative; border-style: dashed; }
+.pr-tool.planned:hover { opacity: 0.8; }

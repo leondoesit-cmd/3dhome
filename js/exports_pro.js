@@ -1,4 +1,8 @@
-import {drawingSnapshot} from "./drawing_snapshot.js";
+import {drawingSnapshot, sheetSnapshot} from "./drawing_snapshot.js";
+import { constructionSheetSVG, sheetBounds } from "./drawing_sheet.js";
+import { sheetLayout } from "./sheet_print.js";
+import { fmtLen, fmtAreaM2, displayUnit } from "./display_units.js";
+import { t } from "./i18n.js";
 import {drawingSVG,drawingDXF,drawingBounds} from "./drawing_export.js";
 import { S } from "./state.js";
 import { contentBounds } from "./geometry.js";
@@ -28,8 +32,34 @@ export function toSVG(opts) {
   return wrapPlanSVG(drawingSVG(snapshot,bounds,opts),bounds,Object.assign({name:S.workspace?.name||"Untitled"},opts||{}));
 }
 
+/* The construction floor plan (js/drawing_sheet.js) on paper. The paper
+   scale decides how many model centimetres a millimetre of margin is, and
+   the margins decide the scale, so the layout is settled in two passes. */
+export function toConstructionSVG(opts) {
+  const o = opts || {};
+  const snap = sheetSnapshot();
+  if (snap.area && snap.area.m2 != null)
+    snap.area.text = t("sheet_living_area", { floor: snap.floorName || t("floor_ground_name"), area: fmtAreaM2(snap.area.m2, { digits: 0 }) });
+  let k = 5, bounds = null;
+  for (let pass = 0; pass < 3; pass++) {
+    bounds = sheetBounds(snap, k);
+    if (!bounds) break;
+    const next = sheetLayout(bounds, o).cmPerMm;
+    if (next === k) break;
+    k = next;
+  }
+  if (!bounds) return wrapPlanSVG("", contentBounds(), o);
+  const fmt = (cm) => fmtLen(cm, { domain: "plan", suffix: false });
+  const inner = constructionSheetSVG(snap, { cmPerMm: k, bounds, fmt, t });
+  return wrapPlanSVG(inner, bounds, Object.assign({
+    name: (S.workspace && S.workspace.name ? S.workspace.name + " — " : "") + t("sheet_floor_plan"),
+    sheet: "A-101",
+    note: t("sheet_note", { unit: t("guide_unit_" + displayUnit("plan")) }),
+  }, o));
+}
+
 export function toDXF(opts) {
-  return drawingDXF(drawingSnapshot(),opts);
+  return drawingDXF(drawingSnapshot(),Object.assign({ fmt: (cm) => fmtLen(cm, { domain: "plan", suffix: false }) }, opts || {}));
 }
 
 export function toIFC() {

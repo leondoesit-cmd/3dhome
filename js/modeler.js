@@ -1,3 +1,6 @@
+import {shortcutConflict,validShortcutBindings} from './core/command_shortcuts.js';
+import {temporaryAxes} from './core/temporary_axes.js';
+import { massDisplaySystem } from "./mass_display_units.js";
 import {reorderFinishFeature} from "./cad_finish_reorder.js";
 import {resolveFinishFace} from "./core/finish_face_reference.js";
 import { markDirty as markPlannerDirty } from "./persist.js";
@@ -6,12 +9,14 @@ import {helixFromSketch,synchronizeSketchHelices} from './core/sketch_helix.js';
 import {appendCircularEdgeOffset,coneSilhouette,detachDrivenSketchDimension,projectCircularEdge} from './core/cone_silhouette.js';
 import {dimensionTargetFromSelection} from './core/sketch_dimension_selection.js';
 import {resolveOffsetPlanes, throughVertexBinding} from './core/offset_planes.js';
-import {thinSketchProfile} from './core/thin_profile.js';
+import {revolveThinProfile} from './core/thin_profile.js';
 import { synchronizeExtrusionProjections } from "./core/extrusion_projection.js";
-import { threePointArc } from "./sketch_three_point_arc.js";
+import { threePointArc, radialArcEndpoint } from "./sketch_three_point_arc.js";
 import { tangentArc, entityOutgoingTangent } from "./sketch_tangent_arc.js";
 import {createMaterialValidationUI} from "./modeler_material_validation.js";
 import { addCenterRectangle } from "./sketch_center_rectangle.js";
+import { addCenterSlot } from "./sketch_center_slot.js";
+import { rasterTextContours } from "./sketch_text.js";
 import { filletSketchCorner } from "./sketch_fillet.js";
 import { bindIntersectionTargets, bindModelEdgeTargets, bindPierceTargets, hitProjectedModelEdge } from "./sketch_intersection.js";
 import { copySketchForClipboard, pasteSketchGeometry, readSketchClipboard, writeSketchClipboard } from "./core/sketch_clipboard.js";
@@ -21,12 +26,13 @@ import { sketchProfileSegments } from "./core/profile_curves.js";
 import { captureExactTopology, verifiedExactTopology } from './core/exact_topology_cache.js';
 import { parallelStraightEdges } from "./core/edge_selection.js";
 import { modelDimensions, formatModelLength } from "./core/model_dimensions.js";
+import {documentLengthUnit,formatDocumentLength,lengthFromDocument,lengthToDocument} from './core/document_length_units.js';
 import {generatedRackGear,validateGearPair} from "./cad_gear_geometry.js";
 import {addCubicSpline,splineControls,sampleBezier} from "./sketch_spline.js";
 import {repairReferences,restoreSketchConstraint} from "./sketch_edit_repair.js";
 import { MANUFACTURING_TABLES, validateManufacturingTables } from "./manufacturing_tables.js";
 import { evaluateMassProperties } from "./cad_mass_properties.js";
-import { holeToolPlacements, holeCutRecords, holePreviewParts } from "./core/hole_geometry.js";
+import { holeToolPlacements, holeCutRecords, holePreviewParts, syncHoleCutPlacement } from "./core/hole_geometry.js";
 import { revolveRecipe } from "./core/revolve_geometry.js";
 import { aabbFromBox, isUpToFace, resolveExtrudeExtent } from "./core/extrude_extent.js";
 import { toolFeatureRecipe } from "./core/tool_recipe.js";
@@ -55,6 +61,9 @@ import { getLang, onLangChange } from "./i18n.js";
 import * as ribbon from "./uikit_host/ribbon.js";
 import { stopSpeaking, bindSpeakButton } from "./speech.js";
 import { render2D } from "./plan2d.js";
+import { pushHistory as pushPlannerHistory } from "./history.js";
+import { convertCadToWalls } from "./cad_to_walls.js";
+import { wallDrawCommand, executeCommand } from "./commands/index.js";
 import { createHistory } from "./edit_history.js";
 import { createHistoryPanel } from "./ui_history.js";
 import { bindThreeFingerPan, createEditorView, createViewportSwap } from "./editor_view.js";
@@ -74,6 +83,7 @@ import {
   ensureSketch, ensureSketchDoc, sketchById, addSketch, removeSketch, pruneAbandonedSketches, planeLabel,
   sketchPoint, sketchEntity, solveSketch, explainSketchConflict, resolveProfilePoints,
   lineData, circleData, ellipseData, entityPoints, removeSketchEntity, refusesAsRepeat,
+  collapsedEntityIds, pruneImpliedRelations, sketchEntitySizes, translateSketchGeometry,
 } from "./sketch_solver.js";
 import { drawNameTags, relationSubjects, relationTargets, sketchInstanceNames } from "./sketch_names.js";
 import {
@@ -99,11 +109,12 @@ import { tessellateParts } from "./core/part_tessellate.js";
 import { KERNEL_BODY_KIND, buildKernelBrep, featureBuildsKernelBody, isKernelBody, kernelBodyBounds, kernelBodyMeshData, kernelBodySpec, meshDataBounds, offsetKernelBody } from "./core/kernel_body.js";
 import { addEdgeFlange, createSheetMetalPart, flatPattern, flatPatternSvg } from "./cad_sheet_metal.js";
 import { mateFrameSupports, mateRequirementFor, solveTopologyMates, topologyReference } from "./cad_mates.js";
+import { ASSEMBLY_ORIGIN_ID, containsAssembly, descriptorToParent, flattenAssembly, isSubassembly, standardPlaneEntries, subassemblyComponent } from "./core/assembly_structure.js";
 import { eulerMatrix, normalizePose, setRotation } from "./cad_mate_model.js";
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
 import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
-import { createReferencePlane, createReferenceAxis, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
-import { sampleHelix, documentHelixOverlays, sweepUsesHelixPath } from "./cad_helix.js";
+import { createReferencePlane, createReferenceAxis, createReferencePoint, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
+import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath } from "./cad_helix.js";
 import { circularSweepProfile, loftSourceRecord, resolveSketchSources as resolveSweptSources, sampleSketchPath, sketchPathSegments, sketchWorldPoint, sweepSourceRecord } from "./core/swept_sources.js";
 import { createExplodedView, addExplodeStep, applyExplodedView } from "./cad_exploded_view.js";
 import { createMotionStudy, addRotaryMotor, addGearRelation, evaluateMotionStudy } from "./cad_motion_study.js";
@@ -116,7 +127,7 @@ import { calloutText, calloutTextById, holeCallouts } from "./core/hole_callout.
 import { cosmeticThread, modeledThreadSolid, normalizeThreadSpec, threadCallout, validateThreadFeature, validateThreadFit, documentThreadOverlays } from "./cad_thread.js";
 import { knurlBandMesh, knurlCallout, knurlGroovePolylines, normalizeKnurlSpec, validateKnurl } from "./cad_knurl.js";
 import { toolboxFastener, listToolboxLibrary, toolboxFamily, lengthOptionsForSize, FASTENER_LENGTHS_MM, reducingBranchRows, PVC_D1785, searchToolbox, TOOLBOX_CATEGORY_LABELS } from "./cad_toolbox.js";
-import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides, partMaterialDensity, stockMaterialForPart } from "./cad_appearances.js";
+import { applyAppearanceOverrides, createAppearanceOverride, insertBody, STOCK_MATERIALS, upsertAppearanceOverride, faceAppearanceOverrides, partMaterialDensity, stockMaterialForPart, drawingMaterialName, pruneSketchTargetedBodyAppearances, pruneSketchMaterialFields } from "./cad_appearances.js";
 import { appearanceGroups } from "./core/appearance_groups.js";
 import { captureConfiguration, ensureConfigurations, setActiveConfiguration } from "./cad_configurations.js";
 import { evaluateFit, fitCallout, fitLimitSource } from "./cad_fits.js";
@@ -129,6 +140,7 @@ import {
   analyzeParametricHistory, createFeatureDefinition, ensureParametricDocument,
   recordSketchInHistory, removeHistoryNode, reorderHistoryNode, suppressHistoryNode,
   updateFeatureDefinition, setHistoryRollback, historyEntryRolled, applyHistoryToPreviewParts,
+  reconnectLaterBodyConsumers,
 } from "./core/parametric_document.js";
 import { compileKernelFeatureTree, FEATURE_PATTERN_SEED_TYPES } from "./core/kernel_feature_adapter.js";
 import { publishRebuildStatus, rebuildParametricDocument, withKernelFailures } from "./core/parametric_rebuild.js";
@@ -138,9 +150,10 @@ import { featureDefaults, featureLabel, featureSpec, setFeatureLabelResolver } f
 import { inferAuthoringMode } from "./core/authoring_mode.js";
 import { createImportedDefinition, detectStepLengthUnit, stepUnitCorrection } from "./core/import_normalization.js";
 import { encodeBinaryPayload } from "./core/binary_payload.js";
-import { externalizeAttachments } from "./core/attachment_store.js";
+import { externalizeAttachments, collectAttachmentReferences, exportAttachmentRecords, installAttachmentRecords } from "./core/attachment_store.js";
 import { garbageCollectAttachments } from "./core/attachment_gc.js";
 import { loadModelLibrary, saveModelLibrary, loadAssemblyLibrary, saveAssemblyLibrary, loadModelerDraftRecord, saveModelerDraftRecord, clearModelerDraftRecord, libraryBundle, parseLibraryBundle, mergeLibraryRecords, collidingLibraryKeys } from "./core/model_library_store.js";
+import { queueModelBackup, listDiskBackups, fetchDiskBackup, missingFromLibrary, modelBackupStatus } from "./core/model_backup_client.js";
 import { leavesInputStanding, rebuildDefinition } from "./core/rebuild.js";
 import { buildTreeModel, findTreeNode } from "./core/tree_model.js";
 import { renderTreeModel } from "./modeler_tree.js";
@@ -150,7 +163,7 @@ import {
   edgeEndpoints, growSelection, invertSelection, selectConnected, selectLoop,
   selectTangentChain, shrinkSelection, vertexEntriesFrom,
 } from "./core/topology_selection.js";
-import { frameDirection, frameFromPlane, framePoint, frameProjectPoint, realignFrame } from "./core/frame.js";
+import { faceFrameOrigin, frameDirection, frameFromPlane, framePoint, frameProjectPoint, realignFrame } from "./core/frame.js";
 import {
   bodyDepthRange, cutFootprintsMayOverlap,
   cutFootprint as cutScopeFootprint,
@@ -167,7 +180,7 @@ import {
   FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
   bomCsv, bomTableRows, buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
 } from "./modeler_commands.js";
-import { documentDescription, setDocumentDescription, sheetTitleText } from "./core/custom_properties.js";
+import { documentDescription, setDocumentDescription, setDocumentProperty, sheetTitleText } from "./core/custom_properties.js";
 import { MODELER_DRAFT_KEY, clearModelerDraft, parseModelerDraft, readModelerDraft, serializeModelerDraft, writeModelerDraft } from "./modeler_draft.js";
 import {
   featureField as featureFieldCore, featureControlValue, evaluateFeatureNumber, validateFeatureInputs, readFeatureParameterForm, renderFeatureParameterForm as renderFeatureParameterFormCore,
@@ -283,6 +296,8 @@ async function initializeModelLibrary() {
   } catch(e) { modelerDraftCache=readModelerDraft(modelerDraftStorage()); }
   writeLibraryIndex(modelLibraryCache);
   writeAssemblyIndex(assemblyLibraryCache);
+  // Give models that predate the disk mirror a copy now, not at their next save.
+  mirrorLibraryToDisk(modelLibraryCache);
 }
 function writeLibraryIndex(lib) {
   try {
@@ -300,11 +315,25 @@ function writeAssemblyIndex(list) {
     return true;
   } catch (e) { return false; }
 }
+/* Every library write is mirrored to disk through the relay
+   (server/model_backup.mjs). IndexedDB can be cleared by the browser, and that
+   has taken finished models with it. Best-effort and deferred: the mirror must
+   never slow down or fail the save itself. The cache is handed over because it
+   is only ever reassigned, never mutated, so the deferred copy stays exact. */
+function diskBackupAttachments(model) {
+  return collectAttachmentReferences(model).size ? exportAttachmentRecords(model) : [];
+}
+function mirrorLibraryToDisk(models) {
+  setTimeout(function () {
+    try { queueModelBackup(models, { attachmentsFor:diskBackupAttachments }); } catch (e) { /* the save already landed */ }
+  }, 0);
+}
 async function saveLib(lib) {
   try {
     await saveModelLibrary(lib);
     modelLibraryCache=cloneData(lib);
     writeLibraryIndex(lib);
+    mirrorLibraryToDisk(modelLibraryCache);
     return true;
   } catch (e) { return false; }
 }
@@ -348,6 +377,21 @@ function componentDef(component) {
    the turned box of its extents. `blown` folds in the exploded offset when the
    caller wants where the part is being drawn rather than where it is mated. */
 function componentWorldBounds(component, options) {
+  /* A sub-assembly is as big as everything visible inside it, carried through
+     its own pose the same way a part's box is. */
+  if (isSubassembly(component)) {
+    var inner = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
+    component.asm.components.forEach(function (child) {
+      if (child.visible === false) return;
+      var cb = componentWorldBounds(child, { exploded: false });
+      if (!cb) return;
+      inner.x0 = Math.min(inner.x0, cb.x0); inner.x1 = Math.max(inner.x1, cb.x1);
+      inner.y0 = Math.min(inner.y0, cb.y0); inner.y1 = Math.max(inner.y1, cb.y1);
+      inner.z0 = Math.min(inner.z0, cb.z0); inner.z1 = Math.max(inner.z1, cb.z1);
+    });
+    if (!Number.isFinite(inner.x0)) return null;
+    return placedBounds(inner, component, options);
+  }
   var def = componentDef(component);
   /* Measured against what defBounds will actually walk. Asking `def.parts`
      instead let a component whose every body is suppressed through, and
@@ -355,7 +399,11 @@ function componentWorldBounds(component, options) {
      that renders as nothing, clashes with its neighbours and prints on the
      drawing. */
   if (!def || !activeParts(def).length) return null;
-  var b = defBounds(def), tr = normalizeTransform(component);
+  return placedBounds(defBounds(def), component, options);
+}
+
+function placedBounds(b, component, options) {
+  var tr = normalizeTransform(component);
   var blown = ((!options || options.exploded !== false) && component.explodedOffset) || { x: 0, y: 0, z: 0 };
   var matrix = new THREE.Matrix4().makeRotationFromEuler(
     new THREE.Euler((tr.rx * Math.PI) / 180, (tr.ry * Math.PI) / 180, (tr.rz * Math.PI) / 180));
@@ -721,6 +769,17 @@ function applyTexTo(mesh, p, wCm, hCm) {
 
 
 
+/* A saved canonical body can have verified exact topology before its display
+   mesh finishes rebuilding. The signature check covers the feature prefix and
+   every supporting sketch; an edited body must wait for fresh topology. */
+function savedExactTopologyForPart(part) {
+  if (!part || E.docType !== "part" || !E.def?.exactTopologyCache || !isCanonicalAuthoring()) return null;
+  var compiled = compileKernelFeatureTree(E.def);
+  if (!compiled.ok) return null;
+  var head = cutTargetFeatureId(part, E.def);
+  return verifiedExactTopology(E.def, compiled.features).get(head) || null;
+}
+
 function topologyEntriesForPart(part) {
   if (!part) return [];
   var featureId = part.featureId || "feature:part:" + part.id;
@@ -730,6 +789,8 @@ function topologyEntriesForPart(part) {
     var cached = topologyMergeCache.get(part.meshData);
     if (cached) return cached;
   } else {
+    var savedExact = savedExactTopologyForPart(part);
+    if (savedExact?.length) return mergeSmoothTopology(savedExact);
     /* Kernel runs belong to the part document on E.def. A component carries its
        own document, so borrowing them in an assembly scored a component's faces
        against another document's topology — and could hand one of those foreign
@@ -784,21 +845,35 @@ function topologyRefInBuiltComponent(reference) {
   if (!building) return true;
   return !reference || !reference.componentId || reference.componentId === building.id;
 }
+/* A part built inside a sub-assembly answers under the path of child ids that
+   leads to it, which is how its faces are named on the sub-assembly. */
+function builtTopologyId(persistentId) {
+  var prefix = E.buildComponent && E.buildComponent.prefix || "";
+  return prefix ? prefix + persistentId : persistentId;
+}
+function builtMemberIds(entry) {
+  var prefix = E.buildComponent && E.buildComponent.prefix || "";
+  var ids = (entry && entry.memberPersistentIds) || [];
+  return prefix ? ids.map(function (id) { return prefix + id; }) : ids;
+}
 function topologySelected(persistentId, entry) {
+  var rawId = persistentId;
+  persistentId = builtTopologyId(rawId);
   var sel = (E.topologySelection || []).filter(topologyRefInBuiltComponent);
   if (sel.some(function (ref) {
     if (ref.persistentId === persistentId) return true;
     if ((ref.memberPersistentIds || []).includes(persistentId)) return true;
-    if (entry && (entry.memberPersistentIds || []).includes(ref.persistentId)) return true;
-    return !!(entry && edgesGeometricallyMatch(ref, entry));
+    if (entry && builtMemberIds(entry).includes(ref.persistentId)) return true;
+    return !!(entry && !E.buildComponent?.prefix && edgesGeometricallyMatch(ref, entry));
   })) return true;
-  return finishImpliedEdge(persistentId);
+  return finishImpliedEdge(rawId);
 }
 function topologyHovered(persistentId, entry) {
   if (!E.hoverTopology || !topologyRefInBuiltComponent(E.hoverTopology)) return false;
+  persistentId = builtTopologyId(persistentId);
   if (E.hoverTopology.persistentId === persistentId) return true;
   if ((E.hoverTopology.memberPersistentIds || []).includes(persistentId)) return true;
-  return !!(entry && edgesGeometricallyMatch(E.hoverTopology, entry));
+  return !!(entry && !E.buildComponent?.prefix && edgesGeometricallyMatch(E.hoverTopology, entry));
 }
 
 function finishImpliedEdge(persistentId) {
@@ -822,7 +897,10 @@ function overlayEntriesForPart(part, mesh) {
   /* Never synthesize pick lines from the pre-cut primitive while its exact
      post-cut topology is rebuilding. Those lines may cross empty space and
      become selectable even though the corresponding material is gone. */
-  if (partNeedsExactMesh(part) && !(part.meshData && Array.isArray(part.meshData.topology) && part.meshData.topology.length)) return [];
+  if (partNeedsExactMesh(part) && !(part.meshData && Array.isArray(part.meshData.topology) && part.meshData.topology.length)) {
+    var savedExact = savedExactTopologyForPart(part);
+    return savedExact?.length ? mergeSmoothTopology(savedExact).filter(function (entry) { return entry.kind === "edge"; }) : [];
+  }
   /* Cache key. An exact body keys on its meshData, which survives rebuilds;
      a primitive has none, so it keys on the tessellated geometry — and
      buildPart makes a NEW geometry every rebuild, so primitives never hit.
@@ -1036,6 +1114,21 @@ function addTopologyPickEdges(parent, part, explicitMesh) {
 
 
 
+
+function addTemporaryAxes(parent,part) {
+  if(!E.showTemporaryAxes)return;
+  temporaryAxes(part.meshData?.topology || topologyEntriesForPart(part)).forEach(function(axis){
+    var from=new THREE.Vector3(axis.from.x,axis.from.y,axis.from.z),to=new THREE.Vector3(axis.to.x,axis.to.y,axis.to.z);
+    var perPixel=decorationWorldPerPixel();if(perPixel>0)decoratedWorldPerPixel=perPixel;
+    var span=from.distanceTo(to),radius=Math.max(span*.0015,perPixel*.8);
+    for(var i=0;i<24;i++){
+      var start=from.clone().lerp(to,i/24),end=from.clone().lerp(to,(i+.65)/24);
+      var dash=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,start.distanceTo(end),6),new THREE.MeshBasicMaterial({color:0x63d8ff,transparent:true,depthTest:false,depthWrite:false}));
+      dash.position.copy(start).add(end).multiplyScalar(.5);dash.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),end.clone().sub(start).normalize());
+      dash.renderOrder=30;dash.raycast=function(){};parent.add(dash);
+    }
+  });
+}
 
 function addFaceHighlights(parent, part, mesh) {
   if (!part || !mesh || (E.docType !== "part" && E.docType !== "assembly")) return;
@@ -1586,6 +1679,7 @@ function refreshDecorations() {
     try {
       addTopologyPickEdges(entry.group, entry.part, entry.mesh);
       addFaceHighlights(entry.group, entry.part, entry.mesh);
+      addTemporaryAxes(entry.group,entry.part);
     } finally {
       E.buildComponent = null;
     }
@@ -1602,7 +1696,7 @@ function refreshDecorations() {
    most of the time, and then this costs one comparison. */
 function refreshDecorationScale() {
   if (!E.pv) return;
-  if (!(E.topologySelection || []).length && !E.hoverTopology && !finishCommandActive()) return;
+  if (!(E.topologySelection || []).length && !E.hoverTopology && !finishCommandActive() && !E.showTemporaryAxes) return;
   if (!decorationScaleStale()) return;
   decoGroups.forEach(function (entry) { entry.dirty = true; });
   refreshDecorations();
@@ -1700,15 +1794,16 @@ function buildPart(g, p, displayStyle) {
     addTopologyPickEdges(deco, p, me);
     addFaceAppearances(g, p, me);
     addFaceHighlights(deco, p, me);
+    addTemporaryAxes(deco,p);
     addPartFeatureOverlays(g, p);
   }
   return me;
 }
 
-function addOverlayPolyline(parent, points, color, renderOrder, userData) {
+function addOverlayPolyline(parent, points, color, renderOrder, userData, depthTest) {
   if (!points || points.length < 2) return;
   var geometry = new THREE.BufferGeometry().setFromPoints(points.map(function (p) { return new THREE.Vector3(p.x, p.y, p.z); }));
-  var material = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.95, depthTest: true, depthWrite: false });
+  var material = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.95, depthTest: depthTest !== false, depthWrite: false });
   var line = new THREE.Line(geometry, material);
   line.renderOrder = renderOrder || 24;
   line.userData.cadOverlay = true;
@@ -1808,7 +1903,8 @@ function documentSketchOverlays(def) {
   var out = [];
   ensureSketchDoc(def).forEach(function (sketch) {
     if (!sketch || sketch === editing) return;   // the live one is on the canvas
-    if (sketch.id && consumed.has(sketch.id)) return;
+    if (sketch.show3d === false) return;
+    if (sketch.id && consumed.has(sketch.id) && sketch.show3d !== true) return;
     var frame = sketch.frameSpace === "local" && sketch.frame
       ? sketch.frame
       : standardPlaneFrame(sketch.plane, sketch.offset);
@@ -1850,7 +1946,11 @@ function addDocumentOverlays(parent, def) {
     marker.userData.cadRepairReference=repair.reference;parent.add(marker);
   }
   documentSketchOverlays(def).forEach(function (points) {
-    addOverlayPolyline(parent, points, 0x8fa6c4, 22);
+    /* Sketches commonly lie exactly on a solid face. A depth-tested line then
+       loses the z-buffer fight (or disappears behind the face altogether),
+       defeating an explicit Show in 3D request. These are reference graphics,
+       so draw them over the model like CAD sketch overlays. */
+    addOverlayPolyline(parent, points, 0x8fa6c4, 22, null, false);
   });
   documentHelixOverlays(def).forEach(function (curve) {
     var selected = curve.id && curve.id === E.selectedReferenceId;
@@ -2192,6 +2292,7 @@ function syncDensity() {
 function loadModelerPrefs() {
   try {
     var stored = JSON.parse(localStorage.getItem(LS_MODELER_PREFS)) || {};
+    E.commandShortcuts=validShortcutBindings(stored.commandShortcuts);
     MODELER_PREFS.forEach(function (key) { if (typeof stored[key] === "boolean") E[key] = stored[key]; });
     MODELER_VIEW_PREFS.forEach(function (key) {
       if (typeof stored[key] === typeof E[key]) E[key] = stored[key];
@@ -2207,7 +2308,7 @@ function loadModelerPrefs() {
 }
 function saveModelerPrefs() {
   try {
-    var out = { prefsVersion: MODELER_PREFS_VERSION };
+    var out = { prefsVersion: MODELER_PREFS_VERSION,commandShortcuts:E.commandShortcuts || {} };
     MODELER_PREFS.forEach(function (key) { out[key] = !!E[key]; });
     MODELER_VIEW_PREFS.forEach(function (key) { out[key] = E[key]; });
     localStorage.setItem(LS_MODELER_PREFS, JSON.stringify(out));
@@ -2236,8 +2337,8 @@ function snapV(v) { return Math.round(v * 10) / 10; }
 /* Sketch zoom, in screen px per cm. The old ceiling of 20 (1000%) left the
    book's R .1 in sketch fillet about 5 px across, so its endpoints always won
    the pick and the arc itself could not be selected for Mirror. CAD zoom is
-   effectively unbounded; 2000 px/cm shows a 0.01 mm feature as 2 px. Fit
-   still stops at 20 so a small sketch does not open absurdly close. */
+   effectively unbounded; 2000 px/cm shows a 0.01 mm feature as 2 px.
+   Fit uses the same range so small parts remain editable. */
 var SKETCH_MIN_SCALE = 0.3, SKETCH_MAX_SCALE = 2000;
 
 /* ---- object snapping: endpoints, midpoints, centres, origin, then H/V inference ---- */
@@ -2359,7 +2460,7 @@ function queueExactMesh(p) {
     if (slowTimer) clearTimeout(slowTimer);
     p.exactPending = false;
     p.exactError = String(error && error.message || error);
-    console.warn("Exact CAD mesh build failed:", p.exactError);
+    console.warn("Exact CAD mesh build failed:", error);
     refreshChangedPart(p);
     if (isKernelBody(p) && root) refreshParts();
   });
@@ -3531,6 +3632,7 @@ function buildDOM() {
         commandButton("arc3point", t("arcThreePoint"), ""),
         commandButton("tangentarc", t("tangentArc"), ""),
         commandButton("sslot", t("tool_sslot"), "J"),
+        commandButton("centerslot", t("centerSlot"), ""),
         commandButton("spoly", t("cap_spoly"), "N", "", t("tool_spoly")),
         commandButton("sell", t("tool_sell"), "Y"),
         commandButton("sspline",t("tool_sspline"),""),
@@ -3697,6 +3799,7 @@ function buildDOM() {
     '<button type="button" data-display="solid" class="on" aria-pressed="true">' + cadIcon("solidView") + '<span>' + t("solidView") + '</span></button>' +
     '<button type="button" data-display="transparent" aria-pressed="false">' + cadIcon("transparentView") + '<span>' + t("transparentView") + '</span></button>' +
     '<button type="button" id="mdShowEdges" class="on" aria-pressed="true" title="' + t("modelEdgesTip") + '">' + cadIcon("modelEdges") + '<span>' + t("modelEdges") + '</span></button>' +
+    '<button type="button" id="mdTemporaryAxes" aria-pressed="false" title="Temporary axes"><span>Temporary axes</span></button>' +
     '<button type="button" id="mdToggleNotesView" class="on" aria-pressed="true" title="' + t("toggleNotes") + '"><i class="ph ph-chat-circle-text"></i><span>' + t("notesAnnotations") + '</span></button>' +
     '</div><button type="button" id="mdFinishPlane" class="md-finish-plane">' + cadIcon("check") + '<span>' + t("exitPlane") + '</span></button></div>' +
     '<button type="button" id="mdSketchOnFace" class="md-sketch-on-face" hidden><i class="ph ph-pencil-line"></i><span>' + t("createSketchOnRef") + '</span></button>' +
@@ -3934,6 +4037,12 @@ function buildDOM() {
   root.querySelectorAll("[data-drawing-tool]").forEach(function (b) {
     b.addEventListener("click", function () { setTool(b.getAttribute("data-drawing-tool")); });
   });
+  root.querySelectorAll("#mdDrawingTools button").forEach(function (b) {
+    var label = b.querySelector("span"), shortcut = b.querySelector("kbd");
+    if (!label) return;
+    b.setAttribute("aria-label", label.textContent);
+    b.title = label.textContent + (shortcut ? " · " + shortcut.textContent : "");
+  });
   root.querySelectorAll("[data-cmdtab]").forEach(function (b) {
     b.addEventListener("click", function () { setCommandTab(b.getAttribute("data-cmdtab")); });
   });
@@ -3961,6 +4070,13 @@ function buildDOM() {
     b.addEventListener("click", function () { setModelDisplay(b.getAttribute("data-display")); });
   });
   root.querySelector("#mdShowEdges").addEventListener("click", function () { setShowModelEdges(!(E.showModelEdges !== false)); });
+  root.querySelector("#mdTemporaryAxes").addEventListener("click",function(){
+    E.showTemporaryAxes=!E.showTemporaryAxes;
+    this.setAttribute("aria-pressed",String(E.showTemporaryAxes));this.classList.toggle("on",E.showTemporaryAxes);
+    updatePreview();
+    var axisCount=decoGroups.reduce(function(total,entry){return total+temporaryAxes(entry.part.meshData?.topology || topologyEntriesForPart(entry.part)).length;},0);
+    flash(E.showTemporaryAxes ? "Temporary axes shown: "+axisCount : "Temporary axes hidden");
+  });
   var toggleNotesView = root.querySelector("#mdToggleNotesView");
   if (toggleNotesView) {
     toggleNotesView.addEventListener("click", function () {
@@ -4137,6 +4253,7 @@ function buildDOM() {
   var cons = root.querySelector("#mdCons");
   var dUnit = getDomainUnit("details");
   cons.innerHTML =
+    '<label class="md-row"><span class="t">' + t("partUnits") + '</span><select id="mdDocumentLengthUnit" aria-label="' + t("partUnits") + '"><option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option><option value="in">in</option><option value="ft">ft</option></select></label>' +
     '<label class="md-row"><span class="t">' + t("gridSize") + '</span><input id="mdGrid" type="number" value="' + toDisp(5, "details") + '" min="1"><span class="u">' + dUnit + '</span></label>' +
     '<label class="md-check"><input type="checkbox" id="mdOsnap" checked><span>' + t("osnap") + "</span></label>" +
     '<label class="md-check"><input type="checkbox" id="mdNormalTo"><span>' + t("prefNormalTo") + "</span></label>" +
@@ -4166,6 +4283,23 @@ function buildDOM() {
       [t("undo") + " / " + t("redo"), "Ctrl+Z / Y · Shift+Z"], [t("del"), "Del"], [t("cancelCommand"), "Esc"],
     ]).map(function (k) { return '<div class="md-key"><span>' + k[0] + "</span><kbd>" + k[1] + "</kbd></div>"; }).join("") +
     "</div>";
+  var shortcuts=el("details","md-feature-group"),shortcutBody=el("div","md-feature-group-body");
+  shortcuts.appendChild(el("summary","","Custom command shortcuts"));
+  var commandSelect=el("select"),keyInput=el("input"),message=el("div","md-note");
+  commandSelect.setAttribute("aria-label","Shortcut command");keyInput.setAttribute("aria-label","Shortcut key");keyInput.placeholder="Unused letter, e.g. U";keyInput.maxLength=1;
+  commandCatalog().forEach(function(command){var option=el("option","",command.label);option.value=command.id;commandSelect.appendChild(option);});
+  var syncShortcut=function(){keyInput.value=(E.commandShortcuts || {})[commandSelect.value] || "";message.textContent="Single-letter shortcuts apply in model and sketch views. Built-in keys are reserved.";};
+  commandSelect.addEventListener("change",syncShortcut);
+  shortcutBody.append(commandSelect,keyInput,message);
+  shortcutBody.appendChild(btn("Assign shortcut",function(){
+    var key=keyInput.value.trim().toLowerCase(),id=commandSelect.value,error=shortcutConflict(key,id,E.commandShortcuts);
+    if(error){message.textContent=error;return;}
+    E.commandShortcuts=E.commandShortcuts || {};
+    if(key)E.commandShortcuts[id]=key;else delete E.commandShortcuts[id];
+    saveModelerPrefs();message.textContent=key ? "Shortcut saved: "+key.toUpperCase() : "Custom shortcut removed";
+  }));
+  shortcutBody.appendChild(btn("Remove shortcut",function(){keyInput.value="";if(E.commandShortcuts)delete E.commandShortcuts[commandSelect.value];saveModelerPrefs();message.textContent="Custom shortcut removed";}));
+  shortcuts.appendChild(shortcutBody);cons.appendChild(shortcuts);syncShortcut();
   cons.prepend(root.querySelector(".md-head-inputs"));
   var statusRow=el("div", "md-status-row");
   var workflow=root.querySelector("#mdWorkflow");
@@ -4210,6 +4344,14 @@ function buildDOM() {
   coachBox.checked = !!E.coachEnabled;
   coachBox.addEventListener("change", function () { E.coachEnabled = this.checked; E.coachDismissed = false; saveModelerPrefs(); syncCoach(); });
   cons.querySelector("#mdGuideReplay").addEventListener("click", function () { setTab("parts"); startTour(); });
+  cons.querySelector("#mdDocumentLengthUnit").addEventListener("change", function () {
+    var unit=documentLengthUnit(this.value);
+    if(unit===modelLengthUnit())return;
+    pushUndo(t("partUnits"));
+    E.def.context ||= {};E.def.context.units ||= {};
+    E.def.context.units.length=unit;
+    refreshAll();
+  });
   cons.querySelector("#mdGrid").addEventListener("change", function () { E.grid = Math.max(0.1, fromDisp(+this.value || 5, "details")); drawSketch(); syncStatus(); });
   cons.querySelector("#mdDepth").addEventListener("change", function () { E.depth = Math.max(0.1, fromDisp(+this.value || 60, "details")); });
   cons.querySelector("#mdBase").addEventListener("change", function () { E.baseOff = fromDisp(+this.value || 0, "details"); });
@@ -5854,13 +5996,13 @@ function updateTourProgress() {
   renderTour();
 }
 
-var SKETCH_TOOLS = ["wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "sketchfillet", "offset", "constr"];
+var SKETCH_TOOLS = ["wall", "sketchpoint", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "sketchfillet", "offset", "constr"];
 
 /* The tools that DRAW, as opposed to the ones that edit what is already drawn.
    Only these may open a sketch from model mode: "start drawing and I will make
    you a sketch" is a reasonable offer, while Trim or Dimension arriving on an
    empty new sketch is an offer to edit nothing. */
-var SKETCH_DRAW_TOOLS = ["wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline"];
+var SKETCH_DRAW_TOOLS = ["wall", "sketchpoint", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline"];
 
 /* Which tools own the sketch sheet. Everything else — Select above all — used
    to open it too: setTool() armed E.modelPlaneActive for ANY tool change in
@@ -6222,15 +6364,20 @@ function finishSketchWorkflow() {
   } else if(run.status==="over-constrained"){
     flash(t("sketchRedundantWarn"));
   }
+  var consumed=consumedSketchIds(E.def).has(sketch.id);
   recordSketchInHistory(E.def,sketch);
   E.authoring.phase="model";E.authoring.sketchId=sketch.id;E.authoring.referenceId=sketch.referenceId;E.authoring.sketchSelection=[sketch.id];
-  E.authoring.featureType=null;E.authoring.workflowFocus="feature";E.authoring.resumePhase=null;
+  E.authoring.featureType=null;E.authoring.workflowFocus=consumed ? null : "feature";E.authoring.resumePhase=null;
   E.modelPlaneActive=false;setMode("3d");restoreSketchCameraPose();setCommandTab("features");setTab("parts");
   if(run.status!=="conflicting" && run.status!=="over-constrained"){
     flash(run.degreesOfFreedom ? t("sketchSavedDof") + " · " + run.degreesOfFreedom + " " + t("wfDof") : "✓ " + t("sketchFullySaved"));
   }
   refreshAll();
-  offerProfileFeatures();
+  if(consumed && isCanonicalAuthoring()){
+    // Exact generated face names cannot be checked by the preliminary rebuild.
+    // Publish the full dependent history when an existing sketch is finished.
+    void regenerateExactModel("force");
+  } else if(!consumed) offerProfileFeatures();
   syncAuthoringWorkflow();
 }
 
@@ -6399,11 +6546,21 @@ function syncAuthoringWorkflow() {
   var context=root.querySelector("#mdWorkflowContext");if(context)context.textContent=units.length+" · "+(E.def.context && E.def.context.activeCoordinateSystemId || "origin");
   var sketch=ensureSketch(E.def),hasRecordedSketch=(E.def.history || []).some(function(entry){return entry.kind==="sketch"&&entry.targetId===sketch.id;}),reference=root.querySelector("#mdWorkflowReference");
   if(reference)reference.textContent=(hasRecordedSketch || sketch.referenceId || sketch.support) && phase!=="reference" ? sketchPlaneCaption() : t("wfChoosePlane");
-  var sketchText=root.querySelector("#mdWorkflowSketch");if(sketchText){var info=E._solveSketchId===sketch.id&&E.solveInfo ? E.solveInfo : solveSketch(sketch);if(E._solveSketchId!==sketch.id){E.solveInfo=info;E._solveSketchId=sketch.id;}sketchText.textContent=(sketch.entities || []).length ? (info.status==="fully-constrained"?t("wfFullyDefined"):((sketch.constraints || []).length?t("wfPartialDefined")+" · ":t("wfUnderDefined")+" · ")+info.degreesOfFreedom+" "+t("wfDof")) : t("wfCreateProfile");}
+  var sketchText=root.querySelector("#mdWorkflowSketch");if(sketchText){var info=E._solveSketchId===sketch.id&&E.solveInfo ? E.solveInfo : solveSketch(sketch);if(E._solveSketchId!==sketch.id){E.solveInfo=info;E._solveSketchId=sketch.id;}sketchText.textContent=(sketch.entities || []).length ? (info.status==="fully-constrained"?t("wfFullyDefined"):info.status==="conflicting"?t("dofConflict"):info.status==="over-constrained"?t("dofOver"):((sketch.constraints || []).length?t("wfPartialDefined")+" · ":t("wfUnderDefined")+" · ")+info.degreesOfFreedom+" "+t("wfDof")) : t("wfCreateProfile");}
   var feature=root.querySelector("#mdWorkflowFeature");if(feature)feature.textContent=E.authoring && E.authoring.featureType ? featureTypeLabel(E.authoring.featureType) : (closedSketchProfile() ? t("wfReadyExtrude") : t("wfTurnIntent"));
   var history=root.querySelector("#mdWorkflowHistory");if(history)history.textContent=(E.def.history || []).length+" "+t("wfEditableSteps");
   root.classList.toggle("md-authoring-sketch",phase==="sketch");
   syncCoach();
+}
+function modelLengthUnit() {
+  return documentLengthUnit(E.def?.context?.units?.length);
+}
+function modelLengthText(cm, digits=10) {
+  return formatDocumentLength(cm, modelLengthUnit(), digits);
+}
+function modelAreaText(cm2) {
+  var value=cm2*Math.pow(lengthToDocument(1,modelLengthUnit()),2);
+  return String(Number(value.toPrecision(10)))+' '+modelLengthUnit()+'²';
 }
 function faceSketchAttachment() {
   var support=(E.topologySelection || []).find(function(reference){return reference.kind==="face";});
@@ -6427,8 +6584,8 @@ function faceSketchAttachment() {
   var ax=Math.abs(normal.x || 0), ay=Math.abs(normal.y || 0), az=Math.abs(normal.z || 0), dominant=Math.max(ax,ay,az);
   if (dominant<.5) return null;
   var plane=ay>=ax && ay>=az ? "top" : az>=ax ? "front" : "side";
-  var origin=descriptor.origin || {x:0,y:0,z:0};
-  return {support:cloneData(support),plane:plane,offset:0,frame:frameFromPlane(origin,normal)};
+  var origin=faceFrameOrigin(descriptor,"bounds-center");
+  return {support:cloneData(support),plane:plane,offset:0,frame:frameFromPlane(origin,normal),frameAnchor:"bounds-center"};
 }
 function attachSketchToSelectedFace(forceNew) {
   var attachment=faceSketchAttachment();
@@ -6448,6 +6605,7 @@ function attachSketchToSelectedFace(forceNew) {
   }
   sketch.frame=attachment.frame;
   sketch.frameSpace="local";
+  sketch.frameAnchor=attachment.frameAnchor;
   sketch.supportOffset=0;
   E.def.activeSketch=sketch.id;
   E.view=attachment.plane;
@@ -6457,6 +6615,13 @@ function attachSketchToSelectedFace(forceNew) {
 function setTool(id, keepPlaneState) {
   if (E.dimEditor && !applyDimensionEditor()) return;
   E.touchPrecision = null;
+  if (E.mode === "drawing" && id === "note") {
+    E.tool = id;
+    drawingSheet().setTool(id);
+    syncTools();
+    syncHint();
+    return;
+  }
   if (id === "paint" || id === "note") {
     E.tool = id;
     if (E.mode !== "3d") setMode("3d");
@@ -6547,8 +6712,11 @@ function setTool(id, keepPlaneState) {
    sketch, and an Extrude Cut taken right after would cut from the wrong one. */
 var CAMERA_ONLY_VIEWS = ["iso", "back", "left"];
 function setView(id) {
-  if (CAMERA_ONLY_VIEWS.indexOf(id) >= 0) {
-    var cameraPreset = VIEW_PRESETS.find(function (preset) { return preset.id === id; });
+  // A feature owns its profile while the user turns the model to pick limits.
+  // Adopting another plane's sketch here changes both preview and commit inputs.
+  if (CAMERA_ONLY_VIEWS.indexOf(id) >= 0 || (E.authoring && E.authoring.featureType)) {
+    var cameraId = id === "side" ? "right" : id;
+    var cameraPreset = VIEW_PRESETS.find(function (preset) { return preset.id === cameraId; });
     if (E.pv && cameraPreset) {
       if (E.pv.clearFixedFrame) E.pv.clearFixedFrame(false);
       E.pv.orbitTo(cameraPreset.az, cameraPreset.el);
@@ -6642,9 +6810,12 @@ function fitSketch() {
       v0 = Math.min(v0, centre.y - reach); v1 = Math.max(v1, centre.y + reach);
     });
   });
-  if (u0 === undefined) { u0 = -30; u1 = 30; v0 = -30; v1 = 30; }
-  var du = Math.max(20, u1 - u0), dv = Math.max(20, v1 - v0);
-  E.scl = clamp(Math.min((W - 80) / du, (Hh - 80) / dv), 0.3, 20);
+  /* An empty part sketch is usually a small component, not a room. The old
+     60 cm opening span made a 4 mm slot only a few pixels wide before the
+     first entity existed, precisely when the user has no geometry to fit. */
+  if (u0 === undefined) { u0 = -5; u1 = 5; v0 = -5; v1 = 5; }
+  var du = Math.max(0.01, u1 - u0), dv = Math.max(0.01, v1 - v0);
+  E.scl = clamp(Math.min((W - 80) / du, (Hh - 80) / dv), SKETCH_MIN_SCALE, SKETCH_MAX_SCALE);
   var cu = (u0 + u1) / 2, cv = (v0 + v1) / 2;
   E.ox = W / 2 - cu * E.scl;
   E.oy = Hh / 2 - (!activeSketchFrame() && E.view === "top" ? cv : -cv) * E.scl;
@@ -6720,8 +6891,18 @@ function closeFeaturePanel() {
   syncCommandManager(); // puts the ribbon button that opened the form back out
 }
 
+// The pro ribbon and the app-wide ⌘K palette run model commands through this.
+window.__modelerRunCommand = function (id) {
+  if (!root || !E.open) return false;
+  // Asked for a specific command: the start-here screen would only be in the way.
+  closeWelcome();
+  runCommand(id);
+  return true;
+};
+
 function runCommand(id) {
   if (!id) return;
+  if(id==="temporaryaxes"){root.querySelector("#mdTemporaryAxes").click();closeCommandSearch();return;}
   if (id === "repeatlast") {
     var last = E.lastOperation;
     if (!last) { flash(t("repeatUnavailable")); return; }
@@ -6733,7 +6914,25 @@ function runCommand(id) {
   var blocked = commandUnavailableReason(id);
   if (blocked) { flash(blocked); closeCommandSearch(); return; }
   if (DIRECT_COMMAND_TOOLS[id]) { setTool(DIRECT_COMMAND_TOOLS[id]); closeCommandSearch(); syncCommandManager(); return; }
-  var tools = ["select", "rect", "circle", "sph", "poly", "rev", "cut", "cutc", "wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "offset", "constr"];
+  if (id === "directcone") { openConeForm(); closeCommandSearch(); return; }
+  if (id === "sketchtext") {
+    if (isCanonicalAuthoring() && E.authoring?.phase !== "sketch") {
+      if (activeParts(E.def).length) { flash("Open a sketch on the intended plane or face first."); closeCommandSearch(); return; }
+      beginSketchWorkflow(null);
+    }
+    if (isCanonicalAuthoring() && E.authoring?.phase !== "sketch") { closeCommandSearch(); return; }
+    openSketchTextForm(); closeCommandSearch(); return;
+  }
+  if (id === "stocksize") { openStockSizeForm(); closeCommandSearch(); return; }
+  if (id === "towalls") { openToWallsForm(); closeCommandSearch(); return; }
+  if (id === "finishpreview") { openFinishPreviewChooser(); closeCommandSearch(); return; }
+  if (id === "exportglb") { exportModelGlb(); closeCommandSearch(); return; }
+  if (id === "equations") { setTab("sketch"); fillSketchPane(); requestAnimationFrame(function () { Array.from(root.querySelectorAll("#mdSketch .md-h5")).find(function (node) { return node.textContent.trim() === t("equations"); })?.scrollIntoView({ block: "nearest" }); }); closeCommandSearch(); return; }
+  if (id === "customprops") { openCustomProperties(); closeCommandSearch(); return; }
+  if (id === "smartmates") { E.smartMateMode = !E.smartMateMode; setTab("ops"); flash(t("smartMate") + ": " + (E.smartMateMode ? "On" : "Off")); closeCommandSearch(); return; }
+  if (id === "sheetmetal") { setTab("shape"); if (selectedSolid()?.kind !== "box") flash(t("sheetMetalNeedPlate")); else requestAnimationFrame(function () { Array.from(root.querySelectorAll('.md-pane[data-pane="shape"] .md-h5')).find(function (node) { return node.textContent.trim() === t("sheetMetal"); })?.scrollIntoView({ block: "nearest" }); }); closeCommandSearch(); return; }
+  if (id === "branch") { setTab("hist"); closeCommandSearch(); return; }
+  var tools = ["select", "rect", "circle", "sph", "poly", "rev", "cut", "cutc", "wall", "sketchpoint", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "offset", "constr"];
   /* "For construction" acts on what is selected, as in SOLIDWORKS. It used to
      only arm a click-to-toggle tool, so selecting HOUSING's centerline and
      pressing Construction left it solid (the selection highlight looked like
@@ -6755,6 +6954,7 @@ function runCommand(id) {
   else if(id==="tangentarc") { E.arcTangent=true; E.arcThreePoint=false; E.arcPts=null; setTool("sarc"); }
   else if(id==="sketchrepair")openSketchRepairs();
   else if(id==="centerrectangle")openCenterRectangle();
+  else if(id==="centerslot")openCenterSlot();
   else if(id==="sketchfillet")openSketchFillet();
   else if(id==="faceboundary")openFaceBoundary();
   else if (id === "newsketch") beginSketchWorkflow(null, { forceNew: true });
@@ -6808,6 +7008,7 @@ function runCommand(id) {
   else if (id === "refplane") openOffsetPlaneForm();
   else if (id === "refaxis") addReferenceGeometry("axis");
   else if (id === "coordsys") addReferenceGeometry("coordsys");
+  else if (id === "refpoint") addReferenceGeometry("point");
   else if (id === "fit") E.mode === "3d" ? fitPreview() : fitSketch();
   else if (id === "model3d") setMode("3d");
   else if (id === "assembly") setDocumentType("assembly");
@@ -6823,6 +7024,168 @@ function runCommand(id) {
   else if (id === "note") { setMode("3d"); setTool("note"); }
   closeCommandSearch();
   syncCommandManager();
+}
+
+function openConeForm() {
+  openQuickForm({
+    action: "directcone", icon: "ph-triangle", title: "Cone",
+    fields: [
+      { key: "r1", label: "Base radius", type: "number", unit: "length", min: 1e-6, value: 5 },
+      { key: "r2", label: "Top radius", type: "number", unit: "length", min: 0, value: 0 },
+      { key: "h", label: "Height", type: "number", unit: "length", min: 1e-6, value: 10 },
+    ],
+    onApply: function (values) {
+      var r1 = Number(values.r1), r2 = Number(values.r2), h = Number(values.h);
+      if (![r1, r2, h].every(Number.isFinite) || r1 <= 0 || r2 < 0 || h <= 0) return false;
+      pushUndo("Cone");
+      try {
+        var params = { x: 0, y: 0, z: 0, r1, r2, h };
+        var feature = createFeatureDefinition(E.def, "cone", { params: params });
+        E.sel = addPart({ id: uid(), featureId: feature.id, kind: "cyl", name: "Cone", x: 0, y: 0, z: 0, r: r1, r2: r2, h: h, color: "#b89a6e", metal: .08, rough: .7 });
+        refreshAll();
+        return true;
+      } catch (error) { H.discard(); flash(String(error.message || error)); return false; }
+    },
+  });
+}
+
+function openSketchTextForm() {
+  openQuickForm({ action: "sketchtext", title: "Sketch text", icon: "ph-text-t",
+    hint: "Creates closed editable letter profiles. Extrude to emboss or Extrude cut to engrave.",
+    fields: [
+      { key: "text", label: "Text (up to 24 characters)", type: "text", value: "TEXT" },
+      { key: "height", label: "Letter height (cm)", type: "number", value: 3, min: .1, max: 100 },
+      { key: "x", label: "Left position (cm)", type: "number", value: 0 },
+      { key: "y", label: "Baseline position (cm)", type: "number", value: 0 },
+    ],
+    onApply: function(values) {
+      const content = values.text.trim();
+      if (!content || content.length > 24 || !Number.isFinite(values.height) || values.height < .1 || values.height > 100) { flash("Enter 1–24 characters and a letter height from 0.1 to 100 cm."); return false; }
+      let contours;
+      try { contours = rasterTextContours(content); } catch (error) { flash(error.message); return false; }
+      if (!contours.length) { flash("This font produced no closed letter contours."); return false; }
+      const ys = contours.flatMap(loop => loop.map(point => point.y));
+      const top = Math.min(...ys), bottom = Math.max(...ys), scale = values.height / Math.max(1, bottom - top);
+      const sketch = sketchForView();
+      pushUndo("Sketch text");
+      for (const contour of contours) {
+        const ids = contour.map(point => newSketchPoint(sketch, { u: values.x + point.x * scale, v: values.y + (bottom - point.y) * scale }));
+        ids.forEach((id, index) => sketch.entities.push({ id: uid(), type: "line", name: "Text " + content, a: id, b: ids[(index + 1) % ids.length], construction: false, textSource: content }));
+      }
+      resolveSketch(false); E.sel = null; E.ssel = []; refreshAll(); return true;
+    },
+  });
+}
+
+function openStockSizeForm() {
+  var part = selectedSolid();
+  if (!part) { flash(t("quickNeedPart")); return; }
+  var bounds = partBounds(part), needed = [bounds.x1 - bounds.x0, bounds.y1 - bounds.y0, bounds.z1 - bounds.z0].map(v => Math.max(0.01, v));
+  var keys = Object.keys(STOCK_MATERIALS), current = String(part.materialCatalogId || "").replace(/^stock:/, "");
+  openQuickForm({ action: "stocksize", title: "Stock size", icon: "ph-ruler",
+    fields: [
+      { key: "width", label: "Stock width", type: "number", unit: "length", min: needed[0], value: part.stockSize?.width || Math.ceil(needed[0]) },
+      { key: "height", label: "Stock height", type: "number", unit: "length", min: needed[1], value: part.stockSize?.height || Math.ceil(needed[1]) },
+      { key: "depth", label: "Stock depth", type: "number", unit: "length", min: needed[2], value: part.stockSize?.depth || Math.ceil(needed[2]) },
+      { key: "material", label: "Material", type: "select", value: current || "aluminum", choices: keys.map(key => ({ value: key, label: STOCK_MATERIALS[key].name })) },
+    ],
+    onApply: function (values) {
+      var dimensions = [Number(values.width), Number(values.height), Number(values.depth)];
+      if (dimensions.some((value, i) => !Number.isFinite(value) || value + 1e-6 < needed[i])) { flash("Stock must enclose the part."); return false; }
+      var material = STOCK_MATERIALS[values.material]; if (!material) return false;
+      pushUndo("Stock size");
+      part.stockSize = { width: dimensions[0], height: dimensions[1], depth: dimensions[2] };
+      part.materialCatalogId = "stock:" + values.material; part.materialName = material.name;
+      part.color = material.color; part.metal = material.metal; part.rough = material.rough;
+      if ((E.def.parts || []).length === 1) setDocumentProperty(E.def, "Stock size", `${dimensions.join(" × ")} cm`);
+      refreshAll(); return true;
+    },
+  });
+}
+
+function openToWallsForm() {
+  var sketch = ensureSketch(E.def), points = new Map((sketch.points || []).map(p => [p.id, p]));
+  var segments = (sketch.entities || []).filter(e => e.type === "line" && !e.construction).map(e => lineData(e, points)).filter(Boolean);
+  if (!segments.length) { flash("Draw a line outline in the active sketch first."); return; }
+  openQuickForm({ action: "towalls", title: "Sketch outline to planner walls", icon: "ph-wall",
+    fields: [{ key: "thickness", label: "Wall thickness", type: "number", unit: "length", min: 1, value: 10 }],
+    onApply: function (values) {
+      var thickness = Number(values.thickness); if (!(thickness > 0)) return false;
+      var cx = S.nodes.length ? S.nodes.reduce((sum, p) => sum + p.x, 0) / S.nodes.length : 0;
+      var cz = S.nodes.length ? S.nodes.reduce((sum, p) => sum + p.z, 0) / S.nodes.length : 0;
+      var source = { lines: segments.map(segment => ({ a: { x: segment.a.x + cx, z: segment.a.y + cz }, b: { x: segment.b.x + cx, z: segment.b.y + cz } })) };
+      var converted = convertCadToWalls(source, { singleLineWalls: true, defaultThickness: thickness, firstId: S.idc, minLength: 1 });
+      if (!converted.walls.length) { flash("No walls could be made from this sketch."); return false; }
+      pushPlannerHistory();
+      for (var wall of converted.walls) {
+        var result = executeCommand(wallDrawCommand, {
+          from: converted.nodes[wall.a], to: converted.nodes[wall.b],
+          thickness: wall.thickness, height: wall.height, type: wall.wallTypeId,
+          kind: wall.kind, datum: wall.datum, phase: wall.phase,
+        }, { domain: "planner", state: S }, { history: false });
+        if (!result.ok) { flash(`Could not make wall: ${result.reason}`); return false; }
+      }
+      S.dirty3D = true; markPlannerDirty(); render2D();
+      flash(`✓ ${converted.walls.length} walls added to the planner`); return true;
+    },
+  });
+}
+
+function openFinishPreviewChooser() {
+  if (!selectedSolid()) { flash(t("quickNeedPart")); return; }
+  showPickList("Finish preview", "Choose a finish to preview", [
+    { id: "fillet", label: t("quickFillet"), hint: "Round selected edges" },
+    { id: "chamfer", label: t("quickChamfer"), hint: "Bevel selected edges" },
+    { id: "shell", label: t("shellOp"), hint: "Hollow selected face" },
+  ], function (item) { openParametricFeature(item.id); });
+}
+
+async function exportModelGlb() {
+  if (!E.pv?.grp) { flash("Open the 3D model preview first."); return; }
+  try {
+    var mod = await import("three/addons/exporters/GLTFExporter.js");
+    var source = new THREE.Group(); source.name = E.def.name || "Model";
+    source.add(E.pv.grp.clone(true)); source.scale.setScalar(0.01);
+    var buffer = await new mod.GLTFExporter().parseAsync(source, { binary: true, onlyVisible: true, trs: true });
+    downloadBytes(buffer, (E.def.name || "model") + ".glb", "model/gltf-binary");
+  } catch (error) { flash(String(error.message || error)); }
+}
+
+function openCustomProperties() {
+  var doc = E.docType === "assembly" ? E.assembly : E.def;
+  if (!doc) return;
+  root.querySelector("#mdCustomPropsDialog")?.remove();
+  var dialog = document.createElement("dialog");
+  dialog.id = "mdCustomPropsDialog";
+  dialog.style.cssText = "max-width:min(32rem,90vw);max-height:80vh;overflow:auto;border-radius:12px;padding:1.2rem";
+  var title = document.createElement("h2"); title.textContent = "Custom properties"; dialog.appendChild(title);
+  var rows = document.createElement("div"); dialog.appendChild(rows);
+  function row(key, value) {
+    var line = document.createElement("div"); line.style.cssText = "display:flex;gap:.4rem;margin:.5rem 0";
+    var name = document.createElement("input"); name.placeholder = "Name"; name.value = key; name.maxLength = 80;
+    var field = document.createElement("input"); field.placeholder = "Value"; field.value = value;
+    var remove = document.createElement("button"); remove.type = "button"; remove.textContent = "×"; remove.onclick = function () { line.remove(); };
+    line.append(name, field, remove); rows.appendChild(line);
+  }
+  Object.entries(doc.customProperties || {}).forEach(function (entry) { row(entry[0], entry[1]); });
+  var add = document.createElement("button"); add.type = "button"; add.textContent = "+ Property"; add.onclick = function () { row("", ""); }; dialog.appendChild(add);
+  var save = document.createElement("button"); save.type = "button"; save.textContent = "Save"; save.onclick = function () {
+    var next = {};
+    for (var line of rows.children) {
+      var inputs = line.querySelectorAll("input"), key = inputs[0].value.trim(), value = inputs[1].value.trim();
+      if (key && value) next[key] = value;
+    }
+    if (JSON.stringify(next) !== JSON.stringify(doc.customProperties || {})) {
+      pushUndo("Custom properties");
+      doc.customProperties = {};
+      Object.entries(next).forEach(function (entry) { setDocumentProperty(doc, entry[0], entry[1]); });
+      refreshAll();
+    }
+    dialog.close();
+  }; dialog.appendChild(save);
+  var cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = "Cancel"; cancel.onclick = function () { dialog.close(); }; dialog.appendChild(cancel);
+  dialog.addEventListener("close", function () { dialog.remove(); }, { once: true });
+  root.appendChild(dialog); dialog.showModal();
 }
 
 /* Common solid operations live beside the viewport with their one or two
@@ -7355,17 +7718,45 @@ function quickPatternPart(count, pitch) {
 }
 
 function featureReferenceOptions(type) {
+  if(type==="helix-reference"){
+    var selectedPaths=selectedSketchIds(),pathId=selectedPaths[selectedPaths.length>1?1:0];
+    var pathSketch=(E.def.sketches || []).find(function(sketch){return sketch.id===pathId;});
+    return [{value:"",label:pathSketch?.name || t("sweepPathSketch")}].concat(documentHelixRecords().map(function(record){
+      var owner=(E.def.features || []).find(function(feature){return feature.id===record.featureId;});
+      return {value:record.id,label:(owner && owner.name) || record.name || record.id};
+    }));
+  }
   var expected=type==="axis-reference"?"axis":"plane";
   return (E.def.references || []).filter(function(reference){return reference.type===expected;}).map(function(reference){return {value:reference.id,label:reference.name || reference.id};});
 }
 
 function renderFeatureParameterForm(host,type,state,onLive) {
-  return renderFeatureParameterFormCore(host,type,state,onLive,{
+  var controls=renderFeatureParameterFormCore(host,type,state,onLive,{
     el:el,
     units:E.def && E.def.context && E.def.context.units || {length:getDomainUnit("details"),angle:"deg"},
     referenceOptions:featureReferenceOptions,
     advancedLabel:t("featureMoreOptions"),
   });
+  if(type==="thread"){
+    var preset=controls.find(function(control){return control.field.key==="threadPreset";});
+    var syncPreset=function(changed){
+      var unified=preset && preset.input.value==="unc-quarter-20";
+      controls.forEach(function(control){
+        var key=control.field.key,fixed={diameterMm:6.35,pitchMm:1.27,mode:"cosmetic",series:"coarse",useFitLimits:false};
+        if(Object.prototype.hasOwnProperty.call(fixed,key)){
+          control.input.disabled=!!unified;
+          if(unified){state.params[key]=fixed[key];if(control.input.type==="checkbox")control.input.checked=false;else control.input.value=String(fixed[key]);}
+        }
+        if(key==="toleranceClass"){
+          control.input.placeholder=unified?"2A / 2B":"6g / 6H";
+          if(changed){control.input.value="";state.params[key]="";}
+        }
+      });
+    };
+    syncPreset(false);
+    if(preset)preset.input.addEventListener("change",function(){syncPreset(true);});
+  }
+  return controls;
 }
 
 function featureField(host,field,value) {
@@ -7393,14 +7784,35 @@ function selectedSketchIds() {
   var active=ensureSketch(E.def);if(active&&!selected.includes(active.id))selected.push(active.id);return selected;
 }
 
-function sweepHelixRecord(inputParams) {
-  inputParams=inputParams || {};
-  var all=(E.def.referenceGeometry || []).concat(E.def.references || []),id=inputParams.helixId,seen=new Set(),records=[];
+// every helix a sweep can follow, once each
+function documentHelixRecords() {
+  var all=(E.def.referenceGeometry || []).concat(E.def.references || []),seen=new Set(),records=[];
   all.forEach(function(item){
     if(!item || seen.has(item.id))return;
     var helical=item.type==="reference_helix" || item.type==="helix" || /helix/i.test(String(item.id || ""));
     if(helical){seen.add(item.id);records.push(item);}
   });
+  return records;
+}
+
+/* A sweep edited to follow another helix: its rebuild reads sketchSources, its
+   ordering reads references, and the part's merge carries its own copy — all
+   three move to the chosen helix, or the Path row would change nothing. */
+function retargetSweepHelix(feature) {
+  var params=feature && feature.type==="sweep" ? feature.params || {} : null,sources=params && params.sketchSources;
+  if(!params || !params.helixId || !sources || !sources.helixId || sources.helixId===params.helixId)return;
+  var helix=documentHelixRecords().find(function(record){return record.id===params.helixId;});
+  if(!helix)return;
+  var previous=sources.helixId,moved=function(value){return {...value,helixId:helix.id,helixFeatureId:helix.featureId};};
+  params.sketchSources=moved(sources);
+  feature.references ||= {};
+  feature.references.references=(feature.references.references || []).map(function(reference){var id=typeof reference==="string"?reference:reference && reference.id;return id===previous?helix.id:reference;});
+  (E.def.parts || []).forEach(function(part){(part.merges3d || []).concat(part.cuts3d || []).forEach(function(entry){if(entry.featureId===feature.id && entry.sketchSources)entry.sketchSources=moved(entry.sketchSources);});});
+}
+
+function sweepHelixRecord(inputParams) {
+  inputParams=inputParams || {};
+  var id=inputParams.helixId,records=documentHelixRecords();
   if(id){var selected=records.find(function(item){return item.id===id;});if(selected)return selected;}
   if(records.length===1)return records[0];
   var feature=(E.def.features || []).find(function(item){return item && (item.type==="helix" || /helix|threadpath/i.test(String(item.name || ""))) && (!id || item.id===id);});
@@ -7412,30 +7824,33 @@ function sweepHelixRecord(inputParams) {
 }
 
 function createMultiSketchFeature(type, values) {
-  var ids=selectedSketchIds(),inputParams=(values && values.params) || values || {},helix=type==="sweep"?sweepHelixRecord(inputParams):selectedHelixRecord();
+  var ids=selectedSketchIds(),inputParams=(values && values.params) || values || {};
+  // the form's Path row said "second selected sketch": no helix, whatever exists
+  var sketchPath=type==="sweep" && inputParams.helixId==="";
+  var helix=sketchPath?null:type==="sweep"?sweepHelixRecord(inputParams):selectedHelixRecord();
   /* The confirmation corner can clear the transient datum focus while it
      reads the form. Keep the SolidWorks-style one-sketch sweep bound to the
      helix captured when the command opened, then resolve that stable id from
      the document at commit time. */
-  if(type==="sweep" && !helix && inputParams.helixId){
+  if(type==="sweep" && !sketchPath && !helix && inputParams.helixId){
     helix=(E.def.referenceGeometry || []).concat(E.def.references || []).find(function(item){return item && item.id===inputParams.helixId;}) || null;
     if(!helix){
       var helixFeature=(E.def.features || []).find(function(item){return item && item.id===inputParams.helixId && item.type==="helix";});
       if(helixFeature){var hparams=helixFeature.params || {};try{helix={...helixFromSketch(E.def,hparams),id:helixFeature.id,type:"reference_helix",featureId:helixFeature.id};}catch(error){helix={...hparams,id:helixFeature.id,type:"reference_helix",featureId:helixFeature.id};}}
     }
   }
-  if(type==="sweep" && ids.length===1 && !helix){
+  if(type==="sweep" && !sketchPath && ids.length===1 && !helix){
     var fallbackFeature=(E.def.features || []).find(function(item){return item && (item.type==="helix" || /helix|threadpath/i.test(String(item.name||"")));});
     if(fallbackFeature){var fp=fallbackFeature.params || {};helix={...fp,id:fallbackFeature.id,type:"reference_helix",featureId:fallbackFeature.id};}
   }
-  if(type==="sweep" && inputParams.sweepPathMode==="helix" && !helix){flash(t("sweepNeed"));return false;}
-  if(type==="sweep" && (inputParams.sweepPathMode==="helix" || sweepUsesHelixPath(ids.length, helix))){
+  if(type==="sweep" && !sketchPath && inputParams.sweepPathMode==="helix" && !helix){flash(t("sweepNeed"));return false;}
+  if(type==="sweep" && !sketchPath && (inputParams.sweepPathMode==="helix" || sweepUsesHelixPath(ids.length, helix))){
     var profileSketch=(E.def.sketches || []).find(function(sketch){return sketch.id===ids[0];});
     var profileRun=analyzeSketchProfiles(profileSketch),profileLoop=profileRun.profiles[0];
     if(!profileLoop){flash(t("sweepNeed"));return false;}
     var params={...featureDefaults(type),...((values && values.params) || values || {})};
     params.profile=profileLoop.points.map(function(point){return sketchWorldPoint(profileSketch,point.u,point.v);});
-    params.path=sampleHelix(helix).points;
+    Object.assign(params,helixSweepPath(helix));
     var helixSources={kind:"sweep",profile:{sketchId:profileSketch.id,entityIds:(profileLoop.entityIds || []).slice()},helixId:helix.id,helixFeatureId:helix.featureId};
     params.sketchSources=cloneData(helixSources);
     params.helix={origin:helix.origin,axis:helix.axis,radius:helix.radius,radiusEnd:helix.radiusEnd,pitch:helix.pitch,turns:helix.turns,height:helix.height,handedness:helix.handedness,startAngle:helix.startAngle};
@@ -7445,7 +7860,7 @@ function createMultiSketchFeature(type, values) {
     catch(error){H.discard();flash(String(error.message||error));return false;}
     var helixHost=mergeTargetBody(kernelRecipeBounds(type,params),params);
     if(helixHost){
-      var parentId=cutTargetFeatureId(helixHost);helixFeature.inputs=[parentId];helixFeature.references.features=[parentId];
+      var parentId=cutTargetFeatureId(helixHost);helixFeature.inputs=[parentId];helixFeature.references.features=[parentId];reconnectLaterBodyConsumers(E.def,helixFeature);
       helixHost.merges3d=helixHost.merges3d || [];
       helixHost.merges3d.push({kind:"sweep",profile:cloneData(params.profile),path:cloneData(params.path),pathSegments:cloneData(params.pathSegments),profileSegments:cloneData(params.profileSegments),orientation:params.orientation,twistAngle:params.twistAngle,scale:params.scale,sketchSources:helixSources,featureId:helixFeature && helixFeature.id || undefined});
       invalidatePartMeshAfterEdit(helixHost);
@@ -7497,7 +7912,7 @@ function createMultiSketchFeature(type, values) {
      visible geometry — sweep and loft added a step and drew nothing. */
   var mergeHost=cutTarget?null:mergeTargetBody(kernelRecipeBounds(type,params),params);
   if(mergeHost){
-    var mergeParent=cutTargetFeatureId(mergeHost);created.inputs=[mergeParent];created.references.features=[mergeParent];
+    var mergeParent=cutTargetFeatureId(mergeHost);created.inputs=[mergeParent];created.references.features=[mergeParent];reconnectLaterBodyConsumers(E.def,created);
     mergeHost.merges3d=mergeHost.merges3d || [];
     mergeHost.merges3d.push(type==="loft"
       ? {kind:"loft",sections:cloneData(params.sections),solid:params.solid!==false,ruled:!!params.ruled,matchProfiles:params.matchProfiles!==false,continuity:params.continuity,tolerance:params.tolerance,sketchSources:sources,featureId:created && created.id || undefined}
@@ -7543,7 +7958,7 @@ function selectedHelixRecord() {
 
 async function createHoleFeature(options) {
   if(E._holeBuildPending)return false;
-  var params={...featureDefaults("hole"),...(options || {})};
+  var params={...featureDefaults("hole"),...(options || {}),displayUnit:modelLengthUnit()};
   var target=selectedSolid() || (E.def && activeParts(E.def)[activeParts(E.def).length-1]);
   if(!target){flash(t("cmdNeedSolid"));return false;}
   var face=(E.topologySelection || []).find(function(reference){return reference.kind==="face";});
@@ -7897,7 +8312,7 @@ function revolveSketchProfile(params) {
   if(!params.thinFeature)return profile;
   var sketch=ensureSketch(E.def),chain=analyzeSketchChains(sketch,{selectedIds:selEntities().map(function(e){return e.id;})}).chains[0];
   if(!chain)return null;
-  return {...thinSketchProfile(sketch,chain.entityIds,params.thickness,params.thinMode),entityIds:chain.entityIds};
+  return {...revolveThinProfile(sketch,chain.entityIds,params.thickness,params.thinMode,params.axis || String(params.axisReference || 'axis:y').split(':')[1]),entityIds:chain.entityIds};
 }
 function revolvePreviewPoints(sketch,points,params) {
   if(!params.useSketchPlane)return points;
@@ -7916,7 +8331,7 @@ function createRevolveFeature(options) {
   var revolveHost=mergeTargetBody(partBounds(revolved),params);
   if(revolveHost){
     var revolveTarget=cutTargetFeatureId(revolveHost);
-    feature.inputs=[revolveTarget];feature.references.features=[revolveTarget];
+    feature.inputs=[revolveTarget];feature.references.features=[revolveTarget];reconnectLaterBodyConsumers(E.def,feature);
     revolveHost.merges3d=revolveHost.merges3d || [];
     revolveHost.merges3d.push({kind:"revolve",radialProfile:true,symmetric:params.symmetric,axis:String(axisReference).split(":")[1] || "y",angle:Number(params.angle)||360,direction:params.direction,loop:profile.points.map(function(q){return {u:q.u,v:q.v};}),featureId:feature.id});
     invalidatePartMeshAfterEdit(revolveHost);
@@ -8062,7 +8477,9 @@ function clearFeaturePreview(refresh) {
 function extrudePreviewParts(type,params) {
   var areas=sketchFeatureAreas();if(!areas.length)return [];
   var sketch=ensureSketch(E.def);
-  var axis=planeAxis(sketch.plane),normal=sketch.frame && sketch.frame.normal,principalDirection=normal?(axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)):1;
+  // Local distances already follow the frame normal. Multiplying by its world
+  // sign again reverses previews on back-facing supports.
+  var axis=planeAxis(sketch.plane),normal=sketch.frame && sketch.frame.normal,principalDirection=sketch.frameSpace==="local"?1:normal?(axis==="x"?Math.sign(normal.x||1):axis==="y"?Math.sign(normal.y||1):Math.sign(normal.z||1)):1;
   var direction=(params.direction==="reverse"?-1:1)*(principalDirection || 1),depth=Math.max(.1,Number(params.depth)||.1),offset=Number(params.offset)||0,symmetric=!!params.symmetric||params.endCondition==="mid-plane";
   var center=(sketch.frameSpace==="local"?0:Number(sketch.offset)||0)+direction*offset,from=symmetric?center-direction*depth/2:center,to=symmetric?center+direction*depth/2:center+direction*depth;
   var extent={...params,axis:sketch.frameSpace==="local"?"frame":axis,frame:sketch.frameSpace==="local"?cloneData(sketch.frame):undefined,from:from,to:to,points:areas[0]&&areas[0].points};
@@ -8115,7 +8532,7 @@ function overlayEdgesOnFace(part, face, mesh) {
    candidates is safer than offering a circular rim through a removed slot. */
 function authoritativeFinishTopology(part) {
   if (!part) return null;
-  if (partNeedsExactMesh(part) && !(part.meshData && Array.isArray(part.meshData.topology) && part.meshData.topology.length)) return null;
+  if (partNeedsExactMesh(part) && !(part.meshData && Array.isArray(part.meshData.topology) && part.meshData.topology.length)) return savedExactTopologyForPart(part);
   if(part.meshData?.topology?.length)return part.meshData.topology;
   return topologyEntriesForPart(part);
 }
@@ -8427,7 +8844,8 @@ function filletReferenceEndpoints(reference) {
 
 function finishEdgeDescription(reference) {
   var d=reference.descriptor || {},center=d.origin || d.center;
-  return (d.curve || "Edge")+(Number.isFinite(d.radius)?" · radius "+Number(d.radius.toFixed(4))+" cm":"")+(center?" · center ("+[center.x,center.y,center.z].map(function(value){return Number(value.toFixed(4));}).join(", ")+") cm":"");
+  var unit=modelLengthUnit();
+  return (d.curve || "Edge")+(Number.isFinite(d.radius)?" · radius "+modelLengthText(d.radius,8)+" "+unit:"")+(center?" · center ("+[center.x,center.y,center.z].map(function(value){return modelLengthText(value,8);}).join(", ")+") "+unit:"");
 }
 
 function renderFinishEdgeList() {
@@ -8476,7 +8894,12 @@ function renderFinishEdgeList() {
   /* refreshAll() re-runs this on every preview tick, and rebuilding the list
      under a half-typed radius steals the caret. Only redraw when the list is
      actually different. */
-  var signature = (variable ? "v|" : filletParams?.multipleRadius ? "m|" : "c|") + edges.map(function (reference) { return reference.persistentId; }).join("|");
+  var candidates = part ? allCandidateFinishEdges(part) : [];
+  /* A body selected after the command opens (or a late exact mesh) changes the
+     choices even when the selected-edge well is still empty. */
+  var signature = (variable ? "v|" : filletParams?.multipleRadius ? "m|" : "c|")
+    + (part?.id || "") + "|" + candidates.map(function(reference){return reference.persistentId;}).join(",")
+    + "|" + edges.map(function (reference) { return reference.persistentId; }).join("|");
   if (host.dataset.edgeSignature === signature) return;
   host.dataset.edgeSignature = signature;
   host.innerHTML = "";
@@ -8508,7 +8931,7 @@ function renderFinishEdgeList() {
     var browser=el("details","md-edge-browser"),summary=el("summary","","Browse body edges");
     browser.appendChild(summary);
     var choices=el("div","md-edge-browser-choices");
-    allCandidateFinishEdges(part).forEach(function(reference,index){
+    candidates.forEach(function(reference,index){
       var selected=edges.some(function(edge){return sameFinishEdge(edge,reference);});
       var choice=btn((selected?"✓ ":"")+(index+1)+" · "+finishEdgeDescription(reference),function(){toggleFinishEdges([reference]);},"md-wide");
       choice.addEventListener("mouseenter",function(){E.hoverTopology=reference;refreshChangedPart(part);});
@@ -8835,6 +9258,7 @@ function clonedPartMeshData(mesh) {
     topology: cloneData(mesh.topology || []),
     faceRanges: cloneData(mesh.faceRanges || []),
     bounds: mesh.bounds ? Object.assign({}, mesh.bounds) : mesh.bounds,
+    exactBounds: mesh.exactBounds ? cloneData(mesh.exactBounds) : mesh.exactBounds,
   });
 }
 
@@ -8877,7 +9301,7 @@ function syncNewFeaturePreview(type,state,liveBadge) {
     /* The cut shows the tool it will remove, in the cut colour, the way
        extrudePreviewParts draws a red prism for Extrude Cut. */
     var revCut=type==="revolveCut";
-    var profile;try{profile=revolveSketchProfile(state.params);}catch(error){if(liveBadge)liveBadge.textContent=String(error.message||error);}if(profile)previews.push({id:"preview:revolve",featureId:"preview:revolve",previewOnly:true,kind:"rev",x:0,z:0,seg:48,pts:revolvePreviewPoints(ensureSketch(E.def),profile.points,state.params),axis:state.params.axis || String(state.params.axisReference || "axis:y").split(":")[1],angle:state.params.angle,direction:state.params.direction,symmetric:state.params.symmetric,color:revCut?"#d75a4a":"#6f8de8",opacity:revCut?.42:.62,metal:.04,rough:.68,name:"Live "+featureTypeLabel(type)});
+    var profile;try{profile=revolveSketchProfile({...state.params,axisReference:state.references.axis});}catch(error){if(liveBadge)liveBadge.textContent=String(error.message||error);}if(profile)previews.push({id:"preview:revolve",featureId:"preview:revolve",previewOnly:true,kind:"rev",x:0,z:0,seg:48,pts:revolvePreviewPoints(ensureSketch(E.def),profile.points,state.params),axis:state.params.axis || String(state.references.axis || "axis:y").split(":")[1],angle:state.params.angle,direction:state.params.direction,symmetric:state.params.symmetric,color:revCut?"#d75a4a":"#6f8de8",opacity:revCut?.42:.62,metal:.04,rough:.68,name:"Live "+featureTypeLabel(type)});
   } else if(type==="pattern"){
     var seed=selectedSolid(),count=Math.max(2,Math.min(100,Math.round(Number(state.params.count)||2))),circularStep=circularPatternStepDegrees(state.params,count)*Math.PI/180,placements=patternPlacements(state.params),patternInstances=[];
     if(seed && state.params.scope!=="feature")placements.forEach(function(placement,index){var copy=clonePartForLivePreview(seed);copy.previewOnly=true;copy.id="preview:pattern:"+(index+1);copy.featureId=copy.id;copy.opacity=.52;placePatternCopy(copy,state.params,placement,circularStep);copy.patternGridIndex=placement.indices;previews.push(copy);patternInstances.push({part:copy,transform:patternPlacementTransform(state.params,placement,circularStep)});});
@@ -9018,10 +9442,13 @@ function openParametricFeature(type, repeatedParams) {
   if(type==="helix"){
     var helixCircle=(ensureSketch(E.def).entities || []).find(function(e){return e.type==="circle"&&!e.construction;});if(helixCircle)state.params.radius=helixCircle.r;
   }
-  if(type==="sweep" && selectedSketchIds().length===1){
-    var sweepHelix=selectedHelixRecord();
-    state.params.profileMode=sweepHelix?"sketch":"circular";
-    if(sweepHelix){state.params.helixId=sweepHelix.id;state.params.sweepPathMode="helix";}
+  if(type==="sweep"){
+    // the Path row shows what the sweep will follow before it is committed:
+    // the selected helix, else the document's only one; two sketches, the second
+    var sweepHelix=selectedSketchIds().length===1 ? (selectedHelixRecord() || (documentHelixRecords().length===1 ? documentHelixRecords()[0] : null)) : null;
+    if(selectedSketchIds().length===1)state.params.profileMode=sweepHelix?"sketch":"circular";
+    state.params.helixId=sweepHelix ? sweepHelix.id : "";
+    if(sweepHelix)state.params.sweepPathMode="helix";
   }
   if(type==="pattern"){
     var patternSeed=(E.def.features || []).find(function(feature){return (E.authoring.featureSelection || []).includes(feature.id) && FEATURE_PATTERN_SEED_TYPES.includes(feature.type) && feature.inputs?.length;});
@@ -9202,6 +9629,7 @@ function segmentLengthForm(from, to) {
 function openQuickForm(spec) {
   var host = root && root.querySelector("#mdQuickSettings");
   if (!host) return null;
+  if (E.leftCollapsed) setPanelCollapsed("left", false);
   if (E.authoring && E.authoring.featureEdit) cancelFeatureParameterEdit(true);
   if (E.authoring && E.authoring.featureType) { clearFeaturePreview(false); E.authoring.featureType = null; }
   E.quickAction = spec.action || "quickform";
@@ -9215,13 +9643,14 @@ function openQuickForm(spec) {
   section.appendChild(el("summary", "", '<i class="ph ph-sliders-horizontal"></i><span>' + spec.title + "</span><small>" + spec.fields.length + "</small>"));
   var body = el("div", "md-feature-group-body");
   var inputs = {};
-  spec.fields.forEach(function (field) { inputs[field.key] = featureField(body, field, field.value); });
+  var fields=spec.fields.map(function(field){return field.unit==='length' ? {...field,inputUnit:modelLengthUnit()} : field;});
+  fields.forEach(function (field) { inputs[field.key] = featureField(body, field, field.value); });
   section.appendChild(body);
   host.appendChild(section);
 
   var read = function () {
     var values = {};
-    spec.fields.forEach(function (field) {
+    fields.forEach(function (field) {
       var raw = inputs[field.key].value;
       values[field.key] = field.type === "boolean" ? inputs[field.key].checked : field.type === "number" ? featureControlValue({field:field,input:inputs[field.key]}) : String(raw);
     });
@@ -9254,7 +9683,9 @@ function openQuickForm(spec) {
 }
 
 function commandCatalog() {
-  return buildCommandCatalog({ t: t, editor: E, closedSketchProfile: closedSketchProfile, openSketchChain: function(){return analyzeSketchChains(ensureSketch(E.def)).chains.length>0;}, activeParts: activeParts, canonicalAuthoring: isCanonicalAuthoring });
+  var catalog=buildCommandCatalog({ t: t, editor: E, closedSketchProfile: closedSketchProfile, openSketchChain: function(){return analyzeSketchChains(ensureSketch(E.def)).chains.length>0;}, activeParts: activeParts, canonicalAuthoring: isCanonicalAuthoring });
+  catalog.push({id:"temporaryaxes",label:"Temporary axes",group:"View",terms:"axis cylindrical conical centerline"});
+  return catalog.map(function(command){var key=(E.commandShortcuts || {})[command.id];return key ? {...command,shortcut:key.toUpperCase()} : command;});
 }
 
 function commandUnavailableReason(id) {
@@ -10031,8 +10462,9 @@ async function publishAssemblyModel() {
   applyAssemblyMates(E.assembly);
   var source=cloneData(E.assembly), parts=[];
   try {
-    for (var component of source.components) {
-      if(component.visible===false)continue;
+    // every part occurrence, sub-assemblies included, at its composed pose
+    for (var occurrence of flattenAssembly(source,{visibleOnly:true})) {
+      var component=occurrence.component;
       var def=componentDef(component), run=null;
       if(!def)throw new Error("A component is missing from the library");
       try {
@@ -10042,10 +10474,9 @@ async function publishAssemblyModel() {
           run=await regenerateFeatures({...compiled.document,features:compiled.features});
           if(!run.ok)throw new Error("A component could not rebuild");
         }
-        var tr=normalizeTransform(component), matrix=new THREE.Matrix4().compose(
-          new THREE.Vector3(tr.x,tr.y,tr.z),
-          new THREE.Quaternion().setFromEuler(new THREE.Euler(tr.rx*Math.PI/180,tr.ry*Math.PI/180,tr.rz*Math.PI/180)),
-          new THREE.Vector3(1,1,1));
+        var place=occurrence.placement, matrix=new THREE.Matrix4().makeBasis(
+          new THREE.Vector3(place.x.x,place.x.y,place.x.z),new THREE.Vector3(place.y.x,place.y.y,place.y.z),new THREE.Vector3(place.z.x,place.z.y,place.z.z))
+          .setPosition(place.origin.x,place.origin.y,place.origin.z);
         for(var part of activeParts(def)) {
           var body=run?.results.get(cutTargetFeatureId(part,def));
           var mesh=body?.shape ? await shapeToMeshData(body,{deflection:.28,angle:.18}) :
@@ -10061,8 +10492,8 @@ async function publishAssemblyModel() {
     }
     // Rebuildable preview caches can dwarf the authored history and would be
     // copied into every room undo entry. Preserve inputs, not derived caches.
-    source.components.forEach(function(component){
-      var definition=component.def;
+    flattenAssembly(source).forEach(function(occurrence){
+      var definition=occurrence.component.def;
       if(definition?.metadata?.authoringSystem!=="parametric-v1")return;
       function stripDerived(value) {
         if(!value || typeof value!=="object")return;
@@ -10087,13 +10518,26 @@ function saveCurrentDocument() {
   else saveModel();
 }
 
+function syncViewButtons() {
+  var active = E.view;
+  if (E.mode === "3d" && E.pv) {
+    var preset = !E.pv.fixedFrame && VIEW_PRESETS.find(function (item) {
+      return item.az != null && Math.abs(Math.atan2(Math.sin(E.pv.az-item.az), Math.cos(E.pv.az-item.az))) < 0.001 && Math.abs(E.pv.el-item.el) < 0.001;
+    });
+    active = preset ? (preset.id === "right" ? "side" : preset.id) : null;
+  }
+  root.querySelectorAll("[data-view]").forEach(function (button) {
+    var selected = button.getAttribute("data-view") === active;
+    button.classList.toggle("on", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+}
+
 function syncTools() {
   root.querySelectorAll("[data-tool]").forEach(function (b) {
     b.classList.toggle("on", b.getAttribute("data-tool") === E.tool);
   });
-  root.querySelectorAll("[data-view]").forEach(function (b) {
-    b.classList.toggle("on", b.getAttribute("data-view") === E.view);
-  });
+  syncViewButtons();
   syncNormalToControls();
   var sheetTool = E.mode === "drawing" && E.sheet ? E.sheet.getTool() : null;
   var hiddenButton = root.querySelector("#mdSheetHidden");
@@ -10115,7 +10559,7 @@ function syncTools() {
   }
   var notesBar = root.querySelector("#mdNotesToolbar");
   if (notesBar) {
-    var showNotes = E.tool === "note";
+    var showNotes = E.tool === "note" && E.mode !== "drawing";
     notesBar.hidden = !showNotes;
     if (showNotes) syncNotesToolbar();
   }
@@ -10167,8 +10611,7 @@ function hoverReadout(reference) {
     : t("selKindMixed");
   var measure = Number(reference.descriptor && reference.descriptor.measure);
   if (reference.kind !== "edge" || !fin(measure) || measure <= 0) return kind;
-  // "cm" reads the same in both languages, as it does on the library cards.
-  return kind + " · " + (Math.round(measure * 10) / 10) + " cm";
+  return kind + " · " + modelLengthText(measure,7) + " " + modelLengthUnit();
 }
 
 /* The distance an armed Measure would report if you clicked here. Nothing when
@@ -10180,7 +10623,7 @@ function liveMeasureReadout() {
   if (E.measure.picks.length >= 2) return null;
   if (!first) return measureCoordinates(E.hoverPoint);
   var span = measureDistance(first, E.hoverPoint);
-  return t("measureLength") + " " + span.distance + " cm";
+  return t("measureLength") + " " + modelLengthText(span.distance,8) + " " + modelLengthUnit();
 }
 
 function syncHint() {
@@ -10193,7 +10636,7 @@ function syncHint() {
     hint.classList.remove("on");
     return;
   }
-  if (E.tool === "note") {
+  if (E.tool === "note" && E.mode !== "drawing") {
     hint.textContent = E.noteMode === "markup" ? t("markupHint") : t("noteHint");
     hint.classList.remove("on");
     return;
@@ -10312,7 +10755,7 @@ function syncStatus() {
     return;
   }
   if (E.mode === "3d" && !E.modelPlaneActive) {
-    var mode=(E.def && E.def.authoringMode) || "fully-parametric";
+    var mode=inferAuthoringMode(Object.assign({}, E.def, {authoringMode:null}));
     var recognition=E.def && E.def.metadata && E.def.metadata.import && E.def.metadata.import.recognition;
     var solids = E.coreRun && Array.isArray(E.coreRun.bodies) ? E.coreRun.bodies.length : E.def ? activeParts(E.def).length : 0;
     st.innerHTML='<b>'+mode.replace(/-/g," ")+'</b>'+
@@ -10342,9 +10785,9 @@ function syncStatus() {
   st.innerHTML =
     '<b>' + sketchPlaneCaption() + "</b>" +
     '<span class="md-st-sep"></span>' +
-    (m ? lbl[0] + " " + (Math.round(m.u * 10) / 10) + " · " + lbl[1] + " " + (Math.round(m.v * 10) / 10) + " cm" : "—") +
+    (m ? lbl[0] + " " + modelLengthText(m.u,6) + " · " + lbl[1] + " " + modelLengthText(m.v,6) + " " + modelLengthUnit() : "—") +
     '<span class="md-st-sep"></span>' +
-    '<i class="ph ph-grid-four"></i> ' + E.grid + " cm" +
+    '<i class="ph ph-grid-four"></i> ' + modelLengthText(E.grid,6) + " " + modelLengthUnit() +
     (E.osnap ? '<span class="md-st-sep"></span><i class="ph ph-magnet"></i>' : "") +
     '<span class="md-st-sep"></span>' + Math.round(E.scl * 50) + "%" +
     (E.docType === "part" && E.solveInfo && ensureSketch(E.def).entities.length
@@ -10423,15 +10866,25 @@ function meshWorldTriangles(mesh) {
   return out;
 }
 
-/* The whole document as triangle soups, one per body. Built into a DETACHED
-   group and disposed straight after: the sheet must never depend on the
-   preview scene existing, because Drawing mode is reachable with the viewport
-   swapped out. Built SHARP (sheetSharpSolids) — the one place the sheet's
-   geometry is deliberately not the viewport's. Falls back to the
-   dependency-free tessellator when three.js has not loaded — which is also the
-   path the exporter and the tests take. */
+/* The whole document as triangle soups, one per body. Ordinary parts use the
+   same dependency-free tessellator as export, including exact meshData when
+   present. Assemblies and transformed instances still build a detached Three
+   group so their placed triangles can be read in world coordinates. */
 function drawingBodies() {
-  if (!threeLoaded() || typeof THREE === "undefined" || !THREE.Group) return tessellateParts(renderedParts(E.def));
+  var parts = renderedParts(E.def);
+  /* Most part drawings need only the body's triangle soup. Rebuilding an
+     entire Three scene here also creates edge-pick and appearance overlays,
+     then disposes them while the WebGPU viewport is swapping away. Exact
+     meshData already is the authoritative solid, so take it directly. Keep
+     the scene path for assemblies and transformed part instances. */
+  if (E.docType === "part" && parts.every(function(part){return !partPatternRotations(part).length;})) {
+    var direct = tessellateParts(parts);
+    if (direct.length === parts.length) return direct.map(function(body,index){
+      var exactBounds=parts[index].meshData?.exactBounds;
+      return exactBounds ? {...body,exactBounds} : body;
+    });
+  }
+  if (!threeLoaded() || typeof THREE === "undefined" || !THREE.Group) return tessellateParts(parts);
   var group = new THREE.Group(), bodies = [];
   sheetSharpSolids = true;
   try {
@@ -10441,7 +10894,23 @@ function drawingBodies() {
     group.traverse(function (object) {
       if (!object.isMesh || object.userData.cadOverlay || object.userData.cadInterference != null) return;
       var positions = meshWorldTriangles(object);
-      if (positions.length >= 9) bodies.push({ id: object.userData.cadPart || object.uuid, positions: positions });
+      if (positions.length >= 9) {
+        var body = { id: object.userData.cadPart || object.uuid, positions: positions };
+        var part = renderedParts(E.def).find(function(candidate){return candidate.id===object.userData.cadPart;});
+        var exactBounds = part && part.meshData && part.meshData.exactBounds;
+        var matrix = object.matrixWorld.elements;
+        // An axis-aligned (including quarter-turn) transform preserves exact
+        // AABB extrema. General rotations need directional kernel bounds.
+        var aligned = [0,1,2].every(function(row){return [0,1,2].filter(function(col){return Math.abs(matrix[col*4+row])>1e-9;}).length===1;});
+        if (exactBounds && aligned && E.docType !== "assembly") {
+          body.exactBounds={min:{x:Infinity,y:Infinity,z:Infinity},max:{x:-Infinity,y:-Infinity,z:-Infinity}};
+          [0,1].forEach(function(x){[0,1].forEach(function(y){[0,1].forEach(function(z){
+            var corner=new THREE.Vector3(x?exactBounds.max.x:exactBounds.min.x,y?exactBounds.max.y:exactBounds.min.y,z?exactBounds.max.z:exactBounds.min.z).applyMatrix4(object.matrixWorld);
+            ["x","y","z"].forEach(function(axis){body.exactBounds.min[axis]=Math.min(body.exactBounds.min[axis],corner[axis]);body.exactBounds.max[axis]=Math.max(body.exactBounds.max[axis],corner[axis]);});
+          });});});
+        }
+        bodies.push(body);
+      }
     });
   } catch (error) {
     bodies = [];
@@ -10493,11 +10962,11 @@ function sheetForm(title, fields, hint) {
       title: title,
       hint: hint || fields.map(function (field) { return field.hint; }).filter(Boolean)[0] || t("drawNoteHint"),
       fields: fields.map(function (field) {
-        return { key: field.key, label: field.label || title, type: "text", value: field.value || "" };
+        return { key: field.key, label: field.label || title, type: field.type === "boolean" ? "boolean" : "text", value: field.value ?? "" };
       }),
       onApply: function (values) {
         var answer = {};
-        fields.forEach(function (field) { answer[field.key] = String(values[field.key] || "").trim(); });
+        fields.forEach(function (field) { answer[field.key] = field.type === "boolean" ? !!values[field.key] : String(values[field.key] || "").trim(); });
         finish(answer);
       },
       onCancel: function () { finish(null); },
@@ -10609,6 +11078,15 @@ function buildSheetPanel(host) {
   sheetRow(setup, t("sheetUnits"), sheetSelect([
     { value: "mm", label: "mm" }, { value: "cm", label: "cm" }, { value: "m", label: "m" }, { value: "in", label: "in" },
   ], doc.units, function (value) { sheet.setSheetOption("units", value); drawSketch(); })).id = "mdSheetUnits";
+  sheetRow(setup,t("sheetDraftingStandard"),sheetSelect([{value:"custom",label:t("sheetCustomStandard")},{value:"ANSI",label:"ANSI · inch / third angle"},{value:"ISO",label:"ISO · mm / first angle"}],doc.draftingStandard||"custom",function(value){
+    sheet.setSheetOption("draftingStandard",value);
+    /* A drawing's drafting convention and display units are independent of
+       the part's modelling units. ANSI style is also used for MMGS parts; do
+       not silently turn their sketches into inches when the sheet is styled. */
+    drawSketch();
+  })).id="mdSheetStandard";
+  sheetRow(setup,t("sheetSecondaryUnits"),sheetSelect([{value:"",label:t("sheetNoSecondary")},...["mm","cm","m","in"].map(value=>({value,label:value}))],doc.secondaryUnits||"",function(value){sheet.setSheetOption("secondaryUnits",value);drawSketch();})).id="mdSheetSecondaryUnits";
+  sheetRow(setup,t("sheetSecondaryPrecision"),sheetSelect([0,1,2,3,4,5,6].map(value=>({value:String(value),label:String(value)})),String(doc.secondaryPrecision??2),function(value){sheet.setSheetOption("secondaryPrecision",value);drawSketch();})).id="mdSheetSecondaryPrecision";
   sheetRow(setup,t("sheetPrecision"),sheetSelect([{value:"auto",label:t("sheetPrecisionAuto")},...[0,1,2,3,4,5,6].map(value=>({value:String(value),label:String(value)}))],Number.isInteger(doc.precision)?String(doc.precision):"auto",function(value){sheet.setSheetOption("precision",value);drawSketch();})).id="mdSheetPrecision";
   sheetToggle(setup,t("sheetTrailingZeros"),doc.trailingZeros??Number.isInteger(doc.precision),function(on){sheet.setSheetOption("trailingZeros",on);drawSketch();}).id="mdSheetTrailingZeros";
   sheetRow(setup, t("sheetProjection"), sheetSelect([
@@ -10628,7 +11106,7 @@ function buildSheetPanel(host) {
     var selection = sheet.selection();
     var row = el("div", "md-sheet-view" + (selection && selection.kind === "view" && selection.id === view.id ? " on" : ""));
     var name = btn('<i class="ph ph-frame-corners"></i><span>' + (view.label || view.dir) + "</span><small>" +
-      scaleLabel(view.scale || sheet.scene().scale) + "</small>", function () {
+      scaleLabel(sheet.scene().views.find(function (placed) { return placed.id === view.id; })?.scale || view.scale || sheet.scene().scale) + "</small>", function () {
       sheet.select({ kind: "view", id: view.id });
     }, "md-sheet-view-name");
     row.appendChild(name);
@@ -10738,6 +11216,9 @@ function syncSheetPanel() {
   set("#mdSheetOrientation", doc.orientation);
   set("#mdSheetScale", doc.scale === "fit" ? "fit" : scaleLabel(doc.scale));
   set("#mdSheetUnits", doc.units);
+  set("#mdSheetStandard",doc.draftingStandard||"custom");
+  set("#mdSheetSecondaryUnits",doc.secondaryUnits||"");
+  set("#mdSheetSecondaryPrecision",String(doc.secondaryPrecision??2));
   set("#mdSheetPrecision", Number.isInteger(doc.precision)?String(doc.precision):"auto");
   var trailingZeros=root.querySelector("#mdSheetTrailingZeros");if(trailingZeros)trailingZeros.checked=doc.trailingZeros??Number.isInteger(doc.precision);
   set("#mdSheetProjection", doc.projection);
@@ -10785,7 +11266,7 @@ function drawingSheet() {
       bodiesToken: function () { return E.sheetToken; },
       meta: function () {
         var doc = ensureSheetDoc(E.def);
-        return { title: sheetTitleText(doc, E.def), material: doc.title.material || E.def.material || "" };
+        return { title: sheetTitleText(doc, E.def), material: doc.title.material || drawingMaterialName(E.def) };
       },
       bom: function () {
         if (E.docType !== "assembly" || !E.assembly) return null;
@@ -10837,6 +11318,7 @@ function drawSketch() {
   syncContextActions();
   if (!E.cw || !E.ch) sizeSketch();
   var c = E.cx, W = E.cw, H = E.ch;
+  var isDark = E.mode === "3d" || (typeof document !== "undefined" && !["light", "soft"].includes(document.documentElement.getAttribute("data-theme")));
   c.clearRect(0, 0, W, H);
   /* Drawing mode is a drafting table, not the sketch canvas with a border
      drawn round it: modeler_drawing.js owns the paper, the projected views and
@@ -10853,6 +11335,17 @@ function drawSketch() {
   var projected = sketchProjection();
   if (projected) {
     var reach = E.grid * 20, spacing = E.grid * (E.scl < 1.2 ? 4 : 1);
+    /* A quiet sheet tint separates the aligned sketch plane from the shaded
+       solid without hiding either one. It is projected through the same camera
+       as the geometry, so orbiting reads as a real drawing plane rather than a
+       screen-space HUD. */
+    var planeCorners = [toPx(-reach,-reach),toPx(reach,-reach),toPx(reach,reach),toPx(-reach,reach)];
+    c.save();
+    c.fillStyle = isDark ? "rgba(15,35,62,.12)" : "rgba(226,241,255,.13)";
+    c.strokeStyle = isDark ? "rgba(125,211,252,.34)" : "rgba(38,132,199,.28)";
+    c.lineWidth = 1; c.setLineDash([7,5]); c.beginPath();
+    planeCorners.forEach(function(point,index){if(index)c.lineTo(point.x,point.y);else c.moveTo(point.x,point.y);});
+    c.closePath(); c.fill(); c.stroke(); c.restore();
     c.beginPath();
     for (var g = -reach; g <= reach + 1e-6; g += spacing) {
       var lineStart = toPx(-reach, g), lineEnd = toPx(reach, g);
@@ -10927,21 +11420,21 @@ function drawSketch() {
     if(f.type!=="segments")c.fill("evenodd"); c.stroke();
     // vertex handles + edge lengths for a selected sketched polygon
     if (on && f.type === "poly") {
-      c.fillStyle = "#e08030";
+      c.fillStyle = isDark ? "#fb923c" : "#e08030";
       f.pts.forEach(function (q, i) {
         var s = toPx(q.u, q.v);
         c.fillRect(s.x - 3, s.y - 3, 6, 6);
         var q2 = f.pts[(i + 1) % f.pts.length], s2 = toPx(q2.u, q2.v);
         var L = Math.hypot(q2.u - q.u, q2.v - q.v);
-        c.fillStyle = "#7a5a30";
+        c.fillStyle = isDark ? "#fed7aa" : "#7a5a30";
         c.fillText(Math.round(L) + "", (s.x + s2.x) / 2 + 3, (s.y + s2.y) / 2 - 3);
-        c.fillStyle = "#e08030";
+        c.fillStyle = isDark ? "#fb923c" : "#e08030";
       });
     }
     // dimensions for selected rect
     if (on && f.type === "rect") {
       var a2 = toPx(f.u0, f.v0), b2 = toPx(f.u1, f.v1);
-      c.fillStyle = "#7a5a30";
+      c.fillStyle = isDark ? "#fed7aa" : "#7a5a30";
       c.fillText(Math.round(Math.abs(f.u1 - f.u0)) + "", (a2.x + b2.x) / 2 - 8, Math.min(a2.y, b2.y) - 5);
       c.fillText(Math.round(Math.abs(f.v1 - f.v0)) + "", Math.max(a2.x, b2.x) + 5, (a2.y + b2.y) / 2);
     }
@@ -11001,7 +11494,11 @@ function drawSketch() {
     var selected = E.ssel.indexOf(entity) >= 0;
     var status = statuses.entityStatus[entity.id] || (fully ? "fully-defined" : "under-defined");
     c.save();
-    c.strokeStyle = sketchStatusColor(status, { selected: selected, construction: entity.construction });
+    if (projected) {
+      c.shadowColor = isDark ? "rgba(2,8,23,.95)" : "rgba(255,255,255,.92)";
+      c.shadowBlur = 3;
+    }
+    c.strokeStyle = sketchStatusColor(status, { selected: selected, construction: entity.construction, isDark: isDark });
     c.lineWidth = selected ? 2.3 : Math.max(1.2, entity.weight || 1.2);
     if (entity.construction) c.setLineDash([7, 4]);
     c.beginPath();
@@ -11020,10 +11517,22 @@ function drawSketch() {
       if (selected) {
         var len = Math.hypot(b.x - a.x, b.y - a.y);
         var ang = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
-        c.fillStyle = "#e08030";
+        var infoText = Math.round(len * 10) / 10 + " cm · " + Math.round(ang * 10) / 10 + "°";
+        var tx = (sa.x + sb.x) / 2 + 5, ty = (sa.y + sb.y) / 2 - 7;
+        if (c.fillRect) {
+          c.save();
+          c.fillStyle = isDark ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.85)";
+          var tw = (c.measureText ? c.measureText(infoText).width : infoText.length * 6.5) + 6;
+          c.fillRect(tx - 3, ty - 10, tw, 13);
+          c.restore();
+        }
+        c.fillStyle = isDark ? "#fb923c" : "#e08030";
         c.font = "11px sans-serif";
-        c.fillText(Math.round(len * 10) / 10 + " cm · " + Math.round(ang * 10) / 10 + "°", (sa.x + sb.x) / 2 + 5, (sa.y + sb.y) / 2 - 7);
+        c.fillText(infoText, tx, ty);
       }
+    } else if (entity.type === "point") {
+      var standalone = spts.get(entity.p);
+      if (standalone) { var marker = toPx(standalone.x, standalone.y); c.strokeRect(marker.x - 6, marker.y - 6, 12, 12); }
     } else if(entity.type==="spline"){pathSketchSpline(c,entity,spts);c.stroke();
     } else if (entity.type === "ellipse") {
       var el2 = ellipseData(entity, spts);
@@ -11032,9 +11541,17 @@ function drawSketch() {
       c.setLineDash([]);
       if (selected) {
         var ec = toPx(el2.center.x, el2.center.y);
-        c.fillStyle = "#e08030";
+        var infoText = Math.round(el2.rx * 10) / 10 + " × " + Math.round(el2.ry * 10) / 10;
+        if (c.fillRect) {
+          c.save();
+          c.fillStyle = isDark ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.85)";
+          var tw = (c.measureText ? c.measureText(infoText).width : infoText.length * 6.5) + 6;
+          c.fillRect(ec.x + 1, ec.y - 12, tw, 13);
+          c.restore();
+        }
+        c.fillStyle = isDark ? "#fb923c" : "#e08030";
         c.font = "11px sans-serif";
-        c.fillText(Math.round(el2.rx * 10) / 10 + " × " + Math.round(el2.ry * 10) / 10, ec.x + 4, ec.y - 4);
+        c.fillText(infoText, ec.x + 4, ec.y - 4);
       }
     } else {
       var o = circleData(entity, spts);
@@ -11045,9 +11562,17 @@ function drawSketch() {
       c.stroke();
       c.setLineDash([]);
       if (selected) {
-        c.fillStyle = "#e08030";
+        var infoText = "R " + Number(Number(o.radius).toFixed(3));
+        if (c.fillRect) {
+          c.save();
+          c.fillStyle = isDark ? "rgba(15, 23, 42, 0.85)" : "rgba(255, 255, 255, 0.85)";
+          var tw = (c.measureText ? c.measureText(infoText).width : infoText.length * 6.5) + 6;
+          c.fillRect(sc.x + 1, sc.y - 12, tw, 13);
+          c.restore();
+        }
+        c.fillStyle = isDark ? "#fb923c" : "#e08030";
         c.font = "11px sans-serif";
-        c.fillText("R " + Number(Number(o.radius).toFixed(3)), sc.x + 4, sc.y - 4);
+        c.fillText(infoText, sc.x + 4, sc.y - 4);
       }
     }
     c.restore();
@@ -11056,9 +11581,12 @@ function drawSketch() {
   // sketch points, drawn over the entities so they stay grabbable
   (live ? sketch.points || [] : []).forEach(function (q) {
     var s = toPx(q.x, q.y), on = E.ssel.indexOf(q) >= 0;
-    c.fillStyle = on ? "#e08030" : q.fixed ? "#0f8a6a" : sketchStatusColor(statuses.pointStatus[q.id] || (fully ? "fully-defined" : "under-defined"));
+    c.save();
+    if (projected) { c.shadowColor = "rgba(2,8,23,.9)"; c.shadowBlur = 3; }
+    c.fillStyle = on ? (isDark ? "#fb923c" : "#e08030") : q.fixed ? (isDark ? "#34d399" : "#0f8a6a") : sketchStatusColor(statuses.pointStatus[q.id] || (fully ? "fully-defined" : "under-defined"), { isDark: isDark });
     c.fillRect(s.x - 3, s.y - 3, 6, 6);
-    if (q.fixed) { c.strokeStyle = "#0f8a6a"; c.lineWidth = 1; c.strokeRect(s.x - 5, s.y - 5, 10, 10); }
+    if (q.fixed) { c.strokeStyle = isDark ? "#34d399" : "#0f8a6a"; c.lineWidth = 1; c.strokeRect(s.x - 5, s.y - 5, 10, 10); }
+    c.restore();
   });
 
   if (live) {
@@ -11068,21 +11596,24 @@ function drawSketch() {
     profileInfo.profiles.forEach(function (profile) {
       if (!profile.points.length) return;
       c.save(); c.globalAlpha = profile.selected ? 0.14 : 0.065;
-      c.fillStyle = profile.selected ? "#e08030" : "#2684c7";
+      c.fillStyle = profile.selected ? (isDark ? "#fb923c" : "#e08030") : (isDark ? "#38bdf8" : "#2684c7");
       c.beginPath();
       profile.points.forEach(function (p, index) { var sp = toPx(p.u, p.v); if (!index) c.moveTo(sp.x, sp.y); else c.lineTo(sp.x, sp.y); });
       c.closePath(); c.fill(); c.restore();
     });
     profileInfo.openEnds.forEach(function (p) {
       var sp = toPx(p.x, p.y);
-      c.save(); c.strokeStyle = "#d0342c"; c.lineWidth = 2; c.beginPath(); c.arc(sp.x, sp.y, 7, 0, Math.PI * 2); c.stroke(); c.restore();
+      c.save(); c.strokeStyle = isDark ? "#fca5a5" : "#d0342c"; c.lineWidth = 2; c.beginPath(); c.arc(sp.x, sp.y, 7, 0, Math.PI * 2); c.stroke(); c.restore();
     });
     profileInfo.branchPoints.forEach(function (p) {
       var sp = toPx(p.x, p.y);
-      c.save(); c.fillStyle = "#d0342c"; c.translate(sp.x, sp.y); c.rotate(Math.PI / 4); c.fillRect(-5, -5, 10, 10); c.restore();
+      c.save(); c.fillStyle = isDark ? "#fca5a5" : "#d0342c"; c.translate(sp.x, sp.y); c.rotate(Math.PI / 4); c.fillRect(-5, -5, 10, 10); c.restore();
     });
-    drawSketchDimensions(c, sketch, E.scl, toPx, conflicts, { selectedId: E.dimSel });
-    drawConstraintGlyphs(c, sketch, toPx, conflicts);
+    c.save();
+    if (projected) { c.shadowColor = "rgba(2,8,23,.9)"; c.shadowBlur = 3; }
+    drawSketchDimensions(c, sketch, E.scl, toPx, conflicts, { selectedId: E.dimSel, isDark: isDark, unit:modelLengthUnit() });
+    drawConstraintGlyphs(c, sketch, toPx, conflicts, { isDark: isDark });
+    c.restore();
     if (refused) {
       var tagged = [];
       (sketch.constraints || []).forEach(function (constraint) {
@@ -11815,6 +12346,7 @@ async function extrudeClosedSketch(options) {
   var direction=normal ? (axis==="x" ? Math.sign(normal.x || 1) : axis==="y" ? Math.sign(normal.y || 1) : Math.sign(normal.z || 1)) : 1;
   if (!direction) direction=1;
   var localFrame=sketch.frameSpace==="local" && sketch.frame;
+  if (localFrame) direction=1;
   var depth=Math.max(.1,Number(params.depth)||E.depth),offset=Number.isFinite(Number(params.offset))?Number(params.offset):E.baseOff;
   var featureDirection=params.direction==="reverse"?-direction:direction,symmetric=!!params.symmetric||params.endCondition==="mid-plane";
   var center=(localFrame?0:sketch.offset)+featureDirection*offset;
@@ -11873,6 +12405,13 @@ async function extrudeClosedSketch(options) {
     }
     E.lastCutSkipped=[...new Set(cutSkipped)];
     if(!cutCount){H.discard();flash(t("cutNone")+cutSkipNote());return false;}
+    // applyCut replaces the parts array with rebuilt copies. Keep selection on
+    // the affected body, not on the sketch point that was selected before the
+    // feature. Otherwise the material pane can edit that point as if it were
+    // a solid, and the change disappears on save/rebuild.
+    E.sel=E.def.parts.find(function(part){return part.id===target.id;}) || null;
+    E.ssel=[];
+    E.topologySelection=[];
     E.authoring.featureType=null;E.authoring.phase="model";refreshAll();
     flash("✓ "+t("extrudeCut")+" · "+(params.endCondition || "through-all")+(cutCount>1?" · "+cutCount+" "+t("profileRegions"):"")+cutSkipNote());
     return true;
@@ -11970,7 +12509,8 @@ function sketchForView() {
   return target;
 }
 // Called when the view changes: adopt a sketch on the new plane if there is
-// one, but do not create an empty sketch just because you looked at a plane.
+// one. A view is only a camera choice until the user starts drawing, so it
+// must not add an invisible empty sketch to the saved feature history.
 function adoptSketchForView() {
   var current = ensureSketch(E.def);
   if (current.plane === E.view && current.frameSpace!=="local") return false;
@@ -11982,13 +12522,7 @@ function adoptSketchForView() {
     E.solveInfo = solveSketch(ensureSketch(E.def));
     return true;
   }
-  if (current.frameSpace==="local") {
-    var principal=addSketch(E.def,E.view,0);
-    E.def.activeSketch=principal.id;
-    E.ssel=[];
-    E.solveInfo=solveSketch(principal);
-    return true;
-  }
+  if (current.frameSpace==="local") return false;
   if (!current.entities.length) {
     // an untouched sketch just follows you rather than littering the document
     current.plane = E.view;
@@ -12037,6 +12571,7 @@ function resolveSketch(rollbackOnConflict, fast) {
     before = { pts: {}, r: {} };
     sketch.points.forEach(function (p) { before.pts[p.id] = { x: p.x, y: p.y }; });
     sketch.entities.forEach(function (e) { if (e.type === "circle") before.r[e.id] = e.r; });
+    before.sizes = sketchEntitySizes(sketch);
   }
   // Equations decide what the dimensions are, so they resolve first — solving
   // against last cycle's numbers would show geometry one edit behind.
@@ -12064,7 +12599,8 @@ function resolveSketch(rollbackOnConflict, fast) {
   sketch.constraints.forEach(function (constraint) {
     if (constraint.driven && constraint.value != null) constraint.value = constraintMeasure(sketch,constraint);
   });
-  if (before && (E.solveInfo.status === "conflicting" || refusesAsRepeat(E.solveInfo, previousReport))) {
+  // an edit that "solves" by crushing a drawn entity to nothing fought it (G30)
+  if (before && (E.solveInfo.status === "conflicting" || refusesAsRepeat(E.solveInfo, previousReport) || collapsedEntityIds(sketch, before.sizes).length)) {
     sketch.points.forEach(function (p) {
       var q = before.pts[p.id];
       if (q) { p.x = q.x; p.y = q.y; }
@@ -12087,13 +12623,20 @@ function resolveSketch(rollbackOnConflict, fast) {
 function syncSketchDrivenParts() {
   var changed = false;
   if (synchronizeSketchHelices(E.def).length) changed = true;
+  var holes=(E.def.features || []).filter(function(feature){return feature.type==="hole" && !feature.suppressed;});
   (E.def.parts || []).forEach(function (p) {
+    holes.forEach(function(feature){
+      var sketch=feature.params?.sketchId && sketchById(E.def,feature.params.sketchId);
+      if(!sketch)return;
+      try{if(syncHoleCutPlacement(p,feature,sketch)){changed=true;delete p.meshData;}}
+      catch(error){/* A broken placement is diagnosed by the feature rebuild. */}
+    });
     if (!p.sketchDriven || !p.profileEntityIds || !p.profileEntityIds.length) return;
     var sketch = p.sketchId ? sketchById(E.def, p.sketchId) : ensureSketch(E.def);
     var revolveFeature=p.kind==='rev' && (E.def.features || []).find(function(feature){return feature.id===p.featureId;});
     var revolveParams=revolveFeature?.params;
     var pts;
-    try{pts=sketch && revolveParams?.thinFeature ? thinSketchProfile(sketch,p.profileEntityIds,revolveParams.thickness,revolveParams.thinMode).points : sketch ? resolveProfilePoints(sketch,p.profileEntityIds) : null;}catch(error){pts=null;}
+    try{pts=sketch && revolveParams?.thinFeature ? revolveThinProfile(sketch,p.profileEntityIds,revolveParams.thickness,revolveParams.thinMode,revolveParams.axis).points : sketch ? resolveProfilePoints(sketch,p.profileEntityIds) : null;}catch(error){pts=null;}
     if(pts && revolveParams)pts=revolvePreviewPoints(sketch,pts,revolveParams);
     var holePts = sketch && Array.isArray(p.holeProfileEntityIds)
       ? p.holeProfileEntityIds.map(function (ids) { return resolveProfilePoints(sketch, ids); }) : [];
@@ -12178,10 +12721,10 @@ function syncFaceSupportedSketchFrames() {
     var match=topology.find(function(entry){return entry.persistentId===sketch.support.persistentId;});
     if (!match && sketch.support.semantic) match=topology.find(function(entry){return entry.kind==="face" && entry.ownerFeatureId===sketch.support.ownerFeatureId && entry.semantic===sketch.support.semantic;});
     if (!match || !match.descriptor || !match.descriptor.origin || !match.descriptor.normal) return;
-    var offset=Number(sketch.supportOffset)||0, origin={
-      x:match.descriptor.origin.x+match.descriptor.normal.x*offset,
-      y:match.descriptor.origin.y+match.descriptor.normal.y*offset,
-      z:match.descriptor.origin.z+match.descriptor.normal.z*offset,
+    var offset=Number(sketch.supportOffset)||0, base=faceFrameOrigin(match.descriptor,sketch.frameAnchor), origin={
+      x:base.x+match.descriptor.normal.x*offset,
+      y:base.y+match.descriptor.normal.y*offset,
+      z:base.z+match.descriptor.normal.z*offset,
     };
     var aligned=realignFrame(sketch.frame,origin,match.descriptor.normal);
     if (JSON.stringify(aligned)!==JSON.stringify(sketch.frame)) {sketch.frame=aligned;changed=true;}
@@ -12273,25 +12816,24 @@ function sketchSelectionSummary() {
       var span = (circle.end - circle.start + Math.PI * 2) % (Math.PI * 2);
       return sum + span * circle.radius;
     }, 0);
-    return entities.length + " " + t("selectedLabel") + " · Σ " + Math.round(total * 10) / 10 + " cm";
+    return entities.length + " " + t("selectedLabel") + " · Σ " + modelLengthText(total,8) + " " + modelLengthUnit();
   }
   if (entities.length === 1) {
     var entity = entities[0];
     if (entity.type === "line") {
       var line = lineData(entity, points);
-      return line ? "L " + Math.round(line.length * 10) / 10 + " cm · " + Math.round(line.angle * 1800 / Math.PI) / 10 + "°" : "";
+      return line ? "L " + modelLengthText(line.length,8) + " " + modelLengthUnit() + " · " + Math.round(line.angle * 1800 / Math.PI) / 10 + "°" : "";
     }
     if (entity.type === "ellipse") {
       var one = ellipseData(entity, points);
-      return one ? "Ø " + Number((one.rx * 2).toFixed(3)) + " × " + Number((one.ry * 2).toFixed(3)) + " cm · "
+      return one ? "Ø " + modelLengthText(one.rx * 2,8) + " × " + modelLengthText(one.ry * 2,8) + " " + modelLengthUnit() + " · "
         + Math.round((one.rot * 1800) / Math.PI) / 10 + "° · A "
-        + Math.round(Math.PI * one.rx * one.ry * 10) / 10 + " cm²" : "";
+        + modelAreaText(Math.PI * one.rx * one.ry) : "";
     }
     var circle = circleData(entity, points);
-    // three decimals of a cm: a 0.1 in (2.54 mm) sketch fillet read "R 0.3 cm"
-    return circle ? "R " + Number(circle.radius.toFixed(3)) + " cm" + (entity.type === "circle" ? " · A " + Number((Math.PI * circle.radius * circle.radius).toFixed(3)) + " cm²" : "") : "";
+    return circle ? "R " + modelLengthText(circle.radius,8) + " " + modelLengthUnit() + (entity.type === "circle" ? " · A " + modelAreaText(Math.PI * circle.radius * circle.radius) : "") : "";
   }
-  if (pickedPoints.length === 1) return "X " + Number(pickedPoints[0].x.toFixed(3)) + " · Y " + Number(pickedPoints[0].y.toFixed(3)) + " cm";
+  if (pickedPoints.length === 1) return "X " + modelLengthText(pickedPoints[0].x,8) + " · Y " + modelLengthText(pickedPoints[0].y,8) + " " + modelLengthUnit();
   return E.ssel.length + " " + t("selectedLabel");
 }
 
@@ -12370,11 +12912,30 @@ function addSketchCircle(centre, rim, snap) {
   resolveSketch(false);
   return circle;
 }
-function openCircularConversion(sketch) {
+function openCircularConversion(sketch, selectedEdge) {
   var candidates=[];
   (E.def.parts || []).forEach(function(part){topologyEntriesForPart(part).forEach(function(edge){if(edge.kind!=="edge")return;try{projectCircularEdge(sketch,edge);candidates.push(edge);}catch(error){/* Parallel complete circles only. */}});});
+  // A picked edge expresses the user's intent more precisely than the order
+  // in which topology enumeration happens to return the body's circles.
+  var partialSelection=false;
+  if(selectedEdge){
+    try{projectCircularEdge(sketch,selectedEdge);if(!candidates.some(function(edge){return edge.persistentId===selectedEdge.persistentId;}))candidates.unshift(selectedEdge);
+      else candidates.sort(function(a,b){return Number(b.persistentId===selectedEdge.persistentId)-Number(a.persistentId===selectedEdge.persistentId);});
+    }catch(error){
+      // A seam or a split arc can win the viewport pick even when the user
+      // clicks the nearby full rim. Keep the command open so they can choose
+      // an unambiguous complete edge by its radius and axial position.
+      partialSelection=true;
+      var radius=selectedEdge.descriptor?.radius, z=selectedEdge.descriptor?.origin?.z;
+      if(Number.isFinite(radius))candidates.sort(function(a,b){
+        var da=Math.abs(a.descriptor.radius-radius)+(!Number.isFinite(z)?0:Math.abs(a.descriptor.origin.z-z));
+        var db=Math.abs(b.descriptor.radius-radius)+(!Number.isFinite(z)?0:Math.abs(b.descriptor.origin.z-z));
+        return da-db || a.persistentId.localeCompare(b.persistentId);
+      });
+    }
+  }
   if(!candidates.length){flash("No parallel circular edges are available");return;}
-  openQuickForm({action:"faceboundary",icon:"ph-copy-simple",title:"Convert circular edge",hint:"Project an exact circle onto this sketch plane. It follows changes to the source edge.",fields:[
+  openQuickForm({action:"faceboundary",icon:"ph-copy-simple",title:"Convert circular edge",hint:partialSelection?"The picked edge is a partial arc. Choose a complete circular edge by radius and Z position.":"Project an exact circle onto this sketch plane. It follows changes to the source edge.",fields:[
     {key:"source",label:"Source edge",type:"select",value:candidates[0].persistentId,choices:candidates.map(function(edge,index){return {value:edge.persistentId,label:(index+1)+" · radius "+edge.descriptor.radius.toFixed(4)+" cm · Z "+edge.descriptor.origin.z.toFixed(4)+" cm"};})}
   ],onApply:function(values){
     var source=candidates.find(function(edge){return edge.persistentId===values.source;});
@@ -12415,6 +12976,8 @@ function openSilhouetteConversion(sketch) {
 }
 function openFaceBoundary() {
   var sketch=ensureSketch(E.def),reference=E.authoring?.phase==="sketch" ? sketch.support || selectedSketchableFace() : selectedSketchableFace() || sketch.support;
+  var selectedEdge=(E.topologySelection || []).find(function(item){return item.kind==="edge" && item.descriptor?.curve==="circle";});
+  if(E.authoring?.phase==="sketch" && selectedEdge){openCircularConversion(sketch,selectedEdge);return;}
   if (!reference || reference.descriptor?.surface!=="plane") { if(E.authoring?.phase==="sketch")openSilhouetteConversion(sketch);else flash(t("faceBoundaryNeed")); return; }
   var part=selectedSolid() || (E.def.parts || []).find(function(p){return topologyEntriesForPart(p).some(function(e){return e.persistentId===reference.persistentId;});});
   if(!part){flash(t("faceBoundaryNeed"));return;}
@@ -12535,9 +13098,30 @@ function openCenterRectangle() {
       {key:"height",label:t("fcFldHeight"),type:"number",value:10,min:0.000001,unit:"length"},
       {key:"x",label:t("rectangleCenterX"),type:"number",value:0,unit:"length"},
       {key:"y",label:t("rectangleCenterY"),type:"number",value:0,unit:"length"},
+      {key:"fixCenter",label:t("rectangleFixCenter"),type:"boolean",value:false},
     ],
     onApply:function(values) {
       var made = appendToSketch(t("centerRectangle"), function(sketch) { return addCenterRectangle(sketch,values,uid); });
+      if (!made) return false;
+      markDrawnSelection(made); E.sel=E.ssel[E.ssel.length-1];
+      return true;
+    },
+  });
+}
+function openCenterSlot() {
+  if (!E.authoring || E.authoring.phase !== "sketch") startSketchOnDefaultPlane("sslot");
+  setTool("select");
+  openQuickForm({
+    action:"centerslot", icon:"ph-selection", title:t("centerSlot"), hint:t("centerSlotHint"),
+    fields:[
+      {key:"length",label:t("slotCenterSpacing"),type:"number",value:2.54,min:0.000001,unit:"length"},
+      {key:"width",label:t("fcFldWidth"),type:"number",value:1.27,min:0.000001,unit:"length"},
+      {key:"x",label:t("rectangleCenterX"),type:"number",value:0,unit:"length"},
+      {key:"y",label:t("rectangleCenterY"),type:"number",value:0,unit:"length"},
+      {key:"fixCenter",label:t("rectangleFixCenter"),type:"boolean",value:false},
+    ],
+    onApply:function(values) {
+      var made = appendToSketch(t("centerSlot"), function(sketch) { return addCenterSlot(sketch,values,uid); });
       if (!made) return false;
       markDrawnSelection(made); E.sel=E.ssel[E.ssel.length-1];
       return true;
@@ -12674,12 +13258,11 @@ function addSketchArc(centre, start, end, exactEnd) {
   var r = Math.hypot(start.u - centre.u, start.v - centre.v);
   if (r < 1e-6) return null;
   // the third click only picks a direction; the radius comes from the first two
-  var ang = Math.atan2(end.v - centre.v, end.u - centre.u);
   var arc = {
     id: uid(), type: "arc", name: "Arc",
-    c: newSketchPoint(sketch, centre),
+    c: snappedSketchPoint(sketch, centre, centre),
     a: newSketchPoint(sketch, start),
-    b: newSketchPoint(sketch, exactEnd ? end : { u: centre.u + Math.cos(ang) * r, v: centre.v + Math.sin(ang) * r }),
+    b: newSketchPoint(sketch, exactEnd ? end : radialArcEndpoint(centre, start, end)),
     construction: false,
   };
   sketch.entities.push(arc);
@@ -12820,6 +13403,9 @@ function appendToSketch(label, run) {
   pushUndo(label);
   var made = run(sketch);
   if (!made) { H.discard(); return null; }
+  // the operation's own relations that the sketch already implies are left out
+  // rather than refusing the whole mirror or pattern as a repeat (G27)
+  pruneImpliedRelations(sketch, addedConstraintIds(sketch, before.constraints));
   if (!resolveSketch(true)) {
     var appendedIds = addedConstraintIds(sketch, before.constraints);
     var appendWhy = explainSketchConflict(sketch, { keep: appendedIds });
@@ -13015,12 +13601,12 @@ function activateDrawingSketch(sketch) {
 }
 
 function placedDimensionAt(sketch, px, py) {
-  var hit = sketch ? hitSketchDimensionHit(sketch, px, py, toPx, 10) : null;
+  var hit = sketch ? hitSketchDimensionHit(sketch, px, py, toPx, 10, modelLengthUnit()) : null;
   return hit ? hit.constraint : null;
 }
 
 function placedDimensionHit(sketch, px, py) {
-  return sketch ? hitSketchDimensionHit(sketch, px, py, toPx, 10) : null;
+  return sketch ? hitSketchDimensionHit(sketch, px, py, toPx, 10, modelLengthUnit()) : null;
 }
 
 function placeDimensionAtPointer(sketch, constraint, px, py) {
@@ -13048,10 +13634,10 @@ function clearDimensionRefusal() {
 function constraintKindCaption(constraint) {
   if (constraint.name) return constraint.name;
   if (constraint.value != null) {
-    var n = Number(Number(constraint.value).toFixed(3));
+    var n = constraint.type === "angle" ? Number(Number(constraint.value).toFixed(3)) : modelLengthText(Number(constraint.value),6);
     return constraint.type === "angle" ? n + "°"
-      : constraint.type === "radius" ? "R " + n + " cm"
-      : constraint.type === "diameter" ? "Ø " + n + " cm" : n + " cm";
+      : constraint.type === "radius" ? "R " + n + " " + modelLengthUnit()
+      : constraint.type === "diameter" ? "Ø " + n + " " + modelLengthUnit() : n + " " + modelLengthUnit();
   }
   if (constraint.type === "pointOnCircle") return t("cPointOnLine");
   if (constraint.type === "onModelEdge") return t("cCoincident");
@@ -13469,6 +14055,7 @@ function makeWallSegment(a, b, options) {
   // (Extrude/Revolve/etc.) consumes a closed profile.
   if (!a || !b || Math.hypot(b.u - a.u, b.v - a.v) < 1e-6) return null;
   var sketch = sketchForView();
+  var existingPointIds = new Set(sketch.points.map(function (p) { return p.id; }));
   var aid = newSketchPoint(sketch, a), bid = newSketchPoint(sketch, b);
   var line = {
     id: uid(), type: "line", name: "Line", a: aid, b: bid,
@@ -13482,15 +14069,20 @@ function makeWallSegment(a, b, options) {
     var r = e.type === "circle" ? Number(e.r) : Math.hypot((sketchPoint(sketch, e.a) || c).x - c.x, (sketchPoint(sketch, e.a) || c).y - c.y);
     return { id: e.id, r: r, center: { u: c.x, v: c.y } };
   }).filter(Boolean);
-  var tangent = inferTangentCircle({ a: a, b: b }, circles);
+  var tangent = inferTangentCircle({ a: a, b: b }, circles), inferred = [];
   inferLineRelations(line, a, { u: b.u, v: b.v }, snap, {
-    suppress: E._suppressInference, tangentCircleId: tangent && tangent.id,
+    // Closing an already determined chain needs no extra orientation relation.
+    suppress: E._suppressInference || (existingPointIds.has(aid) && existingPointIds.has(bid) && solveSketch(sketch).status === "fully-constrained"), tangentCircleId: tangent && tangent.id,
   }).forEach(function (constraint) {
     if (constraintAlreadyPresent(sketch, constraint)) return;
     constraint.id = uid();
     sketch.constraints.push(constraint);
+    inferred.push(constraint.id);
   });
-  if(E.dynamicMirror && E.dynamicMirror.sketchId===sketch.id && sketch.entities.some(function(e){return e.id===E.dynamicMirror.axisId;})) mirrorEntities(sketch,[line.id],E.dynamicMirror.axisId);
+  // only what the sketch does not already say (G27): a line drawn between two
+  // vertical centerlines is vertical already, and a second Vertical is a repeat
+  pruneImpliedRelations(sketch, inferred);
+  if(E.dynamicMirror && E.dynamicMirror.sketchId===sketch.id && sketch.entities.some(function(e){return e.id===E.dynamicMirror.axisId;})){var unmirrored=sketch.constraints.slice();mirrorEntities(sketch,[line.id],E.dynamicMirror.axisId);pruneImpliedRelations(sketch,addedConstraintIds(sketch,unmirrored));}
   resolveSketch(false);
   E.sel = line;
   return line;
@@ -13512,12 +14104,12 @@ function finishWallChain(cancel) {
    forty and the sketch should carry that as an editable dimension afterwards,
    while a shape you eyeballed stays free to be dragged. */
 var DYN_TOOLS = {
-  wall:  [{ k:"length", u:" cm" }, { k:"angle", u:"°", signed:true }],
-  srect: [{ k:"width",  u:" cm" }, { k:"height", u:" cm" }],
-  scirc: [{ k:"diameter", u:" cm" }],
-  sell:  [{ k:"major",  u:" cm" }, { k:"minor", u:" cm" }],
-  sslot: [{ k:"length", u:" cm" }, { k:"width", u:" cm" }],
-  spoly: [{ k:"diameter", u:" cm" }, { k:"sides", u:"", whole:true }],
+  wall:  [{ k:"length", unit:"length" }, { k:"angle", u:"°", signed:true }],
+  srect: [{ k:"width", unit:"length" }, { k:"height", unit:"length" }],
+  scirc: [{ k:"diameter", unit:"length" }],
+  sell:  [{ k:"major", unit:"length" }, { k:"minor", unit:"length" }],
+  sslot: [{ k:"length", unit:"length" }, { k:"width", unit:"length" }],
+  spoly: [{ k:"diameter", unit:"length" }, { k:"sides", u:"", whole:true }],
 };
 
 // A typed number only means something once the tool has an anchor on the sheet.
@@ -13568,7 +14160,9 @@ function pointToLineDistance(p, a, b) {
 function dynTyped(key) {
   var raw = E.dynInput && E.dynInput.values ? E.dynInput.values[key] : "";
   var value = parseFloat(raw);
-  return fin(value) ? value : null;
+  if (!fin(value)) return null;
+  var field = (DYN_TOOLS[E.tool] || []).find(function (item) { return item.k === key; });
+  return field && field.unit === "length" ? lengthFromDocument(value, modelLengthUnit()) : value;
 }
 // typed if given, measured otherwise
 function dynValue(key, live) { var typed = dynTyped(key); return typed == null ? live[key] : typed; }
@@ -13753,9 +14347,10 @@ function dynDrawHud(c, px, py) {
   var boxes = fields.map(function (f) {
     var typed = input ? input.values[f.k] : null;
     var hasTyped = typed !== "" && typed != null;
+    var measured = f.unit === "length" ? lengthToDocument(live[f.k] || 0, modelLengthUnit()) : (live[f.k] || 0);
     var shown = hasTyped ? typed
-      : (f.whole ? String(Math.round(live[f.k] || 0)) : String(Math.round((live[f.k] || 0) * 10) / 10));
-    var label = t("dyn_" + f.k) + " " + shown + f.u;
+      : (f.whole ? String(Math.round(measured)) : String(Math.round(measured * 1000) / 1000));
+    var label = t("dyn_" + f.k) + " " + shown + (f.unit === "length" ? " " + modelLengthUnit() : f.u);
     return { on: !!input && f.k === input.field, typed: hasTyped, text: label, w: c.measureText(label).width + 16 };
   });
   var total = boxes.reduce(function (s, b) { return s + b.w + 4; }, 0);
@@ -13916,6 +14511,14 @@ function wireSketch() {
     }
     var sp = snapPt(uv, null, E.tool === "wall" && E.wallPts && E.wallPts.length ? E.wallPts[E.wallPts.length - 1] : null), su = sp.u, sv = sp.v;
     E._suppressInference = e.ctrlKey || e.metaKey;
+    if (E.tool === "sketchpoint") {
+      var active = ensureSketch(E.def);
+      pushUndo("Sketch point");
+      var pointId = newSketchPoint(active, { u: su, v: sv });
+      active.entities.push({ id: uid(), type: "point", p: pointId, name: "Point" });
+      selectSketch(sketchPoint(active, pointId), false);
+      resolveSketch(false); refreshAll(); return;
+    }
     if (E.tool === "wall") {
       if (!E.wallPts || !E.wallPts.length) {
         E.wallPts = [{ u: su, v: sv, pointId: sp.pointId || null }];
@@ -14035,7 +14638,7 @@ function wireSketch() {
         return;
       }
       if (!E.arcPts) E.arcPts = [];
-      E.arcPts.push({ u: su, v: sv, pointId:sp.pointId });
+      E.arcPts.push({ u: su, v: sv, pointId:sp.pointId, k:sp.k });
       if (E.arcPts.length === 3) {
         pushUndo(t("opSketch"));
         var definition=E.arcThreePoint ? threePointArc(E.arcPts[0],E.arcPts[1],E.arcPts[2]) : null;
@@ -14873,6 +15476,10 @@ function onKey(e) {
     return;
   }
   var k = e.key.toLowerCase();
+  if(!e.shiftKey){
+    var custom=Object.entries(E.commandShortcuts || {}).find(function(entry){return entry[1]===k;});
+    if(custom && commandCatalog().some(function(command){return command.id===custom[0];})){e.preventDefault();runCommand(custom[0]);return;}
+  }
   if (e.key === "2") setMode("2d");
   else if (e.key === "3") setMode("3d");
   else if (e.key === "7") setMode("drawing");
@@ -14893,6 +15500,7 @@ function onKey(e) {
       // deleting a lone point only removes the rules that referenced it —
       // the point itself belongs to whichever entity still draws it
       selPoints().forEach(function (q) {
+        sketch.entities.filter(function (entity) { return entity.type === "point" && entity.p === q.id; }).forEach(function (entity) { removeSketchEntity(sketch, entity.id); });
         sketch.constraints = sketch.constraints.filter(function (c) {
           return c.point !== q.id && c.a !== q.id && c.b !== q.id;
         });
@@ -14947,15 +15555,27 @@ function applyFeatureFilter(host) {
 
 function insertAssemblyComponent(modelKey) {
   if (!E.assembly) E.assembly = newAssembly();
-  var def = loadLib().find(function (m) { return m.key === modelKey; });
-  if (!def) return;
-  pushUndo(t("addComponent"));
-  var i = E.assembly.components.length;
-  var component = {
-    id: uid(), modelKey: def.key, name: def.name || def.key,
-    def: cloneData(def), visible: true, grounded: i === 0,
-    transform: { x: i * 25, y: 0, z: 0, rx: 0, ry: 0, rz: 0 },
-  };
+  var i = E.assembly.components.length, component;
+  /* A saved assembly goes in as ONE component that carries its own document
+     (book p.387–402: LENSANDBULB into CAPANDLENS into FLASHLIGHT). Its mates are
+     settled once here; the parent then moves it as a rigid body. */
+  if (String(modelKey).indexOf("asm:") === 0) {
+    var record = loadAssemblies().find(function (a) { return a.key === modelKey.slice(4); });
+    if (!record) return;
+    if (containsAssembly(record, E.assembly.key)) { flash(t("subassemblyContainsThis")); return; }
+    pushUndo(t("addComponent"));
+    component = subassemblyComponent(record, { id: uid(), grounded: i === 0, transform: { x: i * 25, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } });
+    solveTopologyMates(component.asm);
+  } else {
+    var def = loadLib().find(function (m) { return m.key === modelKey; });
+    if (!def) return;
+    pushUndo(t("addComponent"));
+    component = {
+      id: uid(), modelKey: def.key, name: def.name || def.key,
+      def: cloneData(def), visible: true, grounded: i === 0,
+      transform: { x: i * 25, y: 0, z: 0, rx: 0, ry: 0, rz: 0 },
+    };
+  }
   E.assembly.components.push(component);
   invalidateInterference();
   E.componentSel = [component];
@@ -15014,6 +15634,31 @@ function topologyMateLabel(type) {
   return key ? t(key) : t("mate");
 }
 
+/* The three standard planes of a component or of the assembly, as tree rows a
+   mate can be built from. */
+function planeTreeRows(holderId, parentId) {
+  return standardPlaneEntries().map(function (entry) {
+    var selected = (E.topologySelection || []).some(function (reference) { return reference.componentId === holderId && reference.persistentId === entry.persistentId; });
+    return assemblyTreeNode({
+      id: parentId + "|plane|" + holderId + "|" + entry.persistentId, kind: "plane", targetId: holderId,
+      name: t(PLANE_NAME_KEYS[entry.persistentId]), icon: "ph-square", selected: selected, can: { select: true },
+    });
+  });
+}
+
+function subassemblyTreeRows(top, components, parentId) {
+  return components.map(function (child) {
+    var nested = isSubassembly(child) ? subassemblyTreeRows(top, child.asm.components, parentId + "/" + child.id) : [];
+    return assemblyTreeNode({
+      id: parentId + "/" + child.id, kind: "subcomponent", targetId: top.id,
+      name: child.name || child.modelKey || t("component"),
+      icon: isSubassembly(child) ? "ph-stack" : "components",
+      suppressed: child.visible === false, collapsed: assemblyCollapsed(parentId + "/" + child.id, true),
+      can: { select: true }, children: nested,
+    });
+  });
+}
+
 function assemblyTreeModel() {
   var components = (E.assembly && E.assembly.components) || [];
   var legacy = Array.isArray(E.assembly && E.assembly.mates) ? E.assembly.mates : [];
@@ -15031,7 +15676,7 @@ function assemblyTreeModel() {
   });
 
   var componentRows = components.map(function (component, index) {
-    var def = componentDef(component);
+    var def = componentDef(component), sub = isSubassembly(component);
     var solids = def ? activeParts(def).length : 0;
     var label = componentLabelOf(component);
     if (labelCounts.get(label) > 1) {
@@ -15048,22 +15693,27 @@ function assemblyTreeModel() {
         icon: "components", can: { select: true },
       });
     }) : [];
+    /* A sub-assembly lists what it contains; its components are part of one
+       rigid body here, so a row selects the sub-assembly itself. */
+    if (isSubassembly(component)) children = subassemblyTreeRows(component, component.asm.components, "sub:" + component.id);
+    children = planeTreeRows(component.id, "comp:" + component.id).concat(children);
     return assemblyTreeNode({
       id: "comp:" + component.id, kind: "component", targetId: component.id, index: index,
       name: label,
       detail: [component.grounded ? t("treeGrounded") : "",
+        sub ? tf("subassemblyParts", { n: component.asm.components.length }) : "",
         solids ? countLabel(solids, "treeComponentPartOne", "treeComponentParts") : "",
         /* What its mates have left free. Only for components a mate actually
            moves: an ungrounded component nothing is mated to is not "six
            degrees free", it is simply not being solved for. */
         freedomLabel(componentFreedom(component.id))]
         .filter(Boolean).join(" · "),
-      icon: component.grounded ? "stdscrew" : "components",
+      icon: sub ? "ph-stack" : component.grounded ? "stdscrew" : "components",
       // the eye on a component row hides it, the way it does on a body row
       suppressed: component.visible === false,
       selected: E.componentSel.indexOf(component) !== -1,
       collapsed: assemblyCollapsed("comp:" + component.id, true),
-      error: def ? null : t("mateIssueMissingComponent"),
+      error: def || sub ? null : t("mateIssueMissingComponent"),
       can: { select: true, rename: true, remove: true, suppress: true },
       children: children,
     });
@@ -15093,7 +15743,12 @@ function assemblyTreeModel() {
     });
   }));
 
+  // the assembly's own Front, Top and Right planes come first, as in SOLIDWORKS
   var sections = [assemblyTreeNode({
+    id: "section:planes", kind: "section", name: t("assemblyPlanes"), icon: "ph-square",
+    collapsed: assemblyCollapsed("section:planes", true),
+    children: planeTreeRows(ASSEMBLY_ORIGIN_ID, "section:planes"),
+  }), assemblyTreeNode({
     id: "section:components", kind: "section", name: t("treeComponents"),
     icon: "components", detail: String(components.length),
     collapsed: assemblyCollapsed("section:components", false),
@@ -15165,6 +15820,16 @@ function assemblyTreeHandlers(model) {
   var handlers;
   handlers = {
     onSelect: function (node, event) {
+      if (node.kind === "plane") {
+        var parts = String(node.id).split("|"), reference = planeMateReference(parts[2], parts[3]);
+        if (!reference) return;
+        var additive = event && (event.ctrlKey || event.metaKey || E.mobileAddSelection);
+        E.topologySelection = additive ? (E.topologySelection || []).concat(reference) : [reference];
+        var holder = assemblyComponentById(parts[2]);
+        if (holder) { E.componentSel = additive ? E.componentSel.filter(function (c) { return c !== holder; }).concat(holder) : [holder]; E.sel = holder; }
+        refreshAll();
+        return;
+      }
       if (node.kind === "mate") {
         // selecting a mate selects what it holds, which is what you want to see
         var pair = assemblyMatePair(node.id);
@@ -15281,10 +15946,24 @@ function refreshComponents() {
     o.value = m.key; o.textContent = m.name || m.key;
     select.appendChild(o);
   });
+  /* Saved assemblies insert as sub-assemblies — every one but this assembly
+     and any that already contain it, which would nest it inside itself. */
+  var currentKey = E.assembly && E.assembly.key;
+  var subassemblies = loadAssemblies().filter(function (a) { return a.key !== currentKey && !containsAssembly(a, currentKey); });
+  if (subassemblies.length) {
+    var group = document.createElement("optgroup");
+    group.label = t("subassembliesGroup");
+    subassemblies.forEach(function (a) {
+      var o = document.createElement("option");
+      o.value = "asm:" + a.key; o.textContent = a.name || a.key;
+      group.appendChild(o);
+    });
+    select.appendChild(group);
+  }
   var add = btn('<i class="ph ph-plus"></i> ' + t("addComponent"), function () {
     if (select.value) insertAssemblyComponent(select.value);
   }, "btn-accent");
-  add.disabled = !models.length;
+  add.disabled = !models.length && !subassemblies.length;
   insert.appendChild(select); insert.appendChild(add); host.appendChild(insert);
   /* An empty library used to leave Assembly as a dead end: an empty dropdown, a
      disabled Insert button, and no hint that the tutorial can seed components.
@@ -15576,7 +16255,7 @@ function openFeatureEditor(feature) {
   if(E.authoring.repairMarker)host.appendChild(el("div","md-note",t("repairLastLocation")));
   var name=featureField(host,{key:"$name",label:t("fldFeatureName"),type:"text"},feature.name),liveBadge=el("div","md-feature-live on",'<i class="ph ph-broadcast"></i> '+t("featureLiveAllViews"));host.appendChild(liveBadge);
   var pendingFrame=0,controls=renderFeatureParameterForm(host,feature.type,feature,function(next){
-    feature.params={...feature.params,...next.params};setFeatureReferencesFromForm(feature,next.references);feature.name=name.value || feature.name;
+    feature.params={...feature.params,...next.params};setFeatureReferencesFromForm(feature,next.references);retargetSweepHelix(feature);feature.name=name.value || feature.name;
     if(pendingFrame)cancelAnimationFrame(pendingFrame);pendingFrame=requestAnimationFrame(function(){pendingFrame=0;syncLiveFeatureEdit(feature);if(feature.type==="toolbox"&&name.value!==feature.name)name.value=feature.name;liveBadge.classList.add("pulse");setTimeout(function(){liveBadge.classList.remove("pulse");},180);});
   });
   name.addEventListener("input",function(){feature.name=name.value || feature.name;var entry=(E.def.history || []).find(function(item){return item.targetId===feature.id;});if(entry)entry.name=feature.name;refreshParts();fillInspector();});
@@ -15586,7 +16265,7 @@ function openFeatureEditor(feature) {
   actions.appendChild(btn('<i class="ph ph-check"></i> '+t("updateFeature"),function(){
     if (!validateFeatureInputs(host)) return;
     var values=readFeatureParameterForm(controls,feature.params);
-    try{updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});setFeatureReferencesFromForm(feature,values.references);syncProjectionFromFeature(feature);E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();refreshAll();flash("✓ "+t("featureRebuiltFromHistory"));}
+    try{updateFeatureDefinition(E.def,feature.id,{name:name.value || feature.name,params:values.params});setFeatureReferencesFromForm(feature,values.references);retargetSweepHelix(feature);syncProjectionFromFeature(feature);E.authoring.featureEdit=null;E.authoring.editFeatureId=null;E.authoring.featureType=null;E.authoring.workflowFocus="history";closeFeaturePanel();refreshAll();flash("✓ "+t("featureRebuiltFromHistory"));}
     catch(error){flash(String(error.message||error));}
   },"md-quick-apply"));host.appendChild(actions);syncAuthoringWorkflow();syncCommandManager();
   if (document.body.classList.contains("compact-nav")) revealModelerFeatureForm();
@@ -15792,14 +16471,16 @@ function selectTreeNode(node, model, event) {
     else {
       E.authoring.featureSelection = [node.targetId];
       E.sel = (E.def.parts || []).find(function (item) {
-        return item.featureId === node.targetId || item.derivedFeatureId === node.targetId;
+        return item.featureId === node.targetId || item.derivedFeatureId === node.targetId
+          || cutTargetFeatureId(item) === node.targetId;
       }) || null;
     }
     refreshAll(); return;
   }
   if (node.kind === "body") {
     E.sel = (E.def.parts || []).find(function (item) {
-      return item.featureId === node.targetId || item.id === node.targetId;
+      return item.featureId === node.targetId || item.id === node.targetId
+        || cutTargetFeatureId(item) === node.targetId;
     }) || null;
     refreshAll(); return;
   }
@@ -15841,10 +16522,17 @@ function editTreeNode(node, model) {
 function renameTreeNode(node, model, name) {
   pushUndo(t("treeRename"));
   if (node.kind === "feature" && model.mode === "canonical") {
+    var renamedFeature = (E.def.features || []).find(function (item) { return item.id === node.targetId; });
+    var previousName = renamedFeature && renamedFeature.name;
     try { updateFeatureDefinition(E.def, node.targetId, { name: name }); }
     catch (error) { H.discard(); flash(String(error.message || error)); return; }
     var entry = (E.def.history || []).find(function (item) { return item.targetId === node.targetId; });
     if (entry) entry.name = name;
+    // A standalone solid initially inherits its creating feature's name.
+    // Keep that default body label and the selected-body breadcrumb in sync,
+    // while preserving an intentionally custom body name.
+    (E.def.parts || []).filter(function (part) { return part.featureId === node.targetId && (!part.name || part.name === previousName); })
+      .forEach(function (part) { part.name = name; });
     (E.def.referenceGeometry || []).filter(function(r){return r.featureId===node.targetId;}).forEach(function(r){r.name=name;});
   } else if (node.kind === "feature") {
     var part = treeTargetPart(node);
@@ -16059,6 +16747,22 @@ function showTreeMenu(node, model, event, api) {
   } });
   if (node.can.rename) items.push({ label: t("treeRename") + " · F2", icon: "ph-textbox", run: function () { api.rename(); } });
   if (node.kind === "sketch") items.push({ label: t("sketchCopy") + " · Ctrl+C", icon: "ph-copy", run: function () { copySketchToClipboard(treeTargetSketch(node)); } });
+  if (node.kind === "sketch") {
+    var visibilitySketch = treeTargetSketch(node);
+    var consumed = consumedSketchIds(E.def).has(node.targetId);
+    var shown = visibilitySketch && visibilitySketch.show3d !== false && (!consumed || visibilitySketch.show3d === true);
+    items.push({
+      label: t(shown ? "sketchHide3d" : "sketchShow3d"),
+      icon: shown ? "ph-eye-slash" : "ph-eye",
+      run: function () {
+        var sketch = treeTargetSketch(node);
+        if (!sketch) return;
+        pushUndo(t(shown ? "sketchHide3d" : "sketchShow3d"));
+        sketch.show3d = !shown;
+        refreshAll();
+      },
+    });
+  }
   if (node.kind === "reference" && readClipboardSketch()) {
     var pasteTarget = (E.def.references || []).find(function (item) { return item.id === node.targetId && item.type === "plane"; });
     if (pasteTarget) items.push({ label: t("sketchPaste") + " · Ctrl+V", icon: "ph-clipboard-text", run: function () { pasteSketchOntoReference(pasteTarget); } });
@@ -16331,7 +17035,7 @@ function syncSizeReadout(sketchCount) {
   if (sketchCount == null) sketchCount = ensureSketchDoc(E.def).reduce(function (a, s2) { return a + s2.entities.length; }, 0);
   var b = defBounds(E.def);
   sizeEl.textContent = renderedParts(E.def).length
-    ? Math.round(b.x1 - b.x0) + "×" + Math.round(b.z1 - b.z0) + "×" + Math.round(b.y1 - b.y0) + " cm"
+    ? [b.x1 - b.x0, b.z1 - b.z0, b.y1 - b.y0].map(value=>modelLengthText(Math.round(value*1e6)/1e6,7)).join("×") + " " + modelLengthUnit()
     : sketchCount ? sketchCount + " sketch" : "";
 }
 
@@ -16666,6 +17370,15 @@ function numRow(host, label, get, set, step, tourKey) {
   w.appendChild(inp);
   host.appendChild(w);
 }
+function numLengthRow(host, label, get, set, step, tourKey) {
+  var unit=modelLengthUnit();
+  numRow(host, label+" ("+unit+")", function () {
+    var value=lengthToDocument(get(),unit);
+    return Math.abs(value)<1e-9 ? 0 : Number(value.toPrecision(12));
+  }, function (value) {
+    set(lengthFromDocument(value,unit));
+  }, lengthToDocument(step || 0.1,unit), tourKey);
+}
 
 /* The inspector was one long column: six dimension cells, four material rows, a
    texture picker and ten operation buttons, all competing for the same scroll.
@@ -16790,8 +17503,8 @@ function addTopologyMate(type, value) {
   /* The solver only ever moves B. Pick order is not a promise about which
      part is grounded — people click the moving hole, then the grounded one
      they want it on. Swap rather than refuse, or the button does nothing. */
-  var componentA = assemblyComponentById(a.componentId);
-  var componentB = assemblyComponentById(b.componentId);
+  var componentA = mateHolderById(a.componentId);
+  var componentB = mateHolderById(b.componentId);
   if (componentB && componentB.grounded && componentA && !componentA.grounded) {
     var swap = a; a = b; b = swap;
     componentB = componentA;
@@ -16801,6 +17514,8 @@ function addTopologyMate(type, value) {
   E.assembly.topologyMates ||= [];
   E.assembly.topologyMates.push({
     id:uid(), type:type, a:a, b:b,
+    // two reference planes mate Aligned, the SOLIDWORKS default for planes
+    aligned: !!(picked.a.referencePlane && picked.b.referencePlane) || undefined,
     value: type === "angle" ? clampMateAngle(value) : 0,
     pitch: type === "screw" ? 0.125 : undefined,
     turns: type === "screw" ? 0 : undefined,
@@ -16883,8 +17598,30 @@ function openMatePropertyManager() {
 }
 
 function componentLabel(id) {
+  if (id === ASSEMBLY_ORIGIN_ID) return (E.assembly && E.assembly.name) || t("assemblyPlanes");
   var component = assemblyComponentById(id);
   return component ? (component.name || component.modelKey || t("component")) : "—";
+}
+
+/* What a mate reference sits on: a component, or the assembly's own grounded
+   planes. The origin answers as grounded, so the mate command's swap puts it on
+   the side the solver reads and never on the side it moves. */
+function mateHolderById(id) {
+  if (id === ASSEMBLY_ORIGIN_ID) return { id: ASSEMBLY_ORIGIN_ID, grounded: true, virtual: true };
+  return assemblyComponentById(id);
+}
+
+var PLANE_NAME_KEYS = { "plane:front": "planeFrontName", "plane:top": "planeTopName", "plane:right": "planeRightName" };
+
+/* A Front, Top or Right plane as a mate reference — a component's own, or the
+   assembly's (book steps 148–166 pick them from the fly-out tree). */
+function planeMateReference(holderId, planeId) {
+  var entry = standardPlaneEntries().find(function (item) { return item.persistentId === planeId; });
+  if (!entry) return null;
+  var reference = topologyReference(holderId, "face", planeId, entry.descriptor);
+  reference.semantic = t(PLANE_NAME_KEYS[planeId]);
+  reference.referencePlane = true;
+  return reference;
 }
 
 /* One row per mate: what it is, which two components it holds, and — when the
@@ -17184,63 +17921,63 @@ function fillShape() {
   if(importRecognition && importRecognition!=="none" && E.def.parameters){host.appendChild(el("h5","md-h5","Recognized feature parameters"));Object.values(E.def.parameters).filter(function(parameter){return parameter && parameter.adjustable!==false && parameter.exposure!=="internal" && typeof parameter.value==="number";}).forEach(function(parameter){numRow(grid,parameter.label || parameter.name,function(){return parameter.value;},function(value){parameter.value=parameter.step===1?Math.round(value):value;regenerateExactModel(false);},parameter.step || .1);});}
   if (p.type === "line") {
     var linePts = sketchLinePoints(p), pa = linePts.a, pb = linePts.b;
-    numRow(grid, "X1", function () { return pa.x; }, function (v) { pa.x = v; resolveSketch(false); }, 0.1);
-    numRow(grid, "Y1", function () { return pa.y; }, function (v) { pa.y = v; resolveSketch(false); }, 0.1);
-    numRow(grid, "X2", function () { return pb.x; }, function (v) { pb.x = v; resolveSketch(false); }, 0.1);
-    numRow(grid, "Y2", function () { return pb.y; }, function (v) { pb.y = v; resolveSketch(false); }, 0.1);
-    numRow(grid, t("constraintLength"), function () { return Math.hypot(pb.x - pa.x, pb.y - pa.y); }, function (v) { setLineConstraint(p, "distance", Math.max(1e-6, v)); }, 0.1, "length");
+    numLengthRow(grid, "X1", function () { return pa.x; }, function (v) { pa.x = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, "Y1", function () { return pa.y; }, function (v) { pa.y = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, "X2", function () { return pb.x; }, function (v) { pb.x = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, "Y2", function () { return pb.y; }, function (v) { pb.y = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, t("constraintLength"), function () { return Math.hypot(pb.x - pa.x, pb.y - pa.y); }, function (v) { setLineConstraint(p, "distance", Math.max(1e-6, v)); }, 0.1, "length");
     numRow(grid, t("constraintAngle"), function () { return (Math.atan2(pb.y - pa.y, pb.x - pa.x) * 180) / Math.PI; }, function (v) { setLineConstraint(p, "angle", v); }, 0.1);
     numRow(grid, t("wallWidth"), function () { return p.weight || 1; }, function (v) { p.weight = clamp(v, 1, 6); }, 0.1);
   } else if (p.type === "circle" || p.type === "arc") {
     var oc = circleData(p, new Map((ensureSketch(E.def).points || []).map(function (q) { return [q.id, q]; })));
     if (oc) {
-      numRow(grid, "X", function () { return oc.center.x; }, function (v) { oc.center.x = v; resolveSketch(false); }, 0.1);
-      numRow(grid, "Y", function () { return oc.center.y; }, function (v) { oc.center.y = v; resolveSketch(false); }, 0.1);
+      numLengthRow(grid, "X", function () { return oc.center.x; }, function (v) { oc.center.x = v; resolveSketch(false); }, 0.1);
+      numLengthRow(grid, "Y", function () { return oc.center.y; }, function (v) { oc.center.y = v; resolveSketch(false); }, 0.1);
       // an arc's radius is carried by its rim points, so the driver is the
       // radius dimension rather than a stored scalar
-      if (p.type === "circle") numRow(grid, "R", function () { return p.r; }, function (v) { setEntityDimension(p,"radius",Math.max(1e-6,v)); }, 0.1);
-      else numRow(grid, "R", function () { return oc.radius; }, function (v) { setEntityDimension(p, "radius", Math.max(1e-6, v)); }, 0.1);
+      if (p.type === "circle") numLengthRow(grid, "R", function () { return p.r; }, function (v) { setEntityDimension(p,"radius",Math.max(1e-6,v)); }, 0.1);
+      else numLengthRow(grid, "R", function () { return oc.radius; }, function (v) { setEntityDimension(p, "radius", Math.max(1e-6, v)); }, 0.1);
     }
   } else if (p.type === "ellipse") {
     var oe = ellipseData(p, new Map((ensureSketch(E.def).points || []).map(function (q) { return [q.id, q]; })));
     if (oe) {
-      numRow(grid, "X", function () { return oe.center.x; }, function (v) { oe.center.x = v; resolveSketch(false); }, 0.1);
-      numRow(grid, "Y", function () { return oe.center.y; }, function (v) { oe.center.y = v; resolveSketch(false); }, 0.1);
+      numLengthRow(grid, "X", function () { return oe.center.x; }, function (v) { oe.center.x = v; resolveSketch(false); }, 0.1);
+      numLengthRow(grid, "Y", function () { return oe.center.y; }, function (v) { oe.center.y = v; resolveSketch(false); }, 0.1);
       // the three scalars the solver drives, edited directly
-      numRow(grid, t("dyn_major"), function () { return p.rx; }, function (v) { p.rx = Math.max(1e-6, v); resolveSketch(false); }, 0.1);
-      numRow(grid, t("dyn_minor"), function () { return p.ry; }, function (v) { p.ry = Math.max(1e-6, v); resolveSketch(false); }, 0.1);
+      numLengthRow(grid, t("dyn_major"), function () { return p.rx; }, function (v) { p.rx = Math.max(1e-6, v); resolveSketch(false); }, 0.1);
+      numLengthRow(grid, t("dyn_minor"), function () { return p.ry; }, function (v) { p.ry = Math.max(1e-6, v); resolveSketch(false); }, 0.1);
       numRow(grid, t("constraintAngle"), function () { return ((Number(p.rot) || 0) * 180) / Math.PI; },
         function (v) { p.rot = (v * Math.PI) / 180; resolveSketch(false); }, 0.5);
     }
   } else if (p.type === undefined && "x" in p && "y" in p && p.id) {
-    numRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; resolveSketch(false); }, 0.1);
-    numRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; resolveSketch(false); }, 0.1);
+    numLengthRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; resolveSketch(false); }, 0.1);
   } else if (p.kind === "box") {
-    numRow(grid, "X", function () { return (p.x0 + p.x1) / 2; }, function (v) { var w = p.x1 - p.x0; p.x0 = v - w / 2; p.x1 = v + w / 2; });
-    numRow(grid, "Y", function () { return p.y0; }, function (v) { var h = p.y1 - p.y0; p.y0 = v; p.y1 = v + h; });
-    numRow(grid, "Z", function () { return (p.z0 + p.z1) / 2; }, function (v) { var d = p.z1 - p.z0; p.z0 = v - d / 2; p.z1 = v + d / 2; });
-    numRow(grid, "W", function () { return p.x1 - p.x0; }, function (v) { var c = (p.x0 + p.x1) / 2; p.x0 = c - v / 2; p.x1 = c + v / 2; });
-    numRow(grid, "H", function () { return p.y1 - p.y0; }, function (v) { p.y1 = p.y0 + v; });
-    numRow(grid, "D", function () { return p.z1 - p.z0; }, function (v) { var c = (p.z0 + p.z1) / 2; p.z0 = c - v / 2; p.z1 = c + v / 2; });
+    numLengthRow(grid, "X", function () { return (p.x0 + p.x1) / 2; }, function (v) { var w = p.x1 - p.x0; p.x0 = v - w / 2; p.x1 = v + w / 2; });
+    numLengthRow(grid, "Y", function () { return p.y0; }, function (v) { var h = p.y1 - p.y0; p.y0 = v; p.y1 = v + h; });
+    numLengthRow(grid, "Z", function () { return (p.z0 + p.z1) / 2; }, function (v) { var d = p.z1 - p.z0; p.z0 = v - d / 2; p.z1 = v + d / 2; });
+    numLengthRow(grid, "W", function () { return p.x1 - p.x0; }, function (v) { var c = (p.x0 + p.x1) / 2; p.x0 = c - v / 2; p.x1 = c + v / 2; });
+    numLengthRow(grid, "H", function () { return p.y1 - p.y0; }, function (v) { p.y1 = p.y0 + v; });
+    numLengthRow(grid, "D", function () { return p.z1 - p.z0; }, function (v) { var c = (p.z0 + p.z1) / 2; p.z0 = c - v / 2; p.z1 = c + v / 2; });
   } else if (p.kind === "cyl") {
-    numRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; });
-    numRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; });
-    numRow(grid, "Z", function () { return p.z; }, function (v) { p.z = v; });
-    numRow(grid, "R", function () { return p.r; }, function (v) { p.r = Math.max(0.5, v); });
-    numRow(grid, "R2", function () { return p.r2 != null ? p.r2 : p.r; }, function (v) { p.r2 = Math.max(0, v); });
-    numRow(grid, "H", function () { return p.h; }, function (v) { p.h = Math.max(0.5, v); });
+    numLengthRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; });
+    numLengthRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; });
+    numLengthRow(grid, "Z", function () { return p.z; }, function (v) { p.z = v; });
+    numLengthRow(grid, "R", function () { return p.r; }, function (v) { p.r = Math.max(0.5, v); });
+    numLengthRow(grid, "R2", function () { return p.r2 != null ? p.r2 : p.r; }, function (v) { p.r2 = Math.max(0, v); });
+    numLengthRow(grid, "H", function () { return p.h; }, function (v) { p.h = Math.max(0.5, v); });
   } else if (p.kind === "sph") {
-    numRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; });
-    numRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; });
-    numRow(grid, "Z", function () { return p.z; }, function (v) { p.z = v; });
-    numRow(grid, "R", function () { return p.r; }, function (v) { p.r = Math.max(0.5, v); });
+    numLengthRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; });
+    numLengthRow(grid, "Y", function () { return p.y; }, function (v) { p.y = v; });
+    numLengthRow(grid, "Z", function () { return p.z; }, function (v) { p.z = v; });
+    numLengthRow(grid, "R", function () { return p.r; }, function (v) { p.r = Math.max(0.5, v); });
   } else if (p.kind === "rev") {
-    numRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; });
-    numRow(grid, "Z", function () { return p.z; }, function (v) { p.z = v; });
+    numLengthRow(grid, "X", function () { return p.x; }, function (v) { p.x = v; });
+    numLengthRow(grid, "Z", function () { return p.z; }, function (v) { p.z = v; });
     numRow(grid, "Seg", function () { return p.seg || 32; }, function (v) { p.seg = clamp(Math.round(v), 6, 96); });
   } else {
-    numRow(grid, t("base"), function () { return Math.min(p.from, p.to); }, function (v) { var d = Math.abs(p.to - p.from); p.from = v; p.to = v + d; });
-    numRow(grid, t("depth"), function () { return Math.abs(p.to - p.from); }, function (v) { p.to = p.from + Math.max(0.5, v); });
+    numLengthRow(grid, t("base"), function () { return Math.min(p.from, p.to); }, function (v) { var d = Math.abs(p.to - p.from); p.from = v; p.to = v + d; });
+    numLengthRow(grid, t("depth"), function () { return Math.abs(p.to - p.from); }, function (v) { p.to = p.from + Math.max(0.5, v); });
   }
   host.appendChild(grid);
   if (isSketchObject(p)) {
@@ -17280,7 +18017,7 @@ function appendSketchGeometryList(host, sketch) {
     });
     details.appendChild(button);
   }
-  var coord=function(point){return "("+Number(point.x.toFixed(6))+", "+Number(point.y.toFixed(6))+") cm";};
+  var coord=function(point){return "("+modelLengthText(point.x,9)+", "+modelLengthText(point.y,9)+") "+modelLengthUnit();};
   sketch.entities.forEach(function(entity,index){
     pick(entity,(entity.name||entity.type)+" "+(index+1)+(entity.construction?" · "+t("tool_constr"):""));
     entityPoints(sketch,entity).forEach(function(point,pointIndex){
@@ -17372,6 +18109,27 @@ function fillSketchPane() {
     }, "md-profile-heal"));
   }
   host.appendChild(profileCard);
+  if (sketch.points.length) host.appendChild(btn("Translate sketch geometry", function () {
+    openQuickForm({action:"translatesketch",title:"Translate sketch geometry",hint:"Move every sketch point and its fixed anchors together. Dimensions and shape stay the same.",fields:[
+      {key:"dx",label:"Horizontal shift",type:"number",value:0,unit:"length"},
+      {key:"dy",label:"Vertical shift",type:"number",value:0,unit:"length"}
+    ],onApply:function(values){
+      var dx=Number(values.dx),dy=Number(values.dy);
+      if(!Number.isFinite(dx)||!Number.isFinite(dy)||(!dx&&!dy))return false;
+      if(sketch.constraints.some(function(c){return !c.suppressed&&["onModelEdge","pierce","intersection"].includes(c.type);})){
+        flash("Detach external sketch relations before translating the sketch.");return false;
+      }
+      pushUndo("Translate sketch geometry");
+      var previousPoints=cloneData(sketch.points),previousConstraints=cloneData(sketch.constraints);
+      translateSketchGeometry(sketch,dx,dy);
+      if(!resolveSketch(true)){
+        sketch.points=previousPoints;sketch.constraints=previousConstraints;
+        E.ssel=[];resolveSketch(false);H.discard();
+        flash("Sketch translation conflicts with its constraints.");refreshAll();return false;
+      }
+      E.ssel=[];refreshAll();return true;
+    }});
+  },"md-wide"));
   appendSketchGeometryList(host, sketch);
   if (E.ssel.length) {
     var selectionCard = el("div", "md-selection-info");
@@ -17449,10 +18207,19 @@ function fillSketchPane() {
   var planeRow = el("label", "md-row md-row-wide");
   planeRow.appendChild(el("span", "t", t("sketchPlane")));
   var planeSel = el("select");
+  var attachedPlane = sketch.referenceId && !/^plane:(top|front|right)$/.test(sketch.referenceId)
+    ? (E.def.references || []).find(function (reference) { return reference.id === sketch.referenceId; })
+    : null;
+  if (attachedPlane) {
+    var attachedOption = el("option", "", referenceLabel(attachedPlane));
+    attachedOption.value = attachedPlane.id;
+    attachedOption.selected = true;
+    planeSel.appendChild(attachedOption);
+  }
   [["top", t("view_top")], ["front", t("view_front")], ["side", t("view_side")]].forEach(function (o) {
     var opt = el("option", "", o[1]);
     opt.value = o[0];
-    if (sketch.plane === o[0]) opt.selected = true;
+    if (!attachedPlane && sketch.plane === o[0]) opt.selected = true;
     planeSel.appendChild(opt);
   });
   planeSel.addEventListener("change", function () {
@@ -17481,9 +18248,17 @@ function fillSketchPane() {
     supportCard.appendChild(btn("Detach to principal plane",function(){
       pushUndo(t("sketchPlane"));
       sketch.referenceId=sketch.plane==="side" ? "plane:right" : "plane:"+sketch.plane;
-      delete sketch.support; delete sketch.frame; delete sketch.frameSpace; delete sketch.supportOffset;
+      delete sketch.support; delete sketch.frame; delete sketch.frameSpace; delete sketch.frameAnchor; delete sketch.supportOffset;
       refreshAll();
     },"md-wide"));
+    if(sketch.frameSpace==="local" && sketch.frameAnchor!=="bounds-center" && sketch.support.descriptor?.bounds){
+      supportCard.appendChild(btn("Anchor sketch origin to face bounds",function(){
+        pushUndo("Anchor face sketch origin");
+        sketch.frameAnchor="bounds-center";
+        sketch.frame=realignFrame(sketch.frame,faceFrameOrigin(sketch.support.descriptor,"bounds-center"),sketch.support.descriptor.normal);
+        refreshAll();flash("✓ Sketch origin anchored to face bounds");
+      },"md-wide"));
+    }
     host.appendChild(supportCard);
   }
 
@@ -17513,13 +18288,13 @@ function fillSketchPane() {
     if(consumerIndex>=0 && ownerIndex>=consumerIndex){flash("Select a face from before this sketch in the history");return;}
     pushUndo("Attach sketch to face");
     sketch.support=attachment.support;sketch.referenceId=attachment.support.persistentId;
-    sketch.plane=attachment.plane;sketch.frame=attachment.frame;sketch.frameSpace="local";sketch.supportOffset=0;
+    sketch.plane=attachment.plane;sketch.frame=attachment.frame;sketch.frameSpace="local";sketch.frameAnchor=attachment.frameAnchor;sketch.supportOffset=0;
     refreshAll();flash("✓ Sketch attached to selected face");
   },"md-wide");
   host.appendChild(attachFace);
 
   var grid = el("div", "md-prop-grid");
-  numRow(grid, t("sketchOffset"), function () { return sketch.frameSpace==="local" ? Number(sketch.supportOffset)||0 : Number(sketch.offset)||0; }, function (v) {
+  numLengthRow(grid, t("sketchOffset"), function () { return sketch.frameSpace==="local" ? Number(sketch.supportOffset)||0 : Number(sketch.offset)||0; }, function (v) {
     if (sketch.frameSpace==="local") sketch.supportOffset=v;
     else sketch.offset = v;
   }, 0.5);
@@ -17581,14 +18356,15 @@ function fillSketchPane() {
       var inp = el("input", "md-dim-value");
       inp.type = "text";
       inp.disabled = !!con.driven;
-      inp.value = con.expr != null && String(con.expr).trim() ? String(con.expr) : String(con.value);
+      inp.value = con.expr != null && String(con.expr).trim() ? String(con.expr)
+        : con.type === 'angle' ? String(con.value) : modelLengthText(Number(con.value),12);
       inp.title = t("eqHelp");
       inp.addEventListener("change", function () {
         var text = inp.value.trim();
         var numeric = parseFloat(text);
         var isPlainNumber = String(numeric) === text && fin(numeric);
         var value;
-        if (isPlainNumber) value = numeric;
+        if (isPlainNumber) value = con.type === 'angle' ? numeric : lengthFromDocument(numeric,modelLengthUnit());
         else {
           // an expression has to make sense before it is allowed into the model
           try {
@@ -17596,7 +18372,7 @@ function fillSketchPane() {
               var entry = collectSymbols(E.def).get(ref);
               return entry ? Number(entry.node.value) : undefined;
             });
-          } catch (error) { flash(String(error.message || error)); inp.value = con.expr || con.value; return; }
+          } catch (error) { flash(String(error.message || error)); inp.value = con.expr || (con.type==='angle' ? String(con.value) : modelLengthText(Number(con.value),12)); return; }
         }
         pushUndo(t("opDim"));
         var oldValue = con.value, oldExpr = con.expr;
@@ -17652,7 +18428,9 @@ function fillSketchPane() {
     row.appendChild(del);
     if (con.value != null) {
       row.appendChild(el("span", "md-var-val",
-        con.exprError ? "—" : (Math.round(con.value * 10) / 10) + (con.type === "angle" ? "°" : "")));
+        con.exprError ? "—" : con.type === "angle"
+          ? String(Number(Number(con.value).toPrecision(8))) + "°"
+          : modelLengthText(Number(con.value),10) + " " + modelLengthUnit()));
     }
     list.appendChild(row);
   });
@@ -17824,6 +18602,11 @@ function fillLook() {
     host.appendChild(el("div", "md-note", "Sketch entities carry rules and metadata only. They do not create a solid until consumed by a feature."));
     return;
   }
+  // A selected sketch vertex has no `type`, and viewport appearance overlays
+  // may return a copy of a body. Only the document's actual solid may receive
+  // density and material edits; resolve copies by their stable body ID.
+  p=(E.def.parts || []).find(function(part){return part.id===p.id;}) || null;
+  if(!p){emptyState(host,"ph-paint-brush",t("noSel"),t("noSelHint"));return;}
 
   host.appendChild(el("h5", "md-h5", t("material")));
 
@@ -17883,7 +18666,10 @@ function fillLook() {
   });
   faceRow.appendChild(faceColor); host.appendChild(faceRow);
   if (!selectedFace) host.appendChild(el("div", "md-note", t("selectFaceForColor")));
-  var stock=el("div","md-ops");
+  host.appendChild(el("div", "md-note", selectedFace
+    ? (getLang() === "he" ? "מראה לפנים שנבחרו · צפיפות הגוף לא משתנה" : "Selected face appearance · body density stays unchanged")
+    : (getLang() === "he" ? "חומר הגוף · קובע את המראה והצפיפות" : "Body material · sets appearance and density")));
+  var stock=el("div","md-ops md-material-options");
   Object.keys(STOCK_MATERIALS).forEach(function(key){
     var mat=STOCK_MATERIALS[key];
     stock.appendChild(btn(mat.name, function(){
@@ -17893,11 +18679,11 @@ function fillLook() {
       if(face){
         E.def.appearances=upsertAppearanceOverride(E.def.appearances, createAppearanceOverride({persistentId:face.persistentId,kind:"face",material:key,color:mat.color,metal:mat.metal,rough:mat.rough,name:mat.name}));
       } else {
-        p.color=mat.color; p.metal=mat.metal; p.rough=mat.rough; p.materialName=mat.name; p.density=mat.density;
+        p.color=mat.color; p.metal=mat.metal; p.rough=mat.rough; p.materialName=mat.name; p.density=mat.density; p.densitySource=mat.densitySource||"";
         if(p.materialCatalogId!=="stock:"+key){delete p.materialQualificationId;delete p.gearVerificationReport;delete E.def.lastStandardsAudit;}p.materialCatalogId="stock:"+key;
         E.def.appearances=upsertAppearanceOverride(E.def.appearances, createAppearanceOverride({persistentId:p.id,kind:"body",material:key,color:mat.color,metal:mat.metal,rough:mat.rough,name:mat.name}));
       }
-      updatePreview(); refreshParts();
+      updatePreview(); refreshParts(); fillLook();
     }));
   });
   host.appendChild(stock);
@@ -17905,7 +18691,9 @@ function fillLook() {
   var assigned=stockMaterialForPart(p);
   densityNote.textContent=t("massDensity")+": "+partMaterialDensity(p).toFixed(2)+" g/cm³"+(assigned?" · "+assigned.name:"");
   host.appendChild(densityNote);
-  var materialTools=materialValidationTools(),engineering=el("div","md-ops");
+  if(p.densitySource||assigned?.densitySource)host.appendChild(el("div","md-note",p.densitySource||assigned.densitySource));
+  if(assigned?.densitySourceUrl){const sourceLink=el("a","md-note",getLang()==="he"?"מקור צפיפות":"Density source");sourceLink.href=assigned.densitySourceUrl;sourceLink.target="_blank";sourceLink.rel="noopener noreferrer";host.appendChild(sourceLink);}
+  var materialTools=materialValidationTools(),engineering=el("div","md-ops md-material-options");
   const engineeringButton=(key,action)=>{const button=btn(materialTools.label(key),action);button.dataset.engineeringAction=key;engineering.appendChild(button);};
   engineeringButton("title",()=>materialTools.profile(p));
   if((p.standardCompliance||p.standardPart)?.family==="involute-gear"){
@@ -18304,15 +19092,50 @@ function assemblyComponentById(id) {
   return (E.assembly && E.assembly.components || []).find(function (candidate) { return candidate.id === id; }) || null;
 }
 
+/* `component` is the top-level component a hit belongs to — what a mate
+   names. Inside a sub-assembly the hit is scored against the part that was
+   actually struck (`leaf`), in that part's own space (`group`), and `path`
+   is the chain of child ids that leads to it. */
 function pickOwnerChain(object, grp) {
-  var partId = null, component = null, group = null;
+  var partId = null, component = null, group = null, leafGroup = null, path = [];
   while (object && object !== grp) {
     var data = object.userData || {};
     if (!partId && data.cadPart) partId = data.cadPart;
+    if (data.cadSubComponent) { path.unshift(data.cadSubComponent); if (!leafGroup) leafGroup = object; }
     if (!component && data.cadComponent) { component = assemblyComponentById(data.cadComponent); group = object; }
     object = object.parent;
   }
-  return { partId: partId, component: component, group: group };
+  var leaf = component;
+  path.forEach(function (id) {
+    leaf = leaf && isSubassembly(leaf) ? leaf.asm.components.find(function (child) { return child.id === id; }) || null : null;
+  });
+  return { partId: partId, component: component, group: leafGroup || group, leaf: leaf || component, path: path };
+}
+
+/* A reference picked on a part inside a sub-assembly, restated on the
+   sub-assembly itself: its id prefixed with the path, its frames carried out
+   through each child's pose. That is exactly the form the sub-assembly's
+   composed topology (core/assembly_structure.js) resolves. */
+function liftToTopComponent(reference, component, path) {
+  if (!reference || !component || !path || !path.length) return reference;
+  var chain = [], node = component;
+  for (var i = 0; i < path.length; i++) {
+    node = node && isSubassembly(node) ? node.asm.components.find(function (child) { return child.id === path[i]; }) : null;
+    if (!node) return reference;
+    chain.push(node);
+  }
+  var lift = function (frame) {
+    if (!frame) return frame;
+    for (var k = chain.length - 1; k >= 0; k--) frame = descriptorToParent(frame, chain[k]);
+    return frame;
+  };
+  var prefix = path.join("/") + "/";
+  var out = Object.assign({}, reference, {
+    componentId: component.id, persistentId: prefix + reference.persistentId,
+    descriptor: lift(reference.descriptor), frame: lift(reference.frame), pickFrame: lift(reference.pickFrame),
+  });
+  if (reference.memberPersistentIds) out.memberPersistentIds = reference.memberPersistentIds.map(function (id) { return prefix + id; });
+  return out;
 }
 
 function pickPartsFor(component) {
@@ -18347,13 +19170,13 @@ function rawTopologyPickCandidate(hit, view) {
   if (!hit || !hit.object) return null;
   var chain = pickOwnerChain(hit.object, view.grp);
   var part = chain.partId
-    ? pickPartsFor(chain.component).find(function (candidate) { return candidate.id === chain.partId; }) || null
+    ? pickPartsFor(chain.leaf).find(function (candidate) { return candidate.id === chain.partId; }) || null
     : null;
   var entries = part ? topologyEntriesForPart(part) : [];
   var edge = hit.object.userData && hit.object.userData.cadTopology;
   if (edge) {
     var promoted = promotePickedEdge(edge, entries.length ? entries : [edge]);
-    return { part: part, reference: topologyReferenceFromEntry(promoted) };
+    return { part: part, reference: liftToTopComponent(topologyReferenceFromEntry(promoted), chain.component, chain.path) };
   }
   if (!(hit.face && hit.face.normal) || !part) return null;
   var ranges = hit.object.userData && hit.object.userData.cadFaceRanges;
@@ -18364,7 +19187,7 @@ function rawTopologyPickCandidate(hit, view) {
     }) : null;
   var face = range && resolveMergedTopology(entries, range.persistentId);
   if (!face || face.kind !== "face") return null;
-  return { part: part, reference: topologyReferenceFromEntry(face) };
+  return { part: part, reference: liftToTopComponent(topologyReferenceFromEntry(face), chain.component, chain.path) };
 }
 
 
@@ -18453,9 +19276,9 @@ function resolveTopologyPick(event, view, options) {
       var partObject = chosenHit.object;
       var owner = partObject;
       var chosenChain = pickOwnerChain(partObject, view.grp);
-      var pickComponent = chosenChain.component;
+      var pickComponent = chosenChain.component, pickLeaf = chosenChain.leaf, pickPath = chosenChain.path;
       if (chosenChain.partId) {
-        part = pickPartsFor(pickComponent).find(function (candidate) { return candidate.id === chosenChain.partId; }) || part;
+        part = pickPartsFor(pickLeaf).find(function (candidate) { return candidate.id === chosenChain.partId; }) || part;
       }
       var entries = part ? topologyEntriesForPart(part) : [];
       var edgeTopology = null;
@@ -18500,8 +19323,8 @@ function resolveTopologyPick(event, view, options) {
           if (!featureId && owner.userData && owner.userData.cadFeatureId) featureId = owner.userData.cadFeatureId;
           owner = owner.parent;
         }
-        if (!pickComponent) pickComponent = meshChain.component;
-        if (!part && meshChain.partId) part = pickPartsFor(pickComponent).find(function (candidate) { return candidate.id === meshChain.partId; }) || null;
+        if (!pickComponent) { pickComponent = meshChain.component; pickLeaf = meshChain.leaf; pickPath = meshChain.path; }
+        if (!part && meshChain.partId) part = pickPartsFor(pickLeaf).find(function (candidate) { return candidate.id === meshChain.partId; }) || null;
         if (part) entries = topologyEntriesForPart(part);
         if (partObject.userData && partObject.userData.cadTopology) {
           edgeTopology = promotePickedEdge(partObject.userData.cadTopology, entries.length ? entries : [partObject.userData.cadTopology]);
@@ -18650,7 +19473,7 @@ function resolveTopologyPick(event, view, options) {
       }
       while (partObject && partObject !== view.grp) {
         if (partObject.userData && partObject.userData.cadPart) {
-          part = pickPartsFor(pickComponent).find(function (candidate) { return candidate.id === partObject.userData.cadPart; }) || null;
+          part = pickPartsFor(pickLeaf).find(function (candidate) { return candidate.id === partObject.userData.cadPart; }) || null;
           break;
         }
         partObject = partObject.parent;
@@ -18663,6 +19486,13 @@ function resolveTopologyPick(event, view, options) {
        rules the rest of the editor is built on do not shift underfoot. */
     if (prefer === "vertex") {
       topologyReferencePicked = nearestVertexReference(part, event, view, pickPixels) || null;
+    }
+    /* Everything above was measured in the struck part's own space. A part
+       inside a sub-assembly is restated on the sub-assembly here, once. */
+    if (pickPath && pickPath.length) {
+      topologyReferencePicked = liftToTopComponent(topologyReferencePicked, pickComponent, pickPath);
+      var liftedPick = pickPoint && pickNormalOut ? liftToTopComponent({ persistentId: "", descriptor: { origin: pickPoint, normal: pickNormalOut } }, pickComponent, pickPath).descriptor : null;
+      if (liftedPick) { pickPoint = liftedPick.origin; pickNormalOut = liftedPick.normal; }
     }
     return {
       hits: hits, part: part, component: pickComponent || null, reference: topologyReferencePicked,
@@ -19772,7 +20602,7 @@ function assemblyPickedRefs() {
     if (refs[i].componentId !== b.componentId) { a = refs[i]; break; }
   }
   if (!a) return null;
-  if (!assemblyComponentById(a.componentId) || !assemblyComponentById(b.componentId)) return null;
+  if (!mateHolderById(a.componentId) || !mateHolderById(b.componentId)) return null;
   return { a: a, b: b };
 }
 
@@ -20162,7 +20992,7 @@ function syncFeatureFormValue(key, value) {
 }
 
 function beginInstant3dDrag(event, view) {
-  if (E.docType === "assembly" && event.altKey) return beginSmartMateDrag(event, view);
+  if (E.docType === "assembly" && (event.altKey || E.smartMateMode)) return beginSmartMateDrag(event, view);
   /* Ctrl/Cmd-drag is a window select. Plain primary-drag is this editor's
      orbit — the documented CAD navigation — so taking it for a marquee the way
      SolidWorks does would cost the gesture people use most. Ctrl/Cmd has no
@@ -20627,16 +21457,21 @@ function initPreview() {
     longPress: showSelectThrough,
     doubleClick: function () { growSelectionFromDoubleClick(); },
     afterRender: function (view) {
+      syncViewButtons();
       syncInstant3dValue(view);
       syncNotesAndMarkups(view);
       refreshDecorationScale();
+      /* The sketch is a 2D canvas projected through this camera. Repaint after
+         every orbit/zoom render or the solid moves while its drawing stays in
+         the old screen position. Both layers remain visible and aligned. */
+      if (E.mode === "3d" && E.modelPlaneActive && E.cv) drawSketch();
     },
     lighting: editorLightingSettings,
     gesturePreview: previewMouseGesture,
     gesture: function (event, view, dx, dy) { applyMouseGesture(dx, dy); },
   });
   // second copy of the parts, placed into the real scene for context rendering
-  if (E.pv) E.pv.roomGrp = new THREE.Group();
+  if (E.pv) { E.pv.roomGrp = new THREE.ClippingGroup(); E.pv.roomGrp.enabled = false; }
   // same debugging handle the preview rebuild already exposes
   if (typeof window !== "undefined") window.cadPreviewView = E.pv;
   /* Pre-highlight whatever the cursor is over. Throttled to one resolve per
@@ -20743,6 +21578,7 @@ function editorLightingSettings(view) {
 function setMode(m) {
   if (E.dimEditor && !applyDimensionEditor()) return;
   m = m === "3d" ? "3d" : m === "drawing" ? "drawing" : "2d";
+  var previousMode = E.mode;
   E.mode = m;
   E.modelPlaneActive = false;
   E.touchPrecision = null;
@@ -20798,6 +21634,11 @@ function setMode(m) {
   syncCoach();
   syncSheetPanel();
   drawSketch();
+  /* A sketch opened over the 3D model inherits the model camera. Switching to
+     the dedicated 2D editor must frame its plane rather than keep that camera's
+     room-scale projection, which makes millimetre work nearly impossible. */
+  if (m === "2d" && previousMode === "3d" && E.authoring?.phase === "sketch")
+    requestAnimationFrame(fitSketch);
 }
 
 function setModelDisplay(style, refresh) {
@@ -20852,16 +21693,12 @@ function sectionPlane() {
 function applySectionClipping(group) {
   if (!group || !E.pv) return;
   var enabled = !!(E.section && E.section.enabled), plane = enabled ? sectionPlane() : null;
-  E.pv.rr.localClippingEnabled = enabled;
-  group.traverse(function (object) {
-    if (!object.isMesh || !object.material) return;
-    var materials = Array.isArray(object.material) ? object.material : [object.material];
-    materials.forEach(function (material) {
-      material.clippingPlanes = plane ? [plane] : null;
-      material.clipShadows = enabled;
-      material.needsUpdate = true;
-    });
-  });
+  // Live previews are ordinary child groups and inherit these planes. Keeping
+  // clipping on the root also covers edges and meshes added asynchronously.
+  if (!group.isClippingGroup) return;
+  group.enabled = enabled;
+  group.clippingPlanes = plane ? [plane] : [];
+  group.clipShadows = enabled;
 }
 
 function syncSectionHelper() {
@@ -20993,6 +21830,12 @@ function fitPreview() {
   var dx = b.x1 - b.x0, dy = b.y1 - b.y0, dz = b.z1 - b.z0,
     r = Math.max(1, Math.hypot(dx, dy, dz));
   E.pv.frame(r * 1.5);
+  // Plane-aligned sketch cameras use the frame origin plus the pan target.
+  // Fitting the size alone leaves off-origin geometry behind the view controls.
+  if (E.pv.fixedFrame) {
+    var origin = E.pv.fixedFrame.origin;
+    E.pv.target.set((b.x0+b.x1)/2-origin.x,(b.y0+b.y1)/2-origin.y,(b.z0+b.z1)/2-origin.z);
+  }
   E.pv.render();
 }
 
@@ -21001,30 +21844,8 @@ function buildAssembly(parent) {
   applyAssemblyMates(E.assembly);
   E.assembly.components.forEach(function (component) {
     if (component.visible === false) return;
-    var def = componentDef(component);
-    if (!def || !Array.isArray(def.parts)) return;
-    var group = new THREE.Group(), tr = normalizeTransform(component);
-    group.name = component.name || component.modelKey;
-    group.userData.cadComponent = component.id;
-    /* Face highlights and pick edges are built per part and have no other way
-       to know which instance they belong to. Two components off the same
-       library model share every persistent id, so without this the selected
-       face lights up on both. */
-    E.buildComponent = component;
-    /* Cleared even if a part throws. Leaving it set would filter every later
-       selection and hover against a component that is no longer being built,
-       so face highlights stop appearing anywhere until the editor is reopened. */
-    try {
-      activeParts(def).forEach(function (part) { buildPart(group, part, E.displayStyle); });
-    } finally {
-      E.buildComponent = null;
-    }
-    /* An exploded view is a viewing offset, not a change to the model: it is
-       added to the pose here and never written back to the transform, so
-       collapsing the view restores the mated position exactly. */
-    var blown = component.explodedOffset || null;
-    group.position.set(tr.x + (blown && blown.x || 0), tr.y + (blown && blown.y || 0), tr.z + (blown && blown.z || 0));
-    group.rotation.set((tr.rx * Math.PI) / 180, (tr.ry * Math.PI) / 180, (tr.rz * Math.PI) / 180);
+    var group = buildComponentGroup(component, null, "");
+    if (!group) return;
     if (E.componentSel.indexOf(component) !== -1) {
       group.traverse(function (object) {
         if (!object.isMesh || !object.material) return;
@@ -21035,6 +21856,48 @@ function buildAssembly(parent) {
     parent.add(group);
   });
   addInterferenceVisuals(parent);
+}
+
+/* One component's group. A top-level component carries `cadComponent` — it is
+   what gets picked, selected, dragged and mated. The children of a sub-assembly
+   carry `cadSubComponent` instead, sit at their own poses inside it, and build
+   their parts under the path prefix their faces are named by on the
+   sub-assembly (see builtTopologyId). */
+function buildComponentGroup(component, top, prefix) {
+  var group = new THREE.Group(), tr = normalizeTransform(component);
+  group.name = component.name || component.modelKey || component.assemblyKey || "";
+  if (top) group.userData.cadSubComponent = component.id;
+  else group.userData.cadComponent = component.id;
+  if (isSubassembly(component)) {
+    component.asm.components.forEach(function (child) {
+      if (child.visible === false) return;
+      var inner = buildComponentGroup(child, top || component, prefix + child.id + "/");
+      if (inner) group.add(inner);
+    });
+  } else {
+    var def = componentDef(component);
+    if (!def || !Array.isArray(def.parts)) return null;
+    /* Face highlights and pick edges are built per part and have no other way
+       to know which instance they belong to. Two components off the same
+       library model share every persistent id, so without this the selected
+       face lights up on both. */
+    E.buildComponent = top ? { id: top.id, prefix: prefix } : component;
+    /* Cleared even if a part throws. Leaving it set would filter every later
+       selection and hover against a component that is no longer being built,
+       so face highlights stop appearing anywhere until the editor is reopened. */
+    try {
+      activeParts(def).forEach(function (part) { buildPart(group, part, E.displayStyle); });
+    } finally {
+      E.buildComponent = null;
+    }
+  }
+  /* An exploded view is a viewing offset, not a change to the model: it is
+     added to the pose here and never written back to the transform, so
+     collapsing the view restores the mated position exactly. */
+  var blown = !top && component.explodedOffset || null;
+  group.position.set(tr.x + (blown && blown.x || 0), tr.y + (blown && blown.y || 0), tr.z + (blown && blown.z || 0));
+  group.rotation.set((tr.rx * Math.PI) / 180, (tr.ry * Math.PI) / 180, (tr.rz * Math.PI) / 180);
+  return group;
 }
 
 function addInterferenceVisuals(parent) {
@@ -21186,6 +22049,12 @@ function rebuildCommittedPartsById(ids) {
 /* One body changed (exact mesh landed, hover edge, kernel blanked). Do not
    dispose the rest of the viewport. */
 function refreshChangedPart(part) {
+  // A late exact mesh replaces the lightweight body used by the sheet too.
+  // Partial viewport refreshes must invalidate that projection cache.
+  if (part) {
+    invalidateDrawing();
+    if (E.mode === "drawing") { drawSketch(); syncSheetPanel(); }
+  }
   if (typeof window !== "undefined") window.cadRefreshChangedPart = refreshChangedPart;
   /* The one place a body's exact mesh is known to have landed or failed, so
      it is where the live downstream badge stops saying "calculating". */
@@ -21394,6 +22263,47 @@ function importLibraryJson() {
   input.click();
 }
 
+/* What a cleared browser lost, offered back from the disk mirror. Restoring
+   only adds models whose key is missing, so it can never overwrite live work. */
+async function restoreDiskBackups(missing) {
+  var names = missing.map(function (backup) { return backup.name || backup.key; }).join(", ");
+  if (!await askModelerDecision(root, { title:t("diskBackupRestore"), message:tf("diskBackupRestoreAsk", { names:names }), accept:t("diskBackupRestore"), cancel:t("m_cancel") })) return;
+  var records = [];
+  for (var i = 0; i < missing.length; i++) {
+    var backup = await fetchDiskBackup(missing[i].key);
+    if (!backup) continue;
+    // Payloads first: a record whose exact-CAD attachment is missing will not rebuild.
+    try { if (backup.attachments.length) await installAttachmentRecords(backup.attachments); }
+    catch (e) { continue; }
+    records.push(backup.model);
+  }
+  if (!records.length) { flash(t("diskBackupRestoreFailed")); return; }
+  var models = mergeLibraryRecords(loadLib(), records, { conflict:"skip" });
+  if (!await saveLib(models)) { report(t("reportKickerSave"), t("saveLibraryFailed"), t("saveStorageFull")); return; }
+  models.forEach(registerCustomModel);
+  refreshCatalogSelect();
+  refreshLib();
+  flash("✓ " + tf("diskBackupRestored", { n:records.length }));
+}
+
+function appendDiskBackupNote(host) {
+  var note = el("div", "md-backup-note");
+  note.hidden = true;
+  host.appendChild(note);
+  listDiskBackups().then(function (backups) {
+    if (!note.isConnected) return; // the panel re-rendered meanwhile
+    var missing = missingFromLibrary(backups, loadLib());
+    if (missing.length) {
+      note.appendChild(el("div", "md-card-note", tf("diskBackupMissing", { n:missing.length })));
+      note.appendChild(btn('<i class="ph ph-clock-counter-clockwise"></i> ' + t("diskBackupRestore"), function () { restoreDiskBackups(missing); }, "md-wide"));
+      note.hidden = false;
+    } else if (modelBackupStatus() === "off") {
+      note.appendChild(el("div", "md-card-note", t("diskBackupOff")));
+      note.hidden = false;
+    }
+  });
+}
+
 function libraryTransferButtons(host) {
   host.appendChild(btn('<i class="ph ph-export"></i> ' + t("exportLibrary"), exportLibraryJson, "md-wide"));
   host.appendChild(btn('<i class="ph ph-download-simple"></i> ' + t("importLibrary"), importLibraryJson, "md-wide"));
@@ -21443,6 +22353,7 @@ function refreshLib() {
   }
   host.appendChild(btn('<i class="ph ph-file-plus"></i> ' + t("newModel"), newModel, "md-wide md-dashed"));
   libraryTransferButtons(host);
+  appendDiskBackupNote(host);
   var lib = loadLib();
   if (!lib.length) { emptyState(host, "ph-folder-open", t("noLib"), t("noLibHint")); return; }
   lib.forEach(function (m) {
@@ -21507,6 +22418,8 @@ function refreshLib() {
 function syncHead() {
   var name = root.querySelector("#mdName"), price = root.querySelector("#mdPrice");
   var description = root.querySelector("#mdDescription");
+  var unitControl=root.querySelector("#mdDocumentLengthUnit");
+  if(unitControl && E.docType==="part")unitControl.value=modelLengthUnit();
   if (description) description.value = documentDescription(E.docType === "assembly" ? E.assembly : E.def);
   if (E.docType === "assembly") {
     name.value = E.assembly ? E.assembly.name || "" : "";
@@ -21869,8 +22782,11 @@ function downloadBytes(bytes, name, type) {
 function openOffsetPlaneForm(existing) {
   var selectedFace=(E.topologySelection || []).find(function(face){return face.kind==="face" && face.descriptor?.surface==="plane";});
   var selectedVertex=(E.topologySelection || []).find(function(item){return item.kind==="vertex";});
-  var support=existing?.support || selectedFace;
-  var throughVertex=existing?.throughVertex || selectedVertex;
+  // A retained viewport selection is a suggestion for a new plane only. When
+  // editing, keep the plane's own parent instead of silently reattaching it to
+  // whichever face happens to be selected (and moving all dependent sketches).
+  var support=existing ? existing.support : selectedFace;
+  var throughVertex=existing ? existing.throughVertex : selectedVertex;
   var throughEdges=existing?.throughEdges;
   var planes=(E.def.references || []).filter(function(r){return r.type==="plane" && r.id!==existing?.id;});
   var initialMode=existing?.refType==="through-vertex-parallel" || throughVertex ? "through-vertex" : "offset";
@@ -21951,6 +22867,9 @@ function addReferenceGeometry(kind) {
     item = createHelix({ name: t("opHelix") + " " + n, radius: 1, pitch: 0.125, turns: 4, height: 0.5 });
   } else if (kind === "axis") {
     item = createReferenceAxis({ name: t("refAxis") + " " + n });
+  } else if (kind === "point") {
+    var picked = (E.topologySelection || []).find(function (reference) { return reference.kind === "vertex"; });
+    item = createReferencePoint({ name: "Ref point " + n, origin: cloneData(picked?.descriptor?.point || picked?.descriptor?.origin || { x: 0, y: 0, z: 0 }) });
   } else {
     item = createCoordinateSystem({ name: t("refCoord") + " " + n });
   }
@@ -21958,6 +22877,7 @@ function addReferenceGeometry(kind) {
   E.def.references ||= [];
   if(kind==="plane")E.def.references.push(Object.assign({},cloneDomain(item),{type:"plane"}));
   else if(kind==="axis")E.def.references.push({id:item.id,type:"axis",name:item.name,origin:cloneData(item.p1),direction:{x:item.p2.x-item.p1.x,y:item.p2.y-item.p1.y,z:item.p2.z-item.p1.z},refType:item.refType});
+  else if(kind==="point")E.def.references.push({id:item.id,type:"point",name:item.name,origin:cloneData(item.origin)});
   else if(kind==="helix")E.def.references.push(Object.assign({},cloneDomain(item),{type:"helix"}));
   else E.def.references.push(Object.assign({},cloneDomain(item),{type:"coordinate-system"}));
   refreshAll(); flash("✓ " + item.name);
@@ -22020,35 +22940,31 @@ async function showMassProperties() {
   if(E.def!==documentAtStart || E.evalCard!=="mass" || !body.isConnected)return;
   function paintMass() {
     body.textContent="";
-    var mmg=massDisplayUnits==="mmg";
+    var system=massDisplaySystem(massDisplayUnits);
+    var quantity=function(value,kind,precision){return (value*system[kind]).toPrecision(precision||7)+" "+system[kind+"Unit"];};
     var units=el("div","md-ops");
-    [["si",t("massUnitsSi")],["mmg",t("massUnitsMmG")]].forEach(function(pair){
+    [["si",t("massUnitsSi")],["mmg",t("massUnitsMmG")],["ips",t("massUnitsIps")]].forEach(function(pair){
       var button=btn(pair[1], function(){ massDisplayUnits=pair[0]; paintMass(); });
       if(pair[0]===massDisplayUnits) button.setAttribute("aria-pressed","true");
       units.appendChild(button);
     });
     body.appendChild(units);
     evalRow(body,t("massAccuracy"),t("massAccuracy_"+mass.accuracy));
-    if (mass.bounds) evalRow(body,t("massOverallSize"),["x","y","z"].map(function(axis){return axis.toUpperCase()+" "+Number(((mass.bounds.max[axis]-mass.bounds.min[axis])*10).toFixed(4));}).join(" · ")+" mm");
-    evalRow(body, t("massVolume"), mmg ? (mass.volumeCm3*1000).toPrecision(7)+" mm³" : mass.volumeCm3.toPrecision(7)+" cm³");
-    evalRow(body, t("massMass"), mmg ? mass.massG.toPrecision(7)+" g" : mass.massKg.toPrecision(7)+" kg");
-    evalRow(body, t("massDensity"), mass.density == null ? t("massMixedDensity") : mass.density+" g/cm³");
-    // -2.66e-16 is a symmetric body's centre at 0 plus quadrature noise; show 0
-    var massCoord=function(value,scale){var v=value*scale;return String(Math.abs(v)<1e-9?0:Number(v.toPrecision(7)));};
-    evalRow(body, t("massCentre"), mmg
-      ? "X "+massCoord(mass.centerOfMass.x,10)+"   Y "+massCoord(mass.centerOfMass.y,10)+"   Z "+massCoord(mass.centerOfMass.z,10)+" mm"
-      : "X "+massCoord(mass.centerOfMass.x,1)+"   Y "+massCoord(mass.centerOfMass.y,1)+"   Z "+massCoord(mass.centerOfMass.z,1)+" cm");
+    if (mass.bounds) evalRow(body,t("massOverallSize"),["x","y","z"].map(function(axis){return axis.toUpperCase()+" "+Number(((mass.bounds.max[axis]-mass.bounds.min[axis])*system.length).toFixed(4));}).join(" · ")+" "+system.lengthUnit);
+    evalRow(body, t("massVolume"), quantity(mass.volumeCm3,"volume"));
+    evalRow(body, t("massMass"), quantity(mass.massKg,"mass"));
+    evalRow(body, t("massDensity"), mass.density == null ? t("massMixedDensity") : quantity(mass.density,"density",6));
+    // Suppress quadrature noise at a symmetric body's zero coordinate.
+    var massCoord=function(value){var v=value*system.length;return String(Math.abs(v)<1e-9?0:Number(v.toPrecision(7)));};
+    evalRow(body, t("massCentre"), "X "+massCoord(mass.centerOfMass.x)+"   Y "+massCoord(mass.centerOfMass.y)+"   Z "+massCoord(mass.centerOfMass.z)+" "+system.lengthUnit);
     (mass.bodies || []).forEach(function(row,index){
       var label=(row.materialName || t("massNoMaterial"));
-      var volume=mmg ? (row.volume*1000).toPrecision(6)+" mm³" : row.volume.toPrecision(6)+" cm³";
-      var massText=mmg ? ((row.massKg||0)*1000).toPrecision(6)+" g" : (row.massKg||0).toPrecision(6)+" kg";
-      evalRow(body, t("massBodyRow")+" "+(index+1)+" · "+label, volume+" · "+massText+" · "+row.density+" g/cm³");
+      evalRow(body, t("massBodyRow")+" "+(index+1)+" · "+label, quantity(row.volume,"volume",6)+" · "+quantity(row.massKg||0,"mass",6)+" · "+quantity(row.density,"density",6));
     });
     if(mass.inertiaKgM2){
-      evalRow(body,t("massInertia"),"kg·m²");
-      // products of inertia of a symmetric body come back as ±1e-19 noise
+      evalRow(body,t("massInertia"),system.inertiaUnit);
       var inertiaScale=Math.max.apply(null,mass.inertiaKgM2.map(function(row){return Math.max.apply(null,row.map(Math.abs));}));
-      mass.inertiaKgM2.forEach(function(row,i){evalRow(body,"XYZ"[i],row.map(function(v){return Math.abs(v)<=inertiaScale*1e-9?"0":v.toPrecision(6);}).join("   "));});
+      mass.inertiaKgM2.forEach(function(row,i){evalRow(body,"XYZ"[i],row.map(function(v){return Math.abs(v)<=inertiaScale*1e-9?"0":(v*system.inertia).toPrecision(6);}).join("   "));});
     }
     if (mass.unmeasured) body.appendChild(el("div", "md-note", mass.unmeasured + " " + t("massUnmeasured")));
   }
@@ -22078,7 +22994,7 @@ function endMeasure() {
 }
 
 function measureCoordinates(pick) {
-  return "X " + pick.x.toFixed(2) + "   Y " + pick.y.toFixed(2) + "   Z " + pick.z.toFixed(2);
+  return "X " + modelLengthText(pick.x,8) + "   Y " + modelLengthText(pick.y,8) + "   Z " + modelLengthText(pick.z,8) + " " + modelLengthUnit();
 }
 
 function renderMeasureCard() {
@@ -22100,8 +23016,8 @@ function renderMeasureCard() {
       evalRow(body, t("measureAngle"), measureAngleBetweenNormals(measure.picks[0].normal, measure.picks[1].normal) + "°");
     } else {
       var span = measureDistance(measure.picks[0], measure.picks[1]);
-      evalRow(body, t("measureLength"), span.distance + " cm");
-      evalRow(body, "ΔX / ΔY / ΔZ", span.dx + " / " + span.dy + " / " + span.dz + " cm");
+      evalRow(body, t("measureLength"), modelLengthText(span.distance,10) + " " + modelLengthUnit());
+      evalRow(body, "ΔX / ΔY / ΔZ", [span.dx,span.dy,span.dz].map(value=>modelLengthText(value,10)).join(" / ") + " " + modelLengthUnit());
     }
   }
   var actions = evalCardActions();
@@ -22555,6 +23471,8 @@ async function saveModel() {
   if (!canonical && !(E.def.metadata && E.def.metadata.adapter === "cabinet") && !recognizedHistory) rebuildFeatureTreeFromDocument();
   pruneAbandonedSketches(E.def);
   var def = JSON.parse(JSON.stringify(E.def));
+  pruneSketchTargetedBodyAppearances(def);
+  pruneSketchMaterialFields(def);
   // Canonical sketches and face references own their coordinate system.
   // Recentring a rendered bounding box on save invalidates those references.
   if (!canonical) normalizeDef(def);
@@ -22932,7 +23850,9 @@ export function openModeler(editKey, def, srcItem) {
   E.arcPts = null;
   E.wallPts = null;
   E.componentSel = [];
-  E.authoring={phase:"model",referenceId:null,sketchId:E.def.activeSketch || null,featureType:null,sketchSelection:E.def.activeSketch?[E.def.activeSketch]:[],featureSelection:[],workflowFocus:"context"};
+  // Let the existing history determine the opening stage; an explicit Part
+  // focus would incorrectly offer the blank-document tutorial on saved solids.
+  E.authoring={phase:"model",referenceId:null,sketchId:E.def.activeSketch || null,featureType:null,sketchSelection:E.def.activeSketch?[E.def.activeSketch]:[],featureSelection:[],workflowFocus:null};
   E._mouse = null;
   E.solveInfo = solveSketch(ensureSketch(E.def));
   E._solveSketchId = ensureSketch(E.def).id;

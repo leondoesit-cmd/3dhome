@@ -282,6 +282,8 @@ function ensurePop() {
     },
     true,
   );
+  window.addEventListener('resize', closePopover);
+  strip?.addEventListener('scroll', closePopover, { passive: true });
   return pop;
 }
 
@@ -293,11 +295,27 @@ function openPopover(id, anchor) {
   pop.hidden = false;
   var r = anchor.getBoundingClientRect(),
     pr = pop.getBoundingClientRect();
-  /* Clamped to the viewport on both axes rather than flipped: the strip can be
-     a left column (desktop) or a bottom rail (phone), and in RTL it is a right
-     column, so there is no single "other side" to flip to. */
-  var x = Math.min(Math.max(6, r.left), window.innerWidth - pr.width - 6);
-  var y = Math.min(Math.max(6, r.bottom + 6), window.innerHeight - pr.height - 6);
+  /* On desktop, the editor pane is the menu's visual owner. Clamping only to
+     the window let the last layer's menu paint over the Inspector in Split.
+     Fall back to viewport bounds when a phone pane cannot hold the card. */
+  var owner = anchor.closest('#view-2d, #view-3d');
+  var bounds = owner?.getBoundingClientRect();
+  var minX = bounds && bounds.width >= pr.width + 12 ? bounds.left + 6 : 6;
+  var maxX = bounds && bounds.width >= pr.width + 12 ? bounds.right - pr.width - 6 : window.innerWidth - pr.width - 6;
+  var minY = bounds && bounds.height >= pr.height + 12 ? bounds.top + 6 : 6;
+  var maxY = bounds && bounds.height >= pr.height + 12 ? bounds.bottom - pr.height - 6 : window.innerHeight - pr.height - 6;
+  var x = Math.min(Math.max(minX, r.left), maxX);
+  var preferredY = r.bottom + 6;
+  if (owner?.id === 'view-3d') {
+    /* The 3D Layers ribbon sits directly above its editing toolbar. A menu
+       opened from it should not hide the very tool controls beside it. */
+    owner.querySelectorAll('.pt-panel[data-panel="tools"], .pt-panel[data-panel="walls"], .pt-panel[data-panel="rooms"]').forEach(function (panel) {
+      if (panel.hidden || getComputedStyle(panel).display === 'none') return;
+      var box = panel.getBoundingClientRect();
+      if (box.top >= r.top - 2 && box.left < x + pr.width && box.right > x) preferredY = Math.max(preferredY, box.bottom + 6);
+    });
+  }
+  var y = Math.min(Math.max(minY, preferredY), maxY);
   pop.style.left = x + "px";
   pop.style.top = y + "px";
 }

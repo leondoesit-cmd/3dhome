@@ -472,13 +472,21 @@ body {
 
 #topbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  /* The start and end command groups are not symmetrical. Equal outer tracks
+     made the wider start group paint underneath the centred search field on
+     wide desktops (the supplied 1800 CSS-pixel viewport missed by 5px).
+     Give both command groups their real width and let the middle own only the
+     space that is actually left between them. */
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
   align-items: center;
   height: 60px;
   border-bottom: 1px solid var(--border-color);
   padding: 0 clamp(8px, 1.2vw, 20px);
   box-shadow: var(--shadow-sm);
-  z-index: 10;
+  /* Floating planner chrome uses z-index:11 inside the workspace. The top bar
+     owns menus and the command-search popover, so its stacking context must
+     stay above the workspace or Layers can paint over search results. */
+  z-index: 100;
   gap: clamp(6px, 1vw, 16px);
 }
 
@@ -1580,6 +1588,28 @@ html[data-tool="erase"] #plan { cursor: crosshair; }
   padding: 1px 2px;
   line-height: 1;
 }
+#plan-toolbar.show-titles[data-axis="h"] .tool-names-toggle .tool-name {
+  /* The list glyph plus accessible label is sufficient in a horizontal
+     ribbon. Keeping the literal “Names” caption made this one settings button
+     wrap onto a lonely second row at common desktop widths. */
+  display: none;
+}
+#plan-toolbar.show-titles[data-axis="h"] .tool-names-toggle {
+  /* This is a ribbon preference, not another drawing command. A quiet divider
+     and a flat button keep it from reading as a floating card laid over the
+     destructive Delete action. */
+  width: 32px;
+  margin-inline-start: 5px;
+  border-inline-start: 1px solid var(--border-color);
+  border-radius: 5px;
+  box-shadow: none;
+  /* The preference lives after the independently scrolling command strip. */
+  position: static;
+  background: var(--bg-panel);
+}
+#plan-toolbar.show-titles[data-axis="h"] .tool-names-toggle.active {
+  box-shadow: none;
+}
 #plan-toolbar.show-titles[data-axis="h"] .tb-sep {
   width: 1px;
   height: 18px;
@@ -1587,14 +1617,41 @@ html[data-tool="erase"] #plan { cursor: crosshair; }
   align-self: center;
 }
 
-#view-2d.plan-narrow #plan-toolbar.show-titles[data-axis="h"] .tool-name {
-  display: none;
+/* Pane width no longer overrides the user's labels preference.  A narrow 2D
+   pane gets a horizontally scrollable ribbon (see the dock rules below), but
+   `show-titles` still means exactly what it says and its toggle remains
+   visible. */
+#view-2d #plan-toolbar.show-titles[data-axis="h"] .tool .tool-name {
+  display: inline-block;
 }
-@media (max-width: 1366px) {
-  #plan-toolbar.show-titles[data-axis="h"] .tool-name {
-    display: none;
-  }
+#view-2d #plan-toolbar[data-axis="h"] .tool-names-toggle {
+  display: flex;
+  position: static;
+  margin-inline-start: 5px;
+  border-inline-start: 1px solid var(--border-color);
+  background: var(--bg-panel);
+  box-shadow: none;
 }
+#plan-toolbar .tool-scroll {
+  position: static;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  flex: 0 0 25px;
+  width: 25px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  color: var(--text-main);
+  cursor: pointer;
+  box-shadow: none;
+}
+#plan-toolbar .tool-scroll[hidden] { display: none !important; }
+#plan-toolbar .tool-scroll:disabled { opacity: .42; cursor: default; }
+#plan-toolbar .tool-scroll:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
+#view-3d #plan-toolbar .tool-scroll { display: none !important; }
 
 #plan-wall-palette {
   pointer-events: auto;
@@ -2544,6 +2601,34 @@ label span:first-child {
   background: var(--btn-bg-hover);
   transform: translateX(2px);
 }
+.trItem:focus-within .trDel,
+.trRoom:focus-within .trDel,
+.trDel:focus-visible {
+  opacity: 0.9;
+}
+button.trName,
+button.trDel {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+}
+button.trName {
+  text-align: start;
+  padding: 0;
+  cursor: pointer;
+  min-width: 0;
+}
+button.trName:focus-visible,
+button.trDel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .trItem, .trRoom { transition: none; }
+  .trItem:hover, .trRoom:hover { transform: none; }
+}
 .trItem.sel {
   color: var(--on-accent);
 }
@@ -3067,6 +3152,46 @@ body.used-2d #view-2d > .hint {
   color: var(--on-accent);
   border-color: var(--accent);
 }
+/* presentation/technical plan style: the maximize chip's twin, one slot inboard */
+.plan-style-btn {
+  position: absolute;
+  top: calc(12px + var(--plan-corner-lift, 0px));
+  inset-inline-end: 52px;
+  z-index: 12;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--hud-fg);
+  font-size: 16px;
+  background: var(--hud-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.plan-style-btn:hover,
+.plan-style-btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+#view-2d.rc-editor-map-on > .plan-style-btn { visibility: hidden; pointer-events: none; }
+.plan-style-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.plan-style-lbl {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--text-muted, inherit);
+}
 /* 3D edit-mode toggle: same chip as the maximize button, one slot inboard */
 .view-edit-btn {
   position: absolute;
@@ -3100,6 +3225,74 @@ body.used-2d #view-2d > .hint {
   border-color: var(--accent);
   box-shadow: 0 4px 12px var(--accent-glow);
 }
+/* dollhouse cutaway: a labelled pill under the edit/maximize chips */
+.view-dollhouse-btn {
+  top: 52px;
+  inset-inline-end: 12px;
+  width: auto;
+  padding: 0 9px;
+  gap: 6px;
+  font-size: 12px;
+}
+.view-dollhouse-btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+body.zombies-on #view-3d .view-dollhouse-btn,
+body.lava-on #view-3d .view-dollhouse-btn,
+body.rc-playing #view-3d .view-dollhouse-btn { display: none; }
+.cutaway-opts { display: grid; gap: 6px; margin: 2px 0 6px; padding-inline-start: 22px; }
+.cutaway-opts[hidden] { display: none; }
+.cutaway-opts .slider-row output { min-width: 56px; text-align: end; font-size: 11px; }
+.view-drawing-btn {
+  inset-inline-end: 88px;
+  width: auto;
+  max-width: calc(100% - 170px);
+  padding: 0 9px;
+  gap: 6px;
+  font-size: 12px;
+}
+.view-drawing-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-drawing-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.planner-drawing-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+.planner-drawing-overlay[hidden] { display: none; }
+/* Drawing overlay settings: a compact card in the free corner above the view
+   gizmo — the top edge is claimed by the plan chrome and the floor tabs. */
+.drawing3d-panel {
+  position: absolute;
+  bottom: 136px;
+  inset-inline-end: 12px;
+  z-index: 13;
+  width: 236px;
+  max-width: calc(100% - 24px);
+  box-sizing: border-box;
+  padding: 8px 10px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--hud-bg);
+  color: var(--hud-fg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-sm);
+  font-size: 12px;
+}
+.drawing3d-panel[hidden] { display: none; }
+.d3p-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; cursor: pointer; }
+.d3p-row input[type="range"] { grid-column: 1; width: 100%; margin: 0; accent-color: var(--accent); }
+.d3p-row output { grid-column: 2; min-width: 34px; text-align: end; font-variant-numeric: tabular-nums; opacity: 0.8; }
+.d3p-label { grid-column: 1 / -1; font-weight: 600; }
+.d3p-switch .d3p-label { grid-column: 1; }
+.d3p-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.d3p-track { grid-column: 2; position: relative; width: 30px; height: 17px; border-radius: 9px; background: var(--border-color); transition: background 0.2s; }
+.d3p-track::after { content: ""; position: absolute; top: 2px; inset-inline-start: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; transition: transform 0.2s; }
+.d3p-switch input:checked + .d3p-track { background: var(--accent); }
+.d3p-switch input:checked + .d3p-track::after { transform: translateX(13px); }
+[dir="rtl"] .d3p-switch input:checked + .d3p-track::after { transform: translateX(-13px); }
+.d3p-switch input:focus-visible + .d3p-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.drawing3d-panel.hover-off .d3p-row:last-child { opacity: 0.45; }
 /* divider between the drawing tools and the lock toggle under them */
 #plan-toolbar .tb-sep {
   height: 1px;
@@ -4369,6 +4562,7 @@ body[data-project-role="viewer"] #plan { pointer-events: none; }
 #modeler .md-docmodes button.on { background: var(--accent); color: var(--on-accent); }
 #modeler .md-sub { color: var(--text-muted); font-size: 0.78rem; font-weight: 500; }
 #modeler .md-head-inputs { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
+#modeler .md-ops.md-material-options button { white-space: normal; height: auto; min-height: 36px; line-height: 1.3; overflow-wrap: anywhere; padding-block: 7px; }
 /* label above field: the caption used to be a placeholder that vanished the
    moment there was a name, leaving two unexplained boxes in the header */
 #modeler .md-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 auto; }
@@ -5595,7 +5789,11 @@ body.compact-nav #modeler .md-sketch-plane-chip { min-height: 36px; }
    face, and you have to be able to see the face. The canvas above it is fully
    transparent; it only carries the sketch. */
 #modeler.md-model-sketching #md3dHost { z-index: 0; opacity: 1; pointer-events: none; }
-#modeler.md-model-sketching #mdCanvas { z-index: 3; background: transparent; }
+#modeler.md-model-sketching #mdCanvas {
+  z-index: 3; background: transparent;
+  /* Geometry remains crisp over light metal, dark paint and selection glow. */
+  filter: drop-shadow(0 1px 1px rgba(2,8,23,.28));
+}
 #modeler.md-isdrawing .md-mid { background: var(--bg-canvas-2d); }
 #modeler.md-isdrawing #mdCanvas { cursor: default; }
 /* The paper gives up the left rail for tools, the top strip for Model/Sketch/
@@ -5723,7 +5921,8 @@ body.compact-nav #modeler .md-quick-field select {
 #modeler .md-quick-field.type-boolean input:checked + .md-feature-switch { background: var(--accent); }
 #modeler .md-quick-field.type-boolean input:checked + .md-feature-switch i { transform: translateX(14px); }
 #modeler .md-quick-field.parameter-inactive { opacity: .42; pointer-events: none; }
-#modeler .md-quick-field.parameter-hidden { display: none; }
+#modeler .md-quick-field.parameter-hidden,
+#modeler .md-feature-group.parameter-hidden { display: none; }
 #modeler .md-feature-group { overflow: clip; border: 1px solid var(--separator); border-radius: 9px; background: color-mix(in srgb,var(--input-bg) 78%,transparent); }
 #modeler .md-feature-group summary { display: grid; grid-template-columns: 18px minmax(0,1fr) auto; align-items: center; gap: 6px; padding: 8px; color: var(--text-main); font-size: 10px; font-weight: 720; cursor: pointer; list-style: none; }
 #modeler .md-feature-group summary::-webkit-details-marker { display: none; }
@@ -5811,6 +6010,8 @@ body.compact-nav #modeler .md-quick-field select {
 #modeler.md-isdrawing .md-left,
 #modeler.md-isdrawing .md-right,
 #modeler.md-isdrawing .md-commandmanager { display: none; }
+#modeler.md-isdrawing.md-sheet-form .md-left { display: flex; }
+#modeler.md-isdrawing.md-sheet-form .md-left > :not(#mdQuickTools) { display: none; }
 /* The hint belongs under the paper, not across it: a sheet fills the pane and
    a floating caption over the top view hides the geometry it is describing. */
 #modeler.md-isdrawing .md-hint { top: auto; bottom: 12px; }
@@ -7673,43 +7874,78 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .site-nudge button { padding: 4px 8px; }
 
 /* ---- MEP infrastructure panel ---- */
-#mepPanel { display: flex; flex-direction: column; gap: 10px; }
-.mep-master { display: flex; align-items: center; gap: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; }
+#mepPanel { display: flex; flex-direction: column; gap: 10px; container-type: inline-size; }
+.mep-master { display: flex; align-items: center; gap: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; min-height: 32px; }
 .mep-health {
   display: flex; align-items: center; justify-content: space-between; gap: 7px;
   padding: 7px 9px; border-radius: 8px; font-size: 0.75em; font-weight: 650;
 }
+.mep-health-copy { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+.mep-health-copy i { flex: none; margin-top: 1px; }
 .mep-health.ok { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); border: 1px solid color-mix(in srgb, var(--success) 28%, transparent); }
 .mep-health.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); border: 1px solid color-mix(in srgb, var(--warn) 28%, transparent); }
-.mep-health button { flex: none; padding: 4px 7px; font-size: 0.92em; border: 1px solid currentColor; border-radius: 6px; color: inherit; background: transparent; cursor: pointer; }
+.mep-health button { flex: none; min-height: 36px; padding: 6px 8px; font-size: 0.92em; border: 1px solid currentColor; border-radius: 6px; color: inherit; background: transparent; cursor: pointer; font: inherit; font-weight: 650; }
+.mep-clashes {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 7px 9px; border-radius: 8px; font-size: 0.75em; font-weight: 650;
+  color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 28%, transparent);
+}
+.mep-clashes[hidden] { display: none !important; }
+.mep-clashes i { flex: none; margin-top: 1px; }
+.mep-review { min-width: 0; border: 1px solid var(--separator); border-radius: 8px; font-size: 0.76em; }
+.mep-review summary { cursor: pointer; padding: 9px 10px; font-weight: 700; }
+.mep-review summary:focus-visible, .mep-review-list button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mep-review-list { display: flex; flex-direction: column; gap: 5px; max-height: 260px; overflow: auto; padding: 0 8px 8px; }
+.mep-review-list button { display: block; width: 100%; min-height: 36px; padding: 6px 8px; text-align: start; color: var(--text); background: var(--btn-bg); border: 1px solid var(--separator); border-radius: 6px; cursor: pointer; font: inherit; overflow-wrap: anywhere; }
+.mep-review-list button:hover { border-color: var(--accent); }
+.mep-review-list span { color: var(--text-muted); padding: 5px; }
+.mep-status.clash { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
 .mep-policy { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--separator); border-radius: 9px; background: color-mix(in srgb, var(--btn-bg) 78%, transparent); }
 .mep-policy-head { display: flex; flex-direction: column; gap: 2px; }
 .mep-policy-head b { font-size: 0.78em; }
 .mep-policy-head span { font-size: 0.68em; line-height: 1.35; color: var(--text-muted); }
-.mep-policy-row { display: grid; grid-template-columns: minmax(82px, 1fr) 82px 96px; gap: 5px; align-items: center; }
-.mep-policy-row > span { font-size: 0.71em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mep-policy-row select { min-width: 0; padding: 4px 3px; font-size: 0.69em; }
+.mep-policy-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 6px; align-items: center;
+}
+.mep-policy-row > span {
+  grid-column: 1 / -1; font-size: 0.75em; font-weight: 650;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mep-policy-row select { width: 100%; min-width: 0; min-height: 32px; padding: 4px 6px; font-size: 0.75em; }
 .mep-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .mep-chip {
-  display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  display: flex; align-items: stretch; min-height: 44px; padding: 0;
   border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg);
-  cursor: pointer; transition: all 0.15s ease; user-select: none;
+  transition: border-color 0.15s ease, background 0.15s ease; user-select: none;
 }
-.mep-chip:hover { background: var(--btn-bg-hover); }
 .mep-chip.active { border-color: var(--sys); box-shadow: inset 0 0 0 1px var(--sys); }
-.mep-chip.off { opacity: 0.45; }
+.mep-chip.is-hidden { border-style: dashed; }
+.mep-chip.is-hidden .mep-dot { opacity: 0.4; }
+.mep-chip-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
+  padding: 6px 6px 6px 8px; border: 0; background: transparent; color: inherit;
+  font: inherit; text-align: start; cursor: pointer; border-radius: 8px 0 0 8px;
+}
+.mep-chip-main:hover { background: var(--btn-bg-hover); }
 .mep-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--sys); flex: none; }
 .mep-chip-lbl { flex: 1; font-size: 0.82em; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mep-eye { font-size: 0.8em; opacity: 0.7; cursor: pointer; }
-.mep-eye:hover { opacity: 1; }
+.mep-eye {
+  flex: none; width: 36px; border: 0; border-inline-start: 1px solid var(--btn-border);
+  background: transparent; color: var(--text-muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 1em;
+  border-radius: 0 8px 8px 0;
+}
+.mep-eye:hover { color: var(--text); background: var(--btn-bg-hover); }
+.mep-eye[aria-pressed="false"] { color: var(--warn); }
 .mep-sub { font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 4px 0 2px; font-weight: 700; }
 .mep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .mep-btn {
-  display: flex; align-items: center; gap: 7px; padding: 6px 8px; text-align: start;
+  display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 6px 8px; text-align: start;
   border: 1px solid var(--btn-border); border-radius: 8px; background: var(--btn-bg);
-  cursor: pointer; transition: all 0.15s ease;
+  color: inherit; font: inherit; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;
 }
-.mep-btn:hover { background: var(--btn-bg-hover); transform: translateY(-1px); }
+.mep-btn:hover { background: var(--btn-bg-hover); }
 .mep-btn.armed { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(99,102,241,0.25); }
 .mep-glyph {
   width: 20px; height: 20px; flex: none; border-radius: 50%; color: #fff;
@@ -7758,8 +7994,9 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .mep-info { font-size: 0.78em; color: var(--text-muted); font-style: italic; }
 .mep-readout { font-weight: 600; }
 .mep-del-btn {
-  margin-top: 4px; width: 100%; padding: 7px; border-radius: 8px; cursor: pointer;
-  border: 1px solid var(--danger); color: var(--danger); background: transparent; font-weight: 600; transition: all 0.15s ease;
+  margin-top: 4px; width: 100%; min-height: 44px; padding: 8px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--danger); color: var(--danger); background: transparent; font: inherit; font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 .mep-del-btn:hover { background: var(--danger); color: var(--on-danger); }
 
@@ -7792,13 +8029,13 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 .mep-layers { display: flex; gap: 4px; }
 .mep-layer-title { font-size: 0.76em; font-weight: 750; color: var(--text); margin-bottom: -5px; }
 .mep-layer-btn {
-  flex: 1; padding: 5px 4px; font-size: 0.78em; font-weight: 600;
+  flex: 1; min-height: 40px; padding: 6px 4px; font-size: 0.78em; font-weight: 600;
   border: 1px solid var(--btn-border); border-radius: 7px; background: var(--btn-bg);
-  cursor: pointer; transition: all 0.15s ease;
+  color: inherit; font-family: inherit; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;
 }
 .mep-layer-btn:hover { background: var(--btn-bg-hover); }
 .mep-layer-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-.mep-layer-btn:disabled { opacity: 0.45; cursor: not-allowed; text-decoration: line-through; }
+.mep-layer-btn:disabled { opacity: 0.55; cursor: not-allowed; text-decoration: line-through; }
 .mep-layer-help {
   display: flex; flex-direction: column; gap: 2px; padding: 7px 9px; margin-top: -5px;
   border-radius: 8px; border-inline-start: 3px solid var(--accent);
@@ -7843,7 +8080,7 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 
 /* MEP auto-generate button */
 .mep-auto-btn {
-  width: 100%; padding: 8px; border-radius: 9px; cursor: pointer; font-weight: 600;
+  width: 100%; min-height: 44px; padding: 8px; border-radius: 9px; cursor: pointer; font: inherit; font-weight: 600;
   display: flex; align-items: center; justify-content: center; gap: 7px;
   border: 1px solid var(--accent); color: var(--on-accent);
   background: linear-gradient(135deg, var(--accent), var(--accent-hover));
@@ -7851,6 +8088,38 @@ html[lang="en"] .ps-arrow { transform: rotate(180deg); }
 }
 .mep-auto-btn:hover { filter: brightness(1.08); }
 .mep-auto-btn i { font-size: 1.05em; }
+.mep-inspect-floor {
+  width: 100%; min-height: 40px; margin-top: 6px; padding: 7px 9px;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  border: 1px solid #2563eb; border-radius: 8px;
+  background: color-mix(in srgb, #2563eb 12%, var(--bg-panel));
+  color: var(--text); font: inherit; font-size: 0.8em; font-weight: 700; cursor: pointer;
+}
+.mep-inspect-floor[aria-pressed="true"] { background: #2563eb; color: #fff; }
+.mep-inspect-floor:disabled { opacity: 0.55; cursor: not-allowed; }
+.mep-chip-main:focus-visible,
+.mep-eye:focus-visible,
+.mep-btn:focus-visible,
+.mep-layer-btn:focus-visible,
+.mep-auto-btn:focus-visible,
+.mep-inspect-floor:focus-visible,
+.mep-del-btn:focus-visible,
+.mep-health button:focus-visible,
+.mep-policy-row select:focus-visible,
+.mep-row input:focus-visible,
+.mep-row select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@container (max-width: 220px) {
+  .mep-chips, .mep-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mep-btn, .mep-chip, .mep-layer-btn, .mep-auto-btn, .mep-del-btn, .mep-eye, .mep-chip-main {
+    transition: none;
+  }
+  .mep-auto-btn:hover { filter: none; }
+}
 
 /* ================= Friends & multiplayer ================= */
 .tb-badge {
@@ -11769,6 +12038,20 @@ body.fold-span #zHud #zIntermission {
   box-shadow: 0 1px 4px rgb(15 23 42 / .12);
 }
 .cb-level-technical .cb-tools { opacity: .55; }
+.cb-production-convention {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-block: 10px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent, #2167d5) 32%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent, #2167d5) 7%, transparent);
+}
+.cb-production-convention-copy { display: grid; gap: 3px; min-width: 0; }
+.cb-production-convention-copy span { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.cb-production-convention .cb-more { min-height: 34px; white-space: nowrap; }
 .cb-technical-price {
   margin-top: 12px;
   padding: 12px;
@@ -19984,7 +20267,7 @@ body.compact-nav #plan-room-palette .rp-turn { min-height: 40px; }
 #plan-tools.pt-dock .pt-zone[data-zone="right"] { overflow: auto; overscroll-behavior: contain; }
 #plan-tools.pt-dock .pt-zone[data-zone="top"] #plan-toolbar[data-axis="h"] {
   flex-direction: row; flex-wrap: nowrap; max-height: none; width: 100%;
-  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+  overflow: hidden;
 }
 @media (hover: hover) and (pointer: fine) {
   #right-inspector .inspector-preview:hover {
@@ -20105,11 +20388,237 @@ body.compact-nav #plan-room-palette .rp-turn { min-height: 40px; }
 #planner-3d-hud {position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4}
 #view-3d > #plan-tools {max-width:calc(100% - 16px);max-height:100%;z-index:12}
 #edit3dBtn[hidden] {display:none !important}
-.planner-navigation {flex-wrap:wrap;justify-content:center;width:max-content;position:absolute;bottom:34px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:15;max-width:95%;padding:4px;border-radius:8px;background:var(--bg-panel);border:1px solid var(--border-color);box-shadow:var(--shadow-md);backdrop-filter:var(--glass-blur);}
+
+/* 3D has its own control hierarchy. The dock persists arbitrary 2D placements,
+   including free panels, so position the shared controls by panel rather than
+   by their saved zone. A zone becomes transparent while it lives in 3D; each
+   panel then uses #plan-tools as its containing block. */
+#view-3d > .lbl { display: none; }
+#view-3d { --planner-3d-layers-height: 0px; }
+body.planner-3d-active:not(.workflow-hide-layers) #view-3d {
+  --planner-3d-layers-height: 48px;
+}
+#view-3d #plan-tools.pt-dock .pt-zone {
+  display: contents !important;
+}
+#view-3d #plan-tools .pt-panel[data-panel="tools"] {
+  position: absolute !important;
+  top: calc(52px + var(--planner-3d-layers-height)) !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%);
+  width: min(520px, calc(100% - 16px)) !important;
+  height: 46px !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+#view-3d #plan-tools .pt-panel[data-panel="walls"],
+#view-3d #plan-tools .pt-panel[data-panel="rooms"] {
+  position: absolute !important;
+  top: calc(100px + var(--planner-3d-layers-height)) !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%);
+  width: min(760px, calc(100% - 16px)) !important;
+  max-width: none !important;
+  max-height: min(360px, calc(100% - 170px)) !important;
+  overflow: auto;
+  border-radius: 10px;
+}
+#view-3d #plan-tools.pt-dock #plan-wall-palette,
+#view-3d #plan-tools.pt-dock #plan-room-palette {
+  width: 100%;
+  max-width: 100% !important;
+  max-height: none !important;
+  overflow-y: auto;
+}
+#view-3d #plan-tools.pt-dock #plan-wall-palette {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 8px 12px;
+}
+#view-3d #plan-wall-palette > .wd-head,
+#view-3d #plan-wall-palette .wd-types,
+#view-3d #plan-wall-palette .wd-loc { display: none; }
+#view-3d #plan-wall-palette .wd-sec {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 6px;
+  margin: 0;
+}
+#view-3d #plan-wall-palette .wd-choice-select {
+  display: block;
+  width: 132px;
+  min-height: 36px;
+}
+#view-3d #plan-wall-palette .wd-edit {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+#view-3d #plan-wall-palette .wd-edit .wd-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 42px;
+  min-height: 38px;
+  padding: 3px;
+}
+#view-3d #plan-wall-palette .wd-action-label {
+  display: block;
+  font-size: 10px;
+  line-height: 1;
+}
+#view-3d #plan-tools.pt-dock #plan-room-palette {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 0.72fr);
+  grid-template-areas: "head tabs" "presets size" "presets connect" "note note";
+  align-items: start;
+  gap: 7px 10px;
+  padding: 8px 10px;
+  overflow-x: hidden;
+}
+#view-3d #plan-room-palette > .wd-head { grid-area: head; }
+#view-3d #plan-room-palette > .rp-tabs { grid-area: tabs; display: flex; flex-wrap: wrap; }
+#view-3d #plan-room-palette > .rp-grid {
+  grid-area: presets;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#view-3d #plan-room-palette > .rp-size-sec {
+  grid-area: size;
+  display: flex;
+  flex-wrap: wrap;
+  width: auto;
+}
+#view-3d #plan-room-palette > .rp-size-sec .wd-lab { flex-basis: 100%; }
+#view-3d #plan-room-palette > .rp-size-sec .rp-fields { width: 100%; }
+#view-3d #plan-room-palette > .rp-conn-sec { grid-area: connect; margin: 0; }
+#view-3d #plan-room-palette > .rp-conn-sec .rp-conn-seg { min-width: 0; }
+#view-3d #plan-room-palette > .rp-open-note { grid-area: note; margin: 0; }
+#view-3d #plan-toolbar,
+#view-3d #plan-toolbar.show-titles {
+  width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+  padding: 4px 6px;
+  gap: 2px;
+}
+#view-3d #plan-toolbar .tool {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  justify-content: center;
+}
+#view-3d #plan-toolbar .tool .tool-name,
+#view-3d #plan-toolbar .tool kbd,
+#view-3d #plan-toolbar .tool-names-toggle {
+  display: none !important;
+}
+#view-3d #plan-tools .pt-panel[data-panel="cad"],
+#view-3d #plan-tools .pt-panel[data-panel="tune"],
+#view-3d #plan-tools .pt-panel[data-panel="gizmo"],
+#view-3d #plan-tools .pt-panel[data-panel="max"] {
+  display: none !important;
+}
+
+/* “Show layers” occupies a second ribbon and shifts editing controls down. */
+body.planner-3d-active:not(.workflow-hide-layers) #view-3d #plan-tools .pt-panel[data-panel="layers"] {
+  position: absolute !important;
+  top: 52px !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%);
+  width: min(760px, calc(100% - 16px)) !important;
+  height: 46px !important;
+  max-width: none !important;
+  max-height: none !important;
+  flex-direction: row;
+  overflow: hidden;
+  border-radius: 10px;
+}
+body.planner-3d-active:not(.workflow-hide-layers) #view-3d #layer-chips {
+  width: 100%;
+  max-width: 100%;
+  height: 46px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+body.planner-3d-active:not(.workflow-hide-layers) #view-3d #layer-chips::before {
+  display: none;
+}
+body.planner-3d-active:not(.workflow-hide-layers) #view-3d #layer-chips .lchip {
+  flex: 0 0 auto;
+}
+
+/* Floors identify the scene, so they own the start of the top row.  3D view
+   actions occupy the trailing side in one line instead of drifting into the
+   drawing ribbon below. */
+#view-3d #plan-tools .pt-panel[data-panel="floors"] {
+  position: absolute !important;
+  left: auto !important;
+  right: auto !important;
+  inset-inline-start: 8px !important;
+  top: 8px !important;
+  width: auto !important;
+  height: 38px !important;
+  min-height: 38px;
+  max-width: calc(100% - 320px) !important;
+}
+#view-3d #floor-tabs { min-height: 38px; }
+/* In Split the floor tabs are a direct child of the 3D pane, outside the
+   movable dock. Keep them in the same leading slot as the maximized view. */
+#view-3d > #floor-tabs {
+  top: 8px;
+  inset-inline-start: 8px;
+  inset-inline-end: auto;
+  max-width: calc(100% - 320px);
+}
+#view-3d > .view-max-btn { top: 8px; inset-inline-end: 8px; }
+#view-3d > .view-dollhouse-btn { top: 8px; inset-inline-end: 48px; }
+#view-3d > .view-drawing-btn { top: 8px; inset-inline-end: 156px; }
+
+.planner-navigation {flex-wrap:wrap;justify-content:center;width:max-content;position:absolute;bottom:34px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:15;max-width:calc(100% - 116px);padding:4px;border-radius:8px;background:var(--bg-panel);border:1px solid var(--border-color);box-shadow:var(--shadow-md);backdrop-filter:var(--glass-blur);}
 .planner-navigation button {min-height:36px;white-space:nowrap;padding:5px 10px;border:1px solid var(--btn-border);border-radius:6px;background:var(--btn-bg);color:var(--text-main);cursor:pointer;}
 .planner-navigation button:hover {background:var(--btn-bg-hover);border-color:var(--accent);}
 .planner-navigation button[aria-pressed="true"] {outline:2px solid var(--accent);background:var(--accent-alpha);color:var(--accent);}
 body.zombies-on .planner-navigation,body.lava-on .planner-navigation,body.rc-on .planner-navigation {display:none}
+/* In Split the 3D pane is a live preview. Keep its model centre clear and
+   reserve the spacious navigation treatment for a maximized 3D workspace. */
+#center-canvas:not(.max-view-2d):not(.max-view-3d) #view-3d > .hint { display: none; }
+#center-canvas:not(.max-view-2d):not(.max-view-3d) #view-3d .planner-navigation {
+  left: 8px;
+  bottom: 8px;
+  transform: none;
+  max-width: calc(100% - 116px);
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+}
+#center-canvas:not(.max-view-2d):not(.max-view-3d) #view-3d .planner-navigation button {
+  min-height: 30px;
+  padding: 3px 7px;
+  font-size: 11px;
+}
 body.compact-nav .planner-navigation { bottom: calc(var(--mobile-nav-block, 48px) + var(--m-ctx-reserve, 44px) + 8px); }
 @media(max-width:600px){
   .planner-navigation{bottom:62px}
@@ -20182,12 +20691,219 @@ body.workflow-hide-layers #layer-chips,
 body.workflow-hide-layers .pt-panel[data-panel="layers"] { display: none !important; }
 body.workflow-more-space #left-sidebar,
 body.workflow-more-space #inspectorPreview { display: none !important; }
-/* Wrap named tools instead of making essential tools depend on sideways scrolling. */
+/* Keep the command ribbon to one stable row. Its inner strip scrolls while
+   the labels preference stays outside that viewport at the trailing edge. */
 #app:not(.uikit-editing) #plan-tools.pt-dock .pt-zone[data-zone="top"] #plan-toolbar[data-axis="h"] {
-  flex-wrap: wrap; max-height: 140px; overflow-y: auto;
+  flex-wrap: nowrap; max-height: none; overflow: hidden;
+}
+/* The tools can also be saved as a floating panel. That panel must obey the
+   same one-row contract; otherwise enabling names wraps its last commands
+   under the toolbar and shifts Layers and the active palette unpredictably. */
+#view-2d #plan-tools.pt-dock #plan-toolbar[data-axis="h"] {
+  width: 100%;
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+  max-height: none;
+}
+#view-2d #plan-tools.pt-dock .pt-panel[data-panel="tools"] {
+  height: 46px !important;
+  overflow: hidden;
 }
 #app:not(.uikit-editing) #plan-tools.pt-dock .pt-zone[data-zone="top"] #plan-wall-palette {
   flex-wrap: wrap;
+}
+/* A context ribbon wider than its pane must expose every labelled choice
+   without a hidden sideways-scroll gesture. In the ordinary sidebar layout
+   the plan pane is usually under 1280px even on a large monitor, so Room
+   presets become a compact two-column command panel: presets on the left,
+   exact sizing/connection controls on the right. */
+#view-2d.plan-context-compact #plan-tools.pt-dock .pt-zone[data-zone="top"] #plan-room-palette {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 0.72fr);
+  grid-template-areas:
+    "head tabs"
+    "presets size"
+    "presets connect"
+    "note note";
+  align-items: start;
+  width: 100%;
+  max-height: min(280px, var(--pt-h, 280px));
+  padding: 8px 10px;
+  gap: 7px 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+#view-2d.plan-context-compact #plan-room-palette > .wd-head { grid-area: head; }
+#view-2d.plan-context-compact #plan-room-palette > .rp-tabs {
+  grid-area: tabs;
+  display: flex;
+  flex-wrap: wrap;
+}
+#view-2d.plan-context-compact #plan-room-palette > .rp-grid {
+  grid-area: presets;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-self: stretch;
+}
+#view-2d.plan-context-compact #plan-room-palette > .rp-size-sec {
+  grid-area: size;
+  display: flex;
+  flex-wrap: wrap;
+  width: auto;
+}
+#view-2d.plan-context-compact #plan-room-palette > .rp-size-sec .wd-lab { flex-basis: 100%; }
+#view-2d.plan-context-compact #plan-room-palette > .rp-size-sec .rp-fields { width: 100%; }
+#view-2d.plan-context-compact #plan-room-palette > .rp-conn-sec {
+  grid-area: connect;
+  margin: 0;
+}
+#view-2d.plan-context-compact #plan-room-palette > .rp-conn-sec .rp-conn-seg { min-width: 0; }
+#view-2d.plan-context-compact #plan-room-palette > .rp-open-note { grid-area: note; margin: 0; }
+
+/* A split pane or a narrow desktop leaves about 500–700px for the plan.
+   Saved free-panel coordinates are meaningful on a wide canvas, but in this
+   space the Layers and Floors cards squeeze the active submenu into a sliver.
+   Give narrow panes a stable two-row command area without changing the saved
+   layout that returns when the pane grows. */
+#view-2d.plan-tools-tight #plan-tools.pt-dock .pt-zone { display: contents !important; }
+#view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel > .pt-inner {
+  max-width: 100% !important;
+  max-height: none !important;
+}
+#view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel[data-panel="tools"] {
+  position: absolute !important;
+  top: 8px !important;
+  left: 8px !important;
+  right: 8px !important;
+  bottom: auto !important;
+  width: auto !important;
+  height: 46px !important;
+  max-width: none !important;
+  max-height: none !important;
+  overflow: hidden;
+}
+#view-2d.plan-tools-tight #plan-toolbar,
+#view-2d.plan-tools-tight #plan-toolbar.show-titles {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  flex-direction: row;
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+  padding: 4px 6px;
+}
+#view-2d.plan-tools-tight #plan-toolbar > * { flex-shrink: 0; }
+#view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel[data-panel="layers"] {
+  position: absolute !important;
+  top: 60px !important;
+  left: 8px !important;
+  right: 202px !important;
+  bottom: auto !important;
+  width: auto !important;
+  height: 42px !important;
+  max-width: none !important;
+  max-height: none !important;
+  flex-direction: row;
+  overflow: hidden;
+}
+#view-2d.plan-tools-tight #layer-chips,
+#view-2d.plan-tools-tight #plan-tools.pt-dock #layer-chips[data-axis="v"] {
+  width: 100%;
+  max-width: 100% !important;
+  height: 40px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 3px 5px;
+}
+#view-2d.plan-tools-tight #layer-chips::before { display: none !important; }
+#view-2d.plan-tools-tight #layer-chips .lchip { flex: 0 0 auto; }
+#view-2d.plan-tools-tight #layer-chips .lchip-t { display: none; }
+#view-2d.plan-tools-tight #layer-chips .lchip-name { width: 24px !important; flex: 0 0 auto !important; }
+#view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel[data-panel="floors"] {
+  position: absolute !important;
+  top: 60px !important;
+  left: auto !important;
+  right: 48px !important;
+  bottom: auto !important;
+  width: 146px !important;
+  height: 42px !important;
+  max-width: none !important;
+  max-height: none !important;
+  overflow: hidden;
+}
+#view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel[data-panel="max"] {
+  position: absolute !important;
+  top: 64px !important;
+  left: auto !important;
+  right: 8px !important;
+  bottom: auto !important;
+  width: 32px !important;
+  height: 32px !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+#view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel[data-panel="walls"],
+#view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel[data-panel="rooms"] {
+  position: absolute !important;
+  top: 108px !important;
+  left: 8px !important;
+  right: 8px !important;
+  bottom: auto !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: min(310px, calc(100% - 180px)) !important;
+  align-items: stretch;
+  overflow: hidden;
+}
+#view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel[data-panel="walls"] > .pt-inner,
+#view-2d.plan-tools-tight #plan-tools.pt-dock .pt-panel[data-panel="rooms"] > .pt-inner {
+  max-height: 100% !important;
+  overflow-y: auto;
+}
+#view-2d.plan-tools-tight #plan-tools.pt-dock #plan-room-palette {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, .72fr);
+  grid-template-areas: "head tabs" "presets size" "presets connect" "note note";
+  width: 100%;
+  max-width: 100% !important;
+  max-height: none !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  gap: 7px 10px;
+  padding: 8px 10px;
+}
+#view-2d.plan-tools-tight #plan-room-palette > .wd-head { grid-area: head; }
+#view-2d.plan-tools-tight #plan-room-palette > .rp-tabs { grid-area: tabs; display: flex; flex-wrap: wrap; }
+#view-2d.plan-tools-tight #plan-room-palette > .rp-grid {
+  grid-area: presets;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#view-2d.plan-tools-tight #plan-room-palette > .rp-size-sec { grid-area: size; display: flex; flex-wrap: wrap; width: auto; }
+#view-2d.plan-tools-tight #plan-room-palette > .rp-size-sec .wd-lab { flex-basis: 100%; }
+#view-2d.plan-tools-tight #plan-room-palette > .rp-size-sec .rp-fields { width: 100%; }
+#view-2d.plan-tools-tight #plan-room-palette > .rp-conn-sec { grid-area: connect; margin: 0; }
+#view-2d.plan-tools-tight #plan-room-palette > .rp-conn-sec .rp-conn-seg { min-width: 0; }
+#view-2d.plan-tools-tight #plan-room-palette > .rp-open-note { grid-area: note; margin: 0; }
+#view-2d.plan-tools-tight #plan-tools.pt-dock #plan-wall-palette {
+  width: 100%;
+  max-width: 100% !important;
+  max-height: none !important;
+  flex-wrap: wrap;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+/* The plan-style chip otherwise lands directly on top of the pinned toolbar
+   overflow arrow at these widths. Give it an independent bottom corner. */
+#view-2d.plan-tools-compact > .plan-style-btn {
+  top: auto;
+  bottom: 54px;
+  inset-inline-start: 8px;
+  inset-inline-end: auto;
 }
 body.legacy-ui #planner-workflow,
 body.compact-nav #planner-workflow { display: none !important; }
@@ -20242,3 +20958,48 @@ html[lang="he"] .survey-body p {
 .export-delivery a { min-height: 44px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: var(--accent); color: var(--on-accent); border-radius: 10px; font-weight: 600; text-decoration: none; }
 .export-delivery a:hover { background: var(--accent-hover); }
 .export-delivery button { min-height: 44px; }
+
+/* The commands scroll in their own viewport. Navigation and the 2D labels
+   preference are siblings, never sticky overlays covering a command. In a
+   vertical dock, display:contents preserves the original column layout. */
+#plan-toolbar > .tool-command-strip { display: contents; }
+#view-2d #plan-toolbar[data-axis="h"],
+#view-3d #plan-toolbar[data-axis="h"] {
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+}
+#plan-toolbar[data-axis="h"] > .tool-command-strip {
+  display: flex;
+  flex: 1 1 auto !important;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+#plan-toolbar[data-axis="h"] > .tool-command-strip::-webkit-scrollbar { display: none; }
+#plan-toolbar[data-axis="h"] > .tool-command-strip > * { flex-shrink: 0; }
+#view-2d #plan-toolbar[data-axis="h"] > .tool-scroll,
+#view-3d #plan-toolbar[data-axis="h"] > .tool-scroll {
+  position: static !important;
+  inset: auto !important;
+  flex: 0 0 25px;
+  box-shadow: none;
+}
+#view-3d #plan-toolbar[data-axis="h"] > .tool-scroll:not([hidden]) { display: grid !important; }
+#plan-toolbar[data-axis="h"] > .tool-scroll[hidden] { display: none !important; }
+#view-2d #plan-toolbar[data-axis="h"] > .tool-names-toggle {
+  position: static !important;
+  inset: auto !important;
+  z-index: auto;
+  flex: 0 0 32px;
+}
+/* Centre 3D navigation within the area left of the 86px compass, rather
+   than the full pane. At narrow desktop widths its last button otherwise
+   intersects the compass despite both controls looking individually valid. */
+#center-canvas.max-view-3d #view-3d .planner-navigation {
+  left: calc(50% - 51px);
+}
+#center-canvas.max-view-3d #view-3d > .hint { bottom: 96px; }

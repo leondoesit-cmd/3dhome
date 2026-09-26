@@ -11,7 +11,7 @@ import {removeHistoryNode} from '../js/core/parametric_document.js';
 test('center rectangle remains centered after a driving dimension changes and serialization', () => {
   let sequence=0;
   let sketch={points:[],entities:[],constraints:[]};
-  const lines=addCenterRectangle(sketch,{width:6.858,height:6.858},()=>`center_${++sequence}`);
+  const lines=addCenterRectangle(sketch,{width:6.858,height:6.858,fixCenter:true},()=>`center_${++sequence}`);
   assert.equal(solveSketch(sketch).degreesOfFreedom,0);
   assert.equal(analyzeSketchProfiles(sketch).profiles.length,1);
   sketch=JSON.parse(JSON.stringify(sketch));
@@ -22,6 +22,24 @@ test('center rectangle remains centered after a driving dimension changes and se
   assert.ok(Math.abs(Math.min(...xs)+4)<1e-5);
   assert.ok(Math.abs(Math.max(...xs)-4)<1e-5);
   assert.ok(sketch.points.slice(0,4).every(p=>Math.abs(Math.abs(p.y)-3.429)<1e-5));
+});
+
+test('an unpinned center rectangle drags as a whole and keeps its size',()=>{
+  let sequence=0;
+  const sketch={points:[],entities:[],constraints:[]};
+  addCenterRectangle(sketch,{width:10,height:6},()=>`drag_${++sequence}`);
+  assert.equal(solveSketch(sketch).degreesOfFreedom,2);
+  // the editor pins the held point for the length of a drag
+  for(const held of [sketch.points[0],sketch.points[4]]){
+    const x=held.x+3,y=held.y+2;
+    held.x=x;held.y=y;held.fixed=true;
+    const result=solveSketch(sketch);
+    held.fixed=false;
+    assert.ok(result.converged);
+    assert.ok(Math.abs(held.x-x)<1e-5 && Math.abs(held.y-y)<1e-5);
+    const [a,b,c]=sketch.points;
+    assert.ok(Math.abs(b.x-a.x-10)<1e-5 && Math.abs(c.y-b.y-6)<1e-5);
+  }
 });
 
 test('feature lengths accept the book inch/mm dimensions and mixed-unit arithmetic',()=>{

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {thinSketchProfile} from '../js/core/thin_profile.js';
+import {thinSketchProfile,revolveThinProfile} from '../js/core/thin_profile.js';
 import {regenerateFeatures,releaseRegeneration} from '../js/cad_feature_tree.js';
 import {shapeMassProperties} from '../js/cad_kernel.js';
 const sketch={id:'connectorSketch',plane:'side',referenceId:'plane:right',points:[{id:'c',x:5.842,y:1.016},{id:'a',x:6.096,y:1.016},{id:'b',x:5.842,y:1.27}],entities:[{id:'arc',type:'arc',a:'a',b:'b',c:'c'}],constraints:[]};
@@ -32,4 +32,14 @@ test('thin open polyline has joined offset walls and exact end caps',()=>{
  const area=Math.abs(points.reduce((sum,p,i)=>{const q=points[(i+1)%points.length];return sum+p.u*q.v-q.u*p.v;},0))/2;
  assert.ok(Math.abs(area-.8)<1e-10);
  for(let i=0;i<profile.segments.length;i++)assert.deepEqual(profile.segments[i].to,profile.segments[(i+1)%profile.segments.length].from);
+});
+test('thin revolve outward follows the axis, not the sketch drawing direction',()=>{
+ const path={plane:'side',points:[{id:'a',x:-.635,y:.508},{id:'b',x:-1.0922,y:.3302},{id:'c',x:-1.27,y:.3302}],entities:[{id:'ab',type:'line',a:'a',b:'b'},{id:'bc',type:'line',a:'b',b:'c'}]};
+ const outward=revolveThinProfile(path,['ab','bc'],.381,'forward','z');
+ const inward=revolveThinProfile(path,['ab','bc'],.381,'reverse','z');
+ assert.ok(outward.points.every(p=>p.v>=.3302-1e-8),JSON.stringify(outward.points));
+ assert.ok(inward.points.some(p=>p.v<0),JSON.stringify(inward.points));
+ const backward={...path,entities:[{id:'cb',type:'line',a:'c',b:'b'},{id:'ba',type:'line',a:'b',b:'a'}]};
+ const reversed=revolveThinProfile(backward,['cb','ba'],.381,'forward','z');
+ assert.ok(reversed.points.every(p=>p.v>=.3302-1e-8),JSON.stringify(reversed.points));
 });

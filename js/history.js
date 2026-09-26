@@ -147,6 +147,7 @@ function snap() {
     // other, so Ctrl+Z brings the glow back
     ignoredWarnings: S.ignoredWarnings || {},
     blueprintTrace: S.blueprintTrace,
+    roof: S.roof,
     idc: S.idc,
     parametric: exportParametricProject(S),
     // MEP geometry is part of the model, so it belongs in the snapshot. ui_mep
@@ -155,7 +156,7 @@ function snap() {
     // Ctrl+Z appeared to do nothing and the second reverted an unrelated older
     // edit. Only nodes/runs are tracked — the view flags (show/xray/layer/vis)
     // are display state, like the environment settings above.
-    mep: m ? { nodes: m.nodes, runs: m.runs, routePolicy: m.routePolicy || {} } : null,
+    mep: m ? { nodes: m.nodes, runs: m.runs, circuits: m.circuits || [], branches: m.branches || [], profile: m.profile, routePolicy: m.routePolicy || {} } : null,
     smarthome: snapshotSmart(),
   }, texPack);
 }
@@ -176,9 +177,10 @@ function apply(str) {
       S.workspace.baselines = mergeBaselineArchives(previous.baselines, S.workspace.baselines);
   }
   if (s.spatial) importSpatialProject(S,s.spatial);
-  else { S.nodes=s.nodes || [];S.walls=s.walls || [];S.openings=s.openings || [];S.items=s.items || [];S.markers=s.markers || [];S.slabOpenings=s.slabOpenings || [];S.roomMeta=s.roomMeta || {}; }
+  else { S.nodes=s.nodes || [];S.walls=s.walls || [];S.openings=s.openings || [];S.items=s.items || [];S.markers=s.markers || [];S.slabOpenings=s.slabOpenings || [];S.annotations=s.annotations || [];S.roomMeta=s.roomMeta || {}; }
   S.ignoredWarnings = s.ignoredWarnings || {};
   S.blueprintTrace = normalizeBlueprintReference(s.blueprintTrace);
+  S.roof = s.roof || null;
   syncBlueprintTraceControls();
   S.warnHover = S.warnSel = null;
   S.conHover = null;
@@ -195,6 +197,9 @@ function apply(str) {
   var m = ensureMEP();
   m.nodes = (s.mep && s.mep.nodes) || [];
   m.runs = (s.mep && s.mep.runs) || [];
+  m.circuits = (s.mep && s.mep.circuits) || [];
+  m.branches = (s.mep && s.mep.branches) || [];
+  if (s.mep && s.mep.profile) m.profile = s.mep.profile;
   m.routePolicy = (s.mep && s.mep.routePolicy) || {};
   m.route = null; // an in-progress polyline can't survive a state swap
   m.place = null;

@@ -3,12 +3,7 @@
 export function measureDistance(p1, p2) {
   const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z;
   const distance = Math.hypot(dx, dy, dz);
-  return {
-    distance: Math.round(distance * 100) / 100,
-    dx: Math.round(dx * 100) / 100,
-    dy: Math.round(dy * 100) / 100,
-    dz: Math.round(dz * 100) / 100,
-  };
+  return {distance, dx, dy, dz};
 }
 
 export function measureAngleBetweenNormals(n1, n2) {
@@ -37,4 +32,3 @@ export function createSectionClipPlane(planeOrigin = { x: 0, y: 0, z: 0 }, plane
     active: true,
   };
 }
-

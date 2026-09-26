@@ -100,6 +100,8 @@
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
     <script defer src="vendor/leaflet/leaflet.js"></script>
     <link rel="stylesheet" href="css/styles.css?v=mobile-bottom-sheet-1" />
+    <link rel="stylesheet" href="css/cabinet_production.css" />
+    <link rel="stylesheet" href="css/pro_ribbon.css" />
   </head>
   <body>
     <div id="app">
@@ -675,7 +677,37 @@
           <div id="view-3d">
             <canvas id="v3d"></canvas>
             <div class="lbl" data-i18n="lbl_3d">תצוגת 3D</div>
+            <button type="button" class="view-edit-btn view-drawing-btn" id="drawing3dBtn"
+              data-act="drawing3d" data-i18n-title="drawing3d" data-i18n-aria="drawing3d"
+              title="Drawing overlay" aria-label="Drawing overlay" aria-pressed="false">
+              <i class="ph ph-pencil-line" aria-hidden="true"></i>
+              <span data-i18n="drawing3d">Drawing overlay</span>
+            </button>
+            <div class="drawing3d-panel" id="drawing3dPanel" role="group" data-i18n-aria="drawing3d_settings" aria-label="Drawing settings" hidden>
+              <label class="d3p-row">
+                <span class="d3p-label" data-i18n="drawing3d_hidden">Dimensions behind walls</span>
+                <input type="range" id="drawing3dHidden" min="0" max="100" step="5" value="25">
+                <output id="drawing3dHiddenOut" for="drawing3dHidden">25%</output>
+              </label>
+              <label class="d3p-row d3p-switch">
+                <span class="d3p-label" data-i18n="drawing3d_hover">Hover to measure</span>
+                <input type="checkbox" id="drawing3dHover" role="switch" checked>
+                <span class="d3p-track" aria-hidden="true"></span>
+              </label>
+              <label class="d3p-row">
+                <span class="d3p-label" data-i18n="drawing3d_hover_ink">Hover sketch</span>
+                <input type="range" id="drawing3dHoverInk" min="10" max="100" step="5" value="90">
+                <output id="drawing3dHoverInkOut" for="drawing3dHoverInk">90%</output>
+              </label>
+            </div>
             <div id="floor-tabs" class="modern-chrome" hidden></div>
+            <!-- dollhouse cutaway: walls cut at a height, camera from above -->
+            <button type="button" class="view-edit-btn view-dollhouse-btn" id="dollhouseBtn"
+              data-act="dollhouse" data-i18n-title="cutaway_t" data-i18n-aria="cutaway_t"
+              title="Dollhouse cutaway" aria-label="Dollhouse cutaway" aria-pressed="false">
+              <i class="ph ph-house-line" aria-hidden="true"></i>
+              <span data-i18n="view_dollhouse">Dollhouse</span>
+            </button>
             <!-- 3D edit mode: left-drag moves the piece under the cursor -->
             <button
               class="view-edit-btn"
@@ -865,6 +897,17 @@
             <div id="plan-room-palette" class="plan-room-palette" data-i18n-aria="rp_group" aria-label="Room presets" hidden></div>
             </div>
             <div id="plan-hint" class="plan-hint" hidden></div>
+            <button
+              type="button"
+              class="plan-style-btn"
+              data-act="togglePlanStyle"
+              data-i18n-title="plan_style_toggle"
+              title="Presentation / technical plan"
+              aria-label="Presentation / technical plan"
+              aria-pressed="false"
+            >
+              <i class="ph ph-paint-brush-household"></i>
+            </button>
             <button
               class="view-max-btn"
               data-max-view="view-2d"
@@ -1676,6 +1719,7 @@
                     <option value="hexTile" data-i18n="floor_hexTile">משושים</option>
                     <option value="checker" data-i18n="floor_checker">שחמט</option>
                     <option value="balcony" data-i18n="floor_balcony">מרפסת</option>
+                    <option value="pavers" data-i18n="floor_pavers">אבני ריצוף</option>
                   </optgroup>
                   <optgroup label="אבן" data-i18n-label="floor_g_stone">
                     <option value="marble" data-i18n="floor_marble">שיש</option>
@@ -1956,8 +2000,30 @@
             </div>
           </div>
 
-          <div class="panel-section env-section collapsed">
+          <div class="panel-section env-section collapsed" id="envSection">
             <h3 data-i18n="view">תצוגה וסביבה</h3>
+            <div class="plan-style-row">
+              <span class="plan-style-lbl" data-i18n="plan_style">סגנון תוכנית</span>
+              <div class="seg plan-style-seg" id="planStyleSeg" role="radiogroup">
+                <button type="button" data-plan-style="technical" role="radio" data-i18n="plan_style_technical">טכני</button>
+                <button type="button" data-plan-style="presentation" role="radio" data-i18n="plan_style_presentation">הצגה</button>
+              </div>
+            </div>
+            <label
+              ><input type="checkbox" id="cb_cutaway" />
+              <span data-i18n="cutaway">חיתוך קירות (בית בובות)</span></label
+            >
+            <div class="cutaway-opts" id="cutawayOpts">
+              <div class="slider-row">
+                <span data-i18n="cutaway_height">גובה חיתוך</span>
+                <input type="range" id="cutawayH" min="60" max="300" step="5" value="160" />
+                <output id="cutawayHOut" for="cutawayH">160</output>
+              </div>
+              <div class="seg" id="cutawayCap" role="radiogroup">
+                <button type="button" data-cut-cap="white" role="radio" data-i18n="cutaway_cap_white">כיסוי לבן</button>
+                <button type="button" data-cut-cap="dark" role="radio" data-i18n="cutaway_cap_dark">כיסוי כהה</button>
+              </div>
+            </div>
             <label
               ><input type="checkbox" id="cb_dims" checked />
               <span data-i18n="cb_dims">מידות</span></label
@@ -1990,6 +2056,7 @@
                 <option value="hexTile" data-i18n="floor_hexTile">משושים</option>
                 <option value="checker" data-i18n="floor_checker">שחמט</option>
                 <option value="balcony" data-i18n="floor_balcony">מרפסת</option>
+                <option value="pavers" data-i18n="floor_pavers">אבני ריצוף</option>
               </optgroup>
               <optgroup label="אבן" data-i18n-label="floor_g_stone">
                 <option value="marble" data-i18n="floor_marble">שיש</option>
@@ -2188,6 +2255,11 @@
           </button>
         </div>
         <div class="start-actions start-secondary">
+          <button type="button" data-start="showcase">
+            <i class="ph ph-house-line"></i>
+            <strong data-i18n="start_showcase">בית לדוגמה</strong>
+            <span data-i18n="start_showcase_d">בית מרוהט בתצוגת הצגה ובית בובות</span>
+          </button>
           <button type="button" data-start="demo">
             <i class="ph ph-armchair"></i>
             <strong data-i18n="start_demo">הדגמה מרוהטת</strong>

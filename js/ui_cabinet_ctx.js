@@ -249,6 +249,9 @@ export var TXT = {
     "עובי לוחות, סוקל ומרווח חזיתות נמצאים ברמה הטכנית.",
     "Board thicknesses, plinth and front reveal live on the Technical level.",
   ],
+  productionConvention: ["מוסכמת ייצור", "Production convention"],
+  productionConventionNone: ["לא תועדה — יש לבחור ידני או תבנית", "Not recorded — choose Manual or a preset"],
+  openProductionSetup: ["הגדרת ייצור", "Production setup"],
   sizeRejected: ["לא ניתן לשנות למידה הזו", "That dimension cannot be changed"],
 };
 export function T(k) {
@@ -409,4 +412,3 @@ export var AXES = {
   bl: { az: (-3 * Math.PI) / 4, el: 0 },
   br: { az: (3 * Math.PI) / 4, el: 0 },
 };
-

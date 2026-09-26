@@ -11,7 +11,7 @@ test('cabinet inspector, resize dialog and model-editor save and reload remain u
    openCabinet(S.items[0]);
   });
   const height=await page.eval(()=>document.querySelector('.cb-right .cb-fill').clientHeight);assert.ok(height>=240);
-  await page.eval(()=>{const field=document.querySelector('#cbD');field.value='20';field.dispatchEvent(new Event('change',{bubbles:true}));});
+  await page.eval(()=>{const field=document.querySelector('#cbD');field.value='200 mm';field.dispatchEvent(new Event('change',{bubbles:true}));});
   assert.equal(await page.eval(()=>document.activeElement.textContent),'Keep current size');
   await page.eval(()=>document.activeElement.click());
   await page.eval(()=>[...document.querySelectorAll('#cabdes button')].find(b=>b.textContent.includes('3 · Model editor')).click());
@@ -37,7 +37,9 @@ test('cabinet inspector, resize dialog and model-editor save and reload remain u
     parts:def.parts.length,field:document.querySelector('#cbW').value};
   },project);
   assert.deepEqual({...restored,field:undefined},{...saved,field:undefined});
-  assert.equal(Number(restored.field),160);
+  const displayUnit=await page.eval(async()=>(await import('/js/display_units.js')).displayUnit('furniture'));
+  const expectedField={mm:1600,cm:160,m:1.6,in:160/2.54,ft:160/30.48}[displayUnit];
+  assert.ok(Math.abs(Number(restored.field)-expectedField)<0.000001,'restored field uses the current furniture display unit');
 
  }finally{await page.close();}
 });

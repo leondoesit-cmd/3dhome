@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import {frameFromPlane,framePoint} from '../js/core/frame.js';
+import {alignExtrusionToSupport} from '../js/cad_feature_tree.js';
 const source=readFileSync(new URL('../js/modeler.js',import.meta.url),'utf8');
 function load(name, context) {
   let start=source.indexOf(`function ${name}(`);
@@ -9,6 +11,26 @@ function load(name, context) {
   const end=source.indexOf('\n}',start)+2;
   return vm.runInNewContext(`(${source.slice(start,end)})`,context);
 }
+test('face-local extrusion previews agree with exact support direction on reversed and oblique faces',()=>{
+ for(const normal of [{x:0,y:0,z:-1},{x:0,y:-1,z:0},{x:-1,y:0,z:0},{x:0,y:0,z:1},{x:-.6,y:0,z:-.8}]) {
+  const frame=frameFromPlane({x:2,y:3,z:4},normal);
+  const support={persistentId:'rim',ownerFeatureId:'shell'};
+  const sketch={plane:'front',frameSpace:'local',frame,support};
+  const preview=load('extrudePreviewParts',{
+   E:{def:{}},ensureSketch:()=>sketch,planeAxis:()=> 'z',cloneData:structuredClone,
+   sketchFeatureAreas:()=>[{points:[{u:0,v:0},{u:1,v:0},{u:0,v:1}],holes:[]}],
+   resolveExtrudeExtent:params=>params,isUpToFace:()=>false,featureTypeLabel:type=>type,
+  });
+  for(const direction of ['forward','reverse']) {
+   const params={direction,depth:.635,endCondition:'blind'};
+   const actual=preview('extrude',params)[0];
+   const exact=alignExtrusionToSupport({...params,frame,support},[{reference:support,topology:{descriptor:{origin:frame.origin,normal}}}]);
+   assert.deepEqual(framePoint(actual.frame,0,0,actual.to),framePoint(exact.frame,0,0,exact.to));
+   const end=framePoint(actual.frame,0,0,actual.to),sign=direction==='reverse'?-1:1;
+   assert.ok(Math.abs((end.x-2)*normal.x+(end.y-3)*normal.y+(end.z-4)*normal.z-sign*.635)<1e-9);
+  }
+ }
+});
 test('opening and accepting a fractional-millimeter dimension preserves its exact value',()=>{
  const controls=new Map();
  const root={querySelector:key=>{
@@ -61,6 +83,77 @@ test('Front uses its world camera preset even while a top face remains selected'
  setView('front');
  assert.equal(E.view,'front');
  assert.deepEqual(calls,[{az:0,el:.05}]);
+});
+test('standard views do not create an unrecorded sketch after a face sketch',()=>{
+ const face={id:'face-profile',plane:'front',frameSpace:'local',entities:[{id:'curve'}]};
+ const E={view:'side',def:{activeSketch:face.id,sketches:[face]},ssel:[]};
+ const adopt=load('adoptSketchForView',{
+  E,ensureSketch:def=>def.sketches.find(sketch=>sketch.id===def.activeSketch),
+  sketchesOnPlane:()=>[],addSketch(){throw new Error('view change created a sketch');},
+ });
+ assert.equal(adopt(),false);
+ assert.equal(E.def.activeSketch,face.id);
+ assert.deepEqual(E.def.sketches,[face]);
+});
+test('editing an offset plane keeps its parent despite a retained face selection',()=>{
+ const selectedFace={kind:'face',persistentId:'unrelated-top',descriptor:{surface:'plane'}};
+ const E={topologySelection:[selectedFace,{kind:'vertex',persistentId:'corner'}],def:{references:[
+  {id:'plane:top',type:'plane',name:'Top Plane'},
+  {id:'plane:front',type:'plane',name:'Front Plane'},
+ ]}};
+ let form;
+ const open=load('openOffsetPlaneForm',{E,t:key=>key,openQuickForm:config=>{form=config;return null;}});
+ const field=key=>form.fields.find(item=>item.key===key);
+ open({id:'plane1',type:'plane',name:'Plane1',refType:'offset',baseReferenceId:'plane:top',offset:1.27});
+ assert.equal(field('parent').value,'plane:top');
+ assert.equal(field('mode').value,'offset');
+ assert.ok(!field('parent').choices.some(choice=>choice.value==='selected-face'));
+ open();
+ assert.equal(field('parent').value,'selected-face');
+});
+test('Copy face boundary prefers the selected circular edge over a planar face',()=>{
+ const edge={kind:'edge',persistentId:'rear-inner-circle',descriptor:{curve:'circle'}};
+ const sketch={support:{kind:'face',descriptor:{surface:'plane'}}};
+ let chosen;
+ const convert=load('openFaceBoundary',{
+  E:{def:{},authoring:{phase:'sketch'},topologySelection:[edge]},
+  ensureSketch:()=>sketch,selectedSketchableFace:()=>sketch.support,
+  openCircularConversion:(actualSketch,actualEdge)=>{chosen={actualSketch,actualEdge};},
+ });
+ convert();
+ assert.equal(chosen.actualSketch,sketch);
+ assert.equal(chosen.actualEdge,edge);
+ const other={kind:'edge',persistentId:'front-circle',descriptor:{curve:'circle',radius:1,origin:{z:0}}};
+ let form;
+ const open=load('openCircularConversion',{
+  E:{def:{parts:[{}]}},topologyEntriesForPart:()=>[other,edge],
+  projectCircularEdge:()=>({x:0,y:0,radius:1}),openQuickForm:config=>{form=config;},
+ });
+ edge.descriptor.radius=1;edge.descriptor.origin={z:0};
+ open(sketch,edge);
+ assert.equal(form.fields[0].value,edge.persistentId);
+ const partial={kind:'edge',persistentId:'split-arc',descriptor:{curve:'circle',radius:1.05,origin:{z:0}}};
+ const complete={kind:'edge',persistentId:'near-full-rim',descriptor:{curve:'circle',radius:1.08,origin:{z:0}}};
+ const fallback=load('openCircularConversion',{
+  E:{def:{parts:[{}]}},topologyEntriesForPart:()=>[other,complete],
+  projectCircularEdge:(_sketch,item)=>{if(item===partial)throw Error('Select a complete circular edge');return {x:0,y:0,radius:item.descriptor.radius};},
+  openQuickForm:config=>{form=config;},
+ });
+ fallback(sketch,partial);
+ assert.match(form.hint,/partial arc/);
+ assert.equal(form.fields[0].value,complete.persistentId);
+});
+test('standard views preserve a feature profile while choosing its terminating face',()=>{
+ const calls=[];
+ const E={view:'side',mode:'3d',def:{activeSketch:'rib'},authoring:{featureType:'extrude'},
+  pv:{clearFixedFrame:()=>calls.push('clear'),orbitTo:(az,el)=>calls.push([az,el])}};
+ const setView=load('setView',{E,CAMERA_ONLY_VIEWS:['iso','back','left'],
+  VIEW_PRESETS:[{id:'front',az:0,el:.05},{id:'top',az:0,el:1.5},{id:'right',az:Math.PI/2,el:.05}],
+  adoptSketchForView(){throw new Error('Feature profile must remain active');},drawSketch(){}});
+ setView('front');setView('top');setView('side');
+ assert.equal(E.def.activeSketch,'rib');
+ assert.equal(E.view,'side');
+ assert.deepEqual(calls,['clear',[0,.05],'clear',[0,1.5],'clear',[Math.PI/2,.05]]);
 });
 test('body modifiers consume the latest result without crossing to another body',()=>{
  const E={def:{features:[
@@ -126,4 +219,27 @@ test('cut rim references depend on the authoring cut and failed preflight leaves
  assert.equal(part.exactOperations,undefined);
  assert.equal(undoCount,0);
  assert.equal(message,'Invalid finish');
+});
+
+test('Zoom to fit centers an off-origin sketch in its plane camera',()=>{
+ let target;
+ const E={def:{},pv:{fixedFrame:{origin:{x:7,y:8,z:9}},target:{set(...v){target=v;}},frame(){},render(){}}};
+ const fit=load('fitPreview',{E,activeSketchWorldBounds:()=>({x0:7,x1:7,y0:8,y1:13.08,z0:9,z1:14.08}),renderedParts:()=>[]});
+ fit();
+ assert.ok(Math.abs(target[1]-2.54)<1e-12);assert.ok(Math.abs(target[2]-2.54)<1e-12);assert.equal(target[0],0);
+});
+
+test('view indicators follow the camera without changing the sketch plane',()=>{
+ const buttons=['top','front','side','back','left'].map(id=>({id,on:false,attrs:{},getAttribute(){return id;},classList:{toggle(_name,on){buttons.find(b=>b.id===id).on=on;}},setAttribute(key,value){this.attrs[key]=value;}}));
+ const E={view:'front',mode:'3d',pv:{az:Math.PI,el:.05}};
+ const sync=load('syncViewButtons',{E,root:{querySelectorAll:()=>buttons},VIEW_PRESETS:[{id:'back',az:Math.PI,el:.05},{id:'right',az:Math.PI/2,el:.05}]});
+ sync();
+ assert.deepEqual(buttons.filter(b=>b.on).map(b=>b.id),['back']);
+ assert.equal(buttons.find(b=>b.id==='back').attrs['aria-pressed'],'true');
+ assert.equal(E.view,'front');
+ E.pv.az=Math.PI/2+2*Math.PI;sync();
+ assert.deepEqual(buttons.filter(b=>b.on).map(b=>b.id),['side']);
+ E.pv.az=.7;sync();assert.equal(buttons.some(b=>b.on),false);
+ E.pv.az=Math.PI;E.pv.fixedFrame={};sync();assert.equal(buttons.some(b=>b.on),false);
+ E.mode='2d';sync();assert.deepEqual(buttons.filter(b=>b.on).map(b=>b.id),['front']);
 });

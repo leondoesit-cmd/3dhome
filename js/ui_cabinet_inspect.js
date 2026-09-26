@@ -11,6 +11,7 @@ import {
 import { ceilingHeight } from "./elevation.js";
 import { BANDING, PROFILES, sheetsFor, sheetById, sheetPrice, bandById, bandPPM, profilePPM, sheetLabel, bandLabel, profileLabel } from "./stock.js";
 import { cabinetPresets, saveCabinetPreset, deleteCabinetPreset } from "./cabinet_presets.js";
+import { cabinetProductionPreset } from "./cabinet_production_presets.js";
 import { api, E, T, isEn, el, btn, sp, row, numInput, select, checkbox, formatCm } from "./ui_cabinet_ctx.js";
 
 export function matches(str) {
@@ -724,6 +725,14 @@ export function fillTechnical() {
     wrap.innerHTML = "";
     var s = sp();
     wrap.appendChild(el("div", "cb-note", T("techHint")));
+    var recorded = cabinetProductionPreset(s.productionConvention && s.productionConvention.presetId),
+      convention = el("div", "cb-production-convention");
+    convention.appendChild(el("div", "cb-production-convention-copy", "<b>" + T("productionConvention") + "</b><span>" + (recorded ? (isEn() ? recorded.label : recorded.labelHe) : T("productionConventionNone")) + "</span>"));
+    convention.appendChild(btn('<i class="ph ph-factory"></i> ' + T("openProductionSetup"), function () {
+      var launch = E.host.querySelector('.cb-icons button[data-act="nest"]');
+      if (launch) launch.click();
+    }, "cb-more"));
+    wrap.appendChild(convention);
     wrap.appendChild(row(T("panel"), numInput(s.panel, function (v) {
       api.act(T("panel")); s.panel = v; api.changed(true);
     }, 0.8, 4)));

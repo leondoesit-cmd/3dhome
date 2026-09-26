@@ -1,0 +1,11 @@
+# STEPPED SHAFT — exercise 6.6
+
+Browser-authored from the user's *Engineering Graphics with SOLIDWORKS 2021* PDF, physical page 305 (printed page 6-37), on 2026-09-24. Saved as **STEPPED SHAFT - exercise 6.6 - Cast Alloy Steel** in the ModelForge library; the local disk backup is `.model-backups/cm_muetbkcm/latest.json`.
+
+- A fully defined Front-plane stepped half-profile is revolved 360° about the Y axis. It produces a Ø28 × 12 mm flange and a Ø12 mm shaft extending 20 mm beyond the flange, for 32 mm overall axial length.
+- A fully defined Top-plane 4 mm wide rectangle cuts through the flange along its axis. Its floor lies 2 mm below the flange's outer radial surface; the rectangle extends beyond the cylinder surface to leave an open groove. The part has exactly the requested Revolved Base and Extruded Cut features, each preceded by its editable sketch.
+- The book identifies the origin but does not fully dimension the groove's axial end condition. This reference places the origin at the flange rear-face centre and uses a through-all cut across the 12 mm flange. The shaft is untouched because the cutter lies outside its Ø12 mm radius.
+- Cast Alloy Steel (SOLIDWORKS reference) uses the book's 0.0073 g/mm³ density. Exact mass properties: 9,557.265 mm³ volume and 69.76804 g mass. The overall Y extent remains 32 mm after the cut.
+- The saved A3 drawing has ANSI third-angle style with MMGS values, four orthographic/isometric views, seven dimensions (two automatic overall and five topology-bound: Ø28, Ø12, 4 slot width, 20 exposed shaft, and 12 flange thickness), a groove-depth note, and a material/mass title block.
+
+The saved model and drawing were reopened from the browser library. Exact BREP regeneration succeeded with one body, and the drawing retained its views, dimensions, note, units, and title block. The 2D sketch editor's empty-sketch framing was also tightened to a 10 cm opening span; switching from a 3D sketch to the 2D editor now fits that sketch. A real-browser probe confirmed a 100 px placement spans about 25 mm instead of dozens of centimetres. ANSI sheet styling no longer changes a metric part's modelling units; this was verified independently in the browser.

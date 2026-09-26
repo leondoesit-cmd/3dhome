@@ -5,7 +5,7 @@ import { cosmeticThread, modeledThreadSolid, threadCallout, threadDesignation, v
 import { knurlBandMesh, knurlCallout, knurlGrooveHelices, validateKnurl } from "../js/cad_knurl.js";
 import { holeCallout, holeLayoutPoints, holeWizardSolids, holeWizardThread, normalizeHoleWizard } from "../js/cad_hole_wizard.js";
 import { classifyFit, evaluateFit, fitCallout, shaftTolerance } from "../js/cad_fits.js";
-import { insertBody, STOCK_MATERIALS, applyAppearanceOverrides, createAppearanceOverride, upsertAppearanceOverride } from "../js/cad_appearances.js";
+import { insertBody, STOCK_MATERIALS, applyAppearanceOverrides, createAppearanceOverride, upsertAppearanceOverride, pruneSketchTargetedBodyAppearances, pruneSketchMaterialFields } from "../js/cad_appearances.js";
 import { toolboxFastener, listToolboxPicker, preferredLength } from "../js/cad_toolbox.js";
 import { captureConfiguration, ensureConfigurations, setActiveConfiguration } from "../js/cad_configurations.js";
 import { collectHoleCallouts, createDrawingSvg } from "../js/cad_drawings.js";
@@ -273,6 +273,31 @@ test("face appearance overrides do not recolor the body, and stock clicks replac
   assert.equal(twice.length, 1);
   assert.equal(twice[0].material, "steel");
   assert.equal(twice[0].id, once[0].id);
+});
+
+test("saving removes an accidental body appearance on a sketch point but keeps real body and face appearances", () => {
+  const def = {
+    parts: [{ id: 10, featureId: "boss" }], features: [{ id: "boss" }],
+    sketches: [{ points: [{ id: 11 }], entities: [{ id: 12 }] }],
+    appearances: [
+      { kind: "body", persistentId: 11 },
+      { kind: "body", persistentId: 10 },
+      { kind: "body", persistentId: "boss" },
+      { kind: "face", persistentId: 12 },
+    ],
+  };
+  assert.equal(pruneSketchTargetedBodyAppearances(def), 1);
+  assert.deepEqual(def.appearances.map((item) => item.persistentId), [10, "boss", 12]);
+});
+
+test("saving removes legacy body material copied onto a sketch point but preserves point styling", () => {
+  const def = { sketches: [{ points: [
+    { id: 1, x: 0, y: 0, color: "#ff0000" },
+    { id: 2, x: 1, y: 0, materialCatalogId: "stock:aluminum", materialName: "Aluminum 6061", density: 2.7, color: "#8fb8c4", metal: 0.72, rough: 0.32 },
+  ] }] };
+  assert.equal(pruneSketchMaterialFields(def), 1);
+  assert.equal(def.sketches[0].points[0].color, "#ff0000");
+  assert.deepEqual(def.sketches[0].points[1], { id: 2, x: 1, y: 0 });
 });
 
 /* Angle mates were fully modelled — a residual, a Jacobian and an explicit

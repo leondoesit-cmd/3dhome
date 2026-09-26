@@ -4,28 +4,49 @@
 // interaction.js drives the actual placing/routing/selecting on the canvas.
 import {
   ensureMEP, MEP_SYS, MEP_SYS_ORDER, MEP_NODE_KINDS, MEP_RUN_KINDS, MEP_LAYERS,
-  sysLabel, nodeLabel, runLabel, nodeKindDef, runKindDef,
-  deleteMEP, runLength, mepVisible, computeMEPStatus, connectMissingMEP,
-  allowedLayersFor, defaultLayerFor, layerAllowed, runCrossesOpening,
+  sysLabel, nodeLabel, runLabel,
+  deleteMEP, runLength, mepVisible, getMEPState, connectMissingMEP, onMEPChange, nodePos, runPointY,
+  allowedLayersFor, defaultLayerFor, runCrossesOpening,
   routingPolicy, setRoutingPolicy, policyLayerFor, effectiveRunLayers,
+  setNodeKind, setRunKind, setMEPLayer, decideAutoGenerate,
 } from "./mep.js";
 import { autoInfrastructure } from "./mep_auto.js";
 import { setTool } from "./interaction.js";
-import { render2D } from "./plan2d.js";
+import { render2D, frameBounds } from "./plan2d.js";
 import { select } from "./ui_props.js";
 import { refreshTree } from "./ui_tree.js";
 import { pushHistory } from "./history.js";
 import { t, getLang, onLangChange } from "./i18n.js";
 import { fmtLen, parseLen } from "./display_units.js";
+import { detectRooms } from "./geometry.js";
 import { S } from "./state.js";
+import { saveLayers } from "./layers.js";
+import { validateMEPModel } from "./mep_validate.js";
+import { mepProfile } from "./mep_profile.js";
+
+function notify(msg, kind) {
+  import("./ui.js").then(function (ui) { ui.flash(msg, kind); });
+}
 
 // generate a full MEP rough-in from the current rooms + fixtures (replaces MEP)
 export function autoGenerateMEP() {
+  var m = ensureMEP();
+  var decision = decideAutoGenerate(
+    detectRooms().length,
+    m.nodes.length + m.runs.length,
+    function () { return window.confirm(t("mep_autoReplace")); },
+  );
+  if (decision === "need-room") {
+    notify(t("mep_autoNeedRoom"), "error");
+    return { ok: false, reason: "need-room" };
+  }
+  if (decision === "cancelled") return { ok: false, reason: "cancelled" };
   pushHistory();
   var res = autoInfrastructure();
-  var m = ensureMEP();
+  m = ensureMEP();
   m.show = true;
   if (m.runs.some(function (r) { return r.layer === "floor"; })) m.xray.floor = true;
+  revealMEPPlan();
   S.dirty3D = true;
   select(null);
   render2D();
@@ -35,12 +56,240 @@ export function autoGenerateMEP() {
 }
 
 var panelEl = null;
+var mepPanelSubscribed = false;
+// The health line stays in the document across panel rebuilds. Recreating a
+// live region makes a screen reader repeat "all connected" on every toggle.
+var healthEl = null;
+var healthTextEl = null;
+var healthIconEl = null;
+var healthRepairEl = null;
+var clashEl = null;
+var clashTextEl = null;
+var reviewEl = null;
+var reviewOpen = false;
+
+function focusMEPReview(entityId, point, systems, layers, preferredKind) {
+  var m = ensureMEP();
+  (systems || []).forEach(function(sys) { m.vis[sys] = true; });
+  (layers || []).forEach(function(layer) {
+    m.layerVis[layer] = true;
+    if (layer === "floor") m.xray.floor = true;
+    if (layer === "ceiling") m.xray.ceiling = true;
+  });
+  m.show = true;
+  var node = m.nodes.find(function(n) { return String(n.id) === String(entityId); });
+  var run = m.runs.find(function(r) { return String(r.id) === String(entityId); });
+  var circuit = m.circuits.find(function(c) { return String(c.id) === String(entityId); });
+  var branch = m.branches.find(function(b) { return String(b.id) === String(entityId); });
+  if (!node && circuit) node = m.nodes.find(function(n) { return String(n.id) === String(circuit.deviceIds && circuit.deviceIds[0]); });
+  if (!node && branch) node = m.nodes.find(function(n) { return String(n.id) === String(branch.deviceIds && branch.deviceIds[0]); });
+  var item = S.items.find(function(it) { return String(it.id) === String(entityId); });
+  if (preferredKind === "item" && item) { node = null; run = null; }
+  if (!point && node) point = nodePos(node);
+  if (!point && run && run.pts.length) point = run.pts[Math.floor(run.pts.length / 2)];
+  if (!point && item) point = { x: item.x, z: item.z };
+  revealMEPPlan();
+  select(node ? { kind: "mepNode", ref: node } : run ? { kind: "mepRun", ref: run } : item ? { kind: "item", ref: item } : null);
+  if (point && Number.isFinite(point.x) && Number.isFinite(point.z))
+    frameBounds({ minx: point.x - 80, maxx: point.x + 80, minz: point.z - 80, maxz: point.z + 80 });
+  S.dirty3D = true;
+  renderPanel();
+  render2D();
+}
+
+function issueName(code) {
+  var names = {
+    MISSING_PANEL: "Circuit has no panel", INVALID_PANEL: "Circuit source is not a panel",
+    MISSING_CIRCUIT_DEVICE: "Circuit device is missing", INVALID_CIRCUIT_DEVICE: "Invalid circuit device",
+    TOO_MANY_CIRCUIT_OUTLETS: "Too many outlets on circuit", TOO_MANY_CIRCUIT_LIGHTS: "Too many lights on circuit",
+    BROKEN_CIRCUIT_PATH: "Broken path to panel", INVALID_CIRCUIT_LOAD: "Circuit load is invalid",
+    CIRCUIT_OVERLOAD: "Circuit overload", UNSOURCED_ELECTRICAL_DEVICE: "Electrical device has no source",
+    INVALID_ELECTRICAL_SOURCE: "Invalid electrical source", MISSING_DEVICE_CIRCUIT: "Device circuit is missing",
+    UNBOUND_LIGHT_FIXTURE: "Light fixture is not connected", MISSING_LIGHT_SWITCH: "Light has no switch",
+    SWITCH_NOT_ON_LIGHT_CIRCUIT: "Switch is on another circuit", MISSING_BRANCH_SOURCE: "Service source is missing",
+    INVALID_BRANCH_SOURCE: "Invalid service source", MISSING_BRANCH_DEVICE: "Service device is missing",
+    INVALID_BRANCH_DEVICE: "Invalid service device", UNBOUND_WET_FIXTURE: "Wet fixture is not connected",
+    INVALID_RUN_ENDPOINT: "Run endpoint is disconnected", INVALID_GRAVITY_FALL: "Gravity run has no fall",
+    INSUFFICIENT_GRAVITY_FALL: "Drainage slope is too shallow",
+  };
+  var hebrew = {
+    MISSING_PANEL: "למעגל אין לוח חשמל", INVALID_PANEL: "מקור המעגל אינו לוח חשמל",
+    MISSING_CIRCUIT_DEVICE: "התקן המעגל חסר", INVALID_CIRCUIT_DEVICE: "התקן מעגל לא תקין",
+    TOO_MANY_CIRCUIT_OUTLETS: "יותר מדי שקעים במעגל", TOO_MANY_CIRCUIT_LIGHTS: "יותר מדי גופי תאורה במעגל",
+    BROKEN_CIRCUIT_PATH: "החיבור ללוח החשמל נותק", INVALID_CIRCUIT_LOAD: "עומס המעגל אינו תקין",
+    CIRCUIT_OVERLOAD: "עומס יתר במעגל", UNSOURCED_ELECTRICAL_DEVICE: "להתקן החשמלי אין מקור",
+    INVALID_ELECTRICAL_SOURCE: "מקור החשמל אינו תקין", MISSING_DEVICE_CIRCUIT: "מעגל ההתקן חסר",
+    UNBOUND_LIGHT_FIXTURE: "גוף התאורה אינו מחובר", MISSING_LIGHT_SWITCH: "לגוף התאורה אין מתג",
+    SWITCH_NOT_ON_LIGHT_CIRCUIT: "המתג נמצא במעגל אחר", MISSING_BRANCH_SOURCE: "מקור השירות חסר",
+    INVALID_BRANCH_SOURCE: "מקור השירות אינו תקין", MISSING_BRANCH_DEVICE: "התקן השירות חסר",
+    INVALID_BRANCH_DEVICE: "התקן השירות אינו תקין", UNBOUND_WET_FIXTURE: "המתקן הרטוב אינו מחובר",
+    INVALID_RUN_ENDPOINT: "קצה הקו אינו מחובר", INVALID_GRAVITY_FALL: "לקו הניקוז אין שיפוע",
+    INSUFFICIENT_GRAVITY_FALL: "שיפוע הניקוז קטן מדי",
+  };
+  return (getLang() === "he" ? hebrew[code] : names[code]) || names[code] || String(code).replaceAll("_", " ").toLowerCase();
+}
+
+function syncReview(designIssues, clashes, connectionIssues) {
+  if (!reviewEl || !reviewEl.isConnected) {
+    reviewEl = document.createElement("details");
+    reviewEl.className = "mep-review";
+    reviewEl.id = "mepReview";
+    reviewEl.ontoggle = function() { reviewOpen = reviewEl.open; };
+    clashEl.insertAdjacentElement("afterend", reviewEl);
+  }
+  reviewEl.open = reviewOpen;
+  reviewEl.replaceChildren();
+  var summary = document.createElement("summary");
+  var count = designIssues.length + clashes.length + connectionIssues.length;
+  summary.textContent = t("mep_reviewSummary", { n: count });
+  reviewEl.appendChild(summary);
+  var list = document.createElement("div");
+  list.className = "mep-review-list";
+  designIssues.slice(0, 40).forEach(function(issue) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = issueName(issue.code) + " · " + issue.entityId;
+    button.onclick = function() {
+      focusMEPReview(issue.entityId, null, null, null,
+        /^(UNBOUND_|MISSING_LIGHT_SWITCH|SWITCH_NOT_ON_LIGHT_CIRCUIT)/.test(issue.code) ? "item" : null);
+    };
+    list.appendChild(button);
+  });
+  connectionIssues.slice(0, Math.max(0, 40 - designIssues.length)).forEach(function(issue) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = t(issue.code === "orphan" ? "mep_orphan" : "mep_unsupplied") + " · " + issue.entityId;
+    button.onclick = function() { focusMEPReview(issue.entityId); };
+    list.appendChild(button);
+  });
+  clashes.slice(0, Math.max(0, 40 - designIssues.length - connectionIssues.length)).forEach(function(c) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = sysLabel(c.sysA) + " / " + sysLabel(c.sysB) +
+      " · " + t("mep_" + c.layerA) + " / " + t("mep_" + c.layerB) + " · " + t("mep_reviewApart", { n: c.separationCm.toFixed(1) });
+    button.title = c.a + " ↔ " + c.b + " · " + t("mep_reviewClearance", { n: c.clearanceCm.toFixed(1) });
+    button.onclick = function() { focusMEPReview(c.a, { x: c.x, z: c.z }, [c.sysA, c.sysB], [c.layerA, c.layerB]); };
+    list.appendChild(button);
+  });
+  if (count > 40) {
+    var more = document.createElement("span");
+    more.textContent = t("mep_reviewMore", { n: count - 40 });
+    list.appendChild(more);
+  }
+  if (!count) {
+    var clear = document.createElement("span");
+    clear.textContent = t("mep_reviewClear");
+    list.appendChild(clear);
+  }
+  reviewEl.appendChild(list);
+}
+
+function ensureHealth() {
+  if (healthEl && healthEl.isConnected) return;
+  healthEl = document.createElement("div");
+  healthEl.className = "mep-health ok";
+  healthEl.setAttribute("role", "status");
+  healthEl.setAttribute("aria-live", "polite");
+  var copy = document.createElement("span");
+  copy.className = "mep-health-copy";
+  healthIconEl = document.createElement("i");
+  healthIconEl.setAttribute("aria-hidden", "true");
+  copy.appendChild(healthIconEl);
+  healthTextEl = document.createElement("span");
+  healthTextEl.setAttribute("data-mep-health-text", "");
+  copy.appendChild(healthTextEl);
+  healthEl.appendChild(copy);
+  healthRepairEl = null;
+  panelEl.appendChild(healthEl);
+}
+
+function syncHealth() {
+  var issueCount = getMEPState().status.deviceIssues;
+  var model = ensureMEP();
+  var designCount = validateMEPModel(model, S.items, mepProfile(model.profile && model.profile.id)).issues.length;
+  var text = issueCount
+    ? t("mep_disconnectedCount", { n: issueCount })
+    : t("mep_allConnected");
+  if (designCount) text += " · " + t("mep_designWarnings", { n: designCount });
+  healthEl.classList.toggle("warn", !!issueCount || !!designCount);
+  healthEl.classList.toggle("ok", !issueCount && !designCount);
+  var icon = issueCount || designCount ? "ph ph-warning" : "ph ph-check-circle";
+  if (healthIconEl.className !== icon) healthIconEl.className = icon;
+  if (healthTextEl.textContent !== text) healthTextEl.textContent = text;
+  if (issueCount) {
+    var label = t("mep_connectMissing");
+    if (!healthRepairEl) {
+      healthRepairEl = document.createElement("button");
+      healthRepairEl.type = "button";
+      healthRepairEl.onclick = function () {
+        pushHistory();
+        connectMissingMEP();
+        if (ensureMEP().runs.some(function (r) { return r.layer === "floor"; })) ensureMEP().xray.floor = true;
+        S.dirty3D = true;
+        render2D();
+        refreshTree();
+      };
+      healthEl.appendChild(healthRepairEl);
+    }
+    if (healthRepairEl.textContent !== label) healthRepairEl.textContent = label;
+  } else if (healthRepairEl) {
+    healthRepairEl.remove();
+    healthRepairEl = null;
+  }
+}
+
+function ensureClash() {
+  if (clashEl && clashEl.isConnected) return;
+  clashEl = document.createElement("div");
+  clashEl.className = "mep-clashes";
+  clashEl.setAttribute("role", "status");
+  clashEl.setAttribute("aria-live", "polite");
+  clashEl.hidden = true;
+  var icon = document.createElement("i");
+  icon.className = "ph ph-intersect";
+  icon.setAttribute("aria-hidden", "true");
+  clashEl.appendChild(icon);
+  clashTextEl = document.createElement("span");
+  clashTextEl.setAttribute("data-mep-clash-text", "");
+  clashEl.appendChild(clashTextEl);
+  if (healthEl && healthEl.parentNode === panelEl) healthEl.insertAdjacentElement("afterend", clashEl);
+  else panelEl.appendChild(clashEl);
+}
+
+function syncClashes() {
+  var m = ensureMEP();
+  var visible = (getMEPState().clashes || []).filter(function (c) {
+    return m.vis[c.sysA] !== false && m.vis[c.sysB] !== false &&
+      m.layerVis[c.layerA] !== false && m.layerVis[c.layerB] !== false;
+  });
+  var n = visible.length;
+  var status = getMEPState().status;
+  var connections = Object.entries(status.node).concat(Object.entries(status.run)).map(function(entry) {
+    return { entityId: entry[0], code: entry[1] };
+  });
+  syncReview(validateMEPModel(m, S.items, mepProfile(m.profile && m.profile.id)).issues, visible, connections);
+  var text = n ? t("mep_clashCount", { n: n }) : "";
+  if (!n) {
+    if (!clashEl.hidden) clashEl.hidden = true;
+    if (clashTextEl.textContent !== "") clashTextEl.textContent = "";
+    return;
+  }
+  if (clashEl.hidden) clashEl.hidden = false;
+  if (clashTextEl.textContent !== text) clashTextEl.textContent = text;
+}
 
 export function initMEP() {
   panelEl = document.getElementById("mepPanel");
   if (!panelEl) return;
   renderPanel();
   onLangChange(renderPanel);
+  // Canvas delete, tree delete and auto-route all mutate the model without
+  // going through this panel. One coalesced callback keeps the health line
+  // in step with them.
+  if (!mepPanelSubscribed) {
+    mepPanelSubscribed = true;
+    onMEPChange(function () { if (panelEl) renderPanel(); });
+  }
 }
 
 // arm a palette entry: set the active system + pending placement and switch the
@@ -70,6 +319,24 @@ function setRoutingLayer(m, lay) {
   S.dirty3D = true;
 }
 
+function revealMEPPlan() {
+  S.workSet = "mep";
+  S.workSetPinned = true;
+  if (S.layers) {
+    if (S.layers.mep) { S.layers.mep.vis = "show"; S.layers.mep.locked = false; }
+    ["structure", "furniture", "annotations", "underlay"].forEach(function (id) {
+      if (S.layers[id]) S.layers[id].vis = "ghost";
+    });
+  }
+  saveLayers();
+  window.dispatchEvent(new CustomEvent("layers:changed"));
+  S.viewAxis = "top";
+  if (typeof window.__setViewMode === "function") window.__setViewMode("plan");
+  if (window.__plannerChrome) window.__plannerChrome.setLeftTab("structure");
+  var section = document.querySelector(".mep-section");
+  if (section) section.classList.remove("collapsed");
+}
+
 function setActive(sys) {
   var m = ensureMEP();
   m.active = sys;
@@ -81,40 +348,55 @@ function setActive(sys) {
 
 export function renderPanel() {
   if (!panelEl) return;
+  ensureHealth();
+  ensureClash();
+  Array.from(panelEl.children).forEach(function (el) {
+    if (el !== healthEl && el !== clashEl && el !== reviewEl) el.remove();
+  });
   var m = ensureMEP();
-  panelEl.innerHTML = "";
 
   // auto rough-in button
   var auto = document.createElement("button");
+  auto.type = "button";
   auto.className = "mep-auto-btn";
-  auto.innerHTML = '<i class="ph ph-magic-wand"></i> ' + t("mep_auto");
+  auto.setAttribute("data-mep", "auto");
+  var autoIcon = document.createElement("i");
+  autoIcon.className = "ph ph-magic-wand";
+  autoIcon.setAttribute("aria-hidden", "true");
+  auto.appendChild(autoIcon);
+  auto.appendChild(document.createTextNode(t("mep_auto")));
   auto.title = t("mep_autoHint");
   auto.onclick = function () { autoGenerateMEP(); };
-  panelEl.appendChild(auto);
-
-  var netStatus = computeMEPStatus();
-  var issueCount = netStatus.deviceIssues;
-  var health = document.createElement("div");
-  health.className = "mep-health " + (issueCount ? "warn" : "ok");
-  var healthText = document.createElement("span");
-  healthText.textContent = issueCount
-    ? t("mep_disconnectedCount", { n: issueCount })
-    : t("mep_allConnected");
-  health.appendChild(healthText);
-  if (issueCount) {
-    var repair = document.createElement("button");
-    repair.textContent = t("mep_connectMissing");
-    repair.onclick = function () {
-      pushHistory();
-      var fixed = connectMissingMEP();
-      if (ensureMEP().runs.some(function (r) { return r.layer === "floor"; })) ensureMEP().xray.floor = true;
-      S.dirty3D = true;
-      renderPanel(); render2D(); refreshTree();
-      return fixed;
-    };
-    health.appendChild(repair);
-  }
-  panelEl.appendChild(health);
+  panelEl.insertBefore(auto, healthEl);
+  var floorRuns = m.runs.filter(function (r) { return r.layer === "floor" && r.pts && r.pts.length > 1; }).length;
+  var floorOnly = m.layerVis.floor !== false && m.layerVis.wall === false && m.layerVis.ceiling === false;
+  var inspect = document.createElement("button");
+  inspect.type = "button";
+  inspect.className = "mep-inspect-floor";
+  inspect.setAttribute("data-mep", "floor-routes");
+  inspect.disabled = !floorRuns;
+  inspect.setAttribute("aria-pressed", floorOnly ? "true" : "false");
+  var inspectIcon = document.createElement("i");
+  inspectIcon.className = "ph ph-stack";
+  inspectIcon.setAttribute("aria-hidden", "true");
+  inspect.appendChild(inspectIcon);
+  inspect.appendChild(document.createTextNode(floorOnly ? t("mep_showAllRoutes") : t("mep_inspectFloor", { n: floorRuns })));
+  inspect.onclick = function () {
+    m.show = true;
+    m.show3D = true;
+    m.xray.floor = true;
+    m.layerVis = floorOnly
+      ? { wall: true, ceiling: true, floor: true }
+      : { wall: false, ceiling: false, floor: true };
+    revealMEPPlan();
+    S.dirty3D = true;
+    renderPanel();
+    render2D();
+  };
+  panelEl.insertBefore(inspect, healthEl);
+  if (clashEl.previousElementSibling !== healthEl) healthEl.insertAdjacentElement("afterend", clashEl);
+  syncHealth();
+  syncClashes();
 
   // master visibility toggle
   var master = document.createElement("label");
@@ -132,29 +414,44 @@ export function renderPanel() {
   // system chips (click = active; eye = per-system visibility)
   var chips = document.createElement("div");
   chips.className = "mep-chips";
+  chips.setAttribute("role", "group");
+  chips.setAttribute("aria-label", t("mep_systems"));
   MEP_SYS_ORDER.forEach(function (sys) {
+    var hidden = m.vis[sys] === false;
+    var name = sysLabel(sys);
     var chip = document.createElement("div");
-    chip.className = "mep-chip" + (m.active === sys ? " active" : "") + (mepVisible(sys) ? "" : " off");
+    chip.className = "mep-chip" + (m.active === sys ? " active" : "") + (hidden ? " is-hidden" : "");
     chip.style.setProperty("--sys", MEP_SYS[sys].color);
+    var main = document.createElement("button");
+    main.type = "button";
+    main.className = "mep-chip-main";
+    main.setAttribute("data-mep", "sys:" + sys);
+    main.setAttribute("aria-pressed", m.active === sys ? "true" : "false");
+    main.setAttribute("aria-label", t("mep_selectSystem", { name: name }));
     var dot = document.createElement("span");
     dot.className = "mep-dot";
-    chip.appendChild(dot);
+    dot.setAttribute("aria-hidden", "true");
+    main.appendChild(dot);
     var lbl = document.createElement("span");
     lbl.className = "mep-chip-lbl";
-    lbl.textContent = sysLabel(sys);
-    chip.appendChild(lbl);
-    lbl.onclick = function () { setActive(sys); };
-    dot.onclick = function () { setActive(sys); };
-    var eye = document.createElement("span");
+    lbl.textContent = name;
+    main.appendChild(lbl);
+    main.onclick = function () { setActive(sys); };
+    chip.appendChild(main);
+    var eye = document.createElement("button");
+    eye.type = "button";
     eye.className = "mep-eye";
-    eye.textContent = m.vis[sys] === false ? "🚫" : "👁";
+    eye.setAttribute("aria-pressed", hidden ? "false" : "true");
+    eye.setAttribute("aria-label", t(hidden ? "mep_showSystem" : "mep_hideSystem", { name: name }));
     eye.title = t("mep_toggleVis");
-    eye.onclick = function (ev) {
-      ev.stopPropagation();
-      m.vis[sys] = m.vis[sys] === false;
-      renderPanel();
-      render2D();
+    var eyeIcon = document.createElement("i");
+    eyeIcon.className = hidden ? "ph ph-eye-slash" : "ph ph-eye";
+    eyeIcon.setAttribute("aria-hidden", "true");
+    eye.appendChild(eyeIcon);
+    eye.onclick = function () {
+      m.vis[sys] = hidden;
       S.dirty3D = true;
+      renderPanel();
       render2D();
     };
     chip.appendChild(eye);
@@ -164,9 +461,21 @@ export function renderPanel() {
 
   var guide = document.createElement("div");
   guide.className = "mep-guidance";
-  guide.innerHTML = '<div><i class="ph ph-door"></i><span>' + t("mep_ruleDoor") + '</span></div>' +
-    '<div><i class="ph ph-stack"></i><span>' + t("mep_ruleLayers") + '</span></div>' +
-    '<div><i class="ph ph-wind"></i><span>' + t("mep_ruleHVAC") + '</span></div>';
+  [
+    ["ph-door", "mep_ruleDoor"],
+    ["ph-stack", "mep_ruleLayers"],
+    ["ph-wind", "mep_ruleHVAC"],
+  ].forEach(function (row) {
+    var line = document.createElement("div");
+    var icon = document.createElement("i");
+    icon.className = "ph " + row[0];
+    icon.setAttribute("aria-hidden", "true");
+    var text = document.createElement("span");
+    text.textContent = t(row[1]);
+    line.appendChild(icon);
+    line.appendChild(text);
+    guide.appendChild(line);
+  });
   panelEl.appendChild(guide);
 
   // routing plane selector (wall / ceiling / floor)
@@ -176,23 +485,34 @@ export function renderPanel() {
   panelEl.appendChild(layerTitle);
   var lrow = document.createElement("div");
   lrow.className = "mep-layers";
+  lrow.setAttribute("role", "group");
+  lrow.setAttribute("aria-label", t("mep_layerSelectTitle"));
   var armed = m.place && m.place.sys === m.active ? m.place : null;
   var allowed = armed
     ? (armed.mode === "run" ? effectiveRunLayers(armed.sys, armed.kind) : allowedLayersFor(armed.sys, armed.kind, armed.mode))
     : MEP_LAYERS;
   MEP_LAYERS.forEach(function (lay) {
     var b = document.createElement("button");
+    b.type = "button";
     b.className = "mep-layer-btn" + (m.layer === lay ? " active" : "");
+    b.setAttribute("data-mep", "layer:" + lay);
     b.textContent = t("mep_" + lay);
     b.disabled = allowed.indexOf(lay) < 0;
+    b.setAttribute("aria-pressed", m.layer === lay ? "true" : "false");
     b.title = b.disabled ? t("mep_layerUnavailable") : t("mep_layerHint");
+    if (b.disabled) b.setAttribute("aria-label", t("mep_" + lay) + ". " + t("mep_layerUnavailable"));
     b.onclick = function () { setRoutingLayer(m, lay); renderPanel(); render2D(); };
     lrow.appendChild(b);
   });
   panelEl.appendChild(lrow);
   var layerHelp = document.createElement("div");
   layerHelp.className = "mep-layer-help " + m.layer;
-  layerHelp.innerHTML = '<b>' + t("mep_" + m.layer) + '</b><span>' + t("mep_" + m.layer + "Explain") + '</span>';
+  var layerHelpName = document.createElement("b");
+  layerHelpName.textContent = t("mep_" + m.layer);
+  var layerHelpText = document.createElement("span");
+  layerHelpText.textContent = t("mep_" + m.layer + "Explain");
+  layerHelp.appendChild(layerHelpName);
+  layerHelp.appendChild(layerHelpText);
   panelEl.appendChild(layerHelp);
 
   // palette for the active system
@@ -209,6 +529,7 @@ export function renderPanel() {
   (MEP_NODE_KINDS[sys] || []).forEach(function (d) {
     dgrid.appendChild(paletteBtn(sys, d.k, "node", d.code, d.hub, nodeLabel(sys, d.k)));
   });
+  dgrid.id = "mepFixturePalette";
   pal.appendChild(dgrid);
 
   var rh = document.createElement("div");
@@ -236,6 +557,7 @@ export function renderPanel() {
     row.className = "mep-policy-row";
     var name = document.createElement("span");
     name.textContent = runLabel(sys, d.k);
+    name.title = runLabel(sys, d.k);
     row.appendChild(name);
     var modeSel = document.createElement("select");
     modeSel.setAttribute("aria-label", runLabel(sys, d.k) + " - " + t("mep_policyTitle"));
@@ -251,7 +573,8 @@ export function renderPanel() {
       pushHistory();
       setRoutingPolicy(sys, d.k, modeSel.value, layerSel.value);
       S.dirty3D = true;
-      renderPanel(); render2D(); refreshTree();
+      render2D();
+      refreshTree();
     }
     modeSel.onchange = updatePolicy;
     layerSel.onchange = updatePolicy;
@@ -263,12 +586,42 @@ export function renderPanel() {
   // options footer
   var opts = document.createElement("div");
   opts.className = "mep-opts";
-  var wr = optCheck(t("mep_wallRoute"), m.wallRoute !== false, function (v) { m.wallRoute = v; render2D(); });
+  var wr = optCheck(t("mep_wallRoute"), m.wallRoute !== false, function (v) { m.wallRoute = v; });
   wr.title = t("mep_wallRouteHint");
   opts.appendChild(wr);
-  opts.appendChild(optCheck(t("mep_snap"), m.snapAngle, function (v) { m.snapAngle = v; }));
-  opts.appendChild(optCheck(t("mep_animate"), m.animate !== false, function (v) { m.animate = v; render2D(); }));
-  opts.appendChild(optCheck(t("mep_3d"), m.show3D, function (v) { m.show3D = v; S.dirty3D = true; render2D(); }));
+  var angleSnap = document.createElement("button");
+  angleSnap.type = "button";
+  angleSnap.setAttribute("data-mep", "angle-snap");
+  angleSnap.setAttribute("aria-pressed", String(!!m.snapAngle));
+  angleSnap.textContent = t("mep_snap");
+  angleSnap.onclick = function () { m.snapAngle = !m.snapAngle; renderPanel(); };
+  opts.appendChild(angleSnap);
+  var fixtures = document.createElement("button");
+  fixtures.type = "button";
+  fixtures.setAttribute("data-mep", "fixtures");
+  fixtures.textContent = t("mep_devices");
+  fixtures.onclick = function () { document.getElementById("mepFixturePalette")?.scrollIntoView({ block: "center", behavior: "smooth" }); };
+  opts.appendChild(fixtures);
+  opts.appendChild(optCheck(t("mep_animate"), m.animate !== false, function (v) { m.animate = v; }));
+  opts.appendChild(optCheck(t("mep_3d"), m.show3D, function (v) { m.show3D = v; S.dirty3D = true; }));
+
+  var planeGrp = document.createElement("div");
+  planeGrp.className = "mep-xray-group mep-plane-filters";
+  var planeLbl = document.createElement("div");
+  planeLbl.className = "mep-xray-title";
+  planeLbl.textContent = t("mep_layer");
+  planeGrp.appendChild(planeLbl);
+  var planeBoxes = document.createElement("div");
+  planeBoxes.className = "mep-xray-boxes";
+  ["wall", "ceiling", "floor"].forEach(function(layer) {
+    planeBoxes.appendChild(optCheck(t("mep_" + layer), m.layerVis[layer] !== false, function(v) {
+      m.layerVis[layer] = v;
+      S.dirty3D = true;
+      render2D();
+    }));
+  });
+  planeGrp.appendChild(planeBoxes);
+  opts.appendChild(planeGrp);
 
   var xrayGrp = document.createElement("div");
   xrayGrp.className = "mep-xray-group";
@@ -282,17 +635,14 @@ export function renderPanel() {
   xrayBoxes.appendChild(optCheck(t("mep_xray_walls"), !!(m.xray && m.xray.walls), function (v) {
     m.xray.walls = v;
     S.dirty3D = true;
-    render2D();
   }));
   xrayBoxes.appendChild(optCheck(t("mep_xray_floor"), !!(m.xray && m.xray.floor), function (v) {
     m.xray.floor = v;
     S.dirty3D = true;
-    render2D();
   }));
   xrayBoxes.appendChild(optCheck(t("mep_xray_ceiling"), !!(m.xray && m.xray.ceiling), function (v) {
     m.xray.ceiling = v;
     S.dirty3D = true;
-    render2D();
   }));
   xrayGrp.appendChild(xrayBoxes);
   opts.appendChild(xrayGrp);
@@ -308,8 +658,10 @@ function paletteBtn(sys, k, mode, glyph, hub, label, glyphColor) {
   var m = ensureMEP();
   var armed = m.place && m.place.sys === sys && m.place.kind === k && m.place.mode === mode;
   var b = document.createElement("button");
+  b.type = "button";
   b.className = "mep-btn" + (armed ? " armed" : "");
   b.title = label;
+  b.setAttribute("aria-pressed", armed ? "true" : "false");
   var g = document.createElement("span");
   g.className = "mep-glyph" + (hub ? " hub" : "");
   g.style.background = mode === "run" ? "transparent" : MEP_SYS[sys].color;
@@ -353,7 +705,7 @@ export function fillMEP() {
   host.appendChild(title);
 
   // connection-status banner (orphan / unsupplied)
-  var status = computeMEPStatus();
+  var status = getMEPState().status;
   var issue = isNode ? status.node[e.id] : status.run[e.id];
   if (issue) {
     var banner = document.createElement("div");
@@ -366,6 +718,36 @@ export function fillMEP() {
     doorBanner.className = "mep-status invalid";
     doorBanner.textContent = "⚠ " + t("mep_runDoorConflict");
     host.appendChild(doorBanner);
+  }
+  if (!isNode && getMEPState().flow[e.id] && getMEPState().flow[e.id].uphill) {
+    var slopeBanner = document.createElement("div");
+    slopeBanner.className = "mep-status invalid";
+    slopeBanner.textContent = "⚠ " + t("mep_uphill");
+    host.appendChild(slopeBanner);
+  }
+  if (!isNode && getMEPState().flow[e.id] && getMEPState().flow[e.id].bedroom) {
+    var bedBanner = document.createElement("div");
+    bedBanner.className = "mep-status invalid";
+    bedBanner.textContent = "⚠ " + t("mep_gasBedroom");
+    host.appendChild(bedBanner);
+  }
+  if (!isNode && e.policyViolation) {
+    var policyBanner = document.createElement("div");
+    policyBanner.className = "mep-status invalid";
+    policyBanner.textContent = "⚠ " + t("mep_policyBlocked");
+    host.appendChild(policyBanner);
+  }
+  if (!isNode) {
+    var hits = (getMEPState().clashes || []).filter(function (c) { return c.a === e.id || c.b === e.id; });
+    if (hits.length) {
+      var otherSys = hits[0].a === e.id ? hits[0].sysB : hits[0].sysA;
+      var otherK = hits[0].a === e.id ? hits[0].kB : hits[0].kA;
+      var clashBanner = document.createElement("div");
+      clashBanner.className = "mep-status clash";
+      var clashName = sysLabel(otherSys) + " · " + runLabel(otherSys, otherK);
+      clashBanner.textContent = t("mep_clashWith", { name: clashName }) + (hits.length > 1 ? " (" + hits.length + ")" : "");
+      host.appendChild(clashBanner);
+    }
   }
 
   // kind switcher (change device type / pipe type in place)
@@ -381,21 +763,12 @@ export function fillMEP() {
   });
   ksel.onchange = function () {
     pushHistory();
-    e.k = ksel.value;
-    if (isNode) {
-      var nd = nodeKindDef(e.sys, e.k);
-      if (nd && nd.elev != null) e.elev = nd.elev;
-    } else {
-      var rd = runKindDef(e.sys, e.k);
-      if (rd) { e.dia = rd.dia; e.color = null; e.exposed = !!rd.exposed; }
-    }
-    var validLayers = isNode ? allowedLayersFor(e.sys, e.k, "node") : effectiveRunLayers(e.sys, e.k);
-    if (validLayers.indexOf(e.layer) < 0)
-      e.layer = isNode ? defaultLayerFor(e.sys, e.k, "node") : policyLayerFor(e.sys, e.k, defaultLayerFor(e.sys, e.k, "run"));
+    if (isNode) setNodeKind(e, ksel.value);
+    else setRunKind(e, ksel.value);
     S.dirty3D = true;
     fillMEP();
     render2D();
-    renderPanel();
+    refreshTree();
   };
   krow.appendChild(ksel);
   host.appendChild(krow);
@@ -412,11 +785,11 @@ export function fillMEP() {
   });
   lysel.onchange = function () {
     pushHistory();
-    e.layer = lysel.value;
-    if (isNode && e.layer !== "wall") { e.wall = null; e.s = null; }
+    setMEPLayer(e, lysel.value);
     S.dirty3D = true;
     fillMEP();
     render2D();
+    refreshTree();
   };
   lyrow.appendChild(lysel);
   host.appendChild(lyrow);
@@ -431,8 +804,17 @@ export function fillMEP() {
     var lrow = labeledRow(t("mep_label"));
     var lin = document.createElement("input");
     lin.type = "text";
+    lin.maxLength = 80;
+    lin.autocomplete = "off";
+    lin.spellcheck = false;
     lin.value = e.label || "";
-    lin.oninput = function () { e.label = lin.value; };
+    var labelArmed = false;
+    lin.oninput = function () {
+      if (!labelArmed) { pushHistory(); labelArmed = true; }
+      e.label = lin.value;
+      render2D();
+    };
+    lin.onchange = function () { refreshTree(); };
     lrow.appendChild(lin);
     host.appendChild(lrow);
     // read-only attachment note
@@ -446,6 +828,15 @@ export function fillMEP() {
     var din = numInput(e.dia, function (v) { pushHistory(); e.dia = Math.max(0.5, v); S.dirty3D = true; render2D(); });
     drow.appendChild(din);
     host.appendChild(drow);
+    // Centreline height is measured from finished floor; negative values are
+    // below it. A per-run override is saved and used by 3D and clash checks.
+    var erow = labeledRow(t("mep_runElev"));
+    var elevation = runPointY(e);
+    var ein = numInput(e.elev == null ? elevation[elevation.length - 1] : e.elev, function (v) {
+      pushHistory(); e.elev = v; S.dirty3D = true; fillMEP(); renderPanel(); render2D();
+    }, "cm");
+    erow.appendChild(ein);
+    host.appendChild(erow);
     // total length (read-only)
     var lenrow = labeledRow(t("mep_len"));
     var lenv = document.createElement("span");
@@ -467,13 +858,14 @@ export function fillMEP() {
     }
     if (e.sys === "hvac" && (e.k === "duct" || e.k === "branch" || e.k === "flex" || e.k === "refrig")) {
       host.appendChild(optCheck(t("mep_exposed"), e.exposed !== false, function (v) {
-        pushHistory(); e.exposed = v; S.dirty3D = true; render2D();
+        pushHistory(); e.exposed = v; S.dirty3D = true;
       }));
     }
   }
 
   // delete
   var del = document.createElement("button");
+  del.type = "button";
   del.className = "mep-del-btn";
   del.textContent = t("mep_delete");
   del.onclick = function () {
@@ -482,6 +874,7 @@ export function fillMEP() {
     select(null);
     S.dirty3D = true;
     render2D();
+    refreshTree();
   };
   host.appendChild(del);
 }
@@ -494,14 +887,16 @@ function labeledRow(label) {
   row.appendChild(s);
   return row;
 }
-function numInput(val, onChange) {
+function numInput(val, onChange, unit) {
   var i = document.createElement("input");
   i.type = "text";
   i.inputMode = "decimal";
-  i.value = fmtLen(val, { suffix: false });
+  i.autocomplete = "off";
+  i.value = fmtLen(val, { suffix: false, unit: unit });
   i.onchange = function () {
-    var v = parseLen(i.value);
+    var v = parseLen(i.value, unit);
     if (Number.isFinite(v)) onChange(v);
+    else i.value = fmtLen(val, { suffix: false, unit: unit });
   };
   return i;
 }

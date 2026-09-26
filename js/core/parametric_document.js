@@ -1,3 +1,4 @@
+import { cosmeticThread } from "../cad_thread.js";
 import {planFinishRemoval} from "./finish_removal.js";
 import { cloneDomain, createDefinition, domainId, mainReferences, migrateDefinition } from "./schema.js";
 import { featureDefaults, featureSpec, validateFeatureDefinition } from "./feature_catalog.js";
@@ -119,6 +120,49 @@ export function ensureParametricDocument(source, options = {}) {
   return document;
 }
 
+/* NEW WORK GOES IN AT THE ROLLBACK BAR.
+   SOLIDWORKS inserts every new sketch and feature where the bar stands and
+   moves the bar down past it. This editor only did that for Fillet and
+   Chamfer; everything else was appended after the rolled-back steps, so the
+   book's HOUSING Thread (steps 420–451), authored with the bar above Handle,
+   landed after Handle and depended on a sketch that came later than itself. */
+function insertHistoryEntry(document, entry) {
+  document.history ||= [];
+  const n = document.history.length;
+  const at = document.rollbackIndex != null && document.rollbackIndex < n ? Math.max(0, document.rollbackIndex) : n;
+  document.history.splice(at, 0, entry);
+  if (at < n) document.rollbackIndex = at + 1;
+  return at;
+}
+
+const BODY_CONSUMERS = new Set(["extrude", "revolve", "sweep", "loft", "extrudeCut", "revolveCut", "sweepCut", "hole", "fillet", "chamfer", "shell", "draft", "dome", "rib", "thicken", "moveBody", "splitBody"]);
+const makesNewBody = (feature) => ["extrude", "revolve", "sweep", "loft"].includes(feature.type) && (feature.params?.mergeResult === false || feature.params?.operation === "new-body");
+
+/* A body feature inserted mid-history becomes the body the later steps build
+   on: every later consumer of the same source now reads the new feature, as
+   SOLIDWORKS rebuilds Handle on top of a Thread inserted above it. Sketch
+   supports and pattern seeds keep their explicit references. Call it once the
+   feature's `inputs` are final — some creators set them after creating it. */
+export function reconnectLaterBodyConsumers(document, feature) {
+  const sourceId = feature?.inputs?.[0];
+  if (!sourceId || !BODY_CONSUMERS.has(feature.type) || makesNewBody(feature)) return [];
+  const at = (document.history || []).findIndex((entry) => entry.kind === "feature" && entry.targetId === feature.id);
+  if (at < 0) return [];
+  const laterIds = new Set(document.history.slice(at + 1).filter((entry) => entry.kind === "feature").map((entry) => entry.targetId));
+  const moved = [];
+  for (const consumer of document.features || []) {
+    if (!laterIds.has(consumer.id) || !BODY_CONSUMERS.has(consumer.type) || consumer.inputs?.[0] !== sourceId) continue;
+    if (makesNewBody(consumer)) continue;
+    consumer.inputs[0] = feature.id;
+    consumer.references ||= {};
+    consumer.references.features = (consumer.references.features || []).map(ref => referenceId(ref) !== sourceId ? ref
+      : typeof ref === "string" ? feature.id : { ...ref, ...(ref.id ? {id:feature.id} : {persistentId:feature.id}) });
+    if (consumer.params?.targetFeatureId === sourceId) consumer.params.targetFeatureId = feature.id;
+    moved.push(consumer.id);
+  }
+  return moved;
+}
+
 export function createSketchDefinition(document, options = {}) {
   initializeParametricFields(document);
   const support = options.support;
@@ -143,7 +187,7 @@ export function createSketchDefinition(document, options = {}) {
   };
   document.sketches.push(sketch);
   document.activeSketch = sketch.id;
-  document.history.push(historyEntry("sketch", sketch));
+  insertHistoryEntry(document, historyEntry("sketch", sketch));
   document.revision = (Number(document.revision) || 0) + 1;
   return sketch;
 }
@@ -154,7 +198,7 @@ export function recordSketchInHistory(document, sketch) {
   const existing = document.history.find((entry) => entry.kind === "sketch" && entry.targetId === sketch.id);
   if (existing) return existing;
   const entry = historyEntry("sketch", sketch);
-  document.history.push(entry);
+  insertHistoryEntry(document, entry);
   return entry;
 }
 
@@ -184,30 +228,17 @@ export function createFeatureDefinition(document, type, options = {}) {
     error.issues = issues;
     throw error;
   }
-  const insertion = ["fillet", "chamfer"].includes(type) && document.rollbackIndex != null
-    ? Math.max(0, Math.min(document.history.length, document.rollbackIndex)) : document.history.length;
-  if (insertion < document.history.length) {
+  const n = document.history.length;
+  const insertion = document.rollbackIndex != null && document.rollbackIndex < n ? Math.max(0, document.rollbackIndex) : n;
+  if (insertion < n && ["fillet", "chamfer"].includes(type)) {
     const sourceId = feature.inputs[0];
     if (!document.history.slice(0, insertion).some(entry => entry.kind === "feature" && entry.targetId === sourceId)) {
       throw new Error("A finish inserted at rollback needs an active source body");
     }
-    const laterIds = new Set(document.history.slice(insertion).filter(entry => entry.kind === "feature").map(entry => entry.targetId));
-    // Only reconnect body consumers. Sketch supports and pattern seeds retain
-    // their explicit references to the geometry that originally defined them.
-    const bodyConsumers = new Set(["extrude", "revolve", "sweep", "loft", "extrudeCut", "revolveCut", "sweepCut", "hole", "fillet", "chamfer", "shell", "draft", "dome", "rib", "thicken", "moveBody", "splitBody"]);
-    for (const consumer of document.features) {
-      if (!laterIds.has(consumer.id) || !bodyConsumers.has(consumer.type) || consumer.inputs?.[0] !== sourceId) continue;
-      if (["extrude", "revolve", "sweep", "loft"].includes(consumer.type) && (consumer.params?.mergeResult === false || consumer.params?.operation === "new-body")) continue;
-      consumer.inputs[0] = feature.id;
-      consumer.references ||= {};
-      consumer.references.features = (consumer.references.features || []).map(ref => referenceId(ref) !== sourceId ? ref
-        : typeof ref === "string" ? feature.id : { ...ref, ...(ref.id ? {id:feature.id} : {persistentId:feature.id}) });
-      if (consumer.params?.targetFeatureId === sourceId) consumer.params.targetFeatureId = feature.id;
-    }
-    document.rollbackIndex = insertion + 1;
   }
   document.features.push(feature);
-  document.history.splice(insertion, 0, historyEntry("feature", feature));
+  insertHistoryEntry(document, historyEntry("feature", feature));
+  if (insertion < n) reconnectLaterBodyConsumers(document, feature);
   document.revision = (Number(document.revision) || 0) + 1;
   return feature;
 }
@@ -449,6 +480,8 @@ export function applyHistoryToPreviewParts(document) {
   const active = activeHistoryTargetIds(document);
   const known = new Set((document.history || []).map((entry) => entry.targetId).filter(Boolean));
   const dirty = new Set();
+  const features = document.features || [];
+  const byId = new Map(features.map(feature => [feature.id, feature]));
   const setFlag = (object, key, next, partId) => {
     if (!object || !!object[key] === !!next) return;
     object[key] = !!next;
@@ -456,6 +489,26 @@ export function applyHistoryToPreviewParts(document) {
   };
   (document.parts || []).forEach((part) => {
     if (!part) return;
+    // Cosmetic annotations are projections of their history feature, just like
+    // solid geometry. Never retain the overlay sampled when the tool was created.
+    const belongsToPart = (id, seen = new Set()) => {
+      if (!id || seen.has(id)) return false;
+      if (id === part.featureId || id === part.derivedFeatureId) return true;
+      seen.add(id);
+      return (byId.get(id)?.inputs || []).some(input => belongsToPart(input, seen));
+    };
+    const threads = features.filter(feature => feature.type === "thread" && (feature.inputs || []).some(id => belongsToPart(id)));
+    if (threads.length) {
+      const feature = threads.filter(item => !item.suppressed && (!known.has(item.id) || active.has(item.id))).at(-1);
+      if (feature) {
+        const annotation = cosmeticThread(feature.params);
+        part.cosmeticThread = annotation;
+        part.threadGeometry = annotation.threadGeometry;
+      } else {
+        delete part.cosmeticThread;
+        delete part.threadGeometry;
+      }
+    }
     if (part.featureId && known.has(part.featureId)) setFlag(part, "suppressed", !active.has(part.featureId), part.id);
     if (part.derivedFeatureId && known.has(part.derivedFeatureId)) setFlag(part, "suppressed", !active.has(part.derivedFeatureId), part.id);
     (part.exactOperations || []).forEach((operation) => {

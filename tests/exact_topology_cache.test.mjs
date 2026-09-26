@@ -17,4 +17,18 @@ test('verified topology survives appended features but expires when its inputs c
  document.sketches[0].points[0].x=0;
  features[0].params.depth=20;
  assert.equal(verifiedExactTopology(document,features).size,0);
+ features[0].params.depth=10;
+ document.sketches[0].constraints.push({id:'driving',type:'distance',value:2});
+ assert.equal(verifiedExactTopology(document,features).size,0);
+});
+
+test('renaming a driving dimension keeps exact loft topology available to live rebuild',()=>{
+ const document={parameters:{},sketches:[{id:'section',points:[{id:'centre',x:0,y:0}],entities:[],constraints:[{id:'diameter',type:'diameter',name:'OldName',value:1.27}]}]};
+ const features=[{id:'loft',type:'loft',params:{},inputs:[],references:{sketches:['section']}}];
+ const run={results:new Map([['loft',{shape:{},topology:[{persistentId:'loft:top-face',kind:'face'}]}]])};
+ document.exactTopologyCache=captureExactTopology(document,features,run);
+ document.sketches[0].constraints[0].name='BaseWidth';
+ assert.equal(verifiedExactTopology(document,features).get('loft')?.[0].persistentId,'loft:top-face');
+ document.sketches[0].constraints[0].value=1.5;
+ assert.equal(verifiedExactTopology(document,features).size,0);
 });

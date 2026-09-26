@@ -466,3 +466,11 @@ test("the tree indents by depth rather than by nesting containers", () => {
   assert.match(styles, /#modeler \.md-tree-menu \{/);
   assert.match(styles, /#modeler \.md-tree-rename \{/);
 });
+
+test('document material reflects assigned body materials without hiding unassigned bodies', () => {
+  const label = parts => findTreeNode(buildTreeModel({ ...legacyDoc(), parts }).nodes, 'meta:material').name;
+  assert.equal(label([{id:'a',materialName:'Aluminum 1060'}]), 'Aluminum 1060');
+  assert.equal(label([{id:'a',materialName:'Aluminum 1060'},{id:'b',materialName:'Aluminum 1060'}]), 'Aluminum 1060');
+  assert.equal(label([{id:'a',materialName:'Aluminum 1060'},{id:'b'}]), 'Aluminum 1060 / Material <not specified>');
+  assert.equal(label([{id:'a',materialName:'Aluminum 1060'},{id:'b',materialName:'Copper'}]), 'Aluminum 1060 / Copper');
+});

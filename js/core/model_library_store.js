@@ -11,20 +11,42 @@ let draftMemory=null;
 
 const clone=(value)=>value==null ? value : typeof structuredClone==="function" ? structuredClone(value) : JSON.parse(JSON.stringify(value));
 
-function openDatabase() {
+const STORES=[[MODEL_STORE,"key"],[ASSEMBLY_STORE,"key"],[DRAFT_STORE,"id"]];
+
+function openAt(version) {
   return new Promise((resolve,reject)=>{
-    if (typeof indexedDB === "undefined") return reject(new Error("IndexedDB unavailable"));
-    const request=indexedDB.open(DB_NAME,DB_VERSION);
+    const request=version==null ? indexedDB.open(DB_NAME) : indexedDB.open(DB_NAME,version);
     request.onupgradeneeded=()=>{
       const db=request.result;
-      if (!db.objectStoreNames.contains(MODEL_STORE)) db.createObjectStore(MODEL_STORE,{keyPath:"key"});
-      if (!db.objectStoreNames.contains(ASSEMBLY_STORE)) db.createObjectStore(ASSEMBLY_STORE,{keyPath:"key"});
-      if (!db.objectStoreNames.contains(DRAFT_STORE)) db.createObjectStore(DRAFT_STORE,{keyPath:"id"});
+      for (const [name,keyPath] of STORES) if (!db.objectStoreNames.contains(name)) db.createObjectStore(name,{keyPath});
     };
     request.onsuccess=()=>resolve(request.result);
     request.onerror=()=>reject(request.error || new Error("Model library database failed"));
   });
 }
+
+/* The stores are created only in an upgrade, so a database that already sits
+   at DB_VERSION without them never gets them: every read then fails with
+   "object store not found" and the library cannot load or save. That state is
+   one stray indexedDB.open(DB_NAME, 2) away — a DevTools probe, a script, a
+   cleared-and-recreated profile. Heal it by upgrading one version past the
+   current one, which adds only the missing stores and keeps everything else.
+   A database already above DB_VERSION (healed earlier) opens at its own
+   version instead of failing with a VersionError. */
+export async function openModelLibraryDatabase() {
+  if (typeof indexedDB === "undefined") throw new Error("IndexedDB unavailable");
+  let db;
+  try { db=await openAt(DB_VERSION); }
+  catch (error) {
+    if (!error || error.name!=="VersionError") throw error;
+    db=await openAt(null);
+  }
+  if (STORES.every(([name])=>db.objectStoreNames.contains(name))) return db;
+  const next=db.version+1;
+  db.close();
+  return openAt(next);
+}
+const openDatabase=openModelLibraryDatabase;
 
 async function run(storeName, mode, operation) {
   const database=await openDatabase();

@@ -69,6 +69,20 @@ export function frameProjectPoint(frame, point) {
   return { u: frameDot(delta, frame.xAxis), v: frameDot(delta, frame.yAxis), w: frameDot(delta, frame.normal) };
 }
 
+// A planar face's centroid moves when holes are added. Its bounding extents
+// remain a stable sketch origin for those edits, while projection keeps the
+// origin on the actual support plane even with kernel tolerance in the bounds.
+export function faceFrameOrigin(descriptor, anchor = "face-centroid") {
+  const origin = frameVector(descriptor?.origin);
+  if (anchor !== "bounds-center") return origin;
+  const min = descriptor?.bounds?.min, max = descriptor?.bounds?.max;
+  if (!min || !max || ![min.x,min.y,min.z,max.x,max.y,max.z].every(Number.isFinite)) return origin;
+  const centre = { x:(min.x+max.x)/2, y:(min.y+max.y)/2, z:(min.z+max.z)/2 };
+  const normal = frameNormalize(descriptor?.normal);
+  const distance = frameDot({x:centre.x-origin.x,y:centre.y-origin.y,z:centre.z-origin.z},normal);
+  return {x:centre.x-normal.x*distance,y:centre.y-normal.y*distance,z:centre.z-normal.z*distance};
+}
+
 export function realignFrame(frame, origin, normal) {
   return frameFromPlane(origin, normal, frame?.xAxis);
 }

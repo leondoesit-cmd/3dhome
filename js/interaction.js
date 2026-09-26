@@ -105,7 +105,7 @@ import {
   angleSectorAtNode, addWallRelation, addPointWallDistance, addAxisDistance,
   addFixed, addCoincident, addSymmetric, addMidpoint, addPointOnLine,
   addWallAngle, addEqualLengthSet, pinnedNodes, wallCons, anchorNode, removeCon,
-  addOpeningAlign, stabilizeOpeningCornerRefs,
+  addOpeningAlign, stabilizeOpeningCornerRefs, setConReport,
 } from "./wall_constraints.js";
 import {
   syncWarnHighlight, setConstraintHover, renderWarnPanel,
@@ -2599,9 +2599,9 @@ function snapWallPoint(px, pz, fromIdx) {
    resolves the target and creates the constraint. Everything about WHAT gets
    picked is decided here rather than in the UI module, because only this file
    knows how a plan coordinate becomes a corner, a wall or a reference point. */
-export function startConPick(kind, wall, end) {
+export function startConPick(kind, wall, end, report = false) {
   if (!wall) return false;
-  S.conPick = { kind: kind, wall: wall.id, end: end === "b" ? "b" : "a" };
+  S.conPick = { kind: kind, wall: wall.id, end: end === "b" ? "b" : "a", report: !!report };
   setTool("select");
   render2D();
   return true;
@@ -2758,6 +2758,7 @@ function finishConPick(px, pz) {
   }
 
   if (!made) return endConPick(t("wc_failed"));
+  if (pick.report) setConReport(made.id, true);
   S.conPick = null;
   /* Numeric dimensions are seeded from the geometry as drawn. Geometric
      relations (parallel/perpendicular/etc.) still need a solve here; without
@@ -4781,6 +4782,26 @@ export function initInteraction() {
       S.rectDraft = null;
       S.previewPt = null;
       render2D();
+      return;
+    }
+    if (S.tool === "annotation" && S.annotationDraft) {
+      if (e.button === 2) { S.annotationDraft = null; setTool("select"); render2D(); return; }
+      var draft = S.annotationDraft;
+      var point = snapPoint(px, pz, null);
+      if (!fin(point.x) || !fin(point.z)) return;
+      if ((draft.kind === "dimension" || draft.kind === "section") && !draft.from) {
+        draft.from = { x: point.x, z: point.z }; render2D(); return;
+      }
+      var start = draft.from || point;
+      if (draft.from && Math.hypot(point.x - start.x, point.z - start.z) < 1) return;
+      pushHistory();
+      var annotation = { id: uid(), kind: draft.kind, x: start.x, z: start.z,
+        ...(draft.from ? { x2: point.x, z2: point.z } : {}),
+        ...(draft.text ? { text: draft.text } : {}), ...(draft.symbol ? { symbol: draft.symbol } : {}) };
+      S.annotations.push(annotation);
+      S.annotationDraft = null;
+      setTool("select"); render2D();
+      window.dispatchEvent(new CustomEvent("planner-annotation-created", { detail: { annotation } }));
       return;
     }
     if (S.placeType && (!S.tool || S.tool === "select")) {

@@ -6,8 +6,27 @@ import { TOOLBOX_MATERIALS } from "./toolbox/schema.js";
 // a brass bushing lining and a painted housing can share one body tree.
 
 export const STOCK_MATERIALS = Object.freeze({
+  aluminum1060: { name: "Aluminum 1060", color: "#b7c7cf", metal: 0.72, rough: 0.32,
+    density: 0.0975 * 453.59237 / (2.54 ** 3),
+    densitySource: "Hydro Alloy 1xxx, revision 2019/01, p. 1: 0.0975 lb/in³ (nominal)",
+    densitySourceUrl: "https://www.hydro.com/globalassets/01-products--services/extruded-profiles/americas/ena-resources/alloy-data-sheets/hydro_2019_data_sheet_1xxx.pdf" },
+  aluminum2014: { name: "Aluminum 2014", color: "#b7c7cf", metal: 0.72, rough: 0.32, density: 2.80,
+    densitySource: "Worthwill Aluminum, Density of Aluminum, p. 1: 2014, 2.8 g/cm³",
+    densitySourceUrl: "https://www.worthwillaluminium.com/weight-calculator/density-table/density-dataset-en.pdf" },
   aluminum: { name: "Aluminum 6061", color: "#8fb8c4", metal: 0.72, rough: 0.32, density: 2.70 },
   steel: { name: "Steel 304", color: "#aeb7c2", metal: 0.78, rough: 0.28, density: 8.00 },
+  plainCarbonSteel: { name: "Plain Carbon Steel (grade unspecified)", color: "#a7adb2", metal: 0.76, rough: 0.40, density: 7.85,
+    densitySource: "Alleima 20C carbon steel material datasheet: 7.85 g/cm³; representative reference density, not a certified grade",
+    densitySourceUrl: "https://www.alleima.com/en/technical-center/material-datasheets/strip-steel/alleima-20c/" },
+  castAlloySteel: { name: "Cast Alloy Steel (SOLIDWORKS reference)", color: "#a6adb4", metal: 0.78, rough: 0.42, density: 7.30,
+    densitySource: "SDC Publications, Beginner's Guide to SolidWorks 2011, p. 66: Cast Alloy Steel library density 7300 kg/m³; reference material, grade unspecified",
+    densitySourceUrl: "https://static.sdcpublications.com/pdfsample/978-1-58503-626-4-2.pdf" },
+  ferriticStainless: { name: "Ferritic stainless steel (grade unspecified)", color: "#aeb7c2", metal: 0.78, rough: 0.28, density: 7.70,
+    densitySource: "ISSF, The Ferritic Solution, p. 28: typical ferritic-family density 7.7 g/cm³; grade unspecified",
+    densitySourceUrl: "https://www.worldstainless.org/Files/issf/non-image-files/PDF/ISSF_The_Ferritic_Solution_English.pdf" },
+  copper: { name: "Copper (grade unspecified)", color: "#b87333", metal: 0.80, rough: 0.30,
+    density: 0.321 * 453.59237 / (2.54 ** 3),
+    densitySource: "Planchard, Engineering Graphics with SOLIDWORKS 2021, exercise 5.11: 0.321 lb/in³; grade unspecified" },
   brass: { name: "Brass C360", color: "#c4a35a", metal: 0.65, rough: 0.28, density: 8.50 },
   plastic: { name: "ABS", color: "#3d6ea8", metal: 0.04, rough: 0.55, density: 1.04 },
   titanium: { name: "Titanium Grade 5", color: "#9aa3ad", metal: 0.7, rough: 0.35, density: 4.43 },
@@ -33,9 +52,16 @@ export function stockMaterialForPart(part) {
   return key ? STOCK_MATERIALS[key] : null;
 }
 
+export function drawingMaterialName(def) {
+  if (def?.material) return def.material;
+  if (def?.kind === "assembly" || def?.parts?.length !== 1) return "";
+  const part = def.parts[0];
+  return stockMaterialForPart(part)?.name || part.materialName || "";
+}
+
 export function partMaterialDensity(part, fallback = DEFAULT_MASS_DENSITY) {
   const authored = Number(part?.density);
-  if (authored > 0) return authored;
+  if (Number.isFinite(authored) && authored > 0) return authored;
   const stock = stockMaterialForPart(part);
   if (stock?.density > 0) return stock.density;
   const catalog = String(part?.materialCatalogId || "");
@@ -74,6 +100,43 @@ export function applyAppearanceOverrides(parts, overrides = []) {
     if (!hit) return part;
     return { ...part, color: hit.color, metal: hit.metal, rough: hit.rough, materialName: hit.name, appearanceId: hit.id };
   });
+}
+
+/* An older material-pane path could attach a body override to a selected
+   sketch point. Such an override cannot paint a solid and should not survive
+   the next save. Keep every real body/feature target, including suppressed
+   feature targets, and leave face/edge appearances untouched. */
+export function pruneSketchTargetedBodyAppearances(def) {
+  if (!Array.isArray(def?.appearances) || !def.appearances.length) return 0;
+  const sketchIds = new Set((def.sketches || []).flatMap((sketch) => [
+    ...(sketch.points || []).map((point) => point.id),
+    ...(sketch.entities || []).map((entity) => entity.id),
+  ]));
+  if (!sketchIds.size) return 0;
+  const bodyIds = new Set([
+    ...(def.parts || []).flatMap((part) => [part.id, part.featureId, part.derivedFeatureId]),
+    ...(def.features || []).map((feature) => feature.id),
+  ]);
+  const before = def.appearances.length;
+  def.appearances = def.appearances.filter((item) =>
+    !((item.kind === "body" || item.kind === "part") && sketchIds.has(item.persistentId) && !bodyIds.has(item.persistentId)));
+  return before - def.appearances.length;
+}
+
+// The same legacy selection path also copied body-material fields onto sketch
+// points. Keep intentional point styling alone; remove only points that carry
+// unmistakable material metadata, along with the finish fields copied with it.
+export function pruneSketchMaterialFields(def) {
+  let cleaned = 0;
+  const fields = ["materialCatalogId", "materialQualificationId", "materialName", "density", "densitySource", "color", "metal", "rough"];
+  for (const sketch of def?.sketches || []) {
+    for (const point of sketch.points || []) {
+      if (point.materialCatalogId == null && point.materialQualificationId == null && point.materialName == null && point.density == null) continue;
+      for (const field of fields) delete point[field];
+      cleaned++;
+    }
+  }
+  return cleaned;
 }
 
 export function faceAppearanceOverrides(overrides = []) {

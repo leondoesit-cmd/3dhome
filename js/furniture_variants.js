@@ -269,8 +269,23 @@ var VARIANTS = {
     V("white", "לבן", "White", woodFin(0xeeeae2, 0.6)),
     V("black", "שחור", "Black", woodFin(0x2b2e31, 0.45)),
   ],
+  car: [
+    V("graphite", "גרפיט", "Graphite"),
+    V("white", "לבן", "White", smap(0x2f3b45, { col: 0xf2f2f0, rough: 0.2, metal: 0.4 })),
+    V("black", "שחור", "Black", smap(0x2f3b45, { col: 0x16181a, rough: 0.15, metal: 0.6 })),
+    V("red", "אדום", "Red", smap(0x2f3b45, { col: 0x8f1d22, rough: 0.2, metal: 0.55 })),
+    V("blue", "כחול", "Blue", smap(0x2f3b45, { col: 0x2b4f7a, rough: 0.2, metal: 0.55 })),
+    V("silver", "כסוף", "Silver", smap(0x2f3b45, { col: 0xb9c0c4, rough: 0.2, metal: 0.8 })),
+  ],
+  tree: [
+    V("green", "ירוק", "Green"),
+    V("autumn", "סתווי", "Autumn", smap(GREEN, { col: 0xb8742e, rough: 0.95 })),
+    V("blossom", "פריחה", "Blossom", smap(GREEN, { col: 0xd9a4b4, rough: 0.95 })),
+  ],
   stairs: [
     V("wood", "עץ", "Wood"),
+    V("lShape", "מדרגות L", "L-shaped", null, { shape: "L" }),
+    V("curved", "מדרגות מעוגלות", "Curved", null, { shape: "curved" }),
     V("dark", "עץ כהה", "Dark wood", smap(0xb09a76, { col: 0x6a4a30, rough: 0.6 })),
     V("white", "לבן", "White", smap(0xb09a76, { col: 0xeeeae2, rough: 0.6 })),
     V("concrete", "בטון", "Concrete", smap(0xb09a76, { col: 0xa8a6a1, rough: 0.85 })),
@@ -347,7 +362,11 @@ var VARIANTS = {
   toaster: APPL,
   kettle: APPL,
   waterHeater: APPL,
-  printer: APPL,
+  // the printer body is its own dark plastic, not appliance steel
+  printer: [
+    V("black", "שחור", "Black"),
+    V("white", "לבן", "White", smap(0x3a3f44, { col: 0xe9e8e4, rough: 0.5 }, 0x2a2d30, { col: 0xd6d4cf, rough: 0.45 })),
+  ],
   ac: [
     V("white", "לבן", "White"),
     V("silver", "כסוף", "Silver", smap(0xeef1f2, { col: 0xc4c9cc, rough: 0.35, metal: 0.4 })),
@@ -472,7 +491,14 @@ var VARIANTS = {
     }),
     V("longDrop", "תלייה ארוכה", "Long drop", null, { shape: "cone", drop: 70 }),
   ],
-  chandelier: LAMPM,
+  // keyed on the chandelier's own brass (LAMPM's dark-metal keys never
+  // touched it); the old ids still resolve — "dark" falls back to brass
+  chandelier: [
+    V("brass", "פליז", "Brass"),
+    V("chrome", "כרום", "Chrome", smap(0xb08d4a, { col: 0xd3d8db, rough: 0.12, metal: 0.95 })),
+    V("white", "לבן", "White", smap(0xb08d4a, { col: 0xf0efec, rough: 0.5, metal: 0.1 })),
+    V("black", "שחור", "Black", smap(0xb08d4a, { col: 0x2b2f33, rough: 0.4, metal: 0.6 })),
+  ],
   floorLamp: [
     V("column", "עמוד", "Column", null, { style: "column" }),
     V("tripod", "חצובה", "Tripod", null, { style: "tripod" }),

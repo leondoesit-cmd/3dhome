@@ -18,6 +18,7 @@ import { cylinderAxis } from "./cylinder_axis.js";
  */
 
 import { holeCallout, holeLayoutPoints } from "../cad_hole_wizard.js";
+import { resolveDimAnchor } from "../cad_sheet.js";
 
 export { holeCallout, holeLayoutPoints };
 
@@ -40,7 +41,7 @@ export function holeCallouts(def) {
     rows.push({
       id: feature.id,
       item: rows.length + 1,
-      callout: holeCallout(feature.params || {}),
+      callout: holeCallout({...params, displayUnit:params.displayUnit || def?.context?.units?.length}),
       quantity: points.length,
       points,worldPoints,axis,
     });
@@ -70,4 +71,34 @@ export function holeLeaderForViews(row, views) {
   const candidates=views.map(view=>({view,basis:viewBasis(view.dir || view.view?.dir)}));
   const chosen=candidates.find(item=>dot(item.basis.forward,row.axis)>.95) || candidates.find(item=>Math.abs(dot(item.basis.forward,row.axis))>.95);
   return chosen?{viewId:chosen.view.id,u:dot(world,chosen.basis.right),v:dot(world,chosen.basis.up)}:null;
+}
+
+// Bind a callout to the circular rim at its feature's actual placement. A
+// feature prefix can also name inherited edges from older holes, so the first
+// lexicographic topology id is not necessarily this hole's edge.
+export function holeTopologyAnchor(index, basis, featureId, projected) {
+  if (!index || !basis || !featureId) return null;
+  const prefix = featureId + ":";
+  let best = null, cylinderFaces = [];
+  for (const [pid, entry] of index) {
+    const descriptor = entry?.descriptor || {};
+    if (!pid.startsWith(prefix)) continue;
+    const circle = entry.kind === "edge" && descriptor.curve === "circle";
+    const cylinder = entry.kind === "face" && descriptor.surface === "cylinder";
+    if (!circle && !cylinder) continue;
+    const at = resolveDimAnchor({pid,kind:entry.kind,at:"centre"},index,basis);
+    if (!at) continue;
+    if (cylinder) cylinderFaces.push({pid,kind:entry.kind,at:"centre",u:at.u,v:at.v});
+    if (!projected) continue;
+    const distance = Math.hypot(at.u-projected.u,at.v-projected.v);
+    const tolerance = Math.max(0.05,Math.min((Number(descriptor.radius)||0)*0.2,0.25));
+    if (distance > tolerance) continue;
+    const rank = circle ? 0 : 1;
+    if (!best || distance < best.distance-1e-9 || (Math.abs(distance-best.distance)<1e-9 && (rank < best.rank || (rank===best.rank && pid < best.pid))))
+      best = {pid,kind:entry.kind,at:"centre",u:at.u,v:at.v,distance,rank};
+  }
+  // Older analytic documents expose one named bore wall and no circular edge
+  // or placement sketch. That unique wall is still a valid bound reference.
+  const chosen = best || (cylinderFaces.length === 1 ? cylinderFaces[0] : null);
+  return chosen && {pid:chosen.pid,kind:chosen.kind,at:chosen.at,u:chosen.u,v:chosen.v};
 }

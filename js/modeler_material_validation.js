@@ -1,7 +1,9 @@
-import {ENGINEERING_MATERIALS,engineeringMaterial,initialMaterialProfile,materialProfileFor,upsertMaterialProfile,validateMaterialProfile} from './engineering_materials.js';
+import {assignMaterialProfile,ENGINEERING_MATERIALS,engineeringMaterial,initialMaterialProfile,materialProfileFor,upsertMaterialProfile,validateMaterialProfile} from './engineering_materials.js';
 import {evaluateGearService,gearQualificationSignature} from './cad_gear_validation.js';
 const words={
  title:['נתוני חומר הנדסיים','Engineering material data'],mate:['נתוני חומר לגלגל המשולב','Mating material data'],service:['עומס וסבולות','Loads and tolerances'],rating:['רישום דירוג לתצורה','Record configuration rating'],check:['בדיקת חומר ועומס','Check material and load'],
+ physicalSaved:['החומר והצפיפות נשמרו; נתוני חוזק טרם הוסמכו','Material and density saved; strength data not yet qualified'],
+ density:['צפיפות (g/cm³)','Density (g/cm³)'],densitySource:['מקור צפיפות','Density reference'],
  catalog:['חומר','Material'],grade:['דרגה / מפרט חומר','Grade / material specification'],condition:['מצב / טיפול / כיוון סיבים','Condition / treatment / grain direction'],source:['מקור נתוני ההסמכה','Qualification data reference'],model:['מודל חומר','Material model'],isotropic:['אלסטי איזוטרופי','Isotropic elastic'],rated:['דירוג לתצורת גלגל מסוימת','Configuration-specific rating'],
  hint:['נתוני חוזק חייבים להתאים לדרגה ולתנאי העבודה. ניתן לשמור נתונים חסרים להשלמה.','Strength data must match the grade and service conditions. Incomplete records can be saved for later completion.'],
  E:['מודול יאנג (MPa)','Young modulus (MPa)'],nu:['מקדם פואסון','Poisson ratio'],bending:['מאמץ כפיפה מותר למחזורי העבודה (MPa)','Allowable bending stress for qualified life (MPa)'],contact:['מאמץ מגע מותר (MPa)','Allowable contact stress (MPa)'],
@@ -26,9 +28,9 @@ export function createMaterialValidationUI(host){
   function profile(part,mating=false){
     const def=host.definition(),id=part.id,profileId=mating?part.gearVerification?.mateMaterialProfileId:part.materialQualificationId;
     const previous=materialProfileFor(def,profileId),catalog=previous?.catalogId||part.materialCatalogId||(part.materialId&&engineeringMaterial('toolbox:'+part.materialId)?'toolbox:'+part.materialId:'custom');
-    const initial=previous||initialMaterialProfile(engineeringMaterial(catalog)?catalog:'custom',host.uid());
+    const initial=previous?{density:part.density||engineeringMaterial(catalog)?.density||0,densitySource:part.densitySource||'',...previous}:initialMaterialProfile(engineeringMaterial(catalog)?catalog:'custom',host.uid());
     let selected=initial.catalogId;
-    const fields=[choose('catalogId','catalog',initial.catalogId,ENGINEERING_MATERIALS.map(m=>({value:m.id,label:esc(m.name)+' · '+m.catalog}))),text('grade','grade',initial.grade),text('condition','condition',initial.condition),text('source','source',initial.source),
+    const fields=[choose('catalogId','catalog',initial.catalogId,ENGINEERING_MATERIALS.map(m=>({value:m.id,label:esc(m.name)+' · '+m.catalog}))),text('grade','grade',initial.grade),num('density','density',initial.density,0),text('densitySource','densitySource',initial.densitySource),text('condition','condition',initial.condition),text('source','source',initial.source),
       choose('model','model',initial.model,[{value:'qualified-rating',label:t('rated')},{value:'isotropic-elastic',label:t('isotropic')}]),
       num('youngModulusMPa','E',initial.youngModulusMPa,0),num('poissonRatio','nu',initial.poissonRatio),num('allowableBendingMPa','bending',initial.allowableBendingMPa,0),num('allowableContactMPa','contact',initial.allowableContactMPa,0),
       num('minTemperatureC','minTemp',initial.minTemperatureC),num('maxTemperatureC','maxTemp',initial.maxTemperatureC),num('maxCycles','cycles',initial.maxCycles,0),num('maxHours','maxHours',initial.maxHours||0,0),num('maxRpm','maxRpm',initial.maxRpm,0),text('environment','environment',initial.environment),text('lubrication','lubrication',initial.lubrication)];
@@ -37,10 +39,14 @@ export function createMaterialValidationUI(host){
       const fresh=initialMaterialProfile(selected,initial.id);
       for(const field of fields){if(field.key==='catalogId')continue;const input=host.root().querySelector('#mdQuickSettings [data-parameter="'+field.key+'"] input, #mdQuickSettings [data-parameter="'+field.key+'"] select');if(input){input.value=fresh[field.key]??'';input.dispatchEvent(new Event('change',{bubbles:true}));}}
     },onApply(values){try{
-      const p=current(def,id),record={...values,id:initial.id};host.undo(t('title'));upsertMaterialProfile(def,record);
+      const p=current(def,id),record={...values,id:initial.id};
+      if(!Number.isFinite(record.density)||record.density<=0)throw new Error('Density must be positive and finite (g/cm³)');
+      if(!String(record.grade||'').trim())throw new Error('Enter a material name or grade');
+      host.undo(t('title'));
+      if(mating)upsertMaterialProfile(def,record);
       if(mating){p.gearVerification=p.gearVerification||{};p.gearVerification.mateMaterialProfileId=record.id;}
-      else {p.materialQualificationId=record.id;p.materialCatalogId=record.catalogId;p.materialName=record.grade;}
-      delete p.gearVerificationReport;host.flash(t(validateMaterialProfile(record,{elastic:record.model==='isotropic-elastic'}).length?'missing':'saved'));return true;
+      else assignMaterialProfile(def,p,record);
+      delete p.gearVerificationReport;host.flash(t(validateMaterialProfile(record,{elastic:record.model==='isotropic-elastic'}).length?'physicalSaved':'saved'));return true;
     }catch(error){host.flash(error.message);return false;}}});
   }
   function service(part){

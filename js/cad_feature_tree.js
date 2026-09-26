@@ -3,8 +3,8 @@ import {helixFromSketch} from './core/sketch_helix.js';
 import {isThroughVertexPlane,resolveOffsetSketch} from './core/offset_planes.js';
 import {linkedEdgeLookup,updateSilhouetteSketch} from './core/cone_silhouette.js';
 import {bindIntersectionTargets,bindModelEdgeTargets,bindPierceTargets} from './sketch_intersection.js';
-import {thinSketchProfile} from './core/thin_profile.js';
-import {resolveAssociativeBoundary} from './cad_associative_boundary.js';
+import {revolveThinProfile} from './core/thin_profile.js';
+import {resolveAssociativeBoundary,updateCircularBoundarySketch} from './cad_associative_boundary.js';
 import {resolveSketchSources,sketchWorldPoint} from "./core/swept_sources.js";
 import { buildDependencyGraph, featureDependencies, datumReferenceIds } from "./core/dependency_graph.js";
 import { booleanBrep, chamferBrep, circularPatternBrep, compoundBrep, curvePatternBrep, deserializeBrep, disposeBrep, domeBrep, draftBrep, extractBrepTopology, filletBrep, linearGridPatternBrep, linearPatternBrep, makeBrepCone, makeBrepHoleTool, makeBrepExtrusion, makeBrepPrimitive, makeBrepRevolve, makeBrepSweep, makeBrepLoft, mirrorBrep, moveBodyBrep, placeBrep, rayHitsBrepFace, rayHitsExtendedBrepFace, resolveBrepSubshape, ribBrep, splitBrep, shellBrep, thickenBrep } from "./cad_kernel.js";
@@ -12,12 +12,12 @@ import {resolveProfilePoints, solveSketch} from "./sketch_solver.js";
 import { sketchProfileSegments } from "./core/profile_curves.js";
 import { createTopologyRegistry, resolveFeatureTopologyReferences, topologyForFeature } from "./core/topology.js";
 import { vertexEntriesFrom } from "./core/topology_selection.js";
-import { realignFrame } from "./core/frame.js";
+import { faceFrameOrigin, realignFrame } from "./core/frame.js";
 import { aabbFromTopology, extrusionAxisVector, extrusionMapPoint, isUpToFace, profileBoundarySamples, resolveExtrudeExtent, resolvedEndFace, UP_TO_FACE_MISSING, UP_TO_FACE_MISSED, UP_TO_NEXT_MISSED } from "./core/extrude_extent.js";
 import { resolveParameters, sketchDiagnostics } from "./core/rebuild.js";
 import { decodeBinaryPayload } from "./core/binary_payload.js";
 import { resolveAttachmentPayload } from "./core/attachment_store.js";
-import { sampleHelix } from "./cad_helix.js";
+import { helixSweepPath, sampleHelix } from "./cad_helix.js";
 import { helixSpecForThread, modeledThreadSolid, normalizeThreadSpec } from "./cad_thread.js";
 import { knurlBandMesh, normalizeKnurlSpec } from "./cad_knurl.js";
 import { insertBody, normalizeInsertFeature } from "./cad_appearances.js";
@@ -145,6 +145,14 @@ export async function regenerateFeatures(def, options = {}) {
         if(moved!==linkedSketch){linkedSketch=moved;executionDef.sketches[sketchIndex]=moved;boundaryUpdates.set(moved.id,{sketch:moved,oldEntityIds:[],newEntityIds:[]});}
         if(feature.type==="rib" && moved.frame)effectiveParams={...effectiveParams,frame:moved.frame,axis:"frame"};}
 
+      const circularBoundary=updateCircularBoundarySketch(linkedSketch,results);
+      if(circularBoundary){
+        const report=solveSketch(circularBoundary);
+        if(!report.converged)throw new Error("Converted circular boundary relations could not follow the source");
+        linkedSketch=circularBoundary;executionDef.sketches[sketchIndex]=circularBoundary;
+        boundaryUpdates.set(circularBoundary.id,{sketch:circularBoundary,oldEntityIds:[],newEntityIds:[]});
+      }
+
       if(linkedSketch?.pierce){
         const link=linkedSketch.pierce,curve=results.get(link.featureId)?.spec;if(!curve)throw new Error('Pierce curve is unavailable');
         linkedSketch=pierceSketchToHelix(linkedSketch,link.anchorId,curve,link.position);executionDef.sketches[sketchIndex]=linkedSketch;
@@ -208,10 +216,13 @@ export async function regenerateFeatures(def, options = {}) {
       }
       else if (feature.type === "sweep") {
         if(effectiveParams.sketchSources){const resolved=resolveSketchSources(executionDef,effectiveParams.profileMode==="circular"?{...effectiveParams.sketchSources,diameter:effectiveParams.profileDiameter}:effectiveParams.sketchSources,resolveProfilePoints);if(!resolved)throw new Error("Sweep source sketch is missing or invalid");effectiveParams={...effectiveParams,...resolved};}
-        const helixPath = effectiveParams.helix && (!effectiveParams.path || effectiveParams.path.length < 2)
-          ? sampleHelix(effectiveParams.helix).points
+        // A helix path without its smooth segments is the old polyline spine,
+        // which cannot turn the section (see helixSweepPath); rebuild it from
+        // the helix so documents saved that way repair themselves.
+        const helixPath = effectiveParams.helix && !effectiveParams.pathSegments
+          ? helixSweepPath(effectiveParams.helix)
           : null;
-        result = await makeBrepSweep(helixPath ? { ...effectiveParams, path: helixPath } : effectiveParams);
+        result = await makeBrepSweep(helixPath ? { ...effectiveParams, ...helixPath } : effectiveParams);
       }
       else if (feature.type === "loft") {
         if(effectiveParams.sketchSources){const resolved=resolveSketchSources(executionDef,effectiveParams.sketchSources,resolveProfilePoints);if(!resolved)throw new Error("Loft source sketch is missing or invalid");effectiveParams={...effectiveParams,...resolved};}
@@ -497,7 +508,7 @@ export function resolveSketchProfile(def,params) {
   if (!params?.profileEntityIds?.length) return params;
   const sketches=Array.isArray(def.sketches)?def.sketches:[],sketch=(params.sketchId&&sketches.find((item)=>item.id===params.sketchId))||def.sketch||sketches[0];
   if(!sketch)throw new Error("Feature profile is missing its sketch");
-  const thin=params.thinFeature ? thinSketchProfile(sketch,params.profileEntityIds,params.thickness,params.thinMode) : null;
+  const thin=params.thinFeature ? revolveThinProfile(sketch,params.profileEntityIds,params.thickness,params.thinMode,params.axis) : null;
   const points=thin?.points || resolveProfilePoints(sketch,params.profileEntityIds);
   if(!points)throw new Error("Feature profile is missing, open or unsupported");
   if(params.useSketchPlane){
@@ -519,7 +530,7 @@ export function alignExtrusionToSupport(params, resolutions = []) {
   if (params.frame) {
     const baseOffset = Number(params.baseOffset) || 0;
     const depth = Math.max(1e-6, Math.abs(Number(params.depth) || Math.abs(Number(params.to) - Number(params.from))));
-    return { ...params, frame: realignFrame(params.frame, descriptor.origin, descriptor.normal), from: symmetric ? baseOffset-depth/2 : baseOffset, to: symmetric ? baseOffset+depth/2 : baseOffset+reversed*depth };
+    return { ...params, frame: realignFrame(params.frame, faceFrameOrigin(descriptor,params.frameAnchor), descriptor.normal), from: symmetric ? baseOffset-depth/2 : baseOffset, to: symmetric ? baseOffset+depth/2 : baseOffset+reversed*depth };
   }
   const axis = params.axis || "y";
   const coordinate = Number(descriptor.origin[axis]) || 0;

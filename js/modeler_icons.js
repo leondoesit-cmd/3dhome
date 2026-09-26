@@ -25,6 +25,19 @@ export const CAD_ICONS = {
       p("M7 10 L11 8 L15 10 L15 14 L11 16 L7 14 Z", .18) +
       l("M7 10 L11 12 L15 10 M11 12 L11 16");
   },
+  directcone: () => p("M10 2 L4 15 Q10 19 16 15 Z", .2) + l("M4 15 Q10 11 16 15 M10 2 L10 8"),
+  refpoint: () => l("M10 2 V18 M2 10 H18") + p("M10 7 L13 10 L10 13 L7 10 Z", .35),
+  sketchpoint: () => l("M3 10 H7 M13 10 H17 M10 3 V7 M10 13 V17") + p("M8 8 H12 V12 H8 Z", .4),
+  sketchtext: () => l("M3 5 H17 M10 5 V17 M7 17 H13") + p("M3 3 H17 V5 H3 Z", .15),
+  stocksize: () => p("M3 5 L11 2 L17 5 L9 8 Z", .2) + l("M3 5 V15 L9 18 L17 15 V5 M9 8 V18 M12 11 H16 M12 13 H15"),
+  towalls: () => p("M2 6 L10 3 L18 6 L10 9 Z", .2) + l("M2 6 V15 L10 18 L18 15 V6 M10 9 V18 M5 8 V14 M15 8 V14"),
+  finishpreview: () => p("M4 4 H16 V16 H4 Z", .2) + l("M4 12 L12 4 M8 16 L16 8") + colorPath("M12 12 L14 14 L18 10", "none", "#2dd4bf", 1.4),
+  exportglb: () => p("M3 5 L10 2 L17 5 L10 8 Z", .2) + l("M3 5 V12 L10 15 L17 12 V5 M10 8 V15 M10 16 V19 M7 17 L10 19 L13 17"),
+  equations: () => l("M3 4 H9 M6 2 V6 M3 10 H9 M3 14 H9 M13 9 H18 M13 13 H18") + p("M10 3 L12 7 L10 11 L12 15", .1),
+  customprops: () => p("M4 3 H12 L16 7 V17 H4 Z", .15) + l("M12 3 V7 H16 M7 10 H13 M7 13 H13"),
+  smartmates: () => p("M3 4 H9 V10 H3 Z", .15) + p("M11 10 H17 V16 H11 Z", .15) + colorPath("M8 12 L12 8 M10 8 L12 8 L12 10", "none", "#2dd4bf", 1.4),
+  sheetmetal: () => l("M2 14 H10 V6 H18 M2 16 H12 V8 H18") + p("M10 6 H12 V14 H10 Z", .25),
+  branch: () => l("M4 2 V12 Q4 16 8 16 H17 M4 8 Q4 12 8 12 H17") + p("M15 10 L18 12 L15 14 Z", .25),
   // ==========================================
   // 1. 3D FEATURES (SolidWorks Features)
   // ==========================================

@@ -6,8 +6,8 @@
 // its own build() into a small offscreen WebGL scene, lit and auto-framed, so
 // the icon IS the model. Same builder as the 3D view, so a model can never
 // disagree with its icon.
-import { THREE, loadThree, threeLoaded } from "./three_lazy.js";
-import { createRenderer, ready, LUX } from "./gpu.js";
+import { THREE } from "./three_lazy.js";
+import { offscreenGL, offscreenPending, useRig } from "./offscreen_gl.js";
 import { FURN, buildItem } from "./furniture.js";
 import { clearGroup } from "./primitives.js";
 
@@ -22,9 +22,7 @@ function dir() {
 }
 
 const cache = new Map(); // type -> data URL (or "" when the model won't render)
-let GL = null,
-  glDead = false;
-const THUMB_DB = "home3d_thumbnails_v2";
+const THUMB_DB = "home3d_thumbnails_v5";
 const THUMB_STORE = "images";
 
 function thumbDB() {
@@ -57,118 +55,9 @@ async function persistThumb(type, url) {
 const persistentReady = hydratePersistentCache().catch(() => {});
 export function loadThumbCache() { return persistentReady; }
 
-// Small equirect sky/ground gradient, prefiltered once. Without an environment
-// map every STEEL/GLASS surface in the catalog renders as a black hole.
-function skyEnv(r) {
-  const c = document.createElement("canvas");
-  c.width = 64;
-  c.height = 32;
-  const x = c.getContext("2d"),
-    grd = x.createLinearGradient(0, 0, 0, 32);
-  grd.addColorStop(0.0, "#93a8c2");
-  grd.addColorStop(0.5, "#eef2f6");
-  grd.addColorStop(0.52, "#a49a8d");
-  grd.addColorStop(1.0, "#75706a");
-  x.fillStyle = grd;
-  x.fillRect(0, 0, 64, 32);
-  const tex = new THREE.CanvasTexture(c);
-  tex.mapping = THREE.EquirectangularReflectionMapping;
-  const pm = new THREE.PMREMGenerator(r);
-  pm.compileEquirectangularShader();
-  const rt = pm.fromEquirectangular(tex);
-  pm.dispose();
-  tex.dispose();
-  return rt.texture;
-}
-
-// True from the moment the renderer is requested until its backend is live.
-// Thumbs asked for during that window must NOT be memoized — the cache stores
-// "" on failure and would pin every icon to flat art for the rest of the
-// session. Under r128's synchronous WebGLRenderer this window did not exist.
-let glPending = false;
-
-// Builds the offscreen scene. Deferred until the backend is up: PMREMGenerator
-// (skyEnv) issues real GPU work and throws on an uninitialized renderer.
-function buildGL(r) {
-  r.setPixelRatio(1);
-  r.setSize(SIZE, SIZE, false);
-  r.outputColorSpace = THREE.SRGBColorSpace;
-  r.toneMapping = THREE.ACESFilmicToneMapping;
-  r.toneMappingExposure = 1.0;
-  const scene = new THREE.Scene();
-  scene.environment = skyEnv(r);
-  // Key strongly off-axis and a weak fill: white-on-white pieces (fridge,
-  // toilet, upper cabinets) need a clearly shaded side or they dissolve into
-  // the panel background at 48px.
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x8f959d, LUX * 0.5));
-  const key = new THREE.DirectionalLight(0xfff4e6, LUX * 1.35);
-  key.position.set(-90, 230, 190);
-  scene.add(key);
-  const fill = new THREE.DirectionalLight(0xdfe9ff, LUX * 0.3);
-  fill.position.set(180, 60, -140);
-  scene.add(fill);
-  const root = new THREE.Group();
-  scene.add(root);
-  return {
-    r: r,
-    scene: scene,
-    root: root,
-    cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 8000),
-  };
-}
-
-// Returns the offscreen renderer bundle, or null while it is still coming up
-// (or permanently, if there is no GPU). Never returns a half-built one.
+// The renderer lives in js/offscreen_gl.js, shared with the plan sprites.
 function gl() {
-  if (GL) return GL;
-  if (glDead || glPending) return null;
-  /* three is not on the boot path any more, so the catalog panel can render
-     before the renderer library even exists. Take the same road as the async
-     backend below: reserve the pending flag, fetch three, and re-announce
-     "thumbsReady" so the flat art drawn in the meantime is replaced. */
-  if (!threeLoaded()) {
-    glPending = true;
-    loadThree().then(function () {
-      glPending = false;
-      gl();
-      window.dispatchEvent(new CustomEvent("thumbsReady"));
-    }).catch(function () {
-      glPending = false;
-      glDead = true;
-    });
-    return null;
-  }
-  glPending = true;
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = canvas.height = SIZE;
-    // preferWebGL: thumbnails are 48px and are read back synchronously via
-    // toDataURL, which the WebGL2 backend supports directly (see gpu.js).
-    // preserveDrawingBuffer: toDataURL() runs after the draw call returns
-    const r = createRenderer({
-      canvas: canvas,
-      antialias: true,
-      alpha: true,
-      preserveDrawingBuffer: true,
-      preferWebGL: true,
-    });
-    ready(r).then(() => {
-      GL = buildGL(r);
-      glPending = false;
-      // Tell the catalog UI to ask again — the icons it drew during init were
-      // flat art and were deliberately left out of the cache. NOT
-      // "catalogUpdated": that means "the models changed, throw the cached art
-      // away" and would wipe the IndexedDB thumb store on every single load.
-      window.dispatchEvent(new CustomEvent("thumbsReady"));
-    }).catch(() => {
-      glPending = false;
-      glDead = true;
-    });
-  } catch (e) {
-    glPending = false;
-    glDead = true; // no GPU (or context budget exhausted): fall back to flat art
-  }
-  return null;
+  return offscreenGL();
 }
 
 // Fit the orthographic frustum to the model's bounding box, exactly: project
@@ -235,6 +124,8 @@ function render(g, type) {
   const box = new THREE.Box3().setFromObject(g.root);
   if (box.isEmpty() || !isFinite(box.min.x) || !isFinite(box.max.x)) return "";
   frame(g.cam, box);
+  g.r.setSize(SIZE, SIZE, false);
+  useRig(g, "thumb");
   g.r.render(g.scene, g.cam);
   return g.r.domElement.toDataURL();
 }
@@ -249,7 +140,7 @@ export function modelThumb(type) {
   const g = gl();
   // Backend still coming up: hand back flat art for now, but do not memoize it —
   // the catalogUpdated fired on init will bring us back here for the real icon.
-  if (!g && glPending) return "";
+  if (!g && offscreenPending()) return "";
   if (g && FURN[type]) {
     try {
       url = render(g, type);

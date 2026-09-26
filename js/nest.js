@@ -1,3 +1,5 @@
+import { rectangularFindPlace, rectangularPlace, rectangularOffcuts, validateRectangularNesting } from './nest_rectangular.js';
+import { cabinetProductionParts } from './cabinet_production_parts.js';
 import { cabinetManufacturingReport } from "./cabinet_manufacturing.js";
 import { S } from "./state.js";
 // Cut plan and quote — turns cabinets into panels, panels into sheets, and
@@ -35,66 +37,23 @@ import {
    the panel on anything flat (a shelf, a top, a worktop). That is ordinary
    cabinetmaking practice, and it is what decides whether the nesting is allowed
    to turn the part 90° on the sheet. */
-function panelDims(p) {
-  // a corner unit's pentagon board is cut from the rectangle it fits inside, and
-  // that rectangle is what has to be nested and paid for
-  if (p.k === "poly") return { t: Math.abs(p.y1 - p.y0), gl: p.bw, gw: p.bd, cut: p.cut || 0 };
-  var dx = Math.abs(p.x1 - p.x0),
-    dy = Math.abs(p.y1 - p.y0),
-    dz = Math.abs(p.z1 - p.z0),
-    t = Math.min(dx, dy, dz);
-  if (t === dz) return { t: dz, gl: dy, gw: dx }; // face-on: door, back, front
-  if (t === dy) return { t: dy, gl: dx, gw: dz }; // flat: shelf, top, worktop
-  return { t: dx, gl: dy, gw: dz }; // upright: side, divider
-}
-
-/* Every board, one entry per physical part — this is the list that gets nested.
-   `gl` runs along the grain, `gw` across it; `l`/`w` are the same board sorted
-   long-side-first, which is how a cut list is written. */
-export function panelsOf(items, opt) {
-  opt = opt || {};
-  var out = [],
-    n = 0,
-    /* Part numbers run across the whole order, and identical boards from the
-       same cabinet share one — that is what a shop writes on the board and reads
-       off the nesting diagram. Keyed the same way the cut list groups, so a row
-       in the list and a rectangle on a sheet carry the same number. */
-    partNo = {},
-    nextNo = 0;
-  (items || []).forEach(function (it, ii) {
-    if (!it || !it.cab) return;
-    var L = layoutCab(it),
-      sp = L.sp,
-      name = (opt.label && opt.label(it)) || it.name || it.type || "cab",
-      tag = (items.length > 1 ? ii + 1 + "· " : "") + name;
-    L.parts.forEach(function (p) {
-      if ((p.k !== "box" && p.k !== "poly") || BOARD_ROLES.indexOf(p.role) < 0) return;
-      var d = panelDims(p),
-        srole = stockRole(p.mat),
-        sheet = sheetFor(sp, srole, d.t);
-      if (!sheet) return;
-      var nk = ii + "|" + p.role + "|" + p.mat + "|" + Math.round(d.gl) + "x" + Math.round(d.gw) + "x" + d.t.toFixed(1);
-      if (!partNo[nk]) partNo[nk] = ++nextNo;
-      out.push({
-        id: "p" + ++n,
-        no: partNo[nk],
-        it: it,
-        item: tag,
-        itemIx: ii,
-        role: p.role,
-        mat: p.mat,
-        srole: srole,
-        sheetId: sheet.id,
-        t: +d.t.toFixed(2),
-        gl: +d.gl.toFixed(1),
-        gw: +d.gw.toFixed(1),
-        l: +Math.max(d.gl, d.gw).toFixed(1),
-        w: +Math.min(d.gl, d.gw).toFixed(1),
-        band: +bandLen(p).toFixed(3),
-        bandId: sp.band,
-        grain: !!sheet.grain,
-      });
-    });
+export function panelsOf(items, opt = {}) {
+  const report = cabinetProductionParts(items || []);
+  const numbers = new Map();
+  const out = report.parts.filter(p => p.finished && p.sheetId).map(p => {
+    const it = items[p.itemIndex], d = p.finished;
+    const cut = p.rough || p.substrate || d;
+    const alongIsLength = d.alongGrain >= d.acrossGrain;
+    const gl = alongIsLength ? cut.length : cut.width, gw = alongIsLength ? cut.width : cut.length;
+    const key = [p.itemId,p.role,p.material,gl,gw,cut.thickness,JSON.stringify(p.edges)].join('|');
+    if (!numbers.has(key)) numbers.set(key,numbers.size + 1);
+    const name = (opt.label && opt.label(it)) || it.name || it.type || 'cab';
+    return { id: p.id, partId: p.partId, production: p, no: numbers.get(key), it,
+      item: (items.length > 1 ? p.itemIndex + 1 + '· ' : '') + name, itemIx: p.itemIndex,
+      role: p.role, mat: p.material, srole: p.stockRole, sheetId: p.sheetId,
+      t: cut.thickness / 10, gl: gl / 10, gw: gw / 10,
+      l: Math.max(gl,gw) / 10, w: Math.min(gl,gw) / 10, band: p.banding.lengthMm / 1000,
+      bandId: p.banding.stockId, bandByStock: p.banding.byStock, grain: p.grain };
   });
   return out;
 }
@@ -116,13 +75,15 @@ function usable(sheet, opt) {
 
 function newSheet(sheet, opt, i) {
   var u = usable(sheet, opt);
-  return { sheet: sheet, i: i, place: [], free: [{ x: opt.trim, y: opt.trim, w: u.w, h: u.h }] };
+  return { sheet: sheet, i: i, place: [], free: [{ x: opt.trim, y: opt.trim, w: u.w + (opt.algorithm === "router-rectangular" ? opt.kerf : 0), h: u.h + (opt.algorithm === "router-rectangular" ? opt.kerf : 0) }] };
 }
 
 /* The best place this board could go on this sheet, without committing to it —
    so the caller can compare every open sheet and pick the tightest fit anywhere
    rather than the first one that happens to work. */
 function findPlace(sh, p, opt) {
+  if (opt.algorithm === "router-rectangular") return rectangularFindPlace(sh,p,opt);
+  if (![p.gl,p.gw].every(v=>Number.isFinite(v)&&v>0)) return null;
   var best = null,
     // across the sheet × along the sheet; the grain runs along `l`
     forms = [[p.gw, p.gl, 0]];
@@ -141,6 +102,7 @@ function findPlace(sh, p, opt) {
 }
 
 function place(sh, p, best, opt) {
+  if (opt.algorithm === "router-rectangular") return rectangularPlace(sh,p,best,opt);
   var f2 = sh.free[best.fi],
     k = opt.kerf,
     restW = f2.w - best.w - k,
@@ -172,7 +134,7 @@ function finishSheet(sh, opt) {
   sh.area = area / 10000;
   sh.eff = area ? used / area : 0;
   // what is left that is worth putting back on the rack
-  sh.offcuts = sh.free
+  sh.offcuts = (opt.algorithm === "router-rectangular" ? rectangularOffcuts(sh,opt) : sh.free)
     .filter(function (r) {
       return r.w >= opt.minOffcut && r.h >= opt.minOffcut;
     })
@@ -200,13 +162,13 @@ const SORTS = [
 /* A piece off the rack, dressed up as a sheet so the packer needs to know
    nothing about where board comes from. It costs nothing — it is already paid
    for — and it is never trimmed again, because it was trimmed when it was cut. */
-function rackSheet(o, sheet, i) {
+function rackSheet(o, sheet, i, opt) {
   return {
     sheet: { id: sheet.id, l: o.l, w: o.w, t: sheet.t, grain: sheet.grain, hand: sheet.hand, he: sheet.he, en: sheet.en, sup: sheet.sup },
     stock: o,
     i: i,
     place: [],
-    free: [{ x: 0, y: 0, w: o.w, h: o.l }],
+    free: [{ x: 0, y: 0, w: o.w + (opt.algorithm === "router-rectangular" ? opt.kerf : 0), h: o.l + (opt.algorithm === "router-rectangular" ? opt.kerf : 0) }],
   };
 }
 
@@ -216,7 +178,7 @@ function packWith(list, sheet, opt, stock) {
   /* The rack goes first, smallest piece that will do before the big ones, so a
      job eats the awkward leftovers rather than adding to them. */
   (stock || []).forEach(function (o, i) {
-    sheets.push(rackSheet(o, sheet, -1 - i));
+    sheets.push(rackSheet(o, sheet, -1 - i, opt));
   });
   list.forEach(function (p) {
     /* Best fit across every sheet already open, not the first one that happens
@@ -269,7 +231,9 @@ function packWith(list, sheet, opt, stock) {
 /* Nest a panel list. Panels are grouped by the sheet they are cut from — you
    cannot nest an 18 mm melamine door into a 4 mm back sheet. */
 export function nest(panels, opt) {
-  opt = Object.assign({}, NEST, opt || {});
+  opt = Object.assign({algorithm:'guillotine'}, NEST, opt || {});
+  if (!['guillotine','router-rectangular'].includes(opt.algorithm)) throw new Error('Unknown rectangular nesting algorithm.');
+  if (!['kerf','trim','minOffcut'].every(key=>Number.isFinite(opt[key])&&opt[key]>=0)) throw new Error('Nesting kerf, trim and minimum offcut must be finite nonnegative lengths.');
   var groups = {},
     order = [],
     unplaced = [],
@@ -285,13 +249,14 @@ export function nest(panels, opt) {
     }
     groups[p.sheetId].panels.push(p);
     bandM += p.band;
-    if (p.band > 0) bandBy[p.bandId] = (bandBy[p.bandId] || 0) + p.band;
+    if (p.bandByStock) Object.entries(p.bandByStock).forEach(([id,lengthMm]) => { bandBy[id] = (bandBy[id] || 0) + lengthMm / 1000; });
+    else if (p.band > 0) bandBy[p.bandId] = (bandBy[p.bandId] || 0) + p.band;
   });
 
   order.forEach(function (id) {
     var g = groups[id],
       sheet = g.sheet;
-    if (!sheet) return;
+    if (!sheet) { unplaced.push(...g.panels); return; }
     var best = null,
       // what the rack already holds in this material, biggest first
       stock = (opt.useStock === false ? [] : offcuts(id)).slice().sort(function (a, b) {
@@ -303,8 +268,10 @@ export function nest(panels, opt) {
        panel counts here are small enough that three passes are free. */
     SORTS.forEach(function (cmp) {
       var r = packWith(g.panels.slice().sort(cmp), sheet, opt, stock);
-      if (!best || r.bought < best.bought || (r.bought === best.bought && r.lastFree < best.lastFree)) best = r;
+      if (!best || r.unplaced.length < best.unplaced.length || (r.unplaced.length === best.unplaced.length && (r.bought < best.bought || (r.bought === best.bought && r.lastFree < best.lastFree)))) best = r;
     });
+    const violations=validateRectangularNesting(best.sheets,opt);
+    if(violations.length) throw new Error('Invalid nesting: '+violations.map(v=>v.code).join(', '));
     best.unplaced.forEach(function (p) {
       // bigger than the sheet it was assigned to — say so rather than drop it
       unplaced.push(p);
@@ -312,7 +279,7 @@ export function nest(panels, opt) {
     best.sheets.forEach(function (sh) {
       finishSheet(sh, opt);
       sh.place.forEach(function (q) {
-        var run = (q.w + q.h) / 100; // two cuts free each board
+        var run = (q.w + q.h) / 100 * (opt.algorithm === "router-rectangular" ? 2 : 1); // two cuts free each board
         if (sheet.hand === "slab") slabCutM += run;
         else cutM += run;
       });
@@ -360,6 +327,10 @@ export function nest(panels, opt) {
 
   return {
     opt: opt,
+    algorithm: opt.algorithm,
+    geometry: "rectangular-blanks",
+    machineReady: false,
+    validation: {valid:true,issues:[]},
     panels: panels,
     groups: gl,
     unplaced: unplaced,
@@ -373,7 +344,9 @@ export function nest(panels, opt) {
     leftovers: gl.reduce(function (acc, g) {
       g.sheets.forEach(function (sh) {
         sh.offcuts.forEach(function (r) {
-          acc.push({ sheet: g.sheetId, l: Math.max(r.w, r.h), w: Math.min(r.w, r.h) });
+          // The rack stores millimetres; round recoverable stock down, never enlarge it.
+          const length=g.sheet.grain ? r.h : Math.max(r.w,r.h), width=g.sheet.grain ? r.w : Math.min(r.w,r.h);
+          acc.push({ sheet:g.sheetId,l:Math.floor((length+1e-8)*10)/10,w:Math.floor((width+1e-8)*10)/10 });
         });
       });
       return acc;
@@ -447,6 +420,8 @@ export function quote(items, opt) {
   var list = (items || []).filter(function (it) {
     return it && it.cab;
   });
+  var production = cabinetProductionParts(list);
+  var productionIssues = production.issues.filter(issue => !['allowances-unknown'].includes(issue.code));
   var panels = panelsOf(list, opt),
     res = nest(panels, opt);
 
@@ -520,7 +495,7 @@ export function quote(items, opt) {
     lab.push({ key: key, he: he, en: en, qty: Math.round(qty * 10) / 10, unit: unit, rate: rate, cost: qty * rate });
   }
   labLine("sheetHandle", "טיפול בפלטות", "Sheet handling", res.sheetCount, "sheet");
-  labLine("cutPerM", "ניסור", "Sawing", res.cutM, "m");
+  labLine("cutPerM", opt.algorithm === "router-rectangular" ? "מסלול היקף משוער" : "ניסור", opt.algorithm === "router-rectangular" ? "Router perimeter estimate (saw-rate proxy)" : "Sawing", res.cutM, "m");
   labLine("slabCutPerM", "ניסור אבן", "Stone cutting", res.slabCutM, "m");
   labLine("bandPerM", "הדבקת קנטים", "Edge banding", res.bandM * (1 + opt.bandWaste), "m");
   labLine("hingeBore", "קידוח צירים", "Hinge boring", bores, "u");
@@ -543,7 +518,8 @@ export function quote(items, opt) {
 
   return {
     items: list,
-    manufacturingReviewRequired: list.some((item) => S.parametric?.definitions?.[item.definitionId]?.metadata?.manufacturingReviewRequired),
+    productionIssues: productionIssues,
+    manufacturingReviewRequired: productionIssues.length > 0 || list.some((item) => S.parametric?.definitions?.[item.definitionId]?.metadata?.manufacturingReviewRequired),
     nest: res,
     panelCount: panels.length,
     sheets: lines,
@@ -628,7 +604,7 @@ export function supplierPlan(q) {
 /* ========================= exports ========================= */
 
 function mm(cm) {
-  return Math.round(cm * 10);
+  return Number((cm * 10).toFixed(9));
 }
 
 /* The cut list a workshop actually cuts from: one line per board, in mm, with
@@ -636,10 +612,12 @@ function mm(cm) {
 export function cutCSV(q, en) {
   var rows = [
     en
-      ? ["Part #", "Sheet material", "Sheet #", "Part", "Item", "Length (mm)", "Width (mm)", "Thk (mm)", "Grain locked", "Banding (m)", "X (mm)", "Y (mm)", "Rotated"]
-      : ["מס׳ חלק", "חומר", "פלטה", "חלק", "פריט", 'אורך (מ"מ)', 'רוחב (מ"מ)', 'עובי (מ"מ)', "כיוון סיב", "קנט (מ׳)", 'X (מ"מ)', 'Y (מ"מ)', "מסובב"],
+      ? ["Part #", "Sheet material", "Sheet #", "Part", "Item", "Length (mm)", "Width (mm)", "Thk (mm)", "Grain locked", "Banding (m)", "X (mm)", "Y (mm)", "Rotated", "Production part ID", "Dimension basis"]
+      : ["מס׳ חלק", "חומר", "פלטה", "חלק", "פריט", 'אורך (מ"מ)', 'רוחב (מ"מ)', 'עובי (מ"מ)', "כיוון סיב", "קנט (מ׳)", 'X (מ"מ)', 'Y (מ"מ)', "מסובב", "מזהה חלק ייצור", "בסיס מידות"],
   ];
-  if (q.manufacturingReviewRequired) rows.unshift([en ? "PARTIAL ESTIMATE — advanced model edits require manufacturing review" : "אומדן חלקי — שינויי מודל מתקדמים דורשים בדיקת ייצור"]);
+  rows.unshift(["NESTING",q.nest.algorithm || "guillotine","RECTANGULAR BLANKS — REVIEW ONLY, NOT CAM", "kerf mm", mm(q.nest.opt.kerf), "trim mm", mm(q.nest.opt.trim)]);
+  if (q.manufacturingReviewRequired) rows.unshift([en ? "PARTIAL ESTIMATE — unsupported parts or production changes require manufacturing review" : "אומדן חלקי — חלקים לא נתמכים או שינויי ייצור דורשים בדיקה"]);
+  (q.productionIssues || []).forEach(issue => rows.push(['PRODUCTION REVIEW',issue.code,issue.itemId || '',issue.partId || '',issue.message]));
   q.nest.groups.forEach(function (g) {
     g.sheets.forEach(function (sh) {
       sh.place
@@ -660,6 +638,7 @@ export function cutCSV(q, en) {
             p.band ? p.band.toFixed(2) : "",
             mm(pl.x), mm(pl.y),
             pl.rot ? (en ? "yes" : "כן") : "",
+            p.id, p.production?.rough ? "rough" : p.production?.substrate ? "substrate" : "finished-only",
           ]);
         });
     });
@@ -786,7 +765,7 @@ export function quoteHTML(q, opt) {
     (opt.date ? esc(opt.date) + "<br>" : "") +
     (opt.ref ? L("סימוכין: ", "Ref: ") + esc(opt.ref) : "") +
     "</div></header>" +
-    (q.manufacturingReviewRequired ? "<p><strong>" + L("אומדן חלקי — שינויי מודל מתקדמים דורשים בדיקת ייצור", "PARTIAL ESTIMATE — advanced model edits require manufacturing review") + "</strong></p>" : "") +
+    (q.manufacturingReviewRequired ? "<p><strong>" + L("אומדן חלקי — חלקים לא נתמכים או שינויי ייצור דורשים בדיקה", "PARTIAL ESTIMATE — unsupported parts or production changes require manufacturing review") + "</strong></p>" : "") +
     "<h2>" + L("הפריטים", "Items") + "</h2><table><thead><tr><th>#</th><th>" + L("פריט", "Item") +
     "</th><th class=n>" + L('רוחב × עומק × גובה (ס"מ)', "W × D × H (cm)") + "</th><th>" + L("חזית וגימור", "Front & finish") +
     "</th><th class=n>" + L("מחיר", "Price") + "</th></tr></thead><tbody>" + rows + "</tbody></table>" +
@@ -909,12 +888,13 @@ export function nestDXF(q) {
   function circle(x, y, r, layer) {
     out.push("0", "CIRCLE", "8", layer, "10", String(x), "20", String(y), "30", "0.0", "40", String(r));
   }
+  text(0, -100, 30, "RECTANGULAR BLANKS / " + (q.nest.algorithm || "guillotine") + " / NOT CAM", "REVIEW");
   var ox = 0,
     lowest = 0;
   q.nest.groups.forEach(function (g) {
     g.sheets.forEach(function (sh) {
-      var SW = mm(g.sheet.w),
-        SL = mm(g.sheet.l);
+      var SW = mm(sh.sheet.w),
+        SL = mm(sh.sheet.l);
       rect(ox, 0, SW, SL, "SHEET");
       text(ox + 20, SL + 40, 60, (g.sheet.en || g.sheetId) + " #" + (sh.i + 1) + " — " + Math.round(sh.eff * 100) + "%", "LABEL");
       sh.place.forEach(function (pl) {

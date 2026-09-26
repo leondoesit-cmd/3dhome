@@ -72,3 +72,34 @@ export function resolveAssociativeBoundary(sketch, params, results) {
   sketch:updated,oldEntityIds:copy.entityIds,newEntityIds:nextCopy.entityIds,
  };
 }
+
+// Keep concentric converted circles associative after trimming or adding lines.
+// Entity ids and trim endpoints stay intact so the user's relations can solve
+// against the new radii. Restrict rank matching to nested, concentric circles.
+export function updateCircularBoundarySketch(sketch, results) {
+ let updated=null;
+ for(const copy of sketch?.boundaryCopies || []){
+  if(!copy.associative)continue;
+  const entities=copy.entityIds.map(id=>sketch.entities.find(e=>e.id===id));
+  if(!entities.length || entities.some(e=>!e || !(e.type==='circle'||e.type==='arc'&&Number.isFinite(e.fixedRadius))))continue;
+  const centers=entities.map(e=>sketch.points.find(p=>p.id===e.c));
+  if(centers.some(p=>!p || Math.hypot(p.x-centers[0].x,p.y-centers[0].y)>1e-6))continue;
+  const source=results.get(copy.source.ownerFeatureId),face=sourceFace(source,copy.source);
+  if(!face)throw new Error('Linked circular boundary source face is unavailable');
+  const frame=realignFrame(sketch.frame,face.descriptor.origin,face.descriptor.normal);
+  const loops=offsetFaceBoundary(source,{...copy.source,persistentId:face.persistentId},frame,Number(copy.distance));
+  if(loops.length!==entities.length || loops.some(loop=>loop.length!==1 || loop[0].type!=='circle'))throw new Error('Linked circular boundary changed its regions');
+  const circles=loops.map(loop=>loop[0]).sort((a,b)=>a.radius-b.radius);
+  if(circles.some(c=>Math.hypot(c.center.u-circles[0].center.u,c.center.v-circles[0].center.v)>1e-6))throw new Error('Linked circular boundary is no longer concentric');
+  const ordered=entities.slice().sort((a,b)=>(a.r??a.fixedRadius)-(b.r??b.fixedRadius));
+  updated ||= structuredClone(sketch);
+  updated.frame=frame;
+  ordered.forEach((old,i)=>{
+   const entity=updated.entities.find(e=>e.id===old.id),circle=circles[i],point=updated.points.find(p=>p.id===entity.c);
+   point.x=circle.center.u;point.y=circle.center.v;
+   if(entity.type==='circle')entity.r=circle.radius;else entity.fixedRadius=circle.radius;
+   for(const constraint of updated.constraints || [])if(constraint.type==='fixed'&&constraint.point===point.id){constraint.x=point.x;constraint.y=point.y;}
+  });
+ }
+ return updated;
+}

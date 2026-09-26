@@ -1,4 +1,23 @@
 import {sketchProfileSegments,segmentProfilePoints} from './profile_curves.js';
+import {sketchWorldPoint} from './swept_sources.js';
+
+// A revolve's "outward" side is away from its axis, regardless of which end
+// of an open chain the user drew first. The generic offset below is oriented
+// by chain order, so resolve the side once for both preview and regeneration.
+export function revolveThinProfile(sketch, entityIds, thickness, mode='mid-plane', axis='y') {
+  if(mode==='mid-plane')return thinSketchProfile(sketch,entityIds,thickness,mode);
+  const first=sketchProfileSegments(sketch,entityIds,1e-6,{open:true})?.[0];
+  if(!first || first.type!=='line')return thinSketchProfile(sketch,entityIds,thickness,mode);
+  const dx=first.to.u-first.from.u,dy=first.to.v-first.from.v,length=Math.hypot(dx,dy);
+  if(length<1e-8)throw new Error('Thin feature curve has no length');
+  const center={u:(first.from.u+first.to.u)/2,v:(first.from.v+first.to.v)/2};
+  const radial=q=>{const p=sketchWorldPoint(sketch,q.u,q.v);return axis==='x'?Math.hypot(p.y,p.z):axis==='z'?Math.hypot(p.x,p.y):Math.hypot(p.x,p.z);};
+  const width=Number(thickness);
+  const plus=radial({u:center.u-width*dy/length,v:center.v+width*dx/length});
+  const minus=radial({u:center.u+width*dy/length,v:center.v-width*dx/length});
+  const outward=plus>=minus?'forward':'reverse';
+  return thinSketchProfile(sketch,entityIds,thickness,mode==='forward'?outward:outward==='forward'?'reverse':'forward');
+}
 
 // Preserve analytic circular walls and flat end caps for a thin open curve.
 export function thinSketchProfile(sketch, entityIds, thickness, mode='mid-plane') {

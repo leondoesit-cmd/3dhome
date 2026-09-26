@@ -540,6 +540,11 @@ function mergeCircleEdges(edges) {
   edges.forEach((edge) => {
     const d = edge.descriptor || {};
     if (d.curve !== "circle" || !finite(Number(d.radius))) { leftover.push(edge); return; }
+    // A trimmed exact arc carries a sweep, not a complete rim. Mesh aliases
+    // must not double its length or erase its endpoint/midpoint references.
+    if (d.arcMidpoint && d.endpoints?.length === 2 && d.measure < 2 * Math.PI * d.radius - 1e-8) {
+      leftover.push(edge); return;
+    }
     const axis = normalized(d.axis || vector(0, 1, 0));
     const sign = axis.x + axis.y + axis.z < 0 ? -1 : 1;
     const origin = d.origin || {};
@@ -1350,7 +1355,7 @@ function movedTopology(feature, params = {}, inherited = [], inputs = []) {
   const move=p=>{const q=rotate(p);return{x:q.x+t.x,y:q.y+t.y,z:q.z+t.z};};
   const moved=inherited.map(item=>{
     const d=clone(item.descriptor || {});
-    for(const key of ['origin','center'])if(d[key])d[key]=move(d[key]);
+    for(const key of ['origin','center','arcMidpoint'])if(d[key])d[key]=move(d[key]);
     for(const key of ['normal','axis','xAxis','yAxis','direction','tangent'])if(d[key])d[key]=rotate(d[key]);
     if(d.endpoints)d.endpoints=d.endpoints.map(move);
     if(d.bounds?.min && d.bounds?.max){const corners=[];for(const x of [d.bounds.min.x,d.bounds.max.x])for(const y of [d.bounds.min.y,d.bounds.max.y])for(const z of [d.bounds.min.z,d.bounds.max.z])corners.push(move({x,y,z}));d.bounds={min:Object.fromEntries(['x','y','z'].map(k=>[k,Math.min(...corners.map(p=>p[k]))])),max:Object.fromEntries(['x','y','z'].map(k=>[k,Math.max(...corners.map(p=>p[k]))]))};}

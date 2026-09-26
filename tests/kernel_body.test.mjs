@@ -74,6 +74,12 @@ test("a kernel body is placed by an offset, and moving it moves the cached bound
   offsetKernelBody(part, 5, -1, 0);
   assert.deepEqual(part.origin, { x: 5, y: -1, z: 0 });
   assert.deepEqual(kernelBodyBounds(part), { x0: 5, x1: 7, y0: -1, y1: 1, z0: 0, z1: 2 });
+  const exact = { kind: KERNEL_BODY_KIND,
+    bounds: { x0: -1.9, x1: 1.9, y0: -1.9, y1: 1.9, z0: -.5, z1: .5 },
+    meshData: { exactBounds: { min: { x: -2, y: -2, z: -.5 }, max: { x: 2, y: 2, z: .5 } } } };
+  assert.deepEqual(kernelBodyBounds(exact), { x0: -2, x1: 2, y0: -2, y1: 2, z0: -.5, z1: .5 }, "analytic bounds beat sampled vertices");
+  offsetKernelBody(exact, 3, 4, 5);
+  assert.deepEqual(kernelBodyBounds(exact), { x0: 1, x1: 5, y0: 2, y1: 6, z0: 4.5, z1: 5.5 }, "moving a kernel body moves its analytic bounds");
   // a body whose mesh has not arrived contributes no bounds rather than a block
   assert.equal(kernelBodyBounds({ kind: KERNEL_BODY_KIND }), null);
   assert.equal(meshDataBounds([]), null);
@@ -163,7 +169,9 @@ test("a kernel body survives a save/load round trip and is then weighed correctl
   assert.deepEqual(back.kernel, part.kernel, "the recipe survives, so the body can still be rebuilt");
   assert.deepEqual(back.origin, part.origin);
   assert.ok(Array.isArray(back.meshData.positions) && back.meshData.positions.length >= 9, "and so does the mesh");
-  assert.deepEqual(kernelBodyBounds(back), mesh.bounds);
+  assert.deepEqual(kernelBodyBounds(back), mesh.exactBounds
+    ? { x0:mesh.exactBounds.min.x, x1:mesh.exactBounds.max.x, y0:mesh.exactBounds.min.y, y1:mesh.exactBounds.max.y, z0:mesh.exactBounds.min.z, z1:mesh.exactBounds.max.z }
+    : mesh.bounds);
 
   const mass = computeMassProperties(loaded, { density: 1 });
   assert.ok(Math.abs(mass.volumeCm3 - 80) < 2, "the BOM measures the real swept volume, not a bounding block");

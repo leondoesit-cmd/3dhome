@@ -19,7 +19,8 @@ import { openNest, isNestOpen } from "./ui_nest.js";
 import {
   CAB_LIMITS, syncCabinetDefinition, requestCabinetDimension, applyCabinetDimension,
 } from "./parametric_cabinet.js";
-import { displayUnit, toDisp, fromDisp } from "./display_units.js";
+import { displayUnit, toDisp } from "./display_units.js";
+import { parseCabinetDimension, formatCabinetDimension } from "./cabinet_units.js";
 import { api, E, T, el, btn, sp, ico, grp, formatCm, formatCmInput, AXES } from "./ui_cabinet_ctx.js";
 import {
   sizeCanvas, setMode, setAxis, syncHint, syncViewPreferences, draw, wireCanvas,
@@ -199,6 +200,8 @@ function buildDOM() {
   var u = displayUnit("furniture");
   ["W", "D", "H"].forEach(function (k) {
     var dim = E.host.querySelector("#cb" + k);
+    dim.type = "text";
+    dim.inputMode = "text";
     var limit = CAB_LIMITS[k === "W" ? "width" : k === "D" ? "depth" : "height"];
     dim.min = toDisp(limit.min, "furniture");
     dim.max = toDisp(limit.max, "furniture");
@@ -393,9 +396,9 @@ function syncDimInputs() {
   if (!E.host || !E.it) return;
   var u = displayUnit("furniture");
   E.host.querySelectorAll(".cb-dims em").forEach(function (em) { em.textContent = u; });
-  E.host.querySelector("#cbW").value = toDisp(E.it.w, "furniture");
-  E.host.querySelector("#cbD").value = toDisp(E.it.d, "furniture");
-  E.host.querySelector("#cbH").value = toDisp(E.it.h, "furniture");
+  E.host.querySelector("#cbW").value = formatCabinetDimension(E.it.w, displayUnit("furniture"));
+  E.host.querySelector("#cbD").value = formatCabinetDimension(E.it.d, displayUnit("furniture"));
+  E.host.querySelector("#cbH").value = formatCabinetDimension(E.it.h, displayUnit("furniture"));
 }
 
 function setLevel(level) {
@@ -498,8 +501,9 @@ function commitSizeChoice(result, alternativeId) {
 function applyOverallSize(dimension, input) {
   if (!E.it) return;
   var limit = CAB_LIMITS[dimension];
-  var raw = input.value.trim() === "" ? NaN : Number(input.value);
-  var value = Number.isFinite(raw) ? fromDisp(raw, "furniture") : NaN;
+  var value;
+  try { value = parseCabinetDimension(input.value, displayUnit("furniture")); }
+  catch (error) { flashHint(error.message); return; }
   if (!limit || !Number.isFinite(value) || Math.abs(value - E.it[limit.field]) < 0.0001) {
     syncDimInputs();
     return;

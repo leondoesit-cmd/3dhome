@@ -558,6 +558,46 @@ test("placing a dimension on the drafting table binds it to what was clicked", (
   assert.equal(labelOf(controller, dim.id), "300", "and it followed the widened profile");
 });
 
+test("exact semicircular edges support associative radius dimensions", () => {
+  const rig=table({parts:[{...BOX,x0:-2,x1:2,y0:-2,y1:2}]});
+  rig.topology=()=>[{persistentId:"slot:end",kind:"edge",descriptor:{curve:"circle",radius:2,measure:2*Math.PI,origin:{x:0,y:0,z:0},axis:{x:0,y:0,z:1},endpoints:[{x:0,y:-2,z:0},{x:0,y:2,z:0}],arcMidpoint:{x:-2,y:0,z:0}}}];
+  const c=rig.controller;c.fit();
+  const at=clicker(c);
+  c.setTool("diam");
+  c.pointerDown({button:0},...at(2,0));
+  assert.equal(rig.document.drawing.dims.length,0,"the absent half of the circle cannot be picked");
+  // The mesh fitter can report the same semicircle as a complete circle.
+  // The exact trimmed edge must win so the drawing calls out R, not Ø.
+  c.scene().views.find((place)=>place.view.dir==="front").projection.circles.push({kind:"round",u:0,v:0,radius:2,visible:true});
+  c.pointerDown({button:0},...at(-2,0));
+  const dim=rig.document.drawing.dims[0];
+  assert.equal(dim.type,"radius");assert.equal(dim.refs[0].pid,"slot:end");
+  assert.equal(labelOf(c,dim.id),"R20");
+});
+
+test("concentric diameter picks bind to their own rim and survive rebuild", () => {
+  const ring = (r) => Array.from({ length: 64 }, (_, i) => ({ u: r * Math.cos(i * Math.PI / 32), v: r * Math.sin(i * Math.PI / 32) }));
+  const rig = table({ parts: [{ kind: "ext", axis: "z", from: 0, to: .635, pts: ring(.55626), holes: [ring(.23876)] }] });
+  rig.topology = () => [.23876, .55626].map((radius, i) => ({
+    persistentId: "rim:" + i, kind: "edge",
+    descriptor: { curve: "circle", radius, origin: { x: 0, y: 0, z: .635 }, axis: { x: 0, y: 0, z: 1 } },
+  }));
+  const controller = rig.controller;
+  controller.fit();
+  const front = controller.scene().views.find((place) => place.view.dir === "front");
+  for (const radius of [.55626, .23876]) {
+    const at = front.toSheet({ u: 0, v: -radius });
+    controller.setTool("diam");
+    controller.pointerDown({ button: 0 }, at.x * controller.state.zoom + controller.state.ox, at.y * controller.state.zoom + controller.state.oy);
+  }
+  const dims = rig.document.drawing.dims;
+  assert.equal(dims.length, 2);
+  assert.deepEqual(dims.map((dim) => dim.refs[0].pid), ["rim:1", "rim:0"]);
+  rig.rebuild();
+  assert.equal(labelOf(controller, dims[0].id), "⌀11.1");
+  assert.equal(labelOf(controller, dims[1].id), "⌀4.8");
+});
+
 /* ---- layout drags are edits ---------------------------------------------- */
 
 /* Dragging a view, a dimension or a note used to mutate the document on every
@@ -1134,4 +1174,41 @@ test("an intersection round-trips both parent ids through the save", () => {
   const reopened = JSON.parse(JSON.stringify(rig.document));
   ensureSheetDoc(reopened);
   assert.deepEqual(reopened.drawing.dims[0].refs, stored.refs, "pid, pid2, kind and at all survived");
+});
+
+test('automatic dimensions follow selected view and dual units reach exported SVG',()=>{
+ const {controller,document}=table();
+ const doc=document.drawing,top=doc.views.find(v=>v.dir==='top');
+ controller.state.selection={kind:'view',id:top.id};
+ controller.setSheetOption('draftingStandard','ANSI');
+ controller.setSheetOption('secondaryUnits','mm');
+ controller.setSheetOption('secondaryPrecision',2);
+ controller.autoDimension(false);
+ assert.ok(doc.dims.every(d=>d.viewId===top.id));
+ assert.match(controller.svg(),/\[200\.00\]/);
+ assert.equal(doc.projection,'third');
+ assert.equal(doc.precision,3);
+ const saved=JSON.parse(JSON.stringify(doc));
+ assert.equal(saved.secondaryUnits,'mm');
+ assert.equal(saved.draftingStandard,'ANSI');
+});
+
+test('hole callout leader meets the rim and follows a changed bore radius', () => {
+  const rig = drilled();
+  rig.controller.fit();
+  rig.controller.addHoleCallouts();
+  const note = rig.document.drawing.notes[0];
+  for (const radius of [0.25, 0.5]) {
+    rig.topology = () => rig.document.parts.flatMap(partTopology).concat([holeWall('feature:hole1', radius)]);
+    rig.rebuild();
+    const scene = rig.controller.scene();
+    const resolved = scene.notes.get(note.id).note;
+    const place = scene.views.find(view => view.id === note.leader.viewId);
+    const centre = place.toSheet(resolved.leader);
+    const rim = place.toSheet({u:resolved.leader.u + radius,v:resolved.leader.v});
+    const lines = scene.items.filter(item => item.noteId === note.id && item.type === 'line');
+    const leader = lines[1];
+    assert.ok(Math.abs(Math.hypot(leader.x1-centre.x, leader.y1-centre.y) - Math.hypot(rim.x-centre.x,rim.y-centre.y)) < 1e-8);
+    assert.equal(note.leader.at, 'centre', 'stored topology reference remains unchanged');
+  }
 });

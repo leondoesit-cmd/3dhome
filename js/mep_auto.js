@@ -25,9 +25,11 @@ import { S, clamp } from "./state.js";
 import { wallGeom, detectRooms, pointInPoly, roomName, wallById } from "./geometry.js";
 import {
   ensureMEP, addNode, addRun, nodePos, autoConnectAll,
-  connectMissingMEP, applyRoutingPolicies,
+  connectMissingMEP, applyRoutingPolicies, generationLayer, roomIsBedroom,
 } from "./mep.js";
 import { makeRouter, concatPath, pathLength, splitTail } from "./mep_route.js";
+import { mepProfile, mepProfileRef, registeredMEPProfile, GENERIC_RESIDENTIAL_PROFILE } from "./mep_profile.js";
+import { validateMEPModel } from "./mep_validate.js";
 
 /* ---- rule constants ------------------------------------------------------ */
 // Mounting heights above finished floor (cm).
@@ -70,6 +72,8 @@ var WET = {
 };
 // Appliances that get their own circuit rather than sharing the ring.
 var DEDICATED = { oven: 1, cooktop: 1, washer: 1 };
+// Appliances that take a gas point and a shutoff. A bedroom never gets the meter.
+var GAS_APPLIANCE = { cooktop: 1, oven: 1, boiler: 1, waterheater: 1 };
 // Appliances fed from the kitchen circuit at appliance height.
 var APPLIANCE = { dishwasher: H.socketAppliance, fridge: H.socketHigh };
 var MAX_LIGHTS_PER_CIRCUIT = 10;
@@ -243,7 +247,7 @@ function classify(r, items) {
   var f = {
     bath: !!(has.toilet || has.shower || has.bathtub || /bath|wc|toilet|shower|אמבט|שירות|מקלח/.test(nm)),
     kitchen: !!(has.cooktop || has.oven || has.fridge || /kitchen|מטבח/.test(nm)),
-    bed: !!(has.bed || /bed|שינה/.test(nm)),
+    bed: roomIsBedroom(r) || !!(has.bed || /bed|שינה/.test(nm)),
     hall: /corridor|hall|entry|מסדרון|פרוזדור|כניסה/.test(nm) || (r.area < 50000 && !items.length),
   };
   f.living = !f.bath && !f.bed && !f.hall;
@@ -339,20 +343,28 @@ function wetBlocks(ri, wid) {
 function placeRoomPower(plan, ri, ctx, out) {
   var r = ri.r;
   // --- lighting: one point, two in a big room, on the room's long axis ---
-  var lights = [];
+  var lightItems = ri.items.filter(function (it) {
+    return ["ceilingLight", "pendant", "trackLight", "lightStrip"].indexOf(it.type) >= 0;
+  });
+  var lights = lightItems.map(function (it) { return { x: it.x, z: it.z, item: it }; });
   var bb = bbox(r.pts);
   var two = ri.area > 220000 && !ri.flags.bath; // over ~22 m²
-  if (!two) lights.push(ri.centre);
-  else if (bb.w >= bb.d) {
+  if (!lights.length && !two) lights.push(ri.centre);
+  else if (!lights.length && bb.w >= bb.d) {
     lights.push(insidePoint(r.pts, { x: r.cx - bb.w / 4, z: r.cz }));
     lights.push(insidePoint(r.pts, { x: r.cx + bb.w / 4, z: r.cz }));
-  } else {
+  } else if (!lights.length) {
     lights.push(insidePoint(r.pts, { x: r.cx, z: r.cz - bb.d / 4 }));
     lights.push(insidePoint(r.pts, { x: r.cx, z: r.cz + bb.d / 4 }));
   }
   lights.forEach(function (p) {
-    var n = ctx.put("power", "light", p, "ceiling", null, 60);
-    if (n) out.lights.push(n);
+    var n = p.item ? addNode("power", "light", p.x, p.z, null, null, "ceiling")
+      : ctx.put("power", "light", p, "ceiling", null, 60);
+    if (n) {
+      n.roomKey = r.key;
+      if (p.item) { n.itemId = p.item.id; p.item.mepNodeId = n.id; }
+      out.lights.push(n);
+    }
   });
 
   // --- switch: beside the room's door, on the handle side, inside the room.
@@ -557,6 +569,12 @@ function placePlumbing(plan, ctx, out) {
       : { x: f0.it.x, z: f0.it.z };
     out.manifold = ctx.putNear("water", "manifold", mp, "wall", H.manifold, 20, f0.ri.r.pts);
   }
+  if (out.manifold) {
+    var manifoldP = nodePos(out.manifold);
+    out.waterValve = addNode("water", "valve", manifoldP.x + 6, manifoldP.z,
+      out.manifold.wall, out.manifold.s != null ? out.manifold.s + 6 : null, "wall");
+    out.waterValve.sourceId = out.manifold.id;
+  }
 
   // soil stack: in the host room's corner closest to the fixtures, pulled in
   // off both walls so it reads as a boxed-in riser rather than a floating dot
@@ -572,6 +590,8 @@ function placePlumbing(plan, ctx, out) {
     var sp = { x: corner.p.x + (inward.x / L) * 32, z: corner.p.z + (inward.z / L) * 32 };
     out.stack = ctx.put("drain", "stack", sp, "floor", 0, 20);
     if (out.stack) {
+      out.cleanout = addNode("drain", "cleanout", sp.x + 6, sp.z, null, null, "floor");
+      out.cleanout.sourceId = out.stack.id;
       // the stack is vented above the ceiling — the vent leg rises beside it
       var vp = { x: sp.x + (inward.x / L) * 26, z: sp.z + (inward.z / L) * 26 };
       out.vent = ctx.put("drain", "vent", vp, "ceiling", null, 15);
@@ -583,13 +603,16 @@ function placePlumbing(plan, ctx, out) {
     // supply point on the wall behind the fixture, at that fixture's height
     var sp = wall ? wallPointAt(wall.w.id, wall.s) : { x: f.it.x, z: f.it.z };
     var fx = ctx.put("water", "fixture", sp, "wall", f.def.sup, 16);
-    if (fx) out.fixtures.push({ n: fx, def: f.def, it: f.it });
+    if (fx) {
+      fx.itemId = f.it.id; f.it.mepNodeId = fx.id;
+      out.fixtures.push({ n: fx, def: f.def, it: f.it });
+    }
     // the trap sits on the floor at the foot of that wall
     var tp = wall
       ? { x: sp.x + wall.rw.nx * 12, z: sp.z + wall.rw.nz * 12 }
       : { x: f.it.x, z: f.it.z };
     var tr = ctx.put("drain", "trap", tp, "floor", 12, 16);
-    if (tr) out.traps.push(tr);
+    if (tr) { tr.itemId = f.it.id; out.traps.push(tr); }
   });
 
   // a floor gully in every wet room, inside the shower tray where there is one
@@ -664,6 +687,72 @@ function placeHVAC(plan, ctx, out) {
   }
 }
 
+/* ---- gas ------------------------------------------------------------------ */
+// Meter on an exterior wall that is not a bedroom, then a shutoff at each
+// appliance. The pipe itself is laid later, in the screed, so it can pass
+// under a door without entering the room.
+function placeGas(plan, ctx, out) {
+  var apps = [];
+  plan.rooms.forEach(function (ri) {
+    if (ri.flags.bed) return;
+    ri.items.forEach(function (it) {
+      if (GAS_APPLIANCE[it.type]) apps.push({ it: it, ri: ri });
+    });
+  });
+  if (!apps.length) return;
+  var anchor = apps[0].it;
+  var walls = [];
+  plan.rooms.forEach(function (ri) {
+    if (ri.flags.bed) return;
+    ri.walls.forEach(function (rw) {
+      if (plan.exterior(rw.w.id) && rw.g.L >= 50) walls.push(rw);
+    });
+  });
+  walls.sort(function (a, b) {
+    var ma = { x: (a.g.a.x + a.g.b.x) / 2, z: (a.g.a.z + a.g.b.z) / 2 };
+    var mb = { x: (b.g.a.x + b.g.b.x) / 2, z: (b.g.a.z + b.g.b.z) / 2 };
+    return dist(ma, anchor) - dist(mb, anchor);
+  });
+  function putInSpan(sys, k, wallId, sp, elev) {
+    for (var i = 0; i < 8; i++) {
+      var s = sp.a + (sp.b - sp.a) * (i + 0.5) / 8;
+      var n = ctx.put(sys, k, wallPointAt(wallId, s), "wall", elev, 16);
+      if (n) return n;
+    }
+    return null;
+  }
+  for (var w = 0; w < walls.length && !out.meter; w++) {
+    var pref = projectOnWall(walls[w].w, anchor).s;
+    var spans = relaxedSpans(walls[w].w.id, null);
+    var at = pickSpot(spans, pref);
+    if (at != null) out.meter = ctx.put("gas", "meter", wallPointAt(walls[w].w.id, at), "wall", 40, 16);
+    if (!out.meter) {
+      spans.slice().sort(function (a, b) {
+        return Math.abs((a.a + a.b) / 2 - pref) - Math.abs((b.a + b.b) / 2 - pref);
+      }).forEach(function (sp) {
+        if (!out.meter) out.meter = putInSpan("gas", "meter", walls[w].w.id, sp, 40);
+      });
+    }
+  }
+  out.gasPoints = [];
+  apps.forEach(function (a) {
+    var wall = nearestWallTo(a.ri, a.it);
+    if (!wall) return;
+    var spans = relaxedSpans(wall.w.id, null);
+    var at = pickSpot(spans, wall.s);
+    var valve = at == null ? null : ctx.put("gas", "valve", wallPointAt(wall.w.id, at), "wall", 50, 16);
+    if (!valve) {
+      spans.slice().sort(function (p, q) {
+        return Math.abs((p.a + p.b) / 2 - wall.s) - Math.abs((q.a + q.b) / 2 - wall.s);
+      }).forEach(function (sp) {
+        if (Math.abs((sp.a + sp.b) / 2 - wall.s) > 120) return;
+        if (!valve) valve = putInSpan("gas", "valve", wall.w.id, sp, 50);
+      });
+    }
+    if (valve) out.gasPoints.push(valve);
+  });
+}
+
 /* ---- wiring: turn the placed devices into routed runs -------------------- */
 function tapNode(net, n) {
   var p = nodePos(n);
@@ -685,11 +774,19 @@ function chainOrder(start, devs) {
   return seq;
 }
 // One run threading `devs` in order, routed wall-by-wall from `startTap`.
-function chainRun(net, sys, kind, layer, startTap, devs, taps, fallback) {
+function layRun(sys, kind, pts, layer) {
+  if (!pts || pts.length < 2) return null;
+  return addRun(sys, kind, pts, null, null, generationLayer(sys, kind, layer, pts));
+}
+function tagRun(run, meta) {
+  if (run && meta) Object.assign(run, meta);
+  return run;
+}
+function chainRun(net, sys, kind, layer, startTap, devs, taps, fallback, meta) {
   var pts = [], prev = startTap;
   var fallbackPrev = fallback && fallback.startTap;
   function flush() {
-    if (pts.length >= 2) addRun(sys, kind, pts, null, null, layer);
+    if (pts.length >= 2) tagRun(layRun(sys, kind, pts, layer), meta);
     pts = [];
   }
   devs.forEach(function (n) {
@@ -699,7 +796,7 @@ function chainRun(net, sys, kind, layer, startTap, devs, taps, fallback) {
     if (res.blocked && fallback && fallbackPrev != null && fallback.taps[n.id] != null) {
       flush();
       var fr = fallback.net.path(fallbackPrev, fallback.taps[n.id]);
-      if (fr.pts.length >= 2) addRun(sys, kind, fr.pts, null, null, fallback.layer);
+      if (fr.pts.length >= 2) tagRun(layRun(sys, kind, fr.pts, fallback.layer), meta);
     } else if (res.pts.length) {
       pts = concatPath(pts, res.pts);
     }
@@ -723,13 +820,18 @@ function wire(plan, out) {
 
   /* --- lighting: a ceiling circuit that drops onto each switch --- */
   if (out.panel && out.lights.length) {
-    var lightPts = [];
-    out.lights.forEach(function (l) { lightPts.push(l); });
-    out.switches.forEach(function (s) { if (s) lightPts.push(s); });
-    var seq = chainOrder(nodePos(out.panel), lightPts);
-    for (var i = 0; i < seq.length; i += MAX_LIGHTS_PER_CIRCUIT)
+    for (var i = 0; i < plan.rooms.length; i++) {
+      var roomLights = out.lights.filter(function(n) { return n.roomKey === plan.rooms[i].r.key; });
+      var sw = out.switches[i];
+      for (var start = 0; start < roomLights.length; start += MAX_LIGHTS_PER_CIRCUIT) {
+      var chunk = roomLights.slice(start, start + MAX_LIGHTS_PER_CIRCUIT);
+      var lightDevices = chunk.concat(sw ? [sw] : []);
+      chunk.forEach(function(n) { n.switchId = sw ? sw.id : null; });
+      var lc = makeCircuit(m, out.panel, "lighting", lightDevices);
       chainRun(voidNet, "power", "circuit", "ceiling", vt[out.panel.id],
-        seq.slice(i, i + MAX_LIGHTS_PER_CIRCUIT), vt);
+        lightDevices, vt, null, { circuitId: lc.id });
+      }
+    }
   }
 
   /* --- sockets: radial circuits chased through the walls, grouped by room
@@ -744,26 +846,34 @@ function wire(plan, out) {
     });
     if (cur.length) groups.push(cur);
     groups.forEach(function (g) {
+      var circuit = makeCircuit(m, out.panel, "general-outlets", g);
       chainRun(wallNet, "power", "circuit", "wall", wt[out.panel.id], chainOrder(nodePos(out.panel), g), wt,
-        { net: voidNet, layer: "ceiling", taps: vt, startTap: vt[out.panel.id] });
+        { net: voidNet, layer: "ceiling", taps: vt, startTap: vt[out.panel.id] }, { circuitId: circuit.id });
     });
-    if (out.counter.length)
-      chainRun(wallNet, "power", "circuit", "wall", wt[out.panel.id], chainOrder(nodePos(out.panel), out.counter), wt,
-        { net: voidNet, layer: "ceiling", taps: vt, startTap: vt[out.panel.id] });
+    if (out.counter.length) {
+      for (var counterStart = 0; counterStart < out.counter.length; counterStart += MAX_SOCKETS_PER_CIRCUIT) {
+      var counterDevices = out.counter.slice(counterStart, counterStart + MAX_SOCKETS_PER_CIRCUIT);
+      var kitchenCircuit = makeCircuit(m, out.panel, "kitchen", counterDevices);
+      chainRun(wallNet, "power", "circuit", "wall", wt[out.panel.id], chainOrder(nodePos(out.panel), counterDevices), wt,
+        { net: voidNet, layer: "ceiling", taps: vt, startTap: vt[out.panel.id] }, { circuitId: kitchenCircuit.id });
+      }
+    }
     // one dedicated circuit per heavy appliance, plus the outdoor unit
     out.dedicated.forEach(function (n) {
+      var dedicatedCircuit = makeCircuit(m, out.panel, "dedicated", [n]);
       chainRun(wallNet, "power", "circuit", "wall", wt[out.panel.id], [n], wt,
-        { net: voidNet, layer: "ceiling", taps: vt, startTap: vt[out.panel.id] });
+        { net: voidNet, layer: "ceiling", taps: vt, startTap: vt[out.panel.id] }, { circuitId: dedicatedCircuit.id });
     });
     if (out.condSpur) {
+      var condenserCircuit = makeCircuit(m, out.panel, "hvac-dedicated", [out.condSpur]);
       chainRun(wallNet, "power", "circuit", "wall", wt[out.panel.id], [out.condSpur], wt,
-        { net: voidNet, layer: "ceiling", taps: vt, startTap: vt[out.panel.id] });
+        { net: voidNet, layer: "ceiling", taps: vt, startTap: vt[out.panel.id] }, { circuitId: condenserCircuit.id });
       if (out.cond) {
         var leg = wallNet.path(wt[out.condSpur.id], wt[out.cond.id]).pts;
-        if (leg.length >= 2) addRun("power", "circuit", leg, null, null, "wall");
+        if (leg.length >= 2) tagRun(layRun("power", "circuit", leg, "wall"), { circuitId: condenserCircuit.id });
         else {
           var ceilLeg = voidNet.path(vt[out.condSpur.id], vt[out.cond.id]).pts;
-          if (ceilLeg.length >= 2) addRun("power", "circuit", ceilLeg, null, null, "ceiling");
+          if (ceilLeg.length >= 2) tagRun(layRun("power", "circuit", ceilLeg, "ceiling"), { circuitId: condenserCircuit.id });
         }
       }
     }
@@ -775,7 +885,7 @@ function wire(plan, out) {
       var pts = wallNet.path(wt[out.rack.id], wt[p.id]).pts;
       var layer = "wall";
       if (pts.length < 2) { pts = voidNet.path(vt[out.rack.id], vt[p.id]).pts; layer = "ceiling"; }
-      if (pts.length >= 2) addRun("comms", p === out.tvPort ? "coax" : "cat6", pts, null, null, layer);
+      if (pts.length >= 2) layRun("comms", p === out.tvPort ? "coax" : "cat6", pts, layer);
     });
   }
 
@@ -785,8 +895,12 @@ function wire(plan, out) {
     out.fixtures.forEach(function (f) {
       var pts = voidNet.path(vt[out.manifold.id], vt[f.n.id]).pts;
       if (pts.length < 2) return;
-      addRun("water", "cold", pts, null, null, "floor");
-      if (f.def.hot) addRun("water", "hot", offsetPath(pts, 5), null, null, "floor");
+      var coldBranch = makeBranch(m, "water", "cold", out.manifold, [f.n]);
+      tagRun(layRun("water", "cold", pts, "floor"), { branchId: coldBranch.id });
+      if (f.def.hot) {
+        var hotBranch = makeBranch(m, "water", "hot", out.manifold, [f.n]);
+        tagRun(layRun("water", "hot", offsetPath(pts, 5), "floor"), { branchId: hotBranch.id });
+      }
     });
   }
 
@@ -802,13 +916,15 @@ function wire(plan, out) {
       var res = voidNet.pathToSet(vt[n.id], tree);
       if (!res || res.pts.length < 2) return;
       var pts = res.pts.slice().reverse(); // upstream first, so it falls to the stack
-      var run = addRun("drain", "waste", pts, null, null, "floor");
+      var run = layRun("drain", "waste", pts, "floor");
+      var wasteBranch = makeBranch(m, "drain", "waste", out.stack, [n]);
+      tagRun(run, { branchId: wasteBranch.id });
       run.fall = Math.min(14, pathLength(pts) * WASTE_FALL);
       res.vis.forEach(function (v) { if (tree.indexOf(v) < 0) tree.push(v); });
     });
     if (out.vent) {
       var vp = voidNet.path(vt[out.stack.id], vt[out.vent.id]).pts;
-      if (vp.length >= 2) addRun("drain", "vent", vp, null, null, "ceiling");
+      if (vp.length >= 2) layRun("drain", "vent", vp, "ceiling");
     }
   }
 
@@ -817,7 +933,7 @@ function wire(plan, out) {
   if (out.unit) {
     if (out.ret) {
       var rp = voidNet.path(vt[out.ret.id], vt[out.unit.id]).pts;
-      if (rp.length >= 2) addRun("hvac", "branch", rp, null, null, "ceiling");
+      if (rp.length >= 2) layRun("hvac", "return", rp, "ceiling");
     }
     var duct = [vt[out.unit.id]], first = true;
     var order = out.supplies.slice().sort(function (a, b) {
@@ -827,25 +943,74 @@ function wire(plan, out) {
       var res = voidNet.pathToSet(vt[n.id], duct);
       if (!res || res.pts.length < 2) return;
       var cut = splitTail(res.pts, 70);
-      if (cut.head.length >= 2) addRun("hvac", first ? "duct" : "branch", cut.head, null, null, "ceiling");
-      if (cut.tail && cut.tail.length >= 2) addRun("hvac", "flex", cut.tail, null, null, "ceiling");
-      else if (cut.head.length < 2) addRun("hvac", "flex", res.pts, null, null, "ceiling");
+      if (cut.head.length >= 2) layRun("hvac", first ? "duct" : "branch", cut.head, "ceiling");
+      if (cut.tail && cut.tail.length >= 2) layRun("hvac", "flex", cut.tail, "ceiling");
+      else if (cut.head.length < 2) layRun("hvac", "flex", res.pts, "ceiling");
       res.vis.forEach(function (v) { if (duct.indexOf(v) < 0) duct.push(v); });
       first = false;
     });
     if (out.cond) {
       var lp = voidNet.path(vt[out.unit.id], vt[out.cond.id]).pts;
-      if (lp.length >= 2) {
-        addRun("hvac", "refrig", lp, null, null, "ceiling");
-        var cd = addRun("hvac", "condensate", offsetPath(lp, 6), null, null, "ceiling");
-        cd.fall = Math.min(20, pathLength(lp) * COND_FALL);
+      if (lp.length >= 2) layRun("hvac", "refrig", lp, "ceiling");
+    }
+    var drains = [];
+    if (out.stack) drains.push(out.stack);
+    (out.floorDrains || []).forEach(function (n) { drains.push(n); });
+    var drainNode = null;
+    drains.forEach(function (n) {
+      if (!vt[n.id]) return;
+      if (!drainNode || dist(nodePos(n), nodePos(out.unit)) < dist(nodePos(drainNode), nodePos(out.unit)))
+        drainNode = n;
+    });
+    var cdest = drainNode || out.cond;
+    if (cdest && vt[cdest.id] != null) {
+      var cp = voidNet.path(vt[out.unit.id], vt[cdest.id]).pts;
+      if (cp.length >= 2) {
+        var cd = layRun("hvac", "condensate", cp, drainNode ? "floor" : "ceiling");
+        if (cd) cd.fall = Math.min(20, pathLength(cp) * COND_FALL);
       }
     }
     if (out.stat) {
       var sp2 = voidNet.path(vt[out.stat.id], vt[out.unit.id]).pts;
-      if (sp2.length >= 2) addRun("hvac", "control", sp2, null, null, "ceiling");
+      if (sp2.length >= 2) layRun("hvac", "control", sp2, "ceiling");
     }
   }
+
+  // Gas is pressurized from the meter. It runs in the screed, under doors,
+  // and does not need a fall. Each appliance keeps its own shutoff.
+  if (out.meter && out.gasPoints) {
+    out.gasPoints.forEach(function (n) {
+      var pts = voidNet.path(vt[out.meter.id], vt[n.id]).pts;
+      var layer = "floor";
+      if (pts.length < 2) { pts = wallNet.path(wt[out.meter.id], wt[n.id]).pts; layer = "wall"; }
+      // Stay off the cold-water chase. Hot is already 5cm to one side.
+      if (pts.length >= 2) layRun("gas", "pipe", offsetPath(pts, 12), layer);
+    });
+  }
+}
+
+function makeCircuit(m, panel, kind, devices) {
+  var id = "circuit-" + (m.circuits.length + 1) + "-" + panel.id;
+  var rules = mepProfile(m.profile.id).electrical;
+  var load = devices.reduce(function (sum, n) { return sum + (n.k === "switch" ? 0 : n.k === "light" ? rules.defaultLightLoadW : rules.defaultOutletLoadW); }, 0);
+  var circuit = { id: id, number: m.circuits.length + 1, kind: kind, panelId: panel.id,
+    deviceIds: devices.map(function (n) { return n.id; }), estimatedLoadW: load };
+  devices.forEach(function (n) { n.sourceId = panel.id; n.circuitId = id; });
+  m.circuits.push(circuit);
+  return circuit;
+}
+
+function makeBranch(m, sys, kind, source, devices) {
+  var id = "branch-" + (m.branches.length + 1) + "-" + source.id;
+  var branch = { id: id, sys: sys, kind: kind, sourceId: source.id,
+    deviceIds: devices.map(function (n) { return n.id; }) };
+  devices.forEach(function (n) {
+    n.sourceId = source.id;
+    if (n.branchId == null) n.branchId = id;
+    n.branchIds = Array.from(new Set([].concat(n.branchIds || (n.branchId != null ? [n.branchId] : []), id)));
+  });
+  m.branches.push(branch);
+  return branch;
 }
 
 // Shift a polyline sideways by `d` cm so a paired run (hot beside cold,
@@ -859,36 +1024,98 @@ function offsetPath(pts, d) {
 }
 
 /* ---- entry point ---------------------------------------------------------- */
-export function autoInfrastructure() {
+export function autoInfrastructure(options) {
+  options = options || {};
+  var profileId = options.profileId != null ? options.profileId
+    : (S.mep && S.mep.profile && S.mep.profile.id) || GENERIC_RESIDENTIAL_PROFILE.id;
+  if (!registeredMEPProfile(profileId)) return { ok: false, reason: "UNKNOWN_MEP_PROFILE" };
   var m = ensureMEP();
-  var rooms = detectRooms();
+  var rooms = options.rooms || detectRooms();
   if (!rooms.length) return { ok: false, reason: "need-room" };
-  m.nodes = [];
-  m.runs = [];
+  var preserve = options.replace === false;
+  if (!preserve) { m.nodes = []; m.runs = []; m.circuits = []; m.branches = []; }
+  var firstNode = m.nodes.length, firstRun = m.runs.length, firstCircuit = m.circuits.length, firstBranch = m.branches.length;
   m.route = null;
+  var profile = mepProfile(profileId);
+  m.profile = mepProfileRef(profile);
+  C.socketStep = profile.electrical.outletSpacingCm;
+  C.wet = profile.clearances.wetZoneCm;
+  C.opening = profile.clearances.openingCm;
+  C.corner = profile.clearances.cornerCm;
+  MAX_LIGHTS_PER_CIRCUIT = profile.electrical.maxLightsPerCircuit;
+  MAX_SOCKETS_PER_CIRCUIT = profile.electrical.maxSocketsPerCircuit;
+  WASTE_FALL = profile.plumbing.wasteFall;
+  COND_FALL = profile.plumbing.condensateFall;
 
   var plan = analyze(rooms);
   var ctx = new Ctx();
+  if (preserve) m.nodes.forEach(function(n) {
+    var p = nodePos(n);
+    (ctx.taken[n.sys] = ctx.taken[n.sys] || []).push({ x: p.x, z: p.z });
+    ctx.all.push({ x: p.x, z: p.z });
+  });
   var out = {
     lights: [], switches: [], sockets: [], counter: [], dedicated: [], ports: [],
-    fixtures: [], traps: [], floorDrains: [], supplies: [], tvPort: null,
+    fixtures: [], traps: [], floorDrains: [], supplies: [], tvPort: null, gasPoints: [],
   };
   var head = placeHeadEnd(plan, ctx);
   out.panel = head.panel;
   out.rack = head.rack;
   plan.rooms.forEach(function (ri, i) {
     ri.idx = i;
+    var roomStart = m.nodes.length;
     placeRoomPower(plan, ri, ctx, out);
+    m.nodes.slice(roomStart).forEach(function(n) { n.roomKey = ri.r.key; });
   });
   placePlumbing(plan, ctx, out);
   placeHVAC(plan, ctx, out);
+  placeGas(plan, ctx, out);
   wire(plan, out);
-  autoConnectAll();
+  if (!preserve) autoConnectAll();
   // Random layouts can create a short wall island between openings. Repair any
   // remaining outlet/switch through a legal ceiling bridge, then apply the
   // user's per-service preferred/required routing planes.
-  var repaired = connectMissingMEP();
-  applyRoutingPolicies();
+  var repaired = preserve ? { made: 0, skipped: 0 } : connectMissingMEP();
+  if (!preserve) applyRoutingPolicies();
+  // Electrical routes have explicit terminals; sharing a chase never shorts
+  // separate circuits together. Build only the newly generated circuits.
+  var newCircuits = m.circuits.slice(firstCircuit);
+  var circuitIds = new Set(newCircuits.map(function(c) { return c.id; }));
+  m.runs = m.runs.filter(function(r, index) { return index < firstRun || r.sys !== "power" || (r.circuitId && !circuitIds.has(r.circuitId)); });
+  newCircuits.forEach(function(circuit) {
+    var devices = circuit.deviceIds.map(function(id) { return m.nodes.find(function(n) { return n.id === id; }); }).filter(Boolean);
+    var source = m.nodes.find(function(n) { return n.id === circuit.panelId; });
+    devices.forEach(function(device) {
+      var from = device.switchId ? m.nodes.find(function(n) { return n.id === device.switchId; }) : source;
+      if (!from) return;
+      var plane = circuit.kind === "lighting" ? "ceiling" : "wall";
+      var router = makeRouter(plane === "wall");
+      var a = tapNode(router, from), b = tapNode(router, device);
+      var route = router.path(a, b);
+      if (route.blocked || route.pts.length < 2) {
+        plane = "ceiling"; router = makeRouter(false);
+        a = tapNode(router, from); b = tapNode(router, device); route = router.path(a, b);
+      }
+      var pts = route.pts;
+      if (pts.length < 2) pts = [nodePos(from), nodePos(device)];
+      var run = addRun("power", "circuit", pts, from.id, device.id, generationLayer("power", "circuit", plane, pts));
+      if (run) { run.circuitId = circuit.id; run.explicit = true; }
+    });
+  });
+  m.runs.slice(firstRun).forEach(function(r) {
+    if (r.k === "cold") r.dia = profile.plumbing.coldDiameterCm;
+    if (r.k === "hot") r.dia = profile.plumbing.hotDiameterCm;
+    if (r.k === "waste") { r.dia = profile.plumbing.wasteDiameterCm; r.fall = pathLength(r.pts) * WASTE_FALL; }
+    if (r.k === "condensate") r.fall = pathLength(r.pts) * COND_FALL;
+  });
   if (m.runs.some(function (r) { return r.layer === "floor"; })) m.xray.floor = true;
-  return { ok: true, nodes: m.nodes.length, runs: m.runs.length, repaired: repaired.made };
+  var validation = validateMEPModel(m, S.items, profile);
+  m.nodes.slice(firstNode).forEach(function(entry) { entry.generated = true; });
+  m.runs.slice(firstRun).forEach(function(entry) { entry.generated = true; });
+  m.circuits.slice(firstCircuit).forEach(function(entry) { entry.generated = true; });
+  m.branches.slice(firstBranch).forEach(function(entry) { entry.generated = true; });
+  return { ok: true, nodes: m.nodes.length, runs: m.runs.length, repaired: repaired.made,
+    profile: m.profile, circuits: m.circuits.length, branches: m.branches.length,
+    validation: validation,
+    notice: "Schematic design aid — verify against local codes before construction." };
 }

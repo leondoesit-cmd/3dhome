@@ -7,12 +7,30 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { solveSketch, ellipseData, pruneOrphanPoints, removeSketchEntity } from "../js/sketch_solver.js";
+import { solveSketch, ellipseData, lineData, pruneOrphanPoints, removeSketchEntity, translateSketchGeometry } from "../js/sketch_solver.js";
 import { circularPatternEntities } from "../js/sketch_pattern.js";
 import { analyzeSketchProfiles } from "../js/sketch_profiles.js";
 
 const points = (sketch) => new Map(sketch.points.map((p) => [p.id, p]));
 const pt = (sketch, id) => sketch.points.find((p) => p.id === id);
+
+test("translating a fully fixed profile moves its anchors without changing its dimensions", () => {
+  const sketch = {
+    points: [{ id: "a", x: 0, y: 0 }, { id: "b", x: 50.8, y: 0 }, { id: "c", x: 50.8, y: 12.7 }],
+    entities: [{ id: "ab", type: "line", a: "a", b: "b" }, { id: "bc", type: "line", a: "b", b: "c" }],
+    constraints: [
+      { id: "fa", type: "fixed", point: "a", x: 0, y: 0 },
+      { id: "fb", type: "fixed", point: "b", x: 50.8, y: 0 },
+      { id: "fc", type: "fixed", point: "c", x: 50.8, y: 12.7 },
+    ],
+  };
+  assert.equal(solveSketch(sketch).status, "fully-constrained");
+  translateSketchGeometry(sketch, -12.7, -12.7);
+  assert.deepEqual(sketch.points.map(({ x, y }) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]), [[-12.7, -12.7], [38.1, -12.7], [38.1, 0]]);
+  assert.deepEqual(sketch.constraints.map(({ x, y }) => [x, y]), sketch.points.map(({ x, y }) => [x, y]));
+  assert.equal(solveSketch(sketch).status, "fully-constrained");
+  assert.ok(Math.abs(lineData(sketch.entities[0], points(sketch)).length - 50.8) < 1e-8);
+});
 
 /* ---- slot: two sides, two caps, parallel sides tangent at all four joints ---- */
 

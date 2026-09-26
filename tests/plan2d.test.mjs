@@ -250,7 +250,7 @@ test("the fixed-constraint pin tag stays square after plan rotation", () => {
 test("room fills blit from a topology-keyed offscreen layer", () => {
   assert.match(planSource, /function drawCachedRooms\(\)/);
   assert.match(planSource, /roomsTopologyKey\(\)/);
-  assert.match(planSource, /pc\.drawImage\(roomLayer\.canvas, 0, 0\)/);
+  assert.match(planSource, /pc\.drawImage\(roomLayer\.canvas, 0, 0, S\.CW, S\.CH\)/);
 });
 
 test("elevation views refuse wall drawing and edit items, openings, and points", () => {

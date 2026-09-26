@@ -7,9 +7,9 @@ function item(){const it={id:'nc',type:'cabsys',w:60,h:100,d:60,x:0,y:0,rot:0,ca
 function setup(controller='grbl-1.1'){return {...newCabinetShopProfile(controller),name:'Test fixture',native:{woodwopMachine:'WEEKE',biesseOrigin:'1',scmReverseZ:false},travel:{x:2500,y:1300,z:150},safeZ:15,breakthrough:1,tools:[5,35].map((diameter,i)=>({number:i+1,nativeName:`D${diameter}`,diameter,feed:200,rpm:3000,maxDepth:40,holderDiameter:Math.max(40,diameter),spinupSeconds:2}))};}
 test('every implemented dialect builds deterministic, separate face/tool simulation files',()=>{
  for(const c of CABINET_CONTROLLER_PROFILES.filter(c=>c.implemented)){
- const profile=setup(c.id),bundle=cabinetCNCBundle([item()],profile);
+ const profile=setup(c.id),source=item(),bundle=cabinetCNCBundle([source],profile);
  assert.deepEqual(bundle.issues,[]);assert.equal(bundle.status,'simulation-ready');assert.equal(bundle.machineReady,false);assert.ok(bundle.files.length>=3);
- assert.deepEqual(bundle,cabinetCNCBundle([item()],profile));
+ assert.deepEqual(bundle,cabinetCNCBundle([JSON.parse(JSON.stringify(source))],profile));
  for(const file of bundle.files){assert.ok(file.content.includes('SIMULATION ONLY'));if(['linear','g81'].includes(c.dialect))assert.ok(file.content.includes('G90 G21 G17 G94 G54')); assert.ok(!/NaN|undefined|Infinity/.test(file.content));assert.ok(!file.content.includes('M6'));if(['linear','g81'].includes(c.dialect))assert.ok(file.content.endsWith('M5\nM2\n')); }
  }
 });
@@ -56,4 +56,19 @@ test('profile validation rejects malformed entries and unsafe numeric values wit
 test('tool ambiguity and insufficient clamp clearance cannot produce programs',()=>{
  const p=setup();p.tools.push({...p.tools[0]});assert.ok(validateCabinetShopProfile(p).length);
  p.tools=setup().tools;p.clamps=[{x:0,y:0,w:20,h:20,height:15}];assert.ok(validateCabinetShopProfile(p).some(i=>i.code==='clamp-clearance'));
+});
+test('stock deductions and rough allowances cannot export finished-datum drilling',async()=>{
+ const {cabinetProductionParts}=await import('../js/cabinet_production_parts.js');
+ const {cabinetManufacturingReport}=await import('../js/cabinet_manufacturing.js');
+ const it=item(),part=cabinetProductionParts([it]).parts.find(p=>p.role==='side');
+ const edges=Object.fromEntries(['lengthStart','lengthEnd','widthStart','widthEnd'].map(name=>[name,{thicknessMm:0}]));
+ it.cab.productionOverrides={[part.partId]:{datum:part.datum,topologyBinding:part.topologyBinding,edges,roughAllowance:{lengthMm:0,widthMm:0}}};
+ assert.equal(cabinetCNCBundle([it],setup()).status,'simulation-ready');
+ edges.lengthStart={thicknessMm:2,stockId:'abs_white_2'};
+ let result=cabinetCNCBundle([it],setup());assert.equal(result.files.length,0);assert.ok(result.issues.some(i=>i.code==='machining-stock-datum'));
+ assert.ok(cabinetManufacturingReport([it]).operationCount>0);
+ edges.lengthStart={thicknessMm:0};it.cab.productionOverrides[part.partId].roughAllowance.lengthMm=3;
+ assert.ok(cabinetCNCBundle([it],setup()).issues.some(i=>i.code==='machining-stock-datum'));
+ it.cab.productionOverrides[part.partId].datum='wrong';
+ assert.ok(cabinetCNCBundle([it],setup()).issues.some(i=>i.code==='edge-datum-mismatch'));
 });
