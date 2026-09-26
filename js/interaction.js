@@ -60,7 +60,7 @@ import {
   captureHistorySession, restoreHistorySession,
 } from "./history.js";
 import { isWalk } from "./view3d.js";
-import { layerRank, layerOf, canDrag, isLayerLocked, isLayerHidden } from "./layers.js";
+import { layerRank, layerOf, canDrag, aiCanMove, isLayerLocked, isLayerHidden } from "./layers.js";
 import { planIndex } from "./spatial_index.js";
 import {
   ensureMEP, snapMEPPoint, routeResolve, wallPath, addNode, hitMEP, nodePos,
@@ -2962,7 +2962,10 @@ function materializePlannerWall(params, env, context) {
   return result;
 }
 
-function agentCommandEnvironment() {
+/* `ai`: an AI proposal (preview or confirmed apply) — item moves answer to
+   aiCanMove(), which skips the work-set rule; everything else is unchanged. */
+function agentCommandEnvironment(options) {
+  var ai = !!(options && options.ai);
   return {
     domain: "planner",
     state: S,
@@ -2971,7 +2974,7 @@ function agentCommandEnvironment() {
     itemCatalog: FURN,
     services: {
       canPlaceItem: function (item) {
-        return !!item && !item.locked && canDrag({ kind: "item", ref: item });
+        return !!item && !item.locked && (ai ? aiCanMove : canDrag)({ kind: "item", ref: item });
       },
       validatePlacementGuard: validatePlacementGuard,
       commitItemPlacement: commitItemPlacement,
@@ -3056,10 +3059,10 @@ function validatePlacementGuard(guard) {
   return true;
 }
 
-export function previewPlannerCommand(commandId, params) {
+export function previewPlannerCommand(commandId, params, options) {
   const permission = generatedChangePermission(S, commandId, params);
   if (!permission.ok) return permission;
-  var command = plannerCommand(commandId), env = agentCommandEnvironment();
+  var command = plannerCommand(commandId), env = agentCommandEnvironment(options);
   if (!command) return { ok: false, reason: "INVALID_COMMAND" };
   var prepared = prepareCommand(command, params || {}, env);
   if (!prepared.ok) return prepared;
@@ -3088,7 +3091,7 @@ export function executePlannerProposal(proposal, options = {}) {
     return { ok: false, reason: "PERMISSION_DENIED" };
   var proposals = proposal && Array.isArray(proposal.commands) ? proposal.commands : [proposal];
   if (!proposals.length) return { ok: false, reason: "INVALID_PLAN" };
-  var env = agentCommandEnvironment(), requests = [];
+  var env = agentCommandEnvironment(options), requests = [];
   for (var i = 0; i < proposals.length; i++) {
     var entry = proposals[i];
     if (!entry || !entry.commandId || !entry.plan) return { ok: false, reason: "INVALID_PLAN" };
@@ -3960,7 +3963,11 @@ function finalizeItemPlacement(it, options) {
    snapping and drag-only auto-facing a second time. */
 function commitItemPlacement(it, placement, env) {
   placement = placement || {};
-  if (!it || it.locked || !canDrag({ kind: "item", ref: it }))
+  // The same gate the command validated with, so an AI proposal (exempt from
+  // the work-set rule) commits exactly what it previewed.
+  var allowed = env && env.services && typeof env.services.canPlaceItem === "function"
+    ? env.services.canPlaceItem(it) : canDrag({ kind: "item", ref: it });
+  if (!it || it.locked || !allowed)
     return { ok: false, reason: it && it.locked ? "ITEM_LOCKED" : "PERMISSION_DENIED" };
   var changed = [it], oldRot = normalizedRotation(it.rot);
   if (placement.rotationSpecified) {

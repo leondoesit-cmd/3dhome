@@ -143,6 +143,21 @@ function selfLocked(sel) {
   return !!(sel.ref && sel.ref.locked);
 }
 
+/* May the AI helper move this? The owner's call: the AI is exempt from the
+   work-set rule — which layer is being edited, and the automatic lock that
+   follows it (`autoLock`) — because every AI change is previewed, checked and
+   confirmed by the user before it applies. What it still respects is what the
+   user locked on purpose: a padlock set by hand (setting one clears autoLock,
+   js/ui_layers.js) and a pinned object. */
+export function aiCanMove(sel) {
+  if (!sel) return false;
+  var id = layerOf(sel.kind);
+  if (!id) return false;
+  var L = layerState(id);
+  if (L && L.locked && !L.autoLock) return false;
+  return !selfLocked(sel);
+}
+
 /* May this selection be DRAGGED? Three independent gates, all of which the UI
    reports differently: rank 0 (wrong work set — switch layers), layer unlocked
    (the layer's padlock), and the object not individually locked (its own pin).

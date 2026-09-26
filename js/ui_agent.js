@@ -318,7 +318,7 @@ function regroundWhenHeightsKnown(card, proposal, update) {
 function applyProposal(card, proposal) {
   clearAgentPreview();
   card.querySelectorAll("button").forEach(function (entry) { entry.disabled = true; });
-  var result = executePlannerProposal(proposal);
+  var result = executePlannerProposal(proposal, { ai: true });
   recordFeedback(result.ok ? "accepted" : "failed", proposal, result);
   pendingProposalCard = null;
   appliedCard(card, result);

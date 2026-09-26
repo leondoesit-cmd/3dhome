@@ -9,6 +9,10 @@ import { normalizeTutorDecision } from "./tutor/policy.js";
 import { buildAgentSystemPrompt, operationsFromAssistantContent, structuredAssistantContent } from "./agent_prompt.js";
 import { placementBatchFitsScene, resolvePlacementIntent } from "./placement_resolver.js";
 
+/* AI previews skip the work-set rule (layers.js aiCanMove): the owner exempted
+   the AI, since every change it proposes is confirmed before it applies. */
+const AI = Object.freeze({ ai: true });
+
 function tool(name, description, parameters, readOnly) {
   return { type: "function", function: { name: name, description: description, parameters: parameters }, readOnly: !!readOnly };
 }
@@ -224,7 +228,7 @@ function previewMove(move) {
   }
   if (move.holdWallId != null) params.holdWallId = move.holdWallId;
   if (move.placementGuard) params.placementGuard = move.placementGuard;
-  var result = previewPlannerCommand("item.move", params);
+  var result = previewPlannerCommand("item.move", params, AI);
   if (result && result.ok && move.choiceLabelKey) result.choiceLabelKey = move.choiceLabelKey;
   return result;
 }
@@ -250,7 +254,7 @@ export function executeAgentTool(name, args = {}, contextOptions = {}) {
   if (name === "compare_history_nodes") return compareAgentHistory(args);
   if (name === "search_catalog") return searchAgentCatalog(args);
   if (name === "list_model_commands") return plannerCommandManifest();
-  if (name === "preview_model_command") return previewPlannerCommand(args.commandId, args.params);
+  if (name === "preview_model_command") return previewPlannerCommand(args.commandId, args.params, AI);
   if (name === "preview_item_snap") return snapProposal(args);
   return null;
 }
@@ -305,7 +309,7 @@ export async function runAgentTurn(config, conversation, options = {}) {
       progress({ phase: "tool", current: i + 1, total: calls.length, name: name || "tool" });
       if (name === "preview_model_command") {
         hadPreviewCall = true;
-        result = previewPlannerCommand(args.commandId, args.params);
+        result = previewPlannerCommand(args.commandId, args.params, AI);
         if (result.ok) roundProposals.push({ callId: call.id || "preview-" + round + "-" + i, proposal: result });
         else roundFailures.push({ callId: call.id || "preview-" + round + "-" + i,
           name: name, reason: result.reason || "PREVIEW_FAILED" });
@@ -350,7 +354,7 @@ export async function runAgentTurn(config, conversation, options = {}) {
   }) };
   if (!successfulProposals.length && finalMessage) {
     operationsFromAssistantContent(contentText(finalMessage && finalMessage.content)).forEach(function (op, index) {
-      var recovered = previewPlannerCommand(op.commandId, op.params);
+      var recovered = previewPlannerCommand(op.commandId, op.params, AI);
       if (recovered && recovered.ok)
         successfulProposals.push({ callId: "recovered-" + index, proposal: recovered });
     });
@@ -393,7 +397,8 @@ function webMcpHost() {
 }
 
 export function installAgentBridge() {
-  var api = Object.freeze({ context: projectAgentContext, commands: plannerCommandManifest, preview: previewPlannerCommand });
+  var api = Object.freeze({ context: projectAgentContext, commands: plannerCommandManifest,
+    preview: function (commandId, params) { return previewPlannerCommand(commandId, params, AI); } });
   window.ModelForgeAgent = api;
   var host = webMcpHost();
   if (host && typeof host.registerTool === "function") {

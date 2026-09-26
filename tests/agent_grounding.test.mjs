@@ -135,3 +135,33 @@ test("a pending card is grounded again once real heights are known, and refusals
   for (const f of ["en", "he"]) assert.match(src("i18n/" + f + ".js"), /\n  ag_why_PERMISSION_DENIED: "/);
   assert.match(ui, /t\("agent_failed"\) \+ ": " \+ failureText\(result\.reason\)/);
 });
+
+/* ---- the owner's decision: the AI is exempt from the work-set rule ---- */
+import { aiCanMove, canDrag } from "../js/layers.js";
+import { S } from "../js/state.js";
+
+test("the AI may move furniture on a layer that is only auto-locked, never past a hand-set lock", () => {
+  const savedSet = S.workSet, saved = JSON.stringify(S.layers.furniture);
+  const sofa = { kind: "item", ref: { id: 1, type: "sofa" } };
+  try {
+    // Structure is being edited, so furniture is auto-locked: a hand drag is refused, the AI is not.
+    S.workSet = "structure";
+    Object.assign(S.layers.furniture, { vis: "show", locked: true, autoLock: true, pickOverride: null });
+    assert.equal(canDrag(sofa), false);
+    assert.equal(aiCanMove(sofa), true);
+    // A padlock set by hand clears autoLock — that one the AI respects.
+    Object.assign(S.layers.furniture, { locked: true, autoLock: false });
+    assert.equal(aiCanMove(sofa), false);
+    // So is a pinned piece, whatever the layer.
+    Object.assign(S.layers.furniture, { locked: false, autoLock: true });
+    assert.equal(aiCanMove({ kind: "item", ref: { id: 2, type: "sofa", locked: true } }), false);
+  } finally {
+    S.workSet = savedSet;
+    S.layers.furniture = JSON.parse(saved);
+  }
+  // Only the AI's own paths carry the exemption; the layout tools keep the rule.
+  const runtime = src("agent_runtime.js");
+  assert.equal((runtime.match(/previewPlannerCommand\([^)]*, AI\)/g) || []).length, 5);
+  assert.doesNotMatch(src("ui_layout_tools.js"), /ai: true/);
+  assert.match(src("interaction.js"), /\(ai \? aiCanMove : canDrag\)\(\{ kind: "item", ref: item \}\)/);
+});
