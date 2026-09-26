@@ -16,12 +16,14 @@ import {
 } from "./cabinet.js";
 import { ceilingHeight } from "./elevation.js";
 import { openNest, isNestOpen } from "./ui_nest.js";
+import { nest, panelsOf } from "./nest.js";
+import { cabinetProductionPreset } from "./cabinet_production_presets.js";
 import {
   CAB_LIMITS, syncCabinetDefinition, requestCabinetDimension, applyCabinetDimension,
 } from "./parametric_cabinet.js";
 import { displayUnit, toDisp } from "./display_units.js";
 import { parseCabinetDimension, formatCabinetDimension } from "./cabinet_units.js";
-import { api, E, T, el, btn, sp, ico, grp, formatCm, formatCmInput, AXES } from "./ui_cabinet_ctx.js";
+import { api, E, T, el, btn, sp, ico, grp, formatCm, formatCmInput, AXES, isEn } from "./ui_cabinet_ctx.js";
 import {
   sizeCanvas, setMode, setAxis, syncHint, syncViewPreferences, draw, wireCanvas,
   setTool, exportPNG, initPreview, updatePreview, renderPreview,
@@ -29,7 +31,7 @@ import {
 import { initCabinetMobile, disposeCabinetMobile, refreshCabinetMobile, showCabinetPropertiesMobile } from "./ui_cabinet_mobile.js";
 import {
   registerEditor, editorSwitchHTML, wireEditorSwitch, wireShell,
-  projectChipHTML, shellActionsHTML, commandBarHTML,
+  projectChipHTML, shellActionsHTML, commandBarHTML, aiStatusHTML,
 } from "./pro_shell.js";
 import {
   fillHits, applySearch, fillFamilies, fillPresets, startBlank, fillInspector,
@@ -175,6 +177,7 @@ function buildDOM() {
     '<div class="cb-pane" data-pane="bom"><div id="cbBom"></div>' +
     '<button id="cbCsv" class="cb-wide"><i class="ph ph-file-csv"></i> ' + T("csv") + "</button></div>" +
     "</div></div>" +
+    '<div id="cbStatus" class="cb-statusbar" role="status" aria-live="polite"></div>' +
     '<div id="cbSizeDlg" class="cb-size-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="cbSizeDlgTitle">' +
     '<div class="cb-size-dlg-card">' +
     '<h3 id="cbSizeDlgTitle"></h3>' +
@@ -184,6 +187,9 @@ function buildDOM() {
     '<button type="button" id="cbSizeDlgKeep"></button>' +
     "</div></div>";
   document.body.appendChild(E.host);
+  // the status bar belongs under the body, not inside its three columns
+  var statusBar = E.host.querySelector("#cbStatus"), bodyEl = E.host.querySelector(".cb-body");
+  if (statusBar && bodyEl) bodyEl.after(statusBar);
 
   E.host.querySelector("#cbClose").addEventListener("click", closeCabinet);
   wireEditorSwitch(E.host);
@@ -914,12 +920,50 @@ function changed(refit, propagate) {
   fillBOM();
   var sub = E.host.querySelector("#cbSub");
   if (sub) sub.textContent = cabSummary(E.it);
+  fillStatusBar();
   syncSessionStatus();
   // the cost panel prices a modular cabinet from its actual board area and
   // ironmongery, so every edit in here moves the number
   updateCost();
   commit();
   if (refit) render2D();
+}
+
+/* The status bar (Round-6 cabinet screen): what the cabinet is built to and
+   what it takes to make — the shop convention, units, carcass stock, sheets
+   and yield from a real nesting run, and the part count. The mockup's
+   revision line (letter, changes since) needs a production job, so it is not
+   shown here. Nesting one cabinet takes a few milliseconds; a failure leaves
+   the rest standing. */
+function fillStatusBar() {
+  var bar = E.host && E.host.querySelector("#cbStatus");
+  if (!bar || !E.it) return;
+  var s = specOf(E.it), parts = [];
+  var preset = cabinetProductionPreset(s.productionConvention && s.productionConvention.presetId);
+  parts.push(preset ? (isEn() ? preset.label : preset.labelHe) : T("statusNoConvention"));
+  parts.push(displayUnit("furniture"));
+  if (s.panel > 0) parts.push(T("statusStock").replace("{t}", formatStockMm(s.panel)));
+  try {
+    var panels = panelsOf([E.it]), q = nest(panels);
+    var area = 0, used = 0;
+    q.groups.forEach(function (g) { if (!g.bySqm) { area += g.area; used += g.used; } });
+    parts.push(T("statusSheets").replace("{n}", q.sheetCount) + (area > 0 ? " · " + T("statusYield").replace("{p}", Math.round(used / area * 100)) : ""));
+    parts.push(T("statusParts").replace("{n}", panels.length));
+  } catch (error) {
+    parts.push(T("statusNestFailed"));
+  }
+  bar.innerHTML = "";
+  parts.forEach(function (text, i) {
+    var span = document.createElement("span");
+    span.textContent = text;
+    if (i === 0 && !preset) span.className = "cb-status-muted";
+    bar.appendChild(span);
+  });
+  bar.insertAdjacentHTML("beforeend", aiStatusHTML());
+}
+function formatStockMm(cm) {
+  var mm = Math.round(cm * 100) / 10;
+  return (Math.round(mm) === mm ? String(mm) : mm.toFixed(1)) + " mm";
 }
 
 // Doors/drawers are simulation state, not an authoring change. This path only

@@ -303,3 +303,18 @@ test("the bar slides beside a side panel, climbs over a full-width strip, and st
   } finally { delete globalThis.getComputedStyle; }
   assert.match(src("pro_ribbon.js"), /canvas\.style\.setProperty\("--ps-bar-clear"/);
 });
+
+test("the cabinet designer's status bar reports real production numbers and nothing invented", () => {
+  const cab = src("ui_cabinet.js");
+  // Refreshed by every edit, and placed under the body, not inside its columns.
+  assert.match(cab, /if \(sub\) sub\.textContent = cabSummary\(E\.it\);\s*fillStatusBar\(\);/);
+  assert.match(cab, /if \(statusBar && bodyEl\) bodyEl\.after\(statusBar\);/);
+  // Sheets, yield and parts come from the real nesting run over the real parts.
+  assert.match(cab, /var panels = panelsOf\(\[E\.it\]\), q = nest\(panels\);/);
+  assert.match(cab, /Math\.round\(used \/ area \* 100\)/);
+  // The recorded shop convention, or an honest "none"; no revision without a job.
+  assert.match(cab, /cabinetProductionPreset\(s\.productionConvention && s\.productionConvention\.presetId\)/);
+  assert.doesNotMatch(cab, /Rev [A-Z]/);
+  for (const k of ["statusNoConvention", "statusStock", "statusSheets", "statusYield", "statusParts", "statusNestFailed"])
+    assert.ok(src("ui_cabinet_ctx.js").includes(String.fromCharCode(10) + "  " + k + ": ["), k);
+});
