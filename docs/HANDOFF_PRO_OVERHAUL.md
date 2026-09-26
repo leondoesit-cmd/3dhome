@@ -1,6 +1,6 @@
 # Handoff — pro UI overhaul (planner, model editor, cabinet designer)
 
-Status as of 2026-09-26. Read this first if you are picking the redesign up.
+Status as of 2026-09-26 (second pass: shared editor switcher). Read this first if you are picking the redesign up.
 
 ## Where the design is
 
@@ -29,11 +29,14 @@ The "all pro tools" layer — built on top of the existing editors, not a rewrit
 - `js/pro_actions.js` — commands for features that had no entry (sheet print/SVG, DXF, IFC, schedules, clearances …).
 - `tests/pro_catalog.test.mjs` — every binding must resolve to real code, every icon must exist, every model-editor ribbon command must be in the catalog, every string needs Hebrew, and **no `planned:` tool may remain**.
 - `docs/PRO_TOOL_GAPS.md` — all 30 former gaps are closed (see that file for notes, e.g. "Send to shop" is a review package, not a machine release).
+- `js/pro_shell.js` — **one editor switcher (Planner · Model · Cabinet) in all three editors**: the planner ribbon, the model editor header and the cabinet designer header mount the same `editorSwitchHTML()`. No editor is imported there: each registers `open / isOpen / leave / canOpen / why` (`modeler_launch.js` opens the model editor lazily, `modeler.js` adds `leave` = the Close path with its unsaved-changes question, `ui_cabinet.js` registers the cabinet designer; leaving it is Done, not Revert). A target that cannot open (Cabinet with nothing selected) says why and does not close the current editor. Short labels (Plan · Model · Cabinet) at ≤1100px, 40px pills on touch layouts, and the editor's own title is screen-reader-only because the active pill names it (as in the mockups). `tests/pro_shell.test.mjs` covers the order, refusals and the three mounts.
 
 ## What is NOT done (next steps)
 
-1. **The model editor and cabinet designer keep their own chrome.** The model editor ribbon was deliberately not restructured (saved uikit layouts and browser tests key on its groups — `grpDirect/grpReferences/grpStandards`). Everything is reachable through the planner ribbon, ⌘K and the phone sheet, but the Round-6 look (one shared shell with an editor switcher inside each editor) is not built.
+1. **The model editor and cabinet designer keep their own ribbons.** The editor switcher is shared now (see `js/pro_shell.js` above), but the model editor ribbon was deliberately not restructured (saved uikit layouts and browser tests key on its groups — `grpDirect/grpReferences/grpStandards`), and the rest of the Round-6 shell is not built: project name in the header, the Sketch/Model/Split and Elevation/3D/Split view toggles, AI toggle, Share, the bottom "AI · Cmd" bar and the status bar.
+   - **Phone planner has no switcher yet.** The mockup puts Plan · Model · Cabinet + 2D/3D in a second header row; that needs a taller `--mobile-topbar-block` (css/styles.css, "Phone / foldable finishing pass"), which every phone drawer and sheet reads, so it was left for its own change. The model editor and cabinet designer already show the switcher on phones and folds.
 2. **Round-5 AI grounding UI** (name tags on the parts the AI picked, A/B candidates, preview with checks, AI-vs-you history) is design-only. The Ask box currently hands text to the existing AI helper.
 3. Phone/fold layouts from the mockups beyond the Tools sheet (tool rail on folds, pro inspector sheet) are not implemented.
-4. `workspace.js` keeps its own copy of the sheet-print helper; use `printSheetSVG` from `sheet_print.js`.
-5. Verify in a real browser after any change: `npm start`, then desktop + phone viewport; `npm run check` must stay green (a broken import silently kills the UI).
+4. ~~`workspace.js` keeps its own copy of the sheet-print helper~~ — done: it calls `printSheetSVG` from `sheet_print.js`.
+5. **`npm test` is not green on this branch** (≈33 of 3,230 fail, before and after the switcher change — same list). They are source-contract tests of `js/modeler.js`, the kernel-body/pattern work and a few planner files (`cad_body_ops`, `cad_pattern_merge`, `kernel_body*`, `modeler_finish_preview`, `parametric_ui`, `plan_style`, `review_*_batch`, `touch_wall_drawing`, `wall_cut`, `model_backup`, `planchard_*`). Many fail because a regex no longer finds the function it pins (`Cannot read properties of null`). `npm run check` is green.
+6. Verify in a real browser after any change: `npm start`, then desktop + phone viewport; `npm run check` must stay green (a broken import silently kills the UI).

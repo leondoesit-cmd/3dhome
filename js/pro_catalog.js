@@ -181,6 +181,7 @@ export function parseBinding(bind) {
    label. Terms follow the app's own Hebrew strings (tool_*, cost_*, mep_* …). */
 export const PRO_HE = {
   "Planner": "מתכנן", "Model editor": "עורך המודלים", "Cabinet designer": "מעצב הארונות",
+  "Model": "מודל", "Cabinet": "ארון",
   "Build": "בנייה", "Select": "בחירה", "Erase": "מחק", "Lock walls": "נעילת קירות", "Walls": "קירות", "Wall": "קיר", "Arc wall": "קיר מעוגל", "Rectangle": "מלבן", "Offset": "היסט", "Join": "חבר", "Break": "שבור", "Bite": "הסרת קטע", "Reverse": "הפוך צדדים", "Paint side": "טיפוס קיר",
   "Openings": "פתחים", "Door": "דלת", "Window": "חלון", "Passage": "מעבר", "Open segment": "פתח מקטע",
   "Levels": "קומות", "Add floor": "הוסף קומה", "Slab void": "פתח רצפה", "Slab from stairs": "פתח ממדרגות", "Cutaway": "בית בובות",

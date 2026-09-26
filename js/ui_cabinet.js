@@ -27,6 +27,7 @@ import {
   setTool, exportPNG, initPreview, updatePreview, renderPreview,
 } from "./ui_cabinet_view.js";
 import { initCabinetMobile, disposeCabinetMobile, refreshCabinetMobile, showCabinetPropertiesMobile } from "./ui_cabinet_mobile.js";
+import { registerEditor, editorSwitchHTML, wireEditorSwitch } from "./pro_shell.js";
 import {
   fillHits, applySearch, fillFamilies, fillPresets, startBlank, fillInspector,
   splitSection, delSection, splitColumn, dupColumn, delColumn, fillLook, fillTechnical,
@@ -55,6 +56,7 @@ function buildDOM() {
     '<div class="cb-head-main">' +
     '<div class="cb-logo"><i class="ph ph-lockers"></i> <b>' + T("title") + "</b>" +
     '<span class="cb-sub" id="cbSub"></span><span class="cb-session" id="cbSession" role="status" aria-live="polite"></span></div>' +
+    editorSwitchHTML("cab", "cb-editors") +
     '<div class="cb-levels" role="tablist" aria-label="' + T("levelsAria") + '">' +
     '<button type="button" data-level="composition" class="on"><i class="ph ph-layout"></i> ' + T("levelCompose") + '</button>' +
     '<button type="button" data-level="technical"><i class="ph ph-sliders-horizontal"></i> ' + T("levelTechnical") + '</button>' +
@@ -179,6 +181,7 @@ function buildDOM() {
   document.body.appendChild(E.host);
 
   E.host.querySelector("#cbClose").addEventListener("click", closeCabinet);
+  wireEditorSwitch(E.host);
   E.host.querySelector("#cbRevert").addEventListener("click", revert);
   // the cut plan and the PNG hang off the review icons now (see wireTabs);
   // only the CSV still sits inside the bill itself, next to the table it dumps
@@ -1078,6 +1081,17 @@ export function openCabinetForSelection() {
 export function isCabinetOpen() {
   return E.open;
 }
+
+/* The shared editor switcher (js/pro_shell.js). Leaving through it is Done,
+   not Revert: switching editors keeps the cabinet as it stands, and Ctrl+Z in
+   the plan still takes the whole session back. */
+registerEditor("cab", {
+  open: openCabinetForSelection,
+  isOpen: isCabinetOpen,
+  leave: function () { closeCabinet(); return true; },
+  canOpen: function () { return !!(S.sel && S.sel.kind === "item" && S.sel.ref); },
+  why: function () { return T("switchNeedSel"); },
+});
 
 api.changed = changed;
 api.act = act;

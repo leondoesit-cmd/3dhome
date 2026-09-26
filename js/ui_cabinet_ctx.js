@@ -14,6 +14,7 @@ export var TXT = {
   scopeLinked: ["כל הארונות המקושרים", "All linked cabinets"],
   scopeNote: ["מידות לארון זה · חלוקה משותפת לעותקים מקושרים", "Size: this cabinet · Layout: linked cabinets"],
   title: ["מעצב ארונות", "Cabinet designer"],
+  switchNeedSel: ["בחרו תחילה ארון או רהיט בתוכנית ואז פתחו את מעצב הארונות.", "Select a cabinet or piece in the plan first, then open the cabinet designer."],
   presets: ["פריסטים", "Presets"],
   family: ["סוג ארון", "Cabinet type"],
   width: ["רוחב", "Width"],

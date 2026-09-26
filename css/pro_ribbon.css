@@ -42,6 +42,25 @@
   color: var(--text-main);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
 }
+.pr-editors button:not(.on):hover { color: var(--text-main); }
+.pr-editors button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pr-editors .pr-ed-short { display: none; }
+
+/* The same switcher inside the model editor and cabinet designer headers
+   (js/pro_shell.js), so each editor reaches the other two in one press. */
+.pr-editors.md-editors,
+.pr-editors.cb-editors {
+  flex-shrink: 0;
+  align-self: center;
+  margin-inline: 4px;
+}
+/* Phones and folds: the mockups' short names — Plan · Model · Cabinet. */
+@media (max-width: 1100px) {
+  .pr-editors.md-editors .pr-ed-full,
+  .pr-editors.cb-editors .pr-ed-full { display: none; }
+  .pr-editors.md-editors .pr-ed-short,
+  .pr-editors.cb-editors .pr-ed-short { display: inline; }
+}
 .pr-tabs {
   display: flex;
   align-self: stretch;
@@ -261,3 +280,32 @@ body.compact-nav .pro-toast { bottom: calc(96px + env(safe-area-inset-bottom, 0p
 }
 .m-grid-btn.planned { position: relative; border-style: dashed; }
 .pr-tool.planned:hover { opacity: 0.8; }
+
+/* With the switcher in the header, its active pill names the editor, so the
+   title stays for screen readers only and the summary line gives way first. */
+#cabdes .cb-head-main .cb-logo > b,
+#modeler .md-head-logo > b {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+#cabdes .cb-head-main .cb-sub { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Touch layouts: a thumb-sized pill, level with the 44px header buttons. */
+body.compact-nav .pr-editors.md-editors button,
+#cabdes.cb-compact .pr-editors.cb-editors button {
+  height: 40px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+body.compact-nav .pr-editors.md-editors,
+#cabdes.cb-compact .pr-editors.cb-editors { border-radius: 10px; }
+body.compact-nav .pr-editors.md-editors button,
+#cabdes.cb-compact .pr-editors.cb-editors button { border-radius: 8px; }
+/* The compact cabinet header holds logo · switcher · Done on one row; the
+   session chip truncates instead of pushing Done onto a second line. */
+#cabdes.cb-compact .cb-head-main { flex-wrap: nowrap; }
+#cabdes.cb-compact .cb-head-main .cb-logo { flex: 1 1 0; overflow: hidden; }
+#cabdes.cb-compact .cb-head-main .cb-session { min-width: 0; overflow: hidden; text-overflow: ellipsis; }

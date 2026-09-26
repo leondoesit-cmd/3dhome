@@ -56,6 +56,7 @@ import { nextDocumentNumericId } from "./core/document_ids.js";
 import { FURN, PRICE, CATALOG, flabel, clearVSpanCache, buildItem } from "./furniture.js";
 import { usedCustomModels, refreshCatalogSelect } from "./model_catalog.js";
 import { reportEditorOpenState } from "./modeler_launch.js";
+import { registerEditor, editorSwitchHTML, wireEditorSwitch } from "./pro_shell.js";
 import { box, cyl, sph, clearGroup } from "./primitives.js";
 import { getLang, onLangChange } from "./i18n.js";
 import * as ribbon from "./uikit_host/ribbon.js";
@@ -3109,9 +3110,10 @@ async function confirmDiscardDocument(promptKey) {
 }
 
 async function requestCloseModeler() {
-  if (!await confirmDiscardDocument("unsavedClose")) return;
+  if (!await confirmDiscardDocument("unsavedClose")) return false;
   discardModelerDraft();
   closeModeler();
+  return true;
 }
 
 /* ---- view plane mapping: (u,v) sketch coords <-> model (x,y,z) ---- */
@@ -3510,6 +3512,7 @@ function buildDOM() {
     '<div class="md-head">' +
     '<div class="md-head-logo">' + cadIcon("mode3d") + ' <b>' + t("title") + "</b>" +
     '<span class="md-sub" id="mdSub"></span></div>' +
+    editorSwitchHTML("model", "md-editors") +
     '<div class="md-docmodes" id="mdDocModes">' +
     '<button data-doc="part" class="on">' + cadIcon("mode3d") + " " + t("docPart") + '</button>' +
     '<button data-doc="assembly">' + cadIcon("assembly") + " " + t("docAssembly") + '</button>' +
@@ -4368,6 +4371,7 @@ function buildDOM() {
   root.querySelector("#mdSheetExport").addEventListener("click", exportDrawingSvg);
   root.querySelector("#mdGuide").addEventListener("click", startTour);
   root.querySelector("#mdClose").addEventListener("click", requestCloseModeler);
+  wireEditorSwitch(root);
   root.querySelector("#mdUndo").addEventListener("click", doUndo);
   root.querySelector("#mdRedo").addEventListener("click", doRedo);
   root.querySelector("#mdCommandSearchBtn").addEventListener("click", function () { openCommandSearch(); });
@@ -23976,6 +23980,8 @@ window.addEventListener("resize", function () {
 /* Let the launcher's "m" shortcut see the editor's open state without reaching
    into this module scope before it is loaded. */
 reportEditorOpenState(function () { return E.open; });
+// Leaving through the shared editor switcher asks about unsaved work like Close.
+registerEditor("model", { leave: requestCloseModeler });
 
 function pathSketchSpline(ctx,entity,points){
   var controls=splineControls(entity,points);if(!controls)return;var p=controls.map(q=>toPx(q.x,q.y));ctx.moveTo(p[0].x,p[0].y);ctx.bezierCurveTo(p[1].x,p[1].y,p[2].x,p[2].y,p[3].x,p[3].y);

@@ -18,6 +18,7 @@ import { addConstraint, removeConstraint, applyConstraints } from "./constraints
 import { validateDesign, validationSummary } from "./validator.js";
 import { generateLayouts, applyLayout } from "./layouts.js";
 import { downloadText, toSVG, toDXF, toIFC, toScheduleCSV, toConstructionSVG } from "./exports_pro.js";
+import { printSheetSVG } from "./sheet_print.js";
 import { setQualityPreset } from "./view3d.js";
 import { wallCons, conSatisfied, removeCon, setConSuppressed, solveWallCons } from "./wall_constraints.js";
 import { initCollaboration, addComment, toggleResolved, presentScene, setRole } from "./collaboration.js";
@@ -297,29 +298,12 @@ export async function openWorkspace() {
     }); content.append(box);
   }
 
-  /* Print one sheet on its own paper size: the SVG goes into a hidden frame
-     whose page is exactly that sheet, so the app chrome never prints. */
-  function printSheet(svg) {
-    const frame = document.createElement("iframe");
-    frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
-    document.body.appendChild(frame);
-    const doc = frame.contentDocument;
-    const m = /width="([\d.]+)mm" height="([\d.]+)mm"/.exec(svg);
-    const page = m ? m[1] + "mm " + m[2] + "mm" : "landscape";
-    doc.open();
-    doc.write('<!doctype html><title>' + t("sheet_floor_plan") + '</title><style>@page{size:' + page + ';margin:0}html,body{margin:0}svg{display:block;width:100%;height:auto}</style>' + svg);
-    doc.close();
-    setTimeout(() => {
-      try { frame.contentWindow.focus(); frame.contentWindow.print(); } finally { setTimeout(() => frame.remove(), 1000); }
-    }, 60);
-  }
-
   function drawExport() {
     const box = section(t("handoff_title"));
     box.append(row(
       // the one detailed drawing: dimension strings, fixtures, area line
       button(t("sheet_export_svg"), () => downloadText("home3d-construction-plan.svg", toConstructionSVG(), "image/svg+xml")),
-      button(t("sheet_print"), () => printSheet(toConstructionSVG())),
+      button(t("sheet_print"), () => printSheetSVG(toConstructionSVG(), t("sheet_floor_plan"))),
       // the marketing plan: textured floors, model pictures, room titles —
       // exported in the presentation style whatever the editor is showing
       button(t("handoff_presentation_png"), async () => {

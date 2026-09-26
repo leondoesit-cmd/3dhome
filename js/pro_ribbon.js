@@ -12,6 +12,7 @@ import { askAgent } from "./ui_agent.js";
 import { PRO_ACTIONS } from "./pro_actions.js";
 import { addToolSearchEntries } from "./tool_search.js";
 import { openCabinetForSelection, isCabinetOpen } from "./ui_cabinet.js";
+import { editorSwitchHTML, wireEditorSwitch, proToast } from "./pro_shell.js";
 
 var LS_TAB = "mf.proRibbon.tab";
 function he() { return getLang() === "he"; }
@@ -24,13 +25,11 @@ var MSG = {
   needGeom: ["Select the sketch geometry this relation applies to first.", "בחרו תחילה את הגאומטריה שהיחס חל עליה."],
   mepNa: ["Not available right now: draw a room or pick a device first.", "לא זמין כרגע: ציירו חדר או בחרו רכיב תחילה."],
   needCab: ["Select a cabinet in the plan first, then pick this tool.", "בחרו תחילה ארון בתוכנית ואז את הכלי."],
-  needCabOpen: ["Select a cabinet in the plan first, then open the cabinet designer.", "בחרו תחילה ארון בתוכנית ואז פתחו את מעצב הארונות."],
   collapse: ["Collapse the tool ribbon", "כווץ את סרגל הכלים"],
   expand: ["Expand the tool ribbon", "הרחב את סרגל הכלים"],
   count: [" tools · ⌘K searches all three editors", " כלים · ⌘K מחפש בכל שלושת העורכים"],
   all: ["All tools", "כל הכלים"],
   aria: ["All planner tools", "כל כלי המתכנן"],
-  editor: ["Editor", "עורך"],
   notYet: [" — not available yet", " — עדיין לא זמין"],
   planned: ["“{0}” is planned and not built yet.", "„{0}” מתוכנן ועדיין לא נבנה."],
   clearOk: ["No door or window swing hits anything.", "אף כיוון פתיחה של דלת או חלון לא מתנגש."],
@@ -57,21 +56,7 @@ function store(key, value) {
   return null;
 }
 
-function toast(msg) {
-  var el = document.getElementById("proToast");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "proToast";
-    el.className = "pro-toast";
-    el.setAttribute("role", "status");
-    el.setAttribute("aria-live", "polite");
-    document.body.appendChild(el);
-  }
-  el.textContent = msg;
-  el.classList.add("on");
-  clearTimeout(el._t);
-  el._t = setTimeout(function () { el.classList.remove("on"); }, 2600);
-}
+var toast = proToast;
 
 function modelerOpen() {
   var m = document.getElementById("modeler");
@@ -337,11 +322,7 @@ function buildRibbon() {
   var count = proTools("plan").length;
   ribbon.innerHTML =
     '<div class="pr-bar">' +
-      '<div class="pr-editors" role="group" aria-label="' + M("editor") + '">' +
-        '<button type="button" class="on" aria-pressed="true">' + L("Planner") + "</button>" +
-        '<button type="button" data-pro-editor="model" aria-pressed="false">' + L("Model editor") + "</button>" +
-        '<button type="button" data-pro-editor="cab" aria-pressed="false">' + L("Cabinet designer") + "</button>" +
-      "</div>" +
+      editorSwitchHTML("plan") +
       '<div class="pr-tabs" role="tablist">' +
         tabs.map(function (t, i) { return '<button type="button" role="tab" class="pr-tab" data-pro-tab="' + i + '">' + L(t[0]) + "</button>"; }).join("") +
       "</div>" +
@@ -355,11 +336,7 @@ function buildRibbon() {
   ribbon.querySelectorAll(".pr-tab").forEach(function (t) {
     t.addEventListener("click", function () { setCollapsed(false); renderGroups(+t.dataset.proTab); });
   });
-  ribbon.querySelector('[data-pro-editor="model"]').addEventListener("click", function () { if (window.__runAction) window.__runAction("openModeler"); });
-  ribbon.querySelector('[data-pro-editor="cab"]').addEventListener("click", function () {
-    openCabinetForSelection();
-    if (!isCabinetOpen()) toast(M("needCabOpen"));
-  });
+  wireEditorSwitch(ribbon);
   ribbon.querySelector(".pr-collapse").addEventListener("click", function () { setCollapsed(!ribbon.classList.contains("collapsed")); });
   wireAsk(ribbon.querySelector(".pr-ask"));
   renderGroups(+(store(LS_TAB) || 0));

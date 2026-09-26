@@ -22,6 +22,7 @@ import { S } from "./state.js";
 import { FURN } from "./furniture.js";
 import { getLang, onLangChange } from "./i18n.js";
 import { refreshCatalogSelect } from "./model_catalog.js";
+import { registerEditor } from "./pro_shell.js";
 
 /* These two labels moved here with the buttons they title.
 
@@ -193,3 +194,12 @@ export function initModeler() {
 var isOpen = function () { return false; };
 export function reportEditorOpenState(fn) { isOpen = fn; }
 function pendingIsOpen() { return isOpen(); }
+
+/* The shared editor switcher (js/pro_shell.js) opens the editor from here, so
+   pressing "Model" is the same lazy launch as the top-bar button. The editor
+   adds its own leave() once it has loaded. */
+registerEditor("model", {
+  open: function () { return openEditor(); },
+  // Not modelerLoaded(): ui.js and rc_game.js import modeler.js directly.
+  isOpen: pendingIsOpen,
+});
