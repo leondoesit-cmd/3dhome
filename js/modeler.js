@@ -70,6 +70,7 @@ import { convertCadToWalls } from "./cad_to_walls.js";
 import { wallDrawCommand, executeCommand } from "./commands/index.js";
 import { createHistory } from "./edit_history.js";
 import { createHistoryPanel } from "./ui_history.js";
+import { registerEditorAgent } from "./editor_agent.js";
 import { bindThreeFingerPan, createEditorView, createViewportSwap } from "./editor_view.js";
 import {
   beginTouchPrecision, directionalSegmentDistances, drawTouchPrecisionLens, modelerPrecisionTrialAllowed,
@@ -24119,6 +24120,73 @@ window.addEventListener("resize", function () {
 reportEditorOpenState(function () { return E.open; });
 // Leaving through the shared editor switcher asks about unsaved work like Close.
 registerEditor("model", { leave: requestCloseModeler });
+
+/* The model editor's AI adapter (js/editor_agent.js has the loop and the
+   rules). Direct edits are the design's global variables — the named numbers
+   dimensions are written in terms of, so "legs 430" re-sizes the part through
+   the same equation path as the Equations list; everything else is the AI
+   picking one of the editor's own commands for the user to fill in by hand. */
+function modelAgentVariable(name) {
+  var key = String(name || "").trim().toLowerCase();
+  return (E.def && E.def.variables || []).find(function (v) { return String(v.name).toLowerCase() === key; }) || null;
+}
+function modelAgentTry(v, expr) {
+  var old = v.expr, oldValue = v.value;
+  v.expr = expr;
+  resolveEquations(E.def);
+  var out = { error: v.exprError || null, value: v.value };
+  v.expr = old;
+  resolveEquations(E.def);
+  if (v.value !== oldValue) v.value = oldValue;
+  return out;
+}
+registerEditorAgent("model", {
+  name: "model editor",
+  guide: [
+    "",
+    "Model editor rules:",
+    "- A global variable changes with propose_variable: its name from the live document and a new expression, with units (\"430mm\", \"height/2\").",
+    "- Features, sketches and edits need their forms: propose_command with the exact command label and, in values, what to enter.",
+  ],
+  state: function () {
+    if (!E.open || !E.def) return { open: false };
+    return {
+      open: true, document: E.docType, name: E.def.name || "",
+      view: E.split ? "split" : E.mode,
+      features: (E.def.features || []).slice(0, 60).map(function (f) { return { name: f.name || f.type, type: f.type, suppressed: !!f.suppressed }; }),
+      sketches: ensureSketchDoc(E.def).slice(0, 30).map(function (sk) { return { name: sk.name || "", plane: sk.plane || "", entities: (sk.entities || []).length }; }),
+      variables: (E.def.variables || []).map(function (v) { return { name: v.name, expr: v.expr, value: v.value }; }),
+      selected: E.sel ? (E.sel.name || E.sel.kind || "part") : null,
+    };
+  },
+  tools: [{ type: "function", function: { name: "propose_variable", description: "Propose a new expression for an existing global variable.", parameters: {
+    type: "object", required: ["name", "expr"], properties: { name: { type: "string" }, expr: { type: "string" } }, additionalProperties: false } } }],
+  preview: function (name, args) {
+    if (name !== "propose_variable") return { ok: false, reason: "UNKNOWN_TOOL" };
+    if (!E.open || !E.def) return { ok: false, reason: "NO_MODEL_OPEN" };
+    var v = modelAgentVariable(args.name), expr = String(args.expr || "").trim();
+    if (!v) return { ok: false, reason: "NO_SUCH_VARIABLE", variables: (E.def.variables || []).map(function (x) { return x.name; }) };
+    if (!expr || expr === v.expr) return { ok: false, reason: "NO_CHANGE" };
+    var trial = modelAgentTry(v, expr);
+    if (trial.error) return { ok: false, reason: "BAD_EXPRESSION", detail: String(trial.error) };
+    return { ok: true, kind: "variable", name: v.name, expr: expr, undoable: true,
+      lines: [v.name + ": " + v.expr + " → " + expr] };
+  },
+  apply: function (p) {
+    var v = modelAgentVariable(p.name);
+    if (!v) return { ok: false, reason: "NO_SUCH_VARIABLE" };
+    pushUndo("AI: " + v.name);
+    var old = v.expr;
+    v.expr = p.expr;
+    resolveEquations(E.def);
+    if (v.exprError) { v.expr = old; resolveEquations(E.def); H.discard(); return { ok: false, reason: "BAD_EXPRESSION" }; }
+    resolveSketch(false);
+    refreshAll();
+    return { ok: true, steps: 1 };
+  },
+  undo: doUndo,
+  isOpen: function () { return !!(E.open && E.def); },
+});
 
 function pathSketchSpline(ctx,entity,points){
   var controls=splineControls(entity,points);if(!controls)return;var p=controls.map(q=>toPx(q.x,q.y));ctx.moveTo(p[0].x,p[0].y);ctx.bezierCurveTo(p[1].x,p[1].y,p[2].x,p[2].y,p[3].x,p[3].y);

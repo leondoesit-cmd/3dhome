@@ -158,9 +158,10 @@ test("the AI switch defaults on, is remembered, and off never reaches the AI hel
   assert.match(src("pro_ribbon.js"), /if \(tool\) return runProBinding\(tool\.bind\);\s*\/\/[^\n]*\n\s*if \(!aiOn\(\)\) \{ toast\(M\("aiOff"\)\); return false; \}\s*if \(!askAgent\(text\)\)/);
 });
 
-test("only the planner's bar offers AI; the model and cabinet bars say why", () => {
+test("each bar offers AI only where that editor has a helper, and says why otherwise", () => {
   const shellSrc = src("pro_shell.js");
-  assert.match(shellSrc, /function aiModeAvailable\(editor\) \{ return aiOn\(\) && editor === "plan" && !!shell\.ask; \}/);
+  assert.match(shellSrc, /if \(!aiOn\(\)\) return false;\s*return editor === "plan" \? !!shell\.ask : !!\(shell\.canAskEditor && shell\.canAskEditor\(editor\)\);/);
+  assert.match(shellSrc, /aiPlanOnly: \["The AI helper is not available here/);
   const bar = shellMod.commandBarHTML("model");
   assert.match(bar, /data-ps-bar="model"/);
   assert.match(bar, /data-ps-mode="ai"/);

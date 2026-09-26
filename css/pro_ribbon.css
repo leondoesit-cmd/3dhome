@@ -792,3 +792,29 @@ body.pro-ribbon-on #center-canvas.max-view-3d #view-3d > .hint { bottom: var(--p
 #modeler.md-split .md-3dhost .md-context-toggle { top: auto; bottom: 12px; inset-inline-end: 12px; }
 #modeler.md-split .md-3dhost #mdPrev { width: 100%; height: 100%; max-width: 100%; border-radius: 0; background: transparent; }
 #modeler.md-assembly #mdModeSplit, body.compact-nav #modeler #mdModeSplit { display: none; }
+
+/* The editor AI's card (js/editor_agent_ui.js), just above the bar it answers. */
+.ea-card {
+  position: absolute; z-index: 62; box-sizing: border-box; max-height: min(60%, 360px); overflow: auto;
+  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; border-radius: 14px;
+  background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28); font-size: 13px;
+}
+.ea-head { display: flex; align-items: center; gap: 8px; }
+.ea-head b { flex: 1; font-size: 12px; letter-spacing: 0.03em; color: var(--accent); }
+.ea-x { border: 0; background: transparent; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 6px; }
+.ea-x:hover { background: var(--btn-bg-hover); }
+.ea-reply { margin: 0; line-height: 1.45; }
+.ea-note { margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+.ea-working { margin: 0; color: var(--text-muted); }
+.ea-working::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-inline-end: 8px; border-radius: 50%; border: 2px solid var(--accent); border-right-color: transparent; animation: ea-spin 0.8s linear infinite; vertical-align: -1px; }
+@keyframes ea-spin { to { transform: rotate(360deg); } }
+.ea-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.ea-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ea-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: var(--btn-bg); font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: 12px; }
+.ea-item i { color: var(--accent); }
+.ea-foot { display: flex; gap: 8px; justify-content: flex-end; }
+.ea-btn { height: 30px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--btn-bg); color: var(--text-main); font: inherit; font-weight: 600; cursor: pointer; }
+.ea-btn:hover { background: var(--btn-bg-hover); }
+.ea-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); }
+.ea-primary:hover { background: var(--accent); filter: brightness(1.08); }

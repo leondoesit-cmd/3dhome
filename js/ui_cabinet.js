@@ -28,6 +28,7 @@ import {
   sizeCanvas, setMode, setAxis, syncHint, syncViewPreferences, draw, wireCanvas,
   setTool, exportPNG, initPreview, updatePreview, renderPreview,
 } from "./ui_cabinet_view.js";
+import "./ui_cabinet_agent.js"; // registers the designer's AI adapter
 import { initCabinetMobile, disposeCabinetMobile, refreshCabinetMobile, showCabinetPropertiesMobile } from "./ui_cabinet_mobile.js";
 import {
   registerEditor, editorSwitchHTML, wireEditorSwitch, wireShell,
@@ -1151,3 +1152,4 @@ api.flashHint = flashHint;
 api.setTab = setTab;
 api.setLevel = setLevel;
 api.syncDimInputs = syncDimInputs;
+api.applyOverallSize = applyOverallSize; // the AI adapter sizes through the same check

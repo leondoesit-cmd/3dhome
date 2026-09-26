@@ -19,6 +19,7 @@ import {
 import { S } from "./state.js";
 import { markDirty } from "./persist.js";
 import { partCodeAnswer, partCodeToast } from "./part_code_labels.js";
+import "./editor_agent_ui.js"; // the AI card of the model editor's and cabinet designer's bars
 
 var LS_TAB = "mf.proRibbon.tab";
 function he() { return getLang() === "he"; }

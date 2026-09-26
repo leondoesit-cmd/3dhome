@@ -37,7 +37,7 @@ var MSG = {
   shareTip: ["Share and review this project", "שיתוף וסקירה של הפרויקט"],
   modes: ["Ask the AI or run a command", "שאלו את ה־AI או הפעילו פקודה"],
   cmd: ["› Cmd", "› פקודה"],
-  aiPlanOnly: ["The AI helper works on the plan for now — Cmd runs every tool here.", "עוזר ה־AI עובד כרגע על התוכנית — פקודה מפעילה כאן כל כלי."],
+  aiPlanOnly: ["The AI helper is not available here — Cmd runs every tool.", "עוזר ה־AI לא זמין כאן — פקודה מפעילה כל כלי."],
   aiIsOff: ["AI is off — Cmd runs every tool by name. Turn AI back on with the AI switch.", "AI כבוי — פקודה מפעילה כל כלי לפי שם. הפעילו AI במתג ה־AI."],
   noTool: ["No tool called “{0}”.", "אין כלי בשם „{0}”."],
   statusOn: ["AI on · every tool also works by hand", "AI פעיל · כל כלי עובד גם ידנית"],
@@ -55,9 +55,11 @@ var PLACEHOLDER = {
     cmd: ["Type a tool: “Wall”, “Door”, “Dimension”, “Section”…", "הקלידו כלי: „קיר”, „דלת”, „מידה”, „חתך”…"],
   },
   model: {
+    ai: ["Ask: “set height to 430mm”, “round the top edges”, “add a hole for a cable”", "שאלו: „גובה 430 מ״מ”, „עגלו את הקצוות העליונים”, „חור לכבל”"],
     cmd: ["Type a command: “Extrude”, “Fillet”, “Hole wizard”…", "הקלידו פקודה: „שליפה”, „עיגול פינה”, „אשף חורים”…"],
   },
   cab: {
+    ai: ["Ask: “make it 800 wide”, “3 drawers in the left column”, “glass doors”", "שאלו: „רוחב 800”, „3 מגירות בעמודה השמאלית”, „דלתות זכוכית”"],
     cmd: ["Type a tool: “Presets”, “Vertical partition”, “Kitchen run”…", "הקלידו כלי: „תבניות”, „מחיצה אנכית”, „שורת מטבח”…"],
   },
 };
@@ -171,11 +173,19 @@ export function setAiOn(on) {
 var shell = {};
 export function registerShell(hooks) {
   Object.assign(shell, hooks);
+  // a new hook can change what the bars offer: resync them all, not just names
+  roots.forEach(function (r) { r._psAi = undefined; });
   syncShell();
 }
+/** Run a tool of `editor` by its exact catalog name (the editor AI's Apply). */
+export function runShellTool(editor, label) { return !!(shell.runTool && shell.runTool(editor, label)); }
 
-/* The AI mode needs the planner's helper, so only the planner offers it. */
-function aiModeAvailable(editor) { return aiOn() && editor === "plan" && !!shell.ask; }
+/* The AI mode needs a helper for that editor: the planner's own (ask), or an
+   editor adapter from js/editor_agent.js (canAskEditor / askEditor). */
+function aiModeAvailable(editor) {
+  if (!aiOn()) return false;
+  return editor === "plan" ? !!shell.ask : !!(shell.canAskEditor && shell.canAskEditor(editor));
+}
 function barMode(editor) { return aiModeAvailable(editor) && store(LS_MODE) !== "cmd" ? "ai" : "cmd"; }
 
 export function projectChipHTML() {
@@ -373,8 +383,9 @@ function wireBar(bar, editor) {
     text = String(text || "").trim();
     if (!text) return false;
     if (bar.dataset.mode === "ai") {
-      if (shell.ask && shell.ask(text)) { input.value = ""; return true; }
-      return false; // ask() says why it could not
+      var asked = editor === "plan" ? shell.ask && shell.ask(text) : shell.askEditor && shell.askEditor(editor, text, bar);
+      if (asked) { input.value = ""; return true; }
+      return false; // the helper says why it could not
     }
     if (active >= 0 && items[active]) { run(items[active]); return true; }
     if (shell.runTool && shell.runTool(editor, text)) { input.value = ""; hideSuggest(bar); return true; }
