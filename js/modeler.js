@@ -16,6 +16,7 @@ import { tangentArc, entityOutgoingTangent } from "./sketch_tangent_arc.js";
 import {createMaterialValidationUI} from "./modeler_material_validation.js";
 import { addCenterRectangle } from "./sketch_center_rectangle.js";
 import { addCenterSlot } from "./sketch_center_slot.js";
+import { rasterTextContours } from "./sketch_text.js";
 import { filletSketchCorner } from "./sketch_fillet.js";
 import { bindIntersectionTargets, bindModelEdgeTargets, bindPierceTargets, hitProjectedModelEdge } from "./sketch_intersection.js";
 import { copySketchForClipboard, pasteSketchGeometry, readSketchClipboard, writeSketchClipboard } from "./core/sketch_clipboard.js";
@@ -60,6 +61,9 @@ import { getLang, onLangChange } from "./i18n.js";
 import * as ribbon from "./uikit_host/ribbon.js";
 import { stopSpeaking, bindSpeakButton } from "./speech.js";
 import { render2D } from "./plan2d.js";
+import { pushHistory as pushPlannerHistory } from "./history.js";
+import { convertCadToWalls } from "./cad_to_walls.js";
+import { wallDrawCommand, executeCommand } from "./commands/index.js";
 import { createHistory } from "./edit_history.js";
 import { createHistoryPanel } from "./ui_history.js";
 import { bindThreeFingerPan, createEditorView, createViewportSwap } from "./editor_view.js";
@@ -109,7 +113,7 @@ import { ASSEMBLY_ORIGIN_ID, containsAssembly, descriptorToParent, flattenAssemb
 import { eulerMatrix, normalizePose, setRotation } from "./cad_mate_model.js";
 import { analyzeSketchChains, analyzeSketchProfiles, curveSegments, healSketchEndpoints, pointInProfile, profileCentroid } from "./sketch_profiles.js";
 import { featureAreas, loopInteriorPoint, sketchRegions } from "./sketch_regions.js";
-import { createReferencePlane, createReferenceAxis, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
+import { createReferencePlane, createReferenceAxis, createReferencePoint, createCoordinateSystem, createHelix } from "./cad_reference_geometry.js";
 import { helixSweepPath, documentHelixOverlays, sweepUsesHelixPath } from "./cad_helix.js";
 import { circularSweepProfile, loftSourceRecord, resolveSketchSources as resolveSweptSources, sampleSketchPath, sketchPathSegments, sketchWorldPoint, sweepSourceRecord } from "./core/swept_sources.js";
 import { createExplodedView, addExplodeStep, applyExplodedView } from "./cad_exploded_view.js";
@@ -176,7 +180,7 @@ import {
   FEATURE_COMMAND, KEY_TOOL, KEY_VIEW, DIRECT_COMMAND_TOOLS,
   bomCsv, bomTableRows, buildCommandCatalog, commandUnavailableReason as catalogUnavailableReason,
 } from "./modeler_commands.js";
-import { documentDescription, setDocumentDescription, sheetTitleText } from "./core/custom_properties.js";
+import { documentDescription, setDocumentDescription, setDocumentProperty, sheetTitleText } from "./core/custom_properties.js";
 import { MODELER_DRAFT_KEY, clearModelerDraft, parseModelerDraft, readModelerDraft, serializeModelerDraft, writeModelerDraft } from "./modeler_draft.js";
 import {
   featureField as featureFieldCore, featureControlValue, evaluateFeatureNumber, validateFeatureInputs, readFeatureParameterForm, renderFeatureParameterForm as renderFeatureParameterFormCore,
@@ -5992,13 +5996,13 @@ function updateTourProgress() {
   renderTour();
 }
 
-var SKETCH_TOOLS = ["wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "sketchfillet", "offset", "constr"];
+var SKETCH_TOOLS = ["wall", "sketchpoint", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "sketchfillet", "offset", "constr"];
 
 /* The tools that DRAW, as opposed to the ones that edit what is already drawn.
    Only these may open a sketch from model mode: "start drawing and I will make
    you a sketch" is a reasonable offer, while Trim or Dimension arriving on an
    empty new sketch is an offer to edit nothing. */
-var SKETCH_DRAW_TOOLS = ["wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline"];
+var SKETCH_DRAW_TOOLS = ["wall", "sketchpoint", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline"];
 
 /* Which tools own the sketch sheet. Everything else — Select above all — used
    to open it too: setTool() armed E.modelPlaneActive for ANY tool change in
@@ -6887,6 +6891,15 @@ function closeFeaturePanel() {
   syncCommandManager(); // puts the ribbon button that opened the form back out
 }
 
+// The pro ribbon and the app-wide ⌘K palette run model commands through this.
+window.__modelerRunCommand = function (id) {
+  if (!root || !E.open) return false;
+  // Asked for a specific command: the start-here screen would only be in the way.
+  closeWelcome();
+  runCommand(id);
+  return true;
+};
+
 function runCommand(id) {
   if (!id) return;
   if(id==="temporaryaxes"){root.querySelector("#mdTemporaryAxes").click();closeCommandSearch();return;}
@@ -6901,7 +6914,25 @@ function runCommand(id) {
   var blocked = commandUnavailableReason(id);
   if (blocked) { flash(blocked); closeCommandSearch(); return; }
   if (DIRECT_COMMAND_TOOLS[id]) { setTool(DIRECT_COMMAND_TOOLS[id]); closeCommandSearch(); syncCommandManager(); return; }
-  var tools = ["select", "rect", "circle", "sph", "poly", "rev", "cut", "cutc", "wall", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "offset", "constr"];
+  if (id === "directcone") { openConeForm(); closeCommandSearch(); return; }
+  if (id === "sketchtext") {
+    if (isCanonicalAuthoring() && E.authoring?.phase !== "sketch") {
+      if (activeParts(E.def).length) { flash("Open a sketch on the intended plane or face first."); closeCommandSearch(); return; }
+      beginSketchWorkflow(null);
+    }
+    if (isCanonicalAuthoring() && E.authoring?.phase !== "sketch") { closeCommandSearch(); return; }
+    openSketchTextForm(); closeCommandSearch(); return;
+  }
+  if (id === "stocksize") { openStockSizeForm(); closeCommandSearch(); return; }
+  if (id === "towalls") { openToWallsForm(); closeCommandSearch(); return; }
+  if (id === "finishpreview") { openFinishPreviewChooser(); closeCommandSearch(); return; }
+  if (id === "exportglb") { exportModelGlb(); closeCommandSearch(); return; }
+  if (id === "equations") { setTab("sketch"); fillSketchPane(); requestAnimationFrame(function () { Array.from(root.querySelectorAll("#mdSketch .md-h5")).find(function (node) { return node.textContent.trim() === t("equations"); })?.scrollIntoView({ block: "nearest" }); }); closeCommandSearch(); return; }
+  if (id === "customprops") { openCustomProperties(); closeCommandSearch(); return; }
+  if (id === "smartmates") { E.smartMateMode = !E.smartMateMode; setTab("ops"); flash(t("smartMate") + ": " + (E.smartMateMode ? "On" : "Off")); closeCommandSearch(); return; }
+  if (id === "sheetmetal") { setTab("shape"); if (selectedSolid()?.kind !== "box") flash(t("sheetMetalNeedPlate")); else requestAnimationFrame(function () { Array.from(root.querySelectorAll('.md-pane[data-pane="shape"] .md-h5')).find(function (node) { return node.textContent.trim() === t("sheetMetal"); })?.scrollIntoView({ block: "nearest" }); }); closeCommandSearch(); return; }
+  if (id === "branch") { setTab("hist"); closeCommandSearch(); return; }
+  var tools = ["select", "rect", "circle", "sph", "poly", "rev", "cut", "cutc", "wall", "sketchpoint", "srect", "scirc", "sarc", "sslot", "spoly", "sell", "sspline", "dim", "trim", "extend", "offset", "constr"];
   /* "For construction" acts on what is selected, as in SOLIDWORKS. It used to
      only arm a click-to-toggle tool, so selecting HOUSING's centerline and
      pressing Construction left it solid (the selection highlight looked like
@@ -6977,6 +7008,7 @@ function runCommand(id) {
   else if (id === "refplane") openOffsetPlaneForm();
   else if (id === "refaxis") addReferenceGeometry("axis");
   else if (id === "coordsys") addReferenceGeometry("coordsys");
+  else if (id === "refpoint") addReferenceGeometry("point");
   else if (id === "fit") E.mode === "3d" ? fitPreview() : fitSketch();
   else if (id === "model3d") setMode("3d");
   else if (id === "assembly") setDocumentType("assembly");
@@ -6992,6 +7024,168 @@ function runCommand(id) {
   else if (id === "note") { setMode("3d"); setTool("note"); }
   closeCommandSearch();
   syncCommandManager();
+}
+
+function openConeForm() {
+  openQuickForm({
+    action: "directcone", icon: "ph-triangle", title: "Cone",
+    fields: [
+      { key: "r1", label: "Base radius", type: "number", unit: "length", min: 1e-6, value: 5 },
+      { key: "r2", label: "Top radius", type: "number", unit: "length", min: 0, value: 0 },
+      { key: "h", label: "Height", type: "number", unit: "length", min: 1e-6, value: 10 },
+    ],
+    onApply: function (values) {
+      var r1 = Number(values.r1), r2 = Number(values.r2), h = Number(values.h);
+      if (![r1, r2, h].every(Number.isFinite) || r1 <= 0 || r2 < 0 || h <= 0) return false;
+      pushUndo("Cone");
+      try {
+        var params = { x: 0, y: 0, z: 0, r1, r2, h };
+        var feature = createFeatureDefinition(E.def, "cone", { params: params });
+        E.sel = addPart({ id: uid(), featureId: feature.id, kind: "cyl", name: "Cone", x: 0, y: 0, z: 0, r: r1, r2: r2, h: h, color: "#b89a6e", metal: .08, rough: .7 });
+        refreshAll();
+        return true;
+      } catch (error) { H.discard(); flash(String(error.message || error)); return false; }
+    },
+  });
+}
+
+function openSketchTextForm() {
+  openQuickForm({ action: "sketchtext", title: "Sketch text", icon: "ph-text-t",
+    hint: "Creates closed editable letter profiles. Extrude to emboss or Extrude cut to engrave.",
+    fields: [
+      { key: "text", label: "Text (up to 24 characters)", type: "text", value: "TEXT" },
+      { key: "height", label: "Letter height (cm)", type: "number", value: 3, min: .1, max: 100 },
+      { key: "x", label: "Left position (cm)", type: "number", value: 0 },
+      { key: "y", label: "Baseline position (cm)", type: "number", value: 0 },
+    ],
+    onApply: function(values) {
+      const content = values.text.trim();
+      if (!content || content.length > 24 || !Number.isFinite(values.height) || values.height < .1 || values.height > 100) { flash("Enter 1–24 characters and a letter height from 0.1 to 100 cm."); return false; }
+      let contours;
+      try { contours = rasterTextContours(content); } catch (error) { flash(error.message); return false; }
+      if (!contours.length) { flash("This font produced no closed letter contours."); return false; }
+      const ys = contours.flatMap(loop => loop.map(point => point.y));
+      const top = Math.min(...ys), bottom = Math.max(...ys), scale = values.height / Math.max(1, bottom - top);
+      const sketch = sketchForView();
+      pushUndo("Sketch text");
+      for (const contour of contours) {
+        const ids = contour.map(point => newSketchPoint(sketch, { u: values.x + point.x * scale, v: values.y + (bottom - point.y) * scale }));
+        ids.forEach((id, index) => sketch.entities.push({ id: uid(), type: "line", name: "Text " + content, a: id, b: ids[(index + 1) % ids.length], construction: false, textSource: content }));
+      }
+      resolveSketch(false); E.sel = null; E.ssel = []; refreshAll(); return true;
+    },
+  });
+}
+
+function openStockSizeForm() {
+  var part = selectedSolid();
+  if (!part) { flash(t("quickNeedPart")); return; }
+  var bounds = partBounds(part), needed = [bounds.x1 - bounds.x0, bounds.y1 - bounds.y0, bounds.z1 - bounds.z0].map(v => Math.max(0.01, v));
+  var keys = Object.keys(STOCK_MATERIALS), current = String(part.materialCatalogId || "").replace(/^stock:/, "");
+  openQuickForm({ action: "stocksize", title: "Stock size", icon: "ph-ruler",
+    fields: [
+      { key: "width", label: "Stock width", type: "number", unit: "length", min: needed[0], value: part.stockSize?.width || Math.ceil(needed[0]) },
+      { key: "height", label: "Stock height", type: "number", unit: "length", min: needed[1], value: part.stockSize?.height || Math.ceil(needed[1]) },
+      { key: "depth", label: "Stock depth", type: "number", unit: "length", min: needed[2], value: part.stockSize?.depth || Math.ceil(needed[2]) },
+      { key: "material", label: "Material", type: "select", value: current || "aluminum", choices: keys.map(key => ({ value: key, label: STOCK_MATERIALS[key].name })) },
+    ],
+    onApply: function (values) {
+      var dimensions = [Number(values.width), Number(values.height), Number(values.depth)];
+      if (dimensions.some((value, i) => !Number.isFinite(value) || value + 1e-6 < needed[i])) { flash("Stock must enclose the part."); return false; }
+      var material = STOCK_MATERIALS[values.material]; if (!material) return false;
+      pushUndo("Stock size");
+      part.stockSize = { width: dimensions[0], height: dimensions[1], depth: dimensions[2] };
+      part.materialCatalogId = "stock:" + values.material; part.materialName = material.name;
+      part.color = material.color; part.metal = material.metal; part.rough = material.rough;
+      if ((E.def.parts || []).length === 1) setDocumentProperty(E.def, "Stock size", `${dimensions.join(" × ")} cm`);
+      refreshAll(); return true;
+    },
+  });
+}
+
+function openToWallsForm() {
+  var sketch = ensureSketch(E.def), points = new Map((sketch.points || []).map(p => [p.id, p]));
+  var segments = (sketch.entities || []).filter(e => e.type === "line" && !e.construction).map(e => lineData(e, points)).filter(Boolean);
+  if (!segments.length) { flash("Draw a line outline in the active sketch first."); return; }
+  openQuickForm({ action: "towalls", title: "Sketch outline to planner walls", icon: "ph-wall",
+    fields: [{ key: "thickness", label: "Wall thickness", type: "number", unit: "length", min: 1, value: 10 }],
+    onApply: function (values) {
+      var thickness = Number(values.thickness); if (!(thickness > 0)) return false;
+      var cx = S.nodes.length ? S.nodes.reduce((sum, p) => sum + p.x, 0) / S.nodes.length : 0;
+      var cz = S.nodes.length ? S.nodes.reduce((sum, p) => sum + p.z, 0) / S.nodes.length : 0;
+      var source = { lines: segments.map(segment => ({ a: { x: segment.a.x + cx, z: segment.a.y + cz }, b: { x: segment.b.x + cx, z: segment.b.y + cz } })) };
+      var converted = convertCadToWalls(source, { singleLineWalls: true, defaultThickness: thickness, firstId: S.idc, minLength: 1 });
+      if (!converted.walls.length) { flash("No walls could be made from this sketch."); return false; }
+      pushPlannerHistory();
+      for (var wall of converted.walls) {
+        var result = executeCommand(wallDrawCommand, {
+          from: converted.nodes[wall.a], to: converted.nodes[wall.b],
+          thickness: wall.thickness, height: wall.height, type: wall.wallTypeId,
+          kind: wall.kind, datum: wall.datum, phase: wall.phase,
+        }, { domain: "planner", state: S }, { history: false });
+        if (!result.ok) { flash(`Could not make wall: ${result.reason}`); return false; }
+      }
+      S.dirty3D = true; markPlannerDirty(); render2D();
+      flash(`✓ ${converted.walls.length} walls added to the planner`); return true;
+    },
+  });
+}
+
+function openFinishPreviewChooser() {
+  if (!selectedSolid()) { flash(t("quickNeedPart")); return; }
+  showPickList("Finish preview", "Choose a finish to preview", [
+    { id: "fillet", label: t("quickFillet"), hint: "Round selected edges" },
+    { id: "chamfer", label: t("quickChamfer"), hint: "Bevel selected edges" },
+    { id: "shell", label: t("shellOp"), hint: "Hollow selected face" },
+  ], function (item) { openParametricFeature(item.id); });
+}
+
+async function exportModelGlb() {
+  if (!E.pv?.grp) { flash("Open the 3D model preview first."); return; }
+  try {
+    var mod = await import("three/addons/exporters/GLTFExporter.js");
+    var source = new THREE.Group(); source.name = E.def.name || "Model";
+    source.add(E.pv.grp.clone(true)); source.scale.setScalar(0.01);
+    var buffer = await new mod.GLTFExporter().parseAsync(source, { binary: true, onlyVisible: true, trs: true });
+    downloadBytes(buffer, (E.def.name || "model") + ".glb", "model/gltf-binary");
+  } catch (error) { flash(String(error.message || error)); }
+}
+
+function openCustomProperties() {
+  var doc = E.docType === "assembly" ? E.assembly : E.def;
+  if (!doc) return;
+  root.querySelector("#mdCustomPropsDialog")?.remove();
+  var dialog = document.createElement("dialog");
+  dialog.id = "mdCustomPropsDialog";
+  dialog.style.cssText = "max-width:min(32rem,90vw);max-height:80vh;overflow:auto;border-radius:12px;padding:1.2rem";
+  var title = document.createElement("h2"); title.textContent = "Custom properties"; dialog.appendChild(title);
+  var rows = document.createElement("div"); dialog.appendChild(rows);
+  function row(key, value) {
+    var line = document.createElement("div"); line.style.cssText = "display:flex;gap:.4rem;margin:.5rem 0";
+    var name = document.createElement("input"); name.placeholder = "Name"; name.value = key; name.maxLength = 80;
+    var field = document.createElement("input"); field.placeholder = "Value"; field.value = value;
+    var remove = document.createElement("button"); remove.type = "button"; remove.textContent = "×"; remove.onclick = function () { line.remove(); };
+    line.append(name, field, remove); rows.appendChild(line);
+  }
+  Object.entries(doc.customProperties || {}).forEach(function (entry) { row(entry[0], entry[1]); });
+  var add = document.createElement("button"); add.type = "button"; add.textContent = "+ Property"; add.onclick = function () { row("", ""); }; dialog.appendChild(add);
+  var save = document.createElement("button"); save.type = "button"; save.textContent = "Save"; save.onclick = function () {
+    var next = {};
+    for (var line of rows.children) {
+      var inputs = line.querySelectorAll("input"), key = inputs[0].value.trim(), value = inputs[1].value.trim();
+      if (key && value) next[key] = value;
+    }
+    if (JSON.stringify(next) !== JSON.stringify(doc.customProperties || {})) {
+      pushUndo("Custom properties");
+      doc.customProperties = {};
+      Object.entries(next).forEach(function (entry) { setDocumentProperty(doc, entry[0], entry[1]); });
+      refreshAll();
+    }
+    dialog.close();
+  }; dialog.appendChild(save);
+  var cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = "Cancel"; cancel.onclick = function () { dialog.close(); }; dialog.appendChild(cancel);
+  dialog.addEventListener("close", function () { dialog.remove(); }, { once: true });
+  root.appendChild(dialog); dialog.showModal();
 }
 
 /* Common solid operations live beside the viewport with their one or two
@@ -11336,6 +11530,9 @@ function drawSketch() {
         c.font = "11px sans-serif";
         c.fillText(infoText, tx, ty);
       }
+    } else if (entity.type === "point") {
+      var standalone = spts.get(entity.p);
+      if (standalone) { var marker = toPx(standalone.x, standalone.y); c.strokeRect(marker.x - 6, marker.y - 6, 12, 12); }
     } else if(entity.type==="spline"){pathSketchSpline(c,entity,spts);c.stroke();
     } else if (entity.type === "ellipse") {
       var el2 = ellipseData(entity, spts);
@@ -12312,7 +12509,8 @@ function sketchForView() {
   return target;
 }
 // Called when the view changes: adopt a sketch on the new plane if there is
-// one, but do not create an empty sketch just because you looked at a plane.
+// one. A view is only a camera choice until the user starts drawing, so it
+// must not add an invisible empty sketch to the saved feature history.
 function adoptSketchForView() {
   var current = ensureSketch(E.def);
   if (current.plane === E.view && current.frameSpace!=="local") return false;
@@ -12324,13 +12522,7 @@ function adoptSketchForView() {
     E.solveInfo = solveSketch(ensureSketch(E.def));
     return true;
   }
-  if (current.frameSpace==="local") {
-    var principal=addSketch(E.def,E.view,0);
-    E.def.activeSketch=principal.id;
-    E.ssel=[];
-    E.solveInfo=solveSketch(principal);
-    return true;
-  }
+  if (current.frameSpace==="local") return false;
   if (!current.entities.length) {
     // an untouched sketch just follows you rather than littering the document
     current.plane = E.view;
@@ -14319,6 +14511,14 @@ function wireSketch() {
     }
     var sp = snapPt(uv, null, E.tool === "wall" && E.wallPts && E.wallPts.length ? E.wallPts[E.wallPts.length - 1] : null), su = sp.u, sv = sp.v;
     E._suppressInference = e.ctrlKey || e.metaKey;
+    if (E.tool === "sketchpoint") {
+      var active = ensureSketch(E.def);
+      pushUndo("Sketch point");
+      var pointId = newSketchPoint(active, { u: su, v: sv });
+      active.entities.push({ id: uid(), type: "point", p: pointId, name: "Point" });
+      selectSketch(sketchPoint(active, pointId), false);
+      resolveSketch(false); refreshAll(); return;
+    }
     if (E.tool === "wall") {
       if (!E.wallPts || !E.wallPts.length) {
         E.wallPts = [{ u: su, v: sv, pointId: sp.pointId || null }];
@@ -15300,6 +15500,7 @@ function onKey(e) {
       // deleting a lone point only removes the rules that referenced it —
       // the point itself belongs to whichever entity still draws it
       selPoints().forEach(function (q) {
+        sketch.entities.filter(function (entity) { return entity.type === "point" && entity.p === q.id; }).forEach(function (entity) { removeSketchEntity(sketch, entity.id); });
         sketch.constraints = sketch.constraints.filter(function (c) {
           return c.point !== q.id && c.a !== q.id && c.b !== q.id;
         });
@@ -20791,7 +20992,7 @@ function syncFeatureFormValue(key, value) {
 }
 
 function beginInstant3dDrag(event, view) {
-  if (E.docType === "assembly" && event.altKey) return beginSmartMateDrag(event, view);
+  if (E.docType === "assembly" && (event.altKey || E.smartMateMode)) return beginSmartMateDrag(event, view);
   /* Ctrl/Cmd-drag is a window select. Plain primary-drag is this editor's
      orbit — the documented CAD navigation — so taking it for a marquee the way
      SolidWorks does would cost the gesture people use most. Ctrl/Cmd has no
@@ -22666,6 +22867,9 @@ function addReferenceGeometry(kind) {
     item = createHelix({ name: t("opHelix") + " " + n, radius: 1, pitch: 0.125, turns: 4, height: 0.5 });
   } else if (kind === "axis") {
     item = createReferenceAxis({ name: t("refAxis") + " " + n });
+  } else if (kind === "point") {
+    var picked = (E.topologySelection || []).find(function (reference) { return reference.kind === "vertex"; });
+    item = createReferencePoint({ name: "Ref point " + n, origin: cloneData(picked?.descriptor?.point || picked?.descriptor?.origin || { x: 0, y: 0, z: 0 }) });
   } else {
     item = createCoordinateSystem({ name: t("refCoord") + " " + n });
   }
@@ -22673,6 +22877,7 @@ function addReferenceGeometry(kind) {
   E.def.references ||= [];
   if(kind==="plane")E.def.references.push(Object.assign({},cloneDomain(item),{type:"plane"}));
   else if(kind==="axis")E.def.references.push({id:item.id,type:"axis",name:item.name,origin:cloneData(item.p1),direction:{x:item.p2.x-item.p1.x,y:item.p2.y-item.p1.y,z:item.p2.z-item.p1.z},refType:item.refType});
+  else if(kind==="point")E.def.references.push({id:item.id,type:"point",name:item.name,origin:cloneData(item.origin)});
   else if(kind==="helix")E.def.references.push(Object.assign({},cloneDomain(item),{type:"helix"}));
   else E.def.references.push(Object.assign({},cloneDomain(item),{type:"coordinate-system"}));
   refreshAll(); flash("✓ " + item.name);

@@ -22,6 +22,14 @@ let pane, canvas, hud, modeButton, lookButton, personButton, dragId=null, lastIn
 let roofButton;
 let vertexHits=[],vertexDrag=null;
 let planLayersWereHidden=null;
+const LAYERS_3D_KEY='mf_plan_layers_3d';
+function saved3DLayersHidden(){
+  try { return localStorage.getItem(LAYERS_3D_KEY)!=='0'; } catch (_) { return true; }
+}
+function splitVisible(){
+  const center=document.getElementById('center-canvas');
+  return !!center&&!center.classList.contains('max-view-2d')&&!center.classList.contains('max-view-3d');
+}
 function set3DChrome(active){
   const body=document.body;
   if(active){
@@ -30,7 +38,8 @@ function set3DChrome(active){
        preference and do not re-hide the card on every canvas pointerdown. */
     if(!body.classList.contains('planner-3d-active')){
       planLayersWereHidden=body.classList.contains('workflow-hide-layers');
-      body.classList.add('planner-3d-active','workflow-hide-layers');
+      body.classList.add('planner-3d-active');
+      body.classList.toggle('workflow-hide-layers',saved3DLayersHidden());
       window.dispatchEvent(new Event('planner-viewport'));
     }
     return;
@@ -67,9 +76,18 @@ function vertexInput(phase,e){
 function gameActive() { return !!document.querySelector('body.zombies-on,body.lava-on,body.rc-on'); }
 function activate() {
   if(gameActive()) return;
-  set3DChrome(true);
+  /* Split is an editing plan with a live 3D preview. Keep its shared command
+     deck in the plan even when a pointer edits the 3D canvas; otherwise every
+     click makes the whole menu jump between panes. Only the input surface
+     changes for that gesture. */
+  if(splitVisible()){
+    set3DChrome(false);
+    movePlanToolsTo('view-2d');
+  }else{
+    set3DChrome(true);
+    movePlanToolsTo('view-3d');
+  }
   document.documentElement.dataset.plannerViewport='3d';
-  movePlanToolsTo('view-3d');
   S.edit3D=true;
   setPlannerInputView({id:'3d',scale:lastInput?.scale||1,width:pane?.clientWidth||1,height:pane?.clientHeight||1});
 }
@@ -126,6 +144,9 @@ export function initPlanner3D() {
     movePlanToolsTo('view-2d');setPlannerInputView(null);document.documentElement.dataset.plannerViewport='plan';
   },true);
   canvas.addEventListener('pointerdown',e=>{
+    /* The edit handler may stop propagation before the pane's first-use
+       listener sees it. Dismiss the onboarding bubble on the real action. */
+    document.body.classList.add('used-3d');
     if(!has3D()||gameActive()||e.button!==0||look)return;
     activate();
     if(send('down',e)){dragId=e.pointerId;canvas.setPointerCapture(e.pointerId);e.preventDefault();e.stopImmediatePropagation();}

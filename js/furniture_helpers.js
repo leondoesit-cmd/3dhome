@@ -141,16 +141,23 @@ export function slabWithHoles(g, x0, x1, y0, y1, z0, z1, holes, col, opt) {
     box(g, x0, x1, y0, y1, z0, z1, col, opt);
     return;
   }
-  var hz0 = Math.max(z0, holes[0].z0),
-    hz1 = Math.min(z1, holes[0].z1);
-  if (hz0 > z0) box(g, x0, x1, y0, y1, z0, hz0, col, opt); // back strip
-  if (z1 > hz1 && !opt.skipFront) box(g, x0, x1, y0, y1, hz1, z1, col, opt);
-  var cx = x0; // left, between-bowl and right strips
+  // Split at every cutout boundary so openings at different depths, including
+  // one that crosses a joint between slabs, still leave actual empty geometry.
+  var xs = [x0, x1], zs = [z0, z1];
   holes.forEach(function (h) {
-    if (h.x0 > cx) box(g, cx, h.x0, y0, y1, hz0, hz1, col, opt);
-    cx = h.x1;
+    xs.push(Math.max(x0, Math.min(x1, h.x0)), Math.max(x0, Math.min(x1, h.x1)));
+    zs.push(Math.max(z0, Math.min(z1, h.z0)), Math.max(z0, Math.min(z1, h.z1)));
   });
-  if (x1 > cx) box(g, cx, x1, y0, y1, hz0, hz1, col, opt);
+  xs = [...new Set(xs)].sort(function (a, b) { return a - b; });
+  zs = [...new Set(zs)].sort(function (a, b) { return a - b; });
+  for (var ix = 0; ix < xs.length - 1; ix++) for (var iz = 0; iz < zs.length - 1; iz++) {
+    var xa = xs[ix], xb = xs[ix + 1], za = zs[iz], zb = zs[iz + 1];
+    if (xb - xa < 1e-6 || zb - za < 1e-6) continue;
+    if (opt.skipFront && zb === z1) continue;
+    var mx = (xa + xb) / 2, mz = (za + zb) / 2;
+    if (!holes.some(function (h) { return mx > h.x0 && mx < h.x1 && mz > h.z0 && mz < h.z1; }))
+      box(g, xa, xb, y0, y1, za, zb, col, opt);
+  }
 }
 
 // A recessed rectangular basin: four walls hung inside the counter opening

@@ -22,7 +22,7 @@ function dir() {
 }
 
 const cache = new Map(); // type -> data URL (or "" when the model won't render)
-const THUMB_DB = "home3d_thumbnails_v4";
+const THUMB_DB = "home3d_thumbnails_v5";
 const THUMB_STORE = "images";
 
 function thumbDB() {

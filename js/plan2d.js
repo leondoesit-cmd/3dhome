@@ -765,6 +765,7 @@ function renderModel() {
   band("annotations", function () {
     // placeholder points sit above everything they are measured against
     drawMarkers();
+    drawFreeAnnotations();
     drawWallCons();
     // room name + area labels
     if (isPresentation()) drawPresentationRoomLabels(roomPass.rooms);
@@ -1897,6 +1898,45 @@ function drawMarkers() {
     pc.save();
     pc.globalAlpha = 0.5;
     markerGlyph(sx(S.markerPreview.x), sz(S.markerPreview.z), false, false);
+    pc.restore();
+  }
+}
+
+function drawFreeAnnotations() {
+  for (const a of S.annotations || []) {
+    if (!Number.isFinite(a.x) || !Number.isFinite(a.z)) continue;
+    const x = sx(a.x), y = sz(a.z), x2 = sx(a.x2), y2 = sz(a.z2);
+    pc.save();
+    pc.strokeStyle = "#234961"; pc.fillStyle = "#234961"; pc.lineWidth = 1.5;
+    pc.font = "12px sans-serif";
+    if (a.kind === "note") {
+      pc.beginPath(); pc.arc(x, y, 3, 0, Math.PI * 2); pc.fill();
+      String(a.text || "Note").split("\n").forEach((line, i) => pc.fillText(line, x + 8, y - 7 + i * 15));
+    } else if (a.kind === "symbol") {
+      const symbol = a.symbol || "north";
+      if (symbol === "north") {
+        pc.beginPath(); pc.moveTo(x, y - 22); pc.lineTo(x - 10, y + 10); pc.lineTo(x, y + 5); pc.lineTo(x + 10, y + 10); pc.closePath(); pc.stroke();
+        pc.fillText("N", x - 5, y - 27);
+      } else if (symbol === "level") {
+        pc.beginPath(); pc.moveTo(x - 12, y); pc.lineTo(x + 12, y); pc.moveTo(x, y); pc.lineTo(x + 8, y - 8); pc.lineTo(x + 8, y + 8); pc.closePath(); pc.stroke();
+        pc.fillText(a.text || "±0.00", x + 14, y + 4);
+      } else {
+        pc.beginPath(); pc.arc(x, y, 9, 0, Math.PI * 2); pc.stroke();
+        pc.fillText(a.text || "A", x - 4, y + 4);
+      }
+    } else if (Number.isFinite(a.x2) && Number.isFinite(a.z2)) {
+      pc.setLineDash(a.kind === "section" ? [7, 5] : []);
+      pc.beginPath(); pc.moveTo(x, y); pc.lineTo(x2, y2); pc.stroke(); pc.setLineDash([]);
+      const dx = x2 - x, dy = y2 - y, length = Math.hypot(dx, dy) || 1, nx = -dy / length, ny = dx / length;
+      if (a.kind === "dimension") {
+        for (const [px, py] of [[x, y], [x2, y2]]) {
+          pc.beginPath(); pc.moveTo(px - nx * 7, py - ny * 7); pc.lineTo(px + nx * 7, py + ny * 7); pc.stroke();
+        }
+        pc.fillText(fmtLen(Math.hypot(a.x2 - a.x, a.z2 - a.z), { domain: "plan" }), (x + x2) / 2 + nx * 8, (y + y2) / 2 + ny * 8);
+      } else {
+        for (const [px, py] of [[x, y], [x2, y2]]) { pc.beginPath(); pc.arc(px, py, 10, 0, Math.PI * 2); pc.stroke(); pc.fillText(a.text || "A", px - 4, py + 4); }
+      }
+    }
     pc.restore();
   }
 }

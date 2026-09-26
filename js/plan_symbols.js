@@ -122,6 +122,16 @@ var SYMBOLS = {
       out.push(Object.assign(up, { x: -hw + fw / 2, z: hd - 18 }));
       return out;
     }
+    if (shape === "U") {
+      var fwU = Math.min(w * 0.45, 100), landingU = Math.min(fwU, d * 0.35), flightU = d - landingU;
+      var firstU = Math.max(1, Math.floor((steps - 1) / 2)), secondU = Math.max(1, steps - firstU - 1);
+      for (var u1 = 1; u1 < firstU; u1++) out.push(line(-hw, hd - u1 * flightU / firstU, -hw + fwU, hd - u1 * flightU / firstU));
+      for (var u2 = 1; u2 < secondU; u2++) out.push(line(hw - fwU, -hd + landingU + u2 * flightU / secondU, hw, -hd + landingU + u2 * flightU / secondU));
+      out.push(line(-hw, -hd + landingU, hw, -hd + landingU));
+      arrow([{ x: -hw + fwU / 2, z: hd - 8 }, { x: -hw + fwU / 2, z: -hd + landingU / 2 }, { x: hw - fwU / 2, z: -hd + landingU / 2 }, { x: hw - fwU / 2, z: hd - 8 }]);
+      out.push(Object.assign(up, { x: hw - fwU / 2, z: hd - 16 }));
+      return out;
+    }
     if (shape === "curved") {
       // a quarter-turn fan about the back-left corner
       var ro = Math.min(w, d) - 2, ri = Math.max(12, ro * 0.18), cx = -hw, cz = -hd, arc = [], inner = [];

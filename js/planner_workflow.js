@@ -10,6 +10,13 @@ import { ROOM_PRESETS } from './room_presets.js';
 export function initPlannerWorkflow() {
   const workspace = document.getElementById('workspace');
   if (!workspace || document.getElementById('planner-workflow')) return;
+  const layers2DKey = 'mf_plan_layers_2d';
+  const layers3DKey = 'mf_plan_layers_3d';
+  /* 2D and 3D have different useful defaults, and a user's choice in one
+     viewport must not be overwritten just by visiting the other. */
+  if (!document.body.classList.contains('planner-3d-active')) {
+    try { document.body.classList.toggle('workflow-hide-layers', localStorage.getItem(layers2DKey) === '1'); } catch (_) {}
+  }
   const bar = document.createElement('div');
   bar.id = 'planner-workflow';
   bar.setAttribute('role', 'toolbar');
@@ -64,7 +71,11 @@ export function initPlannerWorkflow() {
     });
   });
   button('workflowLayers', 'stack', () => {
-    document.body.classList.toggle('workflow-hide-layers'); update();
+    const hidden = document.body.classList.toggle('workflow-hide-layers');
+    try {
+      localStorage.setItem(document.body.classList.contains('planner-3d-active') ? layers3DKey : layers2DKey, hidden ? '1' : '0');
+    } catch (_) {}
+    update();
     window.dispatchEvent(new Event('resize'));
   });
   button('workflowSpace', 'sidebar-simple', () => {

@@ -1471,7 +1471,10 @@ export function layoutCab(it, run, options) {
       pw = runW / nTop,
       tx = -hw - 1.5;
     for (var ti = 0; ti < nTop; ti++) {
-      part({ k: "box", role: "worktop", x0: tx, x1: tx + pw, y0: h - topT, y1: h, z0: -hd - 1.5, z1: hd + 1.5, mat: "top", run: 1, exposedReturns: (ti === 0 ? 1 : 0) + (ti === nTop - 1 ? 1 : 0) });
+      var cutouts = (sp.worktopCutouts || []).map(function(hole) {
+        return { kind: hole.kind, x0: -hw + hole.x0, x1: -hw + hole.x1, z0: hole.z0, z1: hole.z1 };
+      }).filter(function(hole) { return hole.x1 > tx && hole.x0 < tx + pw; });
+      part({ k: "box", role: "worktop", x0: tx, x1: tx + pw, y0: h - topT, y1: h, z0: -hd - 1.5, z1: hd + 1.5, mat: "top", run: 1, cutouts: cutouts, exposedReturns: (ti === 0 ? 1 : 0) + (ti === nTop - 1 ? 1 : 0) });
       tx += pw;
     }
   }

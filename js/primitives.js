@@ -336,6 +336,8 @@ export function cyl(parent, x, y, z, r, h, color, opt) {
     color: color,
     metalness: opt.metal != null ? opt.metal : 0.3,
     roughness: opt.rough != null ? opt.rough : 0.55,
+    transparent: !!opt.trans,
+    opacity: opt.opacity != null ? opt.opacity : 1,
     // an open tube is seen from the inside too, so it must not be back-culled
     side: opt.open ? THREE.DoubleSide : THREE.FrontSide,
   });
@@ -349,7 +351,7 @@ export function cyl(parent, x, y, z, r, h, color, opt) {
   if (opt.rx) me.rotation.x = opt.rx;
   if (opt.ry) me.rotation.y = opt.ry;
   if (opt.rz) me.rotation.z = opt.rz;
-  me.castShadow = true;
+  me.castShadow = opt.cast !== false;
   me.receiveShadow = true;
   parent.add(me);
   return me;
@@ -368,6 +370,8 @@ export function sph(parent, x, y, z, r, color, opt) {
     color: color,
     roughness: opt.rough != null ? opt.rough : 0.8,
     metalness: opt.metal != null ? opt.metal : 0.05,
+    transparent: !!opt.trans,
+    opacity: opt.opacity != null ? opt.opacity : 1,
     side: opt.thetaLen ? THREE.DoubleSide : THREE.FrontSide,
   });
   applyTextureToMaterial(m, opt, r * 2, r * 2, r * 2);
@@ -377,11 +381,112 @@ export function sph(parent, x, y, z, r, color, opt) {
   var me = new THREE.Mesh(g, m);
   me.userData.physicsProps = physProps(srcColor, opt);
   me.position.set(x, y, z);
-  me.castShadow = true;
+  me.castShadow = opt.cast !== false;
   me.receiveShadow = true;
   parent.add(me);
   return me;
 }
+/* ---- turned, bent and draped parts ----
+   What boxes and plain cylinders cannot say: a turned lamp base or kettle
+   (lathe), a bent tube (an arc lamp, a chandelier arm, a towel-rail bow), a
+   ring (a speaker surround, a clock bezel) and a pleated curtain. They share
+   one finishing path with box/cyl/sph — variant skins, item textures, PBR
+   detail, glow, physics class — so a model built from them behaves exactly
+   like one built from boxes. */
+function solid(parent, g, color, opt, x, y, z, dims, open) {
+  var srcColor = color,
+    sk = reskin(color, opt || {});
+  color = sk.col;
+  opt = withSkinTexture(sk.opt);
+  var m = new THREE.MeshStandardMaterial({
+    color: color,
+    metalness: opt.metal != null ? opt.metal : 0.1,
+    roughness: opt.rough != null ? opt.rough : 0.6,
+    transparent: !!opt.trans,
+    opacity: opt.opacity != null ? opt.opacity : 1,
+    side: open ? THREE.DoubleSide : THREE.FrontSide,
+  });
+  applyTextureToMaterial(m, opt, dims[0], dims[1], dims[2]);
+  applyDetail(m, g, srcColor, opt, color);
+  emis(m, opt);
+  tuneEnv(m);
+  var me = new THREE.Mesh(g, m);
+  me.userData.physicsProps = physProps(srcColor, opt);
+  me.position.set(x, y, z);
+  if (opt.rx) me.rotation.x = opt.rx;
+  if (opt.ry) me.rotation.y = opt.ry;
+  if (opt.rz) me.rotation.z = opt.rz;
+  me.castShadow = opt.cast !== false;
+  me.receiveShadow = true;
+  parent.add(me);
+  return me;
+}
+
+/* A turned part: `prof` is [[radius, height], …] from the bottom up,
+   revolved round the vertical axis through (x, y, z). Radii of 0 at the ends
+   close it; otherwise it is an open shell, drawn double-sided. */
+export function lathe(parent, x, y, z, prof, color, opt) {
+  opt = opt || {};
+  if (!(fin(x) && fin(y) && fin(z)) || !prof || prof.length < 2) return null;
+  var pts = [], rMax = 0, h0 = Infinity, h1 = -Infinity;
+  for (var i = 0; i < prof.length; i++) {
+    var r = Math.max(0, prof[i][0]), h = prof[i][1];
+    if (!(fin(r) && fin(h))) return null;
+    pts.push(new THREE.Vector2(r, h));
+    rMax = Math.max(rMax, r);
+    h0 = Math.min(h0, h);
+    h1 = Math.max(h1, h);
+  }
+  var open = prof[0][0] > 0.01 || prof[prof.length - 1][0] > 0.01;
+  var g = new THREE.LatheGeometry(pts, opt.seg || 32);
+  return solid(parent, g, color, opt, x, y, z, [rMax * 2, h1 - h0, rMax * 2], open || opt.open);
+}
+
+/* A round bar bent along a smooth path through `pts` ([[x,y,z], …], model
+   cm). Ends are left open — cap them with a sph or cyl where they show. */
+export function tube(parent, pts, r, color, opt) {
+  opt = opt || {};
+  if (!pts || pts.length < 2 || !fin(r)) return null;
+  var v = [];
+  for (var i = 0; i < pts.length; i++) {
+    if (!(fin(pts[i][0]) && fin(pts[i][1]) && fin(pts[i][2]))) return null;
+    v.push(new THREE.Vector3(pts[i][0], pts[i][1], pts[i][2]));
+  }
+  var curve = v.length === 2 ? new THREE.LineCurve3(v[0], v[1]) : new THREE.CatmullRomCurve3(v, false, "centripetal");
+  var g = new THREE.TubeGeometry(curve, opt.steps || Math.max(8, v.length * 6), r, opt.seg || 10, false);
+  var bb = new THREE.Box3().setFromPoints(v);
+  return solid(parent, g, color, opt, 0, 0, 0, [bb.max.x - bb.min.x + 2 * r, bb.max.y - bb.min.y + 2 * r, bb.max.z - bb.min.z + 2 * r]);
+}
+
+/* A ring of round section: major radius R, section radius r, lying flat
+   (in XZ) unless rotated with rx/ry/rz. `arc` < 2π opens it. */
+export function torus(parent, x, y, z, R, r, color, opt) {
+  opt = opt || {};
+  if (!(fin(x) && fin(y) && fin(z) && fin(R) && fin(r))) return null;
+  var g = new THREE.TorusGeometry(R, r, opt.segR || 8, opt.seg || 32, opt.arc || Math.PI * 2);
+  g.rotateX(Math.PI / 2);
+  return solid(parent, g, color, opt, x, y, z, [2 * (R + r), 2 * r, 2 * (R + r)]);
+}
+
+/* A hanging pleated panel: fabric from (x0,y0) to (x1,y1) in the plane z,
+   gathered into `folds` soft pleats `depth` cm deep. The pleats settle
+   slightly deeper toward the hem, as a real curtain falls. Double-sided. */
+export function drape(parent, x0, x1, y0, y1, z, folds, depth, color, opt) {
+  opt = opt || {};
+  if (!(fin(x0) && fin(x1) && fin(y0) && fin(y1) && fin(z)) || x1 - x0 < 0.5 || y1 - y0 < 0.5) return null;
+  var nx = Math.max(8, Math.round(folds) * 8), ny = 6;
+  var g = new THREE.PlaneGeometry(x1 - x0, y1 - y0, nx, ny);
+  var p = g.attributes.position, k = (Math.PI * 2 * Math.max(1, folds)) / (x1 - x0);
+  for (var i = 0; i < p.count; i++) {
+    var lx = p.getX(i) + (x1 - x0) / 2, ly = p.getY(i) + (y1 - y0) / 2,
+      fall = 1 + 0.35 * (1 - ly / (y1 - y0));
+    p.setZ(i, (depth / 2) * Math.sin(lx * k) * fall);
+  }
+  p.needsUpdate = true;
+  g.computeVertexNormals();
+  return solid(parent, g, color, opt, (x0 + x1) / 2, (y0 + y1) / 2, z, [x1 - x0, y1 - y0, depth], true);
+}
+
 export function clearGroup(g) {
   if (!g) return;
   for (var i = g.children.length - 1; i >= 0; i--) {

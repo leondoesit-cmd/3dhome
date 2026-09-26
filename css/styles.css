@@ -1603,12 +1603,8 @@ html[data-tool="erase"] #plan { cursor: crosshair; }
   border-inline-start: 1px solid var(--border-color);
   border-radius: 5px;
   box-shadow: none;
-  /* This preference must remain reachable when named tools make the ribbon
-     wider than its pane.  It stays pinned to the trailing edge while the
-     drawing commands scroll underneath it. */
-  position: sticky;
-  inset-inline-end: 0;
-  z-index: 2;
+  /* The preference lives after the independently scrolling command strip. */
+  position: static;
   background: var(--bg-panel);
 }
 #plan-toolbar.show-titles[data-axis="h"] .tool-names-toggle.active {
@@ -1630,14 +1626,32 @@ html[data-tool="erase"] #plan { cursor: crosshair; }
 }
 #view-2d #plan-toolbar[data-axis="h"] .tool-names-toggle {
   display: flex;
-  position: sticky;
-  inset-inline-end: 0;
-  z-index: 2;
+  position: static;
   margin-inline-start: 5px;
   border-inline-start: 1px solid var(--border-color);
   background: var(--bg-panel);
   box-shadow: none;
 }
+#plan-toolbar .tool-scroll {
+  position: static;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  flex: 0 0 25px;
+  width: 25px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  color: var(--text-main);
+  cursor: pointer;
+  box-shadow: none;
+}
+#plan-toolbar .tool-scroll[hidden] { display: none !important; }
+#plan-toolbar .tool-scroll:disabled { opacity: .42; cursor: default; }
+#plan-toolbar .tool-scroll:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
+#view-3d #plan-toolbar .tool-scroll { display: none !important; }
 
 #plan-wall-palette {
   pointer-events: auto;
@@ -20248,7 +20262,7 @@ body.compact-nav #plan-room-palette .rp-turn { min-height: 40px; }
 #plan-tools.pt-dock .pt-zone[data-zone="right"] { overflow: auto; overscroll-behavior: contain; }
 #plan-tools.pt-dock .pt-zone[data-zone="top"] #plan-toolbar[data-axis="h"] {
   flex-direction: row; flex-wrap: nowrap; max-height: none; width: 100%;
-  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+  overflow: hidden;
 }
 @media (hover: hover) and (pointer: fine) {
   #right-inspector .inspector-preview:hover {
@@ -20494,8 +20508,7 @@ body.planner-3d-active:not(.workflow-hide-layers) #view-3d {
   width: 100%;
   min-width: 0;
   flex-wrap: nowrap !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
+  overflow: hidden !important;
   padding: 4px 6px;
   gap: 2px;
 }
@@ -20578,11 +20591,29 @@ body.planner-3d-active:not(.workflow-hide-layers) #view-3d #layer-chips .lchip {
 #view-3d > .view-dollhouse-btn { top: 8px; inset-inline-end: 48px; }
 #view-3d > .view-drawing-btn { top: 8px; inset-inline-end: 156px; }
 
-.planner-navigation {flex-wrap:wrap;justify-content:center;width:max-content;position:absolute;bottom:34px;left:calc(50% - 50px);transform:translateX(-50%);display:flex;gap:4px;z-index:15;max-width:calc(100% - 116px);padding:4px;border-radius:8px;background:var(--bg-panel);border:1px solid var(--border-color);box-shadow:var(--shadow-md);backdrop-filter:var(--glass-blur);}
+.planner-navigation {flex-wrap:wrap;justify-content:center;width:max-content;position:absolute;bottom:34px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:15;max-width:calc(100% - 116px);padding:4px;border-radius:8px;background:var(--bg-panel);border:1px solid var(--border-color);box-shadow:var(--shadow-md);backdrop-filter:var(--glass-blur);}
 .planner-navigation button {min-height:36px;white-space:nowrap;padding:5px 10px;border:1px solid var(--btn-border);border-radius:6px;background:var(--btn-bg);color:var(--text-main);cursor:pointer;}
 .planner-navigation button:hover {background:var(--btn-bg-hover);border-color:var(--accent);}
 .planner-navigation button[aria-pressed="true"] {outline:2px solid var(--accent);background:var(--accent-alpha);color:var(--accent);}
 body.zombies-on .planner-navigation,body.lava-on .planner-navigation,body.rc-on .planner-navigation {display:none}
+/* In Split the 3D pane is a live preview. Keep its model centre clear and
+   reserve the spacious navigation treatment for a maximized 3D workspace. */
+#center-canvas:not(.max-view-2d):not(.max-view-3d) #view-3d > .hint { display: none; }
+#center-canvas:not(.max-view-2d):not(.max-view-3d) #view-3d .planner-navigation {
+  left: 8px;
+  bottom: 8px;
+  transform: none;
+  max-width: calc(100% - 116px);
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+}
+#center-canvas:not(.max-view-2d):not(.max-view-3d) #view-3d .planner-navigation button {
+  min-height: 30px;
+  padding: 3px 7px;
+  font-size: 11px;
+}
 body.compact-nav .planner-navigation { bottom: calc(var(--mobile-nav-block, 48px) + var(--m-ctx-reserve, 44px) + 8px); }
 @media(max-width:600px){
   .planner-navigation{bottom:62px}
@@ -20655,11 +20686,10 @@ body.workflow-hide-layers #layer-chips,
 body.workflow-hide-layers .pt-panel[data-panel="layers"] { display: none !important; }
 body.workflow-more-space #left-sidebar,
 body.workflow-more-space #inspectorPreview { display: none !important; }
-/* Keep the command ribbon to one stable row. Named tools can make it wider
-   than a compact plan pane, so the commands scroll horizontally while the
-   labels preference remains pinned at the trailing edge. */
+/* Keep the command ribbon to one stable row. Its inner strip scrolls while
+   the labels preference stays outside that viewport at the trailing edge. */
 #app:not(.uikit-editing) #plan-tools.pt-dock .pt-zone[data-zone="top"] #plan-toolbar[data-axis="h"] {
-  flex-wrap: nowrap; max-height: none; overflow-x: auto; overflow-y: hidden;
+  flex-wrap: nowrap; max-height: none; overflow: hidden;
 }
 /* The tools can also be saved as a floating panel. That panel must obey the
    same one-row contract; otherwise enabling names wraps its last commands
@@ -20667,8 +20697,7 @@ body.workflow-more-space #inspectorPreview { display: none !important; }
 #view-2d #plan-tools.pt-dock #plan-toolbar[data-axis="h"] {
   width: 100%;
   flex-wrap: nowrap !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
+  overflow: hidden !important;
   max-height: none;
 }
 #view-2d #plan-tools.pt-dock .pt-panel[data-panel="tools"] {
@@ -20755,8 +20784,7 @@ body.workflow-more-space #inspectorPreview { display: none !important; }
   height: 44px;
   flex-direction: row;
   flex-wrap: nowrap !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
+  overflow: hidden !important;
   padding: 4px 6px;
 }
 #view-2d.plan-tools-tight #plan-toolbar > * { flex-shrink: 0; }
@@ -20864,6 +20892,14 @@ body.workflow-more-space #inspectorPreview { display: none !important; }
   overflow-x: hidden;
   overflow-y: auto;
 }
+/* The plan-style chip otherwise lands directly on top of the pinned toolbar
+   overflow arrow at these widths. Give it an independent bottom corner. */
+#view-2d.plan-tools-compact > .plan-style-btn {
+  top: auto;
+  bottom: 54px;
+  inset-inline-start: 8px;
+  inset-inline-end: auto;
+}
 body.legacy-ui #planner-workflow,
 body.compact-nav #planner-workflow { display: none !important; }
 @media (max-width: 900px) {
@@ -20917,3 +20953,48 @@ html[lang="he"] .survey-body p {
 .export-delivery a { min-height: 44px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: var(--accent); color: var(--on-accent); border-radius: 10px; font-weight: 600; text-decoration: none; }
 .export-delivery a:hover { background: var(--accent-hover); }
 .export-delivery button { min-height: 44px; }
+
+/* The commands scroll in their own viewport. Navigation and the 2D labels
+   preference are siblings, never sticky overlays covering a command. In a
+   vertical dock, display:contents preserves the original column layout. */
+#plan-toolbar > .tool-command-strip { display: contents; }
+#view-2d #plan-toolbar[data-axis="h"],
+#view-3d #plan-toolbar[data-axis="h"] {
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+}
+#plan-toolbar[data-axis="h"] > .tool-command-strip {
+  display: flex;
+  flex: 1 1 auto !important;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+#plan-toolbar[data-axis="h"] > .tool-command-strip::-webkit-scrollbar { display: none; }
+#plan-toolbar[data-axis="h"] > .tool-command-strip > * { flex-shrink: 0; }
+#view-2d #plan-toolbar[data-axis="h"] > .tool-scroll,
+#view-3d #plan-toolbar[data-axis="h"] > .tool-scroll {
+  position: static !important;
+  inset: auto !important;
+  flex: 0 0 25px;
+  box-shadow: none;
+}
+#view-3d #plan-toolbar[data-axis="h"] > .tool-scroll:not([hidden]) { display: grid !important; }
+#plan-toolbar[data-axis="h"] > .tool-scroll[hidden] { display: none !important; }
+#view-2d #plan-toolbar[data-axis="h"] > .tool-names-toggle {
+  position: static !important;
+  inset: auto !important;
+  z-index: auto;
+  flex: 0 0 32px;
+}
+/* Centre 3D navigation within the area left of the 86px compass, rather
+   than the full pane. At narrow desktop widths its last button otherwise
+   intersects the compass despite both controls looking individually valid. */
+#center-canvas.max-view-3d #view-3d .planner-navigation {
+  left: calc(50% - 51px);
+}
+#center-canvas.max-view-3d #view-3d > .hint { bottom: 96px; }

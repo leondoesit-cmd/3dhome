@@ -125,7 +125,8 @@ export function centreOf(entity, points) {
 /* Every point an entity owns — used for hit-testing, dragging and deletion. */
 export function entityPoints(sketch, entity) {
   if (!entity) return [];
-  const ids = entity.type === "line" ? [entity.a, entity.b]
+  const ids = entity.type === "point" ? [entity.p]
+    : entity.type === "line" ? [entity.a, entity.b]
     : entity.type === "circle" || entity.type === "ellipse" ? [entity.c ?? entity.center]
     : entity.type === "arc" ? [entity.c ?? entity.center, entity.a, entity.b]
     : entity.type === "spline" ? [entity.a, entity.h1, entity.h2, entity.b]

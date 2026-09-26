@@ -298,7 +298,7 @@ export function mountCabinetProduction(host, getItems, download, onChange, getRe
     ['Traveler',label('Assembly travelers','דפי מעקב הרכבה'),'cabinet-assembly-travelers.html','text/html',job=>cabinetProductionHTML(job,{document:'traveler'})],
     ['Drawings',label('Dimensioned part drawings','שרטוטי חלקים עם מידות'),'cabinet-part-drawings.html','text/html',job=>cabinetProductionDrawingHTML(job,getItems(),{recipes:getRecipes()})],
     ['Job',label('Save job snapshot JSON','שמור גרסת עבודה JSON'),'cabinet-production-job.json','application/json',job=>JSON.stringify(job,null,2)],
-  ]) button(workflow,title,()=>download(filename,render(freshJob()),mime),'nzProductionExport'+id);
+  ]) button(workflow,title,()=>download(filename,render(freshJob()),mime),id==='Labels'?'nzProductionExportLabels':'nzProductionExport'+id);
   const inspection = mountCabinetInspection(workflow,()=>({job:session?.job,items:getItems()}),download);
   const packageSection=node('details');packageSection.appendChild(node('summary',label('Manufacturing review package','חבילת בדיקה לייצור')));workflow.appendChild(packageSection);
   packageSection.appendChild(node('p',label('One JSON package retains the job revision, applied recipes, standards context and generated review documents together. Its integrity check detects changed content; it is not a digital signature or a production approval.','חבילת JSON אחת שומרת את הגרסה, המתכונים, נתוני התקינה ומסמכי הבדיקה יחד. בדיקת שלמות אינה חתימה דיגיטלית או אישור ייצור.')));
@@ -311,6 +311,21 @@ export function mountCabinetProduction(host, getItems, download, onChange, getRe
     const value=createCabinetReviewPackage(freshJob(),getItems(),{recipes:getRecipes(),standardsContext:session.context,inspectionPlan:inspection.getPlan()});showPackage(value);
     download('cabinet-review-package.json',JSON.stringify(value,null,2),'application/json');
   },'nzProductionPackageExport');
+  button(packageSection,label('Share review package with shop','שתף חבילת בדיקה עם הסדנה'),async()=>{
+    try {
+      if(contextDirty)throw new Error('Apply assessment edits before packaging.');
+      const value=createCabinetReviewPackage(freshJob(),getItems(),{recipes:getRecipes(),standardsContext:session.context,inspectionPlan:inspection.getPlan()});
+      showPackage(value);
+      const content=JSON.stringify(value,null,2),file=new File([content],'cabinet-review-package.json',{type:'application/json'});
+      if(navigator.share && navigator.canShare?.({files:[file]})) {
+        await navigator.share({files:[file],title:'Cabinet review package',text:'Revision '+value.revision+' · review documents only'});
+        packageStatus.textContent=label('Package handed to the system share sheet. Confirm delivery with the workshop.','החבילה נמסרה לחלון השיתוף. ודאו מסירה מול הסדנה.');
+      } else {
+        download(file.name,content,file.type);
+        packageStatus.textContent=label('Package downloaded. Attach the file to your message to the workshop.','החבילה הורדה. צרפו את הקובץ להודעה לסדנה.');
+      }
+    } catch(error) { if(error.name!=='AbortError') status.textContent=error.message; }
+  },'nzProductionPackageShare');
   const packageImport=field(packageSection,label('Verify saved review package JSON','בדיקת חבילת JSON שמורה'),node('input'),'nzProductionPackageImport');packageImport.type='file';packageImport.accept='.json,application/json';
   packageImport.addEventListener('change',async()=>{try{
     const file=packageImport.files[0];if(!file)return;

@@ -370,6 +370,7 @@ export function sceneObject(includeWorkspace) {
     wallColor: S.wallColor,
     showCeiling: S.showCeiling,
     invisibleRoof: S.invisibleRoof,
+    roof: S.roof,
     showDims: S.showDims,
     interiorDims: S.interiorDims,
     planStyle: S.planStyle,
@@ -438,7 +439,7 @@ export function applyData(d) {
   if (!d || typeof d !== "object" || Array.isArray(d)) {
     throw new Error("Invalid scene data");
   }
-  if(d.spatial)d={...d,nodes:d.spatial.nodes,walls:d.spatial.walls,wallTypes:d.spatial.wallTypes,openings:d.spatial.openings,items:d.spatial.instances,markers:d.spatial.markers,slabOpenings:d.spatial.slabOpenings,surveyFeatures:d.spatial.surveyFeatures,roomMeta:d.spatial.rooms,cabinetPresets:d.spatial.cabinetPresets,wallCons:d.spatial.wallCons,roomCons:d.spatial.roomCons,planVars:d.spatial.planVars};
+  if(d.spatial)d={...d,nodes:d.spatial.nodes,walls:d.spatial.walls,wallTypes:d.spatial.wallTypes,openings:d.spatial.openings,items:d.spatial.instances,markers:d.spatial.markers,slabOpenings:d.spatial.slabOpenings,annotations:d.spatial.annotations,surveyFeatures:d.spatial.surveyFeatures,roomMeta:d.spatial.rooms,cabinetPresets:d.spatial.cabinetPresets,wallCons:d.spatial.wallCons,roomCons:d.spatial.roomCons,planVars:d.spatial.planVars};
   return applyDataRequest(d, ++applyRequestGeneration);
 }
 
@@ -660,6 +661,7 @@ function applyDataRequest(d, requestGeneration) {
   // above simply loads as a free point
   S.markers = normalizeMarkers(d.markers, S.items);
   S.slabOpenings = normalizeSlabOpenings(d.slabOpenings);
+  S.annotations = Array.isArray(d.annotations) ? d.annotations.filter(a => a && typeof a.kind === "string" && Number.isFinite(a.x) && Number.isFinite(a.z)) : [];
   S.surveyFeatures=normalizeSurveyFeatures(d.surveyFeatures);
   // …and a piece whose host did not survive simply loads on the floor. Mount
   // heights of stacked pieces are re-derived here rather than trusted, so a
@@ -695,6 +697,7 @@ function applyDataRequest(d, requestGeneration) {
     if (wallcol) wallcol.value = hexStr(S.wallColor);
   }
   S.invisibleRoof = d.invisibleRoof === true;
+  S.roof = d.roof && typeof d.roof === "object" ? d.roof : null;
   var cbRoof = document.getElementById("cb_invisible_roof");
   if (cbRoof) cbRoof.checked = S.invisibleRoof;
   window.dispatchEvent(new Event("planner-navigation-restored"));
@@ -2486,6 +2489,86 @@ export function initUI() {
   window.__toggleToolNames = toggleToolNames;
   initToolNames();
 
+  /* Keep the command strip scrollable, with navigation outside its viewport.
+     Sticky buttons inside a scrolling toolbar covered real commands. */
+  function initToolScroll() {
+    var bar = document.getElementById('plan-toolbar');
+    var names = document.getElementById('toolNamesToggle');
+    if (!bar || !names || bar.querySelector('.tool-scroll')) return;
+    var strip = document.createElement('div');
+    strip.className = 'tool-command-strip';
+    Array.from(bar.childNodes).forEach(function (node) {
+      if (node !== names) strip.appendChild(node);
+    });
+    bar.insertBefore(strip, names);
+    function arrow(kind, icon, key) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tool-scroll tool-scroll-' + kind;
+      b.setAttribute('aria-label', t(key));
+      b.title = t(key);
+      var glyph = document.createElement('i');
+      glyph.className = 'ph ph-' + icon;
+      glyph.setAttribute('aria-hidden', 'true');
+      b.appendChild(glyph);
+      return b;
+    }
+    var prev = arrow('prev', 'caret-left', 'tool_scroll_prev');
+    var next = arrow('next', 'caret-right', 'tool_scroll_next');
+    bar.insertBefore(prev, strip);
+    bar.insertBefore(next, names);
+    var lastWidth = 0, lastHost = '';
+    function revealSelected() {
+      var selected = bar.querySelector('button.tool.active[data-tool]');
+      if (!selected) return;
+      var outer = strip.getBoundingClientRect(), inner = selected.getBoundingClientRect();
+      if (inner.left < outer.left || inner.right > outer.right) {
+        selected.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'instant' });
+      }
+    }
+    function sync() {
+      var overflow = bar.dataset.axis === 'h' && strip.scrollWidth > strip.clientWidth + 3;
+      prev.hidden = next.hidden = !overflow;
+      var host = bar.closest('#view-2d') ? '2d' : '3d';
+      if (strip.clientWidth !== lastWidth || host !== lastHost) {
+        lastWidth = strip.clientWidth; lastHost = host;
+        requestAnimationFrame(revealSelected);
+      }
+      if (!overflow) return;
+      var dir = getComputedStyle(strip).direction === 'rtl' ? -1 : 1;
+      var progress = Math.max(0, strip.scrollLeft * dir);
+      var max = strip.scrollWidth - strip.clientWidth;
+      prev.disabled = progress <= 2;
+      next.disabled = progress >= max - 2;
+    }
+    prev.addEventListener('click', function () {
+      var dir = getComputedStyle(strip).direction === 'rtl' ? -1 : 1;
+      strip.scrollBy({ left: -dir * Math.max(160, strip.clientWidth * .62), behavior: 'smooth' });
+    });
+    next.addEventListener('click', function () {
+      var dir = getComputedStyle(strip).direction === 'rtl' ? -1 : 1;
+      strip.scrollBy({ left: dir * Math.max(160, strip.clientWidth * .62), behavior: 'smooth' });
+    });
+    strip.addEventListener('scroll', sync, { passive: true });
+    window.addEventListener('planner-tool', function () { requestAnimationFrame(revealSelected); });
+    window.addEventListener('planner-viewport', function () { requestAnimationFrame(revealSelected); });
+    window.addEventListener('resize', function () { requestAnimationFrame(sync); });
+    if (window.ResizeObserver) {
+      var observer = new ResizeObserver(sync);
+      observer.observe(bar);
+      observer.observe(strip);
+    }
+    onLangChange(function () {
+      prev.setAttribute('aria-label', t('tool_scroll_prev'));
+      prev.title = t('tool_scroll_prev');
+      next.setAttribute('aria-label', t('tool_scroll_next'));
+      next.title = t('tool_scroll_next');
+      requestAnimationFrame(sync);
+    });
+    requestAnimationFrame(sync);
+  }
+  initToolScroll();
+
   function syncWallDrawPalette() {
     var pal = document.getElementById("plan-wall-palette");
     if (!pal) return;
@@ -3781,7 +3864,7 @@ export function initUI() {
       solveWallCons();
       fillProps(); render2D(); refreshTree(); renderWarnPanel(true);
     } else if (
-      (["conDist", "conAngle", "conOffset", "conParallel", "conPerpendicular",
+      (["conDist", "conRefDim", "conAngle", "conOffset", "conParallel", "conPerpendicular",
         "conCollinear", "conEqualLength", "conPointWall"].indexOf(act) !== -1) &&
       S.sel &&
       S.sel.kind === "wall"
@@ -3792,7 +3875,7 @@ export function initUI() {
          wall is currently picked (the same A/B segmented control above), so
          "from this corner, 240 to that one" is two clicks and a number. */
       var conKinds = {
-        conDist: "dist", conAngle: "angle", conOffset: "offset",
+        conDist: "dist", conRefDim: "dist", conAngle: "angle", conOffset: "offset",
         conParallel: "parallel", conPerpendicular: "perpendicular",
         conCollinear: "collinear", conEqualLength: "equalLength",
         conPointWall: "pointWall",
@@ -3803,7 +3886,7 @@ export function initUI() {
         flash(t("wc_pick_source"), "error");
         return;
       }
-      startConPick(kind, S.sel.ref, S.wallEditEnd === "b" ? "b" : "a");
+      startConPick(kind, S.sel.ref, S.wallEditEnd === "b" ? "b" : "a", act === "conRefDim");
       fillProps();
       flash(t("wc_pick_" + kind));
     } else if (act === "reverseWallLayers" && S.sel && S.sel.kind === "wall") {
@@ -4018,6 +4101,7 @@ export function initUI() {
       syncBlueprintTraceControls();
       S.markers = []; // points belong to the plan that was reset away
       S.slabOpenings = [];
+      S.annotations = [];
       S.surveyFeatures=[];
       S.workspace.survey=normalizeSurvey(null);
       S.hour = 13;
@@ -4533,7 +4617,7 @@ export function initUI() {
         if (geo) {
           var convertedGeo = convertGeoJsonToWalls(geo, { height: 300, firstId: S.idc });
           S.nodes = convertedGeo.nodes; S.walls = convertedGeo.walls; S.openings = convertedGeo.openings;
-          S.items = []; S.markers = []; S.roomMeta = convertedGeo.roomMeta || {}; S.idc = convertedGeo.nextId || S.walls.length + 1;
+          S.items = []; S.markers = []; S.annotations = []; S.roomMeta = convertedGeo.roomMeta || {}; S.idc = convertedGeo.nextId || S.walls.length + 1;
           ensureWallTypes(S); rebuildProject(S, FURN); S.sel = null; S.dirty3D = true;
           render2D(); fitView(); refreshTree(); updateCost();
         } else if (cad && (Array.isArray(cad.lines) || Array.isArray(cad.arcs))) {
@@ -4545,7 +4629,7 @@ export function initUI() {
             firstId: S.idc,
           });
           S.nodes = converted.nodes; S.walls = converted.walls; S.openings = converted.openings;
-          S.items = []; S.markers = []; S.roomMeta = {}; S.idc = converted.nextId;
+          S.items = []; S.markers = []; S.annotations = []; S.roomMeta = {}; S.idc = converted.nextId;
           ensureWallTypes(S); rebuildProject(S, FURN); S.sel = null; S.dirty3D = true;
           render2D(); fitView(); refreshTree(); updateCost();
           flash(t("f_imported"), "success");

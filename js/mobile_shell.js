@@ -696,6 +696,8 @@ function buildToolsSheet() {
     });
     sheetBody.appendChild(wallPresets);
   }
+  // Every planner, model-editor and cabinet tool, from the pro catalog.
+  if (typeof window.__proAppendToolsSheet === "function") window.__proAppendToolsSheet(sheetBody, closeSheet);
 }
 
 function buildViewSheet() {

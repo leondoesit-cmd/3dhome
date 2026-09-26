@@ -31,6 +31,9 @@ var TXT = {
     edit: "Top toolbar › Edit",
     export: "Top toolbar › Export",
     more: "Top toolbar › More",
+    modeler: "Model editor ribbon",
+    cabinet: "Cabinet designer",
+    ribbon: "Tool ribbon",
   },
   he: {
     placeholder: "חיפוש כלי או פעולה שרוצים לבצע…",
@@ -58,6 +61,9 @@ var TXT = {
     edit: "סרגל עליון › עריכה",
     export: "סרגל עליון › ייצוא",
     more: "סרגל עליון › עוד",
+    modeler: "סרגל עורך המודלים",
+    cabinet: "מעצב הארונות",
+    ribbon: "סרגל הכלים",
   },
 };
 
@@ -253,7 +259,9 @@ function openLocation(entry) {
 }
 
 function runEntry(entry) {
-  if (entry.tool) {
+  if (typeof entry.run === "function") {
+    entry.run();
+  } else if (entry.tool) {
     var btn = document.querySelector('[data-tool="' + entry.tool + '"]');
     if (btn) btn.click();
     if (window.__runAction) window.__runAction("viewPlan");
@@ -262,6 +270,14 @@ function runEntry(entry) {
   } else {
     openLocation(entry);
   }
+}
+
+/* Entries other modules contribute (the pro catalog adds model-editor and
+   cabinet commands). They carry their own run(), so search never needs to
+   know how another editor executes a command. */
+var EXTRA_ENTRIES = [];
+export function addToolSearchEntries(list) {
+  (list || []).forEach(function (entry) { if (entry && entry.id) EXTRA_ENTRIES.push(entry); });
 }
 
 export function initToolSearch() {
@@ -276,7 +292,7 @@ export function initToolSearch() {
   var heading = root.querySelector(".tool-search-heading");
   var foot = root.querySelector(".tool-search-foot");
   var shortcut = root.querySelector(".tool-search-shortcut");
-  var entries = TOOL_SEARCH_ENTRIES.concat(dynamicEntries(TOOL_SEARCH_ENTRIES));
+  var entries = TOOL_SEARCH_ENTRIES.concat(EXTRA_ENTRIES, dynamicEntries(TOOL_SEARCH_ENTRIES));
   var visible = [], active = -1, selected = null;
   var toolbarParent = root.parentNode, toolbarNext = root.nextSibling;
 
@@ -324,7 +340,7 @@ export function initToolSearch() {
     var howLabel = document.createElement("b"); howLabel.textContent = text("how") + ": ";
     how.append(howLabel, document.createTextNode(local(entry, "help") || text("dynamicHow")));
     var actions = document.createElement("div"); actions.className = "tool-search-guide-actions";
-    var locate = document.createElement("button"); locate.type = "button"; locate.innerHTML = '<i class="ph ph-map-pin"></i><span></span>'; locate.querySelector("span").textContent = text("show");
+    var locate = document.createElement("button"); locate.type = "button"; locate.hidden = typeof entry.run === "function" && !entry.selector; locate.innerHTML = '<i class="ph ph-map-pin"></i><span></span>'; locate.querySelector("span").textContent = text("show");
     locate.addEventListener("click", function () {
       setOpen(false);
       // Let the click that chose this button finish bubbling before opening a

@@ -1446,7 +1446,14 @@ export async function shellBrep(brep, thickness, options = {}) {
      later attempt. */
   const copier = new oc.BRepBuilderAPI_Copy_2(brep.shape, true, false);
   const source = { ...brep, shape: copier.Shape() };
-  const faces = selected.map((face) => oc.TopoDS.Face_1(copier.ModifiedShape(face)));
+  const faces = selected.map((face) => {
+    const copied = oc.TopoDS.Face_1(copier.ModifiedShape(face));
+    // ModifiedShape returns an unoriented face handle for some cuts. Preserve
+    // the picked face's outward direction or the offset may hollow the wrong
+    // side while still producing a formally valid solid.
+    copied.Orientation_2(face.Orientation_1());
+    return copied;
+  });
   copier.delete();
   brep = source;
 
@@ -1475,12 +1482,31 @@ export async function shellBrep(brep, thickness, options = {}) {
        Try the exact rotational construction, then the exact junction shell, then a marked approximation;
        otherwise keep the result but say so, so the rebuild reports it instead
        of passing it on silently. */
-    if (!shapeIsValid(oc, shelled)) {
+    /* A join offset can be topologically valid while leaving the removed
+       face's interior solid. HOUSING's reversed Front cap did exactly that:
+       it reported a successful shell but kept material down its centreline.
+       Probe well inside a broad planar opening, beyond the requested wall. */
+    const openingStillSolid = options.direction !== "outside" && faces.some((face) => {
+      const descriptor = faceDescriptor(oc, face);
+      const wall = Math.max(1e-6, Number(thickness) || 0);
+      if (descriptor.surface !== "plane" || descriptor.measure < 100 * wall * wall) return false;
+      const probe = {
+        x: descriptor.origin.x - descriptor.normal.x * 2 * wall,
+        y: descriptor.origin.y - descriptor.normal.y * 2 * wall,
+        z: descriptor.origin.z - descriptor.normal.z * 2 * wall,
+      };
+      return solidContainsPoint(oc, brep.shape, probe) && solidContainsPoint(oc, shelled, probe);
+    });
+    if (!shapeIsValid(oc, shelled) || openingStillSolid) {
       try {
         const repaired = await shellFallbacks(brep, faces, thickness, options);
         shelled.delete?.();
         return repaired;
-      } catch (_) {
+      } catch (error) {
+        if (openingStillSolid) {
+          shelled.delete?.();
+          throw new Error("Shell left material behind the selected opening: " + (error?.message || error));
+        }
         return { oc, shape: shelled, kind: "solid", operation: "shell", invalid: "Shell produced an invalid solid (OpenCascade offset); features after it may fail" };
       }
     }

@@ -32,9 +32,129 @@ test("tool names start visible and preserve an explicit preference to hide them"
   const page = await openPage({ width: 1280, height: 900, mobile: false, touch: false });
   try {
     assert.equal(await page.eval(() => document.getElementById("plan-toolbar").classList.contains("show-titles")), true);
+    assert.equal(await page.eval(() => {
+      document.getElementById("view3dBtn").click();
+      document.getElementById("viewPlanBtn").click();
+      return document.getElementById("plan-toolbar").classList.contains("show-titles");
+    }), true, "switching through 3D must not silently change the 2D labels preference");
     await page.eval(() => window.__toggleToolNames());
+    assert.equal(await page.eval(() => {
+      document.getElementById("view3dBtn").click();
+      document.getElementById("viewPlanBtn").click();
+      return document.getElementById("plan-toolbar").classList.contains("show-titles");
+    }), false, "hidden labels must also survive a 3D visit");
     await page.goto("/");
     assert.equal(await page.eval(() => document.getElementById("plan-toolbar").classList.contains("show-titles")), false);
+  } finally { await page.close(); }
+});
+
+test("split keeps the drawing dock in 2D after visiting 3D and reloading", opts, async () => {
+  const page = await openPage({ width: 1180, height: 760, mobile: false, touch: false });
+  try {
+    const first = await page.eval(async () => {
+      document.getElementById("start-screen").hidden = true;
+      document.getElementById("view3dBtn").click();
+      document.getElementById("viewSplitBtn").click();
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+      return {
+        mode: document.getElementById("viewSplitBtn").getAttribute("aria-pressed"),
+        host: document.getElementById("plan-tools").parentElement.id,
+      };
+    });
+    assert.deepEqual(first, { mode: "true", host: "view-2d" });
+    await page.goto("/");
+    assert.deepEqual(await page.eval(() => ({
+      mode: document.getElementById("viewSplitBtn").getAttribute("aria-pressed"),
+      host: document.getElementById("plan-tools").parentElement.id,
+    })), { mode: "true", host: "view-2d" });
+  } finally { await page.close(); }
+});
+
+test("Layers visibility persists separately in 2D and 3D", opts, async () => {
+  const page = await openPage({ width: 1280, height: 900, mobile: false, touch: false });
+  try {
+    const states = await page.eval(() => {
+      document.getElementById("start-screen").hidden = true;
+      const view3 = document.getElementById("view3dBtn"), view2 = document.getElementById("viewPlanBtn");
+      const layers = document.getElementById("workflowLayers");
+      view3.click();
+      const initial3D = document.body.classList.contains("workflow-hide-layers");
+      layers.click();
+      view2.click();
+      const plan = document.body.classList.contains("workflow-hide-layers");
+      view3.click();
+      return { initial3D, plan, returned3D: document.body.classList.contains("workflow-hide-layers") };
+    });
+    assert.deepEqual(states, { initial3D: true, plan: false, returned3D: false });
+    await page.goto("/");
+    assert.equal(await page.eval(() => document.body.classList.contains("workflow-hide-layers")), false);
+  } finally { await page.close(); }
+});
+
+test("narrow named tools expose real overflow controls and keep Layers menu inside the pane", opts, async () => {
+  const page = await openPage({ width: 1180, height: 760, mobile: false, touch: false });
+  try {
+    const initial = await page.eval(() => {
+      document.getElementById("start-screen").hidden = true;
+      const bar = document.getElementById("plan-toolbar");
+      const strip = bar.querySelector(".tool-command-strip");
+      return { overflow: strip.scrollWidth > strip.clientWidth, next: !bar.querySelector(".tool-scroll-next").hidden };
+    });
+    assert.deepEqual(initial, { overflow: true, next: true });
+    await page.eval(() => document.querySelector(".tool-scroll-next").click());
+    await page.waitUntil(() => document.querySelector(".tool-command-strip").scrollLeft > 30, { what: "tool ribbon scroll" });
+    const layerMenu = await page.eval(() => {
+      document.getElementById("viewSplitBtn").click();
+      document.querySelector("#layer-chips .lchip:last-child .lchip-more").click();
+      const menu = document.querySelector(".layer-pop").getBoundingClientRect();
+      const pane = document.getElementById("view-2d").getBoundingClientRect();
+      return { right: menu.right, bottom: menu.bottom, paneRight: pane.right, paneBottom: pane.bottom };
+    });
+    assert.ok(layerMenu.right <= layerMenu.paneRight, "Layers submenu must not spill into Inspector");
+    assert.ok(layerMenu.bottom <= layerMenu.paneBottom, "Layers submenu must not spill below the plan");
+  } finally { await page.close(); }
+});
+
+test("3D command overflow remains reachable and navigation clears the compass", opts, async () => {
+  const page = await openPage({ width: 1180, height: 760, mobile: false, touch: false });
+  try {
+    const initial = await page.eval(async () => {
+      document.getElementById("start-screen").hidden = true;
+      document.getElementById("view3dBtn").click();
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+      const strip = document.querySelector("#view-3d .tool-command-strip");
+      const roof = document.getElementById("planner-invisible-roof").getBoundingClientRect();
+      const compass = document.querySelector("#view-3d .view-gizmo:not(.plan-gizmo)").getBoundingClientRect();
+      const overlap = Math.max(0, Math.min(roof.right, compass.right) - Math.max(roof.left, compass.left)) *
+        Math.max(0, Math.min(roof.bottom, compass.bottom) - Math.max(roof.top, compass.top));
+      return { host: document.getElementById("plan-tools").parentElement.id,
+        overflow: strip.scrollWidth > strip.clientWidth,
+        next: !document.querySelector("#view-3d .tool-scroll-next").hidden, overlap };
+    });
+    assert.deepEqual(initial, { host: "view-3d", overflow: true, next: true, overlap: 0 });
+    await page.eval(() => document.querySelector("#view-3d .tool-scroll-next").click());
+    await page.waitUntil(() => document.querySelector("#view-3d .tool-command-strip").scrollLeft > 10,
+      { what: "3D command ribbon scroll" });
+  } finally { await page.close(); }
+});
+
+test("Hebrew labels keep CAD command order and overflow navigation usable", opts, async () => {
+  const page = await openPage({ width: 1180, height: 760, mobile: false, touch: false });
+  try {
+    const initial = await page.eval(async () => {
+      const { setLang } = await import("/js/i18n.js");
+      await setLang("he");
+      const strip = document.querySelector("#view-2d .tool-command-strip");
+      return { direction: getComputedStyle(strip).direction,
+        overflow: strip.scrollWidth > strip.clientWidth,
+        next: !document.querySelector("#view-2d .tool-scroll-next").hidden };
+    });
+    assert.deepEqual(initial, { direction: "ltr", overflow: true, next: true });
+    await page.eval(() => document.querySelector("#view-2d .tool-scroll-next").click());
+    await page.waitUntil(() => document.querySelector("#view-2d .tool-command-strip").scrollLeft > 10,
+      { what: "Hebrew command ribbon scroll" });
   } finally { await page.close(); }
 });
 
@@ -49,6 +169,7 @@ test("floor navigation stays visible across all desktop view modes", opts, async
       for (const mode of ["plan", "3d", "split", "plan"]) {
         window.__setViewMode(mode);
         await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
         const host = document.getElementById("floor-tabs");
         const bounds = host.getBoundingClientRect();
         results.push({ mode, visible: bounds.width > 0 && bounds.height > 0,
@@ -58,7 +179,7 @@ test("floor navigation stays visible across all desktop view modes", opts, async
       return results;
     });
     for (const result of results) {
-      assert.equal(result.visible, true, result.mode + " must expose floor navigation");
+      assert.equal(result.visible, true, result.mode + " must expose floor navigation: " + JSON.stringify(result));
       assert.equal(result.floors, 2);
       assert.equal(result.pressed, "true");
     }

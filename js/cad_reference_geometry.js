@@ -23,6 +23,15 @@ export function createReferenceAxis(options = {}) {
   };
 }
 
+export function createReferencePoint(options = {}) {
+  return {
+    id: "point_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    type: "reference_point",
+    name: options.name || "RefPoint",
+    origin: options.origin || { x: 0, y: 0, z: 0 },
+  };
+}
+
 export { createHelix } from "./cad_helix.js";
 
 export function createCoordinateSystem(options = {}) {
@@ -36,4 +45,3 @@ export function createCoordinateSystem(options = {}) {
     zAxis: options.zAxis || { x: 0, y: 0, z: 1 },
   };
 }
-

@@ -147,6 +147,7 @@ function snap() {
     // other, so Ctrl+Z brings the glow back
     ignoredWarnings: S.ignoredWarnings || {},
     blueprintTrace: S.blueprintTrace,
+    roof: S.roof,
     idc: S.idc,
     parametric: exportParametricProject(S),
     // MEP geometry is part of the model, so it belongs in the snapshot. ui_mep
@@ -176,9 +177,10 @@ function apply(str) {
       S.workspace.baselines = mergeBaselineArchives(previous.baselines, S.workspace.baselines);
   }
   if (s.spatial) importSpatialProject(S,s.spatial);
-  else { S.nodes=s.nodes || [];S.walls=s.walls || [];S.openings=s.openings || [];S.items=s.items || [];S.markers=s.markers || [];S.slabOpenings=s.slabOpenings || [];S.roomMeta=s.roomMeta || {}; }
+  else { S.nodes=s.nodes || [];S.walls=s.walls || [];S.openings=s.openings || [];S.items=s.items || [];S.markers=s.markers || [];S.slabOpenings=s.slabOpenings || [];S.annotations=s.annotations || [];S.roomMeta=s.roomMeta || {}; }
   S.ignoredWarnings = s.ignoredWarnings || {};
   S.blueprintTrace = normalizeBlueprintReference(s.blueprintTrace);
+  S.roof = s.roof || null;
   syncBlueprintTraceControls();
   S.warnHover = S.warnSel = null;
   S.conHover = null;

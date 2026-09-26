@@ -10,7 +10,7 @@
 
 // Bump when the models or the sprite lighting change, so no stale picture
 // survives a code update in a long-lived cache.
-export const SPRITE_VERSION = 3;
+export const SPRITE_VERSION = 4;
 
 export const SPRITE_BUCKETS = [64, 128, 256, 512];
 

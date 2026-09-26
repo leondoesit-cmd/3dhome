@@ -37,7 +37,7 @@ test("the Path row lists the helices by name and the second-sketch path, and rea
 });
 
 test("the modeler lists document helices, opens the form on the bound one, and honours a sketch path", () => {
-  assert.match(modeler, /if\(type==="helix-reference"\)return \[\{value:"",label:t\("sweepPathSketch"\)\}\]\.concat\(documentHelixRecords\(\)/);
+  assert.match(modeler, /if\(type==="helix-reference"\)\{[\s\S]*?return \[\{value:"",label:pathSketch\?\.name \|\| t\("sweepPathSketch"\)\}\]\.concat\(documentHelixRecords\(\)/);
   assert.match(modeler, /state\.params\.helixId=sweepHelix \? sweepHelix\.id : "";/);
   assert.match(modeler, /var sketchPath=type==="sweep" && inputParams\.helixId==="";/);
   assert.match(modeler, /if\(type==="sweep" && !sketchPath && ids\.length===1 && !helix\)\{/, "no silent fallback to the only helix once a sketch path was chosen");

@@ -106,10 +106,12 @@ export function cabinetProductionParts(items = []) {
           stockCandidateId: !stockMatches ? sheet?.id || null : null,
           grain: stockMatches ? !!sheet.grain : null,
           geometry, datum, topologyBinding, finished, ...sizes,
+          cutoutsMm: source.cutouts?.length ? source.cutouts.map(hole => ({kind:hole.kind,x0:mm(hole.x0-source.x0),x1:mm(hole.x1-source.x0),z0:mm(hole.z0-source.z0),z1:mm(hole.z1-source.z0)})) : [],
           banding: sizes.edges ? {stockId:null,byStock,lengthMm:Object.values(byStock).reduce((sum,value)=>sum+value,0),basis:'explicit-edges'} : { stockId: layout.sp.band, lengthMm: Number((bandLen(source) * 1000).toFixed(9)), basis: 'aggregate-layout-estimate' } };
         productionPart.stockSignature = cabinetStockSignature(productionPart);
         productionPart.stockMapping = cabinetStockMapping(productionPart,override?.machiningDatum,(code,message)=>add(code,message,identity.id,id));
         report.parts.push(productionPart);
+        if (productionPart.cutoutsMm.length) add('worktop-cutout-review','Worktop cutouts are design geometry. Confirm the appliance template, clearances and machining instructions with the workshop.',identity.id,id);
         if (!valid) add('unsupported-geometry', 'This board has no supported rectangular design envelope.', identity.id, id);
         if (geometry === 'polygon') add('polygon-machining-required', 'Nesting represents the bounding blank; its contour requires separate machining.', identity.id, id);
         if (!sheet) add('missing-stock', 'No sheet SKU matches this board.', identity.id, id);

@@ -3,7 +3,7 @@ import {
   CAB, ISL, TOP, STEEL, DARK, GLASS, HANDLE, FABRIC, WOOD, BEDC, TVB,
   GREEN, RUGC, PVC_WHITE, BLACK_PLASTIC, ALUMINUM, WATER, TUFF, MOUNTH, WALL_H, WALL_T,
 } from "./state.js";
-import { box, cyl, sph } from "./primitives.js";
+import { box, cyl, sph, lathe, tube, torus, drape } from "./primitives.js";
 import { buildCab } from "./cabinet_mesh.js";
 import { getLang } from "./i18n.js";
 import {
@@ -18,6 +18,31 @@ function smartOn(it, fallback) {
   return it.smart.on !== undefined ? !!it.smart.on : fallback !== undefined ? fallback : true;
 }
 export { smartOn };
+
+/* An NFT growing channel lying along x — a round pipe on saddle clips, or a
+   square gully sitting flat — capped both ends, fed at one end and drained
+   at the other, with a planted net cup every `step` cm along the top. */
+function nftChannel(g, it, R, step, cupR, square) {
+  var hw = it.w / 2, hd = it.d / 2, cy = it.h / 2, top = square ? it.h : cy + R, i = 0;
+  if (square) box(g, -hw + 1.2, hw - 1.2, 0, it.h, -hd, hd, PVC_WHITE, { rough: 0.45, radius: 1 });
+  else cyl(g, 0, cy, 0, R, it.w - 2.4, PVC_WHITE, { rough: 0.45, seg: 24, rz: Math.PI / 2 });
+  [-1, 1].forEach(function (s) {
+    if (square)
+      box(g, s * hw - (s > 0 ? 1.2 : 0), s * hw + (s < 0 ? 1.2 : 0), -0.2, it.h + 0.3, -hd - 0.3, hd + 0.3, 0xe4e8ea, { rough: 0.5, radius: 0.5 });
+    else {
+      cyl(g, s * (hw - 0.6), cy, 0, R + 0.4, 1.2, 0xe4e8ea, { rough: 0.5, seg: 24, rz: Math.PI / 2 });
+      var cx = s * hw * 0.55;
+      box(g, cx - 1.6, cx + 1.6, 0, Math.max(0.6, cy - R * 0.55), -R * 0.95, R * 0.95, BLACK_PLASTIC, { rough: 0.8, radius: 0.3 });
+    }
+  });
+  cyl(g, -hw - 1.4, top - Math.min(R, it.h / 2) * 0.5, 0, 0.8, 3, 0x2b3236, { rough: 0.6, seg: 10, rz: Math.PI / 2 }); // feed line
+  cyl(g, hw + 1.4, Math.max(1.4, top - Math.min(R, it.h / 2) * 1.5), 0, Math.max(1, R * 0.3), 3, PVC_WHITE, { rough: 0.45, seg: 14, rz: Math.PI / 2 }); // drain
+  for (var x = -hw + step; x <= hw - step + 0.01; x += step, i++) {
+    lathe(g, x, top, 0, [[0, -cupR * 1.4], [cupR * 0.7, -cupR * 1.4], [cupR, -0.2], [cupR + 0.8, -0.2], [cupR + 0.8, 0.4], [0, 0.4]], BLACK_PLASTIC, { rough: 0.8, seg: 14 });
+    var lf = sph(g, x, top + cupR * 0.9, 0, cupR * (1.2 + (i % 3) * 0.18), GREEN, { rough: 0.8, seg: 12, segV: 8 });
+    if (lf) lf.scale.y = 0.6;
+  }
+}
 
 export const FURN = {
   base: {
@@ -106,6 +131,9 @@ export const FURN = {
     h: 90,
     col: "#dbe2e4",
     build: function (g, it) {
+      /* Sink base: the bowl(s) are real holes in the worktop with a basin hung
+         inside; below, the carcass carries a false front over one or two doors on
+         shadow reveals (a farmhouse apron replaces the false front). */
       var V = vspec(it),
         style = V.style || "inset",
         bowls = V.bowls || 1,
@@ -115,31 +143,31 @@ export const FURN = {
         hd = it.d / 2,
         topT = 4,
         cy0 = it.h - topT, // underside of the worktop
-        toe = 8;
+        toe = 8,
+        zf = hd - 2,
+        hs = V.handle || "bar",
+        nd = it.w > 60 ? 2 : 1;
+      function doors(y0, y1) {
+        for (var j = 0; j < nd; j++)
+          front(g, -hw + (j * it.w) / nd, -hw + ((j + 1) * it.w) / nd, y0, y1, zf, CAB, {
+            kind: "door", hinge: nd === 2 ? (j ? 1 : -1) : -1, handle: hs, handleAt: "top", shaker: V.shaker,
+          });
+      }
+      toeKick(g, -hw, hw, toe, -hd, hd);
 
       if (style === "vessel") {
         // bathroom vanity: solid top, round basin standing on it
-        box(g, -hw + 4, hw - 4, 0, toe, -hd + 5, hd - 3, 0x8c8781, { rough: 0.8 });
-        box(g, -hw, hw, toe, cy0, -hd, hd, CAB, { rough: 0.72 });
-        box(g, -0.6, 0.6, toe + 4, cy0 - 4, hd - 0.6, hd + 0.3, 0x9a8c72);
-        box(g, -hw - 1.5, hw + 1.5, cy0, it.h, -hd - 1.5, hd + 1.5, TOP, {
-          metal: 0.05,
-          rough: 0.35,
-        });
+        box(g, -hw, hw, toe, cy0, -hd, zf, CAB, { rough: 0.72, sharp: true });
+        front(g, -hw, hw, cy0 - 16, cy0, zf, CAB, { kind: "drawer", handle: hs, shaker: V.shaker });
+        doors(toe, cy0 - 16);
+        slab(g, -hw - 1.5, hw + 1.5, cy0, it.h, -hd - 1.5, hd + 1.5, TOP, { rough: 0.35 });
         var br = Math.min(hw - 6, hd - 6, 20),
           bh = V.depth || 13;
-        // open-ended tube + floor disc = a bowl with a visible inside
-        cyl(g, 0, it.h + bh / 2, 2, br, bh, bcol, {
-          metal: 0.03,
-          rough: 0.2,
-          seg: 32,
-          open: true,
-          r2: br * 1.06,
-        });
-        cyl(g, 0, it.h + 1.1, 2, br * 0.99, 2.2, bcol, { metal: 0.03, rough: 0.2, seg: 32 });
-        cyl(g, 0, it.h + 2.4, 2, 2.6, 0.7, 0xc6cccf, { metal: 0.9, rough: 0.14, seg: 20 });
+        // a turned bowl: rolled rim, curved wall, flat foot — seen from inside too
+        lathe(g, 0, it.h, 2, [[br * 0.42, 0], [br * 0.7, bh * 0.2], [br * 0.93, bh * 0.62], [br, bh - 0.8], [br - 0.4, bh], [br - 1.3, bh - 0.4], [br * 0.86, bh * 0.6], [br * 0.6, 1.4], [0, 1.2]],
+          bcol, { metal: 0.03, rough: 0.2, seg: 40 });
+        cyl(g, 0, it.h + 1.5, 2, 2.6, 0.7, 0xc6cccf, { metal: 0.9, rough: 0.14, seg: 20 });
         gooseneck(g, 0, it.h, -hd + 8, Math.max(12, hd - 6), 20, 0xc9cfd2, 1.5);
-        handleBar(g, it);
         return;
       }
 
@@ -163,24 +191,15 @@ export const FURN = {
       }
 
       // carcass: solid below the bowl, strips around it above
-      box(g, -hw + 4, hw - 4, 0, toe, -hd + 5, hd - 3, 0x8c8781, { rough: 0.8 }); // plinth
-      box(g, -hw, hw, toe, Math.max(toe + 2, bBot - 2), -hd, hd, CAB, { rough: 0.72 });
-      slabWithHoles(
-        g,
-        -hw,
-        hw,
-        Math.max(toe + 2, bBot - 2),
-        cy0,
-        -hd,
-        Math.min(hd, bz1),
-        holes,
-        CAB,
-        { rough: 0.72, skipFront: apron },
-      );
-      if (!apron) box(g, -hw, hw, Math.max(toe + 2, bBot - 2), cy0, bz1, hd, CAB, { rough: 0.72, sharp: true });
-      // door split line + handles, one per bowl
-      box(g, -0.6, 0.6, toe + 4, cy0 - 4, hd - 0.6, hd + 0.3, 0x9a8c72);
-      if (!apron) handleBar(g, it);
+      var cTop = Math.max(toe + 2, bBot - 2);
+      box(g, -hw, hw, toe, cTop, -hd, zf, CAB, { rough: 0.72, sharp: true });
+      slabWithHoles(g, -hw, hw, cTop, cy0, -hd, Math.min(zf, bz1), holes, CAB, { rough: 0.72, skipFront: apron });
+      if (!apron) box(g, -hw, hw, cTop, cy0, bz1, zf, CAB, { rough: 0.72, sharp: true });
+      if (apron) doors(toe, cTop);
+      else {
+        front(g, -hw, hw, cy0 - 15, cy0, zf, CAB, { kind: "drawer", handle: "none", shaker: V.shaker }); // false front
+        doors(toe, cy0 - 15);
+      }
 
       // worktop, punched for the bowls
       slabWithHoles(g, -hw - 1.5, hw + 1.5, cy0, it.h, -hd - 1.5, hd + 1.5, holes, TOP, {
@@ -197,7 +216,7 @@ export const FURN = {
         box(g, holes[0].x0 - 1.5, holes[holes.length - 1].x1 + 1.5, bBot - 1.4, bTop, bz1 - 3, bz1 + 1.5, bcol, {
           metal: bmat.metal,
           rough: bmat.rough,
-          sharp: true,
+          radius: 0.8,
         });
       }
       // mixer tap behind the bowl(s), arcing out to the bowl centre
@@ -1199,106 +1218,39 @@ export const FURN = {
     h: 90,
     col: "#e7d9c4",
     build: function (g, it) {
-      var LW = 0xd8c8a8,
-        lx = it.w / 2 - 3,
-        lz = it.d / 2 - 3,
-        i,
-        n,
-        x,
-        z;
-      [
-        [-1, -1],
-        [1, -1],
-        [-1, 1],
-        [1, 1],
-      ].forEach(function (p) {
-        box(
-          g,
-          p[0] * lx - 3,
-          p[0] * lx + 3,
-          0,
-          it.h,
-          p[1] * lz - 3,
-          p[1] * lz + 3,
-          LW,
-          { rough: 0.7 },
-        );
+      /* Cot: turned corner posts with ball finials, rounded rails, round
+         spindles along both long sides, panelled ends, a slatted base carrying a
+         mattress in a fitted sheet, a pillow and a folded blanket. */
+      var LW = 0xd8c8a8, hw = it.w / 2, hd = it.d / 2, pr = 2.6, px = hw - pr, pz = hd - pr,
+        top = it.h - 5, mY = 30, rail = { rough: 0.55, radius: 1 }, i;
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) {
+        var x = p[0] * px, z = p[1] * pz;
+        lathe(g, x, 0, z, [[0, 0], [pr * 0.8, 0], [pr * 0.8, 3], [pr, 4.5], [pr, top - 3], [pr * 1.12, top - 1.5], [pr * 1.12, top], [pr * 0.55, top + 0.8], [0, top + 0.8]],
+          LW, { rough: 0.55, seg: 16 });
+        sph(g, x, top + 2.6, z, 2.3, LW, { rough: 0.5, seg: 16, segV: 10 });
       });
-      box(
-        g,
-        -it.w / 2 + 4,
-        it.w / 2 - 4,
-        28,
-        36,
-        -it.d / 2 + 4,
-        it.d / 2 - 4,
-        BEDC,
-        { rough: 0.95 },
-      );
-      n = Math.max(3, Math.round(it.w / 11));
-      for (i = 1; i < n; i++) {
-        x = -it.w / 2 + (i * it.w) / n;
-        box(g, x - 1, x + 1, 36, it.h - 5, -it.d / 2 + 1, -it.d / 2 + 3, LW, {
-          rough: 0.7,
-        });
-        box(g, x - 1, x + 1, 36, it.h - 5, it.d / 2 - 3, it.d / 2 - 1, LW, {
-          rough: 0.7,
-        });
-      }
-      n = Math.max(3, Math.round(it.d / 11));
-      for (i = 1; i < n; i++) {
-        z = -it.d / 2 + (i * it.d) / n;
-        box(g, -it.w / 2 + 1, -it.w / 2 + 3, 36, it.h - 5, z - 1, z + 1, LW, {
-          rough: 0.7,
-        });
-        box(g, it.w / 2 - 3, it.w / 2 - 1, 36, it.h - 5, z - 1, z + 1, LW, {
-          rough: 0.7,
-        });
-      }
-      box(
-        g,
-        -it.w / 2,
-        it.w / 2,
-        it.h - 5,
-        it.h - 2,
-        -it.d / 2,
-        -it.d / 2 + 4,
-        LW,
-        { rough: 0.7 },
-      );
-      box(
-        g,
-        -it.w / 2,
-        it.w / 2,
-        it.h - 5,
-        it.h - 2,
-        it.d / 2 - 4,
-        it.d / 2,
-        LW,
-        { rough: 0.7 },
-      );
-      box(
-        g,
-        -it.w / 2,
-        -it.w / 2 + 4,
-        it.h - 5,
-        it.h - 2,
-        -it.d / 2,
-        it.d / 2,
-        LW,
-        { rough: 0.7 },
-      );
-      box(
-        g,
-        it.w / 2 - 4,
-        it.w / 2,
-        it.h - 5,
-        it.h - 2,
-        -it.d / 2,
-        it.d / 2,
-        LW,
-        { rough: 0.7 },
-      );
+      // long sides: bottom and top rail, round spindles between
+      [-1, 1].forEach(function (s) {
+        var z = s * pz;
+        box(g, -px, px, mY - 6, mY, z - 1.6, z + 1.6, LW, rail);
+        box(g, -px, px, top - 4.5, top, z - 1.9, z + 1.9, LW, rail);
+        var n = Math.max(4, Math.round((2 * px) / 8.5));
+        for (i = 1; i < n; i++) {
+          var x = -px + (i * 2 * px) / n;
+          cyl(g, x, (mY + top - 4.5) / 2, z, 1.05, top - 4.5 - mY, LW, { rough: 0.55, seg: 8 });
+        }
+      });
+      // ends: a solid panel under a rail
+      [-1, 1].forEach(function (s) {
+        var x = s * px;
+        box(g, x - 1, x + 1, mY - 6, top - 7, -pz + 1, pz - 1, LW, { rough: 0.55, radius: 0.6 });
+        box(g, x - 1.9, x + 1.9, top - 4.5, top, -pz, pz, LW, rail);
+      });
+      // slatted base + mattress
+      box(g, -px + 1, px - 1, mY - 3, mY - 1.5, -pz + 1, pz - 1, LW, { rough: 0.6, sharp: true });
+      box(g, -px + 1.2, px - 1.2, mY - 1.5, mY + 10, -pz + 1.8, pz - 1.8, BEDC, { rough: 0.95, radius: 3, crown: 0.8 });
+      box(g, -px + 4, -px + 28, mY + 10, mY + 15, -pz + 10, pz - 10, BEDC, { rough: 0.95, radius: 2.4, crown: 1.4 }); // pillow
+      box(g, px - 38, px - 4, mY + 10, mY + 13.5, -pz + 5, pz - 5, 0xb9cad4, { rough: 0.97, radius: 1.6, crown: 0.6 }); // folded blanket
     },
   },
   bunk: {
@@ -1308,72 +1260,49 @@ export const FURN = {
     h: 165,
     col: "#b98d5e",
     build: function (g, it) {
-      var lx = it.w / 2 - 3,
-        lz = it.d / 2 - 3,
-        y2 = it.h * 0.67,
-        i;
-      [
-        [-1, -1],
-        [1, -1],
-        [-1, 1],
-        [1, 1],
-      ].forEach(function (p) {
-        box(
-          g,
-          p[0] * lx - 3,
-          p[0] * lx + 3,
-          0,
-          it.h,
-          p[1] * lz - 3,
-          p[1] * lz + 3,
-          WOOD,
-          { rough: 0.6 },
-        );
+      /* Bunk bed: square posts with softened arrises, a rail frame and slats at
+         each level carrying a mattress, duvet and pillow; guard rails round the
+         top bunk with a gap where a round-runged ladder climbs the +x side. */
+      var hw = it.w / 2, hd = it.d / 2, ps = 3.5, x1 = hw - ps, z1 = hd - ps,
+        lowY = it.h * 0.21, upY = it.h * 0.67, wo = { rough: 0.55, radius: 0.8 },
+        ladZ1 = hd - 2 * ps - 4, ladZ0 = ladZ1 - 42, i;
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) {
+        box(g, p[0] * x1 - ps, p[0] * x1 + ps, 0, it.h, p[1] * z1 - ps, p[1] * z1 + ps, WOOD, { rough: 0.55, radius: 1 });
       });
-      [it.h * 0.21, y2].forEach(function (y) {
-        box(g, -it.w / 2, it.w / 2, y - 8, y, -it.d / 2, it.d / 2, WOOD, {
-          rough: 0.6,
+      [lowY, upY].forEach(function (y, lvl) {
+        [-1, 1].forEach(function (s) {
+          box(g, s * x1 - 2, s * x1 + 2, y - 12, y, -z1 + ps, z1 - ps, WOOD, wo); // side rails
+          box(g, -x1 + ps, x1 - ps, y - 12, y, s * z1 - 2, s * z1 + 2, WOOD, wo); // end rails
         });
-        box(
-          g,
-          -it.w / 2 + 4,
-          it.w / 2 - 4,
-          y,
-          y + 10,
-          -it.d / 2 + 4,
-          it.d / 2 - 4,
-          BEDC,
-          { rough: 0.95 },
-        );
+        for (var k = 0; k < 11; k++) {
+          var sz = -z1 + ps + 4 + (k * (2 * z1 - 2 * ps - 8)) / 10;
+          box(g, -x1 + 2, x1 - 2, y - 4, y - 2.4, sz - 3.5, sz + 3.5, WOOD, { rough: 0.6, sharp: true });
+        }
+        var mx0 = -x1 + 2.5, mx1 = x1 - 2.5, mz0 = -z1 + 2.5, mz1 = z1 - 2.5;
+        box(g, mx0, mx1, y - 2.4, y + 11, mz0, mz1, BEDC, { rough: 0.95, radius: 3.5, crown: 0.8 });
+        box(g, mx0 - 0.6, mx1 + 0.6, y + 10, y + 13, mz0 + 34, mz1 + 0.4, lvl ? 0x8fa7b8 : 0xb7a48a, { rough: 0.97, radius: 1.5, crown: 1.2 }); // duvet
+        box(g, mx0 + 8, mx1 - 8, y + 10.5, y + 17, mz0 + 6, mz0 + 30, BEDC, { rough: 0.95, radius: 3, crown: 1.6 }); // pillow
       });
-      box(
-        g,
-        -it.w / 2 + 4,
-        it.w / 2 - 4,
-        y2 + 24,
-        y2 + 29,
-        it.d / 2 - 4,
-        it.d / 2 - 1,
-        WOOD,
-        { rough: 0.6 },
-      );
-      box(g, -14, -10, 0, y2 + 20, it.d / 2, it.d / 2 + 4, WOOD, {
-        rough: 0.6,
+      // head and foot boards of the lower bunk
+      [-1, 1].forEach(function (s) {
+        box(g, -x1 + ps, x1 - ps, lowY, lowY + 26, s * z1 - 1.2, s * z1 + 1.2, WOOD, { rough: 0.55, radius: 0.5 });
       });
-      box(g, 10, 14, 0, y2 + 20, it.d / 2, it.d / 2 + 4, WOOD, { rough: 0.6 });
-      for (i = 0; i < 4; i++) {
-        var ry = it.h * (0.17 + i * 0.17);
-        box(
-          g,
-          -10,
-          10,
-          ry - 1.5,
-          ry + 1.5,
-          it.d / 2 + 0.5,
-          it.d / 2 + 3.5,
-          WOOD,
-          { rough: 0.6 },
-        );
+      // top bunk guard rails: full on -x and both ends, stopping at the ladder on +x
+      var gy = [upY + 13, upY + 24];
+      gy.forEach(function (y) {
+        box(g, -x1 - 1.6, -x1 + 1.6, y - 2.2, y + 2.2, -z1 + ps, z1 - ps, WOOD, wo);
+        box(g, x1 - 1.6, x1 + 1.6, y - 2.2, y + 2.2, -z1 + ps, ladZ0 - 2, WOOD, wo);
+        [-1, 1].forEach(function (s) {
+          box(g, -x1 + ps, x1 - ps, y - 2.2, y + 2.2, s * z1 - 1.6, s * z1 + 1.6, WOOD, wo);
+        });
+      });
+      // ladder on the +x side: two stiles and round rungs
+      [ladZ0, ladZ1].forEach(function (z) {
+        box(g, hw - 4.2, hw - 0.2, 0, upY + 26, z - 2, z + 2, WOOD, { rough: 0.55, radius: 0.8 });
+      });
+      for (i = 1; i <= 4; i++) {
+        var ry = (i * (upY + 4)) / 5;
+        cyl(g, hw - 2.2, ry, (ladZ0 + ladZ1) / 2, 1.6, ladZ1 - ladZ0 - 3, WOOD, { rough: 0.55, seg: 12, rx: Math.PI / 2 });
       }
     },
   },
@@ -1443,46 +1372,28 @@ export const FURN = {
     h: 28,
     col: "#eef1f2",
     build: function (g, it) {
-      var y0 = 212;
-      box(
-        g,
-        -it.w / 2,
-        it.w / 2,
-        y0,
-        y0 + it.h,
-        -it.d / 2,
-        it.d / 2,
-        0xeef1f2,
-        { rough: 0.35 },
-      );
-      box(
-        g,
-        -it.w / 2 + 4,
-        it.w / 2 - 4,
-        y0 + 2,
-        y0 + 7,
-        it.d / 2 - 0.5,
-        it.d / 2 + 0.3,
-        0x39434a,
-        { rough: 0.5 },
-      );
+      /* Wall split unit: a rounded chassis with a softly bowed front panel, the
+         supply slot under it with its louvre flap tilted open, an intake grille
+         across the top, and a small display with the status LED. */
+      var y0 = 212, hw = it.w / 2, hd = it.d / 2, B = 0xeef1f2;
+      box(g, -hw, hw, y0 + 3, y0 + it.h, -hd, hd - 3, B, { rough: 0.35, radius: 3.5 }); // chassis
+      box(g, -hw + 0.4, hw - 0.4, y0 + 8, y0 + it.h - 0.6, hd - 5, hd - 1, B, { rough: 0.22, radius: 2.5, crown: 1, crownAxis: "z" }); // front panel
+      box(g, -hw + 1, hw - 1, y0, y0 + 4, -hd + 1, hd - 8, B, { rough: 0.35, radius: 1.5 }); // underside
+      box(g, -hw + 5, hw - 5, y0 + 2, y0 + 7.5, hd - 9, hd - 3, 0x39434a, { rough: 0.6, sharp: true }); // supply slot
+      var flap = box(g, -hw + 5, hw - 5, y0 + 2, y0 + 3.2, hd - 9, hd - 1.5, B, { rough: 0.28, radius: 0.5 });
+      if (flap) flap.rotation.x = 0.28;
+      for (var i = 0; i < 16; i++) {
+        var x = -hw + 6 + (i * (it.w - 12)) / 15;
+        box(g, x - 0.35, x + 0.35, y0 + it.h - 0.3, y0 + it.h + 0.15, -hd + 3, hd - 7, 0xc6ccd0, { rough: 0.5, sharp: true, cast: false });
+      }
+      box(g, hw - 18, hw - 6, y0 + 11, y0 + 15, hd - 0.4, hd + 0.2, 0x2b3236, { rough: 0.12, metal: 0.2, sharp: true }); // display
       var led = 0x44ff88;
       if (it.smart) {
         if (!smartOn(it, true)) led = 0x4a5156;
         else if (it.smart.hvacMode === "heat") led = 0xff8844;
         else if (it.smart.hvacMode === "dry") led = 0x88c4ff;
       }
-      box(
-        g,
-        it.w / 2 - 8,
-        it.w / 2 - 5,
-        y0 + 10,
-        y0 + 12,
-        it.d / 2,
-        it.d / 2 + 0.4,
-        led,
-        { emis: led, cast: false },
-      );
+      box(g, hw - 9, hw - 7.4, y0 + 12.2, y0 + 13.8, hd + 0.2, hd + 0.4, led, { emis: led, cast: false, sharp: true });
     },
   },
   shoeCab: {
@@ -1611,67 +1522,59 @@ export const FURN = {
       dist: 300,
     },
     build: function (g, it) {
-      box(g, -it.w / 2, it.w / 2, 0, 30, -it.d / 2, it.d / 2, 0x3a332c, {
-        rough: 0.7,
+      /* Aquarium on its cabinet: a stand with two doors, a glass tank with black
+         silicone edges and rims, water, a sloped gravel bed with rocks, planted
+         stems and a few fish, under a lid with a lit strip. */
+      var hw = it.w / 2, hd = it.d / 2, st = 30, lid = 4, tk = it.h - lid, FR = 0x1a1c1e, ST = 0x3a332c,
+        gl = { trans: true, opacity: 0.18, rough: 0.04, metal: 0.1, cast: false, sharp: true };
+      toeKick(g, -hw, hw, 6, -hd, hd, 0x2a2521);
+      box(g, -hw, hw, 6, st - 2, -hd, hd - 2, ST, { rough: 0.6, sharp: true });
+      [0, 1].forEach(function (j) {
+        front(g, -hw + j * hw, j * hw, 6, st - 2, hd - 2, ST, { kind: "door", hinge: j ? 1 : -1, handle: "knob", handleAt: "top" });
       });
-      box(g, -it.w / 2, -it.w / 2 + 1.5, 30, it.h, -it.d / 2, it.d / 2, GLASS, {
-        trans: true,
-        opacity: 0.22,
-        rough: 0.05,
-        metal: 0.1,
-        cast: false,
+      slab(g, -hw - 0.5, hw + 0.5, st - 2, st, -hd, hd, ST, { rough: 0.5 });
+      // glass walls
+      box(g, -hw, hw, st, tk, -hd, -hd + 0.8, GLASS, gl);
+      box(g, -hw, hw, st, tk, hd - 0.8, hd, GLASS, gl);
+      box(g, -hw, -hw + 0.8, st, tk, -hd, hd, GLASS, gl);
+      box(g, hw - 0.8, hw, st, tk, -hd, hd, GLASS, gl);
+      // silicone edges and rims
+      [st, tk - 1.5].forEach(function (y) {
+        box(g, -hw, hw, y, y + 1.5, -hd, -hd + 1.2, FR, { rough: 0.4, sharp: true });
+        box(g, -hw, hw, y, y + 1.5, hd - 1.2, hd, FR, { rough: 0.4, sharp: true });
+        box(g, -hw, -hw + 1.2, y, y + 1.5, -hd, hd, FR, { rough: 0.4, sharp: true });
+        box(g, hw - 1.2, hw, y, y + 1.5, -hd, hd, FR, { rough: 0.4, sharp: true });
       });
-      box(g, it.w / 2 - 1.5, it.w / 2, 30, it.h, -it.d / 2, it.d / 2, GLASS, {
-        trans: true,
-        opacity: 0.22,
-        rough: 0.05,
-        metal: 0.1,
-        cast: false,
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) {
+        box(g, p[0] * hw - 0.6, p[0] * hw + 0.6, st, tk, p[1] * hd - 0.6, p[1] * hd + 0.6, FR, { rough: 0.4, sharp: true });
       });
-      box(g, -it.w / 2, it.w / 2, 30, it.h, -it.d / 2, -it.d / 2 + 1.5, GLASS, {
-        trans: true,
-        opacity: 0.22,
-        rough: 0.05,
-        metal: 0.1,
-        cast: false,
+      // water, gravel, rocks
+      box(g, -hw + 0.9, hw - 0.9, st + 1.5, tk - 3, -hd + 0.9, hd - 0.9, 0x3f8fa8, { trans: true, opacity: 0.28, rough: 0.1, cast: false, sharp: true });
+      box(g, -hw + 1, hw - 1, st + 1.5, st + 5, -hd + 1, hd - 1, 0x8a7a5e, { rough: 0.95, radius: 0.8, crown: 2.5 });
+      [[-0.22, -0.2, 7], [0.26, -0.1, 5.5], [0.05, 0.12, 4]].forEach(function (r) {
+        var rk = sph(g, it.w * r[0], st + 5, it.d * r[1], r[2], 0x77706a, { rough: 0.9, seg: 12, segV: 8 });
+        if (rk) rk.scale.set(1.3, 0.75, 1);
       });
-      box(g, -it.w / 2, it.w / 2, 30, it.h, it.d / 2 - 1.5, it.d / 2, GLASS, {
-        trans: true,
-        opacity: 0.22,
-        rough: 0.05,
-        metal: 0.1,
-        cast: false,
+      // planted clumps: curved blades fanning out of the gravel
+      for (var i = 0; i < 6; i++) {
+        var cx = -hw + 8 + (((i * 37) % 97) / 97) * (it.w - 16), cz = -hd + 5 + (((i * 53) % 31) / 31) * (it.d * 0.45),
+          ch = (tk - st - 10) * (0.45 + ((i * 29) % 11) / 20);
+        for (var b = 0; b < 6; b++) {
+          var ba = b * 1.05 + i, lean = 2 + (b % 3) * 1.6, bh = ch * (0.6 + (b % 3) * 0.2);
+          tube(g, [[cx, st + 4, cz], [cx + Math.cos(ba) * lean * 0.3, st + 4 + bh * 0.5, cz + Math.sin(ba) * lean * 0.3], [cx + Math.cos(ba) * lean, st + 4 + bh, cz + Math.sin(ba) * lean]],
+            0.5, GREEN, { rough: 0.8, seg: 5, steps: 10, cast: false });
+        }
+      }
+      // fish
+      [[-0.22, 0.55, 0.05, 0xe8873c], [0.18, 0.7, 0.12, 0xe8873c], [0.3, 0.45, -0.1, 0xf0c040], [-0.05, 0.62, -0.05, 0x3c8ae8]].forEach(function (f) {
+        var fy = st + (tk - st) * f[1], fx = it.w * f[0], fz = it.d * f[2];
+        var b = sph(g, fx, fy, fz, 1.8, f[3], { rough: 0.5, seg: 12, segV: 8 });
+        if (b) b.scale.set(1.6, 0.9, 0.55);
+        box(g, fx - 4.2, fx - 2.4, fy - 1.2, fy + 1.2, fz - 0.15, fz + 0.15, f[3], { rough: 0.5, sharp: true, cast: false });
       });
-      box(
-        g,
-        -it.w / 2 + 2,
-        it.w / 2 - 2,
-        32,
-        it.h - 8,
-        -it.d / 2 + 2,
-        it.d / 2 - 2,
-        0x3f8fa8,
-        { trans: true, opacity: 0.45, rough: 0.2, cast: false },
-      );
-      box(
-        g,
-        -it.w / 2 + 2,
-        it.w / 2 - 2,
-        30,
-        34,
-        -it.d / 2 + 2,
-        it.d / 2 - 2,
-        0x6b5b43,
-        { rough: 0.95 },
-      );
-      sph(g, -it.w * 0.2, it.h * 0.65, 0, 2.5, 0xe8873c, { rough: 0.6 });
-      sph(g, it.w * 0.18, it.h * 0.75, it.d * 0.1, 2.5, 0xe8873c, {
-        rough: 0.6,
-      });
-      cyl(g, it.w * 0.3, 44, -it.d * 0.15, 3, 24, GREEN, {
-        rough: 0.95,
-        r2: 0.8,
-      });
+      // lid with a lit strip underneath
+      box(g, -hw - 0.3, hw + 0.3, tk, it.h, -hd - 0.3, hd + 0.3, FR, { rough: 0.4, radius: 1 });
+      box(g, -hw + 4, hw - 4, tk - 0.5, tk, -hd + 5, hd - 5, 0xdff4ff, { emis: 0xbfe8ff, cast: false, sharp: true });
     },
   },
   bench: {
@@ -1734,6 +1637,18 @@ export const FURN = {
         box(g, -hw + fw, -hw + fw + 3, 0, n1 * rise + 6, -hd + fw, hd, TR, { rough: 0.7, sharp: true }); // open stringer
         railRun(-hw + fw + 1.5, hd, 0, -hd + fw, n1 * rise);
         for (var b = 0; b < n1; b++) cyl(g, -hw + fw + 1.5, (b + 1) * rise + 45, hd - ((b + 0.5) * len1) / n1, 0.9, 90, 0x2b2e31, { metal: 0.6, rough: 0.4, seg: 8 });
+        return;
+      }
+      if (shape === "U") {
+        var flightW = Math.min(it.w * 0.45, 100), landingD = Math.min(flightW, it.d * 0.35);
+        var flightD = it.d - landingD, first = Math.max(1, Math.floor((n - 1) / 2)), second = Math.max(1, n - first - 1);
+        for (var u1 = 0; u1 < first; u1++)
+          step(-hw, -hw + flightW, hd - (u1 + 1) * flightD / first, hd - u1 * flightD / first, u1);
+        step(-hw, hw, -hd, -hd + landingD, first);
+        for (var u2 = 0; u2 < second; u2++)
+          step(hw - flightW, hw, -hd + landingD + u2 * flightD / second, -hd + landingD + (u2 + 1) * flightD / second, first + 1 + u2);
+        box(g, -hw + flightW - 3, -hw + flightW, 0, first * rise + 6, -hd + landingD, hd, TR, { rough: 0.7, sharp: true });
+        box(g, hw - flightW, hw - flightW + 3, first * rise, H, -hd + landingD, hd, TR, { rough: 0.7, sharp: true });
         return;
       }
       if (shape === "curved") {
@@ -1865,46 +1780,54 @@ export const FURN = {
     col: "#caa15e",
     lamp: { y: MOUNTH - 58, color: 0xffd99a, intensity: 1.0, dist: 620 },
     build: function (g, it) {
+      /* Pendant: a ceiling canopy, a fabric flex and socket, and a spun shade —
+         cone, dome, glass globe, fabric drum or wire cage — with a white reflector
+         inside the metal shades and a glowing bulb. */
       var V = vspec(it),
         shade = V.shadeCol != null ? V.shadeCol : 0x2d3338,
         drop = V.drop || 46,
-        sh = V.shape || "cone";
-      cyl(g, 0, MOUNTH - 1, 0, 2.4, 2, 0x2b2f33, { metal: 0.4 }); // ceiling rose
-      box(g, -0.7, 0.7, MOUNTH - drop, MOUNTH - 2, -0.7, 0.7, 0x33383c, { cast: false });
+        sh = V.shape || "cone",
+        W = it.w,
+        cy = MOUNTH - drop,
+        so = { rough: V.shadeRough != null ? V.shadeRough : 0.45, metal: V.shadeMetal != null ? V.shadeMetal : 0.5, seg: 40 };
+      lathe(g, 0, MOUNTH - 3, 0, [[0, 0], [5, 0], [5.6, 0.6], [5.6, 3], [0, 3]], 0x2b2f33, { metal: 0.4, rough: 0.4, seg: 28 }); // canopy
+      cyl(g, 0, (MOUNTH - 3 + cy) / 2, 0, 0.35, MOUNTH - 3 - cy, 0x33383c, { rough: 0.8, seg: 8, cast: false }); // flex
+      lathe(g, 0, cy - 5, 0, [[0, 0], [1.7, 0], [1.9, 1], [1.9, 5], [0, 5]], 0x2b2f33, { metal: 0.5, rough: 0.35, seg: 16 }); // socket
+      var bulbY = cy - 9;
       if (sh === "globe") {
-        sph(g, 0, MOUNTH - drop - 12, 0, it.w * 0.42, 0xfdf6e6, {
-          trans: true, opacity: 0.55, rough: 0.1, metal: 0.05,
-        });
+        var R = W * 0.42;
+        sph(g, 0, cy - 5 - R, 0, R, 0xfdf6e6, { trans: true, opacity: 0.5, rough: 0.08, metal: 0.05, seg: 32, segV: 20, cast: false });
+        bulbY = cy - 5 - R;
       } else if (sh === "dome") {
-        cyl(g, 0, MOUNTH - drop - 7, 0, it.w * 0.5, 14, shade, {
-          rough: V.shadeRough != null ? V.shadeRough : 0.4,
-          metal: V.shadeMetal != null ? V.shadeMetal : 0.6,
-          r2: it.w * 0.3,
-        });
+        var dp = [[2, 0], [W * 0.16, -1.2], [W * 0.3, -4], [W * 0.42, -9], [W * 0.49, -14], [W * 0.5, -15.2]];
+        lathe(g, 0, cy - 4, 0, dp, shade, so);
+        lathe(g, 0, cy - 4.4, 0, dp.map(function (p) { return [Math.max(0, p[0] - 0.4), p[1]]; }), 0xf4f1ea, { rough: 0.5, seg: 40, cast: false });
+        bulbY = cy - 12;
       } else if (sh === "cage") {
-        // bare-bulb cage: ring + vertical bars
-        cyl(g, 0, MOUNTH - drop - 1, 0, it.w * 0.34, 1.2, shade, { metal: 0.7, rough: 0.35, seg: 20 });
-        cyl(g, 0, MOUNTH - drop - 20, 0, it.w * 0.34, 1.2, shade, { metal: 0.7, rough: 0.35, seg: 20 });
+        [cy - 6, cy - 26].forEach(function (y) {
+          torus(g, 0, y, 0, W * 0.34, 0.45, shade, { metal: 0.7, rough: 0.35, seg: 28, segR: 6 });
+        });
         for (var i = 0; i < 8; i++) {
-          var an = (i / 8) * Math.PI * 2,
-            bx = Math.cos(an) * it.w * 0.34,
-            bz = Math.sin(an) * it.w * 0.34;
-          box(g, bx - 0.5, bx + 0.5, MOUNTH - drop - 20, MOUNTH - drop, bz - 0.5, bz + 0.5, shade, {
-            metal: 0.7, rough: 0.35, cast: false,
-          });
+          var an = (i / 8) * Math.PI * 2, bx = Math.cos(an) * W * 0.34, bz = Math.sin(an) * W * 0.34;
+          tube(g, [[bx, cy - 6, bz], [bx * 1.08, cy - 16, bz * 1.08], [bx, cy - 26, bz]], 0.4, shade, { metal: 0.7, rough: 0.35, seg: 6, cast: false });
         }
+        var bl = sph(g, 0, cy - 15, 0, 5.5, 0xfff3d0, { emis: 0xffe2a0, cast: false, seg: 20, segV: 14 });
+        if (bl) bl.scale.y = 1.35;
+        return;
       } else if (sh === "drum") {
-        cyl(g, 0, MOUNTH - drop - 11, 0, it.w * 0.5, 22, V.shadeCol != null ? V.shadeCol : 0xe9dcc1, {
-          rough: 0.65, trans: true, opacity: 0.94,
-        });
+        var dc = V.shadeCol != null ? V.shadeCol : 0xe9dcc1;
+        lathe(g, 0, cy - 26, 0, [[W * 0.5, 0], [W * 0.5, 22]], dc, { rough: 0.7, trans: true, opacity: 0.94, seg: 48 });
+        torus(g, 0, cy - 4, 0, W * 0.5, 0.3, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 48, segR: 5 });
+        torus(g, 0, cy - 26, 0, W * 0.5, 0.3, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 48, segR: 5 });
+        cyl(g, 0, cy - 25.6, 0, W * 0.49, 0.3, 0xf6efe0, { rough: 0.6, trans: true, opacity: 0.85, seg: 48, cast: false }); // diffuser
+        bulbY = cy - 14;
       } else {
-        cyl(g, 0, MOUNTH - drop - 8, 0, it.w * 0.5, 17, shade, {
-          rough: V.shadeRough != null ? V.shadeRough : 0.5,
-          metal: V.shadeMetal != null ? V.shadeMetal : 0.3,
-          r2: it.w * 0.13,
-        });
+        var cp = [[1.9, 0], [2.6, -1], [4.2, -3], [W * 0.5, -17], [W * 0.5 + 0.2, -17.6]];
+        lathe(g, 0, cy - 4, 0, cp, shade, so);
+        lathe(g, 0, cy - 4.4, 0, cp.map(function (p) { return [Math.max(0, p[0] - 0.4), p[1]]; }), 0xf4f1ea, { rough: 0.5, seg: 40, cast: false });
+        bulbY = cy - 12;
       }
-      sph(g, 0, MOUNTH - drop - 11, 0, 4, 0xfff3d0, { emis: 0xffe2a0, cast: false });
+      sph(g, 0, bulbY, 0, 4, 0xfff3d0, { emis: 0xffe2a0, cast: false, seg: 20, segV: 14 });
     },
   },
   floorLamp: {
@@ -1922,62 +1845,58 @@ export const FURN = {
       dist: 520,
     },
     build: function (g, it) {
+      /* Floor lamp: a spun weighted base, a slim stem with a collar, and a
+         shade with wire rims; the tripod stands on three turned legs meeting at
+         a hub, the arc bends one continuous tube over to a hanging dome. */
       var V = vspec(it),
         stem = V.stemCol != null ? V.stemCol : 0x6e7478,
         shade = V.shadeCol != null ? V.shadeCol : 0xe9dcc1,
-        style = V.style || "column";
+        style = V.style || "column",
+        W = it.w,
+        rim = { metal: 0.8, rough: 0.3, seg: 40, segR: 5 };
+      function drumShade(x, y0, rb, rt, H) {
+        lathe(g, x, y0, 0, [[rb, 0], [rt, H]], shade, { rough: 0.7, trans: true, opacity: 0.93, seg: 44 });
+        torus(g, x, y0, 0, rb, 0.28, 0x8a857c, rim);
+        torus(g, x, y0 + H, 0, rt, 0.28, 0x8a857c, rim);
+        sph(g, x, y0 + H * 0.4, 0, 4, 0xfff2cc, { emis: 0xffe2a0, cast: false, seg: 18, segV: 12 });
+      }
       if (style === "tripod") {
-        // three splayed wooden legs meeting under the shade
+        var apex = it.h - 36, lc = V.legCol != null ? V.legCol : WOOD;
         [0, 1, 2].forEach(function (i) {
-          var an = (i / 3) * Math.PI * 2;
-          cyl(g, (Math.cos(an) * it.w) / 2.6, (it.h - 40) / 2, (Math.sin(an) * it.w) / 2.6, 1.5,
-            it.h - 34, V.legCol != null ? V.legCol : WOOD, {
-              rough: 0.55, seg: 10,
-              rx: -Math.sin(an) * 0.26, rz: Math.cos(an) * 0.26,
-            });
+          var an = (i / 3) * Math.PI * 2 + Math.PI / 2, fx = Math.cos(an) * W * 0.44, fz = Math.sin(an) * W * 0.44;
+          tube(g, [[fx, 0, fz], [fx * 0.08, apex, fz * 0.08]], 1.4, lc, { rough: 0.55, seg: 10 });
+          sph(g, fx, 0.8, fz, 1.5, 0x2b2f33, { rough: 0.6, seg: 10, segV: 6 });
         });
-        cyl(g, 0, it.h - 20, 0, it.w * 0.5, 30, shade, {
-          rough: 0.6, r2: it.w * 0.4, trans: true, opacity: 0.93,
-        });
-        sph(g, 0, it.h - 22, 0, 4, 0xfff2cc, { emis: 0xffe2a0, cast: false });
+        cyl(g, 0, apex + 2, 0, 2.2, 5, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 16 });
+        cyl(g, 0, apex + 8, 0, 0.8, 10, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 10 });
+        drumShade(0, it.h - 32, W * 0.5, W * 0.4, 30);
         return;
       }
-      cyl(g, 0, 2, 0, it.w * 0.42, 4, 0x42474a, { metal: 0.4, rough: 0.5 }); // base
+      lathe(g, 0, 0, 0, [[0, 0], [W * 0.42, 0], [W * 0.42, 1.2], [W * 0.38, 2.6], [W * 0.18, 3.8], [2.4, 4.6], [0, 4.6]], 0x42474a, { metal: 0.5, rough: 0.35, seg: 36 });
       if (style === "arc") {
-        // slim stem that arcs over the room, shade hanging head-down at the end.
-        // Arc centre (xc, yc), radius R: point = (xc + R·sinθ, yc + R·cosθ) and
-        // the tangent gives rz = -(θ + π/2) — the XZ version of gooseneck().
-        var R = it.w * 0.6,
-          x0 = -it.w * 0.3,
-          xc = x0 + R,
-          yc = it.h - 58,
-          N = 12;
-        cyl(g, x0, (yc + 2) / 2, 0, 1.6, yc - 2, stem, { metal: 0.6, rough: 0.35 });
-        for (var k = 0; k < N; k++) {
-          var th = -Math.PI / 2 + Math.PI * ((k + 0.5) / N);
-          cyl(g, xc + R * Math.sin(th), yc + R * Math.cos(th), 0, 1.6, (Math.PI * R) / N + 0.9, stem, {
-            metal: 0.6, rough: 0.35, seg: 12, rz: -(th + Math.PI / 2),
-          });
+        // one continuous bent tube from the base up and over to the shade
+        var R = W * 0.6, x0 = -W * 0.3, xc = x0 + R, yc = it.h - 58, pts = [[x0, 4, 0], [x0, yc * 0.5, 0]];
+        for (var k = 0; k <= 12; k++) {
+          var th = -Math.PI / 2 + Math.PI * (k / 12);
+          pts.push([xc - R * Math.cos(th + Math.PI / 2), yc + R * Math.cos(th), 0]);
         }
-        cyl(g, xc + R, yc - 11, 0, it.w * 0.34, 20, shade, {
-          rough: 0.6, r2: it.w * 0.24, trans: true, opacity: 0.93,
-        });
-        sph(g, xc + R, yc - 19, 0, 4, 0xfff2cc, { emis: 0xffe2a0, cast: false });
+        pts.push([xc + R, yc - 4, 0]);
+        tube(g, pts, 1.5, stem, { metal: 0.6, rough: 0.35, seg: 10, steps: 64 });
+        var ap = [[1.6, 0], [W * 0.12, -1.2], [W * 0.26, -5], [W * 0.34, -12], [W * 0.36, -16]];
+        lathe(g, xc + R, yc - 4, 0, ap, 0x2d3338, { metal: 0.55, rough: 0.35, seg: 36 });
+        sph(g, xc + R, yc - 12, 0, 4, 0xfff2cc, { emis: 0xffe2a0, cast: false, seg: 18, segV: 12 });
         return;
       }
-      cyl(g, 0, (6 + it.h - 34) / 2, 0, 1.6, it.h - 40, stem, { metal: 0.5, rough: 0.45 });
-      if (style === "globe")
-        sph(g, 0, it.h - 16, 0, it.w * 0.36, 0xfdf6e6, {
-          trans: true, opacity: 0.5, rough: 0.1,
-        });
-      else
-        cyl(g, 0, it.h - 18, 0, it.w * 0.5, 28, shade, {
-          rough: 0.6,
-          r2: style === "drum" ? it.w * 0.5 : it.w * 0.38,
-          trans: true,
-          opacity: 0.92,
-        });
-      sph(g, 0, it.h - 20, 0, 4, 0xfff2cc, { emis: 0xffe2a0, cast: false });
+      var sTop = style === "globe" ? it.h - 16 - W * 0.36 : it.h - 30;
+      cyl(g, 0, (4.6 + sTop) / 2, 0, 1.1, sTop - 4.6, stem, { metal: 0.6, rough: 0.35, seg: 12 });
+      cyl(g, 0, it.h * 0.45, 0, 1.6, 3, stem, { metal: 0.6, rough: 0.3, seg: 14 }); // collar
+      if (style === "globe") {
+        cyl(g, 0, sTop + 1, 0, 3, 3, 0x8a857c, { metal: 0.8, rough: 0.3, seg: 16 });
+        sph(g, 0, it.h - 16, 0, W * 0.36, 0xfdf6e6, { trans: true, opacity: 0.5, rough: 0.08, seg: 32, segV: 20, cast: false });
+        sph(g, 0, it.h - 16, 0, 4, 0xfff2cc, { emis: 0xffe2a0, cast: false, seg: 18, segV: 12 });
+        return;
+      }
+      drumShade(0, it.h - 32, W * 0.5, style === "drum" ? W * 0.5 : W * 0.38, 28);
     },
   },
   tableLamp: {
@@ -2024,156 +1943,330 @@ export const FURN = {
       dist: 500,
     },
     build: function (g, it) {
-      box(g, -it.w / 2, it.w / 2, 0, it.h, -it.d / 2, it.d / 2, 0xcccccc, {
-        metal: 0.8,
-        rough: 0.2,
-      });
-      box(g, -it.w / 2 + 1, it.w / 2 - 1, it.h - 0.5, it.h, -it.d / 2 + 1, it.d / 2 - 1, 0xffffff, {
-        emis: 0xffffff,
-        cast: false,
+      /* LED strip in an aluminium channel: a U-profile, an opal diffuser that
+         glows, and end caps. */
+      var hw = it.w / 2, hd = it.d / 2, t = 0.35, al = { metal: 0.8, rough: 0.3, sharp: true };
+      box(g, -hw, hw, 0, t, -hd, hd, 0xcccccc, al);
+      box(g, -hw, hw, t, it.h, -hd, -hd + t, 0xcccccc, al);
+      box(g, -hw, hw, t, it.h, hd - t, hd, 0xcccccc, al);
+      box(g, -hw + 0.6, hw - 0.6, it.h - 0.7, it.h - 0.2, -hd + t, hd - t, 0xffffff, { emis: 0xffffff, rough: 0.4, cast: false, sharp: true });
+      [-1, 1].forEach(function (s) {
+        box(g, s * hw - (s > 0 ? 0.6 : 0), s * hw + (s < 0 ? 0.6 : 0), 0, it.h, -hd, hd, 0x9a9fa3, { rough: 0.5, sharp: true });
       });
     },
   },
   nft_pipe_75: {
     label: "צינור NFT 75 מ\"מ",
     w: 300, d: 7.5, h: 10, col: "#f2f5f7",
-    build: function(g, it) {
-      cyl(g, 0, it.h/2, 0, 3.75, it.w, PVC_WHITE, { rz: Math.PI/2, seg: 16 });
-      for(var i=-120; i<=120; i+=15) {
-        cyl(g, i, it.h/2 + 3.75, 0, 2.5, 0.5, BLACK_PLASTIC, { seg: 8 });
-      }
-    }
+    build: function (g, it) {
+      nftChannel(g, it, 3.75, 15, 2.5, false);
+    },
   },
   nft_pipe_110: {
     label: "צינור NFT 110 מ\"מ",
     w: 300, d: 11, h: 15, col: "#f2f5f7",
-    build: function(g, it) {
-      cyl(g, 0, it.h/2, 0, 5.5, it.w, PVC_WHITE, { rz: Math.PI/2, seg: 24 });
-      for(var i=-120; i<=120; i+=20) {
-        cyl(g, i, it.h/2 + 5.5, 0, 3.5, 0.5, BLACK_PLASTIC, { seg: 12 });
-      }
-    }
+    build: function (g, it) {
+      nftChannel(g, it, 5.5, 20, 3.5, false);
+    },
   },
   nft_pipe_160: {
     label: "צינור NFT 160 מ\"מ",
     w: 300, d: 16, h: 20, col: "#f2f5f7",
-    build: function(g, it) {
-      cyl(g, 0, it.h/2, 0, 8, it.w, PVC_WHITE, { rz: Math.PI/2, seg: 24 });
-      for(var i=-120; i<=120; i+=30) {
-        cyl(g, i, it.h/2 + 8, 0, 5, 0.5, BLACK_PLASTIC, { seg: 16 });
-      }
-    }
+    build: function (g, it) {
+      nftChannel(g, it, 8, 30, 5, false);
+    },
   },
   nft_square_12x12: {
     label: "תעלת NFT מרובעת",
     w: 300, d: 12, h: 12, col: "#f2f5f7",
-    build: function(g, it) {
-      box(g, -it.w/2, it.w/2, 0, it.h, -it.d/2, it.d/2, PVC_WHITE, { rough: 0.5 });
-      for(var i=-120; i<=120; i+=20) {
-        cyl(g, i, it.h, 0, 3.5, 0.5, BLACK_PLASTIC, { seg: 12 });
-      }
-    }
+    build: function (g, it) {
+      nftChannel(g, it, it.d / 2, 20, 3.5, true);
+    },
   },
   dwc_bucket: {
     label: "דלי DWC",
     w: 31, d: 31, h: 40, col: "#222222",
-    build: function(g, it) {
-      cyl(g, 0, it.h/2, 0, it.w/2, it.h, BLACK_PLASTIC, { rough: 0.9, seg: 24 });
-      cyl(g, 0, it.h, 0, 10, 1, 0x111111, { rough: 0.9, seg: 16 });
-      cyl(g, 0, it.h + 5, 0, 5, 15, GREEN, { rough: 0.7, seg: 12 });
-    }
+    build: function (g, it) {
+      /* Deep-water-culture bucket: a tapered, ribbed pail with a wire bail, a
+         lid holding a net pot of clay pebbles, an air line dropping in, and the
+         plant growing out of the pot. */
+      var r = it.w / 2, H = it.h - 2;
+      lathe(g, 0, 0, 0, [[0, 0], [r - 3.2, 0], [r - 2.6, 0.8], [r - 0.8, H - 3], [r, H - 2.6], [r, H], [r - 1, H], [r - 3.4, 1.2], [0, 1.2]], BLACK_PLASTIC, { rough: 0.85, seg: 36 });
+      [H * 0.3, H * 0.6].forEach(function (y) {
+        torus(g, 0, y, 0, r - 2.6 + (1.8 * y) / H + 0.1, 0.35, BLACK_PLASTIC, { rough: 0.85, seg: 36, segR: 4 });
+      });
+      [-1, 1].forEach(function (s) {
+        cyl(g, s * (r - 0.2), H - 5, 0, 1.4, 1.2, BLACK_PLASTIC, { rough: 0.8, seg: 12, rz: Math.PI / 2 }); // bail lug
+      });
+      tube(g, [[-(r + 0.4), H - 5, 0], [-(r - 2), H + 6, 0], [0, H + 9, 0], [r - 2, H + 6, 0], [r + 0.4, H - 5, 0]], 0.25, 0x8a9296, { metal: 0.8, rough: 0.35, seg: 5, cast: false });
+      cyl(g, 0, H + 0.6, 0, r + 0.2, 1.2, 0x111111, { rough: 0.8, seg: 36 }); // lid
+      lathe(g, 0, H + 1.2, 0, [[0, -9], [3.6, -9], [5, -0.4], [6.2, -0.4], [6.2, 0.4], [0, 0.4]], 0x111111, { rough: 0.8, seg: 24 }); // net pot
+      var peb = sph(g, 0, H + 1.4, 0, 4.8, 0x9a6a4a, { rough: 0.95, seg: 16, segV: 8, thetaLen: Math.PI / 2 });
+      if (peb) peb.scale.y = 0.25;
+      tube(g, [[r - 4, H + 1.2, -r + 5], [r - 1, H + 5, -r + 3], [r + 1, H - 6, -r + 4]], 0.3, 0x2b3236, { rough: 0.6, seg: 5, cast: false }); // air line
+      cyl(g, 0, H + 6, 0, 0.8, 10, 0x5f8a45, { rough: 0.8, seg: 8 }); // stem
+      [[0, 12, 0, 5.5], [3.5, 9, 2, 4], [-3, 10, -2.5, 4.2], [1.5, 15, -2, 3.6]].forEach(function (l) {
+        var lf = sph(g, l[0], H + l[1], l[2], l[3], GREEN, { rough: 0.8, seg: 14, segV: 10 });
+        if (lf) lf.scale.y = 0.55;
+      });
+    },
   },
   rdwc_header: {
     label: "מיכל בקרה RDWC",
     w: 40, d: 40, h: 50, col: "#222222",
-    build: function(g, it) {
-      box(g, -it.w/2, it.w/2, 0, it.h, -it.d/2, it.d/2, BLACK_PLASTIC, { rough: 0.9 });
-      cyl(g, 0, it.h, 0, 5, 2, PVC_WHITE, { rough: 0.5 });
-    }
+    build: function (g, it) {
+      /* RDWC control bucket: a ribbed square tank with a sealed lid, bulkhead
+         fittings on each side with pipe stubs for the loop, a float valve for the
+         top-up line and the air-stone line through the lid. */
+      var hw = it.w / 2, hd = it.d / 2, H = it.h - 2;
+      box(g, -hw + 1, hw - 1, 0, H, -hd + 1, hd - 1, BLACK_PLASTIC, { rough: 0.85, radius: 3 });
+      [H * 0.35, H * 0.7].forEach(function (y) {
+        box(g, -hw + 0.6, hw - 0.6, y - 0.4, y + 0.4, -hd + 0.6, hd - 0.6, BLACK_PLASTIC, { rough: 0.85, radius: 0.35 });
+      });
+      box(g, -hw, hw, H, H + 2, -hd, hd, 0x111111, { rough: 0.8, radius: 0.8 }); // lid
+      [-1, 1].forEach(function (s) {
+        var x = s * (hw - 1);
+        cyl(g, x + s * 0.8, H * 0.3, 0, 3.4, 1.6, PVC_WHITE, { rough: 0.5, seg: 6, rz: Math.PI / 2 }); // bulkhead nut
+        cyl(g, x + s * 2.8, H * 0.3, 0, 2.5, 4, PVC_WHITE, { rough: 0.45, seg: 20, rz: Math.PI / 2 }); // pipe stub
+      });
+      cyl(g, hw * 0.4, H + 3, -hd * 0.4, 2.4, 2, PVC_WHITE, { rough: 0.5, seg: 20 }); // top-up float valve
+      cyl(g, hw * 0.4, H + 4.6, -hd * 0.4, 0.6, 1.8, 0x2b3236, { rough: 0.6, seg: 8 });
+      lathe(g, -hw * 0.3, H + 2, hd * 0.3, [[0, 0], [1.6, 0], [1.2, 1.4], [0.5, 1.8], [0, 1.8]], 0x2b3236, { rough: 0.6, seg: 14 }); // grommet
+      tube(g, [[-hw * 0.3, H + 3.6, hd * 0.3], [-hw * 0.2, H + 8, hd * 0.1], [0, H + 6, -hd * 0.2]], 0.3, 0x2b3236, { seg: 5, cast: false });
+    },
   },
   ebb_flow_tray: {
     label: "מגש הצפה וריקון",
     w: 120, d: 250, h: 100, col: "#b0b3b5",
-    build: function(g, it) {
-      var lx = it.w/2 - 2, lz = it.d/2 - 2;
-      [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(p) {
-        box(g, p[0]*lx - 2, p[0]*lx + 2, 0, 80, p[1]*lz - 2, p[1]*lz + 2, ALUMINUM, { metal: 0.6 });
+    build: function (g, it) {
+      /* Flood-and-drain bench: an aluminium table with levelling feet and
+         cross rails, a ribbed black flood tray with a drain fitting and a fill
+         spout, and rows of rockwool blocks each carrying a seedling. */
+      var hw = it.w / 2, hd = it.d / 2, lx = hw - 2.5, lz = hd - 2.5, ty = it.h - 20, al = { metal: 0.6, rough: 0.35, radius: 0.4 };
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) {
+        box(g, p[0] * lx - 2, p[0] * lx + 2, 2, ty, p[1] * lz - 2, p[1] * lz + 2, ALUMINUM, al);
+        cyl(g, p[0] * lx, 1, p[1] * lz, 2.2, 2, 0x2b3236, { rough: 0.7, seg: 14 }); // levelling foot
       });
-      box(g, -it.w/2, it.w/2, 80, 95, -it.d/2, it.d/2, BLACK_PLASTIC, { rough: 0.8 });
-      box(g, -it.w/2 + 2, it.w/2 - 2, 82, 90, -it.d/2 + 2, it.d/2 - 2, TUFF, { rough: 1 });
-      cyl(g, -it.w/2 + 10, 85, -it.d/2 + 10, 4, 15, PVC_WHITE, { seg: 12 }); 
-    }
+      [ty - 3, 18].forEach(function (y) {
+        [-1, 1].forEach(function (s) {
+          box(g, s * lx - 1.5, s * lx + 1.5, y - 3, y, -lz + 2, lz - 2, ALUMINUM, al);
+          box(g, -lx + 2, lx - 2, y - 3, y, s * lz - 1.5, s * lz + 1.5, ALUMINUM, al);
+        });
+      });
+      // the flood tray: floor, raised rim, drainage ribs
+      var y0 = ty, t0 = y0 + 1.5, rimT = 3;
+      box(g, -hw, hw, y0, t0, -hd, hd, BLACK_PLASTIC, { rough: 0.8, radius: 0.5 });
+      box(g, -hw, hw, t0, t0 + 10, -hd, -hd + rimT, BLACK_PLASTIC, { rough: 0.8, radius: 0.8 });
+      box(g, -hw, hw, t0, t0 + 10, hd - rimT, hd, BLACK_PLASTIC, { rough: 0.8, radius: 0.8 });
+      box(g, -hw, -hw + rimT, t0, t0 + 10, -hd + rimT, hd - rimT, BLACK_PLASTIC, { rough: 0.8, radius: 0.8 });
+      box(g, hw - rimT, hw, t0, t0 + 10, -hd + rimT, hd - rimT, BLACK_PLASTIC, { rough: 0.8, radius: 0.8 });
+      for (var k = 1; k < 8; k++) {
+        var rx = -hw + (k * it.w) / 8;
+        box(g, rx - 0.6, rx + 0.6, t0, t0 + 0.8, -hd + rimT + 2, hd - rimT - 2, 0x2b2d30, { rough: 0.8, sharp: true, cast: false });
+      }
+      cyl(g, hw - 12, t0 + 2.5, -hd + 12, 2.6, 5, PVC_WHITE, { rough: 0.5, seg: 18 }); // overflow standpipe
+      cyl(g, hw - 12, y0 - 4, -hd + 12, 1.8, 8, PVC_WHITE, { rough: 0.5, seg: 14 }); // drain
+      tube(g, [[-hw + 6, t0 + 14, -hd + 6], [-hw + 8, t0 + 16, -hd + 10], [-hw + 10, t0 + 8, -hd + 12]], 1, PVC_WHITE, { rough: 0.5, seg: 10 }); // fill spout
+      // rockwool blocks with seedlings
+      var cols = Math.max(2, Math.floor((it.w - 20) / 26)), rows = Math.max(2, Math.floor((it.d - 20) / 30));
+      for (var c = 0; c < cols; c++)
+        for (var r = 0; r < rows; r++) {
+          var bx = -hw + 10 + ((c + 0.5) * (it.w - 20)) / cols, bz = -hd + 10 + ((r + 0.5) * (it.d - 20)) / rows;
+          box(g, bx - 5, bx + 5, t0 + 0.8, t0 + 8.5, bz - 5, bz + 5, TUFF, { rough: 1, radius: 0.5 });
+          var pl = sph(g, bx, t0 + 12, bz, 5.5, GREEN, { rough: 0.8, seg: 12, segV: 8 });
+          if (pl) pl.scale.y = 0.6;
+          cyl(g, bx, t0 + 9.5, bz, 0.6, 3, 0x5f8a45, { rough: 0.8, seg: 6, cast: false });
+        }
+    },
   },
   tower_commercial: {
     label: "מגדל מסחרי",
     w: 60, d: 60, h: 180, col: "#f2f5f7",
-    build: function(g, it) {
-      box(g, -25, 25, 0, 40, -25, 25, PVC_WHITE, { rough: 0.5 });
-      for(var i=40; i<170; i+=20) {
-        cyl(g, 0, i+10, 0, 8, 18, PVC_WHITE, { seg: 16 });
-        [[-1,0],[1,0],[0,-1],[0,1]].forEach(function(p) {
-          box(g, p[0]*10 - 3, p[0]*10 + 3, i+5, i+12, p[1]*10 - 3, p[1]*10 + 3, PVC_WHITE);
-        });
+    build: function (g, it) {
+      /* Commercial aeroponic tower: a lidded reservoir with its pump lead, a
+         stack of turned tower sections each with four angled planting pockets
+         holding greens, and the irrigation cap on top. */
+      var base = 40, secH = 20, top = it.h - 8, n = Math.max(3, Math.floor((top - base) / secH));
+      box(g, -25, 25, 0, base - 2, -25, 25, PVC_WHITE, { rough: 0.45, radius: 3 });
+      box(g, -26, 26, base - 3, base, -26, 26, 0xe4e8ea, { rough: 0.45, radius: 1.2 }); // lid
+      box(g, 22, 25.6, 6, 12, -3, 3, 0xe4e8ea, { rough: 0.5, radius: 0.6 }); // fill hatch
+      tube(g, [[25, 8, 0], [29, 6, 0], [29, 0.6, 0]], 0.4, 0x2b3236, { seg: 5, cast: false }); // pump lead
+      for (var i = 0; i < n; i++) {
+        var y = base + i * secH;
+        lathe(g, 0, y, 0, [[7.2, 0], [8.2, 1], [8.2, secH - 2], [7.4, secH - 1], [7.4, secH], [0, secH]], PVC_WHITE, { rough: 0.45, seg: 28 });
+        for (var k = 0; k < 4; k++) {
+          var an = (k / 4) * Math.PI * 2 + (i % 2) * (Math.PI / 4), c = Math.cos(an), s = Math.sin(an);
+          var pk = cyl(g, c * 9.5, y + 11, s * 9.5, 3.4, 7, PVC_WHITE, { rough: 0.45, seg: 16, open: true });
+          if (pk) {
+            pk.rotation.order = "YXZ";
+            pk.rotation.set(0, -an, -0.75);
+          }
+          var lf = sph(g, c * 12, y + 16, s * 12, 4.6, GREEN, { rough: 0.8, seg: 12, segV: 8 });
+          if (lf) lf.scale.set(1.1, 0.7, 1.1);
+        }
       }
-    }
+      lathe(g, 0, base + n * secH, 0, [[0, 0], [7.4, 0], [7.4, 2], [5, 4], [1.2, 4.6], [1.2, 7], [0, 7]], 0xe4e8ea, { rough: 0.45, seg: 28 }); // cap
+    },
   },
   tower_diy_pvc: {
     label: "מגדל PVC",
     w: 40, d: 40, h: 180, col: "#f2f5f7",
-    build: function(g, it) {
-      cyl(g, 0, it.h/2, 0, 10, it.h, PVC_WHITE, { seg: 24 });
-      for(var i=20; i<170; i+=15) {
-        var a = (i/15) * (Math.PI/2);
-        box(g, Math.cos(a)*10 - 4, Math.cos(a)*10 + 4, i, i+8, Math.sin(a)*10 - 4, Math.sin(a)*10 + 4, PVC_WHITE);
+    build: function (g, it) {
+      /* DIY PVC tower: a capped upright pipe on a cross stand, with 45° net-cup
+         pockets spiralling up it, each holding a plant. */
+      var R = 5.5, H = it.h - 4;
+      [0, Math.PI / 2].forEach(function (a) {
+        var b = box(g, -it.w / 2 + 1, it.w / 2 - 1, 0, 3, -2, 2, PVC_WHITE, { rough: 0.5, radius: 0.8 });
+        if (b) b.rotation.y = a;
+      });
+      cyl(g, 0, 5, 0, R + 1, 4, 0xe4e8ea, { rough: 0.45, seg: 28 }); // coupling
+      cyl(g, 0, (3 + H) / 2, 0, R, H - 3, PVC_WHITE, { rough: 0.45, seg: 28 });
+      lathe(g, 0, H, 0, [[0, 0], [R + 0.8, 0], [R + 0.8, 2.4], [R * 0.6, 3.6], [0, 3.8]], 0xe4e8ea, { rough: 0.45, seg: 28 }); // cap
+      for (var y = 20, k = 0; y < H - 10; y += 15, k++) {
+        var an = k * (Math.PI / 2), c = Math.cos(an), s = Math.sin(an);
+        var pk = cyl(g, c * (R + 2.4), y, s * (R + 2.4), 2.8, 6, PVC_WHITE, { rough: 0.45, seg: 16, open: true });
+        if (pk) {
+          pk.rotation.order = "YXZ";
+          pk.rotation.set(0, -an, -Math.PI / 4);
+        }
+        var lf = sph(g, c * (R + 4.5), y + 4.5, s * (R + 4.5), 4, GREEN, { rough: 0.8, seg: 12, segV: 8 });
+        if (lf) lf.scale.y = 0.7;
       }
-    }
+    },
   },
   water_chiller: {
     label: "צ'ילר",
     w: 30, d: 40, h: 40, col: "#111111",
-    build: function(g, it) {
-      box(g, -it.w/2, it.w/2, 0, it.h, -it.d/2, it.d/2, BLACK_PLASTIC, { rough: 0.6 });
-      box(g, -it.w/2 + 2, it.w/2 - 2, 10, it.h - 5, it.d/2, it.d/2 + 1, ALUMINUM, { metal: 0.8 });
-    }
+    build: function (g, it) {
+      /* Aquarium-style water chiller: a rounded case on rubber feet, a slatted
+         condenser grille on the front, a lit temperature readout with its
+         buttons, and hose barbs for the flow and return. */
+      var hw = it.w / 2, hd = it.d / 2;
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) {
+        cyl(g, p[0] * (hw - 4), 0.8, p[1] * (hd - 4), 2, 1.6, 0x16181a, { rough: 0.9, seg: 12 });
+      });
+      box(g, -hw, hw, 1.6, it.h, -hd, hd, BLACK_PLASTIC, { rough: 0.55, radius: 2.4 });
+      box(g, -hw + 2.5, hw - 2.5, 5, it.h - 12, hd - 0.4, hd + 0.2, ALUMINUM, { metal: 0.7, rough: 0.35, radius: 0.6 });
+      slats(g, -hw + 3.5, hw - 3.5, 6, it.h - 13, hd + 0.2, 10, 0x2b2d30);
+      box(g, -hw + 3, hw - 3, it.h - 10, it.h - 3, hd - 0.2, hd + 0.3, 0x16181a, { rough: 0.2, metal: 0.2, radius: 0.5 }); // panel
+      box(g, -hw + 5, -hw + 13, it.h - 8.4, it.h - 4.6, hd + 0.3, hd + 0.4, 0xff5a3c, { emis: 0xd8402a, sharp: true, cast: false }); // readout
+      [0, 3.4, 6.8].forEach(function (x) {
+        cyl(g, hw - 12 + x, it.h - 6.5, hd + 0.5, 0.9, 0.5, 0x5a6064, { rough: 0.4, seg: 12, rx: Math.PI / 2 });
+      });
+      [-1, 1].forEach(function (s) {
+        cyl(g, s * 5, it.h * 0.5, -hd - 1.5, 1.2, 3, 0x2b3236, { rough: 0.5, seg: 12, rx: Math.PI / 2 }); // hose barbs
+        cyl(g, s * 5, it.h * 0.5, -hd - 3.2, 1, 0.6, 0x2b3236, { rough: 0.5, seg: 12, rx: Math.PI / 2, r2: 1.4 });
+      });
+    },
   },
   grow_tent: {
     label: "אוהל גידול",
     w: 120, d: 120, h: 200, col: "#151515",
-    build: function(g, it) {
-      box(g, -it.w/2, it.w/2, 0, it.h, -it.d/2, it.d/2, 0x151515, { rough: 0.9, trans: true, opacity: 0.95 });
-      var lx = it.w/2 - 1, lz = it.d/2 - 1;
-      [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(p) {
-        box(g, p[0]*lx - 1, p[0]*lx + 1, 0, it.h, p[1]*lz - 1, p[1]*lz + 1, ALUMINUM, { metal: 0.7 });
+    build: function (g, it) {
+      /* Grow tent: a steel-pole frame, black canvas walls and roof lined with
+         reflective mylar, the front door zipped open and rolled up so the lining
+         shows, a floor tray, and a ducting port with its sock on the side. */
+      var hw = it.w / 2, hd = it.d / 2, H = it.h, t = 0.4, BK = 0x151515, MY = 0xd8dde0,
+        cv = { rough: 0.95, sharp: true }, my = { metal: 0.85, rough: 0.28, sharp: true, cast: false };
+      // frame: posts and top rails
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) {
+        cyl(g, p[0] * (hw - 1.2), H / 2, p[1] * (hd - 1.2), 1.1, H, ALUMINUM, { metal: 0.7, rough: 0.35, seg: 10 });
       });
-    }
+      [-1, 1].forEach(function (s) {
+        cyl(g, 0, H - 1.2, s * (hd - 1.2), 1.1, it.w - 2.4, ALUMINUM, { metal: 0.7, rough: 0.35, seg: 10, rz: Math.PI / 2 });
+        cyl(g, s * (hw - 1.2), H - 1.2, 0, 1.1, it.d - 2.4, ALUMINUM, { metal: 0.7, rough: 0.35, seg: 10, rx: Math.PI / 2 });
+      });
+      // canvas shell (outside black, inside mylar)
+      box(g, -hw, hw, 0, H, -hd, -hd + t, BK, cv);
+      box(g, -hw + t, hw - t, 0.5, H - 0.5, -hd + t, -hd + 2 * t, MY, my);
+      [-1, 1].forEach(function (s) {
+        box(g, s * hw - (s > 0 ? t : 0), s * hw + (s < 0 ? t : 0), 0, H, -hd, hd, BK, cv);
+        box(g, s * (hw - t) - (s > 0 ? t : 0), s * (hw - t) + (s < 0 ? t : 0), 0.5, H - 0.5, -hd + t, hd - t, MY, my);
+      });
+      box(g, -hw, hw, H - t, H, -hd, hd, BK, cv);
+      box(g, -hw + t, hw - t, H - 2 * t, H - t, -hd + t, hd - t, MY, my);
+      // front: fixed side strips and a lintel, the door rolled up under the lintel
+      var dw = it.w * 0.72, dh = H * 0.84;
+      box(g, -hw, -dw / 2, 0, H, hd - t, hd, BK, cv);
+      box(g, dw / 2, hw, 0, H, hd - t, hd, BK, cv);
+      box(g, -dw / 2, dw / 2, dh + 8, H, hd - t, hd, BK, cv);
+      cyl(g, 0, dh + 4, hd + 3, 4, dw, BK, { rough: 0.95, seg: 16, rz: Math.PI / 2 }); // rolled door
+      [-1, 1].forEach(function (s) {
+        box(g, s * dw * 0.3 - 1, s * dw * 0.3 + 1, dh - 4, dh + 8.5, hd + 6.8, hd + 7.2, 0x2b2d30, { sharp: true, cast: false }); // tie strap
+        box(g, s * dw / 2 - 0.4, s * dw / 2 + 0.4, 0, dh + 8, hd - 0.1, hd + 0.2, 0x3a3d40, { sharp: true, cast: false }); // zip
+      });
+      box(g, -hw + 2, hw - 2, 0, 4, -hd + 2, hd - 2, 0x1c1e20, { rough: 0.8, radius: 0.8 }); // floor tray
+      // ducting port and sock, upper side
+      torus(g, hw + 0.4, H - 32, 0, 10, 1.2, BK, { rough: 0.9, seg: 28, segR: 6, rz: Math.PI / 2 });
+      cyl(g, hw + 4, H - 32, 0, 10, 7, BK, { rough: 0.95, seg: 28, rz: Math.PI / 2, open: true });
+    },
   },
   led_grow_light: {
     label: "מנורת גידול לד",
     w: 60, d: 60, h: 5, col: "#b0b3b5",
     lamp: { type: "omni", color: "#ff88ff", it: 1.5 },
-    build: function(g, it) {
-      box(g, -it.w/2, it.w/2, it.h-3, it.h, -it.d/2, it.d/2, ALUMINUM, { metal: 0.6 });
-      box(g, -it.w/2 + 2, it.w/2 - 2, 0, 2, -it.d/2 + 2, it.d/2 - 2, 0xffbbff, { emis: 0xff88ff });
-    }
+    build: function (g, it) {
+      /* Bar-style LED grow light: parallel aluminium heat-sink bars each with a
+         glowing diode strip underneath, joined by end rails, a driver box on
+         top, and ratchet hangers rising from the corners. */
+      var hw = it.w / 2, hd = it.d / 2, bars = Math.max(4, Math.round(it.w / 10)), al = { metal: 0.65, rough: 0.35 };
+      [-1, 1].forEach(function (s) {
+        box(g, -hw, hw, it.h - 2.4, it.h, s * hd - (s > 0 ? 2.5 : 0), s * hd + (s < 0 ? 2.5 : 0), ALUMINUM, Object.assign({ radius: 0.5 }, al));
+      });
+      for (var i = 0; i < bars; i++) {
+        var x = -hw + 3 + (i * (it.w - 6)) / (bars - 1);
+        box(g, x - 2, x + 2, it.h - 3.2, it.h - 0.4, -hd + 2.5, hd - 2.5, ALUMINUM, Object.assign({ radius: 0.4 }, al));
+        box(g, x - 1.4, x + 1.4, it.h - 3.5, it.h - 3.1, -hd + 3.5, hd - 3.5, 0xffbbff, { emis: 0xff88ff, rough: 0.4, sharp: true, cast: false });
+      }
+      box(g, -8, 8, it.h, it.h + 3.6, -6, 6, 0x2b2f33, { metal: 0.4, rough: 0.5, radius: 0.8 }); // driver
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) {
+        var x = p[0] * (hw - 1.5), z = p[1] * (hd - 1.5);
+        cyl(g, x, it.h + 8, z, 0.12, 14, 0x16181a, { seg: 4, cast: false }); // hanger cord
+        box(g, x - 0.8, x + 0.8, it.h + 14, it.h + 17, z - 0.5, z + 0.5, 0x2b2f33, { rough: 0.5, radius: 0.2, cast: false }); // ratchet
+      });
+    },
   },
   water_reservoir_60l: {
     label: "מאגר 60 ליטר",
     w: 40, d: 40, h: 50, col: "#222222",
-    build: function(g, it) {
-      box(g, -it.w/2, it.w/2, 0, it.h, -it.d/2, it.d/2, BLACK_PLASTIC, { rough: 0.9 });
-      box(g, -it.w/2, it.w/2, it.h, it.h + 2, -it.d/2, it.d/2, PVC_WHITE, { rough: 0.8 });
-    }
+    build: function (g, it) {
+      /* 60 L nutrient reservoir: a rounded tub tapering slightly to its base,
+         a lid with a hatch, a sight-tube level gauge and a drain tap. */
+      var hw = it.w / 2, hd = it.d / 2, H = it.h;
+      box(g, -hw, hw, 0, H - 1, -hd, hd, BLACK_PLASTIC, { rough: 0.85, radius: 2.5 });
+      box(g, -hw - 0.6, hw + 0.6, H - 1, H + 1.6, -hd - 0.6, hd + 0.6, PVC_WHITE, { rough: 0.6, radius: 0.8 }); // lid
+      box(g, -hw * 0.45, hw * 0.45, H + 1.6, H + 2.4, -hd * 0.45, hd * 0.45, PVC_WHITE, { rough: 0.6, radius: 0.4 }); // hatch
+      box(g, -hw * 0.2, hw * 0.2, H + 2.4, H + 3, hd * 0.35, hd * 0.45, 0xd8dbdd, { rough: 0.6, radius: 0.2 }); // hatch grip
+      cyl(g, hw - 5, H * 0.5, hd + 0.8, 0.8, H - 12, 0xdfe8ec, { trans: true, opacity: 0.5, rough: 0.1, seg: 10 }); // sight tube
+      cyl(g, hw - 5, H * 0.32, hd + 0.8, 0.55, H * 0.36, WATER, { rough: 0.2, seg: 10, cast: false });
+      cyl(g, -hw + 7, 5, hd + 1.5, 1.4, 3, PVC_WHITE, { rough: 0.5, seg: 14, rx: Math.PI / 2 }); // drain tap
+      box(g, -hw + 5.5, -hw + 8.5, 6.2, 7.2, hd + 1.5, hd + 3, 0xc0392b, { rough: 0.5, radius: 0.3 });
+    },
   },
   shade_net: {
     label: "רשת הצללה",
     w: 200, d: 200, h: 250, col: "#1a1a1a",
-    build: function(g, it) {
-      var lx = it.w/2 - 2, lz = it.d/2 - 2;
-      [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(p) {
-        cyl(g, p[0]*lx, it.h/2, p[1]*lz, 2, it.h, ALUMINUM, { metal: 0.6, seg: 12 });
+    build: function (g, it) {
+      /* Shade-net canopy: four aluminium posts on base plates carrying a top
+         frame, the knitted net stretched over it with a slight sag, and guy
+         lines to the corners. */
+      var hw = it.w / 2, hd = it.d / 2, lx = hw - 2, lz = hd - 2, H = it.h;
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (p) {
+        cyl(g, p[0] * lx, H / 2, p[1] * lz, 2, H, ALUMINUM, { metal: 0.6, rough: 0.35, seg: 12 });
+        box(g, p[0] * lx - 5, p[0] * lx + 5, 0, 0.8, p[1] * lz - 5, p[1] * lz + 5, ALUMINUM, { metal: 0.6, rough: 0.4, radius: 0.3 });
+        sph(g, p[0] * lx, H + 0.6, p[1] * lz, 2.4, ALUMINUM, { metal: 0.6, rough: 0.35, seg: 12, segV: 8 });
       });
-      box(g, -it.w/2, it.w/2, it.h, it.h + 1, -it.d/2, it.d/2, 0x1a1a1a, { rough: 0.9, trans: true, opacity: 0.8 });
-    }
+      [-1, 1].forEach(function (s) {
+        cyl(g, 0, H - 2, s * lz, 1.5, 2 * lx, ALUMINUM, { metal: 0.6, rough: 0.35, seg: 10, rz: Math.PI / 2 });
+        cyl(g, s * lx, H - 2, 0, 1.5, 2 * lz, ALUMINUM, { metal: 0.6, rough: 0.35, seg: 10, rx: Math.PI / 2 });
+      });
+      box(g, -hw, hw, H - 0.6, H + 0.2, -hd, hd, 0x1a1a1a, { rough: 0.9, trans: true, opacity: 0.8, radius: 0.3 });
+      for (var i = 1; i < 10; i++) {
+        var x = -hw + (i * it.w) / 10, z = -hd + (i * it.d) / 10;
+        box(g, x - 0.25, x + 0.25, H + 0.2, H + 0.5, -hd, hd, 0x2b2b2b, { rough: 0.9, sharp: true, cast: false });
+        box(g, -hw, hw, H + 0.2, H + 0.5, z - 0.25, z + 0.25, 0x2b2b2b, { rough: 0.9, sharp: true, cast: false });
+      }
+    },
   }
 };
 

@@ -362,7 +362,11 @@ var VARIANTS = {
   toaster: APPL,
   kettle: APPL,
   waterHeater: APPL,
-  printer: APPL,
+  // the printer body is its own dark plastic, not appliance steel
+  printer: [
+    V("black", "שחור", "Black"),
+    V("white", "לבן", "White", smap(0x3a3f44, { col: 0xe9e8e4, rough: 0.5 }, 0x2a2d30, { col: 0xd6d4cf, rough: 0.45 })),
+  ],
   ac: [
     V("white", "לבן", "White"),
     V("silver", "כסוף", "Silver", smap(0xeef1f2, { col: 0xc4c9cc, rough: 0.35, metal: 0.4 })),
@@ -487,7 +491,14 @@ var VARIANTS = {
     }),
     V("longDrop", "תלייה ארוכה", "Long drop", null, { shape: "cone", drop: 70 }),
   ],
-  chandelier: LAMPM,
+  // keyed on the chandelier's own brass (LAMPM's dark-metal keys never
+  // touched it); the old ids still resolve — "dark" falls back to brass
+  chandelier: [
+    V("brass", "פליז", "Brass"),
+    V("chrome", "כרום", "Chrome", smap(0xb08d4a, { col: 0xd3d8db, rough: 0.12, metal: 0.95 })),
+    V("white", "לבן", "White", smap(0xb08d4a, { col: 0xf0efec, rough: 0.5, metal: 0.1 })),
+    V("black", "שחור", "Black", smap(0xb08d4a, { col: 0x2b2f33, rough: 0.4, metal: 0.6 })),
+  ],
   floorLamp: [
     V("column", "עמוד", "Column", null, { style: "column" }),
     V("tripod", "חצובה", "Tripod", null, { style: "tripod" }),

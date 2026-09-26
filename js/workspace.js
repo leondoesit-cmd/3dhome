@@ -1,5 +1,5 @@
 import { S } from "./state.js";
-import { openModal, flash, serialize, sceneObject, applyData, select, refreshTree, fillProps } from "./ui.js";
+import { openModal, flash, serialize, sceneObject, applyData, select, refreshTree, fillProps, setPlanStyle } from "./ui.js";
 import { render2D, fitView } from "./plan2d.js";
 import { pushHistory, beginHistory, commitPending, cancelPending } from "./history.js";
 import { markSaved } from "./persist.js";
@@ -320,6 +320,13 @@ export async function openWorkspace() {
       // the one detailed drawing: dimension strings, fixtures, area line
       button(t("sheet_export_svg"), () => downloadText("home3d-construction-plan.svg", toConstructionSVG(), "image/svg+xml")),
       button(t("sheet_print"), () => printSheet(toConstructionSVG())),
+      // the marketing plan: textured floors, model pictures, room titles —
+      // exported in the presentation style whatever the editor is showing
+      button(t("handoff_presentation_png"), async () => {
+        const prev = S.planStyle;
+        setPlanStyle("presentation");
+        try { await window.__runAction("png2d"); } finally { setPlanStyle(prev); }
+      }),
       button(t("handoff_svg"), () => downloadText("home3d-plan.svg", toSVG(), "image/svg+xml")),
       button(t("handoff_dxf"), () => downloadText("home3d-plan.dxf", toDXF(), "application/dxf")),
       button(t("handoff_ifc"), () => downloadText("home3d-model.ifc", toIFC(), "application/x-step")),

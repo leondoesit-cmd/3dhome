@@ -84,6 +84,17 @@ test('Front uses its world camera preset even while a top face remains selected'
  assert.equal(E.view,'front');
  assert.deepEqual(calls,[{az:0,el:.05}]);
 });
+test('standard views do not create an unrecorded sketch after a face sketch',()=>{
+ const face={id:'face-profile',plane:'front',frameSpace:'local',entities:[{id:'curve'}]};
+ const E={view:'side',def:{activeSketch:face.id,sketches:[face]},ssel:[]};
+ const adopt=load('adoptSketchForView',{
+  E,ensureSketch:def=>def.sketches.find(sketch=>sketch.id===def.activeSketch),
+  sketchesOnPlane:()=>[],addSketch(){throw new Error('view change created a sketch');},
+ });
+ assert.equal(adopt(),false);
+ assert.equal(E.def.activeSketch,face.id);
+ assert.deepEqual(E.def.sketches,[face]);
+});
 test('editing an offset plane keeps its parent despite a retained face selection',()=>{
  const selectedFace={kind:'face',persistentId:'unrelated-top',descriptor:{surface:'plane'}};
  const E={topologySelection:[selectedFace,{kind:'vertex',persistentId:'corner'}],def:{references:[

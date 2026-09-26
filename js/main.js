@@ -48,6 +48,7 @@ import { initDimKnob } from "./ui_dim_knob.js";
 import { windowChromePosture } from "./chrome_posture.js";
 import { rebuildProject } from "./core/project.js";
 import { initToolSearch } from "./tool_search.js";
+import { initProRibbon } from "./pro_ribbon.js";
 import { initLayers } from "./layers.js";
 import { initLayersUI } from "./ui_layers.js";
 import { initPlanToolsDock } from "./plan_tools_dock.js";
@@ -366,6 +367,7 @@ rebuildProject(S, FURN);
 initInteraction();
 initUI();
 initToolSearch();
+initProRibbon();
 initModeler();
 /* Pulls js/modeler.js in only when saved custom models are waiting to register
    into FURN — see ensureModelLibrary(). A session with no custom furniture
@@ -654,7 +656,7 @@ function setMaximized(viewId) {
     if (icon) icon.className = on ? "ph ph-arrows-in" : "ph ph-arrows-out";
     btn.title = t(on ? "restoreView" : "maximizeView");
   });
-  syncPlannerViewport(centerCanvas.classList.contains("max-view-3d") ? "3d" : centerCanvas.classList.contains("max-view-2d") ? "plan" : document.documentElement.dataset.plannerViewport || "plan");
+  syncPlannerViewport(centerCanvas.classList.contains("max-view-3d") ? "3d" : centerCanvas.classList.contains("max-view-2d") ? "plan" : "split");
   syncSurfaces();
   syncMobileNav();
   syncSplitOrientationButton();

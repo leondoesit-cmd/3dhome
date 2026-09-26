@@ -5,6 +5,7 @@ import { THREE } from "./three_lazy.js";
 import { CAB, TOP, STEEL, DARK, GLASS, WOOD, FABRIC } from "./state.js";
 import { box, cyl, sph, applyTextureToMaterial } from "./primitives.js";
 import { layoutCab, HW, FINISH } from "./cabinet.js";
+import { slabWithHoles } from "./furniture_helpers.js";
 
 /* ========================= 3D ========================= */
 
@@ -135,7 +136,12 @@ export function buildCab(g, it) {
     // carries the mount height; loose parts carry it themselves
     var dy = p.unit == null ? yo : 0;
     if (p.k === "box") {
-      var me = box(gr, p.x0 - o.x, p.x1 - o.x, p.y0 - o.y + dy, p.y1 - o.y + dy, p.z0 - o.z, p.z1 - o.z, m.col, opt);
+      if (p.role === "worktop" && p.cutouts?.length) {
+        slabWithHoles(gr, p.x0 - o.x, p.x1 - o.x, p.y0 - o.y + dy, p.y1 - o.y + dy, p.z0 - o.z, p.z1 - o.z,
+          p.cutouts.map(hole => ({ x0: hole.x0 - o.x, x1: hole.x1 - o.x, z0: hole.z0 - o.z, z1: hole.z1 - o.z })), m.col, opt);
+      } else {
+        var me = box(gr, p.x0 - o.x, p.x1 - o.x, p.y0 - o.y + dy, p.y1 - o.y + dy, p.z0 - o.z, p.z1 - o.z, m.col, opt);
+      }
       if (me && p.tilt) me.rotation.x = p.tilt; // tilted shoe shelves
     } else if (p.k === "poly") {
       // a corner unit's pentagon boards: the only parts here that are not boxes
@@ -149,4 +155,3 @@ export function buildCab(g, it) {
     }
   });
 }
-

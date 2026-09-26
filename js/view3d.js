@@ -67,6 +67,7 @@ import {
   distSeg,
 } from "./geometry.js";
 import { holesForRoom, hitSlabOpening, openingCorners, slabOpenings } from "./slab_openings.js";
+import { roofMeshTriangles } from "./roof.js";
 import {
   normalizeWall,
   wallLayerBands,
@@ -2657,6 +2658,20 @@ export function rebuild3D() {
     if (hid.walls[w.id]) return;
     buildWall(w, wallColorMap[w.id] != null ? wallColorMap[w.id] : S.wallColor, w.tex);
   });
+  if (S.roof && !S.invisibleRoof) {
+    var roofTriangles = roofMeshTriangles(S.roof), roofPositions = [];
+    roofTriangles.forEach(function (triangle) { triangle.forEach(function (p) { roofPositions.push(p.x, p.y, p.z); }); });
+    if (roofPositions.length) {
+      var roofGeo = new THREE.BufferGeometry();
+      roofGeo.setAttribute("position", new THREE.Float32BufferAttribute(roofPositions, 3));
+      roofGeo.computeVertexNormals();
+      var roofMesh = new THREE.Mesh(roofGeo, new THREE.MeshStandardMaterial({ color: 0x725b50, roughness: 0.82, side: THREE.DoubleSide }));
+      roofMesh.castShadow = true;
+      roofMesh.receiveShadow = true;
+      roofMesh.userData.role = "roof";
+      structureRoot.add(roofMesh);
+    }
+  }
   // daylight through each WINDOW (soft sky light at the opening, scaled by daylight)
   S.openings.forEach(function (o) {
     if (o.type !== "window") return;
@@ -2699,7 +2714,7 @@ export function rebuild3D() {
   // a cut house has no ceiling to look down through
   if (isFinite(cutH()))
     structureRoot.traverse(function (o) {
-      if (o.userData && o.userData.role === "ceiling") o.visible = false;
+      if (o.userData && (o.userData.role === "ceiling" || o.userData.role === "roof")) o.visible = false;
     });
   // external modes (RC race) rebuild their collision snapshot off this event
   updateSeeThrough(); // the wall groups are brand new: re-apply the dollhouse cut

@@ -52,6 +52,48 @@ test("furniture: every model builds, fits its footprint, and owns its materials"
       built++;
     }
     assert.ok(built > 100, "built " + built);
+
+    // Every finish and shape variant is a model in its own right: it builds,
+    // stays in budget and has finite geometry. The footprint rule holds too,
+    // except for the variants whose reach past the footprint is the design —
+    // a sectional's chaise return and the arc lamp's overhanging shade.
+    const REACH = new Set(["sofa:sectionalL", "sofa:sectionalR", "floorLamp:arc"]);
+    let variants = 0;
+    for (const type of Object.keys(FURN)) {
+      const f = FURN[type];
+      if (!f.build || !f.variants || PEOPLE.has(type)) continue;
+      for (const v of f.variants) {
+        const key = type + ":" + v.id;
+        const it = { type, variant: v.id, w: f.w || 60, d: f.d || 60, h: f.h || 80, x: 0, z: 0, rot: 0 };
+        const g = new THREE.Group();
+        buildItem(g, it);
+        let tris = 0;
+        g.traverse((o) => {
+          if (!o.isMesh) return;
+          const p = o.geometry.attributes.position.array;
+          for (let i = 0; i < p.length; i++) assert.ok(Number.isFinite(p[i]), key + " has a non-finite vertex");
+          tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+        });
+        assert.ok(tris <= MAX_TRIS, key + " has " + tris + " triangles");
+        const box = new THREE.Box3().setFromObject(g);
+        if (box.isEmpty() || REACH.has(key)) continue;
+        assert.ok(box.max.x - it.w / 2 <= MAX_OVERHANG && -box.min.x - it.w / 2 <= MAX_OVERHANG, key + " overhangs its width");
+        assert.ok(box.max.z - it.d / 2 <= MAX_OVERHANG && -box.min.z - it.d / 2 <= MAX_OVERHANG, key + " overhangs its depth");
+        variants++;
+      }
+    }
+    assert.ok(variants > 200, "built " + variants + " variants");
+
+    // cylinders and spheres honour trans/opacity/cast like boxes do: the
+    // clock glass and the pendant's glass globe are see-through, not opaque
+    for (const [type, variant] of [["clock"], ["pendant", "globe"]]) {
+      const f = FURN[type], g = new THREE.Group();
+      buildItem(g, { type, variant, w: f.w, d: f.d, h: f.h, x: 0, z: 0, rot: 0 });
+      let clear = null;
+      g.traverse((o) => { if (o.isMesh && o.material.transparent && o.material.opacity < 0.6) clear = o; });
+      assert.ok(clear, type + " has its see-through part");
+      assert.equal(clear.castShadow, false, type + " glass casts no shadow");
+    }
   `;
   const result = spawnSync(
     process.execPath,

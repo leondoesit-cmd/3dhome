@@ -133,6 +133,7 @@ function syncReview(designIssues, clashes, connectionIssues) {
   if (!reviewEl || !reviewEl.isConnected) {
     reviewEl = document.createElement("details");
     reviewEl.className = "mep-review";
+    reviewEl.id = "mepReview";
     reviewEl.ontoggle = function() { reviewOpen = reviewEl.open; };
     clashEl.insertAdjacentElement("afterend", reviewEl);
   }
@@ -358,6 +359,7 @@ export function renderPanel() {
   var auto = document.createElement("button");
   auto.type = "button";
   auto.className = "mep-auto-btn";
+  auto.setAttribute("data-mep", "auto");
   var autoIcon = document.createElement("i");
   autoIcon.className = "ph ph-magic-wand";
   autoIcon.setAttribute("aria-hidden", "true");
@@ -371,6 +373,7 @@ export function renderPanel() {
   var inspect = document.createElement("button");
   inspect.type = "button";
   inspect.className = "mep-inspect-floor";
+  inspect.setAttribute("data-mep", "floor-routes");
   inspect.disabled = !floorRuns;
   inspect.setAttribute("aria-pressed", floorOnly ? "true" : "false");
   var inspectIcon = document.createElement("i");
@@ -422,6 +425,7 @@ export function renderPanel() {
     var main = document.createElement("button");
     main.type = "button";
     main.className = "mep-chip-main";
+    main.setAttribute("data-mep", "sys:" + sys);
     main.setAttribute("aria-pressed", m.active === sys ? "true" : "false");
     main.setAttribute("aria-label", t("mep_selectSystem", { name: name }));
     var dot = document.createElement("span");
@@ -491,6 +495,7 @@ export function renderPanel() {
     var b = document.createElement("button");
     b.type = "button";
     b.className = "mep-layer-btn" + (m.layer === lay ? " active" : "");
+    b.setAttribute("data-mep", "layer:" + lay);
     b.textContent = t("mep_" + lay);
     b.disabled = allowed.indexOf(lay) < 0;
     b.setAttribute("aria-pressed", m.layer === lay ? "true" : "false");
@@ -524,6 +529,7 @@ export function renderPanel() {
   (MEP_NODE_KINDS[sys] || []).forEach(function (d) {
     dgrid.appendChild(paletteBtn(sys, d.k, "node", d.code, d.hub, nodeLabel(sys, d.k)));
   });
+  dgrid.id = "mepFixturePalette";
   pal.appendChild(dgrid);
 
   var rh = document.createElement("div");
@@ -583,7 +589,19 @@ export function renderPanel() {
   var wr = optCheck(t("mep_wallRoute"), m.wallRoute !== false, function (v) { m.wallRoute = v; });
   wr.title = t("mep_wallRouteHint");
   opts.appendChild(wr);
-  opts.appendChild(optCheck(t("mep_snap"), m.snapAngle, function (v) { m.snapAngle = v; }));
+  var angleSnap = document.createElement("button");
+  angleSnap.type = "button";
+  angleSnap.setAttribute("data-mep", "angle-snap");
+  angleSnap.setAttribute("aria-pressed", String(!!m.snapAngle));
+  angleSnap.textContent = t("mep_snap");
+  angleSnap.onclick = function () { m.snapAngle = !m.snapAngle; renderPanel(); };
+  opts.appendChild(angleSnap);
+  var fixtures = document.createElement("button");
+  fixtures.type = "button";
+  fixtures.setAttribute("data-mep", "fixtures");
+  fixtures.textContent = t("mep_devices");
+  fixtures.onclick = function () { document.getElementById("mepFixturePalette")?.scrollIntoView({ block: "center", behavior: "smooth" }); };
+  opts.appendChild(fixtures);
   opts.appendChild(optCheck(t("mep_animate"), m.animate !== false, function (v) { m.animate = v; }));
   opts.appendChild(optCheck(t("mep_3d"), m.show3D, function (v) { m.show3D = v; S.dirty3D = true; }));
 

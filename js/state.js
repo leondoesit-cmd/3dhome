@@ -197,6 +197,7 @@ export const S = {
      the floor (and ceiling) of the storey it lives on — typically the floor
      above a flight of stairs stored as ordinary furniture on the storey below. */
   slabOpenings: [],
+  annotations: [],
   /* Explicit user-authored dimensions BETWEEN pieces of geometry — distances
      from another corner or reference point, joint angles, parallel offsets.
      See js/wall_constraints.js; anchors are wall-id + end, never node indices. */
@@ -339,6 +340,7 @@ export const S = {
   cutaway: { on: false, height: 160, cap: "white" },
   showCeiling: false,
   invisibleRoof: false,
+  roof: null,
   floorTex: "wood",
   wallColor: 0xefe9dd,
   hour: 13,
