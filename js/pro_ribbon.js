@@ -294,8 +294,21 @@ function syncActive() {
   var on = document.querySelector("#plan-toolbar [data-tool].active, #plan-toolbar [data-tool].on");
   var active = on ? "tool:" + on.getAttribute("data-tool") : "";
   if (ribbon) ribbon.querySelectorAll(".pr-tool").forEach(function (b) { b.classList.toggle("on", !!active && b.dataset.proBind === active); });
-  // the fold rail's docked grid (renderToolTab) shows the armed tool too
-  document.querySelectorAll(".pro-rail-grid [data-pro-bind]").forEach(function (b) { b.classList.toggle("on", !!active && b.dataset.proBind === active); });
+  // The fold rails' docked grids (renderToolTab) show each editor's armed tool:
+  // the planner's from its rail, the model editor's and the cabinet designer's
+  // from their own command buttons, which mark the active one with .on.
+  document.querySelectorAll(".pro-rail-grid [data-pro-bind]").forEach(function (b) {
+    b.classList.toggle("on", railBindActive(b.dataset.proBind, active));
+  });
+}
+function railBindActive(bind, plannerActive) {
+  if (!bind) return false;
+  if (bind.indexOf("tool:") === 0) return !!plannerActive && bind === plannerActive;
+  var p = parseBinding(bind);
+  if (!p) return false;
+  if (p.kind === "mcmd") return !!document.querySelector('#modeler [data-command="' + p.value + '"].on');
+  if (p.kind === "cab" && p.attr) return !!document.querySelector("#cabdes [data-" + p.attr + '="' + p.value + '"].on');
+  return false;
 }
 
 function setCollapsed(c) {
@@ -474,6 +487,8 @@ function renderToolTab(container, editor, index, onRun) {
       b.addEventListener("click", function () {
         runProBinding(tool.bind, tool.label);
         syncActive();
+        // editor commands can arm a frame later (the model editor may still be opening)
+        setTimeout(syncActive, 200);
         if (onRun) onRun(tool);
       });
       grid.appendChild(b);
@@ -481,7 +496,7 @@ function renderToolTab(container, editor, index, onRun) {
     container.appendChild(grid);
   });
 }
-window.__proToolTabs = { tabs: proToolTabs, render: renderToolTab };
+window.__proToolTabs = { tabs: proToolTabs, render: renderToolTab, sync: syncActive };
 
 /* ---------------------------------------------------------------- ⌘K search */
 

@@ -670,3 +670,60 @@ body.compact-nav #right-inspector #wallProps .wi-tabs > button > span:not(.wi-ta
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Model editor on a fold: the rail heads .md-body; the tools pane heads the
+   Properties column, which stands beside the model (no backdrop) and takes a
+   larger share while the tools show. */
+body.compact-nav.dock-rail #modeler .md-fold-rail { display: flex; }
+#md-fold-tools { display: none; }
+body.dock-rail #modeler.md-fold-open #md-fold-tools {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  max-height: 48%;
+  min-height: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+/* The fold's side column for the editor's sheet (Properties, Commands, Tree
+   when undocked). styles.css says so for body.dock-rail, but its later
+   @media (max-width: 1024px) phone rules re-lay #md-sheet as a bottom sheet
+   at every fold width — so on a Fold the sheet spanned the whole screen. The
+   two ids here outrank both, including their !important heights. */
+body.compact-nav.dock-rail #modeler #md-sheet {
+  top: 0;
+  bottom: 0;
+  inset-inline: auto 0;
+  width: min(360px, 42vw);
+  height: auto !important;
+  max-height: none;
+  margin-inline: 0;
+  border-radius: 0;
+}
+body.compact-nav.dock-rail #modeler.md-fold-open #md-sheet { width: min(420px, 44vw); }
+body.dock-rail #modeler.md-fold-open #md-sheet-backdrop { display: none; }
+body.dock-rail #modeler.md-fold-open .md-body { padding-inline-end: min(420px, 44vw); box-sizing: border-box; }
+
+/* Cabinet designer on a fold: the rail heads .cb-body; the tools pane heads
+   the Properties column (.cb-right), which widens while the tools show. */
+body.compact-nav.dock-rail #cabdes.cb-compact .cb-fold-rail { display: flex; }
+#cb-fold-tools { display: none; }
+body.dock-rail #cabdes.cb-compact.cb-fold-open #cb-fold-tools {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  max-height: 48%;
+  min-height: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+body.dock-rail #cabdes.cb-compact.cb-fold-open .cb-right { width: clamp(320px, 44vw, 440px); flex-direction: column; }
+/* On a fold the docked panels were as tall as their content (the Properties
+   column ran to ~890px in a ~470px body, clipped by overflow: hidden), so the
+   bottom half of the inspector could not be reached. Bound them to the body
+   and let the tab area scroll. */
+body.dock-rail #cabdes.cb-compact .cb-panel { min-height: 0; max-height: 100%; }
+body.dock-rail #cabdes.cb-compact .cb-panel > .cb-tabs.cb-fill { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+/* The column is capped by the body, not given a height, so a percentage cap on
+   the tools never resolves: share by flex instead — the tools shrink and
+   scroll, the inspector below keeps a usable minimum. */
+body.dock-rail #cabdes.cb-compact.cb-fold-open #cb-fold-tools { flex: 0 1 auto; max-height: none; }
+body.dock-rail #cabdes.cb-compact.cb-fold-open .cb-right > .cb-tabs.cb-fill { flex: 1 1 0; min-height: 170px; }

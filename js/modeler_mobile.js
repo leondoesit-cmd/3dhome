@@ -141,12 +141,100 @@ function setTreeDock(on) {
    Default on; the Tree nav slot toggles it. Phone still borrows into #md-sheet. */
 function applyTreeDock() {
   if (!api || !api.root) return;
-  var want = compact() && dockRail() && api.root.dataset.mdTreePref !== "off";
+  // While the fold rail's tools pane is open the tree steps aside; the Tree
+  // preference itself is untouched and comes back when the pane closes.
+  var want = compact() && dockRail() && api.root.dataset.mdTreePref !== "off" && foldTab == null;
   if (want && openKey === "tree") closeSheet();
   var was = api.root.classList.contains("md-tree-on");
   api.root.classList.toggle("md-tree-on", want);
   if (was !== want) window.dispatchEvent(new Event("resize"));
   if (was && !want && compact() && api.root.querySelector("#mdQuickSettings:not([hidden])")) showSheet("tree");
+}
+
+/* ---- fold rail ---------------------------------------------------------- */
+
+/* Unfolded foldables (dock-rail): the model editor's catalog tabs as a rail
+   beside the model, and the picked tab's tools at the head of the Properties
+   column on the end side — the Round-6 model-editor Fold7 screen. The grid is
+   the pro catalog's (js/pro_ribbon.js, window.__proToolTabs), the same
+   bindings the planner's ribbon, ⌘K and the phone Tools sheet run.
+   While the tools show, the tree column steps aside so the model keeps its
+   width; a command that opens a feature form (forms live in the tree column)
+   closes the tools and brings the tree back with the form — the same "get out
+   of the way" the Commands sheet already does. */
+var foldRail = null, foldPanel = null, foldTab = null;
+function foldTabs() { return window.__proToolTabs ? window.__proToolTabs.tabs("model") : []; }
+function foldEsc(v) {
+  return String(v).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+}
+function buildFoldRail() {
+  var body = api && api.root && api.root.querySelector(".md-body");
+  if (!body || !window.__proToolTabs) return;
+  if (!foldRail || foldRail.parentNode !== body) {
+    foldRail = document.createElement("nav");
+    foldRail.id = "md-fold-rail";
+    foldRail.className = "m-fold-rail md-fold-rail";
+    body.insertBefore(foldRail, body.firstChild);
+    foldRail.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-fold-tab]");
+      if (!b) return;
+      var index = Number(b.dataset.foldTab);
+      if (foldTab === index) closeFoldTools();
+      else openFoldTab(index);
+    });
+  }
+  foldRail.setAttribute("aria-label", t("foldRail"));
+  foldRail.innerHTML = foldTabs().map(function (tab) {
+    return '<button type="button" data-fold-tab="' + tab.index + '" aria-pressed="false" title="' + foldEsc(tab.full) + '">' +
+      '<i class="ph ' + tab.icon + '" aria-hidden="true"></i><span>' + foldEsc(tab.label) + "</span></button>";
+  }).join("");
+  syncFoldRail();
+}
+function syncFoldRail() {
+  if (!foldRail) return;
+  foldRail.querySelectorAll("[data-fold-tab]").forEach(function (b) {
+    var on = Number(b.dataset.foldTab) === foldTab;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+}
+function renderFoldPanel() {
+  if (!sheet) return;
+  if (!foldPanel) {
+    foldPanel = document.createElement("section");
+    foldPanel.id = "md-fold-tools";
+    foldPanel.className = "m-fold-tools";
+    foldPanel.innerHTML = '<header><strong></strong><button type="button" class="m-fold-x"><i class="ph ph-x" aria-hidden="true"></i></button></header><div class="m-fold-body"></div>';
+    foldPanel.querySelector(".m-fold-x").addEventListener("click", closeFoldTools);
+  }
+  var head = sheet.querySelector(".m-sheet-head");
+  if (foldPanel.parentNode !== sheet) sheet.insertBefore(foldPanel, head ? head.nextSibling : sheet.firstChild);
+  var tab = foldTabs()[foldTab];
+  if (!tab) return;
+  foldPanel.querySelector("strong").textContent = t("foldAll").replace("{tab}", tab.full).replace("{n}", tab.count);
+  foldPanel.querySelector(".m-fold-x").setAttribute("aria-label", t("close"));
+  foldPanel.setAttribute("aria-label", tab.full);
+  window.__proToolTabs.render(foldPanel.querySelector(".m-fold-body"), "model", foldTab, function () { sync(true); });
+  window.__proToolTabs.sync();
+}
+function openFoldTab(index) {
+  if (!api || !api.root) return;
+  foldTab = index;
+  api.root.classList.add("md-fold-open");
+  if (openKey !== "props") showSheet("props", false);
+  renderFoldPanel();
+  syncFoldRail();
+  applyTreeDock();
+  window.dispatchEvent(new Event("resize"));
+}
+function closeFoldTools() {
+  if (foldTab == null) return;
+  foldTab = null;
+  if (api && api.root) api.root.classList.remove("md-fold-open");
+  syncFoldRail();
+  if (openKey === "props") closeSheet();
+  applyTreeDock();
+  window.dispatchEvent(new Event("resize"));
 }
 
 /* ---- the contextual row ------------------------------------------------- */
@@ -489,6 +577,13 @@ function setSheetTall(on) {
 }
 
 function closeSheet() {
+  if (foldTab != null && openKey === "props") {
+    foldTab = null;
+    if (api && api.root) api.root.classList.remove("md-fold-open");
+    syncFoldRail();
+    // the tree comes back once the sheet is gone (applyTreeDock reads foldTab)
+    setTimeout(applyTreeDock, 0);
+  }
   featureSheetOpen = false;
   openKey = null;
   release();
@@ -925,6 +1020,8 @@ function sync(force) {
   var s = sig();
   if (!force && s === lastSig) return;
   lastSig = s;
+  // the fold tools pane marks whichever command the editor now has armed
+  if (foldTab != null && window.__proToolTabs) window.__proToolTabs.sync();
   renderCtx();
   renderSelectionBar();
   syncNav();
@@ -993,6 +1090,7 @@ export function initModelerMobile(bridge) {
     document.body.classList.add("md-open");
   }
   adoptHint();
+  buildFoldRail();
   applyTreeDock();
   sync(true);
 }
@@ -1000,6 +1098,8 @@ export function initModelerMobile(bridge) {
 // The editor closes by removing its own root: anything borrowed has to go home
 // first, or the tree would be deleted along with the sheet holding it.
 export function teardownModelerMobile() {
+  foldTab = null;
+  if (api && api.root) api.root.classList.remove("md-fold-open");
   release();
   closeSheet();
   restoreHint();
@@ -1041,7 +1141,13 @@ export function showModelerSheet(key, targetSelector) {
   }
 }
 
+/* The editor calls this when a command needs the canvas the phone sheet would
+   be covering (a sketch starting, a tap on the viewport). On a fold the rail's
+   tools pane is a column BESIDE the model, so it stays — the fold rail is for
+   picking the next tool while the last one works. Its ✕, a rail tab and a
+   feature form (revealModelerFeatureForm) still close it. */
 export function closeModelerSheet() {
+  if (dockRail() && foldTab != null && openKey === "props") return;
   closeSheet();
 }
 
@@ -1053,6 +1159,7 @@ export function revealModelerFeatureForm() {
   ensureSheet();
   if (dockRail()) {
     if (openKey === "cmd") closeSheet();
+    if (foldTab != null) closeFoldTools();
     setTreeDock(true);
     syncNav();
     return;

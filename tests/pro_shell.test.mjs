@@ -204,7 +204,7 @@ test("the fold rail lists every planner tab and docks its tools above the inspec
   assert.match(css, /body\.dock-rail\.m-fold-open #m-fold-tools \{/);
   // The grid is the pro catalog's own tab, so the rail can never disagree with the ribbon.
   const ribbon = src("pro_ribbon.js");
-  assert.match(ribbon, /window\.__proToolTabs = \{ tabs: proToolTabs, render: renderToolTab \};/);
+  assert.match(ribbon, /window\.__proToolTabs = \{ tabs: proToolTabs, render: renderToolTab, sync: syncActive \};/);
   const { PRO_CATALOG } = await import("../js/pro_catalog.js");
   const icons = (ribbon.match(/var TAB_ICON = \{([\s\S]*?)\};/) || ["", ""])[1];
   for (const [name] of PRO_CATALOG.plan.tabs) assert.ok(icons.includes('"' + name + '"'), "rail icon for " + name);
@@ -233,4 +233,39 @@ test("the inspector card names the part, where it is and its #id, and the wall t
   assert.match(css, /body\.compact-nav #right-inspector #wallProps \.wi-tabs > button > span:not\(\.wi-tab-badge\) \{\s*display: block;/);
   for (const f of ["en", "he"]) for (const key of ["m_card_wall", "m_card_door", "m_card_window", "m_card_on_wall", "m_card_id_tip"])
     assert.match(src("i18n/" + f + ".js"), new RegExp("\n  " + key + ": "), f + " " + key);
+});
+
+/* ---- fold rails in the model editor and the cabinet designer ---- */
+test("the model editor and cabinet designer get the same fold rail from the same catalog", async () => {
+  const { PRO_CATALOG } = await import("../js/pro_catalog.js");
+  const model = src("modeler_mobile.js"), cab = src("ui_cabinet_mobile.js");
+  assert.match(model, /window\.__proToolTabs\.tabs\("model"\)/);
+  assert.match(cab, /window\.__proToolTabs\.tabs\("cab"\)/);
+  // Columns of their own bodies, before everything else, so the drawing narrows.
+  assert.match(model, /body\.insertBefore\(foldRail, body\.firstChild\)/);
+  assert.match(cab, /body\.insertBefore\(foldRail, body\.firstChild\)/);
+  // The tools head each editor's Properties column.
+  assert.match(model, /if \(openKey !== "props"\) showSheet\("props", false\);/);
+  assert.match(cab, /if \(openSheet !== "props"\) showSheet\("props"\);/);
+  // Model: the tree steps aside while tools show, a feature form closes them,
+  // and freeing the canvas keeps a side pane that covers nothing.
+  assert.match(model, /api\.root\.dataset\.mdTreePref !== "off" && foldTab == null;/);
+  assert.match(model, /if \(foldTab != null\) closeFoldTools\(\);\s*setTreeDock\(true\);/);
+  assert.match(model, /export function closeModelerSheet\(\) \{\s*if \(dockRail\(\) && foldTab != null && openKey === "props"\) return;/);
+  // Cabinet: the pager never swallows the tools pane.
+  assert.match(cab, /pinSelector: "\.cb-tabs, \.cb-strip, \.cb-icons, #cb-fold-tools"/);
+  // Every tab of both editors has a rail icon, and the grid shows each editor's armed tool.
+  const ribbon = src("pro_ribbon.js");
+  const icons = (ribbon.match(/var TAB_ICON = \{([\s\S]*?)\};/) || ["", ""])[1];
+  for (const ed of ["model", "cab"]) for (const [name, groups] of PRO_CATALOG[ed].tabs)
+    assert.ok(icons.includes('"' + name + '"') || (groups[0] && groups[0][1][0] && groups[0][1][0].icon), ed + " " + name);
+  assert.match(ribbon, /if \(p\.kind === "mcmd"\) return !!document\.querySelector\('#modeler \[data-command="' \+ p\.value \+ '"\]\.on'\);/);
+  for (const [f, keys] of [["modeler_strings.js", ["foldRail", "foldAll"]], ["ui_cabinet_ctx.js", ["foldRail", "foldAll", "foldClose"]]])
+    for (const k of keys) assert.ok(src(f).includes(String.fromCharCode(10) + "  " + k + ": ["), f + " " + k);
+  // The fold layouts both editors had wrong before: the model sheet as a side
+  // column (a later phone @media re-laid it full width) and the cabinet panels
+  // bounded to the body (they overflowed and clipped).
+  const css = readFileSync(new URL("../css/pro_ribbon.css", import.meta.url), "utf8");
+  assert.match(css, /body\.compact-nav\.dock-rail #modeler #md-sheet \{[^}]*inset-inline: auto 0;/);
+  assert.match(css, /body\.dock-rail #cabdes\.cb-compact \.cb-panel \{ min-height: 0; max-height: 100%; \}/);
 });

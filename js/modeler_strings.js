@@ -105,6 +105,8 @@ export var TXT = {
   price: ["מחיר ₪", "Price ₪"],
   save: ["שמור לספרייה", "Save to library"],
   close: ["סגור", "Close"],
+  foldRail: ["לשוניות כלים", "Tool tabs"],
+  foldAll: ["{tab} · כל הכלים · {n}", "{tab} · all tools · {n}"],
   tool_select: ["בחירה / הזזה", "Select / move"],
   tool_rect: ["מלבן (תיבה)", "Rectangle (box)"],
   tool_circle: ["עיגול (גליל)", "Circle (cylinder)"],

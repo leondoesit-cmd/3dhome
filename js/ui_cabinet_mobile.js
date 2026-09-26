@@ -75,7 +75,7 @@ function pageOpenMenu(key) {
     var groups = Array.from(host.querySelectorAll(".cb-right > .cb-grp"));
     pageHost = groups.find(function (node) { return getComputedStyle(node).display !== "none"; }) || q(".cb-right");
   } else pageHost = sheetBody;
-  if (pageHost) mountPagedMenu(pageHost, { pinSelector: ".cb-tabs, .cb-strip, .cb-icons" });
+  if (pageHost) mountPagedMenu(pageHost, { pinSelector: ".cb-tabs, .cb-strip, .cb-icons, #cb-fold-tools" });
 }
 function roomy() {
   return document.body.classList.contains("dock-rail");
@@ -395,6 +395,13 @@ function buildMoreSheet() {
 
 function closeSheet() {
   releasePages();
+  // Properties is the column the fold tools live in: closing it retires them.
+  if (foldTab != null && openSheet === "props") {
+    foldTab = null;
+    if (host) host.classList.remove("cb-fold-open");
+    syncFoldRail();
+    refit();
+  }
   openSheet = null;
   if (sheet) {
     sheet.classList.remove("on", "tall");
@@ -441,6 +448,89 @@ function showSheet(key) {
   backdrop.classList.add("on");
   syncNav();
   requestAnimationFrame(function () { pageOpenMenu(key); });
+}
+
+/* ---- fold rail ----------------------------------------------------------- */
+
+/* Unfolded foldables (dock-rail): the cabinet designer's catalog tabs as a rail
+   beside the elevation, and the picked tab's tools at the head of the
+   Properties column — the Round-6 cabinet Fold7 screen. The grid is the pro
+   catalog's (window.__proToolTabs), the same bindings the planner's ribbon,
+   ⌘K and the phone Tools sheet run. css shows the rail only on dock-rail. */
+var foldRail = null, foldPanel = null, foldTab = null;
+function foldTabs() { return window.__proToolTabs ? window.__proToolTabs.tabs("cab") : []; }
+function foldEsc(v) {
+  return String(v).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+}
+function refit() {
+  // The elevation canvas measures its box: re-measure once the columns moved.
+  requestAnimationFrame(function () { sizeCanvas(); draw(); });
+}
+function buildFoldRail() {
+  var body = q(".cb-body");
+  if (!body || !window.__proToolTabs) return;
+  if (!foldRail || foldRail.parentNode !== body) {
+    foldRail = document.createElement("nav");
+    foldRail.className = "m-fold-rail cb-fold-rail";
+    body.insertBefore(foldRail, body.firstChild);
+    foldRail.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-fold-tab]");
+      if (!b) return;
+      var index = Number(b.dataset.foldTab);
+      if (foldTab === index) closeFoldTools();
+      else openFoldTab(index);
+    });
+  }
+  foldRail.setAttribute("aria-label", T("foldRail"));
+  foldRail.innerHTML = foldTabs().map(function (tab) {
+    return '<button type="button" data-fold-tab="' + tab.index + '" aria-pressed="false" title="' + foldEsc(tab.full) + '">' +
+      '<i class="ph ' + tab.icon + '" aria-hidden="true"></i><span>' + foldEsc(tab.label) + "</span></button>";
+  }).join("");
+  syncFoldRail();
+}
+function syncFoldRail() {
+  if (!foldRail) return;
+  foldRail.querySelectorAll("[data-fold-tab]").forEach(function (b) {
+    var on = Number(b.dataset.foldTab) === foldTab;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+}
+function renderFoldPanel() {
+  var right = q(".cb-right");
+  if (!right) return;
+  if (!foldPanel) {
+    foldPanel = document.createElement("section");
+    foldPanel.id = "cb-fold-tools";
+    foldPanel.className = "m-fold-tools";
+    foldPanel.innerHTML = '<header><strong></strong><button type="button" class="m-fold-x"><i class="ph ph-x" aria-hidden="true"></i></button></header><div class="m-fold-body"></div>';
+    foldPanel.querySelector(".m-fold-x").addEventListener("click", closeFoldTools);
+  }
+  if (foldPanel.parentNode !== right) right.insertBefore(foldPanel, right.firstChild);
+  var tab = foldTabs()[foldTab];
+  if (!tab) return;
+  foldPanel.querySelector("strong").textContent = T("foldAll").replace("{tab}", tab.full).replace("{n}", tab.count);
+  foldPanel.querySelector(".m-fold-x").setAttribute("aria-label", T("foldClose"));
+  foldPanel.setAttribute("aria-label", tab.full);
+  window.__proToolTabs.render(foldPanel.querySelector(".m-fold-body"), "cab", foldTab, function () { sync(true); });
+  window.__proToolTabs.sync();
+}
+function openFoldTab(index) {
+  if (!host) return;
+  foldTab = index;
+  host.classList.add("cb-fold-open");
+  if (openSheet !== "props") showSheet("props");
+  renderFoldPanel();
+  syncFoldRail();
+  refit();
+}
+function closeFoldTools() {
+  if (foldTab == null) return;
+  foldTab = null;
+  if (host) host.classList.remove("cb-fold-open");
+  syncFoldRail();
+  if (openSheet === "props") closeSheet();
+  refit();
 }
 
 /* ---- nav ----------------------------------------------------------------- */
@@ -537,6 +627,8 @@ function sync(force) {
   lastSig = s;
   renderCtx();
   syncNav();
+  // the fold tools pane marks whichever tool the designer now has armed
+  if (foldTab != null && window.__proToolTabs) window.__proToolTabs.sync();
 }
 
 /* ---- build / teardown ---------------------------------------------------- */
@@ -616,6 +708,7 @@ function build() {
   if (bodyEl) host.insertBefore(sizebar, bodyEl);
   else host.appendChild(sizebar);
   placeSizeChrome();
+  buildFoldRail();
 }
 
 function applyCompact() {
@@ -636,11 +729,13 @@ function applyCompact() {
     // Back to the desktop layout: hand the borrowed chrome back and drop ours.
     closeSheet();
     giveBack();
-    [backdrop, sheet, ctxBar, nav, q(".cb-m-park"), q(".cb-m-sizebar")].forEach(function (n) {
+    [backdrop, sheet, ctxBar, nav, q(".cb-m-park"), q(".cb-m-sizebar"), foldRail, foldPanel].forEach(function (n) {
       if (n && n.parentNode) n.parentNode.removeChild(n);
     });
     host.classList.remove("cb-m-ready");
-    backdrop = sheet = sheetBody = sheetTitle = ctxBar = nav = moreBody = null;
+    backdrop = sheet = sheetBody = sheetTitle = ctxBar = nav = moreBody = foldRail = foldPanel = null;
+    foldTab = null;
+    host.classList.remove("cb-fold-open");
     return;
   }
   if (on) placeSizeChrome();
@@ -657,6 +752,9 @@ function applyCompact() {
 /* The overlay can remain mounted while closed. Release session resources
    explicitly so a hidden designer does not keep polling or handling resize. */
 export function disposeCabinetMobile() {
+  // the overlay is rebuilt per open: the rail and panel go with it
+  foldRail = foldPanel = null;
+  foldTab = null;
   window.removeEventListener("resize", applyCompact);
   window.removeEventListener("mf-posture", applyCompact);
   if (timer) clearInterval(timer);
