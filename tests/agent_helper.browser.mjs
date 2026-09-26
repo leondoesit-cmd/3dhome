@@ -464,16 +464,26 @@ test("item move shows only a ghost and Yes, Cancel, How to fix before applying",
         origin: !!document.querySelector(".agent-preview-origin"),
         destination: !!document.querySelector(".agent-preview-destination"),
       };
+      // Grounding: the card names what the AI picked and checks it; the plan tags it.
+      const grounded = {
+        part: card.querySelector(".agent-parts").textContent.includes("#" + id),
+        checks: card.querySelectorAll(".agent-checks li").length > 0,
+        tag: [...document.querySelectorAll(".agent-tag text")].some((text) => text.textContent.includes("#" + id)),
+      };
       [...card.querySelectorAll("button")].find((button) => button.textContent.trim() === "Yes").click();
       const after = state.S.items.find((item) => item.id === id).x;
-      return { before, after, buttons, assistantLines, ghost, cardText: card.textContent.trim() };
+      return { before, after, buttons, assistantLines, ghost, grounded,
+        cardTitle: card.querySelector("strong").textContent.trim(),
+        afterButtons: [...card.querySelectorAll("button")].map((button) => button.textContent.trim()) };
     });
     assert.equal(result.before, 355);
     assert.equal(result.after, 305);
     assert.deepEqual(result.buttons, ["Yes", "Cancel", "How to fix"]);
     assert.equal(result.assistantLines, 0);
     assert.deepEqual(result.ghost, { origin: true, destination: true });
-    assert.equal(result.cardText, "Applied");
+    assert.deepEqual(result.grounded, { part: true, checks: true, tag: true });
+    assert.equal(result.cardTitle, "Applied");
+    assert.deepEqual(result.afterButtons, ["Undo", "Adjust by hand"]);
   } finally { await page.close(); }
 });
 
@@ -528,7 +538,7 @@ test("two requested moves become one two-ghost atomic confirmation", opts, async
   } finally { await page.close(); }
 });
 
-test("same-target uncertainty cycles A/B ghost options once per second", opts, async () => {
+test("same-target uncertainty shows every A/B candidate at once, and only Apply moves anything", opts, async () => {
   const page = await openPage({ width: 1100, height: 760, lang: "en", mobile: false, touch: false });
   try {
     const result = await page.eval(async () => {
@@ -551,22 +561,34 @@ test("same-target uncertainty cycles A/B ghost options once per second", opts, a
       await new Promise((resolve) => setTimeout(resolve, 30));
       const card = document.querySelector(".agent-choice-proposal");
       const firstTitle = card.querySelector("strong").textContent.trim();
+      const onPlan = document.querySelectorAll(".agent-candidate").length;
+      const tags = [...document.querySelectorAll(".agent-tag text")].map((text) => text.textContent.slice(0, 1)).sort();
+      // No carousel: a second later the focus is still where the user left it.
       await new Promise((resolve) => setTimeout(resolve, 1050));
+      const stillA = card.querySelector("strong").textContent.trim();
+      const letters = [...card.querySelectorAll(".agent-cand .agent-letter")].map((b) => b.textContent);
+      [...card.querySelectorAll(".agent-cand")].find((button) => button.querySelector(".agent-letter").textContent === "B").click();
       const secondTitle = card.querySelector("strong").textContent.trim();
-      const labels = [...card.querySelectorAll("button")].map((button) => button.textContent.trim());
-      [...card.querySelectorAll("button")].find((button) => button.textContent.trim() === "B").click();
+      const xAfterPick = state.S.items.find((item) => item.id === id).x;
+      const actions = [...card.querySelectorAll(".agent-choice-actions button")].map((button) => button.textContent.trim());
+      [...card.querySelectorAll("button")].find((button) => button.textContent.trim() === "Apply B").click();
       return {
         commandId: turn.proposal.commandId,
         choiceCount: turn.proposal.choices.length,
-        firstTitle, secondTitle, labels,
+        firstTitle, stillA, secondTitle, letters, actions, onPlan, tags, xAfterPick,
         x: state.S.items.find((item) => item.id === id).x,
       };
     });
     assert.equal(result.commandId, "choices");
     assert.equal(result.choiceCount, 2);
     assert.match(result.firstTitle, /Option A/);
+    assert.equal(result.stillA, result.firstTitle);
     assert.match(result.secondTitle, /Option B/);
-    assert.deepEqual(result.labels, ["A", "B", "Cancel", "How to fix"]);
+    assert.deepEqual(result.letters, ["A", "B"]);
+    assert.deepEqual(result.actions, ["Apply B", "Cancel", "How to fix"]);
+    assert.equal(result.onPlan, 2);
+    assert.deepEqual(result.tags, ["A", "B"]);
+    assert.equal(result.xAfterPick, 300, "picking a letter only focuses it");
     assert.equal(result.x, 200);
   } finally { await page.close(); }
 });
@@ -595,8 +617,9 @@ test("wall snap without facing offers A keep / B face into the room with fridge 
       window.dispatchEvent(new CustomEvent("agent-external-proposal", { detail: turn.proposal }));
       await new Promise((resolve) => setTimeout(resolve, 30));
       const card = document.querySelector(".agent-choice-proposal");
-      const labels = [...card.querySelectorAll("button")].map((button) => button.textContent.trim());
-      [...card.querySelectorAll("button")].find((button) => button.textContent.includes("B")).click();
+      const labels = [...card.querySelectorAll(".agent-cand .agent-cand-name")].map((name) => name.textContent.trim());
+      [...card.querySelectorAll(".agent-cand")].find((button) => button.querySelector(".agent-letter").textContent === "B").click();
+      [...card.querySelectorAll("button")].find((button) => button.textContent.trim() === "Apply B").click();
       const applied = state.S.items.find((item) => item.id === tv.id);
       const movedFridge = state.S.items.find((item) => item.id === fridge.id);
       return {

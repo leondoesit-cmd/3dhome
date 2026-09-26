@@ -27,6 +27,8 @@ var TXT = {
   history: ["היסטוריה", "History"],
   start: ["מצב פתיחה", "Opened"],
   step: ["שלב", "Step"],
+  aiBadge: ["AI", "AI"],
+  aiTip: ["נעשה על ידי עוזר ה־AI ואושר על ידיכם", "Made by the AI helper and confirmed by you"],
   rolled: ["גלגול לאחור", "Rolled back"],
   hereTip: ["חזרה למצב הזה", "Roll the model back to here"],
   empty: ["אין עדיין שינויים", "Nothing yet"],
@@ -250,7 +252,19 @@ export function createHistoryPanel(H, opts) {
     body.className = "hist-body";
     var name = document.createElement("span");
     name.className = "hist-name";
-    name.textContent = friendlyStepLabel(s.label) || derivedLabel(s);
+    /* AI vs you: a step the AI helper made (labelled "AI: <command>" by
+       executePlannerProposal) wears a badge and says what it did in the same
+       words as your own steps; everything else is yours. */
+    var byAi = /^AI:/.test(String(s.label || ""));
+    name.textContent = byAi ? derivedLabel(s) : friendlyStepLabel(s.label) || derivedLabel(s);
+    if (byAi) {
+      var badge = document.createElement("span");
+      badge.className = "hist-ai";
+      badge.textContent = T("aiBadge");
+      badge.title = T("aiTip");
+      name.insertBefore(badge, name.firstChild);
+      row.classList.add("by-ai");
+    }
     body.appendChild(name);
 
     if (s.targets.length) {

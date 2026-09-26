@@ -3,9 +3,19 @@ import { escapeHTML } from "./safe.js";
 import { loadAgentConfig, saveAgentConfig, validateAgentConfig, setAgentApiKey, agentApiKey, setAgentBridgeToken, agentBridgeToken } from "./agent_config.js";
 import { listAgentModels, sendAgentChat } from "./agent_transport.js";
 import { runAgentTurn, installAgentBridge } from "./agent_runtime.js";
-import { executePlannerProposal } from "./interaction.js";
-import { projectAgentContext } from "./agent_context.js";
-import { renderAgentPreview, clearAgentPreview } from "./agent_preview.js";
+import { executePlannerProposal, setTool } from "./interaction.js";
+import { projectAgentContext, livePlacementScene } from "./agent_context.js";
+import { renderAgentCandidates, clearAgentPreview } from "./agent_preview.js";
+import { groundCandidates, checksLevel } from "./agent_grounding.js";
+import { S } from "./state.js";
+import { FURN } from "./furniture_models.js";
+import { flabel } from "./furniture_meta.js";
+import { roomName } from "./geometry.js";
+import { swingPolysForOpening } from "./swing_clearance.js";
+import { undo, currentHistoryId } from "./history.js";
+import { select } from "./ui_props.js";
+import { sx, sz, rotatePx, unrotatePx, planRotRad } from "./plan_view.js";
+import { render2D } from "./plan2d.js";
 import { tutorAttention } from "./tutor/attention_tracker.js";
 import { spotlightPlannerTarget } from "./planner_tutorial.js";
 import { resetTutorProgress } from "./tutor/progress.js";
@@ -120,92 +130,317 @@ function proposalQuestion(proposal) {
   }
   return t("agent_apply_preview");
 }
+
+/* ---- grounding: name what the AI picked, check it, compare candidates ---- */
+
+/* The live plan as js/agent_grounding.js reads it: the placement snapshot the
+   AI's own resolver uses, plus the names, room names and door swings a person
+   would recognise the result by. */
+function liveGroundingScene() {
+  var scene = livePlacementScene();
+  var types = {}, named = {};
+  Object.keys(FURN).forEach(function (type) { types[type] = flabel(type); });
+  (S.items || []).forEach(function (it) { if (it && it.name) named[String(it.id)] = it.name; });
+  scene.names = { types: types, items: named };
+  scene.roomNames = {};
+  (scene.rooms || []).forEach(function (room) { scene.roomNames[room.key] = roomName(room.key); });
+  scene.swings = [];
+  (S.openings || []).forEach(function (o) {
+    if (o && o.type === "door") swingPolysForOpening(o).forEach(function (sw) {
+      scene.swings.push({ openingId: o.id, poly: sw.poly, band: sw.band });
+    });
+  });
+  return scene;
+}
+/* Candidates are compared on the plan, so they must be in view — and not under
+   the helper, which floats over the plan's end side. Pans (zooming out only if
+   they cannot fit) so every part lands in the uncovered area; a set that is
+   already visible leaves the user's view alone. */
+function frameCandidates(candidates) {
+  var pts = [];
+  candidates.forEach(function (cand) {
+    cand.parts.forEach(function (part) {
+      var r = part.footprint ? Math.max(part.footprint.w, part.footprint.d) / 2 : 20;
+      pts.push({ x: part.at.x - r, z: part.at.z - r }, { x: part.at.x + r, z: part.at.z + r });
+      var from = part.footprint && part.footprint.source;
+      if (part.action === "move" && from && isFinite(from.x)) pts.push({ x: from.x, z: from.z });
+    });
+  });
+  var plan = document.getElementById("plan");
+  if (!pts.length || !plan || !(S.SC > 0) || !(S.CW > 0) || !(S.CH > 0)) return;
+  var pr = plan.getBoundingClientRect(), dr = dock && dock.classList.contains("on") ? dock.getBoundingClientRect() : null;
+  var left = 0, right = S.CW, m = 40;
+  if (dr && dr.left < pr.right && dr.right > pr.left && dr.top < pr.bottom && dr.bottom > pr.top) {
+    if (dr.left - pr.left > pr.width / 3) right = Math.max(160, dr.left - pr.left);
+    else left = Math.min(S.CW - 160, dr.right - pr.left);
+  }
+  var shown = pts.every(function (p) {
+    var q = rotatePx(sx(p.x), sz(p.z));
+    return q.x > left + m && q.x < right - m && q.y > m && q.y < S.CH - m;
+  });
+  if (shown) return;
+  var minx = Infinity, maxx = -Infinity, minz = Infinity, maxz = -Infinity;
+  pts.forEach(function (p) { minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x); minz = Math.min(minz, p.z); maxz = Math.max(maxz, p.z); });
+  var turned = Math.abs(Math.sin(planRotRad())) > 0.5;
+  var spanX = (turned ? maxz - minz : maxx - minx) * S.SC, spanY = (turned ? maxx - minx : maxz - minz) * S.SC;
+  var need = Math.max(spanX / Math.max(1, right - left - 2 * m), spanY / Math.max(1, S.CH - 2 * m));
+  if (need > 1) S.SC = S.SC / need;
+  var target = unrotatePx((left + right) / 2, S.CH / 2);
+  S.OX = target.x - (minx + maxx) / 2 * S.SC;
+  S.OY = target.y - (minz + maxz) / 2 * S.SC;
+  render2D();
+}
+/* Why the plan refused: the reasons a person can act on get words, the rest
+   stay as their code so a bug report still names them. */
+function failureText(reason) {
+  if (reason === "PROTECTED_STRUCTURE") return t("redesign_protected");
+  var key = "ag_why_" + reason, text = t(key);
+  return text && text !== key ? text : String(reason || "PREVIEW_FAILED");
+}
+function metres(cm) { return (Number(cm) / 100).toFixed(2) + " m"; }
+function partText(part) {
+  var who = part.name + (part.id != null ? " #" + part.id : "");
+  var text = part.action === "move" ? t("ag_move", { name: who })
+    : part.action === "copy" ? t("ag_copy", { name: who })
+    : part.kind === "wall" ? t("ag_new_wall", { len: metres(part.length) })
+    : part.kind === "door" ? t("ag_new_door", { wall: "#" + part.hostWallId })
+    : part.kind === "window" ? t("ag_new_window", { wall: "#" + part.hostWallId })
+    : part.kind === "opening" ? t("ag_new_opening", { wall: "#" + part.hostWallId })
+    : part.kind === "room" ? t("ag_new_room", { area: part.area.toFixed(1) })
+    : t("ag_new", { name: part.name });
+  return part.room ? t("ag_in_room", { part: text, room: part.room }) : text;
+}
+/* The plan tag stays short: letter, name and id; the card carries the rest. */
+function tagText(part) {
+  var who = part.kind === "item" ? part.name + (part.id != null ? " #" + part.id : "")
+    : part.kind === "wall" ? t("ag_new_wall", { len: metres(part.length) })
+    : part.kind === "room" ? t("ag_new_room", { area: part.area.toFixed(1) })
+    : part.kind === "door" ? t("ag_new_door", { wall: "#" + part.hostWallId })
+    : part.kind === "window" ? t("ag_new_window", { wall: "#" + part.hostWallId })
+    : t("ag_new_opening", { wall: "#" + part.hostWallId });
+  return (part.letter ? part.letter + " · " : "") + who;
+}
+function checkText(check) {
+  if (check.code === "overlap") return t("ag_chk_overlap", { with: check.with }) + (check.more ? t("ag_chk_more", { n: check.more }) : "");
+  if (check.code === "room") return check.room ? t("ag_chk_room", { room: check.room }) : t("ag_chk_roomAny");
+  if (check.code === "wallLength" || check.code === "wallShort") return t("ag_chk_" + check.code, { len: metres(check.length) });
+  if (check.code === "roomArea" || check.code === "roomSmall") return t("ag_chk_" + check.code, { area: Number(check.area).toFixed(1) });
+  return t("ag_chk_" + check.code, { wall: check.wall, door: check.door });
+}
+/* No checks means nothing was checked — say nothing rather than "all clear". */
+function checksSummary(checks) {
+  if (!checks.length) return "";
+  var warn = checks.filter(function (c) { return c.level === "warn"; }).length;
+  return warn ? t("ag_to_review", { n: warn }) : t("ag_all_clear");
+}
+function candidateTags(candidate, tone) {
+  return candidate.parts.map(function (part) {
+    return { at: part.at, text: tagText(part), tone: checksLevel(candidate.checks) === "warn" ? "warn" : tone };
+  });
+}
+function groundingList(candidate) {
+  var box = el("div", "agent-ground");
+  var parts = el("ul", "agent-parts");
+  parts.setAttribute("aria-label", t("ag_parts"));
+  candidate.parts.forEach(function (part) {
+    var li = el("li");
+    li.innerHTML = (part.letter ? '<b class="agent-letter">' + escapeHTML(part.letter) + "</b>" : '<i class="ph ph-crosshair" aria-hidden="true"></i>') +
+      "<span></span>";
+    li.querySelector("span").textContent = partText(part);
+    parts.appendChild(li);
+  });
+  var checks = el("ul", "agent-checks");
+  checks.setAttribute("aria-label", t("ag_checks"));
+  checks.title = t("ag_advice");
+  // Warnings first: they are what the user has to judge.
+  candidate.checks.slice().sort(function (a, b) { return (a.level === "warn" ? 0 : 1) - (b.level === "warn" ? 0 : 1); }).forEach(function (check) {
+    var li = el("li", "agent-check-" + check.level);
+    li.innerHTML = '<i class="ph ' + (check.level === "warn" ? "ph-warning" : "ph-check") + '" aria-hidden="true"></i><span></span>';
+    li.querySelector("span").textContent = checkText(check) + (candidate.parts.length > 1 && check.name ? " · " + check.name : "");
+    checks.appendChild(li);
+  });
+  if (candidate.parts.length) box.appendChild(parts);
+  if (candidate.checks.length) box.appendChild(checks);
+  return box;
+}
+
+/* After Apply: Undo while the AI's step is still the latest, and a way to
+   correct it by hand — select exactly what it created or changed. */
+function appliedCard(card, result) {
+  card.className = "agent-proposal " + (result.ok ? "agent-proposal-applied" : "agent-proposal-failed");
+  card.innerHTML = '<strong><i class="ph ' + (result.ok ? "ph-check-circle" : "ph-warning-circle") + '"></i> ' +
+    escapeHTML(result.ok ? t("agent_applied_short") : t("agent_failed") + ": " + failureText(result.reason)) + "</strong>";
+  if (!result.ok) return;
+  var actions = el("div", "agent-proposal-actions");
+  var undoBtn = el("button", null, t("ag_undo"));
+  var adjust = el("button", null, t("ag_adjust"));
+  adjust.title = t("ag_adjust_tip");
+  undoBtn.onclick = function () {
+    if (result.historyId == null || currentHistoryId() !== result.historyId) {
+      undoBtn.disabled = true;
+      undoBtn.title = t("ag_undo_later");
+      card.appendChild(el("small", "agent-choice-overflow", t("ag_undo_later")));
+      return;
+    }
+    undo();
+    card.className = "agent-proposal agent-proposal-undone";
+    card.innerHTML = '<strong><i class="ph ph-arrow-u-up-left"></i> ' + escapeHTML(t("ag_undone")) + "</strong>";
+  };
+  adjust.onclick = function () {
+    var touched = (result.created || []).concat(result.changed || []).filter(function (entry) { return entry && entry.kind !== "node"; });
+    var ref = null, kind = null;
+    for (var i = 0; i < touched.length && !ref; i++) {
+      var entry = touched[i];
+      kind = entry.kind;
+      ref = kind === "item" ? (S.items || []).find(function (it) { return String(it.id) === String(entry.id); })
+        : kind === "wall" ? (S.walls || []).find(function (w) { return String(w.id) === String(entry.id); })
+        : kind === "opening" ? (S.openings || []).find(function (o) { return String(o.id) === String(entry.id); }) : null;
+    }
+    if (window.__setViewMode) window.__setViewMode("plan");
+    setTool("select");
+    if (ref) select({ kind: kind, ref: ref });
+    closeAgent();
+  };
+  actions.append(undoBtn, adjust);
+  card.appendChild(actions);
+}
+/* Until three.js has loaded, every item reads as floor-standing (a ceiling light
+   "overlaps" the sofa under it). The app says when real heights are known;
+   a card still waiting for its answer is grounded again then. */
+function regroundWhenHeightsKnown(card, proposal, update) {
+  function again() {
+    window.removeEventListener("vspan:ready", again);
+    if (!card.isConnected || pendingProposalCard !== card) return;
+    update(groundCandidates(proposal, liveGroundingScene()));
+  }
+  window.addEventListener("vspan:ready", again);
+}
+function applyProposal(card, proposal) {
+  clearAgentPreview();
+  card.querySelectorAll("button").forEach(function (entry) { entry.disabled = true; });
+  var result = executePlannerProposal(proposal);
+  recordFeedback(result.ok ? "accepted" : "failed", proposal, result);
+  pendingProposalCard = null;
+  appliedCard(card, result);
+  return result;
+}
+function cardNotes(card, proposal) {
+  if (proposal.truncatedChoices) card.appendChild(el("small", "agent-choice-overflow",
+    t("agent_choice_overflow", { count: proposal.truncatedChoices })));
+  if (proposal.warnings && proposal.warnings.includes("CURVED_WALL_HOLD_UNSUPPORTED"))
+    card.appendChild(el("small", "agent-choice-overflow", t("agent_curved_hold_warning")));
+  if (proposal.warnings && proposal.warnings.includes("PRESERVED_WALL_HOLD"))
+    card.appendChild(el("small", "agent-choice-overflow", t("agent_preserved_hold_warning")));
+}
+
 function proposalCard(proposal) {
   if (pendingProposalCard) pendingProposalCard.remove();
+  var scene = liveGroundingScene();
+  var candidates = groundCandidates(proposal, scene);
+  frameCandidates(candidates);
   if (Array.isArray(proposal.choices) && proposal.choices.length) {
+    /* Every candidate is on the plan at once, lettered, so they can be
+       compared side by side. A letter focuses its candidate — ghost, tags and
+       checks — and Apply takes the focused one: nothing applies on a glance. */
     var choiceCard = el("section", "agent-proposal agent-choice-proposal");
     if (proposal.incomplete) choiceCard.classList.add("agent-proposal-incomplete");
     var choiceTitle = el("strong");
-    var choiceActions = el("div", "agent-proposal-actions agent-choice-actions");
-    var current = 0, timer = null, engaged = false, letters = ["A", "B", "C", "D"];
+    var letters = candidates.map(function (c) { return c.letter; });
+    var pick = el("div", "agent-cands");
+    pick.setAttribute("role", "radiogroup");
+    var detail = el("div", "agent-cand-detail");
+    var current = 0;
+    var applyBtn = el("button", "btn-accent");
     function showChoice(index) {
-      current = index % proposal.choices.length;
-      var choice = proposal.choices[current];
-      renderAgentPreview(choice.preview);
+      current = (index + candidates.length) % candidates.length;
+      var cand = candidates[current], choice = cand.proposal;
+      renderAgentCandidates(candidates.map(function (c, i) {
+        return { spec: c.proposal.preview, tags: candidateTags(c, i === current ? "focus" : "dim") };
+      }), current);
       var label = choice.choiceLabelKey ? t("agent_choice_" + choice.choiceLabelKey.replace(/-/g, "_")) : "";
       choiceTitle.innerHTML = '<i class="ph ph-eye"></i> ' + escapeHTML(
-        label ? t("agent_choice_labeled", { option: letters[current], label: label }) : t("agent_choice_preview", {
-          option: letters[current], choices: letters.slice(0, proposal.choices.length).join("/")
+        label ? t("agent_choice_labeled", { option: cand.letter, label: label }) : t("agent_choice_preview", {
+          option: cand.letter, choices: letters.join("/"),
         })
       );
-      choiceActions.querySelectorAll("button[data-choice]").forEach(function(button) {
-        button.classList.toggle("btn-accent", Number(button.dataset.choice) === current);
+      pick.querySelectorAll("button[data-choice]").forEach(function (button) {
+        var on = Number(button.dataset.choice) === current;
+        button.classList.toggle("on", on);
+        button.setAttribute("aria-checked", on ? "true" : "false");
+        button.tabIndex = on ? 0 : -1;
       });
+      detail.replaceChildren(groundingList(cand));
+      applyBtn.textContent = t("ag_apply_option", { option: cand.letter });
     }
-    function stopCarousel() { if (timer) clearInterval(timer); timer = null; }
-    function engage() { if (engaged) return; engaged = true; stopCarousel(); }
-    proposal.choices.forEach(function(choice, index) {
-      var label = choice.choiceLabelKey ? t("agent_choice_" + choice.choiceLabelKey.replace(/-/g, "_")) : letters[index];
-      var button = el("button", null, letters[index] + (choice.choiceLabelKey ? " · " + label : ""));
+    candidates.forEach(function (cand, index) {
+      var choice = cand.proposal;
+      var label = choice.choiceLabelKey ? t("agent_choice_" + choice.choiceLabelKey.replace(/-/g, "_")) : "";
+      var button = el("button", "agent-cand agent-cand-" + checksLevel(cand.checks));
+      button.type = "button";
+      button.setAttribute("role", "radio");
       button.dataset.choice = index;
-      button.onclick = function () {
-        engage(); clearAgentPreview();
-        choiceActions.querySelectorAll("button").forEach(function(entry) { entry.disabled = true; });
-        var result = executePlannerProposal(choice);
-        recordFeedback(result.ok ? "accepted" : "failed", choice, result);
-        pendingProposalCard = null;
-        choiceCard.className = "agent-proposal " + (result.ok ? "agent-proposal-applied" : "agent-proposal-failed");
-        choiceCard.innerHTML = '<strong><i class="ph ' + (result.ok ? "ph-check-circle" : "ph-warning-circle") + '"></i> ' +
-          escapeHTML(result.ok ? t("agent_applied_short") : t("agent_failed") + ": " + (result.reason === "PROTECTED_STRUCTURE" ? t("redesign_protected") : result.reason)) + '</strong>';
-      };
-      choiceActions.appendChild(button);
+      button.innerHTML = '<b class="agent-letter"></b><span class="agent-cand-name"></span><small></small>';
+      button.querySelector("b").textContent = cand.letter;
+      button.querySelector(".agent-cand-name").textContent = label || cand.parts.map(partText).join(", ");
+      button.querySelector("small").textContent = checksSummary(cand.checks);
+      button.onclick = function () { showChoice(index); };
+      button.ondblclick = function () { applyProposal(choiceCard, choice); };
+      pick.appendChild(button);
     });
+    applyBtn.onclick = function () { applyProposal(choiceCard, candidates[current].proposal); };
+    regroundWhenHeightsKnown(choiceCard, proposal, function (fresh) {
+      candidates = fresh;
+      pick.querySelectorAll("button[data-choice]").forEach(function (button, i) {
+        button.className = "agent-cand agent-cand-" + checksLevel(candidates[i].checks);
+        button.querySelector("small").textContent = checksSummary(candidates[i].checks);
+      });
+      showChoice(current);
+    });
+    var choiceActions = el("div", "agent-proposal-actions agent-choice-actions");
     var choiceCancel = el("button", null, t("cancel"));
     var choiceFix = el("button", null, t("agent_fix"));
     choiceCancel.onclick = function () {
-      engage(); clearAgentPreview(); recordFeedback("rejected", proposal); pendingProposalCard = null; choiceCard.remove();
+      clearAgentPreview(); recordFeedback("rejected", proposal); pendingProposalCard = null; choiceCard.remove();
     };
-    choiceFix.onclick = function () {
-      engage(); inputEl.placeholder = t("agent_fix_placeholder"); inputEl.focus();
-    };
-    choiceActions.append(choiceCancel, choiceFix); choiceCard.append(choiceTitle, choiceActions);
+    choiceFix.onclick = function () { inputEl.placeholder = t("agent_fix_placeholder"); inputEl.focus(); };
+    choiceActions.append(applyBtn, choiceCancel, choiceFix);
+    var hint = el("small", "agent-cand-hint", t("ag_pick", { choices: letters.join("/") }));
+    choiceCard.append(choiceTitle, hint, pick, detail, choiceActions);
     if (proposal.incomplete) choiceCard.appendChild(el("small", "agent-incomplete-message",
       t("agent_incomplete_choices", { failed: proposal.failures && proposal.failures.length || 1 })));
-    if (proposal.truncatedChoices) choiceCard.appendChild(el("small", "agent-choice-overflow",
-      t("agent_choice_overflow", { count: proposal.truncatedChoices })));
-    if (proposal.warnings && proposal.warnings.includes("CURVED_WALL_HOLD_UNSUPPORTED"))
-      choiceCard.appendChild(el("small", "agent-choice-overflow", t("agent_curved_hold_warning")));
-    if (proposal.warnings && proposal.warnings.includes("PRESERVED_WALL_HOLD"))
-      choiceCard.appendChild(el("small", "agent-choice-overflow", t("agent_preserved_hold_warning")));
-    choiceCard.addEventListener("pointerenter", engage);
-    choiceCard.addEventListener("focusin", engage);
-    choiceCard.addEventListener("keydown", function(event) {
+    cardNotes(choiceCard, proposal);
+    choiceCard.addEventListener("keydown", function (event) {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-      engage(); event.preventDefault();
-      showChoice(current + (event.key === "ArrowRight" ? 1 : proposal.choices.length - 1));
+      event.preventDefault();
+      showChoice(current + (event.key === "ArrowRight" ? 1 : -1));
+      var focused = pick.querySelector("button.on");
+      if (focused) focused.focus();
     });
     messagesEl.appendChild(choiceCard); pendingProposalCard = choiceCard;
     showChoice(0);
-    timer = setInterval(function () {
-      if (!choiceCard.isConnected) return stopCarousel();
-      showChoice(current + 1);
-    }, 1000);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return;
   }
-  renderAgentPreview(proposal.preview);
+  var only = candidates[0];
+  renderAgentCandidates([{ spec: proposal.preview, tags: candidateTags(only, "focus") }], 0);
   var card = el("section", "agent-proposal");
   if (proposal.incomplete) card.classList.add("agent-proposal-incomplete");
   card.innerHTML = '<strong><i class="ph ph-eye"></i> ' + escapeHTML(proposalQuestion(proposal)) + '</strong>';
+  var ground = groundingList(only);
+  card.appendChild(ground);
+  regroundWhenHeightsKnown(card, proposal, function (fresh) {
+    only = fresh[0];
+    var next = groundingList(only);
+    ground.replaceWith(next);
+    ground = next;
+    renderAgentCandidates([{ spec: proposal.preview, tags: candidateTags(only, "focus") }], 0);
+  });
   var actions = el("div", "agent-proposal-actions");
   var accept = el("button", "btn-accent", t("agent_yes"));
   var reject = el("button", null, t("cancel"));
   var fix = el("button", null, t("agent_fix"));
   actions.append(accept, reject, fix); card.appendChild(actions); messagesEl.appendChild(card);
-  if (proposal.warnings && proposal.warnings.includes("CURVED_WALL_HOLD_UNSUPPORTED"))
-    card.appendChild(el("small", "agent-choice-overflow", t("agent_curved_hold_warning")));
-  if (proposal.warnings && proposal.warnings.includes("PRESERVED_WALL_HOLD"))
-    card.appendChild(el("small", "agent-choice-overflow", t("agent_preserved_hold_warning")));
+  cardNotes(card, proposal);
   pendingProposalCard = card;
   reject.onclick = function () {
     pendingProposalCard = null;
@@ -216,16 +451,7 @@ function proposalCard(proposal) {
     inputEl.placeholder = t("agent_fix_placeholder");
     inputEl.focus();
   };
-  accept.onclick = function () {
-    accept.disabled = reject.disabled = fix.disabled = true;
-    clearAgentPreview();
-    var result = executePlannerProposal(proposal);
-    recordFeedback(result.ok ? "accepted" : "failed", proposal, result);
-    pendingProposalCard = null;
-    card.classList.add(result.ok ? "agent-proposal-applied" : "agent-proposal-failed");
-    card.innerHTML = '<strong><i class="ph ' + (result.ok ? "ph-check-circle" : "ph-warning-circle") + '"></i> ' +
-      escapeHTML(result.ok ? t("agent_applied_short") : t("agent_failed") + ": " + (result.reason === "PROTECTED_STRUCTURE" ? t("redesign_protected") : result.reason)) + '</strong>';
-  };
+  accept.onclick = function () { applyProposal(card, proposal); };
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
@@ -278,7 +504,7 @@ function renderProposalFailure(failure) {
       { label: t("cancel"), select: function (choices) { choices.remove(); } },
     ]);
   }
-  var message = t("agent_failed") + ": " + String(failure && failure.reason || "PREVIEW_FAILED");
+  var message = t("agent_failed") + ": " + failureText(failure && failure.reason || "PREVIEW_FAILED");
   line("assistant", message);
   return message;
 }
