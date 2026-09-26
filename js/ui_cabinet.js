@@ -12,8 +12,9 @@ import { createHistoryPanel } from "./ui_history.js";
 import { updateCost } from "./ui_tree.js";
 import {
   FAM, makeSpec, specOf, famOf, defaultPreset, makeBlankSpec, layoutCab,
-  secLabel, doorLabel, famLabel, presetLabel, cabSummary,
+  secLabel, doorLabel, famLabel, presetLabel, cabSummary, cabPrice,
 } from "./cabinet.js";
+import { partCode } from "./part_codes.js";
 import { ceilingHeight } from "./elevation.js";
 import { openNest, isNestOpen } from "./ui_nest.js";
 import { nest, panelsOf } from "./nest.js";
@@ -156,13 +157,17 @@ function buildDOM() {
     '<canvas id="cbCanvas"></canvas><div id="cb3dHost" class="cb-3dhost"></div>' +
     '<div class="cb-hint">' + T("hint") + "</div>" + commandBarHTML("cab") + "</div>" +
     '<div class="cb-panel cb-right">' +
-    '<div class="cb-sec cb-prev-wrap"><canvas id="cbPrev"></canvas></div>' +
+    '<div class="cb-sec cb-prev-wrap"><canvas id="cbPrev"></canvas><span class="cb-view-chip">' + T("thumb3d") + "</span></div>" +
+    // Round-6 right column: the other view on top (the elevation while the
+    // middle shows 3D), then what is being edited — see fillIdCard()
+    '<button type="button" class="cb-sec cb-elev-thumb" id="cbElevThumb" hidden title="' + T("thumbElevTip") + '"><canvas></canvas><span class="cb-view-chip">' + T("thumbElev") + "</span></button>" +
+    '<div class="cb-idcard" id="cbIdCard"></div>' +
     grp("edit", [
       ico("tab", "insp", "ph-cursor-click", "inspTab"),
       ico("tab", "look", "ph-paint-brush", "front"),
       ico("tab", "hw", "ph-nut", "hardware"),
       ico("tab", "hist", "ph-clock-counter-clockwise", "history"),
-    ]) +
+    ], "cb-seg") +
     grp("review", [
       ico("tab", "checks", "ph-seal-check", "checks", '<span id="cbChkBadge" class="cb-badge"></span>'),
       ico("tab", "bom", "ph-list-numbers", "summary"),
@@ -178,7 +183,9 @@ function buildDOM() {
     '<div class="cb-pane" data-pane="checks"><div id="cbChecks"></div></div>' +
     '<div class="cb-pane" data-pane="bom"><div id="cbBom"></div>' +
     '<button id="cbCsv" class="cb-wide"><i class="ph ph-file-csv"></i> ' + T("csv") + "</button></div>" +
-    "</div></div>" +
+    "</div>" +
+    '<div class="cb-prodstats" id="cbProdStats"></div>' +
+    "</div>" +
     '<div id="cbStatus" class="cb-statusbar" role="status" aria-live="polite"></div>' +
     '<div id="cbSizeDlg" class="cb-size-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="cbSizeDlgTitle">' +
     '<div class="cb-size-dlg-card">' +
@@ -319,6 +326,7 @@ function buildDOM() {
   E.cv = E.host.querySelector("#cbCanvas");
   E.cx = E.cv.getContext("2d");
   wireCanvas();
+  E.host.querySelector("#cbElevThumb").addEventListener("click", function () { setMode("2d"); });
   initPreview();
   window.addEventListener("resize", function () {
     if (E.open) {
@@ -922,6 +930,7 @@ function changed(refit, propagate) {
   fillBOM();
   var sub = E.host.querySelector("#cbSub");
   if (sub) sub.textContent = cabSummary(E.it);
+  fillIdCard();
   fillStatusBar();
   syncSessionStatus();
   // the cost panel prices a modular cabinet from its actual board area and
@@ -945,15 +954,18 @@ function fillStatusBar() {
   parts.push(preset ? (isEn() ? preset.label : preset.labelHe) : T("statusNoConvention"));
   parts.push(displayUnit("furniture"));
   if (s.panel > 0) parts.push(T("statusStock").replace("{t}", formatStockMm(s.panel)));
+  var stats = null;
   try {
     var panels = panelsOf([E.it]), q = nest(panels);
     var area = 0, used = 0;
     q.groups.forEach(function (g) { if (!g.bySqm) { area += g.area; used += g.used; } });
     parts.push(T("statusSheets").replace("{n}", q.sheetCount) + (area > 0 ? " · " + T("statusYield").replace("{p}", Math.round(used / area * 100)) : ""));
     parts.push(T("statusParts").replace("{n}", panels.length));
+    stats = { parts: panels.length, sheets: q.sheetCount };
   } catch (error) {
     parts.push(T("statusNestFailed"));
   }
+  fillProdStats(stats);
   bar.innerHTML = "";
   parts.forEach(function (text, i) {
     var span = document.createElement("span");
@@ -962,6 +974,44 @@ function fillStatusBar() {
     bar.appendChild(span);
   });
   bar.insertAdjacentHTML("beforeend", aiStatusHTML());
+}
+/* The mockup's Production strip at the foot of the inspector: the same nesting
+   run as the status bar, and the price the cost panel shows. Nothing when the
+   nesting failed — the status bar says why. */
+function fillProdStats(stats) {
+  var box = E.host && E.host.querySelector("#cbProdStats");
+  if (!box) return;
+  box.textContent = "";
+  box.hidden = !stats;
+  if (!stats) return;
+  [[T("prodParts"), String(stats.parts)], [T("prodSheets"), String(stats.sheets)], [T("prodCost"), "₪" + cabPrice(E.it).toLocaleString("en-US")]]
+    .forEach(function (pair) {
+      var cell = el("div", "cb-prodstat");
+      cell.appendChild(el("span", null, pair[0]));
+      cell.appendChild(el("b", null, pair[1]));
+      box.appendChild(cell);
+    });
+}
+/* What is being edited, at the head of the inspector (Round-6): the piece's
+   kind and width, what it holds, and its part code — the F12 the plan's code
+   labels, the AI and the planner inspector use for the same piece. */
+function fillIdCard() {
+  var box = E.host && E.host.querySelector("#cbIdCard");
+  if (!box || !E.it) return;
+  var s = sp(), code = partCode("item", E.it.id);
+  box.innerHTML = "";
+  var icon = el("span", "cb-idcard-icon", '<i class="ph ph-cube" aria-hidden="true"></i>');
+  var text = el("div", "cb-idcard-text");
+  text.appendChild(el("b", null, famLabel(s.fam) + " " + formatCabinetDimension(E.it.w, displayUnit("furniture")) + " " + displayUnit("furniture")));
+  text.appendChild(el("span", null, cabSummary(E.it)));
+  box.appendChild(icon);
+  box.appendChild(text);
+  if (code) {
+    var chip = el("span", "cb-idcard-code");
+    chip.textContent = code;
+    chip.title = T("idCodeTip");
+    box.appendChild(chip);
+  }
 }
 function formatStockMm(cm) {
   var mm = Math.round(cm * 100) / 10;

@@ -95,6 +95,7 @@ export function setMode(m) {
   syncHint();
   if (E.view || m === "2d") draw();
   renderPreview();
+  drawElevThumb(); // shown only while the middle is the model
 }
 
 export function setAxis(a) {
@@ -582,27 +583,28 @@ export function drawProjected(ax) {
 
 export function draw() {
   if (!E.open || !E.cx || !E.vw) return;
-  if (E.mode === "3d") {
+  if (E.mode === "3d" && !E.thumbPass) {
     E.cx.clearRect(0, 0, E.vw || 0, E.vh || 0);
+    drawElevThumb();
     return;
   }
-  if (E.axis !== "front") return drawProjected(E.axis);
+  if (E.axis !== "front" && !E.thumbPass) return drawProjected(E.axis);
   /* The margins exist to clear the chrome that floats over the canvas, and the
      compact layout has different chrome: no tool group in the corner (it is a
      sheet), and the hint pill moved to the top. Reserving the desktop's 112px
      for a rail that is not there wastes a fifth of a phone screen. */
-  var cmp = E.host && E.host.classList.contains("cb-compact");
+  var cmp = E.host && E.host.classList.contains("cb-compact") || E.thumbPass;
   var it = E.it,
     L = layoutCab(it),
     c = E.cx,
     W = E.vw,
     H = E.vh,
-    padX = cmp ? 30 : 58,
+    padX = E.thumbPass ? 22 : cmp ? 30 : 58,
     // split view: half the width, so the view picker's strip is the drawing's
     // to avoid, and the tools shrink to one row of icons
     gut = E.split && !cmp ? 118 : 0,
-    padT = cmp ? 54 : E.split ? 72 : 112, // desktop: the labelled 2×2 tool group floats here
-    padB = cmp ? 46 : 84, // room for the width dimension and the hint pill
+    padT = E.thumbPass ? 34 : cmp ? 54 : E.split ? 72 : 112, // desktop: the labelled 2×2 tool group floats here
+    padB = E.thumbPass ? 30 : cmp ? 46 : 84, // room for the width dimension and the hint pill
     k = Math.min((W - gut - padX * 2) / it.w, (H - padT - padB) / it.h) * viewZoom,
     ox = gut + (W - gut) / 2 + viewPanX,
     /* oy is the BASELINE of the drawing (Y = oy - my*k). Desktop hangs it from
@@ -612,7 +614,7 @@ export function draw() {
     oy = cmp
       ? padT + (H - padT - padB - it.h * k) / 2 + it.h * k + viewPanY
       : padT + it.h * k + viewPanY;
-  E.view = { k: k, ox: ox, oy: oy, L: L };
+  if (!E.thumbPass) E.view = { k: k, ox: ox, oy: oy, L: L };
   var X = function (mx) {
       return ox + mx * k;
     },
@@ -1570,6 +1572,36 @@ export function renderPreview() {
   if (E.pv) E.pv.render();
 }
 
+
+/* The right column's elevation thumbnail (Round-6): while the middle shows the
+   model, the column shows the front elevation — the same draw(), the same
+   selection outline, into a small canvas of its own. The drawing's canvas,
+   size, zoom and hit-test frame are set aside for the pass and put back, so
+   the thumbnail never moves the real view. Desktop only; clicking it opens
+   the elevation. */
+export function drawElevThumb() {
+  var box = E.host && E.host.querySelector("#cbElevThumb");
+  if (!box) return;
+  var show = E.open && !!E.it && E.mode === "3d" && !E.split && !E.host.classList.contains("cb-compact");
+  box.hidden = !show;
+  if (!show) return;
+  var cv = box.querySelector("canvas"), r = box.getBoundingClientRect();
+  if (r.width < 20 || r.height < 20) return;
+  var dpr = Math.min(2, window.devicePixelRatio || 1), cx = cv.getContext("2d");
+  cv.width = Math.round(r.width * dpr);
+  cv.height = Math.round(r.height * dpr);
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  var saved = { cv: E.cv, cx: E.cx, vw: E.vw, vh: E.vh, view: E.view, z: viewZoom, px: viewPanX, py: viewPanY };
+  E.cv = cv; E.cx = cx; E.vw = r.width; E.vh = r.height;
+  viewZoom = 1; viewPanX = 0; viewPanY = 0;
+  E.thumbPass = true;
+  try { draw(); }
+  finally {
+    E.thumbPass = false;
+    E.cv = saved.cv; E.cx = saved.cx; E.vw = saved.vw; E.vh = saved.vh; E.view = saved.view;
+    viewZoom = saved.z; viewPanX = saved.px; viewPanY = saved.py;
+  }
+}
 
 /* ================= entry points ================= */
 

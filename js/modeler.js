@@ -3964,6 +3964,8 @@ function buildDOM() {
     '<div id="mdNotesHost" class="md-notes-host"></div>' +
     '<label class="md-context-toggle"><input type="checkbox" id="mdContextBtn"><span>' + t("contextRoom") + "</span></label>" +
     "</div>" +
+    // Round-6: while the middle shows the model, the column shows the sketch
+    '<button type="button" class="md-sketch-thumb" id="mdSketchThumb" hidden title="' + t("sketchThumbTip") + '"><canvas></canvas><span class="md-view-chip"></span></button>' +
     tabstrip("R", [
       tab("sketch", "ph-compass-tool", t("tabSketchShort"), t("tabSketch"), '<span class="md-badge" id="mdDofBadge"></span>'),
       tab("shape", "ph-ruler", t("tabShapeShort"), t("tabShape")),
@@ -4460,6 +4462,9 @@ function buildDOM() {
   var statusEl = root.querySelector("#mdStatus");
   if (statusEl) statusEl.addEventListener("click", function (event) {
     if (event.target.closest(".md-st-rebuild")) focusTreeDiagnostics();
+  });
+  root.querySelector("#mdSketchThumb").addEventListener("click", function () {
+    if (this._sketch) editSketchFromHistory(this._sketch);
   });
   root.querySelectorAll("#mdModes button").forEach(function (b) {
     b.addEventListener("click", function () {
@@ -11431,9 +11436,56 @@ function fitSplitPreview() {
   E.pv.render();
 }
 
+/* The right column's sketch thumbnail (Round-6): in Model view the thumbnail
+   slot is empty — the 3D moved to the middle — so it shows the sketch you are
+   on (or the last one drawn), fitted, with its name and how defined it is.
+   Clicking it edits that sketch. Redrawn only when the sketch, its state or
+   the slot's size changed. */
+function syncSketchThumb() {
+  var box = root && root.querySelector("#mdSketchThumb");
+  if (!box) return;
+  var sketches = E.def && E.docType === "part" ? ensureSketchDoc(E.def) : [];
+  var current = sketches.length ? ensureSketch(E.def) : null;
+  var sketch = current && (current.entities || []).length ? current
+    : sketches.slice().reverse().find(function (sk) { return (sk.entities || []).length; }) || null;
+  var show = !!sketch && E.mode === "3d" && !E.modelPlaneActive && !E.split && !document.body.classList.contains("compact-nav");
+  box.hidden = !show;
+  if (!show) { E._sketchThumbKey = ""; return; }
+  var r = box.getBoundingClientRect();
+  if (r.width < 20 || r.height < 20) return;
+  var lines = sketchUvPolylines(sketch);
+  var key = JSON.stringify([sketch.id, (sketch.constraints || []).length, Math.round(r.width), Math.round(r.height), lines]);
+  if (key === E._sketchThumbKey) return;
+  E._sketchThumbKey = key;
+  var info = solveSketch(sketch);
+  box._sketch = sketch;
+  var n = sketches.indexOf(sketch) + 1;
+  box.querySelector(".md-view-chip").textContent = t("sketchThumbChip").replace("{n}", n) + " · " +
+    (info.status === "fully-constrained" ? t("wfFullyDefined") : info.status === "conflicting" ? t("dofConflict")
+      : info.status === "over-constrained" ? t("dofOver") : (sketch.constraints || []).length ? t("wfPartialDefined") : t("wfUnderDefined"));
+  var cv = box.querySelector("canvas"), dpr = Math.min(2, window.devicePixelRatio || 1), c = cv.getContext("2d");
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, r.width, r.height);
+  var u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+  lines.forEach(function (l) { l.forEach(function (q) { u0 = Math.min(u0, q.u); u1 = Math.max(u1, q.u); v0 = Math.min(v0, q.v); v1 = Math.max(v1, q.v); }); });
+  if (!isFinite(u0)) return;
+  var padT = 34, pad = 26, k = Math.min((r.width - pad * 2) / Math.max(1e-6, u1 - u0), (r.height - padT - pad) / Math.max(1e-6, v1 - v0));
+  var ox = r.width / 2 - (u0 + u1) / 2 * k, oy = padT + (r.height - padT - pad) / 2 + (v0 + v1) / 2 * k;
+  c.lineWidth = 1.6;
+  c.lineJoin = "round";
+  c.strokeStyle = info.status === "fully-constrained" ? getComputedStyle(document.documentElement).getPropertyValue("--text-main").trim() || "#e5e7eb"
+    : info.status === "conflicting" ? "#e5484d" : "#3aa0ff";
+  lines.forEach(function (l) {
+    c.beginPath();
+    l.forEach(function (q, i) { var x = ox + q.u * k, y = oy - q.v * k; if (i) c.lineTo(x, y); else c.moveTo(x, y); });
+    c.stroke();
+  });
+}
 function drawSketch() {
   if (!E.open) return;
   syncSplitSketch3D();
+  syncSketchThumb();
   invalidateSketchProjection();   // the camera or the pane may have moved since
   syncContextActions();
   if (!E.cw || !E.ch) sizeSketch();

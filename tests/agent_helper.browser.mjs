@@ -464,11 +464,12 @@ test("item move shows only a ghost and Yes, Cancel, How to fix before applying",
         origin: !!document.querySelector(".agent-preview-origin"),
         destination: !!document.querySelector(".agent-preview-destination"),
       };
-      // Grounding: the card names what the AI picked and checks it; the plan tags it.
+      // Grounding: the card names what the AI picked by its part code (F12) and
+      // checks it; the plan tags it with the same code.
       const grounded = {
-        part: card.querySelector(".agent-parts").textContent.includes("#" + id),
+        part: card.querySelector(".agent-parts").textContent.includes("F" + id),
         checks: card.querySelectorAll(".agent-checks li").length > 0,
-        tag: [...document.querySelectorAll(".agent-tag text")].some((text) => text.textContent.includes("#" + id)),
+        tag: [...document.querySelectorAll(".agent-tag text")].some((text) => text.textContent.includes("F" + id)),
       };
       [...card.querySelectorAll("button")].find((button) => button.textContent.trim() === "Yes").click();
       const after = state.S.items.find((item) => item.id === id).x;

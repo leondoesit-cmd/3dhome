@@ -262,6 +262,8 @@ export var TXT = {
   mode3d: ["מודל", "Model"],
   modeDrawing: ["גיליון", "Drawing"],
   modeSplit: ["מפוצל", "Split"],
+  sketchThumbChip: ["סקיצה {n}", "Sketch {n}"],
+  sketchThumbTip: ["עריכת הסקיצה", "Edit this sketch"],
   modeSplitTip: ["הסקיצה והמודל זה לצד זה", "The sketch and the model side by side"],
   drawingHint: ["גיליון שרטוט · גררו מבט לאורך קו ההיטל · D למידה · S לחתך", "Drawing sheet · drag a view along its projection line · D to dimension · S to section"],
   drawToolSelect: ["בחירה", "Select"],

@@ -308,7 +308,7 @@ test("the bar slides beside a side panel, climbs over a full-width strip, and st
 test("the cabinet designer's status bar reports real production numbers and nothing invented", () => {
   const cab = src("ui_cabinet.js");
   // Refreshed by every edit, and placed under the body, not inside its columns.
-  assert.match(cab, /if \(sub\) sub\.textContent = cabSummary\(E\.it\);\s*fillStatusBar\(\);/);
+  assert.match(cab, /if \(sub\) sub\.textContent = cabSummary\(E\.it\);\s*fillIdCard\(\);\s*fillStatusBar\(\);/);
   assert.match(cab, /if \(statusBar && bodyEl\) bodyEl\.after\(statusBar\);/);
   // Sheets, yield and parts come from the real nesting run over the real parts.
   assert.match(cab, /var panels = panelsOf\(\[E\.it\]\), q = nest\(panels\);/);
@@ -364,4 +364,33 @@ test("the model editor's split view: the sketch beside a model that draws the sk
   const cat = src("pro_catalog.js");
   assert.match(cat, /T\("Split", "ph-columns", "mclick:#mdModeSplit"\)/);
   assert.match(cat, /T\("Split", "ph-columns", "cab:mode:split"\)/);
+});
+
+test("the cabinet designer's right column: the other view, what is edited, the production strip", () => {
+  const cab = src("ui_cabinet.js"), view = src("ui_cabinet_view.js");
+  // the elevation thumbnail while the middle is the model — the real draw(), view state put back
+  assert.match(view, /var show = E\.open && !!E\.it && E\.mode === "3d" && !E\.split && !E\.host\.classList\.contains\("cb-compact"\);/);
+  assert.match(view, /E\.thumbPass = true;\s*try \{ draw\(\); \}\s*finally \{\s*E\.thumbPass = false;/);
+  assert.match(view, /if \(!E\.thumbPass\) E\.view = \{ k: k, ox: ox, oy: oy, L: L \};/);
+  assert.match(cab, /E\.host\.querySelector\("#cbElevThumb"\)\.addEventListener\("click", function \(\) \{ setMode\("2d"\); \}\);/);
+  // the identity carries the plan's part code; the strip reuses the status bar's nesting run
+  assert.match(cab, /var s = sp\(\), code = partCode\("item", E\.it\.id\);/);
+  assert.match(cab, /stats = \{ parts: panels\.length, sheets: q\.sheetCount \};/);
+  assert.match(cab, /"₪" \+ cabPrice\(E\.it\)\.toLocaleString\("en-US"\)/);
+  assert.match(cab, /\], "cb-seg"\) \+/);
+  const css = src("../css/pro_ribbon.css");
+  assert.match(css, /#cabdes\.cb-compact \.cb-idcard, #cabdes\.cb-compact \.cb-prodstats, #cabdes\.cb-compact \.cb-elev-thumb \{ display: none; \}/);
+  assert.match(css, /#cabdes \.cb-prodstats \{ position: sticky; bottom: 0;/);
+  for (const k of ["thumb3d", "thumbElev", "thumbElevTip", "idCodeTip", "prodParts", "prodSheets", "prodCost"])
+    assert.ok(src("ui_cabinet_ctx.js").includes(String.fromCharCode(10) + "  " + k + ": ["), k);
+});
+
+test("the model editor's right column shows the sketch while the middle shows the model", () => {
+  const md = src("modeler.js");
+  assert.match(md, /var show = !!sketch && E\.mode === "3d" && !E\.modelPlaneActive && !E\.split && !document\.body\.classList\.contains\("compact-nav"\);/);
+  // redrawn only when the sketch or the slot changed; solved only then
+  assert.match(md, /if \(key === E\._sketchThumbKey\) return;\s*E\._sketchThumbKey = key;\s*var info = solveSketch\(sketch\);/);
+  assert.match(md, /if \(this\._sketch\) editSketchFromHistory\(this\._sketch\);/);
+  assert.match(md, /syncSplitSketch3D\(\);\s*syncSketchThumb\(\);/);
+  for (const k of ["sketchThumbChip", "sketchThumbTip"]) assert.ok(src("modeler_strings.js").includes(String.fromCharCode(10) + "  " + k + ": ["), k);
 });
