@@ -13578,7 +13578,11 @@ html:not([data-ui="legacy"])[data-tool="walloffset"] #cadTuneBtn {
    navigation from disagreeing by the nav's padding/border width.
    ========================================================================== */
 body.compact-nav {
-  --mobile-topbar-block: calc(48px + env(safe-area-inset-top));
+  /* Everything fixed below the chrome reads the block: the top bar row plus
+     the editor strip under it (#m-editor-strip, css/pro_ribbon.css). */
+  --mobile-topbar-row: calc(48px + env(safe-area-inset-top));
+  --m-editor-strip: 44px;
+  --mobile-topbar-block: calc(var(--mobile-topbar-row) + var(--m-editor-strip));
   --mobile-nav-block: calc(56px + env(safe-area-inset-bottom));
 }
 
@@ -13588,8 +13592,8 @@ body.compact-nav #app {
 
 body.compact-nav #topbar {
   box-sizing: border-box;
-  height: var(--mobile-topbar-block);
-  min-height: var(--mobile-topbar-block);
+  height: var(--mobile-topbar-row);
+  min-height: var(--mobile-topbar-row);
   padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
   gap: 4px;
   overflow: hidden;

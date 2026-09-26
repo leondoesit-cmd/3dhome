@@ -106,3 +106,20 @@ test("the workspace prints sheets through the shared helper, not its own copy", 
   assert.doesNotMatch(ws, /function printSheet\(/);
   assert.match(ws, /printSheetSVG\(toConstructionSVG\(\), t\("sheet_floor_plan"\)\)/);
 });
+
+test("the phone planner carries the switcher and the panes in a strip under the top bar", () => {
+  const shell = src("mobile_shell.js");
+  assert.match(shell, /editorSwitchHTML\("plan", "m-editors"\)/);
+  // Panes go through setView, which also drops a half-armed drawing tool and resets elevations.
+  assert.match(shell, /setView\(b\.dataset\.mPane\)/);
+  assert.match(shell, /top\.parentNode\.insertBefore\(strip, top\.nextSibling\)/);
+  const css = readFileSync(new URL("../css/styles.css", import.meta.url), "utf8");
+  // Fixed drawers read the block, so it must include the strip; the bar itself keeps one row.
+  assert.match(css, /--mobile-topbar-block: calc\(var\(--mobile-topbar-row\) \+ var\(--m-editor-strip\)\)/);
+  assert.match(css, /body\.compact-nav #topbar \{[^}]*height: var\(--mobile-topbar-row\)/);
+  for (const f of ["en", "he"]) {
+    const table = src("i18n/" + f + ".js");
+    assert.match(table, /m_strip_aria:/, f);
+    assert.match(table, /m_panes_aria:/, f);
+  }
+});

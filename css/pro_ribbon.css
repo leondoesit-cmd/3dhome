@@ -309,3 +309,60 @@ body.compact-nav .pr-editors.md-editors button,
 #cabdes.cb-compact .cb-head-main { flex-wrap: nowrap; }
 #cabdes.cb-compact .cb-head-main .cb-logo { flex: 1 1 0; overflow: hidden; }
 #cabdes.cb-compact .cb-head-main .cb-session { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* Phone and fold planner: the editor strip under the top bar
+   (js/mobile_shell.js) — Plan · Model · Cabinet, then 2D · 3D · Split. */
+.m-editor-strip { display: none; }
+/* A narrow desktop window (no touch, so not compact) loses the ribbon below
+   1024px; the strip stands in for its switcher. The top bar keeps the panes. */
+@media (max-width: 1023px) {
+  body:not(.compact-nav) .m-editor-strip {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: 38px;
+    padding: 0 12px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-main);
+  }
+  body:not(.compact-nav) .m-editor-strip .m-panes { display: none; }
+}
+body.compact-nav .m-editor-strip {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  height: var(--m-editor-strip);
+  /* level with #topbar (a flex item at 100), above the sheet backdrop */
+  position: relative;
+  z-index: 100;
+  padding: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--bg-topbar) 92%, transparent);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+body.compact-nav .m-editor-strip .pr-editors { flex-shrink: 0; border-radius: 10px; }
+body.compact-nav .m-editor-strip .pr-editors button {
+  height: 36px;
+  min-width: 44px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+body.compact-nav .m-editor-strip .pr-ed-full { display: none; }
+body.compact-nav .m-editor-strip .pr-ed-short { display: inline; }
+body.compact-nav .m-editor-strip .m-panes button i { font-size: 16px; vertical-align: -3px; }
+/* Too short to give up a row (a phone on its side), and the full-screen modes
+   that hide the top bar: the strip goes and the block shrinks with it. */
+@media (max-height: 500px) {
+  body.compact-nav { --m-editor-strip: 0px; }
+  body.compact-nav .m-editor-strip { display: none; }
+}
+body.compact-nav.zombies-on,
+body.compact-nav.lava-on { --m-editor-strip: 0px; }
+body.zombies-on .m-editor-strip,
+body.lava-on .m-editor-strip { display: none !important; }
+@media print { .m-editor-strip { display: none !important; } }

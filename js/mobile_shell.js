@@ -31,6 +31,7 @@ import { undo, redo, canUndo, canRedo } from "./history.js";
 import { toggleAid } from "./cad_hud.js";
 import { onAfterRender, render2D, updatePlanGizmo } from "./plan2d.js";
 import { mountPagedMenu, releasePagedMenu } from "./mobile_pages.js";
+import { editorSwitchHTML, wireEditorSwitch } from "./pro_shell.js";
 
 var ctxBar = null,
   sheet = null,
@@ -152,6 +153,64 @@ function setView(k) {
     updatePlanGizmo();
   }
   if (window.__setViewMode) window.__setViewMode(k);
+}
+
+/* ---- editor strip ------------------------------------------------------- */
+
+/* The row under the top bar (Round 6 phone mockups): the shared editor
+   switcher — Plan · Model · Cabinet, the same control the desktop ribbon and
+   both editor headers carry — and the three panes one tap each. The nav's View
+   slot stays a Plan <-> 3D flip; Split no longer needs its long press.
+
+   The strip is static in #app's column, so the workspace shrinks under it, and
+   css adds its height to --mobile-topbar-block for everything fixed below. */
+var strip = null;
+var STRIP_VIEWS = [
+  ["plan", "2D"],
+  ["3d", "3D"],
+  ["split", null, VIEW_ICONS.split],
+];
+function buildStrip() {
+  var top = $("topbar");
+  if (!top) return;
+  if (!strip) {
+    strip = document.createElement("div");
+    strip.id = "m-editor-strip";
+    strip.className = "m-editor-strip";
+    top.parentNode.insertBefore(strip, top.nextSibling);
+    strip.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-m-pane]");
+      if (!b) return;
+      if (openSheet) closeSheet();
+      setView(b.dataset.mPane);
+      sync(true);
+    });
+  }
+  strip.setAttribute("role", "toolbar");
+  strip.setAttribute("aria-label", t("m_strip_aria"));
+  strip.innerHTML =
+    editorSwitchHTML("plan", "m-editors") +
+    '<div class="pr-editors m-panes" role="group" aria-label="' + t("m_panes_aria") + '">' +
+    STRIP_VIEWS.map(function (v) {
+      var label = t(VIEW_LABELS[v[0]]);
+      return '<button type="button" data-m-pane="' + v[0] + '" aria-label="' + label + '" title="' + label + '">' +
+        (v[2] ? '<i class="ph ' + v[2] + '" aria-hidden="true"></i>' : v[1]) + "</button>";
+    }).join("") +
+    "</div>";
+  wireEditorSwitch(strip);
+  syncStrip();
+}
+/* The pane actually showing, not viewMode(): an elevation is still the 2D
+   pane, and 2D here returns it to the top-down plan like the nav's Plan. */
+function syncStrip() {
+  if (!strip) return;
+  var cc = $("center-canvas");
+  var pane = !cc ? "split" : cc.classList.contains("max-view-2d") ? "plan" : cc.classList.contains("max-view-3d") ? "3d" : "split";
+  strip.querySelectorAll("[data-m-pane]").forEach(function (b) {
+    var on = b.dataset.mPane === pane;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
 }
 
 /* ---- selection ---------------------------------------------------------- */
@@ -1119,6 +1178,7 @@ function sync(force) {
   lastSel = cur;
   renderCtx();
   syncNav();
+  syncStrip();
 }
 
 export function initMobileShell() {
@@ -1130,6 +1190,7 @@ export function initMobileShell() {
   document.body.appendChild(ctxBar);
 
   initNav();
+  buildStrip();
   ensureSheet();
   // ui.js owns the legacy swipe/backdrop handlers. Observe the shared drawer
   // classes so their dismissals also retire our backdrop and expanded state.
@@ -1235,6 +1296,7 @@ export function initMobileShell() {
   });
   syncKeyboard();
   onLangChange(function () {
+    buildStrip();
     sync(true);
     var closeLabel = t("close");
     if (sheet) {

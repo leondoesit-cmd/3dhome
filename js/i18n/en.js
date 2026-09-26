@@ -358,6 +358,8 @@ export default {
   floor_pick_title: "Pick a floor by look",
   floor_custom_dropped: "The uploaded image was replaced by the floor you picked",
   m_view_hold: "Tap to switch Plan / 3D · hold for Split and elevations",
+  m_strip_aria: "Editors and panes",
+  m_panes_aria: "Pane",
   m_more_find: "Find a tool",
   m_more_find_desc: "Search every command by name instead of hunting menus.",
   m_t_select: "Select",

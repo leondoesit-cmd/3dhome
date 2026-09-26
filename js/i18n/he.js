@@ -359,6 +359,8 @@ export default {
   floor_pick_title: "בחירת ריצוף לפי מראה",
   floor_custom_dropped: "התמונה שהועלתה הוחלפה בריצוף שנבחר",
   m_view_hold: "הקשה מחליפה תוכנית/תלת־ממד · לחיצה ארוכה לפיצול ולחתכים",
+  m_strip_aria: "עורכים ותצוגות",
+  m_panes_aria: "תצוגה",
   m_more_find: "חיפוש כלי",
   m_more_find_desc: "מצאו כל פקודה לפי שם, בלי לחפש בתפריטים.",
   m_t_select: "בחירה",
