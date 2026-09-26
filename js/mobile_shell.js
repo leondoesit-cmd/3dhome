@@ -32,6 +32,9 @@ import { toggleAid } from "./cad_hud.js";
 import { onAfterRender, render2D, updatePlanGizmo } from "./plan2d.js";
 import { mountPagedMenu, releasePagedMenu } from "./mobile_pages.js";
 import { editorSwitchHTML, wireEditorSwitch } from "./pro_shell.js";
+import { detectRooms, roomName } from "./geometry.js";
+import { flabel } from "./furniture_meta.js";
+import { inside } from "./layout_analysis.js";
 
 var ctxBar = null,
   sheet = null,
@@ -351,6 +354,71 @@ function syncTopSelection() {
   phaseOut.className = "m-top-selection-phase" + (phaseTone ? " " + phaseTone : "");
   identity.setAttribute("aria-label", visible ? (phase ? phase + " · " + name : name) : "");
 }
+/* ---- inspector identity card -------------------------------------------- */
+
+/* The head of the phone / fold inspector (Round-6 "pro inspector"): what is
+   selected, where it is, and its id — the same "#id" the AI's tags and the
+   history use, so a part reads the same everywhere. The top bar still carries
+   the name alone; this card adds the kind, the room and the id. */
+var KIND_ICON = { wall: "ph-wall", item: "ph-armchair", room: "ph-square", opening: "ph-door" };
+function roomsOfWall(id) {
+  return detectRooms().filter(function (r) { return String(r.key || "").split(",").indexOf(String(id)) >= 0; });
+}
+function roomLabelOf(room) { return room ? roomName(room.key) : ""; }
+function cardFacts(sel) {
+  var ref = sel.ref, sub = [], icon = KIND_ICON[sel.kind], id = ref && ref.id != null ? "#" + ref.id : "";
+  if (sel.kind === "wall") {
+    sub.push(t("m_card_wall"));
+    var names = roomsOfWall(ref.id).map(roomLabelOf).filter(Boolean);
+    if (names.length) sub.push(names.join(" | "));
+    var pill = $("w_phasePill");
+    if (pill && !pill.hidden && pill.textContent.trim()) sub.push(pill.textContent.trim());
+  } else if (sel.kind === "item") {
+    var label = flabel(ref.type);
+    if (ref.name && ref.name !== label) sub.push(label);
+    var at = detectRooms().find(function (r) { return r.pts && r.pts.length > 2 && inside({ x: ref.x, z: ref.z }, r.pts); });
+    if (roomLabelOf(at)) sub.push(roomLabelOf(at));
+  } else if (sel.kind === "opening") {
+    icon = ref.type === "window" ? "ph-frame-corners" : "ph-door";
+    sub.push(t(ref.type === "window" ? "m_card_window" : ref.type === "door" ? "m_card_door" : "m_card_opening"));
+    sub.push(t("m_card_on_wall", { id: ref.wall }));
+  } else if (sel.kind === "room") {
+    id = ""; // a room's key is its wall list, not a name anyone would read
+    var room = detectRooms().find(function (r) { return String(r.key) === String(ref); });
+    if (room && room.area > 0) sub.push((room.area / 10000).toFixed(1) + " m²");
+  }
+  return { icon: icon, sub: sub, id: id };
+}
+function syncInspectorCard() {
+  var host = document.querySelector("#right-inspector > .panel-section");
+  if (!host) return;
+  var card = $("m-insp-card");
+  var sel = S.sel, name = $("m-top-selection-name") ? $("m-top-selection-name").textContent.trim() : "";
+  if (!compact() || !sel || !KIND_ICON[sel.kind] || !name) {
+    if (card) card.hidden = true;
+    return;
+  }
+  if (!card) {
+    card = document.createElement("div");
+    card.id = "m-insp-card";
+    card.className = "m-insp-card";
+    card.innerHTML = '<span class="m-insp-icon"><i class="ph" aria-hidden="true"></i></span><span class="m-insp-text"><b></b><small></small></span><span class="m-insp-id"></span>';
+    var heading = host.querySelector(":scope > h3");
+    host.insertBefore(card, heading ? heading.nextSibling : host.firstChild);
+  }
+  var facts = cardFacts(sel);
+  // "Door · Door · on wall #4" says it twice: the kind word goes when the name has it.
+  if (facts.sub.length && name.toLowerCase().indexOf(String(facts.sub[0]).toLowerCase()) === 0 && sel.kind !== "item") facts.sub.shift();
+  card.hidden = false;
+  card.querySelector("i").className = "ph " + facts.icon;
+  card.querySelector("b").textContent = name;
+  card.querySelector("small").textContent = facts.sub.join(" · ");
+  var badge = card.querySelector(".m-insp-id");
+  badge.textContent = facts.id;
+  badge.hidden = !facts.id;
+  badge.title = facts.id ? t("m_card_id_tip") : "";
+}
+
 /* ---- the contextual row ------------------------------------------------- */
 
 var DRAW_TOOLS = ["wall", "arcwall", "rect", "roomstamp", "door", "window", "passage", "slabvoid", "point", "erase"];
@@ -1260,6 +1328,7 @@ function sync(force) {
   /* Names can be edited without changing the selection signature. Keeping
      this outside the early return makes the title follow those edits. */
   syncTopSelection();
+  syncInspectorCard();
   var s = sig();
   if (!force && s === lastSig) return;
   lastSig = s;
@@ -1299,6 +1368,7 @@ export function initMobileShell() {
   window.addEventListener("planner-selection", function () {
     requestAnimationFrame(function () {
       syncTopSelection();
+      syncInspectorCard();
       if (openSheet === "props") pageInspector();
     });
   });

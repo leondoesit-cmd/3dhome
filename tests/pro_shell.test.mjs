@@ -217,3 +217,20 @@ test("a tool run through the hidden rail is a command, not a tap that closes the
   for (const f of ["ui.js", "mobile_shell.js"])
     assert.match(src(f), /if \(e\.target && e\.target\.closest && e\.target\.closest\("#plan-toolbar"\)\) return;/, f);
 });
+
+/* ---- pro inspector: the phone / fold inspector's identity card ---- */
+test("the inspector card names the part, where it is and its #id, and the wall tabs read as words", () => {
+  const shell = src("mobile_shell.js");
+  // Refreshed wherever the top-bar identity is, and hidden with no selection.
+  assert.equal((shell.match(/\n\s+syncInspectorCard\(\);/g) || []).length, 2);
+  assert.match(shell, /if \(!compact\(\) \|\| !sel \|\| !KIND_ICON\[sel\.kind\] \|\| !name\) \{/);
+  // The same "#id" the AI tags and the history use; a room's wall-list key is never shown.
+  assert.match(shell, /id = ref && ref\.id != null \? "#" \+ ref\.id : ""/);
+  assert.match(shell, /id = ""; \/\/ a room's key is its wall list/);
+  // Only real room names, never a guessed one.
+  assert.match(shell, /function roomLabelOf\(room\) \{ return room \? roomName\(room\.key\) : ""; \}/);
+  const css = readFileSync(new URL("../css/pro_ribbon.css", import.meta.url), "utf8");
+  assert.match(css, /body\.compact-nav #right-inspector #wallProps \.wi-tabs > button > span:not\(\.wi-tab-badge\) \{\s*display: block;/);
+  for (const f of ["en", "he"]) for (const key of ["m_card_wall", "m_card_door", "m_card_window", "m_card_on_wall", "m_card_id_tip"])
+    assert.match(src("i18n/" + f + ".js"), new RegExp("\n  " + key + ": "), f + " " + key);
+});

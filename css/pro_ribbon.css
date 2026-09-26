@@ -629,3 +629,44 @@ body.dock-rail.m-fold-open #m-fold-tools {
   .m-fold-rail button { min-height: 44px; padding: 4px 2px; gap: 2px; font-size: 10px; }
   .m-fold-rail button i { font-size: 18px; }
 }
+
+/* ================================================================ pro inspector
+   Phone / fold inspector head (js/mobile_shell.js syncInspectorCard): kind,
+   name, where it is, and the same "#id" the AI tags and the history use. */
+#m-insp-card { display: none; }
+body.compact-nav #m-insp-card:not([hidden]) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-panel);
+}
+.m-insp-icon { display: grid; place-items: center; flex: 0 0 auto; width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 18px; }
+.m-insp-text { display: grid; flex: 1 1 auto; min-width: 0; line-height: 1.25; }
+.m-insp-text b { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.m-insp-text small { overflow: hidden; color: var(--text-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.m-insp-text small:empty { display: none; }
+.m-insp-id { flex: 0 0 auto; padding: 2px 8px; border-radius: 8px; background: var(--text-main); color: var(--bg-panel); font: 700 12px/1.5 ui-monospace, "Geist Mono", monospace; }
+
+/* The wall's five tabs read as words, as in the mockup: the icon stays, the
+   label the desktop already carries comes back under it. */
+body.compact-nav #right-inspector #wallProps .wi-tabs > button {
+  height: 54px;
+  min-height: 54px;
+  grid-template-rows: 24px auto;
+  gap: 1px;
+  padding: 3px 2px;
+}
+body.compact-nav #right-inspector #wallProps .wi-tabs > button i { width: 24px; height: 24px; font-size: 17px; }
+body.compact-nav #right-inspector #wallProps .wi-tabs > button > span:not(.wi-tab-badge) {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 10.5px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
