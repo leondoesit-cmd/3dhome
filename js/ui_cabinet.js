@@ -27,7 +27,10 @@ import {
   setTool, exportPNG, initPreview, updatePreview, renderPreview,
 } from "./ui_cabinet_view.js";
 import { initCabinetMobile, disposeCabinetMobile, refreshCabinetMobile, showCabinetPropertiesMobile } from "./ui_cabinet_mobile.js";
-import { registerEditor, editorSwitchHTML, wireEditorSwitch } from "./pro_shell.js";
+import {
+  registerEditor, editorSwitchHTML, wireEditorSwitch, wireShell,
+  projectChipHTML, shellActionsHTML, commandBarHTML,
+} from "./pro_shell.js";
 import {
   fillHits, applySearch, fillFamilies, fillPresets, startBlank, fillInspector,
   splitSection, delSection, splitColumn, dupColumn, delColumn, fillLook, fillTechnical,
@@ -55,6 +58,7 @@ function buildDOM() {
     '<div class="cb-head">' +
     '<div class="cb-head-main">' +
     '<div class="cb-logo"><i class="ph ph-lockers"></i> <b>' + T("title") + "</b>" +
+    projectChipHTML() +
     '<span class="cb-sub" id="cbSub"></span><span class="cb-session" id="cbSession" role="status" aria-live="polite"></span></div>' +
     editorSwitchHTML("cab", "cb-editors") +
     '<div class="cb-levels" role="tablist" aria-label="' + T("levelsAria") + '">' +
@@ -63,6 +67,7 @@ function buildDOM() {
     '<button type="button" data-level="advanced"><i class="ph ph-cube-focus"></i> ' + T("levelAdvanced") + '</button>' +
     '</div>' +
     '<div class="cb-actions">' +
+    shellActionsHTML() +
     '<div class="cb-history-actions" aria-label="' + T("historyAria") + '">' +
     '<button id="cbUndo" title="Ctrl+Z" aria-label="' + T("undo") + '"><i class="ph ph-arrow-u-up-left"></i></button>' +
     '<button id="cbRedo" title="Ctrl+Y" aria-label="' + T("redo") + '"><i class="ph ph-arrow-u-up-right"></i></button></div>' +
@@ -145,7 +150,7 @@ function buildDOM() {
     '"><i class="ph ph-square-split-horizontal"></i> <span>' + T("hidOn") + "</span></button></div>" +
     "</div>" +
     '<canvas id="cbCanvas"></canvas><div id="cb3dHost" class="cb-3dhost"></div>' +
-    '<div class="cb-hint">' + T("hint") + "</div></div>" +
+    '<div class="cb-hint">' + T("hint") + "</div>" + commandBarHTML("cab") + "</div>" +
     '<div class="cb-panel cb-right">' +
     '<div class="cb-sec cb-prev-wrap"><canvas id="cbPrev"></canvas></div>' +
     grp("edit", [
@@ -182,6 +187,7 @@ function buildDOM() {
 
   E.host.querySelector("#cbClose").addEventListener("click", closeCabinet);
   wireEditorSwitch(E.host);
+  wireShell(E.host, "cab");
   E.host.querySelector("#cbRevert").addEventListener("click", revert);
   // the cut plan and the PNG hang off the review icons now (see wireTabs);
   // only the CSV still sits inside the bill itself, next to the table it dumps

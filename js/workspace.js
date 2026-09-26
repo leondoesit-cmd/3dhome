@@ -58,7 +58,7 @@ function section(title) {
 function row(...children) { const el = document.createElement("div"); el.className = "ws-row"; children.forEach((c) => el.appendChild(c)); return el; }
 function refreshScene() { S.dirty3D = true; render2D(); refreshTree(); fillProps(); }
 
-export async function openWorkspace() {
+export async function openWorkspace(tab) {
   ensureFloors();
   setRole(S.workspace.role || "owner");
   const dlg = openModal("Project workspace");
@@ -66,6 +66,8 @@ export async function openWorkspace() {
   dlg.overlay.querySelector(".bp-modal").classList.add("workspace-modal");
   const tabs = row(); tabs.classList.add("ws-tabs");
   const names = { project: "Project", floors: "Floors", validate: "Validate", constraints: "Constraints", layouts: "Alternatives", export: "Export", collaborate: "Collaborate" };
+  // The header's Share opens straight on Collaborate.
+  if (tab && names[tab]) activeTab = tab;
   Object.entries(names).forEach(([id, label]) => tabs.appendChild(button(label, () => { activeTab = id; draw(); })));
   const content = document.createElement("div"); content.className = "ws-content";
   dlg.body.append(tabs, content);

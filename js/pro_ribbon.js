@@ -12,7 +12,12 @@ import { askAgent } from "./ui_agent.js";
 import { PRO_ACTIONS } from "./pro_actions.js";
 import { addToolSearchEntries } from "./tool_search.js";
 import { openCabinetForSelection, isCabinetOpen } from "./ui_cabinet.js";
-import { editorSwitchHTML, wireEditorSwitch, proToast } from "./pro_shell.js";
+import {
+  editorSwitchHTML, wireEditorSwitch, proToast, registerShell, wireShell, syncShell, aiOn, wireVoice,
+  projectChipHTML, shellActionsHTML, commandBarHTML, aiStatusHTML,
+} from "./pro_shell.js";
+import { S } from "./state.js";
+import { markDirty } from "./persist.js";
 
 var LS_TAB = "mf.proRibbon.tab";
 function he() { return getLang() === "he"; }
@@ -44,6 +49,9 @@ var MSG = {
   micOff: ["Voice input is not supported in this browser.", "הקלטה קולית לא נתמכת בדפדפן הזה."],
   listening: ["Listening…", "מקשיב…"],
   noAgent: ["The AI helper is not available.", "עוזר ה־AI אינו זמין."],
+  aiOff: ["AI is off — type a tool's name, or turn AI back on with the AI switch.", "AI כבוי — הקלידו שם של כלי, או הפעילו AI במתג ה־AI."],
+  every: ["Every command", "כל הפקודות"],
+  everyTip: ["Search every tool of all three editors (Ctrl+K)", "חיפוש בכל הכלים של שלושת העורכים (Ctrl+K)"],
 };
 function M(key) { return MSG[key][he() ? 1 : 0]; }
 var LS_COLLAPSED = "mf.proRibbon.collapsed";
@@ -327,7 +335,7 @@ function buildRibbon() {
         tabs.map(function (t, i) { return '<button type="button" role="tab" class="pr-tab" data-pro-tab="' + i + '">' + L(t[0]) + "</button>"; }).join("") +
       "</div>" +
       '<span class="pr-count">' + count + M("count") + "</span>" +
-      '<label class="pr-ask"><i class="ph ph-sparkle" aria-hidden="true"></i><input type="text" enterkeyhint="send" autocomplete="off" dir="auto"><button type="button" class="pr-mic"><i class="ph ph-microphone" aria-hidden="true"></i></button></label>' +
+      '<button type="button" class="pr-every" title="' + M("everyTip") + '"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><span>' + M("every") + "</span><kbd>" + (isMac() ? "⌘K" : "Ctrl K") + "</kbd></button>" +
       '<button type="button" class="pr-collapse" aria-label="Collapse the tool ribbon"></button>' +
     "</div>" +
     '<div class="pr-groups"></div>';
@@ -337,8 +345,9 @@ function buildRibbon() {
     t.addEventListener("click", function () { setCollapsed(false); renderGroups(+t.dataset.proTab); });
   });
   wireEditorSwitch(ribbon);
+  mountPlannerShell();
   ribbon.querySelector(".pr-collapse").addEventListener("click", function () { setCollapsed(!ribbon.classList.contains("collapsed")); });
-  wireAsk(ribbon.querySelector(".pr-ask"));
+  ribbon.querySelector(".pr-every").addEventListener("click", openToolSearch);
   renderGroups(+(store(LS_TAB) || 0));
   setCollapsed(store(LS_COLLAPSED) === "1");
   document.body.classList.add("pro-ribbon-on");
@@ -474,6 +483,8 @@ function toolNamed(text) {
 export function submitAsk(text) {
   var tool = toolNamed(text);
   if (tool) return runProBinding(tool.bind);
+  // AI off is fully manual: a request that names no tool goes nowhere, and says so.
+  if (!aiOn()) { toast(M("aiOff")); return false; }
   if (!askAgent(text)) { toast(M("noAgent")); return false; }
   return true;
 }
@@ -483,8 +494,6 @@ function wireAsk(label) {
   var input = label.querySelector("input"), mic = label.querySelector(".pr-mic");
   input.placeholder = M("askPh");
   input.setAttribute("aria-label", M("ask"));
-  mic.setAttribute("aria-label", M("mic"));
-  mic.title = M("mic");
   input.addEventListener("keydown", function (e) {
     e.stopPropagation(); // typing here must not trigger planner shortcuts
     if (e.key === "Enter" && input.value.trim()) {
@@ -492,33 +501,110 @@ function wireAsk(label) {
       if (submitAsk(input.value)) input.value = "";
     } else if (e.key === "Escape") input.blur();
   });
-  var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!Rec) { mic.addEventListener("click", function () { toast(M("micOff")); }); return; }
-  var rec = null;
-  mic.addEventListener("click", function () {
-    if (rec) { rec.stop(); return; }
-    rec = new Rec();
-    rec.lang = he() ? "he-IL" : "en-US";
-    rec.interimResults = true;
-    rec.maxAlternatives = 1;
-    label.classList.add("listening");
-    input.placeholder = M("listening");
-    var finalText = "";
-    rec.onresult = function (ev) {
-      var interim = "";
-      for (var i = ev.resultIndex; i < ev.results.length; i++) {
-        if (ev.results[i].isFinal) finalText += ev.results[i][0].transcript;
-        else interim += ev.results[i][0].transcript;
-      }
-      input.value = (finalText + interim).trim();
-    };
-    rec.onerror = function () { /* onend still runs and resets the box */ };
-    rec.onend = function () {
-      label.classList.remove("listening");
-      input.placeholder = M("askPh");
-      rec = null;
-      if (finalText.trim() && submitAsk(finalText)) input.value = "";
-    };
-    rec.start();
+  wireVoice(input, mic, label, submitAsk, function () { return M("askPh"); });
+}
+
+/* ---------------------------------------------------------------- the shell */
+
+function isMac() {
+  return typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
+}
+
+/* The top bar's tool search already covers all three editors' tools. */
+function openToolSearch() {
+  var input = document.getElementById("toolSearchInput");
+  if (!input) return;
+  input.focus();
+  input.select();
+}
+
+/* A tool of one editor by its exact name (English or Hebrew). */
+function editorToolNamed(editor, text) {
+  var q = String(text || "").trim().toLowerCase();
+  if (!q) return null;
+  var hit = null;
+  proTools(editor).some(function (t) {
+    if (t.bind && (t.label.toLowerCase() === q || proLabel(t.label, "he") === q)) { hit = t; return true; }
+    return false;
   });
+  return hit;
+}
+
+/* Tools of one editor whose name contains the text; names that start with it first. */
+export function suggestTools(editor, text) {
+  var q = String(text || "").trim().toLowerCase();
+  if (!q) return [];
+  var starts = [], contains = [];
+  proTools(editor).forEach(function (t) {
+    if (!t.bind) return;
+    var en = t.label.toLowerCase(), hv = proLabel(t.label, "he");
+    var at = Math.min(en.indexOf(q) < 0 ? 99 : en.indexOf(q), hv.indexOf(q) < 0 ? 99 : hv.indexOf(q));
+    if (at === 99) return;
+    (at === 0 ? starts : contains).push(t);
+  });
+  return starts.concat(contains).map(function (t) {
+    return {
+      label: L(t.label),
+      sub: L(t.group) + " · " + L(t.tab),
+      run: function () { runProBinding(t.bind, t.label); syncActive(); },
+    };
+  });
+}
+
+registerShell({
+  projectName: function () { return (S.workspace && S.workspace.name) || "Home project"; },
+  canRename: function () { return !(S.workspace && S.workspace.role === "viewer"); },
+  renameProject: function (name) {
+    if (!S.workspace) return;
+    S.workspace.name = String(name).trim().slice(0, 80) || "Home project";
+    markDirty();
+  },
+  // The project dialog's Collaborate tab: live session, review links, presenting.
+  share: function () {
+    import("./workspace.js").then(function (m) { m.openWorkspace("collaborate"); });
+  },
+  ask: submitAsk,
+  runTool: function (editor, text) {
+    var tool = editorToolNamed(editor, text);
+    if (!tool) return false;
+    runProBinding(tool.bind, tool.label);
+    syncActive();
+    return true;
+  },
+  suggest: suggestTools,
+});
+
+/* Header pieces go into the planner's own chrome (desktop only in css): the
+   project, AI and Share on the ribbon's first row, the
+   bottom bar over the canvas and the AI chip at the end of the status bar,
+   which initCadHud() builds after this module has initialised. */
+var shellMounted = false;
+function mountPlannerShell() {
+  // The ribbon's first row is the mockup's header: project · switcher · … ·
+  // AI · Share. The planner's own top bar is left as it was (its centre is full).
+  var editorsRow = ribbon && ribbon.querySelector(".pr-editors");
+  if (editorsRow && !ribbon.querySelector(".ps-project")) editorsRow.insertAdjacentHTML("beforebegin", projectChipHTML());
+  var every = ribbon && ribbon.querySelector(".pr-every");
+  if (every && !ribbon.querySelector(".ps-actions")) every.insertAdjacentHTML("beforebegin", shellActionsHTML());
+  var canvas = document.getElementById("center-canvas");
+  if (canvas && !canvas.querySelector(".ps-cmdbar")) canvas.insertAdjacentHTML("beforeend", commandBarHTML("plan"));
+  if (ribbon) wireShell(ribbon, "plan");
+  if (canvas) wireShell(canvas, "plan");
+  mountStatusChip(0);
+  if (!shellMounted) {
+    shellMounted = true;
+    onLangChange(function () {
+      document.querySelectorAll("#center-canvas > .ps-cmdbar, #cad-status .ps-ai-status").forEach(function (el) { el.remove(); });
+      mountPlannerShell();
+    });
+    // Opening, loading or joining a project changes the name without an event
+    // of its own; syncShell only writes what changed, so a slow poll is cheap.
+    setInterval(syncShell, 1500);
+  }
+}
+function mountStatusChip(tries) {
+  var bar = document.getElementById("cad-status");
+  if (!bar) { if (tries < 40) setTimeout(function () { mountStatusChip(tries + 1); }, 100); return; }
+  if (!bar.querySelector(".ps-ai-status")) bar.insertAdjacentHTML("beforeend", aiStatusHTML());
+  wireShell(bar, "plan");
 }

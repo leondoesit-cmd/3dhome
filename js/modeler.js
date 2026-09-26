@@ -56,7 +56,10 @@ import { nextDocumentNumericId } from "./core/document_ids.js";
 import { FURN, PRICE, CATALOG, flabel, clearVSpanCache, buildItem } from "./furniture.js";
 import { usedCustomModels, refreshCatalogSelect } from "./model_catalog.js";
 import { reportEditorOpenState } from "./modeler_launch.js";
-import { registerEditor, editorSwitchHTML, wireEditorSwitch } from "./pro_shell.js";
+import {
+  registerEditor, editorSwitchHTML, wireEditorSwitch, wireShell,
+  projectChipHTML, shellActionsHTML, commandBarHTML, aiStatusHTML,
+} from "./pro_shell.js";
 import { box, cyl, sph, clearGroup } from "./primitives.js";
 import { getLang, onLangChange } from "./i18n.js";
 import * as ribbon from "./uikit_host/ribbon.js";
@@ -3512,6 +3515,7 @@ function buildDOM() {
     '<div class="md-head">' +
     '<div class="md-head-logo">' + cadIcon("mode3d") + ' <b>' + t("title") + "</b>" +
     '<span class="md-sub" id="mdSub"></span></div>' +
+    projectChipHTML() +
     editorSwitchHTML("model", "md-editors") +
     '<div class="md-docmodes" id="mdDocModes">' +
     '<button data-doc="part" class="on">' + cadIcon("mode3d") + " " + t("docPart") + '</button>' +
@@ -3526,6 +3530,7 @@ function buildDOM() {
        of the command manager. Repeating them here as unlabelled glyphs gave the
        same command two appearances and taught neither of them. */
     '<div class="md-head-actions">' +
+    shellActionsHTML() +
     '<button id="mdUndo" data-tip="' + kt(t("undo"), "Ctrl+Z") + '"><i class="ph ph-arrow-u-up-left"></i></button>' +
     '<button id="mdRedo" data-tip="' + kt(t("redo"), "Ctrl+Y") + '"><i class="ph ph-arrow-u-up-right"></i></button>' +
     '<div class="md-separator"></div>' +
@@ -3943,7 +3948,9 @@ function buildDOM() {
       '<span data-dir="down" data-cmd="dim">' + cadIcon("dim") + '<span>' + t("tool_dim") + '</span></span>' +
       '<span data-dir="left" data-cmd="wall">' + cadIcon("wall") + '<span>' + t("cap_wall") + '</span></span>' +
     '</div>' +
+    commandBarHTML("model") +
     '<div class="md-status" id="mdStatus" role="status"></div>' +
+    aiStatusHTML() +
     "</div>" +
 
     /* ---- right: the model as it will look, and the selected part ---- */
@@ -4372,6 +4379,7 @@ function buildDOM() {
   root.querySelector("#mdGuide").addEventListener("click", startTour);
   root.querySelector("#mdClose").addEventListener("click", requestCloseModeler);
   wireEditorSwitch(root);
+  wireShell(root, "model");
   root.querySelector("#mdUndo").addEventListener("click", doUndo);
   root.querySelector("#mdRedo").addEventListener("click", doRedo);
   root.querySelector("#mdCommandSearchBtn").addEventListener("click", function () { openCommandSearch(); });

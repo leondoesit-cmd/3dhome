@@ -123,3 +123,67 @@ test("the phone planner carries the switcher and the panes in a strip under the 
     assert.match(table, /m_panes_aria:/, f);
   }
 });
+
+/* ---- Round-6 shell: project, AI switch, Share, the AI | Cmd bar ---- */
+import * as shellMod from "../js/pro_shell.js";
+import { proTools } from "../js/pro_catalog.js";
+
+test("every tool a Cmd example names is a real tool of that editor, in both languages", () => {
+  const shellSrc = src("pro_shell.js");
+  for (const editor of ["plan", "model", "cab"]) {
+    const at = shellSrc.indexOf("\n  " + editor + ": {", shellSrc.indexOf("var PLACEHOLDER"));
+    const cmdAt = shellSrc.indexOf("cmd: [", at);
+    assert.ok(at > 0 && cmdAt > at, editor + " has a Cmd example");
+    const line = shellSrc.slice(cmdAt + "cmd: ".length, shellSrc.indexOf("\n", cmdAt)).replace(/,\s*$/, "");
+    const [en, heText] = JSON.parse(line);
+    const names = (s) => [...s.matchAll(/[“„]([^”]+)”/g)].map((m) => m[1]);
+    const labels = new Set(proTools(editor).map((t) => t.label));
+    const heLabels = new Set(proTools(editor).map((t) => PRO_HE[t.label] || t.label));
+    assert.ok(names(en).length >= 2, editor);
+    for (const n of names(en)) assert.ok(labels.has(n), editor + ": no tool “" + n + "”");
+    for (const n of names(heText)) assert.ok(heLabels.has(n), editor + ": no Hebrew tool „" + n + "”");
+  }
+});
+
+test("the AI switch defaults on, is remembered, and off never reaches the AI helper", () => {
+  const mem = {};
+  globalThis.localStorage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
+  assert.equal(shellMod.aiOn(), true);
+  shellMod.setAiOn(false);
+  assert.equal(shellMod.aiOn(), false);
+  shellMod.setAiOn(true);
+  assert.equal(shellMod.aiOn(), true);
+  delete globalThis.localStorage;
+  // The planner's ask path checks the switch before the helper, after exact tool names.
+  assert.match(src("pro_ribbon.js"), /if \(tool\) return runProBinding\(tool\.bind\);\s*\/\/[^\n]*\n\s*if \(!aiOn\(\)\) \{ toast\(M\("aiOff"\)\); return false; \}\s*if \(!askAgent\(text\)\)/);
+});
+
+test("only the planner's bar offers AI; the model and cabinet bars say why", () => {
+  const shellSrc = src("pro_shell.js");
+  assert.match(shellSrc, /function aiModeAvailable\(editor\) \{ return aiOn\(\) && editor === "plan" && !!shell\.ask; \}/);
+  const bar = shellMod.commandBarHTML("model");
+  assert.match(bar, /data-ps-bar="model"/);
+  assert.match(bar, /data-ps-mode="ai"/);
+  assert.match(bar, /data-ps-mode="cmd"/);
+  assert.match(bar, /role="combobox"/);
+});
+
+test("the shell mounts in all three editors and Share opens the Collaborate tab", () => {
+  const ribbon = src("pro_ribbon.js");
+  assert.match(ribbon, /editorsRow\.insertAdjacentHTML\("beforebegin", projectChipHTML\(\)\)/);
+  assert.match(ribbon, /every\.insertAdjacentHTML\("beforebegin", shellActionsHTML\(\)\)/);
+  assert.match(ribbon, /commandBarHTML\("plan"\)/);
+  assert.match(ribbon, /openWorkspace\("collaborate"\)/);
+  const modeler = src("modeler.js");
+  for (const piece of [/projectChipHTML\(\) \+\s*editorSwitchHTML\("model"/, /shellActionsHTML\(\) \+\s*'<button id="mdUndo"/, /commandBarHTML\("model"\)/, /aiStatusHTML\(\)/, /wireShell\(root, "model"\)/]) assert.match(modeler, piece);
+  const cabinet = src("ui_cabinet.js");
+  for (const piece of [/projectChipHTML\(\)/, /shellActionsHTML\(\)/, /commandBarHTML\("cab"\)/, /wireShell\(E\.host, "cab"\)/]) assert.match(cabinet, piece);
+  const ws = src("workspace.js");
+  assert.match(ws, /export async function openWorkspace\(tab\)/);
+  assert.match(ws, /if \(tab && names\[tab\]\) activeTab = tab;/);
+});
+
+test("typing in the bar or the project name never fires editor shortcuts", () => {
+  const shellSrc = src("pro_shell.js");
+  assert.equal((shellSrc.match(/e\.stopPropagation\(\); \/\/ typing/g) || []).length, 2);
+});

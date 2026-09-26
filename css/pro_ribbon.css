@@ -366,3 +366,197 @@ body.compact-nav.lava-on { --m-editor-strip: 0px; }
 body.zombies-on .m-editor-strip,
 body.lava-on .m-editor-strip { display: none !important; }
 @media print { .m-editor-strip { display: none !important; } }
+
+/* ================================================================ Round-6 shell
+   js/pro_shell.js: project name, AI switch, Share, the bottom "AI | › Cmd" bar
+   and the AI status chip. Desktop chrome: phones keep their sheets. */
+.ps-project { display: inline-flex; align-items: center; min-width: 0; }
+.ps-project-btn,
+.ps-project-input {
+  height: 30px;
+  max-width: 220px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+}
+.ps-project-btn { display: inline-flex; align-items: center; gap: 6px; cursor: text; }
+.ps-project-btn i { color: var(--text-muted); font-size: 15px; }
+.ps-project-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-project-btn:not(:disabled):hover { border-color: var(--border-color); background: var(--accent-soft); }
+.ps-project-btn:disabled { cursor: default; opacity: 1; }
+.ps-project-input { width: 220px; border-color: var(--accent); background: var(--input-bg, var(--bg-panel)); outline: none; box-shadow: 0 0 0 2px var(--accent-soft); }
+
+.ps-actions { display: inline-flex; align-items: center; gap: 6px; margin-inline-end: 6px; }
+.ps-ai,
+.ps-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  border-radius: 15px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ps-ai { padding: 0 5px 0 10px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); }
+.ps-ai.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border-color)); background: var(--accent-soft); }
+.ps-knob { position: relative; width: 28px; height: 18px; border-radius: 9px; background: var(--border-color); transition: background 0.15s ease; }
+.ps-knob::after { content: ""; position: absolute; top: 2px; inset-inline-start: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); transition: inset-inline-start 0.15s ease; }
+.ps-ai.on .ps-knob { background: var(--accent); }
+.ps-ai.on .ps-knob::after { inset-inline-start: 12px; }
+.ps-share { padding: 0 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--on-accent, #fff); }
+.ps-share:hover { filter: brightness(1.08); }
+.ps-ai:focus-visible, .ps-share:focus-visible, .ps-project-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The bar floats over the bottom of the drawing, above the status bar. */
+.ps-cmdbar {
+  position: absolute;
+  z-index: 40;
+  bottom: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: min(640px, calc(100% - 32px));
+  height: 44px;
+  padding: 4px 4px 4px 5px;
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+  background: var(--bg-panel);
+  color: var(--text-main);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+.ps-cmdbar:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 8px 28px rgba(0, 0, 0, 0.22); }
+.ps-modes { display: flex; flex-shrink: 0; padding: 2px; border-radius: 16px; background: var(--accent-soft); }
+.ps-modes button {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ps-modes button.on { background: var(--bg-panel); color: var(--text-main); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14); }
+.ps-modes button.unavailable { opacity: 0.45; cursor: not-allowed; }
+.ps-cmd-input { flex: 1 1 auto; min-width: 0; height: 32px; border: 0; background: transparent; color: var(--text-main); font: inherit; font-size: 13px; outline: none; }
+.ps-cmd-input::placeholder { color: var(--text-muted); }
+.ps-mic { flex-shrink: 0; width: 36px; height: 36px; border: 0; border-radius: 18px; background: var(--accent); color: var(--on-accent, #fff); font-size: 16px; cursor: pointer; }
+.ps-cmdbar.listening .ps-mic { animation: pr-pulse 1s ease-in-out infinite; }
+.ps-suggest {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  inset-inline: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-panel);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.24);
+}
+.ps-suggest li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.ps-suggest li small { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.ps-suggest li.on, .ps-suggest li:hover { background: var(--accent-soft); }
+
+/* Planner: the 2D hint moves above the bar; in 3D only, the bar clears the
+   floating navigation toolbar. */
+body.pro-ribbon-on #view-2d > .hint { bottom: 96px; }
+body.pro-ribbon-on #center-canvas.max-view-3d > .ps-cmdbar { bottom: 84px; }
+
+.ps-ai-status { display: inline-flex; align-items: center; gap: 5px; margin-inline-start: auto; flex-shrink: 0; color: var(--accent); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.ps-ai-status.off { color: var(--text-muted); }
+.ps-ai-status i { font-size: 12px; }
+
+/* The ribbon's "Every command" opens the top bar's tool search. */
+.pr-every {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 13px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pr-every:hover { color: var(--text-main); border-color: var(--accent); }
+.pr-every kbd { padding: 1px 5px; border-radius: 5px; background: var(--accent-soft); font: inherit; font-size: 10.5px; }
+
+/* Phones, folds and narrow windows keep their own chrome. */
+body.compact-nav .ps-project,
+body.compact-nav .ps-actions,
+body.compact-nav .ps-cmdbar,
+body.compact-nav .ps-ai-status { display: none !important; }
+@media (max-width: 1023px) {
+  .ps-cmdbar { display: none !important; }
+  body.pro-ribbon-on #view-2d > .hint { bottom: 44px; }
+}
+@media (max-width: 1280px) {
+  .ps-share span, .ps-ai > span:not(.ps-knob) { display: none; }
+  .ps-share { width: 30px; padding: 0; justify-content: center; }
+  .ps-project-btn { max-width: 150px; }
+}
+body.zombies-on .ps-cmdbar, body.lava-on .ps-cmdbar { display: none !important; }
+@media print { .ps-cmdbar, .ps-actions { display: none !important; } }
+
+/* Model editor: the bar floats above the selection-filter row (34px) and the
+   rail of hints and offers moves up above the bar; the AI chip closes the
+   status line on the end side. */
+#modeler .md-mid > .ps-cmdbar { bottom: 70px; z-index: 61; }
+body:not(.compact-nav) #modeler .md-rail-bottom { bottom: 122px; max-height: calc(50% - 124px); }
+#modeler .md-mid > .ps-ai-status { position: absolute; z-index: 9; bottom: 8px; inset-inline-end: 12px; pointer-events: none; }
+/* Cabinet designer: the bar takes the hint's place, the hint sits above it. */
+#cabdes .cb-mid > .ps-cmdbar { bottom: 14px; }
+#cabdes:not(.cb-compact) .cb-hint { bottom: 66px; }
+#cabdes.cb-compact .ps-project,
+#cabdes.cb-compact .ps-actions,
+#cabdes.cb-compact .ps-cmdbar { display: none !important; }
+@media (max-width: 1023px) {
+  body:not(.compact-nav) #modeler .md-rail-bottom { bottom: 64px; max-height: calc(50% - 66px); }
+  #cabdes:not(.cb-compact) .cb-hint { bottom: 14px; }
+}
+/* The cabinet header already carries levels, history, Revert and Done: its
+   logo cell holds the project and the session chip, and gives way first. */
+#cabdes .cb-head-main .cb-logo { overflow: hidden; }
+#cabdes .cb-head-main .ps-project { flex: 0 1 auto; min-width: 0; }
+#cabdes .cb-head-main .ps-project-btn { max-width: 100%; min-width: 0; }
+#cabdes .cb-head-main .cb-session { flex: 0 3 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 1600px) {
+  #cabdes .cb-head-main .cb-sub { display: none; }
+  #cabdes .ps-share span, #cabdes .ps-ai > span:not(.ps-knob) { display: none; }
+  #cabdes .ps-share { width: 30px; padding: 0; justify-content: center; }
+}
+/* The ribbon's first row: project · switcher · tabs · AI · Share · Every
+   command. Below 1600px the three on the end go icon-only so the tabs keep
+   their room; the tabs row scrolls when it still runs out. */
+.pr-bar > .ps-project { flex-shrink: 0; margin-inline-end: -4px; }
+.pr-bar .ps-project-btn { height: 26px; max-width: 180px; padding: 0 8px; }
+.pr-bar .ps-ai, .pr-bar .ps-share { height: 26px; }
+@media (max-width: 1600px) {
+  .pr-bar .ps-share span, .pr-bar .ps-ai > span:not(.ps-knob) { display: none; }
+  .pr-bar .ps-share { width: 26px; padding: 0; justify-content: center; }
+  .pr-every > span { display: none; }
+  .pr-every { padding: 0 5px 0 8px; }
+  .pr-bar .ps-project-btn { max-width: 150px; }
+  /* the mockup's own short names: Plan · Model · Cabinet */
+  .pr-bar .pr-editors .pr-ed-full { display: none; }
+  .pr-bar .pr-editors .pr-ed-short { display: inline; }
+}
