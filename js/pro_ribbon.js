@@ -18,6 +18,7 @@ import {
 } from "./pro_shell.js";
 import { S } from "./state.js";
 import { markDirty } from "./persist.js";
+import { partCodeAnswer, partCodeToast } from "./part_code_labels.js";
 
 var LS_TAB = "mf.proRibbon.tab";
 function he() { return getLang() === "he"; }
@@ -110,6 +111,7 @@ export function runProBinding(bind, label) {
     var fn = PRO_ACTIONS[b.value];
     if (!fn) return false;
     var out = fn();
+    if (b.value === "partCodes") toast(partCodeToast(out));
     if (b.value === "clearances") {
       toast(out ? M("clearN").replace("{0}", out) : M("clearOk"));
       var wp = document.getElementById("warnPanel");
@@ -553,6 +555,9 @@ function toolNamed(text) {
 }
 
 export function submitAsk(text) {
+  // a part code needs no AI to find: select it, AI on or off
+  var said = partCodeAnswer(text);
+  if (said) { toast(said); return true; }
   var tool = toolNamed(text);
   if (tool) return runProBinding(tool.bind);
   // AI off is fully manual: a request that names no tool goes nowhere, and says so.
@@ -637,6 +642,9 @@ registerShell({
   },
   ask: submitAsk,
   runTool: function (editor, text) {
+    // a part code (W12, D7, F13) selects that part before any tool name
+    var said = editor === "plan" && partCodeAnswer(text);
+    if (said) { toast(said); return true; }
     var tool = editorToolNamed(editor, text);
     if (!tool) return false;
     runProBinding(tool.bind, tool.label);

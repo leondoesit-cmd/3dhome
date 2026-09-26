@@ -368,6 +368,10 @@ export function createEditorView(opts) {
     /* Sizing follows the box the canvas has been put in. As a panel thumbnail
        that is a fixed aspect ratio; promoted into the middle pane it is the
        view, so it takes the whole room it is given. */
+    // a number, or a function for a caller whose big pane changes shape
+    function bigZoom() {
+      return (typeof opts.bigZoom === "function" ? opts.bigZoom() : opts.bigZoom) || 1.3;
+    }
     var lastW = 0, lastH = 0, settling = 0, sizeDirty = true;
     view.invalidateSize = function () { sizeDirty = true; };
     if (typeof window !== "undefined") window.addEventListener("resize", function () { sizeDirty = true; });
@@ -406,7 +410,7 @@ export function createEditorView(opts) {
     // put the camera on its orbit around `center`, then draw
     view.place = function () {
       if (opts.lighting) applyLighting(opts.lighting(view));
-      var d = view.dist * (view.big ? (opts.bigZoom || 1.3) : 1),
+      var d = view.dist * (view.big ? bigZoom() : 1),
         az = view.az,
         el = view.el,
         cy = opts.center ? opts.center() : 0,
@@ -536,12 +540,12 @@ export function createEditorView(opts) {
        cursor one-to-one instead of racing ahead of it. */
     view.worldPerPixelAtDistance = function (distance) {
       var d = Number(distance);
-      if (!(d > 0)) d = view.dist * (view.big ? (opts.bigZoom || 1.3) : 1);
+      if (!(d > 0)) d = view.dist * (view.big ? bigZoom() : 1);
       var height = Math.max(1, cv.clientHeight || 1);
       return 2 * d * Math.tan(THREE.MathUtils.degToRad(cam.fov * 0.5)) / height;
     };
     view.worldPerPixel = function () {
-      return view.worldPerPixelAtDistance(view.dist * (view.big ? (opts.bigZoom || 1.3) : 1));
+      return view.worldPerPixelAtDistance(view.dist * (view.big ? bigZoom() : 1));
     };
     view.farthestWorldPerPixel = function () {
       if (!view.pickBounds) return view.worldPerPixel();
@@ -594,6 +598,10 @@ export function createViewportSwap(o) {
     if (big) o.bigHost.appendChild(o.wrap);
     else if (home) home.insertBefore(o.wrap, anchor && anchor.parentElement === home ? anchor : null);
     else o.wrap.remove();
-    if (view) view.setBig(big);
+    if (view) {
+      // a new home is a new size; the window never resized, so say so
+      if (view.invalidateSize) view.invalidateSize();
+      view.setBig(big);
+    }
   };
 }

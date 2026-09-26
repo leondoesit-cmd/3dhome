@@ -11,6 +11,7 @@ import { itemPlanBounds, spatialDigest } from "./agent_prompt.js";
 import { detectRooms, wallGeom, wallPointAt } from "./geometry.js";
 import { normalizeWallKind } from "./wall_curves.js";
 import { canonicalPlacementItem, canonicalPlacementWall } from "./placement_resolver.js";
+import { partCode } from "./part_codes.js";
 
 function plain(value) {
   if (value == null) return null;
@@ -32,17 +33,19 @@ function entityLists() {
     walls: (S.walls || []).map(function (w) {
       var a = S.nodes && S.nodes[w.a], b = S.nodes && S.nodes[w.b];
       return Object.assign({ type: w.wallTypeId || "generic" }, plain(w) || {}, {
+        code: partCode("wall", w.id),
         from: a ? { x: a.x, z: a.z } : null,
         to: b ? { x: b.x, z: b.z } : null,
       });
     }),
     openings: (S.openings || []).map(function (o) {
-      return Object.assign({ wallId: o.wall }, plain(o) || {});
+      return Object.assign({ wallId: o.wall }, plain(o) || {}, { code: partCode("opening", o.id, o) });
     }),
     items: (S.items || []).map(function (it) {
       var p = plain(it);
       if (!p) return null;
       p.label = flabel(it.type);
+      p.code = partCode("item", it.id);
       p.bounds = itemPlanBounds(it);
       return p;
     }).filter(Boolean),

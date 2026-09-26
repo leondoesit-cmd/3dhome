@@ -33,6 +33,7 @@ import { onAfterRender, render2D, updatePlanGizmo } from "./plan2d.js";
 import { mountPagedMenu, releasePagedMenu } from "./mobile_pages.js";
 import { editorSwitchHTML, wireEditorSwitch } from "./pro_shell.js";
 import { detectRooms, roomName } from "./geometry.js";
+import { partCode } from "./part_codes.js";
 import { flabel } from "./furniture_meta.js";
 import { inside } from "./layout_analysis.js";
 
@@ -357,8 +358,8 @@ function syncTopSelection() {
 /* ---- inspector identity card -------------------------------------------- */
 
 /* The head of the phone / fold inspector (Round-6 "pro inspector"): what is
-   selected, where it is, and its id — the same "#id" the AI's tags and the
-   history use, so a part reads the same everywhere. The top bar still carries
+   selected, where it is, and its part code — the same W12 / F13 the AI's
+   tags and the plan's code labels use, so a part reads the same everywhere. The top bar still carries
    the name alone; this card adds the kind, the room and the id. */
 var KIND_ICON = { wall: "ph-wall", item: "ph-armchair", room: "ph-square", opening: "ph-door" };
 function roomsOfWall(id) {
@@ -366,7 +367,7 @@ function roomsOfWall(id) {
 }
 function roomLabelOf(room) { return room ? roomName(room.key) : ""; }
 function cardFacts(sel) {
-  var ref = sel.ref, sub = [], icon = KIND_ICON[sel.kind], id = ref && ref.id != null ? "#" + ref.id : "";
+  var ref = sel.ref, sub = [], icon = KIND_ICON[sel.kind], id = ref && ref.id != null ? partCode(sel.kind, ref.id, ref) : "";
   if (sel.kind === "wall") {
     sub.push(t("m_card_wall"));
     var names = roomsOfWall(ref.id).map(roomLabelOf).filter(Boolean);
@@ -381,7 +382,7 @@ function cardFacts(sel) {
   } else if (sel.kind === "opening") {
     icon = ref.type === "window" ? "ph-frame-corners" : "ph-door";
     sub.push(t(ref.type === "window" ? "m_card_window" : ref.type === "door" ? "m_card_door" : "m_card_opening"));
-    sub.push(t("m_card_on_wall", { id: ref.wall }));
+    sub.push(t("m_card_on_wall", { id: partCode("wall", ref.wall) }));
   } else if (sel.kind === "room") {
     id = ""; // a room's key is its wall list, not a name anyone would read
     var room = detectRooms().find(function (r) { return String(r.key) === String(ref); });

@@ -42,7 +42,7 @@ test("overlaps name what they hit; the item's own old place never counts", () =>
   const onChair = groundProposal(move(300, 120), scene());
   const overlap = onChair.checks.find((c) => c.code === "overlap");
   assert.equal(overlap.level, "warn");
-  assert.equal(overlap.with, "Armchair #13");
+  assert.equal(overlap.with, "Armchair F13");
   // Nudging the sofa 10 cm overlaps only where it stood, which is not a clash.
   const nudge = groundProposal(move(110, 100), scene());
   assert.equal(nudge.checks.find((c) => c.code === "clear").level, "ok");
@@ -56,7 +56,7 @@ test("height bands: a ceiling light above never blocks, a rug that does not bloc
 test("crossing a wall, a door swing and leaving every room are each reported", () => {
   const { checks } = groundProposal(move(445, 330), scene());
   assert.ok(codes(checks).includes("warn:swing"));
-  assert.equal(checks.find((c) => c.code === "swing").door, "#7");
+  assert.equal(checks.find((c) => c.code === "swing").door, "D7");
   const out = groundProposal(move(250, 20), scene()).checks; // straddles the north wall
   assert.ok(codes(out).includes("warn:wall"));
   const outside = groundProposal(move(700, 200), scene()).checks;

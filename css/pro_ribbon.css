@@ -754,3 +754,31 @@ body.pro-ribbon-on #center-canvas.max-view-3d #view-3d > .hint { bottom: var(--p
 #cabdes .cb-statusbar > span + span:not(.ps-ai-status)::before { content: ""; display: inline-block; width: 1px; height: 11px; margin-inline-end: 16px; background: var(--border-color); vertical-align: -1px; }
 #cabdes .cb-statusbar .cb-status-muted { color: var(--text-muted); }
 #cabdes.cb-compact .cb-statusbar { display: none; }
+
+/* Cabinet split view: the drawing on the left half, the model on the right.
+   Physical halves in both directions — the elevation never mirrors. */
+#cabdes.cb-split .cb-3dhost { display: flex; left: 50%; border-left: 1px solid var(--border-color); background: var(--bg-panel); }
+#cabdes.cb-split .cb-tools { right: calc(50% + 10px); width: min(220px, calc(50% - 148px)); grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#cabdes.cb-split .cb-tools button { font-size: 0; justify-content: center; padding: 8px 0; }
+#cabdes.cb-split .cb-tools button i { font-size: 17px; }
+#cabdes.cb-split .cb-hint { left: 25%; box-sizing: border-box; max-width: calc(50% - 20px); overflow: hidden; text-overflow: ellipsis; }
+#cabdes.cb-compact .cb-vgroup > button[data-mode="split"] { display: none; }
+
+/* Part codes on the plan (js/part_code_labels.js): small tags, walls in the
+   structure colour, openings and furniture in their own, the selection in
+   the accent. Never in the way of a click. */
+.part-code-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; overflow: visible; }
+.pc-tag rect { fill: var(--bg-panel); stroke: var(--border-color); stroke-width: 1; opacity: 0.94; }
+.pc-tag text { font: 600 10.5px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; fill: var(--text-main); }
+.pc-wall rect { stroke: var(--text-muted); }
+.pc-opening rect { stroke: #2f8f6b; }
+.pc-item rect { stroke: #8a6fd1; }
+.pc-sel rect { fill: var(--accent); stroke: var(--accent); }
+.pc-sel text { fill: var(--on-accent, #fff); }
+@media print { .part-code-layer { display: none; } }
+.pc-insp-code {
+  margin-inline-start: 8px; margin-inline-end: auto; padding: 1px 7px; border-radius: 6px;
+  font: 600 11px/1.5 "JetBrains Mono", ui-monospace, Consolas, monospace; letter-spacing: 0;
+  color: var(--text-main); background: var(--btn-bg); border: 1px solid var(--border-color); text-transform: none;
+}
+.pc-insp-code[hidden], body.compact-nav .pc-insp-code { display: none; }

@@ -74,7 +74,7 @@ export function renderAgentPreview(spec) {
   return renderAgentCandidates([{ spec: spec, tags: [] }], 0);
 }
 
-/* A name tag pinned to a plan point: "A · Sofa #12 → Living room". Width is
+/* A name tag pinned to a plan point: "A · Sofa F12 → Living room". Width is
    measured once the svg is in the document, so the pill fits the text. */
 function appendTag(svg, tag) {
   if (!tag || !tag.at || !tag.text) return;
@@ -138,7 +138,7 @@ export function refreshAgentPreview() {
    The same candidates and tags in the 3D view, so a proposal can be judged in
    3D as well as on the plan: each piece as a box at its real height (walls as
    a ghost wall, openings as a frame, rooms as a floor outline), the focused
-   candidate solid and the others faint, the same "A · Sofa #8" tag on top.
+   candidate solid and the others faint, the same "A · Sofa F8" tag on top.
    Drawn on the planner's 3D overlay canvas (js/planner_3d.js fires
    planner-overlay-3d after every 3D frame with its projector), so nothing is
    added to the scene and nothing can be picked, saved or exported by mistake. */

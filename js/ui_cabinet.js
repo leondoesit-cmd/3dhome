@@ -124,14 +124,15 @@ function buildDOM() {
     "</div></div>" +
     '<div class="cb-mid">' +
     '<div class="cb-tools" id="cbTools">' +
-    '<button data-tool="" class="on" aria-keyshortcuts="Escape"><i class="ph ph-cursor"></i> ' + T("toolSel") + "</button>" +
-    '<button data-tool="vwall" aria-keyshortcuts="V"><i class="ph ph-columns-plus-right"></i> ' + T("toolV") + "</button>" +
-    '<button data-tool="hwall" aria-keyshortcuts="H"><i class="ph ph-rows-plus-bottom"></i> ' + T("toolH") + "</button>" +
-    '<button data-tool="erase" aria-keyshortcuts="X"><i class="ph ph-eraser"></i> ' + T("toolErase") + "</button>" +
+    '<button data-tool="" class="on" aria-keyshortcuts="Escape" title="' + T("toolSel") + '"><i class="ph ph-cursor"></i> ' + T("toolSel") + "</button>" +
+    '<button data-tool="vwall" aria-keyshortcuts="V" title="' + T("toolV") + '"><i class="ph ph-columns-plus-right"></i> ' + T("toolV") + "</button>" +
+    '<button data-tool="hwall" aria-keyshortcuts="H" title="' + T("toolH") + '"><i class="ph ph-rows-plus-bottom"></i> ' + T("toolH") + "</button>" +
+    '<button data-tool="erase" aria-keyshortcuts="X" title="' + T("toolErase") + '"><i class="ph ph-eraser"></i> ' + T("toolErase") + "</button>" +
     "</div>" +
     '<div class="cb-views" id="cbViews">' +
     '<div class="cb-vgroup">' +
     '<button data-mode="2d" class="on">2D</button><button data-mode="3d">3D</button>' +
+    '<button data-mode="split" title="' + T("vSplitTip") + '"><i class="ph ph-columns"></i>' + T("vSplit") + "</button>" +
     "</div>" +
     '<div class="cb-vgroup cb-vaxes" id="cbAxes">' +
     '<button data-ax="front" class="on"><i class="ph ph-square"></i>' + T("vFront") + "</button>" +

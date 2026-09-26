@@ -13,6 +13,7 @@
  * refuses anything invalid — but a proposal that overlaps the sofa or sits in
  * a door's swing says so before the click, not after. */
 import { footprint, convexOverlap, inside } from "./layout_analysis.js";
+import { partCode } from "./part_codes.js";
 
 var LETTERS = ["A", "B", "C", "D"];
 
@@ -143,7 +144,7 @@ export function proposalChecks(parts, scene) {
       if (moved[String(other.id)] || other.blocksPlacement === false || other.on != null) return;
       if (fp.source && String(other.id) === String(fp.source.id) && part.action !== "copy") return;
       if (!(num(other.w) > 0 && num(other.d) > 0) || !bandsMeet(band, bandOf(other))) return;
-      if (convexOverlap(poly, footprint(other))) hits.push(itemName(scene, other) + " #" + other.id);
+      if (convexOverlap(poly, footprint(other))) hits.push(itemName(scene, other) + " " + partCode("item", other.id));
     });
     footprints.forEach(function (peer, j) {
       if (j <= index) return;
@@ -155,10 +156,10 @@ export function proposalChecks(parts, scene) {
     var crossed = walls.filter(function (wall) {
       return wall.physical !== false && wallQuads(wall).some(function (q) { return convexOverlap(poly, q); });
     });
-    if (crossed.length) checks.push(Object.assign({ level: "warn", code: "wall", wall: crossed.map(function (w) { return "#" + w.id; }).join(", ") }, ref));
+    if (crossed.length) checks.push(Object.assign({ level: "warn", code: "wall", wall: crossed.map(function (w) { return partCode("wall", w.id); }).join(", ") }, ref));
     var doors = swings.filter(function (s) { return s.poly && s.poly.length > 2 && bandsMeet(band, s.band || {}) && convexOverlap(poly, s.poly); });
     checks.push(doors.length
-      ? Object.assign({ level: "warn", code: "swing", door: doors.map(function (s) { return "#" + s.openingId; }).join(", ") }, ref)
+      ? Object.assign({ level: "warn", code: "swing", door: doors.map(function (s) { return partCode("opening", s.openingId, { type: "door" }); }).join(", ") }, ref)
       : Object.assign({ level: "ok", code: "swingClear" }, ref));
     checks.push(part.inRoom
       ? Object.assign({ level: "ok", code: "room", room: part.room || "" }, ref)
@@ -172,7 +173,7 @@ export function proposalChecks(parts, scene) {
         : Object.assign({ level: "warn", code: "wallShort", length: part.length }, ref));
     } else if (part.kind === "door" || part.kind === "window" || part.kind === "opening") {
       // A preview only exists when the opening fits its host wall.
-      checks.push(Object.assign({ level: "ok", code: "fitsWall", wall: "#" + part.hostWallId }, ref));
+      checks.push(Object.assign({ level: "ok", code: "fitsWall", wall: partCode("wall", part.hostWallId) }, ref));
     } else if (part.kind === "room") {
       checks.push(part.area >= 1
         ? Object.assign({ level: "ok", code: "roomArea", area: part.area }, ref)

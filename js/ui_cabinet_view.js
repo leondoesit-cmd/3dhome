@@ -33,13 +33,15 @@ export function resetElevationView() {
 export function sizeCanvas() {
   if (!E.cv) return;
   var r = E.cv.parentElement.getBoundingClientRect(),
-    dpr = Math.min(2, window.devicePixelRatio || 1);
-  E.cv.width = Math.max(100, r.width * dpr);
+    dpr = Math.min(2, window.devicePixelRatio || 1),
+    // split view: the drawing keeps the left half, the model has the right
+    w = E.split ? Math.floor(r.width / 2) : r.width;
+  E.cv.width = Math.max(100, w * dpr);
   E.cv.height = Math.max(100, r.height * dpr);
-  E.cv.style.width = r.width + "px";
+  E.cv.style.width = w + "px";
   E.cv.style.height = r.height + "px";
   E.cx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  E.vw = r.width;
+  E.vw = w;
   E.vh = r.height;
 }
 
@@ -53,13 +55,19 @@ export function css(name, fb) {
    In 2D the drawing looks from whichever direction is picked: the six axes and
    the four 45° corners between the horizontal ones. Only the front view is the
    editable elevation; the rest are orthographic projections of the very same
-   layout, so they cannot drift from it. */
+   layout, so they cannot drift from it.
+   Split is the drawing with the model beside it: E.mode stays "2d" — every
+   tool and axis works as in the drawing — and the renderer the 3D view
+   borrows sits in the right half, so an edit shows up in the round at once. */
 export function setMode(m) {
   if (!E.host) return;
+  var split = m === "split";
   m = m === "3d" ? "3d" : "2d";
-  if (m === E.mode && E.modeApplied) return;
-  viewZoom = 1; viewPanX = 0; viewPanY = 0;
+  if (m === E.mode && split === !!E.split && E.modeApplied) return;
+  var wasSplit = !!E.split;
+  if (!(wasSplit && split)) { viewZoom = 1; viewPanX = 0; viewPanY = 0; }
   E.mode = m;
+  E.split = split;
   E.modeApplied = true;
   if (m === "3d") setTool(null);
   /* Switching to the model picks up the drawing's own direction, so the piece
@@ -75,10 +83,12 @@ export function setMode(m) {
       panelHost: E.host.querySelector(".cb-right"),
     });
   }
-  E.swapView(m === "3d", E.pv);
   E.host.classList.toggle("cb-is3d", m === "3d");
+  E.host.classList.toggle("cb-split", split);
+  E.swapView(m === "3d" || split, E.pv);
+  if (split !== wasSplit) sizeCanvas();
   E.host.querySelectorAll("#cbViews button[data-mode]").forEach(function (b) {
-    var selected = b.getAttribute("data-mode") === m;
+    var selected = b.getAttribute("data-mode") === (split ? "split" : m);
     b.classList.toggle("on", selected);
     b.setAttribute("aria-pressed", selected ? "true" : "false");
   });
@@ -101,7 +111,7 @@ export function setAxis(a) {
     b.disabled = a !== "front" && !!b.getAttribute("data-tool");
   });
   E.host.querySelector("#cbHid").disabled = a === "front"; // no projection to hide
-  setMode("2d");
+  setMode(E.split ? "split" : "2d"); // a direction is picked for the drawing half
   syncHint();
   draw();
 }
@@ -588,10 +598,13 @@ export function draw() {
     W = E.vw,
     H = E.vh,
     padX = cmp ? 30 : 58,
-    padT = cmp ? 54 : 112, // desktop: the labelled 2×2 tool group floats here
+    // split view: half the width, so the view picker's strip is the drawing's
+    // to avoid, and the tools shrink to one row of icons
+    gut = E.split && !cmp ? 118 : 0,
+    padT = cmp ? 54 : E.split ? 72 : 112, // desktop: the labelled 2×2 tool group floats here
     padB = cmp ? 46 : 84, // room for the width dimension and the hint pill
-    k = Math.min((W - padX * 2) / it.w, (H - padT - padB) / it.h) * viewZoom,
-    ox = W / 2 + viewPanX,
+    k = Math.min((W - gut - padX * 2) / it.w, (H - padT - padB) / it.h) * viewZoom,
+    ox = gut + (W - gut) / 2 + viewPanX,
     /* oy is the BASELINE of the drawing (Y = oy - my*k). Desktop hangs it from
        the top margin, under the tool group; compact centres it in the free band,
        because a tall phone canvas would otherwise leave the cabinet stranded
@@ -1461,7 +1474,9 @@ function eraseAt(p) {
 }
 
 export function exportPNG() {
-  var restoreMode = E.mode, restoreAxis = E.axis;
+  var restoreMode = E.split ? "split" : E.mode, restoreAxis = E.axis;
+  // the sheet is the whole drawing, never the half a split view leaves it
+  if (restoreMode === "split") setMode("2d");
   if (restoreMode === "3d" || restoreAxis !== "front") setAxis("front");
   sizeCanvas();
   draw();
@@ -1497,7 +1512,8 @@ export function exportPNG() {
   a.download = "cabinet-elevation.png";
   a.click();
   E.axis = restoreAxis;
-  if (restoreMode === "3d") setMode("3d");
+  if (restoreMode === "split") { setMode("split"); if (restoreAxis !== "front") setAxis(restoreAxis); }
+  else if (restoreMode === "3d") setMode("3d");
   else if (restoreAxis !== "front") setAxis(restoreAxis);
 }
 
@@ -1525,8 +1541,12 @@ export function initPreview() {
     az: 0.55, el: 0.28, dist: 420,
     minEl: -0.2, maxEl: 1.3, minDist: 60, maxDist: 2500,
     pad: 24, ratio: 0.82, fitContainerHeight: function () { return E.host && !E.host.classList.contains("cb-compact"); },
-    // the big view is framed with room for an open door to swing into
-    bigZoom: 1.3,
+    // the big view is framed with room for an open door to swing into, and
+    // pulled back further when split leaves it a tall, narrow half
+    bigZoom: function () {
+      var r = E.split && E.host && E.host.querySelector("#cb3dHost").getBoundingClientRect();
+      return r && r.width > 0 ? 1.3 * Math.max(1, 1.2 * r.height / r.width) : 1.3;
+    },
     // centre on where the piece actually is — a wall unit hangs at 145
     center: function () {
       return (sp() && sp().elev ? sp().elev : 0) + (E.it ? E.it.h / 2 : 0);

@@ -22,6 +22,7 @@ import { SHEETS, PROFILES } from "./stock.js";
 import { refreshTree, updateCost } from "./ui_tree.js";
 import { select } from "./ui_props.js";
 import { itemPlaceCommand, executeCommand } from "./commands/index.js";
+import { togglePartCodes } from "./part_code_labels.js";
 
 function commitCabinetItems(items) {
   for (const item of items) {
@@ -377,4 +378,6 @@ export const PRO_ACTIONS = {
   /* Door and window swings that hit furniture or other openings. Returns the
      count so the caller can say it; the Warnings panel lists each one. */
   clearances: () => checkSwingConflicts().length,
+  // W12, D7, F13 on the plan; returns whether they are now shown
+  partCodes: () => togglePartCodes(),
 };

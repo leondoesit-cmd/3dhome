@@ -1,6 +1,8 @@
 // In-app assistant instructions, spatial digest, and recovery of dumped commands.
 // Kept free of app/runtime imports so Node tests can load it directly.
 
+import { partCode } from "./part_codes.js"; // pure, like this file
+
 export function itemPlanBounds(it) {
   if (!it) return null;
   var a = ((Number(it.rot) || 0) * Math.PI) / 180,
@@ -41,6 +43,7 @@ function wallRecord(wall, nodes) {
   var dx = to.x - from.x, dz = to.z - from.z, length = Math.hypot(dx, dz);
   return {
     id: wall.id,
+    code: partCode("wall", wall.id),
     from: from,
     to: to,
     length: round1(length),
@@ -62,7 +65,7 @@ export function spatialDigest(state, options) {
     if (!it) return null;
     var box = itemPlanBounds(it);
     return {
-      id: it.id, type: it.type, label: labelOf(it) || it.type,
+      id: it.id, code: partCode("item", it.id), type: it.type, label: labelOf(it) || it.type,
       x: round1(it.x), z: round1(it.z),
       w: Number(it.w) || 0, d: Number(it.d) || 0, h: Number(it.h) || 0,
       rot: Number(it.rot) || 0,
@@ -105,6 +108,10 @@ export const AGENT_WORKFLOW = [
   "Coordinates:",
   "- Units are centimetres. Item x,z is the CENTER. rot 0 faces +z (down the page / south). Front is (-sin(rot°), cos(rot°)).",
   "- spatial.items[].front is the current facing. spatial walls and bounds are descriptive; never derive snap coordinates from them.",
+  "",
+  "Names:",
+  "- Walls, openings and items carry a short code: W wall, D door, WN window, O other opening, F furniture, then the id (W12 is wall 12, F13 is item 13). The user reads these codes on the plan and may type them.",
+  "- Name objects to the user by label and code (\"Sofa F12\", \"wall W3\"). Command params still take the plain numeric id.",
   "",
   "Commands (only if preview_item_snap does not apply):",
   "- item.move: only when the user supplied exact numeric x,z/delta values. Never use it to infer snap, beside, wall, or facing geometry.",

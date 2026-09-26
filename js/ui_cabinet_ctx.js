@@ -207,6 +207,8 @@ export var TXT = {
   ],
   view2d: ["דו מימד", "2D"],
   view3d: ["תלת מימד", "3D"],
+  vSplit: ["מפוצל", "Split"],
+  vSplitTip: ["השרטוט והתלת מימד זה לצד זה", "The drawing and the 3D side by side"],
   vFront: ["חזית", "Front"],
   vBack: ["אחור", "Back"],
   vLeft: ["שמאל", "Left"],

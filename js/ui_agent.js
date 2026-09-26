@@ -7,6 +7,7 @@ import { executePlannerProposal, setTool } from "./interaction.js";
 import { projectAgentContext, livePlacementScene } from "./agent_context.js";
 import { renderAgentCandidates, clearAgentPreview } from "./agent_preview.js";
 import { groundCandidates, checksLevel } from "./agent_grounding.js";
+import { partCode } from "./part_codes.js";
 import { S } from "./state.js";
 import { FURN } from "./furniture_models.js";
 import { flabel } from "./furniture_meta.js";
@@ -199,25 +200,25 @@ function failureText(reason) {
 }
 function metres(cm) { return (Number(cm) / 100).toFixed(2) + " m"; }
 function partText(part) {
-  var who = part.name + (part.id != null ? " #" + part.id : "");
+  var who = part.name + (part.id != null ? " " + partCode("item", part.id) : "");
   var text = part.action === "move" ? t("ag_move", { name: who })
     : part.action === "copy" ? t("ag_copy", { name: who })
     : part.kind === "wall" ? t("ag_new_wall", { len: metres(part.length) })
-    : part.kind === "door" ? t("ag_new_door", { wall: "#" + part.hostWallId })
-    : part.kind === "window" ? t("ag_new_window", { wall: "#" + part.hostWallId })
-    : part.kind === "opening" ? t("ag_new_opening", { wall: "#" + part.hostWallId })
+    : part.kind === "door" ? t("ag_new_door", { wall: partCode("wall", part.hostWallId) })
+    : part.kind === "window" ? t("ag_new_window", { wall: partCode("wall", part.hostWallId) })
+    : part.kind === "opening" ? t("ag_new_opening", { wall: partCode("wall", part.hostWallId) })
     : part.kind === "room" ? t("ag_new_room", { area: part.area.toFixed(1) })
     : t("ag_new", { name: part.name });
   return part.room ? t("ag_in_room", { part: text, room: part.room }) : text;
 }
 /* The plan tag stays short: letter, name and id; the card carries the rest. */
 function tagText(part) {
-  var who = part.kind === "item" ? part.name + (part.id != null ? " #" + part.id : "")
+  var who = part.kind === "item" ? part.name + (part.id != null ? " " + partCode("item", part.id) : "")
     : part.kind === "wall" ? t("ag_new_wall", { len: metres(part.length) })
     : part.kind === "room" ? t("ag_new_room", { area: part.area.toFixed(1) })
-    : part.kind === "door" ? t("ag_new_door", { wall: "#" + part.hostWallId })
-    : part.kind === "window" ? t("ag_new_window", { wall: "#" + part.hostWallId })
-    : t("ag_new_opening", { wall: "#" + part.hostWallId });
+    : part.kind === "door" ? t("ag_new_door", { wall: partCode("wall", part.hostWallId) })
+    : part.kind === "window" ? t("ag_new_window", { wall: partCode("wall", part.hostWallId) })
+    : t("ag_new_opening", { wall: partCode("wall", part.hostWallId) });
   return (part.letter ? part.letter + " · " : "") + who;
 }
 function checkText(check) {

@@ -72,7 +72,7 @@ const PLAN = [
     ["Check", [T("Warnings", "ph-warning", "reveal:#warnPanel"), T("Tree", "ph-tree-structure", "left:tree"), T("Clearances", "ph-arrows-out", "pro:clearances"), T("Layout check", "ph-chart-bar", "pro:layoutCheck")]],
   ]],
   ["View & render", [
-    ["View", [T("Plan", "ph-blueprint", "act:viewPlan", "1"), T("3D", "ph-cube", "act:view3d", "2"), T("Split", "ph-columns", "act:viewSplit", "3"), T("Dollhouse", "ph-house-line", "act:dollhouse"), T("Frame", "ph-frame-corners", "act:frame"), T("Walk", "ph-person-simple-walk", "act:walk")]],
+    ["View", [T("Plan", "ph-blueprint", "act:viewPlan", "1"), T("3D", "ph-cube", "act:view3d", "2"), T("Split", "ph-columns", "act:viewSplit", "3"), T("Dollhouse", "ph-house-line", "act:dollhouse"), T("Frame", "ph-frame-corners", "act:frame"), T("Walk", "ph-person-simple-walk", "act:walk"), T("Part codes", "ph-hash", "pro:partCodes")]],
     ["Render", [T("Photo mode", "ph-camera", "act:photo"), T("Video studio", "ph-video-camera", "click:#videoStudioBtn"), T("Edit in 3D", "ph-hand-grabbing", "act:edit3d"), T("Physics", "ph-atom", "act:physics"), T("Sun & sky", "ph-sun", "reveal:#envSection")]],
   ]],
   ["Output", [
@@ -200,7 +200,7 @@ export const PRO_HE = {
   "Annotate": "סימון", "Mark": "סמן", "Place marker": "הצב סמן", "Duplicate marker": "שכפל סמן", "Reference point": "נקודת ייחוס",
   "Style": "סגנון", "Plan style": "סגנון תוכנית", "Layers": "שכבות", "Tool names": "שמות כלים", "Drawings": "שרטוטים", "Drawing 3D": "שרטוט תלת־ממד", "Wall types": "טיפוסי קירות",
   "Analyze": "ניתוח", "Quantities": "כמויות", "Cost export": "ייצוא עלות", "Wall take-off": "כתב כמויות לקיר", "Wall schedule": "טבלת קירות", "Cut plan": "תוכנית ניסור", "Check": "בדיקה", "Warnings": "אזהרות", "Tree": "עץ",
-  "View & render": "תצוגה ורינדור", "View": "תצוגה", "Plan": "תוכנית", "3D": "תלת־ממד", "Split": "מפוצל", "Dollhouse": "בית בובות", "Frame": "מסגר", "Walk": "סיור",
+  "View & render": "תצוגה ורינדור", "View": "תצוגה", "Plan": "תוכנית", "3D": "תלת־ממד", "Split": "מפוצל", "Dollhouse": "בית בובות", "Frame": "מסגר", "Walk": "סיור", "Part codes": "קודי חלקים",
   "Render": "רינדור", "Photo mode": "מצב צילום", "Video studio": "סטודיו וידאו", "Edit in 3D": "עריכה בתלת־ממד", "Physics": "פיזיקה",
   "Output": "פלט", "File": "קובץ", "Save": "שמור", "Open": "פתח", "New plan": "תוכנית חדשה", "Import JSON": "ייבוא JSON", "Export": "ייצוא", "JSON": "JSON", "glTF": "glTF", "PNG 2D": "PNG דו־ממד", "PNG 3D": "PNG תלת־ממד",
   "Team": "צוות", "Workspace": "סביבת עבודה", "Friends": "חברים", "AI helper": "עוזר AI",

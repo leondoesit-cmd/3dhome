@@ -219,13 +219,13 @@ test("a tool run through the hidden rail is a command, not a tap that closes the
 });
 
 /* ---- pro inspector: the phone / fold inspector's identity card ---- */
-test("the inspector card names the part, where it is and its #id, and the wall tabs read as words", () => {
+test("the inspector card names the part, where it is and its part code, and the wall tabs read as words", () => {
   const shell = src("mobile_shell.js");
   // Refreshed wherever the top-bar identity is, and hidden with no selection.
   assert.equal((shell.match(/\n\s+syncInspectorCard\(\);/g) || []).length, 2);
   assert.match(shell, /if \(!compact\(\) \|\| !sel \|\| !KIND_ICON\[sel\.kind\] \|\| !name\) \{/);
-  // The same "#id" the AI tags and the history use; a room's wall-list key is never shown.
-  assert.match(shell, /id = ref && ref\.id != null \? "#" \+ ref\.id : ""/);
+  // The same part code (W12, F13) the AI tags use; a room's wall-list key is never shown.
+  assert.match(shell, /id = ref && ref\.id != null \? partCode\(sel\.kind, ref\.id, ref\) : ""/);
   assert.match(shell, /id = ""; \/\/ a room's key is its wall list/);
   // Only real room names, never a guessed one.
   assert.match(shell, /function roomLabelOf\(room\) \{ return room \? roomName\(room\.key\) : ""; \}/);
@@ -317,4 +317,23 @@ test("the cabinet designer's status bar reports real production numbers and noth
   assert.doesNotMatch(cab, /Rev [A-Z]/);
   for (const k of ["statusNoConvention", "statusStock", "statusSheets", "statusYield", "statusParts", "statusNestFailed"])
     assert.ok(src("ui_cabinet_ctx.js").includes(String.fromCharCode(10) + "  " + k + ": ["), k);
+});
+
+test("the cabinet designer's split view keeps the drawing editable beside the live model", () => {
+  const view = src("ui_cabinet_view.js");
+  // Split is the drawing (E.mode stays 2D) with the borrowed renderer beside it.
+  assert.match(view, /var split = m === "split";\s*m = m === "3d" \? "3d" : "2d";/);
+  assert.match(view, /E\.swapView\(m === "3d" \|\| split, E\.pv\);/);
+  // The drawing takes the left half and keeps clear of the view picker there.
+  assert.match(view, /w = E\.split \? Math\.floor\(r\.width \/ 2\) : r\.width;/);
+  assert.match(view, /ox = gut \+ \(W - gut\) \/ 2 \+ viewPanX,/);
+  // Picking a direction keeps the split; the PNG is always the whole drawing.
+  assert.match(view, /setMode\(E\.split \? "split" : "2d"\);/);
+  assert.match(view, /if \(restoreMode === "split"\) setMode\("2d"\);/);
+  // A new home is a new size for the renderer, in every editor that swaps it.
+  assert.match(src("editor_view.js"), /if \(view\.invalidateSize\) view\.invalidateSize\(\);\s*view\.setBig\(big\);/);
+  // Phones have no room for two views: no button, and a split falls back to the drawing.
+  assert.match(src("ui_cabinet_mobile.js"), /if \(on && E\.split\) setMode\("2d"\);/);
+  assert.match(src("ui_cabinet.js"), /<button data-mode="split" title="' \+ T\("vSplitTip"\)/);
+  for (const k of ["vSplit", "vSplitTip"]) assert.ok(src("ui_cabinet_ctx.js").includes(String.fromCharCode(10) + "  " + k + ": ["), k);
 });

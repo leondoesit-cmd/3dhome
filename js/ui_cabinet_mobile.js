@@ -29,7 +29,7 @@ import { render2D } from "./plan2d.js";
 import { refreshTree } from "./ui_tree.js";
 import { itemDuplicateCommand, executeCommand } from "./commands/index.js";
 import { E, T } from "./ui_cabinet_ctx.js";
-import { setTool, syncHint, draw, sizeCanvas } from "./ui_cabinet_view.js";
+import { setTool, syncHint, draw, sizeCanvas, setMode } from "./ui_cabinet_view.js";
 import {
   splitSection, delSection, splitColumn, delColumn,
 } from "./ui_cabinet_inspect.js";
@@ -715,6 +715,8 @@ function applyCompact() {
   if (!host || !host.isConnected) return;
   var on = compact();
   host.classList.toggle("cb-compact", on);
+  // a phone has no room for two views side by side; the drawing keeps it
+  if (on && E.split) setMode("2d");
   if (on && !ctxBar) {
     build();
     /* Enable the sheet slide only from the next frame: the panels have just
