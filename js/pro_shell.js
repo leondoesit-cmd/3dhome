@@ -443,3 +443,65 @@ export function wireVoice(input, mic, holder, onFinal, placeholder) {
     rec.start();
   });
 }
+
+/* ---------------------------------------------------------------- bar fit */
+
+/* The bar floats over a drawing that already has floating chrome of its own —
+   the Layers panel, the view gizmo, the 3D navigation bar — and which of them
+   is open is the user's choice. So the bar is not pinned to the middle: it
+   takes the widest free span of its row inside `host`, between whatever
+   `obstacles` currently reach into that row, and centres itself there. A span
+   narrower than MIN leaves the bar where css put it rather than squeezing it
+   to nothing. */
+var BAR_MAX = 640, BAR_MIN = 320, BAR_GAP = 10;
+export function fitCommandBar(bar, host, obstacles) {
+  if (!bar || !host || !bar.isConnected) return;
+  bar.style.left = "";
+  bar.style.width = "";
+  bar.style.transform = "";
+  bar.style.bottom = "";
+  var hr = host.getBoundingClientRect(), br = bar.getBoundingClientRect();
+  if (!(hr.width > 0) || !(br.height > 0)) return;
+  var boxes = [];
+  host.querySelectorAll(obstacles).forEach(function (el) {
+    if (el === bar || bar.contains(el) || el.contains(bar)) return;
+    var cs = getComputedStyle(el), r = el.getBoundingClientRect();
+    if (cs.display === "none" || cs.visibility === "hidden" || +cs.opacity < 0.05 || !(r.width > 0 && r.height > 0)) return;
+    boxes.push(r);
+  });
+  /* Row by row, from where css put the bar upward: in each row take the widest
+     free span; when none is wide enough, step up just past the LOWEST blocker
+     (the one that ends the row soonest) and look again. A tall side panel is
+     therefore passed beside, and only a strip across the whole width is
+     climbed over. */
+  var bottom = br.bottom, h = br.height;
+  for (var step = 0; step < 6; step++) {
+    var top = bottom - h;
+    var row = boxes.filter(function (r) { return !(r.bottom <= top + 2 || r.top >= bottom - 2); });
+    var lifted = bottom !== br.bottom;
+    if (!row.length) {
+      if (lifted) bar.style.bottom = Math.round(hr.bottom - bottom) + "px";
+      return;
+    }
+    var blocks = row.map(function (r) { return [r.left - BAR_GAP, r.right + BAR_GAP]; }).sort(function (a, b) { return a[0] - b[0]; });
+    var spans = [], x = hr.left + 16;
+    blocks.forEach(function (b) {
+      if (b[0] > x) spans.push([x, b[0]]);
+      x = Math.max(x, b[1]);
+    });
+    if (hr.right - 16 > x) spans.push([x, hr.right - 16]);
+    var best = spans.reduce(function (m, s) { return !m || s[1] - s[0] > m[1] - m[0] ? s : m; }, null);
+    if (best && best[1] - best[0] >= BAR_MIN) {
+      var w = Math.min(BAR_MAX, best[1] - best[0]);
+      bar.style.width = w + "px";
+      bar.style.left = Math.round((best[0] + best[1]) / 2 - hr.left - w / 2) + "px";
+      bar.style.transform = "none";
+      if (lifted) bar.style.bottom = Math.round(hr.bottom - bottom) + "px";
+      return;
+    }
+    var lowest = Math.max.apply(null, row.map(function (r) { return r.top; }));
+    var next = lowest - BAR_GAP;
+    if (!(next < bottom) || next - h < hr.top + 40) return; // nowhere better: leave css's place
+    bottom = next;
+  }
+}

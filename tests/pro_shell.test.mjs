@@ -269,3 +269,37 @@ test("the model editor and cabinet designer get the same fold rail from the same
   assert.match(css, /body\.compact-nav\.dock-rail #modeler #md-sheet \{[^}]*inset-inline: auto 0;/);
   assert.match(css, /body\.dock-rail #cabdes\.cb-compact \.cb-panel \{ min-height: 0; max-height: 100%; \}/);
 });
+
+/* ---- the bar finds free room in its row ---- */
+function rect(l, t, r, b) { return { left: l, top: t, right: r, bottom: b, width: r - l, height: b - t }; }
+function fakeBar(r) {
+  const style = {};
+  return { isConnected: true, style, contains: () => false, getBoundingClientRect: () => r };
+}
+function fakeHost(r, boxes) {
+  const els = boxes.map((b) => ({ getBoundingClientRect: () => b, contains: () => false }));
+  return { getBoundingClientRect: () => r, querySelectorAll: () => ({ forEach: (fn) => els.forEach(fn) }) };
+}
+test("the bar slides beside a side panel, climbs over a full-width strip, and stays put when clear", () => {
+  globalThis.getComputedStyle = () => ({ display: "block", visibility: "visible", opacity: "1" });
+  try {
+    const host = rect(300, 200, 1120, 900);
+    // Clear row: nothing is touched.
+    let bar = fakeBar(rect(390, 814, 1030, 858));
+    shellMod.fitCommandBar(bar, fakeHost(host, [rect(300, 200, 500, 400)]), "*");
+    assert.equal(bar.style.left, "");
+    assert.equal(bar.style.bottom, "");
+    // A Layers panel on the start side reaching into the row: the bar moves right of it.
+    bar = fakeBar(rect(390, 814, 1030, 858));
+    shellMod.fitCommandBar(bar, fakeHost(host, [rect(300, 606, 499, 830)]), "*");
+    assert.ok(parseInt(bar.style.left, 10) + 300 >= 509, "starts past the panel: " + bar.style.left);
+    assert.equal(bar.style.bottom, "");
+    // A strip across the whole width at the bottom: the bar stands above it, and
+    // then still passes the side panel beside instead of climbing over it.
+    bar = fakeBar(rect(390, 814, 1030, 858));
+    shellMod.fitCommandBar(bar, fakeHost(host, [rect(300, 854, 1120, 900), rect(300, 606, 499, 830)]), "*");
+    assert.equal(bar.style.bottom, (900 - 844) + "px");
+    assert.ok(parseInt(bar.style.left, 10) + 300 >= 509);
+  } finally { delete globalThis.getComputedStyle; }
+  assert.match(src("pro_ribbon.js"), /canvas\.style\.setProperty\("--ps-bar-clear"/);
+});

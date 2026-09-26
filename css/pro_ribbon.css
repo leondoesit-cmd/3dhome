@@ -474,7 +474,7 @@ body.lava-on .m-editor-strip { display: none !important; }
 
 /* Planner: the 2D hint moves above the bar; in 3D only, the bar clears the
    floating navigation toolbar. */
-body.pro-ribbon-on #view-2d > .hint { bottom: 96px; }
+body.pro-ribbon-on #view-2d > .hint { bottom: var(--ps-bar-clear, 96px); }
 body.pro-ribbon-on #center-canvas.max-view-3d > .ps-cmdbar { bottom: 84px; }
 
 .ps-ai-status { display: inline-flex; align-items: center; gap: 5px; margin-inline-start: auto; flex-shrink: 0; color: var(--accent); font-size: 11px; font-weight: 600; white-space: nowrap; }
@@ -727,3 +727,9 @@ body.dock-rail #cabdes.cb-compact .cb-panel > .cb-tabs.cb-fill { min-height: 0; 
    scroll, the inspector below keeps a usable minimum. */
 body.dock-rail #cabdes.cb-compact.cb-fold-open #cb-fold-tools { flex: 0 1 auto; max-height: none; }
 body.dock-rail #cabdes.cb-compact.cb-fold-open .cb-right > .cb-tabs.cb-fill { flex: 1 1 0; min-height: 170px; }
+
+/* 3D view: the hint moves above the bar (which sits above the navigation bar). */
+body.pro-ribbon-on #center-canvas.max-view-3d #view-3d > .hint { bottom: var(--ps-bar-clear, 140px); }
+@media (max-width: 1023px) {
+  body.pro-ribbon-on #center-canvas.max-view-3d #view-3d > .hint { bottom: 84px; }
+}

@@ -14,7 +14,7 @@ import { addToolSearchEntries } from "./tool_search.js";
 import { openCabinetForSelection, isCabinetOpen } from "./ui_cabinet.js";
 import {
   editorSwitchHTML, wireEditorSwitch, proToast, registerShell, wireShell, syncShell, aiOn, wireVoice,
-  projectChipHTML, shellActionsHTML, commandBarHTML, aiStatusHTML,
+  projectChipHTML, shellActionsHTML, commandBarHTML, aiStatusHTML, fitCommandBar,
 } from "./pro_shell.js";
 import { S } from "./state.js";
 import { markDirty } from "./persist.js";
@@ -663,8 +663,19 @@ function mountPlannerShell() {
   if (ribbon) wireShell(ribbon, "plan");
   if (canvas) wireShell(canvas, "plan");
   mountStatusChip(0);
+  fitPlannerBar();
   if (!shellMounted) {
     shellMounted = true;
+    /* Refit when anything that shares the row can have moved: the window, the
+       view mode (the centre canvas's classes), and the plan's own tool panels. */
+    var refit = function () { requestAnimationFrame(fitPlannerBar); };
+    window.addEventListener("resize", refit);
+    if (window.MutationObserver) {
+      if (canvas) new MutationObserver(refit).observe(canvas, { attributes: true, attributeFilter: ["class"] });
+      var tools = document.getElementById("plan-tools");
+      if (tools) new MutationObserver(refit).observe(tools, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "hidden", "style"] });
+    }
+    setInterval(fitPlannerBar, 1500);
     onLangChange(function () {
       document.querySelectorAll("#center-canvas > .ps-cmdbar, #cad-status .ps-ai-status").forEach(function (el) { el.remove(); });
       mountPlannerShell();
@@ -673,6 +684,19 @@ function mountPlannerShell() {
     // of its own; syncShell only writes what changed, so a slow poll is cheap.
     setInterval(syncShell, 1500);
   }
+}
+/* What floats in the bar's row over the plan and the 3D view. */
+var PLANNER_BAR_OBSTACLES = ".pt-panel, .view-gizmo, .planner-navigation, .plan-gizmo, .view-max-btn, .plan-style-btn";
+function fitPlannerBar() {
+  var canvas = document.getElementById("center-canvas");
+  var bar = canvas && canvas.querySelector(":scope > .ps-cmdbar");
+  if (!bar) return;
+  fitCommandBar(bar, canvas, PLANNER_BAR_OBSTACLES);
+  /* The hints float centred at the bottom too: they stand clear of wherever
+     the bar ended up (css reads --ps-bar-clear). */
+  var hr = canvas.getBoundingClientRect(), br = bar.getBoundingClientRect();
+  if (br.height > 0) canvas.style.setProperty("--ps-bar-clear", Math.round(hr.bottom - br.top + 8) + "px");
+  else canvas.style.removeProperty("--ps-bar-clear");
 }
 function mountStatusChip(tries) {
   var bar = document.getElementById("cad-status");
