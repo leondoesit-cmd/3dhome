@@ -10,7 +10,12 @@ test.after(async () => { if (page) await page.close(); });
 async function openEditor(width, height, lang) {
   if (!page) page = await openPage({ width, height, lang, mobile: width < 1000, touch: width < 1000 });
   await page.resize(width, height, { mobile: width < 1000, touch: width < 1000 });
+// These tests are about the classic compact chrome — the five-slot navigation
+  // and the sheets measured against it. The Round-6 phone chrome replaces it by
+  // default (tests/pro_compact.browser.mjs covers that), so they ask for the
+  // classic one with localStorage mf.proSkin = "0".
   await page.setLang(lang);
+  await page.eval(() => localStorage.setItem("mf.proSkin", "0"));
   await page.goto("/");
   await page.waitForBoot();
   // Each viewport case starts a fresh document. A preceding case may have

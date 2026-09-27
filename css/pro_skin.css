@@ -46,7 +46,7 @@ body.pro-skin { font-family: "Inter", "Rubik", system-ui, sans-serif; background
 
 /* ---- header: the planner's top bar, flattened and re-ordered ------------ */
 body.pro-skin #topbar {
-  display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px;
+  display: flex; align-items: center; gap: 10px; height: 44px; box-sizing: border-box; padding: 0 12px;
   background: var(--bg-topbar); border-bottom: 1px solid var(--border-color); box-shadow: none;
 }
 body.pro-skin #topbar > .tb-start,
@@ -439,3 +439,161 @@ body.pro-skin #left-sidebar .trItem { min-height: 27px; gap: 7px; border-radius:
 body.pro-skin #left-sidebar .trItem.sel { background: var(--accent-soft); color: var(--text-main); box-shadow: inset 2px 0 0 var(--accent); }
 body.pro-skin #left-sidebar .trItem.sel .trName, body.pro-skin #left-sidebar .trItem.sel .trCode { color: var(--text-main); }
 body.pro-skin #left-sidebar .trLk { filter: grayscale(1); opacity: 0.45; font-size: 11px; }
+
+/* ======================= phones and folds (body.pro-compact) =============
+   The Round-6 compact screens (*-ptools, *-pinsp, *-cover, *-fold7, *-wide):
+   a slim white header — project, undo, parts & library, More — the strip,
+   the canvas, and at the bottom the tools grid, the Ask / Cmd field and the
+   mic. js/pro_ribbon.js placeCompact() builds the two new pieces; the five-
+   slot navigation stays in the page (its buttons do the work) but hides. */
+html[data-theme="light"] body.pro-compact,
+html:not([data-theme]) body.pro-compact {
+  --bg-app: #eef0f3; --bg-panel: #ffffff; --bg-topbar: #ffffff; --border-color: #e0e3e8; --separator: #e0e3e8;
+  --text-main: #101522; --text-muted: #596172; --accent: #4f46e5; --accent-soft: #eef0ff;
+  --btn-bg: #f4f5f7; --btn-bg-hover: #eceef2; --btn-border: #e0e3e8; --glass-blur: none;
+  --pro-ink: #111827; --pro-faint: #9aa1ad;
+}
+body.pro-compact { --pro-ink: var(--text-main); --pro-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; }
+body:not(.pro-compact) #psPhoneHead,
+body:not(.pro-compact) .ps-cmdbar > .ps-grid { display: none !important; }
+
+/* header: the project and three icons, nothing else */
+body.pro-compact #topbar > :not(#psPhoneHead) { display: none !important; }
+body.pro-compact #topbar { display: flex; align-items: center; padding: 0 8px 0 14px; background: var(--bg-topbar); border-bottom: 1px solid var(--border-color); box-shadow: none; }
+body.pro-compact #psPhoneHead { display: flex; align-items: center; gap: 2px; width: 100%; min-width: 0; }
+body.pro-compact #psPhoneHead .ps-ph-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 700; color: var(--text-main); }
+body.pro-compact #psPhoneHead .ps-ph-gap { flex: 1; }
+body.pro-compact #psPhoneHead button {
+  box-shadow: none !important; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; padding: 0;
+  border: 0; border-radius: 10px; background: transparent; color: var(--text-main); font-size: 19px;
+}
+body.pro-compact #psPhoneHead button:active { background: var(--btn-bg); }
+
+/* the strip: the same pills as the desktop header */
+body.pro-compact #m-editor-strip { background: #fff; border-bottom: 1px solid var(--border-color); box-shadow: none; }
+
+/* bottom: the command bar takes the navigation's place */
+body.pro-compact #mobile-nav { display: none !important; }
+body.pro-compact { --mobile-nav-block: calc(64px + env(safe-area-inset-bottom)); }
+body.pro-compact #center-canvas > .ps-cmdbar {
+  display: flex !important; position: fixed; z-index: 120; left: 8px !important; right: 8px; bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+  width: auto !important; transform: none !important; height: 46px; padding: 4px; gap: 6px; border-radius: 16px;
+  background: #fff; border: 0; box-shadow: 0 8px 24px rgba(16, 21, 34, 0.14), 0 0 0 1px var(--border-color);
+}
+body.pro-compact .ps-cmdbar > .ps-modes { display: none; }
+body.pro-compact .ps-cmdbar > .ps-grid {
+  flex: none; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; padding: 0;
+  border: 0; border-radius: 12px; background: var(--pro-ink); color: #fff; font-size: 18px;
+}
+body.pro-compact .ps-cmdbar .ps-cmd-input { height: 38px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--btn-bg); font-size: 14px; }
+body.pro-compact .ps-cmdbar .ps-mic { flex: none; width: 38px; height: 38px; border-radius: 12px; background: var(--accent); color: #fff; }
+body.pro-compact .ps-cmdbar .ps-suggest { bottom: calc(100% + 6px); }
+/* folds dock their panels either side: the bar sits under the plan */
+body.pro-compact.dock-rail #center-canvas > .ps-cmdbar { position: absolute; left: 10px !important; right: 10px; bottom: 10px !important; }
+body.pro-compact.dock-rail { --mobile-nav-block: 0px; }
+/* the zombie and lava modes own the whole screen */
+body.pro-compact.zombies-on #center-canvas > .ps-cmdbar,
+body.pro-compact.lava-on #center-canvas > .ps-cmdbar { display: none !important; }
+
+/* sheets and drawers flat and white */
+body.pro-compact #m-sheet,
+body.pro-compact #left-sidebar,
+body.pro-compact #right-inspector { background: #fff; box-shadow: 0 -8px 28px rgba(16, 21, 34, 0.12); }
+
+body.pro-compact .m-editor-strip { background: #fff; }
+body.pro-compact .m-editor-strip :is(.pr-editors, .m-panes) {
+  display: flex; gap: 0; height: 34px; box-sizing: border-box; padding: 3px; border-radius: 17px;
+  background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color); border: 0;
+}
+body.pro-compact .m-editor-strip :is(.pr-editors, .m-panes) button {
+  height: 28px; min-width: 40px; padding: 0 10px; border: 0; border-radius: 14px; background: transparent; box-shadow: none;
+  color: var(--text-muted); font-size: 13px; font-weight: 500;
+}
+body.pro-compact .m-editor-strip :is(.pr-editors, .m-panes) button:is(.on, .active, [aria-pressed="true"]) {
+  background: #fff; color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16);
+}
+
+/* the tools sheet: grey tiles, the armed one in ink, pill tabs; the bar at
+   the bottom is the Ask field, so the sheet's own copy goes */
+body.pro-compact #m-sheet .m-grid-btn {
+  border: 0; border-radius: 10px; background: var(--btn-bg); box-shadow: none; color: var(--text-main);
+  font-size: 11px; font-weight: 500;
+}
+body.pro-compact #m-sheet .m-grid-btn.on { background: var(--pro-ink); color: #fff; }
+body.pro-compact #m-sheet .m-grid-btn.danger { color: var(--danger, #dc2626); }
+body.pro-compact #m-sheet .m-sheet-head { font-size: 15px; font-weight: 700; }
+body.pro-compact #m-sheet .m-sheet-sec { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--pro-faint); }
+body.pro-compact #m-sheet .pro-sheet-ask { display: none; }
+body.pro-compact #m-sheet .pro-chip { border: 0; border-radius: 16px; background: var(--btn-bg); color: var(--text-main); box-shadow: none; font-weight: 600; }
+body.pro-compact #m-sheet .pro-chip.on { background: var(--pro-ink); color: #fff; }
+
+/* the fold's status line: the desktop's slim monospace row, not a tile bar */
+body.pro-compact.dock-rail #cad-status {
+  height: 32px; min-height: 32px; gap: 6px; padding: 0 10px; background: #fff; border-top: 1px solid var(--border-color); box-shadow: none;
+  font: 11px/1 var(--pro-mono); color: var(--text-muted);
+}
+body.pro-compact.dock-rail #cad-status button {
+  height: 24px; min-height: 0; flex: 0 0 auto; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border-color);
+  background: #fff; box-shadow: none; font: 600 10.5px/1 var(--pro-mono); color: var(--text-muted);
+}
+body.pro-compact.dock-rail #cad-status button:is(.on, .active, [aria-pressed="true"]) { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+
+/* fold rails and their docked tool grids: the mockup's grey tiles, armed in ink */
+body.pro-compact .pro-rail-grid button,
+body.pro-compact .pro-rail-grid [data-pro-bind] { border: 0; border-radius: 10px; background: var(--btn-bg); box-shadow: none; color: var(--text-main); }
+body.pro-compact .pro-rail-grid [data-pro-bind].on { background: var(--pro-ink); color: #fff; }
+body.pro-compact .m-fold-rail { background: #fff; border-inline-end: 1px solid var(--border-color); box-shadow: none; }
+body.pro-compact .m-fold-rail button { border: 0; border-radius: 10px; background: transparent; box-shadow: none; color: var(--text-muted); }
+body.pro-compact .m-fold-rail button:is(.on, .active, [aria-pressed="true"], [aria-selected="true"]) { background: var(--pro-ink); color: #fff; }
+
+/* ---- the model editor and cabinet designer on a phone ------------------- */
+body:not(.pro-compact) :is(.ps-ed-strip, .ps-ed-icons),
+body:not(.pro-compact) .ps-cmdbar > .ps-grid { display: none !important; }
+body.pro-compact #md-nav,
+body.pro-compact #cabdes .cb-m-nav { display: none !important; }
+body.pro-compact :is(#modeler .md-head, #cabdes .cb-head-main) { background: #fff; border-bottom: 1px solid var(--border-color); box-shadow: none; }
+body.pro-compact .ps-ed-icons { display: flex; align-items: center; gap: 0; margin-inline-start: auto; flex: none; }
+body.pro-compact .ps-ed-icons button {
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; padding: 0;
+  border: 0; border-radius: 10px; background: transparent; color: var(--text-main); font-size: 18px; box-shadow: none;
+}
+body.pro-compact :is(#mdRedo, #cbRedo) { display: none !important; }
+/* the view pill on its own strip, as the planner's */
+body.pro-compact .ps-ed-strip {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: none; height: 44px; box-sizing: border-box;
+  padding: 0 8px; background: #fff; border-bottom: 1px solid var(--border-color);
+}
+body.pro-compact .ps-ed-strip > :is(#mdModes, .cb-vmodes) {
+  position: static; transform: none; display: flex !important; flex-direction: row; gap: 0; height: 34px; box-sizing: border-box; margin: 0;
+  padding: 3px; border: 0; border-radius: 17px; background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color);
+}
+body.pro-compact .ps-ed-strip > :is(#mdModes, .cb-vmodes) > button {
+  display: flex; align-items: center; justify-content: center; height: 28px; min-width: 44px; padding: 0 10px; border: 0; border-radius: 14px;
+  background: transparent; box-shadow: none; color: var(--text-muted); font-size: 13px; font-weight: 500;
+}
+body.pro-compact .ps-ed-strip > :is(#mdModes, .cb-vmodes) > button.on { background: #fff; color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
+body.pro-compact .ps-ed-strip > :is(#mdModes, .cb-vmodes) > button :is(i, svg, .md-cad-icon) { display: none; }
+/* the bottom bar in each editor */
+body.pro-compact :is(#modeler .md-mid, #cabdes .cb-mid) > .ps-cmdbar {
+  display: flex !important; position: fixed; z-index: 130; left: 8px !important; right: 8px; bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+  width: auto !important; transform: none !important; height: 46px; padding: 4px; gap: 6px; border-radius: 16px;
+  background: #fff; border: 0; box-shadow: 0 8px 24px rgba(16, 21, 34, 0.14), 0 0 0 1px var(--border-color);
+}
+body.pro-compact.dock-rail :is(#modeler .md-mid, #cabdes .cb-mid) > .ps-cmdbar { position: absolute; left: 10px !important; right: 10px; bottom: 10px !important; }
+
+body.pro-compact.ps-editor-open #center-canvas > .ps-cmdbar { display: none !important; }
+/* the overlays are solid white here; without the blur, "fixed" means the screen */
+body.pro-compact #modeler, body.pro-compact #cabdes { backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+body.pro-compact #modeler .md-head-logo > :not(.ps-project) { display: none; }
+body.pro-compact #modeler .md-head { gap: 4px; padding-inline: 4px 6px; }
+body.pro-compact .ps-ed-icons button { width: 34px; }
+body.pro-compact #modeler.md-is3d .md-mid, body.pro-compact #modeler .md-3dhost { background: #f3f4f6; }
+body.pro-compact :is(#mdUndo, #mdClose, #cbUndo) { width: 34px !important; min-width: 34px !important; padding: 0 !important; border: 0; box-shadow: none; background: transparent; }
+body.pro-compact #cabdes .cb-head-main { gap: 3px; padding-inline: 5px; }
+body.pro-compact #cabdes #cbClose { padding: 0 10px; font-size: 13px; }
+body.pro-compact #cabdes #cbClose i { display: none; }
+/* the strip under the model editor's header is 44px the phone offsets must count */
+body.pro-compact #modeler { --ps-ed-strip: 44px; }
+body.pro-compact #modeler .md-mobile-status { top: calc(var(--md-head-block, 44px) + var(--ps-ed-strip) + var(--md-hint-h, 26px) + 4px); }
+body.pro-compact.m-sheet-open #modeler .md-tour-card { top: calc(var(--md-head-block, 44px) + var(--ps-ed-strip) + 8px); }

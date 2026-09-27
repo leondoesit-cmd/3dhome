@@ -188,8 +188,16 @@ test("Planner placement guidance and dynamic labels stay visible and localized",
   }
 });
 
+// These tests are about the classic compact chrome — the five-slot navigation
+// and the sheets measured against it. The Round-6 phone chrome replaces it by
+// default (tests/pro_compact.browser.mjs covers that), so they ask for the
+// classic one with localStorage mf.proSkin = "0".
+async function classicChrome(page) { await page.eval(() => localStorage.setItem("mf.proSkin", "0")); }
+async function proChrome(page) { await page.eval(() => localStorage.removeItem("mf.proSkin")); }
+
 test("short Planner menus hug the bottom and use only their content height", opts, async () => {
   const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
+  await classicChrome(page);
   try {
     for (const [width, height, name] of [
       [390, 844, "phone"],
@@ -230,12 +238,13 @@ test("short Planner menus hug the bottom and use only their content height", opt
       assert.ok(layout.height < layout.viewport * 0.55, name + ": canvas stays visible above the menu");
     }
   } finally {
-    await page.close();
+    await proChrome(page).catch(() => {}); await page.close();
   }
 });
 
 test("Planner Properties is a clipped-free page deck across common phone and Fold sizes", opts, async () => {
   const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
+  await classicChrome(page);
   const sizes = [
     [390, 844, "phone portrait"],
     [344, 882, "Fold cover"],
@@ -324,12 +333,14 @@ test("Planner Properties is a clipped-free page deck across common phone and Fol
     }
     assert.ok(sawMultiPage, "the short/common postures exercise real multi-page navigation");
   } finally {
-    await page.close();
+    await proChrome(page).catch(() => {}); await page.close();
   }
 });
 
 test("Model Editor and Cabinet sheets use the same one-card-at-a-time contract", opts, async () => {
   const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
+  await classicChrome(page);
+  await page.goto("/");
   try {
     await page.eval(() => {
       const start = document.getElementById("start-screen");
@@ -424,7 +435,7 @@ test("Model Editor and Cabinet sheets use the same one-card-at-a-time contract",
       "Cabinet sheet scrolls continuously " + JSON.stringify(cabinet),
     );
   } finally {
-    await page.close();
+    await proChrome(page).catch(() => {}); await page.close();
   }
 });
 

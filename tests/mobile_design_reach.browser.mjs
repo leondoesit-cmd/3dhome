@@ -19,7 +19,9 @@ for (const [width,height,lang] of [[390,844,'en'],[390,844,'he'],[673,841,'en']]
       const technical = await page.eval(()=>{
         const pane=document.querySelector('#cbTechnical');
         const r=pane.getBoundingClientRect();
-        const nav=document.querySelector('.cb-m-nav').getBoundingClientRect();
+        // the bottom controls: the Round-6 bar, or the classic five-slot navigation
+        const navEl=[...document.querySelectorAll('#cabdes .cb-mid > .ps-cmdbar, .cb-m-nav')].find(e=>e.getBoundingClientRect().height>0);
+        const nav=navEl.getBoundingClientRect();
         return {visible:r.height>0&&r.top<nav.top,moreOpen:document.querySelector('.cb-m-sheet').classList.contains('on'),
           previewVisible:!!document.querySelector('.cb-prev-wrap')?.getBoundingClientRect().height};
       });

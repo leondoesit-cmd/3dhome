@@ -14,7 +14,7 @@ import { addToolSearchEntries } from "./tool_search.js";
 import { openCabinetForSelection, isCabinetOpen } from "./ui_cabinet.js";
 import {
   editorSwitchHTML, wireEditorSwitch, proToast, registerShell, wireShell, syncShell, aiOn, wireVoice,
-  projectChipHTML, shellActionsHTML, commandBarHTML, aiStatusHTML, fitCommandBar,
+  projectChipHTML, shellActionsHTML, commandBarHTML, aiStatusHTML, fitCommandBar, activeEditor,
 } from "./pro_shell.js";
 import { S } from "./state.js";
 import { markDirty } from "./persist.js";
@@ -53,6 +53,13 @@ var MSG = {
   noAgent: ["The AI helper is not available.", "עוזר ה־AI אינו זמין."],
   aiOff: ["AI is off — type a tool's name, or turn AI back on with the AI switch.", "AI כבוי — הקלידו שם של כלי, או הפעילו AI במתג ה־AI."],
   every: ["Every command", "כל הפקודות"],
+  phUndo: ["Undo", "ביטול"],
+  phParts: ["Parts & library", "חלקים וספרייה"],
+  phMore: ["More", "עוד"],
+  phTools: ["All tools", "כל הכלים"],
+  phTree: ["Feature tree", "עץ התכונות"],
+  phDesign: ["Design", "עיצוב"],
+  phProps: ["Properties", "מאפיינים"],
   everyTip: ["Search every tool of all three editors (Ctrl+K)", "חיפוש בכל הכלים של שלושת העורכים (Ctrl+K)"],
 };
 function M(key) { return MSG[key][he() ? 1 : 0]; }
@@ -793,18 +800,140 @@ function placeDesk() {
   }
   placeSplit3D(on);
   placeEditorChrome(on);
+  placeCompact();
+}
+/* ---- the Round-6 phone and fold chrome (screens *-ptools, *-pinsp, *-cover,
+   *-fold7, *-wide) ----
+   Top: the project, undo, parts & library, More. Bottom: the tools grid, the
+   Ask / Cmd field and the mic — the planner's own command bar, which the
+   compact layouts used to hide. The five-slot navigation it replaces stays in
+   the page (its buttons are what the grid, parts and More press) but is not
+   shown; 2D · 3D · Split is on the strip, the inspector opens from the
+   selection card. mf.proSkin = "0" keeps the classic compact chrome too. */
+function compactOn() { return document.body.classList.contains("compact-nav") && store("mf.proSkin") !== "0"; }
+function pressNav(key) {
+  var b = document.querySelector('#mobile-nav [data-mnav="' + key + '"]');
+  if (b) b.click();
+}
+/* The model editor and the cabinet designer on a phone: the same frame. Their
+   own five-slot navigations stay (their buttons do the work) but hide; the
+   view pill takes a strip under the header, the header gets Tree / Design,
+   Properties and More, and the command bar gets the tools grid. */
+var COMPACT_EDITORS = [
+  { root: "#modeler", head: ".md-head", nav: "#md-nav", attr: "mdnav", bar: ".md-mid > .ps-cmdbar",
+    view: "#mdModes", grid: "cmd", icons: [["tree", "ph-tree-structure", "phTree"], ["props", "ph-sliders-horizontal", "phProps"], ["more", "ph-dots-three", "phMore"]] },
+  { root: "#cabdes", head: ".cb-head-main", nav: "#cabdes .cb-m-nav", attr: "cbnav", bar: ".cb-mid > .ps-cmdbar",
+    view: ".cb-vmodes", grid: "tools", icons: [["design", "ph-squares-four", "phDesign"], ["props", "ph-sliders-horizontal", "phProps"], ["more", "ph-dots-three", "phMore"]] },
+];
+function placeCompactEditors(on) {
+  COMPACT_EDITORS.forEach(function (ed) {
+    var root = document.querySelector(ed.root);
+    if (!root) return;
+    var head = root.querySelector(ed.head);
+    var press = function (key) {
+      var b = document.querySelector(ed.nav + " [data-" + ed.attr + '="' + key + '"]');
+      if (b) b.click();
+    };
+    var strip = root.querySelector(".ps-ed-strip"); // the header's sibling, wherever the header sits
+    if (on && head && !strip) {
+      strip = document.createElement("div");
+      strip.className = "ps-ed-strip";
+      head.after(strip);
+    }
+    var view = root.querySelector(ed.view);
+    // desktop wants the pill in the header (placeEditorChrome); a phone in the strip
+    if (on && strip && view) relocate(view, strip);
+    if (on && head && !head.querySelector(".ps-ed-icons")) {
+      var icons = document.createElement("span");
+      icons.className = "ps-ed-icons";
+      ed.icons.forEach(function (ic) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.dataset.phKey = ic[0];
+        b.innerHTML = '<i class="ph ' + ic[1] + '" aria-hidden="true"></i>';
+        b.addEventListener("click", function () { press(ic[0]); });
+        icons.appendChild(b);
+      });
+      head.appendChild(icons);
+    }
+    if (head) head.querySelectorAll(".ps-ed-icons [data-ph-key]").forEach(function (b) {
+      var ic = ed.icons.filter(function (x) { return x[0] === b.dataset.phKey; })[0];
+      if (ic && b.getAttribute("aria-label") !== M(ic[2])) { b.setAttribute("aria-label", M(ic[2])); b.title = M(ic[2]); }
+    });
+    var bar = root.querySelector(ed.bar);
+    if (on && bar && !bar.querySelector(".ps-grid")) {
+      var grid = document.createElement("button");
+      grid.type = "button";
+      grid.className = "ps-grid";
+      grid.innerHTML = '<i class="ph ph-squares-four" aria-hidden="true"></i>';
+      grid.setAttribute("aria-label", M("phTools"));
+      grid.title = M("phTools");
+      grid.addEventListener("click", function () { press(ed.grid); });
+      bar.insertBefore(grid, bar.firstChild);
+    }
+  });
+}
+function placeCompact() {
+  var on = compactOn();
+  if (document.body.classList.contains("pro-compact") !== on) document.body.classList.toggle("pro-compact", on);
+  // an editor over the planner owns the bottom bar
+  var over = activeEditor() !== "plan";
+  if (document.body.classList.contains("ps-editor-open") !== over) document.body.classList.toggle("ps-editor-open", over);
+  placeCompactEditors(on);
+  if (!on) return;
+  var top = document.getElementById("topbar");
+  if (top && !document.getElementById("psPhoneHead")) {
+    var head = document.createElement("div");
+    head.id = "psPhoneHead";
+    head.className = "ps-phone-head";
+    head.innerHTML =
+      '<span class="ps-ph-name"></span><span class="ps-ph-gap"></span>' +
+      '<button type="button" data-ph="undo"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i></button>' +
+      '<button type="button" data-ph="parts"><i class="ph ph-stack" aria-hidden="true"></i></button>' +
+      '<button type="button" data-ph="more"><i class="ph ph-dots-three" aria-hidden="true"></i></button>';
+    head.querySelector('[data-ph="undo"]').addEventListener("click", function () {
+      var u = document.querySelector('#topbar [data-act="undo"]');
+      if (u) u.click();
+    });
+    head.querySelector('[data-ph="parts"]').addEventListener("click", function () { pressNav("add"); });
+    head.querySelector('[data-ph="more"]').addEventListener("click", function () { pressNav("more"); });
+    top.appendChild(head);
+  }
+  var head2 = document.getElementById("psPhoneHead");
+  if (head2) {
+    var name = (S.workspace && S.workspace.name) || "Home project";
+    var nameEl = head2.querySelector(".ps-ph-name");
+    if (nameEl.textContent !== name) nameEl.textContent = name;
+    [["undo", M("phUndo")], ["parts", M("phParts")], ["more", M("phMore")]].forEach(function (p) {
+      var b = head2.querySelector('[data-ph="' + p[0] + '"]');
+      if (b.getAttribute("aria-label") !== p[1]) { b.setAttribute("aria-label", p[1]); b.title = p[1]; }
+    });
+  }
+  var bar = document.querySelector("#center-canvas > .ps-cmdbar");
+  if (bar && !bar.querySelector(".ps-grid")) {
+    var grid = document.createElement("button");
+    grid.type = "button";
+    grid.className = "ps-grid";
+    grid.innerHTML = '<i class="ph ph-squares-four" aria-hidden="true"></i>';
+    grid.addEventListener("click", function () { pressNav("tools"); });
+    bar.insertBefore(grid, bar.firstChild);
+  }
+  var g = bar && bar.querySelector(".ps-grid");
+  if (g && g.getAttribute("aria-label") !== M("phTools")) { g.setAttribute("aria-label", M("phTools")); g.title = M("phTools"); }
 }
 /* The editors' view switches go into their headers, the mockup's centre
    pill; the model editor's workflow strip (the next step) rides on the
    canvas instead of taking a row. Back where they were anywhere else. */
 function placeEditorChrome(on) {
   var md = document.getElementById("modeler");
+  // on a phone the view pill belongs to the compact strip (placeCompactEditors)
+  var phone = compactOn();
   if (md) {
-    relocate(md.querySelector("#mdModes"), on ? md.querySelector(".md-head") : null);
+    if (!phone) relocate(md.querySelector("#mdModes"), on ? md.querySelector(".md-head") : null);
     relocate(md.querySelector(".md-status-row"), on ? md.querySelector(".md-mid") : null);
   }
   var cb = document.getElementById("cabdes");
-  if (cb) relocate(cb.querySelector(".cb-vmodes"), on ? cb.querySelector(".cb-head-main") : null);
+  if (cb && !phone) relocate(cb.querySelector(".cb-vmodes"), on ? cb.querySelector(".cb-head-main") : null);
 }
 /* Split, as the mockup draws it: the plan keeps the whole canvas and the 3D
    view sits at the top of the right column, over the inspector — the same

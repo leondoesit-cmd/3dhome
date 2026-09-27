@@ -22,11 +22,17 @@ const opts = chrome ? {} : { skip: "no Chrome found (set CHROME_PATH)" };
    lives in localStorage and is read at boot, so switching it means one reload,
    not one browser. */
 let shared = null;
+// These tests are about the classic compact chrome — the five-slot navigation
+// and the sheets measured against it. The Round-6 phone chrome replaces it by
+// default (tests/pro_compact.browser.mjs covers that), so they ask for the
+// classic one with localStorage mf.proSkin = "0".
 async function freshCtx({ width = 375, height = 812, lang = "en" } = {}) {
   if (!chrome) return null;
   if (!shared) {
     shared = await openPage({ width, height, lang });
     shared.lang = lang;
+    await shared.eval(() => localStorage.setItem("mf.proSkin", "0"));
+    await shared.goto("/");
   } else {
     await shared.resize(width, height);
     if (shared.lang !== lang) {
