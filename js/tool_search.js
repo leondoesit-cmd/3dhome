@@ -315,6 +315,10 @@ export function initToolSearch() {
     // still clipped by that containing block, so host the expanded palette on
     // body and put it back in its exact toolbar slot when it closes.
     if (open && document.body.classList.contains("compact-nav") && root.parentNode !== document.body) {
+      // where it sits now, not where it sat at start-up: the desktop layout
+      // moves it (js/pro_ribbon.js placeDesk)
+      toolbarParent = root.parentNode;
+      toolbarNext = root.nextSibling;
       document.body.appendChild(root);
     }
     root.classList.toggle("open", open);

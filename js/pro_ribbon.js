@@ -6,7 +6,7 @@
  * control, action or command that already does the work, and runProBinding()
  * only reaches it — so the ribbon, the rail, the phone sheet, search and the
  * AI helper can never disagree about what a tool does. */
-import { PRO_CATALOG, parseBinding, proTools, proLabel } from "./pro_catalog.js";
+import { PRO_CATALOG, PRO_EDITORS, parseBinding, proTools, proLabel } from "./pro_catalog.js";
 import { getLang, onLangChange } from "./i18n.js";
 import { askAgent } from "./ui_agent.js";
 import { PRO_ACTIONS } from "./pro_actions.js";
@@ -57,6 +57,12 @@ var MSG = {
   phParts: ["Parts & library", "חלקים וספרייה"],
   phMore: ["More", "עוד"],
   phTools: ["All tools", "כל הכלים"],
+  everyOf: ["Every tool · {0}", "כל הכלים · {0}"],
+  everySub: ["The same list is the ribbon, this palette, the phone tool shelf and what the AI can run", "אותה רשימה היא הסרגל, החלון הזה, מדף הכלים בטלפון ומה שה־AI יכול להפעיל"],
+  everyPh: ["Type a tool, or ask the AI", "הקלידו כלי או שאלו את ה־AI"],
+  everyAsk: ["No tool by that name. Press Enter to ask the AI.", "אין כלי בשם הזה. Enter שולח את השאלה ל־AI."],
+  everyNone: ["No tool called “{0}”.", "אין כלי בשם „{0}”."],
+  close: ["Close", "סגירה"],
   phTree: ["Feature tree", "עץ התכונות"],
   phDesign: ["Design", "עיצוב"],
   phProps: ["Properties", "מאפיינים"],
@@ -331,6 +337,7 @@ function mountEditorRibbon(editor, root) {
   });
   // "Every command": the editor's own command search
   el.querySelector(".pr-every-ed").addEventListener("click", function () {
+    if (document.body.classList.contains("pro-skin")) { openEveryPanel(editor); return; }
     var own = editor === "model" ? root.querySelector("#mdCommandSearchBtn") : null;
     if (own) own.click();
     else { var q = root.querySelector("#cbSearch"); if (q) q.focus(); }
@@ -650,11 +657,149 @@ function isMac() {
 
 /* The top bar's tool search already covers all three editors' tools. */
 function openToolSearch() {
+  // the Round-6 layout's "Every command" is the whole-catalog panel
+  if (document.body.classList.contains("pro-skin")) { openEveryPanel(activeEditor()); return; }
   var input = document.getElementById("toolSearchInput");
   if (!input) return;
   input.focus();
   input.select();
 }
+
+/* "Every command" (screen v6-*-all): the whole catalog of one editor at once —
+   every tab a card, every group under its name, every tool with its key — and
+   a field that narrows it as you type. Enter runs the first match; with no
+   match and the AI on, the planner sends the text to the AI helper, as its bar
+   would. The Planner / Model / Cabinet pills show another editor's catalog
+   (its tools open that editor, as the command bar's do). Desktop only; phones
+   have the tools sheet. */
+var everyPanel = null;
+var EVERY_NAMES = { plan: "Planner", model: "Model", cab: "Cabinet" };
+function closeEveryPanel() {
+  if (everyPanel) everyPanel.remove();
+  everyPanel = null;
+}
+function openEveryPanel(editor) {
+  closeEveryPanel();
+  editor = PRO_CATALOG[editor] ? editor : "plan";
+  var el = document.createElement("div");
+  el.className = "pr-every-panel";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-modal", "true");
+  el.innerHTML =
+    '<div class="pe-sheet"><div class="pe-head"><span class="pe-mark"><i class="ph ph-command" aria-hidden="true"></i></span>' +
+    '<div class="pe-title"><b></b><span></span></div>' +
+    '<label class="pe-search"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input type="text" autocomplete="off" spellcheck="false"><kbd>Esc</kbd></label>' +
+    '<div class="pe-editors" role="tablist"></div>' +
+    '<button type="button" class="pe-x"><i class="ph ph-x" aria-hidden="true"></i></button></div>' +
+    '<div class="pe-body"></div></div>';
+  document.body.appendChild(el);
+  everyPanel = el;
+  var input = el.querySelector("input"), body = el.querySelector(".pe-body"), current = editor;
+  el.querySelector(".pe-x").setAttribute("aria-label", M("close"));
+  el.querySelector(".pe-x").addEventListener("click", closeEveryPanel);
+  el.addEventListener("keydown", function (e) {
+    e.stopPropagation(); // typing here must not reach the editors' shortcuts
+    if (e.key === "Escape") { e.preventDefault(); closeEveryPanel(); }
+  });
+  el.addEventListener("pointerdown", function (e) { if (e.target === el) closeEveryPanel(); });
+  var eds = el.querySelector(".pe-editors");
+  PRO_EDITORS.forEach(function (ed) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("role", "tab");
+    b.dataset.editor = ed;
+    b.textContent = L(EVERY_NAMES[ed]);
+    b.addEventListener("click", function () { current = ed; render(); input.focus(); });
+    eds.appendChild(b);
+  });
+  function run(tool) {
+    closeEveryPanel();
+    runProBinding(tool.bind, tool.label);
+    syncActive();
+  }
+  function render() {
+    var q = input.value.trim().toLowerCase(), first = null, count = 0;
+    eds.querySelectorAll("button").forEach(function (b) {
+      var on = b.dataset.editor === current;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    var all = proTools(current).filter(function (t) { return t.bind; });
+    el.querySelector(".pe-title b").textContent = M("everyOf").replace("{0}", L(PRO_CATALOG[current].name)) + " · " + all.length;
+    el.querySelector(".pe-title span").textContent = M("everySub");
+    input.placeholder = M("everyPh");
+    body.textContent = "";
+    PRO_CATALOG[current].tabs.forEach(function (tab) {
+      var card = document.createElement("section");
+      card.className = "pe-card";
+      var tabCount = 0;
+      var head = document.createElement("h4");
+      card.appendChild(head);
+      tab[1].forEach(function (group) {
+        var tools = group[1].filter(function (t) {
+          if (!t.bind) return false;
+          if (!q) return true;
+          return t.label.toLowerCase().indexOf(q) >= 0 || proLabel(t.label, "he").indexOf(q) >= 0 || group[0].toLowerCase().indexOf(q) >= 0;
+        });
+        if (!tools.length) return;
+        var g = document.createElement("div");
+        g.className = "pe-group";
+        var gh = document.createElement("h5");
+        gh.textContent = L(group[0]);
+        g.appendChild(gh);
+        var list = document.createElement("div");
+        list.className = "pe-tools";
+        tools.forEach(function (t) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.innerHTML = '<i class="ph ' + t.icon + '" aria-hidden="true"></i><span></span>' + (t.key ? "<kbd></kbd>" : "");
+          b.querySelector("span").textContent = L(t.label);
+          if (t.key) b.querySelector("kbd").textContent = t.key;
+          b.addEventListener("click", function () { run(t); });
+          list.appendChild(b);
+          if (!first) first = t;
+          tabCount++;
+        });
+        g.appendChild(list);
+        card.appendChild(g);
+      });
+      if (!tabCount) return;
+      head.innerHTML = "<b></b><span></span>";
+      head.querySelector("b").textContent = L(tab[0]);
+      head.querySelector("span").textContent = String(tabCount);
+      body.appendChild(card);
+      count += tabCount;
+    });
+    if (!count) {
+      var none = document.createElement("p");
+      none.className = "pe-none";
+      none.textContent = aiOn() && current === "plan" ? M("everyAsk") : M("everyNone").replace("{0}", input.value.trim());
+      body.appendChild(none);
+    }
+    el._first = first;
+  }
+  input.addEventListener("input", render);
+  input.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (el._first) run(el._first);
+    else if (input.value.trim() && aiOn() && current === "plan") {
+      var text = input.value.trim();
+      closeEveryPanel();
+      submitAsk(text);
+    }
+  });
+  render();
+  input.focus();
+}
+// Cmd K / Ctrl K opens it in the Round-6 layout, ahead of the older search's own shortcut
+window.addEventListener("keydown", function (e) {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || String(e.key).toLowerCase() !== "k") return;
+  if (!document.body.classList.contains("pro-skin")) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  if (everyPanel) closeEveryPanel(); else openEveryPanel(activeEditor());
+}, true);
 
 /* A tool of one editor by its exact name (English or Hebrew). */
 function editorToolNamed(editor, text) {
@@ -790,14 +935,10 @@ function relocate(node, target) {
 function placeDesk() {
   var on = proDesk();
   if (document.body.classList.contains("pro-skin") !== on) document.body.classList.toggle("pro-skin", on);
-  var bar = ribbon && ribbon.querySelector(".pr-bar");
-  relocate(document.getElementById("toolSearch"), on && bar ? bar : null);
+  // the old search field stays home: the ribbon's "Every command" pill opens the
+  // whole-catalog panel instead (openEveryPanel)
+  relocate(document.getElementById("toolSearch"), null);
   relocate(document.getElementById("planner-workflow"), on ? document.getElementById("center-canvas") : null);
-  var input = document.getElementById("toolSearchInput");
-  if (input) {
-    if (on && input.dataset.psPh == null) { input.dataset.psPh = input.placeholder; input.placeholder = M("every") + " · " + (isMac() ? "⌘K" : "Ctrl K"); }
-    else if (!on && input.dataset.psPh != null) { input.placeholder = input.dataset.psPh; delete input.dataset.psPh; }
-  }
   placeSplit3D(on);
   placeEditorChrome(on);
   placeCompact();

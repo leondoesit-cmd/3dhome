@@ -401,7 +401,10 @@ test("the Round-6 desktop layout: one header, the catalog ribbon in every editor
   assert.match(ribbon, /return !!\(DESK && DESK\.matches\) && !document\.body\.classList\.contains\("compact-nav"\) && store\("mf\.proSkin"\) !== "0";/);
   assert.match(ribbon, /var DESK = typeof matchMedia === "function" \? matchMedia\("\(min-width: 1024px\)"\) : null;/);
   // what moves keeps its node and goes home when the layout does
-  assert.match(ribbon, /relocate\(document\.getElementById\("toolSearch"\), on && bar \? bar : null\);/);
+  assert.match(ribbon, /relocate\(document\.getElementById\("toolSearch"\), null\);/);
+  // "Every command" is the whole-catalog panel, on the pill and on Cmd/Ctrl K
+  assert.match(ribbon, /if \(document\.body\.classList\.contains\("pro-skin"\)\) \{ openEveryPanel\(activeEditor\(\)\); return; \}/);
+  assert.match(ribbon, /if \(everyPanel\) closeEveryPanel\(\); else openEveryPanel\(activeEditor\(\)\);\s*\}, true\);/);
   assert.match(ribbon, /relocate\(document\.getElementById\("toolSearch"\), null\);\s*ribbon\.remove\(\);/);
   // Split: the 3D over the inspector, redrawn after the move
   assert.match(ribbon, /insp\.insertBefore\(v3, insp\.firstChild\);/);

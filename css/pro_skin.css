@@ -145,8 +145,16 @@ body.pro-skin .pr-tab {
 body.pro-skin .pr-tab:hover { color: var(--text-main); background: transparent; }
 body.pro-skin .pr-tab.on { border-bottom-color: var(--pro-ink); color: var(--text-main); font-weight: 700; background: transparent; box-shadow: none; }
 body.pro-skin .pr-count,
-body.pro-skin .pr-every,
 body.pro-skin .pr-collapse { display: none; }
+/* "Every command ⌘K": the pill that opens the whole-catalog panel */
+body.pro-skin .pro-ribbon .pr-every {
+  display: flex; margin-inline-start: auto; align-self: center; align-items: center; gap: 6px; height: 26px; padding: 0 10px;
+  border: 0; border-radius: 8px; background: var(--btn-bg); color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer;
+}
+body.pro-skin .pro-ribbon .pr-every kbd {
+  min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-color); border-bottom-width: 2px; border-radius: 5px; background: #fff; font: 11px var(--pro-mono); color: var(--text-muted);
+}
 body.pro-skin .pr-bar > #toolSearch { margin-inline-start: auto; align-self: center; width: 230px; flex: none; position: relative; }
 body.pro-skin .pr-bar > #toolSearch input {
   height: 26px; padding: 0 44px 0 30px; border-radius: 8px; border: 0; background: var(--btn-bg);
@@ -597,3 +605,41 @@ body.pro-compact #cabdes #cbClose i { display: none; }
 body.pro-compact #modeler { --ps-ed-strip: 44px; }
 body.pro-compact #modeler .md-mobile-status { top: calc(var(--md-head-block, 44px) + var(--ps-ed-strip) + var(--md-hint-h, 26px) + 4px); }
 body.pro-compact.m-sheet-open #modeler .md-tour-card { top: calc(var(--md-head-block, 44px) + var(--ps-ed-strip) + 8px); }
+
+/* ---- "Every command" (screen v6-*-all) ------------------------------------ */
+.pr-every-panel { position: fixed; inset: 0; z-index: 400; background: rgba(16, 21, 34, 0.28); display: flex; }
+.pr-every-panel .pe-sheet {
+  flex: 1; margin: 0; display: flex; flex-direction: column; min-height: 0;
+  background: #eef0f3; color: #101522; font-family: "Inter", "Rubik", system-ui, sans-serif;
+}
+.pr-every-panel .pe-head { display: flex; align-items: center; gap: 12px; padding: 12px 18px; background: #fff; border-bottom: 1px solid #e0e3e8; }
+.pr-every-panel .pe-mark { width: 32px; height: 32px; border-radius: 9px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; flex: none; }
+.pr-every-panel .pe-title { display: flex; flex-direction: column; min-width: 0; flex: 0 1 auto; }
+.pr-every-panel .pe-title b { font-size: 15px; white-space: nowrap; }
+.pr-every-panel .pe-title span { font-size: 11.5px; color: #596172; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 420px; }
+.pr-every-panel .pe-search {
+  flex: 1 1 360px; max-width: 520px; margin-inline-start: auto; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px;
+  border: 2px solid #4f46e5; border-radius: 11px; background: #fff; color: #596172;
+}
+.pr-every-panel .pe-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13.5px; color: #101522; }
+.pr-every-panel .pe-search kbd { padding: 1px 6px; border: 1px solid #e0e3e8; border-bottom-width: 2px; border-radius: 5px; font: 11px ui-monospace, Consolas, monospace; color: #596172; background: #fff; }
+.pr-every-panel .pe-editors { display: flex; padding: 3px; border-radius: 17px; background: #f4f5f7; box-shadow: inset 0 0 0 1px #e0e3e8; flex: none; }
+.pr-every-panel .pe-editors button { height: 28px; padding: 0 14px; border: 0; border-radius: 14px; background: transparent; color: #596172; font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.pr-every-panel .pe-editors button.on { background: #fff; color: #101522; font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
+.pr-every-panel .pe-x { width: 34px; height: 34px; border: 0; border-radius: 9px; background: transparent; color: #101522; font-size: 18px; cursor: pointer; flex: none; }
+.pr-every-panel .pe-x:hover { background: #f4f5f7; }
+.pr-every-panel .pe-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; align-items: start; align-content: start; }
+.pr-every-panel .pe-card { margin: 0; padding: 10px 12px 12px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px #e0e3e8; }
+.pr-every-panel .pe-card h4 { display: flex; align-items: baseline; gap: 6px; margin: 0 0 4px; font-size: 13.5px; }
+.pr-every-panel .pe-card h4 span { font: 11px ui-monospace, Consolas, monospace; color: #9aa1ad; }
+.pr-every-panel .pe-group h5 { margin: 8px 0 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #9aa1ad; }
+.pr-every-panel .pe-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 8px; }
+.pr-every-panel .pe-tools button {
+  display: flex; align-items: center; gap: 8px; min-width: 0; height: 28px; padding: 0 8px; border: 0; border-radius: 7px;
+  background: #f7f8fa; color: #101522; font: inherit; font-size: 12px; text-align: start; cursor: pointer;
+}
+.pr-every-panel .pe-tools button:hover { background: #eef0ff; color: #4f46e5; }
+.pr-every-panel .pe-tools button i { font-size: 15px; color: #596172; flex: none; }
+.pr-every-panel .pe-tools button span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pr-every-panel .pe-tools button kbd { font: 10px ui-monospace, Consolas, monospace; color: #9aa1ad; background: none; border: 0; }
+.pr-every-panel .pe-none { grid-column: 1 / -1; margin: 40px auto; text-align: center; color: #596172; font-size: 13px; }

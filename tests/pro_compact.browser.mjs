@@ -139,11 +139,25 @@ test("desktop: one header, the search in the tabs row, Split over the inspector,
     const head = await page.eval(() => ({
       skin: document.body.classList.contains("pro-skin"),
       switcher: !!document.querySelector("#topbar .pr-editors[data-ps-moved]"),
-      search: document.getElementById("toolSearch").parentElement.classList.contains("pr-bar"),
+      every: getComputedStyle(document.querySelector("#pro-ribbon .pr-every")).display !== "none",
       topbarHeight: document.getElementById("topbar").getBoundingClientRect().height,
       stripHidden: getComputedStyle(document.getElementById("plan-toolbar")).display === "none",
     }));
-    assert.deepEqual(head, { skin: true, switcher: true, search: true, topbarHeight: 44, stripHidden: true });
+    assert.deepEqual(head, { skin: true, switcher: true, every: true, topbarHeight: 44, stripHidden: true });
+    // Every command: the whole catalog, narrowed as you type, Escape closes
+    await page.eval(() => document.querySelector("#pro-ribbon .pr-every").click());
+    const every = await page.eval(() => {
+      const panel = document.querySelector(".pr-every-panel");
+      const cards = panel.querySelectorAll(".pe-card").length;
+      const input = panel.querySelector(".pe-search input");
+      input.value = "window"; input.dispatchEvent(new Event("input"));
+      const narrowed = [...panel.querySelectorAll(".pe-tools button span")].map((s) => s.textContent);
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      return { cards, narrowed, closed: !document.querySelector(".pr-every-panel") };
+    });
+    assert.ok(every.cards >= 8, "every tab is a card: " + every.cards);
+    assert.ok(every.narrowed.includes("Window") && every.narrowed.length < 10, JSON.stringify(every.narrowed));
+    assert.equal(every.closed, true);
     await page.eval(() => window.__setViewMode("split"));
     await page.waitUntil(() => document.getElementById("view-3d").parentElement.id === "right-inspector", { what: "the 3D over the inspector" });
     await page.eval(() => window.__setViewMode("3d"));
@@ -161,9 +175,9 @@ test("desktop: one header, the search in the tabs row, Split over the inspector,
     await page.eval(() => new Promise((r) => setTimeout(r, 1800)));
     const classic = await page.eval(() => ({
       skin: document.body.classList.contains("pro-skin"),
-      searchHome: !document.getElementById("toolSearch").closest(".pro-ribbon"),
+      searchShown: document.getElementById("toolSearch").getBoundingClientRect().width > 0,
     }));
-    assert.deepEqual(classic, { skin: false, searchHome: true });
+    assert.deepEqual(classic, { skin: false, searchShown: true });
     await page.eval(() => localStorage.removeItem("mf.proSkin"));
   } finally { await page.close(); }
 });
