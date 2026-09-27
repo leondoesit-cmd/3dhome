@@ -7,7 +7,8 @@ const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8"
 const i18n = await readI18nSource();
 const ui = await readFile(new URL("../js/ui.js", import.meta.url), "utf8");
 
-const THEMES = ["light", "soft", "mid", "dark", "chrome"];
+// "classic" shares the light block (the legacy light palette)
+const THEMES = ["light", "classic", "soft", "mid", "dark", "chrome"];
 const TOKENS = [
   "--bg-app",
   "--bg-panel",
@@ -90,11 +91,23 @@ test("chrome uses shared tokens instead of leftover per-theme colour overrides",
 });
 
 test("theme switching dispatches a change event and covers all palettes", () => {
-  assert.match(ui, /const themes = \["light", "soft", "mid", "dark", "chrome"\]/);
+  assert.match(ui, /const themes = \["light", "classic", "soft", "mid", "dark", "chrome"\]/);
   assert.match(ui, /function applyTheme\(theme, persist\)/);
   assert.match(ui, /new CustomEvent\("themechange"/);
   assert.match(ui, /t\("theme_" \+ theme\)/);
-  for (const key of ["theme_light", "theme_soft", "theme_mid", "theme_dark", "theme_chrome", "theme_click"]) {
+  for (const key of ["theme_light", "theme_classic", "theme_soft", "theme_mid", "theme_dark", "theme_chrome", "theme_click"]) {
     assert.equal((i18n.match(new RegExp(`${key}:`, "g")) || []).length, 2, `${key} in he and en`);
   }
+});
+
+test("the Round-6 layout wears every theme: its own colours are tokens, only light is the mockup palette", async () => {
+  const skin = await readFile(new URL("../css/pro_skin.css", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /\["light", "classic", "soft", "mid", "dark", "chrome"\]\.indexOf\(theme\)/);
+  assert.match(css, /\[data-theme="light"\],\r?\n\[data-theme="classic"\] \{/);
+  // outside the token blocks, no rule paints a literal white or ink
+  const rules = skin.slice(skin.indexOf("body.pro-skin { font-family:"));
+  assert.doesNotMatch(rules, /:[^;{}]*#(fff|ffffff|111827|101522)\b/);
+  assert.match(skin, /html\[data-theme="light"\] :is\(body\.pro-skin, body\.pro-compact\),/);
+  assert.match(skin, /--pro-ink: var\(--accent\);\s*--pro-on-ink: var\(--on-accent, #ffffff\);/);
 });

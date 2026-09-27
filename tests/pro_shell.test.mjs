@@ -433,3 +433,17 @@ test("UI Customize mode is switched off: nothing mounts, no entry offers it", ()
   // its tests are skipped with the reason, and run again once the flag is cleared
   assert.match(readFileSync(new URL("./helpers/customize_gate.mjs", import.meta.url), "utf8"), /CUSTOMIZE_DISABLED = true;/);
 });
+
+test("left-handed layout: a Touch setting, off by default, that mirrors only the tablet/fold columns", () => {
+  const mirror = src("side_mirror.js");
+  assert.match(mirror, /return localStorage\.getItem\(KEY\) === "1";/); // off unless chosen
+  assert.match(mirror, /var want = leftHanded\(\) && document\.body\.classList\.contains\("dock-rail"\);/);
+  const ui = src("touch_precision_ui.js");
+  assert.match(ui, /import \{ leftHanded, setLeftHanded \} from "\.\/side_mirror\.js";/);
+  assert.match(ui, /\[\{ left: false, key: "touch_side_right" \}, \{ left: true, key: "touch_side_left" \}\]/);
+  const skin = src("../css/pro_skin.css");
+  assert.match(skin, /body\.dock-rail\.side-mirror #workspace,\s*body\.dock-rail\.side-mirror #modeler \.md-body,\s*body\.dock-rail\.side-mirror #cabdes \.cb-body \{ flex-direction: row-reverse; \}/);
+  assert.match(skin, /body\.dock-rail\.side-mirror #modeler\.md-fold-open \.md-body \{ padding-inline: min\(420px, 44vw\) 0; \}/);
+  for (const f of ["en", "he"]) for (const k of ["touch_side_title", "touch_side_right", "touch_side_left", "touch_side_hint"])
+    assert.ok(src("i18n/" + f + ".js").includes(String.fromCharCode(10) + "  " + k + ": "), f + " " + k);
+});

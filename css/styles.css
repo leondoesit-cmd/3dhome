@@ -1,6 +1,8 @@
 :root,
-[data-theme="light"] {
-  /* LIGHT — daylight drafting. Crisp elevation, indigo tools, readable chrome. */
+[data-theme="light"],
+[data-theme="classic"] {
+  /* LIGHT (and "Classic light", which keeps exactly these in the Round-6
+     layout, where "light" is the mockup palette — css/pro_skin.css) — daylight drafting. Crisp elevation, indigo tools, readable chrome. */
   --bg-app: #edf0f5;
   --bg-panel: rgba(255, 255, 255, 0.94);
   --bg-topbar: rgba(255, 255, 255, 0.96);

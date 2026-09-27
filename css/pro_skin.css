@@ -11,9 +11,27 @@
    panels on #eef0f3, #e0e3e8 lines, #101522 / #596172 text, #4f46e5 accent,
    near-black for what is on. */
 
-/* ---- tokens (the light theme; the dark themes keep their own) ---------- */
-html[data-theme="light"] body.pro-skin,
-html:not([data-theme]) body.pro-skin {
+/* ---- tokens ----------------------------------------------------------------
+   The Round-6 layout wears whatever theme is chosen. Its own few tokens are
+   derived from the theme's: --pro-surface (panels, bars), --pro-raised (the
+   chosen pill of a segmented control), --pro-ink / --pro-on-ink (what is on:
+   the armed tool, Share, the logo mark), --pro-faint (quiet labels) and
+   --pro-ground-3d (behind the model). The light theme is the mockup's palette;
+   "Classic light", soft, mid, dark and chrome are the legacy design's own
+   colours (css/styles.css), untouched. */
+body.pro-skin, body.pro-compact {
+  --pro-surface: var(--bg-panel);
+  --pro-raised: var(--bg-panel);
+  --pro-ink: var(--accent);
+  --pro-on-ink: var(--on-accent, #ffffff);
+  --pro-faint: var(--text-muted);
+  --pro-ground-3d: var(--bg-canvas-3d);
+  --pro-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+}
+/* on a dark ground the chosen pill is the lighter one */
+html:is([data-theme="dark"], [data-theme="mid"], [data-theme="chrome"]) :is(body.pro-skin, body.pro-compact) { --pro-raised: var(--btn-bg-hover); }
+html[data-theme="light"] :is(body.pro-skin, body.pro-compact),
+html:not([data-theme]) :is(body.pro-skin, body.pro-compact) {
   --bg-app: #eef0f3;
   --bg-panel: #ffffff;
   --bg-topbar: #ffffff;
@@ -37,11 +55,13 @@ html:not([data-theme]) body.pro-skin {
   --app-glow-b: transparent;
   --hud-bg: rgba(255, 255, 255, 0.94);
   --hud-fg: #101522;
+  --pro-surface: #ffffff;
+  --pro-raised: #ffffff;
   --pro-ink: #111827;
+  --pro-on-ink: #ffffff;
   --pro-faint: #9aa1ad;
-  --pro-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  --pro-ground-3d: #f3f4f6;
 }
-body.pro-skin { --pro-ink: var(--text-main); --pro-faint: var(--text-muted); --pro-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; }
 body.pro-skin { font-family: "Inter", "Rubik", system-ui, sans-serif; background: var(--bg-app); }
 
 /* ---- header: the planner's top bar, flattened and re-ordered ------------ */
@@ -74,7 +94,7 @@ body:not(.pro-skin) #topbar [data-ps-moved] { display: none !important; }
 body.pro-skin #topbar .brand { gap: 0; font-size: 0; }
 body.pro-skin #topbar .brand i {
   width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-  font-size: 17px; background: var(--pro-ink); color: #fff; -webkit-text-fill-color: #fff;
+  font-size: 17px; background: var(--pro-ink); color: var(--pro-on-ink); -webkit-text-fill-color: var(--pro-on-ink);
 }
 body.pro-skin #topbar .brand > :not(i) { display: none; }
 body.pro-skin #topbar .ps-project-btn { font-size: 13.5px; font-weight: 700; color: var(--text-main); background: transparent; border: 0; }
@@ -86,7 +106,7 @@ body.pro-skin #topbar .pr-editors {
 body.pro-skin #topbar .pr-editors button {
   flex: 1 1 0; height: 28px; border-radius: 14px; font-size: 13px; font-weight: 500; color: var(--text-muted);
 }
-body.pro-skin #topbar .pr-editors button.on { background: #fff; color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
+body.pro-skin #topbar .pr-editors button.on { background: var(--pro-raised); color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
 body.pro-skin #topbar .pr-editors .pr-ed-short { display: none; }
 body.pro-skin #topbar .pr-editors .pr-ed-full { display: inline; }
 /* File · Edit · Export as quiet text menus */
@@ -103,7 +123,7 @@ body.pro-skin #topbar #viewModePill {
 }
 body.pro-skin #topbar #viewModePill > button { flex: 1 1 0; height: 24px; min-width: 0; padding: 0 6px; border: 0; border-radius: 12px; background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 500; box-shadow: none; }
 body.pro-skin #topbar #viewModePill > button.active,
-body.pro-skin #topbar #viewModePill > button.on { background: #fff; color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
+body.pro-skin #topbar #viewModePill > button.on { background: var(--pro-raised); color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
 body.pro-skin #topbar #viewModePill > button i { display: none; }
 body.pro-skin #topbar #viewModePill > button span { display: inline !important; }
 body.pro-skin #topbar #viewModePill #splitOrientationBtn { display: none; }
@@ -123,7 +143,7 @@ body.pro-skin #topbar #moreMenu > .dropdown-trigger:hover { background: var(--bt
 body.pro-skin #topbar [data-act="undo"] span,
 body.pro-skin #topbar [data-act="redo"] span,
 body.pro-skin #topbar #workspaceBtn span { display: none; }
-body.pro-skin #topbar .ps-share { height: 30px; padding: 0 12px; border-radius: 12px; border: 0; background: var(--pro-ink); color: #fff; font-size: 12.5px; font-weight: 600; }
+body.pro-skin #topbar .ps-share { height: 30px; padding: 0 12px; border-radius: 12px; border: 0; background: var(--pro-ink); color: var(--pro-on-ink); font-size: 12.5px; font-weight: 600; }
 body.pro-skin #topbar .ps-share:hover { filter: brightness(1.2); }
 body.pro-skin #topbar .ps-share i { display: none; }
 body.pro-skin .ps-more-item {
@@ -135,7 +155,7 @@ body.pro-skin .ps-more-item i { width: 16px; color: var(--text-muted); }
 body:not(.pro-skin) .ps-more-item { display: none; }
 
 /* ---- tabs row: underlined tabs, "Every command" at the end --------------- */
-body.pro-skin .pro-ribbon { background: #fff; border-bottom: 1px solid var(--border-color); backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.pro-skin .pro-ribbon { background: var(--pro-surface); border-bottom: 1px solid var(--border-color); backdrop-filter: none; -webkit-backdrop-filter: none; }
 body.pro-skin .pr-bar { height: 34px; align-items: flex-end; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--border-color); }
 body.pro-skin .pr-tabs { align-self: stretch; align-items: flex-end; gap: 2px; }
 body.pro-skin .pr-tab {
@@ -153,7 +173,7 @@ body.pro-skin .pro-ribbon .pr-every {
 }
 body.pro-skin .pro-ribbon .pr-every kbd {
   min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--border-color); border-bottom-width: 2px; border-radius: 5px; background: #fff; font: 11px var(--pro-mono); color: var(--text-muted);
+  border: 1px solid var(--border-color); border-bottom-width: 2px; border-radius: 5px; background: var(--pro-surface); font: 11px var(--pro-mono); color: var(--text-muted);
 }
 body.pro-skin .pr-bar > #toolSearch { margin-inline-start: auto; align-self: center; width: 230px; flex: none; position: relative; }
 body.pro-skin .pr-bar > #toolSearch input {
@@ -164,7 +184,7 @@ body.pro-skin .pr-bar > #toolSearch input::placeholder { color: var(--text-muted
 body.pro-skin .pr-bar > #toolSearch > i { font-size: 13px; color: var(--text-muted); }
 
 /* ---- tools row: 55×58 tools, the armed one in ink, group names under ----- */
-body.pro-skin .pr-groups { height: 80px; align-items: flex-end; padding: 2px 6px 0; gap: 0; background: #fff; }
+body.pro-skin .pr-groups { height: 80px; align-items: flex-end; padding: 2px 6px 0; gap: 0; background: var(--pro-surface); }
 body.pro-skin .pr-group { padding: 0 6px; border-inline-end: 1px solid var(--border-color); gap: 0; }
 body.pro-skin .pr-tool {
   width: 55px; height: 58px; gap: 4px; padding: 0 2px; border-radius: 9px; color: var(--text-main);
@@ -173,13 +193,13 @@ body.pro-skin .pr-tool i { font-size: 20px; }
 body.pro-skin .pr-tool span { font-size: 10.5px; font-weight: 500; line-height: 1.1; }
 body.pro-skin .pr-tool kbd { top: 3px; inset-inline-end: 4px; font-family: var(--pro-mono); font-size: 8.5px; color: var(--pro-faint); background: none; border: 0; }
 body.pro-skin .pr-tool:hover { background: var(--btn-bg); }
-body.pro-skin .pr-tool.on { background: var(--pro-ink); color: #fff; }
-body.pro-skin .pr-tool.on kbd { color: rgba(255, 255, 255, 0.7); }
+body.pro-skin .pr-tool.on { background: var(--pro-ink); color: var(--pro-on-ink); }
+body.pro-skin .pr-tool.on kbd { color: color-mix(in srgb, var(--pro-on-ink) 70%, transparent); }
 body.pro-skin .pr-glabel { height: 16px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--pro-faint); }
 
 /* ---- side panels ---------------------------------------------------------- */
-body.pro-skin #left-sidebar { width: 272px; min-width: 272px; background: #fff; border-inline-end: 1px solid var(--border-color); box-shadow: none; }
-body.pro-skin #right-inspector { width: 352px; min-width: 352px; background: #fff; border-inline-start: 1px solid var(--border-color); box-shadow: none; }
+body.pro-skin #left-sidebar { width: 272px; min-width: 272px; background: var(--pro-surface); border-inline-end: 1px solid var(--border-color); box-shadow: none; }
+body.pro-skin #right-inspector { width: 352px; min-width: 352px; background: var(--pro-surface); border-inline-start: 1px solid var(--border-color); box-shadow: none; }
 body.pro-skin #left-sidebar .left-tabs {
   display: flex; gap: 2px; margin: 10px 8px 8px; padding: 3px; border-radius: 9px; background: var(--btn-bg); border: 0; box-shadow: none;
 }
@@ -189,7 +209,7 @@ body.pro-skin #left-sidebar .left-tabs > button {
 }
 body.pro-skin #left-sidebar .left-tabs > button i { display: none; }
 body.pro-skin #left-sidebar .left-tabs > button span { font-size: 11px; text-transform: none; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.pro-skin #left-sidebar .left-tabs > button.active { background: #fff; color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
+body.pro-skin #left-sidebar .left-tabs > button.active { background: var(--pro-raised); color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
 body.pro-skin #left-sidebar .panel-section,
 body.pro-skin #right-inspector .panel-section { background: transparent; border-color: var(--border-color); box-shadow: none; }
 body.pro-skin #left-sidebar .lib-search,
@@ -203,7 +223,7 @@ body.pro-skin #plan-toolbar { display: none !important; } /* the ribbon carries 
 /* the plan's floor tabs read as the mockup's "PLAN · FLOOR 1" chip */
 body.pro-skin #floor-tabs {
   gap: 2px; padding: 0 3px; height: 22px; align-items: center; border-radius: 6px;
-  background: rgba(255, 255, 255, 0.94); box-shadow: 0 0 0 1px var(--border-color);
+  background: var(--hud-bg); box-shadow: 0 0 0 1px var(--border-color);
 }
 body.pro-skin #floor-tabs::before { content: "PLAN ·"; padding-inline: 5px 2px; font: 600 10.5px/1 var(--pro-mono); letter-spacing: 0.04em; color: var(--text-muted); }
 body.pro-skin #floor-tabs > button {
@@ -217,7 +237,7 @@ body.pro-skin #center-canvas > #planner-workflow {
   /* mid-height on the edge: the plan's own movable panels hold the corner */
   position: absolute; top: 50%; transform: translateY(-50%); inset-inline-end: 12px; z-index: 12; display: flex; flex-direction: column; gap: 2px;
   width: auto; height: auto; margin: 0; padding: 4px; border: 0; border-radius: 12px;
-  background: #fff; box-shadow: 0 4px 14px rgba(16, 21, 34, 0.1), 0 0 0 1px var(--border-color);
+  background: var(--pro-surface); box-shadow: 0 4px 14px rgba(16, 21, 34, 0.1), 0 0 0 1px var(--border-color);
 }
 body.pro-skin #center-canvas > #planner-workflow > button {
   width: 30px; height: 30px; min-width: 0; padding: 0; justify-content: center; gap: 0; border: 0; border-radius: 8px;
@@ -229,7 +249,7 @@ body.pro-skin #center-canvas > #planner-workflow > :not(button) { display: none;
 
 /* ---- status line ---------------------------------------------------------- */
 body.pro-skin #cad-status {
-  height: 26px; min-height: 26px; gap: 16px; padding: 0 12px; background: #fff; border-top: 1px solid var(--border-color);
+  height: 26px; min-height: 26px; gap: 16px; padding: 0 12px; background: var(--pro-surface); border-top: 1px solid var(--border-color);
   font: 11px/1 var(--pro-mono); color: var(--text-muted); box-shadow: none;
 }
 body.pro-skin #cad-status button { font: inherit; }
@@ -250,7 +270,7 @@ body.pro-skin.ps-split3d #right-inspector > #view-3d > :is(.lbl, .hint, #drawing
 body.pro-skin.ps-split3d #right-inspector > #view-3d::after {
   content: "3D"; position: absolute; top: 10px; inset-inline-start: 10px; z-index: 2; pointer-events: none;
   height: 22px; display: flex; align-items: center; padding: 0 8px; border-radius: 6px;
-  background: rgba(255, 255, 255, 0.94); box-shadow: 0 0 0 1px var(--border-color);
+  background: var(--hud-bg); box-shadow: 0 0 0 1px var(--border-color);
   font: 600 10.5px/1 var(--pro-mono); letter-spacing: 0.04em; color: var(--text-muted);
 }
 body.pro-skin.ps-split3d #view-resizer { display: none; }
@@ -258,7 +278,7 @@ body.pro-skin.ps-split3d #center-canvas > #view-2d { flex: 1 1 auto !important; 
 
 /* the left panel's actions: the mockup's ink primary and outlined secondaries */
 body.pro-skin #left-sidebar .btn-accent,
-body.pro-skin #left-sidebar .primary-action { background: var(--pro-ink); border-color: var(--pro-ink); color: #fff; border-radius: 9px; box-shadow: none; }
+body.pro-skin #left-sidebar .primary-action { background: var(--pro-ink); border-color: var(--pro-ink); color: var(--pro-on-ink); border-radius: 9px; box-shadow: none; }
 body.pro-skin #left-sidebar .panel-section button:not(.btn-accent):not(.primary-action):not(.active) { box-shadow: none; }
 body.pro-skin #right-inspector .next-step-card,
 body.pro-skin #right-inspector button { box-shadow: none; }
@@ -289,7 +309,7 @@ body.pro-skin #right-inspector .wi-tabs > button {
 }
 body.pro-skin #right-inspector .wi-tabs > button > i { display: none; }
 body.pro-skin #right-inspector .wi-tabs > button > span:not(.wi-tab-badge) { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.pro-skin #right-inspector .wi-tabs > button.active { background: #fff; color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
+body.pro-skin #right-inspector .wi-tabs > button.active { background: var(--pro-raised); color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
 body.pro-skin #right-inspector .con-block { padding: 8px 0 0; border: 0; background: transparent; box-shadow: none; }
 body.pro-skin #right-inspector .con-head { padding: 0 0 4px; gap: 6px; }
 body.pro-skin #right-inspector .con-head i { display: none; }
@@ -304,7 +324,7 @@ body.pro-skin #right-inspector .dim-row > label > span { color: var(--text-muted
 body.pro-skin #right-inspector input[type="text"],
 body.pro-skin #right-inspector input[type="number"],
 body.pro-skin #right-inspector select {
-  height: 28px; padding: 0 8px; border: 1px solid var(--border-color); border-radius: 7px; background: #fff;
+  height: 28px; padding: 0 8px; border: 1px solid var(--border-color); border-radius: 7px; background: var(--pro-surface);
   font: 600 12.5px/1 var(--pro-mono); color: var(--text-main); box-shadow: none;
 }
 body.pro-skin #right-inspector input:focus,
@@ -322,14 +342,14 @@ body.pro-skin .pr-editor-ribbon .pr-every-ed {
 }
 body.pro-skin .pr-editor-ribbon .pr-every-ed kbd {
   min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--border-color); border-bottom-width: 2px; border-radius: 5px; background: #fff; font: 11px var(--pro-mono); color: var(--text-muted);
+  border: 1px solid var(--border-color); border-bottom-width: 2px; border-radius: 5px; background: var(--pro-surface); font: 11px var(--pro-mono); color: var(--text-muted);
 }
 
 /* ---- headers: logo, project, switcher · view pill · AI, undo, redo ------- */
 body.pro-skin #modeler .md-head,
 body.pro-skin #cabdes .cb-head-main {
   display: flex; align-items: center; gap: 10px; height: 44px; min-height: 44px; padding: 0 12px; box-sizing: border-box;
-  background: #fff; border-bottom: 1px solid var(--border-color); box-shadow: none; flex-wrap: nowrap;
+  background: var(--pro-surface); border-bottom: 1px solid var(--border-color); box-shadow: none; flex-wrap: nowrap;
 }
 body.pro-skin #modeler .md-head .md-head-actions,
 body.pro-skin #modeler .md-head .ps-actions,
@@ -354,9 +374,9 @@ body.pro-skin #modeler .md-head-logo, body.pro-skin #cabdes .cb-logo { font-size
 body.pro-skin #modeler .md-head-logo > b { display: none; }
 body.pro-skin #modeler .md-head-logo > :first-child, body.pro-skin #cabdes .cb-logo > i:first-child {
   width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-  background: var(--pro-ink); color: #fff; font-size: 16px; flex: none;
+  background: var(--pro-ink); color: var(--pro-on-ink); font-size: 16px; flex: none;
 }
-body.pro-skin #modeler .md-head-logo > :first-child svg { width: 17px; height: 17px; color: #fff; stroke: #fff; }
+body.pro-skin #modeler .md-head-logo > :first-child svg { width: 17px; height: 17px; color: var(--pro-on-ink); stroke: var(--pro-on-ink); }
 /* switcher, the same pill as the planner's */
 body.pro-skin #modeler .md-head .pr-editors, body.pro-skin #cabdes .cb-head-main .pr-editors {
   width: 300px; height: 34px; box-sizing: border-box; padding: 3px; margin: 0; border-radius: 17px;
@@ -366,7 +386,7 @@ body.pro-skin #modeler .md-head .pr-editors button, body.pro-skin #cabdes .cb-he
   flex: 1 1 0; height: 28px; border-radius: 14px; font-size: 13px; font-weight: 500; color: var(--text-muted);
 }
 body.pro-skin #modeler .md-head .pr-editors button.on, body.pro-skin #cabdes .cb-head-main .pr-editors button.on {
-  background: #fff; color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16);
+  background: var(--pro-raised); color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16);
 }
 body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .pr-editors button:not([data-pro-editor="plan"]) .pr-ed-full { display: none; }
 body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .pr-editors button:not([data-pro-editor="plan"]) .pr-ed-short { display: inline; }
@@ -384,43 +404,43 @@ body.pro-skin #cabdes .cb-head-main > .cb-vmodes > button {
   color: var(--text-muted); font-size: 13px; font-weight: 500; justify-content: center;
 }
 body.pro-skin #modeler .md-head > #mdModes > button.on,
-body.pro-skin #cabdes .cb-head-main > .cb-vmodes > button.on { background: #fff; color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
+body.pro-skin #cabdes .cb-head-main > .cb-vmodes > button.on { background: var(--pro-raised); color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
 body.pro-skin #modeler .md-head > #mdModes > button :is(i, svg, .md-cad-icon),
 body.pro-skin #cabdes .cb-head-main > .cb-vmodes > button i { display: none; }
 /* AI chip, plain icon buttons, Share in ink */
 body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-ai { height: 30px; padding: 0 10px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-size: 12.5px; font-weight: 600; border: 0; }
-body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share { height: 30px; padding: 0 12px; border-radius: 12px; border: 0; background: var(--pro-ink); color: #fff; font-size: 12.5px; font-weight: 600; }
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share { height: 30px; padding: 0 12px; border-radius: 12px; border: 0; background: var(--pro-ink); color: var(--pro-on-ink); font-size: 12.5px; font-weight: 600; }
 body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share i { display: none; }
 body.pro-skin :is(#mdUndo, #mdRedo, #mdGuide, #cbUndo, #cbRedo) {
   width: 30px; height: 30px; min-width: 30px; padding: 0; justify-content: center; border: 0; border-radius: 9px; background: transparent; box-shadow: none; color: var(--text-main);
 }
 body.pro-skin :is(#mdUndo, #mdRedo, #mdGuide, #cbUndo, #cbRedo) span { display: none; }
 body.pro-skin :is(#mdSave, #cbRevert, #mdClose, #cbClose) { height: 30px; border-radius: 9px; box-shadow: none; font-size: 12.5px; }
-body.pro-skin :is(#mdSave, #cbClose) { background: var(--pro-ink); border-color: var(--pro-ink); color: #fff; }
+body.pro-skin :is(#mdSave, #cbClose) { background: var(--pro-ink); border-color: var(--pro-ink); color: var(--pro-on-ink); }
 
 /* ---- model editor body ---------------------------------------------------- */
 body.pro-skin #modeler { background: var(--bg-app); }
-body.pro-skin #modeler .md-panel { background: #fff; border-color: var(--border-color); border-radius: 0; box-shadow: none; }
+body.pro-skin #modeler .md-panel { background: var(--pro-surface); border-color: var(--border-color); border-radius: 0; box-shadow: none; }
 body.pro-skin #modeler .md-mid { border-radius: 0; border: 0; }
 /* the next-step strip as a slim pill over the model */
 body.pro-skin #modeler .md-mid > .md-status-row {
   position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 62; max-width: calc(100% - 320px);
   height: auto; min-height: 0; padding: 4px 6px 4px 10px; gap: 8px; border-radius: 12px; border: 0;
-  background: #fff; box-shadow: 0 4px 14px rgba(16, 21, 34, 0.1), 0 0 0 1px var(--border-color); font-size: 12px;
+  background: var(--pro-surface); box-shadow: 0 4px 14px rgba(16, 21, 34, 0.1), 0 0 0 1px var(--border-color); font-size: 12px;
 }
 /* the current step stays in the pill: it names where you are and is clickable */
 
 /* ---- cabinet designer body ------------------------------------------------ */
 body.pro-skin #cabdes { background: var(--bg-app); }
-body.pro-skin #cabdes .cb-head { background: #fff; box-shadow: none; border: 0; padding: 0; gap: 0; }
-body.pro-skin #cabdes .cb-context-bar { min-height: 0; padding: 6px 12px; background: #fff; border-bottom: 1px solid var(--border-color); box-shadow: none; }
-body.pro-skin #cabdes .cb-panel { background: #fff; border-color: var(--border-color); border-radius: 0; box-shadow: none; }
+body.pro-skin #cabdes .cb-head { background: var(--pro-surface); box-shadow: none; border: 0; padding: 0; gap: 0; }
+body.pro-skin #cabdes .cb-context-bar { min-height: 0; padding: 6px 12px; background: var(--pro-surface); border-bottom: 1px solid var(--border-color); box-shadow: none; }
+body.pro-skin #cabdes .cb-panel { background: var(--pro-surface); border-color: var(--border-color); border-radius: 0; box-shadow: none; }
 body.pro-skin #cabdes .cb-mid { border-radius: 0; border: 0; }
 body.pro-skin #cabdes .cb-body { gap: 0; padding: 0; }
 
 /* the model on the mockup's light ground (the canvas is transparent) */
 body.pro-skin #modeler.md-is3d .md-mid,
-body.pro-skin #modeler.md-split .md-3dhost { background: #f3f4f6; }
+body.pro-skin #modeler.md-split .md-3dhost { background: var(--pro-ground-3d); }
 /* panel tabs as the segmented text control the other panels use */
 body.pro-skin #modeler .md-strip {
   display: flex; gap: 2px; margin: 10px 8px 8px; padding: 3px; border-radius: 9px; background: var(--btn-bg); border: 0; box-shadow: none;
@@ -430,7 +450,7 @@ body.pro-skin #modeler .md-strip > button {
   background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 600; box-shadow: none;
 }
 body.pro-skin #modeler .md-strip > button :is(svg, i) { display: none; }
-body.pro-skin #modeler .md-strip > button.on { background: #fff; color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
+body.pro-skin #modeler .md-strip > button.on { background: var(--pro-raised); color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
 body.pro-skin #cabdes .cb-icons.cb-seg { margin: 0; }
 /* the tool rows scroll when narrow, without a bar across them */
 body.pro-skin .pr-groups { scrollbar-width: none; }
@@ -439,7 +459,7 @@ body.pro-skin .pr-groups::-webkit-scrollbar { display: none; }
 body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share span { display: inline !important; }
 body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share { width: auto; min-width: 0; }
 body.pro-skin #cabdes .cb-right .cb-icons.cb-seg button { background: transparent; border: 0; color: var(--text-muted); box-shadow: none; }
-body.pro-skin #cabdes .cb-right .cb-icons.cb-seg button.on { background: #fff; color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
+body.pro-skin #cabdes .cb-right .cb-icons.cb-seg button.on { background: var(--pro-raised); color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
 
 /* the parts tree: the code first, as the mockup lists W1 · Window 1 */
 .trCode { flex: none; min-width: 26px; font: 700 10.5px/1 ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; color: var(--text-muted); }
@@ -454,14 +474,6 @@ body.pro-skin #left-sidebar .trLk { filter: grayscale(1); opacity: 0.45; font-si
    the canvas, and at the bottom the tools grid, the Ask / Cmd field and the
    mic. js/pro_ribbon.js placeCompact() builds the two new pieces; the five-
    slot navigation stays in the page (its buttons do the work) but hides. */
-html[data-theme="light"] body.pro-compact,
-html:not([data-theme]) body.pro-compact {
-  --bg-app: #eef0f3; --bg-panel: #ffffff; --bg-topbar: #ffffff; --border-color: #e0e3e8; --separator: #e0e3e8;
-  --text-main: #101522; --text-muted: #596172; --accent: #4f46e5; --accent-soft: #eef0ff;
-  --btn-bg: #f4f5f7; --btn-bg-hover: #eceef2; --btn-border: #e0e3e8; --glass-blur: none;
-  --pro-ink: #111827; --pro-faint: #9aa1ad;
-}
-body.pro-compact { --pro-ink: var(--text-main); --pro-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; }
 body:not(.pro-compact) #psPhoneHead,
 body:not(.pro-compact) .ps-cmdbar > .ps-grid { display: none !important; }
 
@@ -478,7 +490,7 @@ body.pro-compact #psPhoneHead button {
 body.pro-compact #psPhoneHead button:active { background: var(--btn-bg); }
 
 /* the strip: the same pills as the desktop header */
-body.pro-compact #m-editor-strip { background: #fff; border-bottom: 1px solid var(--border-color); box-shadow: none; }
+body.pro-compact #m-editor-strip { background: var(--pro-surface); border-bottom: 1px solid var(--border-color); box-shadow: none; }
 
 /* bottom: the command bar takes the navigation's place */
 body.pro-compact #mobile-nav { display: none !important; }
@@ -486,15 +498,15 @@ body.pro-compact { --mobile-nav-block: calc(64px + env(safe-area-inset-bottom));
 body.pro-compact #center-canvas > .ps-cmdbar {
   display: flex !important; position: fixed; z-index: 120; left: 8px !important; right: 8px; bottom: calc(10px + env(safe-area-inset-bottom)) !important;
   width: auto !important; transform: none !important; height: 46px; padding: 4px; gap: 6px; border-radius: 16px;
-  background: #fff; border: 0; box-shadow: 0 8px 24px rgba(16, 21, 34, 0.14), 0 0 0 1px var(--border-color);
+  background: var(--pro-surface); border: 0; box-shadow: 0 8px 24px rgba(16, 21, 34, 0.14), 0 0 0 1px var(--border-color);
 }
 body.pro-compact .ps-cmdbar > .ps-modes { display: none; }
 body.pro-compact .ps-cmdbar > .ps-grid {
   flex: none; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; padding: 0;
-  border: 0; border-radius: 12px; background: var(--pro-ink); color: #fff; font-size: 18px;
+  border: 0; border-radius: 12px; background: var(--pro-ink); color: var(--pro-on-ink); font-size: 18px;
 }
 body.pro-compact .ps-cmdbar .ps-cmd-input { height: 38px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--btn-bg); font-size: 14px; }
-body.pro-compact .ps-cmdbar .ps-mic { flex: none; width: 38px; height: 38px; border-radius: 12px; background: var(--accent); color: #fff; }
+body.pro-compact .ps-cmdbar .ps-mic { flex: none; width: 38px; height: 38px; border-radius: 12px; background: var(--accent); color: var(--pro-on-ink); }
 body.pro-compact .ps-cmdbar .ps-suggest { bottom: calc(100% + 6px); }
 /* folds dock their panels either side: the bar sits under the plan */
 body.pro-compact.dock-rail #center-canvas > .ps-cmdbar { position: absolute; left: 10px !important; right: 10px; bottom: 10px !important; }
@@ -506,9 +518,9 @@ body.pro-compact.lava-on #center-canvas > .ps-cmdbar { display: none !important;
 /* sheets and drawers flat and white */
 body.pro-compact #m-sheet,
 body.pro-compact #left-sidebar,
-body.pro-compact #right-inspector { background: #fff; box-shadow: 0 -8px 28px rgba(16, 21, 34, 0.12); }
+body.pro-compact #right-inspector { background: var(--pro-surface); box-shadow: 0 -8px 28px rgba(16, 21, 34, 0.12); }
 
-body.pro-compact .m-editor-strip { background: #fff; }
+body.pro-compact .m-editor-strip { background: var(--pro-surface); }
 body.pro-compact .m-editor-strip :is(.pr-editors, .m-panes) {
   display: flex; gap: 0; height: 34px; box-sizing: border-box; padding: 3px; border-radius: 17px;
   background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color); border: 0;
@@ -518,7 +530,7 @@ body.pro-compact .m-editor-strip :is(.pr-editors, .m-panes) button {
   color: var(--text-muted); font-size: 13px; font-weight: 500;
 }
 body.pro-compact .m-editor-strip :is(.pr-editors, .m-panes) button:is(.on, .active, [aria-pressed="true"]) {
-  background: #fff; color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16);
+  background: var(--pro-raised); color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16);
 }
 
 /* the tools sheet: grey tiles, the armed one in ink, pill tabs; the bar at
@@ -527,39 +539,39 @@ body.pro-compact #m-sheet .m-grid-btn {
   border: 0; border-radius: 10px; background: var(--btn-bg); box-shadow: none; color: var(--text-main);
   font-size: 11px; font-weight: 500;
 }
-body.pro-compact #m-sheet .m-grid-btn.on { background: var(--pro-ink); color: #fff; }
+body.pro-compact #m-sheet .m-grid-btn.on { background: var(--pro-ink); color: var(--pro-on-ink); }
 body.pro-compact #m-sheet .m-grid-btn.danger { color: var(--danger, #dc2626); }
 body.pro-compact #m-sheet .m-sheet-head { font-size: 15px; font-weight: 700; }
 body.pro-compact #m-sheet .m-sheet-sec { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--pro-faint); }
 body.pro-compact #m-sheet .pro-sheet-ask { display: none; }
 body.pro-compact #m-sheet .pro-chip { border: 0; border-radius: 16px; background: var(--btn-bg); color: var(--text-main); box-shadow: none; font-weight: 600; }
-body.pro-compact #m-sheet .pro-chip.on { background: var(--pro-ink); color: #fff; }
+body.pro-compact #m-sheet .pro-chip.on { background: var(--pro-ink); color: var(--pro-on-ink); }
 
 /* the fold's status line: the desktop's slim monospace row, not a tile bar */
 body.pro-compact.dock-rail #cad-status {
-  height: 32px; min-height: 32px; gap: 6px; padding: 0 10px; background: #fff; border-top: 1px solid var(--border-color); box-shadow: none;
+  height: 32px; min-height: 32px; gap: 6px; padding: 0 10px; background: var(--pro-surface); border-top: 1px solid var(--border-color); box-shadow: none;
   font: 11px/1 var(--pro-mono); color: var(--text-muted);
 }
 body.pro-compact.dock-rail #cad-status button {
   height: 24px; min-height: 0; flex: 0 0 auto; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border-color);
-  background: #fff; box-shadow: none; font: 600 10.5px/1 var(--pro-mono); color: var(--text-muted);
+  background: var(--pro-surface); box-shadow: none; font: 600 10.5px/1 var(--pro-mono); color: var(--text-muted);
 }
 body.pro-compact.dock-rail #cad-status button:is(.on, .active, [aria-pressed="true"]) { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
 
 /* fold rails and their docked tool grids: the mockup's grey tiles, armed in ink */
 body.pro-compact .pro-rail-grid button,
 body.pro-compact .pro-rail-grid [data-pro-bind] { border: 0; border-radius: 10px; background: var(--btn-bg); box-shadow: none; color: var(--text-main); }
-body.pro-compact .pro-rail-grid [data-pro-bind].on { background: var(--pro-ink); color: #fff; }
-body.pro-compact .m-fold-rail { background: #fff; border-inline-end: 1px solid var(--border-color); box-shadow: none; }
+body.pro-compact .pro-rail-grid [data-pro-bind].on { background: var(--pro-ink); color: var(--pro-on-ink); }
+body.pro-compact .m-fold-rail { background: var(--pro-surface); border-inline-end: 1px solid var(--border-color); box-shadow: none; }
 body.pro-compact .m-fold-rail button { border: 0; border-radius: 10px; background: transparent; box-shadow: none; color: var(--text-muted); }
-body.pro-compact .m-fold-rail button:is(.on, .active, [aria-pressed="true"], [aria-selected="true"]) { background: var(--pro-ink); color: #fff; }
+body.pro-compact .m-fold-rail button:is(.on, .active, [aria-pressed="true"], [aria-selected="true"]) { background: var(--pro-ink); color: var(--pro-on-ink); }
 
 /* ---- the model editor and cabinet designer on a phone ------------------- */
 body:not(.pro-compact) :is(.ps-ed-strip, .ps-ed-icons),
 body:not(.pro-compact) .ps-cmdbar > .ps-grid { display: none !important; }
 body.pro-compact #md-nav,
 body.pro-compact #cabdes .cb-m-nav { display: none !important; }
-body.pro-compact :is(#modeler .md-head, #cabdes .cb-head-main) { background: #fff; border-bottom: 1px solid var(--border-color); box-shadow: none; }
+body.pro-compact :is(#modeler .md-head, #cabdes .cb-head-main) { background: var(--pro-surface); border-bottom: 1px solid var(--border-color); box-shadow: none; }
 body.pro-compact .ps-ed-icons { display: flex; align-items: center; gap: 0; margin-inline-start: auto; flex: none; }
 body.pro-compact .ps-ed-icons button {
   width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; padding: 0;
@@ -569,7 +581,7 @@ body.pro-compact :is(#mdRedo, #cbRedo) { display: none !important; }
 /* the view pill on its own strip, as the planner's */
 body.pro-compact .ps-ed-strip {
   display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: none; height: 44px; box-sizing: border-box;
-  padding: 0 8px; background: #fff; border-bottom: 1px solid var(--border-color);
+  padding: 0 8px; background: var(--pro-surface); border-bottom: 1px solid var(--border-color);
 }
 body.pro-compact .ps-ed-strip > :is(#mdModes, .cb-vmodes) {
   position: static; transform: none; display: flex !important; flex-direction: row; gap: 0; height: 34px; box-sizing: border-box; margin: 0;
@@ -579,24 +591,25 @@ body.pro-compact .ps-ed-strip > :is(#mdModes, .cb-vmodes) > button {
   display: flex; align-items: center; justify-content: center; height: 28px; min-width: 44px; padding: 0 10px; border: 0; border-radius: 14px;
   background: transparent; box-shadow: none; color: var(--text-muted); font-size: 13px; font-weight: 500;
 }
-body.pro-compact .ps-ed-strip > :is(#mdModes, .cb-vmodes) > button.on { background: #fff; color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
+body.pro-compact .ps-ed-strip > :is(#mdModes, .cb-vmodes) > button.on { background: var(--pro-raised); color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
 body.pro-compact .ps-ed-strip > :is(#mdModes, .cb-vmodes) > button :is(i, svg, .md-cad-icon) { display: none; }
 /* the bottom bar in each editor */
 body.pro-compact :is(#modeler .md-mid, #cabdes .cb-mid) > .ps-cmdbar {
   display: flex !important; position: fixed; z-index: 130; left: 8px !important; right: 8px; bottom: calc(10px + env(safe-area-inset-bottom)) !important;
   width: auto !important; transform: none !important; height: 46px; padding: 4px; gap: 6px; border-radius: 16px;
-  background: #fff; border: 0; box-shadow: 0 8px 24px rgba(16, 21, 34, 0.14), 0 0 0 1px var(--border-color);
+  background: var(--pro-surface); border: 0; box-shadow: 0 8px 24px rgba(16, 21, 34, 0.14), 0 0 0 1px var(--border-color);
 }
 body.pro-compact.dock-rail :is(#modeler .md-mid, #cabdes .cb-mid) > .ps-cmdbar { position: absolute; left: 10px !important; right: 10px; bottom: 10px !important; }
 
 body.pro-compact.ps-editor-open #center-canvas > .ps-cmdbar { display: none !important; }
 /* the overlays are solid white here; without the blur, "fixed" means the screen */
-body.pro-compact #modeler, body.pro-compact #cabdes { backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.pro-compact #modeler, body.pro-compact #cabdes { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg-app); }
+/* (their legacy ground is translucent, meant for the blur: without it the planner showed through) */
 
 body.pro-compact #modeler .md-head-logo > :not(.ps-project) { display: none; }
 body.pro-compact #modeler .md-head { gap: 4px; padding-inline: 4px 6px; }
 body.pro-compact .ps-ed-icons button { width: 34px; }
-body.pro-compact #modeler.md-is3d .md-mid, body.pro-compact #modeler .md-3dhost { background: #f3f4f6; }
+body.pro-compact #modeler.md-is3d .md-mid, body.pro-compact #modeler .md-3dhost { background: var(--pro-ground-3d); }
 body.pro-compact :is(#mdUndo, #mdClose, #cbUndo) { width: 34px !important; min-width: 34px !important; padding: 0 !important; border: 0; box-shadow: none; background: transparent; }
 body.pro-compact #cabdes .cb-head-main { gap: 3px; padding-inline: 5px; }
 body.pro-compact #cabdes #cbClose { padding: 0 10px; font-size: 13px; }
@@ -610,39 +623,39 @@ body.pro-compact.m-sheet-open #modeler .md-tour-card { top: calc(var(--md-head-b
 .pr-every-panel { position: fixed; inset: 0; z-index: 400; background: rgba(16, 21, 34, 0.28); display: flex; }
 .pr-every-panel .pe-sheet {
   flex: 1; margin: 0; display: flex; flex-direction: column; min-height: 0;
-  background: #eef0f3; color: #101522; font-family: "Inter", "Rubik", system-ui, sans-serif;
+  background: var(--bg-app); color: var(--text-main); font-family: "Inter", "Rubik", system-ui, sans-serif;
 }
-.pr-every-panel .pe-head { display: flex; align-items: center; gap: 12px; padding: 12px 18px; background: #fff; border-bottom: 1px solid #e0e3e8; }
-.pr-every-panel .pe-mark { width: 32px; height: 32px; border-radius: 9px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; flex: none; }
+.pr-every-panel .pe-head { display: flex; align-items: center; gap: 12px; padding: 12px 18px; background: var(--pro-surface); border-bottom: 1px solid var(--border-color); }
+.pr-every-panel .pe-mark { width: 32px; height: 32px; border-radius: 9px; background: var(--pro-ink); color: var(--pro-on-ink); display: flex; align-items: center; justify-content: center; font-size: 18px; flex: none; }
 .pr-every-panel .pe-title { display: flex; flex-direction: column; min-width: 0; flex: 0 1 auto; }
 .pr-every-panel .pe-title b { font-size: 15px; white-space: nowrap; }
-.pr-every-panel .pe-title span { font-size: 11.5px; color: #596172; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 420px; }
+.pr-every-panel .pe-title span { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 420px; }
 .pr-every-panel .pe-search {
   flex: 1 1 360px; max-width: 520px; margin-inline-start: auto; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px;
-  border: 2px solid #4f46e5; border-radius: 11px; background: #fff; color: #596172;
+  border: 2px solid var(--accent); border-radius: 11px; background: var(--pro-surface); color: var(--text-muted);
 }
-.pr-every-panel .pe-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13.5px; color: #101522; }
-.pr-every-panel .pe-search kbd { padding: 1px 6px; border: 1px solid #e0e3e8; border-bottom-width: 2px; border-radius: 5px; font: 11px ui-monospace, Consolas, monospace; color: #596172; background: #fff; }
-.pr-every-panel .pe-editors { display: flex; padding: 3px; border-radius: 17px; background: #f4f5f7; box-shadow: inset 0 0 0 1px #e0e3e8; flex: none; }
-.pr-every-panel .pe-editors button { height: 28px; padding: 0 14px; border: 0; border-radius: 14px; background: transparent; color: #596172; font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; }
-.pr-every-panel .pe-editors button.on { background: #fff; color: #101522; font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
-.pr-every-panel .pe-x { width: 34px; height: 34px; border: 0; border-radius: 9px; background: transparent; color: #101522; font-size: 18px; cursor: pointer; flex: none; }
-.pr-every-panel .pe-x:hover { background: #f4f5f7; }
+.pr-every-panel .pe-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13.5px; color: var(--text-main); }
+.pr-every-panel .pe-search kbd { padding: 1px 6px; border: 1px solid var(--border-color); border-bottom-width: 2px; border-radius: 5px; font: 11px ui-monospace, Consolas, monospace; color: var(--text-muted); background: var(--pro-surface); }
+.pr-every-panel .pe-editors { display: flex; padding: 3px; border-radius: 17px; background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color); flex: none; }
+.pr-every-panel .pe-editors button { height: 28px; padding: 0 14px; border: 0; border-radius: 14px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.pr-every-panel .pe-editors button.on { background: var(--pro-raised); color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
+.pr-every-panel .pe-x { width: 34px; height: 34px; border: 0; border-radius: 9px; background: transparent; color: var(--text-main); font-size: 18px; cursor: pointer; flex: none; }
+.pr-every-panel .pe-x:hover { background: var(--btn-bg); }
 .pr-every-panel .pe-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; align-items: start; align-content: start; }
-.pr-every-panel .pe-card { margin: 0; padding: 10px 12px 12px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px #e0e3e8; }
+.pr-every-panel .pe-card { margin: 0; padding: 10px 12px 12px; border-radius: 12px; background: var(--pro-surface); box-shadow: 0 0 0 1px var(--border-color); }
 .pr-every-panel .pe-card h4 { display: flex; align-items: baseline; gap: 6px; margin: 0 0 4px; font-size: 13.5px; }
-.pr-every-panel .pe-card h4 span { font: 11px ui-monospace, Consolas, monospace; color: #9aa1ad; }
-.pr-every-panel .pe-group h5 { margin: 8px 0 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #9aa1ad; }
+.pr-every-panel .pe-card h4 span { font: 11px ui-monospace, Consolas, monospace; color: var(--pro-faint); }
+.pr-every-panel .pe-group h5 { margin: 8px 0 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--pro-faint); }
 .pr-every-panel .pe-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 8px; }
 .pr-every-panel .pe-tools button {
   display: flex; align-items: center; gap: 8px; min-width: 0; height: 28px; padding: 0 8px; border: 0; border-radius: 7px;
-  background: #f7f8fa; color: #101522; font: inherit; font-size: 12px; text-align: start; cursor: pointer;
+  background: var(--btn-bg); color: var(--text-main); font: inherit; font-size: 12px; text-align: start; cursor: pointer;
 }
-.pr-every-panel .pe-tools button:hover { background: #eef0ff; color: #4f46e5; }
-.pr-every-panel .pe-tools button i { font-size: 15px; color: #596172; flex: none; }
+.pr-every-panel .pe-tools button:hover { background: var(--accent-soft); color: var(--accent); }
+.pr-every-panel .pe-tools button i { font-size: 15px; color: var(--text-muted); flex: none; }
 .pr-every-panel .pe-tools button span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pr-every-panel .pe-tools button kbd { font: 10px ui-monospace, Consolas, monospace; color: #9aa1ad; background: none; border: 0; }
-.pr-every-panel .pe-none { grid-column: 1 / -1; margin: 40px auto; text-align: center; color: #596172; font-size: 13px; }
+.pr-every-panel .pe-tools button kbd { font: 10px ui-monospace, Consolas, monospace; color: var(--pro-faint); background: none; border: 0; }
+.pr-every-panel .pe-none { grid-column: 1 / -1; margin: 40px auto; text-align: center; color: var(--text-muted); font-size: 13px; }
 
 /* the same inspector on phones and folds (screen v6-*-pinsp) */
 body.pro-compact #right-inspector .wi-head { padding: 2px 0 0; }
@@ -668,7 +681,7 @@ body.pro-compact #right-inspector .wi-tabs > button {
 }
 body.pro-compact #right-inspector .wi-tabs > button > i { display: none; }
 body.pro-compact #right-inspector .wi-tabs > button > span:not(.wi-tab-badge) { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.pro-compact #right-inspector .wi-tabs > button.active { background: #fff; color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
+body.pro-compact #right-inspector .wi-tabs > button.active { background: var(--pro-raised); color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
 body.pro-compact #right-inspector .con-block { padding: 8px 0 0; border: 0; background: transparent; box-shadow: none; }
 body.pro-compact #right-inspector .con-head { padding: 0 0 4px; gap: 6px; }
 body.pro-compact #right-inspector .con-head i { display: none; }
@@ -683,8 +696,22 @@ body.pro-compact #right-inspector .dim-row > label > span { color: var(--text-mu
 body.pro-compact #right-inspector input[type="text"],
 body.pro-compact #right-inspector input[type="number"],
 body.pro-compact #right-inspector select {
-  height: 28px; padding: 0 8px; border: 1px solid var(--border-color); border-radius: 7px; background: #fff;
+  height: 28px; padding: 0 8px; border: 1px solid var(--border-color); border-radius: 7px; background: var(--pro-surface);
   font: 600 12.5px/1 var(--pro-mono); color: var(--text-main); box-shadow: none;
 }
 body.pro-compact #right-inspector input:focus,
 body.pro-compact #right-inspector select:focus { border: 2px solid var(--accent); outline: 0; padding: 0 7px; }
+
+/* ---- left-handed layout on tablets and foldables (js/side_mirror.js) ----- */
+body.dock-rail.side-mirror #workspace,
+body.dock-rail.side-mirror #modeler .md-body,
+body.dock-rail.side-mirror #cabdes .cb-body { flex-direction: row-reverse; }
+/* the rails' divider faces the drawing, whichever side they are on */
+body.dock-rail.side-mirror .m-fold-rail { border-inline-end: 0; border-inline-start: 1px solid var(--border-color); }
+/* the model editor's properties sheet was pinned to the right edge on folds */
+body.compact-nav.dock-rail.side-mirror #modeler #md-sheet { inset-inline: 0 auto; }
+/* ...and the room it keeps for that sheet moves with it */
+body.dock-rail.side-mirror #modeler.md-fold-open .md-body { padding-inline: min(420px, 44vw) 0; }
+/* the cabinet's bottom sheet parks just below the screen; with the navigation
+   gone a sliver of it showed — parked is hidden */
+body.pro-compact #cabdes .cb-m-sheet:not(.on) { visibility: hidden; }

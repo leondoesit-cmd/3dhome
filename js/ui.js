@@ -2926,7 +2926,8 @@ export function initUI() {
     });
   }
 
-  const themes = ["light", "soft", "mid", "dark", "chrome"];
+  // "classic" is the legacy light palette; "light" wears the Round-6 one in that layout
+  const themes = ["light", "classic", "soft", "mid", "dark", "chrome"];
   /* The inline bootstrap in index.html has already resolved and applied the
      starting theme, and with nothing stored that answer comes from the
      browser's prefers-color-scheme. Re-deriving it from localStorage alone
@@ -2941,7 +2942,7 @@ export function initUI() {
     if (!btn) return;
     const icon = btn.querySelector("i");
     if (icon) {
-      icon.className = theme === "chrome" ? "ph ph-google-chrome-logo" : (theme === "dark" ? "ph ph-moon" : (theme === "mid" ? "ph ph-cloud-sun" : (theme === "soft" ? "ph ph-cloud" : "ph ph-sun")));
+      icon.className = theme === "chrome" ? "ph ph-google-chrome-logo" : (theme === "dark" ? "ph ph-moon" : (theme === "mid" ? "ph ph-cloud-sun" : (theme === "soft" ? "ph ph-cloud" : (theme === "classic" ? "ph ph-sun-dim" : "ph ph-sun"))));
     }
     var label = t("theme_" + theme) + " · " + t("theme_click");
     btn.title = label;

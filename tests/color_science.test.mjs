@@ -161,7 +161,7 @@ test("CSS theme system tokens meet WCAG 2.1 AA contrast requirements across all 
 
   function extractThemeTokens(themeName) {
     const pattern = themeName === "light"
-      ? /(?::root,\s*\[data-theme="light"\]\s*\{)([\s\S]*?)(?=\n\})/
+      ? /(?::root,\s*\[data-theme="light"\],?\s*(?:\[data-theme="classic"\]\s*)?\{)([\s\S]*?)(?=\n\})/ // "Classic light" shares the block
       : new RegExp(`\\[data-theme="${themeName}"\\]\\s*\\{([\\s\\S]*?)(?=\\n\\})`);
     const match = cssContent.match(pattern);
     assert.ok(match, `Found CSS block for theme "${themeName}"`);

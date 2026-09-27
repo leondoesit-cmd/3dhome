@@ -181,3 +181,25 @@ test("desktop: one header, the search in the tabs row, Split over the inspector,
     await page.eval(() => localStorage.removeItem("mf.proSkin"));
   } finally { await page.close(); }
 });
+
+test("fold, left-handed: the rail goes right and the tools and inspector left; right-handed is the default", opts, async () => {
+  const page = await openPage({ width: 832, height: 750, lang: "en", mobile: false, touch: true });
+  try {
+    await ready(page);
+    await page.waitUntil(() => document.body.classList.contains("dock-rail"), { what: "the fold posture" });
+    const place = () => page.eval(() => ({
+      mirror: document.body.classList.contains("side-mirror"),
+      rail: document.querySelector("#workspace > .m-fold-rail").getBoundingClientRect().left,
+      canvas: document.getElementById("center-canvas").getBoundingClientRect().left,
+    }));
+    const before = await place();
+    assert.equal(before.mirror, false, "right-handed unless chosen");
+    assert.ok(before.rail < before.canvas, "rail on the left by default");
+    await page.eval(async () => (await import("/js/side_mirror.js")).setLeftHanded(true));
+    const after = await place();
+    assert.equal(after.mirror, true);
+    assert.ok(after.rail > after.canvas, "rail on the right, mirrored: " + JSON.stringify(after));
+    await page.eval(async () => (await import("/js/side_mirror.js")).setLeftHanded(false));
+    assert.equal((await place()).mirror, false);
+  } finally { await page.close(); }
+});

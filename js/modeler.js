@@ -11490,7 +11490,7 @@ function drawSketch() {
   syncContextActions();
   if (!E.cw || !E.ch) sizeSketch();
   var c = E.cx, W = E.cw, H = E.ch;
-  var isDark = E.mode === "3d" || (typeof document !== "undefined" && !["light", "soft"].includes(document.documentElement.getAttribute("data-theme")));
+  var isDark = E.mode === "3d" || (typeof document !== "undefined" && !["light", "classic", "soft"].includes(document.documentElement.getAttribute("data-theme")));
   c.clearRect(0, 0, W, H);
   /* Drawing mode is a drafting table, not the sketch canvas with a border
      drawn round it: modeler_drawing.js owns the paper, the projected views and

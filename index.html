@@ -27,7 +27,7 @@
              from a dark Chrome the old default flash-banged the user and made
              every screenshot disagree with the rest of their system. */
           var theme = localStorage.getItem("home3d_theme");
-          if (["light", "soft", "mid", "dark", "chrome"].indexOf(theme) < 0) {
+          if (["light", "classic", "soft", "mid", "dark", "chrome"].indexOf(theme) < 0) {
             var prefersDark = false;
             try {
               prefersDark = !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);

@@ -10,7 +10,7 @@ export function isDarkSketchCanvas(options = {}) {
     if (modeler && modeler.classList.contains("md-is3d")) return true;
     const theme = document.documentElement?.getAttribute("data-theme") || document.body?.getAttribute("data-theme");
     if (theme === "dark" || theme === "mid" || theme === "chrome") return true;
-    if (theme === "light" || theme === "soft") return false;
+    if (theme === "light" || theme === "classic" || theme === "soft") return false;
     if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) return true;
   }
   return false;

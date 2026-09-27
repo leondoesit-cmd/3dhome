@@ -767,7 +767,7 @@ body.pro-ribbon-on #center-canvas.max-view-3d #view-3d > .hint { bottom: var(--p
 /* Part codes on the plan (js/part_code_labels.js): small tags, walls in the
    structure colour, openings and furniture in their own, the selection in
    the accent. Never in the way of a click. */
-.part-code-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; overflow: visible; }
+.part-code-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; overflow: hidden; } /* never over the panels beside the plan */
 .pc-tag rect { fill: var(--bg-panel); stroke: var(--border-color); stroke-width: 1; opacity: 0.94; }
 .pc-tag text { font: 600 10.5px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; fill: var(--text-main); }
 .pc-wall rect { stroke: var(--text-muted); }

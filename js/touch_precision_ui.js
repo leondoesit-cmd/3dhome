@@ -1,5 +1,6 @@
 import { t } from "./i18n.js";
 import { formatTouchDistance } from "./touch_precision.js";
+import { leftHanded, setLeftHanded } from "./side_mirror.js";
 
 var PREFS_KEY = "home3d_touch_precision";
 var MODES = ["lens", "rough", "portal"];
@@ -125,6 +126,26 @@ export function buildTouchPrecisionSettings() {
   var note = node("div", "touch-settings-note");
   note.innerHTML = '<i class="ph ph-info"></i><span>' + t("touch_precision_note") + "</span>";
   root.appendChild(note);
+  // Tablets and foldables: which side the panels sit on (js/side_mirror.js)
+  var side = node("div", "touch-tuning touch-side-tuning");
+  side.appendChild(node("strong", null, t("touch_side_title")));
+  var sides = node("div", "touch-segments touch-side-segments");
+  [{ left: false, key: "touch_side_right" }, { left: true, key: "touch_side_left" }].forEach(function (opt) {
+    var button = node("button", leftHanded() === opt.left ? "active" : "", t(opt.key));
+    button.type = "button";
+    button.setAttribute("aria-pressed", leftHanded() === opt.left ? "true" : "false");
+    button.onclick = function () {
+      setLeftHanded(opt.left);
+      sides.querySelectorAll("button").forEach(function (item) {
+        item.classList.toggle("active", item === button);
+        item.setAttribute("aria-pressed", item === button ? "true" : "false");
+      });
+    };
+    sides.appendChild(button);
+  });
+  side.appendChild(sides);
+  side.appendChild(node("small", null, t("touch_side_hint")));
+  root.appendChild(side);
   return root;
 }
 
