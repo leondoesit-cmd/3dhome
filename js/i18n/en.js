@@ -879,6 +879,7 @@ export default {
   photo_t: "Photorealistic render (Path Tracing)",
   frame: "Center view",
   m_fit: "Fit",
+  pro_apply: "Apply",
   m_nav_look: "Look",
   m_nav_person: "Person",
   m_nav_roof: "Roof",

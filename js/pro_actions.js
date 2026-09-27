@@ -39,7 +39,7 @@ function commitCabinetItems(items) {
 function proForm(id, title, fields, apply) {
   document.getElementById(id)?.remove();
   const dialog = document.createElement("dialog"); dialog.id = id;
-  dialog.style.cssText = "max-width:min(34rem,90vw);max-height:80vh;overflow:auto;border-radius:12px;padding:1.2rem";
+  dialog.className = "pro-dialog";
   const form = document.createElement("form"); form.method = "dialog";
   const heading = document.createElement("h2"); heading.textContent = title; form.appendChild(heading);
   const controls = {};
@@ -51,8 +51,8 @@ function proForm(id, title, fields, apply) {
     input.value = String(field.value ?? ""); row.appendChild(input); form.appendChild(row); controls[field.key] = input;
   }
   const status = document.createElement("p"); status.setAttribute("role", "status"); form.appendChild(status);
-  const submit = document.createElement("button"); submit.type = "submit"; submit.textContent = "Apply"; form.appendChild(submit);
-  const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = "Cancel"; cancel.onclick = () => dialog.close(); form.appendChild(cancel);
+  const submit = document.createElement("button"); submit.type = "submit"; submit.textContent = t("pro_apply"); form.appendChild(submit);
+  const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = t("cancel"); cancel.onclick = () => dialog.close(); form.appendChild(cancel);
   form.onsubmit = event => { event.preventDefault(); try { const error = apply(Object.fromEntries(Object.entries(controls).map(([key, input]) => [key, input.value]))); if (error) { status.textContent = error; return; } dialog.close(); } catch (error) { status.textContent = error.message; } };
   dialog.appendChild(form); dialog.addEventListener("close", () => dialog.remove(), { once: true }); document.body.appendChild(dialog); dialog.showModal();
 }
@@ -169,7 +169,7 @@ async function openCabSend() {
 function openAnnotation(kind) {
   document.getElementById("proAnnotation")?.remove();
   const dialog = document.createElement("dialog"); dialog.id = "proAnnotation";
-  dialog.style.cssText = "max-width:min(34rem,90vw);max-height:80vh;overflow:auto;border-radius:12px;padding:1.2rem";
+  dialog.className = "pro-dialog";
   const heading = document.createElement("h2"); heading.textContent = ({ dimension: "Free dimension", note: "Plan note", symbol: "Annotation symbol", section: "Building section" })[kind]; dialog.appendChild(heading);
   const help = document.createElement("p"); help.textContent = kind === "dimension" || kind === "section" ? "Pick the start and end points on the plan." : "Pick a position on the plan."; dialog.appendChild(help);
   const textInput = document.createElement("input"); textInput.placeholder = kind === "section" ? "Section label (A)" : "Text"; textInput.value = kind === "section" ? "A" : "";
@@ -205,7 +205,7 @@ function openAnnotation(kind) {
     const del = document.createElement("button"); del.type = "button"; del.textContent = "Delete"; del.onclick = () => { pushHistory(); S.annotations = S.annotations.filter(a => a.id !== annotation.id); render2D(); row.remove(); }; row.appendChild(del);
     dialog.appendChild(row);
   }
-  const close = document.createElement("button"); close.type = "button"; close.textContent = "Close"; close.onclick = () => dialog.close(); dialog.appendChild(close);
+  const close = document.createElement("button"); close.type = "button"; close.textContent = t("close"); close.onclick = () => dialog.close(); dialog.appendChild(close);
   dialog.addEventListener("close", () => dialog.remove(), { once: true }); document.body.appendChild(dialog); dialog.showModal();
 }
 
@@ -215,14 +215,14 @@ function openStack() {
   const hosts = S.items.filter(host => host !== item && !stackWouldCycle(item, host));
   if (!hosts.length) { reportDialog("Stack", ["No suitable host piece is available."]); return; }
   document.getElementById("proStack")?.remove();
-  const dialog = document.createElement("dialog"); dialog.id = "proStack";
+  const dialog = document.createElement("dialog"); dialog.id = "proStack"; dialog.className = "pro-dialog";
   const form = document.createElement("form"); form.method = "dialog";
   const heading = document.createElement("h2"); heading.textContent = "Place on top of"; form.appendChild(heading);
   const select = document.createElement("select");
   hosts.forEach((host, index) => { const option = document.createElement("option"); option.value = String(index); option.textContent = `${host.type} · ${host.id}`; select.appendChild(option); });
   form.appendChild(select);
   const apply = document.createElement("button"); apply.type = "submit"; apply.textContent = "Stack"; form.appendChild(apply);
-  const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = "Cancel"; cancel.onclick = () => dialog.close(); form.appendChild(cancel);
+  const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = t("cancel"); cancel.onclick = () => dialog.close(); form.appendChild(cancel);
   form.onsubmit = event => {
     event.preventDefault();
     const host = hosts[Number(select.value)];
@@ -236,7 +236,7 @@ function openStack() {
 function openRoof() {
   document.getElementById("proRoof")?.remove();
   const dialog = document.createElement("dialog"); dialog.id = "proRoof";
-  dialog.style.cssText = "max-width:min(30rem,90vw);border-radius:12px;padding:1.2rem";
+  dialog.className = "pro-dialog";
   const form = document.createElement("form"); form.method = "dialog";
   const heading = document.createElement("h2"); heading.textContent = "Roof from exterior walls"; form.appendChild(heading);
   const values = {};
@@ -249,7 +249,7 @@ function openRoof() {
   }
   const apply = document.createElement("button"); apply.type = "submit"; apply.textContent = "Generate roof"; form.appendChild(apply);
   if (S.roof) { const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "Remove roof"; remove.onclick = () => { pushHistory(); S.roof = null; S.dirty3D = true; render2D(); dialog.close(); }; form.appendChild(remove); }
-  const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = "Cancel"; cancel.onclick = () => dialog.close(); form.appendChild(cancel);
+  const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = t("cancel"); cancel.onclick = () => dialog.close(); form.appendChild(cancel);
   form.onsubmit = event => {
     event.preventDefault();
     const base = Math.max(270, ...S.walls.map(w => Number(w.h) || 270));
@@ -266,7 +266,7 @@ function openStairs() {
   document.getElementById("proStairs")?.remove();
   const dialog = document.createElement("dialog");
   dialog.id = "proStairs";
-  dialog.style.cssText = "max-width:min(30rem,90vw);border-radius:12px;padding:1.2rem";
+  dialog.className = "pro-dialog";
   const form = document.createElement("form"); form.method = "dialog";
   const title = document.createElement("h2"); title.textContent = "Parametric stairs"; form.appendChild(title);
   const inputs = {};
@@ -283,7 +283,7 @@ function openStairs() {
   }
   const hint = document.createElement("p"); hint.textContent = `The flight rises to ${above.name} and cuts its slab automatically. Choose a location on the plan after pressing Place.`; form.appendChild(hint);
   const place = document.createElement("button"); place.type = "submit"; place.textContent = "Place"; form.appendChild(place);
-  const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = "Cancel"; cancel.onclick = () => dialog.close(); form.appendChild(cancel);
+  const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = t("cancel"); cancel.onclick = () => dialog.close(); form.appendChild(cancel);
   form.onsubmit = async event => {
     event.preventDefault();
     const width = Number(inputs.width.value), depth = Number(inputs.depth.value), steps = Number(inputs.steps.value);
@@ -313,7 +313,7 @@ function reportDialog(title, lines) {
   document.getElementById("proReport")?.remove();
   const dialog = document.createElement("dialog");
   dialog.id = "proReport";
-  dialog.style.cssText = "max-width:min(36rem,90vw);max-height:80vh;overflow:auto;border:1px solid #889;border-radius:12px;padding:1.25rem;box-shadow:0 12px 40px #0005";
+  dialog.className = "pro-dialog";
   const heading = document.createElement("h2");
   heading.textContent = title;
   dialog.appendChild(heading);
@@ -326,7 +326,7 @@ function reportDialog(title, lines) {
   dialog.appendChild(list);
   const close = document.createElement("button");
   close.type = "button";
-  close.textContent = "Close";
+  close.textContent = t("close");
   close.onclick = () => dialog.close();
   dialog.appendChild(close);
   dialog.addEventListener("close", () => dialog.remove(), { once: true });

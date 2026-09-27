@@ -1530,6 +1530,7 @@ export default {
   photo_t: "רינדור פוטו-ריאליסטי (Path Tracing)",
   frame: "מרכז תצוגה",
   m_fit: "התאמה",
+  pro_apply: "החל",
   m_nav_look: "מבט",
   m_nav_person: "גוף",
   m_nav_roof: "גג",
