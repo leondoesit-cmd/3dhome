@@ -822,6 +822,8 @@ function showSheet(key) {
   document.body.classList.remove("show-left", "show-right");
   sheetReturnFocus = document.activeElement;
   sheetBody.innerHTML = "";
+  // a new content starts at its top, not where the last one was scrolled to
+  sheetBody.scrollTop = 0;
   if (key === "tools") buildToolsSheet();
   else if (key === "view") buildViewSheet();
   else if (key === "more") buildMoreSheet();
@@ -1431,6 +1433,10 @@ export function initMobileShell() {
     showCoach("mcoach_item_done", "mcoach_edit_item", function () {
       showSheet("props");
     });
+  });
+  // "Edit properties" from the long-press menu: open the inspector sheet
+  window.addEventListener("planner-open-props", function () {
+    if (openSheet !== "props") showSheet("props");
   });
   /* visualViewport reacts to the software keyboard where window.resize is
      inconsistent. --kb lifts sheets and inspectors so a focused field stays

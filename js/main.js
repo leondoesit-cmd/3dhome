@@ -820,9 +820,14 @@ function ctxItems() {
   return items;
 }
 function focusInspector() {
+  fillProps();
+  // on a phone or a fold the inspector is a sheet: open it, do not scroll to it
+  if (document.body.classList.contains("compact-nav")) {
+    window.dispatchEvent(new Event("planner-open-props"));
+    return;
+  }
   var insp = document.getElementById("right-inspector");
   if (insp) insp.scrollIntoView({ block: "nearest" });
-  fillProps();
 }
 function showCtxMenu(clientX, clientY) {
   if (!ctxMenu) return;

@@ -100,7 +100,7 @@ body.pro-skin #topbar .brand > :not(i) { display: none; }
 body.pro-skin #topbar .ps-project-btn { font-size: 13.5px; font-weight: 700; color: var(--text-main); background: transparent; border: 0; }
 /* Planner · Model · Cabinet: a 300px pill, the chosen one raised */
 body.pro-skin #topbar .pr-editors {
-  width: 300px; height: 34px; box-sizing: border-box; padding: 3px; border-radius: 17px;
+  width: clamp(210px, 21vw, 300px); height: 34px; box-sizing: border-box; padding: 3px; border-radius: 17px; flex: 0 1 auto;
   background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color);
 }
 body.pro-skin #topbar .pr-editors button {
@@ -116,9 +116,11 @@ body.pro-skin #topbar .tb-start > .dropdown > .dropdown-trigger {
 }
 body.pro-skin #topbar .tb-start > .dropdown > .dropdown-trigger:hover { background: var(--btn-bg); color: var(--text-main); }
 body.pro-skin #topbar .tb-start > .dropdown > .dropdown-trigger i { display: none; }
+/* the label comes from ::after (below); the span would print it twice above 1600px */
+body.pro-skin #topbar .tb-start > .dropdown > .dropdown-trigger > span { display: none; }
 /* 2D · 3D · Split: a 200px pill in the middle */
 body.pro-skin #topbar #viewModePill {
-  width: 200px; height: 30px; box-sizing: border-box; padding: 3px; gap: 0; border-radius: 15px;
+  width: clamp(150px, 14vw, 200px); height: 30px; box-sizing: border-box; padding: 3px; gap: 0; border-radius: 15px; flex: 0 1 auto;
   background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color); border: 0;
 }
 body.pro-skin #topbar #viewModePill > button { flex: 1 1 0; height: 24px; min-width: 0; padding: 0 6px; border: 0; border-radius: 12px; background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 500; box-shadow: none; }
@@ -245,7 +247,13 @@ body.pro-skin #center-canvas > #planner-workflow > button {
 }
 body.pro-skin #center-canvas > #planner-workflow > button i { font-size: 16px; }
 body.pro-skin #center-canvas > #planner-workflow > button:hover { background: var(--btn-bg); }
-body.pro-skin #center-canvas > #planner-workflow > :not(button) { display: none; }
+body.pro-skin #center-canvas > #planner-workflow > :not(button):not(.workflow-opening) { display: none; }
+/* with a door or window armed, its size fields stand in the strip, one per row */
+body.pro-skin #center-canvas > #planner-workflow > .workflow-opening:not([hidden]) {
+  display: flex; flex-direction: column; gap: 4px; padding: 4px 2px; border-top: 1px solid var(--border-color);
+}
+body.pro-skin #center-canvas > #planner-workflow .workflow-opening label { flex-direction: column; align-items: stretch; gap: 2px; font-size: 11px; color: var(--text-muted); }
+body.pro-skin #center-canvas > #planner-workflow .workflow-opening input { width: 64px; min-height: 28px; font: 12px/1 var(--pro-mono); background: var(--pro-surface); }
 
 /* ---- status line ---------------------------------------------------------- */
 body.pro-skin #cad-status {
@@ -715,3 +723,21 @@ body.dock-rail.side-mirror #modeler.md-fold-open .md-body { padding-inline: min(
 /* the cabinet's bottom sheet parks just below the screen; with the navigation
    gone a sliver of it showed — parked is hidden */
 body.pro-compact #cabdes .cb-m-sheet:not(.on) { visibility: hidden; }
+
+/* ---- the edit history as a popover (js/history_pop.js) -------------------- */
+.pr-hist-pop {
+  position: fixed; z-index: 400; top: 96px; inset-inline-end: 16px; width: min(360px, calc(100vw - 32px)); max-height: min(70vh, 640px);
+  display: flex; flex-direction: column; border-radius: 14px; background: var(--pro-surface, var(--bg-panel)); color: var(--text-main);
+  box-shadow: var(--shadow-md), 0 0 0 1px var(--border-color); overflow: hidden;
+}
+.pr-hist-head { display: flex; align-items: center; gap: 8px; padding: 10px 10px 8px 16px; border-bottom: 1px solid var(--border-color); }
+.pr-hist-head b { flex: 1; font-size: 15px; font-weight: 600; }
+.pr-hist-x { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--text-main); font-size: 16px; }
+.pr-hist-x:hover { background: var(--btn-bg); }
+.pr-hist-body { overflow: auto; padding: 8px 12px 12px; }
+body.compact-nav .pr-hist-pop { top: auto; bottom: 0; inset-inline: 0; width: auto; max-height: 62dvh; border-radius: 18px 18px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+
+/* the AI dock stands clear of the Round-6 inspector (352px, not the classic 320px) */
+@media (min-width: 900px) {
+  body.pro-skin .agent-dock { inset-inline-end: 366px; }
+}

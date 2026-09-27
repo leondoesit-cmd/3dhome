@@ -267,12 +267,13 @@ function toolButton(tool) {
   b.className = "pr-tool";
   b.dataset.proBind = tool.bind || "";
   var name = L(tool.label);
-  b.title = name + (tool.key ? " (" + tool.key + ")" : "");
+  b.title = name + (tool.key ? " (" + keyLabel(tool.key) + ")" : "");
   b.setAttribute("aria-label", name);
   if (!tool.bind) { b.disabled = true; b.title = name + M("notYet"); }
   if (tool.bind && tool.bind.indexOf("planned:") === 0) { b.classList.add("planned"); b.title = name + M("plannedTip"); b.setAttribute("aria-description", M("plannedHelp")); }
-  b.innerHTML = '<i class="ph ' + tool.icon + '" aria-hidden="true"></i><span></span>' + (tool.key ? "<kbd>" + tool.key + "</kbd>" : "");
+  b.innerHTML = '<i class="ph ' + tool.icon + '" aria-hidden="true"></i><span></span>' + (tool.key ? "<kbd></kbd>" : "");
   b.querySelector("span").textContent = name;
+  if (tool.key) b.querySelector("kbd").textContent = keyLabel(tool.key);
   b.addEventListener("click", function () { runProBinding(tool.bind, tool.label); syncActive(); });
   return b;
 }
@@ -551,7 +552,7 @@ function renderToolTab(container, editor, index, onRun) {
       b.dataset.proBind = tool.bind || "";
       var name = L(tool.label);
       b.setAttribute("aria-label", name);
-      b.title = name + (tool.key ? " (" + tool.key + ")" : "");
+      b.title = name + (tool.key ? " (" + keyLabel(tool.key) + ")" : "");
       b.innerHTML = '<i class="ph ' + tool.icon + '" aria-hidden="true"></i><span></span>';
       b.querySelector("span").textContent = name;
       b.addEventListener("click", function () {
@@ -651,6 +652,10 @@ function wireAsk(label) {
 
 /* ---------------------------------------------------------------- the shell */
 
+// the catalog writes Mac keys; elsewhere ⌘ is Ctrl and ⇧ is Shift
+function keyLabel(key) {
+  return isMac() ? key : String(key).replace("⇧", "Shift+").replace("⌘", "Ctrl+");
+}
 function isMac() {
   return typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
 }
@@ -754,7 +759,7 @@ function openEveryPanel(editor) {
           b.type = "button";
           b.innerHTML = '<i class="ph ' + t.icon + '" aria-hidden="true"></i><span></span>' + (t.key ? "<kbd></kbd>" : "");
           b.querySelector("span").textContent = L(t.label);
-          if (t.key) b.querySelector("kbd").textContent = t.key;
+          if (t.key) b.querySelector("kbd").textContent = keyLabel(t.key);
           b.addEventListener("click", function () { run(t); });
           list.appendChild(b);
           if (!first) first = t;
@@ -1118,7 +1123,9 @@ function mountProHeader() {
   var actions = ribbon.querySelector(".pr-bar > .ps-actions");
   if (actions) { actions.setAttribute("data-ps-moved", ""); end.appendChild(actions); }
   // the loose icon buttons the header drops stay one click away in More
-  var menu = top.querySelector("#moreMenu .dropdown-menu");
+  // the dropdown portals its menu to <body> the first time it is wired
+  var menu = top.querySelector("#moreMenu .dropdown-menu") ||
+    Array.prototype.find.call(document.querySelectorAll("body > .dropdown-menu"), function (m) { return m._dd && m._dd.id === "moreMenu"; });
   if (menu) {
     menu.querySelectorAll(".ps-more-item").forEach(function (n) { n.remove(); });
     ["btn_settings", "themeToggle", "langBtn", "shortcutsBtn", "plannerTutorialBtn", "videoStudioBtn"].forEach(function (id) {
@@ -1130,8 +1137,13 @@ function mountProHeader() {
       item.setAttribute("role", "menuitem");
       var icon = src.querySelector("i");
       item.innerHTML = (icon ? icon.outerHTML : "") + "<span></span>";
-      item.querySelector("span").textContent = src.getAttribute("title") || src.getAttribute("aria-label") || id;
-      item.addEventListener("click", function () { src.click(); });
+      var label = function () { return src.getAttribute("title") || src.getAttribute("aria-label") || id; };
+      item.querySelector("span").textContent = label();
+      item.addEventListener("click", function () {
+        src.click();
+        // the theme and language buttons name what they switch to next
+        setTimeout(function () { item.querySelector("span").textContent = label(); }, 0);
+      });
       menu.appendChild(item);
     });
   }

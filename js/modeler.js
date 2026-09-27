@@ -3130,6 +3130,7 @@ function axisOfView() { return planeAxis(E.view); }
 // extrude differently depending on where the camera happened to be.
 function planeAxis(plane) { return plane === "top" ? "y" : plane === "front" ? "z" : "x"; }
 function activeSketchFrame() {
+  if (!E.def) return null;
   var sketch=ensureSketch(E.def);
   return sketch && sketch.frameSpace==="local" && (E.modelPlaneActive || E.mode==="2d") ? sketch.frame : null;
 }
@@ -11483,7 +11484,9 @@ function syncSketchThumb() {
   });
 }
 function drawSketch() {
-  if (!E.open) return;
+  // openModeler builds the phone chrome (which can fire a resize) before the
+  // document is loaded; there is nothing to draw until it is
+  if (!E.open || !E.def) return;
   syncSplitSketch3D();
   syncSketchThumb();
   invalidateSketchProjection();   // the camera or the pane may have moved since
@@ -24165,7 +24168,7 @@ export function closeModeler() {
 window.addEventListener("mf-posture", queueModelerChrome);
 window.addEventListener("resize", queueModelerChrome);
 window.addEventListener("resize", function () {
-  if (E.open) { sizeSketch(); drawSketch(); layout3DHost(); renderPreview(); }
+  if (E.open && E.def) { sizeSketch(); drawSketch(); layout3DHost(); renderPreview(); }
 });
 /* Let the launcher's "m" shortcut see the editor's open state without reaching
    into this module scope before it is loaded. */

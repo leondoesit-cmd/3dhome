@@ -349,7 +349,7 @@ test("the model editor's split view: the sketch beside a model that draws the sk
   assert.match(md, /swapView\(m === "3d" \|\| split, E\.pv\);/);
   assert.match(md, /if \(E\.split && document\.body\.classList\.contains\("compact-nav"\)\) \{ setMode\("2d"\); return; \}/);
   // The model half draws every sketch on its own plane, rebuilt only when it changed.
-  assert.match(md, /function drawSketch\(\) \{\s*if \(!E\.open\) return;\s*syncSplitSketch3D\(\);/);
+  assert.match(md, /function drawSketch\(\) \{[^}]*?if \(!E\.open \|\| !E\.def\) return;\s*syncSplitSketch3D\(\);/);
   assert.match(md, /framePoint\(frame, q\.u, q\.v, 0\)/);
   assert.match(md, /if \(old && old\.parent === host && key === E\._splitSketchKey\) return;/);
   // With no solid yet the model half frames the sketches, not the stock box.

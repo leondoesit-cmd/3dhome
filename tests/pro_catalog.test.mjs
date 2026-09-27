@@ -97,3 +97,23 @@ test("all pro tool gaps are implemented", () => {
   assert.deepEqual(planned, []);
   assert.match(gapsDoc, /no `planned:` entries/);
 });
+
+/* The keys the ribbon prints next to a planner tool are hints only: they have
+   to be the keys that really do it (interaction.js digits and E / L, ui.js
+   letters and the Ctrl combinations), or the hint teaches the wrong thing —
+   W for Wall used to start Walk. */
+test("every planner key hint is the key that really runs that tool", () => {
+  const interaction = readFileSync(new URL("../js/interaction.js", import.meta.url), "utf8");
+  const real = new Map();
+  for (const m of interaction.matchAll(/e\.key === "(\d)"\) setTool\("([a-z]+)"\)/g)) real.set(m[1], "tool:" + m[2]);
+  real.set("E", "tool:erase");
+  real.set("L", "act:lockStruct");
+  for (const [key, act] of [["F", "frame"], ["W", "walk"], ["P", "photo"]]) {
+    const at = uiSrc.indexOf('e.key === "' + key.toLowerCase() + '"');
+    assert.ok(at > 0 && uiSrc.slice(at, at + 160).includes('runAction("' + act + '")'), key + " runs " + act);
+    real.set(key, "act:" + act);
+  }
+  for (const [key, act] of [["⌘S", "save"], ["⌘O", "importjson"], ["⌘E", "exportjson"], ["⌘D", "dupSel"], ["⌘G", "groupItems"], ["⇧⌘G", "ungroupItems"]]) real.set(key, "act:" + act);
+  const wrong = proTools("plan").filter((t) => t.key && real.get(t.key) !== t.bind).map((t) => t.label + " " + t.key + " → " + t.bind);
+  assert.deepEqual(wrong, []);
+});
