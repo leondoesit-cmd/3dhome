@@ -8,7 +8,7 @@
  * These are geometric claims about a real pane, so they need a browser.
  * Skips itself when Chrome is absent — set CHROME_PATH to point at a binary.
  */
-import test from "node:test";
+import test from "./helpers/customize_gate.mjs"; // skipped while UI Customize is off
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
 

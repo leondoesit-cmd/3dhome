@@ -13,6 +13,7 @@ import { weldCoincidentNodes } from "./interaction.js";
 import { deleteRoom } from "./interaction.js";
 import { PRICE, itemPrice, flabel } from "./furniture.js";
 import { t } from "./i18n.js";
+import { partCode } from "./part_codes.js";
 import { fmtLen, fmtAreaM2 } from "./display_units.js";
 import { render2D, frameBounds } from "./plan2d.js";
 import { select, fillProps } from "./ui_props.js";
@@ -29,7 +30,7 @@ import { syncLocks, syncClears, pruneIgnored } from "./constraint_engine.js";
 import { renderWarnPanel } from "./ui_warn.js";
 import { roomClearArea } from "./room_area.js";
 
-function treeRow(label, locked, isSel, onSel, onLock, onDelete, onFrame) {
+function treeRow(label, locked, isSel, onSel, onLock, onDelete, onFrame, code) {
   var row = document.createElement("div");
   row.className = "trItem" + (isSel ? " sel" : "");
   var lk = document.createElement("span");
@@ -41,6 +42,13 @@ function treeRow(label, locked, isSel, onSel, onLock, onDelete, onFrame) {
     onLock();
   };
   row.appendChild(lk);
+  // the part code (F12) the plan's labels, the AI and the inspector use
+  if (code) {
+    var cd = document.createElement("span");
+    cd.className = "trCode";
+    cd.textContent = code;
+    row.appendChild(cd);
+  }
   var nm = document.createElement("span");
   nm.className = "trName";
   nm.textContent = label;
@@ -535,6 +543,7 @@ export function refreshTree() {
         function () {
           frameTreeTarget({ kind: "item", ref: it }, itemBounds(it));
         },
+        partCode("item", it.id),
       );
       if (hiddenR) row.classList.add("hid"); // hidden with its room
       body.appendChild(row);
@@ -575,6 +584,7 @@ export function refreshTree() {
           function () {
             frameTreeTarget({ kind: "item", ref: it }, itemBounds(it));
           },
+          partCode("item", it.id),
         ),
       );
     });

@@ -3,6 +3,13 @@ import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
 
 const opts = await findChrome() ? {} : { skip: "no Chrome found" };
+// The plan's floating tool strip is the classic desktop layout's: the Round-6
+// layout (css/pro_skin.css) carries every tool in its ribbon and hides it. These
+// tests are about that strip, so they ask for the classic layout.
+async function classicLayout(page) {
+  await page.eval(() => localStorage.setItem("mf.proSkin", "0"));
+  await page.goto("/");
+}
 
 test("save status follows edits, stays dirty after recovery backup, and translates", opts, async () => {
   const page = await openPage({ width: 1280, height: 900, mobile: false, touch: false });
@@ -95,6 +102,7 @@ test("Layers visibility persists separately in 2D and 3D", opts, async () => {
 test("narrow named tools expose real overflow controls and keep Layers menu inside the pane", opts, async () => {
   const page = await openPage({ width: 1180, height: 760, mobile: false, touch: false });
   try {
+    await classicLayout(page);
     const initial = await page.eval(() => {
       document.getElementById("start-screen").hidden = true;
       const bar = document.getElementById("plan-toolbar");
@@ -119,6 +127,7 @@ test("narrow named tools expose real overflow controls and keep Layers menu insi
 test("3D command overflow remains reachable and navigation clears the compass", opts, async () => {
   const page = await openPage({ width: 1180, height: 760, mobile: false, touch: false });
   try {
+    await classicLayout(page);
     const initial = await page.eval(async () => {
       document.getElementById("start-screen").hidden = true;
       document.getElementById("view3dBtn").click();
@@ -143,6 +152,7 @@ test("3D command overflow remains reachable and navigation clears the compass", 
 test("Hebrew labels keep CAD command order and overflow navigation usable", opts, async () => {
   const page = await openPage({ width: 1180, height: 760, mobile: false, touch: false });
   try {
+    await classicLayout(page);
     const initial = await page.eval(async () => {
       const { setLang } = await import("/js/i18n.js");
       await setLang("he");

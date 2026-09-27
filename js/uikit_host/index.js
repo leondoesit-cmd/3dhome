@@ -73,7 +73,15 @@ function reflectCustomizeState(doc, editing) {
   if (control) control.setAttribute("aria-checked", editing ? "true" : "false");
 }
 
+/* UI Customize mode is switched off for now (owner, 2026-09-27): the Round-6
+   desktop layout (css/pro_skin.css) arranges the planner's chrome itself, and
+   a saved customisation would rearrange the same header and panels under it.
+   Nothing mounts — not the editor, not a saved layout — until this is false
+   again; the code and the saved layouts are kept. */
+export const CUSTOMIZE_DISABLED = true;
+
 export function uikitEnabled() {
+  if (CUSTOMIZE_DISABLED) return false;
   try {
     return localStorage.getItem(FLAG) === "1";
   } catch (_) {
@@ -218,6 +226,7 @@ function hostNames() {
    with no branch of its own. */
 export function initUIKit(options) {
   const opts = options || {};
+  if (CUSTOMIZE_DISABLED) return null;
   if (!opts.force && !uikitEnabled()) return null;
   if (instance) return instance;
 
@@ -371,6 +380,7 @@ function applyOverrides(ui, doc) {
  * nothing the first time it is used.
  */
 export function openCustomize() {
+  if (CUSTOMIZE_DISABLED) return false;
   if (!instance) {
     setUikitEnabled(true);
     if (!initUIKit({ force: true })) return false;

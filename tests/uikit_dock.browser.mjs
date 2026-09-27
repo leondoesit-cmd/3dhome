@@ -11,7 +11,7 @@
  * off and still describes the shipped behaviour unchanged. That is the other
  * half of the claim and the reason this is a separate file.
  */
-import test from "node:test";
+import test from "./helpers/customize_gate.mjs"; // skipped while UI Customize is off
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
 

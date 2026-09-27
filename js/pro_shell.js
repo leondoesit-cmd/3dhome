@@ -241,6 +241,8 @@ export function wireShell(root, editor) {
     once(bar, function () { wireBar(bar, editor || bar.dataset.psBar); });
   });
   root._psAi = undefined;
+  // the model editor's and cabinet designer's catalog ribbon (js/pro_ribbon.js)
+  if (editor && editor !== "plan" && shell.mountEditorRibbon) shell.mountEditorRibbon(editor, root);
   syncShell();
 }
 function once(el, fn) {

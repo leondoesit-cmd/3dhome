@@ -12,7 +12,7 @@
  * because the dock re-measures on every move: a synchronous burst would land
  * the orientation change and the re-measure in the same frame, which is not
  * how a real drag arrives. */
-import test from "node:test";
+import test from "./helpers/customize_gate.mjs"; // skipped while UI Customize is off
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
 

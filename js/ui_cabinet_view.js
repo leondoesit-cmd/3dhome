@@ -87,7 +87,7 @@ export function setMode(m) {
   E.host.classList.toggle("cb-split", split);
   E.swapView(m === "3d" || split, E.pv);
   if (split !== wasSplit) sizeCanvas();
-  E.host.querySelectorAll("#cbViews button[data-mode]").forEach(function (b) {
+  E.host.querySelectorAll(".cb-vmodes button[data-mode]").forEach(function (b) {
     var selected = b.getAttribute("data-mode") === (split ? "split" : m);
     b.classList.toggle("on", selected);
     b.setAttribute("aria-pressed", selected ? "true" : "false");

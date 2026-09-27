@@ -132,7 +132,7 @@ function buildDOM() {
     '<button data-tool="erase" aria-keyshortcuts="X" title="' + T("toolErase") + '"><i class="ph ph-eraser"></i> ' + T("toolErase") + "</button>" +
     "</div>" +
     '<div class="cb-views" id="cbViews">' +
-    '<div class="cb-vgroup">' +
+    '<div class="cb-vgroup cb-vmodes">' +
     '<button data-mode="2d" class="on">2D</button><button data-mode="3d">3D</button>' +
     '<button data-mode="split" title="' + T("vSplitTip") + '"><i class="ph ph-columns"></i>' + T("vSplit") + "</button>" +
     "</div>" +
@@ -312,7 +312,7 @@ function buildDOM() {
     this.querySelector("span").textContent = T(E.hid ? "hidOn" : "hidOff");
     draw();
   });
-  E.host.querySelectorAll("#cbViews button[data-mode]").forEach(function (b) {
+  E.host.querySelectorAll(".cb-vmodes button[data-mode]").forEach(function (b) {
     b.addEventListener("click", function () {
       setMode(b.getAttribute("data-mode"));
     });

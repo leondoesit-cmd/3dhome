@@ -133,6 +133,7 @@ const CAB = [
   ]],
   ["View", [
     ["Mode", [T("2D", "ph-square", "cab:mode:2d"), T("3D", "ph-cube", "cab:mode:3d"), T("Split", "ph-columns", "cab:mode:split")]],
+    ["Level", [T("Compose", "ph-layout", "cab:level:composition"), T("Technical", "ph-sliders-horizontal", "cab:level:technical"), T("Model editor", "ph-cube-focus", "cab:level:advanced")]],
   ]],
   ["Review", [
     ["Check", [T("Checks", "ph-seal-check", "cab:tab:checks"), T("Summary", "ph-list-numbers", "cab:tab:bom")]],
@@ -200,7 +201,7 @@ export const PRO_HE = {
   "Annotate": "סימון", "Mark": "סמן", "Place marker": "הצב סמן", "Duplicate marker": "שכפל סמן", "Reference point": "נקודת ייחוס",
   "Style": "סגנון", "Plan style": "סגנון תוכנית", "Layers": "שכבות", "Tool names": "שמות כלים", "Drawings": "שרטוטים", "Drawing 3D": "שרטוט תלת־ממד", "Wall types": "טיפוסי קירות",
   "Analyze": "ניתוח", "Quantities": "כמויות", "Cost export": "ייצוא עלות", "Wall take-off": "כתב כמויות לקיר", "Wall schedule": "טבלת קירות", "Cut plan": "תוכנית ניסור", "Check": "בדיקה", "Warnings": "אזהרות", "Tree": "עץ",
-  "View & render": "תצוגה ורינדור", "View": "תצוגה", "Plan": "תוכנית", "3D": "תלת־ממד", "Split": "מפוצל", "Dollhouse": "בית בובות", "Frame": "מסגר", "Walk": "סיור", "Part codes": "קודי חלקים",
+  "View & render": "תצוגה ורינדור", "View": "תצוגה", "Plan": "תוכנית", "3D": "תלת־ממד", "Split": "מפוצל", "Dollhouse": "בית בובות", "Frame": "מסגר", "Walk": "סיור", "Compose": "הרכבה", "Technical": "טכני", "Level": "רמה", "Part codes": "קודי חלקים",
   "Render": "רינדור", "Photo mode": "מצב צילום", "Video studio": "סטודיו וידאו", "Edit in 3D": "עריכה בתלת־ממד", "Physics": "פיזיקה",
   "Output": "פלט", "File": "קובץ", "Save": "שמור", "Open": "פתח", "New plan": "תוכנית חדשה", "Import JSON": "ייבוא JSON", "Export": "ייצוא", "JSON": "JSON", "glTF": "glTF", "PNG 2D": "PNG דו־ממד", "PNG 3D": "PNG תלת־ממד",
   "Team": "צוות", "Workspace": "סביבת עבודה", "Friends": "חברים", "AI helper": "עוזר AI",

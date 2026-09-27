@@ -11,7 +11,7 @@
  * Every command here is one a key is bound to, so the keyboard path is the
  * path under test — which is the point of having built it first.
  */
-import test from "node:test";
+import test from "./helpers/customize_gate.mjs"; // skipped while UI Customize is off
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
 

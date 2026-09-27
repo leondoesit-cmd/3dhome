@@ -6,7 +6,7 @@
  * and nowhere else, and the wide layout has to be waiting untouched when the
  * window grows back. Nothing but a real viewport can say whether that holds.
  */
-import test from "node:test";
+import test from "./helpers/customize_gate.mjs"; // skipped while UI Customize is off
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
 

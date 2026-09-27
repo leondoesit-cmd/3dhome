@@ -13,7 +13,7 @@
  * dock: slots that register at runtime, and a container whose slot is absent
  * rendering nothing.
  */
-import test from "node:test";
+import test from "./helpers/customize_gate.mjs"; // skipped while UI Customize is off
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
 

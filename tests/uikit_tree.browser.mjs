@@ -8,7 +8,7 @@
  * - Expand / Collapse behavior (clicking mark and aria-expanded)
  * - WAI-ARIA roving tabindex and arrow-key keyboard navigation
  */
-import test from "node:test";
+import test from "./helpers/customize_gate.mjs"; // skipped while UI Customize is off
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
 

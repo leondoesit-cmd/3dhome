@@ -1066,7 +1066,8 @@ function buildMoreSheet() {
   sheetBody.appendChild(designTitle);
   var design = document.createElement("div");
   design.className = "m-grid m-grid-2 m-design-shortcuts";
-  [["openModeler", "modeler_launch", "ph-cube"], ["uikitCustomize", "uikit_ins_title", "ph-layout"],
+  // UI Customize is switched off for now (js/uikit_host/index.js CUSTOMIZE_DISABLED)
+  [["openModeler", "modeler_launch", "ph-cube"],
     ["save", "save", "ph-floppy-disk"]].forEach(function (entry) {
     var b = document.createElement("button");
     b.type = "button";

@@ -267,13 +267,16 @@ function toolButton(tool) {
 var ribbon = null;
 
 function renderGroups(tabIndex) {
-  var tabs = PRO_CATALOG.plan.tabs;
+  fillRibbon(ribbon, "plan", tabIndex, LS_TAB);
+}
+function fillRibbon(host, editor, tabIndex, key) {
+  var tabs = PRO_CATALOG[editor].tabs;
   var i = Math.max(0, Math.min(tabs.length - 1, tabIndex));
-  ribbon.querySelectorAll(".pr-tab").forEach(function (t, j) {
+  host.querySelectorAll(".pr-tab").forEach(function (t, j) {
     t.classList.toggle("on", j === i);
     t.setAttribute("aria-selected", j === i ? "true" : "false");
   });
-  var body = ribbon.querySelector(".pr-groups");
+  var body = host.querySelector(".pr-groups");
   body.innerHTML = "";
   tabs[i][1].forEach(function (group) {
     var g = document.createElement("div");
@@ -288,8 +291,56 @@ function renderGroups(tabIndex) {
     g.appendChild(lab);
     body.appendChild(g);
   });
-  store(LS_TAB, String(i));
+  store(key, String(i));
   syncActive();
+}
+
+/* The model editor's and cabinet designer's ribbon in the Round-6 layout:
+   their catalog tabs (js/pro_catalog.js — every command of the editor, the
+   same entries the fold rails and "Every command" use) as the planner's tabs
+   row and tool tiles, under the editor's header. css/pro_skin.css shows it
+   only in that layout, where it stands in for the editor's own command rows;
+   everywhere else the editor's own rows are what shows. */
+var EDITOR_RIBBON_AFTER = { model: ".md-head", cab: ".cb-head-main" };
+function mountEditorRibbon(editor, root) {
+  if (!PRO_CATALOG[editor] || !root) return;
+  var head = root.querySelector(EDITOR_RIBBON_AFTER[editor]);
+  if (!head) return;
+  var old = root.querySelector(".pr-editor-ribbon");
+  if (old) old.remove();
+  var tabs = PRO_CATALOG[editor].tabs, key = LS_TAB + "." + editor;
+  var el = document.createElement("div");
+  el.className = "pro-ribbon pr-editor-ribbon";
+  el.dataset.proEditor = editor;
+  el.setAttribute("role", "toolbar");
+  el.innerHTML =
+    '<div class="pr-bar"><div class="pr-tabs" role="tablist">' +
+      tabs.map(function (t, i) { return '<button type="button" role="tab" class="pr-tab" data-pro-tab="' + i + '">' + L(t[0]) + "</button>"; }).join("") +
+    '</div><button type="button" class="pr-every pr-every-ed"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><span>' + M("every") + "</span><kbd>" + (isMac() ? "⌘K" : "Ctrl K") + "</kbd></button></div>" +
+    '<div class="pr-groups"></div>';
+  head.after(el);
+  el.querySelectorAll(".pr-tab").forEach(function (t) {
+    t.addEventListener("click", function () { fillRibbon(el, editor, +t.dataset.proTab, key); });
+  });
+  // "Every command": the editor's own command search
+  el.querySelector(".pr-every-ed").addEventListener("click", function () {
+    var own = editor === "model" ? root.querySelector("#mdCommandSearchBtn") : null;
+    if (own) own.click();
+    else { var q = root.querySelector("#cbSearch"); if (q) q.focus(); }
+  });
+  fillRibbon(el, editor, +(store(key) || 0), key);
+  placeEditorChrome(proDesk());
+  /* The armed command lives on the editor's own (hidden) buttons, which mark
+     it with .on: follow their class changes, a frame at a time. */
+  if (window.MutationObserver && !root._psRibbonWatch) {
+    var queued = false;
+    root._psRibbonWatch = new MutationObserver(function () {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(function () { queued = false; syncActive(); });
+    });
+    root._psRibbonWatch.observe(root, { subtree: true, attributes: true, attributeFilter: ["class"] });
+  }
 }
 
 /* The floating rail stays the source of truth for the active tool. */
@@ -300,7 +351,7 @@ function syncActive() {
   // The fold rails' docked grids (renderToolTab) show each editor's armed tool:
   // the planner's from its rail, the model editor's and the cabinet designer's
   // from their own command buttons, which mark the active one with .on.
-  document.querySelectorAll(".pro-rail-grid [data-pro-bind]").forEach(function (b) {
+  document.querySelectorAll(".pro-rail-grid [data-pro-bind], .pr-editor-ribbon [data-pro-bind]").forEach(function (b) {
     b.classList.toggle("on", railBindActive(b.dataset.proBind, active));
   });
 }
@@ -329,6 +380,8 @@ export function initProRibbon() {
   buildRibbon();
   onLangChange(function () {
     if (!ribbon) return;
+    // the search field lives in the ribbon on desktop: take it home first
+    relocate(document.getElementById("toolSearch"), null);
     ribbon.remove();
     ribbon = null;
     buildRibbon();
@@ -653,6 +706,7 @@ registerShell({
     return true;
   },
   suggest: suggestTools,
+  mountEditorRibbon: mountEditorRibbon,
 });
 
 /* Header pieces go into the planner's own chrome (desktop only in css): the
@@ -671,6 +725,7 @@ function mountPlannerShell() {
   if (canvas && !canvas.querySelector(".ps-cmdbar")) canvas.insertAdjacentHTML("beforeend", commandBarHTML("plan"));
   if (ribbon) wireShell(ribbon, "plan");
   if (canvas) wireShell(canvas, "plan");
+  mountProHeader();
   mountStatusChip(0);
   fitPlannerBar();
   if (!shellMounted) {
@@ -680,7 +735,7 @@ function mountPlannerShell() {
     var refit = function () { requestAnimationFrame(fitPlannerBar); };
     window.addEventListener("resize", refit);
     if (window.MutationObserver) {
-      if (canvas) new MutationObserver(refit).observe(canvas, { attributes: true, attributeFilter: ["class"] });
+      if (canvas) new MutationObserver(function () { refit(); placeDesk(); }).observe(canvas, { attributes: true, attributeFilter: ["class"] });
       var tools = document.getElementById("plan-tools");
       if (tools) new MutationObserver(refit).observe(tools, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "hidden", "style"] });
     }
@@ -691,8 +746,127 @@ function mountPlannerShell() {
     });
     // Opening, loading or joining a project changes the name without an event
     // of its own; syncShell only writes what changed, so a slow poll is cheap.
-    setInterval(syncShell, 1500);
+    // (The workflow row is built after the ribbon, so placing is re-checked too.)
+    setInterval(function () { syncShell(); placeDesk(); }, 1500);
+    if (DESK && DESK.addEventListener) DESK.addEventListener("change", placeDesk);
+    if (window.MutationObserver) new MutationObserver(placeDesk).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   }
+}
+/* ---- the Round-6 header (desktop) ----
+   The mockup has ONE header row — logo, project, Planner · Model · Cabinet,
+   2D · 3D · Split in the middle, then AI, undo/redo, people and Share — over
+   a tabs row that ends in "Every command", over the tools. The planner's own
+   top bar is that header: css/pro_skin.css flattens its three clusters and
+   orders what stays; the shell's pieces move up into it from the ribbon's
+   first row, which keeps the tabs and takes the search field.
+   Everything moved keeps its node (ids, listeners). What moves back and forth
+   with the layout — the search field, the workflow row that becomes the
+   canvas-edge strip — returns to where it came from on a phone or a narrow
+   window, so the compact layouts see the page they were built for. */
+var DESK = typeof matchMedia === "function" ? matchMedia("(min-width: 1024px)") : null;
+// localStorage mf.proSkin = "0" keeps the classic desktop layout (and is how
+// the browser tests of that layout's own chrome — the plan's floating tool
+// strip, the stacked split — still reach it)
+function proDesk() {
+  return !!(DESK && DESK.matches) && !document.body.classList.contains("compact-nav") && store("mf.proSkin") !== "0";
+}
+function relocate(node, target) {
+  if (!node) return;
+  if (!node._psHome && node.parentNode) {
+    node._psHome = document.createComment("ps-home");
+    node.parentNode.insertBefore(node._psHome, node);
+  }
+  if (target) { if (node.parentNode !== target) target.appendChild(node); }
+  else if (node._psHome && node._psHome.parentNode && node.previousSibling !== node._psHome)
+    node._psHome.parentNode.insertBefore(node, node._psHome.nextSibling);
+}
+function placeDesk() {
+  var on = proDesk();
+  if (document.body.classList.contains("pro-skin") !== on) document.body.classList.toggle("pro-skin", on);
+  var bar = ribbon && ribbon.querySelector(".pr-bar");
+  relocate(document.getElementById("toolSearch"), on && bar ? bar : null);
+  relocate(document.getElementById("planner-workflow"), on ? document.getElementById("center-canvas") : null);
+  var input = document.getElementById("toolSearchInput");
+  if (input) {
+    if (on && input.dataset.psPh == null) { input.dataset.psPh = input.placeholder; input.placeholder = M("every") + " · " + (isMac() ? "⌘K" : "Ctrl K"); }
+    else if (!on && input.dataset.psPh != null) { input.placeholder = input.dataset.psPh; delete input.dataset.psPh; }
+  }
+  placeSplit3D(on);
+  placeEditorChrome(on);
+}
+/* The editors' view switches go into their headers, the mockup's centre
+   pill; the model editor's workflow strip (the next step) rides on the
+   canvas instead of taking a row. Back where they were anywhere else. */
+function placeEditorChrome(on) {
+  var md = document.getElementById("modeler");
+  if (md) {
+    relocate(md.querySelector("#mdModes"), on ? md.querySelector(".md-head") : null);
+    relocate(md.querySelector(".md-status-row"), on ? md.querySelector(".md-mid") : null);
+  }
+  var cb = document.getElementById("cabdes");
+  if (cb) relocate(cb.querySelector(".cb-vmodes"), on ? cb.querySelector(".cb-head-main") : null);
+}
+/* Split, as the mockup draws it: the plan keeps the whole canvas and the 3D
+   view sits at the top of the right column, over the inspector — the same
+   single renderer, moved (its maximise button still opens it full size).
+   2D or 3D alone, or any compact layout, and it is back in the canvas. */
+function placeSplit3D(desk) {
+  var canvas = document.getElementById("center-canvas"), v3 = document.getElementById("view-3d"), insp = document.getElementById("right-inspector");
+  if (!canvas || !v3 || !insp) return;
+  var split = desk && !canvas.classList.contains("max-view-2d") && !canvas.classList.contains("max-view-3d");
+  if (document.body.classList.contains("ps-split3d") !== split) document.body.classList.toggle("ps-split3d", split);
+  var moved = false;
+  if (split && v3.parentNode !== insp) {
+    relocate(v3, null); // make sure its way home is recorded first
+    insp.insertBefore(v3, insp.firstChild);
+    moved = true;
+  } else if (!split && v3.parentNode === insp) {
+    relocate(v3, null);
+    moved = true;
+  }
+  // the floor chip names the plan, so in this split it stays on the plan
+  var floors = document.getElementById("floor-tabs"), v2 = document.getElementById("view-2d");
+  if (split && floors && v2 && floors.parentNode !== v2) v2.appendChild(floors);
+  // the renderer sizes itself from its box: tell it the box changed
+  if (moved) requestAnimationFrame(function () {
+    window.dispatchEvent(new Event("resize"));
+    // and draw: a canvas that changed parents shows nothing until the next frame is asked for
+    S.dirty3D = true;
+    import("./view3d.js").then(function (m) { if (m.requestRender) m.requestRender(); });
+  });
+}
+function mountProHeader() {
+  var top = document.getElementById("topbar");
+  if (!top || !ribbon) return;
+  // a rebuilt ribbon (language change) brings its own: drop the old ones
+  top.querySelectorAll("[data-ps-moved]").forEach(function (n) { n.remove(); });
+  var start = top.querySelector(".tb-start") || top, end = top.querySelector(".tb-end") || top;
+  [".ps-project", ".pr-editors"].forEach(function (sel) {
+    var n = ribbon.querySelector(".pr-bar > " + sel);
+    if (n) { n.setAttribute("data-ps-moved", ""); start.appendChild(n); }
+  });
+  var actions = ribbon.querySelector(".pr-bar > .ps-actions");
+  if (actions) { actions.setAttribute("data-ps-moved", ""); end.appendChild(actions); }
+  // the loose icon buttons the header drops stay one click away in More
+  var menu = top.querySelector("#moreMenu .dropdown-menu");
+  if (menu) {
+    menu.querySelectorAll(".ps-more-item").forEach(function (n) { n.remove(); });
+    ["btn_settings", "themeToggle", "langBtn", "shortcutsBtn", "plannerTutorialBtn", "videoStudioBtn"].forEach(function (id) {
+      var src = document.getElementById(id);
+      if (!src) return;
+      var item = document.createElement("button");
+      item.type = "button";
+      item.className = "ps-more-item";
+      item.setAttribute("role", "menuitem");
+      var icon = src.querySelector("i");
+      item.innerHTML = (icon ? icon.outerHTML : "") + "<span></span>";
+      item.querySelector("span").textContent = src.getAttribute("title") || src.getAttribute("aria-label") || id;
+      item.addEventListener("click", function () { src.click(); });
+      menu.appendChild(item);
+    });
+  }
+  wireShell(top, "plan");
+  placeDesk();
 }
 /* What floats in the bar's row over the plan and the 3D view. */
 var PLANNER_BAR_OBSTACLES = ".pt-panel, .view-gizmo, .planner-navigation, .plan-gizmo, .view-max-btn, .plan-style-btn";

@@ -1,0 +1,441 @@
+/* Round-6 pro skin — the desktop planner as the mockups draw it
+   (claude.ai/artifact/SAcWieBTurhNqMMcDcNFvM, screen "v6-plan-work").
+
+   body.pro-skin is set by js/pro_ribbon.js (placeDesk) only on a desktop
+   window (≥1024px, not the compact touch layout), so phones and folds never
+   see any of this. Nothing here removes a feature: what the header drops is
+   in the ribbon, in "Every command" or in the More menu.
+
+   Sizes and colours are the mockup's: a 44px header, a 34px tabs row, an
+   80px tools row, 272px side panels, a 26px monospace status line; white
+   panels on #eef0f3, #e0e3e8 lines, #101522 / #596172 text, #4f46e5 accent,
+   near-black for what is on. */
+
+/* ---- tokens (the light theme; the dark themes keep their own) ---------- */
+html[data-theme="light"] body.pro-skin,
+html:not([data-theme]) body.pro-skin {
+  --bg-app: #eef0f3;
+  --bg-panel: #ffffff;
+  --bg-topbar: #ffffff;
+  --bg-canvas-2d: #f9fafb;
+  --border-color: #e0e3e8;
+  --separator: #e0e3e8;
+  --text-main: #101522;
+  --text-muted: #596172;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef0ff;
+  --accent-alpha: rgba(79, 70, 229, 0.12);
+  --btn-bg: #f4f5f7;
+  --btn-bg-hover: #eceef2;
+  --btn-border: #e0e3e8;
+  --input-border: #d5d9e0;
+  --shadow-sm: 0 1px 2px rgba(16, 21, 34, 0.06);
+  --shadow-md: 0 12px 32px rgba(16, 21, 34, 0.16);
+  --glass-blur: none;
+  --app-glow-a: transparent;
+  --app-glow-b: transparent;
+  --hud-bg: rgba(255, 255, 255, 0.94);
+  --hud-fg: #101522;
+  --pro-ink: #111827;
+  --pro-faint: #9aa1ad;
+  --pro-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+}
+body.pro-skin { --pro-ink: var(--text-main); --pro-faint: var(--text-muted); --pro-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; }
+body.pro-skin { font-family: "Inter", "Rubik", system-ui, sans-serif; background: var(--bg-app); }
+
+/* ---- header: the planner's top bar, flattened and re-ordered ------------ */
+body.pro-skin #topbar {
+  display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px;
+  background: var(--bg-topbar); border-bottom: 1px solid var(--border-color); box-shadow: none;
+}
+body.pro-skin #topbar > .tb-start,
+body.pro-skin #topbar > .tb-center,
+body.pro-skin #topbar > .tb-end { display: contents; }
+/* what the header keeps, in the mockup's order; everything else goes */
+body.pro-skin #topbar .tb-start > *,
+body.pro-skin #topbar .tb-center > *,
+body.pro-skin #topbar .tb-end > * { display: none; }
+body.pro-skin #topbar .brand { display: flex; order: 1; }
+body.pro-skin #topbar .ps-project[data-ps-moved] { display: flex; order: 2; }
+body.pro-skin #topbar .pr-editors[data-ps-moved] { display: flex; order: 3; }
+body.pro-skin #topbar .tb-start > .dropdown:not(.history-dropdown-wrap) { display: block; order: 4; }
+body.pro-skin #topbar #viewModePill { display: flex; order: 5; margin-inline: auto; }
+body.pro-skin #topbar .ps-actions[data-ps-moved] { display: contents; }
+body.pro-skin #topbar .ps-actions .ps-ai { order: 6; }
+body.pro-skin #topbar [data-act="undo"] { display: flex; order: 7; }
+body.pro-skin #topbar [data-act="redo"] { display: flex; order: 8; }
+body.pro-skin #topbar #workspaceBtn { display: flex; order: 9; }
+body.pro-skin #topbar #moreMenu { display: block; order: 10; }
+body.pro-skin #topbar .ps-actions .ps-share { order: 11; }
+/* the moved pieces only belong in the desktop header */
+body:not(.pro-skin) #topbar [data-ps-moved] { display: none !important; }
+
+body.pro-skin #topbar .brand { gap: 0; font-size: 0; }
+body.pro-skin #topbar .brand i {
+  width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-size: 17px; background: var(--pro-ink); color: #fff; -webkit-text-fill-color: #fff;
+}
+body.pro-skin #topbar .brand > :not(i) { display: none; }
+body.pro-skin #topbar .ps-project-btn { font-size: 13.5px; font-weight: 700; color: var(--text-main); background: transparent; border: 0; }
+/* Planner · Model · Cabinet: a 300px pill, the chosen one raised */
+body.pro-skin #topbar .pr-editors {
+  width: 300px; height: 34px; box-sizing: border-box; padding: 3px; border-radius: 17px;
+  background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color);
+}
+body.pro-skin #topbar .pr-editors button {
+  flex: 1 1 0; height: 28px; border-radius: 14px; font-size: 13px; font-weight: 500; color: var(--text-muted);
+}
+body.pro-skin #topbar .pr-editors button.on { background: #fff; color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
+body.pro-skin #topbar .pr-editors .pr-ed-short { display: none; }
+body.pro-skin #topbar .pr-editors .pr-ed-full { display: inline; }
+/* File · Edit · Export as quiet text menus */
+body.pro-skin #topbar .tb-start > .dropdown > .dropdown-trigger {
+  height: 28px; padding: 0 7px; border: 0; border-radius: 7px; background: transparent;
+  font-size: 12.5px; font-weight: 500; color: var(--text-muted); box-shadow: none;
+}
+body.pro-skin #topbar .tb-start > .dropdown > .dropdown-trigger:hover { background: var(--btn-bg); color: var(--text-main); }
+body.pro-skin #topbar .tb-start > .dropdown > .dropdown-trigger i { display: none; }
+/* 2D · 3D · Split: a 200px pill in the middle */
+body.pro-skin #topbar #viewModePill {
+  width: 200px; height: 30px; box-sizing: border-box; padding: 3px; gap: 0; border-radius: 15px;
+  background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color); border: 0;
+}
+body.pro-skin #topbar #viewModePill > button { flex: 1 1 0; height: 24px; min-width: 0; padding: 0 6px; border: 0; border-radius: 12px; background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 500; box-shadow: none; }
+body.pro-skin #topbar #viewModePill > button.active,
+body.pro-skin #topbar #viewModePill > button.on { background: #fff; color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
+body.pro-skin #topbar #viewModePill > button i { display: none; }
+body.pro-skin #topbar #viewModePill > button span { display: inline !important; }
+body.pro-skin #topbar #viewModePill #splitOrientationBtn { display: none; }
+/* AI switch as the mockup's chip, undo/redo/people as plain icons, Share in ink */
+body.pro-skin #topbar .ps-ai { height: 30px; padding: 0 10px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-size: 12.5px; font-weight: 600; border: 0; }
+body.pro-skin #topbar [data-act="undo"],
+body.pro-skin #topbar [data-act="redo"],
+body.pro-skin #topbar #workspaceBtn,
+body.pro-skin #topbar #moreMenu > .dropdown-trigger {
+  width: 30px; height: 30px; padding: 0; align-items: center; justify-content: center;
+  border: 0; border-radius: 9px; background: transparent; color: var(--text-main); box-shadow: none;
+}
+body.pro-skin #topbar [data-act="undo"]:hover,
+body.pro-skin #topbar [data-act="redo"]:hover,
+body.pro-skin #topbar #workspaceBtn:hover,
+body.pro-skin #topbar #moreMenu > .dropdown-trigger:hover { background: var(--btn-bg); }
+body.pro-skin #topbar [data-act="undo"] span,
+body.pro-skin #topbar [data-act="redo"] span,
+body.pro-skin #topbar #workspaceBtn span { display: none; }
+body.pro-skin #topbar .ps-share { height: 30px; padding: 0 12px; border-radius: 12px; border: 0; background: var(--pro-ink); color: #fff; font-size: 12.5px; font-weight: 600; }
+body.pro-skin #topbar .ps-share:hover { filter: brightness(1.2); }
+body.pro-skin #topbar .ps-share i { display: none; }
+body.pro-skin .ps-more-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 12px; border: 0; background: transparent;
+  color: var(--text-main); font: inherit; font-size: 13px; text-align: start; cursor: pointer;
+}
+body.pro-skin .ps-more-item:hover { background: var(--btn-bg); }
+body.pro-skin .ps-more-item i { width: 16px; color: var(--text-muted); }
+body:not(.pro-skin) .ps-more-item { display: none; }
+
+/* ---- tabs row: underlined tabs, "Every command" at the end --------------- */
+body.pro-skin .pro-ribbon { background: #fff; border-bottom: 1px solid var(--border-color); backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.pro-skin .pr-bar { height: 34px; align-items: flex-end; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--border-color); }
+body.pro-skin .pr-tabs { align-self: stretch; align-items: flex-end; gap: 2px; }
+body.pro-skin .pr-tab {
+  height: 30px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+  background: transparent; color: var(--text-muted); font-size: 12.5px; font-weight: 500;
+}
+body.pro-skin .pr-tab:hover { color: var(--text-main); background: transparent; }
+body.pro-skin .pr-tab.on { border-bottom-color: var(--pro-ink); color: var(--text-main); font-weight: 700; background: transparent; box-shadow: none; }
+body.pro-skin .pr-count,
+body.pro-skin .pr-every,
+body.pro-skin .pr-collapse { display: none; }
+body.pro-skin .pr-bar > #toolSearch { margin-inline-start: auto; align-self: center; width: 230px; flex: none; position: relative; }
+body.pro-skin .pr-bar > #toolSearch input {
+  height: 26px; padding: 0 44px 0 30px; border-radius: 8px; border: 0; background: var(--btn-bg);
+  font-size: 12px; color: var(--text-main); box-shadow: none;
+}
+body.pro-skin .pr-bar > #toolSearch input::placeholder { color: var(--text-muted); }
+body.pro-skin .pr-bar > #toolSearch > i { font-size: 13px; color: var(--text-muted); }
+
+/* ---- tools row: 55×58 tools, the armed one in ink, group names under ----- */
+body.pro-skin .pr-groups { height: 80px; align-items: flex-end; padding: 2px 6px 0; gap: 0; background: #fff; }
+body.pro-skin .pr-group { padding: 0 6px; border-inline-end: 1px solid var(--border-color); gap: 0; }
+body.pro-skin .pr-tool {
+  width: 55px; height: 58px; gap: 4px; padding: 0 2px; border-radius: 9px; color: var(--text-main);
+}
+body.pro-skin .pr-tool i { font-size: 20px; }
+body.pro-skin .pr-tool span { font-size: 10.5px; font-weight: 500; line-height: 1.1; }
+body.pro-skin .pr-tool kbd { top: 3px; inset-inline-end: 4px; font-family: var(--pro-mono); font-size: 8.5px; color: var(--pro-faint); background: none; border: 0; }
+body.pro-skin .pr-tool:hover { background: var(--btn-bg); }
+body.pro-skin .pr-tool.on { background: var(--pro-ink); color: #fff; }
+body.pro-skin .pr-tool.on kbd { color: rgba(255, 255, 255, 0.7); }
+body.pro-skin .pr-glabel { height: 16px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--pro-faint); }
+
+/* ---- side panels ---------------------------------------------------------- */
+body.pro-skin #left-sidebar { width: 272px; min-width: 272px; background: #fff; border-inline-end: 1px solid var(--border-color); box-shadow: none; }
+body.pro-skin #right-inspector { width: 352px; min-width: 352px; background: #fff; border-inline-start: 1px solid var(--border-color); box-shadow: none; }
+body.pro-skin #left-sidebar .left-tabs {
+  display: flex; gap: 2px; margin: 10px 8px 8px; padding: 3px; border-radius: 9px; background: var(--btn-bg); border: 0; box-shadow: none;
+}
+body.pro-skin #left-sidebar .left-tabs > button {
+  flex: 1 1 auto; min-width: 0; height: 28px; padding: 0 3px; flex-direction: row; gap: 0; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 600; box-shadow: none; text-transform: none; letter-spacing: 0;
+}
+body.pro-skin #left-sidebar .left-tabs > button i { display: none; }
+body.pro-skin #left-sidebar .left-tabs > button span { font-size: 11px; text-transform: none; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.pro-skin #left-sidebar .left-tabs > button.active { background: #fff; color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
+body.pro-skin #left-sidebar .panel-section,
+body.pro-skin #right-inspector .panel-section { background: transparent; border-color: var(--border-color); box-shadow: none; }
+body.pro-skin #left-sidebar .lib-search,
+body.pro-skin #left-sidebar input[type="search"] { border-radius: 9px; background: var(--btn-bg); border-color: transparent; }
+body.pro-skin #right-inspector h3,
+body.pro-skin #left-sidebar h3 { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--pro-faint); }
+
+/* ---- canvas: flat, the plan on near-white, the chrome that floats on it --- */
+body.pro-skin #center-canvas { background: var(--bg-canvas-2d); }
+body.pro-skin #plan-toolbar { display: none !important; } /* the ribbon carries every tool */
+/* the plan's floor tabs read as the mockup's "PLAN · FLOOR 1" chip */
+body.pro-skin #floor-tabs {
+  gap: 2px; padding: 0 3px; height: 22px; align-items: center; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.94); box-shadow: 0 0 0 1px var(--border-color);
+}
+body.pro-skin #floor-tabs::before { content: "PLAN ·"; padding-inline: 5px 2px; font: 600 10.5px/1 var(--pro-mono); letter-spacing: 0.04em; color: var(--text-muted); }
+body.pro-skin #floor-tabs > button {
+  height: 18px; padding: 0 6px; border: 0; border-radius: 4px; background: transparent; box-shadow: none;
+  font: 600 10.5px/1 var(--pro-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted);
+}
+body.pro-skin #floor-tabs > button.active { background: var(--btn-bg); color: var(--text-main); }
+/* the workflow row (units, fit, layers, drawing space) as the mockup's strip
+   of icons on the canvas edge */
+body.pro-skin #center-canvas > #planner-workflow {
+  /* mid-height on the edge: the plan's own movable panels hold the corner */
+  position: absolute; top: 50%; transform: translateY(-50%); inset-inline-end: 12px; z-index: 12; display: flex; flex-direction: column; gap: 2px;
+  width: auto; height: auto; margin: 0; padding: 4px; border: 0; border-radius: 12px;
+  background: #fff; box-shadow: 0 4px 14px rgba(16, 21, 34, 0.1), 0 0 0 1px var(--border-color);
+}
+body.pro-skin #center-canvas > #planner-workflow > button {
+  width: 30px; height: 30px; min-width: 0; padding: 0; justify-content: center; gap: 0; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text-main); box-shadow: none; font-size: 0;
+}
+body.pro-skin #center-canvas > #planner-workflow > button i { font-size: 16px; }
+body.pro-skin #center-canvas > #planner-workflow > button:hover { background: var(--btn-bg); }
+body.pro-skin #center-canvas > #planner-workflow > :not(button) { display: none; }
+
+/* ---- status line ---------------------------------------------------------- */
+body.pro-skin #cad-status {
+  height: 26px; min-height: 26px; gap: 16px; padding: 0 12px; background: #fff; border-top: 1px solid var(--border-color);
+  font: 11px/1 var(--pro-mono); color: var(--text-muted); box-shadow: none;
+}
+body.pro-skin #cad-status button { font: inherit; }
+
+/* ---- small corrections to what the header borrowed ----------------------- */
+/* Planner · Model · Cabinet — the full name only where it is one word */
+body.pro-skin #topbar .pr-editors button:not([data-pro-editor="plan"]) .pr-ed-full { display: none; }
+body.pro-skin #topbar .pr-editors button:not([data-pro-editor="plan"]) .pr-ed-short { display: inline; }
+/* File · Edit · Export: the triggers are icons with a translated label */
+body.pro-skin #topbar .tb-start > .dropdown > .dropdown-trigger::after { content: attr(aria-label); }
+
+/* ---- Split: the plan keeps the canvas, the 3D sits over the inspector ---- */
+body.pro-skin.ps-split3d #right-inspector > #view-3d {
+  position: relative; flex: 0 0 250px !important; width: auto !important; height: 250px !important; min-height: 0;
+  border-bottom: 1px solid var(--border-color); overflow: hidden;
+}
+body.pro-skin.ps-split3d #right-inspector > #view-3d > :is(.lbl, .hint, #drawing3dBtn, #drawing3dPanel, #dollhouseBtn, #edit3dBtn, #planner-3d-hud, .planner-navigation, .walk-touch-controls, .view-gizmo) { display: none !important; }
+body.pro-skin.ps-split3d #right-inspector > #view-3d::after {
+  content: "3D"; position: absolute; top: 10px; inset-inline-start: 10px; z-index: 2; pointer-events: none;
+  height: 22px; display: flex; align-items: center; padding: 0 8px; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.94); box-shadow: 0 0 0 1px var(--border-color);
+  font: 600 10.5px/1 var(--pro-mono); letter-spacing: 0.04em; color: var(--text-muted);
+}
+body.pro-skin.ps-split3d #view-resizer { display: none; }
+body.pro-skin.ps-split3d #center-canvas > #view-2d { flex: 1 1 auto !important; width: auto !important; height: auto !important; }
+
+/* the left panel's actions: the mockup's ink primary and outlined secondaries */
+body.pro-skin #left-sidebar .btn-accent,
+body.pro-skin #left-sidebar .primary-action { background: var(--pro-ink); border-color: var(--pro-ink); color: #fff; border-radius: 9px; box-shadow: none; }
+body.pro-skin #left-sidebar .panel-section button:not(.btn-accent):not(.primary-action):not(.active) { box-shadow: none; }
+body.pro-skin #right-inspector .next-step-card,
+body.pro-skin #right-inspector button { box-shadow: none; }
+
+/* ---- inspector: identity, one row of facts, text tabs, label | value ------ */
+/* Split already shows the model over the inspector; one 3D is enough */
+body.pro-skin.ps-split3d #right-inspector #inspectorPreview { display: none; }
+body.pro-skin #right-inspector .wi-head { padding: 2px 0 0; }
+body.pro-skin #right-inspector .wi-identity { gap: 8px; }
+body.pro-skin #right-inspector .wi-identity .wi-id,
+body.pro-skin #right-inspector #selname { font-size: 14px; font-weight: 700; color: var(--text-main); }
+body.pro-skin #right-inspector .wi-phase { height: 18px; padding: 0 6px; border-radius: 5px; font: 600 10px/18px var(--pro-mono); letter-spacing: 0.04em; text-transform: uppercase; }
+body.pro-skin #right-inspector .insp-meta { font-size: 11.5px; color: var(--text-muted); }
+body.pro-skin #right-inspector .wi-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+body.pro-skin #right-inspector .wi-chip {
+  min-height: 0; padding: 6px 8px; gap: 1px; border: 0; border-radius: 8px; background: var(--btn-bg); box-shadow: none;
+  display: flex; flex-direction: column-reverse; align-items: flex-start;
+}
+body.pro-skin #right-inspector .wi-chip-v { font: 700 12px/1.3 var(--pro-mono); color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+body.pro-skin #right-inspector .wi-chip-k { font-size: 10.5px; color: var(--text-muted); text-transform: none; letter-spacing: 0; }
+body.pro-skin #right-inspector .wi-chip-sub { display: none; }
+body.pro-skin #right-inspector .wi-tabs {
+  display: flex; gap: 2px; height: auto; padding: 3px; border-radius: 9px; background: var(--btn-bg); border: 0; box-shadow: none;
+}
+body.pro-skin #right-inspector .wi-tabs > button {
+  flex: 1 1 0; min-width: 0; height: 28px; min-height: 0; padding: 0 4px; display: flex; flex-direction: row; align-items: center; justify-content: center;
+  border: 0; border-radius: 7px; background: transparent; color: var(--text-muted); box-shadow: none; font-size: 12px; font-weight: 600;
+}
+body.pro-skin #right-inspector .wi-tabs > button > i { display: none; }
+body.pro-skin #right-inspector .wi-tabs > button > span:not(.wi-tab-badge) { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.pro-skin #right-inspector .wi-tabs > button.active { background: #fff; color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
+body.pro-skin #right-inspector .con-block { padding: 8px 0 0; border: 0; background: transparent; box-shadow: none; }
+body.pro-skin #right-inspector .con-head { padding: 0 0 4px; gap: 6px; }
+body.pro-skin #right-inspector .con-head i { display: none; }
+body.pro-skin #right-inspector .con-head .t { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--pro-faint); }
+/* label | value: each field a two-column row over a hairline */
+body.pro-skin #right-inspector .dim-row { display: flex; flex-direction: column; gap: 0; }
+body.pro-skin #right-inspector .dim-row > label {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 8px;
+  min-height: 34px; margin: 0; border-bottom: 1px solid var(--border-color); font-size: 12.5px;
+}
+body.pro-skin #right-inspector .dim-row > label > span { color: var(--text-muted); font-size: 12.5px; text-transform: none; letter-spacing: 0; }
+body.pro-skin #right-inspector input[type="text"],
+body.pro-skin #right-inspector input[type="number"],
+body.pro-skin #right-inspector select {
+  height: 28px; padding: 0 8px; border: 1px solid var(--border-color); border-radius: 7px; background: #fff;
+  font: 600 12.5px/1 var(--pro-mono); color: var(--text-main); box-shadow: none;
+}
+body.pro-skin #right-inspector input:focus,
+body.pro-skin #right-inspector select:focus { border: 2px solid var(--accent); outline: 0; padding: 0 7px; }
+
+/* ======================= model editor & cabinet designer ================= */
+/* The catalog ribbon (js/pro_ribbon.js mountEditorRibbon) replaces the
+   editors' own command rows in this layout, and only here. */
+body:not(.pro-skin) .pr-editor-ribbon { display: none; }
+body.pro-skin #modeler .md-commandmanager { display: none; }
+body.pro-skin .pr-editor-ribbon { flex: none; z-index: 60; }
+body.pro-skin .pr-editor-ribbon .pr-every-ed {
+  display: flex; margin-inline-start: auto; align-self: center; align-items: center; gap: 6px; height: 26px; padding: 0 10px;
+  border: 0; border-radius: 8px; background: var(--btn-bg); color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer;
+}
+body.pro-skin .pr-editor-ribbon .pr-every-ed kbd {
+  min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-color); border-bottom-width: 2px; border-radius: 5px; background: #fff; font: 11px var(--pro-mono); color: var(--text-muted);
+}
+
+/* ---- headers: logo, project, switcher · view pill · AI, undo, redo ------- */
+body.pro-skin #modeler .md-head,
+body.pro-skin #cabdes .cb-head-main {
+  display: flex; align-items: center; gap: 10px; height: 44px; min-height: 44px; padding: 0 12px; box-sizing: border-box;
+  background: #fff; border-bottom: 1px solid var(--border-color); box-shadow: none; flex-wrap: nowrap;
+}
+body.pro-skin #modeler .md-head .md-head-actions,
+body.pro-skin #modeler .md-head .ps-actions,
+body.pro-skin #cabdes .cb-head-main .cb-actions,
+body.pro-skin #cabdes .cb-head-main .cb-actions .ps-actions,
+body.pro-skin #cabdes .cb-head-main .cb-history-actions { display: contents; }
+body.pro-skin #modeler .md-head-logo { order: 1; }
+body.pro-skin #modeler .md-head .ps-project, body.pro-skin #cabdes .cb-head-main .ps-project { order: 2; }
+body.pro-skin #modeler .md-head .pr-editors, body.pro-skin #cabdes .cb-head-main .pr-editors { order: 3; }
+body.pro-skin #modeler #mdDocModes { order: 4; }
+body.pro-skin #modeler .md-head > #mdModes, body.pro-skin #cabdes .cb-head-main > .cb-vmodes { order: 5; margin-inline: auto; }
+body.pro-skin #modeler .md-head .ps-ai, body.pro-skin #cabdes .cb-head-main .ps-ai { order: 6; }
+body.pro-skin #modeler #mdUndo, body.pro-skin #cabdes #cbUndo { order: 7; }
+body.pro-skin #modeler #mdRedo, body.pro-skin #cabdes #cbRedo { order: 8; }
+body.pro-skin #modeler #mdGuide { order: 9; }
+body.pro-skin #modeler .md-head .ps-share, body.pro-skin #cabdes .cb-head-main .ps-share { order: 10; }
+body.pro-skin #modeler #mdSave, body.pro-skin #cabdes #cbRevert { order: 11; }
+body.pro-skin #modeler #mdClose, body.pro-skin #cabdes #cbClose { order: 12; }
+body.pro-skin #modeler .md-head .md-separator, body.pro-skin #cabdes .cb-levels { display: none; }
+/* the logo reads as the planner's ink mark */
+body.pro-skin #modeler .md-head-logo, body.pro-skin #cabdes .cb-logo { font-size: 0; gap: 8px; }
+body.pro-skin #modeler .md-head-logo > b { display: none; }
+body.pro-skin #modeler .md-head-logo > :first-child, body.pro-skin #cabdes .cb-logo > i:first-child {
+  width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  background: var(--pro-ink); color: #fff; font-size: 16px; flex: none;
+}
+body.pro-skin #modeler .md-head-logo > :first-child svg { width: 17px; height: 17px; color: #fff; stroke: #fff; }
+/* switcher, the same pill as the planner's */
+body.pro-skin #modeler .md-head .pr-editors, body.pro-skin #cabdes .cb-head-main .pr-editors {
+  width: 300px; height: 34px; box-sizing: border-box; padding: 3px; margin: 0; border-radius: 17px;
+  background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color);
+}
+body.pro-skin #modeler .md-head .pr-editors button, body.pro-skin #cabdes .cb-head-main .pr-editors button {
+  flex: 1 1 0; height: 28px; border-radius: 14px; font-size: 13px; font-weight: 500; color: var(--text-muted);
+}
+body.pro-skin #modeler .md-head .pr-editors button.on, body.pro-skin #cabdes .cb-head-main .pr-editors button.on {
+  background: #fff; color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16);
+}
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .pr-editors button:not([data-pro-editor="plan"]) .pr-ed-full { display: none; }
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .pr-editors button:not([data-pro-editor="plan"]) .pr-ed-short { display: inline; }
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .pr-editors button[data-pro-editor="plan"] .pr-ed-full { display: inline; }
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .pr-editors button[data-pro-editor="plan"] .pr-ed-short { display: none; }
+/* the view pill in the middle */
+body.pro-skin #modeler .md-head > #mdModes,
+body.pro-skin #cabdes .cb-head-main > .cb-vmodes {
+  position: static; transform: none; display: flex; flex-direction: row; gap: 0; height: 30px; box-sizing: border-box;
+  padding: 3px; border: 0; border-radius: 15px; background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color);
+}
+body.pro-skin #modeler .md-head > #mdModes > button,
+body.pro-skin #cabdes .cb-head-main > .cb-vmodes > button {
+  display: flex; align-items: center; height: 24px; min-width: 56px; padding: 0 10px; border: 0; border-radius: 12px; background: transparent; box-shadow: none;
+  color: var(--text-muted); font-size: 13px; font-weight: 500; justify-content: center;
+}
+body.pro-skin #modeler .md-head > #mdModes > button.on,
+body.pro-skin #cabdes .cb-head-main > .cb-vmodes > button.on { background: #fff; color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
+body.pro-skin #modeler .md-head > #mdModes > button :is(i, svg, .md-cad-icon),
+body.pro-skin #cabdes .cb-head-main > .cb-vmodes > button i { display: none; }
+/* AI chip, plain icon buttons, Share in ink */
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-ai { height: 30px; padding: 0 10px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-size: 12.5px; font-weight: 600; border: 0; }
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share { height: 30px; padding: 0 12px; border-radius: 12px; border: 0; background: var(--pro-ink); color: #fff; font-size: 12.5px; font-weight: 600; }
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share i { display: none; }
+body.pro-skin :is(#mdUndo, #mdRedo, #mdGuide, #cbUndo, #cbRedo) {
+  width: 30px; height: 30px; min-width: 30px; padding: 0; justify-content: center; border: 0; border-radius: 9px; background: transparent; box-shadow: none; color: var(--text-main);
+}
+body.pro-skin :is(#mdUndo, #mdRedo, #mdGuide, #cbUndo, #cbRedo) span { display: none; }
+body.pro-skin :is(#mdSave, #cbRevert, #mdClose, #cbClose) { height: 30px; border-radius: 9px; box-shadow: none; font-size: 12.5px; }
+body.pro-skin :is(#mdSave, #cbClose) { background: var(--pro-ink); border-color: var(--pro-ink); color: #fff; }
+
+/* ---- model editor body ---------------------------------------------------- */
+body.pro-skin #modeler { background: var(--bg-app); }
+body.pro-skin #modeler .md-panel { background: #fff; border-color: var(--border-color); border-radius: 0; box-shadow: none; }
+body.pro-skin #modeler .md-mid { border-radius: 0; border: 0; }
+/* the next-step strip as a slim pill over the model */
+body.pro-skin #modeler .md-mid > .md-status-row {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 62; max-width: calc(100% - 320px);
+  height: auto; min-height: 0; padding: 4px 6px 4px 10px; gap: 8px; border-radius: 12px; border: 0;
+  background: #fff; box-shadow: 0 4px 14px rgba(16, 21, 34, 0.1), 0 0 0 1px var(--border-color); font-size: 12px;
+}
+/* the current step stays in the pill: it names where you are and is clickable */
+
+/* ---- cabinet designer body ------------------------------------------------ */
+body.pro-skin #cabdes { background: var(--bg-app); }
+body.pro-skin #cabdes .cb-head { background: #fff; box-shadow: none; border: 0; padding: 0; gap: 0; }
+body.pro-skin #cabdes .cb-context-bar { min-height: 0; padding: 6px 12px; background: #fff; border-bottom: 1px solid var(--border-color); box-shadow: none; }
+body.pro-skin #cabdes .cb-panel { background: #fff; border-color: var(--border-color); border-radius: 0; box-shadow: none; }
+body.pro-skin #cabdes .cb-mid { border-radius: 0; border: 0; }
+body.pro-skin #cabdes .cb-body { gap: 0; padding: 0; }
+
+/* the model on the mockup's light ground (the canvas is transparent) */
+body.pro-skin #modeler.md-is3d .md-mid,
+body.pro-skin #modeler.md-split .md-3dhost { background: #f3f4f6; }
+/* panel tabs as the segmented text control the other panels use */
+body.pro-skin #modeler .md-strip {
+  display: flex; gap: 2px; margin: 10px 8px 8px; padding: 3px; border-radius: 9px; background: var(--btn-bg); border: 0; box-shadow: none;
+}
+body.pro-skin #modeler .md-strip > button {
+  flex: 1 1 auto; min-width: 0; height: 28px; padding: 0 6px; gap: 0; justify-content: center; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 600; box-shadow: none;
+}
+body.pro-skin #modeler .md-strip > button :is(svg, i) { display: none; }
+body.pro-skin #modeler .md-strip > button.on { background: #fff; color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
+body.pro-skin #cabdes .cb-icons.cb-seg { margin: 0; }
+/* the tool rows scroll when narrow, without a bar across them */
+body.pro-skin .pr-groups { scrollbar-width: none; }
+body.pro-skin .pr-groups::-webkit-scrollbar { display: none; }
+
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share span { display: inline !important; }
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-share { width: auto; min-width: 0; }
+body.pro-skin #cabdes .cb-right .cb-icons.cb-seg button { background: transparent; border: 0; color: var(--text-muted); box-shadow: none; }
+body.pro-skin #cabdes .cb-right .cb-icons.cb-seg button.on { background: #fff; color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
+
+/* the parts tree: the code first, as the mockup lists W1 · Window 1 */
+.trCode { flex: none; min-width: 26px; font: 700 10.5px/1 ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; color: var(--text-muted); }
+body.pro-skin #left-sidebar .trItem { min-height: 27px; gap: 7px; border-radius: 7px; font-size: 12.5px; }
+body.pro-skin #left-sidebar .trItem.sel { background: var(--accent-soft); color: var(--text-main); box-shadow: inset 2px 0 0 var(--accent); }
+body.pro-skin #left-sidebar .trItem.sel .trName, body.pro-skin #left-sidebar .trItem.sel .trCode { color: var(--text-main); }
+body.pro-skin #left-sidebar .trLk { filter: grayscale(1); opacity: 0.45; font-size: 11px; }

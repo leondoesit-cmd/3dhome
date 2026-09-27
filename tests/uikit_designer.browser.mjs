@@ -6,7 +6,7 @@
  * a group survives being made out of the host's own elements, and whether the
  * panel that edits all this can be clicked at all.
  */
-import test from "node:test";
+import test from "./helpers/customize_gate.mjs"; // skipped while UI Customize is off
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
 

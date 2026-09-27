@@ -19,7 +19,7 @@
  * The obvious renderer — one wrapper div per node — breaks it and shows every
  * pane at once, which is why adopted elements are never wrapped.
  */
-import test from "node:test";
+import test from "./helpers/customize_gate.mjs"; // skipped while UI Customize is off
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
 

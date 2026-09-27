@@ -394,3 +394,39 @@ test("the model editor's right column shows the sketch while the middle shows th
   assert.match(md, /syncSplitSketch3D\(\);\s*syncSketchThumb\(\);/);
   for (const k of ["sketchThumbChip", "sketchThumbTip"]) assert.ok(src("modeler_strings.js").includes(String.fromCharCode(10) + "  " + k + ": ["), k);
 });
+
+test("the Round-6 desktop layout: one header, the catalog ribbon in every editor, phones untouched", () => {
+  const ribbon = src("pro_ribbon.js");
+  // only on a desktop window, never in the compact layouts, and it can be turned off
+  assert.match(ribbon, /return !!\(DESK && DESK\.matches\) && !document\.body\.classList\.contains\("compact-nav"\) && store\("mf\.proSkin"\) !== "0";/);
+  assert.match(ribbon, /var DESK = typeof matchMedia === "function" \? matchMedia\("\(min-width: 1024px\)"\) : null;/);
+  // what moves keeps its node and goes home when the layout does
+  assert.match(ribbon, /relocate\(document\.getElementById\("toolSearch"\), on && bar \? bar : null\);/);
+  assert.match(ribbon, /relocate\(document\.getElementById\("toolSearch"\), null\);\s*ribbon\.remove\(\);/);
+  // Split: the 3D over the inspector, redrawn after the move
+  assert.match(ribbon, /insp\.insertBefore\(v3, insp\.firstChild\);/);
+  assert.match(ribbon, /import\("\.\/view3d\.js"\)\.then\(function \(m\) \{ if \(m\.requestRender\) m\.requestRender\(\); \}\);/);
+  // the editors' ribbons are their catalog tabs, mounted through the shell
+  assert.match(ribbon, /var EDITOR_RIBBON_AFTER = \{ model: "\.md-head", cab: "\.cb-head-main" \};/);
+  assert.match(src("pro_shell.js"), /if \(editor && editor !== "plan" && shell\.mountEditorRibbon\) shell\.mountEditorRibbon\(editor, root\);/);
+  assert.match(ribbon, /document\.querySelectorAll\("\.pro-rail-grid \[data-pro-bind\], \.pr-editor-ribbon \[data-pro-bind\]"\)/);
+  // the cabinet's view buttons are found by their own class, wherever they sit
+  assert.match(src("ui_cabinet_view.js"), /E\.host\.querySelectorAll\("\.cb-vmodes button\[data-mode\]"\)/);
+  assert.match(src("pro_catalog.js"), /\["Level", \[T\("Compose", "ph-layout", "cab:level:composition"\)/);
+  const skin = src("../css/pro_skin.css");
+  assert.match(skin, /body:not\(\.pro-skin\) #topbar \[data-ps-moved\] \{ display: none !important; \}/);
+  assert.match(skin, /body:not\(\.pro-skin\) \.pr-editor-ribbon \{ display: none; \}/);
+  assert.match(skin, /body\.pro-skin #modeler \.md-commandmanager \{ display: none; \}/);
+  assert.match(src("../index.html"), /<link rel="stylesheet" href="css\/pro_skin\.css" \/>/);
+});
+
+test("UI Customize mode is switched off: nothing mounts, no entry offers it", () => {
+  const host = src("uikit_host/index.js");
+  assert.match(host, /export const CUSTOMIZE_DISABLED = true;/);
+  assert.match(host, /export function initUIKit\(options\) \{\s*const opts = options \|\| \{\};\s*if \(CUSTOMIZE_DISABLED\) return null;/);
+  assert.match(host, /export function openCustomize\(\) \{\s*if \(CUSTOMIZE_DISABLED\) return false;/);
+  assert.match(src("../index.html"), /<button data-act="uikitCustomize" hidden role="menuitemcheckbox"/);
+  assert.doesNotMatch(src("mobile_shell.js"), /\["uikitCustomize", "uikit_ins_title", "ph-layout"\]/);
+  // its tests are skipped with the reason, and run again once the flag is cleared
+  assert.match(readFileSync(new URL("./helpers/customize_gate.mjs", import.meta.url), "utf8"), /CUSTOMIZE_DISABLED = true;/);
+});

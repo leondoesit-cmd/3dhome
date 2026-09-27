@@ -17,7 +17,7 @@
  * Backspace hiding the panel being renamed — with every existing test still
  * green. So this file clicks and types, and nothing else.
  */
-import test from "node:test";
+import test from "./helpers/customize_gate.mjs"; // skipped while UI Customize is off
 import assert from "node:assert/strict";
 import { openPage, findChrome } from "../tools/browser_harness.mjs";
 
