@@ -923,6 +923,8 @@ function mountPlannerShell() {
        view mode (the centre canvas's classes), and the plan's own tool panels. */
     var refit = function () { requestAnimationFrame(fitPlannerBar); };
     window.addEventListener("resize", refit);
+    // the cabinet's size fields choose their row by the room there is
+    window.addEventListener("resize", function () { placeEditorChrome(proDesk()); });
     if (window.MutationObserver) {
       if (canvas) new MutationObserver(function () { refit(); placeDesk(); }).observe(canvas, { attributes: true, attributeFilter: ["class"] });
       var tools = document.getElementById("plan-tools");
@@ -1010,8 +1012,52 @@ function placeEditorChrome(on) {
     relocate(md.querySelector(".md-status-row"), on ? md.querySelector(".md-mid") : null);
   }
   var cb = document.getElementById("cabdes");
-  if (cb) addAllCommands(cb.querySelector(".cb-mid > .ps-cmdbar"), "cab");
+  if (cb) addAllCommands(cb.querySelector('.ps-cmdbar[data-ps-bar="cab"]'), "cab");
   if (cb && !phone) relocate(cb.querySelector(".cb-vmodes"), on ? cb.querySelector(".cb-head-main") : null);
+  if (cb) placeCabChrome(cb, on && !phone);
+}
+/* The cabinet designer's rows, desktop layout:
+   - the size fields ride on the ribbon's tabs row, right of Design · View ·
+     Review · Production, and drop back to their own row only when that row
+     has no room for them;
+   - the second row is one line: the drawing tools (Select, partitions,
+     erase), then the door-opening preview and Show doors;
+   - the AI / Cmd bar sits in a bottom bar with the status line, as in the
+     planner and the model editor.
+   Everything goes home on a phone, a fold or the classic layout. */
+function placeCabChrome(cb, on) {
+  var tabsRow = cb.querySelector(".pr-editor-ribbon .pr-bar");
+  var size = cb.querySelector(".cb-size-group"), ctx = cb.querySelector(".cb-context-bar");
+  var tools = cb.querySelector("#cbTools"), status = cb.querySelector("#cbStatus");
+  var bar = cb.querySelector('.ps-cmdbar[data-ps-bar="cab"]');
+  var foot = cb.querySelector(".cb-bottombar");
+  if (!on) {
+    if (size && tabsRow && size.parentElement === tabsRow) relocate(size, null);
+    if (tools && ctx && tools.parentElement === ctx) relocate(tools, null);
+    // only what the bar holds: on a phone the ask panel borrows the same bar
+    if (foot && bar && bar.parentElement === foot) relocate(bar, null);
+    if (foot && status && status.parentElement === foot) relocate(status, null);
+    if (foot && !foot.hidden) foot.hidden = true;
+    return;
+  }
+  if (tools && ctx) relocate(tools, ctx);
+  if (status) {
+    if (!foot) {
+      foot = document.createElement("div");
+      foot.className = "cb-bottombar";
+      status.parentNode.insertBefore(foot, status);
+    }
+    if (foot.hidden) foot.hidden = false;
+    relocate(bar, foot);
+    relocate(status, foot);
+  }
+  if (size && tabsRow) {
+    relocate(size, tabsRow);
+    // no room beside the tabs (the row, or the tabs themselves, would have to
+    // give way): back to its own row
+    var tabList = tabsRow.querySelector(".pr-tabs");
+    if (tabsRow.scrollWidth > tabsRow.clientWidth + 1 || (tabList && tabList.scrollWidth > tabList.clientWidth + 1)) relocate(size, null);
+  }
 }
 /* In this layout the model's view list is a column of icons: each button
    keeps its name as a tooltip and an accessible name. */
@@ -1071,7 +1117,9 @@ function addAllCommands(bar, editor) {
   b.title = M("allCmds") + " (" + (isMac() ? "⌘K" : "Ctrl K") + ")";
   b.setAttribute("aria-label", M("allCmds"));
   b.addEventListener("click", function () { openEveryPanel(editor); });
-  bar.insertBefore(b, bar.querySelector(".ps-mic"));
+  // right after the AI | Cmd switch, before the text
+  var modes = bar.querySelector(".ps-modes");
+  bar.insertBefore(b, modes ? modes.nextSibling : bar.firstChild);
 }
 /* Split, as the mockup draws it: the plan keeps the whole canvas and the 3D
    view sits at the top of the right column, over the inspector — the same

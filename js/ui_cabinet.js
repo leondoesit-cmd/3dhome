@@ -3,6 +3,7 @@ import { captureCabinetSession, restoreCabinetSession } from "./cabinet_session.
 // Elevation drawing lives in ui_cabinet_view.js; inspector panes in ui_cabinet_inspect.js.
 
 import { S, clamp, fin } from "./state.js";
+import { dropPoint } from "./plan_view.js";
 import { clearVSpanCache } from "./furniture.js";
 import { getLang, onLangChange } from "./i18n.js";
 import { render2D } from "./plan2d.js";
@@ -1177,18 +1178,30 @@ function newCabinet() {
       /* The new piece, not S.sel: placeFurnAt pushes it and announces the
          placement BEFORE it selects it, so reading the selection here still
          sees whatever was selected a moment ago. The pushed item is the last. */
-      begin(S.items[S.items.length - 1]);
+      beginBlank(S.items[S.items.length - 1]);
     });
   });
-  function begin(it) {
-    var f = FAM.free;
-    it.w = f.w;
-    it.h = f.h;
-    it.d = f.d;
-    it.cab = makeBlankSpec("free", it.w, it.h, it.d);
-    openCabinet(it);
-    setTool("vwall");
-  }
+  function begin(it) { beginBlank(it); }
+}
+function beginBlank(it) {
+  var f = FAM.free;
+  it.w = f.w;
+  it.h = f.h;
+  it.d = f.d;
+  it.cab = makeBlankSpec("free", it.w, it.h, it.d);
+  openCabinet(it);
+  setTool("vwall");
+}
+/* The editor switch with nothing selected: rather than refuse, it starts a
+   blank cabinet — placed at the middle of the plan view at once (one undo
+   step), open in the designer with the partition tool ready. */
+function openBlankCabinet() {
+  import("./ui.js").then(function (m) {
+    var p = dropPoint(), before = S.items.length;
+    m.placeFurnAt("cabsys", p.x, p.z);
+    if (S.items.length <= before) return; // placing failed; ui.js said why
+    beginBlank(S.items[S.items.length - 1]);
+  });
 }
 
 // Used by the action dispatcher (data-act="cabDesign") and the library panel.
@@ -1203,10 +1216,13 @@ export function isCabinetOpen() {
    not Revert: switching editors keeps the cabinet as it stands, and Ctrl+Z in
    the plan still takes the whole session back. */
 registerEditor("cab", {
-  open: openCabinetForSelection,
+  open: function () {
+    if (S.sel && S.sel.kind === "item" && S.sel.ref) openCabinetForSelection();
+    else openBlankCabinet();
+  },
   isOpen: isCabinetOpen,
   leave: function () { closeCabinet(); return true; },
-  canOpen: function () { return !!(S.sel && S.sel.kind === "item" && S.sel.ref); },
+  canOpen: function () { return true; },
   why: function () { return T("switchNeedSel"); },
 });
 

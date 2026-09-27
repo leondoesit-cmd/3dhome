@@ -242,6 +242,8 @@ export function showLeftTab(id) {
   return true;
 }
 
+if (typeof window !== "undefined") window.__proShowLeftTab = showLeftTab;
+
 /** One pass: `on` is the Round-6 desktop layout. */
 export function placeLeft(on) {
   var side = left();

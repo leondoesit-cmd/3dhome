@@ -549,6 +549,13 @@ export function placeLayersChip() {
   // the layer card moves between the 2D and 3D panes with the plan tools: the chip goes with it
   var lc = $("layer-chips");
   var host = (lc && lc.closest("#view-2d, #view-3d")) || $("view-2d");
+  /* The desktop keeps the layer rows in the left panel's Layers tab; the chip
+     stays on whichever view fills the canvas — the plan, or the 3D view on
+     its own — so 2D and 3D show the same corner. */
+  if (body().contains("pro-skin")) {
+    var cc = $("center-canvas");
+    host = (cc && cc.classList.contains("max-view-3d") && $("view-3d")) || $("view-2d") || host;
+  }
   if (!host) return;
   var chip = $("psLayersChip");
   if (chip && chip.parentElement !== host) host.appendChild(chip);
@@ -559,7 +566,12 @@ export function placeLayersChip() {
     chip.id = "psLayersChip";
     chip.className = "ps-layers-chip";
     chip.innerHTML = '<i class="ph ph-stack" aria-hidden="true"></i><span></span><i class="ph ph-caret-down ps-layers-caret" aria-hidden="true"></i>';
-    chip.addEventListener("click", function () { body().toggle("ps-layers-open"); chip.setAttribute("aria-expanded", body().contains("ps-layers-open") ? "true" : "false"); });
+    chip.addEventListener("click", function () {
+      // the desktop's layers are a tab of the left panel (js/pro_left.js)
+      if (body().contains("pro-skin") && window.__proShowLeftTab && window.__proShowLeftTab("layers")) return;
+      body().toggle("ps-layers-open");
+      chip.setAttribute("aria-expanded", body().contains("ps-layers-open") ? "true" : "false");
+    });
     host.appendChild(chip);
     // the warning follows the layer state at once, not on the next pass
     if (typeof MutationObserver !== "undefined") new MutationObserver(function () { placeLayersChip(); }).observe(warnHost, { attributes: true, attributeFilter: ["class"] });

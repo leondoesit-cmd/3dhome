@@ -933,8 +933,8 @@ body.pro-skin #left-sidebar > .ps-left-pane { display: none; }
 body.pro-skin #left-sidebar[data-ps-left] > .panel-section { display: none !important; }
 body.pro-skin #left-sidebar[data-ps-left="layers"] > .ps-left-layers,
 body.pro-skin #left-sidebar[data-ps-left="history"] > .ps-left-history { display: flex !important; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px 8px 12px; }
-/* the layers live in their tab: no chip or card over the plan on a desktop */
-body.pro-skin .ps-layers-chip,
+/* the layer rows live in their tab: no card over the plan on a desktop (the
+   chip under the floor pill opens the tab) */
 body.pro-skin .pt-panel[data-panel="layers"],
 body.pro-skin .pt-panel:has(> #layer-chips) { display: none !important; }
 body.pro-skin .ps-left-layers > #layer-chips {
@@ -1029,9 +1029,10 @@ body.pro-skin .ps-cmdbar > .ps-cmd-input:focus {
 body.pro-skin .ps-cmdbar .ps-allcmds {
   height: 28px; padding: 0 10px 0 11px; border-radius: 14px; background: transparent; box-shadow: none; color: var(--text-muted); font-weight: 600; position: relative;
 }
-body.pro-skin .ps-cmdbar .ps-allcmds::before {
-  content: ""; position: absolute; inset-inline-start: -2px; top: 7px; bottom: 7px; width: 1px; background: var(--border-color);
+body.pro-skin .ps-cmdbar .ps-allcmds::after {
+  content: ""; position: absolute; inset-inline-end: -5px; top: 7px; bottom: 7px; width: 1px; background: var(--border-color);
 }
+body.pro-skin .ps-cmdbar .ps-allcmds { margin-inline-end: 6px; }
 body.pro-skin .ps-cmdbar .ps-allcmds:hover { background: var(--pro-surface, var(--bg-panel)); color: var(--text-main); }
 body.pro-skin .ps-cmdbar .ps-mic { flex: none; }
 
@@ -1042,3 +1043,103 @@ body.pro-skin .ps-plan-bar > #cad-status > .ps-ai-status { display: none !import
   body.pro-skin .ps-plan-bar > #cad-status { display: none !important; }
   body.pro-skin .ps-plan-bar > .ps-cmdbar { width: 100% !important; min-width: 0; }
 }
+
+/* ==== cabinet designer rows (js/pro_ribbon.js placeCabChrome) ============ */
+/* the size fields on the tabs row, compact */
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group {
+  display: flex; align-items: center; gap: 8px; flex: none; margin-inline-start: auto; padding: 0 10px 0 12px; height: 100%;
+}
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group > .cb-group-title { display: none; }
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-scope-note { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-scope-note select { height: 28px; min-height: 0; font-size: 12px; }
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-dims { display: flex; gap: 6px; }
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-dims label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-number { display: inline-flex; align-items: center; height: 28px; }
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-number input { width: 62px; height: 28px; min-height: 0; padding: 0 6px; font: 12.5px var(--pro-mono); }
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-number em { font-size: max(11px, var(--fs-floor, 0px)); }
+/* the context row: tools, then preview and Show doors, on one line */
+body.pro-skin #cabdes .cb-context-bar { display: flex; align-items: center; flex-wrap: nowrap; gap: 12px; overflow-x: auto; scrollbar-width: none; }
+body.pro-skin #cabdes .cb-context-bar > #cbTools {
+  order: -1; position: static; inset: auto; transform: none; display: flex; flex: none; gap: 2px; padding: 3px; margin: 0;
+  border: 0; border-radius: 10px; background: color-mix(in srgb, var(--text-main) 6%, var(--pro-surface)); box-shadow: none;
+}
+body.pro-skin #cabdes .cb-context-bar > #cbTools > button {
+  height: 28px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-muted); font-size: 12.5px; font-weight: 600; white-space: nowrap; box-shadow: none;
+}
+body.pro-skin #cabdes .cb-context-bar > #cbTools > button.on { background: var(--pro-surface); color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.14); }
+body.pro-skin #cabdes .cb-context-bar > .cb-context-sep { display: none; }
+body.pro-skin #cabdes .cb-context-bar > .cb-preview-group { display: flex; align-items: center; gap: 10px; flex: none; }
+/* the bottom bar: the AI / Cmd bar and the status line */
+body:not(.pro-skin) #cabdes .cb-bottombar { display: contents; }
+body.pro-skin #cabdes .cb-bottombar {
+  display: flex; flex: none; align-items: center; gap: 12px; height: 46px; box-sizing: border-box; padding: 0 8px;
+  background: var(--pro-surface); border-top: 1px solid var(--border-color);
+}
+body.pro-skin #cabdes .cb-bottombar[hidden] { display: none !important; }
+body.pro-skin #cabdes .cb-bottombar > .ps-cmdbar {
+  position: relative; inset: auto; left: auto; bottom: auto; transform: none !important; flex: none; width: min(560px, 50%) !important; min-width: 260px;
+  height: 36px; padding: 2px 3px; border-radius: 18px; box-shadow: none; background: var(--btn-bg); z-index: 1;
+}
+body.pro-skin #cabdes .cb-bottombar > .ps-cmdbar:focus-within { background: var(--pro-surface); box-shadow: 0 0 0 3px var(--accent-soft); }
+body.pro-skin #cabdes .cb-bottombar > .ps-cmdbar .ps-mic { width: 30px; height: 30px; font-size: 15px; }
+body.pro-skin #cabdes .cb-bottombar > #cbStatus { flex: 1 1 auto; min-width: 0; border: 0; background: transparent; min-height: 0; padding: 0 4px; }
+body.pro-skin #cabdes:not(.cb-compact) .cb-hint { bottom: 14px; }
+
+/* ==== 2D and 3D wear the same corners (desktop) ==========================
+   Top-left: the floor pill, the layers chip under it. Top-right: the view's
+   own buttons. Right edge: the tool rail. The 3D view's Walk / Look / person
+   / roof row moves to the top centre, clear of the hint at the foot. */
+body.pro-skin .pt-panel:has(> #floor-tabs) {
+  left: 12px !important; right: auto !important; top: 12px !important; bottom: auto !important; transform: none !important;
+  width: auto !important; height: auto !important; background: transparent !important; box-shadow: none !important; border: 0 !important; padding: 0 !important;
+}
+html[dir="rtl"] body.pro-skin .pt-panel:has(> #floor-tabs) { left: auto !important; right: 12px !important; }
+body.pro-skin #floor-tabs.pt-inner, body.pro-skin #floor-tabs {
+  border-radius: 16px !important; height: 32px !important; padding: 3px !important; width: auto !important;
+  background: var(--pro-surface) !important; box-shadow: 0 4px 14px rgba(16, 21, 34, 0.08), 0 0 0 1px var(--border-color) !important;
+}
+body.pro-skin :is(#view-2d, #view-3d) > .ps-layers-chip { top: 52px; inset-inline-start: 12px; }
+/* under the 3D view's own buttons (Drawing overlay, Dollhouse), top-right */
+body.pro-skin #view-3d > .planner-navigation {
+  top: 54px; bottom: auto; left: auto; inset-inline-end: 12px; transform: none; flex-wrap: wrap; justify-content: flex-end;
+  max-width: calc(100% - 200px); border: 0; border-radius: 12px; background: var(--pro-surface);
+  box-shadow: 0 4px 14px rgba(16, 21, 34, 0.1), 0 0 0 1px var(--border-color); backdrop-filter: none;
+}
+body.pro-skin #view-3d > .planner-navigation button { white-space: nowrap; }
+body.pro-skin :is(#view-2d, #view-3d) > .hint {
+  white-space: normal; height: auto; max-width: min(640px, calc(100% - 180px)); line-height: 1.35; padding: 6px 14px; border-radius: 12px; text-align: center;
+}
+body.pro-skin #cabdes .cb-context-bar > #cbTools > button { width: auto !important; min-width: 0 !important; flex: none; display: inline-flex; align-items: center; gap: 5px; }
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-dims label { flex-direction: row !important; }
+body.pro-skin #cabdes :is(.pr-bar, .cb-context-bar) > .cb-size-group .cb-dims label > span:first-child { font-size: 12px; }
+body.pro-skin #cabdes .cb-context-bar { min-height: 0; height: 46px; padding-block: 0 !important; }
+body.pro-skin #cabdes .cb-context-bar .cb-preview-group > .cb-group-title { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-muted); }
+body.pro-skin #cabdes .cb-context-bar { justify-content: flex-start; padding-inline: 12px !important; }
+body.pro-skin #cabdes .cb-context-bar > #cbTools { width: auto !important; max-width: none !important; min-width: max-content; }
+/* the door-opening preview on one line: the slider, then its four stops */
+body.pro-skin #cabdes .cb-context-bar .cb-preview-controls { display: flex; align-items: center; gap: 12px; height: 36px; }
+body.pro-skin #cabdes .cb-context-bar .cb-slider-wrap { display: flex; flex-direction: row !important; align-items: center; gap: 8px; min-width: 0; }
+body.pro-skin #cabdes .cb-context-bar .cb-slider-hdr { display: none; }
+body.pro-skin #cabdes .cb-context-bar #cbOpen { width: 110px; margin: 0; }
+body.pro-skin #cabdes .cb-context-bar .cb-stage-chips { display: flex; gap: 2px; margin: 0; flex-wrap: nowrap; }
+body.pro-skin #cabdes .cb-context-bar .cb-chip-stage { height: 26px; padding: 0 8px; white-space: nowrap; font-size: 12px; }
+body.pro-skin #cabdes .cb-context-bar .cb-cb { white-space: nowrap; }
+/* the cabinet's classic narrow layout (styles.css, max-width 1100px) stacked
+   its panels over the drawing; this layout keeps the three columns */
+@media (max-width: 1100px) {
+  body.pro-skin #cabdes .cb-body { flex-direction: row; overflow: hidden; }
+  body.pro-skin #cabdes .cb-panel { max-height: none; }
+  body.pro-skin #cabdes .cb-panel.cb-left { width: clamp(190px, 22vw, 260px); }
+  body.pro-skin #cabdes .cb-panel.cb-right { width: clamp(220px, 27vw, 320px); }
+  body.pro-skin #cabdes .cb-mid { min-height: 0; flex: 1 1 auto; min-width: 0; }
+  body.pro-skin #cabdes .cb-context-bar { flex-wrap: nowrap; }
+}
+@media (max-width: 700px) {
+  body.pro-skin #cabdes .cb-control-group { width: auto; flex-direction: row; align-items: center; }
+  body.pro-skin #cabdes .cb-dims { display: flex; width: auto; }
+  body.pro-skin #cabdes .cb-number, body.pro-skin #cabdes .cb-number input { width: auto; }
+}
+body.pro-skin #cabdes .pr-editor-ribbon .pr-bar > .pr-tabs { flex: none; }
+/* no room on the tabs row: the size fields take a line of their own above the tools */
+body.pro-skin #cabdes .cb-context-bar:has(> .cb-size-group) { flex-wrap: wrap; height: auto; row-gap: 4px; padding-block: 6px !important; }
+body.pro-skin #cabdes .cb-context-bar > .cb-size-group { order: -2; flex-basis: 100%; margin-inline-start: 0; padding: 0; height: 32px; }
