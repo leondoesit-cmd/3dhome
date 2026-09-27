@@ -543,9 +543,13 @@ function workLayer() {
   return on ? { icon: (on.querySelector("i") || {}).className || "ph ph-stack", name: on.textContent.trim() } : null;
 }
 export function placeLayersChip() {
-  var host = $("view-2d");
+  // the layer card moves between the 2D and 3D panes with the plan tools: the chip goes with it
+  var lc = $("layer-chips");
+  var host = (lc && lc.closest("#view-2d, #view-3d")) || $("view-2d");
   if (!host) return;
   var chip = $("psLayersChip");
+  if (chip && chip.parentElement !== host) host.appendChild(chip);
+  var warnHost = $("view-2d") || host;
   if (!chip) {
     chip = document.createElement("button");
     chip.type = "button";
@@ -555,12 +559,12 @@ export function placeLayersChip() {
     chip.addEventListener("click", function () { body().toggle("ps-layers-open"); chip.setAttribute("aria-expanded", body().contains("ps-layers-open") ? "true" : "false"); });
     host.appendChild(chip);
     // the warning follows the layer state at once, not on the next pass
-    if (typeof MutationObserver !== "undefined") new MutationObserver(function () { placeLayersChip(); }).observe(host, { attributes: true, attributeFilter: ["class"] });
+    if (typeof MutationObserver !== "undefined") new MutationObserver(function () { placeLayersChip(); }).observe(warnHost, { attributes: true, attributeFilter: ["class"] });
     var plan = $("plan");
     if (plan) plan.addEventListener("pointerdown", function () { if (body().contains("ps-layers-open")) { body().remove("ps-layers-open"); chip.setAttribute("aria-expanded", "false"); } }, true);
   }
   var w = workLayer();
-  var live = host.classList.contains("structure-live");
+  var live = warnHost.classList.contains("structure-live");
   if (chip.classList.contains("ps-warn") !== live) chip.classList.toggle("ps-warn", live);
   var label = M("layers") + (w ? " · " + w.name : "") + (live ? " · " + M("wallsLive") : "");
   var span = chip.querySelector("span");

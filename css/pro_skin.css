@@ -707,3 +707,43 @@ body.pro-compact .cb-fold-rail button span {
 /* a section shown in the popover has the popover's title: not its own as well */
 .pr-hist-pop .pr-hist-body > .panel-section > h3 { display: none; }
 .pr-hist-pop .pr-hist-body > .panel-section { padding: 0; border: 0; background: transparent; }
+
+/* ---- the plan panels' empty wrappers ----------------------------------------
+   The dock wraps each plan panel in a .pt-panel card; the Round-6 layout hides
+   the tool strip (the ribbon has every tool), which left its empty card as a
+   white bar across the top of the 3D view. */
+body.pro-skin .pt-panel:has(> #plan-toolbar) { display: none !important; }
+
+/* ---- floors: one clear pill, a segment per floor --------------------------- */
+body.pro-skin .pt-panel:has(> #floor-tabs) { height: auto !important; min-height: 0; padding: 0 !important; background: transparent !important; box-shadow: none !important; border: 0 !important; }
+body.pro-skin #floor-tabs {
+  height: 32px !important; min-height: 0; box-sizing: border-box; gap: 2px; padding: 3px !important; align-items: center; border-radius: 16px;
+  background: var(--pro-surface); box-shadow: 0 4px 14px rgba(16, 21, 34, 0.08), 0 0 0 1px var(--border-color);
+}
+body.pro-skin #floor-tabs::before { content: "Floor"; padding-inline: 8px 4px; font-family: inherit; font-weight: 600; font-size: 12px; line-height: 1; letter-spacing: 0; color: var(--pro-faint-text); text-transform: none; }
+html[lang="he"] body.pro-skin #floor-tabs::before { content: "קומה"; }
+body.pro-skin #floor-tabs > button {
+  height: 26px !important; min-height: 0; padding: 0 12px; border-radius: 13px; font-family: inherit; font-weight: 600; font-size: 12.5px; line-height: 1; letter-spacing: 0; text-transform: none;
+  color: var(--text-muted); background: transparent;
+}
+body.pro-skin #floor-tabs > button:hover { background: var(--btn-bg); color: var(--text-main); }
+body.pro-skin #floor-tabs > button.active { background: var(--pro-ink); color: var(--pro-on-ink); }
+body.pro-skin #floor-tabs > button.floor-add { width: 26px; padding: 0; font-size: 14px; }
+#floor-tabs .floor-rename {
+  width: 12ch; height: 22px; box-sizing: border-box; padding: 0 6px; border: 1px solid var(--accent); border-radius: 8px;
+  background: var(--pro-surface, var(--bg-panel)); color: var(--text-main); font: inherit; outline: none;
+}
+
+/* ---- the left panel's tabs: underlined, like the ribbon's ------------------ */
+body.pro-skin #left-sidebar .left-tabs {
+  margin: 0 !important; padding: 0 6px !important; gap: 0 !important; border-radius: 0 !important; background: transparent !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+body.pro-skin #left-sidebar .left-tabs > button {
+  flex: 1 1 auto !important; height: 40px !important; padding: 0 4px !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important;
+  border-bottom: 2px solid transparent !important; margin-bottom: -1px; font-size: 12.5px !important; color: var(--text-muted);
+}
+body.pro-skin #left-sidebar .left-tabs > button:hover { color: var(--text-main); background: transparent !important; }
+body.pro-skin #left-sidebar .left-tabs > button.active { color: var(--text-main) !important; font-weight: 700; border-bottom-color: var(--pro-ink) !important; }
+body.pro-skin #left-sidebar .left-tabs > button span { max-width: none !important; overflow: visible !important; text-overflow: clip !important; font-size: inherit !important; }
+body.pro-skin #floor-tabs { background: var(--pro-surface) !important; }

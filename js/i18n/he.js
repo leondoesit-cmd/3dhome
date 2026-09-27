@@ -1531,6 +1531,7 @@ export default {
   frame: "מרכז תצוגה",
   m_fit: "התאמה",
   pro_apply: "החל",
+  floor_rename_tip: "לחיצה כפולה (או לחיצה ארוכה) לשינוי שם",
   m_length: "אורך…",
   m_nav_look: "מבט",
   m_nav_person: "גוף",

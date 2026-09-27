@@ -162,7 +162,16 @@ export function renderFloorTabs() {
       ? t("floor_ground_name")
       : (floor.name || t("floor_ground") + " " + (i + 1));
     b.textContent = name;
+    b.title = t("floor_rename_tip");
     b.classList.toggle("active", floor.id === S.workspace.activeFloor);
+    b.addEventListener("dblclick", function (e) { e.preventDefault(); renameFloorInline(b, floor, name); });
+    var hold = 0;
+    b.addEventListener("pointerdown", function (e) {
+      if (e.pointerType === "mouse") return;
+      clearTimeout(hold);
+      hold = setTimeout(function () { renameFloorInline(b, floor, name); }, 550);
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (type) { b.addEventListener(type, function () { clearTimeout(hold); }); });
     b.addEventListener("click", function () {
       switchFloor(floor.id);
       S.dirty3D = true;
@@ -181,6 +190,41 @@ export function renderFloorTabs() {
   add.title = t("floor_add");
   add.addEventListener("click", addFloorFromUI);
   host.appendChild(add);
+}
+
+/* A floor's name edits in place: the pill becomes a field, Enter keeps the new
+   name (one undo step), Escape or an empty field keeps the old one. */
+function renameFloorInline(button, floor, shown) {
+  if (button.querySelector("input")) return;
+  var input = document.createElement("input");
+  input.type = "text";
+  input.className = "floor-rename";
+  input.maxLength = 60;
+  input.value = shown;
+  input.setAttribute("aria-label", t("floor_rename_tip"));
+  button.textContent = "";
+  button.appendChild(input);
+  input.focus();
+  input.select();
+  var done = false;
+  var finish = function (keep) {
+    if (done) return;
+    done = true;
+    var next = input.value.trim().slice(0, 60);
+    if (keep && next && next !== shown) {
+      pushHistory();
+      floor.name = next;
+    }
+    renderFloorTabs();
+    refreshTree();
+  };
+  input.addEventListener("keydown", function (e) {
+    e.stopPropagation(); // typing a name must not reach the plan's shortcuts
+    if (e.key === "Enter") { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener("click", function (e) { e.stopPropagation(); });
+  input.addEventListener("blur", function () { finish(true); });
 }
 
 // Also reachable as the "addFloor" action (File menu / the phone's More sheet),

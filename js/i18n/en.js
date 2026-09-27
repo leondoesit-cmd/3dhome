@@ -880,6 +880,7 @@ export default {
   frame: "Center view",
   m_fit: "Fit",
   pro_apply: "Apply",
+  floor_rename_tip: "Double-click (or press and hold) to rename",
   m_length: "Length…",
   m_nav_look: "Look",
   m_nav_person: "Person",

@@ -358,8 +358,10 @@ body.pro-skin .ps-layers-chip i { font-size: 16px; flex: none; }
 body.pro-skin .ps-layers-chip .ps-layers-caret { font-size: 12px; color: var(--text-muted); }
 body.pro-skin.ps-layers-open .ps-layers-chip .ps-layers-caret { transform: rotate(180deg); }
 /* the desktop's layer card shows only when asked for, under the chip */
-body.pro-skin:not(.ps-layers-open) .pt-panel:has(> #layer-chips),
-body.pro-skin.planner-3d-active .pt-panel:has(> #layer-chips) { display: none !important; }
+body.pro-skin:not(.ps-layers-open) .pt-panel:has(> #layer-chips) { display: none !important; }
+/* in 3D the floor pill holds the top-left corner: the chip stands under it */
+body.pro-skin #view-3d > .ps-layers-chip { top: 52px; }
+body.pro-skin.ps-layers-open #view-3d .pt-panel:has(> #layer-chips) { margin-top: 88px; }
 body.pro-skin.ps-layers-open #view-2d .pt-panel:has(> #layer-chips) { margin-top: 46px; }
 .ps-layers-chip.ps-warn { box-shadow: 0 4px 14px rgba(16, 21, 34, 0.1), 0 0 0 1.5px var(--warn, #d97706) !important; }
 .ps-layers-chip.ps-warn::after {
@@ -388,3 +390,8 @@ body.pro-compact.dock-rail #modeler:has(#md-sheet.on) .md-head { margin-inline-e
 body.pro-compact.dock-rail #modeler.md-fold-open:has(#md-sheet.on) .md-head { margin-inline-end: min(420px, 44vw); }
 body.pro-compact.dock-rail.side-mirror #modeler:has(#md-sheet.on) .md-head { margin-inline: min(360px, 42vw) 0; }
 body.pro-compact.dock-rail.side-mirror #modeler.md-fold-open:has(#md-sheet.on) .md-head { margin-inline: min(420px, 44vw) 0; }
+/* opened from the chip, the list shows even where the view had put it away (3D) */
+body.pro-skin.ps-layers-open .pt-panel > #layer-chips,
+body.pro-skin.ps-layers-open .pt-panel[data-panel="layers"] { display: flex !important; }
+/* in 3D the layers ride on the top edge's zone: a card, not a band across the view */
+body.pro-skin.ps-layers-open #view-3d .pt-panel[data-panel="layers"] { width: 240px !important; max-width: 240px !important; align-self: flex-start; border-radius: 12px; box-shadow: var(--shadow-md), 0 0 0 1px var(--border-color); }
