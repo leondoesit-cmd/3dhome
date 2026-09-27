@@ -504,7 +504,7 @@ function release() {
   if (wasDock) bridge.unregisterZones();
   PANELS.forEach(function (p) {
     var el = els[p.key];
-    if (!el) return;
+    if (!el || lent(el)) return;
     el.removeAttribute("data-axis");
     el.classList.remove("pt-inner");
     if (p.overlay || p.key === "status") {
@@ -562,6 +562,7 @@ function place() {
     var kids = all.map(function (k) {
       var w = wraps[k], el = els[k];
       if (!w || !el) return null;
+      if (lent(el)) { w.hidden = true; return null; }
       if (isOverlay(k) && pane && !pane.contains(el) && el.parentNode !== w) {
         w.hidden = true;
         return null;
@@ -752,7 +753,7 @@ function placeFree(pw, ph, reserved) {
       return;
     }
     var el = els[key];
-    if (!el || (isOverlay(key) && el.parentElement !== w && el.parentElement !== pane)) {
+    if (!el || lent(el) || (isOverlay(key) && el.parentElement !== w && el.parentElement !== pane)) {
       w.hidden = true;
       return;
     }
@@ -1400,6 +1401,11 @@ function label() {
     g.setAttribute("aria-label", name ? name + " — " + s : s);
   });
 }
+
+/* A panel the desktop layout has lent to its left panel (js/pro_left.js puts
+   the layer rows in a Layers tab) is not the dock's to place while it is
+   there: its card stays hidden, and the node comes back on its own. */
+function lent(el) { return !!(el && el.closest && el.closest(".ps-left-pane")); }
 
 function findEl(panel) {
   if (els[panel.key] && els[panel.key].isConnected) return els[panel.key];

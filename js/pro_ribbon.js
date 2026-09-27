@@ -21,6 +21,7 @@ import { markDirty } from "./persist.js";
 import { partCodeAnswer, partCodeToast } from "./part_code_labels.js";
 import "./editor_agent_ui.js"; // the AI card of the model editor's and cabinet designer's bars
 import { relocate, layoutCompact, placeLayersChip } from "./pro_compact.js";
+import { placeLeft } from "./pro_left.js";
 
 var LS_TAB = "mf.proRibbon.tab";
 function he() { return getLang() === "he"; }
@@ -970,6 +971,7 @@ function placeDesk() {
   relocate(document.getElementById("planner-workflow"), on ? document.getElementById("center-canvas") : null);
   placeSplit3D(on);
   placeEditorChrome(on);
+  placeLeft(on);
   if (on) placeLayersChip();
   placeCompact();
 }

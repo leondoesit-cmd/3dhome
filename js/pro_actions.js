@@ -7,6 +7,7 @@ import { printSheetSVG } from "./sheet_print.js";
 import { checkSwingConflicts } from "./swing_clearance.js";
 import { t } from "./i18n.js";
 import { openHistoryPop } from "./history_pop.js";
+import { showLeftTab } from "./pro_left.js";
 import { S } from "./state.js";
 import { detectRooms, wallGeom } from "./geometry.js";
 import { activeFloorArea } from "./area_snapshot.js";
@@ -382,5 +383,6 @@ export const PRO_ACTIONS = {
   // W12, D7, F13 on the plan; returns whether they are now shown
   partCodes: () => togglePartCodes(),
   // the edit history, which the Round-6 header does not show as a dropdown
-  history: () => openHistoryPop(),
+  // the desktop layout has a History tab in the left panel; elsewhere a popover
+  history: () => showLeftTab("history") || openHistoryPop(),
 };

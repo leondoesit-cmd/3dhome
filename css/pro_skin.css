@@ -898,3 +898,62 @@ body.pro-skin #modeler .md-views .md-finish-plane > span { display: none; }
 /* the status line's AI chip is the last thing on it: it gives way first */
 body.pro-skin #modeler .md-mid > .md-status > .ps-ai-status { flex: 0 1 auto; min-width: 0; overflow: hidden; }
 body.pro-skin #modeler .md-mid > .md-status > .ps-ai-status > span { overflow: hidden; text-overflow: ellipsis; }
+
+/* ==== the planner's left panel, as the mockup draws it (js/pro_left.js) ====
+   Parts · Layers · Library · History on one segmented track, ⋯ for the rest. */
+body:not(.pro-skin) :is(.ps-left-tabs, .ps-left-pane, .ps-part-find) { display: none !important; }
+body.pro-skin #left-sidebar > #leftTabs { display: none !important; }
+body.pro-skin .ps-left-tabs {
+  display: flex; flex: none; gap: 2px; margin: 10px 8px 6px; padding: 3px; border-radius: 9px;
+  background: color-mix(in srgb, var(--text-main) 7%, var(--pro-surface, var(--bg-panel)));
+}
+body.pro-skin .ps-left-tabs > button {
+  position: relative; flex: 1 1 0; min-width: 0; height: 28px; padding: 0 4px; border: 0; border-radius: 7px; background: transparent;
+  color: var(--text-muted); font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; box-shadow: none;
+}
+body.pro-skin .ps-left-tabs > button:hover { color: var(--text-main); }
+body.pro-skin .ps-left-tabs > button.on { background: var(--pro-raised); color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
+body.pro-skin .ps-left-tabs > .ps-left-more { flex: 0 0 30px; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+body.pro-skin .ps-left-tabs > button.ps-warn::after {
+  content: ""; display: inline-block; width: 6px; height: 6px; margin-inline-start: 4px; vertical-align: 2px; border-radius: 50%; background: var(--warn, #d97706);
+}
+.ps-left-menu {
+  position: fixed; z-index: 500; width: 200px; padding: 4px; border-radius: 10px; background: var(--pro-surface, var(--bg-panel));
+  box-shadow: 0 12px 32px rgba(16, 21, 34, 0.18), 0 0 0 1px var(--border-color);
+}
+.ps-left-menu button {
+  display: flex; align-items: center; gap: 9px; width: 100%; height: 34px; padding: 0 10px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-main); font: inherit; font-size: 13px; text-align: start; cursor: pointer;
+}
+.ps-left-menu button:hover { background: var(--btn-bg); }
+.ps-left-menu button i { font-size: 16px; color: var(--text-muted); }
+
+/* one pane at a time: this layout's own two win over the planner's while set */
+body.pro-skin #left-sidebar > .ps-left-pane { display: none; }
+body.pro-skin #left-sidebar[data-ps-left] > .panel-section { display: none !important; }
+body.pro-skin #left-sidebar[data-ps-left="layers"] > .ps-left-layers,
+body.pro-skin #left-sidebar[data-ps-left="history"] > .ps-left-history { display: flex !important; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px 8px 12px; }
+/* the layers live in their tab: no chip or card over the plan on a desktop */
+body.pro-skin .ps-layers-chip,
+body.pro-skin .pt-panel[data-panel="layers"],
+body.pro-skin .pt-panel:has(> #layer-chips) { display: none !important; }
+body.pro-skin .ps-left-layers > #layer-chips {
+  position: static !important; display: flex !important; flex-direction: column; gap: 2px; width: auto !important; max-width: none !important;
+  margin: 0; padding: 0; background: transparent !important; box-shadow: none !important; border: 0 !important; transform: none !important;
+}
+body.pro-skin .ps-left-history > #planHist { display: block; max-height: none; overflow: visible; }
+
+/* Parts: the tree under a "Find a part…" field, as the mockup lists it */
+body.pro-skin #left-sidebar [data-left-pane="tree"] > h3 { display: none; }
+body.pro-skin .ps-part-find {
+  display: flex; flex: none; align-items: center; gap: 8px; height: 32px; margin: 0 0 6px; padding: 0 10px; border-radius: 9px;
+  background: color-mix(in srgb, var(--text-main) 5%, var(--pro-surface, var(--bg-panel))); color: var(--text-muted); font-size: 12.5px; position: relative;
+}
+body.pro-skin .ps-part-find input { flex: 1; min-width: 0; height: 30px; border: 0 !important; background: transparent !important; color: var(--text-main); font: inherit; outline: none; box-shadow: none !important; padding: 0; }
+body.pro-skin .ps-part-none { position: absolute; top: calc(100% + 10px); inset-inline-start: 4px; font-size: 12.5px; color: var(--text-muted); }
+body.pro-skin #treeBody [hidden] { display: none !important; }
+/* the room rows: name first, the figures after it in small monospace */
+body.pro-skin #left-sidebar .trRoom { display: flex; align-items: center; gap: 7px; min-height: 28px; font-size: 12.5px; }
+body.pro-skin #left-sidebar .trRoom .trRoomName { flex: 1 1 auto; min-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+body.pro-skin #left-sidebar .trRoom .trMeta { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--pro-mono); font-size: max(11px, var(--fs-floor, 0px)); color: var(--pro-faint-text); }
+body.pro-skin #left-sidebar #tree { border: 0; background: transparent; box-shadow: none; padding: 0; }
