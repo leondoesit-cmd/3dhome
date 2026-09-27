@@ -346,3 +346,45 @@ body.pro-compact #right-inspector > .panel-section { padding-inline: 12px !impor
 
 /* the cabinet designer's source tiles ("Blank — start from scratch"): two lines, not an ellipsis */
 body.pro-compact #cabdes .cb-icon-label { white-space: normal; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* ---- layers chip: the desktop too, and the "walls can move" warning -------- */
+body.pro-skin .ps-layers-chip {
+  display: flex; align-items: center; gap: 6px; position: absolute; z-index: 16; top: 10px; inset-inline-start: 10px; height: 32px;
+  max-width: 40%; padding: 0 10px; border: 0; border-radius: 16px; background: var(--hud-bg, var(--pro-surface)); color: var(--text-main);
+  box-shadow: 0 4px 14px rgba(16, 21, 34, 0.1), 0 0 0 1px var(--border-color); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+body.pro-skin .ps-layers-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.pro-skin .ps-layers-chip i { font-size: 16px; flex: none; }
+body.pro-skin .ps-layers-chip .ps-layers-caret { font-size: 12px; color: var(--text-muted); }
+body.pro-skin.ps-layers-open .ps-layers-chip .ps-layers-caret { transform: rotate(180deg); }
+/* the desktop's layer card shows only when asked for, under the chip */
+body.pro-skin:not(.ps-layers-open) .pt-panel:has(> #layer-chips),
+body.pro-skin.planner-3d-active .pt-panel:has(> #layer-chips) { display: none !important; }
+body.pro-skin.ps-layers-open #view-2d .pt-panel:has(> #layer-chips) { margin-top: 46px; }
+.ps-layers-chip.ps-warn { box-shadow: 0 4px 14px rgba(16, 21, 34, 0.1), 0 0 0 1.5px var(--warn, #d97706) !important; }
+.ps-layers-chip.ps-warn::after {
+  content: ""; width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--warn, #d97706);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn, #d97706) 25%, transparent);
+}
+
+/* ---- a fold: the side column runs to the top of the screen ------------------
+   As the fold mockup (v6-*-fold7) draws it: the header covers the drawing's
+   side, the tools + inspector column stands full height beside it, headed by
+   its own title (the tools pane's head, the inspector's identity card). */
+body.pro-compact.dock-rail.show-right { --ps-fold-col: clamp(260px, 32vw, 320px); }
+body.pro-compact.dock-rail.show-right.m-fold-open { --ps-fold-col: clamp(320px, 46vw, 460px); }
+body.pro-compact.dock-rail.show-right #right-inspector {
+  position: fixed !important; top: 0 !important; bottom: 0 !important; inset-inline: auto 0 !important;
+  width: var(--ps-fold-col) !important; max-width: none; height: auto !important; z-index: 130;
+}
+body.pro-compact.dock-rail.show-right #topbar { margin-inline-end: var(--ps-fold-col); }
+body.pro-compact.dock-rail.show-right #workspace { padding-inline-end: var(--ps-fold-col); box-sizing: border-box; }
+body.pro-compact.dock-rail.side-mirror.show-right #right-inspector { inset-inline: 0 auto !important; }
+body.pro-compact.dock-rail.side-mirror.show-right #topbar { margin-inline: var(--ps-fold-col) 0; }
+body.pro-compact.dock-rail.side-mirror.show-right #workspace { padding-inline: var(--ps-fold-col) 0; }
+/* the model editor's column the same way */
+body.pro-compact.compact-nav.dock-rail #modeler #md-sheet.on { top: 0 !important; z-index: 150; }
+body.pro-compact.dock-rail #modeler:has(#md-sheet.on) .md-head { margin-inline-end: min(360px, 42vw); }
+body.pro-compact.dock-rail #modeler.md-fold-open:has(#md-sheet.on) .md-head { margin-inline-end: min(420px, 44vw); }
+body.pro-compact.dock-rail.side-mirror #modeler:has(#md-sheet.on) .md-head { margin-inline: min(360px, 42vw) 0; }
+body.pro-compact.dock-rail.side-mirror #modeler.md-fold-open:has(#md-sheet.on) .md-head { margin-inline: min(420px, 44vw) 0; }

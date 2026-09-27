@@ -91,9 +91,16 @@ body.pro-compact.dock-rail .pro-toast { bottom: calc(var(--ps-dock-h, 52px) + 28
 
 /* ---- the "walls can move" frame --------------------------------------------
    Structure being the work set AND unlocked is worth a cue (ui_layers.js), but
-   a 2px orange border round the whole drawing read as an error. A hairline
-   says the same; the layers chip names the layer. */
-:is(body.pro-skin, body.pro-compact) :is(#view-2d, #view-3d).structure-live::after { border-width: 1px; opacity: 0.45; }
+   a 2px orange border round the whole drawing read as an error. The layers
+   chip in the plan's corner carries it instead (js/pro_compact.js). */
+:is(body.pro-skin, body.pro-compact) :is(#view-2d, #view-3d).structure-live::after { display: none; }
+
+/* ---- the survey panel: under the ribbon, above the phone toolbar ----------- */
+body.pro-skin .survey-panel { top: calc(var(--pro-chrome-top, 168px) + 8px); }
+@media (max-width: 760px) {
+  body.pro-compact .survey-panel { bottom: calc(var(--ps-dock-h, 52px) + 10px + env(safe-area-inset-bottom, 0px)); }
+}
+body.pro-compact.dock-rail .survey-panel { top: 56px; bottom: calc(var(--ps-dock-h, 52px) + 24px); }
 
 /* ---- the ribbon's own dialogs (js/pro_actions.js: dimension, roof, stairs,
    kitchen run, reports): the theme's panel, one field and button style ----- */

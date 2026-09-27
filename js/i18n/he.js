@@ -1531,6 +1531,7 @@ export default {
   frame: "מרכז תצוגה",
   m_fit: "התאמה",
   pro_apply: "החל",
+  m_length: "אורך…",
   m_nav_look: "מבט",
   m_nav_person: "גוף",
   m_nav_roof: "גג",

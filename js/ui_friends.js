@@ -2,6 +2,7 @@
 // Lives as a collapsible section in the left sidebar (same pattern as the
 // site panel), plus the topbar Friends button with the unread-chat badge.
 import { t, getLang, onLangChange } from "./i18n.js";
+import { openPanelPop } from "./history_pop.js";
 import { flash, openModal } from "./ui.js";
 import { geocodeSuggest } from "./site.js";
 import * as net from "./net.js";
@@ -319,9 +320,15 @@ export function initFriends() {
   const tbBtn = $("friendsBtn");
   if (tbBtn)
     tbBtn.addEventListener("click", () => {
-      openChat();
       const sec = document.querySelector(".friends-section");
       if (sec) sec.classList.remove("collapsed");
+      /* On a phone or a fold the inspector hides this section, so the list
+         was out of reach: it opens as a sheet of its own there instead. */
+      if (sec && document.body.classList.contains("compact-nav")) {
+        openPanelPop(sec, t("fr_title"));
+        return;
+      }
+      openChat();
     });
 
   net.on("status", () => {

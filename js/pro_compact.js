@@ -56,6 +56,7 @@ var MSG = {
   drawing: ["Drawing", "שרטוט"],
   done: ["Done", "סיום"],
   layers: ["Layers", "שכבות"],
+  wallsLive: ["Walls can be moved: Structure is unlocked", "אפשר להזיז קירות: שכבת המבנה פתוחה"],
   sheetMore: ["Show all properties", "הצגת כל המאפיינים"],
   sheetLess: ["Show more of the plan", "הצגת יותר מהתוכנית"],
 };
@@ -528,16 +529,20 @@ if (typeof window !== "undefined") {
   window.addEventListener("keydown", function (e) { if (e.key === "Escape" && askPanel) closeAsk(); });
 }
 
-/* ---- layers: one chip, not a strip across the plan -------------------------
+/* ---- layers: one chip, not a panel over the plan ---------------------------
    The planner's layer chips (ui_layers.js) ran as a strip over the top of the
-   plan, wider than a phone. Here they fold into one chip in the corner that
-   names the layer you are working on; tapping it drops the list down (with
-   every layer's name, eye, lock and menu), tapping the plan puts it away. */
+   plan on a phone, wider than the screen, and as a card over the plan's corner
+   on a desktop. In the Round-6 layouts they fold into one chip in the corner
+   that names the layer you are working on; tapping it drops the list down
+   (every layer's name, eye, lock and menu), tapping the plan puts it away.
+   The chip also carries the "walls can be moved" warning (Structure is the
+   work set and unlocked), which used to be an orange frame round the whole
+   drawing. */
 function workLayer() {
   var on = q('#layer-chips .lchip-name[aria-checked="true"]') || q("#layer-chips .lchip.on .lchip-name");
   return on ? { icon: (on.querySelector("i") || {}).className || "ph ph-stack", name: on.textContent.trim() } : null;
 }
-function placeLayersChip() {
+export function placeLayersChip() {
   var host = $("view-2d");
   if (!host) return;
   var chip = $("psLayersChip");
@@ -549,11 +554,15 @@ function placeLayersChip() {
     chip.innerHTML = '<i class="ph ph-stack" aria-hidden="true"></i><span></span><i class="ph ph-caret-down ps-layers-caret" aria-hidden="true"></i>';
     chip.addEventListener("click", function () { body().toggle("ps-layers-open"); chip.setAttribute("aria-expanded", body().contains("ps-layers-open") ? "true" : "false"); });
     host.appendChild(chip);
+    // the warning follows the layer state at once, not on the next pass
+    if (typeof MutationObserver !== "undefined") new MutationObserver(function () { placeLayersChip(); }).observe(host, { attributes: true, attributeFilter: ["class"] });
     var plan = $("plan");
     if (plan) plan.addEventListener("pointerdown", function () { if (body().contains("ps-layers-open")) { body().remove("ps-layers-open"); chip.setAttribute("aria-expanded", "false"); } }, true);
   }
   var w = workLayer();
-  var label = M("layers") + (w ? " · " + w.name : "");
+  var live = host.classList.contains("structure-live");
+  if (chip.classList.contains("ps-warn") !== live) chip.classList.toggle("ps-warn", live);
+  var label = M("layers") + (w ? " · " + w.name : "") + (live ? " · " + M("wallsLive") : "");
   var span = chip.querySelector("span");
   if (w && span.textContent !== w.name) span.textContent = w.name;
   if (w) { var ic = chip.querySelector("i"); if (ic.className !== w.icon) ic.className = w.icon; }

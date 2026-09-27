@@ -28,7 +28,7 @@ import { S } from "./state.js";
 import { t, onLangChange } from "./i18n.js";
 import { setTool } from "./interaction.js";
 import { undo, redo, canUndo, canRedo } from "./history.js";
-import { toggleAid } from "./cad_hud.js";
+import { toggleAid, openEntry } from "./cad_hud.js";
 import { onAfterRender, render2D, updatePlanGizmo } from "./plan2d.js";
 import { mountPagedMenu, releasePagedMenu } from "./mobile_pages.js";
 import { editorSwitchHTML, wireEditorSwitch } from "./pro_shell.js";
@@ -550,12 +550,18 @@ function ctxActions() {
     // OSNAP rides here rather than in the idle row: the chips in #cadToggles
     // are hidden on a phone, so this is the only place object snapping can be
     // turned off — and mid-draw is exactly when it grabs the wrong corner.
-    return [
+    var drawRow = [
       aidChip("osnap", "cad_osnap"),
       aidChip("ortho", "cad_ortho"),
       aidChip("gsnap", "cad_grid"),
-      { icon: "ph-x", label: t("m_endtool"), run: function () { setTool("select"); } },
     ];
+    /* Typing "360 Tab 90 Enter" is how a desktop draws an exact wall; a phone
+       has no keyboard until a field asks for one. Once a segment has started
+       (or an offset is being set) this opens the same length / angle field. */
+    if (proCompact() && ((S.drawing && S.drawFrom != null) || S.tool === "walloffset"))
+      drawRow.push({ icon: "ph-ruler", label: t("m_length"), run: function () { openEntry(); } });
+    drawRow.push({ icon: "ph-x", label: t("m_endtool"), run: function () { setTool("select"); } });
+    return drawRow;
   }
   if (selKind()) return selActions();
   if (proCompact()) return recentActions();
@@ -1432,6 +1438,7 @@ function sig() {
     S.placeType || "",
     // the Round-6 layout's idle row is different (recent tools), and it can arrive after the first render
     proCompact() ? "pro" : "",
+    S.drawing && S.drawFrom != null ? "seg" : "",
   ].join("|");
 }
 
