@@ -703,6 +703,15 @@ var EVERY_NAMES = { plan: "Planner", model: "Model", cab: "Cabinet" };
 function closeEveryPanel() {
   if (everyPanel) everyPanel.remove();
   everyPanel = null;
+  document.removeEventListener("keydown", everyEscape, true);
+}
+// Escape closes the panel wherever the focus is (a click on the backdrop or a
+// card leaves it outside the panel's own field)
+function everyEscape(e) {
+  if (e.key !== "Escape" || !everyPanel) return;
+  e.preventDefault();
+  e.stopPropagation();
+  closeEveryPanel();
 }
 function openEveryPanel(editor) {
   closeEveryPanel();
@@ -720,6 +729,7 @@ function openEveryPanel(editor) {
     '<div class="pe-body"></div></div>';
   document.body.appendChild(el);
   everyPanel = el;
+  document.addEventListener("keydown", everyEscape, true);
   var input = el.querySelector("input"), body = el.querySelector(".pe-body"), current = editor;
   el.querySelector(".pe-x").setAttribute("aria-label", M("close"));
   el.querySelector(".pe-x").addEventListener("click", closeEveryPanel);
@@ -991,15 +1001,30 @@ function placeEditorChrome(on) {
   // on a phone or a fold the view pill belongs to the one-row header (js/pro_compact.js)
   var phone = compactOn();
   if (md) addAllCommands(md.querySelector(".md-mid > .ps-cmdbar"), "model");
+  if (md && on) nameViewButtons(md.querySelector("#mdViews"));
   if (md) {
     if (!phone) relocate(md.querySelector("#mdModes"), on ? md.querySelector(".md-head") : null);
     relocate(md.querySelector(".md-status-row"), on ? md.querySelector(".md-mid") : null);
   }
   var cb = document.getElementById("cabdes");
+  if (cb) addAllCommands(cb.querySelector(".cb-mid > .ps-cmdbar"), "cab");
   if (cb && !phone) relocate(cb.querySelector(".cb-vmodes"), on ? cb.querySelector(".cb-head-main") : null);
 }
-/* The model editor has no "Every command" pill: its AI / Cmd bar sits in the
-   bottom bar and ends in this button, which opens the whole catalog. */
+/* In this layout the model's view list is a column of icons: each button
+   keeps its name as a tooltip and an accessible name. */
+function nameViewButtons(views) {
+  if (!views || views._psNamed) return;
+  views._psNamed = true;
+  views.querySelectorAll("button").forEach(function (b) {
+    var span = b.querySelector("span"), name = span ? span.textContent.trim() : "";
+    if (!name) return;
+    if (!b.getAttribute("aria-label")) b.setAttribute("aria-label", name);
+    if (!b.hasAttribute("data-tip") && !b.title) b.title = name;
+  });
+}
+/* The editors have no "Every command" pill: their AI / Cmd bar ends in this
+   button, which opens the whole catalog (the model editor's bar sits in its
+   bottom bar, the cabinet designer's floats over the drawing). */
 function addAllCommands(bar, editor) {
   if (!bar || bar.querySelector(".ps-allcmds")) return;
   var b = document.createElement("button");

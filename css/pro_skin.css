@@ -777,7 +777,7 @@ body.pro-skin .pr-editor-ribbon .pr-tool kbd {
 body.pro-skin .pr-editor-ribbon .pr-glabel { height: 16px; margin-top: 2px; line-height: 16px; text-align: center; }
 
 /* ---- model editor: the AI / Cmd bar in the bottom bar -------------------- */
-body.pro-skin .pr-editor-ribbon[data-pro-editor="model"] .pr-every-ed { display: none !important; }
+body.pro-skin .pr-editor-ribbon .pr-every-ed { display: none !important; }
 /* the bar's ground is a band of its own (not the status line's box), so the
    bar and the status line sit side by side without one covering the other */
 body.pro-skin #modeler .md-mid::after {
@@ -786,25 +786,25 @@ body.pro-skin #modeler .md-mid::after {
 }
 body.pro-skin #modeler .md-mid > .md-status {
   height: 46px; box-sizing: border-box; flex-wrap: nowrap; overflow: hidden; z-index: 60;
-  inset-inline-start: calc(min(560px, 52%) + 16px); padding: 0 14px 0 4px; background: transparent;
+  inset-inline-start: calc(min(500px, 46%) + 16px); padding: 0 14px 0 4px; background: transparent;
 }
 body.pro-skin #modeler .md-mid > .ps-cmdbar {
   bottom: 5px; left: auto; inset-inline-start: 8px; transform: none; z-index: 61;
-  width: min(560px, 52%); height: 36px; padding: 2px 3px; border-radius: 18px; box-shadow: none; background: var(--btn-bg);
+  width: min(500px, 46%); height: 36px; padding: 2px 3px; border-radius: 18px; box-shadow: none; background: var(--btn-bg);
 }
 body.pro-skin #modeler .md-mid > .ps-cmdbar:focus-within { background: var(--pro-surface); box-shadow: 0 0 0 3px var(--accent-soft); }
 body.pro-skin #modeler .md-mid > .ps-cmdbar .ps-modes button { height: 28px; }
 body.pro-skin #modeler .md-mid > .ps-cmdbar .ps-mic { width: 30px; height: 30px; font-size: 15px; }
 .ps-allcmds { display: none; }
-body.pro-skin #modeler .ps-allcmds {
+body.pro-skin :is(#modeler, #cabdes) .ps-allcmds {
   display: inline-flex; align-items: center; gap: 5px; flex: none; height: 28px; padding: 0 10px; border: 0; border-radius: 14px;
   background: var(--pro-surface); color: var(--text-main); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
   box-shadow: 0 0 0 1px var(--border-color);
 }
-body.pro-skin #modeler .ps-allcmds:hover { background: var(--accent-soft); }
-body.pro-skin #modeler .ps-allcmds i { font-size: 15px; }
-@media (max-width: 1360px) {
-  body.pro-skin #modeler .ps-allcmds { width: 28px; padding: 0; justify-content: center; }
+body.pro-skin :is(#modeler, #cabdes) .ps-allcmds:hover { background: var(--accent-soft); }
+body.pro-skin :is(#modeler, #cabdes) .ps-allcmds i { font-size: 15px; }
+@container mdmid (max-width: 1000px) {
+  body.pro-skin :is(#modeler, #cabdes) .ps-allcmds { width: 28px; padding: 0; justify-content: center; }
   body.pro-skin #modeler .ps-allcmds span { display: none; }
 }
 /* what stood on the status line moves up above the bar */
@@ -877,3 +877,24 @@ body.pro-skin:not(.compact-nav) #modeler .md-views { max-height: calc(100% - 190
   body.pro-skin #topbar .ps-share > span { display: none; }
   body.pro-skin #topbar .ps-share i { display: inline-block !important; font-size: 16px; }
 }
+
+/* ---- model editor: the view list as a slim column of icons (the mockup's
+   canvas carries a rail, not a labelled panel over the model) ------------- */
+body.pro-skin #modeler .md-views {
+  width: auto; padding: 3px; gap: 0; border: 0; border-radius: 10px; background: var(--pro-surface);
+  box-shadow: 0 4px 14px rgba(16, 21, 34, 0.1), 0 0 0 1px var(--border-color); backdrop-filter: none;
+}
+body.pro-skin #modeler .md-views .md-vgroup { padding: 0; gap: 1px; }
+body.pro-skin #modeler .md-views .md-vgroup + .md-vgroup { margin-top: 3px; padding-top: 3px; border-radius: 0; }
+body.pro-skin #modeler .md-views .md-zoom { display: flex; flex-direction: column; }
+body.pro-skin #modeler .md-views .md-vgroup > button {
+  width: 30px; height: 30px; padding: 0; justify-content: center; border-radius: 7px; gap: 0;
+}
+body.pro-skin #modeler .md-views .md-vgroup > button > span { display: none; }
+body.pro-skin #modeler .md-views .md-vgroup > button :is(svg, i) { width: 17px; height: 17px; font-size: 17px; flex: none; color: inherit !important; }
+body.pro-skin #modeler .md-views .md-vgroup > button.on:not(#mdShowEdges) { background: var(--pro-ink); border-color: var(--pro-ink); color: var(--pro-on-ink); }
+body.pro-skin #modeler .md-views [data-tip]:hover::after { top: 50%; inset-inline-start: calc(100% + 8px); transform: translateY(-50%); }
+body.pro-skin #modeler .md-views .md-finish-plane > span { display: none; }
+/* the status line's AI chip is the last thing on it: it gives way first */
+body.pro-skin #modeler .md-mid > .md-status > .ps-ai-status { flex: 0 1 auto; min-width: 0; overflow: hidden; }
+body.pro-skin #modeler .md-mid > .md-status > .ps-ai-status > span { overflow: hidden; text-overflow: ellipsis; }

@@ -8,10 +8,11 @@
  * candidates, and never part of the plan's own drawing or its exports. */
 import { S } from "./state.js";
 import { t } from "./i18n.js";
-import { onAfterRender, render2D, centerOn, isOnScreen } from "./plan2d.js";
+import { onAfterRender, render2D, centerOn, isOnScreen, lastRoomLabels } from "./plan2d.js";
 import { sx, sz, rotatePx } from "./plan_view.js";
 import { wallGeom, wallPointAt } from "./geometry.js";
 import { select } from "./ui_props.js";
+import { itemCorners } from "./measure.js";
 import { partCode, findPartByCode, parsePartCode } from "./part_codes.js";
 
 var KEY = "mf.partCodes";
@@ -38,15 +39,17 @@ function selectedId() {
   var sel = S.sel;
   return sel && sel.ref && sel.ref.id != null ? String(sel.ref.id) : null;
 }
-/* Where each code sits: a wall at its middle, an opening at its centre on the
-   wall, a piece at the centre of its footprint. */
+/* Where each code may sit, first choice first: a wall a third of the way
+   along, then two thirds (its length is printed at the middle); an opening at
+   its centre on the wall; a piece inside a corner of its footprint, then its
+   centre (its name is printed at the centre; see spotsOf in paint). */
 function anchors() {
   var out = [];
   (S.walls || []).forEach(function (w) {
     var g = wallGeom(w);
     if (!g || !(g.L > 0)) return;
-    var p = wallPointAt(w, g.L / 2);
-    if (p) out.push({ kind: "wall", code: partCode("wall", w.id), id: w.id, x: p.x, z: p.z });
+    var p = wallPointAt(w, g.L / 3), q = wallPointAt(w, (2 * g.L) / 3);
+    if (p) out.push({ kind: "wall", code: partCode("wall", w.id), id: w.id, x: p.x, z: p.z, alt: q ? [q] : [] });
   });
   (S.openings || []).forEach(function (o) {
     var w = (S.walls || []).find(function (x) { return x.id === o.wall; });
@@ -55,7 +58,7 @@ function anchors() {
   });
   (S.items || []).forEach(function (it) {
     if (!it || !isFinite(it.x) || !isFinite(it.z)) return;
-    out.push({ kind: "item", code: partCode("item", it.id), id: it.id, x: it.x, z: it.z });
+    out.push({ kind: "item", code: partCode("item", it.id), id: it.id, x: it.x, z: it.z, item: it });
   });
   return out.filter(function (a) { return a.code; });
 }
@@ -99,14 +102,31 @@ function paint() {
   /* Tags that would land on one another are skipped, not stacked: a pile of
      codes is unreadable, and every part can still be found by tapping it or
      typing its code. The selected part goes first, so its tag always shows. */
+  /* What the plan prints itself is in the way too: each wall's length at its
+     middle and each room's name and area at its centre. */
   var placed = [], list = anchors();
+  (S.walls || []).forEach(function (wall) {
+    var g = wallGeom(wall), m = g && g.L > 0 && wallPointAt(wall, g.L / 2);
+    if (m) { var c = rotatePx(sx(m.x), sz(m.z)); placed.push({ l: c.x - 24, r: c.x + 24, t: c.y - 10, b: c.y + 10 }); }
+  });
+  lastRoomLabels().forEach(function (room) {
+    if (!isFinite(room.cx) || !isFinite(room.cz)) return;
+    var c = rotatePx(sx(room.cx), sz(room.cz));
+    placed.push({ l: c.x - 58, r: c.x + 58, t: c.y - 22, b: c.y + 20 });
+  });
   if (sel) list.sort(function (a, b) { return (String(b.id) === sel) - (String(a.id) === sel); });
   list.forEach(function (a) {
     var p = rotatePx(sx(a.x), sz(a.z));
     if (p.x < -20 || p.y < -20 || p.x > W + 20 || p.y > H + 20) return;
     var w = a.code.length * adv + 8;
-    var box = { l: p.x - w / 2 - 2, r: p.x + w / 2 + 2, t: p.y - th / 2 - 2, b: p.y + th / 2 + 2 };
-    if (placed.some(function (q) { return q.l < box.r && box.l < q.r && q.t < box.b && box.t < q.b; })) return;
+    var spots = spotsOf(a, p, w, th), box = null;
+    for (var i = 0; i < spots.length && !box; i++) {
+      var s = spots[i], b = { l: s.x - w / 2 - 2, r: s.x + w / 2 + 2, t: s.y - th / 2 - 2, b: s.y + th / 2 + 2 };
+      if (!placed.some(function (q) { return q.l < b.r && b.l < q.r && q.t < b.b && b.t < q.b; })) { box = b; p = s; }
+    }
+    // the selected part always shows its code, at its first spot
+    if (!box && sel === String(a.id)) { p = spots[0]; box = { l: p.x - w / 2 - 2, r: p.x + w / 2 + 2, t: p.y - th / 2 - 2, b: p.y + th / 2 + 2 }; }
+    if (!box) return;
     placed.push(box);
     var g = svgEl("g", {
       class: "pc-tag pc-" + a.kind + (sel === String(a.id) ? " pc-sel" : ""),
@@ -122,6 +142,19 @@ function paint() {
   layer = svg;
 }
 onAfterRender(paint);
+/* The screen points a tag may take, first choice first. A piece big enough
+   to hold its tag in a corner offers its four inner corners, then its centre. */
+function spotsOf(a, centre, w, th) {
+  if (a.kind === "wall") return [centre].concat((a.alt || []).map(function (q) { return rotatePx(sx(q.x), sz(q.z)); }));
+  var it = a.item;
+  if (!it || !(it.w > 0) || !(it.d > 0)) return [centre];
+  var pts = itemCorners(it).map(function (c) { return rotatePx(sx(c.x), sz(c.z)); });
+  var l = Math.min.apply(null, pts.map(function (q) { return q.x; })), r = Math.max.apply(null, pts.map(function (q) { return q.x; }));
+  var t = Math.min.apply(null, pts.map(function (q) { return q.y; })), b = Math.max.apply(null, pts.map(function (q) { return q.y; }));
+  if (r - l < w * 2 + 12 || b - t < th * 2 + 8) return [centre];
+  var x0 = l + w / 2 + 5, x1 = r - w / 2 - 5, y0 = t + th / 2 + 4, y1 = b - th / 2 - 4;
+  return [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x0, y: y1 }, { x: x1, y: y1 }, centre];
+}
 
 /* "W12" typed into the command bar: select that part and bring it into view.
    Returns the code it selected, or "" when the text is not a code of a part

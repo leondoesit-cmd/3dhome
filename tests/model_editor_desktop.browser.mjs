@@ -1376,6 +1376,7 @@ test("desktop model editor: Solid, Transparent, and Edges do not overlap", opts,
       const r = el.getBoundingClientRect();
       return {
         label: el.textContent.trim(),
+        name: el.getAttribute("aria-label") || el.title || el.textContent.trim(),
         l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height,
         clipped: r.left < vr.left - 1 || r.right > vr.right + 1,
       };
@@ -1393,7 +1394,9 @@ test("desktop model editor: Solid, Transparent, and Edges do not overlap", opts,
   assert.equal(hit.overlapSE, false, "Solid overlaps Edges: " + JSON.stringify(hit.boxes));
   for (const box of hit.boxes) {
     assert.equal(box.clipped, false, box.label + " is clipped by the view stack");
-    assert.ok(box.w >= 40, box.label + " is only " + box.w + "px wide");
+    // the Round-6 layout draws the view list as a column of named icons
+    assert.ok(box.w >= 28, box.label + " is only " + box.w + "px wide");
+    assert.ok(box.name, "every display button keeps an accessible name");
   }
 });
 

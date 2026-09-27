@@ -826,6 +826,9 @@ function drawGrid(ext) {
    model change repaints the model first, so this is never older than the
    pixels the HUD is drawing over. */
 var lastRoomPass = null;
+/** The rooms the last render labelled (centre cx / cz in world units): the
+    part-code tags keep off their name and area (js/part_code_labels.js). */
+export function lastRoomLabels() { return lastRoomPass ? lastRoomPass.rooms : []; }
 function roomPassForHUD() {
   if (!lastRoomPass) {
     var rooms = detectRooms();
