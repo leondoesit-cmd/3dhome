@@ -796,13 +796,13 @@ body.pro-skin #modeler .md-mid > .ps-cmdbar:focus-within { background: var(--pro
 body.pro-skin #modeler .md-mid > .ps-cmdbar .ps-modes button { height: 28px; }
 body.pro-skin #modeler .md-mid > .ps-cmdbar .ps-mic { width: 30px; height: 30px; font-size: 15px; }
 .ps-allcmds { display: none; }
-body.pro-skin :is(#modeler, #cabdes) .ps-allcmds {
+body.pro-skin .ps-allcmds {
   display: inline-flex; align-items: center; gap: 5px; flex: none; height: 28px; padding: 0 10px; border: 0; border-radius: 14px;
   background: var(--pro-surface); color: var(--text-main); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
   box-shadow: 0 0 0 1px var(--border-color);
 }
-body.pro-skin :is(#modeler, #cabdes) .ps-allcmds:hover { background: var(--accent-soft); }
-body.pro-skin :is(#modeler, #cabdes) .ps-allcmds i { font-size: 15px; }
+body.pro-skin .ps-allcmds:hover { background: var(--accent-soft); }
+body.pro-skin .ps-allcmds i { font-size: 15px; }
 @container mdmid (max-width: 1000px) {
   body.pro-skin :is(#modeler, #cabdes) .ps-allcmds { width: 28px; padding: 0; justify-content: center; }
   body.pro-skin #modeler .ps-allcmds span { display: none; }
@@ -957,3 +957,41 @@ body.pro-skin #left-sidebar .trRoom { display: flex; align-items: center; gap: 7
 body.pro-skin #left-sidebar .trRoom .trRoomName { flex: 1 1 auto; min-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 body.pro-skin #left-sidebar .trRoom .trMeta { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--pro-mono); font-size: max(11px, var(--fs-floor, 0px)); color: var(--pro-faint-text); }
 body.pro-skin #left-sidebar #tree { border: 0; background: transparent; box-shadow: none; padding: 0; }
+
+/* ==== the planner's bottom bar (js/pro_ribbon.js placePlanBar) ============
+   The AI / Cmd bar and the status line under the views, as in the model
+   editor; the ribbon's Every command pill gives way to All commands. */
+body.pro-skin #ribbon .pr-bar > .pr-every, body.pro-skin .pro-ribbon:not(.pr-editor-ribbon) .pr-every { display: none !important; }
+body:not(.pro-skin) .ps-plan-bar { display: none !important; }
+body.pro-skin .ps-plan-bar {
+  display: flex; flex: none; align-items: center; gap: 12px; height: 46px; box-sizing: border-box; padding: 0 8px; min-width: 0;
+  background: var(--pro-surface); border-top: 1px solid var(--border-color); position: relative; z-index: 30;
+}
+body.pro-skin .ps-plan-bar[hidden] { display: none !important; }
+body.pro-skin .ps-plan-bar > .ps-cmdbar {
+  position: relative; inset: auto; left: auto; bottom: auto; transform: none !important; flex: none; width: min(560px, 50%) !important; min-width: 260px;
+  height: 36px; padding: 2px 3px; border-radius: 18px; box-shadow: none; background: var(--btn-bg); z-index: 1;
+}
+body.pro-skin .ps-plan-bar > .ps-cmdbar:focus-within { background: var(--pro-surface); box-shadow: 0 0 0 3px var(--accent-soft); }
+body.pro-skin .ps-plan-bar > .ps-cmdbar .ps-modes button { height: 28px; }
+body.pro-skin .ps-plan-bar > .ps-cmdbar .ps-mic { width: 30px; height: 30px; font-size: 15px; }
+body.pro-skin .ps-plan-bar > #cad-status {
+  position: static !important; inset: auto !important; transform: none !important; flex: 1 1 auto; min-width: 0; width: auto !important; max-width: none !important;
+  height: 100% !important; min-height: 0; margin: 0; padding: 0 4px; border: 0 !important; background: transparent !important; box-shadow: none !important;
+  display: flex; align-items: center; overflow: hidden; white-space: nowrap;
+}
+body.pro-skin .ps-plan-bar > #cad-status > .ps-ai-status { margin-inline-start: auto; flex: 0 1 auto; min-width: 0; overflow: hidden; }
+body.pro-skin .ps-plan-bar > #cad-status > .ps-ai-status > span { overflow: hidden; text-overflow: ellipsis; }
+body.pro-skin .ps-plan-bar { container-type: inline-size; container-name: planbar; }
+@container planbar (max-width: 1000px) {
+  body.pro-skin .ps-plan-bar .ps-allcmds { width: 28px; padding: 0; justify-content: center; }
+  body.pro-skin .ps-plan-bar .ps-allcmds span { display: none; }
+  body.pro-skin .ps-plan-bar > .ps-cmdbar { width: min(560px, 56%) !important; }
+}
+/* what used to stand clear of the floating bar sits at the views' foot now */
+body.pro-skin.ps-plan-docked #view-2d > .hint { bottom: 12px; }
+body.pro-skin.ps-plan-docked #center-canvas.max-view-3d #view-3d > .hint { bottom: 60px; }
+/* in the bar the toggles keep their size; the coordinates and the AI chip give way */
+body.pro-skin .ps-plan-bar > #cad-status > #cadCoord { flex: 0 1 auto; width: auto !important; min-width: 0; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+body.pro-skin .ps-plan-bar > #cad-status > #cadToggles { flex: none; }
+body.pro-skin .ps-plan-bar > #cad-status > .ps-ai-status { min-width: 52px; }

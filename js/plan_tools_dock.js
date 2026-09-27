@@ -1402,10 +1402,11 @@ function label() {
   });
 }
 
-/* A panel the desktop layout has lent to its left panel (js/pro_left.js puts
-   the layer rows in a Layers tab) is not the dock's to place while it is
-   there: its card stays hidden, and the node comes back on its own. */
-function lent(el) { return !!(el && el.closest && el.closest(".ps-left-pane")); }
+/* A panel the desktop layout has lent elsewhere (js/pro_left.js puts the
+   layer rows in a Layers tab; js/pro_ribbon.js the status line in the
+   planner's bottom bar) is not the dock's to place while it is there: its
+   card stays hidden, and the node comes back on its own. */
+function lent(el) { return !!(el && el.closest && el.closest(".ps-left-pane, .ps-plan-bar")); }
 
 function findEl(panel) {
   if (els[panel.key] && els[panel.key].isConnected) return els[panel.key];

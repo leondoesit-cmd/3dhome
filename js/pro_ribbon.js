@@ -972,6 +972,7 @@ function placeDesk() {
   placeSplit3D(on);
   placeEditorChrome(on);
   placeLeft(on);
+  placePlanBar(on);
   if (on) placeLayersChip();
   placeCompact();
 }
@@ -1023,6 +1024,39 @@ function nameViewButtons(views) {
     if (!b.getAttribute("aria-label")) b.setAttribute("aria-label", name);
     if (!b.hasAttribute("data-tip") && !b.title) b.title = name;
   });
+}
+/* The planner's bottom bar, as the model editor's: under the views, the
+   AI / Cmd bar (with All commands, in place of the ribbon's Every command
+   pill) and then the CAD status line (snaps, ortho, grid, the AI chip). The
+   views shrink to make room, so the bar covers nothing — in 2D, 3D or split.
+   Both pieces go home on a phone, a fold or the classic layout. */
+function placePlanBar(on) {
+  var canvas = document.getElementById("center-canvas");
+  if (!canvas) return;
+  var dock = document.getElementById("psPlanBar");
+  var bar = canvas.querySelector('.ps-cmdbar[data-ps-bar="plan"]'), status = document.getElementById("cad-status");
+  if (!on) {
+    // only what this bar holds: on a phone the ask panel borrows the same bar
+    if (dock && bar && bar.parentElement === dock) relocate(bar, null);
+    if (dock && status && status.parentElement === dock) relocate(status, null);
+    if (dock && !dock.hidden) dock.hidden = true;
+    // only when set: even a no-op remove is a class mutation, and placeDesk
+    // runs on every change to the body's classes
+    if (document.body.classList.contains("ps-plan-docked")) document.body.classList.remove("ps-plan-docked");
+    return;
+  }
+  if (!dock) {
+    dock = document.createElement("div");
+    dock.id = "psPlanBar";
+    dock.className = "ps-plan-bar";
+    canvas.appendChild(dock);
+  }
+  if (dock.hidden) dock.hidden = false;
+  if (dock !== canvas.lastElementChild) canvas.appendChild(dock);
+  addAllCommands(bar, "plan");
+  relocate(bar, dock);
+  relocate(status, dock);
+  if (!document.body.classList.contains("ps-plan-docked")) document.body.classList.add("ps-plan-docked");
 }
 /* The editors have no "Every command" pill: their AI / Cmd bar ends in this
    button, which opens the whole catalog (the model editor's bar sits in its
@@ -1113,7 +1147,8 @@ var PLANNER_BAR_OBSTACLES = ".pt-panel, .view-gizmo, .planner-navigation, .plan-
 function fitPlannerBar() {
   var canvas = document.getElementById("center-canvas");
   var bar = canvas && canvas.querySelector(":scope > .ps-cmdbar");
-  if (!bar) return;
+  // docked in the bottom bar (placePlanBar), nothing floats to fit around
+  if (!bar) { if (canvas) canvas.style.removeProperty("--ps-bar-clear"); return; }
   fitCommandBar(bar, canvas, PLANNER_BAR_OBSTACLES);
   /* The hints float centred at the bottom too: they stand clear of wherever
      the bar ended up (css reads --ps-bar-clear). */

@@ -179,13 +179,15 @@ test("desktop: one header, the search in the tabs row, Split over the inspector,
     const head = await page.eval(() => ({
       skin: document.body.classList.contains("pro-skin"),
       switcher: !!document.querySelector("#topbar .pr-editors[data-ps-moved]"),
-      every: getComputedStyle(document.querySelector("#pro-ribbon .pr-every")).display !== "none",
+      // no Every command pill: the bottom bar's All commands opens the catalog
+      every: getComputedStyle(document.querySelector("#pro-ribbon .pr-every")).display === "none" &&
+        !!document.querySelector("#psPlanBar > .ps-cmdbar .ps-allcmds"),
       topbarHeight: document.getElementById("topbar").getBoundingClientRect().height,
       stripHidden: getComputedStyle(document.getElementById("plan-toolbar")).display === "none",
     }));
     assert.deepEqual(head, { skin: true, switcher: true, every: true, topbarHeight: 44, stripHidden: true });
-    // Every command: the whole catalog, narrowed as you type, Escape closes
-    await page.eval(() => document.querySelector("#pro-ribbon .pr-every").click());
+    // All commands: the whole catalog, narrowed as you type, Escape closes
+    await page.eval(() => document.querySelector("#psPlanBar .ps-allcmds").click());
     const every = await page.eval(() => {
       const panel = document.querySelector(".pr-every-panel");
       const cards = panel.querySelectorAll(".pe-card").length;
