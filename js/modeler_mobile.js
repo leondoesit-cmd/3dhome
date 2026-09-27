@@ -662,7 +662,11 @@ function showSheet(key, toggle) {
      the whole thing read like a desktop panel squeezed onto a phone. Forms
      open at the tall height the sheet already knows how to take — the expand
      button still collapses it, and closeSheet() drops the class again. */
-  if (featureSheetOpen || key === "tree" || key === "cmd" || key === "props") setSheetTall(true);
+  /* The Round-6 layout (js/pro_compact.js) keeps the model in view: the three
+     lists open at half height (they scroll, and the expand button is one tap
+     away); a feature form is still the task itself and opens tall. */
+  var keepModel = document.body.classList.contains("pro-compact") && !featureSheetOpen;
+  if (featureSheetOpen || (!keepModel && (key === "tree" || key === "cmd" || key === "props"))) setSheetTall(true);
   sheet.classList.add("on");
   sheet.setAttribute("aria-modal", "true");
   sheet.removeAttribute("aria-hidden");

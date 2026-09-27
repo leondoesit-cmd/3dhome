@@ -91,17 +91,29 @@ function paint() {
   if (!host || !plan || !plan.clientWidth) return;
   var W = plan.clientWidth, H = plan.clientHeight, sel = selectedId();
   var svg = svgEl("svg", { class: "part-code-layer", viewBox: "0 0 " + W + " " + H, "aria-hidden": "true" });
-  anchors().forEach(function (a) {
+  /* The tag font follows the layout's text floor (css/pro_skin.css), so the
+     box does too: a fixed advance per character of the monospace font, no
+     text measuring on every repaint. */
+  var floor = parseFloat(getComputedStyle(document.body).getPropertyValue("--fs-floor")) || 0;
+  var fs = Math.max(10.5, floor), adv = fs * 0.63, th = Math.round(fs + 6);
+  /* Tags that would land on one another are skipped, not stacked: a pile of
+     codes is unreadable, and every part can still be found by tapping it or
+     typing its code. The selected part goes first, so its tag always shows. */
+  var placed = [], list = anchors();
+  if (sel) list.sort(function (a, b) { return (String(b.id) === sel) - (String(a.id) === sel); });
+  list.forEach(function (a) {
     var p = rotatePx(sx(a.x), sz(a.z));
     if (p.x < -20 || p.y < -20 || p.x > W + 20 || p.y > H + 20) return;
-    // fixed advance for the tag font: no text measuring on every repaint
-    var w = a.code.length * 6.6 + 8;
+    var w = a.code.length * adv + 8;
+    var box = { l: p.x - w / 2 - 2, r: p.x + w / 2 + 2, t: p.y - th / 2 - 2, b: p.y + th / 2 + 2 };
+    if (placed.some(function (q) { return q.l < box.r && box.l < q.r && q.t < box.b && box.t < q.b; })) return;
+    placed.push(box);
     var g = svgEl("g", {
       class: "pc-tag pc-" + a.kind + (sel === String(a.id) ? " pc-sel" : ""),
       transform: "translate(" + Math.round(p.x) + "," + Math.round(p.y) + ")",
     });
-    g.appendChild(svgEl("rect", { x: -w / 2, y: -8, width: w, height: 16, rx: 4, ry: 4 }));
-    var text = svgEl("text", { x: 0, y: 4, "text-anchor": "middle" });
+    g.appendChild(svgEl("rect", { x: -w / 2, y: -th / 2, width: w, height: th, rx: 4, ry: 4 }));
+    var text = svgEl("text", { x: 0, y: Math.round(fs * 0.36), "text-anchor": "middle" });
     text.textContent = a.code;
     g.appendChild(text);
     svg.appendChild(g);

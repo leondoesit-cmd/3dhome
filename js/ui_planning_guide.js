@@ -235,7 +235,7 @@ export function renderPlanningGuide() {
   const advUnitsBtn = el('button', 'btn-secondary', '');
   advUnitsBtn.type = 'button';
   advUnitsBtn.innerHTML = '<i class="ph ph-sliders-horizontal"></i> ' + t('unit_preset_custom');
-  advUnitsBtn.style.cssText = 'font-size:11px; padding:3px 8px; margin:4px 0 8px; cursor:pointer; display:inline-flex; align-items:center; gap:5px;';
+  advUnitsBtn.style.cssText = 'font-size:max(11px, var(--fs-floor, 0px)); padding:3px 8px; margin:4px 0 8px; cursor:pointer; display:inline-flex; align-items:center; gap:5px;';
   advUnitsBtn.onclick = () => { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('unit-open-settings')); };
   details.append(advUnitsBtn);
   details.append(el('p',t('guide_unit_scope'),'guide-note'),el('p',t('guide_floor_count').replace('{n}',(S.workspace.floors||[]).length||1),'guide-note'));

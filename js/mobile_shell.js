@@ -36,6 +36,11 @@ import { detectRooms, roomName } from "./geometry.js";
 import { partCode } from "./part_codes.js";
 import { flabel } from "./furniture_meta.js";
 import { inside } from "./layout_analysis.js";
+import { proTools, proLabel } from "./pro_catalog.js";
+import { getLang } from "./i18n.js";
+import { fmtLen } from "./display_units.js";
+import { pickTitle, pushRecent } from "./compact_head.js";
+import { openHistoryPop } from "./history_pop.js";
 
 var ctxBar = null,
   sheet = null,
@@ -533,11 +538,11 @@ function ctxActions() {
     ];
   }
   if (viewMode() === "3d") {
-    return [
+    return (proCompact() ? navActions() : []).concat([
       { icon: "ph-cursor-click", label: t("m_edit3d"), on: !!S.edit3D, run: function () { run("edit3d"); } },
       { icon: "ph-crosshair-simple", label: t("frame"), run: function () { run("frame"); } },
       { icon: "ph-camera", label: t("photo"), run: function () { run("photo"); } },
-    ];
+    ]);
   }
   if (drawing()) {
     // Mid-draw the aids ARE the controls: they decide what the next click
@@ -553,12 +558,100 @@ function ctxActions() {
     ];
   }
   if (selKind()) return selActions();
+  if (proCompact()) return recentActions();
   return [
     { icon: "ph-corners-out", label: t("frame"), run: function () { run("frame"); } },
     aidChip("osnap", "cad_osnap"),
     aidChip("ortho", "cad_ortho"),
     aidChip("gsnap", "cad_grid"),
   ];
+}
+
+/* ---- the Round-6 bottom toolbar (js/pro_compact.js) ---------------------
+   In the Round-6 compact layout this row is the middle of the bottom toolbar:
+   the tools grid and the library sit before it, the ask button after it, and
+   Undo/Redo live in the header. With nothing selected and no tool in hand it
+   offers the tools you used last — the one-tap way back to Wall after placing
+   a sofa — and Fit; the snaps belong to drawing, where they already appear. */
+function proCompact() {
+  return document.body.classList.contains("pro-compact");
+}
+var RECENT_KEY = "mf.recentTools.plan";
+var RECENT_SEED = ["wall", "rect", "door"];
+function recentTools() {
+  var list = null;
+  try { list = JSON.parse(localStorage.getItem(RECENT_KEY) || "null"); } catch (_) {}
+  return Array.isArray(list) && list.length ? list : RECENT_SEED;
+}
+function rememberTool(id) {
+  if (!id || id === "select" || !toolSpec(id)) return;
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(pushRecent(recentTools(), id, 4))); } catch (_) {}
+}
+function toolSpec(id) {
+  var tool = proTools("plan").filter(function (x) { return x.bind === "tool:" + id; })[0];
+  return tool ? { icon: tool.icon, label: proLabel(tool.label, getLang() === "he" ? "he" : "en") } : null;
+}
+function recentActions() {
+  var out = recentTools().slice(0, 3).map(function (id) {
+    var spec = toolSpec(id);
+    return spec && { icon: spec.icon, label: spec.label, run: function () { setTool(id); } };
+  }).filter(Boolean);
+  out.push({ icon: "ph-corners-out", label: t("m_fit"), run: function () { run("frame"); } });
+  return out;
+}
+/* The 3D view's own navigation (planner_3d.js: walk or orbit, look, first or
+   third person, invisible roof) floats over the model on a desktop; on a phone
+   it is these buttons, pressed for real, so they keep their own logic. */
+function navActions() {
+  var bar = document.querySelector("#view-3d .planner-navigation");
+  var out = [];
+  if (bar) {
+    // short words for a toolbar: the walk button keeps its own (Walk / Orbit)
+    var icons = ["ph-person-simple-walk", "ph-eye", "ph-user-focus", "ph-house-line"];
+    var labels = [null, "m_nav_look", "m_nav_person", "m_nav_roof"];
+    Array.prototype.slice.call(bar.querySelectorAll("button"), 0, 4).forEach(function (b, i) {
+      out.push({
+        icon: icons[i],
+        label: labels[i] ? t(labels[i]) : b.textContent.trim(),
+        on: b.getAttribute("aria-pressed") === "true",
+        run: function () { b.click(); },
+      });
+    });
+  }
+  // the 3D pane's own Draw and Dollhouse buttons float over the model on a desktop
+  [["drawing3dBtn", "ph-pencil-line", "m_nav_draw"], ["dollhouseBtn", "ph-house", "m_nav_dollhouse"]].forEach(function (d) {
+    var b = $(d[0]);
+    if (b && !b.hidden) out.push({ icon: d[1], label: t(d[2]), on: b.classList.contains("on") || b.getAttribute("aria-pressed") === "true", run: function () { b.click(); } });
+  });
+  return out;
+}
+
+/* What the one-row header names (js/pro_compact.js): the selection with its
+   part code, else the tool in hand (with the length of the segment being
+   drawn), else the project and the floor. */
+function headTitle() {
+  var sel = S.sel;
+  var name = $("m-top-selection-name") ? $("m-top-selection-name").textContent.trim() : "";
+  var o = {};
+  if (sel && name && KIND_ICON[sel.kind]) {
+    var facts = cardFacts(sel);
+    if (facts.sub.length && name.toLowerCase().indexOf(String(facts.sub[0]).toLowerCase()) === 0 && sel.kind !== "item") facts.sub.shift();
+    // a piece says how big it is before where it stands
+    if (sel.kind === "item" && sel.ref && sel.ref.w > 0 && sel.ref.d > 0) facts.sub.unshift(fmtLen(sel.ref.w) + " × " + fmtLen(sel.ref.d));
+    o.selName = name;
+    o.selCode = facts.id;
+    o.selSub = facts.sub.join(" · ");
+  } else if (S.tool && S.tool !== "select") {
+    var spec = toolSpec(S.tool);
+    o.toolName = spec ? spec.label : S.tool;
+    var a = S.drawing && S.nodes && S.nodes[S.drawFrom], b = S.previewPt;
+    if (a && b) o.toolSub = fmtLen(Math.hypot(b.x - a.x, b.z - a.z));
+  }
+  var chip = document.querySelector(".ps-project-btn");
+  o.project = (S.workspace && S.workspace.name) || (chip && chip.textContent.trim()) || "Home project";
+  var floor = document.querySelector("#floor-tabs > button.active");
+  o.place = floor ? floor.textContent.trim() : "";
+  return pickTitle(o);
 }
 
 function btn(spec) {
@@ -1037,6 +1130,7 @@ function appendMenuGroup(title, menu, options) {
   if (options.append) options.append.forEach(function (src) {
     if (src) list.appendChild(clonedAction(src));
   });
+  if (options.extra) options.extra.forEach(function (node) { list.appendChild(node); });
   if (!list.children.length) return;
   host.appendChild(list);
   sheetBody.appendChild(host);
@@ -1099,7 +1193,10 @@ function buildMoreSheet() {
     closeSheet();
     run("plannerTutorial");
   });
-  sheetBody.appendChild(guide);
+  var cards = document.createElement("div");
+  cards.className = "m-more-cards";
+  cards.appendChild(guide);
+  sheetBody.appendChild(cards);
 
   /* Ctrl+K lives in the topbar, which on a 6.7" phone is the one strip a thumb
      cannot reach. The palette itself is already phone-shaped (it re-hosts on
@@ -1128,7 +1225,7 @@ function buildMoreSheet() {
       }
     }, 80);
   });
-  sheetBody.appendChild(find);
+  cards.appendChild(find);
 
   var quickTitle = document.createElement("h5");
   quickTitle.className = "m-sheet-sec";
@@ -1148,7 +1245,17 @@ function buildMoreSheet() {
   // same action again a few rows later makes the project section look like it
   // has two save scopes when both buttons run the identical command.
   appendMenuGroup(t("m_more_project"), fileMenu, { exclude: ["reset", "save"], append: [reset] });
-  appendMenuGroup(t("menu_edit"), menuByKey("menu_edit"));
+  /* Round-6: Undo and Redo sit in the header; the edit history, which that
+     layout's header does not show as a dropdown, is here instead. */
+  if (proCompact()) {
+    var hist = document.createElement("button");
+    hist.type = "button";
+    hist.className = "m-list-btn";
+    hist.innerHTML = '<i class="ph ph-clock-counter-clockwise"></i><span></span>';
+    hist.querySelector("span").textContent = t("hist_title");
+    hist.addEventListener("click", function () { closeSheet(); setTimeout(openHistoryPop, 0); });
+    appendMenuGroup(t("menu_edit"), menuByKey("menu_edit"), { exclude: ["undo", "redo"], extra: [hist] });
+  } else appendMenuGroup(t("menu_edit"), menuByKey("menu_edit"));
   appendMenuGroup(t("menu_export"), menuByKey("menu_export"));
   /* RC / Night Shift / lava are games. The planner More sheet keeps Walk
      (first-person tour), Photo, Model Editor and textures — the extras that
@@ -1323,6 +1430,8 @@ function sig() {
     S.gsnap ? 1 : 0,
     S.edit3D ? 1 : 0,
     S.placeType || "",
+    // the Round-6 layout's idle row is different (recent tools), and it can arrive after the first render
+    proCompact() ? "pro" : "",
   ].join("|");
 }
 
@@ -1367,8 +1476,12 @@ export function initMobileShell() {
     sync(false);
   });
   window.addEventListener("planner-tool", function () {
+    rememberTool(S.tool);
     sync(true);
   });
+  // the Round-6 compact chrome (js/pro_compact.js) opens sheets and names the work
+  window.__mobileShowSheet = function (key) { if (openSheet !== key) showSheet(key); };
+  window.__plannerHeadTitle = headTitle;
   window.addEventListener("planner-selection", function () {
     requestAnimationFrame(function () {
       syncTopSelection();

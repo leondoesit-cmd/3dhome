@@ -1,5 +1,5 @@
 
-.md-edge-browser { margin: 8px 0; font-size: 11px; }
+.md-edge-browser { margin: 8px 0; font-size: max(11px, var(--fs-floor, 0px)); }
 .md-edge-browser summary { cursor: pointer; padding: 7px; }
 .md-edge-browser-choices { max-height: 200px; overflow-y: auto; }
-.md-edge-browser-choices button { text-align: left; font-size: 10px; white-space: normal; margin: 3px 0; }
+.md-edge-browser-choices button { text-align: left; font-size: max(10px, var(--fs-floor, 0px)); white-space: normal; margin: 3px 0; }

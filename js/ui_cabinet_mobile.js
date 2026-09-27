@@ -80,6 +80,12 @@ function pageOpenMenu(key) {
 function roomy() {
   return document.body.classList.contains("dock-rail");
 }
+/* The Round-6 layout (js/pro_compact.js) keeps the drawing clear on a fold as
+   well: the size bar goes to More, as on a phone, and the toolbar's idle row
+   carries the sizes (and, with a fold's width, the preview stages too). */
+function proCompact() {
+  return document.body.classList.contains("pro-compact");
+}
 
 /* ---- state read off the real chrome -------------------------------------- */
 
@@ -185,6 +191,7 @@ function ctxActions() {
   /* Roomy: W/D/H sit on the size bar above the elevation, so the idle row
      keeps the preview stages. Phone: pin the three dimensions here — they
      used to live only inside More. */
+  if (proCompact()) return [dimChip("#cbW", "W"), dimChip("#cbD", "D"), dimChip("#cbH", "H")].concat(roomy() ? [stageSpec(0), stageSpec(40), stageSpec(100)] : []);
   if (roomy()) return [stageSpec(0), stageSpec(40), stageSpec(100)];
   return [dimChip("#cbW", "W"), dimChip("#cbD", "D"), dimChip("#cbH", "H")];
 }
@@ -590,7 +597,7 @@ function placeSizeChrome() {
   var bar = q(".cb-context-bar");
   if (!bar || !moreBody) return;
   var sizebar = q(".cb-m-sizebar");
-  if (roomy() && sizebar) {
+  if (roomy() && sizebar && !proCompact()) {
     sizebar.appendChild(bar);
     sizebar.hidden = false;
   } else {
@@ -613,6 +620,7 @@ function sig() {
     r && r.disabled ? 0 : 1,
     E.snap ? 1 : 0,
     E.hid ? 1 : 0,
+    proCompact() ? 1 : 0,
     (q("#cbOpenVal") || {}).textContent || "",
     (q("#cbW") || {}).value || "",
     (q("#cbD") || {}).value || "",

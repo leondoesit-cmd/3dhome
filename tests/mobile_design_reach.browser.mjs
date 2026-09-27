@@ -16,11 +16,13 @@ for (const [width,height,lang] of [[390,844,'en'],[390,844,'he'],[673,841,'en']]
         document.querySelector('[data-level="technical"]').click();
       });
       await page.waitUntil(()=>document.querySelector('#cabdes').classList.contains('cb-show-right'));
+      // the bottom controls are placed on the layout's next frame
+      await page.waitUntil(()=>[...document.querySelectorAll('#cabdes .cb-mid > .ps-dock, .cb-m-nav')].some(e=>e.getBoundingClientRect().height>0), {what:'the bottom controls'});
       const technical = await page.eval(()=>{
         const pane=document.querySelector('#cbTechnical');
         const r=pane.getBoundingClientRect();
-        // the bottom controls: the Round-6 bar, or the classic five-slot navigation
-        const navEl=[...document.querySelectorAll('#cabdes .cb-mid > .ps-cmdbar, .cb-m-nav')].find(e=>e.getBoundingClientRect().height>0);
+        // the bottom controls: the Round-6 toolbar, or the classic five-slot navigation
+        const navEl=[...document.querySelectorAll('#cabdes .cb-mid > .ps-dock, .cb-m-nav')].find(e=>e.getBoundingClientRect().height>0);
         const nav=navEl.getBoundingClientRect();
         return {visible:r.height>0&&r.top<nav.top,moreOpen:document.querySelector('.cb-m-sheet').classList.contains('on'),
           previewVisible:!!document.querySelector('.cb-prev-wrap')?.getBoundingClientRect().height};

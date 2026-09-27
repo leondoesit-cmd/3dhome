@@ -261,12 +261,13 @@ function applyLabels() {
 }
 
 /* The panel sits above whichever bottom chrome the current editor is showing —
-   the planner rows, the modeler rows or the cabinet designer's. Measuring beats
-   picking one editor's CSS token, because all three can be the visible one. */
+   the planner rows, the modeler rows or the cabinet designer's, or the Round-6
+   layout's one toolbar (.ps-dock, js/pro_compact.js). Measuring beats picking
+   one editor's CSS token, because any of them can be the visible one. */
 function bottomInset() {
   var inset = 0;
   document
-    .querySelectorAll("#mobile-nav, #m-ctx, #md-nav, #md-ctx, .cb-m-nav, .cbm-ctx")
+    .querySelectorAll("#mobile-nav, #m-ctx, #md-nav, #md-ctx, .cb-m-nav, .cbm-ctx, .ps-dock")
     .forEach(function (bar) {
       if (!bar.getClientRects().length) return;
       var top = bar.getBoundingClientRect().top;

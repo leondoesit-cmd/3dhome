@@ -191,8 +191,8 @@ test("mobile room presets preserve input focus and collapse for placement", () =
 });
 
 test("phone planner chrome keeps readable nav labels and hides the 2D view cube", () => {
-  assert.match(css, /body\.compact-nav #mobile-nav button > span[\s\S]*?font-size:\s*10px/);
-  assert.match(css, /@media \(max-width:\s*360px\)[\s\S]*?body\.compact-nav #mobile-nav button > span\s*\{\s*font-size:\s*9px/);
+  assert.match(css, /body\.compact-nav #mobile-nav button > span[\s\S]*?font-size:\s*max\(10px, var\(--fs-floor, 0px\)\)/);
+  assert.match(css, /@media \(max-width:\s*360px\)[\s\S]*?body\.compact-nav #mobile-nav button > span\s*\{\s*font-size:\s*max\(9px, var\(--fs-floor, 0px\)\)/);
   assert.match(css, /body\.compact-nav \.plan-gizmo\s*\{[\s\S]*?display:\s*none/);
   assert.match(planner, /m-elevation-grid/);
   ["front", "right", "back", "left"].forEach((axis) => {

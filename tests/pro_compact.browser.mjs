@@ -1,7 +1,7 @@
 /* The Round-6 layout in a real browser (css/pro_skin.css, js/pro_ribbon.js):
- * the desktop header, ribbon and Split, and the phone and fold chrome — the
- * slim header, the strip, the bottom tools-grid + Ask bar that replaces the
- * five-slot navigations — in all three editors. The classic chrome still
+ * the desktop header, ribbon and Split, and the phone and fold chrome
+ * (js/pro_compact.js) — one header row with the editor knob, the slim bottom
+ * toolbar, the ask panel — in all three editors. The classic chrome still
  * exists behind localStorage mf.proSkin = "0"; its own tests ask for it.
  *
  * Skips itself when Chrome is absent — set CHROME_PATH to point at a binary.
@@ -23,73 +23,103 @@ async function ready(page) {
 }
 const box = (el) => { const r = el.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height }; };
 
-test("phone planner: slim header, the tools grid and Ask bar at the bottom, no five-slot navigation", opts, async () => {
+test("phone planner: one header row with the editor knob, the plan to the bottom toolbar, the ask panel on request", opts, async () => {
   const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
   try {
     await ready(page);
+    await page.waitUntil(() => !!document.querySelector("#psPhoneHead .ps-edknob") && !!document.querySelector("#center-canvas > .ps-dock #m-ctx"),
+      { what: "the knob header and the toolbar" });
     const layout = await page.eval(() => {
-      const bar = document.querySelector("#center-canvas > .ps-cmdbar");
       const head = document.getElementById("psPhoneHead");
-      const nav = document.getElementById("mobile-nav");
-      const r = bar.getBoundingClientRect();
+      const dock = document.querySelector("#center-canvas > .ps-dock");
+      const plan = document.getElementById("center-canvas").getBoundingClientRect();
+      const shown = (el) => !!el && getComputedStyle(el).display !== "none" && el.getBoundingClientRect().height > 0;
+      const split = head.querySelector('.ps-view [data-view="split"]');
       return {
-        compact: document.body.classList.contains("pro-compact"),
-        navShown: getComputedStyle(nav).display !== "none",
-        headShown: !!head && head.getBoundingClientRect().height > 0,
-        name: head && head.querySelector(".ps-ph-name").textContent.length > 0,
-        grid: !!bar.querySelector(".ps-grid"),
-        barBottom: r.bottom, barTop: r.top, viewport: innerHeight, barWidth: r.width,
+        knob: head.querySelector(".ps-edknob").dataset.editor,
+        title: head.querySelector(".ps-ph-name").textContent.length > 0,
+        headHeight: document.getElementById("topbar").getBoundingClientRect().height,
+        strip: shown(document.getElementById("m-editor-strip")),
+        nav: shown(document.getElementById("mobile-nav")),
+        bar: shown(document.querySelector('.ps-cmdbar[data-ps-bar="plan"]')),
+        split: shown(split),
+        undoInDock: !!dock.querySelector('.mctx-undo') && shown(dock.querySelector('.mctx-undo')),
+        undoInHead: !!head.querySelector('[data-ph="undo"]') && !!head.querySelector('[data-ph="redo"]'),
+        dockBottom: dock.getBoundingClientRect().bottom, dockTop: dock.getBoundingClientRect().top, viewport: innerHeight,
+        planTop: plan.top, planHeight: plan.height,
+        ask: !!dock.querySelector(".ps-dock-ask svg"), grid: !!dock.querySelector(".ps-dock-grid"),
       };
     });
-    assert.equal(layout.compact, true);
-    assert.equal(layout.navShown, false, "the five-slot navigation is replaced");
-    assert.equal(layout.headShown, true);
-    assert.equal(layout.name, true, "the header names the project");
-    assert.equal(layout.grid, true, "the bar leads with the tools grid");
-    assert.ok(layout.barBottom <= layout.viewport && layout.barBottom > layout.viewport - 24, "the bar sits at the bottom: " + JSON.stringify(layout));
-    assert.ok(layout.barWidth > 340, "the bar spans the phone");
-    // the grid opens the tools sheet, and the sheet ends above the bar
-    await page.eval(() => document.querySelector("#center-canvas > .ps-cmdbar .ps-grid").click());
-    await page.waitUntil(() => document.body.classList.contains("m-sheet-open") &&
-      document.getElementById("m-sheet").getBoundingClientRect().bottom <= innerHeight, { what: "the tools sheet, settled" });
+    assert.equal(layout.knob, "plan", "the knob shows the planner in front");
+    assert.equal(layout.title, true, "the header names the project");
+    assert.ok(layout.headHeight <= 50, "one header row: " + layout.headHeight);
+    assert.equal(layout.strip, false, "no strip row under the header");
+    assert.equal(layout.nav, false, "the five-slot navigation is replaced");
+    assert.equal(layout.bar, false, "the command bar is not a permanent row");
+    assert.equal(layout.split, false, "no Split on a phone");
+    assert.equal(layout.undoInDock, false, "undo and redo are in the header only");
+    assert.equal(layout.undoInHead, true);
+    assert.ok(layout.dockBottom <= layout.viewport && layout.dockBottom > layout.viewport - 4, "the toolbar at the bottom: " + JSON.stringify(layout));
+    assert.ok(layout.planHeight >= 700, "the plan gets the screen: " + layout.planHeight);
+    assert.ok(Math.abs(layout.planTop + layout.planHeight - layout.dockTop) <= 1, "the plan runs down to the toolbar");
+    assert.equal(layout.ask, true);
+    assert.equal(layout.grid, true);
+    // the grid opens the tools sheet, and it ends above the toolbar
+    await page.eval(() => document.querySelector("#center-canvas > .ps-dock .ps-dock-grid").click());
+    await page.waitUntil(() => document.body.classList.contains("m-sheet-open"), { what: "the tools sheet" });
     await page.eval(() => new Promise((r) => setTimeout(r, 700))); // the slide-in
     const sheet = await page.eval(() => ({
       bottom: document.getElementById("m-sheet").getBoundingClientRect().bottom,
-      barTop: document.querySelector("#center-canvas > .ps-cmdbar").getBoundingClientRect().top,
+      dockTop: document.querySelector("#center-canvas > .ps-dock").getBoundingClientRect().top,
     }));
-    assert.ok(sheet.bottom <= sheet.barTop + 1, "the sheet ends above the bar: " + JSON.stringify(sheet));
+    assert.ok(sheet.bottom <= sheet.dockTop + 1, "the sheet ends above the toolbar: " + JSON.stringify(sheet));
+    // the ask button slides the command bar up in a panel; Escape puts it away
+    await page.eval(() => { document.querySelector("#m-sheet .m-sheet-x, #m-sheet [data-m-close]")?.click(); document.querySelector("#center-canvas > .ps-dock .ps-dock-ask").click(); });
+    await page.waitUntil(() => !!document.querySelector(".ps-ask .ps-cmdbar .ps-cmd-input"), { what: "the ask panel" });
+    await page.eval(() => new Promise((r) => setTimeout(r, 350))); // the slide-up
+    const ask = await page.eval(() => {
+      const panel = document.querySelector(".ps-ask"), input = panel.querySelector(".ps-cmd-input");
+      return { focused: document.activeElement === input, bottom: panel.getBoundingClientRect().bottom, viewport: innerHeight, modes: getComputedStyle(panel.querySelector(".ps-modes")).display !== "none" };
+    });
+    assert.equal(ask.focused, true, "the field is ready to type into");
+    assert.equal(ask.modes, true, "the AI | Cmd switch is in the panel");
+    assert.ok(ask.bottom <= ask.viewport + 1);
+    await page.eval(() => document.querySelector(".ps-ask .ps-cmd-input").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    await page.waitUntil(() => !document.querySelector(".ps-ask") && !!document.querySelector('#center-canvas > .ps-cmdbar[data-ps-bar="plan"]'),
+      { what: "the panel closed and the bar home" });
   } finally { await page.close(); }
 });
 
-test("phone model editor and cabinet designer: the view pill on a strip, a header that fits, the bar at the bottom", opts, async () => {
+test("phone: the knob turns to the model editor and back, each editor with one header row and the toolbar", opts, async () => {
   const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
   try {
     await ready(page);
-    await page.eval(async () => { (await import("/js/pro_shell.js")).switchEditor("model"); });
+    await page.waitUntil(() => !!document.querySelector("#psPhoneHead .ps-edknob"), { what: "the knob" });
+    await page.eval(() => document.querySelector("#psPhoneHead .ps-edknob").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
     await page.waitUntil(() => {
       const el = document.getElementById("modeler");
-      return el && el.getBoundingClientRect().height > 0 && !!el.querySelector(".ps-ed-strip #mdModes");
-    }, { what: "the model editor on its strip" });
+      return el && el.getBoundingClientRect().height > 0 && !!el.querySelector(".md-head > .ps-head #mdModes") && !!el.querySelector(".md-mid > .ps-dock #md-ctx");
+    }, { what: "the model editor in the new chrome" });
     const md = await page.eval(() => {
       const head = document.querySelector("#modeler .md-head");
-      const bar = document.querySelector("#modeler .md-mid > .ps-cmdbar");
-      const banner = document.querySelector("#modeler .md-mobile-status");
-      const hint = document.getElementById("mdHint");
-      if (banner) { banner.hidden = false; banner.textContent = "Rebuild errors · 1"; }
-      const br = banner && banner.getBoundingClientRect(), hr = hint && hint.getBoundingClientRect();
+      const dock = document.querySelector("#modeler .md-mid > .ps-dock");
       return {
+        knob: head.querySelector(".ps-edknob").dataset.editor,
         overflow: head.scrollWidth - head.clientWidth,
-        navShown: !!document.getElementById("md-nav") && getComputedStyle(document.getElementById("md-nav")).display !== "none",
-        barBottom: bar.getBoundingClientRect().bottom, viewport: innerHeight,
-        plannerBarShown: getComputedStyle(document.querySelector("#center-canvas > .ps-cmdbar")).display !== "none",
-        bannerClear: !br || !hr || br.top >= hr.bottom || br.bottom <= hr.top,
+        headHeight: head.getBoundingClientRect().height,
+        strips: document.querySelectorAll("#modeler .ps-ed-strip").length,
+        redo: !!head.querySelector("#mdRedo"),
+        dockBottom: dock.getBoundingClientRect().bottom, viewport: innerHeight,
+        plannerDock: getComputedStyle(document.querySelector("#center-canvas > .ps-dock")).display !== "none",
       };
     });
+    assert.equal(md.knob, "model");
     assert.ok(md.overflow <= 0, "the header fits: " + md.overflow);
-    assert.equal(md.navShown, false);
-    assert.ok(md.barBottom <= md.viewport && md.barBottom > md.viewport - 24, "the bar at the bottom");
-    assert.equal(md.plannerBarShown, false, "the planner's bar steps aside for the editor's");
-    assert.equal(md.bannerClear, true, "the status banner is clear of the hint under the strip");
+    assert.ok(md.headHeight <= 50, "one row: " + md.headHeight);
+    assert.equal(md.strips, 0, "no strip row");
+    assert.equal(md.redo, true, "undo and redo in the header");
+    assert.ok(md.dockBottom <= md.viewport && md.dockBottom > md.viewport - 4, "the toolbar at the bottom");
+    assert.equal(md.plannerDock, false, "the planner's toolbar steps aside");
 
     await page.eval(async () => {
       (await import("/js/pro_shell.js")).switchEditor("plan");
@@ -98,37 +128,47 @@ test("phone model editor and cabinet designer: the view pill on a strip, a heade
       if (!it) it = st.S.items[0];
       cab.openCabinet(it);
     });
-    await page.waitUntil(() => !!document.querySelector("#cabdes .ps-ed-strip .cb-vmodes"), { what: "the cabinet designer on its strip" });
-    // two passes of the shell later, still exactly one strip
+    await page.waitUntil(() => !!document.querySelector("#cabdes .cb-head-main > .ps-head .cb-vmodes") && !!document.querySelector("#cabdes .cb-mid > .ps-dock .cb-m-ctx"),
+      { what: "the cabinet designer in the new chrome" });
+    // two passes of the shell later, still exactly one header and one toolbar
     await page.eval(() => new Promise((r) => setTimeout(r, 3300)));
     const cb = await page.eval(() => {
       const head = document.querySelector("#cabdes .cb-head-main");
-      const bar = document.querySelector("#cabdes .cb-mid > .ps-cmdbar");
       return {
-        strips: document.querySelectorAll("#cabdes .ps-ed-strip").length,
+        heads: document.querySelectorAll("#cabdes .ps-head").length,
+        docks: document.querySelectorAll("#cabdes .ps-dock").length,
+        knob: head.querySelector(".ps-edknob").dataset.editor,
         overflow: head.scrollWidth - head.clientWidth,
-        grid: !!bar.querySelector(".ps-grid"),
-        barBottom: bar.getBoundingClientRect().bottom, viewport: innerHeight,
+        headHeight: head.getBoundingClientRect().height,
+        done: !!head.querySelector(".ps-head-done #cbClose"),
+        split: getComputedStyle(head.querySelector('.cb-vmodes [data-mode="split"]')).display !== "none",
       };
     });
-    assert.equal(cb.strips, 1, "one strip, however many passes");
+    assert.equal(cb.heads, 1, "one header, however many passes");
+    assert.equal(cb.docks, 1, "one toolbar, however many passes");
+    assert.equal(cb.knob, "cab");
     assert.ok(cb.overflow <= 0, "the header fits: " + cb.overflow);
-    assert.equal(cb.grid, true);
-    assert.ok(cb.barBottom <= cb.viewport && cb.barBottom > cb.viewport - 24);
+    assert.ok(cb.headHeight <= 50, "one row: " + cb.headHeight);
+    assert.equal(cb.done, true);
+    assert.equal(cb.split, false, "no Split on a phone");
   } finally { await page.close(); }
 });
 
-test("fold: the bar sits under the plan, inside the canvas", opts, async () => {
+test("fold: the toolbar floats under the plan inside its column, and Split is offered", opts, async () => {
   const page = await openPage({ width: 832, height: 750, lang: "en", mobile: false, touch: true });
   try {
     await ready(page);
-    await page.waitUntil(() => document.body.classList.contains("dock-rail"), { what: "the fold posture" });
+    await page.waitUntil(() => document.body.classList.contains("dock-rail") && !!document.querySelector("#center-canvas > .ps-dock"), { what: "the fold posture" });
     const r = await page.eval(() => {
-      const bar = document.querySelector("#center-canvas > .ps-cmdbar").getBoundingClientRect();
+      const dock = document.querySelector("#center-canvas > .ps-dock").getBoundingClientRect();
       const canvas = document.getElementById("center-canvas").getBoundingClientRect();
-      return { bar: { l: bar.left, r: bar.right, b: bar.bottom }, canvas: { l: canvas.left, r: canvas.right, b: canvas.bottom } };
+      const split = document.querySelector('#psPhoneHead .ps-view [data-view="split"]');
+      return { dock: { l: dock.left, r: dock.right, b: dock.bottom }, canvas: { l: canvas.left, r: canvas.right, b: canvas.bottom },
+        split: getComputedStyle(split).display !== "none", strip: getComputedStyle(document.getElementById("m-editor-strip")).display !== "none" };
     });
-    assert.ok(r.bar.l >= r.canvas.l - 1 && r.bar.r <= r.canvas.r + 1 && r.bar.b <= r.canvas.b + 1, JSON.stringify(r));
+    assert.ok(r.dock.l >= r.canvas.l - 1 && r.dock.r <= r.canvas.r + 1 && r.dock.b <= r.canvas.b + 1, JSON.stringify(r));
+    assert.equal(r.split, true, "a fold keeps Split");
+    assert.equal(r.strip, false, "no strip row");
   } finally { await page.close(); }
 });
 

@@ -20,6 +20,7 @@ import { S } from "./state.js";
 import { markDirty } from "./persist.js";
 import { partCodeAnswer, partCodeToast } from "./part_code_labels.js";
 import "./editor_agent_ui.js"; // the AI card of the model editor's and cabinet designer's bars
+import { relocate, layoutCompact } from "./pro_compact.js";
 
 var LS_TAB = "mf.proRibbon.tab";
 function he() { return getLang() === "he"; }
@@ -927,16 +928,6 @@ var DESK = typeof matchMedia === "function" ? matchMedia("(min-width: 1024px)") 
 function proDesk() {
   return !!(DESK && DESK.matches) && !document.body.classList.contains("compact-nav") && store("mf.proSkin") !== "0";
 }
-function relocate(node, target) {
-  if (!node) return;
-  if (!node._psHome && node.parentNode) {
-    node._psHome = document.createComment("ps-home");
-    node.parentNode.insertBefore(node._psHome, node);
-  }
-  if (target) { if (node.parentNode !== target) target.appendChild(node); }
-  else if (node._psHome && node._psHome.parentNode && node.previousSibling !== node._psHome)
-    node._psHome.parentNode.insertBefore(node, node._psHome.nextSibling);
-}
 function placeDesk() {
   var on = proDesk();
   if (document.body.classList.contains("pro-skin") !== on) document.body.classList.toggle("pro-skin", on);
@@ -957,122 +948,23 @@ function placeDesk() {
    shown; 2D · 3D · Split is on the strip, the inspector opens from the
    selection card. mf.proSkin = "0" keeps the classic compact chrome too. */
 function compactOn() { return document.body.classList.contains("compact-nav") && store("mf.proSkin") !== "0"; }
-function pressNav(key) {
-  var b = document.querySelector('#mobile-nav [data-mnav="' + key + '"]');
-  if (b) b.click();
-}
-/* The model editor and the cabinet designer on a phone: the same frame. Their
-   own five-slot navigations stay (their buttons do the work) but hide; the
-   view pill takes a strip under the header, the header gets Tree / Design,
-   Properties and More, and the command bar gets the tools grid. */
-var COMPACT_EDITORS = [
-  { root: "#modeler", head: ".md-head", nav: "#md-nav", attr: "mdnav", bar: ".md-mid > .ps-cmdbar",
-    view: "#mdModes", grid: "cmd", icons: [["tree", "ph-tree-structure", "phTree"], ["props", "ph-sliders-horizontal", "phProps"], ["more", "ph-dots-three", "phMore"]] },
-  { root: "#cabdes", head: ".cb-head-main", nav: "#cabdes .cb-m-nav", attr: "cbnav", bar: ".cb-mid > .ps-cmdbar",
-    view: ".cb-vmodes", grid: "tools", icons: [["design", "ph-squares-four", "phDesign"], ["props", "ph-sliders-horizontal", "phProps"], ["more", "ph-dots-three", "phMore"]] },
-];
-function placeCompactEditors(on) {
-  COMPACT_EDITORS.forEach(function (ed) {
-    var root = document.querySelector(ed.root);
-    if (!root) return;
-    var head = root.querySelector(ed.head);
-    var press = function (key) {
-      var b = document.querySelector(ed.nav + " [data-" + ed.attr + '="' + key + '"]');
-      if (b) b.click();
-    };
-    var strip = root.querySelector(".ps-ed-strip"); // the header's sibling, wherever the header sits
-    if (on && head && !strip) {
-      strip = document.createElement("div");
-      strip.className = "ps-ed-strip";
-      head.after(strip);
-    }
-    var view = root.querySelector(ed.view);
-    // desktop wants the pill in the header (placeEditorChrome); a phone in the strip
-    if (on && strip && view) relocate(view, strip);
-    if (on && head && !head.querySelector(".ps-ed-icons")) {
-      var icons = document.createElement("span");
-      icons.className = "ps-ed-icons";
-      ed.icons.forEach(function (ic) {
-        var b = document.createElement("button");
-        b.type = "button";
-        b.dataset.phKey = ic[0];
-        b.innerHTML = '<i class="ph ' + ic[1] + '" aria-hidden="true"></i>';
-        b.addEventListener("click", function () { press(ic[0]); });
-        icons.appendChild(b);
-      });
-      head.appendChild(icons);
-    }
-    if (head) head.querySelectorAll(".ps-ed-icons [data-ph-key]").forEach(function (b) {
-      var ic = ed.icons.filter(function (x) { return x[0] === b.dataset.phKey; })[0];
-      if (ic && b.getAttribute("aria-label") !== M(ic[2])) { b.setAttribute("aria-label", M(ic[2])); b.title = M(ic[2]); }
-    });
-    var bar = root.querySelector(ed.bar);
-    if (on && bar && !bar.querySelector(".ps-grid")) {
-      var grid = document.createElement("button");
-      grid.type = "button";
-      grid.className = "ps-grid";
-      grid.innerHTML = '<i class="ph ph-squares-four" aria-hidden="true"></i>';
-      grid.setAttribute("aria-label", M("phTools"));
-      grid.title = M("phTools");
-      grid.addEventListener("click", function () { press(ed.grid); });
-      bar.insertBefore(grid, bar.firstChild);
-    }
-  });
-}
+/* One pass of the phone and fold chrome: js/pro_compact.js builds the one-row
+   headers (editor knob, title, view switch, undo, redo, More), the slim
+   bottom toolbar and the ask panel. */
 function placeCompact() {
   var on = compactOn();
   if (document.body.classList.contains("pro-compact") !== on) document.body.classList.toggle("pro-compact", on);
-  // an editor over the planner owns the bottom bar
+  // an editor over the planner owns the bottom toolbar
   var over = activeEditor() !== "plan";
   if (document.body.classList.contains("ps-editor-open") !== over) document.body.classList.toggle("ps-editor-open", over);
-  placeCompactEditors(on);
-  if (!on) return;
-  var top = document.getElementById("topbar");
-  if (top && !document.getElementById("psPhoneHead")) {
-    var head = document.createElement("div");
-    head.id = "psPhoneHead";
-    head.className = "ps-phone-head";
-    head.innerHTML =
-      '<span class="ps-ph-name"></span><span class="ps-ph-gap"></span>' +
-      '<button type="button" data-ph="undo"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i></button>' +
-      '<button type="button" data-ph="parts"><i class="ph ph-stack" aria-hidden="true"></i></button>' +
-      '<button type="button" data-ph="more"><i class="ph ph-dots-three" aria-hidden="true"></i></button>';
-    head.querySelector('[data-ph="undo"]').addEventListener("click", function () {
-      var u = document.querySelector('#topbar [data-act="undo"]');
-      if (u) u.click();
-    });
-    head.querySelector('[data-ph="parts"]').addEventListener("click", function () { pressNav("add"); });
-    head.querySelector('[data-ph="more"]').addEventListener("click", function () { pressNav("more"); });
-    top.appendChild(head);
-  }
-  var head2 = document.getElementById("psPhoneHead");
-  if (head2) {
-    var name = (S.workspace && S.workspace.name) || "Home project";
-    var nameEl = head2.querySelector(".ps-ph-name");
-    if (nameEl.textContent !== name) nameEl.textContent = name;
-    [["undo", M("phUndo")], ["parts", M("phParts")], ["more", M("phMore")]].forEach(function (p) {
-      var b = head2.querySelector('[data-ph="' + p[0] + '"]');
-      if (b.getAttribute("aria-label") !== p[1]) { b.setAttribute("aria-label", p[1]); b.title = p[1]; }
-    });
-  }
-  var bar = document.querySelector("#center-canvas > .ps-cmdbar");
-  if (bar && !bar.querySelector(".ps-grid")) {
-    var grid = document.createElement("button");
-    grid.type = "button";
-    grid.className = "ps-grid";
-    grid.innerHTML = '<i class="ph ph-squares-four" aria-hidden="true"></i>';
-    grid.addEventListener("click", function () { pressNav("tools"); });
-    bar.insertBefore(grid, bar.firstChild);
-  }
-  var g = bar && bar.querySelector(".ps-grid");
-  if (g && g.getAttribute("aria-label") !== M("phTools")) { g.setAttribute("aria-label", M("phTools")); g.title = M("phTools"); }
+  layoutCompact();
 }
 /* The editors' view switches go into their headers, the mockup's centre
    pill; the model editor's workflow strip (the next step) rides on the
    canvas instead of taking a row. Back where they were anywhere else. */
 function placeEditorChrome(on) {
   var md = document.getElementById("modeler");
-  // on a phone the view pill belongs to the compact strip (placeCompactEditors)
+  // on a phone or a fold the view pill belongs to the one-row header (js/pro_compact.js)
   var phone = compactOn();
   if (md) {
     if (!phone) relocate(md.querySelector("#mdModes"), on ? md.querySelector(".md-head") : null);

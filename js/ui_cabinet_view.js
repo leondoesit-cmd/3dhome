@@ -45,6 +45,15 @@ export function sizeCanvas() {
   E.vh = r.height;
 }
 
+/* On a fold the Round-6 toolbar (js/pro_compact.js) floats over the foot of
+   the drawing: the elevation keeps its plinth and width dimension clear of it. */
+function dockClearance() {
+  var dock = E.host && E.host.querySelector(".cb-mid > .ps-dock");
+  if (!dock || !document.body.classList.contains("dock-rail")) return 0;
+  var r = dock.getBoundingClientRect();
+  return r.height > 0 ? Math.round(r.height + 10) : 0;
+}
+
 export function css(name, fb) {
   var v = getComputedStyle(document.documentElement).getPropertyValue(name);
   return (v && v.trim()) || fb;
@@ -604,7 +613,7 @@ export function draw() {
     // to avoid, and the tools shrink to one row of icons
     gut = E.split && !cmp ? 118 : 0,
     padT = E.thumbPass ? 34 : cmp ? 54 : E.split ? 72 : 112, // desktop: the labelled 2×2 tool group floats here
-    padB = E.thumbPass ? 30 : cmp ? 46 : 84, // room for the width dimension and the hint pill
+    padB = E.thumbPass ? 30 : cmp ? 46 + dockClearance() : 84, // room for the width dimension and the hint pill
     k = Math.min((W - gut - padX * 2) / it.w, (H - padT - padB) / it.h) * viewZoom,
     ox = gut + (W - gut) / 2 + viewPanX,
     /* oy is the BASELINE of the drawing (Y = oy - my*k). Desktop hangs it from

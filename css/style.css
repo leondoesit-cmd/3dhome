@@ -4,7 +4,7 @@
    colours its dimension glyphs: blue = satisfied, red = fighting, amber =
    stated twice, grey = nothing said yet. */
 .warnDof {
-  font-size: 11px;
+  font-size: max(11px, var(--fs-floor, 0px));
   padding: 6px 8px;
   border-radius: 6px;
   margin-bottom: 6px;
@@ -44,7 +44,7 @@
 /* Every-dimension list, under the message list in the constraint panel. */
 .con-all summary {
   cursor: pointer;
-  font-size: 11px;
+  font-size: max(11px, var(--fs-floor, 0px));
   font-weight: 600;
   opacity: 0.8;
   padding: 4px 0;
@@ -54,7 +54,7 @@
   justify-content: space-between;
   gap: 8px;
   align-items: center;
-  font-size: 11px;
+  font-size: max(11px, var(--fs-floor, 0px));
   padding: 4px 6px;
   border-radius: 5px;
   cursor: pointer;
@@ -80,7 +80,7 @@
 .pv-row .pv-expr { flex: 1 1 auto; min-width: 0; }
 .pv-row .pv-val {
   flex: none;
-  font-size: 11px;
+  font-size: max(11px, var(--fs-floor, 0px));
   font-variant-numeric: tabular-nums;
   opacity: 0.75;
   min-width: 34px;

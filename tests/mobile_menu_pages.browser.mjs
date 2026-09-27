@@ -442,6 +442,9 @@ test("Model Editor and Cabinet sheets use the same one-card-at-a-time contract",
 test("mobile selection identity lives in the top row above translucent Properties", opts, async () => {
   const page = await openPage({ width: 390, height: 844, lang: "en", mobile: true, touch: true });
   try {
+    // the classic chrome's top row and glass Properties (the Round-6 layout names
+    // the selection in its one-row header, js/pro_compact.js, and its sheets are solid)
+    await classicChrome(page);
     for (const [width, height, name] of [[390, 844, "phone"], [344, 882, "Fold cover"], [717, 829, "Fold inner"]]) {
       await page.resize(width, height, { mobile: true, touch: true });
       await page.goto("/?wall-identity=" + width);
@@ -519,6 +522,7 @@ test("mobile selection identity lives in the top row above translucent Propertie
       assert.deepEqual(layout.auxiliaryDisplays, ["none", "none", "none", "none"], name + ": no empty accordion stripes remain");
     }
   } finally {
+    await proChrome(page).catch(() => {});
     await page.close();
   }
 });

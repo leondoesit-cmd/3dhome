@@ -346,7 +346,7 @@ export function openSettings(initialPane) {
   keyRow.appendChild(keyIn);
   keyRow.appendChild(eye);
   var keyHint = el("span", "t", t("site_gkey_hint"));
-  keyHint.style.cssText = "font-size:10px; opacity:0.75;";
+  keyHint.style.cssText = "font-size:max(10px, var(--fs-floor, 0px)); opacity:0.75;";
 
   var keyT = null;
   keyIn.oninput = function () {
@@ -397,7 +397,7 @@ export function openSettings(initialPane) {
       status(t("settings_map_needkey"), true);
   };
   var mapHint = el("span", "t", t("settings_map_hint"));
-  mapHint.style.cssText = "font-size:10px; opacity:0.75;";
+  mapHint.style.cssText = "font-size:max(10px, var(--fs-floor, 0px)); opacity:0.75;";
 
   [keyLbl, keyRow, keyHint, mapLbl, mapSel, mapHint].forEach(function (n) {
     generalPane.appendChild(n);

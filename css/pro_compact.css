@@ -1,0 +1,348 @@
+/* The Round-6 phone and fold chrome, second pass (js/pro_compact.js).
+   One header row with the editor knob, one slim bottom toolbar, and an ask
+   panel that slides up only when it is asked for: everything else is the
+   plan, the model or the cabinet. Loaded after css/pro_skin.css. */
+
+/* ---- what goes: the strip rows, the permanent command bar, the old grid --- */
+body.pro-compact { --m-editor-strip: 0px; --ps-dock-h: 52px; --mobile-nav-block: env(safe-area-inset-bottom, 0px); --m-ctx-block: var(--ps-dock-h); }
+body.pro-compact.md-open { --m-ctx-block: var(--ps-dock-h); }
+/* a fold floats the toolbar on the drawing, as it did the bar: nothing to reserve */
+body.pro-compact.dock-rail, body.pro-compact.dock-rail.md-open { --mobile-nav-block: 0px; --m-ctx-block: 0px; }
+body.pro-compact :is(#m-editor-strip, .ps-ed-strip, .ps-ed-icons, .ps-grid) { display: none !important; }
+body.pro-compact .ps-cmdbar { display: none !important; }
+body.pro-compact .ps-ask .ps-cmdbar { display: grid !important; }
+body.pro-compact #view-3d .planner-navigation { display: none !important; } /* its buttons ride in the toolbar */
+body.pro-compact:not(.dock-rail) .view-max-btn { display: none !important; } /* restoring a pane means Split */
+
+/* ---- the header ------------------------------------------------------------ */
+/* the compact layouts give every button a 42px floor for touch; these size
+   themselves (the knob, the pills and the icons are still 34-40px targets) */
+body.pro-compact :is(#topbar, #modeler, #cabdes, #center-canvas) :is(.ps-view > button, .ps-head-view > * > button, .ps-hbtn, .ps-head-hist > button, .ps-head-done > button, .ps-title, .ps-dock > button, .ps-ask-x),
+body.pro-compact .ps-edknob-menu button { min-height: 0; }
+body.pro-compact #topbar { padding: 0 6px; }
+.ps-head { display: flex; align-items: center; gap: 3px; width: 100%; min-width: 0; height: 100%; box-sizing: border-box; }
+body.pro-compact #modeler .md-head,
+body.pro-compact #cabdes .cb-head-main { height: 48px; min-height: 48px; padding: 0 6px; gap: 0; background: var(--pro-surface); border-bottom: 1px solid var(--border-color); box-shadow: none; }
+body.pro-compact #modeler { --md-head-block: 48px; }
+body.pro-compact #modeler .md-head > :not(.ps-head),
+body.pro-compact #cabdes .cb-head-main > :not(.ps-head) { display: none !important; }
+
+/* the knob: Plan · Model · Cabinet on a small drum, the one in front readable,
+   its neighbours curving away above and below */
+.ps-edknob {
+  position: relative; flex: none; width: 62px; height: 40px; box-sizing: border-box; border-radius: 11px; overflow: hidden;
+  background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color); perspective: 110px;
+  cursor: ns-resize; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.ps-edknob::after {
+  /* the curve: light falls off toward the top and the bottom of the drum */
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(var(--btn-bg), transparent 34%, transparent 66%, var(--btn-bg));
+}
+.ps-edknob:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ps-edknob-drum { position: absolute; inset: 0; transform-style: preserve-3d; transform: translateZ(-16px); }
+.ps-edknob-face {
+  position: absolute; inset-inline: 0; top: 50%; height: 16px; margin-top: -8px; display: flex; align-items: center; justify-content: center;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  transform: rotateX(calc(var(--off, 0) * -52deg)) translateZ(16px);
+  transition: transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.34s;
+  font-size: 12.5px; font-weight: 700; line-height: 1; color: var(--text-main); white-space: nowrap;
+}
+.ps-edknob-face[aria-selected="false"] { opacity: 0.5; font-weight: 600; }
+.ps-edknob-face.ps-jump { transition: none; }
+@media (prefers-reduced-motion: reduce) { .ps-edknob-face { transition: none; } }
+.ps-edknob-menu {
+  position: fixed; z-index: 450; display: flex; flex-direction: column; gap: 2px; min-width: 168px; padding: 6px; border-radius: 14px;
+  background: var(--pro-surface, var(--bg-panel)); box-shadow: var(--shadow-md), 0 0 0 1px var(--border-color);
+}
+.ps-edknob-menu button {
+  display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent;
+  color: var(--text-main); font-size: 15px; font-weight: 600; text-align: start; box-shadow: none;
+}
+.ps-edknob-menu button i { font-size: 19px; color: var(--text-muted); }
+.ps-edknob-menu button[aria-checked="true"] { background: var(--pro-ink); color: var(--pro-on-ink); }
+.ps-edknob-menu button[aria-checked="true"] i { color: inherit; }
+
+/* the title: what you are working on */
+.ps-title {
+  flex: 1 1 auto; min-width: 0; height: 42px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px;
+  padding: 0 6px; border: 0; border-radius: 10px; background: transparent; color: var(--text-main); text-align: start; box-shadow: none; cursor: default;
+}
+.ps-title[data-kind="sel"], #modeler .ps-title, #cabdes .ps-title { cursor: pointer; }
+.ps-title:active { background: var(--btn-bg); }
+.ps-title-main { display: flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; }
+.ps-title-main .ps-ph-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 700; line-height: 1.15; }
+.ps-title-code {
+  flex: none; padding: 2px 5px; border-radius: 5px; font: 700 12px/1 var(--pro-mono, monospace); font-style: normal;
+  background: var(--pro-ink); color: var(--pro-on-ink);
+}
+.ps-title-sub { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.2; color: var(--pro-faint-text, var(--text-muted)); }
+.ps-title-code[hidden], .ps-title-sub[hidden] { display: none; }
+
+/* the view switch: 2D · 3D (Split only on a fold), the editors' own pills */
+.ps-head-view, .ps-head-hist, .ps-head-done { display: flex; align-items: center; flex: none; }
+.ps-view,
+body.pro-compact .ps-head-view > :is(#mdModes, .cb-vmodes) {
+  display: flex !important; flex: none; flex-direction: row; gap: 0; height: 34px; box-sizing: border-box; margin: 0; padding: 3px;
+  position: static; transform: none; border: 0; border-radius: 10px; background: var(--btn-bg); box-shadow: inset 0 0 0 1px var(--border-color);
+}
+.ps-view > button,
+body.pro-compact .ps-head-view > :is(#mdModes, .cb-vmodes) > button {
+  display: flex; align-items: center; justify-content: center; height: 28px; min-width: 32px; padding: 0 6px; border: 0; border-radius: 7px;
+  background: transparent; box-shadow: none; color: var(--text-muted); font-size: 13px; font-weight: 600;
+}
+.ps-view > button i { font-size: 16px; }
+.ps-view > button.on,
+body.pro-compact .ps-head-view > :is(#mdModes, .cb-vmodes) > button.on { background: var(--pro-raised); color: var(--text-main); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 21, 34, 0.16); }
+/* the model editor's modes as icons: Model · Sketch · Drawing */
+body.pro-compact .ps-head-view > #mdModes > button { font-size: 0; width: 36px; min-width: 36px !important; padding: 0; }
+body.pro-compact .ps-head-view > #mdModes > button :is(svg, .md-cad-icon, i) { display: inline-block !important; width: 18px; height: 18px; font-size: 18px; color: inherit !important; }
+body.pro-compact .ps-head-view > .cb-vmodes > button i { display: none; }
+/* Split needs a fold's width: a phone shows 2D or 3D */
+body.pro-compact:not(.dock-rail) :is(.ps-view [data-view="split"], .cb-vmodes [data-mode="split"], #mdModeSplit) { display: none !important; }
+
+/* undo, redo, done, more */
+.ps-head .ps-hbtn,
+body.pro-compact .ps-head-hist > :is(#mdUndo, #mdRedo, #cbUndo, #cbRedo) {
+  display: flex !important; flex: none; align-items: center; justify-content: center; width: 33px !important; min-width: 33px !important; height: 38px; padding: 0 !important;
+  border: 0; border-radius: 10px; background: transparent; color: var(--text-main); font-size: 19px; box-shadow: none;
+}
+body.pro-compact .ps-head-hist > :is(#mdUndo, #mdRedo, #cbUndo, #cbRedo) span { display: none; }
+body.pro-compact .ps-head-hist > button:disabled { opacity: 0.35; }
+.ps-head .ps-hbtn:active, body.pro-compact .ps-head-hist > button:active { background: var(--btn-bg); }
+body.pro-compact #cabdes .ps-head-done > #cbClose {
+  display: flex !important; align-items: center; justify-content: center; width: 38px; height: 34px; min-height: 0; padding: 0; margin-inline: 2px;
+  border: 0; border-radius: 10px; background: var(--pro-ink); color: var(--pro-on-ink); font-size: 0; box-shadow: none;
+}
+body.pro-compact #cabdes .ps-head-done > #cbClose i { display: inline-block !important; font-size: 18px; }
+/* the cabinet's own header chrome (levels, session chip) lives in More */
+body.pro-compact #cabdes .cb-head { padding: 0; }
+/* its hidden five-slot navigation reserved 56px (the dead band a fold showed
+   under the drawing); the bottom toolbar is all there is */
+body.pro-compact #cabdes.cb-compact { --cbm-nav: env(safe-area-inset-bottom, 0px); --cbm-ctx: var(--ps-dock-h); }
+body.pro-compact.dock-rail #cabdes.cb-compact { --cbm-nav: 0px; --cbm-ctx: 0px; }
+
+/* ---- the model editor's hint: one line, floating, and gone after a while ---- */
+body.pro-compact #modeler .md-mid > .md-hint {
+  inset-inline: 12px; top: auto; bottom: 8px; width: fit-content; max-width: calc(100% - 24px); margin-inline: auto; padding: 6px 12px; border-radius: 16px;
+  display: block; -webkit-line-clamp: unset; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;
+  font-size: 12.5px; line-height: 1.3; background: var(--hud-bg); color: var(--hud-fg, var(--text-main));
+  box-shadow: 0 4px 14px rgba(16, 21, 34, 0.12), 0 0 0 1px var(--border-color); transition: opacity 0.35s ease;
+}
+body.pro-compact #modeler .md-mid > .md-hint.ps-quiet { opacity: 0; pointer-events: none; }
+body.pro-compact #modeler { --md-hint-h: 0px; }
+
+/* ---- the bottom toolbar ---------------------------------------------------- */
+.ps-dock { display: none; }
+body.pro-compact .ps-dock {
+  display: flex; align-items: stretch; gap: 4px; position: fixed; z-index: 121; inset-inline: 0; bottom: 0;
+  height: calc(var(--ps-dock-h) + env(safe-area-inset-bottom, 0px)); box-sizing: border-box;
+  padding: 5px max(6px, env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left));
+  background: var(--pro-surface); border-top: 1px solid var(--border-color);
+}
+/* a fold: under the drawing, inside its column, like the bar was */
+body.pro-compact.dock-rail .ps-dock {
+  position: absolute; inset-inline: 10px; bottom: 10px; height: var(--ps-dock-h); padding: 5px; border: 0; border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(16, 21, 34, 0.14), 0 0 0 1px var(--border-color);
+}
+body.pro-compact #modeler .md-mid > .ps-dock, body.pro-compact #cabdes .cb-mid > .ps-dock { z-index: 140; }
+body.pro-compact.ps-editor-open #center-canvas > .ps-dock { display: none; }
+body.pro-compact.zombies-on .ps-dock, body.pro-compact.lava-on .ps-dock { display: none !important; }
+.ps-dock > button {
+  flex: none; display: flex; align-items: center; justify-content: center; width: 42px; padding: 0; border: 0; border-radius: 12px;
+  font-size: 20px; box-shadow: none; cursor: pointer;
+}
+.ps-dock-grid { background: var(--pro-ink); color: var(--pro-on-ink); }
+.ps-dock-browse { background: var(--btn-bg); color: var(--text-main); }
+.ps-dock-ask { width: 48px !important; background: var(--accent); color: var(--on-accent, #fff); }
+.ps-dock-ask .ps-ask-glyph { width: 25px; height: 25px; }
+body.ps-ask-open .ps-dock-ask { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--on-accent, #fff) 55%, transparent); }
+.ps-dock-slot { flex: 1 1 auto; min-width: 0; display: flex; border-inline: 1px solid var(--border-color); margin-inline: 2px; }
+/* the editors' context rows, moved in whole: one row that scrolls sideways */
+body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) {
+  position: static !important; display: flex !important; flex: 1 1 auto; flex-wrap: nowrap !important; align-items: stretch; align-content: stretch;
+  width: auto; min-width: 0; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 2px !important; gap: 2px;
+  border: 0 !important; background: transparent !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; transform: none !important;
+}
+body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx)::-webkit-scrollbar { display: none; }
+body.pro-compact .ps-dock :is(.mctx-undo, .cbm-undo) { display: none !important; }
+body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) :is(.mctx-btn, .cbm-btn):not(.mctx-chip):not(.cbm-chip) {
+  flex: none !important; display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  width: auto !important; min-width: 50px !important; max-width: 84px; height: auto !important; min-height: 0 !important; padding: 0 6px !important;
+  border: 0 !important; border-radius: 10px; background: transparent; box-shadow: none; color: var(--text-main);
+  font-size: 12px !important; font-weight: 600; line-height: 1.1;
+}
+body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) :is(.mctx-btn, .cbm-btn) :is(i, svg) { font-size: 19px !important; width: 19px; height: 19px; flex: none; }
+body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) :is(.mctx-btn, .cbm-btn) span {
+  display: block !important; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px !important;
+}
+body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) :is(.mctx-btn, .cbm-btn):active { background: var(--btn-bg); }
+body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) :is(.mctx-btn, .cbm-btn).on { background: var(--accent-soft); color: var(--accent); }
+body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) :is(.mctx-btn, .cbm-btn).primary { background: var(--pro-ink); color: var(--pro-on-ink); }
+body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) :is(.mctx-btn, .cbm-btn).danger { color: var(--danger, #dc2626); }
+body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) :is(.mctx-btn, .cbm-btn):disabled { opacity: 0.4; }
+/* the snaps and other switches as chips */
+body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) :is(.mctx-chip, .cbm-chip) {
+  flex: none !important; align-self: center; display: flex !important; align-items: center; height: 34px !important; min-height: 0 !important; width: auto !important;
+  min-width: 0 !important; padding: 0 11px !important; border: 1px solid var(--border-color) !important; border-radius: 17px;
+  background: var(--pro-surface); color: var(--text-muted); font: 600 12px/1 var(--pro-mono, monospace) !important; box-shadow: none;
+}
+body.pro-compact .ps-dock :is(#m-ctx, #md-ctx, #cabdes .cb-m-ctx) :is(.mctx-chip, .cbm-chip):is(.on, [aria-pressed="true"]) {
+  background: var(--accent-soft); border-color: transparent !important; color: var(--accent);
+}
+
+/* ---- the ask panel ------------------------------------------------------- */
+.ps-ask {
+  position: fixed; z-index: 160; inset-inline: 0; bottom: var(--kb, 0px); display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;
+  max-height: calc(100dvh - var(--mobile-topbar-block, 56px) - var(--kb, 0px) - 8px); padding: 6px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-radius: 20px 20px 0 0; background: var(--pro-surface, var(--bg-panel)); color: var(--text-main);
+  box-shadow: 0 -12px 32px rgba(16, 21, 34, 0.18), 0 0 0 1px var(--border-color);
+  animation: ps-ask-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+body.pro-compact.dock-rail .ps-ask { position: absolute; inset-inline: 10px; bottom: 10px; max-height: calc(100% - 20px); border-radius: 18px; }
+#modeler .md-mid > .ps-ask, #cabdes .cb-mid > .ps-ask { z-index: 160; }
+@keyframes ps-ask-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ps-ask { animation: none; } }
+.ps-ask-grip { width: 38px; height: 4px; margin: 0 auto; border-radius: 2px; background: var(--border-color); flex: none; }
+.ps-ask-head { display: flex; align-items: center; gap: 8px; flex: none; touch-action: none; }
+.ps-ask-head b { flex: 1; font-size: 15px; font-weight: 700; }
+.ps-ask-x { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 10px; background: var(--btn-bg); color: var(--text-main); font-size: 17px; box-shadow: none; }
+.ps-ask-slot { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: auto; }
+.ps-ask .ps-cmdbar {
+  grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "modes modes" "sugg sugg" "input mic"; gap: 8px; align-items: center;
+  position: relative !important; inset: auto !important; left: auto !important; right: auto !important; bottom: auto !important; top: auto !important;
+  width: auto !important; height: auto !important; transform: none !important; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none;
+}
+.ps-ask .ps-cmdbar > .ps-modes { grid-area: modes; display: flex !important; justify-self: start; }
+.ps-ask .ps-cmdbar .ps-cmd-input {
+  grid-area: input; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1px solid var(--accent); border-radius: 13px;
+  background: var(--pro-surface, var(--bg-panel)); color: var(--text-main); font-size: 16px; /* 16px: iOS does not zoom into the field */
+}
+.ps-ask .ps-cmdbar .ps-mic {
+  grid-area: mic; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 13px;
+  background: var(--accent); color: var(--on-accent, #fff); font-size: 20px;
+}
+.ps-ask .ps-cmdbar .ps-suggest:not([hidden]) {
+  grid-area: sugg; position: static !important; inset: auto !important; width: auto !important; max-height: 34dvh; overflow: auto; margin: 0;
+  box-shadow: none; border: 1px solid var(--border-color); border-radius: 12px;
+}
+.ps-ask-slot > .ea-card {
+  order: -1; position: static !important; inset: auto !important; width: auto !important; max-width: none !important; max-height: 40dvh;
+  box-shadow: none; transform: none !important;
+}
+
+/* ---- layers: one chip in the corner of the plan ----------------------------- */
+.ps-layers-chip { display: none; }
+body.pro-compact .ps-layers-chip {
+  display: flex; align-items: center; gap: 6px; position: absolute; z-index: 16; top: 8px; inset-inline-start: 8px; height: 34px; min-height: 0;
+  max-width: 44%; padding: 0 10px; border: 0; border-radius: 17px; background: var(--hud-bg, var(--pro-surface)); color: var(--text-main);
+  box-shadow: 0 4px 14px rgba(16, 21, 34, 0.12), 0 0 0 1px var(--border-color); font-size: 13px; font-weight: 600;
+}
+body.pro-compact .ps-layers-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.pro-compact .ps-layers-chip i { font-size: 16px; flex: none; }
+body.pro-compact .ps-layers-chip .ps-layers-caret { font-size: 12px; color: var(--text-muted); transition: transform 0.2s; }
+body.pro-compact.ps-layers-open .ps-layers-chip .ps-layers-caret { transform: rotate(180deg); }
+body.pro-compact:not(.ps-layers-open) #layer-chips { display: none !important; }
+/* open: the list under the chip, each layer a row with its name */
+body.pro-compact.ps-layers-open #view-2d #plan-tools {
+  top: 50px !important; inset-inline-start: 8px !important; inset-inline-end: auto !important; left: auto; right: auto;
+  width: min(300px, calc(100% - 16px)) !important; height: auto !important; max-height: calc(100% - 120px); transform: none !important;
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips {
+  display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 2px; width: 100% !important; height: auto !important;
+  max-height: 100%; overflow: auto; padding: 6px !important; box-sizing: border-box; border-radius: 14px; background: var(--pro-surface) !important;
+  box-shadow: var(--shadow-md), 0 0 0 1px var(--border-color) !important;
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips::before { display: none !important; }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip {
+  display: flex !important; flex-direction: row !important; align-items: center; gap: 2px; width: 100% !important; height: 42px !important; min-height: 0 !important;
+  padding: 0 2px !important; border-radius: 10px; border: 0 !important;
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip.on { background: var(--accent-soft); }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip > button { flex: none; width: 38px !important; height: 38px !important; min-height: 0 !important; font-size: 17px; }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip .lchip-name {
+  flex: 1 1 auto !important; width: auto !important; max-width: none !important; justify-content: flex-start; gap: 8px; padding: 0 8px !important; font-size: 14px; font-weight: 600;
+}
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip .lchip-t { display: inline !important; }
+body.pro-compact.ps-layers-open #view-2d #layer-chips .lchip .lchip-more { visibility: visible !important; opacity: 1 !important; }
+
+/* ---- the CAD status line ----------------------------------------------------
+   On a phone or a fold it was a strip over the plan holding a properties
+   button: the header title names the selection (tap it for its properties),
+   the toolbar has Edit, and while drawing the title carries the length. */
+body.pro-compact #cad-status { display: none !important; }
+
+/* ---- the phone inspector: half a screen until you ask for more -------------- */
+.ps-sheet-grip { display: none; }
+body.pro-compact.sheet-drawers #right-inspector > .ps-sheet-grip {
+  display: flex; align-items: center; justify-content: center; flex: none; width: 100%; height: 22px; min-height: 0; margin: 0; padding: 0;
+  border: 0; background: transparent; box-shadow: none; cursor: ns-resize; touch-action: none;
+}
+body.pro-compact.sheet-drawers #right-inspector > .ps-sheet-grip span { width: 40px; height: 4px; border-radius: 2px; background: var(--border-color); }
+body.pro-compact.sheet-drawers #right-inspector::before { display: none !important; }
+body.pro-compact.sheet-drawers:not(.dock-rail):not(.ps-insp-full) #right-inspector { max-height: min(46dvh, var(--mobile-sheet-cap, 68dvh)) !important; }
+/* the plan above it is what it edits: not dimmed (a tap on it still closes the sheet) */
+body.pro-compact.show-right #m-sheet-backdrop,
+body.pro-compact.show-left #m-sheet-backdrop { background: transparent !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+/* its values: finger-sized, not billboard-sized */
+body.pro-compact #right-inspector input:not([type="checkbox"]):not([type="range"]):not([type="color"]),
+body.pro-compact #right-inspector select { height: 40px !important; min-height: 40px !important; font-size: 16px !important; }
+/* a fold: the hint stands above the floating toolbar */
+body.pro-compact.dock-rail #modeler .md-mid > .md-hint { bottom: calc(var(--ps-dock-h) + 18px); }
+
+/* ---- the model editor on a fold: its docked column under the header ------- */
+body.pro-compact.compact-nav.dock-rail #modeler #md-sheet { top: var(--md-head-block, 48px) !important; }
+/* with the tools pane open, the pane's own head is the one title (and close) */
+body.pro-compact.dock-rail #modeler.md-fold-open #md-sheet > .m-sheet-head { display: none; }
+body.pro-compact.dock-rail #modeler #md-sheet .md-sheet-expand,
+body.pro-compact.dock-rail #modeler #md-sheet > .m-sheet-grip { display: none; }
+/* sketching gets the tree's column too (the tree comes back with the model) */
+body.pro-compact.dock-rail #modeler.md-tree-on:not(.md-is3d):not(.md-isdrawing) .md-left:not(.md-borrowed),
+body.pro-compact.dock-rail #modeler.md-tree-on.md-model-sketching .md-left:not(.md-borrowed) { display: none; }
+/* the Properties column stands beside the model: it does not dim it */
+body.pro-compact.dock-rail #modeler #md-sheet-backdrop { display: none !important; }
+
+/* ---- the 3D view on a phone or a fold --------------------------------------
+   Its Draw and Dollhouse buttons ride in the toolbar with the walk and look
+   controls; the tool pill over the plan says what the header title already
+   says (the layer-lock pill beside it stays: that one asks for something). */
+body.pro-compact :is(#drawing3dBtn, #dollhouseBtn) { display: none !important; }
+body.pro-compact #planToolIdle { display: none !important; }
+body.pro-compact #plan-tool-status:not(:has(.unlock-pill:not([hidden]))) { display: none !important; }
+
+/* ---- the More sheet: tiles in groups, not a column of forty rows ----------- */
+body.pro-compact #m-sheet .m-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+body.pro-compact #m-sheet .m-list-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 64px; height: auto; padding: 8px 4px;
+  border: 0; border-radius: 12px; background: var(--btn-bg); box-shadow: none; color: var(--text-main);
+  font-size: 12.5px; font-weight: 600; line-height: 1.15; text-align: center;
+}
+body.pro-compact #m-sheet .m-list-btn i { font-size: 20px; }
+body.pro-compact #m-sheet .m-list-btn span { overflow-wrap: anywhere; }
+body.pro-compact #m-sheet .m-list-btn.danger { color: var(--danger, #dc2626); }
+body.pro-compact #m-sheet .m-list-btn:active { background: var(--btn-bg-hover); }
+body.pro-compact #m-sheet .m-more-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 8px 0 2px; }
+body.pro-compact #m-sheet .m-more-cards .m-guide-card {
+  margin: 0; min-height: 0; padding: 10px; gap: 8px; align-items: flex-start; border-radius: 12px; background: var(--accent-soft); border: 0; box-shadow: none; text-align: start;
+}
+body.pro-compact #m-sheet .m-more-cards .m-guide-card > i:last-child { display: none; }
+body.pro-compact #m-sheet .m-more-cards .m-guide-card strong { font-size: 13px; }
+body.pro-compact #m-sheet .m-more-cards .m-guide-card small { font-size: 12px; line-height: 1.3; color: var(--pro-faint-text); }
+body.pro-compact #m-sheet .m-grid-5 { gap: 6px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+body.pro-compact #m-sheet .m-design-shortcuts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+body.pro-compact #m-sheet .m-grid-5 .m-grid-btn span { font-size: 12px; line-height: 1.15; overflow-wrap: anywhere; }
+body.pro-compact #m-sheet .m-more-group > summary { font-size: 13px; font-weight: 600; padding: 10px 2px; color: var(--pro-faint-text); }
+
+/* the rows above set display on buttons and chips: one switched off with [hidden] stays off */
+body.pro-compact :is(.ps-dock, #layer-chips, .ps-head, #psPhoneHead) [hidden] { display: none !important; }
+
+/* ---- Hebrew: the header and the toolbar read from the right ----------------- */
+html[lang="he"] body.pro-compact :is(.ps-head, .ps-dock, .ps-ask-head) { direction: rtl; }
+html[lang="he"] body.pro-compact .ps-title { align-items: flex-start; text-align: start; }
+
+/* the inspector's rows had no side margin: labels ran into the sheet's edge */
+body.pro-compact #right-inspector > .panel-section { padding-inline: 12px !important; }
+
+/* the cabinet designer's source tiles ("Blank — start from scratch"): two lines, not an ellipsis */
+body.pro-compact #cabdes .cb-icon-label { white-space: normal; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

@@ -1013,6 +1013,21 @@ function fillIdCard() {
     box.appendChild(chip);
   }
 }
+/* What the phone and fold header names (js/pro_compact.js): the compartment
+   picked on the elevation, else the cabinet, each with its size. */
+window.__cabinetHeadState = function () {
+  if (!E.it || !E.host) return null;
+  var s = sp(), unit = displayUnit("furniture");
+  var col = E.sel && s.cols && s.cols[E.sel.col];
+  var sec = col && E.sel.sec != null ? col.secs[E.sel.sec] : null;
+  return {
+    name: famLabel(s.fam) + " " + formatCabinetDimension(E.it.w, unit) + " " + unit,
+    code: partCode("item", E.it.id),
+    size: [E.it.w, E.it.d, E.it.h].map(function (v) { return formatCabinetDimension(v, unit); }).join(" × ") + " " + unit,
+    part: sec ? secLabel(sec.t) : "",
+    partSize: sec && sec.h ? formatCabinetDimension(sec.h, unit) + " " + unit : "",
+  };
+};
 function formatStockMm(cm) {
   var mm = Math.round(cm * 100) / 10;
   return (Math.round(mm) === mm ? String(mm) : mm.toFixed(1)) + " mm";

@@ -6913,6 +6913,22 @@ function closeFeaturePanel() {
   syncCommandManager(); // puts the ribbon button that opened the form back out
 }
 
+/* What the phone and fold header names (js/pro_compact.js): the sketch being
+   drawn and the tool in hand, else the picked part, else the model. */
+window.__modelerHeadState = function () {
+  if (!E.open || !E.def) return null;
+  var sketching = E.mode === "2d" || !!E.modelPlaneActive;
+  var sketch = sketching ? ensureSketch(E.def) : null;
+  var part = E.sel && Array.isArray(E.def.parts) && E.def.parts.indexOf(E.sel) >= 0 ? E.sel : null;
+  return {
+    model: (E.docType === "assembly" && E.assembly ? E.assembly.name : E.def.name) || "",
+    sketch: sketch ? sketch.name || planeLabel(sketch.plane) : "",
+    part: part ? part.name || "" : "",
+    tool: E.tool || "",
+    mode: E.mode || "",
+  };
+};
+
 // The pro ribbon and the app-wide ⌘K palette run model commands through this.
 window.__modelerRunCommand = function (id) {
   if (!root || !E.open) return false;
