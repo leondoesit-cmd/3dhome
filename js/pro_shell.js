@@ -38,7 +38,8 @@ var MSG = {
   modes: ["Ask the AI or run a command", "שאלו את ה־AI או הפעילו פקודה"],
   cmd: ["› Cmd", "› פקודה"],
   aiPlanOnly: ["The AI helper is not available here — Cmd runs every tool.", "עוזר ה־AI לא זמין כאן — פקודה מפעילה כל כלי."],
-  aiIsOff: ["AI is off — Cmd runs every tool by name. Turn AI back on with the AI switch.", "AI כבוי — פקודה מפעילה כל כלי לפי שם. הפעילו AI במתג ה־AI."],
+  aiIsOff: ["AI is off — Cmd runs every tool by name. Choose AI on the bar to turn it on.", "AI כבוי — פקודה מפעילה כל כלי לפי שם. בחרו AI בסרגל כדי להפעיל."],
+  aiChipTip: ["Turn the AI helper on or off", "הפעלה או כיבוי של עוזר ה־AI"],
   noTool: ["No tool called “{0}”.", "אין כלי בשם „{0}”."],
   statusOn: ["AI on · every tool also works by hand", "AI פעיל · כל כלי עובד גם ידנית"],
   statusOff: ["AI off · fully manual", "AI כבוי · ידני לגמרי"],
@@ -205,7 +206,7 @@ export function shellActionsHTML() {
    model editor does, on every sync) re-adds it without waiting for a sync. */
 export function aiStatusHTML() {
   var on = aiOn();
-  return '<span class="ps-ai-status' + (on ? "" : " off") + '" data-ps="status"><i class="ph ph-sparkle" aria-hidden="true"></i><span>' +
+  return '<span class="ps-ai-status' + (on ? "" : " off") + '" data-ps="status" role="button" tabindex="0" title="' + M("aiChipTip") + '"><i class="ph ph-sparkle" aria-hidden="true"></i><span>' +
     M(on ? "statusOn" : "statusOff") + "</span></span>";
 }
 
@@ -290,7 +291,7 @@ function syncBar(bar) {
     var m = b.dataset.psMode, sel = m === mode;
     b.classList.toggle("on", sel);
     b.setAttribute("aria-checked", sel ? "true" : "false");
-    var unavailable = m === "ai" && !aiModeAvailable(editor);
+    var unavailable = m === "ai" && aiOn() && !aiModeAvailable(editor);
     b.setAttribute("aria-disabled", unavailable ? "true" : "false");
     b.classList.toggle("unavailable", unavailable);
     if (unavailable) b.title = M(aiOn() ? "aiPlanOnly" : "aiIsOff");
@@ -342,7 +343,9 @@ function wireBar(bar, editor) {
   var active = -1, items = [];
   bar.querySelectorAll("[data-ps-mode]").forEach(function (b) {
     b.addEventListener("click", function () {
-      if (b.dataset.psMode === "ai" && !aiModeAvailable(editor)) { proToast(M(aiOn() ? "aiPlanOnly" : "aiIsOff")); return; }
+      // choosing AI is how AI is turned on (the header has no switch any more)
+      if (b.dataset.psMode === "ai" && !aiOn()) setAiOn(true);
+      if (b.dataset.psMode === "ai" && !aiModeAvailable(editor)) { proToast(M("aiPlanOnly")); return; }
       store(LS_MODE, b.dataset.psMode);
       syncBar(bar);
       input.focus();
@@ -517,4 +520,18 @@ export function fitCommandBar(bar, host, obstacles) {
     if (!(next < bottom) || next - h < hr.top + 40) return; // nowhere better: leave css's place
     bottom = next;
   }
+}
+
+/* The status line's AI chip is the on / off switch now that the headers have
+   none (the lines are rebuilt on every sync, so this listens on the document). */
+if (typeof document !== "undefined") {
+  var chipToggle = function (e) {
+    var chip = e.target && e.target.closest && e.target.closest(".ps-ai-status");
+    if (!chip) return;
+    if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    setAiOn(!aiOn());
+  };
+  document.addEventListener("click", chipToggle);
+  document.addEventListener("keydown", chipToggle);
 }

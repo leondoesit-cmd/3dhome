@@ -52,7 +52,8 @@ var MSG = {
   micOff: ["Voice input is not supported in this browser.", "הקלטה קולית לא נתמכת בדפדפן הזה."],
   listening: ["Listening…", "מקשיב…"],
   noAgent: ["The AI helper is not available.", "עוזר ה־AI אינו זמין."],
-  aiOff: ["AI is off — type a tool's name, or turn AI back on with the AI switch.", "AI כבוי — הקלידו שם של כלי, או הפעילו AI במתג ה־AI."],
+  aiOff: ["AI is off — type a tool's name, or choose AI on the bar to turn it on.", "AI כבוי — הקלידו שם של כלי, או בחרו AI בסרגל כדי להפעיל."],
+  allCmds: ["All commands", "כל הפקודות"],
   every: ["Every command", "כל הפקודות"],
   phUndo: ["Undo", "ביטול"],
   phParts: ["Parts & library", "חלקים וספרייה"],
@@ -967,12 +968,27 @@ function placeEditorChrome(on) {
   var md = document.getElementById("modeler");
   // on a phone or a fold the view pill belongs to the one-row header (js/pro_compact.js)
   var phone = compactOn();
+  if (md) addAllCommands(md.querySelector(".md-mid > .ps-cmdbar"), "model");
   if (md) {
     if (!phone) relocate(md.querySelector("#mdModes"), on ? md.querySelector(".md-head") : null);
     relocate(md.querySelector(".md-status-row"), on ? md.querySelector(".md-mid") : null);
   }
   var cb = document.getElementById("cabdes");
   if (cb && !phone) relocate(cb.querySelector(".cb-vmodes"), on ? cb.querySelector(".cb-head-main") : null);
+}
+/* The model editor has no "Every command" pill: its AI / Cmd bar sits in the
+   bottom bar and ends in this button, which opens the whole catalog. */
+function addAllCommands(bar, editor) {
+  if (!bar || bar.querySelector(".ps-allcmds")) return;
+  var b = document.createElement("button");
+  b.type = "button";
+  b.className = "ps-allcmds";
+  b.innerHTML = '<i class="ph ph-squares-four" aria-hidden="true"></i><span></span>';
+  b.querySelector("span").textContent = M("allCmds");
+  b.title = M("allCmds") + " (" + (isMac() ? "⌘K" : "Ctrl K") + ")";
+  b.setAttribute("aria-label", M("allCmds"));
+  b.addEventListener("click", function () { openEveryPanel(editor); });
+  bar.insertBefore(b, bar.querySelector(".ps-mic"));
 }
 /* Split, as the mockup draws it: the plan keeps the whole canvas and the 3D
    view sits at the top of the right column, over the inspector — the same

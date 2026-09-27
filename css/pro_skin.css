@@ -747,3 +747,62 @@ body.pro-skin #left-sidebar .left-tabs > button:hover { color: var(--text-main);
 body.pro-skin #left-sidebar .left-tabs > button.active { color: var(--text-main) !important; font-weight: 700; border-bottom-color: var(--pro-ink) !important; }
 body.pro-skin #left-sidebar .left-tabs > button span { max-width: none !important; overflow: visible !important; text-overflow: clip !important; font-size: inherit !important; }
 body.pro-skin #floor-tabs { background: var(--pro-surface) !important; }
+
+/* ==== Round 7: the editors' desktop header and ribbon ======================
+   Phones and folds only: the editor knob and one-row header (pro_compact.js). */
+body:not(.pro-compact) :is(.ps-head, #psPhoneHead) { display: none !important; }
+/* No AI switch in any header: the bar's AI mode turns AI on, the status chip
+   ("AI on" / "AI off") toggles it. The editors' headers drop the project
+   chip too: the planner's header names the project. */
+body.pro-skin .ps-actions .ps-ai { display: none !important; }
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .ps-project { display: none !important; }
+.ps-ai-status { cursor: pointer; pointer-events: auto; border-radius: 6px; padding: 2px 6px; }
+.ps-ai-status:hover { background: var(--btn-bg); }
+.ps-ai-status:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---- the editors' ribbons: tools in two rows of icon + name ------------- */
+body.pro-skin .pr-editor-ribbon .pr-groups { height: auto; min-height: 0; padding: 4px 6px 0; align-items: stretch; }
+body.pro-skin .pr-editor-ribbon .pr-group { justify-content: space-between; }
+body.pro-skin .pr-editor-ribbon .pr-items { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, 30px); gap: 2px; }
+body.pro-skin .pr-editor-ribbon .pr-tool {
+  flex-direction: row; justify-content: flex-start; width: auto; min-width: 0; height: 30px; gap: 6px; padding: 0 8px 0 6px; border-radius: 7px;
+}
+body.pro-skin .pr-editor-ribbon .pr-tool i { font-size: 17px; flex: none; }
+body.pro-skin .pr-editor-ribbon .pr-tool span {
+  display: block; font-size: 12.5px; line-height: 1; white-space: nowrap; overflow: visible; hyphens: none; -webkit-line-clamp: unset; text-align: start;
+}
+body.pro-skin .pr-editor-ribbon .pr-tool kbd {
+  position: static; order: 3; margin-inline-start: 2px; font-size: max(10px, var(--fs-floor, 0px)); line-height: 1;
+}
+body.pro-skin .pr-editor-ribbon .pr-glabel { height: 16px; margin-top: 2px; line-height: 16px; text-align: center; }
+
+/* ---- model editor: the AI / Cmd bar in the bottom bar -------------------- */
+body.pro-skin .pr-editor-ribbon[data-pro-editor="model"] .pr-every-ed { display: none !important; }
+body.pro-skin #modeler .md-mid > .md-status {
+  height: 46px; box-sizing: border-box; flex-wrap: nowrap; overflow: hidden; z-index: 60;
+  padding: 0 14px 0 calc(min(560px, 52%) + 20px); background: var(--pro-surface); border-top: 1px solid var(--border-color);
+}
+html[dir="rtl"] body.pro-skin #modeler .md-mid > .md-status { padding: 0 calc(min(560px, 52%) + 20px) 0 14px; }
+body.pro-skin #modeler .md-mid > .ps-cmdbar {
+  bottom: 5px; left: auto; inset-inline-start: 8px; transform: none; z-index: 61;
+  width: min(560px, 52%); height: 36px; padding: 2px 3px; border-radius: 18px; box-shadow: none; background: var(--btn-bg);
+}
+body.pro-skin #modeler .md-mid > .ps-cmdbar:focus-within { background: var(--pro-surface); box-shadow: 0 0 0 3px var(--accent-soft); }
+body.pro-skin #modeler .md-mid > .ps-cmdbar .ps-modes button { height: 28px; }
+body.pro-skin #modeler .md-mid > .ps-cmdbar .ps-mic { width: 30px; height: 30px; font-size: 15px; }
+.ps-allcmds { display: none; }
+body.pro-skin #modeler .ps-allcmds {
+  display: inline-flex; align-items: center; gap: 5px; flex: none; height: 28px; padding: 0 10px; border: 0; border-radius: 14px;
+  background: var(--pro-surface); color: var(--text-main); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 0 0 1px var(--border-color);
+}
+body.pro-skin #modeler .ps-allcmds:hover { background: var(--accent-soft); }
+body.pro-skin #modeler .ps-allcmds i { font-size: 15px; }
+@media (max-width: 1360px) {
+  body.pro-skin #modeler .ps-allcmds { width: 28px; padding: 0; justify-content: center; }
+  body.pro-skin #modeler .ps-allcmds span { display: none; }
+}
+/* what stood on the status line moves up above the bar */
+body.pro-skin #modeler .md-rail-row { bottom: 54px; }
+body.pro-skin:not(.compact-nav) #modeler .md-rail-bottom { bottom: 96px; max-height: calc(50% - 98px); }
+body.pro-skin #modeler .md-mid > .md-status > * { white-space: nowrap; flex: none; }

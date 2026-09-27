@@ -412,6 +412,9 @@ function releaseEditorHead(ed) {
     var n = sel && q(sel);
     if (n && n.closest(".ps-head")) relocate(n, null);
   });
+  // a phone header left in the editor showed its knob on the desktop header
+  var host = spec.head(), head = host && host.querySelector(":scope > .ps-head");
+  if (head) head.remove();
 }
 
 /* ---- the dock ------------------------------------------------------------ */
