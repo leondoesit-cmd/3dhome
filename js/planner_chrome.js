@@ -164,15 +164,25 @@ export function renderFloorTabs() {
     b.textContent = name;
     b.title = t("floor_rename_tip");
     b.classList.toggle("active", floor.id === S.workspace.activeFloor);
-    b.addEventListener("dblclick", function (e) { e.preventDefault(); renameFloorInline(b, floor, name); });
     var hold = 0;
+    var held = false;
     b.addEventListener("pointerdown", function (e) {
       if (e.pointerType === "mouse") return;
+      held = false;
       clearTimeout(hold);
-      hold = setTimeout(function () { renameFloorInline(b, floor, name); }, 550);
+      hold = setTimeout(function () { held = true; renameFloorInline(b, floor, name); }, 550);
     });
     ["pointerup", "pointercancel", "pointerleave"].forEach(function (type) { b.addEventListener(type, function () { clearTimeout(hold); }); });
-    b.addEventListener("click", function () {
+    b.addEventListener("contextmenu", function (e) { if (held) e.preventDefault(); });
+    /* A double-click is read off the click itself (detail 2) rather than a
+       dblclick listener: the first click of the pair switches floor, which
+       rebuilds this strip, so a dblclick would land on a button that is no
+       longer in the page and the field would open where nobody can see it. */
+    b.addEventListener("click", function (e) {
+      if (held) { held = false; return; } // the release of a press-and-hold
+      if (e.detail >= 2) { renameFloorInline(b, floor, name); return; }
+      // Re-clicking the current floor must not rebuild the strip or refit the view.
+      if (floor.id === S.workspace.activeFloor) return;
       switchFloor(floor.id);
       S.dirty3D = true;
       render2D();
@@ -195,15 +205,16 @@ export function renderFloorTabs() {
 /* A floor's name edits in place: the pill becomes a field, Enter keeps the new
    name (one undo step), Escape or an empty field keeps the old one. */
 function renameFloorInline(button, floor, shown) {
-  if (button.querySelector("input")) return;
+  if (!button.isConnected) return;
   var input = document.createElement("input");
   input.type = "text";
   input.className = "floor-rename";
   input.maxLength = 60;
   input.value = shown;
   input.setAttribute("aria-label", t("floor_rename_tip"));
-  button.textContent = "";
-  button.appendChild(input);
+  // The field takes the pill's place instead of sitting inside it: a text
+  // field inside a <button> is invalid and Firefox never delivers it the clicks.
+  button.replaceWith(input);
   input.focus();
   input.select();
   var done = false;
@@ -223,7 +234,6 @@ function renameFloorInline(button, floor, shown) {
     if (e.key === "Enter") { e.preventDefault(); finish(true); }
     else if (e.key === "Escape") { e.preventDefault(); finish(false); }
   });
-  input.addEventListener("click", function (e) { e.stopPropagation(); });
   input.addEventListener("blur", function () { finish(true); });
 }
 
