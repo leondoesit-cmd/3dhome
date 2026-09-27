@@ -399,7 +399,7 @@ test("the Round-6 desktop layout: one header, the catalog ribbon in every editor
   const ribbon = src("pro_ribbon.js");
   // only on a desktop window, never in the compact layouts, and it can be turned off
   assert.match(ribbon, /return !!\(DESK && DESK\.matches\) && !document\.body\.classList\.contains\("compact-nav"\) && store\("mf\.proSkin"\) !== "0";/);
-  assert.match(ribbon, /var DESK = typeof matchMedia === "function" \? matchMedia\("\(min-width: 1024px\)"\) : null;/);
+  assert.match(ribbon, /var DESK = typeof matchMedia === "function" \? matchMedia\("\(min-width: 501px\)"\) : null;/);
   // what moves keeps its node and goes home when the layout does
   assert.match(ribbon, /relocate\(document\.getElementById\("toolSearch"\), null\);/);
   // "Every command" is the whole-catalog panel, on the pill and on Cmd/Ctrl K

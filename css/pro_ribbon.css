@@ -179,8 +179,10 @@
 .pr-tool:disabled { opacity: 0.4; cursor: default; }
 
 /* Phones, foldables in compact posture and narrow windows use the Tools sheet. */
+/* a narrow classic window keeps its own rows; the Round-6 layout (pro-skin,
+   every mouse window over 500px) keeps the ribbon */
 @media (max-width: 1023px) {
-  .pro-ribbon { display: none; }
+  body:not(.pro-skin) .pro-ribbon { display: none; }
 }
 body.compact-nav .pro-ribbon { display: none; }
 
@@ -316,7 +318,7 @@ body.compact-nav .pr-editors.md-editors button,
 /* A narrow desktop window (no touch, so not compact) loses the ribbon below
    1024px; the strip stands in for its switcher. The top bar keeps the panes. */
 @media (max-width: 1023px) {
-  body:not(.compact-nav) .m-editor-strip {
+  body:not(.compact-nav):not(.pro-skin) .m-editor-strip {
     display: flex;
     flex-shrink: 0;
     align-items: center;
@@ -326,7 +328,7 @@ body.compact-nav .pr-editors.md-editors button,
     border-bottom: 1px solid var(--border-color);
     color: var(--text-main);
   }
-  body:not(.compact-nav) .m-editor-strip .m-panes { display: none; }
+  body:not(.compact-nav):not(.pro-skin) .m-editor-strip .m-panes { display: none; }
 }
 body.compact-nav .m-editor-strip {
   display: flex;
@@ -506,7 +508,7 @@ body.compact-nav .ps-actions,
 body.compact-nav .ps-cmdbar,
 body.compact-nav .ps-ai-status { display: none !important; }
 @media (max-width: 1023px) {
-  .ps-cmdbar { display: none !important; }
+  body:not(.pro-skin) .ps-cmdbar { display: none !important; }
   body.pro-ribbon-on #view-2d > .hint { bottom: 44px; }
 }
 @media (max-width: 1280px) {

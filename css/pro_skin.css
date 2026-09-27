@@ -778,11 +778,16 @@ body.pro-skin .pr-editor-ribbon .pr-glabel { height: 16px; margin-top: 2px; line
 
 /* ---- model editor: the AI / Cmd bar in the bottom bar -------------------- */
 body.pro-skin .pr-editor-ribbon[data-pro-editor="model"] .pr-every-ed { display: none !important; }
+/* the bar's ground is a band of its own (not the status line's box), so the
+   bar and the status line sit side by side without one covering the other */
+body.pro-skin #modeler .md-mid::after {
+  content: ""; position: absolute; inset-inline: 0; bottom: 0; height: 46px; z-index: 59; pointer-events: none;
+  background: var(--pro-surface); border-top: 1px solid var(--border-color); box-sizing: border-box;
+}
 body.pro-skin #modeler .md-mid > .md-status {
   height: 46px; box-sizing: border-box; flex-wrap: nowrap; overflow: hidden; z-index: 60;
-  padding: 0 14px 0 calc(min(560px, 52%) + 20px); background: var(--pro-surface); border-top: 1px solid var(--border-color);
+  inset-inline-start: calc(min(560px, 52%) + 16px); padding: 0 14px 0 4px; background: transparent;
 }
-html[dir="rtl"] body.pro-skin #modeler .md-mid > .md-status { padding: 0 calc(min(560px, 52%) + 20px) 0 14px; }
 body.pro-skin #modeler .md-mid > .ps-cmdbar {
   bottom: 5px; left: auto; inset-inline-start: 8px; transform: none; z-index: 61;
   width: min(560px, 52%); height: 36px; padding: 2px 3px; border-radius: 18px; box-shadow: none; background: var(--btn-bg);
@@ -806,3 +811,69 @@ body.pro-skin #modeler .ps-allcmds i { font-size: 15px; }
 body.pro-skin #modeler .md-rail-row { bottom: 54px; }
 body.pro-skin:not(.compact-nav) #modeler .md-rail-bottom { bottom: 96px; max-height: calc(50% - 98px); }
 body.pro-skin #modeler .md-mid > .md-status > * { white-space: nowrap; flex: none; }
+
+/* a narrower window: the tools take a third row before any fall off the end */
+body.pro-skin .pr-editor-ribbon.pr-rows3 .pr-items { grid-template-rows: repeat(3, 27px); gap: 1px 2px; }
+body.pro-skin .pr-editor-ribbon.pr-rows3 .pr-tool { height: 27px; }
+body.pro-skin .pr-editor-ribbon.pr-rows3 .pr-tool i { font-size: 16px; }
+body.pro-skin .pr-editor-ribbon.pr-rows3 .pr-tool span { font-size: 12px; }
+
+/* ---- narrow desktop windows (501–1100px) keep this layout ---------------- */
+/* the editors' headers: every piece at its own width, the switcher shortest */
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) > *,
+body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) :is(.ps-share, #mdSave, #mdClose, #cbClose, #cbRevert) { flex-shrink: 0; }
+@media (max-width: 1100px) {
+  body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) { gap: 6px; padding: 0 8px; }
+  body.pro-skin #modeler .md-head .pr-editors, body.pro-skin #cabdes .cb-head-main .pr-editors { width: auto; flex: none; }
+  body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .pr-editors button { flex: none; padding: 0 10px; }
+  body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .pr-editors button[data-pro-editor="plan"] .pr-ed-full { display: none; }
+  body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) .pr-editors button[data-pro-editor="plan"] .pr-ed-short { display: inline; }
+  body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) :is(.ps-share, #mdSave, #mdClose, #cbClose) > span { display: none; }
+  body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) :is(.ps-share, #mdSave, #mdClose, #cbClose) { width: 32px; padding: 0; justify-content: center; }
+}
+/* the model editor's bottom bar: when the middle is narrow, the AI / Cmd bar
+   takes the whole width and the status line sits under it */
+body.pro-skin #modeler .md-mid { container-type: inline-size; container-name: mdmid; }
+@container mdmid (max-width: 760px) {
+  body.pro-skin #modeler .md-mid::after { height: 72px; }
+  body.pro-skin #modeler .md-mid > .md-status { inset-inline-start: 0; height: 30px; padding: 0 12px; }
+  body.pro-skin #modeler .md-mid > .ps-cmdbar { bottom: 31px; width: calc(100% - 16px); }
+  body.pro-skin #modeler .md-rail-row { bottom: 80px; }
+  body.pro-skin:not(.compact-nav) #modeler .md-rail-bottom { bottom: 122px; }
+  /* the view list holds the start side: the hints keep to the end side */
+  body.pro-skin:not(.compact-nav) #modeler.md-is3d .md-rail-bottom {
+    left: auto; transform: none; inset-inline-end: 12px; max-width: calc(100% - 172px); align-items: flex-end;
+  }
+}
+/* the view list stops above the selection filters and scrolls */
+body.pro-skin:not(.compact-nav) #modeler .md-views { max-height: calc(100% - 190px); overflow-y: auto; scrollbar-width: thin; }
+@media (max-width: 1100px) {
+  body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) :is(.ps-share, #mdSave, #mdClose, #cbClose) { font-size: 0; gap: 0; }
+  body.pro-skin :is(#modeler .md-head, #cabdes .cb-head-main) :is(.ps-share, #mdSave, #mdClose, #cbClose) i { display: inline-block !important; font-size: 16px; }
+}
+/* the model editor's classic narrow layout (styles.css, max-width 900px)
+   stacked the panels under the model; this layout keeps its three columns */
+@media (max-width: 900px) {
+  body.pro-skin #modeler .md-body { flex-direction: row; overflow: hidden; padding: 0; gap: 0; }
+  body.pro-skin #modeler .md-mid { order: 0; flex: 1 1 auto; height: auto; min-height: 0; min-width: 0; }
+  body.pro-skin #modeler .md-panel { width: clamp(180px, 24vw, 232px); max-height: none; }
+  body.pro-skin #modeler .md-right { width: clamp(200px, 27vw, 268px); max-height: none; }
+  body.pro-skin #modeler .md-resizer { display: block; }
+  body.pro-skin #modeler .md-head { flex-wrap: nowrap; padding: 0 8px; }
+}
+/* narrow headers: Part · Assembly and the view pill show their icons only */
+@media (max-width: 960px) {
+  body.pro-skin #modeler :is(#mdDocModes, .md-head > #mdModes) > button { font-size: 0; gap: 0; padding: 0 9px; min-width: 0; }
+  body.pro-skin #modeler :is(#mdDocModes, .md-head > #mdModes) > button :is(svg, i, .md-cad-icon) { width: 16px; height: 16px; font-size: 16px; display: inline-block; color: inherit !important; }
+  body.pro-skin #modeler #mdGuide { display: none; }
+}
+/* the planner's header in a narrow window: the switcher's short names, the
+   project as its icon (its name is the tooltip), Share as an icon */
+@media (max-width: 960px) {
+  body.pro-skin #topbar .pr-editors .pr-ed-full { display: none !important; }
+  body.pro-skin #topbar .pr-editors .pr-ed-short { display: inline !important; }
+  body.pro-skin #topbar .ps-project-name { display: none; }
+  body.pro-skin #topbar .ps-share { font-size: 0; width: 32px; padding: 0; justify-content: center; flex: none; }
+  body.pro-skin #topbar .ps-share > span { display: none; }
+  body.pro-skin #topbar .ps-share i { display: inline-block !important; font-size: 16px; }
+}

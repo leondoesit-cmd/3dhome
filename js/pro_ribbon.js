@@ -309,6 +309,15 @@ function fillRibbon(host, editor, tabIndex, key) {
   });
   store(key, String(i));
   syncActive();
+  if (host.classList.contains("pr-editor-ribbon")) fitEditorRows(host);
+}
+/* The editors' ribbons stack their tools in two rows; when a narrower window
+   would push tools off the end, a third row takes them instead. */
+function fitEditorRows(el) {
+  var body = el.querySelector(".pr-groups");
+  if (!body || !body.clientWidth) return;
+  if (el.classList.contains("pr-rows3")) el.classList.remove("pr-rows3");
+  if (body.scrollWidth > body.clientWidth + 1) el.classList.add("pr-rows3");
 }
 
 /* The model editor's and cabinet designer's ribbon in the Round-6 layout:
@@ -346,6 +355,16 @@ function mountEditorRibbon(editor, root) {
     else { var q = root.querySelector("#cbSearch"); if (q) q.focus(); }
   });
   fillRibbon(el, editor, +(store(key) || 0), key);
+  if (typeof ResizeObserver === "function") {
+    var lastW = 0;
+    new ResizeObserver(function () {
+      if (el.clientWidth === lastW) return;
+      lastW = el.clientWidth;
+      // next frame: changing the ribbon's height inside the observer's own
+      // callback is a "ResizeObserver loop" error, which the app reports
+      requestAnimationFrame(function () { fitEditorRows(el); });
+    }).observe(el);
+  }
   placeEditorChrome(proDesk());
   /* The armed command lives on the editor's own (hidden) buttons, which mark
      it with .on: follow their class changes, a frame at a time. */
@@ -922,7 +941,10 @@ function mountPlannerShell() {
    with the layout — the search field, the workflow row that becomes the
    canvas-edge strip — returns to where it came from on a phone or a narrow
    window, so the compact layouts see the page they were built for. */
-var DESK = typeof matchMedia === "function" ? matchMedia("(min-width: 1024px)") : null;
+/* Every window that is not a compact one (js/chrome_posture.js: a mouse
+   window over 500px) wears this layout: from 501 to 1023px it used to fall
+   back to the classic chrome, so narrowing a desktop window changed design. */
+var DESK = typeof matchMedia === "function" ? matchMedia("(min-width: 501px)") : null;
 // localStorage mf.proSkin = "0" keeps the classic desktop layout (and is how
 // the browser tests of that layout's own chrome — the plan's floating tool
 // strip, the stacked split — still reach it)
