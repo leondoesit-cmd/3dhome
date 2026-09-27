@@ -923,8 +923,7 @@ function mountPlannerShell() {
        view mode (the centre canvas's classes), and the plan's own tool panels. */
     var refit = function () { requestAnimationFrame(fitPlannerBar); };
     window.addEventListener("resize", refit);
-    // the cabinet's size fields choose their row by the room there is
-    window.addEventListener("resize", function () { placeEditorChrome(proDesk()); });
+
     if (window.MutationObserver) {
       if (canvas) new MutationObserver(function () { refit(); placeDesk(); }).observe(canvas, { attributes: true, attributeFilter: ["class"] });
       var tools = document.getElementById("plan-tools");
@@ -1017,11 +1016,9 @@ function placeEditorChrome(on) {
   if (cb) placeCabChrome(cb, on && !phone);
 }
 /* The cabinet designer's rows, desktop layout:
-   - the size fields ride on the ribbon's tabs row, right of Design · View ·
-     Review · Production, and drop back to their own row only when that row
-     has no room for them;
    - the second row is one line: the drawing tools (Select, partitions,
-     erase), then the door-opening preview and Show doors;
+     erase), the size fields, then the door-opening preview and Show doors
+     (it wraps only when the window is too narrow for one line);
    - the AI / Cmd bar sits in a bottom bar with the status line, as in the
      planner and the model editor.
    Everything goes home on a phone, a fold or the classic layout. */
@@ -1051,13 +1048,8 @@ function placeCabChrome(cb, on) {
     relocate(bar, foot);
     relocate(status, foot);
   }
-  if (size && tabsRow) {
-    relocate(size, tabsRow);
-    // no room beside the tabs (the row, or the tabs themselves, would have to
-    // give way): back to its own row
-    var tabList = tabsRow.querySelector(".pr-tabs");
-    if (tabsRow.scrollWidth > tabsRow.clientWidth + 1 || (tabList && tabList.scrollWidth > tabList.clientWidth + 1)) relocate(size, null);
-  }
+  // the size fields stay in the second row (their home), between the tools and the preview
+  if (size && tabsRow && size.parentElement === tabsRow) relocate(size, null);
 }
 /* In this layout the model's view list is a column of icons: each button
    keeps its name as a tooltip and an accessible name. */

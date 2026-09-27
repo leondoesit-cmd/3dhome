@@ -1140,6 +1140,24 @@ body.pro-skin #cabdes .cb-context-bar .cb-cb { white-space: nowrap; }
   body.pro-skin #cabdes .cb-number, body.pro-skin #cabdes .cb-number input { width: auto; }
 }
 body.pro-skin #cabdes .pr-editor-ribbon .pr-bar > .pr-tabs { flex: none; }
-/* no room on the tabs row: the size fields take a line of their own above the tools */
-body.pro-skin #cabdes .cb-context-bar:has(> .cb-size-group) { flex-wrap: wrap; height: auto; row-gap: 4px; padding-block: 6px !important; }
-body.pro-skin #cabdes .cb-context-bar > .cb-size-group { order: -2; flex-basis: 100%; margin-inline-start: 0; padding: 0; height: 32px; }
+/* the second row: tools · size · preview · Show doors, one line; it wraps
+   (keeping that order) only when the window is too narrow */
+body.pro-skin #cabdes .cb-context-bar { flex-wrap: wrap; height: auto; min-height: 46px; row-gap: 4px; padding-block: 5px !important; overflow: visible; }
+body.pro-skin #cabdes .cb-context-bar > #cbTools { order: -3; }
+body.pro-skin #cabdes .cb-context-bar > .cb-size-group { order: -2; margin-inline-start: 0; padding: 0; height: 36px; }
+body.pro-skin #cabdes .cb-context-bar > .cb-preview-group { order: -1; }
+body.pro-skin #cabdes .cb-size-group .cb-scope-note select { width: auto !important; min-width: 118px; padding-inline: 8px 24px; }
+/* one line at a desktop width: the scope's caption becomes the select's own
+   tooltip, the four preview stops show their marks only (each keeps its title) */
+body.pro-skin #cabdes .cb-context-bar .cb-scope-note { font-size: 0 !important; gap: 0; }
+body.pro-skin #cabdes .cb-context-bar .cb-scope-note select { font-size: 12px; }
+body.pro-skin #cabdes .cb-context-bar .cb-chip-stage {
+  display: inline-block; width: 30px; padding: 0 0 0 7px !important; overflow: hidden; white-space: nowrap; text-align: start; font-size: 13px !important; line-height: 26px;
+}
+body.pro-skin #cabdes .cb-context-bar .cb-size-group .cb-number { width: auto !important; min-width: 0 !important; flex: none; gap: 2px; padding-inline-end: 6px; }
+body.pro-skin #cabdes .cb-context-bar .cb-size-group .cb-number input { width: 54px !important; min-width: 0 !important; }
+body.pro-skin #cabdes .cb-context-bar .cb-size-group .cb-dims { gap: 10px; }
+body.pro-skin #cabdes .cb-context-bar > #cbTools > button { padding: 0 8px; }
+body.pro-skin #cabdes .cb-context-bar .cb-size-group .cb-dims { gap: 6px; }
+body.pro-skin #cabdes .cb-context-bar #cbOpen { width: 88px; }
+body.pro-skin #cabdes .cb-context-bar { column-gap: 10px; }

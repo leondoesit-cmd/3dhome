@@ -81,7 +81,7 @@ function buildDOM() {
     "</div></div>" +
     '<div class="cb-context-bar">' +
     '<div class="cb-control-group cb-size-group"><span class="cb-group-title">' + T("cabinetSize") + '</span>' +
-    '<label class="cb-scope-note">' + T("editScope") + '<select id="cbEditScope"><option value="instance">' + T("scopeInstance") + '</option><option value="linked">' + T("scopeLinked") + '</option></select></label><div class="cb-dims">' +
+    '<label class="cb-scope-note">' + T("editScope") + '<select id="cbEditScope" title="' + T("editScope") + '"><option value="instance">' + T("scopeInstance") + '</option><option value="linked">' + T("scopeLinked") + '</option></select></label><div class="cb-dims">' +
     '<label><span>' + T("width") + '</span><span class="cb-number"><input id="cbW" type="number" inputmode="decimal"><em>' + displayUnit("furniture") + '</em></span></label>' +
     '<label><span>' + T("depth") + '</span><span class="cb-number"><input id="cbD" type="number" inputmode="decimal"><em>' + displayUnit("furniture") + '</em></span></label>' +
     '<label><span>' + T("height") + '</span><span class="cb-number"><input id="cbH" type="number" inputmode="decimal"><em>' + displayUnit("furniture") + '</em></span></label>' +
