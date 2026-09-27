@@ -643,3 +643,48 @@ body.pro-compact.m-sheet-open #modeler .md-tour-card { top: calc(var(--md-head-b
 .pr-every-panel .pe-tools button span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pr-every-panel .pe-tools button kbd { font: 10px ui-monospace, Consolas, monospace; color: #9aa1ad; background: none; border: 0; }
 .pr-every-panel .pe-none { grid-column: 1 / -1; margin: 40px auto; text-align: center; color: #596172; font-size: 13px; }
+
+/* the same inspector on phones and folds (screen v6-*-pinsp) */
+body.pro-compact #right-inspector .wi-head { padding: 2px 0 0; }
+body.pro-compact #right-inspector .wi-identity { gap: 8px; }
+body.pro-compact #right-inspector .wi-identity .wi-id,
+body.pro-compact #right-inspector #selname { font-size: 14px; font-weight: 700; color: var(--text-main); }
+body.pro-compact #right-inspector .wi-phase { height: 18px; padding: 0 6px; border-radius: 5px; font: 600 10px/18px var(--pro-mono); letter-spacing: 0.04em; text-transform: uppercase; }
+body.pro-compact #right-inspector .insp-meta { font-size: 11.5px; color: var(--text-muted); }
+body.pro-compact #right-inspector .wi-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+body.pro-compact #right-inspector .wi-chip {
+  min-height: 0; padding: 6px 8px; gap: 1px; border: 0; border-radius: 8px; background: var(--btn-bg); box-shadow: none;
+  display: flex; flex-direction: column-reverse; align-items: flex-start;
+}
+body.pro-compact #right-inspector .wi-chip-v { font: 700 12px/1.3 var(--pro-mono); color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+body.pro-compact #right-inspector .wi-chip-k { font-size: 10.5px; color: var(--text-muted); text-transform: none; letter-spacing: 0; }
+body.pro-compact #right-inspector .wi-chip-sub { display: none; }
+body.pro-compact #right-inspector .wi-tabs {
+  display: flex; gap: 2px; height: auto; padding: 3px; border-radius: 9px; background: var(--btn-bg); border: 0; box-shadow: none;
+}
+body.pro-compact #right-inspector .wi-tabs > button {
+  flex: 1 1 0; min-width: 0; height: 28px; min-height: 0; padding: 0 4px; display: flex; flex-direction: row; align-items: center; justify-content: center;
+  border: 0; border-radius: 7px; background: transparent; color: var(--text-muted); box-shadow: none; font-size: 12px; font-weight: 600;
+}
+body.pro-compact #right-inspector .wi-tabs > button > i { display: none; }
+body.pro-compact #right-inspector .wi-tabs > button > span:not(.wi-tab-badge) { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.pro-compact #right-inspector .wi-tabs > button.active { background: #fff; color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.12); }
+body.pro-compact #right-inspector .con-block { padding: 8px 0 0; border: 0; background: transparent; box-shadow: none; }
+body.pro-compact #right-inspector .con-head { padding: 0 0 4px; gap: 6px; }
+body.pro-compact #right-inspector .con-head i { display: none; }
+body.pro-compact #right-inspector .con-head .t { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--pro-faint); }
+/* label | value: each field a two-column row over a hairline */
+body.pro-compact #right-inspector .dim-row { display: flex; flex-direction: column; gap: 0; }
+body.pro-compact #right-inspector .dim-row > label {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 8px;
+  min-height: 34px; margin: 0; border-bottom: 1px solid var(--border-color); font-size: 12.5px;
+}
+body.pro-compact #right-inspector .dim-row > label > span { color: var(--text-muted); font-size: 12.5px; text-transform: none; letter-spacing: 0; }
+body.pro-compact #right-inspector input[type="text"],
+body.pro-compact #right-inspector input[type="number"],
+body.pro-compact #right-inspector select {
+  height: 28px; padding: 0 8px; border: 1px solid var(--border-color); border-radius: 7px; background: #fff;
+  font: 600 12.5px/1 var(--pro-mono); color: var(--text-main); box-shadow: none;
+}
+body.pro-compact #right-inspector input:focus,
+body.pro-compact #right-inspector select:focus { border: 2px solid var(--accent); outline: 0; padding: 0 7px; }
