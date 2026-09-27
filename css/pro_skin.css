@@ -995,3 +995,50 @@ body.pro-skin.ps-plan-docked #center-canvas.max-view-3d #view-3d > .hint { botto
 body.pro-skin .ps-plan-bar > #cad-status > #cadCoord { flex: 0 1 auto; width: auto !important; min-width: 0; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 body.pro-skin .ps-plan-bar > #cad-status > #cadToggles { flex: none; }
 body.pro-skin .ps-plan-bar > #cad-status > .ps-ai-status { min-width: 52px; }
+
+/* ==== the library, in the theme's colours ================================
+   Category glyphs in ink, not the accent blue; the pane is the catalog only:
+   the model editor is on the editor switch, a new cabinet on the ribbon. */
+:is(body.pro-skin, body.pro-compact) #left-sidebar :is(.furn-item i, .furn-nav-icon, .furn-cat i) { color: var(--text-main) !important; }
+:is(body.pro-skin, body.pro-compact) #left-sidebar :is(#openModelerBtn, #cabNewBtn) { display: none !important; }
+:is(body.pro-skin, body.pro-compact) #left-sidebar #editModelBtn {
+  border-radius: 9px; background: var(--btn-bg); border: 0; color: var(--text-main); box-shadow: none;
+}
+:is(body.pro-skin, body.pro-compact) #left-sidebar .furn-item:hover { background: var(--btn-bg); }
+
+/* ==== the model editor's saved models: a picture on every card ========== */
+#modeler .md-card-top .md-card-thumb {
+  width: 44px; height: 44px; flex: none; border-radius: 8px; object-fit: contain;
+  background: color-mix(in srgb, var(--text-main) 4%, var(--pro-surface, var(--bg-panel)));
+}
+#modeler .md-card-top .md-card-thumb-empty { display: inline-flex; align-items: center; justify-content: center; }
+#modeler .md-card-top .md-card-thumb-empty i { font-size: 18px; color: var(--text-muted); }
+#modeler .md-card-top:has(.md-card-thumb) { gap: 10px; font-weight: 600; }
+
+/* ==== the AI / Cmd bar, one calm field ==================================
+   One grey pill: a quiet AI | Cmd switch, the text, All commands as a plain
+   icon button after a hairline, the mic. No box inside the box. */
+body.pro-skin .ps-cmdbar { border: 0; }
+body.pro-skin .ps-cmdbar > .ps-modes { padding: 2px; border-radius: 15px; background: transparent; gap: 1px; }
+body.pro-skin .ps-cmdbar > .ps-modes button { height: 28px; padding: 0 10px; border-radius: 14px; color: var(--text-muted); font-weight: 600; background: transparent; box-shadow: none; }
+body.pro-skin .ps-cmdbar > .ps-modes button.on { background: var(--pro-surface, var(--bg-panel)); color: var(--text-main); box-shadow: 0 1px 2px rgba(16, 21, 34, 0.14); }
+body.pro-skin .ps-cmdbar > .ps-cmd-input,
+body.pro-skin .ps-cmdbar > .ps-cmd-input:focus {
+  border: 0 !important; background: transparent !important; box-shadow: none !important; outline: none; border-radius: 0; padding: 0 4px; min-height: 0; height: 30px;
+}
+body.pro-skin .ps-cmdbar .ps-allcmds {
+  height: 28px; padding: 0 10px 0 11px; border-radius: 14px; background: transparent; box-shadow: none; color: var(--text-muted); font-weight: 600; position: relative;
+}
+body.pro-skin .ps-cmdbar .ps-allcmds::before {
+  content: ""; position: absolute; inset-inline-start: -2px; top: 7px; bottom: 7px; width: 1px; background: var(--border-color);
+}
+body.pro-skin .ps-cmdbar .ps-allcmds:hover { background: var(--pro-surface, var(--bg-panel)); color: var(--text-main); }
+body.pro-skin .ps-cmdbar .ps-mic { flex: none; }
+
+/* the planner's bottom bar carries no AI chip: AI turns on from the bar's AI side */
+body.pro-skin .ps-plan-bar > #cad-status > .ps-ai-status { display: none !important; }
+/* a narrow planner: the AI bar takes the whole width, the snap toggles step aside (F3 / F8 / F9 still work) */
+@container planbar (max-width: 700px) {
+  body.pro-skin .ps-plan-bar > #cad-status { display: none !important; }
+  body.pro-skin .ps-plan-bar > .ps-cmdbar { width: 100% !important; min-width: 0; }
+}

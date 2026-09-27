@@ -54,6 +54,7 @@ import { render as gpuRender } from "./gpu.js";
 import { S, uid, clamp, fin, hexStr } from "./state.js";
 import { nextDocumentNumericId } from "./core/document_ids.js";
 import { FURN, PRICE, CATALOG, flabel, clearVSpanCache, buildItem } from "./furniture.js";
+import { modelThumb, hasThumb, loadThumbCache } from "./thumbs.js";
 import { usedCustomModels, refreshCatalogSelect } from "./model_catalog.js";
 import { reportEditorOpenState } from "./modeler_launch.js";
 import {
@@ -22522,8 +22523,41 @@ function libraryTransferButtons(host) {
   host.appendChild(btn('<i class="ph ph-download-simple"></i> ' + t("importLibrary"), importLibraryJson, "md-wide"));
 }
 
+/* A saved model's card shows the model, the same picture as its planner
+   library tile (js/thumbs.js renders it once and stores it; the warm-up there
+   has usually made it before the list is opened). A picture not made yet is
+   filled in a moment later, one per tick, so the list never waits on WebGL. */
+var libThumbQueue = [], libThumbTimer = 0;
+function libThumb(type, icon) {
+  if (type && FURN[type] && hasThumb(type)) {
+    var url = modelThumb(type);
+    if (url) { var img = el("img", "md-card-thumb"); img.src = url; img.alt = ""; return img; }
+  }
+  var box = el("span", "md-card-thumb md-card-thumb-empty");
+  box.appendChild(el("i", "ph " + icon));
+  if (type && FURN[type]) {
+    libThumbQueue.push({ box: box, type: type });
+    if (!libThumbTimer) libThumbTimer = setTimeout(fillLibThumbs, 0);
+  }
+  return box;
+}
+function fillLibThumbs() {
+  libThumbTimer = 0;
+  loadThumbCache().then(function () {
+    var job = libThumbQueue.shift(), wait = 16;
+    if (job && job.box.isConnected) {
+      var url = modelThumb(job.type);
+      if (url) { var img = el("img", "md-card-thumb"); img.src = url; img.alt = ""; job.box.replaceWith(img); }
+      // the renderer was still starting (nothing stored): ask again shortly
+      else if (!hasThumb(job.type) && (job.tries = (job.tries || 0) + 1) < 40) { libThumbQueue.push(job); wait = 150; }
+    }
+    if (libThumbQueue.length) libThumbTimer = setTimeout(fillLibThumbs, wait);
+  });
+}
+
 function refreshLib() {
   var host = root.querySelector("#mdLib");
+  libThumbQueue = [];
   host.innerHTML = "";
   if (E.docType === "assembly") {
     host.appendChild(btn('<i class="ph ph-file-plus"></i> ' + t("newAssembly"), newModel, "md-wide md-dashed"));
@@ -22534,7 +22568,10 @@ function refreshLib() {
     assemblies.forEach(function (assembly) {
       var card = el("div", "md-card" + (E.assembly && assembly.key === E.assembly.key ? " on" : ""));
       var top = el("div", "md-card-top");
-      top.appendChild(el("i", "ph ph-stack"));
+      // the combined model once published to the room library, else its first part
+      var first = (assembly.components || [])[0];
+      var pic = FURN["cm_" + assembly.key] ? "cm_" + assembly.key : first && first.modelKey;
+      top.appendChild(libThumb(pic, "ph-stack"));
       top.appendChild(el("span", "nm", assembly.name || assembly.key)); card.appendChild(top);
       card.appendChild(el("div", "md-card-note",
         countLabel((assembly.components || []).length, "assemblyComponentOne", "assemblyComponents") + " · " +
@@ -22575,7 +22612,7 @@ function refreshLib() {
     var card = el("div", "md-card" + (m.key === E.def.key ? " on" : ""));
     card.title = t("load");
     var top = el("div", "md-card-top");
-    top.appendChild(el("i", "ph ph-cube"));
+    top.appendChild(libThumb(m.key, "ph-cube"));
     top.appendChild(el("span", "nm", m.name || m.key));
     card.appendChild(top);
     card.appendChild(el("div", "md-card-note",

@@ -21,7 +21,29 @@ function dir() {
   return (DIR ||= new THREE.Vector3(0.58, 0.5, 0.86).normalize());
 }
 
-const cache = new Map(); // type -> data URL (or "" when the model won't render)
+const cache = new Map(); // cache key -> data URL (or "" when the model won't render)
+
+/* The cache key: a catalog type for the built-in pieces (their look only
+   changes with the code, which bumps THUMB_DB), and for a saved custom model
+   its type plus a fingerprint of its definition — an edited model gets a new
+   picture, an unchanged one keeps its stored picture across loads and across
+   every "catalogUpdated" (which used to throw the whole store away). */
+const sigs = new WeakMap();
+function fingerprint(def) {
+  let s = sigs.get(def);
+  if (s) return s;
+  let text = "";
+  try { text = JSON.stringify(def) || ""; } catch (e) { text = String(Date.now()); }
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  s = (h >>> 0).toString(36) + "." + text.length.toString(36);
+  sigs.set(def, s);
+  return s;
+}
+function keyOf(type) {
+  const f = FURN[type];
+  return f && f.custom && typeof f.custom === "object" ? type + "#" + fingerprint(f.custom) : type;
+}
 const THUMB_DB = "home3d_thumbnails_v5";
 const THUMB_STORE = "images";
 
@@ -39,8 +61,10 @@ async function hydratePersistentCache() {
   return new Promise((resolve) => {
     const tx = database.transaction(THUMB_STORE, "readonly");
     const req = tx.objectStore(THUMB_STORE).getAll();
+    // every stored picture: a custom model's key is not in FURN until the
+    // editor registers it, and its fingerprint decides whether it still fits
     req.onsuccess = () => (req.result || []).forEach((entry) => {
-      if (FURN[entry.type] && !cache.has(entry.type)) cache.set(entry.type, entry.url || "");
+      if (entry && entry.type && !cache.has(entry.type)) cache.set(entry.type, entry.url || "");
     });
     tx.oncomplete = () => { database.close(); resolve(); };
     tx.onerror = () => { database.close(); resolve(); };
@@ -134,7 +158,8 @@ function render(g, type) {
 // renderFurnUI() re-runs on every search keystroke, nav step and language
 // change, and a re-render per keystroke would stutter the panel.
 export function modelThumb(type) {
-  const hit = cache.get(type);
+  const key = keyOf(type);
+  const hit = cache.get(key);
   if (hit !== undefined) return hit;
   let url = "";
   const g = gl();
@@ -149,21 +174,63 @@ export function modelThumb(type) {
     }
     clearGroup(g.root); // the model is one-shot: free its GPU buffers now
   }
-  cache.set(type, url);
-  persistThumb(type, url).catch(() => {});
+  cache.set(key, url);
+  persistThumb(key, url).catch(() => {});
   return url;
 }
 
 export function hasThumb(type) {
-  return cache.get(type) !== undefined;
+  return cache.get(keyOf(type)) !== undefined;
 }
 
-// A new or edited custom model may have changed its look.
+/* A new or edited custom model may have changed its look. Nothing to throw
+   away: its fingerprint changed with it, so it is simply rendered afresh
+   (by the warm-up below, or when a tile asks). */
 export function clearThumbCache() {
-  cache.clear();
-  thumbDB().then((database) => {
-    const tx = database.transaction(THUMB_STORE, "readwrite");
-    tx.objectStore(THUMB_STORE).clear();
-    tx.oncomplete = () => database.close();
-  }).catch(() => {});
+  prewarmThumbs();
+}
+
+/* ---- the warm-up --------------------------------------------------------
+   Every library picture is made ahead of time, in the background, once the
+   page has loaded: a few at a time in idle moments, never in the middle of a
+   frame someone is waiting on, and stored (IndexedDB above), so the library,
+   the model editor's saved models and the pickers open with their pictures
+   already there. Pieces added later (a model saved in the editor, a project
+   bringing its own) are picked up the same way. */
+let warmQueue = [], warming = false, warmAsked = false;
+const idle = typeof requestIdleCallback === "function"
+  ? (fn) => requestIdleCallback(fn, { timeout: 1500 })
+  : (fn) => setTimeout(() => fn({ timeRemaining: () => 10, didTimeout: false }), 60);
+function warmStep(deadline) {
+  if (!warmQueue.length) { warming = false; return; }
+  const g = gl();
+  if (!g) {
+    // the renderer is still coming up (it announces "thumbsReady"), or there is no GPU
+    warming = false;
+    if (offscreenPending()) warmAsked = true;
+    return;
+  }
+  const t0 = performance.now();
+  // one piece at least per slice, more while the browser says it is idle
+  do {
+    const type = warmQueue.shift();
+    if (type && FURN[type] && !hasThumb(type)) modelThumb(type);
+  } while (warmQueue.length && performance.now() - t0 < 12 && (deadline.didTimeout || deadline.timeRemaining() > 8));
+  if (warmQueue.length) idle(warmStep);
+  else warming = false;
+}
+export function prewarmThumbs() {
+  if (typeof document === "undefined") return;
+  loadThumbCache().then(() => {
+    warmQueue = Object.keys(FURN).filter((type) => !hasThumb(type));
+    if (!warmQueue.length || warming) return;
+    warming = true;
+    idle(warmStep);
+  });
+}
+if (typeof window !== "undefined") {
+  window.addEventListener("thumbsReady", () => { if (warmAsked) { warmAsked = false; prewarmThumbs(); } });
+  const start = () => setTimeout(prewarmThumbs, 1200);
+  if (document.readyState === "complete") start();
+  else window.addEventListener("load", start, { once: true });
 }

@@ -22,7 +22,9 @@ test('Add remains visible and launches the editor after reload and drawer dismis
   await page.eval(()=>document.querySelector('#mobile-nav [data-mnav="add"]').click());
   assert.equal(await page.eval(()=>document.body.classList.contains('show-left')),true,'first tap must reopen the dismissed drawer');
   await page.eval(()=>new Promise(r=>setTimeout(r,300)));
-  const hit=await page.eval(()=>{const button=document.getElementById('openModelerBtn'),r=button.getBoundingClientRect();return {rect:{x:r.x,y:r.y,w:r.width,h:r.height},hits:document.elementsFromPoint(r.x+r.width/2,r.y+r.height/2).slice(0,4).map(x=>x.id||x.className),pane:document.getElementById('left-sidebar').dataset.left,visible:r.width>0&&r.height>0&&r.top>=0&&r.bottom<=innerHeight,reachable:button.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))};});
+  // The Round-6 phone library is the catalog only (the model editor is on the
+  // header knob), so what must be reachable is the library itself: its search.
+  const hit=await page.eval(()=>{const button=document.getElementById('furnSearch'),r=button.getBoundingClientRect();return {rect:{x:r.x,y:r.y,w:r.width,h:r.height},hits:document.elementsFromPoint(r.x+r.width/2,r.y+r.height/2).slice(0,4).map(x=>x.id||x.className),pane:document.getElementById('left-sidebar').dataset.left,visible:r.width>0&&r.height>0&&r.top>=0&&r.bottom<=innerHeight,reachable:button.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))};});
   assert.equal(hit.pane,'library');assert.equal(hit.visible,true);assert.equal(hit.reachable,true,JSON.stringify(hit));
   await page.eval(()=>document.getElementById('openModelerBtn').click());
   await page.waitUntil(()=>!!document.getElementById('modeler')&&getComputedStyle(document.getElementById('modeler')).display!=='none');
